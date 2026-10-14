@@ -1,3 +1,4 @@
+import { Skeleton } from '@gruenerator/ui';
 import { Slider } from 'radix-ui';
 import React, { useEffect, useRef } from 'react';
 import { FaTrash, FaCopy } from 'react-icons/fa';
@@ -16,10 +17,10 @@ import {
   type KawaiiProps,
 } from 'react-kawaii';
 
-import { Skeleton } from '@gruenerator/ui';
-
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
+import { CustomColorSwatch } from '../../components/CustomColorSwatch';
 import { usePaginatedIllustrations } from '../../hooks/usePaginatedIllustrations';
+import { cn } from '../../utils/cn';
 import { getIllustrationPath, getIllustrationThumbPath } from '../../utils/illustrations/registry';
 import { onThumbnailHover, onThumbnailLeave } from '../../utils/illustrations/svgCache';
 import { ILLUSTRATION_COLORS } from '../../utils/illustrations/types';
@@ -33,6 +34,8 @@ import {
   SIDEBAR_SECTION,
 } from '../sidebarStyles';
 
+import { IllustrationThumb } from './IllustrationThumb';
+
 import type {
   IllustrationInstance,
   KawaiiMood,
@@ -41,9 +44,6 @@ import type {
   SvgDef,
   IllustrationDef,
 } from '../../utils/illustrations/types';
-
-import { cn } from '../../utils/cn';
-import { IllustrationThumb } from './IllustrationThumb';
 
 const PREVIEW_COMPONENTS: Record<KawaiiIllustrationType, React.FunctionComponent<KawaiiProps>> = {
   planet: Planet,
@@ -252,6 +252,13 @@ export function IllustrationenSection({
                     title={color.label}
                   />
                 ))}
+                <CustomColorSwatch
+                  value={selectedIllustration.color}
+                  presets={ILLUSTRATION_COLORS.map((color) => color.color)}
+                  onPick={(color) => onUpdateIllustration(selectedIllustration.id, { color })}
+                  className="size-7"
+                  outlineOffset={3}
+                />
               </div>
             </div>
           )}

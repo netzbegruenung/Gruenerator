@@ -40,7 +40,7 @@ import {
   type ForbiddableArtifact,
 } from '../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
-import { updateCard } from '../../../services/boards/boardCardWriteService.js';
+import { BoardCardError, updateCard } from '../../../services/boards/boardCardWriteService.js';
 import {
   listUserBoards,
   loadBoardState,
@@ -75,6 +75,8 @@ import {
   listRecentThreads,
   resolveSpaceThreadIds,
 } from '../services/pastChatRecallService.js';
+
+import { confirmGate } from './confirmGate.js';
 
 import type {
   ChatGraphState,
@@ -477,13 +479,15 @@ NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umben
 
       if (action === 'delete') {
         if (!match) return { error: 'Dokument nicht gefunden oder kein Zugriff.' };
-        // Kein Mensch am Lauf: der `confirm=true`-Zweischritt bestätigt sich hier
-        // selbst, und die Karte, die fragen würde, ginge an einen stummen Sink.
-        if (!threadId) return { error: 'Löschen ist in diesem Kontext nicht möglich.' };
-        if (!confirm) {
-          const ask = `Soll das Dokument „${match.title}" wirklich gelöscht werden? Frage die Person und rufe delete erst mit confirm=true erneut auf.`;
-          groundNote(sourceRegistry, 'Bestätigung nötig', ask);
-          return { needsConfirmation: true, note: ask };
+        const stop = confirmGate({
+          state,
+          threadId,
+          confirm,
+          question: `Soll das Dokument „${match.title}" wirklich gelöscht werden?`,
+        });
+        if (stop) {
+          if ('note' in stop) groundNote(sourceRegistry, 'Bestätigung nötig', stop.note);
+          return stop;
         }
         const runQuery: QueryRunner = <T>(sql: string, params?: unknown[]) =>
           db.query(sql, params) as Promise<T[]>;
@@ -575,6 +579,8 @@ const READ_KIND_FOR_ARTIFACT: Record<ThreadToolContext['kind'], ArtifactReadKind
   sheet: 'sheet',
   board: 'board',
   pdf: 'pdf',
+  // Eine fertige Erklärseite, kein lesbares Arbeitsdokument — kein Leser.
+  explainable: null,
   image: null,
   sharepic: null,
   mcp: null,
@@ -871,8 +877,13 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
         groundNote(sourceRegistry, 'Karte bearbeitet', note);
         return { ok: true, note };
       } catch (err) {
+        // Not through the media mapper: its "nicht gefunden" rule turned a wrong
+        // card id into „Die Datei wurde nicht mehr gefunden" (live 11.10.2026).
         return {
-          error: toUserFacingMessage(err, 'Karte konnte nicht bearbeitet werden.'),
+          error:
+            err instanceof BoardCardError
+              ? err.refusal
+              : toUserFacingMessage(err, 'Karte konnte nicht bearbeitet werden.'),
         };
       }
     },
@@ -1019,15 +1030,13 @@ TYPISCHER ABLAUF für "such das Reel zu Thema X und schreib eine Caption": erst 
 
       // delete
       if (!ref) return { error: 'delete braucht ref (aus der Liste).' };
-      // Kein Mensch am Lauf: der `confirm=true`-Zweischritt bestätigt sich hier
-      // selbst, und die Karte, die fragen würde, ginge an einen stummen Sink.
-      if (!threadId) return { error: 'Löschen ist in diesem Kontext nicht möglich.' };
-      if (!confirm) {
-        return {
-          needsConfirmation: true,
-          note: 'Soll dieses Medium wirklich gelöscht werden? Frage die Person und rufe delete erst mit confirm=true erneut auf.',
-        };
-      }
+      const stop = confirmGate({
+        state,
+        threadId,
+        confirm,
+        question: 'Soll dieses Medium wirklich gelöscht werden?',
+      });
+      if (stop) return stop;
       const [kind, handle] = ref.split(':', 2);
       if (kind === 'reel') {
         const result = await getSubtitlerProjectService().trashProject(userId, handle);

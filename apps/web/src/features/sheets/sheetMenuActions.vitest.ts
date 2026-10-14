@@ -108,13 +108,11 @@ describe('createSheetMenuActions', () => {
     actions.openDataValidation();
     actions.openConditionalFormatting();
     actions.openFindReplace();
-    actions.openZen();
     actions.toggleCrosshair();
     expect(executeCommand.mock.calls.map((c) => c[0])).toEqual([
       SHEET_MENU_COMMAND_IDS.dataValidation,
       SHEET_MENU_COMMAND_IDS.conditionalFormatting,
       SHEET_MENU_COMMAND_IDS.findReplace,
-      SHEET_MENU_COMMAND_IDS.zen,
       SHEET_MENU_COMMAND_IDS.crosshair,
     ]);
   });

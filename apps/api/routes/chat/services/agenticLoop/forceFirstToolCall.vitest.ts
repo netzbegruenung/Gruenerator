@@ -807,6 +807,24 @@ describe('forcedFirstStepTools', () => {
     expect(result).not.toContain('find_content');
   });
 
+  it('named_intent im Notebook-Thread: die Notebook-Quellen sind dabei', () => {
+    expect(
+      tools({
+        reason: 'named_intent',
+        intent: 'research',
+        mounted: [...MOUNTED, 'notebook_quellen'],
+        threadNotebook: true,
+      })
+    ).toContain('notebook_quellen');
+    expect(
+      tools({
+        reason: 'named_intent',
+        intent: 'research',
+        mounted: [...MOUNTED, 'notebook_quellen'],
+      })
+    ).not.toContain('notebook_quellen');
+  });
+
   it('named_intent: bundestag → bundestag', () => {
     expect(tools({ reason: 'named_intent', intent: 'bundestag' })).toEqual(['bundestag']);
   });
@@ -920,5 +938,63 @@ describe('followup-Zweig: Frage über die eigene vorige Abrufhandlung', () => {
   // Trägt der research_order-Zweig; wichtig ist nur, dass es weiter zwingt.
   it('„such nochmal genauer" zwingt weiter', () => {
     expect(force({ ...afterLookup, lastUserText: 'such nochmal genauer' })).not.toBeNull();
+  });
+});
+
+// Live 11.10.2026: „Schreib noch „Jetzt Petition unterschreiben" mit drauf"
+// beantwortete der Ausweich-Planer ohne Werkzeug.
+describe('sharepic_order', () => {
+  it('verlangt einen Aufruf, wenn der Auftrag das Sharepic meint', () => {
+    expect(shouldForceFirstToolCall({ ...base, sharepicOrder: true })).toBe('sharepic_order');
+    expect(shouldForceFirstToolCall({ ...base, sharepicOrder: false })).toBeNull();
+  });
+
+  it('weicht wie alle Wege dem Recherche-Bann', () => {
+    expect(
+      shouldForceFirstToolCall({ ...base, researchBanned: true, sharepicOrder: true })
+    ).toBeNull();
+  });
+
+  it('der erzwungene Schritt sieht nur die gemounteten Sharepic-Werkzeuge', () => {
+    expect(
+      forcedFirstStepTools({
+        reason: 'sharepic_order',
+        intent: 'agentic',
+        mounted: ['web_search', 'edit_sharepic', 'read_sharepic'],
+        mcpToolNames: [],
+        priorToolNames: [],
+        isLookupTool: () => true,
+        attachedDocsTool: null,
+        userText: 'Prüf das Sharepic',
+      })
+    ).toEqual(['edit_sharepic', 'read_sharepic']);
+  });
+});
+
+// Live 11.10.2026: „Da fehlt noch Marburg in der Tabelle" erreichte den Loop
+// mit edit_sheet, und der Planer antwortete werkzeuglos.
+describe('artifact_edit_order', () => {
+  it('verlangt einen Aufruf, wenn der Klassifikator einen Artefakt-Auftrag erkannt hat', () => {
+    expect(shouldForceFirstToolCall({ ...base, artifactEditOrder: true })).toBe(
+      'artifact_edit_order'
+    );
+    expect(
+      shouldForceFirstToolCall({ ...base, researchBanned: true, artifactEditOrder: true })
+    ).toBeNull();
+  });
+
+  it('der erzwungene Schritt sieht nur die gemounteten Artefakt-Werkzeuge', () => {
+    expect(
+      forcedFirstStepTools({
+        reason: 'artifact_edit_order',
+        intent: 'agentic',
+        mounted: ['web_search', 'edit_sheet', 'read_sheet'],
+        mcpToolNames: [],
+        priorToolNames: [],
+        isLookupTool: () => true,
+        attachedDocsTool: null,
+        userText: 'Da fehlt noch Marburg',
+      })
+    ).toEqual(['edit_sheet', 'read_sheet']);
   });
 });

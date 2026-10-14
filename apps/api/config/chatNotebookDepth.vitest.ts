@@ -16,7 +16,7 @@ import { describe, it, expect } from 'vitest';
 
 import { MAX_SOURCES } from '../agents/langgraph/ChatGraph/nodes/citableSources.js';
 
-import { CHAT_NOTEBOOK_DEPTH, getChatNotebookProfile } from './notebookDepthProfiles.js';
+import { getChatNotebookProfile } from './notebookDepthProfiles.js';
 
 /** Spiegelt `OVERFETCH_CEILING` in `routes/chat/agents/directSearchExecutors.ts`.
  *  Nicht importiert, weil die Konstante modul-privat ist und es bleiben soll —
@@ -25,14 +25,6 @@ const OVERFETCH_CEILING = 80;
 
 describe('Chat-Turn an einem gebundenen Notebook', () => {
   const profile = getChatNotebookProfile();
-
-  it('läuft auf der Stufe, die die Notebook-Fläche voreinstellt', () => {
-    // `deep` ist dort „Mittel" und der Startwert (DEFAULT_NOTEBOOK_DEPTH).
-    // Der Chat hat keinen Regler; Gleichstand mit der Voreinstellung ist die
-    // Zusage, nicht „Chat ist die gründlichste Fläche" (das wäre `ultra`, und
-    // dessen drei Formulierungen kann im Chat niemand wählen).
-    expect(CHAT_NOTEBOOK_DEPTH).toBe('deep');
-  });
 
   it('holt mehr Kandidaten, als es am Ende Quellen gibt — sonst wählt der Reranker nicht aus', () => {
     // Der Kern des Befunds: vorher waren beide Zahlen 10, und ein Reranker,
@@ -58,11 +50,5 @@ describe('Chat-Turn an einem gebundenen Notebook', () => {
     // `buildCitableSources` schneidet bei MAX_SOURCES ab. Was der Reranker
     // darüber hinaus durchlässt, ist bezahlte Rechenzeit für nichts.
     expect(profile.rerankOutput).toBeLessThanOrEqual(MAX_SOURCES);
-  });
-
-  it('bleibt bei einer Formulierung, solange der Chat keinen Tiefen-Regler hat', () => {
-    // Hält den Preis an die Stufe gebunden: `ultra` sucht dreimal, und diese
-    // Entscheidung darf nicht durch die Hintertür in den Chat rutschen.
-    expect(profile.queryVariants).toBe(1);
   });
 });

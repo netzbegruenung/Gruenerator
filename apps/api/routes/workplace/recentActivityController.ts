@@ -4,6 +4,7 @@ import {
   type BoardType,
   type RecentActivityItem,
 } from '@gruenerator/contracts';
+import { isProfilbildShare } from '@gruenerator/shared/profilbild/saved';
 import express, { type Response, type Router } from 'express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
@@ -11,8 +12,8 @@ import { requireAuth } from '../../middleware/authMiddleware.js';
 import { CANVAS_ACCESS_WHERE, CANVAS_SUBTYPE } from '../../services/canvas/canvasRepository.js';
 import {
   buildCanvasThumbnailUrl,
+  buildReelThumbnailUrl,
   buildThumbnailTileUrl,
-  versionFromDate,
   versionFromShareRow,
 } from '../../services/media/thumbnailUrl.js';
 import { USER_VISIBLE_SHARE_STATUSES } from '../../services/sharedMediaFilters.js';
@@ -291,6 +292,9 @@ export async function fetchRecentImages(
     // the tile an instant placeholder while the /preview variant is still being
     // generated — otherwise a fresh share renders as a blank plate.
     blurhash: (row.image_metadata as { blurhash?: string } | null)?.blurhash,
+    ...(isProfilbildShare({ imageType: row.image_type, imageMetadata: row.image_metadata })
+      ? { editor: 'profilbild' as const }
+      : {}),
   }));
 }
 
@@ -330,16 +334,7 @@ export async function fetchRecentReelProjects(
       date: row.last_edited_at || row.updated_at || row.created_at,
       type: 'video' as const,
       href: `/studio/video?project=${row.id}`,
-      // The old `/api/subtitler/projects/:id/thumbnail` route sits behind
-      // requireAuth, so a native <Image> got a 401 and every reel tile stayed
-      // blank. The signed URL renders without a header.
-      thumbnailUrl: row.thumbnail_path
-        ? (buildThumbnailTileUrl(
-            'reel',
-            row.id,
-            versionFromDate(row.last_edited_at || row.updated_at)
-          ) ?? undefined)
-        : undefined,
+      thumbnailUrl: buildReelThumbnailUrl(row) ?? undefined,
       duration,
       deleteEndpoint: `/api/subtitler/projects/${row.id}`,
     };

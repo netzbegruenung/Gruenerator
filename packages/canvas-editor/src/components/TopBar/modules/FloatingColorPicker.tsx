@@ -1,8 +1,8 @@
 import React from 'react';
 
-import { BRAND_COLORS } from '../../../utils/shapes';
-
 import { cn } from '../../../utils/cn';
+import { BRAND_COLORS } from '../../../utils/shapes';
+import { CustomColorSwatch } from '../../CustomColorSwatch';
 
 interface FloatingColorPickerProps {
   currentColor: string;
@@ -115,6 +115,13 @@ export function FloatingColorPicker({
           type="button"
         />
       ))}
+      <CustomColorSwatch
+        value={currentColor}
+        presets={colorOptions.map((color) => color.value)}
+        onPick={onColorSelect}
+        className="size-8 max-canvas-mobile:size-[26px]"
+        outlineOffset={3}
+      />
     </div>
   );
 }

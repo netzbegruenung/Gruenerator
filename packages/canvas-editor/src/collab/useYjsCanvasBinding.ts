@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 
 import { useCanvasStore } from '../stores/CanvasStoreProvider';
 
-import { bindCanvasStoreToYMap } from './yjsBinding';
+import { bindCanvasStoreToYMap, seedCanvasStoreFromYMap } from './yjsBinding';
 
 import type * as Y from 'yjs';
 
@@ -15,10 +15,12 @@ export function useYjsCanvasBinding({ parent, isSynced }: Options): void {
   const store = useCanvasStore();
 
   useEffect(() => {
-    if (!parent || !isSynced) {
+    if (!parent?.doc) {
       return undefined;
     }
-    if (!parent.doc) {
+    // Before the sync the page is a read-only preview of the cached doc.
+    if (!isSynced) {
+      seedCanvasStoreFromYMap(store, parent);
       return undefined;
     }
     const binding = bindCanvasStoreToYMap({ store, parent });

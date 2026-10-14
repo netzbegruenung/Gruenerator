@@ -39,7 +39,8 @@ export const SETTINGS_TAB_MAP: Record<string, SettingsTab> = {
 // Old profile sub-pages that were never settings — keep their redirects alive.
 const PAGE_REDIRECTS: Record<string, string> = {
   gruppen: '/projekte',
-  grueneratoren: '/agentura',
+  grueneratoren: '/grueneratoren',
+  'texte-anlernen': '/grueneratoren',
 };
 
 const SettingsRedirect = () => {

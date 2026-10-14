@@ -7,7 +7,6 @@ import { useChatDrawerRuntime } from '../../hooks/useChatDrawerRuntime';
 import { useDrawerStore } from '../../hooks/useDrawerStore';
 import { lightTheme, darkTheme } from '../../theme';
 import { ThreadListDrawer } from '../chat/ThreadListDrawer';
-import { ThreadSync } from '../chat/ThreadSync';
 
 export function AppDrawer({ children }: { children: ReactNode }) {
   const colorScheme = useColorScheme();
@@ -31,6 +30,12 @@ export function AppDrawer({ children }: { children: ReactNode }) {
     return () => cancelIdleCallback(handle);
   }, []);
   const showContent = contentReady || open;
+
+  // Threads are created by each chat screen's own runtime, which this drawer
+  // runtime never hears about, so re-run list() whenever the drawer opens.
+  useEffect(() => {
+    if (open) void runtime.threads.reload();
+  }, [open, runtime]);
 
   const drawerStyle = useMemo(
     () => ({ width: drawerWidth, backgroundColor: theme.background }),
@@ -60,7 +65,6 @@ export function AppDrawer({ children }: { children: ReactNode }) {
   // it on, the pager's swipe from Chat to Arbeiten never fires.
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <ThreadSync />
       <Drawer
         open={open}
         onOpen={openDrawer}

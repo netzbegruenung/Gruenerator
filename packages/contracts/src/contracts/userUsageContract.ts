@@ -8,7 +8,11 @@
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
 
-import { getUserUsageResponseSchema, userUsageErrorResponseSchema } from '../schemas/userUsage.js';
+import {
+  getUserActivityResponseSchema,
+  getUserUsageResponseSchema,
+  userUsageErrorResponseSchema,
+} from '../schemas/userUsage.js';
 
 const c = initContract();
 
@@ -33,6 +37,19 @@ export const userUsageContract = c.router(
         500: userUsageErrorResponseSchema,
       },
       summary: "Get the current user's AI consumption statistics",
+    },
+    /**
+     * GET /api/usage/me/activity
+     * All-time counts of what the user created, plus a 365-day activity calendar.
+     */
+    getMyActivity: {
+      method: 'GET',
+      path: '/api/usage/me/activity',
+      responses: {
+        200: getUserActivityResponseSchema,
+        500: userUsageErrorResponseSchema,
+      },
+      summary: "Get the current user's created content and activity calendar",
     },
   },
   { pathPrefix: '' }

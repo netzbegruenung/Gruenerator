@@ -2,7 +2,7 @@ import { sharepicIconSchema } from '@gruenerator/contracts';
 import { icons } from '@iconify-json/tabler';
 import { describe, expect, it } from 'vitest';
 
-import { SHAREPIC_ICON_IDS, VERGLEICH_MARKER_IDS } from './sharepicIcons';
+import { SHAREPIC_ICON_FILLED, SHAREPIC_ICON_IDS, VERGLEICH_MARKER_IDS } from './sharepicIcons';
 
 describe('sharepic icons', () => {
   it.each([...sharepicIconSchema.options])(
@@ -13,6 +13,12 @@ describe('sharepic icons', () => {
       expect(icons.icons[name!] ?? icons.aliases?.[name!]).toBeDefined();
     }
   );
+
+  it('finds every solid pictogram cut in the bundled Tabler set', () => {
+    for (const id of Object.values(SHAREPIC_ICON_FILLED)) {
+      expect(icons.icons[id.replace(/^tabler:/, '')]).toBeDefined();
+    }
+  });
 
   it('finds the comparison markers in the bundled Tabler set', () => {
     for (const id of Object.values(VERGLEICH_MARKER_IDS)) {

@@ -1,41 +1,19 @@
-import { getGlobalApiClient } from '@gruenerator/shared/api';
-import {
-  DEFAULT_IMAGE_FORMAT,
-  DEFAULT_STYLE_VARIANT,
-  useKiImageGeneration,
-} from '@gruenerator/shared/image-studio';
+import { useKiImageGeneration } from '@gruenerator/shared/image-studio';
 import { useShareStore } from '@gruenerator/shared/share';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { downloadDataUrl } from '../../../utils/downloadFile';
-import { type FreitextHandoff } from '../freitext/freitextHandoff';
-import {
-  type CreatorPhoto,
-  MAX_PHOTOS,
-  photoFileProblem,
-  preparePhoto,
-} from '../freitext/sharepicPhotos';
-import {
-  detectImageElements,
-  editAiImage,
-  removeImageBackground,
-} from '../services/imageEditingService';
+import { useCyclingStatus } from '../editor-shell/useCyclingStatus';
+import { detectImageElements, editAiImage } from '../services/imageEditingService';
+import { dropTabPayload, readTabPayload } from '../tabHandoff';
+import { fileToDownscaledDataUrl } from '../utils/downscaleImage';
 
-import { buildBoxEdit, clampBox, newBoxId } from './boxEdit';
-import { type BevBox, type BevMode, type BevSettings, type BevVersion } from './types';
+import { clearBevState, loadBevState, saveBevMeta, saveBevVersions } from './bevPersistence';
+import { boxSummary, buildBoxEdit, clampBox, newBoxId } from './boxEdit';
+import { type BevBox, type BevMode, type BevVersion } from './types';
 
-/** A photo picked in „Sharepic": prepared (library upload + analysis) from the moment it is picked. */
-export interface BevPhoto {
-  id: string;
-  name: string;
-  state: 'working' | 'ready' | 'failed';
-  photo: CreatorPhoto | null;
-  error: string | null;
-}
-
-const STORAGE_KEY = 'gruenerator-bildeditor-v2';
 const MAX_PERSISTED = 12;
 
 // Maps a produced version to the imageType used by the share/recent-activity
@@ -56,120 +34,77 @@ const STATUS_TEXTS = [
   'Gleich ist es so weit …',
 ];
 
-const GREEN_DEFAULT_INSTRUCTION =
-  'Verwandle diese Szene in einen grünen, lebenswerten Raum: mehr Bäume und Straßengrün, Blühflächen, geschützte Radwege und mehr Platz zum Verweilen.';
-
-function loadImg(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = src;
-  });
-}
-
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
+// Every result carries the full label; there is no choice for it in the chat.
+const KI_LABEL = 'full';
 
 async function dataUrlToFile(dataUrl: string, name: string): Promise<File> {
   const blob = await (await fetch(dataUrl)).blob();
   return new File([blob], name, { type: blob.type || 'image/jpeg' });
 }
 
-// Downscale an uploaded image so its data-URL stays modest (max edge 1400).
-async function fileToDownscaledDataUrl(file: File): Promise<string> {
-  const dataUrl = await readFileAsDataUrl(file);
-  const img = await loadImg(dataUrl);
-  const s = Math.min(1, 1400 / Math.max(img.width, img.height));
-  if (s >= 1) return dataUrl;
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.round(img.width * s);
-  canvas.height = Math.round(img.height * s);
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return dataUrl;
-  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL('image/jpeg', 0.87);
+/** What the Studio composer hands over: the chosen mode, its prompt and the image to work on. */
+export interface BevEntryState {
+  mode?: 'erstellen' | 'bearbeiten';
+  prompt?: string;
+  /** A file from router state, or a data URL when the request came in from another tab. */
+  image?: File | string;
 }
 
-interface PersistShape {
-  versions: BevVersion[];
-  activeId: string | null;
-  settings?: Partial<BevSettings>;
-}
-
-function loadPersisted(): PersistShape | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as PersistShape;
-    if (parsed && Array.isArray(parsed.versions)) return parsed;
-  } catch {
-    /* ignore */
+/** axios aborts with its own English message; the chat shows German. */
+function errorText(e: unknown): string {
+  if ((e as { code?: unknown } | null)?.code === 'ECONNABORTED') {
+    return 'Das hat zu lange gedauert. Bitte versuche es noch einmal.';
   }
-  return null;
+  return e instanceof Error ? e.message : 'Etwas ist schiefgelaufen.';
 }
 
-const DEFAULT_SETTINGS: BevSettings = {
-  variant: DEFAULT_STYLE_VARIANT,
-  kiLabel: 'full',
-  format: DEFAULT_IMAGE_FORMAT,
-  aspect: '1:1',
-};
-
-/** Modes offered before an image exists (in dropdown order). */
-export const CREATE_MODES: BevMode[] = ['erstellen', 'sharepic'];
-
-/** Modes selectable once an image exists (in composer/dropdown order). */
-export const IMAGE_MODES: BevMode[] = [
-  'bearbeiten',
-  'boxen',
-  'gruen-verwandeln',
-  'vergroessern',
-  'hintergrund',
-];
+function readEntry(state: unknown): BevEntryState | null {
+  const e = state as BevEntryState | null;
+  if (!e || (!e.prompt && !e.image)) return null;
+  return e;
+}
 
 export function useBildEditorV2() {
   const navigate = useNavigate();
-  const [restored] = useState<PersistShape | null>(loadPersisted);
-
-  const [versions, setVersions] = useState<BevVersion[]>(() => restored?.versions ?? []);
-  const [activeId, setActiveId] = useState<string | null>(
-    () => restored?.activeId ?? restored?.versions.at(-1)?.id ?? null
-  );
   const location = useLocation();
-  const wantsSharepic = (location.state as { mode?: unknown } | null)?.mode === 'sharepic';
-  const [mode, setMode] = useState<BevMode>(() => {
-    if (wantsSharepic) return 'sharepic';
-    return (restored?.versions.length ?? 0) > 0 ? 'bearbeiten' : 'erstellen';
-  });
-  const [references, setReferences] = useState<File[]>([]);
+  // Opened from the Studio composer with a request: take over its image, then run its prompt.
+  const [handoff] = useState<BevEntryState | null>(
+    () => readEntry(location.state) ?? readEntry(readTabPayload(location.search))
+  );
+  // Cleared once the request has run, so it runs only once.
+  const entry = useRef(handoff);
+  const [versions, setVersions] = useState<BevVersion[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [mode, setMode] = useState<BevMode>(handoff?.mode ?? 'erstellen');
   const [generating, setGenerating] = useState(false);
-  const [statusIdx, setStatusIdx] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [dragActive, setDragActive] = useState(false);
-  const [settings, setSettings] = useState<BevSettings>(() => ({
-    ...DEFAULT_SETTINGS,
-    ...restored?.settings,
-  }));
+  // The request on its way, as the chat shows it (at first the one the Studio handed over). It
+  // becomes a version, or stays with the error below it.
+  const [pendingPrompt, setPendingPrompt] = useState<string | null>(handoff?.prompt || null);
 
-  const statusTimer = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // „Boxen" mode: user edits per version, on top of the detected elements.
-  const [boxEdits, setBoxEdits] = useState<Record<string, BevBox[]>>({});
-  const [selectedBoxId, setSelectedBoxId] = useState<string | null>(null);
+  // The saved versions arrive asynchronously; until then nothing is saved (the empty start state
+  // would overwrite them) and a request handed over from the Studio waits.
+  const [hydrated, setHydrated] = useState(false);
+  const handoffMode = handoff?.mode;
+  useEffect(() => {
+    let cancelled = false;
+    void loadBevState().then((restored) => {
+      if (cancelled) return;
+      if (restored) {
+        setVersions(restored.versions);
+        setActiveId(restored.activeId ?? restored.versions.at(-1)?.id ?? null);
+        if (!handoffMode && restored.versions.length > 0) setMode('bearbeiten');
+      }
+      setHydrated(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [handoffMode]);
 
   const { generatePureCreate } = useKiImageGeneration();
   const { createImageShare } = useShareStore();
   const queryClient = useQueryClient();
-
-  const hasVersions = versions.length > 0;
-  const screen: 'start' | 'result' = hasVersions ? 'result' : 'start';
 
   const active = useMemo(
     () => versions.find((v) => v.id === activeId) ?? null,
@@ -180,10 +115,21 @@ export function useBildEditorV2() {
     [versions, active]
   );
 
-  // Detection is a model call: once per version, only while „Boxen" is open.
+  // Expert mode: the elements of the active version as editable boxes. Detection is a model
+  // call, so it starts only once the mode was opened; from then on every new version is
+  // detected in the background, and the result stays cached per version.
+  const [expert, setExpert] = useState(false);
+  const [expertUsed, setExpertUsed] = useState(false);
+  const [boxEdits, setBoxEdits] = useState<Record<string, BevBox[]>>({});
+  const [selectedBoxId, setSelectedBoxId] = useState<string | null>(null);
+  const toggleExpert = useCallback(() => {
+    setExpert((on) => !on);
+    setExpertUsed(true);
+    setSelectedBoxId(null);
+  }, []);
   const elementsQuery = useQuery({
     queryKey: ['bild-editor-elements', active?.id],
-    enabled: mode === 'boxen' && !!active,
+    enabled: expertUsed && !!active,
     staleTime: Infinity,
     retry: false,
     queryFn: async (): Promise<BevBox[]> => {
@@ -195,6 +141,7 @@ export function useBildEditorV2() {
         bbox: e.bbox,
         source: e.bbox,
         desc: e.desc,
+        label: e.label ?? '',
         action: 'keep' as const,
         change: '',
       }));
@@ -202,142 +149,69 @@ export function useBildEditorV2() {
   });
   const boxes: BevBox[] | null = (active && boxEdits[active.id]) ?? elementsQuery.data ?? null;
   const boxesLoading = elementsQuery.isFetching;
-  const boxesError = elementsQuery.error instanceof Error ? elementsQuery.error.message : null;
+  const boxesError = elementsQuery.error ? errorText(elementsQuery.error) : null;
 
-  // Persist versions (capped), active id, and settings.
-  useEffect(() => {
-    try {
-      const capped = versions.slice(-MAX_PERSISTED);
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ versions: capped, activeId, settings } satisfies PersistShape)
+  const writeBoxes = useCallback(
+    (next: BevBox[]) => {
+      if (!active) return;
+      setBoxEdits((prev) => ({ ...prev, [active.id]: next }));
+    },
+    [active]
+  );
+  const updateBox = useCallback(
+    (id: string, patch: Partial<Omit<BevBox, 'id'>>) => {
+      if (!boxes) return;
+      writeBoxes(
+        boxes.map((b) =>
+          b.id === id ? { ...b, ...patch, ...(patch.bbox && { bbox: clampBox(patch.bbox) }) } : b
+        )
       );
-    } catch {
-      /* quota — ignore, session stays in memory */
-    }
-  }, [versions, activeId, settings]);
-
-  const stopStatus = useCallback(() => {
-    if (statusTimer.current) {
-      clearInterval(statusTimer.current);
-      statusTimer.current = null;
-    }
-  }, []);
-
-  const startStatus = useCallback(() => {
-    setStatusIdx(0);
-    stopStatus();
-    statusTimer.current = setInterval(
-      () => setStatusIdx((i) => (i + 1) % STATUS_TEXTS.length),
-      5000
-    );
-  }, [stopStatus]);
-
-  useEffect(() => () => stopStatus(), [stopStatus]);
-
-  // Sharepic photos: one job per photo, started when it is picked. The jobs live in a ref so a
-  // submit can wait for them and a retry never prepares a photo twice.
-  const [photos, setPhotos] = useState<BevPhoto[]>([]);
-  const photoList = useRef<BevPhoto[]>([]);
-  const photoJobs = useRef(new Map<string, Promise<CreatorPhoto>>());
-  const photoCount = useRef(0);
-  // Bumped when the person leaves (unmount, other mode): a submit that is still waiting gives up.
-  const epoch = useRef(0);
-  useEffect(
-    () => () => {
-      epoch.current++;
     },
-    []
+    [boxes, writeBoxes]
   );
-
-  const commitPhotos = useCallback((next: BevPhoto[]) => {
-    photoList.current = next;
-    setPhotos(next);
-  }, []);
-  const settlePhoto = useCallback(
-    (id: string, patch: Partial<BevPhoto>) =>
-      commitPhotos(photoList.current.map((p) => (p.id === id ? { ...p, ...patch } : p))),
-    [commitPhotos]
-  );
-  const clearPhotos = useCallback(() => {
-    epoch.current++;
-    photoJobs.current.clear();
-    commitPhotos([]);
-  }, [commitPhotos]);
-
-  const addPhotos = useCallback(
-    (files: File[]) => {
-      let next = photoList.current;
-      let notice: string | null = null;
-      for (const file of files) {
-        const problem = photoFileProblem(file);
-        if (problem) {
-          notice = problem;
-          continue;
-        }
-        if (next.length >= MAX_PHOTOS) {
-          notice = `Mehr als ${MAX_PHOTOS} Fotos gehen nicht – die übrigen fehlen.`;
-          break;
-        }
-        const id = `photo-${photoCount.current++}`;
-        next = [...next, { id, name: file.name, state: 'working', photo: null, error: null }];
-        const job = preparePhoto(file);
-        photoJobs.current.set(id, job);
-        job.then(
-          (photo) => settlePhoto(id, { state: 'ready', photo }),
-          (err: unknown) =>
-            settlePhoto(id, {
-              state: 'failed',
-              error: err instanceof Error ? err.message : 'Upload fehlgeschlagen.',
-            })
-        );
-      }
-      setError(notice);
-      commitPhotos(next);
-    },
-    [commitPhotos, settlePhoto]
-  );
-
-  const removePhoto = useCallback(
+  const addBox = useCallback(() => {
+    const list = boxes ?? [];
+    const id = newBoxId(list);
+    writeBoxes([
+      ...list,
+      {
+        id,
+        // Upper middle, so its menu fits underneath.
+        bbox: [250, 375, 500, 625],
+        source: null,
+        desc: '',
+        label: '',
+        action: 'change',
+        change: '',
+      },
+    ]);
+    setSelectedBoxId(id);
+  }, [boxes, writeBoxes]);
+  const removeAddedBox = useCallback(
     (id: string) => {
-      photoJobs.current.delete(id);
-      commitPhotos(photoList.current.filter((p) => p.id !== id));
+      if (boxes) writeBoxes(boxes.filter((b) => b.id !== id || b.source !== null));
+      setSelectedBoxId(null);
     },
-    [commitPhotos]
+    [boxes, writeBoxes]
   );
+  const resetBoxes = useCallback(() => {
+    if (!active) return;
+    setBoxEdits(({ [active.id]: _dropped, ...rest }) => rest);
+    setSelectedBoxId(null);
+    void elementsQuery.refetch();
+  }, [active, elementsQuery]);
 
-  const addReferences = useCallback(
-    (files: File[]) => {
-      // In „Sharepic" the files are photos for the draft, not references for an edit.
-      if (mode === 'sharepic') {
-        addPhotos(files);
-        return;
-      }
-      setReferences((prev) => [...prev, ...files].slice(0, MAX_EDIT_IMAGES - 1));
-    },
-    [mode, addPhotos]
-  );
-
-  // The files in the composer mean photos in „Sharepic" and references elsewhere.
-  const changeMode = useCallback(
-    (next: BevMode) => {
-      if ((next === 'sharepic') !== (mode === 'sharepic')) {
-        setReferences([]);
-        clearPhotos();
-      }
-      setMode(next);
-    },
-    [mode, clearPhotos]
-  );
-
-  const removeReference = useCallback((idx: number) => {
-    setReferences((prev) => prev.filter((_, i) => i !== idx));
-  }, []);
+  // Versions are written only when they change, so switching between them never rewrites the images.
+  useEffect(() => {
+    if (hydrated) void saveBevVersions(versions.slice(-MAX_PERSISTED));
+  }, [hydrated, versions]);
+  useEffect(() => {
+    if (hydrated) void saveBevMeta({ activeId });
+  }, [hydrated, activeId]);
 
   const addVersion = useCallback((v: Omit<BevVersion, 'num'>) => {
     setVersions((prev) => [...prev, { ...v, num: prev.length + 1 }]);
     setActiveId(v.id);
-    setReferences([]);
   }, []);
 
   const commitImage = useCallback(
@@ -350,8 +224,8 @@ export function useBildEditorV2() {
         time: Date.now(),
         kind,
       });
-      // Once an image exists the default action is refining it.
-      setMode((m) => (m === 'erstellen' || m === 'sharepic' ? 'bearbeiten' : m));
+      // Once an image exists every message edits it.
+      setMode('bearbeiten');
       // Persist generated/edited results to the share store so they surface in
       // the workplace „Zuletzt erstellt" feed (uploads are sources, not creations).
       if (kind !== 'upload') {
@@ -373,240 +247,77 @@ export function useBildEditorV2() {
 
   const runCreate = useCallback(
     async (text: string) => {
-      const image = await generatePureCreate({
-        description: text,
-        variant: settings.variant,
-        format: settings.format,
-        kiLabel: settings.kiLabel,
-        ...(settings.layout && { layout: true }),
-      });
+      const image = await generatePureCreate({ description: text, kiLabel: KI_LABEL });
       commitImage(image, text, 'create', null);
     },
-    [
-      generatePureCreate,
-      settings.variant,
-      settings.format,
-      settings.kiLabel,
-      settings.layout,
-      commitImage,
-    ]
-  );
-
-  // The chat page makes the sharepic. The photos are in the media library and described by now
-  // (or the submit waits for the ones still working), so what travels along is durable URLs.
-  const runSharepic = useCallback(
-    async (text: string) => {
-      const mine = epoch.current;
-      await Promise.allSettled(
-        photoList.current.flatMap((p) => {
-          const job = photoJobs.current.get(p.id);
-          return job ? [job] : [];
-        })
-      );
-      // Left the page (or the mode) while the photos were being prepared: stay where they are.
-      if (mine !== epoch.current) return;
-      const failed = photoList.current.filter((p) => p.state !== 'ready' || !p.photo);
-      if (failed.length) {
-        throw new Error(
-          `${failed.map((p) => `„${p.name}“`).join(', ')}: ${failed[0]?.error ?? 'Foto nicht bereit.'} Entferne das Foto oder wähle es neu.`
-        );
-      }
-      const handoff: FreitextHandoff = {
-        prompt: text,
-        photos: photoList.current.flatMap((p) => (p.photo ? [p.photo] : [])),
-      };
-      // Back from the chat lands here in „Sharepic" mode again.
-      void navigate(
-        { pathname: location.pathname, search: location.search, hash: location.hash },
-        { replace: true, state: { mode: 'sharepic' } }
-      );
-      void navigate('/studio/freitext', { state: handoff });
-      clearPhotos();
-    },
-    [navigate, location.pathname, location.search, location.hash, clearPhotos]
+    [generatePureCreate, commitImage]
   );
 
   const runEdit = useCallback(
-    async (text: string) => {
+    async (text: string, references: readonly File[]) => {
       if (!active) throw new Error('Kein Bild ausgewählt');
       const base = await dataUrlToFile(active.image, `v${active.num}.jpg`);
       const files = [base, ...references].slice(0, MAX_EDIT_IMAGES);
-      const res = await editAiImage(files, text, 'universal', undefined, {
-        kiLabel: settings.kiLabel,
-        ...(settings.autoBoxes && { boxes: 'auto' as const }),
-      });
+      const res = await editAiImage(files, text, 'universal', undefined, { kiLabel: KI_LABEL });
       commitImage(res.base64, text, 'edit', active.id);
     },
-    [active, references, settings.kiLabel, settings.autoBoxes, commitImage]
+    [active, commitImage]
   );
 
+  // The changed boxes go to FLUX 3 as rows; the chat text, if any, rides along in the instruction.
   const runBoxEdit = useCallback(
-    async (text: string) => {
+    async (prompt: string, edit: NonNullable<ReturnType<typeof buildBoxEdit>>) => {
       if (!active) throw new Error('Kein Bild ausgewählt');
-      const edit = boxes ? buildBoxEdit(boxes, text) : null;
-      if (!edit && text.length < 3) {
-        throw new Error('Ändere eine Box oder beschreibe, was sich ändern soll.');
-      }
       const base = await dataUrlToFile(active.image, `v${active.num}.jpg`);
-      const res = await editAiImage(base, edit?.instruction ?? text, 'universal', 'flux-pro', {
-        kiLabel: settings.kiLabel,
-        boxes: edit ?? 'auto',
+      const res = await editAiImage(base, edit.instruction, 'universal', 'flux-pro', {
+        kiLabel: KI_LABEL,
+        boxes: edit,
       });
-      commitImage(res.base64, text || 'Boxen bearbeitet', 'edit', active.id);
-    },
-    [active, boxes, settings.kiLabel, commitImage]
-  );
-
-  const writeBoxes = useCallback(
-    (next: BevBox[]) => {
-      if (!active) return;
-      setBoxEdits((prev) => ({ ...prev, [active.id]: next }));
-    },
-    [active]
-  );
-
-  const updateBox = useCallback(
-    (id: string, patch: Partial<Omit<BevBox, 'id'>>) => {
-      if (!boxes) return;
-      writeBoxes(
-        boxes.map((b) =>
-          b.id === id ? { ...b, ...patch, ...(patch.bbox && { bbox: clampBox(patch.bbox) }) } : b
-        )
-      );
-    },
-    [boxes, writeBoxes]
-  );
-
-  const addBox = useCallback(() => {
-    const list = boxes ?? [];
-    const id = newBoxId(list);
-    writeBoxes([
-      ...list,
-      { id, bbox: [350, 350, 650, 650], source: null, desc: '', action: 'change', change: '' },
-    ]);
-    setSelectedBoxId(id);
-  }, [boxes, writeBoxes]);
-
-  const removeAddedBox = useCallback(
-    (id: string) => {
-      if (boxes) writeBoxes(boxes.filter((b) => b.id !== id || b.source !== null));
       setSelectedBoxId(null);
+      commitImage(res.base64, prompt, 'edit', active.id);
     },
-    [boxes, writeBoxes]
+    [active, commitImage]
   );
 
-  const resetBoxes = useCallback(() => {
-    if (!active) return;
-    setBoxEdits(({ [active.id]: _dropped, ...rest }) => rest);
-    setSelectedBoxId(null);
-    void elementsQuery.refetch();
-  }, [active, elementsQuery]);
-
-  const runGreenEdit = useCallback(
-    async (text: string) => {
-      if (!active) throw new Error('Kein Bild ausgewählt');
-      const instruction = text || GREEN_DEFAULT_INSTRUCTION;
-      const file = await dataUrlToFile(active.image, `v${active.num}.jpg`);
-      const res = await editAiImage(file, instruction, 'green-edit', undefined, {
-        kiLabel: settings.kiLabel,
-      });
-      commitImage(res.base64, text || 'Grün verwandelt', 'green', active.id);
-    },
-    [active, settings.kiLabel, commitImage]
-  );
-
-  const runOutpaint = useCallback(async () => {
-    if (!active) throw new Error('Kein Bild ausgewählt');
-    // The server derives the canvas from the source and scales both when the
-    // budget demands it, so every offered format is reachable from here.
-    const file = await dataUrlToFile(active.image, `v${active.num}.jpg`);
-    const form = new FormData();
-    form.append('image', file);
-    form.append('aspectRatio', settings.aspect);
-    if (settings.kiLabel !== 'full') form.append('kiLabel', settings.kiLabel);
-    const res = await getGlobalApiClient().post<{
-      success: boolean;
-      image?: { base64?: string };
-      error?: string;
-    }>('/imagine/outpaint', form, { headers: { 'Content-Type': 'multipart/form-data' } });
-    if (!res.data.success || !res.data.image?.base64) {
-      throw new Error(res.data.error || 'Vergrößerung fehlgeschlagen');
-    }
-    const raw = res.data.image.base64;
-    const dataUrl = raw.startsWith('data:') ? raw : `data:image/png;base64,${raw}`;
-    commitImage(dataUrl, `Vergrößert · ${settings.aspect}`, 'outpaint', active.id);
-  }, [active, settings.aspect, settings.kiLabel, commitImage]);
-
-  const runRemoveBg = useCallback(async () => {
-    if (!active) throw new Error('Kein Bild ausgewählt');
-    const file = await dataUrlToFile(active.image, `v${active.num}.png`);
-    const res = await removeImageBackground(file);
-    commitImage(res.base64, 'Hintergrund entfernt', 'nobg', active.id);
-  }, [active, commitImage]);
-
-  /** Resolves `true` once a new version is committed, so the caller can clear its input. */
+  /** Resolves `true` once a new version is committed. `references` go along with „Bearbeiten". */
   const submit = useCallback(
-    async (input: string): Promise<boolean> => {
+    async (input: string, references: readonly File[] = []): Promise<boolean> => {
       if (generating) return false;
       const text = input.trim();
-      // Arrow enables at >=3 chars; generate/edit enforce their real minimums and
+      // Changed boxes are an edit of their own; the text is optional then.
+      const boxEdit =
+        expert && mode === 'bearbeiten' && boxes && !boxesLoading
+          ? buildBoxEdit(boxes, text)
+          : null;
+      // The composer enables at >=3 chars; generate/edit enforce their real minimums and
       // surface a friendly "zu kurz" error we catch below.
-      if (mode === 'erstellen' && text.length < 3) return false;
-      // A photo alone is a sharepic request too.
-      if (mode === 'sharepic' && text.length < 3 && photoList.current.length === 0) return false;
-      if (mode === 'bearbeiten' && (!active || text.length < 3)) return false;
-      if (mode === 'boxen' && (!active || boxesLoading)) return false;
-      if (
-        (mode === 'gruen-verwandeln' || mode === 'vergroessern' || mode === 'hintergrund') &&
-        !active
-      )
-        return false;
+      if (!boxEdit && text.length < 3) return false;
+      if (mode === 'bearbeiten' && !active) return false;
+
+      const summary = boxEdit && boxes ? boxSummary(boxes) : '';
+      const prompt = [text, summary].filter(Boolean).join(' · ');
 
       setGenerating(true);
       setError(null);
-      startStatus();
+      setPendingPrompt(prompt);
       try {
         if (mode === 'erstellen') await runCreate(text);
-        else if (mode === 'sharepic') await runSharepic(text);
-        else if (mode === 'bearbeiten') await runEdit(text);
-        else if (mode === 'boxen') await runBoxEdit(text);
-        else if (mode === 'gruen-verwandeln') await runGreenEdit(text);
-        else if (mode === 'vergroessern') await runOutpaint();
-        else await runRemoveBg();
+        else if (boxEdit) await runBoxEdit(prompt, boxEdit);
+        else await runEdit(text, references);
+        setPendingPrompt(null);
         return true;
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Etwas ist schiefgelaufen.');
+        setError(errorText(e));
         return false;
       } finally {
-        stopStatus();
         setGenerating(false);
       }
     },
-    [
-      generating,
-      mode,
-      active,
-      runCreate,
-      runEdit,
-      runBoxEdit,
-      boxesLoading,
-      runGreenEdit,
-      runOutpaint,
-      runRemoveBg,
-      runSharepic,
-      startStatus,
-      stopStatus,
-    ]
+    [generating, mode, active, expert, boxes, boxesLoading, runCreate, runEdit, runBoxEdit]
   );
 
-  const handleUpload = useCallback(
+  const addUpload = useCallback(
     async (file: File) => {
-      if (generating) return;
-      // In „Sharepic" a dropped image is a photo for the draft, not a new version.
-      if (mode === 'sharepic') {
-        addReferences([file]);
-        return;
-      }
       try {
         const image = await fileToDownscaledDataUrl(file);
         commitImage(image, file.name, 'upload', null);
@@ -614,29 +325,66 @@ export function useBildEditorV2() {
         setError(e instanceof Error ? e.message : 'Upload fehlgeschlagen.');
       }
     },
-    [generating, mode, addReferences, commitImage]
+    [commitImage]
   );
 
-  const selectVersion = useCallback((id: string) => setActiveId(id), []);
+  const entryStarted = useRef(false);
+  const [entryReady, setEntryReady] = useState(false);
+  // A request that runs by itself shows the progress from the first paint. Display only:
+  // `submit` still checks the real `generating`.
+  const [entryPending, setEntryPending] = useState(() => !!handoff?.prompt);
+  useEffect(() => {
+    const e = entry.current;
+    if (!hydrated || !e || entryStarted.current) return;
+    entryStarted.current = true;
+    if (e.image) {
+      const image = e.image;
+      const file =
+        typeof image === 'string' ? dataUrlToFile(image, 'bild.jpg') : Promise.resolve(image);
+      void file
+        .then(addUpload)
+        .catch(() => undefined)
+        .then(() => setEntryReady(true));
+    } else setEntryReady(true);
+  }, [hydrated, addUpload]);
+  useEffect(() => {
+    const e = entry.current;
+    if (!entryReady || !e) return;
+    entry.current = null;
+    dropTabPayload(location.search);
+    // Reloading must not repeat the request.
+    void navigate(
+      { pathname: location.pathname, search: '', hash: location.hash },
+      { replace: true, state: null }
+    );
+    // `submit` raises `generating` in the same batch, so the progress never blinks off.
+    setEntryPending(false);
+    if (e.prompt) void submit(e.prompt);
+  }, [entryReady, submit, navigate, location.pathname, location.search, location.hash]);
+
+  // Box ids come from each version's own detection, so a selection does not carry over.
+  const selectVersion = useCallback((id: string) => {
+    setActiveId(id);
+    setSelectedBoxId(null);
+  }, []);
 
   const download = useCallback(() => {
     if (!active) return;
-    void downloadDataUrl(active.image, `gruenerator-bild-${active.num}.jpg`);
+    const ext = active.image.startsWith('data:image/png') ? 'png' : 'jpg';
+    void downloadDataUrl(active.image, `gruenerator-bild-${active.num}.${ext}`);
   }, [active]);
 
+  /** Drops every version; the Studio is where the next image begins. */
   const resetAll = useCallback(() => {
-    if (!window.confirm('Alle Versionen löschen und neu starten?')) return;
+    if (!window.confirm('Alle Versionen löschen und zurück ins Studio?')) return;
     setVersions([]);
     setActiveId(null);
-    setReferences([]);
-    setMode('erstellen');
-    setError(null);
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      /* ignore */
-    }
-  }, []);
+    void clearBevState();
+    void navigate('/studio', { replace: true });
+  }, [navigate]);
+
+  const busy = generating || entryPending;
+  const statusText = useCyclingStatus(STATUS_TEXTS, busy);
 
   return {
     // state
@@ -644,36 +392,28 @@ export function useBildEditorV2() {
     active,
     activeId,
     activeHasChildren,
-    screen,
-    mode,
-    references,
-    generating,
-    statusText: mode === 'sharepic' ? 'Bereite alles für den Chat vor …' : STATUS_TEXTS[statusIdx],
+    restoring: !hydrated,
+    handedOver: handoff !== null,
+    pendingPrompt,
+    generating: busy,
+    statusText,
     error,
-    dragActive,
-    settings,
+    expert,
     boxes,
     boxesLoading,
     boxesError,
     selectedBoxId,
-    // setters / actions
-    setMode: changeMode,
-    photos,
-    removePhoto,
-    addReferences,
-    removeReference,
-    setDragActive,
-    setSettings,
+    // actions
+    submit,
+    selectVersion,
+    download,
+    resetAll,
+    toggleExpert,
     setSelectedBoxId,
     updateBox,
     addBox,
     removeAddedBox,
     resetBoxes,
-    submit,
-    handleUpload,
-    selectVersion,
-    download,
-    resetAll,
   };
 }
 

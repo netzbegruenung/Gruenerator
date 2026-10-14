@@ -211,8 +211,10 @@ export const userAgentErrorResponseSchema = z.object({
  * POST /api/user-agents/draft — synthesize a spec from a one-shot freeform
  * brief (the guided-assistant entry point).
  */
+export const MAX_DRAFT_BRIEF_CHARS = 4000;
+
 export const draftAgentBodySchema = z.object({
-  description: z.string().min(1).max(2000),
+  description: z.string().min(1).max(MAX_DRAFT_BRIEF_CHARS),
 });
 
 /**

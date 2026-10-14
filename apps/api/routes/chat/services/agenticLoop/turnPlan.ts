@@ -162,8 +162,21 @@ export interface TurnPlanInput {
   hasNamedBoard: boolean;
   /** Sharepic-Verfeinerung — hält die Verbund-Erzeugung aus dem Weg. */
   isSharepicRefinement: boolean;
+  /**
+   * Der Auftrag meint das VORHANDENE Sharepic des Threads („Prüf das
+   * Sharepic"). Das erledigen read/edit/check_sharepic — eine Verbund-Erzeugung
+   * baute live 11.10.2026 daneben ein zweites, neues Sharepic.
+   */
+  addressesThreadSharepic?: boolean;
   /** Der erzwungene Intent des Pipeline-Agenten, oder null. */
   pipelineForceIntent: ChatIntentId | null;
+  /**
+   * Der Turn ist das „ja" auf ein Artefakt-Angebot (`acceptedOfferKind`). Er
+   * gehört dem Single-Pass-Builder: vier der Arten überspringen ihre Route auf
+   * einem Loop-Turn (`skipOnAgentic`), und ein „ja" sagt dem Planer nicht, was
+   * er bauen soll.
+   */
+  acceptedOffer: boolean;
   /**
    * Das Werkzeug, das eine @-Erwähnung festgezurrt hat (`mentionPinnedTool`).
    * Der zweite Weg in die Schleife neben der `forcedLane`-Achse — siehe unten.
@@ -396,10 +409,12 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
   // reine Erzeugung behält die direkte Zuteilung. Die ART wird aus dem Intent
   // ODER — bei einem auf `agentic` demotierten Turn — aus dem Substantiv im Text
   // gewonnen, damit „mach mir eine Tabelle draus" das Tabellen-Werkzeug montiert.
-  const compoundKind =
+  const proposedKind =
     !p.forcedTool && !p.isSharepicRefinement && !editorSurface
       ? compoundGenerationKind(proposedIntent, p.lastUserText, p.mentionPinnedArtifactKind)
       : null;
+  const compoundKind =
+    proposedKind === 'sharepic' && p.addressesThreadSharepic === true ? null : proposedKind;
 
   // Verbund „recherchiere UND bau es ins offene Dokument ein". Dieselben
   // Notausschalter wie {@link decideRunAgentic}, damit das Erzwingen der
@@ -478,6 +493,7 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
   // wird das allgemeine Gate befragt (und protokolliert).
   const runAgentic =
     p.pipelineForceIntent == null &&
+    !p.acceptedOffer &&
     (editToolLoop ||
       compoundEdit ||
       decideRunAgentic({

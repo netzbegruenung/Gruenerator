@@ -50,6 +50,17 @@ describe('buildToolStepCard', () => {
     });
   });
 
+  it('shows no raw tool name as the query chip of a native tool (#4460)', () => {
+    const data = { stepId: 's1', toolName: 'read_document', args: { documentId: 'd1' } };
+    const card = buildToolStepCard(data, toolStepTitle(data));
+    expect(card.args).toEqual({ documentId: 'd1' });
+  });
+
+  it('keeps the namespaced label of a connector tool as its chip', () => {
+    const data = { stepId: 's1', toolName: 'mnotion__search' };
+    expect(buildToolStepCard(data, toolStepTitle(data)).args).toHaveProperty('query');
+  });
+
   it('leaves narration off when there is none', () => {
     const card = buildToolStepCard({ stepId: 'x', toolName: 't' }, 'T');
     expect('narration' in card).toBe(false);

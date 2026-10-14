@@ -157,6 +157,20 @@ describe('validateReisekosten', () => {
     expect(findings.some((f) => f.level === 'error' && f.field === 'reise.belegdatum')).toBe(true);
   });
 
+  it('warns when a multi-day trip has no overnight and is thus counted as one day', () => {
+    const state = makeState({ uebernachtung: null });
+    state.reise.reisebeginn = '2026-11-13T14:00';
+    state.reise.rueckkehr = '2026-11-15T18:00';
+    const warns = (s: typeof state) =>
+      validateReisekosten(s, new Date('2026-11-20T12:00')).some(
+        (f) => f.field === 'uebernachtung' && f.level === 'warn'
+      );
+    expect(warns(state)).toBe(true);
+    expect(
+      warns({ ...state, uebernachtung: { modus: 'pauschal', betrag: null, naechte: 2 } })
+    ).toBe(false);
+  });
+
   it('warns about Kfz > 500 km without a Vorstandsbeschluss', () => {
     const state = makeState({
       fahrt: {

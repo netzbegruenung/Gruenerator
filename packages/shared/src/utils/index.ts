@@ -23,6 +23,7 @@ export {
 
 // Tailwind CSS class merging utility
 export { cn } from './cn.js';
+export { formatAudioDuration } from './formatAudioDuration.js';
 
 // HTML tag stripping with entity decoding
 export { stripHtmlTags } from './stripHtmlTags.js';
@@ -129,6 +130,8 @@ export {
   parseSourceLinkHref,
   sourceLinksToCitations,
 } from './sourceLinks.js';
+export { groupCitationsBySource, withSourcesMarkdown } from './sourcesAppendix.js';
+export type { CitationSourceGroup, ExportCitation } from './sourcesAppendix.js';
 
 // German-aware sentence boundaries — read-aloud pipelining (voice) and
 // server-side chunking of long texts for Grünerator Voice (api)

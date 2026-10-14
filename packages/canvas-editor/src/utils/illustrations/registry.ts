@@ -1,11 +1,11 @@
 /**
  * Illustration Registry
  *
- * Small illustration sets (kawaii, opendoodles, featured undraw) load
- * statically; the full ~1600-entry undraw catalog (~280 KB of metadata) is
- * pulled in via dynamic import only when an async lookup first needs it, so
- * it stays out of the editor-core chunk. Sync access to the full catalog
- * lives in illustrationCatalog.ts (used only inside the lazy assets chunk).
+ * Every catalog is pulled in via dynamic import only when an async lookup
+ * first needs it, so none of the metadata lands in the editor-core chunk
+ * (this module is reached eagerly through the render layer and action
+ * factories). Sync access to the catalogs lives in the per-source modules and
+ * illustrationCatalog.ts (used only inside the lazy assets chunk).
  */
 
 import type {
@@ -15,15 +15,6 @@ import type {
   IllustrationInstance,
   KawaiiIllustrationType,
 } from './types';
-
-import { GOPHERS } from './gophers';
-import { HUMAAANS } from './humaaans';
-import { ILLLUSTRATIONS } from './illlustrations';
-import { KAWAII_ILLUSTRATIONS } from './kawaii';
-import { OPENDOODLES } from './opendoodles';
-import { OPENPEEPS } from './openpeeps';
-import { TRANSHUMANS } from './transhumans';
-import { UNDRAW_FEATURED } from './undraw';
 
 // Re-export types and constants for convenience
 export type {
@@ -48,63 +39,54 @@ function loadUndrawAll(): Promise<SvgDef[]> {
   return (undrawAllPromise ??= import('./undrawAll').then((m) => m.UNDRAW_ALL));
 }
 
-export async function loadKawaiiIllustrations(): Promise<KawaiiDef[]> {
-  return KAWAII_ILLUSTRATIONS;
+export function loadKawaiiIllustrations(): Promise<KawaiiDef[]> {
+  return import('./kawaii').then((m) => m.KAWAII_ILLUSTRATIONS);
 }
 
-export async function loadOpendoodlesIllustrations(): Promise<SvgDef[]> {
-  return OPENDOODLES;
+export function loadOpendoodlesIllustrations(): Promise<SvgDef[]> {
+  return import('./opendoodles').then((m) => m.OPENDOODLES);
 }
 
-export async function loadIlllustrations(): Promise<SvgDef[]> {
-  return ILLLUSTRATIONS;
+export function loadIlllustrations(): Promise<SvgDef[]> {
+  return import('./illlustrations').then((m) => m.ILLLUSTRATIONS);
 }
 
-export async function loadGophers(): Promise<SvgDef[]> {
-  return GOPHERS;
+export function loadGophers(): Promise<SvgDef[]> {
+  return import('./gophers').then((m) => m.GOPHERS);
 }
 
-export async function loadTranshumans(): Promise<SvgDef[]> {
-  return TRANSHUMANS;
+export function loadTranshumans(): Promise<SvgDef[]> {
+  return import('./transhumans').then((m) => m.TRANSHUMANS);
 }
 
-export async function loadHumaaans(): Promise<SvgDef[]> {
-  return HUMAAANS;
+export function loadHumaaans(): Promise<SvgDef[]> {
+  return import('./humaaans').then((m) => m.HUMAAANS);
 }
 
-export async function loadOpenpeeps(): Promise<SvgDef[]> {
-  return OPENPEEPS;
+export function loadOpenpeeps(): Promise<SvgDef[]> {
+  return import('./openpeeps').then((m) => m.OPENPEEPS);
 }
 
-export async function loadUndrawIllustrations(): Promise<SvgDef[]> {
-  return UNDRAW_FEATURED;
+export function loadUndrawIllustrations(): Promise<SvgDef[]> {
+  return import('./undraw').then((m) => m.UNDRAW_FEATURED);
 }
 
 export async function getAllIllustrations(): Promise<IllustrationDef[]> {
-  const undrawAll = await loadUndrawAll();
-  return [
-    ...KAWAII_ILLUSTRATIONS,
-    ...OPENDOODLES,
-    ...ILLLUSTRATIONS,
-    ...GOPHERS,
-    ...TRANSHUMANS,
-    ...HUMAAANS,
-    ...OPENPEEPS,
-    ...undrawAll,
-  ];
+  const [kawaii, svgs] = await Promise.all([loadKawaiiIllustrations(), getAllSvgIllustrations()]);
+  return [...kawaii, ...svgs];
 }
 
 export async function getAllSvgIllustrations(): Promise<SvgDef[]> {
-  const undrawAll = await loadUndrawAll();
-  return [
-    ...OPENDOODLES,
-    ...ILLLUSTRATIONS,
-    ...GOPHERS,
-    ...TRANSHUMANS,
-    ...HUMAAANS,
-    ...OPENPEEPS,
-    ...undrawAll,
-  ];
+  const sets = await Promise.all([
+    loadOpendoodlesIllustrations(),
+    loadIlllustrations(),
+    loadGophers(),
+    loadTranshumans(),
+    loadHumaaans(),
+    loadOpenpeeps(),
+    loadUndrawAll(),
+  ]);
+  return sets.flat();
 }
 
 // =============================================================================
@@ -204,17 +186,3 @@ export async function getAllSvgCategories(): Promise<string[]> {
 
 export const getSvgIllustrationsByCategory = getIllustrationsByCategory;
 export const searchSvgIllustrations = searchIllustrations;
-
-// Re-export the small static source arrays for direct access if needed.
-// The full undraw catalog is intentionally NOT re-exported here — sync
-// consumers use illustrationCatalog.ts so the data stays in a lazy chunk.
-export {
-  KAWAII_ILLUSTRATIONS,
-  OPENDOODLES,
-  UNDRAW_FEATURED,
-  ILLLUSTRATIONS,
-  GOPHERS,
-  TRANSHUMANS,
-  HUMAAANS,
-  OPENPEEPS,
-};

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import {
+  namedLoopArtifact,
   isQuestionAboutEditing,
   namesDocumentTarget,
   namesSheetTarget,
@@ -9,6 +10,23 @@ import {
 } from './editAddressee.js';
 
 describe('priorTurnEditables', () => {
+  it('kennt Präsentationen und Tabellen-/Folien-Edits nur, wenn sie geschrieben haben', () => {
+    expect(priorTurnEditables([{ kind: 'presentation' }], [])).toEqual(['presentation']);
+    expect(priorTurnEditables([], [{ toolName: 'create_presentation' }])).toEqual(['presentation']);
+    expect(
+      priorTurnEditables([], [{ toolName: 'edit_presentation', result: { ok: true } }])
+    ).toEqual(['presentation']);
+    expect(
+      priorTurnEditables(
+        [],
+        [{ toolName: 'edit_presentation', result: { needsConfirmation: true } }]
+      )
+    ).toEqual([]);
+    expect(priorTurnEditables([], [{ toolName: 'edit_sheet', result: { ok: true } }])).toEqual([
+      'sheet',
+    ]);
+  });
+
   it('zählt ein neues Sharepic und eine Bearbeitung', () => {
     expect(priorTurnEditables([{ kind: 'sharepic' }], [])).toEqual(['sharepic']);
     // Die zweite Korrektur in Folge: der Turn davor speicherte nur `sharepic_edit`.
@@ -57,9 +75,7 @@ describe('priorTurnEditables', () => {
 
   it('zählt keinen anderen Turn', () => {
     expect(priorTurnEditables([], [])).toEqual([]);
-    expect(priorTurnEditables([{ kind: 'presentation' }], [{ toolName: 'web_search' }])).toEqual(
-      []
-    );
+    expect(priorTurnEditables([{ kind: 'pdf' }], [{ toolName: 'web_search' }])).toEqual([]);
     expect(priorTurnEditables([], [], 'direct')).toEqual([]);
   });
 });
@@ -144,4 +160,22 @@ describe('isQuestionAboutEditing', () => {
   ])('Auftrag oder Vorschlag: %s', (text) => {
     expect(isQuestionAboutEditing(text)).toBe(false);
   });
+});
+
+describe('namedLoopArtifact', () => {
+  it.each([
+    ['Da fehlt noch Gießen in der Tabelle', 'sheet'],
+    ['Mach Folie 3 kürzer', 'presentation'],
+    ['Auf der Folie fehlt die Quelle', 'presentation'],
+    ['Erklär im Explainable den Begriff einfacher', 'explainable'],
+  ])('„%s" → %s', (text, kind) => {
+    expect(namedLoopArtifact(text)).toBe(kind);
+  });
+
+  it.each(['Füg eine Tabelle ein', 'Wie viele Folien braucht ein Vortrag?'])(
+    '„%s" → nichts',
+    (text) => {
+      expect(namedLoopArtifact(text)).toBeNull();
+    }
+  );
 });

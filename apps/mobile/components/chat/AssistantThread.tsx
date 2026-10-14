@@ -87,10 +87,27 @@ const EmptyState = memo(function EmptyState({
   // and asks it already.
   const subtitle = welcome?.subtitle ?? null;
 
+  return <ThreadWelcomeBlock theme={theme} title={greeting} subtitle={subtitle} />;
+});
+
+/**
+ * The empty thread's centred greeting. Exported for chat-shaped surfaces with
+ * their own message state (the sharepic creator), so an empty conversation
+ * opens the same way everywhere.
+ */
+export function ThreadWelcomeBlock({
+  theme,
+  title,
+  subtitle,
+}: {
+  theme: Theme;
+  title: string;
+  subtitle: string | null;
+}) {
   return (
     <View style={styles.emptyContainer} pointerEvents="none">
       <View>
-        <Text style={[styles.emptyTitle, { color: theme.text }]}>{greeting}</Text>
+        <Text style={[styles.emptyTitle, { color: theme.text }]}>{title}</Text>
         {subtitle ? (
           // An agent's description — explanatory prose, which at the title's
           // 28/bold shouted over the question it is meant to support.
@@ -99,9 +116,41 @@ const EmptyState = memo(function EmptyState({
       </View>
     </View>
   );
-});
+}
+
+/**
+ * Bottom padding of the composer dock, animated with the keyboard.
+ *
+ * The padding is animated rather than switched, because it is two different
+ * numbers and the change has to happen *with* the keyboard. Stepping it on
+ * `keyboardDidShow` would drop the composer 22dp in one frame, halfway through
+ * the keyboard's own animation. See COMPOSER_BOTTOM_INSET for the two numbers.
+ */
+export function useComposerDockPadding() {
+  const insets = useSafeAreaInsets();
+  // Both ends computed here, on the JS thread, and only the interpolation runs
+  // in the worklet. `typeScale` is an ordinary function from another module, so
+  // calling it inside `useAnimatedStyle` makes it a remote call from the UI
+  // runtime — which throws once per frame ("Tried to synchronously call a Remote
+  // Function") and leaves the padding unset. Worklets may capture numbers; they
+  // may not reach back for them.
+  const restingPad = insets.bottom + typeScale(COMPOSER_BOTTOM_INSET);
+  const raisedPad = typeScale(COMPOSER_BOTTOM_INSET_RAISED);
+
+  // `progress` runs 0 → 1 with the keyboard, on the UI thread, so the padding
+  // interpolates between the two resting values instead of jumping between them.
+  const keyboard = useReanimatedKeyboardAnimation();
+  return useAnimatedStyle(() => ({
+    paddingBottom: restingPad + (raisedPad - restingPad) * keyboard.progress.value,
+  }));
+}
 
 const messagesPadding = { paddingTop: spacing.small };
+
+/** Viewports kept rendered around the visible one (FlatList default: 21). A chat
+ *  row with markdown is expensive to mount, and 21 meant ten screens of history
+ *  above the newest message on open. */
+const LIST_WINDOW_SIZE = 9;
 
 /**
  * Module-level so the memoized row sees a stable reference — the primitive
@@ -122,30 +171,14 @@ export const AssistantThread = memo(function AssistantThread({
 }: Props) {
   const resolvedTheme = useTheme();
   const theme: Theme = themeProp ?? resolvedTheme;
-  const insets = useSafeAreaInsets();
   const composerInputRef = useRef<TextInput>(null);
-
-  // Both ends computed here, on the JS thread, and only the interpolation runs
-  // in the worklet. `typeScale` is an ordinary function from another module, so
-  // calling it inside `useAnimatedStyle` makes it a remote call from the UI
-  // runtime — which throws once per frame ("Tried to synchronously call a Remote
-  // Function") and leaves the padding unset. Worklets may capture numbers; they
-  // may not reach back for them.
-  const restingPad = insets.bottom + typeScale(COMPOSER_BOTTOM_INSET);
-  const raisedPad = typeScale(COMPOSER_BOTTOM_INSET_RAISED);
-
-  // `progress` runs 0 → 1 with the keyboard, on the UI thread, so the padding
-  // interpolates between the two resting values instead of jumping between them.
-  const keyboard = useReanimatedKeyboardAnimation();
-  const composerPadding = useAnimatedStyle(() => ({
-    paddingBottom: restingPad + (raisedPad - restingPad) * keyboard.progress.value,
-  }));
+  const composerPadding = useComposerDockPadding();
 
   // The list and the composer under it sit in the same reading column, so a
   // bubble and the field it was typed in keep one shared edge. Uncapped, a
   // bubble reached 836dp on an iPad — about 145 characters a line.
   //
-  // Memoized because `ThreadPrimitive.Messages` re-renders every row when this
+  // Memoized because `ThreadPrimitive.MessagesFlatList` re-renders every row when this
   // identity changes; it used to be a module constant for exactly that reason,
   // and now has to depend on the window instead.
   const column = useContentColumn('reading');
@@ -171,17 +204,19 @@ export const AssistantThread = memo(function AssistantThread({
           {/* Above the list rather than inside it, like web: the summary covers
             the whole thread, not one message. */}
           <CompactionIndicator theme={theme} />
-          <ThreadPrimitive.Messages
+          {/* Scrolling is assistant-ui's: a thread opens at its newest message and
+            a sent question scrolls into view once, then the stream does not drag
+            the list along (autoScroll off), so the answer can be read from its
+            start. Our own top anchor (useTurnAnchor) lost its place whenever rows
+            re-measured after a run and left the list scrolled into empty space. */}
+          <ThreadPrimitive.MessagesFlatList
+            windowSize={LIST_WINDOW_SIZE}
+            autoScroll={false}
             contentContainerStyle={messagesContentStyle}
             keyboardDismissMode="interactive"
           >
             {renderMessage}
-          </ThreadPrimitive.Messages>
-          {/* The bottom padding is animated rather than switched, because it is
-            two different numbers and the change has to happen *with* the
-            keyboard. Stepping it on `keyboardDidShow` would drop the composer
-            22dp in one frame, halfway through the keyboard's own animation.
-            See COMPOSER_BOTTOM_INSET for the two numbers. */}
+          </ThreadPrimitive.MessagesFlatList>
           <Animated.View style={composerPadding}>
             {composerHeader ? <View style={column}>{composerHeader}</View> : null}
             <Composer

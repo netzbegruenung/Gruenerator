@@ -21,7 +21,7 @@ export function useDocCreation(onStart: () => void) {
     if (isCreating) return;
     setIsCreating(true);
     onStart();
-    try {
+    await (async () => {
       const doc = await create();
       if (doc) {
         router.push({ pathname: '/(fullscreen)/doc-editor', params: { id: doc.id } });
@@ -31,11 +31,11 @@ export function useDocCreation(onStart: () => void) {
         clearError();
         Alert.alert('Fehler', failure);
       }
-    } catch {
-      Alert.alert('Fehler', failure);
-    } finally {
-      setIsCreating(false);
-    }
+    })()
+      .catch(() => {
+        Alert.alert('Fehler', failure);
+      })
+      .finally(() => setIsCreating(false));
   };
 
   const createFromTemplate = (template: DocumentTemplate) =>

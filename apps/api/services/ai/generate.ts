@@ -459,9 +459,11 @@ export interface AiObjectCall<T> extends AiCall {
   toolDescription: string;
   /**
    * The single gate. Runs on the tool call AND on JSON recovered from a text
-   * answer — see "One validator, two transports" above.
+   * answer — see "One validator, two transports" above. `attempt` is the
+   * model attempt (1-based) the input came from, out of `attempts`: a failed
+   * attempt may run it never or once per text candidate.
    */
-  validate: (input: unknown) => StructuredValidation<T>;
+  validate: (input: unknown, attempt: number, attempts: number) => StructuredValidation<T>;
   attempts?: number;
   /** Log prefix, e.g. 'pdf'. Defaults to the tool name. */
   label?: string;
@@ -620,7 +622,7 @@ export async function aiObject<T>(call: AiObjectCall<T>): Promise<StructuredResu
       let rejection = '';
       let rejected = '';
       for (const candidate of candidates) {
-        const validated = call.validate(candidate);
+        const validated = call.validate(candidate, attempt, attempts);
         if (validated.ok) {
           if (truncated) {
             // Keep it as a last resort — see the fallback return below. Half a

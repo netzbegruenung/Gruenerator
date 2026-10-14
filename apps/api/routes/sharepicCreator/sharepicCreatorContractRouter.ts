@@ -6,9 +6,14 @@
 import { sharepicCreatorContract, type UserProfile } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { createCutOutPainter } from '../../services/sharepicCreator/cutOut.js';
 import { DraftFailedError, draftSharepic } from '../../services/sharepicCreator/draftAgent.js';
+import { draftFailedBody } from '../../services/sharepicCreator/draftFailure.js';
+import { namedSharepicForm } from '../../services/sharepicCreator/forms.js';
+import { createIllustrationPainter } from '../../services/sharepicCreator/illustrations.js';
 import { analyzePhoto, loadOwnPhoto } from '../../services/sharepicCreator/photoAnalysis.js';
 import { reviewSharepic } from '../../services/sharepicCreator/review.js';
+import { createScenePainter } from '../../services/sharepicCreator/sceneBackground.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
@@ -26,23 +31,34 @@ export const sharepicCreatorContractRouter = s.router(sharepicCreatorContract, {
     try {
       return {
         status: 200 as const,
-        body: await draftSharepic(body.prompt, locale, body.current ?? null, body.photos ?? []),
+        body: await draftSharepic(
+          body.prompt,
+          locale,
+          body.current ?? null,
+          body.photos ?? [],
+          {
+            scene: createScenePainter(user.id),
+            illustrations: createIllustrationPainter(user.id),
+            cutOut: createCutOutPainter(user.id),
+          },
+          // A change request may mention a form without asking for it ("das Zitat kürzer").
+          body.form ?? (body.current ? null : namedSharepicForm(body.prompt)),
+          body.prompt,
+          body.focus ?? null
+        ),
       };
     } catch (err) {
       if (!(err instanceof DraftFailedError)) throw err;
       log.warn(`draft failed: ${err.message}`);
-      return {
-        status: 502 as const,
-        body: {
-          error:
-            'Der Entwurf ist nicht gelungen. Formuliere den Auftrag etwas genauer und versuch es noch einmal.',
-        },
-      };
+      return { status: 502 as const, body: draftFailedBody(err.reason) };
     }
   },
   review: async ({ req, body }) => {
     getAuthedUser(req);
-    return { status: 200 as const, body: await reviewSharepic(body.spec, body.prompt, body.image) };
+    return {
+      status: 200 as const,
+      body: await reviewSharepic(body.spec, body.prompt, body.image, body.mode ?? 'draft'),
+    };
   },
   analyzePhoto: async ({ req, body }) => {
     const user: UserProfile = getAuthedUser(req);

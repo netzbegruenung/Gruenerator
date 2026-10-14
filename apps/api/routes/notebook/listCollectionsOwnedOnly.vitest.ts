@@ -116,3 +116,28 @@ describe('listCollections — owned-only privacy guarantee', () => {
     expect(mockHelper.getNotebookCollectionsByIds).not.toHaveBeenCalled();
   });
 });
+
+describe('listCollections — Qdrant outage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('answers 503 vector_store_unavailable when Qdrant is unreachable', async () => {
+    mockHelper.getUserNotebookCollections.mockRejectedValue(
+      new Error('Failed to get user Notebook collections: Scroll operation failed: fetch failed')
+    );
+
+    const res = await callListCollections('user-1');
+
+    expect(res.status).toBe(503);
+    expect(res.body).toEqual({ error: 'vector_store_unavailable' });
+  });
+
+  it('keeps 500 for other failures', async () => {
+    mockHelper.getUserNotebookCollections.mockRejectedValue(new Error('boom'));
+
+    const res = await callListCollections('user-1');
+
+    expect(res.status).toBe(500);
+  });
+});

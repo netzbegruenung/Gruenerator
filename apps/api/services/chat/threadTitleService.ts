@@ -8,6 +8,7 @@
  * Generates AI-powered German titles using Mistral-small via `aiText`.
  */
 
+import { replaceVisualBlocksWithText } from '@gruenerator/contracts';
 import { MAX_THREAD_TITLE_CHARS, clampThreadTitle } from '@gruenerator/shared/utils';
 import { and, eq, isNull, or } from 'drizzle-orm';
 
@@ -245,9 +246,11 @@ export async function generateThreadTitle(
     imageGenerated: options?.imageGenerated,
   });
 
+  // A visual block at the top of an answer would otherwise name the thread "bars {…".
+  const assistantText = replaceVisualBlocksWithText(assistantResponse);
   const fallback =
     extractFallbackTitle(userMessage, options?.imageGenerated) ??
-    extractFallbackTitle(assistantResponse, options?.imageGenerated);
+    extractFallbackTitle(assistantText, options?.imageGenerated);
   log.info(`[ThreadTitle] extractFallbackTitle result: ${JSON.stringify(fallback)}`);
 
   if (!fallback || fallback.length <= 3) {
@@ -265,7 +268,7 @@ export async function generateThreadTitle(
 
   // Fire-and-forget AI title generation
   const userSnippet = userMessage.slice(0, 300);
-  const assistantSnippet = assistantResponse.slice(0, 500);
+  const assistantSnippet = assistantText.slice(0, 500);
 
   log.info(`[ThreadTitle] Sending AI worker request for ${threadId}`, {
     userSnippetLen: userSnippet.length,

@@ -205,6 +205,24 @@ describe('streamWithReasoning — Fehlerarten und Delta-Formen', () => {
       { type: 'text', delta: '120 km' },
     ]);
   });
+
+  it('entfernt Gemmas Kanal-Marker aus dem Antworttext', async () => {
+    const { streamWithReasoning } = await load();
+    vi.stubGlobal(
+      'fetch',
+      async () =>
+        new Response(
+          'data: {"choices":[{"delta":{"content":"<|channel>thought\\n<chan"}}]}\n' +
+            'data: {"choices":[{"delta":{"content":"nel|>Werde "}}]}\n' +
+            'data: {"choices":[{"delta":{"content":"Mitglied!"}}]}\n' +
+            'data: [DONE]\n',
+          { status: 200 }
+        )
+    );
+
+    const chunks = await streamOf(streamWithReasoning(PARAMS))();
+    expect(chunks.map((c) => c.delta).join('')).toBe('Werde Mitglied!');
+  });
 });
 
 /**

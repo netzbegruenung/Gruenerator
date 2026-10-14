@@ -119,6 +119,8 @@ const TEXT_TYPES: ReadonlySet<string> = new Set([
   // Texte-Grüneratoren (/api/texte/*)
   'universal',
   'leichte_sprache',
+  // Erklärseite in einfacher Sprache, Schwester von leichte_sprache.
+  'explainable',
   'custom_prompt',
   'protokoll',
   'rede',
@@ -130,10 +132,12 @@ const TEXT_TYPES: ReadonlySet<string> = new Set([
   'subtitler_social',
   // Grünerator Voice — der gesprochene Entwurf (/api/voice/speech/script)
   'voice_script',
+  // Zwei-Stimmen-Skript für Podcasts, Schwester von voice_script.
+  'podcast_script',
 ]);
 
-/** `mistral-medium-2604` === "Mistral Medium 3.5" (services/ai/modelDiscovery.ts). */
-const STRUCTURE_MODEL = 'mistral-medium-2604';
+/** Mistral Large 4 — seit 12.10.2026 anstelle von Medium 3.5 (`mistral-medium-2604`). */
+const STRUCTURE_MODEL = 'mistral-large-4';
 
 /**
  * Gemma 4, dichtes 31B — Host und Modellname kommen aus
@@ -202,25 +206,25 @@ export function selectProviderAndModel({
   // Type-based defaults
   // Notebook enrichment - fast model
   if (type === 'notebook_enrich') {
-    provider = 'mistral';
-    model = options.model || 'mistral-medium-2604';
+    provider = TEXT_PROVIDER;
+    model = options.model || TEXT_MODEL;
   }
   // Fast mode QA draft - fast model
   else if (type === 'qa_draft_fast') {
-    provider = 'mistral';
-    model = options.model || 'mistral-medium-2604';
+    provider = TEXT_PROVIDER;
+    model = options.model || TEXT_MODEL;
   }
-  // QA draft (final answer) — Mistral Medium 3.5, the notebook default
+  // QA draft (final answer) — Gemma 4, the notebook default since 12.10.2026
   else if (type === 'qa_draft') {
-    provider = 'mistral';
-    model = options.model || 'mistral-medium-2604';
+    provider = TEXT_PROVIDER;
+    model = options.model || TEXT_MODEL;
   }
   // QA intermediate steps (planner, repair, tools) — fast model
   else if (type === 'qa_tools' || type === 'qa_planner' || type === 'qa_repair') {
-    provider = 'mistral';
-    model = options.model || 'mistral-medium-2604';
+    provider = TEXT_PROVIDER;
+    model = options.model || TEXT_MODEL;
   }
-  // Strukturierte Erstellung — Mistral Medium 3.5. Siehe STRUCTURE_TYPES.
+  // Strukturierte Erstellung — Mistral Large 4. Siehe STRUCTURE_TYPES.
   //
   // Historie, die sonst verloren geht: `website` steht hier, weil die Route
   // ein Top-Level `provider: 'mistral'` setzte — das wählt nur den ADAPTER,

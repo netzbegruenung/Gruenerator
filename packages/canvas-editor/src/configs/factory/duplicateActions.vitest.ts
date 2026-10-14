@@ -85,7 +85,14 @@ describe('duplicateIllustration', () => {
 describe('duplicateBalken', () => {
   it('legt die Kopie ab und schreibt den Zustand samt Kopie in den Verlauf', () => {
     const h = harness(balkenState());
-    const actions = createBalkenActions(h.getState, h.setState, h.saveToHistory, h.debounced);
+    const actions = createBalkenActions(
+      h.getState,
+      h.setState,
+      h.saveToHistory,
+      h.debounced,
+      1080,
+      1350
+    );
 
     actions.duplicateBalken('balken-1');
 
@@ -95,7 +102,14 @@ describe('duplicateBalken', () => {
 
   it('schreibt keinen Verlaufseintrag für eine unbekannte ID', () => {
     const h = harness(balkenState());
-    const actions = createBalkenActions(h.getState, h.setState, h.saveToHistory, h.debounced);
+    const actions = createBalkenActions(
+      h.getState,
+      h.setState,
+      h.saveToHistory,
+      h.debounced,
+      1080,
+      1350
+    );
 
     actions.duplicateBalken('gibt-es-nicht');
 

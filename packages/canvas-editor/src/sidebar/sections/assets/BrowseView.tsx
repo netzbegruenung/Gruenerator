@@ -5,6 +5,7 @@ import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { useDebounce } from '../../../hooks/useDebounce';
 import {
   getAssetById,
+  hasDarkPreview,
   sortLogoAssets,
   type UniversalAsset,
   type AssetInstance,
@@ -27,6 +28,8 @@ import { CATEGORY_CARDS, PREVIEW_COMPONENTS, type AssetView } from './constants'
 import { SearchInput, SearchResultsGrid } from './SearchResultsGrid';
 import {
   DiagrammeStripTiles,
+  EmojiGrid,
+  EmojiStripTiles,
   FormenStripTiles,
   IconStripTiles,
   IllustrationStripTiles,
@@ -117,7 +120,14 @@ function AssetGrid({
           type="button"
           title={`${asset.label} hinzufügen`}
         >
-          <img src={asset.src} alt={asset.label} className="w-10 h-10 object-contain shrink-0" />
+          <img
+            src={asset.src}
+            alt={asset.label}
+            className={cn(
+              'w-10 h-10 object-contain shrink-0',
+              hasDarkPreview(asset) && 'bg-secondary-600 rounded-md p-1'
+            )}
+          />
           <span className="text-xs text-foreground truncate">{asset.label}</span>
         </button>
       ))}
@@ -186,6 +196,7 @@ export function BrowseView(props: BrowseViewProps) {
       rahmen: hasFramesFeature,
       illustrationen: hasIllustrationsFeature,
       icons: hasIconsFeature,
+      emoji: hasAssetsFeature,
     };
     return CATEGORY_CARDS.filter((card) => featureMap[card.id]);
   }, [
@@ -367,6 +378,8 @@ export function BrowseView(props: BrowseViewProps) {
             maxIconSelections={sectionProps.maxIconSelections}
           />
         );
+      case 'emoji':
+        return <EmojiStripTiles onAddAsset={sectionProps.onAddAsset!} />;
       default:
         return null;
     }
@@ -518,6 +531,13 @@ export function BrowseView(props: BrowseViewProps) {
               onDuplicateIllustration={sectionProps.onDuplicateIllustration}
               isExpanded
               illustrations={filteredIllustrations}
+            />
+          )}
+
+          {activeView === 'emoji' && hasAssetsFeature && (
+            <EmojiGrid
+              onAddAsset={sectionProps.onAddAsset!}
+              searchQuery={debouncedDrillDownQuery}
             />
           )}
 

@@ -39,7 +39,7 @@ const KI_ERROR_MESSAGES = {
  */
 export function buildPureCreateBody(request: KiCreateRequest): {
   prompt: string;
-  variant: KiStyleVariant;
+  variant?: KiStyleVariant;
   width?: number;
   height?: number;
   kiLabel?: KiLabelMode;
@@ -48,7 +48,7 @@ export function buildPureCreateBody(request: KiCreateRequest): {
   const format = request.format ? getImageFormat(request.format) : null;
   return {
     prompt: request.description,
-    variant: request.variant,
+    ...(request.variant && { variant: request.variant }),
     ...(format && { width: format.width, height: format.height }),
     ...(request.kiLabel && { kiLabel: request.kiLabel }),
     ...(request.layout && { layout: true }),

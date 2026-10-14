@@ -4,6 +4,7 @@
  */
 
 import { env } from '../../../config/env.js';
+import { withGemmaChannelFilter } from '../../../services/ai/gemmaChannelFilter.js';
 import {
   GEMMA_31B_ALTERNATE,
   GEMMA_31B_ON_CORTECS,
@@ -45,25 +46,16 @@ import type { LanguageModel } from 'ai';
 const log = createLogger('chatProviders');
 
 /**
- * Wohin ein Zug mit Bildern geht, wenn die gewählte Lane keine Bilder kann.
+ * Wohin ein Zug mit Bildern geht, wenn die gewählte Lane keine Bilder kann —
+ * seit dem 07.10.2026 nur noch Panda und Agent-Configs mit fremden Modellen,
+ * jede Antwort-Lane sieht selbst (Messung in modelDiscovery.ts).
  *
- * MISTRAL (Pixtral), NICHT Gemma. Gemma 4 31B nimmt auf keinem der beiden
- * lebenden Hosts Bildteile an: ein echter Bild-Turn endet bei Cortecs
- * (infercom) am 25.08.2026 in HTTP 500 (`unexpected_error`) und bei Melious am
- * 23.09.2026 in HTTP 400, obwohl beide Kataloge Bildeingabe führen. Bildfähigkeit
- * ist eine Eigenschaft des ENDPUNKTS, nicht der Gewichte. Der einzige
- * Bild-Endpunkt, den das Repo führt und der Bilder annimmt, ist `pixtral-large-latest`
- * auf der Mistral-API (`vision: true` in modelDiscovery.ts). Bis 30.09.2026
- * stand hier Regolos Gemma; mit dem Host ist auch diese Wahl weg.
- *
- * Hängt zusammen mit dem `vision: false` von `gemma-4-31b-it` in
- * modelDiscovery.ts: solange das dort so steht, schickt die Bild-Weiche in
- * responseStreamingService.ts Bild-Züge hierher. Wer das eine aufhebt, hebt das
- * andere mit auf — und probt vorher.
+ * Gemma 4 31B auf dem Primär-Host — seit 12.10.2026 anstelle von Mistral
+ * Medium 3.5 (Kosten); Mistral Large 4 sieht nicht (modelDiscovery.ts).
  */
 export const VISION_MODEL = {
-  provider: 'mistral' as const,
-  model: env.VISION_DEFAULT_MODEL || 'pixtral-large-latest',
+  provider: GEMMA_31B_PRIMARY.provider,
+  model: env.VISION_DEFAULT_MODEL || GEMMA_31B_PRIMARY.model,
 };
 
 export { getIntermediateModel } from '../../../services/ai/providers.js';
@@ -210,12 +202,11 @@ const GEMMA_4_MELIOUS: ModelConfigSingle = {
   // Mechanismus ist deshalb nicht kosmetisch, sondern tragend — jede
   // Konfiguration zieht ihr Fenster aus ihrem eigenen Host-Deskriptor.
   //
-  // WORAUF ZU ACHTEN IST: `ResolvedModelTuple.sibling` führt nur
-  // provider/model, kein Fenster — bei einem Ausweich bleibt die Zahl des
-  // PRIMÄRS stehen. Für die Antwortlane ist das seit dem 23.09.2026 wieder
-  // gleich gross: Cortecs 128k, Melious 128k — Melious' Standardweg nimmt nur
-  // ~45k, grössere Züge tauscht `meliousWireModel` auf `:speed`. Gerechnet
-  // gegen die Fenster von GEMMA_31B_ON_MELIOUS.
+  // `ResolvedModelTuple.sibling` führt sein Fenster seit #4198 mit: ist es
+  // kleiner als das des Primärs, kürzt `messagesForLane` den Verlauf für den
+  // Ausweich neu. Für diese Lane sind beide Seiten 128k — Melious'
+  // Standardweg nimmt nur ~45k, grössere Züge tauscht `meliousWireModel` auf
+  // `:speed`.
   //
   // `streamWithFallback` ist single-step by design — der eigene Fallback des
   // Ausweichs greift auf DIESEM Weg also nicht.
@@ -359,32 +350,29 @@ const GEMMA_4_GREENPT: ModelConfigSingle = {
 
 export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
   // 'mistral' is intentionally absent — it uses agent defaults (like 'auto')
+  // Die ID bleibt (Auto-Policy, gespeicherte Auswahl); seit 12.10.2026 Large 4.
   'mistral-medium-3.5': {
     kind: 'single',
     provider: 'mistral',
-    model: 'mistral-medium-2604',
+    model: 'mistral-large-4',
     contextWindow: CTX_FULL,
     fallback: 'gemma-4',
   },
-  // Legacy IDs — repointed to current Mistral generation (Medium 3.5)
+  // Legacy IDs — repointed to current Mistral generation (Large 4)
   'mistral-large': {
     kind: 'single',
     provider: 'mistral',
-    model: 'mistral-medium-2604',
+    model: 'mistral-large-4',
     contextWindow: CTX_FULL,
   },
   'mistral-medium': {
     kind: 'single',
     provider: 'mistral',
-    model: 'mistral-medium-2604',
+    model: 'mistral-large-4',
     contextWindow: CTX_FULL,
   },
-  'pixtral-large': {
-    kind: 'single',
-    provider: 'mistral',
-    model: 'pixtral-large-latest',
-    contextWindow: CTX_FULL,
-  },
+  // F0: Pixtral ist bei Mistral abgeschaltet (07.10.2026); die Bild-Lane ist Gemma 4.
+  'pixtral-large': GEMMA_ANSWER_LANE,
   melious: {
     kind: 'single',
     provider: 'melious',
@@ -451,8 +439,8 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
  */
 AVAILABLE_MODELS['gruenerator-small'] = SMALL_ANSWER_LANE;
 AVAILABLE_MODELS['gruenerator-medium'] = GEMMA_ANSWER_LANE;
-// Seit 06.10.2026 Mistral Large 4 (Public Preview). Dass es denkt, hängt an
-// der Allowlist von @ai-sdk/mistral (ab 4.0.59), siehe getMistralChatModel.
+// Seit 06.10.2026 Mistral Large 4 (Public Preview). `reasoning_effort` sendet
+// @ai-sdk/mistral für diese ID seit 4.0.59 selbst.
 // `CTX_FULL` liegt unter den 524.288, die `GET /v1/models` am 06.10.2026
 // meldete. Der Ausweich bleibt Gemma bei Cortecs wie vorher: der Stream-Sibling
 // ist einstufig, und nur ein anderer Anbieter fängt auch einen Mistral-weiten
@@ -526,8 +514,9 @@ export interface ResolvedModelTuple {
   provider: Provider;
   model: string;
   contextWindow: number;
-  /** Single-step first-token-timeout fallback target. */
-  sibling?: { provider: Provider; model: string };
+  /** Single-step first-token-timeout fallback target, with its own window —
+   *  a turn sized for the primary is re-pruned for it (#4198). */
+  sibling?: { provider: Provider; model: string; contextWindow: number };
 }
 
 /**
@@ -554,7 +543,13 @@ export async function resolveModelTuple(
   // Honor configured fallback (e.g. mistral-medium-3.5 → gemma-4).
   if (config.fallback) {
     const sib = AVAILABLE_MODELS[config.fallback];
-    if (sib) result.sibling = { provider: sib.provider, model: sib.model };
+    if (sib) {
+      result.sibling = {
+        provider: sib.provider,
+        model: sib.model,
+        contextWindow: sib.contextWindow,
+      };
+    }
   }
   return result;
 }
@@ -690,12 +685,16 @@ function instantiateModel(provider: string, modelId: string): LanguageModel {
     // Stillgelegt — `getModel` oben biegt den Namen bereits um; dieser Zweig
     // fängt nur einen direkten Aufruf ab. Siehe services/ai/litellmRetired.ts.
     case 'litellm':
-      return getCortecsProvider().chat(retireLiteLLM('litellm', modelId).model ?? '');
+      return withGemmaChannelFilter(
+        getCortecsProvider().chat(retireLiteLLM('litellm', modelId).model ?? '')
+      );
     // F0: gespeicherter Name eines abgeschalteten Hosts (Regolo, 30.09.2026).
     // `getModel` oben biegt ihn bereits um; dieser Zweig fängt nur einen
     // direkten Aufruf ab. Siehe services/ai/litellmRetired.ts.
     case 'regolo':
-      return getCortecsProvider().chat(retireLiteLLM('regolo', modelId).model ?? '');
+      return withGemmaChannelFilter(
+        getCortecsProvider().chat(retireLiteLLM('regolo', modelId).model ?? '')
+      );
     case 'melious': {
       if (!env.MELIOUS_API_KEY) {
         log.warn(
@@ -704,8 +703,8 @@ function instantiateModel(provider: string, modelId: string): LanguageModel {
         lastFallbackProvider = 'mistral';
         return getMistralChatModel(modelId);
       }
-      return getMeliousProvider().chat(
-        modelId || env.MELIOUS_DEFAULT_MODEL || 'gemma-4-31b:balanced'
+      return withGemmaChannelFilter(
+        getMeliousProvider().chat(modelId || env.MELIOUS_DEFAULT_MODEL || 'gemma-4-31b:balanced')
       );
     }
     case 'greenpt':
@@ -722,9 +721,11 @@ function instantiateModel(provider: string, modelId: string): LanguageModel {
           `CORTECS_API_KEY not set — answering on Melious Gemma 4 instead (requested "${modelId}")`
         );
         lastFallbackProvider = 'melious';
-        return getMeliousProvider().chat(GEMMA_4_MELIOUS.model);
+        return withGemmaChannelFilter(getMeliousProvider().chat(GEMMA_4_MELIOUS.model));
       }
-      return getCortecsProvider().chat(modelId || GEMMA_4_31B_CORTECS.model);
+      return withGemmaChannelFilter(
+        getCortecsProvider().chat(modelId || GEMMA_4_31B_CORTECS.model)
+      );
     }
     case 'anthropic':
       throw new Error('Anthropic provider is not yet implemented');
@@ -810,7 +811,7 @@ function plannerStageUsable(stage: { provider: Provider; model: string }): boole
   return true;
 }
 
-function loopPlannerChoice(): { provider: Provider; model: string } {
+function loopPlannerChoice(): { provider: Provider; model: string; contextWindow: number } {
   // Melious Gemma first, Melious Mistral Small 4 second — see
   // LOOP_PLANNER_PRIMARY in autoPolicy.ts for why and for the measurements.
   //
@@ -916,7 +917,7 @@ export function getLoopPlannerFallbackModel(
  */
 export function getLoopSynthFallbackModel(
   synthName: string
-): { model: LanguageModel; name: string } | null {
+): { model: LanguageModel; name: string; contextWindow: number } | null {
   const p = loopPlannerChoice();
   if (p.model === synthName) return null;
   // Diese Lane SCHREIBT hier die Nutzer-Antwort, sie plant nicht. Ein
@@ -927,6 +928,7 @@ export function getLoopSynthFallbackModel(
   return {
     model: getModel(p.provider, p.model, { acceptTarget: synthTargetAllowed }),
     name: p.model,
+    contextWindow: p.contextWindow,
   };
 }
 

@@ -133,6 +133,26 @@ describe('richTextToMarkdownLite', () => {
     };
     expect(richTextToMarkdownLite(doc)).toBe('• a b');
   });
+
+  it('setzt vor einen getippten Marker keine zweite Kugel (#4275)', () => {
+    const item = (text: string) => ({
+      type: 'listItem' as const,
+      content: [{ type: 'paragraph' as const, content: [{ type: 'text' as const, text }] }],
+    });
+    const doc: RichTextDoc = {
+      type: 'doc',
+      content: [{ type: 'bulletList', content: [item('Bus'), item('• Radwege bauen')] }],
+    };
+    expect(richTextToMarkdownLite(doc)).toBe('• Bus\n• Radwege bauen');
+  });
+
+  it('lässt einen Strich in einem Absatz stehen', () => {
+    const doc: RichTextDoc = {
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: '– Anna Müller' }] }],
+    };
+    expect(richTextToMarkdownLite(doc)).toBe('– Anna Müller');
+  });
 });
 
 describe('Akzent im Rich Text', () => {
@@ -165,5 +185,41 @@ describe('Marker im Rich Text', () => {
     expect(richTextToMarkdownLite(doc)).toBe('Das ist ++ungerecht.++');
     const both = markdownLiteToRichText('++a ==b== c++');
     expect(richTextToMarkdownLite(both)).toBe('++a ==b== c++');
+  });
+});
+
+describe('Passagenfarbe im Rich Text', () => {
+  it('trägt die Farbe als Mark-Attribut hin und zurück', () => {
+    const text = 'Sonne für =={#E6007E}alle== ++{#FFFFFF}Dach++';
+    const doc = markdownLiteToRichText(text);
+    const runs = doc.content?.[0]?.content ?? [];
+    expect(runs[1]?.marks).toEqual([{ type: 'accent', attrs: { color: '#E6007E' } }]);
+    expect(runs[3]?.marks).toEqual([{ type: 'marker', attrs: { color: '#FFFFFF' } }]);
+    expect(richTextToMarkdownLite(doc)).toBe(text);
+  });
+
+  it('nimmt tiptaps color: null als Vorlagenfarbe und verwirft ungültige Werte', () => {
+    const doc = {
+      type: 'doc' as const,
+      content: [
+        {
+          type: 'paragraph' as const,
+          content: [
+            {
+              type: 'text' as const,
+              text: 'a',
+              marks: [{ type: 'accent' as const, attrs: { color: null } }],
+            },
+            { type: 'text' as const, text: ' ' },
+            {
+              type: 'text' as const,
+              text: 'b',
+              marks: [{ type: 'accent' as const, attrs: { color: 'red' } }],
+            },
+          ],
+        },
+      ],
+    };
+    expect(richTextToMarkdownLite(doc)).toBe('==a== ==b==');
   });
 });

@@ -31,6 +31,14 @@ export interface UserImageInstance {
   grayscale?: boolean;
   sepia?: boolean;
   invert?: boolean;
+  /** Duotone: shadows to a dark shade of this colour, highlights to a pale one. */
+  tint?: string;
+  /** How far the tint replaces the photo's own colours: 0..1. */
+  tintStrength?: number;
+  /** `cover`: the source is cropped (Konva `crop`) to fill width × height, centred. */
+  fit?: 'cover';
+  /** `kreis`: clipped to the circle inside width × height. */
+  mask?: 'kreis';
 }
 
 /** The adjustment fields, for reset / preset helpers. */
@@ -45,7 +53,57 @@ export type ImageAdjustments = Pick<
   | 'grayscale'
   | 'sepia'
   | 'invert'
+  | 'tint'
+  | 'tintStrength'
 >;
+
+export interface ImageCrop {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** The centred part of a `natural` source that fills a `frame` without distortion (Konva `crop`). */
+export function coverCrop(
+  natural: { width: number; height: number },
+  frame: { width: number; height: number }
+): ImageCrop {
+  const scale = Math.max(frame.width / natural.width, frame.height / natural.height);
+  const width = frame.width / scale;
+  const height = frame.height / scale;
+  return { x: (natural.width - width) / 2, y: (natural.height - height) / 2, width, height };
+}
+
+export interface CropPreset {
+  id: 'original' | 'quadrat' | 'kreis' | 'streifen';
+  label: string;
+  /** Width : height of the frame; absent: the source's own. */
+  ratio?: number;
+  mask?: UserImageInstance['mask'];
+}
+
+export const CROP_PRESETS: readonly CropPreset[] = [
+  { id: 'original', label: 'Original' },
+  { id: 'quadrat', label: 'Quadrat', ratio: 1 },
+  { id: 'kreis', label: 'Kreis', ratio: 1, mask: 'kreis' },
+  { id: 'streifen', label: 'Streifen', ratio: 3 },
+];
+
+/** The frame a crop preset gives the image: same width, same centre, the preset's shape. */
+export function cropPresetUpdate(
+  img: Pick<UserImageInstance, 'y' | 'width' | 'height'>,
+  preset: CropPreset,
+  natural: { width: number; height: number }
+): Partial<UserImageInstance> {
+  const height = img.width / (preset.ratio ?? natural.width / natural.height);
+  return {
+    y: img.y + (img.height - height) / 2,
+    height,
+    fit: preset.ratio ? 'cover' : undefined,
+    mask: preset.mask,
+  };
+}
 
 const TARGET_MAX_DIMENSION = 300;
 const FALLBACK_WIDTH = 300;

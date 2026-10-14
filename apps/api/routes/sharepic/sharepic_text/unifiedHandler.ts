@@ -226,9 +226,9 @@ export interface UnifiedTextBody {
 
 /**
  * Die eine Formulierung dafür, wie Auszeichnung in einem Sharepic-Text
- * aussieht. Drei Türen sprechen sie: die Textgenerierung hier, die
- * Chat-Bearbeitung (`sharepicEditLlm`) und die Studio-Vorschläge
- * (`buildCanvasSuggestPrompt`). Was der Editor rendert, steht in
+ * aussieht. Zwei Türen sprechen sie: die Textgenerierung hier und der
+ * Op-Planer (`buildCanvasSuggestPrompt`) für Chat-Bearbeitung und
+ * Studio. Was der Editor rendert, steht in
  * `@gruenerator/contracts` (`inlineMarks.ts`) — die Regel hier muss dieselbe
  * Form beschreiben, sonst tippt das Modell etwas, das niemand zeichnet.
  */
@@ -468,10 +468,9 @@ export async function generateUnifiedTexts(
 /**
  * Die EINZIGE Stelle, die die Drahtform der Sharepic-Textantwort kennt.
  *
- * Drei Transporte teilen sie sich: der ts-rest-Contract-Router, der
- * Express-Wrapper unten (der noch `text/default` und die deprecated
- * `*_claude`-Aliasse bedient) und die In-Process-Aufrufer. Solange alle drei
- * hierdurch serialisieren, können Contract-Antwort und Alias-Antwort nicht
+ * Zwei Transporte teilen sie sich: der ts-rest-Contract-Router und der
+ * Express-Wrapper unten (der noch die deprecated `*_claude`-Aliasse bedient).
+ * Solange beide hierdurch serialisieren, können Contract-Antwort und Alias-Antwort nicht
  * auseinanderlaufen — genau das prüft `wireBody.vitest.ts` gegen die
  * Zod-Schemata aus `@gruenerator/contracts`.
  *

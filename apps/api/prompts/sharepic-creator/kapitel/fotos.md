@@ -2,6 +2,8 @@
 
 - Wir haben eine kleine Sammlung lizenzierter Stockfotos. Suche mit `fotos_suchen` und **englischen** Begriffen („train“, „wind turbine“, „children playground“).
 - Nimm ein Foto, wenn eins wirklich zum Thema passt – ein Foto wirkt fast immer stärker als eine Fläche.
+- Bevorzuge Fotos, die Menschen oder eine konkrete Alltagssituation zeigen – Leute in Aktion statt allgemeiner Symbole.
+- Ein Symbolmotiv (Fahne, Windrad, Solarpaneel, Sonnenblume) nur, wenn das Thema genau dieses Ding ist: die Regenbogenfahne für Pride oder CSD, das Windrad für Windkraft. Sonst ist eine Farbfläche besser.
 - Prüfe das Motiv an der Beschreibung: Zeigt es, worum es geht (Menschen, Ort, Gegenstand des Themas)? Ein Zuginnenraum passt zu Bahn, nicht zu einem Stammtisch. Passt keins, nimm eine Farbe – ein falsches Motiv ist schlimmer als keins.
 - `textSeite`: `unten` – der Text steht unten, das Foto darüber bleibt hell und erkennbar. `links`/`rechts` nur, wenn das Motiv es verlangt (eine Person füllt die andere Bildseite). `position` auf einem Foto ist `unten`.
 - Auf einem Foto kein Logo (`logo: false`).

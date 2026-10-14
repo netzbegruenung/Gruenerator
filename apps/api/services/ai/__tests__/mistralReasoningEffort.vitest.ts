@@ -1,14 +1,13 @@
 /**
- * `reasoning_effort` auf dem Draht. `@ai-sdk/mistral` verwirft es STILL für
- * jede ID, die nicht auf seiner Allowlist steht — so dachte Medium bis 4.0.42
- * nie, Large 4 bis 4.0.58 nicht. Gefahren durch die echten Provider-Instanzen
- * mit gestubbtem globalem fetch: geprüft wird der Body, nicht unser
- * Options-Objekt. Wer einer Lane ein neues Mistral-Modell gibt, trägt es in
- * THINKING_MISTRAL_MODELS ein.
+ * `reasoning_effort` auf dem Draht für Mistral Large 4. Bis @ai-sdk/mistral
+ * 4.0.59 verwarf das SDK es für diese ID still; ein eigener fetch-Wrapper hat
+ * das überbrückt. Gefahren durch die echten Provider-Instanzen mit gestubbtem
+ * globalem fetch — geprüft wird der Body, nicht unser Options-Objekt.
  */
 
-import { generateText } from 'ai';
+import { generateText, tool } from 'ai';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { z } from 'zod';
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -19,12 +18,13 @@ async function loadProviders() {
 }
 
 function captureRequests() {
-  const requests: { body: Record<string, unknown> }[] = [];
+  const requests: { body: Record<string, unknown>; headers: Headers }[] = [];
   vi.stubGlobal(
     'fetch',
     vi.fn(async (_url: string, init: RequestInit) => {
       requests.push({
         body: JSON.parse(init.body as string) as Record<string, unknown>,
+        headers: new Headers(init.headers),
       });
       return new Response(JSON.stringify(COMPLETION), {
         status: 200,
@@ -44,28 +44,43 @@ const COMPLETION = {
   usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
 };
 
+const HIGH = { mistral: { reasoningEffort: 'high' as const } };
+
 afterEach(() => {
   process.env = { ...ORIGINAL_ENV };
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 
-const THINKING_MISTRAL_MODELS = ['mistral-large-4', 'mistral-medium-2604'] as const;
-
-describe('reasoning_effort reaches Mistral', () => {
-  it.each(THINKING_MISTRAL_MODELS)('lands in the body for %s', async (model) => {
+describe('reasoning_effort for Mistral chat models', () => {
+  it('reaches the body for mistral-large-4', async () => {
     const { getMistralChatModel } = await loadProviders();
     const requests = captureRequests();
 
     await generateText({
-      model: getMistralChatModel(model),
+      model: getMistralChatModel('mistral-large-4'),
       prompt: 'hi',
-      providerOptions: { mistral: { reasoningEffort: 'high', promptCacheKey: 'abc' } },
+      providerOptions: HIGH,
     });
 
-    expect(requests[0]?.body.model).toBe(model);
+    expect(requests[0]?.body.model).toBe('mistral-large-4');
     expect(requests[0]?.body.reasoning_effort).toBe('high');
-    expect(requests[0]?.body.prompt_cache_key).toBe('abc');
+  });
+
+  it('reaches the body when a tool schema names a reasoning_effort parameter', async () => {
+    const { getMistralChatModel } = await loadProviders();
+    const requests = captureRequests();
+
+    await generateText({
+      model: getMistralChatModel('mistral-large-4'),
+      prompt: 'hi',
+      providerOptions: HIGH,
+      tools: {
+        plan: tool({ inputSchema: z.object({ reasoning_effort: z.string() }) }),
+      },
+    });
+
+    expect(requests[0]?.body.reasoning_effort).toBe('high');
   });
 
   it('stays off when the caller did not ask for it', async () => {
@@ -75,5 +90,19 @@ describe('reasoning_effort reaches Mistral', () => {
     await generateText({ model: getMistralChatModel('mistral-large-4'), prompt: 'hi' });
 
     expect(requests[0]?.body).not.toHaveProperty('reasoning_effort');
+  });
+
+  it('keeps other Mistral options next to it', async () => {
+    const { getMistralChatModel } = await loadProviders();
+    const requests = captureRequests();
+
+    await generateText({
+      model: getMistralChatModel('mistral-medium-2604'),
+      prompt: 'hi',
+      providerOptions: { mistral: { reasoningEffort: 'high', promptCacheKey: 'abc' } },
+    });
+
+    expect(requests[0]?.body.reasoning_effort).toBe('high');
+    expect(requests[0]?.body.prompt_cache_key).toBe('abc');
   });
 });

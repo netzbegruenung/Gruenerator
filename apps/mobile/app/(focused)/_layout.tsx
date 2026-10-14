@@ -31,6 +31,7 @@ export default function FocusedLayout() {
       <Stack.Screen name="reel" options={{ ...toolHeader, title: 'Reel' }} />
       <Stack.Screen name="scanner" options={{ ...toolHeader, title: 'Scanner' }} />
       <Stack.Screen name="vorlagen" options={{ ...toolHeader, title: 'Vorlagen' }} />
+      <Stack.Screen name="profilbild" options={{ ...toolHeader, title: 'Profilbild' }} />
     </Stack>
   );
 }

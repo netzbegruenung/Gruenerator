@@ -1,10 +1,10 @@
 import {
   type Flux3BoxEdit,
-  type Flux3LayoutRow,
+  type Flux3DetectedElement,
   type ImageEditReference,
   type KiLabelMode,
 } from '@gruenerator/contracts';
-import { ApiError, getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient, getGlobalApiClient } from '@gruenerator/shared/api';
 
 import apiClient from '../../../components/utils/apiClient';
 
@@ -99,6 +99,27 @@ export async function removeImageBackground(
   return { file, objectUrl, base64 };
 }
 
+export async function outpaintImage(
+  file: File,
+  aspectRatio: string,
+  kiLabel: KiLabelMode
+): Promise<string> {
+  const form = new FormData();
+  form.append('image', file);
+  form.append('aspectRatio', aspectRatio);
+  if (kiLabel !== 'full') form.append('kiLabel', kiLabel);
+  const res = await getGlobalApiClient().post<{
+    success: boolean;
+    image?: { base64?: string };
+    error?: string;
+  }>('/imagine/outpaint', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+  if (!res.data.success || !res.data.image?.base64) {
+    throw new Error(res.data.error || 'Vergrößerung fehlgeschlagen');
+  }
+  const raw = res.data.image.base64;
+  return raw.startsWith('data:') ? raw : `data:image/png;base64,${raw}`;
+}
+
 export async function editAiImage(
   image: File | File[],
   instruction: string,
@@ -148,7 +169,7 @@ export async function editAiImage(
 }
 
 /** Experimental (FLUX 3): the elements of an image with bounding boxes. */
-export async function detectImageElements(image: File): Promise<Flux3LayoutRow[]> {
+export async function detectImageElements(image: File): Promise<Flux3DetectedElement[]> {
   const reference = await fileToReference(image, TOTAL_INPUT_BUDGET_MP * 1_000_000);
   const result = await getContractsClient().imageEdit.elements({ body: { image: reference } });
   if (result.status === 400 || result.status === 401 || result.status === 500) {

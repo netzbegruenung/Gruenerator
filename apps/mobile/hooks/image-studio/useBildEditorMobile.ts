@@ -1,8 +1,4 @@
-import {
-  DEFAULT_IMAGE_FORMAT,
-  DEFAULT_STYLE_VARIANT,
-  useKiImageGeneration,
-} from '@gruenerator/shared/image-studio';
+import { useKiImageGeneration } from '@gruenerator/shared/image-studio';
 import { useShareStore } from '@gruenerator/shared/share';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQueryClient } from '@tanstack/react-query';
@@ -26,6 +22,8 @@ import {
   writeDataUrlToCache,
 } from '../../services/imageEditMobile';
 import { saveImageToGallery, shareImage } from '../../services/imageStudio';
+
+import { loadPersistedVersions, type PersistShape } from './persistedVersions';
 
 const STORAGE_KEY = 'gruenerator-bildeditor-mobile';
 const MAX_PERSISTED = 12;
@@ -52,9 +50,7 @@ const GREEN_DEFAULT_INSTRUCTION =
   'Verwandle diese Szene in einen grünen, lebenswerten Raum: mehr Bäume und Straßengrün, Blühflächen, geschützte Radwege und mehr Platz zum Verweilen.';
 
 const DEFAULT_SETTINGS: BevSettings = {
-  variant: DEFAULT_STYLE_VARIANT,
   kiLabel: 'full',
-  format: DEFAULT_IMAGE_FORMAT,
   aspect: '1:1',
 };
 
@@ -66,20 +62,14 @@ export const IMAGE_MODES: BevMode[] = [
   'hintergrund',
 ];
 
-interface PersistShape {
-  versions: BevVersion[];
-  activeId: string | null;
-  settings?: Partial<BevSettings>;
-}
-
 function refOf(v: BevVersion): BevImageRef {
   return { uri: v.image, width: v.width, height: v.height };
 }
 
-export function useBildEditorMobile() {
+export function useBildEditorMobile(initialMode: BevMode = 'erstellen') {
   const [versions, setVersions] = useState<BevVersion[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [mode, setMode] = useState<BevMode>('erstellen');
+  const [mode, setMode] = useState<BevMode>(initialMode);
   const [prompt, setPrompt] = useState('');
   const [references, setReferences] = useState<BevImageRef[]>([]);
   const [generating, setGenerating] = useState(false);
@@ -109,39 +99,26 @@ export function useBildEditorMobile() {
   // Hydrate from AsyncStorage once, dropping versions whose cache file was evicted.
   useEffect(() => {
     let cancelled = false;
-    void (async () => {
-      try {
-        const raw = await AsyncStorage.getItem(STORAGE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw) as PersistShape;
-          const alive = (parsed.versions ?? []).filter((v) => {
-            try {
-              return new File(v.image).exists;
-            } catch {
-              return false;
-            }
-          });
-          if (!cancelled && alive.length > 0) {
-            setVersions(alive);
-            setActiveId(
-              alive.some((v) => v.id === parsed.activeId)
-                ? parsed.activeId
-                : (alive.at(-1)?.id ?? null)
-            );
-            setMode('bearbeiten');
-            if (parsed.settings) setSettings((s) => ({ ...s, ...parsed.settings }));
-          }
-        }
-      } catch {
+    void AsyncStorage.getItem(STORAGE_KEY)
+      .then((raw) => loadPersistedVersions(raw, (uri) => new File(uri).exists))
+      .then((restored) => {
+        if (cancelled || !restored || restored.versions.length === 0) return;
+        setVersions(restored.versions);
+        setActiveId(restored.activeId);
+        // Opened for a sharepic, the restored image does not take the mode over.
+        if (initialMode !== 'sharepic') setMode('bearbeiten');
+        if (restored.settings) setSettings((s) => ({ ...s, ...restored.settings }));
+      })
+      .catch(() => {
         /* ignore corrupt persistence */
-      } finally {
+      })
+      .finally(() => {
         if (!cancelled) setHydrated(true);
-      }
-    })();
+      });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [initialMode]);
 
   // Persist versions (capped), active id and settings once hydrated.
   useEffect(() => {
@@ -203,8 +180,9 @@ export function useBildEditorMobile() {
         time: Date.now(),
         kind,
       });
-      // Once an image exists the default action is refining it.
-      setMode((m) => (m === 'erstellen' ? 'bearbeiten' : m));
+      // Once an image exists the default action is refining it — also when it
+      // was picked through „+" in Sharepic mode, which would ignore it.
+      setMode((m) => (m === 'erstellen' || m === 'sharepic' ? 'bearbeiten' : m));
       // Surface in the workplace „Zuletzt erstellt" feed (uploads are sources).
       void createImageShare({
         imageData: dataUrl,
@@ -224,13 +202,11 @@ export function useBildEditorMobile() {
     async (text: string) => {
       const dataUrl = await generatePureCreate({
         description: text,
-        variant: settings.variant,
-        format: settings.format,
         kiLabel: settings.kiLabel,
       });
       await commitProducedImage(dataUrl, text, 'create', null);
     },
-    [generatePureCreate, settings.variant, settings.format, settings.kiLabel, commitProducedImage]
+    [generatePureCreate, settings.kiLabel, commitProducedImage]
   );
 
   const runEdit = useCallback(
@@ -270,45 +246,50 @@ export function useBildEditorMobile() {
     await commitProducedImage(dataUrl, 'Hintergrund entfernt', 'nobg', active.id);
   }, [active, commitProducedImage]);
 
-  const submit = useCallback(async () => {
-    if (generating) return;
-    const text = prompt.trim();
-    if (mode === 'erstellen' && text.length < 3) return;
-    if (mode === 'bearbeiten' && (!active || text.length < 3)) return;
-    if (
-      (mode === 'gruen-verwandeln' || mode === 'vergroessern' || mode === 'hintergrund') &&
-      !active
-    )
-      return;
+  /** `typed` is for a composer that keeps its own draft (the start screen). */
+  const submit = useCallback(
+    async (typed?: string) => {
+      // The sharepic chat takes the prompt over; the screen routes it there.
+      if (generating || mode === 'sharepic') return;
+      const text = (typed ?? prompt).trim();
+      if (mode === 'erstellen' && text.length < 3) return;
+      if (mode === 'bearbeiten' && (!active || text.length < 3)) return;
+      if (
+        (mode === 'gruen-verwandeln' || mode === 'vergroessern' || mode === 'hintergrund') &&
+        !active
+      )
+        return;
 
-    setGenerating(true);
-    setError(null);
-    startStatus();
-    try {
-      if (mode === 'erstellen') await runCreate(text);
-      else if (mode === 'bearbeiten') await runEdit(text);
-      else if (mode === 'gruen-verwandeln') await runGreenEdit(text);
-      else if (mode === 'vergroessern') await runOutpaint();
-      else await runRemoveBg();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Etwas ist schiefgelaufen.');
-    } finally {
-      stopStatus();
-      setGenerating(false);
-    }
-  }, [
-    generating,
-    prompt,
-    mode,
-    active,
-    runCreate,
-    runEdit,
-    runGreenEdit,
-    runOutpaint,
-    runRemoveBg,
-    startStatus,
-    stopStatus,
-  ]);
+      setGenerating(true);
+      setError(null);
+      startStatus();
+      await (async () => {
+        if (mode === 'erstellen') await runCreate(text);
+        else if (mode === 'bearbeiten') await runEdit(text);
+        else if (mode === 'gruen-verwandeln') await runGreenEdit(text);
+        else if (mode === 'vergroessern') await runOutpaint();
+        else await runRemoveBg();
+      })()
+        .catch((e) => setError(e instanceof Error ? e.message : 'Etwas ist schiefgelaufen.'))
+        .finally(() => {
+          stopStatus();
+          setGenerating(false);
+        });
+    },
+    [
+      generating,
+      prompt,
+      mode,
+      active,
+      runCreate,
+      runEdit,
+      runGreenEdit,
+      runOutpaint,
+      runRemoveBg,
+      startStatus,
+      stopStatus,
+    ]
+  );
 
   const handleUpload = useCallback(
     (ref: BevImageRef) => {

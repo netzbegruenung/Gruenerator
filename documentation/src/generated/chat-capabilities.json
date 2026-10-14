@@ -8,6 +8,7 @@
     "chat_history",
     "compare",
     "compute",
+    "create_explainable",
     "create_pdf",
     "create_presentation",
     "create_recurring_task",
@@ -104,6 +105,11 @@
       "description": "Echte Social-Media-Posts als Vorlage und Inspiration",
       "mention": "@beispiele"
     },
+    "explainable-erstellen": {
+      "title": "Explainable erstellen",
+      "description": "Thema einfach erklärt, mit Erklärbildern",
+      "mention": "@explainable-erstellen"
+    },
     "hilfe": {
       "title": "Hilfe & Anleitungen",
       "description": "Anleitungen zum Grünerator aus der Doku",
@@ -170,9 +176,9 @@
       "mention": "@umfragen"
     },
     "vorlagen-trigger": {
-      "title": "Vorlagen",
-      "description": "Passende Vorlagen per Vektorsuche einfügen",
-      "mention": "@vorlagen"
+      "title": "Sharepic-Vorlage",
+      "description": "Sharepic nach einer Grünerator-Vorlage erstellen",
+      "mention": "@vorlage"
     },
     "webpage-trigger": {
       "title": "Link",
@@ -237,6 +243,10 @@
     "vision": {
       "label": "Bildanalyse",
       "description": "Beschreibt und analysiert hochgeladene Bilder."
+    },
+    "vorlagen": {
+      "label": "Sharepic-Vorlagen",
+      "description": "Schlägt zu einem Beitrag passende Sharepic-Vorlagen vor; per Klick wird daraus ein Sharepic mit dem Text."
     },
     "web": {
       "label": "Recherche",
@@ -333,6 +343,13 @@
       "title": "Bürger*innen-Mail",
       "description": "Antwort-E-Mail auf eine Bürger*innenanfrage",
       "avatar": "✉️",
+      "category": "dokumente"
+    },
+    {
+      "command": "@antrag",
+      "title": "Antrag für Stadt- oder Gemeinderat",
+      "description": "Anträge für Stadtrat, Gemeinderat und Kreistag",
+      "avatar": "🏛️",
       "category": "dokumente"
     },
     {
@@ -787,6 +804,15 @@
       "description": "Fachwissen zur Kommunalpolitik",
       "avatar": "📚",
       "category": "weitere",
+      "audience": "de-DE"
+    },
+    {
+      "id": "bundestag-dip-notebook",
+      "mention": "@plenum",
+      "title": "Bundestag: Reden & Drucksachen",
+      "description": "Plenarreden und Drucksachen aus dem DIP",
+      "avatar": "🏛️",
+      "category": "parlamente",
       "audience": "de-DE"
     },
     {

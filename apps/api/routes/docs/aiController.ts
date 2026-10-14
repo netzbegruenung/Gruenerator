@@ -28,7 +28,12 @@ import {
   injectDocumentStateMessages,
   toolDefinitionsToToolSet,
 } from '@blocknote/xl-ai/server';
-import { streamText, convertToModelMessages, type ToolSet } from 'ai';
+import {
+  streamText,
+  convertToModelMessages,
+  pipeUIMessageStreamToResponse,
+  type ToolSet,
+} from 'ai';
 import { type Response } from 'express';
 import { z } from 'zod';
 
@@ -40,6 +45,10 @@ import { getModel, isProviderConfigured } from '../chat/agents/providers.js';
 import { type AgentConfig } from '../chat/agents/types.js';
 
 import { checkDocumentWriteAccess } from './documentAccess.js';
+import {
+  documentOperationTypes,
+  sanitizeDocumentOperations,
+} from './sanitizeDocumentOperations.js';
 
 const log = createLogger('DocsAI');
 const router = createAuthenticatedRouter();
@@ -110,8 +119,8 @@ const DOCS_AI_MODELS: Record<AgentConfig['provider'], string> = {
   // F0: gespeicherter Name eines abgeschalteten Hosts; bedient wird Cortecs (services/ai/litellmRetired.ts).
   regolo: 'gemma-4-31b-it',
   melious: 'gemma-4-31b:balanced',
-  mistral: 'mistral-medium-2604',
-  anthropic: 'mistral-medium-2604',
+  mistral: 'mistral-large-4',
+  anthropic: 'mistral-large-4',
   greenpt: 'mistral-medium-3.5-128b',
   cortecs: 'gemma-4-31b-it',
 };
@@ -239,7 +248,7 @@ ${referenceContent.trim()}
       },
     });
 
-    pipeUiStreamToExpress(result, res);
+    pipeUiStreamToExpress(result, res, documentOperationTypes(toolDefinitions));
   } catch (error) {
     log.error('[DocsAI] Error processing AI request:', error);
     return res.status(500).json({
@@ -269,13 +278,19 @@ router.post(
  *    DefaultChatTransport's EventSourceParserStream expects on the frontend.
  *  - Gives a single grep target if we ever need to swap the underlying writer.
  */
-function pipeUiStreamToExpress(result: ReturnType<typeof streamText>, res: Response): void {
-  // v7: this (deprecated) result method now returns a Promise that resolves when
-  // the stream finishes. We pipe fire-and-forget — Express owns the response
-  // lifecycle — so the settle is intentionally not awaited. Kept over the
-  // standalone helper to preserve the exact SSE wire format the frontend's
-  // DefaultChatTransport parses (see wire-contract note above).
-  void result.pipeUIMessageStreamToResponse(res as unknown as ServerResponse);
+function pipeUiStreamToExpress(
+  result: ReturnType<typeof streamText>,
+  res: Response,
+  operationTypes: ReadonlySet<string>
+): void {
+  // The standalone helper is what `result.pipeUIMessageStreamToResponse(res)`
+  // calls internally, so the SSE wire format is unchanged; using it directly
+  // lets the stream pass through `sanitizeDocumentOperations` first. Piped
+  // fire-and-forget — Express owns the response lifecycle.
+  void pipeUIMessageStreamToResponse({
+    response: res as unknown as ServerResponse,
+    stream: result.toUIMessageStream().pipeThrough(sanitizeDocumentOperations(operationTypes)),
+  });
 }
 
 export default router;

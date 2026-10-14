@@ -117,3 +117,5 @@ data/
 
 # Fortsetzungsstand von scripts/backfill-landtag-nrw.ts
 .landtag-nrw-backfill.json*
+# Fortsetzungsstand von scripts/backfill-landtag-bayern.ts
+.landtag-bayern-backfill.json*

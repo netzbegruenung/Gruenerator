@@ -98,11 +98,4 @@ export interface EventResponse {
   error?: string | undefined;
 }
 
-export interface DefaultResponse {
-  success: boolean;
-  sharepics?: unknown[] | undefined;
-  metadata?: Record<string, unknown> | undefined;
-  error?: string | undefined;
-}
-
 export type SharepicHandler = (req: SharepicRequest, res: Response) => Promise<void>;

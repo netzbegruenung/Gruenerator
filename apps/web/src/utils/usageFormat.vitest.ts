@@ -8,6 +8,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  formatApproxWords,
   carComparison,
   formatCorridor,
   formatDuration,
@@ -214,5 +215,14 @@ describe('formatDuration', () => {
     expect(formatDuration(3600)).toBe('1 Std.');
     expect(formatDuration(3660)).toBe('1 Std. 1 Min.');
     expect(formatDuration(9000)).toBe('2 Std. 30 Min.');
+  });
+});
+
+describe('formatApproxWords', () => {
+  it('converts generated tokens at 0.6 words per token', () => {
+    expect(formatApproxWords(0)).toBe('0');
+    expect(formatApproxWords(1000)).toBe('600');
+    expect(formatApproxWords(100_000)).toBe('60 Tsd.');
+    expect(formatApproxWords(5_000_000)).toBe('3 Mio.');
   });
 });

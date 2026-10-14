@@ -75,6 +75,8 @@ export const INTENT_HANDLER_PATHS: Record<SearchIntent, string> = {
     'handled via handlePresentationCreation — generates a reveal.js deck, seeds the Y.Doc, emits document_created SSE (subtype presentations); owns the turn on failure (templated error, never falls through)',
   create_pdf:
     'handled via handlePdfCreation — generates a tagged, CI-styled PDF (document/letter/form), verifies the finished bytes, stores it as a compute asset and emits document_created SSE (subtype pdf); owns the turn on failure (templated error, never falls through)',
+  create_explainable:
+    'handled via handleExplainableCreation — generates a simple-language explanation page (text synchronously, up to three illustrations later by a worker) and emits document_created SSE (subtype explainable, url /erklaert/<slug>); owns the turn on failure (templated error, never falls through)',
   create_recurring_task:
     'RETIRED as a verdict (09/2026) — a recurring order is classified `agentic` with `mentionPinnedTool: recurring_tasks`; the loop tool fills the schedule and creates via confirm card',
   modify_doc: 'routes to respond, then confirm_action SSE + pendingActionStore',

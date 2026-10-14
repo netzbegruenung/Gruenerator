@@ -50,18 +50,26 @@ export interface PruningResult {
  */
 export function pruneMessages(
   validMessages: ModelMessage[],
-  contextWindowTokens?: number
+  contextWindowTokens?: number,
+  /** Sent alongside the history; its size comes out of the budget. */
+  systemMessage?: string
 ): ModelMessage[] {
   const messagesForTokenCount = validMessages.map(toTokenCounterMessage);
   const preStats = getTokenStats(messagesForTokenCount);
+  const systemTokens = systemMessage
+    ? getTokenStats([toTokenCounterMessage({ role: 'system', content: systemMessage })]).totalTokens
+    : 0;
 
   const prunedMessages = trimMessagesToTokenLimit(
     messagesForTokenCount,
-    getPruningBudget(contextWindowTokens)
+    getPruningBudget(contextWindowTokens, systemTokens)
   );
 
-  const keepCount = prunedMessages.filter((m) => m.role !== 'system').length;
   const conversationMessages = validMessages.filter((m: { role: string }) => m.role !== 'system');
+  // At least the newest message: the question itself. `slice(-0)` would keep
+  // the WHOLE history when nothing fits — a large system message beside a
+  // long pasted question gets there.
+  const keepCount = Math.max(1, prunedMessages.filter((m) => m.role !== 'system').length);
   const prunedValidMessages = conversationMessages.slice(-keepCount);
 
   if (prunedValidMessages.length < conversationMessages.length) {

@@ -9,4 +9,5 @@ mention: 'linkedin'
 skillCategory: social
 promptTemplate: 'LinkedIn-Post zu: '
 order: 8
+recommendedTools: ['vorlagen_vorschlagen']
 ---

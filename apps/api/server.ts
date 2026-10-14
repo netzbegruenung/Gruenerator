@@ -43,7 +43,9 @@ import { startNotebookLinkCleanup } from './services/cleanup/notebookLinkCleanup
 import { startUploadsCleanup } from './services/cleanup/uploadsCleanupService.js';
 import { startDocumentIngestWorker } from './services/document-services/DocumentProcessingService/documentIngestWorker.js';
 import { startDocumentMetaWorker } from './services/documentMeta/documentMetaWorker.js';
+import { startExplainableImageWorker } from './services/explainables/explainableImageWorker.js';
 import { startNotificationCleanup } from './services/notifications/notificationCleanupService.js';
+import { startPodcastWorker } from './services/podcasts/podcastWorker.js';
 import { startRecurringTaskWorker } from './services/recurringTasks/recurringTaskWorker.js';
 import { startDeepResearchCleanup } from './services/research/deepAgent/resumableRuns.js';
 import { startContentSyncDispatcher } from './services/scrapers/contentSyncDispatcher.js';
@@ -80,7 +82,7 @@ if (skipCluster) {
   // Start Hocuspocus if enabled
   if (env.HOCUSPOCUS_ENABLED) {
     log.info('Starting Hocuspocus WebSocket server...');
-    const hocuspocusArgs = ['tsx', path.join(__dirname, '../../services/hocuspocus/src/index.ts')];
+    const hocuspocusArgs = ['tsx', path.join(__dirname, '../../services/hocuspocus/src/main.ts')];
     const hocuspocusProcess = spawn('npx', hocuspocusArgs, {
       stdio: 'inherit',
       env: process.env,
@@ -149,7 +151,7 @@ if (skipCluster) {
   if (env.HOCUSPOCUS_ENABLED) {
     log.info('Starting Hocuspocus WebSocket server...');
     const hocuspocusCmd = 'npx';
-    const hocuspocusArgs = ['tsx', path.join(__dirname, '../../services/hocuspocus/src/index.ts')];
+    const hocuspocusArgs = ['tsx', path.join(__dirname, '../../services/hocuspocus/src/main.ts')];
 
     hocuspocusProcess = spawn(hocuspocusCmd, hocuspocusArgs, {
       stdio: 'inherit',
@@ -257,18 +259,6 @@ async function startWorker(): Promise<void> {
     next();
   });
 
-  // Initialize Temporary Image Storage
-  try {
-    const { default: TemporaryImageStorage } =
-      await import('./services/image/TemporaryImageStorage.js');
-    const temporaryImageStorage = new TemporaryImageStorage(redisClient);
-    app.locals.sharepicImageManager = temporaryImageStorage;
-    log.debug('TemporaryImageStorage initialized');
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error(String(error));
-    log.warn(`TemporaryImageStorage init failed: ${err.message}`);
-  }
-
   // Initialize PostgreSQL
   try {
     const { getPostgresInstance } = await import('./database/services/PostgresService.js');
@@ -315,6 +305,10 @@ async function startWorker(): Promise<void> {
   // strand them on 'processing' forever.
   startDocumentIngestWorker();
   startDocumentMetaWorker();
+  // Draws the illustrations of new explainables. Same cluster-safe claim.
+  startExplainableImageWorker();
+  // Writes and voices queued podcasts. Same cluster-safe claim.
+  startPodcastWorker();
 
   // Dispatches the Content Sync workflow on its schedule — GitHub throttles the
   // cron itself (#2972). Cluster-safe: each slot is claimed once in Redis.

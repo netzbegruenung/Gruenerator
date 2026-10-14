@@ -1,5 +1,4 @@
 import {
-  type TranscribeResponse,
   type TranscribeStreamEvent,
   type TranscriptionSegment,
   type VoiceErrorResponse,
@@ -11,6 +10,7 @@ import apiClient from '../../../components/utils/apiClient';
 import { useDesktopNotify } from '../../../utils/desktopNotification';
 import { platformFetch } from '../../../utils/platformFetch';
 import { getTusAuthOptions } from '../../../utils/tusAuth';
+import { isVideoUpload, uploadMediaType } from '../utils/mediaType';
 
 // Re-exported so feature code keeps a local import path while the shape stays
 // owned by the contract schema.
@@ -30,7 +30,8 @@ export interface TranscriptionOptions {
   diarize: boolean;
   timestamps: boolean;
   language: string;
-  privacyMode?: boolean;
+  /** Öko-Modus: the server transcribes with GreenPT first, Voxtral as failover. */
+  ecoMode: boolean;
 }
 
 const INITIAL_STATE: TranscriptionState = {
@@ -44,6 +45,31 @@ const INITIAL_STATE: TranscriptionState = {
 };
 
 const TUS_UPLOAD_ENDPOINT = `${apiClient.defaults.baseURL}/audio/upload`;
+
+const CONNECTION_LOST_MESSAGE =
+  'Die Verbindung zum Server ist während der Verarbeitung abgebrochen. Bitte versuche es erneut. Bei sehr langen Aufnahmen hilft es, sie vorher in kürzere Teile zu schneiden.';
+
+/** Messages a person can act on, keyed by the HTTP status that caused them. */
+function describeHttpFailure(status: number, step: 'upload' | 'start'): string {
+  if (status === 401 || status === 403) {
+    return 'Deine Anmeldung ist abgelaufen. Bitte melde dich neu an und versuche es erneut.';
+  }
+  if (status === 413) {
+    return 'Die Datei ist zu groß für den Server. Wandle Audiodateien vorher in MP3 oder M4A um.';
+  }
+  if (status === 429) {
+    return 'Du hast gerade zu viele Transkriptionen gestartet. Bitte warte ein paar Minuten.';
+  }
+  return step === 'upload'
+    ? `Der Server hat den Upload abgelehnt (Fehler ${status}). Bitte versuche es später erneut.`
+    : `Die Transkription konnte nicht gestartet werden (Fehler ${status}). Bitte versuche es später erneut.`;
+}
+
+function describeTusFailure(err: Error): string {
+  const status = err instanceof tus.DetailedError ? err.originalResponse?.getStatus() : undefined;
+  if (status) return describeHttpFailure(status, 'upload');
+  return 'Der Upload ist abgebrochen, vermutlich wegen der Internetverbindung. Bitte prüfe die Verbindung und versuche es erneut.';
+}
 
 interface SSECallbacks {
   onExtractionStart: () => void;
@@ -119,6 +145,8 @@ async function parseSSEStream(response: Response, callbacks: SSECallbacks): Prom
           break;
         case 'error':
           throw new Error(data.text ?? 'Streaming-Fehler');
+        case 'heartbeat':
+          break;
       }
     }
   }
@@ -139,9 +167,9 @@ async function tusUpload(
       endpoint: TUS_UPLOAD_ENDPOINT,
       retryDelays: [0, 3000, 5000, 10000, 20000],
       chunkSize: 5 * 1024 * 1024,
-      metadata: { filename: file.name, filetype: file.type },
+      metadata: { filename: file.name, filetype: uploadMediaType(file) },
       ...authOptions,
-      onError: (err) => reject(err),
+      onError: (err) => reject(new Error(describeTusFailure(err))),
       onProgress: (bytesUploaded, bytesTotal) => {
         onProgress(Math.round((bytesUploaded / bytesTotal) * 100));
       },
@@ -171,8 +199,7 @@ export function useTranscription() {
       const controller = new AbortController();
       abortRef.current = controller;
 
-      const isVideo = file.type.startsWith('video/');
-      const useStreamEndpoint = !options.privacyMode;
+      const isVideo = isVideoUpload(file);
 
       try {
         setState({ ...INITIAL_STATE, status: 'uploading' });
@@ -189,103 +216,76 @@ export function useTranscription() {
           progress: 0,
         }));
 
-        if (useStreamEndpoint) {
-          const response = await platformFetch('/api/voice/transcribe-upload/stream', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              uploadId,
-              language: options.language,
-              diarize: options.diarize,
-              timestamps: options.timestamps,
-            }),
-            credentials: 'include',
-            signal: controller.signal,
-          });
+        const response = await platformFetch('/api/voice/transcribe-upload/stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            uploadId,
+            language: options.language,
+            diarize: options.diarize,
+            timestamps: options.timestamps,
+            eco: options.ecoMode,
+          }),
+          credentials: 'include',
+          signal: controller.signal,
+        });
 
-          if (!response.ok) {
-            const err = (await response.json().catch(() => ({}))) as Partial<VoiceErrorResponse>;
-            throw new Error(err.error ?? `HTTP ${response.status}`);
-          }
-
-          let fullText = '';
-
-          const sawDone = await parseSSEStream(response, {
-            onExtractionStart: () => {
-              setState((s) => ({ ...s, status: 'extracting', progress: 0 }));
-            },
-            onExtractionProgress: (percent) => {
-              setState((s) => ({ ...s, status: 'extracting', progress: percent }));
-            },
-            onExtractionComplete: () => {
-              setState((s) => ({ ...s, status: 'transcribing', progress: 0 }));
-            },
-            onTranscriptionStart: () => {
-              setState((s) => ({ ...s, status: 'transcribing', progress: 0 }));
-            },
-            onDelta: (text) => {
-              fullText += text;
-              setState((s) => ({ ...s, text: fullText }));
-            },
-            onDone: (data) => {
-              fullText = data.text || fullText;
-              setState({
-                status: 'done',
-                progress: 100,
-                text: fullText,
-                segments: data.segments ?? [],
-                hasTimestamps: data.hasTimestamps ?? false,
-                speakerMap: data.speakerMap ?? {},
-                error: null,
-              });
-            },
-          });
-
-          // Without this guard a stream that ended early was reported as a
-          // successful, empty transcription: the full result UI over no text.
-          if (!sawDone) {
-            throw new Error('Verbindung abgebrochen — bitte erneut versuchen');
-          }
-          notifyDesktop('transcription');
-          return fullText;
-        } else {
-          const response = await apiClient.post<TranscribeResponse>(
-            '/voice/transcribe-upload',
-            {
-              uploadId,
-              language: options.language,
-              diarize: options.diarize,
-              timestamps: options.timestamps,
-            },
-            {
-              signal: controller.signal,
-              timeout: 900000,
-            }
-          );
-
-          const data = response.data;
-          if (!data.success) throw new Error(data.error ?? 'Transkription fehlgeschlagen');
-
-          const text = data.text ?? '';
-          setState({
-            status: 'done',
-            progress: 100,
-            text,
-            segments: data.segments ?? [],
-            hasTimestamps: data.hasTimestamps ?? false,
-            speakerMap: data.speakerMap ?? {},
-            error: null,
-          });
-          notifyDesktop('transcription');
-          return text;
+        if (!response.ok) {
+          const err = (await response.json().catch(() => ({}))) as Partial<VoiceErrorResponse>;
+          throw new Error(err.error ?? describeHttpFailure(response.status, 'start'));
         }
+
+        let fullText = '';
+
+        const sawDone = await parseSSEStream(response, {
+          onExtractionStart: () => {
+            setState((s) => ({ ...s, status: 'extracting', progress: 0 }));
+          },
+          onExtractionProgress: (percent) => {
+            setState((s) => ({ ...s, status: 'extracting', progress: percent }));
+          },
+          onExtractionComplete: () => {
+            setState((s) => ({ ...s, status: 'transcribing', progress: 0 }));
+          },
+          onTranscriptionStart: () => {
+            setState((s) => ({ ...s, status: 'transcribing', progress: 0 }));
+          },
+          onDelta: (text) => {
+            fullText += text;
+            setState((s) => ({ ...s, text: fullText }));
+          },
+          onDone: (data) => {
+            fullText = data.text || fullText;
+            setState({
+              status: 'done',
+              progress: 100,
+              text: fullText,
+              segments: data.segments ?? [],
+              hasTimestamps: data.hasTimestamps ?? false,
+              speakerMap: data.speakerMap ?? {},
+              error: null,
+            });
+          },
+        });
+
+        // Without this guard a stream that ended early was reported as a
+        // successful, empty transcription: the full result UI over no text.
+        if (!sawDone) {
+          throw new Error(CONNECTION_LOST_MESSAGE);
+        }
+        notifyDesktop('transcription');
+        return fullText;
       } catch (err) {
         if (controller.signal.aborted) return null;
-        setState((s) => ({
-          ...s,
-          status: 'error',
-          error: err instanceof Error ? err.message : 'Unbekannter Fehler',
-        }));
+        // fetch and the stream reader reject with a bare TypeError ("Failed to
+        // fetch", "network error") when the connection drops.
+        const message =
+          err instanceof TypeError
+            ? CONNECTION_LOST_MESSAGE
+            : err instanceof Error
+              ? err.message
+              : 'Unbekannter Fehler';
+        setState((s) => ({ ...s, status: 'error', error: message }));
         return null;
       }
     },

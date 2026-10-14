@@ -14,7 +14,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 
 export interface UsageContext {
-  req: { user?: { id?: string } | undefined };
+  req: { user?: { id?: string } | undefined; apiKey?: { userId?: string } | undefined };
   feature: string;
 }
 
@@ -29,9 +29,14 @@ export function getUsageFeature(): string | null {
   return store.getStore()?.feature ?? null;
 }
 
-/** Current user id, or null when unauthenticated or outside a request. */
+/**
+ * Current user id, or null when unauthenticated or outside a request. API-key
+ * and OAuth bearer routes (`/api/v1/*`) never set `req.user`; their owner is
+ * `req.apiKey.userId`, so usage on those routes is attributed to the key's owner.
+ */
 export function getUsageUserId(): string | null {
-  return store.getStore()?.req.user?.id ?? null;
+  const req = store.getStore()?.req;
+  return req?.user?.id ?? req?.apiKey?.userId ?? null;
 }
 
 /**
@@ -68,6 +73,12 @@ const FEATURE_BY_PREFIX: ReadonlyArray<readonly [string, UsageFeature]> = (
     ['/api/chat-graph', 'chat'],
     ['/api/threads', 'chat'],
     ['/api/memory', 'chat'],
+    // Agent-Entwurf, „Jetzt ausführen" einer wiederkehrenden Aufgabe (der
+    // Worker bucht denselben Lauf ebenfalls unter chat) und der MCP-Server als
+    // externer Chat-Anschluss.
+    ['/api/user-agents', 'chat'],
+    ['/api/recurring-tasks', 'chat'],
+    ['/api/mcp-server', 'chat'],
 
     ['/api/docs', 'docs'],
     ['/api/documents', 'docs'],
@@ -98,6 +109,9 @@ const FEATURE_BY_PREFIX: ReadonlyArray<readonly [string, UsageFeature]> = (
     ['/api/background-removal', 'sharepic'],
     ['/api/unsplash', 'sharepic'],
     ['/api/campaign_canvas', 'sharepic'],
+    // Bildbeschreibung beim Anlegen einer Sharepic-Vorlage.
+    ['/api/auth/user-templates', 'sharepic'],
+    ['/api/imagine_label_canvas', 'sharepic'],
 
     ['/api/subtitler', 'subtitler'],
     ['/api/video', 'subtitler'],
@@ -109,6 +123,7 @@ const FEATURE_BY_PREFIX: ReadonlyArray<readonly [string, UsageFeature]> = (
     ['/api/voice/tts', 'chat'],
     // Grünerator Voice (text → audio file); longer than '/api/voice', so it wins.
     ['/api/voice/speech', 'voice'],
+    ['/api/podcasts', 'voice'],
     ['/api/voice', 'subtitler'],
     ['/api/protokoll', 'subtitler'],
     ['/api/process', 'subtitler'],
@@ -125,6 +140,7 @@ const FEATURE_BY_PREFIX: ReadonlyArray<readonly [string, UsageFeature]> = (
     ['/api/gruen-o-mat', 'sites'],
 
     ['/api/texte', 'texte'],
+    ['/api/translation', 'texte'],
     ['/api/antraege', 'texte'],
     ['/api/claude', 'texte'],
     ['/api/campaign_generate', 'texte'],
@@ -134,24 +150,25 @@ const FEATURE_BY_PREFIX: ReadonlyArray<readonly [string, UsageFeature]> = (
     ['/api/scanner', 'texte'],
     ['/api/email', 'texte'],
     ['/api/reisekosten', 'texte'],
+    ['/api/custom_prompt', 'texte'],
+    ['/api/auth/custom_prompt', 'texte'],
+    ['/api/auth/saved_prompts', 'texte'],
 
     ['/api/notebook', 'notebook'],
     ['/api/auth/notebook', 'notebook'],
+    ['/api/v1/chat', 'chat'],
     ['/api/v1/notebooks', 'notebook'],
     ['/api/v1/collections', 'notebook'],
+    ['/api/explainables', 'notebook'],
   ] as ReadonlyArray<readonly [string, UsageFeature]>
 )
   .slice()
   .sort((a, b) => b[0].length - a[0].length);
-
-/** The sharepic generators each mount their own `<name>_canvas` prefix. */
-const CANVAS_ROUTE = /^\/api\/[a-z0-9_]+_canvas(\/|$)/;
 
 /** Map a request path to a stable feature slug for the usage breakdown. */
 export function featureFromPath(path: string): UsageFeature {
   for (const [prefix, feature] of FEATURE_BY_PREFIX) {
     if (path.startsWith(prefix)) return feature;
   }
-  if (CANVAS_ROUTE.test(path)) return 'sharepic';
   return 'other';
 }

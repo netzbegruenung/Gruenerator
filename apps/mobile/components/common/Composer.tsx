@@ -12,7 +12,7 @@ import {
   type Mentionable,
 } from '@gruenerator/chat';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -51,6 +51,7 @@ import {
   composerIconSize,
   composerInputStyle,
   COMPOSER_ACTION_FILL,
+  COMPOSER_PRESSED,
   type ComposerVariant,
 } from './ComposerShell';
 import { SettingsTwoIcon } from './SettingsTwoIcon';
@@ -130,8 +131,16 @@ export interface ComposerProps {
   /** Left toolbar button for a caller-owned settings sheet. Ignored when
    *  `showActionSheet` is on — the two share the same slot. */
   onSettings?: () => void;
+  /** Left toolbar „+" for a caller-owned file sheet (a surface whose files do
+   *  not go into a chat thread). With `onSettings` too, the settings button
+   *  sits right beside it. */
+  onAdd?: () => void;
   /** Second left-aligned button, beside the plus/settings one. */
   accessory?: ComposerAccessory;
+  /** `card` only: the labelled accessory sits on the right, beside Send,
+   *  instead of after the left-hand buttons — for a switch that decides what
+   *  sending does. */
+  accessoryBesideAction?: boolean;
   /** Fill of the send/search button, the active accessory and the cursor.
    *  The app green by default; the notebook surfaces pass their magenta. */
   accentColor?: string;
@@ -164,6 +173,11 @@ export interface ComposerProps {
    * when `showActionSheet` or `onSettings` claim that slot.
    */
   onClose?: () => void;
+  /**
+   * `local` only: something is still working on the last submission. The
+   * draft stays editable, but sending is off until it is done.
+   */
+  busy?: boolean;
 }
 
 interface MentionState {
@@ -314,14 +328,25 @@ function useComposerInput({
     });
   }, [toggleSpeech, pushText]);
 
+  // `clear()` carries the TextInput's last *rendered* event count, and Android
+  // drops it when native has counted newer keystrokes. Called straight from the
+  // submit event, the TextInput may not have re-rendered after the last keystroke
+  // yet (JS busy, e.g. after a cold start), so the sent text stayed in the field
+  // and leaked into the next message (#4476). Clearing from a layout effect runs
+  // after a render that also flushes the TextInput's pending count.
+  const [clearRequest, setClearRequest] = useState(0);
+  useLayoutEffect(() => {
+    if (clearRequest > 0) inputRef.current?.clear();
+  }, [clearRequest, inputRef]);
+
   /** Reset after the text has been handed off. */
   const reset = useCallback(() => {
-    inputRef.current?.clear();
+    setClearRequest((n) => n + 1);
     textRef.current = '';
     setHasText(false);
     setMention(null);
     selectionRef.current = 0;
-  }, [inputRef]);
+  }, []);
 
   return {
     textRef,
@@ -346,6 +371,28 @@ type ComposerInput = ReturnType<typeof useComposerInput>;
  * attachments strip and the send/cancel buttons — and owns everything else, so
  * the two bindings cannot drift.
  */
+/**
+ * Outside the component: the React Compiler cannot lower a try/catch with
+ * conditionals inside a component and would skip memoizing the whole composer.
+ */
+async function attachPickedDocument(
+  pending: Promise<PickedDocument | null>,
+  addAttachment: ((attachment: CreateAttachment) => void) | undefined
+): Promise<void> {
+  // `await pending` inside the try so a native picker/manipulator rejection
+  // (camera unavailable, permission API throwing, HEIC→JPEG failure)
+  // surfaces as an Alert instead of an unhandled promise rejection.
+  try {
+    const doc = await pending;
+    if (!doc) return;
+    if (!validatePickedDocument(doc)) return;
+    addAttachment?.(await pickedDocumentToAttachment(doc));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Fehler beim Anhängen';
+    Alert.alert('Anhang fehlgeschlagen', msg);
+  }
+}
+
 function ComposerBody({
   props,
   input,
@@ -403,20 +450,7 @@ function ComposerBody({
   );
 
   const attachPicked = useCallback(
-    async (pending: Promise<PickedDocument | null>) => {
-      // `await pending` inside the try so a native picker/manipulator rejection
-      // (camera unavailable, permission API throwing, HEIC→JPEG failure)
-      // surfaces as an Alert instead of an unhandled promise rejection.
-      try {
-        const doc = await pending;
-        if (!doc) return;
-        if (!validatePickedDocument(doc)) return;
-        addAttachment?.(await pickedDocumentToAttachment(doc));
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Fehler beim Anhängen';
-        Alert.alert('Anhang fehlgeschlagen', msg);
-      }
-    },
+    (pending: Promise<PickedDocument | null>) => attachPickedDocument(pending, addAttachment),
     [addAttachment]
   );
 
@@ -457,16 +491,53 @@ function ComposerBody({
   const leading = props.showActionSheet ? (
     <Pressable
       onPress={() => setActionSheetVisible(true)}
-      style={[composerIconButtonStyle(variant), plate]}
+      style={({ pressed }) => [
+        composerIconButtonStyle(variant),
+        plate,
+        pressed && COMPOSER_PRESSED,
+      ]}
       hitSlop={6}
       accessibilityLabel="Anhänge und Werkzeuge"
     >
       <Ionicons name="add" size={iconSize + 2} color={toolGlyph} />
     </Pressable>
+  ) : props.onAdd ? (
+    <View style={styles.leadingPair}>
+      <Pressable
+        onPress={props.onAdd}
+        style={({ pressed }) => [
+          composerIconButtonStyle(variant),
+          plate,
+          pressed && COMPOSER_PRESSED,
+        ]}
+        hitSlop={6}
+        accessibilityLabel="Dateien hinzufügen"
+      >
+        <Ionicons name="add" size={iconSize + 2} color={toolGlyph} />
+      </Pressable>
+      {props.onSettings && (
+        <Pressable
+          onPress={props.onSettings}
+          style={({ pressed }) => [
+            composerIconButtonStyle(variant),
+            plate,
+            pressed && COMPOSER_PRESSED,
+          ]}
+          hitSlop={6}
+          accessibilityLabel="Einstellungen"
+        >
+          <SettingsTwoIcon size={iconSize} color={toolGlyph} />
+        </Pressable>
+      )}
+    </View>
   ) : props.onSettings ? (
     <Pressable
       onPress={props.onSettings}
-      style={[composerIconButtonStyle(variant), plate]}
+      style={({ pressed }) => [
+        composerIconButtonStyle(variant),
+        plate,
+        pressed && COMPOSER_PRESSED,
+      ]}
       hitSlop={6}
       accessibilityLabel="Einstellungen"
     >
@@ -478,7 +549,7 @@ function ComposerBody({
         Keyboard.dismiss();
         props.onClose?.();
       }}
-      style={composerIconButtonStyle(variant)}
+      style={({ pressed }) => [composerIconButtonStyle(variant), pressed && COMPOSER_PRESSED]}
       hitSlop={6}
       accessibilityLabel="Eingabe schließen"
     >
@@ -540,12 +611,15 @@ function ComposerBody({
         }
         leading={leading}
         toolbarExtra={
-          isCard && accessoryPill ? (
+          isCard && accessoryPill && !props.accessoryBesideAction ? (
             accessoryPill
           ) : props.accessory && !props.accessory.label ? (
             <Pressable
               onPress={props.accessory.onPress}
-              style={composerIconButtonStyle(variant)}
+              style={({ pressed }) => [
+                composerIconButtonStyle(variant),
+                pressed && COMPOSER_PRESSED,
+              ]}
               hitSlop={6}
               accessibilityLabel={props.accessory.accessibilityLabel}
             >
@@ -561,7 +635,7 @@ function ComposerBody({
             </Pressable>
           ) : null
         }
-        beforeAction={isCard ? null : accessoryPill}
+        beforeAction={isCard && !props.accessoryBesideAction ? null : accessoryPill}
         // One merged button: cancel while a request runs, mic while empty, send
         // once there is text.
         action={
@@ -571,11 +645,12 @@ function ComposerBody({
           ) : (
             <Pressable
               onPress={input.onDictate}
-              style={[
+              style={({ pressed }) => [
                 composerActionButtonStyle(variant),
                 input.isListening
                   ? { backgroundColor: colors.error[500] }
                   : { backgroundColor: isCard ? softFill : 'transparent' },
+                pressed && COMPOSER_PRESSED,
               ]}
               hitSlop={6}
               accessibilityLabel={input.isListening ? 'Diktat beenden' : 'Diktieren'}
@@ -642,13 +717,15 @@ function LocalComposer(props: ComposerProps) {
   const input = useComposerInput({ setText: props.onTextChange ?? noop, inputRef });
   const variant = props.variant ?? 'card';
   const onSubmit = props.onSubmit;
+  const busy = props.busy ?? false;
 
   const handleSubmit = useCallback(() => {
+    if (busy) return;
     const trimmed = input.textRef.current.trim();
     if (!trimmed) return;
     if (onSubmit?.(trimmed) === false) return;
     input.reset();
-  }, [onSubmit, input]);
+  }, [onSubmit, input, busy]);
 
   return (
     <ComposerBody
@@ -662,12 +739,17 @@ function LocalComposer(props: ComposerProps) {
       sendButton={
         <Pressable
           testID={props.testIDPrefix ? `${props.testIDPrefix}-send` : undefined}
+          hitSlop={6}
           onPress={handleSubmit}
-          style={[
+          disabled={busy}
+          style={({ pressed }) => [
             composerActionButtonStyle(variant),
             { backgroundColor: props.accentColor ?? COMPOSER_ACTION_FILL },
+            busy && styles.sendBusy,
+            pressed && COMPOSER_PRESSED,
           ]}
           accessibilityLabel={props.submitAs === 'search' ? 'Suchen' : 'Senden'}
+          accessibilityState={{ disabled: busy, busy }}
         >
           <Ionicons
             name={
@@ -760,10 +842,12 @@ function RuntimeComposer(props: ComposerProps) {
         onSubmit ? (
           <Pressable
             testID={props.testIDPrefix ? `${props.testIDPrefix}-send` : undefined}
+            hitSlop={6}
             onPress={handleIntercept}
-            style={[
+            style={({ pressed }) => [
               composerActionButtonStyle(variant),
               { backgroundColor: props.accentColor ?? COMPOSER_ACTION_FILL },
+              pressed && COMPOSER_PRESSED,
             ]}
             accessibilityLabel="Senden"
           >
@@ -776,10 +860,12 @@ function RuntimeComposer(props: ComposerProps) {
         ) : (
           <Pressable
             testID={props.testIDPrefix ? `${props.testIDPrefix}-send` : undefined}
+            hitSlop={6}
             onPress={handleSend}
-            style={[
+            style={({ pressed }) => [
               composerActionButtonStyle(variant),
               { backgroundColor: props.accentColor ?? COMPOSER_ACTION_FILL },
+              pressed && COMPOSER_PRESSED,
             ]}
             accessibilityLabel="Senden"
           >
@@ -812,6 +898,7 @@ export function Composer(props: ComposerProps) {
 const ACCESSORY_CHIP_HIT_SLOP = { top: 8, bottom: 8, left: 4, right: 4 };
 
 const styles = StyleSheet.create({
+  sendBusy: { opacity: 0.4 },
   attachmentsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -820,6 +907,7 @@ const styles = StyleSheet.create({
   edge: {
     paddingTop: spacing.xsmall,
   },
+  leadingPair: { flexDirection: 'row', alignItems: 'center', gap: spacing.xsmall },
   accessoryChip: {
     flexDirection: 'row',
     alignItems: 'center',

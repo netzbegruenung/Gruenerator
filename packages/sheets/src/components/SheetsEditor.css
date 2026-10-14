@@ -10,7 +10,6 @@
 @import '@univerjs/preset-sheets-note/lib/index.css';
 @import '@univerjs/preset-sheets-table/lib/index.css';
 @import '@univerjs/sheets-crosshair-highlight/lib/index.css';
-@import '@univerjs/sheets-zen-editor/lib/index.css';
 
 .gruenerator-sheets-editor {
   flex: 1;

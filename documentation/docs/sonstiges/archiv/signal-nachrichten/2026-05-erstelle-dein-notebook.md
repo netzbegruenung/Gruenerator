@@ -1,4 +1,5 @@
 ---
+laender: [de, at]
 sidebar_position: 0
 title: 'Mai 2026: Das Notebook-Update'
 description: 'Die Kurzfassung des Mai-Newsletters als Signal-Broadcast — zum Weiterleiten in Gruppenchats.'

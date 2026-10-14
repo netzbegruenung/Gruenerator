@@ -433,7 +433,6 @@
         "glass"
       ]
     },
-
     {
       "filename": "taylor-flowe-NTur2_QKpg0-unsplash.jpg",
       "alt_text": "Classroom scene with student raising hand enthusiastically while teacher stands in background with educational materials",
@@ -512,6 +511,138 @@
         "personal",
         "support"
       ]
+    },
+    {
+      "filename": "julia-kicova-SQ5c4RZUKVE-unsplash.jpg",
+      "alt_text": "A wicker basket filled with red apples standing in an orchard",
+      "category": "agriculture",
+      "tags": ["apples", "fruit", "harvest", "orchard", "food", "agriculture", "farming"]
+    },
+    {
+      "filename": "mark-duffel-VQtBAHVRgvc-unsplash.jpg",
+      "alt_text": "A large pile of orange pumpkins at a farm stand",
+      "category": "agriculture",
+      "tags": ["pumpkins", "vegetables", "harvest", "autumn", "food", "farming", "market"]
+    },
+    {
+      "filename": "inigo-de-la-maza-s285sDw5Ikc-unsplash.jpg",
+      "alt_text": "Crates of fresh vegetables and fruit at a market stall",
+      "category": "agriculture",
+      "tags": ["vegetables", "fruit", "market", "food", "prices", "groceries", "regional"]
+    },
+    {
+      "filename": "igor-karimov-OYzevlXJLds-unsplash.jpg",
+      "alt_text": "A wide dry wheat field under a cloudy sky",
+      "category": "agriculture",
+      "tags": ["field", "wheat", "drought", "harvest", "farming", "heat", "countryside"]
+    },
+    {
+      "filename": "hannah-shedrow-PoisoMav1Jg-unsplash.jpg",
+      "alt_text": "A green tractor pulling a trailer across a ploughed field",
+      "category": "agriculture",
+      "tags": ["tractor", "farming", "field", "agriculture", "countryside", "harvest"]
+    },
+    {
+      "filename": "egor-vikhrev--E6jqIGzgOY-unsplash.jpg",
+      "alt_text": "A forest fire at night with bright orange flames and smoke",
+      "category": "environment",
+      "tags": ["wildfire", "forest-fire", "climate-crisis", "heat", "drought", "disaster"]
+    },
+    {
+      "filename": "wes-warren-eFzH4HGwcv4-unsplash.jpg",
+      "alt_text": "A flooded residential street with a yellow road sign standing in the water",
+      "category": "environment",
+      "tags": ["flood", "flooding", "climate-crisis", "extreme-weather", "disaster", "water"]
+    },
+    {
+      "filename": "immo-wegmann-V2AMRkAUCnA-unsplash.jpg",
+      "alt_text": "A thermometer stuck in sand showing high temperature against a blue sky",
+      "category": "environment",
+      "tags": ["heat", "heatwave", "temperature", "climate-crisis", "summer", "thermometer"]
+    },
+    {
+      "filename": "jesse-gardner-OwWbUOIbhDY-unsplash.jpg",
+      "alt_text": "A stone pool house with a private swimming pool at a luxury villa",
+      "category": "economy",
+      "tags": ["villa", "luxury", "wealth", "rich", "swimming-pool", "inequality", "taxes"]
+    },
+    {
+      "filename": "danilo-capece-Mn5vLHPLTuw-unsplash.jpg",
+      "alt_text": "Close-up of a luxury motor yacht at sea",
+      "category": "economy",
+      "tags": ["yacht", "luxury", "wealth", "rich", "inequality", "taxes"]
+    },
+    {
+      "filename": "ibrahim-boran-r0zrjWheW2g-unsplash.jpg",
+      "alt_text": "A 20-euro banknote lying on fabric",
+      "category": "economy",
+      "tags": ["money", "euro", "banknote", "prices", "wages", "budget", "costs"]
+    },
+    {
+      "filename": "andre-taissin-5OUMf1Mr5pU-unsplash.jpg",
+      "alt_text": "A pink piggy bank on a wooden table",
+      "category": "economy",
+      "tags": ["savings", "piggy-bank", "money", "pension", "budget", "family-budget"]
+    },
+    {
+      "filename": "absolutvision-WYd_PkCa1BY-unsplash.jpg",
+      "alt_text": "Close-up of an article in a business newspaper",
+      "category": "media",
+      "tags": ["newspaper", "press", "journalism", "news", "economy", "media"]
+    },
+    {
+      "filename": "zion-c-p07RGfScf3c-unsplash.jpg",
+      "alt_text": "Two mugs of beer and snacks on a wooden pub table",
+      "category": "social",
+      "tags": ["pub", "beer", "stammtisch", "meeting", "conversation", "local", "inn"]
+    },
+    {
+      "filename": "the-blowup-OUoAr8EPO98-unsplash.jpg",
+      "alt_text": "An empty swing on a green playground lawn",
+      "category": "social",
+      "tags": ["playground", "children", "childcare", "family", "community", "empty"]
+    },
+    {
+      "filename": "gabriele-romano-2CL0bDDWxpE-unsplash.jpg",
+      "alt_text": "A rural bus stop shelter next to a tree among gentle hills",
+      "category": "transport",
+      "tags": ["bus-stop", "bus", "public-transport", "rural", "countryside", "mobility"]
+    },
+    {
+      "filename": "tobias-wilden-4453DIQWtsQ-unsplash.jpg",
+      "alt_text": "A modern apartment building with glass balconies",
+      "category": "housing",
+      "tags": ["housing", "apartment", "building", "rent", "affordable-housing", "balconies"]
+    },
+    {
+      "filename": "tasha-kostyuk-Pk-KuizxQv8-unsplash.jpg",
+      "alt_text": "An empty hospital corridor with benches and doors",
+      "category": "health",
+      "tags": ["hospital", "health", "care", "nursing", "healthcare", "corridor"]
+    },
+    {
+      "filename": "2y-kang-dFohf_GUZJ0-unsplash.jpg",
+      "alt_text": "An empty classroom with wooden desks and windows",
+      "category": "education",
+      "tags": ["school", "classroom", "education", "teachers", "learning", "empty"]
+    },
+    {
+      "filename": "mufid-majnun-f6kLn8GplMQ-unsplash.jpg",
+      "alt_text": "A white megaphone mounted on a wooden pole",
+      "category": "politics",
+      "tags": ["megaphone", "announcement", "protest", "voice", "campaign", "speak-up"]
+    },
+    {
+      "filename": "dikaseva-zvf7cZ0PC20-unsplash.jpg",
+      "alt_text": "Bare dead trees in a dry landscape in sepia tones",
+      "category": "environment",
+      "tags": ["dead-trees", "forest", "drought", "climate-crisis", "forest-dieback", "nature"]
+    },
+    {
+      "filename": "seri-Hj4SaKYI6dU-unsplash.jpg",
+      "alt_text": "An empty asphalt street between concrete buildings in a city",
+      "category": "urban",
+      "tags": ["street", "urban", "heat", "sealing", "concrete", "buildings"]
     }
   ]
 }

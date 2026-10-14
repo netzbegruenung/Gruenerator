@@ -70,6 +70,11 @@ export {
   type NotebookDepthDef,
   type NotebookDepthIconKey,
 } from './lib/notebookDepth';
+export {
+  DEFAULT_NOTEBOOK_SOURCE_TIER,
+  SOURCE_TIER_LABEL,
+  supportsSourceTier,
+} from './lib/notebookSourceTier';
 
 // Notebook answer mode — shared registry for the notebook page's mode picker
 export {
@@ -222,6 +227,10 @@ export {
 } from './lib/utils';
 export { useChatDensity, type ChatDensity } from './components/thread/chatDensityContext';
 export { GrueneratorComposer } from './components/thread/GrueneratorComposer';
+export {
+  type ComposerOption,
+  ComposerOptionPicker,
+} from './components/thread/ComposerOptionPicker';
 export { type ComposerPreset } from './components/thread/PlusMenu';
 export { FileMentionPopover } from './components/thread/FileMentionPopover';
 export { DocumentChatPicker } from './components/thread/DocumentChatPicker';
@@ -414,6 +423,7 @@ export { domainHue, domainInitial, extractDomain, getHostname } from './lib/urlU
 
 // Lib
 export { cn } from './lib/utils';
+export { loadPhosphorModule } from './lib/phosphorAgentIcon';
 export { chatSuggestions } from './lib/suggestions';
 export {
   agentsList,
@@ -667,3 +677,6 @@ export {
   connectorMentionables,
   connectorId,
 } from './lib/plusMenu';
+
+// Chat → studio handoff of a post into a Sharepic-Vorlage (/studio/vorlage/:id)
+export { stashVorlageBeitrag, takeVorlageBeitrag } from './lib/vorlageBeitragHandoff';

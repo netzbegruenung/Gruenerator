@@ -151,29 +151,3 @@ export interface ClaudeDocument {
     metadata?: Record<string, unknown> | undefined;
   };
 }
-
-// ============================================================================
-// Multer File Types (for canvas routes)
-// ============================================================================
-
-/**
- * Multer-compatible file object with memory storage (for dreizeilen_canvas)
- */
-export interface MulterMemoryFile {
-  fieldname: string;
-  originalname: string;
-  encoding: string;
-  mimetype: string;
-  buffer: Buffer;
-  size: number;
-}
-
-/**
- * Multer-compatible file object with disk storage (for zitat_canvas)
- */
-export interface MulterDiskFile extends MulterMemoryFile {
-  destination: string;
-  filename: string;
-  path: string;
-  cleanup?: () => Promise<void>;
-}

@@ -20,7 +20,7 @@ import { CURRENT_INSTANCE } from './instance';
 import { NEWSLETTER_SIGNUP_URL } from './newsletter';
 
 import type { IconType } from './icons';
-import type { OfficeCreateKind, OfficeSuiteActionId, ToolId } from './toolRegistry';
+import type { OfficeCreateKind, OfficeSuiteActionId, ToolAudience, ToolId } from './toolRegistry';
 
 export { type OfficeCreateKind } from './toolRegistry';
 
@@ -40,6 +40,7 @@ export interface WorkplaceToolItem {
   path?: string;
   /** External URL (rendered as a new-tab anchor). Mutually exclusive with `path`. */
   href?: string;
+  audience?: ToolAudience;
   icon: IconType;
   channel?: InstanceChannel;
 }
@@ -152,7 +153,7 @@ export const CANVAS_TOOLS: WorkplaceToolItem[] = [
   {
     id: 'canvas-vorlagen',
     title: 'Vorlagen',
-    description: 'Design-Vorlagen',
+    description: 'Sharepics & Designs',
     path: '/vorlagen',
     icon: getIcon('navigation', 'vorlagen')!,
   },
@@ -160,15 +161,8 @@ export const CANVAS_TOOLS: WorkplaceToolItem[] = [
     id: 'canvas-ki',
     title: 'KI-Bilder',
     description: 'Erstellen & bearbeiten',
-    path: '/bild-editor',
+    path: '/studio',
     icon: getIcon('navigation', 'imagine')!,
-  },
-  {
-    id: 'canvas-sharepics',
-    title: 'Sharepics',
-    description: 'Grafiken gestalten',
-    path: '/studio/templates',
-    icon: getIcon('navigation', 'sharepic')!,
   },
   {
     id: 'reels-untertitel',
@@ -176,6 +170,53 @@ export const CANVAS_TOOLS: WorkplaceToolItem[] = [
     description: 'Untertitel für Clips',
     path: '/studio/video',
     icon: getIcon('navigation', 'reel')!,
+  },
+  {
+    id: 'studio-voice',
+    title: 'Voice',
+    description: 'Text vertonen',
+    path: '/voice',
+    icon: getIcon('navigation', 'voice')!,
+  },
+] satisfies RegisteredTile[];
+
+// Image tools in the "Weitere Tools" menu on the /studio landing page.
+export const STUDIO_WERKZEUGE: WorkplaceToolItem[] = [
+  {
+    id: 'profilbild',
+    title: 'Profilbild',
+    description: 'Freistellen & Hintergrund wechseln',
+    path: '/studio/profilbild',
+    icon: getIcon('navigation', 'profilbild')!,
+  },
+  {
+    id: 'bild-erweitern',
+    title: 'Bild erweitern',
+    description: 'Auf ein neues Format ergänzen',
+    path: '/studio/erweitern',
+    icon: getIcon('navigation', 'bild-erweitern')!,
+  },
+  {
+    id: 'freisteller',
+    title: 'Hintergrund entfernen',
+    description: 'Person oder Motiv freistellen',
+    path: '/studio/freistellen',
+    icon: getIcon('navigation', 'freisteller')!,
+  },
+  {
+    id: 'mediathek',
+    title: 'Mediathek',
+    description: 'Deine Bilder, Videos & Audios',
+    path: '/studio/mediathek',
+    icon: getIcon('navigation', 'mediathek')!,
+  },
+  {
+    id: 'bildgenerator-at',
+    title: 'Bildgenerator',
+    description: 'Sharepics der Grünen Österreich',
+    href: 'https://bildgenerator.gruene.at/',
+    audience: 'de-AT',
+    icon: getIcon('actions', 'link')!,
   },
 ] satisfies RegisteredTile[];
 
@@ -185,9 +226,9 @@ export const CANVAS_TOOLS: WorkplaceToolItem[] = [
 export const WORKPLACE_TOOLS: WorkplaceToolItem[] = [
   {
     id: 'agents',
-    title: 'Agentura',
-    description: 'Grüneratoren & Rezepte',
-    path: '/agentura',
+    title: 'Grüneratoren',
+    description: 'Agents, Rezepte & Aufgaben',
+    path: '/grueneratoren',
     icon: RiSpyLine,
   },
   {
@@ -223,13 +264,6 @@ export const TOOL_MENUS: WorkplaceToolMenu[] = [
         icon: getIcon('actions', 'link')!,
       },
       {
-        id: 'voice',
-        title: 'Voice',
-        description: 'Text vertonen',
-        path: '/voice',
-        icon: getIcon('navigation', 'voice')!,
-      },
-      {
         id: 'transkription',
         title: 'Transkription',
         description: 'Audio zu Text',
@@ -256,6 +290,13 @@ export const TOOL_MENUS: WorkplaceToolMenu[] = [
         description: 'Updates abonnieren',
         href: NEWSLETTER_SIGNUP_URL,
         icon: getIcon('navigation', 'presse-social')!,
+      },
+      {
+        id: 'transparenz',
+        title: 'Transparenz',
+        description: 'Verbrauch & CO₂ des Grünerators',
+        path: '/transparenz',
+        icon: getIcon('navigation', 'transparenz')!,
       },
     ],
   },

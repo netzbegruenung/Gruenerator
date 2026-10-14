@@ -25,6 +25,11 @@ export const flux3LayoutRowSchema = z.object({
   desc: z.string().min(1).max(1000),
 });
 
+/** What element detection returns: a layout row plus a short German name for the editor. */
+export const flux3DetectedElementSchema = flux3LayoutRowSchema.extend({
+  label: z.string().min(1).max(60).optional(),
+});
+
 export const flux3LayoutSchema = z.object({
   /** One paragraph about the whole image naming each element as `<id>`. */
   caption: z.string().min(1).max(4000),
@@ -52,6 +57,7 @@ export const flux3BoxEditSchema = z.object({
 
 export type Flux3Bbox = z.infer<typeof flux3BboxSchema>;
 export type Flux3LayoutRow = z.infer<typeof flux3LayoutRowSchema>;
+export type Flux3DetectedElement = z.infer<typeof flux3DetectedElementSchema>;
 export type Flux3Layout = z.infer<typeof flux3LayoutSchema>;
 export type Flux3EditRow = z.infer<typeof flux3EditRowSchema>;
 export type Flux3BoxEdit = z.infer<typeof flux3BoxEditSchema>;

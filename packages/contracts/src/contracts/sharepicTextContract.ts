@@ -16,9 +16,7 @@
  * route whose shape depends on a header is a union wearing a disguise.
  *
  * NOT here, on purpose:
- * - `POST /api/sharepic/text/default` — different response shape
- *   (`{sharepics, metadata}`) and a different handler. Stays on Express.
- * - The eight deprecated `POST /api/<type>_claude` aliases. Contracting them
+ * - The seven deprecated `POST /api/<type>_claude` aliases. Contracting them
  *   would make them look canonical. They stay on Express and serialize through
  *   the same `toSharepicTextWireBody`, so they cannot drift from these routes.
  *

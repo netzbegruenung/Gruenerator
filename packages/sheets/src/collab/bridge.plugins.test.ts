@@ -19,14 +19,16 @@ function makeApi() {
   const created: Partial<IWorkbookData>[] = [];
   const executed: { id: string; params: unknown; options: unknown }[] = [];
   let cmdCb:
-    ((info: { type: number; id: string; params?: unknown }, opts?: unknown) => void) | null = null;
+    ((event: { type: number; id: string; params?: unknown; options?: unknown }) => void) | null =
+    null;
 
   const api = {
     createWorkbook: (data: Partial<IWorkbookData>) => {
       created.push(data);
       return { save: () => data, setEditable: () => {} };
     },
-    onCommandExecuted: (cb: typeof cmdCb) => {
+    Event: { CommandExecuted: 'CommandExecuted' },
+    addEvent: (_event: 'CommandExecuted', cb: typeof cmdCb) => {
       cmdCb = cb;
       return { dispose() {} };
     },
@@ -40,7 +42,7 @@ function makeApi() {
     created,
     executed,
     fire: (info: { type: number; id: string; params?: unknown }, opts?: unknown) =>
-      cmdCb?.(info, opts),
+      cmdCb?.({ ...info, options: opts }),
   };
 }
 

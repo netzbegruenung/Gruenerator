@@ -56,4 +56,23 @@ describe('markerBoxes', () => {
     });
     expect(box!.height).toBeLessThanOrEqual(24);
   });
+
+  it('färbt jeden Kasten mit seiner Passagenfarbe, mit lesbarer Schrift darin', () => {
+    const lines = layoutRichTextBlock('++a++ ++{#00261A}bc++ ++{#BEFF60}de++', 1000, measure);
+    const boxes = markerBoxes(lines, measure, marker, opts);
+    expect(boxes.map((b) => [b.fill, b.ink])).toEqual([
+      ['#FFFFFF', '#00261A'],
+      ['#00261A', '#FFFFFF'],
+      ['#BEFF60', '#00261A'],
+    ]);
+  });
+
+  it('trennt direkt aneinanderstoßende Passagen verschiedener Farbe', () => {
+    const lines = layoutRichTextBlock('++{#FFFFFF}ab++++{#BEFF60}cd++', 1000, measure);
+    const boxes = markerBoxes(lines, measure, marker, opts);
+    expect(boxes.map((b) => [b.x + 4, b.width - 8, b.fill])).toEqual([
+      [0, 20, '#FFFFFF'],
+      [20, 20, '#BEFF60'],
+    ]);
+  });
 });

@@ -19,7 +19,7 @@
  *     mistral-medium-2604 with no fallback chain.
  *   - save_as_doc → document body comes from the `doc_generation` worker type.
  *   - sharepic → the answer text is a fixed template string in the router; the
- *     slogan comes from sharepicGenerationService. Auto has NO effect, so
+ *     slogan comes from the Sharepic-Creator. Auto has NO effect, so
  *     `sharepic` is intentionally absent from the table.
  *   - edit_sheet → same pinned planner as create_sheet; the answer text is a
  *     fixed template in handleSheetEdit. Also absent from the table.
@@ -92,11 +92,10 @@ const graded = (
  * Der Ausweich ist der andere Gemma-Host (services/ai/gemmaHosts.ts).
  */
 const GEMMA: AutoLaneId = 'gemma-litellm';
-/** Mistral Medium 3.5. Where the model calls tools ITSELF and the unified loop
- *  should kick in, and — since 07.08.2026 — `compute`: narrating pre-computed
- *  figures without letting the writer invent its own arithmetic needs the more
- *  careful lane, not the speed one. See the `compute` entry below for the
- *  incident that motivated it. */
+/** Mistral Medium 3.5. Seit 12.10.2026 (Kosten) nur noch `compute` — narrating
+ *  pre-computed figures without letting the writer invent its own arithmetic
+ *  needs the more careful lane (see the `compute` entry below) — und die
+ *  präzise Lane der Overrides in `resolveAutoSelection`. */
 const MEDIUM: AutoLaneId = 'mistral-medium-3.5';
 
 /**
@@ -196,44 +195,41 @@ export const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
   social_post: { modelId: GEMMA, reasoning: 'off' },
   image: { modelId: GEMMA, reasoning: 'off' },
 
-  // ── Mistral Medium 3.5 ──
+  // ── Plattform-Aktionen und Dokumente: Gemma 4 (31B) ──
   //
-  // The "narrate a platform ACTION" family. These announce something the
-  // platform did (or is about to do) that the model cannot see in its context —
-  // it has to know the product can do it at all. Measured on the live eval
-  // (`evals/corpus/autolane.jsonl`, save_as_doc cases):
-  //   - Small 4:  "Ich kann keine neuen Dateien … erstellen" — capability
-  //               refusal, plus Siezen against the Du-Form house style, and the
-  //               document was created anyway → narration contradicted action.
-  //   - Gemma 4:  refuses too ("keinen Zugriff auf dein Dateisystem"), 4–5x
-  //               slower, and one case failed to generate at all.
-  //   - Medium:   "Ich habe … als Dokument im Grünerator gespeichert" — correct,
-  //               Du-Form, narration matches the action.
-  // Note the single-pass path has no `capabilityNote` (that lives in the
-  // agentic loop), so these intents depend on the model's own product knowledge.
-  save_as_doc: { modelId: MEDIUM, reasoning: 'off' },
-  modify_doc: { modelId: MEDIUM, reasoning: 'off' },
-  share_doc: { modelId: MEDIUM, reasoning: 'off' },
-  artifact: { modelId: MEDIUM, reasoning: 'off' },
+  // Bis zum 12.10.2026 Mistral Medium 3.5 — umgestellt aus Kostengründen.
+  // Mistral Medium bleibt als Ausweich nur über die Fallback-Ketten im Spiel.
+  //
+  // Der Grund für Medium war eine Messung auf `evals/corpus/autolane.jsonl`
+  // (save_as_doc): Gemma 4 lehnte dort ab („keinen Zugriff auf dein
+  // Dateisystem") und brauchte 4–5x so lange. Gemessen wurde damals auf dem
+  // Verdigado-Host, heute läuft Gemma auf Cortecs; vor jedem Rückbau
+  // `EVAL_FILTER=autolane` gegen diese Tabelle laufen lassen.
+  save_as_doc: { modelId: GEMMA, reasoning: 'off' },
+  modify_doc: { modelId: GEMMA, reasoning: 'off' },
+  share_doc: { modelId: GEMMA, reasoning: 'off' },
+  artifact: { modelId: GEMMA, reasoning: 'off' },
 
-  edit_current_doc: { modelId: MEDIUM, reasoning: graded('medium', 'high', 'high') },
-  edit_current_board: { modelId: MEDIUM, reasoning: graded('medium', 'high', 'high') },
-  create_sheet: { modelId: MEDIUM, reasoning: graded('medium', 'high', 'high') },
-  create_presentation: { modelId: MEDIUM, reasoning: graded('medium', 'high', 'high') },
+  edit_current_doc: { modelId: GEMMA, reasoning: graded('medium', 'high', 'high') },
+  edit_current_board: { modelId: GEMMA, reasoning: graded('medium', 'high', 'high') },
+  create_sheet: { modelId: GEMMA, reasoning: graded('medium', 'high', 'high') },
+  create_presentation: { modelId: GEMMA, reasoning: graded('medium', 'high', 'high') },
   // Stillgelegt (09/2026) — total über `SearchIntent`; der Dauerauftrag läuft
   // als `agentic` mit Pin auf das Werkzeug `recurring_tasks`.
-  create_recurring_task: { modelId: MEDIUM, reasoning: 'medium' },
+  create_recurring_task: { modelId: GEMMA, reasoning: 'medium' },
   // Same family as its three siblings above: generate structured content AND
   // narrate a platform action the model cannot see in its context. It was the
   // only create_* intent missing from the table, so it took the speed lane —
-  // exactly the setup the Mistral-lane note above documents as producing
+  // exactly the setup the save_as_doc measurement above documents as producing
   // capability refusals ("Ich kann keine neuen Dateien erstellen") while the
   // artefact is created anyway.
-  create_pdf: { modelId: MEDIUM, reasoning: graded('medium', 'high', 'high') },
+  create_pdf: { modelId: GEMMA, reasoning: graded('medium', 'high', 'high') },
+  // Same family: structured content plus a platform action the model cannot see.
+  create_explainable: { modelId: GEMMA, reasoning: graded('medium', 'high', 'high') },
   // The router rewrites this to `agentic`; kept as a safety net.
-  modify_board: { modelId: MEDIUM, reasoning: 'medium' },
+  modify_board: { modelId: GEMMA, reasoning: 'medium' },
   // The vision override in resolveModel wins over this anyway.
-  image_edit: { modelId: MEDIUM, reasoning: 'off' },
+  image_edit: { modelId: GEMMA, reasoning: 'off' },
 
   // ── Short/direct turns: Gemma 4 (31B) — the former speed lane, folded in on 07.08.2026 (see the lane comment above) ──
   // Same grading as before: the substance is in the message, so the work is
@@ -311,9 +307,10 @@ export interface AutoSelectionInput {
   agentId?: string | null | undefined;
   /**
    * Surfaces that run no classifier and therefore have no intent. `notebook`
-   * is RAG-grounded and pinned to the precise lane — the same choice the web
-   * client makes locally in resolveAutoModel, kept here so a client that does
-   * send `auto` doesn't silently land in the speed lane.
+   * is RAG-grounded and pinned to Gemma 4 for clients that send `auto`
+   * (Grün-O-Mat, `/chat?mode=notebook`) — bis 12.10.2026 Mistral Medium. The notebook pages resolve
+   * `auto` themselves to Mittel since 06.10.2026 (resolveAutoModel); the
+   * Grün-O-Mat runs `fast` and was not part of that measurement.
    */
   surface?: 'notebook' | null | undefined;
   /**
@@ -406,7 +403,7 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
 
   if (input.surface === 'notebook') {
     return {
-      modelId: MEDIUM,
+      modelId: GEMMA,
       reasoning: gradeReasoning(graded('low', 'medium', 'high'), complexity),
     };
   }
@@ -511,6 +508,7 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
 export const LOOP_PLANNER_PRIMARY = {
   provider: GEMMA_31B_ON_MELIOUS.provider,
   model: GEMMA_31B_ON_MELIOUS.model,
+  contextWindow: GEMMA_31B_ON_MELIOUS.contextWindow,
 };
 /**
  * Erste Ausweichstufe, wenn der Primär als zäh vermerkt ist: eine andere
@@ -520,6 +518,9 @@ export const LOOP_PLANNER_PRIMARY = {
 export const LOOP_PLANNER_HEALTHY_ALT = {
   provider: 'melious' as const,
   model: 'mistral-small-4-119b-instruct',
+  /** Ungemessen auf Melious; so klein wie der Primär, damit ein Synth-Ausweich
+   *  auf diese Stufe nicht mehr bekommt als auf jene (#4201). */
+  contextWindow: GEMMA_31B_ON_MELIOUS.contextWindow,
 };
 /**
  * Die letzte Stufe, bewusst nicht Melious: Mistral Medium bedient die
@@ -530,7 +531,9 @@ export const LOOP_PLANNER_HEALTHY_ALT = {
  */
 export const LOOP_PLANNER_FALLBACK = {
   provider: 'mistral' as const,
-  model: 'mistral-medium-2604',
+  model: 'mistral-large-4',
+  /** `CTX_FULL` der Mistral-Lanes in providers.ts — der importiert diese Datei. */
+  contextWindow: 262_144,
 };
 
 /** SYNTH: best German writer, and never a reasoning lane (latency).
@@ -552,7 +555,7 @@ export const LOOP_SYNTH_PRIMARY = {
   provider: GEMMA_31B_PRIMARY.provider,
   model: GEMMA_31B_PRIMARY.model,
 };
-export const LOOP_SYNTH_FALLBACK = { provider: 'mistral' as const, model: 'mistral-medium-2604' };
+export const LOOP_SYNTH_FALLBACK = { provider: 'mistral' as const, model: 'mistral-large-4' };
 
 /** Models that must NEVER write the loop answer: reasoning/"think" lanes (slow),
  *  gpt-oss (verified tool-call fail / reasoning leak) und die chinesisch

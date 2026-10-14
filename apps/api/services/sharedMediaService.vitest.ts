@@ -38,11 +38,9 @@ vi.mock('../database/services/PostgresService.js', () => ({
   }),
 }));
 
-const { default: SharedMediaService, MediaQuotaExceededError } =
-  await import('./sharedMediaService.js');
-const { LIBRARY_ITEM_CLAUSE, ORPHANED_SHARE_STATUSES, USER_VISIBLE_SHARE_STATUSES } =
+const { default: SharedMediaService } = await import('./sharedMediaService.js');
+const { ORPHANED_SHARE_STATUSES, USER_VISIBLE_SHARE_STATUSES } =
   await import('./sharedMediaFilters.js');
-const { MEDIA_LIBRARY_ITEM_LIMIT } = await import('@gruenerator/shared/media-library/constants');
 
 /** The `fs.rm` from the module mock above — the reaper's file half runs through it. */
 const rm = vi.mocked((await import('fs/promises')).default.rm);
@@ -102,170 +100,46 @@ describe('getMediaLibrary', () => {
 });
 
 /**
- * The quota is the second thing this file guards, and for the same reason as the
- * first: the policy lives in the SQL. Until #2980 the cap was enforced by
- * *deleting* the user's oldest library rows and their files on every write path,
- * so uploading a source image could destroy a sharepic made months earlier. The
- * assertions below check what no longer happens (any DELETE, any silent
- * eviction) as much as what does.
+ * The Mediathek has no item cap. It used to have one, enforced first by
+ * *deleting* the user's oldest library rows and their files on every write path
+ * (until #2980), then by refusing uploads at 100 items. Neither may come back:
+ * an upload counts nothing, refuses nothing and deletes nothing.
  */
-
-/** Every `SELECT COUNT(*)` answers with this many library items. */
-function withLibraryCount(count: number): InstanceType<typeof SharedMediaService> {
-  queryOne.mockImplementation((sql: string) => {
-    if (sql.includes('COUNT(*)')) return Promise.resolve({ count: String(count) });
-    return Promise.resolve(null);
-  });
-  return new SharedMediaService();
-}
 
 const PNG_1PX = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
   'base64'
 );
 
-describe('getLibraryUsage', () => {
-  it('reports the cap from the shared constant, not a copy of the number', async () => {
-    const usage = await withLibraryCount(3).getLibraryUsage('user-1');
-    expect(usage).toEqual({
-      count: 3,
-      limit: MEDIA_LIBRARY_ITEM_LIMIT,
-      isFull: false,
-      isNearlyFull: false,
-    });
-  });
+function acceptingInserts(): InstanceType<typeof SharedMediaService> {
+  queryOne.mockImplementation(() =>
+    Promise.resolve({ id: 'row-1', share_token: 'tok', created_at: new Date() })
+  );
+  return new SharedMediaService();
+}
 
-  it('flags a full library at the cap', async () => {
-    const usage = await withLibraryCount(MEDIA_LIBRARY_ITEM_LIMIT).getLibraryUsage('user-1');
-    expect(usage.isFull).toBe(true);
-    expect(usage.isNearlyFull).toBe(true);
-  });
-
-  it('warns before the cap bites', async () => {
-    const usage = await withLibraryCount(MEDIA_LIBRARY_ITEM_LIMIT - 1).getLibraryUsage('user-1');
-    expect(usage.isFull).toBe(false);
-    expect(usage.isNearlyFull).toBe(true);
-  });
-
-  it('never deletes — reading the quota issues no write', async () => {
-    await withLibraryCount(MEDIA_LIBRARY_ITEM_LIMIT + 20).getLibraryUsage('user-1');
-    expect(query).not.toHaveBeenCalled();
-  });
-
-  it('charges only for rows the user can see and delete', async () => {
-    // A failed or stuck video share shows up in no listing and no UI can remove
-    // it. Counting those would let a handful of failed renders lock the account
-    // out of uploading with no way back — the LRU eviction this replaces was
-    // the only thing that ever cleared them.
-    await withLibraryCount(1).getLibraryUsage('user-1');
-
-    const call = queryOne.mock.calls[0]!;
-    const statuses = call[1][1] as string[];
-    expect(call[0]).toContain(LIBRARY_ITEM_CLAUSE);
-    expect(call[0]).toContain('status = ANY($2::text[])');
-    expect(statuses).toEqual([...USER_VISIBLE_SHARE_STATUSES]);
-    expect(statuses).not.toContain('failed');
-    expect(statuses).not.toContain('processing');
-  });
-});
-
-describe('uploadMediaFile at the cap', () => {
-  it('refuses the upload instead of evicting the oldest media', async () => {
-    const service = withLibraryCount(MEDIA_LIBRARY_ITEM_LIMIT);
-
-    await expect(
-      service.uploadMediaFile('user-1', {
+describe('no library cap', () => {
+  it.each(['upload', 'ai_generated', 'canvas-mint', 'canvas-thumbnail'] as const)(
+    'stores a %s upload without counting or evicting anything',
+    async (uploadSource) => {
+      const result = await acceptingInserts().uploadMediaFile('user-1', {
         fileBuffer: PNG_1PX,
         originalFilename: 'foto.png',
         mimeType: 'image/png',
         title: null,
         altText: null,
-        uploadSource: 'upload',
-      })
-    ).rejects.toBeInstanceOf(MediaQuotaExceededError);
+        uploadSource,
+      });
 
-    // No DELETE, no INSERT: the refusal happens before anything is written.
-    expect(query).not.toHaveBeenCalled();
-    expect(queryOne.mock.calls.filter(([sql]) => !sql.includes('COUNT(*)'))).toHaveLength(0);
-  });
+      expect(result.shareToken).toBe('tok');
+      const statements = [...queryOne.mock.calls, ...query.mock.calls].map(([sql]) => sql);
+      expect(statements.some((sql) => sql.includes('COUNT(*)'))).toBe(false);
+      expect(statements.some((sql) => sql.includes('DELETE'))).toBe(false);
+    }
+  );
 
-  it('carries the numbers the user needs to act on', async () => {
-    const service = withLibraryCount(MEDIA_LIBRARY_ITEM_LIMIT);
-    const error = await service
-      .uploadMediaFile('user-1', {
-        fileBuffer: PNG_1PX,
-        originalFilename: 'foto.png',
-        mimeType: 'image/png',
-        title: null,
-        altText: null,
-        uploadSource: 'upload',
-      })
-      .catch((e: unknown) => e);
-
-    if (!(error instanceof MediaQuotaExceededError)) throw new Error('expected a quota error');
-    expect(error.code).toBe('media_quota_exceeded');
-    expect(error.usage.count).toBe(MEDIA_LIBRARY_ITEM_LIMIT);
-    expect(error.usage.limit).toBe(MEDIA_LIBRARY_ITEM_LIMIT);
-    expect(error.userMessage).toContain(String(MEDIA_LIBRARY_ITEM_LIMIT));
-  });
-
-  it.each([
-    ['canvas-mint', 'the background photo a freshly minted canvas is built from'],
-    ['canvas-editor', 'an asset dropped onto a canvas mid-edit'],
-  ])('lets %s through — %s is a creation, not a library upload', async (uploadSource) => {
-    const service = withLibraryCount(MEDIA_LIBRARY_ITEM_LIMIT + 5);
-    queryOne.mockImplementation((sql: string) => {
-      if (sql.includes('COUNT(*)')) {
-        return Promise.resolve({ count: String(MEDIA_LIBRARY_ITEM_LIMIT + 5) });
-      }
-      return Promise.resolve({ id: 'row-1', share_token: 'tok', created_at: new Date() });
-    });
-
-    const result = await service.uploadMediaFile('user-1', {
-      fileBuffer: PNG_1PX,
-      originalFilename: 'hintergrund.png',
-      mimeType: 'image/png',
-      title: null,
-      altText: null,
-      uploadSource: uploadSource as 'canvas-mint',
-    });
-
-    expect(result.shareToken).toBe('tok');
-  });
-
-  it('lets internal artifacts through — they never counted against the quota', async () => {
-    const service = withLibraryCount(MEDIA_LIBRARY_ITEM_LIMIT);
-    queryOne.mockImplementation((sql: string) => {
-      if (sql.includes('COUNT(*)')) {
-        return Promise.resolve({ count: String(MEDIA_LIBRARY_ITEM_LIMIT) });
-      }
-      return Promise.resolve({ id: 'row-1', share_token: 'tok', created_at: new Date() });
-    });
-
-    const result = await service.uploadMediaFile('user-1', {
-      fileBuffer: PNG_1PX,
-      originalFilename: 'thumb.png',
-      mimeType: 'image/png',
-      title: null,
-      altText: null,
-      uploadSource: 'canvas-thumbnail',
-    });
-
-    expect(result.shareToken).toBe('tok');
-  });
-});
-
-describe('creations at the cap', () => {
-  it('createImageShare still succeeds and deletes nothing', async () => {
-    const service = withLibraryCount(MEDIA_LIBRARY_ITEM_LIMIT + 5);
-    queryOne.mockImplementation((sql: string) => {
-      if (sql.includes('COUNT(*)')) {
-        return Promise.resolve({ count: String(MEDIA_LIBRARY_ITEM_LIMIT + 5) });
-      }
-      return Promise.resolve({ id: 'row-1', share_token: 'tok', created_at: new Date() });
-    });
-
-    const share = await service.createImageShare('user-1', {
+  it('createImageShare deletes nothing', async () => {
+    const share = await acceptingInserts().createImageShare('user-1', {
       imageBase64: `data:image/png;base64,${PNG_1PX.toString('base64')}`,
       title: 'Sharepic',
       metadata: {},
@@ -296,7 +170,7 @@ describe('creations at the cap', () => {
  * claim is about which code paths exist, which no amount of fixture setup can show.
  */
 // Comments are blanked rather than deleted so every offset still points at the
-// same place. Without this the doc comment on getLibraryUsage — which discusses
+// same place. Without this a doc comment — such as one discussing
 // rows "stuck in 'processing'" — counts as a writer, and the guard passes or
 // fails on prose.
 const SERVICE_SOURCE = readFileSync(
@@ -601,11 +475,6 @@ describe('Papierkorb', () => {
     expect(queryOne.mock.calls[0]![0]).toContain('deleted_at IS NULL');
   });
 
-  it('keeps charging the quota for trashed media — their files are still on disk', async () => {
-    await withLibraryCount(1).getLibraryUsage('user-1');
-    expect(queryOne.mock.calls[0]![0]).not.toContain('deleted_at');
-  });
-
   it('purge deletes the trashed row conditionally, then the share directory', async () => {
     db({ deleted: 1 });
     const cutoff = new Date('2026-08-30T00:00:00Z');
@@ -644,5 +513,78 @@ describe('Papierkorb', () => {
     expect(sql).toContain('COALESCE(is_library_item, TRUE) = FALSE');
     expect(sql).not.toContain('deleted_at');
     expect(effects).toEqual(['DELETE FROM shared_media', 'rm tok-1']);
+  });
+
+  const profilbildMeta = (url: string) => ({
+    profilbild: {
+      v: 1,
+      person: { x: 0, y: 0, scale: 1 },
+      background: { kind: 'custom', url },
+      stickers: [],
+    },
+  });
+
+  it('purging a saved Profilbild also purges its own background upload, owner-scoped', async () => {
+    query.mockImplementation((sql: string) => {
+      effects.push(sql.replace(/\s+/g, ' ').trim().split(' WHERE ')[0]);
+      return Promise.resolve([
+        {
+          id: 'row-1',
+          user_id: 'user-1',
+          image_type: 'profilbild',
+          image_metadata: profilbildMeta('/api/share/bg-1/download'),
+        },
+      ]);
+    });
+    expect(await new SharedMediaService().purgeShare('tok-1', null)).toBe(true);
+
+    expect(effects).toEqual([
+      'DELETE FROM shared_media',
+      'rm tok-1',
+      'DELETE FROM shared_media',
+      'rm bg-1',
+    ]);
+    const [sql, params] = query.mock.calls[1]!;
+    expect(sql).toContain('COALESCE(is_library_item, TRUE) = FALSE');
+    expect(sql).toContain('user_id = $2');
+    expect(params).toEqual(['bg-1', 'user-1']);
+  });
+
+  it('leaves the background alone for a canvas export that only shares the image type', async () => {
+    query.mockResolvedValueOnce([
+      { id: 'row-1', user_id: 'user-1', image_type: 'profilbild', image_metadata: {} },
+    ]);
+    expect(await new SharedMediaService().purgeShare('tok-1', null)).toBe(true);
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
+  it('an update that swaps the own background photo purges the old upload only', async () => {
+    queryOne.mockResolvedValueOnce({
+      id: 'row-1',
+      file_path: 'tok-1/media.png',
+      image_type: 'profilbild',
+      image_metadata: profilbildMeta('/api/share/bg-old/download'),
+    });
+    query.mockResolvedValue([{ id: 'bg-row' }]);
+    const service = new SharedMediaService();
+    await service.updateImageShare('user-1', 'tok-1', {
+      imageBase64: 'data:image/png;base64,AAAA',
+      metadata: profilbildMeta('/api/share/bg-new/download'),
+    });
+    const purges = query.mock.calls.filter(([sql]) => sql.includes('DELETE FROM shared_media'));
+    expect(purges.map(([, params]) => params)).toEqual([['bg-old', 'user-1']]);
+
+    query.mockClear();
+    queryOne.mockResolvedValueOnce({
+      id: 'row-1',
+      file_path: 'tok-1/media.png',
+      image_type: 'profilbild',
+      image_metadata: profilbildMeta('/api/share/bg-new/download'),
+    });
+    await service.updateImageShare('user-1', 'tok-1', {
+      imageBase64: 'data:image/png;base64,AAAA',
+      metadata: profilbildMeta('/api/share/bg-new/download'),
+    });
+    expect(query.mock.calls.some(([sql]) => sql.includes('DELETE FROM shared_media'))).toBe(false);
   });
 });

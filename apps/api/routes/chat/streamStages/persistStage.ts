@@ -59,6 +59,8 @@ export interface PersistStageParams {
   agentId: StreamBody['agentId'];
   rawDocMentionIds: StreamBody['docMentionIds'];
   rawBoardIds: StreamBody['boardIds'];
+  /** Nur in einer Fortsetzung gesetzt — siehe `PersistParams.resolvedPause`. */
+  resolvedPause?: PersistParams['resolvedPause'];
 }
 
 export async function runPersistStage({
@@ -87,6 +89,7 @@ export async function runPersistStage({
   agentId,
   rawDocMentionIds,
   rawBoardIds,
+  resolvedPause,
 }: PersistStageParams): Promise<StreamHandlerResult> {
   // === Stage 4: Persist & complete ===
   // Stop the placeholder writer BEFORE persist: its final throttle write
@@ -113,6 +116,7 @@ export async function runPersistStage({
     ...(langfuseTraceId != null && { traceId: langfuseTraceId }),
     ...(pendingId != null && { pendingMessageId: pendingId }),
     ...(userMessageId != null && { userMessageId }),
+    ...(resolvedPause != null && { resolvedPause }),
   });
 
   // === Stage 4b: Emit confirm_action for intents that need user approval ===

@@ -22,6 +22,7 @@ import {
   referenceFootprint,
   unmeasuredRemainder,
 } from '../../services/usage/energyFootprint.js';
+import { getUserActivity } from '../../services/usage/userActivityStats.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
@@ -49,6 +50,9 @@ const KNOWN_UNITS = new Set<string>([
   'transcriptions',
   'searches',
   'speech_seconds',
+  'characters',
+  'ocr_pages',
+  'embedding_tokens',
 ]);
 
 function usageUnitFallback(unit: string): UsageUnit {
@@ -289,6 +293,19 @@ export const userUsageContractRouter = s.router(userUsageContract, {
       return {
         status: 500 as const,
         body: { error: (error as Error).message || 'Failed to retrieve usage' },
+      };
+    }
+  },
+
+  getMyActivity: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      return { status: 200 as const, body: await getUserActivity(userId) };
+    } catch (error) {
+      log.error('[UserUsage Contract] Error retrieving activity:', error);
+      return {
+        status: 500 as const,
+        body: { error: (error as Error).message || 'Failed to retrieve activity' },
       };
     }
   },

@@ -33,11 +33,27 @@ import type {
   SearchIntent,
   SearchResult,
 } from '../../../../agents/langgraph/ChatGraph/types.js';
+import type { SharepicTurnFailure } from '../artifactConfirmations.js';
 import type { PriorSharepic, SharepicVariant } from '../sharepicVariantHelpers.js';
 import type { SSEWriter } from '../sseHelpers.js';
-import type { Request } from 'express';
 
 const log = createLogger('ChatGraphController');
+
+/**
+ * „Mach es als Kreisdiagramm" redraws the chart of the answer before — the data
+ * is already in the thread. Live 11.10.2026 such a turn ran a source search
+ * first and showed „Keine passenden Quellen gefunden" (#4460). A short order
+ * right after a chart answer is a redraw; anything longer may bring a new topic.
+ */
+export function isChartRerender(state: Pick<ChatGraphState, 'messages'>): boolean {
+  const messages = state.messages ?? [];
+  const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+  const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant');
+  if (!lastUser || !lastAssistant) return false;
+  const priorHadChart = /```chart\b/.test(extractTextContent(lastAssistant.content));
+  const shortOrder = extractTextContent(lastUser.content).trim().split(/\s+/).length <= 8;
+  return priorHadChart && shortOrder;
+}
 
 /**
  * Ground a vague continuation on the research this thread already paid for.
@@ -108,7 +124,6 @@ export async function executeIntentPipeline(opts: {
   forcedTool: boolean;
   enabledTools?: Record<string, boolean>;
   imageAttachments: ImageAttachment[];
-  req?: Request;
   /** Thread id for deck mints (chat_thread_canvases binding). */
   threadId?: string | null;
   /** When set, the sharepic branch refines the previous sharepic instead of starting fresh. */
@@ -117,12 +132,15 @@ export async function executeIntentPipeline(opts: {
   finalState: ChatGraphState;
   generatedImage: GeneratedImageResult | null;
   sharepicVariants: SharepicVariant[];
+  /** Set when the sharepic draft failed on a content limit the person can be told. */
+  sharepicFailure: SharepicTurnFailure | null;
 }> {
   const { classifiedState, sse, forcedTool, enabledTools, imageAttachments } = opts;
 
   let finalState = classifiedState;
   let generatedImage: GeneratedImageResult | null = null;
   let sharepicVariants: SharepicVariant[] = [];
+  let sharepicFailure: SharepicTurnFailure | null = null;
 
   // Build ordered list of intents to execute (primary first, then secondary).
   const intentsToExecute: SearchIntent[] = [classifiedState.intent];
@@ -197,13 +215,12 @@ export async function executeIntentPipeline(opts: {
       }
     } else if (currentIntent === 'sharepic') {
       sse.send('image_start', { message: 'Entwerfe dein Sharepic…' });
-      sharepicVariants = await runSharepicGeneration({
+      ({ variants: sharepicVariants, failure: sharepicFailure } = await runSharepicGeneration({
         state: finalState,
         sse,
-        req: opts.req,
         threadId: opts.threadId ?? null,
         ...(opts.sharepicRefinement && { sharepicRefinement: opts.sharepicRefinement }),
-      });
+      }));
     } else if (currentIntent === 'summary') {
       const docCount =
         (finalState.documentChatIds?.length || 0) + (finalState.documentIds?.length || 0);
@@ -252,7 +269,8 @@ export async function executeIntentPipeline(opts: {
       currentIntent !== 'greeting' &&
       currentIntent !== 'save_as_doc' &&
       currentIntent !== 'modify_doc' &&
-      currentIntent !== 'modify_board'
+      currentIntent !== 'modify_board' &&
+      !(currentIntent === 'chart' && isChartRerender(finalState))
     ) {
       const result = await runSearchBranch({
         state: finalState,
@@ -281,5 +299,6 @@ export async function executeIntentPipeline(opts: {
     finalState,
     generatedImage,
     sharepicVariants,
+    sharepicFailure,
   };
 }

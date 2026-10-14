@@ -11,6 +11,8 @@ import {
   type SocialPostPayload,
   type BahnPayload,
   type SharepicUpdatedEvent,
+  type SharepicVorlagenSuggestions,
+  sharepicVorlagenSuggestionsSchema,
   looksCutOff,
 } from '@gruenerator/contracts';
 import { subtypeToArtifactKind } from '@gruenerator/shared/docs';
@@ -248,6 +250,7 @@ async function* parseStream(
 
   let receivedSearchResults: SearchResult[] = [];
   let receivedSearchImages: SearchImage[] = [];
+  let receivedVorlagenSuggestions: SharepicVorlagenSuggestions | null = null;
   let receivedCitations: Citation[] = [];
   let receivedImage: GeneratedImage | null = null;
   let receivedSharepicData: SharepicData | null = null;
@@ -386,6 +389,7 @@ async function* parseStream(
     };
     if (receivedSearchResults.length > 0) custom.searchResults = receivedSearchResults;
     if (receivedSearchImages.length > 0) custom.searchImages = receivedSearchImages;
+    if (receivedVorlagenSuggestions) custom.vorlagenSuggestions = receivedVorlagenSuggestions;
     if (receivedCitations.length > 0) custom.citations = receivedCitations;
     if (receivedImage) custom.generatedImage = receivedImage;
     if (receivedSharepicData) custom.sharepicData = receivedSharepicData;
@@ -696,6 +700,17 @@ async function* parseStream(
           break;
         }
 
+        // `vorlagen_vorschlagen`: catalogue Vorlagen picked for the post. Same
+        // shape as the persisted tool result (`buildToolDerivedCustom`).
+        case 'vorlagen_suggestions': {
+          const parsed = sharepicVorlagenSuggestionsSchema.safeParse(data);
+          if (parsed.success) {
+            receivedVorlagenSuggestions = parsed.data;
+            yield buildResult();
+          }
+          break;
+        }
+
         case 'summary_start': {
           const { message } = data as { message: string };
           transitionStep('summarizing');
@@ -832,6 +847,7 @@ async function* parseStream(
             const validated = coerceSharepicVariants(payload.variants);
             if (validated) {
               receivedSharepicData = { variants: validated };
+              useSharepicLiveStore.getState().followRevision(validated);
             } else if (isCanvasTemplateType(payload.canvasType) && payload.initialProps) {
               const legacyId =
                 typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -1341,6 +1357,8 @@ async function* parseStream(
           // waiting for a click on DocumentCreatedCard's button. PDFs are
           // excluded — their url is an authenticated asset endpoint (needs
           // configFetch + blob), not something a plain iframe src can load.
+          // Explainables too: their url is a full app page, not an editor
+          // with an `embedded` mode.
           // Only where an ArtifactPanel is actually mounted (/chat thread view):
           // elsewhere the write is invisible AND would close a docked
           // sharepic/reel via the one-panel rule with nothing replacing it.
@@ -1348,7 +1366,8 @@ async function* parseStream(
             !muted() &&
             useArtifactLiveStore.getState().panelMounted &&
             canAutoOpenArtifactPanel() &&
-            subtypeToArtifactKind(created.subtype) !== 'pdf'
+            subtypeToArtifactKind(created.subtype) !== 'pdf' &&
+            subtypeToArtifactKind(created.subtype) !== 'explainable'
           ) {
             useArtifactLiveStore.getState().setActiveArtifact({
               id: `document-${created.documentId}`,

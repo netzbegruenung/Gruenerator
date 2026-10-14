@@ -43,6 +43,8 @@ export const imageEditContract = c.router(
         503: imageEditErrorSchema,
       },
       summary: 'Edit an image with one or more reference images (FLUX)',
+      // A FLUX 3 edit, with a box plan first for `boxes: 'auto'`: often past the 60s default.
+      metadata: { serverTask: true },
     },
     /**
      * Experimental: the visible elements of an image with FLUX 3 bounding
@@ -59,6 +61,8 @@ export const imageEditContract = c.router(
         500: imageEditErrorSchema,
       },
       summary: 'Detect the elements of an image with bounding boxes (FLUX 3, experimental)',
+      // A vision call that may need a repair turn.
+      metadata: { serverTask: true },
     },
   },
   { pathPrefix: '' }

@@ -26,7 +26,14 @@
  * an anderer Stelle um als der Renderer, der es dann zeichnet.
  */
 
-import { PLAIN_STYLE, parseInlineMarks, type InlineRun, type RunStyle } from './inlineMarks.js';
+import {
+  PLAIN_STYLE,
+  parseInlineMarks,
+  runStyleOf,
+  sameRunStyle,
+  type InlineRun,
+  type RunStyle,
+} from './inlineMarks.js';
 
 /** Misst die Breite von `text` in px unter der aktuell gesetzten Schrift. */
 export type MeasureText = (text: string) => number;
@@ -126,6 +133,25 @@ function parseLine(line: string): ParsedLine | null {
 }
 
 /**
+ * Nimmt wiederholte Kugel-/Strichmarker (`• - * –` plus Leerraum) vom Anfang
+ * eines Listenpunkts: „• Radwege" in einem Punkt, der seinen Marker schon
+ * trägt, wäre sonst „• • Radwege" (#4275). Ziffern bleiben. Nur auf den Text
+ * eines Listenpunkts anwenden — im Fließtext ist „– Anna Müller" ein Name.
+ */
+export function stripLeadingBullets(body: string): string {
+  let i = 0;
+  for (;;) {
+    let j = i;
+    while (j < body.length && isSpace(body[j]!)) j++;
+    if (j + 1 < body.length && BULLET_MARKERS.has(body[j]!) && isSpace(body[j + 1]!)) {
+      i = j + 1;
+      continue;
+    }
+    return i === 0 ? body : body.slice(i).trimStart();
+  }
+}
+
+/**
  * `- Punkt` / `* Punkt` / `– Punkt` → `• Punkt`, zeilenweise.
  * Nummerierte Punkte bleiben unangetastet — ihre Reihenfolge ist Information.
  */
@@ -159,7 +185,7 @@ export function splitListItems(text: string): ListItem[] {
     if (!p || (isNumericMarker(p.marker) && !acceptNumeric)) {
       return { marker: null, body: line.trim() };
     }
-    return { marker: p.marker, body: line.slice(p.bodyStart).trim() };
+    return { marker: p.marker, body: stripLeadingBullets(line.slice(p.bodyStart).trim()) };
   });
 }
 
@@ -178,28 +204,13 @@ export function isOrderedMarker(marker: string): boolean {
 /** Ein Wort besteht aus Fragmenten, weil ein Marker mitten im Wort stehen kann. */
 type Word = InlineRun[];
 
-const sameStyle = (a: RunStyle, b: RunStyle): boolean =>
-  a.bold === b.bold &&
-  a.italic === b.italic &&
-  a.underline === b.underline &&
-  a.accent === b.accent &&
-  a.marker === b.marker;
-
-const styleOf = (run: RunStyle): RunStyle => ({
-  bold: run.bold,
-  italic: run.italic,
-  underline: run.underline,
-  accent: run.accent,
-  marker: run.marker,
-});
-
 /** Zerlegt Läufe an Leerzeichen in Wörter; leere Wörter erhalten Doppel-Leerzeichen. */
 function splitWords(runs: InlineRun[]): Word[] {
   const words: Word[] = [[]];
   for (const run of runs) {
     run.text.split(' ').forEach((part, i) => {
       if (i > 0) words.push([]);
-      if (part !== '') words[words.length - 1]!.push({ ...styleOf(run), text: part });
+      if (part !== '') words[words.length - 1]!.push({ ...runStyleOf(run), text: part });
     });
   }
   return words;
@@ -210,7 +221,7 @@ const wordWidth = (word: Word, measure: MeasureRun): number =>
 
 /** Stil, in dem das Leerzeichen HINTER diesem Wort gemessen wird. */
 const trailingStyle = (word: Word, fallback: RunStyle): RunStyle =>
-  word.length > 0 ? styleOf(word[word.length - 1]!) : fallback;
+  word.length > 0 ? runStyleOf(word[word.length - 1]!) : fallback;
 
 /**
  * Bricht ein Wort, das allein schon zu breit ist, INNERHALB des Wortes um.
@@ -230,10 +241,10 @@ function breakWord(word: Word, maxWidth: number, measure: MeasureRun): Word[] {
         chunkWidth = 0;
       }
       const last = chunk[chunk.length - 1];
-      if (last && sameStyle(last, frag)) {
+      if (last && sameRunStyle(last, frag)) {
         last.text += char;
       } else {
-        chunk.push({ ...styleOf(frag), text: char });
+        chunk.push({ ...runStyleOf(frag), text: char });
       }
       chunkWidth += charWidth;
     }
@@ -291,10 +302,10 @@ function positionLine(words: Word[], measure: MeasureRun): PositionedRun[] {
   let spaceStyle: RunStyle = PLAIN_STYLE;
   const append = (text: string, style: RunStyle) => {
     const last = runs[runs.length - 1];
-    if (last && sameStyle(last, style)) {
+    if (last && sameRunStyle(last, style)) {
       last.text += text;
     } else {
-      runs.push({ ...styleOf(style), text, x });
+      runs.push({ ...runStyleOf(style), text, x });
     }
     x += measure(text, style);
   };

@@ -1,7 +1,10 @@
+import { useMemo } from 'react';
+
+import { filterAssetOptionsForLocale } from '../../ai/assetCapability';
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { SIDEBAR_HINT } from '../sidebarStyles';
 
-import type { CanvasAiEditBridge } from '../../CanvasEditorProvider';
+import type { CanvasAiEditBridge, CanvasSpecEditBridge } from '../../CanvasEditorProvider';
 
 export interface ChatSectionProps {
   /** Canvas template id (e.g. 'zitat', 'simple'). */
@@ -13,6 +16,7 @@ export interface ChatSectionProps {
   /** Bridge for canvas-AI edit operations. Present only when the template
    *  declares AI capabilities. */
   aiEdit?: CanvasAiEditBridge;
+  specEdit?: CanvasSpecEditBridge;
 }
 
 export function ChatSection({
@@ -20,8 +24,20 @@ export function ChatSection({
   getSharepicText,
   captureCanvasImage,
   aiEdit,
+  specEdit,
 }: ChatSectionProps) {
-  const { ChatSectionContent } = useCanvasEditorServices();
+  const { ChatSectionContent, userLocale = 'de-DE' } = useCanvasEditorServices();
+  const localeAiEdit = useMemo(() => {
+    const assets = aiEdit?.capabilityList.assets;
+    if (!aiEdit || !assets) return aiEdit;
+    return {
+      ...aiEdit,
+      capabilityList: {
+        ...aiEdit.capabilityList,
+        assets: filterAssetOptionsForLocale(assets, userLocale),
+      },
+    };
+  }, [aiEdit, userLocale]);
 
   if (!ChatSectionContent) {
     return (
@@ -37,7 +53,8 @@ export function ChatSection({
         canvasType={canvasType}
         getSharepicText={getSharepicText}
         captureCanvasImage={captureCanvasImage}
-        aiEdit={aiEdit}
+        aiEdit={localeAiEdit}
+        specEdit={specEdit}
       />
     </div>
   );

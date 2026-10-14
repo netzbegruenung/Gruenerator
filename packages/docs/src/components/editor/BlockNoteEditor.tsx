@@ -61,6 +61,9 @@ import { guardDocUndoAcrossAIFork, type UndoGuardEditor } from '../../lib/undoAc
 import { carryUndoAcrossEditorRecreate } from '../../lib/undoAcrossRecreate';
 import { type UndoableEditor } from '../../hooks/useDocUndoState';
 import { SuggestChangesExtension } from '../../lib/suggestChangesExtension';
+import { withStructuralUpdateFallback } from '../../lib/structuralUpdateFallback';
+import { HoldTableFixesExtension } from '../../lib/holdTableFixes';
+import { isDocAIInvocationInFlight } from '../../lib/invokeDocumentAI';
 import { YSyncBindingConsistencyExtension } from '../../lib/ySyncBindingConsistency';
 import { useSuggestionMode } from '../../hooks/useSuggestionMode';
 import './BlockNoteEditor.css';
@@ -248,9 +251,14 @@ const BlockNoteEditorInner = ({
         // through markdown (lossy by design, the offending spans drop out).
         // See `_experimental_markdown` in @blocknote/xl-ai for the format
         // definition; backend `aiController.ts` uses the matching system prompt.
-        streamToolsProvider: aiDocumentFormats._experimental_markdown.getStreamToolsProvider(),
+        // The wrapper rescues structural block updates (tables) the stock
+        // update tool cannot apply — see structuralUpdateFallback.ts.
+        streamToolsProvider: withStructuralUpdateFallback(),
         documentStateBuilder: aiDocumentFormats._experimental_markdown.defaultDocumentStateBuilder,
       }),
+      // Chat-triggered edits keep the AI menu closed, which turns off xl-ai's
+      // own fixTables hold — without this, inserting a table fails mid-stream.
+      HoldTableFixesExtension({ isAIWriting: () => isDocAIInvocationInFlight(documentId) }),
     ];
 
     // The AI fork/merge plugin swap briefly tears the ySync state; a

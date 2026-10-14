@@ -3,8 +3,8 @@ import { useEffect } from 'react';
 import { useIconCatalog } from '../../../hooks/useIconCatalog';
 import { useIsCanvasMobile } from '../../../hooks/useIsCanvasMobile';
 import { type AssetInstance } from '../../../utils/canvasAssets';
-import { UNDRAW_FEATURED } from '../../../utils/illustrations/registry';
 import { prefetchBackground } from '../../../utils/illustrations/svgCache';
+import { UNDRAW_FEATURED } from '../../../utils/illustrations/undraw';
 import { type ShapeInstance, type ShapeType } from '../../../utils/shapes';
 
 import { BrowseView } from './BrowseView';

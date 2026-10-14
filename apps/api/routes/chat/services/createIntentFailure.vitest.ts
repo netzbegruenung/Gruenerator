@@ -26,7 +26,15 @@ vi.mock('./threadPersistenceService.js', () => ({
   touchThread,
   setThreadToolContext,
   finalizeAssistantMessage,
+  getRecentThreadSources: vi.fn().mockResolvedValue([]),
 }));
+
+// The model answered, but with something no parser accepts. Without this the
+// handlers reach a REAL provider through aiObject — slow, machine-dependent,
+// and not the failure path these tests name.
+const executeProvider = vi.fn();
+
+vi.mock('../../../services/ai/execution/index.js', () => ({ executeProvider }));
 
 // Parsers return null = "model produced no usable structure", the exact
 // condition that used to trigger the fall-through.
@@ -46,6 +54,7 @@ vi.mock('../../../services/presentations/PresentationGenerationService.js', () =
   PRESENTATION_TOOL_SCHEMA: TOOL_SCHEMA,
   parsePresentationStructure: () => null,
   createPresentationDocument: vi.fn(),
+  findEmptySlides: () => [],
 }));
 vi.mock('../../../services/pdf/PdfGenerationService.js', () => ({
   PDF_GENERATION_PROMPT: 'pdf',
@@ -65,6 +74,7 @@ vi.mock('../../../services/boards/BoardService.js', () => ({
 vi.mock('../../../services/docs/DocGenerationService.js', () => ({
   DOCUMENT_GENERATION_PROMPT: 'document',
   DOCUMENT_TOOL_SCHEMA: TOOL_SCHEMA,
+  GENERATED_DOC_SUBTYPES: ['blank'],
   parseDocumentResponse: () => ({ title: 'Neues Dokument', subtype: 'blank', content: '' }),
   createDocumentWithContent: vi.fn(),
 }));
@@ -121,6 +131,7 @@ beforeEach(() => {
   createMessage.mockReset().mockResolvedValue(undefined);
   touchThread.mockReset().mockResolvedValue(undefined);
   setThreadToolContext.mockReset().mockResolvedValue(undefined);
+  executeProvider.mockReset().mockResolvedValue({ success: true, content: 'kein JSON, nur Prosa' });
 });
 
 const cases = [
@@ -164,6 +175,8 @@ describe.each(cases)('$name owns the turn when generation fails', ({ intent, run
     const { sse, events } = makeSse();
 
     await expect(run(sse)).resolves.toBe(true);
+    // The parser-rejection path, not an import error caught by the handler.
+    expect(executeProvider).toHaveBeenCalled();
     expect(countOf(events, 'end')).toBe(1);
   });
 

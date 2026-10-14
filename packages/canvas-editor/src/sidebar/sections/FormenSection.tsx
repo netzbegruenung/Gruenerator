@@ -36,6 +36,9 @@ import {
   PiSunFill,
 } from 'react-icons/pi';
 
+import { cn } from '../../utils/cn';
+import { handDrawnPath, type HandShapeType } from '../../utils/handDrawn';
+import { MARKER_LIME } from '../../utils/markerColors';
 import {
   BRAND_COLORS,
   CATEGORY_LABELS,
@@ -46,8 +49,6 @@ import {
   type ShapeType,
 } from '../../utils/shapes';
 import { CARD_GRID, CARD_PREVIEW, SELECTABLE_CARD, SIDEBAR_SECTION } from '../sidebarStyles';
-
-import { cn } from '../../utils/cn';
 
 export interface FormenSectionProps {
   onAddShape: (type: ShapeType, color?: string) => void;
@@ -83,6 +84,30 @@ const PreviewSvg = ({
     {children}
   </svg>
 );
+
+const HAND_PREVIEW_HEIGHT: Partial<Record<HandShapeType, number>> = {
+  'hand-unterstrich': 24,
+  'hand-ausruf': 100,
+  'hand-marker': 26,
+  'hand-marker-box': 28,
+};
+
+/** A hand-drawn shape at preview size, drawn by the same outline the canvas uses. */
+export const HandShapePreview = ({ type, size = 32 }: { type: HandShapeType; size?: number }) => {
+  const box = { w: 100, h: HAND_PREVIEW_HEIGHT[type] ?? 56 };
+  return (
+    <svg
+      width={size}
+      height={(size * box.h) / box.w}
+      viewBox={`${-box.w / 2 - 2} ${-box.h / 2 - 2} ${box.w + 4} ${box.h + 4}`}
+      fill="currentColor"
+      aria-hidden="true"
+      className="shrink-0"
+    >
+      <path d={handDrawnPath(type, box.w, box.h, type === 'hand-kreis' ? 6 : 10)} />
+    </svg>
+  );
+};
 
 /**
  * Source of truth for the Formen palette. Typed as `{ [K in ShapeType]: ShapeDefinition<K> }`
@@ -280,6 +305,36 @@ const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
         />
       </PreviewSvg>
     ),
+  },
+  'hand-kreis': {
+    id: 'hand-kreis',
+    title: 'Kringel hinzufügen',
+    renderPreview: () => <HandShapePreview type="hand-kreis" />,
+  },
+  'hand-unterstrich': {
+    id: 'hand-unterstrich',
+    title: 'Unterstrich hinzufügen',
+    renderPreview: () => <HandShapePreview type="hand-unterstrich" />,
+  },
+  'hand-pfeil': {
+    id: 'hand-pfeil',
+    title: 'Handpfeil hinzufügen',
+    renderPreview: () => <HandShapePreview type="hand-pfeil" />,
+  },
+  'hand-ausruf': {
+    id: 'hand-ausruf',
+    title: 'Ausrufstriche hinzufügen',
+    renderPreview: () => <HandShapePreview type="hand-ausruf" />,
+  },
+  'hand-marker': {
+    id: 'hand-marker',
+    title: 'Textmarker-Strich hinzufügen',
+    renderPreview: () => <HandShapePreview type="hand-marker" />,
+  },
+  'hand-marker-box': {
+    id: 'hand-marker-box',
+    title: 'Textmarker-Box hinzufügen',
+    renderPreview: () => <HandShapePreview type="hand-marker-box" />,
   },
   star: {
     id: 'star',
@@ -546,6 +601,11 @@ const SHAPE_VARIANT_COLOR_IDS = ['tanne', 'klee', 'grashalm', 'himmel', 'hellgru
 const DARK_PREVIEW_OVERRIDES: Partial<Record<string, string>> = {
   tanne: '!text-editor-tanne-preview',
 };
+/** Textmarker come in the marker colour, not the brand cycle. */
+const FIXED_VARIANT_COLOR: Partial<Record<ShapeType, string>> = {
+  'hand-marker': MARKER_LIME,
+  'hand-marker-box': MARKER_LIME,
+};
 
 /**
  * Brand color variants cycled across shape tiles (Canva-style); clicking inserts the
@@ -565,6 +625,8 @@ export function getShapeVariant(type: ShapeType): ShapeVariant {
       ALL_PALETTE_SHAPES.map((shape, index) => [shape.id, variants[index % variants.length]])
     );
   }
+  const fixed = FIXED_VARIANT_COLOR[type];
+  if (fixed) return { color: fixed, darkPreviewClass: '' };
   return (
     shapeVariantByType.get(type) ?? {
       color: BRAND_COLORS[0]?.value ?? EUCALYPTUS,

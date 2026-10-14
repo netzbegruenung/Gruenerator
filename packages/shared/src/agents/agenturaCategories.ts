@@ -61,9 +61,9 @@ export const AGENTURA_CATEGORIES: AgenturaCategory[] = [
     key: 'meine',
     label: 'Meine Grüneratoren',
     description:
-      'Deine selbst erstellten Agents, Rezepte, wiederkehrenden Aufgaben und was in deinen Gruppen geteilt wurde.',
+      'Deine selbst erstellten Agents und Rezepte und was du dir aus der Agentura dazugeholt hast.',
     emptyText:
-      'Du hast noch keine eigenen Agents oder Rezepte erstellt. Leg deinen ersten über „Neu" an.',
+      'Noch nichts hier. Hol dir Agents und Rezepte aus den anderen Regalen über das Plus an der Karte — eigene legst du am Rechner an.',
     platforms: ['web', 'mobile'],
   },
   {

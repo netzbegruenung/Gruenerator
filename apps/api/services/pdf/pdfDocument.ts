@@ -105,6 +105,17 @@ export const pdfBlockSchema = z.discriminatedUnion('type', [
     type: z.literal('signature'),
     labels: z.array(z.string().max(200)).min(1).max(3),
   }),
+  /**
+   * An image the caller hands to the renderer (`RenderPdfOptions.images`).
+   * Server-built documents only: not in PDF_DOCUMENT_TOOL_SCHEMA, and
+   * `pdfDocumentFromModelSchema` rejects it.
+   */
+  z.object({
+    type: z.literal('image'),
+    ref: z.string().min(1).max(200),
+    alt: z.string().min(1).max(1000),
+    caption: z.string().max(300).optional(),
+  }),
 ]);
 
 const pdfLetterSchema = z.object({
@@ -198,7 +209,20 @@ function normalizeModelOutput(input: unknown): unknown {
 }
 
 /** The gate for MODEL output. Use `pdfDocumentSchema` for anything we build ourselves. */
-export const pdfDocumentFromModelSchema = z.preprocess(normalizeModelOutput, pdfDocumentSchema);
+export const pdfDocumentFromModelSchema = z.preprocess(
+  normalizeModelOutput,
+  pdfDocumentSchema.superRefine((doc, ctx) => {
+    doc.blocks.forEach((block, i) => {
+      if (block.type === 'image') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['blocks', i, 'type'],
+          message: 'Bildblöcke sind nicht erlaubt.',
+        });
+      }
+    });
+  })
+);
 
 /**
  * The schema shown to the MODEL for the forced tool call — deliberately NOT

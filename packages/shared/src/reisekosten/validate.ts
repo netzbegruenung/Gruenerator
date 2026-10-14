@@ -1,8 +1,8 @@
 /**
  * Deterministic rule checks for the Reisekosten form. Encodes the hard rules
  * from the official NRW form (deadlines, km cap, receipt obligations,
- * completeness). Fuzzy checks (receipt amount vs. entry, Business-Package) run
- * server-side against extracted belege — see the API validate route.
+ * completeness). Checks against the uploaded belege (amount vs. entry,
+ * Business-Package, missing documents) live in `pruefliste.ts`.
  */
 import { type Finding, type ReisekostenState } from '@gruenerator/contracts';
 
@@ -170,6 +170,14 @@ export function validateReisekosten(state: ReisekostenState, now: Date = new Dat
           'info',
           'verpflegung',
           'Abwesenheit ≤ 8 Std – kein Anspruch auf Verpflegungsmehraufwand.'
+        );
+      }
+      // Without an overnight the allowance is computed as a single day.
+      if (hours > 24) {
+        push(
+          'warn',
+          'uebernachtung',
+          'Die Reise dauert länger als einen Tag, aber unter 3. ist keine Übernachtung gewählt – die Verpflegung wird dann nur für einen Tag berechnet.'
         );
       }
     }

@@ -111,6 +111,8 @@ export interface SearchResultInput {
     chunk_index: number;
     page_number?: number | null | undefined;
     chunk_type?: string | null | undefined;
+    /** Dokumentart des Treffers (`drucksache`, `plenarprotokoll` …), wo die Sammlung sie führt. */
+    content_type?: string | null | undefined;
   }>;
   source_url?: string | undefined;
   url?: string | undefined;

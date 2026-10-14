@@ -30,10 +30,29 @@
  * without a locale is in neither segment. The filter sits in step 1 already, so
  * the suppression threshold is applied to the segment, not to the platform —
  * a thin country publishes nothing rather than a number about a few people.
+ *
+ * An optional `feature` narrows to one product area. Unlike the country it IS a
+ * column on every row, so the split covers the whole history. The area split
+ * needs more than one threshold, because the areas are published side by side
+ * with the platform total and anyone can subtract:
+ *
+ *  - A CELL (day × area) is published only with at least MIN_GROUP_SIZE
+ *    people. Monitor on a busy chat day can still be a handful of people.
+ *  - Secondary suppression per day: the cells hidden on a day, taken together,
+ *    must also reach MIN_GROUP_SIZE — otherwise "day total minus the published
+ *    areas" recovers them. If they do not, that day carries no area figure at
+ *    all (it stays in the platform total, where it is harmless).
+ *  - Over the window, everything not published as a cell is one remainder
+ *    (total minus the areas). It too must reach MIN_GROUP_SIZE, or the window
+ *    publishes no area split at all.
+ *
+ * The rule is computed from the full census, never from the request, so the
+ * filtered view of an area and the unfiltered per-area row always describe the
+ * same cells — the two cannot be subtracted from each other either.
  */
 
 import { getTransparencyStatsResponseSchema, usageFeatureSchema } from '@gruenerator/contracts';
-import { and, gte, inArray, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, sql } from 'drizzle-orm';
 
 import { profiles, userUsageDaily } from '../../database/schema/index.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
@@ -57,8 +76,10 @@ import {
 
 import type {
   GetTransparencyStatsResponseDto,
+  TransparencyFeature,
   TransparencyLocale,
   UsageFeature,
+  UsageUnit,
 } from '@gruenerator/contracts';
 
 const log = createLogger('platformUsage');
@@ -82,7 +103,7 @@ const CACHE_TTL_SECONDS = 15 * 60;
 
 /** Bumped when the response shape changes, so old entries expire immediately
  *  rather than being served until their TTL runs out. */
-const CACHE_KEY_PREFIX = 'transparency:usage:v2';
+const CACHE_KEY_PREFIX = 'transparency:usage:v3';
 
 /** What `profiles.locale` holds for each publishable segment. */
 const LOCALE_VALUE: Record<TransparencyLocale, string> = { de: 'de-DE', at: 'de-AT' };
@@ -123,8 +144,11 @@ const KNOWN_UNITS = new Set<string>([
   'transcriptions',
   'searches',
   'speech_seconds',
+  'characters',
+  'ocr_pages',
+  'embedding_tokens',
 ]);
-type KnownUnit = 'tokens' | 'images' | 'transcriptions' | 'searches' | 'speech_seconds';
+type KnownUnit = UsageUnit;
 
 function unitFallback(unit: string): KnownUnit {
   return (KNOWN_UNITS.has(unit) ? unit : 'tokens') as KnownUnit;
@@ -200,31 +224,128 @@ function emptyStats(days: number, sinceDay: string, suppressedDays: number, acti
   } satisfies GetTransparencyStatsResponseDto;
 }
 
+function cellKey(day: string, feature: string): string {
+  return `${day}|${feature}`;
+}
+
+type Db = ReturnType<typeof getDrizzleInstance>;
+
+/** `(day, feature) IN (VALUES …)` for a set of cells, user ids stay in SQL. */
+function inCells(cells: readonly (readonly [string, string])[]) {
+  return sql`(${userUsageDaily.day}, ${userUsageDaily.feature}) IN (VALUES ${sql.join(
+    cells.map(([day, feature]) => sql`(${day}::date, ${feature})`),
+    sql`, `
+  )})`;
+}
+
+async function distinctUsersIn(
+  db: Db,
+  cells: readonly (readonly [string, string])[],
+  localeScope: ReturnType<typeof sql> | undefined
+): Promise<number> {
+  if (cells.length === 0) return 0;
+  const [row] = await db
+    .select({ users: sql<number>`count(distinct ${userUsageDaily.userId})::int` })
+    .from(userUsageDaily)
+    .where(and(inCells(cells), localeScope));
+  return row?.users ?? 0;
+}
+
+/**
+ * Which day × area cells may be published, and whether the window may be split
+ * by area at all — see the header comment for the three rules.
+ */
+async function publishableAreaCells(
+  db: Db,
+  dayList: string[],
+  localeScope: ReturnType<typeof sql> | undefined
+): Promise<{
+  cells: Set<string>;
+  activeDays: Map<string, Set<string>>;
+  splitAllowed: boolean;
+}> {
+  const census = await db
+    .select({
+      day: userUsageDaily.day,
+      feature: userUsageDaily.feature,
+      users: sql<number>`count(distinct ${userUsageDaily.userId})::int`,
+    })
+    .from(userUsageDaily)
+    .where(and(inArray(userUsageDaily.day, dayList), localeScope))
+    .groupBy(userUsageDaily.day, userUsageDaily.feature);
+
+  const activeDays = new Map<string, Set<string>>();
+  const byDay = new Map<string, { feature: string; users: number }[]>();
+  for (const row of census) {
+    const set = activeDays.get(row.feature) ?? new Set<string>();
+    set.add(row.day);
+    activeDays.set(row.feature, set);
+    byDay.set(row.day, [...(byDay.get(row.day) ?? []), row]);
+  }
+
+  // Per day: the thin cells together. Only days that have any need a query.
+  const thin = census.filter((c) => c.users < MIN_GROUP_SIZE);
+  const thinDays = [...new Set(thin.map((c) => c.day))];
+  const thinUsersByDay = new Map<string, number>();
+  if (thinDays.length > 0) {
+    const rows = await db
+      .select({
+        day: userUsageDaily.day,
+        users: sql<number>`count(distinct ${userUsageDaily.userId})::int`,
+      })
+      .from(userUsageDaily)
+      .where(and(inCells(thin.map((c) => [c.day, c.feature] as const)), localeScope))
+      .groupBy(userUsageDaily.day);
+    for (const row of rows) thinUsersByDay.set(row.day, row.users);
+  }
+
+  const cells = new Set<string>();
+  const hidden: (readonly [string, string])[] = [];
+  for (const [day, entries] of byDay) {
+    const thinUsers = thinUsersByDay.get(day) ?? 0;
+    const dayAllowed = thinUsers === 0 || thinUsers >= MIN_GROUP_SIZE;
+    for (const entry of entries) {
+      if (dayAllowed && entry.users >= MIN_GROUP_SIZE) cells.add(cellKey(day, entry.feature));
+      else hidden.push([day, entry.feature]);
+    }
+  }
+
+  const remainderUsers = await distinctUsersIn(db, hidden, localeScope);
+  return {
+    cells,
+    activeDays,
+    splitAllowed: remainderUsers === 0 || remainderUsers >= MIN_GROUP_SIZE,
+  };
+}
+
 /**
  * Compute the aggregate. Prefer `getPlatformUsageStats`, which caches this.
  */
 export async function computePlatformUsageStats(
   days: number,
-  locale: TransparencyLocale | null
+  locale: TransparencyLocale | null,
+  feature: TransparencyFeature | null = null
 ): Promise<GetTransparencyStatsResponseDto> {
   const sinceDay = startOfWindow(days);
   const db = getDrizzleInstance();
 
   // A subquery rather than a join: `user_id` must stay collapsed in every
   // statement below, and a join would put a per-user row within reach.
-  const scope = locale
+  const localeScope = locale
     ? sql`${userUsageDaily.userId} IN (SELECT ${profiles.id} FROM ${profiles} WHERE ${profiles.locale} = ${LOCALE_VALUE[locale]})`
     : undefined;
+  const scope = and(localeScope, feature ? eq(userUsageDaily.feature, feature) : undefined);
 
   // Step 1 — who was active on which day. This decides what may be published at
-  // all, so it runs before anything is summed.
+  // all, so it runs before anything is summed. Always the whole segment, also
+  // for an area request: the area rule below is defined on top of it.
   const dayUsers = await db
     .select({
       day: userUsageDaily.day,
       activeUsers: sql<number>`count(distinct ${userUsageDaily.userId})::int`,
     })
     .from(userUsageDaily)
-    .where(and(gte(userUsageDaily.day, sinceDay), scope))
+    .where(and(gte(userUsageDaily.day, sinceDay), localeScope))
     .groupBy(userUsageDaily.day);
 
   const eligibleDays = new Map<string, number>();
@@ -236,7 +357,19 @@ export async function computePlatformUsageStats(
 
   if (eligibleDays.size === 0) return emptyStats(days, sinceDay, suppressedDays, 0);
 
-  const dayList = [...eligibleDays.keys()];
+  const area = await publishableAreaCells(db, [...eligibleDays.keys()], localeScope);
+
+  // An area request publishes exactly its publishable cells. Its suppressed
+  // days are the ones it was active on but may not show — a day the area was
+  // idle is not missing from its series.
+  let dayList = [...eligibleDays.keys()];
+  if (feature) {
+    if (!area.splitAllowed) return emptyStats(days, sinceDay, suppressedDays, 0);
+    const active = area.activeDays.get(feature) ?? new Set<string>();
+    dayList = dayList.filter((day) => area.cells.has(cellKey(day, feature)));
+    suppressedDays = active.size - dayList.length;
+    if (dayList.length === 0) return emptyStats(days, sinceDay, suppressedDays, 0);
+  }
 
   // Step 2 — distinct users over the eligible days. Not derivable from step 1:
   // the same person active on ten days counts once here and ten times there.
@@ -299,6 +432,8 @@ export async function computePlatformUsageStats(
     UsageFeature,
     {
       requests: number;
+      input_tokens: number;
+      output_tokens: number;
       total_tokens: number;
       images: number;
       transcriptions: number;
@@ -314,6 +449,8 @@ export async function computePlatformUsageStats(
       model: string;
       unit: KnownUnit;
       requests: number;
+      input_tokens: number;
+      output_tokens: number;
       total_tokens: number;
       ops: number;
     }
@@ -377,7 +514,11 @@ export async function computePlatformUsageStats(
 
   for (const row of rows) {
     const unit = unitFallback(row.unit);
-    const feature = featureFallback(row.feature);
+    // A cell that may not be published as its own area is folded into
+    // „Sonstiges", so the per-area rows match what an area request returns.
+    const rowFeature = area.cells.has(cellKey(row.day, row.feature))
+      ? featureFallback(row.feature)
+      : 'other';
     const tokens = row.inputTokens + row.outputTokens;
     // This row's contribution to the platform emissions (central estimate), so the
     // per-feature breakdown can carry a CO2 figure of its own.
@@ -467,8 +608,10 @@ export async function computePlatformUsageStats(
     dayEntry.output += row.outputTokens;
     daily.set(row.day, dayEntry);
 
-    const featureEntry = byFeature.get(feature) ?? {
+    const featureEntry = byFeature.get(rowFeature) ?? {
       requests: 0,
+      input_tokens: 0,
+      output_tokens: 0,
       total_tokens: 0,
       images: 0,
       transcriptions: 0,
@@ -477,13 +620,15 @@ export async function computePlatformUsageStats(
       emissionsUg: 0,
     };
     featureEntry.requests += row.requests;
+    featureEntry.input_tokens += row.inputTokens;
+    featureEntry.output_tokens += row.outputTokens;
     featureEntry.total_tokens += tokens;
     featureEntry.emissionsUg += rowEmissionsUg;
     if (unit === 'images') featureEntry.images += row.ops;
     if (unit === 'transcriptions') featureEntry.transcriptions += row.ops;
     if (unit === 'searches') featureEntry.searches += row.ops;
     if (unit === 'speech_seconds') featureEntry.speech_seconds += row.ops;
-    byFeature.set(feature, featureEntry);
+    byFeature.set(rowFeature, featureEntry);
 
     const modelKey = `${row.provider}|${row.model}|${unit}`;
     const modelEntry = byModel.get(modelKey) ?? {
@@ -491,10 +636,14 @@ export async function computePlatformUsageStats(
       model: row.model,
       unit,
       requests: 0,
+      input_tokens: 0,
+      output_tokens: 0,
       total_tokens: 0,
       ops: 0,
     };
     modelEntry.requests += row.requests;
+    modelEntry.input_tokens += row.inputTokens;
+    modelEntry.output_tokens += row.outputTokens;
     modelEntry.total_tokens += tokens;
     modelEntry.ops += row.ops;
     byModel.set(modelKey, modelEntry);
@@ -562,9 +711,9 @@ export async function computePlatformUsageStats(
         output_tokens: entry.output,
       }))
       .sort((a, b) => a.day.localeCompare(b.day)),
-    byFeature: [...byFeature.entries()]
-      .map(([feature, { emissionsUg: featureEmissionsUg, ...entry }]) => ({
-        feature,
+    byFeature: (area.splitAllowed ? [...byFeature.entries()] : [])
+      .map(([area, { emissionsUg: featureEmissionsUg, ...entry }]) => ({
+        feature: area,
         ...entry,
         emissions_g: featureEmissionsUg / UG_PER_G,
       }))
@@ -579,17 +728,17 @@ export async function computePlatformUsageStats(
  */
 export async function getPlatformUsageStats(
   days: number,
-  locale: TransparencyLocale | null
+  locale: TransparencyLocale | null,
+  feature: TransparencyFeature | null = null
 ): Promise<GetTransparencyStatsResponseDto> {
-  const key = `${CACHE_KEY_PREFIX}:${days}:${locale ?? 'all'}`;
+  const segment = `${days}:${locale ?? 'all'}:${feature ?? 'all'}`;
+  const key = `${CACHE_KEY_PREFIX}:${segment}`;
 
   const cached = await getCachedJson(key, getTransparencyStatsResponseSchema);
   if (cached) return cached;
 
-  const stats = await computePlatformUsageStats(days, locale);
+  const stats = await computePlatformUsageStats(days, locale, feature);
   await setCachedJson(key, stats, CACHE_TTL_SECONDS);
-  log.debug(
-    `Recomputed platform usage for ${days}d/${locale ?? 'all'} (${stats.daily.length} published days)`
-  );
+  log.debug(`Recomputed platform usage for ${segment} (${stats.daily.length} published days)`);
   return stats;
 }

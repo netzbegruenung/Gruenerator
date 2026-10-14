@@ -13,7 +13,8 @@ import { HiDotsVertical } from 'react-icons/hi';
 import { type TemplateAction } from '../hooks/useTemplateActions';
 import { type Template } from '../types';
 
-import VorlagenCard, { overlayAction } from '@/components/common/Gallery/VorlagenCard';
+import { overlayAction } from '@/components/common/Gallery/parts';
+import VorlagenCard from '@/components/common/Gallery/VorlagenCard';
 import { cn } from '@/utils/cn';
 
 interface VorlagenListSectionProps {

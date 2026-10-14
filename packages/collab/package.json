@@ -13,16 +13,18 @@
     }
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
-    "@hocuspocus/provider": "^4.6.0",
+    "@hocuspocus/provider": "^4.7.0",
     "y-indexeddb": "^9.0.12",
-    "yjs": "^13.6.32"
+    "yjs": "^13.6.33"
   },
   "devDependencies": {
     "@types/react": "19.2.18",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.3"
   },
   "peerDependencies": {
     "react": "^19.0.0"

@@ -59,3 +59,30 @@ const DARK: BevPalette = {
 export function getBevPalette(isDark: boolean): BevPalette {
   return isDark ? DARK : LIGHT;
 }
+
+/**
+ * The start screen's tone: the same palette with the Studio violet as accent,
+ * matching its backdrop and composer. `sheet` is the bottom sheets' ground.
+ */
+export function getStudioPalette(isDark: boolean): BevPalette & { sheet: string } {
+  return isDark
+    ? {
+        ...DARK,
+        primary: '#A99ED1',
+        accent: '#A99ED1',
+        chipInk: '#C6BCE4',
+        accentBorder: 'rgba(169,158,209,0.32)',
+        muted: '#A49CBD',
+        sheet: '#1A1626',
+      }
+    : {
+        ...LIGHT,
+        primary: '#3E3663',
+        accent: '#3E3663',
+        chipInk: '#3E3663',
+        accentBorder: 'rgba(62,54,99,0.22)',
+        ink: '#2A2440',
+        muted: '#6B6585',
+        sheet: '#F8F7FC',
+      };
+}

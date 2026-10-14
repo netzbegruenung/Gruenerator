@@ -38,6 +38,9 @@ export const EMBEDDABLE_PATH_PREFIXES: readonly string[] = [
   // `document_subtype`, so one entry covers all three.
   '/office/',
   '/studio/canvas/',
+  // Copies a Grünerator-Vorlage into a new canvas, then moves on to
+  // `/studio/canvas/:id` client-side.
+  '/studio/vorlage/',
   '/texte/',
   // No trailing slash, and that is the rule rather than an oversight: an entry
   // that ends in `/` matches a prefix (a resource id follows), one that does not

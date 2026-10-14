@@ -30,6 +30,7 @@ import type {
   EditorOperationsEvent,
   SearchResultPayload,
   SearchImagePayload,
+  SharepicVorlagenSuggestions,
   ThinkingStepPayload,
   SocialPostPayload,
   BahnPayload,
@@ -59,6 +60,7 @@ export type SSEEventType =
   | 'search_start'
   | 'search_complete'
   | 'search_images'
+  | 'vorlagen_suggestions'
   | 'summary_start'
   | 'summary_complete'
   | 'image_start'
@@ -183,6 +185,7 @@ export interface SSEEventPayloads {
    * turn's FULL list every time, so the client replaces rather than merges.
    */
   search_images: { images: SearchImagePayload[] };
+  vorlagen_suggestions: SharepicVorlagenSuggestions;
   summary_start: { message: string; documentCount: number };
   summary_complete: { message: string; summaryLength: number; timeMs: number };
   image_start: { message: string };
@@ -321,7 +324,9 @@ export interface SSEEventPayloads {
     // as the canonical, citation-renumbered final answer.
     answer?: string;
     text?: string;
-    citations: unknown[];
+    // Optional like the wire schema (chatStreamEvents.ts): the degeneration cut
+    // replaces only the text — an empty array would wipe streamed citations.
+    citations?: unknown[];
     sources?: unknown[];
     allSources?: unknown[];
     sourcesByCollection?: Record<string, unknown>;
@@ -402,6 +407,11 @@ export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
   create_sheet: ['Erstelle Tabelle...', 'Baue Spreadsheet...', 'Fülle Zellen...'],
   edit_sheet: ['Bearbeite Tabelle...', 'Passe Zellen an...'],
   create_pdf: ['Baue das PDF...', 'Setze das Dokument...', 'Gestalte die Seiten...'],
+  create_explainable: [
+    'Erstelle Explainable...',
+    'Erkläre in einfacher Sprache...',
+    'Plane die Erklärbilder...',
+  ],
   create_presentation: ['Erstelle Präsentation...', 'Baue Folien...', 'Gestalte Slides...'],
   // Stillgelegt (09/2026) — total über `SearchIntent`, wie social_post.
   create_recurring_task: [

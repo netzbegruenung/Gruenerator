@@ -1,9 +1,9 @@
-import type { CanvasEditorConfig } from '@gruenerator/shared/canvas-editor';
 import * as Y from 'yjs';
 
-import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
-
 import { YDOC_KEYS } from './ydocKeys';
+
+import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
+import type { CanvasEditorConfig } from '@gruenerator/shared/canvas-editor';
 
 const LOCAL_ORIGIN = Symbol('canvas-editor-local');
 
@@ -27,6 +27,16 @@ const ensureConfig = (parent: Y.Map<unknown>): Y.Map<unknown> => {
   parent.set(YDOC_KEYS.config, map);
   return map;
 };
+
+/** Copies the page's stored config into the store once — never writes to the doc. */
+export function seedCanvasStoreFromYMap(store: CanvasEditorStoreApi, parent: Y.Map<unknown>): void {
+  const yConfig = parent.get(YDOC_KEYS.config);
+  if (!(yConfig instanceof Y.Map)) return;
+  const cfg = Object.fromEntries(yConfig.entries());
+  if (Object.keys(cfg).length > 0) {
+    store.getState().setConfig(cfg as Partial<CanvasEditorConfig>);
+  }
+}
 
 export function bindCanvasStoreToYMap({ store, parent }: BindOptions): CanvasBinding {
   const ydoc = parent.doc;

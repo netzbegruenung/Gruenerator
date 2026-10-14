@@ -1,5 +1,6 @@
+import { isVisualBlockKind, parseVisualBlock } from '@gruenerator/contracts';
 import { ChevronDown, ChevronRight, Loader2, Play } from 'lucide-react';
-import { Suspense, useContext, useMemo, useState } from 'react';
+import { useContext, useMemo, useState } from 'react';
 import {
   CodeBlock,
   CodeBlockContainer,
@@ -11,9 +12,9 @@ import {
   useIsCodeFenceIncomplete,
 } from 'streamdown';
 
-import { CodeOutput, parseChart, useCodeExecution } from './codeBlockExecution';
-import { LazyChatChart } from './LazyChatChart';
+import { CodeOutput, useCodeExecution } from './codeBlockExecution';
 import { MermaidDiagram } from './MermaidDiagram';
+import { VisualBlock, VisualBlockPlaceholder } from './VisualBlock';
 
 // Same look as Streamdown's own copy/download buttons, so ours sit in the
 // actions bar as if they were upstream.
@@ -34,9 +35,9 @@ function codeControlsEnabled(controls: StreamdownContextType['controls']): boole
  * bar next to Streamdown's copy and download buttons, which `controls.code`
  * switches on and off exactly as upstream does.
  *
- * ```chart and ```mermaid keep their own renderers (recharts, beautiful-mermaid)
- * — the mermaid diagram lives in the same container/header pair so the two
- * block kinds line up. Execution logic is shared with the legacy ChatCodeBlock
+ * Visual blocks (```chart, ```bars, … — `VISUAL_BLOCK_KINDS`) and ```mermaid
+ * keep their own renderers; the mermaid diagram lives in the same
+ * container/header pair so the two block kinds line up. Execution logic is shared with the legacy ChatCodeBlock
  * via codeBlockExecution.
  */
 export function StreamdownCodeBlock({ code, language }: { code: string; language: string }) {
@@ -47,22 +48,15 @@ export function StreamdownCodeBlock({ code, language }: { code: string; language
   // Spreadsheet-compute scripts are collapsed by default: the user cares about
   // the result (output card + answer text), not the generated pandas code.
   const [codeExpanded, setCodeExpanded] = useState(false);
-  // A malformed ```chart payload falls back to the normal code view.
-  const chart = useMemo(() => (language === 'chart' ? parseChart(code) : null), [language, code]);
+  // A malformed visual block falls back to the normal code view; while its
+  // fence is still streaming, the half-written JSON is not worth showing.
+  const visual = useMemo(
+    () => (isIncomplete ? null : parseVisualBlock(language, code)),
+    [isIncomplete, language, code]
+  );
 
-  if (chart) {
-    return (
-      <Suspense
-        fallback={
-          <div className="my-3 flex min-h-[240px] items-center justify-center rounded-lg border border-border bg-card">
-            <Loader2 className="h-5 w-5 animate-spin text-foreground-muted" />
-          </div>
-        }
-      >
-        <LazyChatChart data={chart} />
-      </Suspense>
-    );
-  }
+  if (visual) return <VisualBlock visual={visual} />;
+  if (isIncomplete && isVisualBlockKind(language)) return <VisualBlockPlaceholder />;
 
   if (language === 'mermaid') {
     return (

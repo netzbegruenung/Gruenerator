@@ -127,6 +127,7 @@ export const SYSTEM_AGENT_DEFINITIONS = [
         ],
       },
     },
+    defaultRecipeMention: 'antrag',
     systemRole: '',
   },
   {
@@ -250,6 +251,7 @@ export const SYSTEM_AGENT_DEFINITIONS = [
     locale: 'de-DE',
     author: 'Grünerator',
     enabledTools: ['image', 'vision', 'memory', 'memory_save'],
+    hiddenFromInventory: true,
     webOnly: true,
     autoRoutingHint: 'creative',
     iconKey: 'image-square',
@@ -1156,7 +1158,7 @@ export const SYSTEM_AGENT_DEFINITIONS = [
         output:
           'Erledigt — das Zitat ist jetzt kürzer und aktiv formuliert; der Vorschlag liegt am Canvas.',
         reasoning:
-          'Modifikations-Intent → ZUERST das Tool edit_document mit der präzisen Anweisung aufrufen; die Text-Antwort bestätigt danach in Vergangenheitsform, was geändert wurde. Nie nur eine Anweisung als Text ausgeben — ohne Tool-Aufruf ändert sich nichts.',
+          'Modifikations-Intent → ZUERST das Bearbeitungs-Tool mit der präzisen Anweisung aufrufen; die Text-Antwort bestätigt danach in Vergangenheitsform, was geändert wurde. Nie nur eine Anweisung als Text ausgeben — ohne Tool-Aufruf ändert sich nichts.',
       },
       {
         input: 'Wirkt der Dreizeiler für junge Leute?',

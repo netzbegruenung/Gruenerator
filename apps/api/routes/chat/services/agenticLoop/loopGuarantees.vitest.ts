@@ -17,7 +17,9 @@ import type { ModelMessage, ToolSet } from 'ai';
 
 function harness(
   stateOverrides: Partial<ChatGraphState>,
-  ask: string
+  ask: string,
+  toolName = 'edit_document',
+  sources = ''
 ): { run: () => Promise<void>; execute: ReturnType<typeof vi.fn> } {
   const execute = vi.fn().mockResolvedValue({ ok: true, operationCount: 1 });
   const ctx: GuaranteeContext = {
@@ -27,9 +29,9 @@ function harness(
       ...stateOverrides,
     } as unknown as ChatGraphState,
     messages: [{ role: 'user', content: ask }] as ModelMessage[],
-    tools: { edit_document: { execute } } as unknown as ToolSet,
+    tools: { [toolName]: { execute } } as unknown as ToolSet,
     sourceRegistry: {
-      renderReference: () => '',
+      renderReference: () => sources,
       renderAll: () => '',
     } as unknown as GuaranteeContext['sourceRegistry'],
     sse: { send: vi.fn() } as unknown as GuaranteeContext['sse'],
@@ -53,6 +55,27 @@ describe('Bearbeitungs-Zusicherung — der Text entscheidet mit, nicht nur der I
     });
   });
 
+  it('erzwingt auch edit_current_sharepic, wenn der Spec-Pfad statt edit_document montiert ist', async () => {
+    const { run, execute } = harness(
+      { editToolSurface: 'canvas', intent: 'edit_current_doc' },
+      'Mach die Headline kürzer',
+      'edit_current_sharepic'
+    );
+    await run();
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
+
+  it('hängt dem Spec-Pfad die Quellen nicht an — das Werkzeug tut es selbst', async () => {
+    const { run, execute } = harness(
+      { editToolSurface: 'canvas', intent: 'edit_current_doc' },
+      'Mach die Headline kürzer',
+      'edit_current_sharepic',
+      '[1] Quelle'
+    );
+    await run();
+    expect(execute.mock.calls[0][0]).toEqual({ instruction: 'Mach die Headline kürzer' });
+  });
+
   it('lässt eine reine Frage ans Board unangetastet', async () => {
     const { run, execute } = harness({}, 'Wie viele Aufgaben sind noch offen?');
     await run();
@@ -69,6 +92,16 @@ describe('Bearbeitungs-Zusicherung — der Text entscheidet mit, nicht nur der I
     const { run, execute } = harness(
       { editorEditsSummary: '1 Änderung am Board (Aufgabe angelegt)' },
       'Erstelle eine Aufgabe „Plakate bestellen" in To-Do'
+    );
+    await run();
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it('erzwingt nichts mehr, wenn die Sharepic-Bearbeitung schon „nichts geändert" meldete', async () => {
+    const { run, execute } = harness(
+      { editToolSurface: 'canvas', editorEditUnchanged: 'Es wurde NICHTS geändert: …' },
+      'Mach dieses Element kleiner',
+      'edit_current_sharepic'
     );
     await run();
     expect(execute).not.toHaveBeenCalled();
@@ -105,5 +138,70 @@ describe('Bearbeitungs-Zusicherung — der Text entscheidet mit, nicht nur der I
     const frage = harness({ editToolSurface: 'sheet' }, 'Was steht in Spalte B?');
     await frage.run();
     expect(frage.execute).not.toHaveBeenCalled();
+  });
+
+  it('erzwingt auf dem Canvas auch Layout-Bitten, die das Dokument-Muster nicht kennt', async () => {
+    // Live 07.10.2026 (b1-e3): „Verschieb den Text nach oben" auf einem offenen
+    // Sharepic, intent ohne edit_current_*, Planer rief nichts, steps=0 — und
+    // die Antwort behauptete die Verschiebung.
+    for (const toolName of ['edit_current_sharepic', 'edit_document']) {
+      for (const ask of [
+        'Verschieb den Text nach oben',
+        'Schrift der Headline größer',
+        'Hintergrundfarbe auf Mint bitte',
+        'Das Logo weg',
+        'Zentriere die Headline',
+        'Mach die Schrift größer',
+        'Hintergrund auf Sand',
+        'Kannst du die Headline kürzer machen?',
+        'Rück das Logo nach links',
+        // Doc-pattern hits force as before, whatever the gate would say.
+        'Mach die Headline kürzer, ja?',
+        "Ändere die Headline auf 'Bus statt Stau', ok?",
+        'Danke! Ändere noch die Headline',
+        'Hey, kannst du die Headline ändern?',
+        'Könnte man die Headline kürzen?',
+        'Wie wäre es, wenn du die Headline änderst?',
+        'Such mir ein Foto und ändere die Headline',
+      ]) {
+        const { run, execute } = harness({ editToolSurface: 'canvas' }, ask, toolName);
+        await run();
+        expect(execute, `${toolName}: ${ask}`).toHaveBeenCalledTimes(1);
+        expect(execute.mock.calls[0][0]).toEqual({ instruction: ask });
+      }
+    }
+  });
+
+  it('lässt Fragen, Recherche und Gespräch auf dem Canvas unangetastet', async () => {
+    for (const ask of [
+      'Welche Farbe hat der Hintergrund?',
+      'Was steht auf Folie 2?',
+      'Warum ist die Headline kleiner als die Dachzeile?',
+      'Wie wirkt das Sharepic auf dich?',
+      // Review 07.10.2026: Recherche, Gespräch und Fragen, die die alten
+      // Wortstämme (rück-, beweg-, dreh-, wechsel-, höher, weg) trafen.
+      'Recherchiere, ob die Mieten in Berlin höher sind als in München',
+      'Such mir den Spiegel-Artikel dazu',
+      'Gib mir einen Rückblick auf die Klimapolitik 2025',
+      'Recherchiere die Rückkehr der Wölfe',
+      'Erzähl mir mehr über die Bewegung',
+      'Finde Zahlen zu Wechselwählern',
+      'Hast du Ideen für ein Drehbuch?',
+      'Sind kleinere Parteien betroffen?',
+      'Passt die Farbe zu unserem CD?',
+      'Ist die Schrift größer als bei der letzten Version?',
+      'Findest du, die Headline sollte größer sein?',
+      'Danke, das reicht. Ich muss weg',
+    ]) {
+      const { run, execute } = harness({ editToolSurface: 'canvas' }, ask, 'edit_current_sharepic');
+      await run();
+      expect(execute, ask).not.toHaveBeenCalled();
+    }
+  });
+
+  it('nimmt die Layout-Wörter nur auf dem Canvas — ein Dokument verschiebt nichts', async () => {
+    const { run, execute } = harness({ editToolSurface: 'doc' }, 'Schrift der Headline größer');
+    await run();
+    expect(execute).not.toHaveBeenCalled();
   });
 });

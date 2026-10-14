@@ -1,3 +1,9 @@
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@gruenerator/ui';
 import React, { useMemo, useState } from 'react';
 import { FiChevronDown } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
@@ -282,7 +288,7 @@ function OfficePillInner({
 
 // Navigation pill (a Link) — the /studio landing strip. `themeKey` overrides
 // the colour source same as `OfficeTile`; left unset it reads `tool.id` so
-// each tool (canvas-vorlagen, canvas-ki, canvas-sharepics, reels-untertitel …)
+// each tool (canvas-vorlagen, canvas-ki, reels-untertitel …)
 // keeps its own hue. Favouritable tools keep the same pin-to-sidebar star
 // `OfficeTile` has — the Link becomes a stretched overlay (`absolute inset-0`)
 // so the star (a <button>, invalid nested inside an <a>) stays a sibling,
@@ -337,6 +343,64 @@ export function OfficeActionPill({
     >
       <OfficePillInner styleKey={styleKey} Icon={Icon} title={title} />
     </button>
+  );
+}
+
+export function OfficeMenuPill({
+  styleKey,
+  icon: Icon,
+  title,
+  tools,
+}: {
+  styleKey: string;
+  icon: IconType;
+  title: string;
+  tools: WorkplaceToolItem[];
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger
+        className={`${OFFICE_PILL_BASE} ${getToolTheme(styleKey)?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'}`}
+      >
+        <OfficePillInner styleKey={styleKey} Icon={Icon} title={title} />
+        <FiChevronDown
+          aria-hidden="true"
+          className={`-ml-0.5 size-3.5 transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
+        />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" sideOffset={8} className="min-w-[280px] rounded-xl p-1.5">
+        {tools.map((tool) => {
+          const theme = getToolTheme(tool.id);
+          const content = (
+            <>
+              <span
+                className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${theme?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'}`}
+              >
+                <tool.icon className={`size-5 ${theme?.icon ?? ''}`} />
+              </span>
+              <span className="flex min-w-0 flex-col">
+                <span className="font-medium text-foreground-heading">{tool.title}</span>
+                {tool.description && (
+                  <span className="text-xs text-muted-foreground">{tool.description}</span>
+                )}
+              </span>
+            </>
+          );
+          return (
+            <DropdownMenuItem key={tool.id} asChild className="gap-3 rounded-lg px-2.5 py-2">
+              {tool.href ? (
+                <a href={tool.href} target="_blank" rel="noopener noreferrer">
+                  {content}
+                </a>
+              ) : (
+                <Link to={tool.path ?? '/'}>{content}</Link>
+              )}
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

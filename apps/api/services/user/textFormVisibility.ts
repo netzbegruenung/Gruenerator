@@ -25,9 +25,10 @@ export type TextFormAccess = 'own' | 'group' | 'public';
  * Presets und Rezept-Stile ersetzen den Rumpf eines mitgelieferten Rezepts; sie
  * sind keine zweite Zeile daneben, sonst stünde der selbst gewählte Titel neben
  * dem des Rezepts und verdrängte ihn. Gefragt wird deshalb nach dem
- * mitgelieferten Rezept und nicht nach `kind` allein: `antrag` ist ein Preset
- * OHNE Systemrezept, überschreibt also nichts und muss sich selbst eintragen —
- * sonst ist der angelernte Antrags-Stil auf keinem Pfad erreichbar (#2937).
+ * mitgelieferten Rezept und nicht nach `kind` allein: ein Preset OHNE
+ * Systemrezept überschreibt nichts und muss sich selbst eintragen — sonst ist es
+ * auf keinem Pfad erreichbar. So stand `antrag`, bis es das Rezept `@antrag`
+ * gab (#2937).
  *
  * Hier und nicht in der Abfrage, weil dieselbe Frage an mehreren Stellen
  * gestellt wird und die Antwort ohne Postgres prüfbar sein soll.

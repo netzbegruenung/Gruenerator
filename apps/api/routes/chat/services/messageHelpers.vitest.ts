@@ -30,6 +30,16 @@ describe('getPruningBudget', () => {
   it('never prunes below the floor for tiny declared windows', () => {
     expect(getPruningBudget(4096)).toBe(8000);
   });
+
+  it('leaves a small system message to the 30 % headroom', () => {
+    expect(getPruningBudget(128000, 20_000)).toBe(86600);
+  });
+
+  it('takes a large system message out of the history, not the window (#4204)', () => {
+    // A notebook source block of 60k on a 128k fallback: the share alone would
+    // send 86.6k of history on top, 149.6k in all.
+    expect(getPruningBudget(128000, 60_000)).toBe(65000); // 128000 - 3000 - 60000
+  });
 });
 
 describe('fairShare', () => {

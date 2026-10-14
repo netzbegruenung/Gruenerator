@@ -85,12 +85,6 @@ export function getMistralProvider(): ReturnType<typeof createMistral> {
   return mistralInstance;
 }
 
-/**
- * Die eine Tür für Mistral-Chatmodelle. `@ai-sdk/mistral` sendet
- * `reasoningEffort` nur für IDs auf seiner Allowlist und verwirft es sonst
- * still; `mistral-large-4` steht dort seit 4.0.59 — davor lief hier ein
- * fetch-Wrapper (#4192). `mistralReasoningEffort.vitest.ts` prüft den Body.
- */
 export function getMistralChatModel(modelId: string): LanguageModel {
   return getMistralProvider()(modelId);
 }

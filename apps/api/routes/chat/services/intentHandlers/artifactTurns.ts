@@ -9,6 +9,7 @@
 import { createLogger } from '../../../../utils/logger.js';
 import {
   BOARD_SPEC,
+  EXPLAINABLE_SPEC,
   makeDocumentSpec,
   PDF_SPEC,
   PRESENTATION_SPEC,
@@ -63,6 +64,14 @@ export async function handlePdfCreation(
   return runCreateTurn(PDF_SPEC, opts);
 }
 
+/** create_explainable / @explainable-erstellen — a simple-language page with
+ *  illustrations that a worker paints after the turn has ended. */
+export async function handleExplainableCreation(
+  opts: CreateTurnOpts & { userLocale: 'de-DE' | 'de-AT' }
+): Promise<boolean> {
+  return runCreateTurn(EXPLAINABLE_SPEC, opts);
+}
+
 /**
  * Document creation, in two genuinely different modes.
  *
@@ -108,7 +117,7 @@ async function contributeDocumentToOpenTurn(
 ): Promise<boolean> {
   const { sse, req, userId, userContent, actualThreadId } = opts;
   try {
-    const doc = await spec.generate({ req, userId, userContent }, () => {});
+    const doc = await spec.generate({ req, userId, userContent, ask: userContent }, () => {});
     if (!doc) return false;
 
     emitArtifactResult(sse, spec, doc);

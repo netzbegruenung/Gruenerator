@@ -19,12 +19,14 @@ import { mountLandesverbandAdminContractRouter } from './routes/admin/landesverb
 import { mountLvAdminAssignmentContractRouter } from './routes/admin/lvAdminAssignmentContractRouter.js';
 import { mountAgentVisibilityContractRouter } from './routes/agents/agentVisibilityContractRouter.js';
 import antraegeRouter from './routes/antraege/index.js';
+import { mountAgentCommentsContractRouter } from './routes/auth/agentComments/agentCommentsContractRouter.js';
 import { mountGroupsContractRouter } from './routes/auth/groups/groupsContract/index.js';
 import { mountImageModelPreferenceContractRouter } from './routes/auth/imageModelPreferenceContractRouter.js';
 import authInitRouter from './routes/auth/initController.js';
 import { mountModelPreferencesContractRouter } from './routes/auth/modelPreferencesContractRouter.js';
 import { mountPromptsContractRouter } from './routes/auth/promptsContractRouter.js';
 import { mountEntityReactionsContractRouter } from './routes/auth/reactions/entityReactionsContractRouter.js';
+import { mountTemplateCommentsContractRouter } from './routes/auth/templateComments/templateCommentsContractRouter.js';
 import { mountAdminVorlagenContractRouter } from './routes/auth/templates/adminVorlagenContractRouter.js';
 import { mountTemplateInteractionsContractRouter } from './routes/auth/templates/templateInteractionsContractRouter.js';
 import { mountUserTemplatesContractRouter } from './routes/auth/templates/userTemplatesContractRouter.js';
@@ -50,6 +52,12 @@ import { mountContentReportContractRouter } from './routes/contentReports/conten
 import { mountDocsContractRouter } from './routes/docs/docsContractRouter.js';
 import { mountDocumentsContractRouter } from './routes/documents/documentsContractRouter.js';
 import { mountEmailContractRouter } from './routes/email/emailContractRouter.js';
+import {
+  explainableOwnerFilesRouter,
+  explainableSharedFilesRouter,
+} from './routes/explainables/explainableFilesRouter.js';
+import { mountExplainablesContractRouter } from './routes/explainables/explainablesContractRouter.js';
+import { mountPublicExplainablesContractRouter } from './routes/explainables/publicExplainablesContractRouter.js';
 import { mountExportsContractRouter } from './routes/exports/exportsContractRouter.js';
 import exportDocumentsRouter from './routes/exports/index.js';
 import { mountFeedbackContractRouter } from './routes/feedback/feedbackContractRouter.js';
@@ -80,6 +88,7 @@ import { mountWolkePendingContractRouter } from './routes/notebook/wolkePendingC
 import notificationsRouter from './routes/notifications/index.js';
 import { mountNotificationsContractRouter } from './routes/notifications/notificationsContractRouter.js';
 import notificationStreamRouter from './routes/notifications/stream.js';
+import { mountPodcastsContractRouter } from './routes/podcasts/podcastsContractRouter.js';
 import presentationExportRouter from './routes/presentations/presentationExportController.js';
 import { mountPresentationsContractRouter } from './routes/presentations/presentationsContractRouter.js';
 import protokollRouter from './routes/protokoll/index.js';
@@ -95,24 +104,9 @@ import { mountShareContractRouter } from './routes/share/shareContractRouter.js'
 import shareFileRouter from './routes/share/shareFileRouter.js';
 import { mountShareReadContractRouter } from './routes/share/shareReadContractRouter.js';
 import backgroundRemovalRoute from './routes/sharepic/backgroundRemoval.js';
-import editSessionRouter from './routes/sharepic/editSession.js';
-import promptRoute from './routes/sharepic/promptRoute.js';
-import dreizeilenOverlayAtCanvasRoute from './routes/sharepic/sharepic_canvas/at/dreizeilen_overlay_at_canvas.js';
-import infoAtCanvasRoute from './routes/sharepic/sharepic_canvas/at/info_at_canvas.js';
-import zitatAtCanvasRoute from './routes/sharepic/sharepic_canvas/at/zitat_at_canvas.js';
-import zitatPureAtCanvasRoute from './routes/sharepic/sharepic_canvas/at/zitat_pure_at_canvas.js';
 import campaignCanvasRoute from './routes/sharepic/sharepic_canvas/campaign_canvas.js';
 import { mountCampaignCanvasContractRouter } from './routes/sharepic/sharepic_canvas/campaignCanvasContractRouter.js';
-import sharepicDreizeilenCanvasRoute from './routes/sharepic/sharepic_canvas/dreizeilen_canvas.js';
 import imagineLabelCanvasRoute from './routes/sharepic/sharepic_canvas/imagine_label_canvas.js';
-import infoSharepicCanvasRoute from './routes/sharepic/sharepic_canvas/info_canvas.js';
-import profilbildCanvasRoute from './routes/sharepic/sharepic_canvas/profilbild_canvas.js';
-import simpleCanvasRoute from './routes/sharepic/sharepic_canvas/simple_canvas.js';
-import sliderCanvasRoute from './routes/sharepic/sharepic_canvas/slider_canvas.js';
-import veranstaltungCanvasRoute from './routes/sharepic/sharepic_canvas/veranstaltung_canvas.js';
-import zitatSharepicCanvasRoute from './routes/sharepic/sharepic_canvas/zitat_canvas.js';
-import zitatPureSharepicCanvasRoute from './routes/sharepic/sharepic_canvas/zitat_pure_canvas.js';
-// Österreich (de-AT) canvas renderers
 import {
   handleSharepicTextRequest,
   handleSliderSmartRequest,
@@ -145,6 +139,7 @@ import { mountRecentValuesContractRouter } from './routes/user/recentValuesContr
 import { mountUserWebsitesContractRouter } from './routes/user/userWebsitesContractRouter.js';
 import { mountUserAgentsContractRouter } from './routes/userAgents/userAgentsContractRouter.js';
 import { mountUserAgentsSharingContractRouter } from './routes/userAgents/userAgentsSharingContractRouter.js';
+import { mountUserLibraryContractRouter } from './routes/userLibrary/userLibraryContractRouter.js';
 import { mountUserTextFormsContractRouter } from './routes/userTextForms/userTextFormsContractRouter.js';
 import v1ChatCompletionsRouter, {
   modelsRouter as v1ModelsRouter,
@@ -159,7 +154,6 @@ import voiceRouter from './routes/voice/voiceController.js';
 import { mountSharedTemplateContractRouter } from './routes/vorlagen/sharedTemplateContractRouter.js';
 import { mountRecentActivityContractRouter } from './routes/workplace/recentActivityContractRouter.js';
 import recentActivityRouter from './routes/workplace/recentActivityController.js';
-import * as sharepicGenerationService from './services/chat/sharepicGenerationService.js';
 import * as tusServiceModule from './services/subtitler/tusService.js';
 import { decisionLogMiddleware } from './utils/decisionLog.js';
 import { toUserFacingMessage } from './utils/errors/index.js';
@@ -261,7 +255,6 @@ const publicReadLimiter = isRateLimitDisabled
 const log = createLogger('Routes');
 
 const { requireAuth, optionalAuth } = authMiddleware;
-const { generateSharepicForChat } = sharepicGenerationService;
 const { tusServer: _tusServer } = tusServiceModule;
 
 // Route usage tracking
@@ -325,6 +318,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { mountImageEditContractRouter } = await import('./routes/flux/imageEditContractRouter.js');
   const { mountSharepicCreatorContractRouter } =
     await import('./routes/sharepicCreator/sharepicCreatorContractRouter.js');
+  const { mountSharepicVorlagenRouter } =
+    await import('./routes/sharepicVorlagen/sharepicVorlagenRouter.js');
   const { default: unsplashRouter } = await import('./routes/unsplash/unsplashRoutes.js');
   const { default: docsRouter } = await import('./routes/docs/index.js');
 
@@ -396,6 +391,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   // at the prefix; per-entity permission checks in reactionTargets.ts.
   app.use('/api/auth/reactions', requireAuth);
   mountEntityReactionsContractRouter(app);
+  app.use('/api/auth/agent-comments', requireAuth);
+  mountAgentCommentsContractRouter(app);
+  app.use('/api/auth/template-comments', requireAuth);
+  mountTemplateCommentsContractRouter(app);
   // ts-rest contract router for user prompts (custom_prompts + saved_prompts
   // CRUD) — mounts BEFORE authRouter so contract routes match first; the
   // legacy userCustomPrompts router keeps the semantic-search / discovery
@@ -490,10 +489,35 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/reisekosten', requireAuth, standardMutationLimiter);
   app.use('/api/reisekosten/extract-beleg', requireAiConsent);
   mountReisekostenContractRouter(app);
+  // Explainables. The shared routes come first and terminate before the
+  // requireAuth gate on the prefix below; `/shared/:token` would otherwise be
+  // read as the owner's `/:ref`.
+  app.use('/api/explainables/shared', optionalAuth, explainableSharedFilesRouter);
+  app.use('/api/explainables/shared', publicReadLimiter);
+  mountPublicExplainablesContractRouter(app);
+  app.use('/api/explainables', requireAuth, authenticatedReadLimiter);
+  app.post('/api/explainables', aiGenerationLimiter, requireAiConsent, (_req, _res, next) =>
+    next()
+  );
+  mountExplainablesContractRouter(app);
+  app.use('/api/explainables', explainableOwnerFilesRouter);
+  // Podcasts: queued here, written and voiced by services/podcasts/podcastWorker.ts.
+  app.use('/api/podcasts', requireAuth, authenticatedReadLimiter);
+  app.post('/api/podcasts', aiGenerationLimiter, requireAiConsent, (_req, _res, next) => next());
+  // Retry can write the script anew (a podcast that failed before it had one),
+  // so it needs the same consent gate as create.
+  app.post('/api/podcasts/:id/retry', aiGenerationLimiter, requireAiConsent, (_req, _res, next) =>
+    next()
+  );
+  mountPodcastsContractRouter(app);
   // ts-rest contract router for /api/item-usage (usage-based "favourites first"
   // ordering). requireAuth at the prefix — returns user-specific data.
   app.use('/api/item-usage', requireAuth, publicReadLimiter);
   mountItemUsageContractRouter(app);
+  // ts-rest contract router for /api/user-library („Zu meinen Grüneratoren").
+  // requireAuth at the prefix — strictly the caller's own list.
+  app.use('/api/user-library', requireAuth, standardMutationLimiter);
+  mountUserLibraryContractRouter(app);
   // ts-rest contract router for /api/usage (personal consumption statistics).
   // requireAuth at the prefix — strictly the caller's own data.
   app.use('/api/usage', requireAuth, publicReadLimiter);
@@ -584,35 +608,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   // The tool stays public — anonymous access is still allowed (anonymous = 20).
   app.use('/api/gruen-o-mat', optionalAuth, gruenOMatRouter);
   app.use(
-    '/api/dreizeilen_canvas',
-    standardMutationLimiter,
-    requireAuth,
-    sharepicDreizeilenCanvasRoute
-  );
-  app.use('/api/zitat_canvas', standardMutationLimiter, requireAuth, zitatSharepicCanvasRoute);
-  app.use(
-    '/api/zitat_pure_canvas',
-    standardMutationLimiter,
-    requireAuth,
-    zitatPureSharepicCanvasRoute
-  );
-  app.use('/api/info_canvas', standardMutationLimiter, requireAuth, infoSharepicCanvasRoute);
-  // Österreich (de-AT) canvas renderers
-  app.use('/api/zitat_at_canvas', standardMutationLimiter, requireAuth, zitatAtCanvasRoute);
-  app.use(
-    '/api/zitat_pure_at_canvas',
-    standardMutationLimiter,
-    requireAuth,
-    zitatPureAtCanvasRoute
-  );
-  app.use(
-    '/api/dreizeilen_overlay_at_canvas',
-    standardMutationLimiter,
-    requireAuth,
-    dreizeilenOverlayAtCanvasRoute
-  );
-  app.use('/api/info_at_canvas', standardMutationLimiter, requireAuth, infoAtCanvasRoute);
-  app.use(
     '/api/imagine_label_canvas',
     standardMutationLimiter,
     requireAuth,
@@ -624,6 +619,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   // the contract endpoints (createExpressEndpoints registers handlers directly
   // on the app, bypassing later prefix middleware).
   app.use('/api/canvas', requireAuth, authenticatedReadLimiter);
+  // The vision check is a model call: consent + the generation limiter, like /api/sharepic-creator.
+  app.use('/api/canvas/ai-check', requireAiConsent, aiGenerationLimiter);
   mountCanvasContractRouter(app);
 
   // ts-rest contract router — mount before legacy campaignCanvasRoute.
@@ -632,17 +629,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/campaign_canvas', requireAuth);
   mountCampaignCanvasContractRouter(app);
   app.use('/api/campaign_canvas', standardMutationLimiter, campaignCanvasRoute);
-  app.use(
-    '/api/veranstaltung_canvas',
-    standardMutationLimiter,
-    requireAuth,
-    veranstaltungCanvasRoute
-  );
-  app.use('/api/profilbild_canvas', standardMutationLimiter, requireAuth, profilbildCanvasRoute);
-  app.use('/api/simple_canvas', standardMutationLimiter, requireAuth, simpleCanvasRoute);
-  app.use('/api/slider_canvas', standardMutationLimiter, requireAuth, sliderCanvasRoute);
-  // Sharepic-Textgenerierung. Muss VOR `app.use('/api/sharepic', promptRoute)`
-  // stehen, damit /text/* matcht.
+  // Sharepic-Textgenerierung.
   const SHAREPIC_TEXT_TYPES: readonly SharepicType[] = [
     'dreizeilen',
     'zitat',
@@ -651,7 +638,6 @@ export async function setupRoutes(app: Application): Promise<void> {
     'veranstaltung',
     'simple',
     'slider',
-    'default',
   ];
 
   const runSharepicText = async (
@@ -672,24 +658,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/sharepic/text', aiGenerationLimiter, requireAuth, requireAiConsent);
   mountSharepicTextContractRouter(app);
 
-  // Rest-Fallback hinter dem Vertrag: bedient nur noch `default`, dessen
-  // Antwortform (`{sharepics, metadata}`) nicht zu den sieben Textvertraegen
-  // passt. Limiter/Auth NICHT wiederholen — die haengen schon am Praefix,
-  // sonst zaehlt das Kontingent pro Anfrage doppelt.
-  app.post(
-    '/api/sharepic/text/:type',
-    async (req: Request<{ type: string }>, res: Response): Promise<void> => {
-      const type = SHAREPIC_TEXT_TYPES.find((t) => t === req.params.type);
-      if (!type) {
-        res
-          .status(400)
-          .json({ success: false, error: `Unbekannter Sharepic-Texttyp: ${req.params.type}` });
-        return;
-      }
-      await runSharepicText(type, req, res);
-    }
-  );
-
   // DEPRECATED — die flachen `*_claude`-Pfade bleiben nur, bis das naechste
   // Mobile-Release und der Desktop-Rebuild draussen sind. Danach ersatzlos
   // entfernen; kanonisch ist POST /api/sharepic/text/:type.
@@ -706,38 +674,7 @@ export async function setupRoutes(app: Application): Promise<void> {
     );
   }
 
-  app.use('/api/sharepic/edit-session', standardMutationLimiter, requireAuth, editSessionRouter);
-  app.use('/api/sharepic', aiGenerationLimiter, promptRoute);
   app.use('/api/background-removal', aiGenerationLimiter, requireAuth, backgroundRemovalRoute);
-
-  app.post(
-    '/api/generate-sharepic',
-    aiGenerationLimiter,
-    requireAuth,
-    requireAiConsent,
-    async (req: Request, res: Response): Promise<void> => {
-      try {
-        const { type, ...requestBody } = req.body as { type?: string; [key: string]: unknown };
-        if (!type) {
-          res.status(400).json({ success: false, error: 'Sharepic type is required' });
-          return;
-        }
-        const result = await generateSharepicForChat(
-          req,
-          type as string,
-          requestBody as Parameters<typeof generateSharepicForChat>[2]
-        );
-        res.json({ success: true, ...result.content.sharepic, metadata: result.content.metadata });
-      } catch (error) {
-        const err = error instanceof Error ? error : new Error(String(error));
-        console.error('[UnifiedSharepic] Error:', err);
-        res.status(500).json({
-          success: false,
-          error: toUserFacingMessage(err, 'Das Sharepic konnte nicht erstellt werden.'),
-        });
-      }
-    }
-  );
 
   app.use(
     '/api/texte/adjustment',
@@ -1171,6 +1108,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountImageEditContractRouter(app);
   app.use('/api/sharepic-creator', requireAuth, requireAiConsent, aiGenerationLimiter);
   mountSharepicCreatorContractRouter(app);
+  app.use('/api/sharepic-vorlagen', requireAuth);
+  mountSharepicVorlagenRouter(app);
   app.use('/api/imagine/pure', aiGenerationLimiter, imaginePureRoute);
   app.use('/api/imagine/outpaint', aiGenerationLimiter, outpaintRoute);
 

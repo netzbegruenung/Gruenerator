@@ -29,6 +29,7 @@ import { type CleanupPending, type MaybeHandled, type StreamBody } from './types
 import type { ChatGraphState, CreatedDocument } from '../../../agents/langgraph/ChatGraph/types.js';
 import type {
   PendingAskRequest,
+  PendingClientToolRequest,
   PendingToolCall,
   PersistedStep,
 } from '../services/agenticLoop/types.js';
@@ -83,6 +84,8 @@ export interface ResponseStageOutput {
   pendingApproval?: PendingToolCall[];
   /** Gesetzt ⇒ der Zug pausiert an einer Rückfrage (`ask_human`). */
   pendingAsk?: PendingAskRequest;
+  /** Gesetzt ⇒ der Zug pausiert, bis der Browser ein Loop-Werkzeug ausgeführt hat. */
+  pendingClientTool?: PendingClientToolRequest;
 }
 
 export async function runResponseStage({
@@ -188,7 +191,11 @@ export async function runResponseStage({
     // Ein pausierter Zug hat keine fertige Antwort: die Nachschritte (Artefakt-
     // Auslöser, Pipeline-Agenten, Persistenz) laufen erst nach der Freigabe
     // bzw. der Antwort auf die Rückfrage.
-    if ((pendingApproval && pendingApproval.length > 0) || agentic.pendingAsk) {
+    if (
+      (pendingApproval && pendingApproval.length > 0) ||
+      agentic.pendingAsk ||
+      agentic.pendingClientTool
+    ) {
       return {
         handled: false,
         finalState,
@@ -201,12 +208,12 @@ export async function runResponseStage({
         langfuseTraceId,
         ...(pendingApproval && pendingApproval.length > 0 ? { pendingApproval } : {}),
         ...(agentic.pendingAsk ? { pendingAsk: agentic.pendingAsk } : {}),
+        ...(agentic.pendingClientTool ? { pendingClientTool: agentic.pendingClientTool } : {}),
       };
     }
   } else {
     const singlePass = await runSinglePassAnswer({
       sse,
-      req,
       classifiedState,
       cleanupPending,
       pendingId,

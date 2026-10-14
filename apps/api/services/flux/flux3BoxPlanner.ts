@@ -22,7 +22,12 @@ import { aiObject } from '../ai/generate.js';
 import { validateBoxEdit, validateElements, validateLayout } from './flux3Boxes.js';
 
 import type { ReferenceImage } from './FluxImageService.js';
-import type { Flux3BoxEdit, Flux3Layout, Flux3LayoutRow } from '@gruenerator/contracts';
+import type {
+  Flux3BoxEdit,
+  Flux3DetectedElement,
+  Flux3Layout,
+  Flux3LayoutRow,
+} from '@gruenerator/contracts';
 
 const PINNED = { provider: GEMMA_31B_ON_MELIOUS.provider, model: GEMMA_31B_ON_MELIOUS.model };
 
@@ -82,13 +87,15 @@ async function visionInput(image: ReferenceImage): Promise<string> {
 
 const DETECT_SYSTEM = `You list the visible elements of an image so an editor can change them box by box.
 
-Return every distinct element a person might want to change: people, animals, objects, each line of text, and the larger background regions (sky, ground, wall). Group a dense crowd or a pile of small things into one element.
-Per element: id (short lowercase name with a number: person_1, text_1, sky_1), bbox, desc (one sentence in English on what it looks like; for text, the exact words in quotes).
+Return every distinct element a person might want to change: people, animals, objects, each line of text, and the larger background regions (sky, ground, wall). Group a dense crowd or a pile of small things into one element. Skip watermarks and the small "KI-Generiert" label in a corner — they are added after every edit.
+Per element: id (short lowercase name with a number: person_1, text_1, sky_1), bbox, desc (one sentence in English on what it looks like; for text, the exact words in quotes), label (what a German user calls it, one to three words, e.g. "Sonnenschirm", "Mann mit Brille", "Himmel").
 
 ${GRID}`;
 
-export async function detectElements(image: ReferenceImage): Promise<Flux3LayoutRow[] | null> {
-  const result = await aiObject<Flux3LayoutRow[]>({
+export async function detectElements(
+  image: ReferenceImage
+): Promise<Flux3DetectedElement[] | null> {
+  const result = await aiObject<Flux3DetectedElement[]>({
     lane: 'flux3_detect',
     pinned: PINNED,
     system: DETECT_SYSTEM,
@@ -110,8 +117,13 @@ export async function detectElements(image: ReferenceImage): Promise<Flux3Layout
           type: 'array',
           items: {
             type: 'object',
-            properties: { id: { type: 'string' }, bbox: BBOX_SCHEMA, desc: { type: 'string' } },
-            required: ['id', 'bbox', 'desc'],
+            properties: {
+              id: { type: 'string' },
+              bbox: BBOX_SCHEMA,
+              desc: { type: 'string' },
+              label: { type: 'string' },
+            },
+            required: ['id', 'bbox', 'desc', 'label'],
           },
         },
       },

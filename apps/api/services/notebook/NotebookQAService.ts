@@ -14,6 +14,8 @@
  * - AI worker pool for draft generation
  */
 
+import { type NotebookSourceTier } from '@gruenerator/contracts';
+
 import {
   buildDraftPromptGrundsatz,
   buildDraftPromptGeneral,
@@ -57,6 +59,7 @@ import {
   groupSourcesByCollection,
   formatDe,
 } from '../search/index.js';
+import { applySourceTier } from '../search/sourceTier.js';
 
 import { inspectCorpusState } from './corpusState.js';
 
@@ -525,6 +528,7 @@ export class NotebookQAService {
     userId,
     requestFilters,
     depth,
+    sourceTier,
     queries,
     getCollectionFn,
     getDocumentIdsFn,
@@ -585,7 +589,8 @@ export class NotebookQAService {
         collectionIds!,
         requestFilters,
         profile,
-        queryGroups
+        queryGroups,
+        sourceTier
       );
     } else if (collectionId) {
       return this._getSingleCollectionSearchContext(
@@ -595,6 +600,7 @@ export class NotebookQAService {
         requestFilters,
         profile,
         queryGroups,
+        sourceTier,
         getCollectionFn,
         getDocumentIdsFn
       );
@@ -612,7 +618,8 @@ export class NotebookQAService {
     requestFilters: RequestFilters | undefined,
     profile: NotebookDepthProfile,
     /** One group per retrieval angle; group 0 holds the paraphrases. */
-    queryGroups: string[][]
+    queryGroups: string[][],
+    sourceTier: NotebookSourceTier | undefined
   ): Promise<SearchContext | null> {
     // Detect document scope and subcategory filters from natural language
     const detectedScope = queryIntentService.detectDocumentScope(question);
@@ -648,7 +655,8 @@ export class NotebookQAService {
                 q,
                 documentScope,
                 this._extractCollectionFilters(cId, effectiveFilters, effectiveCollectionIds),
-                profile
+                profile,
+                sourceTier
               )
             )
           )
@@ -694,6 +702,7 @@ export class NotebookQAService {
     profile: NotebookDepthProfile,
     /** One group per retrieval angle; group 0 holds the paraphrases. */
     queryGroups: string[][],
+    sourceTier: NotebookSourceTier | undefined,
     getCollectionFn?: (id: string) => Promise<{ name: string; user_id: string | null } | null>,
     getDocumentIdsFn?: (id: string) => Promise<string[]>
   ): Promise<SearchContext | null> {
@@ -787,7 +796,7 @@ export class NotebookQAService {
             });
 
             const expanded = expandResultsToChunks(
-              searchResults,
+              isSystem ? applySourceTier(searchResults, collectionId, sourceTier) : searchResults,
               collectionId,
               singleCollectionName
             );
@@ -852,7 +861,8 @@ export class NotebookQAService {
     question: string,
     documentScope: DocumentScope,
     filters: RequestFilters,
-    profile?: NotebookDepthProfile
+    profile?: NotebookDepthProfile,
+    sourceTier?: NotebookSourceTier
   ): Promise<ExpandedChunkResult[]> {
     const config = SYSTEM_COLLECTIONS[collectionId];
     if (!config) {
@@ -884,7 +894,11 @@ export class NotebookQAService {
         },
       });
 
-      const expanded = expandResultsToChunks(resp.results || [], collectionId, config.name);
+      const expanded = expandResultsToChunks(
+        applySourceTier(resp.results || [], collectionId, sourceTier),
+        collectionId,
+        config.name
+      );
 
       // Post-filter: validate results match requested source_id filter (defense-in-depth)
       return this._applySourceIdPostFilter(expanded, filters);

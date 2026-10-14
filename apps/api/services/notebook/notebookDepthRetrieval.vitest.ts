@@ -70,7 +70,7 @@ describe('getSearchContext — retrieval per depth tier', () => {
     expect(opts.threshold).toBe(0.35);
   });
 
-  it('retrieves more per tier', async () => {
+  it('retrieves more per tier, up to the search ceiling', async () => {
     const fast = await optionsFor('fast');
     vi.clearAllMocks();
     search.mockResolvedValue({ results: Array.from({ length: 10 }, (_, i) => hit(i)) });
@@ -80,7 +80,8 @@ describe('getSearchContext — retrieval per depth tier', () => {
     const ultra = await optionsFor('ultra');
 
     expect(deep.limit).toBeGreaterThan(fast.limit);
-    expect(ultra.limit).toBeGreaterThan(deep.limit);
+    // deep und ultra holen beide die 100, die Qdrant je Abfrage hergibt.
+    expect(ultra.limit).toBe(deep.limit);
     expect(deep.recallLimit).toBeGreaterThan(fast.recallLimit);
     expect(ultra.recallLimit).toBeGreaterThan(deep.recallLimit);
   });
@@ -104,5 +105,45 @@ describe('getSearchContext — retrieval per depth tier', () => {
   it('ignores extra formulations on single-query tiers', async () => {
     await optionsFor('fast', ['eine', 'zwei', 'drei']);
     expect(search).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('getSearchContext — source tier', () => {
+  const protocolAndDrucksache = () => ({
+    results: [
+      {
+        document_id: 'debatte',
+        title: 'Debatte',
+        relevant_content: 'Redebeitrag',
+        similarity_score: 0.8,
+        top_chunks: [{ chunk_index: 0, content_type: 'plenarprotokoll', preview: 'Redebeitrag' }],
+      },
+      {
+        document_id: 'antrag',
+        title: 'Antrag',
+        relevant_content: 'Antragstext',
+        similarity_score: 0.798,
+        top_chunks: [{ chunk_index: 0, content_type: 'drucksache', preview: 'Antragstext' }],
+      },
+    ],
+  });
+  const firstDocument = async (sourceTier?: 'equal' | 'documents-first') => {
+    search.mockResolvedValue(protocolAndDrucksache());
+    const context = await notebookQAService.getSearchContext({
+      question: 'Welche Anträge gibt es zur IT-Sicherheit?',
+      collectionId: 'landtag-nrw-system',
+      depth: 'fast',
+      ...(sourceTier && { sourceTier }),
+    });
+    return context!.sortedResults[0].document_id;
+  };
+
+  it('ranks a Drucksache ahead of a protocol it trails by less than the penalty', async () => {
+    expect(await firstDocument('documents-first')).toBe('antrag');
+  });
+
+  it('keeps the score order without a tier or with equal', async () => {
+    expect(await firstDocument()).toBe('debatte');
+    expect(await firstDocument('equal')).toBe('debatte');
   });
 });

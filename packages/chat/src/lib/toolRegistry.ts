@@ -48,6 +48,17 @@ export const UI_TOOL_NAMES = z.enum([
   'ask_human',
   'run_python',
   'edit_document',
+  'edit_current_sharepic',
+  'read_sharepic',
+  'edit_sharepic',
+  'read_sheet',
+  'edit_sheet',
+  'read_presentation',
+  'edit_presentation',
+  'read_explainable',
+  'edit_explainable',
+  'read_document',
+  'edit_document_text',
   'mcp_tool',
   'mcp_tool_grant',
   'find_content',
@@ -76,6 +87,7 @@ export const UI_TOOL_NAMES = z.enum([
   'create_presentation',
   'create_sheet',
   'create_pdf',
+  'create_explainable',
   'create_board',
   'umfragen',
   'abgeordnetenwatch',
@@ -88,6 +100,8 @@ export const UI_TOOL_NAMES = z.enum([
   'read_artifact',
   'memory',
   'vertonen',
+  'vorlagen_vorschlagen',
+  'check_sharepic',
   // Loader of toolScope.ts: opens the personal-content group for the rest of
   // the turn. Reports through the status line only (isSearchProgressTool).
   'meine_inhalte_laden',
@@ -217,6 +231,32 @@ function parseVertonenVM(args: unknown, result: unknown): ToolResultVM {
   return {
     kind: 'text-note',
     text: laenge ? `„${fileName}" erstellt · ${laenge}` : `„${fileName}" erstellt.`,
+  };
+}
+
+function parseVorlagenVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const vorlagen = (result as { vorlagen?: unknown } | null)?.vorlagen;
+  if (!Array.isArray(vorlagen)) return parseGenericFallback(args, result);
+  return {
+    kind: 'text-note',
+    text:
+      vorlagen.length === 1
+        ? '1 Vorlage vorgeschlagen'
+        : `${vorlagen.length} Vorlagen vorgeschlagen`,
+  };
+}
+
+/** Befund der Sharepic-Prüfung: die Probleme, nicht das Patch-Detail. */
+function parseCheckSharepicVM(args: unknown, result: unknown): ToolResultVM {
+  const note = getString(result, 'note') ?? getString(result, 'error');
+  if (note) return { kind: 'text-note', text: note };
+  const issues = (result as { issues?: unknown } | null)?.issues;
+  if (!Array.isArray(issues)) return parseGenericFallback(args, result);
+  return {
+    kind: 'text-note',
+    text: issues.length === 0 ? 'Keine Probleme gefunden' : issues.map(String).join('\n'),
   };
 }
 
@@ -811,6 +851,77 @@ function parseEditDocumentVM(_args: unknown, result: unknown): ToolResultVM {
   return { kind: 'text-note', text: summary ? `${head} · ${summary}` : head };
 }
 
+// edit_current_sharepic (spec path of a creator sharepic): {ok, slideCount,
+// hinweis?} | {error}. The deck itself is replaced client-side.
+function parseEditSharepicVM(_args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const unchanged = getBoolean(result, 'unchanged');
+  const n = getNumber(result, 'slideCount');
+  const parts = [unchanged ? 'Keine Änderung' : 'Sharepic überarbeitet'];
+  if (n != null && !unchanged) parts.push(`${n} Folie${n === 1 ? '' : 'n'}`);
+  const hinweis = getString(result, 'hinweis');
+  if (hinweis) parts.push(hinweis);
+  return { kind: 'text-note', text: parts.join(' · ') };
+}
+
+function parseReadSharepicVM(_args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const n = getNumber(result, 'slideCount');
+  return {
+    kind: 'text-note',
+    text: n != null ? `Sharepic gelesen · ${n} Folie${n === 1 ? '' : 'n'}` : 'Sharepic gelesen',
+  };
+}
+
+// Die neue Karte kommt über `sharepic_complete`; die Werkzeugkarte nennt nur die Änderung.
+function parseEditSharepicLoopVM(_args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  return { kind: 'text-note', text: getString(result, 'summary') ?? 'Sharepic überarbeitet' };
+}
+
+function parseReadSheetVM(_args: unknown, result: unknown): ToolResultVM {
+  return { kind: 'text-note', text: getString(result, 'error') ?? 'Tabelle gelesen' };
+}
+
+function parseReadDocumentVM(_args: unknown, result: unknown): ToolResultVM {
+  return { kind: 'text-note', text: getString(result, 'error') ?? 'Dokument gelesen' };
+}
+
+// Die Rückfrage zeigt die Stellen als vorher/nachher — das ist die kompakte Karte.
+function parseEditDocumentTextVM(_args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const changes = getString(result, 'aenderungen');
+  if (changes) return { kind: 'text-note', text: `Zur Bestätigung:\n${changes}` };
+  return { kind: 'text-note', text: getString(result, 'note') ?? 'Dokument geändert' };
+}
+
+function parseReadExplainableVM(_args: unknown, result: unknown): ToolResultVM {
+  return { kind: 'text-note', text: getString(result, 'error') ?? 'Explainable gelesen' };
+}
+
+function parseReadPresentationVM(_args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const n = getNumber(result, 'slideCount');
+  return {
+    kind: 'text-note',
+    text:
+      n != null ? `Präsentation gelesen · ${n} Folie${n === 1 ? '' : 'n'}` : 'Präsentation gelesen',
+  };
+}
+
+// Rückfrage (needsConfirmation) und Erfolg tragen beide `note` — Tabelle wie Präsentation.
+function parseArtifactEditVM(_args: unknown, result: unknown): ToolResultVM {
+  return {
+    kind: 'text-note',
+    text: getString(result, 'error') ?? getString(result, 'note') ?? 'Änderung übernommen',
+  };
+}
+
 // cloud_files hat vier Ergebnisformen: eine Ordner-/Trefferliste (`entries`),
 // eine Verbindungsliste (`connections`), ein gelesenes Dokument (nur
 // `resultCount`/`sources` — die Zitate laufen über die Quellen-Registry, nicht
@@ -929,6 +1040,17 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   ask_human: entry('ask_human', 'interactive', () => ({ kind: 'interactive' })),
   run_python: entry('run_python', 'interactive', () => ({ kind: 'interactive' })),
   edit_document: entry('edit_document', 'text-note', parseEditDocumentVM),
+  edit_current_sharepic: entry('edit_current_sharepic', 'text-note', parseEditSharepicVM),
+  read_sharepic: entry('read_sharepic', 'text-note', parseReadSharepicVM),
+  edit_sharepic: entry('edit_sharepic', 'text-note', parseEditSharepicLoopVM),
+  read_sheet: entry('read_sheet', 'text-note', parseReadSheetVM),
+  edit_sheet: entry('edit_sheet', 'text-note', parseArtifactEditVM),
+  read_presentation: entry('read_presentation', 'text-note', parseReadPresentationVM),
+  edit_presentation: entry('edit_presentation', 'text-note', parseArtifactEditVM),
+  read_explainable: entry('read_explainable', 'text-note', parseReadExplainableVM),
+  edit_explainable: entry('edit_explainable', 'text-note', parseArtifactEditVM),
+  read_document: entry('read_document', 'text-note', parseReadDocumentVM),
+  edit_document_text: entry('edit_document_text', 'text-note', parseEditDocumentTextVM),
   mcp_tool: entry('mcp_tool', 'key-value', parseGenericFallback),
   // Freigabe-Karte, keine Werkzeugausgabe: gerendert von ToolGrantCard (Web)
   // bzw. dem gleichnamigen Zweig in Mobiles ToolCallPart.
@@ -948,6 +1070,9 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   // The audio file itself renders in the compute card (fileAssets); the tool
   // card only reports what was made.
   vertonen: entry('vertonen', 'text-note', parseVertonenVM),
+  // The gallery itself renders from `custom.vorlagenSuggestions`.
+  vorlagen_vorschlagen: entry('vorlagen_vorschlagen', 'text-note', parseVorlagenVM),
+  check_sharepic: entry('check_sharepic', 'text-note', parseCheckSharepicVM),
   cloud_files: entry('cloud_files', 'key-value', parseCloudFilesVM),
   text_uebersetzen: entry('text_uebersetzen', 'text-note', parseTranslationVM),
   recurring_tasks: entry('recurring_tasks', 'citations', parseRecurringTasksVM),
@@ -962,6 +1087,7 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   create_presentation: entry('create_presentation', 'text-note', parseArtifactCreatedVM),
   create_sheet: entry('create_sheet', 'text-note', parseArtifactCreatedVM),
   create_pdf: entry('create_pdf', 'key-value', parsePdfCreatedVM),
+  create_explainable: entry('create_explainable', 'text-note', parseArtifactCreatedVM),
   create_board: entry('create_board', 'text-note', parseBoardCreatedVM),
   read_artifact: entry('read_artifact', 'text-note', parseReadArtifactVM),
   search_threads: entry('search_threads', 'citations', parsePersonalDataVM),

@@ -2,6 +2,7 @@ import Konva from 'konva';
 import { useCallback, useEffect, useState } from 'react';
 import { PiPath } from 'react-icons/pi';
 
+import { CustomColorSwatch } from '../../../components/CustomColorSwatch';
 import { BRAND_COLORS } from '../../../utils/shapes';
 
 import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
@@ -201,6 +202,13 @@ export function TextPathCreatorTool({
                   }}
                 />
               ))}
+              <CustomColorSwatch
+                value={color}
+                presets={BRAND_COLORS.map((c) => c.value)}
+                onPick={setColor}
+                className="size-6"
+                disabled={disabled}
+              />
             </div>
           </div>
 

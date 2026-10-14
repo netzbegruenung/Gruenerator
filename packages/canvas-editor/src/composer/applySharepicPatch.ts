@@ -1,5 +1,6 @@
 import {
   accentLines,
+  isSharepicSceneRef,
   isSharepicUploadId,
   type SharepicItem,
   type SharepicPatchOp,
@@ -22,11 +23,21 @@ function withText(item: SharepicItem, text: string): SharepicItem | null {
     case 'zitat':
     case 'frage':
     case 'button':
+    case 'aufruf':
       return { ...item, text };
-    // A chart's values come from the request, and a comparison's titles and
-    // points cannot be addressed through one text: the review does not reword them.
+    // A chart's values come from the request, and the titles and points of a
+    // comparison, a fact check or an infographic cannot be addressed through
+    // one text: the review does not reword them.
     case 'diagramm':
     case 'vergleich':
+    case 'faktencheck':
+    case 'infografik':
+    case 'zahl':
+    case 'rechnung':
+    case 'termine':
+    case 'schlagzeile':
+    case 'bingo':
+    case 'bild':
       return null;
     case 'iconliste': {
       // One line per row, so every row keeps its icon.
@@ -38,14 +49,14 @@ function withText(item: SharepicItem, text: string): SharepicItem | null {
         ? { ...item, zeilen: item.zeilen.map((z, k) => ({ ...z, text: lines[k]! })) }
         : null;
     }
-    case 'liste':
-      return {
-        ...item,
-        items: text
-          .split('\n')
-          .map((l) => l.trim())
-          .filter(Boolean),
-      };
+    case 'liste': {
+      const items = text
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean);
+      // One line per point, so every point keeps its emoji.
+      return item.zeichen && items.length !== item.zeichen.length ? null : { ...item, items };
+    }
     case 'headline': {
       const lines = text
         .split('\n')
@@ -97,12 +108,17 @@ export function applySharepicPatch(spec: SharepicSpec, ops: SharepicPatchOp[]): 
         const at = op.item ?? existing;
         // A slide keeps one headline: turning an item into one needs a slide without.
         if (!next.items[at] || (existing !== -1 && existing !== at)) skipped.push(op);
-        else
+        else {
+          // A re-wrap keeps the size the person asked for.
+          const old = next.items[at];
+          const groesse = old?.type === 'headline' ? old.groesse : undefined;
           next.items[at] = {
             type: 'headline',
             lines: op.lines,
             ...(op.akzent !== undefined ? { akzent: op.akzent } : {}),
+            ...(groesse ? { groesse } : {}),
           };
+        }
         break;
       }
       case 'remove_item':
@@ -116,7 +132,8 @@ export function applySharepicPatch(spec: SharepicSpec, ops: SharepicPatchOp[]): 
         next.align = op.align;
         break;
       case 'set_text_side':
-        if (next.background.kind === 'foto')
+        // A painted scene keeps its calm area on one side only — the text stays there.
+        if (next.background.kind === 'foto' && !isSharepicSceneRef(next.background.filename))
           next.background = { ...next.background, textSeite: op.textSeite };
         else skipped.push(op);
         break;
@@ -128,8 +145,13 @@ export function applySharepicPatch(spec: SharepicSpec, ops: SharepicPatchOp[]): 
         else skipped.push(op);
         break;
       case 'use_color':
-        // The person brought this photo themselves — a review never swaps it for a colour.
-        if (next.background.kind !== 'farbe' && isSharepicUploadId(next.background.filename))
+        // The person brought this photo themselves, or paid trees for the painted scene —
+        // a review never swaps it for a colour.
+        if (
+          next.background.kind !== 'farbe' &&
+          (isSharepicUploadId(next.background.filename) ||
+            isSharepicSceneRef(next.background.filename))
+        )
           skipped.push(op);
         else next.background = { kind: 'farbe', color: op.color };
         break;

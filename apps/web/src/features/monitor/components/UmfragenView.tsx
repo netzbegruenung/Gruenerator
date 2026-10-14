@@ -224,9 +224,15 @@ function DeutschlandMapPanel() {
 }
 
 function EuropaMapPanel() {
-  const { data } = useEuGreens();
+  const { data, isLoading } = useEuGreens();
+  if (isLoading) return <LoadingSection />;
+  if (!data) {
+    return (
+      <p className={cn('text-sm', MONITOR_MUTED)}>Europadaten konnten nicht geladen werden.</p>
+    );
+  }
   const values: ChoroplethValues = {};
-  for (const r of data?.results ?? []) {
+  for (const r of data.results) {
     const geo = EU_CODE_GEO[r.countryCode];
     if (!geo) continue;
     values[geo] = { v: r.percent, label: r.countryName, sub: r.party, marked: r.broadAlliance };

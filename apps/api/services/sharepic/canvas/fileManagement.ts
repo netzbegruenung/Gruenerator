@@ -65,8 +65,6 @@ export function registerFonts(): void {
     // Dieselben Schnitte noch einmal unter EINER Familie, wie das Web sie
     // deklariert: so wählt `bold 40px PT Sans` den echten Bold-Schnitt und
     // `italic` den echten Italic-Schnitt, statt einen zu synthetisieren.
-    // Die Renderer mit Auszeichnung (`drawRichTextLines`) brauchen genau das;
-    // die Einzelfamilien oben bleiben für die unberührten Renderer stehen.
     { path: PTSANS_REGULAR_PATH, family: 'PT Sans', name: 'PT Sans Regular' },
     { path: PTSANS_BOLD_PATH, family: 'PT Sans', name: 'PT Sans Bold' },
     { path: PTSANS_ITALIC_PATH, family: 'PT Sans', name: 'PT Sans Italic' },

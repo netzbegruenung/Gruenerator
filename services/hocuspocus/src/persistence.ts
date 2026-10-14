@@ -6,6 +6,7 @@ import { DOCUMENT_FRAGMENT_NAME, injectHtmlIntoFragment } from '@gruenerator/sha
 import * as Y from 'yjs';
 
 import { blockNoteXmlToHtml } from './blockNoteXmlToHtml.js';
+import { countCanvasPages } from './canvasPageCount.js';
 import {
   boardPreview,
   detectPreviewKind,
@@ -361,6 +362,23 @@ export class PostgresPersistence {
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       log.debug(`[Touch] Failed to touch updated_at for ${documentId}: ${err.message}`);
+    }
+  }
+
+  /** Pages live in the Y.Doc; keep the `canvas_documents.page_count` mirror in step. */
+  async updateCanvasPageCount(documentId: string, ydoc: Y.Doc): Promise<void> {
+    const pageCount = countCanvasPages(ydoc);
+    if (pageCount === null) return;
+    try {
+      await this.db(
+        `UPDATE canvas_documents
+         SET page_count = $2
+         WHERE document_id = $1
+           AND page_count IS DISTINCT FROM $2`,
+        [documentId, pageCount]
+      );
+    } catch (error) {
+      log.debug(`[PageCount] Failed to update page_count for ${documentId}: ${error}`);
     }
   }
 

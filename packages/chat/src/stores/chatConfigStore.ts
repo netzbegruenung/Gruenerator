@@ -100,6 +100,12 @@ export interface ChatConfig {
    * mobile hides a flow it has no dialog for.
    */
   onExportPdfLetterhead?: (content: string, title?: string) => Promise<void>;
+  /**
+   * Path of a podcast's player page for its Notion-style slug
+   * (`<name>-<suffix>`). Only a host with that page sets it; omit it and
+   * "Als Podcast anhören" is not offered.
+   */
+  getPodcastUrl?: (podcastSlug: string) => string;
   /** Opens a single sharepic variant in the canvas editor for editing. */
   onEditSharepic?: (variant: SharepicVariant, opts?: { threadId: string | null }) => void;
   /**
@@ -114,6 +120,11 @@ export interface ChatConfig {
     initialProps: Record<string, unknown>,
     options?: { quality?: 'preview' | 'full' }
   ) => Promise<string | null>;
+  /**
+   * Renders a whole creator sharepic for the model's `check_sharepic` review:
+   * one image, a carousel as a numbered contact sheet. Web only.
+   */
+  renderSharepicSheet?: (initialProps: Record<string, unknown>) => Promise<string | null>;
   /** Runs Python in a browser Pyodide worker (in-chat code execution). */
   runPython?: RunPython;
   /** Current state of a chat-edited sharepic canvas (GET /api/canvas/:id/state). */
@@ -318,8 +329,10 @@ interface ChatConfigStore extends ResolvedChatConfig {
     existingDocId?: string
   ) => Promise<string | void>;
   onExportPdfLetterhead?: ChatConfig['onExportPdfLetterhead'];
+  getPodcastUrl?: ChatConfig['getPodcastUrl'];
   onEditSharepic?: (variant: SharepicVariant, opts?: { threadId: string | null }) => void;
   renderSharepic?: ChatConfig['renderSharepic'];
+  renderSharepicSheet?: ChatConfig['renderSharepicSheet'];
   runPython?: RunPython;
   fetchSharepicState?: ChatConfig['fetchSharepicState'];
   fetchSharepicVersions?: ChatConfig['fetchSharepicVersions'];
@@ -442,6 +455,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
   docsBaseUrl: undefined,
   onEditInDocs: undefined,
   onExportPdfLetterhead: undefined,
+  getPodcastUrl: undefined,
   wolkeConnectUrl: undefined,
   chunkInspectorHref: undefined,
   onOpenSourceDocument: undefined,
@@ -458,8 +472,10 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       docsBaseUrl: config?.docsBaseUrl,
       onEditInDocs: config?.onEditInDocs,
       onExportPdfLetterhead: config?.onExportPdfLetterhead,
+      getPodcastUrl: config?.getPodcastUrl,
       onEditSharepic: config?.onEditSharepic,
       renderSharepic: config?.renderSharepic,
+      renderSharepicSheet: config?.renderSharepicSheet,
       runPython: config?.runPython,
       fetchSharepicState: config?.fetchSharepicState,
       fetchSharepicVersions: config?.fetchSharepicVersions,

@@ -17,8 +17,48 @@ import {
   TOOL_EDIT_SURFACES,
   type EditorSurfaceKind,
 } from './routing.js';
+import { EDIT_TOOL_NAMES, type PersistedStep } from './types.js';
 
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
+
+/** What the writer says once a sharepic edit is in the editor (both paths: banner shown = applied). */
+export const SHAREPIC_EDITED_NOTE =
+  'Das Sharepic ist geändert, die neue Fassung steht im Editor als Vorschlag, den die Person behalten oder verwerfen kann. Sag das KURZ in der VERGANGENHEIT (1 Satz, z.B. „Ich habe die Folien überarbeitet – du kannst die Änderung im Editor behalten oder verwerfen.“). Schreib NICHT, dass etwas gerade passiert oder noch aktualisiert wird, und behaupte NIEMALS, du könntest die Änderung nicht vornehmen.';
+
+/**
+ * The sentence that closes a unified answer written BEFORE its edit landed.
+ * Live, Mistral wrote „Ich passe die Größe der Überschrift an." next to its
+ * tool call and nothing after the result — which said nothing had changed.
+ */
+export function editOutcomeTail(state: ChatGraphState): string | null {
+  if (state.editToolSurface !== 'canvas') return null;
+  if (state.editorEditsSummary) return SHAREPIC_EDITED_TAIL;
+  if (state.editorEditUnchanged && state.editorEditUnchangedReason) {
+    return `Geändert hat sich dabei allerdings nichts: ${state.editorEditUnchangedReason}`;
+  }
+  return null;
+}
+
+/**
+ * Unified mode: the tail, when the answer stops where the edit started (or the
+ * guarantee forced the edit after the stream). An empty answer is the
+ * no-answer fallback's to fill.
+ */
+export function editOutcomeAfterPreamble(
+  state: ChatGraphState,
+  steps: readonly PersistedStep[],
+  text: string
+): string | null {
+  if (!text.trim()) return null;
+  const edit = [...steps]
+    .reverse()
+    .find((s) => (EDIT_TOOL_NAMES as readonly string[]).includes(s.toolName));
+  const after = edit?.textOffset != null ? text.slice(edit.textOffset) : '';
+  return after.trim() ? null : editOutcomeTail(state);
+}
+
+const SHAREPIC_EDITED_TAIL =
+  'Die Änderung steht jetzt im Editor – du kannst sie dort behalten oder verwerfen.';
 
 /** Catalog keys that can produce a user-visible artifact. Gates the synth's
  *  capability note — see its call site. */
@@ -29,8 +69,15 @@ export const ARTIFACT_TOOL_NAMES = [
   'create_sheet',
   'create_document',
   'create_pdf',
+  'create_explainable',
   'create_board',
   'edit_document',
+  'edit_current_sharepic',
+  'edit_sharepic',
+  'edit_sheet',
+  'edit_presentation',
+  'edit_explainable',
+  'edit_document_text',
 ] as const;
 
 /** Is the surface's artefact actually open, with an addressable id? Each
@@ -60,6 +107,9 @@ function noEditPathSurface(
   surface: EditSurfaceReading
 ): EditorSurfaceKind | null {
   if (surface.kind == null || !surface.toggleOn) return null;
+  // A loop tool (edit_sheet, edit_presentation, …) changed it after all — live
+  // 11.10.2026 this note made the writer deny an edit_sheet that had run.
+  if ((state.chatArtifactEdits?.length ?? 0) > 0) return null;
   const orphaned =
     TOOL_EDIT_SURFACES.has(surface.kind) &&
     hasOpenEditTarget(state, surface.kind) &&
@@ -166,6 +216,32 @@ export function buildArtifactNotes(
     (state.sharepicVariants?.length ?? 0) > 0
       ? 'HINWEIS: In diesem Turn wurde bereits ein Sharepic erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an und biete Anpassungen an.'
       : '',
+    state.sharepicCheck
+      ? `HINWEIS: In diesem Turn wurde das Sharepic im Browser gerendert und geprüft. Ergebnis: ${JSON.stringify(state.sharepicCheck)}. Berichte das Ergebnis kurz: bei ok ohne Befunde, dass es gut lesbar und fehlerfrei aussieht; sonst die Befunde in eigenen Worten. Behaupte NIEMALS, du hättest nicht geprüft.`
+      : '',
+    state.chatSharepicEdits?.length
+      ? `HINWEIS: In diesem Turn wurde das Sharepic überarbeitet (${state.chatSharepicEdits.join('; ')}); die neue Fassung steht als eigene Karte „Überarbeitet" im Chat. Bestätige das KURZ in der Vergangenheit (1–2 Sätze) und biete weitere Anpassungen an. Behaupte NIEMALS, die Änderung sei nicht umgesetzt worden.${state.sharepicCheck ? '' : ' Geprüft wurde die neue Fassung NICHT — sag nichts darüber, ob sie gut lesbar ist oder wirkt.'}`
+      : '',
+    // Ein Bearbeitungsauftrag, aber kein Werkzeug hat geändert oder gefragt:
+    // live 11.10.2026 schrieb der Schreiber dann den ganzen Antrag neu in den
+    // Chat — als wäre er geändert. Ehrlich sagen und nachfragen.
+    state.artifactEditOrder === true &&
+    !state.chatArtifactEdits?.length &&
+    !state.chatArtifactQuestions?.length
+      ? 'HINWEIS: In diesem Turn wurde am Artefakt NICHTS geändert — kein Bearbeitungswerkzeug hat geschrieben. Schreib das Artefakt NICHT neu oder vollständig in den Chat und behaupte keine Änderung. Sag in einem Satz, dass die Änderung noch nicht ausgeführt ist, und frag knapp, was genau geändert werden soll.'
+      : '',
+    state.chatArtifactQuestions?.length
+      ? `HINWEIS: Ein Bearbeitungswerkzeug wartet auf Zustimmung — es wurde NOCH NICHTS geändert. Stelle genau diese Rückfrage knapp und zeig die Änderungen so, wie sie hier stehen (vorher/nachher), ohne das Artefakt neu auszuschreiben:\n${state.chatArtifactQuestions.join('\n')}\nBeende die Antwort mit der Frage, ob es so geändert werden soll.`
+      : '',
+    state.chatArtifactEdits?.length
+      ? `HINWEIS: In diesem Turn wurde wirklich geändert: ${state.chatArtifactEdits.join(' ')} Bestätige das KURZ in der Vergangenheit (1–2 Sätze), mit dem Hinweis, wann es sichtbar wird, falls er dabeisteht. Behaupte NIEMALS, die Änderung sei nicht möglich oder nicht umgesetzt worden — auch wenn frühere Antworten im Verlauf das sagten.`
+      : '',
+    // Die Galerie ist kein Artefakt, das der Schreiber zusammenfassen soll —
+    // ohne diese Zeile entwarf er live eigene Layouts samt Canva-Tipps und
+    // schrieb, er sei „ein textbasiertes KI-Modell", unter den Vorlagen.
+    state.vorlagenShown?.length
+      ? `HINWEIS: In diesem Turn wurden dem*der Nutzer*in bereits ${state.vorlagenShown.length} passende Sharepic-Vorlagen als Bildergalerie angezeigt (${state.vorlagenShown.join(', ')}), jede mit Begründung und dem Knopf „Mit meinem Text erstellen". Schreibe dazu nur EINEN kurzen Satz, z. B. „Hier sind Vorlagen, die zu deinem Beitrag passen – mit einem Klick füllst du sie mit deinem Text." Beschreibe KEINE eigenen Layouts, Farben, Schriften oder Canva-Tipps, wiederhole die Begründungen nicht und behaupte NIEMALS, du könntest keine Grafiken zeigen oder erstellen.`
+      : '',
     state.createdDocument != null
       ? `HINWEIS: In diesem Turn wurde bereits ${
           state.createdDocument.subtype === 'presentations'
@@ -208,8 +284,19 @@ export function buildArtifactNotes(
     // document once the person accepts them. The unified loop reads the same
     // fact off the tool result (`note`); split mode has no tool results in the
     // writing context, so it has to be said here.
-    state.editorEditsSummary
-      ? `HINWEIS: Die gewünschte Änderung ist geplant und wird gerade in die GEÖFFNETE Datei übernommen: ${state.editorEditsSummary}. Sag das dem*der Nutzer*in KURZ in der GEGENWART (1 Satz, z.B. „Die Folien werden gerade aktualisiert — …"). Behaupte NIEMALS, du könntest die Änderung nicht vornehmen — sie ist bereits ausgelöst. Behaupte aber ebenso NICHT, sie sei fertig GESPEICHERT: das Übernehmen geschieht in der geöffneten Datei.${state.editToolSurface === 'doc' ? ' Im Dokument erscheint sie als VORSCHLAG — nenne das und sag dazu, dass die Person ihn dort annehmen oder verwerfen kann.' : ''}`
+    //
+    // A sharepic is the exception: the client applies the change (ops or a
+    // recomposed deck) and raises the keep/discard banner before the answer
+    // arrives, and "werden gerade aktualisiert" read live as still in progress.
+    state.editorEditsSummary && state.editToolSurface === 'canvas'
+      ? `HINWEIS: ${SHAREPIC_EDITED_NOTE} Was geändert wurde: ${state.editorEditsSummary}.`
+      : state.editorEditsSummary
+        ? `HINWEIS: Die gewünschte Änderung ist geplant und wird gerade in die GEÖFFNETE Datei übernommen: ${state.editorEditsSummary}. Sag das dem*der Nutzer*in KURZ in der GEGENWART (1 Satz, z.B. „Die Folien werden gerade aktualisiert — …"). Behaupte NIEMALS, du könntest die Änderung nicht vornehmen — sie ist bereits ausgelöst. Behaupte aber ebenso NICHT, sie sei fertig GESPEICHERT: das Übernehmen geschieht in der geöffneten Datei.${state.editToolSurface === 'doc' ? ' Im Dokument erscheint sie als VORSCHLAG — nenne das und sag dazu, dass die Person ihn dort annehmen oder verwerfen kann.' : ''}`
+        : '',
+    // The sharepic spec edit ran and changed nothing; without this the writer
+    // copied "Die Folien werden gerade aktualisiert" from earlier turns.
+    state.editorEditUnchanged && !state.editorEditsSummary
+      ? `HINWEIS: Die gewünschte Änderung wurde NICHT ausgeführt. ${state.editorEditUnchanged} Behaupte NICHT, du würdest etwas ändern oder die Folien würden aktualisiert.`
       : '',
     // The two pre-loop notes (toggle off / no edit path this turn) are
     // mutually exclusive by construction — see `preLoopEditNote`.
@@ -225,6 +312,8 @@ export function buildArtifactNotes(
   const producedArtifact =
     state.generatedImage != null ||
     (state.sharepicVariants?.length ?? 0) > 0 ||
+    (state.chatSharepicEdits?.length ?? 0) > 0 ||
+    (state.chatArtifactEdits?.length ?? 0) > 0 ||
     state.createdDocument != null ||
     state.createdBoard != null ||
     state.editorEditsSummary != null;

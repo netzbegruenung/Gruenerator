@@ -1,9 +1,15 @@
 import { motion, AnimatePresence } from 'motion/react';
 import React from 'react';
 
-import type { TemplateResultLightboxProps } from '../types/templateResultTypes';
+interface LightboxProps {
+  isOpen: boolean;
+  onClose: () => void;
+  imageSrc: string;
+  altText?: string;
+  actions?: React.ReactNode;
+}
 
-export const Lightbox: React.FC<TemplateResultLightboxProps> = ({
+export const Lightbox: React.FC<LightboxProps> = ({
   isOpen,
   onClose,
   imageSrc,

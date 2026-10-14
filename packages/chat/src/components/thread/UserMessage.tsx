@@ -12,7 +12,7 @@ import { MessageBranchPicker } from '../message-parts/MessageBranchPicker';
 import { MessageDaySeparator, MessageTime } from '../message-parts/MessageTimestamp';
 import { UserMessageText } from '../message-parts/UserMessageText';
 
-import { useChatDensity } from './chatDensityContext';
+import { useChatDensity, useChatRoleBadge } from './chatDensityContext';
 
 function QuoteBlock() {
   const quote = useMessageQuote();
@@ -103,7 +103,7 @@ export function UserMessage() {
   const storeRoleName = useAgentStore((s) =>
     s.threadMode === 'eigener' ? s.customRoleName : null
   );
-  const roleName = custom?.roleName || storeRoleName;
+  const roleName = useChatRoleBadge() ? custom?.roleName || storeRoleName : null;
 
   const beginEdit = () => {
     runtime.composer().beginEdit();
@@ -123,8 +123,8 @@ export function UserMessage() {
       <MessagePrimitive.Root
         className={
           isCompact
-            ? 'group mx-auto flex w-full min-w-0 justify-end'
-            : 'group mx-auto flex w-full min-w-0 max-w-3xl justify-end'
+            ? 'group mx-auto flex w-full min-w-0 justify-end [content-visibility:auto] [contain-intrinsic-size:auto_200px]'
+            : 'group mx-auto flex w-full min-w-0 max-w-3xl justify-end [content-visibility:auto] [contain-intrinsic-size:auto_200px]'
         }
       >
         <div className={isCompact ? 'max-w-[92%]' : 'max-w-[85%]'}>

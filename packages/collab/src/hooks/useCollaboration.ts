@@ -108,8 +108,23 @@ export const useCollaboration = ({
     let idbTimeout: ReturnType<typeof setTimeout> | null = null;
     const ydoc = new Y.Doc();
 
+    // Exposes this effect's doc as soon as the local cache is in it, so a host
+    // can render it before the server sync. A doc from an earlier effect run
+    // never counts as synced for this one.
     const markLocalLoaded = () =>
-      setState((prev) => (prev.isLocalLoaded ? prev : { ...prev, isLocalLoaded: true }));
+      setState((prev) => {
+        if (prev.ydoc !== ydoc) {
+          return {
+            ...prev,
+            ydoc,
+            provider: null,
+            isConnected: false,
+            isSynced: false,
+            isLocalLoaded: true,
+          };
+        }
+        return prev.isLocalLoaded ? prev : { ...prev, isLocalLoaded: true };
+      });
 
     if (!isAwarenessOnlyRoom(documentId)) {
       try {
@@ -138,16 +153,22 @@ export const useCollaboration = ({
         });
         // Only an actual IDB open error means the cache is unusable — drop it
         // so the next visit starts clean. (whenSynced never rejects; the
-        // underlying openDB promise is `_db`.)
-        idbProvider._db.catch(() => {
+        // underlying openDB promise is `_db`.) An AbortError is the browser
+        // closing the connection (page unload, tab freeze), not corruption —
+        // keep the cache then, it may hold unsynced edits.
+        idbProvider._db.catch((err: unknown) => {
           if (ignore) return;
-          console.warn('[Collab] IndexedDB error — clearing local cache | doc:', documentId);
           idbProvider.destroy();
           idbProviderRef.current = null;
-          try {
-            indexedDB.deleteDatabase(dbName);
-          } catch {
-            /* best-effort */
+          if (String(err).includes('AbortError')) {
+            console.warn('[Collab] IndexedDB connection closed | doc:', documentId);
+          } else {
+            console.warn('[Collab] IndexedDB error — clearing local cache | doc:', documentId);
+            try {
+              indexedDB.deleteDatabase(dbName);
+            } catch {
+              /* best-effort */
+            }
           }
           markLocalLoaded();
         });
@@ -174,18 +195,11 @@ export const useCollaboration = ({
         name: documentId,
         document: ydoc,
         token: token ?? undefined,
+        // Connect only once the listeners below are attached.
+        autoConnect: false,
         ...(WebSocketPolyfill ? { WebSocketPolyfill } : {}),
         ...(isGuest && gId ? { parameters: { guestId: gId, guestName: gName || 'Gast' } } : {}),
       } as ConstructorParameters<typeof HocuspocusProvider>[0]);
-
-      // Disconnect immediately to prevent auto-connect race condition.
-      // We reconnect after event listeners are set up.
-      provider.disconnect();
-
-      if (ignore) {
-        provider.destroy();
-        return;
-      }
 
       providerRef.current = provider;
       provider.awareness?.setLocalStateField('user', buildAwarenessUser());

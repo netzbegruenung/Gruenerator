@@ -1,4 +1,5 @@
 ---
+laender: [de, at]
 sidebar_position: 9
 description: 'Regional getunte Agents, die im Stil ihres Landesverbands schreiben und in dessen Pressemitteilungen, Beschlüssen und Programmen recherchieren.'
 ---

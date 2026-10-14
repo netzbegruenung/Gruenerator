@@ -30,6 +30,8 @@ export interface BrandTheme {
     secondary: string;
     /** highlight colour for emphasised headline words / quote authors */
     accent: string;
+    /** highlight colour for emphasised words on white / light ground */
+    accentOnLight: string;
     /** attention badge ("Störer") colour */
     stoerer: string;
     /** text colour on dark backgrounds */
@@ -68,6 +70,7 @@ export const BRAND_THEMES: Record<BrandLocale, BrandTheme> = {
       primary: '#005538', // Tanne
       secondary: '#6CCD87', // Hellgrün
       accent: '#008939', // Klee
+      accentOnLight: '#008939', // Klee, 4.53:1 on white
       stoerer: '#00CC4F', // Grasgrün — Störer, as on the current posts
       textOnDark: '#ffffff',
       textOnLight: '#005538',
@@ -97,6 +100,7 @@ export const BRAND_THEMES: Record<BrandLocale, BrandTheme> = {
       primary: '#257639', // Dunkelgrün — Hauptfarbe
       secondary: '#56af31', // Hellgrün
       accent: '#FCEC00', // Gelb — Headline-Hervorhebung
+      accentOnLight: '#257639', // Dunkelgrün, 5.63:1 on white (Hellgrün: 2.77:1)
       stoerer: '#E4007C', // Magenta — Störer
       textOnDark: '#ffffff',
       textOnLight: '#257639',
@@ -127,6 +131,24 @@ export const BRAND_THEMES: Record<BrandLocale, BrandTheme> = {
     quoteMark: { src: SYSTEM_ASSETS.quote.white.src },
   },
 };
+
+/**
+ * Hellgrün (#56AF31) carries white at 2.77:1. The posts never set text on it
+ * flat but on a dark green with a light glow; the brightest stop keeps white at
+ * 4.68:1 and yellow at 3.82:1.
+ */
+export const HELLGRUEN_GLOW = ['#318437', '#287A35', '#1B6630'] as const;
+
+const SURFACE_GLOWS: Record<string, readonly string[]> = { '#56af31': HELLGRUEN_GLOW };
+
+/**
+ * The radial glow a stored plane colour is drawn as, centre first — null when
+ * it is drawn flat. The stored value stays what documents, descriptors and
+ * swatches carry; only the paint changes.
+ */
+export function surfaceGlow(color: string): readonly string[] | null {
+  return SURFACE_GLOWS[color.toLowerCase()] ?? null;
+}
 
 /** Resolve a brand theme, falling back to de-DE for unknown/undefined locales. */
 export function getBrandTheme(locale?: BrandLocale | string | null): BrandTheme {

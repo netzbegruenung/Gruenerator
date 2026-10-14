@@ -1,11 +1,11 @@
-// import { openChatThenNext } from './editorTourHelpers';
+import { openChatThenNext } from './editorTourHelpers';
 import { runTour } from './runTour';
 
 const SEL = {
   stage: '[data-tour="canvas-stage"]',
   tabs: '[data-tour="canvas-tabs"]',
-  // chatTab: '[data-tour="canvas-tab-chat"]',
-  // chat: '[data-tour="canvas-chat"]',
+  chatTab: '[data-tour="canvas-tab-chat"]',
+  chat: '[data-tour="canvas-chat"]',
   topbar: '[data-tour="canvas-topbar"]',
 } as const;
 
@@ -28,25 +28,24 @@ export function startCanvasTour(): void {
         side: 'right',
       },
     },
-    // Chat steps disabled while the canvas chat tab is hidden (see CanvasEditor visibleTabs).
-    // {
-    //   element: SEL.chatTab,
-    //   popover: {
-    //     title: 'KI-Chat',
-    //     description: 'Hier öffnest du den Assistenten für dieses Sharepic.',
-    //     side: 'right',
-    //     onNextClick: openChatThenNext(SEL.chatTab, SEL.chat),
-    //   },
-    // },
-    // {
-    //   element: SEL.chat,
-    //   popover: {
-    //     title: 'Mit dem Sharepic arbeiten',
-    //     description:
-    //       'Beschreib eine Änderung („Mach das Zitat schlagkräftiger") — die KI wendet sie direkt auf dem Canvas an.',
-    //     side: 'right',
-    //   },
-    // },
+    {
+      element: SEL.chatTab,
+      popover: {
+        title: 'KI-Chat',
+        description: 'Hier öffnest du den Assistenten für dieses Sharepic.',
+        side: 'right',
+        onNextClick: openChatThenNext(SEL.chatTab, SEL.chat),
+      },
+    },
+    {
+      element: SEL.chat,
+      popover: {
+        title: 'Mit dem Sharepic arbeiten',
+        description:
+          'Beschreib eine Änderung („Mach das Zitat schlagkräftiger") — die KI wendet sie direkt auf dem Canvas an.',
+        side: 'right',
+      },
+    },
     {
       element: SEL.topbar,
       popover: {

@@ -1,0 +1,174 @@
+{
+  "b1": [
+    {
+      "brief": "b1",
+      "edit": "e4",
+      "instruction": "Ändere die Hintergrundfarbe auf Sand",
+      "path": "spec",
+      "seconds": 14,
+      "opsCount": 0,
+      "bannerShown": true,
+      "error": null,
+      "before": "canvas-eval-after3/b1/b1-e4-before.png",
+      "after": "canvas-eval-after3/b1/b1-e4-after.png",
+      "manualSurvived": null,
+      "streamSeconds": 8.9,
+      "specEmitted": true,
+      "logSample": [
+        "19:57:44 WARN  [SearchRetry] [melious/gemma-4-31b:balanced] Circuit OPENED after 2 consecutive failures",
+        "19:57:44 WARN  [modelHealth] [melious/gemma-4-31b:balanced] gilt als zäh (17.9 statt ~128 tok/s) — wird für 5 min übersprungen",
+        "19:57:48 INFO  [EditorTool] [EditorTool] emitted canvas spec (1 slide(s)) for \"Ändere die Hintergrundfarbe des Sharepics auf Sand.\""
+      ],
+      "chatTail": "Ändere die Hintergrundfarbe auf Sand\n\nDie Folien werden gerade aktualisiert — da es die Farbe Sand im Sharepic-Baukasten nicht gibt, habe ich Hellgrau genommen.\n\nSand gibt es im Sharepic-Baukasten nicht – ich habe Hellgrau genommen.\nSeite hinzufügen\n100%\n1/1",
+      "banner": true,
+      "bannerTitle": "Vorschlag: Sharepic überarbeitet"
+    },
+    {
+      "brief": "b1",
+      "edit": "e5",
+      "instruction": "Entferne die Quellenangabe",
+      "path": "none",
+      "seconds": 12.3,
+      "opsCount": 0,
+      "bannerShown": false,
+      "error": null,
+      "before": "canvas-eval-after3/b1/b1-e5-before.png",
+      "after": "canvas-eval-after3/b1/b1-e5-after.png",
+      "manualSurvived": null,
+      "streamSeconds": 5.9,
+      "specEmitted": false,
+      "logSample": [
+        "19:58:01 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+        "19:58:01 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+        "19:58:02 INFO  [AgenticRespond] [Agentic] planner skipped edit_current_sharepic — forcing edit before synth",
+        "19:58:05 INFO  [EditorTool] [EditorTool] canvas spec unchanged for \"Entferne die Quellenangabe\"",
+        "19:58:13 ERROR [NotebookLinkCleanup] Sweep hat nicht gelöscht: Postgres kennt nur 0 von 500 Dokumenten einer Seite"
+      ],
+      "chatTail": "Entferne die Quellenangabe\n\nIch kann die Quellenangabe im aktuellen Dokument nicht entfernen. Wenn du möchtest, kann ich den Text im Dokument für dich umschreiben und den entsprechenden Teil löschen.\n\nSand gibt es im Sharepic-Baukasten nicht – ich habe Hellgrau genommen.\nSeite hinzufügen\n100%\n1/1",
+      "banner": false,
+      "bannerTitle": null
+    },
+    {
+      "brief": "b1",
+      "edit": "e9",
+      "instruction": "Mach dieses Element kleiner",
+      "path": "spec",
+      "seconds": 11.4,
+      "opsCount": 0,
+      "bannerShown": true,
+      "error": null,
+      "before": "canvas-eval-after3/b1/b1-e9-before.png",
+      "after": "canvas-eval-after3/b1/b1-e9-after.png",
+      "manualSurvived": null,
+      "streamSeconds": 6.4,
+      "specEmitted": true,
+      "logSample": [
+        "19:58:47 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+        "19:58:47 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+        "19:58:48 INFO  [AgenticRespond] [Agentic] planner skipped edit_current_sharepic — forcing edit before synth",
+        "19:58:51 INFO  [EditorTool] [EditorTool] emitted canvas spec (1 slide(s)) for \"Mach dieses Element kleiner\""
+      ],
+      "chatTail": "Mach dieses Element kleiner\n\nDie Folien werden gerade aktualisiert — das Element wird entsprechend verkleinert.\n\nSeite hinzufügen\n100%\n1/1",
+      "banner": true,
+      "bannerTitle": "Vorschlag: Sharepic überarbeitet"
+    }
+  ],
+  "b2": [
+    {
+      "brief": "b2",
+      "edit": "e1",
+      "instruction": "Mach die Headline kürzer und knackiger",
+      "path": "spec",
+      "seconds": 11.4,
+      "opsCount": 0,
+      "bannerShown": true,
+      "error": null,
+      "before": "canvas-eval-after3/b2/b2-e1-before.png",
+      "after": "canvas-eval-after3/b2/b2-e1-after.png",
+      "manualSurvived": null,
+      "streamSeconds": 6.4,
+      "specEmitted": true,
+      "logSample": [
+        "20:00:42 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+        "20:00:42 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+        "20:00:43 INFO  [AgenticRespond] [Agentic] planner skipped edit_current_sharepic — forcing edit before synth",
+        "20:00:46 INFO  [EditorTool] [EditorTool] emitted canvas spec (1 slide(s)) for \"Mach die Headline kürzer und knackiger\""
+      ],
+      "chatTail": "Mach die Headline kürzer und knackiger\n\nDie Folien werden gerade aktualisiert — ich kürze die Headline für dich, damit sie knackiger wird.\n\nSeite hinzufügen\n100%\n1/1",
+      "banner": true,
+      "bannerTitle": "Vorschlag: Sharepic überarbeitet"
+    }
+  ],
+  "b3": [
+    {
+      "brief": "b3",
+      "edit": "e1",
+      "instruction": "Mach die Headline kürzer und knackiger",
+      "path": "spec",
+      "seconds": 15,
+      "opsCount": 0,
+      "bannerShown": true,
+      "error": null,
+      "before": "canvas-eval-after3/b3/b3-e1-before.png",
+      "after": "canvas-eval-after3/b3/b3-e1-after.png",
+      "manualSurvived": null,
+      "streamSeconds": 10,
+      "specEmitted": true,
+      "logSample": [
+        "19:59:35 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+        "19:59:35 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+        "19:59:38 INFO  [AgenticRespond] [Agentic] planner skipped edit_current_sharepic — forcing edit before synth",
+        "19:59:43 INFO  [EditorTool] [EditorTool] emitted canvas spec (3 slide(s)) for \"Mach die Headline kürzer und knackiger\""
+      ],
+      "chatTail": "Mach die Headline kürzer und knackiger\n\nDie Folien werden gerade aktualisiert — ich mache die Headline für dich kürzer und knackiger.\n\nHinweise der Prüfung: Folie 1: Die Liste ist zu lang und wirkt unruhig. Schlüsselbegriffe sollten fett markiert werden. · Folie 2: Die Liste ist zu lang und wirkt unruhig. Schlüsselbegriffe sollten fett markiert werden.\nSeite 1\nSeite 2\nSeite 3\n1\n2\n3\n100%\n1/3",
+      "banner": true,
+      "bannerTitle": "Vorschlag: Sharepic überarbeitet"
+    },
+    {
+      "brief": "b3",
+      "edit": "e2",
+      "instruction": "Schrift der Headline größer",
+      "path": "spec",
+      "seconds": 16.5,
+      "opsCount": 0,
+      "bannerShown": true,
+      "error": null,
+      "before": "canvas-eval-after3/b3/b3-e2-before.png",
+      "after": "canvas-eval-after3/b3/b3-e2-after.png",
+      "manualSurvived": null,
+      "streamSeconds": 11.5,
+      "specEmitted": true,
+      "logSample": [
+        "19:59:53 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+        "19:59:53 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+        "19:59:55 INFO  [AgenticRespond] [Agentic] planner skipped edit_current_sharepic — forcing edit before synth",
+        "20:00:00 WARN  [AiObject] [sharepicCreator:draft] attempt 1 rejected (tool call): slides.0.weiter: weiter führt zur nächsten Slide – nicht auf der letzten.",
+        "20:00:03 INFO  [EditorTool] [EditorTool] emitted canvas spec (3 slide(s)) for \"Schrift der Headline größer\""
+      ],
+      "chatTail": "Schrift der Headline.\n\nHinweise der Prüfung: Folie 1: In der Headline ist ein Bindestrich am Ende der ersten Zeile, der dort nicht hingehört.\nSeite 1\nSeite 2\nSeite 3\n1\n2\n3\n100%\n1/3",
+      "banner": true,
+      "bannerTitle": "Vorschlag: Sharepic überarbeitet"
+    }
+  ],
+  "e10": {
+    "manualDom": false,
+    "handAfterReloadDom": false,
+    "edit": {
+      "text": "Mach die Headline kürzer",
+      "path": "spec",
+      "seconds": 13.7,
+      "streamSeconds": 8.7,
+      "banner": true,
+      "tail": "Mach die Headline kürzer\n\nDie Folien werden gerade aktualisiert — ich kürze die Headline für dich.\n\nDeine Textänderung an Überschrift „bis 2028 (Hand)“ wurde durch die gewünschte Änderung ersetzt.\nSeite hinzufügen\n100%\n1/1",
+      "logl": [
+        "20:02:08 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+        "20:02:08 WARN  [chatProviders] [LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe",
+        "20:02:13 INFO  [EditorTool] [EditorTool] emitted canvas spec (1 slide(s)) for \"Mach die Headline kürzer\"",
+        "20:02:15 WARN  [SearchRetry] [cortecs/gemma-4-31b-it] Circuit OPENED after 2 consecutive failures",
+        "20:02:15 WARN  [modelHealth] [cortecs/gemma-4-31b-it] gilt als zäh (10.3 statt ~56 tok/s) — wird für 5 min übersprungen",
+        "20:02:15 INFO  [sharepicCreator:review] review ok=true issues=[] patch=[]"
+      ]
+    },
+    "afterDomHand": true
+  }
+}

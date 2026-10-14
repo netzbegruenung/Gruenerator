@@ -7,6 +7,11 @@
 
 import { v4 as uuid } from 'uuid';
 
+import {
+  BALKEN_FIT_MARGIN,
+  BALKEN_FIT_MIN_SCALE,
+  fitBalkenAfterTextEdit,
+} from '../../utils/balkenBounds';
 import { createBalkenInstanceFromPreset } from '../../utils/balkenUtils';
 import { createAssetInstance } from '../../utils/canvasAssets';
 import { createChartInstance, type ChartInstance, type ChartType } from '../../utils/chartUtils';
@@ -492,7 +497,9 @@ export function createBalkenActions<TState extends { balkenInstances: BalkenInst
   getState: () => TState,
   setState: StateSetter<TState>,
   saveToHistory: HistorySaver<TState>,
-  debouncedSaveToHistory: HistorySaver<TState>
+  debouncedSaveToHistory: HistorySaver<TState>,
+  canvasWidth: number,
+  canvasHeight: number
 ) {
   return {
     addBalken: (mode: BalkenMode) => {
@@ -513,9 +520,19 @@ export function createBalkenActions<TState extends { balkenInstances: BalkenInst
     setBalkenText: (id: string, index: number, text: string) => {
       setState((prev) => ({
         ...prev,
-        balkenInstances: prev.balkenInstances.map((b) =>
-          b.id === id ? { ...b, texts: b.texts.map((t, i) => (i === index ? text : t)) } : b
-        ),
+        balkenInstances: prev.balkenInstances.map((b) => {
+          if (b.id !== id) return b;
+          const next = { ...b, texts: b.texts.map((t, i) => (i === index ? text : t)) };
+          const fit = fitBalkenAfterTextEdit(
+            b,
+            next,
+            canvasWidth,
+            canvasHeight,
+            BALKEN_FIT_MARGIN,
+            BALKEN_FIT_MIN_SCALE
+          );
+          return fit ? { ...next, ...fit } : next;
+        }),
       }));
       debouncedSaveToHistory(getState());
     },
@@ -644,24 +661,27 @@ export function createUserImageActions<TState extends { userImageInstances: User
   canvasWidth: number,
   canvasHeight: number
 ) {
+  // `getState` is the render-time state (GenericCanvas), so `saveToHistory(getState())`
+  // after a setState snapshots the canvas WITHOUT the change: history records
+  // what `change` produces instead.
+  const commit = (change: (s: TState) => TState) => {
+    setState(change);
+    saveToHistory(change(getState()));
+  };
+  const appendImage =
+    (instance: UserImageInstance) =>
+    (s: TState): TState => ({ ...s, userImageInstances: [...s.userImageInstances, instance] });
+
   return {
     addUserImage: (file: File, objectUrl: string) => {
       void createUserImageInstance(file, objectUrl, canvasWidth, canvasHeight).then((instance) => {
-        setState((prev) => ({
-          ...prev,
-          userImageInstances: [...prev.userImageInstances, instance],
-        }));
-        saveToHistory(getState());
+        commit(appendImage(instance));
       });
     },
     addUserImageFromUrl: (url: string, fileName: string) => {
       void createUserImageInstanceFromUrl(url, fileName, canvasWidth, canvasHeight).then(
         (instance) => {
-          setState((prev) => ({
-            ...prev,
-            userImageInstances: [...prev.userImageInstances, instance],
-          }));
-          saveToHistory(getState());
+          commit(appendImage(instance));
         }
       );
     },
@@ -675,11 +695,7 @@ export function createUserImageActions<TState extends { userImageInstances: User
       const objectUrl = URL.createObjectURL(file);
       return createUserImageInstance(file, objectUrl, canvasWidth, canvasHeight).then(
         (instance) => {
-          setState((prev) => ({
-            ...prev,
-            userImageInstances: [...prev.userImageInstances, instance],
-          }));
-          saveToHistory(getState());
+          commit(appendImage(instance));
           return instance.id;
         }
       );
@@ -697,13 +713,14 @@ export function createUserImageActions<TState extends { userImageInstances: User
           URL.revokeObjectURL(prevInstance.src);
         }
       }
-      setState((prev) => ({
-        ...prev,
-        userImageInstances: prev.userImageInstances.map((u) =>
+      const change = (s: TState): TState => ({
+        ...s,
+        userImageInstances: s.userImageInstances.map((u) =>
           u.id === id ? { ...u, ...partial } : u
         ),
-      }));
-      debouncedSaveToHistory(getState());
+      });
+      setState(change);
+      debouncedSaveToHistory(change(getState()));
     },
     removeUserImage: (id: string) => {
       const images = getState().userImageInstances;
@@ -711,11 +728,10 @@ export function createUserImageActions<TState extends { userImageInstances: User
       if (instance?.src.startsWith('blob:') && isLastHolder(images, (u) => u.src, instance.src)) {
         URL.revokeObjectURL(instance.src);
       }
-      setState((prev) => ({
-        ...prev,
-        userImageInstances: prev.userImageInstances.filter((u) => u.id !== id),
+      commit((s) => ({
+        ...s,
+        userImageInstances: s.userImageInstances.filter((u) => u.id !== id),
       }));
-      saveToHistory(getState());
     },
   };
 }
@@ -781,7 +797,14 @@ export function createBaseActions<TState extends BaseCanvasState>(
     ),
     ...createPillBadgeActions(getState, setState, saveToHistory, debouncedSaveToHistory),
     ...createCircleBadgeActions(getState, setState, saveToHistory, debouncedSaveToHistory),
-    ...createBalkenActions(getState, setState, saveToHistory, debouncedSaveToHistory),
+    ...createBalkenActions(
+      getState,
+      setState,
+      saveToHistory,
+      debouncedSaveToHistory,
+      canvasWidth,
+      canvasHeight
+    ),
     ...createChartActions(
       getState,
       setState,

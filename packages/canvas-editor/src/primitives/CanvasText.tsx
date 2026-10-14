@@ -14,8 +14,9 @@ import { Text as KonvaText, Transformer } from 'react-konva';
 import { overlayBoxForNode, useCanvasTextEditor } from '../components/CanvasTextOverlay';
 import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
-import { gradientToKonvaProps, type GradientFill } from '../utils/gradientFill';
+import { gradientFillProps, type GradientFill } from '../utils/gradientFill';
 import { calculateSnapPosition, calculateElementSnapPosition } from '../utils/snapping';
+import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import { CanvasRichText } from './CanvasRichText';
 
@@ -81,6 +82,9 @@ export interface CanvasTextProps {
   onSnapLinesChange?: (lines: SnapLine[]) => void;
 }
 
+export const isWidthOnlyScale = (node: Konva.Node) =>
+  Math.abs(node.scaleY() - 1) < 1e-3 && Math.abs(node.scaleX() - 1) >= 1e-3;
+
 const DEFAULT_TEXT_ANCHORS: TransformAnchor[] = ['middle-left', 'middle-right'];
 
 function CanvasTextInner({
@@ -133,7 +137,7 @@ function CanvasTextInner({
 }: CanvasTextProps) {
   const textRef = useRef<Konva.Text>(null);
   const trRef = useRef<Konva.Transformer>(null);
-  const { open, isEditing } = useCanvasTextEditor(id);
+  const { open, isEditing } = useCanvasTextEditor(id, editable);
   // Konva paints gradients in the node's local box; measure the rendered text
   // box (auto-width/height depend on wrapping) so non-vertical gradient angles
   // don't collapse to a single stop.
@@ -147,7 +151,7 @@ function CanvasTextInner({
 
   const gradientProps =
     fillGradient && measuredRect && measuredRect.height > 0
-      ? gradientToKonvaProps(fillGradient, {
+      ? gradientFillProps(fillGradient, {
           x: 0,
           y: 0,
           width: measuredRect.width,
@@ -235,8 +239,15 @@ function CanvasTextInner({
     [snapToCenter, stageWidth, stageHeight, snapTargets, snap]
   );
 
-  // Let Konva handle visual scaling; fontSize is committed on transformEnd
-  const handleTransform = useCallback(() => {}, []);
+  // A side handle only changes the width: turn that scale into width right
+  // away so the text re-wraps under the pointer instead of stretching and
+  // jumping on release. Corner handles keep scaling (font size on release).
+  const handleTransform = useCallback(() => {
+    const node = textRef.current;
+    if (!node || !isWidthOnlyScale(node)) return;
+    node.width(Math.max(1, node.width() * node.scaleX()));
+    node.scaleX(1);
+  }, []);
 
   const handleTransformEnd = useCallback(() => {
     const node = textRef.current;
@@ -275,11 +286,13 @@ function CanvasTextInner({
 
   const handleDblClick = useCallback(() => {
     const node = textRef.current;
-    const box = node && overlayBoxForNode(node, width ?? node.width(), node.height());
-    if (!editable || !box) return;
+    const anchor = node && { node, width: width ?? node.width(), height: node.height() };
+    const box = anchor && overlayBoxForNode(anchor.node, anchor.width, anchor.height);
+    if (!editable || !anchor || !box) return;
     open({
       id: id ?? '',
       box,
+      anchor,
       text,
       fontFamily,
       fontSize,
@@ -325,9 +338,7 @@ function CanvasTextInner({
         fontFamily={fontFamily}
         fontStyle={fontStyle}
         fill={fill}
-        {...(gradientProps
-          ? { ...gradientProps, fillPriority: 'linear-gradient' as const }
-          : { fillPriority: 'color' as const })}
+        {...(gradientProps ?? { fillPriority: 'color' as const })}
         rotation={rotation}
         scaleX={scaleX}
         scaleY={scaleY}
@@ -348,8 +359,8 @@ function CanvasTextInner({
         padding={padding}
         draggable={draggable && !isEditing}
         visible={!isEditing}
-        onClick={onSelect}
-        onTap={onSelect}
+        onMouseDown={onSelect}
+        onTouchStart={onSelect}
         onDblClick={handleDblClick}
         onDblTap={handleDblClick}
         onDragStart={snap.onDragStart}
@@ -360,6 +371,7 @@ function CanvasTextInner({
       />
       {selected && !isEditing && (
         <Transformer
+          anchorStyleFunc={touchAnchorStyleFunc}
           ref={trRef}
           rotateEnabled={transformConfig?.rotateEnabled ?? false}
           rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}

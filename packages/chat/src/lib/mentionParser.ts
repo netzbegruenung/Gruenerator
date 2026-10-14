@@ -10,10 +10,13 @@ import {
   decodeWolkeToken,
   decodeConnectToken,
   resolveMentionable,
+  VORLAGEN_TRIGGER_IDENTIFIER,
   type MentionableType,
   type WolkeFileToken,
   type ConnectFileToken,
 } from './mentionables';
+
+const VORLAGEN_ALIASES: ReadonlySet<string> = new Set(['vorlage', 'vorlagen', 'sharepic-vorlage']);
 
 export interface MentionResult {
   agentId: string;
@@ -198,9 +201,9 @@ export function parseAllMentions(text: string): ParsedMentions {
       continue;
     }
 
-    // Handle bare @vorlagen trigger (popover hint — strip, no payload). Picked
-    // templates are inserted as plain markdown links, like @canva.
-    if (trigger === '@' && alias === 'vorlagen') {
+    // Handle bare @vorlage trigger (popover hint — strip, no payload). A picked
+    // Vorlage travels as a pill / durable `vorlage:` token, never as typed text.
+    if (trigger === '@' && VORLAGEN_ALIASES.has(alias.toLowerCase())) {
       const triggerIndex = match.index + match[0].indexOf('@');
       mentionSpans.push([triggerIndex, triggerIndex + alias.length + 1]);
       continue;
@@ -370,6 +373,10 @@ export function mentionTokenFor(m: {
     // re-derived as a recipe mention on edit-resubmit.
     case 'useragent':
       return TOKEN_ID_SAFE.test(m.identifier) ? build('agent', m.identifier) : undefined;
+    case 'vorlagen':
+      return m.identifier === VORLAGEN_TRIGGER_IDENTIFIER
+        ? undefined
+        : build('vorlage', m.identifier);
     default:
       return undefined;
   }
@@ -442,7 +449,7 @@ export function extractMentionPreviews(text: string): MentionPreview[] {
         alias === 'wolke' ||
         alias === 'connect' ||
         alias === 'canva' ||
-        alias === 'vorlagen')
+        VORLAGEN_ALIASES.has(alias.toLowerCase()))
     ) {
       continue;
     }

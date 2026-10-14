@@ -2,6 +2,7 @@ import { useShareStore } from '@gruenerator/shared/share';
 import { useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 
 import { useAutoSaveStore, useAutoSaveStoreApi } from '../stores/useAutoSaveStore';
+import { originalImageFetchUrl } from '../utils/canvasImageSource';
 
 interface ShareMetadata {
   [key: string]: unknown;
@@ -230,7 +231,7 @@ export const useCanvasAutoSave = (
           }
         } else if (currentImageSrc) {
           try {
-            const res = await fetch(currentImageSrc);
+            const res = await fetch(originalImageFetchUrl(currentImageSrc));
             if (res.ok) {
               const blob = await res.blob();
               originalImageBase64 = await fileToBase64(blob);

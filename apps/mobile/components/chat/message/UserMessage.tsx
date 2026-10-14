@@ -4,7 +4,7 @@ import { Fragment, memo, useCallback, type ReactNode } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 
 import { useTheme } from '../../../hooks/useTheme';
-import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../../theme';
+import { spacing } from '../../../theme';
 import { MessageAttachmentUI } from '../AttachmentUI';
 import { useChatAccent } from '../chatAccent';
 
@@ -15,7 +15,7 @@ import { messageLayout } from './messageLayout';
 /** Durable mention tokens (@[Label](type:id)) render as chips; plain text passes through. */
 function UserBubbleText({ text }: { text: string }) {
   const tokens = parseMentionTokens(text);
-  if (tokens.length === 0) return <Text style={styles.text}>{text}</Text>;
+  if (tokens.length === 0) return <Text style={messageLayout.userBubbleText}>{text}</Text>;
   const runs: ReactNode[] = [];
   let cursor = 0;
   for (const token of tokens) {
@@ -29,7 +29,7 @@ function UserBubbleText({ text }: { text: string }) {
     cursor = start + token.raw.length;
   }
   if (cursor < text.length) runs.push(text.slice(cursor));
-  return <Text style={styles.text}>{runs}</Text>;
+  return <Text style={messageLayout.userBubbleText}>{runs}</Text>;
 }
 
 /** Module-level so the memoized primitive sees a stable children reference. */
@@ -64,9 +64,7 @@ export const UserMessage = memo(function UserMessage() {
           testID="chat-message-edit"
           accessibilityLabel="Nachricht bearbeiten"
           style={({ pressed }) => [
-            styles.bubble,
-            styles.bubbleWidth,
-            styles.bubbleFill,
+            messageLayout.userBubble,
             accent && { backgroundColor: accent },
             pressed && styles.bubblePressed,
           ]}
@@ -83,26 +81,9 @@ export const UserMessage = memo(function UserMessage() {
 });
 
 const styles = StyleSheet.create({
-  bubble: {
-    paddingHorizontal: spacing.medium,
-    paddingVertical: spacing.small,
-    borderRadius: borderRadius.large,
-  },
-  bubbleWidth: {
-    maxWidth: '85%',
-  },
-  bubbleFill: {
-    backgroundColor: colors.eucalyptus,
-    borderBottomRightRadius: borderRadius.small,
-  },
   // The only feedback that the bubble is now something you can hold.
   bubblePressed: {
     opacity: 0.85,
-  },
-  text: {
-    ...chatType.chatBody,
-    color: colors.white,
-    fontFamily: BODY_FONT,
   },
   mentionChip: {
     backgroundColor: 'rgba(255, 255, 255, 0.22)',

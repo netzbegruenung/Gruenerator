@@ -14,7 +14,8 @@ import { stripHtmlTags } from '../utils/stripHtmlTags.js';
  * strike (s/del) and links (a[href]) are written as BlockNote/prosemirror marks on
  * the block's Y.XmlText (see y-prosemirror `yattr2markname`: plain mark-name keys
  * read back as marks, so the editor's runtime hash suffix isn't needed for a seed).
- * Tables are flattened to plain paragraphs; unknown inline tags are unwrapped.
+ * Tables become real BlockNote tables (header cells from <th>); unknown inline
+ * tags are unwrapped.
  */
 export function injectHtmlIntoFragment(fragment: Y.XmlFragment, html: string): void {
   const group = new Y.XmlElement('blockGroup');
@@ -78,15 +79,15 @@ export function injectHtmlIntoFragment(fragment: Y.XmlFragment, html: string): v
     }
 
     if (tag === 'table') {
-      const rows = fullMatch.match(/<tr>([\s\S]*?)<\/tr>/gi) || [];
-      for (const row of rows) {
-        const cells = (row.match(/<t[dh]>([\s\S]*?)<\/t[dh]>/gi) || [])
-          .map((c) => stripHtmlTags(extractInnerContent(c)))
-          .filter(Boolean);
-        if (cells.length > 0) {
-          addBlock(group, 'paragraph', cells.join(' | '), {});
-        }
-      }
+      const rows = (fullMatch.match(/<tr(?:\s[^>]*)?>([\s\S]*?)<\/tr>/gi) || [])
+        .map((row) =>
+          (row.match(/<t[dh](?:\s[^>]*)?>[\s\S]*?<\/t[dh]>/gi) || []).map((cell) => ({
+            header: /^<th/i.test(cell),
+            html: extractInnerContent(cell),
+          }))
+        )
+        .filter((cells) => cells.length > 0);
+      if (rows.length > 0) addTable(group, rows);
       continue;
     }
 
@@ -133,6 +134,46 @@ function addBlock(
 
   const delta = inlineHtmlToDelta(inlineHtml);
   if (delta.length > 0) xmlText.applyDelta(delta);
+}
+
+/**
+ * A BlockNote table: blockContainer > table > tableRow > (tableHeader |
+ * tableCell) > tableParagraph > text — the node names of @blocknote/core's
+ * Table block. Cell attributes (colspan, rowspan, colwidth) are left to their
+ * schema defaults. Rows are padded to the widest row: prosemirror-tables
+ * repairs a ragged table on load, but a seed should not depend on that.
+ */
+function addTable(group: Y.XmlElement, rows: { header: boolean; html: string }[][]): void {
+  const container = new Y.XmlElement('blockContainer');
+  container.setAttribute('id', randomUUID());
+  container.setAttribute('backgroundColor', 'default');
+  container.setAttribute('textAlignment', 'left');
+  container.setAttribute('textColor', 'default');
+  const table = new Y.XmlElement('table');
+  table.setAttribute('textColor', 'default');
+  container.insert(0, [table]);
+  group.push([container]);
+
+  const width = Math.max(...rows.map((cells) => cells.length));
+  for (const cells of rows) {
+    const row = new Y.XmlElement('tableRow');
+    table.push([row]);
+    const padded = [...cells, ...Array.from({ length: width - cells.length }, () => null)];
+    for (const cell of padded) {
+      const cellNode = new Y.XmlElement(cell?.header ? 'tableHeader' : 'tableCell');
+      const paragraph = new Y.XmlElement('tableParagraph');
+      const xmlText = new Y.XmlText();
+      paragraph.insert(0, [xmlText]);
+      cellNode.insert(0, [paragraph]);
+      row.push([cellNode]);
+      // The editor draws header cells like body cells, so the header row
+      // carries its emphasis as bold text.
+      const delta = cell
+        ? inlineHtmlToDelta(cell.header ? `<strong>${cell.html}</strong>` : cell.html)
+        : [];
+      if (delta.length > 0) xmlText.applyDelta(delta);
+    }
+  }
 }
 
 // Inline HTML tag → BlockNote/prosemirror mark name. Bold/italic/code/underline/

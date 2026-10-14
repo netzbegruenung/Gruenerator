@@ -1,0 +1,472 @@
+# Canvas-KI-Edit: Messung nachher (07.10.2026)
+
+> Dieser Bericht enthält **Lauf 1** (Stand `cc9653b8c9`, unten unverändert) und **Lauf 2 nach Fixes** (Stand `f9380bdc28`, Abschnitt "Lauf 2 (nach Fixes)" am Ende). Kurz: Pass strikt Baseline 5/15 (33 %) -> Lauf 1 6/15 (40 %) -> Lauf 2 7/15 (47 %); mit "teilweise" 11/15 -> 12/15 (80 %).
+
+ENTWURF (Task 14, Teil 1: nur Messung). Stand: Worktree `gr-cae-final`, Commit `cc9653b8c9` (Spec-Pfad + verbesserter Op-Pfad, Chat-Tab nativ sichtbar), Live-Lauf gegen Dev-Stack (API :3011, Web :3012, Hocuspocus). Gleiche 3 Briefs und gleiche 15 Anweisungen wie die [Baseline](canvas-ai-edit-baseline-2026-10-07.md); der Chat-Tab wurde ohne Route-Patch bedient. Modell laut Log: Gemma 4 31B (Cortecs/Melious), Planer wiederholt als "zäh" markiert (siehe Bugs).
+
+## Ergebnis in Kürze
+
+- **Pass-Rate strikt: 6 von 15 (40 %)** nach 5 von 15 (33 %) in der Baseline. Mit "teilweise" (Anweisung erkennbar umgesetzt, aber Nebenwirkung oder nur ein Teil): **11 von 15 (73 %)**. 4 Fehlschläge.
+- Das ist **keine klare Verbesserung der Pass-Rate**, wohl aber eine andere Fehlerart: Die 3 Ablehnungen der Baseline ("kann Schriftgröße/Position nicht ändern") sind weg, nichts ist mehr kaputt gelayoutet (kein Überlappen, keine abgeschnittenen Texte, keine leere Kartusche), Karussells werden als Ganzes bearbeitet, e8 legt eine echte neue Folie an, KI-Änderungen überleben den Reload, Verwerfen setzt das ganze Deck in einem Schritt zurück.
+- Neue Schwächen: **"Sand" gibt es im Spec-Farbvokabular nicht** (Enum `tanne|dunkeltanne|grasgruen|mint|hellgrau|dunkelgruen|hellgruen|weiss`), alle drei e4 liefen auf hellgrau; **Handtext geht still verloren**; der Planer behauptet bei e3 eine Verschiebung ohne Tool-Aufruf.
+- **Median Sekunden** (Anweisung abgeschickt bis Antwort fertig, Banner da, "Sharepic wird neu aufgebaut" weg): **Spec-Pfad 14,4 s** (n = 14, Spanne 9,4–38,8 s; reine Stream-Zeit bis Ende der Antwort Median 8,9 s, Rest sind Recompose + Vision-Review), **Op-Pfad (Template) 32,6 s** (n = 3; 10,4 / 32,6 / 39,8 s), Baseline Op-Pfad 6,9 s. Die erwarteten 30–90 s für den Spec-Pfad sind **nicht** eingetreten (Draft + Review dauern ~5–10 s), das Timeout von 240 s wurde nie gebraucht.
+- Pfad je Edit aus dem API-Log (`emitted canvas spec (N slide(s))` = Spec-Pfad, `emitted N canvas op(s)` = Op-Pfad). Alle 15 Edits auf Creator-Canvases liefen über den Spec-Pfad, bis auf b1-e3 (kein Tool-Aufruf).
+
+## Methode und Einschränkungen
+
+- Frische Creator-Entwürfe (b1/b2/b3), die Edits laufen **nacheinander auf demselben Canvas** (wie in der Baseline), jeder Edit wird mit "Behalten" übernommen und baut auf dem vorigen auf. Die Layouts der Entwürfe weichen deshalb von der Baseline ab (b1 zufällig mal Zahl-Hero ohne Foto, mal mit Foto).
+- Erster Durchlauf (Run 1) verworfen: Der Nachher-Screenshot entstand, während der Browser noch recomposte ("Sharepic wird neu aufgebaut …"), und die Zeitmessung endete mit dem Stream. Run 2 wartet auf Antwortende, auf das Verschwinden von "Sharepic wird neu aufgebaut" und auf das Banner. Run 1 lag zusätzlich teils parallel (3 Prozesse) und ist **nicht** in den Zahlen. Das ist die eine Wiederholung pro Brief (jede Anweisung zweimal bezahlt, nur Run 2 zählt).
+- Pass = Anweisung sichtbar umgesetzt, nichts Unverlangtes kaputt. "Teilweise" zählt nicht als Pass. e5/e6 sind bei den b1-Entwürfen No-ops (es gab weder Quellenangabe noch Foto), als pass gewertet, weil nichts beschädigt wurde, die Antwort behauptet aber trotzdem eine Änderung.
+- Pass/fail von Hand anhand der Bilder (`after/*.jpg` = vorher | nachher, Baseline-Bilder `baseline/`). Rohdaten `after/results.json`.
+
+## Tabelle: vorher (Baseline) → nachher
+
+| Brief | Edit | Anweisung                               | Baseline                     | Nachher          | Pfad   | s (Stream/gesamt) | Nachher-Beschreibung                                                                                                                                                                                                                                                                   |
+| ----- | ---- | --------------------------------------- | ---------------------------- | ---------------- | ------ | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| b1    | e1   | Headline kürzer und knackiger           | pass (6,8 s)                 | **pass**         | spec   | 4,9 / 9,9         | "neue" fällt weg, Rest bleibt lesbar. Status: Review-Hinweise ("Headline noch zu lang").                                                                                                                                                                                               |
+| b1    | e2   | Schrift Headline größer                 | fail (lehnt ab)              | **pass**         | spec   | 4,4 / 9,4         | Headline deutlich größer, der Spec-Pfad bekommt "Mache die Schrift der Headline deutlich größer". Layout wechselt dabei komplett (Highlight-Kasten und Kontrast neu).                                                                                                                  |
+| b1    | e3   | Text nach oben                          | fail (lehnt ab)              | **fail**         | keiner | 2,9 / 9,3         | Chat sagt "ich verschiebe den Text für dich nach oben", Log zeigt keinen Tool-Aufruf (`steps=0`), Bild unverändert. Behauptung ohne Wirkung.                                                                                                                                           |
+| b1    | e4   | Hintergrund Sand                        | pass                         | **teilweise**    | spec   | 8,9 / 14,7        | Hintergrund hellgrau statt Sand, Hinweis "'sand' nicht im Corporate Design verfügbar, nächstbeste helle Fläche" in der Chat-Antwort, dabei ändert sich das Layout. Baseline erreichte Sand.                                                                                            |
+| b1    | e5   | Quellenangabe entfernen                 | fail (leerer Balken)         | **pass (No-op)** | spec   | 6,9 / 11,9        | Es gibt keine Quellenangabe, nichts beschädigt, Antwort behauptet "ich entferne die Quellenangabe".                                                                                                                                                                                    |
+| b1    | e6   | Foto durch Fläche ersetzen              | fail (unlesbar)              | **pass (No-op)** | spec   | 8,5 / 13,5        | Es gab kein Foto, Bild bleibt einfarbig, Lesbarkeit ok.                                                                                                                                                                                                                                |
+| b1    | e9   | "Mach dieses Element kleiner" (Auswahl) | fail (keine Wirkung)         | **teilweise**    | spec   | 8,9 / 14,0        | Das Element wird kleiner, aber das Layout wird wieder komplett neu aufgebaut (zentriert, Highlight verschwindet). Kein Op auf dem ausgewählten Element, der Spec-Pfad ignoriert die Auswahl.                                                                                           |
+| b1    | e10  | Headline kürzer (mit Handedit)          | pass                         | **teilweise**    | spec   | 6,6 / 11,6        | Handposition (Headline 130 px nach oben) bleibt, **Handtext " (Hand)" ist weg, ohne Hinweis**. Gekürzt wurde die Dachzeile ("in" entfernt), die Headline "neue Radwege bis 2028" blieb. Siehe Abschnitt Handedits.                                                                     |
+| b2    | e1   | Headline kürzer und knackiger           | pass                         | **teilweise**    | spec   | 15,1 / 20,8       | "Klimaschutz = Gerechtigkeit", Autorin bleibt, aber die Hintergrundfläche wechselt unverlangt von mint zu hellgrau.                                                                                                                                                                    |
+| b2    | e4   | Hintergrund Sand                        | pass                         | **fail**         | spec   | 13,0 / 21,6       | Hellgrau (kein Sand), Hinweis in der Antwort. Der Planer hat den Auftrag um eine Headline-Änderung erweitert (Log: `Ändere die Headline von "Klimaschutz ist ++Gerechtigkeit++" zu "Klimaschutz = Gerechtigkeit". Ändere den Hintergrund …`), sichtbar ändert sich nichts Brauchbares. |
+| b2    | e7   | Zitat ändern, Autorin bleibt            | fail (Überlappung)           | **pass**         | spec   | 6,9 / 11,9        | "Gerechtigkeit braucht Klimaschutz", zweizeilig, Autorin "Anna Beispiel" unverändert, nichts überlappt.                                                                                                                                                                                |
+| b3    | e1   | Headline kürzer und knackiger           | fail (abgeschnitten)         | **pass**         | spec   | 11,0 / 17,5       | Folie 1 "Mobilität für alle" (vorher "Mehr Bus und Bahn auf dem Land"), Foto bleibt, Folien 2/3 intakt. Inhaltlich verliert die Headline "auf dem Land".                                                                                                                               |
+| b3    | e2   | Schrift Headline größer                 | fail (lehnt ab)              | **fail**         | spec   | 11,0 / 16,0       | Headline wirkt nicht größer, nur der Highlight-Stil wechselt. Review-Hinweis "Headline zu klein" kommt, der Edit setzt es nicht um.                                                                                                                                                    |
+| b3    | e4   | Hintergrund Sand                        | fail (Foto weg, nur Folie 1) | **fail**         | spec   | 19,6 / 38,8       | Folie 1 bleibt dunkelgrün (Fototext-Folie), Folien 2/3 werden hellgrau statt Sand, Hinweis im Review. Foto bleibt erhalten, anders als in der Baseline. Längster Edit (zwei Review-Runden, Draft-Retry wegen `'sand'`).                                                                |
+| b3    | e8   | Fazit-Folie hinzufügen                  | fail (keine neue Folie)      | **teilweise**    | spec   | 12,0 / 17,0       | Es gibt jetzt 4 Folien, die neue heißt "Fazit" (Log: 4 slides). Der Planer hat den Auftrag zu "Die Folie soll leer bleiben, damit sie später gefüllt werden kann" umformuliert, die Folie trägt nur den Titel.                                                                         |
+
+Baseline-Pass 5 von 15, nachher 6 von 15 (b1-e1, e2, e5, e6, b2-e7, b3-e1). Teilweise 5 (b1-e4, e9, e10, b2-e1, b3-e8), fail 4 (b1-e3, b2-e4, b3-e2, b3-e4). Die Verbesserungen kommen aus den ehemaligen Ablehnungen und dem Layoutbruch, die Verschlechterungen aus der Palette (Sand) und aus Nebenwirkungen des Neuaufbaus. Gegenüber der Baseline neu fail/teilweise: b1-e4, b2-e1, b2-e4, b1-e10 (alle vorher pass).
+
+## Handedit-Überlebensrate (b1-e10, frischer Entwurf, Spec-Pfad)
+
+Versuch diesmal sauber (frischer Canvas, Hand-Text per Doppelklick -> ProseMirror öffnet mit markiertem Text -> `End` -> " (Hand)" getippt -> Klick daneben -> Element ziehen):
+
+- **Handposition überlebt: ja.** Headline stand nach Hand-Verschiebung 130 px höher (überlappte die "500"), blieb nach dem KI-Edit an dieser Stelle (Bild `after/b1-e10-hand.jpg`).
+- **Handtext überlebt: nein.** " (Hand)" war nach dem Edit weg, im Chat steht **kein** Hinweis dazu (Status zeigt nur "Hinweise der Prüfung …"). Das widerspricht der Zusage "kept or reported in a German status line". Handtext war vor dem KI-Edit gespeichert (Reload bestätigt Text + Position).
+- KI hat die Dachzeile gekürzt statt die Headline (Interpretation von "Headline" = erstes Textelement?).
+- Weder Handtext noch Position wurden in der Chat-Antwort erwähnt.
+
+## Extra-Checks
+
+- **(a) Verwerfen:** Auf demselben Canvas "Ändere die Hintergrundfarbe auf Mint" (Spec, 12,1 s, Banner) -> Klick auf "Vorschlag verwerfen": **Das ganze Deck ist in einem Schritt zurück** (mint -> Ausgangsgrün, alle Textpositionen identisch). Bild `after/chk-a-verwerfen.jpg`. Nur Einzelseite getestet, kein Karussell.
+- **(b) Reload:** AI-Edit behalten (e10), Reload: **KI-Änderung (gekürzte Dachzeile) und Hand-Text/Position sind noch da**. Baseline: KI-Änderungen fehlten nach Reload. Bild `after/chk-b-reload.jpg`. Nach dem Reload ist der Chat-Tab zu und muss neu geöffnet werden.
+- **(c) Template-Canvas (Dreizeilen, `POST /api/canvas template_type=dreizeilen`) -> Op-Pfad:**
+  - e1 (Headline kürzer): pass, 3 Ops, 10,4 s, Zeilen werden zu "Mehr Radwege / für alle / SIND DA" (Sonnenblume überlappt danach die letzte Zeile ein wenig).
+  - e2 (Schrift größer): **fail mit ehrlicher deutscher Meldung** "Bearbeitung: Die Änderung ließ sich nicht anwenden: Element lässt sich hier nicht verändern", 2 Ops, 32,6 s.
+  - e3 (Text nach oben): **fail**, Antwort "Ich verschiebe den Text für dich nach oben", Log ohne `emitted`, Bild unverändert (die Fehlermeldung "Element lässt sich hier nicht verändern" stand noch aus e2 im Chat).
+  - e9 (Element kleiner, Auswahl): **fail mit Meldung** wie e2, 1 Op, 39,8 s. Auswahl-Ziel greift, scheitert aber an der Gruppe ("Balken"), dass Ops auf Dreizeilen-Elemente "hier nicht" gehen. Wichtig: Wählt man ein Element, wird das Seitenpanel durch die Element-Eigenschaften ersetzt (Dreizeilen: "Ausgewählter Balken"), der Chat muss neu geöffnet werden.
+  - Op-Pfad: 1 von 4 pass, aber alle Fehler werden jetzt gemeldet (Baseline: stumme Ablehnung bzw. Erfolgsbehauptung). Die deutsche Meldung ist hilfreich, die Fähigkeit selbst fehlt für Template-Gruppen weiter.
+
+## Beobachtungen
+
+1. Der Spec-Pfad ist schnell (Median 14 s) und konsistent (alle 14 Antworten mit Banner "Vorschlag: Sharepic überarbeitet"), die Vision-Review (1–2 Runden) liefert deutsche Hinweise ("Hinweise der Prüfung: …"), die teils nur anmerken, was nicht umgesetzt wurde (b3-e2).
+2. Jeder Spec-Edit baut das Deck aus der Spec neu, daher "Layoutdrift": Highlight-Stil, Hintergrundfläche und Textblöcke wechseln auch dann, wenn nur eines verlangt war (b1-e2, e4, e9; b2-e1). Das ist die Hauptursache für "teilweise".
+3. Farbvokabular: Alles, was nicht in der Palette liegt, wird abgelehnt (Draft-Retry) und auf hellgrau abgebildet. Der Review nennt das ehrlich, der Nutzer bekommt aber nicht das Verlangte.
+4. Planer-Umformulierung ändert den Auftrag (b2-e4 Zusatzänderung, b3-e8 "leer bleiben", b3-e2 "z.B. auf 44-48 pt").
+5. Chat-Tab nativ sichtbar und standardmäßig offen; nach Reload geschlossen; bei Textbearbeitung im Canvas (ProseMirror) verschwand der Composer aus dem DOM, bis der Chat neu geöffnet bzw. die Seite neu geladen war.
+6. Karussell: Edits laufen auf allen Folien (Slide-Zahl bleibt 3, e8 4), die Review nennt "Slide 0" (technische Zählung, nicht nutzerlesbar).
+
+## Bugs (mit Log-Belegen)
+
+1. **`sand` fehlt im Spec-Enum, jedes Sand-Edit läuft 2–3 Retries.**
+   `18:39:21 WARN  [AiObject] [sharepicCreator:draft] attempt 1 rejected (tool call): slides.0.background.color: Invalid enum value. Expected 'tanne' | 'dunkeltanne' | 'grasgruen' | 'mint' | 'hellgrau' | 'dunkelgruen' | 'hellgruen' | 'weiss', received 'sand'`
+   `18:30:45 WARN  [AiObject] [sharepicCreator:review] attempt 1 rejected (tool call): patch.0.color: Invalid enum value. … received 'sand'` (Review-Patch wiederholt den Fehler, 2x je Edit).
+   Folge: b1-e4, b2-e4, b3-e4 liefern hellgrau. In der Baseline (Op-Pfad) war Sand erreichbar (Regression).
+2. **Planer behauptet ohne Tool-Aufruf (b1-e3).** `18:38:33 … editToolLoop active — surface=canvas, edit_current_sharepic mounted` -> `18:38:35 INFO [AgenticRespond] … steps=0 sources=0 chars=83` -> `Complete: 83 chars`; kein `[EditorTool]`. Chat: "Die Folien werden gerade aktualisiert — ich verschiebe den Text für dich nach oben." Dasselbe auf dem Template-Canvas um 19:01 (kein `emitted`).
+3. **Handtext geht verloren, ohne Hinweis (b1-e10).** Log: `18:54:45 INFO [EditorTool] emitted canvas spec (1 slide(s)) for "Mach die Headline kürzer"`; `18:54:46 INFO [sharepicCreator:review] review ok=false … patch=[{"op":"set_text","item":0,"text":"Mobilitätswende Musterstadt"}]`. Das Chat-Tail enthält nur "Hinweise der Prüfung: …", keine Zeile zum verworfenen Handtext. Position überlebt.
+4. **Review-Patch kann Handtext/Dachzeile umschreiben:** derselbe Patch setzt die Dachzeile auf "Mobilitätswende Musterstadt", obwohl nur die Headline gekürzt werden sollte.
+5. **Erfolgsbehauptung bei No-op:** b1-e5/e6 "Ich entferne die Quellenangabe" ohne Quellenangabe.
+6. **Auswahl wird auf dem Spec-Pfad ignoriert:** b1-e9 "Mach dieses Element kleiner" mit ausgewähltem Element löst eine komplette Neuzusammenstellung statt Größenänderung aus.
+7. **Modell-Gesundheit:** `18:39:17 WARN [SearchRetry] [melious/gemma-4-31b:balanced] Circuit OPENED after 2 consecutive failures` und `WARN [modelHealth] [melious/gemma-4-31b:balanced] gilt als zäh (14.0 statt ~93 tok/s) — wird für 5 min übersprungen`, davor/danach häufig `[LoopPlanner] melious/gemma-4-31b:balanced gilt als zäh — nächste Stufe` (z. B. 18:29:41, 18:34:26, 18:35:06). Latenz-Ausreißer b3-e4 (38,8 s) fällt in diesen Zeitraum.
+8. **UX:** Auf Template-Canvases ersetzt die Elementauswahl das Chat-Panel durch das Eigenschaften-Panel (Composer nicht mehr im DOM); Chat muss über den Tab neu geöffnet werden. Nach Reload ist der Chat zu.
+9. **Harness-Hinweis, kein Produktbug:** der Playwright-Chat-Tab-Klick im alten Skript schließt den jetzt standardmäßig offenen Chat. Das neue Skript klickt ihn nicht mehr.
+
+## Nicht geprüft
+
+- Verwerfen auf einem Karussell (mehrseitig), Rückgängig (Strg+Z) nach "Behalten".
+- Zwei Review-Runden mit Kollision zu Handedits, Hinzufügen/Entfernen von Folien außer b3-e8.
+- Zitat-/Info-Template (nur Dreizeilen für den Op-Pfad).
+- Die Spezifikation "Handedits (Bewegen, Text, Hintergrund, hinzugefügte Elemente) bleiben erhalten oder werden gemeldet": nur Verschieben und Text getestet; Hintergrund- und hinzugefügte Elemente nicht.
+
+Dateien: `after/<brief>-<edit>.jpg` (vorher | nachher, Ausschnitt Artboard), `after/results.json` (alle Rohdaten inkl. Log-Auszügen und Chat-Tails), `baseline/` (Baseline-Bilder).
+
+---
+
+# Lauf 2 (nach Fixes)
+
+Stand: Worktree `gr-cae-final`, HEAD `f9380bdc28` (u. a. `fix(api): report an unchanged sharepic instead of emitting the same deck`, `map off-palette sharepic colours up front instead of retrying`, `draft a sharepic edit from the person's own request`). Gleiches Protokoll wie Lauf 1: gleiche 3 Briefs, gleiche 15 Anweisungen, frische Creator-Entwürfe, nacheinander auf einem Canvas, Screenshots nach Recompose/Banner, jede Anweisung einmal. Bilder `after2/`, Rohdaten `after2/results.json`.
+
+## Ergebnis Lauf 2
+
+- **Pass strikt: 7 von 15 (47 %)** (Baseline 5/15 = 33 %, Lauf 1 6/15 = 40 %). Mit "teilweise" **12 von 15 (80 %)** (Lauf 1: 11/15). 3 Fehlschläge (Lauf 1: 4).
+- **Median Sekunden:** Spec-Pfad **11,9 s** (n = 15, Spanne 9,9–20,3 s; Lauf 1: 14,4 s), Op-Pfad Template **32,1 s** (n = 4: 10,0 / 34,1 / 31,6 / 32,6 s; Lauf 1: 32,6 s). Edits, die als "spec unchanged" enden, sind beim Spec-Pfad mitgezählt.
+- Fixes, die greifen: b1-e3 (Verschieben) wird jetzt wirklich ausgeführt (Lauf 1: Behauptung ohne Aufruf); kein Edit hat mehr eine Handlung erfunden, die der Log nicht belegt; "unverändert" wird erkannt (`canvas spec unchanged`, kein leeres Banner/Undo-Schritt); der Planer erweitert den Auftrag nicht mehr (b2-e4 ändert nur den Hintergrund); Sand wird ohne Retry-Kaskade auf hellgrau gemappt (keine `Invalid enum value … received 'sand'`-Zeilen mehr); der Handtext-Ersatz wird gemeldet; Verwerfen funktioniert auch beim Karussell.
+
+## Tabelle Lauf 2 (Baseline -> Lauf 1 -> Lauf 2)
+
+| Brief | Edit                           | Baseline | Lauf 1       | **Lauf 2**       | Pfad   | s (Stream/gesamt) | Lauf-2-Beschreibung                                                                                                                                                           |
+| ----- | ------------------------------ | -------- | ------------ | ---------------- | ------ | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| b1    | e1 Headline kürzer             | pass     | pass         | **pass**         | spec   | 4,9 / 9,9         | "neue" fällt weg.                                                                                                                                                             |
+| b1    | e2 Schrift größer              | fail     | pass         | **pass**         | spec   | 6,9 / 11,9        | Headline deutlich größer, Layout wechselt (Highlight-Kasten, Dachzeile größer).                                                                                               |
+| b1    | e3 Text nach oben              | fail     | fail         | **pass**         | spec   | 5,9 / 10,9        | Textblock rutscht an den oberen Rand, Log: `emitted canvas spec (1 slide(s)) for "Verschieb den Text nach oben"`.                                                             |
+| b1    | e4 Sand                        | pass     | teilweise    | **teilweise**    | spec   | 6,9 / 11,9        | Hintergrund hellgrau statt Sand, Rest unverändert. Die Antwort sagt "ich ändere die Hintergrundfarbe auf Sand", ein deutscher Palettenhinweis ist im Chat **nicht** zu sehen. |
+| b1    | e5 Quellenangabe weg           | fail     | pass (No-op) | **pass (No-op)** | keiner | 6,4 / 12,8        | Log `canvas spec unchanged`, Bild unverändert. Chat-Text behauptet weiter "ich entferne die Quellenangabe".                                                                   |
+| b1    | e6 Foto -> Fläche              | fail     | pass (No-op) | **pass (No-op)** | keiner | 5,9 / 12,3        | wie e5 (es gab kein Foto).                                                                                                                                                    |
+| b1    | e9 Element kleiner (Auswahl)   | fail     | teilweise    | **fail**         | keiner | 5,9 / 12,3        | Log `canvas spec unchanged`, nichts wird kleiner, Chat sagt "ich mache dieses Element kleiner".                                                                               |
+| b1    | e10 Headline kürzer + Handedit | pass     | teilweise    | **teilweise**    | spec   | 6,6 / 11,6        | Siehe unten: Position bleibt, Handtext-Ersatz wird gemeldet, die Headline selbst wird nicht gekürzt.                                                                          |
+| b2    | e1 Headline kürzer             | pass     | teilweise    | **fail**         | spec   | 8,4 / 13,5        | Headline bleibt gleich, dafür verschwindet die Zeile "Landtagsabgeordnete" (Funktion der Autorin).                                                                            |
+| b2    | e4 Sand                        | pass     | fail         | **teilweise**    | spec   | 6,4 / 11,5        | Nur Hintergrund, mint -> hellgrau, kein Eingriff in Texte (Lauf 1: Auftrag erweitert). Nicht Sand.                                                                            |
+| b2    | e7 Zitat ändern                | fail     | pass         | **pass**         | spec   | 7,4 / 12,4        | "Gerechtigkeit braucht Klimaschutz", Autorin bleibt.                                                                                                                          |
+| b3    | e1 Headline kürzer             | fail     | pass         | **pass**         | spec   | 6,4 / 11,4        | "Mobilität für alle", Foto bleibt, Folien 2/3 intakt.                                                                                                                         |
+| b3    | e2 Schrift größer              | fail     | fail         | **fail**         | spec   | 5,9 / 10,9        | Größe unverändert, Stil wechselt; Review-Hinweis "Headline ist zu groß" widerspricht dem Auftrag.                                                                             |
+| b3    | e4 Sand                        | fail     | fail         | **teilweise**    | spec   | 9,9 / 14,9        | Alle Folien hellgrau (Fotofolie 1 jetzt hell mit dunkler Schrift), Foto bleibt, nicht Sand.                                                                                   |
+| b3    | e8 Fazit-Folie                 | fail     | teilweise    | **teilweise**    | spec   | 8,9 / 20,3        | 4 Folien, neue Folie "Fazit" (Log 4 slides). Review-Hinweis auf eine unglücklich formulierte Zeile auf Slide 2. Inhalt der Folie 4 nicht beurteilt.                           |
+
+Pass 7 (b1-e1, e2, e3, e5, e6, b2-e7, b3-e1), teilweise 5 (b1-e4, e10, b2-e4, b3-e4, e8), fail 3 (b1-e9, b2-e1, b3-e2). e5/e6 sind weiter No-ops, als pass gewertet (nichts beschädigt).
+
+## Handedit (b1-e10, frischer Entwurf)
+
+- Hand-Text per Doppelklick -> ProseMirror -> `End` -> " (Hand)", Element 130 px hochgezogen, Reload, dann "Mach die Headline kürzer".
+- **Position überlebt: ja.** **Handtext: ersetzt, aber gemeldet.** Chat: "Deine Textänderung an Zahl wurde durch die gewünschte Änderung ersetzt. Hinweise der Prüfung: …" (Lauf 1: stilles Verschwinden). Die Meldung benennt das Element als "Zahl", obwohl es die Zeile "neue Radwege bis 2028" ist.
+- Die Headline wurde nicht gekürzt (Zeile blieb "neue Radwege bis 2028"), also nur teilweise. Bild `after2/b1-e10-hand.jpg`.
+- Hand-Text und Position waren vor dem KI-Edit nach Reload noch da (Autosave ok).
+
+## Extra-Checks Lauf 2
+
+- **Verwerfen auf Karussell (b3, 4 Folien):** "Ändere die Hintergrundfarbe auf Mint" (spec, 4 slides, 11,9 s), Klick auf "Vorschlag verwerfen": **ganzes Deck in einem Schritt zurück** (alle sichtbaren Folien wieder hellgrau, vorher mint). Bild `after2/chk-a-verwerfen-karussell.jpg`. Auf einem Einzelbild zusätzlich in Lauf 1 bestätigt.
+- **Reload-Persistenz:** b2-Canvas nach Neuladen: der behaltene Edit (Zitat "Gerechtigkeit braucht Klimaschutz", hellgrau) ist da (`after2/chk-b-reload-b2.jpg`). Beim e10-Canvas Handposition erhalten. Nach Reload ist der Chat-Tab weiterhin geschlossen.
+- **Template (Dreizeilen, Op-Pfad):** e1 pass (3 Ops, 10,0 s), e2 fail (2 Ops, 34,1 s), e3 fail (2 Ops, 31,6 s; Lauf 1: gar keine Ops), e9 fail (1 Op, 32,6 s). Alle drei Fehlschläge mit der deutschen Meldung "Bearbeitung: Die Änderung ließ sich nicht anwenden: Element lässt sich hier nicht verändern". Die Auswahl-Filterung auf bekannte IDs greift (Op trifft ein Element), die Gruppenelemente der Dreizeilen-Vorlage sind aber weiter nicht veränderbar. Bild `after2/t1-dreizeilen-e1-e2-e3-e9.jpg`.
+- **Chat bleibt bei Auswahl offen:** auf dem Template-Canvas war der Composer nach der Auswahl erreichbar, ohne den Tab neu zu klicken (`chatReopenedAfterSelect` nicht gesetzt).
+- **Composer nach Inline-Textbearbeitung: verschwindet weiterhin.** Nach Doppelklick + Tippen + Klick daneben liefert `document.querySelectorAll('textarea')` nur noch das leere ProseMirror/Seiten-Textarea (`TA [["Frage stellen oder Änderung beschreiben…",true,939],["Frage oder Änderung…",false,0],["",true,0]]`, danach `TA2 []`), der Chat muss neu geöffnet werden bzw. Reload (so lief der Test).
+
+## Verbleibende Bugs (Lauf 2, mit Log)
+
+1. **Chat-Text behauptet bei "unverändert" weiter eine Änderung**, kein "Keine Änderung" im Chat zu sehen (b1-e5/e6/e9, e10-Lauf mit Mint):
+   `19:26:54 INFO  [EditorTool] [EditorTool] canvas spec unchanged for "Entferne die Quellenangabe"`
+   `19:27:40 INFO  [EditorTool] [EditorTool] canvas spec unchanged for "Ersetze das Foto durch eine einfarbige Fläche"`
+   `19:28:26 INFO  [EditorTool] [EditorTool] canvas spec unchanged for "Mach dieses Element kleiner"`
+   Chat dazu: "Die Folien werden gerade aktualisiert — ich mache dieses Element kleiner." Beim Mint-Versuch auf einem bereits mintfarbenen Canvas sagte die Antwort stattdessen "Ich kann die Hintergrundfarbe hier im Chat nicht direkt ändern … keine Änderung an einem Artefakt vorgenommen" (`19:35:09 INFO [EditorTool] canvas spec unchanged for "Ändere die Hintergrundfarbe des Sharepics auf Mint."`).
+2. **Selektion wird auf dem Spec-Pfad nicht genutzt** (b1-e9): "Mach dieses Element kleiner" mit ausgewähltem Element endet in `spec unchanged` statt Größenänderung.
+3. **Palettenhinweis für Sand nicht sichtbar:** Das Mapping auf hellgrau passiert (keine Enum-Retries mehr), aber im Chat steht nur "ich ändere die Hintergrundfarbe auf Sand" plus ein unrelatierter Prüfhinweis; der Review versucht weiter `set_color "sand"` (`raw: {"ok":false,"issues":["Die Hintergrundfarbe entspricht nicht dem Auftrag (Sand gewünscht, hellgrau gesetzt)."],"patch":[{"op":"set_color","color":"sand"}]}`).
+4. **Review schreibt weiter Headlines um und widerspricht dem Auftrag:**
+   `19:26:40 INFO  [sharepicCreator:review] review ok=false issues=["Die Headline ist zu lang gestreckt und wirkt nicht kompakt."] patch=[{"op":"set_headline","item":1,"lines":["500 Radwege"],"akzent":0}]` (bei einem reinen Sand-Edit)
+   `19:34:42 INFO  [sharepicCreator:review] review ok=false issues=["Die Headline (Dachzeile) ist zu lang für einen schnellen Scan."] patch=[{"op":"set_headline","item":0,"lines":["Mobilitätswende\nin Musterstadt"]}]` (beim Hand-Text-Test)
+   `19:32:02 INFO  [sharepicCreator:review] review ok=false issues=["Die Headline auf Slide 0 ist zu groß und wirkt gedrängt, da sie fast die gesamte Breite einnimmt."] patch=[{"slide":0,"op":"set_headline","lines":["Mobilität","für alle"],"akzent":1}]` (nach "Schrift größer", b3-e2: Review macht die gewünschte Vergrößerung wieder rückgängig).
+5. **Spec-Edit entfernt Autorinnen-Funktion** (b2-e1): "Landtagsabgeordnete" verschwindet bei "Headline kürzer" (`19:30:30 INFO [EditorTool] emitted canvas spec (1 slide(s)) for "Mach die Headline kürzer und knackig…"`), Headline selbst bleibt gleich.
+6. **Falsche Elementbenennung im Handtext-Hinweis:** "Deine Textänderung an Zahl …" für die Zeile "neue Radwege bis 2028".
+7. **Composer verschwindet nach Inline-Textbearbeitung** (siehe oben); Chat nach Reload geschlossen.
+8. **Template-Gruppen (Dreizeilen) sind per Op nicht änderbar:** `19:37:01 INFO [EditorTool] emitted 2 canvas op(s) for "Mache die Schrift der Headline größer."` -> "Element lässt sich hier nicht verändern". Meldung ehrlich, Fähigkeit fehlt; Edits dauern 32–34 s.
+9. **Modell-Gesundheit:** weiter `19:26:19 WARN [SearchRetry] [melious/gemma-4-31b:balanced] Circuit OPENED after 2 consecutive failures` / `WARN [modelHealth] … gilt als zäh (14.2 statt ~126 tok/s) — wird für 5 min übersprungen`.
+10. Review-Hinweise nennen weiter "Slide 0" (technische Zählung) statt "Folie 1".
+
+## Vergleich
+
+|                    | Baseline    | Lauf 1         | Lauf 2                          |
+| ------------------ | ----------- | -------------- | ------------------------------- |
+| Pass strikt        | 5/15 (33 %) | 6/15 (40 %)    | **7/15 (47 %)**                 |
+| Pass + teilweise   | 5/15        | 11/15 (73 %)   | **12/15 (80 %)**                |
+| Fail               | 10          | 4              | **3**                           |
+| Median s Spec-Pfad | –           | 14,4           | **11,9**                        |
+| Median s Op-Pfad   | 6,9         | 32,6           | 32,1                            |
+| Handtext           | –           | still verloren | **gemeldet**                    |
+| Verwerfen          | –           | Einzelbild ok  | Einzelbild ok, **Karussell ok** |
+
+---
+
+# Lauf 3 (Smoke nach letzten Fixes)
+
+Stand HEAD `d8536f9a1b` (`fix(web): review a spec edit as an edit and drop ops that revert it`). Gezielter Rauchtest der Fixes für die Lauf-2-Bugs 1, 2, 3, 4, 6, 10. Je Edit einmal, frische Entwürfe (b1/b2/b3/e10), Bilder `after3/`, Rohdaten `after3/results.json`. Sekunden = bis Antwort fertig + Recompose + Banner.
+
+| Edit                                      | Erwartung                              | Urteil                                                                                                                                                                                                                        | s    | Status im Chat (wörtlich)                                                                                                                                                                                                                                                                                 | Log                                                                                                                                                                                                                                                                                                                                                                                            |
+| ----------------------------------------- | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| b1-e4 Sand                                | deutscher Hinweis                      | **pass (mit Hinweis)**: hellgrau statt Sand, Hinweis sichtbar, sonst nichts verändert                                                                                                                                         | 14,0 | "Die Folien werden gerade aktualisiert — da es die Farbe Sand im Sharepic-Baukasten nicht gibt, habe ich Hellgrau genommen." und darunter "Sand gibt es im Sharepic-Baukasten nicht – ich habe Hellgrau genommen."                                                                                        | `19:57:48 INFO [EditorTool] emitted canvas spec (1 slide(s)) for "Ändere die Hintergrundfarbe des Sharepics auf Sand."`, `19:57:50 review ok=true issues=[] patch=[]`                                                                                                                                                                                                                          |
+| b1-e5 Quellenangabe weg                   | ehrlich "nichts geändert", kein Banner | **pass**: Bild unverändert, kein Banner, keine Erfolgsbehauptung                                                                                                                                                              | 12,3 | "Ich kann die Quellenangabe im aktuellen Dokument nicht entfernen. Wenn du möchtest, kann ich den Text im Dokument für dich umschreiben und den entsprechenden Teil löschen." (Wortlaut nicht "nichts geändert", aber ehrlich; der Sand-Hinweis aus e4 steht in der Leiste unter dem Chat noch, veraltet) | `19:58:05 INFO [EditorTool] canvas spec unchanged for "Entferne die Quellenangabe"`                                                                                                                                                                                                                                                                                                            |
+| b1-e9 Auswahl "kleiner"                   | Auswahl wird genutzt                   | **pass**: die ausgewählte "500" wird kleiner, Rest bleibt (Layout nicht neu aufgebaut)                                                                                                                                        | 11,4 | "Die Folien werden gerade aktualisiert — das Element wird entsprechend verkleinert."                                                                                                                                                                                                                      | `19:58:51 emitted canvas spec (1 slide(s)) for "Mach dieses Element kleiner"`, `19:58:53 review ok=true`                                                                                                                                                                                                                                                                                       |
+| b1-e10 Handtext + Drag, "Headline kürzer" | korrektes deutsches Feldlabel          | **teilweise/fail**: Label stimmt jetzt, Handtext ersetzt und gemeldet, Headline gekürzt ("500 neue Radwege"), aber der Rest "für Musterstadt" sitzt als Highlight-Zeile weit unten (Layoutbruch), Handposition nicht erhalten | 13,7 | "Deine Textänderung an Überschrift „bis 2028 (Hand)“ wurde durch die gewünschte Änderung ersetzt."                                                                                                                                                                                                        | `20:02:13 emitted canvas spec (1 slide(s)) for "Mach die Headline kürzer"`, `20:02:15 review ok=true issues=[] patch=[]`                                                                                                                                                                                                                                                                       |
+| b3-e1 Karussell Headline kürzer           |                                        | **teilweise**: Folie 1 wird zur Listenfolie "1. Mobilität für alle Menschen" mit Bullet-Karte (Struktur der Folie wechselt, Foto bleibt), Review-Hinweise jetzt "Folie 1/2"                                                   | 15,0 | "Hinweise der Prüfung: Folie 1: Die Liste ist zu lang und wirkt unruhig. Schlüsselbegriffe sollten fett markiert werden. · Folie 2: …"                                                                                                                                                                    | `19:59:43 emitted canvas spec (3 slide(s)) for "Mach die Headline kürzer und knackiger"`, `19:59:46 review ok=false issues=["Folie 1: Die Liste ist zu lang …"] patch=[{"slide":0,"op":"set_text",…`                                                                                                                                                                                           |
+| b3-e2 Schrift größer                      | kein Review-Revert                     | **fail**: kein Revert, aber auch nicht größer (nur Silbentrennung "für-alle"), Review meldet sogar "Bindestrich"                                                                                                              | 16,5 | "Hinweise der Prüfung: Folie 1: In der Headline ist ein Bindestrich am Ende der ersten Zeile, der dort nicht hingehört."                                                                                                                                                                                  | `20:00:00 WARN [AiObject] [sharepicCreator:draft] attempt 1 rejected (tool call): slides.0.weiter: weiter führt zur nächsten Slide – nicht auf der letzten.`, `20:00:03 emitted canvas spec (3 slide(s))`, `20:00:06 review ok=false issues=["Folie 1: In der Headline ist ein Bindestrich …"] patch=[{"slide":0,"op":"set_headline","item":1,"lines":["Mobilität für","==alle Menschen=="]}]` |
+| b2-e1 Zitat-Headline kürzer               | "Landtagsabgeordnete" bleibt           | **fail**: Zeile "Landtagsabgeordnete" **geht weiterhin verloren**, Zitat bleibt gleich lang                                                                                                                                   | 11,4 | (kein Status)                                                                                                                                                                                                                                                                                             | `20:00:46 emitted canvas spec (1 slide(s)) for "Mach die Headline kürzer und knackiger"`, `20:00:48 review ok=true issues=[] patch=[]`                                                                                                                                                                                                                                                         |
+
+## Fazit Lauf 3
+
+- Behoben bestätigt: Bug 3 (Palettenhinweis sichtbar), Bug 1 (kein Banner, ehrliche Antwort bei "unverändert"), Bug 2 (Auswahl wird genutzt, b1-e9 jetzt sauber), Bug 6 (Feldlabel "Überschrift „…“"), Bug 10 ("Folie N" statt "Slide 0"), Bug 4 teilweise (kein Review-Revert beobachtet; Review-Patches in b1-e10 haben den Edit nicht rückgängig gemacht: `review ok=true`).
+- Offen: (a) `b2-e1`: die Funktionszeile der Autorin ("Landtagsabgeordnete") verschwindet bei jedem Headline-Edit des Zitats (Lauf 2 und 3), obwohl `review ok=true`; (b) b3-e2 und generell "Schrift größer" auf Karussellen führt zu keiner sichtbaren Vergrößerung, der Entwurf lehnt eine Folie wegen `slides.0.weiter` ab; (c) b3-e1/b1-e10: "Headline kürzer" baut die Folie/Headline-Struktur um (Listenfolie, abgespaltene Highlight-Zeile); (d) Composer verschwindet weiter nach Inline-Textbearbeitung (`TA2 []`); (e) der veraltete Sand-Hinweis bleibt unter dem Chat stehen, auch beim nächsten Edit; (f) Modell weiter als "zäh" markiert (`20:02:15 WARN [SearchRetry] [cortecs/gemma-4-31b-it] Circuit OPENED after 2 consecutive failures`).
+
+---
+
+# Eigenes Foto (nach Fix)
+
+Creator-Sharepic mit hochgeladenem eigenen Foto (Creator-Steuerelement "Eigenes Foto", Datei `own-photo.jpg`, ein Straßen-/Radweg-Ausschnitt; **das Testbild enthält eingebrannten Text** aus einem Screenshot, deshalb überlagert der Entwurftext sichtbar den Bildtext, das ist ein Testbild-Artefakt und kein Produktfehler). Brief: "Sharepic: Radweg-Ausbau in Musterstadt – mit meinem Foto". Creator-Antwort: "Bilder: Eigenes Foto – kein KI-Bild". Danach im Editor je ein Edit, Bilder `after3/own-photo-creator.jpg`, `after3/own-photo-e1-tanne.jpg` (vorher | nachher).
+
+| Edit                                     | Ergebnis                                                                                                                                                                                                                                                                                          | s    | Chat-Status (wörtlich)                                                                               | Log                                                                                                                                                                                                            |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "Mach die Headline kürzer und knackiger" | **pass**: Headline "Sicherer Radweg-Ausbau" (kürzer, größer), **eigenes Foto bleibt**, Banner da, kein Fehler. Review-Hinweis (durch das eingebrannte Bildtext-Artefakt): "Hinweise der Prüfung: Auf Folie 1 überlappt die neue Headline massiv mit dem alten Text-Layer im Hintergrundbild. · …" | 10,1 | "Die Folien werden gerade aktualisiert — ich kürze die Headline für dich, damit sie knackiger wird." | `20:27:51 INFO [AgenticRespond] planner skipped edit_current_sharepic — forcing edit before synth`, `20:27:52 INFO [EditorTool] emitted canvas spec (1 slide(s)) for "Mach die Headline kürzer und knackiger"` |
+| "Ändere die Hintergrundfarbe auf Tanne"  | **kein Fehler, Banner, aber das eigene Foto wird durch einen Tanne-Verlauf ersetzt** (Foto weg, Layout "Sicherer Radweg-Ausbau" bleibt, Sonnenblume kommt hinzu). Als Hintergrundfarbe-Anweisung nachvollziehbar, aber ohne Hinweis im Chat, dass das Foto entfällt.                              | 11,9 | "Die Folien werden gerade aktualisiert — ich ändere die Hintergrundfarbe des Sharepics auf „Tanne“." | `20:28:07 INFO [EditorTool] emitted canvas spec (1 slide(s)) for "Ändere die Hintergrundfarbe des Sharepics auf die Farbe „Tanne“."`                                                                           |
+
+Befund: Der Fix wirkt, der Spec-Edit auf einem Deck mit eigenem Foto läuft jetzt ohne den früheren Fehler `Foto "upload:1" gibt es nicht` und ohne Foto-Tausch (Edit 1, kein `validateDraft`-/`Invalid`-/WARN-Eintrag im Log für beide Edits). Offen: Ein Hintergrundfarben-Edit auf einem Foto-Deck entfernt das Foto ohne Rückfrage oder Hinweis (Edit 2). Nicht getestet: "Schrift der Headline größer" mit Foto (Foto war nach Edit 2 schon weg), Foto-Deck als Karussell.
+
+---
+
+# Lauf 4 (#4252/#4259)
+
+Stand: Branch `fix/canvas-ai-edit-draft-guard-dreizeilen` (Draft-Guard, `groesse`, Review-Filter, Dreizeilen-Snapshot und `set-font-size`), Live-Lauf am 08.10.2026 gegen einen eigenen Dev-Stack (API :3021, Web :3022, Hocuspocus :1240; :3011/:3012 waren von einem anderen Agenten belegt). Treiber wie in Lauf 2/3. Je Brief ein frischer Creator-Entwurf, je Edit einmal, Edits nacheinander auf demselben Canvas. Sekunden = Anweisung abgeschickt bis Antwort fertig, Recompose vorbei und Banner da. Bilder `after4/` (links vorher, rechts nachher), Rohdaten `after4/results.json`. Modell laut Log wieder wiederholt „zäh“ (`[modelHealth] [melious/gemma-4-31b:balanced] gilt als zäh (20.9 statt ~132 tok/s)`), die Anfragen liefen auf `cortecs/gemma-4-31b-it` bzw. `mistral-medium-2604` aus.
+
+## Spec-Pfad (#4252)
+
+| Edit                                           | Erwartung                     | Urteil                                                                                                                                                                                                                                                         | s (Stream/gesamt) | Log                                                                                                                                                                                  |
+| ---------------------------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| b2-e1 „Mach die Headline kürzer und knackiger“ | „Landtagsabgeordnete“ bleibt  | **pass für die Funktion, Zitat unverändert lang**: „Landtagsabgeordnete“ bleibt (Lauf 2 und 3: weg). Das Zitat selbst wird nicht kürzer, nur der Akzent wechselt; das ist bei einem Zitat gewollt (`validateDraft` verlangt den Wortlaut, Kürzen nur mit […]). | 7,9 / 13,2        | `00:45:46 emitted canvas spec (1 slide(s)) for "Mach die Headline kürzer und knackiger"`, `00:45:48 review ok=true issues=[] patch=[]`                                               |
+| b3-e1 dieselbe Anweisung, Karussell            | Folie 1 bleibt Headline-Folie | **pass**: „Mehr Bus und Bahn auch auf dem Land.“ → „Bus und Bahn aufs Land.“, Folie 1 bleibt Headline mit Foto, Folien 2/3 unverändert (Lauf 3: Listenfolie)                                                                                                   | 8,6 / 13,7        | `00:46:45 emitted canvas spec (3 slide(s))`, `00:46:47 review ok=false issues=["Folie 2: Das Logo überlappt mit dem Text der Liste."] patch=[{"slide":2,"op":"set_text_side",…}]`    |
+| b3-f „Mach die Schrift der Headline größer“    | sichtbar größer, kein Revert  | **pass**: Headline deutlich größer, der Composer bricht „Bus und Bahn“ selbst auf zwei Zeilen um; kein Review-Eingriff                                                                                                                                         | 7,5 / 22,2        | `00:47:01 emitted canvas spec (3 slide(s)) for "Mach die Schrift der Headline größer"`, `00:47:15 review ok=true issues=[] patch=[]`                                                 |
+| b1-f dieselbe Anweisung, Einzelbild mit Foto   | sichtbar größer, kein Revert  | **pass**: Headline von 3 auf 4 Zeilen, deutlich größer; der Fließtext darunter wird etwas kleiner, damit der Block passt                                                                                                                                       | 8,9 / 14,0        | `00:48:21 emitted canvas spec (1 slide(s)) for "Vergrößere die Schriftgröße der Headline. Alle anderen Elemente bleiben unverändert."`, `00:48:23 review ok=true issues=[] patch=[]` |
+
+- **Der Diff-Guard hat in diesem Lauf nie eingegriffen**: keine Zeile `[sharepicCreator:draft] attempt … rejected` im Log. Das Modell hielt die optionalen Felder und die Folienstruktur schon im ersten Versuch. Ob das am weggelassenen Formrezept (A1) liegt oder am Zufall, ist bei n = 4 nicht zu trennen; die Ablehnung und die Wiederherstellung nach dem letzten Versuch sind nur in den Unit-Tests belegt (`specEditGuard.vitest.ts`, `draftAgent.revision.vitest.ts`).
+- Median Spec-Pfad: **13,9 s** (n = 4; Lauf 2: 11,9 s, Lauf 3 ähnlich). b3-f lag mit 22,2 s darüber; der Stream war nach 7,5 s fertig, der Rest ist Recompose und Review des Karussells (Review-Zeile 14 s nach dem Emit).
+
+## Op-Pfad, Dreizeilen-Vorlage (#4259)
+
+Zwei Durchgänge auf je einem frischen Canvas (`POST /api/canvas`, `template_type=dreizeilen`, Zeilen „Mehr Radwege / für alle / in Musterstadt“). Durchgang a lief mit dem ersten Stand von `set-font-size` (setzte nur `fontSize`), Durchgang b mit dem korrigierten (skaliert die Balkengruppe, siehe unten).
+
+| Edit                                                | Durchgang a                                                                                  | Durchgang b                                                                                                                                    | Log (b)                                                                            |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| f „Mach die Schrift der Headline größer“            | **fail**: 3 Ops, Banner, aber nur die Sonnenblume wächst; die Schrift bleibt gleich (10,9 s) | **pass**: Balken samt Schrift deutlich größer (10,7 s)                                                                                         | `00:53:24 emitted 1 canvas op(s) for "Vergrößere die Schriftgröße der Headline …"` |
+| e3 „Verschieb den Text nach oben“                   | **pass**: Balken rückt nach oben (8,4 s)                                                     | **pass** (10,2 s)                                                                                                                              | `00:53:39 emitted 1 canvas op(s) for "Verschieb den Text nach oben"`               |
+| e9 „Mach dieses Element kleiner“, Balken ausgewählt | **pass**: Balken wird kleiner (8,4 s)                                                        | **fail**: 1 Op, Banner, keine sichtbare Änderung; der Chat fragt zurück „Welches Element genau soll kleiner werden?“ (8,9 s)                   | `00:53:53 emitted 1 canvas op(s) for "Mach dieses Element kleiner"`                |
+| e1 „Mach die Headline kürzer und knackiger“         | **pass**: Zeile 1 „Radwege ausbauen!“ (13,0 s)                                               | **teilweise**: 3 Ops, Zeilen „Mehr Radwege / für Musterstadt / SIND DA“, nicht kürzer; der vergrößerte Balken läuft links aus dem Bild (9,4 s) | `00:54:07 emitted 3 canvas op(s) for "Mach die Headline kürzer und knackiger"`     |
+
+- **Keine Meldung „Element lässt sich hier nicht verändern“ mehr**, in keinem der 8 Edits. Ziel-ID ist jetzt `dreizeilen-balken`; die Auswahl übersteht `knownSelectionIds`.
+- **Ursache Durchgang a, f:** `BalkenGroup` zeichnet den Text mit fester Größe (`config.text.defaultFontSize`, `primitives/BalkenGroup.tsx:119`); `fontSize` im State fließt nur ins Layout und damit in die Größe der Sonnenblume. Größer wird die Schrift auf Dreizeilen nur über `balkenScale`. Der Override skaliert deshalb die Gruppe um `neue Größe / alte Größe` (Spanne 0,5–2) und setzt `fontSize` mit. Derselbe Fehler steckt im Server-Pfad, siehe Issue unten.
+- **Median Op-Pfad: 9,8 s** (n = 8: 10,9 / 8,4 / 8,4 / 13,0 / 10,7 / 10,2 / 8,9 / 9,4; Lauf 2: 32,1 s).
+- **Woher die 32 s in Lauf 2 kamen (B5):** nicht aus Reparatur-Turns. Heute steht keine einzige Zeile `[AiObject] [editor_tool_canvas] attempt 1 rejected` im Log. In den Rohdaten von Lauf 2 (`after2/results.json`, `t1`) war der Stream bei den drei Fehlschlägen nach 6,4 / 3,9 s fertig, gemessen wurden aber 34,1 / 31,6 s. Die gescheiterte Op zeigt kein Banner, und der Treiber wartet ohne Banner bis zu seinem 25-s-Deckel (plus 2 × 2,5 s Nachlauf). Die 32 s waren ein **Messartefakt des Harness**, keine Produktlatenz; das erfolgreiche e1 lag schon in Lauf 2 bei 10,0 s.
+
+## Fazit Lauf 4
+
+- Behoben bestätigt: „Landtagsabgeordnete“ bleibt (b2), Folie 1 bleibt Headline-Folie (b3-e1), „Schrift größer“ wird auf Einzelbild und Karussell sichtbar größer und nicht vom Review zurückgenommen (b1-f, b3-f), Dreizeilen-Ops treffen die Balkengruppe (f, e3, e9 in a), Op-Edits im Median 9,8 s.
+- Offen: e9 mit Auswahl ist nicht stabil (1 von 2; einmal Rückfrage trotz ausgewähltem Balken). Nach „Schrift größer“ kann ein längerer Text den skalierten Balken aus dem Bild schieben (b-e1). Der Server-Pfad (`sharepic_edit` im Chat) setzt bei Dreizeilen weiter nur `fontSize`.
+- Nicht geprüft: der Guard im Fehlerfall live (er griff nie), „Schrift kleiner“ (`groesse` entfernen), Österreich.
+
+---
+
+# Lauf 5 (#4262/#4263 und Review-Fixes)
+
+Stand: Branch `fix/canvas-ai-edit-draft-guard-dreizeilen` mit #4270 (Chat-Pfad skaliert die Balken bei `set-font-size`) und #4272 (Balkengruppe bleibt nach KI-Ops im Bild) gemergt, danach die Fixes aus dem Abschluss-Review: Studio-Text sagt jetzt, dass `scale` auf dem Balken ein Faktor ist, und das Ergebnis wird auf 0,5–2 begrenzt; der Spec-Guard liest Wunsch plus Brief; `aiObject` reicht die Versuchsnummer an `validate`. Live am 08.10.2026 gegen einen eigenen Stack (API :3031, Web :3032, Hocuspocus :1240). Bilder `after5/`, Rohdaten `after5/results.json`.
+
+## Dreizeilen, Studio-Op-Pfad
+
+| Edit                                                | a (vor den Review-Fixes)                                                                                                                        | b (mit Review-Fixes)                                                                             |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| f „Mach die Schrift der Headline größer“            | pass, 18,5 s                                                                                                                                    | **pass**: Balken samt Schrift größer, 9,9 s                                                      |
+| e3 „Verschieb den Text nach oben“                   | pass, 12,9 s                                                                                                                                    | **pass**, 9,9 s                                                                                  |
+| e9 „Mach dieses Element kleiner“, Balken ausgewählt | **fail**: 1 Op, keine Wirkung, Chat fragt „Welches Element …?“ (9,4 s)                                                                          | **pass**: Balkengruppe kleiner, „Die Text-Balken werden gerade im Dokument verkleinert.“ (8,9 s) |
+| e1 „Mach die Headline kürzer und knackiger“         | teilweise: Zeilen „Mehr Radwege / für Musterstadt / SIND DA“, aber die Balkengruppe **bleibt im Bild** (Lauf 4 b: links abgeschnitten) (10,4 s) | pass, 12,4 s                                                                                     |
+
+- #4263 hält: nach „größer“ und einer längeren Zeile bleibt die Gruppe innerhalb der Leinwand (`after5/t1a-e1.jpg`).
+- e9 war in Lauf 4 und Lauf 5 a die einzige wackelige Anweisung. Nach dem Review-Fix (das Modell sah „Größe 1.3 (erlaubt 0.5..2)“ wie einen absoluten Wert, die Anwendung multiplizierte; `scale: 1.0` war ein No-op, `1.1` wurde größer) gelang sie im ersten Versuch. n = 1, kein Beweis für Stabilität.
+- Median Op-Pfad b: **9,9 s** (n = 4).
+
+## Chat-Pfad (#4262)
+
+- „Erstelle ein Dreizeilen-Sharepic …“ im Chat legt heute einen **Creator**-Entwurf an (`[Classifier] Heuristics (confidence: 0.93): sharepic`, `type: sharepic_creator`), und „Mach die Schrift größer“ läuft als Spec-Revision (`Follow-up sharepic edit via thread artifact → sharepic`). Die Headline wird größer (`after5/chat-creator-groesser.jpg`).
+- Der Descriptor-Pfad `sharepic_edit` aus #4262 greift nur in Threads mit einer alten Vorlagen-Variante. Neue Chats erzeugen keine mehr, und im lokalen Testkonto gibt es keinen solchen Thread. **#4262 ist deshalb nur durch Unit-Tests belegt** (`sharepicDescriptorParity.vitest.ts`), nicht live.
+
+## Offen
+
+- #4276: Der Chat-Pfad hat keine Leinwand-Grenze für die Balken (die API hat keine Schriftmetrik).
+- Der Spec-Guard griff in den Läufen 4 und 5 live nie ein.
+
+---
+
+# Lauf 6 (Follow-up #4253/#4254/#4257/#4258)
+
+Stand: 08.10.2026, lokaler Integrationsbranch (nur lokal, nicht gepusht) `tmp/cae-live` (4bdc2ef418 = `fix/canvas-ai-edit-hand-edits` + `fix/canvas-ai-edit-tab-mobile`). API :3011, Web :3012, Hocuspocus :1240, Playwright headless 1500×1000, Dev-Bypass. Bilder: `after6/` (auf die Zeichenfläche beschnitten). Viele Modelle galten in diesem Lauf als „zäh“ (`[modelHealth] … gilt als zäh`), die Sekunden liegen daher eher hoch.
+
+| Fall                                     | Issue  | Urteil    | Sekunden    |
+| ---------------------------------------- | ------ | --------- | ----------- |
+| L1 Eigenes Foto, Farbwunsch              | #4253  | pass      | 27,5 / 10,9 |
+| L2 Eigenes Foto, ausdrücklich ersetzen   | #4253  | pass      | 12,8        |
+| L3 Grown-Cover-Headline von Hand         | #4254  | pass      | 12,8        |
+| L4 Chat-Reiter nach Reload               | #4258  | pass      | –           |
+| L5 Regression Zitat (b2)                 | –      | pass      | 10,1        |
+| L6 Listenzeile während der Überarbeitung | #4257a | teilweise | 11,6 / 14,5 |
+
+### L1 – „Ändere die Hintergrundfarbe des Sharepics auf Tanne.“ (eigenes Foto)
+
+- **Erwartung:** Das Foto bleibt sichtbar; Hinweis „Dein eigenes Foto bleibt …“ oder ein foto-oben/-unten-Layout mit Tanne-Fläche.
+- **Urteil: pass** (zwei Läufe). Beide Male hat der Wächter den ersten Versuch verworfen, der zweite brachte `foto-unten`: eine Tanne-Fläche oben, das eigene Foto unten (Konva: Bild 1080×1350 plus Rechteck `#005538` 1080×810). Der Rückfall-Hinweis war nicht nötig.
+- **Status im Chat:** „Die Hintergrundfarbe des Sharepics wird gerade auf Tanne aktualisiert.“ In Lauf 2 zusätzlich: „Hinweise der Prüfung: Die Headline ist zu lang und nimmt zu viel Platz ein.“
+- **Log:**
+  ```
+  01:12:31 WARN  [AiObject] [sharepicCreator:draft] attempt 1 rejected (tool call): Folie 1 (upload:1): das ist das eigene Foto der Person – es bleibt. Für eine andere Farbe nimm `foto-oben` oder `foto-unten` mit demselben filename und `panelColor`, oder lass das Foto, wie es ist.
+  01:12:33 INFO  [EditorTool] [EditorTool] emitted canvas spec (1 slide(s)) for "Ändere die Hintergrundfarbe des Sharepics auf Tanne."
+  01:12:35 INFO  [sharepicCreator:review] review ok=false issues=["Die Headline ist zu lang und nimmt zu viel Platz ein."] patch=[{"op":"set_headline","item":0,"lines":["Sicherer","Radwegausbau","für ==Musterstadt=="]}]
+  ```
+  Lauf 1: um 01:10:11 die gleiche `rejected`-Zeile, 01:10:12 `emitted canvas spec`, 01:10:23 `review ok=true`.
+- Bilder: `L1-before.jpg`, `L1-after.jpg`, `run1/L1-after.jpg`
+
+### L2 – „Ersetze das Foto durch eine einfarbige Fläche in Tanne.“
+
+- **Erwartung:** Das Foto wird ersetzt, der Hinweis erscheint, und „Vorschlag verwerfen“ holt das Foto zurück.
+- **Urteil: pass.** Nach der Änderung ist kein Fotobild mehr da, nur das Tanne-Rechteck 1080×1350. Nach „Verwerfen“ ist das Share-Vorschaubild wieder da.
+- **Status im Chat:** „Dein eigenes Foto wurde ersetzt – „Verwerfen“ holt es zurück. Hinweise der Prüfung: Die Headline ist zu lang und nimmt zu viel Platz ein.“ Der Satz „Foto bleibt“ fehlt, wie gewünscht.
+- **Log:**
+  ```
+  01:12:51 INFO  [EditorTool] [EditorTool] emitted canvas spec (1 slide(s)) for "Ersetze das aktuelle Foto durch eine einfarbige Hintergrundfläche in der Farbe Tanne."
+  01:12:55 INFO  [sharepicCreator:review] review ok=false issues=["Die Headline ist zu lang und nimmt zu viel Platz ein."] patch=[{"op":"set_headline", …}]
+  ```
+- Bilder: `L2-before.jpg`, `L2-after.jpg`, `L2-after-discard.jpg`
+
+### L3 – Grown-Cover-Headline von Hand, danach „Ändere die Hintergrundfarbe auf Mint“
+
+- **Erwartung:** Der von Hand getippte Headline-Text überlebt, und es erscheint keine Zeile „Deine Textänderung … wurde ersetzt“.
+- **Urteil: pass.** Schon der erste Brief („Sharepic, nur eine große Headline auf Tanne: Klimaschutz ist Gerechtigkeit für alle“) ergab ein Grown Cover: Die Spec-Zeile „Klimaschutz ist“ steht als ein Knoten `sc-0-headline-0` = „Klimaschutz\nist“ auf der Zeichenfläche. Von Hand wurde „ist“ zu „bleibt“, die zwei Zeilen blieben erhalten. Der Text hielt in allen vier Zuständen: nach dem Reload (Autosave), nach der Mint-Änderung, nach „Behalten“ und nach einem weiteren Reload.
+- **Status im Chat:** „Die Hintergrundfarbe des Sharepics wird gerade auf Mint aktualisiert.“ Eine Textänderungs-Zeile kam nicht.
+- **Log:**
+  ```
+  01:16:02 INFO  [EditorTool] [EditorTool] emitted canvas spec (1 slide(s)) for "Ändere die Hintergrundfarbe des Sharepics auf Mint."
+  01:16:05 INFO  [sharepicCreator:review] review ok=true issues=[] patch=[]
+  ```
+- Bilder: `L3-start.jpg`, `L3-hand.jpg`, `L3-before.jpg` (nach dem Reload), `L3-after.jpg`, `L3-after-keep-reload.jpg`
+
+### L4 – Chat-Reiter nach Reload
+
+- **Erwartung:** Nach einem Reload mit offenem Chat ist der Composer da, ohne dass jemand auf den Reiter klickt. Nach einem Reload mit geschlossenem Chat bleibt er zu.
+- **Urteil: pass.** Gemessen ohne jeden Harness-Klick nach dem Laden; Composer-Zählung alle 500 ms:
+
+  | Schritt          | Composer-Zählung   |
+  | ---------------- | ------------------ |
+  | frisch geladen   | `0000000000000000` |
+  | Chat geklickt    | 1                  |
+  | Reload           | `0011111111111111` |
+  | Chat geschlossen | 0                  |
+  | Reload           | `0000000000000000` |
+
+  Der Store `gruenerator-canvas-ui` führt die Canvas-ID, solange der Chat offen ist (`{"chatOpenCanvasIds":["8c2f68b9-…"]}`), und leert die Liste beim Schließen.
+
+- **Inline-Edit:** Doppelklick auf Text, tippen, daneben klicken: Der Composer bleibt durchgehend da (Zählung bei allen vier Schritten 1), die Nachrichten bleiben sichtbar.
+- Bilder: `L4-reload-open.jpg`, `L4-reload-closed.jpg`, `L4-after-inline-edit.jpg`
+
+### L5 – Regression b2: „Ändere das Zitat zu 'Gerechtigkeit braucht Klimaschutz', Autorin bleibt“
+
+- **Urteil: pass.** Das Zitat lautet jetzt „Gerechtigkeit braucht Klimaschutz“; „Anna Beispiel“ und „Landtagsabgeordnete“ sind unverändert.
+- **Status im Chat:** „Das Dokument wird gerade aktualisiert – das Zitat wird zu „Gerechtigkeit braucht Klimaschutz“ geändert, während die Autorin Anna Beispiel unverändert bleibt.“
+- **Log:**
+  ```
+  01:25:18 INFO  [EditorTool] [EditorTool] emitted canvas spec (1 slide(s)) for "Ändere das Zitat im Dokument zu 'Gerechtigkeit braucht Klimaschutz'. Die Autorin (Anna Beispiel) bleibt unverändert."
+  01:25:21 INFO  [sharepicCreator:review] review ok=true issues=[] patch=[]
+  ```
+- Bilder: `L5-before.jpg`, `L5-after.jpg`
+
+### L6 – Listenzeile während der Überarbeitung (b3, Folie 2)
+
+- **Erwartung:** Eine während der Überarbeitung von Hand angefügte Listenzeile steht nach dem Banner noch da.
+- **Urteil: teilweise.**
+  - **Versuch 1 traf das Fenster.** Der Editor öffnete, während „Sharepic wird neu aufgebaut“ zu sehen war; die Zeile „Radwege bauen“ wurde angefügt. Die Seite wurde danach noch einmal ersetzt (die Umbrüche der anderen Punkte änderten sich: „Unabhängigkeit vom | eigenen Auto“ → „Unabhängigkeit vom eigenen | Auto“). Die Zeile stand trotzdem nach dem Banner noch da (11,6 s).
+  - **Versuch 2 und 4 trafen es nicht:** Der Doppelklick auf die Liste von Folie 2 öffnete während des Umbaus keinen Editor (`activeElement` = BODY).
+  - **Versuch 3** lief ins Leere: Die Folie war schon Mint (`canvas spec unchanged`).
+  - **Ersatzprobe auf einem Einzelbild (L3-Canvas, „…auf Sand“):** Der Zusatz „ jetzt“ wurde in der Headline eingetippt, während der Umbau lief (chatlog 23:35:37.6Z EDIT bis 38.2Z, Banner um 39.5Z). Er überlebte, eine Textänderungs-Zeile kam nicht (14,5 s).
+- **Status im Chat:** Versuch 1 siehe Befund B1. Einzelbild: „Sand gibt es im Sharepic-Baukasten nicht – ich habe Hellgrau genommen.“
+- **Log:**
+  ```
+  01:27:23 INFO  [EditorTool] [EditorTool] emitted canvas spec (3 slide(s)) for "Ändere die Hintergrundfarbe auf Mint."
+  01:27:27 INFO  [sharepicCreator:review] review ok=true issues=[] patch=[]
+  01:32:36 INFO  [EditorTool] [EditorTool] canvas spec unchanged for "Ändere die Hintergrundfarbe auf Mint"
+  01:35:37 INFO  [EditorTool] [EditorTool] emitted canvas spec (1 slide(s)) for "Ändere die Hintergrundfarbe auf Sand."
+  01:35:39 INFO  [sharepicCreator:review] review ok=true issues=[] patch=[]
+  ```
+- Bilder: `L6-t1-before.jpg`, `L6-t1-during.jpg`, `L6-t1-after.jpg` (Folie 2), `L6s-before.jpg`, `L6s-during.jpg`, `L6s-after.jpg`
+
+### Befunde
+
+- **B1 (unbestätigt, einmal gesehen).** In L6, Versuch 1, sprang die Chat-Spalte mitten im Zug auf den Leerzustand zurück („Stelle Fragen zu deinem Sharepic …“ mit den Vorschlags-Chips). Das geschah nach einem Hand-Edit an der Liste während des Umbaus. Das API-Log zeigt durchgehend denselben Thread (`Message persisted for thread 693db22f-3761-4c70-8b6d-802ed8425431`, 01:27:27), einen neuen Thread gab es nicht. Nach einem Reload waren die Nachrichten wieder da. Auf dem Einzelbild (L6s) ließ es sich nicht reproduzieren. Ungeprüft ist, ob `useCanvasChatDoc()` dabei kurz `null` lieferte: `CanvasInlineChatSection.tsx:102-106` fällt dann auf einen Draft-Schlüssel und einen eigenen Thread-Query-Key zurück. Belege: `after6/L6-t1-during-full.jpg`, `after6/L6-t1-after-full.jpg`.
+- **B2.** Ist die Farbe schon gesetzt, antwortet der Chat irreführend: „Die gewünschte Änderung kann ich hier nicht vornehmen, da die Hintergrundfarbe nicht über den Entwurf so eingestellt werden kann.“ Das Log meldet dazu `01:32:36 … canvas spec unchanged`. Die Ursache ist der Rückfalltext ohne `hinweis` in `routes/chat/agents/editorTools.ts:374-384`; der Fall „ist schon so“ wird nicht unterschieden.
+- **B3 (klein).** Tippt man nach Enter in einem Listenpunkt „• “, steht danach „• • Radwege bauen“ da, weil der Editor den Aufzählungspunkt selbst setzt. Die Prüfung meldete das später als „doppelter Aufzählungspunkt“ und patchte ihn weg.
+- **B4 (Setup, Brief).**
+  - Der Web-Befehl braucht `VITE_DEV_AUTH_BYPASS_TOKEN` in der Prozessumgebung (`apps/web/vite.config.ts:423` liest `process.env`), sonst antwortet jeder API-Aufruf mit 401.
+  - Die API braucht `DOTENV_CONFIG_PATH=<root>/.env`, weil `dotenv/config` aus dem cwd `apps/api` liest; ohne die Variable kommt `SASL: client password must be a string`.
+  - Der eingebaute Hocuspocus der API läuft neben dem eigenständigen auf `EADDRINUSE 0.0.0.0:1240`. Das ist harmlos.
+  - Die Harness-Init-Skripte müssen die Tour-Keys setzen, bevor sie `document.head` anfassen; sonst startet die Canvas-Tour und öffnet beim Durchklicken den Chat.
+- **Beobachtung.** Bei 1500×1000 überdeckt „+ Seite hinzufügen“ den Platzhalter des Chat-Composers (in allen Vollbildern zu sehen).
+
+### Nachtest B2 (gr-cae-live @ 1638053893, mit 0bd68d6ad0)
+
+Gefahren auf einer frischen Creator-Canvas `1a6c54ba-b093-4a6e-8d5b-8d2b7d58ab73` (Headline auf Tanne, Creator 36 s). Bilder: `B2-start.jpg`, `B2-mint.jpg`, `B2-again.jpg`, `B2-kursiv.jpg`.
+
+| Schritt                                                    | Pfad      | Sekunden | Urteil    |
+| ---------------------------------------------------------- | --------- | -------- | --------- |
+| 1. „Ändere die Hintergrundfarbe auf Mint“, dann „Behalten“ | spec      | 8,7      | pass      |
+| 2. dieselbe Anweisung noch einmal                          | unchanged | 11,2     | **fail**  |
+| 3. Kontrolle „Mach die Schrift kursiv“                     | unchanged | 10,3     | teilweise |
+
+**1. Mint, behalten – pass.** Chat: „Die Folien werden gerade aktualisiert — die Hintergrundfarbe wird auf Mint geändert.“
+
+```
+01:41:15 INFO  [EditorTool] [EditorTool] emitted canvas spec (1 slide(s)) for "Ändere die Hintergrundfarbe auf Mint."
+01:41:17 INFO  [sharepicCreator:review] review ok=true issues=[] patch=[]
+```
+
+**2. Mint noch einmal – fail.** Die Logzeile `canvas spec unchanged` kommt wie erwartet. Die Antwort sagt aber weder „ist schon Mint“ noch „nicht möglich“, sondern behauptet, es sei kein Werkzeug gelaufen. Wörtlich:
+
+> „Ich kann die Hintergrundfarbe nicht direkt ändern, da ich in diesem Turn kein entsprechendes Werkzeug dafür ausgeführt habe. Bitte prüfe, ob die Einstellung im Editor bereits vorgenommen wurde oder ob du die Farbe dort manuell anpassen kannst.“
+
+```
+01:41:30 INFO  [AgenticRespond] [Agentic] planner skipped edit_current_sharepic — forcing edit before synth
+01:41:33 INFO  [EditorTool] [EditorTool] canvas spec unchanged for "Ändere die Hintergrundfarbe auf Mint"
+```
+
+**3. Kontrolle „Mach die Schrift kursiv“ – teilweise.** Die Antwort ist in der Sache ehrlich (es wird nichts geändert, die Person kann es im Editor selbst tun), schiebt es aber auf dasselbe falsche „kein Werkzeug“. Wörtlich:
+
+> „Ich kann die Schrift nicht direkt kursiv setzen, da ich in diesem Turn kein Werkzeug zur Bearbeitung des Dokuments ausgeführt habe. Du kannst diese Änderung bitte direkt im Editor vornehmen.“
+
+```
+01:41:43 INFO  [AgenticRespond] [Agentic] planner skipped edit_current_sharepic — forcing edit before synth
+01:41:46 INFO  [EditorTool] [EditorTool] canvas spec unchanged for "Mach die Schrift kursiv"
+```
+
+**Befund.**
+
+- Was gesichert ist: Beide `unchanged`-Fälle liefen über den erzwungenen Aufruf in `routes/chat/services/agenticLoop/loopGuarantees.ts:239-241` (`editTool.execute(…, { toolCallId: 'forced-edit' })`), also außerhalb der Werkzeugrunde des Planners. Die neue Notiz (`editorTools.ts:379-382`: „… entweder ist das Gewünschte schon so eingestellt (prüfe den aktuellen Stand im Kontext …)“) landet über `state.editorEditUnchanged` in `artifactNotes.ts:217-218`.
+- Ungeprüft: ob der aktuelle Spec-Stand (Hintergrund `mint`) überhaupt im Kontext des Schreibers steht. Ohne ihn kann das Modell „schon so eingestellt“ nicht feststellen.
+- Vermutung, ebenfalls ungeprüft: Der Schreiber sieht keinen Tool-Call in seinem Verlauf und erfindet daraus „kein Werkzeug ausgeführt“.
+- Falle beim Reparieren: Die Notiz bittet nur darum, den Stand zu prüfen. Wirken würde vermutlich erst, wenn der Server den Fall selbst erkennt (Wunschwert gleich Ist-Wert) und den fertigen Satz liefert, oder wenn der Ist-Stand in die Notiz geschrieben wird.
+
+### Nachtest B2 (2) (gr-cae-live @ 66c62c7e03, mit a903435b17)
+
+Gefahren auf einer frischen Creator-Canvas `2f14a7ed-7e3b-48f3-ab6b-d2eba0b663ab` (Creator 41 s). Hocuspocus lief auf :1250, weil :1240 vom API-Prozess einer anderen Session (`Gruenerator-wt/notebook-filters`) belegt war. Bilder: `B2r2-start.jpg`, `B2r2-mint.jpg`, `B2r2-again.jpg`, `B2r2-kursiv.jpg`.
+
+| Schritt                                                    | Pfad      | Sekunden | Urteil   |
+| ---------------------------------------------------------- | --------- | -------- | -------- |
+| 1. „Ändere die Hintergrundfarbe auf Mint“, dann „Behalten“ | spec      | 7,8      | pass     |
+| 2. dieselbe Anweisung noch einmal                          | unchanged | 11,5     | pass     |
+| 3. Kontrolle „Mach die Schrift kursiv“                     | spec      | 8,7      | **fail** |
+
+**1. Mint, behalten – pass.** Chat: „Die Hintergrundfarbe des Sharepics wird gerade auf Mint aktualisiert.“
+
+```
+01:47:00 INFO  [EditorTool] [EditorTool] emitted canvas spec (1 slide(s)) for "Ändere die Hintergrundfarbe des Sharepics auf Mint."
+01:47:02 INFO  [sharepicCreator:review] review ok=true issues=[] patch=[]
+```
+
+**2. Mint noch einmal – pass.** Der Chat sagt, dass schon Mint eingestellt ist; „kein Werkzeug“ kommt nicht mehr vor. Der zweite Satz klingt unnötig nach Fehlschlag. Wörtlich:
+
+> „Die Hintergrundfarbe ist bereits auf Mint eingestellt. Eine weitere Änderung an der Farbe konnte daher nicht vorgenommen werden.“
+
+```
+01:47:17 INFO  [EditorTool] [EditorTool] canvas spec unchanged for "Ändere die Hintergrundfarbe auf Mint"
+```
+
+**3. Kontrolle „Mach die Schrift kursiv“ – fail.** Diesmal blieb der Entwurf nicht gleich: Es kam ein neuer Spec, und der Chat behauptet, die Schrift werde kursiv gesetzt. Wörtlich:
+
+> „Die Folien werden gerade aktualisiert — die gesamte Schrift im Sharepic wird auf kursiv gesetzt.“
+
+Tatsächlich war die Headline-Schrift vorher schon kursiv. Geändert hat sich nur das Layout: Die Headline ist kleiner und steht in zwei statt drei Zeilen (`B2r2-again.jpg` gegen `B2r2-kursiv.jpg`). Ein Hinweis dazu kam nicht.
+
+```
+01:47:32 INFO  [EditorTool] [EditorTool] emitted canvas spec (1 slide(s)) for "Setze die gesamte Schrift im Sharepic auf kursiv."
+01:47:33 INFO  [sharepicCreator:review] review ok=true issues=[] patch=[]
+```
+
+**Befund.** Ein nicht umsetzbarer Wunsch kann einen Entwurf mit einer Nebenänderung erzeugen. Dann greift `unchanged` nicht, und die Antwort bestätigt den Wunsch als ausgeführt. Ungeprüft: ob der Spec ein Kursiv-Feld überhaupt kennt, und welche Felder sich genau geändert haben (der Spec-Diff wurde nicht protokolliert). Die Review prüft nur Lesbarkeit; dass der Wunsch erfüllt ist, prüft sie nicht.

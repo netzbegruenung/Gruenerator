@@ -1,4 +1,5 @@
 import mistralClient from '../../ai/mistralClient.js';
+import { recordOperation } from '../../usage/UsageTrackingService.js';
 
 import { scheduleEmbedding } from './embeddingScheduler.js';
 
@@ -35,6 +36,15 @@ export class MistralEmbeddingClient {
     return await scheduleEmbedding('interactive', () => this.embedOnce(text));
   }
 
+  private recordUsage(tokens: number | undefined): void {
+    recordOperation({
+      unit: 'embedding_tokens',
+      provider: 'mistral',
+      model: this.model,
+      count: tokens ?? 0,
+    });
+  }
+
   private async embedOnce(text: string): Promise<number[]> {
     if (!text || typeof text !== 'string') throw new Error('Text required');
 
@@ -45,6 +55,7 @@ export class MistralEmbeddingClient {
         model: this.model,
         inputs: [safeText],
       });
+      this.recordUsage(resp?.usage?.totalTokens);
       const vec = resp?.data?.[0]?.embedding;
       if (!Array.isArray(vec)) throw new Error('No embedding returned');
       return vec as number[];
@@ -156,6 +167,7 @@ export class MistralEmbeddingClient {
         model: this.model,
         inputs: safeTexts,
       });
+      this.recordUsage(resp?.usage?.totalTokens);
       const arr = resp?.data;
       if (!Array.isArray(arr) || arr.length !== safeTexts.length)
         throw new Error('Embedding batch size mismatch');

@@ -80,9 +80,10 @@ describe('isListableTextForm', () => {
     expect(isListableTextForm('preset', 'presse')).toBe(false);
   });
 
-  it('zählt `antrag` auf — ein Preset ohne mitgeliefertes Rezept', () => {
-    // Es überschreibt nichts, also wäre es sonst auf keinem Pfad erreichbar.
-    expect(isListableTextForm('preset', 'antrag')).toBe(true);
+  it('lässt den Antrags-Stil weg — er füllt das Rezept @antrag', () => {
+    // Bis es `@antrag` gab, stand die Zeile für sich (#2937); jetzt reitet sie
+    // wie `presse` auf ihrem Systemrezept.
+    expect(isListableTextForm('preset', 'antrag')).toBe(false);
   });
 
   it('lässt einen Rezept-Stil auf einer Landesverbands-Mention weg', () => {
@@ -113,14 +114,6 @@ describe('isShareableTextForm', () => {
 
   it('weist einen Rezept-Stil auf einer Landesverbands-Mention ab', () => {
     expect(isShareableTextForm('recipe', 'presse-bayern-partei')).toBe(false);
-  });
-
-  it('weist `antrag` ab, obwohl es aufgezählt wird', () => {
-    // Aufzählen und Weitergeben sind zwei Fragen: die angelernte Antrags-Zeile
-    // steht im Menü, ist aber die Füllung eines Textyps und nicht die Gabe
-    // ihres Eigentümers.
-    expect(isListableTextForm('preset', 'antrag')).toBe(true);
-    expect(isShareableTextForm('preset', 'antrag')).toBe(false);
   });
 
   it('weist eine Custom-Zeile ab, deren Mention ein Systemrezept verdeckt', () => {

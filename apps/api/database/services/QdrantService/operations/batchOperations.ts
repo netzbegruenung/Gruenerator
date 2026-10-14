@@ -224,16 +224,27 @@ export async function scrollDocuments(
     const message = error instanceof Error ? error.message : String(error);
     logger.error(`Scroll failed: ${message}`);
 
-    if (
-      message.includes('SSL') ||
-      message.includes('wrong version') ||
-      message.includes('fetch failed')
-    ) {
+    if (isQdrantUnavailableError(error)) {
       logger.warn('Connection error detected, suggesting connection reset');
     }
 
     throw new Error(`Scroll operation failed: ${message}`);
   }
+}
+
+/**
+ * Whether an error means Qdrant itself is unreachable (network, TLS, client
+ * disabled) rather than a bad request. Wrapped errors keep the original
+ * message as a suffix, so this also matches after re-throws.
+ */
+export function isQdrantUnavailableError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes('SSL') ||
+    message.includes('wrong version') ||
+    message.includes('fetch failed') ||
+    message.includes('Qdrant is not available')
+  );
 }
 
 /**

@@ -23,6 +23,7 @@ interface Rows {
   /** The group behind `group`/`membership` is in the Papierkorb. */
   groupTrashed?: boolean;
   displayName?: string;
+  profilesFail?: boolean;
 }
 
 /** A group lookup only sees a trashed group when its SQL forgets the live-group clause. */
@@ -42,7 +43,10 @@ function makeDb(rows: Rows) {
     if (/FROM group_memberships/i.test(sql)) {
       return rows.membership && groupVisible ? [{ '?column?': 1 }] : [];
     }
-    if (/FROM profiles/i.test(sql)) return [{ display_name: rows.displayName ?? 'Tester' }];
+    if (/FROM profiles/i.test(sql)) {
+      if (rows.profilesFail) throw new Error('pool exhausted');
+      return [{ display_name: rows.displayName ?? 'Tester' }];
+    }
     return [];
   });
   return { db, captured };
@@ -358,5 +362,39 @@ describe('AuthService — local dev bypass', () => {
       viaProxy('doc-1', 'dev-token')
     );
     expect(res.authenticated).toBe(false);
+  });
+});
+
+describe('AuthService — profiles lookup failure does not mask a denial', () => {
+  const realFetch = global.fetch;
+  beforeEach(() => {
+    global.fetch = vi.fn(
+      async () => new Response(JSON.stringify({ user: { id: 'user-9' } }), { status: 200 })
+    ) as unknown as typeof fetch;
+  });
+  afterEach(() => {
+    global.fetch = realFetch;
+  });
+
+  const privateDoc = publicDoc({ is_public: false, share_mode: 'private', permissions: {} });
+
+  it.each([
+    ['no access', privateDoc],
+    ['deleted', publicDoc({ is_deleted: true })],
+  ])('keeps a %s denial durable', async (_name, doc) => {
+    const res = await new AuthService({
+      db: makeDb({ doc, profilesFail: true }).db,
+      redis,
+    }).authenticateConnection(withToken('doc-1'));
+    expect(res.authenticated).toBe(false);
+    expect(res.reason).not.toBe('Internal authentication error');
+  });
+
+  it('still grants with a fallback name', async () => {
+    const res = await new AuthService({
+      db: makeDb({ doc: publicDoc(), profilesFail: true }).db,
+      redis,
+    }).authenticateConnection(withToken('doc-1'));
+    expect(res).toMatchObject({ authenticated: true, userName: 'Unknown User' });
   });
 });

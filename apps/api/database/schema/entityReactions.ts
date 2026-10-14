@@ -13,11 +13,14 @@ export const entityReactions = pgTable(
     group_share_id: uuid('group_share_id'),
     group_comment_id: uuid('group_comment_id'),
     board_comment_id: uuid('board_comment_id'),
+    agent_id: uuid('agent_id'),
+    agent_comment_id: uuid('agent_comment_id'),
+    template_comment_id: uuid('template_comment_id'),
   },
   (t) => [
     check(
       'entity_reactions_one_target',
-      sql`num_nonnulls(${t.group_share_id}, ${t.group_comment_id}, ${t.board_comment_id}) = 1`
+      sql`num_nonnulls(${t.group_share_id}, ${t.group_comment_id}, ${t.board_comment_id}, ${t.agent_id}, ${t.agent_comment_id}, ${t.template_comment_id}) = 1`
     ),
     uniqueIndex('uq_entity_reactions_group_share')
       .on(t.group_share_id, t.user_id, t.emoji)
@@ -28,6 +31,15 @@ export const entityReactions = pgTable(
     uniqueIndex('uq_entity_reactions_board_comment')
       .on(t.board_comment_id, t.user_id, t.emoji)
       .where(sql`${t.board_comment_id} IS NOT NULL`),
+    uniqueIndex('uq_entity_reactions_agent')
+      .on(t.agent_id, t.user_id, t.emoji)
+      .where(sql`${t.agent_id} IS NOT NULL`),
+    uniqueIndex('uq_entity_reactions_agent_comment')
+      .on(t.agent_comment_id, t.user_id, t.emoji)
+      .where(sql`${t.agent_comment_id} IS NOT NULL`),
+    uniqueIndex('uq_entity_reactions_template_comment')
+      .on(t.template_comment_id, t.user_id, t.emoji)
+      .where(sql`${t.template_comment_id} IS NOT NULL`),
   ]
 );
 

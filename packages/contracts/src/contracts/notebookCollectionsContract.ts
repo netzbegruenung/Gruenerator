@@ -74,6 +74,7 @@ export const notebookCollectionsContract = c.router(
         200: collectionsListResponseSchema,
         401: notebookErrorResponseSchema,
         500: notebookErrorResponseSchema,
+        503: notebookErrorResponseSchema,
       },
       summary: 'List user notebook collections',
     },

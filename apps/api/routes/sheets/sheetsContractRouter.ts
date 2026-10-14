@@ -3,14 +3,15 @@
  *
  * Sheets are collaborative_documents rows (subtype 'sheets'); CRUD, sharing
  * and permissions run through the polymorphic /api/docs/* endpoints. Sheet
- * EDITING is tool-based (the agentic loop's edit_document tool → sheetAiService
- * → `editor_operations` SSE) — this router only owns the direct generator.
+ * EDITING is tool-based (chat plans ops via sheetAiService and queues them on
+ * the doc) — this router owns the direct generator and the editor's claim.
  */
 
 import { sheetsContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { aiText } from '../../services/ai/generate.js';
+import { claimSheetOps } from '../../services/sheets/sheetOpsQueueService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
@@ -83,6 +84,32 @@ export const sheetsContractRouter = s.router(sheetsContract, {
         status: 500 as const,
         body: {
           error: 'Failed to generate sheet operations',
+          details: error instanceof Error ? error.message : String(error),
+        },
+      };
+    }
+  },
+
+  claimPendingOps: async (args) => {
+    try {
+      const { id } = args.params;
+      const userId = getAuthedUser(args.req).id;
+      if (!(await checkDocumentWriteAccess(id, userId))) {
+        return { status: 403 as const, body: { error: 'No write access to this sheet' } };
+      }
+      const batches = await claimSheetOps(id);
+      return {
+        status: 200 as const,
+        body: {
+          batches: batches.map((b) => ({ id: b.id, operations: b.operations, summary: b.summary })),
+        },
+      };
+    } catch (error) {
+      log.error('[Sheets Contract] Error claiming pending sheet ops:', error);
+      return {
+        status: 500 as const,
+        body: {
+          error: 'Failed to claim pending sheet operations',
           details: error instanceof Error ? error.message : String(error),
         },
       };

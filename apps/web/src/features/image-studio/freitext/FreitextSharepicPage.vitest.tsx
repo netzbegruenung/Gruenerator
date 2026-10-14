@@ -1,27 +1,46 @@
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useAuthStore, type User } from '../../../stores/authStore';
 import { server } from '../../../test/msw-server';
+import { axe } from '../../../test-utils';
+import { downloadDataUrl as downloadDataUrlImpl } from '../../../utils/downloadFile';
+import { downloadSharepicZip } from '../services/downloadSharepicZip';
 
 import { saveCreatorSession } from './creatorSession';
 import FreitextSharepicPage from './FreitextSharepicPage';
 
+const slideCount = vi.hoisted(() => ({ value: 1 }));
 vi.mock('@gruenerator/canvas-editor/composer', () => ({
-  composeSharepic: () => ({ templateType: 'freeform', slides: [{}] }),
+  composeSharepic: () => ({
+    templateType: 'freeform',
+    slides: Array.from({ length: slideCount.value }, () => ({})),
+  }),
   applySharepicPatch: (spec: unknown) => ({ spec }),
+  applySharepicTweaks: (spec: unknown) => spec,
+  sharepicTweaks: () => [],
   ensureFontsReady: () => Promise.resolve(),
 }));
 vi.mock('../renderSharepicToImage', () => ({
   renderSharepicToImage: () => Promise.resolve('data:image/png;base64,AA'),
 }));
+// jsdom never loads an <img>: a carousel's contact sheet would wait forever.
+vi.mock('./creatorRender', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  contactSheet: (previews: string[]) => Promise.resolve(previews.length === 1 ? previews[0] : null),
+}));
 vi.mock('./photoTone', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   primePhotoTones: () => Promise.resolve(),
 }));
+vi.mock('../../../utils/downloadFile', () => ({ downloadDataUrl: vi.fn() }));
+vi.mock('../services/downloadSharepicZip', () => ({ downloadSharepicZip: vi.fn() }));
+const downloadDataUrl = vi.mocked(downloadDataUrlImpl);
+const downloadZip = vi.mocked(downloadSharepicZip);
 // The thread is the shared chat UI; what is under test is the hand-over, not the thread.
 vi.mock('./SharepicCreatorChat', () => ({
   WORKING: {},
@@ -53,6 +72,23 @@ const photo = {
   analysis,
 };
 
+const DRAFT_RESPONSE = () => ({
+  spec: {
+    locale: 'de-DE',
+    slides: [
+      {
+        background: { kind: 'foto', filename: 'upload:1', textSeite: 'unten' },
+        position: 'unten',
+        align: 'links',
+        items: [{ type: 'headline', lines: ['Mach mit', 'bei uns!'] }],
+        logo: true,
+      },
+    ],
+  },
+  chapters: [],
+  attributions: [null],
+});
+
 let bodies: { prompt: string; photos?: { id: string }[] }[];
 
 function Probe({ id = 'probe' }: { id?: string }) {
@@ -61,21 +97,24 @@ function Probe({ id = 'probe' }: { id?: string }) {
 }
 
 function renderAt(state?: unknown) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <MemoryRouter initialEntries={[{ pathname: '/studio/freitext', state }]}>
-      <Routes>
-        <Route
-          path="/studio/freitext"
-          element={
-            <>
-              <FreitextSharepicPage />
-              <Probe id="here" />
-            </>
-          }
-        />
-        <Route path="/bild-editor" element={<Probe />} />
-      </Routes>
-    </MemoryRouter>
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[{ pathname: '/studio/freitext', state }]}>
+        <Routes>
+          <Route
+            path="/studio/freitext"
+            element={
+              <>
+                <FreitextSharepicPage />
+                <Probe id="here" />
+              </>
+            }
+          />
+          <Route path="/studio" element={<Probe />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 }
 
@@ -83,28 +122,16 @@ beforeAll(() => {
   setGlobalApiClient(createApiClient({ baseURL: 'http://localhost/api', authMode: 'cookie' }));
 });
 beforeEach(() => {
+  slideCount.value = 1;
   bodies = [];
+  downloadDataUrl.mockReset();
+  downloadZip.mockReset();
   localStorage.clear();
   useAuthStore.setState({ isLoading: false, user: { id: 'user-1' } as User });
   server.use(
     http.post(DRAFT, async ({ request }) => {
       bodies.push((await request.json()) as (typeof bodies)[number]);
-      return HttpResponse.json({
-        spec: {
-          locale: 'de-DE',
-          slides: [
-            {
-              background: { kind: 'foto', filename: 'upload:1', textSeite: 'unten' },
-              position: 'unten',
-              align: 'links',
-              items: [{ type: 'headline', lines: ['Mach mit', 'bei uns!'] }],
-              logo: true,
-            },
-          ],
-        },
-        chapters: [],
-        attributions: [null],
-      });
+      return HttpResponse.json(DRAFT_RESPONSE());
     }),
     http.post(REVIEW, () => HttpResponse.json({ ok: true, issues: [], patch: [] }))
   );
@@ -112,6 +139,14 @@ beforeEach(() => {
 afterEach(() => server.resetHandlers());
 
 describe('FreitextSharepicPage', () => {
+  it('names a carousel’s previews as Folien', async () => {
+    slideCount.value = 2;
+    renderAt({ prompt: 'Karussell zum Infostand' });
+    await waitFor(() => expect(screen.getByAltText('Folie 1 von 2')).toBeInTheDocument());
+    expect(screen.getByAltText('Folie 2 von 2')).toBeInTheDocument();
+    expect(screen.getByRole('list', { name: 'Folien des Karussells' })).toBeInTheDocument();
+  });
+
   it('sends the first draft with the prompt and photos handed over from the Bild-Editor', async () => {
     renderAt({ prompt: 'Sharepic zum Infostand', photos: [photo] });
     await waitFor(() => expect(screen.getByAltText('Vorschau des Sharepics')).toBeInTheDocument());
@@ -131,11 +166,9 @@ describe('FreitextSharepicPage', () => {
     expect(bodies[0]!.prompt).toContain('Sharepic aus meinem Foto');
   });
 
-  it('opens the Bild-Editor in Sharepic mode when nothing was handed over', async () => {
+  it('goes back to the Studio when nothing was handed over', async () => {
     renderAt();
-    expect(await screen.findByTestId('probe')).toHaveTextContent(
-      '/bild-editor {"mode":"sharepic"}'
-    );
+    expect(await screen.findByTestId('probe')).toHaveTextContent('/studio');
     expect(bodies).toHaveLength(0);
   });
 
@@ -168,6 +201,16 @@ describe('FreitextSharepicPage', () => {
     await waitFor(() => expect(screen.getByAltText('Vorschau des Sharepics')).toBeInTheDocument());
     expect(screen.queryByTestId('probe')).not.toBeInTheDocument();
     expect(bodies).toHaveLength(0);
+    // At md and above the preview is the one main landmark.
+    expect(screen.getAllByRole('main')).toHaveLength(1);
+    expect(screen.getByRole('main')).toContainElement(
+      screen.getByAltText('Vorschau des Sharepics')
+    );
+    // Below md the restored design opens on the preview tab.
+    expect(screen.getByRole('tab', { name: 'Vorschau', hidden: true })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
   });
 
   it('waits for the account before deciding there is nothing to resume', async () => {
@@ -201,5 +244,109 @@ describe('FreitextSharepicPage', () => {
     expect(await screen.findByText('Neue Sitzung')).toBeInTheDocument();
     expect(screen.queryByText('Alte Sitzung')).not.toBeInTheDocument();
     expect(localStorage.getItem('gruenerator-sharepic-creator-v1')).toBeNull();
+  });
+});
+
+describe('FreitextSharepicPage below md', () => {
+  const desktopWidth = window.innerWidth;
+  beforeEach(() => {
+    Object.defineProperty(window, 'innerWidth', { value: 390, configurable: true });
+  });
+  afterEach(() => {
+    Object.defineProperty(window, 'innerWidth', { value: desktopWidth, configurable: true });
+  });
+
+  function holdDraft() {
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const real = DRAFT_RESPONSE();
+    server.use(
+      http.post(DRAFT, async () => {
+        await gate;
+        return HttpResponse.json(real);
+      })
+    );
+    return () => release();
+  }
+
+  it('shows chat and preview as tabs, keeping the hidden panel mounted', async () => {
+    const release = holdDraft();
+    renderAt({ prompt: 'Sharepic zum Infostand', photos: [photo] });
+    const tablist = await screen.findByRole('tablist', { name: 'Ansicht' });
+    const chat = within(tablist).getByRole('tab', { name: 'Chat' });
+    const vorschau = within(tablist).getByRole('tab', { name: 'Vorschau' });
+    expect(chat).toHaveAttribute('aria-selected', 'true');
+    expect(vorschau).toHaveAttribute('aria-selected', 'false');
+    expect(vorschau).toHaveAttribute('tabindex', '-1');
+
+    const chatPanel = screen.getByRole('tabpanel', { name: 'Chat' });
+    expect(chatPanel).toContainElement(screen.getByLabelText('Unterhaltung-Stub'));
+    const previewPanel = document.getElementById('sharepic-panel-vorschau')!;
+    expect(previewPanel).toHaveClass('max-md:hidden');
+    expect(chatPanel).not.toHaveClass('max-md:hidden');
+
+    fireEvent.click(vorschau);
+    expect(vorschau).toHaveAttribute('aria-selected', 'true');
+    expect(chatPanel).toHaveClass('max-md:hidden');
+    expect(chatPanel).toBeInTheDocument();
+    expect(screen.getByRole('tabpanel', { name: 'Vorschau' })).not.toHaveClass('max-md:hidden');
+
+    // The panels sit inside the one main landmark; neither panel is a second one.
+    expect(screen.getAllByRole('main')).toHaveLength(1);
+    expect(screen.getByRole('main')).toContainElement(chatPanel);
+    expect(await axe(tablist)).toHaveNoViolations();
+    release();
+  });
+
+  it('moves between tabs with the arrow keys', async () => {
+    const release = holdDraft();
+    renderAt({ prompt: 'Sharepic zum Infostand', photos: [photo] });
+    const chat = await screen.findByRole('tab', { name: 'Chat' });
+    const vorschau = screen.getByRole('tab', { name: 'Vorschau' });
+    chat.focus();
+    fireEvent.keyDown(chat, { key: 'ArrowRight' });
+    expect(vorschau).toHaveAttribute('aria-selected', 'true');
+    expect(vorschau).toHaveFocus();
+    expect(vorschau).toHaveAttribute('tabindex', '0');
+    fireEvent.keyDown(vorschau, { key: 'ArrowLeft' });
+    expect(chat).toHaveAttribute('aria-selected', 'true');
+    expect(chat).toHaveFocus();
+    release();
+  });
+
+  it('opens the preview once a turn has produced a design', async () => {
+    renderAt({ prompt: 'Sharepic zum Infostand', photos: [photo] });
+    await waitFor(() => expect(screen.getByAltText('Vorschau des Sharepics')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'Vorschau' })).toHaveAttribute('aria-selected', 'true')
+    );
+    expect(document.getElementById('sharepic-panel-chat')).toHaveClass('max-md:hidden');
+  });
+
+  it('downloads a single sharepic as one image', async () => {
+    renderAt({ prompt: 'Sharepic zum Infostand' });
+    fireEvent.click(await screen.findByRole('button', { name: 'Herunterladen' }));
+    await waitFor(() =>
+      expect(downloadDataUrl).toHaveBeenCalledWith(
+        'data:image/png;base64,AA',
+        expect.stringMatching(/^gruenerator-sharepic-\d+\.png$/)
+      )
+    );
+    expect(downloadZip).not.toHaveBeenCalled();
+  });
+
+  it('downloads a carousel as a ZIP of all slides', async () => {
+    slideCount.value = 2;
+    renderAt({ prompt: 'Karussell zum Infostand' });
+    fireEvent.click(await screen.findByRole('button', { name: 'Als ZIP herunterladen' }));
+    await waitFor(() =>
+      expect(downloadZip).toHaveBeenCalledWith(
+        ['data:image/png;base64,AA', 'data:image/png;base64,AA'],
+        'freeform'
+      )
+    );
+    expect(downloadDataUrl).not.toHaveBeenCalled();
   });
 });

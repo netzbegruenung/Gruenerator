@@ -50,7 +50,6 @@ const SRC = {
   // Shared with apps/mobile, which renders a subset of the same rows.
   catalog: 'packages/shared/src/settings/catalog.ts',
   general: 'apps/web/src/features/settings/tabs/GeneralTab.tsx',
-  texteAnlernen: 'apps/web/src/features/agentura/recipes/recipeKind.ts',
   notificationMeta: 'apps/web/src/features/notifications/notificationPreferenceMeta.ts',
   notificationGroups: 'apps/web/src/features/notifications/types/index.ts',
 };
@@ -179,17 +178,6 @@ function extractChoices() {
   };
 }
 
-/** The writing-style presets a user can teach. */
-function extractTextFormPresets() {
-  return requireArray(SRC.texteAnlernen, 'PRESETS')
-    .map((el) => ({
-      textType: stringProp(el, 'textType'),
-      label: stringProp(el, 'label'),
-      hint: stringProp(el, 'hint'),
-    }))
-    .filter((p) => p.textType && p.label);
-}
-
 /** Every notification a user can switch on or off, grouped as the UI groups them. */
 function extractNotifications() {
   const groupsObj = requireObject(SRC.notificationGroups, 'NOTIFICATION_GROUPS');
@@ -250,7 +238,6 @@ function generate() {
     tabs: extractTabs(),
     rows: extractRows(),
     choices: extractChoices(),
-    textFormPresets: extractTextFormPresets(),
     notifications: extractNotifications(),
   };
   return {

@@ -1,4 +1,5 @@
 ---
+laender: [de, at]
 sidebar_position: 8
 title: Wie diese Doku entsteht
 description: 'Diese Doku entsteht größtenteils am Quellcode: welcher Teil maschinell ausgelesen ist, welcher von einer KI geschrieben wurde.'
@@ -37,7 +38,7 @@ Für die Teile, die reine Aufzählung sind, gibt es keine abgetippte Kopie in de
 | Einstellungen                                     | Der Aufbau des Einstellungen-Dialogs und alle Schalter darin                  | [Einstellungen](/docs/sonstiges/einstellungen)                                                                            |
 | Office-Funktionen                                 | Die Verträge zwischen App und KI — und was der Editor davon wirklich ausführt | [Office-Überblick](/docs/features/office)                                                                                 |
 | Dateilimits, Sammlungen, Konnektoren              | Die Upload-Prüfung und die Konnektor-Registry                                 | [Dateien hinzufügen](/docs/chat/dateien-hinzufuegen), [Konnektoren](/docs/guides/fortgeschrittene/konnektoren-einrichten) |
-| Regale der Agentura                               | Der Kategorien-Katalog des Marktplatzes                                       | [Agentura](/docs/features/agentura)                                                                                       |
+| Regale der Agentura in der App                    | Der Kategorien-Katalog des Marktplatzes                                       | [Agentura](/docs/features/agentura)                                                                                       |
 | Namen von Werkzeugen und Menüpunkten im Fließtext | Dieselben Konfigurationen                                                     | überall dort, wo ein Name genannt wird                                                                                    |
 
 Zwei Eigenschaften dieses Verfahrens sind entscheidend:

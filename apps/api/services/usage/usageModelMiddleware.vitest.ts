@@ -20,7 +20,7 @@ vi.mock('../../utils/usageContext.js', () => ({
 /** Ein Modell-Double auf Spezifikationsebene — das sieht die Middleware. */
 function fakeModel(parts: unknown[], outputTokens: number): LanguageModel {
   return {
-    specificationVersion: 'v3',
+    specificationVersion: 'v4',
     provider: 'fake',
     modelId: 'fake-model',
     doGenerate: async () => ({
@@ -97,7 +97,7 @@ describe('withUsageTracking', () => {
 
   it('bucht den Cache-Anteil der Eingabe mit, wenn der Anbieter ihn meldet', async () => {
     const model = {
-      specificationVersion: 'v3',
+      specificationVersion: 'v4',
       provider: 'fake',
       modelId: 'fake-model',
       doGenerate: async () => ({

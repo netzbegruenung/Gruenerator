@@ -23,7 +23,7 @@
  */
 
 import { layoutRichTextBlock } from '@gruenerator/contracts';
-import { useRef, useEffect, useCallback, useMemo, Fragment } from 'react';
+import { useRef, useEffect, useCallback, useMemo, useState, Fragment } from 'react';
 import { Group, Rect, Text as KonvaText, Transformer } from 'react-konva';
 
 import { overlayBoxForNode, useCanvasTextEditor } from '../components/CanvasTextOverlay';
@@ -31,10 +31,12 @@ import { useFontGeneration } from '../hooks/useFontGeneration';
 import { useGeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { markerBoxes } from '../utils/markerBoxes';
+import { DEFAULT_TEXT_MARKER, markerInkOn } from '../utils/markerColors';
 import { calculateElementSnapPosition } from '../utils/snapping';
 import { runFont, runMeasurer } from '../utils/textUtils';
+import { touchAnchorStyleFunc } from '../utils/touchInput';
 
-import { type CanvasTextProps } from './CanvasText';
+import { type CanvasTextProps, isWidthOnlyScale } from './CanvasText';
 
 import type { TransformAnchor } from '@gruenerator/shared/canvas-editor';
 import type Konva from 'konva';
@@ -62,7 +64,7 @@ export function CanvasRichText({
   shadowOpacity,
   align = 'left',
   accent = null,
-  marker = null,
+  marker: templateMarker = null,
   lineHeight = 1.2,
   padding = 0,
   draggable = true,
@@ -85,7 +87,7 @@ export function CanvasRichText({
 }: CanvasTextProps) {
   const groupRef = useRef<Konva.Group>(null);
   const trRef = useRef<Konva.Transformer>(null);
-  const { open, isEditing } = useCanvasTextEditor(id);
+  const { open, isEditing } = useCanvasTextEditor(id, editable);
 
   // Ein nachgeladener Schriftschnitt misst anders. Ohne diese Abhängigkeit
   // bliebe der mit der Ersatzschrift gerechnete Umbruch stehen — siehe
@@ -98,7 +100,12 @@ export function CanvasRichText({
 
   // Ohne gesetzte Breite gibt es nichts zu umbrechen; der Einzug gilt trotzdem,
   // damit die Marker eine Spalte bilden.
-  const innerWidth = width != null ? Math.max(width - 2 * padding, 1) : Number.POSITIVE_INFINITY;
+  // While a side handle is dragged the block re-wraps at this width; it is
+  // committed (and cleared) on transform end.
+  const [liveWidth, setLiveWidth] = useState<number | null>(null);
+  const layoutWidth = liveWidth ?? width;
+  const innerWidth =
+    layoutWidth != null ? Math.max(layoutWidth - 2 * padding, 1) : Number.POSITIVE_INFINITY;
   const lines = useMemo(
     () => layoutRichTextBlock(text, innerWidth, measure),
     [text, innerWidth, measure]
@@ -117,7 +124,7 @@ export function CanvasRichText({
   );
   // Ohne feste Breite die breiteste gesetzte Zeile — der Transformer und die
   // Snap-Ziele brauchen eine Box, eine Gruppe misst sich nicht selbst.
-  const blockWidth = width ?? Math.max(...lineWidths, 1) + 2 * padding;
+  const blockWidth = layoutWidth ?? Math.max(...lineWidths, 1) + 2 * padding;
   const innerBoxWidth = Math.max(blockWidth - 2 * padding, 1);
 
   // Die Ausrichtung verschiebt jede Zeile für sich; die Kästen brauchen denselben Versatz.
@@ -134,17 +141,16 @@ export function CanvasRichText({
       ),
     [lines, lineWidths, align, padding, innerBoxWidth]
   );
-  // Ohne Markerstil am Text bleibt ein `++`-Lauf unauffällig.
+  // Ohne Markerstil der Vorlage bekommt ein `++`-Lauf den Standardkasten.
+  const marker = templateMarker ?? DEFAULT_TEXT_MARKER;
   const boxes = useMemo(
     () =>
-      marker
-        ? markerBoxes(lines, measure, marker, {
-            fontSize,
-            lineHeightPx,
-            top: padding,
-            originX,
-          })
-        : [],
+      markerBoxes(lines, measure, marker, {
+        fontSize,
+        lineHeightPx,
+        top: padding,
+        originX,
+      }),
     [marker, lines, measure, fontSize, lineHeightPx, padding, originX]
   );
 
@@ -203,9 +209,31 @@ export function CanvasRichText({
     [id, onDragEnd, onPositionChange, snap, blockWidth, blockHeight]
   );
 
+  // A ref, not the rendered width: two transform events can arrive before
+  // React re-renders, and the second must build on the first.
+  const liveWidthRef = useRef<number | null>(null);
+  const handleTransform = useCallback(() => {
+    const node = groupRef.current;
+    if (!node || !isWidthOnlyScale(node)) return;
+    const next = Math.max(1, (liveWidthRef.current ?? blockWidth) * node.scaleX());
+    node.scaleX(1);
+    liveWidthRef.current = next;
+    setLiveWidth(next);
+  }, [blockWidth]);
+
   const handleTransformEnd = useCallback(() => {
     const node = groupRef.current;
     if (!node) return;
+    const committedWidth = liveWidthRef.current;
+    if (committedWidth != null) {
+      liveWidthRef.current = null;
+      setLiveWidth(null);
+      if (Math.abs(node.scaleY() - 1) < 1e-3) {
+        node.scale({ x: 1, y: 1 });
+        onTransformEnd?.(node.x(), node.y(), Math.round(committedWidth), 1, 1);
+        return;
+      }
+    }
     const scaleX = node.scaleX();
     const scaleY = node.scaleY();
     const SCALE_THRESHOLD = 0.03;
@@ -229,10 +257,11 @@ export function CanvasRichText({
   const handleDblClick = useCallback(() => {
     const node = groupRef.current;
     const box = node && overlayBoxForNode(node, blockWidth, blockHeight);
-    if (!editable || !box) return;
+    if (!editable || !node || !box) return;
     open({
       id: id ?? '',
       box,
+      anchor: { node, width: blockWidth, height: blockHeight },
       text,
       fontFamily,
       fontSize,
@@ -242,7 +271,7 @@ export function CanvasRichText({
       lineHeight,
       opacity,
       accent,
-      marker,
+      marker: templateMarker,
       onTextChange,
     });
   }, [
@@ -260,7 +289,7 @@ export function CanvasRichText({
     lineHeight,
     opacity,
     accent,
-    marker,
+    templateMarker,
     onTextChange,
   ]);
 
@@ -279,13 +308,14 @@ export function CanvasRichText({
         opacity={opacity}
         draggable={draggable && !isEditing}
         visible={!isEditing}
-        onClick={onSelect}
-        onTap={onSelect}
+        onMouseDown={onSelect}
+        onTouchStart={onSelect}
         onDblClick={handleDblClick}
         onDblTap={handleDblClick}
         onDragStart={snap.onDragStart}
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
+        onTransform={handleTransform}
         onTransformEnd={handleTransformEnd}
       >
         {/* Die Trefferfläche des Blocks. Eine Konva-Gruppe hat keine eigene:
@@ -301,18 +331,17 @@ export function CanvasRichText({
             die Treffer-Ebene; sichtbar wird davon nichts. */}
         <Rect width={blockWidth} height={blockHeight} fill="transparent" />
         {/* Die Textmarker-Kästen liegen unter allen Glyphen: erst sie, dann die Läufe. */}
-        {marker &&
-          boxes.map((box, index) => (
-            <Rect
-              key={`marker-${index}`}
-              x={box.x}
-              y={box.y}
-              width={box.width}
-              height={box.height}
-              fill={marker.fill}
-              listening={false}
-            />
-          ))}
+        {boxes.map((box, index) => (
+          <Rect
+            key={`marker-${index}`}
+            x={box.x}
+            y={box.y}
+            width={box.width}
+            height={box.height}
+            fill={box.fill}
+            listening={false}
+          />
+        ))}
         {lines.map((line, index) => {
           // Konva zeichnet eine Zeile mittig in ihre Zeilenbox (textBaseline
           // "middle"). Ein Stapel einzeiliger Knoten im Abstand einer Zeilenbox
@@ -348,11 +377,16 @@ export function CanvasRichText({
                   fontSize={fontSize}
                   {...runFont(fontFamily, fontStyle, run, accent)}
                   textDecoration={run.underline ? 'underline' : ''}
-                  {...(run.marker && marker
-                    ? // Dark ink on the light box: no halo or outline of the photo text.
-                      { fill: marker.color, lineJoin: 'round' as const }
+                  {...(run.marker
+                    ? // Ink chosen for the box: no halo or outline of the photo text.
+                      {
+                        fill:
+                          run.accentColor ??
+                          (run.markerColor ? markerInkOn(run.markerColor) : marker.color),
+                        lineJoin: 'round' as const,
+                      }
                     : {
-                        fill: run.accent && accent ? accent.fill : fill,
+                        fill: run.accentColor ?? (run.accent && accent ? accent.fill : fill),
                         stroke,
                         strokeWidth,
                         fillAfterStrokeEnabled: !!stroke && (strokeWidth ?? 0) > 0,
@@ -374,6 +408,7 @@ export function CanvasRichText({
       </Group>
       {selected && !isEditing && (
         <Transformer
+          anchorStyleFunc={touchAnchorStyleFunc}
           ref={trRef}
           rotateEnabled={transformConfig?.rotateEnabled ?? false}
           rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}

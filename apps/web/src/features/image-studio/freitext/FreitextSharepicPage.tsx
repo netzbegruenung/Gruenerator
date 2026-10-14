@@ -1,48 +1,106 @@
-import { Button } from '@gruenerator/ui';
-import { ArrowLeft } from 'lucide-react';
+import { type SharepicTweakId } from '@gruenerator/canvas-editor/composer';
+import { useQueryClient } from '@tanstack/react-query';
+import { SlidersHorizontal } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useAuthStore } from '../../../stores/authStore';
 import { cn } from '../../../utils/cn';
+import { seedCanvasQuery } from '../canvasQuery';
+import { DownloadButton, OpenInEditorButton } from '../editor-shell/StudioEditorActions';
+import { StudioEditorShell } from '../editor-shell/StudioEditorShell';
+import { StudioPreviewStage } from '../editor-shell/StudioPreviewStage';
+import { dropTabPayload, readTabPayload } from '../tabHandoff';
 
+import { downloadDesign } from './creatorRender';
 import { clearCreatorSession } from './creatorSession';
 import { readHandoff } from './freitextHandoff';
-import { SharepicCreatorChat, WORKING } from './SharepicCreatorChat';
-import { mintCreatorCanvas, useSharepicCreator } from './useSharepicCreator';
+import { SharepicCreatorChat } from './SharepicCreatorChat';
+import { SharepicFinishBar, SharepicFinishSheet, SharepicSwatches } from './SharepicFinish';
+import { type CreatorSaveState, mintCreatorCanvas, useSharepicCreator } from './useSharepicCreator';
+
+const SAVE_STATUS: Record<Exclude<CreatorSaveState, 'idle'>, string> = {
+  saving: 'Wird gespeichert …',
+  saved: 'Gespeichert',
+  error: 'Nicht gespeichert',
+};
+
+/** Where the design lives: autosaved as a canvas in the Studio. */
+function SaveStatus({ state }: { state: CreatorSaveState }) {
+  return (
+    <span role="status" className="text-[13px] text-white/80 max-md:hidden">
+      {state !== 'idle' && SAVE_STATUS[state]}
+    </span>
+  );
+}
 
 function FreitextSharepicContent() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [opening, setOpening] = useState(false);
   const [openError, setOpenError] = useState<string | null>(null);
+  const [finishOpen, setFinishOpen] = useState(true);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const authLoading = useAuthStore((s) => s.isLoading);
-  const { messages, phase, design, send, resume, reportPhotoError, photoCount } =
-    useSharepicCreator(userId);
+  const {
+    messages,
+    phase,
+    design,
+    send,
+    resume,
+    reportPhotoError,
+    photoCount,
+    tweaks,
+    tweak,
+    resetTweaks,
+    tweaked,
+    saveState,
+    handOff,
+  } = useSharepicCreator(userId);
   const busy = phase === 'drafting' || phase === 'checking';
+  const farbe = tweaks.find((t) => t.id === 'farbe') ?? null;
+  const hasBarTweaks = tweaks.some((t) => t.id !== 'farbe');
+  const onTweak = (id: SharepicTweakId, value: string) => void tweak(id, value);
+  const onReset = tweaked ? () => void resetTweaks() : null;
 
-  // The Bild-Editor's „Sharepic" mode hands over its prompt and photos in router state — this
+  // On a phone a design that arrives while a turn or a restore runs opens the preview; a tweak
+  // re-renders from `ready` and leaves the tab alone. (A fast turn can go drafting → ready without
+  // `checking` ever rendering, so this compares to `ready`.)
+  const [reveal, setReveal] = useState(0);
+  const [seen, setSeen] = useState({ design, phase });
+  if (seen.design !== design || seen.phase !== phase) {
+    if (design && seen.design !== design && seen.phase !== 'ready') setReveal((n) => n + 1);
+    setSeen({ design, phase });
+  }
+
+  // The Studio composer hands over its prompt and photos in router state — this
   // page has no start screen of its own. Read once, then replace the entry right away so a
-  // reload or back/forward doesn't resend it (and lands back in the Bild-Editor).
+  // reload or back/forward doesn't resend it (and lands back in the Studio).
   const location = useLocation();
-  const [handoff] = useState(() => readHandoff(location.state));
+  // From the Studio composer the request arrives in a new tab, via storage instead of router state.
+  const [handoff] = useState(
+    () => readHandoff(location.state) ?? readHandoff(readTabPayload(location.search))
+  );
   const handedOver = useRef(false);
   useEffect(() => {
     if (handedOver.current || !handoff) return;
     handedOver.current = true;
+    dropTabPayload(location.search);
     clearCreatorSession();
     void navigate(location.pathname, { replace: true, state: null });
     void send(handoff.prompt, handoff.photos);
-  }, [handoff, location.pathname, navigate, send]);
+  }, [handoff, location.pathname, location.search, navigate, send]);
 
   // Without a hand-over this is a reload: once we know whose it is, the last session comes back.
-  // With none to resume, the Bild-Editor is where a sharepic begins.
+  // With none to resume, the Studio is where a sharepic begins.
   const resumeTried = useRef(false);
   useEffect(() => {
     if (handoff || authLoading || resumeTried.current) return;
     resumeTried.current = true;
-    if (!resume()) void navigate('/bild-editor', { replace: true, state: { mode: 'sharepic' } });
+    if (!resume()) void navigate('/studio', { replace: true });
   }, [handoff, authLoading, navigate, resume]);
 
   const openInEditor = async () => {
@@ -50,103 +108,149 @@ function FreitextSharepicContent() {
     setOpening(true);
     setOpenError(null);
     try {
+      const savedCanvasId = await handOff();
+      if (savedCanvasId) {
+        void navigate(`/studio/canvas/${savedCanvasId}`);
+        return;
+      }
       const firstPrompt = messages.find((m) => m.role === 'user')?.text ?? 'Sharepic';
-      const id = await mintCreatorCanvas(design.composed, firstPrompt.slice(0, 60));
-      void navigate(`/studio/canvas/${id}`);
+      const canvas = await mintCreatorCanvas(
+        design.composed,
+        firstPrompt.slice(0, 60),
+        design.source
+      );
+      seedCanvasQuery(queryClient, canvas);
+      void navigate(`/studio/canvas/${canvas.id}`);
     } catch (err) {
       setOpenError(err instanceof Error ? err.message : 'Öffnen fehlgeschlagen.');
       setOpening(false);
     }
   };
 
+  const download = async () => {
+    if (!design) return;
+    setExporting(true);
+    setOpenError(null);
+    try {
+      await downloadDesign(design.composed);
+    } catch (err) {
+      setOpenError(err instanceof Error ? err.message : 'Download fehlgeschlagen.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (!handoff && messages.length === 0) return null;
 
   return (
-    <div className="flex h-dvh min-h-0 flex-col bg-background">
-      <header className="flex h-14 shrink-0 items-center gap-sm bg-[image:var(--editor-menubar-gradient,linear-gradient(90deg,#00553B_0%,#3E7D63_55%,#6BA88C_100%))] px-md text-white">
-        <button
-          type="button"
-          onClick={() => void navigate('/studio')}
-          aria-label="Zurück zum Studio"
-          title="Zurück zum Studio"
-          className="flex size-[34px] items-center justify-center rounded-[10px] text-white/90 transition-colors hover:bg-white/15 hover:text-white"
-        >
-          <ArrowLeft className="size-5" aria-hidden="true" />
-        </button>
-        <div className="flex min-w-0 items-center gap-2">
-          <h1 className="m-0 truncate text-[15px] font-semibold leading-none text-white [font-family:inherit]">
-            Sharepic aus Freitext
-          </h1>
-          <span className="shrink-0 rounded-full bg-white/15 px-2 py-1 text-[10px] font-bold uppercase leading-none tracking-wide text-white">
-            Experimentell
-          </span>
-        </div>
-        {design && (
-          <Button
-            size="sm"
-            onClick={() => void openInEditor()}
-            disabled={opening || busy}
-            className="ml-auto bg-white text-primary-700 hover:bg-white/90"
-          >
-            {opening ? 'Wird geöffnet …' : 'Im Editor öffnen'}
-          </Button>
-        )}
-      </header>
-
-      <div className="flex min-h-0 flex-1 max-md:flex-col">
-        <aside
-          aria-label="Unterhaltung"
-          className="flex w-[360px] shrink-0 flex-col [container-type:size] border-r border-grey-200 max-md:h-[45dvh] max-md:w-full max-md:border-b max-md:border-r-0 dark:border-grey-700"
-        >
-          <SharepicCreatorChat
-            messages={messages}
-            phase={phase}
-            onSend={(text, picked) => void send(text, picked)}
-            onPhotoError={reportPhotoError}
-            photoCount={photoCount}
-          />
-        </aside>
-
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-sm bg-grey-50 p-lg dark:bg-grey-900">
-          {design && design.previews.length === 1 ? (
-            <img
-              src={design.previews[0]}
-              alt="Vorschau des Sharepics"
-              className={cn(
-                'max-h-full w-auto max-w-full rounded-xl shadow-lg transition-opacity',
-                busy && 'opacity-50'
-              )}
+    <StudioEditorShell
+      title="Sharepic aus Freitext"
+      idPrefix="sharepic"
+      revealKey={reveal || null}
+      actions={
+        design && (
+          <>
+            {farbe && (
+              <div className="max-md:hidden">
+                <SharepicSwatches
+                  tweak={farbe}
+                  onChange={onTweak}
+                  disabled={busy}
+                  size="sm"
+                  tone="header"
+                />
+              </div>
+            )}
+            {hasBarTweaks && (
+              <button
+                type="button"
+                onClick={() => setFinishOpen((v) => !v)}
+                aria-expanded={finishOpen}
+                aria-controls="sharepic-feinschliff"
+                aria-label="Feinschliff"
+                title="Feinschliff"
+                className={cn(
+                  'flex h-9 items-center justify-center gap-1.5 rounded-full border border-white/50 text-[13px] font-bold text-white transition-colors hover:bg-white/15 max-md:hidden md:max-lg:w-9 lg:px-3.5',
+                  finishOpen && 'bg-white/20'
+                )}
+              >
+                <SlidersHorizontal className="size-4" aria-hidden="true" />
+                <span className="max-lg:hidden">Feinschliff</span>
+              </button>
+            )}
+            {tweaks.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setSheetOpen(true)}
+                aria-expanded={sheetOpen}
+                aria-haspopup="dialog"
+                aria-label="Feinschliff"
+                title="Feinschliff"
+                className={cn(
+                  'flex size-11 items-center justify-center rounded-full border border-white/50 text-white transition-colors hover:bg-white/15 md:hidden',
+                  sheetOpen && 'bg-white/20'
+                )}
+              >
+                <SlidersHorizontal className="size-5" aria-hidden="true" />
+              </button>
+            )}
+            <SaveStatus state={saveState} />
+            <DownloadButton
+              onClick={() => void download()}
+              disabled={busy}
+              exporting={exporting}
+              label={design.previews.length > 1 ? 'Als ZIP herunterladen' : 'Herunterladen'}
             />
-          ) : design ? (
-            <ol
-              aria-label="Slides des Karussells"
-              className={cn(
-                'flex h-full max-h-[720px] w-full snap-x snap-mandatory items-center gap-md overflow-x-auto px-md transition-opacity',
-                busy && 'opacity-50'
-              )}
-            >
-              {design.previews.map((preview, i) => (
-                // eslint-disable-next-line react/no-array-index-key -- slides have no id; order is the identity
-                <li key={i} className="h-full max-h-full shrink-0 snap-center">
-                  <img
-                    src={preview}
-                    alt={`Slide ${i + 1} von ${design.previews.length}`}
-                    className="h-full w-auto rounded-xl shadow-lg"
-                  />
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <p className="text-sm text-muted-foreground">{WORKING[phase] ?? ''}</p>
-          )}
-          {openError && (
-            <p role="alert" className="text-sm text-red-700 dark:text-red-400">
-              {openError}
-            </p>
-          )}
-        </main>
-      </div>
-    </div>
+            <OpenInEditorButton
+              onClick={() => void openInEditor()}
+              disabled={busy}
+              opening={opening}
+            />
+          </>
+        )
+      }
+      belowHeader={
+        design && (
+          <>
+            {hasBarTweaks && (
+              <SharepicFinishBar
+                tweaks={tweaks}
+                onChange={onTweak}
+                onReset={onReset}
+                disabled={busy}
+                hidden={!finishOpen}
+              />
+            )}
+            <SharepicFinishSheet
+              open={sheetOpen}
+              onOpenChange={setSheetOpen}
+              tweaks={tweaks}
+              onChange={onTweak}
+              onReset={onReset}
+              disabled={busy}
+            />
+          </>
+        )
+      }
+      chat={
+        <SharepicCreatorChat
+          messages={messages}
+          phase={phase}
+          onSend={(text, picked) => void send(text, picked)}
+          onPhotoError={reportPhotoError}
+          photoCount={photoCount}
+        />
+      }
+      preview={
+        <StudioPreviewStage
+          images={design?.previews ?? []}
+          alt="Vorschau des Sharepics"
+          busy={busy}
+          aspect={4 / 5}
+          error={openError}
+        />
+      }
+    />
   );
 }
 

@@ -10,16 +10,19 @@ import { memo, useEffect, type ReactNode } from 'react';
 import { View, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
+import { ReducedMotionConfig, ReduceMotion } from 'react-native-reanimated';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { enableFreeze } from 'react-native-screens';
 
 import { AiConsentGate } from '../components/auth/AiConsentGate';
+import { LocaleGate } from '../components/auth/LocaleGate';
 import { SharepicRenderHost } from '../components/chat/SharepicRenderHost';
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import { NoticeToast } from '../components/common/NoticeToast';
 import { AppDrawer } from '../components/navigation';
 import { SettingsSheet } from '../components/settings';
 import { CURRENT_INSTANCE } from '../config/instance';
+import { useReduceMotion } from '../hooks/useAccessibilityPreferences';
 import { useAppInitialization } from '../hooks/useAppInitialization';
 import { useHydrateUserProfile } from '../hooks/useHydrateUserProfile';
 import { initErrorReporting } from '../services/errorReporting';
@@ -42,6 +45,20 @@ void SplashScreen.preventAutoHideAsync();
 function UserProfileHydrationBridge() {
   useHydrateUserProfile();
   return null;
+}
+
+/**
+ * Hands the app's reduce-motion answer (OS setting OR the profile's
+ * „Animationen reduzieren") to Reanimated, so every loop, `withTiming` and
+ * `entering`/`exiting` that keeps the default `ReduceMotion.System` follows it.
+ * Without this Reanimated only knows the OS flag it read at startup, and the
+ * profile switch reached just the few components that ask the hook themselves.
+ *
+ * Mounted only while reducing: unmounting restores Reanimated's own value, and
+ * `ReducedMotionConfig` logs a dev warning on every mount.
+ */
+function ReducedMotionBridge() {
+  return useReduceMotion() ? <ReducedMotionConfig mode={ReduceMotion.Always} /> : null;
 }
 
 // Local notifications only (the subtitle export tells you when it is done).
@@ -228,6 +245,9 @@ function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      {/* First child: sibling effects run in order, so the config is in place
+          before any screen below starts an animation on mount. */}
+      <ReducedMotionBridge />
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
         <QueryClientProvider client={queryClient}>
           <KeyboardProvider>
@@ -269,6 +289,9 @@ function RootLayout() {
                     Rechtsgrundlage. Gated auf `user`, weil vor der Anmeldung
                     niemand da ist, den man fragen könnte. */}
                 {user ? <AiConsentGate /> : null}
+                {/* Länderfrage, wenn das Profil kein Land trägt (#2920). Kommt
+                    erst nach der Einwilligung — das Gate prüft das selbst. */}
+                {user ? <LocaleGate /> : null}
               </ErrorBoundary>
             </ActionSheetProvider>
           </KeyboardProvider>

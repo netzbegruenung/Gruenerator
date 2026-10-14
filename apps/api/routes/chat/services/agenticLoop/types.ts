@@ -5,6 +5,7 @@
  * these without pulling in the AI SDK, providers, or the DB. The loop substrate
  * itself (agenticRespondService, Phase 1) builds on top of these.
  */
+import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 
 /**
  * One executed tool step, persisted on the assistant message as `toolCalls` and
@@ -86,6 +87,22 @@ export interface PendingAskRequest {
   toolCallId: string;
   question: string;
   options?: string[];
+}
+
+/**
+ * Ein Loop-Werkzeug, dessen Ergebnis nur der Browser liefern kann
+ * (`check_sharepic` braucht das gerenderte Bild). Der Zug pausiert mit einem
+ * `client_tool`-Interrupt für `clientToolName`; die Fortsetzung macht aus dem
+ * Ergebnis das tool-result des zurückgehaltenen Aufrufs.
+ */
+export interface PendingClientToolRequest {
+  /** Der zurückgehaltene Loop-Aufruf — bekommt beim Fortsetzen sein Ergebnis. */
+  toolCallId: string;
+  toolName: string;
+  args: Record<string, unknown>;
+  /** Das Browser-Werkzeug, das der Client ausführen soll (`render_sharepic`). */
+  clientToolName: string;
+  clientArgs: Record<string, unknown>;
 }
 
 /**
@@ -202,11 +219,55 @@ export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   // cannot stack either.
   vertonen: 120_000,
   create_pdf: 90_000,
+  // Text synchronously (~10–20 s) plus a budget check; the illustrations are
+  // painted after the turn, so they do not count against this.
+  create_explainable: 90_000,
   create_presentation: 90_000,
   create_document: 90_000,
   create_sheet: 90_000,
   create_board: 90_000,
+  // The spec path drafts the whole creator sharepic again (two Gemma calls,
+  // painters for scenes/illustrations): 30–90 s measured on the creator itself.
+  // One per turn (editorTools refuses a second), so this cannot stack.
+  edit_current_sharepic: 120_000,
+  // Dieselbe Neuzeichnung; höchstens zwei pro Zug (sharepicLoopTools).
+  edit_sharepic: 120_000,
+  // Planner call (Mistral Medium) plus the Hocuspocus queue write.
+  edit_sheet: 60_000,
+  // Planner call plus the Yjs round trip to Hocuspocus.
+  edit_presentation: 60_000,
+  // One structured rewrite of the whole page (Gemma 4, same lane as creation).
+  edit_explainable: 90_000,
+  // Read + exact replacements + the Hocuspocus write; no model call.
+  edit_document_text: 30_000,
+  // Der Entwurf eines neuen Creator-Sharepics, dieselben Maler wie oben.
+  sharepic: 120_000,
+  // FLUX bei BFL: live 11.10.2026 37 s für ein Bild — nach 20 s abgeschrieben,
+  // malte es unsichtbar zu Ende. Einmal pro Zug (`generate_image` idempotent).
+  generate_image: 90_000,
 };
+
+/**
+ * Catalog keys of the loop's open-artefact edit tool. A creator sharepic whose
+ * spec rides the request mounts `edit_current_sharepic` INSTEAD of
+ * `edit_document` — never both — so readers that look for "the edit tool" ask
+ * for either name.
+ */
+export const EDIT_TOOL_NAMES = ['edit_document', 'edit_current_sharepic'] as const;
+export type EditToolName = (typeof EDIT_TOOL_NAMES)[number];
+
+/**
+ * The name the edit tool is mounted under this turn: a canvas that carries its
+ * creator spec (`currentCanvas.sharepic`) edits through the spec path, every
+ * other surface — and a canvas without a valid source — through `edit_document`.
+ */
+export function editToolNameFor(
+  state: Pick<ChatGraphState, 'editToolSurface' | 'currentCanvas'>
+): EditToolName {
+  return state.editToolSurface === 'canvas' && state.currentCanvas?.sharepic
+    ? 'edit_current_sharepic'
+    : 'edit_document';
+}
 
 /**
  * Tools whose args are structured (IDs, enums, board/task fields) rather than

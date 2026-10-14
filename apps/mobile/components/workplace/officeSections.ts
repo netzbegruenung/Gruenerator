@@ -18,9 +18,9 @@ export const OFFICE_SECTIONS: readonly { kind: SectionKind; title: string }[] = 
 ];
 
 /**
- * An office item in the shape `RecentItemsSection` draws. A sheet has no card of
- * its own there, so it borrows the document card; opening still goes through
- * `pushOfficeItem`, which knows the difference.
+ * An office item in the shape `RecentItemsSection` draws. A sheet travels as a
+ * doc with `documentType: 'sheets'`, as in `/recent-activity`; opening still
+ * goes through `pushOfficeItem`, which knows the difference.
  */
 export function toRecentItem(item: OfficeItem): RecentItem {
   return {
@@ -29,8 +29,12 @@ export function toRecentItem(item: OfficeItem): RecentItem {
     date: item.updatedAt,
     type: item.kind === 'sheet' ? 'doc' : item.kind,
     href: '',
+    // What `/recent-activity` sends for a sheet, so both feeds pick its table card.
+    ...(item.kind === 'sheet' && { documentType: 'sheets' }),
     ...(item.preview != null && { content: item.preview }),
     ...(item.thumbnailUrl != null && { thumbnailUrl: item.thumbnailUrl }),
+    ...(item.boardType != null && { boardType: item.boardType }),
+    ...(item.boardPreview != null && { preview: item.boardPreview }),
   };
 }
 

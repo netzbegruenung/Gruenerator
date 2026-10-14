@@ -7,7 +7,7 @@
  * nicht am unteren Rand, sondern zentriert ihn als Gruppe im unteren
  * Bilddrittel.
  *
- * Spiegelbild von apps/api/routes/sharepic/sharepic_canvas/at/zitat_at_canvas.ts.
+ * Übernommen vom inzwischen entfernten serverseitigen Zitat-AT-Renderer.
  */
 
 import { SYSTEM_ASSETS } from './canvasAssets';

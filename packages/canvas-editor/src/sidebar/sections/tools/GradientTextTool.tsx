@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { PiTextT } from 'react-icons/pi';
 
+import { CustomColorSwatch } from '../../../components/CustomColorSwatch';
 import { BRAND_COLORS } from '../../../utils/shapes';
 
 import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
@@ -49,6 +50,13 @@ function ColorRow({
             }}
           />
         ))}
+        <CustomColorSwatch
+          value={selected}
+          presets={BRAND_COLORS.map((c) => c.value)}
+          onPick={onSelect}
+          className="size-6"
+          disabled={disabled}
+        />
       </div>
     </div>
   );

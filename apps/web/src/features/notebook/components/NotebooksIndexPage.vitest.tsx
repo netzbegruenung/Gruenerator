@@ -131,9 +131,11 @@ describe('NotebooksIndexFooter — „Parlamente"', () => {
     expect(titles).toEqual([
       'Bundestagsfraktion',
       'Bundestag: Reden & Drucksachen',
+      'Bundesrat: Drucksachen',
       'Abgeordnetenwatch',
       'Landtag NRW',
       'Abgeordnetenhaus Berlin',
+      'Bayerischer Landtag',
     ]);
   });
 
@@ -258,5 +260,38 @@ describe('NotebooksIndexFooter — live tool tiles', () => {
       await screen.findByText('Meistdiskutierte Themen und X-Trends der letzten 24 Stunden.')
     ).toBeInTheDocument();
     expect(screen.getByText('Bluesky und neue Beiträge der Landesverbände.')).toBeInTheDocument();
+  });
+});
+
+describe('NotebooksIndexFooter — Wissensdatenbank offline', () => {
+  const OWN_ENDPOINT = 'http://localhost/api/auth/notebook-collections';
+  const NOTICE = /Wissensdatenbank ist gerade nicht erreichbar/;
+
+  afterEach(() => {
+    useAuthStore.setState({ user: null });
+  });
+
+  function serveOwn(status: number, error: string) {
+    useAuthStore.setState({ user: { id: 'user-1' } as never });
+    serveCollections([]);
+    server.use(http.get(OWN_ENDPOINT, () => HttpResponse.json({ error }, { status })));
+  }
+
+  it('explains the outage when the vector store is unreachable', async () => {
+    serveOwn(503, 'vector_store_unavailable');
+
+    renderWithProviders(<NotebooksIndexFooter />);
+
+    expect(await screen.findByText(NOTICE, {}, { timeout: 3000 })).toBeInTheDocument();
+  });
+
+  it('stays silent on an unrelated server error', async () => {
+    serveOwn(500, 'Internal server error');
+
+    renderWithProviders(<NotebooksIndexFooter />);
+
+    expect(await screen.findByText('Neues Notebook erstellen')).toBeInTheDocument();
+    await new Promise((r) => setTimeout(r, 1500));
+    expect(screen.queryByText(NOTICE)).not.toBeInTheDocument();
   });
 });

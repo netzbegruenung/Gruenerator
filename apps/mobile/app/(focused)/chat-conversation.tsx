@@ -8,19 +8,18 @@ import {
 } from '@gruenerator/shared/agents';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { Redirect, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo } from 'react';
-import { StyleSheet, View, useColorScheme } from 'react-native';
+import { useEffect, useEffectEvent, useMemo } from 'react';
+import { useColorScheme } from 'react-native';
 
 import { AssistantThread, type ThreadWelcome } from '../../components/chat';
+import { ChatBackdrop } from '../../components/chat/ChatBackdrop';
 import { InitialTurnSender } from '../../components/chat/InitialTurnSender';
-import { MeshSurface } from '../../components/common/MeshSurface';
 import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
 import { usePublicUserAgents } from '../../hooks/agents/usePublicUserAgents';
 import { useUserAgents } from '../../hooks/agents/useUserAgents';
 import { useChatAgentSelection } from '../../hooks/useChatAgentSelection';
 import { MobileChatProvider } from '../../providers/MobileChatProvider';
-import { lightTheme, darkTheme, typeScale } from '../../theme';
-import { COMPOSER_GLOW, COMPOSER_GLOW_HEIGHT } from '../../theme/chatBackgrounds';
+import { lightTheme, darkTheme } from '../../theme';
 import { routeWithParams } from '../../types/routes';
 
 // Pre-fills the composer without sending (e.g. a `/skill ` or `@tool ` mention
@@ -28,12 +27,12 @@ import { routeWithParams } from '../../types/routes';
 function ComposerPrefiller({ text }: { text: string }) {
   const aui = useAui();
 
+  const prefill = useEffectEvent(() => {
+    if (text) aui.composer.setText(text);
+  });
+
   useEffect(() => {
-    if (text) {
-      aui.composer.setText(text);
-    }
-    // Only run once on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    prefill();
   }, []);
 
   return null;
@@ -141,28 +140,10 @@ function ChatConversation({
 
   return (
     // The same chrome as every tab — drawer button, centred title, profile menu —
-    // instead of a header of the chat's own. Vanilla, not the tab's sunrise: the
-    // gold glow read as yellow behind a wall of message bubbles.
+    // instead of a header of the chat's own.
     <ScreenScaffold
       title={activeAgent?.title ?? 'Chat'}
-      backdrop={
-        <>
-          <View
-            pointerEvents="none"
-            style={[
-              StyleSheet.absoluteFill,
-              { backgroundColor: colorScheme === 'dark' ? theme.background : CHAT_VANILLA },
-            ]}
-          />
-          <MeshSurface
-            mesh={COMPOSER_GLOW}
-            id="composer-glow"
-            style={styles.composerGlow}
-            followsKeyboard
-            hideInDark
-          />
-        </>
-      }
+      backdrop={<ChatBackdrop />}
       // No "+" and no profile menu: both are a tap away in the drawer, and the
       // bar is needed for the agent's name — they run to 45 characters.
       headerRight={null}
@@ -175,23 +156,3 @@ function ChatConversation({
     </ScreenScaffold>
   );
 }
-
-/** The sunrise's cream base without its gold glow — the chat page tint. */
-const CHAT_VANILLA = '#FEFCF5';
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  // Bottom-anchored band rather than the whole screen: the glow belongs to the
-  // composer, and behind a wall of message bubbles the same colour costs
-  // legibility. A `StyleSheet` entry and not an inline object — `MeshSurface` is
-  // memoized, and a fresh object each render would defeat that.
-  composerGlow: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: typeScale(COMPOSER_GLOW_HEIGHT),
-  },
-});

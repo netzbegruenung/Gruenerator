@@ -1,9 +1,10 @@
-import { shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
+import { shareCanvasPreviewUrl, shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
+import { MediaThumb } from '@gruenerator/shared/media-library/ui';
 import { MasonryGrid, MasonryItem, Switch } from '@gruenerator/ui';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, type ChangeEvent, type ReactNode } from 'react';
 import { FaCheck } from 'react-icons/fa';
 import { HiAdjustments, HiColorSwatch } from 'react-icons/hi';
-import { HiMagnifyingGlass, HiPhoto, HiXMark } from 'react-icons/hi2';
+import { HiArrowUpTray, HiMagnifyingGlass, HiPhoto, HiXMark } from 'react-icons/hi2';
 
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import UnsplashAttribution from '../../common/UnsplashAttribution';
@@ -11,7 +12,6 @@ import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
 import { useUnsplashSearch } from '../../hooks/useUnsplashSearch';
 import { cn } from '../../utils/cn';
 import { downscaleImageForUpload } from '../../utils/userImageUtils';
-import { MediaThumb } from '../components/MediaThumb';
 import { SidebarSlider } from '../components/SidebarSlider';
 import { persistImageSelection } from '../persistImageSelection';
 import { SIDEBAR_SECTION } from '../sidebarStyles';
@@ -34,6 +34,14 @@ function buildUploadUrl(item: MediaItem): string | null {
   if (item.mediaUrl) return item.mediaUrl;
   if (item.shareToken) return `/api/share/${item.shareToken}/download`;
   return item.thumbnailUrl;
+}
+
+function PickPending() {
+  return (
+    <span className="absolute inset-0 flex items-center justify-center bg-black/30">
+      <span className="size-5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+    </span>
+  );
 }
 
 export interface ImageBackgroundSectionProps {
@@ -64,6 +72,18 @@ export interface ImageBackgroundSectionProps {
   backgroundColor?: string;
   backgroundColors?: readonly BackgroundColorOption[];
   onBackgroundColorChange?: (color: string) => void;
+  // Templates whose colour pick switches the photo off (freeform) instead of
+  // sitting under it: the "image lies over the colour" hint would be wrong there.
+  colorReplacesImage?: boolean;
+
+  // Which subsection the phone sheet opens on. Read once on mount, so removing
+  // the photo does not yank the sheet over to "Farbe" mid-interaction.
+  initialSubsection?: 'image-search' | 'background-color';
+
+  // Set when `currentImageSrc` is kept but not shown (freeform after a colour
+  // pick): the pinned tile is then not marked as selected, and tapping it calls
+  // this to bring the photo back.
+  onActivateImage?: () => void;
 }
 
 /**
@@ -75,17 +95,26 @@ export interface ImageBackgroundSectionProps {
 function SearchContent({
   currentImageSrc,
   onImageChange,
-}: Pick<ImageBackgroundSectionProps, 'currentImageSrc' | 'onImageChange'>) {
+  onActivateImage,
+}: Pick<ImageBackgroundSectionProps, 'currentImageSrc' | 'onImageChange' | 'onActivateImage'>) {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [pickError, setPickError] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   // Tracks which library item backs the current background, so we can dedupe it
   // from the grid. We cache the mapping locally (id → the src URL now applied)
   // while it's still active.
-  const [activeLibraryRef, setActiveLibraryRef] = useState<{
-    id: string;
-    srcUrl: string;
-  } | null>(null);
+  // Picks resolve asynchronously; only the newest one may change the
+  // background, and its tile shows a spinner until it has.
+  const pickSeqRef = useRef(0);
+  const [pendingPickId, setPendingPickId] = useState<string | null>(null);
+  const beginPick = useCallback((id: string | null) => {
+    pickSeqRef.current += 1;
+    setPendingPickId(id);
+    setPickError(null);
+    return pickSeqRef.current;
+  }, []);
 
   const {
     items: uploadItems,
@@ -94,6 +123,7 @@ function SearchContent({
     setSearch: setUploadSearch,
     hasMore: uploadsHasMore,
     loadMore: loadMoreUploads,
+    upload,
   } = useUserUploads();
 
   const {
@@ -127,13 +157,23 @@ function SearchContent({
     }
   }, [debouncedQuery, searchUnsplash, clearUnsplashSearch]);
 
+  // The library URL is already durable — persist it directly instead of a
+  // session-local blob: URL (which dies on reload in the collab editor).
+  const applyLibraryImage = useCallback(
+    (file: File, url: string) => onImageChange(file, url, null),
+    [onImageChange]
+  );
+
   const handlePickUpload = useCallback(
     async (item: MediaItem) => {
       const url = buildUploadUrl(item);
       if (!url) return;
-      setPickError(null);
+      const seq = beginPick(item.id);
+      const isCurrent = () => seq === pickSeqRef.current;
       try {
-        const response = await fetch(url);
+        // The canvas renders the 2160px preview tier anyway; the stored
+        // original can be many MB and its /download awaits download tracking.
+        const response = await fetch(shareCanvasPreviewUrl(url) ?? url);
         if (!response.ok) throw new Error('Bild konnte nicht geladen werden');
         const blob = await response.blob();
         const filename = item.originalFilename ?? item.title ?? `upload-${item.id}`;
@@ -141,24 +181,57 @@ function SearchContent({
         // Same cap as persistImageSelection: this File backs the auto-save
         // `originalImage`, so it should be the working size, not the raw original.
         const file = await downscaleImageForUpload(rawFile);
-        // The library URL is already durable — persist it directly instead of a
-        // session-local blob: URL (which dies on reload in the collab editor).
-        onImageChange(file, url, null);
-        setActiveLibraryRef({ id: item.id, srcUrl: url });
+        if (isCurrent()) applyLibraryImage(file, url);
       } catch (err) {
+        if (!isCurrent()) return;
         const message = err instanceof Error ? err.message : 'Fehler beim Laden des Bildes';
         setPickError(message);
+      } finally {
+        if (isCurrent()) setPendingPickId(null);
       }
     },
-    [onImageChange]
+    [applyLibraryImage, beginPick]
   );
+
+  // A new file goes into the library first (like the Uploads tab), so the
+  // background gets the library's durable URL and the image shows up under
+  // "Deine Bilder" afterwards. No blob preview: a failed upload changes nothing.
+  const handleUploadFile = useCallback(
+    async (rawFile: File) => {
+      beginPick(null);
+      setIsUploading(true);
+      try {
+        const file = await downscaleImageForUpload(rawFile);
+        const item = await upload(file);
+        const url = item ? buildUploadUrl(item) : null;
+        if (!item || !url) {
+          setPickError('Bild konnte nicht hochgeladen werden. Bitte versuche es erneut.');
+          return;
+        }
+        applyLibraryImage(file, url);
+      } catch {
+        setPickError('Bild konnte nicht hochgeladen werden. Bitte versuche es erneut.');
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [upload, applyLibraryImage, beginPick]
+  );
+
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (file) void handleUploadFile(file);
+  };
 
   const handlePickUnsplash = useCallback(
     async (image: StockImage) => {
       if (!fetchUnsplashImageAsFile) return;
-      setPickError(null);
+      const seq = beginPick(image.filename);
+      const isCurrent = () => seq === pickSeqRef.current;
       try {
         const file = await fetchUnsplashImageAsFile(image);
+        if (!isCurrent()) return;
         if (image.attribution?.downloadLocation && trackUnsplashDownloadLive) {
           await trackUnsplashDownloadLive(image.attribution.downloadLocation);
         }
@@ -167,36 +240,158 @@ function SearchContent({
         const { persisted } = await persistImageSelection(
           file,
           image.attribution ?? null,
-          onImageChange,
+          (...args) => {
+            if (!isCurrent()) return;
+            setPendingPickId(null);
+            onImageChange(...args);
+          },
           uploadImage
         );
-        setActiveLibraryRef(null);
+        if (!isCurrent()) return;
         if (!persisted && uploadImage) {
           setPickError(
             'Bild konnte nicht dauerhaft gespeichert werden und geht nach dem Neuladen verloren.'
           );
         }
       } catch (err) {
+        if (!isCurrent()) return;
+        setPendingPickId(null);
         const message = err instanceof Error ? err.message : 'Fehler beim Laden des Bildes';
         setPickError(message);
       }
     },
-    [onImageChange, fetchUnsplashImageAsFile, trackUnsplashDownloadLive, uploadImage]
+    [onImageChange, fetchUnsplashImageAsFile, trackUnsplashDownloadLive, uploadImage, beginPick]
   );
 
+  // Tapping the earlier photo swaps its button for the selected tile; focus
+  // follows to that tile instead of falling back to the page.
+  const pinnedRef = useRef<HTMLDivElement>(null);
+  const focusPinnedRef = useRef(false);
+  const handleActivate = () => {
+    beginPick(null);
+    focusPinnedRef.current = true;
+    onActivateImage?.();
+  };
+  useEffect(() => {
+    if (focusPinnedRef.current && !onActivateImage) {
+      focusPinnedRef.current = false;
+      pinnedRef.current?.focus();
+    }
+  }, [onActivateImage]);
+
   const handleClearActive = useCallback(() => {
-    onImageChange(null);
-    setActiveLibraryRef(null);
-  }, [onImageChange]);
+    beginPick(null);
+    // An explicit null credit: the templates only touch it when one is passed.
+    onImageChange(null, undefined, null);
+  }, [onImageChange, beginPick]);
 
   const displayedError = pickError ?? uploadsError ?? unsplashError;
   const hasActive = !!currentImageSrc;
-  const activeLibraryId =
-    activeLibraryRef && activeLibraryRef.srcUrl === currentImageSrc ? activeLibraryRef.id : null;
-  const dedupedUploads = activeLibraryId
-    ? uploadItems.filter((item) => item.id !== activeLibraryId)
-    : uploadItems;
-  const hasLibrary = hasActive || dedupedUploads.length > 0;
+  const isPinnedInactive = !!onActivateImage;
+  const pinnedTitle = isPinnedInactive ? 'Früheres Hintergrundbild' : 'Aktuelles Hintergrundbild';
+  const removeLabel = isPinnedInactive ? 'Früheres Bild verwerfen' : 'Hintergrund entfernen';
+  // The photo behind the background, inactive or not: a tap on an inactive
+  // one brings it back with its offset, zoom and credit.
+  const activeMedia = (media: ReactNode) => {
+    if (!onActivateImage) return media;
+    return (
+      <button
+        type="button"
+        onClick={handleActivate}
+        aria-label="Bild wieder als Hintergrund verwenden"
+        className="block size-full p-0 border-none bg-transparent cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--editor-accent)]"
+      >
+        {media}
+      </button>
+    );
+  };
+  const pinnedPhoto = (src: string, className: string) => (
+    <img
+      src={shareThumbnailPreviewUrl(src, 400)}
+      alt={isPinnedInactive ? '' : 'Aktuelles Hintergrundbild'}
+      className={className}
+      loading="lazy"
+      decoding="async"
+      draggable={false}
+    />
+  );
+  // A library photo is marked where it sits in the grid. Moving it to a pinned
+  // first tile reflowed the grid under the pointer: the next click landed on
+  // whatever slid into place, often the photo just replaced.
+  const activeLibraryId = currentImageSrc
+    ? (uploadItems.find((item) => buildUploadUrl(item) === currentImageSrc)?.id ?? null)
+    : null;
+  const showPinned = hasActive && !activeLibraryId;
+  const libraryThumb = (item: MediaItem, sizes?: string) =>
+    item.thumbnailUrl ? (
+      <MediaThumb item={item} alt={item.altText ?? item.title ?? ''} sizes={sizes} />
+    ) : isMobile ? (
+      <span className="size-full flex items-center justify-center text-[var(--editor-text-muted)]">
+        <HiPhoto size={20} />
+      </span>
+    ) : (
+      <div className="aspect-square flex items-center justify-center text-foreground-muted">
+        <HiPhoto size={20} />
+      </div>
+    );
+  const mobileActiveTile = (key: string, media: ReactNode) => (
+    <div
+      key={key}
+      className={cn(
+        MOBILE_IMAGE_TILE,
+        '[&_div]:size-full [&_picture]:size-full [&_img]:size-full [&_img]:object-cover',
+        !isPinnedInactive &&
+          'shadow-[0_0_0_2px_var(--editor-surface),0_0_0_4px_var(--editor-accent)]'
+      )}
+      title={pinnedTitle}
+      ref={pinnedRef}
+      tabIndex={-1}
+      role="group"
+      aria-label={pinnedTitle}
+    >
+      {activeMedia(media)}
+      <button
+        type="button"
+        onClick={handleClearActive}
+        aria-label={removeLabel}
+        className="absolute top-1 right-1 size-6 flex items-center justify-center bg-black/70 text-white border-none rounded-full cursor-pointer"
+      >
+        <HiXMark size={12} />
+      </button>
+    </div>
+  );
+  const desktopActiveTile = (key: string, media: ReactNode) => (
+    <MasonryItem
+      key={key}
+      className={cn(
+        'group relative overflow-hidden rounded-lg bg-[var(--card-background)]',
+        isPinnedInactive
+          ? 'border border-[var(--card-border)] hover:border-primary-500'
+          : 'border-2 border-primary-600 ring-2 ring-primary-200'
+      )}
+      title={pinnedTitle}
+      ref={pinnedRef}
+      tabIndex={-1}
+      role="group"
+      aria-label={pinnedTitle}
+    >
+      {activeMedia(media)}
+      {!isPinnedInactive && (
+        <div className="absolute top-1 left-1 bg-primary-600 rounded-full size-5 flex items-center justify-center">
+          <FaCheck size={10} color="white" />
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={handleClearActive}
+        aria-label={removeLabel}
+        className="absolute top-1 right-1 size-5 flex items-center justify-center bg-black/70 text-white border-none rounded-full cursor-pointer opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus:opacity-100"
+      >
+        <HiXMark size={10} />
+      </button>
+    </MasonryItem>
+  );
+  const hasLibrary = hasActive || uploadItems.length > 0;
   const hasUnsplash = unsplashResults.length > 0;
   const showEmpty =
     !isUploadsLoading && !isUnsplashLoading && !hasLibrary && !hasUnsplash && !displayedError;
@@ -242,6 +437,24 @@ function SearchContent({
         )}
       </div>
 
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileChange}
+        className="hidden"
+      />
+      <button
+        type="button"
+        onClick={() => fileInputRef.current?.click()}
+        disabled={isUploading}
+        aria-busy={isUploading}
+        className="flex w-full items-center justify-center gap-2 h-10 rounded-lg border-[1.5px] border-dashed border-[var(--editor-border-strong)] bg-transparent text-sm font-semibold text-[var(--editor-text-secondary)] cursor-pointer transition-colors duration-150 hover:border-[var(--editor-accent)] hover:text-[var(--editor-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)] disabled:opacity-60 disabled:cursor-not-allowed max-canvas-mobile:h-11 max-canvas-mobile:rounded-xl"
+      >
+        <HiArrowUpTray size={18} aria-hidden="true" />
+        {isUploading ? 'Bild wird hochgeladen…' : 'Eigenes Bild hochladen'}
+      </button>
+
       {displayedError && (
         <div
           role="alert"
@@ -265,102 +478,56 @@ function SearchContent({
           </h3>
           {isMobile ? (
             <div className="grid grid-cols-3 gap-2.5">
-              {hasActive && currentImageSrc && (
-                <div
-                  className={cn(
-                    MOBILE_IMAGE_TILE,
-                    'shadow-[0_0_0_2px_var(--editor-surface),0_0_0_4px_var(--editor-accent)]'
-                  )}
-                  title="Aktuelles Hintergrundbild"
-                >
-                  <img
-                    src={shareThumbnailPreviewUrl(currentImageSrc, 400)}
-                    alt="Aktuelles Hintergrundbild"
-                    className="size-full object-cover"
-                    loading="lazy"
-                    decoding="async"
-                    draggable={false}
-                  />
+              {showPinned &&
+                currentImageSrc &&
+                mobileActiveTile('pinned', pinnedPhoto(currentImageSrc, 'size-full object-cover'))}
+              {uploadItems.map((item) =>
+                item.id === activeLibraryId ? (
+                  mobileActiveTile(item.id, libraryThumb(item, '140px'))
+                ) : (
                   <button
-                    type="button"
-                    onClick={handleClearActive}
-                    aria-label="Hintergrund entfernen"
-                    className="absolute top-1 right-1 size-6 flex items-center justify-center bg-black/70 text-white border-none rounded-full cursor-pointer"
-                  >
-                    <HiXMark size={12} />
-                  </button>
-                </div>
-              )}
-              {dedupedUploads.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => void handlePickUpload(item)}
-                  className={cn(
-                    MOBILE_IMAGE_TILE,
-                    '[&_div]:size-full [&_picture]:size-full [&_img]:size-full [&_img]:object-cover'
-                  )}
-                  title={item.title ?? item.originalFilename ?? ''}
-                >
-                  {item.thumbnailUrl ? (
-                    <MediaThumb item={item} alt={item.altText ?? item.title ?? ''} sizes="140px" />
-                  ) : (
-                    <span className="size-full flex items-center justify-center text-[var(--editor-text-muted)]">
-                      <HiPhoto size={20} />
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <MasonryGrid columns="2" gap="sm">
-              {hasActive && currentImageSrc && (
-                <MasonryItem
-                  className="group relative overflow-hidden rounded-lg border-2 border-primary-600 ring-2 ring-primary-200 bg-[var(--card-background)]"
-                  title="Aktuelles Hintergrundbild"
-                >
-                  <img
-                    src={shareThumbnailPreviewUrl(currentImageSrc, 400)}
-                    alt="Aktuelles Hintergrundbild"
-                    className="w-full h-auto"
-                    loading="lazy"
-                    decoding="async"
-                    draggable={false}
-                  />
-                  <div className="absolute top-1 left-1 bg-primary-600 rounded-full size-5 flex items-center justify-center">
-                    <FaCheck size={10} color="white" />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleClearActive}
-                    aria-label="Hintergrund entfernen"
-                    className="absolute top-1 right-1 size-5 flex items-center justify-center bg-black/70 text-white border-none rounded-full cursor-pointer opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus:opacity-100"
-                  >
-                    <HiXMark size={10} />
-                  </button>
-                </MasonryItem>
-              )}
-              {dedupedUploads.map((item) => (
-                <MasonryItem key={item.id}>
-                  <button
+                    key={item.id}
                     type="button"
                     onClick={() => void handlePickUpload(item)}
+                    aria-busy={pendingPickId === item.id}
                     className={cn(
-                      'group relative block w-full overflow-hidden rounded-lg border bg-[var(--card-background)] transition-colors duration-150 cursor-pointer p-0',
-                      'border-[var(--card-border)] hover:border-primary-500'
+                      MOBILE_IMAGE_TILE,
+                      '[&_div]:size-full [&_picture]:size-full [&_img]:size-full [&_img]:object-cover'
                     )}
                     title={item.title ?? item.originalFilename ?? ''}
                   >
-                    {item.thumbnailUrl ? (
-                      <MediaThumb item={item} alt={item.altText ?? item.title ?? ''} />
-                    ) : (
-                      <div className="aspect-square flex items-center justify-center text-foreground-muted">
-                        <HiPhoto size={20} />
-                      </div>
-                    )}
+                    {libraryThumb(item, '140px')}
+                    {pendingPickId === item.id && <PickPending />}
                   </button>
-                </MasonryItem>
-              ))}
+                )
+              )}
+            </div>
+          ) : (
+            <MasonryGrid columns="2" gap="sm">
+              {showPinned &&
+                currentImageSrc &&
+                desktopActiveTile('pinned', pinnedPhoto(currentImageSrc, 'w-full h-auto'))}
+              {uploadItems.map((item) =>
+                item.id === activeLibraryId ? (
+                  desktopActiveTile(item.id, libraryThumb(item))
+                ) : (
+                  <MasonryItem key={item.id}>
+                    <button
+                      type="button"
+                      onClick={() => void handlePickUpload(item)}
+                      aria-busy={pendingPickId === item.id}
+                      className={cn(
+                        'group relative block w-full overflow-hidden rounded-lg border bg-[var(--card-background)] transition-colors duration-150 cursor-pointer p-0',
+                        'border-[var(--card-border)] hover:border-primary-500'
+                      )}
+                      title={item.title ?? item.originalFilename ?? ''}
+                    >
+                      {libraryThumb(item)}
+                      {pendingPickId === item.id && <PickPending />}
+                    </button>
+                  </MasonryItem>
+                )
+              )}
             </MasonryGrid>
           )}
           {uploadsHasMore && !isUploadsLoading && (
@@ -389,7 +556,8 @@ function SearchContent({
           </h3>
           <div className={isMobile ? 'grid grid-cols-3 gap-2.5' : 'grid grid-cols-1 gap-2'}>
             {unsplashResults.map((image) => {
-              const isSelected = currentImageSrc === image.url;
+              // A replaced photo stays in state but is not the background.
+              const isSelected = !isPinnedInactive && currentImageSrc === image.url;
               return (
                 <button
                   key={image.filename}
@@ -425,6 +593,7 @@ function SearchContent({
                       />
                     </div>
                   )}
+                  {pendingPickId === image.filename && <PickPending />}
                   {isSelected && !isMobile && (
                     <div className="absolute top-2 right-2 bg-primary-600 rounded-full w-6 h-6 flex items-center justify-center">
                       <FaCheck size={12} color="white" />
@@ -544,7 +713,11 @@ export function ImageBackgroundSection({
   backgroundColor,
   backgroundColors,
   onBackgroundColorChange,
+  colorReplacesImage,
+  initialSubsection = 'image-search',
+  onActivateImage,
 }: ImageBackgroundSectionProps) {
+  const [defaultSubsection] = useState(initialSubsection);
   const hasAdjustments =
     (scale !== undefined && onScaleChange !== undefined) ||
     (gradientOpacity !== undefined && onGradientOpacityChange !== undefined) ||
@@ -560,7 +733,13 @@ export function ImageBackgroundSection({
       id: 'image-search',
       icon: HiMagnifyingGlass,
       label: 'Bilder',
-      content: <SearchContent currentImageSrc={currentImageSrc} onImageChange={onImageChange} />,
+      content: (
+        <SearchContent
+          currentImageSrc={currentImageSrc}
+          onImageChange={onImageChange}
+          onActivateImage={onActivateImage}
+        />
+      ),
     },
   ];
 
@@ -581,7 +760,7 @@ export function ImageBackgroundSection({
             currentColor={backgroundColor ?? ''}
             onColorChange={onBackgroundColorChange}
           />
-          {currentImageSrc ? (
+          {currentImageSrc && !colorReplacesImage ? (
             <p className="m-0 text-xs text-foreground-muted max-canvas-mobile:text-[13px] max-canvas-mobile:text-[var(--editor-text-muted)]">
               Das Bild liegt über der Farbe. Entferne es unter „Bilder", um die Farbe zu sehen.
             </p>
@@ -609,5 +788,5 @@ export function ImageBackgroundSection({
     });
   }
 
-  return <SubsectionTabBar subsections={subsections} defaultSubsection="image-search" />;
+  return <SubsectionTabBar subsections={subsections} defaultSubsection={defaultSubsection} />;
 }

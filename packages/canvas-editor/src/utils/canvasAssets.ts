@@ -2,6 +2,7 @@
  * Canvas Assets Registry
  * Centralized registry of all available decorative assets for canvas editor
  */
+import { SHAREPIC_EMOJI, sharepicEmojiCode, type SharepicEmoji } from '@gruenerator/contracts';
 
 export type AssetAudience = 'de-DE' | 'de-AT' | 'all';
 
@@ -9,10 +10,12 @@ export interface UniversalAsset {
   id: string;
   src: string;
   label: string;
-  category: 'decoration' | 'mark';
+  category: 'decoration' | 'mark' | 'emoji';
   tags: string[];
   /** Which brand locale the asset belongs to; 'all' is locale-independent. */
   audience: AssetAudience;
+  /** Light artwork that needs a dark tile in the catalogue to stay visible. */
+  darkPreview?: boolean;
 }
 
 /**
@@ -75,6 +78,14 @@ export const SYSTEM_ASSETS = {
       src: '/sonnenblume_gruen.png',
       label: 'Sonnenblume (Hellgrün)',
     },
+    white: {
+      src: '/sonnenblume_weiss.svg',
+      label: 'Sonnenblume (Weiß)',
+    },
+    black: {
+      src: '/sonnenblume_schwarz.svg',
+      label: 'Sonnenblume (Schwarz)',
+    },
   },
   quote: {
     white: {
@@ -89,6 +100,22 @@ export const SYSTEM_ASSETS = {
     gelb: {
       src: '/quote-gelb.svg',
       label: 'Anführungszeichen (Gelb)',
+    },
+  },
+  // Deutschland (de-DE) — Wortmarke "BÜNDNIS 90 / DIE GRÜNEN". Die Farbfassung
+  // (sandfarbene Schrift) ist für dunkle Hintergründe gedacht.
+  logoDe: {
+    farbe: {
+      src: '/gruene-de-logo.png',
+      label: 'Logo Bündnis 90/Die Grünen',
+    },
+    weiss: {
+      src: '/gruene-de-logo-weiss.png',
+      label: 'Logo weiß',
+    },
+    schwarz: {
+      src: '/gruene-de-logo-schwarz.png',
+      label: 'Logo schwarz',
     },
   },
   // Österreich (de-AT) — reduziertes Ein-Balken-Logo "G DIE GRÜNEN" (CI 2026)
@@ -135,6 +162,41 @@ export const SYSTEM_SUNFLOWER = SYSTEM_ASSETS.sunflower;
  */
 export const ALL_ASSETS: UniversalAsset[] = [
   {
+    id: 'gruene-de-logo',
+    src: SYSTEM_ASSETS.logoDe.farbe.src,
+    label: SYSTEM_ASSETS.logoDe.farbe.label,
+    category: 'decoration',
+    tags: ['logo', 'bündnis 90', 'buendnis', 'grüne', 'gruene', 'deutschland', 'marke', 'farbe'],
+    audience: 'de-DE',
+    darkPreview: true,
+  },
+  {
+    id: 'gruene-de-logo-weiss',
+    src: SYSTEM_ASSETS.logoDe.weiss.src,
+    label: SYSTEM_ASSETS.logoDe.weiss.label,
+    category: 'decoration',
+    tags: [
+      'logo',
+      'bündnis 90',
+      'buendnis',
+      'grüne',
+      'gruene',
+      'deutschland',
+      'marke',
+      'weiß',
+      'weiss',
+    ],
+    audience: 'de-DE',
+  },
+  {
+    id: 'gruene-de-logo-schwarz',
+    src: SYSTEM_ASSETS.logoDe.schwarz.src,
+    label: SYSTEM_ASSETS.logoDe.schwarz.label,
+    category: 'decoration',
+    tags: ['logo', 'bündnis 90', 'buendnis', 'grüne', 'gruene', 'deutschland', 'marke', 'schwarz'],
+    audience: 'de-DE',
+  },
+  {
     id: 'sunflower',
     src: SYSTEM_ASSETS.sunflower.yellow.src,
     label: SYSTEM_ASSETS.sunflower.yellow.label,
@@ -148,6 +210,22 @@ export const ALL_ASSETS: UniversalAsset[] = [
     label: SYSTEM_ASSETS.sunflower.green.label,
     category: 'decoration',
     tags: ['blume', 'flower', 'grün', 'green', 'natur', 'pflanze'],
+    audience: 'de-DE',
+  },
+  {
+    id: 'sunflower-weiss',
+    src: SYSTEM_ASSETS.sunflower.white.src,
+    label: SYSTEM_ASSETS.sunflower.white.label,
+    category: 'decoration',
+    tags: ['blume', 'flower', 'weiß', 'weiss', 'white', 'natur', 'pflanze'],
+    audience: 'de-DE',
+  },
+  {
+    id: 'sunflower-schwarz',
+    src: SYSTEM_ASSETS.sunflower.black.src,
+    label: SYSTEM_ASSETS.sunflower.black.label,
+    category: 'decoration',
+    tags: ['blume', 'flower', 'schwarz', 'black', 'natur', 'pflanze'],
     audience: 'de-DE',
   },
   {
@@ -238,14 +316,81 @@ export const TEMPLATE_ASSETS: UniversalAsset[] = [
   },
 ];
 
+const EMOJI_NAMES: Record<SharepicEmoji, [label: string, ...tags: string[]]> = {
+  '🗳️': ['Wahlurne', 'wahl', 'wählen', 'stimme'],
+  '📰': ['Zeitung', 'presse', 'medien', 'nachrichten'],
+  '🪧': ['Schild', 'demo', 'protest', 'plakat'],
+  '✍️': ['Schreibende Hand', 'unterschrift', 'petition', 'schreiben'],
+  '📣': ['Megafon', 'laut', 'aufruf', 'social media'],
+  '📢': ['Lautsprecher', 'laut', 'ansage', 'aufruf'],
+  '🤝': ['Handschlag', 'zusammenhalt', 'gemeinsam', 'verein'],
+  '💚': ['Grünes Herz', 'herz', 'liebe', 'grün'],
+  '❤️': ['Rotes Herz', 'herz', 'liebe'],
+  '✅': ['Haken', 'ja', 'erledigt', 'check'],
+  '❌': ['Kreuz', 'nein', 'falsch'],
+  '👉': ['Zeigefinger', 'hinweis', 'pfeil'],
+  '💪': ['Bizeps', 'stark', 'kraft'],
+  '👏': ['Applaus', 'klatschen', 'danke'],
+  '🧑‍🤝‍🧑': ['Menschen Hand in Hand', 'gemeinsam', 'menschen', 'solidarität'],
+  '🌍': ['Erde', 'welt', 'klima', 'europa'],
+  '🌱': ['Keimling', 'pflanze', 'wachstum', 'natur'],
+  '🌳': ['Baum', 'wald', 'natur'],
+  '🌻': ['Sonnenblume', 'blume', 'grüne'],
+  '☀️': ['Sonne', 'solar', 'energie', 'sommer'],
+  '💨': ['Wind', 'windkraft', 'luft'],
+  '⚡': ['Blitz', 'strom', 'energie'],
+  '🔥': ['Feuer', 'hitze', 'heizen'],
+  '💧': ['Tropfen', 'wasser'],
+  '♻️': ['Recycling', 'müll', 'kreislauf'],
+  '🐝': ['Biene', 'artenschutz', 'natur', 'tiere'],
+  '🚲': ['Fahrrad', 'rad', 'verkehr'],
+  '🚆': ['Zug', 'bahn', 'verkehr'],
+  '🚌': ['Bus', 'öffis', 'verkehr'],
+  '🏠': ['Haus', 'wohnen', 'miete'],
+  '🏫': ['Schule', 'bildung'],
+  '🏥': ['Krankenhaus', 'gesundheit', 'pflege'],
+  '💶': ['Euro-Schein', 'geld', 'euro', 'kosten'],
+  '📈': ['Diagramm steigend', 'mehr', 'wachstum'],
+  '📉': ['Diagramm fallend', 'weniger', 'sinken'],
+  '📅': ['Kalender', 'termin', 'datum'],
+  '📍': ['Pin', 'ort', 'vor ort'],
+  '📱': ['Handy', 'smartphone', 'digital'],
+  '💬': ['Sprechblase', 'gespräch', 'kommentar'],
+  '💡': ['Glühbirne', 'idee', 'tipp'],
+  '⚖️': ['Waage', 'gerechtigkeit', 'recht'],
+  '🕊️': ['Taube', 'frieden'],
+  '🎓': ['Doktorhut', 'bildung', 'studium'],
+  '🌈': ['Regenbogen', 'vielfalt', 'pride'],
+};
+
+/** The asset an emoji of a sharepic list is drawn with. */
+export const emojiAssetId = (emoji: SharepicEmoji): string => `emoji-${sharepicEmojiCode(emoji)}`;
+
+/** Noto Emoji (Apache-2.0, `public/emoji/LICENSE`): the closed set a sharepic list may use. */
+export const EMOJI_ASSETS: UniversalAsset[] = SHAREPIC_EMOJI.map((emoji) => {
+  const [label, ...tags] = EMOJI_NAMES[emoji];
+  return {
+    id: emojiAssetId(emoji),
+    src: `/emoji/emoji_u${sharepicEmojiCode(emoji)}.svg`,
+    label,
+    category: 'emoji',
+    tags: ['emoji', ...tags],
+    audience: 'all',
+  };
+});
+
 /** Katalog plus Vorlagen-Varianten — alles, was sich zu einer Grafik aufloesen laesst. */
-const RESOLVABLE_ASSETS: UniversalAsset[] = [...ALL_ASSETS, ...TEMPLATE_ASSETS];
+const RESOLVABLE_ASSETS: UniversalAsset[] = [...ALL_ASSETS, ...TEMPLATE_ASSETS, ...EMOJI_ASSETS];
 
 /**
  * Logo assets shown in the "Logos" (grafiken) category.
  * Only true logos (decoration) — marks like Anführungszeichen/Pfeil are excluded.
  */
 export const LOGO_ASSETS: UniversalAsset[] = ALL_ASSETS.filter((a) => a.category === 'decoration');
+
+export function hasDarkPreview(asset: UniversalAsset): boolean {
+  return asset.darkPreview === true || /weiss|white/.test(asset.id);
+}
 
 export function assetMatchesLocale(asset: UniversalAsset, locale: AssetAudience): boolean {
   return asset.audience === 'all' || asset.audience === locale;

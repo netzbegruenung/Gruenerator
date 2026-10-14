@@ -9,6 +9,7 @@
 
 import { streamText, type ModelMessage, type LanguageModel } from 'ai';
 
+import { GemmaChannelLoopError } from '../../../services/ai/gemmaChannelFilter.js';
 import { retireLiteLLM } from '../../../services/ai/litellmRetired.js';
 import { isReasoningCapable } from '../../../services/ai/modelDiscovery.js';
 import { recordSlowVerdict } from '../../../services/ai/modelHealth.js';
@@ -35,6 +36,12 @@ import {
   type ResolvedModelTuple,
 } from '../agents/providers.js';
 
+import {
+  createDegenerationGuard,
+  DEGENERATION_NOTICE,
+  trimDegenerate,
+  type DegenerationGuard,
+} from './agenticLoop/degeneration.js';
 import { sanitizeContentPartsForModel, stripEmptyAssistantMessages } from './messageHelpers.js';
 import { PROGRESS_MESSAGES, type FallbackReason, type SSEWriter } from './sseHelpers.js';
 import { createIdleDeadline, type IdleDeadline } from './streamIdleDeadline.js';
@@ -177,8 +184,9 @@ interface ModelResolution {
   modelName: string;
   /** User-facing model ID (key in AVAILABLE_MODELS), if set by the user. */
   modelId?: string;
-  /** Single-step first-token-timeout fallback target. */
-  sibling?: { provider: string; model: string };
+  /** Single-step first-token-timeout fallback target. Its window travels
+   *  into the fallback attempt — see {@link messagesForLane}. */
+  sibling?: { provider: string; model: string; contextWindow?: number };
   /** Set when the user requested a modelId the registry doesn't know and the
    *  agent default was used instead — callers surface this to the client so
    *  the selection isn't ignored silently. */
@@ -267,7 +275,7 @@ export async function resolveModel(
 ): Promise<ModelResolution> {
   let modelProvider: string = agentConfig.provider;
   let modelName = agentConfig.model;
-  let sibling: { provider: string; model: string } | undefined;
+  let sibling: ModelResolution['sibling'];
   let resolvedId: string | undefined;
   let unknownModelId: string | undefined;
   let reasoningEffort: ReasoningSetting = EXPLICIT_SELECTION_REASONING;
@@ -349,7 +357,8 @@ export async function resolveModel(
   // Vision override: only fire when the chosen primary AND its sibling both
   // lack vision support. A lane whose sibling can see swaps within the lane
   // instead, so the override does not collapse it onto a single provider.
-  if (options?.hasImages && !isVisionCapable(modelName) && options.intent !== 'image_edit') {
+  const imagesVisible = options?.hasImages === true && options.intent !== 'image_edit';
+  if (imagesVisible && !isVisionCapable(modelName)) {
     const siblingVisionOk = sibling ? isVisionCapable(sibling.model) : false;
     if (!siblingVisionOk) {
       log.info(
@@ -363,12 +372,27 @@ export async function resolveModel(
       log.info(
         `[ChatGraph] Images present and "${modelName}" lacks vision but sibling "${sibling.model}" supports it — swapping within lane`
       );
-      // Swap to the vision-capable sibling.
+      // Swap to the vision-capable sibling and its window. The blind primary
+      // it leaves behind is no fallback for this turn — replaced just below.
       const newPrimary = sibling;
       sibling = { provider: modelProvider, model: modelName };
       modelProvider = newPrimary.provider;
       modelName = newPrimary.model;
+      if (newPrimary.contextWindow != null) contextWindow = newPrimary.contextWindow;
     }
+  }
+
+  // The fallback replays the same messages, image parts included (#4200): a
+  // blind sibling — the swapped-out primary above, or a lane whose primary sees
+  // and whose sibling does not — gives way to the vision model.
+  if (imagesVisible && sibling && !isVisionCapable(sibling.model)) {
+    sibling =
+      modelName === VISION_MODEL.model
+        ? undefined
+        : { provider: VISION_MODEL.provider, model: VISION_MODEL.model };
+    log.info(
+      `[ChatGraph] Images present — fallback ${sibling ? `is ${VISION_MODEL.model}` : 'dropped'}, the lane's sibling lacks vision`
+    );
   }
 
   const result: ModelResolution = {
@@ -529,6 +553,9 @@ export function isStreamFailure(err: unknown): err is StreamFailure {
 function phase1UpstreamError(err: unknown, cause: AbortCause): unknown {
   if (isStreamFailure(err) || err instanceof ReasoningBudgetExceededError) return err;
   if (cause !== null || isAbortError(err)) return err;
+  // Kein HTTP-Fehler, aber derselbe Fall: das Modell lieferte nichts Brauchbares,
+  // bevor ein Token beim Nutzer stand — der Sibling kann es noch richten.
+  if (err instanceof GemmaChannelLoopError) return new UpstreamProviderError(err);
   return classifyProviderError(err).retryable ? new UpstreamProviderError(err) : err;
 }
 
@@ -682,12 +709,14 @@ async function streamAndAccumulateOrThrow(params: {
   // Denk-Budget: bindet NUR Phase 1 und wird mit dem ersten Antworttext
   // entschärft — anders als die Leerlauf-Frist, die jedes Denk-Delta neu stellt.
   const reasoningBudget = reasoningBudgetMs != null ? createAbortTimer(reasoningBudgetMs) : null;
+  const degenerate = new AbortController();
   const composed = AbortSignal.any([
     ...(signal ? [signal] : []),
     ...(turnSignal ? [turnSignal] : []),
     deadlineSignal,
     wall.signal,
     ...(reasoningBudget ? [reasoningBudget.signal] : []),
+    degenerate.signal,
   ]);
   const causeOf = (): AbortCause =>
     abortCause({
@@ -768,6 +797,7 @@ async function streamAndAccumulateOrThrow(params: {
   // Phase 2 — visible text is on the wire; just drain. Errors here can't
   // trigger a clean fallback, so they end the stream gracefully.
   let aborted = false;
+  const degeneration = createDegenerationGuard();
   try {
     while (true) {
       const next = await iterator.next();
@@ -786,6 +816,13 @@ async function streamAndAccumulateOrThrow(params: {
       } else if (part.type === 'text-delta' && part.text.length > 0) {
         fullText += part.text;
         sse.send('text_delta', { text: part.text });
+        if (degeneration.check(fullText)) {
+          fullText = cutDegeneration(fullText, degeneration, sse, logPrefix);
+          degenerate.abort();
+          // swallow-ok: teardown of an already-abandoned degenerate stream
+          void Promise.resolve(iterator.return?.()).catch(() => {});
+          break;
+        }
       }
     }
   } catch (streamError: unknown) {
@@ -823,6 +860,30 @@ function markTruncated(text: string, sse: SSEWriter, logPrefix: string): string 
   );
   sse.send('text_delta', { text: outcome.delta });
   return outcome.mode === 'append' ? text + outcome.delta : outcome.delta;
+}
+
+/**
+ * A model that cannot stop streams until the provider's cap — these answer
+ * paths set no output limit (live 12.08.2026: 32.826 chars over 263 s on the
+ * loop, which has had this guard since). The spam is already on the wire, so
+ * `completion` swaps what the client shows for the healthy prefix, the same
+ * channel the citation clamp uses; the return value is what gets persisted.
+ * The caller aborts the upstream request.
+ */
+function cutDegeneration(
+  text: string,
+  guard: DegenerationGuard,
+  sse: SSEWriter,
+  logPrefix: string
+): string {
+  const cut = guard.cutAt(text);
+  log.warn(
+    `${logPrefix} repetitive degeneration detected after ${text.length} chars — aborting the stream, keeping ${cut}`
+  );
+  // Spam from the first token leaves no prefix; the notice is then all there is.
+  const kept = trimDegenerate(text, cut) || DEGENERATION_NOTICE;
+  sse.send('completion', { text: kept });
+  return kept;
 }
 
 /**
@@ -873,12 +934,14 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
   const wall = createAbortTimer(wallClockMs);
   // Dieser Pfad läuft NUR für denkende Lanes — das Denk-Budget gilt hier immer.
   const reasoningBudget = createAbortTimer(reasoningBudgetMs);
+  const degenerate = new AbortController();
   const composed = AbortSignal.any([
     ...(signal ? [signal] : []),
     ...(turnSignal ? [turnSignal] : []),
     deadlineSignal,
     wall.signal,
     reasoningBudget.signal,
+    degenerate.signal,
   ]);
   const causeOf = (): AbortCause =>
     abortCause({
@@ -933,6 +996,7 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
   }
 
   // Phase 2 — first text chunk is in. Drain without deadline.
+  const degeneration = createDegenerationGuard();
   try {
     while (true) {
       const { done, value } = await iterator.next();
@@ -940,6 +1004,15 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
       if (value.type === 'text') {
         fullText += value.delta;
         sse.send('text_delta', { text: value.delta });
+        if (degeneration.check(fullText)) {
+          fullText = cutDegeneration(fullText, degeneration, sse, logPrefix);
+          // Aborting the fetch, not just leaving the generator: its `finally`
+          // only releases the reader, and the upstream would keep generating.
+          degenerate.abort();
+          // swallow-ok: teardown of an already-abandoned degenerate stream
+          void iterator.return(undefined).catch(() => {});
+          break;
+        }
       } else {
         sse.send('reasoning_delta', { text: value.delta });
       }
@@ -1003,6 +1076,34 @@ export const streamAndAccumulateWithReasoning = wrapWithCompatCatch(
 );
 
 /**
+ * The messages for the lane that writes this attempt.
+ *
+ * The primary messages were pruned against the primary's window. When the
+ * sibling's window is smaller — `mistral-medium-3.5` (262k) falls back to the
+ * Gemma lane (128k) — that prompt would reach a host that cannot serve it:
+ * Cortecs sends 131k–215k to berget (first token after 50–80 s, past the
+ * deadline) and answers above ~215k with a different model (#4198). Such an
+ * attempt gets its history pruned again for its own window.
+ *
+ * @param primaryWindow the window the primary messages were pruned against
+ * @param rebuild       assembles the messages for a given window
+ */
+export function messagesForLane<T>(
+  attempt: Pick<ModelResolution, 'contextWindow' | 'modelName'>,
+  primaryWindow: number | null,
+  primaryMessages: T,
+  rebuild: (contextWindow: number) => T,
+  logPrefix = '[ChatGraph]'
+): T {
+  const window = attempt.contextWindow;
+  if (window == null || primaryWindow == null || window >= primaryWindow) return primaryMessages;
+  log.info(
+    `${logPrefix} ${attempt.modelName} carries ${window} tokens, the primary ${primaryWindow} — history re-pruned for it`
+  );
+  return rebuild(window);
+}
+
+/**
  * Stream from a primary model with single-step fallback to its sibling on
  * first-token failure. The sibling is set by resolveModel() — for overflow
  * lanes it's the unchosen partner; for single configs
@@ -1011,9 +1112,13 @@ export const streamAndAccumulateWithReasoning = wrapWithCompatCatch(
  * Single-step by design: the fallback's buildStream is invoked directly, not
  * via a recursive streamWithFallback. Do not refactor to recurse.
  */
-export async function streamWithFallback(params: {
+export async function streamWithFallback<M>(params: {
   primary: ModelResolution;
-  buildStream: (resolution: ModelResolution) => Promise<string | null>;
+  /** The prompt, owned here so that no caller can hand the fallback a prompt
+   *  sized for the primary (#4198): `primary` was built for `window`, and
+   *  `rebuild` builds it again for a lane whose window is smaller. */
+  messages: { primary: M; window: number | null; rebuild: (contextWindow: number) => M };
+  buildStream: (resolution: ModelResolution, messages: M) => Promise<string | null>;
   sse: SSEWriter;
   logPrefix?: string;
   /**
@@ -1028,6 +1133,17 @@ export async function streamWithFallback(params: {
   salvage?: () => string | null;
 }): Promise<string | null> {
   const { primary, buildStream, sse, logPrefix = '[ChatGraph]', salvage } = params;
+  const attempt = (r: ModelResolution) =>
+    buildStream(
+      r,
+      messagesForLane(
+        r,
+        params.messages.window,
+        params.messages.primary,
+        params.messages.rebuild,
+        logPrefix
+      )
+    );
   const primaryLabel = primary.modelId ?? primary.modelName;
 
   /**
@@ -1063,7 +1179,7 @@ export async function streamWithFallback(params: {
   };
 
   try {
-    return await buildStream(primary);
+    return await attempt(primary);
   } catch (err) {
     if (!isStreamFailure(err)) throw err;
 
@@ -1102,9 +1218,10 @@ export async function streamWithFallback(params: {
       fromAutoPolicy: primary.fromAutoPolicy,
     };
     if (primary.modelId) fallbackResolution.modelId = primary.modelId;
+    if (sibling.contextWindow != null) fallbackResolution.contextWindow = sibling.contextWindow;
 
     try {
-      return await buildStream(fallbackResolution);
+      return await attempt(fallbackResolution);
     } catch (fallbackErr) {
       if (isStreamFailure(fallbackErr)) {
         log.error(`${logPrefix} Fallback ${fallbackLabel} also failed (${fallbackErr.kind})`);

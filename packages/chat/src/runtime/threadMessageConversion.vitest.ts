@@ -186,6 +186,12 @@ describe('convertToThreadMessageLike — reload reconstruction', () => {
     expect(custom.answerModeReason).toBe('pregate');
   });
 
+  it('rehydrates the source tier note only for documents-first', () => {
+    expect(customOf({ sourceTier: 'documents-first' }).sourceTier).toBe('documents-first');
+    expect('sourceTier' in customOf({ sourceTier: 'equal' })).toBe(false);
+    expect('sourceTier' in customOf({ intent: 'direct' })).toBe(false);
+  });
+
   it('keeps the mode without a reason, and drops an unknown mode or reason', () => {
     expect(customOf({ answerMode: 'chat', answerModeReason: 'bogus' })).toMatchObject({
       answerMode: 'chat',
@@ -227,6 +233,28 @@ describe('convertToThreadMessageLike — reload reconstruction', () => {
     });
     expect(custom.sharepicData).toEqual({
       variants: [{ id: 'v1', canvasType: 'dreizeilen', initialProps: {} }],
+    });
+  });
+
+  it('rehydrates the card of an edit_sharepic call and ignores a failed one', () => {
+    const custom = customOf({
+      toolCalls: [
+        {
+          toolCallId: 'tc1',
+          toolName: 'edit_sharepic',
+          args: {},
+          result: { variants: [{ id: 'v2', canvasType: 'freeform', initialProps: {} }] },
+        },
+        {
+          toolCallId: 'tc2',
+          toolName: 'edit_sharepic',
+          args: {},
+          result: { error: 'unverändert', unchanged: true },
+        },
+      ],
+    });
+    expect(custom.sharepicData).toEqual({
+      variants: [{ id: 'v2', canvasType: 'freeform', initialProps: {} }],
     });
   });
 

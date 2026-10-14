@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { MeliousImageService } from '../MeliousImageService.js';
+import { MeliousImageService, toMeliousSize } from '../MeliousImageService.js';
 
 const RUN_LIVE = !!process.env.MELIOUS_API_KEY && !!process.env.RUN_LIVE_PROVIDER_TESTS;
 
@@ -9,6 +9,18 @@ describe('MeliousImageService — unit tests', () => {
     const service = new MeliousImageService();
     expect(typeof service.generateFromPrompt).toBe('function');
     expect(typeof service.generateFromImage).toBe('function');
+  });
+
+  it.each([
+    [1088, 1360, '1024x1024'],
+    [1216, 1216, '1024x1024'],
+    [1408, 1056, '1792x1024'],
+    [1792, 1008, '1792x1024'],
+    [1008, 1792, '1024x1792'],
+    [768, 1360, '1024x1792'],
+    [512, 512, '1024x1024'],
+  ])('maps %ix%i to the supported size %s', (width, height, expected) => {
+    expect(toMeliousSize(width, height)).toBe(expected);
   });
 
   it('throws when MELIOUS_API_KEY is not set', async () => {

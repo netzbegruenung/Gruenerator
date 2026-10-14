@@ -1,7 +1,5 @@
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import * as Clipboard from 'expo-clipboard';
-import { File, Paths } from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 import { useState, useCallback, useEffect } from 'react';
 import {
   View,
@@ -28,6 +26,8 @@ import { WEB_ORIGIN } from '../../services/webOrigin';
 import { lightTheme, darkTheme, colors, BODY_FONT } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
 import { SkeletonBar, SkeletonCircle, SkeletonGroup } from '../common/Skeleton';
+
+import { exportDocumentText } from './exportDocumentText';
 
 import type { Theme } from '../../theme/colors';
 
@@ -434,15 +434,15 @@ export function NativeShareModal({
       if (exportingFormat) return;
       setExportingFormat(format);
       setShowDownload(false);
-      try {
+      await (async () => {
         const token = await secureStorage.getToken();
         if (!token) return;
         await exportDocument(documentId, documentTitle, format, token);
-      } catch {
-        /* silent */
-      } finally {
-        setExportingFormat(null);
-      }
+      })()
+        .catch(() => {
+          /* silent */
+        })
+        .finally(() => setExportingFormat(null));
     },
     [documentId, documentTitle, exportingFormat]
   );
@@ -452,25 +452,15 @@ export function NativeShareModal({
       if (exportingFormat) return;
       setExportingFormat(format as ExportFormat);
       setShowDownload(false);
-      try {
+      await (async () => {
         const token = await secureStorage.getToken();
         if (!token) return;
-        const API_BASE_URL = process.env.EXPO_PUBLIC_DOCS_API_URL || 'https://gruenerator.eu/api';
-        const res = await fetch(`${API_BASE_URL}/docs/${documentId}/export/${format}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) throw new Error('Export fehlgeschlagen');
-        const content = await res.text();
-        const ext = format === 'markdown' ? 'md' : 'txt';
-        const safeTitle = (documentTitle || 'Dokument').replace(/[^a-zA-Z0-9äöüÄÖÜß _-]/g, '_');
-        const file = new File(Paths.cache, `${safeTitle}.${ext}`);
-        file.write(content);
-        await Sharing.shareAsync(file.uri, { mimeType: 'text/plain' });
-      } catch {
-        /* silent */
-      } finally {
-        setExportingFormat(null);
-      }
+        await exportDocumentText(documentId, documentTitle, format, token);
+      })()
+        .catch(() => {
+          /* silent */
+        })
+        .finally(() => setExportingFormat(null));
     },
     [documentId, documentTitle, exportingFormat]
   );
@@ -485,15 +475,15 @@ export function NativeShareModal({
     const title = templateTitle.trim();
     if (!title || savingTemplate) return;
     setSavingTemplate(true);
-    try {
+    await (async () => {
       await docsShareApi.saveAsTemplate(documentId, title);
       setTemplateSaved(true);
       setTimeout(() => setShowTemplate(false), 1200);
-    } catch {
-      /* silent */
-    } finally {
-      setSavingTemplate(false);
-    }
+    })()
+      .catch(() => {
+        /* silent */
+      })
+      .finally(() => setSavingTemplate(false));
   }, [documentId, templateTitle, savingTemplate]);
 
   return (

@@ -8,12 +8,18 @@
  */
 
 import {
+  CreateRefusedError,
   documentContextKind,
+  explainableFailureText,
+  explainableRefusalText,
+  explainableSourcesFromResults,
   pdfKindFromText,
   runBoardGeneration,
   runDocGeneration,
+  runExplainableGeneration,
   runPdfGeneration,
 } from './artifactGeneration.js';
+import { buildPdfEditBrief, isPdfEditAsk, loadLastPdfSpec } from './pdfEditContext.js';
 
 import type { CreatedBoard } from './artifactGeneration.js';
 import type { ArtifactSpec } from './createTurn.js';
@@ -54,7 +60,10 @@ export const PRESENTATION_SPEC: ArtifactSpec<CreatedDocument> = {
   ref: (doc) => ({ ref: doc.documentId, label: doc.title }),
 };
 
-export const PDF_SPEC: ArtifactSpec<CreatePdfResult> = {
+/** `edited`: re-rendered from the stored spec — the answer says „angepasst“, not „erstellt“. */
+type PdfTurnResult = CreatePdfResult & { edited: boolean };
+
+export const PDF_SPEC: ArtifactSpec<PdfTurnResult> = {
   intent: 'create_pdf',
   progressMessage: 'Erstelle PDF...',
   failureText:
@@ -65,22 +74,30 @@ export const PDF_SPEC: ArtifactSpec<CreatePdfResult> = {
   // collaborative-document UUID — no doc-edit gate may dereference it.
   contextKind: 'pdf',
   logLabel: 'PDF',
-  generate: (ctx, onCommit) =>
-    runPdfGeneration({
-      userContent: ctx.userContent,
+  // „Ändere das PDF: Titel kürzer" kommt auch hier an. Ohne die gespeicherte
+  // Spec wurde daraus ein neues PDF aus dem Auftrag allein — live 11.10.2026
+  // schrumpfte ein Merkblatt so von 1580 auf 685 Zeichen.
+  generate: async (ctx, onCommit) => {
+    const base = ctx.threadId && isPdfEditAsk(ctx.ask) ? await loadLastPdfSpec(ctx.threadId) : null;
+    const result = await runPdfGeneration({
+      userContent: base ? buildPdfEditBrief(base, ctx.ask) : ctx.userContent,
       req: ctx.req,
       userId: ctx.userId,
       pdfOptions: {
-        documentKind: pdfKindFromText(ctx.userContent),
+        documentKind: base ? base.kind : pdfKindFromText(ctx.userContent),
         userLocale: ctx.userLocale ?? 'de-DE',
       },
       onCommit,
-    }),
+    });
+    return result ? { ...result, edited: base != null } : null;
+  },
   // Reports what the self-check found instead of a blanket success claim.
-  successText: (result) =>
-    result.verification.problems.length
-      ? `PDF **"${result.document.title}"** wurde erstellt (${result.summary}).\n\nBitte prüfen: ${result.verification.problems.join(' ')}`
-      : `PDF **"${result.document.title}"** wurde erstellt — ${result.summary}.`,
+  successText: (result) => {
+    const done = result.edited ? 'wurde angepasst' : 'wurde erstellt';
+    return result.verification.problems.length
+      ? `PDF **"${result.document.title}"** ${done} (${result.summary}).\n\nBitte prüfen: ${result.verification.problems.join(' ')}`
+      : `PDF **"${result.document.title}"** ${done} — ${result.summary}.`;
+  },
   card: (result) => result.document,
   doneExtras: (result) => ({ documentId: result.document.documentId }),
   // `pdfSpec` is what makes a PDF editable at all: the artefact is immutable
@@ -92,6 +109,37 @@ export const PDF_SPEC: ArtifactSpec<CreatePdfResult> = {
     pdfSpec: result.spec,
   }),
   ref: (result) => ({ ref: result.document.documentId, label: result.document.title }),
+};
+
+export const EXPLAINABLE_SPEC: ArtifactSpec<CreatedDocument> = {
+  intent: 'create_explainable',
+  progressMessage: 'Explainable wird erstellt …',
+  failureText:
+    'Ich konnte das Explainable nicht erstellen. Sag mir kurz, welches Thema es erklären soll, dann baue ich es direkt.',
+  errorText: explainableFailureText('generation_failed'),
+  // Its own kind for the reason 'pdf' has one: the ref is an explainable id,
+  // not a collaborative-document UUID.
+  contextKind: 'explainable',
+  logLabel: 'Explainable',
+  generate: async (ctx, onCommit) => {
+    const outcome = await runExplainableGeneration({
+      brief: ctx.userContent,
+      sources: explainableSourcesFromResults(ctx.threadSources ?? []),
+      userId: ctx.userId,
+      threadId: ctx.threadId ?? null,
+      locale: ctx.userLocale ?? 'de-DE',
+      onCommit,
+    });
+    if (!outcome) return null;
+    if (!outcome.ok) throw new CreateRefusedError(explainableRefusalText(outcome));
+    return outcome.document;
+  },
+  successText: (doc) =>
+    `Explainable **"${doc.title}"** wurde erstellt. Die Erklärbilder werden im Hintergrund gemalt und erscheinen in Kürze auf der Seite.`,
+  card: (doc) => doc,
+  doneExtras: (doc) => ({ documentId: doc.documentId }),
+  persistMetadata: (doc) => ({ intent: 'create_explainable', createdDocument: doc }),
+  ref: (doc) => ({ ref: doc.documentId, label: doc.title }),
 };
 
 export const BOARD_SPEC: ArtifactSpec<CreatedBoard> = {

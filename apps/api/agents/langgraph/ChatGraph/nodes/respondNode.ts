@@ -16,6 +16,7 @@ import {
   looksLikeChitchatTurn,
   resolveEditorSurfaceKind,
 } from '../../../../routes/chat/services/agenticLoop/routing.js';
+import { offerNote } from '../../../../routes/chat/services/artifactOffer.js';
 import {
   IMAGE_TOOL,
   type ImageVisibility,
@@ -66,6 +67,7 @@ import { looksLikeDocsHelpQuestion, looksLikeGeltungsfrage } from './classifierS
 import { resolveEffectiveRecipeMention } from './effectiveRecipeMention.js';
 import { stripQuotedSpans } from './fastPathGuards.js';
 import { SOURCE_LINK_RULE } from './sourceLinkRule.js';
+import { buildVisualBlocksGuidance } from './visualBlocksGuidance.js';
 
 import type { ChatGraphState, DocumentSource, SearchResult, ThreadAttachment } from '../types.js';
 
@@ -1132,8 +1134,9 @@ const SUMMARY_GUIDANCE =
  *
  * `computed` is for the case where the run_python interrupt already produced the
  * values (chart over an attached spreadsheet): the model must then chart EXACTLY
- * those numbers, because the other variant's "plausible Daten" licence produced
- * fabricated category splits in beta.
+ * those numbers — a former "plausible Daten" licence produced fabricated
+ * category splits in beta. Without a computed result the model may only chart
+ * numbers it was given, and must ask instead of inventing them.
  *
  * Composed rather than written out twice — the format block and half the rules
  * are identical, and as two literals a rule added to one was invisible to the
@@ -1142,7 +1145,7 @@ const SUMMARY_GUIDANCE =
 function buildChartGuidance(computed: boolean): string {
   const intro = computed
     ? 'Der*die Nutzer*in möchte ein Diagramm. Die Werte wurden bereits deterministisch per Code berechnet (siehe BERECHNUNGSERGEBNIS) — verwende AUSSCHLIESSLICH diese Werte und erfinde KEINE Zahlen.'
-    : 'Der*die Nutzer*in möchte ein Diagramm. Erstelle die Daten und gib sie als JSON-Block zurück.';
+    : 'Der*die Nutzer*in möchte ein Diagramm. Gib die Daten als JSON-Block zurück.';
 
   const rules = computed
     ? [
@@ -1153,7 +1156,9 @@ function buildChartGuidance(computed: boolean): string {
         '- data: Array mit Objekten, jedes hat einen xKey und mindestens einen yKey',
         '- xKey: Name des Feldes für die X-Achse (z.B. "name", "monat", "jahr")',
         '- yKeys: Array der Feldnamen für die Werte (z.B. ["wert", "wert2"])',
-        '- Verwende realistische, plausible Daten wenn keine konkreten Zahlen gegeben sind',
+        '- Zahlen NUR aus der Nachricht, dem Gesprächsverlauf, angehängten Dokumenten oder den Quellen im Prompt übernehmen — niemals schätzen oder erfinden',
+        '- Fehlen belastbare Zahlen: KEINEN chart-Block ausgeben, sondern kurz sagen, dass dir die Zahlen fehlen, und danach fragen oder eine Recherche anbieten',
+        '- Nur wenn ausdrücklich ein Beispieldiagramm gewünscht ist, sind fiktive Werte erlaubt — dann im title als „Beispieldaten" kennzeichnen',
       ];
 
   return `\n${intro}
@@ -1166,6 +1171,7 @@ Schreibe zuerst eine kurze Erklärung (1-2 Sätze), dann den JSON-Block in diese
 Regeln:
 - type: "bar", "line", "area", "pie" oder "donut"
 ${rules.join('\n')}
+- Optional bei bar/area mit mehreren yKeys: "stacked": true stapelt die Reihen, "percent": true normiert jede Kategorie auf 100 % (Anteile, Zusammensetzungen)
 - Der JSON-Block MUSS in \`\`\`chart ... \`\`\` eingeschlossen sein`;
 }
 
@@ -1625,8 +1631,11 @@ const STRUCTURE_SOURCE_THRESHOLD = 4;
  * The brevity of a genuinely small question is unaffected: rule 2's `simple`
  * branch still answers it in one or two paragraphs.
  */
+// Angebote (#4367): ein Angebot, das ein ABSCHLUSS-Hinweis des Rezepts
+// verlangt (`offerNote`), ist keins von den verbotenen — der Server weiß dann,
+// was angeboten wurde, und ein „ja" darauf baut es.
 const SCOPE_RULE =
-  'Bleib beim Gefragten: keine Ausflüge zu anderen Themen, keine unaufgeforderten Angebote ("soll ich dazu ein Sharepic bauen?"). Aber bei einer offenen Frage nach einer Person, einer Organisation oder einem Begriff IST der Gegenstand selbst das Thema — alles, was zu seinem Verständnis gehört (Werdegang, Wirken, Hauptwerke, Wendepunkte, Ende, Bedeutung), ist damit gefragt und keine Zusatzinfo. Wie ausführlich, entscheidet allein Regel 2.';
+  'Bleib beim Gefragten: keine Ausflüge zu anderen Themen, keine unaufgeforderten Angebote ("soll ich noch mehr dazu schreiben?") — außer der einen Rückfrage, die ein ABSCHLUSS-Hinweis verlangt, und dem Angebot eines Sharepics oder KI-Bilds, wenn die Person selbst nach einer Grafik gefragt hat. Aber bei einer offenen Frage nach einer Person, einer Organisation oder einem Begriff IST der Gegenstand selbst das Thema — alles, was zu seinem Verständnis gehört (Werdegang, Wirken, Hauptwerke, Wendepunkte, Ende, Bedeutung), ist damit gefragt und keine Zusatzinfo. Wie ausführlich, entscheidet allein Regel 2.';
 
 /**
  * The syntax has to be named. Asked only for "Überschriften", the model answered
@@ -1688,6 +1697,23 @@ const INTENTS_WITH_OWN_FORMAT: ReadonlySet<ChatIntentId> = new Set([
   'chart',
   'artifact',
 ]);
+
+/**
+ * Who prescribes the shape of this answer, if not the generic format rule —
+ * `null` when nobody does. Shared by the format rule and the visual-block
+ * catalogue: a block is a shape decision too, so where a recipe, the user or a
+ * mode already fixed the form, the catalogue stays out of the prompt.
+ */
+function resolveAnswerFormatOwner(
+  state: ChatGraphState,
+  activeTextForm: string | null
+): string | null {
+  if (state.synthesisMode) return `synthesis:${state.synthesisMode}`;
+  if (INTENTS_WITH_OWN_FORMAT.has(state.intent)) return `intent:${String(state.intent)}`;
+  if (state.taskShape != null) return `task_shape:${state.taskShape}`;
+  if (activeTextForm) return `textform:${activeTextForm}`;
+  return null;
+}
 
 function buildAnswerFormatRule(
   state: ChatGraphState,
@@ -1768,12 +1794,8 @@ function buildAnswerFormatRule(
   // So the rule steps aside and points at the owner. It cannot simply return
   // an empty string: the numbered list would show a bare "2." and the citation
   // block below counts on rules 1–4 existing.
-  const formatOwner = state.synthesisMode
-    ? `synthesis:${state.synthesisMode}`
-    : INTENTS_WITH_OWN_FORMAT.has(state.intent)
-      ? `intent:${String(state.intent)}`
-      : null;
-  if (formatOwner != null) {
+  const formatOwner = resolveAnswerFormatOwner(state, activeTextForm);
+  if (formatOwner?.startsWith('synthesis:') || formatOwner?.startsWith('intent:')) {
     note('own_format', { formatOwner });
     return 'Form und Umfang dieser Antwort sind oben bereits vorgegeben — halte dich genau daran.';
   }
@@ -1793,8 +1815,8 @@ function buildAnswerFormatRule(
   // The sentence differs from the one above on purpose: that prescription
   // stands HIGHER IN THIS PROMPT, this one stands in the conversation. Pointing
   // at "oben" would send the model looking for something that isn't there.
-  if (state.taskShape != null) {
-    note('own_format', { formatOwner: `task_shape:${state.taskShape}` });
+  if (formatOwner?.startsWith('task_shape:')) {
+    note('own_format', { formatOwner });
     return 'Form und Umfang gibt der Auftrag der*des Nutzer*in vor — halte dich genau an das dort verlangte Format und füge nichts hinzu, was es nicht vorsieht.';
   }
 
@@ -1816,8 +1838,8 @@ function buildAnswerFormatRule(
   //
   // Steht NACH `taskShape`: schreibt die Person im Auftrag selbst eine Form vor
   // („gib mir ausschließlich drei Sätze"), gewinnt ihr Satz gegen das Rezept.
-  if (activeTextForm) {
-    note('own_format', { formatOwner: `textform:${activeTextForm}` });
+  if (formatOwner?.startsWith('textform:')) {
+    note('own_format', { formatOwner });
     return 'Form und Umfang gibt die oben aktive Textform vor — halte dich genau an deren Aufbau, Länge und Ton und füge keine Gliederung hinzu, die sie nicht vorsieht.';
   }
 
@@ -2152,7 +2174,7 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   // angelernter Stil ist — der Stil ersetzt den Rezepttext, nicht das Rezept.
   // Nur die freie Mention ohne Systemrezept läuft unter ihrem eigenen Namen.
   const skillFragment = resolved
-    ? `\n\n## AKTIVE ${resolved.replacesSystem || resolved.source === 'system' ? 'PLATTFORM' : 'TEXTFORM'}: ${resolved.title}\n${resolved.body}`
+    ? `\n\n## AKTIVE ${resolved.replacesSystem || resolved.source === 'system' ? 'PLATTFORM' : 'TEXTFORM'}: ${resolved.title}\n${resolved.body}${offerNote(state, [resolved.mention])}`
     : '';
 
   // Dieselbe Vokabel wie die Werkzeug-Tür (`[recipeTools] [Rezept] gewählt=…
@@ -2390,6 +2412,14 @@ const PROMPT_BLOCKS = [
 5. Erstelle KEINE Quellenliste/Quellenverzeichnis am Ende — Quellen werden automatisch in der Oberfläche angezeigt
 6. Kompakte Formatierung: Maximal eine Leerzeile zwischen Absätzen. Keine doppelten Leerzeilen, keine horizontalen Trennlinien (---)
 7. ${CONTENT_INTEGRITY_ANSWER_RULE}`,
+  },
+  {
+    id: 'visual-blocks',
+    branches: DEFAULT_ONLY,
+    render: (ctx) =>
+      resolveAnswerFormatOwner(ctx.state, ctx.activeTextFormTitle) == null
+        ? buildVisualBlocksGuidance(ctx.state.visualBlocks ?? [])
+        : '',
   },
   { id: 'citation-instruction', branches: DEFAULT_ONLY, render: (ctx) => ctx.citationInstruction },
   { id: 'instruction-hierarchy', branches: BOTH, render: (ctx) => ctx.hierarchyRule },

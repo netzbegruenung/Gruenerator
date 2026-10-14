@@ -136,6 +136,12 @@ const ALLOWED = new Set(SOVEREIGN_ZDR_PROVIDERS);
  *  `id, created, model, object, choices, usage`. */
 export const CORTECS_UPSTREAM_HEADER = 'x-cortecs-provider';
 
+/** Der Header mit dem Modell, das tatsächlich gerechnet hat. Er weicht vom
+ *  angefragten ab, wenn der Router still tauscht — am 07.10.2026 gemessen:
+ *  `gemma-4-31b-it` mit über ~215k Tokens kam als `gemma-4-26b-a4b-it` bei
+ *  `scaleway` zurück, HTTP 200, die Nadel am Anfang des Prompts fehlte. */
+export const CORTECS_MODEL_HEADER = 'x-cortecs-model';
+
 /**
  * WANN er kommt — und warum das die Fehlersuche begrenzt.
  *
@@ -190,6 +196,7 @@ function readHeader(headers: unknown, name: string): string | null {
 
 export const cortecsFetchWithPolicy: typeof fetch = async (input, init) => {
   let request = init;
+  let requestedModel: string | null = null;
   if (init?.body && typeof init.body === 'string') {
     try {
       const parsed = JSON.parse(init.body) as Record<string, unknown>;
@@ -199,6 +206,7 @@ export const cortecsFetchWithPolicy: typeof fetch = async (input, init) => {
       // Der Denk-Pin bleibt eine Chat-Angelegenheit.
       const isChat = 'messages' in parsed;
       if (typeof parsed.model === 'string' && (isChat || 'input' in parsed)) {
+        requestedModel = parsed.model;
         if (isChat && REASONING_OFF_MODELS.has(parsed.model)) {
           parsed.reasoning_effort = 'none';
         }
@@ -216,7 +224,7 @@ export const cortecsFetchWithPolicy: typeof fetch = async (input, init) => {
   }
 
   const response = await fetch(input, request);
-  assertSovereignUpstream(response);
+  assertSovereignUpstream(response, requestedModel);
   return response;
 };
 
@@ -228,7 +236,17 @@ export const cortecsFetchWithPolicy: typeof fetch = async (input, init) => {
  * hier zählt, ist dass es AUFFÄLLT — ein stiller Fail-open-Filter ist sonst
  * von aussen nicht von einem wirksamen zu unterscheiden.
  */
-export function assertSovereignUpstream(response: Response): void {
+export function assertSovereignUpstream(
+  response: Response,
+  requestedModel: string | null = null
+): void {
+  const served = response.headers.get(CORTECS_MODEL_HEADER);
+  if (requestedModel && served && served !== requestedModel) {
+    log.error(
+      `Cortecs hat "${requestedModel}" angefragt bekommen und "${served}" rechnen lassen — ` +
+        `der Router tauscht das Modell still, siehe GEMMA_31B_ON_CORTECS in gemmaHosts.ts.`
+    );
+  }
   const upstream = response.headers.get(CORTECS_UPSTREAM_HEADER);
   if (!upstream) {
     // Nur bei einer erfolgreichen Antwort aussagekräftig — Fehlerantworten

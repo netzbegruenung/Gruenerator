@@ -83,6 +83,20 @@ describe('validateElements', () => {
     expect(result.ok).toBe(true);
   });
 
+  it('keeps the German name the editor shows', () => {
+    const result = validateElements({
+      elements: [
+        {
+          id: 'umbrella_1',
+          bbox: [100, 100, 400, 300],
+          desc: 'A green umbrella.',
+          label: 'Sonnenschirm',
+        },
+      ],
+    });
+    expect(result.ok && result.value[0]?.label).toBe('Sonnenschirm');
+  });
+
   it('rejects duplicate ids', () => {
     const element = { id: 'moth_1', bbox: [1, 1, 50, 50], desc: 'moth' };
     expect(validateElements({ elements: [element, element] }).ok).toBe(false);

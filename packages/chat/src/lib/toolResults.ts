@@ -461,6 +461,14 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
       return `${title} · ${problems} ${problems === 1 ? 'Hinweis' : 'Hinweise'} aus der Prüfung`;
     },
   },
+  create_explainable: {
+    label: 'Explainable',
+    activeLabel: 'Erstelle Explainable',
+    iconKey: 'sparkles',
+    accent: 'create',
+    queryKeys: ['prompt'],
+    summarize: (_args, result) => artifactTitle(result),
+  },
   create_board: {
     label: 'Board',
     activeLabel: 'Erstelle Board',
@@ -474,6 +482,72 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
   edit_document: {
     label: 'Bearbeitung',
     activeLabel: 'Bearbeite',
+    iconKey: 'file',
+    accent: 'create',
+  },
+  edit_current_sharepic: {
+    label: 'Sharepic-Bearbeitung',
+    activeLabel: 'Überarbeite Sharepic',
+    iconKey: 'image',
+    accent: 'create',
+  },
+  read_sharepic: {
+    label: 'Sharepic gelesen',
+    activeLabel: 'Lese Sharepic',
+    iconKey: 'image',
+    accent: 'create',
+  },
+  edit_sharepic: {
+    label: 'Sharepic überarbeitet',
+    activeLabel: 'Überarbeite Sharepic',
+    iconKey: 'image',
+    accent: 'create',
+  },
+  read_sheet: {
+    label: 'Tabelle gelesen',
+    activeLabel: 'Lese Tabelle',
+    iconKey: 'file',
+    accent: 'create',
+  },
+  edit_sheet: {
+    label: 'Tabelle geändert',
+    activeLabel: 'Ändere Tabelle',
+    iconKey: 'file',
+    accent: 'create',
+  },
+  read_presentation: {
+    label: 'Präsentation gelesen',
+    activeLabel: 'Lese Präsentation',
+    iconKey: 'file',
+    accent: 'create',
+  },
+  edit_presentation: {
+    label: 'Präsentation geändert',
+    activeLabel: 'Ändere Präsentation',
+    iconKey: 'file',
+    accent: 'create',
+  },
+  read_explainable: {
+    label: 'Explainable gelesen',
+    activeLabel: 'Lese Explainable',
+    iconKey: 'file',
+    accent: 'create',
+  },
+  edit_explainable: {
+    label: 'Explainable geändert',
+    activeLabel: 'Ändere Explainable',
+    iconKey: 'file',
+    accent: 'create',
+  },
+  read_document: {
+    label: 'Dokument gelesen',
+    activeLabel: 'Lese Dokument',
+    iconKey: 'file',
+    accent: 'create',
+  },
+  edit_document_text: {
+    label: 'Dokument geändert',
+    activeLabel: 'Ändere Dokument',
     iconKey: 'file',
     accent: 'create',
   },
@@ -493,6 +567,18 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     label: 'Reisekosten berechnet',
     activeLabel: 'Berechne Reisekosten',
     iconKey: 'file',
+    accent: 'create',
+  },
+  vorlagen_vorschlagen: {
+    label: 'Vorlagen vorgeschlagen',
+    activeLabel: 'Suche passende Vorlagen',
+    iconKey: 'image',
+    accent: 'create',
+  },
+  check_sharepic: {
+    label: 'Sharepic geprüft',
+    activeLabel: 'Prüfe das Sharepic',
+    iconKey: 'image',
     accent: 'create',
   },
   vertonen: {

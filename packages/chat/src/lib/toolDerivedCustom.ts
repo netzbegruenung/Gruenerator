@@ -1,4 +1,8 @@
-import { socialPostPayloadSchema, bahnPayloadSchema } from '@gruenerator/contracts';
+import {
+  socialPostPayloadSchema,
+  bahnPayloadSchema,
+  sharepicVorlagenSuggestionsSchema,
+} from '@gruenerator/contracts';
 
 import { coerceSharepicVariants } from '../hooks/useChatGraphStream';
 
@@ -24,7 +28,15 @@ export function buildToolDerivedCustom(
 
   // Drop any variant with a non-canonical canvasType so the studio handoff
   // stays safe.
-  const sharepicCall = toolCalls.find((tc) => tc.toolName === 'sharepic');
+  // `sharepic` (create) and `edit_sharepic` (loop edit) both persist `variants`;
+  // the live stream shows the latest, so reload does too. A failed edit has none.
+  const sharepicCall = [...toolCalls]
+    .reverse()
+    .find(
+      (tc) =>
+        (tc.toolName === 'sharepic' || tc.toolName === 'edit_sharepic') &&
+        coerceSharepicVariants((tc.result as { variants?: unknown } | undefined)?.variants)
+    );
   const validSharepicVariants = coerceSharepicVariants(
     (sharepicCall?.result as { variants?: unknown } | undefined)?.variants
   );
@@ -55,6 +67,17 @@ export function buildToolDerivedCustom(
       }
     } catch {
       /* raw (non-condensed) tool result — keep looking */
+    }
+  }
+
+  // Sharepic-Vorlagen gallery: the persisted result carries the same list the
+  // live `vorlagen_suggestions` event did. The last call wins.
+  for (const tc of [...toolCalls].reverse()) {
+    if (tc.toolName !== 'vorlagen_vorschlagen') continue;
+    const parsedVorlagen = sharepicVorlagenSuggestionsSchema.safeParse(tc.result);
+    if (parsedVorlagen.success) {
+      custom.vorlagenSuggestions = parsedVorlagen.data;
+      break;
     }
   }
 

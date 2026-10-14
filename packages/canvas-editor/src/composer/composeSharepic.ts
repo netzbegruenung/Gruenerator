@@ -23,41 +23,44 @@ import {
   type SharepicFormat,
   type SharepicItem,
   type SharepicPhotoAttribution,
+  type SharepicNummer,
+  type SharepicSeitenzahl,
   type SharepicSlide,
-  type KiLabelMode,
   type SharepicSpec,
   type SharepicTextSide,
 } from '@gruenerator/contracts';
 
-import { getBrandTheme } from '../brand/theme';
+import { getBrandTheme, HELLGRUEN_GLOW } from '../brand/theme';
 import { DEFAULT_FORMAT_ID, getCanvasFormatOrDefault, type CanvasFormat } from '../formats';
-import { ASSET_TARGET_SIZE, type AssetInstance } from '../utils/canvasAssets';
+import { ASSET_TARGET_SIZE, emojiAssetId, type AssetInstance } from '../utils/canvasAssets';
 import { createChartInstance, type ChartInstance, type ChartType } from '../utils/chartUtils';
 import { createCircleBadgeInstance } from '../utils/circleBadgeUtils';
 import { COLORS } from '../utils/dreizeilenLayout';
 import { createPillBadgeInstance } from '../utils/pillBadgeUtils';
 import { createShape, type ShapeInstance } from '../utils/shapes';
-import {
-  measureTextWidthWithFont,
-  runFont,
-  type TextAccent,
-  type TextMarker,
-} from '../utils/textUtils';
+import { runFont, type TextAccent, type TextMarker } from '../utils/textUtils';
 import { VERANSTALTUNG_CONFIG } from '../utils/veranstaltungLayout';
 
-import { SHAREPIC_ICON_IDS, VERGLEICH_MARKER_IDS } from './sharepicIcons';
+import {
+  BRUSH_ARROW,
+  defaultMeasure,
+  inkOn,
+  pageDots,
+  SHAREPIC_COLOR_HEX,
+  type MeasureText,
+} from './chromeParts';
+import { encodeHandMarks, placeHandMarks, sentinelBlind } from './handMarks';
+import { stripMarks } from './marks';
+import { SHAREPIC_ICON_FILLED, SHAREPIC_ICON_IDS, VERGLEICH_MARKER_IDS } from './sharepicIcons';
+import { slideProvenance, type SharepicProvenance } from './sharepicProvenance';
 
 import type { IconState } from '../configs/factory/baseTypes';
 import type { AdditionalText } from '../configs/types';
 import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
 import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
+import type { UserImageInstance } from '../utils/userImageUtils';
 
-export type MeasureText = (
-  text: string,
-  fontSize: number,
-  fontFamily: string,
-  fontStyle: string
-) => number;
+export { SHAREPIC_COLOR_HEX, type MeasureText };
 
 /** How bright or busy the photo is where the text sits; decides how dense the scrim gets. */
 export type PhotoTone = 'dunkel' | 'mittel' | 'hell';
@@ -68,13 +71,15 @@ export interface ComposeOptions {
   /** Photo credit per slide, as the draft returned it. */
   attributions?: (SharepicPhotoAttribution | null)[];
   measure?: MeasureText;
-  /** AI notice on every slide, same wording and look as the server-side image label. Default `full`. */
-  kiLabel?: KiLabelMode;
+  /** AI notice on every slide, the last of a carousel in its long form. Default on. */
+  kiLabel?: boolean;
   /**
    * Tone of a stock photo on the side the text sits on, measured by the
    * client (the composer stays sync and pure). `null` or absent: `mittel`.
    */
   photoTone?: (filename: string, side: SharepicTextSide) => PhotoTone | null;
+  /** Also return where each element comes from (`ComposedSharepic.provenance`). */
+  provenance?: true;
 }
 
 /** Props for the `freeform` / `freeform-at` config's `createInitialState` — one page. */
@@ -93,6 +98,8 @@ export type ComposedSlide = {
   shapeInstances: ShapeInstance[];
   assetInstances: AssetInstance[];
   chartInstances: ChartInstance[];
+  /** An infographic's painted illustrations. */
+  userImageInstances: UserImageInstance[];
   selectedIcons: string[];
   iconStates: Record<string, IconState>;
   layerOrder: string[];
@@ -104,7 +111,20 @@ export interface ComposedSharepic {
   format: SharepicFormat;
   /** One page per slide, in order. */
   slides: ComposedSlide[];
+  /** Per slide, keyed by element id; only with `ComposeOptions.provenance`. */
+  provenance?: Record<string, SharepicProvenance>[];
 }
+
+type BildItem = Extract<SharepicItem, { type: 'bild' }>;
+/** A photo tinted green, as the posts set people: DE in Klee, AT in its light green. */
+const BILD_TINT: Record<SharepicCreatorLocale, string> = { 'de-DE': '#008939', 'de-AT': '#56AF31' };
+/** Air between the text group and a photo in the slide. */
+const BILD_CLEARANCE = 50;
+const BILD_KARTE = { inset: 40, share: 0.4, pad: 16 } as const;
+/** Diameter of a round photo, as a share of the width. */
+const BILD_KREIS = 0.5;
+/** A cut-out person rises from the bottom edge to here. */
+const BILD_FREI_TOP = 0.4;
 
 /** 6.5 % of the width — the margin the posts use. */
 const MARGIN = 70;
@@ -112,21 +132,21 @@ const GAP = 30;
 const FOOTER = 130;
 /**
  * Logo: longer side and gap to the bottom edge, measured on the posts (10/2026).
- * DE: the posts carry the "BÜNDNIS 90/DIE GRÜNEN" word mark bottom-left at the
- * margin; there is no word-mark asset yet, so the sunflower stands in, small.
+ * DE: the "BÜNDNIS 90/DIE GRÜNEN" word mark (710 × 379), ~250–300 px, bottom-left
+ * at the margin, in a tone of the ground (Dd_BXcKiDy2/03, Ddouf0QiL1w/02).
  * AT: the "G DIE GRÜNEN" logo with claim (1410 × 1239), ~210 px, centred.
  */
 const LOGO = {
-  'de-DE': { size: 110, height: 110, bottom: 70 },
+  'de-DE': { size: 260, height: (260 * 379) / 710, bottom: 80 },
   'de-AT': { size: 210, height: (210 * 1239) / 1410, bottom: 91 },
 } as const;
 
 /**
- * AI label, mirroring `imagine_label_canvas.ts` at 1080 px: PT Sans Bold 27,
+ * AI label, looking like `imagine_label_canvas.ts` at 1080 px: PT Sans Bold 27,
  * pill bottom-left. Kept in sync by hand, the API cannot import the editor.
  */
 const KI_LABEL = {
-  texts: { full: 'KI-Generiert mit dem Grünerator', short: 'KI-Generiert' },
+  texts: { slide: 'KI-Generiert', closing: 'Klimaschonend KI-generiert mit dem Grünerator' },
   fontFamily: 'PT Sans',
   fontSize: 27,
   margin: 11,
@@ -136,28 +156,27 @@ const KI_LABEL = {
   gap: 8,
 } as const;
 
-export const SHAREPIC_COLOR_HEX: Record<SharepicColor, string> = {
-  tanne: COLORS.TANNE,
-  dunkeltanne: '#00261A',
-  grasgruen: '#00CC4F',
-  mint: '#D5EEE6',
-  hellgrau: '#F2F2F2',
-  dunkelgruen: getBrandTheme('de-AT').colors.primary,
-  hellgruen: getBrandTheme('de-AT').colors.secondary,
-  weiss: '#FFFFFF',
-};
-
-/** Dark greens get a gradient; the rest stays flat, as the posts are. */
-const GRADIENTS: Partial<Record<SharepicColor, { angle: number; stops: string[] }>> = {
-  tanne: { angle: 60, stops: ['#00261A', '#005538', '#0A7A3F'] },
-  dunkeltanne: { angle: 60, stops: ['#00140D', '#00261A', '#005538'] },
-  // Grass green has none: measured flat on @die_gruenen (#01CF51 edge to edge).
+/**
+ * AT's dark greens get a gradient; the rest stays flat. DE colours are all
+ * flat (CD 2024 p. 11, "Farben nur flach, 100 % Deckkraft"): the green
+ * glow of the posts is the photo behind them, a Tanne plane runs edge to edge.
+ */
+const GRADIENTS: Partial<
+  Record<SharepicColor, { type?: 'radial'; angle: number; stops: string[] }>
+> = {
   // Measured on @diegruenen carousels (10/2026, median over text-free patches):
   // a deep, slightly bluish green, darker at the top, only a little lighter
   // below — no slide into yellow-green.
   dunkelgruen: { angle: 90, stops: ['#0B6620', '#1D7A35', '#23803B'] },
-  hellgruen: { angle: 60, stops: ['#3F9A2A', '#56af31', '#7CC650'] },
+  // Hellgrün (#56AF31) carries white at 2.77:1 and yellow at 2.26:1. The posts
+  // never set text on it flat: a dark green with a light glow in the middle
+  // (Dc_L5vriG5z, edge #318338 → centre #56AE32). Ours stops darker, at the
+  // brightest stop white keeps 4.68:1 and yellow 3.82:1.
+  hellgruen: { type: 'radial', angle: 0, stops: [...HELLGRUEN_GLOW] },
 };
+
+const evenStops = (stops: string[]) =>
+  stops.map((color, i) => ({ offset: i / (stops.length - 1), color }));
 
 /**
  * Scrim alpha under the text, per photo tone — capped at `SCRIM_MAX`: the posts
@@ -184,7 +203,42 @@ const SCRIM_ANGLE: Record<SharepicTextSide, number> = {
   rechts: 0,
 };
 
-const LIGHT: readonly SharepicColor[] = ['mint', 'hellgrau', 'weiss'];
+/**
+ * DE quote leading: the posts' marker boxes stand apart line by line
+ * (DdjWsbhCHCI), which 1.2 does not leave room for.
+ */
+const QUOTE_LINE_HEIGHT = 1.3;
+/** DE `++marker++` box overhang beside its words, in em. */
+const MARKER_PAD_X = 0.1;
+/** The marker on creme: the soft mint of the candidates' text slides (DdEhd82js3K, DdEv6ZPDs-O). */
+const MARKER_MINT = '#77F6A5';
+/** The DE word mark: black (set in a tone by opacity) on light and grass green, white on dark. */
+const DE_WORDMARK = { black: 'gruene-de-logo-schwarz', white: 'gruene-de-logo-weiss' } as const;
+/** Line-box ink: near-black, as on the story posts. */
+const BOX_INK = '#0B0F0C';
+/** DE `++marker++` inside a white card: grass green, dark ink. */
+const CARD_MARKER: TextMarker = {
+  fill: SHAREPIC_COLOR_HEX.grasgruen,
+  color: SHAREPIC_COLOR_HEX.dunkeltanne,
+  padX: MARKER_PAD_X,
+};
+/** `blume`: the faded sunflower's size and strength per ground. */
+const BLUME = { size: 760, onLight: 0.12, onGrass: 0.1, onDark: 0.08 } as const;
+/** `absatz.klein`: the body size of the candidates' long text slides at 1080 px. */
+const ABSATZ_KLEIN = 36;
+/** A DE quote this long is a text page (DdEhd82js3K/02), not a hero: body size, small mark. */
+const QUOTE_LONG = 300;
+
+/** `vergleich` with `stil: "spalten"`, measured on Ddouf0QiL1w/01 at 1080 px. */
+const VERGLEICH_SPALTEN = {
+  titleMax: 58,
+  pointMax: 36,
+  vs: 150,
+  /** The red of the post's ✗ circles. */
+  cross: '#E3352F',
+  /** Their points: grey, not muted by opacity. */
+  theirsInk: '#5F6B66',
+} as const;
 
 /** DE accent: a lime marker box. AT accent: a yellow Vollkorn line. */
 const LIME = '#BEFF60';
@@ -213,6 +267,8 @@ const CHART_PALETTE: Record<SharepicCreatorLocale, string[]> = {
     '#7CC650',
   ],
 };
+/** The chart's card. Series too light for it get an outline (`chartSeriesOutlines`). */
+const CHART_CARD = '#FFFFFF';
 /** The share a pie's values leave to 100 %. */
 const CHART_REST = '#C8C8C7';
 /**
@@ -224,8 +280,6 @@ const CHART_MIN_HEIGHT = 240;
 
 /** The DE "swipe on" arrow — an icon from the editor's own sets, so it stays swappable. */
 const ARROW_ICON = 'tabler:arrow-narrow-right';
-/** The AT one is the posts' brush stroke: white, green on light ground. */
-const BRUSH_ARROW = { onDark: 'brush-arrow-weiss', onLight: 'brush-arrow-gruen' } as const;
 /**
  * Arrow box and its gap to the right edge, measured on the posts: DE a
  * small arrow ~22 px from the corner, AT a long stroke ~280 px wide, ~40 px in.
@@ -239,9 +293,37 @@ const ARROW = {
 const HEADLINE_FILL = 0.95;
 const HEADLINE_MAX = 230;
 const HEADLINE_WITH_CARD = 130;
-const CARD_ITEMS: readonly SharepicItem['type'][] = ['liste', 'diagramm', 'iconliste', 'vergleich'];
+const CARD_ITEMS: readonly SharepicItem['type'][] = [
+  'schlagzeile',
+  'bingo',
+  'zahl',
+  'rechnung',
+  'termine',
+  'liste',
+  'diagramm',
+  'iconliste',
+  'vergleich',
+  'faktencheck',
+  'infografik',
+];
+/**
+ * The smallest quantity's side, as a share of the largest one's. Area-true
+ * below this the object turns into a speck nobody recognises (4 kg against
+ * 85 kg); the figure under it still says the truth.
+ */
+const MENGEN_MIN_SIDE = 0.32;
+/** Air between two figures side by side, so "3,1 Mio. t 1,3 Mio. t" never reads as one. */
+const CAPTION_GUTTER = 48;
+/** Gap between two pictogram units, as a share of a unit; how strongly the outlines of the units not counted show. */
+const ANTEIL_GAP = 0.18;
+const ANTEIL_REST_OPACITY = 0.8;
+/** Air between two quantity illustrations, and the largest one's side at scale 1. */
+const MENGEN_ART_GAP = 32;
+const MENGEN_MAX_ART = 440;
 /** A cover headline alone on a colour: larger, filling up to this share of the height. */
 const HEADLINE_COVER_MAX = 260;
+/** `groesse: 'gross'` — "Schrift größer": the caps rise by this much, where the slide has room. */
+const HEADLINE_GROSS = 1.3;
 const COVER_SHARE = 0.6;
 const QUOTE_ALONE_MAX = 120;
 /** Paragraphs stay at most this share of the headline size. */
@@ -252,9 +334,6 @@ const TOP_PAD: Record<SharepicCreatorLocale, number> = { 'de-DE': 110, 'de-AT': 
 const AT_CENTRED_MARGIN = 100;
 /** Date circle on a colour or photo slide: free in the bottom-right corner. */
 const DATE_CIRCLE = { radius: 170, right: 40, bottom: 50 } as const;
-
-const defaultMeasure: MeasureText = (text, fontSize, fontFamily, fontStyle) =>
-  measureTextWidthWithFont(text, fontSize, fontFamily, fontStyle);
 
 /** Greedy word wrap; a single over-long word keeps its own line. */
 export function wrapWords(
@@ -372,8 +451,6 @@ type HeadlineItem = Extract<SharepicItem, { type: 'headline' }>;
  */
 const AT_EMPHASIS_STYLE = 'bold italic' as const;
 
-const stripMarks = (text: string) => text.replace(/\*\*|__|==|\+\+/g, '');
-
 /** Every string of a slide with `++marker++` read as `==accent==` (AT has no marker boxes). */
 function foldMarkers<T>(value: T): T {
   if (typeof value === 'string') return foldMarkerIntoAccent(value) as T;
@@ -401,19 +478,31 @@ export function composeSharepic(spec: SharepicSpec, options: ComposeOptions): Co
   const count = spec.slides.length;
   const format = spec.format ?? DEFAULT_FORMAT_ID;
   const canvas = getCanvasFormatOrDefault(format);
+  // Numbered points count only the slides that carry a number.
+  let counted = 0;
+  const numerals = spec.slides.map((slide) =>
+    slide.nummer ? { stil: slide.nummer, k: ++counted } : null
+  );
+  const slides = spec.slides.map((slide, index) =>
+    composeSlide(
+      slide,
+      spec.locale,
+      canvas,
+      options,
+      options.attributions?.[index] ?? null,
+      index < count - 1 && spec.pfeil !== false,
+      count > 1 && spec.seitenzahl ? { index, count, style: spec.seitenzahl } : null,
+      numerals[index] ?? null,
+      count > 1 && index === count - 1
+    )
+  );
   return {
     templateType: spec.locale === 'de-AT' ? 'freeform-at' : 'freeform',
     format,
-    slides: spec.slides.map((slide, index) =>
-      composeSlide(
-        slide,
-        spec.locale,
-        canvas,
-        options,
-        options.attributions?.[index] ?? null,
-        index < count - 1
-      )
-    ),
+    slides,
+    ...(options.provenance
+      ? { provenance: spec.slides.map((slide, index) => slideProvenance(slide, slides[index]!)) }
+      : {}),
   };
 }
 
@@ -423,16 +512,25 @@ function composeSlide(
   canvas: CanvasFormat,
   options: ComposeOptions,
   attribution: SharepicPhotoAttribution | null,
-  /** Not the last slide of a carousel: it gets the "swipe on" arrow. */
-  swipeOn: boolean
+  /** Not the last slide of a carousel (and arrows on): it gets the "swipe on" arrow. */
+  swipeOn: boolean,
+  /** Where this slide sits in a numbered carousel. */
+  page: { index: number; count: number; style: SharepicSeitenzahl } | null,
+  /** This slide's point number, counted over the numbered slides. */
+  numeral: { stil: SharepicNummer; k: number } | null,
+  /** Last slide of a carousel: the AI label in its long form. */
+  closing: boolean
 ): ComposedSlide {
-  const measure = options.measure ?? defaultMeasure;
+  const measure = sentinelBlind(options.measure ?? defaultMeasure);
   const theme = getBrandTheme(locale);
   const isAt = locale === 'de-AT';
   // The marker box is a DE signature; AT highlights with the yellow Vollkorn
   // accent only, so a `++` that reaches an AT slide is set as `==`.
-  const spec = isAt ? foldMarkers(slide) : slide;
+  const spec = isAt ? foldMarkers(encodeHandMarks(slide)) : encodeHandMarks(slide);
   const bg = spec.background;
+  const bild =
+    bg.kind === 'farbe' ? (spec.items.find((i): i is BildItem => i.type === 'bild') ?? null) : null;
+  const bildIndex = bild ? spec.items.indexOf(bild) : -1;
   const darkText = isAt ? theme.colors.primary : SHAREPIC_COLOR_HEX.dunkeltanne;
   const boxed = !isAt && !!spec.zeilenboxen;
   const quoteSlide = spec.items.some((i) => i.type === 'zitat');
@@ -458,13 +556,14 @@ function composeSlide(
         bg.kind === 'farbe' ? bg.color : bg.kind === 'foto' ? 'dunkeltanne' : bg.panelColor
       ],
     hasBackgroundImage: bg.kind !== 'farbe',
-    imageAttribution: bg.kind !== 'farbe' ? attribution : null,
+    imageAttribution: bg.kind !== 'farbe' || bild ? attribution : null,
     additionalTexts: [],
     pillBadgeInstances: [],
     circleBadgeInstances: [],
     shapeInstances: [],
     assetInstances: [],
     chartInstances: [],
+    userImageInstances: [],
     selectedIcons: [],
     iconStates: {},
     layerOrder: [],
@@ -493,6 +592,9 @@ function composeSlide(
     const shape = createShape('rect', x + w / 2, y + h / 2, fill, fill);
     return Object.assign(shape, { id, width: w, height: h });
   };
+  /** A full-canvas background plane: drawn, but clicks pass through to the photo. */
+  const plane = (...args: Parameters<typeof rect>) =>
+    Object.assign(rect(...args), { locked: true });
 
   // ── Surface: what the text sits on, and the planes that make it ──────────
   let areaTop = 0;
@@ -539,11 +641,21 @@ function composeSlide(
       ],
     };
   };
+  /** The colour beside a photo strip: flat, except Hellgrün, which keeps its glow. */
+  const panel = (y: number, height: number, color: SharepicColor) => {
+    const shape = plane('sc-panel', 0, y, canvas.width, height, SHAREPIC_COLOR_HEX[color]);
+    const glow = GRADIENTS[color];
+    if (glow?.type === 'radial') {
+      shape.fillGradient = { type: 'radial', angle: 0, stops: evenStops(glow.stops) };
+    }
+    return shape;
+  };
+  const aufruf = spec.items.find((i) => i.type === 'aufruf') ?? null;
   let column: Column = {
     x: MARGIN,
     width: canvas.width - 2 * MARGIN,
     align:
-      isAt && quoteSlide
+      (isAt && quoteSlide) || (aufruf && aufruf.stil !== 'ausruf')
         ? 'center'
         : headlineAlone
           ? 'left'
@@ -552,18 +664,20 @@ function composeSlide(
             : 'left',
   };
 
+  /** DE header band: the text above the card stands on it; the card on `bg.color`. */
+  const kopfband = !isAt && bg.kind === 'farbe' ? (bg.kopfband ?? null) : null;
   if (bg.kind === 'farbe') {
-    surface = bg.color;
+    surface = kopfband ?? bg.color;
     const gradient = GRADIENTS[bg.color];
     if (gradient) {
       const { stops } = gradient;
-      const plane = rect('sc-bg', 0, 0, canvas.width, canvas.height, stops[1]!);
-      plane.fillGradient = {
-        type: 'linear',
+      const bgPlane = plane('sc-bg', 0, 0, canvas.width, canvas.height, stops[1]!);
+      bgPlane.fillGradient = {
+        type: gradient.type ?? 'linear',
         angle: gradient.angle,
-        stops: stops.map((color, i) => ({ offset: i / (stops.length - 1), color })),
+        stops: evenStops(stops),
       };
-      addShape(plane);
+      addShape(bgPlane);
     }
   } else if (bg.kind === 'foto-oben') {
     surface = bg.panelColor;
@@ -573,9 +687,7 @@ function composeSlide(
     // The photo is cover-fitted to the whole canvas; move its middle into the strip.
     out.imageOffset = { x: 0, y: areaTop / 2 - canvas.height / 2 };
     out.imageScale = 1;
-    addShape(
-      rect('sc-panel', 0, areaTop, canvas.width, canvas.height - areaTop, out.backgroundColor)
-    );
+    addShape(panel(areaTop, canvas.height - areaTop, bg.panelColor));
   } else if (bg.kind === 'foto-unten') {
     // The colour carries the text at the top; the photo starts at a hard edge
     // (a soft fade reads as a smear on AT, and the posts cut it clean).
@@ -584,7 +696,7 @@ function composeSlide(
     // The lower strip, from where the text area ends: the photo's middle goes there.
     out.imageOffset = { x: 0, y: (areaBottom + canvas.height) / 2 - canvas.height / 2 };
     out.imageScale = 1;
-    addShape(rect('sc-panel', 0, 0, canvas.width, areaBottom, out.backgroundColor));
+    addShape(panel(0, areaBottom, bg.panelColor));
   } else if (!boxed || spec.items.some((i) => i.type === 'zitat' || i.type === 'frage')) {
     // Text on a photo: a gradient from the text side into the picture.
     // Line boxes bring their own contrast and need none — a quote or question
@@ -594,7 +706,7 @@ function composeSlide(
     scrimDark = SCRIM_DARK[locale];
     scrimLevel = SCRIM_TEXT_ALPHA[options.photoTone?.(bg.filename, side) ?? 'mittel'];
     // Real stops follow in `setScrim`, once the geometry is known.
-    scrim = rect('sc-scrim', 0, 0, canvas.width, canvas.height, 'transparent');
+    scrim = plane('sc-scrim', 0, 0, canvas.width, canvas.height, 'transparent');
     addShape(scrim);
     if (vertical) {
       // Sized after layout, once the block's height is known.
@@ -615,18 +727,19 @@ function composeSlide(
   if (isAt && (bg.kind === 'foto-oben' || bg.kind === 'foto-unten')) {
     const top = bg.kind === 'foto-oben' ? 0 : areaBottom;
     const bottom = bg.kind === 'foto-oben' ? areaTop : canvas.height;
-    const tint = rect('sc-tint', 0, top, canvas.width, bottom - top, theme.colors.primary);
+    const tint = plane('sc-tint', 0, top, canvas.width, bottom - top, theme.colors.primary);
     addShape({ ...tint, blendMode: 'color' });
   }
 
-  const onLight = surface !== 'foto' && LIGHT.includes(surface);
-  // DE grass green is bright: the posts set dark text on it, not white.
-  const onGrass = !isAt && surface === 'grasgruen';
-  const darkInk = onLight || onGrass;
+  const { onLight, darkInk } = inkOn(surface, locale);
+  const onGrass = darkInk && !onLight;
   const textColor = darkInk ? darkText : '#FFFFFF';
   // Logo and arrow sit in the footer: on `foto-unten` that is the photo, not the panel.
-  const footerOnLight = bg.kind !== 'foto-unten' && onLight;
-  const footerDarkInk = bg.kind !== 'foto-unten' && darkInk;
+  // Under a header band the footer stands on the card's ground.
+  const footerInk = kopfband && bg.kind === 'farbe' ? inkOn(bg.color, locale) : null;
+  const footerOnPhoto = bg.kind === 'foto-unten' || bild?.ausschnitt === 'streifen-unten';
+  const footerOnLight = footerInk ? footerInk.onLight : !footerOnPhoto && onLight;
+  const footerDarkInk = footerInk ? footerInk.darkInk : !footerOnPhoto && darkInk;
   const shadow =
     surface === 'foto'
       ? {
@@ -640,25 +753,96 @@ function composeSlide(
   // `==word==` runs: AT sets them yellow in Vollkorn Black Italic, DE in lime.
   const accent: TextAccent = isAt
     ? {
-        fill: onLight ? theme.colors.secondary : theme.colors.accent,
+        fill: onLight ? theme.colors.accentOnLight : theme.colors.accent,
         fontFamily: theme.fonts.quoteEmphasis,
         fontStyle: AT_EMPHASIS_STYLE,
       }
     : { fill: onLight ? KLEE : onGrass ? '#FFFFFF' : LIME };
-  // DE `++passage++`: dark ink in a white box; mint on a white slide, where
-  // white would vanish. Photos and dark colours take white — a dark box
-  // disappears into the scrim. AT has none (see `foldMarkers`).
+  // DE `++passage++`: dark ink in a box. On light ground (white, grey, mint)
+  // the posts lay lime under it (Dds8o0TAppl, DdEhd82js3K, Dc3HYlTAnG-);
+  // photos and dark colours take white — a dark box disappears into the
+  // scrim. AT has none (see `foldMarkers`).
   const marker: TextMarker | null = isAt
     ? null
     : {
-        fill: surface === 'weiss' ? SHAREPIC_COLOR_HEX.mint : '#FFFFFF',
+        fill: surface === 'creme' ? MARKER_MINT : onLight ? LIME : '#FFFFFF',
         color: SHAREPIC_COLOR_HEX.dunkeltanne,
+        // Tighter than the editor's default: the space beside a mid-line box
+        // must stay visible, as on the posts.
+        padX: MARKER_PAD_X,
       };
+  // A topic icon in a circle — DE Klee on light ground, Tanne on grass green,
+  // lime on dark ground and photos; AT the yellow accent, its dark green on white.
+  const badgeColors = isAt
+    ? onLight
+      ? { fill: theme.colors.primary, ink: '#FFFFFF' }
+      : { fill: theme.colors.accent, ink: theme.colors.primary }
+    : onLight
+      ? { fill: KLEE, ink: '#FFFFFF' }
+      : onGrass
+        ? { fill: SHAREPIC_COLOR_HEX.tanne, ink: '#FFFFFF' }
+        : { fill: LIME, ink: SHAREPIC_COLOR_HEX.dunkeltanne };
   const cardAccent: TextAccent = isAt
-    ? { ...accent, fill: theme.colors.secondary }
+    ? { ...accent, fill: theme.colors.accentOnLight }
     : { fill: KLEE };
+  /** A figure, a numeral or a closing "!" in the slide's accent colour. */
+  const accentInk = isAt
+    ? onLight
+      ? theme.colors.accentOnLight
+      : theme.colors.accent
+    : onLight
+      ? KLEE
+      : onGrass
+        ? '#FFFFFF'
+        : LIME;
+  /** The widest size `value` can take on one line of `width`, up to `cap`. */
+  const fitLine = (value: string, cap: number, width: number, family: string) =>
+    Math.max(
+      24,
+      Math.min(cap, Math.floor((cap * width) / Math.max(1, measure(value, cap, family, 'bold'))))
+    );
+  /**
+   * The two sides of a contrast, as the posts set them: theirs (a comparison's
+   * left, a fact check's claim) muted with ✗, ours on the accent with ✓.
+   */
+  const contrastPanel = (side: 'theirs' | 'ours') => {
+    const muted = isAt && !onLight ? '#FFFFFF' : darkText;
+    return side === 'theirs'
+      ? {
+          // DE: a pale panel that stays visible on pale ground; AT: a veil.
+          fill: isAt
+            ? muted
+            : surface === 'hellgrau' || surface === 'weiss' || surface === 'creme'
+              ? SHAREPIC_COLOR_HEX.mint
+              : SHAREPIC_COLOR_HEX.hellgrau,
+          fillOpacity: isAt ? (onLight ? 0.08 : 0.15) : 1,
+          ink: muted,
+          inkOpacity: 0.7,
+          accent: isAt ? accent : { fill: KLEE },
+          marker: VERGLEICH_MARKER_IDS.links,
+        }
+      : {
+          fill: isAt
+            ? theme.colors.accent
+            : onGrass
+              ? SHAREPIC_COLOR_HEX.tanne
+              : SHAREPIC_COLOR_HEX.grasgruen,
+          fillOpacity: 1,
+          ink: !isAt && onGrass ? '#FFFFFF' : darkText,
+          inkOpacity: 1,
+          // White on grasgruen is 2.2:1. Tanne in bold italic stays legible as
+          // large text (4.1:1) and stands apart from the dunkeltanne body,
+          // even from a fact set bold.
+          accent: isAt
+            ? { ...accent, fill: theme.colors.primary }
+            : onGrass
+              ? { fill: LIME }
+              : ({ fill: SHAREPIC_COLOR_HEX.tanne, fontStyle: 'bold italic' } satisfies TextAccent),
+          marker: VERGLEICH_MARKER_IDS.rechts,
+        };
+  };
   /** Lines a rich text takes — the same layout the editor's renderer runs. */
-  const lineCount = (
+  const layoutLines = (
     value: string,
     width: number,
     size: number,
@@ -671,8 +855,9 @@ function composeSlide(
       const run = runFont(family, weight, style, runAccent);
       return measure(t, size, run.fontFamily, run.fontStyle);
     };
-    return layoutRichTextBlock(value, width, measureRun).length;
+    return layoutRichTextBlock(value, width, measureRun);
   };
+  const lineCount = (...args: Parameters<typeof layoutLines>) => layoutLines(...args).length;
 
   // Date circle: free in the bottom-right corner, as on the posts; the text
   // group ends above it and the place sits beside it. Under a photo strip the
@@ -704,8 +889,10 @@ function composeSlide(
   // Logo: AT only on the last slide, only on a plain colour and never on a
   // quote (2 of 42 posts carry it, both so); DE never on a full-bleed photo. Enforced here — the
   // model sets `logo: true` far more often than the posts do.
+  // The key sentence closes over the logo, as the posts end.
   const showLogo =
-    spec.logo && (isAt ? !swipeOn && bg.kind === 'farbe' && !quoteSlide : bg.kind !== 'foto');
+    (spec.logo || aufruf?.stil === 'kernsatz') &&
+    (isAt ? !swipeOn && bg.kind === 'farbe' && !quoteSlide : bg.kind !== 'foto');
   const logo = LOGO[locale];
   /** DE always and AT next to a date circle set the logo bottom-left, at the margin. */
   const logoLeft = showLogo && (!isAt || !!spec.datum);
@@ -728,16 +915,50 @@ function composeSlide(
   if (showLogo) areaBottom = Math.min(areaBottom, canvas.height - logo.bottom - logo.height - 20);
 
   // The AI label owns the bottom-left corner; place/source stack above it.
-  const kiMode = options.kiLabel ?? 'full';
-  const kiText = kiMode === 'none' ? null : KI_LABEL.texts[kiMode];
+  const kiText =
+    options.kiLabel === false ? null : closing ? KI_LABEL.texts.closing : KI_LABEL.texts.slide;
   const kiHeight = KI_LABEL.fontSize + 2 * KI_LABEL.paddingY;
   const kiTop = canvas.height - kiHeight - KI_LABEL.margin;
   const quelleSize = 24;
   // A centred logo owns the middle of the footer, the arrow the right: the
   // source wraps left of both.
+  // The teaser beside the arrow, in the body face; the source wraps left of it.
+  const weiter = swipeOn && spec.weiter ? spec.weiter : null;
+  const weiterRight = arrowLeft - 14;
+  // It shares the bottom row with the AI label: smaller type before it reaches the label.
+  const weiterLeft = kiText
+    ? KI_LABEL.margin +
+      measure(kiText, KI_LABEL.fontSize, KI_LABEL.fontFamily, 'bold') +
+      2 * KI_LABEL.paddingX +
+      24
+    : MARGIN;
+  const weiterBase = isAt ? 34 : 30;
+  const weiterSize = weiter
+    ? Math.max(
+        20,
+        Math.min(
+          weiterBase,
+          Math.floor(
+            (weiterBase * (weiterRight - weiterLeft)) /
+              measure(weiter, weiterBase, theme.fonts.body, 'bold')
+          )
+        )
+      )
+    : weiterBase;
+  // Still too long at the smallest size: it wraps and grows upward.
+  const weiterLines = weiter
+    ? wrapWords(weiter, weiterRight - weiterLeft, (l) =>
+        measure(l, weiterSize, theme.fonts.body, 'bold')
+      )
+    : [];
+  const weiterWidth = Math.max(
+    0,
+    ...weiterLines.map((l) => measure(l, weiterSize, theme.fonts.body, 'bold'))
+  );
   const quelleRight = Math.min(
     logoCentred && !spec.ort ? canvas.width / 2 - logo.size / 2 - 20 : canvas.width - MARGIN - 190,
-    swipeOn ? arrowLeft - 20 : canvas.width
+    swipeOn ? arrowLeft - 20 : canvas.width,
+    weiter ? weiterRight - weiterWidth - 24 : canvas.width
   );
   const quelleWidth = quelleRight - footX;
   const quelleText = spec.quelle ? `Quelle: ${spec.quelle.replace(/^Quelle:\s*/i, '')}` : '';
@@ -754,8 +975,84 @@ function composeSlide(
       ? quelleY
       : kiTop - KI_LABEL.gap
     : canvas.height - FOOTER / 2 + 20;
-  // The text group stops above the source, whatever its line count.
+  // The text group stops above the source, whatever its line count, and
+  // never closer to the AI label than the gap between them.
   if (spec.quelle) areaBottom = Math.min(areaBottom, quelleY - 20);
+  else if (kiText) areaBottom = Math.min(areaBottom, kiTop - KI_LABEL.gap - 20 + MARGIN);
+
+  // ── A photo in the slide: a fixed place per ausschnitt, the text keeps clear ──
+  if (bild) {
+    const id = `sc-${bildIndex}-bild`;
+    const textBottom = areaBottom - MARGIN;
+    const photo = (x: number, y: number, width: number, height: number) => {
+      out.userImageInstances.push({
+        id,
+        src: options.photoSrc(
+          bild.ausschnitt === 'freigestellt' ? (bild.freisteller ?? bild.quelle) : bild.quelle
+        ),
+        fileName: bild.quelle,
+        x,
+        y,
+        width,
+        height,
+        rotation: 0,
+        scale: 1,
+        opacity: 1,
+        fit: 'cover',
+        ...(bild.ausschnitt === 'kreis' && { mask: 'kreis' as const }),
+        ...(bild.filter === 'gruen' && { tint: BILD_TINT[locale], tintStrength: 1 }),
+        ...(bild.filter === 'grau' && { grayscale: true }),
+      });
+      out.layerOrder.push(id);
+    };
+    switch (bild.ausschnitt) {
+      case 'streifen-unten': {
+        const top = Math.round((canvas.height * 2) / 3);
+        photo(0, top, canvas.width, canvas.height - top);
+        areaBottom = Math.min(areaBottom, top + MARGIN - BILD_CLEARANCE);
+        break;
+      }
+      case 'streifen-oben': {
+        const bottom = Math.round(canvas.height / 3);
+        photo(0, 0, canvas.width, bottom);
+        areaTop = Math.max(areaTop, bottom);
+        break;
+      }
+      case 'karte': {
+        const width = canvas.width - 2 * MARGIN - 2 * BILD_KARTE.inset;
+        const height = Math.round(canvas.height * BILD_KARTE.share);
+        const x = (canvas.width - width) / 2;
+        const y = textBottom - height;
+        const card = rect(`${id}-karte`, x, y, width, height, '#FFFFFF');
+        addShape(
+          Object.assign(card, {
+            shadowColor: '#000000',
+            shadowBlur: 24,
+            shadowOffsetY: 6,
+            shadowOpacity: 0.18,
+          })
+        );
+        const pad = BILD_KARTE.pad;
+        photo(x + pad, y + pad, width - 2 * pad, height - 2 * pad);
+        areaBottom = Math.min(areaBottom, y + MARGIN - BILD_CLEARANCE);
+        break;
+      }
+      case 'kreis': {
+        const size = Math.round(canvas.width * BILD_KREIS);
+        const y = textBottom - size;
+        photo((canvas.width - size) / 2, y, size, size);
+        areaBottom = Math.min(areaBottom, y + MARGIN - BILD_CLEARANCE);
+        break;
+      }
+      case 'freigestellt': {
+        // The person stands on the bottom edge; the footer lies over them.
+        const top = Math.round(canvas.height * BILD_FREI_TOP);
+        photo(0, top, canvas.width, canvas.height - top);
+        areaBottom = Math.min(areaBottom, top + MARGIN);
+        break;
+      }
+    }
+  }
 
   // ── The text group ───────────────────────────────────────────────────────
   const text = (
@@ -797,8 +1094,9 @@ function composeSlide(
     family: string,
     fontStyle: 'normal' | 'bold'
   ): Placed => {
-    const padX = Math.round(size * 0.28);
-    const padY = Math.round(size * 0.12);
+    // Measured on Dd9G7lMjMIz: tight padding, round corners, the boxes touching.
+    const padX = Math.round(size * 0.25);
+    const padY = Math.round(size * 0.08);
     const step = size + 2 * padY;
     return {
       height: lines.length * step,
@@ -817,10 +1115,10 @@ function composeSlide(
               fontFamily: family,
               fontStyle,
               backgroundColor: line.betont ? SHAREPIC_COLOR_HEX.grasgruen : '#FFFFFF',
-              textColor: SHAREPIC_COLOR_HEX.dunkeltanne,
+              textColor: BOX_INK,
               paddingX: padX,
               paddingY: padY,
-              cornerRadius: 4,
+              cornerRadius: Math.round(size * 0.2),
             })
           );
           out.layerOrder.push(lineId);
@@ -828,9 +1126,9 @@ function composeSlide(
       },
     };
   };
-  // Narrower than the column: the posts stack short lines, a box per phrase.
+  // The posts run a box line up to ~90 % of the width, balanced.
   const wrapBoxed = (value: string, size: number, family: string, fontStyle: 'normal' | 'bold') =>
-    balancedWrap(stripMarks(value), column.width * 0.82 - size * 0.6, (l) =>
+    balancedWrap(stripMarks(value), column.width * 0.92 - size * 0.5, (l) =>
       measure(l, size, family, fontStyle)
     );
 
@@ -841,10 +1139,10 @@ function composeSlide(
     isAt && accented
       ? measure(stripMarks(line), 95, theme.fonts.quoteEmphasis, AT_EMPHASIS_STYLE)
       : measure(stripMarks(line), 100, headFamily, 'normal');
-  const coverSize = (h: HeadlineItem) => {
+  const coverSize = (h: HeadlineItem, cap: number) => {
     const accented = accentLines(h.akzent);
     const widest = Math.max(...h.lines.map((l, i) => lineWidth100(l, accented.includes(i))));
-    return Math.min(HEADLINE_COVER_MAX, (headColumn.width * HEADLINE_FILL * 100) / widest);
+    return Math.min(cap, (headColumn.width * HEADLINE_FILL * 100) / widest);
   };
   /** Splits a line at the word gap that balances its halves, never inside a mark. */
   const splitLine = (line: string, accented: boolean): [string, string] | null => {
@@ -855,7 +1153,8 @@ function composeSlide(
       const left = words.slice(0, k).join(' ');
       const right = words.slice(k).join(' ');
       const open = (mark: RegExp) => (left.match(mark)?.length ?? 0) % 2 === 1;
-      if (open(/==/g) || open(/\+\+/g)) continue;
+      if (open(/==/g) || open(/\+\+/g) || open(/[\u2061\u2062]/g) || open(/[\u2063\u2064]/g))
+        continue;
       const width = Math.max(lineWidth100(left, accented), lineWidth100(right, accented));
       if (width < bestWidth) {
         bestWidth = width;
@@ -869,9 +1168,9 @@ function composeSlide(
    * words per line, and it fills the upper ~60 % of the slide. Long lines are
    * split at their most balanced word gap while that makes the type larger.
    */
-  const growCover = (h: HeadlineItem): HeadlineItem => {
+  const growCover = (h: HeadlineItem, cap: number): HeadlineItem => {
     let best = h;
-    let size = coverSize(h);
+    let size = coverSize(h, cap);
     for (let round = 0; round < 4; round++) {
       const accented = accentLines(best.akzent);
       const widest = best.lines
@@ -888,7 +1187,7 @@ function composeSlide(
         a < widest.i ? [a] : a === widest.i ? [a, a + 1] : [a + 1]
       );
       const next: HeadlineItem = { ...best, lines, ...(akzent.length ? { akzent } : {}) };
-      const nextSize = coverSize(next);
+      const nextSize = coverSize(next, cap);
       if (nextSize < size * 1.08 || lines.length * nextSize * 0.96 > canvas.height * COVER_SHARE)
         break;
       best = next;
@@ -896,23 +1195,37 @@ function composeSlide(
     }
     return best;
   };
-  const items = headlineAlone
-    ? spec.items.map((i) => (i.type === 'headline' ? growCover(i) : i))
-    : spec.items;
+  // Next to a card (list, chart, comparison) or an icon list the headline is
+  // a title, not the hero: the explainer posts set it at ~100–130 px.
+  const withCard = spec.items.some((i) => CARD_ITEMS.includes(i.type));
+  const gross = (i: SharepicItem) => i.type === 'headline' && i.groesse === 'gross';
+  const headMax =
+    (headlineAlone ? HEADLINE_COVER_MAX : withCard ? HEADLINE_WITH_CARD : HEADLINE_MAX) *
+    (spec.items.some(gross) ? HEADLINE_GROSS : 1);
+  // A larger headline mostly needs shorter lines: its width, not the cap, sets the size.
+  const items =
+    headlineAlone || spec.items.some(gross)
+      ? spec.items.map((i) => (i.type === 'headline' ? growCover(i, headMax) : i))
+      : spec.items;
   const headItem = items.find((i) => i.type === 'headline') ?? null;
   const headAccented = headItem?.type === 'headline' ? accentLines(headItem.akzent) : [];
   /** AT accent lines are Vollkorn Black Italic at 0.95 — wider than the headline face. */
+  /** AT `==word==` runs inside a line are drawn in the serif, at the line's size. */
+  const headRunWidth = (line: string, size: number, weight: 'normal' | 'bold') =>
+    line
+      .split(/(==[^=]+==)/)
+      .reduce(
+        (w, part) =>
+          w +
+          (isAt && part.startsWith('==')
+            ? measure(stripMarks(part), size, theme.fonts.quoteEmphasis, AT_EMPHASIS_STYLE)
+            : measure(stripMarks(part), size, headFamily, weight)),
+        0
+      );
   const headLineWidth = (line: string, i: number, size: number) =>
     isAt && headAccented.includes(i)
       ? measure(stripMarks(line), size * 0.95, theme.fonts.quoteEmphasis, AT_EMPHASIS_STYLE)
-      : measure(stripMarks(line), size, headFamily, 'normal');
-  // Next to a card (list, chart, comparison) or an icon list the headline is
-  // a title, not the hero: the explainer posts set it at ~100–130 px.
-  const headMax = headlineAlone
-    ? HEADLINE_COVER_MAX
-    : items.some((i) => CARD_ITEMS.includes(i.type))
-      ? HEADLINE_WITH_CARD
-      : HEADLINE_MAX;
+      : headRunWidth(line, size, 'normal');
   const headlineSizeAt = (headScale: number): number | null => {
     if (headItem?.type !== 'headline' || boxed) return null;
     const widest = Math.max(...headItem.lines.map((l, i) => headLineWidth(l, i, 100)));
@@ -922,7 +1235,16 @@ function composeSlide(
       Math.round(Math.max(48, target * headScale)),
       headColumn.width,
       0,
-      (w, size) => measure(w, size, headFamily, 'bold')
+      // A word of a multi-word accent carries only half the marks.
+      (w, size) =>
+        isAt && w.includes('==')
+          ? measure(
+              stripMarks(w.replace(/==/g, '')),
+              size,
+              theme.fonts.quoteEmphasis,
+              AT_EMPHASIS_STYLE
+            )
+          : headRunWidth(w, size, 'bold')
     );
   };
 
@@ -933,11 +1255,134 @@ function composeSlide(
   const quoteAlone =
     bg.kind === 'farbe' &&
     items.some((i) => i.type === 'zitat') &&
-    items.every((i) => i.type === 'zitat' || i.type === 'dachzeile');
+    items.every((i) => i.type === 'zitat' || i.type === 'dachzeile') &&
+    // DE: a long quote is a text page, set at body size.
+    (isAt || !items.some((i) => i.type === 'zitat' && stripMarks(i.text).length > QUOTE_LONG));
   const quoteSize = (base: number, scale: number, cap: number) =>
     quoteAlone
       ? Math.min(Math.round(base * scale * 1.6), QUOTE_ALONE_MAX)
       : Math.min(Math.round(base * Math.min(scale, 1.5)), cap);
+
+  /** Logo position when a layout moves it off the bottom-left corner. */
+  /** A layout that moves the logo off the corner; it then stands on grass green. */
+  const logoAt: { current: { x: number } | null } = { current: null };
+  /**
+   * `vergleich` with `stil: "spalten"`: two half-slide columns, each a
+   * three-line headline-face title over its points, the markers per point.
+   */
+  const vergleichSpalten = (
+    id: string,
+    item: Extract<SharepicItem, { type: 'vergleich' }>
+  ): void => {
+    const half = canvas.width / 2;
+    const pad = 56;
+    const inner = half - 2 * pad;
+    // The titles keep clear of the VS on the seam.
+    const titleInner = inner - VERGLEICH_SPALTEN.vs * 0.3;
+    const top = TOP_PAD[locale] - 50;
+    const cols = [
+      { key: 'links' as const, side: item.links, x: 0, fill: SHAREPIC_COLOR_HEX.mint },
+      { key: 'rechts' as const, side: item.rechts, x: half, fill: SHAREPIC_COLOR_HEX.grasgruen },
+    ];
+    for (const col of cols) {
+      addShape(plane(`${id}-${col.key}-flaeche`, col.x, 0, half, canvas.height, col.fill));
+    }
+    // Titles fill their column in the headline face, as tall as the longer one needs.
+    const titleSize = Math.min(
+      VERGLEICH_SPALTEN.titleMax,
+      largestSizeWordsFit(
+        cols.map((c) => c.side.titel),
+        VERGLEICH_SPALTEN.titleMax,
+        titleInner,
+        0,
+        (w, sz) => measure(w, sz, headFamily, 'normal')
+      )
+    );
+    const titleLeading = 1.0;
+    const titleHeight = Math.max(
+      ...cols.map(
+        (c) => lineCount(c.side.titel, titleInner, titleSize, headFamily, 'normal') * titleSize
+      )
+    );
+    const pointSize = largestSizeWordsFit(
+      [...item.links.punkte, ...item.rechts.punkte],
+      VERGLEICH_SPALTEN.pointMax,
+      inner - VERGLEICH_SPALTEN.pointMax * 1.4,
+      0,
+      (w, sz) => measure(w, sz, theme.fonts.body, 'bold')
+    );
+    const marker = Math.round(pointSize * 1.05);
+    const indent = marker + Math.round(pointSize * 0.45);
+    const pointsTop = top + titleHeight + Math.round(titleSize * 0.7);
+    cols.forEach((col, i) => {
+      const colId = `${id}-${col.key}`;
+      const theirs = i === 0;
+      text(`${colId}-titel`, col.side.titel, top, titleSize, headFamily, {
+        x: col.x + pad + (theirs ? 0 : inner - titleInner),
+        width: titleInner,
+        align: 'center',
+        lineHeight: titleLeading,
+        type: 'header',
+        fill: SHAREPIC_COLOR_HEX.dunkeltanne,
+        accent: { fill: SHAREPIC_COLOR_HEX.dunkeltanne },
+        marker: {
+          fill: theirs ? '#FFFFFF' : LIME,
+          color: SHAREPIC_COLOR_HEX.dunkeltanne,
+          padX: MARKER_PAD_X,
+        },
+        shadowOpacity: 0,
+      });
+      let rowTop = pointsTop;
+      col.side.punkte.forEach((raw, k) => {
+        const own = /^([✓✗])\s*/u.exec(raw);
+        const kind = own ? (own[1] === '✓' ? 'haken' : 'kreuz') : theirs ? 'kreuz' : 'haken';
+        const value = own ? raw.slice(own[0].length) : raw;
+        const pointId = `${colId}-${k}`;
+        addIcon(
+          `${pointId}-marker`,
+          kind === 'haken' ? VERGLEICH_MARKER_IDS.rechts : VERGLEICH_MARKER_IDS.links,
+          col.x + pad + marker / 2,
+          rowTop + (pointSize * 1.25) / 2,
+          marker,
+          kind === 'kreuz'
+            ? VERGLEICH_SPALTEN.cross
+            : theirs
+              ? SHAREPIC_COLOR_HEX.grasgruen
+              : SHAREPIC_COLOR_HEX.dunkeltanne
+        );
+        text(pointId, value, rowTop, pointSize, theme.fonts.body, {
+          x: col.x + pad + indent,
+          width: inner - indent,
+          align: 'left',
+          lineHeight: 1.25,
+          // Theirs in grey, ours in the dark green, as the post sets them.
+          fill: theirs ? VERGLEICH_SPALTEN.theirsInk : SHAREPIC_COLOR_HEX.dunkeltanne,
+          accent: { fill: theirs ? VERGLEICH_SPALTEN.theirsInk : SHAREPIC_COLOR_HEX.dunkeltanne },
+          shadowOpacity: 0,
+        });
+        rowTop +=
+          lineCount(value, inner - indent, pointSize, theme.fonts.body, 'normal') *
+            pointSize *
+            1.25 +
+          Math.round(pointSize * 0.7);
+      });
+    });
+    // VS across the seam at title height: white, outlined in grass green.
+    const vs = VERGLEICH_SPALTEN.vs;
+    text(`${id}-vs`, 'VS', top + titleHeight / 2 - vs * 0.55, vs, headFamily, {
+      x: half - vs,
+      width: 2 * vs,
+      align: 'center',
+      lineHeight: 1,
+      type: 'header',
+      fill: '#FFFFFF',
+      stroke: SHAREPIC_COLOR_HEX.grasgruen,
+      strokeWidth: 6,
+      shadowOpacity: 0,
+    });
+    // The sender sits under our column, dark on the grass green.
+    logoAt.current = { x: half + half / 2 };
+  };
 
   // A hook: one short paragraph alone on the slide.
   const only = items.length === 1 ? items[0] : null;
@@ -952,6 +1397,22 @@ function composeSlide(
     /** Paragraphs never come closer than 1 : 1.8 to the headline. */
     const paraCap = headSize ? Math.floor(headSize / HEADLINE_RATIO) : Number.POSITIVE_INFINITY;
     const paraBase = isAt ? 70 : 48;
+    if (numeral?.stil === 'gross') {
+      // "2." above the point, in the accent, at about a third of the width.
+      const size = Math.round(Math.min(canvas.width * 0.33, 360) * Math.min(1, scale));
+      placed.push({
+        height: size * 0.8,
+        after: Math.round(size * 0.12),
+        place: (y) =>
+          text('sc-nummer', `${numeral.k}.`, y - size * 0.12, size, headFamily, {
+            x: headColumn.x,
+            width: headColumn.width,
+            fill: accentInk,
+            lineHeight: 1,
+            type: 'header',
+          }),
+      });
+    }
     items.forEach((item: SharepicItem, index) => {
       const id = `sc-${index}-${item.type}`;
       switch (item.type) {
@@ -1050,7 +1511,7 @@ function composeSlide(
                   text(segId, plain, cursor, Math.round(size * 0.95), theme.fonts.quoteEmphasis, {
                     ...at,
                     fontStyle: AT_EMPHASIS_STYLE,
-                    fill: onLight ? theme.colors.secondary : theme.colors.accent,
+                    fill: onLight ? theme.colors.accentOnLight : theme.colors.accent,
                     lineHeight,
                     type: 'header',
                   });
@@ -1102,13 +1563,33 @@ function composeSlide(
             break;
           }
           // Grows with the fit loop, capped so a one-liner doesn't turn into a headline.
-          const size = largestSizeWordsFit(
+          let size = largestSizeWordsFit(
             [item.text],
             Math.min(Math.round(42 * Math.min(scale, 1.4)), paraCap),
             column.width,
             0,
             (w, s) => measure(w, s, theme.fonts.body, 'bold')
           );
+          // DE: a last line of a single word or emoji reads as a slip: a
+          // little smaller, if that pulls it up to the line above.
+          const widowed = (s: number) => {
+            const rows = layoutLines(item.text, column.width, s, theme.fonts.body, 'normal');
+            const last =
+              rows
+                .at(-1)
+                ?.runs.map((r) => r.text)
+                .join('')
+                .trim() ?? '';
+            return rows.length > 1 && !/\s/.test(last);
+          };
+          if (!isAt && widowed(size)) {
+            for (let s = size - 2; s >= size * 0.85; s -= 2) {
+              if (!widowed(s)) {
+                size = s;
+                break;
+              }
+            }
+          }
           const lines = lineCount(item.text, column.width, size, theme.fonts.body, 'normal');
           placed.push({
             height: lines * size * 1.25,
@@ -1124,7 +1605,8 @@ function composeSlide(
           if (boxed) {
             // Boxes grow less: a box per line must stay a phrase, not a word —
             // except on a short hook, which the posts set large.
-            const size = Math.round(56 * Math.min(scale, shortHook ? 1.7 : 1.25));
+            // ~4.6 % of the width on the story slides, ~8 % on a hook (Dd9G7lMjMIz).
+            const size = Math.round(50 * Math.min(scale, shortHook ? 1.75 : 1.05));
             const lines = wrapBoxed(item.text, size, theme.fonts.body, 'bold');
             placed.push(
               boxLines(
@@ -1137,7 +1619,10 @@ function composeSlide(
             );
             break;
           }
-          const wantedSize = Math.min(Math.round(paraBase * scale), paraCap);
+          // `klein`: body size whatever the room — a closing line, a long text page.
+          const wantedSize = item.klein
+            ? ABSATZ_KLEIN
+            : Math.min(Math.round(paraBase * scale), paraCap);
           const lineHeight = isAt ? 1.08 : 1.22;
           const stressed = item.betont
             ? isAt
@@ -1219,10 +1704,13 @@ function composeSlide(
             (w, s) => measure(w, s, theme.fonts.body, 'bold')
           );
           const mark = quoteAlone ? 140 : 90;
-          const lines = wrapWords(stripMarks(item.text), column.width, (l) =>
-            measure(l, size, theme.fonts.body, 'normal')
-          );
-          const quoteHeight = lines.length * size * 1.2;
+          // Counted as the renderer sets it: `**bold**` runs are wider than plain text.
+          const quoteHeight =
+            lineCount(item.text, column.width, size, theme.fonts.body, 'normal') *
+            size *
+            QUOTE_LINE_HEIGHT;
+          // The posts leave about three quarters of a line before the name.
+          const signatureGap = Math.round(size * 0.75);
           const nameSize = 38;
           // Name bold, the medium in regular after it; the role on its own line.
           const credit = item.quelle ? `**${item.name}** ${item.quelle}` : `**${item.name}**`;
@@ -1232,7 +1720,7 @@ function composeSlide(
             nameSize *
             1.25;
           placed.push({
-            height: mark + 10 + quoteHeight + 24 + signature,
+            height: mark + 10 + quoteHeight + signatureGap + signature,
             after: GAP,
             place: (y) => {
               const markId = `${id}-mark`;
@@ -1246,11 +1734,13 @@ function composeSlide(
                 opacity: 1,
               });
               out.layerOrder.push(markId);
-              text(id, item.text, y + mark + 10, size, theme.fonts.body, { lineHeight: 1.2 });
+              text(id, item.text, y + mark + 10, size, theme.fonts.body, {
+                lineHeight: QUOTE_LINE_HEIGHT,
+              });
               text(
                 `${id}-name`,
                 signatureText,
-                y + mark + 10 + quoteHeight + 24,
+                y + mark + 10 + quoteHeight + signatureGap,
                 nameSize,
                 theme.fonts.body,
                 {
@@ -1297,6 +1787,122 @@ function composeSlide(
           break;
         }
         case 'liste': {
+          if (item.stil && item.stil !== 'punkte') {
+            // A marker column (numeral, arrow or tick in the accent) beside the points.
+            const wanted = Math.round((item.items.length <= 3 ? 54 : 46) * Math.min(scale, 1.3));
+            const onCard = !isAt || onLight;
+            const pad = onCard ? 46 : 0;
+            const inner = column.width - 2 * pad;
+            // `kasten`: no marker column; the key figure opens the point in a box.
+            const kasten = item.stil === 'kasten';
+            // `emoji`: a Noto image per point, the first line on its middle (DdLceC3iOBb).
+            const zeichen = item.stil === 'emoji' ? (item.zeichen ?? []) : null;
+            const emojiSize = Math.round(wanted * 1.8);
+            const markers = item.items.map((_, k) =>
+              kasten || zeichen
+                ? ''
+                : item.stil === 'ziffern'
+                  ? `${k + 1}`
+                  : item.stil === 'pfeile'
+                    ? '→'
+                    : '✓'
+            );
+            const markerSize = Math.round(wanted * (item.stil === 'ziffern' ? 1.5 : 1.1));
+            const markerFamily = item.stil === 'ziffern' ? headFamily : theme.fonts.body;
+            const markerWidth = kasten
+              ? 0
+              : zeichen
+                ? emojiSize + Math.round(wanted * 1.4)
+                : Math.max(...markers.map((m) => measure(m, markerSize, markerFamily, 'bold'))) +
+                  Math.round(wanted * 0.5);
+            const textWidth = inner - markerWidth;
+            const size = largestSizeWordsFit(item.items, wanted, textWidth, 0, (w, sz) =>
+              measure(w, sz, theme.fonts.body, 'bold')
+            );
+            const ink = onCard ? darkText : textColor;
+            const markerInk = onCard ? (isAt ? theme.colors.accentOnLight : KLEE) : accentInk;
+            const rowAccent = onCard ? cardAccent : accent;
+            const textOffset = zeichen ? Math.max(0, (emojiSize - size * 1.25) / 2) : 0;
+            const rows = item.items.map((point) =>
+              Math.max(
+                zeichen ? emojiSize : 0,
+                textOffset +
+                  Math.max(
+                    1,
+                    lineCount(point, textWidth, size, theme.fonts.body, 'normal', rowAccent)
+                  ) *
+                    size *
+                    1.25
+              )
+            );
+            const rowGap = Math.round(size * (kasten ? 0.7 : zeichen ? 0.9 : 0.45));
+            const body = rows.reduce((a, b) => a + b, 0) + rowGap * (rows.length - 1);
+            const height = body + 2 * pad;
+            placed.push({
+              height,
+              after: GAP,
+              place: (y) => {
+                if (onCard) {
+                  const card = createShape(
+                    'rounded-rect',
+                    column.x + column.width / 2,
+                    y + height / 2,
+                    '#FFFFFF',
+                    '#FFFFFF'
+                  );
+                  Object.assign(card, {
+                    id: `${id}-card`,
+                    width: column.width,
+                    height,
+                    cornerRadius: 32,
+                  });
+                  addShape(card);
+                }
+                let rowTop = y + pad;
+                item.items.forEach((point, k) => {
+                  const rowId = `${id}-${k}`;
+                  // Numerals sit on the first line's cap height, arrows and ticks on its middle.
+                  const lift = (markerSize - size) * (item.stil === 'ziffern' ? 0.78 : 0.5);
+                  const emoji = zeichen?.[k];
+                  if (emoji) {
+                    const emojiId = `${rowId}-zeichen`;
+                    out.assetInstances.push({
+                      id: emojiId,
+                      assetId: emojiAssetId(emoji),
+                      x: column.x + pad + emojiSize / 2,
+                      y: rowTop + emojiSize / 2,
+                      scale: emojiSize / ASSET_TARGET_SIZE,
+                      rotation: 0,
+                      opacity: 1,
+                    });
+                    out.layerOrder.push(emojiId);
+                  } else if (!kasten && !zeichen)
+                    text(`${rowId}-marker`, markers[k]!, rowTop - lift, markerSize, markerFamily, {
+                      x: column.x + pad,
+                      width: markerWidth,
+                      fontStyle: 'bold',
+                      fill: markerInk,
+                      align: 'left',
+                      lineHeight: 1,
+                      ...(item.stil === 'ziffern' ? { type: 'header' as const } : {}),
+                    });
+                  text(rowId, point, rowTop + textOffset, size, theme.fonts.body, {
+                    x: column.x + pad + markerWidth,
+                    width: textWidth,
+                    fill: ink,
+                    align: 'left',
+                    lineHeight: 1.25,
+                    accent: rowAccent,
+                    ...(onCard ? { shadowOpacity: 0 } : {}),
+                    // On the white card the box is grass green (Dd6hROjIMQC).
+                    ...(onCard && !isAt ? { marker: CARD_MARKER } : {}),
+                  });
+                  rowTop += rows[k]! + rowGap;
+                });
+              },
+            });
+            break;
+          }
           // Few points carry a demands slide on their own — they grow with it.
           const wantedSize = Math.round((item.items.length <= 3 ? 54 : 46) * Math.min(scale, 1.3));
           const isPlain = isAt && !onLight;
@@ -1400,8 +2006,8 @@ function composeSlide(
                 'rounded-rect',
                 column.x + column.width / 2,
                 y + height / 2,
-                '#FFFFFF',
-                '#FFFFFF'
+                CHART_CARD,
+                CHART_CARD
               );
               Object.assign(card, {
                 id: `${id}-card`,
@@ -1444,6 +2050,7 @@ function composeSlide(
                 showLegend: round,
                 showGrid: false,
                 showValues: true,
+                background: CHART_CARD,
               });
               out.layerOrder.push(chartId);
             },
@@ -1451,18 +2058,7 @@ function composeSlide(
           break;
         }
         case 'iconliste': {
-          // A topic icon in a circle before each point — DE Klee on light
-          // ground, Tanne on grass green, lime on dark ground and photos; AT
-          // the yellow accent, its dark green on white.
-          const badgeColors = isAt
-            ? onLight
-              ? { fill: theme.colors.primary, ink: '#FFFFFF' }
-              : { fill: theme.colors.accent, ink: theme.colors.primary }
-            : onLight
-              ? { fill: KLEE, ink: '#FFFFFF' }
-              : onGrass
-                ? { fill: SHAREPIC_COLOR_HEX.tanne, ink: '#FFFFFF' }
-                : { fill: LIME, ink: SHAREPIC_COLOR_HEX.dunkeltanne };
+          // A topic icon in a circle before each point.
           const texts = item.zeilen.map((z) => z.text);
           const wantedSize = Math.min(
             Math.round((texts.length <= 3 ? 54 : 46) * Math.min(scale, 1.3)),
@@ -1523,40 +2119,427 @@ function composeSlide(
           });
           break;
         }
+        case 'infografik': {
+          // Each point: its painted illustration (an icon on a circle when none
+          // was painted), a bold title and a short text — in a grid, as steps
+          // in order, or standing on a ground line, sized by their value.
+          const body = theme.fonts.body;
+          // Gotham Book has no bold cut: AT titles take the display face.
+          const titleFamily = isAt ? theme.fonts.headline : body;
+          const titleStyle = isAt ? 'normal' : 'bold';
+          const punkte = item.punkte;
+          const s = Math.min(scale, 1.2);
+          const art = (
+            artId: string,
+            punkt: (typeof punkte)[number],
+            x: number,
+            y: number,
+            size: number
+          ) => {
+            if (punkt.bild) {
+              out.userImageInstances.push({
+                id: artId,
+                src: options.photoSrc(punkt.bild),
+                fileName: punkt.titel,
+                x,
+                y,
+                width: size,
+                height: size,
+                rotation: 0,
+                scale: 1,
+                opacity: 1,
+              });
+              out.layerOrder.push(artId);
+              return;
+            }
+            const d = size * 0.78;
+            const cx = x + size / 2;
+            const cy = y + size / 2;
+            const disc = createShape('circle', cx, cy, badgeColors.fill, badgeColors.fill);
+            addShape(Object.assign(disc, { id: `${artId}-badge`, width: d, height: d }));
+            addIcon(
+              `${artId}-icon`,
+              SHAREPIC_ICON_IDS[punkt.icon],
+              cx,
+              cy,
+              d * 0.55,
+              badgeColors.ink
+            );
+          };
+          const titleFit = (width: number, wanted: number) =>
+            largestSizeWordsFit(
+              punkte.map((p) => p.titel),
+              Math.min(wanted, paraCap),
+              width,
+              0,
+              (w, size) => measure(w, size, titleFamily, titleStyle)
+            );
+          const titleHeight = (titel: string, width: number, size: number) =>
+            lineCount(titel, width, size, titleFamily, titleStyle) * size * 1.15;
+          /**
+           * Title and text of one point, `width` wide; returns the height. A
+           * `titleH` taller than its own title keeps texts in one row level.
+           */
+          const caption = (
+            pid: string,
+            punkt: (typeof punkte)[number],
+            width: number,
+            titleSize: number,
+            textSize: number,
+            place: { x: number; y: number; align: 'left' | 'center' } | null,
+            titleH = titleHeight(punkt.titel, width, titleSize)
+          ): number => {
+            const textGap = Math.round(textSize * 0.35);
+            const textH = punkt.text
+              ? textGap + lineCount(punkt.text, width, textSize, body, 'normal') * textSize * 1.3
+              : 0;
+            if (place) {
+              text(`${pid}-titel`, punkt.titel, place.y, titleSize, titleFamily, {
+                x: place.x,
+                width,
+                align: place.align,
+                fontStyle: titleStyle,
+                lineHeight: 1.15,
+              });
+              if (punkt.text) {
+                // As narrow as keeps its line count, so no word hangs alone
+                // ("… mittlerem / Einkommen").
+                const lines = balancedWrap(punkt.text, width, (l) =>
+                  measure(l, textSize, body, 'normal')
+                );
+                const textWidth = Math.min(
+                  width,
+                  Math.ceil(Math.max(...lines.map((l) => measure(l, textSize, body, 'normal')))) + 2
+                );
+                text(`${pid}-text`, punkt.text, place.y + titleH + textGap, textSize, body, {
+                  x: place.align === 'center' ? place.x + (width - textWidth) / 2 : place.x,
+                  width: textWidth,
+                  align: place.align,
+                  lineHeight: 1.3,
+                });
+              }
+            }
+            return titleH + textH;
+          };
+
+          if (item.form === 'raster') {
+            const n = punkte.length;
+            const cols = n === 4 ? 2 : Math.min(n, 3);
+            const colGap = 32;
+            const cw = (column.width - colGap * (cols - 1)) / cols;
+            const artSize = Math.round(Math.min(cw * 0.86, 300 * scale));
+            const titleSize = titleFit(cw, Math.round(44 * s));
+            const textSize = Math.max(22, Math.round(titleSize * 0.66));
+            const artGap = Math.round(titleSize * 0.4);
+            const rowsN = Math.ceil(n / cols);
+            const rowTitleH = Array.from({ length: rowsN }, (_, r) =>
+              Math.max(
+                ...punkte
+                  .slice(r * cols, r * cols + cols)
+                  .map((p) => titleHeight(p.titel, cw, titleSize))
+              )
+            );
+            const cellH = punkte.map(
+              (p, k) =>
+                artSize +
+                artGap +
+                caption('', p, cw, titleSize, textSize, null, rowTitleH[Math.floor(k / cols)])
+            );
+            const rowH = Array.from({ length: rowsN }, (_, r) =>
+              Math.max(...cellH.slice(r * cols, r * cols + cols))
+            );
+            const rowGap = Math.round(40 * s);
+            placed.push({
+              height: rowH.reduce((a, b) => a + b, 0) + rowGap * (rowsN - 1),
+              after: GAP,
+              place: (y) => {
+                let rowTop = y;
+                rowH.forEach((h, r) => {
+                  const inRow = punkte.slice(r * cols, r * cols + cols);
+                  // A short last row sits centred under the full ones.
+                  const offset = ((cols - inRow.length) * (cw + colGap)) / 2;
+                  inRow.forEach((punkt, c) => {
+                    const pid = `${id}-${r * cols + c}`;
+                    const cellX = column.x + offset + c * (cw + colGap);
+                    art(`${pid}-bild`, punkt, cellX + (cw - artSize) / 2, rowTop, artSize);
+                    caption(
+                      pid,
+                      punkt,
+                      cw,
+                      titleSize,
+                      textSize,
+                      { x: cellX, y: rowTop + artSize + artGap, align: 'center' },
+                      rowTitleH[r]
+                    );
+                  });
+                  rowTop += h + rowGap;
+                });
+              },
+            });
+            break;
+          }
+
+          if (item.form === 'ablauf') {
+            // Steps top to bottom: a numbered circle on a line, the
+            // illustration, then title and text.
+            const badge = Math.round(60 * s);
+            const artSize = Math.round(Math.min(column.width * 0.3, 240 * scale));
+            const textX = column.x + badge + 24 + artSize + 28;
+            const textW = column.x + column.width - textX;
+            const titleSize = titleFit(textW, Math.round(40 * s));
+            const textSize = Math.max(22, Math.round(titleSize * 0.7));
+            const rowH = punkte.map((p) =>
+              Math.max(artSize, caption('', p, textW, titleSize, textSize, null))
+            );
+            const rowGap = Math.round(28 * s);
+            placed.push({
+              height: rowH.reduce((a, b) => a + b, 0) + rowGap * (rowH.length - 1),
+              after: GAP,
+              place: (y) => {
+                const centres: number[] = [];
+                let rowTop = y;
+                punkte.forEach((punkt, k) => {
+                  const pid = `${id}-${k}`;
+                  const h = rowH[k]!;
+                  const cy = rowTop + h / 2;
+                  centres.push(cy);
+                  art(
+                    `${pid}-bild`,
+                    punkt,
+                    column.x + badge + 24,
+                    rowTop + (h - artSize) / 2,
+                    artSize
+                  );
+                  const capH = caption(pid, punkt, textW, titleSize, textSize, null);
+                  caption(pid, punkt, textW, titleSize, textSize, {
+                    x: textX,
+                    y: rowTop + (h - capH) / 2,
+                    align: 'left',
+                  });
+                  rowTop += h + rowGap;
+                });
+                // The line first, so the circles sit on top of it.
+                const line = rect(
+                  `${id}-linie`,
+                  column.x + badge / 2 - 3,
+                  centres[0]!,
+                  6,
+                  centres[centres.length - 1]! - centres[0]!,
+                  badgeColors.fill
+                );
+                addShape(line);
+                centres.forEach((cy, k) => {
+                  const pid = `${id}-${k}`;
+                  const disc = createShape(
+                    'circle',
+                    column.x + badge / 2,
+                    cy,
+                    badgeColors.fill,
+                    badgeColors.fill
+                  );
+                  addShape(
+                    Object.assign(disc, { id: `${pid}-nummer-kreis`, width: badge, height: badge })
+                  );
+                  const size = Math.round(badge * 0.55);
+                  text(`${pid}-nummer`, String(k + 1), cy - size * 0.6, size, titleFamily, {
+                    x: column.x,
+                    width: badge,
+                    align: 'center',
+                    fontStyle: titleStyle,
+                    fill: badgeColors.ink,
+                    lineHeight: 1.2,
+                  });
+                });
+              },
+            });
+            break;
+          }
+
+          if (item.form === 'zahl') {
+            // One figure, huge, under the thing it counts: the illustration
+            // above, the figure as large as the width allows, one line below.
+            const punkt = punkte[0]!;
+            const artSize = Math.round(Math.min(column.width * 0.46, 400 * scale));
+            const titleSize = Math.floor(
+              Math.min(
+                Math.round(240 * s),
+                (column.width * 100) / measure(punkt.titel, 100, titleFamily, titleStyle)
+              )
+            );
+            const textSize = Math.max(26, Math.round(titleSize * 0.3));
+            const artGap = Math.round(titleSize * 0.2);
+            const capH = caption('', punkt, column.width, titleSize, textSize, null);
+            placed.push({
+              height: artSize + artGap + capH,
+              after: GAP,
+              place: (y) => {
+                art(`${id}-0-bild`, punkt, column.x + (column.width - artSize) / 2, y, artSize);
+                caption(`${id}-0`, punkt, column.width, titleSize, textSize, {
+                  x: column.x,
+                  y: y + artSize + artGap,
+                  align: 'center',
+                });
+              },
+            });
+            break;
+          }
+
+          if (item.form === 'anteil') {
+            // Shares as pictogram rows: `wert` of `von` units in the accent, the
+            // rest as outlines — "9 von 10" is counted, not estimated. 100 is a 10 × 10
+            // grid. The figure is the message, so it may outgrow the paragraphs.
+            const titleSize = Math.floor(
+              Math.min(
+                Math.round(140 * s),
+                ...punkte.map(
+                  (p) => (column.width * 100) / measure(p.titel, 100, titleFamily, titleStyle)
+                )
+              )
+            );
+            const textSize = Math.max(24, Math.round(titleSize * 0.36));
+            const blocks = punkte.map((p) => {
+              const von = p.von ?? 10;
+              // Up to five in a row; six to ten in two rows, read in fives.
+              const perRow = von === 100 ? 10 : von <= 5 ? von : Math.ceil(von / 2);
+              const rows = Math.ceil(von / perRow);
+              // A hundred units sit closer, or the grid shrinks to specks.
+              const gap = von === 100 ? ANTEIL_GAP / 2 : ANTEIL_GAP;
+              const byWidth = column.width / (perRow + (perRow - 1) * gap);
+              const unit = Math.round(Math.min(byWidth, (von === 100 ? 90 : 150) * scale));
+              return {
+                von,
+                perRow,
+                unit,
+                gap,
+                capH: caption('', p, column.width, titleSize, textSize, null),
+                gridH: rows * unit + (rows - 1) * unit * gap,
+              };
+            });
+            const inner = Math.round(titleSize * 0.4);
+            const blockGap = Math.round(56 * s);
+            placed.push({
+              height:
+                blocks.reduce((sum, b) => sum + b.capH + inner + b.gridH, 0) +
+                blockGap * (blocks.length - 1),
+              after: GAP,
+              place: (y) => {
+                let top = y;
+                punkte.forEach((punkt, k) => {
+                  const b = blocks[k]!;
+                  const pid = `${id}-${k}`;
+                  caption(pid, punkt, column.width, titleSize, textSize, {
+                    x: column.x,
+                    y: top,
+                    align: 'center',
+                  });
+                  top += b.capH + inner;
+                  const step = b.unit * (1 + b.gap);
+                  const rowW = b.perRow * b.unit + (b.perRow - 1) * b.unit * b.gap;
+                  const left = column.x + (column.width - rowW) / 2;
+                  // Counted units solid; the rest of the whole as outlines at full ink,
+                  // so the whole stays visible (a faint solid reads as missing).
+                  const solid = SHAREPIC_ICON_FILLED[punkt.icon];
+                  const outline = SHAREPIC_ICON_IDS[punkt.icon];
+                  for (let u = 0; u < b.von; u++) {
+                    const counted = u < (punkt.wert ?? 0);
+                    addIcon(
+                      `${pid}-einheit-${u}`,
+                      counted ? (solid ?? outline) : outline,
+                      left + (u % b.perRow) * step + b.unit / 2,
+                      top + Math.floor(u / b.perRow) * step + b.unit / 2,
+                      b.unit,
+                      badgeColors.fill,
+                      counted ? 1 : solid ? ANTEIL_REST_OPACITY : ANTEIL_REST_OPACITY / 2
+                    );
+                  }
+                  top += b.gridH + blockGap;
+                });
+              },
+            });
+            break;
+          }
+
+          // mengen: the illustration's area follows the value, so its side
+          // follows the square root — a doubled value looks doubled.
+          const top = Math.max(...punkte.map((p) => p.wert ?? 0)) || 1;
+          const rel = punkte.map((p) => Math.max(MENGEN_MIN_SIDE, Math.sqrt((p.wert ?? 0) / top)));
+          // The figures are the point: large, as on the posters, and never
+          // broken between number and unit.
+          const evenCol = column.width / punkte.length;
+          const titleSize = Math.floor(
+            Math.min(
+              Math.round(80 * s),
+              paraCap,
+              ...punkte.map(
+                (p) =>
+                  ((evenCol - CAPTION_GUTTER) * 100) /
+                  measure(p.titel, 100, titleFamily, titleStyle)
+              )
+            )
+          );
+          const textSize = Math.max(24, Math.round(titleSize * 0.42));
+          const capW = punkte.map(
+            (p) =>
+              Math.max(
+                measure(p.titel, titleSize, titleFamily, titleStyle),
+                p.text ? measure(p.text, textSize, body, 'normal') : 0
+              ) + CAPTION_GUTTER
+          );
+          // Columns as wide as their figure or their caption needs: a small
+          // value leaves its room to the large one, which may then outgrow an
+          // even third.
+          const colsFor = (art: number) =>
+            rel.map((r, k) => Math.max(r * art + MENGEN_ART_GAP, capW[k]!));
+          const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
+          let maxArt = Math.round(Math.min(MENGEN_MAX_ART * scale, column.width));
+          while (maxArt > 80 && sum(colsFor(maxArt)) > column.width) maxArt -= 4;
+          const slack = (column.width - sum(colsFor(maxArt))) / punkte.length;
+          const cols = colsFor(maxArt).map((w) => w + Math.max(0, slack));
+          const sizes = rel.map((r) => Math.round(maxArt * r));
+          const ground = 8;
+          const below = Math.round(titleSize * 0.4);
+          const capH = Math.max(
+            ...punkte.map((p, k) =>
+              caption('', p, cols[k]! - CAPTION_GUTTER, titleSize, textSize, null)
+            )
+          );
+          placed.push({
+            height: maxArt + ground + below + capH,
+            after: GAP,
+            place: (y) => {
+              const baseline = y + maxArt;
+              addShape(
+                rect(`${id}-boden`, column.x, baseline, column.width, ground, badgeColors.fill)
+              );
+              let cellX = column.x;
+              punkte.forEach((punkt, k) => {
+                const pid = `${id}-${k}`;
+                const cw = cols[k]!;
+                const size = sizes[k]!;
+                art(`${pid}-bild`, punkt, cellX + (cw - size) / 2, baseline - size, size);
+                caption(pid, punkt, cw - CAPTION_GUTTER, titleSize, textSize, {
+                  x: cellX + CAPTION_GUTTER / 2,
+                  y: baseline + ground + below,
+                  align: 'center',
+                });
+                cellX += cw;
+              });
+            },
+          });
+          break;
+        }
         case 'vergleich': {
-          // Two panels side by side, as the posts set it: the opponent's plan
-          // left, muted, with ✗; ours right on the accent, with ✓.
-          const muted = isAt && !onLight ? '#FFFFFF' : darkText;
+          if (item.stil === 'spalten' && !isAt) {
+            // The slide split edge to edge (Ddouf0QiL1w/01): theirs on mint,
+            // ours on grass green, a VS across the seam. It takes the slide
+            // alone (schema), so it draws on the canvas, not in the column.
+            placed.push({ height: 0, after: 0, place: () => vergleichSpalten(id, item) });
+            break;
+          }
+          // Two panels side by side: the opponent's plan left, ours right.
           const sides = [
-            {
-              key: 'links' as const,
-              side: item.links,
-              // DE: a pale panel that stays visible on pale ground; AT: a veil.
-              fill: isAt
-                ? muted
-                : surface === 'hellgrau' || surface === 'weiss'
-                  ? SHAREPIC_COLOR_HEX.mint
-                  : SHAREPIC_COLOR_HEX.hellgrau,
-              fillOpacity: isAt ? (onLight ? 0.08 : 0.15) : 1,
-              ink: muted,
-              inkOpacity: 0.7,
-              accent: isAt ? accent : { fill: KLEE },
-            },
-            {
-              key: 'rechts' as const,
-              side: item.rechts,
-              fill: isAt
-                ? theme.colors.accent
-                : onGrass
-                  ? SHAREPIC_COLOR_HEX.tanne
-                  : SHAREPIC_COLOR_HEX.grasgruen,
-              fillOpacity: 1,
-              ink: !isAt && onGrass ? '#FFFFFF' : darkText,
-              inkOpacity: 1,
-              accent: isAt
-                ? { ...accent, fill: theme.colors.primary }
-                : { fill: onGrass ? LIME : '#FFFFFF' },
-            },
+            { key: 'links' as const, side: item.links, ...contrastPanel('theirs') },
+            { key: 'rechts' as const, side: item.rechts, ...contrastPanel('ours') },
           ];
           const panelGap = 24;
           const pad = 36;
@@ -1656,7 +2639,7 @@ function composeSlide(
                   const pointId = `${sideId}-${k}`;
                   addIcon(
                     `${pointId}-marker`,
-                    VERGLEICH_MARKER_IDS[s.key],
+                    s.marker,
                     x + pad + marker / 2,
                     rowTop + lineStep / 2,
                     marker,
@@ -1683,6 +2666,620 @@ function composeSlide(
           });
           break;
         }
+        case 'faktencheck': {
+          // Each claim above its correction, full width: the claim faint with ✗
+          // under „Mythos“, the fact on the accent with ✓ under „Fakt“.
+          const pad = 32;
+          const inner = column.width - 2 * pad;
+          const labelSize = Math.round(32 * Math.min(scale, 1.2));
+          const marker = Math.round(labelSize * 1.15);
+          const textSize = largestSizeWordsFit(
+            item.paare.flatMap((p) => [p.mythos, p.fakt]),
+            Math.round(38 * Math.min(scale, 1.2)),
+            inner,
+            0,
+            (w, size) => measure(w, size, theme.fonts.body, 'bold')
+          );
+          const labelGap = Math.round(textSize * 0.45);
+          const cards = item.paare.flatMap((paar, k) =>
+            (['theirs', 'ours'] as const).map((side) => {
+              const style = contrastPanel(side);
+              const text = side === 'theirs' ? paar.mythos : paar.fakt;
+              // Measured in the weight it is set in: the fact is bold.
+              const weight = side === 'ours' ? 'bold' : 'normal';
+              const textH =
+                lineCount(text, inner, textSize, theme.fonts.body, weight, style.accent) *
+                textSize *
+                1.25;
+              return {
+                id: `${id}-${k}-${side === 'theirs' ? 'mythos' : 'fakt'}`,
+                label: side === 'theirs' ? 'Mythos' : 'Fakt',
+                text,
+                style,
+                height: pad + marker + labelGap + textH + pad,
+                pairEnd: side === 'ours',
+              };
+            })
+          );
+          const cardGap = 12;
+          const pairGap = Math.round(36 * Math.min(scale, 1.2));
+          const gaps = cards.slice(0, -1).map((c) => (c.pairEnd ? pairGap : cardGap));
+          placed.push({
+            height: cards.reduce((sum, c) => sum + c.height, 0) + gaps.reduce((a, b) => a + b, 0),
+            after: GAP,
+            place: (y) => {
+              let top = y;
+              cards.forEach((card, k) => {
+                const { style } = card;
+                const panel = createShape(
+                  'rounded-rect',
+                  column.x + column.width / 2,
+                  top + card.height / 2,
+                  style.fill,
+                  style.fill
+                );
+                Object.assign(panel, {
+                  id: `${card.id}-card`,
+                  width: column.width,
+                  height: card.height,
+                  cornerRadius: 28,
+                  opacity: style.fillOpacity,
+                });
+                addShape(panel);
+                addIcon(
+                  `${card.id}-marker`,
+                  style.marker,
+                  column.x + pad + marker / 2,
+                  top + pad + marker / 2,
+                  marker,
+                  style.ink,
+                  style.inkOpacity
+                );
+                const inCard = {
+                  type: 'body' as const,
+                  fill: style.ink,
+                  opacity: style.inkOpacity,
+                  accent: style.accent,
+                  fontFamily: theme.fonts.body,
+                };
+                out.additionalTexts.push({
+                  ...inCard,
+                  id: `${card.id}-label`,
+                  text: card.label,
+                  x: column.x + pad + marker + 12,
+                  y: top + pad + (marker - labelSize * 1.2) / 2,
+                  width: inner - marker - 12,
+                  fontSize: labelSize,
+                  fontStyle: 'bold',
+                  lineHeight: 1.2,
+                  align: 'left',
+                });
+                out.layerOrder.push(`${card.id}-label`);
+                out.additionalTexts.push({
+                  ...inCard,
+                  id: `${card.id}-text`,
+                  text: card.text,
+                  x: column.x + pad,
+                  y: top + pad + marker + labelGap,
+                  width: inner,
+                  fontSize: textSize,
+                  fontStyle: card.label === 'Fakt' ? 'bold' : 'normal',
+                  lineHeight: 1.25,
+                  align: 'left',
+                });
+                out.layerOrder.push(`${card.id}-text`);
+                top += card.height + (gaps[k] ?? 0);
+              });
+            },
+          });
+          break;
+        }
+        case 'zahl': {
+          const family = headFamily;
+          const cap = Math.round(
+            item.stil === 'riesenwort'
+              ? 520
+              : Math.min(420, canvas.height * 0.32 * Math.min(scale, 1.2))
+          );
+          const labelSize = (wertSize: number) =>
+            Math.max(
+              36,
+              Math.min(64, Math.round(wertSize * (item.stil === 'riesenwort' ? 0.16 : 0.2)))
+            );
+          const labelHeight = (sz: number) =>
+            item.label
+              ? lineCount(item.label, column.width, sz, theme.fonts.body, 'bold') * sz * 1.2
+              : 0;
+          if (item.stil === 'countdown') {
+            // The figure in a disc, the label under it.
+            const d = Math.round(Math.min(column.width * 0.62, 560 * Math.min(scale, 1.1)));
+            const inner = fitLine(item.wert, Math.round(d * 0.6), d * 0.72, family);
+            const ls = labelSize(d * 0.6);
+            const lh = labelHeight(ls);
+            placed.push({
+              height: d + (lh ? Math.round(ls * 0.6) + lh : 0),
+              after: GAP,
+              place: (y) => {
+                const cx = xAlign === 'center' ? column.x + column.width / 2 : column.x + d / 2;
+                const disc = createShape('circle', cx, y + d / 2, accentInk, accentInk);
+                addShape(Object.assign(disc, { id: `${id}-disc`, width: d, height: d }));
+                text(`${id}-wert`, item.wert, y + d / 2 - inner * 0.52, inner, family, {
+                  x: cx - d / 2,
+                  width: d,
+                  align: 'center',
+                  fill:
+                    onGrass || (!isAt && !onLight)
+                      ? SHAREPIC_COLOR_HEX.dunkeltanne
+                      : isAt && !onLight
+                        ? theme.colors.primary
+                        : '#FFFFFF',
+                  lineHeight: 1,
+                  type: 'header',
+                  shadowOpacity: 0,
+                });
+                if (item.label) {
+                  text(
+                    `${id}-label`,
+                    item.label,
+                    y + d + Math.round(ls * 0.6),
+                    ls,
+                    theme.fonts.body,
+                    {
+                      fontStyle: 'bold',
+                      lineHeight: 1.2,
+                    }
+                  );
+                }
+              },
+            });
+            break;
+          }
+          const size = fitLine(
+            item.wert,
+            cap,
+            column.width * (item.stil === 'riesenwort' ? 0.98 : 0.9),
+            family
+          );
+          const ls = labelSize(size);
+          const lh = labelHeight(ls);
+          placed.push({
+            height: size * 0.92 + (lh ? Math.round(ls * 0.5) + lh : 0),
+            after: GAP,
+            place: (y) => {
+              text(`${id}-wert`, item.wert, y - size * 0.06, size, family, {
+                fill: accentInk,
+                lineHeight: 1,
+                type: 'header',
+              });
+              if (item.label) {
+                text(
+                  `${id}-label`,
+                  item.label,
+                  y + size * 0.92 + Math.round(ls * 0.5),
+                  ls,
+                  theme.fonts.body,
+                  {
+                    fontStyle: 'bold',
+                    lineHeight: 1.2,
+                  }
+                );
+              }
+            },
+          });
+          break;
+        }
+        case 'rechnung': {
+          // A receipt: operator column, figure, its label; a rule; the result in the accent.
+          const family = headFamily;
+          const size = Math.round(Math.min(80, 56 * Math.min(scale, 1.4)));
+          const resultSize = Math.round(size * 1.35);
+          const opWidth = measure('−', size, family, 'bold') + Math.round(size * 0.35);
+          const wertWidth =
+            Math.max(
+              ...item.glieder.map((g) => measure(g.wert, size, family, 'bold')),
+              measure(item.ergebnis.wert, resultSize, family, 'bold')
+            ) + Math.round(size * 0.35);
+          const labelWidth = column.width - opWidth - wertWidth;
+          const labelSize = Math.round(size * 0.6);
+          const rowOf = (label: string | undefined) =>
+            Math.max(
+              size,
+              label
+                ? lineCount(label, labelWidth, labelSize, theme.fonts.body, 'normal') *
+                    labelSize *
+                    1.2
+                : 0
+            );
+          const rows = item.glieder.map((g) => rowOf(g.label));
+          const rowGap = Math.round(size * 0.25);
+          const ruleGap = Math.round(size * 0.35);
+          const resultRow = Math.max(resultSize, rowOf(item.ergebnis.label));
+          const height =
+            rows.reduce((a, b) => a + b, 0) +
+            rowGap * (rows.length - 1) +
+            2 * ruleGap +
+            6 +
+            resultRow;
+          placed.push({
+            height,
+            after: GAP,
+            place: (y) => {
+              let top = y;
+              const row = (
+                k: string,
+                op: string,
+                wert: string,
+                label: string | undefined,
+                sz: number,
+                ink: string
+              ) => {
+                if (op) {
+                  text(`${id}-${k}-op`, op, top, sz, family, {
+                    x: column.x,
+                    width: opWidth,
+                    align: 'left',
+                    fill: ink,
+                    lineHeight: 1,
+                    type: 'header',
+                  });
+                }
+                text(`${id}-${k}-wert`, wert, top, sz, family, {
+                  x: column.x + opWidth,
+                  width: wertWidth,
+                  align: 'left',
+                  fill: ink,
+                  lineHeight: 1,
+                  type: 'header',
+                });
+                if (label) {
+                  text(
+                    `${id}-${k}-label`,
+                    label,
+                    top + Math.max(0, (sz - labelSize) * 0.55),
+                    labelSize,
+                    theme.fonts.body,
+                    {
+                      x: column.x + opWidth + wertWidth,
+                      width: labelWidth,
+                      align: 'left',
+                      lineHeight: 1.2,
+                    }
+                  );
+                }
+              };
+              item.glieder.forEach((g, k) => {
+                row(`${k}`, k === 0 ? '' : (g.op ?? '+'), g.wert, g.label, size, textColor);
+                top += rows[k]! + (k < rows.length - 1 ? rowGap : 0);
+              });
+              top += ruleGap;
+              addShape(rect(`${id}-rule`, column.x, top, column.width, 6, textColor));
+              top += 6 + ruleGap;
+              row('ergebnis', '=', item.ergebnis.wert, item.ergebnis.label, resultSize, accentInk);
+            },
+          });
+          break;
+        }
+        case 'termine': {
+          // Date column in the accent, title and place beside it.
+          const family = headFamily;
+          const dateSize = Math.round(Math.min(64, 46 * Math.min(scale, 1.4)));
+          const titleSize = Math.round(dateSize * 0.82);
+          const ortSize = Math.round(dateSize * 0.6);
+          const dateWidth =
+            Math.max(...item.eintraege.map((e) => measure(e.datum, dateSize, family, 'bold'))) +
+            Math.round(dateSize * 0.5);
+          const restWidth = column.width - dateWidth;
+          const rows = item.eintraege.map((e) => {
+            const t =
+              lineCount(e.titel, restWidth, titleSize, theme.fonts.body, 'bold') * titleSize * 1.15;
+            const o = e.ort
+              ? lineCount(e.ort, restWidth, ortSize, theme.fonts.body, 'normal') * ortSize * 1.2
+              : 0;
+            return Math.max(dateSize, t + (o ? Math.round(ortSize * 0.2) + o : 0));
+          });
+          const rowGap = Math.round(dateSize * 0.55);
+          const height = rows.reduce((a, b) => a + b, 0) + rowGap * (rows.length - 1);
+          placed.push({
+            height,
+            after: GAP,
+            place: (y) => {
+              let top = y;
+              item.eintraege.forEach((e, k) => {
+                const rowId = `${id}-${k}`;
+                text(`${rowId}-datum`, e.datum, top, dateSize, family, {
+                  x: column.x,
+                  width: dateWidth,
+                  align: 'left',
+                  fill: accentInk,
+                  lineHeight: 1,
+                  type: 'header',
+                });
+                text(
+                  `${rowId}-titel`,
+                  e.titel,
+                  top + (dateSize - titleSize) * 0.4,
+                  titleSize,
+                  theme.fonts.body,
+                  {
+                    x: column.x + dateWidth,
+                    width: restWidth,
+                    align: 'left',
+                    fontStyle: 'bold',
+                    lineHeight: 1.15,
+                  }
+                );
+                if (e.ort) {
+                  const t =
+                    lineCount(e.titel, restWidth, titleSize, theme.fonts.body, 'bold') *
+                    titleSize *
+                    1.15;
+                  text(
+                    `${rowId}-ort`,
+                    e.ort,
+                    top + (dateSize - titleSize) * 0.4 + t + Math.round(ortSize * 0.2),
+                    ortSize,
+                    theme.fonts.body,
+                    {
+                      x: column.x + dateWidth,
+                      width: restWidth,
+                      align: 'left',
+                      opacity: 0.85,
+                      lineHeight: 1.2,
+                    }
+                  );
+                }
+                top += rows[k]! + rowGap;
+              });
+            },
+          });
+          break;
+        }
+        case 'schlagzeile': {
+          // A paper card: medium and date small, the headline as printed.
+          const pad = 40;
+          const cardWidth = Math.round(column.width * 0.94);
+          const inner = cardWidth - 2 * pad;
+          const titleSize = largestSizeWordsFit(
+            [item.titel],
+            Math.round(Math.min(64, 50 * Math.min(scale, 1.3))),
+            inner,
+            0,
+            (w, sz) => measure(w, sz, theme.fonts.body, 'bold')
+          );
+          const metaSize = Math.round(titleSize * 0.5);
+          const titleHeight =
+            lineCount(item.titel, inner, titleSize, theme.fonts.body, 'bold') * titleSize * 1.15;
+          const height = Math.round(pad * 2 + metaSize * 1.3 + 14 + titleHeight);
+          const angle = item.stil === 'ausriss' ? -3 : 0;
+          const paper = item.stil === 'ausriss' ? '#F5F1E8' : '#FFFFFF';
+          const ink = '#1E1E1E';
+          placed.push({
+            height: height + (angle ? Math.round(cardWidth * 0.06) : 0),
+            after: GAP,
+            place: (y) => {
+              const left =
+                xAlign === 'center' ? column.x + (column.width - cardWidth) / 2 : column.x;
+              const top = y + (angle ? Math.round(cardWidth * 0.03) : 0);
+              const cx = left + cardWidth / 2;
+              const cy = top + height / 2;
+              const card = createShape('rounded-rect', cx, cy, paper, paper);
+              Object.assign(card, {
+                id: `${id}-card`,
+                width: cardWidth,
+                height,
+                cornerRadius: item.stil === 'ausriss' ? 4 : 24,
+                rotation: angle,
+              });
+              addShape(card);
+              // Konva turns a text about its top-left corner: move that corner
+              // around the card's centre so text and paper turn together.
+              const turn = (x: number, ty: number) => {
+                const r = (angle * Math.PI) / 180;
+                const dx = x - cx;
+                const dy = ty - cy;
+                return {
+                  x: cx + dx * Math.cos(r) - dy * Math.sin(r),
+                  y: cy + dx * Math.sin(r) + dy * Math.cos(r),
+                };
+              };
+              const meta = item.datum ? `${item.medium} · ${item.datum}` : item.medium;
+              const metaAt = turn(left + pad, top + pad);
+              text(`${id}-medium`, meta, metaAt.y, metaSize, theme.fonts.body, {
+                x: metaAt.x,
+                width: inner,
+                align: 'left',
+                fontStyle: 'bold',
+                fill: ink,
+                opacity: 0.65,
+                lineHeight: 1.3,
+                rotation: angle,
+                shadowOpacity: 0,
+              });
+              const titleAt = turn(left + pad, top + pad + metaSize * 1.3 + 14);
+              text(`${id}-titel`, item.titel, titleAt.y, titleSize, theme.fonts.body, {
+                x: titleAt.x,
+                width: inner,
+                align: 'left',
+                fontStyle: 'bold',
+                fill: ink,
+                lineHeight: 1.15,
+                rotation: angle,
+                shadowOpacity: 0,
+              });
+            },
+          });
+          break;
+        }
+        case 'bingo': {
+          // Cells across the full column, as tall as they are wide at most:
+          // a long word needs the width more than the cell needs to be square.
+          const n = item.felder.length === 16 ? 4 : 3;
+          const gap = 12;
+          const cellW = Math.floor((column.width - gap * (n - 1)) / n);
+          const cellH = Math.min(cellW, Math.floor((canvas.height * 0.5 - gap * (n - 1)) / n));
+          const cellPad = Math.round(cellW * 0.07);
+          const inner = cellW - 2 * cellPad;
+          // 8 % air: the renderer breaks inside a word that misses by a pixel.
+          // Each cell takes its own size, at most half again the smallest, so
+          // a long word does not shrink every phrase.
+          const fits = item.felder.map((f) =>
+            Math.max(
+              20,
+              largestSizeWordsFit([f], Math.round(cellH * 0.24), inner * 0.92, 0, (w, sz) =>
+                measure(w, sz, theme.fonts.body, 'bold')
+              )
+            )
+          );
+          const smallest = Math.min(...fits);
+          const sizes = fits.map((f) => Math.min(f, Math.round(smallest * 1.5)));
+          const cellFill = darkInk ? darkText : '#FFFFFF';
+          const cellInk = darkInk ? '#FFFFFF' : darkText;
+          const height = n * cellH + (n - 1) * gap;
+          placed.push({
+            height,
+            after: GAP,
+            place: (y) => {
+              item.felder.forEach((feld, k) => {
+                const cx = column.x + (k % n) * (cellW + gap);
+                const cy = y + Math.floor(k / n) * (cellH + gap);
+                const box = createShape(
+                  'rounded-rect',
+                  cx + cellW / 2,
+                  cy + cellH / 2,
+                  cellFill,
+                  cellFill
+                );
+                Object.assign(box, {
+                  id: `${id}-${k}-feld`,
+                  width: cellW,
+                  height: cellH,
+                  cornerRadius: 12,
+                });
+                addShape(box);
+                const size = sizes[k]!;
+                const lines = lineCount(feld, inner, size, theme.fonts.body, 'bold');
+                text(
+                  `${id}-${k}`,
+                  feld,
+                  cy + cellH / 2 - (lines * size * 1.15) / 2,
+                  size,
+                  theme.fonts.body,
+                  {
+                    x: cx + cellPad,
+                    width: inner,
+                    align: 'center',
+                    fontStyle: 'bold',
+                    fill: cellInk,
+                    lineHeight: 1.15,
+                    shadowOpacity: 0,
+                  }
+                );
+              });
+            },
+          });
+          break;
+        }
+        case 'aufruf': {
+          const family = headFamily;
+          const lineHeight = isAt ? 0.98 : 1;
+          const size = largestSizeWordsFit(
+            [item.text],
+            Math.round(Math.min(item.stil === 'kernsatz' ? 120 : 104, 82 * scale)),
+            column.width,
+            0,
+            (w, s) => measure(w, s, family, 'bold')
+          );
+          const lines = lineCount(item.text, column.width, size, family, 'normal');
+          if (item.stil === 'ausruf') {
+            // A huge "!" over the demand, in the accent — the posts' closing call.
+            const bang = Math.round(Math.min(size * 3.6, 460));
+            placed.push({
+              height: bang * 0.82,
+              after: Math.round(size * 0.2),
+              place: (y) =>
+                text(`${id}-ausruf`, '!', y - bang * 0.12, bang, family, {
+                  fill: accentInk,
+                  lineHeight: 1,
+                  type: 'header',
+                }),
+            });
+          }
+          if (item.adressat) {
+            const small = Math.round(size * 0.42);
+            const adressat = item.adressat;
+            placed.push({
+              height:
+                lineCount(adressat, column.width, small, theme.fonts.body, 'bold') * small * 1.15,
+              after: Math.round(size * 0.18),
+              place: (y) =>
+                text(`${id}-adressat`, adressat, y, small, theme.fonts.body, {
+                  fontStyle: 'bold',
+                  lineHeight: 1.15,
+                }),
+            });
+          }
+          placed.push({
+            height: lines * size * lineHeight,
+            after: Math.round(size * 0.4),
+            place: (y) => text(id, item.text, y, size, family, { lineHeight, type: 'header' }),
+          });
+          if (item.hinweis && item.stil === 'petition' && !isAt) {
+            // DE: the hint as a pill under the call — where to sign.
+            const pillSize = Math.round(Math.min(46, size * 0.5));
+            const hint = item.hinweis;
+            const pill = createPillBadgeInstance('slider', {
+              id: `${id}-hinweis`,
+              text: hint,
+              fontSize: pillSize,
+              fontFamily: theme.fonts.headline,
+              backgroundColor: onLight ? theme.colors.primary : isAt ? theme.colors.accent : LIME,
+              textColor: onLight
+                ? '#FFFFFF'
+                : isAt
+                  ? theme.colors.primary
+                  : SHAREPIC_COLOR_HEX.dunkeltanne,
+              paddingX: 36,
+              paddingY: 18,
+              cornerRadius: 60,
+            });
+            const height = pillSize + 2 * pill.paddingY;
+            const width =
+              measure(hint, pillSize, theme.fonts.headline, 'normal') + 2 * pill.paddingX;
+            placed.push({
+              height,
+              after: GAP,
+              place: (y) => {
+                const x = xAlign === 'center' ? column.x + column.width / 2 - width / 2 : column.x;
+                out.pillBadgeInstances.push({ ...pill, x, y });
+                out.layerOrder.push(`${id}-hinweis`);
+              },
+            });
+          } else if (item.hinweis) {
+            // AT has no pills: the hint is a line, on a petition in the yellow serif.
+            const petitionAt = isAt && item.stil === 'petition';
+            const small = Math.round(size * (petitionAt ? 0.55 : 0.4));
+            const hint = item.hinweis;
+            placed.push({
+              height: small * 1.2,
+              after: GAP,
+              place: (y) =>
+                petitionAt
+                  ? text(`${id}-hinweis`, hint, y, small, theme.fonts.quoteEmphasis, {
+                      fontStyle: AT_EMPHASIS_STYLE,
+                      fill: accentInk,
+                      lineHeight: 1.2,
+                    })
+                  : text(`${id}-hinweis`, hint, y, small, theme.fonts.body, {
+                      fontStyle: 'bold',
+                      lineHeight: 1.2,
+                    }),
+            });
+          }
+          break;
+        }
+        // Placed before the text group, in its own reserved area.
+        case 'bild':
+          break;
         case 'button': {
           const size = 44;
           const pill = createPillBadgeInstance('slider', {
@@ -1715,6 +3312,59 @@ function composeSlide(
           break;
         }
       }
+      if (item.type === 'zitat' && item.seite === 'gegner') {
+        // The other side's words on the muted panel the comparison uses for
+        // "theirs", with its ✗ — the slides after it answer.
+        const entry = placed[placed.length - 1];
+        if (entry) {
+          const pad = 36;
+          const panel = contrastPanel('theirs');
+          const inner = entry.place;
+          entry.height += 2 * pad;
+          entry.place = (y) => {
+            const card = createShape(
+              'rounded-rect',
+              column.x + column.width / 2,
+              y + entry.height / 2,
+              panel.fill,
+              panel.fill
+            );
+            Object.assign(card, {
+              id: `${id}-panel`,
+              width: column.width + 2 * pad,
+              height: entry.height,
+              cornerRadius: 28,
+              opacity: panel.fillOpacity,
+            });
+            card.x = column.x - pad + (column.width + 2 * pad) / 2;
+            addShape(card);
+            const before = out.additionalTexts.length;
+            inner(y + pad);
+            // The quote mark (an asset in DE, an outlined glyph in AT) gives way to the ✗.
+            const mark = `${id}-mark`;
+            out.assetInstances = out.assetInstances.filter((a) => a.id !== mark);
+            out.additionalTexts = out.additionalTexts.filter((t) => t.id !== mark);
+            out.layerOrder = out.layerOrder.filter((l) => l !== mark);
+            for (const t of out.additionalTexts.slice(
+              Math.min(before, out.additionalTexts.length)
+            )) {
+              if (!t.id.startsWith(id)) continue;
+              t.fill = panel.ink;
+              t.opacity = panel.inkOpacity;
+              t.shadowOpacity = 0;
+            }
+            addIcon(
+              `${id}-gegner`,
+              panel.marker,
+              column.x + column.width - 20,
+              y + pad + 20,
+              56,
+              panel.ink,
+              0.8
+            );
+          };
+        }
+      }
     });
     return placed;
   };
@@ -1740,7 +3390,7 @@ function composeSlide(
   const target = quoteAlone
     ? 0.55
     : boxed
-      ? 0.6
+      ? 0.4
       : bg.kind === 'foto-unten'
         ? 0.92
         : bg.kind === 'foto'
@@ -1782,9 +3432,53 @@ function composeSlide(
         ? Math.max(top, bottom - total)
         : Math.max(top, (top + bottom) / 2 - total / 2);
   const blockTop = y;
+  if (numeral?.stil === 'geist') {
+    // A pale numeral behind the text, ~60 % of the height, drawn first so the text sits on it.
+    const size = Math.round(canvas.height * 0.6);
+    out.additionalTexts.push({
+      id: 'sc-nummer',
+      text: `${numeral.k}`,
+      type: 'header',
+      x: MARGIN - size * 0.06,
+      y: canvas.height / 2 - size * 0.5,
+      width: canvas.width - MARGIN,
+      fontSize: size,
+      fontFamily: headFamily,
+      fontStyle: 'normal',
+      fill: isAt ? '#56AE33' : onLight ? SHAREPIC_COLOR_HEX.grasgruen : LIME,
+      opacity: isAt ? 0.55 : 0.2,
+      align: 'left',
+      lineHeight: 1,
+    });
+    out.layerOrder.push('sc-nummer');
+  }
+  if (spec.blume && !isAt && bg.kind === 'farbe') {
+    // A large sunflower in the ground's tone, cut by the bottom-right corner
+    // (Dd_BXcKiDy2/03, Ddouf0QiL1w/02); drawn before the text, which sits on it.
+    out.assetInstances.push({
+      id: 'sc-blume',
+      assetId: onLight ? 'sunflower-green' : onGrass ? 'sunflower-schwarz' : 'sunflower-weiss',
+      x: canvas.width - BLUME.size * 0.22,
+      y: canvas.height - BLUME.size * 0.18,
+      scale: BLUME.size / ASSET_TARGET_SIZE,
+      rotation: 0,
+      opacity: onLight ? BLUME.onLight : onGrass ? BLUME.onGrass : BLUME.onDark,
+    });
+    out.layerOrder.push('sc-blume');
+  }
   for (const item of placed) {
     item.place(y);
     y += item.height + item.after;
+  }
+  if (kopfband) {
+    // The band runs from the top to just above the first card.
+    const card = out.shapeInstances.find((shape) => shape.id.endsWith('-card'));
+    if (card) {
+      const end = card.y - card.height / 2 - GAP;
+      const band = plane('sc-kopfband', 0, 0, canvas.width, end, SHAREPIC_COLOR_HEX[kopfband]);
+      out.shapeInstances.unshift(band);
+      out.layerOrder.unshift(band.id);
+    }
   }
   // Top/bottom text: dense across the measured block plus a gutter, from the
   // slide edge nearest the block — position and text side are independent, so
@@ -1952,6 +3646,8 @@ function composeSlide(
     out.layerOrder.push('sc-ort');
   }
 
+  const logoOnLight = logoAt.current ? false : footerOnLight;
+  const logoDarkInk = logoAt.current ? true : footerDarkInk;
   if (showLogo) {
     out.assetInstances.push({
       id: 'sc-logo',
@@ -1959,15 +3655,16 @@ function composeSlide(
         ? footerOnLight
           ? 'gruene-at-logo-gruen'
           : 'gruene-at-logo-weiss'
-        : footerOnLight
-          ? 'sunflower-green'
-          : 'sunflower',
-      x: logoCentred ? canvas.width / 2 : MARGIN + logo.size / 2,
+        : logoDarkInk
+          ? DE_WORDMARK.black
+          : DE_WORDMARK.white,
+      x: logoAt.current?.x ?? (logoCentred ? canvas.width / 2 : MARGIN + logo.size / 2),
       // x/y is the centre.
       y: canvas.height - logo.bottom - logo.height / 2,
       scale: logo.size / ASSET_TARGET_SIZE,
       rotation: 0,
-      opacity: 1,
+      // DE: the dark mark in a tone of the ground — muted on light, deep on grass green.
+      opacity: isAt || !logoDarkInk ? 1 : logoOnLight ? 0.5 : 0.8,
     });
     out.layerOrder.push('sc-logo');
   }
@@ -2000,6 +3697,56 @@ function composeSlide(
       };
     }
     out.layerOrder.push('sc-pfeil');
+    if (weiter) {
+      // Right-aligned against the arrow, on its line.
+      out.additionalTexts.push({
+        id: 'sc-weiter',
+        text: weiterLines.join('\n'),
+        type: 'body',
+        x: weiterRight - weiterWidth - 4,
+        y: y - weiterSize * 0.6 - (weiterLines.length - 1) * weiterSize * 1.2,
+        width: weiterWidth + 8,
+        fontSize: weiterSize,
+        fontFamily: theme.fonts.body,
+        fontStyle: 'bold',
+        fill: footerDarkInk ? darkText : '#FFFFFF',
+        align: 'right',
+        lineHeight: 1.2,
+        ...shadow,
+      });
+      out.layerOrder.push('sc-weiter');
+    }
+  }
+
+  if (page) {
+    // Top corner, clear of a Störer: right unless the Störer owns it.
+    const ink = darkInk ? darkText : '#FFFFFF';
+    const stoererTop = !!spec.stoerer && position !== 'oben';
+    const y = 44;
+    if (page.style === 'bruch') {
+      const label = `${page.index + 1}/${page.count}`;
+      const size = 30;
+      const width = measure(label, size, theme.fonts.body, 'bold') + 8;
+      out.additionalTexts.push({
+        id: 'sc-seite',
+        text: label,
+        type: 'body',
+        x: stoererTop ? MARGIN : canvas.width - MARGIN - width,
+        y,
+        width,
+        fontSize: size,
+        fontFamily: theme.fonts.body,
+        fontStyle: 'bold',
+        fill: ink,
+        opacity: 0.85,
+        align: stoererTop ? 'left' : 'right',
+        lineHeight: 1,
+        ...shadow,
+      });
+      out.layerOrder.push('sc-seite');
+    } else {
+      for (const disc of pageDots(page.count, page.index, canvas.width / 2, y, ink)) addShape(disc);
+    }
   }
 
   if (spec.quelle) {
@@ -2059,5 +3806,17 @@ function composeSlide(
     out.layerOrder.push('sc-ki-label');
   }
 
+  // Hand marks: the AT yellow on dark ground and photos, white in DE; green on light.
+  placeHandMarks(out, measure, (fill) =>
+    fill.toUpperCase() === '#FFFFFF'
+      ? isAt
+        ? theme.colors.accent
+        : '#FFFFFF'
+      : isAt
+        ? theme.colors.accentOnLight
+        : onGrass
+          ? SHAREPIC_COLOR_HEX.tanne
+          : KLEE
+  );
   return out;
 }

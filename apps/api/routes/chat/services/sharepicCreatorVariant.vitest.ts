@@ -136,6 +136,9 @@ describe('createCreatorSharepic / reviseCreatorSharepic', () => {
       background: null,
       avoid: null,
       locale: 'de-AT',
+      userId: null,
+      form: 'karussell',
+      oneSlide: false,
     });
     // The brief alone is the order: dates in the conversation material are not required.
     expect(draftSharepic).toHaveBeenCalledWith(
@@ -143,16 +146,46 @@ describe('createCreatorSharepic / reviseCreatorSharepic', () => {
       'de-AT',
       null,
       [],
-      'Öffis'
+      {},
+      'karussell',
+      'Öffis',
+      null,
+      null,
+      false
     );
     expect(v.canvasType).toBe('freeform-at');
+  });
+
+  it('offers the alternative forms on the variant', async () => {
+    draftSharepic.mockResolvedValue({
+      spec: SPEC_AT,
+      chapters: [],
+      attributions: [null],
+      form: 'einzelbild',
+      alternativen: ['karussell', 'infografik'],
+    });
+    const v = await createCreatorSharepic({
+      brief: 'Öffis',
+      background: null,
+      avoid: null,
+      locale: 'de-AT',
+      userId: null,
+      form: null,
+      oneSlide: true,
+    });
+    expect(v.alternativen).toEqual(['karussell', 'infografik']);
   });
 
   it('revises on top of the prior spec', async () => {
     draftSharepic.mockResolvedValue({ spec: SPEC_DE, chapters: [], attributions: [null] });
     const prior = { variantId: 'old', canvasType: 'freeform', props: {}, canvasId: null };
-    const v = await reviseCreatorSharepic({ instruction: 'Headline kürzer', prior, spec: SPEC_DE });
-    expect(draftSharepic).toHaveBeenCalledWith('Headline kürzer', 'de-DE', SPEC_DE, []);
+    const v = await reviseCreatorSharepic({
+      instruction: 'Headline kürzer',
+      prior,
+      spec: SPEC_DE,
+      userId: null,
+    });
+    expect(draftSharepic).toHaveBeenCalledWith('Headline kürzer', 'de-DE', SPEC_DE, [], {});
     expect(v.initialProps).toMatchObject({ revisionOf: 'old' });
     expect(v.initialProps.editorChangesDropped).toBeUndefined();
   });
@@ -160,7 +193,39 @@ describe('createCreatorSharepic / reviseCreatorSharepic', () => {
   it('flags editor changes when the prior was opened in the editor', async () => {
     draftSharepic.mockResolvedValue({ spec: SPEC_DE, chapters: [], attributions: [null] });
     const prior = { variantId: 'old', canvasType: 'freeform', props: {}, canvasId: 'c1' };
-    const v = await reviseCreatorSharepic({ instruction: 'Headline kürzer', prior, spec: SPEC_DE });
+    const v = await reviseCreatorSharepic({
+      instruction: 'Headline kürzer',
+      prior,
+      spec: SPEC_DE,
+      userId: null,
+    });
     expect(v.initialProps).toMatchObject({ editorChangesDropped: true });
+  });
+});
+
+describe('createCreatorSharepic with a Vorlage', () => {
+  it("fills the Vorlage's spec in its form instead of drafting freely", async () => {
+    draftSharepic.mockResolvedValue({ spec: SPEC_CAROUSEL, chapters: [], attributions: [] });
+    await createCreatorSharepic({
+      brief: 'Busse auf dem Land',
+      background: null,
+      avoid: SPEC_DE,
+      locale: 'de-DE',
+      userId: null,
+      form: null,
+      oneSlide: true,
+      vorlage: { form: 'karussell', spec: SPEC_CAROUSEL } as never,
+    });
+    const [prompt, locale, current, , , form, order, focus, brief, oneSlide] =
+      draftSharepic.mock.calls[0]!;
+    expect(prompt).toMatch(/^Übertrage den Inhalt dieses Beitrags[\s\S]*Busse auf dem Land$/);
+    expect(prompt).not.toContain('früherer Entwurf');
+    expect([locale, current, form, order]).toEqual([
+      'de-DE',
+      SPEC_CAROUSEL,
+      'karussell',
+      'Busse auf dem Land',
+    ]);
+    expect([focus, brief, oneSlide]).toEqual([undefined, undefined, undefined]);
   });
 });

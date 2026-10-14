@@ -23,16 +23,27 @@
  * - useToolbarHandlers     — bundled toolbar actions for the active page
  */
 
-import { downloadDataUrl } from '@gruenerator/shared';
+import { downloadDataUrl, pickShareRoute, shareDataUrlViaNativeHost } from '@gruenerator/shared';
 import { Skeleton } from '@gruenerator/ui';
-import React, { useCallback, useRef, useMemo, useEffect, useState, Suspense } from 'react';
+import Konva from 'konva';
+import React, {
+  useCallback,
+  useRef,
+  useMemo,
+  useEffect,
+  useState,
+  Suspense,
+  startTransition,
+} from 'react';
 
-import { PAGE_ELEMENT_STATE_KEYS } from '../../collab/pageElementStateKeys';
+import { PAGE_PERSISTED_STATE_KEYS } from '../../collab/pageElementStateKeys';
 import { createPageSyncedCallbacks } from '../../collab/wrapCallbacksWithPageSync';
+import { getCanvasFormatOrDefault } from '../../formats';
 import { usePageManager, useMultiPageExport, usePageThumbnails } from '../../hooks';
 import { useDeckAutoSave } from '../../hooks/useDeckAutoSave';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
 import { useZoomGestures } from '../../hooks/useZoomGestures';
+import { HOST_CALLBACK_KEYS } from '../../hostCallbackKeys';
 import { CanvasEditorLayout } from '../../layouts';
 import { SidebarTabBar, SidebarPanel } from '../../sidebar';
 import { UserUploadsProvider } from '../../sidebar/UserUploadsProvider';
@@ -40,7 +51,8 @@ import { AutoSaveStoreProvider } from '../../stores/useAutoSaveStore';
 import { cn } from '../../utils/cn';
 import { ensureFontsReady } from '../../utils/ensureFontsReady';
 import { getCategoryForTemplate } from '../../utils/templateRegistry';
-import { CanvasMetaBar } from '../CanvasMetaBar';
+import { CanvasPageSkeleton, CanvasTabRailSkeleton } from '../CanvasEditorSkeleton';
+import { CanvasMetaBar, CanvasZoomIndicator } from '../CanvasMetaBar';
 import { CanvasTextEditorProvider } from '../CanvasTextOverlay';
 import { MobileSelectionPill } from '../MobileSelectionPill';
 import { PageThumbnailStrip } from '../PageThumbnailStrip';
@@ -50,19 +62,23 @@ import { ContextToolbar } from '../TopBar/ContextToolbar';
 import { MobileSelectionBar } from '../TopBar/MobileSelectionBar';
 import { MobileSelectionControls } from '../TopBar/MobileSelectionControls';
 
+import { autoSwitchTab } from './autoSwitchTab';
 import { useLoadedConfigs } from './hooks/useLoadedConfigs';
 import { useMobileSheetFit } from './hooks/useMobileSheetFit';
 import { usePageRefs } from './hooks/usePageRefs';
 import { usePageUndoRedoShortcuts } from './hooks/usePageUndoRedoShortcuts';
 import { useScrollToAddedPage } from './hooks/useScrollToAddedPage';
 import { useToolbarHandlers } from './hooks/useToolbarHandlers';
+import { useWorkAreaDeselect } from './hooks/useWorkAreaDeselect';
 import { getMobileSelectionArea } from './mobileSelectionArea';
 import { PageWrapper } from './PageWrapper';
 
 import type { CanvasEditorProps, PageWrapperProps } from './types';
+import type { CanvasSpecEditBridge } from '../../CanvasEditorProvider';
 import type { CanvasConfigId } from '../../configs/types';
 import type { SidebarTabId } from '../../sidebar/types';
 import type { ToolbarStateReport } from '../GenericCanvas';
+import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
 
 // Hoisted static JSX elements (Rule 6.3: avoids re-creation every render)
 const sidebarLoadingFallback = (
@@ -81,12 +97,6 @@ const sidebarLoadingFallback = (
     <Skeleton className="h-20 w-full rounded-lg" />
     <Skeleton className="h-4 w-1/2 rounded" />
     <Skeleton className="h-4 w-2/3 rounded" />
-  </div>
-);
-
-const pageLoadingIndicator = (
-  <div className="flex flex-col w-full items-center justify-center min-h-[400px]">
-    <div className="text-sm text-foreground-muted">Lädt Vorlagen...</div>
   </div>
 );
 
@@ -116,6 +126,8 @@ function CanvasEditorInner({
   onSaveAsTemplate,
   onCollabSnapshot,
   onAutoSaveShareToken,
+  initialTab = null,
+  onActiveTabChange,
 }: CanvasEditorProps) {
   // Note: onAutoSaveShareToken is threaded down to useCanvasAutoSave (via
   // PageWrapper → GenericCanvas) instead of a store subscription here — a
@@ -140,8 +152,10 @@ function CanvasEditorInner({
     pagesDoc,
     undoPageOp,
     redoPageOp,
+    replaceDeck,
     canUndoPageOp,
     canRedoPageOp,
+    isPreview,
   } = usePageManager({
     initialConfigId,
     formatId,
@@ -164,18 +178,22 @@ function CanvasEditorInner({
   callbacksRef.current = callbacks;
   const updatePageStateRef = useRef(updatePageState);
   updatePageStateRef.current = updatePageState;
-  const pageCallbacksCacheRef = useRef(new Map<string, Record<string, (val: unknown) => void>>());
-  const getCallbacksForPage = useCallback((pageId: string) => {
+  // The host declares text-field callbacks for its own canvas type only; a
+  // page of another template (added, converted, or inserted by the creator)
+  // gets its own fields' writers minted from its configId.
+  const pageCallbacksCacheRef = useRef(
+    new Map<string, { configId: CanvasConfigId; wrapped: Record<string, (val: unknown) => void> }>()
+  );
+  const getCallbacksForPage = useCallback((pageId: string, configId: CanvasConfigId) => {
     const cache = pageCallbacksCacheRef.current;
-    let wrapped = cache.get(pageId);
-    if (!wrapped) {
-      wrapped = createPageSyncedCallbacks(
-        () => callbacksRef.current,
-        (partial) => updatePageStateRef.current(pageId, partial),
-        PAGE_ELEMENT_STATE_KEYS
-      );
-      cache.set(pageId, wrapped);
-    }
+    const cached = cache.get(pageId);
+    if (cached?.configId === configId) return cached.wrapped;
+    const wrapped = createPageSyncedCallbacks(
+      () => callbacksRef.current,
+      (partial) => updatePageStateRef.current(pageId, partial),
+      [...HOST_CALLBACK_KEYS[configId], ...PAGE_PERSISTED_STATE_KEYS]
+    );
+    cache.set(pageId, { configId, wrapped });
     return wrapped;
   }, []);
   useEffect(() => {
@@ -186,8 +204,14 @@ function CanvasEditorInner({
   }, [pages]);
 
   // Sidebar state - ONE shared sidebar for all pages
-  const [activeTab, setActiveTab] = useState<SidebarTabId | null>(null);
+  // Desktop only: on mobile an open tab is a bottom sheet over the canvas, so
+  // a remembered tab is neither restored nor reported (which would also
+  // overwrite the desktop's remembered tab).
+  const [activeTab, setActiveTab] = useState<SidebarTabId | null>(isMobileWeb ? null : initialTab);
   const prevTabRef = useRef<SidebarTabId | null>(null);
+  useEffect(() => {
+    if (!isMobileWeb) onActiveTabChange?.(activeTab);
+  }, [activeTab, onActiveTabChange, isMobileWeb]);
 
   // Active page state/actions/selectedElement - synced via effect from PageWrapper
   const [activePageData, setActivePageData] = useState<{
@@ -221,7 +245,7 @@ function CanvasEditorInner({
     },
     [pagesContainerRef]
   );
-  useZoomGestures(pagesContainer, setZoom);
+  useZoomGestures(pagesContainer, setZoom, { leftOrigin: isMobileWeb });
 
   // Every page binds its config to its page Y.Map — in collab mode
   // that syncs to peers, in local mode it makes duplicate/move/undo carry
@@ -263,6 +287,7 @@ function CanvasEditorInner({
     isExporting: isMultiExporting,
     exportProgress,
     error: multiExportError,
+    notice: multiExportNotice,
   } = useMultiPageExport({
     canvasRefs,
     canvasType: 'sharepic',
@@ -365,7 +390,6 @@ function CanvasEditorInner({
   const pageThumbnails = usePageThumbnails({
     pages,
     canvasRefs: canvasRefsRef.current,
-    currentPageIndex,
   });
 
   // Page-level undo/redo via capture-phase keydown.
@@ -388,40 +412,69 @@ function CanvasEditorInner({
       actions: Record<string, unknown>,
       selectedElement: string | null
     ) => {
-      setActivePageData((prev) => {
-        // Only update if data actually changed (shallow compare)
-        if (
-          prev?.pageId === pageId &&
-          prev?.state === state &&
-          prev?.actions === actions &&
-          prev?.selectedElement === selectedElement
-        ) {
-          return prev;
-        }
-        return { pageId, state, actions, selectedElement };
-      });
+      // Transitions: the canvas paints the selection/edit first; the editor
+      // shell (sidebar, context bar) follows without blocking that frame.
+      startTransition(() =>
+        setActivePageData((prev) => {
+          // Only update if data actually changed (shallow compare)
+          if (
+            prev?.pageId === pageId &&
+            prev?.state === state &&
+            prev?.actions === actions &&
+            prev?.selectedElement === selectedElement
+          ) {
+            return prev;
+          }
+          return { pageId, state, actions, selectedElement };
+        })
+      );
     },
     []
   );
 
   const handleToolbarStateChange = useCallback((report: ToolbarStateReport) => {
-    setToolbarState((prev) => {
-      if (
-        prev &&
-        prev.selectedElement === report.selectedElement &&
-        prev.activeFloatingModule === report.activeFloatingModule &&
-        prev.canUndo === report.canUndo &&
-        prev.canRedo === report.canRedo &&
-        prev.canMoveUp === report.canMoveUp &&
-        prev.canMoveDown === report.canMoveDown &&
-        prev.canDuplicate === report.canDuplicate &&
-        prev.canDelete === report.canDelete
-      ) {
-        return prev;
-      }
-      return report;
-    });
+    startTransition(() =>
+      setToolbarState((prev) => {
+        if (
+          prev &&
+          prev.selectedElement === report.selectedElement &&
+          prev.activeFloatingModule === report.activeFloatingModule &&
+          prev.canUndo === report.canUndo &&
+          prev.canRedo === report.canRedo &&
+          prev.canMoveUp === report.canMoveUp &&
+          prev.canMoveDown === report.canMoveDown &&
+          prev.canDuplicate === report.canDuplicate &&
+          prev.canDelete === report.canDelete
+        ) {
+          return prev;
+        }
+        return report;
+      })
+    );
   }, []);
+
+  // Live reads for the chat's spec path; stable identity so the section's
+  // memoized adapter is not rebuilt on every page change. Latest-ref pattern
+  // like callbacksRef: the bridge reads it at call time, never during render.
+  const specEditRef = useRef({
+    pages,
+    activePageId: pages[currentPageIndex]?.id ?? null,
+    replaceDeck,
+  });
+  // eslint-disable-next-line react-hooks/refs -- latest-ref write, read only by the bridge's handlers
+  specEditRef.current = { pages, activePageId: pages[currentPageIndex]?.id ?? null, replaceDeck };
+  const hasReplaceDeck = replaceDeck !== null;
+  const specEdit = useMemo<CanvasSpecEditBridge | null>(
+    () =>
+      hasReplaceDeck
+        ? {
+            getPages: () => specEditRef.current.pages,
+            getActivePageId: () => specEditRef.current.activePageId,
+            replaceDeck: (ops) => specEditRef.current.replaceDeck?.(ops) ?? [],
+          }
+        : null,
+    [hasReplaceDeck]
+  );
 
   const toolbarHandlers = useToolbarHandlers({
     canvasRefsRef,
@@ -433,11 +486,14 @@ function CanvasEditorInner({
     redoPageOp,
   });
 
-  const handleCaptureCanvas = useCallback(async () => {
-    const ref = canvasRefsRef.current[currentPageIndex];
-    if (!ref?.current) return null;
-    return await ref.current.captureCanvas();
-  }, [currentPageIndex, canvasRefsRef]);
+  const handleCaptureCanvas = useCallback(
+    async (options?: Partial<ExportOptions>) => {
+      const ref = canvasRefsRef.current[currentPageIndex];
+      if (!ref?.current) return null;
+      return await ref.current.captureCanvas(options);
+    },
+    [currentPageIndex, canvasRefsRef]
+  );
 
   const handleCaptureCanvasForAi = useCallback(async () => {
     const ref = canvasRefsRef.current[currentPageIndex];
@@ -468,12 +524,8 @@ function CanvasEditorInner({
   // the artboard, and templates cover it with a full-bleed, listening
   // background image, so the stage's own deselect (useCanvasInteractions) never
   // fires. The guard keeps clicks that bubble up from a page from deselecting.
-  const handleWorkAreaPointerDown = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      if (e.target === e.currentTarget) handleDeselectAll();
-    },
-    [handleDeselectAll]
-  );
+  // Touch deselects only on a tap: the gutters are the scroll surfaces on mobile.
+  const handleWorkAreaPointerDown = useWorkAreaDeselect(handleDeselectAll);
 
   // The ONLY gallery autosave in this editor, for any page count — a
   // single-page doc is a one-page deck. Per-page useCanvasAutoSave is
@@ -503,11 +555,16 @@ function CanvasEditorInner({
     if (!collabYdoc || !snapshotFnsRef.current.notify) return;
 
     let timer: ReturnType<typeof setTimeout> | null = null;
+    let idleHandle: number | null = null;
     let lastSent: string | null = null;
 
+    // The gallery card shows the snapshot at ≤180 px, so a 540 px render
+    // (pixelRatio 0.5) is plenty even on retina — the default 2 rendered
+    // sixteen times the pixels on the main thread.
     const snapshot = () => {
       timer = null;
-      void snapshotFnsRef.current.capture().then((dataUrl) => {
+      idleHandle = null;
+      void snapshotFnsRef.current.capture({ pixelRatio: 0.5 }).then((dataUrl) => {
         if (dataUrl && dataUrl !== lastSent) {
           lastSent = dataUrl;
           snapshotFnsRef.current.notify?.(dataUrl);
@@ -523,14 +580,36 @@ function CanvasEditorInner({
     ) => {
       if (!transaction.local) return;
       if (timer) clearTimeout(timer);
-      timer = setTimeout(snapshot, 4000);
+      if (idleHandle !== null) window.cancelIdleCallback(idleHandle);
+      idleHandle = null;
+      timer = setTimeout(snapshotWhenIdle, 4000);
+    };
+
+    // Never render the snapshot into a running gesture.
+    const snapshotWhenIdle = () => {
+      if (Konva.isDragging() || Konva.isTransforming()) {
+        timer = setTimeout(snapshotWhenIdle, 1000);
+        return;
+      }
+      timer = null;
+      if (typeof window.requestIdleCallback === 'function') {
+        idleHandle = window.requestIdleCallback(snapshot, { timeout: 2000 });
+      } else {
+        snapshot();
+      }
+    };
+
+    // Takes a pending snapshot now — once, whether it waits on the timer or
+    // on the idle callback.
+    const flushPending = () => {
+      if (timer === null && idleHandle === null) return;
+      if (timer !== null) clearTimeout(timer);
+      if (idleHandle !== null) window.cancelIdleCallback(idleHandle);
+      snapshot();
     };
 
     const onVisibilityChange = () => {
-      if (document.visibilityState === 'hidden' && timer) {
-        clearTimeout(timer);
-        snapshot();
-      }
+      if (document.visibilityState === 'hidden') flushPending();
     };
 
     collabYdoc.on('update', onUpdate);
@@ -538,11 +617,8 @@ function CanvasEditorInner({
     return () => {
       collabYdoc.off('update', onUpdate);
       document.removeEventListener('visibilitychange', onVisibilityChange);
-      if (timer) {
-        clearTimeout(timer);
-        // Best effort — captureStageImage no-ops when the stage is already gone.
-        snapshot();
-      }
+      // Best effort — captureStageImage no-ops when the stage is already gone.
+      flushPending();
     };
   }, [collabYdoc]);
 
@@ -587,16 +663,15 @@ function CanvasEditorInner({
   // the new slide re-reports state, falling through to the unfiltered `tabs:`
   // list (which intentionally contains hidden entries like `settings`/
   // `frame-settings` for `getAutoSwitchTab` to target).
-  // The AI chat tab is hidden for now (too unreliable) — drop `tab.id !== 'chat'` to restore it.
   const visibleTabs = useMemo(() => {
     if (!activeConfig) return [];
     if (activeConfig.getVisibleTabs) {
       const visibleIds = activeConfig.getVisibleTabs(activeState, {
         selectedElement: activeSelectedElement,
       });
-      return activeConfig.tabs.filter((tab) => tab.id !== 'chat' && visibleIds.includes(tab.id));
+      return activeConfig.tabs.filter((tab) => visibleIds.includes(tab.id));
     }
-    return activeConfig.tabs.filter((tab) => tab.id !== 'chat');
+    return activeConfig.tabs;
   }, [activeConfig, activeState, activeSelectedElement]);
 
   // Compute disabled tabs for active config
@@ -622,23 +697,11 @@ function CanvasEditorInner({
   useEffect(() => {
     if (!activeConfig?.getAutoSwitchTab || isMobileWeb) return;
     const targetTab = activeConfig.getAutoSwitchTab(activeSelectedElement ?? null);
-    if (targetTab) {
-      setActiveTab((current) => {
-        if (current !== targetTab) {
-          prevTabRef.current = current;
-        }
-        return targetTab;
-      });
-    } else {
-      setActiveTab((current) => {
-        if (prevTabRef.current !== null && current !== prevTabRef.current) {
-          const restored = prevTabRef.current;
-          prevTabRef.current = null;
-          return restored;
-        }
-        return current;
-      });
-    }
+    setActiveTab((current) => {
+      const next = autoSwitchTab(current, targetTab, prevTabRef.current);
+      prevTabRef.current = next.prev;
+      return next.tab;
+    });
   }, [activeSelectedElement, activeConfig, setActiveTab, isMobileWeb]);
 
   const isPanelOpen = activeTab !== null;
@@ -654,6 +717,8 @@ function CanvasEditorInner({
 
   // Share all pages via native share (Web Share API with multiple files)
   const shareAllPages = useCallback(async () => {
+    const route = pickShareRoute();
+    if (route === null) return;
     let dataUrls: string[];
     try {
       dataUrls = await exportAllPages();
@@ -662,6 +727,15 @@ function CanvasEditorInner({
       return;
     }
     if (dataUrls.length === 0) return;
+
+    if (route === 'native-host') {
+      dataUrls.forEach((dataUrl, i) =>
+        shareDataUrlViaNativeHost(dataUrl, `gruenerator-seite-${i + 1}.png`, {
+          title: 'Grünerator Share',
+        })
+      );
+      return;
+    }
 
     const files = await Promise.all(
       dataUrls.map(async (dataUrl, i) => {
@@ -704,6 +778,7 @@ function CanvasEditorInner({
       isMultiExporting,
       exportProgress,
       exportError: multiExportError,
+      exportNotice: multiExportNotice,
     }),
     [
       pageCount,
@@ -714,25 +789,45 @@ function CanvasEditorInner({
       currentPageIndex,
       canvasRefsRef,
       multiExportError,
+      multiExportNotice,
       handleCaptureCanvas,
       handleCaptureCanvasForAi,
       onSaveAsTemplate,
     ]
   );
 
+  // After a page switch or a deck replace there is one render before the new
+  // page reports its state. The chat would unmount there and lose its running
+  // turn (#4273), so it keeps rendering against the last reported page.
+  const sectionSource = useMemo(
+    () =>
+      activeConfig && activeState && activeActions
+        ? {
+            config: activeConfig,
+            state: activeState,
+            actions: activeActions,
+            selectedElement: activeSelectedElement,
+          }
+        : null,
+    [activeConfig, activeState, activeActions, activeSelectedElement]
+  );
+  const lastSectionSourceRef = useRef(sectionSource);
+  if (sectionSource) lastSectionSourceRef.current = sectionSource;
+
   // Render the active section based on configuration
   const renderActiveSection = useCallback(() => {
-    if (!activeTab || !activeConfig || !activeState || !activeActions) {
-      return null;
-    }
+    if (!activeTab) return null;
+    const source = sectionSource ?? (activeTab === 'chat' ? lastSectionSourceRef.current : null);
+    if (!source) return null;
 
-    const sectionConfig = activeConfig.sections[activeTab];
+    const sectionConfig = source.config.sections[activeTab];
     if (!sectionConfig) return null;
 
     const SectionComponent = sectionConfig.component;
-    const sectionProps = sectionConfig.propsFactory(activeState, activeActions, {
-      selectedElement: activeSelectedElement,
+    const sectionProps = sectionConfig.propsFactory(source.state, source.actions, {
+      selectedElement: source.selectedElement,
       ...shareProps,
+      ...(specEdit && { specEdit }),
     });
 
     return (
@@ -740,10 +835,13 @@ function CanvasEditorInner({
         <SectionComponent {...sectionProps} />
       </Suspense>
     );
-  }, [activeTab, activeConfig, activeState, activeActions, activeSelectedElement, shareProps]);
+  }, [activeTab, sectionSource, shareProps, specEdit]);
 
-  // Check if all configs are loaded
-  const allConfigsLoaded = pages.every((p) => loadedConfigs.has(p.configId));
+  // Collab vor dem ersten Sync (noch keine Seiten) und der eine Render, in dem
+  // die Seiten-Configs nachladen: das Layout bleibt stehen, nur die Fläche
+  // zeigt den Platzhalter. Ein Voll-Skeleton hier blendete die Chrome noch
+  // einmal aus, nachdem sie schon sichtbar war.
+  const noPageRenderable = !pages.some((p) => loadedConfigs.has(p.configId));
 
   // Multi-page export props - for the share section
   const multiPageExportProps = useMemo(
@@ -782,6 +880,8 @@ function CanvasEditorInner({
       onShareAllPages: shareAllPages,
       isMultiExporting,
       exportProgress,
+      exportError: multiExportError,
+      exportNotice: multiExportNotice,
       onInvitePeople,
       onSaveAsTemplate,
     }),
@@ -798,18 +898,19 @@ function CanvasEditorInner({
       shareAllPages,
       isMultiExporting,
       exportProgress,
+      multiExportError,
+      multiExportNotice,
       onInvitePeople,
       onSaveAsTemplate,
     ]
   );
 
-  if (!allConfigsLoaded) {
-    return pageLoadingIndicator;
-  }
+  const format = getCanvasFormatOrDefault(formatId);
+  const pageAspectRatio = format.width / format.height;
 
   // Build sidebar elements (static within the already-async editor chunk)
   const areaTabBar = (
-    <Suspense fallback={null}>
+    <Suspense fallback={<CanvasTabRailSkeleton />}>
       <SidebarTabBar
         tabs={visibleTabs}
         activeTab={activeTab}
@@ -996,21 +1097,30 @@ function CanvasEditorInner({
           wieder seine eigene Karte. */}
       <CanvasTextEditorProvider>
         <CanvasEditorLayout
-          sidebar={panel}
-          tabBar={tabBar}
+          // Vorschau vor dem Sync: zeigen, aber nichts anbieten, was schreibt —
+          // die Seiten hängen noch an keinem Y.Map, jede Änderung ginge verloren.
+          sidebar={isPreview ? null : panel}
+          tabBar={isPreview ? null : tabBar}
           actions={null}
           toolbar={toolbarElement}
-          contextBar={contextBarElement}
+          contextBar={isPreview ? null : contextBarElement}
           // Die Desktop-Leiste ist auf dem Handy per CSS ausgeblendet; gar
           // nicht erst mitgeben, sonst hinge der Streifen zweimal im Baum.
-          bottomBar={isMobileWeb ? null : bottomBar}
+          bottomBar={isMobileWeb || isPreview ? null : bottomBar}
           // Auf dem Handy scrollt ein Finger auf dem Sharepic nicht (wie in
           // Canva) — die Seiten wechselt dort dieser Streifen.
-          mobilePageStrip={isMobileWeb && !isMobileSheetOpen ? pageStrip : null}
+          mobilePageStrip={isMobileWeb && !isMobileSheetOpen && !isPreview ? pageStrip : null}
+          mobileZoomControl={
+            isMobileWeb && !isMobileSheetOpen && !isPreview ? (
+              <CanvasZoomIndicator zoom={zoom} onZoomChange={setZoom} />
+            ) : null
+          }
           mobileSheetOpen={isMobileSheetOpen}
           onCanvasBackdropPointerDown={isMobileSheetOpen ? handlePanelClose : undefined}
         >
           <div
+            inert={isPreview}
+            aria-busy={isPreview}
             ref={pagesContainerCallbackRef}
             onPointerDown={handleWorkAreaPointerDown}
             className="heterogeneous-multipage__pages-container has-bottom-bar flex flex-col items-center gap-md p-sm pb-lg w-full max-canvas-mobile:gap-sm max-canvas-mobile:p-xs"
@@ -1041,16 +1151,20 @@ function CanvasEditorInner({
                   onChangeTemplate={handleOpenTemplateChange}
                   onExport={handleExport}
                   onCancel={onCancel}
-                  callbacks={getCallbacksForPage(page.id)}
+                  callbacks={getCallbacksForPage(page.id, page.configId)}
                   multiPageExport={index === 0 ? multiPageExportProps : undefined}
                   onStateChange={handlePageStateChange}
-                  onToolbarStateChange={isActive ? handleToolbarStateChange : undefined}
+                  onToolbarStateChange={
+                    isActive && !isPreview ? handleToolbarStateChange : undefined
+                  }
                   onAutoSaveShareToken={onAutoSaveShareToken}
                   autoSave={false}
                   pageBinding={pageBindingAt(index, page.id, isActive)}
                 />
               );
             })}
+
+            {noPageRenderable && <CanvasPageSkeleton aspectRatio={pageAspectRatio} />}
 
             {templateChangePage && (
               <TemplatePickerFlyout

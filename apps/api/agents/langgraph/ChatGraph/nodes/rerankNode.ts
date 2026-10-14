@@ -113,8 +113,8 @@ export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGra
   // from `searchResults.length` makes that impossible by construction and needs
   // no `tier` field on ChatGraphState.
   //
-  // Für notebook-gebundene Turns kommen beide Zahlen aus dem Stufenprofil
-  // (`CHAT_NOTEBOOK_DEPTH`), dieselbe Quelle, aus der `searchNode` seine
+  // Für notebook-gebundene Turns kommen beide Zahlen aus dem Chat-Profil
+  // (`getChatNotebookProfile`), dieselbe Quelle, aus der `searchNode` seine
   // Kandidatenzahl nimmt. Das ist die Entkopplung, die dieser Zweig gebraucht
   // hat: `MAX_SOURCES` beantwortet die Frage „wie viele Quellen passen in den
   // Prompt", nicht „wie viele Kandidaten darf der Cross-Encoder bewerten". Als

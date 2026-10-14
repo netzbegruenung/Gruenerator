@@ -10,4 +10,5 @@ skillCategory: social
 isSystemDefault: true
 promptTemplate: 'Post zu folgendem Thema: '
 order: 5
+recommendedTools: ['vorlagen_vorschlagen']
 ---

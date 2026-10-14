@@ -16,14 +16,16 @@ import React, {
   useMemo,
   memo,
   useImperativeHandle,
+  useLayoutEffect,
 } from 'react';
 import { Layer } from 'react-konva';
 
-import { PAGE_ELEMENT_STATE_KEYS } from '../collab/pageElementStateKeys';
+import { HOST_EMITTED_STATE_KEYS } from '../collab/pageElementStateKeys';
 import { useEmitHostStateChanges } from '../collab/useEmitHostStateChanges';
 import { useSelectionAwareness } from '../collab/useSelectionAwareness';
 import { useYjsCanvasBinding } from '../collab/useYjsCanvasBinding';
 import { useYjsPageStateSync } from '../collab/useYjsPageStateSync';
+import { stateKeyOfCallback } from '../collab/wrapCallbacksWithPageSync';
 import { getCanvasFormatOrDefault } from '../formats';
 import {
   useCanvasInteractions,
@@ -43,9 +45,10 @@ import {
 } from '../stores/CanvasStoreProvider';
 import { useAutoSaveStore } from '../stores/useAutoSaveStore';
 import { alignElementX, alignElementY } from '../utils/alignment';
-import { calculateAttributionOverlay } from '../utils/attributionOverlay';
+import { calculateAttributionOverlay, isCreditedPhotoVisible } from '../utils/attributionOverlay';
+import { canvasFontFamilies } from '../utils/canvasFontFamilies';
 import { buildCanvasItems, buildSortedRenderList } from '../utils/canvasLayerManager';
-import { captureStageImage } from '../utils/captureStage';
+import { captureStageImage, captureStageImageAsync } from '../utils/captureStage';
 import { ensureFontsReady } from '../utils/ensureFontsReady';
 import { PendingImagesContext } from '../utils/pendingImages';
 import { stageCssScale } from '../utils/stageCssScale';
@@ -58,25 +61,7 @@ import type { RemoteSelector } from './RemoteSelectionOverlay';
 import type { ToolbarBridgeState } from './ToolbarStateBridge';
 
 const EMPTY_CALLBACKS: Record<string, ((val: unknown) => void) | undefined> = {};
-
-// Background-image state keys that must be synced back to the host (and thus
-// persisted to the collaborative document) when changed in-editor. Each maps to
-// an `on<Key>Change` callback wired per canvas type in CanvasEditorRouter.
-const SYNCED_IMAGE_KEYS = [
-  'currentImageSrc',
-  'backgroundMode',
-  'imageAttribution',
-  'imageOffset',
-  'imageScale',
-  'backgroundImageOpacity',
-  'hasBackgroundImage',
-] as const;
-
-// Everything the page must push back out itself. The image keys ride on the
-// host callbacks CanvasEditorRouter wires per canvas type; the element keys have
-// no host callback anywhere and are served by the writers CanvasEditor mints in
-// createPageSyncedCallbacks.
-const HOST_EMITTED_STATE_KEYS = [...SYNCED_IMAGE_KEYS, ...PAGE_ELEMENT_STATE_KEYS];
+const HOST_EMITTED_KEY_SET: ReadonlySet<string> = new Set(HOST_EMITTED_STATE_KEYS);
 
 import type { AlignmentDirection } from './Toolbar';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
@@ -87,6 +72,7 @@ import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
 import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
 import type { GradientFill } from '../utils/gradientFill';
+import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 import type * as Y from 'yjs';
 
@@ -206,7 +192,7 @@ export interface GenericCanvasRef {
     quality?: number;
     includeBackground?: boolean;
   }) => string | undefined;
-  captureCanvas: () => Promise<string | null>;
+  captureCanvas: (options?: Partial<ExportOptions>) => Promise<string | null>;
   /** False while an image element's source is still loading — a capture
    *  taken then is missing that image. */
   imagesSettled: () => boolean;
@@ -293,29 +279,13 @@ function GenericCanvasWithRef<
   // background image and every added element is lost on reload (#3416).
   useEmitHostStateChanges(state as Record<string, unknown>, callbacks, HOST_EMITTED_STATE_KEYS);
 
-  // Every family the template actually paints. Derived from the elements rather
-  // than read from `config.fonts.primary` alone: a Konva paint is not a DOM font
-  // usage, so a family nobody preloads is still unloaded at first paint and the
-  // fallback face gets baked into the canvas. Templates whose layout is pure
-  // arithmetic (zitat) never re-render afterwards, so it stays baked in.
-  const canvasFontFamilies = useMemo(() => {
-    const families = new Set<string>();
-    if (config.fonts?.primary) families.add(config.fonts.primary);
-    for (const element of config.elements) {
-      if (element.type !== 'text') continue;
-      // Element families carry a ', Arial, sans-serif' fallback stack — only the
-      // first entry is a webfont we can wait for.
-      const family = element.fontFamily.split(',')[0]?.trim();
-      if (family) families.add(family);
-    }
-    return Array.from(families);
-  }, [config]);
+  const fontFamilies = useMemo(() => canvasFontFamilies(config), [config]);
 
   // Font loading - non-blocking! Renders immediately with fallback, swaps to custom font when ready
   const { isFontAvailable } = useFontLoader(
-    config.fonts?.requireFontLoad !== false && canvasFontFamilies.length > 0
+    config.fonts?.requireFontLoad !== false && fontFamilies.length > 0
       ? {
-          fontFamily: canvasFontFamilies,
+          fontFamily: fontFamilies,
           fontSize: config.fonts?.fontSize ?? 60,
           maxAttempts: 30,
           pollInterval: 50,
@@ -342,12 +312,29 @@ function GenericCanvasWithRef<
   // array took every hand-added balken with it (#3421). Which entry a template
   // derives is the template's own knowledge, and `createInitialState` is where
   // it already lives.
+  const [remoteStateCount, setRemoteStateCount] = useState(0);
   const handleRemotePageState = useCallback(
     (partial: Record<string, unknown>) => {
       setStateRaw((prev) => config.createInitialState({ ...prev, ...partial }) as TState);
+      setRemoteStateCount((n) => n + 1);
     },
     [config]
   );
+
+  // Measured fits need the brand fonts, so normalization waits for them. The
+  // result reaches the page through useEmitHostStateChanges like any edit; a
+  // preview has no writers and only renders it.
+  const normalizeLoadedState = config.normalizeLoadedState;
+  useEffect(() => {
+    if (!normalizeLoadedState) return undefined;
+    let cancelled = false;
+    void ensureFontsReady().then(() => {
+      if (!cancelled) setStateRaw((prev) => normalizeLoadedState(prev) ?? prev);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [normalizeLoadedState, remoteStateCount]);
   useYjsPageStateSync({
     pageYMap: props.pageBinding?.pageYMap ?? null,
     isSynced: props.pageBinding?.isSynced ?? false,
@@ -355,25 +342,54 @@ function GenericCanvasWithRef<
   });
 
   const collectState = useCallback(() => state, [state]);
-  const handleRestore = useCallback((restoredState: Record<string, unknown>) => {
-    setStateRaw((prev) => ({ ...prev, ...restoredState }) as TState);
-  }, []);
+  const restoreBaseRef = useRef(state);
+  useLayoutEffect(() => {
+    restoreBaseRef.current = state;
+  }, [state]);
+  // Text fields reach the page document only through their `on<Key>Change`
+  // callback, so a restore reports each one it changed (#4247). The emitted
+  // keys are left to useEmitHostStateChanges, which already reports them.
+  const handleRestore = useCallback(
+    (restoredState: Record<string, unknown>) => {
+      const prev = restoreBaseRef.current as Record<string, unknown>;
+      setStateRaw((p) => ({ ...p, ...restoredState }) as TState);
+      for (const [name, callback] of Object.entries(callbacks)) {
+        const key = stateKeyOfCallback(name);
+        if (!key || !(key in restoredState) || HOST_EMITTED_KEY_SET.has(key)) continue;
+        if (JSON.stringify(restoredState[key]) === JSON.stringify(prev[key])) continue;
+        callback?.(restoredState[key]);
+      }
+    },
+    [callbacks]
+  );
 
-  const { saveToHistory, debouncedSaveToHistory, undo, redo, canUndo, canRedo } =
+  const { saveToHistory, debouncedSaveToHistory, runHistoryBatch, undo, redo, canUndo, canRedo } =
     useCanvasHistorySetup(collectState, handleRestore, 500, shortcutsEnabled);
 
   const getState = useCallback(() => state, [state]);
 
+  // `runHistoryBatch` rides on the actions so the AI bridge (built from the
+  // page's live actions) coalesces one op batch into one undo step.
   const actions = useMemo(
-    () =>
-      config.createActions(
+    () => ({
+      ...config.createActions(
         getState,
         setStateWrapper,
         saveToHistory,
         debouncedSaveToHistory,
         callbacks
       ),
-    [config, getState, setStateWrapper, saveToHistory, debouncedSaveToHistory, callbacks]
+      runHistoryBatch,
+    }),
+    [
+      config,
+      getState,
+      setStateWrapper,
+      saveToHistory,
+      debouncedSaveToHistory,
+      runHistoryBatch,
+      callbacks,
+    ]
   );
 
   // Allowlist of state fields that calculateLayout reads across all canvas configs.
@@ -486,7 +502,9 @@ function GenericCanvasWithRef<
     ) {
       setAutoSaveDirty(true);
     }
-    if (lastAutoSaveHistoryIndexRef.current === historyIndex) return;
+    // The capture only feeds useCanvasAutoSave — without auto-save it is a
+    // wasted pixelRatio-2 PNG encode on the main thread after every edit.
+    if (!autoSaveEnabled || lastAutoSaveHistoryIndexRef.current === historyIndex) return;
 
     // Debounce screenshot capture — toDataURL at pixelRatio:2 is expensive (~100-200ms).
     // 1500ms ensures we only capture after the user stops editing. Transformer
@@ -595,6 +613,7 @@ function GenericCanvasWithRef<
 
     const imageAttribution = state.imageAttribution;
     if (!imageAttribution) return null;
+    if (!isCreditedPhotoVisible(config.elements, state)) return null;
 
     return calculateAttributionOverlay(
       imageAttribution,
@@ -603,7 +622,7 @@ function GenericCanvasWithRef<
       'bottom-right',
       10
     );
-  }, [isExporting, state, config.canvas.width, config.canvas.height]);
+  }, [isExporting, state, config.elements, config.canvas.width, config.canvas.height]);
 
   /**
    * Konva berechnet den Zeilenumbruch eines Text-Knotens EINMAL, beim Setzen
@@ -678,9 +697,9 @@ function GenericCanvasWithRef<
       },
       // Transformer hiding replaces the old deselect + 50ms-rerender hack:
       // the user's selection survives a capture.
-      captureCanvas: async () => {
+      captureCanvas: async (options) => {
         await ensureFontsReady();
-        return captureStageImage(stageRef.current);
+        return captureStageImageAsync(stageRef.current, options);
       },
       imagesSettled: () => pendingImages.size === 0,
       captureCanvasForAi: async () =>

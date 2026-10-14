@@ -777,6 +777,52 @@ describe('runAgenticLoop — split (planner/executor)', () => {
       }
     });
 
+    it('retries a silent planner once on the fallback lane (#4480)', async () => {
+      vi.useFakeTimers();
+      try {
+        const calls: string[] = [];
+        const synthSystems: string[] = [];
+        const deps: LoopDeps = {
+          generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+          streamText: ((o: StreamOpts) => {
+            if (o.model.id === 'planner') {
+              calls.push('planner');
+              return {
+                stream: (async function* () {
+                  await new Promise(() => {});
+                })(),
+              } as unknown as ReturnType<LoopDeps['streamText']>;
+            }
+            if (o.model.id === 'fallback') {
+              calls.push('fallback');
+              return streamOf([]);
+            }
+            synthSystems.push(o.system ?? '');
+            return streamOf([{ type: 'text-delta', text: 'ANSWER' }]);
+          }) as unknown as LoopDeps['streamText'],
+        };
+        const onToolPhaseStall = vi.fn();
+
+        const pending = runAgenticLoop(
+          baseParams({
+            mode: 'split',
+            plannerFallbackModel: { id: 'fallback' } as unknown as LoopEngineParams['plannerModel'],
+            onToolPhaseStall,
+            abortSignal: new AbortController().signal,
+          }),
+          deps
+        );
+        await vi.advanceTimersByTimeAsync(40_000);
+
+        expect((await pending).text).toBe('ANSWER');
+        expect(calls).toEqual(['planner', 'fallback']);
+        expect(onToolPhaseStall).toHaveBeenCalledTimes(1);
+        expect(synthSystems[0]).not.toContain('technisch gescheitert');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('waits out a slow tool instead of calling it a stall', async () => {
       vi.useFakeTimers();
       try {
@@ -1177,6 +1223,40 @@ describe('runAgenticLoop — split gather narration', () => {
     expect(onReasoning).toHaveBeenCalledWith('Jetzt formulieren.');
     // The planner's thinking is thinking, not answer text.
     expect(onText).not.toHaveBeenCalledWith('Ich brauche erst die Quelle.');
+  });
+
+  it('delivers the sentences before a tool call, then signals the call', async () => {
+    const events: string[] = [];
+    const deps: LoopDeps = {
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+      streamText: ((o: StreamOpts) =>
+        o.model.id === 'planner'
+          ? streamOf([
+              { type: 'text-delta', text: 'Ich suche im Wahlprogramm' },
+              { type: 'tool-input-start' },
+              { type: 'tool-call' },
+              { type: 'text-delta', text: 'Die Antwort lautet so.' },
+            ])
+          : streamOf([{ type: 'text-delta', text: 'S' }])) as unknown as LoopDeps['streamText'],
+    };
+
+    await runAgenticLoop(
+      baseParams({
+        mode: 'split',
+        onNarration: (s) => events.push(s),
+        onToolCallStart: () => events.push('<tool>'),
+      }),
+      deps
+    );
+
+    // The partial pre-call sentence is flushed BEFORE the signal, so the caller
+    // can release it as narration; the tool-less tail comes after every signal.
+    expect(events).toEqual([
+      'Ich suche im Wahlprogramm',
+      '<tool>',
+      '<tool>',
+      'Die Antwort lautet so.',
+    ]);
   });
 
   it('flushes a trailing partial (punctuation-free) sentence at phase end', async () => {

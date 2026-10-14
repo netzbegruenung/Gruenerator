@@ -110,6 +110,20 @@
             "optional": true
           },
           {
+            "name": "italic",
+            "optional": true
+          },
+          {
+            "name": "textLine",
+            "optional": true,
+            "doc": "'none' removes underline and strikethrough."
+          },
+          {
+            "name": "fontSize",
+            "optional": true,
+            "doc": "Font size in pt."
+          },
+          {
             "name": "background",
             "optional": true,
             "doc": "CSS color, e.g. \"#e8f5e9\"."
@@ -117,6 +131,36 @@
           {
             "name": "fontColor",
             "optional": true
+          },
+          {
+            "name": "horizontalAlign",
+            "optional": true
+          },
+          {
+            "name": "verticalAlign",
+            "optional": true
+          },
+          {
+            "name": "wrap",
+            "optional": true,
+            "doc": "Wrap long text onto several lines inside the cell."
+          },
+          {
+            "name": "border",
+            "optional": true
+          },
+          {
+            "name": "sheet",
+            "optional": true
+          }
+        ]
+      },
+      {
+        "id": "clear_format",
+        "fields": [
+          {
+            "name": "range",
+            "optional": false
           },
           {
             "name": "sheet",
@@ -134,10 +178,206 @@
         ]
       },
       {
+        "id": "rename_sheet",
+        "fields": [
+          {
+            "name": "sheet",
+            "optional": true,
+            "doc": "Current sheet name; active sheet when omitted."
+          },
+          {
+            "name": "name",
+            "optional": false
+          }
+        ]
+      },
+      {
+        "id": "delete_sheet",
+        "fields": [
+          {
+            "name": "sheet",
+            "optional": false
+          }
+        ]
+      },
+      {
+        "id": "duplicate_sheet",
+        "fields": [
+          {
+            "name": "sheet",
+            "optional": true
+          },
+          {
+            "name": "name",
+            "optional": true,
+            "doc": "Name of the copy; Univer's default (\"… (2)\") when omitted."
+          }
+        ]
+      },
+      {
+        "id": "set_tab_color",
+        "fields": [
+          {
+            "name": "color",
+            "optional": false,
+            "doc": "CSS color; empty string removes the tab color."
+          },
+          {
+            "name": "sheet",
+            "optional": true
+          }
+        ]
+      },
+      {
         "id": "clear_range",
         "fields": [
           {
             "name": "range",
+            "optional": false
+          },
+          {
+            "name": "sheet",
+            "optional": true
+          }
+        ]
+      },
+      {
+        "id": "freeze_panes",
+        "fields": [
+          {
+            "name": "rows",
+            "optional": false
+          },
+          {
+            "name": "columns",
+            "optional": false
+          },
+          {
+            "name": "sheet",
+            "optional": true
+          }
+        ]
+      },
+      {
+        "id": "set_column_width",
+        "fields": [
+          {
+            "name": "at",
+            "optional": false,
+            "doc": "Column letter of the first column."
+          },
+          {
+            "name": "count",
+            "optional": false
+          },
+          {
+            "name": "width",
+            "optional": true,
+            "doc": "Width in px; omitted = fit to content."
+          },
+          {
+            "name": "sheet",
+            "optional": true
+          }
+        ]
+      },
+      {
+        "id": "set_row_height",
+        "fields": [
+          {
+            "name": "at",
+            "optional": false,
+            "doc": "1-based row number of the first row."
+          },
+          {
+            "name": "count",
+            "optional": false
+          },
+          {
+            "name": "height",
+            "optional": true,
+            "doc": "Height in px; omitted = fit to content."
+          },
+          {
+            "name": "sheet",
+            "optional": true
+          }
+        ]
+      },
+      {
+        "id": "autofill",
+        "fields": [
+          {
+            "name": "source",
+            "optional": false,
+            "doc": "A1 range holding the pattern, e.g. \"A2:A3\"."
+          },
+          {
+            "name": "target",
+            "optional": false,
+            "doc": "A1 range to fill, INCLUDING the source, e.g. \"A2:A20\"."
+          },
+          {
+            "name": "sheet",
+            "optional": true
+          }
+        ]
+      },
+      {
+        "id": "find_replace",
+        "fields": [
+          {
+            "name": "find",
+            "optional": false
+          },
+          {
+            "name": "replace",
+            "optional": false
+          },
+          {
+            "name": "matchCase",
+            "optional": true
+          },
+          {
+            "name": "entireCell",
+            "optional": true,
+            "doc": "Only replace when the whole cell equals `find`."
+          }
+        ]
+      },
+      {
+        "id": "set_hyperlink",
+        "fields": [
+          {
+            "name": "cell",
+            "optional": false,
+            "doc": "Single cell in A1 notation."
+          },
+          {
+            "name": "url",
+            "optional": false,
+            "doc": "http(s) or mailto URL."
+          },
+          {
+            "name": "label",
+            "optional": true,
+            "doc": "Display text; the URL itself when omitted."
+          },
+          {
+            "name": "sheet",
+            "optional": true
+          }
+        ]
+      },
+      {
+        "id": "set_note",
+        "fields": [
+          {
+            "name": "cell",
+            "optional": false
+          },
+          {
+            "name": "text",
             "optional": false
           },
           {
@@ -288,7 +528,22 @@
         ],
         "variants": [
           "cell_number",
-          "text_contains"
+          "text_contains",
+          "color_scale",
+          "data_bar"
+        ]
+      },
+      {
+        "id": "remove_conditional_formats",
+        "fields": [
+          {
+            "name": "range",
+            "optional": false
+          },
+          {
+            "name": "sheet",
+            "optional": true
+          }
         ]
       },
       {
@@ -313,6 +568,19 @@
           "checkbox",
           "number",
           "date"
+        ]
+      },
+      {
+        "id": "remove_data_validation",
+        "fields": [
+          {
+            "name": "range",
+            "optional": false
+          },
+          {
+            "name": "sheet",
+            "optional": true
+          }
         ]
       },
       {
@@ -369,6 +637,24 @@
           {
             "name": "sheet",
             "optional": true
+          }
+        ]
+      },
+      {
+        "id": "remove_filter",
+        "fields": [
+          {
+            "name": "sheet",
+            "optional": true
+          }
+        ]
+      },
+      {
+        "id": "remove_table",
+        "fields": [
+          {
+            "name": "name",
+            "optional": false
           }
         ]
       }

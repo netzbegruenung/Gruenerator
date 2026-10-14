@@ -25,7 +25,13 @@ export function useSTT(config: VoiceAgentConfig) {
         });
 
         if (!response.ok) {
-          return { success: false, error: `STT request failed: ${response.status}` };
+          const body = (await response.json().catch(() => null)) as { error?: string } | null;
+          return {
+            success: false,
+            error:
+              body?.error ??
+              `Die Aufnahme konnte nicht verarbeitet werden (Fehler ${response.status}).`,
+          };
         }
 
         const data = await response.json();

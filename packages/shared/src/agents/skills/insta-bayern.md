@@ -10,4 +10,5 @@ skillCategory: social
 audience: 'de-DE'
 promptTemplate: 'Instagram-Post im Stil Grüne Bayern zum Thema: '
 order: 67
+recommendedTools: ['vorlagen_vorschlagen']
 ---

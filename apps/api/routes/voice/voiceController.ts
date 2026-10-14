@@ -1,6 +1,7 @@
 /**
  * Voice Controller
- * Handles audio transcription and chat.
+ * Transcription routes: push-to-talk (/transcribe) and TUS uploads
+ * (/transcribe-upload/stream).
  *
  * STT: Mistral Voxtral (also used for streaming & real-time), GreenPT as failover
  * via services/transcription/providerPolicy.
@@ -9,7 +10,7 @@
 import fs from 'fs';
 
 import { MAX_AUDIO_BYTES, MAX_AUDIO_MB, MAX_AUDIO_MINUTES } from '@gruenerator/contracts';
-import express, { type Request, type Response, type Router } from 'express';
+import express, { type NextFunction, type Request, type Response, type Router } from 'express';
 import multer, { type FileFilterCallback } from 'multer';
 import { z } from 'zod';
 
@@ -25,14 +26,17 @@ import {
 import mistralVoiceService from '../../services/voice/mistralVoiceService.js';
 import { identifySpeakers } from '../../services/voice/protokollService.js';
 import {
-  extractAudioFromVideo,
+  audioTooLargeMessage,
+  describeTranscriptionFailure,
+  type TranscriptionPhase,
+} from '../../services/voice/transcriptionErrors.js';
+import {
   extractAudioFromVideoPath,
   isVideoFile,
   mayExceedChunkLimit,
   probeBufferDurationSeconds,
   transcribeBuffer,
   type TranscriptionOptions,
-  type TranscriptionSegment,
 } from '../../services/voice/transcriptionRouterService.js';
 import { createLogger } from '../../utils/logger.js';
 import { sanitizeFilename } from '../../utils/validation/security.js';
@@ -40,51 +44,19 @@ import { createSSEStream } from '../chat/services/sseHelpers.js';
 
 const log = createLogger('voice');
 
+/** Well under the 300s proxy_read_timeout on /api/ in the Grünerator nginx. */
+const TRANSCRIBE_HEARTBEAT_MS = 20_000;
+
+const UPLOAD_GONE_MESSAGE =
+  'Die hochgeladene Datei ist nicht mehr auf dem Server, vermutlich weil der Upload zu lange zurückliegt. Bitte lade sie erneut hoch.';
+
 // ============================================================================
 // Types
 // ============================================================================
 
-interface TranscribeRequest extends Request {
-  file?: Express.Multer.File;
-  body: {
-    language?: string;
-    removeTimestamps?: boolean;
-    timestamps?: boolean;
-    diarize?: boolean;
-    contextBias?: string[];
-  };
-  query: {
-    language?: string;
-    removeTimestamps?: string;
-    timestamps?: string;
-    diarize?: string;
-  };
-}
-
-interface ChatRequest extends Request {
-  file?: Express.Multer.File;
-  body: {
-    prompt?: string;
-  };
-  query: {
-    prompt?: string;
-  };
-}
-
 interface TranscribeResponse {
   success: boolean;
   text?: string;
-  segments?: TranscriptionSegment[];
-  hasTimestamps?: boolean;
-  speakerMap?: Record<string, string>;
-  language?: string;
-  error?: string;
-}
-
-interface ChatResponse {
-  success: boolean;
-  response?: string;
-  prompt?: string;
   error?: string;
 }
 
@@ -93,6 +65,7 @@ const tusTranscribeBodySchema = z.object({
   language: z.string().optional(),
   diarize: z.boolean().optional(),
   timestamps: z.boolean().optional(),
+  eco: z.boolean().optional(),
 });
 type TusTranscribeBody = z.infer<typeof tusTranscribeBodySchema>;
 
@@ -102,25 +75,39 @@ type TusTranscribeBody = z.infer<typeof tusTranscribeBodySchema>;
 
 const router: Router = express.Router();
 
-// Multer configuration for in-memory upload
-const storage = multer.memoryStorage();
+/**
+ * The only caller is the voice agent's push-to-talk (packages/voice useSTT):
+ * one short 16-bit mono WAV, ~5.8 MB per minute at 48 kHz. The cap allows
+ * about four minutes and keeps an in-memory upload from holding hundreds of
+ * MB per request; long recordings go through the TUS upload instead.
+ */
+const MAX_PUSH_TO_TALK_BYTES = 25 * 1024 * 1024;
 
 const upload = multer({
   defParamCharset: 'utf8',
-  storage,
-  limits: { fileSize: 500 * 1024 * 1024 }, // 500MB for video files
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_PUSH_TO_TALK_BYTES },
   fileFilter: (_req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
-    if (mistralVoiceService.isFormatSupported(file.mimetype) || isVideoFile(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(
-        new Error(
-          `Unsupported format: ${file.mimetype}. Supported: audio (${mistralVoiceService.getSupportedFormats().join(', ')}), video (mp4, mov, avi, mkv, webm)`
-        )
-      );
-    }
+    cb(null, mistralVoiceService.isFormatSupported(file.mimetype));
   },
 });
+
+function receiveAudio(req: Request, res: Response<TranscribeResponse>, next: NextFunction): void {
+  upload.single('audio')(req, res, (err: unknown) => {
+    if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+      res.status(413).json({
+        success: false,
+        error: 'Die Aufnahme ist zu lang. Halte die Taste höchstens etwa vier Minuten gedrückt.',
+      });
+      return;
+    }
+    if (err) {
+      next(err);
+      return;
+    }
+    next();
+  });
+}
 
 // ============================================================================
 // Route Handlers
@@ -128,201 +115,33 @@ const upload = multer({
 
 /**
  * POST /api/voice/transcribe
- * Transcribe audio file — Voxtral first, GreenPT as failover
+ * Transcribe one push-to-talk recording — Voxtral first, GreenPT as failover
  */
-router.post(
-  '/transcribe',
-  upload.single('audio') as express.RequestHandler,
-  (async (req: TranscribeRequest, res: Response<TranscribeResponse>): Promise<void> => {
-    if (!req.file) {
-      res.status(400).json({
-        success: false,
-        error: 'Keine Audio-Datei erhalten',
-      });
-      return;
-    }
-
-    let audioBuffer = req.file.buffer;
-    let filename = req.file.originalname;
-
-    const options: TranscriptionOptions = {
-      language: req.query.language || req.body.language || 'de',
-      removeTimestamps: req.query.removeTimestamps === 'true' || req.body.removeTimestamps === true,
-      ...(req.query.timestamps === 'true' || req.body.timestamps === true
-        ? { timestamp_granularities: ['segment'] as const }
-        : {}),
-      diarize: req.query.diarize === 'true' || req.body.diarize === true,
-      ...(req.body.contextBias != null && { contextBias: req.body.contextBias }),
-      locale: extractLocaleFromRequest(req),
-    };
-
-    try {
-      let knownDurationSeconds: number | null = null;
-      if (isVideoFile(req.file.mimetype)) {
-        log.debug('[Voice] Video detected, extracting audio from:', filename);
-        const extracted = await extractAudioFromVideo(req.file.buffer, filename);
-        audioBuffer = extracted.buffer;
-        filename = extracted.filename;
-        knownDurationSeconds = extracted.durationSeconds;
-        log.debug(
-          '[Voice] Audio extracted:',
-          filename,
-          `(${(audioBuffer.length / 1024 / 1024).toFixed(1)} MB)`
-        );
-      }
-
-      log.debug('[Voice] Starting transcription for:', filename, 'Options:', options);
-
-      const result = await transcribeBuffer(audioBuffer, filename, options, knownDurationSeconds);
-
-      let speakerMap: Record<string, string> = {};
-      if (options.diarize && result.text.includes('[speaker_')) {
-        speakerMap = await identifySpeakers(result.text);
-      }
-
-      res.json({
-        success: true,
-        text: result.text,
-        ...(result.segments != null && { segments: result.segments }),
-        hasTimestamps: result.hasTimestamps,
-        speakerMap,
-        ...(options.language != null && { language: options.language }),
-      });
-    } catch (error) {
-      log.error('[Voice] Transcription error:', error);
-
-      res.status(500).json({
-        success: false,
-        error: 'Fehler bei der Transkription: ' + (error as Error).message,
-      });
-    }
-  }) as express.RequestHandler
-);
-
-/**
- * POST /api/voice/transcribe/stream
- * Streaming transcription — returns SSE events as text is transcribed.
- * For video files, also emits extraction_progress/extraction_complete events.
- * Supports diarize/timestamps — when enabled, uses non-streaming transcription
- * but still wraps in SSE for consistent progress feedback.
- */
-router.post('/transcribe/stream', upload.single('audio'), (async (
-  req: TranscribeRequest,
-  res: Response
+router.post('/transcribe', receiveAudio, (async (
+  req: Request,
+  res: Response<TranscribeResponse>
 ): Promise<void> => {
   if (!req.file) {
     res.status(400).json({
       success: false,
-      error: 'Keine Audio-Datei erhalten',
+      error: 'Keine Aufnahme erhalten oder Audioformat nicht unterstützt.',
     });
     return;
   }
 
-  let audioBuffer = req.file.buffer;
-  let filename = req.file.originalname;
-  const language = req.query.language || req.body.language || 'de';
-  const locale = extractLocaleFromRequest(req);
-  const diarize = req.query.diarize === 'true' || req.body.diarize === true;
-  const timestamps = req.query.timestamps === 'true' || req.body.timestamps === true;
-  const needsFullTranscription = diarize || timestamps;
-
-  log.debug('[Voice] /transcribe/stream params:', {
-    language,
-    diarize,
-    timestamps,
-    needsFullTranscription,
-    query: req.query,
-  });
-
-  const sse = createSSEStream(res);
-
   try {
-    let knownDurationSeconds: number | null = null;
-    if (isVideoFile(req.file.mimetype)) {
-      log.debug('[Voice] Video detected, extracting audio from:', filename);
-      sse.sendRaw('extraction_start', { type: 'extraction_start' });
-
-      const extracted = await extractAudioFromVideo(req.file.buffer, filename, {
-        onProgress: (percent, timemark) => {
-          sse.sendRaw('extraction_progress', { type: 'extraction_progress', percent, timemark });
-        },
-      });
-      audioBuffer = extracted.buffer;
-      filename = extracted.filename;
-      knownDurationSeconds = extracted.durationSeconds;
-
-      const audioSizeMB = +(audioBuffer.length / 1024 / 1024).toFixed(1);
-      log.debug('[Voice] Audio extracted:', filename, `(${audioSizeMB} MB)`);
-      sse.sendRaw('extraction_complete', { type: 'extraction_complete', audioSizeMB });
-    }
-
-    log.debug('[Voice] Starting transcription for:', filename, { diarize, timestamps });
-    sse.sendRaw('transcription_start', { type: 'transcription_start' });
-
-    if (needsFullTranscription) {
-      const options: TranscriptionOptions = {
-        language,
-        ...(timestamps && { timestamp_granularities: ['segment'] as const }),
-        ...(diarize && { diarize: true }),
-        locale,
-      };
-
-      const result = await transcribeBuffer(audioBuffer, filename, options, knownDurationSeconds);
-
-      let speakerMap: Record<string, string> = {};
-      if (diarize && result.text.includes('[speaker_')) {
-        log.debug('[Voice] Identifying speakers...');
-        speakerMap = await identifySpeakers(result.text);
-        log.debug('[Voice] Speaker map:', speakerMap);
-      }
-
-      sse.sendRaw('done', {
-        type: 'done',
-        text: result.text,
-        segments: result.segments,
-        hasTimestamps: result.hasTimestamps,
-        speakerMap,
-      });
-    } else {
-      // Streaming transcription — Voxtral only (Whisper has no streaming API).
-      // The streaming API has no chunking and shares the per-call duration
-      // ceiling, so anything longer falls back to the chunked non-streaming
-      // path instead of dying inside the provider SDK mid-stream.
-      const duration =
-        knownDurationSeconds ??
-        (mayExceedChunkLimit(audioBuffer)
-          ? await probeBufferDurationSeconds(audioBuffer, filename)
-          : null);
-      if (duration != null && duration > MAX_AUDIO_MINUTES * 60) {
-        const result = await transcribeBuffer(
-          audioBuffer,
-          filename,
-          { language, locale },
-          duration
-        );
-        sse.sendRaw('done', {
-          type: 'done',
-          text: result.text,
-          segments: result.segments,
-          hasTimestamps: result.hasTimestamps,
-          speakerMap: {},
-        });
-      } else {
-        for await (const event of mistralVoiceService.transcribeFromBufferStream(
-          audioBuffer,
-          filename,
-          { language, locale }
-        )) {
-          sse.sendRaw(event.type, event);
-        }
-      }
-    }
+    const result = await transcribeBuffer(req.file.buffer, req.file.originalname, {
+      language: 'de',
+      locale: extractLocaleFromRequest(req),
+    });
+    res.json({ success: true, text: result.text });
   } catch (error) {
-    log.error('[Voice] Streaming transcription error:', error);
-    sse.sendRaw('error', { type: 'error', text: (error as Error).message });
+    log.error('[Voice] Transcription error:', error);
+    res.status(500).json({
+      success: false,
+      error: describeTranscriptionFailure('transcription', error),
+    });
   }
-
-  sse.end();
 }) as express.RequestHandler);
 
 // ============================================================================
@@ -337,16 +156,32 @@ router.post(
   '/transcribe-upload/stream',
   validateBody(tusTranscribeBodySchema),
   async (req: TypedRequest<TusTranscribeBody>, res: Response) => {
-    const { uploadId, language = 'de', diarize = false, timestamps = false } = req.body;
+    const {
+      uploadId,
+      language = 'de',
+      diarize = false,
+      timestamps = false,
+      eco = false,
+    } = req.body;
     const locale = extractLocaleFromRequest(req);
 
     const filePath = getFilePathFromUploadId(uploadId);
     if (!(await checkFileExists(filePath))) {
       void scheduleImmediateCleanup(uploadId, 'file not found');
-      return res.status(404).json({ success: false, error: 'Upload nicht gefunden' });
+      return res.status(404).json({
+        success: false,
+        error: UPLOAD_GONE_MESSAGE,
+      });
     }
 
     const sse = createSSEStream(res);
+    // Long phases (extraction, a 120-min Voxtral call, speaker naming) emit
+    // nothing for minutes; nginx drops an /api/ response after 300s of
+    // silence, which the client could only report as "Verbindung abgebrochen".
+    const heartbeat = setInterval(() => {
+      sse.sendRaw('heartbeat', { type: 'heartbeat' });
+    }, TRANSCRIBE_HEARTBEAT_MS);
+    let phase: TranscriptionPhase = 'read';
 
     try {
       markUploadAsProcessed(uploadId);
@@ -354,12 +189,15 @@ router.post(
       const meta = uploadStatus.metadata?.metadata as Record<string, string> | undefined;
       let filename = sanitizeFilename(meta?.filename || 'audio.mp3', 'audio.mp3');
       const filetype = meta?.filetype || '';
-      const needsFullTranscription = diarize || timestamps;
+      // The direct Voxtral stream below bypasses the provider policy, so Öko-Modus
+      // must take the policy path even without timestamps.
+      const needsFullTranscription = diarize || timestamps || eco;
 
       let audioBuffer: Buffer;
       let knownDurationSeconds: number | null = null;
       if (isVideoFile(filetype)) {
         log.debug('[Voice] TUS upload is video, extracting audio from:', filename);
+        phase = 'extraction';
         sse.sendRaw('extraction_start', { type: 'extraction_start' });
         const extracted = await extractAudioFromVideoPath(filePath, filename, {
           onProgress: (percent, timemark) => {
@@ -380,17 +218,14 @@ router.post(
         const uploadSize = uploadStatus.metadata?.size ?? 0;
         if (uploadSize > MAX_AUDIO_BYTES) {
           void scheduleImmediateCleanup(uploadId, 'audio upload exceeds MAX_AUDIO_BYTES');
-          sse.sendRaw('error', {
-            type: 'error',
-            text: `Datei ist zu groß. Maximal ${MAX_AUDIO_MB}MB für Audio-Uploads.`,
-          });
-          sse.end();
+          sse.sendRaw('error', { type: 'error', text: audioTooLargeMessage(MAX_AUDIO_MB) });
           return;
         }
         audioBuffer = Buffer.from(await fs.promises.readFile(filePath));
       }
 
       log.debug('[Voice] Starting TUS streaming transcription for:', filename);
+      phase = 'transcription';
       sse.sendRaw('transcription_start', { type: 'transcription_start' });
 
       if (needsFullTranscription) {
@@ -398,14 +233,21 @@ router.post(
           language,
           ...(timestamps && { timestamp_granularities: ['segment'] as const }),
           ...(diarize && { diarize: true }),
+          ...(eco && { eco: true }),
           locale,
         };
 
         const result = await transcribeBuffer(audioBuffer, filename, options, knownDurationSeconds);
 
+        // Naming speakers is a nicety on top of a finished transcript: losing
+        // it must not throw away minutes of transcription.
         let speakerMap: Record<string, string> = {};
         if (diarize && result.text.includes('[speaker_')) {
-          speakerMap = await identifySpeakers(result.text);
+          try {
+            speakerMap = await identifySpeakers(result.text);
+          } catch (error) {
+            log.warn('[Voice] speaker identification failed, returning unnamed speakers:', error);
+          }
         }
 
         sse.sendRaw('done', {
@@ -451,53 +293,14 @@ router.post(
 
       void scheduleImmediateCleanup(uploadId, 'transcription complete');
     } catch (error) {
-      log.error('[Voice] TUS streaming transcription error:', error);
+      log.error(`[Voice] TUS streaming transcription error (phase=${phase}):`, error);
       void scheduleImmediateCleanup(uploadId, 'transcription error');
-      sse.sendRaw('error', { type: 'error', text: (error as Error).message });
+      sse.sendRaw('error', { type: 'error', text: describeTranscriptionFailure(phase, error) });
+    } finally {
+      clearInterval(heartbeat);
+      sse.end();
     }
-
-    sse.end();
   }
 );
-
-/**
- * POST /api/voice/chat
- * Chat with audio input
- */
-router.post('/chat', upload.single('audio'), (async (
-  req: ChatRequest,
-  res: Response<ChatResponse>
-): Promise<void> => {
-  if (!req.file) {
-    res.status(400).json({
-      success: false,
-      error: 'Keine Audio-Datei erhalten',
-    });
-    return;
-  }
-
-  const audioBuffer = req.file.buffer;
-  const filename = req.file.originalname;
-  const prompt = req.body.prompt || req.query.prompt || 'Was ist in dieser Audio-Datei?';
-
-  try {
-    log.debug('[Voice] Starting audio chat for:', filename, 'Prompt:', prompt);
-
-    const response: string = await mistralVoiceService.chatWithAudio(audioBuffer, filename, prompt);
-
-    res.json({
-      success: true,
-      response,
-      prompt,
-    });
-  } catch (error) {
-    log.error('[Voice] Audio chat error:', error);
-
-    res.status(500).json({
-      success: false,
-      error: 'Fehler beim Audio-Chat: ' + (error as Error).message,
-    });
-  }
-}) as express.RequestHandler);
 
 export default router;

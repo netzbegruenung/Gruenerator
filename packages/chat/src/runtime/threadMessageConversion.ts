@@ -84,6 +84,8 @@ export interface LoadedMessage {
      *  `notebookAnswerModeEventSchema`). Read defensively — `unknown` on purpose. */
     answerMode?: unknown;
     answerModeReason?: unknown;
+    /** Notebook answers that ran with the Quellen-Ampel on. */
+    sourceTier?: unknown;
     senderId?: string;
     senderName?: string | null;
     roleName?: string;
@@ -289,6 +291,7 @@ function buildCustomMetadata(metadata: LoadedMessage['metadata']): Record<string
     const reason = notebookAnswerModeReasonSchema.safeParse(metadata.answerModeReason);
     if (reason.success) custom.answerModeReason = reason.data;
   }
+  if (metadata.sourceTier === 'documents-first') custom.sourceTier = metadata.sourceTier;
 
   // Derived: drives the message-action affordances (copy/regenerate context)
   // and the thumbs feedback button (traceId), so it must survive reload.
@@ -352,6 +355,7 @@ export function convertNotebookLoadedMessages(messages: LoadedMessage[]): Thread
       rawCitations,
       sources: m.metadata?.sources ?? [],
       question: questionFor(idx),
+      persistedMessageId: m.id,
       // Reload half of the thumbs feedback: the buttons only show when the
       // trace id is here, the same shape NotebookModelAdapter builds live.
       ...(m.metadata?.traceId
@@ -370,6 +374,7 @@ export function convertNotebookLoadedMessages(messages: LoadedMessage[]): Thread
             ...(answerModeReason.success && { answerModeReason: answerModeReason.data }),
           }
         : {}),
+      ...(m.metadata?.sourceTier === 'documents-first' ? { sourceTier: 'documents-first' } : {}),
     };
 
     // Precision answers ran the agentic loop: its steps come back as the

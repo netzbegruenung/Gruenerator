@@ -209,7 +209,8 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic at 3:4 (%s)', (local
 
   it('fills the full height with the gradient plane and sizes the strips', () => {
     const planes = tall.slides.map((s) => byId(s, 'sc-bg')).filter((b) => !!b);
-    expect(planes.length).toBeGreaterThan(0);
+    // DE colours are flat: no plane at all, the canvas background is the colour.
+    expect(planes.length > 0).toBe(locale === 'de-AT');
     for (const plane of planes) expect([plane.y, plane.y + plane.h]).toEqual([0, TALL]);
     // foto-oben: photo above 40 %, panel below; foto-unten: panel above 60 %.
     expect(byId(tall.slides[1]!, 'sc-panel')).toMatchObject({ y: TALL * 0.4, h: TALL * 0.6 });

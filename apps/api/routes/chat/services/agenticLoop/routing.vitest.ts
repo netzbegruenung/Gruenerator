@@ -895,6 +895,16 @@ describe('compoundGenerationKind', () => {
     ).toBe('presentation');
   });
 
+  // 06.10.2026: eine recherchierte Infografik ist ein Sharepic, kein Diagramm-Fence.
+  it('recovers a sharepic for an infographic after research', () => {
+    expect(
+      compoundGenerationKind(
+        'agentic',
+        'Recherchiere die Mietentwicklung in Graz und mach eine Infografik daraus'
+      )
+    ).toBe('sharepic');
+  });
+
   it('returns null for a NAMED generation intent without a research signal', () => {
     // These keep their single-pass dispatcher: null means "the dispatcher builds
     // it", which is the correct and faster route.
@@ -1646,5 +1656,44 @@ describe('compoundGenerationKind — dieselbe PDF-Regel wie der Klassifikator', 
     'mach ein PDF mit Briefkopf',
   ])('bleibt PDF: %s', (text) => {
     expect(compoundGenerationKind('produktion', text)).toBe('pdf');
+  });
+});
+
+describe('compoundGenerationKind — Explainable', () => {
+  it('lifts research + Explainable into the loop with the explainable tool', () => {
+    const ask = 'Recherchiere, was eine Schwammstadt ist, und erstelle ein Explainable';
+    expect(looksLikeCompoundGeneration(ask)).toBe(true);
+    expect(compoundGenerationKind('create_explainable', ask)).toBe('explainable');
+    // A demoted turn recovers the same kind from the noun.
+    expect(compoundGenerationKind('agentic', ask)).toBe('explainable');
+  });
+
+  it('leaves a plain create to the single-pass route', () => {
+    expect(
+      compoundGenerationKind('create_explainable', 'Erstelle ein Explainable zur Schwammstadt')
+    ).toBe(null);
+  });
+
+  it('honours the mention pin', () => {
+    expect(compoundGenerationKind('agentic', 'Recherchiere die Schwammstadt', 'explainable')).toBe(
+      'explainable'
+    );
+  });
+
+  it.each([
+    'Was ist ein Explainable?',
+    'Erklär mir die Schwammstadt',
+    'Schreib einen Text, kein Explainable',
+  ])('does not build one for: %s', (text) => {
+    expect(compoundGenerationKind('agentic', text)).toBe(null);
+  });
+
+  it('keeps PDF and document phrasings where they were', () => {
+    expect(
+      compoundGenerationKind('agentic', 'Recherchiere X und erstelle ein PDF-Dokument dazu')
+    ).toBe('pdf');
+    expect(compoundGenerationKind('agentic', 'Recherchiere X und erstelle ein Dokument dazu')).toBe(
+      'document'
+    );
   });
 });

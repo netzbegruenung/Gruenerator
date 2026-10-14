@@ -12,6 +12,7 @@ import {
 } from '@gruenerator/ui';
 import { useEffect, useMemo, useCallback, useRef, useState, memo, lazy, Suspense } from 'react';
 import { type IconType } from 'react-icons';
+import { FiSidebar } from 'react-icons/fi';
 import { PiSignIn, PiSparkle, PiStarFill } from 'react-icons/pi';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
@@ -30,15 +31,13 @@ import {
   type MenuItemType,
 } from '../Header/menuData';
 
-import { GrueneratorenSidebarSection } from './GrueneratorenSidebarSection';
-import NewItemDropdown from './NewItemDropdown';
 import { ProjekteSidebarSection } from './ProjekteSidebarSection';
 import SidebarAccount from './SidebarAccount';
 import { getAgentIcon } from './sidebarAgentConfig';
-import { iconClass, menuLinkClass } from './sidebarStyles';
+import { headerIconButtonClass, iconClass, menuLinkClass } from './sidebarStyles';
 
 import { cn } from '@/utils/cn';
-import { isWorkplaceSurface, startPagePath } from '@/utils/startpage';
+import { isWorkplaceSurface, startTabLink } from '@/utils/startpage';
 import '../../../assets/styles/components/layout/sidebar.css';
 
 // The Sidebar renders on every route; keep cmdk and the feature index out of
@@ -89,28 +88,35 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   // rides on this low value once the blur is gone.
   const isWorkplaceRoute = isWorkplaceSurface(location.pathname);
 
-  const newMenuOpenRef = useRef(false);
   const accountMenuOpenRef = useRef(false);
   const projekteMenuOpenRef = useRef(false);
-  const grueneratorenMenuOpenRef = useRef(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
   const directMenuItems = useMemo(() => getDirectMenuItems({ isAustrian }), [isAustrian]);
   const mobileOnlyItems = useMemo(() => getMobileOnlyMenuItems(), []);
-  // The "start" icon opens the user's preferred Workplace surface (Chat or
-  // Arbeiten). Override its target here so the click, the mobile <Link to>, and
-  // active highlighting all resolve to the same path.
-  const startTarget = startPagePath(user?.default_startpage);
+  // The "start" icon goes straight to /start (the page picks the user's preferred
+  // tab) so the click, the mobile <Link to>, and active highlighting all resolve
+  // to the same path without a hop through the `/` redirect.
   const additionalItems = useMemo<MenuItemType[]>(
     () =>
       [...Object.values(directMenuItems), ...Object.values(mobileOnlyItems)]
-        // Grüneratoren renders as its own quick-view popup section below,
-        // mirroring the Projekte entry — not as a plain nav link.
-        .filter((item) => item.id !== 'grueneratoren')
-        .map((item) => (item.id === 'startseite' ? { ...item, path: startTarget } : item)),
-    [directMenuItems, mobileOnlyItems, startTarget]
+        // Search is placed separately (header row or right below Workplace).
+        // Sites is reached from the Workplace, not the sidebar.
+        .filter((item) => item.id !== GLOBAL_SEARCH_ITEM_ID && item.id !== 'sites')
+        .map((item) => (item.id === 'startseite' ? { ...item, path: startTabLink('chat') } : item)),
+    [directMenuItems, mobileOnlyItems]
   );
+  const searchItem = directMenuItems[GLOBAL_SEARCH_ITEM_ID];
   const sidebarExpanded = isOpen || forceExpanded;
+  // Web desktop rail: the sidebar carries its own header row (wordmark, search, toggle).
+  // Expanded, search sits in that row as a tool; collapsed, the row shrinks to
+  // the toggle and search drops into the rail. Mobile (Sheet) and Tauri keep
+  // their own chrome.
+  const hasHeaderRow = !isDesktop && !isMobile;
+  const showSearchInList = !hasHeaderRow || !sidebarExpanded;
+  // The collapsed rail stays minimal (Workplace, search, the direct items);
+  // Projekte appears once expanded. Mobile and Tauri keep them in every state.
+  const showQuickViews = !hasHeaderRow || sidebarExpanded;
 
   // Close sidebar on route change
   useEffect(() => {
@@ -211,12 +217,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
       // outside the sidebar (main content, or the window).
       const rt = e.relatedTarget;
       if (rt instanceof Node && e.currentTarget.contains(rt)) return;
-      if (
-        !newMenuOpenRef.current &&
-        !accountMenuOpenRef.current &&
-        !projekteMenuOpenRef.current &&
-        !grueneratorenMenuOpenRef.current
-      ) {
+      if (!accountMenuOpenRef.current && !projekteMenuOpenRef.current) {
         close();
       }
     },
@@ -239,6 +240,66 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
     sidebarExpanded ? 'opacity-100' : 'hidden'
   );
 
+  const startItem = additionalItems.find((item) => item.id === 'startseite');
+  const restItems = additionalItems.filter((item) => item.id !== 'startseite');
+  const renderNavItem = (item: MenuItemType) =>
+    !item.path ? (
+      <span key={item.id} className={menuLinkClass(false, true, !sidebarExpanded)}>
+        {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
+        <span className={titleClass}>{item.title}</span>
+        {item.badge && (
+          <span className={badgeClass}>
+            <StatusBadge type={item.badge} variant="sidebar" />
+          </span>
+        )}
+      </span>
+    ) : isDesktop ? (
+      <NavTooltip key={item.id} label={item.title} collapsed={!sidebarExpanded}>
+        <button
+          onClick={() =>
+            item.id === 'chat' ? handleChatClick() : handleLinkClick(item.path!, item.title)
+          }
+          className={menuLinkClass(
+            isActive(item.path!, item.activePaths, item.activeQuery, item.exactActivePaths),
+            false,
+            !sidebarExpanded
+          )}
+          aria-current={
+            isActive(item.path!, item.activePaths, item.activeQuery, item.exactActivePaths)
+              ? 'page'
+              : undefined
+          }
+          type="button"
+        >
+          {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
+          <span className={titleClass}>{item.title}</span>
+          {item.badge && (
+            <span className={badgeClass}>
+              <StatusBadge type={item.badge} variant="sidebar" />
+            </span>
+          )}
+        </button>
+      </NavTooltip>
+    ) : (
+      // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- Link ist auf 'a' gemappt, jsx-a11y prüft dabei nur href statt to; echte, tastaturzugängliche Navigation ist bereits vorhanden
+      <Link
+        key={item.id}
+        to={item.path!}
+        className={menuLinkClass(false, false, !sidebarExpanded)}
+        onClick={() =>
+          item.id === 'chat' ? handleChatClick() : handleLinkClick(item.path!, item.title)
+        }
+      >
+        {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
+        <span className={titleClass}>{item.title}</span>
+        {item.badge && (
+          <span className={badgeClass}>
+            <StatusBadge type={item.badge} variant="sidebar" />
+          </span>
+        )}
+      </Link>
+    );
+
   // Shared sidebar content rendered in both mobile Sheet and desktop aside
   const sidebarInner = (
     <>
@@ -259,129 +320,122 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
         </button>
       )}
 
+      {hasHeaderRow && (
+        <div
+          className={cn(
+            'flex h-12 shrink-0 items-center',
+            sidebarExpanded ? 'gap-1 pl-4 pr-2' : 'justify-center'
+          )}
+        >
+          {sidebarExpanded ? (
+            <>
+              {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- Link ist auf 'a' gemappt, jsx-a11y prüft dabei nur href statt to; echte, tastaturzugängliche Navigation ist bereits vorhanden */}
+              <Link
+                to={startTabLink('chat')}
+                className="mr-auto flex min-w-0 items-center"
+                onClick={() => handleLinkClick(startTabLink('chat'), 'Workplace')}
+              >
+                <img
+                  src="/images/gruenerator_logo_gruen.svg"
+                  alt="Grünerator"
+                  className="h-7 w-auto shrink-0 dark:hidden"
+                />
+                <img
+                  src="/images/gruenerator_logo_weiss.svg"
+                  alt="Grünerator"
+                  className="hidden h-7 w-auto shrink-0 dark:block"
+                />
+              </Link>
+              {searchItem?.icon && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => setSearchOpen(true)}
+                      className={headerIconButtonClass}
+                      aria-label={searchItem.title}
+                      aria-haspopup="dialog"
+                    >
+                      <searchItem.icon aria-hidden="true" className={iconClass} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">{searchItem.title}</TooltipContent>
+                </Tooltip>
+              )}
+              {!forceExpanded && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={close}
+                      className={headerIconButtonClass}
+                      aria-label="Menü schließen"
+                      aria-expanded={true}
+                    >
+                      <FiSidebar aria-hidden="true" className={iconClass} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Menü schließen</TooltipContent>
+                </Tooltip>
+              )}
+            </>
+          ) : (
+            <NavTooltip label="Menü öffnen" collapsed>
+              <button
+                type="button"
+                onClick={open}
+                className={headerIconButtonClass}
+                aria-label="Menü öffnen"
+                aria-expanded={false}
+              >
+                <FiSidebar aria-hidden="true" className={iconClass} />
+              </button>
+            </NavTooltip>
+          )}
+        </div>
+      )}
+
       <nav
         aria-label="Hauptnavigation"
         data-tour="sidebar-nav"
         className={cn(
           'min-h-0 shrink overflow-x-hidden overflow-y-auto pb-sm',
-          isDesktop ? 'pt-3' : 'pt-12'
+          isDesktop ? 'pt-3' : hasHeaderRow ? 'pt-1' : 'pt-12'
         )}
       >
-        {/* Direct menu items - main navigation */}
-        {additionalItems.length > 0 && (
+        {startItem && <div className="flex flex-col gap-0 p-0">{renderNavItem(startItem)}</div>}
+
+        {showSearchInList && searchItem && (
           <div className="flex flex-col gap-0 p-0">
-            {additionalItems.map((item) =>
-              item.id === GLOBAL_SEARCH_ITEM_ID ? (
-                <NavTooltip key={item.id} label={item.title} collapsed={!sidebarExpanded}>
-                  <button
-                    onClick={() => setSearchOpen(true)}
-                    className={menuLinkClass(false, false, !sidebarExpanded)}
-                    type="button"
-                    aria-haspopup="dialog"
-                  >
-                    {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
-                    <span className={titleClass}>{item.title}</span>
-                  </button>
-                </NavTooltip>
-              ) : !item.path ? (
-                <span key={item.id} className={menuLinkClass(false, true, !sidebarExpanded)}>
-                  {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
-                  <span className={titleClass}>{item.title}</span>
-                  {item.badge && (
-                    <span className={badgeClass}>
-                      <StatusBadge type={item.badge} variant="sidebar" />
-                    </span>
-                  )}
-                </span>
-              ) : isDesktop ? (
-                <NavTooltip key={item.id} label={item.title} collapsed={!sidebarExpanded}>
-                  <button
-                    onClick={() =>
-                      item.id === 'chat'
-                        ? handleChatClick()
-                        : handleLinkClick(item.path!, item.title)
-                    }
-                    className={menuLinkClass(
-                      isActive(
-                        item.path!,
-                        item.activePaths,
-                        item.activeQuery,
-                        item.exactActivePaths
-                      ),
-                      false,
-                      !sidebarExpanded
-                    )}
-                    aria-current={
-                      isActive(
-                        item.path!,
-                        item.activePaths,
-                        item.activeQuery,
-                        item.exactActivePaths
-                      )
-                        ? 'page'
-                        : undefined
-                    }
-                    type="button"
-                  >
-                    {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
-                    <span className={titleClass}>{item.title}</span>
-                    {item.badge && (
-                      <span className={badgeClass}>
-                        <StatusBadge type={item.badge} variant="sidebar" />
-                      </span>
-                    )}
-                  </button>
-                </NavTooltip>
-              ) : (
-                // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- Link ist auf 'a' gemappt, jsx-a11y prüft dabei nur href statt to; echte, tastaturzugängliche Navigation ist bereits vorhanden
-                <Link
-                  key={item.id}
-                  to={item.path!}
-                  className={menuLinkClass(false, false, !sidebarExpanded)}
-                  onClick={() =>
-                    item.id === 'chat' ? handleChatClick() : handleLinkClick(item.path!, item.title)
-                  }
-                >
-                  {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
-                  <span className={titleClass}>{item.title}</span>
-                  {item.badge && (
-                    <span className={badgeClass}>
-                      <StatusBadge type={item.badge} variant="sidebar" />
-                    </span>
-                  )}
-                </Link>
-              )
-            )}
+            <NavTooltip label={searchItem.title} collapsed={!sidebarExpanded}>
+              <button
+                onClick={() => setSearchOpen(true)}
+                className={menuLinkClass(false, false, !sidebarExpanded)}
+                type="button"
+                aria-haspopup="dialog"
+              >
+                {searchItem.icon && <searchItem.icon aria-hidden="true" className={iconClass} />}
+                <span className={titleClass}>{searchItem.title}</span>
+              </button>
+            </NavTooltip>
           </div>
         )}
 
-        {/* Grüneratoren quick-view popup */}
-        <GrueneratorenSidebarSection
-          openRef={grueneratorenMenuOpenRef}
-          titleClass={titleClass}
-          collapsed={!sidebarExpanded}
-          onNavigate={handleLinkClick}
-          onClose={close}
-        />
+        {/* Direct menu items - main navigation */}
+        {restItems.length > 0 && (
+          <div className="flex flex-col gap-0 p-0">{restItems.map(renderNavItem)}</div>
+        )}
 
-        {/* Projekte quick-view popup — directly below Grüneratoren */}
-        <ProjekteSidebarSection
-          openRef={projekteMenuOpenRef}
-          titleClass={titleClass}
-          collapsed={!sidebarExpanded}
-          onNavigate={handleLinkClick}
-          onClose={close}
-        />
-
-        {/* New Item Dropdown */}
-        <NewItemDropdown
-          openRef={newMenuOpenRef}
-          titleClass={titleClass}
-          collapsed={!sidebarExpanded}
-          onChatClick={handleChatClick}
-          onLinkClick={handleLinkClick}
-          onClose={close}
-        />
+        {/* Projekte quick-view popup */}
+        {showQuickViews && (
+          <ProjekteSidebarSection
+            openRef={projekteMenuOpenRef}
+            titleClass={titleClass}
+            collapsed={!sidebarExpanded}
+            onNavigate={handleLinkClick}
+            onClose={close}
+          />
+        )}
 
         {/* Favourites */}
         <SidebarFavourites

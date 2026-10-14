@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { canvasImageSourceUrl } from './canvasImageSource';
+import { canvasImageSourceUrl, originalImageFetchUrl } from './canvasImageSource';
 
 describe('canvasImageSourceUrl', () => {
   it('renders the 2160px working tier while the box fits the export budget', () => {
@@ -36,5 +36,22 @@ describe('canvasImageSourceUrl', () => {
 
   it('keeps undefined URLs undefined', () => {
     expect(canvasImageSourceUrl(undefined, 1080)).toBeUndefined();
+  });
+});
+
+describe('originalImageFetchUrl', () => {
+  it('fetches a share download link through /preview, the original without a deadline', () => {
+    expect(originalImageFetchUrl('/api/share/abc123/download')).toBe('/api/share/abc123/preview');
+  });
+
+  it('leaves every other URL alone', () => {
+    for (const url of [
+      'blob:http://localhost/x',
+      'https://example.org/api/share/abc/download',
+      '/api/share/abc/preview?w=400',
+      '/api/image-picker/stock-image/a.jpg',
+    ]) {
+      expect(originalImageFetchUrl(url)).toBe(url);
+    }
   });
 });

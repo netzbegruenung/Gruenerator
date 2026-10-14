@@ -1,3 +1,4 @@
+import { loadPhosphorModule } from '@gruenerator/chat';
 import { SUGGESTED_AGENT_ICONS } from '@gruenerator/shared/agents';
 import {
   Dialog,
@@ -10,7 +11,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 
 import { AgentAvatar } from './AgentAvatar';
-import { loadPhosphorModule, PhosphorIcon } from './PhosphorIcon';
+import { PhosphorIcon } from './PhosphorIcon';
 
 import { cn } from '@/utils/cn';
 

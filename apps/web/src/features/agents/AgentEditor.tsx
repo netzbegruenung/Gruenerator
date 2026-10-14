@@ -26,6 +26,7 @@ import PageContainer from '@/components/common/PageContainer';
 import { UnderlineTabs } from '@/components/common/UnderlineTabs';
 import { useNotebookCollections } from '@/features/auth/hooks/useProfileData';
 import { SYSTEM_NOTEBOOKS } from '@/features/notebook/config/notebooksConfig';
+import { useAuthStore } from '@/stores/authStore';
 
 // The same model set the chat composer offers, single-sourced from the catalog.
 const MODEL_OPTIONS = TEXT_MODELS.filter((m) => isModelEnabledByDefault(m.id));
@@ -105,6 +106,7 @@ function AgentEditor({
     setForm((prev) => ({ ...prev, [k]: v }));
   };
 
+  const authorName = useAuthStore((s) => s.user?.display_name);
   const { query: notebooksQuery } = useNotebookCollections({ isActive: true });
   const userNotebooks = notebooksQuery.data ?? [];
 
@@ -138,7 +140,7 @@ function AgentEditor({
           // Suffix lowercased to satisfy the identifier regex `^[a-z0-9-]+$`.
           const created = await createMut.mutateAsync({
             identifier: `${slug}-${generateSlugSuffix().toLowerCase()}`,
-            author: 'Eigener Agent',
+            author: authorName || 'Eigener Agent',
             ...payload,
           });
           agentId = created.identifier;

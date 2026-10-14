@@ -4,9 +4,9 @@
  * The ids come from `notebookDepthSchema` (@gruenerator/contracts); the numbers
  * stay here because they are server-side tuning, not part of the wire contract.
  *
- * The tiers differ on one axis above all: how many candidates reach the
- * cross-encoder. `fast` is deliberately byte-identical to the pre-tier
- * behaviour — the Grün-O-Mat surface runs on it (`mode: 'fast'` in
+ * `deep` and `ultra` both keep 100 passages since 06.10.2026 — the Qdrant
+ * ceiling per query; they differ in reformulations, threshold and history.
+ * `fast` is deliberately byte-identical to the pre-tier behaviour — the Grün-O-Mat surface runs on it (`mode: 'fast'` in
  * gruenOMatController) and is not part of this change.
  */
 import { type NotebookDepth } from '@gruenerator/contracts';
@@ -79,13 +79,17 @@ const PROFILES: Record<NotebookDepth, NotebookDepthProfile> = {
     history: false,
     queryRewrite: false,
   },
+  // 100 ist die Decke der Qdrant-Suche je Abfrage. Gemessen 06.10.2026 an 23
+  // LV-Fragen (evals/answer/model-eval-2026-10-06.md): gegen 40/18 gewann
+  // diese Tiefe 22:0 (Gemma) und 20:1 (Large 4); fehlende Kernaspekte fielen
+  // von 16 auf 2. Preis: ~100 s statt ~57 s bis zur fertigen Antwort mit Gemma.
   deep: {
-    searchLimit: 40,
-    recallLimitFloor: 80,
+    searchLimit: 100,
+    recallLimitFloor: 100,
     threshold: 0.35,
-    sortLimit: { single: 40, multi: 60 },
-    rerankInput: 40,
-    rerankOutput: 18,
+    sortLimit: { single: 100, multi: 100 },
+    rerankInput: 100,
+    rerankOutput: 100,
     maxOutputTokens: 40000,
     conciseAnswer: false,
     queryVariants: 1,
@@ -93,12 +97,12 @@ const PROFILES: Record<NotebookDepth, NotebookDepthProfile> = {
     queryRewrite: true,
   },
   ultra: {
-    searchLimit: 60,
+    searchLimit: 100,
     recallLimitFloor: 150,
     threshold: 0.28,
-    sortLimit: { single: 80, multi: 100 },
-    rerankInput: 80,
-    rerankOutput: 24,
+    sortLimit: { single: 100, multi: 100 },
+    rerankInput: 100,
+    rerankOutput: 100,
     maxOutputTokens: 40000,
     conciseAnswer: false,
     queryVariants: 3,
@@ -112,30 +116,32 @@ export function getNotebookDepthProfile(depth: NotebookDepth): NotebookDepthProf
 }
 
 /**
- * Die Stufe, auf der ein notebook-gebundener CHAT-Turn läuft.
+ * Das Profil eines notebook-gebundenen CHAT-Turns.
  *
- * Der Chat hat keinen Tiefen-Regler — die Fläche bietet keinen an, und ein
- * Agent, der an ein Notebook gebunden ist (`defaultNotebookIds`), soll nicht
- * schlechter suchen als dasselbe Notebook über seine eigene Oberfläche. Genau
- * das war der Fall: `searchNode` holte 10 Kandidaten pro Sammlung und der
- * Reranker gab 10 davon weiter, während die Notebook-Fläche auf ihrer
- * VOREINGESTELLTEN Stufe („Mittel" = `deep`) 40 holt und 18 durchlässt.
+ * Der Chat hat keinen Tiefen-Regler. Bis 06.10.2026 fuhr er dieselben Zahlen
+ * wie die Notebook-Stufe „Mittel" (`deep`); seit die auf 100 Passagen gewachsen
+ * ist, hat er eigene: sein Prompt trägt höchstens `MAX_SOURCES` Quellen, und
+ * `executeDirectSearch` holt höchstens `OVERFETCH_CEILING` — die Kette prüft
+ * chatNotebookDepth.vitest.ts. Die Zahlen sind die bisherigen `deep`-Werte.
  *
- * `deep` und nicht `ultra`: `ultra` kostet drei Formulierungen pro Frage, und
- * der Chat hat keine Stelle, an der die Person diesen Preis wählen könnte.
- * Gleichstand mit der Voreinstellung der Notebook-Fläche ist die Aussage —
- * nicht „Chat ist die gründlichste Fläche".
- *
- * Als Konstante hier und nicht als Literal an den zwei Lesestellen, damit
- * `searchNode` und `rerankNode` nicht auseinanderlaufen können: die Zahlen
- * müssen zusammenpassen (ein Reranker-Fenster unter dem Suchergebnis wirft
- * bezahlte Treffer weg, eines darüber ist tote Rechnung).
+ * Eine Konstante für beide Lesestellen, damit `searchNode` und `rerankNode`
+ * nicht auseinanderlaufen können: ein Reranker-Fenster unter dem Suchergebnis
+ * wirft bezahlte Treffer weg, eines darüber ist tote Rechnung.
  */
-export const CHAT_NOTEBOOK_DEPTH: NotebookDepth = 'deep';
+type ChatNotebookProfile = Pick<
+  NotebookDepthProfile,
+  'searchLimit' | 'sortLimit' | 'rerankInput' | 'rerankOutput'
+>;
 
-/** Das Profil hinter {@link CHAT_NOTEBOOK_DEPTH}. */
-export function getChatNotebookProfile(): NotebookDepthProfile {
-  return PROFILES[CHAT_NOTEBOOK_DEPTH];
+const CHAT_NOTEBOOK_PROFILE: ChatNotebookProfile = {
+  searchLimit: 40,
+  sortLimit: { single: 40, multi: 60 },
+  rerankInput: 40,
+  rerankOutput: 18,
+};
+
+export function getChatNotebookProfile(): ChatNotebookProfile {
+  return CHAT_NOTEBOOK_PROFILE;
 }
 
 /**

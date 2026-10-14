@@ -9,7 +9,7 @@
  * Aus der Guideline zurückgerechnet: Satzmaß ~0,76 der Blattbreite, Infotext
  * ~100 px, Introline ~34 px, Blockmitte leicht unterhalb der Blattmitte.
  *
- * Spiegelbild von apps/api/routes/sharepic/sharepic_canvas/at/info_at_canvas.ts.
+ * Übernommen vom inzwischen entfernten serverseitigen Info-AT-Renderer.
  */
 
 import { getBrandTheme } from '../brand/theme';

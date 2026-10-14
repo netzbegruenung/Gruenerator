@@ -68,6 +68,7 @@ const TOOL_COUNT_LABELS: Record<string, readonly [singular: string, plural: stri
   rezept_laden: ['Rezept geladen', 'Rezepte geladen'],
   text_uebersetzen: ['Übersetzung', 'Übersetzungen'],
   create_pdf: ['PDF', 'PDFs'],
+  create_explainable: ['Explainable', 'Explainables'],
   create_board: ['Board', 'Boards'],
   umfragen: ['Umfrage', 'Umfragen'],
   memory: ['Erinnerung', 'Erinnerungen'],
@@ -120,6 +121,7 @@ export const DEEP_TOOL_MAP: Record<string, string> = {
  */
 export const ARTIFACT_STAGE_INTENTS: ReadonlySet<string> = new Set([
   'create_pdf',
+  'create_explainable',
   'create_presentation',
   'create_sheet',
   'create_board',
@@ -136,6 +138,7 @@ export const ARTIFACT_STAGE_INTENTS: ReadonlySet<string> = new Set([
  */
 export const ARTIFACT_TOOL_NAMES: ReadonlySet<string> = new Set([
   'create_pdf',
+  'create_explainable',
   'create_presentation',
   'create_sheet',
   'create_document',

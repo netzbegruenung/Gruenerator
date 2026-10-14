@@ -146,11 +146,22 @@ export function urheberOf(descriptor: string, docType: string): string[] {
   return found;
 }
 
-/** Ausschuss-Kürzel und Sitzungsnummer aus „17.09.2026 92.AHeiKo S.1, 4". */
-export function ausschussOf(trailer: string): { gremium: string; sitzung: number } | null {
+/**
+ * Ausschuss-Kürzel einer Sitzungsangabe. Eine gemeinsame Sitzung steht als
+ * „HFA/52.HFA/UAP" — je Ausschuss Kürzel und dessen Sitzungsnummer, und ein
+ * Unterausschuss trägt selbst einen Schrägstrich (HFA/UAP). Geteilt wird
+ * deshalb nur vor einer Nummer.
+ */
+export function gremienOf(raw: string): string[] {
+  const parts = raw.split(/\/\s*\d+\.\s*/).map((g) => g.trim().toLocaleUpperCase('de-DE'));
+  return [...new Set(parts.filter(Boolean))];
+}
+
+/** Ausschüsse und erste Sitzungsnummer aus „17.09.2026 92.AHeiKo S.1, 4". */
+export function ausschussOf(trailer: string): { gremien: string[]; sitzung: number } | null {
   const m = /\d{2}\.\d{2}\.\d{4}\s+(\d+)\.\s*(.+?)\s+S\.\s*\d/.exec(trailer);
   if (!m) return null;
-  return { sitzung: Number(m[1]), gremium: m[2].trim().toLocaleUpperCase('de-DE') };
+  return { sitzung: Number(m[1]), gremien: gremienOf(m[2]) };
 }
 
 /**
@@ -253,15 +264,65 @@ export function documentIdOf(entry: Pick<LandtagListEntry, 'recordId'>): string 
 }
 
 /**
+ * Das Verfahren (Vorgang) der Parlamentsdatenbank: `recordId` ist
+ * `<Vorgang>/<Position>`, und alle Dokumente eines Verfahrens — Gesetzentwurf,
+ * Änderungsanträge, Beschlussempfehlung, Entschließungsantrag, Plenar- und
+ * Ausschuss-TOPs — tragen dasselbe Präfix (#4307).
+ */
+export function vorgangIdOf(recordId: string): string {
+  return recordId.split('/')[0] ?? recordId;
+}
+
+/**
+ * Die Drucksache, auf die sich ein Treffer bezieht: „Entschließungsantrag CDU,
+ * GRÜNE zu GesEntw LRg Drs 18/14581 …" → `18/14581`.
+ *
+ * Nur eine Nummer mit Drucksachen-Kennung zählt. Vorlagen, Zuschriften,
+ * Informationen und Übersichten („zu Vorl 18/1785") haben eigene Nummernkreise:
+ * Vorlage 18/1785 ist nicht Drucksache 18/1785, und deren Titel wäre ein falscher
+ * Bezug. Ohne „Drs" steht die Nummer nur hinter einem Drucksachentyp
+ * („zu Antr SPD 18/7709").
+ */
+export function bezugOf(descriptor: string): string | null {
+  const zu = descriptor.search(/\bzu\s/);
+  if (zu === -1) return null;
+  const rest = descriptor.slice(zu);
+  return (
+    /\b(?:Drs|Drucksache|Dr)\.?\s*(\d+\/\d+)/.exec(rest)?.[1] ??
+    /^zu\s+(?:Antr|GesEntw|Wahlvorschlag)\b[^\d/]*?(\d+\/\d+)/.exec(rest)?.[1] ??
+    null
+  );
+}
+
+const titleKey = (s: string): string =>
+  s
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
+    .toLocaleLowerCase('de-DE');
+
+/**
  * Kopf vor dem PDF-Text: Titel als Überschrift, dazu was nur in der Datenbank
  * steht — Bezug, Inhaltsangabe, Beschluss mit Abstimmungsergebnis, Redner*innen.
  * Er landet im ersten Chunk, damit die Suche auch diese Angaben trifft.
+ *
+ * `bezugTitel` ist der Titel der Drucksache aus {@link bezugOf}. Ein
+ * Entschließungsantrag trägt meist einen eigenen Titel, beraten wird er aber
+ * unter dem Wortlaut des Ursprungs-TOPs. Bei einer Frage zu seinem Thema stand
+ * er vor dieser Zeile in 38 von 117 Fällen unter den ersten zehn Dokumenten,
+ * danach in 43 von 118 (gemessen am Bestand, Oktober 2026). Der größere Hebel
+ * liegt in der Suche, siehe #4307. Trägt der Treffer den Bezugstitel schon selbst
+ * (Änderungsanträge, Beschlussempfehlungen), entfällt die Zeile.
  */
-export function headerTextOf(entry: LandtagListEntry, part: LandtagPart): string {
+export function headerTextOf(
+  entry: LandtagListEntry,
+  part: LandtagPart,
+  bezugTitel: string | null
+): string {
   const lines = [`# ${entry.title}`, ''];
   const datum = entry.publishedAt ? ` vom ${entry.publishedAt.split('-').reverse().join('.')}` : '';
   lines.push(`${LANDTAG_PART_LABELS[part]} ${entry.documentNumber}${datum} (Landtag NRW)`);
   if (entry.descriptor) lines.push(entry.descriptor);
+  if (bezugTitel && titleKey(bezugTitel) !== titleKey(entry.title)) lines.push(`Zu: ${bezugTitel}`);
   if (entry.abstract) lines.push('', entry.abstract);
   if (entry.beschluss) lines.push('', `Beschluss: ${entry.beschluss}`);
   if (entry.redner.length > 0)
@@ -280,6 +341,7 @@ export function documentPayloadOf(
   return {
     document_id: documentIdOf(entry),
     record_id: entry.recordId,
+    vorgang_id: vorgangIdOf(entry.recordId),
     title: entry.title,
     source_url: entry.pdfUrl,
     source: LANDTAG_NRW_SOURCE,
@@ -288,12 +350,15 @@ export function documentPayloadOf(
     content_type: part,
     doc_type: docType,
     document_number: entry.documentNumber,
+    // Die Drucksache, zu der dieser Treffer gehört — `dependentExpansion.ts`
+    // holt ihn darüber hinter seinen Ursprung.
+    bezug: bezugOf(entry.descriptor),
     published_at: entry.publishedAt,
     primary_category: politikfelderOf(entry.systematik),
     subcategories: entry.systematik,
     keywords: entry.schlagworte,
     party: part === 'drucksache' ? urheberOf(entry.descriptor, docType) : [],
-    gremium: ausschuss ? [ausschuss.gremium] : [],
+    gremium: ausschuss?.gremien ?? [],
     redner: entry.redner.map(speakerName),
     beschluss: entry.beschluss,
     ...filterFieldsOf({

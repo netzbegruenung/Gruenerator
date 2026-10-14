@@ -26,8 +26,10 @@
  * `compoundGenerationKind` tries the patterns in when it has to recover the kind
  * from the text: concrete products first, generic "Dokument" last (it is the
  * fallback artifact), and `pdf` ahead of `document` because "PDF-Dokument"
- * names both nouns but means a PDF. The dispatch order of the single-pass
- * create routes is a DIFFERENT order and is stated where it is used.
+ * names both nouns but means a PDF. `explainable` sits between them for the
+ * same reason: it is a concrete product, `document` stays the fallback. The
+ * dispatch order of the single-pass create routes is a DIFFERENT order and is
+ * stated where it is used.
  *
  * What deliberately does NOT live here:
  *  - `ARTIFACT_NOUN_BY_KIND` / `ForbiddableArtifact` (fastPathGuards) answer a
@@ -53,6 +55,7 @@ import {
 import {
   creationOrderPattern,
   dictatesInlineTableColumns,
+  EXPLAINABLE_ORDER_PATTERN,
   type ForbiddableArtifact,
   PDF_ORDER_PATTERN,
 } from '../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
@@ -168,6 +171,18 @@ export const ARTIFACT_KINDS = [
       'i'
     ),
     label: 'PDF',
+    extraGuard: null,
+  },
+  {
+    id: 'explainable',
+    intent: 'create_explainable',
+    mentionToken: ARTIFACT_CREATE_TOKENS.explainable,
+    loopToolName: 'create_explainable',
+    forbiddableFamily: 'explainable',
+    // Dieselbe Regel wie die Klassifikator-Regel `create_explainable`. Vor
+    // `document`, weil das generische Dokument der Auffang ist.
+    createPattern: EXPLAINABLE_ORDER_PATTERN,
+    label: 'Explainable',
     extraGuard: null,
   },
   {

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { flux3BoxEditSchema, flux3LayoutRowSchema } from './flux3Boxes.js';
+import { flux3BoxEditSchema, flux3DetectedElementSchema } from './flux3Boxes.js';
 import { imageModelIdSchema } from './imageModelPreference.js';
 import { treeBudgetStatusSchema } from './trees.js';
 
@@ -66,7 +66,7 @@ export const imageEditElementsBodySchema = z.object({
 
 export const imageEditElementsSuccessSchema = z.object({
   success: z.literal(true),
-  elements: z.array(flux3LayoutRowSchema),
+  elements: z.array(flux3DetectedElementSchema),
 });
 
 export const imageEditSuccessSchema = z.object({

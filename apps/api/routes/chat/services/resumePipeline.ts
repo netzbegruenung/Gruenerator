@@ -37,6 +37,7 @@ import { getContextWindow } from '../agents/providers.js';
 
 import { runToolApprovalResume } from './agenticLoop/approvalResume.js';
 import { runClarificationLoopResume } from './agenticLoop/clarificationResume.js';
+import { runClientToolLoopResume } from './agenticLoop/clientToolResume.js';
 import { ARTIFACT_CONFIRMATION_TEXTS, buildSharepicConfirmation } from './artifactConfirmations.js';
 import { injectImageAttachments } from './attachmentProcessingService.js';
 import { persistComputeAssets } from './computeAssetStorage.js';
@@ -139,6 +140,26 @@ export async function runChatGraphResume({
         userId: approvalUser.id,
         ...(resumeInput.approvalTurnId != null && { approvalTurnId: resumeInput.approvalTurnId }),
         decisions: resumeInput.decisions,
+        fail: (message, code) => ({
+          handled: true as const,
+          ...sseFail(sse, message, { code }),
+        }),
+      });
+      return { status: result.status, body: result.body };
+    }
+    // Browser-Werkzeug eines Loop-Zuges (`check_sharepic` → `render_sharepic`):
+    // eigener Zustand, eigene agentische Fortsetzung — wie die Loop-Rückfrage.
+    if (resumeInput.kind === 'client_tool' && resumeInput.toolName === 'render_sharepic') {
+      const clientToolUser = getUser(req);
+      if (!clientToolUser?.id) {
+        return sseFail(sse, PROGRESS_MESSAGES.unauthorized, { code: 'unauthorized' });
+      }
+      const result = await runClientToolLoopResume({
+        req,
+        sse,
+        threadId,
+        userId: clientToolUser.id,
+        result: resumeInput.result,
         fail: (message, code) => ({
           handled: true as const,
           ...sseFail(sse, message, { code }),
@@ -429,7 +450,6 @@ export async function runChatGraphResume({
         forcedTool: requestContext.forcedTool,
         ...(requestContext.enabledTools != null && { enabledTools: requestContext.enabledTools }),
         imageAttachments: requestContext.imageAttachments ?? [],
-        req,
       });
 
       const fullText =
@@ -639,16 +659,25 @@ export async function runChatGraphResume({
     const validMessages = requestContext.validMessages;
     // Recomputed rather than carried in StoredRequestContext: that struct is
     // persisted to Redis, so entries written before this change would arrive
-    // without the field for the whole 10-minute TTL window.
-    const prunedValidMessages = pruneMessages(validMessages, getContextWindow(modelId));
-    let messagesForAI = buildMessagesForAI(systemMessage, prunedValidMessages);
-    if (resumeImagesVisible) {
-      messagesForAI = injectImageAttachments(
-        messagesForAI as Parameters<typeof injectImageAttachments>[0],
-        resumeImageAttachments,
-        resumeRequestId
+    // without the field for the whole 10-minute TTL window. Against the
+    // RESOLVED lane's window, as on the single-pass path: for `auto`,
+    // getContextWindow(modelId) is the 32k default, which cut a resumed turn's
+    // history to ~20k tokens on a 128k or 262k lane.
+    const resumeWindow = resolution2.contextWindow ?? getContextWindow(modelId);
+    const assembleMessages = (contextWindow: number) => {
+      const built = buildMessagesForAI(
+        systemMessage,
+        pruneMessages(validMessages, contextWindow, systemMessage)
       );
-    }
+      return resumeImagesVisible
+        ? injectImageAttachments(
+            built as Parameters<typeof injectImageAttachments>[0],
+            resumeImageAttachments,
+            resumeRequestId
+          )
+        : built;
+    };
+    const messagesForAI = assembleMessages(resumeWindow);
     const userText = lastUserText(validMessages);
     const traceInput = userText ?? '';
 
@@ -670,11 +699,12 @@ export async function runChatGraphResume({
           primary: resolution2,
           sse,
           logPrefix: '[ChatGraph:Resume]',
-          buildStream: async (r) =>
+          messages: { primary: messagesForAI, window: resumeWindow, rebuild: assembleMessages },
+          buildStream: async (r, messages) =>
             // No output cap (OpenWebUI-style) — see chatGraphContractRouter.
             streamForResolution({
               resolution: r,
-              messages: messagesForAI,
+              messages,
               temperature: finalState.agentConfig.params.temperature,
               sse,
               logPrefix: '[ChatGraph:Resume]',

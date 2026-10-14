@@ -19,19 +19,25 @@
  * hidden page and gets a PNG back. `parseHostMessage` is that direction's
  * parser, with the same discipline.
  *
- * Hand-written rather than a zod schema. NOT because the file is
- * dependency-free — it is not: `apps/mobile` imports it through the
- * `@gruenerator/shared` root barrel, which pulls in `./api` → contracts → zod,
- * so zod is already in the mobile bundle. The reason is narrower: `shared`
- * uses zod in two files without declaring it, and adding a third undeclared
- * import would extend that. Declaring it properly is a lockfile change; worth
- * doing, but not from inside this PR.
+ * The small messages are checked by hand. The creator messages carry a whole
+ * sharepic spec, so those fields go through the contracts' own zod schemas —
+ * a hand-written check of that shape would drift from the one the server uses.
  *
  * What the parser must keep either way is the property the tests pin:
  * every branch RECONSTRUCTS its message instead of passing the candidate
  * through, and unknown fields are dropped rather than rejected — an older app
  * binary has to keep understanding a newer page.
  */
+
+import {
+  sharepicPatchOpSchema,
+  sharepicPhotoAttributionSchema,
+  type SharepicPatchOp,
+  type SharepicPhotoAttribution,
+  type SharepicSpec,
+  sharepicSpecSchema,
+} from '@gruenerator/contracts';
+import { z } from 'zod';
 
 /**
  * Largest `DOWNLOAD_FILE` payload the host will accept, in base64 characters
@@ -56,6 +62,64 @@ export const WEBVIEW_DOWNLOAD_MAX_BASE64_LENGTH = 12 * 1024 * 1024;
  * rather than waiting out a timeout on replies it cannot parse.
  */
 export const WEBVIEW_PROTOCOL_VERSION = 1;
+
+/**
+ * What a render page can do beyond plain renders, announced in
+ * `RENDER_HOST_READY`. Additive on purpose: a new message must not bump
+ * `WEBVIEW_PROTOCOL_VERSION`, which shipped binaries compare strictly — an old
+ * page simply announces nothing, and the host leaves the feature off.
+ */
+export const RENDER_CAPABILITY_CREATOR = 'creator';
+
+/**
+ * Where a host announces what it can do for an embedded page. The host sets it
+ * before the page's scripts run; a page must only send a message that needs a
+ * capability when the capability is listed — an older binary sets nothing and
+ * would silently drop the message.
+ */
+export const HOST_CAPABILITIES_GLOBAL = '__GRUENERATOR_HOST_CAPS__';
+
+/** The host opens the native share sheet for a `SHARE_FILE`. */
+export const HOST_CAPABILITY_SHARE = 'share';
+
+/**
+ * The host sends `REQUEST_CLOSE` on Android's hardware back instead of popping
+ * the screen, once the page has announced `CLOSE_HANDLER`.
+ */
+export const HOST_CAPABILITY_REQUEST_CLOSE = 'requestClose';
+
+/** The script a host injects to announce `capabilities`; ends in `true` as WebView injection expects. */
+export function hostCapabilitiesScript(capabilities: readonly string[]): string {
+  return `window.${HOST_CAPABILITIES_GLOBAL} = ${JSON.stringify(capabilities)}; true;`;
+}
+
+/** One design variation of a creator draft as it crosses the bridge. */
+export const creatorTweakWireSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  value: z.string().nullable(),
+  options: z.array(
+    z.object({
+      value: z.string(),
+      label: z.string(),
+      short: z.string(),
+      disabled: z.boolean(),
+      swatch: z.array(z.string()).nullable(),
+    })
+  ),
+});
+export type CreatorTweakWire = z.infer<typeof creatorTweakWireSchema>;
+
+const creatorAttributionsSchema = z.array(sharepicPhotoAttributionSchema.nullable());
+const creatorPatchSchema = z.array(sharepicPatchOpSchema).nullable();
+const creatorChoiceSchema = z.record(z.string(), z.string());
+const creatorTweaksSchema = z.array(creatorTweakWireSchema);
+
+/** A rendered image on the string channel: a data URL under the download ceiling. */
+const isImageDataUrl = (value: unknown): value is string =>
+  typeof value === 'string' &&
+  value.startsWith('data:image/') &&
+  value.length <= WEBVIEW_DOWNLOAD_MAX_BASE64_LENGTH;
 
 /** Sent by the embedded page to its native host. */
 export type WebViewOutboundMessage =
@@ -91,6 +155,19 @@ export type WebViewOutboundMessage =
     }
   | {
       /**
+       * A file the user wants to share rather than save. Same payload and cap
+       * as `DOWNLOAD_FILE`; the host always opens the share sheet. Only sent
+       * when the host announced `HOST_CAPABILITY_SHARE`.
+       */
+      type: 'SHARE_FILE';
+      filename: string;
+      mime: string;
+      data: string;
+      title?: string;
+      text?: string;
+    }
+  | {
+      /**
        * Present mode opened (`true`) or closed (`false`). A phone app is
        * portrait-only, which letterboxes a 16:9 deck to a quarter of the screen;
        * while this is `true` the host lets the screen rotate and gives up its
@@ -102,6 +179,16 @@ export type WebViewOutboundMessage =
     }
   | {
       /**
+       * The page has unsaved state to flush before it may be torn down
+       * (`true`), or no longer has (`false`). While `true` the host answers
+       * hardware back with `REQUEST_CLOSE` and waits for `CLOSE`. Only sent
+       * when the host announced `HOST_CAPABILITY_REQUEST_CLOSE`.
+       */
+      type: 'CLOSE_HANDLER';
+      active: boolean;
+    }
+  | {
+      /**
        * The render page has mounted and its fonts are loaded. Until this
        * arrives the host holds requests back — a canvas rendered before
        * `document.fonts` settles comes out in fallback type, and a wrong
@@ -109,6 +196,8 @@ export type WebViewOutboundMessage =
        */
       type: 'RENDER_HOST_READY';
       protocolVersion: number;
+      /** See `RENDER_CAPABILITY_CREATOR`. The parser fills `[]` for an older page. */
+      capabilities?: string[];
     }
   | {
       /** A finished render, answering exactly one `RENDER_REQUEST`. */
@@ -138,6 +227,22 @@ export type WebViewOutboundMessage =
       format?: string;
       /** Canvas title derived from the creator spec. */
       title?: string;
+    }
+  | {
+      /**
+       * One creator turn rendered, answering one `CREATOR_RENDER_REQUEST`.
+       * `base` is the draft with the review patch applied, `spec` that draft
+       * with the design choices. Failures come back as `RENDER_ERROR`.
+       */
+      type: 'CREATOR_RENDER_RESULT';
+      requestId: string;
+      base: SharepicSpec;
+      spec: SharepicSpec;
+      tweaks: CreatorTweakWire[];
+      /** Every slide in order, as data URLs. */
+      images: string[];
+      /** The review's contact sheet; null unless the request asked for one. */
+      sheet: string | null;
     };
 
 export type WebViewOutboundMessageType = WebViewOutboundMessage['type'];
@@ -154,6 +259,27 @@ export type WebViewInboundMessage =
       requestId: string;
       canvasType: string;
       initialProps: Record<string, unknown>;
+    }
+  | {
+      /**
+       * Run one turn of the free-text creator's rendering: apply the review
+       * patch to `base`, the design `choice` to the result, compose, render
+       * every slide and, with `sheet`, build the review's contact sheet.
+       */
+      type: 'CREATOR_RENDER_REQUEST';
+      requestId: string;
+      base: SharepicSpec;
+      attributions: (SharepicPhotoAttribution | null)[];
+      patch: SharepicPatchOp[] | null;
+      choice: Record<string, string>;
+      sheet: boolean;
+    }
+  | {
+      /**
+       * The user pressed hardware back. The page flushes what it announced in
+       * `CLOSE_HANDLER` and answers with `CLOSE`.
+       */
+      type: 'REQUEST_CLOSE';
     };
 
 type WebViewRenderRequest = {
@@ -230,6 +356,13 @@ interface ReactNativeWebViewHost {
   postMessage: (message: string) => void;
 }
 
+/** True when the native host announced `capability`; see `HOST_CAPABILITIES_GLOBAL`. */
+export function hostSupports(capability: string): boolean {
+  if (nativeHost() === null) return false;
+  const announced = (window as unknown as Record<string, unknown>)[HOST_CAPABILITIES_GLOBAL];
+  return Array.isArray(announced) && announced.includes(capability);
+}
+
 function nativeHost(): ReactNativeWebViewHost | null {
   if (typeof window === 'undefined') return null;
   const host = (window as { ReactNativeWebView?: ReactNativeWebViewHost }).ReactNativeWebView;
@@ -274,7 +407,7 @@ export function parseWebViewMessage(raw: unknown): WebViewOutboundMessage | null
   // branch narrows on its own (repo convention for discriminated unions).
   if (type === 'CLOSE') return { type: 'CLOSE' };
   if (type === 'SESSION_LOST') return { type: 'SESSION_LOST' };
-  if (type === 'DOWNLOAD_FILE') {
+  if (type === 'DOWNLOAD_FILE' || type === 'SHARE_FILE') {
     const filename = (candidate as { filename?: unknown }).filename;
     const mime = (candidate as { mime?: unknown }).mime;
     const data = (candidate as { data?: unknown }).data;
@@ -286,17 +419,32 @@ export function parseWebViewMessage(raw: unknown): WebViewOutboundMessage | null
     // this size to answer a question the host's decoder answers anyway would cost
     // more than it protects. The host treats a decode failure as a failed
     // download.
-    return { type: 'DOWNLOAD_FILE', filename, mime, data };
+    if (type === 'DOWNLOAD_FILE') return { type: 'DOWNLOAD_FILE', filename, mime, data };
+    const title = (candidate as { title?: unknown }).title;
+    const text = (candidate as { text?: unknown }).text;
+    return {
+      type: 'SHARE_FILE',
+      filename,
+      mime,
+      data,
+      ...(typeof title === 'string' && { title }),
+      ...(typeof text === 'string' && { text }),
+    };
   }
-  if (type === 'PRESENTING') {
+  if (type === 'PRESENTING' || type === 'CLOSE_HANDLER') {
     const active = (candidate as { active?: unknown }).active;
     if (typeof active !== 'boolean') return null;
-    return { type: 'PRESENTING', active };
+    return { type, active };
   }
   if (type === 'RENDER_HOST_READY') {
     const protocolVersion = (candidate as { protocolVersion?: unknown }).protocolVersion;
     if (typeof protocolVersion !== 'number' || !Number.isFinite(protocolVersion)) return null;
-    return { type: 'RENDER_HOST_READY', protocolVersion };
+    const announced = (candidate as { capabilities?: unknown }).capabilities;
+    const capabilities =
+      Array.isArray(announced) && announced.every((c) => typeof c === 'string')
+        ? [...(announced as string[])]
+        : [];
+    return { type: 'RENDER_HOST_READY', protocolVersion, capabilities };
   }
   if (type === 'RENDER_RESULT') {
     const requestId = (candidate as { requestId?: unknown }).requestId;
@@ -330,6 +478,29 @@ export function parseWebViewMessage(raw: unknown): WebViewOutboundMessage | null
       ...(typeof title === 'string' && { title }),
     };
   }
+  if (type === 'CREATOR_RENDER_RESULT') {
+    const requestId = (candidate as { requestId?: unknown }).requestId;
+    const images = (candidate as { images?: unknown }).images;
+    const sheet = (candidate as { sheet?: unknown }).sheet;
+    if (typeof requestId !== 'string' || requestId.length === 0) return null;
+    if (!Array.isArray(images) || images.length === 0 || !images.every(isImageDataUrl)) {
+      return null;
+    }
+    if (sheet !== null && !isImageDataUrl(sheet)) return null;
+    const base = sharepicSpecSchema.safeParse((candidate as { base?: unknown }).base);
+    const spec = sharepicSpecSchema.safeParse((candidate as { spec?: unknown }).spec);
+    const tweaks = creatorTweaksSchema.safeParse((candidate as { tweaks?: unknown }).tweaks);
+    if (!base.success || !spec.success || !tweaks.success) return null;
+    return {
+      type: 'CREATOR_RENDER_RESULT',
+      requestId,
+      base: base.data,
+      spec: spec.data,
+      tweaks: tweaks.data,
+      images: [...(images as string[])],
+      sheet,
+    };
+  }
   if (type === 'RENDER_ERROR') {
     const requestId = (candidate as { requestId?: unknown }).requestId;
     const reason = (candidate as { reason?: unknown }).reason;
@@ -358,6 +529,29 @@ export function parseHostMessage(raw: unknown): WebViewInboundMessage | null {
   }
   if (typeof candidate !== 'object' || candidate === null) return null;
   const type = (candidate as { type?: unknown }).type;
+  if (type === 'REQUEST_CLOSE') return { type: 'REQUEST_CLOSE' };
+  if (type === 'CREATOR_RENDER_REQUEST') {
+    const requestId = (candidate as { requestId?: unknown }).requestId;
+    const sheet = (candidate as { sheet?: unknown }).sheet;
+    if (typeof requestId !== 'string' || requestId.length === 0) return null;
+    if (typeof sheet !== 'boolean') return null;
+    const base = sharepicSpecSchema.safeParse((candidate as { base?: unknown }).base);
+    const attributions = creatorAttributionsSchema.safeParse(
+      (candidate as { attributions?: unknown }).attributions
+    );
+    const patch = creatorPatchSchema.safeParse((candidate as { patch?: unknown }).patch);
+    const choice = creatorChoiceSchema.safeParse((candidate as { choice?: unknown }).choice);
+    if (!base.success || !attributions.success || !patch.success || !choice.success) return null;
+    return {
+      type: 'CREATOR_RENDER_REQUEST',
+      requestId,
+      base: base.data,
+      attributions: attributions.data,
+      patch: patch.data,
+      choice: choice.data,
+      sheet,
+    };
+  }
   if (type !== 'RENDER_REQUEST' && type !== 'COMPOSE_REQUEST') return null;
   const requestId = (candidate as { requestId?: unknown }).requestId;
   const canvasType = (candidate as { canvasType?: unknown }).canvasType;

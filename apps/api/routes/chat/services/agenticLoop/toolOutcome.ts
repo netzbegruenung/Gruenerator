@@ -47,10 +47,21 @@ function capMcpContent(content: string): string {
  * sources block; repeating it here would double it in the prompt.
  */
 export function buildToolFailureNote(steps: PersistedStep[]): string {
-  const failed = steps
-    .filter((s) => !s.serverName)
-    .map((s) => ({ step: s, view: readMcpResult(s.result) }))
-    .filter(({ view }) => !view.ok);
+  const native = steps.filter((s) => !s.serverName);
+  // A failure a later call of the same tool made good is no failure of the turn:
+  // live 11.10.2026 create_board timed out, the retry built the board, and the
+  // answer still apologised for it (#4458).
+  // Same tool AND same arguments: one call can target different things
+  // (`documents` on doc A, then doc B), and a success on B must not hide A.
+  const sameCall = (a: PersistedStep, b: PersistedStep) =>
+    a.toolName === b.toolName && JSON.stringify(a.args ?? {}) === JSON.stringify(b.args ?? {});
+  const recovered = (i: number) =>
+    native
+      .slice(i + 1)
+      .some((later) => sameCall(later, native[i]) && readMcpResult(later.result).ok);
+  const failed = native
+    .map((s, i) => ({ step: s, view: readMcpResult(s.result), i }))
+    .filter(({ view, i }) => !view.ok && !recovered(i));
   if (failed.length === 0) return '';
   const lines = failed.map(
     ({ step, view }) => `- ${step.toolName}: FEHLGESCHLAGEN — ${String(view.error).slice(0, 200)}`
@@ -164,6 +175,15 @@ export function buildMcpOutcomeNote(steps: PersistedStep[]): string {
 const PAYLOAD_TOOLS: Record<string, { field: string; label: string }> = {
   summarize: { field: 'summary', label: 'Zusammenfassung der angehängten Dokumente' },
   product_knowledge: { field: 'knowledge', label: 'Wissen über den Grünerator' },
+  read_sharepic: { field: 'beschreibung', label: 'Inhalt und Gestaltung des Sharepics' },
+  read_sheet: { field: 'inhalt', label: 'Inhalt der Tabelle' },
+  edit_sheet: { field: 'note', label: 'Tabellen-Änderung' },
+  read_presentation: { field: 'inhalt', label: 'Folien der Präsentation' },
+  edit_presentation: { field: 'note', label: 'Präsentations-Änderung' },
+  read_explainable: { field: 'inhalt', label: 'Inhalt des Explainables' },
+  edit_explainable: { field: 'note', label: 'Explainable-Änderung' },
+  read_document: { field: 'inhalt', label: 'Wortlaut des Dokuments' },
+  edit_document_text: { field: 'note', label: 'Dokument-Änderung' },
 };
 
 /** Wie `MCP_CONTENT_CAP`, und aus demselben Grund: die Regel unten verlangt,

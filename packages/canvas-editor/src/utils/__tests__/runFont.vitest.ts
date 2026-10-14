@@ -19,6 +19,13 @@ describe('runFont', () => {
     });
   });
 
+  it('an own accent colour only colours: the run keeps the block font', () => {
+    const accent = { fill: '#FCEC00', fontFamily: 'Vollkorn', fontStyle: 'bold italic' as const };
+    expect(
+      runFont('GothamNarrow-Ultra', 'normal', { ...accentRun, accentColor: '#0BA1DD' }, accent)
+    ).toEqual({ fontFamily: 'GothamNarrow-Ultra', fontStyle: 'normal' });
+  });
+
   it('keeps `bold italic` for a whole Vollkorn block', () => {
     expect(runFont('Vollkorn', 'bold italic', PLAIN_STYLE, null).fontStyle).toBe('bold italic');
   });
@@ -31,6 +38,21 @@ describe('runFont', () => {
     expect(runFont('GrueneTypeNeue', 'bold italic', PLAIN_STYLE, null).fontStyle).toBe('italic');
     expect(runFont('PT Sans', 'bold', { ...PLAIN_STYLE, italic: true }, null).fontStyle).toBe(
       'italic'
+    );
+  });
+
+  it('sets a bold Gotham Book run in the Gotham Bold cut, upright', () => {
+    const bold = { ...PLAIN_STYLE, bold: true };
+    expect(runFont('GothamNarrow-Book', 'normal', bold, null)).toEqual({
+      fontFamily: 'GothamNarrow-Bold',
+      fontStyle: 'normal',
+    });
+    expect(runFont('GothamNarrow-Book', 'bold', PLAIN_STYLE, null)).toEqual({
+      fontFamily: 'GothamNarrow-Bold',
+      fontStyle: 'normal',
+    });
+    expect(runFont('GothamNarrow-Book', 'normal', PLAIN_STYLE, null).fontFamily).toBe(
+      'GothamNarrow-Book'
     );
   });
 });

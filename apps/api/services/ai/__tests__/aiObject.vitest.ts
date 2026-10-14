@@ -158,7 +158,7 @@ describe('aiObject', () => {
 
     await aiObject({ ...base, validate: gate });
 
-    expect(gate).toHaveBeenCalledWith({ title: 'Aus Text' });
+    expect(gate).toHaveBeenCalledWith({ title: 'Aus Text' }, 1, 2);
   });
 
   it('carries the validation error from a TEXT answer into the repair turn', async () => {
@@ -317,6 +317,32 @@ describe('aiObject', () => {
     const result = await aiObject(base);
 
     expect(result).toEqual({ ok: true, data: { title: 'Nach dem Fehler' } });
+  });
+
+  it('tells validate which model attempt it checks, not how often it ran', async () => {
+    // Attempt 1 has no candidate at all, attempt 2 two (the fenced array and its object).
+    answering(
+      { content: 'keine Ahnung', success: true, stop_reason: 'end_turn' },
+      { content: '```json\n[{"subtitle":"b"}]\n```', success: true, stop_reason: 'end_turn' },
+      toolCall({ title: 'Drei' })
+    );
+    const seen: [number, number][] = [];
+
+    const result = await aiObject({
+      ...base,
+      attempts: 3,
+      validate: (input, attempt, attempts) => {
+        seen.push([attempt, attempts]);
+        return validate(input);
+      },
+    });
+
+    expect(result).toEqual({ ok: true, data: { title: 'Drei' } });
+    expect(seen).toEqual([
+      [2, 3],
+      [2, 3],
+      [3, 3],
+    ]);
   });
 
   it('reads the tool call out of raw content blocks too', async () => {

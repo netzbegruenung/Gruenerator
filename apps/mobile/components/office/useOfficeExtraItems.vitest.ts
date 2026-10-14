@@ -51,6 +51,25 @@ describe('toOfficeItems', () => {
     expect(item.thumbnailUrl).toBeUndefined();
   });
 
+  it('reads board type and preview from object or JSON-text content', () => {
+    const preview = { notes: ['Idee'] };
+    const [asObject, asText] = toOfficeItems(
+      [
+        { ...board, content: { board_type: 'whiteboard', preview } },
+        { ...board, id: 'b2', content: JSON.stringify({ preview: { columns: [] } }) },
+      ],
+      []
+    );
+    expect(asObject).toMatchObject({ boardType: 'whiteboard', boardPreview: preview });
+    expect(asText).toMatchObject({ boardType: 'kanban', boardPreview: { columns: [] } });
+  });
+
+  it('treats non-JSON board content as no preview instead of throwing', () => {
+    const [item] = toOfficeItems([{ ...board, content: '<blockgroup>…' }], []);
+    expect(item.boardType).toBe('kanban');
+    expect('boardPreview' in item).toBe(false);
+  });
+
   it('returns an empty list when both sources failed', () => {
     expect(toOfficeItems([], [])).toEqual([]);
   });

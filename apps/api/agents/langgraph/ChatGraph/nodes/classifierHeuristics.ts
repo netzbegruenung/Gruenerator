@@ -26,14 +26,17 @@ import {
   type ClassifierRule,
 } from './analyzedMessage.js';
 import {
+  asksForDesignVorlagen,
   CLASSIFIER_CONTEXT_MESSAGES,
   CLASSIFIER_CONTEXT_MAX_CHARS,
   looksLikeGeltungsfrage,
 } from './classifierSignals.js';
 import {
+  ARTIFACT_NOUN_BY_KIND,
   asksForSharepic,
   creationOrderPattern,
   dictatesInlineTableColumns,
+  EXPLAINABLE_ORDER_PATTERN,
   hasExplicitSharepicWord,
   isNegatedArtifactRequest,
   negatedOrMeta,
@@ -181,6 +184,7 @@ export const INTENT_KEYWORDS: Record<
     | 'edit_sheet'
     | 'create_presentation'
     | 'create_pdf'
+    | 'create_explainable'
     // create_recurring_task is retired (09/2026): Tier 3.4 answers a recurring
     // order with `agentic` + pin on the `recurring_tasks` tool. Kept in the
     // union only because the enum value stays.
@@ -494,7 +498,7 @@ export function wantsImageResults(text: string): boolean {
 // the LLM's job. Only add stems for verbs frequent enough to justify
 // bypassing the LLM call.
 export const DOC_MODIFY_PATTERN =
-  /(?:^|\W)(aender|änder|bearbeit|ergaenz|ergänz|aktualisier|ueberarbeit|überarbeit|f(?:ü|ue)g(?:e)?\s+\S.{0,40}?\s+(?:hinzu|ein)|einf(?:ü|ue)g|vereinfach|umschreib|schreib\s+\S.{0,40}?\s+(?:um|neu)|kuerz|kürz|erweiter|verläng|verlaenger|ersetz|umformulier|formulier\s+\S.{0,40}?\s+(?:um|neu)|verbesser|korrigier|anpass|pass\s+\S.{0,40}?\s+an|entfern|loesch|lösch|streich|(?:ü|ue)bersetz|mach\s+\S.{0,40}?\s+(?:k(?:ü|ue)rzer|l(?:ä|ae)nger|pr(?:ä|ae)ziser|kompakter|pr(?:ä|ae)gnanter|knackiger|schlagkr(?:ä|ae)ftiger|verst(?:ä|ae)ndlicher|freundlicher|formeller|pers(?:ö|oe)nlicher|fett|kursiv|unterstrichen|durchgestrichen|gr(?:ö|oe)(?:ss|ß)er|kleiner|farbig|bunt(?:er)?)|(?:fett|kursiv|unterstrichen|durchgestrichen|gr(?:ö|oe)(?:ss|ß)er|kleiner|farbig|bunt(?:er)?)\s+mach)/i;
+  /(?:^|\W)(aender|änder|bearbeit|ergaenz|ergänz|aktualisier|ueberarbeit|überarbeit|f(?:ü|ue)g(?:e)?\s+\S.{0,40}?\s+(?:hinzu|ein)|einf(?:ü|ue)g|vereinfach|umschreib|schreib\s+\S.{0,40}?\s+(?:um|neu)|kuerz|kürz|erweiter|verläng|verlaenger|ersetz|umformulier|formulier\s+\S.{0,40}?\s+(?:um|neu)|verbesser|korrigier|anpass|pass\s+\S.{0,40}?\s+an|entfern|loesch|lösch|streich|(?:sortier|verschieb)(?:e|en)?(?![a-zäöüß])|(?:ü|ue)bersetz|mach\s+\S.{0,40}?\s+(?:k(?:ü|ue)rzer|l(?:ä|ae)nger|pr(?:ä|ae)ziser|kompakter|pr(?:ä|ae)gnanter|knackiger|schlagkr(?:ä|ae)ftiger|verst(?:ä|ae)ndlicher|freundlicher|formeller|pers(?:ö|oe)nlicher|fett|kursiv|unterstrichen|durchgestrichen|gr(?:ö|oe)(?:ss|ß)er|kleiner|farbig|bunt(?:er)?)|(?:fett|kursiv|unterstrichen|durchgestrichen|gr(?:ö|oe)(?:ss|ß)er|kleiner|farbig|bunt(?:er)?)\s+mach)/i;
 
 /**
  * Board mutation verbs — the boards counterpart of {@link DOC_MODIFY_PATTERN}.
@@ -1417,6 +1421,22 @@ const HEURISTIC_RULES: ReadonlyArray<ClassifierRule<HeuristicResult>> = [
       confidence: 0.9,
     }),
   },
+  // Explainable: nur das Produkt-Nomen am Erstell-Verb. „Erklär mir X" ist eine
+  // Frage und bleibt eine normale Antwort; „Erklärbild"/„Infografik" benennen
+  // etwas anderes (siehe `EXPLAINABLE_NOUN`).
+  {
+    id: 'create_explainable',
+    longPaste: 'skip',
+    guard: 'negatedOrMeta',
+    guardNoun: ARTIFACT_NOUN_BY_KIND.explainable,
+    match: (m) => EXPLAINABLE_ORDER_PATTERN.test(m.stripped),
+    result: () => ({
+      intent: 'create_explainable',
+      searchQuery: null,
+      reasoning: 'Explainable creation request detected',
+      confidence: 0.9,
+    }),
+  },
   // Antwort als Dokument sichern. Das blosse "als Dokument" braucht einen
   // Speicher-Imperativ, sonst lösen Prosa-Erwähnungen aus ("gilt als Protokoll").
   {
@@ -1679,13 +1699,17 @@ const HEURISTIC_RULES: ReadonlyArray<ClassifierRule<HeuristicResult>> = [
     }),
   },
   // Vorlagen/Beispiele ANSEHEN — Plattform-Stichwort plus irgendein Aktionsverb.
+  // Oder eine Designfrage („hast du Designideen?", „welche Vorlage passt?"):
+  // sie braucht kein Verb, und erst über diese Regel bekommt der Loop den
+  // erzwungenen ersten Schritt, der `vorlagen_vorschlagen` auch wirklich ruft.
   {
     id: 'examples',
     longPaste: 'skip',
     guard: 'none',
     match: (m) =>
-      (EXAMPLE_NOUN_PATTERN.test(m.lower) || SOCIAL_TRIGGER_NOUN_PATTERN.test(m.lower)) &&
-      EXAMPLES_ACTION_VERB_PATTERN.test(m.lower),
+      ((EXAMPLE_NOUN_PATTERN.test(m.lower) || SOCIAL_TRIGGER_NOUN_PATTERN.test(m.lower)) &&
+        EXAMPLES_ACTION_VERB_PATTERN.test(m.lower)) ||
+      asksForDesignVorlagen(m.lower),
     result: (m) => ({
       intent: 'examples',
       searchQuery: m.raw,

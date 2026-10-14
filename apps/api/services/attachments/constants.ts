@@ -28,19 +28,3 @@ export const MAX_FILE_SIZE = 25 * 1024 * 1024;
  * Claude API has 32MB limit, leaving buffer
  */
 export const MAX_TOTAL_SIZE = 30 * 1024 * 1024;
-
-/**
- * Maximum size for image attachments (10MB)
- */
-export const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
-
-/**
- * MIME type to file extension mapping
- */
-export const MIME_TO_EXTENSION: Record<string, string> = {
-  'image/jpeg': '.jpg',
-  'image/jpg': '.jpg',
-  'image/png': '.png',
-  'image/webp': '.webp',
-  'image/gif': '.gif',
-};

@@ -1,15 +1,16 @@
 import { type KiLabelMode } from '@gruenerator/contracts';
-import { type ImageFormatId, type KiStyleVariant } from '@gruenerator/shared/image-studio';
+import { type ImageFormatId } from '@gruenerator/shared/image-studio';
 
 /**
  * Native port of the web Bild-Editor v2 types
  * (apps/web/src/features/image-studio/bild-editor-v2/types.ts).
  *
- * Composer modes: `erstellen` needs no image; the rest operate on the active
- * version and are only offered once an image exists.
+ * Composer modes: `erstellen` and `sharepic` need no image; the rest operate on
+ * the active version and are only offered once an image exists. `sharepic`
+ * produces nothing here — it hands the prompt to the sharepic chat, as web does.
  */
 export type BevMode =
-  'erstellen' | 'bearbeiten' | 'gruen-verwandeln' | 'vergroessern' | 'hintergrund';
+  'erstellen' | 'sharepic' | 'bearbeiten' | 'gruen-verwandeln' | 'vergroessern' | 'hintergrund';
 
 export type BevVersionKind = 'create' | 'edit' | 'green' | 'outpaint' | 'nobg' | 'upload';
 
@@ -35,10 +36,7 @@ export interface BevVersion {
 }
 
 export interface BevSettings {
-  variant: KiStyleVariant;
   kiLabel: KiLabelMode;
-  /** Output format of a newly created image („Erstellen"). */
-  format: ImageFormatId;
   /** Target format of the „Vergrößern" (outpaint) mode. */
   aspect: ImageFormatId;
 }

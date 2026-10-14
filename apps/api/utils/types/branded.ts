@@ -67,9 +67,6 @@ export type NotebookId = Brand<string, 'NotebookId'>;
 /** user_templates.id — UUID */
 export type TemplateId = Brand<string, 'TemplateId'>;
 
-/** user_sharepics.id — UUID */
-export type SharepicId = Brand<string, 'SharepicId'>;
-
 /** user_sites.id — UUID */
 export type SiteId = Brand<string, 'SiteId'>;
 
@@ -97,9 +94,6 @@ export const NotebookId = (id: string): NotebookId => id as NotebookId;
 
 /** Create a {@link TemplateId} from a raw string. */
 export const TemplateId = (id: string): TemplateId => id as TemplateId;
-
-/** Create a {@link SharepicId} from a raw string. */
-export const SharepicId = (id: string): SharepicId => id as SharepicId;
 
 /** Create a {@link SiteId} from a raw string. */
 export const SiteId = (id: string): SiteId => id as SiteId;

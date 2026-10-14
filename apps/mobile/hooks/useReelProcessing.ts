@@ -143,7 +143,7 @@ export function useReelProcessing() {
 
   const pollProgress = useCallback(
     async (uploadId: string) => {
-      try {
+      const poll = async () => {
         const progress = await reelApi.getAutoProgress(uploadId);
 
         if (!isMountedRef.current) return;
@@ -167,7 +167,7 @@ export function useReelProcessing() {
 
           updateState({ status: 'downloading', downloadProgress: 0 });
 
-          try {
+          const download = async () => {
             const localVideoUri = await reelApi.downloadVideo(uploadId, (percent) => {
               if (isMountedRef.current) {
                 updateState({ downloadProgress: percent });
@@ -182,9 +182,11 @@ export function useReelProcessing() {
             });
 
             await saveToGallery(localVideoUri);
-          } catch (downloadError: unknown) {
+          };
+
+          await download().catch((downloadError: unknown) => {
             handleError('download_failed', getErrorMessage(downloadError));
-          }
+          });
         } else if (progress.status === 'error') {
           if (pollingRef.current) {
             clearInterval(pollingRef.current);
@@ -192,9 +194,11 @@ export function useReelProcessing() {
           }
           handleError('processing_failed', progress.error || undefined);
         }
-      } catch (error: unknown) {
+      };
+
+      await poll().catch((error: unknown) => {
         console.error('[ReelProcessing] Polling error:', getErrorMessage(error));
-      }
+      });
     },
     [handleError, saveToGallery, updateState]
   );
@@ -225,7 +229,7 @@ export function useReelProcessing() {
       const handle: CompressionHandle = { cancellationId: null };
       compressionRef.current = handle;
       updateState({ status: 'compressing', compressionProgress: 0 });
-      try {
+      const compress = async () => {
         const uri = await ensureUploadableSize(
           fileUri,
           (percent) => {
@@ -236,16 +240,20 @@ export function useReelProcessing() {
           handle
         );
         return signal.aborted ? null : uri;
-      } catch (error: unknown) {
-        if (signal.aborted) return null;
-        console.warn(
-          '[ReelProcessing] Compression failed, uploading original:',
-          getErrorMessage(error)
-        );
-        return fileUri;
-      } finally {
-        compressionRef.current = null;
-      }
+      };
+
+      return compress()
+        .catch((error: unknown) => {
+          if (signal.aborted) return null;
+          console.warn(
+            '[ReelProcessing] Compression failed, uploading original:',
+            getErrorMessage(error)
+          );
+          return fileUri;
+        })
+        .finally(() => {
+          compressionRef.current = null;
+        });
     },
     [updateState]
   );
@@ -257,7 +265,7 @@ export function useReelProcessing() {
       const controller = new AbortController();
       uploadAbortRef.current = controller;
 
-      try {
+      const upload = async () => {
         const uploadUri = await compressForUpload(fileUri, controller.signal);
         if (uploadUri == null || !isMountedRef.current) return;
         updateState({ status: 'uploading' });
@@ -285,12 +293,14 @@ export function useReelProcessing() {
         await reelApi.startAutoProcess(uploadId, user?.id);
 
         startPolling(uploadId);
-      } catch (error: unknown) {
+      };
+
+      await upload().catch((error: unknown) => {
         // cancelProcessing aborts the signal and already reset state — stay quiet.
         if (controller.signal.aborted) return;
         console.error('[ReelProcessing] Start processing error:', getErrorMessage(error));
         handleError('upload_failed', getErrorMessage(error));
-      }
+      });
     },
     [compressForUpload, handleError, reset, startPolling, updateState, user]
   );
@@ -316,7 +326,7 @@ export function useReelProcessing() {
 
   const pollManualResult = useCallback(
     async (uploadId: string) => {
-      try {
+      const poll = async () => {
         const result = await reelApi.getManualResult(uploadId);
 
         if (!isMountedRef.current) return;
@@ -338,9 +348,11 @@ export function useReelProcessing() {
           }
           handleError('processing_failed');
         }
-      } catch (error: unknown) {
+      };
+
+      await poll().catch((error: unknown) => {
         console.error('[ReelProcessing] Manual polling error:', getErrorMessage(error));
-      }
+      });
     },
     [handleError, updateState]
   );
@@ -367,7 +379,7 @@ export function useReelProcessing() {
       const controller = new AbortController();
       uploadAbortRef.current = controller;
 
-      try {
+      const upload = async () => {
         const uploadUri = await compressForUpload(fileUri, controller.signal);
         if (uploadUri == null || !isMountedRef.current) return;
         updateState({ status: 'uploading' });
@@ -396,12 +408,14 @@ export function useReelProcessing() {
         await reelApi.startManualProcess(uploadId);
 
         startManualPolling(uploadId);
-      } catch (error: unknown) {
+      };
+
+      await upload().catch((error: unknown) => {
         // cancelProcessing aborts the signal and already reset state — stay quiet.
         if (controller.signal.aborted) return;
         console.error('[ReelProcessing] Start manual processing error:', getErrorMessage(error));
         handleError('upload_failed', getErrorMessage(error));
-      }
+      });
     },
     [compressForUpload, handleError, reset, startManualPolling, updateState]
   );

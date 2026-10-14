@@ -12,6 +12,7 @@ import {
   layoutTextBlock,
   normalizeListMarkers,
   splitListItems,
+  stripLeadingBullets,
   wrapLines,
 } from '@gruenerator/contracts';
 
@@ -130,5 +131,32 @@ describe('hasListMarkers', () => {
 
   it('meldet für Fließtext nichts', () => {
     expect(hasListMarkers('Ein gewöhnlicher Satz.')).toBe(false);
+  });
+});
+
+describe('stripLeadingBullets (#4275)', () => {
+  it('nimmt wiederholte Kugeln und Striche vom Anfang', () => {
+    expect(stripLeadingBullets('• Radwege bauen')).toBe('Radwege bauen');
+    expect(stripLeadingBullets('• • Radwege bauen')).toBe('Radwege bauen');
+    expect(stripLeadingBullets('- * – Radwege')).toBe('Radwege');
+  });
+
+  it('lässt Ziffern, Bindestrich-Wörter und Text ohne Marker stehen', () => {
+    expect(stripLeadingBullets('1. Mai Demo')).toBe('1. Mai Demo');
+    expect(stripLeadingBullets('-5 Grad')).toBe('-5 Grad');
+    expect(stripLeadingBullets('Radwege • bauen')).toBe('Radwege • bauen');
+  });
+});
+
+describe('splitListItems mit doppeltem Marker (#4275)', () => {
+  it('repariert gespeichertes „• • x" zu einem Punkt', () => {
+    expect(splitListItems('• • Radwege bauen\n• Bus')).toEqual([
+      { marker: '•', body: 'Radwege bauen' },
+      { marker: '•', body: 'Bus' },
+    ]);
+  });
+
+  it('fasst Zeilen ohne Marker nicht an', () => {
+    expect(splitListItems('Anna Müller')[0]).toEqual({ marker: null, body: 'Anna Müller' });
   });
 });

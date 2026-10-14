@@ -17,6 +17,8 @@ import type { User } from '@gruenerator/shared';
 
 WebBrowser.maybeCompleteAuthSession();
 
+const PROFILE_REFRESH_MS = 24 * 60 * 60 * 1000;
+
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';
 
 // Derived from the provider table rather than spelled out again — see
@@ -179,6 +181,13 @@ export async function handleAuthCallback(
  * "Grüner" fallback.
  */
 async function hydrateProfile(): Promise<void> {
+  const current = useAuthStore.getState().user;
+  // The name is fetched once per login and then kept until logout; the rest of
+  // the profile is re-read at most once a day. Both keep the launch free of a
+  // request whose answer would almost never differ.
+  const syncedAt = await secureStorage.getProfileSyncedAt();
+  if (current?.display_name && syncedAt && Date.now() - syncedAt < PROFILE_REFRESH_MS) return;
+
   try {
     const apiClient = getGlobalApiClient();
     const response = await apiClient.get<{ success: boolean; user?: User }>(
@@ -186,7 +195,15 @@ async function hydrateProfile(): Promise<void> {
     );
     const profile = response.data?.user;
     if (profile) {
-      const merged = { ...useAuthStore.getState().user, ...profile } as User;
+      const merged = {
+        ...current,
+        ...profile,
+        ...(current?.display_name && { display_name: current.display_name }),
+      } as User;
+      await secureStorage.setProfileSyncedAt(Date.now());
+      // Unchanged since the cached copy: nothing to persist, and a fresh user
+      // object would re-render every `useAuth` consumer for no visible change.
+      if (JSON.stringify(merged) === JSON.stringify(current)) return;
       await secureStorage.setUser(JSON.stringify(merged));
       useAuthStore.getState().setAuthState({ user: merged });
     }
@@ -279,7 +296,11 @@ export async function checkAuthStatus(): Promise<boolean> {
     );
 
     if (response.data && response.data.user) {
-      useAuthStore.getState().setAuthState({ user: response.data.user });
+      // Layered over the cached user, not replacing it: the session only knows
+      // the identity, so a plain swap would drop `display_name` and flash the
+      // „Grüner“ greeting until `hydrateProfile` has answered.
+      const cachedUser = useAuthStore.getState().user;
+      useAuthStore.getState().setAuthState({ user: { ...cachedUser, ...response.data.user } });
       await hydrateProfile();
       return true;
     }

@@ -1,5 +1,7 @@
 import { FaCheck } from 'react-icons/fa';
 
+import { CustomColorSwatch } from '../../components/CustomColorSwatch';
+import { cn } from '../../utils/cn';
 import {
   CARD_CHECK_SMALL,
   CARD_PREVIEW,
@@ -8,8 +10,6 @@ import {
 } from '../sidebarStyles';
 
 import type { BackgroundColorOption } from '../types';
-
-import { cn } from '../../utils/cn';
 
 interface ColorSwatchGridProps {
   colors: readonly BackgroundColorOption[];
@@ -30,7 +30,7 @@ export function ColorSwatchGrid({ colors, currentColor, onColorChange }: ColorSw
   return (
     <div className="flex flex-row flex-wrap justify-start gap-[8px]">
       {colors.map((option) => {
-        const isActive = currentColor === option.color;
+        const isActive = currentColor.toLowerCase() === option.color.toLowerCase();
         return (
           <button
             key={option.id}
@@ -60,6 +60,12 @@ export function ColorSwatchGrid({ colors, currentColor, onColorChange }: ColorSw
           </button>
         );
       })}
+      <CustomColorSwatch
+        value={currentColor}
+        presets={colors.map((option) => option.color)}
+        onPick={onColorChange}
+        className="!size-[48px]"
+      />
     </div>
   );
 }

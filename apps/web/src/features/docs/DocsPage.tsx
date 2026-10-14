@@ -1,4 +1,3 @@
-import { isCanvasTemplateType } from '@gruenerator/contracts';
 import {
   DocsProvider,
   useDocsAdapter,
@@ -34,22 +33,16 @@ import { SHOW_SHAREPIC_STUDIO } from '../../config/featureFlags';
 import { OFFICE_SUITE_TOOLS, filterWorkplaceTools } from '../../config/workplaceToolsConfig';
 import { useBoardsTyped } from '../../hooks/useBoardsTyped';
 import { useFirstName } from '../../hooks/useFirstName';
-import { generateSharepicFromPrompt } from '../../services/sharepicPromptService';
-import { useAuthStore } from '../../stores/authStore';
-import useImageStudioStore from '../../stores/imageStudioStore';
 import { boardTemplates, getBoardTemplate } from '../boards/boardTemplates';
 import { useFeatureIndex } from '../global-search/useFeatureIndex';
-import {
-  IMAGE_STUDIO_CATEGORIES,
-  getTypesForCategory,
-  isTypeForLocale,
-} from '../image-studio/utils/typeConfig';
+import { openSharepicCreator } from '../image-studio/freitext/openSharepicCreator';
 import {
   getPresentationTemplate,
   presentationTemplates,
 } from '../presentations/presentationTemplates';
 import { getSheetTemplate, sheetTemplates } from '../sheets/sheetTemplates';
 import { useTrashUndoToast } from '../trash/trashUndoToast';
+import { useSharepicVorlagen } from '../vorlagen/hooks/useSharepicVorlagen';
 import { OFFICE_PILL_ROW, OfficeActionPill } from '../workplace/components/ToolsSection';
 import { WorkplaceHero } from '../workplace/components/WorkplaceHero';
 
@@ -162,12 +155,10 @@ export function DocumentsContent({
   const adapter = useDocsAdapter();
   const navigate = useNavigate();
   const firstName = useFirstName();
-  const locale = useAuthStore((s) => s.locale);
   const featureIndex = useFeatureIndex();
-  const loadFromAIGeneration = useImageStudioStore((s) => s.loadFromAIGeneration);
-  // Sharepic creation routes into the canvas editor — a research preview
-  // (SHOW_SHAREPIC_STUDIO); AT users create via the external bildgenerator.
-  const sharepicEnabled = SHOW_SHAREPIC_STUDIO && locale !== 'de-AT';
+  // A sharepic request goes to the creator, which speaks both corporate designs.
+  const sharepicEnabled = SHOW_SHAREPIC_STUDIO;
+  const { data: sharepicVorlagen } = useSharepicVorlagen();
 
   const { data: documents = [], isLoading: docsLoading, error: docsError } = useDocuments();
   const createDocumentMutation = useCreateDocument();
@@ -492,28 +483,7 @@ export function DocumentsContent({
       setCreating(true);
       try {
         if (kind === 'sharepic') {
-          // Same flow as the /studio landing prompt: classify the prompt into a
-          // sharepic template (or KI image), pre-fill the canvas store, and open
-          // the matching creation flow.
-          const result = await generateSharepicFromPrompt(description);
-          if (!result.success) {
-            console.error('[DocsPage] sharepic generation failed:', result.error);
-            return;
-          }
-          if (result.isKiType) {
-            void navigate('/bild-editor');
-            return;
-          }
-          if (!isCanvasTemplateType(result.type)) {
-            console.warn('[DocsPage] non-canonical sharepic type:', result.type);
-            return;
-          }
-          loadFromAIGeneration(
-            result.type,
-            result.data as unknown as Record<string, string>,
-            result.selectedImage
-          );
-          void navigate(`/studio/templates/${result.type}`);
+          openSharepicCreator(navigate, description);
         } else if (kind === 'doc') {
           const doc = await generateDocumentMutation.mutateAsync(description);
           void navigate(`/office/${doc.id}`);
@@ -545,7 +515,7 @@ export function DocumentsContent({
         setCreating(false);
       }
     },
-    [generateDocumentMutation, generateBoard, loadFromAIGeneration, navigate]
+    [generateDocumentMutation, generateBoard, navigate]
   );
 
   const handleComposerTemplate = useCallback(
@@ -553,7 +523,7 @@ export function DocumentsContent({
       if (kind === 'doc') void handleTemplateSelect(id as TemplateType);
       else if (kind === 'board') handleCreateBoardFromTemplate(id);
       else if (kind === 'sheet') void handleCreateSheetFromTemplate(id);
-      else if (kind === 'sharepic') void navigate(`/studio/templates/${id}`);
+      else if (kind === 'sharepic') void navigate(`/studio/vorlage/${id}`);
       else void handleCreatePresentationFromTemplate(id);
     },
     [
@@ -625,19 +595,17 @@ export function DocumentsContent({
         description: t.description,
       })),
       ...(sharepicEnabled
-        ? getTypesForCategory(IMAGE_STUDIO_CATEGORIES.TEMPLATES)
-            .filter((t) => isTypeForLocale(t, locale))
-            .map((t) => ({
-              key: `sharepic-${t.id}`,
-              kind: 'sharepic' as const,
-              id: t.id,
-              title: t.label,
-              description: t.description ?? 'Sharepic-Vorlage',
-            }))
+        ? (sharepicVorlagen ?? []).map((v) => ({
+            key: `sharepic-${v.id}`,
+            kind: 'sharepic' as const,
+            id: v.id,
+            title: v.titel,
+            description: v.beschreibung,
+          }))
         : []),
     ];
     return scope ? all.filter((t) => t.kind === scope) : all;
-  }, [sharepicEnabled, scope, locale]);
+  }, [sharepicEnabled, scope, sharepicVorlagen]);
 
   return (
     <>
@@ -832,7 +800,7 @@ export function DocumentsContent({
               if (kind === 'doc') void handleTemplateSelect('blank');
               else if (kind === 'board') handleCreateBoard('kanban');
               else if (kind === 'sheet') void handleCreateSheet();
-              else if (kind === 'sharepic') void navigate('/studio/templates');
+              else if (kind === 'sharepic') void navigate('/studio');
               else void handleCreatePresentation();
             }}
             onSelectDocTemplate={(id) => void handleTemplateSelect(id)}
@@ -841,7 +809,7 @@ export function DocumentsContent({
             onSelectPresentationTemplate={(id) => void handleCreatePresentationFromTemplate(id)}
             onSelectUserTemplate={handleUserTemplateSelect}
             sharepicEnabled={sharepicEnabled}
-            onSelectSharepicTemplate={(id) => void navigate(`/studio/templates/${id}`)}
+            onSelectSharepicTemplate={(id) => void navigate(`/studio/vorlage/${id}`)}
           />
         </Suspense>
       )}

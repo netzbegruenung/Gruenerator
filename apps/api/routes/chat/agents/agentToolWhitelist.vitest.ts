@@ -115,9 +115,14 @@ describe('applyAgentToolWhitelist', () => {
       'search_threads',
       'pdf_form',
       'cloud_files',
+      'vorlagen',
     ]) {
       expect(out[key], key).toBe(false);
     }
+  });
+
+  it('lets an agent that chose Sharepic-Vorlagen keep them', () => {
+    expect(applyAgentToolWhitelist(withTools(['vorlagen']), {}).vorlagen).toBeUndefined();
   });
 
   it('never widens: a key the agent allows but the request omits stays absent', () => {

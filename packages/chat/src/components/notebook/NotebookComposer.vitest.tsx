@@ -227,6 +227,35 @@ describe('NotebookComposer — filters', () => {
     expect(onClearAll).toHaveBeenCalled();
   });
 
+  it('keeps a collapsed field behind „Weitere Filter“ until opened or in use', async () => {
+    const user = userEvent.setup();
+    const collapsed = { ...THEMES, collapsed: true };
+    const { rerender } = render(
+      <NotebookComposer
+        categoryFilters={{ fields: [TYPES, collapsed], activeFilters: {}, onToggle: vi.fn() }}
+      />
+    );
+    await user.click(screen.getByRole('button', { name: /Einstellungen/ }));
+    expect(await screen.findByRole('region', { name: 'Typ' })).toBeVisible();
+    expect(screen.queryByRole('region', { name: 'Thema' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Weitere Filter (1)' }));
+    expect(screen.getByRole('region', { name: 'Thema' })).toBeVisible();
+
+    await user.click(screen.getByRole('button', { name: 'Weniger Filter' }));
+    rerender(
+      <NotebookComposer
+        categoryFilters={{
+          fields: [TYPES, collapsed],
+          activeFilters: { themes: ['klima'] },
+          onToggle: vi.fn(),
+        }}
+      />
+    );
+    expect(screen.getByRole('region', { name: 'Thema' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: /Weitere Filter/ })).not.toBeInTheDocument();
+  });
+
   it('has no axe violations while open', async () => {
     const user = userEvent.setup();
     renderFilters({ content_type: ['pm'] });
@@ -528,5 +557,54 @@ describe('NotebookComposer — Magic Search', () => {
   it('has no axe violations with the suffix', async () => {
     const { container } = renderMagic('suche');
     expect(await axe(container)).toHaveNoViolations();
+  });
+});
+
+describe('NotebookComposer — source tier (Quellen-Ampel)', () => {
+  it('offers the switch only where the notebook passes a tier', async () => {
+    const user = userEvent.setup();
+    render(<NotebookComposer mode="deep" onModeChange={vi.fn()} />);
+    await user.click(screen.getByRole('button'));
+    await screen.findByRole('region', { name: 'Suchtiefe' });
+    expect(screen.queryByRole('region', { name: 'Quellen-Ampel' })).not.toBeInTheDocument();
+  });
+
+  it('shows the active state and toggles between equal and documents-first', async () => {
+    const user = userEvent.setup();
+    const onSourceTierChange = vi.fn();
+    const { rerender } = render(
+      <NotebookComposer
+        mode="deep"
+        onModeChange={vi.fn()}
+        sourceTier="equal"
+        onSourceTierChange={onSourceTierChange}
+      />
+    );
+    await user.click(screen.getByRole('button'));
+    const section = await screen.findByRole('region', { name: 'Quellen-Ampel' });
+    const toggle = within(section).getByRole('button', { name: 'Drucksachen bevorzugt' });
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await user.click(toggle);
+    expect(onSourceTierChange).toHaveBeenLastCalledWith('documents-first');
+
+    rerender(
+      <NotebookComposer
+        mode="deep"
+        onModeChange={vi.fn()}
+        sourceTier="documents-first"
+        onSourceTierChange={onSourceTierChange}
+      />
+    );
+    expect(
+      within(screen.getByRole('region', { name: 'Quellen-Ampel' })).getByRole('button', {
+        name: 'Drucksachen bevorzugt',
+      })
+    ).toHaveAttribute('aria-pressed', 'true');
+    await user.click(
+      within(screen.getByRole('region', { name: 'Quellen-Ampel' })).getByRole('button', {
+        name: 'Drucksachen bevorzugt',
+      })
+    );
+    expect(onSourceTierChange).toHaveBeenLastCalledWith('equal');
   });
 });

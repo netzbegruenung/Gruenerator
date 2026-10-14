@@ -219,6 +219,28 @@ describe('heuristicClassify — blosses Sharepic-Nomen vor einer Meta-Frage', ()
   });
 });
 
+// 06.10.2026: „Infografik" stand in keiner Regel und landete im Loop.
+describe('heuristicClassify — Infografik ist ein Sharepic, Diagramm bleibt Diagramm', () => {
+  it.each([
+    'Mach eine Infografik zur Kindergrundsicherung',
+    'Erstelle eine Infografik: 38 % mehr Miete in Graz seit 2015',
+    'Bau mir eine Infografik zum Frauenanteil im Bundestag, 1983 vs. heute',
+    'Mach ein Karussell als Infografik zu den CO2-Emissionen nach Sektoren',
+  ])('Sharepic: %s', (text) => {
+    expect(heuristicClassify(text).intent).toBe('sharepic');
+  });
+
+  it('ein Diagramm ohne Infografik bleibt ein Diagramm', () => {
+    expect(heuristicClassify('Erstelle ein Balkendiagramm zur Windkraft').intent).not.toBe(
+      'sharepic'
+    );
+  });
+
+  it('eine Frage nach der Infografik bestellt nichts', () => {
+    expect(heuristicClassify('Was macht eine gute Infografik aus?').intent).not.toBe('sharepic');
+  });
+});
+
 // Beta-Audit 30.09.2026: die PDF-Regel lief ohne Wächter über die ganze
 // Nachricht samt Zitaten, und „Fragebogen" mit `schreib` war schon ein PDF.
 describe('heuristicClassify — PDF nur auf Bestellung', () => {
@@ -341,5 +363,34 @@ describe('heuristicClassify — Relativsatz und Genitiv-Kette', () => {
     ['Erstelle für die Kampagne neue Sharepics', 'sharepic'],
   ])('bleibt Auftrag: %s', (text, intent) => {
     expect(heuristicClassify(text).intent).toBe(intent);
+  });
+});
+
+// Explainable (10/2026): nur das Produkt-Nomen am Erstell-Verb. „Erklär mir X"
+// ist eine Frage und muss eine normale Antwort bleiben.
+describe('heuristicClassify — Explainable nur auf Bestellung', () => {
+  it.each([
+    'Erstelle ein Explainable zur Schwammstadt',
+    'Mach mir eine Erklärseite zum Heizungsgesetz',
+    'Recherchiere, was eine Schwammstadt ist, und erstelle ein Explainable',
+    'das bitte als Explainable erstellen',
+  ])('wird create_explainable: %s', (text) => {
+    expect(heuristicClassify(text).intent).toBe('create_explainable');
+  });
+
+  it.each([
+    'Was ist ein Explainable?',
+    'Erklär mir die Schwammstadt',
+    'Erkläre mir einfach, wie eine Wärmepumpe funktioniert',
+    'Schreib einen Text, kein Explainable',
+    'Erstelle eine Infografik zur Schwammstadt',
+    'Mach ein Erklärbild zur Schwammstadt',
+  ])('kein create_explainable: %s', (text) => {
+    expect(heuristicClassify(text).intent).not.toBe('create_explainable');
+  });
+
+  it('lässt PDF- und Dokument-Formulierungen, wo sie waren', () => {
+    expect(heuristicClassify('mach ein PDF mit Briefkopf').intent).toBe('create_pdf');
+    expect(heuristicClassify('erstelle mir das als PDF').intent).toBe('create_pdf');
   });
 });

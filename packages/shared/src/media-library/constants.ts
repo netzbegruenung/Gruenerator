@@ -22,6 +22,32 @@ export const SUPPORTED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktim
 
 export const SUPPORTED_MIME_TYPES = [...SUPPORTED_IMAGE_TYPES, ...SUPPORTED_VIDEO_TYPES] as const;
 
+const MIME_LABELS: Record<(typeof SUPPORTED_MIME_TYPES)[number], string> = {
+  'image/jpeg': 'JPEG',
+  'image/png': 'PNG',
+  'image/webp': 'WebP',
+  'image/gif': 'GIF',
+  'video/mp4': 'MP4',
+  'video/webm': 'WebM',
+  'video/quicktime': 'MOV',
+};
+
+/** „JPEG, PNG, …" — derived, so the message cannot drift from what is accepted. */
+export const SUPPORTED_MIME_LABEL = SUPPORTED_MIME_TYPES.map((type) => MIME_LABELS[type]).join(
+  ', '
+);
+
+/**
+ * `accept` for a file input. Audio has no upload path (the API takes images and
+ * videos only; audio items come from Voice and Podcasts), so it falls back to all
+ * uploadable types.
+ */
+export function acceptForMediaType(type: 'image' | 'video' | 'audio' | 'all' = 'all'): string {
+  if (type === 'image') return SUPPORTED_IMAGE_TYPES.join(',');
+  if (type === 'video') return SUPPORTED_VIDEO_TYPES.join(',');
+  return SUPPORTED_MIME_TYPES.join(',');
+}
+
 export const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
 export const DEFAULT_PAGINATION = {
@@ -29,27 +55,7 @@ export const DEFAULT_PAGINATION = {
   offset: 0,
 } as const;
 
-/**
- * How many library items (finished sharepics, KI images, uploads) one account
- * may hold. Single source of truth — the API's quota check, the `/api/media`
- * response and every "x von y" label derive from it; do not restate the number.
- *
- * The cap used to be enforced by *deleting* the oldest rows and their files on
- * every write (#2980). It now only refuses further **uploads**: creations
- * (sharepics, canvas drafts, template clones) always go through, because
- * failing them would break canvas autosave, and destroying months-old work to
- * make room for a source image is never what someone asked for.
- */
-export const MEDIA_LIBRARY_ITEM_LIMIT = 100;
-
-/**
- * Share of the cap above which the Mediathek warns before the limit actually
- * bites, so uploads don't fail out of nowhere.
- */
-export const MEDIA_LIBRARY_WARN_RATIO = 0.9;
-
 export const MEDIA_LIMITS = {
-  maxItemsPerUser: MEDIA_LIBRARY_ITEM_LIMIT,
   maxFileSize: MAX_FILE_SIZE,
   maxTitleLength: 200,
   maxAltTextLength: 500,
@@ -79,6 +85,8 @@ export const UPLOAD_SOURCES = [
   'voice',
   // A photo attached in the free-text sharepic creator — kept in the Mediathek.
   'sharepic-creator',
+  // A Profilbild's own background photo, kept so the saved Profilbild reopens as it was.
+  'profilbild-background',
 ] as const;
 
 /**
@@ -96,27 +104,8 @@ export const NON_LIBRARY_UPLOAD_SOURCES = [
   'chat-sharepic-thumbnail',
   'gruenerator-vorlage',
   'canvas-element',
+  'profilbild-background',
 ] as const;
-
-/**
- * Upload sources that represent someone deliberately putting a file into their
- * Mediathek. **Only these are refused when the library is full** — an
- * allowlist, so a canvas-ish source added later cannot be gated by accident.
- *
- * Everything else reaching the upload endpoint is a substep of making
- * something: the canvas mint's background photo (`canvas-mint`), an asset
- * dropped onto a canvas mid-edit (`canvas-editor`), a template's image. Those
- * still become library items and still count toward the quota afterwards —
- * they just cannot be the thing that gets rejected. Refusing them is the same
- * harm as failing canvas autosave: work lost mid-flow, for a reason that has
- * nothing to do with what the person was doing.
- */
-export const QUOTA_GATED_UPLOAD_SOURCES = [
-  'upload',
-  'ai_generated',
-  'stock',
-  'camera',
-] as const satisfies readonly (typeof UPLOAD_SOURCES)[number][];
 
 export const UPLOAD_SOURCE_LABELS: Record<string, string> = {
   upload: 'Hochgeladen',

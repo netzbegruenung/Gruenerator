@@ -1,5 +1,3 @@
-import { describe, it, expect } from 'vitest';
-
 import {
   AT_CANVAS_TYPE_OVERRIDES,
   buildSharepicSnapshot,
@@ -15,6 +13,7 @@ import {
   type CanvasAiOperation,
   type SharepicTemplateDescriptor,
 } from '@gruenerator/contracts';
+import { describe, it, expect } from 'vitest';
 
 import { BRAND_THEMES } from '../brand/theme';
 import {
@@ -151,6 +150,71 @@ describe('sharepic template descriptor parity', () => {
   });
 });
 
+/**
+ * The API has no font metrics, so it cannot keep the Dreizeilen bar group
+ * inside the canvas (#4276). A patch that can change the group's extent
+ * carries a one-shot marker; the canvas fits on load and clears it.
+ */
+describe('sharepicOpsToStatePatch: balken fit marker', () => {
+  const dreizeilen = getSharepicTemplateDescriptor('dreizeilen')!;
+  const zitatPure = getSharepicTemplateDescriptor('zitat-pure')!;
+  const patchOf = (
+    descriptor: SharepicTemplateDescriptor,
+    ops: CanvasAiOperation[],
+    state: Record<string, unknown> = {}
+  ) => sharepicOpsToStatePatch(descriptor, ops, state).patch;
+
+  it('marks a dreizeilen patch that changes a line, the font size or the bar scale', () => {
+    expect(
+      patchOf(dreizeilen, [{ kind: 'set-text', field: 'line1', label: 'Erste Zeile', value: 'X' }])
+        .balkenFitPending
+    ).toBe(true);
+    expect(
+      patchOf(
+        dreizeilen,
+        [{ kind: 'set-font-size', field: 'line1', label: 'Erste Zeile', size: 90 }],
+        {
+          fontSize: 60,
+          balkenScale: 1,
+        }
+      ).balkenFitPending
+    ).toBe(true);
+    expect(
+      patchOf(
+        dreizeilen,
+        [{ kind: 'update-element', elementId: 'balken', patch: { scale: 1.5 } }],
+        {
+          balkenScale: 1,
+        }
+      ).balkenFitPending
+    ).toBe(true);
+  });
+
+  it('leaves the marker out when nothing that sizes the group changed', () => {
+    expect(
+      patchOf(dreizeilen, [{ kind: 'update-element', elementId: 'balken', patch: { y: 120 } }])
+    ).not.toHaveProperty('balkenFitPending');
+    expect(
+      patchOf(
+        dreizeilen,
+        [{ kind: 'set-text', field: 'line1', label: 'Erste Zeile', value: 'Alt' }],
+        {
+          line1: 'Alt',
+        }
+      )
+    ).not.toHaveProperty('balkenFitPending');
+    expect(
+      patchOf(dreizeilen, [{ kind: 'set-color-scheme', schemeId: 'sand-tanne' }])
+    ).not.toHaveProperty('balkenFitPending');
+  });
+
+  it('never marks a template without a client fit', () => {
+    expect(
+      patchOf(zitatPure, [{ kind: 'set-text', field: 'quote', label: 'Zitat', value: 'Neu' }])
+    ).not.toHaveProperty('balkenFitPending');
+  });
+});
+
 describe('sharepicOpsToStatePatch', () => {
   const dreizeilen = getSharepicTemplateDescriptor('dreizeilen')!;
   const zitatPure = getSharepicTemplateDescriptor('zitat-pure')!;
@@ -160,7 +224,7 @@ describe('sharepicOpsToStatePatch', () => {
       { kind: 'set-text', field: 'line2', label: 'Zweite Zeile', value: 'Neue Zeile' },
     ];
     const result = sharepicOpsToStatePatch(dreizeilen, ops, {});
-    expect(result.patch).toEqual({ line2: 'Neue Zeile' });
+    expect(result.patch).toEqual({ line2: 'Neue Zeile', balkenFitPending: true });
     expect(result.rejected).toHaveLength(0);
   });
 
@@ -179,6 +243,49 @@ describe('sharepicOpsToStatePatch', () => {
     ];
     const result = sharepicOpsToStatePatch(dreizeilen, ops, {});
     expect(result.patch.fontSize).toBe(120);
+  });
+
+  it('scales the dreizeilen bars with the font size, as the studio does (#4262)', () => {
+    const ops: CanvasAiOperation[] = [
+      { kind: 'set-font-size', field: 'line1', label: 'Erste Zeile', size: 90 },
+    ];
+    const result = sharepicOpsToStatePatch(dreizeilen, ops, { fontSize: 60, balkenScale: 1.2 });
+    expect(result.patch.fontSize).toBe(90);
+    expect(result.patch.balkenScale).toBeCloseTo(1.8);
+  });
+
+  it('falls back to the default font size and scale 1, and clamps the scale', () => {
+    const bigger = sharepicOpsToStatePatch(
+      dreizeilen,
+      [{ kind: 'set-font-size', field: 'line2', label: 'Zweite Zeile', size: 120 }],
+      {}
+    );
+    expect(bigger.patch).toEqual({ fontSize: 120, balkenScale: 2, balkenFitPending: true });
+
+    const clamped = sharepicOpsToStatePatch(
+      dreizeilen,
+      [{ kind: 'set-font-size', field: 'line2', label: 'Zweite Zeile', size: 30 }],
+      { fontSize: 60, balkenScale: 0.6 }
+    );
+    expect(clamped.patch).toEqual({ fontSize: 30, balkenScale: 0.5, balkenFitPending: true });
+  });
+
+  it('compounds font-size ops in one batch against the patched values', () => {
+    const ops: CanvasAiOperation[] = [
+      { kind: 'set-font-size', field: 'line1', label: 'Erste Zeile', size: 90 },
+      { kind: 'set-font-size', field: 'line2', label: 'Zweite Zeile', size: 90 },
+    ];
+    const result = sharepicOpsToStatePatch(dreizeilen, ops, { fontSize: 60, balkenScale: 1 });
+    expect(result.patch).toEqual({ fontSize: 90, balkenScale: 1.5, balkenFitPending: true });
+  });
+
+  it('writes only the font size on templates without a scaled group', () => {
+    const result = sharepicOpsToStatePatch(
+      zitatPure,
+      [{ kind: 'set-font-size', field: 'quote', label: 'Zitat', size: 80 }],
+      {}
+    );
+    expect(result.patch).toEqual({ customPrimaryFontSize: 80 });
   });
 
   it('clamps element moves to bounds and keeps prior axis values', () => {
@@ -555,6 +662,42 @@ describe('validateSharepicOp', () => {
     expect(result.ok).toBe(true);
     if (result.ok && result.op.kind === 'set-background-color') {
       expect(result.op.color).toBe(canonical);
+    }
+  });
+});
+
+// The live Dreizeilen canvas read none of this until #4259: the model saw no
+// element and guessed `balken`, and `set-font-size` was not offered.
+describe('dreizeilen live snapshot parity', () => {
+  /** On the canvas the bar group carries the id a selection reports. */
+  const LIVE_ID: Record<string, string> = { balken: 'dreizeilen-balken' };
+  /** Template elements only the server path moves; live they are not in a collection. */
+  const SERVER_ONLY_ELEMENTS = ['sunflower', 'hintergrundbild'];
+  /** Resolved by the server (stock search); the studio sends people to the background tab. */
+  const SERVER_ONLY_OPS = ['set-background-image'];
+
+  const descriptor = getSharepicTemplateDescriptor('dreizeilen')!;
+  const live = dreizeilenFullConfig.ai!;
+  const snapshot = live.describeForAi(dreizeilenFullConfig.createInitialState({}));
+
+  it('shows the descriptor text fields with their font size', () => {
+    expect(snapshot.textFields.map((f) => f.field)).toEqual(
+      descriptor.textFields.map((f) => f.field)
+    );
+    for (const field of snapshot.textFields) expect(field.label).toContain('Schrift');
+  });
+
+  it('shows the descriptor elements under their live ids', () => {
+    expect(snapshot.elementsSummary.map((e) => e.id)).toEqual(
+      descriptor.elements
+        .filter((e) => !SERVER_ONLY_ELEMENTS.includes(e.id))
+        .map((e) => LIVE_ID[e.id] ?? e.id)
+    );
+  });
+
+  it('offers every descriptor operation the studio can apply', () => {
+    for (const op of descriptor.supportedOperations) {
+      if (!SERVER_ONLY_OPS.includes(op)) expect(live.supportedOperations, op).toContain(op);
     }
   });
 });

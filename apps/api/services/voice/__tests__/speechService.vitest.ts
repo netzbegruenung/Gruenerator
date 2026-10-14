@@ -7,7 +7,7 @@ import {
   unitsToTrees,
   type TreeBalance,
 } from '../../trees/index.js';
-import { generateSpeechFiles, type SpeechDeps } from '../speechService.js';
+import { generateSpeechFiles, synthesizeSegments, type SpeechDeps } from '../speechService.js';
 
 const RATE = 24000;
 const LIMIT_UNITS = 1000;
@@ -253,6 +253,50 @@ describe('generateSpeechFiles', () => {
       /Verbindung/
     );
     expect(d.encode).not.toHaveBeenCalled();
+    expect(d.calls.adjusted).toHaveLength(1);
+  });
+});
+
+describe('synthesizeSegments', () => {
+  it('voices each segment with its own voice and puts the segment gap between them', async () => {
+    const d = deps();
+    const voices: (string | undefined)[] = [];
+    d.generatePcm = vi.fn(async (_text: string, options) => {
+      voices.push(options.voiceId);
+      return { pcm: pcmSeconds(2), sampleRate: RATE };
+    });
+
+    const result = await synthesizeSegments(
+      'u1',
+      [
+        { text: 'Was ist eine Schwammstadt?', voiceId: '1930' },
+        { text: 'Eine Stadt, die Regen speichert.', voiceId: '1885' },
+        { text: 'Und warum?', voiceId: '1930' },
+      ],
+      { speed: null, signal: null, segmentGapMs: 500 },
+      d
+    );
+
+    expect(voices).toEqual(['1930', '1885', '1930']);
+    expect(result.chunks).toBe(3);
+    // 3 × 2 s plus two segment gaps of 0.5 s.
+    expect(result.durationSeconds).toBeCloseTo(7, 5);
+    expect(result.pcm.length).toBe(7 * RATE * 2);
+  });
+
+  it('reserves for all segments at once and books the real total once', async () => {
+    const d = deps();
+    await synthesizeSegments(
+      'u1',
+      [
+        { text: 'a'.repeat(150), voiceId: null },
+        { text: 'b'.repeat(150), voiceId: null },
+      ],
+      { speed: null, signal: null },
+      d
+    );
+
+    expect(d.calls.reserved).toEqual([treeCostForSpeechSeconds(20)]);
     expect(d.calls.adjusted).toHaveLength(1);
   });
 });

@@ -4,6 +4,8 @@ import { orderMayMeanArtifact, orderText } from './orderText.js';
 import {
   asksForNewArtifact,
   isSharepicEditInstruction,
+  isSharepicModeEdit,
+  looksLikeSharepicOrder,
   isVerificationQuestion,
   namesSharepicTarget,
   sharepicEditAddressed,
@@ -214,6 +216,25 @@ describe('isSharepicEditInstruction', () => {
     expect(isSharepicEditInstruction('was steht im wahlprogramm zum klimaschutz?')).toBe(false);
   });
 
+  it('reads „soll … stehen" as setting text — the live miss of 11.10.2026', () => {
+    expect(
+      isSharepicEditInstruction('auf dem sharepic soll direkt sowas wie werde mitglied stehen')
+    ).toBe(true);
+    expect(isSharepicEditInstruction('In der Überschrift sollte „Jetzt eintreten" stehen')).toBe(
+      true
+    );
+    expect(isSharepicEditInstruction('Werde Mitglied soll auf dem Sharepic draufstehen')).toBe(
+      true
+    );
+    // Die Satzgrenze gilt wie bei „füg … ein".
+    expect(isSharepicEditInstruction('Das Sharepic soll gut werden, wir stehen dahinter')).toBe(
+      false
+    );
+    expect(
+      isSharepicEditInstruction('Im Wahlprogramm soll stehen, dass wir mehr Busse wollen')
+    ).toBe(false);
+  });
+
   it('matches slider-deck nouns (slide/folie/seite/karussell)', () => {
     expect(isSharepicEditInstruction('mach die headline auf folie 2 kürzer')).toBe(true);
     expect(isSharepicEditInstruction('ändere den text auf slide 3')).toBe(true);
@@ -224,6 +245,10 @@ describe('isSharepicEditInstruction', () => {
 
   it('never fires on fresh-deck requests', () => {
     expect(isSharepicEditInstruction('mach mir ein neues karussell')).toBe(false);
+    expect(
+      isSharepicEditInstruction('mach mir ein neues Insta-Karussell zum Deutschlandticket')
+    ).toBe(false);
+    expect(isSharepicEditInstruction('ein neues Instagram-Karussell bitte')).toBe(false);
     expect(isSharepicEditInstruction('erstelle einen neuen slider über klimaschutz')).toBe(false);
   });
 });
@@ -363,5 +388,94 @@ describe('isSharepicEditInstruction — Verb am Nomen', () => {
   it('ein schwaches Verb am Allerweltsnomen zählt mit Sharepic-Feld oder Rückverweis', () => {
     expect(isSharepicEditInstruction('zeig den Text in Zeile 2 fett')).toBe(true);
     expect(isSharepicEditInstruction('mach eine Liste draus')).toBe(true);
+  });
+});
+
+describe('Creator-Vokabular und Zuweisungen — die Live-Fehlschläge vom 11.10.2026', () => {
+  it('kennt Dachzeile und Zahl als Felder', () => {
+    expect(isSharepicEditInstruction('Ändere die Dachzeile in: Soziale Klimapolitik')).toBe(true);
+    expect(isSharepicEditInstruction('mach die zahl größer')).toBe(true);
+    expect(namesSharepicTarget('die dachzeile passt nicht')).toBe(true);
+  });
+
+  it('liest „soll … sein/lauten/heißen" an einem Feld als Bearbeitung', () => {
+    expect(isSharepicEditInstruction('Die Zahl soll 250 € sein')).toBe(true);
+    expect(isSharepicEditInstruction('Die Headline soll „Jetzt handeln" lauten')).toBe(true);
+    expect(
+      isSharepicEditInstruction('Auf der letzten Folie soll stehen: Jetzt unterschreiben')
+    ).toBe(true);
+  });
+
+  it('liest „ein Sharepic" als Bestellung eines neuen, „draus" als Umwandlung', () => {
+    // Live 11.10.2026: im Sharepic-Modus überschrieb die Bestellung das offene.
+    expect(isSharepicEditInstruction('Mach mir ein Sharepic zum Deutschlandticket')).toBe(false);
+    expect(isSharepicEditInstruction('mach noch ein karussell zu tempo 130')).toBe(false);
+    expect(isSharepicEditInstruction('mach ein neues kurzes Sharepic zur Wahl')).toBe(false);
+    expect(isSharepicEditInstruction('mach ein Karussell draus')).toBe(true);
+    expect(isSharepicEditInstruction('mach das Sharepic dunkler')).toBe(true);
+  });
+
+  it('lässt Zahlung/Zahlen-Prosa und Satzgrenzen in Ruhe', () => {
+    expect(isSharepicEditInstruction('Die Zahlung soll monatlich sein')).toBe(false);
+    expect(isSharepicEditInstruction('Das soll kein Problem sein, danke dir')).toBe(false);
+  });
+});
+
+/**
+ * Im Sharepic-Modus („Im Chat bearbeiten") ist die Karte das Objekt: ein
+ * starkes Edit-Verb oder eine Zuweisung reicht, ein Feld-Nomen muss nicht
+ * dabeistehen. Live 11.10.2026 fielen „Ersetze „zurück" durch …" und „Die Zahl
+ * soll 250 € sein" trotz offener Karte in den Antwortpfad, der dann eine
+ * Überarbeitung erfand.
+ */
+describe('isSharepicModeEdit', () => {
+  it('nimmt Aufträge ohne Feld-Nomen an', () => {
+    expect(isSharepicModeEdit('Ersetze „zurück" durch „pro Kopf zurück"')).toBe(true);
+    expect(isSharepicModeEdit('kürzer bitte')).toBe(true);
+    expect(isSharepicModeEdit('mach es knackiger')).toBe(true);
+    expect(isSharepicModeEdit('Statt 200 € bitte 250 €')).toBe(true);
+    expect(isSharepicModeEdit('Es soll „Klimageld jetzt" heißen')).toBe(true);
+  });
+
+  it('nimmt alles an, was auch ohne Modus eine Bearbeitung ist', () => {
+    expect(isSharepicModeEdit('Ändere die Dachzeile in: Soziale Klimapolitik')).toBe(true);
+    expect(isSharepicModeEdit('Kannst du die Überschrift kürzen?')).toBe(true);
+  });
+
+  it('lässt Fragen, Dank und neue Artefakte durch — die bekommen Kontext statt Edit', () => {
+    expect(isSharepicModeEdit('Passt die Farbe zu unserem Corporate Design?')).toBe(false);
+    expect(isSharepicModeEdit('Was genau ist eigentlich das Klimageld?')).toBe(false);
+    expect(isSharepicModeEdit('Danke, super!')).toBe(false);
+    expect(isSharepicModeEdit('Erstelle jetzt noch ein Sharepic zum Deutschlandticket')).toBe(
+      false
+    );
+    expect(isSharepicModeEdit('Mach mir ein Sharepic zum Deutschlandticket')).toBe(false);
+    expect(isSharepicModeEdit('Mach mir ein neues Insta-Karussell zum Deutschlandticket')).toBe(
+      false
+    );
+    expect(isSharepicModeEdit('Schreib einen Instagram-Post dazu')).toBe(false);
+    expect(isSharepicModeEdit('Mach mir eine Liste der Argumente')).toBe(false);
+    expect(isSharepicModeEdit('Wie ändere ich die Schrift?')).toBe(false);
+    expect(isSharepicModeEdit('Stimmt das wirklich mit den 200 €?')).toBe(false);
+    expect(isSharepicModeEdit('neue Varianten bitte')).toBe(false);
+  });
+});
+
+describe('looksLikeSharepicOrder', () => {
+  it('nimmt Aufträge, die das Sharepic nennen oder Text draufschreiben', () => {
+    expect(looksLikeSharepicOrder('Prüf bitte, ob das Sharepic gut lesbar ist')).toBe(true);
+    expect(
+      looksLikeSharepicOrder('Schreib noch „Jetzt Petition unterschreiben" als Aufruf mit drauf')
+    ).toBe(true);
+    expect(looksLikeSharepicOrder('Welche Farbe hat das Karussell?')).toBe(true);
+  });
+
+  it('lässt Mehrdeutiges und neue Sharepics in Ruhe', () => {
+    expect(looksLikeSharepicOrder('Mach den Text kürzer')).toBe(false);
+    expect(looksLikeSharepicOrder('Wie viele Unfälle gibt es darauf jährlich?')).toBe(false);
+    expect(looksLikeSharepicOrder('Mach mir ein Sharepic zum Deutschlandticket')).toBe(false);
+    expect(
+      looksLikeSharepicOrder('Recherchiere aktuelle Zahlen und mach ein Sharepic daraus')
+    ).toBe(false);
   });
 });

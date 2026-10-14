@@ -17,12 +17,51 @@ import {
 import { artifactKind } from '../artifactKindRegistry.js';
 
 import { withResearchedSources, type SourceRegistry } from './sourceRegistry.js';
+import { EDIT_TOOL_NAMES } from './types.js';
 
 import type { EditorSurfaceKind } from './routing.js';
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 import type { SSEWriter } from '../sseHelpers.js';
 import type { PersistedStep } from './types.js';
 import type { ModelMessage, ToolSet } from 'ai';
+
+/**
+ * Was auf einem Sharepic eine Änderung ist, ein Text aber nicht kennt: Lage,
+ * Größe, Farbe. Live am 07.10.2026 traf „Verschieb den Text nach oben" kein
+ * Dokument-Muster, der Planer rief nichts (steps=0), und die Antwort behauptete
+ * die Verschiebung. Es gibt keine Klassifikator-Schnellbahn für den Canvas, die
+ * dieses Muster teilen müsste.
+ */
+const ELEMENT = String.raw`(?:headline|(?:ü|ue)berschrift|dachzeile|text|schrift|logo|bild|foto|hintergrund|zeile|block|folie|zitat|quelle|st(?:ö|oe)rer|datum|button|fl(?:ä|ae)che)\p{L}*`;
+const COMPARATIVE = String.raw`(?:gr(?:ö|oe)(?:ß|ss)er|kleiner|heller|dunkler|breiter|schmaler|h(?:ö|oe)her|tiefer|fetter|d(?:ü|ue)nner)\p{L}*`;
+// Verbs in their imperative/finite forms only: bare stems also hit nouns
+// („Rückblick", „Bewegung", „Drehbuch", „Wechselwähler").
+const CANVAS_CHANGE_PATTERN = new RegExp(
+  [
+    String.raw`(?<!\p{L})(?:(?:ver)?schieb|r(?:ü|ue)ck|beweg|platzier|zentrier|dreh|spiegel|vergr(?:ö|oe)(?:ß|ss)er|verkleiner|tausch|wechsel|f(?:ä|ae)rb)(?:e|t|en)?(?!\p{L})`,
+    String.raw`(?<!\p{L})richte\s+\S.{0,40}?\s+aus(?!\p{L})`,
+    String.raw`(?<!\p{L})nach\s+(?:oben|unten|links|rechts)(?!\p{L})`,
+    String.raw`(?<!\p{L})${ELEMENT}(?:\s+\S+){0,3}?\s+${COMPARATIVE}`,
+    String.raw`(?<!\p{L})${COMPARATIVE}\s+${ELEMENT}`,
+    String.raw`(?<!\p{L})mach\s+\S.{0,40}?\s+${COMPARATIVE}`,
+    String.raw`(?:farbe|hintergrund|fl(?:ä|ae)che)\p{L}*\s+(?:auf|in|zu)\s+\p{L}`,
+    String.raw`(?<!\p{L})${ELEMENT}(?:\s+\S+)?\s+(?:weg|raus)[\s.!]*$`,
+  ].join('|'),
+  'iu'
+);
+
+/**
+ * Not a change, whatever words follow: a question (unless it is a polite
+ * request), or research and small talk („Recherchiere …", „Danke, …").
+ */
+function canvasAskIsNoChange(ask: string): boolean {
+  const text = ask.trim();
+  if (/^(?:recherchier|such|find|erz(?:ä|ae)hl|gib\s+mir|danke)/iu.test(text)) return true;
+  if (/^(?:warum|wieso|weshalb|was|wie|welche[rsmn]?|wer|wo)(?!\p{L})/iu.test(text)) return true;
+  return (
+    text.endsWith('?') && !/^(?:kannst|k(?:ö|oe)nntest|w(?:ü|ue)rdest)\s+du(?!\p{L})/iu.test(text)
+  );
+}
 
 /**
  * Nennt die Bitte selbst eine Bearbeitung? Dieselben Muster, die der
@@ -34,7 +73,10 @@ import type { ModelMessage, ToolSet } from 'ai';
  * endet mit „keine passende Antwort" statt mit der Änderung.
  */
 function askNamesAnEdit(surface: EditorSurfaceKind, ask: string): boolean {
-  return surface === 'board' ? BOARD_MODIFY_PATTERN.test(ask) : DOC_MODIFY_PATTERN.test(ask);
+  if (surface === 'board') return BOARD_MODIFY_PATTERN.test(ask);
+  if (DOC_MODIFY_PATTERN.test(ask)) return true;
+  // The gate guards only the canvas words: a doc-pattern hit forces as before.
+  return surface === 'canvas' && !canvasAskIsNoChange(ask) && CANVAS_CHANGE_PATTERN.test(ask);
 }
 
 /** A GFM table: header row followed by a delimiter row. Used to recognise that
@@ -179,22 +221,27 @@ export function createAfterGather(p: GuaranteeContext): () => Promise<void> {
         p.state.intent === 'edit_current_board' ||
         p.state.compoundEdit === true ||
         askNamesAnEdit(editSurface, userAsk)) &&
-      !p.state.editorEditsSummary
+      !p.state.editorEditsSummary &&
+      !p.state.editorEditUnchanged
     ) {
-      const editTool = p.tools['edit_document'] as
+      const editToolName = EDIT_TOOL_NAMES.find((name) => p.tools[name] != null);
+      const editTool = (editToolName ? p.tools[editToolName] : undefined) as
         | { execute?: (input: unknown, opts: { toolCallId: string }) => Promise<unknown> }
         | undefined;
       if (editTool?.execute && userAsk) {
-        const sourcesBlock = p.sourceRegistry.renderReference();
+        // The spec path appends the registry's sources itself; doubling them
+        // here would spend the creator's prompt budget twice on the same text.
+        const sourcesBlock =
+          editToolName === 'edit_current_sharepic' ? '' : p.sourceRegistry.renderReference();
         const instruction = sourcesBlock
           ? `${userAsk}\n\nRecherchierte Quellen dazu:\n${sourcesBlock}`
           : userAsk;
-        p.onInfo('[Agentic] planner skipped edit_document — forcing edit before synth');
+        p.onInfo(`[Agentic] planner skipped ${editToolName} — forcing edit before synth`);
         try {
           await editTool.execute({ instruction }, { toolCallId: 'forced-edit' });
         } catch (err) {
           p.onWarn(
-            `[Agentic] forced edit_document failed: ${err instanceof Error ? err.message : String(err)}`
+            `[Agentic] forced ${editToolName} failed: ${err instanceof Error ? err.message : String(err)}`
           );
         }
       }

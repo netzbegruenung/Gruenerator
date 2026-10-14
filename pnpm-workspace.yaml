@@ -33,13 +33,13 @@ minimumReleaseAgeExclude:
   - 'assistant-cloud'
   - 'safe-content-frame'
   - '@blocknote/*'
-  # @blocknote/* 0.55.0 requires prosemirror-view ^1.42.4, published 2026-09-18.
-  # Exact version only; inert once it passes the gate on 2026-09-25, remove then.
-  - 'prosemirror-view@1.42.4'
-  # Security fix GHSA-68fv-2mgg-jv7q (event-loop DoS), published 2026-09-30 by
-  # the same maintainer as 1.2.1. Exact version only; inert once it passes the
-  # gate on 2026-10-07, remove then.
-  - 'source-map-js@1.2.2'
+# No exemption by semver: the hijacked releases this gate exists for (chalk/debug,
+# Shai-Hulud) shipped as patch bumps. An urgent fix gets an exact-version entry
+# above -- `pnpm audit --fix` writes one itself for a too-young security patch.
+# Prune drops exact entries once `pnpm add`/`update`/`remove`/`install` writes a
+# lockfile that no longer resolves them. An entry whose version stays locked is
+# kept, but it stops mattering once the version is seven days old.
+minimumReleaseAgeExcludePrune: true
 # Fail the install when a package's provenance trust level drops between
 # releases (trusted publishing -> token), the signature of a taken-over
 # maintainer account.
@@ -62,9 +62,8 @@ trustPolicyIgnoreAfter: 525600
 # `^2.6.0`, so rather than excluding the package from the policy — a permanent
 # hole, and the first-hit abort only ever reveals the next offender — the pin
 # `@blocknote/shadcn>tailwind-merge` in pnpm.overrides puts that one subtree on
-# 2.6.0: same range, already in the tree for @univerjs/design, and old enough to
-# predate the trusted-publishing era. Exact on purpose — a caret resolves straight
-# back to 2.6.1.
+# 2.6.0: same range, and old enough to predate the trusted-publishing era.
+# Exact on purpose — a caret resolves straight back to 2.6.1.
 
 # Moved here from .npmrc: pnpm 11 reads only auth and registry settings from
 # .npmrc. Kept as hoisted because Metro/React Native in apps/mobile cannot
@@ -149,6 +148,9 @@ allowBuilds:
   # upload hooks come from the Expo config plugin, which is deliberately not
   # installed (see apps/mobile/services/errorReporting.ts).
   '@sentry/cli': false
+  # postinstall (install-libs) copies the prebuilt Skia binaries into the package;
+  # without it the iOS/Android native build has no libs to link.
+  '@shopify/react-native-skia': true
 
 # The two dependencies we ship with a local fix. `decode-uri-component@0.2.2`
 # (GHSA-vcc3-ghjq-m6fr) decodes malformed percent-encoded input superlinearly:
@@ -203,7 +205,7 @@ allowBuilds:
 # `@`, `.`, `-`, `_`, `+`, `/`, `,`, umlauts, an emoji, `§` and newlines): the
 # produced link nodes are identical for every one of them.
 #
-# `@better-auth/oauth-provider@1.7.5` seeds `ba_oauth_resources` in its plugin
+# `@better-auth/oauth-provider` (1.7.6, still in 1.7.7) seeds `ba_oauth_resources` in its plugin
 # `init` (because `mcp({ resource })` in apps/api/config/betterAuth.ts passes a
 # resource). `betterAuth()` runs that init at module import, before
 # PostgresService has applied the migration that creates the table, and caches
@@ -223,10 +225,52 @@ allowBuilds:
 # apps/api/config/authRegressions.vitest.ts. Drop it once upstream matches the
 # pattern against `cause` or stops seeding in `init`. pnpm fails the install when
 # the patch no longer applies, so a better-auth bump cannot skip it silently.
+#
+# `react-native-markdown-display@7.0.2` keys every AST node from a global
+# counter (`getUniqueID()` in tokensToAST.js and AstRenderer.js), so each parse
+# hands React new keys and it remounts the whole native tree of a message. In
+# the chat that happens per streamed token: one 2.4k-character answer mounted
+# 35 000 host views, and a code fence remounted its CodeBlock 150 times. The
+# patch keys nodes by type and position among their siblings, which is all a
+# React key needs; a re-parse then updates the tree in place. 7.0.2 is the
+# latest release. Guarded by apps/mobile/test/markdownStableKeys.vitest.ts.
+#
+# `expo@57.0.26`: a DOM component (`'use dom'`, our KaTeX MathViewDOM) emits
+# its props to the webview in a mount effect, and again on every render
+# because the props object is rebuilt each time. The page is not loaded at
+# mount, and the wrapper sends the props again on `DOM_READY`, so that emit
+# does nothing. It still costs one synchronous hop to the main thread: the
+# native `injectJavaScript` takes a view argument, and Expo looks the view up
+# on the main thread. Opening a 200-message thread in the iOS simulator spent
+# 72-125 ms of JS in it while the UI thread mounted the rows. The patch skips
+# the emit on mount and whenever the serialized props are unchanged. Still
+# unfixed upstream in 57.0.27. Guarded by apps/mobile/test/domPropsEmit.test.tsx.
+# Lockfile trap: `expo` is a peer of ~140 packages, and `pnpm patch-commit`
+# (12.8.2) wrote those peer suffixes as `(expo@57.0.26)` without the patch
+# hash. The lockfile then fails `--frozen-lockfile` with
+# ERR_PNPM_INCONSISTENT_PATCH_HASH, and `--fix-lockfile` does not repair it.
+# The suffixes were rewritten to `(expo@57.0.26(patch_hash=…))` by hand, and
+# pnpm keeps them on the next install. Check for this when regenerating.
+#
+# `y-indexeddb@9.0.12` chains `.then()` onto its `_db` open promise twice
+# without a catch: in the constructor (the initial load) and in `destroy()`.
+# When the open fails, both derived promises reject unhandled even though the
+# caller catches `_db` itself (packages/collab useCollaboration does). Chrome
+# Android rejects the open with "AbortError: The connection was closed" when
+# the page is torn down mid-open, which Sentry reported as an unhandled
+# rejection (GlitchTip #682). Neither promise is reachable from outside, so no
+# caller-side catch can fix it. The patch catches the constructor chain (with a
+# console.warn, so a failed load stays visible) and makes `destroy()` resolve
+# when there is no connection to close. Only `src/` is patched: the web build
+# and vitest resolve the ESM entry, the CJS `dist/` is unused. 9.0.12 is the
+# latest release. Guarded by packages/collab/src/hooks/idbOpenFailure.vitest.ts.
 patchedDependencies:
-  '@better-auth/oauth-provider@1.7.5': patches/@better-auth__oauth-provider@1.7.5.patch
+  '@better-auth/oauth-provider@1.7.7': patches/@better-auth__oauth-provider@1.7.7.patch
   decode-uri-component@0.2.2: patches/decode-uri-component@0.2.2.patch
+  expo@57.0.26: patches/expo@57.0.26.patch
   mdast-util-gfm-autolink-literal@2.0.1: patches/mdast-util-gfm-autolink-literal@2.0.1.patch
+  react-native-markdown-display@7.0.2: patches/react-native-markdown-display@7.0.2.patch
+  y-indexeddb@9.0.12: patches/y-indexeddb@9.0.12.patch
 
 # Moved here from package.json's `pnpm.auditConfig`.
 auditConfig:
@@ -270,6 +314,36 @@ auditConfig:
     # the docs site, no user input reaches them. Re-check 2026-11-02.
     - GHSA-5gmw-xhrv-c9v3
     - GHSA-85c8-ppgw-ccpr
+    # stream-json <3.6.0 prototype pollution (GHSA-mjw6-4jj6-33hc) and
+    # quadratic rescan (GHSA-hqr4-qq8f-hg3x). The apps/api path (@crawlee/*)
+    # is fixed by crawlee 3.18.2 (stream-json ~3.7.0). What remains is
+    # apps/mobile → expo-atlas 0.4.3 → stream-json 1.9.1: expo-atlas declares
+    # ^1.8.0 and no 1.x carries the fix, so a >=3.6.0 floor would cross two
+    # majors (3.x is ESM-only). Dev tooling only — the Metro bundle inspector
+    # parses its own stats file, nothing ships in the app. Re-check 2026-11-14.
+    - GHSA-mjw6-4jj6-33hc
+    - GHSA-hqr4-qq8f-hg3x
+    # postcss-selector-parser <7.1.6 (GHSA-rj75-hqrm-r3gf). Only 6.1.4 under
+    # apps/wordpress → @wordpress/scripts / sass-loader → webpack → cssnano
+    # (stylehacks, postcss-merge-rules, postcss-minify-selectors declare
+    # ^6.0.16, postcss-calc ^6.0.11); no patched 6.x, a >=7.1.6 floor would
+    # cross the major. Build-time CSS minification of our own plugin styles.
+    # Re-check 2026-11-14.
+    - GHSA-rj75-hqrm-r3gf
+    # @opentelemetry/instrumentation-{pg,mysql2,knex,mysql,mongoose,tedious}
+    # (GHSA-qqmp-wf37-98f9). Only via apps/wordpress → @wordpress/scripts →
+    # @wordpress/e2e-test-utils-playwright → lighthouse → @sentry/node 9.47.1,
+    # which pins every instrumentation exactly (e.g. instrumentation-pg
+    # 0.51.1), so no floor is possible. Lighthouse runs no database driver;
+    # wp-scripts is build/e2e tooling only. Re-check 2026-11-14.
+    - GHSA-qqmp-wf37-98f9
+    # sprintf-js <=1.1.3 (GHSA-hp3w-g68c-fv3c, no patched release). Only via
+    # packages/shared → gray-matter → js-yaml 3 → argparse 1 → sprintf-js
+    # 1.0.3. gray-matter is a devDependency used by scripts/build-agents.ts
+    # and scripts/build-skills.ts at build time, and argparse is only loaded
+    # by js-yaml's CLI (bin/js-yaml.js), not by the library — it reaches no
+    # web, mobile or api runtime bundle. Re-check 2026-11-14.
+    - GHSA-hp3w-g68c-fv3c
 
 # Moved here from package.json's `pnpm.overrides`. scripts/sync-pnpm-overrides.mjs
 # and scripts/check-override-ranges.mjs read this block.
@@ -278,7 +352,7 @@ overrides:
   '@expo/dom-webview': ~56.0.5
   '@types/react': 19.2.18
   '@types/react-dom': ^19.2.4
-  '@hocuspocus/provider': ^4.1.2
+  '@hocuspocus/provider': ^4.7.0
   '@base-ui/react': ~1.7.0
   '@blocknote/shadcn>@base-ui/react': 1.6.0
   y-prosemirror: ^1.3.7
@@ -290,7 +364,8 @@ overrides:
   langsmith: '>=0.4.6'
   markdown-it: '>=14.2.0 <15'
   tar: '>=7.5.11'
-  undici: '>=8.9.0'
+  smol-toml: '>=1.9.0'
+  undici: '>=8.11.2'
   '@qdrant/js-client-rest>undici': ^7.29.0
   jsdom: 30.0.1
   rollup: '>=4.59.0'
@@ -337,14 +412,18 @@ overrides:
   source-map-js: '>=1.2.2'
   js-cookie: '>=3.0.7'
   '@types/js-cookie': '>=3.0.0'
-  shell-quote: '>=1.8.4'
+  shell-quote: '>=1.11.0'
+  sharp: '>=0.35.5'
+  seroval: '>=1.6.8'
+  seroval-plugins: '>=1.6.8'
+  '@modelcontextprotocol/sdk': '>=1.32.1'
   form-data: '>=4.0.6'
   xlsx: https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
   '@typescript-eslint/eslint-plugin>ts-api-utils': ^2.5.0
   '@typescript-eslint/type-utils>ts-api-utils': ^2.5.0
   '@typescript-eslint/utils>ts-api-utils': ^2.5.0
-  joi@>=17.0.0 <18.0.0: '>=17.13.6 <18.0.0'
-  joi@>=18.0.0: '>=18.2.5 <19'
+  joi@>=17.0.0 <18.0.0: '>=17.13.8 <18.0.0'
+  joi@>=18.0.0: '>=18.2.9 <19'
   http-proxy-middleware: ^2.0.10
   '@istanbuljs/load-nyc-config>js-yaml': ^4.3.2
   gray-matter>js-yaml: ^3.15.2
@@ -354,18 +433,20 @@ overrides:
   colord: '>=2.9.4'
   fflate: '>=0.4.9 <0.5'
   '@swc/html': '>=1.16.2 <2'
-  '@opentelemetry/core': ^2.10.0
+  '@opentelemetry/core': ^2.12.0
   vite>esbuild: ^0.28.1
   tsx>esbuild: ^0.28.1
   '@blocknote/xl-ai>ai': ^6.0.224
   '@blocknote/shadcn>tailwind-merge': 2.6.0
-  '@types/node': 26.3.0
-  '@tanstack/react-query': ^5.101.4
+  '@types/node': 26.6.4
+  '@tanstack/react-query': ^5.104.0
   zustand: 5.0.15
-  katex: ^0.18.1
-  pyodide: ^314.0.5
+  katex: ^0.19.0
+  pyodide: ^314.0.7
   react-dropzone: ^20.1.2
-  prosemirror-view: ^1.42.4
+  prosemirror-view: ^1.42.6
+  prosemirror-model: ^1.25.12
+  prosemirror-transform: ^1.12.2
   '@blocknote/core': ^0.55.0
   '@blocknote/react': ^0.55.0
   '@blocknote/shadcn': ^0.55.0
@@ -379,24 +460,24 @@ overrides:
   '@assistant-ui/react-markdown': ^0.14.18
   '@assistant-ui/react-streamdown': ^0.3.18
   '@assistant-ui/react-native': 0.1.44
-  '@tiptap/core': ^3.31.0
-  '@tiptap/extension-bold': ^3.31.0
-  '@tiptap/extension-code': ^3.31.0
-  '@tiptap/extension-collaboration': ^3.31.0
-  '@tiptap/extension-document': ^3.31.0
-  '@tiptap/extension-hard-break': ^3.31.0
-  '@tiptap/extension-heading': ^3.31.0
-  '@tiptap/extension-image': ^3.31.0
-  '@tiptap/extension-italic': ^3.31.0
-  '@tiptap/extension-list': ^3.31.0
-  '@tiptap/extension-paragraph': ^3.31.0
-  '@tiptap/extension-strike': ^3.31.0
-  '@tiptap/extension-table': ^3.31.0
-  '@tiptap/extension-text': ^3.31.0
-  '@tiptap/extension-underline': ^3.31.0
-  '@tiptap/extensions': ^3.31.0
-  '@tiptap/pm': ^3.31.0
-  '@tiptap/react': ^3.31.0
-  '@tiptap/static-renderer': ^3.31.0
+  '@tiptap/core': ^3.31.4
+  '@tiptap/extension-bold': ^3.31.4
+  '@tiptap/extension-code': ^3.31.4
+  '@tiptap/extension-collaboration': ^3.31.4
+  '@tiptap/extension-document': ^3.31.4
+  '@tiptap/extension-hard-break': ^3.31.4
+  '@tiptap/extension-heading': ^3.31.4
+  '@tiptap/extension-image': ^3.31.4
+  '@tiptap/extension-italic': ^3.31.4
+  '@tiptap/extension-list': ^3.31.4
+  '@tiptap/extension-paragraph': ^3.31.4
+  '@tiptap/extension-strike': ^3.31.4
+  '@tiptap/extension-table': ^3.31.4
+  '@tiptap/extension-text': ^3.31.4
+  '@tiptap/extension-underline': ^3.31.4
+  '@tiptap/extensions': ^3.31.4
+  '@tiptap/pm': ^3.31.4
+  '@tiptap/react': ^3.31.4
+  '@tiptap/static-renderer': ^3.31.4
   '@babel/core': 7.29.7
   '@react-native/community-cli-plugin>@react-native/metro-config': 0.84.1

@@ -281,10 +281,36 @@ describe('session-teardown severity', () => {
     // would mean the verdict never reached the report.
     expect(teardown?.tags?.['auth.probe']).toBeTruthy();
     expect(teardown?.fingerprintExtra).toEqual([
-      'shared-401',
       teardown?.tags?.['auth.probe'],
       'session_not_found',
     ]);
+  });
+
+  it('files the same death under one fingerprint whichever stack reports it', async () => {
+    // GlitchTip 673: the source only names the stack whose 401 won the race to
+    // the probe, so keying the fingerprint on it split one cause into an issue
+    // per stack (chat, shared-401, legacy-axios-401, docs, …).
+    async function teardownFor(source: string) {
+      vi.resetModules();
+      vi.clearAllMocks();
+      const axios = (await import('axios')).default;
+      vi.mocked(axios.get).mockRejectedValue(httpError(401));
+      const { captureAuthIssue } = await import('../../lib/observability/captureAuthIssue');
+      const { handleUnauthorized } = await import('./apiClient');
+      await handleUnauthorized(source, 'no_session_cookie');
+      return vi
+        .mocked(captureAuthIssue)
+        .mock.calls.map(([opts]) => opts)
+        .find((o) => o.stage === 'session-teardown');
+    }
+
+    const chat = await teardownFor('chat');
+    sessionStore.clear();
+    const shared = await teardownFor('shared-401');
+
+    expect(chat?.fingerprintExtra).toEqual(shared?.fingerprintExtra);
+    expect(chat?.tags?.['auth.source']).toBe('chat');
+    expect(shared?.tags?.['auth.source']).toBe('shared-401');
   });
 
   it('falls back to an explicit unknown code rather than dropping the tag', async () => {
@@ -328,6 +354,44 @@ describe('session-teardown severity', () => {
 
 // Issue #3211: the legacy instance's success interceptor passed a status-0
 // response (XHR torn down by a page reload) through, so callers got `''` as data.
+describe('handleUnauthorized when embedded', () => {
+  afterEach(() => {
+    vi.doUnmock('../../utils/platform');
+    vi.doUnmock('@gruenerator/shared');
+    vi.unstubAllGlobals();
+    vi.clearAllMocks();
+  });
+
+  it('hands a dead session to the native host instead of redirecting', async () => {
+    vi.stubGlobal('sessionStorage', memoryStorage());
+    vi.stubGlobal('localStorage', memoryStorage());
+    vi.stubGlobal('window', {
+      location: { pathname: '/studio/canvas/c1', search: '', href: '', replace: vi.fn() },
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    });
+    vi.stubGlobal('document', { visibilityState: 'visible' });
+    vi.resetModules();
+    const postToNativeHost = vi.fn();
+    vi.doMock('../../utils/platform', async (importOriginal) => ({
+      ...(await importOriginal<object>()),
+      isEmbedded: () => true,
+    }));
+    vi.doMock('@gruenerator/shared', async (importOriginal) => ({
+      ...(await importOriginal<object>()),
+      postToNativeHost,
+    }));
+    const axios = (await import('axios')).default;
+    vi.mocked(axios.get).mockRejectedValue(httpError(401));
+    const { handleUnauthorized } = await import('./apiClient');
+
+    await expect(handleUnauthorized('collab-auth')).resolves.toBe('logout');
+    expect(postToNativeHost).toHaveBeenCalledTimes(1);
+    expect(postToNativeHost).toHaveBeenCalledWith({ type: 'SESSION_LOST' });
+    expect(window.location.href).toBe('');
+  });
+});
+
 describe('legacy apiClient and aborted requests', () => {
   it('rejects a status-0 response as an axios network error', async () => {
     vi.resetModules();

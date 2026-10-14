@@ -6,12 +6,13 @@
 import { getPlatformShareUrl, type SharePlatform } from '@gruenerator/shared';
 import { stripDataUrlPrefix } from '@gruenerator/shared/utils';
 import * as Clipboard from 'expo-clipboard';
-import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as WebBrowser from 'expo-web-browser';
 import { Share as RNShare, Linking, Platform } from 'react-native';
 
 import { getErrorMessage } from '../utils/errors';
+
+import { writeShareFile } from './shareCache';
 
 /**
  * Check if native sharing is available on this device
@@ -53,24 +54,16 @@ export async function shareFile(
  * @param message - Optional message
  */
 /**
- * Share a base64-encoded image via the native share sheet: writes it to a
- * cache file, shares, and cleans up. (Pattern shared by chat's generated
- * images and the sharepic result view.)
+ * Share a base64-encoded image via the native share sheet. (Pattern shared by
+ * chat's generated images and the sharepic result view.)
  */
 export async function shareBase64Image(base64: string, dialogTitle = 'Bild teilen'): Promise<void> {
-  const data = stripDataUrlPrefix(base64);
-  const file = new File(Paths.cache, `share_${Date.now()}.png`);
-  const binaryString = atob(data);
-  const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  file.write(bytes);
-  try {
-    await shareFile(file.uri, { mimeType: 'image/png', dialogTitle });
-  } finally {
-    file.delete();
-  }
+  await shareBytesAsFile(
+    base64ToBytes(base64),
+    `share_${Date.now()}.png`,
+    dialogTitle,
+    'image/png'
+  );
 }
 
 /** Extension → mime, for sharing a compute export (a filled form, a CSV). iOS
@@ -96,6 +89,14 @@ const MIME_BY_EXTENSION: Record<string, string> = {
   webp: 'image/webp',
 };
 
+/** iOS routes a shared document by its UTI, not by its MIME type. */
+const UTI_BY_MIME: Record<string, string> = {
+  'image/png': 'public.png',
+  'image/jpeg': 'public.jpeg',
+  'application/pdf': 'com.adobe.pdf',
+  'application/zip': 'public.zip-archive',
+};
+
 export function mimeFromFileName(name: string): string {
   const ext = name.split('.').pop()?.toLowerCase() ?? '';
   return MIME_BY_EXTENSION[ext] ?? 'application/octet-stream';
@@ -116,13 +117,13 @@ export async function shareBytesAsFile(
    */
   mimeType?: string
 ): Promise<void> {
-  const file = new File(Paths.cache, fileName);
-  file.write(bytes);
-  try {
-    await shareFile(file.uri, { mimeType: mimeType ?? mimeFromFileName(fileName), dialogTitle });
-  } finally {
-    file.delete();
-  }
+  const type = mimeType ?? mimeFromFileName(fileName);
+  const file = writeShareFile(bytes, fileName);
+  await shareFile(file.uri, {
+    mimeType: type,
+    dialogTitle,
+    uti: UTI_BY_MIME[type] ?? 'public.data',
+  });
 }
 
 export function base64ToBytes(base64: string): Uint8Array {

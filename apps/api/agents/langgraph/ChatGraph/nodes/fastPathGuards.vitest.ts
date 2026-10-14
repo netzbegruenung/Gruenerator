@@ -464,6 +464,35 @@ describe('Karussell gehört zum Sharepic-Wortschatz', () => {
   });
 });
 
+// 06.10.2026: „Mach eine Infografik zu …" fiel in den agentischen Loop. Der
+// Sharepic-Creator setzt Zahlen als Diagramm — das ist die Infografik.
+describe('Infografik gehört zum Sharepic-Wortschatz', () => {
+  it.each([
+    'Mach eine Infografik zur Kindergrundsicherung',
+    'Erstelle eine Infografik: 38 % mehr Miete in Graz seit 2015',
+    'Bau mir eine Infografik zum Frauenanteil im Bundestag, 1983 vs. heute',
+    'Infografik zu den CO2-Emissionen nach Sektoren',
+    'Ich brauche eine Infografik zum Klimageld',
+    'Mach einen Infografik-Post zur Verkehrswende',
+    'Mach eine Infographic zu den Mieten',
+  ])('bestellt: %s', (text) => {
+    expect(asksForSharepic(text)).toBe(true);
+  });
+
+  it.each([
+    'Was ist eine gute Infografik?',
+    'Mach den Post ohne Infografik',
+    'Die Infografik im Bericht zeigt einen Anstieg – fass ihn zusammen',
+  ])('kein Sharepic: %s', (text) => {
+    expect(asksForSharepic(text)).toBe(false);
+  });
+
+  it('„Infografik-Post" ist die Infografik selbst, kein Post-Nomen', () => {
+    expect(POST_NOUN_PATTERN.test('Mach einen Infografik-Post zur Verkehrswende')).toBe(false);
+    expect(POST_NOUN_PATTERN.test('Schreib einen Post mit Infografik')).toBe(true);
+  });
+});
+
 // #4118: das blosse Nomen als eigener Satz gehört zur Frage dahinter.
 describe('blosses Sharepic-Nomen vor einer Meta-Frage', () => {
   it.each([
@@ -538,5 +567,22 @@ describe('creationOrderPattern — Satz- und Nebensatzgrenze', () => {
     const site = creationOrderPattern('website');
     expect(site.test('Mach mir Vorschläge für den Aufbau unserer Website')).toBe(false);
     expect(site.test('mach mir eine Website für unseren Ortsverband')).toBe(true);
+  });
+});
+
+// Live 11.10.2026: „Prüf das Sharepic bitte" baute ein neues neben das geprüfte.
+describe('asksForSharepic — „bitte" am vorhandenen Sharepic', () => {
+  it('liest den bestimmten Artikel als das vorhandene Sharepic', () => {
+    expect(asksForSharepic('Prüf das Sharepic bitte')).toBe(false);
+    expect(asksForSharepic('Prüf bitte, ob das Sharepic gut lesbar ist und behebe Fehler')).toBe(
+      false
+    );
+    expect(asksForSharepic('Gib mir das Sharepic als PNG')).toBe(false);
+  });
+
+  it('bestellt weiterhin mit unbestimmtem Artikel oder Erstell-Verb', () => {
+    expect(asksForSharepic('Ein Sharepic bitte')).toBe(true);
+    expect(asksForSharepic('Bitte ein Sharepic zum Klimageld')).toBe(true);
+    expect(asksForSharepic('Erstelle das Sharepic für morgen')).toBe(true);
   });
 });

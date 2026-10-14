@@ -27,6 +27,9 @@ export const SELF_CHROMED_PATH_PREFIXES: readonly string[] = [
   '/office/',
   // `CollabCanvasStudioPage` — the canvas editor's green menu bar.
   '/studio/canvas/',
+  // `SharepicVorlageInstantiatePage` — shows the canvas editor's skeleton while
+  // it copies the Vorlage, then replaces itself with `/studio/canvas/:id`.
+  '/studio/vorlage/',
 ];
 
 /**
@@ -43,16 +46,16 @@ export function hostDrawsHeader(path: string): boolean {
 
 /**
  * The canvas editor's menu bar is a horizontal gradient, not a flat colour, so
- * the status-bar band above it has to be one too — a single green would seam
- * against it on the right, where the bar has already run to `#6BA88C`.
+ * the status-bar band above it has to be one too — a single colour would seam
+ * against it on the right, where the bar has already run to its light end.
  *
- * Copied from `--editor-menubar-gradient` in the canvas editor's
- * `variables.css`, which is where it belongs: it is a web design token, and
- * that file stays its one source. `hostChrome.vitest.ts` reads the CSS and
- * fails if the two drift apart, so this is checked duplication rather than the
- * kind that quietly rots.
+ * The canvas editor runs under the studio accent, so these are the stops of
+ * `--editor-menubar-gradient` in `apps/web/src/assets/styles/common/accent.css`
+ * (primary 700 / 600 / 400 mixed from `--accent`), written out as hex.
+ * `hostChrome.vitest.ts` recomputes them from the CSS and fails if the two drift
+ * apart, so this is checked duplication rather than the kind that quietly rots.
  */
-export const CANVAS_MENUBAR_GRADIENT = ['#00553B', '#3E7D63', '#6BA88C'] as const;
+export const CANVAS_MENUBAR_GRADIENT = ['#4B4175', '#5B4F8F', '#9992BA'] as const;
 
 /** Where the three stops sit — `55%` in the CSS. */
 export const CANVAS_MENUBAR_GRADIENT_STOPS = [0, 0.55, 1] as const;
@@ -69,7 +72,9 @@ export const CANVAS_MENUBAR_GRADIENT_STOPS = [0, 0.55, 1] as const;
  */
 export function statusBarTint(path: string): readonly string[] | null {
   const pathname = path.split('?')[0] ?? '';
-  return pathname.startsWith('/studio/canvas/') ? CANVAS_MENUBAR_GRADIENT : null;
+  return pathname.startsWith('/studio/canvas/') || pathname.startsWith('/studio/vorlage/')
+    ? CANVAS_MENUBAR_GRADIENT
+    : null;
 }
 
 /**
@@ -100,6 +105,7 @@ const SURFACE_SHAPES: Record<string, EmbeddedSurfaceShape> = {
   '/boards/': 'board',
   '/office/': 'office',
   '/studio/canvas/': 'canvas',
+  '/studio/vorlage/': 'canvas',
 };
 
 /**

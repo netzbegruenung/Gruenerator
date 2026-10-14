@@ -469,6 +469,10 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'source_url', type: 'keyword' },
       { field: 'content_type', type: 'keyword' },
       { field: 'doc_type', type: 'keyword' },
+      // Abhängige Dokumente zu ihrem Ursprung holen (`dependentExpansion.ts`).
+      { field: 'bezug', type: 'keyword' },
+      // Alle Dokumente eines Verfahrens (Präfix der `record_id`, #4307).
+      { field: 'vorgang_id', type: 'keyword' },
       { field: 'primary_category', type: 'keyword' },
       { field: 'subcategories', type: 'keyword' },
       { field: 'party', type: 'keyword' },
@@ -503,6 +507,31 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'speakers', type: 'keyword' },
       { field: 'speaker_party', type: 'keyword' },
       { field: 'ergebnis', type: 'keyword' },
+      { field: 'published_at', type: 'datetime' },
+      { field: 'indexed_at', type: 'keyword' },
+      { field: 'chunk_text', type: 'text' },
+    ],
+  },
+  landtag_bayern_documents: {
+    name: 'landtag_bayern_documents',
+    optimizer: 'large',
+    hnsw: 'standard',
+    datatype: 'float16',
+    indexes: [
+      // Ohne Systematik des Landtags: Thema und Personen kommen aus der
+      // NLP-Anreicherung (ENRICHMENT_COLLECTIONS).
+      ...NLP_FACET_INDEXES,
+      // Wie landtag_nrw_documents: Filterzählung und „schon da?" filtern auf
+      // chunk_index = 0.
+      { field: 'chunk_index', type: 'integer' },
+      { field: 'document_id', type: 'keyword' },
+      { field: 'source_url', type: 'keyword' },
+      { field: 'content_type', type: 'keyword' },
+      { field: 'doc_type', type: 'keyword' },
+      { field: 'party', type: 'keyword' },
+      { field: 'schlagworte', type: 'keyword' },
+      { field: 'speakers', type: 'keyword' },
+      { field: 'speaker_party', type: 'keyword' },
       { field: 'published_at', type: 'datetime' },
       { field: 'indexed_at', type: 'keyword' },
       { field: 'chunk_text', type: 'text' },
@@ -547,6 +576,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'primary_category', type: 'keyword' },
       { field: 'landesverband', type: 'keyword' },
       { field: 'source_id', type: 'keyword' },
+      { field: 'source_type', type: 'keyword' },
       { field: 'published_at', type: 'datetime' },
       { field: 'indexed_at', type: 'keyword' },
       { field: 'chunk_text', type: 'text' },
@@ -569,6 +599,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'primary_category', type: 'keyword' },
       { field: 'landesverband', type: 'keyword' },
       { field: 'source_id', type: 'keyword' },
+      { field: 'source_type', type: 'keyword' },
       { field: 'published_at', type: 'datetime' },
       { field: 'indexed_at', type: 'keyword' },
       { field: 'chunk_text', type: 'text' },
@@ -610,6 +641,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
     hnsw: 'standard',
     datatype: 'float16',
     indexes: [
+      ...NLP_FACET_INDEXES,
       // Facettenzählung und Hash-Abfrage filtern auf chunk_index = 0.
       { field: 'chunk_index', type: 'integer' },
       { field: 'document_id', type: 'keyword' },
@@ -624,6 +656,29 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'section_type', type: 'keyword' },
       { field: 'published_at', type: 'datetime' },
       // datetime: der Scraper liest den jüngsten Wert per order_by (Aufholfenster).
+      { field: 'indexed_at', type: 'datetime' },
+      { field: 'chunk_text', type: 'text' },
+    ],
+  },
+  // Bundesrats-Drucksachen aus dem DIP (Anträge der Länder, Gesetzentwürfe,
+  // Beschlüsse). Stammen aus demselben Import wie bundestag_dip_documents.
+  bundesrat_documents: {
+    name: 'bundesrat_documents',
+    optimizer: 'medium',
+    hnsw: 'standard',
+    datatype: 'float16',
+    indexes: [
+      ...NLP_FACET_INDEXES,
+      // Facettenzählung und Hash-Abfrage filtern auf chunk_index = 0.
+      { field: 'chunk_index', type: 'integer' },
+      { field: 'document_id', type: 'keyword' },
+      { field: 'parent_id', type: 'keyword' },
+      { field: 'source_url', type: 'keyword' },
+      { field: 'content_type', type: 'keyword' },
+      { field: 'drucksachetyp', type: 'keyword' },
+      { field: 'urheber', type: 'keyword' },
+      { field: 'section_type', type: 'keyword' },
+      { field: 'published_at', type: 'datetime' },
       { field: 'indexed_at', type: 'datetime' },
       { field: 'chunk_text', type: 'text' },
     ],

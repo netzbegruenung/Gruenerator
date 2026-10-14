@@ -94,3 +94,33 @@ describe('injectHtmlIntoFragment — inline fidelity', () => {
     expect(seedBlocks('   ').fragmentLength).toBe(0);
   });
 });
+
+describe('injectHtmlIntoFragment — tables', () => {
+  it('seeds a real BlockNote table with header cells and inline marks', () => {
+    const doc = new Y.Doc();
+    const fragment = doc.getXmlFragment(DOCUMENT_FRAGMENT_NAME);
+    injectHtmlIntoFragment(
+      fragment,
+      '<table><thead><tr><th>Partei</th><th>Anteil</th></tr></thead>' +
+        '<tbody><tr><td><strong>Grüne</strong></td><td>11,6 %</td></tr><tr><td>SPD</td></tr></tbody></table>'
+    );
+
+    const table = ((fragment.get(0) as Y.XmlElement).get(0) as Y.XmlElement).get(0) as Y.XmlElement;
+    expect(table.nodeName).toBe('table');
+    const rows = table.toArray() as Y.XmlElement[];
+    expect(rows.map((row) => row.nodeName)).toEqual(['tableRow', 'tableRow', 'tableRow']);
+    const cells = rows.map((row) => row.toArray() as Y.XmlElement[]);
+    expect(cells.map((row) => row.map((cell) => cell.nodeName))).toEqual([
+      ['tableHeader', 'tableHeader'],
+      ['tableCell', 'tableCell'],
+      // A short row is padded to the table width.
+      ['tableCell', 'tableCell'],
+    ]);
+    const text = (cell: Y.XmlElement) =>
+      ((cell.get(0) as Y.XmlElement).get(0) as Y.XmlText).toDelta() as SeededBlock['delta'];
+    expect((cells[0]![0]!.get(0) as Y.XmlElement).nodeName).toBe('tableParagraph');
+    expect(text(cells[0]![0]!)).toEqual([{ insert: 'Partei', attributes: { bold: {} } }]);
+    expect(text(cells[1]![0]!)).toEqual([{ insert: 'Grüne', attributes: { bold: {} } }]);
+    expect(text(cells[2]![1]!)).toEqual([]);
+  });
+});

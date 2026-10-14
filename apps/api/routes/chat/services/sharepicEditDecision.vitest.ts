@@ -1,3 +1,8 @@
+/**
+ * The chat's sharepic_edit decisions on the shared op planner (#4251):
+ * a reasoned decline, a real edit, malformed answers, and a request the
+ * template can only partly do.
+ */
 import {
   buildSharepicSnapshot,
   getSharepicTemplateDescriptor,
@@ -7,14 +12,16 @@ import { response } from 'express';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  aiTools: vi.fn(),
+  executeProvider: vi.fn(),
   query: vi.fn(),
   patch: vi.fn(),
   currentState: vi.fn(),
   version: vi.fn(),
   finish: vi.fn(),
 }));
-vi.mock('../../../services/ai/generate.js', () => ({ aiTools: mocks.aiTools }));
+vi.mock('../../../services/ai/execution/index.js', () => ({
+  executeProvider: mocks.executeProvider,
+}));
 vi.mock('../../../database/services/PostgresService.js', () => ({
   getPostgresInstance: () => ({ query: mocks.query }),
 }));
@@ -30,9 +37,13 @@ vi.mock('../../../services/canvas/canvasVersionRepository.js', () => ({
 }));
 vi.mock('./editTurnCompletion.js', () => ({ finishEditTurn: mocks.finish }));
 
-import { runSharepicEdit } from './sharepicEditLlm.js';
+import { sharepicCapabilitiesView } from '../../canvas/services/buildCanvasSuggestPrompt.js';
+import { runCanvasEditDecision } from '../../canvas/services/runCanvasSuggest.js';
+
 import { handleSharepicEdit } from './sharepicEditService.js';
 import { SSEWriter } from './sseHelpers.js';
+
+const TOOL_NAME = 'submit_canvas_operations';
 
 const declined = {
   operations: [],
@@ -40,16 +51,44 @@ const declined = {
   reply: 'Bitte gib den belegten Wortlaut an, damit ich das Zitat erweitern kann.',
 };
 const descriptor = getSharepicTemplateDescriptor('zitat')!;
-const args = {
-  instruction: 'Verlängere das Zitat',
-  descriptor,
+const plannerArgs = {
+  prompt: 'Verlängere das Zitat',
   snapshot: buildSharepicSnapshot(descriptor, descriptor.defaultState),
-  recentEditSummaries: [],
+  capabilities: sharepicCapabilitiesView(descriptor),
+  chatEdit: { recentEditSummaries: [] },
 };
-function respond(input: Record<string, unknown>) {
-  mocks.aiTools.mockResolvedValue({
-    tool_calls: [{ name: 'apply_sharepic_edit', input }],
+
+/** Successive attempts answer with the given tool payloads, the last one repeating. */
+function respond(...payloads: Record<string, unknown>[]) {
+  let i = 0;
+  mocks.executeProvider.mockImplementation(() => {
+    const input = payloads[Math.min(i++, payloads.length - 1)];
+    return Promise.resolve({
+      content: null,
+      success: true,
+      stop_reason: 'tool_use',
+      tool_calls: [{ name: TOOL_NAME, input }],
+    });
   });
+}
+
+type SentRequest = { messages: { content: string }[]; systemPrompt?: string };
+const sent = (call: number): SentRequest =>
+  mocks.executeProvider.mock.calls[call]![2] as SentRequest;
+
+function editTurn(instruction: string) {
+  const sse = new SSEWriter(response);
+  const send = vi.spyOn(sse, 'send').mockImplementation(() => {});
+  const run = handleSharepicEdit({
+    sse,
+    req: {},
+    threadId: 't1',
+    userId: 'u1',
+    instruction,
+    currentSharepic: { variantId: 'v1', canvasId: 'c1', canvasType: 'zitat' },
+    startTime: Date.now(),
+  });
+  return { run, events: () => send.mock.calls.map(([event]) => event), send };
 }
 
 beforeEach(() => {
@@ -65,8 +104,14 @@ beforeEach(() => {
 describe('sharepic edit decisions', () => {
   it('accepts a reasoned decline without retrying or weakening applied edits', async () => {
     expect(sharepicEditResponseSchema.safeParse(declined).success).toBe(false);
-    await expect(runSharepicEdit(args)).resolves.toEqual({ ok: false, reply: declined.reply });
-    expect(mocks.aiTools).toHaveBeenCalledTimes(1);
+    await expect(runCanvasEditDecision(plannerArgs)).resolves.toEqual({
+      ok: true,
+      operations: [],
+      summary: declined.summary,
+      reply: declined.reply,
+      dropped: [],
+    });
+    expect(mocks.executeProvider).toHaveBeenCalledTimes(1);
   });
 
   it('still returns actual operations for an actionable edit', async () => {
@@ -76,7 +121,11 @@ describe('sharepic edit decisions', () => {
       reply: 'Das Zitat ist ersetzt.',
     };
     respond(edit);
-    await expect(runSharepicEdit(args)).resolves.toEqual({ ok: true, edit });
+    await expect(runCanvasEditDecision(plannerArgs)).resolves.toEqual({
+      ok: true,
+      ...edit,
+      dropped: [],
+    });
   });
 
   it('extends the selected sidebar draft and persists and broadcasts its new text', async () => {
@@ -88,23 +137,14 @@ describe('sharepic edit decisions', () => {
       summary: 'Zitattext verlängert',
       reply: 'Ich habe den Zitattext verlängert.',
     });
-    const sse = new SSEWriter(response);
-    const send = vi.spyOn(sse, 'send').mockImplementation(() => {});
-    await handleSharepicEdit({
-      sse,
-      req: {},
-      threadId: 't1',
-      userId: 'u1',
-      instruction: 'den zitat text verlängern',
-      currentSharepic: { variantId: 'v1', canvasId: 'c1', canvasType: 'zitat' },
-      startTime: Date.now(),
-    });
-    expect(mocks.aiTools).toHaveBeenCalledWith(
-      expect.objectContaining({
-        system: expect.stringContaining(quote),
-        prompt: expect.stringContaining('den zitat text verlängern'),
-      })
-    );
+    const { run, send } = editTurn('den zitat text verlängern');
+    await run;
+    expect(sent(0).systemPrompt).toContain(quote);
+    expect(
+      sent(0)
+        .messages.map((m) => m.content)
+        .join('\n')
+    ).toContain('den zitat text verlängern');
     expect(mocks.patch).toHaveBeenCalledWith(
       'c1',
       expect.objectContaining({ quote: extended }),
@@ -130,31 +170,93 @@ describe('sharepic edit decisions', () => {
       { ...declined, reply: '' },
       { ...declined, operations: [{}] },
     ]) {
+      mocks.executeProvider.mockClear();
       respond(input);
-      const result = await runSharepicEdit(args);
+      const result = await runCanvasEditDecision(plannerArgs);
       expect(result.ok).toBe(false);
       expect(result).toHaveProperty('error', expect.stringContaining('Schema mismatch'));
+      // One repair turn that names the problem, then it gives up.
+      expect(mocks.executeProvider).toHaveBeenCalledTimes(2);
     }
   });
 
   it('finishes with the explanation without patching, versioning or emitting an edit error', async () => {
-    const sse = new SSEWriter(response);
-    const send = vi.spyOn(sse, 'send').mockImplementation(() => {});
-    await expect(
-      handleSharepicEdit({
-        sse,
-        req: {},
-        threadId: 't1',
-        userId: 'u1',
-        instruction: args.instruction,
-        currentSharepic: { variantId: 'v1', canvasId: 'c1', canvasType: 'zitat' },
-        startTime: Date.now(),
-      })
-    ).resolves.toBe(true);
+    const { run, events } = editTurn('Verlängere das Zitat');
+    await expect(run).resolves.toBe(true);
     expect(mocks.finish).toHaveBeenCalledWith(expect.objectContaining({ text: declined.reply }));
     expect(mocks.patch).not.toHaveBeenCalled();
     expect(mocks.version).not.toHaveBeenCalled();
-    expect(send.mock.calls.map(([event]) => event)).not.toContain('sharepic_updated');
-    expect(send.mock.calls.map(([event]) => event)).not.toContain('sharepic_edit_error');
+    expect(events()).not.toContain('sharepic_updated');
+    expect(events()).not.toContain('sharepic_edit_error');
+  });
+
+  it('reports a planner failure as an edit error without patching', async () => {
+    respond({ operations: 'kaputt' });
+    const { run, events } = editTurn('Verlängere das Zitat');
+    await run;
+    expect(events()).toContain('sharepic_edit_error');
+    expect(mocks.patch).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * 11.08.2026: `dreizeilen-overlay-at` got a `set-background-color` it cannot
+ * do, the validator dropped it, and the chat confirmed the new background.
+ * The planner drops an unsupported kind; the reply must still name it.
+ */
+describe('a partly unsupported request', () => {
+  it('applies the supported part and names the rest instead of confirming it', async () => {
+    expect(descriptor.supportedOperations).not.toContain('set-background-image');
+    respond({
+      operations: [
+        { kind: 'set-text', field: 'quote', label: 'Zitat', value: 'Neuer Text' },
+        { kind: 'set-background-image', query: 'Windräder' },
+      ],
+      summary: 'Zitat und Hintergrund geändert',
+      reply: 'Ich habe das Zitat und den Hintergrund geändert.',
+    });
+    const { run } = editTurn('Neuer Text und ein Windrad-Hintergrund');
+    await run;
+
+    expect(mocks.patch).toHaveBeenCalledWith(
+      'c1',
+      expect.objectContaining({ quote: 'Neuer Text' }),
+      expect.anything()
+    );
+    const text = (mocks.finish.mock.calls[0]![0] as { text: string }).text;
+    expect(text).toContain('Nicht übernommen');
+    expect(text).toContain('set-background-image');
+    expect(text).toContain('Studio');
+  });
+
+  it('turns a batch of only unsupported kinds into a repair that may decline', async () => {
+    respond(
+      {
+        operations: [{ kind: 'set-background-image', query: 'Windräder' }],
+        summary: 'Hintergrund',
+        reply: 'Erledigt.',
+      },
+      {
+        operations: [],
+        summary: 'Keine Änderung',
+        reply: 'Das Hintergrundbild lässt sich bei dieser Vorlage nur im Studio ändern.',
+      }
+    );
+    const { run, events } = editTurn('Mach einen Windrad-Hintergrund');
+    await run;
+
+    expect(mocks.executeProvider).toHaveBeenCalledTimes(2);
+    const repair = sent(1)
+      .messages.map((m) => m.content)
+      .join('\n');
+    expect(repair).toMatch(/keine unterstützte Operation/);
+    expect(repair).toContain('"operations": []');
+    expect(mocks.patch).not.toHaveBeenCalled();
+    expect(events()).not.toContain('sharepic_edit_error');
+    expect(mocks.finish).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: 'Das Hintergrundbild lässt sich bei dieser Vorlage nur im Studio ändern.',
+      })
+    );
   });
 });

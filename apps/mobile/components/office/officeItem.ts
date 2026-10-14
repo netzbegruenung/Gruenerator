@@ -1,3 +1,4 @@
+import { type BoardPreview } from '@gruenerator/contracts';
 import { type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { type useRouter } from 'expo-router';
 
@@ -26,6 +27,9 @@ export interface OfficeItem {
   preview?: string;
   /** Server-rendered image for the canvas grid preview (canvas only). */
   thumbnailUrl?: string;
+  /** Boards only, from the board's content metadata. */
+  boardType?: 'kanban' | 'whiteboard';
+  boardPreview?: BoardPreview;
 }
 
 /** Doc-family kinds live in `/docs` and support the share/delete actions menu. */

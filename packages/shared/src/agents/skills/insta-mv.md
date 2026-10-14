@@ -10,4 +10,5 @@ skillCategory: social
 audience: 'de-DE'
 promptTemplate: 'Instagram-Post im Stil Grüne MV zum Thema: '
 order: 56
+recommendedTools: ['vorlagen_vorschlagen']
 ---

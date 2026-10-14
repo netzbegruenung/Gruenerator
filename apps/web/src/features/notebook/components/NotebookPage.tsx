@@ -3,6 +3,7 @@ import {
   AssistantMessage,
   CitationPanelProvider,
   CitationSidePanel,
+  DEFAULT_NOTEBOOK_SOURCE_TIER,
   NotebookChatProvider,
   NotebookComposer,
   UserMessage,
@@ -10,11 +11,13 @@ import {
   toNotebookAnswerMode,
   notebookDepthDef,
   notebookMentionables,
+  supportsSourceTier,
   useAgentStore,
   type CategoryFilterConfig,
   type CategoryFilterField,
   type NotebookMessageMetadata,
 } from '@gruenerator/chat';
+import { type NotebookSourceTier } from '@gruenerator/contracts';
 import { Skeleton, cn } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import React, { useState, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
@@ -148,6 +151,16 @@ export const NotebookPageContent = ({
   const storedDepth = useAgentStore((s) => s.notebookDepth);
   const setMode = useAgentStore((s) => s.setNotebookDepth);
   const mode = notebookDepthDef(storedDepth).depth;
+  // Quellen-Ampel: per notebook, remembered in the browser, offered only where the
+  // collection knows demoted sources (parliament notebooks).
+  const offersSourceTier = supportsSourceTier(config.collections.map((c) => c.id));
+  const storedSourceTier = useAgentStore((s) => s.notebookSourceTiers[config.id]);
+  const setStoredSourceTier = useAgentStore((s) => s.setNotebookSourceTier);
+  const sourceTier = storedSourceTier ?? DEFAULT_NOTEBOOK_SOURCE_TIER;
+  const setSourceTier = useCallback(
+    (tier: NotebookSourceTier) => setStoredSourceTier(config.id, tier),
+    [setStoredSourceTier, config.id]
+  );
   const storedAnswerMode = useAgentStore((s) => s.notebookAnswerMode);
   const setAnswerMode = useAgentStore((s) => s.setNotebookAnswerMode);
   const answerMode = notebookComposerModeDef(storedAnswerMode).mode;
@@ -348,6 +361,7 @@ export const NotebookPageContent = ({
             : { value: v as string }
         ),
         ...(cfg.valueLabels ? { valueLabels: cfg.valueLabels } : {}),
+        ...(cfg.collapsed ? { collapsed: true } : {}),
       }));
 
     if (fields.length === 0) return undefined;
@@ -386,9 +400,11 @@ export const NotebookPageContent = ({
       onThreadCreated={handleThreadCreated}
       threadId={threadId}
       mode={mode}
+      {...(offersSourceTier ? { sourceTier } : {})}
       answerMode={toNotebookAnswerMode(answerMode)}
       magicSearch={answerMode === 'auto'}
       documentIds={documentIds}
+      offerExplainable
     >
       <PendingQuestionSender />
       <CitationPanelProvider>
@@ -409,6 +425,7 @@ export const NotebookPageContent = ({
                   composerCategoryFilters={categoryFilters}
                   mode={mode}
                   onModeChange={setMode}
+                  {...(offersSourceTier ? { sourceTier, onSourceTierChange: setSourceTier } : {})}
                   answerMode={answerMode}
                   onAnswerModeChange={setAnswerMode}
                   recentCollectionIds={recentCollectionIds}
@@ -447,6 +464,7 @@ export const NotebookPageContent = ({
                     categoryFilters={categoryFilters}
                     mode={mode}
                     onModeChange={setMode}
+                    {...(offersSourceTier ? { sourceTier, onSourceTierChange: setSourceTier } : {})}
                     answerMode={answerMode}
                     onAnswerModeChange={setAnswerMode}
                     settingsClassName={NOTEBOOK_COMPOSER_ACCENT}

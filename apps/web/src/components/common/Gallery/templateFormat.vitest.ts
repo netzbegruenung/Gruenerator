@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getTemplateFormat } from './templateFormat';
+import { getTemplateFormat, ratioLabelFromSize } from './templateFormat';
 
 describe('getTemplateFormat', () => {
   it('nennt den Typ nicht, wenn er nur das Werkzeug wiederholt', () => {
@@ -49,5 +49,33 @@ describe('getTemplateFormat', () => {
   it('leitet das Werkzeug aus der URL ab, nicht aus dem Wortlaut', () => {
     expect(getTemplateFormat({ external_url: 'https://canva.com.evil.test/x' }).tool).toBe('Link');
     expect(getTemplateFormat({ download_url: '/files/a.pdf' }).tool).toBe('Download');
+  });
+
+  it('misst das Verhältnis nur, wo sonst geraten würde', () => {
+    expect(
+      getTemplateFormat(
+        { template_type: 'canva', external_url: 'https://www.canva.com/design/ABC/view' },
+        '4:5'
+      ).formatLabel
+    ).toBe('4:5');
+    expect(getTemplateFormat({ template_type: 'story' }, '4:5').formatLabel).toBe('Story · 9:16');
+    expect(
+      getTemplateFormat(
+        {
+          template_type: 'canva',
+          tags: ['quadratisch'],
+          external_url: 'https://www.canva.com/design/ABC/view',
+        },
+        '4:5'
+      ).formatLabel
+    ).toBe('1:1');
+  });
+
+  it('rundet Bildmaße auf das nächste Standardformat', () => {
+    expect(ratioLabelFromSize(1080, 1350)).toBe('4:5');
+    expect(ratioLabelFromSize(1080, 1080)).toBe('1:1');
+    expect(ratioLabelFromSize(1080, 1920)).toBe('9:16');
+    expect(ratioLabelFromSize(1200, 630)).toBe('1.9:1');
+    expect(ratioLabelFromSize(0, 10)).toBeNull();
   });
 });

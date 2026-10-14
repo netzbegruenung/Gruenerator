@@ -27,6 +27,12 @@
  */
 const CALLBACK_NAME = /^on([A-Z].*)Change$/;
 
+/** The state key an `on<Key>Change` callback writes, or null for any other name. */
+export function stateKeyOfCallback(name: string): string | null {
+  const match = CALLBACK_NAME.exec(name);
+  return match ? match[1].charAt(0).toLowerCase() + match[1].slice(1) : null;
+}
+
 const callbackName = (stateKey: string): string =>
   `on${stateKey.charAt(0).toUpperCase()}${stateKey.slice(1)}Change`;
 
@@ -37,14 +43,13 @@ export function createPageSyncedCallbacks(
 ): Record<string, (val: unknown) => void> {
   const wrapped: Record<string, (val: unknown) => void> = {};
   for (const name of Object.keys(getCallbacks())) {
-    const match = CALLBACK_NAME.exec(name);
-    if (!match) {
+    const stateKey = stateKeyOfCallback(name);
+    if (!stateKey) {
       wrapped[name] = (val: unknown) => {
         getCallbacks()[name]?.(val);
       };
       continue;
     }
-    const stateKey = match[1].charAt(0).toLowerCase() + match[1].slice(1);
     wrapped[name] = (val: unknown) => {
       getCallbacks()[name]?.(val);
       writePageState({ [stateKey]: val });

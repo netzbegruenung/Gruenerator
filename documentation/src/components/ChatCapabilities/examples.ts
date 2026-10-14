@@ -304,6 +304,17 @@ export const EXAMPLES: CapabilityExample[] = [
     ],
   },
   {
+    intent: 'create_explainable',
+    group: 'erstellen',
+    label: 'Explainable',
+    mentionable: 'explainable-erstellen',
+    hint: 'Ein Thema einfach erklärt, mit Erklärbildern. Startet über die Erwähnung `@explainable-erstellen`.',
+    questions: [
+      '@explainable-erstellen Wie funktioniert eine Wärmepumpe?',
+      '@explainable-erstellen Erklär das Klimageld so, dass es jede*r versteht.',
+    ],
+  },
+  {
     intent: 'chart',
     group: 'erstellen',
     label: 'Diagramm',

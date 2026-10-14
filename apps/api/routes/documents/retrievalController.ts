@@ -15,11 +15,15 @@ import express, { type Router, type Response } from 'express';
 import { z } from 'zod';
 
 import { getSystemCollectionConfig } from '../../config/systemCollectionsConfig.js';
+import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
+import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
+import { resolveReaderSource } from '../../services/notebook/notebookSources.js';
 import { createLogger } from '../../utils/logger.js';
 import { fromParam, type DocumentId } from '../../utils/types/branded.js';
+import { checkNotebookAccess } from '../notebook/notebookAccess.js';
 
 import { enrichDocumentWithPreview } from './helpers.js';
 
@@ -31,6 +35,7 @@ const router: Router = express.Router();
 // Initialize services
 const postgresDocumentService = getPostgresDocumentService();
 const documentSearchService = new DocumentSearchService();
+const notebookHelper = new NotebookQdrantHelper();
 
 /**
  * GET /user - Get user documents with enrichment
@@ -309,18 +314,25 @@ async function respondWithDocumentChunks(
     const systemConfig = collectionId ? getSystemCollectionConfig(collectionId) : null;
 
     let documentTitle = 'Dokument';
+    let ownerUserId = userId;
 
     if (!systemConfig) {
-      const document = await postgresDocumentService.getDocumentById(id, userId);
-      if (!document) {
+      // Zitate aus geteilten und öffentlichen Notebooks zeigen auf Quellen
+      // fremder Eigentümer*innen — dieselbe Zugriffsregel wie der Reader.
+      const source = await resolveReaderSource(
+        { documentId: id, notebookId: collectionId ?? null, userId },
+        { db: getPostgresInstance(), helper: notebookHelper, access: checkNotebookAccess }
+      );
+      if (!source) {
         res.status(404).json({ success: false, message: 'Document not found or access denied' });
         return;
       }
-      documentTitle = document.title;
+      documentTitle = source.title;
+      ownerUserId = source.ownerUserId;
     }
 
     const result = await documentSearchService.getDocumentChunks(
-      userId,
+      ownerUserId,
       id,
       systemConfig ? { qdrantCollection: systemConfig.qdrantCollection } : undefined
     );

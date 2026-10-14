@@ -26,6 +26,7 @@ export const contentSyncSourceSchema = z.enum([
   'oesterreich',
   'landtag-nrw',
   'landtag-berlin',
+  'landtag-bayern',
 ]);
 
 export type ContentSyncSource = z.infer<typeof contentSyncSourceSchema>;

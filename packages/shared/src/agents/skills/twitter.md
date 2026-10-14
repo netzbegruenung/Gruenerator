@@ -9,4 +9,5 @@ mention: 'twitter'
 skillCategory: social
 promptTemplate: 'Tweet zu folgendem Thema: '
 order: 7
+recommendedTools: ['vorlagen_vorschlagen']
 ---

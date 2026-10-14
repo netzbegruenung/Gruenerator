@@ -249,6 +249,8 @@ export const INSTANCES = [
     hide: {
       notebookIds: ['gruene-notebook'],
     },
+    // Development runs image tools again and again; a daily ceiling only gets in the way.
+    treeAllowance: 'unlimited',
   },
 ] as const satisfies readonly InstanceDefinition[];
 

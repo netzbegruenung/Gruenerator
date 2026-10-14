@@ -23,6 +23,7 @@ import {
   getCollectionFilterableFields,
   getCollectionDefaultFilter,
   getFacetCountFilter,
+  offersChoice,
   getDefaultMultiCollectionIds,
 } from '../../config/systemCollectionsConfig.js';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
@@ -126,7 +127,7 @@ export const notebookContractRouter = s.router(notebookContract, {
 
       // System collections change only through the content sync; one facet
       // pass per field per hour is plenty.
-      const cacheKey = `notebook:filters:v1:${collectionId}`;
+      const cacheKey = `notebook:filters:v2:${collectionId}`;
       const cached = await getCachedJson(cacheKey, notebookFiltersResponseSchema);
       if (cached) return { status: 200 as const, body: cached };
 
@@ -183,6 +184,7 @@ export const notebookContractRouter = s.router(notebookContract, {
                 type: fieldType,
                 values: valuesWithCounts,
                 ...(field.valueLabels ? { valueLabels: field.valueLabels } : {}),
+                ...(field.collapsed ? { collapsed: true } : {}),
               },
             ];
           } catch (fieldError) {
@@ -193,7 +195,9 @@ export const notebookContractRouter = s.router(notebookContract, {
           }
         })
       );
-      const filters = Object.fromEntries(entries);
+      const filters = Object.fromEntries(
+        entries.filter(([, entry]) => entry.type === 'date_range' || offersChoice(entry.values))
+      );
       const body = { collectionId, collectionName: systemConfig.name, filters };
       // A field that failed would sit empty for the whole TTL — don't keep it.
       if (complete) await setCachedJson(cacheKey, body, 60 * 60);

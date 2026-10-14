@@ -75,13 +75,12 @@ export function resolveSkillMention(alias: string): string | null {
  * vorhandenen Rezepts ersetzt oder für sich allein steht — und damit, ob sie im
  * Mention-Menü und im Rezeptkatalog des Modells auftauchen muss.
  *
- * Nötig, weil `textFormTypeSchema` VIER Presets kennt, `SKILLS` aber nur drei
- * davon als Rezept führt: `instagram`, `facebook` und `presse` gibt es, `antrag`
- * nicht (und nie gegeben). Beide Listen filterten trotzdem hart auf
- * `kind === 'custom'`, mit derselben Begründung — Presets reiten auf der Mention
- * ihres Systemrezepts. Für `antrag` stimmt der Satz nicht: die Oberfläche nahm
- * Beispiele entgegen, analysierte, speicherte — und die Zeile wurde auf keinem
- * Pfad je nachgeschlagen (#2937).
+ * Bis 10/2026 kannte `textFormTypeSchema` VIER Presets, `SKILLS` aber nur drei
+ * davon als Rezept: `antrag` fehlte. Beide Listen filterten trotzdem hart auf
+ * `kind === 'custom'`, mit der Begründung, Presets ritten auf der Mention ihres
+ * Systemrezepts — für `antrag` stimmte das nicht, die angelernte Zeile wurde auf
+ * keinem Pfad je nachgeschlagen (#2937). Seit es das Rezept `@antrag` gibt,
+ * reitet auch dieses Preset auf einem Systemrezept.
  *
  * Strukturell formuliert statt auf `'antrag'` verdrahtet: kommt ein Preset dazu,
  * dessen Rezept noch fehlt, trägt dieselbe Regel.

@@ -23,7 +23,6 @@ import { chatType, spacing } from '../../../theme';
 import { routeWithParams } from '../../../types/routes';
 import { ArtifactCard } from '../ArtifactCard';
 import { BahnCard } from '../BahnCard';
-import { ChatChartCard } from '../ChatChartCard';
 import { ChatStatusLine } from '../ChatStatusLine';
 import { CitationDetailSheet } from '../CitationDetailSheet';
 import { CitationsFooter } from '../CitationsFooter';
@@ -53,6 +52,7 @@ import { messageLayout } from './messageLayout';
 import { HiddenReasoningPart } from './ReasoningBlock';
 import { AssistantToolCallPartWithNarration } from './ToolCallPart';
 import { ToolGroupScope } from './toolGroupContext';
+import { VorlagenSuggestionsSection } from './VorlagenSuggestionsSection';
 
 // Reasoning renders NOTHING in document order: the thinking hangs under the
 // status line's chevron (StatusLineDetails), and retires with it.
@@ -77,12 +77,12 @@ export const AssistantMessage = memo(function AssistantMessage() {
   const confirmAction = metadata.confirmAction;
   const createdDocument = metadata.createdDocument;
   const computeData = metadata.computeData;
-  const chartData = metadata.chartData;
   const socialPostData = metadata.socialPostData;
   const sharepicData = metadata.sharepicData;
   const bahnData = metadata.bahnData;
   const artifactData = metadata.artifactData;
   const searchImages = metadata.searchImages;
+  const vorlagenSuggestions = metadata.vorlagenSuggestions;
   const interrupted = metadata.interrupted;
   const answerModeChip = buildAnswerModeChipView(metadata);
 
@@ -122,46 +122,44 @@ export const AssistantMessage = memo(function AssistantMessage() {
 
   // One lookup the streamed text part reads to turn inline [N] markers into chips
   // that open the same detail sheet the "Quellen" footer uses.
-  const citationCtx = useMemo(() => {
-    if (!citations || citations.length === 0) return null;
-    return {
-      citationMap: new Map<number, Citation>(citations.map((c) => [c.id, c])),
-      onCitationPress: setSelectedCitation,
-      // A readable document opens in the notebook reader; anything else in the
-      // detail sheet, which offers the passage and the original URL.
-      onSourceLinkPress: (citation: Citation) => {
-        const { readerCollectionId, readerDocument, url, title } = citation;
-        if (readerCollectionId && url) {
-          router.push(
-            routeWithParams('/(focused)/notebook-reader', {
-              collectionId: readerCollectionId,
-              sourceUrl: url,
-              query: '',
-              title,
-            })
-          );
-        } else if (readerDocument) {
-          router.push(
-            routeWithParams('/(focused)/notebook-reader', {
-              documentId: readerDocument.documentId,
-              ...(readerDocument.notebookId ? { notebookId: readerDocument.notebookId } : {}),
-              query: '',
-              title,
-            })
-          );
-        } else {
-          setSelectedCitation(citation);
-        }
-      },
-    };
-  }, [citations, router]);
+  const citationCtx =
+    !citations || citations.length === 0
+      ? null
+      : {
+          citationMap: new Map<number, Citation>(citations.map((c) => [c.id, c])),
+          onCitationPress: setSelectedCitation,
+          // A readable document opens in the notebook reader; anything else in the
+          // detail sheet, which offers the passage and the original URL.
+          onSourceLinkPress: (citation: Citation) => {
+            const { readerCollectionId, readerDocument, url, title } = citation;
+            if (readerCollectionId && url) {
+              router.push(
+                routeWithParams('/(focused)/notebook-reader', {
+                  collectionId: readerCollectionId,
+                  sourceUrl: url,
+                  query: '',
+                  title,
+                })
+              );
+            } else if (readerDocument) {
+              router.push(
+                routeWithParams('/(focused)/notebook-reader', {
+                  documentId: readerDocument.documentId,
+                  ...(readerDocument.notebookId ? { notebookId: readerDocument.notebookId } : {}),
+                  query: '',
+                  title,
+                })
+              );
+            } else {
+              setSelectedCitation(citation);
+            }
+          },
+        };
 
-  const messageText = useMemo(() => {
-    return message.content
-      .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
-      .map((p) => p.text)
-      .join('');
-  }, [message.content]);
+  const messageText = message.content
+    .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
+    .map((p) => p.text)
+    .join('');
 
   return (
     <Fragment>
@@ -203,6 +201,9 @@ export const AssistantMessage = memo(function AssistantMessage() {
               <MessagePrimitive.Parts components={partsComponents} />
             </ToolGroupScope>
           </MessageCitationsContext.Provider>
+          {vorlagenSuggestions && (
+            <VorlagenSuggestionsSection data={vorlagenSuggestions} theme={theme} />
+          )}
           <MessageErrorBanner theme={theme} />
           {/* A turn whose row was still `streaming` when the thread reloaded. The
             partial text renders normally above — it is worth reading, it just
@@ -216,7 +217,6 @@ export const AssistantMessage = memo(function AssistantMessage() {
             stream is done — during streaming the progress affordance owns the
             space and the metadata may still be partial. */}
           {!isStreaming && computeData && <ComputeCard data={computeData} theme={theme} />}
-          {!isStreaming && chartData && <ChatChartCard data={chartData} theme={theme} />}
           {!isStreaming && artifactData && <ArtifactCard artifact={artifactData} theme={theme} />}
           {!isStreaming && bahnData && <BahnCard data={bahnData} theme={theme} />}
           {/* Same precedence as web: the combined post draws its own sharepic
@@ -247,7 +247,11 @@ export const AssistantMessage = memo(function AssistantMessage() {
           )}
         </View>
         <BranchPicker theme={theme} />
-        <AssistantActionBar theme={theme} messageText={messageText} metadata={metadata} />
+        {/* Like ChatGPT, the actions arrive with the finished answer. Mounted while
+          streaming, the bar and its sheets re-rendered on every token. */}
+        {!isStreaming && (
+          <AssistantActionBar theme={theme} messageText={messageText} metadata={metadata} />
+        )}
         <CitationDetailSheet
           citation={selectedCitation}
           theme={theme}

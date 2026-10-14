@@ -1,3 +1,4 @@
+import { type BoardPreview } from '@gruenerator/contracts';
 import { getGlobalApiClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter, type Href } from 'expo-router';
@@ -20,8 +21,13 @@ export interface RecentItem {
   blurhash?: string;
   content?: string;
   documentType?: string;
+  boardType?: 'kanban' | 'whiteboard';
+  /** Kanban columns / whiteboard notes, written by Hocuspocus on every store. */
+  preview?: BoardPreview;
   creatorName?: string;
   accessType?: string;
+  /** Images that reopen in a native editor instead of the viewer. */
+  editor?: 'profilbild';
 }
 
 const fetchRecentActivity = async (): Promise<RecentItem[]> => {
@@ -72,7 +78,12 @@ export function useOpenRecentItem(): (item: RecentItem) => void {
         } as Href);
         return;
       }
-      // `item.id` is the share_token for image shares.
+      // `item.id` is the share_token for image shares. A saved Profilbild reopens
+      // in its editor with the state it was exported with.
+      if (item.type === 'image' && item.editor === 'profilbild') {
+        router.push({ pathname: '/(focused)/profilbild', params: { share: item.id } } as Href);
+        return;
+      }
       if (item.type === 'image') {
         router.push({
           pathname: '/(fullscreen)/pushed-content',

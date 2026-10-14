@@ -41,6 +41,8 @@ export interface CanvasEditorLayoutProps {
   bottomBar?: ReactNode;
   /** Mobile page navigator between canvas and bottom bar (the desktop bottomBar is hidden there) */
   mobilePageStrip?: ReactNode;
+  /** Mobile: floats over the canvas's bottom-right corner, outside the scrolling area */
+  mobileZoomControl?: ReactNode;
 }
 
 export function CanvasEditorLayout({
@@ -55,6 +57,7 @@ export function CanvasEditorLayout({
   contextBar,
   bottomBar,
   mobilePageStrip,
+  mobileZoomControl,
 }: CanvasEditorLayoutProps) {
   const hasSidebar = Boolean(tabBar);
   const hasPanel = Boolean(sidebar);
@@ -129,8 +132,16 @@ export function CanvasEditorLayout({
           {children}
         </div>
       </div>
-      {mobilePageStrip && (
-        <div className="order-1 hidden flex-none justify-center border-t border-[var(--editor-border)] bg-[var(--editor-surface)] max-canvas-mobile:flex">
+      {(mobilePageStrip || mobileZoomControl) && (
+        <div
+          className={cn(
+            'relative order-1 hidden flex-none justify-center max-canvas-mobile:flex',
+            mobilePageStrip && 'border-t border-[var(--editor-border)] bg-[var(--editor-surface)]'
+          )}
+        >
+          {mobileZoomControl && (
+            <div className="absolute bottom-full right-3 z-[90] mb-3">{mobileZoomControl}</div>
+          )}
           {mobilePageStrip}
         </div>
       )}
@@ -138,9 +149,9 @@ export function CanvasEditorLayout({
         <div
           ref={bottomBarRef}
           className={cn(
-            'canvas-editor-layout__bottom-bar fixed bottom-0 right-0 z-[140] left-[var(--canvas-host-inset-left,0px)] max-canvas-mobile:hidden',
+            'canvas-editor-layout__bottom-bar fixed bottom-0 right-0 z-[140] left-[var(--canvas-host-inset-left,0px)] transition-[left] duration-200 max-canvas-mobile:hidden',
             hasSidebar &&
-              'left-[calc(var(--canvas-host-inset-left,0px)_+_var(--image-studio-tab-bar-width))]'
+              'left-[calc(var(--canvas-host-inset-left,0px)_+_var(--image-studio-tab-bar-width)_+_var(--canvas-panel-width,0px))]'
           )}
         >
           {bottomBar}

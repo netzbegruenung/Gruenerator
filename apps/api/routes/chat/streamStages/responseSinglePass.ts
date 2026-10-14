@@ -18,6 +18,7 @@ import {
 } from '../../../services/telemetry/langfuseTelemetry.js';
 import { createLogger } from '../../../utils/logger.js';
 import { stripOutOfRangeCitations } from '../services/agenticLoop/citationStrip.js';
+import { guardedArtifactKinds } from '../services/agenticLoop/editedArtifacts.js';
 import { MAX_SOURCES } from '../services/agenticLoop/loopGuards.js';
 import { sharepicTurnText } from '../services/artifactConfirmations.js';
 import { injectImageAttachments } from '../services/attachmentProcessingService.js';
@@ -29,6 +30,7 @@ import {
   stripFabricatedArtifactDelivery,
   stripFabricatedSystemClaims,
   stripPhantomMemoryClaim,
+  stripPhantomArtifactEdit,
 } from '../services/outputSanity.js';
 import {
   buildMessagesForAI,
@@ -46,7 +48,6 @@ import { type CleanupPending, type MaybeHandled, type StreamBody } from './types
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { StreamContext } from '../services/streamContext.js';
-import type { Request } from 'express';
 
 const log = createLogger('chatGraphContractRouter');
 
@@ -58,7 +59,6 @@ type PipelineResult = Awaited<ReturnType<typeof executeIntentPipeline>>;
 
 export interface SinglePassAnswerParams {
   sse: SSEWriter;
-  req: Request;
   classifiedState: ChatGraphState;
   cleanupPending: CleanupPending;
   pendingId: string | null;
@@ -91,7 +91,6 @@ export interface SinglePassAnswer {
 
 export async function runSinglePassAnswer({
   sse,
-  req,
   classifiedState,
   cleanupPending,
   pendingId,
@@ -116,16 +115,16 @@ export async function runSinglePassAnswer({
   let langfuseTraceId: string | undefined;
 
   // === Stage 2: Search or Image Generation ===
-  const { finalState, generatedImage, sharepicVariants } = await executeIntentPipeline({
-    classifiedState,
-    sse,
-    forcedTool,
-    ...(enabledTools != null && { enabledTools }),
-    imageAttachments,
-    req,
-    threadId: actualThreadId ?? null,
-    ...(sharepicRefinement && { sharepicRefinement }),
-  });
+  const { finalState, generatedImage, sharepicVariants, sharepicFailure } =
+    await executeIntentPipeline({
+      classifiedState,
+      sse,
+      forcedTool,
+      ...(enabledTools != null && { enabledTools }),
+      imageAttachments,
+      threadId: actualThreadId ?? null,
+      ...(sharepicRefinement && { sharepicRefinement }),
+    });
 
   // === Stage 3: Response generation ===
   if (finalState.intent === 'sharepic') {
@@ -133,7 +132,7 @@ export async function runSinglePassAnswer({
     // Skip the LLM — with the still-vague topic it asks clarifying questions over the
     // already-finished sharepic. Emit a fixed confirmation instead so the user sees the
     // assistant knows the sharepic exists. Also covers the all-variants-failed case.
-    fullText = sharepicTurnText(sharepicVariants, sharepicRefinement != null);
+    fullText = sharepicTurnText(sharepicVariants, sharepicRefinement != null, sharepicFailure);
     sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
     sse.send('text_delta', { text: fullText });
   } else if (finalState.deepResearchAnswer) {
@@ -219,7 +218,8 @@ export async function runSinglePassAnswer({
     const resolvedContextWindow = resolution.contextWindow ?? contextWindowTokens;
     const prunedValidMessages = pruneMessages(
       validMessages as Parameters<typeof pruneMessages>[0],
-      resolvedContextWindow
+      resolvedContextWindow,
+      systemMessage
     );
     const { systemMessage: finalSystemMessage, messages: contextMessages } = actualThreadId
       ? await applyCompaction(
@@ -230,20 +230,23 @@ export async function runSinglePassAnswer({
         )
       : { systemMessage, messages: prunedValidMessages };
 
-    let messagesForAI = buildMessagesForAI(
-      finalSystemMessage,
-      contextMessages as Parameters<typeof buildMessagesForAI>[1]
-    );
-    // Welche Züge die Bytes bekommen — und warum nicht — steht in
-    // `imageVisibility`: `image_edit` erzählt aus den BILDVERGLEICH-
-    // Beschreibungen, und „Bildanalyse“ aus ist die Wahl der Person (#3307).
-    if (imagesVisible) {
-      messagesForAI = injectImageAttachments(
-        messagesForAI as Parameters<typeof injectImageAttachments>[0],
-        imageAttachments,
-        requestId
+    const assembleMessages = (history: typeof contextMessages) => {
+      const built = buildMessagesForAI(
+        finalSystemMessage,
+        history as Parameters<typeof buildMessagesForAI>[1]
       );
-    }
+      // Welche Züge die Bytes bekommen — und warum nicht — steht in
+      // `imageVisibility`: `image_edit` erzählt aus den BILDVERGLEICH-
+      // Beschreibungen, und „Bildanalyse“ aus ist die Wahl der Person (#3307).
+      return imagesVisible
+        ? injectImageAttachments(
+            built as Parameters<typeof injectImageAttachments>[0],
+            imageAttachments,
+            requestId
+          )
+        : built;
+    };
+    const messagesForAI = assembleMessages(contextMessages);
 
     // Context (requestId/intent/agentId/modelId) rides on the trace below —
     // AI SDK 7 telemetry has no metadata field.
@@ -260,13 +263,25 @@ export async function runSinglePassAnswer({
           primary: resolution,
           sse,
           logPrefix: '[ChatGraph]',
-          buildStream: async (r) =>
+          messages: {
+            primary: messagesForAI,
+            window: resolvedContextWindow,
+            rebuild: (window) =>
+              assembleMessages(
+                pruneMessages(
+                  contextMessages as Parameters<typeof pruneMessages>[0],
+                  window,
+                  finalSystemMessage
+                )
+              ),
+          },
+          buildStream: async (r, messages) =>
             // No output cap (OpenWebUI-style): the provider/model window is
             // the backstop; agentConfig.params.max_tokens is deliberately
             // ignored here so answers are never cut mid-sentence.
             streamForResolution({
               resolution: r,
-              messages: messagesForAI as Parameters<typeof streamForResolution>[0]['messages'],
+              messages: messages as Parameters<typeof streamForResolution>[0]['messages'],
               temperature: finalState.agentConfig.params.temperature,
               sse,
               logPrefix: '[ChatGraph]',
@@ -348,6 +363,17 @@ export async function runSinglePassAnswer({
       );
       fullText = phantomNote.text;
     }
+    // Kein Werkzeug gemountet: „Ich habe die Tabelle sortiert" ist hier nie wahr (#4458).
+    const phantomEdit = stripPhantomArtifactEdit(fullText, {
+      edited: new Set(),
+      guarded: guardedArtifactKinds(finalState),
+    });
+    if (phantomEdit.removed.length > 0) {
+      log.warn(
+        `[ChatGraph] Removed artifact edit claim without a writing step: ${phantomEdit.removed.join(' | ')}`
+      );
+      fullText = phantomEdit.text;
+    }
     // Telemetry only — the text is already on the wire; the prompt rules are the fix.
     if (announcesPendingWork(fullText)) {
       log.warn(
@@ -359,7 +385,8 @@ export async function runSinglePassAnswer({
       citeClamp.changed ||
       sanity.fabricated.length > 0 ||
       delivery.removed.length > 0 ||
-      phantomNote.removed.length > 0
+      phantomNote.removed.length > 0 ||
+      phantomEdit.removed.length > 0
     ) {
       fullText = citeClamp.text;
       sse.send('completion', { text: fullText, citations: finalState.citations });

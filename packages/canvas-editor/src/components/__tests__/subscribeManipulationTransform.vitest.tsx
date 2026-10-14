@@ -62,7 +62,7 @@ describe('subscribeManipulation', () => {
     const stage = Konva.stages.at(-1)!;
     const node = stage.findOne(`#${TEXT_ID}`)!;
     await act(async () => {
-      node.fire('tap', { evt: {} }, true);
+      node.fire('touchstart', { evt: {} }, true);
     });
 
     const listener = vi.fn();

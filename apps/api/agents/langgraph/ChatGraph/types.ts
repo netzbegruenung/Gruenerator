@@ -33,6 +33,7 @@ import type {
   SocialPostPayload,
   SearchIntent,
   ClientPlatform,
+  VisualBlockKind,
   SharepicVariant,
   PublicOwnership,
   GroupAudience,
@@ -44,6 +45,13 @@ import type { ArtifactCreateKind } from '@gruenerator/shared/chat-intents';
 import type { ModelMessage } from 'ai';
 
 export type { WolkeFileRef, ConnectFileRef, CurrentBoard, CurrentCanvas, SocialPostPayload };
+
+/** The chat sharepic card marked active for chat editing (request `currentSharepic`). */
+export interface CurrentSharepic {
+  variantId: string;
+  canvasId?: string | null | undefined;
+  canvasType: string;
+}
 
 /**
  * Retrieval backends the classifier can request for one turn. When several are
@@ -160,6 +168,7 @@ export interface ThreadToolContext {
     | 'sheet'
     | 'document'
     | 'pdf'
+    | 'explainable'
     | 'board';
   /** Kind-specific reference (mcp: serverId, created docs: documentId, pdf: the
    *  stored `<uuid>.pdf` asset FILE NAME — deliberately not a collaborative-
@@ -526,6 +535,9 @@ export interface ChatGraphInput {
    * so their tabular guidance must not promise code execution.
    */
   clientCanRunPython?: boolean | undefined;
+  /** The client declared the `render_sharepic` client tool — it can render a
+   *  chat sharepic to an image for `check_sharepic`. Mobile/voice cannot. */
+  clientCanRenderSharepic?: boolean | undefined;
   /**
    * A spreadsheet result the client already computed in the browser (Pyodide).
    * Injected via formatComputedResultContext so the model treats it as ground
@@ -571,8 +583,12 @@ export interface ChatGraphInput {
   currentDocument?: CurrentDocument | undefined;
   currentBoard?: CurrentBoard | undefined;
   currentCanvas?: CurrentCanvas | undefined;
+  currentSharepic?: CurrentSharepic | undefined;
+  /** Katalog-id aus einem `vorlage:`-Token — ungeprüft, der Sharepic-Pfad löst sie auf. */
+  sharepicVorlageId?: string | undefined;
   userLocale?: UserLocale | undefined;
   clientPlatform?: ClientPlatform | undefined;
+  visualBlocks?: VisualBlockKind[] | undefined;
   customSystemPrompt?: string | undefined;
   roleBausteinActive?: boolean | undefined;
   /**
@@ -655,6 +671,13 @@ export interface ChatGraphState {
   userLocale: UserLocale;
   /** Client shell ('web'/'app') — distinct from `platform`, the social-post target. */
   clientPlatform: ClientPlatform;
+  /**
+   * Visual-block kinds the client draws (```bars etc.). Absent or empty for a
+   * client that did not say — the answer prompt then teaches none of them.
+   * Optional because a state saved before the field existed (a resumed
+   * interrupt) does not carry it.
+   */
+  visualBlocks?: VisualBlockKind[];
   /** Tool family the thread's last substantive turn used (see ThreadToolContext). */
   lastToolContext?: ThreadToolContext | null;
   /**
@@ -703,6 +726,18 @@ export interface ChatGraphState {
    */
   lastTurnEditables?: EditableArtifact[];
   /**
+   * Das Artefakt, das der Assistenz-Turn DIREKT davor am Ende angeboten hat
+   * („Soll ich daraus eine Präsentation machen?"), gelesen aus
+   * `metadata.offer` (`artifactOffer.ts`). Null ohne Angebot.
+   */
+  lastTurnOffer?: ArtifactKindId | null;
+  /**
+   * Dieser Turn ist das „ja" auf {@link lastTurnOffer}: der Klassifikator hat
+   * ihn dorthin geroutet, und die Erstell- und Lizenz-Tore lassen ihn durch,
+   * obwohl der Text selbst nichts bestellt.
+   */
+  acceptedOfferKind?: ArtifactKindId | null;
+  /**
    * Präzisionsmodus der Notebook-Seite: `notebook_quellen` darf nur diese
    * Notebooks öffnen (verglichen nach `resolveSystemCollection`), und mit
    * `readOnly` keine Schreibaktion ausführen. Fehlt ⇒ keine Einschränkung.
@@ -741,6 +776,7 @@ export interface ChatGraphState {
   /** See the input-side field: this turn's fillable PDFs, name + base64. */
   pdfFormAttachments: Array<{ name: string; data: string }>;
   clientCanRunPython: boolean;
+  clientCanRenderSharepic: boolean;
 
   // Notebook scoping (from @notebook mentions)
   notebookIds: string[];
@@ -830,6 +866,15 @@ export interface ChatGraphState {
   // (`snapshot`/`capabilities` feed runCanvasSuggest).
   currentCanvas: CurrentCanvas | null;
 
+  // The chat card in Sharepic-Modus („Im Chat bearbeiten"): the default
+  // target of the loop's sharepic tools. Null when no card is open.
+  currentSharepic: CurrentSharepic | null;
+
+  // Sharepic-Vorlage, die die Person per `@vorlage` gewählt hat (Katalog-id aus
+  // dem Token, noch nicht gegen den Katalog geprüft). Ein frisches Sharepic
+  // füllt dann dieses Layout statt frei zu entwerfen.
+  sharepicVorlageId: string | null;
+
   // Custom system prompt (replaces entire agent system prompt when set)
   customSystemPrompt: string | null;
 
@@ -868,6 +913,10 @@ export interface ChatGraphState {
   // angelernte Textform, weggelassen (nicht `null`) für einen Systemrumpf und
   // für die Registry-Einträge des Loops, die keine id führen.
   usedRecipes?: { mention: string; title: string; source: 'system' | 'user'; id?: string }[];
+  // Die Titel der Vorlagen, die `vorlagen_vorschlagen` in diesem Turn als
+  // Galerie gezeigt hat. Der Split-Schreiber erfährt davon nur hierüber
+  // (`buildArtifactNotes`), und `vorlagenOffer` bietet sie nicht noch einmal an.
+  vorlagenShown?: string[];
   /** Grant cards for drifted connector tools this turn (mcpCatalog), persisted
    *  as message metadata `toolGrants` so the card survives a reload. */
   toolGrants?: McpToolGrant[];
@@ -1117,11 +1166,44 @@ export interface ChatGraphState {
   // tool the loop mounts. Null/undefined means the turn has NO edit path at all
   // (a kill-switch in `decideEditToolLoop` held it back) — `buildArtifactNotes`
   // makes the model say so rather than answer as if it had edited.
+  /** Der Klassifikator hat einen Auftrag an ein vorhandenes Artefakt mit
+   *  Loop-Werkzeugen erkannt (Tabelle, Präsentation, Explainable, Dokument) —
+   *  der erste Schritt muss eines davon rufen (`artifact_edit_order`). */
+  artifactEditOrder?: boolean;
+  /** Der Turn davor endete mit einer Werkzeug-Rückfrage (`needsConfirmation`,
+   *  confirmGate) — ein knappes „ja" ist dann die Zustimmung dazu. */
+  lastTurnPendingConfirm?: boolean;
+  /** Werkzeug und Argumente dieser Rückfrage. Ein bestätigter Aufruf nimmt
+   *  sie statt neuer — live 11.10.2026 schickte das Modell auf „ja" die
+   *  Ersetzungen einer älteren Rückfrage. */
+  lastTurnPendingEdit?: { toolName: string; args: Record<string, unknown> } | null;
+  /** Rückfragen der Bearbeitungswerkzeuge in DIESEM Turn (confirmGate) — der
+   *  Schreiber zeigt sie knapp, statt das Artefakt neu auszuschreiben. */
+  chatArtifactQuestions?: string[] | null;
   editToolSurface?: 'doc' | 'sheet' | 'presentation' | 'board' | 'canvas' | null;
   // Human summary of edits the edit_document tool made THIS turn (set by
   // editorTools). Feeds the synth prompt so the model confirms the change in
   // past tense instead of writing empty text (→ fallback) or a false "I can't".
   editorEditsSummary?: string | null;
+  // Set when the sharepic spec edit ran and came back unchanged: the sentence
+  // the writer must relay instead of claiming a change it never saw.
+  editorEditUnchanged?: string | null;
+  // The same outcome for the person: why nothing changed, when it is known.
+  editorEditUnchangedReason?: string | null;
+  // Summaries of chat sharepics `edit_sharepic` revised THIS turn. Split mode
+  // has no tool returns in the writer's context — without the note it fed,
+  // the writer denied an edit that had landed (live 11.10.2026).
+  chatSharepicEdits?: string[] | null;
+  /** Erfolgreiche Änderungen der Loop-Werkzeuge an Tabelle, Präsentation,
+   *  Explainable oder Dokument in diesem Turn — die Sätze, die der Schreiber
+   *  bestätigen muss (artifactNotes). Der Split-Schreiber sieht keine
+   *  Werkzeug-Ergebnisse; ohne sie schrieb er live „kann ich nicht vornehmen". */
+  chatArtifactEdits?: string[] | null;
+  // The `check_sharepic` review of THIS turn (set by the client-tool resume).
+  // Feeds the writer note and answers a repeated call without a second pause
+  // (live 11.10.2026: the resumed planner checked again, the writer — split
+  // mode, no tool returns — said it had not checked anything).
+  sharepicCheck?: Record<string, unknown> | null;
   sharepicVariants?: SharepicVariant[] | null;
   // Presentation/sheet/text-doc fat tool result (compound turns) — lifted by the
   // router into the persisted assistant message's `createdDocument` metadata.

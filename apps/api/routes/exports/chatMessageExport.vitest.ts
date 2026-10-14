@@ -159,6 +159,28 @@ describe('POST /api/exports/chat-message', () => {
     expect(docx.text).toContain('Blondinen');
   }, 30_000);
 
+  it('embeds a chart block as a picture and a table block as a Word table', async () => {
+    const res = await postMessage({
+      ...ASSISTANT,
+      content: [
+        'Vorher.',
+        '```bars\n{"title":"Themen","items":[{"label":"Klima","value":41}],"note":"Umfrage 2025"}\n```',
+        '```table\n{"columns":[{"key":"p","label":"Partei"}],"rows":[{"p":"Grüne"}]}\n```',
+      ].join('\n\n'),
+    });
+    expect(res.status).toBe(200);
+    const zip = new AdmZip(Buffer.from(await res.arrayBuffer()));
+    const document = zip.getEntry('word/document.xml')?.getData().toString('utf8') ?? '';
+
+    expect(zip.getEntries().some((entry) => /^word\/media\/.+\.png$/.test(entry.entryName))).toBe(
+      true
+    );
+    expect(document).toContain('<w:drawing>');
+    expect(document).toContain('Umfrage 2025');
+    expect(document).toContain('<w:tbl>');
+    expect(document).not.toContain('"items"');
+  }, 30_000);
+
   // The answer cited [1]…[10] and the exported file listed nothing: only
   // `searchResults` was rendered, and document-grounded answers carry
   // `citations` instead.
@@ -182,18 +204,47 @@ describe('POST /api/exports/chat-message', () => {
     expect(docx.text).toContain('Wikipedia: Marilyn Monroe');
   }, 30_000);
 
-  it('prefers searchResults over citations when both are present', async () => {
+  // The `[N]` markers number the citations, so those are the list to print —
+  // numbered, in marker order.
+  it('prefers numbered citations over searchResults when both are present', async () => {
     const docx = await exportDocx({
       ...ASSISTANT,
-      content: 'Text [1].',
+      content: 'Text [1] und [2].',
       metadata: {
         searchResults: [{ source: 'web', title: 'Aus der Websuche', content: 'Snippet.' }],
-        citations: [{ id: 1, title: 'Aus dem Notebook', url: '', snippet: '' }],
+        citations: [
+          { id: 2, title: 'Zweite Quelle', url: '', snippet: '' },
+          { id: 1, title: 'Aus dem Notebook', url: '', snippet: '' },
+        ],
       },
     });
 
-    expect(docx.text).toContain('Aus der Websuche');
-    expect(docx.text).not.toContain('Aus dem Notebook');
+    expect(docx.text).toContain('[1] Aus dem Notebook');
+    expect(docx.text).toContain('[2] Zweite Quelle');
+    expect(docx.text.indexOf('[1] Aus dem Notebook')).toBeLessThan(
+      docx.text.indexOf('[2] Zweite Quelle')
+    );
+    expect(docx.text).not.toContain('Aus der Websuche');
+  }, 30_000);
+
+  // Same grouping as the editor/PDF export: chunks of one document are one
+  // entry, not one bullet per chunk.
+  it('groups citations of one document into one numbered entry', async () => {
+    const docx = await exportDocx({
+      ...ASSISTANT,
+      content: 'A [1], B [2], C [3].',
+      metadata: {
+        citations: [
+          { id: 3, title: 'Programm', url: '', snippet: '', documentId: 'doc-a' },
+          { id: 1, title: 'Programm', url: '', snippet: 'Erster Ausschnitt.', documentId: 'doc-a' },
+          { id: 2, title: 'Satzung', url: '', snippet: '', documentId: 'doc-b' },
+        ],
+      },
+    });
+
+    expect(docx.text).toContain('[1, 3] Programm');
+    expect(docx.text).toContain('[2] Satzung');
+    expect(docx.text.split('Programm').length - 1).toBe(1);
   }, 30_000);
 
   // Shipped mobile binaries post an ISO string here. A strict z.number() made

@@ -1,19 +1,12 @@
+import { parseVisualBlock } from '@gruenerator/contracts';
 import { Check, ChevronDown, ChevronRight, Copy, Loader2, Play } from 'lucide-react';
-import {
-  type ReactNode,
-  Suspense,
-  isValidElement,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { type ReactNode, isValidElement, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { highlightCode, normalizeLang } from '../../lib/shikiHighlight';
 
-import { CodeOutput, parseChart, toText, useCodeExecution } from './codeBlockExecution';
-import { LazyChatChart } from './LazyChatChart';
+import { CodeOutput, toText, useCodeExecution } from './codeBlockExecution';
 import { MermaidDiagram } from './MermaidDiagram';
+import { VisualBlock } from './VisualBlock';
 
 /** Extract { language, code } from the `<code class="language-x">` child that
  *  react-markdown passes to the `pre` override. */
@@ -43,13 +36,14 @@ export function ChatCodeBlock({ children }: { children?: ReactNode }) {
   const [codeExpanded, setCodeExpanded] = useState(false);
 
   const isMermaid = language === 'mermaid';
-  // Charts render from the same ```chart block whether streaming live or reloaded
-  // from history — the block is persisted in the message text, so there is one
-  // render path. A malformed payload falls back to the normal code view.
-  const chart = useMemo(() => (language === 'chart' ? parseChart(code) : null), [language, code]);
+  // Visual blocks (```chart, ```bars, …) render from the same fence whether
+  // streaming live or reloaded from history — the block is persisted in the
+  // message text, so there is one render path. A malformed payload falls back
+  // to the normal code view.
+  const visual = useMemo(() => parseVisualBlock(language, code), [language, code]);
 
   useEffect(() => {
-    if (isMermaid || chart) return;
+    if (isMermaid || visual) return;
     let active = true;
     highlightCode(code, effectiveLanguage)
       .then((result) => {
@@ -61,7 +55,7 @@ export function ChatCodeBlock({ children }: { children?: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [code, effectiveLanguage, isMermaid, chart]);
+  }, [code, effectiveLanguage, isMermaid, visual]);
 
   const handleCopy = useCallback(() => {
     void navigator.clipboard.writeText(code).then(() => {
@@ -70,19 +64,7 @@ export function ChatCodeBlock({ children }: { children?: ReactNode }) {
     });
   }, [code]);
 
-  if (chart) {
-    return (
-      <Suspense
-        fallback={
-          <div className="my-3 flex min-h-[240px] items-center justify-center rounded-lg border border-border bg-card">
-            <Loader2 className="h-5 w-5 animate-spin text-foreground-muted" />
-          </div>
-        }
-      >
-        <LazyChatChart data={chart} />
-      </Suspense>
-    );
-  }
+  if (visual) return <VisualBlock visual={visual} />;
 
   return (
     <div className="my-3 overflow-hidden rounded-lg border border-border bg-code-block-bg">

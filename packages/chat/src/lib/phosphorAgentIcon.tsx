@@ -9,13 +9,19 @@ import { type IconBaseProps } from 'react-icons';
  * those, so we load the pack on demand (one cached chunk, never in the initial
  * bundle).
  *
+ * The `?all` suffix makes this a separate module from the `react-icons/pi`
+ * that ~120 files import statically by name. Without it the bundler must keep
+ * every export of that one shared module for this namespace import, so the
+ * whole 5 MB set lands in the entry graph instead of being tree-shaken.
+ *
  * Boundary cast: the dynamic import resolves to the module namespace; we treat
  * it as a name→component map (icons aren't indexable by arbitrary string).
  */
 let piModulePromise: Promise<Record<string, ComponentType<IconBaseProps>>> | null = null;
 
-function loadPhosphorModule(): Promise<Record<string, ComponentType<IconBaseProps>>> {
-  piModulePromise ??= import('react-icons/pi') as unknown as Promise<
+export function loadPhosphorModule(): Promise<Record<string, ComponentType<IconBaseProps>>> {
+  // @ts-expect-error -- `?all` is a bundler-only module id; typed by the cast.
+  piModulePromise ??= import('react-icons/pi?all') as unknown as Promise<
     Record<string, ComponentType<IconBaseProps>>
   >;
   return piModulePromise;

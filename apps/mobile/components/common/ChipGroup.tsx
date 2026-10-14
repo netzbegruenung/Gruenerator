@@ -15,6 +15,8 @@ interface ChipGroupProps<T extends string> {
   onSelect: (value: T | T[]) => void;
   multiSelect?: boolean;
   icons?: Record<string, IoniconsIconName>;
+  /** Fill of a selected chip; the app green by default. White sits on it. */
+  accentColor?: string;
 }
 
 export function ChipGroup<T extends string>({
@@ -23,6 +25,7 @@ export function ChipGroup<T extends string>({
   onSelect,
   multiSelect = false,
   icons,
+  accentColor = colors.primary[600],
 }: ChipGroupProps<T>) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
@@ -59,8 +62,8 @@ export function ChipGroup<T extends string>({
             style={[
               styles.chip,
               {
-                borderColor: active ? colors.primary[600] : theme.border,
-                backgroundColor: active ? colors.primary[600] : 'transparent',
+                borderColor: active ? accentColor : theme.border,
+                backgroundColor: active ? accentColor : 'transparent',
               },
             ]}
             accessibilityRole={multiSelect ? 'checkbox' : 'radio'}

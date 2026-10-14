@@ -318,6 +318,33 @@ async function loadSource(sourceId: ContentSyncSource): Promise<SourceConfig> {
       };
       break;
     }
+    case 'landtag-bayern': {
+      const { getLandtagBayernScraper } =
+        await import('../../services/scrapers/implementations/LandtagBayernScraper/index.js');
+      const service = getLandtagBayernScraper();
+      config = {
+        name: 'Bayerischer Landtag',
+        // Inkrementell: neueste Listenseiten bis zum ersten bekannten Dokument.
+        // Die Erstbefüllung läuft lokal über scripts/backfill-landtag-bayern.ts.
+        timeoutMs: 30 * 60 * 1000,
+        init: () => service.init(),
+        run: async (opts) => {
+          const result = await service.run({
+            mode: 'incremental',
+            force: opts.forceUpdate,
+            dryRun: opts.dryRun,
+          });
+          return {
+            stored: result.stored,
+            updated: 0,
+            skipped: result.skipped,
+            errors: result.failed,
+            errorSamples: result.errors.slice(0, 20),
+          };
+        },
+      };
+      break;
+    }
     case 'grundsatz': {
       const { grundsatzPdfScraperService } =
         await import('../../services/scrapers/implementations/ProgramPdfScraper.js');

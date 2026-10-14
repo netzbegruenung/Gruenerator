@@ -45,6 +45,7 @@ import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
 import { NotebookQdrantHelper } from '../../../database/services/NotebookQdrantHelper.js';
+import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { findGroups } from '../../../services/groups/groupQueries.js';
 import { draftAgentSpec } from '../../../services/userAgents/agentDraftService.js';
 import {
@@ -86,10 +87,20 @@ export interface UserAgentToolDeps {
   /** Was das Modell an Rezepten kennen darf — dieselbe Liste wie `rezept_laden`. */
   recipeCatalog: typeof buildRecipeCatalog;
   findGroups: typeof findGroups;
+  /** Anzeigename der Person — wird als Autor*in des neuen Agenten gespeichert. */
+  getAuthorName: (userId: string) => Promise<string | null>;
 }
 
 /** `PersonalToolCtx` plus optionale Fakes — der Katalog reicht den Ctx ohne `deps`. */
 export type UserAgentToolCtx = PersonalToolCtx & { deps?: Partial<UserAgentToolDeps> };
+
+async function getProfileAuthorName(userId: string): Promise<string | null> {
+  const rows = (await getPostgresInstance().query(
+    `SELECT COALESCE(NULLIF(display_name, ''), first_name) AS name FROM profiles WHERE id = $1::uuid`,
+    [userId]
+  )) as Array<{ name: string | null }>;
+  return rows[0]?.name?.trim() || null;
+}
 
 let helperSingleton: NotebookQdrantHelper | null = null;
 
@@ -108,6 +119,7 @@ export function resolveUserAgentDeps(
       ((ids) => (helperSingleton ??= new NotebookQdrantHelper()).getNotebookCollectionsByIds(ids)),
     recipeCatalog: partial?.recipeCatalog ?? buildRecipeCatalog,
     findGroups: partial?.findGroups ?? findGroups,
+    getAuthorName: partial?.getAuthorName ?? getProfileAuthorName,
   };
 }
 
@@ -115,7 +127,7 @@ const NOT_FOUND = 'Grünerator-Agent nicht gefunden, oder er gehört dir nicht.'
 const SYSTEM_AGENT =
   'Das ist ein System-Grünerator — die lassen sich hier weder ansehen noch ändern. Das Werkzeug verwaltet nur eigene Grünerator-Agenten.';
 const TYPE_LABEL = 'Grünerator-Agent';
-export const AGENTURA_URL = '/agentura';
+export const GRUENERATOREN_URL = '/grueneratoren';
 
 /** Wie viel von der Rolle die Karte zeigt — und wie viel die Antwort. */
 const ROLE_PREVIEW_CHARS = 140;
@@ -324,7 +336,7 @@ export async function prepareUserAgentInput(
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
     return {
-      error: `Der Entwurf für den Grünerator-Agent konnte nicht erstellt werden (${reason}). Später erneut versuchen oder den Agenten in der Agentura (${AGENTURA_URL}) anlegen.`,
+      error: `Der Entwurf für den Grünerator-Agent konnte nicht erstellt werden (${reason}). Später erneut versuchen oder den Agenten unter Grüneratoren (${GRUENERATOREN_URL}) anlegen.`,
     };
   }
 
@@ -351,7 +363,7 @@ export async function prepareUserAgentInput(
     openingMessage: draft.openingMessage,
     openingQuestions: draft.openingQuestions,
     locale,
-    author: 'Eigener Grünerator-Agent',
+    author: (await deps.getAuthorName(userId)) ?? 'Eigener Grünerator-Agent',
     enabledTools: enabledTools.length ? enabledTools : [...DEFAULT_USER_AGENT_TOOLS],
     skillMentions,
     ...(fields.defaultNotebookIds?.length ? { defaultNotebookIds: fields.defaultNotebookIds } : {}),
@@ -530,7 +542,7 @@ Für create genügt brief: eine Beschreibung in ganzen Sätzen, was der Agent tu
   async function listAgents(userId: string, limit: number): Promise<Record<string, unknown>> {
     const rows = (await deps.listMentionableUserAgents(userId)).slice(0, limit);
     if (rows.length === 0) {
-      const note = `Es gibt noch keine eigenen Grünerator-Agenten. Anlegen geht hier mit create oder in der Agentura (${AGENTURA_URL}).`;
+      const note = `Es gibt noch keine eigenen Grünerator-Agenten. Anlegen geht hier mit create oder unter Grüneratoren (${GRUENERATOREN_URL}).`;
       groundNote(sourceRegistry, 'Grünerator-Agenten', note);
       return { resultCount: 0, results: [], note };
     }

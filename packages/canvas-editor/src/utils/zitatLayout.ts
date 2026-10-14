@@ -1,7 +1,7 @@
 /**
  * Zitat Layout Utility
- * Exact values extracted from apps/api/routes/sharepic/sharepic_canvas/zitat_canvas.ts
- * to ensure 1:1 visual match between frontend and backend rendering
+ * Values originally taken from the retired server-side Zitat renderer, so
+ * canvases match the sharepics it produced
  *
  * Zitat differs from ZitatPure:
  * - Uses user-provided background image (not solid color)

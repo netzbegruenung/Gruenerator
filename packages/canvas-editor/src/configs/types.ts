@@ -1,5 +1,6 @@
 import type { BackgroundType, TextFieldConfig } from './unifiedTabs';
 import type { TemplateAiCapabilities } from '../ai/types';
+import type { CanvasSpecEditBridge } from '../CanvasEditorProvider';
 import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type { SidebarTabId, SidebarTab } from '../sidebar/types';
 import type { GradientFill } from '../utils/gradientFill';
@@ -297,6 +298,8 @@ export interface SectionContext {
   captureCanvasImage?: () => Promise<string | null>;
   /** Higher-fidelity capture variant used to feed canvas images to the AI. */
   captureCanvasImageForAi?: () => Promise<string | null>;
+  /** Spec-path bridge for the chat section (multi-page editor only). */
+  specEdit?: CanvasSpecEditBridge;
   onDownload?: () => void;
   onNavigateToGallery?: () => void;
   /** Opens the host's "als Vorlage speichern" flow; the entry hides without it. */
@@ -400,12 +403,17 @@ export interface FullCanvasConfig<
   calculateLayout: LayoutCalculator<TState>;
   /** Create initial state from props */
   createInitialState: (props: Record<string, unknown>) => TState;
-  /** Create action handlers */
+  /** Runs once fonts are loaded, on mount and after a remote page patch:
+   *  repairs what a writer without font metrics (the chat edit path) left
+   *  behind. Returns the repaired state, or null when there is nothing to do. */
+  normalizeLoadedState?: (state: TState) => TState | null;
+  /** Create action handlers. Both history savers snapshot the committed
+   *  state after the action's update; their argument is ignored. */
   createActions: (
     getState: () => TState,
     setState: (partial: Partial<TState> | ((prev: TState) => TState)) => void,
-    saveToHistory: (state: TState) => void,
-    debouncedSaveToHistory: (state: TState) => void,
+    saveToHistory: (state?: TState) => void,
+    debouncedSaveToHistory: (state?: TState) => void,
     callbacks: Record<string, ((val: unknown) => void) | undefined>
   ) => TActions;
   /** Optional function to determine disabled tabs */

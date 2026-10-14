@@ -40,3 +40,54 @@ describe('applySharepicPatch and own photos', () => {
     });
   });
 });
+
+describe('applySharepicPatch and painted scenes', () => {
+  const scene = 'ki:abcdefghijklmnop1234';
+
+  it('never replaces a painted scene by a colour', () => {
+    const painted = spec(scene);
+    const op = { op: 'use_color', color: 'tanne' } as const;
+    const result = applySharepicPatch(painted, [op]);
+    expect(result.spec).toBe(painted);
+    expect(result.skipped).toEqual([op]);
+  });
+
+  it('keeps the text on the side FLUX left calm', () => {
+    const op = { op: 'set_text_side', textSeite: 'oben' } as const;
+    const result = applySharepicPatch(spec(scene), [op]);
+    expect(result.spec.slides[0]!.background).toMatchObject({ textSeite: 'unten' });
+    expect(result.skipped).toEqual([op]);
+  });
+});
+
+describe('applySharepicPatch and infographics', () => {
+  const info: SharepicSpec = {
+    locale: 'de-AT',
+    slides: [
+      {
+        background: { kind: 'farbe', color: 'weiss' },
+        position: 'oben',
+        align: 'zentriert',
+        items: [
+          { type: 'headline', lines: ['Mehr Bäume'] },
+          {
+            type: 'infografik',
+            form: 'raster',
+            punkte: [
+              { titel: 'Kühler', icon: 'sonne' },
+              { titel: 'Sauberer', icon: 'wind' },
+            ],
+          },
+        ],
+        logo: false,
+      },
+    ],
+  };
+
+  it('keeps an infographic on its light ground', () => {
+    const op = { op: 'use_color', color: 'dunkelgruen' } as const;
+    const result = applySharepicPatch(info, [op]);
+    expect(result.spec).toBe(info);
+    expect(result.skipped).toEqual([op]);
+  });
+});

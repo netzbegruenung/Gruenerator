@@ -51,6 +51,27 @@ const DEFAULT_PRESET: FormatPreset = {
   typeLabel: 'Vorlage',
 };
 
+const MEASURED_RATIOS: Array<{ label: string; ratio: number }> = [
+  { label: '9:16', ratio: 9 / 16 },
+  { label: '3:4', ratio: 3 / 4 },
+  { label: '4:5', ratio: 4 / 5 },
+  { label: '1:1', ratio: 1 },
+  { label: '4:3', ratio: 4 / 3 },
+  { label: '16:9', ratio: 16 / 9 },
+];
+
+/** Nächstes Standardformat zu den echten Bildmaßen — im Zweifel das gerundete Verhältnis. */
+export const ratioLabelFromSize = (width: number, height: number): string | null => {
+  if (!(width > 0 && height > 0)) return null;
+  const ratio = width / height;
+  const nearest = MEASURED_RATIOS.reduce((best, r) =>
+    Math.abs(Math.log(r.ratio / ratio)) < Math.abs(Math.log(best.ratio / ratio)) ? r : best
+  );
+  return Math.abs(Math.log(nearest.ratio / ratio)) < 0.06
+    ? nearest.label
+    : `${Math.round(ratio * 100) / 100}:1`;
+};
+
 const capitalize = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
 
 // Tag hints can override a type's default ratio (e.g. a "sharepic" tagged
@@ -94,7 +115,10 @@ const deriveTool = (item: FormatSource): TemplateFormat['tool'] => {
   return 'Link';
 };
 
-export const getTemplateFormat = (item: FormatSource): TemplateFormat => {
+export const getTemplateFormat = (
+  item: FormatSource,
+  measuredRatio?: string | null
+): TemplateFormat => {
   const type = item.template_type?.toLowerCase() ?? '';
   const preset = TYPE_PRESETS[type] ?? {
     ...DEFAULT_PRESET,
@@ -102,14 +126,23 @@ export const getTemplateFormat = (item: FormatSource): TemplateFormat => {
   };
 
   let { ratioLabel } = preset;
+  let guessed = !TYPE_PRESETS[type];
   const tags = Array.isArray(item.tags) ? item.tags.map((t) => t.toLowerCase()) : [];
   for (const override of TAG_OVERRIDES) {
     if (override.match.some((m) => tags.includes(m))) {
       ratioLabel = override.ratioLabel;
+      guessed = false;
       break;
     }
   }
-  ratioLabel = blueprintRatio(item) ?? ratioLabel;
+  const blueprint = blueprintRatio(item);
+  if (blueprint) {
+    ratioLabel = blueprint;
+    guessed = false;
+  }
+
+  // Gemessen wird nur, wo wir sonst raten müssten: kein bekannter Typ, kein Tag.
+  if (guessed && measuredRatio) ratioLabel = measuredRatio;
 
   const tool = deriveTool(item);
   // Der Typ kommt nur dazu, wenn er etwas Eigenes sagt. Für die Gallerie-Mehrheit

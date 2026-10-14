@@ -315,19 +315,26 @@ export class AuthService {
     userId: string
   ): Promise<AuthenticationResult> {
     log.debug(`[Auth] Checking document permissions for: ${documentName}`);
-    const docResult = await this.db(
-      `SELECT created_by, permissions, is_public, share_mode, share_permission, is_deleted
-       FROM collaborative_documents
-       WHERE id = $1`,
-      [documentName]
-    );
+    // The display name is needed on every granted path, so fetch it alongside;
+    // a failed lookup must not turn a definite denial into a retryable error.
+    const [docResult, userResult] = await Promise.all([
+      this.db(
+        `SELECT created_by, permissions, is_public, share_mode, share_permission, is_deleted
+         FROM collaborative_documents
+         WHERE id = $1`,
+        [documentName]
+      ),
+      this.db('SELECT display_name FROM profiles WHERE id = $1', [userId]).catch((err) => {
+        log.warn(`[Auth] Display name lookup failed for ${userId}: ${err}`);
+        return [];
+      }),
+    ]);
 
     log.debug(`[Auth] Document query returned ${docResult.length} results`);
 
     if (docResult.length === 0) {
       log.debug(`[Auth] Document ${documentName} not found, allowing user ${userId} to create it`);
 
-      const userResult = await this.db('SELECT display_name FROM profiles WHERE id = $1', [userId]);
       return {
         authenticated: true,
         userId,
@@ -422,8 +429,6 @@ export class AuthService {
     } else {
       readOnly = true;
     }
-
-    const userResult = await this.db('SELECT display_name FROM profiles WHERE id = $1', [userId]);
 
     log.debug(
       `[Auth] User ${userId} authenticated for document ${documentName} (${readOnly ? 'read-only' : 'read-write'})`

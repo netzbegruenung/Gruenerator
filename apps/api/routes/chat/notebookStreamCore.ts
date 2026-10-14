@@ -4,7 +4,7 @@
  * notebook controller and the public Gruen-O-Mat controller.
  */
 
-import { type NotebookDepth } from '@gruenerator/contracts';
+import { type NotebookDepth, type NotebookSourceTier } from '@gruenerator/contracts';
 import { type ModelMessage } from 'ai';
 
 import {
@@ -18,6 +18,7 @@ import {
   getSystemCollectionConfig,
 } from '../../config/systemCollectionsConfig.js';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
+import { GEMMA_31B_PRIMARY } from '../../services/ai/gemmaHosts.js';
 import { notebookQAService } from '../../services/notebook/index.js';
 import {
   cutNotebookResults,
@@ -43,6 +44,7 @@ import { containsPromptLeakage } from '../gruenomat/topicGuard.js';
 import { isProviderConfigured } from './agents/providers.js';
 import {
   buildRewriteTranscript,
+  estimateTokens,
   mergeCarriedCitations,
   normalizeNotebookHistory,
   prepareNotebookHistory,
@@ -62,8 +64,8 @@ import type express from 'express';
 const log = createLogger('NotebookStreamCore');
 const notebookHelper = new NotebookQdrantHelper();
 
-const DEFAULT_PROVIDER = 'mistral';
-const DEFAULT_MODEL = 'mistral-medium-2604';
+const DEFAULT_PROVIDER = GEMMA_31B_PRIMARY.provider;
+const DEFAULT_MODEL = GEMMA_31B_PRIMARY.model;
 
 export interface NotebookStreamOptions {
   req: express.Request;
@@ -74,6 +76,7 @@ export interface NotebookStreamOptions {
   filters?: Record<string, unknown>;
   model?: string;
   mode?: NotebookDepth;
+  sourceTier?: NotebookSourceTier;
   userId?: string;
   allowUserCollections?: boolean;
   systemPromptOverride?: string;
@@ -164,6 +167,7 @@ export async function handleNotebookStream(
     filters,
     model,
     mode,
+    sourceTier,
     userId,
     allowUserCollections = true,
     documentIds,
@@ -285,6 +289,7 @@ export async function handleNotebookStream(
         userId: userId || 'anonymous',
         requestFilters: filters,
         depth,
+        sourceTier,
         queries,
         getCollectionFn: async (id: string) => {
           const systemConfig = getSystemCollectionConfig(id);
@@ -495,8 +500,10 @@ export async function handleNotebookStream(
     // Determine AI provider and model (same resolution as chat — handles model ID → real name)
     const defaultAgentConfig = { provider: DEFAULT_PROVIDER, model: DEFAULT_MODEL };
     const notebookRequestId = `notebook_${Date.now()}`;
-    // No classifier on this surface — `auto` is pinned to the precise lane
-    // (see resolveAutoSelection); the web client also pre-resolves it locally.
+    // No classifier on this surface — `auto` is pinned to Gemma 4
+    // (see resolveAutoSelection). The notebook pages pre-resolve it to Mittel
+    // instead (resolveAutoModel); `auto` arrives only from Grün-O-Mat and
+    // `/chat?mode=notebook`.
     const primaryResolution = await resolveModel(defaultAgentConfig, model, notebookRequestId, {
       surface: 'notebook',
     });
@@ -522,33 +529,38 @@ export async function handleNotebookStream(
     // messages are never cut in the middle (a follow-up may refer to the end
     // of an answer). The volatile source block stays in the last user message,
     // so the system+history prefix remains prompt-cache-stable.
-    const { messages: preparedHistory, droppedTurns } = prepareNotebookHistory(
-      history,
-      primaryResolution.contextWindow
-    );
     const standingBlock = formatStandingInstructions(options.standingInstructions);
     // The block is delimited material, so the rule that says what the
     // delimiter means has to travel with it.
-    let systemPromptFinal = standingBlock
+    const systemPromptBase = standingBlock
       ? withInstructionHierarchy(searchContext.systemPrompt + standingBlock)
       : searchContext.systemPrompt;
-    if (droppedTurns > 0) {
-      systemPromptFinal +=
-        '\n\nHinweis: Ältere Nachrichten dieses Gesprächs wurden aus Platzgründen ausgelassen.';
-    }
-    if (history.length > 0) {
-      log.info(
-        `[Notebook] history: ${history.length} messages → ${preparedHistory.length} kept, ${droppedTurns} turns dropped`
+    // Built per window: a fallback lane with a smaller one gets the history
+    // trimmed again for itself (streamWithFallback, #4198).
+    const assembleMessages = (contextWindow?: number): ModelMessage[] => {
+      const { messages: preparedHistory, droppedTurns } = prepareNotebookHistory(
+        history,
+        contextWindow,
+        estimateTokens(systemPromptBase) + estimateTokens(userContent) + profile.maxOutputTokens
       );
-    }
-
-    const aiMessages: ModelMessage[] = [
-      { role: 'system', content: systemPromptFinal },
-      ...preparedHistory.map(
-        (m): ModelMessage => ({ role: m.role, content: m.content }) as ModelMessage
-      ),
-      { role: 'user', content: userContent },
-    ];
+      const systemPromptFinal =
+        droppedTurns > 0
+          ? `${systemPromptBase}\n\nHinweis: Ältere Nachrichten dieses Gesprächs wurden aus Platzgründen ausgelassen.`
+          : systemPromptBase;
+      if (history.length > 0) {
+        log.info(
+          `[Notebook] history: ${history.length} messages → ${preparedHistory.length} kept, ${droppedTurns} turns dropped`
+        );
+      }
+      return [
+        { role: 'system', content: systemPromptFinal },
+        ...preparedHistory.map(
+          (m): ModelMessage => ({ role: m.role, content: m.content }) as ModelMessage
+        ),
+        { role: 'user', content: userContent },
+      ];
+    };
+    const aiMessages = assembleMessages(primaryResolution.contextWindow);
 
     const t2 = Date.now();
     log.debug(`⏱ Model setup: ${t2 - t1}ms`);
@@ -576,10 +588,15 @@ export async function handleNotebookStream(
           primary: primaryResolution,
           sse,
           logPrefix: '[Notebook]',
-          buildStream: async (resolution) => {
+          messages: {
+            primary: aiMessages,
+            window: primaryResolution.contextWindow ?? null,
+            rebuild: assembleMessages,
+          },
+          buildStream: async (resolution, messages) => {
             return streamForResolution({
               resolution,
-              messages: aiMessages,
+              messages,
               maxTokens: baseMaxOutput,
               temperature: 0.2,
               sse,

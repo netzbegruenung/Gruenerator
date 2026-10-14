@@ -33,8 +33,11 @@ export type ToolIconRef =
 export type OfficeCreateKind = 'doc' | 'board' | 'sheet' | 'pres' | 'gallery';
 
 /** Which tile strip a tool's colored tile lives in: the Arbeiten tab's
- * area/organise rows or the /studio landing strip. */
-export type WorkplaceTileGroup = 'bereiche' | 'organisieren' | 'studio';
+ * area/organise rows or the /studio landing strip (`studio`) or its "Weitere Tools" menu (`studio-werkzeuge`). */
+export type WorkplaceTileGroup = 'bereiche' | 'organisieren' | 'studio' | 'studio-werkzeuge';
+
+/** Who sees a tool. Omitted means `'all'`. */
+export type ToolAudience = 'de-DE' | 'de-AT' | 'all';
 
 export interface ToolDefinition {
   id: string;
@@ -43,11 +46,17 @@ export interface ToolDefinition {
   path?: string;
   /** External URL (opened in a new tab). Mutually exclusive with `path`. */
   href?: string;
+  /** Restricts the tool to one country's users (matched against the user locale). */
+  audience?: ToolAudience;
   icon: ToolIconRef;
   /** Colored tile on the Arbeiten tab or the /studio landing page. */
   tile?: { group: WorkplaceTileGroup; description: string };
   /** Row inside the "Weitere" dropdown tile (the single menu, `menuRoot` below). */
-  menuItem?: { description: string };
+  menuItem?: {
+    description: string;
+    /** Points elsewhere than `path` (the tool moved); such a row is not pinnable. */
+    path?: string;
+  };
   /** The "Weitere" dropdown tile itself. */
   menuRoot?: { description: string };
   /** Global-search catalog entry. */
@@ -147,13 +156,13 @@ const TOOLS = [
   },
   {
     id: 'agents',
-    title: 'Agentura',
-    path: '/agentura',
+    title: 'Grüneratoren',
+    path: '/grueneratoren',
     icon: { component: RiSpyLine },
-    tile: { group: 'organisieren', description: 'Grüneratoren & Rezepte' },
+    tile: { group: 'organisieren', description: 'Agents, Rezepte & Aufgaben' },
     search: {
       id: 'tool-agentura',
-      subtitle: 'KI-Grüneratoren & Rezepte entdecken',
+      subtitle: 'Deine Agents, Rezepte und Aufgaben',
       icon: { navigation: 'desk' },
       keywords: ['agentura', 'agent', 'agenten', 'grünerator', 'grueneratoren', 'skills', 'ki'],
     },
@@ -266,7 +275,6 @@ const TOOLS = [
     title: 'Voice',
     path: '/voice',
     icon: { navigation: 'voice' },
-    menuItem: { description: 'Text vertonen' },
     search: {
       id: 'tool-voice',
       title: 'Grünerator Voice',
@@ -302,22 +310,29 @@ const TOOLS = [
     menuItem: { description: 'ChatGPT & Co verbinden' },
   },
   {
+    id: 'transparenz',
+    title: 'Transparenz',
+    path: '/transparenz',
+    icon: { navigation: 'transparenz' },
+    menuItem: { description: 'Verbrauch & CO₂ des Grünerators' },
+  },
+  {
     id: 'canvas-vorlagen',
     title: 'Vorlagen',
     path: '/vorlagen',
     icon: { navigation: 'vorlagen' },
-    tile: { group: 'studio', description: 'Design-Vorlagen' },
+    tile: { group: 'studio', description: 'Sharepics & Designs' },
     search: {
       id: 'tool-vorlagen',
-      subtitle: 'Fertige Design-Vorlagen',
-      keywords: ['vorlagen', 'vorlage', 'template', 'design'],
+      subtitle: 'Fertige Sharepic- und Design-Vorlagen',
+      keywords: ['vorlagen', 'vorlage', 'template', 'design', 'sharepic'],
     },
     theme: true,
   },
   {
     id: 'canvas-ki',
     title: 'KI-Bilder',
-    path: '/bild-editor',
+    path: '/studio',
     icon: { navigation: 'imagine' },
     tile: { group: 'studio', description: 'Erstellen & bearbeiten' },
     search: {
@@ -339,14 +354,6 @@ const TOOLS = [
     theme: true,
   },
   {
-    id: 'canvas-sharepics',
-    title: 'Sharepics',
-    path: '/studio/templates',
-    icon: { navigation: 'sharepic' },
-    tile: { group: 'studio', description: 'Grafiken gestalten' },
-    theme: true,
-  },
-  {
     id: 'reels-untertitel',
     title: 'Reels',
     path: '/studio/video',
@@ -359,6 +366,106 @@ const TOOLS = [
       keywords: ['reel', 'video', 'untertitel', 'subtitle', 'clip', 'social', 'tiktok', 'story'],
     },
     theme: true,
+  },
+  {
+    id: 'studio-voice',
+    title: 'Voice',
+    path: '/voice',
+    icon: { navigation: 'voice' },
+    tile: { group: 'studio', description: 'Text vertonen' },
+  },
+  {
+    id: 'profilbild',
+    title: 'Profilbild',
+    path: '/studio/profilbild',
+    icon: { navigation: 'profilbild' },
+    tile: { group: 'studio-werkzeuge', description: 'Freistellen & Hintergrund wechseln' },
+    search: {
+      id: 'tool-profilbild',
+      subtitle: 'Profilbild freistellen und Hintergrund wechseln',
+      keywords: [
+        'profilbild',
+        'profil',
+        'portrait',
+        'avatar',
+        'foto',
+        'hintergrund',
+        'freistellen',
+      ],
+    },
+    theme: true,
+  },
+  {
+    id: 'bild-erweitern',
+    title: 'Bild erweitern',
+    path: '/studio/erweitern',
+    icon: { navigation: 'bild-erweitern' },
+    tile: { group: 'studio-werkzeuge', description: 'Auf ein neues Format ergänzen' },
+    search: {
+      id: 'tool-bild-erweitern',
+      subtitle: 'KI ergänzt dein Bild auf ein neues Format',
+      keywords: [
+        'erweitern',
+        'bild erweitern',
+        'outpaint',
+        'format',
+        'seitenverhaeltnis',
+        'ergaenzen',
+        'bild',
+      ],
+    },
+    theme: true,
+  },
+  {
+    id: 'freisteller',
+    title: 'Hintergrund entfernen',
+    path: '/studio/freistellen',
+    icon: { navigation: 'freisteller' },
+    tile: { group: 'studio-werkzeuge', description: 'Person oder Motiv freistellen' },
+    search: {
+      id: 'tool-freisteller',
+      subtitle: 'Person oder Motiv in Sekunden freistellen',
+      keywords: [
+        'freistellen',
+        'freisteller',
+        'hintergrund',
+        'entfernen',
+        'transparent',
+        'ausschneiden',
+        'bild',
+      ],
+    },
+    theme: true,
+  },
+  {
+    id: 'mediathek',
+    title: 'Mediathek',
+    path: '/studio/mediathek',
+    icon: { navigation: 'mediathek' },
+    tile: { group: 'studio-werkzeuge', description: 'Deine Bilder, Videos & Audios' },
+    search: {
+      id: 'tool-mediathek',
+      subtitle: 'Alle deine Bilder, Sharepics, KI-Bilder, Videos und Audios',
+      keywords: [
+        'mediathek',
+        'medien',
+        'bilder',
+        'videos',
+        'audio',
+        'uploads',
+        'hochladen',
+        'galerie',
+      ],
+    },
+    theme: true,
+  },
+  {
+    id: 'bildgenerator-at',
+    title: 'Bildgenerator',
+    href: 'https://bildgenerator.gruene.at/',
+    audience: 'de-AT',
+    icon: { actions: 'link' },
+    tile: { group: 'studio-werkzeuge', description: 'Sharepics der Grünen Österreich' },
   },
   {
     id: 'tool-notebooks',
@@ -468,6 +575,8 @@ export const LEGACY_TOOL_ID_ALIASES: Record<string, ToolId> = {
   notebooks: 'wissen',
   gruppen: 'projekte',
   spaces: 'projekte',
+  // „Alte Vorlagen" (the retired template wizard) became Grünerator-Vorlagen.
+  'canvas-sharepics': 'canvas-vorlagen',
 };
 
 // Legacy ids kept ONLY so already-pinned favourites still resolve — they are
@@ -500,11 +609,11 @@ const LEGACY_FAVOURITE_ITEMS: readonly {
 const MENU_ORDER = [
   'uebersetzer',
   'mcp',
-  'voice',
   'transkription',
   'scanner',
   'zeichenzaehler',
   'newsletter',
+  'transparenz',
 ] as const satisfies readonly MenuItemToolId[];
 
 // Curated search-catalog order. Deliberately its own list: the catalog wants
@@ -514,6 +623,10 @@ const SEARCH_ORDER = [
   'tool-reel',
   'tool-studio',
   'tool-imagine',
+  'tool-profilbild',
+  'tool-bild-erweitern',
+  'tool-freisteller',
+  'tool-mediathek',
   'tool-scanner',
   'tool-transkription',
   'tool-voice',
@@ -544,6 +657,7 @@ export interface DerivedTile {
   description: string;
   path?: string;
   href?: string;
+  audience?: ToolAudience;
   icon: IconType;
 }
 
@@ -557,6 +671,7 @@ export function toolsWithTile(group: WorkplaceTileGroup): DerivedTile[] {
       description: tool.tile.description,
       ...(tool.path != null ? { path: tool.path } : {}),
       ...(tool.href != null ? { href: tool.href } : {}),
+      ...(tool.audience != null ? { audience: tool.audience } : {}),
       icon: resolveToolIcon(tool.icon),
     });
   }
@@ -607,7 +722,9 @@ export function toolMenus(): DerivedToolMenu[] {
       id: tool.id,
       title: tool.title,
       description: tool.menuItem!.description,
-      ...(tool.path != null ? { path: tool.path } : {}),
+      ...((tool.menuItem!.path ?? tool.path) != null
+        ? { path: tool.menuItem!.path ?? tool.path }
+        : {}),
       ...(tool.href != null ? { href: tool.href } : {}),
       icon: resolveToolIcon(tool.icon),
     };
@@ -692,7 +809,7 @@ export function legacyFavouriteItems(): DerivedFavouriteItem[] {
  * strip — mirroring the old `[...WORKPLACE_TOOLS, ...CANVAS_TOOLS]` order. */
 export function gridFavouriteItems(): DerivedFavouriteItem[] {
   const out: DerivedFavouriteItem[] = [];
-  for (const group of ['organisieren', 'studio'] as const) {
+  for (const group of ['organisieren', 'studio', 'studio-werkzeuge'] as const) {
     for (const tile of toolsWithTile(group)) {
       if (tile.path == null || tile.href != null) continue;
       out.push({ id: tile.id, title: tile.title, path: tile.path, icon: tile.icon });
@@ -707,6 +824,7 @@ export function menuFavouriteItems(): DerivedFavouriteItem[] {
   for (const menu of toolMenus()) {
     for (const item of menu.items) {
       if (item.path == null || item.href != null) continue;
+      if (ALL_TOOLS.find((t) => t.id === item.id)?.menuItem?.path) continue;
       out.push({ id: item.id, title: item.title, path: item.path, icon: item.icon });
     }
   }

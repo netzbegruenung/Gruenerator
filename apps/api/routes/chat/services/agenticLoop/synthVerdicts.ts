@@ -21,6 +21,8 @@ import {
   stripFabricatedArtifactDelivery,
   stripFabricatedSystemClaims,
   stripPhantomMemoryClaim,
+  stripPhantomArtifactEdit,
+  type EditableArtifactKind,
 } from '../outputSanity.js';
 
 import { stripOutOfRangeCitations } from './citationStrip.js';
@@ -94,6 +96,10 @@ export function finalizeAnswerText(input: {
   stepCount: number;
   /** Ein `memory`-Schritt lief in diesem Turn — nur dann darf „notiert" stehen. */
   memoryRan?: boolean;
+  /** Was die Werkzeuge dieses Turns wirklich geändert haben — nur das darf „geändert" heißen. */
+  editedArtifacts?: ReadonlySet<EditableArtifactKind>;
+  /** Die Arten, die der Thread hat; ohne sie meint „Tabelle" die im Chat-Text. */
+  guardedArtifacts?: ReadonlySet<EditableArtifactKind>;
   /** Rendered source block, the user's own words, attachments, open document —
    *  everything the model may legitimately name. */
   seenTexts: readonly string[];
@@ -133,6 +139,17 @@ export function finalizeAnswerText(input: {
       `[Agentic] Removed memory claim without memory step: ${phantomNote.removed.join(' | ')}`
     );
     text = phantomNote.text;
+  }
+
+  const phantomEdit = stripPhantomArtifactEdit(text, {
+    edited: input.editedArtifacts ?? new Set(),
+    guarded: input.guardedArtifacts ?? new Set(['sharepic']),
+  });
+  if (phantomEdit.removed.length > 0) {
+    warnings.push(
+      `[Agentic] Removed artifact edit claim without a writing step: ${phantomEdit.removed.join(' | ')}`
+    );
+    text = phantomEdit.text;
   }
 
   if (
@@ -177,7 +194,11 @@ export function finalizeAnswerText(input: {
   // caller pushes the corrected answer via `completion` — the frontend replaces
   // the streamed deltas with it (same channel the notebook flow uses).
   const clamp = stripOutOfRangeCitations(text, input.sourceCount);
-  const replaced = clamp.changed || sanity.fabricated.length > 0 || phantomNote.removed.length > 0;
+  const replaced =
+    clamp.changed ||
+    sanity.fabricated.length > 0 ||
+    phantomNote.removed.length > 0 ||
+    phantomEdit.removed.length > 0;
   if (replaced) text = clamp.text;
 
   return { text, replaced, warnings };

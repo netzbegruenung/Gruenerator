@@ -107,7 +107,8 @@ export interface BatchDeleteResult {
 
 export interface ScrollOptions {
   limit?: number | undefined;
-  withPayload?: boolean | undefined;
+  /** `true` für die ganze Payload, sonst nur diese Felder — Chunk 0 trägt oft den Volltext. */
+  withPayload?: boolean | string[] | undefined;
   withVector?: boolean | undefined;
   offset?: string | number | null | undefined;
 }

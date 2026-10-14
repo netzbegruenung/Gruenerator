@@ -73,3 +73,27 @@ export function calculateAttributionOverlay(
     padding,
   };
 }
+
+interface ElementLike<TState> {
+  srcKey?: unknown;
+  visible?: (state: TState) => boolean;
+}
+
+/**
+ * The stock credit belongs to the background photo, so it is printed only
+ * while an element drawing `currentImageSrc` is visible — freeform keeps the
+ * photo (and its credit) in state after a colour pick. A template without
+ * such an element keeps printing the credit as before.
+ */
+export function isCreditedPhotoVisible<TState>(
+  elements: readonly object[],
+  state: TState
+): boolean {
+  const photos = elements.filter(
+    (el): el is ElementLike<TState> =>
+      'srcKey' in el && (el as ElementLike<TState>).srcKey === 'currentImageSrc'
+  );
+  if (photos.length === 0) return true;
+  if (!(state as { currentImageSrc?: unknown }).currentImageSrc) return false;
+  return photos.some((el) => el.visible?.(state) ?? true);
+}

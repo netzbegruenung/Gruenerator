@@ -13,11 +13,14 @@ import { type PgColumn } from 'drizzle-orm/pg-core';
 import { chatThreads } from './schema/chat.js';
 import { collaborative_documents } from './schema/collaborative.js';
 import { documents } from './schema/documents.js';
+import { explainables } from './schema/explainables.js';
 import { customPrompts } from './schema/generators.js';
 import { groups } from './schema/groups.js';
 import { userKnowledge } from './schema/knowledge.js';
 import { sharedMedia } from './schema/media.js';
+import { podcasts } from './schema/podcasts.js';
 import { recurring_tasks } from './schema/recurringTasks.js';
+import { reisekostenAbrechnungen } from './schema/reisekosten.js';
 import { userSites } from './schema/sites.js';
 import { subtitlerProjects } from './schema/subtitler.js';
 import { userTemplates } from './schema/templates.js';
@@ -41,6 +44,9 @@ export const TRASHABLE_TABLES = {
   user_documents: null,
   user_knowledge: userKnowledge,
   groups,
+  reisekosten_abrechnungen: reisekostenAbrechnungen,
+  explainables,
+  podcasts,
 } as const;
 
 export type TrashableTableName = keyof typeof TRASHABLE_TABLES;

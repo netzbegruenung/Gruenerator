@@ -86,14 +86,6 @@ export const TOOL_THEME = {
     gradient:
       'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#F3F2F9_0%,#F9F8FC_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#191622_0%,#110F17_55%,#0B0A0F_100%)]',
   },
-  'canvas-sharepics': {
-    tile: 'bg-[#F6E5D4] dark:bg-[#2B1D12]',
-    icon: 'text-[#7A4A1F] dark:text-[#CB9A6A]',
-    title: 'text-[#5E3915] dark:text-[#E4C0A0]',
-    desc: 'text-[#81613B] dark:text-[#AB8864]',
-    gradient:
-      'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#FBF0E6_0%,#FDF8F2_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#221A12_0%,#17120C_55%,#0F0C08_100%)]',
-  },
   'reels-untertitel': {
     tile: 'bg-[#F5DEE6] dark:bg-[#2B1620]',
     icon: 'text-[#8A3E5C] dark:text-[#CB8AA6]',
@@ -101,6 +93,39 @@ export const TOOL_THEME = {
     desc: 'text-[#85576A] dark:text-[#AB7E94]',
     gradient:
       'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#FBEDF2_0%,#FDF7FA_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#22141A_0%,#170E12_55%,#0F090C_100%)]',
+  },
+  // Studio "Weitere Tools" menu — green / coral / blue / violet, distinct from the strip above.
+  profilbild: {
+    tile: 'bg-[#DFEBD9] dark:bg-[#1A2B16]',
+    icon: 'text-[#3D6130] dark:text-[#8FC27E]',
+    title: 'text-[#2F4D25] dark:text-[#B3DAA5]',
+    desc: 'text-[#5E7A53] dark:text-[#7FA672]',
+    gradient:
+      'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#EDF5E9_0%,#F6FAF4_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#161F13_0%,#10170E_55%,#0A0F08_100%)]',
+  },
+  'bild-erweitern': {
+    tile: 'bg-[#F8E1D8] dark:bg-[#2E1B14]',
+    icon: 'text-[#9A4A30] dark:text-[#D69A82]',
+    title: 'text-[#7A3820] dark:text-[#EBBBA8]',
+    desc: 'text-[#8E6252] dark:text-[#B08272]',
+    gradient:
+      'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#FCEFEA_0%,#FEF7F4_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#251912_0%,#19110C_55%,#100B08_100%)]',
+  },
+  freisteller: {
+    tile: 'bg-[#D9E8F5] dark:bg-[#15222E]',
+    icon: 'text-[#2B5580] dark:text-[#7FAAD6]',
+    title: 'text-[#1E4468] dark:text-[#A5C6E8]',
+    desc: 'text-[#56718C] dark:text-[#6F8DAB]',
+    gradient:
+      'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#E9F2FA_0%,#F5F9FD_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#131D27_0%,#0E151B_55%,#090D11_100%)]',
+  },
+  mediathek: {
+    tile: 'bg-[#E6E0F2] dark:bg-[#1F1A2B]',
+    icon: 'text-[#5B4F8F] dark:text-[#B3A8DC]',
+    title: 'text-[#463C74] dark:text-[#CEC6EC]',
+    desc: 'text-[#6E6590] dark:text-[#958CB4]',
+    gradient:
+      'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#F1EDF8_0%,#F8F6FC_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#1A1624_0%,#120F19_55%,#0B0910_100%)]',
   },
   // Agentura reads as a chat/companion tool, so it wears a soft yellow — kept in
   // the same pale, desaturated register as the other tiles (not a strong yellow).

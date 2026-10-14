@@ -19,9 +19,20 @@ vi.mock('../../services/document-services/DocumentSearchService/index.js', () =>
 vi.mock('../../services/document-services/PostgresDocumentService/index.js', () => ({
   getPostgresDocumentService: () => ({ getDocumentById }),
 }));
+const dbQuery = vi.fn();
+const checkNotebookAccess = vi.fn();
+const isDocumentInCollection = vi.fn();
+
 vi.mock('../../database/services/NotebookQdrantHelper.js', () => ({
-  NotebookQdrantHelper: class {},
+  NotebookQdrantHelper: class {
+    isDocumentInCollection = isDocumentInCollection;
+    getNotebookCollection = vi.fn(async () => ({ name: 'NRW-Programm' }));
+  },
 }));
+vi.mock('../../database/services/PostgresService.js', () => ({
+  getPostgresInstance: () => ({ query: dbQuery }),
+}));
+vi.mock('../notebook/notebookAccess.js', () => ({ checkNotebookAccess }));
 vi.mock('./helpers.js', () => ({ enrichDocumentWithPreview: vi.fn() }));
 
 async function startApp(): Promise<{ base: string; close: () => void }> {
@@ -47,6 +58,11 @@ beforeEach(() => {
     chunkCount: 1,
   });
   getDocumentById.mockReset().mockResolvedValue(null);
+  dbQuery
+    .mockReset()
+    .mockResolvedValue([{ user_id: 'owner-1', title: 'Entwurf', source_url: null }]);
+  checkNotebookAccess.mockReset().mockResolvedValue({ exists: true, canRead: true });
+  isDocumentInCollection.mockReset().mockResolvedValue(true);
 });
 
 describe('GET /api/documents/chunks — Query-Transport', () => {
@@ -87,6 +103,69 @@ describe('GET /api/documents/chunks — Query-Transport', () => {
       expect(getDocumentChunks).toHaveBeenCalledWith('user-1', 'doc-1', {
         qdrantCollection: 'grundsatz_documents',
       });
+    } finally {
+      close();
+    }
+  });
+});
+
+describe('GET /api/documents/:id/chunks — Quellen geteilter Notebooks', () => {
+  it('liest die eigene Quelle mit der eigenen Nutzer-ID', async () => {
+    dbQuery.mockResolvedValue([{ user_id: 'user-1', title: 'Eigenes', source_url: null }]);
+    const { base, close } = await startApp();
+    try {
+      const res = await fetch(`${base}/api/documents/doc-1/chunks`);
+      expect(res.status).toBe(200);
+      expect(((await res.json()) as { document_title: string }).document_title).toBe('Eigenes');
+      expect(getDocumentChunks).toHaveBeenCalledWith('user-1', 'doc-1', undefined);
+    } finally {
+      close();
+    }
+  });
+
+  it('liest die fremde Quelle eines lesbaren Notebooks mit der Eigentümer-ID', async () => {
+    const { base, close } = await startApp();
+    try {
+      const res = await fetch(`${base}/api/documents/doc-1/chunks?collectionId=nb-1`);
+      expect(res.status).toBe(200);
+      expect(checkNotebookAccess).toHaveBeenCalledWith('nb-1', 'user-1');
+      expect(isDocumentInCollection).toHaveBeenCalledWith('nb-1', 'doc-1');
+      expect(getDocumentChunks).toHaveBeenCalledWith('owner-1', 'doc-1', undefined);
+    } finally {
+      close();
+    }
+  });
+
+  it('antwortet 404 ohne Lesezugriff auf das Notebook', async () => {
+    checkNotebookAccess.mockResolvedValue({ exists: true, canRead: false });
+    const { base, close } = await startApp();
+    try {
+      const res = await fetch(`${base}/api/documents/doc-1/chunks?collectionId=nb-1`);
+      expect(res.status).toBe(404);
+      expect(getDocumentChunks).not.toHaveBeenCalled();
+    } finally {
+      close();
+    }
+  });
+
+  it('antwortet 404, wenn die Quelle nicht im Notebook liegt', async () => {
+    isDocumentInCollection.mockResolvedValue(false);
+    const { base, close } = await startApp();
+    try {
+      const res = await fetch(`${base}/api/documents/doc-1/chunks?collectionId=nb-1`);
+      expect(res.status).toBe(404);
+      expect(getDocumentChunks).not.toHaveBeenCalled();
+    } finally {
+      close();
+    }
+  });
+
+  it('antwortet 404 für eine fremde Quelle ohne Notebook', async () => {
+    const { base, close } = await startApp();
+    try {
+      const res = await fetch(`${base}/api/documents/doc-1/chunks`);
+      expect(res.status).toBe(404);
+      expect(getDocumentChunks).not.toHaveBeenCalled();
     } finally {
       close();
     }

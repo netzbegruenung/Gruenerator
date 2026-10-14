@@ -15,7 +15,13 @@
  * re-opening that bug.
  */
 
-import { parseSharepicChatProps, type SharepicVariant } from '@gruenerator/contracts';
+import {
+  parseSharepicChatProps,
+  type SharepicDraftFailureReason,
+  type SharepicVariant,
+} from '@gruenerator/contracts';
+
+import { DRAFT_LIMIT_TEXTS } from '../../../services/sharepicCreator/draftFailure.js';
 
 const variantWord = (n: number): string => (n === 1 ? 'Variante' : 'Varianten');
 
@@ -36,10 +42,14 @@ export function buildSharepicConfirmation(variants: readonly SharepicVariant[]):
       return `Ich habe dir das Sharepic überarbeitet.${editorNote} Sag mir, wenn noch etwas anders sein soll.`;
     }
     const slides = creator.creatorSpec.slides.length;
+    // Short on purpose: the full reason (trees, outage) stays on the variant.
+    const scene = first?.notice
+      ? ' Den Hintergrund konnte ich nicht malen lassen, er ist eine Markenfarbe.'
+      : '';
     const tail = 'Sag mir, was ich ändern soll, oder ob du eine ganz andere Variante möchtest.';
     return slides > 1
-      ? `Ich habe dir ein Karussell mit ${slides} Folien entworfen. ${tail}`
-      : `Ich habe dir ein Sharepic entworfen. ${tail}`;
+      ? `Ich habe dir ein Karussell mit ${slides} Folien entworfen.${scene} ${tail}`
+      : `Ich habe dir ein Sharepic entworfen.${scene} ${tail}`;
   }
   const deckSlides = first?.pages?.length;
   if (deckSlides) {
@@ -67,11 +77,35 @@ export const ARTIFACT_CONFIRMATION_TEXTS = {
     `Die Überarbeitung hat leider nicht geklappt. Formuliere die Änderung etwas ` +
     `genauer und versuch es noch einmal.`,
   genericFailed: `Das hat leider nicht geklappt. Magst du es mit einem anderen Thema noch einmal versuchen?`,
+  sharepicUnchanged:
+    `Das Sharepic ist unverändert geblieben – diese Änderung kann der Sharepic-Creator ` +
+    `nicht umsetzen. Formuliere sie anders oder ändere es im Studio.`,
 } as const;
 
-/** The text a sharepic turn ends with; a failed revision asks for a clearer change. */
-export function sharepicTurnText(variants: readonly SharepicVariant[], revision: boolean): string {
+/**
+ * Why a sharepic turn produced no card: a content limit the draft kept
+ * breaking, or a revision whose spec came back identical — live 11.10.2026
+ * „Mach die Schrift weiß" showed a copy labelled „Überarbeitet".
+ */
+export type SharepicTurnFailure = SharepicDraftFailureReason | 'unchanged';
+
+/**
+ * The text a sharepic turn ends with; a failed revision asks for a clearer
+ * change, a draft that kept breaking a content limit names it.
+ */
+export function sharepicTurnText(
+  variants: readonly SharepicVariant[],
+  revision: boolean,
+  failure: SharepicTurnFailure | null = null
+): string {
   if (variants.length > 0) return buildSharepicConfirmation(variants);
+  if (failure === 'unchanged') return ARTIFACT_CONFIRMATION_TEXTS.sharepicUnchanged;
+  if (failure) {
+    const lead = revision
+      ? 'Die Überarbeitung hat leider nicht geklappt.'
+      : 'Die Sharepic-Erstellung hat leider nicht geklappt.';
+    return `${lead} ${DRAFT_LIMIT_TEXTS[failure]}`;
+  }
   return revision
     ? ARTIFACT_CONFIRMATION_TEXTS.sharepicRevisionFailed
     : ARTIFACT_CONFIRMATION_TEXTS.sharepicFailed;
@@ -91,7 +125,7 @@ const CREATION_CONFIRMATION_RE = /\bwurde erstellt\b|\beingerichtet —/;
  * inheritable, and it is far longer than any template here.
  */
 const FIXED_TEXT_OPENING_RE =
-  /^(?:Ich habe dir\b|Hier ist dein Post\b|Daraus konnte ich keinen Post\b|Diese Anfrage kann ich nicht umsetzen\b|Die Sharepic-Erstellung hat leider\b|Die Überarbeitung hat leider\b|Das hat leider nicht geklappt\b)/;
+  /^(?:Ich habe dir\b|Hier ist dein Post\b|Daraus konnte ich keinen Post\b|Diese Anfrage kann ich nicht umsetzen\b|Die Sharepic-Erstellung hat leider\b|Die Überarbeitung hat leider\b|Das hat leider nicht geklappt\b|Das Sharepic ist unverändert geblieben\b)/;
 
 /** Longest template above is ~230 chars; the bound leaves room for wording drift. */
 const MAX_FIXED_TEXT_LENGTH = 320;

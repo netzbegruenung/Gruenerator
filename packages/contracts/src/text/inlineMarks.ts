@@ -35,6 +35,13 @@ export interface RunStyle {
    * öffnet (kein Nicht-Leerzeichen dahinter) und nie paart.
    */
   marker: boolean;
+  /**
+   * Eigene Farbe der Passage (`=={#E6007E}Wort==`, `++{#FFFFFF}Wort++`) statt
+   * der Farbe, die die Vorlage für Akzent bzw. Kasten vorsieht. Nur gesetzt,
+   * solange `accent` bzw. `marker` gilt.
+   */
+  accentColor?: string;
+  markerColor?: string;
 }
 
 export interface InlineRun extends RunStyle {
@@ -49,12 +56,57 @@ export const PLAIN_STYLE: RunStyle = {
   marker: false,
 };
 
+/** Gleicher Stil samt Passagenfarben — Läufe dürfen nur dann verschmelzen. */
+export const sameRunStyle = (a: RunStyle, b: RunStyle): boolean =>
+  a.bold === b.bold &&
+  a.italic === b.italic &&
+  a.underline === b.underline &&
+  a.accent === b.accent &&
+  a.marker === b.marker &&
+  a.accentColor === b.accentColor &&
+  a.markerColor === b.markerColor;
+
+/** Nur die Stilfelder eines Laufs, ohne leere Farbfelder. */
+export function runStyleOf(run: RunStyle): RunStyle {
+  const style: RunStyle = {
+    bold: run.bold,
+    italic: run.italic,
+    underline: run.underline,
+    accent: run.accent,
+    marker: run.marker,
+  };
+  if (run.accentColor) style.accentColor = run.accentColor;
+  if (run.markerColor) style.markerColor = run.markerColor;
+  return style;
+}
+
 type MarkKind = 'bold' | 'italic' | 'underline' | 'accent' | 'marker';
+type ColorKind = 'accent' | 'marker';
+
+const COLOR_FIELD = { accent: 'accentColor', marker: 'markerColor' } as const;
+
+const isHexDigit = (char: string | undefined): boolean =>
+  char !== undefined &&
+  ((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f') || (char >= 'A' && char <= 'F'));
+
+/**
+ * Liest einen Farbzusatz `{#RRGGBB}` an Stelle `at` — linear, ohne Regex.
+ * Liefert die Farbe in Großbuchstaben, damit gleiche Farben gleich vergleichen.
+ */
+function readColorTag(line: string, at: number): string | null {
+  if (line[at] !== '{' || line[at + 1] !== '#' || line[at + 8] !== '}') return null;
+  for (let i = at + 2; i < at + 8; i++) if (!isHexDigit(line[i])) return null;
+  return line.slice(at + 1, at + 8).toUpperCase();
+}
+
+const COLOR_TAG_LENGTH = 9;
 
 interface DelimToken {
   type: 'delim';
   kind: MarkKind;
   raw: string;
+  /** Farbzusatz eines öffnenden `==`/`++`; ein solcher Marker schließt nie. */
+  color?: string;
   canOpen: boolean;
   canClose: boolean;
   /** Index des Partners nach der Auflösung; `-1` = literal. */
@@ -100,7 +152,8 @@ function tokenize(line: string): Token[] {
     kind: MarkKind,
     raw: string,
     prev: string | undefined,
-    next: string | undefined
+    next: string | undefined,
+    color: string | null = null
   ) => {
     flush();
     // Ein `_` (und `++`, siehe `markerCanOpenAt`) mitten im Wort (`snake_case`) darf nicht ÖFFNEN, sonst würde
@@ -110,16 +163,28 @@ function tokenize(line: string): Token[] {
     // genau das nicht mehr lesen, was `serializeInlineMarks` selbst schreibt.
     // Ohne einen offenen Marker auf dem Stapel paart `resolve` ohnehin nicht,
     // `snake_case_name` bleibt also unberührt.
-    const wordBound = raw.startsWith('_') || raw === '++';
+    const wordBound = raw.startsWith('_') || kind === 'marker';
     tokens.push({
       type: 'delim',
       kind,
       raw,
+      ...(color ? { color } : {}),
       canOpen: !isSpace(next) && !(wordBound && isWordChar(prev)),
-      canClose: !isSpace(prev),
+      // Ein Farbzusatz gehört zum öffnenden Marker; als schließender ginge er verloren.
+      canClose: !color && !isSpace(prev),
       partner: -1,
       opens: false,
     });
+  };
+  /** `==`/`++` an Stelle `i`, mit optionalem Farbzusatz dahinter; liefert die Länge. */
+  const pushColorable = (kind: ColorKind, prev: string | undefined): number => {
+    const tag = readColorTag(line, i + 2);
+    // Ein Zusatz, hinter dem nichts öffnen kann, ist Text hinter einem gewöhnlichen `==`.
+    const color = tag && !isSpace(line[i + 2 + COLOR_TAG_LENGTH]) ? tag : null;
+    const length = 2 + (color ? COLOR_TAG_LENGTH : 0);
+    // `raw` hält den Zusatz, wie er dastand: bleibt der Marker literal, bleibt er es auch.
+    push(kind, line.slice(i, i + length), prev, line[i + length], color);
+    return length;
   };
 
   let i = 0;
@@ -137,13 +202,11 @@ function tokenize(line: string): Token[] {
       continue;
     }
     if (ch === '=' && line[i + 1] === '=') {
-      push('accent', '==', prev, line[i + 2]);
-      i += 2;
+      i += pushColorable('accent', prev);
       continue;
     }
     if (ch === '+' && line[i + 1] === '+') {
-      push('marker', '++', prev, line[i + 2]);
-      i += 2;
+      i += pushColorable('marker', prev);
       continue;
     }
     if (ch === '<') {
@@ -207,14 +270,7 @@ export function parseInlineMarks(line: string): InlineRun[] {
   const append = (value: string) => {
     if (value === '') return;
     const last = runs[runs.length - 1];
-    if (
-      last &&
-      last.bold === style.bold &&
-      last.italic === style.italic &&
-      last.underline === style.underline &&
-      last.accent === style.accent &&
-      last.marker === style.marker
-    ) {
+    if (last && sameRunStyle(last, style)) {
       last.text += value;
     } else {
       runs.push({ text: value, ...style });
@@ -228,6 +284,11 @@ export function parseInlineMarks(line: string): InlineRun[] {
       append(token.raw);
     } else {
       style[token.kind] = token.opens;
+      if (token.kind === 'accent' || token.kind === 'marker') {
+        const field = COLOR_FIELD[token.kind];
+        if (token.opens && token.color) style[field] = token.color;
+        else delete style[field];
+      }
     }
   }
   return runs;
@@ -270,14 +331,18 @@ const DELIMS: Record<MarkKind, [string, string]> = {
  * sonst stünde der schließende Marker hinter einem Leerzeichen und wäre beim
  * nächsten Lesen keiner mehr.
  */
-function wrap(kind: MarkKind, inner: string): string {
+function wrap(kind: MarkKind, inner: string, color: string | null): string {
   const lead = inner.length - inner.trimStart().length;
   const trail = inner.length - inner.trimEnd().length;
   const core = inner.trim();
   if (core === '') return inner;
   const [open, close] = DELIMS[kind];
-  return `${inner.slice(0, lead)}${open}${core}${close}${inner.slice(inner.length - trail)}`;
+  const tag = color ? `{${color}}` : '';
+  return `${inner.slice(0, lead)}${open}${tag}${core}${close}${inner.slice(inner.length - trail)}`;
 }
+
+const colorOf = (run: RunStyle, mark: MarkKind): string | null =>
+  mark === 'accent' || mark === 'marker' ? (run[COLOR_FIELD[mark]] ?? null) : null;
 
 function serialize(runs: InlineRun[], marks: MarkKind[]): string {
   if (runs.length === 0) return '';
@@ -285,19 +350,22 @@ function serialize(runs: InlineRun[], marks: MarkKind[]): string {
   if (mark === undefined) return runs.map((run) => run.text).join('');
 
   // Gleich ausgezeichnete Nachbarn teilen sich ein Markerpaar:
-  // `**a _b_**` statt `**a **_**b**_`.
+  // `**a _b_**` statt `**a **_**b**_`. Verschieden gefärbte nicht.
   let out = '';
   let group: InlineRun[] = [];
   let groupOn: boolean | null = null;
+  let groupColor: string | null = null;
   const flush = () => {
     if (group.length === 0) return;
     const inner = serialize(group, rest);
-    out += groupOn ? wrap(mark, inner) : inner;
+    out += groupOn ? wrap(mark, inner, groupColor) : inner;
     group = [];
   };
   for (const run of runs) {
-    if (groupOn !== null && run[mark] !== groupOn) flush();
+    const color = run[mark] ? colorOf(run, mark) : null;
+    if (groupOn !== null && (run[mark] !== groupOn || color !== groupColor)) flush();
     groupOn = run[mark];
+    groupColor = color;
     group.push(run);
   }
   flush();
@@ -333,7 +401,9 @@ export function foldMarkerIntoAccent(text: string): string {
     .split('\n')
     .map((line) =>
       serializeInlineMarks(
-        parseInlineMarks(line).map((run) => ({
+        // Eine Kastenfarbe taugt nicht als Schriftfarbe (weißer Kasten → weiße
+        // Schrift auf weißem Grund): der gefaltete Lauf nimmt den Akzent der Marke.
+        parseInlineMarks(line).map(({ markerColor: _boxColor, ...run }) => ({
           ...run,
           accent: run.accent || run.marker,
           marker: false,

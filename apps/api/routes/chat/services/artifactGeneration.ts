@@ -16,10 +16,23 @@ import {
 } from '../../../services/localization/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
-import type { ChatGraphState, CreatedDocument } from '../../../agents/langgraph/ChatGraph/types.js';
+import type {
+  ChatGraphState,
+  CreatedDocument,
+  SearchResult,
+} from '../../../agents/langgraph/ChatGraph/types.js';
 import type { CreatePdfResult } from '../../../services/pdf/PdfGenerationService.js';
+import type { ExplainableSource } from '@gruenerator/contracts';
 
 const log = createLogger('ChatGraphController');
+
+/**
+ * Thrown by an `ArtifactSpec.generate` when the refusal has a sentence of its
+ * own the person should read (an exhausted budget) instead of the spec's
+ * generic `errorText`. Lives here rather than in createTurn.ts so the
+ * descriptor table can throw it without importing the persistence layer.
+ */
+export class CreateRefusedError extends Error {}
 
 /**
  * Resolve the author name for quote sharepics / PDF letterheads from the user's
@@ -431,4 +444,98 @@ export function documentContextKind(subtype: string): 'presentation' | 'sheet' |
   if (subtype.startsWith('presentation')) return 'presentation';
   if (subtype.startsWith('sheet')) return 'sheet';
   return 'document';
+}
+
+/**
+ * The source list an explainable stores, numbered exactly as
+ * `renderSourceLines` numbered the brief: results without content are skipped
+ * there, so they must be skipped here, or every `[n]` in the text would point
+ * one source too far.
+ */
+export function explainableSourcesFromResults(results: SearchResult[]): ExplainableSource[] {
+  return results
+    .filter((r) => (r.content ?? '').trim())
+    .map((r, i) => ({
+      index: i + 1,
+      title: r.title || r.url || `Quelle ${i + 1}`,
+      url: r.url || null,
+    }));
+}
+
+export type ExplainableGenerationOutcome =
+  | { ok: true; document: CreatedDocument; imageCount: number }
+  | {
+      ok: false;
+      code: 'budget_exhausted' | 'budget_unavailable' | 'generation_failed';
+      message: string;
+    };
+
+/**
+ * Explainable generation. Unlike the other cores the write is not ours:
+ * `createExplainable` generates and persists in one call (text synchronously,
+ * the illustrations later in a worker), so there is no point between "usable
+ * structure" and "write" to put `onCommit`. It fires before the call instead —
+ * the stream then shows progress during the 10–20 s of text generation, and a
+ * failure still surfaces in-stream because the create turn owns it either way.
+ *
+ * Returns null only when the loop abandoned the call before it started.
+ */
+export async function runExplainableGeneration(opts: {
+  brief: string;
+  sources: ExplainableSource[];
+  userId: string;
+  threadId: string | null;
+  locale: 'de-DE' | 'de-AT';
+  onCommit?: () => void;
+  /** See {@link abandonedBeforeCommit}. */
+  abandoned?: AbortSignal;
+}): Promise<ExplainableGenerationOutcome | null> {
+  if (abandonedBeforeCommit(opts.abandoned, 'Explainable generation')) return null;
+  opts.onCommit?.();
+  const { createExplainable } = await import('../../../services/explainables/createExplainable.js');
+  const result = await createExplainable({
+    userId: opts.userId,
+    brief: opts.brief,
+    sources: opts.sources,
+    threadId: opts.threadId,
+    sourceMessageId: null,
+    locale: opts.locale,
+  });
+  if (!result.ok) {
+    log.warn(`[ChatGraph] Explainable generation failed (${result.code}): ${result.message}`);
+    return { ok: false, code: result.code, message: result.message };
+  }
+  return {
+    ok: true,
+    document: {
+      documentId: result.id,
+      title: result.title,
+      subtype: 'explainable',
+      url: result.url,
+    },
+    imageCount: result.imageCount,
+  };
+}
+
+/**
+ * The German sentence for a refused explainable. Budget exhaustion is the one
+ * failure a person can act on (wait, or ask without pictures), so it is named.
+ */
+/** Budget refusals carry the tree-budget sentence with the real numbers. */
+export function explainableRefusalText(
+  outcome: Extract<ExplainableGenerationOutcome, { ok: false }>
+): string {
+  return outcome.code === 'budget_exhausted'
+    ? outcome.message
+    : explainableFailureText(outcome.code);
+}
+
+export function explainableFailureText(
+  code: Extract<ExplainableGenerationOutcome, { ok: false }>['code']
+): string {
+  return code === 'budget_exhausted'
+    ? 'Dein Kontingent für Explainables ist im Moment aufgebraucht, deshalb habe ich keins erstellt. Ich kann das Thema aber gern hier im Chat einfach erklären.'
+    : code === 'budget_unavailable'
+      ? 'Ich konnte gerade nicht prüfen, ob noch Kontingent für Explainables frei ist, deshalb habe ich keins erstellt. Versuch es bitte gleich noch einmal.'
+      : 'Das Explainable konnte nicht erstellt werden. Versuch es bitte noch einmal mit einer kurzen Beschreibung des Themas.';
 }

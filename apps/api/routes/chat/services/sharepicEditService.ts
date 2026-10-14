@@ -4,7 +4,7 @@
  *
  * Flow per edit turn:
  *   resolve target variant → lazy-mint canvas document (first edit only) →
- *   fetch fresh state (Yjs-aware) → one tool-forced LLM call → validate ops
+ *   fetch fresh state (Yjs-aware) → op planner (runCanvasEditDecision) → validate ops
  *   against the template descriptor → resolve stock-image queries → apply
  *   patch via canvasStateService (live-broadcasts into open studio tabs) →
  *   version snapshot → SSE `sharepic_updated` → persist a compact tool result.
@@ -22,6 +22,7 @@ import {
   type CanvasAiOperation,
   type SharepicTemplateDescriptor,
 } from '@gruenerator/contracts';
+import sharp from 'sharp';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { escapeRegExp } from '../../../services/BaseSearchService/textUtils.js';
@@ -36,11 +37,14 @@ import {
   listCanvasVersions,
 } from '../../../services/canvas/canvasVersionRepository.js';
 import imagePickerService from '../../../services/image/ImageSelectionService.js';
+import { getSharedMediaService } from '../../../services/sharedMediaService.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
+import { sharepicCapabilitiesView } from '../../canvas/services/buildCanvasSuggestPrompt.js';
+import { runCanvasEditDecision } from '../../canvas/services/runCanvasSuggest.js';
 
 import { finishEditTurn } from './editTurnCompletion.js';
-import { runSharepicEdit } from './sharepicEditLlm.js';
+import { isSharepicVariantTool, sharepicVariantCall } from './sharepicToolCalls.js';
 
 import type { SharepicVariant } from './sharepicVariantHelpers.js';
 import type { SSEWriter } from './sseHelpers.js';
@@ -93,7 +97,7 @@ async function findVariants(
     const meta = (
       typeof row.tool_results === 'string' ? JSON.parse(row.tool_results) : row.tool_results
     ) as { toolCalls?: Array<{ toolName?: string; result?: { variants?: unknown[] } }> } | null;
-    const sharepicCall = meta?.toolCalls?.find((tc) => tc?.toolName === 'sharepic');
+    const sharepicCall = sharepicVariantCall(meta?.toolCalls);
     const variants = (sharepicCall?.result?.variants ?? []) as Array<
       SharepicVariant & { canvasId?: string }
     >;
@@ -128,7 +132,7 @@ async function attachCanvasIdToMessage(
   };
   let changed = false;
   for (const tc of meta.toolCalls ?? []) {
-    if (tc?.toolName !== 'sharepic') continue;
+    if (!isSharepicVariantTool(tc?.toolName)) continue;
     for (const v of tc.result?.variants ?? []) {
       if (v?.id === variantId) {
         (v as { canvasId?: string }).canvasId = canvasId;
@@ -493,6 +497,49 @@ export function appendRejectedOpsNote(
 }
 
 const NO_BACKGROUND_IMAGE_REASON = 'Kein passendes Hintergrundbild gefunden';
+const STOCK_BACKGROUND_SOURCE = 'canvas-editor';
+
+/**
+ * A background the AI picked goes into the person's Mediathek, so it shows
+ * under Uploads and stays pickable after a colour or another photo replaced
+ * it. `canvas-editor` like the editor's own Unsplash picks: a substep of
+ * editing, never refused for a full library — and a stock photo picked again
+ * reuses its entry instead of taking another slot. The originals are up to
+ * 7.5 MB; the canvas never draws more than 2160px. Falls back to the shared
+ * stock URL when the upload fails.
+ */
+async function saveStockImageToLibrary(
+  userId: string,
+  image: { filename: string; alt_text?: string }
+): Promise<string> {
+  const stockUrl = `/api/image-picker/stock-image/${encodeURIComponent(image.filename)}`;
+  try {
+    const media = getSharedMediaService();
+    const existing = await media.findLibraryShareToken(
+      userId,
+      image.filename,
+      STOCK_BACKGROUND_SOURCE
+    );
+    if (existing) return `/api/share/${existing}/download`;
+    const fileBuffer = await sharp(imagePickerService.stockImagePath(image.filename))
+      .rotate()
+      .resize({ width: 2160, height: 2160, fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 88 })
+      .toBuffer();
+    const share = await media.uploadMediaFile(userId, {
+      fileBuffer,
+      originalFilename: image.filename,
+      mimeType: 'image/jpeg',
+      title: 'Sharepic-Hintergrund (KI-Auswahl)',
+      altText: image.alt_text?.slice(0, 300),
+      uploadSource: STOCK_BACKGROUND_SOURCE,
+    });
+    return `/api/share/${share.shareToken}/download`;
+  } catch (err) {
+    log.warn(`[SharepicEdit] Saving background to Mediathek failed: ${err}`);
+    return stockUrl;
+  }
+}
 
 /**
  * Core of an edit: validate ops against the descriptor, resolve stock-image
@@ -525,9 +572,10 @@ export async function applySharepicOpsToCanvas(args: {
       const selection = await imagePickerService.selectBestImage(opsResult.imageQueries[0], {
         sharepicType: descriptor.id,
       });
-      const filename = selection.selectedImage.filename;
-      opsResult.patch[descriptor.backgroundImage.stateKey] =
-        `/api/image-picker/stock-image/${encodeURIComponent(filename)}`;
+      opsResult.patch[descriptor.backgroundImage.stateKey] = await saveStockImageToLibrary(
+        userId,
+        selection.selectedImage
+      );
       opsResult.patch.hasBackgroundImage = true;
     } catch (err) {
       log.warn(`[SharepicEdit] Image selection failed: ${err}`);
@@ -677,18 +725,15 @@ export async function handleSharepicEdit(args: HandleSharepicEditArgs): Promise<
       .slice(0, 2)
       .map((v) => v.summary as string);
 
-    const editResult = await runSharepicEdit({
-      instruction,
-      descriptor,
+    const editResult = await runCanvasEditDecision({
+      prompt: instruction,
       snapshot: buildSharepicSnapshot(descriptor, state),
-      recentEditSummaries,
+      capabilities: sharepicCapabilitiesView(descriptor),
+      chatEdit: { recentEditSummaries },
+      logTag: 'sharepic_edit',
     });
 
     if (!editResult.ok) {
-      if ('reply' in editResult) {
-        await finishWithText(args, editResult.reply);
-        return true;
-      }
       sse.send('sharepic_edit_error', { variantId: target.variantId, error: editResult.error });
       await finishWithText(
         args,
@@ -697,14 +742,22 @@ export async function handleSharepicEdit(args: HandleSharepicEditArgs): Promise<
       return true;
     }
 
-    const { operations, summary, reply } = editResult.edit;
+    const { operations, dropped, summary, reply } = editResult;
+    if (operations.length === 0) {
+      // A reasoned decline or a question back: nothing to apply or version.
+      await finishWithText(args, reply);
+      return true;
+    }
+
     const outcome = await applySharepicOpsToCanvas({
       canvasId,
       variantId: target.variantId,
       canvasType: target.canvasType,
       descriptor,
       state,
-      operations,
+      // The planner drops kinds the template cannot do; the descriptor rejects
+      // them again here so the reply names them instead of confirming them.
+      operations: [...operations, ...dropped],
       summary,
       userId,
       sse,

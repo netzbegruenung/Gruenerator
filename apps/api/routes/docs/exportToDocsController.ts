@@ -1,4 +1,8 @@
-import { exportToDocsBodySchema, type ExportToDocsResponse } from '@gruenerator/contracts';
+import {
+  exportToDocsBodySchema,
+  replaceVisualBlocksWithText,
+  type ExportToDocsResponse,
+} from '@gruenerator/contracts';
 import { Router, type Response } from 'express';
 import { type z } from 'zod';
 
@@ -39,7 +43,8 @@ router.post(
         return res.status(400).json({ error: 'Content is required' });
       }
 
-      const htmlContent = ensureHtml(content);
+      // A chat answer's visual blocks (```bars {…}) would land as JSON code.
+      const htmlContent = ensureHtml(replaceVisualBlocksWithText(content));
 
       let sanitizedContent: string;
       try {

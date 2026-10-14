@@ -16,7 +16,8 @@ import { File } from 'expo-file-system';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 
-import { base64ToFileUri, removeBackgroundRemote, requestCameraPermission } from './imageStudio';
+import { cutoutFromRef } from './backgroundRemoval';
+import { base64ToFileUri, requestCameraPermission } from './imageStudio';
 
 /** A stored image: a local file URI plus its source pixel dimensions. */
 export interface BevImageRef {
@@ -44,15 +45,18 @@ async function dimensionsOf(uri: string): Promise<{ width: number; height: numbe
 
 /** Persist an API-produced data URL to a cache file and read back its dimensions. */
 export async function writeDataUrlToCache(dataUrl: string): Promise<BevImageRef> {
-  const uri = await base64ToFileUri(dataUrl, uniqueName('jpg'));
+  const mime = /^data:image\/(png|webp|jpe?g)/i.exec(dataUrl)?.[1]?.toLowerCase();
+  const ext = mime === 'png' ? 'png' : mime === 'webp' ? 'webp' : 'jpg';
+  const uri = await base64ToFileUri(dataUrl, uniqueName(ext));
   const { width, height } = await dimensionsOf(uri);
   return { uri, width, height };
 }
 
-/** Read a cached file back as a JPEG data URL (for share/download/create-share). */
+/** Read a cached file back as a data URL (for share/download/create-share). */
 export async function readAsDataUrl(uri: string): Promise<string> {
   const base64 = await new File(uri).base64();
-  return `data:image/jpeg;base64,${base64}`;
+  const ext = /\.(png|webp)$/i.exec(uri)?.[1]?.toLowerCase();
+  return `data:image/${ext ?? 'jpeg'};base64,${base64}`;
 }
 
 /** Downscale a picked/captured image to a modest edge and return a cache file ref. */
@@ -178,6 +182,5 @@ export async function outpaintMobile(
 
 /** Background removal via `/background-removal`. Returns a data URL. */
 export async function removeBackgroundMobile(ref: BevImageRef): Promise<string> {
-  const base64 = await new File(ref.uri).base64();
-  return removeBackgroundRemote(base64);
+  return readAsDataUrl(await cutoutFromRef(ref));
 }

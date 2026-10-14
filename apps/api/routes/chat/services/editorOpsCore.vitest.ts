@@ -10,7 +10,12 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { emitEditorOperations, planEditorOps, summarizeEditorOps } from './editorOpsCore.js';
+import {
+  describeEditorOpsForPeople,
+  emitEditorOperations,
+  planEditorOps,
+  summarizeEditorOps,
+} from './editorOpsCore.js';
 
 function makeSse() {
   return { send: vi.fn(), sendRaw: vi.fn(), end: vi.fn() };
@@ -97,5 +102,18 @@ describe('emitEditorOperations', () => {
       operations,
       summary: '1× add_slide',
     });
+  });
+});
+
+describe('describeEditorOpsForPeople', () => {
+  it('names ops in words, never by op name (#4460)', () => {
+    expect(
+      describeEditorOpsForPeople([
+        { type: 'insert_columns' },
+        { type: 'set_range_values' },
+        { type: 'set_range_values' },
+        { type: 'some_new_op' },
+      ])
+    ).toBe('Spalten eingefügt, 2× Werte eingetragen, Änderung');
   });
 });

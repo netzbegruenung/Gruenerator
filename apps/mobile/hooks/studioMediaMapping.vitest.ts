@@ -245,12 +245,16 @@ describe('toReelItems', () => {
     expect(item?.date).toBe('2026-03-03T00:00:00.000Z');
   });
 
-  it('only points at the thumbnail route when a thumbnail was rendered', () => {
-    const [withThumb] = toReelItems([project({ id: 'p1', thumbnail_path: 'thumbs/p1.jpg' })]);
-    const [without] = toReelItems([project({ id: 'p2', thumbnail_path: null })]);
+  it('uses the signed tile the list endpoint mints, never the auth-gated route', () => {
+    const signed = '/api/thumbs/reel/p1/abc?sig=SIG&w=400&fmt=webp';
+    const [withThumb] = toReelItems([
+      project({ id: 'p1', thumbnail_path: 'thumbs/p1.jpg', thumbnail_url: signed }),
+    ]);
+    // An API without `thumbnail_url` yet: placeholder, not a 401ing image.
+    const [legacy] = toReelItems([project({ id: 'p2', thumbnail_path: 'thumbs/p2.jpg' })]);
 
-    expect(withThumb?.thumbnailUrl).toBe('/api/subtitler/projects/p1/thumbnail');
-    expect(without && 'thumbnailUrl' in without).toBe(false);
+    expect(withThumb?.thumbnailUrl).toBe(signed);
+    expect(legacy && 'thumbnailUrl' in legacy).toBe(false);
   });
 });
 
@@ -293,5 +297,27 @@ describe('ein unbrauchbarer Zeitstempel kippt die Sortierung nicht', () => {
 
     expect(() => toReelItems(projects)).not.toThrow();
     expect(toReelItems(projects).map((i) => i.id)).toEqual(['gut', 'kaputt']);
+  });
+});
+
+describe('saved Profilbilder', () => {
+  const saved = {
+    v: 1,
+    person: { x: 1, y: 2, scale: 0.85 },
+    background: { kind: 'id', id: 'tanne' },
+    stickers: [],
+  };
+
+  it('marks them for the editor so the tile reopens instead of the viewer', () => {
+    const [item] = toSharepicItems(
+      [share({ shareToken: 'pb', imageType: 'profilbild', imageMetadata: { profilbild: saved } })],
+      []
+    );
+    expect(item?.editor).toBe('profilbild');
+  });
+
+  it('leaves a canvas export of the profilbild template in the viewer', () => {
+    const [item] = toSharepicItems([share({ shareToken: 'cv', imageType: 'profilbild' })], []);
+    expect(item).not.toHaveProperty('editor');
   });
 });

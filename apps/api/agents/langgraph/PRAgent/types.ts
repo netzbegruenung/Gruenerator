@@ -29,7 +29,6 @@ export interface PRAgentResult {
     instagram: string;
     facebook: string;
   };
-  sharepics: Record<string, unknown>[];
   riskAnalysis: string;
   visualBriefing: string;
 }
@@ -37,10 +36,8 @@ export interface PRAgentResult {
 export interface FormattedPRResponse {
   success: boolean;
   content: string;
-  sharepic: Record<string, unknown>[];
   metadata: Record<string, unknown>;
   selectedPlatforms: string[];
-  onEditSharepic: () => Promise<void>;
   [key: string]: unknown;
 }
 

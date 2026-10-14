@@ -42,22 +42,6 @@ export type TtsVoiceId = z.infer<typeof ttsVoiceIdSchema>;
 /** What every synthesis uses when the profile names no voice. */
 export const DEFAULT_TTS_VOICE_ID: TtsVoiceId = '1885';
 
-export const tusTranscribeBodySchema = z.object({
-  uploadId: z.string().min(1),
-  language: z.string().nullish(),
-  diarize: z.boolean().nullish(),
-  timestamps: z.boolean().nullish(),
-});
-
-export const transcribeUrlBodySchema = z.object({
-  url: z.string().min(1),
-  language: z.string().nullish(),
-  removeTimestamps: z.boolean().nullish(),
-  timestamps: z.boolean().nullish(),
-  diarize: z.boolean().nullish(),
-  contextBias: z.array(z.string()).nullish(),
-});
-
 /**
  * The one source of truth for the Protokoll kinds. Both the frontend hook and
  * protokollService used to re-declare this union by hand; a z.enum crossing the
@@ -73,10 +57,6 @@ export type ProtokollTyp = z.infer<typeof protokollTypSchema>;
 export const protokollBodySchema = z.object({
   inputText: z.string().min(1),
   protokollTyp: protokollTypSchema.nullish(),
-});
-
-export const identifySpeakersBodySchema = z.object({
-  text: z.string().min(1),
 });
 
 export const todoListBodySchema = z.object({
@@ -101,26 +81,9 @@ export const speakerMapSchema = z.record(z.string(), z.string());
 
 // ── Response schemas ────────────────────────────────────────────────────────
 
-export const transcribeResponseSchema = z.object({
-  success: z.boolean(),
-  text: z.string().nullish(),
-  segments: z.array(transcriptionSegmentSchema).nullish(),
-  hasTimestamps: z.boolean().nullish(),
-  speakerMap: speakerMapSchema.nullish(),
-  language: z.string().nullish(),
-  sourceUrl: z.string().nullish(),
-  error: z.string().nullish(),
-});
-
 export const protokollResponseSchema = z.object({
   success: z.boolean(),
   content: z.string().nullish(),
-  error: z.string().nullish(),
-});
-
-export const identifySpeakersResponseSchema = z.object({
-  success: z.boolean(),
-  mapping: speakerMapSchema.nullish(),
   error: z.string().nullish(),
 });
 
@@ -132,15 +95,6 @@ export const todoListResponseSchema = z.object({
   truncated: z.boolean().nullish(),
   coveredChars: z.number().nullish(),
   totalChars: z.number().nullish(),
-  error: z.string().nullish(),
-});
-
-export const formatsResponseSchema = z.object({
-  success: z.boolean(),
-  supportedFormats: z.array(z.string()).nullish(),
-  maxFileSize: z.string().nullish(),
-  maxDuration: z.string().nullish(),
-  provider: z.string().nullish(),
   error: z.string().nullish(),
 });
 
@@ -174,13 +128,13 @@ export const transcribeStreamEventSchema = z.discriminatedUnion('type', [
     speakerMap: speakerMapSchema.nullish(),
   }),
   z.object({ type: z.literal('error'), text: z.string().nullish() }),
+  // Keeps proxies from closing the stream during long silent phases.
+  z.object({ type: z.literal('heartbeat') }),
 ]);
 export type TranscribeStreamEvent = z.infer<typeof transcribeStreamEventSchema>;
 
 // ── Inferred response types (derive; never restate these by hand) ───────────
 
-export type TranscribeResponse = z.infer<typeof transcribeResponseSchema>;
 export type ProtokollResponse = z.infer<typeof protokollResponseSchema>;
 export type TodoListResponse = z.infer<typeof todoListResponseSchema>;
-export type IdentifySpeakersResponse = z.infer<typeof identifySpeakersResponseSchema>;
 export type VoiceErrorResponse = z.infer<typeof voiceErrorResponseSchema>;

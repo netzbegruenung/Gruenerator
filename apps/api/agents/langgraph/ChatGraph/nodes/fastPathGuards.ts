@@ -167,12 +167,21 @@ export function negatedOrMeta(text: string, nounPattern: RegExp): boolean {
 }
 
 /**
+ * Die Nomen, die ein Explainable benennen. Bewusst eng: „Erklärbild" ist nur die
+ * einzelne Illustration darin, „Infografik" ist ein Sharepic-Element, und ein
+ * nacktes „erklär…" ist eine Frage („Erklär mir die Schwammstadt"), die eine
+ * normale Antwort bleiben muss.
+ */
+export const EXPLAINABLE_NOUN = 'explainables?|erkl[äa]r-?seiten?|erkl[äa]rst[üu]ck(?:e|en)?';
+
+/**
  * The artifact families a turn can be told NOT to touch. Keyed so the caller
  * passes the family it is about to act on — per-noun on purpose: "Erstelle ein
  * Dokument, aber keine Tabelle" forbids the table and must still write the
  * document.
  */
-export type ForbiddableArtifact = 'document' | 'sheet' | 'presentation' | 'pdf' | 'board' | 'image';
+export type ForbiddableArtifact =
+  'document' | 'sheet' | 'presentation' | 'pdf' | 'explainable' | 'board' | 'image';
 
 export const ARTIFACT_NOUN_BY_KIND: Readonly<Record<ForbiddableArtifact, RegExp>> = {
   document:
@@ -180,6 +189,7 @@ export const ARTIFACT_NOUN_BY_KIND: Readonly<Record<ForbiddableArtifact, RegExp>
   sheet: /\b(tabelle\w*|kalkulation\w*|spreadsheet\w*|sheet\w*)\b/i,
   presentation: /\b(pr[äa]sentation\w*|folien?|slides?)\b/i,
   pdf: /\bpdf\w*\b/i,
+  explainable: new RegExp(`\\b(?:${EXPLAINABLE_NOUN})\\b`, 'i'),
   board: /\b(board\w*|kanban\w*|karten?|aufgaben?|tasks?)\b/i,
   image: /\b(bild\w*|foto\w*|grafik\w*|illustration\w*)\b/i,
 };
@@ -441,6 +451,17 @@ export const PDF_ORDER_PATTERN = new RegExp(
 );
 
 /**
+ * Bestellt der Auftrag ein Explainable? Die eine Regel für die
+ * Klassifikator-Regel `create_explainable` und das Artefakt-Register — wie
+ * {@link PDF_ORDER_PATTERN}, damit Heuristik und Verbund-Garantie nicht
+ * auseinanderlaufen.
+ */
+export const EXPLAINABLE_ORDER_PATTERN = creationOrderPattern(EXPLAINABLE_NOUN, {
+  extraVerbs: 'schreib',
+  forward: 60,
+});
+
+/**
  * The ONLY accepted sharepic vocabulary. A sharepic is a branded party template
  * with text on it — "Grafik" and "Kachel" mean a chart or a tile just as often,
  * and inferring one from them is what made sharepics appear unasked-for.
@@ -452,10 +473,14 @@ export const PDF_ORDER_PATTERN = new RegExp(
  * Slide-Sharepic für Instagram — Präsentationen heissen Präsentation, Foliensatz
  * oder Vortrag. Ohne das Wort lief „Instagram-Karussell mit 3 Folien" über
  * „Folien" in die Präsentationsregel.
+ *
+ * „Infografik" (06.10.2026): der Sharepic-Creator setzt Zahlen als Diagramm,
+ * Icon-Liste oder Vergleich — genau das ist eine Infografik. Ohne das Wort
+ * fiel „Mach eine Infografik zu …" in den agentischen Loop.
  */
 export const SHAREPIC_NOUN_SRC =
   'share[\\s-]?pics?|sharepics?|spruchbild\\w*|zitatbild\\w*|drei[\\s-]?zeiler\\w*' +
-  '|karussell\\w*|carousels?';
+  '|karussell\\w*|carousels?|infografik\\w*|infographics?|faktenbild\\w*';
 export const SHAREPIC_WORD_RE = new RegExp(`\\b(${SHAREPIC_NOUN_SRC})\\b`, 'i');
 // Ein Satz, der nur aus dem Nomen besteht („Ein Karussell?", „Instagram-Karussell.").
 const BARE_SHAREPIC_NOUN_RE = new RegExp(
@@ -499,7 +524,7 @@ export function hasExplicitSharepicWord(text: string): boolean {
  * „Karussell-Post" ist das Karussell selbst, kein Post-Nomen daneben.
  */
 export const POST_NOUN_PATTERN =
-  /(?<!(?:karussell|carousel)[\s-]?)\b(post(ing)?|beitrag|tweet|caption)\b/i;
+  /(?<!(?:karussell|carousel|infografik)[\s-]?)\b(post(ing)?|beitrag|tweet|caption)\b/i;
 
 // Erstell-Verben im gewohnten 40-Zeichen-Fenster, beide Wortstellungen.
 const SHAREPIC_CREATE_ORDER = creationOrderPattern(SHAREPIC_NOUN_SRC, {
@@ -511,6 +536,11 @@ const SHAREPIC_CREATE_ORDER = creationOrderPattern(SHAREPIC_NOUN_SRC, {
 const SHAREPIC_WISH_ORDER = new RegExp(
   `\\b(?:brauch|will|möcht|hätt|gib|bitte)[a-zäöü]*\\b[^.!?\\n]{0,20}\\b(?:${SHAREPIC_NOUN_SRC})\\b` +
     `|\\b(?:${SHAREPIC_NOUN_SRC})\\b[^.!?\\n]{0,20}\\bbitte\\b`,
+  'i'
+);
+// Ein bestimmter oder besitzanzeigender Artikel vor dem Nomen: das Sharepic gibt es schon.
+const DEFINITE_SHAREPIC_RE = new RegExp(
+  `\\b(?:das|dem|des|dieses|diesem|unser\\w*|mein\\w*|dein\\w*)\\s+(?:[a-zäöüß-]+\\s+)?(?:${SHAREPIC_NOUN_SRC})\\b`,
   'i'
 );
 // Das Nomen eröffnet den Auftrag: „Sharepic zum Klimageld", „ein Zitatbild mit …",
@@ -538,7 +568,8 @@ const SHAREPIC_NOMINAL_ORDER = new RegExp(
 export function asksForSharepic(order: string): boolean {
   if (!hasExplicitSharepicWord(order)) return false;
   const t = stripQuotedSpans(order);
-  return (
-    SHAREPIC_CREATE_ORDER.test(t) || SHAREPIC_WISH_ORDER.test(t) || SHAREPIC_NOMINAL_ORDER.test(t)
-  );
+  // „bitte" am Nomen mit bestimmtem Artikel meint das VORHANDENE: „Prüf das
+  // Sharepic bitte" baute live 11.10.2026 ein neues neben das geprüfte.
+  const wish = SHAREPIC_WISH_ORDER.test(t) && !DEFINITE_SHAREPIC_RE.test(t);
+  return SHAREPIC_CREATE_ORDER.test(t) || wish || SHAREPIC_NOMINAL_ORDER.test(t);
 }

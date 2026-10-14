@@ -1,13 +1,16 @@
+import { Icon } from '@iconify/react';
 import { memo } from 'react';
 import { FaCheck } from 'react-icons/fa';
-import { Icon } from '@iconify/react';
 
-import { useIconCatalog } from '../../../hooks/useIconCatalog';
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
-import { sortLogoAssets } from '../../../utils/canvasAssets';
+import { useIconCatalog } from '../../../hooks/useIconCatalog';
+import { EMOJI_ASSETS, hasDarkPreview, sortLogoAssets } from '../../../utils/canvasAssets';
 import { CHART_TYPE_DEFS } from '../../../utils/chartUtils';
+import { cn } from '../../../utils/cn';
+import { matchesQuery } from '../../../utils/filterUtils';
 import { FRAME_ICON_MAP, FRAME_PRESETS } from '../../../utils/frameUtils';
-import { KAWAII_ILLUSTRATIONS, UNDRAW_FEATURED } from '../../../utils/illustrations/registry';
+import { KAWAII_ILLUSTRATIONS } from '../../../utils/illustrations/kawaii';
+import { UNDRAW_FEATURED } from '../../../utils/illustrations/undraw';
 import { SingleBalkenPreviewIcon, TripleBalkenPreviewIcon } from '../BadgePreviewIcons';
 import { ChartTypePreview } from '../DiagrammeSection';
 import { ALL_PALETTE_SHAPES, getShapeVariant } from '../FormenSection';
@@ -20,8 +23,6 @@ import type { BalkenMode } from '../../../primitives';
 import type { ChartType } from '../../../utils/chartUtils';
 import type { FrameClipType } from '../../../utils/frameUtils';
 import type { ShapeType } from '../../../utils/shapes';
-
-import { cn } from '../../../utils/cn';
 
 const STRIP_COUNT = 8;
 const NO_RECOMMENDED: string[] = [];
@@ -48,13 +49,12 @@ export const MarkeStripTiles = memo(function MarkeStripTiles({
   return (
     <>
       {logos.map((asset) => {
-        const isWhiteAsset = /weiss|white/.test(asset.id);
         return (
           <StripTile
             key={asset.id}
             title={`${asset.label} hinzufügen`}
             onClick={() => onAddAsset!(asset.id)}
-            className={cn(isWhiteAsset && 'bg-secondary-600 hover:bg-secondary-700')}
+            className={cn(hasDarkPreview(asset) && 'bg-secondary-600 hover:bg-secondary-700')}
           >
             <img src={asset.src} alt={asset.label} className="w-9 h-9 object-contain" />
           </StripTile>
@@ -73,6 +73,56 @@ export const MarkeStripTiles = memo(function MarkeStripTiles({
     </>
   );
 });
+
+export const EmojiStripTiles = memo(function EmojiStripTiles({
+  onAddAsset,
+}: {
+  onAddAsset: (assetId: string) => void;
+}) {
+  return (
+    <>
+      {EMOJI_ASSETS.slice(0, STRIP_COUNT).map((asset) => (
+        <StripTile
+          key={asset.id}
+          title={`${asset.label} hinzufügen`}
+          onClick={() => onAddAsset(asset.id)}
+        >
+          <img src={asset.src} alt={asset.label} className="w-9 h-9 object-contain" />
+        </StripTile>
+      ))}
+    </>
+  );
+});
+
+/** The whole emoji set as a grid, optionally narrowed by a query. */
+export function EmojiGrid({
+  onAddAsset,
+  searchQuery = '',
+}: {
+  onAddAsset: (assetId: string) => void;
+  searchQuery?: string;
+}) {
+  const query = searchQuery.trim().toLowerCase();
+  const assets = query
+    ? EMOJI_ASSETS.filter((a) => matchesQuery(query, a.label, a.tags))
+    : EMOJI_ASSETS;
+  return (
+    <div className="grid grid-cols-5 gap-2 w-full">
+      {assets.map((asset) => (
+        <button
+          key={asset.id}
+          type="button"
+          title={`${asset.label} hinzufügen`}
+          aria-label={`${asset.label} hinzufügen`}
+          onClick={() => onAddAsset(asset.id)}
+          className="flex items-center justify-center aspect-square rounded-lg bg-transparent border-none cursor-pointer hover:bg-[var(--editor-tile)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)]"
+        >
+          <img src={asset.src} alt="" className="size-8 object-contain" />
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export const FormenStripTiles = memo(function FormenStripTiles({
   onAddShape,

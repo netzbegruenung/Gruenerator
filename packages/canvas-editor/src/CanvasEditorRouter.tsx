@@ -2,11 +2,15 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 import './canvas-editor.css';
 import { CanvasEditor } from './components/CanvasEditor';
+import { CanvasEditorSkeleton } from './components/CanvasEditorSkeleton';
 import { loadCanvasConfig, isValidCanvasType } from './configs/configLoader';
+import { getCanvasFormatOrDefault } from './formats';
+import { HOST_CALLBACK_KEYS } from './hostCallbackKeys';
 
 import type { StockImageAttribution } from './common/imageSourceTypes';
 import type { FullCanvasConfig, CanvasConfigId } from './configs/types';
 import type { InitialPageDef } from './hooks/usePageManager';
+import type { SidebarTabId } from './sidebar/types';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 import type * as Y from 'yjs';
 
@@ -135,6 +139,10 @@ export interface ControllableCanvasWrapperProps {
     isSynced: boolean;
     /** Hocuspocus provider — enables awareness features (remote selections). */
     provider?: HocuspocusProvider | null;
+    /** Show the initial pages, read-only, until the doc has synced (fresh canvas only). */
+    previewBeforeSync?: boolean;
+    /** The doc holds the local cache: show its pages, read-only, until the sync. */
+    isLocalLoaded?: boolean;
   };
   /** Host-supplied content rendered at the very left of the toolbar (in-flow). */
   chromeLeft?: React.ReactNode;
@@ -159,6 +167,10 @@ export interface ControllableCanvasWrapperProps {
   initialShareToken?: string | null;
   /** Reports auto-save share tokens to the host (see CanvasEditorProps). */
   onAutoSaveShareToken?: (token: string) => void;
+  /** Sidebar tab open on the first render (see CanvasEditorProps). */
+  initialTab?: SidebarTabId | null;
+  /** Reports sidebar tab changes to the host (see CanvasEditorProps). */
+  onActiveTabChange?: (tab: SidebarTabId | null) => void;
 }
 
 export function ControllableCanvasWrapper({
@@ -181,6 +193,8 @@ export function ControllableCanvasWrapper({
   onCollabSnapshot,
   initialShareToken,
   onAutoSaveShareToken,
+  initialTab,
+  onActiveTabChange,
 }: ControllableCanvasWrapperProps) {
   const isCollab = !!collaborative;
   const [internalState, setInternalState] = useState<CanvasState>(initialState);
@@ -266,10 +280,12 @@ export function ControllableCanvasWrapper({
     [handlePartChange]
   );
 
+  const skeletonFormat = getCanvasFormatOrDefault(formatId);
+  const skeletonAspectRatio = skeletonFormat.width / skeletonFormat.height;
+
   const renderCanvas = () => {
-    // Show loading state while config loads
     if (configLoading) {
-      return <div>Lädt Editor...</div>;
+      return <CanvasEditorSkeleton chromeLeft={chromeLeft} aspectRatio={skeletonAspectRatio} />;
     }
 
     // Build initial props based on canvas type.
@@ -395,54 +411,8 @@ export function ControllableCanvasWrapper({
       }
     };
 
-    // Background-image fields that must sync back to the collab doc when changed
-    // in-editor (GenericCanvas emits the matching on<Key>Change). Without these
-    // the chosen image — and its position/zoom/opacity/credit — is local-only
-    // and lost on reload. `currentImageSrc` is the persisted key for every type.
-    const BG_IMAGE_KEYS = [
-      'currentImageSrc',
-      'imageOffset',
-      'imageScale',
-      'backgroundImageOpacity',
-      'imageAttribution',
-    ];
-
-    // Build callbacks based on canvas type
-    const buildCallbacks = (): Record<string, (val: unknown) => void> => {
-      switch (type) {
-        case 'zitat':
-          return createCallbacks(['quote', 'name', ...BG_IMAGE_KEYS]);
-        case 'zitat-pure':
-          return createCallbacks(['quote', 'name']);
-        case 'info':
-          return createCallbacks(['header', 'body']);
-        case 'veranstaltung':
-          return createCallbacks(['eventTitle', 'beschreibung', ...BG_IMAGE_KEYS]);
-        case 'simple':
-          return createCallbacks(['headline', 'subtext', ...BG_IMAGE_KEYS]);
-        case 'slider':
-        case 'slider-at':
-          return createCallbacks(['label', 'headline', 'subtext']);
-        case 'dreizeilen':
-          return createCallbacks(['line1', 'line2', 'line3', ...BG_IMAGE_KEYS]);
-        case 'freeform':
-          // backgroundMode must persist alongside the image — the background
-          // image element only renders when backgroundMode === 'image'.
-          return createCallbacks(['backgroundMode', ...BG_IMAGE_KEYS]);
-        case 'zitat-at':
-          return createCallbacks(['quote', 'name', ...BG_IMAGE_KEYS]);
-        case 'zitat-pure-at':
-          return createCallbacks(['quote', 'name']);
-        case 'dreizeilen-overlay-at':
-          return createCallbacks(['line1', 'accent', 'line3', 'subline', ...BG_IMAGE_KEYS]);
-        case 'info-at':
-          return createCallbacks(['introline', 'text', 'accent']);
-        case 'freeform-at':
-          return createCallbacks(['backgroundMode', 'backgroundColor', ...BG_IMAGE_KEYS]);
-        default:
-          return {};
-      }
-    };
+    const buildCallbacks = (): Record<string, (val: unknown) => void> =>
+      isValidCanvasType(type) ? createCallbacks([...HOST_CALLBACK_KEYS[type]]) : {};
 
     switch (type) {
       // Config-driven canvases - use ConfigMultiPage if multiPage.enabled
@@ -461,7 +431,8 @@ export function ControllableCanvasWrapper({
       case 'info-at':
       case 'freeform-at':
       case 'slider-at':
-        if (!config) return <div>Lädt Konfiguration...</div>;
+        if (!config)
+          return <CanvasEditorSkeleton chromeLeft={chromeLeft} aspectRatio={skeletonAspectRatio} />;
 
         return (
           <CanvasEditor
@@ -484,6 +455,8 @@ export function ControllableCanvasWrapper({
             onCollabSnapshot={onCollabSnapshot}
             initialShareToken={initialShareToken}
             onAutoSaveShareToken={onAutoSaveShareToken}
+            initialTab={initialTab}
+            onActiveTabChange={onActiveTabChange}
           />
         );
 

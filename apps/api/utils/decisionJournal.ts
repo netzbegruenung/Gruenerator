@@ -67,7 +67,16 @@ export const DECISION_POINTS = {
 
   /** Deterministic recipe pick on the single-pass path (no @mention typed). */
   'router.implicit_recipe': {
-    branches: ['presse', 'instagram', 'facebook', 'linkedin', 'twitter', 'reel', 'wahlpruefstein'],
+    branches: [
+      'presse',
+      'instagram',
+      'facebook',
+      'linkedin',
+      'twitter',
+      'reel',
+      'wahlpruefstein',
+      'antrag',
+    ],
   },
 
   /** "…aber erstelle kein Dokument." — the negative-action gate.
@@ -89,6 +98,16 @@ export const DECISION_POINTS = {
       'tier2_notebook_turn_followup',
       // Kurze Anschlussfrage nach einem Turn, dessen Abrufe alle scheiterten.
       'tier2_failed_tool_turn_followup',
+      // Kurzes „ja" auf das Artefakt-Angebot des Turns davor (#4367).
+      'tier2_offer_accept',
+      // „ja" auf eine Rückfrage zu Tabelle/Präsentation → Loop mit deren Werkzeugen.
+      'tier2_artifact_question_accept',
+      // Folgeauftrag auf ein Chat-Dokument ohne „komplett neu" → gezielt im Loop.
+      'tier2.7_doc_targeted_edit',
+      // Erstell-Verdikt ohne Erstell-Auftrag auf ein vorhandenes Artefakt → Loop.
+      'tier3.8_existing_artifact_edit',
+      // Auftrag nennt ein vorhandenes Loop-Artefakt, ohne Neues zu bestellen.
+      'tier2.97_existing_artifact_order',
       // Rezept/Grünerator-Agent anlegen → Schleife, vor den Textsorten-Pfaden.
       'tier2_agentura_create',
       'tier2.7_mcp_followup',

@@ -24,6 +24,7 @@ import {
   extractLocaleFromRequest,
   localizePlaceholders,
 } from '../../services/localization/index.js';
+import { buildReelThumbnailUrl } from '../../services/media/thumbnailUrl.js';
 import { startAutoProcessing } from '../../services/subtitler/autoProcessingService.js';
 import { getCompressionStatus } from '../../services/subtitler/backgroundCompressionService.js';
 import { generateDownloadToken } from '../../services/subtitler/downloadUtils.js';
@@ -720,7 +721,13 @@ Erstelle einen Instagram Reel Beitragstext, der:
       const projects = await service.getUserProjects(userId);
       return {
         status: 200 as const,
-        body: { success: true, projects: projects.map(toIsoProjectDates) },
+        body: {
+          success: true,
+          projects: projects.map((project) => ({
+            ...toIsoProjectDates(project),
+            thumbnail_url: buildReelThumbnailUrl(project),
+          })),
+        },
       };
     } catch (error: unknown) {
       log.error('[subtitlerContract.listProjects] Error:', error);

@@ -70,15 +70,14 @@ export function useEntityFavorites(entityType: EntityFavoriteType): UseEntityFav
     [query.data?.favorite_ids]
   );
 
+  // The direction is fixed at click time: onMutate flips the cached ids, and a
+  // re-render before mutationFn runs would otherwise read the flipped state.
   const mutation = useMutation({
-    mutationFn: async (entityId: string) => {
-      const isCurrentlyFavorited = favoritedIds.has(entityId);
-      return isCurrentlyFavorited ? callUnfavorite(entityId) : callFavorite(entityId);
-    },
-    onMutate: async (entityId) => {
+    mutationFn: async ({ entityId, wasFavorited }: { entityId: string; wasFavorited: boolean }) =>
+      wasFavorited ? callUnfavorite(entityId) : callFavorite(entityId),
+    onMutate: async ({ entityId, wasFavorited: isCurrentlyFavorited }) => {
       setPending((prev) => new Set(prev).add(entityId));
       const previous = query.data;
-      const isCurrentlyFavorited = favoritedIds.has(entityId);
 
       qc.setQueryData<FavoritesData | undefined>(templateFavoritesQueryKey, (prev) => {
         if (!prev) return prev;
@@ -93,12 +92,12 @@ export function useEntityFavorites(entityType: EntityFavoriteType): UseEntityFav
 
       return { previous };
     },
-    onError: (_err, _entityId, context) => {
+    onError: (_err, _variables, context) => {
       if (context?.previous) {
         qc.setQueryData(templateFavoritesQueryKey, context.previous);
       }
     },
-    onSettled: (_data, _err, entityId) => {
+    onSettled: (_data, _err, { entityId }) => {
       setPending((prev) => {
         const next = new Set(prev);
         next.delete(entityId);
@@ -112,9 +111,9 @@ export function useEntityFavorites(entityType: EntityFavoriteType): UseEntityFav
   const toggleFavorite = useCallback(
     (entityId: string) => {
       if (!isAuthenticated) return;
-      mutation.mutate(entityId);
+      mutation.mutate({ entityId, wasFavorited: favoritedIds.has(entityId) });
     },
-    [isAuthenticated, mutation]
+    [isAuthenticated, mutation, favoritedIds]
   );
 
   const isToggling = useCallback((entityId: string) => pending.has(entityId), [pending]);

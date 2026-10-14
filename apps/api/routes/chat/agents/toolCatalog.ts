@@ -59,6 +59,7 @@ import {
 } from '../services/agenticLoop/attachedDocumentTools.js';
 import { isLoopRerankEnabled } from '../services/agenticLoop/flags.js';
 import { isEditorSurface } from '../services/agenticLoop/routing.js';
+import { editToolNameFor } from '../services/agenticLoop/types.js';
 import {
   mentionsRecipes,
   mentionsRecurringTasks,
@@ -75,11 +76,13 @@ import { isReisekostenTurn } from '../services/reisekostenAvailability.js';
 import { withImageProxy } from '../services/searchImagePayload.js';
 
 import { makeCloudFilesTool } from './cloudFileTools.js';
+import { makeEditDocumentTextTool, makeReadDocumentTool } from './documentLoopTools.js';
 import {
   makeAbgeordnetenwatchTool,
   makeBundestagTool,
   makeCreateBoardTool,
   makeCreateDocTool,
+  makeCreateExplainableTool,
   makeCreatePdfTool,
   makeCreateSharepicTool,
   makeDocsSearchTool,
@@ -88,6 +91,7 @@ import {
   makeUmfragenTool,
 } from './domainTools.js';
 import { makeEditArtifactTool } from './editorTools.js';
+import { makeEditExplainableTool, makeReadExplainableTool } from './explainableLoopTools.js';
 import { makeGroupsTool } from './groupTools.js';
 import { makeBildAnsehenTool } from './imageTools.js';
 import { makeMemoryTool } from './memoryTools.js';
@@ -103,14 +107,20 @@ import {
   makeMediaTool,
   type PersonalToolCtx,
 } from './personalDataTools.js';
+import { makeEditPresentationTool, makeReadPresentationTool } from './presentationLoopTools.js';
 import { makeRecurringTasksTool } from './recurringTaskTools.js';
 import { makeReisekostenTool } from './reisekostenTools.js';
 import { harvestSearchImages, imageDeliveryNote } from './searchImageHarvest.js';
 import { agentAllowsWebSearch, createSearchTools } from './searchTools.js';
+import { makeCheckSharepicTool } from './sharepicCheckTool.js';
+import { makeEditSharepicTool, makeReadSharepicTool } from './sharepicLoopTools.js';
+import { hasThreadSheet, makeEditSheetTool, makeReadSheetTool } from './sheetLoopTools.js';
 import { makeRecipesTool } from './textFormTools.js';
+import { threadHasArtifact } from './threadArtifactTarget.js';
 import { makeTranslateTool } from './translationTools.js';
 import { makeUserAgentsTool } from './userAgentTools.js';
 import { makeVertonenTool } from './voiceTools.js';
+import { makeSuggestVorlagenTool, vorlagenForTurn } from './vorlagenTools.js';
 
 import type { AgentConfig } from './types.js';
 import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -942,7 +952,95 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     // appliedOpsLog is per-turn.
     if (state.editToolSurface) {
       const editTool = makeEditArtifactTool({ sse, state, sourceRegistry, appliedOpsLog: [] });
-      if (editTool) tools.edit_document = editTool;
+      if (editTool) tools[editToolNameFor(state)] = editTool;
+    }
+
+    // Chat sharepic: lesen und überarbeiten statt eine Änderung zu behaupten.
+    // Der Studio-Editor hat sein eigenes Werkzeug (edit_current_sharepic).
+    const hasChatSharepic =
+      state.currentSharepic != null ||
+      state.lastTurnEditables?.includes('sharepic') === true ||
+      state.threadArtifacts?.some((a) => a.kind === 'sharepic') === true;
+    if (
+      loop.threadId &&
+      hasChatSharepic &&
+      !editorSurface &&
+      state.enabledTools?.['sharepic'] !== false
+    ) {
+      const sharepicCtx = { sse, state, threadId: loop.threadId };
+      if (state.enabledTools?.['read_sharepic'] !== false) {
+        tools.read_sharepic = makeReadSharepicTool(sharepicCtx);
+      }
+      if (state.enabledTools?.['edit_sharepic'] !== false) {
+        tools.edit_sharepic = makeEditSharepicTool(sharepicCtx);
+      }
+      // Prüfen heisst: der Zug pausiert, der Browser rendert (clientToolGate) —
+      // nur mit einer Oberfläche, die das kann (Web, nicht Mobile/Voice).
+      if (state.clientCanRenderSharepic && state.enabledTools?.['check_sharepic'] !== false) {
+        tools.check_sharepic = makeCheckSharepicTool();
+      }
+    }
+
+    // Chat-Tabelle: lesen und ändern statt eine Änderung zu behaupten (#4457).
+    // Ist die Tabelle im Panel offen, ändert edit_document sie direkt.
+    if (
+      loop.threadId &&
+      hasThreadSheet(state) &&
+      !editorSurface &&
+      state.editToolSurface !== 'sheet'
+    ) {
+      const sheetCtx = { state, threadId: loop.threadId };
+      if (state.enabledTools?.['read_sheet'] !== false) {
+        tools.read_sheet = makeReadSheetTool(sheetCtx);
+      }
+      if (state.enabledTools?.['edit_sheet'] !== false) {
+        tools.edit_sheet = makeEditSheetTool(sheetCtx);
+      }
+    }
+
+    // Chat-Präsentation (#4456): bis hierhin gab es keinen Weg, sie aus dem
+    // Chat zu ändern. Ist sie im Panel offen, ändert edit_document sie direkt.
+    if (
+      loop.threadId &&
+      threadHasArtifact(state, 'presentation') &&
+      !editorSurface &&
+      state.editToolSurface !== 'presentation'
+    ) {
+      const presentationCtx = { state, threadId: loop.threadId };
+      if (state.enabledTools?.['read_presentation'] !== false) {
+        tools.read_presentation = makeReadPresentationTool(presentationCtx);
+      }
+      if (state.enabledTools?.['edit_presentation'] !== false) {
+        tools.edit_presentation = makeEditPresentationTool(presentationCtx);
+      }
+    }
+
+    // Chat-Explainable (#4459): lesen und Text ändern statt um Einfügen zu bitten.
+    if (loop.threadId && threadHasArtifact(state, 'explainable') && !editorSurface) {
+      const explainableCtx = { state, threadId: loop.threadId };
+      if (state.enabledTools?.['read_explainable'] !== false) {
+        tools.read_explainable = makeReadExplainableTool(explainableCtx);
+      }
+      if (state.enabledTools?.['edit_explainable'] !== false) {
+        tools.edit_explainable = makeEditExplainableTool(explainableCtx);
+      }
+    }
+
+    // Chat-Dokument: gezielte Ersetzungen statt Volltext samt Karte (modify_doc).
+    // Ist es im Panel offen, ändert edit_document es direkt.
+    if (
+      loop.threadId &&
+      threadHasArtifact(state, 'document') &&
+      !editorSurface &&
+      state.editToolSurface !== 'doc'
+    ) {
+      const documentCtx = { state, threadId: loop.threadId };
+      if (state.enabledTools?.['read_document'] !== false) {
+        tools.read_document = makeReadDocumentTool(documentCtx);
+      }
+      if (state.enabledTools?.['edit_document_text'] !== false) {
+        tools.edit_document_text = makeEditDocumentTextTool(documentCtx);
+      }
     }
 
     // Personal-data resource tools: the user's OWN documents, boards, tasks,
@@ -1116,6 +1214,12 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
         voiceId: loop.req?.user?.tts_voice_id ?? null,
       });
     }
+    // Sharepic-Vorlagen zum Beitrag. Der Katalog steht in der Beschreibung
+    // (~1k Tokens), deshalb nur auf Zuruf oder unter einem Social-Rezept.
+    if (!editorSurface && state.enabledTools?.['vorlagen'] !== false) {
+      const vorlagen = vorlagenForTurn(state);
+      if (vorlagen) tools.vorlagen_vorschlagen = makeSuggestVorlagenTool({ sse, state, vorlagen });
+    }
     // Image is expensive + rate-limited and the classifier routes it reliably,
     // so it stays intent-scoped (and gated). image_edit stays single-pass.
     // 'agentic' (demoted) turns mount it ONLY on explicit image phrasing
@@ -1162,7 +1266,6 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
           makeCreateSharepicTool({
             sse,
             state,
-            req,
             threadId: loop.threadId ?? null,
             researchBanned,
           }),
@@ -1199,6 +1302,13 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
             sse,
             state,
             req,
+            sourceRegistry,
+            researchBanned,
+          }),
+        explainable: () =>
+          makeCreateExplainableTool({
+            sse,
+            state,
             sourceRegistry,
             researchBanned,
           }),

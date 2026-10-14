@@ -1,0 +1,1 @@
+{"id": "explainable-tool-edit", "category": "explainable-tools", "turns": [{"prompt": "Erstelle ein Explainable zum Klimageld", "expect": {"routing": "create_explainable"}}, {"prompt": "Erklär im Explainable den Begriff CO2-Preis noch einfacher", "expect": {"sameThread": true, "toolsMustInclude": ["edit_explainable"]}}]}

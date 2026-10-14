@@ -17,8 +17,10 @@ import type {
   DocumentCreatedEvent,
   NotebookAnswerModeReason,
   NotebookResolvedAnswerMode,
+  NotebookSourceTier,
   SocialPostPayload,
   BahnPayload,
+  SharepicVorlagenSuggestions,
 } from '@gruenerator/contracts';
 
 // Wire enum lives in @gruenerator/contracts (chatStreamEvents); the
@@ -73,6 +75,8 @@ export type ChatMessageMetadata = {
    * snippet.
    */
   searchImages?: SearchImage[];
+  /** Sharepic-Vorlagen picked for the post (`vorlagen_vorschlagen`), shown as a gallery. */
+  vorlagenSuggestions?: SharepicVorlagenSuggestions;
   generatedImage?: GeneratedImage;
   sharepicData?: SharepicData;
   /** Text half of the EXPERIMENTAL combined social post (SocialPostCard). */
@@ -111,5 +115,7 @@ export type ChatMessageMetadata = {
   /** The mode the notebook answer ran in (`answer_mode` event / persisted row). */
   answerMode?: NotebookResolvedAnswerMode;
   answerModeReason?: NotebookAnswerModeReason;
+  /** Set when the turn ran with `documents-first`; live answers only, not persisted. */
+  sourceTier?: NotebookSourceTier;
   [key: string]: unknown;
 };

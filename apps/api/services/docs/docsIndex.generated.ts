@@ -126,9 +126,9 @@ export const DOCS_PAGES: readonly DocPage[] = [
   },
   {
     "url": "/docs/features/agentura",
-    "title": "Agentura",
+    "title": "Grüneratoren und Agentura",
     "category": "Features",
-    "lead": "Die Agentura ist der Marktplatz für alle Grüneratoren. Hier findest du an einem Ort alle verfügbaren Agents und Rezepte — vom Pressestellen-Profi bis zum Landesverbands-Assistenten — entdeckst neue W…"
+    "lead": "Deine Agents, Rezepte und wiederkehrenden Aufgaben findest du unter Grüneratoren. Das ist der gleichnamige Eintrag in der Seitenleiste, die Adresse ist /grueneratoren. Alles Offizielle und alles, was…"
   },
   {
     "url": "/docs/features/boards",
@@ -183,6 +183,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "title": "Präsentationen",
     "category": "Features",
     "lead": "Eine Präsentation ist eine Folge von Folien mit eigenem Vortragsmodus. Du legst sie über Leere Präsentation an — oder lässt sie dir im Chat aus einem Thema erzeugen."
+  },
+  {
+    "url": "/docs/features/sharepics",
+    "title": "Sharepics: alle Varianten auf einen Blick",
+    "category": "Features",
+    "lead": "Der Sharepic-Creator macht aus einem kurzen Auftrag ein Einzelbild oder ein Karussell im passenden Grünen-Design. Welches Design verwendet wird, richtet sich nach deinem Land im Grünerator."
   },
   {
     "url": "/docs/features/tabellen",
@@ -245,6 +251,18 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Am Ende hast du ein Video mit eingebrannten Untertiteln zum Veröffentlichen. Du brauchst dafür nur einen bereits aufgenommenen Clip. Upload, Transkription, Untertitel und Videoexport laufen automatis…"
   },
   {
+    "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
+    "title": "Wie erstelle ich ein Sharepic?",
+    "category": "Guides",
+    "lead": "Am Ende hast du ein fertiges Sharepic oder Karussell im Grünen-Design. Du kannst mit einer Vorlage beginnen, deinen Text im Studio eingeben oder das Sharepic direkt im Chat anfordern."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepics-ki-bilder-studio",
+    "title": "Sharepics und KI-Bilder im Studio erstellen",
+    "category": "Guides",
+    "lead": "Am Ende hast du in wenigen Minuten ein Sharepic oder ein KI-Bild, ohne vorher Werkzeug oder Format gewählt zu haben. Du tippst im Studio einfach, was du brauchst."
+  },
+  {
     "url": "/docs/guides/einsteigerinnen/social-media-beitrag",
     "title": "Wie schreibe ich einen Social Media Beitrag?",
     "category": "Guides",
@@ -278,7 +296,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
     "title": "Wie erstelle ich einen Agenten?",
     "category": "Guides",
-    "lead": "In der Agentura kannst du einen eigenen Agenten für eine Aufgabe erstellen, die du häufiger erledigst, zum Beispiel für Pressemitteilungen, Recherchen oder Social-Media-Texte. Du beschreibst zuerst i…"
+    "lead": "Unter Grüneratoren kannst du einen eigenen Agenten für eine Aufgabe erstellen, die du häufiger erledigst, zum Beispiel für Pressemitteilungen, Recherchen oder Social-Media-Texte. Du beschreibst zuers…"
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
@@ -497,7 +515,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Unsere europäischen Partner",
     "anchor": "#unsere-europäischen-partner",
     "category": "Basics",
-    "text": "Mistral AI (Frankreich) — Standardmodell Mistral Medium 3.5 (mistral-medium-2604), Mistral Large 4 (mistral-large-4) für die Stufe Ultra, Pixtral Large als im Chat wählbares Modell, Suche und Notebooks mit mistral-embed, Transkription mit Voxtral KugelAudio (Berlin, Deutschland) — Sprachausgabe mit kugel-3: das Vorlesen von Antworten und die Stimme im Sprachdialog, ausschließlich über den EU-Endpunkt api.eu.kugelaudio.com. Seit September 2026 anstelle von Mistral Speech. Keine dauerhafte Speicherung der Inhalte, kein Training; jede erzeugte Audiodatei trägt ein Wasserzeichen nach Art. 50 KI-VO Black Forest Labs (Freiburg, Deutschland) — Bilderzeugung und -bearbeitung mit FLUX 3 (flux-3-image, seit Oktober 2026 anstelle von FLUX 2 Pro/Max) und FLUX 2 Klein, ausschließlich über den EU-Endpunkt api.eu.bfl.ai; die Websuche des Modells (grounding) ist abgeschaltet Cortecs (Vermittler, EU) — vermittelt Gemma 4 (gemma-4-31b-it) an Infercom SCS (Luxemburg, Verarbeitung in Deutschland). Seit August 2026 das Modell, das die meisten Chat-Antworten und fertigen Texte schreibt sowie lange Dokumente zusammenfasst. Cortecs bekommt bei jeder Anfrage die Weisung, nur in der EU ansässige Anbieter…"
+    "text": "Mistral AI (Frankreich) — Mistral Large 4 (mistral-large-4) für die Stufe Ultra, Sharepic-Texte, Rechenschritte und als Ausweichweg (seit Oktober 2026 anstelle von Mistral Medium 3.5), Suche und Notebooks mit mistral-embed, Transkription mit Voxtral (wenn Sprecherinnen erkannt werden sollen, sonst als Ausweichweg) KugelAudio (Berlin, Deutschland) — Sprachausgabe mit kugel-3: das Vorlesen von Antworten und die Stimme im Sprachdialog, ausschließlich über den EU-Endpunkt api.eu.kugelaudio.com. Seit September 2026 anstelle von Mistral Speech. Keine dauerhafte Speicherung der Inhalte, kein Training; jede erzeugte Audiodatei trägt ein Wasserzeichen nach Art. 50 KI-VO Black Forest Labs (Freiburg, Deutschland) — Bilderzeugung und -bearbeitung mit FLUX 3 (flux-3-image, seit Oktober 2026 anstelle von FLUX 2 Pro/Max) und FLUX 2 Klein, ausschließlich über den EU-Endpunkt api.eu.bfl.ai; die Websuche des Modells (grounding) ist abgeschaltet Cortecs (Vermittler, EU) — vermittelt Gemma 4 (gemma-4-31b-it) an Infercom SCS (Luxemburg, Verarbeitung in Deutschland). Seit August 2026 das Modell, das die meisten Chat-Antworten und fertigen Texte schreibt sowie lange Dokumente zusammenfasst; seit Oktober…"
   },
   {
     "url": "/docs/basics/intro",
@@ -710,10 +728,18 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/basics/open-source",
     "pageTitle": "Worauf der Grünerator aufbaut",
+    "heading": "Anbindung an KI-Assistenten: Model Context Protocol",
+    "anchor": "#anbindung-an-ki-assistenten-model-context-protocol",
+    "category": "Basics",
+    "text": "Das Model Context Protocol (MCP) ist ein offener Standard, über den KI-Assistenten wie Claude auf externe Werkzeuge und Inhalte zugreifen können. Der Grünerator nutzt das offizielle MCP-SDK, um seine Programm- und Beschlusssuche sowie deine eigenen Inhalte als MCP-Server bereitzustellen – damit du sie auch aus anderen KI-Assistenten heraus verwenden kannst. GitHub · NPM"
+  },
+  {
+    "url": "/docs/basics/open-source",
+    "pageTitle": "Worauf der Grünerator aufbaut",
     "heading": "Boards: Kibo UI & dnd-kit",
     "anchor": "#boards-kibo-ui--dnd-kit",
     "category": "Basics",
-    "text": "Die verschiedenen Board-Ansichten – Kanban, Tabelle, Kalender, Zeitstrahl und Liste – stammen von Kibo UI. Das ist eine quelloffene Sammlung fertiger, anpassbarer React-Komponenten (im Stil von shadcn/ui), die direkt in den Grünerator übernommen und an unser Design angepasst werden. Das eigentliche Verschieben der Karten übernimmt darunter dnd-kit, eine schlanke Bibliothek für flüssiges und barrierefreies Drag-and-drop. Zusammen sorgen sie dafür, dass du Aufgaben einfach mit der Maus von einer Spalte in die nächste ziehst, neu sortierst und an der passenden Stelle ablegst. Kibo UI: GitHub dnd-kit: GitHub · NPM"
+    "text": "Die verschiedenen Board-Ansichten – Kanban, Tabelle, Kalender, Gantt und Liste – stammen von Kibo UI. Das ist eine quelloffene Sammlung fertiger, anpassbarer React-Komponenten (im Stil von shadcn/ui), die direkt in den Grünerator übernommen und an unser Design angepasst werden. Das eigentliche Verschieben der Karten übernimmt darunter dnd-kit, eine schlanke Bibliothek für flüssiges und barrierefreies Drag-and-drop. Zusammen sorgen sie dafür, dass du Aufgaben einfach mit der Maus von einer Spalte in die nächste ziehst, neu sortierst und an der passenden Stelle ablegst. Kibo UI: GitHub dnd-kit: GitHub · NPM"
   },
   {
     "url": "/docs/basics/open-source",
@@ -722,6 +748,14 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#das-fundament",
     "category": "Basics",
     "text": "Unter all diesen Funktionen liegt ein Fundament aus bewährten Open-Source-Bausteinen: React ist die Grundlage der gesamten Benutzeroberfläche – im Web wie in der App. Die von Meta entwickelte Bibliothek setzt aus einzelnen Komponenten zusammen, was du auf dem Bildschirm siehst, und aktualisiert Inhalte automatisch, sobald sich etwas ändert. GitHub · NPM Tauri verwandelt den Grünerator in eine echte Desktop-App für Windows und Mac. Anders als ältere Lösungen ist Tauri in der Programmiersprache Rust geschrieben und nutzt den im Betriebssystem vorhandenen Browser – dadurch werden die Programme deutlich kleiner und sparsamer. Es kümmert sich außerdem um Dinge wie automatische Updates und Benachrichtigungen. GitHub · NPM Expo & React Native sind die Grundlage der mobilen App für iPhone und Android. React Native erlaubt es, die App einmal zu schreiben und auf beiden Systemen als echte App laufen zu lassen; Expo liefert dazu die Werkzeuge und den Zugriff auf Funktionen wie Kamera, Mikrofon und Mitteilungen. Expo: GitHub · NPM React Native: GitHub · NPM Express ist der Server, der im Hintergrund alle Anfragen entgegennimmt. Das schlanke Standard-Framework für Node.js leitet jede Anfrage…"
+  },
+  {
+    "url": "/docs/basics/open-source",
+    "pageTitle": "Worauf der Grünerator aufbaut",
+    "heading": "Dokumentation: Docusaurus",
+    "anchor": "#dokumentation-docusaurus",
+    "category": "Basics",
+    "text": "Diese Dokumentation selbst entsteht mit Docusaurus. Das quelloffene Framework macht aus einfachen Textdateien eine durchsuchbare, übersichtliche Webseite mit Navigation – so bleibt die Doku nah am Code und lässt sich gemeinsam pflegen. GitHub · NPM"
   },
   {
     "url": "/docs/basics/open-source",
@@ -746,6 +780,38 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#recherche--dateiablage-qdrant",
     "category": "Basics",
     "text": "Qdrant ist das Herzstück der Recherche und der Dateiablage. Es ist eine quelloffene „Vektor-Suchmaschine\": Anders als eine klassische Stichwortsuche findet Qdrant Inhalte nach ihrer Bedeutung. Dafür werden Texte in Zahlenreihen übersetzt, die ihren Sinn abbilden – Qdrant findet dann die Stellen, die inhaltlich am besten passen, auch wenn du andere Worte benutzt als im Originaltext. So findet der Grünerator in deinen hochgeladenen Dateien und recherchierten Quellen die richtigen Passagen wieder und kann sie in seinen Antworten korrekt zitieren. Qdrant: GitHub Ergänzend dazu durchforstet Crawlee für deine Recherche das Web: Es ruft Webseiten auf, liest ihre Inhalte aus und bereitet sie für die Suche auf. So fließen auch aktuelle Quellen aus dem Internet in deine Recherche ein. Crawlee: GitHub · NPM"
+  },
+  {
+    "url": "/docs/basics/open-source",
+    "pageTitle": "Worauf der Grünerator aufbaut",
+    "heading": "Sharepics & Canvas: Konva",
+    "anchor": "#sharepics--canvas-konva",
+    "category": "Basics",
+    "text": "Konva ist die Zeichenfläche hinter dem Canvas-Editor, mit dem du Sharepics und Grafiken gestaltest. Die Bibliothek stellt Texte, Bilder und Formen als einzelne Ebenen auf einer Leinwand dar, die du frei verschieben, drehen und skalieren kannst. Über react-konva fügt sie sich nahtlos in die React-Oberfläche des Grünerators ein. Konva: GitHub · NPM react-konva: GitHub · NPM"
+  },
+  {
+    "url": "/docs/basics/open-source",
+    "pageTitle": "Worauf der Grünerator aufbaut",
+    "heading": "Sprachanalyse: spaCy & FastAPI",
+    "anchor": "#sprachanalyse-spacy--fastapi",
+    "category": "Basics",
+    "text": "Für Monitor und Notebooks erkennt der Grünerator, worum es in einem Text geht: Themen, Schlagwörter, Emotionen und Personen. Das übernimmt spaCy, eine quelloffene Bibliothek zur Verarbeitung natürlicher Sprache, mit einem großen deutschen Sprachmodell. FastAPI stellt diese Analyse als eigenen kleinen Dienst bereit, den der Rest des Grünerators abfragen kann. spaCy: GitHub FastAPI: GitHub"
+  },
+  {
+    "url": "/docs/basics/open-source",
+    "pageTitle": "Worauf der Grünerator aufbaut",
+    "heading": "Tabellen: Univer",
+    "anchor": "#tabellen-univer",
+    "category": "Basics",
+    "text": "Univer ist die Grundlage der Tabellen im Grünerator. Die quelloffene Bibliothek bringt eine vollwertige Tabellenkalkulation in den Browser – mit Formeln, bedingter Formatierung und Datenvalidierung, wie du es aus Excel oder Google Tabellen kennst. Technisch liefert Univer die Rechenlogik und die Oberfläche in einzelnen Bausteinen, die der Grünerator zusammensetzt und an sein Design anpasst. GitHub · NPM"
+  },
+  {
+    "url": "/docs/basics/open-source",
+    "pageTitle": "Worauf der Grünerator aufbaut",
+    "heading": "Texteingabe im Canvas: Tiptap",
+    "anchor": "#texteingabe-im-canvas-tiptap",
+    "category": "Basics",
+    "text": "Tiptap ist ein quelloffener Editor-Baukasten auf Basis von ProseMirror. Im Grünerator sorgt er dafür, dass du Texte in Canvas-Grafiken und in gemeinsam bearbeiteten Inhalten direkt formatieren kannst – fett, kursiv, unterstrichen oder als Liste. Er ist zudem der Ursprung von Hocuspocus, dem Echtzeit-Server (siehe unten). GitHub · NPM"
   },
   {
     "url": "/docs/basics/open-source",
@@ -1121,7 +1187,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Quellen durchsuchen",
     "anchor": "#quellen-durchsuchen",
     "category": "Chat",
-    "text": "Der Chat kann gezielt in grünen Parteiprogrammen, Beschlüssen und Dokumenten recherchieren. Tippe @ im Eingabefeld, um eine Quelle auszuwählen. @alle Alle Quellen @grundsatz Grundsatzprogramm @bundestagsfraktion Bundestagsfraktion @at Grüne Österreich @thüringen Grüne Thüringen @kommunalwiki KommunalWiki @berlin Grüne Berlin @gruenblog Grünblog @transparenz Abgeordnetenwatch @mv Grüne Mecklenburg-Vorpommern @brandenburg Grüne Brandenburg @bayern Grüne Bayern @sachsen-anhalt Grüne Sachsen-Anhalt @hessen Grüne Hessen @saar Grüne Saarland @landtagnrw Landtag NRW @agh Abgeordnetenhaus Berlin Weitere Landesverbände werden laufend ergänzt. Wenn dein Landesverband ein Grünerator Notebook erworben hat, erscheinen eure Daten automatisch als Quelle. Deine @-Mentions erscheinen als Chips in der gesendeten Nachricht und der Chat merkt sie sich: Folgefragen wie „fasse das kürzer\" bleiben automatisch bei der gewählten Quelle bzw. dem gewählten Werkzeug."
+    "text": "Der Chat kann gezielt in grünen Parteiprogrammen, Beschlüssen und Dokumenten recherchieren. Tippe @ im Eingabefeld, um eine Quelle auszuwählen. @alle Alle Quellen @grundsatz Grundsatzprogramm @bundestagsfraktion Bundestagsfraktion @at Grüne Österreich @thüringen Grüne Thüringen @kommunalwiki KommunalWiki @plenum Bundestag: Reden & Drucksachen @berlin Grüne Berlin @gruenblog Grünblog @transparenz Abgeordnetenwatch @mv Grüne Mecklenburg-Vorpommern @brandenburg Grüne Brandenburg @bayern Grüne Bayern @sachsen-anhalt Grüne Sachsen-Anhalt @hessen Grüne Hessen @saar Grüne Saarland @landtagnrw Landtag NRW @agh Abgeordnetenhaus Berlin Weitere Landesverbände werden laufend ergänzt. Wenn dein Landesverband ein Grünerator Notebook erworben hat, erscheinen eure Daten automatisch als Quelle. Deine @-Mentions erscheinen als Chips in der gesendeten Nachricht und der Chat merkt sie sich: Folgefragen wie „fasse das kürzer\" bleiben automatisch bei der gewählten Quelle bzw. dem gewählten Werkzeug."
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -1137,7 +1203,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Rezepte auswählen",
     "anchor": "#rezepte-auswählen",
     "category": "Chat",
-    "text": "Rezepte sind spezialisierte Schreib-Modi, die auf bestimmte Textarten optimiert sind — sie kennen den richtigen Ton, die Struktur und die Längenvorgaben der jeweiligen Plattform. So wählst du ein Rezept: Tippe @ im Eingabefeld und wähle aus der Liste — Rezepte stehen dort ganz oben, oder öffne das „+\"-Menü im Eingabefeld — dort findest du auch die Rezept-Bibliothek mit allen Rezepten @presse Pressemitteilung @instagram Instagram @facebook Facebook @twitter Twitter / X @linkedin LinkedIn @reel Reel / TikTok @aktion Aktionsideen @wahlpruefstein Wahlprüfsteine @buergermail Bürgerinnen-Mail @presse-berlin-fraktion PM Berlin (Fraktion) @presse-berlin-partei PM Berlin (Partei) @insta-berlin Insta Berlin @presse-mv-fraktion PM MV (Fraktion) @presse-mv-partei PM MV (Partei) @insta-mv Insta MV @presse-thueringen PM Thüringen @insta-thueringen Insta Thüringen @presse-brandenburg PM Brandenburg @insta-brandenburg Insta Brandenburg @presse-bayern-fraktion PM Bayern (Fraktion) @presse-bayern-partei PM Bayern (Partei) @presse-hessen-fraktion PM Hessen (Fraktion) @presse-hessen-partei PM Hessen (Partei) @presse-at Aussendung (AT) @presse-saarland PM Saarland @presse-sachsen-anhalt-fraktion PM…"
+    "text": "Rezepte sind spezialisierte Schreib-Modi, die auf bestimmte Textarten optimiert sind — sie kennen den richtigen Ton, die Struktur und die Längenvorgaben der jeweiligen Plattform. So wählst du ein Rezept: Tippe @ im Eingabefeld und wähle aus der Liste — Rezepte stehen dort ganz oben, oder öffne das „+\"-Menü im Eingabefeld — dort findest du auch die Rezept-Bibliothek mit allen Rezepten @presse Pressemitteilung @instagram Instagram @facebook Facebook @twitter Twitter / X @linkedin LinkedIn @reel Reel / TikTok @aktion Aktionsideen @wahlpruefstein Wahlprüfsteine @buergermail Bürgerinnen-Mail @antrag Antrag für Stadt- oder Gemeinderat @presse-berlin-fraktion PM Berlin (Fraktion) @presse-berlin-partei PM Berlin (Partei) @insta-berlin Insta Berlin @presse-mv-fraktion PM MV (Fraktion) @presse-mv-partei PM MV (Partei) @insta-mv Insta MV @presse-thueringen PM Thüringen @insta-thueringen Insta Thüringen @presse-brandenburg PM Brandenburg @insta-brandenburg Insta Brandenburg @presse-bayern-fraktion PM Bayern (Fraktion) @presse-bayern-partei PM Bayern (Partei) @presse-hessen-fraktion PM Hessen (Fraktion) @presse-hessen-partei PM Hessen (Partei) @presse-at Aussendung (AT) @presse-saarland PM…"
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -1153,7 +1219,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Werkzeuge nutzen",
     "anchor": "#werkzeuge-nutzen",
     "category": "Chat",
-    "text": "Werkzeuge erweitern die Fähigkeiten des Chats über die reine Textgenerierung hinaus. Du kannst sie per @-Mention im Eingabefeld aktivieren — von der Recherche über Bildgenerierung bis zum Erstellen von Dokumenten, Tabellen und Präsentationen. @abgeordnetenwatch Abgeordnetenwatch @board-erstellen Board erstellen @bundestag Bundestag @canva Canva @diagramm Diagramm @verlauf Chatverlauf @rechnen Rechnen @connect Verbundene Accounts @wiederkehrend Wiederkehrende Aufgabe @deepresearch Tiefenrecherche @docs Dokument einfügen @dokument-erstellen Dokument erstellen @beispiele Beispiele @doku Hilfe & Anleitungen @bildgenerieren Bildgenerierung @stadtbegruenen Stadt begrünen @bildbearbeiten Bild bearbeiten @pdf-erstellen PDF erstellen @praesentation-erstellen Präsentation erstellen @pressemitteilungen Pressemitteilungen @recherche Recherche @dokumente Dokumente @sharepic Sharepic @tabelle-erstellen Tabelle erstellen @zusammenfassung Zusammenfassung @umfragen Umfragen @vorlagen Vorlagen @link Link @wolke Wolke Was du mit jeder dieser Fähigkeiten konkret fragen kannst, zeigt dir die Seite Was kann ich fragen? mit Musterfragen zu jeder Funktion. Im „+\"-Menü links im Eingabefeld stehen die…"
+    "text": "Werkzeuge erweitern die Fähigkeiten des Chats über die reine Textgenerierung hinaus. Du kannst sie per @-Mention im Eingabefeld aktivieren — von der Recherche über Bildgenerierung bis zum Erstellen von Dokumenten, Tabellen und Präsentationen. @abgeordnetenwatch Abgeordnetenwatch @board-erstellen Board erstellen @bundestag Bundestag @canva Canva @diagramm Diagramm @verlauf Chatverlauf @rechnen Rechnen @connect Verbundene Accounts @wiederkehrend Wiederkehrende Aufgabe @deepresearch Tiefenrecherche @docs Dokument einfügen @dokument-erstellen Dokument erstellen @beispiele Beispiele @explainable-erstellen Explainable erstellen @doku Hilfe & Anleitungen @bildgenerieren Bildgenerierung @stadtbegruenen Stadt begrünen @bildbearbeiten Bild bearbeiten @pdf-erstellen PDF erstellen @praesentation-erstellen Präsentation erstellen @pressemitteilungen Pressemitteilungen @recherche Recherche @dokumente Dokumente @sharepic Sharepic @tabelle-erstellen Tabelle erstellen @zusammenfassung Zusammenfassung @umfragen Umfragen @vorlage Sharepic-Vorlage @link Link @wolke Wolke Was du mit jeder dieser Fähigkeiten konkret fragen kannst, zeigt dir die Seite Was kann ich fragen? mit Musterfragen zu jeder…"
   },
   {
     "url": "/docs/chat/ki-modelle",
@@ -1221,75 +1287,83 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/features/agentura",
-    "pageTitle": "Agentura",
-    "heading": "Agentura",
+    "pageTitle": "Grüneratoren und Agentura",
+    "heading": "Grüneratoren und Agentura",
     "anchor": "",
     "category": "Features",
-    "text": "RecipeCategories, ShelfCount, SortOptions, } from '@site/src/components/AgenturaShelves'; Die Agentura ist der Marktplatz für alle Grüneratoren. Hier findest du an einem Ort alle verfügbaren Agents und Rezepte — vom Pressestellen-Profi bis zum Landesverbands-Assistenten — entdeckst neue Werkzeuge und baust dir mit wenigen Klicks deine eigenen. Du erreichst die Agentura über den Menüpunkt Grüneratoren in der Seitenleiste oder direkt unter /agentura. Die alten Adressen /agents und /skills leiten automatisch dorthin weiter. Aus Skills sind Rezepte geworden, und der Reiter Von der Basis heißt jetzt Öffentlich. Ältere Screenshots und Newsletter benutzen noch die alten Begriffe — gemeint ist dasselbe."
+    "text": "Deine Agents, Rezepte und wiederkehrenden Aufgaben findest du unter Grüneratoren. Das ist der gleichnamige Eintrag in der Seitenleiste, die Adresse ist /grueneratoren. Alles Offizielle und alles, was andere öffentlich teilen, liegt in der Agentura, dem Laden daneben. Was du dort findest, holst du mit einem Klick zu deinen Grüneratoren. Früher hieß die ganze Seite Agentura und war in Regale mit Reitern aufgeteilt (Meine Grüneratoren, Offizielle Grüneratoren, Öffentlich …). Heute heißt nur noch der Laden Agentura. Aus Skills sind Rezepte geworden, aus Von der Basis wurde Öffentlich. Alte Links, Lesezeichen und die Adresse /agents führen automatisch an die richtige Stelle."
   },
   {
     "url": "/docs/features/agentura",
-    "pageTitle": "Agentura",
+    "pageTitle": "Grüneratoren und Agentura",
     "heading": "Agents und Rezepte",
     "anchor": "#agents-und-rezepte",
     "category": "Features",
-    "text": "In der Agentura leben zwei Arten von Helfern: Agents sind spezialisierte KI-Persönlichkeiten mit eigenem Ton, eigenem Wissen und eigenen Werkzeugen. Du öffnest sie direkt im Chat und arbeitest dort mit ihnen — oder rufst sie mitten im Gespräch mit @ auf, so wie ein Rezept. Rezepte sind kurze Schnellbefehle für eine konkrete Aufgabe (z. B. eine Pressemitteilung im Stil deines Landesverbands). Du rufst sie im Chat mit @ auf. Eine Faustregel: Ein Agent ist ein eigenständiges Gegenüber für ein ganzes Themenfeld. Ein Rezept ist eine einzelne Vorlage, die du auf jeden beliebigen Agenten anwenden kannst. Grüneratoren ist der Überbegriff für alles, was in der Agentura liegt: Agents, Rezepte und wiederkehrende Aufgaben. Die einzelne KI-Persönlichkeit heißt Agent. „Der Grünerator\" ohne Zusatz meint das Produkt als Ganzes. Eigene Rezepte baust du genauso einfach wie eigene Agents — über Neu → Rezept oder direkt im Regal Meine Rezepte."
+    "text": "Es gibt zwei Arten von Helfern: Agents sind spezialisierte KI-Persönlichkeiten mit eigenem Ton, eigenem Wissen und eigenen Werkzeugen. Du öffnest sie direkt im Chat und arbeitest dort mit ihnen. Du kannst sie auch mitten im Gespräch mit @ aufrufen, so wie ein Rezept. Rezepte sind kurze Schnellbefehle für eine konkrete Aufgabe, z. B. eine Pressemitteilung im Stil deines Landesverbands. Du rufst sie im Chat mit @ auf. Eine Faustregel: Ein Agent ist ein eigenständiges Gegenüber für ein ganzes Themenfeld. Ein Rezept ist eine einzelne Vorlage, die du auf jeden beliebigen Agenten anwenden kannst. Grüneratoren ist der Überbegriff für Agents, Rezepte und wiederkehrende Aufgaben. Die einzelne KI-Persönlichkeit heißt Agent. „Der Grünerator“ ohne Zusatz meint das Produkt als Ganzes."
   },
   {
     "url": "/docs/features/agentura",
-    "pageTitle": "Agentura",
+    "pageTitle": "Grüneratoren und Agentura",
+    "heading": "Deine Grüneratoren",
+    "anchor": "#deine-grüneratoren",
+    "category": "Features",
+    "text": "Die Seite Grüneratoren zeigt, womit du arbeitest, in drei Abschnitten: Agents, Rezepte und Wiederkehrende Aufgaben. Dazu gehört dreierlei: was du selbst gebaut hast, was jemand in einem deiner Projekte geteilt hat, was du dir aus der Agentura dazugeholt hast. Woher eine Karte stammt, steht in ihrer grauen Zeile unter dem Titel. Weitere Aktionen liegen im Menü mit den drei Punkten: Bearbeiten, Teilen und Löschen bei Eigenem, Aus meinen Grüneratoren entfernen bei Dazugeholtem. Oben rechts stehen drei Schaltflächen: die Suche über Titel, Beschreibung und @-Namen, das Laden-Symbol, das die Agentura öffnet, Neu, um einen Agent, ein Rezept oder eine Wiederkehrende Aufgabe anzulegen. Unter Verlauf & Steuerung im selben Menü siehst du, wann deine wiederkehrenden Aufgaben gelaufen sind. Rechts neben der ersten Überschrift schaltest du zwischen drei und vier Karten pro Zeile um. Ein Agent kann auch nach Zeitplan laufen, etwa „jeden Montag eine Presseschau“. Angelegt wird er über Neu → Wiederkehrende Aufgabe. Im Editor erscheint dann ein zusätzlicher Zeitplan-Tab. Denselben Tab siehst du, wenn du später einen Agenten mit Zeitplan bearbeitest."
+  },
+  {
+    "url": "/docs/features/agentura",
+    "pageTitle": "Grüneratoren und Agentura",
+    "heading": "Der Stern",
+    "anchor": "#der-stern",
+    "category": "Features",
+    "text": "Der Stern ist eine Abkürzung im Alltag. Auf deine Grüneratoren-Seite bringt er nichts mehr, das macht Zu meinen Grüneratoren. Agents heftest du mit dem Stern an deine Seitenleiste an und öffnest sie von dort mit einem Klick im Chat. Das geht mit eigenen, System- und Landesverbands-Agents ebenso wie mit solchen, die jemand anderes gebaut und über ein Projekt oder öffentlich geteilt hat. Ändert der Ersteller den Namen eines geteilten Agenten, zeigt deine Seitenleiste den neuen Namen, sobald du deine Grüneratoren das nächste Mal öffnest. Rezepte mit Stern stehen im Chat direkt im Plus-Menü neben dem Eingabefeld, ohne dass du sie erst suchen musst. Das gilt am Rechner wie in der App. Früher legte der Stern einen Agent oder ein Rezept in das Regal Meine Grüneratoren. Beim ersten Öffnen deiner Grüneratoren-Seite holt der Grünerator diese Sterne einmalig zu deinen Grüneratoren. Dabei verschwindet nichts, was vorher dort lag. Die Sterne bleiben stehen."
+  },
+  {
+    "url": "/docs/features/agentura",
+    "pageTitle": "Grüneratoren und Agentura",
     "heading": "Detailseiten",
     "anchor": "#detailseiten",
     "category": "Features",
-    "text": "Jeder Agent und jedes Rezept hat eine eigene Detailseite — wie ein Produkt im Laden. Agents (/agentura/agent/...): Kopfbereich mit den Aktionen Im Chat öffnen, Favorit und — bei deinen eigenen Agents — Teilen. Bei allen anderen heißt dieselbe Schaltfläche Link kopieren. Übersicht — Beschreibung des Agenten. Gesprächsbeginn — Begrüßungsnachricht und eine Vorschau auf Beispiel-Antworten. Fähigkeiten — welche Werkzeuge der Agent nutzt und auf welches Wissen er zugreift. Verwandte — ähnliche Agents, die zum Thema passen. Rezepte (/agentura/rezept/...): Kopfbereich mit den Aktionen Im Chat verwenden und Favorit. Bei deinen eigenen Rezepten kommen Bearbeiten, Teilen und Löschen hinzu; bei allen anderen heißt die Teilen-Schaltfläche Link kopieren. Bei mitgelieferten Rezepten, die du anpassen darfst (z. B. Presse, Instagram, Landesverbands-Rezepte), zeigt der Kopfbereich zusätzlich Mit eigenen Beispielen anpassen. Hast du bereits einen eigenen Stil hinterlegt, heißt dieselbe Schaltfläche Angepassten Stil bearbeiten und ein Abzeichen zeigt Du hast diesen Stil angepasst. Der vollständige Rezept-Text als Markdown — so siehst du genau, was das Rezept macht, bevor du es nutzt. Eine Vorlage und…"
+    "text": "Jeder Agent und jedes Rezept hat eine eigene Detailseite, wie ein Produkt im Laden. Agents (/agentura/agent/...): Kopfbereich mit den Aktionen Im Chat öffnen und dem Stern. Bei Agents, die nicht dir gehören, kommt Zu meinen Grüneratoren dazu. Bei deinen eigenen Agents gibt es Teilen, bei allen anderen heißt dieselbe Schaltfläche Link kopieren. Übersicht: Beschreibung des Agenten. Gesprächsbeginn: Begrüßungsnachricht und eine Vorschau auf Beispiel-Antworten. Fähigkeiten: welche Werkzeuge der Agent nutzt und auf welches Wissen er zugreift. Verwandte: ähnliche Agents, die zum Thema passen. Rezepte (/agentura/rezept/...): Kopfbereich mit den Aktionen Im Chat verwenden und dem Stern. Bei Rezepten, die nicht dir gehören, kommt Zu meinen Grüneratoren dazu. Bei deinen eigenen Rezepten gibt es Bearbeiten, Teilen und Löschen, bei allen anderen heißt die Teilen-Schaltfläche Link kopieren. Mitgelieferte Rezepte, die du anpassen darfst (z. B. Presse, Instagram, Landesverbands-Rezepte), haben im Kopfbereich zusätzlich Mit eigenen Beispielen anpassen. Hast du schon einen eigenen Stil hinterlegt, heißt dieselbe Schaltfläche Angepassten Stil bearbeiten, und ein Abzeichen zeigt Du hast diesen Stil…"
   },
   {
     "url": "/docs/features/agentura",
-    "pageTitle": "Agentura",
+    "pageTitle": "Grüneratoren und Agentura",
+    "heading": "Die Agentura",
+    "anchor": "#die-agentura",
+    "category": "Features",
+    "text": "Das Laden-Symbol oben rechts öffnet die Agentura als Fenster über deinen Grüneratoren. Direkt erreichst du sie unter /agentura. Sie ist in drei Gänge aufgeteilt: Offizielle Grüneratoren: die Agents des Grünerators. Dein Landesverband: nur mit der passenden Rolle sichtbar, mit dem Namen deines Verbands als Überschrift (bei den Grünen Hessen also Grüne Hessen). Siehe Landesverband einrichten. Öffentlich: Agents und Rezepte, die andere für alle freigegeben haben. Mitgelieferte Rezepte wie die Pressemitteilung wendet der Grünerator ohnehin von selbst an, wenn du darum bittest. Deshalb stehen sie nicht in den Gängen. Über das Suchfeld oben in der Agentura findest du sie trotzdem. Ein Klick auf eine Karte zeigt die Kurzbeschreibung mit drei Schaltflächen: Zu meinen Grüneratoren legt den Agent oder das Rezept auf deine Seite. Das ist an deinem Konto gespeichert, gilt also am Rechner und in der App. Ein zweiter Klick (In meinen Grüneratoren) nimmt es wieder heraus. Im Chat ausprobieren öffnet ein neues Gespräch damit. Alle Details führt zur ausführlichen Detailseite. Auf den Karten der Agents siehst du außerdem Fähigkeits-Hinweise: welche Werkzeuge sie nutzen, ob sie auf ein…"
+  },
+  {
+    "url": "/docs/features/agentura",
+    "pageTitle": "Grüneratoren und Agentura",
     "heading": "Eigene Agents bauen",
     "anchor": "#eigene-agents-bauen",
     "category": "Features",
-    "text": "Das Herzstück der Agentura: Du kannst deine eigenen Agents bauen — ganz ohne technische Vorkenntnisse. Wie das Schritt für Schritt geht, liest du unter Eigene Agents erstellen."
+    "text": "Du kannst deine eigenen Agents bauen, ganz ohne technische Vorkenntnisse. Wie das Schritt für Schritt geht, liest du unter Eigene Agents erstellen."
   },
   {
     "url": "/docs/features/agentura",
-    "pageTitle": "Agentura",
+    "pageTitle": "Grüneratoren und Agentura",
     "heading": "Eigene Rezepte bauen",
     "anchor": "#eigene-rezepte-bauen",
     "category": "Features",
-    "text": "Genauso kannst du dir eigene Rezepte bauen — eine Schreibvorgabe für eine bestimmte Textsorte, die du danach per @mention auf jeden Agenten anwendest. Wie das Schritt für Schritt geht, liest du unter Eigene Rezepte erstellen. Die Einstellung Texte anlernen verweist inzwischen nur noch hierher — eigene Rezepte legst du direkt in der Agentura an."
+    "text": "Genauso kannst du dir eigene Rezepte bauen: eine Schreibvorgabe für eine bestimmte Textsorte, die du danach per @mention auf jeden Agenten anwendest. Wie das Schritt für Schritt geht, liest du unter Eigene Rezepte erstellen."
   },
   {
     "url": "/docs/features/agentura",
-    "pageTitle": "Agentura",
-    "heading": "Favoriten",
-    "anchor": "#favoriten",
+    "pageTitle": "Grüneratoren und Agentura",
+    "heading": "In der App",
+    "anchor": "#in-der-app",
     "category": "Features",
-    "text": "Mit dem Stern auf einer Karte oder Detailseite markierst du einen Agenten oder ein Rezept als Favorit. Was danach passiert, ist für beide unterschiedlich. Agents heftest du damit an deine Seitenleiste an und öffnest sie von dort mit einem Klick im Chat. Das gilt für alle: eigene, System- und Landesverbands-Agents ebenso wie solche, die jemand anderes gebaut und über ein Projekt oder öffentlich mit dir geteilt hat. Ändert der Ersteller den Namen eines mit dir geteilten Agenten, zeigt deine Seitenleiste den neuen Namen, wenn du die Agentura das nächste Mal öffnest — bis dahin bleibt der bisherige Name stehen. Rezepte werden nicht an die Seitenleiste geheftet. Sie sammeln sich im Favoriten-Regal oben in der Agentura — und im Chat stehen sie danach direkt im Plus-Menü neben dem Eingabefeld, ohne dass du sie erst suchen musst. Das gilt am Rechner wie in der App."
+    "text": "Die App zeigt den Markt als Regale mit Reitern, mit Meine Grüneratoren als Startansicht: Meine Grüneratoren enthält dort deine eigenen Agents und Rezepte und alles, was du dir am Rechner oder in der App dazugeholt hast. Dazuholen geht in der App über das Plus oben rechts an jeder Karte. Ein Häkchen zeigt, dass es schon bei dir liegt, und ein weiterer Tipp nimmt es wieder heraus. Eigene Agents und Rezepte legst du am Rechner an."
   },
   {
     "url": "/docs/features/agentura",
-    "pageTitle": "Agentura",
-    "heading": "Im Marktplatz stöbern",
-    "anchor": "#im-marktplatz-stöbern",
-    "category": "Features",
-    "text": "Die Agentura ist wie ein Marktladen aufgebaut. Es gibt Regale, angezeigt als Reihe farbiger Pillen-Buttons oberhalb der Karten — auf schmalen Bildschirmen umbricht die Reihe automatisch in mehrere Zeilen. Regale ohne Inhalt werden ausgeblendet, du siehst also nur, was bei dir tatsächlich etwas enthält — mit zwei Ausnahmen: Meine Grüneratoren und Öffentlich bleiben immer stehen und laden dich stattdessen zum Anlegen ein. Das Regal deines Landesverbands trägt dessen Namen — bei den Grünen Hessen heißt der Reiter also Grüne Hessen. Im offiziellen Regal sind die Rezepte zusätzlich nach Rubriken sortiert: . Über das Suchfeld findest du Agents und Rezepte nach Name oder Beschreibung; sortieren kannst du nach . Oben rechts legst du über die Schaltfläche Neu etwas Eigenes an: Agent, Rezept oder Wiederkehrende Aufgabe. Ein Agent kann auch nach Zeitplan laufen — etwa „jeden Montag eine Presseschau\". Angelegt wird er über Neu → Wiederkehrende Aufgabe oder den Link Neue wiederkehrende Aufgabe im Regal Meine Grüneratoren, Unterabschnitt Wiederkehrende Aufgaben (ein eigenes Regal gibt es dafür nicht). Im Editor erscheint dann ein zusätzlicher Zeitplan-Tab; denselben Tab siehst du, wenn du…"
-  },
-  {
-    "url": "/docs/features/agentura",
-    "pageTitle": "Agentura",
-    "heading": "Schnell hinkommen",
-    "anchor": "#schnell-hinkommen",
-    "category": "Features",
-    "text": "In der Seitenleiste liegt Grüneratoren als eigener Eintrag. Ein Klick öffnet eine kurze Auswahl deiner Favoriten und der zuletzt genutzten Agents — von dort startest du direkt ein Gespräch, ohne den Umweg über den Marktplatz. Der Eintrag Alle Grüneratoren & Verwaltung führt in die Agentura."
-  },
-  {
-    "url": "/docs/features/agentura",
-    "pageTitle": "Agentura",
+    "pageTitle": "Grüneratoren und Agentura",
     "heading": "Tipps für die Nutzung",
     "anchor": "#tipps-für-die-nutzung",
     "category": "Features",
-    "text": "Öffne einen Agenten direkt aus der Agentura im Chat — die ganze Konfiguration ist dann schon aktiv. Markiere häufig genutzte Agents als Favorit, damit sie in der Seitenleiste auftauchen. Schau dir vor dem Bauen ähnliche Agents an — über die „Verwandte\"-Liste auf den Detailseiten findest du Vorbilder. Mehr zum Arbeiten mit Agents im Gespräch findest du unter KI-Chat."
+    "text": "Probier einen Agenten aus, bevor du ihn dazuholst. In der Agentura öffnet Im Chat ausprobieren ein Gespräch mit der ganzen Konfiguration. Hol dir, was du regelmäßig brauchst, zu deinen Grüneratoren. Den Rest findest du jederzeit wieder in der Agentura. Hefte deine wichtigsten Agents mit dem Stern an, damit sie in der Seitenleiste auftauchen. Schau dir vor dem Bauen ähnliche Agents an. Über die „Verwandte“-Liste auf den Detailseiten findest du Vorbilder. Mehr zum Arbeiten mit Agents im Gespräch findest du unter KI-Chat."
   },
   {
     "url": "/docs/features/boards",
@@ -1401,7 +1475,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Features",
     "anchor": "",
     "category": "Features",
-    "text": "Neben dem Chat gibt es im Grünerator drei größere Flächen. Diese Seiten beschreiben, was es dort gibt — jede Funktion, jeden Schalter. Wenn du stattdessen eine bestimmte Aufgabe erledigen willst, sind die Guides für Einsteiger*innen der kürzere Weg. Office — Dokumente, Tabellen, Präsentationen und Boards, gemeinsam bearbeitbar und mit KI-Unterstützung direkt im Editor. Agentura — der Marktplatz für Grüneratoren und Rezepte: fertige nutzen, eigene bauen. Notebooks — eigenes Wissen bündeln und durchsuchbar machen: Quellarten, Teilen, Verwaltung. Landesverbände — welche Inhalte der Landesverbände im Grünerator stecken und was ihre Agents können."
+    "text": "Neben dem Chat gibt es im Grünerator drei größere Flächen. Diese Seiten beschreiben, was es dort gibt — jede Funktion, jeden Schalter. Wenn du stattdessen eine bestimmte Aufgabe erledigen willst, sind die Guides für Einsteiger*innen der kürzere Weg. Office — Dokumente, Tabellen, Präsentationen und Boards, gemeinsam bearbeitbar und mit KI-Unterstützung direkt im Editor. Grüneratoren und Agentura — deine Agents, Rezepte und Aufgaben an einem Ort, dazu die Agentura als Laden für offizielle und öffentliche: fertige dazuholen, eigene bauen. Notebooks — eigenes Wissen bündeln und durchsuchbar machen: Quellarten, Teilen, Verwaltung. Landesverbände — welche Inhalte der Landesverbände im Grünerator stecken und was ihre Agents können."
   },
   {
     "url": "/docs/features/ki-im-editor",
@@ -1724,6 +1798,54 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "text": "Schreib in der Chat-Seitenleiste, was passieren soll. Folien sprichst du dabei über ihre Nummer an („Folie 3\") oder über ihren Inhalt („die Folie mit den Zahlen\"). Pro Auftrag führt der Grünerator bis zu Änderungen aus. Wenn du „mach den Titel von Folie 2 kürzer\" sagst, bleibt alles andere an dieser Folie unangetastet — Inhalt, Notizen, Hintergrund. Du musst nie die ganze Folie neu beschreiben, nur weil du eine Kleinigkeit ändern willst. Welche Änderungen möglich sind, stammt direkt aus dem Programmcode. Kommt eine neue Fähigkeit dazu, meldet sich die Doku-Prüfung automatisch, bis sie hier mit einem Beispielsatz beschrieben ist."
   },
   {
+    "url": "/docs/features/sharepics",
+    "pageTitle": "Sharepics: alle Varianten auf einen Blick",
+    "heading": "Sharepics: alle Varianten auf einen Blick",
+    "anchor": "",
+    "category": "Features",
+    "text": "Der Sharepic-Creator macht aus einem kurzen Auftrag ein Einzelbild oder ein Karussell im passenden Grünen-Design. Welches Design verwendet wird, richtet sich nach deinem Land im Grünerator. Der Creator kennt genau diese 15 Formen: Einzelbild, Zitat, Karussell, Interview, Infografik, Diagramm, Große Zahl, Rechnung, Termine, Schlagzeile, Bingo, Vergleich, Faktencheck, Faktenbild und Veranstaltung. Du kannst eine Form ausdrücklich nennen oder den Grünerator eine passende auswählen lassen. Prüfe Texte, Zahlen, Zitate und Quellen vor jeder Veröffentlichung. Die Aussagen und Daten in den folgenden Bildern sind erfundene Beispiele."
+  },
+  {
+    "url": "/docs/features/sharepics",
+    "pageTitle": "Sharepics: alle Varianten auf einen Blick",
+    "heading": "Deutschland",
+    "anchor": "#deutschland",
+    "category": "Features",
+    "text": "Deutsche Sharepics verwenden die Schriften GrüneType Neue und PT Sans, flächige Farben und die Wort-Bild-Marke von BÜNDNIS 90/DIE GRÜNEN. Für Hervorhebungen kann der Creator grüne Textmarker-Boxen sowie handgezeichnete Kreise und Unterstreichungen einsetzen. Emoji-Liste: ein passendes Symbol vor jedem Punkt Handgezeichnet: Schlüsselwörter einkreisen oder unterstreichen Diagramm: Daten in einer Karte mit sichtbarer Quelle Nur im deutschen Design gibt es außerdem: die acht Farben Tanne, Dunkeltanne, Grasgrün, Mint, Hellgrau, Creme, Aubergine und Weiß einen randlos geteilten Vergleich mit „VS“ zwischen zwei Spalten eine Liste im Kasten, bei der Kennzahlen als Textmarker hervorgehoben werden ein farbiges Kopfband über Karten und eine große, blasse Sonnenblume auf Farbflächen besonders lange Zitate und Textseiten, etwa für Interviews"
+  },
+  {
+    "url": "/docs/features/sharepics",
+    "pageTitle": "Sharepics: alle Varianten auf einen Blick",
+    "heading": "Formen in Deutschland und Österreich",
+    "anchor": "#formen-in-deutschland-und-österreich",
+    "category": "Features",
+    "text": "Die 15 Formen stehen in beiden Ländern zur Verfügung: Form | Was entsteht | ------------- | ------------------------------------------------------------------------------- | Einzelbild | eine große Aussage auf einer Farbfläche oder einem Foto | Zitat | eine Aussage mit Name, Funktion und optionaler Quelle | Karussell | drei bis acht zusammenhängende Slides | Interview | Cover-Zitat, danach Slides mit Frage und Antwort und ein Schluss | Infografik | kurze Informationen als Raster, Ablauf, Mengenvergleich, Anteil oder große Zahl | Diagramm | Werte als Balken, Balken quer, Linie, Kreis oder Donut | Große Zahl | eine Kennzahl über Text, als Riesenzahl oder im Countdown-Kreis | Rechnung | Zahlen oder Begriffe, die Schritt für Schritt verrechnet werden | Termine | zwei bis sechs Termine gemeinsam auf einer Slide | Schlagzeile | eine Meldung als Zeitungsausriss oder Karte; dazu gehört auch „Good News“ | Bingo | neun oder 16 kurze Aussagen in einem Raster | Vergleich | zwei Positionen oder Pläne direkt gegenübergestellt | Faktencheck | bis zu drei Paare aus Mythos und Fakt | Faktenbild | eine Zahl oder ein Diagramm vor einem eigens KI-generierten Hintergrundmotiv | Veranstaltung | ein…"
+  },
+  {
+    "url": "/docs/features/sharepics",
+    "pageTitle": "Sharepics: alle Varianten auf einen Blick",
+    "heading": "Gemeinsame Gestaltungsmöglichkeiten",
+    "anchor": "#gemeinsame-gestaltungsmöglichkeiten",
+    "category": "Features",
+    "text": "Die Formen lassen sich mit diesen Bausteinen kombinieren: Bereich | Varianten | -------------------- | ------------------------------------------------------------------------------------------------ | Ausgabe | eine Slide; Karussell mit drei bis acht Slides | Format | 4:5; 3:4 | Hintergrund | Farbfläche; Foto über die ganze Fläche; Foto oben; Foto unten | Foto in der Slide | Streifen oben; Streifen unten; Karte; Kreis; freigestellte Person | Fotofilter | grün eingefärbt; Graustufen; Original | Text | Dachzeile; mehrzeilige Überschrift; kurzer Text; Absatz; Zitat; Frage und Antwort; Button | Hervorhebungen | farbiges Schlüsselwort; handgezeichneter Kreis; handgezeichnete Unterstreichung | Listen | Punkte; Ziffern; Pfeile; Haken; Emojis; Iconliste | Daten und Fakten | fünf Diagrammarten im Feinschliff; Vergleich; Faktencheck; Rechnung; Termine; Bingo; Schlagzeile | Große Zahl | Zahl über Text; Riesenzahl; Countdown | Infografik | Raster; Ablauf; Mengen; Anteil; große Zahl | Karussell-Navigation | keine; Pfeil; Pfeil und Punkte; Pfeil und Seitenzahl; nur Seitenzahl | Nummerierung | aus; große Ziffer; Ziffer im Hintergrund | Schluss-Slide | Ausruf; Kernsatz; Petition | Im…"
+  },
+  {
+    "url": "/docs/features/sharepics",
+    "pageTitle": "Sharepics: alle Varianten auf einen Blick",
+    "heading": "Österreich",
+    "anchor": "#österreich",
+    "category": "Features",
+    "text": "Österreichische Sharepics verwenden Gotham Narrow für klare, kompakte Überschriften und Vollkorn für gelbe Akzente. Dazu kommen die österreichische Farbwelt und der typische handgezeichnete Weiter-Pfeil. Emoji-Liste: dieselbe Form im österreichischen Design Handgezeichnet: Kreis und Unterstreichung in Gelb Diagramm: dieselben Daten im österreichischen Design Im österreichischen Design stehen die drei Farben Dunkelgrün, Hellgrün und Weiß zur Verfügung. Auf dunklen Flächen und Fotos hebt der Creator einzelne Wörter gelb hervor. Das Logo erscheint vor allem am Ende eines Karussells."
+  },
+  {
+    "url": "/docs/features/sharepics",
+    "pageTitle": "Sharepics: alle Varianten auf einen Blick",
+    "heading": "Selbst ausprobieren",
+    "anchor": "#selbst-ausprobieren",
+    "category": "Features",
+    "text": "Im Einsteiger*innen-Guide „Wie erstelle ich ein Sharepic?“ findest du den vollständigen Ablauf für Web und App, Beispiel-Eingaben und die Checkliste vor dem Veröffentlichen."
+  },
+  {
     "url": "/docs/features/tabellen",
     "pageTitle": "Tabellen",
     "heading": "Tabellen",
@@ -2030,10 +2152,18 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
     "pageTitle": "Wie erstelle ich KI-Bilder?",
+    "heading": "Ausgabe",
+    "anchor": "#ausgabe",
+    "category": "Guides",
+    "text": "Herunterladen: Der Button oben rechts speichert die gerade ausgewählte Version als Bilddatei. Im Editor öffnen: Öffnet die ausgewählte Version im Studio-Canvas, etwa um daraus ein Sharepic mit Text und Gestaltungselementen zu machen. Neu starten: Das Pfeil-Symbol oben rechts löscht alle Versionen und führt zurück ins Studio."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
+    "pageTitle": "Wie erstelle ich KI-Bilder?",
     "heading": "Bild bearbeiten",
     "anchor": "#bild-bearbeiten",
     "category": "Guides",
-    "text": "Nach der Erstellung steht der Modus rechts im Eingabefeld automatisch auf „Bearbeiten“: Schreibe nur die gewünschte Änderung in das Feld, zum Beispiel: „Entferne die Autos im Vordergrund und ergänze einen Zebrastreifen.“ Falls sich die KI an einem anderen Bild orientieren soll, klicke unter dem Feld auf „Referenzbild“ und füge es hinzu. Schicke die Anweisung mit dem Pfeil ab. Das Original bleibt erhalten; die Änderung erscheint als neue Version. Möchtest du eine ältere Version anders weiterbearbeiten, wählst du zuerst ihr Vorschaubild in der Versionsleiste und gibst dann die neue Anweisung ein. So entsteht ein neuer Zweig, ohne spätere Versionen zu löschen. Du kannst statt eines KI-Bildes auch ein eigenes Bild bearbeiten: Wähle auf der Startseite „Oder editiere ein eigenes Bild“ und lade ein PNG oder JPG bis 10 MB hoch. Danach funktioniert das Bearbeiten genauso."
+    "text": "Sobald ein Bild da ist, bearbeitet jede Nachricht im Chat dieses Bild: Schreibe nur die gewünschte Änderung in das Feld, zum Beispiel: „Entferne die Autos im Vordergrund und ergänze einen Zebrastreifen.“ Falls sich die KI an einem anderen Bild orientieren soll, hänge es über das Bild-Symbol neben dem Pfeil als Referenzbild an. Schicke die Anweisung mit dem Pfeil ab. Das Original bleibt erhalten; die Änderung erscheint im Chat und als neue Version in der Vorschau. Möchtest du eine ältere Version anders weiterbearbeiten, wählst du zuerst ihr Vorschaubild in der Versionsleiste unter der Vorschau und gibst dann die neue Anweisung ein. So entsteht ein neuer Zweig, ohne spätere Versionen zu löschen. Du kannst statt eines KI-Bildes auch ein eigenes Foto bearbeiten: Klicke im Studio links im Eingabefeld auf das Plus-Symbol (Importieren), wähle Foto hochladen … (JPEG, PNG oder WebP, bis 10 MB) und schreibe, was sich ändern soll. Mit Foto bedeutet Bild Bearbeiten statt Neuerstellen; das Foto öffnet sich im Bild-Editor und wird nach deiner Anweisung verändert. Der Bild-Editor hat keine eigene Startseite: Jedes neue Bild beginnt im Studio. Danach funktioniert das Bearbeiten genauso."
   },
   {
     "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
@@ -2041,7 +2171,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Damit die Bilder glaubwürdig werden",
     "anchor": "#damit-die-bilder-glaubwürdig-werden",
     "category": "Guides",
-    "text": "Beschreibe, was zu sehen sein soll — nicht nur das Thema. Wer ist im Bild? Wo spielt es? Welche Tageszeit, Perspektive und Stimmung soll es haben? Wähle das Format in den Einstellungen. Bei einem vorhandenen Bild nutzt du dafür „Vergrößern“. Eine Formatangabe im Bildtext ersetzt die Auswahl nicht. Keine falschen Tatsachenbilder. Ein KI-Bild darf nicht den Eindruck erwecken, es dokumentiere ein reales Ereignis, eine echte Person oder einen tatsächlichen Zustand, wenn das nicht stimmt. Prüfe Rechte und Privatsphäre. Lade nur Bilder hoch, die du verwenden darfst. Bei bearbeiteten Fotos brauchst du insbesondere die Rechte am Ausgangsbild und solltest abgebildete Personen nicht täuschend echt verändern."
+    "text": "Beschreibe, was zu sehen sein soll — nicht nur das Thema. Wer ist im Bild? Wo spielt es? Welche Tageszeit, Perspektive und Stimmung soll es haben? Nenne Stil und Format im Text. „Illustration, Querformat“ oder „Story im Hochformat“ reicht. Keine falschen Tatsachenbilder. Ein KI-Bild darf nicht den Eindruck erwecken, es dokumentiere ein reales Ereignis, eine echte Person oder einen tatsächlichen Zustand, wenn das nicht stimmt. Prüfe Rechte und Privatsphäre. Lade nur Bilder hoch, die du verwenden darfst. Bei bearbeiteten Fotos brauchst du insbesondere die Rechte am Ausgangsbild und solltest abgebildete Personen nicht täuschend echt verändern."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
+    "pageTitle": "Wie erstelle ich KI-Bilder?",
+    "heading": "Einzelne Elemente gezielt ändern (Expertenmodus)",
+    "anchor": "#einzelne-elemente-gezielt-ändern-expertenmodus",
+    "category": "Guides",
+    "text": "Manchmal soll nur ein Ding im Bild anders werden: ein Sonnenschirm weg, ein E-Scooter durch ein Lastenrad ersetzt. Dafür gibt es oben rechts den Expertenmodus (experimentell). Klicke auf Expertenmodus. Die KI erkennt die Elemente des Bildes und legt um jedes einen dezenten Rahmen. Fährst du mit der Maus darüber, erscheint sein Name, etwa „Sonnenschirm 2“. Klicke auf das Element, das sich ändern soll. Daneben öffnet sich ein kleines Menü. Schreibe unter Ersetzen durch …, was stattdessen dort sein soll, oder klicke auf Entfernen. Ziehst du den Rahmen, wandert das Element an die neue Stelle; der Punkt unten rechts ändert die Größe. Rückgängig setzt das Element zurück. Mit + in der Leiste unter dem Bild fügst du ein neues Element hinzu und beschreibst, was dort entstehen soll. Klicke auf Anwenden. Die Änderungen erscheinen im Chat, zum Beispiel „E-Scooter → ein Lastenrad mit grünem Rahmen“, und als neue Version. Die Erkennung startet erst, wenn du den Expertenmodus zum ersten Mal einschaltest, und dauert je nach Bild bis zu einer halben Minute. Danach wird jede neue Version im Hintergrund erkannt. Schreibst du im Expertenmodus eine Nachricht in den Chat, nimmt sie die geänderten…"
   },
   {
     "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
@@ -2049,7 +2187,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Format und Größe einstellen",
     "anchor": "#format-und-größe-einstellen",
     "category": "Guides",
-    "text": "Beim Erstellen wählst du das Format direkt in den Einstellungen. Das Studio verwendet dafür diese Größen: 4:5: 1088 × 1360 Pixel 1:1: 1216 × 1216 Pixel 4:3: 1408 × 1056 Pixel 3:4: 1056 × 1408 Pixel 16:9: 1792 × 1008 Pixel 9:16: 1008 × 1792 Pixel Ein bereits vorhandenes Bild bringst du so in ein anderes Seitenverhältnis: Klicke rechts im Eingabefeld auf „Bearbeiten“ und wähle „Vergrößern“. Klicke links auf „Einstellungen“. Unter „Ziel-Format“ stehen 4:5, 1:1, 4:3, 3:4, 16:9 und 9:16. Wähle das Format und klicke unter dem Eingabefeld auf „Auf … vergrößern“. Das Studio beschneidet das Bild dabei nicht, sondern ergänzt neuen Bildinhalt an den fehlenden Rändern. Das funktioniert jetzt auch für 16:9 bei einem automatisch erzeugten 4:5-Bild. Die genaue Pixelgröße beim Vergrößern hängt vom Ausgangsbild ab."
+    "text": "Beim Erstellen wählt die KI das Format aus deinem Text (Standard 4:5). Das Studio verwendet dafür diese Größen: 4:5: 1088 × 1360 Pixel 1:1: 1216 × 1216 Pixel 4:3: 1408 × 1056 Pixel 3:4: 1056 × 1408 Pixel 16:9: 1792 × 1008 Pixel 9:16: 1008 × 1792 Pixel Brauchst du ein anderes Format, nenne es in einer neuen Beschreibung im Studio."
   },
   {
     "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
@@ -2057,15 +2195,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "So geht's",
     "anchor": "#so-gehts",
     "category": "Guides",
-    "text": "Studio öffnen. Öffne im Bereich Arbeiten das Studio und wähle KI-Bilder. Damit öffnet sich der Bild-Editor unter /bild-editor. Bild konkret beschreiben. Im Feld „Beschreibe dein Bild …“ nennst du Motiv, Ort, Perspektive, Licht und Stimmung. Zum Beispiel: „Eine schöne Stadt“ ist zu allgemein. „Geschützte Radwege“, die Tageszeit und der dokumentarische Stil geben dem Bild dagegen eine klare Richtung. Stil, Format und Kennzeichnung wählen. Klicke links im Eingabefeld auf „Einstellungen“. Dort stellst du ein: Stil: Illustration, Realistisch, Pixel Art oder Editorial Format: 4:5, 1:1, 4:3, 3:4, 16:9 oder 9:16 KI-Kennzeichnung: „KI-Generiert mit dem Grünerator“, nur „KI-Generiert“ oder keine Kennzeichnung Vorausgewählt sind Illustration, 4:5 und „KI-Generiert mit dem Grünerator“. Wenn du die Kennzeichnung änderst, wird genau diese Auswahl auf das neue Bild angewendet. Ohne sichtbare Kennzeichnung musst du ein realistisches KI-Bild („Deepfake“) beim Veröffentlichen gegebenenfalls selbst als KI-Bild kennzeichnen. Die maschinenlesbare Kennzeichnung bleibt in den Metadaten erhalten. Erstellen und Ergebnis prüfen. Schicke die Beschreibung mit dem Pfeil ab. Prüfe anschließend Format und…"
-  },
-  {
-    "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
-    "pageTitle": "Wie erstelle ich KI-Bilder?",
-    "heading": "Weitere Werkzeuge und Ausgabe",
-    "anchor": "#weitere-werkzeuge-und-ausgabe",
-    "category": "Guides",
-    "text": "Grün verwandeln: Wähle den Modus rechts und beschreibe optional, was grüner werden soll. Ohne eigenen Text nutzt das Studio eine fertige Anweisung für Bäume, Straßengrün, Blühflächen, geschützte Radwege und Aufenthaltsqualität. Hintergrund entfernen: Wähle den Modus rechts und klicke auf „Hintergrund entfernen“; eine Texteingabe ist nicht nötig. Herunterladen: Speichert die gerade ausgewählte Version als Bilddatei. In Canvas bearbeiten: Öffnet die ausgewählte Version im Studio-Canvas, etwa um daraus ein Sharepic mit Text und Gestaltungselementen zu machen."
+    "text": "Studio öffnen. Öffne im Bereich Arbeiten das Studio. Dort gibt es ein einziges Eingabefeld, in dem du nur tippst, was du brauchst. Schreibe dabei „Bild“, „Foto“ oder „Illustration“, dann erkennt Auto rechts im Feld ein KI-Bild („Auto · KI-Bild“). Du kannst den Modus auch selbst auf Bild stellen. Bild konkret beschreiben. Du nennst Motiv, Ort, Perspektive, Licht und Stimmung. Zum Beispiel: „Eine schöne Stadt“ ist zu allgemein. „Geschützte Radwege“, die Tageszeit und der dokumentarische Stil geben dem Bild dagegen eine klare Richtung. Stil und Format im Text nennen. Du wählst beides nicht mehr aus, die KI liest es aus deiner Beschreibung. Ohne Hinweis entsteht ein realistisches Foto im Format 4:5. „Aquarell“, „Zeichnung“ oder „Comic“ ergeben eine Illustration, „Banner“ oder „Titelbild“ ein breites Bild (16:9), „Story“ ein schmales (9:16), „Profilbild“ ein quadratisches (1:1). Ein genanntes Seitenverhältnis gilt immer. Absenden. Drücke Enter oder klicke auf den lila Pfeil. Das Bild entsteht im Bild-Editor, der sich in einem neuen Tab öffnet: links der Chat mit deinen Anweisungen, rechts die Vorschau. Solange das Bild entsteht, zeigt die Vorschau eine Platzhalter-Karte. Auf dem Handy…"
   },
   {
     "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
@@ -2073,7 +2203,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Weiterlesen",
     "anchor": "#weiterlesen",
     "category": "Guides",
-    "text": "Kennzeichnungs-Guide — Kennzeichnung von KI-Bildern und -Videos Bildnachweise & Lizenzen — Quellen und Lizenzen der Icons und Illustrationen im Canvas"
+    "text": "Wie erstelle ich ein Sharepic? — mit einer Vorlage, im Studio oder direkt im Chat starten Kennzeichnungs-Guide — Kennzeichnung von KI-Bildern und -Videos Bildnachweise & Lizenzen — Quellen und Lizenzen der Icons und Illustrationen im Canvas"
   },
   {
     "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
@@ -2081,7 +2211,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wenn es nicht passt",
     "anchor": "#wenn-es-nicht-passt",
     "category": "Guides",
-    "text": "Das Bild trifft die Idee nicht? Formuliere die Beschreibung konkreter und ändere nur einen Aspekt pro neuer Variante. So erkennst du, welche Anweisung wirkt. Eine Änderung geht zu weit? Wähle in der Versionsleiste wieder die passende frühere Version und arbeite von dort weiter. Das Ergebnis soll ein Social-Media-Motiv werden? Öffne es mit „In Canvas bearbeiten“ und ergänze dort Überschrift, Absender und weitere Gestaltung."
+    "text": "Das Bild trifft die Idee nicht? Formuliere die Beschreibung konkreter und ändere nur einen Aspekt pro neuer Variante. So erkennst du, welche Anweisung wirkt. Eine Änderung geht zu weit? Wähle in der Versionsleiste wieder die passende frühere Version und arbeite von dort weiter. Das Ergebnis soll ein Social-Media-Motiv werden? Öffne es mit „Im Editor öffnen“ und ergänze dort Überschrift, Absender und weitere Gestaltung."
   },
   {
     "url": "/docs/guides/einsteigerinnen/magic-search-in-notebooks-nutzen",
@@ -2170,6 +2300,142 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#wenn-es-nicht-klappt",
     "category": "Guides",
     "text": "Der Upload schlägt fehl? Prüfe zuerst, ob deine Datei eines der unterstützten Videoformate hat. Exportiere problematische Dateien am zuverlässigsten noch einmal als MP4. Die Untertitel sind ungenau? Öffne über das Stift-Symbol den Editor und korrigiere die betroffenen Karten. Bei sehr leiser oder überlagerter Tonspur hilft ein klarer aufgenommenes Ausgangsvideo. Der Download startet nicht? Warte, bis der Export fertig ist. Falls der automatische Download blockiert wird, erlaubt dein Browser möglicherweise erst nach einem erneuten Klick den Dateidownload."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
+    "pageTitle": "Wie erstelle ich ein Sharepic?",
+    "heading": "Wie erstelle ich ein Sharepic?",
+    "anchor": "",
+    "category": "Guides",
+    "text": "Am Ende hast du ein fertiges Sharepic oder Karussell im Grünen-Design. Du kannst mit einer Vorlage beginnen, deinen Text im Studio eingeben oder das Sharepic direkt im Chat anfordern. Du möchtest zuerst sehen, was möglich ist? Unter Sharepics: alle Varianten auf einen Blick findest du sämtliche Formen und Gestaltungsmöglichkeiten für Deutschland und Österreich."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
+    "pageTitle": "Wie erstelle ich ein Sharepic?",
+    "heading": "Beispiele für gute Eingaben",
+    "anchor": "#beispiele-für-gute-eingaben",
+    "category": "Guides",
+    "text": "Sag möglichst konkret, welche Form, Zielgruppe, Kernaussage und Handlungsaufforderung du brauchst. Bei Zahlen oder Diagrammen gehören Quelle und Zeitraum in die Eingabe."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
+    "pageTitle": "Wie erstelle ich ein Sharepic?",
+    "heading": "Direkt im Chat erstellen",
+    "anchor": "#direkt-im-chat-erstellen",
+    "category": "Guides",
+    "text": "Schreibe im normalen Chat zum Beispiel: „Erstelle dazu ein Sharepic“ oder „Mach daraus ein Karussell mit drei Slides“. Der Grünerator erzeugt das Sharepic direkt in der Antwort. Unter der Vorschau findest du drei Aktionen: „Im Chat bearbeiten“ aktiviert den Sharepic-Modus. Die Vorschau bleibt rechts angeheftet. Weitere Nachrichten wie „Kürze die zweite Folie“ oder „Mach die Überschrift sachlicher“ ändern genau dieses Sharepic. „Herunterladen“ speichert das Bild; ein Karussell kannst du als ZIP herunterladen. „Studio“ öffnet das Sharepic im Studio-Editor. Im Chat vorgeschlagene Designs erscheinen unter „Diese Design-Optionen passen zu deinem Beitrag“. Mit „Mit meinem Text erstellen“ wird dein Beitrag in die gewählte Vorlage eingesetzt; „Kopie bearbeiten“ öffnet eine unveränderte Kopie."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
+    "pageTitle": "Wie erstelle ich ein Sharepic?",
+    "heading": "Feinschliff ohne neue KI-Runde",
+    "anchor": "#feinschliff-ohne-neue-ki-runde",
+    "category": "Guides",
+    "text": "Mit „Feinschliff“ änderst du den Look sofort. Je nach Inhalt erscheinen dort „Zeilenboxen“, „Navigation“, „Nummerierung“, „Schluss-Slide“, „Liste“, „Zahl“, „Schlagzeile“ und „Diagramm“. Nicht passende Varianten sind ausgegraut. „Wie entworfen“ stellt den KI-Entwurf wieder her. Für Deutschland gibt es Tanne, Dunkeltanne, Grasgrün, Mint, Hellgrau, Creme, Aubergine und Weiß. Die eigene Österreich-Palette besteht aus Dunkelgrün, Hellgrün und Weiß. Bei mehreren Slides kannst du außerdem helle und dunkle Farben abwechseln lassen. Die nächste Chat-Nachricht baut auf deinem umgestalteten Stand auf. Beispiel mit erfundenen Terminen, KI-generiert mit dem Grünerator."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
+    "pageTitle": "Wie erstelle ich ein Sharepic?",
+    "heading": "Im Editor weiterarbeiten",
+    "anchor": "#im-editor-weiterarbeiten",
+    "category": "Guides",
+    "text": "Mit „Herunterladen“ speicherst du ein einzelnes Sharepic als PNG. Bei einem Karussell heißt der Button „Als ZIP herunterladen“. Mit „Im Editor öffnen“ wird das Ergebnis als bearbeitbare Leinwand angelegt; bei einem Karussell wird jede Slide zu einer eigenen Seite. Dort kannst du Texte, Größen, Positionen und weitere Gestaltungselemente einzeln ändern. Öffnest du ein Sharepic aus dem normalen Chat, heißt der entsprechende Button dort kurz „Studio“."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
+    "pageTitle": "Wie erstelle ich ein Sharepic?",
+    "heading": "Im Sharepic-Creator überarbeiten",
+    "anchor": "#im-sharepic-creator-überarbeiten",
+    "category": "Guides",
+    "text": "Jede weitere Nachricht bearbeitet den aktuellen Entwurf. Beschreibe nur die gewünschte Änderung, zum Beispiel: Im Web kannst du im Creator über „Eigenes Foto anhängen“ weitere Fotos ergänzen, solange insgesamt höchstens vier verwendet werden. Nach einem Neuladen stellt der Browser die letzte Creator-Unterhaltung samt Gestaltung wieder her."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
+    "pageTitle": "Wie erstelle ich ein Sharepic?",
+    "heading": "Im Studio aus Text erstellen",
+    "anchor": "#im-studio-aus-text-erstellen",
+    "category": "Guides",
+    "text": "Studio öffnen. Öffne im Bereich Arbeiten das Studio. In der Mitte steht das Eingabefeld „Erstellen oder suchen“. Sharepic auswählen. Rechts im Eingabefeld steht zunächst „Auto“. Sobald dein Text nach einem Sharepic klingt, erscheint „Auto · Sharepic“. Du kannst über „Modus wählen“ auch direkt „Sharepic“ einstellen. Auftrag eingeben. Beschreibe Thema, Form, Zielgruppe und Kernaussage. Nenne zum Beispiel „Einzelbild“, „Karussell“, „Zitat“, „Termine“, „Große Zahl“ oder „Diagramm“. Über Importieren und Foto hochladen … kannst du im Web bis zu vier eigene Fotos anhängen. Erstellen. Klicke auf „Erstellen“ oder drücke Enter. Der Sharepic-Creator öffnet sich in einem neuen Tab als „Sharepic aus Freitext“. Links siehst du den Chat, rechts die Vorschau. Entwurf prüfen. Bei einem Karussell blätterst du durch mehrere Slides. Im Chat steht außerdem, ob eine Illustration KI-generiert ist, ein eigenes Foto verwendet wurde oder von wem ein Stockfoto auf Unsplash stammt."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
+    "pageTitle": "Wie erstelle ich ein Sharepic?",
+    "heading": "In der App",
+    "anchor": "#in-der-app",
+    "category": "Guides",
+    "text": "Öffne „Arbeiten“, tippe auf „Neu erstellen“ und wähle „Bild erstellen“. Stelle im Eingabefeld den Modus auf „Sharepic“ und schicke deine Beschreibung ab. Danach wischst du im Chat durch die Slides, öffnest „Feinschliff“ über das Regler-Symbol und wechselst über „Im Editor öffnen“ oben rechts in den Editor. Im Feinschliff heißt die Rückkehr zum ursprünglichen Entwurf in der App „Zurücksetzen“. In der App kannst du derzeit keine eigenen Fotos anhängen. Die Creator-Sitzung wird dort außerdem nicht gespeichert."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
+    "pageTitle": "Wie erstelle ich ein Sharepic?",
+    "heading": "Mit einer Vorlage beginnen",
+    "anchor": "#mit-einer-vorlage-beginnen",
+    "category": "Guides",
+    "text": "Vorlagen öffnen. Öffne Vorlagen. Die Seite heißt „Vorlagen-Datenbank“. Unter „Filter“ kannst du „Grünerator“ auswählen; über „Vorlagen durchsuchen …“ suchst du nach Thema oder Form. Vorlage ansehen. Klicke auf eine Vorlage. Die Detailansicht zeigt alle Seiten, das Land und die Sharepic-Form. Enthält die Vorlage ein Unsplash-Foto, steht dort auch der Fotonachweis. Vorlage verwenden. Mit „Kopie bearbeiten“ öffnest du eine eigene Kopie direkt im Studio-Editor. Unter „Im Chat erstellen“ findest du außerdem passende Beispiel-Eingaben. Klicke auf eine Eingabe, um sie im Sharepic-Creator zu öffnen, oder nutze „Kopieren“. Eine Kopie übernimmt zunächst Aufbau, Farben und Texte der Vorlage. Im Editor kannst du jedes Element einzeln ändern. Eine Übersicht aller möglichen Sharepic-Formen findest du im Beitrag unter Features."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
+    "pageTitle": "Wie erstelle ich ein Sharepic?",
+    "heading": "Vor dem Veröffentlichen prüfen",
+    "anchor": "#vor-dem-veröffentlichen-prüfen",
+    "category": "Guides",
+    "text": "Stimmen Zahlen, Namen, Daten, Zitate und politische Aussagen mit deinen Quellen überein? Darfst du eigene oder gefundene Fotos verwenden, und ist der nötige Fotonachweis dabei? Ist die sichtbare KI-Kennzeichnung korrekt? Lass sie auch bei Änderungen im Editor stehen. Sind alle Texte gut lesbar und auf jeder Slide vollständig? Beispielrechnung ohne echte Messwerte, KI-generiert mit dem Grünerator."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
+    "pageTitle": "Wie erstelle ich ein Sharepic?",
+    "heading": "Weiterlesen",
+    "anchor": "#weiterlesen",
+    "category": "Guides",
+    "text": "Sharepics: alle Varianten auf einen Blick — alle Formen und Gestaltungsmöglichkeiten mit Beispielen Wie erstelle ich KI-Bilder? — eigene Bilder erzeugen und bearbeiten Kennzeichnungs-Guide — KI-Inhalte richtig kennzeichnen Bildnachweise & Lizenzen — Rechte und Quellen bei Bildern"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
+    "pageTitle": "Wie erstelle ich ein Sharepic?",
+    "heading": "Welcher Einstieg passt zu mir?",
+    "anchor": "#welcher-einstieg-passt-zu-mir",
+    "category": "Guides",
+    "text": "Vorlage verwenden: Du suchst zuerst einen passenden Look und ersetzt anschließend die Inhalte. Im Studio erstellen: Du hast schon ein Thema oder einen Text und möchtest daraus gezielt ein Sharepic machen. Im Chat erstellen: Du arbeitest ohnehin an einem Beitrag und möchtest im selben Gespräch ein Sharepic dazu erzeugen."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepics-ki-bilder-studio",
+    "pageTitle": "Sharepics und KI-Bilder im Studio erstellen",
+    "heading": "Sharepics und KI-Bilder im Studio erstellen",
+    "anchor": "",
+    "category": "Guides",
+    "text": "Am Ende hast du in wenigen Minuten ein Sharepic oder ein KI-Bild, ohne vorher Werkzeug oder Format gewählt zu haben. Du tippst im Studio einfach, was du brauchst."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepics-ki-bilder-studio",
+    "pageTitle": "Sharepics und KI-Bilder im Studio erstellen",
+    "heading": "Damit das Ergebnis passt",
+    "anchor": "#damit-das-ergebnis-passt",
+    "category": "Guides",
+    "text": "Schlagwörter setzen die Richtung. Wörter wie Sharepic, Zitat, Kachel oder Instagram ergeben ein Sharepic. „Bild“, „Foto“ oder „Illustration“ ergeben ein KI-Bild. Ein hochgeladenes Foto ohne Sharepic-Wörter wird als Bild bearbeitet. Im Zweifel entsteht ein Sharepic. Stil steckt im Text. Ohne Hinweis entsteht ein realistisches Foto. „Aquarell“, „Zeichnung“ oder „Comic“ ergeben eine Illustration, „Pixel“ oder „Retro“ Pixel Art, „Magazin“ oder „Studio-Porträt“ einen Editorial-Look. Format steckt im Text. Standard ist 4:5. „Profilbild“ oder „quadratisch“ ergibt 1:1, „Banner“, „Titelbild“ oder „Thumbnail“ 16:9, „Story“ oder „Reel“ 9:16, „Poster“ 3:4. Ein genanntes Seitenverhältnis gilt immer. Eine Stil- oder Formatauswahl im Bild-Editor gibt es nicht mehr. Mit Foto heißt Bearbeiten. Wählst du Bild und lädst ein Foto hoch, wird dieses Foto nach deiner Anweisung verändert. Ohne Foto entsteht ein neues Bild."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepics-ki-bilder-studio",
+    "pageTitle": "Sharepics und KI-Bilder im Studio erstellen",
+    "heading": "So geht's",
+    "anchor": "#so-gehts",
+    "category": "Guides",
+    "text": "Studio öffnen. Auf der Seite Dein Studio gibt es ein einziges Eingabefeld. Es wächst mit deinem Text. Beschreiben, was entstehen soll. Schreibe es in eigenen Worten, zum Beispiel: Optional Fotos mitgeben. Klicke links im Feld auf das Plus-Symbol (Importieren) und wähle Foto hochladen … (JPEG, PNG oder WebP, bis 10 MB). Beim Sharepic nimmst du bis zu vier Fotos als Motiv, beim Bild eines. Modus prüfen. Rechts im Feld steht Auto. Beim Tippen zeigt es, was entsteht, etwa „Auto · Sharepic“ oder „Auto · KI-Bild“. Passt das nicht, wähle von Hand Sharepic oder Bild. Absenden. Drücke Enter oder klicke auf den lila Pfeil. Shift+Enter macht einen Zeilenumbruch. Das Ergebnis öffnet sich in einem neuen Browser-Tab. Weiterarbeiten. Sharepic und KI-Bild öffnen sich im selben Aufbau: links der Chat, rechts die Vorschau, oben rechts Herunterladen und Im Editor öffnen. Beim Sharepic gibt es dazu Karussell, Änderungen per Satz („Mach Slide 3 kürzer“) und Feinschliff. Ein KI-Bild bearbeitest du mit Anweisungen im Chat weiter; einzelne Elemente änderst du gezielt im Expertenmodus."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepics-ki-bilder-studio",
+    "pageTitle": "Sharepics und KI-Bilder im Studio erstellen",
+    "heading": "Weiterlesen",
+    "anchor": "#weiterlesen",
+    "category": "Guides",
+    "text": "Wie erstelle ich ein Sharepic?: Entwurf, Feinschliff und Editor im Detail Wie erstelle ich KI-Bilder?: Bilder erzeugen und nachbearbeiten Sharepics: alle Varianten auf einen Blick: Formen und Gestaltungsmöglichkeiten"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepics-ki-bilder-studio",
+    "pageTitle": "Sharepics und KI-Bilder im Studio erstellen",
+    "heading": "Wenn etwas nicht stimmt",
+    "anchor": "#wenn-etwas-nicht-stimmt",
+    "category": "Guides",
+    "text": "Der falsche Modus wurde erkannt? Wähle Sharepic oder Bild rechts im Feld selbst, statt den Text umzubauen. Stil oder Format passen nicht? Nenne beides ausdrücklich in der Beschreibung und sende neu ab. Vor dem Veröffentlichen prüfen: Stimmen Zahlen, Namen und Zitate mit deinen Quellen? Lass die KI-Kennzeichnung stehen, siehe Kennzeichnungs-Guide. Kläre vor dem Hochladen die Rechte an Fotos und den nötigen Nachweis, siehe Bildnachweise & Lizenzen. Unter dem Feld startet die Pille Anleitung eine interaktive Tour. Reels und Voice führen zu den weiteren Werkzeugen."
   },
   {
     "url": "/docs/guides/einsteigerinnen/social-media-beitrag",
@@ -2385,15 +2651,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wie erstelle ich einen Agenten?",
     "anchor": "",
     "category": "Guides",
-    "text": "In der Agentura kannst du einen eigenen Agenten für eine Aufgabe erstellen, die du häufiger erledigst, zum Beispiel für Pressemitteilungen, Recherchen oder Social-Media-Texte. Du beschreibst zuerst in normalen Worten, was der Agent tun soll. Der Grünerator füllt daraus den Editor vor; vor dem Speichern kannst du alles kontrollieren und ändern. Noch in der Erprobung: Verhalten und Funktionen können sich ändern. Melde Probleme gern dem Team."
+    "text": "Unter Grüneratoren kannst du einen eigenen Agenten für eine Aufgabe erstellen, die du häufiger erledigst, zum Beispiel für Pressemitteilungen, Recherchen oder Social-Media-Texte. Du beschreibst zuerst in normalen Worten, was der Agent tun soll. Der Grünerator füllt daraus den Editor vor; vor dem Speichern kannst du alles kontrollieren und ändern. Noch in der Erprobung: Verhalten und Funktionen können sich ändern. Melde Probleme gern dem Team."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
     "pageTitle": "Wie erstelle ich einen Agenten?",
-    "heading": "Schritt 1: Die Agentura öffnen",
-    "anchor": "#schritt-1-die-agentura-öffnen",
+    "heading": "Schritt 1: Deine Grüneratoren öffnen",
+    "anchor": "#schritt-1-deine-grüneratoren-öffnen",
     "category": "Guides",
-    "text": "Öffne die Agentura. Die Kategorie Meine Grüneratoren ist bereits ausgewählt. Klicke rechts über den Karten auf Neu → Agent."
+    "text": "Öffne Grüneratoren über den gleichnamigen Eintrag in der Seitenleiste. Klicke oben rechts auf das Plus (Neu) und wähle Agent."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
@@ -2409,7 +2675,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 3: Den Entwurf unter „Grundlagen“ prüfen",
     "anchor": "#schritt-3-den-entwurf-unter-grundlagen-prüfen",
     "category": "Guides",
-    "text": "Links siehst du das Formular, rechts die Vorschau der späteren Startseite. Prüfe zuerst im Tab Grundlagen die drei Pflichtfelder: Name: So erscheint der Agent in der Agentura. Über die Schaltfläche daneben kannst du sein Symbol ändern. Beschreibung: Ein kurzer Satz, der anderen den Zweck erklärt. Anleitung: Die Regeln für das Verhalten des Agenten. Hier sollte genau stehen, welche Aufgabe er hat, welche Angaben er vor dem Schreiben erfragen und wie er das Ergebnis aufbauen soll. Speichern bleibt deaktiviert, solange Name oder Beschreibung leer sind oder die Anleitung weniger als zehn Zeichen enthält. Unter Begrüßung & Startfragen kannst du optional einen Begrüßungstext und anklickbare Beispielfragen eintragen. Eine Beispielfrage kommt jeweils in eine eigene Zeile. Erweiterte Einstellungen enthält Region, Tags und Modell; für den ersten Agenten kannst du die Voreinstellungen beibehalten."
+    "text": "Links siehst du das Formular, rechts die Vorschau der späteren Startseite. Prüfe zuerst im Tab Grundlagen die drei Pflichtfelder: Name: So erscheint der Agent unter deinen Grüneratoren. Über die Schaltfläche daneben kannst du sein Symbol ändern. Beschreibung: Ein kurzer Satz, der anderen den Zweck erklärt. Anleitung: Die Regeln für das Verhalten des Agenten. Hier sollte genau stehen, welche Aufgabe er hat, welche Angaben er vor dem Schreiben erfragen und wie er das Ergebnis aufbauen soll. Speichern bleibt deaktiviert, solange Name oder Beschreibung leer sind oder die Anleitung weniger als zehn Zeichen enthält. Unter Begrüßung & Startfragen kannst du optional einen Begrüßungstext und anklickbare Beispielfragen eintragen. Eine Beispielfrage kommt jeweils in eine eigene Zeile. Erweiterte Einstellungen enthält Region, Tags und Modell; für den ersten Agenten kannst du die Voreinstellungen beibehalten."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
@@ -2433,7 +2699,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 6: Speichern und testen",
     "anchor": "#schritt-6-speichern-und-testen",
     "category": "Guides",
-    "text": "Klicke oben rechts auf Speichern. Erst jetzt wird der Agent angelegt. Anschließend bleibst du auf seiner Bearbeitungsseite und kannst ihn über Im Chat öffnen ausprobieren. Teste dabei mindestens: Fragt der Agent fehlende Angaben ab? Hält er Ton, Aufbau und Grenzen aus der Anleitung ein? Verwendet er nur die Werkzeuge und Wissensquellen, die du vorgesehen hast? Wenn etwas nicht passt, kehre zur Agentura zurück und wähle an der Karte Bearbeiten über das Stift-Symbol. Passe vor allem die Anleitung an, speichere erneut und teste noch einmal."
+    "text": "Klicke oben rechts auf Speichern. Erst jetzt wird der Agent angelegt. Anschließend bleibst du auf seiner Bearbeitungsseite und kannst ihn über Im Chat öffnen ausprobieren. Teste dabei mindestens: Fragt der Agent fehlende Angaben ab? Hält er Ton, Aufbau und Grenzen aus der Anleitung ein? Verwendet er nur die Werkzeuge und Wissensquellen, die du vorgesehen hast? Wenn etwas nicht passt, kehre zu deinen Grüneratoren zurück und wähle im Menü der Karte (drei Punkte) Bearbeiten. Passe vor allem die Anleitung an, speichere erneut und teste noch einmal."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
@@ -2441,7 +2707,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wie erstelle ich ein eigenes Rezept?",
     "anchor": "",
     "category": "Guides",
-    "text": "Ein Rezept ist eine Schreibvorgabe für eine bestimmte Textsorte: Aufbau, Ton und Länge, einmal festgelegt und danach per @mention auf jeden Agenten anwendbar. Anders als ein Agent ist ein Rezept kein eigenständiges Gegenüber — es ist eine Vorlage, die du im Chat kurz aktivierst, etwa @presse für eine Pressemitteilung oder ein selbst gebautes @einladung für Einladungen zur Mitgliederversammlung. In der Agentura kannst du dir eigene Rezepte für Textsorten bauen, die du häufiger schreibst."
+    "text": "Ein Rezept ist eine Schreibvorgabe für eine bestimmte Textsorte: Aufbau, Ton und Länge, einmal festgelegt und danach per @mention auf jeden Agenten anwendbar. Anders als ein Agent ist ein Rezept kein eigenständiges Gegenüber — es ist eine Vorlage, die du im Chat kurz aktivierst, etwa @presse für eine Pressemitteilung oder ein selbst gebautes @einladung für Einladungen zur Mitgliederversammlung. Unter Grüneratoren kannst du dir eigene Rezepte für Textsorten bauen, die du häufiger schreibst."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
@@ -2457,15 +2723,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Ein mitgeliefertes Rezept anpassen",
     "anchor": "#ein-mitgeliefertes-rezept-anpassen",
     "category": "Guides",
-    "text": "Rezepte, die der Grünerator mitbringt (z. B. Presse, Instagram, Facebook, Landesverbands-Rezepte), kannst du mit deinem eigenen Stil überschreiben, ohne sie neu zu bauen: Öffne das Rezept in der Agentura und klicke auf seiner Detailseite auf „Mit eigenen Beispielen anpassen\". Das öffnet denselben Editor — Name und @mention sind dabei fest vorgegeben, Anleitung und Beispiele füllst du selbst. Danach zeigt die Detailseite des Rezepts das Abzeichen „Du hast diesen Stil angepasst\", und die Schaltfläche heißt fortan „Angepassten Stil bearbeiten\"."
+    "text": "Rezepte, die der Grünerator mitbringt (z. B. Presse, Instagram, Facebook, Landesverbands-Rezepte), kannst du mit deinem eigenen Stil überschreiben, ohne sie neu zu bauen: Such das Rezept in der Agentura (mitgelieferte Rezepte findest du dort über die Suche), öffne Alle Details und klicke auf seiner Detailseite auf „Mit eigenen Beispielen anpassen\". Das öffnet denselben Editor — Name und @mention sind dabei fest vorgegeben, Anleitung und Beispiele füllst du selbst. Danach zeigt die Detailseite des Rezepts das Abzeichen „Du hast diesen Stil angepasst\", und die Schaltfläche heißt fortan „Angepassten Stil bearbeiten\"."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
     "pageTitle": "Wie erstelle ich ein eigenes Rezept?",
-    "heading": "Schritt 1: Die Agentura öffnen",
-    "anchor": "#schritt-1-die-agentura-öffnen",
+    "heading": "Schritt 1: Deine Grüneratoren öffnen",
+    "anchor": "#schritt-1-deine-grüneratoren-öffnen",
     "category": "Guides",
-    "text": "Öffne die Agentura und klicke rechts über den Karten auf Neu → Rezept. Alternativ öffnest du die Kategorie Meine Rezepte und klickst dort auf Neues Rezept."
+    "text": "Öffne Grüneratoren über den gleichnamigen Eintrag in der Seitenleiste. Klicke oben rechts auf das Plus (Neu) und wähle Rezept."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
@@ -2473,7 +2739,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 2: Einen Weg wählen",
     "anchor": "#schritt-2-einen-weg-wählen",
     "category": "Guides",
-    "text": "Auf der Startseite des Rezept-Erstellers stehen dir zwei Wege offen: Beschreiben: Schreibe ins Eingabefeld, wofür das Rezept gedacht ist — zum Beispiel „Ein Rezept für Einladungen zur Mitgliederversammlung: förmlicher Ton, mit Tagesordnung und Anmeldehinweis.\" Der Grünerator erstellt daraus einmalig einen Entwurf und öffnet den Editor. Manuell: Über „Lieber manuell anlegen?\" öffnest du denselben Editor mit leeren Feldern. Gespeichert ist das Rezept in keinem der beiden Fälle, solange du nicht auf Speichern klickst. Du kannst ein Rezept auch im Chat anlegen, etwa mit „Erstell mir ein Rezept für Einladungen zur Mitgliederversammlung\". Der Chat speichert es dann sofort und zeigt dir die Anleitung sowie einen Link zum Bearbeiten. Prüfe sie in der Agentura, wie ab Schritt 3 beschrieben. Auch Name, Beschreibung und Anleitung eines eigenen Rezepts kannst du im Chat ändern lassen."
+    "text": "Auf der Startseite des Rezept-Erstellers stehen dir zwei Wege offen: Beschreiben: Schreibe ins Eingabefeld, wofür das Rezept gedacht ist — zum Beispiel „Ein Rezept für Einladungen zur Mitgliederversammlung: förmlicher Ton, mit Tagesordnung und Anmeldehinweis.\" Der Grünerator erstellt daraus einmalig einen Entwurf und öffnet den Editor. Manuell: Über „Lieber manuell anlegen?\" öffnest du denselben Editor mit leeren Feldern. Gespeichert ist das Rezept in keinem der beiden Fälle, solange du nicht auf Speichern klickst. Du kannst ein Rezept auch im Chat anlegen, etwa mit „Erstell mir ein Rezept für Einladungen zur Mitgliederversammlung\". Der Chat speichert es dann sofort und zeigt dir die Anleitung sowie einen Link zum Bearbeiten. Prüfe sie im Editor, wie ab Schritt 3 beschrieben. Auch Name, Beschreibung und Anleitung eines eigenen Rezepts kannst du im Chat ändern lassen."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
@@ -2481,7 +2747,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 3: Grundlagen prüfen",
     "anchor": "#schritt-3-grundlagen-prüfen",
     "category": "Guides",
-    "text": "Links siehst du das Formular, rechts die Vorschau. Das Formular ist nicht aufgeteilt — alle Felder stehen untereinander. Oben legst du fest: Name: So erscheint das Rezept in der Agentura. Über die Schaltfläche daneben kannst du sein Symbol ändern. @mention: Der Name, mit dem du das Rezept im Chat aufrufst (z. B. @einladung). Er wird beim Anlegen aus dem Namen abgeleitet und lässt sich danach nicht mehr ändern. Beschreibung: Ein kurzer Satz, der erklärt, wofür das Rezept gedacht ist. Speichern bleibt deaktiviert, solange Name oder Anleitung leer sind."
+    "text": "Links siehst du das Formular, rechts die Vorschau. Das Formular ist nicht aufgeteilt — alle Felder stehen untereinander. Oben legst du fest: Name: So erscheint das Rezept unter deinen Grüneratoren. Über die Schaltfläche daneben kannst du sein Symbol ändern. @mention: Der Name, mit dem du das Rezept im Chat aufrufst (z. B. @einladung). Er wird beim Anlegen aus dem Namen abgeleitet und lässt sich danach nicht mehr ändern. Beschreibung: Ein kurzer Satz, der erklärt, wofür das Rezept gedacht ist. Speichern bleibt deaktiviert, solange Name oder Anleitung leer sind."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
@@ -2801,7 +3067,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 1: Deine Rolle eintragen",
     "anchor": "#schritt-1-deine-rolle-eintragen",
     "category": "Guides",
-    "text": "Öffne die Einstellungen — über dein Profilbild unten in der Seitenleiste oder direkt über /settings. Geh zu Personalisierung. Wenn du den Grünerator zum ersten Mal benutzt, ist das gleich der erste Schritt der Einrichtung („Was machst du bei den Grünen?“). Unter Deine Rollen auf Hinzufügen. Wähle nacheinander: Ebene: Land Bundesland: dein Landesverband Rolle: Mitarbeiter*in Landesgeschäftsstelle (in Österreich: Mitarbeiter*in Landesorganisation) Der Assistent zeigt dir zum Schluss, was diese Rolle freischaltet — zum Beispiel „4 Agenten und 5 Rezepte sowie das Notebook Hessen erscheinen künftig in deiner Agentur und im Chat“. Speichern, fertig. Danach steht unter deinen Rollen ein Knopf „Zu deinem Landesverband“, der dich direkt in dein neues Regal bringt. Die Inhalte eines Landesverbands hängen an der Geschäftsstellen-Rolle und nur an ihr. Landtagsfraktion, MdL-Büro, Kreisverband oder Ortsverband geben zwar auch ein Bundesland an, schalten die LV-Agents aber nicht frei — sie sind das Material eines bestimmten Landesverbands, kein allgemeiner Bestand. Umgekehrt gilt: Ohne passende Rolle siehst du die LV-Inhalte nicht. Das ist Absicht und kein Fehler — vor der Zuteilung stand dort…"
+    "text": "Öffne die Einstellungen — über dein Profilbild unten in der Seitenleiste oder direkt über /settings. Geh zu Personalisierung. Wenn du den Grünerator zum ersten Mal benutzt, ist das gleich der erste Schritt der Einrichtung („Was machst du bei den Grünen?“). Unter Deine Rollen auf Hinzufügen. Wähle nacheinander: Ebene: Land Bundesland: dein Landesverband Rolle: Mitarbeiter*in Landesgeschäftsstelle (in Österreich: Mitarbeiter*in Landesorganisation) Der Assistent zeigt dir zum Schluss, was diese Rolle freischaltet — zum Beispiel „4 Agenten und 5 Rezepte sowie das Notebook Hessen erscheinen künftig in der Agentura und im Chat“. Speichern, fertig. Danach steht unter deinen Rollen ein Knopf „Zu deinem Landesverband“, der die Agentura direkt bei deinem Landesverband öffnet. Die Inhalte eines Landesverbands hängen an der Geschäftsstellen-Rolle und nur an ihr. Landtagsfraktion, MdL-Büro, Kreisverband oder Ortsverband geben zwar auch ein Bundesland an, schalten die LV-Agents aber nicht frei — sie sind das Material eines bestimmten Landesverbands, kein allgemeiner Bestand. Umgekehrt gilt: Ohne passende Rolle siehst du die LV-Inhalte nicht. Das ist Absicht und kein Fehler — vor der Zuteilung…"
   },
   {
     "url": "/docs/guides/landesverbaende/landesverband-einrichten",
@@ -2809,7 +3075,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 2: Was du jetzt hast",
     "anchor": "#schritt-2-was-du-jetzt-hast",
     "category": "Guides",
-    "text": "Ein eigenes Regal in der Agentura. Das Regal trägt den Namen deines Landesverbands (bei Hessen also „Grüne Hessen“). Darin stehen die drei Agents deines Verbands — Öffentlichkeitsarbeit, Bürger*innenanfragen und Wahlprüfsteine — und darunter eure Rezepte, ebenfalls mit dem Namen deines Landesverbands überschrieben. Eure Rezepte im Chat. Die Presse- und Instagram-Rezepte deines Landesverbands tauchen jetzt in der Rezept-Liste des Chats auf und lassen sich mit @ erwähnen, etwa @presse-hessen-partei oder @insta-hessen. Welche es je Landesverband gibt, steht unter Landesverband-Agents. Euer Notebook. Die Wissensdatenbank deines Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) erscheint in der Auswahl und lässt sich im Chat als Quelle erwähnen. Und die Automatik: Bittest du den Chat einfach um „eine Pressemitteilung zu …“, nimmt er von selbst eure Vorlage statt der allgemeinen. Du musst dafür nichts erwähnen und nichts einstellen — die Rolle in deinem Profil genügt. Das gilt im normalen Chat genauso wie dann, wenn du gerade in einer Rolle aus der Auswahlliste schreibst. Rollen, die du selbst formuliert hast, statt sie aus der Liste zu wählen, bringen ihre eigene…"
+    "text": "Ein eigener Gang in der Agentura. Er trägt den Namen deines Landesverbands (bei Hessen also „Grüne Hessen“). Darin stehen die drei Agents deines Verbands: Öffentlichkeitsarbeit, Bürger*innenanfragen und Wahlprüfsteine. Eure Rezepte stehen dort nicht im Gang; du findest sie über die Suche der Agentura und im Chat über @ (siehe unten). Mit Zu meinen Grüneratoren holst du dir, was du täglich brauchst, auf deine eigene Seite. In der App ist es ein eigenes Regal mit Agents und Rezepten. Eure Rezepte im Chat. Die Presse- und Instagram-Rezepte deines Landesverbands tauchen jetzt in der Rezept-Liste des Chats auf und lassen sich mit @ erwähnen, etwa @presse-hessen-partei oder @insta-hessen. Welche es je Landesverband gibt, steht unter Landesverband-Agents. Euer Notebook. Die Wissensdatenbank deines Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) erscheint in der Auswahl und lässt sich im Chat als Quelle erwähnen. Und die Automatik: Bittest du den Chat einfach um „eine Pressemitteilung zu …“, nimmt er von selbst eure Vorlage statt der allgemeinen. Du musst dafür nichts erwähnen und nichts einstellen — die Rolle in deinem Profil genügt. Das gilt im normalen Chat genauso wie…"
   },
   {
     "url": "/docs/guides/landesverbaende/landesverband-einrichten",
@@ -2817,7 +3083,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wenn nichts erscheint",
     "anchor": "#wenn-nichts-erscheint",
     "category": "Guides",
-    "text": "Dein Bundesland ist nicht dabei. Nicht jeder Landesverband hat eigene Agents, und einzelne haben sich gegen ein eigenes Notebook entschieden. Welche Landesverbände abgedeckt sind, steht aktuell auf der Seite Landesverband-Agents. Ist deiner nicht dabei, bleibt der Assistent stumm und verspricht nichts — die allgemeinen Rezepte (@presse, @instagram, @facebook, …) stehen dir wie allen anderen offen. Du hast die Rolle gerade erst angelegt. Das Regal erscheint, sobald die Einstellungen gespeichert sind; ein Neuladen der Seite hilft, wenn ein Tab schon länger offen stand. In der App genügt es, sie einmal neu zu starten. --- Was ihr mit den drei Agents jeweils machen könnt — Pressemitteilungen, Bürger*innenanfragen, Wahlprüfsteine — steht ausführlich unter Landesverband-Agents."
+    "text": "Dein Bundesland ist nicht dabei. Nicht jeder Landesverband hat eigene Agents, und einzelne haben sich gegen ein eigenes Notebook entschieden. Welche Landesverbände abgedeckt sind, steht aktuell auf der Seite Landesverband-Agents. Ist deiner nicht dabei, bleibt der Assistent stumm und verspricht nichts — die allgemeinen Rezepte (@presse, @instagram, @facebook, …) stehen dir wie allen anderen offen. Du hast die Rolle gerade erst angelegt. Der Gang erscheint, sobald die Einstellungen gespeichert sind; ein Neuladen der Seite hilft, wenn ein Tab schon länger offen stand. In der App genügt es, sie einmal neu zu starten. --- Was ihr mit den drei Agents jeweils machen könnt — Pressemitteilungen, Bürger*innenanfragen, Wahlprüfsteine — steht ausführlich unter Landesverband-Agents."
   },
   {
     "url": "/docs/sonstiges/archiv/newsletter/2025-03-gruugo",
@@ -3473,7 +3739,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Was direkt aus dem Code kommt",
     "anchor": "#was-direkt-aus-dem-code-kommt",
     "category": "Sonstiges",
-    "text": "Für die Teile, die reine Aufzählung sind, gibt es keine abgetippte Kopie in der Doku. Ein Skript liest die Konfigurationsdateien des Grünerators und schreibt daraus eine Datenliste, die die Doku-Seite beim Bauen einbindet: Was | Woraus | Wo du es siehst | ------------------------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | Werkzeuge und ihre Gruppen | Die Kachel- und Katalog-Konfiguration der Weboberfläche | Alle Werkzeuge | Chat-Fähigkeiten | Die Liste der Absichten, die der Chat erkennen kann, plus die @-Erwähnungen | Was kann ich fragen? | Einstellungen | Der Aufbau des Einstellungen-Dialogs und alle Schalter darin | Einstellungen | Office-Funktionen | Die Verträge zwischen App und KI — und was der Editor davon wirklich ausführt | Office-Überblick | Dateilimits, Sammlungen, Konnektoren | Die Upload-Prüfung und die Konnektor-Registry | Dateien hinzufügen, Konnektoren | Regale der Agentura | Der Kategorien-Katalog des Marktplatzes | Agentura | Namen von Werkzeugen und Menüpunkten im Fließtext |…"
+    "text": "Für die Teile, die reine Aufzählung sind, gibt es keine abgetippte Kopie in der Doku. Ein Skript liest die Konfigurationsdateien des Grünerators und schreibt daraus eine Datenliste, die die Doku-Seite beim Bauen einbindet: Was | Woraus | Wo du es siehst | ------------------------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | Werkzeuge und ihre Gruppen | Die Kachel- und Katalog-Konfiguration der Weboberfläche | Alle Werkzeuge | Chat-Fähigkeiten | Die Liste der Absichten, die der Chat erkennen kann, plus die @-Erwähnungen | Was kann ich fragen? | Einstellungen | Der Aufbau des Einstellungen-Dialogs und alle Schalter darin | Einstellungen | Office-Funktionen | Die Verträge zwischen App und KI — und was der Editor davon wirklich ausführt | Office-Überblick | Dateilimits, Sammlungen, Konnektoren | Die Upload-Prüfung und die Konnektor-Registry | Dateien hinzufügen, Konnektoren | Regale der Agentura in der App | Der Kategorien-Katalog des Marktplatzes | Agentura | Namen von Werkzeugen und Menüpunkten im…"
   },
   {
     "url": "/docs/webinare",

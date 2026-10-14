@@ -103,6 +103,143 @@ export interface GruenblogCrawlOptions {
 }
 
 /**
+ * Extract content from HTML using Rank Math JSON-LD and .entry-content
+ */
+export function extractGruenblogArticle(html: string): ExtractedContent {
+  const $ = cheerio.load(html);
+
+  let jsonLdData: Record<string, unknown> | null = null;
+  $('script[type="application/ld+json"]').each((_, el) => {
+    try {
+      const raw: unknown = JSON.parse($(el).html() || '');
+      const data = raw as Record<string, unknown>;
+      if (Array.isArray(data['@graph'])) {
+        const nodes = data['@graph'] as Record<string, unknown>[];
+        const found = nodes.find(
+          (node) =>
+            node['@type'] === 'Article' ||
+            node['@type'] === 'BlogPosting' ||
+            node['@type'] === 'NewsArticle'
+        );
+        if (found) jsonLdData = found;
+      } else if (data['@type'] === 'Article' || data['@type'] === 'BlogPosting') {
+        jsonLdData = data;
+      }
+    } catch {
+      // Ignore parse errors
+    }
+  });
+
+  const title =
+    (jsonLdData?.['headline'] as string | undefined) ||
+    $('h1.entry-title').text().trim() ||
+    $('h1').first().text().trim() ||
+    $('title').text().trim() ||
+    '';
+
+  const description =
+    (jsonLdData?.['description'] as string | undefined) ||
+    $('meta[property="og:description"]').attr('content') ||
+    $('meta[name="description"]').attr('content') ||
+    '';
+
+  const publishedAt =
+    (jsonLdData?.['datePublished'] as string | undefined) ||
+    $('meta[property="article:published_time"]').attr('content') ||
+    $('time[datetime]').first().attr('datetime') ||
+    null;
+
+  const authors: string[] = [];
+  if (jsonLdData?.['author']) {
+    const authorRaw = jsonLdData['author'];
+    const authorData = Array.isArray(authorRaw) ? (authorRaw as unknown[]) : [authorRaw];
+    for (const a of authorData) {
+      const name = typeof a === 'string' ? a : (a as Record<string, unknown> | null)?.['name'];
+      if (typeof name === 'string' && name.length > 1) authors.push(name);
+    }
+  }
+  if (authors.length === 0) {
+    $('.author-name, .entry-author a, .author a').each((_, el) => {
+      const name = $(el).text().trim();
+      if (name && name.length > 1 && !authors.includes(name)) {
+        authors.push(name);
+      }
+    });
+  }
+
+  // Extract categories
+  const categories: string[] = [];
+  $('a[rel="category tag"], .cat-links a, .entry-categories a').each((_, el) => {
+    const cat = $(el).text().trim();
+    if (cat && !categories.includes(cat)) categories.push(cat);
+  });
+  const primaryCategory = categories[0] || null;
+  const subcategories = categories.slice(1);
+
+  // Remove unwanted elements before extracting text
+  removeUnwantedElements($, [
+    'script',
+    'style',
+    'noscript',
+    'iframe',
+    'nav',
+    'header',
+    'footer',
+    '.navigation',
+    '.sidebar',
+    '.cookie-banner',
+    '.cookie-notice',
+    '.popup',
+    '.modal',
+    '[role="navigation"]',
+    '[role="banner"]',
+    '[role="contentinfo"]',
+    '.breadcrumb',
+    '.social-share',
+    '.share-buttons',
+    '.related-content',
+    '.author-info',
+    '.author-bio',
+    '.elementor-widget-container .elementor-icon-list',
+    '.elementor-menu-toggle',
+    '.wp-block-separator',
+    '.post-navigation',
+    '.comments-area',
+    // `.entry-content` umschließt hier das ganze Elementor-Template, nicht nur
+    // den Artikel: Merken-Knopf samt Login-Formular, Like-Zähler, Social-Icons
+    // und die drei Teaser fremder Artikel unter „Das könnte dich auch
+    // interessieren" (#4280).
+    '.cbxwpbkmarkwrap',
+    '.oacs-spl-like-button-wrapper',
+    '.elementor-widget-social-icons',
+    '.blog-3col',
+  ]);
+
+  // Extract article body from .entry-content
+  // `.html()` liefert nur das erste Element der Auswahl; `.text()` hatte
+  // alle verkettet. Deshalb über die Auswahl mappen, wie GrueneAtScraper.
+  const structuredTextOf = (selection: cheerio.Cheerio<AnyNode>): string =>
+    htmlToStructuredText(
+      selection
+        .map((_, node) => $(node).html() ?? '')
+        .get()
+        .join('\n')
+    );
+  const contentEl = $('.entry-content');
+  const text = contentEl.length > 0 ? structuredTextOf(contentEl) : structuredTextOf($('article'));
+
+  return {
+    title: title.substring(0, 500),
+    description: (description || '').substring(0, 1000),
+    text,
+    publishedAt,
+    authors: authors.slice(0, 5),
+    primaryCategory,
+    subcategories,
+  };
+}
+
+/**
  * Grünblog website scraper
  */
 export class GruenblogScraper extends BaseScraper {
@@ -209,136 +346,6 @@ export class GruenblogScraper extends BaseScraper {
       console.error(`[Gruenblog] Failed to fetch sitemap: ${errorMessage}`);
       return [];
     }
-  }
-
-  /**
-   * Extract content from HTML using Rank Math JSON-LD and .entry-content
-   */
-  #extractContent(html: string, _url: string): ExtractedContent {
-    const $ = cheerio.load(html);
-
-    let jsonLdData: Record<string, unknown> | null = null;
-    $('script[type="application/ld+json"]').each((_, el) => {
-      try {
-        const raw: unknown = JSON.parse($(el).html() || '');
-        const data = raw as Record<string, unknown>;
-        if (Array.isArray(data['@graph'])) {
-          const nodes = data['@graph'] as Record<string, unknown>[];
-          const found = nodes.find(
-            (node) =>
-              node['@type'] === 'Article' ||
-              node['@type'] === 'BlogPosting' ||
-              node['@type'] === 'NewsArticle'
-          );
-          if (found) jsonLdData = found;
-        } else if (data['@type'] === 'Article' || data['@type'] === 'BlogPosting') {
-          jsonLdData = data;
-        }
-      } catch {
-        // Ignore parse errors
-      }
-    });
-
-    const title =
-      (jsonLdData?.['headline'] as string | undefined) ||
-      $('h1.entry-title').text().trim() ||
-      $('h1').first().text().trim() ||
-      $('title').text().trim() ||
-      '';
-
-    const description =
-      (jsonLdData?.['description'] as string | undefined) ||
-      $('meta[property="og:description"]').attr('content') ||
-      $('meta[name="description"]').attr('content') ||
-      '';
-
-    const publishedAt =
-      (jsonLdData?.['datePublished'] as string | undefined) ||
-      $('meta[property="article:published_time"]').attr('content') ||
-      $('time[datetime]').first().attr('datetime') ||
-      null;
-
-    const authors: string[] = [];
-    if (jsonLdData?.['author']) {
-      const authorRaw = jsonLdData['author'];
-      const authorData = Array.isArray(authorRaw) ? (authorRaw as unknown[]) : [authorRaw];
-      for (const a of authorData) {
-        const name = typeof a === 'string' ? a : (a as Record<string, unknown> | null)?.['name'];
-        if (typeof name === 'string' && name.length > 1) authors.push(name);
-      }
-    }
-    if (authors.length === 0) {
-      $('.author-name, .entry-author a, .author a').each((_, el) => {
-        const name = $(el).text().trim();
-        if (name && name.length > 1 && !authors.includes(name)) {
-          authors.push(name);
-        }
-      });
-    }
-
-    // Extract categories
-    const categories: string[] = [];
-    $('a[rel="category tag"], .cat-links a, .entry-categories a').each((_, el) => {
-      const cat = $(el).text().trim();
-      if (cat && !categories.includes(cat)) categories.push(cat);
-    });
-    const primaryCategory = categories[0] || null;
-    const subcategories = categories.slice(1);
-
-    // Remove unwanted elements before extracting text
-    removeUnwantedElements($, [
-      'script',
-      'style',
-      'noscript',
-      'iframe',
-      'nav',
-      'header',
-      'footer',
-      '.navigation',
-      '.sidebar',
-      '.cookie-banner',
-      '.cookie-notice',
-      '.popup',
-      '.modal',
-      '[role="navigation"]',
-      '[role="banner"]',
-      '[role="contentinfo"]',
-      '.breadcrumb',
-      '.social-share',
-      '.share-buttons',
-      '.related-content',
-      '.author-info',
-      '.author-bio',
-      '.elementor-widget-container .elementor-icon-list',
-      '.elementor-menu-toggle',
-      '.wp-block-separator',
-      '.post-navigation',
-      '.comments-area',
-    ]);
-
-    // Extract article body from .entry-content
-    // `.html()` liefert nur das erste Element der Auswahl; `.text()` hatte
-    // alle verkettet. Deshalb über die Auswahl mappen, wie GrueneAtScraper.
-    const structuredTextOf = (selection: cheerio.Cheerio<AnyNode>): string =>
-      htmlToStructuredText(
-        selection
-          .map((_, node) => $(node).html() ?? '')
-          .get()
-          .join('\n')
-      );
-    const contentEl = $('.entry-content');
-    const text =
-      contentEl.length > 0 ? structuredTextOf(contentEl) : structuredTextOf($('article'));
-
-    return {
-      title: title.substring(0, 500),
-      description: (description || '').substring(0, 1000),
-      text,
-      publishedAt,
-      authors: authors.slice(0, 5),
-      primaryCategory,
-      subcategories,
-    };
   }
 
   /**
@@ -532,7 +539,7 @@ export class GruenblogScraper extends BaseScraper {
         const { html } = page;
 
         try {
-          const content = this.#extractContent(html, url);
+          const content = extractGruenblogArticle(html);
 
           if (!forceUpdate) {
             const existing = await this.#articleExists(url);

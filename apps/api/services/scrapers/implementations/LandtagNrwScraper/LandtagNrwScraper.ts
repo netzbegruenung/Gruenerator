@@ -42,6 +42,7 @@ import {
 } from '../../parliament/index.js';
 
 import {
+  bezugOf,
   classifyDocType,
   documentIdOf,
   documentPayloadOf,
@@ -87,6 +88,11 @@ export interface LandtagRunOptions {
   dryRun?: boolean;
   /** Auch Dokumente neu schreiben, die schon da sind. */
   force?: boolean;
+  /**
+   * Nur Treffer dieses Dokumenttyps (Feld `doktyp` der Parlamentsdatenbank, z. B.
+   * `ENTSCHLIEßUNGSANTRAG`) — für gezielte Nachläufe mit `force`.
+   */
+  doktyp?: string;
 }
 
 export interface LandtagRunSummary {
@@ -120,6 +126,8 @@ export class LandtagNrwScraper extends BaseScraper {
   readonly #gate = new PoliteGate(REQUEST_GAP_MS);
   readonly #store = new ParliamentStore(LANDTAG_NRW_COLLECTION, LANDTAG_NRW_SOURCE, 'Landtag NRW');
   #known = new Set<string>();
+  /** Drucksachennummer → Titel, für die „Zu:"-Zeile im Kopf (`headerTextOf`). */
+  #drucksacheTitles = new Map<string, string>();
 
   constructor() {
     super({ collectionName: LANDTAG_NRW_COLLECTION, delayMs: REQUEST_GAP_MS });
@@ -149,7 +157,21 @@ export class LandtagNrwScraper extends BaseScraper {
       errors: [],
     };
 
-    this.#known = options.dryRun ? new Set() : await this.#store.loadKnownIds();
+    const known = options.dryRun
+      ? new Map<string, Record<string, unknown>>()
+      : await this.#store.loadKnown(['content_type', 'document_number', 'title']);
+    this.#known = new Set(known.keys());
+    this.#drucksacheTitles = new Map();
+    for (const payload of known.values()) {
+      const { content_type, document_number, title } = payload;
+      if (
+        content_type === 'drucksache' &&
+        typeof document_number === 'string' &&
+        typeof title === 'string'
+      ) {
+        this.#drucksacheTitles.set(document_number, title);
+      }
+    }
     log.info(`[landtag-nrw] ${this.#known.size} documents already in ${LANDTAG_NRW_COLLECTION}`);
 
     if (options.mode === 'backfill') {
@@ -180,7 +202,7 @@ export class LandtagNrwScraper extends BaseScraper {
     summary: LandtagRunSummary
   ): Promise<void> {
     for (let page = 1; page <= INCREMENTAL_MAX_PAGES; page++) {
-      const { entries } = await this.#fetchList(part, page, summary);
+      const { entries } = await this.#fetchList(part, page, options, summary);
       if (entries.length === 0) return;
       const outcomes = await this.#processEntries(entries, part, options, summary);
       if (reachedKnownDocuments(outcomes)) return;
@@ -219,7 +241,12 @@ export class LandtagNrwScraper extends BaseScraper {
         continue;
       }
       while (!this.#limitReached(options, summary)) {
-        const { total, entries } = await this.#fetchList(part, partState.nextPage, summary);
+        const { total, entries } = await this.#fetchList(
+          part,
+          partState.nextPage,
+          options,
+          summary
+        );
         if (total !== null) partState.totalPages = Math.ceil(total / PAGE_SIZE);
         if (entries.length === 0) {
           partState.done = true;
@@ -253,8 +280,14 @@ export class LandtagNrwScraper extends BaseScraper {
 
   // ── Landtag ────────────────────────────────────────────────────────────────
 
-  async #fetchList(part: LandtagPart, page: number, summary: LandtagRunSummary) {
-    const url = `${LIST_URL}?wp=${WAHLPERIODE}&view=detail&dokart=${LANDTAG_PARTS[part]}&page=${page}`;
+  async #fetchList(
+    part: LandtagPart,
+    page: number,
+    options: LandtagRunOptions,
+    summary: LandtagRunSummary
+  ) {
+    const doktyp = options.doktyp ? `&doktyp=${encodeURIComponent(options.doktyp)}` : '';
+    const url = `${LIST_URL}?wp=${WAHLPERIODE}&view=detail&dokart=${LANDTAG_PARTS[part]}${doktyp}&page=${page}`;
     const html = await this.#gate.run(async () => {
       const res = await this.fetchWithRetry(url, {
         timeout: LIST_TIMEOUT_MS,
@@ -314,7 +347,9 @@ export class LandtagNrwScraper extends BaseScraper {
     const body = extraction.text;
     if (!body.trim()) return 'empty';
 
-    const text = `${headerTextOf(entry, part)}\n\n${body}`;
+    const bezug = bezugOf(entry.descriptor);
+    const bezugTitel = bezug ? (this.#drucksacheTitles.get(bezug) ?? null) : null;
+    const text = `${headerTextOf(entry, part, bezugTitel)}\n\n${body}`;
     const doc = {
       documentId,
       title: entry.title,
@@ -335,6 +370,7 @@ export class LandtagNrwScraper extends BaseScraper {
     if (written === 0) return 'empty';
     summary.chunks += written;
     this.#known.add(documentId);
+    if (part === 'drucksache') this.#drucksacheTitles.set(entry.documentNumber, entry.title);
     this.stats.vectorsStored += written;
     return 'stored';
   }

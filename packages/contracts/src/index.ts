@@ -26,6 +26,7 @@ export {
   contentContract,
   trashContract,
   itemUsageContract,
+  userLibraryContract,
   userUsageContract,
   treesContract,
   transparencyContract,
@@ -38,6 +39,8 @@ export {
   presentationsContract,
   boardCommentsContract,
   entityReactionsContract,
+  agentCommentsContract,
+  templateCommentsContract,
   boardAgentContract,
   boardActivityContract,
   boardSubscriptionsContract,
@@ -45,6 +48,9 @@ export {
   boardAttachmentsContract,
   boardCardDocumentsContract,
   publicBoardsContract,
+  explainablesContract,
+  publicExplainablesContract,
+  podcastsContract,
   sharesContract,
   sharesReadContract,
   userProfileContract,
@@ -76,6 +82,7 @@ export {
   chatToolApprovalsContract,
   imageEditContract,
   sharepicCreatorContract,
+  sharepicVorlagenContract,
   adminVorlagenContract,
   userTemplatesContract,
   sharedTemplateContract,
@@ -108,6 +115,8 @@ export {
 export * from './schemas/roleRef.js';
 export * from './schemas/threads.js';
 export * from './schemas/chatThreadSharing.js';
+export * from './schemas/explainables.js';
+export * from './schemas/podcasts.js';
 export * from './schemas/textForm.js';
 export * from './schemas/exports.js';
 export * from './schemas/recentValues.js';
@@ -115,6 +124,7 @@ export * from './schemas/recentActivity.js';
 export * from './schemas/content.js';
 export * from './schemas/trash.js';
 export * from './schemas/itemUsage.js';
+export * from './schemas/userLibrary.js';
 export * from './schemas/userUsage.js';
 export * from './schemas/trees.js';
 export * from './schemas/transparency.js';
@@ -123,6 +133,7 @@ export * from './schemas/research.js';
 export * from './schemas/chatGraph.js';
 export * from './schemas/searchGraph.js';
 export * from './schemas/chatStreamEvents.js';
+export * from './schemas/chatVisualBlocks.js';
 export * from './schemas/chunkInspector.js';
 export * from './schemas/connectorTest.js';
 export * from './schemas/connections.js';
@@ -136,6 +147,8 @@ export * from './schemas/sheets.js';
 export * from './schemas/presentations.js';
 export * from './schemas/boardComments.js';
 export * from './schemas/entityReactions.js';
+export * from './schemas/agentComments.js';
+export * from './schemas/templateComments.js';
 export * from './schemas/boardActivity.js';
 export * from './schemas/boardSubscriptions.js';
 export * from './schemas/boardSchedules.js';
@@ -146,6 +159,7 @@ export * from './schemas/userProfile.js';
 export * from './schemas/notebook.js';
 export * from './schemas/notebookDepth.js';
 export * from './schemas/notebookAnswerMode.js';
+export * from './schemas/notebookSourceTier.js';
 export * from './schemas/notebookCollections.js';
 export * from './schemas/wolkePending.js';
 export * from './schemas/notebookWordpress.js';
@@ -176,6 +190,8 @@ export * from './schemas/chatToolApprovals.js';
 export * from './schemas/flux3Boxes.js';
 export * from './schemas/imageEdit.js';
 export * from './schemas/sharepicCreator.js';
+export * from './schemas/sharepicHandMarks.js';
+export * from './schemas/sharepicVorlagen.js';
 export * from './schemas/adminVorlagen.js';
 export * from './schemas/userTemplates.js';
 export * from './schemas/sharedTemplate.js';
@@ -220,5 +236,6 @@ export * from './schemas/landesverbandAdmin.js';
 // Server-Export und der tiptap-Editor dieselbe Logik fahren.
 export * from './text/listLayout.js';
 export * from './text/inlineMarks.js';
+export * from './text/handMarks.js';
 export * from './text/canvasRichText.js';
 export * from './text/truncation.js';

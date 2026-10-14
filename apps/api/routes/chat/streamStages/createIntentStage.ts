@@ -19,6 +19,7 @@ import {
 import {
   generateAndCreateDocument,
   handleBoardCreation,
+  handleExplainableCreation,
   handlePdfCreation,
   handlePresentationCreation,
   handleShareDoc,
@@ -137,14 +138,26 @@ export async function runCreateIntentStage({
           userLocale: classifiedState.userLocale === 'de-AT' ? 'de-AT' : 'de-DE',
         }),
     },
+    {
+      kind: 'explainable',
+      run: () =>
+        handleExplainableCreation({
+          ...createTurnBase,
+          userContent: createTopic(),
+          userLocale: classifiedState.userLocale === 'de-AT' ? 'de-AT' : 'de-DE',
+        }),
+    },
   ];
 
   for (const route of createRoutes) {
     const { mentionToken, intent } = artifactKind(route.kind);
     if (skipsOnAgenticForKind(route.kind) && runAgentic) continue;
+    // Das angenommene Angebot zählt wie die Mention: `document` hat keinen
+    // Intent, und ein „ja" nennt die Art nicht.
     const triggered =
       (mentionToken != null && forcedTools?.includes(mentionToken) === true) ||
-      (intent != null && classifiedState.intent === intent);
+      (intent != null && classifiedState.intent === intent) ||
+      classifiedState.acceptedOfferKind === route.kind;
     if (!triggered) continue;
     if (await route.run()) {
       await cleanupPending(true);

@@ -599,7 +599,7 @@ describe('Tier 2.7 — follow-up on the thread last artifact (lastToolContext)',
       lastTurnEditables: ['document'],
     });
     const result = await classifierNode(state);
-    expect(result.intent).toBe('modify_doc');
+    expect(result.intent).toBe('agentic');
     expect(result.docMentionIds).toContain('doc-created-1');
   });
 

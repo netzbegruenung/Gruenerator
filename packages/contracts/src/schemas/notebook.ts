@@ -38,6 +38,8 @@ export const notebookFilterFieldSchema = z.object({
   valueLabels: z.record(z.string()).nullish(),
   min: z.string().nullish(),
   max: z.string().nullish(),
+  /** Not offered directly: the field sits behind „Weitere Filter“. */
+  collapsed: z.boolean().nullish(),
 });
 
 export const notebookFiltersResponseSchema = z.object({
@@ -226,8 +228,9 @@ export const notebookResearchResultSchema = z.object({
   collection_id: z.string().nullish(),
   collection_name: z.string().nullish(),
   published_at: z.string().nullable().nullish(),
-  /** Document kind as a display label („Beschluss“, „Pressemitteilung“ …) —
-   *  Landesverband collections only. Additive (F0). */
+  /** Document kind as a display label („Beschluss“, „Pressemitteilung“,
+   *  „Plenarprotokoll“ …) — Landesverband collections and collections with
+   *  `content_type` facet labels. Additive (F0). */
   content_type_label: z.string().nullish(),
   /** Where the document comes from („Grüne Fraktion Berlin“ …) —
    *  Landesverband collections only. Additive (F0). */

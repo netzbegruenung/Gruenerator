@@ -2,6 +2,7 @@ import { isCanvasTemplateType, type CanvasListItem } from '@gruenerator/contract
 import { useShareStore } from '@gruenerator/shared';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { isKiImage } from '@gruenerator/shared/media-library';
+import { isProfilbildShare } from '@gruenerator/shared/profilbild';
 import {
   CardActionsMenu,
   CardGrid,
@@ -21,15 +22,15 @@ import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import apiClient from '../../../components/utils/apiClient';
 import { SHOW_SHAREPIC_STUDIO } from '../../../config/featureFlags';
 import { useAuthStore } from '../../../stores/authStore';
-import useImageStudioStore from '../../../stores/imageStudioStore';
 import { downloadBlob } from '../../../utils/downloadFile';
 import { resolveApiAssetUrl, shareThumbnailPreviewUrl } from '../../../utils/platform';
+import { profilbildReopenPath } from '../../studio-tools/profilbildHandoff';
 import { showTrashUndoToast } from '../../trash/trashUndoToast';
 import ReelsSection from '../../workplace/components/ReelsSection';
+import { useCanvasEditorPrefetch } from '../canvasQuery';
+import { isLegacyWizardShare } from '../gallery/legacyWizardShare';
 import { useRecentCanvases } from '../hooks/useRecentCanvases';
 import { useRecentGalleryItems, type RecentGalleryItem } from '../hooks/useRecentGalleryItems';
-import { getSharepicRoute } from '../utils/sharepicRoutes';
-import { IMAGE_STUDIO_CATEGORIES } from '../utils/typeConfig';
 
 import { Lightbox } from './Lightbox';
 import { buildStudioQuickStarts, QuickStartTiles } from './QuickStartTiles';
@@ -60,6 +61,7 @@ const PreviewCard = ({
   priority,
   fallbackEmoji,
   onClick,
+  onIntent,
   actions,
 }: {
   title: string;
@@ -71,12 +73,16 @@ const PreviewCard = ({
   priority?: boolean;
   fallbackEmoji?: string;
   onClick: () => void;
+  /** Hover/Fokus: vorladen, worauf ein Klick sonst warten würde. */
+  onIntent?: () => void;
   /** Optional kebab menu (rename/delete), overlaid top-right, shown on hover. */
   actions?: ReactNode;
 }) => (
   <InteractiveCard
     label={title}
     onActivate={onClick}
+    onPointerEnter={onIntent}
+    onFocus={onIntent}
     className="group flex flex-col bg-background border border-grey-200 dark:border-grey-700 rounded-md overflow-hidden cursor-pointer transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:border-grey-300 dark:hover:border-grey-600"
   >
     {actions && (
@@ -110,8 +116,7 @@ const PreviewCard = ({
  * by the /studio landing and the workplace "Arbeiten" tab. */
 const StudioGallerySections = () => {
   const navigate = useNavigate();
-  const setCategory = useImageStudioStore((state) => state.setCategory);
-  const setType = useImageStudioStore((state) => state.setType);
+  const prefetchCanvasEditor = useCanvasEditorPrefetch();
   const locale = useAuthStore((s) => s.locale);
 
   // In prod the canvas editor is gated off, so gallery items open a read-only
@@ -245,45 +250,20 @@ const StudioGallerySections = () => {
   const isStudioEmpty =
     hasFetched && canvasesSettled && sharepicCards.length === 0 && imagineItems.length === 0;
 
-  const handleCategorySelect = useCallback(
-    (cat: string | null, subcat: string | null, directType?: string) => {
-      if (directType) {
-        void setType(directType);
-        void navigate(`/studio/templates/${directType}`);
-      } else if (cat === IMAGE_STUDIO_CATEGORIES.KI) {
-        void setCategory(cat, subcat);
-        void navigate('/bild-editor');
-      } else if (cat) {
-        void setCategory(cat, subcat);
-        void navigate(`/studio/${cat}`);
-      }
-    },
-    [setCategory, setType, navigate]
-  );
-
+  // Saved Profilbilder reopen in their editor. Shares made by the retired
+  // template wizard have no canvas to reopen; their successors are the
+  // Grünerator-Vorlagen. Every other share opens the read-only preview.
   const handleGalleryItemEdit = useCallback(
     (item: RecentGalleryItem) => {
-      const metadata = item.imageMetadata || {};
-      const sharepicType = metadata.sharepicType;
-
-      // Shares without edit metadata (e.g. pre-canvas legacy rows) can't open
-      // the edit flow — show the read-only preview instead of dead-clicking.
-      const route = sharepicType ? getSharepicRoute(sharepicType) : null;
-      if (!sharepicType || !route) {
+      if (isProfilbildShare(item)) {
+        void navigate(profilbildReopenPath(item.shareToken));
+        return;
+      }
+      if (!isLegacyWizardShare(item.imageMetadata?.sharepicType)) {
         setPreviewItem(item);
         return;
       }
-
-      void navigate(route, {
-        state: {
-          galleryEditMode: true,
-          shareToken: item.shareToken,
-          content: { ...metadata.content, sharepicType },
-          styling: metadata.styling || {},
-          originalImageUrl: `${API_BASE_URL}/share/${item.shareToken}/original`,
-          title: item.title,
-        },
-      });
+      void navigate('/vorlagen');
     },
     [navigate]
   );
@@ -304,16 +284,23 @@ const StudioGallerySections = () => {
     }
   }, []);
 
+  // KI-Bilder are made from the Studio composer: take the person to its field.
+  const startKiBild = () => {
+    const field = document.querySelector<HTMLTextAreaElement>(
+      '[data-tour="studio-composer"] textarea'
+    );
+    if (!field) return void navigate('/studio');
+    field.scrollIntoView({ block: 'center' });
+    field.focus();
+  };
+
   // Quick-start tiles shown when the studio is empty. The builder centralises the
   // AT/SHOW_SHAREPIC_STUDIO handling; the DE handlers here mirror the section
   // create handlers below so behaviour stays consistent.
   const quickStarts = buildStudioQuickStarts({
     isAustrianUser,
-    onSharepic: () => handleCategorySelect(IMAGE_STUDIO_CATEGORIES.TEMPLATES, null),
-    onKiBild: () => {
-      setCategory(IMAGE_STUDIO_CATEGORIES.KI, null);
-      void navigate('/bild-editor');
-    },
+    onSharepic: () => void navigate('/vorlagen'),
+    onKiBild: startKiBild,
     onReel: () => void navigate('/studio/video'),
   });
 
@@ -334,14 +321,10 @@ const StudioGallerySections = () => {
           <SectionHeader
             title="Sharepics"
             // The title doubles as the entry point to the full Mediathek.
-            onTitleClick={() => navigate('/media-library')}
+            onTitleClick={() => navigate('/studio/mediathek')}
             // Both DE and AT create through the internal canvas editor (AT gets
             // the de-AT template set), gated by SHOW_SHAREPIC_STUDIO.
-            onCreate={
-              SHOW_SHAREPIC_STUDIO
-                ? () => handleCategorySelect(IMAGE_STUDIO_CATEGORIES.TEMPLATES, null)
-                : undefined
-            }
+            onCreate={SHOW_SHAREPIC_STUDIO ? () => void navigate('/vorlagen') : undefined}
             createLabel="Neues Sharepic erstellen"
           />
           {showSharepics && (
@@ -355,6 +338,7 @@ const StudioGallerySections = () => {
                       shareThumbnailPreviewUrl(card.item.thumbnail_url ?? undefined)
                     )}
                     onClick={() => void navigate(`/studio/canvas/${card.item.id}`)}
+                    onIntent={() => prefetchCanvasEditor(card.item.id)}
                     actions={
                       <CardActionsMenu
                         onDelete={() => handleDeleteCanvas(card.item)}
@@ -409,11 +393,8 @@ const StudioGallerySections = () => {
       {!isStudioEmpty && (
         <section className="mb-xl">
           <SectionHeader
-            title="Imagine"
-            onCreate={() => {
-              setCategory(IMAGE_STUDIO_CATEGORIES.KI, null);
-              void navigate('/bild-editor');
-            }}
+            title="KI-Bilder"
+            onCreate={startKiBild}
             createLabel="Neues KI-Bild erstellen"
           />
           {showImagine && (

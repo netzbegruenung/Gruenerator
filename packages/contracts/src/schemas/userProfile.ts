@@ -28,10 +28,8 @@ export function isAiConsentRequiredBody(body: unknown): boolean {
 // ── Request body schemas (moved from controller) ────────────────────────────
 
 /**
- * Closed set of default start pages — which Workplace surface the sidebar
- * "start" icon (and the root/login redirect) opens.
- *   'chat'     → /start      (Chat)
- *   'arbeiten' → /workplace  (Arbeiten)
+ * Closed set of default start pages — which tab of `/start` (Chat or Arbeiten)
+ * opens when the page is entered without an explicit `?page=`.
  * F0: die Werte stehen in der Datenbank und in ausgelieferten Binaries — die
  * Pfade dahinter dürfen sich ändern, die Enum-Werte nicht.
  */

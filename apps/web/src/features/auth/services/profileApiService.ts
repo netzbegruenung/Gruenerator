@@ -385,7 +385,8 @@ export const profileApiService = {
     const response = await getContractsClient().notebookCollections.listCollections();
 
     if (response.status !== 200) {
-      throw new ApiError(response.status, 'Failed to fetch Q&A collections');
+      const code = response.status === 503 ? response.body.error : undefined;
+      throw new ApiError(response.status, 'Failed to fetch Q&A collections', code);
     }
     if (!response.body.success) {
       throw new Error('Failed to fetch Q&A collections');

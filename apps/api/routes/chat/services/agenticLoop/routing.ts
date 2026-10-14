@@ -537,7 +537,7 @@ export const COMPOUND_GENERATION_INTENTS: ReadonlySet<ChatIntentId> = ARTIFACT_N
 // or a tile at least as often, and this pair was the quiet door through which
 // "recherchiere X und mach eine Grafik" forced a sharepic nobody asked for.
 const GENERATION_NOUN_RE =
-  /\b(pr[äa]sentation|presentation|folien?|slides?|tabelle|kalkulation|spreadsheet|sheet|dokument|schriftst[üu]ck|textdokument|entwurf|board|kanban|aufgabenboard|taskboard|pdf|briefkopf|antragsformular|anmeldeformular|fragebogen)\b/i;
+  /\b(pr[äa]sentation|presentation|folien?|slides?|tabelle|kalkulation|spreadsheet|sheet|dokument|schriftst[üu]ck|textdokument|entwurf|board|kanban|aufgabenboard|taskboard|pdf|briefkopf|antragsformular|anmeldeformular|fragebogen|explainables?|erkl[äa]r-?seiten?|erkl[äa]rst[üu]ck(?:e|en)?)\b/i;
 // `recherch\w*` (not `recherchier\w*`) so the NOUN "Recherche" counts too — a
 // follow-up like "erstelle ein PDF mit den Originalquellen aus der Recherche"
 // carries an unmistakable research signal but no research VERB, and used to

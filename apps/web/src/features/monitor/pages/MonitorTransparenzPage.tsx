@@ -4,11 +4,15 @@ import withAuthRequired from '../../../components/common/LoginRequired/withAuthR
 import PageContainer from '../../../components/common/PageContainer';
 import { MONITOR_HEADING, MONITOR_MUTED } from '../components/theme';
 import {
+  FeatureSwitcher,
   LocaleSwitcher,
   RangeSwitcher,
+  TokenKindSwitcher,
   TransparenzView,
   useDaysParam,
   useExpertParam,
+  useFeatureParam,
+  useTokenKindParam,
   useTransparencyLocaleParam,
   ViewSwitcher,
 } from '../components/TransparenzView';
@@ -23,13 +27,17 @@ import {
  *
  * The country split is an expert-view affordance: the simple view answers
  * "was verbraucht das hier?" for the whole platform, and a `?locale=` left in
- * the URL must not quietly narrow that answer.
+ * the URL must not quietly narrow that answer. The same holds for the area
+ * (`?bereich=`) and the token kind (`?tokens=`).
  */
 function MonitorTransparenzPage() {
   const { days, setDays } = useDaysParam();
   const { expert, setExpert } = useExpertParam();
   const { locale, setLocale, available: localeAvailable } = useTransparencyLocaleParam();
+  const { feature, setFeature } = useFeatureParam();
+  const { tokenKind, setTokenKind } = useTokenKindParam();
   const effectiveLocale = expert ? locale : null;
+  const effectiveFeature = expert ? feature : null;
 
   return (
     <PageContainer maxWidth="lg">
@@ -48,6 +56,12 @@ function MonitorTransparenzPage() {
             {expert && localeAvailable && <LocaleSwitcher locale={locale} onChange={setLocale} />}
             <RangeSwitcher days={days} onChange={setDays} />
           </div>
+          {expert && (
+            <div className="flex flex-wrap justify-end gap-2">
+              <FeatureSwitcher feature={feature} onChange={setFeature} />
+              <TokenKindSwitcher tokenKind={tokenKind} onChange={setTokenKind} />
+            </div>
+          )}
           <p className={cn('m-0 max-w-[340px] text-right text-[0.9rem]', MONITOR_MUTED)}>
             {effectiveLocale
               ? 'Nur Konten, deren Sprache auf dieses Land eingestellt ist. Konten ohne Angabe zählen allein unter „Alle“.'
@@ -57,7 +71,13 @@ function MonitorTransparenzPage() {
           </p>
         </div>
       </div>
-      <TransparenzView days={days} expert={expert} locale={effectiveLocale} />
+      <TransparenzView
+        days={days}
+        expert={expert}
+        locale={effectiveLocale}
+        feature={effectiveFeature}
+        tokenKind={tokenKind}
+      />
     </PageContainer>
   );
 }

@@ -110,20 +110,16 @@ describe('the Partei/Fraktion split', () => {
  * Filter, die daran hängen — der Rezeptkatalog des Modells und das
  * Mention-Menü — filterten vorher hart auf `kind === 'custom'`, mit der
  * Begründung, ein Preset reite ohnehin auf der Mention seines Systemrezepts.
- * Für `antrag` stimmt das nicht: `textFormTypeSchema` kennt vier Presets,
- * `SKILLS` führt drei davon. Die vierte Zeile war auf keinem Pfad erreichbar
- * (#2937).
+ * Für `antrag` stimmte das bis 10/2026 nicht: `textFormTypeSchema` kannte vier
+ * Presets, `SKILLS` führte drei davon. Die vierte Zeile war auf keinem Pfad
+ * erreichbar (#2937) — bis das Rezept `@antrag` kam.
  */
 describe('hasSystemRecipe', () => {
   it('bejaht die Presets, die es als Rezept gibt', () => {
     expect(hasSystemRecipe('presse')).toBe(true);
     expect(hasSystemRecipe('instagram')).toBe(true);
     expect(hasSystemRecipe('facebook')).toBe(true);
-  });
-
-  it('verneint „antrag" — ein Preset ohne mitgeliefertes Rezept', () => {
-    expect(SKILLS.map((s) => s.mention)).not.toContain('antrag');
-    expect(hasSystemRecipe('antrag')).toBe(false);
+    expect(hasSystemRecipe('antrag')).toBe(true);
   });
 
   it('verneint eine selbst vergebene Mention', () => {
@@ -145,7 +141,7 @@ describe('hasSystemRecipe', () => {
     const withRecipe = textFormTypeSchema.options.filter(hasSystemRecipe);
     const standalone = textFormTypeSchema.options.filter((t) => !hasSystemRecipe(t));
 
-    expect(withRecipe).toEqual(['instagram', 'facebook', 'presse']);
-    expect(standalone).toEqual(['antrag']);
+    expect(withRecipe).toEqual(['instagram', 'facebook', 'presse', 'antrag']);
+    expect(standalone).toEqual([]);
   });
 });

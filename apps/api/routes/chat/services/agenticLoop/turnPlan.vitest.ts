@@ -49,6 +49,7 @@ const base: TurnPlanInput = {
   hasNamedBoard: false,
   isSharepicRefinement: false,
   pipelineForceIntent: null,
+  acceptedOffer: false,
   mentionPinnedTool: null,
   mentionPinnedArtifactKind: null,
   agenturaCreateOrder: false,
@@ -258,6 +259,18 @@ describe('decideTurnPlan — die Kippfälle', () => {
     ).toBe(false);
   });
 
+  it('ein angenommenes Angebot bleibt im Single-Pass, auch wo sonst die Schleife liefe (#4367)', () => {
+    // Ohne Veto überspränge `createIntentStage` die Präsentation (`skipOnAgentic`),
+    // und den Planer erreicht nur ein „ja". Hier hebt das Recherche-Signal den
+    // Turn als Verbund in die Schleife.
+    const loopTurn = {
+      intent: 'create_presentation' as ChatIntentId,
+      lastUserText: 'Recherchiere die aktuellen Zahlen und erstelle eine Präsentation dazu',
+    };
+    expect(plan(loopTurn).runAgentic).toBe(true);
+    expect(plan({ ...loopTurn, acceptedOffer: true }).runAgentic).toBe(false);
+  });
+
   it('ein gewähltes Notebook hält den Turn einzeln — nur searchNode liest Notebooks', () => {
     expect(plan({ intent: 'search', hasSelectedNotebook: true }).runAgentic).toBe(false);
   });
@@ -299,6 +312,17 @@ describe('decideTurnPlan — die Kippfälle', () => {
         isSharepicRefinement: true,
       }).compoundGenerationKind
     ).toBeNull();
+  });
+
+  // Live 11.10.2026: „Prüf bitte, ob das Sharepic gut lesbar ist" baute über
+  // die Verbund-Garantie ein zweites, neues Sharepic.
+  it('ein Auftrag ans vorhandene Sharepic erzeugt keine Verbund-Art', () => {
+    const order = {
+      intent: 'agentic' as const,
+      lastUserText: 'Prüf das Sharepic und mach es besser',
+    };
+    expect(plan(order).compoundGenerationKind).toBe('sharepic');
+    expect(plan({ ...order, addressesThreadSharepic: true }).compoundGenerationKind).toBeNull();
   });
 
   it('das Bearbeitungsziel hängt am aktivierten Werkzeug, nicht am Kontext', () => {

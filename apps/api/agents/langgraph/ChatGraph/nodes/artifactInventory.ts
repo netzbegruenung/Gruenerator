@@ -34,6 +34,7 @@ export const ARTIFACT_NOUN: Record<ThreadToolContext['kind'], string> = {
   presentation: 'Präsentation',
   sheet: 'Tabelle',
   pdf: 'PDF',
+  explainable: 'Explainable',
   board: 'Board',
   mcp: 'Dienst-Abfrage',
   notebook: 'Notebook-Recherche',
@@ -55,6 +56,7 @@ const EDITABLE_KINDS: ReadonlySet<ThreadToolContext['kind']> = new Set([
   'presentation',
   'sheet',
   'pdf',
+  'explainable',
   'board',
 ]);
 
@@ -207,6 +209,22 @@ export const NO_ARTIFACT_URL_RULE =
 export const NO_PHANTOM_ACTION_RULE =
   'Behaupte NIEMALS, eine Aktion oder ein Artefakt sei in diesem Turn erledigt, erstellt oder geändert worden, wenn kein Werkzeug das getan hat — und kündige nichts für „gleich" an: Was in diesem Turn kein Werkzeug tut, passiert nicht. Kannst du eine gewünschte Änderung hier nicht vornehmen, sag das in einem Satz. Auch „Ich habe mir das notiert/gemerkt/gespeichert" und „das merke ich mir" sind solche Behauptungen: sie stimmen nur, wenn das Werkzeug `memory` in diesem Turn gelaufen ist (Zeile „Gemerkt"); sonst nimm die Angabe einfach zur Kenntnis oder biete an, sie zu merken.';
 
+/**
+ * Dasselbe für Grafiken. Der Hinweis „du bist kein reines Textmodell"
+ * (`capabilityNote`, artifactNotes.ts) hängt bewusst nur an Turns mit
+ * montiertem Erstell-Werkzeug — auf allen anderen griff gemma4-31b live zu
+ * „Da ich ein textbasiertes KI-Modell bin, kann ich dir keine fertige
+ * Grafikdatei erstellen" und beschrieb dann ein Layout als Text, direkt über
+ * einer Galerie mit Sharepic-Vorlagen (10.10.2026).
+ *
+ * Das Angebot braucht eine geschlossene Liste: „eine Grafik" las das Modell als
+ * alles Gestaltete und bot nach einem Postkartentext „ein Design-Layout für die
+ * Postkarte" an (12.10.2026) — dafür gibt es kein Werkzeug, ein „ja" liefe ins
+ * Leere.
+ */
+export const NO_GRAPHICS_DENIAL_RULE =
+  'Ebenso: Behaupte NIE, du seist „nur ein Textmodell" oder könntest keine Grafiken, Bilder oder Sharepics erstellen — der Grünerator erstellt Sharepics, KI-Bilder und Grafiken aus Vorlagen. Fragt die Person nach einer Grafik und ist in diesem Turn keine entstanden, biete an, eine zu machen (z. B. „Soll ich daraus ein Sharepic machen?"), statt ein Layout als Text zu beschreiben. Biete nur an, was der Grünerator wirklich baut: ein Sharepic, ein KI-Bild, eine Präsentation, ein Dokument oder eine Tabelle. Postkarten, Flyer, Broschüren, Aufkleber und andere Druckprodukte sowie Layouts, Druckvorlagen oder Druckdateien dafür baut er nicht — biete sie NIE an und erwähne von dir aus nicht, dass du sie nicht baust; geht es um ein Druckprodukt, biete höchstens ein Sharepic mit dem Text an.';
+
 /** Die Kehrseite: ein Werkzeug, das in DIESEM Turn nicht lief, fehlt dem
  *  Produkt nicht. Der Split-Schreiber hat nie Werkzeuge, der Einzeldurchlauf
  *  auch nicht — „ich habe keine Tools" ist für beide im Buchstaben wahr und in
@@ -215,7 +233,8 @@ export const NO_PHANTOM_ACTION_RULE =
  *  was der Grünerator selbst kann; „Zugriff auf mein Gmail?" bleibt ein Nein.
  *  Geteilt von `DIRECT_HONESTY_NOTE` und dem Schreiber ohne Material. */
 export const NO_CAPABILITY_DENIAL_RULE =
-  'Dass in diesem Turn nichts nachgeschlagen wurde, heißt nicht, dass dir die Werkzeuge fehlen: Behaupte NIE, du hättest keine Werkzeuge oder keinen Zugriff auf Notebooks, Dokumente oder die Websuche — der Grünerator hat sie. Sag stattdessen, dass du in diesem Turn nicht nachgesehen hast, und biete an, es zu tun. Das gilt nur für DIESEN Turn: Suchen, die unter FRÜHERE SUCHEN IN DIESEM GESPRÄCH stehen, hast du wirklich ausgeführt — leugne sie nie.';
+  'Dass in diesem Turn nichts nachgeschlagen wurde, heißt nicht, dass dir die Werkzeuge fehlen: Behaupte NIE, du hättest keine Werkzeuge oder keinen Zugriff auf Notebooks, Dokumente oder die Websuche — der Grünerator hat sie. Sag stattdessen, dass du in diesem Turn nicht nachgesehen hast, und biete an, es zu tun. Das gilt nur für DIESEN Turn: Suchen, die unter FRÜHERE SUCHEN IN DIESEM GESPRÄCH stehen, hast du wirklich ausgeführt — leugne sie nie. ' +
+  NO_GRAPHICS_DENIAL_RULE;
 
 /**
  * Was frühere Turns nachgeschlagen haben. Ohne diese Liste kannte der Schreiber
@@ -246,9 +265,14 @@ export const UI_BLIND_RULE =
   'Die Oberfläche siehst du NICHT. Beschreibe nie, wo oder wie etwas dort erscheint (Karte, Vorschau, oben/unten, Button, Download) — alles davon wäre geraten, außer dem Hinweis, den dir der Code ausdrücklich nennt. Ein Artefakt, das ein Werkzeug in diesem Turn erstellt hat, erscheint im Chat; mehr weißt du darüber nicht.';
 
 /** Der eine Oberflächen-Hinweis, den der Code kennt: die Edit-Lane liest
- *  „Variante N: …" und den Karten-Schalter (sharepicEditService). */
+ *  „Variante N: …" und den Karten-Schalter (sharepicEditService).
+ *
+ *  Erreicht ein Turn diesen Prompt, hat ihn die Edit-Lane NICHT genommen. Die
+ *  alte Fassung („… wird das Sharepic überarbeitet") las das Modell live
+ *  11.10.2026 als Zusage für genau diesen Turn: sechs von sechs durchgefallenen
+ *  Aufträgen antworteten „Ich habe dir das Sharepic überarbeitet", ohne Karte. */
 const SHAREPIC_EDIT_HINT =
-  ' Ein Sharepic aus diesem Gespräch änderst du nicht selbst in deiner Antwort. Schreibt der*die Nutzer*in die gewünschte Änderung direkt (z. B. „Headline kürzer" oder „anderes Foto"), wird das Sharepic überarbeitet — genau diesen Hinweis darfst du nennen.';
+  ' Ein Sharepic aus diesem Gespräch änderst du nicht selbst in deiner Antwort. Hat in diesem Turn kein Werkzeug ein Sharepic geändert, ist keines geändert worden — auch wenn frühere Antworten im Verlauf „überarbeitet" melden; schreib dann nie „Ich habe das Sharepic überarbeitet/angepasst". Klingt die Nachricht nach einer Änderung am Sharepic, sag in einem Satz, dass du sie nicht umgesetzt hast, und dass sie greift, wenn die Änderung direkt am Feld genannt wird (z. B. „Headline kürzer" oder „anderes Foto") — genau diesen Hinweis darfst du nennen.';
 
 export function renderArtifactInventory(entries: readonly InventoryEntry[]): string {
   if (entries.length === 0) return '';

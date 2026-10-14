@@ -322,3 +322,37 @@ describe('editor surfaces', () => {
     expect(trace.intent).not.toBe('edit_current_board');
   });
 });
+
+describe('fallback lane with a smaller window (#4198)', () => {
+  /**
+   * The primary's messages were pruned against the primary's window. A
+   * fallback with a smaller one — mistral-medium-3.5 (262k) → gemma-4 (128k) —
+   * must get the history pruned for ITS window, or Cortecs answers through
+   * berget (first token after 50–80 s) or with a different model.
+   */
+  it('re-prunes the single-pass history for the fallback lane', async () => {
+    respond.resolution = { contextWindow: 262_144 };
+    respond.singlePassText = null;
+    respond.fallback = { modelName: 'gemma-4-31b-it', contextWindow: 16_000 };
+    const long = 'Lange Antwort. '.repeat(4_000);
+
+    await runTurn(
+      suite.baseUrl(),
+      {
+        messages: [
+          userTurn('Erste Frage', 'm1'),
+          { id: 'm2', role: 'assistant', parts: [{ type: 'text', text: long }] },
+          userTurn('Hallo!', 'm3'),
+        ],
+      },
+      // Both scripted lanes answer empty; the point is what each was SENT.
+      { expectError: true }
+    );
+
+    expect(respond.singlePassCalls).toHaveLength(2);
+    const texts = (i: number) =>
+      JSON.stringify(respond.singlePassCalls[i]!.messages).includes('Lange Antwort.');
+    expect(texts(0)).toBe(true);
+    expect(texts(1)).toBe(false);
+  });
+});

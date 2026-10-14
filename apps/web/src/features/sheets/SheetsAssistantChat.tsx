@@ -5,7 +5,9 @@ import { GrueneratorThread } from '@gruenerator/chat';
 import { DocAiEditToggle } from '../docs/DocAiEditToggle';
 
 import { useSheetsChat } from './SheetsChatProvider';
+import { SheetSelectionChip } from './SheetSelectionChip';
 
+import type { FUniver } from '@gruenerator/sheets';
 import type { ReactNode } from 'react';
 
 import { useAuthStore } from '@/stores/authStore';
@@ -18,7 +20,7 @@ function SheetsChatStatus({ children }: { children: ReactNode }) {
   );
 }
 
-export function SheetsAssistantChat() {
+export function SheetsAssistantChat({ univerAPI }: { univerAPI: FUniver | null }) {
   const state = useSheetsChat();
   const userLocale = useAuthStore((s) => s.locale);
 
@@ -45,6 +47,7 @@ export function SheetsAssistantChat() {
       density="compact"
       showToolToggles={false}
       composerSlots={{
+        aboveInput: <SheetSelectionChip univerAPI={univerAPI} />,
         sendAdornment: (
           <DocAiEditToggle enabled={state.aiEditEnabled} onToggle={state.toggleAiEdit} />
         ),

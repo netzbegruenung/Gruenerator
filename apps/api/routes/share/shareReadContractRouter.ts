@@ -152,15 +152,13 @@ export const shareReadContractRouter = s.router(sharesReadContract, {
       const shares = await service.getUserShares(userId, query.type || null, query.status || null);
       // `count` describes THIS list and nothing else (#2986). It used to be an
       // account-wide number — first every row in the table including internal
-      // artifacts, then the Mediathek quota — sitting next to a list filtered by
+      // artifacts, then a since-removed Mediathek quota — sitting next to a list filtered by
       // `type`, by `status`, and by both provenance columns. Any consumer
       // pairing the two got a mismatch that grew with the account: one
       // non-library thumbnail row per canvas document.
       //
       // The endpoint has no offset, so there is no total worth reporting
       // separately: `count === limit` is how a caller learns it was truncated.
-      // The quota lives on `GET /api/media`, which is where the Mediathek reads
-      // it and where it is not next to a filtered list.
       return {
         status: 200 as const,
         body: {
@@ -232,6 +230,32 @@ export const shareReadContractRouter = s.router(sharesReadContract, {
       return {
         status: 500 as const,
         body: { success: false as const, error: 'Bilder konnten nicht geladen werden' },
+      };
+    }
+  },
+
+  getMyShare: async ({ req, params }) => {
+    const userId = getUserId(req);
+    if (!userId) return UNAUTHORIZED;
+    try {
+      const service = await getSharedMediaService();
+      const share = await service.getShareByToken(params.shareToken);
+      // Someone else's share answers like a missing one: its existence is not ours to confirm.
+      if (!share || share.user_id !== userId) {
+        return {
+          status: 404 as const,
+          body: { success: false as const, error: 'Share nicht gefunden' },
+        };
+      }
+      return {
+        status: 200 as const,
+        body: { success: true as const, share: toShareListItem(share) },
+      };
+    } catch (error) {
+      log.error('Failed to get share:', error);
+      return {
+        status: 500 as const,
+        body: { success: false as const, error: 'Share konnte nicht geladen werden' },
       };
     }
   },

@@ -96,6 +96,11 @@
         "description": "Namentliche Abstimmungen (mit Grünen-Votum) und Nebentätigkeiten von Abgeordneten"
       },
       {
+        "id": "bundestag-dip-system",
+        "name": "Bundestag: Reden & Drucksachen",
+        "description": "Plenarreden und Volltext von Gesetzentwürfen, Anträgen, Anfragen und Beschlussempfehlungen aus dem DIP des Bundestags"
+      },
+      {
         "id": "oesterreich-gruene-system",
         "name": "Die Grünen Österreich",
         "description": "Programme der Grünen – Die Grüne Alternative Österreich"

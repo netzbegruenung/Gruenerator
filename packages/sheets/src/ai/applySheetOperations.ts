@@ -1,14 +1,18 @@
 import { columnIndex, type SheetOperation } from '@gruenerator/contracts';
-import { CellValueType, type Serializable } from '@univerjs/core';
+import { BorderStyleTypes, BorderType, CellValueType } from '@univerjs/core';
 import { type FUniver } from '@univerjs/presets';
 import { type FWorkbook, type FWorksheet } from '@univerjs/preset-sheets-core';
 // Side-effect imports: load the plugin Facade augmentations so FWorksheet/FRange
 // gain the plugin methods (newConditionalFormattingRule, createFilter, addTable,
-// sort, setDataValidation) at the TYPE level. The plugins themselves are
+// sort, setDataValidation, createOrUpdateNote, setHyperLink,
+// createTextFinderAsync) at the TYPE level. The plugins themselves are
 // registered in createUniverInstance.
-import '@univerjs/preset-sheets-conditional-formatting';
+import { CFValueType } from '@univerjs/preset-sheets-conditional-formatting';
 import '@univerjs/preset-sheets-data-validation';
 import '@univerjs/preset-sheets-filter';
+import '@univerjs/preset-sheets-find-replace';
+import '@univerjs/preset-sheets-hyper-link';
+import '@univerjs/preset-sheets-note';
 import '@univerjs/preset-sheets-sort';
 import '@univerjs/preset-sheets-table';
 
@@ -44,6 +48,42 @@ function toColumnIndex(at: string): number {
   if (col < 0) throw new Error(`Ungültiger Spaltenbuchstabe: "${at}"`);
   return col;
 }
+
+function requireSheet(workbook: FWorkbook, sheetName: string): FWorksheet {
+  const sheet = workbook.getSheetByName(sheetName);
+  if (!sheet) throw new Error(`Arbeitsblatt „${sheetName}" nicht gefunden`);
+  return sheet;
+}
+
+const BORDER_EDGES = {
+  all: BorderType.ALL,
+  outside: BorderType.OUTSIDE,
+  inside: BorderType.INSIDE,
+  top: BorderType.TOP,
+  bottom: BorderType.BOTTOM,
+  left: BorderType.LEFT,
+  right: BorderType.RIGHT,
+  none: BorderType.NONE,
+} as const;
+
+const BORDER_STYLES = {
+  thin: BorderStyleTypes.THIN,
+  medium: BorderStyleTypes.MEDIUM,
+  thick: BorderStyleTypes.THICK,
+  dashed: BorderStyleTypes.DASHED,
+  dotted: BorderStyleTypes.DOTTED,
+  double: BorderStyleTypes.DOUBLE,
+} as const;
+
+/** Univer's facade spells right-aligned as 'normal'. */
+const HORIZONTAL_ALIGN = { left: 'left', center: 'center', right: 'normal' } as const;
+
+const TEXT_LINE = { none: 'none', underline: 'underline', strikethrough: 'line-through' } as const;
+
+/** Planner output is untrusted: only links a person can safely click. */
+const SAFE_LINK_RE = /^(https?:\/\/|mailto:)/i;
+
+const NOTE_SIZE = { width: 200, height: 80 } as const;
 
 /**
  * Applies AI-planned operations to the live workbook via the Facade API.
@@ -107,11 +147,30 @@ export async function applySheetOperations(
         }
         case 'format_range': {
           const range = resolveSheet(workbook, op.sheet).getRange(op.range);
-          if (op.bold !== null && op.bold !== undefined) {
-            range.setFontWeight(op.bold ? 'bold' : 'normal');
-          }
+          if (op.bold != null) range.setFontWeight(op.bold ? 'bold' : 'normal');
+          if (op.italic != null) range.setFontStyle(op.italic ? 'italic' : 'normal');
+          if (op.textLine) range.setFontLine(TEXT_LINE[op.textLine]);
+          if (op.fontSize) range.setFontSize(op.fontSize);
           if (op.background) range.setBackgroundColor(op.background);
           if (op.fontColor) range.setFontColor(op.fontColor);
+          if (op.horizontalAlign)
+            range.setHorizontalAlignment(HORIZONTAL_ALIGN[op.horizontalAlign]);
+          if (op.verticalAlign) range.setVerticalAlignment(op.verticalAlign);
+          if (op.wrap != null) range.setWrap(op.wrap);
+          if (op.border) {
+            range.setBorder(
+              BORDER_EDGES[op.border.edges],
+              op.border.edges === 'none'
+                ? BorderStyleTypes.NONE
+                : BORDER_STYLES[op.border.style ?? 'thin'],
+              op.border.color ?? '#000000'
+            );
+          }
+          applied++;
+          break;
+        }
+        case 'clear_format': {
+          resolveSheet(workbook, op.sheet).getRange(op.range).clearFormat();
           applied++;
           break;
         }
@@ -120,8 +179,108 @@ export async function applySheetOperations(
           applied++;
           break;
         }
+        case 'rename_sheet': {
+          (op.sheet ? requireSheet(workbook, op.sheet) : workbook.getActiveSheet()).setName(
+            op.name
+          );
+          applied++;
+          break;
+        }
+        case 'delete_sheet': {
+          const sheet = requireSheet(workbook, op.sheet);
+          if (workbook.getSheets().length <= 1) {
+            skipped.push('Das letzte Arbeitsblatt kann nicht gelöscht werden.');
+            break;
+          }
+          workbook.deleteSheet(sheet);
+          applied++;
+          break;
+        }
+        case 'duplicate_sheet': {
+          const copy = workbook.duplicateSheet(
+            op.sheet ? requireSheet(workbook, op.sheet) : workbook.getActiveSheet()
+          );
+          if (op.name) copy.setName(op.name);
+          applied++;
+          break;
+        }
+        case 'set_tab_color': {
+          (op.sheet ? requireSheet(workbook, op.sheet) : workbook.getActiveSheet()).setTabColor(
+            op.color
+          );
+          applied++;
+          break;
+        }
         case 'clear_range': {
           resolveSheet(workbook, op.sheet).getRange(op.range).clearContent();
+          applied++;
+          break;
+        }
+        case 'freeze_panes': {
+          const sheet = resolveSheet(workbook, op.sheet);
+          if (op.rows === 0 && op.columns === 0) sheet.cancelFreeze();
+          else {
+            // -1 = "no split on this axis", as Univer's own setFrozenRows writes it.
+            sheet.setFreeze({
+              xSplit: op.columns,
+              ySplit: op.rows,
+              startRow: op.rows > 0 ? op.rows : -1,
+              startColumn: op.columns > 0 ? op.columns : -1,
+            });
+          }
+          applied++;
+          break;
+        }
+        case 'set_column_width': {
+          const sheet = resolveSheet(workbook, op.sheet);
+          const start = toColumnIndex(op.at);
+          if (op.width) sheet.setColumnWidths(start, op.count, op.width);
+          else sheet.autoResizeColumns(start, op.count);
+          applied++;
+          break;
+        }
+        case 'set_row_height': {
+          const sheet = resolveSheet(workbook, op.sheet);
+          if (op.height) sheet.setRowHeights(op.at - 1, op.count, op.height);
+          else sheet.setRowAutoHeight(op.at - 1, op.count);
+          applied++;
+          break;
+        }
+        case 'autofill': {
+          const sheet = resolveSheet(workbook, op.sheet);
+          const ok = await sheet.getRange(op.source).autoFill(sheet.getRange(op.target));
+          if (ok) applied++;
+          else skipped.push(`Ausfüllen von ${op.source} nach ${op.target} nicht möglich.`);
+          break;
+        }
+        case 'find_replace': {
+          if (!univerAPI) {
+            skipped.push('Ersetzen übersprungen: Editor-Kontext fehlt.');
+            break;
+          }
+          const finder = await univerAPI.createTextFinderAsync(op.find);
+          if (op.matchCase) await finder?.matchCaseAsync(true);
+          if (op.entireCell) await finder?.matchEntireCellAsync(true);
+          const count = finder ? await finder.replaceAllWithAsync(op.replace) : 0;
+          if (count > 0) applied++;
+          else skipped.push(`„${op.find}" wurde nicht gefunden.`);
+          break;
+        }
+        case 'set_hyperlink': {
+          const url = op.url.trim();
+          if (!SAFE_LINK_RE.test(url)) {
+            skipped.push(`Link übersprungen: nur http(s)- und mailto-Adressen erlaubt.`);
+            break;
+          }
+          const range = resolveSheet(workbook, op.sheet).getRange(op.cell);
+          if (await range.setHyperLink(url, op.label?.trim() || url)) applied++;
+          else skipped.push(`Link in ${op.cell} konnte nicht gesetzt werden.`);
+          break;
+        }
+        case 'set_note': {
+          const range = resolveSheet(workbook, op.sheet).getRange(op.cell);
+          if (op.text.trim()) range.createOrUpdateNote({ note: op.text, ...NOTE_SIZE });
+          else range.deleteNote();
           applied++;
           break;
         }
@@ -226,14 +385,62 @@ export async function applySheetOperations(
             if (rule.background) hb = hb.setBackground(rule.background);
             if (rule.fontColor) hb = hb.setFontColor(rule.fontColor);
             if (rule.bold != null) hb = hb.setBold(rule.bold);
-          } else {
+          } else if (rule.kind === 'text_contains') {
             hb = sheet.newConditionalFormattingRule().whenTextContains(rule.text);
             if (rule.background) hb = hb.setBackground(rule.background);
             if (rule.fontColor) hb = hb.setFontColor(rule.fontColor);
             if (rule.bold != null) hb = hb.setBold(rule.bold);
+          } else if (rule.kind === 'color_scale') {
+            const stops: { color: string; value: { type: CFValueType; value?: number } }[] = [
+              { color: rule.minColor, value: { type: CFValueType.min } },
+            ];
+            if (rule.midColor) {
+              stops.push({
+                color: rule.midColor,
+                value: { type: CFValueType.percentile, value: 50 },
+              });
+            }
+            stops.push({ color: rule.maxColor, value: { type: CFValueType.max } });
+            hb = sheet
+              .newConditionalFormattingRule()
+              .setColorScale(stops.map((stop, index) => ({ index, ...stop })));
+          } else {
+            hb = sheet.newConditionalFormattingRule().setDataBar({
+              min: { type: CFValueType.min },
+              max: { type: CFValueType.max },
+              positiveColor: rule.color,
+              nativeColor: rule.negativeColor ?? '#e53935',
+              isGradient: rule.gradient ?? true,
+            });
           }
           sheet.addConditionalFormattingRule(hb.setRanges([irange]).build());
           applied++;
+          break;
+        }
+        case 'remove_conditional_formats': {
+          resolveSheet(workbook, op.sheet).getRange(op.range).clearConditionalFormatRules();
+          applied++;
+          break;
+        }
+        case 'remove_data_validation': {
+          const rules = resolveSheet(workbook, op.sheet).getRange(op.range).getDataValidations();
+          for (const rule of rules) rule.delete();
+          if (rules.length > 0) applied++;
+          else skipped.push(`In ${op.range} gibt es keine Datenprüfung.`);
+          break;
+        }
+        case 'remove_filter': {
+          const filter = resolveSheet(workbook, op.sheet).getFilter();
+          if (filter) {
+            filter.remove();
+            applied++;
+          } else skipped.push('Auf dem Blatt ist kein Filter aktiv.');
+          break;
+        }
+        case 'remove_table': {
+          const table = workbook.getTableInfoByName(op.name);
+          if (table && (await workbook.removeTable(table.id))) applied++;
+          else skipped.push(`Tabelle „${op.name}" nicht gefunden.`);
           break;
         }
         case 'set_data_validation': {

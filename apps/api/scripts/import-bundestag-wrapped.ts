@@ -212,8 +212,11 @@ async function main(): Promise<void> {
   const { DIP_COLLECTION, prepareParentPoints, writeParent } =
     await import('../services/scrapers/implementations/BundestagDipScraper/store.js');
 
+  // Ohne explizites `port` nimmt der Client 6333, auch bei einer https-URL ohne Port.
+  const sourceUrl = new URL(args.sourceUrl);
   const source = new QdrantClient({
     url: args.sourceUrl,
+    port: sourceUrl.port ? Number(sourceUrl.port) : sourceUrl.protocol === 'https:' ? 443 : 6333,
     ...(args.sourceKey ? { apiKey: args.sourceKey } : {}),
     checkCompatibility: false,
   });
@@ -222,7 +225,11 @@ async function main(): Promise<void> {
   const protocolRows = await scrollAll(source, PROTOCOL_COLLECTION, {
     must: [{ key: 'herausgeber', match: { value: 'BT' } }],
   });
-  const documentRows = await scrollAll(source, DOCUMENT_COLLECTION);
+  // Drucksachen tragen in der Quelle kein `herausgeber`. Bundestagsnummern
+  // beginnen mit der Wahlperiode (21/4268), Bundesratsnummern nicht (317/2/26).
+  const documentRows = (await scrollAll(source, DOCUMENT_COLLECTION)).filter((row) =>
+    String(row.dokumentnummer ?? '').startsWith(`${String(row.wahlperiode ?? '')}/`)
+  );
   console.log(`  ${protocolRows.length} Rede-Chunks, ${documentRows.length} Drucksachen-Chunks`);
 
   let parents: DipParent[] = [

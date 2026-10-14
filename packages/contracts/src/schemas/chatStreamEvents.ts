@@ -10,6 +10,12 @@ import {
   notebookAnswerModeSchema,
   notebookResolvedAnswerModeSchema,
 } from './notebookAnswerMode.js';
+import {
+  sharepicFormSchema,
+  sharepicPhotoAttributionSchema,
+  sharepicSpecSchema,
+} from './sharepicCreator.js';
+import { sharepicVorlagenSuggestionsSchema } from './sharepicVorlagen.js';
 import { socialPostPayloadSchema } from './socialPost.js';
 
 /**
@@ -195,6 +201,8 @@ export const searchIntentSchema = z.enum([
   'create_presentation',
   // Finished, downloadable CI-styled PDF (optionally with Grünen letterhead).
   'create_pdf',
+  // Erklärseite in einfacher Sprache mit bis zu drei Erklärbildern (Explainable).
+  'create_explainable',
   // EXPERIMENTAL: set up a recurring "Wiederkehrende Aufgabe" (agent runs on a schedule).
   'create_recurring_task',
   'chat_history',
@@ -239,6 +247,10 @@ export const sharepicVariantSchema = z
     canvasId: z.string().optional(),
     /** Per-slide states for deck variants (slider carousel). */
     pages: z.array(z.record(z.string(), z.unknown())).optional(),
+    /** The draft fell short of the request — e.g. no painted scene (trees spent). */
+    notice: z.string().optional(),
+    /** Other forms the same request could take — offered as "Als Karussell" and so on. */
+    alternativen: z.array(sharepicFormSchema).optional(),
   })
   .passthrough();
 export type SharepicVariant = z.infer<typeof sharepicVariantSchema>;
@@ -392,6 +404,14 @@ export const editorOperationsEventSchema = z
     operations: z.array(z.unknown()),
     summary: z.string().optional(),
     stepId: z.string().optional(),
+    /** Spec path (`edit_current_sharepic`): the revised creator spec replaces the deck; `operations` is then empty. */
+    sharepic: z
+      .object({
+        spec: sharepicSpecSchema,
+        attributions: z.array(sharepicPhotoAttributionSchema.nullable()),
+        hinweis: z.string().nullable(),
+      })
+      .optional(),
   })
   .passthrough();
 export type EditorOperationsEvent = z.infer<typeof editorOperationsEventSchema>;
@@ -407,6 +427,10 @@ export const chartPayloadSchema = z.object({
   xKey: z.string(),
   yKeys: z.array(z.string()),
   colors: z.array(z.string()).optional(),
+  /** bar/area: stack the series instead of placing them side by side. */
+  stacked: z.boolean().optional(),
+  /** bar/area: stack and normalise every x position to 100 %. Implies `stacked`. */
+  percent: z.boolean().optional(),
 });
 export type ChartPayload = z.infer<typeof chartPayloadSchema>;
 
@@ -685,6 +709,8 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
   search_images: z
     .object({ images: z.array(searchImagePayloadSchema.passthrough()) })
     .passthrough(),
+  /** `vorlagen_vorschlagen`: catalogue Vorlagen picked for the post, shown as a gallery. */
+  vorlagen_suggestions: sharepicVorlagenSuggestionsSchema.passthrough(),
   summary_start: z.object({ message: z.string() }).passthrough(),
   summary_complete: z.object({ message: z.string() }).passthrough(),
   image_start: z.object({ message: z.string() }).passthrough(),

@@ -16,12 +16,5 @@ export function NotebookTabs({
     { id: 'chat', label: 'Chat', path: chatPath, tone: 'neutral' },
     { id: 'uebersicht', label: 'Übersicht', path: `${chatPath}/uebersicht`, tone: 'green' },
   ];
-  return (
-    <GlassTabBar
-      tabs={tabs}
-      active={active}
-      ariaLabel="Notebook-Bereiche"
-      layoutId="notebook-tab-pill"
-    />
-  );
+  return <GlassTabBar tabs={tabs} active={active} ariaLabel="Notebook-Bereiche" />;
 }

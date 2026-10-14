@@ -9,13 +9,13 @@
  */
 import {
   flux3BoxEditSchema,
-  flux3LayoutRowSchema,
+  flux3DetectedElementSchema,
   flux3LayoutSchema,
   type Flux3Bbox,
   type Flux3BoxEdit,
+  type Flux3DetectedElement,
   type Flux3EditRow,
   type Flux3Layout,
-  type Flux3LayoutRow,
 } from '@gruenerator/contracts';
 import { z } from 'zod';
 
@@ -85,10 +85,12 @@ export function validateLayout(input: unknown): StructuredValidation<Flux3Layout
   return { ok: true, value: layout };
 }
 
-const detectedElementsSchema = z.object({ elements: z.array(flux3LayoutRowSchema).min(1).max(40) });
+const detectedElementsSchema = z.object({
+  elements: z.array(flux3DetectedElementSchema).min(1).max(40),
+});
 
 /** Detection reports what is there, so small boxes are fine — only shape and ids are checked. */
-export function validateElements(input: unknown): StructuredValidation<Flux3LayoutRow[]> {
+export function validateElements(input: unknown): StructuredValidation<Flux3DetectedElement[]> {
   const parsed = detectedElementsSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: issuesOf(parsed.error) };
   const { elements } = parsed.data;

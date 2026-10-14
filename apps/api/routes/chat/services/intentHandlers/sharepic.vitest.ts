@@ -2,12 +2,13 @@ import { type SharepicSpec, type SharepicVariant } from '@gruenerator/contracts'
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DraftFailedError } from '../../../../services/sharepicCreator/draftAgent.js';
+import { headlineLineTooLong } from '../../../../services/sharepicCreator/draftFailure.js';
 
 const mocks = vi.hoisted(() => ({
   create: vi.fn(),
   revise: vi.fn(),
-  legacy: vi.fn(),
   last: vi.fn(),
+  vorlage: vi.fn(),
 }));
 
 vi.mock('../sharepicCreatorVariant.js', async (importOriginal) => ({
@@ -17,22 +18,20 @@ vi.mock('../sharepicCreatorVariant.js', async (importOriginal) => ({
 }));
 vi.mock('../sharepicVariantHelpers.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../sharepicVariantHelpers.js')>()),
-  generateSharepicVariants: mocks.legacy,
   getLastSharepicVariant: mocks.last,
 }));
-vi.mock('../artifactGeneration.js', () => ({
-  resolveSharepicAuthorName: () => Promise.resolve(''),
+vi.mock('../../../../services/sharepicVorlagen/catalog.js', () => ({
+  getSharepicVorlage: mocks.vorlage,
 }));
 vi.mock('../threadPersistenceService.js', () => ({
   getRecentThreadSources: () => Promise.resolve([]),
 }));
 
-import { runSharepicGeneration } from './sharepic.js';
+import { legacySharepicText, runSharepicGeneration } from './sharepic.js';
 
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 import type { SSEWriter } from '../sseHelpers.js';
 import type { PriorSharepic } from '../sharepicVariantHelpers.js';
-import type { Request } from 'express';
 
 const SPEC: SharepicSpec = {
   locale: 'de-DE',
@@ -65,6 +64,19 @@ const DRAFT: SharepicVariant = {
   initialProps: { creatorSpec: SPEC, attributions: [null] },
 };
 
+const REVISED: SharepicVariant = {
+  id: 'rev',
+  canvasType: 'freeform',
+  initialProps: {
+    creatorSpec: {
+      ...SPEC,
+      slides: [{ ...SPEC.slides[0]!, items: [{ type: 'headline', lines: ['Busse!'] }] }],
+    },
+    attributions: [null],
+    revisionOf: 'v1',
+  },
+};
+
 function state(text: string): ChatGraphState {
   return { messages: [{ role: 'user', content: text }], userLocale: 'de-DE' } as never;
 }
@@ -74,7 +86,6 @@ function run(text: string, refinement?: { instruction: string; prior: PriorShare
   const done = runSharepicGeneration({
     state: state(text),
     sse: { send } as unknown as SSEWriter,
-    req: {} as Request,
     threadId: 't1',
     ...(refinement && { sharepicRefinement: refinement }),
   });
@@ -88,33 +99,60 @@ describe('runSharepicGeneration', () => {
     mocks.revise.mockResolvedValue(DRAFT);
   });
 
-  it('refines a legacy template sharepic with the template variants', async () => {
-    mocks.legacy.mockResolvedValue({ variants: [DRAFT], declinedReason: null });
+  it('turns a refinement of a legacy template sharepic into a fresh creator draft', async () => {
     const { done } = run('kürzer', { instruction: 'kürzer', prior: LEGACY_PRIOR });
-    expect(await done).toEqual([DRAFT]);
-    expect(mocks.legacy).toHaveBeenCalledWith(
-      expect.objectContaining({ refinement: { instruction: 'kürzer', prior: LEGACY_PRIOR } })
+    expect((await done).variants).toEqual([DRAFT]);
+    expect(mocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        brief: 'kürzer\n\nThema wie beim vorigen Sharepic: Mehr Radwege jetzt',
+        avoid: null,
+        locale: 'de-DE',
+        form: null,
+      })
     );
-    expect(mocks.create).not.toHaveBeenCalled();
     expect(mocks.revise).not.toHaveBeenCalled();
   });
 
+  it('falls back to the topic text when the legacy prior carries no text', async () => {
+    const { done } = run('kürzer', {
+      instruction: 'kürzer',
+      prior: { ...LEGACY_PRIOR, props: {} },
+    });
+    await done;
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ brief: 'kürzer' }));
+  });
+
   it('revises a creator sharepic from its spec', async () => {
+    mocks.revise.mockResolvedValue(REVISED);
     const { send, done } = run('Headline kürzer', {
       instruction: 'Headline kürzer',
       prior: CREATOR_PRIOR,
     });
-    expect(await done).toEqual([DRAFT]);
+    expect((await done).variants).toEqual([REVISED]);
     expect(mocks.revise).toHaveBeenCalledWith({
       instruction: 'Headline kürzer',
       prior: CREATOR_PRIOR,
       spec: SPEC,
+      userId: null,
     });
     expect(mocks.create).not.toHaveBeenCalled();
     expect(send).toHaveBeenCalledWith('sharepic_complete', {
       message: 'Sharepic entworfen',
-      variants: [DRAFT],
+      variants: [REVISED],
     });
+  });
+
+  // Live 11.10.2026: „Mach die Schrift weiß" kam als Kopie mit „Überarbeitet" zurück.
+  it('shows no card when the revision left the spec unchanged', async () => {
+    const { send, done } = run('Mach die Schrift weiß', {
+      instruction: 'Mach die Schrift weiß',
+      prior: CREATOR_PRIOR,
+    });
+    expect(await done).toEqual({ variants: [], failure: 'unchanged' });
+    expect(send).toHaveBeenCalledWith(
+      'sharepic_complete',
+      expect.objectContaining({ variants: [], error: 'Sharepic unchanged' })
+    );
   });
 
   it('drafts an alternative that avoids the prior layout', async () => {
@@ -136,9 +174,62 @@ describe('runSharepicGeneration', () => {
     const { done } = run('Sharepic über Busse auf dem Land');
     await done;
     expect(mocks.create).toHaveBeenCalledWith(
-      expect.objectContaining({ avoid: null, locale: 'de-DE' })
+      expect.objectContaining({ avoid: null, locale: 'de-DE', form: null })
     );
     expect(mocks.last).not.toHaveBeenCalled();
+  });
+
+  it('holds a fresh draft to the form the message names', async () => {
+    const { done } = run('Mach ein Zitat-Sharepic über Busse auf dem Land');
+    await done;
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ form: 'zitat' }));
+  });
+
+  it('holds "ein Sharepic" to one slide', async () => {
+    const { done } = run('erstelle ein sharepic um neue mitglieder für die grünen zu werben');
+    await done;
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ oneSlide: true }));
+  });
+
+  it('allows several slides when the message asks for them', async () => {
+    const { done } = run('erstelle 3 sharepics zur Mitgliederwerbung');
+    await done;
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ oneSlide: false }));
+  });
+
+  it("reads form and slide count from the person's words, not the planner's text", async () => {
+    const send = vi.fn();
+    await runSharepicGeneration({
+      state: state('Karussell: Mitglieder werben, Fakten zur Mitgliederzahl'),
+      sse: { send } as unknown as SSEWriter,
+      threadId: 't1',
+      request: 'erstelle ein sharepic zur mitgliederwerbung',
+    });
+    expect(mocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({ form: null, oneSlide: true })
+    );
+  });
+
+  it('lets an alternative to a carousel stay several slides', async () => {
+    const carousel = { ...SPEC, slides: [SPEC.slides[0]!, SPEC.slides[0]!, SPEC.slides[0]!] };
+    const { done } = run('mach eine ganz andere Variante', {
+      instruction: 'mach eine ganz andere Variante',
+      prior: { ...CREATOR_PRIOR, props: { creatorSpec: carousel, attributions: [null] } },
+    });
+    await done;
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ oneSlide: false }));
+  });
+
+  it('drafts an offered alternative in its form', async () => {
+    const { done } = run('Andere Variante als Karussell', {
+      instruction: 'Andere Variante als Karussell',
+      prior: CREATOR_PRIOR,
+    });
+    await done;
+    expect(mocks.revise).not.toHaveBeenCalled();
+    expect(mocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({ avoid: SPEC, form: 'karussell' })
+    );
   });
 
   it('puts the draft-failed hint where the client shows it', async () => {
@@ -147,7 +238,7 @@ describe('runSharepicGeneration', () => {
       instruction: 'Headline kürzer',
       prior: CREATOR_PRIOR,
     });
-    expect(await done).toEqual([]);
+    expect(await done).toEqual({ variants: [], failure: null });
     expect(send).toHaveBeenCalledWith(
       'sharepic_complete',
       expect.objectContaining({
@@ -160,7 +251,7 @@ describe('runSharepicGeneration', () => {
   it('asks for a clearer order when a fresh draft fails', async () => {
     mocks.create.mockRejectedValue(new DraftFailedError('no valid spec'));
     const { send, done } = run('Sharepic über Busse auf dem Land');
-    expect(await done).toEqual([]);
+    expect(await done).toEqual({ variants: [], failure: null });
     expect(send).toHaveBeenCalledWith(
       'sharepic_complete',
       expect.objectContaining({
@@ -168,5 +259,113 @@ describe('runSharepicGeneration', () => {
         message: expect.stringContaining('Formuliere den Auftrag etwas genauer') as unknown,
       })
     );
+  });
+
+  it('names the limit a failed revision kept breaking', async () => {
+    mocks.revise.mockRejectedValue(
+      new DraftFailedError(
+        headlineLineTooLong('slides.0.items.0.lines.0', 'Viel zu lange erste Zeile hier')
+      )
+    );
+    const { send, done } = run('Mach die erste Zeile viel länger', {
+      instruction: 'Mach die erste Zeile viel länger',
+      prior: CREATOR_PRIOR,
+    });
+    expect(await done).toEqual({ variants: [], failure: 'headline_line_too_long' });
+    expect(send).toHaveBeenCalledWith(
+      'sharepic_complete',
+      expect.objectContaining({
+        variants: [],
+        message: expect.stringContaining('höchstens 24 Zeichen') as unknown,
+      })
+    );
+  });
+});
+
+describe('runSharepicGeneration with a picked Vorlage', () => {
+  const VORLAGE = { id: 'alt-zitat', titel: 'Zitat mit Foto', locale: 'de-DE', spec: SPEC };
+
+  function runWith(
+    messages: { role: string; content: string }[],
+    vorlageId: string,
+    refinement?: { instruction: string; prior: PriorSharepic }
+  ) {
+    const send = vi.fn();
+    const done = runSharepicGeneration({
+      state: { messages, userLocale: 'de-DE', sharepicVorlageId: vorlageId } as never,
+      sse: { send } as unknown as SSEWriter,
+      threadId: 't1',
+      ...(refinement && { sharepicRefinement: refinement }),
+    });
+    return { send, done };
+  }
+
+  beforeEach(() => {
+    for (const m of Object.values(mocks)) m.mockReset();
+    mocks.create.mockResolvedValue(DRAFT);
+    mocks.vorlage.mockImplementation((id: string) => (id === VORLAGE.id ? VORLAGE : null));
+  });
+
+  it('fills the Vorlage with the topic, without its chip label', async () => {
+    const { done } = runWith(
+      [{ role: 'user', content: '@Zitat mit Foto Busse auf dem Land' }],
+      'alt-zitat'
+    );
+    await done;
+    expect(mocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({ vorlage: VORLAGE, brief: 'Busse auf dem Land' })
+    );
+  });
+
+  it('drafts a fresh card instead of revising the last one', async () => {
+    const { done } = runWith(
+      [{ role: 'user', content: '@Zitat mit Foto jetzt als Zitat' }],
+      'alt-zitat',
+      { instruction: 'jetzt als Zitat', prior: CREATOR_PRIOR }
+    );
+    await done;
+    expect(mocks.revise).not.toHaveBeenCalled();
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ vorlage: VORLAGE }));
+  });
+
+  it('drafts freely for an id outside the country catalogue', async () => {
+    mocks.vorlage.mockReturnValue({ ...VORLAGE, locale: 'de-AT' });
+    const { done } = runWith([{ role: 'user', content: 'Busse auf dem Land' }], 'alt-zitat');
+    await done;
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ vorlage: null }));
+  });
+});
+
+describe('legacySharepicText', () => {
+  it('joins the text fields of a three-line sharepic', () => {
+    expect(legacySharepicText({ line1: 'Mehr', line2: 'Radwege', line3: 'jetzt' })).toBe(
+      'Mehr Radwege jetzt'
+    );
+  });
+
+  it('reads quote and author, and the info fields', () => {
+    expect(legacySharepicText({ quote: 'Wir schaffen das', name: 'Anna' })).toBe(
+      'Wir schaffen das Anna'
+    );
+    expect(
+      legacySharepicText({ header: 'Strom', accent: 'sauber', body: 'Alles erneuerbar' })
+    ).toBe('Strom sauber Alles erneuerbar');
+  });
+
+  it('reads subline and the other template text fields', () => {
+    expect(legacySharepicText({ line1: 'Mehr', subline: 'Ausbau bis 2030' })).toBe(
+      'Mehr Ausbau bis 2030'
+    );
+    expect(legacySharepicText({ label: 'Neu', headline: 'Slider', subtext: 'Mehr' })).toBe(
+      'Neu Slider Mehr'
+    );
+  });
+
+  it('skips empty and non-string values', () => {
+    expect(legacySharepicText({ line1: ' ', line2: 'Radwege', line3: 3, foo: 'x' })).toBe(
+      'Radwege'
+    );
+    expect(legacySharepicText({})).toBe('');
+    expect(legacySharepicText(undefined)).toBe('');
   });
 });

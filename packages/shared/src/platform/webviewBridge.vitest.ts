@@ -1,9 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import {
+  HOST_CAPABILITIES_GLOBAL,
+  HOST_CAPABILITY_SHARE,
+  hostCapabilitiesScript,
+  hostSupports,
   isSafeDownloadFilename,
   parseHostMessage,
   parseWebViewMessage,
+  RENDER_CAPABILITY_CREATOR,
   sanitizeDownloadFilename,
   WEBVIEW_DOWNLOAD_MAX_BASE64_LENGTH,
   type WebViewOutboundMessage,
@@ -131,6 +136,77 @@ describe('parseWebViewMessage — DOWNLOAD_FILE', () => {
   });
 });
 
+describe('parseWebViewMessage — SHARE_FILE', () => {
+  const share = (over: Partial<Record<string, unknown>> = {}) =>
+    download({ type: 'SHARE_FILE', ...over });
+
+  it('accepts a well-formed payload with title and text', () => {
+    expect(
+      parseWebViewMessage(JSON.stringify(share({ title: 'Grünerator', text: 'Hallo' })))
+    ).toEqual({
+      type: 'SHARE_FILE',
+      filename: 'gruenerator-seite-1.png',
+      mime: 'image/png',
+      data: 'aGVsbG8=',
+      title: 'Grünerator',
+      text: 'Hallo',
+    });
+  });
+
+  it('leaves title and text out when absent or not strings, and drops extra fields', () => {
+    expect(parseWebViewMessage(share({ title: 42, text: null, evil: true }))).toEqual({
+      type: 'SHARE_FILE',
+      filename: 'gruenerator-seite-1.png',
+      mime: 'image/png',
+      data: 'aGVsbG8=',
+    });
+  });
+
+  it.each([
+    [{ filename: '../evil.png' }, 'path traversal'],
+    [{ mime: '' }, 'empty mime'],
+    [{ data: '' }, 'empty data'],
+    [{ data: 'A'.repeat(WEBVIEW_DOWNLOAD_MAX_BASE64_LENGTH + 1) }, 'over the cap'],
+  ])('rejects %j — %s, like DOWNLOAD_FILE', (over, _reason) => {
+    expect(parseWebViewMessage(share(over))).toBeNull();
+  });
+});
+
+describe('host capabilities', () => {
+  const setWindow = (value: unknown) => {
+    (globalThis as { window?: unknown }).window = value;
+  };
+  const original = (globalThis as { window?: unknown }).window;
+  afterEach(() => setWindow(original));
+
+  it('injects the capabilities under the global the page reads', () => {
+    expect(hostCapabilitiesScript([HOST_CAPABILITY_SHARE])).toBe(
+      `window.${HOST_CAPABILITIES_GLOBAL} = ["share"]; true;`
+    );
+  });
+
+  it('is true only for an announced capability', () => {
+    setWindow({
+      ReactNativeWebView: { postMessage: () => {} },
+      [HOST_CAPABILITIES_GLOBAL]: [HOST_CAPABILITY_SHARE],
+    });
+    expect(hostSupports(HOST_CAPABILITY_SHARE)).toBe(true);
+    expect(hostSupports('other')).toBe(false);
+  });
+
+  it('is false for an older host that announced nothing', () => {
+    setWindow({ ReactNativeWebView: { postMessage: () => {} } });
+    expect(hostSupports(HOST_CAPABILITY_SHARE)).toBe(false);
+  });
+
+  it('is false without a native host, even if the global is set', () => {
+    setWindow({ [HOST_CAPABILITIES_GLOBAL]: ['share'] });
+    expect(hostSupports(HOST_CAPABILITY_SHARE)).toBe(false);
+    setWindow(undefined);
+    expect(hostSupports(HOST_CAPABILITY_SHARE)).toBe(false);
+  });
+});
+
 describe('sanitizeDownloadFilename', () => {
   it('leaves an ordinary name alone', () => {
     expect(sanitizeDownloadFilename('Haushalt 2027.pptx')).toBe('Haushalt 2027.pptx');
@@ -200,12 +276,58 @@ describe('parseWebViewMessage — PRESENTING', () => {
   });
 });
 
+describe('hardware back round-trip (#4403)', () => {
+  it('accepts CLOSE_HANDLER and drops extra fields', () => {
+    expect(parseWebViewMessage(JSON.stringify({ type: 'CLOSE_HANDLER', active: true }))).toEqual({
+      type: 'CLOSE_HANDLER',
+      active: true,
+    });
+    expect(parseWebViewMessage({ type: 'CLOSE_HANDLER', active: false, x: 1 })).toEqual({
+      type: 'CLOSE_HANDLER',
+      active: false,
+    });
+  });
+
+  it('rejects CLOSE_HANDLER without a boolean state', () => {
+    expect(parseWebViewMessage({ type: 'CLOSE_HANDLER', active: 1 })).toBeNull();
+    expect(parseWebViewMessage({ type: 'CLOSE_HANDLER' })).toBeNull();
+  });
+
+  it('parseHostMessage accepts REQUEST_CLOSE in both wire forms, reconstructed', () => {
+    expect(parseHostMessage({ type: 'REQUEST_CLOSE', evil: true })).toEqual({
+      type: 'REQUEST_CLOSE',
+    });
+    expect(parseHostMessage(JSON.stringify({ type: 'REQUEST_CLOSE' }))).toEqual({
+      type: 'REQUEST_CLOSE',
+    });
+  });
+
+  it('keeps the two directions apart', () => {
+    expect(parseWebViewMessage({ type: 'REQUEST_CLOSE' })).toBeNull();
+    expect(parseHostMessage({ type: 'CLOSE_HANDLER', active: true })).toBeNull();
+  });
+});
+
 describe('parseWebViewMessage — render replies', () => {
   it('accepts the ready announcement with its protocol version', () => {
     expect(parseWebViewMessage({ type: 'RENDER_HOST_READY', protocolVersion: 1 })).toEqual({
       type: 'RENDER_HOST_READY',
       protocolVersion: 1,
+      capabilities: [],
     });
+  });
+
+  it('keeps announced capabilities and ignores a malformed list', () => {
+    expect(
+      parseWebViewMessage({
+        type: 'RENDER_HOST_READY',
+        protocolVersion: 1,
+        capabilities: [RENDER_CAPABILITY_CREATOR],
+      })
+    ).toEqual({ type: 'RENDER_HOST_READY', protocolVersion: 1, capabilities: ['creator'] });
+    expect(
+      parseWebViewMessage({ type: 'RENDER_HOST_READY', protocolVersion: 1, capabilities: [1] })
+    ).toEqual({ type: 'RENDER_HOST_READY', protocolVersion: 1, capabilities: [] });
   });
 
   it('accepts a result and an error, each keyed to its request', () => {
@@ -332,5 +454,83 @@ describe('compose messages', () => {
     expect(parseWebViewMessage(result)).toEqual(result);
     const { title: _title, ...untitled } = result;
     expect(parseWebViewMessage({ ...result, title: 42 })).toEqual(untitled);
+  });
+});
+
+describe('creator render messages', () => {
+  const spec = {
+    locale: 'de-DE',
+    slides: [
+      {
+        background: { kind: 'farbe', color: 'tanne' },
+        position: 'oben',
+        align: 'links',
+        items: [{ type: 'headline', lines: ['Mehr Radwege'] }],
+        logo: false,
+      },
+    ],
+  };
+  const request = {
+    type: 'CREATOR_RENDER_REQUEST',
+    requestId: 'c1',
+    base: spec,
+    attributions: [null],
+    patch: [{ op: 'set_color', color: 'mint' }],
+    choice: { farbe: 'mint' },
+    sheet: true,
+  };
+  const tweak = {
+    id: 'farbe',
+    label: 'Farbe',
+    value: 'tanne',
+    options: [
+      { value: 'tanne', label: 'Tanne', short: 'Tanne', disabled: false, swatch: ['#005538'] },
+    ],
+  };
+  const result = {
+    type: 'CREATOR_RENDER_RESULT',
+    requestId: 'c1',
+    base: spec,
+    spec,
+    tweaks: [tweak],
+    images: ['data:image/png;base64,AA'],
+    sheet: null,
+  };
+
+  it('round-trips a request', () => {
+    expect(parseHostMessage(JSON.stringify(request))).toEqual(request);
+    expect(parseHostMessage({ ...request, patch: null })).toEqual({ ...request, patch: null });
+  });
+
+  it('drops fields the page did not ask for', () => {
+    expect(parseHostMessage({ ...request, authToken: 'secret' })).toEqual(request);
+  });
+
+  it.each([
+    [{ ...request, base: { ...spec, slides: [] } }, 'spec without slides'],
+    [{ ...request, base: { locale: 'de-CH', slides: spec.slides } }, 'unknown locale'],
+    [{ ...request, patch: [{ op: 'explode' }] }, 'unknown patch op'],
+    [{ ...request, attributions: [{ photographer: 1 }] }, 'malformed attribution'],
+    [{ ...request, choice: { farbe: 1 } }, 'non-string choice'],
+    [{ ...request, sheet: 'yes' }, 'non-boolean sheet'],
+    [{ ...request, requestId: '' }, 'empty request id'],
+  ])('rejects a request with %# — %s', (input, _reason) => {
+    expect(parseHostMessage(input)).toBeNull();
+  });
+
+  it('round-trips a result', () => {
+    expect(parseWebViewMessage(JSON.stringify(result))).toEqual(result);
+    const withSheet = { ...result, sheet: 'data:image/jpeg;base64,BB' };
+    expect(parseWebViewMessage(withSheet)).toEqual(withSheet);
+  });
+
+  it.each([
+    [{ ...result, spec: { ...spec, slides: [] } }, 'invalid spec'],
+    [{ ...result, images: [] }, 'no images'],
+    [{ ...result, images: ['https://evil.example/x.png'] }, 'image that is not a data URL'],
+    [{ ...result, sheet: 'x' }, 'sheet that is not a data URL'],
+    [{ ...result, tweaks: [{ ...tweak, options: [{ value: 'x' }] }] }, 'malformed tweak'],
+  ])('rejects a result with %# — %s', (input, _reason) => {
+    expect(parseWebViewMessage(input)).toBeNull();
   });
 });

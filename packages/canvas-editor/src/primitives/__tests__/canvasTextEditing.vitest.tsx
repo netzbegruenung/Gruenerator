@@ -10,12 +10,13 @@
  * unerreichbar. Ein Test auf `RichTextField` allein sieht davon nichts: die
  * Komponente selbst war die ganze Zeit in Ordnung.
  */
-import { render, screen, act, cleanup } from '@testing-library/react';
+import { render, screen, act, cleanup, fireEvent } from '@testing-library/react';
 import { createRef, type ReactNode } from 'react';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import {
   CanvasTextEditorProvider,
+  preloadRichText,
   useCanvasTextFormatting,
 } from '../../components/CanvasTextOverlay';
 import { TextFormatControls } from '../../components/TextFormatControls';
@@ -68,6 +69,9 @@ function dblClickOnCanvas(
     node.fire('dblclick');
   });
 }
+
+// Der Editor wird nachgeladen; hier geht es um den geladenen Zustand.
+beforeAll(() => preloadRichText());
 
 describe('Doppelklick auf Leinwand-Text', () => {
   it('öffnet auf glattem Text den Rich-Text-Editor, nicht mehr eine nackte textarea', () => {
@@ -138,6 +142,37 @@ function HostControls() {
     </div>
   );
 }
+
+/**
+ * Escape schließt ab wie ein Klick daneben — wie auf der Dreizeilen-Zeile.
+ * Verwarf es, war das Getippte weg.
+ */
+describe('Escape im Editor', () => {
+  it('übernimmt das Getippte', () => {
+    const onTextChange = vi.fn();
+    let editor: ReturnType<typeof useCanvasTextFormatting> = null;
+    function Grab() {
+      editor = useCanvasTextFormatting();
+      return null;
+    }
+    dblClickOnCanvas({ text: 'Erster Punkt', fontFamily: PT_SANS, onTextChange }, {}, (node) => (
+      <CanvasTextEditorProvider>
+        <Grab />
+        {node}
+      </CanvasTextEditorProvider>
+    ));
+    act(() => {
+      editor!.editor!.commands.insertContentAt(editor!.editor!.state.doc.content.size - 1, ' neu');
+    });
+    const content = document.querySelector<HTMLElement>('.canvas-rte__content')!;
+    act(() => {
+      fireEvent.keyDown(content, { key: 'Escape' });
+    });
+
+    expect(onTextChange).toHaveBeenCalledWith('Erster Punkt neu');
+    expect(document.querySelector('.canvas-rte__content')).toBeNull();
+  });
+});
 
 describe('Bühne innerhalb eines Wirt-Providers', () => {
   it('öffnet keine zweite Sitzung — der Wirt bekommt den Editor', () => {

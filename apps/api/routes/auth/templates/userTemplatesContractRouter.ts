@@ -19,7 +19,6 @@ import {
   type UserTemplate,
   type GrueneratorBlueprint,
   GRUENERATOR_TEMPLATE_TYPE,
-  getSharepicTemplateDescriptor,
 } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
@@ -29,10 +28,7 @@ import {
   getCanvas,
   markCanvasAsGalleryTemplate,
 } from '../../../services/canvas/canvasRepository.js';
-import {
-  getCurrentCanvasState,
-  getCurrentDeckState,
-} from '../../../services/canvas/canvasStateService.js';
+import { getCanvasSnapshotState } from '../../../services/canvas/canvasStateService.js';
 import {
   urlCrawlerService,
   UrlValidator,
@@ -236,7 +232,7 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
     try {
       const user = getAuthedUser(args.req);
       const userId = user.id;
-      const { canvasId, title, description, tags, preview_image_url } = args.body;
+      const { canvasId, title, description, tags, preview_image_url, images } = args.body;
       // Default 'submit' keeps the pre-visibility behaviour for older clients.
       const keepPrivate = (args.body.visibility ?? 'submit') === 'private';
 
@@ -261,20 +257,10 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       const baseTitle = (title || sourceCanvas.title || 'Vorlage').trim();
 
       // Capture the live state (incl. unsaved manual studio edits) as the
-      // snapshot seed. Decks keep their full per-slide `pages` array; flat cover
-      // keys ride alongside so gallery/thumbnail readers still render.
-      let initialState: Record<string, unknown>;
-      let pageCount: number;
-      if (getSharepicTemplateDescriptor(canvasType)?.deck) {
-        const deck = await getCurrentDeckState(canvasId);
-        const pages = deck.pages;
-        initialState = { ...((pages[0]?.state as Record<string, unknown>) ?? {}), pages };
-        pageCount = pages.length || sourceCanvas.page_count;
-      } else {
-        const current = await getCurrentCanvasState(canvasId);
-        initialState = current.state;
-        pageCount = sourceCanvas.page_count;
-      }
+      // snapshot seed — every page, so a multi-page canvas stays whole.
+      const snapshotState = await getCanvasSnapshotState(canvasId);
+      const initialState = snapshotState.state;
+      const pageCount = snapshotState.pageCount ?? sourceCanvas.page_count;
 
       // Freeze an immutable snapshot canvas, decoupled from the working copy, so
       // later edits to the original don't mutate the published vorlage.
@@ -315,7 +301,7 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
         template_type: GRUENERATOR_TEMPLATE_TYPE,
         external_url: null,
         thumbnail_url: preview_image_url,
-        images: JSON.stringify([]),
+        images: JSON.stringify((images ?? []).map((img, i) => ({ ...img, display_order: i }))),
         categories: JSON.stringify([]),
         tags: JSON.stringify(mergedTags),
         content_data: JSON.stringify(blueprint),
@@ -623,13 +609,14 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       }
 
       // Re-index when searchable fields changed (re-embeds; re-runs vision only
-      // if the description was cleared).
+      // if the description was cleared) or the thumbnail needs re-measuring.
       if (
         'title' in updateData ||
         'description' in updateData ||
         'tags' in updateData ||
         'is_private' in updateData ||
-        'status' in updateData
+        'status' in updateData ||
+        'thumbnail_url' in updateData
       ) {
         void enrichTemplate(id).catch((e) =>
           log.warn('[userTemplatesContract.update] enrichTemplate failed', e)

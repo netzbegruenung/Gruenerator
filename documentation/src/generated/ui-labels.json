@@ -5,24 +5,44 @@
     "path": "/office"
   },
   "catalog.tool-agentura": {
-    "title": "Agentura",
-    "subtitle": "KI-Grüneratoren & Rezepte entdecken",
-    "path": "/agentura"
+    "title": "Grüneratoren",
+    "subtitle": "Deine Agents, Rezepte und Aufgaben",
+    "path": "/grueneratoren"
+  },
+  "catalog.tool-bild-erweitern": {
+    "title": "Bild erweitern",
+    "subtitle": "KI ergänzt dein Bild auf ein neues Format",
+    "path": "/studio/erweitern"
   },
   "catalog.tool-chat": {
     "title": "Chat",
     "subtitle": "KI-Assistent",
     "path": "/chat"
   },
+  "catalog.tool-freisteller": {
+    "title": "Hintergrund entfernen",
+    "subtitle": "Person oder Motiv in Sekunden freistellen",
+    "path": "/studio/freistellen"
+  },
   "catalog.tool-imagine": {
     "title": "KI-Bild erstellen",
     "subtitle": "Bilder mit KI erstellen & bearbeiten",
-    "path": "/bild-editor"
+    "path": "/studio"
+  },
+  "catalog.tool-mediathek": {
+    "title": "Mediathek",
+    "subtitle": "Alle deine Bilder, Sharepics, KI-Bilder, Videos und Audios",
+    "path": "/studio/mediathek"
   },
   "catalog.tool-notebooks": {
     "title": "Notebooks",
     "subtitle": "Wissensmanagement & Recherche",
     "path": "/notebooks"
+  },
+  "catalog.tool-profilbild": {
+    "title": "Profilbild",
+    "subtitle": "Profilbild freistellen und Hintergrund wechseln",
+    "path": "/studio/profilbild"
   },
   "catalog.tool-projekte": {
     "title": "Projekte",
@@ -66,13 +86,19 @@
   },
   "catalog.tool-vorlagen": {
     "title": "Vorlagen",
-    "subtitle": "Fertige Design-Vorlagen",
+    "subtitle": "Fertige Sharepic- und Design-Vorlagen",
     "path": "/vorlagen"
   },
   "catalog.tool-zeichenzaehler": {
     "title": "Zeichenzähler",
     "subtitle": "Zeichen, Wörter & Social-Limits zählen",
     "path": "/zeichenzaehler"
+  },
+  "composer.import": {
+    "title": "Importieren"
+  },
+  "composer.photo-upload": {
+    "title": "Foto hochladen …"
   },
   "lv.bayern": {
     "title": "Bayern",
@@ -137,7 +163,7 @@
   "menu.grueneratoren": {
     "title": "Grüneratoren",
     "subtitle": "Deine KI-Grüneratoren",
-    "path": "/agentura"
+    "path": "/grueneratoren"
   },
   "menu.sites": {
     "title": "Sites",
@@ -154,9 +180,18 @@
     "path": "/support"
   },
   "workplace.agents": {
-    "title": "Agentura",
-    "subtitle": "Grüneratoren & Rezepte",
-    "path": "/agentura"
+    "title": "Grüneratoren",
+    "subtitle": "Agents, Rezepte & Aufgaben",
+    "path": "/grueneratoren"
+  },
+  "workplace.bild-erweitern": {
+    "title": "Bild erweitern",
+    "subtitle": "Auf ein neues Format ergänzen",
+    "path": "/studio/erweitern"
+  },
+  "workplace.bildgenerator-at": {
+    "title": "Bildgenerator",
+    "subtitle": "Sharepics der Grünen Österreich"
   },
   "workplace.boards": {
     "title": "Leeres Board",
@@ -170,26 +205,31 @@
   "workplace.canvas-ki": {
     "title": "KI-Bilder",
     "subtitle": "Erstellen & bearbeiten",
-    "path": "/bild-editor"
-  },
-  "workplace.canvas-sharepics": {
-    "title": "Sharepics",
-    "subtitle": "Grafiken gestalten",
-    "path": "/studio/templates"
+    "path": "/studio"
   },
   "workplace.canvas-vorlagen": {
     "title": "Vorlagen",
-    "subtitle": "Design-Vorlagen",
+    "subtitle": "Sharepics & Designs",
     "path": "/vorlagen"
   },
   "workplace.docs": {
     "title": "Leeres Dokument",
     "subtitle": "Leeres Textdokument"
   },
+  "workplace.freisteller": {
+    "title": "Hintergrund entfernen",
+    "subtitle": "Person oder Motiv freistellen",
+    "path": "/studio/freistellen"
+  },
   "workplace.mcp": {
     "title": "Apps & MCP",
     "subtitle": "ChatGPT & Co verbinden",
     "path": "/apps"
+  },
+  "workplace.mediathek": {
+    "title": "Mediathek",
+    "subtitle": "Deine Bilder, Videos & Audios",
+    "path": "/studio/mediathek"
   },
   "workplace.newsletter": {
     "title": "Newsletter",
@@ -203,6 +243,11 @@
   "workplace.presentations": {
     "title": "Leere Präsentation",
     "subtitle": "Leere Foliensammlung"
+  },
+  "workplace.profilbild": {
+    "title": "Profilbild",
+    "subtitle": "Freistellen & Hintergrund wechseln",
+    "path": "/studio/profilbild"
   },
   "workplace.projekte": {
     "title": "Projekte",
@@ -223,20 +268,25 @@
     "title": "Leere Tabelle",
     "subtitle": "Leere Kalkulationstabelle"
   },
+  "workplace.studio-voice": {
+    "title": "Voice",
+    "subtitle": "Text vertonen",
+    "path": "/voice"
+  },
   "workplace.transkription": {
     "title": "Transkription",
     "subtitle": "Audio zu Text",
     "path": "/transkription"
   },
+  "workplace.transparenz": {
+    "title": "Transparenz",
+    "subtitle": "Verbrauch & CO₂ des Grünerators",
+    "path": "/transparenz"
+  },
   "workplace.uebersetzer": {
     "title": "Übersetzer",
     "subtitle": "Texte & Dokumente übersetzen",
     "path": "/uebersetzer"
-  },
-  "workplace.voice": {
-    "title": "Voice",
-    "subtitle": "Text vertonen",
-    "path": "/voice"
   },
   "workplace.vorlagen": {
     "title": "Vorlagen",

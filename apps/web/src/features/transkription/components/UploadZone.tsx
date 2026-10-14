@@ -1,21 +1,8 @@
 import { MAX_VIDEO_UPLOAD_MB } from '@gruenerator/contracts';
-import { UploadZone as BaseUploadZone, type Accept } from '@gruenerator/ui';
+import { UploadZone as BaseUploadZone, toast } from '@gruenerator/ui';
 import { PiMicrophone } from 'react-icons/pi';
 
-const MEDIA_ACCEPT: Accept = {
-  'audio/mpeg': ['.mp3'],
-  'audio/wav': ['.wav'],
-  'audio/x-m4a': ['.m4a'],
-  'audio/aac': ['.aac'],
-  'audio/ogg': ['.ogg'],
-  'audio/webm': ['.webm'],
-  'audio/flac': ['.flac'],
-  'video/mp4': ['.mp4'],
-  'video/quicktime': ['.mov'],
-  'video/x-msvideo': ['.avi'],
-  'video/x-matroska': ['.mkv'],
-  'video/webm': ['.webm'],
-};
+import { MEDIA_ACCEPT } from '../utils/mediaType';
 
 interface UploadZoneProps {
   onFileSelected: (file: File) => void;
@@ -35,6 +22,8 @@ export default function UploadZone({ onFileSelected, disabled, onHoverChange }: 
       title=""
       subtitle=""
       onHoverChange={onHoverChange}
+      // Without this the base zone drops a file of the wrong format silently.
+      onError={(message: string) => toast.error(message)}
     />
   );
 }

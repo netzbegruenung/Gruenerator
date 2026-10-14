@@ -1,3 +1,4 @@
+import { deckSpec, readSharepicSource } from '@gruenerator/canvas-editor/composer';
 import { canvasFromVariantBodySchema } from '@gruenerator/contracts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -23,11 +24,77 @@ beforeEach(() => {
   composeCreatorSharepic.mockReset().mockResolvedValue({
     templateType: 'freeform',
     format: 'post-portrait-tall',
-    slides: [{ a: 1 }, { a: 2 }, { a: 3 }],
+    slides: [1, 2, 3].map((a) => ({ a, backgroundColor: '#005437' })),
   });
 });
 
+function sourcesOf(body: Awaited<ReturnType<typeof chatMintBody>>) {
+  const pages = body.initialProps.pages as Array<{
+    configId: string;
+    state: Record<string, unknown>;
+  }>;
+  return pages.map((p) => readSharepicSource({ configId: p.configId, state: p.state })!);
+}
+
 describe('chatMintBody', () => {
+  it('writes the creator base and tweak choice as the source, composing from the shown spec', async () => {
+    const base = { locale: 'de-DE', slides: [slide] };
+    const shown = { locale: 'de-DE', slides: [{ ...slide, position: 'oben' }] };
+    composeCreatorSharepic.mockResolvedValueOnce({
+      templateType: 'freeform',
+      format: 'post-portrait-tall',
+      slides: [{ a: 1, backgroundColor: '#005437' }],
+    });
+    const body = await chatMintBody({
+      canvasType: 'freeform',
+      initialProps: {
+        creatorSpec: shown,
+        creatorBase: base,
+        creatorTweaks: { farbe: 'mint' },
+        attributions: [null],
+      },
+    });
+    expect(composeCreatorSharepic).toHaveBeenCalledWith(shown, [null]);
+    const [source] = sourcesOf(body);
+    expect(source!.slide).toEqual(base);
+    expect(source!.tweaks).toEqual({ farbe: 'mint' });
+  });
+
+  it('falls back to the creator spec and no tweaks without base and choice', async () => {
+    const withExtras = await chatMintBody({
+      canvasType: 'freeform',
+      initialProps: { creatorSpec: SPEC3, attributions: [null, null, null] },
+    });
+    const [source] = sourcesOf(withExtras);
+    expect(source!.slide.slides).toHaveLength(1);
+    expect(deckSpec(withExtras.initialProps.pages as never, source!.deck)).toEqual(SPEC3);
+    expect(source!.tweaks).toBeUndefined();
+  });
+
+  it('keeps the composed pages identical whether or not base and choice come along', async () => {
+    const strip = (b: Awaited<ReturnType<typeof chatMintBody>>) =>
+      (b.initialProps.pages as Array<{ state: Record<string, unknown> }>).map((p) => {
+        const { sharepicSource: src, ...rest } = p.state as {
+          sharepicSource: { baseline: unknown };
+        };
+        return { rest, baseline: src.baseline };
+      });
+    const plain = await chatMintBody({
+      canvasType: 'freeform',
+      initialProps: { creatorSpec: SPEC3, attributions: [null, null, null] },
+    });
+    const withBase = await chatMintBody({
+      canvasType: 'freeform',
+      initialProps: {
+        creatorSpec: SPEC3,
+        creatorBase: SPEC3,
+        creatorTweaks: { farbe: 'mint' },
+        attributions: [null, null, null],
+      },
+    });
+    expect(strip(withBase)).toEqual(strip(plain));
+  });
+
   it('composes creator props into seeded pages with the format', async () => {
     const body = await chatMintBody({
       canvasType: 'freeform',
@@ -37,6 +104,21 @@ describe('chatMintBody', () => {
     expect(body.format).toBe('post-portrait-tall');
     expect((body.initialProps.pages as unknown[]).length).toBe(3);
     expect(body.initialProps).not.toHaveProperty('creatorSpec');
+  });
+
+  it('stores the creator spec as one deck of one-slide sources', async () => {
+    const body = await chatMintBody({
+      canvasType: 'freeform',
+      initialProps: { creatorSpec: SPEC3, attributions: [null, null, null] },
+    });
+    const pages = body.initialProps.pages as Array<{
+      configId: string;
+      state: Record<string, unknown>;
+    }>;
+    const sources = pages.map((p) => readSharepicSource({ configId: p.configId, state: p.state }));
+    expect(sources.every((s) => s !== null)).toBe(true);
+    expect(new Set(sources.map((s) => s!.deck)).size).toBe(1);
+    expect(deckSpec(pages, sources[0]!.deck)).toEqual(SPEC3);
   });
 
   it('passes legacy template props through unchanged', async () => {

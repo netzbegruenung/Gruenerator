@@ -12,6 +12,8 @@
  */
 
 import { getCanvasFormatOrDefault } from '../formats';
+import { styledFontSpecs } from '../hooks/useFontLoader';
+import { canvasFontFamilies } from '../utils/canvasFontFamilies';
 
 import type { FullCanvasConfig } from './types';
 
@@ -125,4 +127,30 @@ export function isValidCanvasType(type: string): type is CanvasConfigType {
     'freeform-at',
     'slider-at',
   ].includes(type);
+}
+
+/**
+ * Fetch a template's config chunk and request its fonts before the editor
+ * mounts. The canvas type is known as soon as the canvas document arrives,
+ * while `useFontLoader` only asks once the first page has rendered — by then
+ * the first paint has used the fallback face and has to re-lay out.
+ *
+ * Best effort: `useFontLoader` still owns the gate, this only gets the
+ * requests going earlier.
+ */
+export async function preloadCanvasTemplate(type: string, formatId?: string): Promise<void> {
+  if (!isValidCanvasType(type) || typeof document === 'undefined' || !document.fonts) return;
+  try {
+    const config = await loadCanvasConfig(type, formatId);
+    if (config.fonts?.requireFontLoad === false) return;
+    const families = canvasFontFamilies(config);
+    const fontSize = config.fonts?.fontSize ?? 60;
+    const specs = [
+      ...families.map((family) => `${fontSize}px ${family}`),
+      ...styledFontSpecs(families, fontSize),
+    ];
+    await Promise.all(specs.map((spec) => document.fonts.load(spec).catch(() => undefined)));
+  } catch {
+    // The editor loads the config itself and reports a failure there.
+  }
 }

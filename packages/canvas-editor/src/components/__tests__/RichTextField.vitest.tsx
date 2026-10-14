@@ -2,11 +2,13 @@
  * Die Werkzeugleiste des Sharepic-Text-Editors: was sie je Schrift anbietet
  * und was ihre Knöpfe in den flachen Feldtext schreiben.
  */
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { fontMarkSupport } from '../../utils/fontMarkSupport';
 import { RichTextField } from '../RichTextField';
+
+import type { Editor } from '@tiptap/react';
 
 /**
  * Auswahl über den gesamten Text setzen. ProseMirror liest die DOM-Auswahl
@@ -91,6 +93,31 @@ describe('RichTextField', () => {
     screen.getByRole('button', { name: /^Aufzählung$/ }).click();
 
     expect(onChange).toHaveBeenCalledWith('• Erster Punkt');
+  });
+
+  it('Enter in der Liste und ein getipptes „• x" geben genau eine Kugel (#4275)', () => {
+    const onChange = vi.fn();
+    let editor: Editor | null = null;
+    render(
+      <RichTextField
+        value="• Bus"
+        onChange={onChange}
+        marks={fontMarkSupport(PT_SANS)}
+        onEditorReady={(e) => {
+          editor = e;
+        }}
+      />
+    );
+
+    const live = editor as Editor | null;
+    if (!live) throw new Error('kein Editor');
+    act(() => {
+      live.commands.focus('end');
+      live.commands.keyboardShortcut('Enter');
+      live.commands.insertContent('• Radwege bauen');
+    });
+
+    expect(onChange).toHaveBeenLastCalledWith('• Bus\n• Radwege bauen');
   });
 
   it('ein Feld ohne echte Schnitte kann getippte **…** nicht selbst erzeugen, zeigt sie aber', () => {
@@ -181,76 +208,103 @@ describe('RichTextField: Fokus beim Öffnen', () => {
 
     expect(onChange).toHaveBeenCalledWith('**Alter Text**');
   });
-  it('behält einen Akzent beim Laden und bietet ihn nur an, wo der Text einen Akzentstil hat', () => {
-    const onChange = vi.fn();
-    const { container, rerender } = render(
+
+  it('Enter auf der Startauswahl über mehrere Listenpunkte wirft nicht (#4287)', () => {
+    // tiptap ≤ 3.31.3 prüfte in `splitBlock` `canSplit` vor dem Löschen der
+    // Auswahl; die Löschung räumte die ganze Liste ab und `split` warf
+    // „Inserted content deeper than insertion position".
+    let editor: Editor | null = null;
+    render(
       <RichTextField
-        value="Das ist ==ungerecht.=="
+        value={'• eins\n• zwei\n• drei'}
+        onChange={() => {}}
+        marks={fontMarkSupport(PT_SANS)}
+        onEditorReady={(e) => {
+          editor = e;
+        }}
+        autoFocus
+      />
+    );
+
+    const live = editor as Editor | null;
+    if (!live) throw new Error('kein Editor');
+    // Über die Keymap wie ein echter Tastendruck, nicht über
+    // `keyboardShortcut`: dessen Transaktions-Mitschnitt verhält sich anders.
+    const enter = new KeyboardEvent('keydown', { key: 'Enter' });
+    expect(() =>
+      act(() => {
+        live.view.someProp('handleKeyDown', (handle) => handle(live.view, enter));
+      })
+    ).not.toThrow();
+    expect(() => live.state.doc.check()).not.toThrow();
+  });
+
+  it('behält Akzent und Marker samt Farbe beim Laden und bietet beide überall an', () => {
+    const onChange = vi.fn();
+    const { container } = render(
+      <RichTextField
+        value="=={#E6007E}Das== ist ++{#FFFFFF}ungerecht.++"
         onChange={onChange}
         marks={fontMarkSupport(PT_SANS)}
       />
     );
-    expect(container.querySelector('mark[data-accent]')?.textContent).toBe('ungerecht.');
-    expect(screen.queryByRole('button', { name: 'Akzent' })).not.toBeInTheDocument();
-    expect(onChange).not.toHaveBeenCalled();
-
-    rerender(
-      <RichTextField
-        value="Das ist ==ungerecht.=="
-        onChange={onChange}
-        marks={{ ...fontMarkSupport(PT_SANS), accent: true }}
-      />
-    );
+    const accent = container.querySelector('mark[data-accent]');
+    expect(accent?.textContent).toBe('Das');
+    expect(accent?.getAttribute('data-color')).toBe('#E6007E');
+    const marker = container.querySelector('mark[data-marker]');
+    expect(marker?.getAttribute('data-color')).toBe('#FFFFFF');
+    expect(marker?.getAttribute('style')).toContain('--mark-ink: #00261A');
     expect(screen.getByRole('button', { name: 'Akzent' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Textmarker' })).toBeInTheDocument();
+    expect(onChange).not.toHaveBeenCalled();
   });
 
-  it('Akzent auf der Auswahl schreibt ==…== in den Feldtext', () => {
+  it('Akzent-Farbe auf der Auswahl schreibt =={#…}…== in den Feldtext', () => {
     const onChange = vi.fn();
     const { container } = render(
+      <RichTextField value="Hallo" onChange={onChange} marks={fontMarkSupport(PT_SANS)} />
+    );
+    selectAll(container);
+    act(() => screen.getByRole('button', { name: 'Akzent' }).click());
+    act(() => screen.getByRole('button', { name: 'Himmel' }).click());
+    expect(onChange).toHaveBeenLastCalledWith('=={#0BA1DD}Hallo==');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('Vorlagenfarbe gibt es nur, wo der Text einen Stil hat, und schreibt ++…++ ohne Farbe', () => {
+    const onChange = vi.fn();
+    const { container, rerender } = render(
+      <RichTextField value="Hallo" onChange={onChange} marks={fontMarkSupport(PT_SANS)} />
+    );
+    act(() => screen.getByRole('button', { name: 'Textmarker' }).click());
+    expect(screen.queryByRole('button', { name: 'Vorlagenfarbe' })).not.toBeInTheDocument();
+    act(() => screen.getByRole('button', { name: 'Textmarker' }).click());
+
+    rerender(
       <RichTextField
         value="Hallo"
         onChange={onChange}
-        marks={{ ...fontMarkSupport(PT_SANS), accent: true }}
+        marks={{ ...fontMarkSupport(PT_SANS), marker: true }}
       />
     );
     selectAll(container);
-    screen.getByRole('button', { name: 'Akzent' }).click();
-    expect(onChange).toHaveBeenLastCalledWith('==Hallo==');
+    act(() => screen.getByRole('button', { name: 'Textmarker' }).click());
+    act(() => screen.getByRole('button', { name: 'Vorlagenfarbe' }).click());
+    expect(onChange).toHaveBeenLastCalledWith('++Hallo++');
   });
-  it('behält einen Marker beim Laden und bietet ihn nur an, wo der Text einen Markerstil hat', () => {
+
+  it('entfernt den Textmarker wieder', () => {
     const onChange = vi.fn();
-    const { container, rerender } = render(
+    const { container } = render(
       <RichTextField
-        value="Das ist ++ungerecht.++"
+        value="++{#BEFF60}Hallo++"
         onChange={onChange}
         marks={fontMarkSupport(PT_SANS)}
       />
     );
-    expect(container.querySelector('mark[data-marker]')?.textContent).toBe('ungerecht.');
-    expect(screen.queryByRole('button', { name: 'Textmarker' })).not.toBeInTheDocument();
-    expect(onChange).not.toHaveBeenCalled();
-
-    rerender(
-      <RichTextField
-        value="Das ist ++ungerecht.++"
-        onChange={onChange}
-        marks={{ ...fontMarkSupport(PT_SANS), marker: true }}
-      />
-    );
-    expect(screen.getByRole('button', { name: 'Textmarker' })).toBeInTheDocument();
-  });
-
-  it('Marker auf der Auswahl schreibt ++…++ in den Feldtext', () => {
-    const onChange = vi.fn();
-    const { container } = render(
-      <RichTextField
-        value="Hallo"
-        onChange={onChange}
-        marks={{ ...fontMarkSupport(PT_SANS), marker: true }}
-      />
-    );
     selectAll(container);
-    screen.getByRole('button', { name: 'Textmarker' }).click();
-    expect(onChange).toHaveBeenLastCalledWith('++Hallo++');
+    act(() => screen.getByRole('button', { name: 'Textmarker' }).click());
+    act(() => screen.getByRole('button', { name: 'Textmarker entfernen' }).click());
+    expect(onChange).toHaveBeenLastCalledWith('Hallo');
   });
 });

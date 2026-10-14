@@ -526,19 +526,10 @@ CREATE TABLE IF NOT EXISTS template_likes (
 -- Unified media sharing and sharepics
 -- ════════════════════════════════════════════════════════════════════════════
 
-CREATE TABLE IF NOT EXISTS user_sharepics (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-    image_url TEXT,
-    title TEXT,
-    description TEXT,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    metadata JSONB DEFAULT '{}'
-);
-
--- (user_uploads lived here. Dropped in
--- migrations/zz_20260828_drop_dead_user_uploads.sql — it never had a writer;
--- uploads go to shared_media. See #2982.)
+-- (user_sharepics and user_uploads lived here. Dropped in
+-- migrations/zz_20261008b_drop_dead_user_sharepics.sql and
+-- migrations/zz_20260828_drop_dead_user_uploads.sql — neither ever had a
+-- writer; sharepics and uploads go to shared_media. See #3007 and #2982.)
 
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -873,8 +864,6 @@ CREATE INDEX IF NOT EXISTS idx_template_likes_template_id ON template_likes(temp
 CREATE INDEX IF NOT EXISTS idx_template_likes_popularity ON template_likes(template_id, created_at);
 
 -- Media indexes
-CREATE INDEX IF NOT EXISTS idx_user_sharepics_user_id ON user_sharepics(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_sharepics_created_at ON user_sharepics(created_at);
 CREATE INDEX IF NOT EXISTS idx_shared_media_token ON shared_media(share_token);
 CREATE INDEX IF NOT EXISTS idx_shared_media_user ON shared_media(user_id);
 CREATE INDEX IF NOT EXISTS idx_shared_media_user_type ON shared_media(user_id, media_type);
@@ -1073,6 +1062,8 @@ ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS thread_type VARCHAR(20) DEFAUL
 ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS custom_system_prompt TEXT DEFAULT NULL;
 ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS custom_enabled_tools JSONB DEFAULT NULL;
 ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS role_ref JSONB DEFAULT NULL;
+-- Cloud files picked in the thread (refs only, re-read every turn)
+ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS cloud_file_refs JSONB;
 ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS notebook_collection_id VARCHAR(255);
 ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS notebook_collection_ids JSONB;
 CREATE INDEX IF NOT EXISTS idx_chat_threads_type ON chat_threads(user_id, thread_type, updated_at DESC);
@@ -1345,3 +1336,105 @@ ALTER TABLE user_sites ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
 ALTER TABLE user_documents ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
 ALTER TABLE user_knowledge ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
 ALTER TABLE groups ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
+
+-- Reisekostenabrechnungen (zz_20261008_reisekosten_abrechnungen.sql).
+CREATE TABLE IF NOT EXISTS reisekosten_abrechnungen (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    slug_suffix TEXT NOT NULL,
+    titel TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'entwurf' CHECK (status IN ('entwurf', 'eingereicht')),
+    state JSONB NOT NULL,
+    belege JSONB NOT NULL DEFAULT '[]',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_reisekosten_abrechnungen_user_updated
+    ON reisekosten_abrechnungen (user_id, updated_at DESC) WHERE deleted_at IS NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_reisekosten_abrechnungen_slug_suffix
+    ON reisekosten_abrechnungen (slug_suffix) WHERE deleted_at IS NULL;
+
+-- Purge-Worker: abgelaufene Papierkorb-Zeilen.
+CREATE INDEX IF NOT EXISTS idx_reisekosten_abrechnungen_trashed
+    ON reisekosten_abrechnungen (deleted_at) WHERE deleted_at IS NOT NULL;
+
+-- Explainables (zz_20261009_explainables.sql).
+CREATE TABLE IF NOT EXISTS explainables (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    thread_id UUID REFERENCES chat_threads(id) ON DELETE SET NULL,
+    source_message_id UUID REFERENCES chat_messages(id) ON DELETE SET NULL,
+    slug_suffix VARCHAR(12) NOT NULL,
+    title TEXT NOT NULL,
+    content JSONB NOT NULL,
+    status TEXT NOT NULL DEFAULT 'images_pending'
+        CHECK (status IN ('images_pending', 'ready', 'failed')),
+    share_mode TEXT NOT NULL DEFAULT 'private'
+        CHECK (share_mode IN ('private', 'authenticated', 'public')),
+    share_token VARCHAR(32),
+    reserved_units INTEGER NOT NULL DEFAULT 0,
+    reserved_day DATE,
+    claim_at TIMESTAMPTZ,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_explainables_user_created
+    ON explainables (user_id, created_at DESC) WHERE deleted_at IS NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_explainables_slug_suffix
+    ON explainables (slug_suffix) WHERE deleted_at IS NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_explainables_share_token
+    ON explainables (share_token) WHERE share_token IS NOT NULL;
+
+-- Bild-Worker-Queue.
+CREATE INDEX IF NOT EXISTS idx_explainables_images_pending
+    ON explainables (created_at) WHERE status = 'images_pending';
+
+-- Purge-Worker: abgelaufene Papierkorb-Zeilen.
+CREATE INDEX IF NOT EXISTS idx_explainables_trashed
+    ON explainables (deleted_at) WHERE deleted_at IS NOT NULL;
+
+-- Podcasts (zz_20261010_podcasts.sql).
+CREATE TABLE IF NOT EXISTS podcasts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    slug_suffix VARCHAR(12) NOT NULL,
+    title TEXT NOT NULL,
+    source_text TEXT NOT NULL,
+    script JSONB,
+    status TEXT NOT NULL DEFAULT 'queued'
+        CHECK (status IN ('queued', 'scripting', 'voicing', 'ready', 'failed')),
+    error TEXT,
+    voice_a VARCHAR(16) NOT NULL,
+    voice_b VARCHAR(16) NOT NULL,
+    locale VARCHAR(5) NOT NULL DEFAULT 'de-DE'
+        CHECK (locale IN ('de-DE', 'de-AT')),
+    media_id UUID REFERENCES shared_media(id) ON DELETE SET NULL,
+    duration_seconds REAL,
+    claim_at TIMESTAMPTZ,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_podcasts_user_created
+    ON podcasts (user_id, created_at DESC);
+
+-- Worker-Queue.
+CREATE INDEX IF NOT EXISTS idx_podcasts_pending
+    ON podcasts (created_at) WHERE status IN ('queued', 'scripting', 'voicing');
+
+-- zz_20261010b_podcasts_slug_trash.sql
+CREATE UNIQUE INDEX IF NOT EXISTS uq_podcasts_slug_suffix
+    ON podcasts (slug_suffix) WHERE deleted_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_podcasts_trashed
+    ON podcasts (deleted_at) WHERE deleted_at IS NOT NULL;

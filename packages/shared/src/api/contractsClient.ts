@@ -26,6 +26,7 @@ import {
   contentContract,
   trashContract,
   itemUsageContract,
+  userLibraryContract,
   userUsageContract,
   treesContract,
   transparencyContract,
@@ -36,6 +37,8 @@ import {
   presentationsContract,
   boardCommentsContract,
   entityReactionsContract,
+  agentCommentsContract,
+  templateCommentsContract,
   boardAgentContract,
   boardActivityContract,
   boardSubscriptionsContract,
@@ -61,6 +64,7 @@ import {
   chatToolApprovalsContract,
   imageEditContract,
   sharepicCreatorContract,
+  sharepicVorlagenContract,
   sharepicTextContract,
   adminVorlagenContract,
   userTemplatesContract,
@@ -92,6 +96,9 @@ import {
   imagePickerContract,
   sharesReadContract,
   promptsContract,
+  explainablesContract,
+  publicExplainablesContract,
+  podcastsContract,
 } from '@gruenerator/contracts';
 import { initClient, isZodType, type AppRoute } from '@ts-rest/core';
 import { isAxiosError } from 'axios';
@@ -133,6 +140,21 @@ const BINARY_RESPONSE_PATHS = new Set<string>(['/api/exports/docx', '/api/export
  */
 export function stripApiPrefix(path: string): string {
   return path.startsWith('/api/') ? path.slice(4) : path;
+}
+
+/**
+ * For endpoints that do real work server-side: model calls, crawls, imports.
+ * Deliberately just *above* nginx's 300s cut, so the server's own 504 wins the
+ * race and the user gets "Der Server reagiert nicht" instead of a client-side
+ * abort carrying no status. Anything slower than this was already unreachable
+ * through nginx, so this is not a restriction — it is the real ceiling, named.
+ */
+export const SERVER_TASK_TIMEOUT_MS = 310_000;
+
+/** A contract route that declares `metadata: { serverTask: true }` gets {@link SERVER_TASK_TIMEOUT_MS}. */
+function isServerTask(route: AppRoute): boolean {
+  const metadata = route.metadata as { serverTask?: unknown } | undefined;
+  return metadata?.serverTask === true;
 }
 
 /**
@@ -178,6 +200,7 @@ async function axiosFetcher({
       // authenticated shell ("half logged in").
       validateStatus: (status) => status !== 401,
       ...(isBinary && { responseType: 'blob' as const }),
+      ...(isServerTask(route) && { timeout: SERVER_TASK_TIMEOUT_MS }),
     })
     .catch((error: unknown) => {
       // The error interceptor has already run (session probe, possible
@@ -266,6 +289,7 @@ const _recentActivityClient = () => initClient(recentActivityContract, CLIENT_OP
 const _contentClient = () => initClient(contentContract, CLIENT_OPTS);
 const _trashClient = () => initClient(trashContract, CLIENT_OPTS);
 const _itemUsageClient = () => initClient(itemUsageContract, CLIENT_OPTS);
+const _userLibraryClient = () => initClient(userLibraryContract, CLIENT_OPTS);
 const _userUsageClient = () => initClient(userUsageContract, CLIENT_OPTS);
 const _treesClient = () => initClient(treesContract, CLIENT_OPTS);
 const _transparencyClient = () => initClient(transparencyContract, CLIENT_OPTS);
@@ -276,6 +300,8 @@ const _sheetsClient = () => initClient(sheetsContract, CLIENT_OPTS);
 const _presentationsClient = () => initClient(presentationsContract, CLIENT_OPTS);
 const _boardCommentsClient = () => initClient(boardCommentsContract, CLIENT_OPTS);
 const _entityReactionsClient = () => initClient(entityReactionsContract, CLIENT_OPTS);
+const _agentCommentsClient = () => initClient(agentCommentsContract, CLIENT_OPTS);
+const _templateCommentsClient = () => initClient(templateCommentsContract, CLIENT_OPTS);
 const _boardAgentClient = () => initClient(boardAgentContract, CLIENT_OPTS);
 const _boardActivityClient = () => initClient(boardActivityContract, CLIENT_OPTS);
 const _boardSubscriptionsClient = () => initClient(boardSubscriptionsContract, CLIENT_OPTS);
@@ -302,6 +328,7 @@ const _mcpServersClient = () => initClient(mcpServersContract, CLIENT_OPTS);
 const _chatToolApprovalsClient = () => initClient(chatToolApprovalsContract, CLIENT_OPTS);
 const _imageEditClient = () => initClient(imageEditContract, CLIENT_OPTS);
 const _sharepicCreatorClient = () => initClient(sharepicCreatorContract, CLIENT_OPTS);
+const _sharepicVorlagenClient = () => initClient(sharepicVorlagenContract, CLIENT_OPTS);
 const _sharepicTextClient = () => initClient(sharepicTextContract, CLIENT_OPTS);
 const _adminVorlagenClient = () => initClient(adminVorlagenContract, CLIENT_OPTS);
 const _userTemplatesClient = () => initClient(userTemplatesContract, CLIENT_OPTS);
@@ -336,6 +363,9 @@ const _imagePickerClient = () => initClient(imagePickerContract, CLIENT_OPTS);
 // Validiert (nicht nur für den Studio-Tab) — siehe VALIDATED_CLIENT_OPTS.
 const _sharesReadClient = () => initClient(sharesReadContract, VALIDATED_CLIENT_OPTS);
 const _promptsClient = () => initClient(promptsContract, CLIENT_OPTS);
+const _explainablesClient = () => initClient(explainablesContract, CLIENT_OPTS);
+const _publicExplainablesClient = () => initClient(publicExplainablesContract, CLIENT_OPTS);
+const _podcastsClient = () => initClient(podcastsContract, CLIENT_OPTS);
 
 export interface ContractsClient {
   threads: ReturnType<typeof _threadsClient>;
@@ -346,6 +376,7 @@ export interface ContractsClient {
   content: ReturnType<typeof _contentClient>;
   trash: ReturnType<typeof _trashClient>;
   itemUsage: ReturnType<typeof _itemUsageClient>;
+  userLibrary: ReturnType<typeof _userLibraryClient>;
   userUsage: ReturnType<typeof _userUsageClient>;
   trees: ReturnType<typeof _treesClient>;
   transparency: ReturnType<typeof _transparencyClient>;
@@ -356,6 +387,8 @@ export interface ContractsClient {
   presentations: ReturnType<typeof _presentationsClient>;
   boardComments: ReturnType<typeof _boardCommentsClient>;
   entityReactions: ReturnType<typeof _entityReactionsClient>;
+  agentComments: ReturnType<typeof _agentCommentsClient>;
+  templateComments: ReturnType<typeof _templateCommentsClient>;
   boardAgent: ReturnType<typeof _boardAgentClient>;
   boardActivity: ReturnType<typeof _boardActivityClient>;
   boardSubscriptions: ReturnType<typeof _boardSubscriptionsClient>;
@@ -383,6 +416,7 @@ export interface ContractsClient {
   chatToolApprovals: ReturnType<typeof _chatToolApprovalsClient>;
   imageEdit: ReturnType<typeof _imageEditClient>;
   sharepicCreator: ReturnType<typeof _sharepicCreatorClient>;
+  sharepicVorlagen: ReturnType<typeof _sharepicVorlagenClient>;
   sharepicText: ReturnType<typeof _sharepicTextClient>;
   adminVorlagen: ReturnType<typeof _adminVorlagenClient>;
   userTemplates: ReturnType<typeof _userTemplatesClient>;
@@ -413,6 +447,9 @@ export interface ContractsClient {
   imagePicker: ReturnType<typeof _imagePickerClient>;
   sharesRead: ReturnType<typeof _sharesReadClient>;
   prompts: ReturnType<typeof _promptsClient>;
+  explainables: ReturnType<typeof _explainablesClient>;
+  publicExplainables: ReturnType<typeof _publicExplainablesClient>;
+  podcasts: ReturnType<typeof _podcastsClient>;
 }
 
 // ── Lazy singleton ────────────────────────────────────────────────────────────
@@ -439,6 +476,7 @@ export function getContractsClient(): ContractsClient {
     content: _contentClient(),
     trash: _trashClient(),
     itemUsage: _itemUsageClient(),
+    userLibrary: _userLibraryClient(),
     userUsage: _userUsageClient(),
     trees: _treesClient(),
     transparency: _transparencyClient(),
@@ -449,6 +487,8 @@ export function getContractsClient(): ContractsClient {
     presentations: _presentationsClient(),
     boardComments: _boardCommentsClient(),
     entityReactions: _entityReactionsClient(),
+    agentComments: _agentCommentsClient(),
+    templateComments: _templateCommentsClient(),
     boardAgent: _boardAgentClient(),
     boardActivity: _boardActivityClient(),
     boardSubscriptions: _boardSubscriptionsClient(),
@@ -476,6 +516,7 @@ export function getContractsClient(): ContractsClient {
     chatToolApprovals: _chatToolApprovalsClient(),
     imageEdit: _imageEditClient(),
     sharepicCreator: _sharepicCreatorClient(),
+    sharepicVorlagen: _sharepicVorlagenClient(),
     sharepicText: _sharepicTextClient(),
     adminVorlagen: _adminVorlagenClient(),
     userTemplates: _userTemplatesClient(),
@@ -506,6 +547,9 @@ export function getContractsClient(): ContractsClient {
     imagePicker: _imagePickerClient(),
     sharesRead: _sharesReadClient(),
     prompts: _promptsClient(),
+    explainables: _explainablesClient(),
+    publicExplainables: _publicExplainablesClient(),
+    podcasts: _podcastsClient(),
     speech: _speechClient(),
   };
 

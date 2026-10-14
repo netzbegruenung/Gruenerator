@@ -9,7 +9,7 @@ import type {
   SourcesByCollection as SearchSourcesByCollection,
   ReferencesMap,
 } from '../search/types.js';
-import type { NotebookCitation, NotebookDepth } from '@gruenerator/contracts';
+import type { NotebookCitation, NotebookDepth, NotebookSourceTier } from '@gruenerator/contracts';
 
 /**
  * Request filters for search
@@ -201,6 +201,8 @@ export interface GetSearchContextParams {
   requestFilters?: RequestFilters | undefined;
   /** Retrieval depth; omitted means the thorough tier (see notebookStreamCore). */
   depth?: NotebookDepth | undefined;
+  /** Quellen-Ampel (#4307); fehlt ⇒ `equal`. */
+  sourceTier?: NotebookSourceTier | undefined;
   /**
    * Formulations to search in parallel, results unioned. Defaults to
    * `[question]`; the caller expands it (QueryExpansionService) because it owns

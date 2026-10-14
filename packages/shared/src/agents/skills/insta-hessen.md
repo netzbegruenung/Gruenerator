@@ -10,4 +10,5 @@ skillCategory: social
 audience: 'de-DE'
 promptTemplate: 'Instagram-Post im Stil Grüne Hessen zum Thema: '
 order: 68
+recommendedTools: ['vorlagen_vorschlagen']
 ---

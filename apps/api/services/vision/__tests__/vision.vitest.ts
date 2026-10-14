@@ -14,11 +14,25 @@ const TINY_RED_PNG =
 
 describe('Vision — unit tests', () => {
   describe('isVisionCapable', () => {
-    it('returns true for known vision models; Gemma 4 sees on Melious only', () => {
-      expect(isVisionCapable('gemma-4-31b-it')).toBe(false);
-      expect(isVisionCapable('gemma-4-31b:balanced')).toBe(true);
-      expect(isVisionCapable('pixtral-large-latest')).toBe(true);
-      expect(isVisionCapable('mistral-small-4-119b')).toBe(true);
+    it('returns true for every answer lane measured on 2026-10-07', () => {
+      for (const model of [
+        'mistral-medium-2604',
+        'mistral-small-latest',
+        'mistral-small-3.2-24b-instruct-2506',
+        'gemma-4-31b-it',
+        'gemma-4-31b:balanced',
+        'mistral-small-4-119b-instruct',
+      ]) {
+        expect(isVisionCapable(model), model).toBe(true);
+      }
+    });
+
+    it('keeps Panda blind: its answer came from a model Melious does not name', () => {
+      expect(isVisionCapable('deepseek-v4.1-flash')).toBe(false);
+    });
+
+    it('no longer knows Pixtral, which the Mistral API rejects', () => {
+      expect(isVisionCapable('pixtral-large-latest')).toBe(false);
     });
 
     it('returns false for non-vision models', () => {
@@ -71,7 +85,7 @@ describe('Mistral adapter — multimodal message handling', () => {
         },
       ],
       type: 'vision-test',
-      options: { max_tokens: 50, model: 'pixtral-large-latest', temperature: 0.1 },
+      options: { max_tokens: 50, model: 'mistral-medium-2604', temperature: 0.1 },
       metadata: {},
     });
 
@@ -99,7 +113,7 @@ describe('Mistral adapter — multimodal message handling', () => {
         },
       ],
       type: 'vision-test',
-      options: { max_tokens: 50, model: 'pixtral-large-latest', temperature: 0.1 },
+      options: { max_tokens: 50, model: 'mistral-medium-2604', temperature: 0.1 },
       metadata: {},
     });
 
@@ -122,7 +136,7 @@ describe('Mistral adapter — multimodal message handling', () => {
         },
       ],
       type: 'text-test',
-      options: { max_tokens: 50, model: 'pixtral-large-latest', temperature: 0.1 },
+      options: { max_tokens: 50, model: 'mistral-medium-2604', temperature: 0.1 },
       metadata: {},
     });
 

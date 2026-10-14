@@ -58,7 +58,9 @@ import {
   shareThumbnailPreviewUrl,
 } from '../../../utils/platform';
 import { webAppDocsAdapter } from '../../docs/docsAdapter';
+import { useCanvasEditorPrefetch } from '../../image-studio/canvasQuery';
 import { Lightbox } from '../../image-studio/components/Lightbox';
+import { profilbildReopenPath } from '../../studio-tools/profilbildHandoff';
 import { invalidateAfterTrashChange } from '../../trash/invalidateAfterTrashChange';
 import { showTrashUndoToast } from '../../trash/trashUndoToast';
 import {
@@ -91,6 +93,7 @@ const getTypeLabel = (item: RecentItem): string => {
   if (item.type === 'board' && item.boardType === 'whiteboard') return 'Whiteboard';
   if (isTablePreview(item)) return 'Tabelle';
   if (isSlidesPreview(item)) return 'Präsentation';
+  if (item.editor === 'profilbild') return 'Profilbild';
   return TYPE_LABELS[item.type];
 };
 
@@ -350,6 +353,8 @@ const RecentItemCard = memo(
     onShare: (item: RecentItem) => void;
   }) => {
     const navigate = useNavigate();
+    const prefetchCanvasEditor = useCanvasEditorPrefetch();
+    const onIntent = item.type === 'canvas' ? () => prefetchCanvasEditor(item.id) : undefined;
     const typeLabel = getTypeLabel(item);
     const fallbackTitle = isTablePreview(item) ? 'Unbenannte Tabelle' : FALLBACK_TITLES[item.type];
     const isShared = !!item.accessType && item.accessType !== 'owner';
@@ -409,7 +414,7 @@ const RecentItemCard = memo(
       </>
     );
 
-    if (item.type === 'image') {
+    if (item.type === 'image' && !item.editor) {
       return (
         <ImageOwnerCard
           item={item}
@@ -423,7 +428,11 @@ const RecentItemCard = memo(
     return (
       <InteractiveCard
         label={item.title || fallbackTitle}
-        onActivate={() => navigate(item.href)}
+        onActivate={() =>
+          navigate(item.editor === 'profilbild' ? profilbildReopenPath(item.id) : item.href)
+        }
+        onPointerEnter={onIntent}
+        onFocus={onIntent}
         className={cardClass}
       >
         {cardContent}

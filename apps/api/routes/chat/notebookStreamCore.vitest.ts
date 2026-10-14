@@ -168,7 +168,7 @@ async function windowFor(mode?: NotebookDepth) {
 }
 
 function setupMocks() {
-  getSearchContext.mockResolvedValue(searchContextWith(40));
+  getSearchContext.mockResolvedValue(searchContextWith(120));
   rerankNotebookResults.mockImplementation(
     async ({ results, limit }: { results: unknown[]; limit: number }) => ({
       results: results.slice(0, limit),
@@ -186,12 +186,14 @@ function setupMocks() {
   streamWithFallback.mockImplementation(
     async ({
       primary,
+      messages,
       buildStream,
     }: {
       primary: unknown;
-      buildStream: (r: unknown) => Promise<string | null>;
+      messages: { primary: unknown };
+      buildStream: (r: unknown, m: unknown) => Promise<string | null>;
     }) => {
-      await buildStream(primary);
+      await buildStream(primary, messages.primary);
       return 'Eine Antwort mit Beleg [1].';
     }
   );
@@ -221,15 +223,18 @@ describe('handleNotebookStream — reranking per tier', () => {
     expect(await windowFor('fast')).toEqual({ inputLimit: 20, limit: 10 });
   });
 
-  it('widens the ranked window with every tier', async () => {
+  it('never narrows the ranked window from tier to tier', async () => {
     const fast = await windowFor('fast');
     const deep = await windowFor('deep');
     const ultra = await windowFor('ultra');
 
     expect(deep.limit).toBeGreaterThan(fast.limit);
-    expect(ultra.limit).toBeGreaterThan(deep.limit);
     expect(deep.inputLimit).toBeGreaterThan(fast.inputLimit);
-    expect(ultra.inputLimit).toBeGreaterThan(deep.inputLimit);
+    // deep und ultra stehen beide an der Qdrant-Decke von 100 Treffern je
+    // Abfrage; ultra sucht breiter über drei Formulierungen und die tiefere
+    // Schwelle, nicht über ein größeres Fenster.
+    expect(ultra.limit).toBeGreaterThanOrEqual(deep.limit);
+    expect(ultra.inputLimit).toBeGreaterThanOrEqual(deep.inputLimit);
   });
 
   it('treats an omitted mode as the thorough tier, not the fast one', async () => {
@@ -322,9 +327,9 @@ describe('handleNotebookStream — rerank option', () => {
   it("mode: 'off' never calls rerankNotebookResults and cuts to the tier's rerankOutput", async () => {
     const sent = await runWithRerank({ mode: 'off' });
     expect(rerankNotebookResults).not.toHaveBeenCalled();
-    // 'deep' has rerankOutput 18 against the 40-result fixture.
+    // 'deep' has rerankOutput 100 against the 120-result fixture.
     const completion = sent.find((e) => e.event === 'completion');
-    expect((completion?.data.metadata as { totalResults?: number })?.totalResults).toBe(18);
+    expect((completion?.data.metadata as { totalResults?: number })?.totalResults).toBe(100);
   });
 
   it("mode: 'filter' with instruct reaches rerankNotebookResults", async () => {
@@ -348,11 +353,11 @@ describe('handleNotebookStream — rerank option', () => {
 
   it('an absent rerank option never calls rerankNotebookResults and cuts to rerankOutput, renumbering references', async () => {
     // Real referencesMap (not the `{}` default fixture) so the renumbering
-    // `cutNotebookResults` does is actually exercised: 40 index-keyed entries
-    // in, 18 kept and renumbered 1..18.
+    // `cutNotebookResults` does is actually exercised: 120 index-keyed entries
+    // in, 100 kept and renumbered 1..100.
     getSearchContext.mockResolvedValue({
-      ...searchContextWith(40),
-      sortedResults: Array.from({ length: 40 }, (_, i) => ({
+      ...searchContextWith(120),
+      sortedResults: Array.from({ length: 120 }, (_, i) => ({
         title: `Doc ${i}`,
         snippet: `Inhalt ${i}`,
         similarity: 1 - i / 100,
@@ -360,7 +365,7 @@ describe('handleNotebookStream — rerank option', () => {
         chunk_index: 0,
       })),
       referencesMap: Object.fromEntries(
-        Array.from({ length: 40 }, (_, i) => [
+        Array.from({ length: 120 }, (_, i) => [
           String(i + 1),
           {
             title: `Doc ${i}`,
@@ -382,7 +387,7 @@ describe('handleNotebookStream — rerank option', () => {
     const sent = await runWithRerank(undefined);
     expect(rerankNotebookResults).not.toHaveBeenCalled();
     const completion = sent.find((e) => e.event === 'completion');
-    expect((completion?.data.metadata as { totalResults?: number })?.totalResults).toBe(18);
+    expect((completion?.data.metadata as { totalResults?: number })?.totalResults).toBe(100);
     // The model's [1] still resolves after the cut+renumber, to the first
     // retrieval-order result — not to whatever the un-renumbered map had at key 1.
     const citations = completion?.data.citations as { document_id: string }[];
@@ -781,5 +786,51 @@ describe('handleNotebookStream — evidence_weak', () => {
         String(args[0]).includes('evidenceTop=none (no candidates, deep)')
       )
     ).toBe(true);
+  });
+});
+
+describe('handleNotebookStream — fallback lane with a smaller window (#4198)', () => {
+  // Two long turns: both fit the primary's history share (262k), only the
+  // newest fits the share of a 128k fallback.
+  const LONG_HISTORY = [
+    { role: 'user', content: 'Erste Frage' },
+    { role: 'assistant', content: 'a'.repeat(60_000) },
+    { role: 'user', content: 'Zweite Frage' },
+    { role: 'assistant', content: 'b'.repeat(60_000) },
+    { role: 'user', content: 'Und jetzt?' },
+  ];
+
+  it('trims the history again for the fallback instead of reusing the primary prompt', async () => {
+    // The window decision itself is streamWithFallback's (its own test); what
+    // this path owns is a `rebuild` that really trims for the smaller window.
+    streamWithFallback.mockImplementation(
+      async ({
+        primary,
+        messages,
+        buildStream,
+      }: {
+        primary: Record<string, unknown>;
+        messages: { primary: unknown; window: number | null; rebuild: (w: number) => unknown };
+        buildStream: (r: unknown, m: unknown) => Promise<string | null>;
+      }) => {
+        expect(messages.window).toBe(262_144);
+        await buildStream(primary, messages.primary);
+        await buildStream(
+          { ...primary, modelName: 'gemma-4-31b-it', contextWindow: 128_000 },
+          messages.rebuild(128_000)
+        );
+        return 'Antwort [1].';
+      }
+    );
+    await run('ultra', LONG_HISTORY);
+
+    const sentTo = streamForResolution.mock.calls.map(
+      (c) => (c[0] as { messages: Array<{ content: string }> }).messages
+    );
+    expect(sentTo).toHaveLength(2);
+    const [primary, fallback] = sentTo;
+    expect(primary.some((m) => m.content.startsWith('aaa'))).toBe(true);
+    expect(fallback.some((m) => m.content.startsWith('aaa'))).toBe(false);
+    expect(fallback.some((m) => m.content.startsWith('bbb'))).toBe(true);
   });
 });

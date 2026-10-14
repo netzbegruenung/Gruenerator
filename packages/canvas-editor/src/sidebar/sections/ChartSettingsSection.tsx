@@ -9,6 +9,7 @@ import {
   PiChartPie,
 } from 'react-icons/pi';
 
+import { CustomColorSwatch } from '../../components/CustomColorSwatch';
 import {
   CHART_COLORS,
   isRoundChartType,
@@ -183,6 +184,12 @@ export function ChartSettingsSection({
               }}
             />
           ))}
+          <CustomColorSwatch
+            value={chart.colors[0]}
+            presets={CHART_COLORS}
+            onPick={(color) => update({ colors: [color, ...CHART_COLORS] })}
+            className="size-6"
+          />
         </div>
       </div>
 

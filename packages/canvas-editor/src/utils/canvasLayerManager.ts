@@ -1,6 +1,3 @@
-import type { AdditionalText, CanvasElementConfig, FullCanvasConfig } from '../configs/types';
-import type { BalkenInstance } from '../primitives/BalkenGroup';
-import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
 import type { AssetInstance } from './canvasAssets';
 import type { ChartInstance } from './chartUtils';
 import type { FrameInstance } from './frameUtils';
@@ -8,6 +5,9 @@ import type { IllustrationInstance } from './illustrations/types';
 import type { PillBadgeInstance } from './pillBadgeUtils';
 import type { ShapeInstance } from './shapes';
 import type { UserImageInstance } from './userImageUtils';
+import type { AdditionalText, CanvasElementConfig, FullCanvasConfig } from '../configs/types';
+import type { BalkenInstance } from '../primitives/BalkenGroup';
+import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
 
 /**
  * Canvas Layer Manager - Utilities for managing layer ordering

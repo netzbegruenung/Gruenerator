@@ -1,4 +1,3 @@
-import { motion, useReducedMotion } from 'motion/react';
 import { memo } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -29,31 +28,28 @@ interface GlassTabBarProps<Id extends string> {
   tabs: ReadonlyArray<GlassTab<Id>>;
   active: Id;
   ariaLabel: string;
-  /** Distinct per bar, so two bars never animate one shared pill. */
-  layoutId: string;
   dataTour?: string;
 }
 
 // Design "tabbar": fixed glass pill centered at the top — frosted container, the
-// active tab a soft-shadowed pill that tints per section. Each tab is its own
-// route, so switching remounts the bar; the `layoutId` animation only applies
-// within a page. The h-12 row matches PageLayout's sidebar-toggle row so pill and
-// toggle share a centerline.
+// active tab a soft-shadowed pill that tints per section. The pill switches in
+// place without sliding — a switch should feel calm, not travel. The h-12 row
+// matches PageLayout's sidebar-toggle row so pill and toggle share a centerline.
+// Every tab is a link to its own path: a switch is a history entry, so Back,
+// reload and bookmarks keep the tab. Navigation links, not ARIA tabs — the
+// current one carries `aria-current` (WAI-ARIA APG).
 function GlassTabBarInner<Id extends string>({
   tabs,
   active,
   ariaLabel,
-  layoutId,
   dataTour,
 }: GlassTabBarProps<Id>) {
-  const reduceMotion = useReducedMotion();
   return (
     <nav
       aria-label={ariaLabel}
       className="pointer-events-none fixed left-0 right-0 top-0 z-40 flex h-12 items-center justify-center"
     >
       <div
-        role="tablist"
         data-tour={dataTour}
         className={cn(
           'pointer-events-auto inline-flex gap-0.5 rounded-full p-1',
@@ -65,33 +61,29 @@ function GlassTabBarInner<Id extends string>({
       >
         {tabs.map((tab) => {
           const isActive = tab.id === active;
+          const className = cn(
+            'relative select-none rounded-full px-8 py-[5px] text-[15px] font-medium transition-colors',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
+            isActive
+              ? cn('font-semibold', ACTIVE_TEXT[tab.tone])
+              : 'text-grey-600 hover:text-foreground dark:text-grey-400 dark:hover:text-grey-200'
+          );
           return (
             <Link
               key={tab.id}
               to={tab.path}
-              replace
-              role="tab"
-              aria-selected={isActive}
+              // The current tab again is no new step in the history.
+              replace={isActive}
               aria-current={isActive ? 'page' : undefined}
-              className={cn(
-                'relative select-none rounded-full px-8 py-[5px] text-[15px] font-medium transition-colors',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
-                isActive
-                  ? cn('font-semibold', ACTIVE_TEXT[tab.tone])
-                  : 'text-grey-600 hover:text-foreground dark:text-grey-400 dark:hover:text-grey-200'
-              )}
+              className={className}
             >
               {isActive && (
-                <motion.span
-                  layoutId={layoutId}
+                <span
                   aria-hidden
                   className={cn(
                     'absolute inset-0 z-0 rounded-full shadow-[0_1px_2px_rgba(0,0,0,.10),0_1px_6px_rgba(0,0,0,.05)]',
                     PILL_TINT[tab.tone]
                   )}
-                  transition={
-                    reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 380, damping: 32 }
-                  }
                 />
               )}
               <span className="relative z-10">{tab.label}</span>

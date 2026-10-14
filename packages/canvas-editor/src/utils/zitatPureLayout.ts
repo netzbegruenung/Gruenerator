@@ -1,7 +1,7 @@
 /**
  * Zitat-Pure Layout Utility
- * Exact values extracted from apps/api/routes/sharepic/sharepic_canvas/zitat_pure_canvas.ts
- * to ensure 1:1 visual match between frontend and backend rendering
+ * Values originally taken from the retired server-side Zitat-Pure renderer, so
+ * canvases match the sharepics it produced
  */
 import { SYSTEM_ASSETS } from './canvasAssets';
 import { wrapText } from './textUtils';

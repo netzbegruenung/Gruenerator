@@ -31,8 +31,7 @@ describe('catalog', () => {
   });
 
   it('returns nothing when only alt texts or word fragments match', () => {
-    // "pub" is a fragment of the tag "public-transport", "table" of "vegetables".
-    expect(searchStockPhotos('Austrian pub')).toEqual([]);
+    // "table" is a fragment of the tag "vegetables".
     expect(searchStockPhotos('people talking table')).toEqual([]);
     // "city" only occurs in alt texts.
     expect(searchStockPhotos('Linz city')).toEqual([]);
@@ -60,6 +59,10 @@ describe('catalog', () => {
     expect(searchStockPhotos('city trees')[0].tags).toContain('trees');
     const bike = searchStockPhotos('bicycle lane city')[0].tags;
     expect(bike.some((t) => /bicycle|bike/.test(t))).toBe(true);
+  });
+
+  it('finds a pub by its tag', () => {
+    expect(searchStockPhotos('Austrian pub')[0].tags).toContain('pub');
   });
 
   it('accepts two distinct alt-text words as a fit', () => {
@@ -716,6 +719,25 @@ describe('quotes keep their speaker', () => {
     ];
     const result = validateReview({ ok: false, issues: [], patch }, [1], slides);
     expect(result.ok && result.value.patch).toEqual([{ op: 'set_position', position: 'unten' }]);
+  });
+
+  it('keeps the closing aufruf: shortened, never removed or turned into a headline', () => {
+    const slides = [
+      {
+        ...base,
+        items: [{ type: 'aufruf', stil: 'kernsatz', text: 'Klimaschutz ist Heimatschutz.' }],
+      },
+    ] as never;
+    const patch = [
+      { op: 'remove_item', item: 0 },
+      { op: 'set_headline', item: 0, lines: ['Klimaschutz ist', 'Heimatschutz.'] },
+      { op: 'set_headline', lines: ['Wir wollen', 'mehr Öffis!'] },
+      { op: 'set_text', item: 0, text: 'Klimaschutz ist Heimatschutz' },
+    ];
+    const result = validateReview({ ok: false, issues: [], patch }, [1], slides);
+    expect(result.ok && result.value.patch).toEqual([
+      { op: 'set_text', item: 0, text: 'Klimaschutz ist Heimatschutz' },
+    ]);
   });
 
   it('drops set_text on a zitat or frage', () => {

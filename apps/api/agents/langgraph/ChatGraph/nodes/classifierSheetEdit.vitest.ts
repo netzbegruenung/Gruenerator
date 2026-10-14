@@ -138,3 +138,148 @@ describe('Tier 2.7 — Chat-Deliverable klebt nicht an der Tabelle', () => {
     expect(result.intent).toBe('edit_sheet');
   });
 });
+
+describe('„ja" auf eine Rückfrage zu Tabelle oder Präsentation', () => {
+  const thread = (kind: 'sheet' | 'presentation', question: string, answer: string) =>
+    buildState(answer, {
+      messages: [
+        { role: 'user', content: 'Mach Folie 3 kürzer' },
+        { role: 'assistant', content: question },
+        { role: 'user', content: answer },
+      ],
+      threadArtifacts: [{ kind, ref: `${kind}-1` }],
+    } as Partial<ChatGraphState>);
+
+  it.each(['sheet', 'presentation'] as const)('%s → Werkzeug-Loop statt direct', async (kind) => {
+    const result = await classifierNode(
+      thread(kind, 'Dabei würden Folien gelöscht. Soll das so passieren?', 'ja')
+    );
+    expect(result.intent).toBe('agentic');
+  });
+
+  it('ohne Rückfrage bleibt ein „ja" beim üblichen Weg', async () => {
+    const result = await classifierNode(thread('presentation', 'Erledigt.', 'ja'));
+    expect(result.intent).not.toBe('agentic');
+  });
+
+  it('ohne Tabelle oder Präsentation im Thread greift die Weiche nicht', async () => {
+    const result = await classifierNode(
+      buildState('ja', {
+        messages: [
+          { role: 'assistant', content: 'Soll ich weitermachen?' },
+          { role: 'user', content: 'ja' },
+        ],
+        threadArtifacts: [{ kind: 'sharepic', ref: 'sp' }],
+      } as Partial<ChatGraphState>)
+    );
+    expect(result.intent).not.toBe('agentic');
+  });
+});
+
+describe('Erstell-Verdikt auf eine vorhandene Tabelle (Live-Test 11.10.2026)', () => {
+  const withSheet = (text: string) =>
+    buildState(text, {
+      messages: [
+        { role: 'user', content: 'Erstelle eine Tabelle mit den Städten in Hessen' },
+        { role: 'assistant', content: 'Tabelle **"Städte"** wurde erstellt.' },
+        { role: 'user', content: text },
+      ],
+      threadArtifacts: [{ kind: 'sheet', ref: 'sheet-1' }],
+    } as Partial<ChatGraphState>);
+
+  it('„Da fehlt noch Marburg in der Tabelle" ändert die Tabelle im Loop, statt eine zweite zu bauen', async () => {
+    executeProvider.mockImplementation(async () => ({ content: 'tabelle' }));
+    try {
+      const result = await classifierNode(withSheet('Da fehlt noch Marburg in der Tabelle'));
+      expect(result.intent).toBe('agentic');
+    } finally {
+      executeProvider.mockImplementation(async () => ({ content: 'keine' }));
+    }
+  });
+
+  it('hängt nicht am Auflöser: auch bei „keine" bleibt es ein Tabellen-Auftrag im Loop', async () => {
+    const result = await classifierNode(withSheet('Da fehlt noch Gießen in der Tabelle'));
+    expect(result.intent).toBe('agentic');
+    expect(result.artifactEditOrder).toBe(true);
+  });
+
+  it('eine ausdrücklich neue Tabelle bleibt eine Erstellung', async () => {
+    executeProvider.mockImplementation(async () => ({ content: 'tabelle' }));
+    try {
+      const result = await classifierNode(
+        withSheet('Erstelle noch eine Tabelle mit den Städten in Bayern')
+      );
+      expect(result.intent).toBe('create_sheet');
+    } finally {
+      executeProvider.mockImplementation(async () => ({ content: 'keine' }));
+    }
+  });
+});
+
+describe('Auftrag an ein vorhandenes Explainable', () => {
+  it('„Erklär im Explainable … einfacher" ändert es, statt ein zweites zu bauen', async () => {
+    const result = await classifierNode(
+      buildState('Erklär im Explainable den Begriff CO2-Preis noch einfacher', {
+        threadArtifacts: [{ kind: 'explainable', ref: 'e1' }],
+      } as Partial<ChatGraphState>)
+    );
+    expect(result.intent).toBe('agentic');
+    expect(result.artifactEditOrder).toBe(true);
+  });
+
+  it('ohne vorhandenes Explainable greift die Regel nicht', async () => {
+    const result = await classifierNode(
+      buildState('Erklär im Explainable den Begriff CO2-Preis noch einfacher')
+    );
+    expect(result.artifactEditOrder).toBeUndefined();
+  });
+});
+
+describe('„ja" auf eine offene Werkzeug-Rückfrage', () => {
+  it('geht in den Loop, auch wenn die Antwort nicht mit „?" endete (live 11.10.2026)', async () => {
+    const result = await classifierNode(
+      buildState('ja', {
+        messages: [
+          { role: 'user', content: 'Kürz den ersten Absatz im Dokument' },
+          { role: 'assistant', content: 'Hier ist der überarbeitete Antrag: …' },
+          { role: 'user', content: 'ja' },
+        ],
+        lastTurnPendingConfirm: true,
+      } as Partial<ChatGraphState>)
+    );
+    expect(result.intent).toBe('agentic');
+    expect(result.artifactEditOrder).toBe(true);
+  });
+});
+
+describe('Eine Folie ist ein Teil der vorhandenen Präsentation', () => {
+  const withDeck = (text: string) =>
+    buildState(text, {
+      threadArtifacts: [{ kind: 'presentation', ref: 'p1' }],
+    } as Partial<ChatGraphState>);
+
+  it('„Füg noch eine Folie zu den Kosten hinzu" ändert das Deck', async () => {
+    const result = await classifierNode(withDeck('Füg noch eine Folie zu den Kosten hinzu'));
+    expect(result.intent).toBe('agentic');
+    expect(result.artifactEditOrder).toBe(true);
+  });
+
+  it('eine Frage über Folien ist kein Auftrag', async () => {
+    const result = await classifierNode(withDeck('Was macht eine gute Folie aus?'));
+    expect(result.artifactEditOrder).toBeUndefined();
+  });
+
+  it('„vortragen" ist kein Präsentations-Nomen', async () => {
+    const result = await classifierNode(
+      withDeck('Füg eine Folie hinzu, die ich morgen vortragen will')
+    );
+    expect(result.artifactEditOrder).toBe(true);
+  });
+
+  it('„Erstelle noch eine Präsentation …" bleibt eine Erstellung', async () => {
+    const result = await classifierNode(
+      withDeck('Erstelle noch eine Präsentation zur Wärmewende mit fünf Folien')
+    );
+    expect(result.artifactEditOrder).toBeUndefined();
+  });
+});

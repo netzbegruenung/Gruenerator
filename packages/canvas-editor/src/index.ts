@@ -6,9 +6,11 @@ export type {
   CanvasEditorServices,
   ChatSectionContentProps,
   CanvasAiEditBridge,
+  CanvasSpecEditBridge,
 } from './CanvasEditorProvider';
 
 export { StandaloneCanvas } from './components/StandaloneCanvas';
+export { commitOpenTextEdit } from './components/CanvasTextOverlay';
 export type { StandaloneCanvasProps } from './components/StandaloneCanvas';
 
 export * from './primitives';
@@ -37,6 +39,7 @@ export {
   type TemplateAiCapabilities,
 } from './ai';
 export type { CanvasConfigId } from './configs/types';
+export { preloadCanvasTemplate } from './configs/configLoader';
 export type {
   DreizeilenAlternative,
   DreizeilenFullState,

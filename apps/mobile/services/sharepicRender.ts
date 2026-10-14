@@ -19,7 +19,17 @@
  * instead of three pictures.
  */
 
-import { parseWebViewMessage, WEBVIEW_PROTOCOL_VERSION } from '@gruenerator/shared';
+import {
+  type SharepicPatchOp,
+  type SharepicPhotoAttribution,
+  type SharepicSpec,
+} from '@gruenerator/contracts';
+import {
+  type CreatorTweakWire,
+  parseWebViewMessage,
+  RENDER_CAPABILITY_CREATOR,
+  WEBVIEW_PROTOCOL_VERSION,
+} from '@gruenerator/shared';
 import { useSyncExternalStore } from 'react';
 
 /**
@@ -31,6 +41,9 @@ import { useSyncExternalStore } from 'react';
  * budget.
  */
 const REQUEST_TIMEOUT_MS = 20_000;
+
+/** A creator turn renders every slide of a carousel, and maybe a contact sheet. */
+const CREATOR_TIMEOUT_MS = 60_000;
 
 /**
  * How long the host has to come up before waiting renders are abandoned.
@@ -61,15 +74,59 @@ export interface ComposedSharepic {
   title?: string;
 }
 
-type JobResult = string | ComposedSharepic | null;
+export interface CreatorRenderInput {
+  base: SharepicSpec;
+  attributions: (SharepicPhotoAttribution | null)[];
+  patch: SharepicPatchOp[] | null;
+  choice: Record<string, string>;
+  sheet: boolean;
+}
+
+export interface CreatorRenderResult {
+  /** The draft with the review patch applied. */
+  base: SharepicSpec;
+  /** `base` with the design choices. */
+  spec: SharepicSpec;
+  tweaks: CreatorTweakWire[];
+  images: string[];
+  /** Null when not asked for — and also when the page could not build it. */
+  sheet: string | null;
+}
+
+/** The page could not render this creator turn (after the retry). */
+export class CreatorRenderError extends Error {
+  constructor() {
+    super('creator render failed');
+    this.name = 'CreatorRenderError';
+  }
+}
+
+/** The deployed render page predates the creator — the app cannot help that. */
+export class CreatorUnsupportedError extends Error {
+  constructor() {
+    super('render page does not support the sharepic creator');
+    this.name = 'CreatorUnsupportedError';
+  }
+}
+
+/** Settles a creator job whose page announced no creator capability. */
+const UNSUPPORTED = Symbol('unsupported');
+
+type JobResult = string | ComposedSharepic | CreatorRenderResult | typeof UNSUPPORTED | null;
+
+type JobRequest =
+  | {
+      type: 'RENDER_REQUEST' | 'COMPOSE_REQUEST';
+      canvasType: string;
+      initialProps: Record<string, unknown>;
+    }
+  | ({ type: 'CREATOR_RENDER_REQUEST' } & CreatorRenderInput);
 
 interface Job {
   /** Caller-supplied identity — two cards asking for the same picture share one render. */
   key: string;
-  /** `compose` turns creator props into editor pages instead of drawing a picture. */
-  kind: 'render' | 'compose';
-  canvasType: string;
-  initialProps: Record<string, unknown>;
+  /** The message posted to the page, without its request id. */
+  request: JobRequest;
   waiters: ((result: JobResult) => void)[];
   attempts: number;
 }
@@ -83,6 +140,8 @@ interface InFlight {
 let queue: Job[] = [];
 let inFlight: InFlight | null = null;
 let hostReady = false;
+/** What the ready page announced; meaningful only while `hostReady`. */
+let hostCapabilities: string[] = [];
 let postToPage: ((payload: string) => void) | null = null;
 let requestCounter = 0;
 let bootTimer: ReturnType<typeof setTimeout> | null = null;
@@ -181,23 +240,32 @@ function failInFlight(reason: string): void {
 
 function pump(): void {
   if (inFlight !== null || !hostReady || postToPage === null) return;
-  const job = queue.shift();
-  if (job === undefined) return;
+  let job = queue.shift();
+  let refused = false;
+  // An old deployed page would never answer a creator request — refuse it now
+  // instead of letting it time out twice.
+  while (
+    job?.request.type === 'CREATOR_RENDER_REQUEST' &&
+    !hostCapabilities.includes(RENDER_CAPABILITY_CREATOR)
+  ) {
+    settle(job, UNSUPPORTED);
+    refused = true;
+    job = queue.shift();
+  }
+  if (job === undefined) {
+    if (refused) armIdleUnmount();
+    return;
+  }
 
   job.attempts += 1;
   requestCounter += 1;
   const requestId = `r${requestCounter}`;
-  const timer = setTimeout(() => failInFlight('timeout'), REQUEST_TIMEOUT_MS);
+  const timeout =
+    job.request.type === 'CREATOR_RENDER_REQUEST' ? CREATOR_TIMEOUT_MS : REQUEST_TIMEOUT_MS;
+  const timer = setTimeout(() => failInFlight('timeout'), timeout);
   inFlight = { job, requestId, timer };
 
-  postToPage(
-    JSON.stringify({
-      type: job.kind === 'compose' ? 'COMPOSE_REQUEST' : 'RENDER_REQUEST',
-      requestId,
-      canvasType: job.canvasType,
-      initialProps: job.initialProps,
-    })
-  );
+  postToPage(JSON.stringify({ ...job.request, requestId }));
 }
 
 /**
@@ -227,15 +295,25 @@ export function renderSharepic(
       return;
     }
 
-    queue.push({ key, kind: 'render', canvasType, initialProps, waiters: [resolve], attempts: 0 });
-    if (idleTimer !== null) {
-      clearTimeout(idleTimer);
-      idleTimer = null;
-    }
-    setDemanded(true);
-    armBootTimeout();
-    pump();
+    enqueue({
+      key,
+      request: { type: 'RENDER_REQUEST', canvasType, initialProps },
+      waiters: [resolve],
+      attempts: 0,
+    });
   });
+}
+
+/** Queues a job and makes sure a host is on its way to run it. */
+function enqueue(job: Job): void {
+  queue.push(job);
+  if (idleTimer !== null) {
+    clearTimeout(idleTimer);
+    idleTimer = null;
+  }
+  setDemanded(true);
+  armBootTimeout();
+  pump();
 }
 
 /**
@@ -250,21 +328,44 @@ export function composeForMint(
   if (!('creatorSpec' in initialProps)) return Promise.resolve({ canvasType, initialProps });
   return new Promise<ComposedSharepic | null>((resolve) => {
     requestCounter += 1;
-    queue.push({
+    enqueue({
       key: `compose:${requestCounter}`,
-      kind: 'compose',
-      canvasType,
-      initialProps,
-      waiters: [(result) => resolve(typeof result === 'object' ? result : null)],
+      request: { type: 'COMPOSE_REQUEST', canvasType, initialProps },
+      waiters: [
+        (result) =>
+          resolve(
+            result !== null && typeof result === 'object' && 'canvasType' in result ? result : null
+          ),
+      ],
       attempts: 0,
     });
-    if (idleTimer !== null) {
-      clearTimeout(idleTimer);
-      idleTimer = null;
-    }
-    setDemanded(true);
-    armBootTimeout();
-    pump();
+  });
+}
+
+/**
+ * Renders one turn of the free-text creator through the render page: the
+ * review patch onto `base`, the design `choice` onto that, every slide, and
+ * with `sheet` the review's contact sheet (which may still come back null).
+ *
+ * Rejects with `CreatorUnsupportedError` when the deployed page predates the
+ * creator, with `CreatorRenderError` for anything else.
+ */
+export function renderCreator(input: CreatorRenderInput): Promise<CreatorRenderResult> {
+  return new Promise<CreatorRenderResult>((resolve, reject) => {
+    requestCounter += 1;
+    enqueue({
+      key: `creator:${requestCounter}`,
+      request: { type: 'CREATOR_RENDER_REQUEST', ...input },
+      waiters: [
+        (result) => {
+          if (result === UNSUPPORTED) reject(new CreatorUnsupportedError());
+          else if (result !== null && typeof result === 'object' && 'images' in result) {
+            resolve(result);
+          } else reject(new CreatorRenderError());
+        },
+      ],
+      attempts: 0,
+    });
   });
 }
 
@@ -338,6 +439,7 @@ export function handleRenderHostMessage(raw: unknown): 'handled' | 'session-lost
       bootTimer = null;
     }
     hostReady = true;
+    hostCapabilities = message.capabilities ?? [];
     pump();
     return 'handled';
   }
@@ -359,6 +461,18 @@ export function handleRenderHostMessage(raw: unknown): 'handled' | 'session-lost
     if (message.format !== undefined) composed.format = message.format;
     if (message.title !== undefined) composed.title = message.title;
     finishInFlight(composed);
+    return 'handled';
+  }
+
+  if (message.type === 'CREATOR_RENDER_RESULT') {
+    if (inFlight?.requestId !== message.requestId) return 'ignored';
+    finishInFlight({
+      base: message.base,
+      spec: message.spec,
+      tweaks: message.tweaks,
+      images: message.images,
+      sheet: message.sheet,
+    });
     return 'handled';
   }
 
@@ -386,6 +500,7 @@ export function __resetSharepicRenderForTests(): void {
   bootTimer = null;
   idleTimer = null;
   hostReady = false;
+  hostCapabilities = [];
   postToPage = null;
   requestCounter = 0;
   demanded = false;

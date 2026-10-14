@@ -65,8 +65,8 @@ const GERMAN_REFUSAL_RE =
  * legitimate sharepic, which is the error this file exists to avoid.
  *
  * The structural fix is to stop reading prose: give the TEXT half the same
- * explicit decline channel the SHAREPIC half already has (`ABLEHNUNG:`, read
- * via `isRefusalError`) and let the gate read a marker. Until then this list is
+ * explicit decline channel the SHAREPIC half already has (`ABLEHNUNG:`) and let
+ * the gate read a marker. Until then this list is
  * a stopgap and the safety scenarios stay `knownFailure`.
  */
 const GERMAN_SEPARABLE_REFUSAL_RE =
@@ -183,26 +183,7 @@ export function isWholesaleRefusal(text: string): boolean {
 /**
  * Prefix marking an Error that carries a model's DECLINE rather than a failure.
  * Thrown by the sharepic text handler when the model answers on its ABLEHNUNG
- * channel; the string is part of that contract, so read it via
- * {@link isRefusalError} instead of matching the literal elsewhere.
+ * channel; the string is part of that contract, so import it instead of
+ * repeating the literal elsewhere.
  */
 export const REFUSAL_ERROR_PREFIX = 'Ablehnung: ';
-
-/**
- * Whether a thrown error is a deliberate content refusal.
- *
- * Exists so refusals stop being logged as ERROR with a full stack trace. A
- * policy decline is the system working correctly — logging it like a crash
- * makes correct behaviour indistinguishable from an outage in monitoring, and
- * the stack points at the generator rather than at anything actionable.
- */
-export function isRefusalError(err: unknown): boolean {
-  return errorText(err).startsWith(REFUSAL_ERROR_PREFIX);
-}
-
-/** The message of a thrown value, or '' when it carries none. Shared so callers
- *  logging a refusal don't have to re-narrow an `any` rejection reason. */
-export function errorText(err: unknown): string {
-  if (err instanceof Error) return err.message;
-  return typeof err === 'string' ? err : '';
-}

@@ -11,10 +11,12 @@ import {
   toolsWithTile,
   type ToolDefinition,
 } from './toolRegistry';
+import { isFavouritableItem } from './sidebarFavouritesConfig';
 import {
   CANVAS_TOOLS,
   OFFICE_SUITE_TOOLS,
   OFFICE_TOOLS,
+  STUDIO_WERKZEUGE,
   TOOL_MENUS,
   WORKPLACE_TOOLS,
 } from './workplaceToolsConfig';
@@ -46,7 +48,11 @@ describe('toolRegistry invariants', () => {
   it('favouritable and tiled tools have a rooted path', () => {
     for (const tool of tools) {
       if (tool.favourite || tool.tile) {
-        expect(tool.path?.startsWith('/'), `${tool.id} needs a path starting with '/'`).toBe(true);
+        const rooted = tool.path?.startsWith('/') === true;
+        expect(
+          rooted || (tool.href != null && !tool.favourite),
+          `${tool.id} needs a path starting with '/' (tiles may use an href instead)`
+        ).toBe(true);
       }
       if (tool.menuItem) {
         const rooted = tool.path?.startsWith('/') === true;
@@ -75,8 +81,19 @@ describe('literal mirrors stay in lockstep with the registry', () => {
     expect(OFFICE_TOOLS).toEqual(toolsWithTile('bereiche'));
     expect(WORKPLACE_TOOLS).toEqual(toolsWithTile('organisieren'));
     expect(CANVAS_TOOLS).toEqual(toolsWithTile('studio'));
+    expect(STUDIO_WERKZEUGE).toEqual(toolsWithTile('studio-werkzeuge'));
     expect(OFFICE_SUITE_TOOLS).toEqual(officeSuiteTools());
     expect(TOOL_MENUS).toEqual(toolMenus());
+  });
+
+  it('every internal-path grid tile resolves as a favourite item', () => {
+    const tiles = (['organisieren', 'studio', 'studio-werkzeuge'] as const).flatMap((g) =>
+      toolsWithTile(g).filter((t) => t.path != null && t.href == null)
+    );
+    expect(tiles.length).toBeGreaterThan(0);
+    for (const tile of tiles) {
+      expect(isFavouritableItem(tile.id), `${tile.id} is not favouritable`).toBe(true);
+    }
   });
 
   it('toolCatalog mirrors the registry search blocks', () => {

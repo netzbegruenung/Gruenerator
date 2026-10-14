@@ -20,6 +20,7 @@ import { create } from 'zustand';
 
 import apiClient, { setLoggingOutFlag } from '../components/utils/apiClient';
 import { CURRENT_INSTANCE } from '../config/instance';
+import { getCachedAuthEntry } from '../features/auth/instantAuthCache';
 import { INSTANT_AUTH_CACHE, LOGIN_INTENT, LOGOUT_TIMESTAMP } from '../features/auth/storageKeys';
 import { clearCreatorSession } from '../features/image-studio/freitext/creatorSession';
 import { authClient } from '../lib/authClient';
@@ -169,26 +170,39 @@ const legacyHelpers = {
   },
 };
 
+// Warm start: mirror the same instant-auth cache that seeds React Query's
+// `initialData`, so the store does not report "no user" while RequireAuth
+// already renders the page from that cache. Without this every
+// `withAuthRequired` page showed LoginRequired and held its own requests
+// back for a full /auth/status round-trip. The seed is optimistic only —
+// `hasServerConfirmed` stays false until `applyAuthAnswer` confirms it.
+const seededUser: User | null = (() => {
+  const cached = getCachedAuthEntry()?.data;
+  return cached?.isAuthenticated && cached.user ? cached.user : null;
+})();
+if (seededUser) setApiLocale(effectiveLocale(seededUser.locale));
+
 /**
  * Zustand store for authentication state management
  */
 export const useAuthStore = create<AuthStore>((set, get) => ({
   // Auth state — Zustand no longer persists to localStorage. React Query's
   // instant-auth cache (seeded via `initialData` in useAuth) is the single
-  // source of truth for a warm start; this store is a pure in-memory mirror,
-  // populated by the queryFn's `applyAuthAnswer` → `setAuthState`.
-  user: null,
-  isAuthenticated: false,
+  // source of truth for a warm start; this store is an in-memory mirror,
+  // seeded from that cache above and populated by the queryFn's
+  // `applyAuthAnswer` → `setAuthState`.
+  user: seededUser,
+  isAuthenticated: !!seededUser,
   // Intentionally always false on init — server must reconfirm every load.
   hasServerConfirmed: false,
   isLoading: true,
   error: null,
   isLoggingOut: false, // New state to track logout in progress
 
-  selectedMessageColor: '#008939', // Default Klee
+  selectedMessageColor: seededUser?.chat_color || '#008939', // Default Klee
 
   // Locale/language preference
-  locale: effectiveLocale(),
+  locale: effectiveLocale(seededUser?.locale),
 
   // Main actions
   setAuthState: (data: AuthStateData) => {

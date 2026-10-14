@@ -18,6 +18,9 @@
       "dependsOn": ["^build"],
       "env": ["MIGRATIONS_TEST_DATABASE_URL"]
     },
+    "test:native": {
+      "dependsOn": ["^build"]
+    },
     "dev": {
       "cache": false,
       "persistent": true

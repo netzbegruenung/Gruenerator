@@ -17,8 +17,13 @@ const envMock = {
 };
 vi.mock('../../config/env.js', () => ({ env: envMock }));
 
-const { buildCanvasThumbnailUrl, buildThumbnailTileUrl, versionFromDate, versionFromShareRow } =
-  await import('./thumbnailUrl.js');
+const {
+  buildCanvasThumbnailUrl,
+  buildReelThumbnailUrl,
+  buildThumbnailTileUrl,
+  versionFromDate,
+  versionFromShareRow,
+} = await import('./thumbnailUrl.js');
 const { verifyThumbnail } = await import('./thumbnailSignature.js');
 
 function parse(url: string): { path: string; params: URLSearchParams } {
@@ -49,15 +54,21 @@ describe('recent-activity mint sites', () => {
   });
 
   it('no longer points reels at the auth-gated subtitler route', () => {
-    const url = buildThumbnailTileUrl(
-      'reel',
-      '11111111-1111-4111-8111-111111111111',
-      versionFromDate('2026-08-01T00:00:00Z')
-    ) as string;
+    const url = buildReelThumbnailUrl({
+      id: '11111111-1111-4111-8111-111111111111',
+      thumbnail_path: 'thumbs/p.jpg',
+      last_edited_at: '2026-08-01T00:00:00Z',
+    }) as string;
     // The old shape 401'd for a header-less <Image>, which is why every reel
     // tile was blank.
     expect(url).not.toContain('/api/subtitler/');
     expect(accepted(url)).toBe(true);
+  });
+
+  it('mints no reel tile before a poster exists', () => {
+    expect(
+      buildReelThumbnailUrl({ id: '11111111-1111-4111-8111-111111111111', thumbnail_path: null })
+    ).toBeNull();
   });
 
   it('no longer passes the stored canvas download URL through', () => {

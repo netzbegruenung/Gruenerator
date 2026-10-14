@@ -1543,8 +1543,8 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
 
         // Search all sub-queries (if decomposed) + expanded variants across all collections
         //
-        // Notebook-gebundene Turns fahren das Profil der Notebook-Stufe
-        // „Mittel" (`CHAT_NOTEBOOK_DEPTH`) statt einer eigenen Zahl. Vorher
+        // Notebook-gebundene Turns fahren das Chat-Notebook-Profil
+        // (`getChatNotebookProfile`) statt einer eigenen Zahl. Vorher
         // standen hier 10 — das war die HARTE Obergrenze des Turns, nicht die
         // Decke einer Auswahl: der Reranker bekam 10 Kandidaten und reichte 10
         // durch, während `MAX_SOURCES` (20) und der Prompt-Boden (8000 Zeichen)
@@ -1932,6 +1932,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       case 'edit_sheet':
       case 'create_presentation':
       case 'create_pdf':
+      case 'create_explainable':
       case 'create_recurring_task':
         break;
       // Connector / native-tool intents: the MCP client does the retrieval.

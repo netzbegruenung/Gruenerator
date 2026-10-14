@@ -25,6 +25,7 @@ import { truncateResultForModel } from './truncate.js';
 import { readMcpResult, type PersistedStep } from './types.js';
 
 import type { AskHumanGate } from './askHumanGate.js';
+import type { ClientToolGate } from './clientToolGate.js';
 import type { ToolLoopGuards } from './loopGuards.js';
 import type { ToolActivity } from './toolActivity.js';
 import type { ToolApprovalGate } from './toolApprovalGate.js';
@@ -264,6 +265,9 @@ export interface WrapToolsContext {
   /** Rückfrage-Gate für `ask_human`. Nicht gesetzt ⇒ der Aufruf wird wie ein
    *  gewöhnliches Tool ausgeführt (und liefert nur den defensiven Stub). */
   askGate?: Pick<AskHumanGate, 'hold'>;
+  /** Gate für Browser-Werkzeuge (`check_sharepic`). Nicht gesetzt ⇒ der Aufruf
+   *  läuft als gewöhnliches Tool (und liefert nur den defensiven Stub). */
+  clientToolGate?: Pick<ClientToolGate, 'hold'>;
 }
 
 function isErrorResult(value: unknown): boolean {
@@ -546,6 +550,17 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
       if (toolName === 'ask_human' && ctx.askGate) {
         ctx.askGate.hold({ stepId, args });
         return { error: 'Warte auf die Antwort der Nutzer*in.' };
+      }
+
+      // `check_sharepic` ebenso: der Browser muss erst rendern, das Ergebnis
+      // entsteht in der Fortsetzung. Scheitert das Auflösen des Ziels, geht der
+      // Fehler als gewöhnliches Ergebnis ans Modell und der Zug läuft weiter.
+      if (toolName === 'check_sharepic' && ctx.clientToolGate) {
+        return (
+          (await ctx.clientToolGate.hold({ toolName, stepId, args })) ?? {
+            error: 'Warte auf die Darstellung im Browser.',
+          }
+        );
       }
 
       // Captured at tool START (before execution) — the semantics of textOffset.

@@ -42,7 +42,7 @@ import { useEffect, useRef, type CSSProperties } from 'react';
 
 import { Accent } from './accentMark';
 import { Marker } from './markerMark';
-import { TextFormatControls, type OfferedMarks } from './TextFormatControls';
+import { keepsEditing, TextFormatControls, type OfferedMarks } from './TextFormatControls';
 
 export interface RichTextFieldProps {
   /** Markdown-lite, wie es im Zustand steht. */
@@ -69,7 +69,7 @@ export interface RichTextFieldProps {
   /** Schrift und Farbe des Leinwand-Textes, damit der Editor an seiner Stelle sitzt. */
   contentStyle?: CSSProperties;
   onBlur?: () => void;
-  /** Escape — der Aufrufer verwirft. */
+  /** Escape — der Aufrufer schließt ab. */
   onEscape?: () => void;
   /** Cmd/Ctrl+Enter — der Aufrufer schließt ab. */
   onSubmit?: () => void;
@@ -169,7 +169,12 @@ export function RichTextField({
       lastEmitted.current = next;
       callbacks.current.onChange(next);
     },
-    onBlur: () => callbacks.current.onBlur?.(),
+    // Ein Fokuswechsel in ein Bedienelement der Werkzeugleiste (das Farbfeld)
+    // ist kein Verlassen des Textes.
+    onBlur: ({ event }) => {
+      if (keepsEditing(event.relatedTarget)) return;
+      callbacks.current.onBlur?.();
+    },
   });
 
   useEffect(() => {

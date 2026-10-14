@@ -1,33 +1,46 @@
-import { GRUENERATOR_TEMPLATE_TYPE } from '@gruenerator/contracts';
-import { Button, Popover, PopoverContent, PopoverTrigger, Switch } from '@gruenerator/ui';
-import { useQuery } from '@tanstack/react-query';
+import {
+  GRUENERATOR_TEMPLATE_TYPE,
+  sharepicCreatorLocaleSchema,
+  type SharepicCreatorLocale,
+} from '@gruenerator/contracts';
+import { Button } from '@gruenerator/ui';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Bookmark, Globe } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useState, type JSX } from 'react';
-import { HiPlus } from 'react-icons/hi';
-import { HiOutlineAdjustmentsHorizontal, HiMagnifyingGlass, HiXMark } from 'react-icons/hi2';
-import { Link } from 'react-router-dom';
+import { HiFilter, HiOutlineFilter, HiPlus } from 'react-icons/hi';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
-import { useEntityFavorites } from '../../../features/favorites/hooks/useEntityFavorites';
-import { useEntityLikes } from '../../../features/likes/hooks/useEntityLikes';
+import { MeineVorlagenPanel } from '../../../features/vorlagen/components/MeineVorlagenPanel';
+import {
+  catalogMatches,
+  useSharepicVorlageCards,
+} from '../../../features/vorlagen/components/SharepicVorlagenSection';
 import { useGrueneratorVorlage } from '../../../features/vorlagen/hooks/useGrueneratorVorlage';
+import { useSharepicVorlagen } from '../../../features/vorlagen/hooks/useSharepicVorlagen';
+import { useVorlageInteractions } from '../../../features/vorlagen/hooks/useVorlageInteractions';
+import { useAuthStore } from '../../../stores/authStore';
+import ErrorBoundary from '../../ErrorBoundary';
 import apiClient from '../../utils/apiClient';
 import AddTemplateModal from '../AddTemplateModal/AddTemplateModal';
+import { PageHero, PageHeroSearch, PageShell } from '../PageHero';
 import TemplatePreviewModal from '../TemplatePreviewModal';
 
+import {
+  FilterChip,
+  FilterMenuButton,
+  GalleryCountRow,
+  GalleryEmptyState,
+  GalleryGrid,
+  GallerySkeleton,
+  GridSizeToggle,
+  useGridSize,
+} from './parts';
 import VorlagenCard from './VorlagenCard';
 
-import { useAuthStore } from '@/stores/authStore';
 import { cn } from '@/utils/cn';
 
-const LOCALE_LABEL: Record<string, string> = {
-  'de-DE': 'Deutschland',
-  'de-AT': 'Österreich',
-};
-
 const DEBOUNCE_DELAY = 500;
-
-const GRID_CLASS =
-  'grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-5 max-md:grid-cols-[repeat(auto-fill,minmax(165px,1fr))] max-md:gap-3';
 
 interface CategoryItem {
   id: string;
@@ -48,10 +61,6 @@ interface VorlageItem {
   likes_count?: number;
   [key: string]: unknown;
 }
-
-/** Resolve the openable/shareable URL for a gallery item, if any. */
-const resolveTemplateUrl = (item: VorlageItem): string | undefined =>
-  item.content_data?.originalUrl || item.external_url || item.download_url || undefined;
 
 const parseSearchQuery = (query: string): { textQuery: string; tags: string[] } => {
   const tags: string[] = [];
@@ -79,18 +88,17 @@ const removeTagFromSearch = (currentSearch: string, tag: string): string =>
     .join(' ')
     .trim();
 
-/** Removable pill summarizing one applied filter (category, tag, or region). */
-const FilterChip = ({ label, onRemove }: { label: string; onRemove: () => void }): JSX.Element => (
-  <button
-    type="button"
-    onClick={onRemove}
-    className="inline-flex items-center gap-1 rounded-full bg-primary-500/10 py-1 pl-3 pr-2 text-xs font-medium text-primary-600 transition-colors hover:bg-primary-500/20 dark:text-primary-400"
-    aria-label={`Filter „${label}“ entfernen`}
-  >
-    {label}
-    <HiXMark className="size-3.5" aria-hidden="true" />
-  </button>
-);
+type EmptyCause = 'search' | 'favorites' | 'category' | 'none';
+
+const EMPTY_TEXT: Record<EmptyCause, { title: string; hint?: string }> = {
+  search: { title: 'Keine Vorlagen gefunden', hint: 'Versuche einen anderen Suchbegriff.' },
+  favorites: {
+    title: 'Noch keine gemerkten Vorlagen',
+    hint: 'Tippe an einer Vorlage auf das Lesezeichen, um sie dir zu merken.',
+  },
+  category: { title: 'In dieser Kategorie gibt es noch keine Vorlagen' },
+  none: { title: 'Noch keine Vorlagen' },
+};
 
 interface VorlagenResponse {
   vorlagen: VorlageItem[];
@@ -104,17 +112,21 @@ const fetchVorlagen = async ({
   searchMode,
   selectedCategory,
   tags,
-  localeFilter,
+  onlyFavorites,
+  land,
   signal,
 }: {
   searchTerm: string;
   searchMode: string;
   selectedCategory: string;
   tags: string[];
-  localeFilter: boolean;
+  onlyFavorites: boolean;
+  land: SharepicCreatorLocale | null;
   signal?: AbortSignal;
 }): Promise<VorlageItem[]> => {
   const params: Record<string, unknown> = {};
+  if (onlyFavorites) params.favorites = '1';
+  if (land) params.land = land;
   if (searchTerm) {
     params.searchTerm = searchTerm;
     if (searchMode) params.searchMode = searchMode;
@@ -124,10 +136,6 @@ const fetchVorlagen = async ({
   }
   if (tags.length > 0) {
     params.tags = JSON.stringify(tags);
-  }
-  // Locale filtering is on by default server-side; only signal when turned off.
-  if (!localeFilter) {
-    params.localeFilter = 'false';
   }
 
   const response = await apiClient.get<VorlagenResponse>('/auth/vorlagen', { params, signal });
@@ -146,22 +154,27 @@ const fetchCategories = async (): Promise<CategoryItem[]> => {
   const data = response.data;
   const categories: CategoryItem[] = Array.isArray(data?.categories) ? data.categories : [];
   const labeled = categories.map((c) => ({ ...c, label: CATEGORY_LABELS[c.id] ?? c.label }));
-  return [{ id: 'all', label: 'Alle Typen' }, ...labeled];
+  return labeled;
 };
 
+const LAND_LABEL: Record<SharepicCreatorLocale, string> = {
+  'de-DE': 'Deutschland',
+  'de-AT': 'Österreich',
+};
+
+const ALL_FILTER = 'all';
+const MEINE_FILTER = 'meine';
+
 const VorlagenGallery = memo((): JSX.Element => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const queryClient = useQueryClient();
   const [inputValue, setInputValue] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [searchMode, setSearchMode] = useState('title');
-  const [selectedCategory, setSelectedCategory] = useState('all');
   const [previewTemplate, setPreviewTemplate] = useState<VorlageItem | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
-  // Scope the gallery to the user's region by default; the settings popover
-  // lets them turn it off to browse templates from all audiences.
-  const [localeFilter, setLocaleFilter] = useState(true);
-
-  const userLocale = useAuthStore((s) => s.locale) ?? 'de-DE';
-  const localeLabel = LOCALE_LABEL[userLocale] ?? 'meine Region';
+  const [onlyFavorites, setOnlyFavorites] = useState(false);
+  const [gridSize, toggleGridSize] = useGridSize('vorlagen-grid-size');
 
   useEffect(() => {
     const handler = setTimeout(() => setSearchTerm(inputValue), DEBOUNCE_DELAY);
@@ -175,8 +188,70 @@ const VorlagenGallery = memo((): JSX.Element => {
     queryFn: fetchCategories,
   });
 
+  const filters = useMemo<CategoryItem[]>(
+    () => [
+      { id: ALL_FILTER, label: 'Alle Vorlagen' },
+      { id: GRUENERATOR_TEMPLATE_TYPE, label: CATEGORY_LABELS[GRUENERATOR_TEMPLATE_TYPE] },
+      ...(categoriesQuery.data ?? []).filter(
+        (c) => c.id !== GRUENERATOR_TEMPLATE_TYPE && c.id !== ALL_FILTER && c.id !== MEINE_FILTER
+      ),
+      { id: MEINE_FILTER, label: 'Meine Vorlagen' },
+    ],
+    [categoriesQuery.data]
+  );
+  const catParam = searchParams.get('cat');
+  // Until the categories arrive a server category in the link is taken on trust.
+  const selectedCategory =
+    catParam && (categoriesQuery.isPending || filters.some((f) => f.id === catParam))
+      ? catParam
+      : ALL_FILTER;
+  const isMeine = selectedCategory === MEINE_FILTER;
+  const selectFilter = useCallback(
+    (key: string) =>
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (key === ALL_FILTER) next.delete('cat');
+          else next.set('cat', key);
+          return next;
+        },
+        { replace: true }
+      ),
+    [setSearchParams]
+  );
+
+  // Instance admins may look at the other country's Vorlagen (`?land=`); the
+  // server ignores the parameter for everyone else, so it is not even sent.
+  const isAdmin = useAuthStore((s) => s.user?.is_admin === true);
+  const ownLand = useAuthStore((s) => s.locale);
+  const landParam = sharepicCreatorLocaleSchema.safeParse(searchParams.get('land')).data;
+  const land = isAdmin && landParam && landParam !== ownLand ? landParam : null;
+  const shownLand = land ?? ownLand;
+  const selectLand = useCallback(
+    (value: string) =>
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (value === ownLand) next.delete('land');
+          else next.set('land', value);
+          return next;
+        },
+        { replace: true }
+      ),
+    [setSearchParams, ownLand]
+  );
+
   const dataQuery = useQuery({
-    queryKey: ['vorlagen-gallery', textQuery, searchMode, selectedCategory, tags, localeFilter],
+    queryKey: [
+      'vorlagen-gallery',
+      textQuery,
+      searchMode,
+      selectedCategory,
+      tags,
+      onlyFavorites,
+      land,
+    ],
+    enabled: !isMeine,
     staleTime: 30_000,
     gcTime: 60_000,
     refetchOnMount: 'always' as const,
@@ -186,26 +261,34 @@ const VorlagenGallery = memo((): JSX.Element => {
         searchMode,
         selectedCategory,
         tags,
-        localeFilter,
+        onlyFavorites,
+        land,
         signal,
       }),
     placeholderData: (prev) => prev,
   });
 
-  const categories = useMemo(() => categoriesQuery.data ?? [], [categoriesQuery.data]);
-  const items = dataQuery.data ?? [];
-
-  const { likedIds, toggleLike, isToggling: isLikeToggling, canLike } = useEntityLikes('template');
-  const {
-    favoritedIds,
-    toggleFavorite,
-    isToggling: isFavoriteToggling,
-    canFavorite,
-  } = useEntityFavorites('template');
+  const showCatalog =
+    !isMeine &&
+    (selectedCategory === ALL_FILTER || selectedCategory === GRUENERATOR_TEMPLATE_TYPE) &&
+    tags.length === 0;
+  const loadedItems = useMemo(() => dataQuery.data ?? [], [dataQuery.data]);
+  const catalogQuery = useSharepicVorlagen(land);
+  const itemIds = useMemo(
+    () => [
+      ...loadedItems.map((item) => String(item.id)),
+      ...(showCatalog ? (catalogQuery.data ?? []) : []).map((v) => v.id),
+    ],
+    [loadedItems, showCatalog, catalogQuery.data]
+  );
+  const interactions = useVorlageInteractions(itemIds);
+  const { cardProps, likesCount, favoritedIds } = interactions;
+  // The server already returns only bookmarks; this drops one unbookmarked meanwhile.
+  const items = onlyFavorites
+    ? loadedItems.filter((item) => favoritedIds.has(String(item.id)))
+    : loadedItems;
 
   const { openVorlage, usingId } = useGrueneratorVorlage();
-
-  const previewId = previewTemplate ? String(previewTemplate.id) : '';
 
   const handleTagClick = useCallback((tag: string) => {
     setInputValue((prev) => addTagToSearch(prev, tag));
@@ -217,235 +300,221 @@ const VorlagenGallery = memo((): JSX.Element => {
 
   const resetFilters = useCallback(() => {
     setInputValue('');
-    setSelectedCategory('all');
-    setLocaleFilter(true);
-  }, []);
-
-  const copyLink = useCallback((item: VorlageItem) => {
-    const url = resolveTemplateUrl(item);
-    if (!url) return;
-    void navigator.clipboard
-      ?.writeText(url)
-      .then(() => toast.success('Link kopiert.'))
-      .catch(() => toast.error('Link konnte nicht kopiert werden.'));
-  }, []);
-
-  useEffect(() => {
-    if (categories.length === 0) return;
-    if (!categories.some((c) => c.id === selectedCategory)) {
-      // Reset an invalid selection once categories load; guarded so it is a
-      // one-shot reaction to loaded data, not a render-derived value.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSelectedCategory('all');
-    }
-  }, [categories, selectedCategory]);
-
-  const showCategoryFilter = categories.length > 0;
+    selectFilter(ALL_FILTER);
+    setOnlyFavorites(false);
+  }, [selectFilter]);
 
   // Active filters shown as removable chips below the search bar. Derived from
   // the live input (not the debounced term) so chips track typing immediately.
   const activeTags = useMemo(() => parseSearchQuery(inputValue).tags, [inputValue]);
-  const activeCategory =
-    selectedCategory !== 'all' ? categories.find((c) => c.id === selectedCategory) : undefined;
-  const hasActiveFilters = activeTags.length > 0 || Boolean(activeCategory) || !localeFilter;
+  const activeFilter = filters.find((f) => f.id === selectedCategory) ?? {
+    id: selectedCategory,
+    label: CATEGORY_LABELS[selectedCategory] ?? selectedCategory,
+  };
+  const isFiltered = selectedCategory !== ALL_FILTER;
+  const hasActiveFilters = activeTags.length > 0 || (isFiltered && !isMeine) || onlyFavorites;
+  const hasSearch = inputValue.trim().length > 0;
+
+  const catalog = useMemo(
+    () =>
+      showCatalog
+        ? (catalogQuery.data ?? []).filter(
+            (v) => catalogMatches(v, textQuery) && (!onlyFavorites || favoritedIds.has(v.id))
+          )
+        : [],
+    [showCatalog, catalogQuery.data, textQuery, onlyFavorites, favoritedIds]
+  );
+  const total = items.length + catalog.length;
+
+  // Most liked first, like the studio's „Beliebte Vorlagen"; the sort is
+  // stable, so ties keep catalogue before community, newest community first.
+  const sorted = useMemo(() => {
+    const entries = [
+      ...catalog.map((vorlage) => ({ id: vorlage.id, vorlage, item: undefined })),
+      ...items.map((item) => ({ id: String(item.id), item, vorlage: undefined })),
+    ];
+    const likes = (e: (typeof entries)[number]) => likesCount(e.id, e.item?.likes_count);
+    return entries.sort((a, b) => likes(b) - likes(a));
+  }, [catalog, items, likesCount]);
+  const { renderCard, dialog: catalogDialog } = useSharepicVorlageCards(catalog, interactions);
+  const settled = !dataQuery.isLoading && (!showCatalog || !catalogQuery.isLoading);
+  const emptyCause: EmptyCause =
+    hasSearch || activeTags.length > 0
+      ? 'search'
+      : onlyFavorites
+        ? 'favorites'
+        : isFiltered
+          ? 'category'
+          : 'none';
+
+  const handleAddSuccess = useCallback(() => {
+    void dataQuery.refetch();
+    void queryClient.invalidateQueries({ queryKey: ['userTemplates'] });
+    if (isMeine) toast.success('Vorlage wurde hinzugefügt.');
+  }, [dataQuery, queryClient, isMeine]);
 
   return (
-    <div className="mx-auto mt-[60px] max-w-[1360px] flex-col px-lg box-border max-md:mt-0 max-md:px-md max-md:py-lg">
-      <div className="text-center">
-        <h1 className="mb-4 text-[2.5rem] font-semibold text-foreground-heading max-md:text-[1.75rem]">
-          Vorlagen-Datenbank
-        </h1>
-        <p className="mx-auto mb-xl max-w-[800px] text-center text-[1.1rem] leading-relaxed text-foreground">
-          Durchsuche hier Design-Vorlagen für Canva, InDesign und mehr.
-        </p>
-
-        <div className="mx-auto mb-xl flex w-full flex-wrap items-center justify-center gap-3 px-md box-border max-md:flex-col max-md:items-stretch">
-          {/* Compact, width-limited search field with leading icon. */}
-          <div className="relative h-10 w-[400px] max-w-full min-w-0 max-md:w-full">
-            <HiMagnifyingGlass
-              className="pointer-events-none absolute left-3.5 top-1/2 size-[1.125rem] -translate-y-1/2 text-foreground/50"
-              aria-hidden="true"
-            />
-            <input
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder="Vorlagen durchsuchen..."
-              aria-label="Vorlagen durchsuchen"
-              className="h-full w-full rounded-full border-2 border-background-alt bg-background pl-10 pr-10 text-base text-foreground outline-none transition-colors placeholder:text-foreground/50 focus:border-primary-500"
-            />
-            <Popover>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  className={cn(
-                    'absolute right-1 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full border-none bg-transparent text-foreground/60 transition-colors hover:bg-background-alt hover:text-primary-500',
-                    (!localeFilter || selectedCategory !== 'all') &&
-                      'bg-primary-500/10 text-primary-500'
-                  )}
-                  aria-label="Einstellungen"
-                  title="Einstellungen"
-                >
-                  <HiOutlineAdjustmentsHorizontal className="size-5" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent align="end" sideOffset={8} className="w-[18rem] space-y-4 p-4">
-                <label className="flex items-start justify-between gap-3 text-left">
-                  <span className="min-w-0">
-                    <span className="block text-sm font-medium text-foreground">
-                      Auf {localeLabel} beschränken
-                    </span>
-                    <span className="mt-0.5 block text-xs text-grey-500 dark:text-grey-400">
-                      Zeigt nur Vorlagen für deine Region.
-                    </span>
-                  </span>
-                  <Switch
-                    checked={localeFilter}
-                    onCheckedChange={setLocaleFilter}
-                    aria-label={`Auf ${localeLabel} beschränken`}
-                  />
-                </label>
-
-                {showCategoryFilter && (
-                  <div className="border-t border-grey-200 pt-3 dark:border-grey-700">
-                    <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-grey-500 dark:text-grey-400">
-                      Kategorie
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {categories.map((category) => (
-                        <button
-                          key={category.id}
-                          type="button"
-                          className={cn(
-                            'rounded-2xl border px-2.5 py-1 text-xs font-medium transition-colors',
-                            selectedCategory === category.id
-                              ? 'border-transparent bg-primary-500 text-white'
-                              : 'border-grey-300 text-grey-700 hover:border-grey-400 dark:border-grey-600 dark:text-grey-300'
-                          )}
-                          onClick={() => setSelectedCategory(category.id)}
-                        >
-                          {category.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </PopoverContent>
-            </Popover>
-          </div>
-          <Button
-            variant="brand"
-            size="brand"
-            className="max-md:w-full"
-            onClick={() => setShowAddModal(true)}
-          >
-            <HiPlus className="size-5" />
-            Vorlage hinzufügen
-          </Button>
-          <Button asChild variant="brand-outline" size="brand" className="max-md:w-full">
-            <Link to="/vorlagen/meine">Meine Vorlagen</Link>
-          </Button>
-
-          <AddTemplateModal
-            isOpen={showAddModal}
-            onClose={() => setShowAddModal(false)}
-            onSuccess={() => dataQuery.refetch()}
-          />
-        </div>
-      </div>
-
-      {!dataQuery.isLoading && !dataQuery.error && (
-        <div className="mb-md flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-foreground/60">
-            {items.length} {items.length === 1 ? 'Vorlage' : 'Vorlagen'}
-          </span>
-          {activeCategory && (
-            <FilterChip label={activeCategory.label} onRemove={() => setSelectedCategory('all')} />
-          )}
-          {activeTags.map((tag) => (
-            <FilterChip key={tag} label={`#${tag}`} onRemove={() => removeTag(tag)} />
-          ))}
-          {!localeFilter && (
-            <FilterChip label="Alle Regionen" onRemove={() => setLocaleFilter(true)} />
-          )}
-          {hasActiveFilters && (
-            <button
-              type="button"
-              onClick={resetFilters}
-              className="text-foreground/60 underline-offset-2 transition-colors hover:text-primary-500 hover:underline"
+    <PageShell wide>
+      <PageHero
+        title="Vorlagen-Datenbank"
+        description={
+          <p className="m-0 text-sm leading-relaxed text-pretty text-grey-500 dark:text-grey-400">
+            Sharepic-Vorlagen vom Grünerator und Design-Vorlagen für Canva, InDesign und mehr.
+          </p>
+        }
+        toolbar={
+          <>
+            {!isMeine && (
+              <PageHeroSearch
+                query={inputValue}
+                onQuery={setInputValue}
+                placeholder="Vorlagen durchsuchen…"
+              />
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Vorlage hinzufügen"
+              title="Vorlage hinzufügen"
+              onClick={() => setShowAddModal(true)}
             >
-              Zurücksetzen
-            </button>
-          )}
-        </div>
-      )}
+              <HiPlus aria-hidden className="size-[18px]" />
+            </Button>
+            {!isMeine && (
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Nur gemerkte Vorlagen"
+                aria-pressed={onlyFavorites}
+                title="Nur gemerkte Vorlagen"
+                className={cn(onlyFavorites && 'text-primary-600 dark:text-primary-400')}
+                onClick={() => setOnlyFavorites((on) => !on)}
+              >
+                <Bookmark
+                  aria-hidden
+                  className="size-[18px]"
+                  fill={onlyFavorites ? 'currentColor' : 'none'}
+                />
+              </Button>
+            )}
+            <FilterMenuButton
+              label={isFiltered ? `Filter: ${activeFilter.label}` : 'Filter'}
+              menuLabel="Anzeigen"
+              value={selectedCategory}
+              options={filters}
+              onChange={selectFilter}
+              active={isFiltered}
+              icon={
+                isFiltered ? (
+                  <HiFilter aria-hidden className="size-[18px]" />
+                ) : (
+                  <HiOutlineFilter aria-hidden className="size-[18px]" />
+                )
+              }
+            />
+            {isAdmin && !isMeine && (
+              <FilterMenuButton
+                label={`Land: ${LAND_LABEL[shownLand]}`}
+                menuLabel="Land (nur für Admins)"
+                value={shownLand}
+                options={sharepicCreatorLocaleSchema.options.map((value) => ({
+                  id: value,
+                  label:
+                    value === ownLand ? `${LAND_LABEL[value]} (eigenes Land)` : LAND_LABEL[value],
+                }))}
+                onChange={selectLand}
+                active={Boolean(land)}
+                icon={<Globe aria-hidden className="size-[18px]" />}
+              />
+            )}
+            {!isMeine && <GridSizeToggle gridSize={gridSize} onToggle={toggleGridSize} />}
+          </>
+        }
+      />
+      <AddTemplateModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSuccess={handleAddSuccess}
+      />
 
-      {dataQuery.error ? (
-        <p className="text-center text-error">{dataQuery.error.message || 'Fehler beim Laden'}</p>
+      {isMeine ? (
+        <ErrorBoundary>
+          <MeineVorlagenPanel
+            onAdd={() => setShowAddModal(true)}
+            onBrowse={() => selectFilter(ALL_FILTER)}
+          />
+        </ErrorBoundary>
       ) : (
         <>
-          <div className={GRID_CLASS}>
-            {dataQuery.isLoading && items.length === 0 ? (
-              Array.from({ length: 12 }).map((_, i) => (
-                <div key={i} className="aspect-[3/4] animate-pulse rounded-lg bg-background-alt" />
-              ))
-            ) : (
-              <>
-                {/* Low-friction add tile, inline in the grid. Kept below the
-                    cards' own height so the grid row stretch fills it out. */}
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(true)}
-                  className="flex min-h-[240px] flex-col items-center justify-center gap-3 rounded-lg border-[1.5px] border-dashed border-grey-300 bg-transparent text-base text-grey-500 transition-colors hover:border-primary-500 hover:bg-primary-500/5 hover:text-primary-500 dark:border-grey-600"
-                >
-                  <HiPlus className="size-7" />
-                  <span>Neue Vorlage</span>
-                </button>
-                {items.map((item) => {
-                  const itemId = String(item.id);
-                  const hasUrl = Boolean(resolveTemplateUrl(item));
-                  return (
-                    <VorlagenCard
-                      key={itemId}
-                      item={item}
-                      onOpen={() => setPreviewTemplate(item)}
-                      liked={likedIds.has(itemId)}
-                      onToggleLike={canLike ? () => toggleLike(itemId) : undefined}
-                      likeToggling={isLikeToggling(itemId)}
-                      onCopyLink={hasUrl ? () => copyLink(item) : undefined}
-                    />
-                  );
-                })}
-              </>
-            )}
-          </div>
+          <h2 className="sr-only">{activeFilter.label}</h2>
+          {settled && !dataQuery.error && (
+            <GalleryCountRow
+              count={`${total} ${total === 1 ? 'Vorlage' : 'Vorlagen'}`}
+              onReset={hasActiveFilters ? resetFilters : undefined}
+            >
+              {isFiltered && (
+                <FilterChip label={activeFilter.label} onRemove={() => selectFilter(ALL_FILTER)} />
+              )}
+              {activeTags.map((tag) => (
+                <FilterChip key={tag} label={`#${tag}`} onRemove={() => removeTag(tag)} />
+              ))}
+            </GalleryCountRow>
+          )}
 
-          {!dataQuery.isLoading && items.length === 0 && (
-            <div className="py-16 text-center">
-              <p className="mb-1 text-[1.0625rem] font-semibold text-foreground-heading">
-                Keine Vorlagen gefunden
-              </p>
-              <p className="text-sm text-foreground/60">Versuche einen anderen Suchbegriff.</p>
-            </div>
+          {dataQuery.error ? (
+            <p className="text-center text-error">
+              {dataQuery.error.message || 'Fehler beim Laden'}
+            </p>
+          ) : (
+            <>
+              <GalleryGrid size={gridSize}>
+                {!settled && total === 0 ? (
+                  <GallerySkeleton />
+                ) : (
+                  <>
+                    {sorted.map((entry) =>
+                      entry.vorlage ? (
+                        renderCard(entry.vorlage)
+                      ) : (
+                        <VorlagenCard
+                          key={entry.id}
+                          item={{
+                            ...entry.item,
+                            likes_count: likesCount(entry.id, entry.item.likes_count),
+                          }}
+                          onOpen={() => setPreviewTemplate(entry.item)}
+                          {...cardProps(entry.id)}
+                        />
+                      )
+                    )}
+                    {catalogDialog}
+                  </>
+                )}
+              </GalleryGrid>
+
+              {settled && total === 0 && (
+                <GalleryEmptyState
+                  {...EMPTY_TEXT[emptyCause]}
+                  action={
+                    emptyCause === 'category' ? (
+                      <Button variant="outline" size="sm" onClick={() => selectFilter(ALL_FILTER)}>
+                        Alle Vorlagen anzeigen
+                      </Button>
+                    ) : undefined
+                  }
+                />
+              )}
+            </>
           )}
         </>
       )}
 
       {previewTemplate && (
         <TemplatePreviewModal
-          isOpen={!!previewTemplate}
           onClose={() => setPreviewTemplate(null)}
           template={previewTemplate}
           onTagClick={handleTagClick}
-          liked={likedIds.has(previewId)}
-          likeCount={(previewTemplate.likes_count as number | undefined) ?? 0}
-          onToggleLike={() => toggleLike(previewId)}
-          likeToggling={isLikeToggling(previewId)}
-          canLike={canLike}
-          favorited={favoritedIds.has(previewId)}
-          onToggleFavorite={() => toggleFavorite(previewId)}
-          favoriteToggling={isFavoriteToggling(previewId)}
-          canFavorite={canFavorite}
+          {...cardProps(String(previewTemplate.id))}
           onUseTemplate={
             previewTemplate.template_type === GRUENERATOR_TEMPLATE_TYPE
               ? () =>
@@ -458,7 +527,7 @@ const VorlagenGallery = memo((): JSX.Element => {
           isUsing={usingId === String(previewTemplate.id)}
         />
       )}
-    </div>
+    </PageShell>
   );
 });
 

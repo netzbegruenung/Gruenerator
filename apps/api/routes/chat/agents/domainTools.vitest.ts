@@ -296,13 +296,12 @@ describe('makeCreateSharepicTool (Phase 3n fat tool)', () => {
     return makeCreateSharepicTool({
       sse: fakeSse(events) as Parameters<typeof makeCreateSharepicTool>[0]['sse'],
       state,
-      req: {} as Parameters<typeof makeCreateSharepicTool>[0]['req'],
       threadId: 't1',
     });
   }
 
   it('injects the researched text as the trailing user message and returns variants verbatim', async () => {
-    runSharepicGeneration.mockResolvedValue(VARIANTS);
+    runSharepicGeneration.mockResolvedValue({ variants: VARIANTS, failure: null });
     const events: SseEvent[] = [];
     const state = {
       ...baseState,
@@ -332,7 +331,7 @@ describe('makeCreateSharepicTool (Phase 3n fat tool)', () => {
   });
 
   it('is idempotent per turn: a second call never regenerates', async () => {
-    runSharepicGeneration.mockResolvedValue(VARIANTS);
+    runSharepicGeneration.mockResolvedValue({ variants: VARIANTS, failure: null });
     const state = {
       ...baseState,
       messages: [{ role: 'user', content: 'x' }],
@@ -351,8 +350,8 @@ describe('makeCreateSharepicTool (Phase 3n fat tool)', () => {
   });
 
   it('failure returns {error} WITHOUT merging state — a retry stays possible', async () => {
-    runSharepicGeneration.mockResolvedValueOnce([]);
-    runSharepicGeneration.mockResolvedValueOnce(VARIANTS);
+    runSharepicGeneration.mockResolvedValueOnce({ variants: [], failure: null });
+    runSharepicGeneration.mockResolvedValueOnce({ variants: VARIANTS, failure: null });
     const state = {
       ...baseState,
       messages: [{ role: 'user', content: 'x' }],
@@ -412,6 +411,14 @@ describe('makeCreateDocTool (compound presentation/sheet fat tool)', () => {
       createdDocument: null,
       ...over,
     }) as unknown as ChatGraphState;
+
+  it('builds nothing on a turn that ordered an edit to an existing artifact (live 11.10.2026)', async () => {
+    const out = (await exec(makeTool('presentation', withUser({ artifactEditOrder: true })), {
+      prompt: 'Verkehrswende in Kassel',
+    })) as { error?: string };
+    expect(out.error).toMatch(/vorhandenes Artefakt/);
+    expect(runDocGeneration).not.toHaveBeenCalled();
+  });
 
   it('passes the researched prompt through, emits document_created, merges state, returns the card', async () => {
     runDocGeneration.mockResolvedValue(DOC);

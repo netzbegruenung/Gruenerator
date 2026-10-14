@@ -110,6 +110,12 @@ export const USER_SELECTABLE_TOOLS: readonly UserSelectableTool[] = [
     description:
       'Macht aus einem Text eine Audiodatei zum Herunterladen – Ansage, Vorlesefassung oder Audiodeskription. Die Datei landet in der Mediathek.',
   },
+  {
+    key: 'vorlagen',
+    label: 'Sharepic-Vorlagen',
+    description:
+      'Schlägt zu einem Beitrag passende Sharepic-Vorlagen vor; per Klick wird daraus ein Sharepic mit dem Text.',
+  },
 ] as const;
 
 /**

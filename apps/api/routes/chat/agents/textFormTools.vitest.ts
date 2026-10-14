@@ -234,7 +234,7 @@ describe('recipes: list', () => {
     });
     expect(out.results[4]).toMatchObject({
       title: 'OV-Einladungen',
-      url: '/agentura?cat=meine',
+      url: '/grueneratoren',
       type: 'Eigene Textform',
       ref: 'omveinladungen',
     });
@@ -273,7 +273,7 @@ describe('recipes: list', () => {
   it('grounds the empty case as a note pointing to the settings', async () => {
     const { run, notes, registered } = makeCtx({ catalog: [], forms: [] });
     expect(await run({ action: 'list' })).toMatchObject({ resultCount: 0 });
-    expect(notes[0][1]).toContain('/agentura?cat=meine');
+    expect(notes[0][1]).toContain('/grueneratoren');
     expect(registered).toHaveLength(0);
   });
 
@@ -308,7 +308,7 @@ describe('recipes: get', () => {
       styleTruncated: true,
       analyzedAt: '2026-08-30T10:00:00.000Z',
       readOnly: false,
-      url: '/agentura?cat=meine',
+      url: '/grueneratoren',
     });
     expect((out.recipe.styleBlock as string).length).toBeLessThanOrEqual(1500);
     expect(out.recipe.examples).toEqual([
@@ -715,12 +715,12 @@ describe('recipes: create — Überschreiben eines Systemrezepts', () => {
     expect(notes[0][1]).toContain('ersetzt ab jetzt die mitgelieferten Vorgaben');
   });
 
-  it('antrag is a preset without a system recipe: stored as preset, not an override', async () => {
+  it('antrag is a preset that overrides the @antrag system recipe', async () => {
     const { run } = makeCtx({ forms: [] });
     const out = await run({ ...CREATE_ARGS, title: 'Anträge', mention: 'antrag' });
     expect(out).toMatchObject({
       ok: true,
-      recipe: { kind: 'preset', overridesSystemRecipe: false },
+      recipe: { kind: 'preset', overridesSystemRecipe: true },
     });
   });
 

@@ -24,3 +24,24 @@ describe('finalizeAnswerText — Erinnerungs-Behauptung (#3914)', () => {
     expect(finalizeAnswerText({ ...base, text, stepCount: 1 }).text).toBe(text);
   });
 });
+
+describe('finalizeAnswerText — erfundene Sharepic-Bearbeitung', () => {
+  const claim =
+    'Ich habe dir das Sharepic überarbeitet. Sag mir, wenn noch etwas anders sein soll.';
+
+  it('ersetzt die Behauptung ohne Sharepic-Schritt und meldet replaced', () => {
+    const r = finalizeAnswerText({ ...base, text: claim, stepCount: 0 });
+    expect(r.text).not.toContain('überarbeitet');
+    expect(r.replaced).toBe(true);
+  });
+
+  it('lässt sie stehen, wenn ein Sharepic-Werkzeug lief', () => {
+    const r = finalizeAnswerText({
+      ...base,
+      text: claim,
+      stepCount: 1,
+      editedArtifacts: new Set(['sharepic']),
+    });
+    expect(r.text).toBe(claim);
+  });
+});

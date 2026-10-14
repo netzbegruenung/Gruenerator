@@ -151,6 +151,26 @@ describe('notebookAnswerMode persistence (v18)', () => {
     expect(useAgentStore.getState().notebookAnswerMode).toBe('praezision');
     const persisted = options.partialize!(useAgentStore.getState()) as Record<string, unknown>;
     expect(persisted.notebookAnswerMode).toBe('praezision');
-    expect(options.version).toBe(18);
+    expect(options.version).toBe(19);
+  });
+});
+
+describe('notebookSourceTiers persistence (v19)', () => {
+  const options = useAgentStore.persist.getOptions();
+
+  it('starts empty for a store written before v19 and keeps the rest', () => {
+    const state = options.migrate!({ notebookDepth: 'deep' }, 18) as Record<string, unknown>;
+    expect(state.notebookSourceTiers).toEqual({});
+    expect(state.notebookDepth).toBe('deep');
+  });
+
+  it('is set and persisted per notebook', () => {
+    useAgentStore.getState().setNotebookSourceTier('landtag-nrw-system', 'documents-first');
+    useAgentStore.getState().setNotebookSourceTier('landtag-berlin-system', 'equal');
+    const persisted = options.partialize!(useAgentStore.getState()) as Record<string, unknown>;
+    expect(persisted.notebookSourceTiers).toEqual({
+      'landtag-nrw-system': 'documents-first',
+      'landtag-berlin-system': 'equal',
+    });
   });
 });

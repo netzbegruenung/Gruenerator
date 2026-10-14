@@ -54,6 +54,15 @@ function renderBar(html = THREE_HITS, onClose = vi.fn()) {
 const input = () => screen.getByRole('textbox', { name: 'Im Chat suchen' });
 
 describe('ThreadSearchBar', () => {
+  it('switches off content-visibility on the viewport only while the bar is open', () => {
+    const { unmount } = renderBar();
+    const viewport = document.body.firstElementChild as HTMLElement;
+
+    expect(viewport).toHaveAttribute('data-conversation-search');
+    unmount();
+    expect(viewport).not.toHaveAttribute('data-conversation-search');
+  });
+
   it('counts the hits and steps through them, wrapping at the end', async () => {
     renderBar();
 

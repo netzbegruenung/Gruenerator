@@ -11,6 +11,10 @@ import { generateSlugSuffix } from '@gruenerator/shared/utils';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 
 import { type PersistedStep } from './agenticLoop/types.js';
+import { type ArtifactKindId } from './artifactKindRegistry.js';
+import { parseRecordedOffer } from './artifactOffer.js';
+import { sharepicVariantCall } from './sharepicToolCalls.js';
+import { type ThreadCloudFiles, parseThreadCloudFiles } from './threadCloudFiles.js';
 import { ROW_WINDOW, toSources, toToolSteps } from './threadToolProjections.js';
 
 import type { SearchResult, ThreadToolContext } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -487,12 +491,42 @@ export async function setThreadToolContext(
   ]);
 }
 
+/**
+ * Cloud files picked in this thread — refs only, see threadCloudFiles.ts.
+ * Owner-scoped on both ends: a collaborator neither inherits nor overwrites them.
+ */
+export async function getThreadCloudFiles(
+  threadId: string,
+  userId: string
+): Promise<ThreadCloudFiles> {
+  const postgres = getPostgresInstance();
+  const result = await postgres.query(
+    `SELECT cloud_file_refs FROM chat_threads WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`,
+    [threadId, userId]
+  );
+  return parseThreadCloudFiles(result[0]?.cloud_file_refs);
+}
+
+export async function setThreadCloudFiles(
+  threadId: string,
+  userId: string,
+  files: ThreadCloudFiles
+): Promise<void> {
+  const postgres = getPostgresInstance();
+  const empty = files.wolke.length === 0 && files.connect.length === 0;
+  await postgres.query(
+    `UPDATE chat_threads SET cloud_file_refs = $1 WHERE id = $2 AND user_id = $3`,
+    [empty ? null : JSON.stringify(files), threadId, userId]
+  );
+}
+
 const WIDEST_ROW_WINDOW = Math.max(...Object.values(ROW_WINDOW));
 
 /** The `tool_results` keys the projections below read. */
 interface ThreadToolRow extends ArtifactMetadataShape {
   searchResults?: unknown[] | null;
   intent?: unknown;
+  offer?: unknown;
 }
 
 function intentOf(row: ThreadToolRow | undefined): string | null {
@@ -569,6 +603,8 @@ export interface ThreadToolHistory {
   lastTurnArtifacts(): ThreadToolContext[];
   /** The persisted intent of the assistant turn right before this one — null when unknown. */
   lastTurnIntent(): string | null;
+  /** The artifact the assistant turn right before this one offered — null when none. */
+  lastTurnOffer(): ArtifactKindId | null;
   sources(limit?: number): SearchResult[];
   lastGeneratedImageUrl(): string | null;
 }
@@ -600,6 +636,7 @@ export async function readThreadToolHistory(threadId: string): Promise<ThreadToo
     lastTurnArtifacts: () =>
       newestIsLastTurn ? toArtifacts(rows.slice(0, 1), Number.MAX_SAFE_INTEGER) : [],
     lastTurnIntent: () => (newestIsLastTurn ? intentOf(rows[0]) : null),
+    lastTurnOffer: () => (newestIsLastTurn ? parseRecordedOffer(rows[0]?.offer) : null),
     sources: (limit = 10) => toSources(rows, limit),
     lastGeneratedImageUrl: () => toLastGeneratedImageUrl(rows),
   };
@@ -665,7 +702,7 @@ function artifactFromMessageMetadata(meta: unknown): ThreadToolContext | null {
     return { kind: 'image', ref: imageUrl, label: labelOf(m.generatedImage?.prompt) };
   }
 
-  const variant = m.toolCalls?.find((tc) => tc?.toolName === 'sharepic')?.result?.variants?.[0];
+  const variant = sharepicVariantCall(m.toolCalls)?.result?.variants?.[0];
   if (variant) {
     const p = variant.initialProps ?? {};
     const text = [p['line1'], p['line2'] ?? p['accent'], p['line3'], p['quote'], p['header']]
@@ -683,7 +720,11 @@ function artifactFromMessageMetadata(meta: unknown): ThreadToolContext | null {
         ? 'sheet'
         : sub.startsWith('pdf')
           ? 'pdf'
-          : 'document';
+          : // Live 11.10.2026: an explainable read as a document, so the
+            // explainable tools never mounted and read_document got its id.
+            sub.startsWith('explainable')
+            ? 'explainable'
+            : 'document';
     return { kind, ref: doc.documentId, label: labelOf(doc.title) };
   }
   return null;

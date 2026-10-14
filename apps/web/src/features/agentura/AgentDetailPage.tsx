@@ -22,6 +22,8 @@ import { CURRENT_INSTANCE } from '../../config/instance';
 import { useUserAgents } from '../agents/api';
 import { PhosphorIcon } from '../agents/icons/PhosphorIcon';
 
+import { AddToLibraryButton } from './components/AddToLibraryButton';
+import { AgentDiscussion } from './components/AgentDiscussion';
 import { AgentCard } from './components/cards';
 import { ExamplePreview } from './components/ExamplePreview';
 import { ShareAgentModal } from './components/ShareAgentModal';
@@ -150,6 +152,7 @@ function AgentDetailPage() {
           <PiChatCircleText />
           Im Chat öffnen
         </Button>
+        {!isOwnAgent && <AddToLibraryButton kind="agent" itemRef={ref} />}
         <div className="mx-1 h-6 w-px bg-grey-200 dark:bg-grey-700" />
         {isOwnAgent && (
           <button
@@ -290,6 +293,8 @@ function AgentDetailPage() {
           ))}
         </CardGrid>
       )}
+
+      {isUserAgent && agent.id && <AgentDiscussion agentId={agent.id} isOwner={isOwnAgent} />}
     </PageContainer>
   );
 }

@@ -38,8 +38,7 @@ import { createIdleDeadline, type IdleDeadline } from '../streamIdleDeadline.js'
 import {
   createDegenerationGuard,
   DEGENERATE_FINISH_REASON,
-  DEGENERATION_NOTICE,
-  cutLostContent,
+  trimDegenerate,
 } from './degeneration.js';
 import { toolsForProvider } from './providerTools.js';
 import { DEFAULT_LOOP_BUDGET, TOOL_TIMEOUT_OVERRIDES_MS } from './types.js';
@@ -217,7 +216,7 @@ const GATHER_SUFFIX = [
   // Konstruktion nur Fremdes liefern, und genau das landete in der Antwort.
   '- PRÜFE ZUERST das Material im Gespräch: eingefügter Text, Anhänge, ein geöffnetes Dokument, Quellen aus früheren Turns. Steht die Antwort dort, antworte DARAUS und suche NICHT. Suche nur nach Fakten, die dieses Material gar nicht enthalten KANN (tagesaktuelle Zahlen, externe Ereignisse). Nach einem Namen, den es nur in diesem Gespräch gibt — ein internes Projekt, ein zitierter Entwurf, eine erfundene Fallstudie — suchst du NIE.',
   '- scrape_url NUR für URLs, die tatsächlich in Suchergebnissen erscheinen — rate keine Adressen.',
-  '- Wenn der*die Nutzer*in ausdrücklich eine ERSTELLUNG wünscht (z.B. ein Sharepic, Bild, eine Präsentation, Tabelle, ein Dokument oder ein Board), MUSST du das passende Erstellungs-Tool (z.B. sharepic / generate_image / create_presentation / create_sheet / create_document / create_board) in dieser Phase aufrufen — recherchiere zuerst die Fakten, dann rufe das Tool mit dem belegten, konkreten Auftrag auf. Verweigere die Erstellung NICHT.',
+  '- Wenn der*die Nutzer*in ausdrücklich eine ERSTELLUNG wünscht (z.B. ein Sharepic, Bild, eine Präsentation, Tabelle, ein Dokument, ein Explainable oder ein Board), MUSST du das passende Erstellungs-Tool (z.B. sharepic / generate_image / create_presentation / create_sheet / create_document / create_explainable / create_board) in dieser Phase aufrufen — recherchiere zuerst die Fakten, dann rufe das Tool mit dem belegten, konkreten Auftrag auf. Verweigere die Erstellung NICHT.',
   '- Schreibe in dieser Phase KEINE finale Antwort und KEINE Zusammenfassung. Du darfst vor einem Tool-Aufruf in EINEM kurzen Satz ankündigen, was du als Nächstes tust (z.B. "Ich suche jetzt im Wahlprogramm nach Windkraft.") — aber NUR im selben Schritt wie der Aufruf selbst; eine Ankündigung ohne Tool-Aufruf ist keine Antwort. Verlangt der Turn erkennbar MEHRERE Erstellungen (z.B. Board UND Dokument UND PDF), nenne in der ERSTEN Ankündigung gleich das ganze Vorhaben (z.B. "Ich erstelle zuerst ein Board, dann ein Dokument und ein PDF."), nicht nur den nächsten einzelnen Schritt. Sobald die Belege reichen und angeforderte Inhalte erstellt sind, beende die Tool-Aufrufe ohne weiteren Text.',
 ].join('\n');
 
@@ -524,6 +523,10 @@ export interface LoopEngineParams {
    *  prose instead of answering (observed live: the whole answer was
    *  "Let's perform web_search."). */
   synthMessages?: ModelMessage[];
+  /** Split mode: the synth history for `synthFallbackModel`, built only when
+   *  the fallback fires, from the system prompt that pass sends — re-pruned
+   *  when its window is smaller (#4201, #4204). Defaults to the synth messages. */
+  synthFallbackMessages?: (system: string) => ModelMessage[];
   maxSteps: number;
   temperature: number;
   /** Optional output cap. Omitted on answer paths (OpenWebUI-style: the
@@ -600,6 +603,10 @@ export interface LoopEngineParams {
    *  at a time (via createSentenceChunker) so the client can show "Ich suche
    *  jetzt …" narration. Never fires in unified mode. */
   onNarration?: (sentence: string) => void;
+  /** Split-gather only: the planner began a tool call. Every narration sentence
+   *  before it has been delivered, so the caller knows those announced a tool
+   *  (unlike the prose of the planner's final, tool-less step). */
+  onToolCallStart?: () => void;
   /** Split mode only: runs AFTER the gather phase and BEFORE synthesis. Used to
    *  GUARANTEE a compound turn's artifact — the split planner unreliably invokes
    *  the generation fat tool (it treats the turn as pure research and stops), so
@@ -795,8 +802,7 @@ interface GatherAttempt {
 
 /** Provider verdicts a different lane can plausibly accept: a rejected request
  *  (the 400 "malformed" of an overfull context window), a rate limit, an
- *  outage. Not a stall (that already cost the full idle deadline) and not an
- *  abort. */
+ *  outage. Not an abort. A stall before any output counts too (see `gather`). */
 const LANE_SWITCH_CODES = new Set(['invalid_request', 'rate_limited', 'provider_unavailable']);
 
 /** The provider's verdict. The SDK wraps an exhausted 429/5xx retry in a
@@ -812,11 +818,16 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<GatherOutcom
     p.plannerFallbackModel &&
     !first.sawOutput &&
     !p.abortSignal.aborted &&
-    !(first.error instanceof ToolPhaseStallError) &&
-    LANE_SWITCH_CODES.has(providerVerdict(first.error))
+    // A lane that stayed silent has already cost the idle deadline, but the
+    // alternative was an empty "technisch gescheitert" turn. Live 12.10.2026:
+    // Melious gemma went silent on 3 of 14 pinned notebook_quellen calls
+    // (#4480), and the fallback lane answered each one. The turn's own wall
+    // clock (`abortSignal`) still caps the second attempt.
+    (first.error instanceof ToolPhaseStallError ||
+      LANE_SWITCH_CODES.has(providerVerdict(first.error)))
   ) {
     log.warn(
-      `[Engine] planner ${modelLabel(p.plannerModel)} rejected the tool phase before any call — retrying once on ${modelLabel(p.plannerFallbackModel)}`
+      `[Engine] planner ${modelLabel(p.plannerModel)} ${first.error instanceof ToolPhaseStallError ? 'stalled' : 'rejected the tool phase'} before any call — retrying once on ${modelLabel(p.plannerFallbackModel)}`
     );
     const second = await gatherOn(p, deps, p.plannerFallbackModel, false);
     if (second.error == null || second.sawToolCall) return { failedBeforeAnyTool: false };
@@ -879,6 +890,10 @@ async function gatherOn(
         const part = next.value;
         if (part.type === 'error') throw part.error;
         if (part.type === 'tool-call') sawToolCall = true;
+        if (part.type === 'tool-input-start' || part.type === 'tool-call') {
+          chunker?.flush();
+          p.onToolCallStart?.();
+        }
         // text-delta becomes narration (or is drained silently when no
         // onNarration is wired). The planner's reasoning goes to the SAME
         // channel as the synth's: the split lanes ARE the thinking models, and
@@ -1107,6 +1122,7 @@ async function synthesize(
   const runPass = async (
     system: string,
     model: LanguageModel,
+    passMessages: ModelMessage[],
     /** Validation retry: collect the text without emitting anything — the
      *  caller decides afterwards whether it replaces the first pass. */
     silent = false
@@ -1119,7 +1135,7 @@ async function synthesize(
     const result = deps.streamText({
       model,
       system,
-      messages,
+      messages: passMessages,
       temperature: p.temperature,
       ...(p.maxOutputTokens != null && { maxOutputTokens: p.maxOutputTokens }),
       ...(p.providerOptions != null && { providerOptions: p.providerOptions }),
@@ -1157,14 +1173,19 @@ async function synthesize(
    */
   const runPassWithFallback = async (system: string, silent = false): Promise<SynthPass> => {
     try {
-      return await runPass(system, p.synthModel, silent);
+      return await runPass(system, p.synthModel, messages, silent);
     } catch (err) {
       if (!isSynthStall(err) || !p.synthFallbackModel) throw err;
       log.warn(
         `[Engine] synth lane silent for ${SYNTH_IDLE_DEADLINE_MS}ms — retrying once on the fallback lane`
       );
       p.onSynthFallback?.();
-      return runPass(system, p.synthFallbackModel, silent);
+      return runPass(
+        system,
+        p.synthFallbackModel,
+        p.synthFallbackMessages?.(system) ?? messages,
+        silent
+      );
     }
   };
 
@@ -1412,12 +1433,10 @@ async function drain(
           // silent retry fails), so the note travels with the trim instead of
           // the trim passing for a finished answer. A successful split retry
           // discards this text wholesale — and with it the note, correctly.
-          const kept = text.slice(0, cut).trimEnd();
           // ...but only when there is something to warn about. Removing a run
           // of dashes leaves a COMPLETE answer, and "may be incomplete" under
           // it would be a false alarm about a correct result.
-          const lost = cutLostContent(kept, text.slice(cut));
-          text = kept.length > 0 ? (lost ? `${kept}\n\n${DEGENERATION_NOTICE}` : kept) : '';
+          text = trimDegenerate(text, cut);
           // Best-effort teardown so the upstream stops billing us for spam.
           // swallow-ok: cleanup of an already-abandoned degenerate stream
           void Promise.resolve(iterator.return?.()).catch(() => {});

@@ -7,6 +7,7 @@ import { memo, useCallback, useMemo, useState } from 'react';
 import { CitationProvider, useFetchFullText } from '../../context/CitationContext';
 import { agentsList, getDefaultAgent } from '../../lib/agents';
 import { resolveCitations } from '../../lib/citationUtils';
+import { SOURCE_TIER_LABEL } from '../../lib/notebookSourceTier';
 import { phosphorAgentIcon } from '../../lib/phosphorAgentIcon';
 import {
   selectReasoningText,
@@ -22,7 +23,6 @@ import { GrueneratorHomeIconLoading } from '../icons';
 import { AnswerModeChip } from '../message-parts/AnswerModeChip';
 import { ArtifactCard } from '../message-parts/ArtifactCard';
 import { BahnCard } from '../message-parts/BahnCard';
-import { ChatChart } from '../message-parts/ChatChart';
 import { CitationMarkdownText } from '../message-parts/CitationMarkdownText';
 import { ComputeCard } from '../message-parts/ComputeCard';
 import { GeneratedImageDisplay } from '../message-parts/GeneratedImageDisplay';
@@ -39,13 +39,14 @@ import { SkillBadge } from '../message-parts/SkillBadge';
 import { SocialPostCard } from '../message-parts/SocialPostCard';
 import { StreamingStatusLine } from '../message-parts/StreamingStatusLine';
 import { ToolCallGroup } from '../message-parts/ToolCallGroup';
+import { VorlagenSuggestionsSection } from '../message-parts/VorlagenSuggestionsSection';
 import { ConfirmActionCard } from '../tool-ui/ConfirmActionCard';
 import { DocumentCreatedCard } from '../tool-ui/DocumentCreatedCard';
 import { GrueneratorToolFallback } from '../tool-ui/GrueneratorToolUIs';
 import { ReelPickerCard } from '../tool-ui/ReelPickerCard';
 import { ReelProcessingCard } from '../tool-ui/ReelProcessingCard';
 
-import { useChatDensity } from './chatDensityContext';
+import { useChatDensity, useChatMessageActions } from './chatDensityContext';
 
 import type { ChatMessageMetadata } from '../../types/messageMetadata';
 
@@ -216,7 +217,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
 
   // A text-less turn (image only) renders no action row, so the trigger has
   // nowhere to live — the list falls back to carrying its own.
-  const showActions = !isStreaming && textContent.length > 0;
+  const showActions = useChatMessageActions() && !isStreaming && textContent.length > 0;
 
   return (
     <>
@@ -227,8 +228,8 @@ export const AssistantMessage = memo(function AssistantMessage() {
         // zero-width item and would leave the indent half in place).
         className={
           isCompact
-            ? 'group mx-auto flex w-full min-w-0 items-start'
-            : 'group mx-auto flex w-full min-w-0 max-w-3xl items-start'
+            ? 'group mx-auto flex w-full min-w-0 items-start [content-visibility:auto] [contain-intrinsic-size:auto_200px]'
+            : 'group mx-auto flex w-full min-w-0 max-w-3xl items-start [content-visibility:auto] [contain-intrinsic-size:auto_200px]'
         }
       >
         {messageAgent ? (
@@ -289,6 +290,11 @@ export const AssistantMessage = memo(function AssistantMessage() {
           )}
           {/* Notebook answers: which mode ran — live from `answer_mode`, and
               after a reload from the persisted row. Older answers carry none. */}
+          {custom?.sourceTier === 'documents-first' && (
+            <div className="mb-1.5 inline-flex items-center rounded-full bg-primary/5 px-2.5 py-1 text-xs text-foreground-muted">
+              {SOURCE_TIER_LABEL}
+            </div>
+          )}
           {custom?.answerMode && (
             <div>
               <AnswerModeChip mode={custom.answerMode} reason={custom.answerModeReason ?? null} />
@@ -337,6 +343,10 @@ export const AssistantMessage = memo(function AssistantMessage() {
             <MessagePrimitive.Parts components={partComponents} />
           </CitationProvider>
 
+          {custom?.vorlagenSuggestions && (
+            <VorlagenSuggestionsSection data={custom.vorlagenSuggestions} />
+          )}
+
           <MessageErrorBanner />
 
           {custom?.interrupted && (
@@ -346,8 +356,6 @@ export const AssistantMessage = memo(function AssistantMessage() {
           {!isStreaming && custom?.evidenceWeak && (
             <p className="text-xs text-foreground-muted italic">{custom.evidenceWeak}</p>
           )}
-
-          {!isStreaming && custom?.chartData && <ChatChart data={custom.chartData} />}
 
           {!isStreaming && custom?.artifactData && <ArtifactCard artifact={custom.artifactData} />}
           {!isStreaming && custom?.computeData && <ComputeCard data={custom.computeData} />}

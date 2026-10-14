@@ -56,10 +56,10 @@ export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResul
     title: 'Workplace',
     description: 'Erstellen, Dokumente & Medien',
     icon: getIcon('navigation', 'home'),
-    // Exakte Pfade: Chat (/start) und Arbeiten (/workplace) sind zwei Seiten,
-    // und ein /workplace-Präfix würde zusätzlich den alten Wissen-Pfad
-    // einfangen, den der dedizierte Eintrag weiter unten hervorhebt.
-    exactActivePaths: ['/', '/start', '/workplace'],
+    // `/start` samt Tab-Pfaden; `activePaths` prüft auf `/start/`, trifft also
+    // `/startseite` nicht.
+    exactActivePaths: ['/'],
+    activePaths: ['/start'],
   };
 
   // No `path`: the sidebar opens the global search palette instead of
@@ -74,11 +74,11 @@ export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResul
 
   items.grueneratoren = {
     id: 'grueneratoren',
-    path: '/agentura',
+    path: '/grueneratoren',
     title: 'Grüneratoren',
     description: 'Deine KI-Grüneratoren',
     icon: RiSpyLine,
-    activePaths: ['/agentura', '/agents'],
+    activePaths: ['/grueneratoren', '/agentura', '/agents'],
   };
 
   if (import.meta.env.DEV) {

@@ -6,6 +6,8 @@ import tailwindcss from '@tailwindcss/vite';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
 
+import { vorlagenMockPlugin } from './devMocks/vorlagenMock';
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Detect Tauri build environment - set by Tauri CLI during builds
@@ -31,14 +33,14 @@ const tauriPackages = [
 // Build-only plugin: inject <link rel="preload"> for the fonts on the
 // LCP critical path so the browser starts fetching them in parallel with
 // CSS parsing instead of after it. Chrome DevTools traces showed
-// Raleway-Regular (heading font, where the LCP text element renders) was
+// Raleway-SemiBold (heading font, where the LCP text element renders) was
 // the last node in the critical chain at ~3.3s. Asset filenames are
 // content-hashed, so the plugin resolves the actual emitted filename from
 // the build bundle at HTML-emit time rather than hardcoding a hash.
 function preloadFontsPlugin(): Plugin {
   const TARGETS = [
-    { pattern: /^assets\/fonts\/Raleway-Regular\..+\.woff2$/, type: 'font/woff2' },
-    { pattern: /^assets\/fonts\/PTSans-Regular\..+\.woff2$/, type: 'font/woff2' },
+    { pattern: /^assets\/fonts\/Raleway-SemiBold-.+\.woff2$/, type: 'font/woff2' },
+    { pattern: /^assets\/fonts\/PTSans-Regular-.+\.woff2$/, type: 'font/woff2' },
   ];
   return {
     name: 'preload-critical-fonts',
@@ -107,6 +109,7 @@ export default defineConfig(({ command }) => ({
     react({ jsxRuntime: 'automatic' }),
     ...(command === 'build' ? [babel({ presets: [reactCompilerPreset()] })] : []),
     tailwindcss(),
+    ...(process.env.DEV_MOCK_VORLAGEN === 'true' ? [vorlagenMockPlugin()] : []),
   ],
   resolve: {
     alias: {
@@ -144,6 +147,10 @@ export default defineConfig(({ command }) => ({
       '@gruenerator/contracts/presentations-richtext': path.resolve(
         __dirname,
         '../../packages/contracts/src/richtext/slideBody.ts'
+      ),
+      '@gruenerator/contracts/presentations-ops': path.resolve(
+        __dirname,
+        '../../packages/contracts/src/richtext/presentationDoc.ts'
       ),
       '@gruenerator/contracts': path.resolve(__dirname, '../../packages/contracts/src'),
       // @gruenerator/core is imported transitively from the @gruenerator/shared
@@ -240,15 +247,9 @@ export default defineConfig(({ command }) => ({
       'lucide-react',
     ],
     // Keep heavy/native-binary deps out of prebundling — they handle their
-    // own ESM and break esbuild's transformer (onnxruntime ships .wasm,
-    // imgly ships ONNX models, browser-image-compression uses dynamic
-    // workers).
-    exclude: [
-      'browser-image-compression',
-      '@imgly/background-removal',
-      'onnxruntime-web',
-      'pyodide',
-    ],
+    // own ESM and break esbuild's transformer (browser-image-compression
+    // uses dynamic workers).
+    exclude: ['browser-image-compression', 'pyodide'],
     rolldownOptions: {
       transform: {
         define: {},
@@ -300,7 +301,7 @@ export default defineConfig(({ command }) => ({
       resolveDependencies: (_filename, deps) =>
         deps.filter((d) => {
           const base = d.split('/').pop() ?? '';
-          return !/^(vendor-(?!react\.)|pkg-canvas-editor)/.test(base);
+          return !/^(vendor-(?!react-)|pkg-canvas-editor)/.test(base);
         }),
     },
     cssMinify: true,
@@ -376,7 +377,10 @@ export default defineConfig(({ command }) => ({
                 groups: [
                   {
                     name: 'vendor-react',
-                    test: /[\\/]node_modules[\\/](react|react-dom|scheduler|use-sync-external-store|@tanstack[\\/](react-query|query-core|react-table))[\\/]/,
+                    // react-dom/server is excluded: it's a leaf only reached via a
+                    // dynamic import (canvas IllustrationPrimitive), so pinning it
+                    // here would ship it eagerly on every page.
+                    test: /[\\/]node_modules[\\/](react|react-dom(?![\\/](server|cjs[\\/]react-dom-server))|scheduler|use-sync-external-store|@tanstack[\\/](react-query|query-core|react-table))[\\/]/,
                     priority: 100,
                   },
                 ],

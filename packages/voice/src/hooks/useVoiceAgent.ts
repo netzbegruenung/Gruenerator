@@ -209,6 +209,10 @@ export function useVoiceAgent(config: VoiceAgentConfig) {
       if (!state.isActive || state.phase !== 'transcribing') return;
 
       const result = await transcribe(audio, sampleRate);
+      if (!result.success && result.error && result.error !== 'Aborted') {
+        store.getState().setError(result.error);
+        return;
+      }
       if (!result.success || !result.text?.trim()) {
         // Empty transcription — go back to ready
         store.setState({ phase: 'ready' });

@@ -1,6 +1,6 @@
 'use client';
 
-import { type NotebookDepth } from '@gruenerator/contracts';
+import { type NotebookDepth, type NotebookSourceTier } from '@gruenerator/contracts';
 import { cn, Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
 import { BookOpen, Check, Telescope, Zap } from 'lucide-react';
 import { useId, useState, type ReactNode } from 'react';
@@ -11,6 +11,7 @@ import {
   notebookDepthDef,
   type NotebookDepthIconKey,
 } from '../../lib/notebookDepth';
+import { SOURCE_TIER_DESCRIPTION, SOURCE_TIER_LABEL } from '../../lib/notebookSourceTier';
 import { composerToolbarButtonClass } from '../../lib/utils';
 
 export interface SourceFilterCollection {
@@ -26,6 +27,8 @@ export interface CategoryFilterField {
   label: string;
   values: Array<{ value: string; count?: number }>;
   valueLabels?: Record<string, string>;
+  /** Behind „Weitere Filter“ instead of offered directly. */
+  collapsed?: boolean;
 }
 
 export interface SourceFilterConfig {
@@ -175,12 +178,17 @@ function scopeCount(
 export function NotebookSettingsPopover({
   mode,
   onModeChange,
+  sourceTier,
+  onSourceTierChange,
   sourceFilters,
   categoryFilters,
   className,
 }: {
   mode?: NotebookDepth;
   onModeChange?: (mode: NotebookDepth) => void;
+  /** Quellen-Ampel; only set for notebooks whose collection knows demoted sources. */
+  sourceTier?: NotebookSourceTier;
+  onSourceTierChange?: (tier: NotebookSourceTier) => void;
   sourceFilters?: SourceFilterConfig;
   categoryFilters?: CategoryFilterConfig;
   /** Classes for the portalled panel, e.g. the surface's accent scope, which
@@ -188,6 +196,7 @@ export function NotebookSettingsPopover({
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [showMore, setShowMore] = useState(false);
   const categoryActiveCount = categoryFilters
     ? Object.values(categoryFilters.activeFilters).reduce((sum, arr) => sum + arr.length, 0)
     : 0;
@@ -197,6 +206,12 @@ export function NotebookSettingsPopover({
   const hasActiveBadge = categoryActiveCount > 0 || sourceActiveCount > 0;
   const activeDepth = notebookDepthDef(mode);
   const fields = categoryFilters?.fields ?? [];
+  // A collapsed field with a selection stays in view, so it can be undone.
+  const isActive = (field: CategoryFilterField) =>
+    (categoryFilters?.activeFilters[field.field]?.length ?? 0) > 0;
+  const moreFields = fields.filter((f) => f.collapsed && !isActive(f));
+  const directFields = fields.filter((f) => !moreFields.includes(f));
+  const shownFields = showMore ? [...directFields, ...moreFields] : directFields;
   const hasFilters = !!sourceFilters || fields.length > 0;
   const canReset =
     (categoryFilters?.onClearAll && categoryActiveCount > 0) ||
@@ -209,7 +224,8 @@ export function NotebookSettingsPopover({
   };
 
   // Nothing to set (e.g. gruen-o-mat): no settings button leading to an empty panel.
-  if (!(mode && onModeChange) && !hasFilters) return null;
+  const hasSourceTier = Boolean(sourceTier && onSourceTierChange);
+  if (!(mode && onModeChange) && !hasFilters && !hasSourceTier) return null;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -264,6 +280,28 @@ export function NotebookSettingsPopover({
             </div>
           )}
 
+          {sourceTier && onSourceTierChange && (
+            <div className="space-y-2">
+              <Section title="Quellen-Ampel">
+                <Chip
+                  selected={sourceTier === 'documents-first'}
+                  onClick={() =>
+                    onSourceTierChange(
+                      sourceTier === 'documents-first' ? 'equal' : 'documents-first'
+                    )
+                  }
+                  title={SOURCE_TIER_DESCRIPTION}
+                >
+                  {sourceTier === 'documents-first' && (
+                    <Check className="h-4 w-4 shrink-0" aria-hidden />
+                  )}
+                  {SOURCE_TIER_LABEL}
+                </Chip>
+              </Section>
+              <p className="text-xs text-foreground-muted">{SOURCE_TIER_DESCRIPTION}</p>
+            </div>
+          )}
+
           {sourceFilters && (
             <Section
               title="Quellen"
@@ -297,7 +335,7 @@ export function NotebookSettingsPopover({
           )}
 
           {categoryFilters &&
-            fields.map((field) => {
+            shownFields.map((field) => {
               const active = categoryFilters.activeFilters[field.field] ?? [];
               return (
                 <Section
@@ -334,6 +372,17 @@ export function NotebookSettingsPopover({
                 </Section>
               );
             })}
+
+          {moreFields.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowMore((v) => !v)}
+              aria-expanded={showMore}
+              className="text-sm font-medium text-primary transition-colors hover:text-primary-600"
+            >
+              {showMore ? 'Weniger Filter' : `Weitere Filter (${moreFields.length})`}
+            </button>
+          )}
         </div>
 
         {hasFilters && (

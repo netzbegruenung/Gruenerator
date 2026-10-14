@@ -13,11 +13,15 @@ import { HiPhotograph } from 'react-icons/hi';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { buildAssetCapability } from '../ai/assetCapability';
+import { describeCanvasElements } from '../ai/describeCanvasElements';
 import { buildIllustrationCapability } from '../ai/illustrationCapability';
-import { AssetsSection, BackgroundSection } from '../sidebar';
+import { withCardFollowingText } from '../composer/cardFollowsText';
+import { SHAREPIC_COLOR_HEX } from '../composer/composeSharepic';
+import { AssetsSection, ImageBackgroundSection } from '../sidebar';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
 import { CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
+import { COMPOSER_PLANE_IDS } from '../utils/shapes';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/actionFactories';
@@ -35,7 +39,9 @@ import type {
 } from './factory/baseTypes';
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from './types';
 import type { StockImageAttribution } from '../common/imageSourceTypes';
+import type { ImageBackgroundSectionProps } from '../sidebar/sections/ImageBackgroundSection';
 import type { BackgroundColorOption } from '../sidebar/types';
+import type { ShapeInstance } from '../utils/shapes';
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 
 // ============================================================================
@@ -52,8 +58,16 @@ export interface FreeformState extends BaseCanvasState, ColorBackgroundState {
   hasBackgroundImage: boolean;
   backgroundImageOpacity: number;
   imageAttribution: StockImageAttribution | null;
+  // Composer planes a colour background took off, with their layer index:
+  // the photo look (strip panel, scrim) returns with the photo.
+  stashedComposerPlanes: StashedPlane[];
   // Layer ordering
   layerOrder: string[];
+}
+
+interface StashedPlane {
+  shape: ShapeInstance;
+  index: number;
 }
 
 // ============================================================================
@@ -66,6 +80,7 @@ export type FreeformActions = Record<string, any>;
 interface FreeformBackgroundActions {
   setBackgroundMode: (mode: 'color' | 'image') => void;
   setBackgroundColor: (color: string) => void;
+  setImageScale: (scale: number) => void;
   setCurrentImageSrc: (
     file: File | null,
     objectUrl?: string,
@@ -83,7 +98,10 @@ const calculateLayout = (_state: FreeformState): LayoutResult => ({});
 // AI CAPABILITY
 // ============================================================================
 
-const freeformAiCapabilities: TemplateAiCapabilities<FreeformState, FreeformActions> = {
+const createFreeformAiCapabilities = (
+  width: number,
+  height: number
+): TemplateAiCapabilities<FreeformState, FreeformActions> => ({
   supportedOperations: [
     'set-text',
     'set-background-color',
@@ -117,33 +135,87 @@ const freeformAiCapabilities: TemplateAiCapabilities<FreeformState, FreeformActi
       ],
       currentBackgroundColor:
         state.backgroundMode === 'color' ? (state.backgroundColor as `#${string}`) : undefined,
-      elementsSummary: (state.additionalTexts ?? []).map((t) => ({
-        id: t.id,
-        kind: 'text' as const,
-        label: t.text.slice(0, 40),
-      })),
+      canvasSize: { width, height },
+      elementsSummary: describeCanvasElements(state),
     };
   },
   // Default applier handles `set-text` (additionalText id lookup or new-body),
-  // `set-background-color` (actions.setBackgroundColor), and `remove-element`
-  // (tries each remove action). No overrides needed.
-};
+  // `set-background-color` (actions.setBackgroundColor), `remove-element` and
+  // `update-element` (by the collection the id lives in). No overrides needed.
+});
 
 // ============================================================================
 // SECTIONS
 // ============================================================================
 
+// The composer's colours first (a creator sharepic is seeded with one of
+// them, so it has to show as selected), then the classic ones.
 const BACKGROUND_COLORS: BackgroundColorOption[] = [
-  { id: 'tanne', label: 'Tanne', color: CANVAS_COLORS.TANNE },
+  { id: 'tanne', label: 'Tanne', color: SHAREPIC_COLOR_HEX.tanne },
+  { id: 'dunkeltanne', label: 'Dunkeltanne', color: SHAREPIC_COLOR_HEX.dunkeltanne },
+  { id: 'grasgruen', label: 'Grasgrün', color: SHAREPIC_COLOR_HEX.grasgruen },
+  { id: 'mint', label: 'Mint', color: SHAREPIC_COLOR_HEX.mint },
+  { id: 'hellgrau', label: 'Hellgrau', color: SHAREPIC_COLOR_HEX.hellgrau },
+  { id: 'creme', label: 'Creme', color: SHAREPIC_COLOR_HEX.creme },
+  { id: 'aubergine', label: 'Aubergine', color: SHAREPIC_COLOR_HEX.aubergine },
   { id: 'klee', label: 'Klee', color: CANVAS_COLORS.KLEE },
   { id: 'sonne', label: 'Sonne', color: CANVAS_COLORS.SONNE },
   { id: 'himmel', label: 'Himmel', color: CANVAS_COLORS.HIMMEL },
   { id: 'sand', label: 'Sand', color: CANVAS_COLORS.SAND },
-  { id: 'weiss', label: 'Weiß', color: CANVAS_COLORS.WHITE },
+  { id: 'weiss', label: 'Weiß', color: SHAREPIC_COLOR_HEX.weiss },
   { id: 'schwarz', label: 'Schwarz', color: CANVAS_COLORS.BLACK },
 ];
 
 const section = makeSectionDefiner<FreeformState, FreeformActions>();
+
+/**
+ * The sharepic composer's planes belong to the composed look. A colour
+ * background takes them all off: the gradient and the strip panel would hide
+ * the chosen colour, the scrim and the AT tint would darken or tint a photo
+ * that is no longer shown. They are stashed, not deleted — bringing a photo
+ * back restores the look it was composed with. A photo background drops only
+ * the opaque gradient `sc-bg`, which would cover it; panel, tint and scrim
+ * frame the photo and keep the text readable on it.
+ */
+function composerPlanesFor(
+  s: FreeformState,
+  mode: 'color' | 'image'
+): Pick<FreeformState, 'shapeInstances' | 'layerOrder' | 'stashedComposerPlanes'> {
+  let { shapeInstances, layerOrder } = s;
+  let stash = s.stashedComposerPlanes;
+  if (mode === 'image' && stash.length > 0) {
+    shapeInstances = [...shapeInstances];
+    layerOrder = [...layerOrder];
+    // Indices are from the order the planes left; skipped ones shift the rest.
+    let skipped = 0;
+    for (const { shape, index } of stash) {
+      if (shape.id === 'sc-bg' || layerOrder.includes(shape.id)) {
+        skipped += 1;
+        continue;
+      }
+      shapeInstances.push(shape);
+      layerOrder.splice(Math.min(index - skipped, layerOrder.length), 0, shape.id);
+    }
+    stash = [];
+  }
+  const drop = mode === 'color' ? COMPOSER_PLANE_IDS : ['sc-bg'];
+  if (!shapeInstances.some((shape) => drop.includes(shape.id))) {
+    return { shapeInstances, layerOrder, stashedComposerPlanes: stash };
+  }
+  if (mode === 'color') {
+    stash = [
+      ...stash,
+      ...shapeInstances
+        .filter((shape) => drop.includes(shape.id))
+        .map((shape) => ({ shape, index: Math.max(0, layerOrder.indexOf(shape.id)) })),
+    ].sort((a, b) => a.index - b.index);
+  }
+  return {
+    shapeInstances: shapeInstances.filter((shape) => !drop.includes(shape.id)),
+    layerOrder: layerOrder.filter((id) => !drop.includes(id)),
+    stashedComposerPlanes: stash,
+  };
+}
 
 // ============================================================================
 // FULL CONFIG
@@ -154,7 +226,14 @@ const section = makeSectionDefiner<FreeformState, FreeformActions>();
 export const createFreeformFullConfig = ({
   width,
   height,
-}: CanvasFormat): FullCanvasConfig<FreeformState, FreeformActions> => ({
+}: CanvasFormat): FullCanvasConfig<FreeformState, FreeformActions> =>
+  withFreeformAi(createFreeformAiCapabilities(width, height), width, height);
+
+const withFreeformAi = (
+  ai: TemplateAiCapabilities<FreeformState, FreeformActions>,
+  width: number,
+  height: number
+): FullCanvasConfig<FreeformState, FreeformActions> => ({
   id: 'freeform',
 
   canvas: { width, height },
@@ -177,7 +256,7 @@ export const createFreeformFullConfig = ({
     requireFontLoad: true,
   },
 
-  ai: freeformAiCapabilities,
+  ai,
 
   tabs: [
     {
@@ -227,32 +306,34 @@ export const createFreeformFullConfig = ({
   },
 
   sections: {
-    // BackgroundSection drives both color (palette) and image (Unsplash search)
-    // via its own internal subsection tabs; mode-switching happens inside the
-    // callbacks below. Image scale/offset are edited on-canvas (the
-    // `background-image` element is `transformable`), so no scale props here.
+    // ImageBackgroundSection like the photo templates: own uploads + Unsplash,
+    // the colour swatches as its "Farbe" tab, zoom under "Anpassung". Freeform
+    // shows EITHER the photo or the colour plane, so each pick also sets the
+    // mode — and only the visible one is reported as selected. A colour pick
+    // keeps the photo in state; it stays pinned (unselected) and one tap
+    // brings it back with its offset, zoom and attribution.
     background: section({
-      component: BackgroundSection,
+      component: ImageBackgroundSection,
       propsFactory: (state, anyActions) => {
         // FreeformActions ist Record<string, any>; hier die Signaturen aus createActions unten.
         const actions = anyActions as FreeformBackgroundActions;
+        const isImage = state.backgroundMode === 'image';
         return {
-          colors: BACKGROUND_COLORS,
-          currentColor: state.backgroundMode === 'color' ? state.backgroundColor : '#005538',
-          onColorChange: (color: string) => {
-            actions.setBackgroundColor(color);
-            if (state.backgroundMode !== 'color') actions.setBackgroundMode('color');
-          },
-          currentImageSrc: state.currentImageSrc,
-          onImageChange: (
-            file: File | null,
-            objectUrl?: string,
-            attribution?: StockImageAttribution | null
-          ) => {
-            actions.setCurrentImageSrc(file, objectUrl, attribution);
-            if (file) actions.setBackgroundMode('image');
-          },
-        };
+          backgroundColors: BACKGROUND_COLORS,
+          backgroundColor: isImage ? '' : state.backgroundColor,
+          onBackgroundColorChange: actions.setBackgroundColor,
+          colorReplacesImage: true,
+          currentImageSrc: state.hasBackgroundImage ? state.currentImageSrc : undefined,
+          onActivateImage:
+            !isImage && state.hasBackgroundImage
+              ? () => actions.setBackgroundMode('image')
+              : undefined,
+          onImageChange: actions.setCurrentImageSrc,
+          // Zoom only means something while the photo is shown.
+          scale: isImage ? state.imageScale : undefined,
+          onScaleChange: isImage ? actions.setImageScale : undefined,
+          initialSubsection: isImage ? 'image-search' : 'background-color',
+        } satisfies ImageBackgroundSectionProps;
       },
     }),
 
@@ -293,7 +374,7 @@ export const createFreeformFullConfig = ({
       },
     }),
 
-    ...createCommonSectionEntries('freeform', freeformAiCapabilities),
+    ...createCommonSectionEntries('freeform', ai),
 
     share: createShareSection<FreeformState>('freeform', () => ''),
   },
@@ -346,6 +427,7 @@ export const createFreeformFullConfig = ({
     hasBackgroundImage: !!props.currentImageSrc,
     backgroundImageOpacity: (props.backgroundImageOpacity as number | undefined) ?? 1,
     imageAttribution: (props.imageAttribution as StockImageAttribution | null | undefined) ?? null,
+    stashedComposerPlanes: (props.stashedComposerPlanes as StashedPlane[] | undefined) ?? [],
 
     // Alles selbst Hinzugefuegte. Stand hier hart auf `[]`, und weil
     // Karten-Render und Chat-Bearbeitung durch diese Funktion neu setzen,
@@ -373,15 +455,51 @@ export const createFreeformFullConfig = ({
     return {
       ...baseActions,
 
-      // === Background Actions ===
-      setBackgroundMode: (mode: 'color' | 'image') => {
-        setState((prev) => ({ ...prev, backgroundMode: mode }));
-        saveToHistory({ ...getState(), backgroundMode: mode });
+      updateAdditionalText: (id: string, partial: Partial<AdditionalText>) => {
+        const change = (s: FreeformState): FreeformState => {
+          const next = partial.text === undefined ? s : withCardFollowingText(s, id, partial.text);
+          return {
+            ...next,
+            additionalTexts: next.additionalTexts.map((t) =>
+              t.id === id ? { ...t, ...partial } : t
+            ),
+          };
+        };
+        setState(change);
+        debouncedSaveToHistory(change(getState()));
       },
 
+      // === Background Actions ===
+      // Each is one user intent: it sets the mode with its content and records
+      // ONE history entry. `getState` is the render-time state, so two actions
+      // in one handler would each snapshot it without the other's change.
+      setBackgroundMode: (mode: 'color' | 'image') => {
+        const change = (s: FreeformState): FreeformState => ({
+          ...s,
+          backgroundMode: mode,
+          ...composerPlanesFor(s, mode),
+        });
+        setState(change);
+        saveToHistory(change(getState()));
+      },
+
+      // Also the AI's `set-background-color`: a colour asked for is a colour shown.
       setBackgroundColor: (color: string) => {
-        setState((prev) => ({ ...prev, backgroundColor: color }));
-        debouncedSaveToHistory({ ...getState(), backgroundColor: color });
+        const change = (s: FreeformState): FreeformState => ({
+          ...s,
+          backgroundColor: color,
+          backgroundMode: 'color',
+          ...composerPlanesFor(s, 'color'),
+        });
+        const before = getState();
+        const after = change(before);
+        setState(change);
+        // Only a plain colour-to-colour swap may coalesce with its neighbours.
+        if (before.backgroundMode === 'color' && after.shapeInstances === before.shapeInstances) {
+          debouncedSaveToHistory(after);
+        } else {
+          saveToHistory(after);
+        }
       },
 
       setCurrentImageSrc: (
@@ -390,20 +508,19 @@ export const createFreeformFullConfig = ({
         attribution?: StockImageAttribution | null
       ) => {
         const src = file ? objectUrl : undefined;
-        setState((prev) => ({
-          ...prev,
+        // Without a photo the image element is not drawn: image mode would be blank.
+        const mode = src ? 'image' : 'color';
+        const change = (s: FreeformState): FreeformState => ({
+          ...s,
           currentImageSrc: src,
           backgroundImageFile: file,
           imageAttribution: attribution ?? null,
           hasBackgroundImage: !!src,
-        }));
-        saveToHistory({
-          ...getState(),
-          currentImageSrc: src,
-          backgroundImageFile: file,
-          imageAttribution: attribution ?? null,
-          hasBackgroundImage: !!src,
+          backgroundMode: mode,
+          ...composerPlanesFor(s, mode),
         });
+        setState(change);
+        saveToHistory(change(getState()));
       },
 
       setImageScale: (scale: number) => {

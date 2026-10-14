@@ -16,6 +16,9 @@ Gilt, wenn der Auftrag ein Interview oder Statement einer genannten Person ist. 
 
 ## Deutschland
 
+- **Textseiten wie die Kandidierenden-Posts**: Innen-Slides auf `creme` oder `hellgrau`, je Slide eine `frage` und eine lange Antwort (`absatz` bis 500 Zeichen) oder nur der lange Auszug, darin ein Kernsatz in `++…++`. Ein Look für alle Innen-Slides.
+- **Letzte Slide** klein: „Das ganze Interview auf ++medium.de++“ als `absatz` mit `klein: true`, mittig.
+
 Name fett, Medium regular: `name` plus `quelle` („im Interview mit dem Kasseler Boten“). Die Fragen tragen das Medium als `von`. Die Schlüsselstellen im Cover-Zitat und den Kernsatz im `absatz` legst du mit `++…++` auf eine Textmarker-Box (Regel im Kapitel `zitat`), statt sie fett oder mit `==…==` zu markieren.
 
 ## Österreich

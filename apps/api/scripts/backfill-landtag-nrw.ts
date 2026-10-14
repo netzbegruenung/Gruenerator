@@ -16,6 +16,8 @@
  *   npx tsx scripts/backfill-landtag-nrw.ts --dry-run --limit 50 --part plenarprotokoll
  *   npx tsx scripts/backfill-landtag-nrw.ts                       # alles, fortsetzbar
  *   npx tsx scripts/backfill-landtag-nrw.ts --part drucksache --concurrency 4
+ *   npx tsx scripts/backfill-landtag-nrw.ts --part drucksache --doktyp ENTSCHLIEßUNGSANTRAG \
+ *     --force --state .landtag-nrw-entschliessung.json   # einen Typ neu schreiben
  *
  * Flags:
  *   --part <p>          drucksache | plenarprotokoll | ausschussprotokoll (mehrfach erlaubt)
@@ -26,6 +28,9 @@
  *                       keinen Stand speichern
  *   --force             auch vorhandene Dokumente neu schreiben
  *   --state <pfad>      Datei für den Fortsetzungsstand
+ *   --doktyp <typ>      nur dieser Dokumenttyp der Parlamentsdatenbank, groß geschrieben wie
+ *                       im Suchformular (ENTSCHLIEßUNGSANTRAG, WAHLVORSCHLAG …). Braucht eine
+ *                       eigene --state-Datei: der Stand zählt Seiten dieser einen Liste.
  *
  * NOTE: dotenv muss vor jedem App-Import laufen, der die Umgebung beim Import
  * parst (`config/env.js`) — deshalb stehen die App-Importe dynamisch in `main()`.
@@ -44,6 +49,7 @@ interface CliArgs {
   dryRun: boolean;
   force: boolean;
   statePath: string;
+  doktyp?: string;
 }
 
 function positiveInt(flag: string, value: string | undefined): number {
@@ -83,6 +89,12 @@ function parseArgs(argv: string[]): CliArgs {
       case '--force':
         args.force = true;
         break;
+      case '--doktyp': {
+        const doktyp = argv[++i];
+        if (!doktyp) throw new Error('--doktyp expects a document type');
+        args.doktyp = doktyp;
+        break;
+      }
       case '--state':
         args.statePath = argv[++i] ?? args.statePath;
         break;
@@ -110,6 +122,7 @@ async function main(): Promise<void> {
     dryRun: args.dryRun,
     force: args.force,
     ...(args.limit !== undefined && { limit: args.limit }),
+    ...(args.doktyp !== undefined && { doktyp: args.doktyp }),
   });
 
   const seconds = (Date.now() - started) / 1000;

@@ -4,6 +4,7 @@
 import { downloadDataUrl } from '@gruenerator/shared';
 import { Loader2, Image as ImageIcon, Download, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import { cn } from '../../lib/utils';
 
@@ -123,35 +124,37 @@ export function GeneratedImageDisplay({ image }: GeneratedImageDisplayProps) {
         </button>
       </div>
 
-      {isLightboxOpen && (
-        // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- backdrop dismiss; Escape already closes (effect above) and a real close button is rendered below, so the scrim itself is intentionally not a redundant control.
-        <div
-          className="fixed inset-0 z-50 flex cursor-zoom-out items-center justify-center bg-black/90 p-4"
-          onClick={() => setIsLightboxOpen(false)}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Bild vergrößert"
-        >
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsLightboxOpen(false);
-            }}
-            className="absolute right-4 top-4 rounded-full bg-black/40 p-2 text-white hover:bg-black/60"
-            aria-label="Schließen"
+      {isLightboxOpen &&
+        createPortal(
+          // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- backdrop dismiss; Escape already closes (effect above) and a real close button is rendered below, so the scrim itself is intentionally not a redundant control.
+          <div
+            className="fixed inset-0 z-[1010] flex cursor-zoom-out items-center justify-center bg-black/90 p-4"
+            onClick={() => setIsLightboxOpen(false)}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Bild vergrößert"
           >
-            <X className="h-5 w-5" />
-          </button>
-          {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- only stops the click from bubbling to the backdrop's close handler, not a real interaction. */}
-          <img
-            src={imageSrc}
-            alt="Generiertes Bild (vergrößert)"
-            className="max-h-[95vh] max-w-[95vw] cursor-default rounded-md object-contain"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
-      )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsLightboxOpen(false);
+              }}
+              className="absolute right-4 top-4 rounded-full bg-black/40 p-2 text-white hover:bg-black/60"
+              aria-label="Schließen"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- only stops the click from bubbling to the backdrop's close handler, not a real interaction. */}
+            <img
+              src={imageSrc}
+              alt="Generiertes Bild (vergrößert)"
+              className="max-h-[95vh] max-w-[95vw] cursor-default rounded-md object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

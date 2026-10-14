@@ -75,20 +75,38 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
     note: 'Bilder mit KI erzeugen und bearbeiten. Gut für Motive, für die es kein passendes Foto gibt.',
     platform: ['web', 'desktop', 'mobile'],
   },
-  'canvas-sharepics': {
-    note: 'Grafiken für Social Media gestalten — Text, Bild und Logo in der richtigen Größe für die jeweilige Plattform.',
-    platform: ['web', 'desktop'],
-  },
   'reels-untertitel': {
     note: 'Untertitelt Videoclips automatisch und brennt die Untertitel ein. Gedacht für kurze Social-Clips.',
     platform: ['web', 'desktop', 'mobile'],
   },
+  'studio-voice': {
+    note: 'Grünerator Voice verwandelt Text in gesprochene Sprache — als Sprechertext für ein Reel, Ansage für den Anrufbeantworter, Vorlesefassung eines Textes oder Audiodeskription. Die Datei landet in der Mediathek.',
+    platform: ['web', 'desktop'],
+  },
+
+  // ── Studio — Werkzeuge ────────────────────────────────────────────────────
+  profilbild: {
+    note: 'Macht aus einem Foto ein Profilbild: Person freistellen und den Hintergrund per Klick wechseln — als Farbe, Verlauf, Vorlage oder eigenes Bild. Im Editor setzt du Sticker und verschiebst Person und Sticker direkt im Bild.',
+    platform: ['web'],
+  },
+  'bild-erweitern': {
+    note: 'Erweitert ein Bild per KI auf ein anderes Format, zum Beispiel von Quer- auf Hochformat. Eine Vorschau zeigt vorab, welche Flächen die KI ergänzt.',
+    platform: ['web'],
+  },
+  freisteller: {
+    note: 'Entfernt den Hintergrund eines Bildes und liefert die Person oder das Motiv als PNG mit transparentem Hintergrund.',
+    platform: ['web'],
+  },
+  mediathek: {
+    note: 'Alle deine Bilder, Sharepics, KI-Bilder, Videos und Audios an einem Ort: hochladen (auch per Drag & Drop), nach Art filtern, durchsuchen, Titel und Alt-Text pflegen, herunterladen, teilen oder in den Papierkorb legen — ohne Obergrenze.',
+    platform: ['web'],
+  },
 
   // ── Organisieren ──────────────────────────────────────────────────────────
   agents: {
-    note: 'Die Agentura: eigene Agents mit festem Auftrag und eigenen Quellen anlegen, dazu Rezepte für wiederkehrende Schreibaufgaben.',
+    note: 'Deine Agents, Rezepte und wiederkehrenden Aufgaben an einem Ort: eigene anlegen und aus der Agentura offizielle und öffentliche dazuholen.',
     platform: ['web', 'desktop', 'mobile'],
-    readMore: { label: 'Agentura', href: '/docs/features/agentura' },
+    readMore: { label: 'Grüneratoren und Agentura', href: '/docs/features/agentura' },
   },
   projekte: {
     note: 'Projekte bündeln Chats, Dokumente und Mitglieder zu einem Arbeitszusammenhang — etwa für eine Kampagne oder einen Ortsverband.',
@@ -116,8 +134,8 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
     note: 'Verschriftlicht Audioaufnahmen — für Interviews, Sitzungen und Sprachnotizen.',
     platform: ['web', 'desktop', 'mobile'],
   },
-  voice: {
-    note: 'Verwandelt Text in gesprochene Sprache — als Ansage für den Anrufbeantworter, Vorlesefassung eines Textes oder Audiodeskription. Die Datei landet in der Mediathek.',
+  transparenz: {
+    note: 'Zeigt, was der Grünerator insgesamt an KI verbraucht — Tokens, Energie und CO₂, mit den Konstanten, mit denen gerechnet wurde. In der Expert*innenübersicht lässt sich nach Bereich (etwa Chat oder Monitor) und nach Eingabe- und Ausgabe-Tokens aufschlüsseln.',
     platform: ['web', 'desktop'],
   },
   newsletter: {

@@ -35,24 +35,6 @@ export interface Slogan {
   line3: string;
 }
 
-export interface EditSessionData {
-  imageData: string;
-  originalImageData?: string | undefined;
-  metadata: Record<string, unknown>;
-  createdAt: string;
-}
-
-export interface EditSessionResponse {
-  sessionId?: string | undefined;
-  expiresIn?: number | undefined;
-  imageData?: string | undefined;
-  originalImageData?: string | undefined;
-  metadata?: Record<string, unknown> | undefined;
-  createdAt?: string | undefined;
-  deleted?: boolean | undefined;
-  error?: string | undefined;
-}
-
 export interface SharepicGenerateRequest {
   description: string;
   templateId?: string | undefined;

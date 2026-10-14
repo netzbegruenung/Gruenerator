@@ -2,7 +2,11 @@ import { AxiosError } from 'axios';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { createApiClient, setGlobalApiClient } from './client.js';
-import { getContractsClient, resetContractsClient } from './contractsClient.js';
+import {
+  getContractsClient,
+  resetContractsClient,
+  SERVER_TASK_TIMEOUT_MS,
+} from './contractsClient.js';
 
 import type { AxiosInstance } from 'axios';
 
@@ -51,5 +55,40 @@ describe('contracts bridge and aborted requests', () => {
     const res = await getContractsClient().userAgents.list();
 
     expect(res.status).toBe(500);
+  });
+});
+
+// 06.10.2026: an infographic draft (two model calls plus a FLUX 3 image) ran past
+// the 60s default and the browser aborted it while the server finished the work.
+describe('contracts bridge and long server tasks', () => {
+  beforeEach(() => {
+    resetContractsClient();
+  });
+
+  function recordingAxios(seen: { timeout?: number }[]): AxiosInstance {
+    return {
+      request: (config: { timeout?: number }) => {
+        seen.push(config);
+        return Promise.resolve({ status: 502, data: { error: 'x' }, headers: {} });
+      },
+    } as unknown as AxiosInstance;
+  }
+
+  it('gives a route marked serverTask the server-task timeout', async () => {
+    const seen: { timeout?: number }[] = [];
+    setGlobalApiClient(recordingAxios(seen));
+
+    await getContractsClient().sharepicCreator.draft({ body: { prompt: 'Infografik zu Mieten' } });
+
+    expect(seen[0]?.timeout).toBe(SERVER_TASK_TIMEOUT_MS);
+  });
+
+  it('leaves every other route on the instance default', async () => {
+    const seen: { timeout?: number }[] = [];
+    setGlobalApiClient(recordingAxios(seen));
+
+    await getContractsClient().userAgents.list();
+
+    expect(seen[0]?.timeout).toBeUndefined();
   });
 });

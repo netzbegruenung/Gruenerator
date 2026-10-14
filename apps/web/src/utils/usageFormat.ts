@@ -12,7 +12,41 @@
  * magnitude between a trial account and a heavy platform month, so the unit has
  * to move with it or the number becomes unreadable at one end.
  */
-import { type UsageFeature } from '@gruenerator/contracts';
+import { type CollabSubtype, type UsageFeature } from '@gruenerator/contracts';
+
+/** First day `user_usage_daily` was written (migration create_user_usage_daily.sql). */
+export const USAGE_TRACKED_SINCE = '2026-07-24';
+
+export const DOCUMENT_TYPE_LABELS: Record<CollabSubtype, string> = {
+  canvas: 'Design',
+  boards: 'Board',
+  blank: 'Leeres Dokument',
+  docs: 'Dokument',
+  antrag: 'Antrag',
+  pressemitteilung: 'Pressemitteilung',
+  protokoll: 'Protokoll',
+  notizen: 'Notizen',
+  redaktionsplan: 'Redaktionsplan',
+  checkliste: 'Checkliste',
+  einladung: 'Einladung',
+  tabelle: 'Tabelle',
+  sheets: 'Tabellenkalkulation',
+  presentations: 'Präsentation',
+};
+
+/** A `YYYY-MM-DD` day is a calendar day, not an instant — render it in UTC so no zone shifts it. */
+export function formatDate(iso: string): string {
+  const dayOnly = iso.length === 10;
+  const date = new Date(dayOnly ? `${iso}T00:00:00Z` : iso);
+  return Number.isNaN(date.getTime())
+    ? iso
+    : date.toLocaleDateString('de-DE', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        ...(dayOnly ? { timeZone: 'UTC' } : {}),
+      });
+}
 
 export const FEATURE_LABELS: Record<UsageFeature, string> = {
   chat: 'Chat',
@@ -39,6 +73,9 @@ export const UNIT_LABELS: Record<string, string> = {
   // Sekunden, keine Aufrufe: ein Vorlesen sind viele Anfragen, eine Zählung
   // beschriebe unsere Satz-Aufteilung und nicht die Nutzung.
   speech_seconds: 'Sekunden',
+  characters: 'Zeichen',
+  ocr_pages: 'Seiten',
+  embedding_tokens: 'Tokens',
 };
 
 /**
@@ -54,6 +91,9 @@ export const FUNCTION_LABELS: Record<string, string> = {
   transcriptions: 'Spracherkennung',
   searches: 'Websuche',
   speech_seconds: 'Sprachausgabe',
+  characters: 'Übersetzung',
+  ocr_pages: 'Texterkennung (OCR)',
+  embedding_tokens: 'Einbettungen',
 };
 
 /** Order the function sections appear in — text first, it dominates every window. */
@@ -63,6 +103,9 @@ export const FUNCTION_ORDER = [
   'transcriptions',
   'searches',
   'speech_seconds',
+  'characters',
+  'ocr_pages',
+  'embedding_tokens',
 ] as const;
 
 /**
@@ -141,6 +184,19 @@ export function formatTokens(value: number): string {
   if (value >= 1_000_000) return `${numberFormat.format(Math.round(value / 100_000) / 10)} Mio.`;
   if (value >= 10_000) return `${numberFormat.format(Math.round(value / 1000))} Tsd.`;
   return numberFormat.format(value);
+}
+
+/**
+ * German prose runs at roughly 1.6 tokens per word on the models we serve, so
+ * a generated token is worth about 0.6 written words. An estimate, not a
+ * measurement: reasoning tokens count as generated but never reach the page,
+ * which pulls the true figure lower for thinking-heavy use — callers say "ca.".
+ */
+export const WORDS_PER_OUTPUT_TOKEN = 0.6;
+
+/** Generated tokens as an approximate written-word count, abbreviated like tokens. */
+export function formatApproxWords(outputTokens: number): string {
+  return formatTokens(Math.round(outputTokens * WORDS_PER_OUTPUT_TOKEN));
 }
 
 /**

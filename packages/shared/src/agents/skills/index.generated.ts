@@ -28,6 +28,7 @@ export const SKILLS = [
     skillCategory: 'social',
     promptTemplate: 'Post zu folgendem Thema: ',
     isSystemDefault: true,
+    recommendedTools: ['vorlagen_vorschlagen'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
@@ -39,6 +40,7 @@ export const SKILLS = [
     mention: 'facebook',
     skillCategory: 'social',
     promptTemplate: 'Beitrag zu folgendem Thema: ',
+    recommendedTools: ['vorlagen_vorschlagen'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
@@ -50,6 +52,7 @@ export const SKILLS = [
     mention: 'twitter',
     skillCategory: 'social',
     promptTemplate: 'Tweet zu folgendem Thema: ',
+    recommendedTools: ['vorlagen_vorschlagen'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
@@ -61,6 +64,7 @@ export const SKILLS = [
     mention: 'linkedin',
     skillCategory: 'social',
     promptTemplate: 'LinkedIn-Post zu: ',
+    recommendedTools: ['vorlagen_vorschlagen'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
@@ -105,6 +109,18 @@ export const SKILLS = [
     mention: 'buergermail',
     skillCategory: 'dokumente',
     promptTemplate: 'Beantworte diese Bürger*innenanfrage als E-Mail: ',
+  },
+  {
+    identifier: 'gruenerator-antrag',
+    title: 'Antrag für Stadt- oder Gemeinderat',
+    description: 'Anträge für Stadtrat, Gemeinderat und Kreistag',
+    iconKey: 'PiBuildings',
+    avatar: '🏛️',
+    backgroundColor: '#316049',
+    mention: 'antrag',
+    skillCategory: 'dokumente',
+    audience: 'all',
+    promptTemplate: 'Schreibe einen Antrag für den Gemeinderat zum Thema: ',
   },
   {
     identifier: 'gruenerator-universal',
@@ -205,6 +221,7 @@ export const SKILLS = [
     skillCategory: 'social',
     audience: 'de-DE',
     promptTemplate: 'Schreibe einen Instagram-Post im Stil Grüne Berlin zum Thema: ',
+    recommendedTools: ['vorlagen_vorschlagen'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-hamburg',
@@ -229,6 +246,7 @@ export const SKILLS = [
     skillCategory: 'social',
     audience: 'de-DE',
     promptTemplate: 'Instagram-Post im Stil Grüne Hamburg zum Thema: ',
+    recommendedTools: ['vorlagen_vorschlagen'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern',
@@ -270,6 +288,7 @@ export const SKILLS = [
     skillCategory: 'social',
     audience: 'de-DE',
     promptTemplate: 'Instagram-Post im Stil Grüne MV zum Thema: ',
+    recommendedTools: ['vorlagen_vorschlagen'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-thueringen',
@@ -294,6 +313,7 @@ export const SKILLS = [
     skillCategory: 'social',
     audience: 'de-DE',
     promptTemplate: 'Instagram-Post im Stil Bündnisgrüne Thüringen zum Thema: ',
+    recommendedTools: ['vorlagen_vorschlagen'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-brandenburg',
@@ -318,6 +338,7 @@ export const SKILLS = [
     skillCategory: 'social',
     audience: 'de-DE',
     promptTemplate: 'Instagram-Post im Stil Brandenburger Bündnisgrüne zum Thema: ',
+    recommendedTools: ['vorlagen_vorschlagen'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-bayern',
@@ -440,6 +461,7 @@ export const SKILLS = [
     skillCategory: 'social',
     audience: 'de-DE',
     promptTemplate: 'Instagram-Post im Stil der Saar-Grünen zum Thema: ',
+    recommendedTools: ['vorlagen_vorschlagen'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-bayern',
@@ -452,6 +474,7 @@ export const SKILLS = [
     skillCategory: 'social',
     audience: 'de-DE',
     promptTemplate: 'Instagram-Post im Stil Grüne Bayern zum Thema: ',
+    recommendedTools: ['vorlagen_vorschlagen'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-hessen',
@@ -464,6 +487,7 @@ export const SKILLS = [
     skillCategory: 'social',
     audience: 'de-DE',
     promptTemplate: 'Instagram-Post im Stil Grüne Hessen zum Thema: ',
+    recommendedTools: ['vorlagen_vorschlagen'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-sachsen-anhalt',
@@ -476,6 +500,7 @@ export const SKILLS = [
     skillCategory: 'social',
     audience: 'de-DE',
     promptTemplate: 'Instagram-Post im Stil Grüne Sachsen-Anhalt zum Thema: ',
+    recommendedTools: ['vorlagen_vorschlagen'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-at',
@@ -488,6 +513,7 @@ export const SKILLS = [
     skillCategory: 'social',
     audience: 'de-AT',
     promptTemplate: 'Instagram-Post im Stil der Grünen Österreich zum Thema: ',
+    recommendedTools: ['vorlagen_vorschlagen'],
   },
   {
     identifier: 'gruenerator-buergeranfragen-oesterreich',

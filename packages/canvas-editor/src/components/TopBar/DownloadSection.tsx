@@ -12,14 +12,23 @@ import {
 import { useId, useState } from 'react';
 import { FaDownload } from 'react-icons/fa';
 
+import { downloadErrorMessage } from '../../utils/downloadError';
+import { DownloadNotice } from '../DownloadNotice';
+
 export type CanvasDownloadChoice = 'png' | 'jpeg' | 'webp';
 
 export interface DownloadSectionProps {
-  onDownload: (format: CanvasDownloadChoice, pixelRatio: number, transparent: boolean) => void;
+  onDownload: (
+    format: CanvasDownloadChoice,
+    pixelRatio: number,
+    transparent: boolean
+  ) => void | Promise<void>;
   onDownloadAllZip?: () => Promise<void>;
   pageCount: number;
   isMultiExporting?: boolean;
   exportProgress?: { current: number; total: number };
+  exportError?: string | null;
+  exportNotice?: string | null;
 }
 
 const DEFAULT_RASTER_PIXEL_RATIO = 1;
@@ -31,12 +40,15 @@ export function DownloadSection({
   pageCount,
   isMultiExporting = false,
   exportProgress,
+  exportError,
+  exportNotice,
 }: DownloadSectionProps) {
   const [choice, setChoice] = useState<CanvasDownloadChoice>('png');
   const [scale, setScale] = useState<number>(DEFAULT_RASTER_PIXEL_RATIO);
   const [transparent, setTransparent] = useState(false);
   const [pageSelection, setPageSelection] = useState<'current' | 'all'>('current');
   const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const fieldId = useId();
 
   const isMultiPage = pageCount > 1 && onDownloadAllZip;
@@ -46,12 +58,16 @@ export function DownloadSection({
 
   const handleDownload = async () => {
     setIsDownloading(true);
+    setDownloadError(null);
     try {
       if (pageSelection === 'all' && onDownloadAllZip) {
         await onDownloadAllZip();
         return;
       }
-      onDownload(choice, scale, supportsTransparency && transparent);
+      await onDownload(choice, scale, supportsTransparency && transparent);
+    } catch (err) {
+      console.error('[DownloadSection] Download failed:', err);
+      setDownloadError(downloadErrorMessage(err));
     } finally {
       setIsDownloading(false);
     }
@@ -149,6 +165,10 @@ export function DownloadSection({
           </span>
         </div>
       )}
+
+      {downloadError && <DownloadNotice>{downloadError}</DownloadNotice>}
+      {exportError && !isMultiExporting && <DownloadNotice>{exportError}</DownloadNotice>}
+      {exportNotice && <DownloadNotice tone="info">{exportNotice}</DownloadNotice>}
 
       <Button
         variant="brand"

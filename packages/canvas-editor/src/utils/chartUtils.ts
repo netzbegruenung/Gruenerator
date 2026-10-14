@@ -7,6 +7,8 @@
  * ChartSettingsSection) while still exporting/collab-syncing like any element.
  */
 
+import { contrastRatio, luminance } from './colorLuminance';
+
 export type ChartType = 'bar' | 'bar-horizontal' | 'line' | 'area' | 'pie' | 'donut';
 
 export type ChartGroup = 'balken' | 'linien' | 'kreis';
@@ -89,6 +91,36 @@ export interface ChartInstance {
   showLegend: boolean;
   showGrid: boolean;
   showValues: boolean;
+  /** The colour the chart is set on, where it is known; series too light for it get an outline. */
+  background?: string;
+}
+
+/** WCAG 1.4.11: a graphical object against its adjacent colour. */
+const MIN_GRAPHIC_CONTRAST = 3;
+
+/**
+ * Per series colour: an outline where the fill alone stays under 3:1 against
+ * the chart's background, else null. The outline is the chart's own colour
+ * that stands out most from the background, so it stays in the brand.
+ */
+export function chartSeriesOutlines(
+  chart: Pick<ChartInstance, 'colors' | 'background'>
+): (string | null)[] {
+  const ground = chart.background ? luminance(chart.background) : null;
+  if (ground === null) return chart.colors.map(() => null);
+  const ratios = chart.colors.map((color) => {
+    const lum = luminance(color);
+    return lum === null ? null : contrastRatio(lum, ground);
+  });
+  let outline = contrastRatio(0, ground) >= contrastRatio(1, ground) ? '#000000' : '#FFFFFF';
+  let best = MIN_GRAPHIC_CONTRAST;
+  ratios.forEach((ratio, i) => {
+    if (ratio !== null && ratio >= best) {
+      best = ratio;
+      outline = chart.colors[i]!;
+    }
+  });
+  return ratios.map((ratio) => (ratio !== null && ratio < MIN_GRAPHIC_CONTRAST ? outline : null));
 }
 
 export const CHART_DEFAULT_WIDTH = 480;

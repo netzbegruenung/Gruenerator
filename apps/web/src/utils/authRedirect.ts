@@ -28,6 +28,7 @@ const PUBLIC_PREFIXES = [
   '/texte',
   '/office/',
   '/docs/',
+  '/e/',
 ];
 
 export const isPublicPage = (pathname: string = window.location.pathname): boolean =>

@@ -4,7 +4,8 @@
  * Bezirk/Kreis für Dokumente nach, die vor diesen Feldern geschrieben wurden —
  * aus der gespeicherten Payload, ohne Download und ohne neue Einbettung. Die
  * Felder kommen aus denselben Funktionen wie beim Einlesen
- * (`filterFieldsOf` je Landtag) und gehen per setPayload auf alle Chunks.
+ * (`filterFieldsOf` je Landtag, `gremienOf` für die Ausschüsse in NRW) und
+ * gehen per setPayload auf alle Chunks.
  *
  * Wiederholbar: ein zweiter Lauf schreibt dieselben Werte. Beim Landtag NRW
  * stehen die Rednerzeilen der Datenbank danach roh in `redner`, `speakers`
@@ -108,6 +109,7 @@ async function main(): Promise<void> {
           'redner',
           'beschluss',
           'party',
+          'gremium',
           'full_text',
         ],
         with_vector: false,
@@ -125,6 +127,8 @@ async function main(): Promise<void> {
           const redner = p.redner !== undefined ? asStrings(p.redner) : asStrings(p.speakers);
           fields = {
             redner,
+            // Gemeinsame Sitzungen standen bis #4279 als ein Wert („HFA/52.HFA/UAP").
+            gremium: [...new Set(asStrings(p.gremium).flatMap(nrw.gremienOf))],
             ...nrw.filterFieldsOf({
               redner,
               beschluss: typeof p.beschluss === 'string' ? p.beschluss : null,

@@ -4,6 +4,8 @@
  * - `group_share` / `group_comment`: Mitglied der Gruppe (`findViewer` aus dem
  *   Gruppen-Feed); in Projekten (`group_type='personal'`) gibt es wie beim
  *   Kommentieren keine Reaktionen.
+ * - `agent` / `agent_comment`: wer den Agenten öffnen darf (`findAccessibleAgent`).
+ * - `template_comment`: wer die Vorlage sehen darf (`templateExistsFor`).
  * - `board_comment`: Zugriff aufs Board des Kommentars (`checkBoardAccess`,
  *   dieselbe Prüfung wie die Board-Kommentar-Routen).
  *
@@ -19,6 +21,8 @@ import { getPostgresInstance } from '../../database/services/PostgresService.js'
 import { checkBoardAccess } from '../../routes/boards/boardAccess.js';
 import { isInstanceAdmin } from '../../utils/adminAuthz.js';
 import { bumpCardComments } from '../boards/boardLiveSignalService.js';
+import { templateExistsFor } from '../templateInteractions/templateTarget.js';
+import { findAccessibleAgent } from '../agentComments/agentCommentsService.js';
 import { findViewer, type GroupFeedDeps } from '../groups/groupFeed.js';
 
 export type ReactionAccess = 'ok' | 'not_found' | 'forbidden';
@@ -108,8 +112,46 @@ export async function checkBoardCommentReaction(
   return { access: 'ok', onChanged: () => void deps.bumpCardComments(row.board_id, row.card_id) };
 }
 
+export async function checkAgentReaction(userId: string, agentId: string): Promise<ReactionAccess> {
+  return (await findAccessibleAgent(agentId, userId)) ? 'ok' : 'not_found';
+}
+
+export async function checkAgentCommentReaction(
+  userId: string,
+  commentId: string,
+  deps: ReactionTargetDeps = defaultDeps()
+): Promise<ReactionAccess> {
+  if (!UUID_RE.test(commentId)) return 'not_found';
+  const row = (await deps.postgres.queryOne(
+    'SELECT agent_id FROM agent_comments WHERE id = $1',
+    [commentId],
+    { table: 'agent_comments' }
+  )) as { agent_id: string } | null;
+  return row ? checkAgentReaction(userId, row.agent_id) : 'not_found';
+}
+
+export async function checkTemplateCommentReaction(
+  userId: string,
+  commentId: string,
+  deps: ReactionTargetDeps = defaultDeps()
+): Promise<ReactionAccess> {
+  if (!UUID_RE.test(commentId)) return 'not_found';
+  const row = (await deps.postgres.queryOne(
+    'SELECT template_id FROM template_comments WHERE id = $1',
+    [commentId],
+    { table: 'template_comments' }
+  )) as { template_id: string } | null;
+  if (!row) return 'not_found';
+  return (await templateExistsFor(userId, row.template_id)) ? 'ok' : 'not_found';
+}
+
 export const reactionTargets: Record<ReactionEntityType, ReactionTargetCheck> = {
   group_share: async (userId, id) => ({ access: await checkGroupShareReaction(userId, id) }),
   group_comment: async (userId, id) => ({ access: await checkGroupCommentReaction(userId, id) }),
   board_comment: (userId, id) => checkBoardCommentReaction(userId, id),
+  agent: async (userId, id) => ({ access: await checkAgentReaction(userId, id) }),
+  agent_comment: async (userId, id) => ({ access: await checkAgentCommentReaction(userId, id) }),
+  template_comment: async (userId, id) => ({
+    access: await checkTemplateCommentReaction(userId, id),
+  }),
 };

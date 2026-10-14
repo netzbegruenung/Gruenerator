@@ -597,6 +597,7 @@ describe('priorTurnRetrieved', () => {
     lastTurnToolSteps: () => [],
     lastTurnArtifacts: () => [],
     lastTurnIntent: () => null,
+    lastTurnOffer: () => null,
     sources: () => [],
     lastGeneratedImageUrl: () => null,
   });
@@ -634,6 +635,7 @@ describe('priorTurnRetrieved', () => {
         lastTurnToolSteps: () => [],
         lastTurnArtifacts: () => [],
         lastTurnIntent: () => null,
+        lastTurnOffer: () => null,
         sources: () => [],
         lastGeneratedImageUrl: () => null,
       })
@@ -648,6 +650,7 @@ describe('priorToolNames', () => {
     lastTurnToolSteps: () => [],
     lastTurnArtifacts: () => [],
     lastTurnIntent: () => null,
+    lastTurnOffer: () => null,
     sources: () => [],
     lastGeneratedImageUrl: () => null,
   });

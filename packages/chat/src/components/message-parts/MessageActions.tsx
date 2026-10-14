@@ -1,7 +1,13 @@
 'use client';
 
 import { ActionBarPrimitive, useAuiState } from '@assistant-ui/react';
-import { sourceLinksToCitations } from '@gruenerator/shared/utils';
+import { replaceVisualBlocksWithText } from '@gruenerator/contracts';
+import { getContractsClient } from '@gruenerator/shared/api';
+import {
+  slugifyName,
+  sourceLinksToCitations,
+  withSourcesMarkdown,
+} from '@gruenerator/shared/utils';
 import {
   DropdownMenuItem,
   ResponsiveMenu,
@@ -13,6 +19,8 @@ import {
   Check,
   FileDown,
   FileText,
+  Headphones,
+  Lightbulb,
   Loader2,
   Mail,
   RefreshCw,
@@ -23,12 +31,14 @@ import {
 import { memo, useState } from 'react';
 import { HiOutlineDocumentText } from 'react-icons/hi';
 
+import { useChatNavigation } from '../../context/ChatNavigationContext';
+import { useExplainableActionEnabled } from '../../context/ExplainableActionContext';
 import { useReadonlyMode } from '../../context/ReadonlyModeContext';
 import { useRegenerateMessage } from '../../hooks/useRegenerateMessage';
 import { downloadBlob } from '../../lib/downloadBlob';
-import { formatSourcesMarkdown } from '../../lib/formatSourcesMarkdown';
 import {
   buildDocumentActions,
+  canCreateExplainable,
   filenameFromDisposition,
   messageTitle,
   type DocumentActionId,
@@ -74,7 +84,14 @@ export const MessageActions = memo(function MessageActions({
 }: MessageActionsProps) {
   // Every outlet below (copy, export, TTS) is plain text: a source link
   // `[Titel](quelle:N)` leaves the chat as `Titel [N]`, the form they know.
-  const content = sourceLinksToCitations(rawContent);
+  // Word, PDF and the editor get the visual blocks (```bars {…}) as they are:
+  // the server draws charts and bars as figures and turns the rest into tables
+  // and lists. Copy, read-aloud and podcast get the readable text form.
+  const exportContent = sourceLinksToCitations(rawContent);
+  const content = replaceVisualBlocksWithText(exportContent);
+  // Editor and PDF leave as a document of their own; Word gets its source list
+  // from the server (`chatMessageExport`), copy and TTS get none.
+  const documentContent = withSourcesMarkdown(exportContent, metadata?.citations);
   const isCompact = useChatDensity() === 'compact';
   const readOnly = useReadonlyMode();
   const canReload = useAuiState((s) => s.thread.capabilities.reload);
@@ -84,6 +101,14 @@ export const MessageActions = memo(function MessageActions({
   const [menuOpen, setMenuOpen] = useState(false);
   const [linkedDocId, setLinkedDocId] = useState<string | null>(null);
   const onExportPdfLetterhead = useChatConfigStore((s) => s.onExportPdfLetterhead);
+  const getPodcastUrl = useChatConfigStore((s) => s.getPodcastUrl);
+  const nav = useChatNavigation();
+  const offerExplainable = useExplainableActionEnabled();
+  const persistedMessageId = useAuiState((s) => {
+    const id = (s.message.metadata?.custom as { persistedMessageId?: unknown } | undefined)
+      ?.persistedMessageId;
+    return typeof id === 'string' ? id : null;
+  });
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(content);
@@ -98,7 +123,7 @@ export const MessageActions = memo(function MessageActions({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          content,
+          content: exportContent,
           role: 'assistant',
           timestamp: Date.now(),
           metadata,
@@ -127,7 +152,7 @@ export const MessageActions = memo(function MessageActions({
       const response = await configFetch(endpoints.exportPdf, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, title: messageTitle(content) }),
+        body: JSON.stringify({ content: documentContent, title: messageTitle(content) }),
       });
 
       if (!response.ok) throw new Error(`Export failed (HTTP ${response.status})`);
@@ -144,7 +169,7 @@ export const MessageActions = memo(function MessageActions({
   const handleExportPdfLetterhead = async () => {
     if (!onExportPdfLetterhead) return;
     try {
-      await onExportPdfLetterhead(content, messageTitle(content));
+      await onExportPdfLetterhead(documentContent, messageTitle(content));
     } catch (error) {
       console.error('PDF letterhead export error:', error);
       notifyError('Export fehlgeschlagen', 'Das PDF konnte nicht erstellt werden.');
@@ -161,7 +186,7 @@ export const MessageActions = memo(function MessageActions({
       } = useChatConfigStore.getState();
 
       if (onEditInDocs) {
-        const docId = await onEditInDocs(content, undefined, linkedDocId ?? undefined);
+        const docId = await onEditInDocs(documentContent, undefined, linkedDocId ?? undefined);
         if (docId && !linkedDocId) setLinkedDocId(docId);
         return;
       }
@@ -171,16 +196,11 @@ export const MessageActions = memo(function MessageActions({
         return;
       }
 
-      let exportContent = content;
-      if (metadata?.citations?.length) {
-        exportContent += formatSourcesMarkdown(metadata.citations);
-      }
-
       const response = await configFetch(endpoints.exportToDocs, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          content: exportContent,
+          content: documentContent,
           documentType: 'chat-response',
         } satisfies ExportToDocsBody),
       });
@@ -198,9 +218,70 @@ export const MessageActions = memo(function MessageActions({
     }
   };
 
+  /** Takes ~15 s server-side (LLM rewrite); images follow in the background. */
+  const handleCreateExplainable = async () => {
+    if (!persistedMessageId) return;
+    try {
+      const res = await getContractsClient().explainables.createFromMessage({
+        body: { messageId: persistedMessageId },
+      });
+      if (res.status === 201) {
+        const path = `/erklaert/${slugifyName(res.body.title, 'explainable')}-${res.body.slugSuffix}`;
+        if (nav) nav.navigate(path);
+        else window.location.assign(path);
+        return;
+      }
+      if (res.status === 429) {
+        notifyError(res.body.error);
+        return;
+      }
+      throw new Error(`HTTP ${res.status}`);
+    } catch (error) {
+      console.error('Explainable error:', error);
+      notifyError('Explainable konnte nicht erstellt werden', 'Bitte versuche es erneut.');
+    }
+  };
+
+  /**
+   * The podcast takes minutes, so the server only queues it and the player
+   * page shows the progress. The tab opens before the request, inside the
+   * click — opened after an await, a popup blocker would swallow it.
+   */
+  const handleCreatePodcast = async () => {
+    if (!getPodcastUrl) return;
+    const tab = window.open('', '_blank');
+    try {
+      const title = messageTitle(content);
+      const res = await getContractsClient().podcasts.create({ body: { text: content, title } });
+      if (res.status === 202) {
+        // The name part is cosmetic; the page swaps in the script's title once it exists.
+        const url = getPodcastUrl(`${slugifyName(title, 'podcast')}-${res.body.slugSuffix}`);
+        if (tab) tab.location.href = url;
+        else window.location.assign(url);
+        return;
+      }
+      tab?.close();
+      if (res.status === 429 || res.status === 503) {
+        notifyError(res.body.error);
+        return;
+      }
+      throw new Error(`HTTP ${res.status}`);
+    } catch (error) {
+      tab?.close();
+      console.error('Podcast error:', error);
+      notifyError('Podcast konnte nicht erstellt werden', 'Bitte versuche es erneut.');
+    }
+  };
+
   const documentActions = buildDocumentActions({
     hasLinkedDoc: Boolean(linkedDocId),
     canExportPdfLetterhead: Boolean(onExportPdfLetterhead),
+    canCreateExplainable: canCreateExplainable({
+      offered: offerExplainable,
+      persistedMessageId,
+      readOnly,
+    }),
+    canCreatePodcast: Boolean(getPodcastUrl) && !readOnly,
   });
 
   const documentActionUi: Record<DocumentActionId, DocumentActionUi> = {
@@ -208,10 +289,12 @@ export const MessageActions = memo(function MessageActions({
     docx: { icon: <FileText className="h-3.5 w-3.5" />, run: handleExportDocx },
     pdf: { icon: <FileDown className="h-3.5 w-3.5" />, run: handleExportPdf },
     'pdf-letterhead': { icon: <Mail className="h-3.5 w-3.5" />, run: handleExportPdfLetterhead },
+    explainable: { icon: <Lightbulb className="h-3.5 w-3.5" />, run: handleCreateExplainable },
+    podcast: { icon: <Headphones className="h-3.5 w-3.5" />, run: handleCreatePodcast },
   };
 
   /**
-   * One action at a time. All four leave the chat (download, new tab, dialog),
+   * One action at a time. Each leaves the chat (download, new tab, dialog),
    * so a second one started underneath the first would land on top of it with
    * no way for the user to tell which won.
    */

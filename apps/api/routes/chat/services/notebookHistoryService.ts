@@ -80,7 +80,7 @@ const CARRY_MAX_SOURCES = 12;
  */
 const HISTORY_MARKER_SOURCE = `${sourceLinkRegex().source}|\\[cite:(\\d+)\\]|\\[(\\d+(?:\\s*,\\s*\\d+)*)\\]`;
 
-function estimateTokens(text: string): number {
+export function estimateTokens(text: string): number {
   return Math.ceil(text.length / CHARS_PER_TOKEN);
 }
 
@@ -142,12 +142,21 @@ export interface PreparedNotebookHistory {
  * are kept newest-first while they fit; the newest turn is kept even when it
  * alone exceeds the budget (a follow-up like "fass das kürzer" is useless
  * without the answer it refers to), unless it exceeds half the window.
+ *
+ * `reservedTokens` is what the turn already occupies outside the history —
+ * source block and output reserve. The shares apply to what is left: at 100
+ * passages the sources alone take ~45k of Gemma's 131k.
  */
 export function prepareNotebookHistory(
   history: readonly NotebookHistoryMessage[],
-  contextWindowTokens?: number
+  windowTokens?: number,
+  reservedTokens = 0
 ): PreparedNotebookHistory {
   if (history.length === 0) return { messages: [], droppedTurns: 0 };
+
+  const contextWindowTokens = windowTokens
+    ? Math.max(0, windowTokens - reservedTokens)
+    : windowTokens;
 
   const budget = contextWindowTokens
     ? Math.max(MIN_HISTORY_BUDGET_TOKENS, Math.floor(contextWindowTokens * HISTORY_WINDOW_SHARE))

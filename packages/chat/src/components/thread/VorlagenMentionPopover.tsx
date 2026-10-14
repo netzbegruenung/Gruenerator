@@ -1,15 +1,15 @@
 'use client';
 
+import { sharepicVorlageThumbPath, type SharepicVorlage } from '@gruenerator/contracts';
 import { useEffect, useMemo, useState } from 'react';
 
-import { useVorlagenSearchQuery, type ChatVorlageTemplate } from '../../hooks/useMentionablesQuery';
-import { type VorlageToken } from '../../lib/mentionables';
+import { useSharepicVorlagenQuery } from '../../hooks/useMentionablesQuery';
 
 import { MentionFloatingPanel } from './MentionFloatingPanel';
 
 interface VorlagenMentionPopoverProps {
   visible: boolean;
-  onSelect: (vorlagen: VorlageToken[]) => void;
+  onSelect: (vorlage: SharepicVorlage) => void;
   onDismiss: () => void;
 }
 
@@ -19,50 +19,22 @@ export function VorlagenMentionPopover({
   onDismiss,
 }: VorlagenMentionPopoverProps) {
   const [filter, setFilter] = useState('');
-  const [debouncedFilter, setDebouncedFilter] = useState('');
-  const [selection, setSelection] = useState<Map<string, ChatVorlageTemplate>>(new Map());
-
-  // Debounce the search term — the backend embeds it for a vector search.
-  useEffect(() => {
-    const id = setTimeout(() => setDebouncedFilter(filter.trim()), 300);
-    return () => clearTimeout(id);
-  }, [filter]);
 
   useEffect(() => {
     if (!visible) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- resets panel state on close (visibility transition), not a render-derived value
-      setSelection(new Map());
       setFilter('');
-      setDebouncedFilter('');
     }
   }, [visible]);
 
-  // Only query once the user has typed something — semantic search needs a term.
-  const hasQuery = debouncedFilter.length > 0;
-  const { data, isLoading, isError } = useVorlagenSearchQuery(debouncedFilter, visible && hasQuery);
-  const vorlagen = useMemo(() => data?.vorlagen ?? [], [data]);
-  const selectionList = [...selection.values()];
-
-  const toggle = (vorlage: ChatVorlageTemplate) => {
-    setSelection((prev) => {
-      const next = new Map(prev);
-      if (next.has(vorlage.id)) next.delete(vorlage.id);
-      else next.set(vorlage.id, vorlage);
-      return next;
-    });
-  };
-
-  const handleConfirm = () => {
-    if (selectionList.length === 0) return;
-    onSelect(
-      selectionList.map((v) => ({
-        id: v.id,
-        title: v.title,
-        url: v.external_url ?? v.thumbnail_url ?? '',
-        ...(v.thumbnail_url ? { thumbnailUrl: v.thumbnail_url } : {}),
-      }))
+  const { data, isLoading, isError } = useSharepicVorlagenQuery(visible);
+  const vorlagen = useMemo(() => {
+    const q = filter.trim().toLowerCase();
+    if (!q) return data ?? [];
+    return (data ?? []).filter(
+      (v) => v.titel.toLowerCase().includes(q) || v.beschreibung.toLowerCase().includes(q)
     );
-  };
+  }, [data, filter]);
 
   return (
     <MentionFloatingPanel
@@ -70,7 +42,7 @@ export function VorlagenMentionPopover({
       onDismiss={onDismiss}
       width="w-[360px]"
       role="dialog"
-      ariaLabel="Vorlagen auswählen"
+      ariaLabel="Sharepic-Vorlage auswählen"
     >
       {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- Escape-only capture inside the already-labeled dialog panel above, not new interactive semantics. */}
       <div
@@ -84,7 +56,7 @@ export function VorlagenMentionPopover({
       >
         <div className="border-b border-border px-3 py-2">
           <span className="text-xs font-semibold uppercase tracking-wider text-foreground-muted/70">
-            Vorlagen
+            Sharepic-Vorlage
           </span>
           <div className="mt-2">
             <input
@@ -92,95 +64,64 @@ export function VorlagenMentionPopover({
               autoFocus
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              placeholder="Vorlagen beschreiben…"
+              placeholder="Vorlagen filtern…"
               className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm outline-none focus:border-primary/40"
             />
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {!hasQuery ? (
-            <div className="px-3 py-4 text-sm text-foreground-muted">
-              Beschreibe, wonach du suchst — die besten passenden Vorlagen werden per Vektorsuche
-              gefunden.
-            </div>
-          ) : isLoading ? (
-            <div className="px-3 py-4 text-sm text-foreground-muted">Suche Vorlagen…</div>
+          {isLoading ? (
+            <div className="px-3 py-4 text-sm text-foreground-muted">Lade Vorlagen…</div>
           ) : isError ? (
             <div className="px-3 py-4 text-sm text-foreground-muted">
               Fehler beim Laden der Vorlagen.
             </div>
           ) : vorlagen.length === 0 ? (
-            <div className="px-3 py-4 text-sm text-foreground-muted">Keine Treffer.</div>
+            <div className="px-3 py-4 text-sm text-foreground-muted">Keine Vorlagen gefunden.</div>
           ) : (
-            vorlagen.map((vorlage) => {
-              const isSelected = selection.has(vorlage.id);
-              return (
-                <button
-                  key={vorlage.id}
-                  type="button"
-                  aria-pressed={isSelected}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    toggle(vorlage);
-                  }}
-                  className={`flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition-colors ${
-                    isSelected
-                      ? 'bg-primary/10 text-foreground'
-                      : 'text-foreground-muted hover:bg-primary/5'
-                  }`}
-                >
-                  {vorlage.thumbnail_url ? (
-                    <img
-                      src={vorlage.thumbnail_url}
-                      alt=""
-                      className="h-9 w-9 flex-shrink-0 rounded object-cover"
-                    />
-                  ) : (
-                    <span
-                      aria-hidden
-                      className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded bg-primary/5 text-base"
-                    >
-                      📋
-                    </span>
-                  )}
-                  <span className="flex-1 truncate">{vorlage.title}</span>
-                  <span aria-hidden className="text-base">
-                    {isSelected ? '☑️' : ''}
-                  </span>
-                </button>
-              );
-            })
+            vorlagen.map((vorlage) => (
+              <button
+                key={vorlage.id}
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  onSelect(vorlage);
+                }}
+                className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-foreground-muted transition-colors hover:bg-primary/5"
+              >
+                <VorlageThumb vorlage={vorlage} />
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate font-medium text-foreground">{vorlage.titel}</span>
+                  <span className="line-clamp-2 text-xs">{vorlage.beschreibung}</span>
+                </span>
+              </button>
+            ))
           )}
-        </div>
-
-        <div className="flex items-center justify-between border-t border-border px-3 py-2">
-          <span className="text-xs text-foreground-muted">{selectionList.length} ausgewählt</span>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                onDismiss();
-              }}
-              className="rounded-md px-2 py-1 text-xs text-foreground-muted hover:bg-primary/5"
-            >
-              Abbrechen
-            </button>
-            <button
-              type="button"
-              disabled={selectionList.length === 0}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                handleConfirm();
-              }}
-              className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-white hover:bg-primary/90 disabled:opacity-50"
-            >
-              Einfügen
-            </button>
-          </div>
         </div>
       </div>
     </MentionFloatingPanel>
+  );
+}
+
+function VorlageThumb({ vorlage }: { vorlage: SharepicVorlage }) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <span className="flex h-14 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded bg-muted">
+      {failed ? (
+        <span aria-hidden className="text-base">
+          📋
+        </span>
+      ) : (
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- onError reacts to a failed image load, not a user interaction.
+        <img
+          src={sharepicVorlageThumbPath(vorlage.id, 1, vorlage.thumbVersion)}
+          alt=""
+          loading="lazy"
+          onError={() => setFailed(true)}
+          className="h-full w-full object-cover"
+        />
+      )}
+    </span>
   );
 }

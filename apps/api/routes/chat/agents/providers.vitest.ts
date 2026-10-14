@@ -32,7 +32,7 @@ import { LOOP_SYNTH_FALLBACK, LOOP_SYNTH_PRIMARY, mayWriteAnswer } from './autoP
 const WRITER_MODELS = new Set([
   GEMMA_31B_ON_MELIOUS.model,
   GEMMA_31B_ON_CORTECS.model,
-  'mistral-medium-2604',
+  'mistral-large-4',
 ]);
 
 describe('prefersUnifiedLoop (unified vs planner/executor split)', () => {
@@ -50,7 +50,7 @@ describe('prefersUnifiedLoop (unified vs planner/executor split)', () => {
 describe('split-mode model policy (getLoopSynthModel / loopPlannerModelName)', () => {
   it('planner is a verified NON-Chinese tool-caller', () => {
     // Die deklarierten Stufen (autoPolicy.ts): Melious Gemma 4 31B zuerst,
-    // dann Melious Mistral Small 4, zuletzt Mistral Medium.
+    // dann Melious Mistral Small 4, zuletzt Mistral Large 4.
     // Die letzte Stufe war bis zum 29.08.2026 `litellm/verdigado-pro`, also
     // gpt-oss — das Modell, das `AVOID_AS_SYNTH` ausschliesst und einen
     // erzwungenen Werkzeugaufruf mit Prosa beantwortet.
@@ -59,7 +59,7 @@ describe('split-mode model policy (getLoopSynthModel / loopPlannerModelName)', (
     expect([
       GEMMA_31B_ON_MELIOUS.model,
       'mistral-small-4-119b-instruct',
-      'mistral-medium-2604',
+      'mistral-large-4',
     ]).toContain(planner);
     // The invariant behind that list, spelled out so widening the constants
     // cannot quietly slip a banned lane into the slot.
@@ -164,7 +164,11 @@ describe('AVAILABLE_MODELS', () => {
   it('„Panda" fällt auf Ultra zurück, nicht auf eine andere Lane', async () => {
     const tuple = await resolveModelTuple('gruenerator-panda', 'test');
     expect(tuple).toMatchObject({ provider: 'melious', model: 'deepseek-v4.1-flash' });
-    expect(tuple?.sibling).toEqual({ provider: 'mistral', model: 'mistral-large-4' });
+    expect(tuple?.sibling).toEqual({
+      provider: 'mistral',
+      model: 'mistral-large-4',
+      contextWindow: 262_144,
+    });
   });
 });
 
@@ -329,6 +333,7 @@ describe('resolveModelTuple — size-aware overflow routing', () => {
     expect(tuple!.sibling).toEqual({
       provider: GEMMA_31B_ALTERNATE.provider,
       model: GEMMA_31B_ALTERNATE.model,
+      contextWindow: GEMMA_31B_ALTERNATE.contextWindow,
     });
     expect(tuple!.sibling!.provider).not.toBe(tuple!.provider);
   });

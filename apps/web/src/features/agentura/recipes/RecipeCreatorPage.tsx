@@ -1,3 +1,4 @@
+import { MAX_DRAFT_BRIEF_CHARS } from '@gruenerator/contracts';
 import { ConfirmDialogProvider } from '@gruenerator/ui';
 import { useCallback, useState } from 'react';
 
@@ -26,10 +27,17 @@ function RecipeCreatorPage() {
   useDocumentTitle('Neues Rezept');
 
   const handleGenerate = useCallback(async () => {
-    if (description.trim().length === 0) return;
+    const brief = description.trim();
+    if (brief.length === 0) return;
+    if (brief.length > MAX_DRAFT_BRIEF_CHARS) {
+      setError(
+        `Die Beschreibung ist zu lang (${brief.length.toLocaleString('de-DE')} von max. ${MAX_DRAFT_BRIEF_CHARS.toLocaleString('de-DE')} Zeichen).`
+      );
+      return;
+    }
     setError(null);
     try {
-      const spec = await draftMut.mutateAsync({ description: description.trim() });
+      const spec = await draftMut.mutateAsync({ description: brief });
       setInitialState(draftToRecipeForm(spec));
       setPhase('build');
     } catch (err) {

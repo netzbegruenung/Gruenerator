@@ -125,8 +125,11 @@ describe('Vertrag mit den Notebook-Filtern', () => {
 
   it('schreibt jedes deklarierte Filterfeld in den Payload', () => {
     expect(config).not.toBeNull();
+    // themes/persons schreibt die NLP-Anreicherung nachträglich, nicht der Builder.
+    const enriched = new Set(['themes', 'persons']);
     const missing = config!.filterableFields
       .map((f) => f.field)
+      .filter((field) => !enriched.has(field))
       .filter((field) => !payloads.some((p) => p[field] != null));
     expect(missing).toEqual([]);
   });

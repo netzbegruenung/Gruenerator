@@ -21,10 +21,6 @@
       "label": "Erinnerungen"
     },
     {
-      "value": "texte-anlernen",
-      "label": "Texte anlernen"
-    },
-    {
       "value": "friends",
       "label": "Friends"
     },
@@ -89,7 +85,7 @@
     "allgemein.startseite": {
       "tab": "allgemein",
       "title": "Startseite",
-      "description": "Was das Start-Symbol in der Seitenleiste öffnet"
+      "description": "Welcher Bereich sich auf der Startseite zuerst zeigt"
     },
     "allgemein.stimme": {
       "tab": "allgemein",
@@ -218,28 +214,6 @@
       }
     ]
   },
-  "textFormPresets": [
-    {
-      "textType": "instagram",
-      "label": "Instagram-Posts",
-      "hint": "Instagram-Posts"
-    },
-    {
-      "textType": "facebook",
-      "label": "Facebook-Posts",
-      "hint": "Facebook-Posts"
-    },
-    {
-      "textType": "presse",
-      "label": "Pressemitteilungen",
-      "hint": "Pressetexte"
-    },
-    {
-      "textType": "antrag",
-      "label": "Anträge",
-      "hint": "Anträge"
-    }
-  ],
   "notifications": {
     "groups": [
       {

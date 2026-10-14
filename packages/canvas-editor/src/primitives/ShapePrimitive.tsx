@@ -12,9 +12,11 @@ import {
   Transformer,
 } from 'react-konva';
 
-import { gradientToKonvaProps } from '../utils/gradientFill';
-import { assertNever, type ShapeInstance } from '../utils/shapes';
+import { gradientFillProps } from '../utils/gradientFill';
+import { handDrawnPath } from '../utils/handDrawn';
+import { assertNever, isLockedShape, type ShapeInstance } from '../utils/shapes';
 import { PATH_VIEWBOX, resizedShapeSize, shapeNodeScale } from '../utils/shapeTransform';
+import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type Konva from 'konva';
 
@@ -163,8 +165,9 @@ interface CommonShapeProps {
   scaleX: number;
   scaleY: number;
   draggable: boolean;
-  onClick: (e: Konva.KonvaEventObject<MouseEvent>) => void;
-  onTap: (e: Konva.KonvaEventObject<TouchEvent>) => void;
+  listening: boolean;
+  onMouseDown: (e: Konva.KonvaEventObject<MouseEvent>) => void;
+  onTouchStart: (e: Konva.KonvaEventObject<TouchEvent>) => void;
   onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => void;
   onTransformEnd: () => void;
   name: string;
@@ -174,10 +177,15 @@ interface CommonShapeProps {
   shadowOffsetY?: number;
   shadowOpacity?: number;
   globalCompositeOperation?: ShapeInstance['blendMode'];
-  fillPriority?: 'color' | 'linear-gradient';
+  fillPriority?: 'color' | 'linear-gradient' | 'radial-gradient';
   fillLinearGradientStartPoint?: { x: number; y: number };
   fillLinearGradientEndPoint?: { x: number; y: number };
   fillLinearGradientColorStops?: Array<number | string>;
+  fillRadialGradientStartPoint?: { x: number; y: number };
+  fillRadialGradientEndPoint?: { x: number; y: number };
+  fillRadialGradientStartRadius?: number;
+  fillRadialGradientEndRadius?: number;
+  fillRadialGradientColorStops?: Array<number | string>;
 }
 
 function renderShape(
@@ -460,6 +468,23 @@ function renderShape(
         />
       );
     }
+    case 'hand-kreis':
+    case 'hand-unterstrich':
+    case 'hand-pfeil':
+    case 'hand-ausruf':
+    case 'hand-marker':
+    case 'hand-marker-box':
+      return (
+        <Path
+          ref={shapeRef as React.RefObject<Konva.Path>}
+          {...commonProps}
+          data={handDrawnPath(shape.type, shape.width, shape.height, shape.strokeWidth ?? 8)}
+          // The brush outline is a few px wide: an invisible stroke widens what a click hits.
+          stroke="rgba(0,0,0,0)"
+          strokeWidth={1}
+          hitStrokeWidth={24}
+        />
+      );
     default:
       return assertNever(shape.type);
   }
@@ -484,12 +509,12 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
 
   // Gradient fill is painted in the shape's local box. getSelfRect() gives the
   // correct box for both top-left (Rect) and center-origin (Circle/Star) shapes.
-  const [gradientProps, setGradientProps] = useState<ReturnType<
-    typeof gradientToKonvaProps
-  > | null>(null);
+  const [gradientProps, setGradientProps] = useState<ReturnType<typeof gradientFillProps> | null>(
+    null
+  );
   useEffect(() => {
     if (shape.fillGradient && shapeRef.current) {
-      setGradientProps(gradientToKonvaProps(shape.fillGradient, shapeRef.current.getSelfRect()));
+      setGradientProps(gradientFillProps(shape.fillGradient, shapeRef.current.getSelfRect()));
     } else {
       setGradientProps(null);
     }
@@ -524,6 +549,7 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
     });
   };
 
+  const locked = isLockedShape(shape);
   const commonProps: CommonShapeProps = {
     x: shape.x,
     y: shape.y,
@@ -532,12 +558,13 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
     rotation: shape.rotation,
     scaleX: shape.scaleX,
     scaleY: shape.scaleY,
-    draggable,
-    onClick: (e) => {
+    draggable: draggable && !locked,
+    listening: !locked,
+    onMouseDown: (e) => {
       e.cancelBubble = true;
       onSelect(shape.id);
     },
-    onTap: (e) => {
+    onTouchStart: (e) => {
       e.cancelBubble = true;
       onSelect(shape.id);
     },
@@ -550,9 +577,7 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
     shadowOffsetY: shape.shadowOffsetY,
     shadowOpacity: shape.shadowOpacity,
     globalCompositeOperation: shape.blendMode,
-    ...(gradientProps
-      ? { ...gradientProps, fillPriority: 'linear-gradient' as const }
-      : { fillPriority: 'color' as const }),
+    ...(gradientProps ?? { fillPriority: 'color' as const }),
   };
 
   const transformerStroke =
@@ -564,6 +589,7 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
 
       {isSelected && (
         <Transformer
+          anchorStyleFunc={touchAnchorStyleFunc}
           ref={trRef}
           boundBoxFunc={(oldBox, newBox) => {
             if (newBox.width < 5 || newBox.height < 5) {
@@ -610,6 +636,7 @@ export const ShapePrimitive = memo(ShapePrimitiveInner, (prevProps, nextProps) =
   if (prevShape.shadowOpacity !== nextShape.shadowOpacity) return false;
   if (prevShape.fillGradient !== nextShape.fillGradient) return false;
   if (prevShape.blendMode !== nextShape.blendMode) return false;
+  if (prevShape.locked !== nextShape.locked) return false;
 
   if (prevProps.isSelected !== nextProps.isSelected) return false;
   if (prevProps.draggable !== nextProps.draggable) return false;

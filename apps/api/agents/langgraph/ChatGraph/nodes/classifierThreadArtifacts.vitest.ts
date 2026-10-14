@@ -114,7 +114,7 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
       })
     );
     expect(pool.editTargetCalls).toHaveLength(1);
-    expect(result.intent).toBe('modify_doc');
+    expect(result.intent).toBe('agentic');
     expect(result.docMentionIds).toEqual(['doc-42']);
   });
 
@@ -145,7 +145,7 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
         lastTurnEditables: ['document'],
       })
     );
-    expect(result.intent).toBe('modify_doc');
+    expect(result.intent).toBe('agentic');
     expect(result.docMentionIds).toEqual(['doc-42']);
   });
 
@@ -161,7 +161,7 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
         lastTurnEditables: ['document'],
       })
     );
-    expect(result.intent).toBe('modify_doc');
+    expect(result.intent).toBe('agentic');
   });
 
   it('fragt gar nicht, wenn die Nachricht kein Bearbeitungsauftrag ist', async () => {
@@ -205,7 +205,7 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
       })
     );
     expect(pool.editTargetCalls).toHaveLength(1);
-    expect(result.intent).toBe('modify_doc');
+    expect(result.intent).toBe('agentic');
     expect(result.docMentionIds).toEqual(['doc-42']);
   });
 
@@ -218,6 +218,6 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
         threadArtifacts: BOTH,
       })
     );
-    expect(result.intent).toBe('modify_doc');
+    expect(result.intent).toBe('agentic');
   });
 });

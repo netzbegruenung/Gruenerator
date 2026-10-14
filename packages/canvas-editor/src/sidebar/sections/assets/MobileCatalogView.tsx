@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { PiArrowLeft, PiMagnifyingGlass, PiTagFill } from 'react-icons/pi';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
-import { sortLogoAssets } from '../../../utils/canvasAssets';
+import { hasDarkPreview, sortLogoAssets } from '../../../utils/canvasAssets';
 import { cn } from '../../../utils/cn';
 import { ALL_ILLUSTRATIONS } from '../../../utils/illustrations/illustrationCatalog';
 import { HIDDEN_SCROLLBAR } from '../../sidebarStyles';
@@ -16,6 +16,8 @@ import { RahmenSection } from '../RahmenSection';
 import { SearchResultsGrid } from './SearchResultsGrid';
 import {
   DiagrammeStripTiles,
+  EmojiGrid,
+  EmojiStripTiles,
   FormenStripTiles,
   IconStripTiles,
   IllustrationStripTiles,
@@ -37,7 +39,7 @@ const TILE =
 const EMPTY_HINT = 'm-0 py-8 px-4 text-center text-[13px] text-[var(--editor-text-muted)]';
 
 type CategoryId =
-  'grafiken' | 'badges' | 'formen' | 'diagramme' | 'rahmen' | 'illustrationen' | 'icons';
+  'grafiken' | 'badges' | 'formen' | 'diagramme' | 'rahmen' | 'illustrationen' | 'icons' | 'emoji';
 
 interface Category {
   id: CategoryId;
@@ -177,6 +179,15 @@ export function MobileCatalogView({ search, ...props }: MobileCatalogViewProps) 
     });
   }
 
+  if (onAddAsset) {
+    categories.push({
+      id: 'emoji',
+      label: 'Emoji',
+      carousel: <EmojiStripTiles onAddAsset={onAddAsset} />,
+      detail: <EmojiGrid onAddAsset={onAddAsset} />,
+    });
+  }
+
   if (selectedIcons && onIconToggle) {
     categories.push({
       id: 'icons',
@@ -306,7 +317,7 @@ function GrafikenGrid({
           <span
             className={cn(
               'flex items-center justify-center size-9 shrink-0 rounded-lg',
-              /weiss|white/.test(asset.id) && 'bg-secondary-600'
+              hasDarkPreview(asset) && 'bg-secondary-600'
             )}
           >
             <img src={asset.src} alt="" className="size-7 object-contain" />

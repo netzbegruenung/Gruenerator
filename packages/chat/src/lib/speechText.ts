@@ -1,3 +1,5 @@
+import { replaceVisualBlocksWithText } from '@gruenerator/contracts';
+
 /**
  * What the reading voice gets to see of an assistant reply.
  *
@@ -28,7 +30,9 @@ const LIST_MARKER_RE = /^[ \t]*(?:[-*+]|\d+\.)[ \t]+/gm;
 const DECORATION_RE = /[#*_`~>|]/g;
 
 export function stripForSpeech(text: string): string {
-  return dropOrphanCommas(text.replace(LINK_RE, '$1').replace(CITATION_RE, ''))
+  // A visual block's JSON read aloud is noise; its text form is what it says.
+  const readable = replaceVisualBlocksWithText(text);
+  return dropOrphanCommas(readable.replace(LINK_RE, '$1').replace(CITATION_RE, ''))
     .replace(LIST_MARKER_RE, '')
     .replace(DECORATION_RE, '')
     .replace(/[ \t]{2,}/g, ' ')

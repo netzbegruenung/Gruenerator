@@ -12,6 +12,7 @@ import {
   batchUpsert,
   batchDelete,
   getCollectionStats,
+  setPayload,
 } from '../../../database/services/QdrantService/operations/batchOperations.js';
 import { BRAND } from '../../../utils/domainUtils.js';
 import { generatePointId } from '../../../utils/validation/index.js';
@@ -89,6 +90,16 @@ interface ExistingArticle {
   content_hash: string;
   goneSince: unknown;
   indexed_at: string;
+  published_at: string | null;
+}
+
+/**
+ * boell.de pages carry no date meta tag or `<time>` — only a German text date
+ * („21. Januar 2026“) — but every article URL has `/de/YYYY/MM/DD/`.
+ */
+export function dateFromBoellUrl(url: string): string | null {
+  const match = /\/(?:de|en)\/(\d{4})\/(\d{2})\/(\d{2})\//.exec(url);
+  return match ? `${match[1]}-${match[2]}-${match[3]}` : null;
 }
 
 /**
@@ -389,7 +400,7 @@ export class BoellStiftungScraper extends BaseScraper {
     // Extract metadata using shared utilities
     const title = extractTitle(html) || '';
     const description = extractMetaDescription(html) || '';
-    const publishedAt = extractDate(html);
+    const publishedAt = dateFromBoellUrl(url) ?? extractDate(html);
 
     // Content extraction selectors (Böll-specific)
     const contentSelectors = [
@@ -579,6 +590,7 @@ export class BoellStiftungScraper extends BaseScraper {
         return {
           content_hash: payload.content_hash as string,
           indexed_at: payload.indexed_at as string,
+          published_at: (payload.published_at as string | null | undefined) ?? null,
           goneSince: payload[GONE_SINCE_FIELD],
         };
       }
@@ -586,6 +598,24 @@ export class BoellStiftungScraper extends BaseScraper {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * An unchanged text writes no points, so a date the extractor learned later
+   * would never reach the stored article — set it on its points directly.
+   */
+  async #backfillPublishedAt(
+    url: string,
+    existing: ExistingArticle,
+    content: ExtractedContent
+  ): Promise<void> {
+    if (existing.published_at || !content.publishedAt) return;
+    await setPayload(
+      this.qdrant.client!,
+      this.config.collectionName,
+      { published_at: content.publishedAt },
+      { must: [{ key: 'source_url', match: { value: url } }] }
+    );
   }
 
   /**
@@ -609,6 +639,7 @@ export class BoellStiftungScraper extends BaseScraper {
 
     const existing = await this.#articleExists(url);
     if (existing && existing.content_hash === contentHash) {
+      await this.#backfillPublishedAt(url, existing, content);
       return { stored: false, reason: 'unchanged' };
     }
 
@@ -798,6 +829,7 @@ export class BoellStiftungScraper extends BaseScraper {
               if (existing.goneSince != null) await gone.clear(url);
               const contentHash = this.generateHash(content.text || '');
               if (existing.content_hash === contentHash) {
+                await this.#backfillPublishedAt(url, existing, content);
                 result.skipped++;
                 result.skipReasons.unchanged.count++;
                 if (result.skipReasons.unchanged.examples.length < 5) {

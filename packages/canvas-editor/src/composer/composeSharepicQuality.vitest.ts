@@ -331,14 +331,17 @@ describe('logo', () => {
     expect(onPhoto!.assetInstances.some((a) => a.id === 'sc-logo')).toBe(false);
   });
 
-  it('DE: a small sunflower bottom-left at the margin, none on a full-bleed photo', () => {
+  it('DE: the word mark bottom-left at the margin, none on a full-bleed photo', () => {
     const [colour, photo] = compose('de-DE', [
       slide({ logo: true }),
       slide({ background: { kind: 'foto', filename: 'x.jpg', textSeite: 'unten' }, logo: true }),
     ]);
     const logo = colour!.assetInstances.find((a) => a.id === 'sc-logo')!;
     const size = logo.scale * 150;
-    expect(size).toBeLessThanOrEqual(120);
+    // ~250–300 px wide, as on Dd_BXcKiDy2/03 and Ddouf0QiL1w/02.
+    expect(size).toBeGreaterThanOrEqual(240);
+    expect(size).toBeLessThanOrEqual(300);
+    expect(logo.assetId).toMatch(/^gruene-de-logo-/);
     expect(logo.x - size / 2).toBe(70);
     expect(logo.y).toBeGreaterThan(1350 - 250);
     expect(photo!.assetInstances.some((a) => a.id === 'sc-logo')).toBe(false);

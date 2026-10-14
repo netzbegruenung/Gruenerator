@@ -1,3 +1,4 @@
+import { type CanvasDocument } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 
 import { uploadBlobToMediaLibrary } from '../services/mediaUploadService';
@@ -9,7 +10,10 @@ import { uploadBlobToMediaLibrary } from '../services/mediaUploadService';
  * mints a `freeform` canvas with the image as its background and returns the
  * new canvas id to open at `/studio/canvas/:id`.
  */
-export async function mintCanvasFromImage(imageDataUrl: string, title: string): Promise<string> {
+export async function mintCanvasFromImage(
+  imageDataUrl: string,
+  title: string
+): Promise<CanvasDocument> {
   const blob = await (await fetch(imageDataUrl)).blob();
   const imageUrl = await uploadBlobToMediaLibrary(blob, { uploadSource: 'canvas-mint' });
   if (!imageUrl) throw new Error('Bild konnte nicht hochgeladen werden.');
@@ -34,5 +38,5 @@ export async function mintCanvasFromImage(imageDataUrl: string, title: string): 
       `Canvas konnte nicht erstellt werden (HTTP ${result.status}).`
     );
   }
-  return result.body.id;
+  return result.body;
 }

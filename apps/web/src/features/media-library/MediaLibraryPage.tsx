@@ -1,338 +1,74 @@
-import { useMediaLibrary, useMediaUpload, useMediaPicker } from '@gruenerator/shared/media-library';
+import { useMediaLibrary, type MediaItem } from '@gruenerator/shared/media-library';
 import { Button } from '@gruenerator/ui';
-import React, { useState, useCallback, useEffect } from 'react';
-import {
-  FaImage,
-  FaVideo,
-  FaMusic,
-  FaUpload,
-  FaTrash,
-  FaEdit,
-  FaCheck,
-  FaTimes,
-  FaSearch,
-  FaExclamationTriangle,
-} from 'react-icons/fa';
+import { useCallback, useEffect, useRef, useState, type DragEvent, type JSX } from 'react';
+import { HiArrowUpTray } from 'react-icons/hi2';
 
-import AudioPlayer from '../../components/common/AudioPlayer';
+import {
+  FilterChip,
+  GalleryCountRow,
+  GalleryEmptyState,
+  GalleryGrid,
+  GallerySkeleton,
+  useGridSize,
+} from '../../components/common/Gallery/parts';
 import LoginRequired from '../../components/common/LoginRequired/LoginRequired';
-import { SharedMediaImage } from '../../components/common/SharedMediaImage';
+import { PageHero, PageShell } from '../../components/common/PageHero';
+import { ShareMediaModal } from '../../components/common/ShareMediaModal';
 import { useOptimizedAuth } from '../../hooks/useAuth';
-import { cn } from '../../utils/cn';
-import { formatAudioDuration } from '../../utils/formatAudioDuration';
 import { useTrashUndoToast } from '../trash/trashUndoToast';
 
-import type { MediaItem, MediaType } from '@gruenerator/shared/media-library';
+import { MediaCard } from './components/MediaCard';
+import { MediaDetailDialog } from './components/MediaDetailDialog';
+import { MediaToolbar, typeLabel } from './components/MediaToolbar';
+import { UploadQueueList } from './components/UploadQueueList';
+import { useMediaDownload } from './hooks/useMediaDownload';
+import { useMediaLibraryFilters } from './hooks/useMediaLibraryFilters';
+import { useUploadQueue } from './hooks/useUploadQueue';
+import { mediaTitle } from './mediaFormat';
 
-const baseURL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
+import { cn } from '@/utils/cn';
 
-// Shimmer placeholder tile, shown on initial load and while paginating.
-const SkeletonTile: React.FC = () => (
-  <div
-    className="aspect-video bg-[length:200%_100%] rounded-lg animate-[skeleton-loading_1.5s_infinite]"
-    style={{
-      backgroundImage:
-        'linear-gradient(90deg, var(--grey-100) 25%, var(--background-color) 50%, var(--grey-100) 75%)',
-    }}
-  />
-);
+const canShare = (item: MediaItem) => item.mediaType !== 'audio';
 
-const formatDate = (dateString: string): string => {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diff = now.getTime() - date.getTime();
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+/** Counts enter/leave pairs, so moving over child tiles does not flicker the drop hint. */
+function useFileDrop(onFiles: (files: FileList) => void) {
+  const depth = useRef(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const hasFiles = (e: DragEvent) => e.dataTransfer.types.includes('Files');
 
-  if (days === 0) return 'Heute';
-  if (days === 1) return 'Gestern';
-  if (days < 7) return `vor ${days} Tagen`;
-  return date.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
-};
-
-const formatFileSize = (bytes: number): string => {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-};
-
-interface MediaCardProps {
-  item: MediaItem;
-  onDelete: (id: string) => Promise<boolean>;
-  onEdit: (item: MediaItem) => void;
-  isSelected?: boolean;
-  onSelect?: (item: MediaItem) => void;
-  selectionMode?: boolean;
-  /** Grid index; the first row loads eagerly (better LCP). */
-  index?: number;
+  return {
+    isDragging,
+    dropProps: {
+      onDragEnter: (e: DragEvent) => {
+        if (!hasFiles(e)) return;
+        e.preventDefault();
+        depth.current += 1;
+        setIsDragging(true);
+      },
+      onDragOver: (e: DragEvent) => {
+        if (hasFiles(e)) e.preventDefault();
+      },
+      onDragLeave: (e: DragEvent) => {
+        if (!hasFiles(e)) return;
+        depth.current = Math.max(0, depth.current - 1);
+        if (depth.current === 0) setIsDragging(false);
+      },
+      onDrop: (e: DragEvent) => {
+        if (!hasFiles(e)) return;
+        e.preventDefault();
+        depth.current = 0;
+        setIsDragging(false);
+        if (e.dataTransfer.files.length) onFiles(e.dataTransfer.files);
+      },
+    },
+  };
 }
 
-// Grid tiles render ~200px wide (150px on mobile); advertise that so the
-// browser picks the right responsive variant.
-const GRID_SIZES = '(max-width: 768px) 150px, 200px';
-
-// The edit modal is capped at 500px wide, so the 800px variant covers it even
-// on a 2x display — never the unresized original.
-const MODAL_SIZES = '(max-width: 540px) 100vw, 500px';
-
-export const MediaCard: React.FC<MediaCardProps> = ({
-  item,
-  onDelete,
-  onEdit,
-  isSelected,
-  onSelect,
-  selectionMode,
-  index = 0,
-}) => {
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  const handleDelete = async () => {
-    setIsDeleting(true);
-    await onDelete(item.id);
-    setIsDeleting(false);
-    setShowDeleteConfirm(false);
-  };
-
-  const cardClassName = cn(
-    'relative bg-background border border-grey-200 dark:border-grey-700 rounded-lg overflow-hidden transition-all duration-200 cursor-pointer group',
-    'hover:border-primary-600 hover:shadow-[0_2px_8px_rgba(0,0,0,0.1)]',
-    isSelected && 'border-primary-600 shadow-[0_0_0_2px_var(--primary-600)]',
-    isDeleting && 'opacity-50 pointer-events-none'
-  );
-
-  // Only rendered in selection mode, so there is no nested-button conflict
-  // with the edit/delete controls below (those only render outside it).
-  const cardBody = (
-    <>
-      <div className="relative aspect-video bg-grey-100 dark:bg-grey-800 overflow-hidden">
-        {item.mediaType === 'video' ? (
-          <video
-            src={`${baseURL}/share/${item.shareToken}/preview`}
-            muted
-            playsInline
-            preload="metadata"
-            className="w-full h-full object-cover"
-          />
-        ) : item.mediaType === 'audio' ? (
-          <div className="w-full h-full flex flex-col items-center justify-center gap-xs text-grey-500">
-            <FaMusic className="text-3xl" aria-hidden="true" />
-            {item.duration ? (
-              <span className="text-xs">{formatAudioDuration(item.duration)}</span>
-            ) : null}
-          </div>
-        ) : (
-          <SharedMediaImage
-            shareToken={item.shareToken}
-            alt={item.title || 'Media'}
-            blurhash={item.imageMetadata?.blurhash}
-            priority={index < 5}
-            sizes={GRID_SIZES}
-            className="w-full h-full object-cover"
-          />
-        )}
-        <span className="absolute top-sm left-sm px-sm py-xs bg-black/60 text-white rounded-lg text-xs">
-          {item.mediaType === 'video' ? (
-            <FaVideo />
-          ) : item.mediaType === 'audio' ? (
-            <FaMusic />
-          ) : (
-            <FaImage />
-          )}
-        </span>
-        {selectionMode && isSelected && (
-          <div className="absolute inset-0 flex items-center justify-center bg-primary-600/50 text-white text-3xl">
-            <FaCheck />
-          </div>
-        )}
-      </div>
-
-      <div className="px-md py-sm">
-        <h3 className="m-0 text-[0.9rem] font-medium text-foreground whitespace-nowrap overflow-hidden text-ellipsis">
-          {item.title || 'Unbenannt'}
-        </h3>
-        <div className="flex gap-sm mt-xs text-[0.8rem] text-grey-400">
-          <span>{formatDate(item.createdAt)}</span>
-          <span>{formatFileSize(item.fileSize)}</span>
-        </div>
-      </div>
-
-      {!selectionMode && (
-        <div className="absolute top-sm right-sm flex gap-xs opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100 transition-opacity duration-200">
-          {showDeleteConfirm ? (
-            <div className="flex gap-xs">
-              <button
-                className="size-8 flex items-center justify-center border-none rounded-lg bg-[var(--success-color)] text-white cursor-pointer transition-all duration-200"
-                onClick={handleDelete}
-                disabled={isDeleting}
-                aria-label="In den Papierkorb verschieben"
-              >
-                <FaCheck aria-hidden="true" />
-              </button>
-              <button
-                className="size-8 flex items-center justify-center border-none rounded-lg bg-[#D32F2F] text-white cursor-pointer transition-all duration-200"
-                onClick={() => setShowDeleteConfirm(false)}
-                aria-label="Abbrechen"
-              >
-                <FaTimes aria-hidden="true" />
-              </button>
-            </div>
-          ) : (
-            <>
-              <button
-                className="size-8 flex items-center justify-center border-none rounded-lg bg-white/90 text-foreground cursor-pointer transition-all duration-200 hover:bg-primary-600 hover:text-white"
-                onClick={() => onEdit(item)}
-                title="Bearbeiten"
-                aria-label="Bearbeiten"
-              >
-                <FaEdit aria-hidden="true" />
-              </button>
-              <button
-                className="size-8 flex items-center justify-center border-none rounded-lg bg-white/90 text-foreground cursor-pointer transition-all duration-200 hover:bg-[#D32F2F] hover:text-white"
-                onClick={() => setShowDeleteConfirm(true)}
-                title="Löschen"
-                aria-label="Löschen"
-              >
-                <FaTrash aria-hidden="true" />
-              </button>
-            </>
-          )}
-        </div>
-      )}
-    </>
-  );
-
-  if (selectionMode) {
-    return (
-      <div
-        className={cardClassName}
-        onClick={() => onSelect?.(item)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            onSelect?.(item);
-          }
-        }}
-        role="button"
-        tabIndex={0}
-        aria-pressed={isSelected}
-        aria-label={item.title || 'Medium auswählen'}
-      >
-        {cardBody}
-      </div>
-    );
-  }
-
-  return <div className={cardClassName}>{cardBody}</div>;
-};
-
-interface EditModalProps {
-  item: MediaItem;
-  onSave: (id: string, updates: { title?: string; altText?: string }) => Promise<boolean>;
-  onClose: () => void;
-}
-
-const EditModal: React.FC<EditModalProps> = ({ item, onSave, onClose }) => {
-  const [title, setTitle] = useState(item.title || '');
-  const [altText, setAltText] = useState(item.altText || '');
-  const [isSaving, setIsSaving] = useState(false);
-
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [onClose]);
-
-  const handleSave = async () => {
-    setIsSaving(true);
-    await onSave(item.id, { title, altText });
-    setIsSaving(false);
-    onClose();
-  };
-
-  return (
-    // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events -- Hintergrund schließt per Klick, Escape schließt bereits (siehe useEffect oben)
-    <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000] p-lg"
-      onClick={onClose}
-    >
-      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events -- fängt nur den Klick ab, damit er nicht den Hintergrund schließt */}
-      <div
-        className="bg-background rounded-xl max-w-[500px] w-full max-h-[90vh] overflow-y-auto p-lg"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="m-0 mb-md text-foreground">Medium bearbeiten</h2>
-        <div className="mb-md rounded-lg overflow-hidden aspect-video bg-grey-100 dark:bg-grey-800">
-          {item.mediaType === 'video' ? (
-            <video
-              src={`${baseURL}/share/${item.shareToken}/preview`}
-              muted
-              playsInline
-              preload="metadata"
-              className="w-full h-full object-contain"
-            />
-          ) : item.mediaType === 'audio' ? (
-            <div className="w-full h-full flex items-center justify-center p-md">
-              <AudioPlayer
-                src={`${baseURL}/share/${item.shareToken}/stream`}
-                title={item.title || 'Audio'}
-              />
-            </div>
-          ) : (
-            <SharedMediaImage
-              shareToken={item.shareToken}
-              alt=""
-              blurhash={item.imageMetadata?.blurhash}
-              priority
-              sizes={MODAL_SIZES}
-              fallbackWidth={800}
-              className="w-full h-full object-contain"
-            />
-          )}
-        </div>
-        <div className="flex flex-col gap-md">
-          <label className="flex flex-col gap-xs">
-            <span className="font-medium text-foreground">Titel</span>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Titel eingeben..."
-              className="px-md py-sm border border-grey-200 dark:border-grey-700 rounded-lg bg-background text-foreground resize-y focus:outline-none focus:border-primary-600"
-            />
-          </label>
-          <label className="flex flex-col gap-xs">
-            <span className="font-medium text-foreground">Alt-Text (Barrierefreiheit)</span>
-            <textarea
-              value={altText}
-              onChange={(e) => setAltText(e.target.value)}
-              placeholder="Beschreibung für Screenreader..."
-              rows={3}
-              className="px-md py-sm border border-grey-200 dark:border-grey-700 rounded-lg bg-background text-foreground resize-y focus:outline-none focus:border-primary-600"
-            />
-          </label>
-        </div>
-        <div className="flex gap-md justify-end mt-lg">
-          <Button variant="brand-outline" size="brand" onClick={onClose}>
-            Abbrechen
-          </Button>
-          <Button variant="brand" size="brand" onClick={handleSave} disabled={isSaving}>
-            {isSaving ? 'Speichern...' : 'Speichern'}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const MediaLibraryPage: React.FC = () => {
-  const { isAuthenticated, loading: authLoading } = useOptimizedAuth();
+function MediaLibrary(): JSX.Element {
+  const filters = useMediaLibraryFilters();
   const {
     items,
     pagination,
-    quota,
-    filters,
     isLoading,
     isFetchingNextPage,
     error,
@@ -340,285 +76,216 @@ const MediaLibraryPage: React.FC = () => {
     loadMore,
     deleteItem,
     updateItem,
-  } = useMediaLibrary({ enabled: isAuthenticated });
+  } = useMediaLibrary({
+    initialFilters: { type: filters.type, sort: filters.sort, search: filters.search || undefined },
+  });
+
+  useEffect(() => {
+    setFilters({ type: filters.type, sort: filters.sort, search: filters.search || undefined });
+  }, [filters.type, filters.sort, filters.search, setFilters]);
+
+  const [gridSize, toggleGridSize] = useGridSize('mediathek-grid-size');
+  const { queue, progress, enqueue, dismiss } = useUploadQueue();
+  const { isDragging, dropProps } = useFileDrop(enqueue);
+  const download = useMediaDownload();
   const showTrashUndo = useTrashUndoToast();
 
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [sharing, setSharing] = useState<MediaItem | null>(null);
+  const openItem = items.find((item) => item.id === openId) ?? null;
+
   // DELETE /api/media/:id takes the row id; the trash addresses a share by its token.
-  const handleDeleteItem = useCallback(
-    async (id: string) => {
-      const item = items.find((candidate) => candidate.id === id);
-      const deleted = await deleteItem(id);
-      if (deleted && item) {
+  const handleDelete = useCallback(
+    async (item: MediaItem) => {
+      if (await deleteItem(item.id)) {
+        setOpenId((current) => (current === item.id ? null : current));
         showTrashUndo({ kind: 'shared_media', id: item.shareToken, title: item.title });
       }
-      return deleted;
     },
-    [items, deleteItem, showTrashUndo]
+    [deleteItem, showTrashUndo]
   );
 
-  const {
-    upload,
-    isUploading,
-    progress,
-    error: uploadError,
-    errorCode: uploadErrorCode,
-    reset: resetUpload,
-  } = useMediaUpload();
+  const handleOpen = useCallback((item: MediaItem) => setOpenId(item.id), []);
+  const handleShare = useCallback((item: MediaItem) => {
+    setOpenId(null);
+    setSharing(item);
+  }, []);
+  const handleDeleteCard = useCallback(
+    (item: MediaItem) => void handleDelete(item),
+    [handleDelete]
+  );
+  const handleDownload = useCallback((item: MediaItem) => void download(item), [download]);
 
-  const [editingItem, setEditingItem] = useState<MediaItem | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isDragging, setIsDragging] = useState(false);
+  const total = pagination.total || items.length;
+  const settled = !isLoading;
 
-  const handleTypeFilter = (type: MediaType | 'all') => {
-    setFilters({ type });
-  };
+  return (
+    <PageShell wide>
+      <div className="relative flex flex-col gap-md" {...dropProps}>
+        <PageHero
+          title="Mediathek"
+          description={
+            <p className="m-0 text-sm leading-relaxed text-pretty text-grey-500 dark:text-grey-400">
+              Deine Bilder, Sharepics, KI-Bilder, Videos und Audios an einem Ort.
+            </p>
+          }
+          toolbar={
+            <MediaToolbar
+              filters={filters}
+              gridSize={gridSize}
+              onToggleGridSize={toggleGridSize}
+              onFiles={enqueue}
+            />
+          }
+        />
 
-  const handleSearch = useCallback(() => {
-    setFilters({ search: searchQuery || undefined });
-  }, [searchQuery, setFilters]);
+        <UploadQueueList queue={queue} progress={progress} onDismiss={dismiss} />
 
-  const handleFileUpload = async (files: FileList | null) => {
-    if (!files) return;
-    for (let i = 0; i < files.length; i++) {
-      await upload(files[i]);
-    }
-  };
+        {settled && !error && (
+          <GalleryCountRow
+            count={`${total} ${total === 1 ? 'Medium' : 'Medien'}`}
+            onReset={filters.isFiltered ? filters.reset : undefined}
+          >
+            {filters.type !== 'all' && (
+              <FilterChip label={typeLabel(filters.type)} onRemove={() => filters.setType('all')} />
+            )}
+            {filters.sort === 'oldest' && (
+              <FilterChip label="Älteste zuerst" onRemove={() => filters.setSort('newest')} />
+            )}
+            {filters.searchInput.trim() && (
+              <FilterChip
+                label={`„${filters.searchInput.trim()}“`}
+                onRemove={() => filters.setSearchInput('')}
+              />
+            )}
+          </GalleryCountRow>
+        )}
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    void handleFileUpload(e.dataTransfer.files);
-  };
+        <h2 className="sr-only">{typeLabel(filters.type)}</h2>
+        {error ? (
+          <p className="text-center text-error">{error}</p>
+        ) : (
+          <>
+            <GalleryGrid size={gridSize}>
+              {!settled && items.length === 0 ? (
+                <GallerySkeleton className="aspect-[4/5]" />
+              ) : (
+                items.map((item, index) => (
+                  <MediaCard
+                    key={item.id}
+                    item={item}
+                    index={index}
+                    onOpen={handleOpen}
+                    onDownload={handleDownload}
+                    onShare={canShare(item) ? handleShare : undefined}
+                    onDelete={handleDeleteCard}
+                  />
+                ))
+              )}
+              {isFetchingNextPage && <GallerySkeleton count={4} className="aspect-[4/5]" />}
+            </GalleryGrid>
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
+            {settled && items.length === 0 && (
+              <GalleryEmptyState
+                {...(filters.isFiltered
+                  ? {
+                      title: 'Keine Medien gefunden',
+                      hint: 'Versuche einen anderen Suchbegriff oder Filter.',
+                      action: (
+                        <Button variant="outline" size="sm" onClick={filters.reset}>
+                          Alle Medien anzeigen
+                        </Button>
+                      ),
+                    }
+                  : {
+                      title: 'Noch keine Medien',
+                      hint: 'Lade Bilder oder Videos hoch oder zieh sie hierher. Sharepics, KI-Bilder und Audios aus dem Studio landen automatisch hier.',
+                    })}
+              />
+            )}
 
-  const handleDragLeave = () => {
-    setIsDragging(false);
-  };
+            {pagination.hasMore && (
+              <Button
+                variant="outline"
+                className="self-center"
+                onClick={() => void loadMore()}
+                disabled={isFetchingNextPage}
+              >
+                {isFetchingNextPage ? 'Lädt …' : 'Mehr laden'}
+              </Button>
+            )}
+          </>
+        )}
 
-  if (authLoading) {
+        {isDragging && (
+          <div
+            aria-hidden
+            className={cn(
+              'pointer-events-none absolute -inset-2 z-10 flex flex-col items-center justify-center gap-sm',
+              'rounded-2xl border-2 border-dashed border-primary-500 bg-primary-500/10 text-lg font-semibold text-primary-600 dark:text-primary-400'
+            )}
+          >
+            <HiArrowUpTray className="size-10" />
+            Dateien hier ablegen
+          </div>
+        )}
+      </div>
+
+      {openItem && (
+        <MediaDetailDialog
+          item={openItem}
+          onClose={() => setOpenId(null)}
+          onSave={updateItem}
+          onDownload={handleDownload}
+          onShare={canShare(openItem) ? handleShare : undefined}
+          onDelete={handleDeleteCard}
+        />
+      )}
+
+      {sharing && (
+        <ShareMediaModal
+          isOpen
+          onClose={() => setSharing(null)}
+          mediaType={sharing.mediaType === 'video' ? 'video' : 'image'}
+          existingShare={{
+            shareToken: sharing.shareToken,
+            mediaType: sharing.mediaType === 'video' ? 'video' : 'image',
+            title: mediaTitle(sharing),
+            status: 'ready',
+            createdAt: sharing.createdAt,
+          }}
+        />
+      )}
+    </PageShell>
+  );
+}
+
+const MediaLibraryPage = (): JSX.Element => {
+  const { isAuthenticated, loading } = useOptimizedAuth();
+
+  if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[200px] text-grey-400">Laden...</div>
+      <PageShell wide>
+        <PageHero title="Mediathek" />
+        <GalleryGrid size="small">
+          <GallerySkeleton className="aspect-[4/5]" />
+        </GalleryGrid>
+      </PageShell>
     );
   }
 
   if (!isAuthenticated) {
     return (
-      <div className="max-w-[1200px] mx-auto p-lg">
+      <PageShell>
         <LoginRequired
           title="Mediathek"
           message="Melde dich an, um auf deine Mediathek zuzugreifen."
         />
-      </div>
+      </PageShell>
     );
   }
 
-  return (
-    <div className="max-w-[1200px] mx-auto p-lg">
-      <header className="flex justify-between items-center mb-lg">
-        <h1 className="m-0 text-foreground">Mediathek</h1>
-        <p
-          className={cn(
-            'text-[0.9rem]',
-            quota.isFull ? 'text-[#D32F2F] font-semibold' : 'text-grey-400'
-          )}
-        >
-          {quota.count} von {quota.limit} Medien
-        </p>
-      </header>
-
-      <div className="flex gap-md mb-lg flex-wrap items-center max-md:flex-col max-md:items-stretch">
-        <div className="flex gap-sm">
-          <button
-            className={cn(
-              'flex items-center gap-xs px-md py-sm border rounded-lg bg-background text-foreground cursor-pointer transition-all duration-200 hover:border-primary-600',
-              filters.type === 'all'
-                ? 'bg-primary-600 text-white border-primary-600'
-                : 'border-grey-200 dark:border-grey-700'
-            )}
-            onClick={() => handleTypeFilter('all')}
-          >
-            Alle
-          </button>
-          <button
-            className={cn(
-              'flex items-center gap-xs px-md py-sm border rounded-lg bg-background text-foreground cursor-pointer transition-all duration-200 hover:border-primary-600',
-              filters.type === 'image'
-                ? 'bg-primary-600 text-white border-primary-600'
-                : 'border-grey-200 dark:border-grey-700'
-            )}
-            onClick={() => handleTypeFilter('image')}
-          >
-            <FaImage /> Bilder
-          </button>
-          <button
-            className={cn(
-              'flex items-center gap-xs px-md py-sm border rounded-lg bg-background text-foreground cursor-pointer transition-all duration-200 hover:border-primary-600',
-              filters.type === 'video'
-                ? 'bg-primary-600 text-white border-primary-600'
-                : 'border-grey-200 dark:border-grey-700'
-            )}
-            onClick={() => handleTypeFilter('video')}
-          >
-            <FaVideo /> Videos
-          </button>
-          <button
-            className={cn(
-              'flex items-center gap-xs px-md py-sm border rounded-lg bg-background text-foreground cursor-pointer transition-all duration-200 hover:border-primary-600',
-              filters.type === 'audio'
-                ? 'bg-primary-600 text-white border-primary-600'
-                : 'border-grey-200 dark:border-grey-700'
-            )}
-            onClick={() => handleTypeFilter('audio')}
-          >
-            <FaMusic /> Audio
-          </button>
-        </div>
-
-        <div className="flex flex-1 max-w-[300px] max-md:max-w-none">
-          <input
-            type="text"
-            placeholder="Suchen..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            className="flex-1 px-md py-sm border border-grey-200 dark:border-grey-700 border-r-0 rounded-l-lg bg-background text-foreground"
-          />
-          <button
-            type="button"
-            onClick={handleSearch}
-            aria-label="Mediathek durchsuchen"
-            className="px-md py-sm border border-grey-200 dark:border-grey-700 rounded-r-lg bg-background text-foreground cursor-pointer hover:bg-primary-600 hover:text-white hover:border-primary-600"
-          >
-            <FaSearch aria-hidden="true" />
-          </button>
-        </div>
-
-        <Button variant="brand" size="brand" asChild>
-          <label className="flex items-center gap-sm cursor-pointer ml-auto max-md:ml-0">
-            <FaUpload /> Hochladen
-            <input
-              type="file"
-              accept="image/*,video/*"
-              multiple
-              onChange={(e) => handleFileUpload(e.target.files)}
-              hidden
-            />
-          </label>
-        </Button>
-      </div>
-
-      {(quota.isFull || quota.isNearlyFull) && (
-        <div
-          role="status"
-          className={cn(
-            'flex items-start gap-sm p-md rounded-lg mb-md',
-            quota.isFull
-              ? 'bg-[rgba(220,38,38,0.1)] text-[#D32F2F]'
-              : 'bg-grey-100 dark:bg-grey-800 text-foreground'
-          )}
-        >
-          <FaExclamationTriangle className="mt-[0.2em] shrink-0" aria-hidden="true" />
-          <span>
-            {quota.isFull ? (
-              <>
-                <strong>Deine Mediathek ist voll</strong> ({quota.count} von {quota.limit} Medien).
-                Neue Uploads werden abgelehnt, bis du Medien löschst. Bereits erstellte Sharepics
-                und KI-Bilder bleiben erhalten — es wird nichts automatisch gelöscht.
-              </>
-            ) : (
-              <>
-                Deine Mediathek ist fast voll ({quota.count} von {quota.limit} Medien). Lösche nicht
-                mehr benötigte Medien, damit weitere Uploads möglich bleiben.
-              </>
-            )}
-          </span>
-        </div>
-      )}
-
-      {isUploading && (
-        <div className="relative h-8 bg-grey-100 dark:bg-grey-800 rounded-lg mb-md overflow-hidden">
-          <div
-            className="absolute top-0 left-0 h-full bg-primary-600 transition-[width] duration-300"
-            style={{ width: `${progress}%` }}
-          />
-          <span className="relative flex items-center justify-center h-full text-foreground text-[0.9rem] z-[1]">
-            Hochladen... {progress}%
-          </span>
-        </div>
-      )}
-
-      {/* A quota refusal is already spelled out by the banner above — repeating
-          the same sentence here just reads as a broken duplicate. */}
-      {(error || (uploadError && uploadErrorCode !== 'media_quota_exceeded')) && (
-        <div className="p-md bg-[rgba(220,38,38,0.1)] text-[#D32F2F] rounded-lg mb-md">
-          {error || uploadError}
-        </div>
-      )}
-
-      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- Drag&Drop-Zusatz, die "Hochladen"-Datei-Eingabe oben bleibt die tastaturbediente Alternative */}
-      <div
-        className={cn(
-          'grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-md relative min-h-[200px] max-md:grid-cols-[repeat(auto-fill,minmax(150px,1fr))]',
-          isDragging &&
-            'bg-grey-100 dark:bg-grey-800 border-2 border-dashed border-primary-600 rounded-lg'
-        )}
-        onDrop={handleDrop}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-      >
-        {isLoading && items.length === 0 ? (
-          Array.from({ length: 8 }).map((_, i) => <SkeletonTile key={i} />)
-        ) : items.length === 0 ? (
-          <div className="col-span-full flex flex-col items-center justify-center p-2xl text-grey-400 text-center">
-            <FaImage className="text-5xl mb-md opacity-50" />
-            <h3 className="m-0 mb-sm text-foreground">Noch keine Medien</h3>
-            <p>Lade Bilder oder Videos hoch oder erstelle sie mit dem Image Studio.</p>
-          </div>
-        ) : (
-          <>
-            {items.map((item, i) => (
-              <MediaCard
-                key={item.id}
-                item={item}
-                index={i}
-                onDelete={handleDeleteItem}
-                onEdit={setEditingItem}
-              />
-            ))}
-            {isFetchingNextPage &&
-              Array.from({ length: 4 }).map((_, i) => <SkeletonTile key={`next-${i}`} />)}
-          </>
-        )}
-
-        {isDragging && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-md bg-primary-600/10 text-primary-600 text-xl z-10">
-            <FaUpload className="text-5xl" />
-            <span>Dateien hier ablegen</span>
-          </div>
-        )}
-      </div>
-
-      {pagination.hasMore && (
-        <Button
-          variant="brand-outline"
-          size="brand"
-          className="block w-full max-w-[300px] mx-auto mt-lg"
-          onClick={loadMore}
-          disabled={isFetchingNextPage}
-        >
-          {isFetchingNextPage ? 'Laden...' : 'Mehr laden'}
-        </Button>
-      )}
-
-      {editingItem && (
-        <EditModal item={editingItem} onSave={updateItem} onClose={() => setEditingItem(null)} />
-      )}
-    </div>
-  );
+  return <MediaLibrary />;
 };
 
 export default MediaLibraryPage;

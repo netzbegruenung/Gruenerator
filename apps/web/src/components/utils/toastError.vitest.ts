@@ -183,3 +183,28 @@ describe('toastApiError — axios timeouts', () => {
     );
   });
 });
+
+describe('toastApiError — vector store unavailable', () => {
+  beforeEach(() => {
+    toastErrorMock.mockClear();
+  });
+
+  it('shows the specific Wissensdatenbank toast instead of the generic 503 one', () => {
+    toastApiError(new ApiError(503, 'Failed to fetch Q&A collections', 'vector_store_unavailable'));
+
+    expect(toastErrorMock).toHaveBeenCalledTimes(1);
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      'Wissensdatenbank nicht erreichbar',
+      expect.objectContaining({ id: 'api-error-vector-store-unavailable' })
+    );
+  });
+
+  it('keeps the generic 503 toast for other 503s', () => {
+    toastApiError(new ApiError(503, 'down'));
+
+    expect(toastErrorMock).not.toHaveBeenCalledWith(
+      'Wissensdatenbank nicht erreichbar',
+      expect.anything()
+    );
+  });
+});

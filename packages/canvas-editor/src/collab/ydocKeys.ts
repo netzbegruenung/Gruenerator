@@ -21,6 +21,12 @@ export const YDOC_KEYS = {
   /** Set in `meta` after root formState was folded into the single page. */
   formStateFolded: 'formStateFolded',
 
+  /**
+   * Top-level Y.Map<clientID, counter> each deck replacement bumps under its
+   * own client's key, so its page-level undo always reverts something.
+   */
+  deckReplaceMark: 'deckReplaceMark',
+
   /** Legacy multi-page container (Y.Array) — migrated into pagesById on open. */
   pages: 'pages',
   /** Legacy root form-state bucket — folded into pages[0].state on open. */

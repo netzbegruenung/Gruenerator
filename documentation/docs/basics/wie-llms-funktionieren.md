@@ -1,4 +1,5 @@
 ---
+laender: [de, at]
 sidebar_position: 7
 description: 'Neuronale Netze, Training und Tokens — verständlich erklärt, ohne Mathematik und ohne Vorwissen.'
 ---

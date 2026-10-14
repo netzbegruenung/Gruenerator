@@ -9,6 +9,10 @@ import {
   stripFabricatedArtifactDelivery,
   stripFabricatedSystemClaims,
   stripPhantomMemoryClaim,
+  stripPhantomArtifactEdit,
+  stripPhantomSharepicEdit,
+  PHANTOM_ARTIFACT_EDIT_FALLBACK,
+  PHANTOM_SHAREPIC_EDIT_FALLBACK,
   stripToolControlTokens,
   containsBrokenJsonPayload,
   createControlTokenFilter,
@@ -499,5 +503,128 @@ describe('stripPhantomMemoryClaim (#3914)', () => {
     expect(
       stripPhantomMemoryClaim('Ich habe mir das notiert.', { memoryRan: false, stepCount: 0 }).text
     ).toBe('Danke für die Information.');
+  });
+});
+
+/**
+ * Live 11.10.2026: sechs von sechs Aufträgen, die keine Bearbeitungstür nahm,
+ * antworteten „Ich habe dir das Sharepic überarbeitet" — wörtlich die Floskel
+ * echter Revisionen aus dem Verlauf, ohne Karte. Die Prompt-Regel allein hielt
+ * mistral-medium nicht davon ab.
+ */
+describe('stripPhantomSharepicEdit', () => {
+  it('ersetzt die kopierte Revisions-Floskel ohne Sharepic-Werkzeug', () => {
+    const r = stripPhantomSharepicEdit(
+      'Ich habe dir das Sharepic überarbeitet. Sag mir, wenn noch etwas anders sein soll.',
+      { sharepicToolRan: false }
+    );
+    expect(r.text).toBe(PHANTOM_SHAREPIC_EDIT_FALLBACK);
+    // Die angehängte Floskel fällt mit der Behauptung.
+    expect(r.removed).toHaveLength(2);
+  });
+
+  it('fängt Varianten mit Feld und Karussell', () => {
+    for (const claim of [
+      'Ich habe das Sharepic überarbeitet und den Text auf der letzten Folie angepasst.',
+      'Ich habe das Karussell angepasst.',
+      'Ich habe die Dachzeile im Sharepic geändert.',
+    ]) {
+      expect(stripPhantomSharepicEdit(claim, { sharepicToolRan: false }).removed).toHaveLength(1);
+    }
+  });
+
+  it('behält ehrliche Sätze und den Rest der Antwort', () => {
+    const text =
+      'Die Farbe ist grasgrün. Ich habe das Sharepic angepasst. Passt das zum CD? Ja, weitgehend.';
+    const r = stripPhantomSharepicEdit(text, { sharepicToolRan: false });
+    expect(r.text).toBe('Die Farbe ist grasgrün. Passt das zum CD? Ja, weitgehend.');
+  });
+
+  it('lässt die Antwort stehen, wenn ein Sharepic-Werkzeug lief', () => {
+    const text = 'Ich habe dir das Sharepic überarbeitet.';
+    expect(stripPhantomSharepicEdit(text, { sharepicToolRan: true }).text).toBe(text);
+  });
+
+  it('greift nicht bei Verneinung oder fremden Artefakten', () => {
+    for (const text of [
+      'Das habe ich nicht umgesetzt. Nenne die Änderung direkt.',
+      'Ich habe den Text überarbeitet.',
+      'Ich habe den Post angepasst.',
+    ]) {
+      expect(stripPhantomSharepicEdit(text, { sharepicToolRan: false }).text).toBe(text);
+    }
+  });
+});
+
+describe('stripPhantomArtifactEdit', () => {
+  const kinds = (...k: string[]) => new Set(k) as Set<never>;
+  const all = kinds('sharepic', 'sheet', 'presentation', 'board', 'document');
+
+  it('drops „verschoben" after a board write that did not happen (live 11.10.2026)', () => {
+    const r = stripPhantomArtifactEdit(
+      'Ich habe die Karte „Plakate bestellen" auf Erledigt verschoben. Viel Erfolg!',
+      { edited: kinds(), guarded: all }
+    );
+    expect(r.text).toBe('Viel Erfolg!');
+    expect(r.removed).toHaveLength(1);
+  });
+
+  it('drops „sortiert" without any sheet tool', () => {
+    const r = stripPhantomArtifactEdit('Ich habe die Tabelle nach Einwohnerzahl sortiert.', {
+      edited: kinds(),
+      guarded: all,
+    });
+    expect(r.text).toBe(PHANTOM_ARTIFACT_EDIT_FALLBACK);
+  });
+
+  it('keeps the claim when the matching tool wrote', () => {
+    const text = 'Ich habe Folie 3 gekürzt.';
+    expect(
+      stripPhantomArtifactEdit(text, { edited: kinds('presentation'), guarded: all }).removed
+    ).toEqual([]);
+  });
+
+  it('keeps „Tabelle" talk when the thread has no sheet or the answer holds one', () => {
+    const claim = 'Ich habe die Tabelle um eine Spalte Kosten ergänzt.';
+    expect(
+      stripPhantomArtifactEdit(claim, { edited: kinds(), guarded: kinds('sharepic') }).removed
+    ).toEqual([]);
+    const inline = `${claim}\n\n| Stadt | Kosten |\n|---|---|\n| Kassel | 3 |`;
+    expect(stripPhantomArtifactEdit(inline, { edited: kinds(), guarded: all }).removed).toEqual([]);
+  });
+
+  it('catches the passive claim after a planner that did nothing (live 11.10.2026)', () => {
+    const r = stripPhantomArtifactEdit(
+      'Folie 4 wurde aus der Präsentation „Verkehrswende in Kassel" gelöscht.',
+      { edited: kinds(), guarded: all }
+    );
+    expect(r.removed).toHaveLength(1);
+    expect(r.text).toBe(PHANTOM_ARTIFACT_EDIT_FALLBACK);
+  });
+
+  it('keeps a description of the state, not a claim', () => {
+    const text = 'Die Tabelle ist nach Einwohnerzahl sortiert.';
+    expect(stripPhantomArtifactEdit(text, { edited: kinds(), guarded: all }).removed).toEqual([]);
+  });
+
+  it('keeps a passive claim the edit tool backs', () => {
+    const text = 'Die Änderung an der Tabelle ist eingetragen.';
+    expect(
+      stripPhantomArtifactEdit(text, { edited: kinds('sheet'), guarded: all }).removed
+    ).toEqual([]);
+  });
+
+  it('a section claim stands when the explainable edit backs it', () => {
+    const text = 'Ich habe den Abschnitt gekürzt.';
+    const guarded = kinds('document', 'explainable');
+    expect(
+      stripPhantomArtifactEdit(text, { edited: kinds('explainable'), guarded }).removed
+    ).toEqual([]);
+    expect(stripPhantomArtifactEdit(text, { edited: kinds(), guarded }).removed).toHaveLength(1);
+  });
+
+  it('leaves plain text edits alone', () => {
+    const text = 'Ich habe den Text gekürzt und die Einleitung angepasst.';
+    expect(stripPhantomArtifactEdit(text, { edited: kinds(), guarded: all }).removed).toEqual([]);
   });
 });

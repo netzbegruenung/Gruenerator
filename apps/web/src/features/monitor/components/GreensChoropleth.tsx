@@ -67,9 +67,14 @@ const EU_NAMES = new Set([
 
 // Label anchors (lon/lat) for regions whose polygon centroid lands somewhere
 // unusable — Brandenburg's centroid falls exactly on the Berlin enclave, so its
-// number would render on top of Berlin.
+// number would render on top of Berlin. Norway's is pulled off the map by
+// Svalbard, the UK's onto the Irish Sea by Northern Ireland, and Croatia's
+// crescent puts it in Bosnia.
 const LABEL_ANCHORS: Record<string, [number, number]> = {
   Brandenburg: [13.75, 52.05],
+  Norway: [8.8, 61.2],
+  'United Kingdom': [-1.6, 52.6],
+  Croatia: [16.2, 45.6],
 };
 
 const fmt = (v: number | null | undefined): string =>
@@ -195,10 +200,16 @@ function MapChart({ geo, fitGeo, width, height, values, labelMin, domain }: MapC
               textAnchor="middle"
               dominantBaseline="middle"
               pointerEvents="none"
+              // The halo keeps numbers readable where they spill past a narrow
+              // region (Denmark, Croatia, Luxembourg) onto a lighter neighbour.
               style={{
                 fontSize: 12,
                 fontWeight: 700,
                 fill: (s.v ?? 0) >= mid ? '#fff' : '#22382e',
+                stroke: (s.v ?? 0) >= mid ? '#2c5741' : '#fff',
+                strokeWidth: 3,
+                strokeLinejoin: 'round',
+                paintOrder: 'stroke',
               }}
             >
               {fmt(s.v)}
@@ -304,7 +315,9 @@ export function EuropaMap({ values = {}, width = 380, height = 470 }: GreensMapP
         width={width}
         height={height}
         values={values}
-        labelMin={280}
+        // Only countries with data get a number, and none of them collide, so
+        // even Luxembourg (38) carries its own.
+        labelMin={30}
         domain={[2, 15]}
       />
     </div>

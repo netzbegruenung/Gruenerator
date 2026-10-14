@@ -72,12 +72,12 @@ const SHEET = { kind: 'sheet' as const, ref: 'sheet-1', label: 'Budget 2026' };
 
 describe('Tier 2.7 — Dokument-Folgeauftrag braucht einen Adressaten', () => {
   it.each(['kürz den zweiten Absatz', 'ergänz einen Abschnitt zu Kosten'])(
-    'direkt nach dem Dokument: „%s" → modify_doc',
+    'direkt nach dem Dokument: „%s" → gezielt im Loop',
     async (text) => {
       const result = await classifierNode(
         buildState({ userMessage: text, lastToolContext: DOC, lastTurnEditables: ['document'] })
       );
-      expect(result.intent).toBe('modify_doc');
+      expect(result.intent).toBe('agentic');
       expect(result.docMentionIds).toEqual(['doc-1']);
     }
   );
@@ -87,11 +87,11 @@ describe('Tier 2.7 — Dokument-Folgeauftrag braucht einen Adressaten', () => {
     'verbesser den Text im Dokument',
     'kürz den Antrag Radverkehr',
     'Kürze in dem Antrag von vorhin die Begründung auf die Hälfte',
-  ])('Turns später, der Auftrag nennt es: „%s" → modify_doc', async (text) => {
+  ])('Turns später, der Auftrag nennt es: „%s" → gezielt im Loop', async (text) => {
     const result = await classifierNode(
       buildState({ userMessage: text, lastToolContext: DOC, lastTurnEditables: [] })
     );
-    expect(result.intent).toBe('modify_doc');
+    expect(result.intent).toBe('agentic');
   });
 
   it('zehn Turns später ist „Verbesser meine Formulierung: …" keine Dokumentbearbeitung', async () => {
@@ -117,6 +117,28 @@ describe('Tier 2.7 — Tabellen-Folgeauftrag braucht einen Adressaten', () => {
     );
     expect(result.intent).toBe('edit_sheet');
     expect(result.sheetEditId).toBe('sheet-1');
+  });
+
+  it('direkt nach der Tabellenbearbeitung: „Sortier das mal" → edit_sheet', async () => {
+    const result = await classifierNode(
+      buildState({
+        userMessage: 'Sortier das mal',
+        lastToolContext: SHEET,
+        lastTurnEditables: ['sheet'],
+      })
+    );
+    expect(result.intent).toBe('edit_sheet');
+  });
+
+  it('„Wie ist die Tabelle sortiert?" ist eine Frage, keine Bearbeitung', async () => {
+    const result = await classifierNode(
+      buildState({
+        userMessage: 'Wie ist die Tabelle sortiert?',
+        lastToolContext: SHEET,
+        lastTurnEditables: ['sheet'],
+      })
+    );
+    expect(result.intent).not.toBe('edit_sheet');
   });
 
   it('Turns später, der Auftrag nennt sie: „füg in der Tabelle eine Spalte hinzu" → edit_sheet', async () => {
@@ -205,13 +227,25 @@ describe('Tier 2.7 — „direkt davor" gilt nur für genau dieses Dokument', ()
 
   it('das Dokument von direkt davor bleibt adressiert', async () => {
     const result = await classifyWithPick('Kürze die Begründung auf die Hälfte', '1');
-    expect(result.intent).toBe('modify_doc');
+    expect(result.intent).toBe('agentic');
     expect(result.docMentionIds).toEqual(['doc-new']);
   });
 
   it('nennt der Auftrag das Dokument, zählt auch das ältere', async () => {
     const result = await classifyWithPick('Kürze im Dokument die Begründung auf die Hälfte', '2');
-    expect(result.intent).toBe('modify_doc');
+    expect(result.intent).toBe('agentic');
     expect(result.docMentionIds).toEqual(['doc-old']);
   });
+});
+
+describe('Tier 2.7 — Neuschreiben bleibt modify_doc', () => {
+  it.each(['Schreib das Dokument komplett neu', 'Formulier den Antrag grundlegend um'])(
+    '„%s" → modify_doc',
+    async (text) => {
+      const result = await classifierNode(
+        buildState({ userMessage: text, lastToolContext: DOC, lastTurnEditables: ['document'] })
+      );
+      expect(result.intent).toBe('modify_doc');
+    }
+  );
 });

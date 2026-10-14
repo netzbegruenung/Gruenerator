@@ -31,7 +31,7 @@ export function ImagePicker({
   const pickImage = useCallback(async () => {
     setLoading(true);
 
-    try {
+    await (async () => {
       // No permission request: launchImageLibraryAsync uses the Android Photo
       // Picker, which needs no runtime permission (Google Play media policy).
       const result = await ExpoImagePicker.launchImageLibraryAsync({
@@ -59,17 +59,15 @@ export function ImagePicker({
         const fileName = asset.fileName || `image_${Date.now()}.jpg`;
         onImageSelected(asset.base64, fileName);
       }
-    } catch (err) {
-      onError('Fehler beim Laden des Bildes');
-    } finally {
-      setLoading(false);
-    }
+    })()
+      .catch(() => onError('Fehler beim Laden des Bildes'))
+      .finally(() => setLoading(false));
   }, [onImageSelected, onError, maxSizeMB]);
 
   const takePhoto = useCallback(async () => {
     setLoading(true);
 
-    try {
+    await (async () => {
       const permissionResult = await ExpoImagePicker.requestCameraPermissionsAsync();
       if (!permissionResult.granted) {
         onError('Kamerazugriff wurde verweigert');
@@ -95,11 +93,9 @@ export function ImagePicker({
         const fileName = `photo_${Date.now()}.jpg`;
         onImageSelected(asset.base64, fileName);
       }
-    } catch (err) {
-      onError('Fehler beim Aufnehmen des Fotos');
-    } finally {
-      setLoading(false);
-    }
+    })()
+      .catch(() => onError('Fehler beim Aufnehmen des Fotos'))
+      .finally(() => setLoading(false));
   }, [onImageSelected, onError]);
 
   if (loading) {
@@ -123,6 +119,7 @@ export function ImagePicker({
           <Pressable
             style={styles.clearButton}
             onPress={onClear}
+            hitSlop={4}
             accessibilityLabel="Bild entfernen"
             accessibilityRole="button"
           >

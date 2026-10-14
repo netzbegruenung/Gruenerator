@@ -29,25 +29,18 @@ describe('uploadMedia', () => {
     expect(result.data?.shareToken).toBe('t');
   });
 
-  it('unwraps a 409 quota refusal into the message the server sent', async () => {
-    const quota = { count: 100, limit: 100, isFull: true, isNearlyFull: true };
+  it('unwraps a refusal into the message and code the server sent', async () => {
     post.mockRejectedValue({
       response: {
-        status: 409,
-        data: {
-          success: false,
-          error: 'Deine Mediathek ist voll (100 von 100 Medien).',
-          code: 'media_quota_exceeded',
-          quota,
-        },
+        status: 400,
+        data: { success: false, error: 'Ungültiger Dateityp.', code: 'invalid_type' },
       },
     });
 
     const result = await uploadMedia(file);
     expect(result.success).toBe(false);
-    expect(result.error).toBe('Deine Mediathek ist voll (100 von 100 Medien).');
-    expect(result.code).toBe('media_quota_exceeded');
-    expect(result.quota).toEqual(quota);
+    expect(result.error).toBe('Ungültiger Dateityp.');
+    expect(result.code).toBe('invalid_type');
   });
 
   it('unwraps a plain error body too', async () => {

@@ -17,6 +17,7 @@ import {
   getCollectionFilterableFields,
   getCollectionDefaultFilter,
   getFacetCountFilter,
+  offersChoice,
 } from '../../config/systemCollectionsConfig.js';
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -129,6 +130,8 @@ export interface FilterEntry {
   valueLabels?: Record<string, string>;
   min?: string;
   max?: string;
+  /** Not offered directly: behind „Weitere Filter“. */
+  collapsed?: boolean;
 }
 
 export interface MergedFilters {
@@ -208,6 +211,7 @@ export async function computeMergedFilters(requestedIds: string[]): Promise<Merg
             type: field.type as 'keyword' | 'date_range',
             values,
             valueLabels: field.valueLabels,
+            collapsed: field.collapsed === true,
           };
         }
       } catch (fieldError) {
@@ -247,6 +251,8 @@ export async function computeMergedFilters(requestedIds: string[]): Promise<Merg
     } else {
       const values = 'values' in result ? (result.values ?? []) : [];
       const valueLabels = 'valueLabels' in result ? result.valueLabels : undefined;
+      // Shown directly as soon as one collection offers the field directly.
+      const collapsed = 'collapsed' in result && result.collapsed;
       if (mergedFilters[result.field]) {
         const existing = mergedFilters[result.field];
         const countMap = new Map<string, number>();
@@ -260,15 +266,21 @@ export async function computeMergedFilters(requestedIds: string[]): Promise<Merg
           .map(([value, count]) => ({ value, count }))
           .sort((a, b) => b.count - a.count);
         if (valueLabels) existing.valueLabels = { ...existing.valueLabels, ...valueLabels };
+        if (!collapsed) delete existing.collapsed;
       } else {
         mergedFilters[result.field] = {
           label: result.label,
           type: 'keyword',
           values,
           ...(valueLabels && { valueLabels }),
+          ...(collapsed && { collapsed: true }),
         };
       }
     }
+  }
+
+  for (const [field, entry] of Object.entries(mergedFilters)) {
+    if (entry.type === 'keyword' && !offersChoice(entry.values)) delete mergedFilters[field];
   }
 
   return { filters: mergedFilters };

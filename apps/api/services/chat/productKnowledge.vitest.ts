@@ -98,6 +98,23 @@ describe('buildCompactProductIdentity', () => {
     expect(buildCompactProductIdentity('de-DE')).toContain('von Bündnis 90/Die Grünen');
     expect(buildCompactProductIdentity('de-AT')).toContain('Die Grüne Alternative');
   });
+
+  it('forbids denying that the product makes graphics and other artifacts (#4367)', () => {
+    const identity = buildCompactProductIdentity('de-DE');
+    expect(identity).toContain('Sharepics');
+    expect(identity).toContain('nur ein Textmodell');
+  });
+
+  it('names the real support channels and forbids inventing others', () => {
+    for (const locale of ['de-DE', 'de-AT'] as const) {
+      const identity = buildCompactProductIdentity(locale);
+      expect(identity).toContain('Feedback-Button');
+      expect(identity).toContain('gruenerator.eu/support');
+      expect(identity).toContain('erfinde keine');
+      // Addresses that do not exist must never be offered as a contact.
+      expect(identity).not.toMatch(/@gruenerator\.eu/);
+    }
+  });
 });
 
 describe('buildProductKnowledgeBlock', () => {

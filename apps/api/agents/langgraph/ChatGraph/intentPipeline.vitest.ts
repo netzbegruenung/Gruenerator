@@ -315,6 +315,7 @@ describe('every create intent declares a failure policy', () => {
     create_sheet: 'typed',
     create_presentation: 'typed',
     create_pdf: 'typed',
+    create_explainable: 'typed',
     // Retired (09/2026): nothing produces the verdict any more — a recurring
     // order is `agentic` with the `recurring_tasks` tool pinned. The row stays
     // because the enum value stays; a stale verdict from an old thread has no

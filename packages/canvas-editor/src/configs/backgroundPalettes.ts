@@ -16,15 +16,15 @@
  * So the rule for this file is: **only colours that carry white text.** Every
  * entry below is measured against #FFFFFF (WCAG 2.x relative luminance):
  *
- *   Tanne      #005538   11.6:1   passes AA for any size
+ *   Tanne      #005538    8.9:1   passes AA for any size
  *   Klee       #008939    4.5:1   passes AA for normal text
- *   Dunkelgrün #257639    6.6:1   passes AA for normal text
+ *   Dunkelgrün #257639    5.6:1   passes AA for normal text
  *   Schwarz    #000000     21:1   passes AAA
  *
  * Deliberately absent: AT's Hellgrün #56af31, which the AT colour templates DO
  * offer. White on it measures 2.8:1 — under the 3:1 floor even for large text.
- * The colour templates inherit that pairing from `BRAND_THEMES` and the AT CI;
- * a surface being added now should not reproduce it.
+ * The colour templates draw it as a dark glow instead (`surfaceGlow` in
+ * `brand/theme.ts`); a surface being added here should not offer it flat.
  *
  * This module is the source for BOTH the editor configs and the server-safe
  * descriptors in `@gruenerator/contracts` (which cannot import from here — the

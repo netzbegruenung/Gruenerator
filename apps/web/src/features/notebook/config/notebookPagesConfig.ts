@@ -712,7 +712,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     collectionType: 'single',
     collections: [{ id: 'landtag-nrw-system', name: 'Landtag NRW' }],
     startPageTitle: 'Was möchtest du über die Arbeit des Landtags NRW wissen?',
-    placeholder: 'Stell deine Frage zu Anträgen, Debatten und Ausschüssen...',
+    placeholder: 'Stell deine Frage zum Landtag NRW...',
     headerIcon: HiDocumentText,
     exampleQuestions: [
       { icon: '🏫', tag: 'Schule', text: 'Welche Anträge gab es zuletzt zur Schulpolitik?' },
@@ -741,7 +741,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     collectionType: 'single',
     collections: [{ id: 'landtag-berlin-system', name: 'Abgeordnetenhaus Berlin' }],
     startPageTitle: 'Was möchtest du über die Arbeit des Abgeordnetenhauses wissen?',
-    placeholder: 'Stell deine Frage zu Anfragen, Debatten und Ausschüssen...',
+    placeholder: 'Stell deine Frage zum Abgeordnetenhaus...',
     headerIcon: HiDocumentText,
     exampleQuestions: [
       {
@@ -766,6 +766,39 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     systemUserId: SYSTEM_USER_ID,
   },
 
+  landtagBayern: {
+    id: 'landtagBayern',
+    slug: 'landtag-bayern',
+    title: 'Frag den Bayerischen Landtag',
+    authTitle: 'Frag den Bayerischen Landtag',
+    collectionType: 'single',
+    collections: [{ id: 'landtag-bayern-system', name: 'Bayerischer Landtag' }],
+    startPageTitle: 'Was möchtest du über die Arbeit des Bayerischen Landtags wissen?',
+    placeholder: 'Stell deine Frage zum Landtag Bayern...',
+    headerIcon: HiDocumentText,
+    exampleQuestions: [
+      {
+        icon: '🌲',
+        tag: 'Umwelt',
+        text: 'Was hat die Staatsregierung zuletzt auf Anfragen zum Flächenverbrauch geantwortet?',
+      },
+      {
+        icon: '🚆',
+        tag: 'Verkehr',
+        text: 'Wie wurde im Plenum über den Ausbau des ÖPNV debattiert?',
+      },
+      {
+        icon: '📜',
+        tag: 'Anträge',
+        text: 'Welche Anträge haben die Grünen zur Energiewende gestellt?',
+      },
+    ],
+    externalUrl: 'https://www.bayern.landtag.de',
+    persistMessages: true,
+    useSystemUserId: true,
+    systemUserId: SYSTEM_USER_ID,
+  },
+
   abgeordnetenwatch: {
     id: 'abgeordnetenwatch',
     slug: 'abgeordnetenwatch',
@@ -774,7 +807,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     collectionType: 'single',
     collections: [{ id: 'abgeordnetenwatch-system', name: 'Abgeordnetenwatch' }],
     startPageTitle: 'Was möchtest du über Abstimmungen und Nebentätigkeiten wissen?',
-    placeholder: 'Stell deine Frage zu Abgeordneten und Abstimmungen...',
+    placeholder: 'Stell deine Frage zu Abgeordneten...',
     headerIcon: HiDocumentText,
     exampleQuestions: [
       {
@@ -807,7 +840,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     collectionType: 'single',
     collections: [{ id: 'bundestag-dip-system', name: 'Bundestag: Reden & Drucksachen' }],
     startPageTitle: 'Was möchtest du über Reden und Drucksachen im Bundestag wissen?',
-    placeholder: 'Stell deine Frage zu Reden, Anträgen oder Gesetzentwürfen...',
+    placeholder: 'Stell deine Frage zum Bundestag...',
     headerIcon: HiDocumentText,
     exampleQuestions: [
       {
@@ -827,6 +860,34 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
       },
     ],
     externalUrl: 'https://dip.bundestag.de',
+    persistMessages: true,
+    useSystemUserId: true,
+    systemUserId: SYSTEM_USER_ID,
+  },
+
+  bundesrat: {
+    id: 'bundesrat',
+    slug: 'bundesrat',
+    title: 'Frag den Bundesrat',
+    authTitle: 'Frag den Bundesrat',
+    collectionType: 'single',
+    collections: [{ id: 'bundesrat-system', name: 'Bundesrat: Drucksachen' }],
+    startPageTitle: 'Was möchtest du über Drucksachen im Bundesrat wissen?',
+    placeholder: 'Stell deine Frage zum Bundesrat...',
+    headerIcon: HiDocumentText,
+    exampleQuestions: [
+      {
+        icon: '📄',
+        tag: 'Gesetzentwürfe',
+        text: 'Welche Gesetzentwürfe hat der Bundesrat zuletzt zum Energierecht eingebracht?',
+      },
+      {
+        icon: '🗺️',
+        tag: 'Länder',
+        text: 'Welche Anträge haben Länder zum GKV-Beitragssatzstabilisierungsgesetz gestellt?',
+      },
+    ],
+    externalUrl: 'https://www.bundesrat.de',
     persistMessages: true,
     useSystemUserId: true,
     systemUserId: SYSTEM_USER_ID,

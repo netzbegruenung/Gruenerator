@@ -30,7 +30,9 @@ export type ForceReason =
   | 'demoted_retrieval'
   | 'contradicted'
   | 'followup'
-  | 'named_intent';
+  | 'named_intent'
+  | 'sharepic_order'
+  | 'artifact_edit_order';
 
 /**
  * Darf der Loop dem Planer einen Werkzeugaufruf ABVERLANGEN (`toolChoice: required`)?
@@ -66,6 +68,10 @@ export function shouldForceFirstToolCall(input: {
   hasAttachedDocuments?: boolean;
   /** Die Nachricht bittet um eine Zusammenfassung (`isSummaryAsk`). */
   summaryAsk?: boolean;
+  /** Die Sharepic-Werkzeuge hängen und der Auftrag meint das Sharepic (`looksLikeSharepicOrder`). */
+  sharepicOrder?: boolean;
+  /** Der Klassifikator hat einen Auftrag an ein vorhandenes Artefakt erkannt (`artifactEditOrder`). */
+  artifactEditOrder?: boolean;
   /** Der Vorab-Abruf hat für DIESEN Turn Passagen aus den angehängten
    *  Dokumenten in die Quellenregistry gelegt (`seedAttachedDocuments`). */
   attachedSeedDelivered?: boolean;
@@ -81,6 +87,18 @@ export function shouldForceFirstToolCall(input: {
   // `NAMED_RETRIEVAL_INTENTS` ausgenommen (es IST der Auffangwert). Ohne diesen
   // Zweig verlöre genau diese Erwähnung den Werkzeugzwang, den sie vorher hatte.
   if (input.pinnedTool != null) return 'pinned';
+
+  // Neunter Weg: ein Auftrag an das Sharepic des Threads, und die
+  // Sharepic-Werkzeuge hängen. Ohne Zwang beantwortete der Ausweich-Planer
+  // (mistral-small, wenn gemma als „zäh" gilt) „Schreib noch „…" mit drauf"
+  // werkzeuglos — live 11.10.2026. WELCHES der drei, entscheidet der Planer.
+  if (input.sharepicOrder) return 'sharepic_order';
+
+  // Zehnter Weg: ein Auftrag an eine Tabelle, Präsentation, ein Explainable
+  // oder Dokument des Threads. Live 11.10.2026: „Da fehlt noch Marburg in der
+  // Tabelle" erreichte den Loop mit edit_sheet, und gemma antwortete
+  // werkzeuglos „kann ich hier nicht vornehmen".
+  if (input.artifactEditOrder) return 'artifact_edit_order';
 
   // Achter Weg: eine Zusammenfassung eines ANGEHÄNGTEN Dokuments. Steht neben
   // dem Intent-Weg unten, weil der Intent hier nicht verlässlich ist — der
@@ -332,6 +350,8 @@ export function forcedFirstStepTools(input: {
   attachedDocsTool: string | null;
   /** Der Text der Person ohne Erwähnungs-Label — derselbe, den `createToolScope` liest. */
   userText: string;
+  /** Der Thread arbeitet mit einem Notebook (`notebookForPrompt`). */
+  threadNotebook?: boolean;
 }): readonly string[] | null {
   // Der Klassifikator schiebt jeden Dokument-Turn nach `search`. Hat der
   // Vorab-Abruf nichts geliefert, müsste Schritt 0 sonst die Parteiprogramme
@@ -353,13 +373,37 @@ export function forcedFirstStepTools(input: {
     case 'mcp_scope':
       candidates = input.mcpToolNames;
       break;
+    case 'sharepic_order':
+      candidates = ['edit_sharepic', 'read_sharepic', 'check_sharepic'];
+      break;
+    case 'artifact_edit_order':
+      candidates = [
+        'edit_sheet',
+        'read_sheet',
+        'edit_presentation',
+        'read_presentation',
+        'edit_explainable',
+        'read_explainable',
+        'edit_document_text',
+        'read_document',
+      ];
+      break;
     case 'named_intent':
       // Mit Anhang erreicht dieser Weg den Zwang nur, wenn der Seed nichts
       // geliefert hat (`attachedSeedDelivered` sperrt ihn vorher). Neben dem
       // Dokument griff der Planer dann in einem von fünf Läufen zu
       // `gruenerator_search` (#3888). „Vergleiche mit dem Wahlprogramm" kostet
       // das einen Schritt, die Suche ist ab Schritt 1 wieder frei.
-      candidates = attachedDocs.length > 0 ? attachedDocs : loopToolsFor(input.intent ?? '');
+      // Im Notebook-Thread gehören dessen Quellen dazu: „Analysiere die neuesten
+      // Beiträge zum Thema Verkehr" nach einer Quellenliste sah sonst nur Suche
+      // und Web (Eval nbtool-berlin-thread-followup-content, 12.10.2026).
+      candidates =
+        attachedDocs.length > 0
+          ? attachedDocs
+          : [
+              ...loopToolsFor(input.intent ?? ''),
+              ...(input.threadNotebook ? ['notebook_quellen'] : []),
+            ];
       break;
     case 'research_order':
     case 'demoted_retrieval':

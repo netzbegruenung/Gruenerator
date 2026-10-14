@@ -14,8 +14,8 @@ import {
   DEFAULT_CANVAS_HEIGHT,
   DEFAULT_BACKGROUND_COLOR,
 } from '@gruenerator/shared/canvas-editor';
-import { createStore } from 'zustand/vanilla';
 import { immer } from 'zustand/middleware/immer';
+import { createStore } from 'zustand/vanilla';
 
 import { DEFAULT_FORMAT_ID } from '../formats';
 
@@ -25,6 +25,11 @@ import type { CanvasEditorConfig, CanvasHistoryEntry } from '@gruenerator/shared
 // =============================================================================
 // TYPES
 // =============================================================================
+
+export interface PendingAiSuggestion {
+  title: string;
+  undo?: 'pages';
+}
 
 export interface CanvasEditorState<
   TComponentState extends Record<string, unknown> = Record<string, unknown>,
@@ -65,9 +70,10 @@ export interface CanvasEditorState<
    * Tracks the most recently auto-applied AI suggestion so the canvas top
    * bar can show an accept/revert banner. Just a UI flag — revert delegates
    * to the canvas's standard `undo()`, which restores template state via
-   * `stateRestorationCallback`.
+   * `stateRestorationCallback`. `undo: 'pages'` (spec path: the whole deck
+   * was replaced in one Yjs step) reverts through the page-level undo instead.
    */
-  pendingAiSuggestion: { title: string } | null;
+  pendingAiSuggestion: PendingAiSuggestion | null;
 }
 
 export interface CanvasEditorActions<
@@ -95,7 +101,7 @@ export interface CanvasEditorActions<
   triggerRender: () => void;
   resetTemplateScopedState: () => void;
 
-  setPendingAiSuggestion: (pending: { title: string } | null) => void;
+  setPendingAiSuggestion: (pending: PendingAiSuggestion | null) => void;
 }
 
 export interface CanvasEditorGetters {

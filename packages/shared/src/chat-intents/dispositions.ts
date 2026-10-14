@@ -185,6 +185,7 @@ export const DISPOSITION_BY_INTENT: Record<ChatIntentId, Disposition> = {
   create_sheet: 'artifact',
   create_presentation: 'artifact',
   create_pdf: 'artifact',
+  create_explainable: 'artifact',
 
   // ── D1 anchor — an eine offene Fläche oder @-Erwähnung gebunden.
   modify_doc: 'anchor',

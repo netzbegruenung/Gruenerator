@@ -12,7 +12,7 @@
  * pipeline consumes.
  */
 
-import { type chatGraphContract } from '@gruenerator/contracts';
+import { type chatGraphContract, isVisualBlockKind } from '@gruenerator/contracts';
 import { type UserRole, stripRoleBlock } from '@gruenerator/shared/roles';
 import {
   hasMentionTokens,
@@ -67,6 +67,12 @@ import { notebookIdsForTurn } from './notebookScopeFromText.js';
 import { type createSSEStream, PROGRESS_MESSAGES } from './sseHelpers.js';
 import { canWriteThread } from './threadAccessService.js';
 import {
+  type ThreadCloudFiles,
+  NO_CLOUD_FILES,
+  mergeThreadCloudFiles,
+  sameThreadCloudFiles,
+} from './threadCloudFiles.js';
+import {
   getUser,
   getUserMessageTexts,
   createThread,
@@ -75,14 +81,17 @@ import {
   deleteEmptyStreamingRows,
   deleteMessagesFrom,
   deleteTrailingAssistant,
+  getThreadCloudFiles,
   getThreadToolContext,
   readThreadToolHistory,
+  setThreadCloudFiles,
   type ThreadToolHistory,
 } from './threadPersistenceService.js';
 
 import type {
   ChatGraphInput,
   ProcessedAttachment,
+  WolkeFileRef,
 } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { ServerInferRequest } from '@ts-rest/core';
 import type { ModelMessage, UIMessage } from 'ai';
@@ -237,6 +246,7 @@ export async function buildStreamContext({
     currentDocument: rawCurrentDocument,
     currentBoard: rawCurrentBoard,
     currentCanvas: rawCurrentCanvas,
+    currentSharepic: rawCurrentSharepic,
     customSystemPrompt: rawCustomSystemPrompt,
     roleRef: rawRoleRef,
     roleName: rawRoleName,
@@ -257,7 +267,18 @@ export async function buildStreamContext({
     replaceFromMessageId: rawReplaceFromMessageId,
     webpageUrls: rawWebpageUrls,
     platform: rawPlatform,
+    visualBlocks: rawVisualBlocks,
   } = body;
+  // `currentCanvas.sharepic` is read with `.catch(null)`: an invalid spec
+  // context silently drops the turn to the op path. Say so here, where the
+  // raw body is still at hand.
+  const rawSharepic = (req.body as { currentCanvas?: { sharepic?: unknown } } | null)?.currentCanvas
+    ?.sharepic;
+  if (rawSharepic != null && rawCurrentCanvas && rawCurrentCanvas.sharepic == null) {
+    log.warn(
+      `[StreamContext] currentCanvas.sharepic failed validation — canvas ${rawCurrentCanvas.id} falls back to the op path`
+    );
+  }
 
   // Durable mention tokens in the last user message are the routing source of
   // truth; legacy per-request fields (older clients) merge in by union. Ids in
@@ -325,59 +346,10 @@ export async function buildStreamContext({
   // The mention wins on overlap, as it wins the search scope.
   const documentNotebookIds = { ...defaultDocumentNotebookIds, ...mentionedDocumentNotebookIds };
 
-  // Filter wolkeFiles to refs whose shareLinkId is still owned + active for this user.
-  // Stale refs (deleted/deactivated share link) are dropped so the chat still
-  // works, but the client is told via a `warning` SSE event since the answer
-  // will lack the requested file context. The ownership check is bounded so a
-  // slow Nextcloud cannot delay time-to-first-token indefinitely.
-  let wolkeFiles: typeof rawWolkeFiles = undefined;
-  if (rawWolkeFiles?.length) {
-    try {
-      const userShareLinks = await withTimeout(
-        NextcloudShareManager.getShareLinks(userId),
-        EXTERNAL_CONTEXT_TIMEOUT_MS,
-        'wolke share-link check'
-      );
-      const allowedIds = new Set(userShareLinks.filter((l) => l.is_active).map((l) => l.id));
-      const filtered = rawWolkeFiles.filter((f) => allowedIds.has(f.shareLinkId));
-      wolkeFiles = filtered.length > 0 ? filtered : undefined;
-      if (filtered.length < rawWolkeFiles.length) {
-        log.warn(
-          `[ChatGraph] Dropped ${rawWolkeFiles.length - filtered.length} stale wolkeFiles ref(s) for user ${userId}`
-        );
-        sse.send('warning', {
-          code: 'wolke_refs_dropped',
-          message: `${rawWolkeFiles.length - filtered.length} Wolke-Datei(en) nicht mehr verfügbar — Antwort ohne diese Dateien.`,
-        });
-      }
-    } catch (err) {
-      log.warn(`[ChatGraph] wolkeFiles ownership check failed; ignoring refs`, err);
-      wolkeFiles = undefined;
-      sse.send('warning', {
-        code: 'wolke_check_failed',
-        message: 'Wolke-Dateien konnten nicht geprüft werden — Antwort ohne diese Dateien.',
-      });
-    }
-  }
-
   // Tor für `cloud_files`: der Katalog wird synchron gebaut und kann diese Frage
   // nicht selbst stellen. Gecacht (60 s) und fehlertolerant — ein Ausfall macht
   // aus dem Zähler eine 0, und das Vokabular-Tor trägt den Turn weiter.
   const cloudConnectionCount = await countCloudConnections(userId);
-
-  // @connect file refs need no per-ref ownership pre-check: the Nango
-  // connection (resolved per-file at retrieval time via
-  // ConnectionService.getConnection(userId, provider)) IS the ownership
-  // boundary, and a revoked/expired token fails safe to an empty result.
-  // Normalize null mimeType → omit so downstream types stay clean.
-  const connectFiles = rawConnectFiles?.length
-    ? rawConnectFiles.map((f) => ({
-        provider: f.provider,
-        fileId: f.fileId,
-        name: f.name,
-        ...(f.mimeType ? { mimeType: f.mimeType } : {}),
-      }))
-    : undefined;
 
   log.info(`[ChatGraph] Processing request for user ${userId}, agent ${agentId ?? 'default'}`);
   if (notebookIds.length > 0) {
@@ -618,6 +590,93 @@ export async function buildStreamContext({
     }
   }
 
+  // === Cloud files (@wolke / @connect) ===
+  // A pick stays in the thread like an upload does (#4112): this turn's picks
+  // merge with the thread's earlier ones and every carried file is read again
+  // this turn. Only the refs are stored — see threadCloudFiles.ts.
+  //
+  // @connect refs need no per-ref ownership pre-check: the Nango connection
+  // (resolved per-file at retrieval time via ConnectionService.getConnection(
+  // userId, provider)) IS the ownership boundary, and a revoked/expired token
+  // fails safe to an empty result. Normalize null mimeType → omit so downstream
+  // types stay clean.
+  const pickedCloudFiles: ThreadCloudFiles = {
+    wolke: rawWolkeFiles ?? [],
+    connect: (rawConnectFiles ?? []).map((f) => ({
+      provider: f.provider,
+      fileId: f.fileId,
+      name: f.name,
+      ...(f.mimeType ? { mimeType: f.mimeType } : {}),
+    })),
+  };
+  let storedCloudFiles = NO_CLOUD_FILES;
+  // An unreadable column is not an empty one — writing this turn's picks over
+  // it would drop every ref the thread holds. Skip the write for this turn.
+  let storedCloudFilesUnknown = false;
+  if (actualThreadId && !isNewThread) {
+    try {
+      storedCloudFiles = await getThreadCloudFiles(actualThreadId, userId);
+    } catch (err) {
+      storedCloudFilesUnknown = true;
+      log.warn('[StreamContext] Could not read thread cloud files (continuing):', err);
+    }
+  }
+  const threadCloudFiles = mergeThreadCloudFiles(storedCloudFiles, pickedCloudFiles);
+
+  // Filter wolkeFiles to refs whose shareLinkId is still owned + active for this user.
+  // Stale refs (deleted/deactivated share link) are dropped so the chat still
+  // works, but the client is told via a `warning` SSE event since the answer
+  // will lack the requested file context. The ownership check is bounded so a
+  // slow Nextcloud cannot delay time-to-first-token indefinitely.
+  let wolkeFiles: WolkeFileRef[] | undefined = undefined;
+  // What the thread keeps: a dropped ref is gone for good (one warning, not one
+  // per turn); a failed check proves nothing, so the refs stay for the next turn.
+  let keptWolkeFiles = threadCloudFiles.wolke;
+  if (threadCloudFiles.wolke.length > 0) {
+    try {
+      const userShareLinks = await withTimeout(
+        NextcloudShareManager.getShareLinks(userId),
+        EXTERNAL_CONTEXT_TIMEOUT_MS,
+        'wolke share-link check'
+      );
+      const allowedIds = new Set(userShareLinks.filter((l) => l.is_active).map((l) => l.id));
+      const filtered = threadCloudFiles.wolke.filter((f) => allowedIds.has(f.shareLinkId));
+      wolkeFiles = filtered.length > 0 ? filtered : undefined;
+      keptWolkeFiles = filtered;
+      if (filtered.length < threadCloudFiles.wolke.length) {
+        const dropped = threadCloudFiles.wolke.length - filtered.length;
+        log.warn(`[ChatGraph] Dropped ${dropped} stale wolkeFiles ref(s) for user ${userId}`);
+        sse.send('warning', {
+          code: 'wolke_refs_dropped',
+          message: `${dropped} Wolke-Datei(en) nicht mehr verfügbar — Antwort ohne diese Dateien.`,
+        });
+      }
+    } catch (err) {
+      log.warn(`[ChatGraph] wolkeFiles ownership check failed; ignoring refs`, err);
+      wolkeFiles = undefined;
+      sse.send('warning', {
+        code: 'wolke_check_failed',
+        message: 'Wolke-Dateien konnten nicht geprüft werden — Antwort ohne diese Dateien.',
+      });
+    }
+  }
+  const connectFiles = threadCloudFiles.connect.length > 0 ? threadCloudFiles.connect : undefined;
+
+  const keptCloudFiles: ThreadCloudFiles = {
+    wolke: keptWolkeFiles,
+    connect: threadCloudFiles.connect,
+  };
+  if (
+    actualThreadId &&
+    !storedCloudFilesUnknown &&
+    !sameThreadCloudFiles(storedCloudFiles, keptCloudFiles)
+  ) {
+    // Fire-and-forget: a lost write costs the next turn its carried files, not this turn.
+    setThreadCloudFiles(actualThreadId, userId, keptCloudFiles).catch((err: unknown) =>
+      log.warn('[StreamContext] Could not store thread cloud files:', err)
+    );
+  }
+
   // Raw (token-bearing) text is persisted above; everything downstream —
   // classifier, heuristics, memory query, LLM prompts — sees the readable
   // "@Label" form. Tokens never reach a prompt.
@@ -808,6 +867,7 @@ export async function buildStreamContext({
     hasTabularAttachment,
     ...(pdfFormAttachments.length > 0 && { pdfFormAttachments }),
     clientCanRunPython: clientTools?.includes('run_python') ?? false,
+    clientCanRenderSharepic: clientTools?.includes('render_sharepic') ?? false,
     computedResult: rawComputedResult ?? undefined,
     notebookIds: notebookIds.length > 0 ? notebookIds : undefined,
     notebookDocumentIds: notebookDocumentIds.length > 0 ? notebookDocumentIds : undefined,
@@ -855,8 +915,11 @@ export async function buildStreamContext({
     // tool aborts with "Es ist kein Sharepic geöffnet" and the model never sees
     // the sharepic text (it rides `currentCanvas.text`, not currentDocument).
     currentCanvas: rawCurrentCanvas ?? undefined,
+    currentSharepic: rawCurrentSharepic ?? undefined,
+    sharepicVorlageId: mentionTokenFields.sharepicVorlageId ?? undefined,
     userLocale,
     clientPlatform: rawPlatform ?? 'web',
+    visualBlocks: (rawVisualBlocks ?? []).filter(isVisualBlockKind),
     customSystemPrompt,
     roleBausteinActive,
     userRoles,
@@ -907,6 +970,24 @@ export async function buildStreamContext({
       lastTurnSteps,
       history?.lastTurnIntent() ?? null
     );
+    initialState.lastTurnOffer = history?.lastTurnOffer() ?? null;
+    const pendingStep = [...lastTurnSteps]
+      .reverse()
+      .find((s) => (s.result as Record<string, unknown> | undefined)?.needsConfirmation === true);
+    initialState.lastTurnPendingConfirm = pendingStep != null;
+    const pendingResult = (pendingStep?.result ?? {}) as Record<string, unknown>;
+    initialState.lastTurnPendingEdit = pendingStep
+      ? {
+          toolName: pendingStep.toolName,
+          args: {
+            ...((pendingStep.args ?? {}) as Record<string, unknown>),
+            // The replacements the question showed (edit_document_text).
+            ...(Array.isArray(pendingResult.ersetzungen) && {
+              ersetzungen: pendingResult.ersetzungen,
+            }),
+          },
+        }
+      : null;
     // Weitergereicht statt verworfen: der agentische Loop las bis hierher
     // dieselben Zeilen ein zweites und drittes Mal (Tool-Replay und
     // Quellen-Rehydrierung). Bleibt es null, weil der Lesevorgang scheiterte,
@@ -981,6 +1062,8 @@ export interface MentionTokenFields {
   docMentionIds: string[];
   /** Rezept/Textform aus einem `skill:`-Token — letzter gewinnt. */
   skillMention: string | null;
+  /** Sharepic-Vorlage aus einem `vorlage:`-Token — ein Sharepic, eine Vorlage: erster gewinnt. */
+  sharepicVorlageId: string | null;
 }
 
 /**
@@ -1042,6 +1125,7 @@ function deriveMentionTokenFields(clientMessages: unknown): MentionTokenFields {
     sheetIds: [],
     docMentionIds: [],
     skillMention: null,
+    sharepicVorlageId: null,
   };
   for (const token of parseMentionTokens(lastUserTextFromClient(clientMessages))) {
     switch (token.type) {
@@ -1068,6 +1152,12 @@ function deriveMentionTokenFields(clientMessages: unknown): MentionTokenFields {
         break;
       case 'skill':
         fields.skillMention = token.id;
+        break;
+      case 'vorlage':
+        // Eine Vorlage zu wählen heißt, ein Sharepic zu bestellen — derselbe
+        // Pin wie `@sharepic`, die Vorlage selbst löst der Sharepic-Pfad auf.
+        fields.sharepicVorlageId ??= token.id;
+        if (!fields.forcedTools.includes('sharepic')) fields.forcedTools.push('sharepic');
         break;
       default: {
         const unhandled: never = token.type;

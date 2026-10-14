@@ -20,21 +20,52 @@ let selectQueue: unknown[][] = [];
 /** The condition each statement was given, in the same order. */
 let whereArgs: unknown[] = [];
 
-function builder(result: unknown) {
+/**
+ * The area-split census (day × area people, then the thin cells per day, then
+ * the window remainder) runs on its own queue, recognisable by its `users`
+ * column, so the publishing statements above keep their fixed order.
+ *
+ * `cellCensus` null means: every day × area in the queued aggregate has exactly
+ * MIN_GROUP_SIZE people, i.e. the split is unremarkable.
+ */
+let cellCensus: { day: string; feature: string; users: number }[] | null = null;
+let areaQueue: unknown[][] = [];
+let areaWhereArgs: unknown[] = [];
+
+function builder(result: unknown, sink: () => unknown[] = () => whereArgs) {
   const chain: Record<string, unknown> = {};
   for (const method of ['from', 'groupBy', 'orderBy', 'limit']) {
     chain[method] = () => chain;
   }
   chain.where = (condition: unknown) => {
-    whereArgs.push(condition);
+    sink().push(condition);
     return chain;
   };
   chain.then = (resolve: (v: unknown) => unknown) => Promise.resolve(result).then(resolve);
   return chain;
 }
 
+function censusFromAggregate() {
+  const aggregate = (selectQueue[selectQueue.length - 1] ?? []) as {
+    day: string;
+    feature: string;
+  }[];
+  const seen = new Map<string, { day: string; feature: string; users: number }>();
+  for (const r of aggregate) {
+    seen.set(`${r.day}|${r.feature}`, { day: r.day, feature: r.feature, users: MIN_GROUP_SIZE });
+  }
+  return [...seen.values()];
+}
+
 const getDrizzleInstance = vi.fn(() => ({
-  select: () => builder(selectQueue.shift() ?? []),
+  select: (fields: Record<string, unknown> = {}) => {
+    if ('users' in fields) {
+      const result =
+        'feature' in fields ? (cellCensus ?? censusFromAggregate()) : (areaQueue.shift() ?? []);
+      return builder(result, () => areaWhereArgs);
+    }
+    return builder(selectQueue.shift() ?? []);
+  },
 }));
 
 vi.mock('../../../database/services/DrizzleService.js', () => ({ getDrizzleInstance }));
@@ -76,6 +107,9 @@ function measured(over: Partial<Record<string, string | number>> = {}) {
 beforeEach(() => {
   selectQueue = [];
   whereArgs = [];
+  cellCensus = null;
+  areaQueue = [];
+  areaWhereArgs = [];
 });
 
 /**
@@ -185,6 +219,159 @@ describe('locale scope', () => {
       expect(values).not.toContain('de-AT');
       expect(values).not.toContain('de-DE');
     }
+  });
+});
+
+describe('feature scope', () => {
+  const window = () => [
+    [{ day: '2026-07-30', activeUsers: MIN_GROUP_SIZE }],
+    [{ activeUsers: MIN_GROUP_SIZE }],
+    [row({ feature: 'monitor' })],
+  ];
+
+  it('narrows the published statements to the area, but not the census', async () => {
+    // The census decides which cells exist; it has to see every area, or the
+    // rule would depend on which area was asked for.
+    selectQueue = window();
+    await computePlatformUsageStats(30, null, 'monitor');
+
+    expect(whereArgs).toHaveLength(3);
+    expect(boundValues(whereArgs[0])).not.toContain('monitor');
+    expect(boundValues(whereArgs[1])).toContain('monitor');
+    expect(boundValues(whereArgs[2])).toContain('monitor');
+    for (const condition of areaWhereArgs) {
+      expect(boundValues(condition)).not.toContain('monitor');
+    }
+  });
+
+  it('combines area and country in one scope', async () => {
+    selectQueue = window();
+    await computePlatformUsageStats(30, 'at', 'monitor');
+
+    for (const condition of [...whereArgs, ...areaWhereArgs]) {
+      expect(boundValues(condition)).toContain('de-AT');
+    }
+    expect(boundValues(whereArgs[2])).toContain('monitor');
+  });
+});
+
+describe('area split — secondary suppression', () => {
+  const days = () => [
+    { day: '2026-07-30', activeUsers: 20 },
+    { day: '2026-07-31', activeUsers: 20 },
+  ];
+
+  it('drops a day from an area when the hidden areas that day are too few', async () => {
+    // 07-31: voice has 2 people. Chat − (published areas) would recover them,
+    // so on that day NO area may show — monitor included.
+    cellCensus = [
+      { day: '2026-07-30', feature: 'monitor', users: 6 },
+      { day: '2026-07-30', feature: 'chat', users: 15 },
+      { day: '2026-07-31', feature: 'monitor', users: 6 },
+      { day: '2026-07-31', feature: 'chat', users: 15 },
+      { day: '2026-07-31', feature: 'voice', users: 2 },
+    ];
+    // thin cells per day → 2 people on 07-31; window remainder → 20 people.
+    areaQueue = [[{ day: '2026-07-31', users: 2 }], [{ users: 20 }]];
+    selectQueue = [days(), [{ activeUsers: 6 }], [row({ feature: 'monitor' })]];
+
+    const stats = await computePlatformUsageStats(30, null, 'monitor');
+
+    expect(stats.sufficient_data).toBe(true);
+    expect(stats.suppressed_days).toBe(1);
+    // Only 07-30 reaches the published statements.
+    expect(boundValues(whereArgs[1])).toContain('2026-07-30');
+    expect(boundValues(whereArgs[1])).not.toContain('2026-07-31');
+  });
+
+  it('keeps a day when the hidden areas together reach the threshold', async () => {
+    cellCensus = [
+      { day: '2026-07-30', feature: 'monitor', users: 6 },
+      { day: '2026-07-30', feature: 'voice', users: 3 },
+      { day: '2026-07-30', feature: 'sites', users: 3 },
+    ];
+    areaQueue = [[{ day: '2026-07-30', users: 6 }], [{ users: 6 }]];
+    selectQueue = [[days()[0]], [{ activeUsers: 6 }], [row({ feature: 'monitor' })]];
+
+    const stats = await computePlatformUsageStats(30, null, 'monitor');
+    expect(stats.sufficient_data).toBe(true);
+    expect(stats.suppressed_days).toBe(0);
+  });
+
+  it('folds unpublishable cells into „Sonstiges" in the unfiltered breakdown', async () => {
+    // Otherwise the unfiltered monitor row minus the filtered monitor view
+    // would be monitor on its thin day.
+    cellCensus = [
+      { day: '2026-07-30', feature: 'monitor', users: 6 },
+      { day: '2026-07-30', feature: 'chat', users: 15 },
+      { day: '2026-07-31', feature: 'monitor', users: 3 },
+      { day: '2026-07-31', feature: 'chat', users: 15 },
+    ];
+    areaQueue = [[{ day: '2026-07-31', users: 3 }], [{ users: 18 }]];
+    selectQueue = [
+      days(),
+      [{ activeUsers: 20 }],
+      [
+        row({ day: '2026-07-30', feature: 'monitor', outputTokens: 100 }),
+        row({ day: '2026-07-31', feature: 'monitor', outputTokens: 7 }),
+        row({ day: '2026-07-30', feature: 'chat', outputTokens: 1000 }),
+        row({ day: '2026-07-31', feature: 'chat', outputTokens: 1000 }),
+      ],
+    ];
+
+    const stats = await computePlatformUsageStats(30, null);
+    const out = (f: string) => stats.byFeature.find((e) => e.feature === f)?.output_tokens;
+    expect(out('monitor')).toBe(100);
+    // 07-31 had a hidden cell with too few people → the whole day folds.
+    expect(out('chat')).toBe(1000);
+    expect(out('other')).toBe(1007);
+  });
+
+  it('publishes no area split when the window remainder is too thin', async () => {
+    cellCensus = [
+      { day: '2026-07-30', feature: 'chat', users: 15 },
+      { day: '2026-07-30', feature: 'voice', users: 2 },
+    ];
+    // The thin cells alone: 2 people on the day, 2 over the window.
+    areaQueue = [[{ day: '2026-07-30', users: 2 }], [{ users: 2 }]];
+    selectQueue = [[days()[0]], [{ activeUsers: 17 }], [row()]];
+
+    const all = await computePlatformUsageStats(30, null);
+    expect(all.sufficient_data).toBe(true);
+    expect(all.byFeature).toEqual([]);
+
+    areaQueue = [[{ day: '2026-07-30', users: 2 }], [{ users: 2 }]];
+    selectQueue = [[days()[0]]];
+    const chat = await computePlatformUsageStats(30, null, 'chat');
+    expect(chat.sufficient_data).toBe(false);
+  });
+});
+
+describe('token split', () => {
+  it('splits every breakdown into sent and generated tokens', async () => {
+    selectQueue = [
+      [{ day: '2026-07-30', activeUsers: MIN_GROUP_SIZE }],
+      [{ activeUsers: MIN_GROUP_SIZE }],
+      [
+        row(),
+        row({ model: 'mistral-medium', provider: 'mistral', inputTokens: 300, outputTokens: 70 }),
+      ],
+    ];
+    const stats = await computePlatformUsageStats(30, null);
+
+    expect(getTransparencyStatsResponseSchema.safeParse(stats).success).toBe(true);
+    expect(stats.byFeature).toEqual([
+      expect.objectContaining({
+        feature: 'chat',
+        input_tokens: 5300,
+        output_tokens: 1070,
+        total_tokens: 6370,
+      }),
+    ]);
+    expect(stats.byModel.find((m) => m.model === 'mistral-medium')).toMatchObject({
+      input_tokens: 300,
+      output_tokens: 70,
+    });
   });
 });
 

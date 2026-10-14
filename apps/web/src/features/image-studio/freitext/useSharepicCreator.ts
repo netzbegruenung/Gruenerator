@@ -1,23 +1,33 @@
-import { applySharepicPatch, type ComposedSharepic } from '@gruenerator/canvas-editor/composer';
 import {
+  applySharepicPatch,
+  applySharepicTweaks,
+  type ComposedSharepic,
+  sharepicTweaks,
+  type SharepicTweakChoice,
+  type SharepicTweakId,
+} from '@gruenerator/canvas-editor/composer';
+import {
+  type CanvasDocument,
   isSharepicUploadId,
   SHAREPIC_PROMPT_MAX,
   type SharepicPhotoAttribution,
   type SharepicSpec,
 } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { sharepicRevisionReply, sharepicSourceNote } from '@gruenerator/shared/image-studio';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { renderSharepicToImage } from '../renderSharepicToImage';
-
-import { composeCreatorSharepic, canvasSeed, stockPhotoSrc } from './composeForRender';
+import {
+  composeCreatorSharepic,
+  canvasSeed,
+  creatorPhotoSrc,
+  type SharepicMintSource,
+} from './composeForRender';
+import { contactSheet, renderPreviews } from './creatorRender';
 import { loadCreatorSession, saveCreatorSession } from './creatorSession';
-import { forgetUploadTones, loadImage } from './photoTone';
+import { forgetUploadTones } from './photoTone';
 import { type CreatorPhoto, MAX_PHOTOS, PHOTO_ONLY_PROMPT } from './sharepicPhotos';
-import { sharepicSourceNote } from './sharepicSourceNote';
-
-/** Review rounds per turn. Two catch most problems; more mostly churns. */
-const MAX_REVIEWS = 2;
+import { reviseWithReview } from './sharepicRevisionLoop';
 
 export interface CreatorMessage {
   id: number;
@@ -28,10 +38,14 @@ export interface CreatorMessage {
 
 export type CreatorPhase = 'idle' | 'drafting' | 'checking' | 'ready';
 
+export type CreatorSaveState = 'idle' | 'saving' | 'saved' | 'error';
+
 export interface CreatorDesign {
   composed: ComposedSharepic;
   /** Every slide as the canvas editor renders it, in order. */
   previews: string[];
+  /** The base spec and tweaks behind `composed`; the minted canvas stores them as its source. */
+  source: SharepicMintSource;
 }
 
 /** One of the user's photos in this session, under the id the draft uses for it. */
@@ -42,52 +56,7 @@ interface OwnPhoto extends CreatorPhoto {
 const photoSource = (photos: readonly OwnPhoto[]) => (filename: string) =>
   isSharepicUploadId(filename)
     ? (photos.find((p) => p.id === filename)?.url ?? '')
-    : stockPhotoSrc(filename);
-
-async function renderPreviews(c: ComposedSharepic): Promise<string[] | null> {
-  const images = await Promise.all(
-    c.slides.map((slide) =>
-      renderSharepicToImage(c.templateType, slide, {
-        quality: 'preview',
-        formatId: c.format,
-      })
-    )
-  );
-  return images.every((image): image is string => !!image) ? images : null;
-}
-
-/**
- * The review sees a carousel at once: slides in swipe order on a grid, each
- * numbered as the patch addresses it.
- */
-async function contactSheet(previews: string[]): Promise<string | null> {
-  if (previews.length === 1) return previews[0] ?? null;
-  const images = await Promise.all(previews.map(loadImage));
-  const columns = Math.min(images.length, 4);
-  const rows = Math.ceil(images.length / columns);
-  const width = 432;
-  // The slide's own aspect, 4:5 or 3:4.
-  const height = Math.round((width * images[0]!.naturalHeight) / images[0]!.naturalWidth);
-  const gap = 12;
-  const canvas = document.createElement('canvas');
-  canvas.width = columns * width + (columns - 1) * gap;
-  canvas.height = rows * height + (rows - 1) * gap;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return null;
-  ctx.fillStyle = '#FFFFFF';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  images.forEach((image, i) => {
-    const x = (i % columns) * (width + gap);
-    const y = Math.floor(i / columns) * (height + gap);
-    ctx.drawImage(image, x, y, width, height);
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(x, y, 44, 40);
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 26px sans-serif';
-    ctx.fillText(String(i), x + 14, y + 29);
-  });
-  return canvas.toDataURL('image/jpeg', 0.85);
-}
+    : creatorPhotoSrc(filename);
 
 /**
  * The free-text creator as a conversation: the first message drafts, every
@@ -100,6 +69,13 @@ export function useSharepicCreator(userId: string | null) {
   const [phase, setPhase] = useState<CreatorPhase>('idle');
   const [design, setDesign] = useState<CreatorDesign | null>(null);
   const spec = useRef<SharepicSpec | null>(null);
+  // The draft as the AI left it; the person's design choices apply to it, never to each other.
+  const [base, setBase] = useState<SharepicSpec | null>(null);
+  const [choice, setChoice] = useState<SharepicTweakChoice>({});
+  // The choices behind the spec on screen; `choice` runs ahead of it while a switch renders.
+  const shownChoice = useRef<SharepicTweakChoice>({});
+  // A later switch outruns an earlier render: only the newest one is shown.
+  const tweakRun = useRef(0);
   const attributions = useRef<(SharepicPhotoAttribution | null)[]>([]);
   const brief = useRef('');
   const nextId = useRef(0);
@@ -109,6 +85,13 @@ export function useSharepicCreator(userId: string | null) {
   const [photoCount, setPhotoCount] = useState(0);
   // A restore that failed to render says so once; saving it would repeat it on every reload.
   const restoreError = useRef<number | null>(null);
+  // The canvas the design is autosaved into. The ref serves the save queue, the state the stored session.
+  const canvasId = useRef<string | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<CreatorSaveState>('idle');
+  // Saves run one after another; a design that a newer one has overtaken is skipped.
+  const saveQueue = useRef<Promise<void>>(Promise.resolve());
+  const saveRun = useRef(0);
 
   // Upload ids restart at upload:1 in a new session — their measured tones must not outlive this one.
   useEffect(() => forgetUploadTones, []);
@@ -121,11 +104,49 @@ export function useSharepicCreator(userId: string | null) {
       userId,
       messages: kept,
       spec: spec.current,
+      base,
+      choice: shownChoice.current,
       attributions: attributions.current,
       brief: brief.current,
+      canvasId: savedId,
       photos: ownPhotos.current,
     });
-  }, [userId, messages, phase]);
+  }, [userId, messages, phase, base, savedId]);
+
+  const autosave = useCallback(
+    (next: CreatorDesign) => {
+      if (!userId) return;
+      const run = ++saveRun.current;
+      const title = (brief.current.split('\n')[0] || 'Sharepic').slice(0, 60);
+      saveQueue.current = saveQueue.current.then(async () => {
+        if (run !== saveRun.current) return;
+        setSaveState('saving');
+        try {
+          const id = await saveCreatorCanvas(canvasId.current, next.composed, title, next.source);
+          canvasId.current = id;
+          setSavedId(id);
+          if (run === saveRun.current) setSaveState('saved');
+        } catch {
+          if (run === saveRun.current) setSaveState('error');
+        }
+      });
+    },
+    [userId]
+  );
+
+  /**
+   * Waits for the running save and returns the canvas holding the design, if any.
+   * The editor owns the canvas from here on, so the next draft starts a new one
+   * instead of overwriting what was edited there.
+   */
+  const handOff = useCallback(async (): Promise<string | null> => {
+    await saveQueue.current;
+    const id = canvasId.current;
+    canvasId.current = null;
+    setSavedId(null);
+    setSaveState('idle');
+    return id;
+  }, []);
 
   const say = useCallback((role: CreatorMessage['role'], text: string, error = false) => {
     const id = nextId.current++;
@@ -200,24 +221,29 @@ export function useSharepicCreator(userId: string | null) {
       // Kept only with the spec they belong to: a failed render leaves the session as it was.
       const credits = draft.body.attributions;
       const nextBrief = current ? `${brief.current}\nÄnderung: ${text}` : text;
-      let next = draft.body.spec;
-
       setPhase('checking');
-      let composed = await composeCreatorSharepic(next, credits, photoSrc);
-      let previews = await renderPreviews(composed);
-      for (let round = 0; previews && round < MAX_REVIEWS; round++) {
-        const image = await contactSheet(previews).catch(() => null);
-        if (!image) break;
-        const review = await client
-          .review({ body: { spec: next, prompt: nextBrief, image } })
-          .catch(() => null);
-        if (review?.status !== 200 || review.body.ok) break;
-        const patched = applySharepicPatch(next, review.body.patch).spec;
-        if (patched === next) break;
-        next = patched;
-        composed = await composeCreatorSharepic(next, credits, photoSrc);
-        previews = await renderPreviews(composed);
-      }
+      const revised = await reviseWithReview({
+        spec: draft.body.spec,
+        attributions: credits,
+        brief: nextBrief,
+        deps: {
+          compose: (s, a) => composeCreatorSharepic(s, a, photoSrc),
+          render: renderPreviews,
+          review: async ({ spec: s, brief: prompt, previews: shots }) => {
+            const image = await contactSheet(shots).catch(() => null);
+            if (!image) return null;
+            // A revision is checked against this turn's wish, never undoing it (EDIT_RULE).
+            const body = current
+              ? { spec: s, prompt: text, image, mode: 'edit' as const }
+              : { spec: s, prompt, image, mode: 'draft' as const };
+            const review = await client.review({ body }).catch(() => null);
+            return review?.status === 200 ? review.body : null;
+          },
+          applyPatch: (s, patch) => applySharepicPatch(s, patch).spec,
+        },
+      });
+      if (!revised) return;
+      const { spec: next, composed, previews } = revised;
       if (!previews) {
         say(
           'assistant',
@@ -230,30 +256,43 @@ export function useSharepicCreator(userId: string | null) {
       }
 
       spec.current = next;
+      setBase(next);
+      setChoice({});
+      shownChoice.current = {};
+      tweakRun.current++;
       attributions.current = credits;
       brief.current = nextBrief;
       ownPhotos.current = photos;
       unsent.current = [];
       setPhotoCount(photos.length);
-      setDesign({ composed, previews });
+      const drafted = {
+        composed,
+        previews,
+        source: { base: next, tweaks: {}, attributions: credits },
+      };
+      setDesign(drafted);
+      autosave(drafted);
       const what =
         composed.slides.length > 1
-          ? `Hier ist dein Karussell mit ${composed.slides.length} Slides.`
+          ? `Hier ist dein Karussell mit ${composed.slides.length} Folien.`
           : 'Hier ist dein Entwurf.';
       const source = sharepicSourceNote(next.slides, credits);
-      // A wish the spec cannot express comes back as the same draft — "Erledigt" would be false.
-      const unchanged = current !== null && JSON.stringify(next) === JSON.stringify(current);
+      const notice = draft.body.hinweis ? ` ${draft.body.hinweis}` : '';
       say(
         'assistant',
-        unchanged
-          ? 'Am Entwurf hat sich dabei nichts geändert. Wenn du etwas anderes gemeint hast, beschreib es genauer – oder öffne das Sharepic im Editor und ändere es dort direkt.'
-          : current
-            ? `Erledigt. ${source}`
-            : `${what} ${source} Schreib mir, was anders sein soll – oder öffne es im Editor.`
+        current
+          ? sharepicRevisionReply({
+              before: current,
+              after: next,
+              order: text,
+              hinweis: draft.body.hinweis ?? null,
+              attributions: credits,
+            })
+          : `${what}${notice} ${source} Schreib mir, was anders sein soll – oder öffne es im Editor.`
       );
       setPhase('ready');
     },
-    [say]
+    [say, autosave]
   );
 
   const reportPhotoError = useCallback(
@@ -268,8 +307,13 @@ export function useSharepicCreator(userId: string | null) {
     const session = userId ? loadCreatorSession(userId) : null;
     if (!session) return false;
     spec.current = session.spec;
+    setBase(session.base ?? session.spec);
+    shownChoice.current = session.choice ?? {};
+    setChoice(shownChoice.current);
     attributions.current = session.attributions;
     brief.current = session.brief;
+    canvasId.current = session.canvasId ?? null;
+    setSavedId(canvasId.current);
     ownPhotos.current = session.photos;
     nextId.current = Math.max(...session.messages.map((m) => m.id)) + 1;
     setPhotoCount(session.photos.length);
@@ -281,10 +325,21 @@ export function useSharepicCreator(userId: string | null) {
       const photoSrc = photoSource(session.photos);
       const composed = await composeCreatorSharepic(restored, session.attributions, photoSrc);
       const previews = await renderPreviews(composed);
-      return previews && { composed, previews };
+      return (
+        previews && {
+          composed,
+          previews,
+          source: {
+            base: session.base ?? restored,
+            tweaks: session.choice ?? {},
+            attributions: session.attributions,
+          },
+        }
+      );
     })()
       .catch(() => null)
       .then((restoredDesign) => {
+        // Not saved again here: a session without a canvas may have been handed to the editor.
         if (restoredDesign) setDesign(restoredDesign);
         else
           restoreError.current = say(
@@ -297,7 +352,71 @@ export function useSharepicCreator(userId: string | null) {
     return true;
   }, [userId, say]);
 
-  return { messages, phase, design, send, resume, reportPhotoError, photoCount };
+  const tweaks = useMemo(() => (base ? sharepicTweaks(base, choice) : []), [base, choice]);
+
+  /**
+   * Shows the draft with these design choices: applied locally and rendered
+   * again, without the model and without a review.
+   */
+  const showChoice = useCallback(
+    async (nextChoice: SharepicTweakChoice) => {
+      if (!base || phase === 'drafting' || phase === 'checking') return;
+      const next = applySharepicTweaks(base, nextChoice);
+      const run = ++tweakRun.current;
+      setChoice(nextChoice);
+      const composed = await composeCreatorSharepic(
+        next,
+        attributions.current,
+        photoSource(ownPhotos.current)
+      );
+      const previews = await renderPreviews(composed);
+      if (run !== tweakRun.current || !previews) return;
+      spec.current = next;
+      shownChoice.current = nextChoice;
+      const shown = {
+        composed,
+        previews,
+        source: { base, tweaks: nextChoice, attributions: attributions.current },
+      };
+      setDesign(shown);
+      autosave(shown);
+      // Kept like a turn: a reload comes back to the variation on screen.
+      if (userId)
+        saveCreatorSession({
+          userId,
+          messages: messages.filter((m) => m.id !== restoreError.current),
+          spec: next,
+          base,
+          choice: nextChoice,
+          attributions: attributions.current,
+          brief: brief.current,
+          canvasId: canvasId.current,
+          photos: ownPhotos.current,
+        });
+    },
+    [base, phase, userId, messages, autosave]
+  );
+  const tweak = useCallback(
+    (id: SharepicTweakId, value: string) => showChoice({ ...choice, [id]: value }),
+    [showChoice, choice]
+  );
+  const resetTweaks = useCallback(() => showChoice({}), [showChoice]);
+
+  return {
+    messages,
+    phase,
+    design,
+    send,
+    resume,
+    reportPhotoError,
+    photoCount,
+    tweaks,
+    tweak,
+    resetTweaks,
+    saveState,
+    handOff,
+    tweaked: Object.keys(choice).length > 0,
+  };
 }
 
 /**
@@ -306,9 +425,10 @@ export function useSharepicCreator(userId: string | null) {
  */
 export async function mintCreatorCanvas(
   composed: ComposedSharepic,
-  title: string
-): Promise<string> {
-  const seed = canvasSeed(composed);
+  title: string,
+  source?: SharepicMintSource
+): Promise<CanvasDocument> {
+  const seed = canvasSeed(composed, source);
   const response = await getContractsClient().canvas.create({
     body: {
       title,
@@ -324,5 +444,32 @@ export async function mintCreatorCanvas(
       `Canvas konnte nicht erstellt werden (HTTP ${response.status}).`
     );
   }
-  return response.body.id;
+  return response.body;
+}
+
+/**
+ * Keeps the design in its canvas: rewrites the pages of `canvasId`, or mints a
+ * new canvas when there is none yet or it is gone (deleted, access lost).
+ */
+async function saveCreatorCanvas(
+  canvasId: string | null,
+  composed: ComposedSharepic,
+  title: string,
+  source: SharepicMintSource
+): Promise<string> {
+  if (canvasId) {
+    const { pages, format } = canvasSeed(composed, source);
+    const response = await getContractsClient().canvas.replacePages({
+      params: { id: canvasId },
+      body: { pages, format },
+    });
+    if (response.status === 200) return canvasId;
+    if (response.status !== 404 && response.status !== 403) {
+      throw new ApiError(
+        response.status,
+        `Canvas konnte nicht gespeichert werden (HTTP ${response.status}).`
+      );
+    }
+  }
+  return (await mintCreatorCanvas(composed, title, source)).id;
 }

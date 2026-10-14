@@ -1,55 +1,94 @@
 import {
+  commitOpenTextEdit,
   useCanvasCollaboration,
   MasterCanvasEditor,
   parseInitialPages,
+  preloadCanvasTemplate,
   type InitialPageDef,
+  type SidebarTabId,
 } from '@gruenerator/canvas-editor';
-import { PresenceAvatars, useCollaborators } from '@gruenerator/collab';
+import { CanvasEditorSkeleton } from '@gruenerator/canvas-editor/skeleton';
+import { getAuthErrorMessage, PresenceAvatars, useCollaborators } from '@gruenerator/collab';
 import { type CanvasDocument } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { EditableTitle } from '@gruenerator/shared/components/EditableTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { PiArrowLeft, PiCheck } from 'react-icons/pi';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 
 import { DottedBackground } from '../../components/common/DottedBackground';
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
+import { handleUnauthorized } from '../../components/utils/apiClient';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 import { useHostAwareBack } from '../../hooks/useHostAwareBack';
 import { useAuthStore } from '../../stores/authStore';
+import useCanvasUiStore from '../../stores/canvasUiStore';
 import { isEmbedded } from '../../utils/platform';
 import { useTourAutostart } from '../tours/useTourAutostart';
 
 import { CanvasChatDocContext } from './CanvasChatDocContext';
-import { SaveAsTemplateDialog } from './components/SaveAsTemplateDialog';
-import { ShareCanvasDialog } from './components/ShareCanvasDialog';
+import { canvasQueryOptions } from './canvasQuery';
 import { updateCanvasThumbnail } from './services/canvasThumbnailService';
+import { waitForCollabSync } from './waitForCollabSync';
 import { WebCanvasEditorProvider } from './WebCanvasEditorProvider';
+
+import { startTabLink } from '@/utils/startpage';
+
+/** After this long without a first sync, say so and offer a reconnect. */
+const SLOW_SYNC_MS = 8000;
+/** How long closing the embedded editor waits for unacked collab updates. */
+const CLOSE_FLUSH_MS = 1000;
+
+const ShareCanvasDialog = lazy(() =>
+  import('./components/ShareCanvasDialog').then((m) => ({ default: m.ShareCanvasDialog }))
+);
+const SaveAsTemplateDialog = lazy(() =>
+  import('./components/SaveAsTemplateDialog').then((m) => ({ default: m.SaveAsTemplateDialog }))
+);
 
 function CollabCanvasStudioContent() {
   const { id } = useParams<{ id: string }>();
-  const handleCancel = useHostAwareBack('/workplace');
+  // Set by whoever just created the canvas (the app's sharepic hand-off): its
+  // initial_state is still the whole truth, so the editor may show it before
+  // the collab doc has synced.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const fresh = searchParams.get('fresh') === '1';
   const user = useAuthStore((s) => s.user);
   const config = useCollaborationConfig();
   const [shareOpen, setShareOpen] = useState(false);
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
+  // Einmal geöffnet bleiben die Dialoge gemountet, damit ihre Schließ-Animation läuft.
+  const [shareMounted, setShareMounted] = useState(false);
+  const [saveTemplateMounted, setSaveTemplateMounted] = useState(false);
+  // Read once per canvas: the editor only seeds its tab from it on mount.
+  const initialTab = useMemo(
+    () => (id ? useCanvasUiStore.getState().initialTabFor(id) : null),
+    [id]
+  );
+  const handleActiveTabChange = useCallback(
+    (tab: SidebarTabId | null) => {
+      if (id) useCanvasUiStore.getState().setActiveTab(id, tab);
+    },
+    [id]
+  );
 
   const queryClient = useQueryClient();
 
-  const { data: canvas, isLoading } = useQuery<CanvasDocument>({
-    queryKey: ['canvas', id],
-    queryFn: async () => {
-      const result = await getContractsClient().canvas.get({ params: { id: id! } });
-      if (result.status !== 200) {
-        throw new ApiError(result.status, `Failed to load canvas (HTTP ${result.status})`);
-      }
-      return result.body;
-    },
-    enabled: !!id,
-  });
+  const {
+    data: canvas,
+    isLoading,
+    isError,
+  } = useQuery({ ...canvasQueryOptions(id ?? ''), enabled: !!id });
+
+  // Config chunk and fonts load alongside the collab sync instead of after it.
+  const templateType = canvas?.template_type;
+  const canvasFormat = canvas?.format;
+  useEffect(() => {
+    if (templateType) void preloadCanvasTemplate(templateType, canvasFormat);
+  }, [templateType, canvasFormat]);
 
   const initialPages = useMemo(
     (): InitialPageDef[] | undefined => parseInitialPages(canvas?.initial_state.pages),
@@ -112,6 +151,33 @@ function CollabCanvasStudioContent() {
     config,
   });
 
+  const collabProvider = collab.provider;
+  const flushBeforeClose = useCallback(async () => {
+    commitOpenTextEdit();
+    await waitForCollabSync(collabProvider, CLOSE_FLUSH_MS);
+  }, [collabProvider]);
+  const handleCancel = useHostAwareBack(startTabLink('arbeiten'), flushBeforeClose);
+
+  // A durable Hocuspocus auth failure otherwise leaves "Verbindung getrennt"
+  // forever. The probe in handleUnauthorized tells a dead session (SESSION_LOST
+  // when embedded, login redirect on web) from a deleted/denied canvas, which
+  // only gets a message.
+  const { authError } = collab;
+  const [accessError, setAccessError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!authError) return;
+    handleUnauthorized('collab-auth')
+      .then((outcome) => {
+        if (outcome === 'logout') return;
+        // The server refused this canvas for a live session, so reconnecting
+        // cannot help: replace the editor rather than toast over a skeleton
+        // that waits forever.
+        const message = getAuthErrorMessage(authError);
+        if (message) setAccessError(message);
+      })
+      .catch((error) => console.error('[Canvas] Auth failure handling failed', error));
+  }, [authError]);
+
   const handleExport = useCallback((_base64: string) => {
     // No-op in collab mode — Hocuspocus persists state.
   }, []);
@@ -138,8 +204,45 @@ function CollabCanvasStudioContent() {
     [id, canvas?.title]
   );
 
+  // Once synced the doc is the truth; a reload must not preview initial_state
+  // again, it may be stale by then.
+  useEffect(() => {
+    if (!fresh || !collab.isSynced) return;
+    setSearchParams(
+      (params) => {
+        params.delete('fresh');
+        return params;
+      },
+      { replace: true }
+    );
+  }, [fresh, collab.isSynced, setSearchParams]);
+
+  const [syncSlow, setSyncSlow] = useState(false);
+  useEffect(() => {
+    if (collab.isSynced) return undefined;
+    const timer = setTimeout(() => setSyncSlow(true), SLOW_SYNC_MS);
+    return () => {
+      clearTimeout(timer);
+      setSyncSlow(false);
+    };
+  }, [collab.isSynced]);
+
   const isLive = collab.isSynced && collab.isConnected;
-  const offlineReason = !collab.isSynced ? 'Synchronisiere...' : 'Verbindung getrennt';
+  const offlineReason = !collab.isSynced
+    ? syncSlow
+      ? 'Verbindung dauert länger...'
+      : 'Synchronisiere...'
+    : 'Verbindung getrennt';
+  const reconnectButton =
+    syncSlow && collab.provider ? (
+      <button
+        type="button"
+        onClick={() => void collab.provider?.connect()}
+        className="shrink-0 rounded px-1.5 text-xs font-semibold text-white underline underline-offset-2 hover:bg-white/15"
+      >
+        Erneut verbinden
+      </button>
+    ) : null;
 
   // No isSynced gate: runTour polls for visible anchors anyway, and the tour
   // should also appear when collab sync is slow.
@@ -158,7 +261,7 @@ function CollabCanvasStudioContent() {
         onTitleChange={handleTitleChange}
         className="max-w-full text-[14.5px] font-bold text-white truncate"
         editableClassName="cursor-pointer rounded px-1.5 -mx-1.5 hover:bg-white/15 transition-colors"
-        inputClassName="text-[14.5px] font-bold text-white bg-white/15 border border-white/40 rounded px-1.5 -mx-1.5 outline-none w-64 max-w-full placeholder:text-white/60"
+        inputClassName="text-[14.5px] [@media(pointer:coarse)]:text-[16px] font-bold text-white bg-white/15 border border-white/40 rounded px-1.5 -mx-1.5 outline-none w-64 max-w-full placeholder:text-white/60"
         ariaLabel="Canvas-Titel bearbeiten"
       />
       {!isLive && (
@@ -180,6 +283,7 @@ function CollabCanvasStudioContent() {
           offlineReason
         )}
       </span>
+      {reconnectButton}
     </div>
   ) : null;
 
@@ -199,16 +303,23 @@ function CollabCanvasStudioContent() {
     </button>
   );
 
-  if (isLoading || !canvas) {
+  if (isError || accessError) {
     return (
       <div className="relative flex flex-col h-dvh bg-background">
         <DottedBackground />
-        <div className="z-10 p-md flex items-center gap-sm">
-          <div className="size-4 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
-          <span className="text-sm text-foreground">Laden...</span>
+        {/* The back button is styled for the editor's green bar. */}
+        <div className="z-10 h-[var(--editor-topbar-height)] shrink-0 bg-[image:var(--editor-menubar-gradient)] px-4 flex items-center max-canvas-mobile:h-[52px] max-canvas-mobile:px-2.5">
+          {chromeLeft}
         </div>
+        <p className="z-10 p-md text-sm text-foreground" role="alert">
+          {accessError ?? 'Der Canvas konnte nicht geladen werden.'}
+        </p>
       </div>
     );
+  }
+
+  if (isLoading || !canvas) {
+    return <CanvasEditorSkeleton chromeLeft={chromeLeft} />;
   }
 
   return (
@@ -217,6 +328,7 @@ function CollabCanvasStudioContent() {
         <div className="relative flex flex-col h-dvh bg-[var(--editor-bg)]">
           <div className="flex-1 min-h-0">
             <MasterCanvasEditor
+              key={canvas.id}
               type={canvas.template_type}
               formatId={canvas.format}
               initialState={canvas.initial_state}
@@ -227,26 +339,52 @@ function CollabCanvasStudioContent() {
               onCancel={handleCancel}
               collaborative={
                 collab.ydoc
-                  ? { ydoc: collab.ydoc, isSynced: collab.isSynced, provider: collab.provider }
+                  ? {
+                      ydoc: collab.ydoc,
+                      isSynced: collab.isSynced,
+                      provider: collab.provider,
+                      previewBeforeSync: fresh,
+                      isLocalLoaded: collab.isLocalLoaded,
+                    }
                   : undefined
               }
               chromeLeft={chromeLeft}
               chromeCenter={chromeCenter}
               chromeRight={chromeRight}
-              onInvitePeople={() => setShareOpen(true)}
-              onSaveAsTemplate={() => setSaveTemplateOpen(true)}
+              onInvitePeople={() => {
+                setShareMounted(true);
+                setShareOpen(true);
+              }}
+              onSaveAsTemplate={() => {
+                setSaveTemplateMounted(true);
+                setSaveTemplateOpen(true);
+              }}
+              initialTab={initialTab}
+              onActiveTabChange={handleActiveTabChange}
             />
           </div>
-          <ShareCanvasDialog canvasId={canvas.id} open={shareOpen} onOpenChange={setShareOpen} />
-          <SaveAsTemplateDialog
-            canvasId={canvas.id}
-            canvasType={canvas.template_type}
-            initialState={canvas.initial_state}
-            formatId={canvas.format}
-            defaultTitle={canvas.title}
-            open={saveTemplateOpen}
-            onOpenChange={setSaveTemplateOpen}
-          />
+          {/* Lazy und erst beim ersten Öffnen gemountet: der Share-Dialog zieht
+              den Docs-Editor (BlockNote) nach, den der Canvas sonst nie braucht. */}
+          <Suspense fallback={null}>
+            {shareMounted && (
+              <ShareCanvasDialog
+                canvasId={canvas.id}
+                open={shareOpen}
+                onOpenChange={setShareOpen}
+              />
+            )}
+            {saveTemplateMounted && (
+              <SaveAsTemplateDialog
+                canvasId={canvas.id}
+                canvasType={canvas.template_type}
+                initialState={canvas.initial_state}
+                formatId={canvas.format}
+                defaultTitle={canvas.title}
+                open={saveTemplateOpen}
+                onOpenChange={setSaveTemplateOpen}
+              />
+            )}
+          </Suspense>
         </div>
       </CanvasChatDocContext.Provider>
     </WebCanvasEditorProvider>

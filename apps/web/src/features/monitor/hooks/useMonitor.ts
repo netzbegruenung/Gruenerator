@@ -154,8 +154,8 @@ export function useEuGreens() {
       if (res.status === 200) return res.body;
       throw monitorError(res, 'EU-Daten konnten nicht geladen werden.');
     },
-    staleTime: 60 * 60 * 1000,
-    gcTime: 120 * 60 * 1000,
+    staleTime: 6 * 60 * 60 * 1000,
+    gcTime: 12 * 60 * 60 * 1000,
     retry: 1,
   });
 }

@@ -1,12 +1,15 @@
 import { vi } from 'vitest';
 
-import { type CreatedBoard } from '../../services/artifactGeneration.js';
+import {
+  type CreatedBoard,
+  type ExplainableGenerationOutcome,
+} from '../../services/artifactGeneration.js';
 
 import type { CreatedDocument } from '../../../../agents/langgraph/ChatGraph/types.js';
 import type { CreatePdfResult } from '../../../../services/pdf/PdfGenerationService.js';
 
 /**
- * Doubles for the three artifact GENERATORS, so a create turn can be driven
+ * Doubles for the artifact GENERATORS, so a create turn can be driven
  * over the wire.
  *
  * `artifactGeneration.ts` is the single seam that makes all five create paths
@@ -33,16 +36,23 @@ export interface GeneratorControl {
   docOk: boolean;
   pdfOk: boolean;
   boardOk: boolean;
+  /** Null = success; otherwise the refusal `createExplainable` reports. */
+  explainableRefusal: 'budget_exhausted' | 'budget_unavailable' | 'generation_failed' | null;
   /** Throw instead of returning null — the `errorText` branch. */
   docThrows: boolean;
   /** Every call, in order, with the brief the generator was handed. */
-  calls: Array<{ generator: 'doc' | 'pdf' | 'board'; kind?: string; userContent: string }>;
+  calls: Array<{
+    generator: 'doc' | 'pdf' | 'board' | 'explainable';
+    kind?: string;
+    userContent: string;
+  }>;
 }
 
 export const generatorControl: GeneratorControl = {
   docOk: true,
   pdfOk: true,
   boardOk: true,
+  explainableRefusal: null,
   docThrows: false,
   calls: [],
 };
@@ -51,6 +61,7 @@ export function resetGeneratorControl(): void {
   generatorControl.docOk = true;
   generatorControl.pdfOk = true;
   generatorControl.boardOk = true;
+  generatorControl.explainableRefusal = null;
   generatorControl.docThrows = false;
   generatorControl.calls.length = 0;
 }
@@ -64,6 +75,7 @@ const SUBTYPE_BY_KIND: Readonly<Record<'presentation' | 'sheet' | 'document', st
 export const STUB_DOC_ID = 'doc-stub-1';
 export const STUB_BOARD_ID = 'board-stub-1';
 export const STUB_PDF_ID = 'pdf-stub-1.pdf';
+export const STUB_EXPLAINABLE_ID = 'explainable-stub-1';
 
 export function artifactGenerationStub(original: Record<string, unknown>): Record<string, unknown> {
   return {
@@ -126,6 +138,24 @@ export function artifactGenerationStub(original: Record<string, unknown>): Recor
             blocks: [{ type: 'paragraph', text: 'Stub' }],
           },
         } as CreatePdfResult);
+      }
+    ),
+    runExplainableGeneration: vi.fn(
+      (opts: { brief: string; onCommit?: () => void }): Promise<ExplainableGenerationOutcome> => {
+        generatorControl.calls.push({ generator: 'explainable', userContent: opts.brief });
+        opts.onCommit?.();
+        const refusal = generatorControl.explainableRefusal;
+        if (refusal) return Promise.resolve({ ok: false, code: refusal, message: 'stub' });
+        return Promise.resolve({
+          ok: true,
+          document: {
+            documentId: STUB_EXPLAINABLE_ID,
+            title: 'Stub Explainable',
+            subtype: 'explainable',
+            url: '/erklaert/stub-explainable-abc123',
+          },
+          imageCount: 3,
+        });
       }
     ),
     runBoardGeneration: vi.fn(

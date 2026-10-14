@@ -26,10 +26,15 @@ import {
 import { summarizeNode } from '../../../agents/langgraph/ChatGraph/nodes/summarizeNode.js';
 import { relatedDocsPages, searchDocs } from '../../../services/docs/docsIndex.js';
 import { lookupUmfragen } from '../../../services/monitor/UmfragenService.js';
+import { DRAFT_LIMIT_TEXTS } from '../../../services/sharepicCreator/draftFailure.js';
 import {
   withResearchedSources,
   type SourceRegistry,
 } from '../services/agenticLoop/sourceRegistry.js';
+import {
+  explainableRefusalText,
+  runExplainableGeneration,
+} from '../services/artifactGeneration.js';
 import { artifactKind, type ArtifactKindId } from '../services/artifactKindRegistry.js';
 import { buildCreateTurnContext, withConversationContext } from '../services/createTurn.js';
 import {
@@ -39,6 +44,7 @@ import {
   runPdfGeneration,
   runSharepicGeneration,
 } from '../services/intentExecutionService.js';
+import { lastUserText } from '../services/messageHelpers.js';
 import { buildPdfEditBrief, loadLastPdfSpec } from '../services/pdfEditContext.js';
 import { PROGRESS_MESSAGES, type SSEWriter } from '../services/sseHelpers.js';
 
@@ -339,16 +345,15 @@ NUTZE WENN der*die Nutzer*in ein Bild/Motiv/eine Illustration erzeugt haben möc
 export function makeCreateSharepicTool(ctx: {
   sse: SSEWriter;
   state: ChatGraphState;
-  req: Request;
   threadId: string | null;
   /** The turn forbade new research — see `briefInstruction`. */
   researchBanned?: boolean;
 }): Tool {
-  const { sse, state, req, threadId } = ctx;
+  const { sse, state, threadId } = ctx;
   return tool({
     description: `Erstellt ein Sharepic (gebrandete Social-Media-Grafik) aus einer Kernaussage.
 
-NUTZE NUR WENN der*die Nutzer*in ausdrücklich ein Sharepic/Spruchbild/Zitatbild/einen Dreizeiler verlangt hat — NICHT bei "Grafik", "Kachel" oder "Bild". ${briefInstruction(ctx.researchBanned === true, 'die konkrete, belegte Kernaussage')}`,
+NUTZE NUR WENN der*die Nutzer*in ausdrücklich ein Sharepic/Spruchbild/Zitatbild/Karussell/eine Infografik/einen Dreizeiler verlangt hat — NICHT bei "Grafik", "Kachel" oder "Bild". ${briefInstruction(ctx.researchBanned === true, 'die konkrete, belegte Kernaussage')}`,
     inputSchema: z.object({
       text: z
         .string()
@@ -368,15 +373,20 @@ NUTZE NUR WENN der*die Nutzer*in ausdrücklich ein Sharepic/Spruchbild/Zitatbild
       // runSharepicGeneration reads its topic from the LAST user message —
       // inject the model's researched text there (same trick as generate_image).
       const injected = { role: 'user', content: text } as ChatGraphState['messages'][number];
-      const variants = await runSharepicGeneration({
+      const { variants, failure } = await runSharepicGeneration({
         state: { ...state, messages: [...state.messages, injected] },
         sse,
-        req,
         threadId,
+        request: lastUserText(state.messages) ?? text,
       });
       if (variants.length === 0) {
         // Error SSE already emitted inside runSharepicGeneration.
-        return { error: 'Sharepic-Erstellung fehlgeschlagen.' };
+        return {
+          error:
+            failure && failure !== 'unchanged'
+              ? `Sharepic-Erstellung fehlgeschlagen. ${DRAFT_LIMIT_TEXTS[failure]}`
+              : 'Sharepic-Erstellung fehlgeschlagen.',
+        };
       }
       // Shared-ref merge → forceFinish trips and the router lifts the variants
       // for persistence (like generatedImage).
@@ -427,6 +437,9 @@ const DOC_ARTIFACT_PHRASE: Record<CreateDocKind, string> = {
 
 /** Die drei Arten, die dieselbe Fabrik bedient (PDF und Board haben eigene). */
 type CreateDocKind = Extract<ArtifactKindId, 'presentation' | 'sheet' | 'document'>;
+
+const EDIT_ORDER_NOT_CREATE =
+  'Dieser Auftrag ändert ein vorhandenes Artefakt — es wird nichts neu angelegt. Nutze dessen Bearbeitungswerkzeug (edit_sheet, edit_presentation, edit_explainable, edit_document_text).';
 
 /**
  * The full brief for an artifact generator: the thread, then the planner's
@@ -480,6 +493,10 @@ NUTZE WENN der*die Nutzer*in ${label === 'Präsentation' ? 'eine Präsentation/F
         ),
     }),
     execute: async ({ prompt }, options) => {
+      // The classifier read this turn as an order to an EXISTING artifact. Live
+      // 11.10.2026 the planner ran edit_presentation and then built a second
+      // deck with the same title anyway.
+      if (state.artifactEditOrder === true) return { error: EDIT_ORDER_NOT_CREATE };
       // Idempotent per turn (mirror of sharepic/generate_image): generation is
       // expensive and the model can't see the rendered result, so it re-calls.
       if (state.createdDocument) {
@@ -663,6 +680,83 @@ WICHTIG — PRÜFEN STATT BEHAUPTEN: Das Tool öffnet das erzeugte PDF erneut un
           (result.verification.problems.length
             ? `${verb} und als Download angezeigt. Die Selbstprüfung hat Probleme gefunden — nenne sie der*dem Nutzer*in offen. Rufe das Tool NICHT erneut auf.`
             : `${verb}, selbst geprüft und als Download angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an.`),
+      };
+    },
+  });
+}
+
+/**
+ * Compound explainable fat tool. Same contract as makeCreateDocTool (idempotent
+ * via `state.createdDocument`, `document_created` SSE, router lifts the
+ * metadata); the card opens the explainable's own page (`/erklaert/<slug>`).
+ *
+ * The sources go along as a LIST, not only as text in the brief: an explainable
+ * stores them and renders its `[n]` markers against them. `getCitations()` is
+ * numbered like `renderReference()`, which is what the brief carries — so the
+ * numbers the generator writes resolve to the right entries.
+ */
+export function makeCreateExplainableTool(ctx: {
+  sse: SSEWriter;
+  state: ChatGraphState;
+  sourceRegistry?: SourceRegistry;
+  /** The turn forbade new research — see `briefInstruction`. */
+  researchBanned?: boolean;
+}): Tool {
+  const { sse, state, sourceRegistry } = ctx;
+  return tool({
+    description: `Erstellt ein Explainable: eine eigene Seite, die ein Thema in einfacher Sprache erklärt, mit bis zu drei gemalten Erklärbildern. Der Text entsteht sofort, die Bilder werden danach im Hintergrund gemalt.
+
+NUTZE NUR WENN der*die Nutzer*in ausdrücklich ein Explainable (bzw. eine Erklärseite) möchte — nicht für eine normale Erklärung im Chat. ${briefInstruction(ctx.researchBanned === true, 'in "prompt" einen konkreten, mit den recherchierten Fakten angereicherten Auftrag')}`,
+    inputSchema: z.object({
+      prompt: z
+        .string()
+        .min(1)
+        .describe(
+          'Konkreter Auftrag für das Explainable — das Thema, für wen es ist (falls genannt) und die recherchierten Fakten, die vorkommen sollen'
+        ),
+    }),
+    execute: async ({ prompt }, options) => {
+      if (state.artifactEditOrder === true) return { error: EDIT_ORDER_NOT_CREATE };
+      // Idempotent per turn (mirror of makeCreateDocTool).
+      if (state.createdDocument) {
+        return {
+          ok: true,
+          note: 'Es wurde in diesem Turn bereits ein Explainable erstellt und angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an.',
+        };
+      }
+      const userId = state.agentConfig?.userId;
+      if (!userId) {
+        return { error: 'Explainable-Erstellung nicht möglich (keine Nutzer-Sitzung).' };
+      }
+      const outcome = await runExplainableGeneration({
+        brief: briefWithContext(prompt, state, sourceRegistry),
+        sources: (sourceRegistry?.getCitations() ?? []).map((c) => ({
+          index: c.id,
+          title: c.title || c.url || `Quelle ${c.id}`,
+          url: c.url || null,
+        })),
+        userId,
+        threadId: state.threadId ?? null,
+        locale: state.userLocale === 'de-AT' ? 'de-AT' : 'de-DE',
+        // See makeCreateDocTool — abandoned ≠ cancelled.
+        ...(options?.abortSignal && { abandoned: options.abortSignal }),
+      });
+      if (!outcome) {
+        return { error: 'Explainable-Erstellung fehlgeschlagen.' };
+      }
+      if (!outcome.ok) {
+        return {
+          error: explainableRefusalText(outcome),
+          note: 'Es wurde KEIN Explainable erstellt. Sag das der*dem Nutzer*in mit genau diesem Grund und rufe das Tool NICHT erneut auf.',
+        };
+      }
+      // Live card (same event the single-pass handler emits). Shared-ref merge →
+      // forceFinish trips and the router lifts it for message-level persistence.
+      sse.send('document_created', outcome.document);
+      state.createdDocument = outcome.document;
+      return {
+        document: outcome.document,
+        note: 'Explainable erstellt und der*dem Nutzer*in als Karte angezeigt. Die Erklärbilder werden gerade im Hintergrund gemalt und erscheinen gleich auf der Seite. Füge den Inhalt NICHT noch einmal in deine Antwort ein; kündige das Explainable in ein, zwei Sätzen an. Rufe das Tool NICHT erneut auf.',
       };
     },
   });

@@ -1,7 +1,9 @@
 import { createContext, useContext } from 'react';
 
 import type { ApplyResult } from './ai/applyOperation';
+import type { ReplaceDeckOps } from './collab/pagesDoc';
 import type { StockImage, StockImageAttribution } from './common/imageSourceTypes';
+import type { HeterogeneousPage } from './configs/types';
 import type {
   CanvasAiCapabilities,
   CanvasAiOperation,
@@ -25,6 +27,17 @@ export interface CanvasAiEditBridge {
 }
 
 /**
+ * Spec path: creator pages carry a `sharepicSource`, so the host can revise
+ * their spec and replace the whole deck. Reads are live (at call time).
+ */
+export interface CanvasSpecEditBridge {
+  getPages: () => HeterogeneousPage[];
+  getActivePageId: () => string | null;
+  /** One page-level undo step; returns the inserted page ids. */
+  replaceDeck: (ops: ReplaceDeckOps) => string[];
+}
+
+/**
  * Props passed to the host-supplied chat component when the user opens the
  * Chat sidebar tab. The component renders inline inside the sidebar panel.
  */
@@ -38,6 +51,8 @@ export interface ChatSectionContentProps {
   /** Optional bridge to canvas-AI edit operations. Present only when the
    *  template declares AI capabilities. */
   aiEdit?: CanvasAiEditBridge;
+  /** Present in the multi-page editor once its pages doc is synced. */
+  specEdit?: CanvasSpecEditBridge;
 }
 
 export interface CanvasEditorServices {
@@ -94,9 +109,8 @@ export interface CanvasEditorServices {
   ) => Promise<{ file: File; remaining: number | null }>;
 
   /**
-   * Remove the background of an image via the host's `@imgly/background-removal`
-   * pipeline. Lives in the host so canvas-editor stays free of the WASM/ONNX
-   * runtime bundle. When omitted, the bg-removal tool is hidden.
+   * Remove the background of an image via the host's server-side
+   * background-removal pipeline. When omitted, the bg-removal tool is hidden.
    */
   removeBackgroundFromImage?: (
     file: File | Blob,

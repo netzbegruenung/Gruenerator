@@ -10,15 +10,23 @@ import { saveCreatorSession } from './creatorSession';
 import { type CreatorPhoto, PHOTO_ONLY_PROMPT } from './sharepicPhotos';
 import { useSharepicCreator } from './useSharepicCreator';
 
+import type * as Composer from '@gruenerator/canvas-editor/composer';
+
 const composer = vi.hoisted(() => ({
   composeSharepic: vi.fn(),
   render: vi.fn(),
 }));
-vi.mock('@gruenerator/canvas-editor/composer', () => ({
-  composeSharepic: composer.composeSharepic,
-  applySharepicPatch: (spec: unknown) => ({ spec }),
-  ensureFontsReady: () => Promise.resolve(),
-}));
+vi.mock('@gruenerator/canvas-editor/composer', async () => {
+  const tweaks = await vi.importActual<typeof Composer>('@gruenerator/canvas-editor/composer');
+  return {
+    composeSharepic: composer.composeSharepic,
+    applySharepicPatch: (spec: unknown) => ({ spec }),
+    applySharepicTweaks: tweaks.applySharepicTweaks,
+    fingerprint: tweaks.fingerprint,
+    sharepicTweaks: tweaks.sharepicTweaks,
+    ensureFontsReady: () => Promise.resolve(),
+  };
+});
 vi.mock('../renderSharepicToImage', () => ({
   renderSharepicToImage: composer.render,
 }));
@@ -59,6 +67,7 @@ const spec = (filename: string) => ({
 });
 
 let bodies: { prompt: string; photos?: { id: string }[]; current?: unknown }[];
+let reviews: number;
 
 beforeAll(() => {
   setGlobalApiClient(createApiClient({ baseURL: 'http://localhost/api', authMode: 'cookie' }));
@@ -66,6 +75,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   bodies = [];
+  reviews = 0;
   composer.composeSharepic.mockReset();
   composer.composeSharepic.mockReturnValue({ templateType: 'freeform', slides: [{}] });
   composer.render.mockReset();
@@ -79,7 +89,10 @@ beforeEach(() => {
         attributions: [null],
       });
     }),
-    http.post(REVIEW, () => HttpResponse.json({ ok: true, issues: [], patch: [] }))
+    http.post(REVIEW, () => {
+      reviews++;
+      return HttpResponse.json({ ok: true, issues: [], patch: [] });
+    })
   );
 });
 afterEach(() => server.resetHandlers());
@@ -206,6 +219,79 @@ describe('useSharepicCreator with own photos', () => {
   });
 });
 
+describe('useSharepicCreator after a carousel revision', () => {
+  const slide = (lines: string[], filename: string | null = null) => ({
+    background: filename
+      ? { kind: 'foto', filename, textSeite: 'unten' }
+      : { kind: 'farbe', color: 'tanne' },
+    position: 'mitte',
+    align: 'links',
+    items: [{ type: 'headline', lines }],
+    logo: false,
+  });
+  const carousel = (first: string[], second: string[]) => ({
+    locale: 'de-DE',
+    slides: [slide(first, 'rad.jpg'), slide(second)],
+  });
+  const credit = {
+    photographer: 'Mike Marrah',
+    profileUrl: 'https://unsplash.com/@x',
+    photoUrl: 'https://unsplash.com/photos/x',
+  };
+  const answer = (body: object) =>
+    server.use(
+      http.post(DRAFT, () =>
+        HttpResponse.json({ ...body, chapters: [], attributions: [credit, null] })
+      )
+    );
+
+  it('does not claim done when the named slide stayed and only another one moved (prod)', async () => {
+    answer({ spec: carousel(['Radwege', 'jetzt'], ['Sicherer', 'für alle']) });
+    const { result } = renderHook(() => useSharepicCreator(null));
+    await sendAndWait(result, 'Karussell zu Radwegen');
+    // The composer is mocked to one slide, so only the note's carousel wording is checked here.
+    expect(result.current.messages.at(-1)!.text).toContain(
+      'Bilder: Folie 1 Stockfoto von Mike Marrah auf Unsplash, Folie 2 Farbfläche – kein KI-Bild. Text und Layout hat die KI entworfen; die Folien tragen das Label'
+    );
+    answer({ spec: carousel(['Radwege', 'jetzt'], ['Sicher', 'für alle']) });
+    await sendAndWait(result, 'bei der 1. slide einen anderen text wählen');
+    const reply = result.current.messages.at(-1)!.text;
+    expect(reply).not.toMatch(/Erledigt/);
+    expect(reply).toMatch(/^Folie 1 hat sich nicht geändert\./);
+    expect(reply).not.toContain('Unsplash');
+  });
+
+  it('checks a first draft as a draft and a revision as an edit of this turn’s wish', async () => {
+    const sent: { prompt: string; mode?: string }[] = [];
+    server.use(
+      http.post(REVIEW, async ({ request }) => {
+        sent.push((await request.json()) as (typeof sent)[number]);
+        return HttpResponse.json({ ok: true, issues: [], patch: [] });
+      })
+    );
+    answer({ spec: carousel(['Radwege', 'jetzt'], ['Sicherer', 'für alle']) });
+    const { result } = renderHook(() => useSharepicCreator(null));
+    await sendAndWait(result, 'Karussell zu Radwegen');
+    answer({ spec: carousel(['Mehr Platz', 'fürs Rad'], ['Sicherer', 'für alle']) });
+    await sendAndWait(result, 'slide 1 anderer text');
+    expect(sent.map(({ prompt, mode }) => ({ prompt, mode }))).toEqual([
+      { prompt: 'Karussell zu Radwegen', mode: 'draft' },
+      { prompt: 'slide 1 anderer text', mode: 'edit' },
+    ]);
+  });
+
+  it('says what changed on the named slide, without the picture credits', async () => {
+    answer({ spec: carousel(['Radwege', 'jetzt'], ['Sicherer', 'für alle']) });
+    const { result } = renderHook(() => useSharepicCreator(null));
+    await sendAndWait(result, 'Karussell zu Radwegen');
+    answer({ spec: carousel(['Mehr Platz', 'fürs Rad'], ['Sicherer', 'für alle']) });
+    await sendAndWait(result, 'slide 1 anderer text');
+    expect(result.current.messages.at(-1)!.text).toBe(
+      'Erledigt – Folie 1: Überschrift jetzt „Mehr Platz fürs Rad“.'
+    );
+  });
+});
+
 describe('useSharepicCreator with a long request', () => {
   it('sends a pasted press release of a few thousand characters', async () => {
     const { result } = renderHook(() => useSharepicCreator(null));
@@ -327,6 +413,71 @@ describe('useSharepicCreator across a reload', () => {
     expect(localStorage.getItem('gruenerator-sharepic-creator-v1')).toBe(saved);
   });
 
+  const carousel = () => ({
+    locale: 'de-DE',
+    slides: [0, 1, 2].map((k) => ({
+      ...spec('wind.jpg').slides[0],
+      ...(k === 1 ? { weiter: 'Denn' } : {}),
+    })),
+  });
+  const composedSpec = () =>
+    composer.composeSharepic.mock.calls.at(-1)![0] as { slides: { weiter?: string }[] };
+  const navigation = (result: { current: ReturnType<typeof useSharepicCreator> }) =>
+    result.current.tweaks.find((t) => t.id === 'navigation')?.value;
+
+  it('keeps the draft as the base of the variations across a reload', async () => {
+    server.use(
+      http.post(DRAFT, async ({ request }) => {
+        bodies.push((await request.json()) as (typeof bodies)[number]);
+        return HttpResponse.json({ spec: carousel(), chapters: [], attributions: [null] });
+      })
+    );
+    const first = renderHook(() => useSharepicCreator('user-1'));
+    await sendAndWait(first.result, 'Karussell zum Klimaschutz');
+    await act(async () => {
+      await first.result.current.tweak('navigation', 'bruch');
+    });
+    expect(composedSpec().slides[1]!.weiter).toBeUndefined();
+    first.unmount();
+
+    const { result } = await resumeAs('user-1');
+    await waitFor(() => expect(result.current.phase).toBe('ready'));
+    expect(result.current.tweaked).toBe(true);
+    expect(navigation(result)).toBe('bruch');
+
+    // Switching back brings back what the earlier choice dropped.
+    await act(async () => {
+      await result.current.tweak('navigation', 'pfeil');
+    });
+    expect(composedSpec().slides[1]!.weiter).toBe('Denn');
+
+    await act(async () => {
+      await result.current.tweak('navigation', 'bruch');
+    });
+    await act(async () => {
+      await result.current.resetTweaks();
+    });
+    expect(composedSpec()).toEqual(carousel());
+    expect(result.current.tweaked).toBe(false);
+  });
+
+  it('resumes a session saved before design variations with its spec as the draft', async () => {
+    saveCreatorSession({
+      userId: 'user-1',
+      messages: [{ id: 0, role: 'user', text: 'Karussell', error: false }],
+      spec: carousel() as Parameters<typeof saveCreatorSession>[0]['spec'],
+      attributions: [null, null, null],
+      brief: 'Karussell',
+      photos: [],
+    });
+    const { result, resumed } = await resumeAs('user-1');
+    expect(resumed).toBe(true);
+    await waitFor(() => expect(result.current.phase).toBe('ready'));
+    expect(result.current.tweaked).toBe(false);
+    expect(navigation(result)).toBe('pfeil');
+    expect(composedSpec()).toEqual(carousel());
+  });
+
   it('does not persist a turn that is still in flight', async () => {
     const { result } = renderHook(() => useSharepicCreator('user-1'));
     await sendAndWait(result, 'Sharepic zum Infostand');
@@ -337,5 +488,182 @@ describe('useSharepicCreator across a reload', () => {
     });
     await waitFor(() => expect(result.current.phase).toBe('drafting'));
     expect(localStorage.getItem('gruenerator-sharepic-creator-v1')).toBe(saved);
+  });
+});
+
+describe('useSharepicCreator design variations', () => {
+  const colourOf = (call: unknown[]) =>
+    (call[0] as { slides: { background: { kind: string; panelColor?: string; color?: string } }[] })
+      .slides[0]!.background;
+
+  it('switches a variation locally: no draft, no review, and the next turn builds on it', async () => {
+    server.use(
+      http.post(DRAFT, async ({ request }) => {
+        bodies.push((await request.json()) as (typeof bodies)[number]);
+        return HttpResponse.json({
+          spec: {
+            ...spec('wind.jpg'),
+            slides: [
+              { ...spec('wind.jpg').slides[0], background: { kind: 'farbe', color: 'mint' } },
+            ],
+          },
+          chapters: [],
+          attributions: [null],
+        });
+      })
+    );
+    const { result } = renderHook(() => useSharepicCreator(null));
+    await sendAndWait(result, 'Sharepic zum Infostand');
+    expect(result.current.tweaks.map((t) => t.id)).toEqual(['farbe', 'zeilenboxen']);
+    const before = { drafts: bodies.length, reviews };
+
+    await act(async () => {
+      await result.current.tweak('farbe', 'dunkeltanne');
+    });
+    expect(colourOf(composer.composeSharepic.mock.calls.at(-1)!)).toEqual({
+      kind: 'farbe',
+      color: 'dunkeltanne',
+    });
+    expect({ drafts: bodies.length, reviews }).toEqual(before);
+    expect(result.current.tweaked).toBe(true);
+
+    await sendAndWait(result, 'Kürzer bitte');
+    expect(JSON.stringify(bodies.at(-1)!.current)).toContain('dunkeltanne');
+    // A new draft is the new starting point: its choices start empty.
+    expect(result.current.tweaked).toBe(false);
+  });
+
+  it('goes back to the draft as it was', async () => {
+    const { result } = renderHook(() => useSharepicCreator(null));
+    await sendAndWait(result, 'Sharepic zum Infostand');
+    await act(async () => {
+      await result.current.tweak('zeilenboxen', 'an');
+    });
+    await act(async () => {
+      await result.current.resetTweaks();
+    });
+    const last = composer.composeSharepic.mock.calls.at(-1)![0] as {
+      slides: { zeilenboxen?: boolean }[];
+    };
+    expect(last.slides[0]!.zeilenboxen).toBeUndefined();
+    expect(result.current.tweaked).toBe(false);
+  });
+});
+
+describe('useSharepicCreator autosave', () => {
+  const CANVAS = 'http://localhost/api/canvas';
+  let minted: string[];
+  let replaced: string[];
+  let replaceStatus: number;
+
+  beforeEach(() => {
+    localStorage.clear();
+    minted = [];
+    replaced = [];
+    replaceStatus = 200;
+    server.use(
+      http.post(CANVAS, () => {
+        const id = `canvas-${minted.length + 1}`;
+        minted.push(id);
+        return HttpResponse.json(
+          {
+            id,
+            title: 't',
+            template_type: 'freeform',
+            page_count: 1,
+            initial_state: {},
+            base_template_id: null,
+            permissions: null,
+            is_public: false,
+            format: 'post-portrait-tall',
+            thumbnail_url: null,
+            created_by: 'u1',
+            created_at: '2026-10-13T00:00:00Z',
+            updated_at: '2026-10-13T00:00:00Z',
+          },
+          { status: 201 }
+        );
+      }),
+      http.put(`${CANVAS}/:id/pages`, ({ params }) => {
+        replaced.push(String(params.id));
+        return replaceStatus === 200
+          ? HttpResponse.json({ message: 'ok' })
+          : HttpResponse.json({ error: 'gone' }, { status: replaceStatus });
+      })
+    );
+  });
+
+  it('saves the first draft as a canvas and writes every later one into it', async () => {
+    const { result } = renderHook(() => useSharepicCreator('u1'));
+    await sendAndWait(result, 'Sharepic zum Infostand');
+    await waitFor(() => expect(result.current.saveState).toBe('saved'));
+    expect(minted).toEqual(['canvas-1']);
+
+    await sendAndWait(result, 'Mach es grüner');
+    await waitFor(() => expect(replaced).toEqual(['canvas-1']));
+    expect(minted).toEqual(['canvas-1']);
+  });
+
+  it('mints a new canvas when the saved one is gone', async () => {
+    const { result } = renderHook(() => useSharepicCreator('u1'));
+    await sendAndWait(result, 'Sharepic zum Infostand');
+    await waitFor(() => expect(result.current.saveState).toBe('saved'));
+
+    replaceStatus = 404;
+    await sendAndWait(result, 'Mach es grüner');
+    await waitFor(() => expect(minted).toEqual(['canvas-1', 'canvas-2']));
+  });
+
+  it('hands the canvas to the editor and starts a new one for the next draft', async () => {
+    const { result } = renderHook(() => useSharepicCreator('u1'));
+    await sendAndWait(result, 'Sharepic zum Infostand');
+    let id: string | null = null;
+    await act(async () => {
+      id = await result.current.handOff();
+    });
+    expect(id).toBe('canvas-1');
+
+    await sendAndWait(result, 'Mach es grüner');
+    await waitFor(() => expect(minted).toEqual(['canvas-1', 'canvas-2']));
+    expect(replaced).toEqual([]);
+  });
+
+  it('keeps the canvas across a reload and writes the next draft into it', async () => {
+    const first = renderHook(() => useSharepicCreator('u1'));
+    await sendAndWait(first.result, 'Sharepic zum Infostand');
+    await waitFor(() => expect(first.result.current.saveState).toBe('saved'));
+    first.unmount();
+
+    const again = renderHook(() => useSharepicCreator('u1'));
+    act(() => {
+      again.result.current.resume();
+    });
+    await waitFor(() => expect(again.result.current.phase).toBe('ready'));
+    await sendAndWait(again.result, 'Mach es grüner');
+    await waitFor(() => expect(replaced).toEqual(['canvas-1']));
+    expect(minted).toEqual(['canvas-1']);
+  });
+
+  it('says so when the save fails, and saves with the next draft', async () => {
+    server.use(http.post(CANVAS, () => HttpResponse.json({ error: 'x' }, { status: 500 })));
+    const { result } = renderHook(() => useSharepicCreator('u1'));
+    await sendAndWait(result, 'Sharepic zum Infostand');
+    await waitFor(() => expect(result.current.saveState).toBe('error'));
+  });
+
+  it('does not mint a second canvas when it comes back from the editor', async () => {
+    const first = renderHook(() => useSharepicCreator('u1'));
+    await sendAndWait(first.result, 'Sharepic zum Infostand');
+    await act(async () => {
+      await first.result.current.handOff();
+    });
+    first.unmount();
+
+    const again = renderHook(() => useSharepicCreator('u1'));
+    act(() => {
+      again.result.current.resume();
+    });
+    await waitFor(() => expect(again.result.current.phase).toBe('ready'));
+    expect(minted).toEqual(['canvas-1']);
   });
 });
