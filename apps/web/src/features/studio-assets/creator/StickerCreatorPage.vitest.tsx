@@ -1,8 +1,9 @@
 import { type StudioAssetItem } from '@gruenerator/contracts';
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 import { http, HttpResponse } from 'msw';
+import { type Ref, useImperativeHandle } from 'react';
 import { useLocation } from 'react-router-dom';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useAuthStore } from '../../../stores/authStore';
 import { server } from '../../../test/msw-server';
@@ -12,13 +13,20 @@ import StickerCreatorPage from './StickerCreatorPage';
 
 import type * as StickerEffects from './stickerEffects';
 
-const { uploadShare, rendered } = vi.hoisted(() => ({
+const { uploadShare, removeBackground, rendered } = vi.hoisted(() => ({
   uploadShare: vi.fn(),
+  removeBackground: vi.fn(),
   rendered: new Blob(['png'], { type: 'image/png' }),
 }));
 
 vi.mock('../../image-studio/services/mediaUploadService', () => ({
   uploadBlobToMediaShare: uploadShare,
+}));
+vi.mock('../../image-studio/services/imageEditingService', () => ({
+  removeImageBackground: removeBackground,
+}));
+vi.mock('../../image-studio/utils/downscaleImage', () => ({
+  fileToDownscaledDataUrl: () => Promise.resolve('data:image/png;base64,cmF3'),
 }));
 // jsdom has no 2D canvas; the pixel maths is covered in packages/shared/src/stickers/creator.
 vi.mock('./stickerEffects', async (importOriginal) => {
@@ -33,8 +41,16 @@ vi.mock('./stickerEffects', async (importOriginal) => {
     canvasToPngBlob: () => Promise.resolve(rendered),
   };
 });
+// The badge exports through the Konva stage; stand in for it with a fixed PNG.
 vi.mock('react-konva', () => ({
-  Stage: () => null,
+  Stage: ({ ref }: { ref?: Ref<unknown> }) => {
+    useImperativeHandle(ref, () => ({
+      width: () => 320,
+      height: () => 320,
+      toBlob: () => Promise.resolve(rendered),
+    }));
+    return null;
+  },
   Layer: () => null,
   Path: () => null,
   Text: () => null,
@@ -62,6 +78,9 @@ afterAll(() => {
 beforeEach(() => {
   body = null;
   uploadShare.mockReset().mockResolvedValue('tok-1');
+  removeBackground
+    .mockReset()
+    .mockResolvedValue({ base64: 'data:image/png;base64,Y3V0', objectUrl: 'blob:cutout' });
   useAuthStore.setState({ locale: 'de-DE' });
   server.use(
     http.post(API, async ({ request }) => {
@@ -103,6 +122,23 @@ async function designUpload(user: ReturnType<typeof renderWithProviders>['user']
   await waitFor(() => expect(next).toBeEnabled());
   await user.click(next);
   await screen.findByRole('heading', { name: 'Speichern' });
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+async function designCutout(user: ReturnType<typeof renderWithProviders>['user']) {
+  // The cutout path downscales through a data: URL fetch, which MSW would refuse.
+  const realFetch = globalThis.fetch;
+  vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) =>
+    String(input).startsWith('data:')
+      ? Promise.resolve({ blob: () => Promise.resolve(rendered) } as Response)
+      : realFetch(input, init)
+  );
+  await user.click(screen.getByRole('button', { name: /Foto freistellen/ }));
+  const input = document.querySelector<HTMLInputElement>('input[type="file"]');
+  await user.upload(input!, new File(['raw'], 'Portrait.jpg', { type: 'image/jpeg' }));
 }
 
 describe('StickerCreatorPage', () => {
@@ -231,5 +267,45 @@ describe('StickerCreatorPage', () => {
     await waitFor(() => expect(attempts).toBe(2));
     expect(uploadShare).toHaveBeenCalledOnce();
     expect(body).toMatchObject({ shareToken: 'tok-1' });
+  });
+
+  it('cuts out a photo and previews it with the outline on', async () => {
+    const { user } = renderWithProviders(<StickerCreatorPage />);
+    await designCutout(user);
+
+    expect(
+      await screen.findByRole('img', { name: 'Vorschau deines Stickers' })
+    ).toBeInTheDocument();
+    expect(removeBackground).toHaveBeenCalledOnce();
+    expect(screen.getByRole('switch', { name: 'Kontur' })).toBeChecked();
+    expect(screen.getByRole('slider', { name: /Stärke/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Weiter' })).toBeEnabled();
+  });
+
+  it('explains a failed cutout and retries it', async () => {
+    removeBackground.mockRejectedValueOnce(new Error('down'));
+    const { user } = renderWithProviders(<StickerCreatorPage />);
+    await designCutout(user);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Freistellen ist gerade nicht');
+    expect(screen.getByRole('button', { name: 'Weiter' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Erneut versuchen' }));
+
+    expect(
+      await screen.findByRole('img', { name: 'Vorschau deines Stickers' })
+    ).toBeInTheDocument();
+    expect(removeBackground).toHaveBeenCalledTimes(2);
+  });
+
+  it('mounts the badge designer with the default text and enables Weiter', async () => {
+    const { user } = renderWithProviders(<StickerCreatorPage />);
+    await user.click(screen.getByRole('button', { name: /Text-Badge/ }));
+
+    expect(screen.getByRole('textbox', { name: 'Text' })).toHaveValue('Jetzt\nGrün wählen!');
+    expect(screen.getByRole('img', { name: /mit „Jetzt Grün wählen!“/ })).toBeInTheDocument();
+    const next = screen.getByRole('button', { name: 'Weiter' });
+    await waitFor(() => expect(next).toBeEnabled());
+    await user.click(next);
+    expect(await screen.findByLabelText('Titel')).toHaveValue('Jetzt Grün wählen!');
   });
 });
