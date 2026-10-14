@@ -208,6 +208,7 @@ export const sharesReadContract = c.router(
         200: deleteShareResponseSchema,
         401: shareErrorResponseSchema,
         404: shareErrorResponseSchema,
+        409: shareErrorResponseSchema,
         500: shareErrorResponseSchema,
       },
       summary: 'Delete a share',

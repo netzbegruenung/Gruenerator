@@ -5,6 +5,7 @@ import { z } from 'zod';
 
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { getSharedMediaService } from '../../services/sharedMediaService.js';
+import { STUDIO_ASSET_SHARE_DELETE_MESSAGE } from '../../services/studioAssets/studioAssetShare.js';
 
 import type { AllowedMimeType, SharedMediaRow } from '../../types/media.js';
 
@@ -353,7 +354,12 @@ router.delete('/:id', async (req: Request<{ id: string }>, res: Response): Promi
       return;
     }
 
-    if ((await mediaService.trashShare(userId, item.share_token)) !== 'ok') {
+    const trashed = await mediaService.trashShare(userId, item.share_token);
+    if (trashed === 'studio_asset') {
+      res.status(409).json({ error: STUDIO_ASSET_SHARE_DELETE_MESSAGE });
+      return;
+    }
+    if (trashed !== 'ok') {
       res.status(404).json({ error: 'Media not found' });
       return;
     }

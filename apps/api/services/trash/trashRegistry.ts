@@ -323,7 +323,10 @@ const sharedMediaHandler: TrashKindHandler = {
     const found = await getSharedMediaService().getTrashedShare(userId, id);
     return typeof found === 'string' ? found : shareItem(found);
   },
-  trash: (userId, id) => getSharedMediaService().trashShare(userId, id),
+  async trash(userId, id) {
+    const result = await getSharedMediaService().trashShare(userId, id);
+    return result === 'studio_asset' ? 'forbidden' : result;
+  },
   restore: (userId, id) => getSharedMediaService().restoreShare(userId, id),
   purge: (id, cutoff) => getSharedMediaService().purgeShare(id, cutoff),
   listExpired: (cutoff, limit) => getSharedMediaService().listExpiredShares(cutoff, limit),
