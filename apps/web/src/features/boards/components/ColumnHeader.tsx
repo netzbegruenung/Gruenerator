@@ -19,6 +19,7 @@ import {
   FiZap,
   FiChevronLeft,
   FiChevronRight,
+  FiCheckCircle,
 } from 'react-icons/fi';
 
 import { useColumnActivity } from '../context/BoardAwarenessContext';
@@ -55,6 +56,10 @@ interface ColumnHeaderProps {
   onSetLimit?: (limit: number | null) => void;
   onMoveLeft?: () => void;
   onMoveRight?: () => void;
+  /** True when checking a card off moves it into this column. */
+  isDone?: boolean;
+  /** Mark/unmark this column as the done column (only for the status field). */
+  onToggleDone?: () => void;
 }
 
 export const ColumnHeader = memo(function ColumnHeader({
@@ -72,6 +77,8 @@ export const ColumnHeader = memo(function ColumnHeader({
   onSetLimit,
   onMoveLeft,
   onMoveRight,
+  isDone,
+  onToggleDone,
 }: ColumnHeaderProps) {
   const columnActivity = useColumnActivity(columnId);
   const confirm = useConfirm();
@@ -100,6 +107,14 @@ export const ColumnHeader = memo(function ColumnHeader({
         inputClassName="flex-1 text-sm font-semibold bg-transparent border-none outline-none text-foreground"
         editableClassName="cursor-pointer"
       />
+
+      {isDone && (
+        <FiCheckCircle
+          className="shrink-0 text-primary-600 dark:text-primary-400"
+          size={13}
+          title="Erledigt-Spalte"
+        />
+      )}
 
       {hasAiTask && (
         <FiZap
@@ -199,6 +214,12 @@ export const ColumnHeader = memo(function ColumnHeader({
             <DropdownMenuItem onClick={onDuplicate}>
               <FiCopy className="mr-2" size={14} />
               Spalte duplizieren
+            </DropdownMenuItem>
+          )}
+          {onToggleDone && (
+            <DropdownMenuItem onClick={onToggleDone}>
+              <FiCheckCircle className="mr-2" size={14} />
+              {isDone ? 'Nicht mehr Erledigt-Spalte' : 'Als Erledigt-Spalte markieren'}
             </DropdownMenuItem>
           )}
           {onHide && (

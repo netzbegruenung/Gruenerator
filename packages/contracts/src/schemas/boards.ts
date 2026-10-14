@@ -145,6 +145,10 @@ export const selectOptionSchema = z.object({
   // Optional WIP limit (max cards) when this option is a kanban column. Empty =
   // no limit. The column header shows `count/limit` and turns red on overflow.
   limit: z.number().int().positive().optional(),
+  // Marks the status option whose column means "erledigt": "Als erledigt markieren" moves
+  // a task here. Absent on every option = fall back to the legacy ids/names
+  // (getDoneStatusId); an explicit `false` opts that option out of the fallback.
+  isDone: z.boolean().optional(),
 });
 
 export const boardFieldSchema = z.object({
@@ -175,6 +179,9 @@ export const boardRowSchema = z.object({
   // ISO timestamp set when the card is archived (soft-delete); absent = active.
   // Archived rows are filtered out of every view by default (useViewData).
   archivedAt: z.string().optional(),
+  // Status the card had before it was checked off, so unchecking returns it there.
+  // Cleared when the card leaves the done column.
+  statusBeforeDone: z.string().optional(),
 });
 
 export const viewLayoutSchema = z.enum(['kanban', 'table', 'list', 'calendar', 'gantt']);

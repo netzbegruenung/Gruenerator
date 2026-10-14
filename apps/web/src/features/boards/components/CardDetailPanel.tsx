@@ -45,6 +45,7 @@ import { useNavigate } from 'react-router-dom';
 import { isEmbedded } from '../../../utils/platform';
 import { PhosphorIcon } from '../../agents/icons/PhosphorIcon';
 import { AgentRunButton } from '../aiColumns/AgentRunButton';
+import { useTaskDone } from '../context/TaskDoneContext';
 import { useBoardActivity } from '../hooks/useBoardActivity';
 import { useCardSubscription } from '../hooks/useCardSubscription';
 import { FIELD_IDS, parseAssignees, parseChecklists, serializeAssignees } from '../types';
@@ -226,6 +227,9 @@ export const CardDetailPanel = memo(function CardDetailPanel({
     activeCardId
   );
   const isWatching = subscriptionQuery.data?.subscribed ?? false;
+
+  const taskDone = useTaskDone();
+  const isDone = !!taskDone && row?.cells[FIELD_IDS.STATUS] === taskDone.doneStatusId;
 
   const labelsField = useMemo(() => fields.find((f) => f.id === FIELD_IDS.LABELS), [fields]);
   const labelOptions = useMemo(
@@ -463,9 +467,13 @@ export const CardDetailPanel = memo(function CardDetailPanel({
     (statusId: string) => {
       if (!row) return;
       onUpdateCell(row.id, FIELD_IDS.STATUS, statusId);
-      recordActivity.mutate({ type: 'card_moved' });
+      // Entering/leaving the done column is logged as completed/reopened upstream.
+      const touchesDone =
+        !!taskDone &&
+        (statusId === taskDone.doneStatusId || currentStatusId === taskDone.doneStatusId);
+      if (!touchesDone) recordActivity.mutate({ type: 'card_moved' });
     },
-    [row, onUpdateCell, recordActivity]
+    [row, onUpdateCell, recordActivity, taskDone, currentStatusId]
   );
 
   const handleDiscussInChat = useCallback(() => {
@@ -550,6 +558,22 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                     target.style.height = `${target.scrollHeight}px`;
                   }}
                 />
+                {taskDone && (
+                  <button
+                    type="button"
+                    onClick={() => taskDone.setDone(row.id, !isDone)}
+                    aria-label={isDone ? 'Erledigt – wieder öffnen' : undefined}
+                    className={cn(
+                      'mt-2 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium cursor-pointer transition-colors max-sm:min-h-11',
+                      isDone
+                        ? 'border-primary-600 bg-primary-600 text-white hover:bg-primary-700 dark:border-primary-500 dark:bg-primary-500'
+                        : 'border-grey-300 bg-transparent text-foreground hover:border-primary-600 dark:border-grey-600'
+                    )}
+                  >
+                    <FiCheck size={13} aria-hidden="true" />
+                    {isDone ? 'Erledigt' : 'Als erledigt markieren'}
+                  </button>
+                )}
               </div>
               <div className="flex items-center gap-0.5 shrink-0 -mr-1 sm:-mr-2">
                 {onPrevCard && (
