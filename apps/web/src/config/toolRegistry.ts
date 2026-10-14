@@ -156,13 +156,13 @@ const TOOLS = [
   },
   {
     id: 'agents',
-    title: 'Agentura',
-    path: '/agentura',
+    title: 'Grüneratoren',
+    path: '/grueneratoren',
     icon: { component: RiSpyLine },
-    tile: { group: 'organisieren', description: 'Grüneratoren & Rezepte' },
+    tile: { group: 'organisieren', description: 'Agents, Rezepte & Aufgaben' },
     search: {
       id: 'tool-agentura',
-      subtitle: 'KI-Grüneratoren & Rezepte entdecken',
+      subtitle: 'Deine Agents, Rezepte und Aufgaben',
       icon: { navigation: 'desk' },
       keywords: ['agentura', 'agent', 'agenten', 'grünerator', 'grueneratoren', 'skills', 'ki'],
     },

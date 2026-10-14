@@ -74,11 +74,11 @@ export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResul
 
   items.grueneratoren = {
     id: 'grueneratoren',
-    path: '/agentura',
+    path: '/grueneratoren',
     title: 'Grüneratoren',
     description: 'Deine KI-Grüneratoren',
     icon: RiSpyLine,
-    activePaths: ['/agentura', '/agents'],
+    activePaths: ['/grueneratoren', '/agentura', '/agents'],
   };
 
   if (import.meta.env.DEV) {

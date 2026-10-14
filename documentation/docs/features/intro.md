@@ -1,7 +1,7 @@
 ---
 laender: [de, at]
 sidebar_position: 1
-description: 'Die drei großen Flächen neben dem Chat — Office, Agentura und die Inhalte der Landesverbände — mit Verweis auf jede Einzelseite.'
+description: 'Die drei großen Flächen neben dem Chat — Office, Grüneratoren und die Inhalte der Landesverbände — mit Verweis auf jede Einzelseite.'
 ---
 
 # Features
@@ -9,6 +9,6 @@ description: 'Die drei großen Flächen neben dem Chat — Office, Agentura und 
 Neben dem Chat gibt es im Grünerator drei größere Flächen. Diese Seiten beschreiben, **was es dort gibt** — jede Funktion, jeden Schalter. Wenn du stattdessen eine bestimmte Aufgabe erledigen willst, sind die [Guides für Einsteiger\*innen](../category/einsteigerinnen) der kürzere Weg.
 
 - **[Office](./office.mdx)** — Dokumente, Tabellen, Präsentationen und Boards, gemeinsam bearbeitbar und mit KI-Unterstützung direkt im Editor.
-- **[Agentura](./agentura.mdx)** — der Marktplatz für Grüneratoren und Rezepte: fertige nutzen, eigene bauen.
+- **[Grüneratoren und Agentura](./agentura.mdx)** — deine Agents, Rezepte und Aufgaben an einem Ort, dazu die Agentura als Laden für offizielle und öffentliche: fertige dazuholen, eigene bauen.
 - **[Notebooks](./notebooks.md)** — eigenes Wissen bündeln und durchsuchbar machen: Quellarten, Teilen, Verwaltung.
 - **[Landesverbände](./landesverbaende.md)** — welche Inhalte der Landesverbände im Grünerator stecken und was ihre Agents können.

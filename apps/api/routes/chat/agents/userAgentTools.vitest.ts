@@ -234,10 +234,10 @@ describe('user_agents: list', () => {
     expect(registered).toHaveLength(1);
   });
 
-  it('grounds the empty case as a note pointing to the Agentura', async () => {
+  it('grounds the empty case as a note pointing to the overview', async () => {
     const { run, notes, registered } = makeCtx();
     expect(await run({ action: 'list' })).toMatchObject({ resultCount: 0 });
-    expect(notes[0][1]).toContain('/agentura');
+    expect(notes[0][1]).toContain('/grueneratoren');
     expect(registered).toHaveLength(0);
   });
 });
@@ -486,7 +486,7 @@ describe('user_agents: create (card)', () => {
   it('returns a relayable error and no card when the draft fails', async () => {
     const { run, sseEvents } = makeCtx({ draft: new Error('timeout') });
     expect(await run(CREATE_ARGS)).toMatchObject({
-      error: expect.stringMatching(/Entwurf.*timeout.*\/agentura/),
+      error: expect.stringMatching(/Entwurf.*timeout.*\/grueneratoren/),
     });
     expect(sseEvents).toHaveLength(0);
   });

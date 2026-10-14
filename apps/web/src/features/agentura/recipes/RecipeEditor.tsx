@@ -240,7 +240,7 @@ function RecipeEditor({ mode, initialState, onCancel }: RecipeEditorProps) {
       if (recipeId) {
         showTrashUndo({ kind: 'user_text_form', id: recipeId, title: form.title || mention });
       }
-      void navigate('/agentura?cat=meine');
+      void navigate('/grueneratoren');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Löschen fehlgeschlagen.');
     }
@@ -294,7 +294,7 @@ function RecipeEditor({ mode, initialState, onCancel }: RecipeEditorProps) {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => (onCancel ? onCancel() : navigate('/agentura'))}
+            onClick={() => (onCancel ? onCancel() : navigate('/grueneratoren'))}
             disabled={saveMut.isPending}
           >
             Abbrechen

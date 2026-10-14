@@ -226,9 +226,9 @@ export const STUDIO_WERKZEUGE: WorkplaceToolItem[] = [
 export const WORKPLACE_TOOLS: WorkplaceToolItem[] = [
   {
     id: 'agents',
-    title: 'Agentura',
-    description: 'Grüneratoren & Rezepte',
-    path: '/agentura',
+    title: 'Grüneratoren',
+    description: 'Agents, Rezepte & Aufgaben',
+    path: '/grueneratoren',
     icon: RiSpyLine,
   },
   {
