@@ -92,7 +92,7 @@ export const agentFrontmatterSchema = z.object({
   pinnedToSidebar: z.boolean().optional(),
   category: z.enum(['gruppen']).optional(),
   audience: agentAudienceSchema.optional(),
-  localized: z.record(z.enum(['de-DE', 'de-AT']), agentLocalizationSchema).optional(),
+  localized: z.partialRecord(z.enum(['de-DE', 'de-AT']), agentLocalizationSchema).optional(),
   inlineSourceLinks: z.boolean().optional(),
   /**
    * Recipe mention the single-pass respond path auto-loads when the user picked

@@ -72,7 +72,7 @@ export const boardDocumentSchema = z.object({
 
 export const generateBoardResponseSchema = z.object({
   board: boardDocumentSchema,
-  generatedStructure: z.unknown().nullable(),
+  generatedStructure: z.unknown().nullable().optional(),
 });
 
 export const createBoardResponseSchema = boardDocumentSchema;
@@ -182,7 +182,7 @@ export const viewLayoutSchema = z.enum(['kanban', 'table', 'list', 'calendar', '
 export const filterRuleSchema = z.object({
   fieldId: z.string(),
   operator: z.string(),
-  value: z.unknown(),
+  value: z.unknown().optional(),
 });
 
 export const sortRuleSchema = z.object({

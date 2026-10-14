@@ -19,20 +19,20 @@ import { z } from 'zod';
 export const systemFullTextResponseSchema = z.object({
   success: z.boolean(),
   data: z.object({
-    fullText: z.unknown(),
-    title: z.unknown(),
-    url: z.unknown(),
+    fullText: z.unknown().optional(),
+    title: z.unknown().optional(),
+    url: z.unknown().optional(),
   }),
 });
 
 export const systemFullTextNotFoundSchema = z.object({
   success: z.boolean(),
-  message: z.unknown(),
+  message: z.unknown().optional(),
 });
 
 export const systemFullTextErrorSchema = z.object({
   success: z.boolean(),
-  message: z.unknown(),
+  message: z.unknown().optional(),
 });
 
 // ── retrievalController schemas ──────────────────────────────────────────────
@@ -45,12 +45,12 @@ export const systemFullTextErrorSchema = z.object({
  */
 export const documentStatsResponseSchema = z.object({
   success: z.boolean(),
-  stats: z.unknown(),
+  stats: z.unknown().optional(),
 });
 
 export const documentStatsErrorSchema = z.object({
   success: z.boolean(),
-  message: z.unknown(),
+  message: z.unknown().optional(),
 });
 
 // ── document statuses (used during notebook creation progress polling) ─────
