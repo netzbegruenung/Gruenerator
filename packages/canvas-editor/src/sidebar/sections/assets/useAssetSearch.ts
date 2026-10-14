@@ -7,6 +7,7 @@ import {
   ALL_ASSETS,
   assetMatchesLocale,
   EMOJI_ASSETS,
+  STICKER_ASSETS,
   type UniversalAsset,
 } from '../../../utils/canvasAssets';
 import { getIconsSync, loadAllIcons, type IconDef } from '../../../utils/canvasIcons';
@@ -85,7 +86,7 @@ export function useAssetSearch(features: FeatureFlags): AssetSearchState {
     const results: SearchResult[] = [];
 
     if (hasAssetsFeature) {
-      [...ALL_ASSETS, ...EMOJI_ASSETS].forEach((asset) => {
+      [...ALL_ASSETS, ...STICKER_ASSETS, ...EMOJI_ASSETS].forEach((asset) => {
         if (!assetMatchesLocale(asset, userLocale)) return;
         if (matchesQuery(query, asset.label, asset.tags)) {
           results.push({ type: 'element', id: asset.id, name: asset.label, asset });

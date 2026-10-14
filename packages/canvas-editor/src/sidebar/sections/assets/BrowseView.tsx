@@ -35,6 +35,8 @@ import {
   IllustrationStripTiles,
   MarkeStripTiles,
   RahmenStripTiles,
+  StickerGrid,
+  StickerStripTiles,
 } from './stripTiles';
 
 import type { ExtendedAssetsSectionProps } from './AssetsSection';
@@ -191,6 +193,7 @@ export function BrowseView(props: BrowseViewProps) {
   const availableCategories = useMemo(() => {
     const featureMap: Record<string, boolean> = {
       marke: hasAssetsFeature || (hasBalkenFeature && userLocale === 'de-DE'),
+      sticker: hasAssetsFeature,
       formen: hasShapesFeature,
       diagramme: hasChartsFeature,
       rahmen: hasFramesFeature,
@@ -222,6 +225,7 @@ export function BrowseView(props: BrowseViewProps) {
         // zeigt nur, was auf DIESER Flaeche schon liegt. Nicht auf
         // `ALL_ASSETS` zurueckdrehen: dann verschwindet eine Kopie still aus
         // dem Streifen, obwohl sie auf der Flaeche sichtbar ist.
+        // A shop sticker (`asset:<uuid>`) has no catalogue entry to re-add by id.
         const def = getAssetById((inst as AssetInstance).assetId);
         if (def) items.push({ id: def.id, type: 'asset', src: def.src, label: def.label });
       }
@@ -362,6 +366,8 @@ export function BrowseView(props: BrowseViewProps) {
             recommendedAssetIds={sectionProps.recommendedAssetIds}
           />
         );
+      case 'sticker':
+        return <StickerStripTiles onAddAsset={sectionProps.onAddAsset!} />;
       case 'formen':
         return <FormenStripTiles onAddShape={sectionProps.onAddShape!} />;
       case 'diagramme':
@@ -531,6 +537,13 @@ export function BrowseView(props: BrowseViewProps) {
               onDuplicateIllustration={sectionProps.onDuplicateIllustration}
               isExpanded
               illustrations={filteredIllustrations}
+            />
+          )}
+
+          {activeView === 'sticker' && hasAssetsFeature && (
+            <StickerGrid
+              onAddAsset={sectionProps.onAddAsset!}
+              searchQuery={debouncedDrillDownQuery}
             />
           )}
 

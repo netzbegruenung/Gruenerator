@@ -23,6 +23,8 @@ import {
   IllustrationStripTiles,
   MarkeStripTiles,
   RahmenStripTiles,
+  StickerGrid,
+  StickerStripTiles,
 } from './stripTiles';
 
 import type { ExtendedAssetsSectionProps } from './AssetsSection';
@@ -39,7 +41,15 @@ const TILE =
 const EMPTY_HINT = 'm-0 py-8 px-4 text-center text-[13px] text-[var(--editor-text-muted)]';
 
 type CategoryId =
-  'grafiken' | 'badges' | 'formen' | 'diagramme' | 'rahmen' | 'illustrationen' | 'icons' | 'emoji';
+  | 'grafiken'
+  | 'sticker'
+  | 'badges'
+  | 'formen'
+  | 'diagramme'
+  | 'rahmen'
+  | 'illustrationen'
+  | 'icons'
+  | 'emoji';
 
 interface Category {
   id: CategoryId;
@@ -95,6 +105,15 @@ export function MobileCatalogView({ search, ...props }: MobileCatalogViewProps) 
       detail: (
         <GrafikenGrid onAddAsset={onAddAsset} recommendedAssetIds={props.recommendedAssetIds} />
       ),
+    });
+  }
+
+  if (onAddAsset) {
+    categories.push({
+      id: 'sticker',
+      label: 'Sticker',
+      carousel: <StickerStripTiles onAddAsset={onAddAsset} />,
+      detail: <StickerGrid onAddAsset={onAddAsset} />,
     });
   }
 
