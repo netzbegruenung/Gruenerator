@@ -120,7 +120,7 @@ export async function draftAgentSpec(
     temperature: 0.4,
     label: 'agent_draft',
   });
-  if (!generated.ok) throw new Error(generated.error);
+  if (!generated.ok) throw generated.cause ?? new Error(generated.error);
   const draft = generated.data;
 
   const enabledTools = draft.enabledTools.filter((t) => TOOL_KEYS.has(t));

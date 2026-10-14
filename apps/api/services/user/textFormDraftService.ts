@@ -192,7 +192,7 @@ export async function draftRecipeSpec(params: {
     temperature: 0.4,
     label: 'recipe_draft',
   });
-  if (!generated.ok) throw new Error(generated.error);
+  if (!generated.ok) throw generated.cause ?? new Error(generated.error);
   const draft = generated.data;
 
   // Clamp to the curated set so the synthesized icon always resolves.
