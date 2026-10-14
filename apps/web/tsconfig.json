@@ -13,9 +13,8 @@
     "allowJs": true,
     "checkJs": false,
     "noEmit": true,
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
+      "@/*": ["./src/*"],
       "~/*": ["./*"],
       "@gruenerator/shared": ["../../packages/shared/src"],
       "@gruenerator/shared/*": ["../../packages/shared/src/*"],
@@ -26,7 +25,7 @@
       "@gruenerator/sites-design": ["../../packages/sites-design/src"],
       "@gruenerator/sites-design/*": ["../../packages/sites-design/src/*"],
       "@gruenerator/contracts": ["../../packages/contracts/src/index.ts"],
-      "katex/contrib/mhchem": ["src/types/katex-mhchem.d.ts"]
+      "katex/contrib/mhchem": ["./src/types/katex-mhchem.d.ts"]
     }
   },
   "include": [

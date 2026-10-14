@@ -14,9 +14,8 @@
     "allowJs": true,
     "checkJs": false,
     "rootDir": "./src",
-    "baseUrl": ".",
     "paths": {
-      "@styles/*": ["src/styles/*"]
+      "@styles/*": ["./src/styles/*"]
     },
     "ignoreDeprecations": "6.0",
     "incremental": true
