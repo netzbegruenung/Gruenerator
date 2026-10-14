@@ -138,4 +138,9 @@ export async function deleteLikesOfDeletedUser(userId: string): Promise<void> {
      AND entity_id IN (SELECT id::text FROM user_templates WHERE user_id = $1)`,
     [userId]
   );
+  await getPostgresInstance().query(
+    `DELETE FROM entity_likes WHERE entity_type = 'studio_asset'
+     AND entity_id IN (SELECT id::text FROM studio_assets WHERE user_id = $1)`,
+    [userId]
+  );
 }

@@ -97,6 +97,9 @@ export function ReasoningContent({
       {...rest}
       className={cn(
         'relative max-h-64 overflow-y-auto overflow-x-hidden',
+        // Keyframes, not a height transition: the panel stays open while the
+        // reasoning streams, and Radix measures its height only on toggle.
+        'data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down',
         variant === 'ghost' ? 'px-1.5 pb-1.5' : 'px-3 pb-3',
         className
       )}

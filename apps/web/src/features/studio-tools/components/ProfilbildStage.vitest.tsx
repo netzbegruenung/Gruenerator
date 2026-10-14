@@ -8,7 +8,7 @@ import ProfilbildStage, { type ProfilbildStageProps } from './ProfilbildStage';
 import type { PlacedSticker } from '../utils/profilbildStickers';
 
 const applyPixelHitArea = vi.fn<(node: unknown) => void>();
-vi.mock('../utils/profilbildHitArea', () => ({
+vi.mock('@gruenerator/canvas-editor/pixelHitArea', () => ({
   applyPixelHitArea: (node: unknown) => applyPixelHitArea(node),
 }));
 
@@ -39,6 +39,7 @@ const imageB = { width: 10, height: 10 } as unknown as PlacedSticker['image'];
 const sticker = (patch: Partial<PlacedSticker> = {}): PlacedSticker => ({
   uid: 'sticker-1',
   id: 'teamgruen',
+  src: '/studio-tools/stickers/teamgruen.svg',
   label: '#teamgrün',
   image: imageA,
   x: 100,

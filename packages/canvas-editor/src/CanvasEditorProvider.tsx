@@ -93,6 +93,9 @@ export interface CanvasEditorServices {
   /** Open Unsplash search in browser */
   openUnsplashSearch?: (query: string) => void;
 
+  /** Open the host's sticker creator. When omitted, the Sticker card offers no "Sticker erstellen". */
+  openStickerCreator?: () => void;
+
   /**
    * Generate an image from a text prompt via the host's AI image pipeline.
    * The host is expected to wrap an authenticated endpoint that enforces

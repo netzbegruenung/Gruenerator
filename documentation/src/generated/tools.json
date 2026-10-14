@@ -101,6 +101,12 @@
           "path": "/studio/profilbild"
         },
         {
+          "id": "sticker",
+          "title": "Sticker & Hintergründe",
+          "description": "Sticker erstellen, teilen & entdecken",
+          "path": "/studio/sticker"
+        },
+        {
           "id": "bild-erweitern",
           "title": "Bild erweitern",
           "description": "Auf ein neues Format ergänzen",
@@ -252,6 +258,11 @@
       "title": "Scanner",
       "path": "/scanner",
       "subtitle": "Fotos & Scans in Text umwandeln"
+    },
+    "tool-sticker": {
+      "title": "Sticker & Hintergründe",
+      "path": "/studio/sticker",
+      "subtitle": "Sticker und Hintergründe erstellen, teilen und entdecken"
     },
     "tool-studio": {
       "title": "Studio",

@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 
 import { cn } from '../lib/cn';
 import { Button } from './button';
+import { IconSwap } from './icon-swap';
 
 interface CopyLinkRowProps {
   /** The URL (or any text) shown read-only and copied to the clipboard. */
@@ -37,7 +38,7 @@ export function CopyLinkRow({ value, copyLabel, copiedLabel, className }: CopyLi
         className="flex-1 rounded-md border border-grey-200 bg-grey-50 px-sm py-xs text-xs text-grey-600 outline-none dark:border-grey-700 dark:bg-grey-800 dark:text-grey-300"
       />
       <Button size="sm" variant="outline" onClick={handleCopy} className={cn(label && 'gap-xs')}>
-        {copied ? <Check size={14} /> : <Copy size={14} />}
+        <IconSwap swapped={copied} from={<Copy size={14} />} to={<Check size={14} />} />
         {label}
       </Button>
     </div>

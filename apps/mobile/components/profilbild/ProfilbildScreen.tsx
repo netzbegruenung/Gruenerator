@@ -3,10 +3,11 @@ import {
   COLOR_SWATCHES_DE,
   type ProfilbildSticker,
 } from '@gruenerator/shared/profilbild';
+import { galleryTarget, isShareSrc, type GalleryAsset } from '@gruenerator/shared/stickers';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { type SkImage } from '@shopify/react-native-skia';
 import { Image } from 'expo-image';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -22,7 +23,9 @@ import { useProfilbildAutosave } from '../../hooks/profilbild/useProfilbildAutos
 import { useProfilbildCutout } from '../../hooks/profilbild/useProfilbildCutout';
 import { useProfilbildImages } from '../../hooks/profilbild/useProfilbildImages';
 import {
+  clearShareImages,
   loadProfilbildReopen,
+  loadShareImage,
   useProfilbildShare,
   type ProfilbildReopen,
 } from '../../hooks/profilbild/useProfilbildShare';
@@ -38,12 +41,19 @@ import { borderRadius, colors, spacing, typography } from '../../theme';
 import { Button } from '../common/Button';
 import { SegmentedControl } from '../common/SegmentedControl';
 
-import { BackgroundPicker, type CustomBackground } from './BackgroundPicker';
+import { BackgroundPicker, CUSTOM_ID, type CustomBackground } from './BackgroundPicker';
+import { galleryStickerSource } from './galleryModel';
 import { InstagramPreview, PreviewFrame, type PreviewVariant } from './PreviewFrame';
 import { ProfilbildEditor } from './ProfilbildEditor';
 import { nextStickerUid } from './profilbildGestures';
 import { exportProfilbildBase64 } from './ProfilbildScene';
-import { initialModel, newSticker, type ProfilbildModel } from './sceneModel';
+import {
+  initialModel,
+  newSticker,
+  type ProfilbildModel,
+  type SceneImages,
+  type StickerSource,
+} from './sceneModel';
 import { StickerPicker } from './StickerPicker';
 
 const VARIANTS: { value: PreviewVariant; label: string }[] = [
@@ -85,10 +95,13 @@ async function exportAndDeliver(
 export function ProfilbildScreen({
   isAustria,
   shareToken,
+  galleryAsset,
 }: {
   isAustria: boolean;
   /** A saved Profilbild to reopen with its editor state. */
   shareToken: string | null;
+  /** A gallery sticker or background to apply once the photo is in. */
+  galleryAsset: GalleryAsset | null;
 }) {
   const theme = useTheme();
   const { width } = useWindowDimensions();
@@ -107,11 +120,21 @@ export function ProfilbildScreen({
   const [model, setModel] = useState<ProfilbildModel | null>(null);
   const [backgroundId, setBackgroundId] = useState(firstSwatch.id);
   const [custom, setCustom] = useState<CustomBackground | null>(null);
+  const [gallery, setGallery] = useState<Record<string, SkImage>>({});
   const [selected, setSelected] = useState<string | null>(null);
   const [variant, setVariant] = useState<PreviewVariant>('rund');
   const [panel, setPanel] = useState<Panel>('hintergrund');
   const [busy, setBusy] = useState<'save' | 'share' | null>(null);
   const busyRef = useRef(false);
+  // Bumped per background choice, so a slow gallery load cannot override a later pick.
+  const backgroundRequest = useRef(0);
+  // The photo being edited, so a sticker still loading cannot land on the next one.
+  const currentPerson = useRef<SkImage | null>(null);
+
+  useEffect(() => clearShareImages, []);
+  useEffect(() => {
+    currentPerson.current = person;
+  }, [person]);
 
   useEffect(() => {
     if (!shareToken) return;
@@ -122,6 +145,7 @@ export function ProfilbildScreen({
         begin(loaded);
         setReopen(loaded);
         setCustom(loaded.custom);
+        setGallery((g) => ({ ...g, ...loaded.gallery }));
         adopt(
           { uri: loaded.personUri, width: loaded.person.width(), height: loaded.person.height() },
           loaded.person
@@ -145,7 +169,7 @@ export function ProfilbildScreen({
       const b64 = await exportProfilbildBase64({
         model: snapshot.model,
         person,
-        images: assets.images,
+        images: { ...assets.images, ...gallery },
         isAustria,
       });
       await save(b64, person, snapshot);
@@ -177,6 +201,74 @@ export function ProfilbildScreen({
       .catch(() => Alert.alert('Fehler', 'Das Foto konnte nicht geladen werden.'));
   };
 
+  const placeSticker = (sticker: StickerSource, image: SkImage) => {
+    const uid = nextStickerUid(sticker.id);
+    const next = newSticker(sticker, { width: image.width(), height: image.height() }, uid);
+    setModel((m) => (m ? { ...m, stickers: [...m.stickers, next] } : m));
+    setSelected(uid);
+  };
+
+  const addGallerySticker = (item: GalleryAsset) => {
+    if (!isShareSrc(item.src)) {
+      Alert.alert('Fehler', 'Dieser Sticker kann nicht verwendet werden.');
+      return;
+    }
+    const forPerson = person;
+    loadShareImage(item.src)
+      .then((image) => {
+        if (forPerson !== currentPerson.current) return;
+        setGallery((g) => ({ ...g, [item.src]: image }));
+        placeSticker(galleryStickerSource(item), image);
+      })
+      .catch(() => {
+        if (forPerson === currentPerson.current)
+          Alert.alert('Fehler', 'Der Sticker konnte nicht geladen werden.');
+      });
+  };
+
+  const pickGalleryBackground = (item: GalleryAsset) => {
+    if (!isShareSrc(item.src)) {
+      Alert.alert('Fehler', 'Dieser Hintergrund kann nicht verwendet werden.');
+      return;
+    }
+    const request = ++backgroundRequest.current;
+    loadShareImage(item.src)
+      .then((image) => {
+        if (request !== backgroundRequest.current) return;
+        setCustom({ uri: item.src, image, galleryUrl: item.src });
+        setBackgroundId(CUSTOM_ID);
+        setModel((m) => (m ? { ...m, background: { kind: 'image', image } } : m));
+      })
+      .catch(() => {
+        if (request === backgroundRequest.current)
+          Alert.alert('Fehler', 'Der Hintergrund konnte nicht geladen werden.');
+      });
+  };
+
+  // A gallery deep link waits here until the photo (and a reopened state) is in;
+  // a later link (back from the sticker creator) queues its asset again.
+  const [pendingAsset, setPendingAsset] = useState(galleryAsset);
+  const [linkedAssetId, setLinkedAssetId] = useState(galleryAsset?.id ?? null);
+  const [landingAsset, setLandingAsset] = useState<GalleryAsset | null>(null);
+  if ((galleryAsset?.id ?? null) !== linkedAssetId) {
+    setLinkedAssetId(galleryAsset?.id ?? null);
+    if (galleryAsset) setPendingAsset(galleryAsset);
+  }
+  if (pendingAsset && ready) {
+    setPendingAsset(null);
+    setLandingAsset(pendingAsset);
+    if (pendingAsset.kind === 'sticker') setPanel('sticker');
+  }
+
+  const applyGalleryAsset = useEffectEvent((asset: GalleryAsset) => {
+    if (asset.kind === 'background') pickGalleryBackground(asset);
+    else addGallerySticker(asset);
+  });
+
+  useEffect(() => {
+    if (landingAsset) applyGalleryAsset(landingAsset);
+  }, [landingAsset]);
+
   if (reopenStatus === 'loading') {
     return (
       <View style={[styles.centered, { backgroundColor: theme.background }]}>
@@ -203,6 +295,11 @@ export function ProfilbildScreen({
     return (
       <View style={[styles.centered, { backgroundColor: theme.background }]}>
         <Ionicons name="person-circle-outline" size={64} color={theme.textGreen} />
+        {pendingAsset && !shareToken ? (
+          <Text style={[styles.error, { color: theme.text }]}>
+            {`Wähle zuerst ein Foto – dann setzen wir ${galleryTarget(pendingAsset)} ein.`}
+          </Text>
+        ) : null}
         <View style={styles.buttons}>
           <Button onPress={() => pick(pickImageForEditor)}>Foto wählen</Button>
           <Button variant="outline" onPress={() => pick(takePhotoForEditor)}>
@@ -263,16 +360,10 @@ export function ProfilbildScreen({
     );
   }
 
-  const { images } = assets;
+  const images: SceneImages = { ...assets.images, ...gallery };
   const scene = { model, person: state.person, images, isAustria };
 
-  const addSticker = (sticker: ProfilbildSticker) => {
-    const image = images[sticker.src];
-    const uid = nextStickerUid(sticker.id);
-    const next = newSticker(sticker, { width: image.width(), height: image.height() }, uid);
-    setModel({ ...model, stickers: [...model.stickers, next] });
-    setSelected(uid);
-  };
+  const addSticker = (sticker: ProfilbildSticker) => placeSticker(sticker, images[sticker.src]);
 
   const run = async (kind: 'save' | 'share') => {
     if (busyRef.current) return;
@@ -329,13 +420,19 @@ export function ProfilbildScreen({
             selected={backgroundId}
             custom={custom}
             onCustom={setCustom}
+            onPickGallery={pickGalleryBackground}
             onSelect={(id, background) => {
+              backgroundRequest.current += 1;
               setBackgroundId(id);
               setModel({ ...model, background });
             }}
           />
         ) : (
-          <StickerPicker onAdd={addSticker} />
+          <StickerPicker
+            isAustria={isAustria}
+            onAdd={addSticker}
+            onAddGallery={addGallerySticker}
+          />
         )}
         <Button
           variant="ghost"

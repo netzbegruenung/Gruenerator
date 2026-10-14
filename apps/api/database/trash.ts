@@ -22,6 +22,7 @@ import { podcasts } from './schema/podcasts.js';
 import { recurring_tasks } from './schema/recurringTasks.js';
 import { reisekostenAbrechnungen } from './schema/reisekosten.js';
 import { userSites } from './schema/sites.js';
+import { studioAssets } from './schema/studioAssets.js';
 import { subtitlerProjects } from './schema/subtitler.js';
 import { userTemplates } from './schema/templates.js';
 import { userTextForms } from './schema/textForms.js';
@@ -47,6 +48,7 @@ export const TRASHABLE_TABLES = {
   reisekosten_abrechnungen: reisekostenAbrechnungen,
   explainables,
   podcasts,
+  studio_assets: studioAssets,
 } as const;
 
 export type TrashableTableName = keyof typeof TRASHABLE_TABLES;

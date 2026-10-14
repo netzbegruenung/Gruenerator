@@ -31,6 +31,15 @@ export async function uploadBlobToMediaLibrary(
   blob: Blob,
   opts?: { filename?: string; uploadSource?: UploadSource }
 ): Promise<string | null> {
+  const shareToken = await uploadBlobToMediaShare(blob, opts);
+  return shareToken ? `/api/share/${shareToken}/download` : null;
+}
+
+/** Same upload, but returns the share token — for callers that register the media elsewhere. */
+export async function uploadBlobToMediaShare(
+  blob: Blob,
+  opts?: { filename?: string; uploadSource?: UploadSource }
+): Promise<string | null> {
   const form = new FormData();
   const filename =
     opts?.filename ??
@@ -41,6 +50,5 @@ export async function uploadBlobToMediaLibrary(
   const res = await apiClient.post<MediaUploadResponse>('/media/upload', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
-  const shareToken = res.data?.data?.shareToken;
-  return shareToken ? `/api/share/${shareToken}/download` : null;
+  return res.data?.data?.shareToken ?? null;
 }

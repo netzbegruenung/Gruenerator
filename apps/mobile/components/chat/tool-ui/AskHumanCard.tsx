@@ -98,6 +98,7 @@ export function AskHumanCard({
           onPress={() => submit(customInput)}
           disabled={!customInput.trim()}
           style={[styles.sendButton, { opacity: customInput.trim() ? 1 : 0.4 }]}
+          hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel="Antwort senden"
           accessibilityState={{ disabled: !customInput.trim() }}

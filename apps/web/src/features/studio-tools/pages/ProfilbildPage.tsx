@@ -1,8 +1,11 @@
+import { profilbildStickersToAssetInstances } from '@gruenerator/canvas-editor/profilbildStickers';
 import { getContractsClient } from '@gruenerator/shared/api';
+import { DEFAULT_CANVAS_SIZE } from '@gruenerator/shared/canvas-editor';
 import { parseSavedProfilbild, PROFILBILD_SIZE } from '@gruenerator/shared/profilbild';
+import { galleryTarget } from '@gruenerator/shared/stickers';
 import { Alert, AlertDescription, Button } from '@gruenerator/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { PiUserCircle } from 'react-icons/pi';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -19,6 +22,7 @@ import { BACKGROUND_REMOVAL_ERROR, useBackgroundRemoval } from '../hooks/useBack
 import { loadShareFileDataUrl } from '../hooks/useProfilbildShare';
 import { mintProfilbildCanvas, type ProfilbildLayout } from '../profilbildCanvas';
 import { hasProfilbildHandoffMarker, takeProfilbildHandoff } from '../profilbildHandoff';
+import { parseProfilbildAssetParams } from '../utils/galleryAsset';
 
 const FULL_SHEET: ProfilbildLayout = {
   imagePosition: { x: 0, y: 0 },
@@ -42,6 +46,7 @@ const ProfilbildPage = () => {
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const reopenToken = searchParams.get('share');
+  const galleryAsset = useMemo(() => parseProfilbildAssetParams(searchParams), [searchParams]);
   const reopened = useQuery({
     queryKey: ['profilbild-reopen', reopenToken],
     queryFn: () => loadReopen(reopenToken ?? ''),
@@ -63,6 +68,15 @@ const ProfilbildPage = () => {
     ? (reopened.data?.cutoutUrl ?? null)
     : (handoffUrl ?? (status === 'done' ? cutoutDataUrl : null));
 
+  // The deep link waits for a photo; once the editor has it, the hint is done.
+  const [pendingAsset, setPendingAsset] = useState(galleryAsset);
+  const [linkedAssetId, setLinkedAssetId] = useState(galleryAsset?.id ?? null);
+  if ((galleryAsset?.id ?? null) !== linkedAssetId) {
+    setLinkedAssetId(galleryAsset?.id ?? null);
+    setPendingAsset(galleryAsset);
+  }
+  if (cutoutUrl && pendingAsset) setPendingAsset(null);
+
   const editInCanvas = async (handoff: ProfilbildCanvasHandoff) => {
     if (!cutoutUrl) return;
     // The flattened image fills the square profilbild sheet, so it keeps its pinned 1:1 format.
@@ -73,7 +87,12 @@ const ProfilbildPage = () => {
             handoff.cutoutDataUrl,
             'Profilbild',
             handoff.backgroundColor,
-            handoff.layout
+            handoff.layout,
+            profilbildStickersToAssetInstances(
+              handoff.stickers,
+              PROFILBILD_SIZE,
+              DEFAULT_CANVAS_SIZE
+            )
           );
     seedCanvasQuery(queryClient, canvas);
     void navigate(`/studio/canvas/${canvas.id}`);
@@ -99,6 +118,7 @@ const ProfilbildPage = () => {
             key={reopenToken ?? 'new'}
             cutoutUrl={cutoutUrl}
             reopen={reopenToken ? (reopened.data?.reopen ?? null) : null}
+            galleryAsset={galleryAsset}
             onEditInCanvas={editInCanvas}
             onReset={startOver}
           />
@@ -119,6 +139,12 @@ const ProfilbildPage = () => {
               </Button>
             </div>
           </div>
+        ) : null}
+
+        {pendingAsset && !reopenToken && !cutoutUrl && status === 'idle' ? (
+          <p className="m-0 text-sm">
+            {`Lade zuerst ein Foto hoch – dann setzen wir ${galleryTarget(pendingAsset)} ein.`}
+          </p>
         ) : null}
 
         {!reopenToken && !cutoutUrl && status === 'idle' ? (

@@ -1,15 +1,17 @@
 /**
  * ts-rest contract router for reporting objectionable content.
  *
- * POST /api/content-reports → emails the report (kind, reason, note, target ids,
- * reporter) to the operator. No DB row. Auth is applied at the prefix in
- * routes.ts, so `req.user` is populated here.
+ * POST /api/content-reports → stores the report (content_reports, idempotent
+ * per reporter and target; may auto-hide a studio asset) and emails it to the
+ * operator. The row is the record: a failed mail is logged, not returned. Auth
+ * is applied at the prefix in routes.ts, so `req.user` is populated here.
  */
 
 import { contentReportContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 import { type Application } from 'express';
 
+import { recordContentReport } from '../../services/contentReports/contentReportsService.js';
 import { isEmailConfigured, sendEmail } from '../../services/email/index.js';
 import { baseLayout, escapeHtml } from '../../services/email/templates.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
@@ -28,11 +30,22 @@ export const contentReportContractRouter = s.router(contentReportContract, {
       const user = getAuthedUser(args.req);
       const { kind, reason, note, targetId, groupId, threadId, excerpt } = args.body;
 
-      if (!isEmailConfigured()) {
+      const recorded = await recordContentReport(user.id, args.body);
+      if (!recorded.ok) {
         return {
-          status: 500 as const,
-          body: { success: false as const, error: 'SMTP not configured on this server' },
+          status: recorded.status,
+          body: { success: false as const, error: recorded.message },
         };
+      }
+      const { stored, hidden } = recorded.value;
+
+      if (!stored) {
+        log.info('[ContentReport] Duplicate report ignored', { userId: user.id, kind, targetId });
+        return { status: 200 as const, body: { success: true as const } };
+      }
+      if (!isEmailConfigured()) {
+        log.warn('[ContentReport] Stored without mail: SMTP not configured', { kind, targetId });
+        return { status: 200 as const, body: { success: true as const } };
       }
 
       const rows: Array<[string, string]> = [
@@ -43,6 +56,7 @@ export const contentReportContractRouter = s.router(contentReportContract, {
         ['Thread-ID', threadId ?? '—'],
         ['Gemeldet von', `${user.id}${user.email ? ` (${user.email})` : ''}`],
         ['Zeitpunkt', new Date().toISOString()],
+        ...(hidden ? [['Status', 'Automatisch ausgeblendet'] as [string, string]] : []),
       ];
 
       const tableRows = rows
@@ -85,16 +99,12 @@ export const contentReportContractRouter = s.router(contentReportContract, {
         subject: `Grünerator Meldung – ${kind} (${reason})`,
         html,
         text,
+      }).catch((error: unknown) => {
+        log.error('[ContentReport] Mail failed after the report was stored:', error);
+        return false;
       });
 
-      log.info('[ContentReport] Submit attempted', { userId: user.id, kind, reason, sent });
-
-      if (!sent) {
-        return {
-          status: 500 as const,
-          body: { success: false as const, error: 'SMTP send failed — check server logs' },
-        };
-      }
+      log.info('[ContentReport] Submit attempted', { userId: user.id, kind, reason, sent, hidden });
 
       return { status: 200 as const, body: { success: true as const } };
     } catch (error) {

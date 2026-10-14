@@ -22,6 +22,7 @@ import {
   PiRepeat,
   PiRobot,
   PiSpeakerHigh,
+  PiSticker,
   PiTable,
   PiUsersThree,
   PiVideo,
@@ -48,6 +49,7 @@ export const TRASH_KIND_LABELS: Record<TrashKind, string> = {
   reisekosten_abrechnung: 'Reisekostenabrechnung',
   explainable: 'Explainable',
   podcast: 'Podcast',
+  studio_asset: 'Sticker & Hintergründe',
 };
 
 export const TRASH_KIND_ICONS: Record<TrashKind, IconType> = {
@@ -70,6 +72,7 @@ export const TRASH_KIND_ICONS: Record<TrashKind, IconType> = {
   reisekosten_abrechnung: PiReceipt,
   explainable: PiLightbulb,
   podcast: PiHeadphones,
+  studio_asset: PiSticker,
 };
 
 interface SubtypeDisplay {
@@ -97,8 +100,15 @@ const MEDIA_SUBTYPES: Record<string, SubtypeDisplay> = {
   transfer: { label: 'Datei', icon: PiFile },
 };
 
+/** `kind` of a Studio gallery item. */
+const STUDIO_ASSET_SUBTYPES: Record<string, SubtypeDisplay> = {
+  sticker: { label: 'Sticker', icon: PiSticker },
+  background: { label: 'Hintergrund', icon: PiImage },
+};
+
 function subtypeDisplay(item: Pick<TrashItem, 'kind' | 'subtype'>): SubtypeDisplay | null {
   if (!item.subtype) return null;
+  if (item.kind === 'studio_asset') return STUDIO_ASSET_SUBTYPES[item.subtype] ?? null;
   if (item.kind === 'collaborative_document') return COLLAB_SUBTYPES[item.subtype] ?? null;
   if (item.kind === 'shared_media') return MEDIA_SUBTYPES[item.subtype] ?? null;
   return null;

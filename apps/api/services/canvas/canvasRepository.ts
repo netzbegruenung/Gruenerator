@@ -29,6 +29,7 @@ import {
   type QueryRunner,
 } from '../docs/CollaborativeDocumentService.js';
 import { buildCanvasThumbnailUrl } from '../media/thumbnailUrl.js';
+import { type UploadSource } from '../sharedMediaService.js';
 
 export const CANVAS_SUBTYPE = 'canvas';
 const DEFAULT_CANVAS_FORMAT = 'post-portrait';
@@ -424,11 +425,21 @@ export async function updateCanvas(
 
 const SHARE_DOWNLOAD_URL_RE = /^\/api\/share\/([^/?#]+)\/download$/;
 
+/** What `updateCanvasThumbnail` uploads with; any other share is not a thumbnail of ours. */
+const CANVAS_THUMBNAIL_SOURCES = [
+  'canvas-thumbnail',
+  'canvas-mint-thumbnail',
+  'chat-sharepic-thumbnail',
+] as const satisfies readonly UploadSource[];
+
 /**
  * Thumbnail refreshes mint a new share per render (immutable-cache URLs), so
  * the superseded one must go or internal rows accumulate unbounded — they are
  * exempt from enforceUserLimit. Only internal artifacts (is_library_item =
  * FALSE) are ever deleted; a library image someone set as thumbnail survives.
+ * The URL is client-written and collaborators refresh it, so no owner check
+ * applies — the upload source is the guard: a gallery item's share set as a
+ * thumbnail must never go with it.
  * The delete is a purge, not a trash: no listing shows internal rows, so a
  * Papierkorb entry could never be restored.
  */
@@ -438,7 +449,7 @@ export async function deleteReplacedThumbnailShare(url: string): Promise<void> {
 
   const { getSharedMediaService } = await import('../../routes/share/shareServices.js');
   const service = await getSharedMediaService();
-  await service.purgeInternalShare(match[1]);
+  await service.purgeInternalShare(match[1], null, CANVAS_THUMBNAIL_SOURCES);
 }
 
 /** Moves the canvas to the Papierkorb; the purge removes it for good. */

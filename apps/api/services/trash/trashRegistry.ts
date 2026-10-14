@@ -8,6 +8,7 @@
  */
 import { type TrashItem, type TrashKind } from '@gruenerator/contracts';
 
+import { type StudioAssetRow } from '../../database/schema/studioAssets.js';
 import {
   NotebookQdrantHelper,
   type TrashedNotebook,
@@ -67,6 +68,11 @@ import {
 } from '../reisekosten/abrechnungService.js';
 import { getSharedMediaService, type TrashedShareRow } from '../sharedMediaService.js';
 import { purgeUserSite, restoreUserSite, USER_SITE_TRASH } from '../sites/userSiteTrash.js';
+import {
+  STUDIO_ASSET_TRASH,
+  purgeStudioAsset,
+  trashStudioAssets,
+} from '../studioAssets/studioAssetTrash.js';
 import { getSubtitlerProjectService, type TrashedProjectRow } from '../subtitler/ProjectService.js';
 import {
   purgeUserTemplate,
@@ -318,7 +324,10 @@ const sharedMediaHandler: TrashKindHandler = {
     const found = await getSharedMediaService().getTrashedShare(userId, id);
     return typeof found === 'string' ? found : shareItem(found);
   },
-  trash: (userId, id) => getSharedMediaService().trashShare(userId, id),
+  async trash(userId, id) {
+    const result = await getSharedMediaService().trashShare(userId, id);
+    return result === 'studio_asset' ? 'forbidden' : result;
+  },
   restore: (userId, id) => getSharedMediaService().restoreShare(userId, id),
   purge: (id, cutoff) => getSharedMediaService().purgeShare(id, cutoff),
   listExpired: (cutoff, limit) => getSharedMediaService().listExpiredShares(cutoff, limit),
@@ -352,6 +361,7 @@ interface OwnedKindSpec<Row> {
   kind: TrashKind;
   table: OwnedTrashTable;
   title(row: Trashed<Row>): string;
+  subtype?(row: Trashed<Row>): string | null;
   trash(userId: string, id: string): Promise<OwnedTrashResult>;
   /** Only where a restore can clash with more than a unique index. */
   restore?(userId: string, id: string): Promise<OwnedRestoreResult>;
@@ -364,7 +374,7 @@ function ownedRowHandler<Row>(spec: OwnedKindSpec<Row>): TrashKindHandler {
       kind: spec.kind,
       id: row.id,
       title: spec.title(row),
-      subtype: null,
+      subtype: spec.subtype?.(row) ?? null,
       deletedAt: new Date(row.deleted_at),
     });
   return {
@@ -485,6 +495,19 @@ const podcastHandler = ownedRowHandler<Titled>({
   purge: purgePodcast,
 });
 
+const studioAssetHandler = ownedRowHandler<Titled & Pick<StudioAssetRow, 'kind'>>({
+  kind: 'studio_asset',
+  table: STUDIO_ASSET_TRASH,
+  title: (row) =>
+    titled(
+      row.title,
+      row.kind === 'background' ? 'Unbenannter Hintergrund' : 'Unbenannter Sticker'
+    ),
+  subtype: (row) => row.kind,
+  trash: async (userId, id) => okOr404((await trashStudioAssets(userId, [id])).length > 0),
+  purge: purgeStudioAsset,
+});
+
 const groupItem = (row: TrashedGroup): TrashItem =>
   toTrashItem({
     kind: 'group',
@@ -532,6 +555,7 @@ export const TRASH_KINDS = {
   reisekosten_abrechnung: reisekostenAbrechnungHandler,
   explainable: explainableHandler,
   podcast: podcastHandler,
+  studio_asset: studioAssetHandler,
 } satisfies Record<TrashKind, TrashKindHandler>;
 
 export function trashHandlerFor(kind: TrashKind): TrashKindHandler {

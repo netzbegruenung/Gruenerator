@@ -93,6 +93,7 @@ die ohne Parameter, ein Fehler schützte nichts. Geprüft wird mit dem stillen
 | Landesverbands-Zuordnung | `/api/auth/admin/landesverbaende` | `routes/admin/lvAdminAssignmentContractRouter.ts` |
 | **Chunk-Inspektor** | `/api/auth/admin/chunk-inspector` | `routes/admin/chunkInspectorContractRouter.ts` |
 | Konnektor-Test (Google/Microsoft über Nango, `/admin/konnektoren`) | `/api/auth/admin/connector-test` | `routes/admin/connectorTestContractRouter.ts` |
+| Meldungen (`content_reports`, je Ziel gruppiert; Auto-Ausblenden ab 3 Meldenden) | `/api/auth/admin/reports` | `routes/admin/adminReportsContractRouter.ts` |
 
 **Der Chunk-Inspektor** (`/admin/chunks/:documentId?collection=…`, #3123) zeigt zu
 einem Dokument, was der Abruf tatsächlich gespeichert hat: die Chunks in ihrer

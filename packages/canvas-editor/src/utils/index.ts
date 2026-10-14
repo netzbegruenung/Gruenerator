@@ -12,3 +12,4 @@ export * from './canvasLayerManager';
 export * from './ensureFontsReady';
 export { loadIconSetsFor } from './canvasIcons';
 export { catalogIconId } from './iconInstances';
+export { applyPixelHitArea } from './pixelHitArea';

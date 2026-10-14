@@ -42,6 +42,7 @@ import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '../utils/shapes';
 import type { UserImageInstance } from '../utils/userImageUtils';
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
+import type { StickerRef } from '@gruenerator/shared/stickers';
 
 // ============================================================================
 // STATE TYPE
@@ -132,6 +133,7 @@ export interface VeranstaltungFullActions {
   setImageScale: (scale: number) => void;
   toggleBackgroundLock: () => void;
   addAsset: (assetId: string) => void;
+  addStickerAsset: (ref: StickerRef) => void;
   updateAsset: (id: string, partial: Partial<AssetInstance>) => void;
   removeAsset: (id: string) => void;
   // Icons & Shapes
@@ -459,6 +461,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       propsFactory: (state, actions, context) => ({
         // Asset instance props
         onAddAsset: actions.addAsset,
+        onAddStickerAsset: actions.addStickerAsset,
         recommendedAssetIds: CANVAS_RECOMMENDED_ASSETS['veranstaltung'],
 
         // Auto-inject all feature props (icons, shapes, illustrations, balken)

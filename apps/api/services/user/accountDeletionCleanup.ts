@@ -15,6 +15,7 @@ import { createLogger } from '../../utils/logger.js';
 import { reportBackgroundError } from '../../utils/reportBackgroundError.js';
 import { ConnectionService } from '../connections/ConnectionService.js';
 import { purgeSoleOwnedCollaborativeDocuments } from '../docs/CollaborativeDocumentService.js';
+import { deleteFavoritesOfDeletedUser } from '../entityFavorites/EntityFavoritesService.js';
 import {
   deleteLikesForEntity,
   deleteLikesOfDeletedUser,
@@ -49,6 +50,12 @@ export async function cleanUpBeforeProfileDelete(userId: string): Promise<void> 
     await deleteLikesOfDeletedUser(userId);
   } catch (error) {
     reportBackgroundError(error, { job: 'account-deletion', store: 'entity_likes' });
+  }
+
+  try {
+    await deleteFavoritesOfDeletedUser(userId);
+  } catch (error) {
+    reportBackgroundError(error, { job: 'account-deletion', store: 'entity_favorites' });
   }
 
   let connections = 0;

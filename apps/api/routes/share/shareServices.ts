@@ -11,7 +11,12 @@
  * without the compiler noticing, so there is one copy now.
  */
 
-import type { ReapedShare, ShareTrashResult } from '../../services/sharedMediaService.js';
+import type {
+  ReapedShare,
+  ShareTrashRefusal,
+  ShareTrashResult,
+  UploadSource,
+} from '../../services/sharedMediaService.js';
 import type { SharedMediaRow, ShareResult } from '../../types/media.js';
 import type { ShareStatus, StoredMediaType } from '@gruenerator/contracts';
 
@@ -78,9 +83,13 @@ export interface SharedMediaService {
     shareId?: string
   ): Promise<void>;
   /** Moves the share to the Papierkorb; the row and its files stay. */
-  trashShare(userId: string, shareToken: string): Promise<ShareTrashResult>;
+  trashShare(userId: string, shareToken: string): Promise<ShareTrashResult | ShareTrashRefusal>;
   /** Hard-deletes an internal artifact (`is_library_item = FALSE`), files included. */
-  purgeInternalShare(shareToken: string): Promise<boolean>;
+  purgeInternalShare(
+    shareToken: string,
+    ownerId?: string | null,
+    uploadSources?: readonly UploadSource[] | null
+  ): Promise<boolean>;
   renameShare(userId: string, shareToken: string, title: string): Promise<boolean>;
   finalizeVideoShare(shareToken: string, videoPath: string): Promise<void>;
   markShareFailed(shareToken: string): Promise<void>;

@@ -91,6 +91,36 @@ const ALLOWLIST: readonly AllowEntry[] = [
     'account deletion: likes on every Vorlage of the user, trashed ones cascade too',
     'DELETE FROM entity_likes',
   ],
+  [
+    'apps/api/services/entityLikes/EntityLikesService.ts',
+    'studio_assets',
+    'account deletion: likes on every Sticker/Hintergrund of the user, trashed ones cascade too',
+    "entity_type = 'studio_asset'",
+  ],
+  [
+    'apps/api/services/studioAssets/studioAssetsService.ts',
+    'studio_assets',
+    'create: a trashed asset still owns its image until the purge, so it blocks reuse',
+    'eq(studioAssets.media_id',
+  ],
+  [
+    'apps/api/services/contentReports/contentReportsService.ts',
+    'studio_assets',
+    'moderation: an asset the owner trashed is still removed or restored by the admin',
+    'where(eq(studioAssets.id, assetId))',
+  ],
+  [
+    'apps/api/services/studioAssets/studioAssetShare.ts',
+    'studio_assets',
+    'moderation: a removed asset stays unserved while the owner has it in the Papierkorb',
+    "moderation = 'removed'",
+  ],
+  [
+    'apps/api/services/entityFavorites/EntityFavoritesService.ts',
+    'studio_assets',
+    'account deletion: favorites of every Sticker/Hintergrund of the user, trashed ones cascade too',
+    "entity_type = 'studio_asset'",
+  ],
   ['apps/api/routes/admin/chunkInspectorContractRouter.ts', 'documents', PERMANENT_ADMIN],
   ['apps/api/services/usage/userActivityStats.ts', 'chat_threads', PERMANENT_CREATED_COUNT],
   [
