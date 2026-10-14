@@ -41,6 +41,7 @@ import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '../../utils/shapes';
 import type { UserImageInstance } from '../../utils/userImageUtils';
 import type { FullCanvasConfig, LayoutResult, CanvasElementConfig, AdditionalText } from '../types';
+import type { StickerRef } from '@gruenerator/shared/stickers';
 
 // ============================================================================
 // STATE TYPE
@@ -128,6 +129,7 @@ export interface ColorTwoTextActions {
 
   // Base actions
   addAsset: (assetId: string) => void;
+  addStickerAsset: (ref: StickerRef) => void;
   updateAsset: (id: string, partial: Partial<AssetInstance>) => void;
   removeAsset: (id: string) => void;
   toggleIcon: (id: string, selected: boolean) => void;
@@ -448,6 +450,7 @@ export function createColorTwoTextCanvas<
         propsFactory: (state, actions, context) => ({
           assetInstances: state.assetInstances,
           onAddAsset: actions.addAsset,
+          onAddStickerAsset: actions.addStickerAsset,
           onUpdateAsset: actions.updateAsset,
           onRemoveAsset: actions.removeAsset,
           ...injectFeatureProps(state, actions, context),

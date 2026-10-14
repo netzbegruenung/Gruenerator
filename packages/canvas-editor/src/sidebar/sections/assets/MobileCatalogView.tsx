@@ -14,6 +14,7 @@ import { IllustrationenSection } from '../IllustrationenSection';
 import { RahmenSection } from '../RahmenSection';
 
 import { SearchResultsGrid } from './SearchResultsGrid';
+import { StickerCatalog } from './StickerCatalog';
 import {
   DiagrammeStripTiles,
   EmojiGrid,
@@ -23,7 +24,6 @@ import {
   IllustrationStripTiles,
   MarkeStripTiles,
   RahmenStripTiles,
-  StickerGrid,
   StickerStripTiles,
 } from './stripTiles';
 
@@ -113,7 +113,9 @@ export function MobileCatalogView({ search, ...props }: MobileCatalogViewProps) 
       id: 'sticker',
       label: 'Sticker',
       carousel: <StickerStripTiles onAddAsset={onAddAsset} />,
-      detail: <StickerGrid onAddAsset={onAddAsset} />,
+      detail: (
+        <StickerCatalog onAddAsset={onAddAsset} onAddStickerAsset={props.onAddStickerAsset} />
+      ),
     });
   }
 

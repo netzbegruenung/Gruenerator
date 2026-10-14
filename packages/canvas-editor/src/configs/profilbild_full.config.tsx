@@ -240,6 +240,7 @@ export const profilbildFullConfig: FullCanvasConfig<ProfilbildFullState, Profilb
       component: AssetsSection,
       propsFactory: (state, actions, context) => ({
         onAddAsset: actions.addAsset,
+        onAddStickerAsset: actions.addStickerAsset,
         ...injectFeatureProps(state, actions, context),
       }),
     }),

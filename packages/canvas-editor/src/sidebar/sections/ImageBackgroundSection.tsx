@@ -1,10 +1,11 @@
 import { shareCanvasPreviewUrl, shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
 import { MediaThumb } from '@gruenerator/shared/media-library/ui';
+import { isShareSrc } from '@gruenerator/shared/stickers';
 import { MasonryGrid, MasonryItem, Switch } from '@gruenerator/ui';
 import { useState, useEffect, useCallback, useRef, type ChangeEvent, type ReactNode } from 'react';
 import { FaCheck } from 'react-icons/fa';
 import { HiAdjustments, HiColorSwatch } from 'react-icons/hi';
-import { HiArrowUpTray, HiMagnifyingGlass, HiPhoto, HiXMark } from 'react-icons/hi2';
+import { HiArrowUpTray, HiMagnifyingGlass, HiPhoto, HiSquares2X2, HiXMark } from 'react-icons/hi2';
 
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import UnsplashAttribution from '../../common/UnsplashAttribution';
@@ -25,15 +26,32 @@ import {
   MOBILE_SEARCH_FIELD,
   MOBILE_SLIDER_ROWS,
 } from './BackgroundSection';
+import { GALLERY_SCOPES, GalleryTabs, StudioGalleryGrid } from './StudioGallery';
 
 import type { StockImage, StockImageAttribution } from '../../common/imageSourceTypes';
 import type { BackgroundColorOption } from '../types';
+import type { StudioAssetItem, StudioAssetScope } from '@gruenerator/contracts';
 import type { MediaItem } from '@gruenerator/shared/media-library';
 
 function buildUploadUrl(item: MediaItem): string | null {
   if (item.mediaUrl) return item.mediaUrl;
   if (item.shareToken) return `/api/share/${item.shareToken}/download`;
   return item.thumbnailUrl;
+}
+
+/**
+ * A stored share image as the File a background pick hands to `onImageChange`.
+ * The canvas renders the 2160px preview tier anyway; the stored original can be
+ * many MB and its /download awaits download tracking.
+ */
+async function fetchShareImageFile(url: string, filename: string): Promise<File> {
+  const response = await fetch(shareCanvasPreviewUrl(url) ?? url);
+  if (!response.ok) throw new Error('Bild konnte nicht geladen werden');
+  const blob = await response.blob();
+  const rawFile = new File([blob], filename, { type: blob.type || 'image/jpeg' });
+  // Same cap as persistImageSelection: this File backs the auto-save
+  // `originalImage`, so it should be the working size, not the raw original.
+  return downscaleImageForUpload(rawFile);
 }
 
 function PickPending() {
@@ -171,16 +189,8 @@ function SearchContent({
       const seq = beginPick(item.id);
       const isCurrent = () => seq === pickSeqRef.current;
       try {
-        // The canvas renders the 2160px preview tier anyway; the stored
-        // original can be many MB and its /download awaits download tracking.
-        const response = await fetch(shareCanvasPreviewUrl(url) ?? url);
-        if (!response.ok) throw new Error('Bild konnte nicht geladen werden');
-        const blob = await response.blob();
         const filename = item.originalFilename ?? item.title ?? `upload-${item.id}`;
-        const rawFile = new File([blob], filename, { type: blob.type || 'image/jpeg' });
-        // Same cap as persistImageSelection: this File backs the auto-save
-        // `originalImage`, so it should be the working size, not the raw original.
-        const file = await downscaleImageForUpload(rawFile);
+        const file = await fetchShareImageFile(url, filename);
         if (isCurrent()) applyLibraryImage(file, url);
       } catch (err) {
         if (!isCurrent()) return;
@@ -640,6 +650,75 @@ function SearchContent({
 }
 
 /**
+ * The shared gallery's backgrounds (Entdecken / Meine / Gemerkt). A pick becomes
+ * the template's background photo — full-bleed, cover, under everything — with
+ * the gallery's own durable URL, so nothing is uploaded again.
+ */
+function GalleryBackgroundsContent({
+  currentImageSrc,
+  onImageChange,
+}: Pick<ImageBackgroundSectionProps, 'currentImageSrc' | 'onImageChange'>) {
+  const isMobile = useIsCanvasMobile();
+  const [scope, setScope] = useState<StudioAssetScope>('shop');
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [pickError, setPickError] = useState<string | null>(null);
+  const pickSeqRef = useRef(0);
+
+  const handlePick = async (item: StudioAssetItem) => {
+    if (!isShareSrc(item.src)) return;
+    pickSeqRef.current += 1;
+    const seq = pickSeqRef.current;
+    const isCurrent = () => seq === pickSeqRef.current;
+    setPendingId(item.id);
+    setPickError(null);
+    try {
+      const file = await fetchShareImageFile(item.src, item.title);
+      if (isCurrent()) onImageChange(file, item.src, null);
+    } catch {
+      if (isCurrent()) setPickError('Hintergrund konnte nicht geladen werden.');
+    } finally {
+      if (isCurrent()) setPendingId(null);
+    }
+  };
+
+  return (
+    <section
+      className={cn(
+        SIDEBAR_SECTION,
+        'gap-3 px-3 pb-4 max-canvas-mobile:gap-4 max-canvas-mobile:p-0'
+      )}
+    >
+      {!isMobile && (
+        <h3 className="m-0 text-xs font-semibold uppercase tracking-wide text-foreground-muted">
+          Hintergründe
+        </h3>
+      )}
+      <GalleryTabs
+        label="Hintergrund-Auswahl"
+        tabs={GALLERY_SCOPES}
+        value={scope}
+        onChange={setScope}
+      />
+      {pickError && (
+        <div
+          role="alert"
+          className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-md px-2 py-1"
+        >
+          {pickError}
+        </div>
+      )}
+      <StudioGalleryGrid
+        kind="background"
+        scope={scope}
+        pendingId={pendingId}
+        selectedSrc={currentImageSrc ?? ''}
+        onPick={(item) => void handlePick(item)}
+      />
+    </section>
+  );
+}
+
+/**
  * Adjustment Controls Content - zoom, lock, gradient.
  *
  * All three used to be accepted as props and none but the gradient was drawn,
@@ -738,6 +817,18 @@ export function ImageBackgroundSection({
           currentImageSrc={currentImageSrc}
           onImageChange={onImageChange}
           onActivateImage={onActivateImage}
+        />
+      ),
+    },
+    {
+      id: 'gallery-backgrounds',
+      icon: HiSquares2X2,
+      label: 'Hintergründe',
+      content: (
+        <GalleryBackgroundsContent
+          // A kept-but-hidden photo (onActivateImage) is not the background.
+          {...(onActivateImage ? {} : { currentImageSrc })}
+          onImageChange={onImageChange}
         />
       ),
     },
