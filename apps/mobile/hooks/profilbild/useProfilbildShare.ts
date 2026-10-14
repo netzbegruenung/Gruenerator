@@ -224,7 +224,7 @@ export function useProfilbildShare() {
         if (!galleryUrl) uploaded.current.set(uri, url);
         background = { kind: 'custom', url };
       } else if (snapshot.backgroundId === FREE_BACKGROUND_ID) {
-        // Freie Farben wählt diese App noch nicht selbst, sie trägt sie aber unverändert weiter.
+        // A free colour or two-stop gradient; anything else cannot be a free choice.
         const bg = snapshot.model.background;
         background =
           bg.kind === 'color' || (bg.kind === 'gradient' && bg.stops.length === 2)

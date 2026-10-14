@@ -50,12 +50,17 @@ function FlatLayer({ background }: { background: FlatBackground }) {
   }
 }
 
-function BackgroundLayer({
-  model,
+/** The background alone — also the round preview before a photo is in. */
+export function BackgroundLayer({
+  background: bg,
   images,
   isAustria,
-}: Pick<SceneProps, 'model' | 'images' | 'isAustria'>) {
-  const bg = model.background;
+}: {
+  background: ProfilbildModel['background'];
+  /** Bundled assets for preset overlays; a missing one is left out. */
+  images: Partial<Record<string, SkImage>>;
+  isAustria: boolean;
+}) {
   if (bg.kind === 'image') {
     return <Image image={bg.image} x={0} y={0} width={S} height={S} fit="cover" />;
   }
@@ -67,6 +72,7 @@ function BackgroundLayer({
         <FlatLayer background={design.base} />
         {design.overlays.map((o) => {
           const image = images[o.src];
+          if (!image) return null;
           const width = o.width * S;
           const height = (width * image.height()) / image.width();
           return (
@@ -92,7 +98,7 @@ export function ProfilbildScene({ model, person, images, isAustria }: SceneProps
   const rect = placementRect({ width: person.width(), height: person.height() }, model.person);
   return (
     <Group>
-      <BackgroundLayer model={model} images={images} isAustria={isAustria} />
+      <BackgroundLayer background={model.background} images={images} isAustria={isAustria} />
       <Image image={person} {...rect} fit="fill" />
       {model.stickers.map((s) => {
         const image = images[s.src];
