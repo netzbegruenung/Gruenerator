@@ -106,3 +106,17 @@ export function badgeBaselines(
     (_, i) => top + i * slot + slot / 2 - (metrics.ascent + metrics.descent) / 2
   );
 }
+
+/**
+ * Colour matrix for the shared `hardenAlpha` curve: keeps the colour and steepens
+ * alpha around 50 % by `hardness` (Skia clamps the result).
+ */
+export function hardenAlphaMatrix(hardness: number): number[] {
+  // prettier-ignore
+  return [
+    1, 0, 0, 0, 0,
+    0, 1, 0, 0, 0,
+    0, 0, 1, 0, 0,
+    0, 0, 0, hardness, 0.5 - 0.5 * hardness,
+  ];
+}

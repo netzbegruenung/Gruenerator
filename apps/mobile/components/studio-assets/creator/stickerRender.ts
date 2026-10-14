@@ -5,6 +5,7 @@ import {
   BADGE_PAD,
   effectPadding,
   hasTransparency,
+  outlineEdgeHardness,
   outlineWorkScale,
   STICKER_MAX_SIDE,
   stickerLayout,
@@ -28,7 +29,13 @@ import {
 
 import { base64ToFileUri } from '../../../services/imageStudio';
 
-import { badgeBaselines, badgeCanvas, discRects, tintThresholdMatrix } from './creatorModel';
+import {
+  badgeBaselines,
+  badgeCanvas,
+  discRects,
+  hardenAlphaMatrix,
+  tintThresholdMatrix,
+} from './creatorModel';
 
 export class StickerImageError extends Error {}
 
@@ -115,7 +122,7 @@ export function motifFromImage(source: SkImage): { motif: SkImage; transparent: 
  * Die-cut outline: the silhouette, tinted and thresholded by one colour
  * matrix, is grown by Skia's dilate filter — a union of rectangles that
  * approximates a disc — at reduced resolution for wide outlines, then scaled
- * back up under the full-resolution image.
+ * back up with a re-hardened edge under the full-resolution image.
  */
 function addOutline(base: SkImage, width: number, color: string): SkImage {
   const k = outlineWorkScale(width);
@@ -146,7 +153,22 @@ function addOutline(base: SkImage, width: number, color: string): SkImage {
     );
 
   const out = makeSurface(base.width(), base.height());
-  drawScaled(out, snapshot(work), fullRect(base));
+  const hardness = outlineEdgeHardness(width);
+  const hardened = Skia.Paint();
+  if (hardness > 1) {
+    hardened.setColorFilter(Skia.ColorFilter.MakeMatrix(hardenAlphaMatrix(hardness)));
+  }
+  const dilated = snapshot(work);
+  out
+    .getCanvas()
+    .drawImageRectOptions(
+      dilated,
+      fullRect(dilated),
+      fullRect(base),
+      FilterMode.Linear,
+      MipmapMode.None,
+      hardened
+    );
   out.getCanvas().drawImage(base, 0, 0);
   return snapshot(out);
 }

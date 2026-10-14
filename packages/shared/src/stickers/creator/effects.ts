@@ -110,6 +110,28 @@ export function outlineWorkScale(radius: number): number {
 }
 
 /**
+ * Contrast factor for an upscaled outline's alpha: the work-space edge spans
+ * about as many output pixels as the upscale factor, so steepening by that
+ * factor brings it back to a 1–2 pixel antialiased edge. 1 means unchanged.
+ */
+export function outlineEdgeHardness(radius: number): number {
+  return 1 / outlineWorkScale(radius);
+}
+
+/** Re-hardens alpha around 50 % — a' = (a − ½)·k + ½, clamped — in place. */
+export function hardenAlpha<T extends { [i: number]: number; length: number }>(
+  data: T,
+  hardness: number
+): T {
+  if (hardness <= 1) return data;
+  for (let i = 3; i < data.length; i += 4) {
+    const a = ((data[i] ?? 0) - 127.5) * hardness + 127.5;
+    data[i] = a <= 0 ? 0 : a >= 255 ? 255 : Math.round(a);
+  }
+  return data;
+}
+
+/**
  * Offsets filling a disc: the centre plus concentric rings at most
  * {@link DISC_SPACING} pixels apart, with stamps on each ring at most that far
  * apart too — so even a single speck dilates to a solid disc, not to rings.

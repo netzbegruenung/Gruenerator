@@ -1,10 +1,16 @@
-import { badgeGeometry, BADGE_SHAPES, STICKER_MAX_SIDE } from '@gruenerator/shared/stickers';
+import {
+  badgeGeometry,
+  BADGE_SHAPES,
+  hardenAlpha,
+  STICKER_MAX_SIDE,
+} from '@gruenerator/shared/stickers';
 import { describe, expect, it } from 'vitest';
 
 import {
   badgeBaselines,
   badgeCanvas,
   discRects,
+  hardenAlphaMatrix,
   isStickerFile,
   parseCreatorReturn,
   stickerFilename,
@@ -45,6 +51,19 @@ describe('tintThresholdMatrix', () => {
     expect(alpha(8)).toBeCloseTo(0);
     expect(alpha(255)).toBeCloseTo(1);
     expect(alpha(128)).toBeGreaterThan(0.45);
+  });
+});
+
+describe('hardenAlphaMatrix', () => {
+  it('follows the shared alpha curve and keeps the colour', () => {
+    const m = hardenAlphaMatrix(3);
+    expect(m.slice(0, 15)).toEqual([1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0]);
+    const viaMatrix = (a: number) =>
+      Math.round(Math.min(1, Math.max(0, m[18]! * (a / 255) + m[19]!)) * 255);
+    for (const a of [0, 40, 100, 128, 150, 200, 255]) {
+      const shared = hardenAlpha(new Uint8ClampedArray([0, 0, 0, a]), 3)[3];
+      expect(Math.abs(viaMatrix(a) - shared!)).toBeLessThanOrEqual(1);
+    }
   });
 });
 

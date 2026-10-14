@@ -7,7 +7,9 @@ import { alphaBounds } from '@gruenerator/shared/profilbild';
 import {
   discOffsets,
   effectPadding,
+  hardenAlpha,
   hasTransparency,
+  outlineEdgeHardness,
   outlineWorkScale,
   stickerLayout,
   thresholdAlpha,
@@ -63,7 +65,7 @@ export function canvasHasTransparency(canvas: HTMLCanvasElement): boolean {
 /**
  * Die-cut contour: the thresholded silhouette, tinted, is stamped over a filled
  * disc (a dilation) at reduced resolution for wide outlines, scaled back up
- * under the image. The image itself stays at full resolution on top.
+ * with a re-hardened edge under the image. The image itself stays at full resolution on top.
  */
 export function addOutline(canvas: HTMLCanvasElement, { width, color }: OutlineOptions) {
   const k = outlineWorkScale(width);
@@ -87,6 +89,12 @@ export function addOutline(canvas: HTMLCanvasElement, { width, color }: OutlineO
   const ctx = context(out);
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(dilated, 0, 0, canvas.width, canvas.height);
+  const hardness = outlineEdgeHardness(width);
+  if (hardness > 1) {
+    const upscaled = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    hardenAlpha(upscaled.data, hardness);
+    ctx.putImageData(upscaled, 0, 0);
+  }
   ctx.drawImage(canvas, 0, 0);
   return out;
 }
