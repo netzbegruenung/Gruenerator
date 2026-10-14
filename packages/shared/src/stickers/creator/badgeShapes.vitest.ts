@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  BADGE_MAX_LINES,
   BADGE_SHAPES,
   badgeGeometry,
   badgeLines,
@@ -8,6 +9,7 @@ import {
   polygonPath,
   starburstPoints,
 } from './badgeShapes';
+import { BADGE_LINE_HEIGHT } from './palette';
 
 describe('starburstPoints', () => {
   it('alternates outer and inner radius over twice the spike count', () => {
@@ -71,5 +73,18 @@ describe('fitFontSize', () => {
 
   it('never exceeds the maximum for one short word', () => {
     expect(fitFontSize(['Ja'], { width: 1000, height: 1000 }, measure, 1, 260)).toBe(260);
+  });
+
+  it.each(
+    BADGE_SHAPES.flatMap((s) =>
+      (['de-DE', 'de-AT'] as const).map((locale) => [s.id, locale] as const)
+    )
+  )('%s fits three short lines in its text box (%s)', (id, locale) => {
+    const lineHeight = BADGE_LINE_HEIGHT[locale];
+    const { textBox } = badgeGeometry(id);
+    const lines = Array.from({ length: BADGE_MAX_LINES }, () => 'Ja');
+    const size = fitFontSize(lines, textBox, measure, lineHeight);
+    expect(size * lineHeight * BADGE_MAX_LINES).toBeLessThanOrEqual(textBox.height);
+    expect(size).toBeGreaterThanOrEqual(60);
   });
 });

@@ -26,8 +26,8 @@ export const BADGE_DEFAULT_COLORS = {
   'de-AT': { background: 'magenta', text: 'weiss' },
 } as const satisfies Record<StickerLocale, { background: string; text: string }>;
 
-/** Line height of the CD headline face per locale (AT: the brand theme's value). */
-export const BADGE_LINE_HEIGHT = { 'de-DE': 1, 'de-AT': 0.9 } as const satisfies Record<
+/** Line height of the CD headline face per locale: the brand theme's `lineHeightFactor`. */
+export const BADGE_LINE_HEIGHT = { 'de-DE': 1.2, 'de-AT': 0.9 } as const satisfies Record<
   StickerLocale,
   number
 >;
