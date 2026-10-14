@@ -13,14 +13,17 @@ export const MIN_PERSON_SCALE = 0.4;
 export const MAX_PERSON_SCALE = 1.6;
 
 export function viewToCanvas(d: number, viewSize: number): number {
+  'worklet';
   return (d * PROFILBILD_SIZE) / viewSize;
 }
 
 export function snapThreshold(viewSize: number): number {
+  'worklet';
   return viewToCanvas(PROFILBILD_SNAP_THRESHOLD, viewSize);
 }
 
 export function dragPerson(start: Rect, dx: number, dy: number, threshold: number): SnapResult {
+  'worklet';
   const moved = { ...start, x: start.x + dx, y: start.y + dy };
   return snapPerson(
     { ...moved, ...clampPerson(moved, PROFILBILD_SIZE) },
@@ -30,10 +33,12 @@ export function dragPerson(start: Rect, dx: number, dy: number, threshold: numbe
 }
 
 export function pinchScale(startScale: number, factor: number): number {
+  'worklet';
   return Math.min(Math.max(startScale * factor, MIN_PERSON_SCALE), MAX_PERSON_SCALE);
 }
 
 export function hitSticker(stickers: SceneSticker[], x: number, y: number): string | null {
+  'worklet';
   for (let i = stickers.length - 1; i >= 0; i--) {
     const s = stickers[i];
     const rad = (s.rotation * Math.PI) / 180;
@@ -54,6 +59,7 @@ export function pickTarget(
   point: { x: number; y: number },
   personRect: Rect
 ): PickedTarget | null {
+  'worklet';
   const selected = stickers.filter((s) => s.uid === selectedUid);
   if (hitSticker(selected, point.x, point.y)) return { kind: 'sticker', uid: selectedUid! };
   const uid = hitSticker(stickers, point.x, point.y);
@@ -94,21 +100,26 @@ export interface LiveGesture {
 }
 
 export function restGesture(): LiveGesture {
+  'worklet';
   return { dx: 0, dy: 0, scale: 1, rotation: 0, scaleBase: 1, rotationBase: 0 };
 }
 
 export function startPinch(g: LiveGesture): LiveGesture {
+  'worklet';
   return { ...g, scaleBase: g.scale };
 }
 
 export function updatePinch(g: LiveGesture, scale: number): LiveGesture {
+  'worklet';
   return { ...g, scale: g.scaleBase * scale };
 }
 
 export function startRotation(g: LiveGesture): LiveGesture {
+  'worklet';
   return { ...g, rotationBase: g.rotation };
 }
 
 export function updateRotation(g: LiveGesture, rotation: number): LiveGesture {
+  'worklet';
   return { ...g, rotation: g.rotationBase + rotation };
 }

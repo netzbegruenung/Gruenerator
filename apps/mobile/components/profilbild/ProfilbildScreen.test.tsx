@@ -29,6 +29,10 @@ jest.mock('@shopify/react-native-skia', () => ({
   drawAsImage: jest.fn(),
   ImageFormat: { PNG: 'png' },
 }));
+// The editor draws gestures from shared values; the worklets runtime does not
+// load under jest.
+jest.mock('react-native-worklets', () => jest.requireActual('react-native-worklets/src/mock'));
+jest.mock('react-native-reanimated', () => jest.requireActual('react-native-reanimated/mock'));
 jest.mock('../../hooks/profilbild/useProfilbildCutout', () => ({ useProfilbildCutout: jest.fn() }));
 jest.mock('../../hooks/profilbild/useProfilbildImages', () => ({
   useProfilbildImages: () => ({ status: 'loading', reload: jest.fn() }),

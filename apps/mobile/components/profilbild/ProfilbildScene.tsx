@@ -4,6 +4,7 @@ import {
   placementRect,
   presetDesigns,
   type FlatBackground,
+  type PersonPlacement,
 } from '@gruenerator/shared/profilbild';
 import {
   drawAsImage,
@@ -15,8 +16,15 @@ import {
   vec,
   type SkImage,
 } from '@shopify/react-native-skia';
+import { useDerivedValue, type SharedValue } from 'react-native-reanimated';
 
-import { stripeRects, type ProfilbildModel, type SceneImages } from './sceneModel';
+import { type LiveElement } from './profilbildGestures';
+import {
+  stripeRects,
+  type ProfilbildModel,
+  type SceneImages,
+  type SceneSticker,
+} from './sceneModel';
 
 interface SceneProps {
   model: ProfilbildModel;
@@ -94,15 +102,29 @@ export function BackgroundLayer({
   return <FlatLayer background={bg} />;
 }
 
-export function ProfilbildScene({ model, person, images, isAustria }: SceneProps) {
+export function ProfilbildScene({
+  model,
+  person,
+  images,
+  isAustria,
+  live,
+}: SceneProps & {
+  /** The element a gesture is moving; drawn from this instead of the model while set. */
+  live?: SharedValue<LiveElement | null>;
+}) {
   const rect = placementRect({ width: person.width(), height: person.height() }, model.person);
   return (
     <Group>
       <BackgroundLayer background={model.background} images={images} isAustria={isAustria} />
-      <Image image={person} {...rect} fit="fill" />
+      {live ? (
+        <LivePerson person={person} placement={model.person} live={live} />
+      ) : (
+        <Image image={person} {...rect} fit="fill" />
+      )}
       {model.stickers.map((s) => {
         const image = images[s.src];
         if (!image) return null;
+        if (live) return <LiveSticker key={s.uid} sticker={s} image={image} live={live} />;
         return (
           <Group
             key={s.uid}
@@ -123,6 +145,60 @@ export function ProfilbildScene({ model, person, images, isAustria }: SceneProps
           </Group>
         );
       })}
+    </Group>
+  );
+}
+
+function LivePerson({
+  person,
+  placement,
+  live,
+}: {
+  person: SkImage;
+  placement: PersonPlacement;
+  live: SharedValue<LiveElement | null>;
+}) {
+  const src = { width: person.width(), height: person.height() };
+  const rect = useDerivedValue(() => {
+    const l = live.value;
+    return placementRect(src, l?.kind === 'person' ? l.placement : placement);
+  });
+  return <Image image={person} rect={rect} fit="fill" />;
+}
+
+/** A sticker's transform and centred rect, following the live element while a gesture moves it. */
+export function useLiveStickerBox(sticker: SceneSticker, live: SharedValue<LiveElement | null>) {
+  const box = useDerivedValue(() => {
+    const l = live.value;
+    return l?.kind === 'sticker' && l.sticker.uid === sticker.uid ? l.sticker : sticker;
+  });
+  const transform = useDerivedValue(() => [
+    { translateX: box.value.x },
+    { translateY: box.value.y },
+    { rotate: (box.value.rotation * Math.PI) / 180 },
+  ]);
+  const rect = useDerivedValue(() => ({
+    x: -box.value.width / 2,
+    y: -box.value.height / 2,
+    width: box.value.width,
+    height: box.value.height,
+  }));
+  return { transform, rect };
+}
+
+function LiveSticker({
+  sticker,
+  image,
+  live,
+}: {
+  sticker: SceneSticker;
+  image: SkImage;
+  live: SharedValue<LiveElement | null>;
+}) {
+  const { transform, rect } = useLiveStickerBox(sticker, live);
+  return (
+    <Group transform={transform}>
+      <Image image={image} rect={rect} fit="fill" />
     </Group>
   );
 }
