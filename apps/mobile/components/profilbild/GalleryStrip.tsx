@@ -3,6 +3,7 @@ import {
   type StudioAssetKind,
   type StudioAssetScope,
 } from '@gruenerator/contracts';
+import { isShareSrc } from '@gruenerator/shared/stickers';
 import { useStudioAssets } from '@gruenerator/shared/studio-assets';
 import { Image } from 'expo-image';
 import { useEffect, useState } from 'react';
@@ -55,6 +56,7 @@ export function GalleryStrip({ kind, scope, selectedSrc, onPick }: GalleryStripP
       </View>
     );
   if (items.length === 0) return <Text style={hint}>{galleryEmptyText(kind, scope)}</Text>;
+  if (!token) return <ActivityIndicator color={theme.textGreen} style={styles.loading} />;
 
   return (
     <ScrollView
@@ -64,12 +66,15 @@ export function GalleryStrip({ kind, scope, selectedSrc, onPick }: GalleryStripP
     >
       {items.map((item) => {
         const isSelected = selectedSrc !== null && selectedSrc === item.src;
+        const path = galleryTilePath(item);
         return (
           <Pressable
             key={item.id}
             accessibilityRole="button"
             accessibilityLabel={
-              kind === 'sticker' ? `Sticker „${item.title}“ hinzufügen` : item.title
+              kind === 'sticker'
+                ? `Sticker „${item.title}“ hinzufügen`
+                : `Hintergrund „${item.title}“`
             }
             accessibilityState={selectedSrc === null ? {} : { selected: isSelected }}
             onPress={() => onPick(item)}
@@ -83,8 +88,8 @@ export function GalleryStrip({ kind, scope, selectedSrc, onPick }: GalleryStripP
           >
             <Image
               source={{
-                uri: resolveChatUrl(galleryTilePath(item)),
-                ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
+                uri: resolveChatUrl(path),
+                ...(isShareSrc(path) ? { headers: { Authorization: `Bearer ${token}` } } : {}),
               }}
               contentFit={kind === 'sticker' ? 'contain' : 'cover'}
               style={kind === 'sticker' ? styles.sticker : styles.background}

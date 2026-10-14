@@ -81,25 +81,37 @@ function restoreBackground(
   return { backgroundId: first.id, background: first.background };
 }
 
-export interface ShareImage {
-  uri: string;
-  image: SkImage;
+const shareImages = new Map<string, Promise<SkImage>>();
+
+async function downloadAndDecode(src: string): Promise<SkImage> {
+  const uri = await downloadShareFile(src, 'profilbild-galerie');
+  try {
+    return await decode(uri);
+  } finally {
+    try {
+      new File(uri).delete();
+    } catch {
+      // A leftover cache file is harmless; the OS clears the cache.
+    }
+  }
 }
 
-const shareImages = new Map<string, Promise<ShareImage>>();
-
-/** A media-store file (`/api/share/<token>/download`) as a Skia image, loaded once per src. */
-export function loadShareImage(src: string): Promise<ShareImage> {
+/**
+ * A media-store file (`/api/share/<token>/download`) as a Skia image, loaded once
+ * per src until `clearShareImages` (the Profilbild screen calls it on leaving).
+ */
+export function loadShareImage(src: string): Promise<SkImage> {
   let pending = shareImages.get(src);
   if (!pending) {
-    pending = downloadShareFile(src, 'profilbild-galerie').then(async (uri) => ({
-      uri,
-      image: await decode(uri),
-    }));
+    pending = downloadAndDecode(src);
     pending.catch(() => shareImages.delete(src));
     shareImages.set(src, pending);
   }
   return pending;
+}
+
+export function clearShareImages(): void {
+  shareImages.clear();
 }
 
 /** Loads a saved Profilbild: its state from the share, the cutout and own photo from storage. */
@@ -127,7 +139,7 @@ export async function loadProfilbildReopen(
   await Promise.all(
     [...assetSrcs].map((src) =>
       loadShareImage(src).then(
-        ({ image }) => {
+        (image) => {
           gallery[src] = image;
         },
         () => {}

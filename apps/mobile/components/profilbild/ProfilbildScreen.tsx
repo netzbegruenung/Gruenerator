@@ -24,6 +24,7 @@ import { useProfilbildAutosave } from '../../hooks/profilbild/useProfilbildAutos
 import { useProfilbildCutout } from '../../hooks/profilbild/useProfilbildCutout';
 import { useProfilbildImages } from '../../hooks/profilbild/useProfilbildImages';
 import {
+  clearShareImages,
   loadProfilbildReopen,
   loadShareImage,
   useProfilbildShare,
@@ -125,6 +126,13 @@ export function ProfilbildScreen({
   const busyRef = useRef(false);
   // Bumped per background choice, so a slow gallery load cannot override a later pick.
   const backgroundRequest = useRef(0);
+  // The photo being edited, so a sticker still loading cannot land on the next one.
+  const currentPerson = useRef<SkImage | null>(null);
+
+  useEffect(() => clearShareImages, []);
+  useEffect(() => {
+    currentPerson.current = person;
+  }, [person]);
 
   useEffect(() => {
     if (!shareToken) return;
@@ -294,12 +302,17 @@ export function ProfilbildScreen({
       Alert.alert('Fehler', 'Dieser Sticker kann nicht verwendet werden.');
       return;
     }
+    const forPerson = state.person;
     loadShareImage(item.src)
-      .then(({ image }) => {
+      .then((image) => {
+        if (forPerson !== currentPerson.current) return;
         setGallery((g) => ({ ...g, [item.src]: image }));
         placeSticker(galleryStickerSource(item), image);
       })
-      .catch(() => Alert.alert('Fehler', 'Der Sticker konnte nicht geladen werden.'));
+      .catch(() => {
+        if (forPerson === currentPerson.current)
+          Alert.alert('Fehler', 'Der Sticker konnte nicht geladen werden.');
+      });
   };
 
   const pickGalleryBackground = (item: StudioAssetItem) => {
@@ -309,9 +322,9 @@ export function ProfilbildScreen({
     }
     const request = ++backgroundRequest.current;
     loadShareImage(item.src)
-      .then(({ uri, image }) => {
+      .then((image) => {
         if (request !== backgroundRequest.current) return;
-        setCustom({ uri, image, galleryUrl: item.src });
+        setCustom({ uri: item.src, image, galleryUrl: item.src });
         setBackgroundId(CUSTOM_ID);
         setModel((m) => (m ? { ...m, background: { kind: 'image', image } } : m));
       })
