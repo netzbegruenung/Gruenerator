@@ -368,6 +368,53 @@ describe('ProfilbildPage', () => {
     expect(saved.stickers).toEqual([shop, system]);
   });
 
+  it('keeps a shop sticker that failed to load in the saved Profilbild', async () => {
+    const shopSrc = '/api/share/0123456789abcdef0123456789abcdef/download';
+    const shop = {
+      id: 'asset:0b6f3c1e-8a4d-4f5e-9c2a-7d1e5b3a9f10',
+      src: shopSrc,
+      x: 300,
+      y: 400,
+      width: 150,
+      height: 150,
+      rotation: 0,
+    };
+    const system = { id: 'vielfalt', x: 500, y: 600, width: 200, height: 100, rotation: 30 };
+    share.apiGet.mockImplementation((path: string) =>
+      path === shopSrc.replace(/^\/api/, '')
+        ? Promise.reject(new Error('503'))
+        : Promise.resolve({ data: new Blob(['x'], { type: 'image/png' }) })
+    );
+    share.getMyShare.mockResolvedValue({
+      status: 200,
+      body: {
+        share: {
+          imageMetadata: {
+            profilbild: {
+              v: 1,
+              person: { x: 100, y: 300, scale: 0.9 },
+              background: { kind: 'id', id: 'klee' },
+              stickers: [shop, system],
+            },
+          },
+        },
+      },
+    });
+    renderPage(null, '?share=tok9');
+    await screen.findByRole('button', { name: 'Vielfalt entfernen' });
+    expect(screen.queryByRole('button', { name: 'Sticker entfernen' })).toBeNull();
+    expect(await screen.findByRole('alert')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tanne' }));
+    const opts = await downloadAndGetCompose();
+    expect(opts?.stickers).toHaveLength(1);
+    await waitFor(() => expect(share.update).toHaveBeenCalled());
+    const saved = share.update.mock.calls.at(-1)?.[0].metadata.profilbild as unknown as {
+      stickers: unknown[];
+    };
+    expect(saved.stickers).toEqual([system, shop]);
+  });
+
   it('says so when a saved Profilbild cannot be reopened', async () => {
     share.getMyShare.mockResolvedValue({ status: 404, body: { success: false } });
     renderPage(null, '?share=gone');
@@ -551,10 +598,18 @@ describe('ProfilbildPage', () => {
     expect(await screen.findByText('canvas page')).toBeTruthy();
     const [url, , color, , assets] = vi.mocked(mintProfilbildCanvas).mock.calls[0] ?? [];
     expect(url).toBe('data:image/png;base64,TRIM');
-    expect(color).toBeTruthy();
-    expect(assets).toHaveLength(1);
-    expect(assets?.[0]).toMatchObject({ assetId: 'vielfalt', rotation: 0, opacity: 1 });
-    expect(assets?.[0]?.scale).toBeGreaterThan(0);
+    // The default swatch, Tanne
+    expect(color).toBe('#005538');
+    // Vielfalt starts at 1080 × 0.25 × 1.1 wide, its image is portrait (600 × 800)
+    const width = 1080 * 0.25 * 1.1;
+    expect(assets).toEqual([
+      expect.objectContaining({
+        assetId: 'vielfalt',
+        scale: (width * 800) / 600 / 150,
+        rotation: 0,
+        opacity: 1,
+      }),
+    ]);
   });
 
   it('switches between round, square and Instagram previews', async () => {

@@ -164,6 +164,8 @@ export function ProfilbildEditor({
   const [stickers, setStickers] = useState<PlacedSticker[]>([]);
   const [selectedSticker, setSelectedSticker] = useState<string | null>(null);
   const stickerSeq = useRef(0);
+  // Saved shop stickers whose image failed to load: kept in the saved state, not drawn.
+  const unrestoredStickers = useRef<SavedProfilbildSticker[]>([]);
   const backgroundRequest = useRef(0);
   const personLayerRef = useRef<HTMLButtonElement>(null);
   const [placement, setPlacement] = useState<PersonPlacement | null>(null);
@@ -236,12 +238,13 @@ export function ProfilbildEditor({
         const sticker = isAssetStickerId(s.id) ? null : stickerById(s.id);
         const src = sticker?.src ?? s.src;
         if (!src) return null;
-        // A shop sticker whose share is gone must not take the others with it.
+        // A shop sticker that fails to load must not take the others with it.
         const image = sticker
           ? await loadCachedImage(src)
           : await loadShareFileDataUrl(src)
               .then(loadImage)
               .catch((cause: unknown) => {
+                unrestoredStickers.current.push(s);
                 fail(cause);
                 return null;
               });
@@ -521,7 +524,7 @@ export function ProfilbildEditor({
     }
   };
 
-  const savedStickers = (): SavedProfilbildSticker[] =>
+  const placedStickers = (): SavedProfilbildSticker[] =>
     stickers.map(({ id, src, x, y, width, height, rotation }) => ({
       id,
       ...(isAssetStickerId(id) ? { src } : {}),
@@ -542,7 +545,7 @@ export function ProfilbildEditor({
             activeId === CUSTOM_ID
               ? { kind: 'custom', ...customSource }
               : { kind: 'id', id: activeId },
-          stickers: savedStickers(),
+          stickers: [...placedStickers(), ...unrestoredStickers.current],
         }
       : null;
 
@@ -624,7 +627,7 @@ export function ProfilbildEditor({
             imageSize: { w: rect.width, h: rect.height },
           },
           cutoutDataUrl: cutout.dataUrl ?? cutoutUrl,
-          stickers: savedStickers(),
+          stickers: placedStickers(),
         });
       }
     } catch (cause) {
