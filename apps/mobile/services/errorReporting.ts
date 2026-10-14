@@ -32,6 +32,10 @@ export function initErrorReporting(): void {
     attachScreenshot: false,
     attachViewHierarchy: false,
     enableCaptureFailedRequests: false,
+    // iOS: native HTTP breadcrumbs carry full URLs and bypass the query stripping in beforeBreadcrumb.
+    enableNetworkBreadcrumbs: false,
+    // Android: native connectivity breadcrumbs (Wi-Fi/cellular, VPN state) — not needed for debugging.
+    enableNetworkEventBreadcrumbs: false,
     ignoreErrors: [
       // Expo answers every `use dom` native action by injecting the result into
       // its WebView (`expo/src/dom/webview-wrapper.tsx`, `emit`) and never
