@@ -51,7 +51,7 @@ Element.prototype.scrollIntoView ??= function scrollIntoView() {};
 // real network call is a loud failure, not a silent hang. Pure-render tests make
 // no requests, so this is a no-op for them.
 beforeAll(() => {
-  server.listen({ onUnhandledRequest: 'error' });
+  server.listen({ onUnhandledFrame: 'error' });
 });
 
 afterEach(() => {
