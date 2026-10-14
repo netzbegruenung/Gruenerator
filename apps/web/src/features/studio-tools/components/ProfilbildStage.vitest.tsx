@@ -39,6 +39,7 @@ const imageB = { width: 10, height: 10 } as unknown as PlacedSticker['image'];
 const sticker = (patch: Partial<PlacedSticker> = {}): PlacedSticker => ({
   uid: 'sticker-1',
   id: 'teamgruen',
+  src: '/studio-tools/stickers/teamgruen.svg',
   label: '#teamgrün',
   image: imageA,
   x: 100,

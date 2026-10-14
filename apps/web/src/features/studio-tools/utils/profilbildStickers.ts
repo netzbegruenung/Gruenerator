@@ -1,10 +1,12 @@
-import { type ProfilbildSticker } from '@gruenerator/shared/profilbild';
+import { type AssetStickerId, type SystemSticker } from '@gruenerator/shared/stickers';
 
 import { type ProfilbildStickerPlacement } from './composeProfilbild';
 
 export interface PlacedSticker extends ProfilbildStickerPlacement {
   uid: string;
-  id: ProfilbildSticker['id'];
+  id: SystemSticker['id'] | AssetStickerId;
+  /** The catalog image, or a shop sticker's `/api/share/<token>/download` path. */
+  src: string;
   label: string;
 }
 
