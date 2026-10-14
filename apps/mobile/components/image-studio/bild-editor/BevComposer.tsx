@@ -359,6 +359,7 @@ export function BevComposer({
           <Pressable
             onPress={send}
             disabled={arrowDisabled}
+            hitSlop={4}
             accessibilityRole="button"
             accessibilityLabel="Senden"
             accessibilityState={{ disabled: arrowDisabled }}

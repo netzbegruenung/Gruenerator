@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useTheme } from '../../hooks/useTheme';
@@ -40,7 +41,12 @@ export function SegmentedControl({
         return (
           <Pressable
             key={option.value}
-            onPress={() => onChange(option.value)}
+            onPress={() => {
+              // The tick of a native segmented control — only when the choice
+              // actually moves, so re-tapping the selected segment stays silent.
+              if (!selected) void Haptics.selectionAsync();
+              onChange(option.value);
+            }}
             disabled={option.disabled}
             style={[
               styles.segment,
