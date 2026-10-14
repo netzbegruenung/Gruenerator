@@ -69,6 +69,7 @@ export { adminVorlagenContract } from './adminVorlagenContract.js';
 export { userTemplatesContract } from './userTemplatesContract.js';
 export { sharedTemplateContract } from './sharedTemplateContract.js';
 export { templateInteractionsContract } from './templateInteractionsContract.js';
+export { studioAssetsContract } from './studioAssetsContract.js';
 export { userAgentsContract } from './userAgentsContract.js';
 export { userTextFormsContract } from './userTextFormsContract.js';
 export { recurringTasksContract } from './recurringTasksContract.js';

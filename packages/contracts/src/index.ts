@@ -86,6 +86,7 @@ export {
   userTemplatesContract,
   sharedTemplateContract,
   templateInteractionsContract,
+  studioAssetsContract,
   userAgentsContract,
   userAgentsSharingContract,
   userTextFormsContract,

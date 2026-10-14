@@ -19,16 +19,16 @@ import { mountLandesverbandAdminContractRouter } from './routes/admin/landesverb
 import { mountLvAdminAssignmentContractRouter } from './routes/admin/lvAdminAssignmentContractRouter.js';
 import { mountAgentVisibilityContractRouter } from './routes/agents/agentVisibilityContractRouter.js';
 import antraegeRouter from './routes/antraege/index.js';
+import { mountAgentCommentsContractRouter } from './routes/auth/agentComments/agentCommentsContractRouter.js';
 import { mountGroupsContractRouter } from './routes/auth/groups/groupsContract/index.js';
 import { mountImageModelPreferenceContractRouter } from './routes/auth/imageModelPreferenceContractRouter.js';
 import authInitRouter from './routes/auth/initController.js';
 import { mountModelPreferencesContractRouter } from './routes/auth/modelPreferencesContractRouter.js';
 import { mountPromptsContractRouter } from './routes/auth/promptsContractRouter.js';
-import { mountAgentCommentsContractRouter } from './routes/auth/agentComments/agentCommentsContractRouter.js';
 import { mountEntityReactionsContractRouter } from './routes/auth/reactions/entityReactionsContractRouter.js';
+import { mountTemplateCommentsContractRouter } from './routes/auth/templateComments/templateCommentsContractRouter.js';
 import { mountAdminVorlagenContractRouter } from './routes/auth/templates/adminVorlagenContractRouter.js';
 import { mountTemplateInteractionsContractRouter } from './routes/auth/templates/templateInteractionsContractRouter.js';
-import { mountTemplateCommentsContractRouter } from './routes/auth/templateComments/templateCommentsContractRouter.js';
 import { mountUserTemplatesContractRouter } from './routes/auth/templates/userTemplatesContractRouter.js';
 import { mountUserProfileContractRouter } from './routes/auth/userProfileContractRouter.js';
 import { mountBoardActivityContractRouter } from './routes/boards/boardActivityContractRouter.js';
@@ -118,6 +118,7 @@ import { mountSheetsContractRouter } from './routes/sheets/sheetsContractRouter.
 import { mountSitesContractRouter } from './routes/sites/sitesContractRouter.js';
 import { mountSkillPromptContractRouter } from './routes/skills/skillPromptContractRouter.js';
 import { mountSkillVisibilityContractRouter } from './routes/skills/skillVisibilityContractRouter.js';
+import { mountStudioAssetsContractRouter } from './routes/studioAssets/studioAssetsContractRouter.js';
 import subtitlerRouter from './routes/subtitler/processingController.js';
 import subtitlerProjectRouter from './routes/subtitler/projectController.js';
 import subtitlerShareRouter from './routes/subtitler/shareController.js';
@@ -227,6 +228,20 @@ const contentReportLimiter = isRateLimitDisabled
       legacyHeaders: false,
       keyGenerator: perUserOrIpKey,
       message: { error: 'Too many requests, please try again later.' },
+    });
+
+// Studio shop uploads are rare and every one may go public at once — cap
+// creates and edits well below the general write budget.
+const studioAssetWriteLimiter = isRateLimitDisabled
+  ? (_req: Request, _res: Response, next: NextFunction) => next()
+  : rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 30,
+      standardHeaders: true,
+      legacyHeaders: false,
+      keyGenerator: perUserOrIpKey,
+      skip: (req) => req.method !== 'POST' && req.method !== 'PATCH',
+      message: { success: false, message: 'Zu viele Anfragen. Bitte versuche es später erneut.' },
     });
 
 const authenticatedReadLimiter = isRateLimitDisabled
@@ -488,6 +503,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/reisekosten', requireAuth, standardMutationLimiter);
   app.use('/api/reisekosten/extract-beleg', requireAiConsent);
   mountReisekostenContractRouter(app);
+  // Studio shop: user Sticker and Hintergründe.
+  app.use('/api/studio-assets', requireAuth, authenticatedReadLimiter, studioAssetWriteLimiter);
+  mountStudioAssetsContractRouter(app);
   // Explainables. The shared routes come first and terminate before the
   // requireAuth gate on the prefix below; `/shared/:token` would otherwise be
   // read as the owner's `/:ref`.

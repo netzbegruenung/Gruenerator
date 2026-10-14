@@ -98,6 +98,12 @@ const ALLOWLIST: readonly AllowEntry[] = [
     "entity_type = 'studio_asset'",
   ],
   [
+    'apps/api/services/studioAssets/studioAssetsService.ts',
+    'studio_assets',
+    'create: a trashed asset still owns its image until the purge, so it blocks reuse',
+    'eq(studioAssets.media_id',
+  ],
+  [
     'apps/api/services/entityFavorites/EntityFavoritesService.ts',
     'studio_assets',
     'account deletion: favorites of every Sticker/Hintergrund of the user, trashed ones cascade too',
