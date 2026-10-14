@@ -70,6 +70,48 @@ describe('a creator list card follows a hand edit', () => {
     expect(cardBottom(after) - bottomOf(text)).toBeCloseTo(padBelow, 5);
   });
 
+  it('grows when the list is narrowed and its points wrap (#4381)', () => {
+    const { update, getState, list } = creatorList();
+    const before = cardOf(getState(), list.id);
+    const padBelow = cardBottom(before) - bottomOf(list);
+
+    update(list.id, { x: list.x + 40, width: Math.round(list.width * 0.4) });
+
+    const text = (getState().additionalTexts as AdditionalText[]).find((t) => t.id === list.id)!;
+    const after = cardOf(getState(), list.id);
+    expect(bottomOf(text)).toBeGreaterThan(bottomOf(list));
+    expect(cardTop(after)).toBeCloseTo(cardTop(before), 5);
+    expect(cardBottom(after) - bottomOf(text)).toBeCloseTo(padBelow, 5);
+  });
+
+  it('keeps fitting a narrowed list through a recompose', () => {
+    const { update, getState, list, source } = creatorList();
+    const padBelow = cardBottom(cardOf(getState(), list.id)) - bottomOf(list);
+    update(list.id, { width: Math.round(list.width * 0.4) });
+    const lifted = liftPage(getState() as unknown as Record<string, unknown>, source);
+    const next = specOf('Was wir fordern', ['Saubere Luft', 'Günstiger Strom', 'Jobs']);
+
+    const page = recomposePage(
+      compose(next),
+      lifted.overrides,
+      lifted.foreign,
+      lifted.slide,
+      next,
+      fingerprint(compose(lifted.slide))
+    );
+
+    const state = page.state as unknown as FreeformState;
+    const text = (state.additionalTexts as AdditionalText[]).find((t) => t.id === list.id)!;
+    expect(text.width).toBe(Math.round(list.width * 0.4));
+    expect(cardBottom(cardOf(state, list.id)) - bottomOf(text)).toBeCloseTo(padBelow, 5);
+    // The grown card is the composer's size again: only the hand width lifts.
+    const relifted = liftPage(page.state as unknown as Record<string, unknown>, {
+      slide: next,
+      baseline: page.baseline,
+    });
+    expect(relifted.overrides).toEqual(lifted.overrides);
+  });
+
   it('is not read as a hand-styled card by the next lift', () => {
     const { update, getState, list, source } = creatorList();
     update(list.id, { text: `${list.text}\n• Mehr Bahn` });
