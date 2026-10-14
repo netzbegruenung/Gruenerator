@@ -147,7 +147,9 @@ describe('StickerCreatorPage', () => {
     const { user, container } = renderWithProviders(<StickerCreatorPage />);
     await designUpload(user);
 
+    expect(screen.queryByText('Dein Name wird dabei angezeigt.')).toBeNull();
     await user.click(screen.getByRole('checkbox', { name: /öffentlich teilen/ }));
+    expect(screen.getByText('Dein Name wird dabei angezeigt.')).toBeInTheDocument();
     const submit = screen.getByRole('button', { name: 'Sticker speichern' });
     expect(submit).toBeDisabled();
     expect(within(container).getByRole('radio', { name: 'Deutschland' })).toBeChecked();

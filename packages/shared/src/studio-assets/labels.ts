@@ -27,6 +27,9 @@ export function galleryScopeEmptyText(kind: StudioAssetKind, scope: StudioAssetS
   return EMPTY[scope](STUDIO_ASSET_PLURAL[kind]);
 }
 
+/** Shown with the public switch: public items carry their author's name. */
+export const STUDIO_ASSET_AUTHOR_NOTE = 'Dein Name wird dabei angezeigt.';
+
 /** The confirmation the API requires before an item goes public. */
 export const STUDIO_ASSET_RIGHTS_LABEL =
   'Ich habe die Rechte an diesem Bild und es darf öffentlich geteilt werden.';

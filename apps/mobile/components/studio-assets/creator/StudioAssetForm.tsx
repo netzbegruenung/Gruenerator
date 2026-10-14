@@ -1,5 +1,6 @@
 import {
   STUDIO_ASSET_AUDIENCE_LABEL,
+  STUDIO_ASSET_AUTHOR_NOTE,
   STUDIO_ASSET_RIGHTS_LABEL,
   TITLE_MAX,
   type StudioAssetFormValues,
@@ -63,6 +64,9 @@ export function StudioAssetForm({
         onChange={(on) => set({ visibility: on ? 'public' : 'private' })}
         disabled={disabled}
       >
+        <Text style={[styles.note, { color: theme.textSecondary }]}>
+          {STUDIO_ASSET_AUTHOR_NOTE}
+        </Text>
         <View style={styles.field}>
           <FieldLabel>Sichtbar für</FieldLabel>
           <SegmentedControl

@@ -154,7 +154,9 @@ describe('StickerCreatorScreen', () => {
 
   it('asks for the rights before a public save', async () => {
     await designUpload();
+    expect(screen.queryByText('Dein Name wird dabei angezeigt.')).toBeNull();
     fireEvent(screen.getByLabelText('Unter „Entdecken“ öffentlich teilen'), 'valueChange', true);
+    expect(screen.getByText('Dein Name wird dabei angezeigt.')).toBeTruthy();
     isDisabled('Sticker speichern');
 
     fireEvent(screen.getByRole('radio', { name: 'Alle' }), 'press');

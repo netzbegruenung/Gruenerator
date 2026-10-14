@@ -1,5 +1,6 @@
 import {
   STUDIO_ASSET_AUDIENCE_LABEL,
+  STUDIO_ASSET_AUTHOR_NOTE,
   STUDIO_ASSET_RIGHTS_LABEL,
   TITLE_MAX,
   type StudioAssetFormValues,
@@ -63,6 +64,7 @@ export function StudioAssetFormFields({
 
       {isPublic && (
         <>
+          <p className="m-0 text-sm text-grey-600 dark:text-grey-400">{STUDIO_ASSET_AUTHOR_NOTE}</p>
           <fieldset className="m-0 flex flex-wrap gap-md border-0 p-0 text-sm">
             <legend className="mb-xs text-sm font-medium text-foreground">Sichtbar für</legend>
             {([locale, 'all'] as const).map((value) => (
