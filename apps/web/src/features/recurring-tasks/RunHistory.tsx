@@ -146,7 +146,7 @@ export function RunHistoryDisclosure({
         <FiChevronDown size={12} aria-hidden="true" />
         Verlauf
       </CollapsibleTrigger>
-      <CollapsibleContent>
+      <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
         <RunHistory taskId={taskId} delivery={delivery} limit={limit} />
       </CollapsibleContent>
     </Collapsible>
