@@ -6,7 +6,7 @@ import { galleryTarget } from '@gruenerator/shared/stickers';
 import { Alert, AlertDescription, Button, UploadZone } from '@gruenerator/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { PiUserCircle } from 'react-icons/pi';
+import { PiUserFill } from 'react-icons/pi';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import PageContainer from '../../../components/common/PageContainer';
@@ -44,6 +44,7 @@ async function loadReopen(
 
 /** Was die leere Bühne trägt: Upload, Freistellen oder den Fehler davon. */
 function PhotoStage({
+  backgroundPreview,
   status,
   originalUrl,
   uploadError,
@@ -53,6 +54,7 @@ function PhotoStage({
   onRetry,
   onReset,
 }: {
+  backgroundPreview: string | null;
   status: ReturnType<typeof useBackgroundRemoval>['status'];
   originalUrl: string | null;
   uploadError: string | null;
@@ -97,14 +99,24 @@ function PhotoStage({
       </div>
     );
   return (
-    <div className="absolute inset-0 flex flex-col p-md">
+    // Hell statt vollflächig im gewählten Hintergrund: der zeigt sich als runde
+    // Vorschau mit Silhouette, wie das fertige Profilbild aussehen wird.
+    <div className="absolute inset-0 flex flex-col bg-[color-mix(in_srgb,#46962b_12%,white)] p-sm dark:bg-grey-800">
       <UploadZone
         accept={IMAGE_ACCEPT}
         maxSizeMB={10}
-        icon={<PiUserCircle aria-hidden="true" className="size-7" />}
+        icon={
+          <span
+            aria-hidden="true"
+            className="flex size-16 items-end justify-center overflow-hidden rounded-full bg-grey-200 bg-cover bg-center dark:bg-grey-700"
+            style={backgroundPreview ? { backgroundImage: `url(${backgroundPreview})` } : undefined}
+          >
+            <PiUserFill className="-mb-1.5 size-14 text-white/90" />
+          </span>
+        }
         title="Foto hochladen"
         subtitle={pendingHint ?? 'Ziehen oder auswählen – am besten ein Porträt'}
-        className="min-h-0 flex-1 border-white/70 bg-background/80 px-md py-md backdrop-blur-sm"
+        className="min-h-0 flex-1 border-grey-300/80 bg-transparent px-md py-md"
         onFileSelected={onFile}
         onError={onUploadError}
       />
@@ -219,8 +231,9 @@ const ProfilbildPage = () => {
             galleryAsset={galleryAsset}
             onEditInCanvas={editInCanvas}
             onReset={startOver}
-            emptyStage={
+            emptyStage={(backgroundPreview) => (
               <PhotoStage
+                backgroundPreview={backgroundPreview}
                 status={status}
                 originalUrl={originalUrl}
                 uploadError={uploadError}
@@ -237,7 +250,7 @@ const ProfilbildPage = () => {
                 onRetry={retry}
                 onReset={reset}
               />
-            }
+            )}
           />
         )}
       </div>

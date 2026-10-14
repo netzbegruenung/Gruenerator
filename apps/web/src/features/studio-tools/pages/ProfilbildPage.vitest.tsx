@@ -460,10 +460,10 @@ describe('ProfilbildPage', () => {
     expect(screen.getByText('upload')).toBeTruthy();
     fireEvent.click(await screen.findByRole('button', { name: 'Klee' }));
     expect(lastBackground()).toEqual({ kind: 'color', color: '#46962b' });
-    expect(
-      (screen.getByRole('button', { name: 'Herunterladen' }) as HTMLButtonElement).disabled
-    ).toBe(true);
-    expect(screen.queryByRole('button', { name: 'Anderes Foto' })).toBeNull();
+    // Was ohne Foto nichts tut, steht noch nicht da.
+    for (const name of ['Herunterladen', 'Anderes Foto', 'Rund', 'Sticker Teamgrün hinzufügen'])
+      expect(screen.queryByRole('button', { name })).toBeNull();
+    expect(screen.queryByRole('group', { name: 'Grüne Sticker' })).toBeNull();
     expect(screen.queryByLabelText(/Größe der Person/)).toBeNull();
   });
 

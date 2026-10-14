@@ -123,8 +123,11 @@ export interface ProfilbildReopen {
 export interface ProfilbildEditorProps {
   /** The cut-out person; null until a photo is in — the editor shows `emptyStage` instead. */
   cutoutUrl: string | null;
-  /** Fills the stage while there is no person yet: upload, progress or error. */
-  emptyStage?: ReactNode;
+  /**
+   * Fills the stage while there is no person yet: upload, progress or error. Gets
+   * the chosen background as an image URL, to preview it without a person.
+   */
+  emptyStage?: (backgroundPreview: string | null) => ReactNode;
   reopen?: ProfilbildReopen | null;
   /** A gallery item handed over by deep link, applied once the photo is in. */
   galleryAsset?: GalleryAsset | null;
@@ -134,7 +137,7 @@ export interface ProfilbildEditorProps {
 
 export function ProfilbildEditor({
   cutoutUrl,
-  emptyStage = null,
+  emptyStage,
   reopen = null,
   galleryAsset = null,
   onEditInCanvas,
@@ -732,19 +735,22 @@ export function ProfilbildEditor({
   return (
     <div className="grid gap-lg md:grid-cols-[300px_1fr] md:items-start">
       <div className="mx-auto flex w-full max-w-[300px] flex-col gap-xs md:mx-0">
-        <div role="group" aria-label="Vorschau" className="flex gap-xs">
-          {VARIANTS.map((o) => (
-            <button
-              key={o.value}
-              type="button"
-              aria-pressed={variant === o.value}
-              onClick={() => setVariant(o.value)}
-              className={cn(TOOL_PILL, 'flex-1 px-sm')}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
+        {/* Format, Sticker und Export wirken erst mit einem Foto — bis dahin fehlen sie. */}
+        {cutoutUrl ? (
+          <div role="group" aria-label="Vorschau" className="flex gap-xs">
+            {VARIANTS.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                aria-pressed={variant === o.value}
+                onClick={() => setVariant(o.value)}
+                className={cn(TOOL_PILL, 'flex-1 px-sm')}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
 
         {variant === 'instagram' && cutout ? (
           <InstagramPreview profileRef={igProfileRef} feedRef={igFeedRef} />
@@ -765,15 +771,7 @@ export function ProfilbildEditor({
               className="aspect-square w-full overflow-hidden rounded-[14px] border border-grey-200 bg-grey-100 outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 dark:border-grey-700 dark:bg-grey-800"
             >
               {!cutoutUrl ? (
-                // Noch kein Foto: der gewählte Hintergrund steht schon da, der Upload liegt darüber.
-                <div
-                  className="relative size-full bg-cover bg-center"
-                  style={
-                    backgroundPreview ? { backgroundImage: `url(${backgroundPreview})` } : undefined
-                  }
-                >
-                  {emptyStage}
-                </div>
+                <div className="relative size-full">{emptyStage?.(backgroundPreview)}</div>
               ) : cutout && rect && backgroundCanvas ? (
                 <Suspense fallback={null}>
                   <ProfilbildStage
@@ -879,7 +877,7 @@ export function ProfilbildEditor({
             ) : null}
           </>
         )}
-        <p className={cn(TOOL_HINT, 'text-xs')}>{VARIANT_HINTS[variant]}</p>
+        {cutoutUrl ? <p className={cn(TOOL_HINT, 'text-xs')}>{VARIANT_HINTS[variant]}</p> : null}
       </div>
 
       <div className={cn(TOOL_PANEL, 'flex min-w-0 flex-col gap-lg')}>
@@ -926,20 +924,22 @@ export function ProfilbildEditor({
           />
         </fieldset>
 
-        <fieldset className="m-0 flex min-w-0 flex-col gap-sm border-0 p-0">
-          <legend className={cn(TOOL_LABEL, 'mb-sm')}>Sticker</legend>
-          <ProfilbildStickerPicker
-            locale={isAustria ? 'de-AT' : 'de-DE'}
-            disabled={!cutout}
-            onAddSystem={(st) => void addSticker(st)}
-            onAddAsset={(item) => void addGallerySticker(item)}
-          />
-          {stickers.length > 0 ? (
-            <p className={cn(TOOL_HINT, 'text-xs')}>
-              Sticker antippen zum Auswählen – Ecken ziehen zum Vergrößern und Drehen.
-            </p>
-          ) : null}
-        </fieldset>
+        {cutoutUrl ? (
+          <fieldset className="m-0 flex min-w-0 flex-col gap-sm border-0 p-0">
+            <legend className={cn(TOOL_LABEL, 'mb-sm')}>Sticker</legend>
+            <ProfilbildStickerPicker
+              locale={isAustria ? 'de-AT' : 'de-DE'}
+              disabled={!cutout}
+              onAddSystem={(st) => void addSticker(st)}
+              onAddAsset={(item) => void addGallerySticker(item)}
+            />
+            {stickers.length > 0 ? (
+              <p className={cn(TOOL_HINT, 'text-xs')}>
+                Sticker antippen zum Auswählen – Ecken ziehen zum Vergrößern und Drehen.
+              </p>
+            ) : null}
+          </fieldset>
+        ) : null}
 
         {cutoutUrl ? (
           <div className="flex flex-col gap-xs">
@@ -965,33 +965,42 @@ export function ProfilbildEditor({
           </div>
         ) : null}
 
-        <div className={TOOL_ACTIONS}>
-          <Button type="button" variant="brand" disabled={!cutout} onClick={() => void download()}>
-            Herunterladen
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={canvasBusy || !cutout}
-            onClick={() => void editInCanvas()}
-          >
-            {canvasBusy ? 'Canvas wird geöffnet …' : 'In Canvas bearbeiten'}
-          </Button>
-          {cutoutUrl ? (
-            <Button type="button" variant="ghost" className="sm:ml-auto" onClick={onReset}>
-              Anderes Foto
-            </Button>
-          ) : null}
-        </div>
-        <p role="status" className={cn(TOOL_HINT, '-mt-sm text-xs')}>
-          {SAVE_STATUS[saveState]}
-        </p>
+        {cutoutUrl ? (
+          <>
+            <div className={TOOL_ACTIONS}>
+              <Button
+                type="button"
+                variant="brand"
+                disabled={!cutout}
+                onClick={() => void download()}
+              >
+                Herunterladen
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={canvasBusy || !cutout}
+                onClick={() => void editInCanvas()}
+              >
+                {canvasBusy ? 'Canvas wird geöffnet …' : 'In Canvas bearbeiten'}
+              </Button>
+              {cutoutUrl ? (
+                <Button type="button" variant="ghost" className="sm:ml-auto" onClick={onReset}>
+                  Anderes Foto
+                </Button>
+              ) : null}
+            </div>
+            <p role="status" className={cn(TOOL_HINT, '-mt-sm text-xs')}>
+              {SAVE_STATUS[saveState]}
+            </p>
 
-        {flattenForCanvas ? (
-          <p className={cn(TOOL_HINT, '-mt-sm text-xs')}>
-            Im Canvas wird das Bild als Ganzes übernommen – Person und Sticker sind dort nicht mehr
-            einzeln verschiebbar.
-          </p>
+            {flattenForCanvas ? (
+              <p className={cn(TOOL_HINT, '-mt-sm text-xs')}>
+                Im Canvas wird das Bild als Ganzes übernommen – Person und Sticker sind dort nicht
+                mehr einzeln verschiebbar.
+              </p>
+            ) : null}
+          </>
         ) : null}
 
         {error ? (
