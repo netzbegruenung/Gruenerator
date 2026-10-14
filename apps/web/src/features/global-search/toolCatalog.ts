@@ -259,9 +259,9 @@ export const CATALOG: ToolCatalogEntry[] = [
   },
   {
     id: 'tool-agentura',
-    title: 'Agentura',
-    subtitle: 'KI-Grüneratoren & Rezepte entdecken',
-    path: '/agentura',
+    title: 'Grüneratoren',
+    subtitle: 'Deine Agents, Rezepte und Aufgaben',
+    path: '/grueneratoren',
     icon: nav('desk'),
     keywords: ['agentura', 'agent', 'agenten', 'grünerator', 'grueneratoren', 'skills', 'ki'],
   },

@@ -229,6 +229,14 @@ export function composerIconSize(variant: ComposerVariant): number {
 /** Fill for the send/cancel button in its active (primary) state. */
 export const COMPOSER_ACTION_FILL = colors.primary[600];
 
+/**
+ * Pressed state for the composer's buttons. Applied on press-in, so the button
+ * answers when the finger lands rather than when it lifts; the scale is what
+ * makes it read as a physical press on a filled circle, the dim covers the
+ * plain glyphs.
+ */
+export const COMPOSER_PRESSED: ViewStyle = { opacity: 0.7, transform: [{ scale: 0.94 }] };
+
 const inputStyles = StyleSheet.create({
   card: {
     flex: 1,

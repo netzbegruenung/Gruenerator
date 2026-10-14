@@ -251,6 +251,7 @@ export const SYSTEM_AGENT_DEFINITIONS = [
     locale: 'de-DE',
     author: 'Grünerator',
     enabledTools: ['image', 'vision', 'memory', 'memory_save'],
+    hiddenFromInventory: true,
     webOnly: true,
     autoRoutingHint: 'creative',
     iconKey: 'image-square',

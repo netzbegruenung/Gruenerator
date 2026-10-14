@@ -4,7 +4,7 @@ import {
   useUserLandesverbaende,
   type AgentListItem,
 } from '@gruenerator/chat';
-import { type TextForm } from '@gruenerator/contracts';
+import { type TextForm, type UserLibraryItemKind } from '@gruenerator/contracts';
 import {
   AGENTURA_TYPE_LABELS,
   DEFAULT_CATEGORY,
@@ -52,6 +52,7 @@ import { CURRENT_INSTANCE } from '../../config/instance';
 import { useOwnRecipes } from '../../hooks/agents/useOwnRecipes';
 import { usePublicUserAgents } from '../../hooks/agents/usePublicUserAgents';
 import { useUserAgents } from '../../hooks/agents/useUserAgents';
+import { useUserLibrary } from '../../hooks/agents/useUserLibrary';
 import { spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 import { CONTENT_MAX_WIDTH } from '../../theme/layout';
 import { routeWithParams } from '../../types/routes';
@@ -86,9 +87,12 @@ const MOBILE_TYPE_FILTERS = (['all', 'agent', 'recipe'] as const).map((id) => ({
  * The Agentura — the market of Grüneratoren, as a full screen in the style of
  * the four tabs.
  *
- * Read-only by construction: creating, editing, sharing and favouriting all stay
- * on web. Deshalb trägt die Kachel hier kein Aktionsmenü und die Seite keinen
- * „Neu"-Knopf — beides zeigte nur Wege, die auf dem Telefon nirgends hinführen.
+ * Creating, editing and sharing stay on web. Deshalb trägt die Kachel hier kein
+ * Aktionsmenü und die Seite keinen „Neu"-Knopf — beides zeigte nur Wege, die auf
+ * dem Telefon nirgends hinführen. Die eine Aktion, die es gibt, ist dieselbe wie
+ * in der Agentura im Web: „Zu meinen Grüneratoren" (das Plus an der Karte). Was
+ * so dazukommt, steht am Konto (`useUserLibrary`) und im Regal „Meine
+ * Grüneratoren" neben dem Eigenen — auf beiden Plattformen.
  * Aus demselben Grund bietet der Typ-Filter nur „Alle", „Agents" und
  * „Rezepte": wiederkehrende Aufgaben und Favoriten gibt es mobil nicht, und ein
  * Filter, der immer leer zurückkommt, ist ein kaputter Filter.
@@ -116,6 +120,7 @@ export default function AgentsScreen() {
     error: publicError,
   } = usePublicUserAgents();
   const { data: ownRecipes = [] } = useOwnRecipes();
+  const library = useUserLibrary();
 
   // Die Landesverbands-Zuteilung: LV-Agents und -Rezepte gehören den
   // Leuten des jeweiligen Verbands, gebunden an die Rolle „Mitarbeiter*in
@@ -187,6 +192,37 @@ export default function AgentsScreen() {
     return map;
   }, [skills]);
 
+  // Was „Zu meinen Grüneratoren" auflösen kann, nach Verweis — dieselben
+  // Verweise wie im Web: agentRef bei Agents (uuid bei fremden), Mention bei
+  // Katalog-Rezepten. Landesverbands-Inhalte erst mit geladenen Rollen, sonst
+  // stünden kurz die Inhalte aller Verbände in „Meine". Öffentliche
+  // Nutzer-Rezepte führt die App nicht; ein solcher Verweis bleibt hier aus und
+  // erscheint im Web.
+  const libraryAgents = useMemo(() => {
+    const lv = rolesLoaded ? lvSystemAgents : [];
+    const map = new Map<string, Agent>();
+    for (const agent of [...generalSystemAgents, ...lv, ...communityAgents])
+      map.set(agentRef(agent, false), agent);
+    return map;
+  }, [generalSystemAgents, lvSystemAgents, communityAgents, rolesLoaded]);
+  const librarySkills = useMemo(
+    () =>
+      new Map(
+        skills
+          .filter((s) => rolesLoaded || !isLandesverbandIdentifier(s.identifier))
+          .map((s) => [s.mention, s])
+      ),
+    [skills, rolesLoaded]
+  );
+  const addedAgents = library.items.flatMap((i) => {
+    const agent = i.kind === 'agent' ? (libraryAgents.get(i.ref) ?? null) : null;
+    return agent ? [agent] : [];
+  });
+  const addedSkills = library.items.flatMap((i) => {
+    const skill = i.kind === 'recipe' ? (librarySkills.get(i.ref) ?? null) : null;
+    return skill ? [skill] : [];
+  });
+
   const openAgent = useCallback(
     (agent: Agent) => {
       router.push(
@@ -246,6 +282,8 @@ export default function AgentsScreen() {
     key: string;
     kind: 'agent' | 'recipe';
     isFavorite: boolean;
+    /** Verweis für „Zu meinen Grüneratoren"; `null` bei Eigenem. */
+    libraryRef: { kind: UserLibraryItemKind; ref: string } | null;
     icon: IoniconsIconName;
     title: string;
     meta: string;
@@ -257,6 +295,9 @@ export default function AgentsScreen() {
     key: `a-${agentKey(agent)}`,
     kind: 'agent',
     isFavorite: false,
+    libraryRef: ownAgentKeys.has(agentKey(agent))
+      ? null
+      : { kind: 'agent', ref: agentRef(agent, false) },
     icon: agentIcon(agent.iconKey),
     title: agent.title,
     meta: agenturaMetaLine([
@@ -271,6 +312,7 @@ export default function AgentsScreen() {
     key: `s-${skill.mention}`,
     kind: 'recipe',
     isFavorite: false,
+    libraryRef: { kind: 'recipe', ref: skill.mention },
     icon: agentIcon(skill.iconKey),
     title: skill.title,
     meta: agenturaMetaLine([
@@ -287,6 +329,7 @@ export default function AgentsScreen() {
     key: `r-${recipe.id}`,
     kind: 'recipe',
     isFavorite: false,
+    libraryRef: null,
     icon: agentIcon(recipe.iconKey ?? 'sparkles'),
     title: recipe.title,
     meta: 'Rezept',
@@ -327,9 +370,14 @@ export default function AgentsScreen() {
       ...skills.filter((s) => matches([s.title, s.description, s.mention])).map(skillItem),
     ];
   } else if (shelf === 'meine') {
-    loading = isLoading;
+    loading = isLoading || (!library.loaded && !library.failed);
     loadError = error ? 'Deine Agents konnten nicht geladen werden.' : null;
-    shelfItems = [...userAgents.map(agentItem), ...ownRecipes.map(recipeItem)];
+    shelfItems = [
+      ...userAgents.map(agentItem),
+      ...ownRecipes.map(recipeItem),
+      ...addedAgents.map(agentItem),
+      ...addedSkills.map(skillItem),
+    ];
   } else if (shelf === 'landesverband') {
     const byRegion = <T,>(list: readonly T[], id: (t: T) => string): T[] =>
       [...list].sort((a, b) =>
@@ -435,6 +483,9 @@ export default function AgentsScreen() {
       <FlatList
         data={loading || loadError ? [] : items}
         keyExtractor={(item) => item.key}
+        // Das Plus liest `library` aus dem Abschluss — ohne extraData zeichnet die
+        // Liste nach dem Umschalten nicht neu, weil `data` gleich bleibt.
+        extraData={library.items}
         renderItem={({ item }) => (
           <MarketCard
             icon={item.icon}
@@ -442,6 +493,10 @@ export default function AgentsScreen() {
             meta={item.meta}
             description={item.description}
             onPress={item.onPress}
+            added={item.libraryRef ? library.has(item.libraryRef.kind, item.libraryRef.ref) : null}
+            onToggleAdded={() => {
+              if (item.libraryRef) library.toggle(item.libraryRef.kind, item.libraryRef.ref);
+            }}
           />
         )}
         ItemSeparatorComponent={ListGap}

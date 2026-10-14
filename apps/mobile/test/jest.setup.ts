@@ -13,6 +13,9 @@
  * there is no explicit afterEach cleanup.
  */
 import { jest } from '@jest/globals';
+// Gesture Handler's own mocks: without them a rendered GestureHandlerRootView
+// (every BottomSheet carries one) calls into the native module and throws.
+import 'react-native-gesture-handler/jestSetup';
 
 jest.mock('expo-router', () => {
   // One shared router object: `useRouter()` must hand back the same instance the

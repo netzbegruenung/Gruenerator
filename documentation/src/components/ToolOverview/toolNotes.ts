@@ -104,9 +104,9 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
 
   // ── Organisieren ──────────────────────────────────────────────────────────
   agents: {
-    note: 'Die Agentura: eigene Agents mit festem Auftrag und eigenen Quellen anlegen, dazu Rezepte für wiederkehrende Schreibaufgaben.',
+    note: 'Deine Agents, Rezepte und wiederkehrenden Aufgaben an einem Ort: eigene anlegen und aus der Agentura offizielle und öffentliche dazuholen.',
     platform: ['web', 'desktop', 'mobile'],
-    readMore: { label: 'Agentura', href: '/docs/features/agentura' },
+    readMore: { label: 'Grüneratoren und Agentura', href: '/docs/features/agentura' },
   },
   projekte: {
     note: 'Projekte bündeln Chats, Dokumente und Mitglieder zu einem Arbeitszusammenhang — etwa für eine Kampagne oder einen Ortsverband.',

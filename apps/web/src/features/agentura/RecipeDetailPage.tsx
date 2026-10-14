@@ -46,6 +46,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { AgentAvatar } from '../agents/icons/AgentAvatar';
 import { useTrashUndoToast } from '../trash/trashUndoToast';
 
+import { AddToLibraryButton } from './components/AddToLibraryButton';
 import { SkillCard, TypeBadge } from './components/cards';
 import { ShareRecipeModal } from './components/ShareRecipeModal';
 import { useSkillPrompt } from './hooks/useSkillPrompt';
@@ -155,6 +156,7 @@ function SystemRecipeView({
             <PiPaperPlaneTilt />
             Im Chat verwenden
           </Button>
+          <AddToLibraryButton kind="recipe" itemRef={skill.mention} />
           {canOverride && (
             <Button variant="outline" onClick={() => navigate(editHref)}>
               <PiPencilSimple />
@@ -258,7 +260,7 @@ function UserRecipeView({
       await deleteRecipe.mutateAsync(form.mention);
       // DELETE takes the mention; the trash addresses the row id.
       showTrashUndo({ kind: 'user_text_form', id: form.id, title: form.title });
-      void navigate('/agentura?cat=meine');
+      void navigate('/grueneratoren');
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : 'Löschen fehlgeschlagen.');
     }
@@ -298,6 +300,7 @@ function UserRecipeView({
           <PiPaperPlaneTilt />
           Im Chat verwenden
         </Button>
+        {source === 'public' && <AddToLibraryButton kind="recipe" itemRef={form.id} />}
         <div className="mx-1 h-6 w-px bg-grey-200 dark:bg-grey-700" />
         {isOwn && (
           <button

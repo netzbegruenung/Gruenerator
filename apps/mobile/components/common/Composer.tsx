@@ -51,6 +51,7 @@ import {
   composerIconSize,
   composerInputStyle,
   COMPOSER_ACTION_FILL,
+  COMPOSER_PRESSED,
   type ComposerVariant,
 } from './ComposerShell';
 import { SettingsTwoIcon } from './SettingsTwoIcon';
@@ -490,7 +491,11 @@ function ComposerBody({
   const leading = props.showActionSheet ? (
     <Pressable
       onPress={() => setActionSheetVisible(true)}
-      style={[composerIconButtonStyle(variant), plate]}
+      style={({ pressed }) => [
+        composerIconButtonStyle(variant),
+        plate,
+        pressed && COMPOSER_PRESSED,
+      ]}
       hitSlop={6}
       accessibilityLabel="Anhänge und Werkzeuge"
     >
@@ -500,7 +505,11 @@ function ComposerBody({
     <View style={styles.leadingPair}>
       <Pressable
         onPress={props.onAdd}
-        style={[composerIconButtonStyle(variant), plate]}
+        style={({ pressed }) => [
+          composerIconButtonStyle(variant),
+          plate,
+          pressed && COMPOSER_PRESSED,
+        ]}
         hitSlop={6}
         accessibilityLabel="Dateien hinzufügen"
       >
@@ -509,7 +518,11 @@ function ComposerBody({
       {props.onSettings && (
         <Pressable
           onPress={props.onSettings}
-          style={[composerIconButtonStyle(variant), plate]}
+          style={({ pressed }) => [
+            composerIconButtonStyle(variant),
+            plate,
+            pressed && COMPOSER_PRESSED,
+          ]}
           hitSlop={6}
           accessibilityLabel="Einstellungen"
         >
@@ -520,7 +533,11 @@ function ComposerBody({
   ) : props.onSettings ? (
     <Pressable
       onPress={props.onSettings}
-      style={[composerIconButtonStyle(variant), plate]}
+      style={({ pressed }) => [
+        composerIconButtonStyle(variant),
+        plate,
+        pressed && COMPOSER_PRESSED,
+      ]}
       hitSlop={6}
       accessibilityLabel="Einstellungen"
     >
@@ -532,7 +549,7 @@ function ComposerBody({
         Keyboard.dismiss();
         props.onClose?.();
       }}
-      style={composerIconButtonStyle(variant)}
+      style={({ pressed }) => [composerIconButtonStyle(variant), pressed && COMPOSER_PRESSED]}
       hitSlop={6}
       accessibilityLabel="Eingabe schließen"
     >
@@ -599,7 +616,10 @@ function ComposerBody({
           ) : props.accessory && !props.accessory.label ? (
             <Pressable
               onPress={props.accessory.onPress}
-              style={composerIconButtonStyle(variant)}
+              style={({ pressed }) => [
+                composerIconButtonStyle(variant),
+                pressed && COMPOSER_PRESSED,
+              ]}
               hitSlop={6}
               accessibilityLabel={props.accessory.accessibilityLabel}
             >
@@ -625,11 +645,12 @@ function ComposerBody({
           ) : (
             <Pressable
               onPress={input.onDictate}
-              style={[
+              style={({ pressed }) => [
                 composerActionButtonStyle(variant),
                 input.isListening
                   ? { backgroundColor: colors.error[500] }
                   : { backgroundColor: isCard ? softFill : 'transparent' },
+                pressed && COMPOSER_PRESSED,
               ]}
               hitSlop={6}
               accessibilityLabel={input.isListening ? 'Diktat beenden' : 'Diktieren'}
@@ -718,12 +739,14 @@ function LocalComposer(props: ComposerProps) {
       sendButton={
         <Pressable
           testID={props.testIDPrefix ? `${props.testIDPrefix}-send` : undefined}
+          hitSlop={6}
           onPress={handleSubmit}
           disabled={busy}
-          style={[
+          style={({ pressed }) => [
             composerActionButtonStyle(variant),
             { backgroundColor: props.accentColor ?? COMPOSER_ACTION_FILL },
             busy && styles.sendBusy,
+            pressed && COMPOSER_PRESSED,
           ]}
           accessibilityLabel={props.submitAs === 'search' ? 'Suchen' : 'Senden'}
           accessibilityState={{ disabled: busy, busy }}
@@ -819,10 +842,12 @@ function RuntimeComposer(props: ComposerProps) {
         onSubmit ? (
           <Pressable
             testID={props.testIDPrefix ? `${props.testIDPrefix}-send` : undefined}
+            hitSlop={6}
             onPress={handleIntercept}
-            style={[
+            style={({ pressed }) => [
               composerActionButtonStyle(variant),
               { backgroundColor: props.accentColor ?? COMPOSER_ACTION_FILL },
+              pressed && COMPOSER_PRESSED,
             ]}
             accessibilityLabel="Senden"
           >
@@ -835,10 +860,12 @@ function RuntimeComposer(props: ComposerProps) {
         ) : (
           <Pressable
             testID={props.testIDPrefix ? `${props.testIDPrefix}-send` : undefined}
+            hitSlop={6}
             onPress={handleSend}
-            style={[
+            style={({ pressed }) => [
               composerActionButtonStyle(variant),
               { backgroundColor: props.accentColor ?? COMPOSER_ACTION_FILL },
+              pressed && COMPOSER_PRESSED,
             ]}
             accessibilityLabel="Senden"
           >
