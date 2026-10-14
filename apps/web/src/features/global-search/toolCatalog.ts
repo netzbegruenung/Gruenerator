@@ -223,7 +223,6 @@ export const CATALOG: ToolCatalogEntry[] = [
       'planen',
       'aufgaben',
       'todo',
-      'whiteboard',
       'tabellen',
       'tabelle',
       'sheet',

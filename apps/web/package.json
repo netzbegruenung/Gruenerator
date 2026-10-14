@@ -12,7 +12,6 @@
     "@dnd-kit/modifiers": "^9.0.0",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@excalidraw/excalidraw": "^0.18.1",
     "@gruenerator/canvas-editor": "workspace:*",
     "@gruenerator/chat": "workspace:*",
     "@gruenerator/collab": "workspace:*",
@@ -79,7 +78,6 @@
     "tus-js-client": "^4.3.1",
     "uuid": "^14.0.2",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
-    "y-excalidraw": "^2.0.12",
     "yjs": "^13.6.33",
     "zod": "^3.25.76",
     "zustand": "5.0.15"

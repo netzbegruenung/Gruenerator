@@ -39,6 +39,7 @@ import { CardDetailPanel } from './components/CardDetailPanel';
 import { PlannerKanban } from './components/PlannerKanban';
 import { ViewSwitcher } from './components/ViewSwitcher';
 import { ViewToolbar } from './components/ViewToolbar';
+import { WhiteboardUnavailable } from './components/WhiteboardUnavailable';
 import { useBoardActivityFeed } from './hooks/useBoardActivityFeed';
 import { useBoardCollaboration } from './hooks/useBoardCollaboration';
 import { useBoardCommentSignal } from './hooks/useBoardCommentSignal';
@@ -55,10 +56,6 @@ import type { HocuspocusProvider } from '@hocuspocus/provider';
 import type { Doc } from 'yjs';
 
 import { startTabLink } from '@/utils/startpage';
-
-const LazyExcalidrawBoard = lazy(() =>
-  import('./components/ExcalidrawBoard').then((m) => ({ default: m.ExcalidrawBoard }))
-);
 
 const LazyBoardAssistantPanel = lazy(() =>
   import('./BoardAssistantPanel').then((m) => ({ default: m.BoardAssistantPanel }))
@@ -212,20 +209,7 @@ function BoardContent() {
         compact={isWhiteboard}
       />
       {isWhiteboard ? (
-        <Suspense
-          fallback={
-            <div className="flex-1 flex items-center justify-center">
-              <div className="size-6 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
-            </div>
-          }
-        >
-          <LazyExcalidrawBoard
-            ydoc={ydoc}
-            provider={provider}
-            isSynced={isSynced}
-            isLocked={!!authError}
-          />
-        </Suspense>
+        <WhiteboardUnavailable ydoc={ydoc} isSynced={isSynced} title={board.title} />
       ) : (
         <BoardViewContent
           ydoc={ydoc}

@@ -110,7 +110,6 @@ const TOOLS = [
         'planen',
         'aufgaben',
         'todo',
-        'whiteboard',
         'tabellen',
         'tabelle',
         'sheet',

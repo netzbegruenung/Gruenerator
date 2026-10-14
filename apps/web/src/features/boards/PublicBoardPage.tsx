@@ -1,6 +1,6 @@
 import { getAuthErrorMessage } from '@gruenerator/collab';
 import { DocsProvider } from '@gruenerator/docs';
-import { lazy, Suspense, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { DottedBackground } from '../../components/common/DottedBackground';
@@ -8,6 +8,7 @@ import ErrorBoundary from '../../components/ErrorBoundary';
 import { webAppDocsAdapter } from '../docs/docsAdapter';
 
 import { PlannerKanban } from './components/PlannerKanban';
+import { WhiteboardUnavailable } from './components/WhiteboardUnavailable';
 import { useBoardCollaboration } from './hooks/useBoardCollaboration';
 import { useBoardState } from './hooks/useBoardState';
 import { usePublicBoard } from './hooks/usePublicBoard';
@@ -16,10 +17,6 @@ import { getBoardType } from './types';
 
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 import type { Doc } from 'yjs';
-
-const LazyExcalidrawBoard = lazy(() =>
-  import('./components/ExcalidrawBoard').then((m) => ({ default: m.ExcalidrawBoard }))
-);
 
 function PublicBoardContent() {
   const { id } = useParams<{ id: string }>();
@@ -118,15 +115,7 @@ function PublicBoardContent() {
         </div>
       </div>
       {isWhiteboard ? (
-        <Suspense
-          fallback={
-            <div className="flex-1 flex items-center justify-center">
-              <div className="size-6 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
-            </div>
-          }
-        >
-          <LazyExcalidrawBoard ydoc={ydoc} provider={provider} isSynced={isSynced} />
-        </Suspense>
+        <WhiteboardUnavailable ydoc={ydoc} isSynced={isSynced} title={board.title} />
       ) : (
         <PublicKanbanContent
           ydoc={ydoc}
