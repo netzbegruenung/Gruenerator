@@ -75,6 +75,14 @@ export const CATALOG: ToolCatalogEntry[] = [
     keywords: ['profilbild', 'profil', 'portrait', 'avatar', 'foto', 'hintergrund', 'freistellen'],
   },
   {
+    id: 'tool-sticker',
+    title: 'Sticker & Hintergründe',
+    subtitle: 'Sticker und Hintergründe erstellen, teilen und entdecken',
+    path: '/studio/sticker',
+    icon: nav('sticker'),
+    keywords: ['sticker', 'aufkleber', 'hintergrund', 'profilbild', 'wahlkampf'],
+  },
+  {
     id: 'tool-bild-erweitern',
     title: 'Bild erweitern',
     subtitle: 'KI ergänzt dein Bild auf ein neues Format',

@@ -38,6 +38,14 @@ vi.mock('../database/services/PostgresService.js', () => ({
   }),
 }));
 
+// The canvas thumbnail purge reaches the service through this lazy accessor.
+vi.mock('../routes/share/shareServices.js', () => ({
+  getSharedMediaService: async () => {
+    const { default: Service } = await import('./sharedMediaService.js');
+    return new Service();
+  },
+}));
+
 const { default: SharedMediaService } = await import('./sharedMediaService.js');
 const { ORPHANED_SHARE_STATUSES, USER_VISIBLE_SHARE_STATUSES } =
   await import('./sharedMediaFilters.js');
@@ -515,6 +523,37 @@ describe('Papierkorb', () => {
     expect(effects).toEqual(['DELETE FROM shared_media', 'rm tok-1']);
   });
 
+  describe('a replaced canvas thumbnail', () => {
+    /** A fake `shared_media` that applies the purge's WHERE clause to one row. */
+    function shareRow(row: { upload_source: string; is_library_item: boolean }) {
+      query.mockImplementation((sql: string, params: unknown[]) => {
+        effects.push(sql.replace(/\s+/g, ' ').trim().split(' WHERE ')[0]);
+        const [token, owner, sources] = params as [string, string | null, string[] | null];
+        const matches =
+          token === 'tok-1' &&
+          !row.is_library_item &&
+          owner === null &&
+          sql.includes('upload_source = ANY($3)') &&
+          (sources === null || sources.includes(row.upload_source));
+        return Promise.resolve(matches ? [{ id: 'row-1' }] : []);
+      });
+    }
+
+    it('purges a real canvas thumbnail share', async () => {
+      const { deleteReplacedThumbnailShare } = await import('./canvas/canvasRepository.js');
+      shareRow({ upload_source: 'canvas-thumbnail', is_library_item: false });
+      await deleteReplacedThumbnailShare('/api/share/tok-1/download');
+      expect(effects).toEqual(['DELETE FROM shared_media', 'rm tok-1']);
+    });
+
+    it('purges nothing when the thumbnail pointed at a gallery item', async () => {
+      const { deleteReplacedThumbnailShare } = await import('./canvas/canvasRepository.js');
+      shareRow({ upload_source: 'studio-asset', is_library_item: false });
+      await deleteReplacedThumbnailShare('/api/share/tok-1/download');
+      expect(effects).toEqual(['DELETE FROM shared_media']);
+    });
+  });
+
   const profilbildMeta = (url: string) => ({
     profilbild: {
       v: 1,
@@ -532,7 +571,7 @@ describe('Papierkorb', () => {
           id: 'row-1',
           user_id: 'user-1',
           image_type: 'profilbild',
-          image_metadata: profilbildMeta('/api/share/bg-1/download'),
+          image_metadata: profilbildMeta('/api/share/bg-1-000000000000000000000000000/download'),
         },
       ]);
     });
@@ -542,12 +581,46 @@ describe('Papierkorb', () => {
       'DELETE FROM shared_media',
       'rm tok-1',
       'DELETE FROM shared_media',
-      'rm bg-1',
+      'rm bg-1-000000000000000000000000000',
     ]);
     const [sql, params] = query.mock.calls[1]!;
     expect(sql).toContain('COALESCE(is_library_item, TRUE) = FALSE');
     expect(sql).toContain('user_id = $2');
-    expect(params).toEqual(['bg-1', 'user-1']);
+    expect(sql).toContain('upload_source = $3');
+    expect(params).toEqual(['bg-1-000000000000000000000000000', 'user-1', 'profilbild-background']);
+  });
+
+  it('never purges a gallery background the Profilbild only picked', async () => {
+    // The person's own Studio gallery item: non-library, same owner — only its source differs.
+    const galleryShare = {
+      share_token: 'bg-gal-00000000000000000000000000',
+      user_id: 'user-1',
+      is_library_item: false,
+      upload_source: 'studio-asset',
+    };
+    query.mockImplementation((sql: string, params: unknown[]) => {
+      const s = sql.replace(/\s+/g, ' ').trim();
+      effects.push(s.split(' WHERE ')[0]);
+      if (params[0] === 'tok-1') {
+        return Promise.resolve([
+          {
+            id: 'row-1',
+            user_id: 'user-1',
+            image_type: 'profilbild',
+            image_metadata: profilbildMeta(`/api/share/${galleryShare.share_token}/download`),
+          },
+        ]);
+      }
+      const matches =
+        params[0] === galleryShare.share_token &&
+        !galleryShare.is_library_item &&
+        params[1] === galleryShare.user_id &&
+        (!s.includes('upload_source = $3') || params[2] === galleryShare.upload_source);
+      return Promise.resolve(matches ? [{ id: 'bg-row' }] : []);
+    });
+    expect(await new SharedMediaService().purgeShare('tok-1', null)).toBe(true);
+
+    expect(effects).toEqual(['DELETE FROM shared_media', 'rm tok-1', 'DELETE FROM shared_media']);
   });
 
   it('leaves the background alone for a canvas export that only shares the image type', async () => {
@@ -563,27 +636,29 @@ describe('Papierkorb', () => {
       id: 'row-1',
       file_path: 'tok-1/media.png',
       image_type: 'profilbild',
-      image_metadata: profilbildMeta('/api/share/bg-old/download'),
+      image_metadata: profilbildMeta('/api/share/bg-old-0000000000000000000000000/download'),
     });
     query.mockResolvedValue([{ id: 'bg-row' }]);
     const service = new SharedMediaService();
     await service.updateImageShare('user-1', 'tok-1', {
       imageBase64: 'data:image/png;base64,AAAA',
-      metadata: profilbildMeta('/api/share/bg-new/download'),
+      metadata: profilbildMeta('/api/share/bg-new-0000000000000000000000000/download'),
     });
     const purges = query.mock.calls.filter(([sql]) => sql.includes('DELETE FROM shared_media'));
-    expect(purges.map(([, params]) => params)).toEqual([['bg-old', 'user-1']]);
+    expect(purges.map(([, params]) => params)).toEqual([
+      ['bg-old-0000000000000000000000000', 'user-1', 'profilbild-background'],
+    ]);
 
     query.mockClear();
     queryOne.mockResolvedValueOnce({
       id: 'row-1',
       file_path: 'tok-1/media.png',
       image_type: 'profilbild',
-      image_metadata: profilbildMeta('/api/share/bg-new/download'),
+      image_metadata: profilbildMeta('/api/share/bg-new-0000000000000000000000000/download'),
     });
     await service.updateImageShare('user-1', 'tok-1', {
       imageBase64: 'data:image/png;base64,AAAA',
-      metadata: profilbildMeta('/api/share/bg-new/download'),
+      metadata: profilbildMeta('/api/share/bg-new-0000000000000000000000000/download'),
     });
     expect(query.mock.calls.some(([sql]) => sql.includes('DELETE FROM shared_media'))).toBe(false);
   });

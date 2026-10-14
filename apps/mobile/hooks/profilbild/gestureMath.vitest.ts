@@ -19,6 +19,7 @@ import type { ProfilbildModel, SceneSticker } from '../../components/profilbild/
 
 const sticker = (uid: string, x: number, y: number, size = 200, rotation = 0): SceneSticker => ({
   uid,
+  id: 'sonnenblume-gruen',
   src: '/sonnenblume_gruen.png',
   x,
   y,

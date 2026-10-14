@@ -89,6 +89,10 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
     note: 'Macht aus einem Foto ein Profilbild: Person freistellen und den Hintergrund per Klick wechseln — als Farbe, Verlauf, Vorlage oder eigenes Bild. Im Editor setzt du Sticker und verschiebst Person und Sticker direkt im Bild.',
     platform: ['web'],
   },
+  sticker: {
+    note: 'Sticker und Hintergründe für dein Profilbild: unter „Entdecken“ findest du, was andere geteilt haben, und kannst es liken, dir merken oder melden. Eigene Sticker bleiben privat, bis du sie mit Bestätigung der Bildrechte öffentlich machst.',
+    platform: ['web'],
+  },
   'bild-erweitern': {
     note: 'Erweitert ein Bild per KI auf ein anderes Format, zum Beispiel von Quer- auf Hochformat. Eine Vorschau zeigt vorab, welche Flächen die KI ergänzt.',
     platform: ['web'],

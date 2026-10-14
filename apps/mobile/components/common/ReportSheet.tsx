@@ -1,4 +1,8 @@
 import { type ContentReportReason } from '@gruenerator/contracts';
+import {
+  CONTENT_REPORT_REASON_LABELS as REASON_LABELS,
+  CONTENT_REPORT_REASONS as REASONS,
+} from '@gruenerator/shared/utils';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -7,16 +11,6 @@ import { BODY_FONT, HEADING_FONT_BOLD, borderRadius, colors, spacing } from '../
 
 import { BottomSheet } from './BottomSheet';
 import { submitReport, type ReportTarget } from './submitReport';
-
-/** Display order of the reasons; the record keeps the labels exhaustive over the contract enum. */
-const REASON_LABELS: Record<ContentReportReason, string> = {
-  offensive: 'Beleidigend oder hasserfüllt',
-  false_information: 'Falschinformation',
-  harassment: 'Belästigung',
-  illegal: 'Rechtswidrig',
-  other: 'Sonstiges',
-};
-const REASONS = Object.keys(REASON_LABELS) as ContentReportReason[];
 
 export type { ReportTarget };
 

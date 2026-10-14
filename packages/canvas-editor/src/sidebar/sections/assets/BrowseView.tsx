@@ -1,3 +1,5 @@
+import { shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
+import { isAssetStickerId, isShareSrc } from '@gruenerator/shared/stickers';
 import { useState, useEffect, useMemo, useRef, useDeferredValue } from 'react';
 import { PiArrowLeft } from 'react-icons/pi';
 
@@ -26,6 +28,7 @@ import { CategoryJumpBar, type JumpBarItem } from './CategoryJumpBar';
 import { CategoryStrip, StripTile } from './CategoryStrip';
 import { CATEGORY_CARDS, PREVIEW_COMPONENTS, type AssetView } from './constants';
 import { SearchInput, SearchResultsGrid } from './SearchResultsGrid';
+import { StickerCatalog } from './StickerCatalog';
 import {
   DiagrammeStripTiles,
   EmojiGrid,
@@ -35,6 +38,7 @@ import {
   IllustrationStripTiles,
   MarkeStripTiles,
   RahmenStripTiles,
+  StickerStripTiles,
 } from './stripTiles';
 
 import type { ExtendedAssetsSectionProps } from './AssetsSection';
@@ -51,7 +55,7 @@ import type { ShapeInstance, ShapeType } from '../../../utils/shapes';
 
 interface RecentItem {
   id: string;
-  type: 'asset' | 'shape' | 'illustration';
+  type: 'asset' | 'sticker' | 'shape' | 'illustration';
   label: string;
   src?: string;
   color?: string;
@@ -79,7 +83,8 @@ function RecentItemThumbnail({ item }: { item: RecentItem }) {
   }
 
   if (item.src) {
-    return <img src={item.src} alt={item.label} className="w-3/5 h-3/5 object-contain" />;
+    const src = item.type === 'sticker' ? shareThumbnailPreviewUrl(item.src, 200) : item.src;
+    return <img src={src} alt={item.label} className="w-3/5 h-3/5 object-contain" />;
   }
 
   return (
@@ -191,6 +196,7 @@ export function BrowseView(props: BrowseViewProps) {
   const availableCategories = useMemo(() => {
     const featureMap: Record<string, boolean> = {
       marke: hasAssetsFeature || (hasBalkenFeature && userLocale === 'de-DE'),
+      sticker: hasAssetsFeature,
       formen: hasShapesFeature,
       diagramme: hasChartsFeature,
       rahmen: hasFramesFeature,
@@ -222,7 +228,14 @@ export function BrowseView(props: BrowseViewProps) {
         // zeigt nur, was auf DIESER Flaeche schon liegt. Nicht auf
         // `ALL_ASSETS` zurueckdrehen: dann verschwindet eine Kopie still aus
         // dem Streifen, obwohl sie auf der Flaeche sichtbar ist.
-        const def = getAssetById((inst as AssetInstance).assetId);
+        const { assetId, src } = inst as AssetInstance;
+        if (isAssetStickerId(assetId)) {
+          // A gallery sticker is re-added by ref: its own src, validated like on load.
+          if (src && isShareSrc(src) && sectionProps.onAddStickerAsset)
+            items.push({ id: assetId, type: 'sticker', src, label: 'Sticker' });
+          continue;
+        }
+        const def = getAssetById(assetId);
         if (def) items.push({ id: def.id, type: 'asset', src: def.src, label: def.label });
       }
     }
@@ -271,6 +284,7 @@ export function BrowseView(props: BrowseViewProps) {
     return out;
   }, [
     sectionProps.assetInstances,
+    sectionProps.onAddStickerAsset,
     sectionProps.shapeInstances,
     sectionProps.illustrationInstances,
   ]);
@@ -338,6 +352,8 @@ export function BrowseView(props: BrowseViewProps) {
 
   const handleRecentClick = (item: RecentItem) => {
     if (item.type === 'asset' && sectionProps.onAddAsset) sectionProps.onAddAsset(item.id);
+    else if (item.type === 'sticker' && sectionProps.onAddStickerAsset && item.src)
+      sectionProps.onAddStickerAsset({ id: item.id, src: item.src });
     else if (item.type === 'shape' && sectionProps.onAddShape && item.shapeType)
       sectionProps.onAddShape(item.shapeType as ShapeType, item.color);
     else if (item.type === 'illustration' && sectionProps.onAddIllustration)
@@ -362,6 +378,8 @@ export function BrowseView(props: BrowseViewProps) {
             recommendedAssetIds={sectionProps.recommendedAssetIds}
           />
         );
+      case 'sticker':
+        return <StickerStripTiles onAddAsset={sectionProps.onAddAsset!} />;
       case 'formen':
         return <FormenStripTiles onAddShape={sectionProps.onAddShape!} />;
       case 'diagramme':
@@ -531,6 +549,14 @@ export function BrowseView(props: BrowseViewProps) {
               onDuplicateIllustration={sectionProps.onDuplicateIllustration}
               isExpanded
               illustrations={filteredIllustrations}
+            />
+          )}
+
+          {activeView === 'sticker' && hasAssetsFeature && (
+            <StickerCatalog
+              onAddAsset={sectionProps.onAddAsset!}
+              onAddStickerAsset={sectionProps.onAddStickerAsset}
+              searchQuery={debouncedDrillDownQuery}
             />
           )}
 

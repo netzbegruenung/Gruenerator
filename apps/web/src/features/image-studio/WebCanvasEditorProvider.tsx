@@ -8,16 +8,24 @@ import { webCanvasEditorServices } from './webCanvasEditorServices';
 
 import type { CanvasEditorServices } from '@gruenerator/canvas-editor';
 
-export function WebCanvasEditorProvider({ children }: { children: ReactNode }) {
+export function WebCanvasEditorProvider({
+  children,
+  allowStickerCreator = true,
+}: {
+  children: ReactNode;
+  /** False where `window.open` goes nowhere, e.g. inside the native app's WebView. */
+  allowStickerCreator?: boolean;
+}) {
   const isAustrianUser = useAuthStore((s) => s.locale === 'de-AT');
   const draftId = useId();
-  const services = useMemo<CanvasEditorServices>(
-    () => ({
-      ...webCanvasEditorServices,
+  const services = useMemo<CanvasEditorServices>(() => {
+    const { openStickerCreator, ...rest } = webCanvasEditorServices;
+    return {
+      ...rest,
+      ...(allowStickerCreator && openStickerCreator ? { openStickerCreator } : {}),
       userLocale: isAustrianUser ? 'de-AT' : 'de-DE',
-    }),
-    [isAustrianUser]
-  );
+    };
+  }, [isAustrianUser, allowStickerCreator]);
   return (
     <CanvasEditorProvider services={services}>
       <CanvasChatDraftIdContext.Provider value={draftId}>

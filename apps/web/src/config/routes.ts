@@ -188,6 +188,10 @@ const ProfilbildRedirect = lazy(() =>
 const ProfilbildPage = lazy(() => import('../features/studio-tools/pages/ProfilbildPage'));
 const BildErweiternPage = lazy(() => import('../features/studio-tools/pages/BildErweiternPage'));
 const FreistellenPage = lazy(() => import('../features/studio-tools/pages/FreistellenPage'));
+const StudioAssetsPage = lazy(() => import('../features/studio-assets/StudioAssetsPage'));
+const StickerCreatorPlaceholder = lazy(
+  () => import('../features/studio-assets/StickerCreatorPlaceholder')
+);
 
 // Legacy KI routes (/studio/ki, /imagine, /bild-editor) now redirect to the Studio, where KI-Bilder
 // are made from the composer.
@@ -842,6 +846,18 @@ const standardRoutes: RouteConfig[] = [
     accent: 'studio',
     path: '/studio/mediathek',
     component: MediaLibraryPage,
+    layoutMode: 'sidebarOnly',
+  },
+  {
+    accent: 'studio',
+    path: '/studio/sticker',
+    component: StudioAssetsPage,
+    layoutMode: 'sidebarOnly',
+  },
+  {
+    accent: 'studio',
+    path: '/studio/sticker/neu',
+    component: StickerCreatorPlaceholder,
     layoutMode: 'sidebarOnly',
   },
   { path: '/studio/templates/profilbild', component: ProfilbildRedirect },

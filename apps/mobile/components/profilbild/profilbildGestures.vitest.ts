@@ -19,7 +19,15 @@ function setup(selected: string | null = null) {
   const model: ProfilbildModel = {
     ...initialModel({ width: 100, height: 100 }, false),
     stickers: [
-      { uid: 's1', src: 'sonnenblume' as never, ...STICKER, width: 100, height: 100, rotation: 0 },
+      {
+        uid: 's1',
+        id: 'teamgruen',
+        src: 'sonnenblume',
+        ...STICKER,
+        width: 100,
+        height: 100,
+        rotation: 0,
+      },
     ],
   };
   const io = { setDraft: vi.fn(), setGuides: vi.fn(), haptic: vi.fn() };

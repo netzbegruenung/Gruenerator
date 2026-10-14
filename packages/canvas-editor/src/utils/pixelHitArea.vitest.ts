@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { applyPixelHitArea, HIT_ALPHA_THRESHOLD, hitCacheRatios } from './profilbildHitArea';
+import { applyPixelHitArea, HIT_ALPHA_THRESHOLD, hitCacheRatios } from './pixelHitArea';
 
 import type Konva from 'konva';
 
@@ -13,6 +13,12 @@ describe('hitCacheRatios', () => {
     const r = hitCacheRatios(1080, 2400);
     expect(r.pixelRatio).toBeCloseTo(0.5);
     expect(r.hitCanvasPixelRatio).toBeCloseTo(0.125);
+  });
+
+  it('raises the cache ratio for small nodes drawn scaled up, still bounded', () => {
+    expect(hitCacheRatios(150, 100, 4).pixelRatio).toBe(4);
+    expect(hitCacheRatios(150, 100, 20).pixelRatio).toBe(8);
+    expect(hitCacheRatios(150, 100, 4).hitCanvasPixelRatio).toBe(1);
   });
 
   it('survives zero sizes', () => {

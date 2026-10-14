@@ -3,6 +3,7 @@
  * Centralized registry of all available decorative assets for canvas editor
  */
 import { SHAREPIC_EMOJI, sharepicEmojiCode, type SharepicEmoji } from '@gruenerator/contracts';
+import { isShareSrc, SYSTEM_STICKERS, type StickerRef } from '@gruenerator/shared/stickers';
 
 export type AssetAudience = 'de-DE' | 'de-AT' | 'all';
 
@@ -10,7 +11,7 @@ export interface UniversalAsset {
   id: string;
   src: string;
   label: string;
-  category: 'decoration' | 'mark' | 'emoji';
+  category: 'decoration' | 'mark' | 'emoji' | 'sticker';
   tags: string[];
   /** Which brand locale the asset belongs to; 'all' is locale-independent. */
   audience: AssetAudience;
@@ -33,7 +34,9 @@ export const ASSET_TARGET_SIZE = 150;
  */
 export interface AssetInstance {
   id: string;
-  assetId: string; // Reference to UniversalAsset.id
+  assetId: string; // Reference to UniversalAsset.id, or `asset:<uuid>` for a shop sticker
+  /** Own image of a shop sticker: a `/api/share/<token>/download` path. */
+  src?: string;
   x: number;
   y: number;
   scale: number;
@@ -57,6 +60,20 @@ export const createAssetInstance = (
   rotation: 0,
   opacity: 1,
 });
+
+/**
+ * A sticker on the canvas: a catalogue sticker by id, a shop sticker with its
+ * share path. Null when the ref resolves to no image.
+ */
+export const createStickerInstance = (
+  ref: StickerRef,
+  canvasWidth: number,
+  canvasHeight: number
+): AssetInstance | null => {
+  const base = createAssetInstance(ref.id, canvasWidth, canvasHeight);
+  const instance = isShareSrc(ref.src) ? { ...base, src: ref.src } : base;
+  return resolveAssetInstanceSrc(instance) ? instance : null;
+};
 
 /**
  * System Assets Configuration
@@ -379,8 +396,27 @@ export const EMOJI_ASSETS: UniversalAsset[] = SHAREPIC_EMOJI.map((emoji) => {
   };
 });
 
-/** Katalog plus Vorlagen-Varianten — alles, was sich zu einer Grafik aufloesen laesst. */
-const RESOLVABLE_ASSETS: UniversalAsset[] = [...ALL_ASSETS, ...TEMPLATE_ASSETS, ...EMOJI_ASSETS];
+/** The shared sticker catalogue (`@gruenerator/shared/stickers`), the same set as the Profilbild. */
+export const STICKER_ASSETS: UniversalAsset[] = SYSTEM_STICKERS.map((s) => ({
+  id: s.id,
+  src: s.src,
+  label: s.label,
+  category: 'sticker',
+  tags: ['sticker', ...s.tags],
+  audience: s.audience,
+}));
+
+/**
+ * Katalog plus Vorlagen-Varianten — alles, was sich zu einer Grafik aufloesen laesst.
+ * Sticker stehen zuletzt: einige teilen ihre Datei mit einer Sonnenblume, und
+ * `getAssetBySrc` soll dafuer weiter die Katalog-Grafik finden.
+ */
+const RESOLVABLE_ASSETS: UniversalAsset[] = [
+  ...ALL_ASSETS,
+  ...TEMPLATE_ASSETS,
+  ...EMOJI_ASSETS,
+  ...STICKER_ASSETS,
+];
 
 /**
  * Logo assets shown in the "Logos" (grafiken) category.
@@ -394,6 +430,10 @@ export function hasDarkPreview(asset: UniversalAsset): boolean {
 
 export function assetMatchesLocale(asset: UniversalAsset, locale: AssetAudience): boolean {
   return asset.audience === 'all' || asset.audience === locale;
+}
+
+export function stickerAssetsForLocale(locale: AssetAudience): UniversalAsset[] {
+  return STICKER_ASSETS.filter((a) => assetMatchesLocale(a, locale));
 }
 
 /**
@@ -430,6 +470,24 @@ export const CANVAS_RECOMMENDED_ASSETS: Record<string, string[]> = {
  */
 export function getAssetById(id: string): UniversalAsset | undefined {
   return RESOLVABLE_ASSETS.find((asset) => asset.id === id);
+}
+
+/**
+ * The image an instance draws: its own share path (shop sticker), else the
+ * catalogue's. A foreign `src` is ignored so persisted state can't point the
+ * canvas at an arbitrary URL.
+ */
+export function resolveAssetInstanceSrc(
+  instance: Pick<AssetInstance, 'assetId' | 'src'>
+): string | null {
+  if (instance.src && isShareSrc(instance.src)) return instance.src;
+  return getAssetById(instance.assetId)?.src ?? null;
+}
+
+/** Sticker-like instances get a pixel-exact hit area: transparent pixels click through. */
+export function isStickerLikeInstance(instance: Pick<AssetInstance, 'assetId' | 'src'>): boolean {
+  if (instance.src && isShareSrc(instance.src)) return true;
+  return getAssetById(instance.assetId)?.category === 'sticker';
 }
 
 /**

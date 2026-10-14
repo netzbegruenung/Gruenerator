@@ -353,6 +353,7 @@ const withFreeformAi = (
       component: AssetsSection,
       propsFactory: (state, actions, context) => ({
         onAddAsset: actions.addAsset,
+        onAddStickerAsset: actions.addStickerAsset,
         recommendedAssetIds: CANVAS_RECOMMENDED_ASSETS['dreizeilen'],
         ...injectFeatureProps(state, actions, context),
       }),

@@ -67,6 +67,7 @@ import {
   PiArrowsOut,
   PiScissors,
   PiSpeakerHigh,
+  PiSticker,
   PiChatCircle,
   PiDesktop,
   PiChartBar,
@@ -143,6 +144,7 @@ export type NavigationIconName =
   | 'bild-erweitern'
   | 'freisteller'
   | 'mediathek'
+  | 'sticker'
   | 'texte'
   | 'eigene'
   | 'home'
@@ -270,6 +272,7 @@ export const ICONS: IconRegistry = {
     'bild-erweitern': PiArrowsOut,
     freisteller: PiScissors,
     mediathek: PiImages,
+    sticker: PiSticker,
     texte: PiArticle,
     eigene: PiWrench,
     home: GrueneratorHomeIcon,

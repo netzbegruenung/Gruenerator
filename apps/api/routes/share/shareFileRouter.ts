@@ -25,6 +25,7 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 
+import { type UPLOAD_SOURCES } from '@gruenerator/shared/media-library/constants';
 import express, { type Request, type Response, type Router } from 'express';
 
 import { requireAuth } from '../../middleware/authMiddleware.js';
@@ -289,8 +290,15 @@ router.get(
   }
 );
 
+/** A Studio gallery Sticker/Hintergrund: content others pick for months, not a link. */
+const GALLERY_UPLOAD_SOURCE = 'studio-asset' satisfies (typeof UPLOAD_SOURCES)[number];
+
 /**
  * Has this share's link passed its `expires_at`, for whoever is asking?
+ *
+ * Never for a Studio gallery item: its file is fetched (as XHR, so
+ * `isImageRender` does not help) whenever someone picks it, and the gallery
+ * row, not the link, decides whether it is still around.
  *
  * Never for the owner. `/share/<token>` is also where someone checks their own
  * share, and the row stays in their Mediathek regardless — expiry closes the
@@ -308,6 +316,7 @@ router.get(
  */
 function shareLinkExpired(share: SharedMediaRow, req: Request): boolean {
   if (!share.expires_at) return false;
+  if (share.upload_source === GALLERY_UPLOAD_SOURCE) return false;
   if (new Date(share.expires_at) >= new Date()) return false;
   const viewerId = (req as AuthenticatedRequest).user?.id;
   return viewerId !== share.user_id;

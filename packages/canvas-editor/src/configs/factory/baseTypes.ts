@@ -16,6 +16,7 @@ import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '../../utils/shapes';
 import type { UserImageInstance } from '../../utils/userImageUtils';
 import type { AdditionalText, LayoutResult } from '../types';
+import type { StickerRef } from '@gruenerator/shared/stickers';
 
 // ============================================================================
 // SHARED STATE TYPES
@@ -98,6 +99,7 @@ export interface TextStylingState {
 export interface BaseCanvasActions {
   // Asset management
   addAsset: (assetId: string) => void;
+  addStickerAsset: (ref: StickerRef) => void;
   updateAsset: (id: string, partial: Partial<AssetInstance>) => void;
   removeAsset: (id: string) => void;
 

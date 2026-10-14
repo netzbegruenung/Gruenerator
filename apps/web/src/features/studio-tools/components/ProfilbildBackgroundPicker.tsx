@@ -1,10 +1,17 @@
+import { type StudioAssetScope } from '@gruenerator/contracts';
 import { GRADIENT_SWATCHES, type PresetDesign, type Swatch } from '@gruenerator/shared/profilbild';
 import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from '@gruenerator/ui';
 import { useState } from 'react';
 
+import { type GalleryAsset } from '../utils/galleryAsset';
 import { flatCss } from '../utils/profilbildBackgrounds';
 
-const TAB_CLS =
+import { ProfilbildGalleryGrid } from './ProfilbildGalleryGrid';
+import { TOOL_PILL } from './ToolUi';
+
+import { cn } from '@/utils/cn';
+
+export const TAB_CLS =
   'h-9 flex-none rounded-full border border-grey-200 px-md text-sm font-semibold text-foreground max-md:h-11 dark:border-grey-700 ' +
   'data-[state=active]:border-transparent data-[state=active]:bg-secondary-600 data-[state=active]:text-white data-[state=active]:shadow-none';
 
@@ -16,16 +23,27 @@ const TILE_CLASS = `relative size-16 shrink-0 cursor-pointer overflow-hidden rou
 
 export const CUSTOM_ID = 'eigenes-bild';
 
-type Category = 'farben' | 'verlaeufe' | 'vorlagen' | 'eigenes';
+type Category = 'farben' | 'verlaeufe' | 'vorlagen' | 'entdecken' | 'eigenes';
+
+const GALLERY_SCOPES: { value: StudioAssetScope; label: string }[] = [
+  { value: 'shop', label: 'Öffentlich' },
+  { value: 'mine', label: 'Meine' },
+  { value: 'saved', label: 'Gemerkt' },
+];
 
 export interface ProfilbildBackgroundPickerProps {
   colors: Swatch[];
   presets: PresetDesign[];
   selected: string;
   customImageSrc: string | null;
+  /** The stored share path of the custom background, if it has one yet. */
+  customUrl: string | null;
   onSelect: (id: string) => void;
   onSelectPreset: (design: PresetDesign) => void;
+  onSelectGallery: (item: GalleryAsset) => void;
   onUpload: () => void;
+  /** Offered while the custom background is a freshly picked own photo. */
+  onShareCustom: (() => void) | null;
 }
 
 export function ProfilbildBackgroundPicker({
@@ -33,10 +51,14 @@ export function ProfilbildBackgroundPicker({
   presets,
   selected,
   customImageSrc,
+  customUrl,
   onSelect,
   onSelectPreset,
+  onSelectGallery,
   onUpload,
+  onShareCustom,
 }: ProfilbildBackgroundPickerProps) {
+  const [galleryScope, setGalleryScope] = useState<StudioAssetScope>('shop');
   const [tab, setTab] = useState<Category>(() =>
     GRADIENT_SWATCHES.some((s) => s.id === selected)
       ? 'verlaeufe'
@@ -74,6 +96,9 @@ export function ProfilbildBackgroundPicker({
         </TabsTrigger>
         <TabsTrigger value="vorlagen" className={TAB_CLS}>
           Vorlagen
+        </TabsTrigger>
+        <TabsTrigger value="entdecken" className={TAB_CLS}>
+          Entdecken
         </TabsTrigger>
         <TabsTrigger value="eigenes" className={TAB_CLS}>
           Eigenes Bild
@@ -121,6 +146,30 @@ export function ProfilbildBackgroundPicker({
         ))}
       </TabsContent>
 
+      <TabsContent value="entdecken" className="flex flex-col gap-sm p-1 pt-sm">
+        <div role="group" aria-label="Hintergründe aus der Galerie" className="flex gap-xs">
+          {GALLERY_SCOPES.map((s) => (
+            <button
+              key={s.value}
+              type="button"
+              aria-pressed={galleryScope === s.value}
+              onClick={() => setGalleryScope(s.value)}
+              className={cn(TOOL_PILL, 'px-sm')}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+        <ProfilbildGalleryGrid
+          key={galleryScope}
+          kind="background"
+          scope={galleryScope}
+          tileClassName={TILE_CLASS}
+          selectedSrc={selected === CUSTOM_ID ? (customUrl ?? '') : ''}
+          onPick={onSelectGallery}
+        />
+      </TabsContent>
+
       <TabsContent value="eigenes" className="flex flex-wrap items-center gap-sm p-1 pt-sm">
         {customImageSrc ? (
           <>
@@ -136,6 +185,11 @@ export function ProfilbildBackgroundPicker({
             <Button type="button" size="sm" variant="outline" onClick={onUpload}>
               Anderes Bild wählen
             </Button>
+            {onShareCustom ? (
+              <Button type="button" size="sm" variant="ghost" onClick={onShareCustom}>
+                Im Bereich ‚Entdecken‘ teilen
+              </Button>
+            ) : null}
           </>
         ) : (
           <Button type="button" size="sm" variant="outline" onClick={onUpload}>

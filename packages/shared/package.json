@@ -148,6 +148,12 @@
       "import": "./dist/image-studio/index.js",
       "default": "./dist/image-studio/index.js"
     },
+    "./stickers": {
+      "development": "./src/stickers/index.ts",
+      "types": "./src/stickers/index.ts",
+      "import": "./dist/stickers/index.js",
+      "default": "./dist/stickers/index.js"
+    },
     "./profilbild": {
       "development": "./src/profilbild/index.ts",
       "types": "./src/profilbild/index.ts",
@@ -213,6 +219,12 @@
       "types": "./src/groups/index.ts",
       "import": "./dist/groups/index.js",
       "default": "./dist/groups/index.js"
+    },
+    "./studio-assets": {
+      "development": "./src/studio-assets/index.ts",
+      "types": "./src/studio-assets/index.ts",
+      "import": "./dist/studio-assets/index.js",
+      "default": "./dist/studio-assets/index.js"
     },
     "./reactions": {
       "development": "./src/reactions/index.ts",

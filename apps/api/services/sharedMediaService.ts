@@ -4,7 +4,10 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import { type ShareStatus, type StoredMediaType } from '@gruenerator/contracts';
-import { NON_LIBRARY_UPLOAD_SOURCES } from '@gruenerator/shared/media-library/constants';
+import {
+  NON_LIBRARY_UPLOAD_SOURCES,
+  type UPLOAD_SOURCES,
+} from '@gruenerator/shared/media-library/constants';
 import {
   parseSavedProfilbild,
   PROFILBILD_IMAGE_TYPE,
@@ -94,6 +97,10 @@ export type ShareTrashLookup = TrashedShareRow | Exclude<ShareTrashResult, 'ok'>
  * no item cap since; this does not bring either back.
  */
 const SHARE_LINK_MAX_AGE_DAYS = 30;
+
+export type UploadSource = (typeof UPLOAD_SOURCES)[number];
+
+const PROFILBILD_BACKGROUND_SOURCE = 'profilbild-background' satisfies UploadSource;
 
 /**
  * `expires_at` for a freshly created share, as a SQL expression.
@@ -807,7 +814,7 @@ class SharedMediaService {
                 SELECT sm.id, sm.user_id, sm.share_token, sm.media_type, sm.title,
                        sm.file_path, sm.file_name, sm.thumbnail_path, sm.file_size, sm.mime_type,
                        sm.duration, sm.project_id, sm.image_type, sm.image_metadata,
-                       sm.status, sm.download_count, sm.view_count, sm.created_at,
+                       sm.status, sm.download_count, sm.view_count, sm.created_at, sm.upload_source,
                        sm.wolke_share_link_id, sm.wolke_file_path,
                        sm.expires_at, sm.password_hash, sm.transfer_files, sm.transfer_message,
                        COALESCE(p.first_name, p.display_name, 'Jemand') as sharer_name
@@ -1026,16 +1033,23 @@ class SharedMediaService {
    * `is_library_item = FALSE` match — a library image someone set as a
    * thumbnail survives. Internal rows never pass through the Papierkorb: no
    * listing shows them, so nobody could restore them. `ownerId` limits it to
-   * one user's rows, for tokens that came from client-written metadata.
+   * one user's rows, for tokens that came from client-written metadata;
+   * `uploadSources` limits it to rows of those sources, for client-written
+   * tokens no owner check can cover (a collaborator's canvas thumbnail).
    */
-  async purgeInternalShare(shareToken: string, ownerId: string | null = null): Promise<boolean> {
+  async purgeInternalShare(
+    shareToken: string,
+    ownerId: string | null = null,
+    uploadSources: readonly UploadSource[] | null = null
+  ): Promise<boolean> {
     const row = await this.removeShare<{ id: string }>(
       shareToken,
       `DELETE FROM shared_media
        WHERE share_token = $1 AND COALESCE(is_library_item, TRUE) = FALSE
          AND ($2::uuid IS NULL OR user_id = $2)
+         AND ($3::text[] IS NULL OR upload_source = ANY($3))
        RETURNING id`,
-      [shareToken, ownerId]
+      [shareToken, ownerId, uploadSources]
     );
     return row !== null;
   }
@@ -1044,6 +1058,8 @@ class SharedMediaService {
    * A saved Profilbild's own background photo is an internal upload that only
    * this Profilbild refers to, so it goes once the Profilbild no longer does:
    * on purge, or when an update replaces it. Best-effort, like the files.
+   * Only its own `profilbild-background` upload qualifies — a background picked
+   * from the Studio gallery is a `studio-asset` share the gallery item owns.
    */
   private async dropProfilbildBackground(
     share: { user_id: string | null; image_type: string | null; image_metadata: unknown },
@@ -1053,7 +1069,14 @@ class SharedMediaService {
     const token = savedBackgroundShareToken(parseSavedProfilbild(share.image_metadata));
     if (!token || token === keepToken) return;
     try {
-      await this.purgeInternalShare(token, share.user_id);
+      await this.removeShare<{ id: string }>(
+        token,
+        `DELETE FROM shared_media
+         WHERE share_token = $1 AND COALESCE(is_library_item, TRUE) = FALSE
+           AND user_id = $2 AND upload_source = $3
+         RETURNING id`,
+        [token, share.user_id, PROFILBILD_BACKGROUND_SOURCE]
+      );
     } catch (error) {
       reportBackgroundError(error, {
         job: 'profilbild-background-purge',
