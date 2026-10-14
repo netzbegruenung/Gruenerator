@@ -70,6 +70,7 @@ export {
 export { Badge, badgeVariants } from './components/badge';
 export { Button, buttonVariants } from './components/button';
 export { CopyLinkRow } from './components/copy-link-row';
+export { IconSwap } from './components/icon-swap';
 export { Fab, type FabProps } from './components/fab';
 export { Checkbox } from './components/checkbox';
 export {

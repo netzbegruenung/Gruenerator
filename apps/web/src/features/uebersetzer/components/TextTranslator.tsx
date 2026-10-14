@@ -4,7 +4,7 @@ import {
   type TranslationLanguagesResponse,
   TRANSLATION_TEXT_MAX_CHARS,
 } from '@gruenerator/contracts';
-import { Alert, AlertDescription, Button } from '@gruenerator/ui';
+import { IconSwap, Alert, AlertDescription, Button } from '@gruenerator/ui';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { PiCheck, PiCopy, PiX } from 'react-icons/pi';
 
@@ -313,7 +313,7 @@ export function TextTranslator({ data, text, onTextChange }: TextTranslatorProps
                   disabled={!result}
                   onClick={() => void copy()}
                 >
-                  {copied ? <PiCheck aria-hidden="true" /> : <PiCopy aria-hidden="true" />}
+                  <IconSwap swapped={copied} from={<PiCopy />} to={<PiCheck />} />
                   {copied ? 'Kopiert' : 'Kopieren'}
                 </Button>
               </span>
