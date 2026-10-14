@@ -25,11 +25,12 @@ afterEach(() => {
   toastSuccess.mockReset();
 });
 
-function renderDialog(onOpenChange = vi.fn()) {
+function renderDialog(onOpenChange = vi.fn(), onReported = vi.fn()) {
   render(
     <ReportDialog
       open
       onOpenChange={onOpenChange}
+      onReported={onReported}
       kind="studio_asset"
       targetId="a-1"
       title="Herz"
@@ -65,6 +66,25 @@ describe('ReportDialog', () => {
       note: 'zu grob',
     });
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it('tells the caller once the report went through, and only then', async () => {
+    let status = 404;
+    server.use(
+      http.post(ENDPOINT, () => HttpResponse.json({ success: status === 200 }, { status }))
+    );
+    const onReported = vi.fn();
+    renderDialog(vi.fn(), onReported);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('radio', { name: 'Rechtswidrig' }));
+    await user.click(screen.getByRole('button', { name: 'Melden' }));
+    await screen.findByRole('alert');
+    expect(onReported).not.toHaveBeenCalled();
+
+    status = 200;
+    await user.click(screen.getByRole('button', { name: 'Melden' }));
+    await waitFor(() => expect(onReported).toHaveBeenCalledTimes(1));
   });
 
   it('shows a German message on 404 and stays open', async () => {

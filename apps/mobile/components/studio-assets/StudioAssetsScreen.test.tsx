@@ -7,8 +7,9 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import { type ReactNode } from 'react';
 
-import { useStudioAssets } from '@gruenerator/shared/studio-assets';
+import { STUDIO_ASSETS_QUERY_KEY, useStudioAssets } from '@gruenerator/shared/studio-assets';
 import { secureStorage } from '../../services/storage';
+import { FALLBACK_ERROR, submitReport } from '../common/submitReport';
 
 import { StudioAssetsScreen } from './StudioAssetsScreen';
 
@@ -25,7 +26,15 @@ jest.mock('@gruenerator/shared/studio-assets', () => ({
   useStudioAssetToggles: () => ({ toggleLike: mockToggleLike, toggleFavorite: jest.fn() }),
 }));
 jest.mock('../../services/storage', () => ({ secureStorage: { getToken: jest.fn() } }));
-jest.mock('../common/submitReport', () => ({ submitReport: jest.fn() }));
+jest.mock('../common/submitReport', () => ({
+  ...jest.requireActual<Record<string, unknown>>('../common/submitReport'),
+  submitReport: jest.fn(),
+}));
+const mockInvalidate = jest.fn();
+jest.mock('@tanstack/react-query', () => ({
+  ...jest.requireActual<Record<string, unknown>>('@tanstack/react-query'),
+  useQueryClient: () => ({ invalidateQueries: mockInvalidate }),
+}));
 // The real sheet is a Modal with keyboard handling; only its content matters here.
 jest.mock('../common/BottomSheet', () => ({
   BottomSheet: ({ visible, children }: { visible: boolean; children: ReactNode }) =>
@@ -35,6 +44,7 @@ jest.mock('../common/BottomSheet', () => ({
 const mockAssets = useStudioAssets as unknown as jest.MockedFunction<
   (filter: unknown) => Record<string, unknown>
 >;
+const mockSubmit = submitReport as jest.MockedFunction<typeof submitReport>;
 const mockGetToken = secureStorage.getToken as jest.MockedFunction<typeof secureStorage.getToken>;
 
 const asset = (over: Partial<StudioAssetItem>): StudioAssetItem => ({
@@ -115,6 +125,25 @@ describe('StudioAssetsScreen', () => {
     fireEvent.press(screen.getByText('Melden'));
     act(() => jest.runOnlyPendingTimers());
     expect(screen.getByText('Inhalt melden')).toBeTruthy();
+  });
+
+  it.each<[string, Awaited<ReturnType<typeof submitReport>>, number]>([
+    ['refreshes the gallery once the report went through', 'done', 1],
+    ['leaves the gallery alone when the report failed', FALLBACK_ERROR, 0],
+  ])('%s', async (_name, outcome, refreshes) => {
+    mockSubmit.mockResolvedValue(outcome);
+    await renderScreen([theirs]);
+    openMenu('Sonnenblume');
+    fireEvent.press(screen.getByText('Melden'));
+    act(() => jest.runOnlyPendingTimers());
+    fireEvent.press(screen.getByLabelText('Rechtswidrig'));
+    await act(async () => fireEvent.press(screen.getByLabelText('Melden')));
+
+    expect(mockSubmit).toHaveBeenCalled();
+    expect(mockInvalidate).toHaveBeenCalledTimes(refreshes);
+    if (refreshes) {
+      expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: STUDIO_ASSETS_QUERY_KEY });
+    }
   });
 
   it('offers no Melden on an own item', async () => {

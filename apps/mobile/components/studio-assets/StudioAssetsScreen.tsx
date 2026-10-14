@@ -8,10 +8,12 @@ import { profilbildAssetParams } from '@gruenerator/shared/stickers';
 import {
   STUDIO_ASSET_RIGHTS_LABEL,
   STUDIO_ASSET_SCOPES,
+  STUDIO_ASSETS_QUERY_KEY,
   useStudioAssetMutations,
   useStudioAssets,
 } from '@gruenerator/shared/studio-assets';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
+import { useQueryClient } from '@tanstack/react-query';
 import { Stack, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
@@ -53,6 +55,7 @@ const failed = (title: string) => (error: Error) => Alert.alert(title, error.mes
 export function StudioAssetsScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { width } = useWindowDimensions();
   const available = Math.min(width, GRID_MAX_WIDTH) - spacing.medium * 2;
   const numColumns = gridColumns(available, MIN_TILE, ITEM_GAP);
@@ -284,7 +287,11 @@ export function StudioAssetsScreen() {
           />
         }
       />
-      <ReportSheet target={reportTarget} onClose={() => setReportTarget(null)} />
+      <ReportSheet
+        target={reportTarget}
+        onClose={() => setReportTarget(null)}
+        onReported={() => void queryClient.invalidateQueries({ queryKey: STUDIO_ASSETS_QUERY_KEY })}
+      />
       <StudioAssetRenameSheet item={renaming} onSave={rename} onClose={() => setRenaming(null)} />
     </View>
   );
