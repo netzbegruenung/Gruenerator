@@ -1,6 +1,6 @@
-import { PRIDE_STRIPES } from '@gruenerator/shared/profilbild';
+import { PRIDE_STRIPES, type SavedProfilbild } from '@gruenerator/shared/profilbild';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { forwardRef, useImperativeHandle } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -55,17 +55,29 @@ const share = vi.hoisted(() => ({
   getMyShare: vi.fn(),
   apiGet: vi.fn(),
   upload: vi.fn(),
+  uploadShare: vi.fn(),
+  listAssets: vi.fn(),
+  createAsset: vi.fn(),
+  prepare: vi.fn(),
 }));
 vi.mock('@gruenerator/shared/share', () => ({
   useShareStore: () => ({ createImageShare: share.create, updateImageShare: share.update }),
 }));
 vi.mock('@gruenerator/shared/api', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
-  getContractsClient: () => ({ sharesRead: { getMyShare: share.getMyShare } }),
+  getContractsClient: () => ({
+    sharesRead: { getMyShare: share.getMyShare },
+    studioAssets: { list: share.listAssets, create: share.createAsset },
+  }),
 }));
 vi.mock('../../../components/utils/apiClient', () => ({ default: { get: share.apiGet } }));
 vi.mock('../../image-studio/services/mediaUploadService', () => ({
   uploadBlobToMediaLibrary: share.upload,
+  uploadBlobToMediaShare: share.uploadShare,
+}));
+vi.mock('../../studio-assets/backgroundImage', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  prepareBackgroundImage: share.prepare,
 }));
 vi.mock('../../../utils/downloadFile', () => ({ downloadDataUrl: vi.fn() }));
 vi.mock('../../../components/common/PageContainer', () => ({
@@ -132,8 +144,9 @@ const renderHandoff = () => {
 const lastBackground = () => mockBackground.mock.calls.at(-1)?.[0];
 
 // Radix Tabs switch on mousedown, not click
-const openTab = (name: string) => {
-  const tab = screen.getByRole('tab', { name });
+const openTab = (name: string, list?: string) => {
+  const scope = list ? within(screen.getByRole('tablist', { name: list })) : screen;
+  const tab = scope.getByRole('tab', { name });
   fireEvent.mouseDown(tab, { button: 0, ctrlKey: false });
   fireEvent.click(tab);
   return tab;
@@ -163,6 +176,7 @@ describe('ProfilbildPage', () => {
     share.update.mockResolvedValue({ shareToken: 'tok1' });
     share.apiGet.mockResolvedValue({ data: new Blob(['x'], { type: 'image/png' }) });
     share.upload.mockResolvedValue('/api/share/bg1/download');
+    share.listAssets.mockResolvedValue({ status: 200, body: { items: [], hasMore: false } });
   });
 
   it('saves a download under „Zuletzt“ and updates it on the next one', async () => {
@@ -492,12 +506,16 @@ describe('ProfilbildPage', () => {
     renderPage();
     fireEvent.click(screen.getByText('upload'));
     expect(await screen.findByRole('button', { name: 'Klee' })).toBeTruthy();
-    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual([
-      'Vollfarben',
-      'Verläufe',
-      'Vorlagen',
-      'Eigenes Bild',
-    ]);
+    expect(
+      within(screen.getByRole('tablist', { name: 'Hintergrund-Art' }))
+        .getAllByRole('tab')
+        .map((t) => t.textContent)
+    ).toEqual(['Vollfarben', 'Verläufe', 'Vorlagen', 'Entdecken', 'Eigenes Bild']);
+    expect(
+      within(screen.getByRole('tablist', { name: 'Sticker-Auswahl' }))
+        .getAllByRole('tab')
+        .map((t) => t.textContent)
+    ).toEqual(['Grüne', 'Entdecken', 'Meine', 'Gemerkt']);
     openTab('Verläufe');
     expect(screen.getByRole('button', { name: 'Verlauf Tanne zu Klee' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Klee' })).toBeNull();
@@ -863,6 +881,166 @@ describe('ProfilbildPage', () => {
     await screen.findByRole('button', { name: 'Sticker entfernen' });
     openTab('Vorlagen');
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  describe('gallery', () => {
+    const GALLERY_ID = '0b6f3c1e-8a4d-4f5e-9c2a-7d1e5b3a9f10';
+    const GALLERY_SRC = '/api/share/0123456789abcdef0123456789abcdef/download';
+    const galleryItem = (over: Record<string, unknown> = {}) => ({
+      id: GALLERY_ID,
+      kind: 'sticker',
+      title: 'Sonnenblume',
+      tags: [],
+      src: GALLERY_SRC,
+      thumbUrl: null,
+      width: 512,
+      height: 256,
+      source: 'upload',
+      visibility: 'public',
+      audience: 'all',
+      moderation: 'ok',
+      isOwn: false,
+      authorName: 'Kim',
+      likesCount: 0,
+      liked: false,
+      favorited: false,
+      createdAt: '2026-10-01T00:00:00.000Z',
+      ...over,
+    });
+    const createdProfilbild = () =>
+      (share.create.mock.calls[0]?.[0] as { metadata: { profilbild: SavedProfilbild } } | undefined)
+        ?.metadata.profilbild;
+    const listOnly = (item: ReturnType<typeof galleryItem>) =>
+      share.listAssets.mockImplementation(({ query }: { query: { kind: string } }) =>
+        Promise.resolve({
+          status: 200,
+          body: { items: query.kind === item.kind ? [item] : [], hasMore: false },
+        })
+      );
+
+    it('adds a sticker from „Entdecken“ and saves it with its share path', async () => {
+      listOnly(galleryItem());
+      renderHandoff();
+      await screen.findByTestId('konva-stage');
+      openTab('Entdecken', 'Sticker-Auswahl');
+      fireEvent.click(await screen.findByRole('button', { name: 'Sonnenblume' }));
+      await screen.findByRole('button', { name: 'Sonnenblume entfernen' });
+      expect(share.listAssets.mock.calls[0]?.[0]).toMatchObject({
+        query: { kind: 'sticker', scope: 'shop' },
+      });
+      expect(share.apiGet).toHaveBeenCalledWith(
+        '/share/0123456789abcdef0123456789abcdef/download',
+        {
+          responseType: 'blob',
+        }
+      );
+
+      expect((await downloadAndGetCompose())?.stickers).toEqual([
+        expect.objectContaining({ width: 270, height: 135 }),
+      ]);
+      await waitFor(() => expect(share.create).toHaveBeenCalledTimes(1));
+      expect(createdProfilbild()?.stickers).toEqual([
+        expect.objectContaining({ id: `asset:${GALLERY_ID}`, src: GALLERY_SRC }),
+      ]);
+    });
+
+    it('uses a gallery background as the custom background without uploading it again', async () => {
+      listOnly(galleryItem({ kind: 'background', title: 'Wiese' }));
+      renderHandoff();
+      await screen.findByTestId('konva-stage');
+      openTab('Entdecken', 'Hintergrund-Art');
+      const tile = await screen.findByRole('button', { name: 'Wiese' });
+      expect(tile.getAttribute('aria-pressed')).toBe('false');
+      fireEvent.click(tile);
+      await waitFor(() => expect(lastBackground()).toMatchObject({ kind: 'image' }));
+      expect(tile.getAttribute('aria-pressed')).toBe('true');
+
+      await downloadAndGetCompose();
+      await waitFor(() => expect(share.create).toHaveBeenCalledTimes(1));
+      expect(createdProfilbild()?.background).toEqual({
+        kind: 'custom',
+        url: GALLERY_SRC,
+      });
+      expect(share.upload).not.toHaveBeenCalled();
+      expect(screen.queryByRole('button', { name: 'Im Bereich ‚Entdecken‘ teilen' })).toBeNull();
+    });
+
+    it('applies a deep-linked sticker once the photo is in', async () => {
+      mockRemove.mockResolvedValue({
+        file: new File([], 'x'),
+        objectUrl: 'blob:x',
+        base64: CUTOUT,
+      });
+      const search = new URLSearchParams({
+        asset: GALLERY_ID,
+        kind: 'sticker',
+        src: GALLERY_SRC,
+        w: '512',
+        h: '256',
+        title: 'Sonnenblume',
+      });
+      renderPage(null, `?${search.toString()}`);
+      expect(
+        screen.getByText('Lade zuerst ein Foto hoch – dann setzen wir „Sonnenblume“ ein.')
+      ).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Sonnenblume entfernen' })).toBeNull();
+
+      fireEvent.click(screen.getByText('upload'));
+      await screen.findByRole('button', { name: 'Sonnenblume entfernen' });
+      expect(screen.queryByText(/Lade zuerst ein Foto hoch/)).toBeNull();
+      expect((await downloadAndGetCompose())?.stickers).toHaveLength(1);
+    });
+
+    it('ignores a deep link whose src is not a share path', async () => {
+      renderPage(null, `?asset=${GALLERY_ID}&kind=sticker&src=https://evil.example/x.png`);
+      expect(await screen.findByText('upload')).toBeTruthy();
+      expect(screen.queryByText(/Lade zuerst ein Foto hoch/)).toBeNull();
+    });
+
+    it('shares an own background photo as a separate gallery upload', async () => {
+      share.prepare.mockResolvedValue(new Blob(['w'], { type: 'image/webp' }));
+      share.uploadShare.mockResolvedValue('tok-gallery');
+      share.createAsset.mockResolvedValue({
+        status: 201,
+        body: galleryItem({ kind: 'background', title: 'wiese', isOwn: true }),
+      });
+      renderHandoff();
+      await screen.findByTestId('konva-stage');
+      const photo = new File(['p'], 'wiese.jpg', { type: 'image/jpeg' });
+      fireEvent.change(screen.getByTestId('profilbild-background-input'), {
+        target: { files: [photo] },
+      });
+      await waitFor(() => expect(lastBackground()).toMatchObject({ kind: 'image' }));
+      openTab('Eigenes Bild', 'Hintergrund-Art');
+      fireEvent.click(screen.getByRole('button', { name: 'Im Bereich ‚Entdecken‘ teilen' }));
+
+      const dialog = await screen.findByRole('dialog', { name: 'Hintergrund teilen' });
+      expect(within(dialog).getByLabelText('Titel')).toHaveProperty('value', 'wiese');
+      const save = within(dialog).getByRole('button', { name: 'Speichern' });
+      expect(save.hasAttribute('disabled')).toBe(true);
+      fireEvent.click(within(dialog).getByRole('checkbox', { name: /Rechte an diesem Bild/ }));
+      fireEvent.click(save);
+
+      await waitFor(() => expect(share.createAsset).toHaveBeenCalledTimes(1));
+      expect(share.prepare).toHaveBeenCalledWith(photo);
+      expect(share.uploadShare).toHaveBeenCalledWith(expect.any(Blob), {
+        filename: 'wiese.webp',
+        uploadSource: 'studio-asset',
+      });
+      expect(share.createAsset.mock.calls[0]?.[0]).toEqual({
+        body: {
+          shareToken: 'tok-gallery',
+          kind: 'background',
+          source: 'upload',
+          title: 'wiese',
+          tags: [],
+          visibility: 'public',
+          audience: 'de-DE',
+          rightsConfirmed: true,
+        },
+      });
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    });
   });
 
   it('returns to the upload on "Anderes Foto"', async () => {

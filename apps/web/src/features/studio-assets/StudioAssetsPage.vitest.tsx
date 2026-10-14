@@ -2,6 +2,7 @@ import { type StudioAssetItem } from '@gruenerator/contracts';
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 import { TooltipProvider } from '@gruenerator/ui';
 import { http, HttpResponse } from 'msw';
+import { useLocation } from 'react-router-dom';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { server } from '../../test/msw-server';
@@ -138,6 +139,32 @@ describe('StudioAssetsPage', () => {
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText('Inhalt melden')).toBeInTheDocument();
     expect(within(dialog).getByText('Was stimmt mit „Sonnenblume“ nicht?')).toBeInTheDocument();
+  });
+
+  it('hands the item to the Profilbild by deep link', async () => {
+    const SRC = '/api/share/0123456789abcdef0123456789abcdef/download';
+    store = [asset({ id: '0b6f3c1e-8a4d-4f5e-9c2a-7d1e5b3a9f10', src: SRC, height: 256 })];
+    const Where = () => <output data-testid="where">{useLocation().search}</output>;
+    const { user } = renderWithProviders(
+      <>
+        <StudioAssetsPage />
+        <Where />
+      </>
+    );
+    await screen.findByRole('article', { name: 'Sonnenblume' });
+
+    const menu = await openMenu(user, 'Sonnenblume');
+    await user.click(within(menu).getByRole('menuitem', { name: 'Im Profilbild verwenden' }));
+
+    const params = new URLSearchParams(screen.getByTestId('where').textContent ?? '');
+    expect(Object.fromEntries(params)).toEqual({
+      asset: '0b6f3c1e-8a4d-4f5e-9c2a-7d1e5b3a9f10',
+      kind: 'sticker',
+      src: SRC,
+      w: '512',
+      h: '256',
+      title: 'Sonnenblume',
+    });
   });
 
   it('publishes an own sticker only after the rights are confirmed', async () => {

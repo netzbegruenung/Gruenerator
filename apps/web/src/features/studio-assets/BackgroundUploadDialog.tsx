@@ -45,16 +45,27 @@ const parseTags = (raw: string) =>
     ),
   ].slice(0, TAGS_MAX);
 
-export function BackgroundUploadDialog({ onClose }: { onClose: () => void }): JSX.Element {
+export interface BackgroundUploadDialogProps {
+  onClose: () => void;
+  /** Shares an image picked elsewhere (the Profilbild's own photo) instead of asking for a file. */
+  initialFile?: File;
+}
+
+export function BackgroundUploadDialog({
+  onClose,
+  initialFile,
+}: BackgroundUploadDialogProps): JSX.Element {
   const ids = { file: useId(), title: useId(), tags: useId(), share: useId(), rights: useId() };
   const audienceName = useId();
   const locale = useAuthStore((s) => s.locale);
   const { create } = useStudioAssetMutations();
 
-  const [file, setFile] = useState<File | null>(null);
-  const [title, setTitle] = useState('');
+  const [file, setFile] = useState<File | null>(initialFile ?? null);
+  const [title, setTitle] = useState(() => (initialFile ? titleFromFile(initialFile.name) : ''));
   const [tags, setTags] = useState('');
-  const [visibility, setVisibility] = useState<StudioAssetVisibility>('private');
+  const [visibility, setVisibility] = useState<StudioAssetVisibility>(
+    initialFile ? 'public' : 'private'
+  );
   const [audience, setAudience] = useState<GroupAudience>(locale);
   const [rights, setRights] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -114,27 +125,33 @@ export function BackgroundUploadDialog({ onClose }: { onClose: () => void }): JS
       <DialogContent className="bg-background-pure">
         <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-md">
           <DialogHeader>
-            <DialogTitle>Hintergrund hochladen</DialogTitle>
+            <DialogTitle>
+              {initialFile ? 'Hintergrund teilen' : 'Hintergrund hochladen'}
+            </DialogTitle>
             <DialogDescription>
-              PNG, JPEG oder WebP. Große Bilder werden auf {BACKGROUND_MAX_SIDE} Pixel verkleinert.
+              {initialFile
+                ? 'Dein Bild wird zusätzlich als Hintergrund unter „Sticker & Hintergründe“ gespeichert.'
+                : `PNG, JPEG oder WebP. Große Bilder werden auf ${BACKGROUND_MAX_SIDE} Pixel verkleinert.`}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex flex-col gap-xs">
-            <Label htmlFor={ids.file}>Bild</Label>
-            <Input
-              id={ids.file}
-              type="file"
-              accept={BACKGROUND_ACCEPT}
-              disabled={busy}
-              onChange={(e) => {
-                const picked = e.target.files?.[0] ?? null;
-                setFile(picked);
-                setError(null);
-                if (picked && !title.trim()) setTitle(titleFromFile(picked.name));
-              }}
-            />
-          </div>
+          {initialFile ? null : (
+            <div className="flex flex-col gap-xs">
+              <Label htmlFor={ids.file}>Bild</Label>
+              <Input
+                id={ids.file}
+                type="file"
+                accept={BACKGROUND_ACCEPT}
+                disabled={busy}
+                onChange={(e) => {
+                  const picked = e.target.files?.[0] ?? null;
+                  setFile(picked);
+                  setError(null);
+                  if (picked && !title.trim()) setTitle(titleFromFile(picked.name));
+                }}
+              />
+            </div>
+          )}
           <div className="flex flex-col gap-xs">
             <Label htmlFor={ids.title}>Titel</Label>
             <Input
@@ -213,7 +230,7 @@ export function BackgroundUploadDialog({ onClose }: { onClose: () => void }): JS
               Abbrechen
             </Button>
             <Button type="submit" disabled={!canSubmit}>
-              {busy ? 'Wird hochgeladen …' : 'Hochladen'}
+              {busy ? 'Wird hochgeladen …' : initialFile ? 'Speichern' : 'Hochladen'}
             </Button>
           </DialogFooter>
         </form>

@@ -4,7 +4,7 @@ import { DEFAULT_CANVAS_SIZE } from '@gruenerator/shared/canvas-editor';
 import { parseSavedProfilbild, PROFILBILD_SIZE } from '@gruenerator/shared/profilbild';
 import { Alert, AlertDescription, Button } from '@gruenerator/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { PiUserCircle } from 'react-icons/pi';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -21,6 +21,7 @@ import { BACKGROUND_REMOVAL_ERROR, useBackgroundRemoval } from '../hooks/useBack
 import { loadShareFileDataUrl } from '../hooks/useProfilbildShare';
 import { mintProfilbildCanvas, type ProfilbildLayout } from '../profilbildCanvas';
 import { hasProfilbildHandoffMarker, takeProfilbildHandoff } from '../profilbildHandoff';
+import { type GalleryAsset, parseProfilbildAssetParams } from '../utils/galleryAsset';
 
 const FULL_SHEET: ProfilbildLayout = {
   imagePosition: { x: 0, y: 0 },
@@ -38,12 +39,16 @@ async function loadReopen(
   return { cutoutUrl, reopen: { shareToken, saved } };
 }
 
+const galleryTarget = ({ title, kind }: GalleryAsset) =>
+  title ? `„${title}“` : kind === 'sticker' ? 'den Sticker' : 'den Hintergrund';
+
 const ProfilbildPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const reopenToken = searchParams.get('share');
+  const galleryAsset = useMemo(() => parseProfilbildAssetParams(searchParams), [searchParams]);
   const reopened = useQuery({
     queryKey: ['profilbild-reopen', reopenToken],
     queryFn: () => loadReopen(reopenToken ?? ''),
@@ -106,6 +111,7 @@ const ProfilbildPage = () => {
             key={reopenToken ?? 'new'}
             cutoutUrl={cutoutUrl}
             reopen={reopenToken ? (reopened.data?.reopen ?? null) : null}
+            galleryAsset={galleryAsset}
             onEditInCanvas={editInCanvas}
             onReset={startOver}
           />
@@ -126,6 +132,12 @@ const ProfilbildPage = () => {
               </Button>
             </div>
           </div>
+        ) : null}
+
+        {galleryAsset && !reopenToken && !cutoutUrl ? (
+          <p role="status" className="m-0 text-sm">
+            {`Lade zuerst ein Foto hoch – dann setzen wir ${galleryTarget(galleryAsset)} ein.`}
+          </p>
         ) : null}
 
         {!reopenToken && !cutoutUrl && status === 'idle' ? (

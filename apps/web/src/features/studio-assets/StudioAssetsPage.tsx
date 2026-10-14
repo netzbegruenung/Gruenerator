@@ -25,6 +25,7 @@ import { PageHero, PageHeroSearch, PageShell } from '../../components/common/Pag
 import { PillTabs, type PillTab } from '../../components/common/PillTabs';
 import { ReportDialog } from '../../components/common/ReportDialog';
 import { UnderlineTabs, type UnderlineTab } from '../../components/common/UnderlineTabs';
+import { profilbildAssetHref } from '../studio-tools/utils/galleryAsset';
 import { useTrashUndoToast } from '../trash/trashUndoToast';
 
 import { BackgroundUploadDialog } from './BackgroundUploadDialog';
@@ -139,8 +140,7 @@ const StudioAssetsPage = (): JSX.Element => {
   const close = useCallback(() => setDialog(null), []);
   const openUpload = useCallback(() => setDialog({ type: 'upload' }), []);
   const handleUse = useCallback(
-    (item: StudioAssetItem) =>
-      void navigate(`/studio/profilbild?asset=${encodeURIComponent(item.id)}`),
+    (item: StudioAssetItem) => void navigate(profilbildAssetHref(item)),
     [navigate]
   );
   const handleReport = useCallback(
