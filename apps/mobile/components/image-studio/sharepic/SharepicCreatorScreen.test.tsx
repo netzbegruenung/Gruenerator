@@ -24,10 +24,11 @@ jest.mock('../../chat/AssistantThread', () => {
     ThreadWelcomeBlock: ({ subtitle }: { subtitle: string }) => <MockText>{subtitle}</MockText>,
   };
 });
-jest.mock('react-native-reanimated', () => ({
-  __esModule: true,
-  default: { View: jest.requireActual<{ View: typeof View }>('react-native').View },
-}));
+// The libraries' own jest mocks rather than a hand-written stub: the slide menu
+// is a BottomSheet with a drag gesture, and Gesture Handler calls into
+// Reanimated as soon as a GestureDetector renders.
+jest.mock('react-native-worklets', () => jest.requireActual('react-native-worklets/src/mock'));
+jest.mock('react-native-reanimated', () => jest.requireActual('react-native-reanimated/mock'));
 jest.mock('../../chat/ShimmerStatusLine', () => {
   const { Text: MockText } = jest.requireActual<{ Text: typeof Text }>('react-native');
   return { ShimmerStatusLine: ({ label }: { label: string }) => <MockText>{label}</MockText> };
