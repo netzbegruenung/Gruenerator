@@ -139,7 +139,7 @@ const languagesResponseSchema = z.array(
     name: z.string(),
     usable_as_source: z.boolean(),
     usable_as_target: z.boolean(),
-    features: z.record(z.unknown()).optional(),
+    features: z.record(z.string(), z.unknown()).optional(),
   })
 );
 

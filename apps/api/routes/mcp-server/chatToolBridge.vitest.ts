@@ -141,9 +141,7 @@ describe('registerAiTool', () => {
     const { server, tools } = fakeServer();
     registerAiTool(server, 'documents', sampleTool(), { actions: ['list', 'get'] });
 
-    const actionSchema = tools.get('documents')!.config.inputSchema.action as z.ZodEnum<
-      [string, ...string[]]
-    >;
+    const actionSchema = tools.get('documents')!.config.inputSchema.action as z.ZodEnum;
     expect(actionSchema.options).toEqual(['list', 'get']);
     expect(actionSchema.safeParse('delete').success).toBe(false);
   });

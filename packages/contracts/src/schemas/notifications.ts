@@ -67,7 +67,7 @@ export const notificationSchema = z.object({
   type: notificationTypeSchema,
   title: z.string(),
   body: z.string().nullable(),
-  metadata: z.record(z.unknown()),
+  metadata: z.record(z.string(), z.unknown()),
   action_url: z.string().nullable(),
   group_key: z.string().nullable(),
   is_read: z.boolean(),
@@ -94,8 +94,8 @@ export type NotificationLevel = z.infer<typeof notificationLevelSchema>;
 export const notificationPreferencesResponseSchema = z.object({
   success: z.boolean(),
   level: notificationLevelSchema,
-  preferences: z.record(notifChannelPreferencesSchema),
-  defaults: z.record(notifChannelPreferencesSchema),
+  preferences: z.record(z.string(), notifChannelPreferencesSchema),
+  defaults: z.record(z.string(), notifChannelPreferencesSchema),
 });
 
 // ── Request bodies ───────────────────────────────────────────────────────────

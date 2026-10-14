@@ -28,7 +28,7 @@ export const activityTypeSchema = z.enum([
 export type ActivityType = z.infer<typeof activityTypeSchema>;
 
 /** Free-form, type-specific detail (e.g. { from, to } for a move). */
-export const activityPayloadSchema = z.record(z.unknown());
+export const activityPayloadSchema = z.record(z.string(), z.unknown());
 
 /**
  * Typed view of the `assignees_changed` payload. The generic `activityPayloadSchema`

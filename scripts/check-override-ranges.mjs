@@ -98,10 +98,9 @@ const rootPkg = readJson(join(root, 'package.json'));
 const overrides = readOverridesBlock(readFileSync(join(root, 'pnpm-workspace.yaml'), 'utf8'));
 
 // Overrides, die BEWUSST unter dem liegen, was Abhängige deklarieren. Nur diese
-// drei — jeder weitere Eintrag hier braucht denselben Nachweis, dass der
+// zwei — jeder weitere Eintrag hier braucht denselben Nachweis, dass der
 // Rückstand gewollt und folgenlos ist, sonst gehört das Override gehoben.
 const DELIBERATE = {
-  zod: 'Der Workspace steht auf zod 3; wer zod 4 braucht, bekommt ein scoped Override (better-auth>zod).',
   '@expo/dom-webview':
     'Haengt an der Expo-SDK-Version, wird nur mit `npx expo install` bewegt (CLAUDE-expo.md).',
   'http-proxy-middleware':
