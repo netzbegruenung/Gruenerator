@@ -134,6 +134,8 @@ const TEXT_TYPES: ReadonlySet<string> = new Set([
   'voice_script',
   // Zwei-Stimmen-Skript für Podcasts, Schwester von voice_script.
   'podcast_script',
+  // Agent-/Rezept-Entwurf aus einer Beschreibung (#4518).
+  'creator_draft',
 ]);
 
 /** Mistral Large 4 — seit 12.10.2026 anstelle von Medium 3.5 (`mistral-medium-2604`). */
