@@ -1,11 +1,17 @@
-import { type ReactNode, useState } from 'react';
+import * as Haptics from 'expo-haptics';
+import { type ReactNode, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { View, Modal, Pressable, StyleSheet, useColorScheme } from 'react-native';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import { useLayout } from '../../hooks/useLayout';
 import { lightTheme, darkTheme, colors, spacing } from '../../theme';
 import { CONTENT_MAX_WIDTH } from '../../theme/layout';
+
+import { shouldDismissSheet } from './sheetDismiss';
 
 interface BottomSheetProps {
   visible: boolean;
@@ -54,6 +60,60 @@ function SheetModal({
   const theme = isDark ? darkTheme : lightTheme;
   const { isTablet } = useLayout();
 
+  // Drag-to-dismiss on the handle row. Only there: most sheets scroll, and a
+  // pan over the whole sheet would fight the ScrollView for every drag.
+  const translateY = useSharedValue(0);
+  const sheetHeight = useSharedValue(0);
+  // A sheet dragged away stays off screen until the Modal is gone; the next
+  // open has to start from its resting place again — before the first paint.
+  useLayoutEffect(() => {
+    if (visible) translateY.set(0);
+  }, [visible, translateY]);
+  // Back button or parent may close the sheet while it is still springing
+  // away; the spring must not close it a second time.
+  const shown = useSharedValue(visible);
+  useEffect(() => {
+    shown.set(visible);
+  }, [visible, shown]);
+
+  const dragToDismiss = useMemo(() => {
+    const commitHaptic = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    return Gesture.Pan()
+      .activeOffsetY([-8, 8])
+      .onUpdate((e) => {
+        // Downward only: lifted above its rest the sheet would bare the page
+        // under its bottom edge.
+        translateY.set(Math.max(0, e.translationY));
+      })
+      .onEnd((e) => {
+        const height = sheetHeight.get();
+        // Wide sheets float above a bottom margin; their own height alone
+        // would leave that strip of them on screen.
+        const offScreen = height + spacing.medium;
+        if (shouldDismissSheet(translateY.get(), e.velocityY, height)) {
+          // The haptic marks the decision, so it fires now, not when the sheet lands.
+          scheduleOnRN(commitHaptic);
+          translateY.set(
+            withSpring(
+              offScreen,
+              { duration: 300, dampingRatio: 1, velocity: e.velocityY, overshootClamping: true },
+              (finished) => {
+                if (finished && shown.get()) scheduleOnRN(onClose);
+              }
+            )
+          );
+        } else {
+          translateY.set(
+            withSpring(0, { duration: 300, dampingRatio: 0.8, velocity: e.velocityY })
+          );
+        }
+      });
+  }, [onClose, translateY, sheetHeight, shown]);
+
+  const dragStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.get() }],
+  }));
+
   const content = (
     <>
       <Pressable
@@ -62,7 +122,8 @@ function SheetModal({
         accessibilityRole="button"
         accessibilityLabel="Dialog schließen"
       />
-      <Pressable
+      <AnimatedPressable
+        onLayout={(e) => sheetHeight.set(e.nativeEvent.layout.height)}
         style={[
           styles.sheet,
           // A sheet that spans a 1024dp slab is not a sheet, it is a second
@@ -78,20 +139,23 @@ function SheetModal({
             borderColor: theme.border,
             maxHeight,
           },
+          dragStyle,
         ]}
         onPress={() => {}}
         accessibilityRole="none"
       >
-        <View style={styles.handleRow}>
-          <View
-            style={[
-              styles.handle,
-              { backgroundColor: isDark ? colors.grey[600] : colors.grey[300] },
-            ]}
-          />
-        </View>
+        <GestureDetector gesture={dragToDismiss}>
+          <View style={styles.handleRow}>
+            <View
+              style={[
+                styles.handle,
+                { backgroundColor: isDark ? colors.grey[600] : colors.grey[300] },
+              ]}
+            />
+          </View>
+        </GestureDetector>
         {children}
-      </Pressable>
+      </AnimatedPressable>
     </>
   );
 
@@ -103,16 +167,22 @@ function SheetModal({
       onRequestClose={onClose}
       accessibilityViewIsModal={true}
     >
-      {keyboardAvoiding ? (
-        <KeyboardAvoidingView behavior="padding" style={styles.container}>
-          {content}
-        </KeyboardAvoidingView>
-      ) : (
-        <View style={styles.container}>{content}</View>
-      )}
+      {/* A Modal is a separate native root: gestures inside it need their own
+          GestureHandlerRootView, or the handle's pan never fires on Android. */}
+      <GestureHandlerRootView style={styles.container}>
+        {keyboardAvoiding ? (
+          <KeyboardAvoidingView behavior="padding" style={styles.container}>
+            {content}
+          </KeyboardAvoidingView>
+        ) : (
+          content
+        )}
+      </GestureHandlerRootView>
     </Modal>
   );
 }
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const styles = StyleSheet.create({
   container: {

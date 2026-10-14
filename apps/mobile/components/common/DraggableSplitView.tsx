@@ -7,12 +7,8 @@
 import { type ReactNode } from 'react';
 import { View, StyleSheet, useColorScheme } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  runOnJS,
-} from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import { colors, spacing } from '../../theme';
 
@@ -73,7 +69,7 @@ export function DraggableSplitView({
     })
     .onEnd(() => {
       ratio.value = withSpring(ratio.value, SPRING_CONFIG);
-      runOnJS(notifyRatioChange)(ratio.value);
+      scheduleOnRN(notifyRatioChange, ratio.value);
     });
 
   const topStyle = useAnimatedStyle(() => ({

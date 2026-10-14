@@ -147,6 +147,7 @@ export const SocialPostCard = memo(function SocialPostCard({
         <Pressable
           onPress={handleCopy}
           style={styles.copyButton}
+          hitSlop={10}
           accessibilityLabel="Post-Text kopieren"
         >
           <Ionicons
