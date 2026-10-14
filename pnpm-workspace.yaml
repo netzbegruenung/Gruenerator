@@ -211,7 +211,7 @@ allowBuilds:
 # `@`, `.`, `-`, `_`, `+`, `/`, `,`, umlauts, an emoji, `§` and newlines): the
 # produced link nodes are identical for every one of them.
 #
-# `@better-auth/oauth-provider@1.7.6` seeds `ba_oauth_resources` in its plugin
+# `@better-auth/oauth-provider` (1.7.6, still in 1.7.7) seeds `ba_oauth_resources` in its plugin
 # `init` (because `mcp({ resource })` in apps/api/config/betterAuth.ts passes a
 # resource). `betterAuth()` runs that init at module import, before
 # PostgresService has applied the migration that creates the table, and caches
@@ -271,7 +271,7 @@ allowBuilds:
 # and vitest resolve the ESM entry, the CJS `dist/` is unused. 9.0.12 is the
 # latest release. Guarded by packages/collab/src/hooks/idbOpenFailure.vitest.ts.
 patchedDependencies:
-  '@better-auth/oauth-provider@1.7.6': patches/@better-auth__oauth-provider@1.7.6.patch
+  '@better-auth/oauth-provider@1.7.7': patches/@better-auth__oauth-provider@1.7.7.patch
   decode-uri-component@0.2.2: patches/decode-uri-component@0.2.2.patch
   expo@57.0.26: patches/expo@57.0.26.patch
   mdast-util-gfm-autolink-literal@2.0.1: patches/mdast-util-gfm-autolink-literal@2.0.1.patch
@@ -320,6 +320,36 @@ auditConfig:
     # the docs site, no user input reaches them. Re-check 2026-11-02.
     - GHSA-5gmw-xhrv-c9v3
     - GHSA-85c8-ppgw-ccpr
+    # stream-json <3.6.0 prototype pollution (GHSA-mjw6-4jj6-33hc) and
+    # quadratic rescan (GHSA-hqr4-qq8f-hg3x). The apps/api path (@crawlee/*)
+    # is fixed by crawlee 3.18.2 (stream-json ~3.7.0). What remains is
+    # apps/mobile → expo-atlas 0.4.3 → stream-json 1.9.1: expo-atlas declares
+    # ^1.8.0 and no 1.x carries the fix, so a >=3.6.0 floor would cross two
+    # majors (3.x is ESM-only). Dev tooling only — the Metro bundle inspector
+    # parses its own stats file, nothing ships in the app. Re-check 2026-11-14.
+    - GHSA-mjw6-4jj6-33hc
+    - GHSA-hqr4-qq8f-hg3x
+    # postcss-selector-parser <7.1.6 (GHSA-rj75-hqrm-r3gf). Only 6.1.4 under
+    # apps/wordpress → @wordpress/scripts / sass-loader → webpack → cssnano
+    # (stylehacks, postcss-merge-rules, postcss-minify-selectors declare
+    # ^6.0.16, postcss-calc ^6.0.11); no patched 6.x, a >=7.1.6 floor would
+    # cross the major. Build-time CSS minification of our own plugin styles.
+    # Re-check 2026-11-14.
+    - GHSA-rj75-hqrm-r3gf
+    # @opentelemetry/instrumentation-{pg,mysql2,knex,mysql,mongoose,tedious}
+    # (GHSA-qqmp-wf37-98f9). Only via apps/wordpress → @wordpress/scripts →
+    # @wordpress/e2e-test-utils-playwright → lighthouse → @sentry/node 9.47.1,
+    # which pins every instrumentation exactly (e.g. instrumentation-pg
+    # 0.51.1), so no floor is possible. Lighthouse runs no database driver;
+    # wp-scripts is build/e2e tooling only. Re-check 2026-11-14.
+    - GHSA-qqmp-wf37-98f9
+    # sprintf-js <=1.1.3 (GHSA-hp3w-g68c-fv3c, no patched release). Only via
+    # packages/shared → gray-matter → js-yaml 3 → argparse 1 → sprintf-js
+    # 1.0.3. gray-matter is a devDependency used by scripts/build-agents.ts
+    # and scripts/build-skills.ts at build time, and argparse is only loaded
+    # by js-yaml's CLI (bin/js-yaml.js), not by the library — it reaches no
+    # web, mobile or api runtime bundle. Re-check 2026-11-14.
+    - GHSA-hp3w-g68c-fv3c
 
 # Moved here from package.json's `pnpm.overrides`. scripts/sync-pnpm-overrides.mjs
 # and scripts/check-override-ranges.mjs read this block.
@@ -340,6 +370,7 @@ overrides:
   langsmith: '>=0.4.6'
   markdown-it: '>=14.2.0 <15'
   tar: '>=7.5.11'
+  smol-toml: '>=1.9.0'
   undici: '>=8.11.2'
   '@qdrant/js-client-rest>undici': ^7.29.0
   jsdom: 30.0.1
@@ -391,14 +422,14 @@ overrides:
   sharp: '>=0.35.5'
   seroval: '>=1.6.8'
   seroval-plugins: '>=1.6.8'
-  '@modelcontextprotocol/sdk': '>=1.31.0'
+  '@modelcontextprotocol/sdk': '>=1.32.1'
   form-data: '>=4.0.6'
   xlsx: https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
   '@typescript-eslint/eslint-plugin>ts-api-utils': ^2.5.0
   '@typescript-eslint/type-utils>ts-api-utils': ^2.5.0
   '@typescript-eslint/utils>ts-api-utils': ^2.5.0
-  joi@>=17.0.0 <18.0.0: '>=17.13.6 <18.0.0'
-  joi@>=18.0.0: '>=18.2.5 <19'
+  joi@>=17.0.0 <18.0.0: '>=17.13.8 <18.0.0'
+  joi@>=18.0.0: '>=18.2.9 <19'
   http-proxy-middleware: ^2.0.10
   '@istanbuljs/load-nyc-config>js-yaml': ^4.3.2
   gray-matter>js-yaml: ^3.15.2
@@ -408,15 +439,15 @@ overrides:
   colord: '>=2.9.4'
   fflate: '>=0.4.9 <0.5'
   '@swc/html': '>=1.16.2 <2'
-  '@opentelemetry/core': ^2.10.0
+  '@opentelemetry/core': ^2.12.0
   vite>esbuild: ^0.28.1
   tsx>esbuild: ^0.28.1
   '@blocknote/xl-ai>ai': ^6.0.224
   '@blocknote/shadcn>tailwind-merge': 2.6.0
-  '@types/node': 26.6.3
+  '@types/node': 26.6.4
   '@tanstack/react-query': ^5.104.0
   zustand: 5.0.15
-  katex: ^0.18.9
+  katex: ^0.19.0
   pyodide: ^314.0.7
   react-dropzone: ^20.1.2
   prosemirror-view: ^1.42.6
