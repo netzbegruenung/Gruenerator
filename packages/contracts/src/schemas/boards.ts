@@ -58,7 +58,7 @@ export const boardDocumentSchema = z.object({
   last_edited_by: z.string(),
   document_subtype: z.literal('boards'),
   permissions: z
-    .record(z.object({ level: boardPermissionLevelSchema, granted_at: z.string() }))
+    .record(z.string(), z.object({ level: boardPermissionLevelSchema, granted_at: z.string() }))
     .nullable(),
   is_public: z.boolean(),
   is_deleted: z.boolean(),
@@ -151,7 +151,7 @@ export const boardFieldSchema = z.object({
   id: z.string(),
   name: z.string(),
   type: fieldTypeSchema,
-  typeOptions: z.record(z.unknown()),
+  typeOptions: z.record(z.string(), z.unknown()),
   order: z.number(),
 });
 
@@ -165,7 +165,7 @@ export const cellValueSchema = z.union([
 
 export const boardRowSchema = z.object({
   id: z.string(),
-  cells: z.record(cellValueSchema),
+  cells: z.record(z.string(), cellValueSchema),
   createdBy: z.string(),
   createdAt: z.string(),
   icon: z.string().optional(),

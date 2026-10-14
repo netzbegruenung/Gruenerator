@@ -82,7 +82,7 @@ export const createImageShareBodySchema = z.object({
    * derives the value from `imageType`/`metadata` exactly as the clients used to.
    */
   contentOrigin: contentOriginSchema.optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
   originalImage: z.string().optional(),
   // Only the two statuses a client may declare: 'processing' and 'failed' are
   // written by the server as a render succeeds or fails.
@@ -103,7 +103,7 @@ export const createVideoFromProjectBodySchema = z.object({
 export const updateImageShareBodySchema = z.object({
   imageBase64: z.string(),
   title: z.string().optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
   originalImage: z.string().optional(),
 });
 
@@ -208,7 +208,7 @@ export const shareListItemSchema = z.object({
   fileSize: z.union([z.number(), z.string()]).nullable(),
   duration: z.union([z.number(), z.string()]).nullable(),
   imageType: z.string().nullable(),
-  imageMetadata: z.record(z.unknown()),
+  imageMetadata: z.record(z.string(), z.unknown()),
   status: z.string(),
   downloadCount: z.number(),
   createdAt: z.string(),

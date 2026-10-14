@@ -62,8 +62,8 @@ import type { ModelMessage } from 'ai';
 const notebookStreamMessageSchema = z
   .object({
     role: z.string(),
-    content: z.union([z.string(), z.array(z.record(z.unknown()))]),
-    citations: z.array(z.record(z.unknown())).nullish(),
+    content: z.union([z.string(), z.array(z.record(z.string(), z.unknown()))]),
+    citations: z.array(z.record(z.string(), z.unknown())).nullish(),
     /** Modus einer früheren Antwort — Kontext für den Auto-Wächter. Tolerant:
      *  ein unbekannter Wert macht den Request nicht ungültig. */
     answerMode: notebookResolvedAnswerModeSchema.nullish().catch(null),
@@ -75,7 +75,7 @@ const notebookStreamRequestSchema = z.object({
   messages: z.array(notebookStreamMessageSchema).optional(),
   collectionId: z.string().optional(),
   collectionIds: z.array(z.string()).optional(),
-  filters: z.record(z.unknown()).optional(),
+  filters: z.record(z.string(), z.unknown()).optional(),
   model: z.string().optional(),
   mode: notebookDepthSchema.optional(),
   /** Quellen-Ampel; fehlt ⇒ `equal`. */

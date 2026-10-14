@@ -195,8 +195,8 @@ export const userProfileSchema = z.object({
   chat_color: z.string().optional(),
   // Absent means "never chosen" — consumers fall back to the `sunrise` preset.
   chat_background: chatBackgroundSchema.optional(),
-  beta_features: z.record(z.boolean()).default({}),
-  user_defaults: z.record(z.record(z.unknown())).default({}),
+  beta_features: z.record(z.string(), z.boolean()).default({}),
+  user_defaults: z.record(z.string(), z.record(z.string(), z.unknown())).default({}),
   locale: localeSchema.optional(),
   // Default mirrors the `additionalFields` config in apps/api/config/betterAuth.ts.
   default_startpage: startPageSchema.default('chat'),
@@ -254,9 +254,9 @@ export const userProfileSchema = z.object({
 /** Canonical user profile type — single source of truth across backend + frontend. */
 export type UserProfile = z.infer<typeof userProfileSchema>;
 
-export const betaFeaturesSchema = z.record(z.boolean());
+export const betaFeaturesSchema = z.record(z.string(), z.boolean());
 
-export const userDefaultsSchema = z.record(z.record(z.unknown()));
+export const userDefaultsSchema = z.record(z.string(), z.record(z.string(), z.unknown()));
 
 // ── Response schemas ─────────────────────────────────────────────────────────
 

@@ -149,7 +149,7 @@ export const groupSummarySchema = z.object({
   created_at: z.string().nullish(),
   created_by: z.string().nullish(),
   join_token: z.string().nullish(),
-  settings: z.record(z.unknown()).nullish(),
+  settings: z.record(z.string(), z.unknown()).nullish(),
   avatar_url: z.string().nullish(),
   links: z.array(groupLinkSchema).nullish(),
   role: z.string(),
@@ -174,7 +174,7 @@ export const groupDetailSchema = z.object({
   created_at: z.string().nullish(),
   created_by: z.string().nullish(),
   join_token: z.string().nullish(),
-  settings: z.record(z.unknown()).nullish(),
+  settings: z.record(z.string(), z.unknown()).nullish(),
   avatar_url: z.string().nullish(),
   links: z.array(groupLinkSchema).nullish(),
   is_public: z.boolean().nullish(),
@@ -224,7 +224,7 @@ export const updateGroupInfoBodySchema = z.object({
   description: z.string().nullish(),
   // Free-form group settings (e.g. `templateTags`). Kept as a generic record so
   // the typed client accepts the frontend's `Record<string, unknown>` value.
-  settings: z.record(z.unknown()).nullish(),
+  settings: z.record(z.string(), z.unknown()).nullish(),
 });
 export type UpdateGroupInfoBody = z.infer<typeof updateGroupInfoBodySchema>;
 
@@ -382,7 +382,7 @@ export type UnshareContentBody = z.infer<typeof unshareContentBodySchema>;
 
 export const contentPermissionsBodySchema = z.object({
   contentType: groupContentTypeSchema,
-  permissions: z.record(z.boolean()),
+  permissions: z.record(z.string(), z.boolean()),
 });
 export type ContentPermissionsBody = z.infer<typeof contentPermissionsBodySchema>;
 
@@ -499,7 +499,7 @@ export type GroupPostCreatedResponse = z.infer<typeof groupPostCreatedResponseSc
  * tables per content type). The frontend already narrows these per-bucket via
  * its own casts, so most buckets keep loose records.
  */
-const groupContentBucketSchema = z.array(z.record(z.unknown()));
+const groupContentBucketSchema = z.array(z.record(z.string(), z.unknown()));
 
 /**
  * The `collaborative_documents` bucket (docs/sheets/presentations/boards/canvas)
@@ -553,6 +553,6 @@ export type GroupContentResponse = z.infer<typeof groupContentResponseSchema>;
 
 export const groupVorlagenResponseSchema = z.object({
   success: z.literal(true),
-  vorlagen: z.array(z.record(z.unknown())),
+  vorlagen: z.array(z.record(z.string(), z.unknown())),
   tags: z.array(z.string()),
 });

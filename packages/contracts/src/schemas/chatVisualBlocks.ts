@@ -73,7 +73,7 @@ const common = {
 
 export const chartBlockSchema = chartPayloadSchema.extend({
   ...common,
-  data: z.array(z.record(z.union([z.string(), z.number()]))).min(1),
+  data: z.array(z.record(z.string(), z.union([z.string(), z.number()]))).min(1),
   yKeys: z.array(z.string()).min(1),
 });
 export type ChartBlock = z.infer<typeof chartBlockSchema>;
@@ -189,7 +189,7 @@ export const tableBlockSchema = z.object({
     .min(1)
     .max(8),
   rows: z
-    .array(z.record(z.union([z.string(), z.number(), z.null()])))
+    .array(z.record(z.string(), z.union([z.string(), z.number(), z.null()])))
     .min(1)
     .max(100),
 });

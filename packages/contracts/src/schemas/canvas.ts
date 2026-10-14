@@ -28,7 +28,7 @@ export const canvasPermissionEntrySchema = z.object({
 });
 
 /** Mirrors `DocumentPermissions`: a map keyed by userId. */
-export const canvasPermissionsSchema = z.record(canvasPermissionEntrySchema);
+export const canvasPermissionsSchema = z.record(z.string(), canvasPermissionEntrySchema);
 
 /** The canvas document as returned by list / get / create. */
 export const canvasDocumentSchema = z.object({
@@ -44,7 +44,7 @@ export const canvasDocumentSchema = z.object({
   base_template_id: z.string().nullable(),
   thumbnail_url: z.string().nullable(),
   page_count: z.number().int(),
-  initial_state: z.record(z.unknown()),
+  initial_state: z.record(z.string(), z.unknown()),
   format: z.string(),
   creator_name: z.string().nullable().optional(),
 });
@@ -66,7 +66,7 @@ export const createCanvasBodySchema = z.object({
   title: z.string().optional(),
   template_type: z.string(),
   base_template_id: z.string().optional(),
-  initial_state: z.record(z.unknown()).optional(),
+  initial_state: z.record(z.string(), z.unknown()).optional(),
   page_count: z.number().int().positive().optional(),
   format: z.string().optional(),
 });
@@ -163,11 +163,11 @@ export const canvasErrorResponseSchema = z.object({
  * version number, null when the canvas has no version rows.
  */
 export const canvasStateResponseSchema = z.object({
-  state: z.record(z.unknown()),
+  state: z.record(z.string(), z.unknown()),
   source: z.enum(['yjs', 'initial_state']),
   version: z.number().int().nullable(),
   /** Per-slide states for multi-page (deck) canvases, in page order. */
-  pages: z.array(z.record(z.unknown())).nullish(),
+  pages: z.array(z.record(z.string(), z.unknown())).nullish(),
 });
 
 export type CanvasStateResponse = z.infer<typeof canvasStateResponseSchema>;
@@ -187,12 +187,12 @@ export const canvasVersionListResponseSchema = z.object({
 
 export const canvasVersionResponseSchema = z.object({
   version: z.number().int(),
-  state: z.record(z.unknown()),
+  state: z.record(z.string(), z.unknown()),
   summary: z.string().nullable(),
 });
 
 /** restore → the snapshot re-applied as a NEW version. */
 export const canvasRestoreResponseSchema = z.object({
   version: z.number().int(),
-  state: z.record(z.unknown()),
+  state: z.record(z.string(), z.unknown()),
 });
