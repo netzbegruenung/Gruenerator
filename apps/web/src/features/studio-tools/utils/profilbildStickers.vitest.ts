@@ -22,30 +22,30 @@ describe('stickerBox', () => {
 
 describe('restoreSavedStickers', () => {
   const box = { x: 0, y: 0, width: 100, height: 100, rotation: 0 };
-  const saved = [
-    { id: 'sonnenblume', ...box },
-    { id: 'herz', ...box },
+  const saved: SavedProfilbildSticker[] = [
+    { id: 'sonnenblume-gelb', ...box },
+    { id: 'regenbogen', ...box },
     { id: 'asset:a-1', src: '/api/share/tok/download', ...box },
-  ] as SavedProfilbildSticker[];
+  ];
 
   it('keeps a system sticker that fails to load instead of losing every sticker', async () => {
     const onError = vi.fn();
     const result = await restoreSavedStickers(
       saved,
-      (s) => (s.id === 'herz' ? Promise.reject(new Error('404')) : Promise.resolve(s.id)),
+      (s) => (s.id === 'regenbogen' ? Promise.reject(new Error('404')) : Promise.resolve(s.id)),
       onError
     );
-    expect(result).toEqual({ placed: ['sonnenblume', 'asset:a-1'], unrestored: [saved[1]] });
+    expect(result).toEqual({ placed: ['sonnenblume-gelb', 'asset:a-1'], unrestored: [saved[1]] });
     expect(onError).toHaveBeenCalledOnce();
   });
 
   it('keeps every failed sticker, in saved order', async () => {
     const result = await restoreSavedStickers(
       saved,
-      (s) => (s.id === 'sonnenblume' ? Promise.resolve(s.id) : Promise.reject(new Error('x'))),
+      (s) => (s.id === 'sonnenblume-gelb' ? Promise.resolve(s.id) : Promise.reject(new Error('x'))),
       () => {}
     );
-    expect(result).toEqual({ placed: ['sonnenblume'], unrestored: [saved[1], saved[2]] });
+    expect(result).toEqual({ placed: ['sonnenblume-gelb'], unrestored: [saved[1], saved[2]] });
   });
 
   it('skips what has nothing to draw without keeping it', async () => {
