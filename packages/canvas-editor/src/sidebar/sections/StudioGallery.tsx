@@ -31,7 +31,10 @@ export interface GalleryTab<T extends string> {
   label: string;
 }
 
-/** Chip row that switches between a card's lists (Grüne, Entdecken, Meine, Gemerkt). */
+/**
+ * Chip row that switches between a card's lists (Grüne, Entdecken, Meine, Gemerkt).
+ * Toggle buttons rather than tabs: the list below is no tabpanel and arrow keys add nothing.
+ */
 export function GalleryTabs<T extends string>({
   label,
   tabs,
@@ -44,15 +47,14 @@ export function GalleryTabs<T extends string>({
   onChange: (id: T) => void;
 }) {
   return (
-    <div role="tablist" aria-label={label} className="flex flex-wrap gap-1.5">
+    <div role="group" aria-label={label} className="flex flex-wrap gap-1.5">
       {tabs.map((tab) => {
         const isActive = tab.id === value;
         return (
           <button
             key={tab.id}
             type="button"
-            role="tab"
-            aria-selected={isActive}
+            aria-pressed={isActive}
             onClick={() => onChange(tab.id)}
             className={cn(
               'h-8 px-3 rounded-2xl border-none cursor-pointer text-[13px] whitespace-nowrap transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)]',

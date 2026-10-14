@@ -5,7 +5,12 @@ export default function ReportsTabLabel() {
   return (
     <>
       Meldungen
-      {open ? <span className="ml-xs text-xs font-semibold">({open})</span> : null}
+      {open ? (
+        <span className="ml-xs text-xs font-semibold">
+          ({open}
+          <span className="sr-only"> offen</span>)
+        </span>
+      ) : null}
     </>
   );
 }

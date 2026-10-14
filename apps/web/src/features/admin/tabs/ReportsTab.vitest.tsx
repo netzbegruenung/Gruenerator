@@ -5,6 +5,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 
 import { server } from '../../../test/msw-server';
 import { renderWithProviders } from '../../../test-utils';
+import ReportsTabLabel from '../components/ReportsTabLabel';
 
 import ReportsTab from './ReportsTab';
 
@@ -102,5 +103,11 @@ describe('ReportsTab', () => {
     await waitFor(() =>
       expect(body).toEqual({ kind: 'studio_asset', targetId: 'a-1', action: 'remove' })
     );
+  });
+
+  it('tells screen readers that the tab count means open reports', async () => {
+    server.use(http.get(`${LIST}/stats`, () => HttpResponse.json({ open: 2 })));
+    const { container } = renderWithProviders(<ReportsTabLabel />);
+    await waitFor(() => expect(container).toHaveTextContent('Meldungen(2 offen)'));
   });
 });
