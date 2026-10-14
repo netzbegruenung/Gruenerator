@@ -1,4 +1,4 @@
-import { unstable_memoizeMarkdownComponents as memoizeMarkdownComponents } from '@assistant-ui/react-markdown';
+import { memoizeMarkdownComponents } from '@assistant-ui/react-markdown';
 import { type ReactNode } from 'react';
 
 import { ChatCodeBlock } from '../components/message-parts/ChatCodeBlock';

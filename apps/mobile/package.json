@@ -33,7 +33,7 @@
     "build:android:preview": "EAS_NO_VCS=1 eas build -p android --profile preview"
   },
   "dependencies": {
-    "@assistant-ui/react-native": "0.1.44",
+    "@assistant-ui/react-native": "0.1.47",
     "@expo/dom-webview": "~56.0.6",
     "@expo/metro-runtime": "~57.0.16",
     "@expo/react-native-action-sheet": "^4.1.1",
@@ -112,7 +112,7 @@
     "@types/babel__core": "7.20.5",
     "@types/jest": "^29.5.14",
     "@types/markdown-it": "14.1.2",
-    "@types/react": "19.2.18",
+    "@types/react": "19.3.0",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9.39.5",
     "expo-atlas": "^0.4.3",
