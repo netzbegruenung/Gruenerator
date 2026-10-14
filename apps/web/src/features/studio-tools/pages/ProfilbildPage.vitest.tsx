@@ -24,13 +24,22 @@ vi.mock('@gruenerator/ui', async () => {
   const actual = await vi.importActual('@gruenerator/ui');
   return {
     ...actual,
-    UploadZone: ({ onFileSelected }: { onFileSelected: (f: File) => void }) => (
-      <button
-        type="button"
-        onClick={() => onFileSelected(new File(['x'], 'a.png', { type: 'image/png' }))}
-      >
-        upload
-      </button>
+    UploadZone: ({
+      onFileSelected,
+      subtitle,
+    }: {
+      onFileSelected: (f: File) => void;
+      subtitle?: string;
+    }) => (
+      <>
+        <button
+          type="button"
+          onClick={() => onFileSelected(new File(['x'], 'a.png', { type: 'image/png' }))}
+        >
+          upload
+        </button>
+        <p>{subtitle}</p>
+      </>
     ),
   };
 });
@@ -114,7 +123,7 @@ vi.mock('react-konva', () => {
 vi.mock('../utils/composeProfilbild', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   composeProfilbild: vi.fn(() => ({ toDataURL: () => 'data:image/png;base64,OUT' })),
-  renderProfilbildBackground: vi.fn(() => ({})),
+  renderProfilbildBackground: vi.fn(() => ({ toDataURL: () => 'data:image/jpeg;base64,BG' })),
   trimCutout: vi.fn((image: unknown) => ({ image, dataUrl: 'data:image/png;base64,TRIM' })),
   loadImage: vi.fn((src: string) => Promise.resolve({ src, width: 600, height: 800 })),
 }));
@@ -444,6 +453,18 @@ describe('ProfilbildPage', () => {
     expect(mockRemove).not.toHaveBeenCalled();
     expect(await screen.findByTestId('konva-stage')).toBeTruthy();
     expect(lastBackground()).toEqual({ kind: 'color', color: '#005538' });
+  });
+
+  it('opens straight into the editor, with the upload on the stage', async () => {
+    renderPage();
+    expect(screen.getByText('upload')).toBeTruthy();
+    fireEvent.click(await screen.findByRole('button', { name: 'Klee' }));
+    expect(lastBackground()).toEqual({ kind: 'color', color: '#46962b' });
+    expect(
+      (screen.getByRole('button', { name: 'Herunterladen' }) as HTMLButtonElement).disabled
+    ).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Anderes Foto' })).toBeNull();
+    expect(screen.queryByLabelText(/Größe der Person/)).toBeNull();
   });
 
   it('falls back to the upload when the handoff slot is empty (reload)', async () => {
