@@ -9,6 +9,7 @@ import {
   withSourcesMarkdown,
 } from '@gruenerator/shared/utils';
 import {
+  IconSwap,
   DropdownMenuItem,
   ResponsiveMenu,
   ResponsiveMenuItem,
@@ -312,7 +313,11 @@ export const MessageActions = memo(function MessageActions({
         className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
         aria-label="Kopieren"
       >
-        {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+        <IconSwap
+          swapped={copied}
+          from={<Copy className="h-4 w-4" />}
+          to={<Check className="h-4 w-4" />}
+        />
       </button>
       <MessageTTSButton content={content} />
       {/*
