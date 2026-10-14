@@ -1,4 +1,5 @@
 import {
+  IconSwap,
   Accordion,
   AccordionItem,
   AccordionTrigger,
@@ -316,7 +317,7 @@ const McpSection = () => {
         </div>
         <Badge variant="secondary">Anmeldung mit Grünerator-Konto</Badge>
         <Button variant="brand" className="w-full gap-1.5 sm:w-auto" onClick={handleCopy}>
-          {copied ? <HiCheck /> : <HiClipboardCopy />}
+          <IconSwap swapped={copied} from={<HiClipboardCopy />} to={<HiCheck />} />
           {copied ? 'Kopiert' : 'URL kopieren'}
         </Button>
       </div>

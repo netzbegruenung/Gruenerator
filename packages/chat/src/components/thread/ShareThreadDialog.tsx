@@ -1,7 +1,7 @@
 'use client';
 
 import { buildChatThreadSlug } from '@gruenerator/shared/utils';
-import { isToastEvent } from '@gruenerator/ui';
+import { IconSwap, isToastEvent } from '@gruenerator/ui';
 import { Users, Check, Copy, Link2, X } from 'lucide-react';
 import { Dialog as DialogPrimitive } from 'radix-ui';
 import { memo, useEffect, useState } from 'react';
@@ -111,7 +111,11 @@ export const ShareThreadDialog = memo(function ShareThreadDialog({
                   onClick={() => void copyLink()}
                   className="flex shrink-0 items-center gap-1 rounded-md border border-grey-200 dark:border-grey-700 bg-transparent px-2 py-1.5 text-xs text-foreground-muted hover:bg-primary-500/5 hover:text-foreground cursor-pointer"
                 >
-                  {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                  <IconSwap
+                    swapped={copied}
+                    from={<Copy className="h-3.5 w-3.5" />}
+                    to={<Check className="h-3.5 w-3.5" />}
+                  />
                   {copied ? 'Kopiert' : 'Kopieren'}
                 </button>
               </div>

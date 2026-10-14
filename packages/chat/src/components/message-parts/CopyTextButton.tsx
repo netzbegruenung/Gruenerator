@@ -1,3 +1,4 @@
+import { IconSwap } from '@gruenerator/ui';
 import { Check, Copy } from 'lucide-react';
 import { useCallback, useState } from 'react';
 
@@ -28,7 +29,11 @@ export function CopyTextButton({
 
   return (
     <button onClick={copy} className={className} aria-label={ariaLabel}>
-      {copied ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
+      <IconSwap
+        swapped={copied}
+        from={<Copy className="h-3.5 w-3.5" />}
+        to={<Check className="h-3.5 w-3.5 text-primary" />}
+      />
       {showLabel && <span>{copied ? 'Kopiert' : 'Kopieren'}</span>}
     </button>
   );

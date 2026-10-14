@@ -1,4 +1,5 @@
 import { GruenOMatDialog, GruenOMatModal, useChatConfigStore } from '@gruenerator/chat';
+import { IconSwap } from '@gruenerator/ui';
 import { Check, Copy } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -35,7 +36,11 @@ function CopyButton({ text }: { text: string }) {
       className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-md border border-grey-200 bg-background-pure text-foreground-muted transition-colors hover:text-foreground dark:border-grey-700"
       aria-label="Code kopieren"
     >
-      {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+      <IconSwap
+        swapped={copied}
+        from={<Copy className="size-4" />}
+        to={<Check className="size-4" />}
+      />
     </button>
   );
 }
