@@ -50,6 +50,11 @@ export default defineConfig({
           name: 'dom',
           include: ['**/*.vitest.tsx'],
           environment: 'jsdom',
+          // Same origin as the tests' API base URL (http://localhost/api). MSW 3
+          // intercepts at the socket, so jsdom's CORS preflight for a
+          // cross-origin request (vitest's default document is :3000) reaches
+          // the handlers as an unhandled OPTIONS.
+          environmentOptions: { jsdom: { url: 'http://localhost/' } },
           setupFiles: ['./vitest.setup.ts'],
           // Inline deps that render React so their internal `import 'react'`
           // goes through the alias above instead of Node-resolving a nested copy
