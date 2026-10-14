@@ -26,6 +26,7 @@ export {
   contentContract,
   trashContract,
   itemUsageContract,
+  userLibraryContract,
   userUsageContract,
   treesContract,
   transparencyContract,
@@ -123,6 +124,7 @@ export * from './schemas/recentActivity.js';
 export * from './schemas/content.js';
 export * from './schemas/trash.js';
 export * from './schemas/itemUsage.js';
+export * from './schemas/userLibrary.js';
 export * from './schemas/userUsage.js';
 export * from './schemas/trees.js';
 export * from './schemas/transparency.js';

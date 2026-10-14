@@ -266,7 +266,7 @@ export default function RolesSection() {
 
     return {
       title: offer.title,
-      beschreibung: `${aufzaehlung} sowie das Notebook ${offer.title} erscheinen künftig in deiner Agentur und im Chat.`,
+      beschreibung: `${aufzaehlung} sowie das Notebook ${offer.title} erscheinen künftig in der Agentura und im Chat.`,
     };
   }, [wizEbene, wizBundesland, wizRolle, isAustrian]);
 
@@ -884,10 +884,10 @@ export default function RolesSection() {
                   Dialog schließt mit, sonst läge die Agentur dahinter.
 
                   Grüneratoren und Rezepte des Landesverbands stehen seit dem
-                  Regal-Umbau beide unter `cat=landesverband`, deshalb ein Knopf
-                  statt zwei. Die Kategorie steht AUSDRÜCKLICH im Link: ein
-                  nacktes `/agentura` öffnet immer „Meine Grüneratoren", und
-                  dort ist das Zugeteilte gerade nicht. */}
+                  Regal-Umbau beide im Agentura-Gang von=landesverband, deshalb
+                  ein Knopf statt zwei. Der Gang steht AUSDRÜCKLICH im Link: ein
+                  nacktes `/agentura` zeigt alle Gänge, und das Zugeteilte stünde
+                  zwischen den offiziellen. */}
               {lvIds !== null && lvIds.length > 0 && (
                 <div className="mt-md border-t border-grey-200 pt-md dark:border-grey-700">
                   <p className="m-0 text-sm text-foreground-muted">
@@ -898,7 +898,7 @@ export default function RolesSection() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => goTo('/agentura?cat=landesverband')}
+                      onClick={() => goTo('/agentura?von=landesverband')}
                     >
                       Zu deinem Landesverband
                     </Button>

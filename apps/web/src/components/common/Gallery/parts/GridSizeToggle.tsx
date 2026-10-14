@@ -4,17 +4,21 @@ import { LuGrid2X2, LuGrid3X3 } from 'react-icons/lu';
 
 import type { GridSize } from './GalleryGrid';
 
-function readGridSize(storageKey: string): GridSize {
+function readGridSize(storageKey: string, fallback: GridSize): GridSize {
   try {
-    return localStorage.getItem(storageKey) === 'large' ? 'large' : 'small';
+    const stored = localStorage.getItem(storageKey);
+    return stored === 'large' || stored === 'small' ? stored : fallback;
   } catch {
-    return 'small';
+    return fallback;
   }
 }
 
 /** Small/large tiles, remembered per gallery in localStorage. */
-export function useGridSize(storageKey: string): [GridSize, () => void] {
-  const [gridSize, setGridSize] = useState<GridSize>(() => readGridSize(storageKey));
+export function useGridSize(
+  storageKey: string,
+  fallback: GridSize = 'small'
+): [GridSize, () => void] {
+  const [gridSize, setGridSize] = useState<GridSize>(() => readGridSize(storageKey, fallback));
   const toggle = useCallback(() => {
     setGridSize((prev) => {
       const next = prev === 'large' ? 'small' : 'large';

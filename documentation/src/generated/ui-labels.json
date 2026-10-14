@@ -5,9 +5,9 @@
     "path": "/office"
   },
   "catalog.tool-agentura": {
-    "title": "Agentura",
-    "subtitle": "KI-Grüneratoren & Rezepte entdecken",
-    "path": "/agentura"
+    "title": "Grüneratoren",
+    "subtitle": "Deine Agents, Rezepte und Aufgaben",
+    "path": "/grueneratoren"
   },
   "catalog.tool-bild-erweitern": {
     "title": "Bild erweitern",
@@ -163,7 +163,7 @@
   "menu.grueneratoren": {
     "title": "Grüneratoren",
     "subtitle": "Deine KI-Grüneratoren",
-    "path": "/agentura"
+    "path": "/grueneratoren"
   },
   "menu.sites": {
     "title": "Sites",
@@ -180,9 +180,9 @@
     "path": "/support"
   },
   "workplace.agents": {
-    "title": "Agentura",
-    "subtitle": "Grüneratoren & Rezepte",
-    "path": "/agentura"
+    "title": "Grüneratoren",
+    "subtitle": "Agents, Rezepte & Aufgaben",
+    "path": "/grueneratoren"
   },
   "workplace.bild-erweitern": {
     "title": "Bild erweitern",

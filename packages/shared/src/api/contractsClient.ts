@@ -26,6 +26,7 @@ import {
   contentContract,
   trashContract,
   itemUsageContract,
+  userLibraryContract,
   userUsageContract,
   treesContract,
   transparencyContract,
@@ -288,6 +289,7 @@ const _recentActivityClient = () => initClient(recentActivityContract, CLIENT_OP
 const _contentClient = () => initClient(contentContract, CLIENT_OPTS);
 const _trashClient = () => initClient(trashContract, CLIENT_OPTS);
 const _itemUsageClient = () => initClient(itemUsageContract, CLIENT_OPTS);
+const _userLibraryClient = () => initClient(userLibraryContract, CLIENT_OPTS);
 const _userUsageClient = () => initClient(userUsageContract, CLIENT_OPTS);
 const _treesClient = () => initClient(treesContract, CLIENT_OPTS);
 const _transparencyClient = () => initClient(transparencyContract, CLIENT_OPTS);
@@ -374,6 +376,7 @@ export interface ContractsClient {
   content: ReturnType<typeof _contentClient>;
   trash: ReturnType<typeof _trashClient>;
   itemUsage: ReturnType<typeof _itemUsageClient>;
+  userLibrary: ReturnType<typeof _userLibraryClient>;
   userUsage: ReturnType<typeof _userUsageClient>;
   trees: ReturnType<typeof _treesClient>;
   transparency: ReturnType<typeof _transparencyClient>;
@@ -473,6 +476,7 @@ export function getContractsClient(): ContractsClient {
     content: _contentClient(),
     trash: _trashClient(),
     itemUsage: _itemUsageClient(),
+    userLibrary: _userLibraryClient(),
     userUsage: _userUsageClient(),
     trees: _treesClient(),
     transparency: _transparencyClient(),

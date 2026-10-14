@@ -132,9 +132,9 @@
       "tools": [
         {
           "id": "agents",
-          "title": "Agentura",
-          "description": "Grüneratoren & Rezepte",
-          "path": "/agentura"
+          "title": "Grüneratoren",
+          "description": "Agents, Rezepte & Aufgaben",
+          "path": "/grueneratoren"
         },
         {
           "id": "projekte",
@@ -199,9 +199,9 @@
       "subtitle": "Dokumente, Boards, Tabellen & Präsentationen"
     },
     "tool-agentura": {
-      "title": "Agentura",
-      "path": "/agentura",
-      "subtitle": "KI-Grüneratoren & Rezepte entdecken"
+      "title": "Grüneratoren",
+      "path": "/grueneratoren",
+      "subtitle": "Deine Agents, Rezepte und Aufgaben"
     },
     "tool-bild-erweitern": {
       "title": "Bild erweitern",

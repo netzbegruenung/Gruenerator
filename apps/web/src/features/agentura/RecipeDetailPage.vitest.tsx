@@ -220,7 +220,7 @@ describe('RecipeDetailPage — eigenes Rezept', () => {
     await waitFor(() =>
       expect(remove).toHaveBeenCalledWith({ params: { mention: 'mein-rezept' } })
     );
-    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/agentura?cat=meine'));
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/grueneratoren'));
   });
 
   it('wartet auf die Auth-Antwort, statt „nicht gefunden“ zu behaupten', async () => {
