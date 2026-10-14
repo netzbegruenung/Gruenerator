@@ -171,7 +171,7 @@ const WolkeConnectionCard = ({ shareLink, onSuccess, onError }: WolkeConnectionC
           </div>
         </div>
 
-        <CollapsibleContent>
+        <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
           <div className="border-t border-grey-100 dark:border-grey-800 pt-md pb-md px-md">
             <WolkeFolderBrowser shareLinkId={shareLink.id} shareLinkUrl={shareLink.share_link} />
           </div>

@@ -1,4 +1,7 @@
 @import "tailwindcss";
+/* Enter/exit utilities (animate-in, fade-in-0, zoom-in-95, …) used by the
+   Radix-based primitives, e.g. GruenOMatModal. Same import as apps/web. */
+@import "tw-animate-css";
 
 /* KaTeX CSS is loaded lazily via CitationMarkdownText (not eager here). */
 
