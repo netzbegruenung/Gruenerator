@@ -1,5 +1,6 @@
 import { type StudioAssetItem, type StudioAssetSource } from '@gruenerator/contracts';
 import { useStudioAssetMutations } from '@gruenerator/shared/studio-assets';
+import { slugifyName } from '@gruenerator/shared/utils';
 import { Alert, AlertDescription, Button, toast } from '@gruenerator/ui';
 import { useEffect, useRef, useState, type FormEvent, type JSX, type ReactNode } from 'react';
 import { PiCheckCircle, PiImageSquare, PiScissors, PiTextAa } from 'react-icons/pi';
@@ -185,7 +186,7 @@ const StickerCreatorPage = (): JSX.Element => {
     setBusy(true);
     setError(null);
     const shareToken = await uploadBlobToMediaShare(draft.blob, {
-      filename: `${form.title.trim() || 'sticker'}.png`,
+      filename: `${slugifyName(form.title, 'sticker')}.png`,
       uploadSource: 'studio-asset',
     }).catch(() => null);
     if (!shareToken) {

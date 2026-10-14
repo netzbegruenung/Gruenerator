@@ -128,7 +128,7 @@ export function ImageStickerDesigner({
           if (cancelled) return;
           setError(null);
           setPreview(blob);
-          onDraft({ blob, width: canvas.width, height: canvas.height, suggestedTitle: title });
+          onDraft({ blob, suggestedTitle: title });
         } catch (err) {
           if (!cancelled) setError(err instanceof StickerImageError ? err.message : PROCESS_ERROR);
         }

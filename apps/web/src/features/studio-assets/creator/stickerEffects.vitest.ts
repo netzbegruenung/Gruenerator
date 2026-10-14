@@ -3,11 +3,13 @@ import { describe, expect, it } from 'vitest';
 import {
   alphaBounds,
   effectPadding,
+  discOffsets,
   hasTransparency,
-  outlineOffsets,
+  outlineWorkScale,
   stickerLayout,
   STICKER_MAX_SIDE,
   STICKER_MIN_SIDE,
+  thresholdAlpha,
 } from './stickerEffects';
 
 /** RGBA buffer with the given pixels set to the given alpha. */
@@ -90,21 +92,49 @@ describe('stickerLayout', () => {
   });
 });
 
-describe('outlineOffsets', () => {
-  it('stamps three rings at the full, two-thirds and one-third radius', () => {
-    const offsets = outlineOffsets(24);
-    const radii = [...new Set(offsets.map(({ dx, dy }) => Math.round(Math.hypot(dx, dy))))];
-    expect(radii.sort((a, b) => a - b)).toEqual([8, 16, 24]);
+describe('thresholdAlpha', () => {
+  it('clears faint alpha and leaves the rest untouched', () => {
+    const data = pixels(4, 1, [
+      [0, 0, 8],
+      [1, 0, 9],
+      [2, 0, 255],
+      [3, 0, 3],
+    ]);
+    data[0] = 200;
+    thresholdAlpha(data);
+    expect([data[3], data[7], data[11], data[15]]).toEqual([0, 9, 255, 0]);
+    expect(data[0]).toBe(200);
+  });
+});
+
+describe('outlineWorkScale', () => {
+  it('works at full resolution up to 16px and caps the stamp radius above', () => {
+    expect(outlineWorkScale(16)).toBe(1);
+    expect(outlineWorkScale(48) * 48).toBe(16);
+  });
+});
+
+describe('discOffsets', () => {
+  it.each([3, 16])('fills a %ipx disc with stamps at most 2px apart', (r) => {
+    const offsets = discOffsets(r);
+    expect(offsets[0]).toEqual({ dx: 0, dy: 0 });
+    const radii = [
+      ...new Set(offsets.map(({ dx, dy }) => Math.round(Math.hypot(dx, dy) * 1000) / 1000)),
+    ].sort((a, b) => a - b);
+    expect(radii.at(-1)).toBeCloseTo(r);
+    radii.slice(1).forEach((rad, i) => expect(rad - radii[i]!).toBeLessThanOrEqual(2));
+    for (const rad of radii.slice(1)) {
+      const ring = offsets.filter(({ dx, dy }) => Math.abs(Math.hypot(dx, dy) - rad) < 1e-3);
+      const [a, b] = ring;
+      expect(Math.hypot(a!.dx - b!.dx, a!.dy - b!.dy)).toBeLessThanOrEqual(2);
+    }
   });
 
-  it.each([8, 24, 48])('keeps the scallops on a %ipx contour below a quarter pixel', (r) => {
-    const ring = outlineOffsets(r).filter(({ dx, dy }) => Math.round(Math.hypot(dx, dy)) === r);
-    const [a, b] = ring;
-    const chord = Math.hypot(a!.dx - b!.dx, a!.dy - b!.dy);
-    expect(chord ** 2 / (8 * r)).toBeLessThan(0.25);
+  it('stays bounded at the widest work radius', () => {
+    expect(discOffsets(16).length).toBeLessThan(250);
   });
 
   it('has nothing to stamp without a width', () => {
-    expect(outlineOffsets(0)).toEqual([]);
+    expect(discOffsets(0)).toEqual([]);
   });
 });

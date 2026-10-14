@@ -117,16 +117,40 @@ export function stickerLayout(
   };
 }
 
+/** Clears alpha at or below the threshold so faint specks don't stamp outline blobs. */
+export function thresholdAlpha<T extends { [i: number]: number; length: number }>(
+  data: T,
+  threshold = ALPHA_THRESHOLD
+): T {
+  for (let i = 3; i < data.length; i += 4) if ((data[i] ?? 0) <= threshold) data[i] = 0;
+  return data;
+}
+
+/** Largest stamping radius in work pixels; wider outlines are dilated at reduced resolution. */
+const OUTLINE_WORK_RADIUS = 16;
+const DISC_SPACING = 2;
+
 /**
- * Offsets for stamping the silhouette: rings at full, two-thirds and one-third
- * radius so thin details (hair, fingers) get a closed contour, with enough
- * steps per ring that the scallops between neighbouring stamps stay sub-pixel.
+ * Resolution factor for dilating an outline of `radius` pixels: the disc is
+ * stamped with at most {@link OUTLINE_WORK_RADIUS} pixels so the stamp count
+ * stays bounded (about 230 at most) whatever the slider says.
  */
-export function outlineOffsets(radius: number): { dx: number; dy: number }[] {
+export function outlineWorkScale(radius: number): number {
+  return radius > OUTLINE_WORK_RADIUS ? OUTLINE_WORK_RADIUS / radius : 1;
+}
+
+/**
+ * Offsets filling a disc: the centre plus concentric rings at most
+ * {@link DISC_SPACING} pixels apart, with stamps on each ring at most that far
+ * apart too — so even a single speck dilates to a solid disc, not to rings.
+ */
+export function discOffsets(radius: number): { dx: number; dy: number }[] {
   if (radius <= 0) return [];
-  const offsets: { dx: number; dy: number }[] = [];
-  for (const r of [radius, (radius * 2) / 3, radius / 3]) {
-    const steps = Math.min(48, Math.max(12, Math.ceil((2 * Math.PI * r) / 3)));
+  const offsets = [{ dx: 0, dy: 0 }];
+  const rings = Math.ceil(radius / DISC_SPACING);
+  for (let k = 1; k <= rings; k++) {
+    const r = (radius * k) / rings;
+    const steps = Math.max(6, Math.ceil((2 * Math.PI * r) / DISC_SPACING));
     for (let i = 0; i < steps; i++) {
       const a = (i / steps) * 2 * Math.PI;
       offsets.push({ dx: Math.cos(a) * r, dy: Math.sin(a) * r });
@@ -177,19 +201,33 @@ export function canvasHasTransparency(canvas: HTMLCanvasElement): boolean {
   return hasTransparency(context(canvas).getImageData(0, 0, canvas.width, canvas.height).data);
 }
 
-/** Die-cut contour: the silhouette tinted and stamped around a circle, the image on top. */
+/**
+ * Die-cut contour: the thresholded silhouette, tinted, is stamped over a filled
+ * disc (a dilation) at reduced resolution for wide outlines, scaled back up
+ * under the image. The image itself stays at full resolution on top.
+ */
 export function addOutline(canvas: HTMLCanvasElement, { width, color }: OutlineOptions) {
-  const silhouette = createCanvas(canvas.width, canvas.height);
+  const k = outlineWorkScale(width);
+  const w = Math.max(1, Math.round(canvas.width * k));
+  const h = Math.max(1, Math.round(canvas.height * k));
+  const silhouette = createCanvas(w, h);
   const sctx = context(silhouette);
-  sctx.drawImage(canvas, 0, 0);
+  sctx.drawImage(canvas, 0, 0, w, h);
+  const pixels = sctx.getImageData(0, 0, w, h);
+  thresholdAlpha(pixels.data);
+  sctx.putImageData(pixels, 0, 0);
   sctx.globalCompositeOperation = 'source-in';
   sctx.fillStyle = color;
-  sctx.fillRect(0, 0, silhouette.width, silhouette.height);
+  sctx.fillRect(0, 0, w, h);
+
+  const dilated = createCanvas(w, h);
+  const dctx = context(dilated);
+  for (const { dx, dy } of discOffsets(width * k)) dctx.drawImage(silhouette, dx, dy);
 
   const out = createCanvas(canvas.width, canvas.height);
   const ctx = context(out);
-  for (const { dx, dy } of outlineOffsets(width)) ctx.drawImage(silhouette, dx, dy);
-  ctx.drawImage(silhouette, 0, 0);
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(dilated, 0, 0, canvas.width, canvas.height);
   ctx.drawImage(canvas, 0, 0);
   return out;
 }

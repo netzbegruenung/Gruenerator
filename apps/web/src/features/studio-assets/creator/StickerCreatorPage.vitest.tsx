@@ -124,7 +124,7 @@ describe('StickerCreatorPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'Fertig!' })).toBeInTheDocument();
     expect(uploadShare).toHaveBeenCalledWith(rendered, {
-      filename: 'Sonnenblume.png',
+      filename: 'sonnenblume.png',
       uploadSource: 'studio-asset',
     });
     expect(body).toEqual({

@@ -138,12 +138,7 @@ export function BadgeDesigner({
         .toBlob({ pixelRatio, mimeType: 'image/png' })
         .then((blob) => {
           if (cancelled) return;
-          onDraft({
-            blob,
-            width: Math.round((designW / designLong) * STICKER_MAX_SIDE),
-            height: Math.round((designH / designLong) * STICKER_MAX_SIDE),
-            suggestedTitle: linesKey.replace(/\n/g, ' '),
-          });
+          onDraft({ blob, suggestedTitle: linesKey.replace(/\n/g, ' ') });
         })
         .catch(() => !cancelled && onDraft(null));
     }, EXPORT_DELAY_MS);
@@ -151,19 +146,7 @@ export function BadgeDesigner({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [
-    fontReady,
-    linesKey,
-    shape,
-    background,
-    textColor,
-    outlineOn,
-    scale,
-    designW,
-    designH,
-    designLong,
-    onDraft,
-  ]);
+  }, [fontReady, linesKey, shape, background, textColor, outlineOn, scale, onDraft]);
 
   return (
     <DesignLayout
@@ -260,8 +243,15 @@ export function BadgeDesigner({
         swatches={palette}
         value={background}
         onChange={setBackground}
+        disabledColor={textColor}
       />
-      <SwatchPicker label="Schrift" swatches={palette} value={textColor} onChange={setTextColor} />
+      <SwatchPicker
+        label="Schrift"
+        swatches={palette}
+        value={textColor}
+        onChange={setTextColor}
+        disabledColor={background}
+      />
       <SwitchRow label="Weiße Kontur" checked={outlineOn} onChange={setOutlineOn} />
     </DesignLayout>
   );

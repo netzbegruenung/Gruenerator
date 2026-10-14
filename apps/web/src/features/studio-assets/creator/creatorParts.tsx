@@ -1,6 +1,6 @@
 import { type Swatch } from '@gruenerator/shared/profilbild';
 import { Label, Switch } from '@gruenerator/ui';
-import { useEffect, useId, useMemo, type JSX, type ReactNode } from 'react';
+import { useEffect, useId, useState, type JSX, type ReactNode } from 'react';
 
 import { CHECKERBOARD } from '../../studio-tools/components/ToolResultCard';
 import { TOOL_LABEL, TOOL_PANEL } from '../../studio-tools/components/ToolUi';
@@ -10,15 +10,20 @@ import { cn } from '@/utils/cn';
 /** What a designer hands to the save step. */
 export interface StickerDraft {
   blob: Blob;
-  width: number;
-  height: number;
   suggestedTitle: string;
 }
 
 export function useObjectUrl(blob: Blob | null): string | null {
-  const url = useMemo(() => (blob ? URL.createObjectURL(blob) : null), [blob]);
-  useEffect(() => () => void (url && URL.revokeObjectURL(url)), [url]);
-  return url;
+  const [entry, setEntry] = useState<{ blob: Blob; url: string } | null>(null);
+  useEffect(() => {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    // The URL is an external resource: created and revoked by the same effect run.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setEntry({ blob, url });
+    return () => URL.revokeObjectURL(url);
+  }, [blob]);
+  return entry && entry.blob === blob ? entry.url : null;
 }
 
 /** Checkerboard stage so transparent areas read as transparent. */
@@ -66,11 +71,14 @@ export function SwatchPicker({
   swatches,
   value,
   onChange,
+  disabledColor = null,
 }: {
   label: string;
   swatches: { id: string; label: string; color: string }[];
   value: string;
   onChange: (color: string) => void;
+  /** A colour that may not be picked here, e.g. the one the text already uses. */
+  disabledColor?: string | null;
 }): JSX.Element {
   const labelId = useId();
   return (
@@ -86,9 +94,10 @@ export function SwatchPicker({
             aria-label={s.label}
             aria-pressed={value === s.color}
             title={s.label}
+            disabled={disabledColor?.toLowerCase() === s.color.toLowerCase()}
             onClick={() => onChange(s.color)}
             className={cn(
-              'size-10 shrink-0 cursor-pointer rounded-full border border-grey-300 max-md:size-11 dark:border-grey-600',
+              'size-10 shrink-0 cursor-pointer rounded-full border border-grey-300 disabled:cursor-not-allowed disabled:opacity-30 max-md:size-11 dark:border-grey-600',
               RING
             )}
             style={{ background: s.color }}
