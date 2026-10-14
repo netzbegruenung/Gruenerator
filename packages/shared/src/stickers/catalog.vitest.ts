@@ -4,6 +4,7 @@ import {
   assetStickerId,
   isAssetStickerId,
   isShareSrc,
+  stickersForLocale,
   SYSTEM_STICKERS,
   systemStickerById,
 } from './catalog';
@@ -18,6 +19,30 @@ describe('sticker catalog', () => {
     expect(SYSTEM_STICKERS.some((s) => isAssetStickerId(s.id) || s.id.startsWith('asset:'))).toBe(
       false
     );
+  });
+
+  it('offers de-AT its own badges plus the shared stickers, never the German sunflowers', () => {
+    expect(stickersForLocale('de-AT').map((s) => s.id)).toEqual([
+      'teamgruen',
+      'regenbogen',
+      'regenbogen-herz',
+      'vielfalt',
+      'at-gruen-waehlen',
+      'at-klima-schuetzen',
+      'at-jetzt-gruen',
+    ]);
+  });
+
+  it('offers de-DE the sunflowers plus the shared stickers, never the Austrian badges', () => {
+    expect(stickersForLocale('de-DE').map((s) => s.id)).toEqual([
+      'sonnenblume-gelb',
+      'sonnenblume-gruen',
+      'sonnenblume-weiss',
+      'teamgruen',
+      'regenbogen',
+      'regenbogen-herz',
+      'vielfalt',
+    ]);
   });
 
   it('looks stickers up by id', () => {

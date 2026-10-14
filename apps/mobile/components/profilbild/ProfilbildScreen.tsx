@@ -1,12 +1,11 @@
 import {
-  COLOR_SWATCHES_AT,
-  COLOR_SWATCHES_DE,
+  colorSwatches,
+  FREE_BACKGROUND_ID,
+  type FreeBackground,
   type ProfilbildSticker,
 } from '@gruenerator/shared/profilbild';
 import { galleryTarget, isShareSrc, type GalleryAsset } from '@gruenerator/shared/stickers';
-import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { type SkImage } from '@shopify/react-native-skia';
-import { Image } from 'expo-image';
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -37,12 +36,13 @@ import {
 } from '../../services/imageEditMobile';
 import { saveImageToGallery } from '../../services/imageStudio';
 import { shareBase64Image } from '../../services/share';
-import { borderRadius, colors, spacing, typography } from '../../theme';
+import { colors, spacing, typography } from '../../theme';
 import { Button } from '../common/Button';
 import { SegmentedControl } from '../common/SegmentedControl';
 
 import { BackgroundPicker, CUSTOM_ID, type CustomBackground } from './BackgroundPicker';
 import { galleryStickerSource } from './galleryModel';
+import { PhotoStage } from './PhotoStage';
 import { InstagramPreview, PreviewFrame, type PreviewVariant } from './PreviewFrame';
 import { ProfilbildEditor } from './ProfilbildEditor';
 import { nextStickerUid } from './profilbildGestures';
@@ -50,6 +50,7 @@ import { exportProfilbildBase64 } from './ProfilbildScene';
 import {
   initialModel,
   newSticker,
+  type MobileBackground,
   type ProfilbildModel,
   type SceneImages,
   type StickerSource,
@@ -113,12 +114,15 @@ export function ProfilbildScreen({
     shareToken ? 'loading' : null
   );
   const assets = useProfilbildImages();
-  const firstSwatch = (isAustria ? COLOR_SWATCHES_AT : COLOR_SWATCHES_DE)[0];
+  const firstSwatch = colorSwatches(isAustria)[0];
 
   const person = state.status === 'ready' ? state.person : null;
   const [seeded, setSeeded] = useState<SkImage | null>(null);
   const [model, setModel] = useState<ProfilbildModel | null>(null);
+  // The chosen background lives outside the model too: it is picked before the photo is in.
   const [backgroundId, setBackgroundId] = useState(firstSwatch.id);
+  const [background, setBackground] = useState<MobileBackground>(firstSwatch.background);
+  const [freeBackground, setFreeBackground] = useState<FreeBackground | null>(null);
   const [custom, setCustom] = useState<CustomBackground | null>(null);
   const [gallery, setGallery] = useState<Record<string, SkImage>>({});
   const [selected, setSelected] = useState<string | null>(null);
@@ -180,16 +184,37 @@ export function ProfilbildScreen({
   if (person !== seeded) {
     setSeeded(person);
     const restored = reopen && person === reopen.person ? reopen : null;
-    setModel(
-      restored
-        ? restored.model
-        : person
-          ? initialModel({ width: person.width(), height: person.height() }, isAustria)
+    if (restored) {
+      const bg = restored.model.background;
+      setModel(restored.model);
+      setBackgroundId(restored.backgroundId);
+      setBackground(bg);
+      if (
+        restored.backgroundId === FREE_BACKGROUND_ID &&
+        (bg.kind === 'color' || bg.kind === 'gradient')
+      )
+        setFreeBackground(bg);
+    } else {
+      // A new photo keeps the background chosen before it.
+      setModel(
+        person
+          ? {
+              ...initialModel({ width: person.width(), height: person.height() }, isAustria),
+              background,
+            }
           : null
-    );
-    setBackgroundId(restored ? restored.backgroundId : firstSwatch.id);
+      );
+    }
     setSelected(null);
   }
+
+  const chooseBackground = (id: string, bg: MobileBackground) => {
+    setBackgroundId(id);
+    setBackground(bg);
+    if (id === FREE_BACKGROUND_ID && (bg.kind === 'color' || bg.kind === 'gradient'))
+      setFreeBackground(bg);
+    setModel((m) => (m ? { ...m, background: bg } : m));
+  };
 
   const pick = (source: () => Promise<BevImageRef | null>) => {
     source()
@@ -236,8 +261,7 @@ export function ProfilbildScreen({
       .then((image) => {
         if (request !== backgroundRequest.current) return;
         setCustom({ uri: item.src, image, galleryUrl: item.src });
-        setBackgroundId(CUSTOM_ID);
-        setModel((m) => (m ? { ...m, background: { kind: 'image', image } } : m));
+        chooseBackground(CUSTOM_ID, { kind: 'image', image });
       })
       .catch(() => {
         if (request === backgroundRequest.current)
@@ -291,54 +315,6 @@ export function ProfilbildScreen({
     );
   }
 
-  if (state.status === 'idle') {
-    return (
-      <View style={[styles.centered, { backgroundColor: theme.background }]}>
-        <Ionicons name="person-circle-outline" size={64} color={theme.textGreen} />
-        {pendingAsset && !shareToken ? (
-          <Text style={[styles.error, { color: theme.text }]}>
-            {`Wähle zuerst ein Foto – dann setzen wir ${galleryTarget(pendingAsset)} ein.`}
-          </Text>
-        ) : null}
-        <View style={styles.buttons}>
-          <Button onPress={() => pick(pickImageForEditor)}>Foto wählen</Button>
-          <Button variant="outline" onPress={() => pick(takePhotoForEditor)}>
-            Foto aufnehmen
-          </Button>
-        </View>
-      </View>
-    );
-  }
-
-  if (state.status === 'working') {
-    return (
-      <View style={[styles.centered, { backgroundColor: theme.background }]}>
-        <View style={[styles.working, { width: viewSize, height: viewSize }]}>
-          <Image source={{ uri: state.source.uri }} contentFit="cover" style={styles.fill} />
-          <View style={[styles.fill, styles.dim]} />
-          <ActivityIndicator size="large" color={colors.white} />
-          <Text style={styles.workingText}>Person wird freigestellt…</Text>
-        </View>
-      </View>
-    );
-  }
-
-  if (state.status === 'error') {
-    return (
-      <View style={[styles.centered, { backgroundColor: theme.background }]}>
-        <Text accessibilityRole="alert" style={[styles.error, { color: colors.error[500] }]}>
-          {state.message}
-        </Text>
-        <View style={styles.buttons}>
-          <Button onPress={retry}>Erneut versuchen</Button>
-          <Button variant="outline" onPress={reset}>
-            Anderes Foto
-          </Button>
-        </View>
-      </View>
-    );
-  }
-
   if (assets.status === 'error') {
     return (
       <View style={[styles.centered, { backgroundColor: theme.background }]}>
@@ -352,25 +328,27 @@ export function ProfilbildScreen({
     );
   }
 
-  if (assets.status === 'loading' || !model) {
-    return (
-      <View style={[styles.centered, { backgroundColor: theme.background }]}>
-        <ActivityIndicator size="large" color={theme.textGreen} />
-      </View>
-    );
-  }
+  const pickerImages = { ...(assets.status === 'ready' ? assets.images : {}), ...gallery };
+  const scene =
+    state.status === 'ready' && model && assets.status === 'ready'
+      ? {
+          model,
+          person: state.person,
+          images: { ...assets.images, ...gallery } as SceneImages,
+          isAustria,
+        }
+      : null;
 
-  const images: SceneImages = { ...assets.images, ...gallery };
-  const scene = { model, person: state.person, images, isAustria };
-
-  const addSticker = (sticker: ProfilbildSticker) => placeSticker(sticker, images[sticker.src]);
+  const addSticker = (sticker: ProfilbildSticker) => {
+    if (scene) placeSticker(sticker, scene.images[sticker.src]);
+  };
 
   const run = async (kind: 'save' | 'share') => {
-    if (busyRef.current) return;
+    if (busyRef.current || !scene) return;
     busyRef.current = true;
     setBusy(kind);
     await exportAndDeliver(kind, scene, (b64) =>
-      save(b64, state.person, { model, backgroundId, custom }).then(autosave.noteSaved)
+      save(b64, scene.person, { model: scene.model, backgroundId, custom }).then(autosave.noteSaved)
     )
       .catch(() => {
         Alert.alert(
@@ -386,89 +364,133 @@ export function ProfilbildScreen({
       });
   };
 
+  const backgroundPicker = (
+    <BackgroundPicker
+      isAustria={isAustria}
+      images={pickerImages}
+      selected={backgroundId}
+      custom={custom}
+      freeBackground={freeBackground}
+      onCustom={setCustom}
+      onPickGallery={pickGalleryBackground}
+      onSelect={(id, bg) => {
+        backgroundRequest.current += 1;
+        chooseBackground(id, bg);
+      }}
+    />
+  );
+
+  // The editor opens straight away: before a photo the stage is the upload zone,
+  // and format, stickers and export wait for the photo.
   return (
     <SafeAreaView edges={['bottom']} style={[styles.root, { backgroundColor: theme.background }]}>
       <View style={styles.stage}>
-        <PreviewFrame variant={variant} viewSize={viewSize}>
-          <ProfilbildEditor
-            {...scene}
-            onChange={setModel}
-            viewSize={viewSize}
-            selected={selected}
-            onSelect={setSelected}
-          />
-        </PreviewFrame>
-      </View>
-      <ScrollView contentContainerStyle={styles.controls} keyboardShouldPersistTaps="handled">
-        <SegmentedControl
-          accessibilityLabel="Vorschau"
-          value={variant}
-          onChange={(v) => setVariant(v as PreviewVariant)}
-          options={segments(VARIANTS)}
-        />
-        {variant === 'instagram' ? <InstagramPreview {...scene} /> : null}
-        <SegmentedControl
-          accessibilityLabel="Bearbeiten"
-          value={panel}
-          onChange={(v) => setPanel(v as Panel)}
-          options={segments(PANELS)}
-        />
-        {panel === 'hintergrund' ? (
-          <BackgroundPicker
-            isAustria={isAustria}
-            images={images}
-            selected={backgroundId}
-            custom={custom}
-            onCustom={setCustom}
-            onPickGallery={pickGalleryBackground}
-            onSelect={(id, background) => {
-              backgroundRequest.current += 1;
-              setBackgroundId(id);
-              setModel({ ...model, background });
-            }}
-          />
+        {scene ? (
+          <PreviewFrame variant={variant} viewSize={viewSize}>
+            <ProfilbildEditor
+              {...scene}
+              onChange={setModel}
+              viewSize={viewSize}
+              selected={selected}
+              onSelect={setSelected}
+            />
+          </PreviewFrame>
+        ) : state.status === 'ready' ? (
+          <View style={[styles.waiting, { width: viewSize, height: viewSize }]}>
+            <ActivityIndicator size="large" color={theme.textGreen} />
+          </View>
         ) : (
-          <StickerPicker
+          <PhotoStage
+            size={viewSize}
+            state={state}
+            background={background}
+            images={pickerImages}
             isAustria={isAustria}
-            onAdd={addSticker}
-            onAddGallery={addGallerySticker}
+            pendingHint={
+              pendingAsset && !shareToken
+                ? `Wähle zuerst ein Foto – dann setzen wir ${galleryTarget(pendingAsset)} ein.`
+                : null
+            }
+            onPick={() => pick(pickImageForEditor)}
+            onTakePhoto={() => pick(takePhotoForEditor)}
+            onRetry={retry}
+            onReset={reset}
           />
         )}
-        <Button
-          variant="ghost"
-          onPress={() => {
-            begin(null);
-            reset();
-          }}
-        >
-          Anderes Foto
-        </Button>
-      </ScrollView>
-      <Text
-        accessibilityLiveRegion="polite"
-        style={[styles.saveStatus, { color: theme.textSecondary }]}
-      >
-        {SAVE_STATUS[autosave.state]}
-      </Text>
-      <View style={[styles.actions, { borderTopColor: theme.border }]}>
-        <Button
-          style={styles.action}
-          onPress={() => void run('save')}
-          loading={busy === 'save'}
-          disabled={busy !== null}
-        >
-          Speichern
-        </Button>
-        <Button
-          variant="outline"
-          style={styles.action}
-          onPress={() => void run('share')}
-          loading={busy === 'share'}
-          disabled={busy !== null}
-        >
-          Teilen
-        </Button>
       </View>
+      <ScrollView contentContainerStyle={styles.controls} keyboardShouldPersistTaps="handled">
+        {scene ? (
+          <>
+            <SegmentedControl
+              accessibilityLabel="Vorschau"
+              value={variant}
+              onChange={(v) => setVariant(v as PreviewVariant)}
+              options={segments(VARIANTS)}
+            />
+            {variant === 'instagram' ? <InstagramPreview {...scene} /> : null}
+            <SegmentedControl
+              accessibilityLabel="Bearbeiten"
+              value={panel}
+              onChange={(v) => setPanel(v as Panel)}
+              options={segments(PANELS)}
+            />
+            {panel === 'hintergrund' ? (
+              backgroundPicker
+            ) : (
+              <StickerPicker
+                isAustria={isAustria}
+                onAdd={addSticker}
+                onAddGallery={addGallerySticker}
+              />
+            )}
+            <Button
+              variant="ghost"
+              onPress={() => {
+                begin(null);
+                reset();
+              }}
+            >
+              Anderes Foto
+            </Button>
+          </>
+        ) : (
+          <>
+            <Text accessibilityRole="header" style={[styles.label, { color: theme.text }]}>
+              Hintergrund
+            </Text>
+            {backgroundPicker}
+          </>
+        )}
+      </ScrollView>
+      {scene ? (
+        <>
+          <Text
+            accessibilityLiveRegion="polite"
+            style={[styles.saveStatus, { color: theme.textSecondary }]}
+          >
+            {SAVE_STATUS[autosave.state]}
+          </Text>
+          <View style={[styles.actions, { borderTopColor: theme.border }]}>
+            <Button
+              style={styles.action}
+              onPress={() => void run('save')}
+              loading={busy === 'save'}
+              disabled={busy !== null}
+            >
+              Speichern
+            </Button>
+            <Button
+              variant="outline"
+              style={styles.action}
+              onPress={() => void run('share')}
+              loading={busy === 'share'}
+              disabled={busy !== null}
+            >
+              Teilen
+            </Button>
+          </View>
+        </>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -483,16 +505,8 @@ const styles = StyleSheet.create({
     padding: spacing.medium,
   },
   buttons: { width: '100%', maxWidth: 360, gap: spacing.small },
-  working: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.medium,
-    borderRadius: borderRadius.xlarge,
-    overflow: 'hidden',
-  },
-  fill: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
-  dim: { backgroundColor: colors.black, opacity: 0.55 },
-  workingText: { ...typography.bodyBold, color: colors.white },
+  waiting: { alignItems: 'center', justifyContent: 'center' },
+  label: { ...typography.bodyBold },
   error: { ...typography.body, textAlign: 'center' },
   stage: { alignItems: 'center', paddingTop: spacing.medium },
   controls: {

@@ -1,182 +1,56 @@
+import { useDebouncedSearch, useOwnStudioAssets } from '@gruenerator/shared/studio-assets';
 import {
-  type StudioAssetItem,
-  type StudioAssetKind,
-  type StudioAssetScope,
-  type StudioAssetSort,
-} from '@gruenerator/contracts';
-import {
-  STUDIO_ASSET_PLURAL,
-  STUDIO_ASSET_SCOPES,
-  STUDIO_ASSETS_QUERY_KEY,
-  useStudioAssetMutations,
-  useStudioAssets,
-  useStudioAssetToggles,
-} from '@gruenerator/shared/studio-assets';
-import { Button, toast } from '@gruenerator/ui';
-import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useState, type JSX } from 'react';
-import { HiPlus } from 'react-icons/hi';
-import { LuArrowDownUp } from 'react-icons/lu';
-import { Link, useNavigate } from 'react-router-dom';
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@gruenerator/ui';
+import { useState, type JSX } from 'react';
+import { PiImage, PiPlus, PiSticker, PiStorefront } from 'react-icons/pi';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
-import {
-  FilterMenuButton,
-  GalleryEmptyState,
-  GalleryGrid,
-  GallerySkeleton,
-} from '../../components/common/Gallery/parts';
+import { GalleryEmptyState } from '../../components/common/Gallery/parts';
 import { PageHero, PageHeroSearch, PageShell } from '../../components/common/PageHero';
-import { PillTabs, type PillTab } from '../../components/common/PillTabs';
-import { ReportDialog } from '../../components/common/ReportDialog';
-import { UnderlineTabs, type UnderlineTab } from '../../components/common/UnderlineTabs';
-import { profilbildAssetHref } from '../studio-tools/utils/galleryAsset';
-import { useTrashUndoToast } from '../trash/trashUndoToast';
 
-import { BackgroundUploadDialog } from './BackgroundUploadDialog';
-import { StudioAssetCard, type StudioAssetCardProps } from './StudioAssetCard';
-import { PublishDialog, RenameDialog } from './StudioAssetDialogs';
+import { StudioAssetsDiscoverDialog } from './StudioAssetsDiscoverDialog';
+import { StudioAssetSection } from './StudioAssetSection';
+import { useStudioAssetActions } from './useStudioAssetActions';
 
-const SEARCH_DEBOUNCE_MS = 400;
+const STUDIO_ASSETS_PATH = '/studio/sticker';
+const DISCOVER_PATH = '/studio/sticker/entdecken';
 const CREATE_PATH = '/studio/sticker/neu';
 
-const KIND_TABS: PillTab<StudioAssetKind>[] = [
-  { key: 'sticker', label: 'Sticker' },
-  { key: 'background', label: 'Hintergründe' },
-];
+/** Wie bei der Agentura: Schließen führt per `navigate(-1)` zurück, wenn das Popup von hier kam. */
+const FROM_OVERVIEW = { fromOverview: true } as const;
 
-const SCOPE_TABS: UnderlineTab<StudioAssetScope>[] = STUDIO_ASSET_SCOPES.map((s) => ({
-  key: s.value,
-  label: s.label,
-}));
-
-const SORT_OPTIONS: { id: StudioAssetSort; label: string }[] = [
-  { id: 'new', label: 'Neu' },
-  { id: 'popular', label: 'Beliebt' },
-];
-
-type OpenDialog =
-  { type: 'report' | 'publish' | 'rename'; item: StudioAssetItem } | { type: 'upload' } | null;
-
-function emptyState(scope: StudioAssetScope, kind: StudioAssetKind, searching: boolean) {
-  const plural = STUDIO_ASSET_PLURAL[kind];
-  if (searching) return { title: 'Nichts gefunden', hint: 'Versuche einen anderen Suchbegriff.' };
-  if (scope === 'mine')
-    return {
-      title: `Du hast noch keine ${plural}`,
-      hint:
-        kind === 'sticker'
-          ? 'Erstelle einen Sticker aus einem Foto und nutze ihn im Profilbild.'
-          : 'Lade ein eigenes Bild hoch und nutze es als Hintergrund im Profilbild.',
-    };
-  if (scope === 'saved')
-    return {
-      title: 'Noch nichts gemerkt',
-      hint: `Merke dir ${plural} unter „Entdecken“, um sie hier wiederzufinden.`,
-    };
-  return {
-    title: `Noch keine ${plural} zum Entdecken`,
-    hint: 'Erstelle den ersten und teile ihn mit allen.',
-  };
-}
-
-function CreateButton({
-  kind,
-  onUpload,
-}: {
-  kind: StudioAssetKind;
-  onUpload: () => void;
-}): JSX.Element {
-  // The Sticker-Creator only makes stickers; backgrounds are uploaded directly.
-  if (kind === 'background')
-    return (
-      <Button size="sm" onClick={onUpload}>
-        <HiPlus aria-hidden /> Hintergrund hochladen
-      </Button>
-    );
-  return (
-    <Button asChild size="sm">
-      <Link to={CREATE_PATH}>
-        <HiPlus aria-hidden /> Sticker erstellen
-      </Link>
-    </Button>
-  );
-}
-
-function StudioAssetTile(
-  props: Omit<StudioAssetCardProps, 'onToggleLike' | 'onToggleFavorite'>
-): JSX.Element {
-  const { toggleLike, toggleFavorite } = useStudioAssetToggles(props.item.id);
-  return <StudioAssetCard {...props} onToggleLike={toggleLike} onToggleFavorite={toggleFavorite} />;
-}
-
-const StudioAssetsPage = (): JSX.Element => {
+/**
+ * „Sticker & Hintergründe“: die eigene Sammlung — selbst erstellt und gemerkt —
+ * nach Art gegliedert. Was andere teilen, liegt im Entdecken-Popup darüber
+ * (`discoverOpen`, Adresse `/studio/sticker/entdecken`).
+ */
+function StudioAssetsView({ discoverOpen }: { discoverOpen: boolean }): JSX.Element {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const showTrashUndo = useTrashUndoToast();
-  const [kind, setKind] = useState<StudioAssetKind>('sticker');
-  const [scope, setScope] = useState<StudioAssetScope>('shop');
-  const [sort, setSort] = useState<StudioAssetSort>('new');
+  const location = useLocation();
   const [searchInput, setSearchInput] = useState('');
-  const [q, setQ] = useState('');
-  const [dialog, setDialog] = useState<OpenDialog>(null);
+  const q = useDebouncedSearch(searchInput);
+  const { handlers, openUpload, dialogs } = useStudioAssetActions();
+  const stickers = useOwnStudioAssets('sticker', q);
+  const backgrounds = useOwnStudioAssets('background', q);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setQ(searchInput.trim()), SEARCH_DEBOUNCE_MS);
-    return () => clearTimeout(timer);
-  }, [searchInput]);
+  const sections = [
+    { title: 'Sticker', ...stickers },
+    { title: 'Hintergründe', ...backgrounds },
+  ].filter((s) => s.data.isLoading || s.data.items.length > 0);
+  const settled = stickers.settled && backgrounds.settled;
+  const error = stickers.error ?? backgrounds.error;
+  const total = stickers.data.items.length + backgrounds.data.items.length;
 
-  // Only Entdecken has a popularity order; own and saved lists are newest first.
-  const effectiveSort = scope === 'shop' ? sort : 'new';
-  const {
-    items,
-    isLoading,
-    isFetchingNextPage,
-    isFetchNextPageError,
-    hasNextPage,
-    fetchNextPage,
-    refetch,
-    error,
-  } = useStudioAssets({ kind, scope, q, sort: effectiveSort });
-  const { update, remove } = useStudioAssetMutations();
-  const { mutate: updateAsset } = update;
-  const { mutate: removeAsset } = remove;
-
-  const close = useCallback(() => setDialog(null), []);
-  const openUpload = useCallback(() => setDialog({ type: 'upload' }), []);
-  const handleUse = useCallback(
-    (item: StudioAssetItem) => void navigate(profilbildAssetHref(item)),
-    [navigate]
-  );
-  const handleReport = useCallback(
-    (item: StudioAssetItem) => setDialog({ type: 'report', item }),
-    []
-  );
-  const handlePublish = useCallback(
-    (item: StudioAssetItem) => setDialog({ type: 'publish', item }),
-    []
-  );
-  const handleRename = useCallback(
-    (item: StudioAssetItem) => setDialog({ type: 'rename', item }),
-    []
-  );
-  const handleMakePrivate = useCallback(
-    (item: StudioAssetItem) =>
-      updateAsset(
-        { id: item.id, body: { visibility: 'private' } },
-        { onSuccess: () => toast.success(`„${item.title}“ ist jetzt privat.`) }
-      ),
-    [updateAsset]
-  );
-  const handleDelete = useCallback(
-    (item: StudioAssetItem) =>
-      removeAsset(item.id, {
-        onSuccess: () => showTrashUndo({ kind: 'studio_asset', id: item.id, title: item.title }),
-      }),
-    [removeAsset, showTrashUndo]
-  );
-
-  const empty = emptyState(scope, kind, q !== '');
-  const createButton = <CreateButton kind={kind} onUpload={openUpload} />;
+  const closeDiscover = () => {
+    const state = location.state as { fromOverview?: boolean } | null;
+    if (state?.fromOverview) void navigate(-1);
+    else void navigate(STUDIO_ASSETS_PATH, { replace: true });
+  };
 
   return (
     <PageShell wide>
@@ -184,8 +58,8 @@ const StudioAssetsPage = (): JSX.Element => {
         title="Sticker & Hintergründe"
         description={
           <p className="m-0 text-sm leading-relaxed text-pretty text-grey-500 dark:text-grey-400">
-            Entdecke Sticker und Hintergründe für dein Profilbild, merke dir deine Favoriten und
-            teile eigene.
+            Deine Sticker und Hintergründe für Profilbild und Canvas. Was andere teilen, findest du
+            unter Entdecken.
           </p>
         }
         toolbar={
@@ -193,140 +67,107 @@ const StudioAssetsPage = (): JSX.Element => {
             <PageHeroSearch
               query={searchInput}
               onQuery={setSearchInput}
-              placeholder={
-                kind === 'sticker' ? 'Sticker durchsuchen…' : 'Hintergründe durchsuchen…'
-              }
+              placeholder="Sticker und Hintergründe durchsuchen…"
             />
-            {scope === 'shop' && (
-              <FilterMenuButton
-                label={sort === 'popular' ? 'Sortierung: Beliebt' : 'Sortierung'}
-                menuLabel="Sortieren"
-                value={sort}
-                options={SORT_OPTIONS}
-                onChange={(value) => setSort(value as StudioAssetSort)}
-                active={sort !== 'new'}
-                icon={<LuArrowDownUp aria-hidden className="size-[18px]" />}
-              />
-            )}
+            <Button asChild variant="ghost" size="icon">
+              <Link
+                to={DISCOVER_PATH}
+                state={FROM_OVERVIEW}
+                aria-label="Entdecken"
+                title="Entdecken"
+              >
+                <PiStorefront aria-hidden className="size-[18px]" />
+              </Link>
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label="Neu" title="Neu">
+                  <PiPlus aria-hidden className="size-[18px]" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => void navigate(CREATE_PATH)}>
+                  <PiSticker />
+                  <span>Sticker erstellen</span>
+                </DropdownMenuItem>
+                {/* Der Sticker-Creator macht nur Sticker; Hintergründe werden hochgeladen. */}
+                <DropdownMenuItem onClick={openUpload}>
+                  <PiImage />
+                  <span>Hintergrund hochladen</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </>
-        }
-        actions={createButton}
-        meta={
-          <PillTabs
-            tabs={KIND_TABS}
-            active={kind}
-            onSelect={setKind}
-            ariaLabel="Art"
-            className="justify-start"
-          />
         }
       />
 
-      <UnderlineTabs tabs={SCOPE_TABS} value={scope} onChange={setScope} />
+      <span role="status" aria-live="polite" className="sr-only">
+        {`${total} ${total === 1 ? 'Eintrag' : 'Einträge'}`}
+      </span>
 
-      <h2 className="sr-only">
-        {SCOPE_TABS.find((t) => t.key === scope)?.label}:{' '}
-        {kind === 'sticker' ? 'Sticker' : 'Hintergründe'}
-      </h2>
-      {error && items.length === 0 ? (
-        <p className="text-center text-error">{error.message}</p>
+      {sections.length > 0 ? (
+        <div className="flex flex-col gap-xl">
+          {sections.map((s) => (
+            <StudioAssetSection key={s.title} title={s.title} data={s.data} handlers={handlers} />
+          ))}
+        </div>
+      ) : error ? (
+        <GalleryEmptyState
+          title="Deine Sticker konnten nicht geladen werden"
+          hint="Lade die Seite neu oder versuch es gleich noch einmal."
+        />
+      ) : !settled ? null : q ? (
+        <GalleryEmptyState
+          title="Keine Treffer"
+          hint="Bei deinen Stickern und Hintergründen ist nichts dabei — vielleicht unter Entdecken."
+          action={
+            <Button asChild variant="outline" size="sm">
+              <Link to={`${DISCOVER_PATH}?q=${encodeURIComponent(q)}`} state={FROM_OVERVIEW}>
+                Unter Entdecken suchen
+              </Link>
+            </Button>
+          }
+        />
       ) : (
-        <>
-          <GalleryGrid size="small">
-            {isLoading ? (
-              <GallerySkeleton className="aspect-[4/5]" />
-            ) : (
-              items.map((item) => (
-                <StudioAssetTile
-                  key={item.id}
-                  item={item}
-                  onUseInProfilbild={handleUse}
-                  onReport={handleReport}
-                  onPublish={handlePublish}
-                  onMakePrivate={handleMakePrivate}
-                  onRename={handleRename}
-                  onDelete={handleDelete}
-                />
-              ))
-            )}
-            {isFetchingNextPage && <GallerySkeleton count={4} className="aspect-[4/5]" />}
-          </GalleryGrid>
-
-          {!isLoading && items.length === 0 && (
-            <GalleryEmptyState {...empty} action={createButton} />
-          )}
-
-          {error ? (
-            <div className="flex flex-col items-center gap-xs">
-              <p role="alert" className="m-0 text-center text-sm text-error">
-                {error.message}
-              </p>
-              <Button
-                variant="outline"
-                onClick={() => void (isFetchNextPageError ? fetchNextPage() : refetch())}
-                disabled={isFetchingNextPage}
-              >
-                Erneut versuchen
+        <GalleryEmptyState
+          title="Noch keine Sticker oder Hintergründe"
+          hint="Erstelle einen Sticker, lade einen Hintergrund hoch oder merke dir etwas unter Entdecken."
+          action={
+            <div className="flex flex-wrap items-center justify-center gap-sm">
+              <Button asChild variant="brand" size="brand-sm">
+                <Link to={CREATE_PATH}>
+                  <PiPlus />
+                  Sticker erstellen
+                </Link>
+              </Button>
+              <Button variant="outline" size="brand-sm" onClick={openUpload}>
+                <PiImage />
+                Hintergrund hochladen
+              </Button>
+              <Button asChild variant="outline" size="brand-sm">
+                <Link to={DISCOVER_PATH} state={FROM_OVERVIEW}>
+                  <PiStorefront />
+                  Entdecken
+                </Link>
               </Button>
             </div>
-          ) : (
-            hasNextPage && (
-              <Button
-                variant="outline"
-                className="self-center"
-                onClick={() => void fetchNextPage()}
-                disabled={isFetchingNextPage}
-              >
-                {isFetchingNextPage ? 'Lädt …' : 'Mehr laden'}
-              </Button>
-            )
-          )}
-        </>
+          }
+        />
       )}
 
-      {dialog?.type === 'upload' && <BackgroundUploadDialog onClose={close} />}
-      {dialog?.type === 'report' && (
-        <ReportDialog
-          open
-          onOpenChange={(open) => !open && close()}
-          kind="studio_asset"
-          targetId={dialog.item.id}
-          title={dialog.item.title}
-          onReported={() =>
-            void queryClient.invalidateQueries({ queryKey: STUDIO_ASSETS_QUERY_KEY })
-          }
-        />
-      )}
-      {dialog?.type === 'publish' && (
-        <PublishDialog
-          item={dialog.item}
-          busy={update.isPending}
-          onClose={close}
-          onConfirm={() =>
-            update.mutate(
-              { id: dialog.item.id, body: { visibility: 'public', rightsConfirmed: true } },
-              {
-                onSuccess: () => {
-                  toast.success(`„${dialog.item.title}“ ist jetzt öffentlich.`);
-                  close();
-                },
-              }
-            )
-          }
-        />
-      )}
-      {dialog?.type === 'rename' && (
-        <RenameDialog
-          item={dialog.item}
-          busy={update.isPending}
-          onClose={close}
-          onSave={(title) =>
-            update.mutate({ id: dialog.item.id, body: { title } }, { onSuccess: close })
-          }
-        />
-      )}
+      <StudioAssetsDiscoverDialog
+        open={discoverOpen}
+        onClose={closeDiscover}
+        initialQuery={new URLSearchParams(location.search).get('q') ?? ''}
+      />
+      {dialogs}
     </PageShell>
   );
-};
+}
+
+const StudioAssetsPage = (): JSX.Element => <StudioAssetsView discoverOpen={false} />;
+
+/** `/studio/sticker/entdecken` — die Übersicht mit offenem Entdecken-Popup. */
+export const StudioAssetsDiscoverPage = (): JSX.Element => <StudioAssetsView discoverOpen />;
 
 export default StudioAssetsPage;

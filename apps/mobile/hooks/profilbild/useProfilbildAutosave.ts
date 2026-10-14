@@ -1,3 +1,4 @@
+import { FREE_BACKGROUND_ID } from '@gruenerator/shared/profilbild';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { ProfilbildSnapshot } from './useProfilbildShare';
@@ -12,6 +13,8 @@ export function profilbildSignature({ model, backgroundId, custom }: ProfilbildS
   return JSON.stringify([
     model.person,
     backgroundId,
+    // Every free colour shares one id; only the colour itself tells two apart.
+    backgroundId === FREE_BACKGROUND_ID ? model.background : null,
     custom?.uri ?? null,
     model.stickers.map(({ src, x, y, width, height, rotation }) => [
       src,
@@ -48,7 +51,12 @@ export function useProfilbildAutosave(
   const pending = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    if (!snapshot) return;
+    if (!snapshot) {
+      // „Anderes Foto": a save still pending belongs to the photo just dropped and
+      // would otherwise run on unmount against the next photo's share.
+      pending.current = null;
+      return;
+    }
     if (forSession.current !== session) {
       forSession.current = session;
       lastSaved.current = reopened ? undefined : '';
