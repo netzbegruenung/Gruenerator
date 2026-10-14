@@ -360,9 +360,6 @@ importers:
       '@ai-sdk/openai':
         specifier: ^4.0.86
         version: 4.0.86(zod@3.25.76)
-      '@anthropic-ai/sdk':
-        specifier: ^0.131.0
-        version: 0.131.0(zod@3.25.76)
       '@better-auth/cimd':
         specifier: ^1.7.7
         version: 1.7.7(27791914dcab0c41c25e2be47e647cdc)
@@ -622,6 +619,9 @@ importers:
       '@anthropic-ai/claude-agent-sdk':
         specifier: ^0.3.292
         version: 0.3.292(@anthropic-ai/sdk@0.131.0(zod@3.25.76))(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@3.25.76))(zod@3.25.76)
+      '@anthropic-ai/sdk':
+        specifier: ^0.131.0
+        version: 0.131.0(zod@3.25.76)
       '@gruenerator/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
