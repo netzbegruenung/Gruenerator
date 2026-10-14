@@ -15,7 +15,7 @@ const boolFlag = (defaultValue: boolean) =>
   z
     .string()
     .transform((v) => v === 'true')
-    .default(defaultValue ? 'true' : 'false');
+    .default(defaultValue);
 
 /** Coerce a string to a number with a required default. */
 const numStr = (defaultValue: number) => z.coerce.number().default(defaultValue);
