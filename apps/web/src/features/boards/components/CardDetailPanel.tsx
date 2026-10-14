@@ -46,11 +46,12 @@ import { isEmbedded } from '../../../utils/platform';
 import { PhosphorIcon } from '../../agents/icons/PhosphorIcon';
 import { AgentRunButton } from '../aiColumns/AgentRunButton';
 import { useBoardReadOnly } from '../context/BoardReadOnlyContext';
+import { useTaskDone } from '../context/TaskDoneContext';
 import { useBoardActivity } from '../hooks/useBoardActivity';
 import { useCardSubscription } from '../hooks/useCardSubscription';
 import { FIELD_IDS, parseAssignees, parseChecklists, serializeAssignees } from '../types';
 import { LABEL_COLORS } from '../utils/boardDefaults';
-import { RECURRENCE_OPTIONS } from '../utils/recurrence';
+import { parseLocalDate, RECURRENCE_OPTIONS } from '../utils/recurrence';
 
 import { CardActivity } from './CardActivity';
 import { CardChecklists } from './CardChecklists';
@@ -205,6 +206,7 @@ export const CardDetailPanel = memo(function CardDetailPanel({
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const dueDay = parseLocalDate(dueDate);
   const [recurrence, setRecurrence] = useState('');
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
   const [linkedDocs, setLinkedDocs] = useState<LinkedDoc[]>([]);
@@ -227,6 +229,9 @@ export const CardDetailPanel = memo(function CardDetailPanel({
     activeCardId
   );
   const isWatching = subscriptionQuery.data?.subscribed ?? false;
+
+  const taskDone = useTaskDone();
+  const isDone = !!taskDone && row?.cells[FIELD_IDS.STATUS] === taskDone.doneStatusId;
 
   const labelsField = useMemo(() => fields.find((f) => f.id === FIELD_IDS.LABELS), [fields]);
   const labelOptions = useMemo(
@@ -464,9 +469,13 @@ export const CardDetailPanel = memo(function CardDetailPanel({
     (statusId: string) => {
       if (!row) return;
       onUpdateCell(row.id, FIELD_IDS.STATUS, statusId);
-      recordActivity.mutate({ type: 'card_moved' });
+      // Entering/leaving the done column is logged as completed/reopened upstream.
+      const touchesDone =
+        !!taskDone &&
+        (statusId === taskDone.doneStatusId || currentStatusId === taskDone.doneStatusId);
+      if (!touchesDone) recordActivity.mutate({ type: 'card_moved' });
     },
-    [row, onUpdateCell, recordActivity]
+    [row, onUpdateCell, recordActivity, taskDone, currentStatusId]
   );
 
   const handleDiscussInChat = useCallback(() => {
@@ -554,6 +563,22 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                     target.style.height = `${target.scrollHeight}px`;
                   }}
                 />
+                {taskDone && (
+                  <button
+                    type="button"
+                    onClick={() => taskDone.setDone(row.id, !isDone)}
+                    aria-label={isDone ? 'Erledigt – wieder öffnen' : undefined}
+                    className={cn(
+                      'mt-2 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium cursor-pointer transition-colors max-sm:min-h-11',
+                      isDone
+                        ? 'border-primary-600 bg-primary-600 text-white hover:bg-primary-700 dark:border-primary-500 dark:bg-primary-500'
+                        : 'border-grey-300 bg-transparent text-foreground hover:border-primary-600 dark:border-grey-600'
+                    )}
+                  >
+                    <FiCheck size={13} aria-hidden="true" />
+                    {isDone ? 'Erledigt' : 'Als erledigt markieren'}
+                  </button>
+                )}
               </div>
               <div className="flex items-center gap-0.5 shrink-0 -mr-1 sm:-mr-2">
                 {onPrevCard && (
@@ -815,8 +840,8 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                         >
                           <FiCalendar size={14} />
                           <span>
-                            {dueDate
-                              ? new Date(dueDate).toLocaleDateString('de-DE', {
+                            {dueDay
+                              ? dueDay.toLocaleDateString('de-DE', {
                                   day: '2-digit',
                                   month: 'long',
                                   year: 'numeric',
@@ -832,10 +857,15 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                           )}
                         </button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
+                      <PopoverContent
+                        className="max-h-(--radix-popover-content-available-height) w-72 overflow-y-auto p-0"
+                        align="start"
+                      >
                         <Calendar
+                          className="w-full"
                           mode="single"
-                          selected={dueDate ? new Date(dueDate) : undefined}
+                          selected={dueDay ?? undefined}
+                          defaultMonth={dueDay ?? undefined}
                           onSelect={(date) => {
                             if (!row) return;
                             const iso = date
@@ -899,7 +929,7 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                         )}
                       </PopoverContent>
                     </Popover>
-                    {dueDate && new Date(dueDate) < new Date(new Date().toDateString()) && (
+                    {dueDay && dueDay < new Date(new Date().toDateString()) && (
                       <p className="text-xs text-red-500 mt-1 m-0">Überfällig</p>
                     )}
                   </div>

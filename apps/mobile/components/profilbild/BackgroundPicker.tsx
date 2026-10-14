@@ -1,30 +1,35 @@
-import { type StudioAssetItem, type StudioAssetScope } from '@gruenerator/contracts';
+import { type StudioAssetItem } from '@gruenerator/contracts';
 import {
-  COLOR_SWATCHES_AT,
-  COLOR_SWATCHES_DE,
-  GRADIENT_SWATCHES,
+  colorSwatches,
+  FREE_BACKGROUND_ID,
+  gradientSwatches,
   presetDesigns,
-  type FlatBackground,
+  type FreeBackground,
   type PresetDesign,
   type ProfilbildAssetSrc,
   type Swatch,
 } from '@gruenerator/shared/profilbild';
-import { STUDIO_ASSET_SCOPES } from '@gruenerator/shared/studio-assets';
+import { isShareSrc } from '@gruenerator/shared/stickers';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Skia, type SkImage } from '@shopify/react-native-skia';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
 import { useTheme } from '../../hooks/useTheme';
+import { resolveChatUrl } from '../../services/chatApiUrl';
 import { pickImageForEditor } from '../../services/imageEditMobile';
 import { borderRadius, spacing } from '../../theme';
-import { Button } from '../common/Button';
 import { SegmentedControl } from '../common/SegmentedControl';
+import { useShareToken } from '../studio-assets/useShareToken';
 
-import { GalleryStrip } from './GalleryStrip';
+import { FlatFill } from './FlatFill';
+import { cdPalette } from './freeColorModel';
+import { FreeColorTile } from './FreeColorTile';
+import { ActionTile, GalleryTiles, PICKER_TILE } from './GalleryTiles';
 import { PROFILBILD_ASSETS } from './profilbildAssets';
-import { swatchGradient, type MobileBackground } from './sceneModel';
+import { ProfilbildDiscoverButton } from './ProfilbildDiscoverButton';
+import { type MobileBackground } from './sceneModel';
 
 export const CUSTOM_ID = 'eigenes-bild';
 
@@ -35,24 +40,25 @@ export interface CustomBackground {
   galleryUrl: string | null;
 }
 
-type Category = 'farben' | 'verlaeufe' | 'vorlagen' | 'eigenes' | 'entdecken';
+type Category = 'farben' | 'vorlagen' | 'deine';
 
-const CATEGORIES: { value: Category; label: string; short: string }[] = [
-  { value: 'farben', label: 'Vollfarben', short: 'Vollfarben' },
-  { value: 'verlaeufe', label: 'Verlauf', short: 'Verlauf' },
-  { value: 'vorlagen', label: 'Vorlagen', short: 'Vorlagen' },
-  { value: 'eigenes', label: 'Eigenes Bild', short: 'Eigenes' },
-  { value: 'entdecken', label: 'Galerie', short: 'Galerie' },
+const CATEGORIES: { value: Category; label: string; short: string; disabled: boolean }[] = [
+  { value: 'farben', label: 'Farben', short: 'Farben', disabled: false },
+  { value: 'vorlagen', label: 'Vorlagen', short: 'Vorlagen', disabled: false },
+  { value: 'deine', label: 'Deine', short: 'Deine', disabled: false },
 ];
 
 const SWATCH = 44;
-const TILE = 64;
+const TILE = PICKER_TILE;
 
 interface BackgroundPickerProps {
   isAustria: boolean;
-  images: Record<ProfilbildAssetSrc, SkImage>;
+  /** The bundled assets, for the preset thumbnails; empty while they load. */
+  images: Partial<Record<ProfilbildAssetSrc, SkImage>>;
   selected: string;
   custom: CustomBackground | null;
+  /** The freely chosen colour or gradient, once there is one. */
+  freeBackground: FreeBackground | null;
   onSelect(id: string, background: MobileBackground): void;
   onCustom(custom: CustomBackground): void;
   onPickGallery(item: StudioAssetItem): void;
@@ -66,31 +72,35 @@ async function loadCustom(): Promise<CustomBackground | null> {
   return { uri: ref.uri, image, galleryUrl: null };
 }
 
+/**
+ * Three tabs, like web: Farben (plain colours and gradients, each with a free
+ * tile), Vorlagen, and Deine — the own photo, own and saved gallery
+ * backgrounds, then upload and Entdecken.
+ */
 export function BackgroundPicker({
   isAustria,
   images,
   selected,
   custom,
+  freeBackground,
   onSelect,
   onCustom,
   onPickGallery,
 }: BackgroundPickerProps) {
   const theme = useTheme();
-  const colors = isAustria ? COLOR_SWATCHES_AT : COLOR_SWATCHES_DE;
+  const token = useShareToken();
+  const colors = colorSwatches(isAustria);
+  const gradients = gradientSwatches(isAustria);
   const presets = presetDesigns(isAustria);
+  const palette = cdPalette(colors);
   const [tab, setTab] = useState<Category>(() =>
-    GRADIENT_SWATCHES.some((s) => s.id === selected)
-      ? 'verlaeufe'
-      : presets.some((p) => p.id === selected)
-        ? 'vorlagen'
-        : selected === CUSTOM_ID
-          ? custom?.galleryUrl
-            ? 'entdecken'
-            : 'eigenes'
-          : 'farben'
+    presets.some((p) => p.id === selected)
+      ? 'vorlagen'
+      : selected === CUSTOM_ID
+        ? 'deine'
+        : 'farben'
   );
-  const [scope, setScope] = useState<StudioAssetScope>('shop');
-  const own = custom?.galleryUrl ? null : custom;
+  const freeSelected = selected === FREE_BACKGROUND_ID ? freeBackground : null;
 
   const ring = (isSelected: boolean) => [
     styles.ring,
@@ -106,6 +116,8 @@ export function BackgroundPicker({
       })
       .catch(() => Alert.alert('Fehler', 'Das Bild konnte nicht geladen werden.'));
   };
+
+  const selectFree = (bg: FreeBackground) => onSelect(FREE_BACKGROUND_ID, bg);
 
   const renderSwatch = (s: Swatch) => (
     <Pressable
@@ -138,78 +150,92 @@ export function BackgroundPicker({
     </Pressable>
   );
 
+  // A gallery background is a share path; it needs the bearer token to show.
+  const customSource = custom?.galleryUrl
+    ? isShareSrc(custom.galleryUrl) && token
+      ? {
+          uri: resolveChatUrl(custom.galleryUrl),
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      : null
+    : custom
+      ? { uri: custom.uri }
+      : null;
+
   return (
     <View style={styles.root}>
       <SegmentedControl
         accessibilityLabel="Hintergrund-Art"
         value={tab}
         onChange={(v) => setTab(v as Category)}
-        options={CATEGORIES.map((c) => ({ ...c, disabled: false }))}
+        options={CATEGORIES}
       />
-      {tab === 'entdecken' ? (
+      {tab === 'farben' ? (
         <>
-          <SegmentedControl
-            accessibilityLabel="Hintergründe aus der Galerie"
-            value={scope}
-            onChange={(v) => setScope(v as StudioAssetScope)}
-            options={STUDIO_ASSET_SCOPES.map((f) => ({ ...f, short: f.label, disabled: false }))}
-          />
-          <GalleryStrip
-            kind="background"
-            scope={scope}
-            selectedSrc={selected === CUSTOM_ID ? (custom?.galleryUrl ?? '') : ''}
-            onPick={onPickGallery}
-          />
+          <View accessibilityLabel="Vollfarben" style={styles.row}>
+            {colors.map(renderSwatch)}
+            <FreeColorTile
+              mode="color"
+              value={freeBackground?.kind === 'color' ? freeBackground : null}
+              selected={freeSelected?.kind === 'color'}
+              palette={palette}
+              size={SWATCH}
+              onChange={selectFree}
+            />
+          </View>
+          <View accessibilityLabel="Verläufe" style={styles.row}>
+            {gradients.map(renderSwatch)}
+            <FreeColorTile
+              mode="gradient"
+              value={freeBackground?.kind === 'gradient' ? freeBackground : null}
+              selected={freeSelected?.kind === 'gradient'}
+              palette={palette}
+              size={SWATCH}
+              onChange={selectFree}
+            />
+          </View>
         </>
       ) : null}
-      <View style={styles.row}>
-        {tab === 'farben' ? colors.map(renderSwatch) : null}
-        {tab === 'verlaeufe' ? GRADIENT_SWATCHES.map(renderSwatch) : null}
-        {tab === 'vorlagen' ? presets.map(renderPreset) : null}
-        {tab === 'eigenes' ? (
-          own ? (
-            <>
+      {tab === 'vorlagen' ? <View style={styles.row}>{presets.map(renderPreset)}</View> : null}
+      {tab === 'deine' ? (
+        <GalleryTiles
+          kind="background"
+          source="own"
+          selectedSrc={selected === CUSTOM_ID ? (custom?.galleryUrl ?? '') : ''}
+          onPick={onPickGallery}
+          leadingSrc={custom?.galleryUrl ?? null}
+          leading={
+            custom ? (
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Eigenes Hintergrundbild"
                 accessibilityState={{ selected: selected === CUSTOM_ID }}
-                onPress={() => onSelect(CUSTOM_ID, { kind: 'image', image: own.image })}
+                onPress={() => onSelect(CUSTOM_ID, { kind: 'image', image: custom.image })}
                 style={[ring(selected === CUSTOM_ID), styles.tileRing]}
               >
-                <Image
-                  source={{ uri: own.uri }}
-                  contentFit="cover"
-                  style={[styles.tile, { borderColor: theme.cardBorder }]}
-                />
+                <View style={[styles.tile, { borderColor: theme.cardBorder }]}>
+                  {customSource ? (
+                    <Image
+                      source={customSource}
+                      contentFit="cover"
+                      style={StyleSheet.absoluteFill}
+                    />
+                  ) : null}
+                </View>
               </Pressable>
-              <Button variant="outline" onPress={upload}>
-                Anderes Bild wählen
-              </Button>
+            ) : null
+          }
+          trailing={
+            <>
+              <ActionTile label="Bild hochladen" onPress={upload}>
+                <Ionicons name="cloud-upload-outline" size={22} color={theme.textSecondary} />
+              </ActionTile>
+              <ProfilbildDiscoverButton kind="background" onPick={onPickGallery} />
             </>
-          ) : (
-            <Button variant="outline" onPress={upload}>
-              Bild hochladen
-            </Button>
-          )
-        ) : null}
-      </View>
+          }
+        />
+      ) : null}
     </View>
-  );
-}
-
-function FlatFill({ background }: { background: FlatBackground }) {
-  if (background.kind === 'color') {
-    return <View style={[StyleSheet.absoluteFill, { backgroundColor: background.color }]} />;
-  }
-  const g = swatchGradient(background);
-  return (
-    <LinearGradient
-      colors={g.colors}
-      locations={g.locations}
-      start={g.start}
-      end={g.end}
-      style={StyleSheet.absoluteFill}
-    />
   );
 }
 
@@ -218,10 +244,10 @@ function OverlayThumb({
   images,
 }: {
   design: PresetDesign;
-  images: Record<ProfilbildAssetSrc, SkImage>;
+  images: Partial<Record<ProfilbildAssetSrc, SkImage>>;
 }) {
   const o = design.overlays[0];
-  const img = images[o.src] as SkImage | undefined;
+  const img = images[o.src];
   if (!img) return null;
   const width = o.width * TILE;
   const height = (width * img.height()) / img.width();

@@ -14,6 +14,7 @@ import { useBoardReadOnly } from '../context/BoardReadOnlyContext';
 import { useBoardAwareness } from '../hooks/useBoardAwareness';
 import { FIELD_IDS } from '../types';
 import { COLUMN_COLORS } from '../utils/boardDefaults';
+import { getDoneStatusId, setDoneOption } from '../utils/taskDone';
 
 import { AddCardButton } from './AddCardButton';
 import { BoardCursorLayer } from './BoardCursorLayer';
@@ -96,6 +97,9 @@ interface ColumnBoardProps {
   onRemoveColumnAi: (groupId: string) => void;
   onSetLimit: (groupId: string, limit: number | null) => void;
   onMoveColumn: (groupId: string, dir: 'left' | 'right') => void;
+  /** Set when grouping by the status field: the board's done column (or null). */
+  doneStatusId?: string | null;
+  onToggleDoneColumn?: (groupId: string) => void;
   handleAddCard: (groupId: string, name: string) => void;
   onCardClick: (row: Row) => void;
   onRenameCard: (rowId: string, title: string) => void;
@@ -123,6 +127,8 @@ const ColumnBoard = memo(function ColumnBoard({
   onRemoveColumnAi,
   onSetLimit,
   onMoveColumn,
+  doneStatusId,
+  onToggleDoneColumn,
   handleAddCard,
   onCardClick,
   onRenameCard,
@@ -152,6 +158,10 @@ const ColumnBoard = memo(function ColumnBoard({
   const onMoveLeft = useCallback(() => onMoveColumn(groupId, 'left'), [onMoveColumn, groupId]);
   const onMoveRight = useCallback(() => onMoveColumn(groupId, 'right'), [onMoveColumn, groupId]);
   const readOnly = useBoardReadOnly();
+  const onToggleDone = useCallback(
+    () => onToggleDoneColumn?.(groupId),
+    [onToggleDoneColumn, groupId]
+  );
   const onAdd = useCallback(
     (name: string) => handleAddCard(groupId, name),
     [handleAddCard, groupId]
@@ -190,6 +200,8 @@ const ColumnBoard = memo(function ColumnBoard({
           onSetLimit={isRealColumn ? onSetLimitCb : undefined}
           onMoveLeft={isRealColumn && canMoveLeft ? onMoveLeft : undefined}
           onMoveRight={isRealColumn && canMoveRight ? onMoveRight : undefined}
+          isDone={doneStatusId === groupId}
+          onToggleDone={isRealColumn && onToggleDoneColumn ? onToggleDone : undefined}
         />
       </KanbanHeader>
       <KanbanCards<KanbanItem> id={groupId}>
@@ -349,6 +361,15 @@ export function PlannerKanban({
   );
 
   const allRows = useMemo(() => visibleGroups.flatMap((g) => g.rows), [visibleGroups]);
+  // selectedRow is a click-time snapshot; hand the panel the live row so edits made
+  // from inside it (e.g. checking it off) show up there.
+  const liveSelectedRow = useMemo(
+    () =>
+      selectedRow
+        ? (groups.flatMap((g) => g.rows).find((r) => r.id === selectedRow.id) ?? selectedRow)
+        : null,
+    [groups, selectedRow]
+  );
 
   const handlePrevCard = useCallback(() => {
     if (!selectedRow) return;
@@ -636,6 +657,26 @@ export function PlannerKanban({
     [statusField, updateField]
   );
 
+  // Done column only exists on the status field; other groupings get no toggle.
+  const isStatusGrouping = statusField?.id === FIELD_IDS.STATUS;
+  const doneStatusId = useMemo(
+    () => (isStatusGrouping ? getDoneStatusId(fields) : null),
+    [isStatusGrouping, fields]
+  );
+  const handleToggleDoneColumn = useCallback(
+    (optionId: string) => {
+      if (!statusField) return;
+      const options = (statusField.typeOptions.options ?? []) as SelectOption[];
+      updateField(statusField.id, {
+        typeOptions: {
+          ...statusField.typeOptions,
+          options: setDoneOption(options, doneStatusId === optionId ? null : optionId),
+        },
+      });
+    },
+    [statusField, updateField, doneStatusId]
+  );
+
   // Swap with the nearest *visible* neighbour so hidden columns don't absorb moves.
   const handleMoveColumn = useCallback(
     (optionId: string, dir: 'left' | 'right') => {
@@ -792,6 +833,8 @@ export function PlannerKanban({
               onRemoveColumnAi={handleRemoveColumnAi}
               onSetLimit={handleSetLimit}
               onMoveColumn={handleMoveColumn}
+              doneStatusId={doneStatusId}
+              onToggleDoneColumn={isStatusGrouping ? handleToggleDoneColumn : undefined}
               handleAddCard={addCard}
               onCardClick={handleCardClick}
               onRenameCard={handleRenameCard}
@@ -848,7 +891,7 @@ export function PlannerKanban({
       />
 
       <CardDetailPanel
-        row={selectedRow}
+        row={liveSelectedRow}
         fields={fields}
         open={detailOpen}
         onOpenChange={handleDetailClose}

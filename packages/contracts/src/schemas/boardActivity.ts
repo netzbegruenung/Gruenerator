@@ -16,6 +16,8 @@ export const activityTypeSchema = z.enum([
   'due_changed',
   'card_archived',
   'card_restored',
+  'card_completed',
+  'card_reopened',
   'comment_added',
   'attachment_added',
   // Board-level events (recorded with a null card_id) — they surface in the

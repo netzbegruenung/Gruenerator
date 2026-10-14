@@ -9,7 +9,7 @@ import { server } from '../../test/msw-server';
 import { axe, render, renderWithProviders, screen, waitFor, within } from '../../test-utils';
 
 import { StudioAssetCard } from './StudioAssetCard';
-import StudioAssetsPage from './StudioAssetsPage';
+import StudioAssetsPage, { StudioAssetsDiscoverPage } from './StudioAssetsPage';
 
 import type * as BackgroundImage from './backgroundImage';
 
@@ -70,11 +70,29 @@ beforeEach(() => {
   listQueries = [];
   server.use(
     http.get(API, ({ request }) => {
-      listQueries.push(new URL(request.url).searchParams);
-      return HttpResponse.json({ items: store, hasMore: false });
+      const params = new URL(request.url).searchParams;
+      listQueries.push(params);
+      const scope = params.get('scope');
+      const items = store.filter(
+        (i) =>
+          i.kind === params.get('kind') &&
+          (scope === 'mine' ? i.isOwn : scope === 'saved' ? i.favorited : i.visibility === 'public')
+      );
+      return HttpResponse.json({ items, hasMore: false });
     })
   );
 });
+
+const DISCOVER_ROUTE = '/studio/sticker/entdecken';
+const renderDiscover = () =>
+  renderWithProviders(<StudioAssetsDiscoverPage />, { route: DISCOVER_ROUTE });
+/**
+ * Wartet, bis die ersten `n` Listenabfragen raus sind — danach zählt jede weitere
+ * als Nachladen. Unter dem Popup lädt die Übersicht mit: 4 eigene + 2 Entdecken.
+ */
+const queriesSettled = (n: number) => waitFor(() => expect(listQueries.length).toBe(n));
+const ownPublic = () =>
+  asset({ id: 'own-1', title: 'Mein Herz', isOwn: true, visibility: 'public', authorName: null });
 
 const card = (title: string) => screen.getByRole('article', { name: title });
 
@@ -84,12 +102,37 @@ async function openMenu(user: ReturnType<typeof renderWithProviders>['user'], ti
 }
 
 describe('StudioAssetsPage', () => {
-  it('lists the Entdecken stickers', async () => {
+  it('shows own and saved items by kind, without the rest of Entdecken', async () => {
+    store = [
+      ...store,
+      asset({ id: 'fav-1', title: 'Gemerkter Stern', favorited: true }),
+      asset({ id: 'bg-1', kind: 'background', title: 'Wiese', isOwn: true, authorName: null }),
+    ];
     renderWithProviders(<StudioAssetsPage />, { route: '/studio/sticker' });
 
-    expect(await screen.findByRole('article', { name: 'Sonnenblume' })).toBeInTheDocument();
+    const stickers = await screen.findByRole('region', { name: 'Sticker' });
+    expect(await within(stickers).findByRole('article', { name: 'Mein Herz' })).toBeInTheDocument();
+    expect(within(stickers).getByRole('article', { name: 'Gemerkter Stern' })).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('region', { name: 'Hintergründe' })).getByRole('article', {
+        name: 'Wiese',
+      })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('article', { name: 'Sonnenblume' })).toBeNull();
+    expect(screen.queryByRole('tab')).toBeNull();
+    expect(new Set(listQueries.map((q) => `${q.get('kind')}:${q.get('scope')}`))).toEqual(
+      new Set(['sticker:mine', 'sticker:saved', 'background:mine', 'background:saved'])
+    );
+  });
+
+  it('lists the Entdecken stickers in the popup', async () => {
+    renderDiscover();
+
+    const popup = await screen.findByRole('dialog', { name: 'Entdecken' });
+    expect(await within(popup).findByRole('article', { name: 'Sonnenblume' })).toBeInTheDocument();
     expect(within(card('Sonnenblume')).getByText('Kim')).toBeInTheDocument();
-    expect(Object.fromEntries(listQueries[0]!)).toMatchObject({
+    const stickerQuery = listQueries.find((q) => q.get('kind') === 'sticker');
+    expect(Object.fromEntries(stickerQuery!)).toMatchObject({
       kind: 'sticker',
       scope: 'shop',
       sort: 'new',
@@ -110,8 +153,9 @@ describe('StudioAssetsPage', () => {
         return HttpResponse.json({ liked: true, likesCount: 3 });
       })
     );
-    const { user } = renderWithProviders(<StudioAssetsPage />);
+    const { user } = renderDiscover();
     await screen.findByRole('article', { name: 'Sonnenblume' });
+    await queriesSettled(6);
 
     await user.click(within(card('Sonnenblume')).getByRole('button', { name: 'Gefällt mir (2)' }));
 
@@ -119,14 +163,15 @@ describe('StudioAssetsPage', () => {
     expect(pressed).toHaveAttribute('aria-pressed', 'true');
     await waitFor(() => expect(like).toHaveBeenCalledWith('a-1'));
     release();
-    await waitFor(() => expect(listQueries.length).toBeGreaterThan(1));
+    await waitFor(() => expect(listQueries.length).toBeGreaterThan(6));
     expect(
       within(card('Sonnenblume')).getByRole('button', { name: 'Gefällt mir (3)' })
     ).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('opens the report dialog for someone else’s sticker only', async () => {
-    const { user } = renderWithProviders(<StudioAssetsPage />);
+    store = [asset({}), ownPublic()];
+    const { user } = renderDiscover();
     await screen.findByRole('article', { name: 'Sonnenblume' });
 
     const ownMenu = await openMenu(user, 'Mein Herz');
@@ -136,8 +181,7 @@ describe('StudioAssetsPage', () => {
     const menu = await openMenu(user, 'Sonnenblume');
     await user.click(within(menu).getByRole('menuitem', { name: 'Melden' }));
 
-    const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText('Inhalt melden')).toBeInTheDocument();
+    const dialog = await screen.findByRole('dialog', { name: 'Inhalt melden' });
     expect(within(dialog).getByText('Was stimmt mit „Sonnenblume“ nicht?')).toBeInTheDocument();
   });
 
@@ -148,12 +192,13 @@ describe('StudioAssetsPage', () => {
         return HttpResponse.json({ success: true });
       })
     );
-    const { user } = renderWithProviders(<StudioAssetsPage />);
+    store = [asset({}), ownPublic()];
+    const { user } = renderDiscover();
     await screen.findByRole('article', { name: 'Sonnenblume' });
 
     const menu = await openMenu(user, 'Sonnenblume');
     await user.click(within(menu).getByRole('menuitem', { name: 'Melden' }));
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('dialog', { name: 'Inhalt melden' });
     await user.click(within(dialog).getByRole('radio', { name: 'Rechtswidrig' }));
     await user.click(within(dialog).getByRole('button', { name: 'Melden' }));
 
@@ -167,9 +212,10 @@ describe('StudioAssetsPage', () => {
     const Where = () => <output data-testid="where">{useLocation().search}</output>;
     const { user } = renderWithProviders(
       <>
-        <StudioAssetsPage />
+        <StudioAssetsDiscoverPage />
         <Where />
-      </>
+      </>,
+      { route: DISCOVER_ROUTE }
     );
     await screen.findByRole('article', { name: 'Sonnenblume' });
 
@@ -233,8 +279,9 @@ describe('StudioAssetsPage follow-ups', () => {
         return HttpResponse.json({ liked: false, likesCount: 2 });
       })
     );
-    const { user } = renderWithProviders(<StudioAssetsPage />);
+    const { user } = renderDiscover();
     await screen.findByRole('article', { name: 'Sonnenblume' });
+    await queriesSettled(6);
 
     await user.click(within(card('Sonnenblume')).getByRole('button', { name: 'Gefällt mir (2)' }));
     await user.click(within(card('Sonnenblume')).getByRole('button', { name: 'Gefällt mir (3)' }));
@@ -244,7 +291,7 @@ describe('StudioAssetsPage follow-ups', () => {
     await waitFor(() => expect(calls).toEqual(['like']));
     release();
     await waitFor(() => expect(calls).toEqual(['like', 'unlike']));
-    await waitFor(() => expect(listQueries.length).toBeGreaterThan(1));
+    await waitFor(() => expect(listQueries.length).toBeGreaterThan(6));
     expect(
       within(card('Sonnenblume')).getByRole('button', { name: 'Gefällt mir (2)' })
     ).toHaveAttribute('aria-pressed', 'false');
@@ -253,12 +300,15 @@ describe('StudioAssetsPage follow-ups', () => {
   it('keeps the grid when loading more fails and offers a retry', async () => {
     server.use(
       http.get(API, ({ request }) => {
-        const offset = new URL(request.url).searchParams.get('offset');
-        if (offset === '0') return HttpResponse.json({ items: [asset({})], hasMore: true });
+        const params = new URL(request.url).searchParams;
+        if (params.get('kind') !== 'sticker')
+          return HttpResponse.json({ items: [], hasMore: false });
+        if (params.get('offset') === '0')
+          return HttpResponse.json({ items: [asset({})], hasMore: true });
         return HttpResponse.json({ success: false, message: 'Kaputt.' }, { status: 500 });
       })
     );
-    const { user } = renderWithProviders(<StudioAssetsPage />);
+    const { user } = renderDiscover();
     await screen.findByRole('article', { name: 'Sonnenblume' });
 
     await user.click(screen.getByRole('button', { name: 'Mehr laden' }));
@@ -282,8 +332,9 @@ describe('StudioAssetsPage follow-ups', () => {
       })
     );
     const { user } = renderWithProviders(<StudioAssetsPage />);
-    await user.click(await screen.findByRole('tab', { name: 'Hintergründe' }));
-    await user.click(screen.getAllByRole('button', { name: 'Hintergrund hochladen' })[0]!);
+    await screen.findByRole('article', { name: 'Mein Herz' });
+    await user.click(screen.getByRole('button', { name: 'Neu' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Hintergrund hochladen' }));
 
     const dialog = await screen.findByRole('dialog');
     const file = new File(['raw'], 'Wiese im Sommer.jpg', { type: 'image/jpeg' });

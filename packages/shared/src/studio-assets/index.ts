@@ -30,3 +30,10 @@ export {
   parseTags,
   type StudioAssetFormValues,
 } from './form.js';
+export {
+  mergeOwnAndSaved,
+  useDebouncedSearch,
+  useDiscoverStudioAssets,
+  useOwnStudioAssets,
+  type StudioAssetSectionData,
+} from './sections.js';

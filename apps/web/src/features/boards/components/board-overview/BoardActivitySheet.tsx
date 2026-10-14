@@ -22,6 +22,8 @@ const VERB: Record<ActivityType, string> = {
   due_changed: 'hat eine Fälligkeit geändert',
   card_archived: 'hat eine Karte archiviert',
   card_restored: 'hat eine Karte wiederhergestellt',
+  card_completed: 'hat eine Aufgabe erledigt',
+  card_reopened: 'hat eine Aufgabe wieder geöffnet',
   comment_added: 'hat kommentiert',
   attachment_added: 'hat einen Anhang hinzugefügt',
   board_renamed: 'hat das Board umbenannt',

@@ -53,7 +53,10 @@ describe('sticker catalogue', () => {
     const at = stickerAssetsForLocale('de-AT').map((a) => a.id);
     expect(at.some((id) => id.startsWith('sonnenblume'))).toBe(false);
     expect(at).toContain('vielfalt');
-    expect(stickerAssetsForLocale('de-DE').map((a) => a.id)).toContain('sonnenblume-gelb');
+    expect(at).toContain('at-gruen-waehlen');
+    const de = stickerAssetsForLocale('de-DE').map((a) => a.id);
+    expect(de).toContain('sonnenblume-gelb');
+    expect(de.some((id) => id.startsWith('at-'))).toBe(false);
   });
 
   it('shares no id with the other asset sets', () => {

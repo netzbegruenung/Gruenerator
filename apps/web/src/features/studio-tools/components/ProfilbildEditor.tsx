@@ -3,7 +3,8 @@ import {
   COLOR_SWATCHES_AT,
   COLOR_SWATCHES_DE,
   defaultPlacement,
-  GRADIENT_SWATCHES,
+  FREE_BACKGROUND_ID,
+  gradientSwatches,
   MIN_STICKER,
   placementRect,
   presetDesigns,
@@ -14,6 +15,7 @@ import {
   snapSticker,
   STICKER_BASE_WIDTH,
   stickerById,
+  type FreeBackground,
   type PersonPlacement,
   type PresetDesign,
   type ProfilbildSticker,
@@ -22,7 +24,7 @@ import {
 } from '@gruenerator/shared/profilbild';
 import { assetStickerId, isAssetStickerId, isShareSrc } from '@gruenerator/shared/stickers';
 import { Alert, AlertDescription, Button } from '@gruenerator/ui';
-import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { PiTrash } from 'react-icons/pi';
 
 import { useAuthStore } from '../../../stores/authStore';
@@ -119,7 +121,13 @@ export interface ProfilbildReopen {
 }
 
 export interface ProfilbildEditorProps {
-  cutoutUrl: string;
+  /** The cut-out person; null until a photo is in — the editor shows `emptyStage` instead. */
+  cutoutUrl: string | null;
+  /**
+   * Fills the stage while there is no person yet: upload, progress or error. Gets
+   * the chosen background as an image URL, to preview it without a person.
+   */
+  emptyStage?: (backgroundPreview: string | null) => ReactNode;
   reopen?: ProfilbildReopen | null;
   /** A gallery item handed over by deep link, applied once the photo is in. */
   galleryAsset?: GalleryAsset | null;
@@ -129,6 +137,7 @@ export interface ProfilbildEditorProps {
 
 export function ProfilbildEditor({
   cutoutUrl,
+  emptyStage,
   reopen = null,
   galleryAsset = null,
   onEditInCanvas,
@@ -163,8 +172,13 @@ export function ProfilbildEditor({
     savedBackground
       ? savedBackground.kind === 'custom'
         ? CUSTOM_ID
-        : savedBackground.id
+        : savedBackground.kind === 'free'
+          ? FREE_BACKGROUND_ID
+          : savedBackground.id
       : (colorSwatches[0]?.id ?? 'tanne')
+  );
+  const [freeBackground, setFreeBackground] = useState<FreeBackground | null>(() =>
+    savedBackground?.kind === 'free' ? savedBackground.background : null
   );
   const [presetBackground, setPresetBackground] = useState<{
     design: PresetDesign;
@@ -192,6 +206,7 @@ export function ProfilbildEditor({
   const announceTimer = useRef<number | null>(null);
 
   useEffect(() => {
+    if (!cutoutUrl) return;
     let alive = true;
     loadImage(cutoutUrl)
       .then((img) => {
@@ -233,7 +248,7 @@ export function ProfilbildEditor({
           if (alive) setCustomImage(img);
         })
         .catch(fail);
-    } else {
+    } else if (bg.kind === 'id') {
       const design = presetsRef.current.find((p) => p.id === bg.id);
       if (design)
         resolvePreset(design)
@@ -278,7 +293,14 @@ export function ProfilbildEditor({
 
   // A locale switch swaps the palette and the presets: a colour missing from the
   // new palette falls back to its first colour, a chosen preset is re-resolved.
-  const flatSwatches = [...colorSwatches, ...GRADIENT_SWATCHES];
+  const gradients = gradientSwatches(isAustria);
+  const flatSwatches = [
+    ...colorSwatches,
+    ...gradients,
+    ...(freeBackground
+      ? [{ id: FREE_BACKGROUND_ID, label: 'Eigene Farbe', background: freeBackground }]
+      : []),
+  ];
   const activeId =
     flatSwatches.some((s) => s.id === selected) ||
     presets.some((p) => p.id === selected) ||
@@ -313,6 +335,10 @@ export function ProfilbildEditor({
   const backgroundCanvas = useMemo(
     () => (background ? renderProfilbildBackground(background) : null),
     [background]
+  );
+  const backgroundPreview = useMemo(
+    () => (!cutoutUrl && backgroundCanvas ? backgroundCanvas.toDataURL('image/jpeg', 0.8) : null),
+    [cutoutUrl, backgroundCanvas]
   );
 
   const colorBackground = flat?.background.kind === 'color' ? flat.background.color : null;
@@ -600,7 +626,7 @@ export function ProfilbildEditor({
     }));
 
   const saveInputFor = (imageDataUrl: string): ProfilbildSaveInput | null =>
-    cutout && placement
+    cutout && placement && cutoutUrl
       ? {
           imageDataUrl,
           cutoutDataUrl: cutout.dataUrl ?? cutoutUrl,
@@ -608,7 +634,9 @@ export function ProfilbildEditor({
           background:
             activeId === CUSTOM_ID
               ? { kind: 'custom', ...customSource }
-              : { kind: 'id', id: activeId },
+              : activeId === FREE_BACKGROUND_ID && freeBackground
+                ? { kind: 'free', background: freeBackground }
+                : { kind: 'id', id: activeId },
           stickers: [...placedStickers(), ...unrestoredStickers.current],
         }
       : null;
@@ -619,6 +647,7 @@ export function ProfilbildEditor({
     placement,
     activeId,
     activeId === CUSTOM_ID ? [customUrl, customFile?.name, customFile?.size] : null,
+    activeId === FREE_BACKGROUND_ID ? freeBackground : null,
     stickers.map(({ id, x, y, width, height, rotation }) => [id, x, y, width, height, rotation]),
   ]);
   const ready = restored && !!cutout && !!placement && !!background;
@@ -674,7 +703,7 @@ export function ProfilbildEditor({
   };
 
   const editInCanvas = async () => {
-    if (canvasBusy || !cutout || !rect) return;
+    if (canvasBusy || !cutout || !rect || !cutoutUrl) return;
     setError(null);
     setCanvasBusy(true);
     try {
@@ -706,40 +735,44 @@ export function ProfilbildEditor({
   return (
     <div className="grid gap-lg md:grid-cols-[300px_1fr] md:items-start">
       <div className="mx-auto flex w-full max-w-[300px] flex-col gap-xs md:mx-0">
-        <div role="group" aria-label="Vorschau" className="flex gap-xs">
-          {VARIANTS.map((o) => (
-            <button
-              key={o.value}
-              type="button"
-              aria-pressed={variant === o.value}
-              onClick={() => setVariant(o.value)}
-              className={cn(TOOL_PILL, 'flex-1 px-sm')}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
+        {/* Format, Sticker und Export wirken erst mit einem Foto — bis dahin fehlen sie. */}
+        {cutoutUrl ? (
+          <div role="group" aria-label="Vorschau" className="flex gap-xs">
+            {VARIANTS.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                aria-pressed={variant === o.value}
+                onClick={() => setVariant(o.value)}
+                className={cn(TOOL_PILL, 'flex-1 px-sm')}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
 
-        {variant === 'instagram' ? (
-          cutout ? (
-            <InstagramPreview profileRef={igProfileRef} feedRef={igFeedRef} />
-          ) : null
+        {variant === 'instagram' && cutout ? (
+          <InstagramPreview profileRef={igProfileRef} feedRef={igFeedRef} />
         ) : (
           <>
-            {/* eslint-disable jsx-a11y/no-noninteractive-tabindex, jsx-a11y/no-noninteractive-element-interactions -- Tastatur-Ersatz für das Ziehen auf der Konva-Bühne; role="application" reicht Pfeiltasten am Screenreader vorbei durch */}
             <div
-              role="application"
-              tabIndex={0}
-              aria-label={
-                selectedSticker
-                  ? 'Sticker verschieben – Pfeiltasten, Entf löscht'
-                  : 'Person verschieben – Pfeiltasten'
-              }
-              aria-describedby={`${moveHintId} ${keysHintId}`}
-              onKeyDown={onEditorKey}
+              {...(cutoutUrl
+                ? {
+                    role: 'application',
+                    tabIndex: 0,
+                    'aria-label': selectedSticker
+                      ? 'Sticker verschieben – Pfeiltasten, Entf löscht'
+                      : 'Person verschieben – Pfeiltasten',
+                    'aria-describedby': `${moveHintId} ${keysHintId}`,
+                    onKeyDown: onEditorKey,
+                  }
+                : {})}
               className="aspect-square w-full overflow-hidden rounded-[14px] border border-grey-200 bg-grey-100 outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 dark:border-grey-700 dark:bg-grey-800"
             >
-              {cutout && rect && backgroundCanvas ? (
+              {!cutoutUrl ? (
+                <div className="relative size-full">{emptyStage?.(backgroundPreview)}</div>
+              ) : cutout && rect && backgroundCanvas ? (
                 <Suspense fallback={null}>
                   <ProfilbildStage
                     background={backgroundCanvas}
@@ -755,92 +788,96 @@ export function ProfilbildEditor({
                 </Suspense>
               ) : null}
             </div>
-            {/* eslint-enable jsx-a11y/no-noninteractive-tabindex, jsx-a11y/no-noninteractive-element-interactions */}
             <div aria-live="polite" className="sr-only">
               {announcement}
             </div>
-            <div className="flex items-start justify-between gap-sm">
-              <p id={moveHintId} className={cn(TOOL_HINT, 'flex-1 text-xs')}>
-                Person und Sticker ziehen – sie rasten an Mitte, Raster und Unterkante ein.
-              </p>
-              {selectedSticker ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="shrink-0"
-                  onClick={() => removeSticker(selectedSticker)}
-                >
-                  Sticker entfernen
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="shrink-0"
-                  disabled={!cutout}
-                  onClick={center}
-                >
-                  Zentrieren
-                </Button>
-              )}
-            </div>
-            <p id={keysHintId} className={cn(TOOL_HINT, 'hidden text-xs md:block')}>
-              Tastatur: Pfeile verschieben (Umschalt × 10), + / − Größe, [ / ] drehen, Entf löscht,
-              Esc hebt die Auswahl auf.
-            </p>
-            <div className="flex flex-col gap-xs">
-              <span id={layersId} className={cn(TOOL_LABEL, 'text-xs')}>
-                Ebenen
-              </span>
-              <ul aria-labelledby={layersId} className="m-0 flex list-none flex-col gap-xs p-0">
-                <li>
-                  <button
-                    ref={personLayerRef}
-                    type="button"
-                    aria-pressed={selectedSticker === null}
-                    disabled={!cutout}
-                    onClick={() => setSelectedSticker(null)}
-                    className={cn(TOOL_PILL, 'w-full justify-start')}
-                  >
-                    {PERSON}
-                  </button>
-                </li>
-                {stickers.map((st) => {
-                  const name = stickerNames.get(st.uid) ?? st.label;
-                  return (
-                    <li key={st.uid} className="flex items-center gap-xs">
+            {/* Verschieben, Ebenen und Tastatur gibt es erst mit einer Person auf der Bühne. */}
+            {cutoutUrl ? (
+              <>
+                <div className="flex items-start justify-between gap-sm">
+                  <p id={moveHintId} className={cn(TOOL_HINT, 'flex-1 text-xs')}>
+                    Person und Sticker ziehen – sie rasten an Mitte, Raster und Unterkante ein.
+                  </p>
+                  {selectedSticker ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="shrink-0"
+                      onClick={() => removeSticker(selectedSticker)}
+                    >
+                      Sticker entfernen
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="shrink-0"
+                      disabled={!cutout}
+                      onClick={center}
+                    >
+                      Zentrieren
+                    </Button>
+                  )}
+                </div>
+                <p id={keysHintId} className={cn(TOOL_HINT, 'hidden text-xs md:block')}>
+                  Tastatur: Pfeile verschieben (Umschalt × 10), + / − Größe, [ / ] drehen, Entf
+                  löscht, Esc hebt die Auswahl auf.
+                </p>
+                <div className="flex flex-col gap-xs">
+                  <span id={layersId} className={cn(TOOL_LABEL, 'text-xs')}>
+                    Ebenen
+                  </span>
+                  <ul aria-labelledby={layersId} className="m-0 flex list-none flex-col gap-xs p-0">
+                    <li>
                       <button
+                        ref={personLayerRef}
                         type="button"
-                        aria-pressed={selectedSticker === st.uid}
-                        onClick={() => setSelectedSticker(st.uid)}
-                        className={cn(TOOL_PILL, 'min-w-0 flex-1 justify-start truncate')}
+                        aria-pressed={selectedSticker === null}
+                        disabled={!cutout}
+                        onClick={() => setSelectedSticker(null)}
+                        className={cn(TOOL_PILL, 'w-full justify-start')}
                       >
-                        {name}
+                        {PERSON}
                       </button>
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="ghost"
-                        aria-label={`${name} entfernen`}
-                        className="shrink-0 max-md:size-11"
-                        onClick={() => {
-                          removeSticker(st.uid);
-                          announce(`${name} entfernt`);
-                          personLayerRef.current?.focus();
-                        }}
-                      >
-                        <PiTrash aria-hidden="true" />
-                      </Button>
                     </li>
-                  );
-                })}
-              </ul>
-            </div>
+                    {stickers.map((st) => {
+                      const name = stickerNames.get(st.uid) ?? st.label;
+                      return (
+                        <li key={st.uid} className="flex items-center gap-xs">
+                          <button
+                            type="button"
+                            aria-pressed={selectedSticker === st.uid}
+                            onClick={() => setSelectedSticker(st.uid)}
+                            className={cn(TOOL_PILL, 'min-w-0 flex-1 justify-start truncate')}
+                          >
+                            {name}
+                          </button>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            aria-label={`${name} entfernen`}
+                            className="shrink-0 max-md:size-11"
+                            onClick={() => {
+                              removeSticker(st.uid);
+                              announce(`${name} entfernt`);
+                              personLayerRef.current?.focus();
+                            }}
+                          >
+                            <PiTrash aria-hidden="true" />
+                          </Button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              </>
+            ) : null}
           </>
         )}
-        <p className={cn(TOOL_HINT, 'text-xs')}>{VARIANT_HINTS[variant]}</p>
+        {cutoutUrl ? <p className={cn(TOOL_HINT, 'text-xs')}>{VARIANT_HINTS[variant]}</p> : null}
       </div>
 
       <div className={cn(TOOL_PANEL, 'flex min-w-0 flex-col gap-lg')}>
@@ -848,6 +885,13 @@ export function ProfilbildEditor({
           <legend className={cn(TOOL_LABEL, 'mb-sm')}>Hintergrund</legend>
           <ProfilbildBackgroundPicker
             colors={colorSwatches}
+            gradients={gradients}
+            freeBackground={freeBackground}
+            onSelectFree={(bg) => {
+              backgroundRequest.current++;
+              setFreeBackground(bg);
+              setSelected(FREE_BACKGROUND_ID);
+            }}
             presets={presets}
             selected={activeId}
             customImageSrc={customImage?.src ?? null}
@@ -880,68 +924,83 @@ export function ProfilbildEditor({
           />
         </fieldset>
 
-        <fieldset className="m-0 flex min-w-0 flex-col gap-sm border-0 p-0">
-          <legend className={cn(TOOL_LABEL, 'mb-sm')}>Sticker</legend>
-          <ProfilbildStickerPicker
-            locale={isAustria ? 'de-AT' : 'de-DE'}
-            disabled={!cutout}
-            onAddSystem={(st) => void addSticker(st)}
-            onAddAsset={(item) => void addGallerySticker(item)}
-          />
-          {stickers.length > 0 ? (
-            <p className={cn(TOOL_HINT, 'text-xs')}>
-              Sticker antippen zum Auswählen – Ecken ziehen zum Vergrößern und Drehen.
+        {cutoutUrl ? (
+          <fieldset className="m-0 flex min-w-0 flex-col gap-sm border-0 p-0">
+            <legend className={cn(TOOL_LABEL, 'mb-sm')}>Sticker</legend>
+            <ProfilbildStickerPicker
+              locale={isAustria ? 'de-AT' : 'de-DE'}
+              disabled={!cutout}
+              onAddSystem={(st) => void addSticker(st)}
+              onAddAsset={(item) => void addGallerySticker(item)}
+            />
+            {stickers.length > 0 ? (
+              <p className={cn(TOOL_HINT, 'text-xs')}>
+                Sticker antippen zum Auswählen – Ecken ziehen zum Vergrößern und Drehen.
+              </p>
+            ) : null}
+          </fieldset>
+        ) : null}
+
+        {cutoutUrl ? (
+          <div className="flex flex-col gap-xs">
+            <label htmlFor={sizeId} className={cn(TOOL_LABEL, 'flex justify-between')}>
+              Größe der Person{' '}
+              <span className="font-normal tabular-nums text-grey-600 dark:text-grey-400">
+                {scalePct} %
+              </span>
+            </label>
+            <input
+              id={sizeId}
+              type="range"
+              min={70}
+              max={100}
+              value={scalePct}
+              disabled={!placement}
+              onChange={(e) => {
+                const next = Number(e.target.value) / 100;
+                if (cutout) setPlacement((p) => (p ? rescalePlacement(cutout.image, p, next) : p));
+              }}
+              className="h-11 w-full cursor-pointer accent-primary-600 md:h-6"
+            />
+          </div>
+        ) : null}
+
+        {cutoutUrl ? (
+          <>
+            <div className={TOOL_ACTIONS}>
+              <Button
+                type="button"
+                variant="brand"
+                disabled={!cutout}
+                onClick={() => void download()}
+              >
+                Herunterladen
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={canvasBusy || !cutout}
+                onClick={() => void editInCanvas()}
+              >
+                {canvasBusy ? 'Canvas wird geöffnet …' : 'In Canvas bearbeiten'}
+              </Button>
+              {cutoutUrl ? (
+                <Button type="button" variant="ghost" className="sm:ml-auto" onClick={onReset}>
+                  Anderes Foto
+                </Button>
+              ) : null}
+            </div>
+            <p role="status" className={cn(TOOL_HINT, '-mt-sm text-xs')}>
+              {SAVE_STATUS[saveState]}
             </p>
-          ) : null}
-        </fieldset>
 
-        <div className="flex flex-col gap-xs">
-          <label htmlFor={sizeId} className={cn(TOOL_LABEL, 'flex justify-between')}>
-            Größe der Person{' '}
-            <span className="font-normal tabular-nums text-grey-600 dark:text-grey-400">
-              {scalePct} %
-            </span>
-          </label>
-          <input
-            id={sizeId}
-            type="range"
-            min={70}
-            max={100}
-            value={scalePct}
-            disabled={!placement}
-            onChange={(e) => {
-              const next = Number(e.target.value) / 100;
-              if (cutout) setPlacement((p) => (p ? rescalePlacement(cutout.image, p, next) : p));
-            }}
-            className="h-11 w-full cursor-pointer accent-primary-600 md:h-6"
-          />
-        </div>
-
-        <div className={TOOL_ACTIONS}>
-          <Button type="button" variant="brand" disabled={!cutout} onClick={() => void download()}>
-            Herunterladen
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={canvasBusy || !cutout}
-            onClick={() => void editInCanvas()}
-          >
-            {canvasBusy ? 'Canvas wird geöffnet …' : 'In Canvas bearbeiten'}
-          </Button>
-          <Button type="button" variant="ghost" className="sm:ml-auto" onClick={onReset}>
-            Anderes Foto
-          </Button>
-        </div>
-        <p role="status" className={cn(TOOL_HINT, '-mt-sm text-xs')}>
-          {SAVE_STATUS[saveState]}
-        </p>
-
-        {flattenForCanvas ? (
-          <p className={cn(TOOL_HINT, '-mt-sm text-xs')}>
-            Im Canvas wird das Bild als Ganzes übernommen – Person und Sticker sind dort nicht mehr
-            einzeln verschiebbar.
-          </p>
+            {flattenForCanvas ? (
+              <p className={cn(TOOL_HINT, '-mt-sm text-xs')}>
+                Im Canvas wird das Bild als Ganzes übernommen – Person und Sticker sind dort nicht
+                mehr einzeln verschiebbar.
+              </p>
+            ) : null}
+          </>
         ) : null}
 
         {error ? (

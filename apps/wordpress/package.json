@@ -33,6 +33,6 @@
     "@wordpress/block-editor": "^15.23.0",
     "@wordpress/blocks": "^15.27.0",
     "@wordpress/components": "^32.6.0",
-    "@wordpress/i18n": "^6.29.0"
+    "@wordpress/i18n": "^6.30.0"
   }
 }
