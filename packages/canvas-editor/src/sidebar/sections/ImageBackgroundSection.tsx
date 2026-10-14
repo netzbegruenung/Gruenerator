@@ -2,7 +2,15 @@ import { shareCanvasPreviewUrl, shareThumbnailPreviewUrl } from '@gruenerator/sh
 import { MediaThumb } from '@gruenerator/shared/media-library/ui';
 import { isShareSrc } from '@gruenerator/shared/stickers';
 import { MasonryGrid, MasonryItem, Switch } from '@gruenerator/ui';
-import { useState, useEffect, useCallback, useRef, type ChangeEvent, type ReactNode } from 'react';
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  type ChangeEvent,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 import { FaCheck } from 'react-icons/fa';
 import { HiAdjustments, HiColorSwatch } from 'react-icons/hi';
 import { HiArrowUpTray, HiMagnifyingGlass, HiPhoto, HiSquares2X2, HiXMark } from 'react-icons/hi2';
@@ -52,6 +60,28 @@ async function fetchShareImageFile(url: string, filename: string): Promise<File>
   // Same cap as persistImageSelection: this File backs the auto-save
   // `originalImage`, so it should be the working size, not the raw original.
   return downscaleImageForUpload(rawFile);
+}
+
+/**
+ * One pick sequence for both background panels: only the newest pick, from
+ * either "Bilder" or "Hintergründe", may change the background.
+ */
+interface BackgroundPick {
+  seqRef: RefObject<number>;
+  pendingId: string | null;
+  setPendingId: (id: string | null) => void;
+  begin: (id: string | null) => number;
+}
+
+function useBackgroundPick(): BackgroundPick {
+  const seqRef = useRef(0);
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const begin = useCallback((id: string | null) => {
+    seqRef.current += 1;
+    setPendingId(id);
+    return seqRef.current;
+  }, []);
+  return { seqRef, pendingId, setPendingId, begin };
 }
 
 function PickPending() {
@@ -114,7 +144,10 @@ function SearchContent({
   currentImageSrc,
   onImageChange,
   onActivateImage,
-}: Pick<ImageBackgroundSectionProps, 'currentImageSrc' | 'onImageChange' | 'onActivateImage'>) {
+  pick,
+}: Pick<ImageBackgroundSectionProps, 'currentImageSrc' | 'onImageChange' | 'onActivateImage'> & {
+  pick: BackgroundPick;
+}) {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [pickError, setPickError] = useState<string | null>(null);
@@ -125,14 +158,19 @@ function SearchContent({
   // while it's still active.
   // Picks resolve asynchronously; only the newest one may change the
   // background, and its tile shows a spinner until it has.
-  const pickSeqRef = useRef(0);
-  const [pendingPickId, setPendingPickId] = useState<string | null>(null);
-  const beginPick = useCallback((id: string | null) => {
-    pickSeqRef.current += 1;
-    setPendingPickId(id);
-    setPickError(null);
-    return pickSeqRef.current;
-  }, []);
+  const {
+    seqRef: pickSeqRef,
+    pendingId: pendingPickId,
+    setPendingId: setPendingPickId,
+    begin,
+  } = pick;
+  const beginPick = useCallback(
+    (id: string | null) => {
+      setPickError(null);
+      return begin(id);
+    },
+    [begin]
+  );
 
   const {
     items: uploadItems,
@@ -200,7 +238,7 @@ function SearchContent({
         if (isCurrent()) setPendingPickId(null);
       }
     },
-    [applyLibraryImage, beginPick]
+    [applyLibraryImage, beginPick, pickSeqRef, setPendingPickId]
   );
 
   // A new file goes into the library first (like the Uploads tab), so the
@@ -270,7 +308,15 @@ function SearchContent({
         setPickError(message);
       }
     },
-    [onImageChange, fetchUnsplashImageAsFile, trackUnsplashDownloadLive, uploadImage, beginPick]
+    [
+      onImageChange,
+      fetchUnsplashImageAsFile,
+      trackUnsplashDownloadLive,
+      uploadImage,
+      beginPick,
+      pickSeqRef,
+      setPendingPickId,
+    ]
   );
 
   // Tapping the earlier photo swaps its button for the selected tile; focus
@@ -657,20 +703,20 @@ function SearchContent({
 function GalleryBackgroundsContent({
   currentImageSrc,
   onImageChange,
-}: Pick<ImageBackgroundSectionProps, 'currentImageSrc' | 'onImageChange'>) {
+  pick,
+}: Pick<ImageBackgroundSectionProps, 'currentImageSrc' | 'onImageChange'> & {
+  pick: BackgroundPick;
+}) {
   const isMobile = useIsCanvasMobile();
   const [scope, setScope] = useState<StudioAssetScope>('shop');
-  const [pendingId, setPendingId] = useState<string | null>(null);
   const [pickError, setPickError] = useState<string | null>(null);
-  const pickSeqRef = useRef(0);
+  const { seqRef, pendingId, setPendingId, begin } = pick;
 
   const handlePick = async (item: StudioAssetItem) => {
     if (!isShareSrc(item.src)) return;
-    pickSeqRef.current += 1;
-    const seq = pickSeqRef.current;
-    const isCurrent = () => seq === pickSeqRef.current;
-    setPendingId(item.id);
     setPickError(null);
+    const seq = begin(item.id);
+    const isCurrent = () => seq === seqRef.current;
     try {
       const file = await fetchShareImageFile(item.src, item.title);
       if (isCurrent()) onImageChange(file, item.src, null);
@@ -689,7 +735,7 @@ function GalleryBackgroundsContent({
       )}
     >
       {!isMobile && (
-        <h3 className="m-0 text-xs font-semibold uppercase tracking-wide text-foreground-muted">
+        <h3 className="m-0 text-xs font-semibold uppercase tracking-wide text-[var(--editor-text-muted)]">
           Hintergründe
         </h3>
       )}
@@ -702,7 +748,7 @@ function GalleryBackgroundsContent({
       {pickError && (
         <div
           role="alert"
-          className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-md px-2 py-1"
+          className="text-xs text-[var(--editor-danger-fg)] bg-[var(--editor-danger-bg)] rounded-md px-2 py-1"
         >
           {pickError}
         </div>
@@ -797,6 +843,7 @@ export function ImageBackgroundSection({
   onActivateImage,
 }: ImageBackgroundSectionProps) {
   const [defaultSubsection] = useState(initialSubsection);
+  const pick = useBackgroundPick();
   const hasAdjustments =
     (scale !== undefined && onScaleChange !== undefined) ||
     (gradientOpacity !== undefined && onGradientOpacityChange !== undefined) ||
@@ -817,6 +864,7 @@ export function ImageBackgroundSection({
           currentImageSrc={currentImageSrc}
           onImageChange={onImageChange}
           onActivateImage={onActivateImage}
+          pick={pick}
         />
       ),
     },
@@ -829,6 +877,7 @@ export function ImageBackgroundSection({
           // A kept-but-hidden photo (onActivateImage) is not the background.
           {...(onActivateImage ? {} : { currentImageSrc })}
           onImageChange={onImageChange}
+          pick={pick}
         />
       ),
     },

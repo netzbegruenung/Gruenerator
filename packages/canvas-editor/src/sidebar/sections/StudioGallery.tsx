@@ -3,6 +3,7 @@ import {
   type StudioAssetKind,
   type StudioAssetScope,
 } from '@gruenerator/contracts';
+import { shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
 import { useStudioAssets } from '@gruenerator/shared/studio-assets';
 import { useEffect, useRef } from 'react';
 
@@ -139,7 +140,7 @@ export function StudioGalleryGrid({
             )}
           >
             <img
-              src={item.thumbUrl ?? item.src}
+              src={item.thumbUrl ?? shareThumbnailPreviewUrl(item.src, 200)}
               alt=""
               loading="lazy"
               className={kind === 'sticker' ? 'size-full object-contain' : 'size-full object-cover'}

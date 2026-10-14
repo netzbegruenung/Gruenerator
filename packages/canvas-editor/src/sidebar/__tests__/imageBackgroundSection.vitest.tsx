@@ -453,6 +453,48 @@ describe.each([true, false])('gallery backgrounds (mobile: %s)', (mobile) => {
     expect(gallery.filters.at(-1)).toMatchObject({ kind: 'background', scope: 'saved' });
   });
 
+  it('shows the gallery preview, not the full download, as the tile image', async () => {
+    render(<ImageBackgroundSection onImageChange={() => {}} />);
+    await openGallery();
+    const tile = screen.getByRole('button', { name: 'Waldlichtung als Hintergrund verwenden' });
+    expect(tile.querySelector('img')?.getAttribute('src')).toBe(
+      `/api/share/${TOKEN}/preview?w=200&fmt=webp`
+    );
+  });
+
+  it.skipIf(mobile)('lets a later "Bilder" pick win over a slow gallery pick', async () => {
+    library.items = [libraryItem()];
+    let finishGallery: (r: Response) => void = () => {};
+    fetchMock.mockImplementationOnce(
+      () =>
+        new Promise<Response>((r) => {
+          finishGallery = r;
+        })
+    );
+    const onImageChange = vi.fn();
+    try {
+      render(<ImageBackgroundSection onImageChange={onImageChange} />);
+      await userEvent.click(
+        screen.getByRole('button', { name: 'Waldlichtung als Hintergrund verwenden' })
+      );
+      await userEvent.click(screen.getByTitle('eigen.png'));
+      await waitFor(() => expect(onImageChange).toHaveBeenCalledTimes(1));
+      expect(onImageChange.mock.calls[0]![1]).toBe('/api/share/tok1/download');
+
+      finishGallery({
+        ok: true,
+        blob: () => Promise.resolve(new Blob(['webp'], { type: 'image/webp' })),
+      } as Response);
+      await new Promise((r) => setTimeout(r, 0));
+      expect(onImageChange).toHaveBeenCalledTimes(1);
+      expect(
+        screen.getByRole('button', { name: 'Waldlichtung als Hintergrund verwenden' })
+      ).toHaveAttribute('aria-busy', 'false');
+    } finally {
+      library.items = [];
+    }
+  });
+
   it('reports a failed load and leaves the background alone', async () => {
     fetchMock.mockResolvedValue({ ok: false, status: 404 } as Response);
     const onImageChange = vi.fn();
