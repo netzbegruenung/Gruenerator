@@ -8,6 +8,7 @@ import {
   type SystemSticker,
 } from '../stickers/catalog.js';
 
+import { parseFreeBackground, type FreeBackground } from './backgrounds.js';
 import { type PersonPlacement } from './geometry.js';
 
 /** `shared_media.image_type` of a saved Profilbild — already classified as a sharepic. */
@@ -20,7 +21,12 @@ export type SavedProfilbildBackground =
   /** A swatch or preset id; an id the viewer's locale lacks falls back to its first colour. */
   | { kind: 'id'; id: string }
   /** The person's own photo, uploaded to the media store; a `/api/share/<token>/download` path. */
-  | { kind: 'custom'; url: string };
+  | { kind: 'custom'; url: string }
+  /**
+   * A freely chosen colour or two-colour gradient. Added 10/2026: binaries older
+   * than that read a Profilbild with it as not reopenable.
+   */
+  | { kind: 'free'; background: FreeBackground };
 
 export interface SavedProfilbildSticker {
   id: SystemSticker['id'] | AssetStickerId;
@@ -49,8 +55,12 @@ const STICKER_IDS = new Set<string>(SYSTEM_STICKERS.map((s) => s.id));
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 
 function parseBackground(raw: unknown): SavedProfilbildBackground | null {
-  const bg = raw as { kind?: unknown; id?: unknown; url?: unknown } | null;
+  const bg = raw as { kind?: unknown; id?: unknown; url?: unknown; background?: unknown } | null;
   if (bg?.kind === 'id' && typeof bg.id === 'string') return { kind: 'id', id: bg.id };
+  if (bg?.kind === 'free') {
+    const free = parseFreeBackground(bg.background);
+    return free ? { kind: 'free', background: free } : null;
+  }
   if (bg?.kind === 'custom' && typeof bg.url === 'string' && isShareSrc(bg.url))
     return { kind: 'custom', url: bg.url };
   return null;

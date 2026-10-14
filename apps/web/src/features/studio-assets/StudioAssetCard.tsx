@@ -61,7 +61,7 @@ export const StudioAssetCard = memo(function StudioAssetCard({
     item.isOwn && item.moderation !== 'ok' ? STUDIO_ASSET_MODERATION_BADGE[item.moderation] : null;
 
   return (
-    <article className={cn(galleryCard, 'cursor-default')} aria-label={item.title}>
+    <article className={cn(galleryCard, 'group cursor-default')} aria-label={item.title}>
       <div
         className={cn(
           'relative flex aspect-square w-full items-center justify-center overflow-hidden',
@@ -79,7 +79,13 @@ export const StudioAssetCard = memo(function StudioAssetCard({
           )}
         />
 
-        <div className={overlayRow}>
+        {/* Aktionen erst beim Überfahren oder Fokussieren — auf Touch-Geräten immer. */}
+        <div
+          className={cn(
+            overlayRow,
+            'opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100 has-[[data-state=open]]:opacity-100 [@media(hover:none)]:opacity-100'
+          )}
+        >
           <button
             type="button"
             onClick={() => onToggleLike(item)}
@@ -155,37 +161,45 @@ export const StudioAssetCard = memo(function StudioAssetCard({
         </div>
       </div>
 
-      <div className="flex flex-col gap-1.5 px-4 pt-3 pb-3.5">
-        <h3
-          className="truncate text-[0.9375rem] font-semibold text-foreground-heading"
-          title={item.title}
-        >
-          {item.title}
-        </h3>
-        <div className="flex min-w-0 items-center gap-2 text-sm text-grey-600 dark:text-grey-400">
-          <span className="truncate">
-            {item.isOwn ? 'Von dir' : (item.authorName ?? 'Unbekannt')}
-          </span>
-          {item.isOwn && (
-            <Badge variant="outline" className="ml-auto shrink-0">
-              {item.visibility === 'public' ? 'Öffentlich' : 'Privat'}
-            </Badge>
-          )}
-          {moderation && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span
-                  // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Tooltip-Auslöser muss per Tastatur erreichbar sein
-                  tabIndex={0}
-                  className="shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary-600"
-                >
-                  <Badge variant="destructive">{moderation.label}</Badge>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-64">{moderation.hint}</TooltipContent>
-            </Tooltip>
+      <div className="flex min-w-0 items-center gap-2 px-3.5 py-3">
+        <div className="min-w-0 flex-1">
+          <h3
+            className="truncate text-[0.9375rem] font-semibold text-foreground-heading"
+            title={item.title}
+          >
+            {item.title}
+          </h3>
+          {!item.isOwn && (
+            <p className="m-0 truncate text-sm text-grey-600 dark:text-grey-400">
+              {item.authorName ?? 'Unbekannt'}
+            </p>
           )}
         </div>
+        {moderation ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span
+                // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Tooltip-Auslöser muss per Tastatur erreichbar sein
+                tabIndex={0}
+                className="shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary-600"
+              >
+                <Badge variant="destructive">{moderation.label}</Badge>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-64">{moderation.hint}</TooltipContent>
+          </Tooltip>
+        ) : (
+          item.isOwn &&
+          (item.visibility === 'public' ? (
+            <Globe className="size-4 shrink-0 text-grey-500" aria-label="Öffentlich" role="img">
+              <title>Öffentlich</title>
+            </Globe>
+          ) : (
+            <Lock className="size-4 shrink-0 text-grey-500" aria-label="Privat" role="img">
+              <title>Privat</title>
+            </Lock>
+          ))
+        )}
       </div>
     </article>
   );

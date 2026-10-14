@@ -24,13 +24,22 @@ vi.mock('@gruenerator/ui', async () => {
   const actual = await vi.importActual('@gruenerator/ui');
   return {
     ...actual,
-    UploadZone: ({ onFileSelected }: { onFileSelected: (f: File) => void }) => (
-      <button
-        type="button"
-        onClick={() => onFileSelected(new File(['x'], 'a.png', { type: 'image/png' }))}
-      >
-        upload
-      </button>
+    UploadZone: ({
+      onFileSelected,
+      subtitle,
+    }: {
+      onFileSelected: (f: File) => void;
+      subtitle?: string;
+    }) => (
+      <>
+        <button
+          type="button"
+          onClick={() => onFileSelected(new File(['x'], 'a.png', { type: 'image/png' }))}
+        >
+          upload
+        </button>
+        <p>{subtitle}</p>
+      </>
     ),
   };
 });
@@ -114,7 +123,7 @@ vi.mock('react-konva', () => {
 vi.mock('../utils/composeProfilbild', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   composeProfilbild: vi.fn(() => ({ toDataURL: () => 'data:image/png;base64,OUT' })),
-  renderProfilbildBackground: vi.fn(() => ({})),
+  renderProfilbildBackground: vi.fn(() => ({ toDataURL: () => 'data:image/jpeg;base64,BG' })),
   trimCutout: vi.fn((image: unknown) => ({ image, dataUrl: 'data:image/png;base64,TRIM' })),
   loadImage: vi.fn((src: string) => Promise.resolve({ src, width: 600, height: 800 })),
 }));
@@ -446,6 +455,18 @@ describe('ProfilbildPage', () => {
     expect(lastBackground()).toEqual({ kind: 'color', color: '#005538' });
   });
 
+  it('opens straight into the editor, with the upload on the stage', async () => {
+    renderPage();
+    expect(screen.getByText('upload')).toBeTruthy();
+    fireEvent.click(await screen.findByRole('button', { name: 'Klee' }));
+    expect(lastBackground()).toEqual({ kind: 'color', color: '#46962b' });
+    // Was ohne Foto nichts tut, steht noch nicht da.
+    for (const name of ['Herunterladen', 'Anderes Foto', 'Rund', 'Sticker Teamgrün hinzufügen'])
+      expect(screen.queryByRole('button', { name })).toBeNull();
+    expect(screen.queryByRole('group', { name: 'Grüne Sticker' })).toBeNull();
+    expect(screen.queryByLabelText(/Größe der Person/)).toBeNull();
+  });
+
   it('falls back to the upload when the handoff slot is empty (reload)', async () => {
     renderPage(PROFILBILD_HANDOFF_STATE);
     expect(await screen.findByText('upload')).toBeTruthy();
@@ -473,7 +494,6 @@ describe('ProfilbildPage', () => {
     renderHandoff();
     await screen.findByRole('button', { name: 'Tanne' });
     expect(screen.queryByText(/als Ganzes übernommen/)).toBeNull();
-    openTab('Verläufe');
     fireEvent.click(screen.getByRole('button', { name: 'Verlauf Himmel zu Tanne' }));
     expect(
       screen.getByText(
@@ -510,17 +530,14 @@ describe('ProfilbildPage', () => {
       within(screen.getByRole('tablist', { name: 'Hintergrund-Art' }))
         .getAllByRole('tab')
         .map((t) => t.textContent)
-    ).toEqual(['Vollfarben', 'Verläufe', 'Vorlagen', 'Galerie', 'Eigenes Bild']);
-    expect(
-      within(screen.getByRole('tablist', { name: 'Sticker-Auswahl' }))
-        .getAllByRole('tab')
-        .map((t) => t.textContent)
-    ).toEqual(['Grüne', 'Entdecken', 'Meine', 'Gemerkt']);
-    openTab('Verläufe');
+    ).toEqual(['Farben', 'Vorlagen', 'Deine']);
+    // Sticker haben keine Reiter mehr; Vollfarben und Verläufe stehen zusammen unter „Farben“.
+    expect(screen.queryByRole('tablist', { name: 'Sticker-Auswahl' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Verlauf Tanne zu Klee' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Klee' })).toBeNull();
-    openTab('Eigenes Bild');
+    openTab('Deine');
     expect(screen.getByRole('button', { name: 'Bild hochladen' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Hintergründe entdecken' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Klee' })).toBeNull();
   });
 
   it('re-renders with the clicked swatch and marks it pressed', async () => {
@@ -534,7 +551,6 @@ describe('ProfilbildPage', () => {
     );
     expect(lastBackground()).toEqual({ kind: 'color', color: '#46962b' });
 
-    openTab('Verläufe');
     fireEvent.click(screen.getByRole('button', { name: 'Verlauf Himmel zu Tanne' }));
     expect(lastBackground()).toMatchObject({ kind: 'gradient' });
   });
@@ -591,7 +607,6 @@ describe('ProfilbildPage', () => {
     vi.mocked(mintProfilbildCanvas).mockResolvedValue({ id: 'c2' } as never);
     renderHandoff();
     await screen.findByTestId('konva-stage');
-    openTab('Verläufe');
     fireEvent.click(screen.getByRole('button', { name: 'Verlauf Himmel zu Tanne' }));
     mockCompose.mockClear();
     fireEvent.click(screen.getByRole('button', { name: 'In Canvas bearbeiten' }));
@@ -728,7 +743,7 @@ describe('ProfilbildPage', () => {
     const tile = screen.getByRole('button', { name: 'Sand mit grüner Sonnenblume' });
     fireEvent.click(tile);
 
-    openTab('Vollfarben');
+    openTab('Farben');
     const klee = screen.getByRole('button', { name: 'Klee' });
     fireEvent.click(klee);
     await act(async () => release({ src: '/sonnenblume_gruen.png', width: 10, height: 10 }));
@@ -922,12 +937,20 @@ describe('ProfilbildPage', () => {
       listOnly(galleryItem());
       renderHandoff();
       await screen.findByTestId('konva-stage');
-      openTab('Entdecken', 'Sticker-Auswahl');
-      fireEvent.click(await screen.findByRole('button', { name: 'Sonnenblume' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Sticker entdecken' }));
+      const popup = await screen.findByRole('dialog', { name: 'Sticker entdecken' });
+      const queried = () =>
+        share.listAssets.mock.calls.map(
+          ([arg]) => (arg as { query: { kind: string; scope: string } }).query
+        );
+      await waitFor(() =>
+        expect(queried()).toContainEqual(
+          expect.objectContaining({ kind: 'sticker', scope: 'shop' }) as unknown
+        )
+      );
+      fireEvent.click(await within(popup).findByRole('button', { name: 'Sonnenblume' }));
       await screen.findByRole('button', { name: 'Sonnenblume entfernen' });
-      expect(share.listAssets.mock.calls[0]?.[0]).toMatchObject({
-        query: { kind: 'sticker', scope: 'shop' },
-      });
+      expect(screen.queryByRole('dialog', { name: 'Sticker entdecken' })).toBeNull();
       expect(share.apiGet).toHaveBeenCalledWith(
         '/share/0123456789abcdef0123456789abcdef/download',
         {
@@ -948,7 +971,7 @@ describe('ProfilbildPage', () => {
       listOnly(galleryItem({ kind: 'background', title: 'Wiese' }));
       renderHandoff();
       await screen.findByTestId('konva-stage');
-      openTab('Galerie', 'Hintergrund-Art');
+      openTab('Deine', 'Hintergrund-Art');
       const tile = await screen.findByRole('button', { name: 'Wiese' });
       expect(tile.getAttribute('aria-pressed')).toBe('false');
       fireEvent.click(tile);
@@ -1025,7 +1048,7 @@ describe('ProfilbildPage', () => {
         target: { files: [photo] },
       });
       await waitFor(() => expect(lastBackground()).toMatchObject({ kind: 'image' }));
-      openTab('Eigenes Bild', 'Hintergrund-Art');
+      openTab('Deine', 'Hintergrund-Art');
       fireEvent.click(screen.getByRole('button', { name: 'Im Bereich „Entdecken“ teilen' }));
 
       const dialog = await screen.findByRole('dialog', { name: 'Hintergrund teilen' });

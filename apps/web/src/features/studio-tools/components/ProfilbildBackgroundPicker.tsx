@@ -1,16 +1,19 @@
-import { type StudioAssetScope } from '@gruenerator/contracts';
-import { GRADIENT_SWATCHES, type PresetDesign, type Swatch } from '@gruenerator/shared/profilbild';
-import { STUDIO_ASSET_SCOPES } from '@gruenerator/shared/studio-assets';
+import {
+  FREE_BACKGROUND_ID,
+  type FreeBackground,
+  type PresetDesign,
+  type Swatch,
+} from '@gruenerator/shared/profilbild';
 import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from '@gruenerator/ui';
 import { useState } from 'react';
+import { PiUploadSimple } from 'react-icons/pi';
 
 import { type GalleryAsset } from '../utils/galleryAsset';
 import { flatCss } from '../utils/profilbildBackgrounds';
 
+import { ProfilbildDiscoverButton } from './ProfilbildDiscoverDialog';
+import { ProfilbildFreeColor } from './ProfilbildFreeColor';
 import { ProfilbildGalleryGrid } from './ProfilbildGalleryGrid';
-import { TOOL_PILL } from './ToolUi';
-
-import { cn } from '@/utils/cn';
 
 export const TAB_CLS =
   'h-9 flex-none rounded-full border border-grey-200 px-md text-sm font-semibold text-foreground max-md:h-11 dark:border-grey-700 ' +
@@ -20,14 +23,22 @@ const RING =
   'outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 aria-pressed:ring-2 aria-pressed:ring-primary-600 aria-pressed:ring-offset-2';
 
 const SWATCH_CLASS = `size-11 shrink-0 cursor-pointer rounded-full border border-grey-300 dark:border-grey-600 ${RING}`;
-const TILE_CLASS = `relative size-16 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-grey-300 dark:border-grey-600 ${RING}`;
+export const TILE_CLASS = `relative size-16 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-grey-300 dark:border-grey-600 ${RING}`;
 
 export const CUSTOM_ID = 'eigenes-bild';
 
-type Category = 'farben' | 'verlaeufe' | 'vorlagen' | 'entdecken' | 'eigenes';
+/** Leere Kachel für Aktionen in einer Auswahlreihe — Hochladen, Entdecken. */
+export const ACTION_TILE_CLASS =
+  'flex size-16 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-dashed border-grey-300 text-grey-600 outline-none transition-colors hover:border-primary-500 focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-grey-600 dark:text-grey-300';
+
+type Category = 'farben' | 'vorlagen' | 'deine';
 
 export interface ProfilbildBackgroundPickerProps {
   colors: Swatch[];
+  /** Die Verläufe des Landes-CD. */
+  gradients: Swatch[];
+  freeBackground: FreeBackground | null;
+  onSelectFree: (bg: FreeBackground) => void;
   presets: PresetDesign[];
   selected: string;
   customImageSrc: string | null;
@@ -43,6 +54,9 @@ export interface ProfilbildBackgroundPickerProps {
 
 export function ProfilbildBackgroundPicker({
   colors,
+  gradients,
+  freeBackground,
+  onSelectFree,
   presets,
   selected,
   customImageSrc,
@@ -53,16 +67,19 @@ export function ProfilbildBackgroundPicker({
   onUpload,
   onShareCustom,
 }: ProfilbildBackgroundPickerProps) {
-  const [galleryScope, setGalleryScope] = useState<StudioAssetScope>('shop');
   const [tab, setTab] = useState<Category>(() =>
-    GRADIENT_SWATCHES.some((s) => s.id === selected)
-      ? 'verlaeufe'
-      : presets.some((p) => p.id === selected)
-        ? 'vorlagen'
-        : selected === CUSTOM_ID
-          ? 'eigenes'
-          : 'farben'
+    presets.some((p) => p.id === selected)
+      ? 'vorlagen'
+      : selected === CUSTOM_ID
+        ? 'deine'
+        : 'farben'
   );
+
+  // Die CD-Farben des Landes als Schnellwahl im freien Farbwähler.
+  const palette = colors.flatMap((s) =>
+    s.background.kind === 'color' ? [{ hex: s.background.color, label: s.label }] : []
+  );
+  const freeSelected = selected === FREE_BACKGROUND_ID ? freeBackground : null;
 
   const renderSwatch = (s: Swatch) => (
     <button
@@ -84,28 +101,39 @@ export function ProfilbildBackgroundPicker({
         className="flex-wrap justify-start gap-xs bg-transparent p-0 group-data-[orientation=horizontal]/tabs:h-auto"
       >
         <TabsTrigger value="farben" className={TAB_CLS}>
-          Vollfarben
-        </TabsTrigger>
-        <TabsTrigger value="verlaeufe" className={TAB_CLS}>
-          Verläufe
+          Farben
         </TabsTrigger>
         <TabsTrigger value="vorlagen" className={TAB_CLS}>
           Vorlagen
         </TabsTrigger>
-        <TabsTrigger value="entdecken" className={TAB_CLS}>
-          Galerie
-        </TabsTrigger>
-        <TabsTrigger value="eigenes" className={TAB_CLS}>
-          Eigenes Bild
+        <TabsTrigger value="deine" className={TAB_CLS}>
+          Deine
         </TabsTrigger>
       </TabsList>
 
-      <TabsContent value="farben" className="flex flex-wrap gap-sm p-1 pt-sm">
-        {colors.map(renderSwatch)}
-      </TabsContent>
-
-      <TabsContent value="verlaeufe" className="flex flex-wrap gap-sm p-1 pt-sm">
-        {GRADIENT_SWATCHES.map(renderSwatch)}
+      <TabsContent value="farben" className="flex flex-col gap-sm p-1 pt-sm">
+        <div role="group" aria-label="Vollfarben" className="flex flex-wrap gap-sm">
+          {colors.map(renderSwatch)}
+          <ProfilbildFreeColor
+            mode="color"
+            value={freeBackground?.kind === 'color' ? freeBackground : null}
+            pressed={freeSelected?.kind === 'color'}
+            palette={palette}
+            tileClassName={SWATCH_CLASS}
+            onChange={onSelectFree}
+          />
+        </div>
+        <div role="group" aria-label="Verläufe" className="flex flex-wrap gap-sm">
+          {gradients.map(renderSwatch)}
+          <ProfilbildFreeColor
+            mode="gradient"
+            value={freeBackground?.kind === 'gradient' ? freeBackground : null}
+            pressed={freeSelected?.kind === 'gradient'}
+            palette={palette}
+            tileClassName={SWATCH_CLASS}
+            onChange={onSelectFree}
+          />
+        </div>
       </TabsContent>
 
       <TabsContent value="vorlagen" className="flex flex-wrap gap-sm p-1 pt-sm">
@@ -141,56 +169,60 @@ export function ProfilbildBackgroundPicker({
         ))}
       </TabsContent>
 
-      <TabsContent value="entdecken" className="flex flex-col gap-sm p-1 pt-sm">
-        <div role="group" aria-label="Hintergründe aus der Galerie" className="flex gap-xs">
-          {STUDIO_ASSET_SCOPES.map((s) => (
-            <button
-              key={s.value}
-              type="button"
-              aria-pressed={galleryScope === s.value}
-              onClick={() => setGalleryScope(s.value)}
-              className={cn(TOOL_PILL, 'px-sm')}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
+      {/* Eigenes Foto, selbst erstellte und gemerkte Hintergründe in einer Reihe;
+          Hochladen und Entdecken stehen als Kacheln dahinter. */}
+      <TabsContent value="deine" className="flex flex-col gap-sm p-1 pt-sm">
         <ProfilbildGalleryGrid
-          key={galleryScope}
           kind="background"
-          scope={galleryScope}
+          source="own"
           tileClassName={TILE_CLASS}
           selectedSrc={selected === CUSTOM_ID ? (customUrl ?? '') : ''}
           onPick={onSelectGallery}
+          leadingSrc={customUrl}
+          leading={
+            customImageSrc ? (
+              <button
+                type="button"
+                aria-label="Eigenes Hintergrundbild"
+                aria-pressed={selected === CUSTOM_ID}
+                title="Eigenes Hintergrundbild"
+                onClick={() => onSelect(CUSTOM_ID)}
+                className={TILE_CLASS}
+                style={{ background: `center / cover url("${customImageSrc}")` }}
+              />
+            ) : null
+          }
+          trailing={
+            <>
+              <button
+                type="button"
+                onClick={onUpload}
+                aria-label="Bild hochladen"
+                title="Bild hochladen"
+                className={ACTION_TILE_CLASS}
+              >
+                <PiUploadSimple aria-hidden className="size-5" />
+              </button>
+              <ProfilbildDiscoverButton
+                kind="background"
+                buttonClassName={ACTION_TILE_CLASS}
+                tileClassName={TILE_CLASS}
+                onPick={onSelectGallery}
+              />
+            </>
+          }
         />
-      </TabsContent>
-
-      <TabsContent value="eigenes" className="flex flex-wrap items-center gap-sm p-1 pt-sm">
-        {customImageSrc ? (
-          <>
-            <button
-              type="button"
-              aria-label="Eigenes Hintergrundbild"
-              aria-pressed={selected === CUSTOM_ID}
-              title="Eigenes Hintergrundbild"
-              onClick={() => onSelect(CUSTOM_ID)}
-              className={TILE_CLASS}
-              style={{ background: `center / cover url("${customImageSrc}")` }}
-            />
-            <Button type="button" size="sm" variant="outline" onClick={onUpload}>
-              Anderes Bild wählen
-            </Button>
-            {onShareCustom ? (
-              <Button type="button" size="sm" variant="ghost" onClick={onShareCustom}>
-                Im Bereich „Entdecken“ teilen
-              </Button>
-            ) : null}
-          </>
-        ) : (
-          <Button type="button" size="sm" variant="outline" onClick={onUpload}>
-            Bild hochladen
+        {onShareCustom ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="self-start"
+            onClick={onShareCustom}
+          >
+            Im Bereich „Entdecken“ teilen
           </Button>
-        )}
+        ) : null}
       </TabsContent>
     </Tabs>
   );

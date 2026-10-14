@@ -1,28 +1,23 @@
-import { type StudioAssetItem, type StudioAssetScope } from '@gruenerator/contracts';
+import { type StudioAssetItem } from '@gruenerator/contracts';
 import { type ProfilbildSticker, stickersForLocale } from '@gruenerator/shared/profilbild';
-import { STUDIO_ASSET_SCOPES } from '@gruenerator/shared/studio-assets';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { useTheme } from '../../hooks/useTheme';
-import { borderRadius, spacing, typography } from '../../theme';
-import { SegmentedControl } from '../common/SegmentedControl';
+import { borderRadius, spacing } from '../../theme';
 
-import { GalleryStrip } from './GalleryStrip';
+import { ActionTile, GalleryTiles, PICKER_TILE } from './GalleryTiles';
 import { PROFILBILD_ASSETS } from './profilbildAssets';
+import { ProfilbildDiscoverButton } from './ProfilbildDiscoverButton';
 
-const TILE = 64;
+const TILE = PICKER_TILE;
 
-type Tab = 'gruene' | StudioAssetScope;
-
-const TABS: { value: Tab; label: string }[] = [
-  { value: 'gruene', label: 'Grüne' },
-  ...STUDIO_ASSET_SCOPES,
-];
-
+/**
+ * One list without tabs, like web: the Grüne stickers, then the own and saved
+ * ones, then Erstellen and Entdecken as tiles.
+ */
 export function StickerPicker({
   isAustria,
   onAdd,
@@ -34,76 +29,54 @@ export function StickerPicker({
 }) {
   const theme = useTheme();
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>('gruene');
   return (
     <View style={styles.root}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Eigenen Sticker erstellen"
-        onPress={() =>
-          router.push({ pathname: '/(focused)/sticker-neu', params: { return: 'profilbild' } })
-        }
-        style={({ pressed }) => [
-          styles.create,
-          {
-            borderColor: theme.border,
-            backgroundColor: pressed ? theme.buttonBackground : 'transparent',
-          },
-        ]}
-      >
-        <Ionicons name="add-circle-outline" size={20} color={theme.textGreen} />
-        <Text style={[styles.createText, { color: theme.textGreen }]}>
-          Eigenen Sticker erstellen
-        </Text>
-      </Pressable>
-      <SegmentedControl
-        accessibilityLabel="Sticker-Quelle"
-        value={tab}
-        onChange={(v) => setTab(v as Tab)}
-        options={TABS.map((t) => ({ ...t, short: t.label, disabled: false }))}
-      />
-      {tab === 'gruene' ? (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.row}
-        >
-          {stickersForLocale(isAustria ? 'de-AT' : 'de-DE').map((s) => (
-            <Pressable
-              key={s.id}
-              accessibilityRole="button"
-              accessibilityLabel={`Sticker „${s.label}“ hinzufügen`}
-              onPress={() => onAdd(s)}
-              style={({ pressed }) => [
-                styles.tile,
-                { backgroundColor: pressed ? theme.buttonBackground : theme.surface },
-              ]}
-            >
-              <Image source={PROFILBILD_ASSETS[s.src]} contentFit="contain" style={styles.image} />
-            </Pressable>
-          ))}
-        </ScrollView>
-      ) : (
-        <GalleryStrip kind="sticker" scope={tab} selectedSrc={null} onPick={onAddGallery} />
-      )}
+      <View accessibilityLabel="Grüne Sticker" style={styles.row}>
+        {stickersForLocale(isAustria ? 'de-AT' : 'de-DE').map((s) => (
+          <Pressable
+            key={s.id}
+            accessibilityRole="button"
+            accessibilityLabel={`Sticker „${s.label}“ hinzufügen`}
+            onPress={() => onAdd(s)}
+            style={({ pressed }) => [
+              styles.tile,
+              { backgroundColor: pressed ? theme.buttonBackground : theme.surface },
+            ]}
+          >
+            <Image source={PROFILBILD_ASSETS[s.src]} contentFit="contain" style={styles.image} />
+          </Pressable>
+        ))}
+      </View>
+      <View accessibilityLabel="Deine Sticker">
+        <GalleryTiles
+          kind="sticker"
+          source="own"
+          onPick={onAddGallery}
+          trailing={
+            <>
+              <ActionTile
+                label="Sticker erstellen"
+                onPress={() =>
+                  router.push({
+                    pathname: '/(focused)/sticker-neu',
+                    params: { return: 'profilbild' },
+                  })
+                }
+              >
+                <Ionicons name="add" size={24} color={theme.textSecondary} />
+              </ActionTile>
+              <ProfilbildDiscoverButton kind="sticker" onPick={onAddGallery} />
+            </>
+          }
+        />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { gap: spacing.small },
-  create: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xsmall,
-    minHeight: 44,
-    borderRadius: borderRadius.large,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderStyle: 'dashed',
-  },
-  createText: { ...typography.bodyBold },
-  row: { gap: spacing.xsmall, paddingVertical: spacing.xxsmall },
+  row: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xsmall },
   tile: {
     width: TILE,
     height: TILE,

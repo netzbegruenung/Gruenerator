@@ -1,3 +1,4 @@
+import { FREE_BACKGROUND_ID } from '@gruenerator/shared/profilbild';
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { act, renderHook } from '@testing-library/react-native';
 
@@ -110,6 +111,26 @@ describe('useProfilbildAutosave', () => {
     await pause();
     expect(persist).toHaveBeenCalledTimes(2);
     expect(result.current.state).toBe('saved');
+  });
+
+  it('saves a change of the free colour, though its id stays the same', async () => {
+    const free = (color: string): ProfilbildSnapshot => ({
+      ...snapshot(0, FREE_BACKGROUND_ID),
+      model: { ...snapshot(0).model, background: { kind: 'color', color } },
+    });
+    const { persist, rerender } = setup(free('#ff0000'));
+    await pause();
+    rerender({ snap: free('#00ff00'), session: PHOTO });
+    await pause();
+    expect(persist).toHaveBeenCalledTimes(2);
+    expect(persist).toHaveBeenLastCalledWith(free('#00ff00'));
+  });
+
+  it('drops a pending save when the photo is dropped, instead of running it on leaving', () => {
+    const { persist, rerender, unmount } = setup(snapshot(0));
+    rerender({ snap: null, session: null });
+    unmount();
+    expect(persist).not.toHaveBeenCalled();
   });
 
   it('starts a new photo without the status of the last one', async () => {

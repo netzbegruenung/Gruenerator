@@ -1,15 +1,5 @@
 import { type MenuAction } from '@expo/ui/community/menu';
-import {
-  type StudioAssetItem,
-  type StudioAssetKind,
-  type StudioAssetScope,
-} from '@gruenerator/contracts';
-import { galleryScopeEmptyText } from '@gruenerator/shared/studio-assets';
-
-export const KIND_OPTIONS: { value: StudioAssetKind; label: string }[] = [
-  { value: 'sticker', label: 'Sticker' },
-  { value: 'background', label: 'Hintergründe' },
-];
+import { type StudioAssetItem } from '@gruenerator/contracts';
 
 const MENU_IDS = [
   'use',
@@ -50,14 +40,4 @@ export function buildStudioAssetActions(item: MenuItem): MenuAction[] {
 
 export function asStudioAssetMenuId(id: string): StudioAssetMenuId | null {
   return MENU_IDS.find((m) => m === id) ?? null;
-}
-
-export function studioAssetEmptyText(
-  kind: StudioAssetKind,
-  scope: StudioAssetScope,
-  searching: boolean
-): string {
-  return searching
-    ? 'Nichts gefunden. Versuche einen anderen Suchbegriff.'
-    : galleryScopeEmptyText(kind, scope);
 }

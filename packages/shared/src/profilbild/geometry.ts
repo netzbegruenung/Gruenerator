@@ -23,7 +23,9 @@ export function coverRect(src: Sized, size: number) {
   return { x: (size - width) / 2, y: (size - height) / 2, width, height };
 }
 
+// 'worklet': the mobile editor places the person on the UI thread (#4534).
 export function personSize(src: Sized, size: number, scale: number) {
+  'worklet';
   const aspect = src.width / src.height;
   if (aspect > 1) {
     const width = Math.round(size * scale);
@@ -54,6 +56,7 @@ export function defaultPlacement(
 }
 
 export function placementRect(src: Sized, p: PersonPlacement, size = PROFILBILD_SIZE) {
+  'worklet';
   return { x: p.x, y: p.y, ...personSize(src, size, p.scale) };
 }
 
@@ -64,6 +67,7 @@ export function rescalePlacement(
   scale: number,
   size = PROFILBILD_SIZE
 ): PersonPlacement {
+  'worklet';
   const before = personSize(src, size, p.scale);
   const after = personSize(src, size, scale);
   return {

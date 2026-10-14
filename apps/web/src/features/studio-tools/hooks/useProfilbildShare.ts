@@ -13,7 +13,7 @@ import { uploadBlobToMediaLibrary } from '../../image-studio/services/mediaUploa
 import { fileToDownscaledDataUrl } from '../../image-studio/utils/downscaleImage';
 
 export type ProfilbildSaveBackground =
-  | Extract<SavedProfilbildBackground, { kind: 'id' }>
+  | Extract<SavedProfilbildBackground, { kind: 'id' | 'free' }>
   /** The person's own photo: already stored (`url`) or still only a local file. */
   | { kind: 'custom'; url: string | null; file: File | null };
 
@@ -42,7 +42,7 @@ export function useProfilbildShare(initialShareToken: string | null) {
 
   const storeBackground = useCallback(
     async (bg: ProfilbildSaveBackground): Promise<SavedProfilbildBackground | null> => {
-      if (bg.kind === 'id') return bg;
+      if (bg.kind === 'id' || bg.kind === 'free') return bg;
       if (bg.url) return { kind: 'custom', url: bg.url };
       if (!bg.file) return null;
       const known = uploaded.current.get(bg.file);

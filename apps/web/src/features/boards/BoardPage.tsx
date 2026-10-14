@@ -8,6 +8,7 @@ import {
   useIsMobile,
   useScreenCornerReservation,
 } from '@gruenerator/ui';
+import { useQueryClient } from '@tanstack/react-query';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { FiMessageSquare } from 'react-icons/fi';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -40,6 +41,7 @@ import { PlannerKanban } from './components/PlannerKanban';
 import { ViewSwitcher } from './components/ViewSwitcher';
 import { ViewToolbar } from './components/ViewToolbar';
 import { WhiteboardUnavailable } from './components/WhiteboardUnavailable';
+import { TaskDoneProvider, type TaskDoneValue } from './context/TaskDoneContext';
 import { useBoardActivityFeed } from './hooks/useBoardActivityFeed';
 import { useBoardCollaboration } from './hooks/useBoardCollaboration';
 import { useBoardCommentSignal } from './hooks/useBoardCommentSignal';
@@ -48,10 +50,11 @@ import { useBoardState } from './hooks/useBoardState';
 import { useDuplicateBoard } from './hooks/useDuplicateBoard';
 import { useViewData } from './hooks/useViewData';
 import { FIELD_IDS, getBoardType, isBoardArchived } from './types';
+import { getDoneStatusId } from './utils/taskDone';
 
-import type { BoardInitialStructure } from './hooks/useBoardState';
+import type { BoardInitialStructure, RecurringSpawn, StatusChange } from './hooks/useBoardState';
 import type { QuickFilter } from './hooks/useViewData';
-import type { Row, ViewLayout } from './types';
+import type { CellValue, Row, ViewLayout } from './types';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 import type { Doc } from 'yjs';
 
@@ -354,11 +357,10 @@ function BoardViewContent({
     currentUserName: userName ?? undefined,
   });
 
-  // Drag handler that also mirrors a recurring follow-up card's due date into the
-  // relational table the reminder worker scans (Yjs cells aren't queryable in SQL).
-  const handleDragReorder = useCallback(
-    (rows: Row[], groupByFieldId: string) => {
-      const spawned = boardState.onDragReorder(rows, groupByFieldId);
+  // Mirror a recurring follow-up card's due date into the relational table the
+  // reminder worker scans (Yjs cells aren't queryable in SQL).
+  const recordSpawns = useCallback(
+    (spawned: RecurringSpawn[]) => {
       for (const card of spawned) {
         void getContractsClient()
           .boardActivity.recordActivity({
@@ -368,7 +370,62 @@ function BoardViewContent({
           .catch(() => {});
       }
     },
-    [boardState, boardId]
+    [boardId]
+  );
+
+  const handleDragReorder = useCallback(
+    (rows: Row[], groupByFieldId: string) => {
+      recordSpawns(boardState.onDragReorder(rows, groupByFieldId));
+    },
+    [boardState, recordSpawns]
+  );
+
+  const queryClient = useQueryClient();
+  const { setRowStatus, setRowDone, updateRowCell } = boardState;
+  const recordStatusChange = useCallback(
+    (rowId: string, change: StatusChange | null) => {
+      if (!change) return;
+      recordSpawns(change.spawned);
+      if (!change.completed && !change.reopened) return;
+      void getContractsClient()
+        .boardActivity.recordActivity({
+          params: { boardId, cardId: rowId },
+          body: { type: change.completed ? 'card_completed' : 'card_reopened' },
+        })
+        .then(() => queryClient.invalidateQueries({ queryKey: ['board-activity', boardId, rowId] }))
+        .catch(() => {});
+    },
+    [recordSpawns, boardId, queryClient]
+  );
+
+  const setDone = useCallback(
+    (rowId: string, done: boolean) => recordStatusChange(rowId, setRowDone(rowId, done)),
+    [recordStatusChange, setRowDone]
+  );
+
+  // Status writes go through setRowStatus so every path (panel "Karte verschieben",
+  // list drag) keeps the done bookkeeping, recurrence and activity log in sync.
+  const handleUpdateCell = useCallback(
+    (rowId: string, fieldId: string, value: CellValue) => {
+      if (fieldId === FIELD_IDS.STATUS && typeof value === 'string' && value) {
+        recordStatusChange(rowId, setRowStatus(rowId, value));
+        return;
+      }
+      updateRowCell(rowId, fieldId, value);
+    },
+    [recordStatusChange, setRowStatus, updateRowCell]
+  );
+
+  const doneStatusId = useMemo(() => getDoneStatusId(boardState.fields), [boardState.fields]);
+  const taskDone = useMemo<TaskDoneValue | null>(
+    () => (doneStatusId && !isLocked ? { doneStatusId, setDone } : null),
+    [doneStatusId, isLocked, setDone]
+  );
+
+  const liveSelectedRow = useMemo(
+    () =>
+      selectedRow ? (boardState.rows.find((r) => r.id === selectedRow.id) ?? selectedRow) : null,
+    [boardState.rows, selectedRow]
   );
 
   const handleAddView = useCallback(
@@ -433,7 +490,7 @@ function BoardViewContent({
   }, [layout, deepLinkRow, consumeDeepLink]);
 
   return (
-    <>
+    <TaskDoneProvider value={taskDone}>
       <BoardQuickBar
         search={searchQuery}
         onSearchChange={setSearchQuery}
@@ -511,7 +568,7 @@ function BoardViewContent({
           onDragReorder={handleDragReorder}
           addRow={boardState.addRow}
           updateRow={boardState.updateRow}
-          updateRowCell={boardState.updateRowCell}
+          updateRowCell={handleUpdateCell}
           deleteRow={boardState.deleteRow}
           duplicateRow={boardState.duplicateRow}
           updateField={boardState.updateField}
@@ -532,7 +589,7 @@ function BoardViewContent({
           fields={fields}
           rows={filteredRows}
           onRowClick={handleRowClick}
-          onCellUpdate={boardState.updateRowCell}
+          onCellUpdate={handleUpdateCell}
         />
       )}
 
@@ -541,7 +598,7 @@ function BoardViewContent({
           fields={fields}
           groups={groups}
           onRowClick={handleRowClick}
-          onCellUpdate={boardState.updateRowCell}
+          onCellUpdate={handleUpdateCell}
         />
       )}
 
@@ -561,17 +618,17 @@ function BoardViewContent({
           rows={filteredRows}
           activeView={activeView}
           onRowClick={handleRowClick}
-          onCellUpdate={boardState.updateRowCell}
+          onCellUpdate={handleUpdateCell}
         />
       )}
 
       {layout !== 'kanban' && (
         <CardDetailPanel
-          row={selectedRow}
+          row={liveSelectedRow}
           fields={fields}
           open={detailOpen}
           onOpenChange={handleDetailClose}
-          onUpdateCell={boardState.updateRowCell}
+          onUpdateCell={handleUpdateCell}
           onUpdateRow={boardState.updateRow}
           onDelete={boardState.deleteRow}
           onDuplicate={(rowId) => boardState.duplicateRow(rowId, currentUserId)}
@@ -621,7 +678,7 @@ function BoardViewContent({
           )}
         </>
       )}
-    </>
+    </TaskDoneProvider>
   );
 }
 

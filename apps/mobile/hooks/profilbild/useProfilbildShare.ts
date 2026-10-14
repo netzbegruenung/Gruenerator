@@ -2,7 +2,8 @@ import { getContractsClient } from '@gruenerator/shared/api';
 import {
   COLOR_SWATCHES_AT,
   COLOR_SWATCHES_DE,
-  GRADIENT_SWATCHES,
+  FREE_BACKGROUND_ID,
+  gradientSwatches,
   parseSavedProfilbild,
   presetDesigns,
   PROFILBILD_IMAGE_TYPE,
@@ -71,7 +72,11 @@ function restoreBackground(
 ): { backgroundId: string; background: ProfilbildModel['background'] } {
   if (bg.kind === 'custom' && custom)
     return { backgroundId: CUSTOM_ID, background: { kind: 'image', image: custom.image } };
-  const swatches = [...(isAustria ? COLOR_SWATCHES_AT : COLOR_SWATCHES_DE), ...GRADIENT_SWATCHES];
+  if (bg.kind === 'free') return { backgroundId: FREE_BACKGROUND_ID, background: bg.background };
+  const swatches = [
+    ...(isAustria ? COLOR_SWATCHES_AT : COLOR_SWATCHES_DE),
+    ...gradientSwatches(isAustria),
+  ];
   const id = bg.kind === 'id' ? bg.id : '';
   const swatch = swatches.find((s) => s.id === id);
   if (swatch) return { backgroundId: swatch.id, background: swatch.background };
@@ -218,6 +223,13 @@ export function useProfilbildShare() {
         const url = galleryUrl ?? uploaded.current.get(uri) ?? (await uploadCustomBackground(uri));
         if (!galleryUrl) uploaded.current.set(uri, url);
         background = { kind: 'custom', url };
+      } else if (snapshot.backgroundId === FREE_BACKGROUND_ID) {
+        // A free colour or two-stop gradient; anything else cannot be a free choice.
+        const bg = snapshot.model.background;
+        background =
+          bg.kind === 'color' || (bg.kind === 'gradient' && bg.stops.length === 2)
+            ? { kind: 'free', background: bg }
+            : { kind: 'id', id: snapshot.backgroundId };
       } else {
         background = { kind: 'id', id: snapshot.backgroundId };
       }
