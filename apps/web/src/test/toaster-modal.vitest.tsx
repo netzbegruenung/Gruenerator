@@ -12,7 +12,7 @@ import {
   Toaster,
   toast,
 } from '@gruenerator/ui';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -23,8 +23,12 @@ beforeAll(() => {
   Element.prototype.hasPointerCapture ??= () => false;
 });
 
-afterEach(() => {
+// Klick und `dismiss` lassen sonner den Toast erst nach einem 200-ms-Timer
+// entfernen. Läuft der nach dem Abbau von jsdom, stirbt sein `setState` an
+// `window is not defined` (#4563) — deshalb hier abwarten, bis er weg ist.
+afterEach(async () => {
   toast.dismiss();
+  await waitFor(() => expect(document.querySelector('[data-sonner-toast]')).toBeNull());
 });
 
 const surfaces = {
