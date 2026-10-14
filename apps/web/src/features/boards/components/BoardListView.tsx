@@ -2,6 +2,7 @@ import { Badge } from '@gruenerator/ui';
 import { memo, useCallback, useMemo } from 'react';
 import { FiCalendar } from 'react-icons/fi';
 
+import { useTaskDone } from '../context/TaskDoneContext';
 import { FIELD_IDS } from '../types';
 import { parseLocalDate } from '../utils/recurrence';
 
@@ -15,6 +16,7 @@ import {
   ListItems,
   ListItem,
 } from '@/components/kibo-ui/list';
+import { cn } from '@/utils/cn';
 
 interface BoardListViewProps {
   fields: Field[];
@@ -29,6 +31,7 @@ export const BoardListView = memo(function BoardListView({
   onRowClick,
   onCellUpdate,
 }: BoardListViewProps) {
+  const taskDone = useTaskDone();
   const labelsField = useMemo(() => fields.find((f) => f.id === FIELD_IDS.LABELS), [fields]);
   const labelOptions = useMemo(
     () => (labelsField?.typeOptions.options ?? []) as SelectOption[],
@@ -65,6 +68,7 @@ export const BoardListView = memo(function BoardListView({
                 const dueDate = parseLocalDate(row.cells[FIELD_IDS.DUE_DATE]);
                 const rowLabelIds = (row.cells[FIELD_IDS.LABELS] ?? []) as string[];
                 const rowLabels = labelOptions.filter((o) => rowLabelIds.includes(o.id));
+                const isDone = row.cells[FIELD_IDS.STATUS] === taskDone?.doneStatusId;
 
                 return (
                   <ListItem
@@ -90,7 +94,12 @@ export const BoardListView = memo(function BoardListView({
                       tabIndex={0}
                     >
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-foreground truncate">
+                        <span
+                          className={cn(
+                            'text-sm font-medium truncate',
+                            isDone ? 'text-muted-foreground line-through' : 'text-foreground'
+                          )}
+                        >
                           {row.icon && <span className="mr-1">{row.icon}</span>}
                           {title}
                         </span>
