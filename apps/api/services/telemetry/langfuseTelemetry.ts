@@ -4,8 +4,8 @@
  * A dedicated, non-global OpenTelemetry TracerProvider feeds a
  * LangfuseSpanProcessor. We register it via `setLangfuseTracerProvider` so the
  * Langfuse SDK's `startActiveObservation` / `getLangfuseTracer` emit through
- * OUR provider — NOT the global one Sentry installs with a sampled (10%) sampler
- * (which would drop most spans and ship the rest to GlitchTip).
+ * OUR provider, never through a global one. (Sentry SDK 10 installed a global
+ * provider with a 10% sampler; SDK 11 sets up no OpenTelemetry at all.)
  *
  * The whole module is a no-op unless LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY
  * and LANGFUSE_BASE_URL are all set — so dev and unconfigured environments pay
@@ -122,18 +122,13 @@ export function initLangfuseTelemetry(): void {
     // Intentionally NOT created.register() — keep it off the global tracer.
     setLangfuseTracerProvider(created);
 
-    // Span nesting needs a global context manager. Sentry installs an ALS-based
-    // one — but ONLY when it actually inits, i.e. dsn && NODE_ENV==='production'
-    // (see instrument.ts). A DSN set in a non-prod env leaves Sentry disabled
-    // and no context manager, so key off Sentry's real init condition, not just
-    // SENTRY_DSN presence — otherwise context propagation silently no-ops.
-    const sentryActive = !!env.SENTRY_DSN && env.NODE_ENV === 'production';
-    if (!sentryActive) {
-      try {
-        context.setGlobalContextManager(new AsyncLocalStorageContextManager().enable());
-      } catch {
-        // A context manager already exists — fine, nesting still works.
-      }
+    // Span nesting needs a global context manager, and nobody else installs
+    // one: Sentry SDK 10 did (in production), SDK 11 no longer touches
+    // OpenTelemetry. Without it context propagation silently no-ops.
+    try {
+      context.setGlobalContextManager(new AsyncLocalStorageContextManager().enable());
+    } catch {
+      // A context manager already exists — fine, nesting still works.
     }
 
     provider = created;
@@ -141,7 +136,7 @@ export function initLangfuseTelemetry(): void {
 
     // AI SDK 7 dropped the per-call `tracer` option; the tracer now belongs to a
     // telemetry integration. Built here so it carries OUR tracer (from the
-    // non-global provider above) instead of Sentry's sampled global one — and
+    // non-global provider above) instead of whatever is global — and
     // deliberately NOT handed to `registerTelemetry`, which would flip the whole
     // API to opt-out tracing (see the module header). `buildAiTelemetry` passes
     // this one instance per call; it keeps its state keyed by call id, so
