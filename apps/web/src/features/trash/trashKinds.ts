@@ -22,6 +22,7 @@ import {
   PiRepeat,
   PiRobot,
   PiSpeakerHigh,
+  PiSticker,
   PiTable,
   PiUsersThree,
   PiVideo,
@@ -48,6 +49,7 @@ export const TRASH_KIND_LABELS: Record<TrashKind, string> = {
   reisekosten_abrechnung: 'Reisekostenabrechnung',
   explainable: 'Explainable',
   podcast: 'Podcast',
+  studio_asset: 'Sticker',
 };
 
 export const TRASH_KIND_ICONS: Record<TrashKind, IconType> = {
@@ -70,6 +72,7 @@ export const TRASH_KIND_ICONS: Record<TrashKind, IconType> = {
   reisekosten_abrechnung: PiReceipt,
   explainable: PiLightbulb,
   podcast: PiHeadphones,
+  studio_asset: PiSticker,
 };
 
 interface SubtypeDisplay {

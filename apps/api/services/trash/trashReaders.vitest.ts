@@ -91,6 +91,24 @@ const ALLOWLIST: readonly AllowEntry[] = [
     'account deletion: likes on every Vorlage of the user, trashed ones cascade too',
     'DELETE FROM entity_likes',
   ],
+  [
+    'apps/api/services/entityLikes/EntityLikesService.ts',
+    'studio_assets',
+    'account deletion: likes on every Sticker/Hintergrund of the user, trashed ones cascade too',
+    "entity_type = 'studio_asset'",
+  ],
+  [
+    'apps/api/services/studioAssets/studioAssetsService.ts',
+    'studio_assets',
+    'create: a trashed asset still owns its image until the purge, so it blocks reuse',
+    'eq(studioAssets.media_id',
+  ],
+  [
+    'apps/api/services/entityFavorites/EntityFavoritesService.ts',
+    'studio_assets',
+    'account deletion: favorites of every Sticker/Hintergrund of the user, trashed ones cascade too',
+    "entity_type = 'studio_asset'",
+  ],
   ['apps/api/routes/admin/chunkInspectorContractRouter.ts', 'documents', PERMANENT_ADMIN],
   ['apps/api/services/usage/userActivityStats.ts', 'chat_threads', PERMANENT_CREATED_COUNT],
   [

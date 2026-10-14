@@ -67,6 +67,11 @@ import {
 } from '../reisekosten/abrechnungService.js';
 import { getSharedMediaService, type TrashedShareRow } from '../sharedMediaService.js';
 import { purgeUserSite, restoreUserSite, USER_SITE_TRASH } from '../sites/userSiteTrash.js';
+import {
+  STUDIO_ASSET_TRASH,
+  purgeStudioAsset,
+  trashStudioAssets,
+} from '../studioAssets/studioAssetTrash.js';
 import { getSubtitlerProjectService, type TrashedProjectRow } from '../subtitler/ProjectService.js';
 import {
   purgeUserTemplate,
@@ -485,6 +490,14 @@ const podcastHandler = ownedRowHandler<Titled>({
   purge: purgePodcast,
 });
 
+const studioAssetHandler = ownedRowHandler<Titled>({
+  kind: 'studio_asset',
+  table: STUDIO_ASSET_TRASH,
+  title: (row) => titled(row.title, 'Unbenannter Sticker'),
+  trash: async (userId, id) => okOr404((await trashStudioAssets(userId, [id])).length > 0),
+  purge: purgeStudioAsset,
+});
+
 const groupItem = (row: TrashedGroup): TrashItem =>
   toTrashItem({
     kind: 'group',
@@ -532,6 +545,7 @@ export const TRASH_KINDS = {
   reisekosten_abrechnung: reisekostenAbrechnungHandler,
   explainable: explainableHandler,
   podcast: podcastHandler,
+  studio_asset: studioAssetHandler,
 } satisfies Record<TrashKind, TrashKindHandler>;
 
 export function trashHandlerFor(kind: TrashKind): TrashKindHandler {
