@@ -340,7 +340,7 @@ async function tryResolveUser(req: Request): Promise<ResolveResult> {
     return { kind: 'none', reason: 'no_cookie', sessionDataPresent: cookies.sessionDataPresent };
   } catch (err) {
     // Silent-catch boundary: this never reaches Express's error middleware,
-    // so Sentry's `setupExpressErrorHandler` would never see it. Capture
+    // so the Sentry capture middleware in server.ts never sees it. Capture
     // explicitly to surface session-resolution failures (DB errors, Redis
     // outages, malformed cookies) that would otherwise be invisible.
     captureAuthIssue({ stage: 'session-resolve', cause: err, req });

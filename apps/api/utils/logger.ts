@@ -8,7 +8,8 @@ import { redactPii } from './logRedaction.js';
 
 const LOG_LEVEL = env.LOG_LEVEL;
 
-// No-op unless Sentry initialised with enableLogs (instrument.ts).
+// No-op unless Sentry initialised (instrument.ts). SDK v11 sends logs whenever
+// a logging integration is in use, so this transport is the only switch.
 const SentryWinstonTransport = Sentry.createSentryWinstonTransport(TransportStream, {
   levels: ['warn', 'error'],
 });
