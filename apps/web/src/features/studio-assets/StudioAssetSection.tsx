@@ -1,5 +1,8 @@
 import { type StudioAssetItem } from '@gruenerator/contracts';
-import { useStudioAssetToggles } from '@gruenerator/shared/studio-assets';
+import {
+  useStudioAssetToggles,
+  type StudioAssetSectionData,
+} from '@gruenerator/shared/studio-assets';
 import { Button, SectionHeader } from '@gruenerator/ui';
 import { type JSX, type ReactNode } from 'react';
 
@@ -24,16 +27,6 @@ function StudioAssetTile({
       onToggleFavorite={toggleFavorite}
     />
   );
-}
-
-export interface StudioAssetSectionData {
-  items: StudioAssetItem[];
-  isLoading: boolean;
-  hasNextPage: boolean;
-  isFetchingNextPage: boolean;
-  fetchNextPage: () => void;
-  error: Error | null;
-  retry: () => void;
 }
 
 /** Ein Abschnitt „Sticker“ bzw. „Hintergründe“ — dieselbe Überschrift wie auf `/grueneratoren`. */

@@ -1,5 +1,5 @@
 import { type StudioAssetKind } from '@gruenerator/contracts';
-import { STUDIO_ASSET_PLURAL } from '@gruenerator/shared/studio-assets';
+import { STUDIO_ASSET_PLURAL, useDebouncedSearch } from '@gruenerator/shared/studio-assets';
 import {
   Button,
   Dialog,
@@ -12,7 +12,6 @@ import { useState } from 'react';
 import { PiStorefront, PiX } from 'react-icons/pi';
 
 import { PageHeroSearch } from '../../../components/common/PageHero';
-import { useDebouncedSearch } from '../../studio-assets/useStudioAssetSections';
 import { type GalleryAsset } from '../utils/galleryAsset';
 
 import { ProfilbildGalleryGrid } from './ProfilbildGalleryGrid';

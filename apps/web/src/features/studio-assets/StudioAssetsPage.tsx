@@ -1,3 +1,4 @@
+import { useDebouncedSearch, useOwnStudioAssets } from '@gruenerator/shared/studio-assets';
 import {
   Button,
   DropdownMenu,
@@ -15,7 +16,6 @@ import { PageHero, PageHeroSearch, PageShell } from '../../components/common/Pag
 import { StudioAssetsDiscoverDialog } from './StudioAssetsDiscoverDialog';
 import { StudioAssetSection } from './StudioAssetSection';
 import { useStudioAssetActions } from './useStudioAssetActions';
-import { useDebouncedSearch, useOwnStudioAssets } from './useStudioAssetSections';
 
 const STUDIO_ASSETS_PATH = '/studio/sticker';
 const DISCOVER_PATH = '/studio/sticker/entdecken';

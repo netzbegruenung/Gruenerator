@@ -1,12 +1,12 @@
 import { type StudioAssetKind } from '@gruenerator/contracts';
-import { STUDIO_ASSET_PLURAL } from '@gruenerator/shared/studio-assets';
+import {
+  STUDIO_ASSET_PLURAL,
+  useDiscoverStudioAssets,
+  useOwnStudioAssets,
+} from '@gruenerator/shared/studio-assets';
 import { Button } from '@gruenerator/ui';
 import { type ReactNode } from 'react';
 
-import {
-  useDiscoverStudioAssets,
-  useOwnStudioAssets,
-} from '../../studio-assets/useStudioAssetSections';
 import { type GalleryAsset } from '../utils/galleryAsset';
 
 import { TOOL_HINT } from './ToolUi';

@@ -1,4 +1,5 @@
 import { type StudioAssetSort } from '@gruenerator/contracts';
+import { useDebouncedSearch, useDiscoverStudioAssets } from '@gruenerator/shared/studio-assets';
 import {
   Button,
   Dialog,
@@ -16,7 +17,6 @@ import { PageHeroSearch } from '../../components/common/PageHero';
 
 import { StudioAssetSection } from './StudioAssetSection';
 import { useStudioAssetActions } from './useStudioAssetActions';
-import { useDebouncedSearch, useDiscoverStudioAssets } from './useStudioAssetSections';
 
 const SORT_OPTIONS: { id: StudioAssetSort; label: string }[] = [
   { id: 'new', label: 'Neu' },
