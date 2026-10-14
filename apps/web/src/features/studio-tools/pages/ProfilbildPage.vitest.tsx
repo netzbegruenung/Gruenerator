@@ -918,11 +918,13 @@ describe('ProfilbildPage', () => {
       await screen.findByTestId('konva-stage');
       fireEvent.click(screen.getByRole('button', { name: 'Sticker entdecken' }));
       const popup = await screen.findByRole('dialog', { name: 'Sticker entdecken' });
+      const queried = () =>
+        share.listAssets.mock.calls.map(
+          ([arg]) => (arg as { query: { kind: string; scope: string } }).query
+        );
       await waitFor(() =>
-        expect(share.listAssets).toHaveBeenCalledWith(
-          expect.objectContaining({
-            query: expect.objectContaining({ kind: 'sticker', scope: 'shop' }),
-          })
+        expect(queried()).toContainEqual(
+          expect.objectContaining({ kind: 'sticker', scope: 'shop' }) as unknown
         )
       );
       fireEvent.click(await within(popup).findByRole('button', { name: 'Sonnenblume' }));
