@@ -117,7 +117,7 @@ export const fromUrlBodySchema = z.object({
   description: z.string().optional(),
   preview_image_url: z.string().nullish(),
   images: z.array(templateImageSchema).optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 /**

@@ -189,7 +189,7 @@ export const chatStreamBodySchema = z.object({
   messages: z.array(chatWireMessageSchema).min(1),
   agentId: z.string().nullish(),
   threadId: z.string().nullish(),
-  enabledTools: z.record(z.boolean()).nullish(),
+  enabledTools: z.record(z.string(), z.boolean()).nullish(),
   modelId: z.string().nullish(),
   attachments: z.array(chatAttachmentSchema).nullish(),
   notebookIds: z.array(z.string()).nullish(),

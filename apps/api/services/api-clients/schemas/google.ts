@@ -35,12 +35,12 @@ export type GoogleDriveSearchResponse = z.infer<typeof googleDriveSearchResponse
 // The Docs API returns a deeply nested document structure; we validate only the
 // top-level shape and pass through the rest as unknown for flexibility.
 
-export const googleDocsDocumentSchema = z.record(z.unknown());
+export const googleDocsDocumentSchema = z.record(z.string(), z.unknown());
 
 export type GoogleDocsDocument = z.infer<typeof googleDocsDocumentSchema>;
 
 // ── Sheets spreadsheet or range (/v4/spreadsheets/:id) ───────────────────────
 
-export const googleSheetsResponseSchema = z.record(z.unknown());
+export const googleSheetsResponseSchema = z.record(z.string(), z.unknown());
 
 export type GoogleSheetsResponse = z.infer<typeof googleSheetsResponseSchema>;
