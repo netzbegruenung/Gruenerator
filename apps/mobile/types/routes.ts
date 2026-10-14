@@ -18,6 +18,7 @@ export type AppRoute =
   | '/(focused)/vorlagen'
   | '/(focused)/sharepic'
   | '/(focused)/profilbild'
+  | '/(focused)/sticker'
   // Wissen
   | '/(focused)/wissen'
   // Auth routes

@@ -1,14 +1,13 @@
-import { type StudioAssetItem } from '@gruenerator/contracts';
 import {
   COLOR_SWATCHES_AT,
   COLOR_SWATCHES_DE,
   type ProfilbildSticker,
 } from '@gruenerator/shared/profilbild';
-import { isShareSrc } from '@gruenerator/shared/stickers';
+import { isShareSrc, type GalleryAsset } from '@gruenerator/shared/stickers';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { type SkImage } from '@shopify/react-native-skia';
 import { Image } from 'expo-image';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -80,6 +79,9 @@ const PANELS: { value: Panel; label: string }[] = [
 const segments = <T extends string>(list: { value: T; label: string }[]) =>
   list.map((o) => ({ ...o, short: o.label, disabled: false }));
 
+const galleryTarget = ({ title, kind }: GalleryAsset) =>
+  title ? `„${title}“` : kind === 'sticker' ? 'den Sticker' : 'den Hintergrund';
+
 async function exportAndDeliver(
   kind: 'save' | 'share',
   scene: Parameters<typeof exportProfilbildBase64>[0],
@@ -96,10 +98,13 @@ async function exportAndDeliver(
 export function ProfilbildScreen({
   isAustria,
   shareToken,
+  galleryAsset,
 }: {
   isAustria: boolean;
   /** A saved Profilbild to reopen with its editor state. */
   shareToken: string | null;
+  /** A gallery sticker or background to apply once the photo is in. */
+  galleryAsset: GalleryAsset | null;
 }) {
   const theme = useTheme();
   const { width } = useWindowDimensions();
@@ -199,6 +204,68 @@ export function ProfilbildScreen({
       .catch(() => Alert.alert('Fehler', 'Das Foto konnte nicht geladen werden.'));
   };
 
+  const placeSticker = (sticker: StickerSource, image: SkImage) => {
+    const uid = nextStickerUid(sticker.id);
+    const next = newSticker(sticker, { width: image.width(), height: image.height() }, uid);
+    setModel((m) => (m ? { ...m, stickers: [...m.stickers, next] } : m));
+    setSelected(uid);
+  };
+
+  const addGallerySticker = (item: GalleryAsset) => {
+    if (!isShareSrc(item.src)) {
+      Alert.alert('Fehler', 'Dieser Sticker kann nicht verwendet werden.');
+      return;
+    }
+    const forPerson = person;
+    loadShareImage(item.src)
+      .then((image) => {
+        if (forPerson !== currentPerson.current) return;
+        setGallery((g) => ({ ...g, [item.src]: image }));
+        placeSticker(galleryStickerSource(item), image);
+      })
+      .catch(() => {
+        if (forPerson === currentPerson.current)
+          Alert.alert('Fehler', 'Der Sticker konnte nicht geladen werden.');
+      });
+  };
+
+  const pickGalleryBackground = (item: GalleryAsset) => {
+    if (!isShareSrc(item.src)) {
+      Alert.alert('Fehler', 'Dieser Hintergrund kann nicht verwendet werden.');
+      return;
+    }
+    const request = ++backgroundRequest.current;
+    loadShareImage(item.src)
+      .then((image) => {
+        if (request !== backgroundRequest.current) return;
+        setCustom({ uri: item.src, image, galleryUrl: item.src });
+        setBackgroundId(CUSTOM_ID);
+        setModel((m) => (m ? { ...m, background: { kind: 'image', image } } : m));
+      })
+      .catch(() => {
+        if (request === backgroundRequest.current)
+          Alert.alert('Fehler', 'Der Hintergrund konnte nicht geladen werden.');
+      });
+  };
+
+  const applyGalleryAsset = useEffectEvent((asset: GalleryAsset) => {
+    if (asset.kind === 'background') {
+      pickGalleryBackground(asset);
+      return;
+    }
+    setPanel('sticker');
+    addGallerySticker(asset);
+  });
+
+  // A gallery deep link lands once the photo (and a reopened state) is in.
+  const pendingAsset = useRef(galleryAsset);
+  useEffect(() => {
+    const asset = pendingAsset.current;
+    if (!asset || !ready) return;
+    pendingAsset.current = null;
+    applyGalleryAsset(asset);
+  }, [ready]);
+
   if (reopenStatus === 'loading') {
     return (
       <View style={[styles.centered, { backgroundColor: theme.background }]}>
@@ -225,6 +292,11 @@ export function ProfilbildScreen({
     return (
       <View style={[styles.centered, { backgroundColor: theme.background }]}>
         <Ionicons name="person-circle-outline" size={64} color={theme.textGreen} />
+        {galleryAsset && !shareToken ? (
+          <Text style={[styles.error, { color: theme.text }]}>
+            {`Wähle zuerst ein Foto – dann setzen wir ${galleryTarget(galleryAsset)} ein.`}
+          </Text>
+        ) : null}
         <View style={styles.buttons}>
           <Button onPress={() => pick(pickImageForEditor)}>Foto wählen</Button>
           <Button variant="outline" onPress={() => pick(takePhotoForEditor)}>
@@ -288,51 +360,7 @@ export function ProfilbildScreen({
   const images: SceneImages = { ...assets.images, ...gallery };
   const scene = { model, person: state.person, images, isAustria };
 
-  const placeSticker = (sticker: StickerSource, image: SkImage) => {
-    const uid = nextStickerUid(sticker.id);
-    const next = newSticker(sticker, { width: image.width(), height: image.height() }, uid);
-    setModel((m) => (m ? { ...m, stickers: [...m.stickers, next] } : m));
-    setSelected(uid);
-  };
-
   const addSticker = (sticker: ProfilbildSticker) => placeSticker(sticker, images[sticker.src]);
-
-  const addGallerySticker = (item: StudioAssetItem) => {
-    if (!isShareSrc(item.src)) {
-      Alert.alert('Fehler', 'Dieser Sticker kann nicht verwendet werden.');
-      return;
-    }
-    const forPerson = state.person;
-    loadShareImage(item.src)
-      .then((image) => {
-        if (forPerson !== currentPerson.current) return;
-        setGallery((g) => ({ ...g, [item.src]: image }));
-        placeSticker(galleryStickerSource(item), image);
-      })
-      .catch(() => {
-        if (forPerson === currentPerson.current)
-          Alert.alert('Fehler', 'Der Sticker konnte nicht geladen werden.');
-      });
-  };
-
-  const pickGalleryBackground = (item: StudioAssetItem) => {
-    if (!isShareSrc(item.src)) {
-      Alert.alert('Fehler', 'Dieser Hintergrund kann nicht verwendet werden.');
-      return;
-    }
-    const request = ++backgroundRequest.current;
-    loadShareImage(item.src)
-      .then((image) => {
-        if (request !== backgroundRequest.current) return;
-        setCustom({ uri: item.src, image, galleryUrl: item.src });
-        setBackgroundId(CUSTOM_ID);
-        setModel((m) => (m ? { ...m, background: { kind: 'image', image } } : m));
-      })
-      .catch(() => {
-        if (request === backgroundRequest.current)
-          Alert.alert('Fehler', 'Der Hintergrund konnte nicht geladen werden.');
-      });
-  };
 
   const run = async (kind: 'save' | 'share') => {
     if (busyRef.current) return;

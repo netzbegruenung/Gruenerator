@@ -3,10 +3,9 @@ import {
   type StudioAssetCreateBody,
   type StudioAssetVisibility,
 } from '@gruenerator/contracts';
+import { STUDIO_ASSET_RIGHTS_LABEL } from '@gruenerator/shared/studio-assets';
 import { Checkbox, Input, Label } from '@gruenerator/ui';
 import { useId, type JSX } from 'react';
-
-import { RIGHTS_LABEL } from './StudioAssetDialogs';
 
 export const TITLE_MAX = 120;
 const TAG_MAX = 30;
@@ -131,7 +130,7 @@ export function StudioAssetFormFields({
               className="mt-0.5"
             />
             <Label htmlFor={ids.rights} className="text-sm leading-snug font-normal">
-              {RIGHTS_LABEL}
+              {STUDIO_ASSET_RIGHTS_LABEL}
             </Label>
           </div>
         </>
