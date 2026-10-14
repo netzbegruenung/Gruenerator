@@ -40,13 +40,12 @@ import { saveImageToGallery } from '../../services/imageStudio';
 import { shareBase64Image } from '../../services/share';
 import { borderRadius, colors, spacing, typography } from '../../theme';
 import { Button } from '../common/Button';
-import { SegmentedControl } from '../common/SegmentedControl';
 import { SkeletonBar, SkeletonGroup } from '../common/Skeleton';
 
 import { BackgroundPicker, CUSTOM_ID, type CustomBackground } from './BackgroundPicker';
 import { galleryStickerSource } from './galleryModel';
 import { PhotoStage } from './PhotoStage';
-import { InstagramPreview, PreviewFrame, type PreviewVariant } from './PreviewFrame';
+import { InstagramPeek, PreviewFrame } from './PreviewFrame';
 import { ProfilbildEditor } from './ProfilbildEditor';
 import { nextStickerUid } from './profilbildGestures';
 import { exportProfilbildBase64 } from './ProfilbildScene';
@@ -61,12 +60,6 @@ import {
 } from './sceneModel';
 import { StickerPicker } from './StickerPicker';
 
-const VARIANTS: { value: PreviewVariant; label: string }[] = [
-  { value: 'rund', label: 'Rund' },
-  { value: 'quadrat', label: 'Quadrat' },
-  { value: 'instagram', label: 'Instagram' },
-];
-
 // The autosave as a badge on the stage; „Zuletzt" is where it lands.
 const SAVE_STATUS = {
   idle: null,
@@ -80,9 +73,6 @@ const SAVE_STATUS = {
 
 /** A tool sheet takes at most half the screen; the stage keeps the rest above it. */
 const STAGE_HEIGHT_SHARE = 0.42;
-
-const segments = <T extends string>(list: { value: T; label: string }[]) =>
-  list.map((o) => ({ ...o, short: o.label, disabled: false }));
 
 async function exportAndDeliver(
   kind: 'save' | 'share',
@@ -130,7 +120,8 @@ export function ProfilbildScreen({
   const [custom, setCustom] = useState<CustomBackground | null>(null);
   const [gallery, setGallery] = useState<Record<string, SkImage>>({});
   const [selected, setSelected] = useState<string | null>(null);
-  const [variant, setVariant] = useState<PreviewVariant>('rund');
+  // The Instagram preview: held on the stage, or opened from the hint until tapped away.
+  const [peek, setPeek] = useState<'hold' | 'sticky' | null>(null);
   const [tool, setTool] = useState<ProfilbildTool | null>(null);
   const [busy, setBusy] = useState<'save' | 'share' | null>(null);
   const busyRef = useRef(false);
@@ -296,7 +287,7 @@ export function ProfilbildScreen({
     if (landingAsset) applyGalleryAsset(landingAsset);
   }, [landingAsset]);
 
-  // A reopened Profilbild lands in the editor's layout: stage, format, tools.
+  // A reopened Profilbild lands in the editor's layout: stage, hint, tools.
   if (reopenStatus === 'loading') {
     return (
       <SafeAreaView
@@ -307,7 +298,7 @@ export function ProfilbildScreen({
       >
         <SkeletonGroup style={styles.main}>
           <SkeletonBar width={viewSize} height={viewSize} radius={0} />
-          <SkeletonBar width={viewSize} height={44} radius={borderRadius.large} />
+          <SkeletonBar width={viewSize * 0.6} height={16} />
         </SkeletonGroup>
         <SkeletonGroup style={[styles.toolbarSkeleton, { borderTopColor: theme.border }]}>
           {[0, 1, 2].map((i) => (
@@ -436,13 +427,14 @@ export function ProfilbildScreen({
       <View style={styles.main}>
         <View>
           {scene ? (
-            <PreviewFrame variant={variant} viewSize={viewSize}>
+            <PreviewFrame viewSize={viewSize}>
               <ProfilbildEditor
                 {...scene}
                 onChange={setModel}
                 viewSize={viewSize}
                 selected={selected}
                 onSelect={setSelected}
+                onPeek={(on) => setPeek((p) => (on ? 'hold' : p === 'hold' ? null : p))}
               />
             </PreviewFrame>
           ) : state.status === 'ready' ? (
@@ -479,15 +471,19 @@ export function ProfilbildScreen({
           ) : null}
         </View>
         {scene ? (
-          <View style={[styles.format, { width: viewSize }]}>
-            <SegmentedControl
-              accessibilityLabel="Vorschau"
-              value={variant}
-              onChange={(v) => setVariant(v as PreviewVariant)}
-              options={segments(VARIANTS)}
-            />
-            {variant === 'instagram' ? <InstagramPreview {...scene} /> : null}
-          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Instagram-Vorschau zeigen"
+            accessibilityHint="Oder das Bild gedrückt halten"
+            hitSlop={8}
+            onPress={() => setPeek('sticky')}
+            style={styles.hint}
+          >
+            <Ionicons name="logo-instagram" size={16} color={theme.textSecondary} />
+            <Text style={[styles.hintText, { color: theme.textSecondary }]}>
+              Gedrückt halten: Instagram-Vorschau
+            </Text>
+          </Pressable>
         ) : null}
       </View>
       <ProfilbildToolbar
@@ -511,6 +507,21 @@ export function ProfilbildScreen({
           Foto aufnehmen
         </Button>
       </ToolSheet>
+      {scene && peek === 'hold' ? (
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <InstagramPeek {...scene} />
+        </View>
+      ) : null}
+      {scene && peek === 'sticky' ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Instagram-Vorschau schließen"
+          onPress={() => setPeek(null)}
+          style={StyleSheet.absoluteFill}
+        >
+          <InstagramPeek {...scene} />
+        </Pressable>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -560,7 +571,8 @@ const styles = StyleSheet.create({
   buttons: { width: '100%', maxWidth: 360, gap: spacing.small },
   error: { ...typography.body, textAlign: 'center' },
   main: { flex: 1, alignItems: 'center', paddingTop: spacing.medium, gap: spacing.medium },
-  format: { gap: spacing.medium },
+  hint: { flexDirection: 'row', alignItems: 'center', gap: spacing.xsmall, minHeight: 32 },
+  hintText: { ...typography.caption },
   // Mirrors ProfilbildToolbar, so the tools do not jump in when the editor loads.
   toolbarSkeleton: {
     flexDirection: 'row',

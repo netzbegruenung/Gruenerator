@@ -37,6 +37,8 @@ export interface ProfilbildEditorProps {
   viewSize: number;
   selected: string | null;
   onSelect(uid: string | null): void;
+  /** The stage is held (`true`) or let go (`false`): the Instagram preview shows meanwhile. */
+  onPeek?(on: boolean): void;
 }
 
 type Target = { kind: 'person'; start: PersonPlacement } | { kind: 'sticker'; start: SceneSticker };
