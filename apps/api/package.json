@@ -81,7 +81,7 @@
   "license": "ISC",
   "dependencies": {
     "@ai-sdk/mistral": "^4.0.59",
-    "@ai-sdk/openai": "^4.0.85",
+    "@ai-sdk/openai": "^4.0.86",
     "@anthropic-ai/sdk": "^0.131.0",
     "@better-auth/cimd": "^1.7.7",
     "@better-auth/drizzle-adapter": "^1.7.7",
@@ -121,7 +121,7 @@
     "@types/archiver": "^8.0.0",
     "@types/ws": "^8.18.2",
     "adm-zip": "^0.6.1",
-    "ai": "^7.0.129",
+    "ai": "^7.0.130",
     "apify-client": "^2.25.0",
     "archiver": "^8.0.0",
     "assistant-stream": "^0.3.51",
