@@ -8,7 +8,7 @@ import { useLayoutEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { makeMutable, useDerivedValue, type SharedValue } from 'react-native-reanimated';
-import { scheduleOnUI } from 'react-native-worklets';
+import { scheduleOnRN, scheduleOnUI } from 'react-native-worklets';
 
 import { roundModel } from '../../hooks/profilbild/gestureMath';
 
@@ -31,6 +31,7 @@ const GRID_UNDERLAY = 'rgba(0,85,56,0.35)';
 const GUIDE_COLOR = BRAND_COLORS.GRASHALM;
 const GUIDE_CASING = CANVAS_COLORS.TANNE;
 const REMOVE_SIZE = 32;
+const HOLD_MS = 400;
 
 type Live = SharedValue<LiveElement | null>;
 
@@ -64,8 +65,25 @@ export function ProfilbildEditor(props: ProfilbildEditorProps) {
         haptic: () => void Haptics.selectionAsync(),
       }
     );
+    const peek = (on: boolean) => {
+      if (on) void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      latest?.onPeek?.(on);
+    };
     const h = c.handlers;
     const tap = Gesture.Tap().onEnd(h.tapEnd);
+    // Holding the stage still shows the Instagram preview until the finger lifts;
+    // any movement first makes it a pan instead.
+    const hold = Gesture.LongPress()
+      .minDuration(HOLD_MS)
+      .onStart(() => {
+        'worklet';
+        scheduleOnRN(peek, true);
+      })
+      // Every finish, cancelled ones included: a preview must never stay stuck open.
+      .onFinalize(() => {
+        'worklet';
+        scheduleOnRN(peek, false);
+      });
     const pan = Gesture.Pan()
       .onBegin(h.panBegin)
       .onStart(h.panStart)
@@ -79,7 +97,7 @@ export function ProfilbildEditor(props: ProfilbildEditorProps) {
     return {
       live,
       guides,
-      gesture: Gesture.Race(Gesture.Simultaneous(pan, pinch, rotation), tap),
+      gesture: Gesture.Race(Gesture.Simultaneous(pan, pinch, rotation), hold, tap),
       sync(p: ProfilbildEditorProps) {
         latest = p;
         c.sync({
