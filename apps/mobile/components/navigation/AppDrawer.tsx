@@ -33,8 +33,11 @@ export function AppDrawer({ children }: { children: ReactNode }) {
 
   // Threads are created by each chat screen's own runtime, which this drawer
   // runtime never hears about, so re-run list() whenever the drawer opens.
+  // Not while a list() is still running: reload() discards that request and
+  // starts over, and on a cold start the first one can take many seconds, so
+  // every open kept the drawer empty for as long as people kept opening it.
   useEffect(() => {
-    if (open) void runtime.threads.reload();
+    if (open && !runtime.threads.getState().isLoading) void runtime.threads.reload();
   }, [open, runtime]);
 
   const drawerStyle = useMemo(

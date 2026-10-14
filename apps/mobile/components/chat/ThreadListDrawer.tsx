@@ -15,7 +15,7 @@ import { useAuth } from '@gruenerator/shared/hooks';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useNavigationContainerRef, useRouter, type Href } from 'expo-router';
 import { type ReactElement, memo, useCallback, useMemo, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
+import { ActivityIndicator, View, Text, Pressable, StyleSheet, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDrawerStore } from '../../hooks/useDrawerStore';
@@ -400,6 +400,7 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
   const closeDrawer = useDrawerStore((s) => s.closeDrawer);
   const openSettings = useSettingsSheetStore((s) => s.open);
   const activeThreadId = useAuiState((s) => s.threadListItem.id);
+  const isLoadingThreads = useAuiState((s) => s.threads.isLoading);
   const favouriteIds = useToolFavoritesStore((s) => s.favorites);
   // The starred Studio tools, in the order they were starred. The top-level
   // tools are tiles on Arbeiten, not entries here.
@@ -506,7 +507,15 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={listHeader}
         ListFooterComponent={listFooter}
-        ListEmptyComponent={<EmptyThreads theme={theme} onNewChat={handleNewChat} />}
+        ListEmptyComponent={
+          // An empty list while list() runs is not "no conversations" — the
+          // first load after a cold start can take many seconds.
+          isLoadingThreads ? (
+            <ActivityIndicator style={styles.empty} color={theme.textSecondary} />
+          ) : (
+            <EmptyThreads theme={theme} onNewChat={handleNewChat} />
+          )
+        }
       />
 
       {selected && (
