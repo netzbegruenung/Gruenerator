@@ -183,6 +183,21 @@ describe('StickerCreatorScreen', () => {
     expect(screen.getByDisplayValue('Herz')).toBeTruthy();
   });
 
+  it('retries a failed save with the file it already uploaded', async () => {
+    mockCreate.mockRejectedValueOnce(new Error('Speichern fehlgeschlagen.'));
+    await designUpload();
+    await act(async () => fireEvent.press(button('Sticker speichern')));
+    expect(screen.getByText('Speichern fehlgeschlagen.')).toBeTruthy();
+
+    await act(async () => fireEvent.press(button('Sticker speichern')));
+    expect(mockUpload).toHaveBeenCalledTimes(1);
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+    expect(mockCreate).toHaveBeenLastCalledWith(
+      expect.objectContaining({ shareToken: 'share-token' })
+    );
+    expect(await screen.findByText('Fertig!')).toBeTruthy();
+  });
+
   it('locks the sharing switches while saving', async () => {
     mockUpload.mockReturnValue(new Promise(() => {}));
     await designUpload();

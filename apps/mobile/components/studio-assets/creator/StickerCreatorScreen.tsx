@@ -16,7 +16,7 @@ import {
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { File } from 'expo-file-system';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -150,6 +150,8 @@ export function StickerCreatorScreen({
   const [form, setForm] = useState(() => emptyAssetForm(locale));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // A retry after a failed create reuses the upload instead of orphaning another file.
+  const uploaded = useRef<{ draft: StickerDraft; token: string } | null>(null);
 
   const pickMode = (next: StudioAssetSource) => {
     setMode(next);
@@ -180,14 +182,16 @@ export function StickerCreatorScreen({
     if (!draft || !mode || !canSave) return;
     setBusy(true);
     setError(null);
-    const shareToken = await uploadDraft(draft.image, stickerFilename(form.title)).catch(
-      () => null
-    );
+    const shareToken =
+      uploaded.current?.draft === draft
+        ? uploaded.current.token
+        : await uploadDraft(draft.image, stickerFilename(form.title)).catch(() => null);
     if (!shareToken) {
       setError(UPLOAD_ERROR);
       setBusy(false);
       return;
     }
+    uploaded.current = { draft, token: shareToken };
     const item = await create
       .mutateAsync({ shareToken, kind: 'sticker', source: mode, ...assetFormBody(form) })
       .catch((err: unknown) => {

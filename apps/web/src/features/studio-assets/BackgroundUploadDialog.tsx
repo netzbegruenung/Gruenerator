@@ -17,7 +17,7 @@ import {
   Label,
   toast,
 } from '@gruenerator/ui';
-import { useId, useState, type FormEvent, type JSX } from 'react';
+import { useId, useRef, useState, type FormEvent, type JSX } from 'react';
 
 import { useAuthStore } from '../../stores/authStore';
 import { uploadBlobToMediaShare } from '../image-studio/services/mediaUploadService';
@@ -60,6 +60,8 @@ export function BackgroundUploadDialog({
   }));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // A retry after a failed create reuses the upload instead of orphaning another file.
+  const uploaded = useRef<{ file: File; token: string } | null>(null);
 
   const canSubmit = !!file && isAssetFormComplete(form) && !busy;
 
@@ -68,20 +70,21 @@ export function BackgroundUploadDialog({
     if (!file || !canSubmit) return;
     setBusy(true);
     setError(null);
-    let shareToken: string | null;
-    try {
-      const blob = await prepareBackgroundImage(file);
-      const ext = blob.type === 'image/webp' ? 'webp' : 'png';
-      shareToken = await uploadBlobToMediaShare(blob, {
-        filename: `${titleFromFile(file.name) || 'hintergrund'}.${ext}`,
-        uploadSource: 'studio-asset',
-      });
-    } catch (err) {
-      shareToken = null;
-      if (err instanceof BackgroundImageError) {
-        setError(err.message);
-        setBusy(false);
-        return;
+    let shareToken = uploaded.current?.file === file ? uploaded.current.token : null;
+    if (!shareToken) {
+      try {
+        const blob = await prepareBackgroundImage(file);
+        const ext = blob.type === 'image/webp' ? 'webp' : 'png';
+        shareToken = await uploadBlobToMediaShare(blob, {
+          filename: `${titleFromFile(file.name) || 'hintergrund'}.${ext}`,
+          uploadSource: 'studio-asset',
+        });
+      } catch (err) {
+        if (err instanceof BackgroundImageError) {
+          setError(err.message);
+          setBusy(false);
+          return;
+        }
       }
     }
     if (!shareToken) {
@@ -89,6 +92,7 @@ export function BackgroundUploadDialog({
       setBusy(false);
       return;
     }
+    uploaded.current = { file, token: shareToken };
     try {
       await create.mutateAsync({
         shareToken,

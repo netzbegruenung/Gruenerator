@@ -207,4 +207,27 @@ describe('StickerCreatorPage', () => {
     expect(body).toBeNull();
     expect(screen.getByRole('button', { name: 'Sticker speichern' })).toBeEnabled();
   });
+
+  it('retries a failed save with the file it already uploaded', async () => {
+    let attempts = 0;
+    server.use(
+      http.post(API, async ({ request }) => {
+        attempts += 1;
+        if (attempts === 1) return HttpResponse.json({ error: 'kaputt' }, { status: 500 });
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ error: 'egal' }, { status: 500 });
+      })
+    );
+    const { user } = renderWithProviders(<StickerCreatorPage />);
+    await designUpload(user);
+    const saveButton = screen.getByRole('button', { name: 'Sticker speichern' });
+    await user.click(saveButton);
+    await waitFor(() => expect(attempts).toBe(1));
+    await waitFor(() => expect(saveButton).toBeEnabled());
+    await user.click(saveButton);
+
+    await waitFor(() => expect(attempts).toBe(2));
+    expect(uploadShare).toHaveBeenCalledOnce();
+    expect(body).toMatchObject({ shareToken: 'tok-1' });
+  });
 });

@@ -123,6 +123,7 @@ const StickerCreatorPage = (): JSX.Element => {
   const [created, setCreated] = useState<StudioAssetItem | null>(null);
   const emptyForm = () => emptyAssetForm(locale);
   const [form, setForm] = useState<StudioAssetFormValues>(emptyForm);
+  const uploaded = useRef<{ blob: Blob; token: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const draftUrl = useObjectUrl(draft?.blob ?? null);
@@ -167,15 +168,20 @@ const StickerCreatorPage = (): JSX.Element => {
     if (!draft || !mode || !canSave) return;
     setBusy(true);
     setError(null);
-    const shareToken = await uploadBlobToMediaShare(draft.blob, {
-      filename: `${slugifyName(form.title, 'sticker')}.png`,
-      uploadSource: 'studio-asset',
-    }).catch(() => null);
+    // A retry after a failed create reuses the upload instead of orphaning another file.
+    const shareToken =
+      uploaded.current?.blob === draft.blob
+        ? uploaded.current.token
+        : await uploadBlobToMediaShare(draft.blob, {
+            filename: `${slugifyName(form.title, 'sticker')}.png`,
+            uploadSource: 'studio-asset',
+          }).catch(() => null);
     if (!shareToken) {
       setError(UPLOAD_ERROR);
       setBusy(false);
       return;
     }
+    uploaded.current = { blob: draft.blob, token: shareToken };
     try {
       const item = await create.mutateAsync({
         shareToken,
