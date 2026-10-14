@@ -1,7 +1,7 @@
-import { CANVAS_COLORS } from '../canvas-editor/types';
-import { BRAND_COLORS } from '../image-studio/modification-constants';
+import { CANVAS_COLORS } from '../canvas-editor/types.js';
+import { BRAND_COLORS } from '../image-studio/modification-constants.js';
 
-import { type ProfilbildAssetSrc } from './assets';
+import { type ProfilbildAssetSrc } from './assets.js';
 
 export type FlatBackground =
   | { kind: 'color'; color: string }
