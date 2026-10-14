@@ -21,6 +21,8 @@ interface BoardInlineHeaderProps {
   isConnected: boolean;
   isSynced: boolean;
   isArchived: boolean;
+  /** Connection is read-only: no rename, plus a "Nur Ansicht" badge. */
+  readOnly?: boolean;
   expertMode: boolean;
   provider: HocuspocusProvider | null;
   onDelete: () => void;
@@ -40,6 +42,7 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
   isConnected,
   isSynced,
   isArchived,
+  readOnly,
   expertMode,
   provider,
   onDelete,
@@ -78,13 +81,18 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
         <EditableTitle
           as="h1"
           title={title}
-          editable
+          editable={!readOnly}
           activateOn="doubleClick"
           onTitleChange={onRename}
           className={`${compact ? 'text-sm' : 'text-lg sm:text-2xl'} font-bold tracking-tight text-foreground-heading m-0 min-w-0 truncate`}
           inputClassName={`${compact ? 'text-sm' : 'text-lg sm:text-2xl'} font-bold tracking-tight text-foreground-heading m-0 bg-transparent border-none outline-none`}
           editableClassName="cursor-pointer"
         />
+        {readOnly && (
+          <span className="shrink-0 text-xs text-grey-500 bg-grey-100 dark:bg-grey-800 dark:text-grey-300 px-2 py-0.5 rounded">
+            Nur Ansicht
+          </span>
+        )}
         {showStatusDot && <div className={`w-2 h-2 rounded-full shrink-0 ${statusClass}`} />}
       </div>
 

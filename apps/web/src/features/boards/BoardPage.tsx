@@ -40,6 +40,7 @@ import { PlannerKanban } from './components/PlannerKanban';
 import { ViewSwitcher } from './components/ViewSwitcher';
 import { ViewToolbar } from './components/ViewToolbar';
 import { WhiteboardUnavailable } from './components/WhiteboardUnavailable';
+import { BoardReadOnlyContext } from './context/BoardReadOnlyContext';
 import { useBoardActivityFeed } from './hooks/useBoardActivityFeed';
 import { useBoardCollaboration } from './hooks/useBoardCollaboration';
 import { useBoardCommentSignal } from './hooks/useBoardCommentSignal';
@@ -147,7 +148,9 @@ function BoardContent() {
     });
   }, [duplicateBoard, navigate]);
 
-  const { ydoc, provider, isConnected, isSynced, authError } = useBoardCollaboration(id || '');
+  const { ydoc, provider, isConnected, isSynced, authError, isReadOnly } = useBoardCollaboration(
+    id || ''
+  );
   // Live comments: refetch a card's thread when the backend signals a change.
   useBoardCommentSignal(ydoc, id);
 
@@ -196,6 +199,7 @@ function BoardContent() {
         isConnected={isConnected}
         isSynced={isSynced}
         isArchived={isBoardArchived(board)}
+        readOnly={isReadOnly}
         expertMode={expertMode}
         provider={provider}
         onDelete={handleDelete}
@@ -214,7 +218,8 @@ function BoardContent() {
         <BoardViewContent
           ydoc={ydoc}
           isSynced={isSynced}
-          isLocked={!!authError}
+          isLocked={!!authError || isReadOnly}
+          readOnly={isReadOnly}
           provider={provider}
           generatedStructure={generatedStructure}
           currentUserId={String(user?.id || '')}
@@ -249,6 +254,7 @@ function BoardViewContent({
   ydoc,
   isSynced,
   isLocked,
+  readOnly,
   provider,
   generatedStructure,
   currentUserId,
@@ -274,6 +280,7 @@ function BoardViewContent({
   ydoc: Doc;
   isSynced: boolean;
   isLocked: boolean;
+  readOnly: boolean;
   provider: HocuspocusProvider | null;
   generatedStructure: BoardInitialStructure | null;
   currentUserId: string;
@@ -433,7 +440,7 @@ function BoardViewContent({
   }, [layout, deepLinkRow, consumeDeepLink]);
 
   return (
-    <>
+    <BoardReadOnlyContext.Provider value={readOnly}>
       <BoardQuickBar
         search={searchQuery}
         onSearchChange={setSearchQuery}
@@ -561,7 +568,7 @@ function BoardViewContent({
           rows={filteredRows}
           activeView={activeView}
           onRowClick={handleRowClick}
-          onCellUpdate={boardState.updateRowCell}
+          onCellUpdate={readOnly ? undefined : boardState.updateRowCell}
         />
       )}
 
@@ -584,7 +591,7 @@ function BoardViewContent({
       )}
 
       {/* AI assistant — expert-only, and only once the board state is synced and a user is present. */}
-      {isSynced && userId && expertMode && (
+      {isSynced && userId && expertMode && !readOnly && (
         <>
           {/* Hidden while the panel is open — the fixed panel overlays the FAB's
               corner (composer/send button), and the panel has its own close button. */}
@@ -621,7 +628,7 @@ function BoardViewContent({
           )}
         </>
       )}
-    </>
+    </BoardReadOnlyContext.Provider>
   );
 }
 

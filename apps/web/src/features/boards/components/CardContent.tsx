@@ -4,6 +4,7 @@ import { memo, useCallback, useMemo } from 'react';
 import { FiCheckSquare, FiFileText, FiMessageSquare } from 'react-icons/fi';
 
 import { useCardActivity } from '../context/BoardAwarenessContext';
+import { useBoardReadOnly } from '../context/BoardReadOnlyContext';
 import { checklistProgress, FIELD_IDS, parseAssignees, parseChecklists } from '../types';
 
 import type { Row, Field, SelectOption } from '../types';
@@ -42,6 +43,7 @@ export const CardContent = memo(function CardContent({
 
   const cardActivity = useCardActivity(row.id);
   const activeUser = cardActivity[0] ?? null;
+  const readOnly = useBoardReadOnly();
   const isBeingEdited = activeUser?.selectedCardId === row.id;
   const isBeingDragged = activeUser?.draggedCardId === row.id;
 
@@ -175,7 +177,7 @@ export const CardContent = memo(function CardContent({
         <EditableTitle
           as="span"
           title={title}
-          editable
+          editable={!readOnly}
           activateOn="doubleClick"
           onTitleChange={(newTitle) => onRenameCard(row.id, newTitle)}
           className="text-sm text-foreground font-medium"
