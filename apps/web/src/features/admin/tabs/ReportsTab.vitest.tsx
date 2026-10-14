@@ -34,6 +34,7 @@ const group = {
     moderation: 'hidden',
     ownerId: 'u-2',
     ownerName: 'Eva',
+    trashed: false,
   },
 };
 
@@ -66,6 +67,20 @@ describe('ReportsTab', () => {
     await waitFor(() =>
       expect(body).toEqual({ kind: 'studio_asset', targetId: 'a-1', action: 'dismiss' })
     );
+  });
+
+  it('still offers every action on an asset the owner moved to the Papierkorb', async () => {
+    server.use(
+      http.get(LIST, () =>
+        HttpResponse.json({ reports: [{ ...group, target: { ...group.target, trashed: true } }] })
+      )
+    );
+    renderWithProviders(<ReportsTab />);
+
+    expect(await screen.findByText('Im Papierkorb')).toBeInTheDocument();
+    for (const name of ['Entfernen', 'Wiederherstellen', 'Verwerfen']) {
+      expect(screen.getByRole('button', { name })).toBeInTheDocument();
+    }
   });
 
   it('asks for confirmation before removing', async () => {

@@ -51,6 +51,7 @@ export default function ReportCard({ report, pending, onAction }: ReportCardProp
         <div className="flex flex-wrap items-center gap-xs">
           <h3 className="text-base font-semibold text-foreground-heading m-0">{heading}</h3>
           {moderation ? <Badge variant="destructive">{MODERATION_LABELS[moderation]}</Badge> : null}
+          {target?.trashed ? <Badge variant="secondary">Im Papierkorb</Badge> : null}
           {isAsset && !target ? <Badge variant="secondary">Nicht mehr verfügbar</Badge> : null}
         </div>
         <p className="text-sm text-grey-500 dark:text-grey-400 m-0 mt-xs">

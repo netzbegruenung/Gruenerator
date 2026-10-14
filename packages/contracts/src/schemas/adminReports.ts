@@ -34,6 +34,8 @@ export const adminReportStudioAssetTargetSchema = z.object({
   moderation: studioAssetModerationSchema,
   ownerId: z.string(),
   ownerName: z.string().nullable(),
+  /** The owner moved it to the Papierkorb; moderation still applies to it. */
+  trashed: z.boolean(),
 });
 export type AdminReportStudioAssetTarget = z.infer<typeof adminReportStudioAssetTargetSchema>;
 

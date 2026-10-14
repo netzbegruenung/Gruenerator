@@ -203,6 +203,7 @@ async function loadStudioAssetTargets(
       moderation: studioAssets.moderation,
       ownerId: studioAssets.user_id,
       ownerName: profiles.display_name,
+      deletedAt: studioAssets.deleted_at,
       shareToken: sharedMedia.share_token,
       mediaCreatedAt: sharedMedia.created_at,
       mediaMetadata: sharedMedia.image_metadata,
@@ -210,7 +211,7 @@ async function loadStudioAssetTargets(
     .from(studioAssets)
     .leftJoin(sharedMedia, and(eq(sharedMedia.id, studioAssets.media_id), notTrashed(sharedMedia)))
     .leftJoin(profiles, eq(profiles.id, studioAssets.user_id))
-    .where(and(inArray(studioAssets.id, ids), notTrashed(studioAssets)));
+    .where(inArray(studioAssets.id, ids));
 
   return new Map(
     rows.map((r) => [
@@ -230,6 +231,7 @@ async function loadStudioAssetTargets(
         moderation: r.moderation,
         ownerId: r.ownerId,
         ownerName: r.ownerName?.trim() || null,
+        trashed: r.deletedAt !== null,
       },
     ])
   );
@@ -277,29 +279,24 @@ export async function resolveReports(
     if (body.action === 'dismiss' && closed.length === 0) return NO_OPEN_REPORTS;
 
     let moderation: StudioAssetModeration | null = null;
+    // Trashed assets too: the owner trashing a reported asset must not dodge its removal.
     if (assetId) {
       if (body.action === 'remove' || body.action === 'restore') {
         await tx
           .update(studioAssets)
           .set({ moderation: body.action === 'remove' ? 'removed' : 'ok', updated_at: new Date() })
-          .where(and(eq(studioAssets.id, assetId), notTrashed(studioAssets)));
+          .where(eq(studioAssets.id, assetId));
       } else {
         // Only the auto-hide sets 'hidden'; dismissing the reports lifts it.
         await tx
           .update(studioAssets)
           .set({ moderation: 'ok', updated_at: new Date() })
-          .where(
-            and(
-              eq(studioAssets.id, assetId),
-              eq(studioAssets.moderation, 'hidden'),
-              notTrashed(studioAssets)
-            )
-          );
+          .where(and(eq(studioAssets.id, assetId), eq(studioAssets.moderation, 'hidden')));
       }
       const [row] = await tx
         .select({ moderation: studioAssets.moderation })
         .from(studioAssets)
-        .where(and(eq(studioAssets.id, assetId), notTrashed(studioAssets)))
+        .where(eq(studioAssets.id, assetId))
         .limit(1);
       moderation = row?.moderation ?? null;
     }
