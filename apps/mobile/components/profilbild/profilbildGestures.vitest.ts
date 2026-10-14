@@ -301,6 +301,13 @@ describe('UI-thread functions', () => {
   it.each(Object.entries(onUiThread))('%s is a worklet', (_name, fn) => {
     expect(String(fn)).toMatch(/^[^{]*\{\s*["']worklet["'];/);
   });
+
+  // The plugin captures only what the body reads: a default like
+  // `size = PROFILBILD_SIZE` throws "Property doesn't exist" on the UI thread.
+  it.each(Object.entries(onUiThread))('%s has no default parameters', (_name, fn) => {
+    const signature = String(fn).slice(0, String(fn).indexOf('{'));
+    expect(signature).not.toMatch(/=(?!>)/);
+  });
 });
 
 describe('nextStickerUid', () => {
