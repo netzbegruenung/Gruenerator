@@ -219,6 +219,23 @@ describe('createProfilbildGestureController', () => {
     controller.settle();
     expect(cells.live.value).toBeNull();
   });
+
+  it('commits nothing for a gesture that never moved, even before the last one settled', () => {
+    const { io, cells, h } = setup();
+
+    h.panBegin(STICKER);
+    h.panStart();
+    h.panUpdate({ translationX: 10, translationY: 0 });
+    h.end();
+    expect(io.commit).toHaveBeenLastCalledWith(expect.objectContaining({ kind: 'sticker' }));
+    // The first commit has not rendered yet, so the live cell still holds it.
+    expect(cells.live.value).not.toBeNull();
+
+    h.panBegin(STICKER);
+    h.end();
+    expect(io.commit).toHaveBeenCalledTimes(2);
+    expect(io.commit).toHaveBeenLastCalledWith(null);
+  });
 });
 
 describe('stepGesture', () => {

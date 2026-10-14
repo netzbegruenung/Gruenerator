@@ -70,6 +70,8 @@ export interface GestureMachine {
   downAt: Point;
   target: Target | null;
   gesture: LiveGesture;
+  /** Whether this bout moved its target; `live` may still hold the previous bout's element. */
+  moved: boolean;
 }
 
 /** A shared value, or a plain `{ value }` in tests. */
@@ -82,7 +84,13 @@ export const NO_GUIDES: Guides = { x: null, y: null };
 
 export function idleMachine(): GestureMachine {
   'worklet';
-  return { active: 0, downAt: { x: 0, y: 0 }, target: null, gesture: restGesture() };
+  return {
+    active: 0,
+    downAt: { x: 0, y: 0 },
+    target: null,
+    gesture: restGesture(),
+    moved: false,
+  };
 }
 
 let stickerCounter = 0;
@@ -189,16 +197,19 @@ export function createProfilbildGestureController(
         if (c.selected) scheduleOnRN(select, null);
       }
     }
-    machine.value = { ...m, active: 1, target, gesture: restGesture() };
+    machine.value = { ...m, active: 1, target, gesture: restGesture(), moved: false };
     if (target) scheduleOnRN(start);
   };
 
   const update = (gesture: LiveGesture) => {
     'worklet';
     const m = machine.value;
-    machine.value = { ...m, gesture };
     const c = ctx.value;
-    if (!m.target || !c) return;
+    if (!m.target || !c) {
+      machine.value = { ...m, gesture };
+      return;
+    }
+    machine.value = { ...m, gesture, moved: true };
     const { element, snap } = stepGesture(m.target, gesture, c.personSrc, c.viewSize);
     const prev = guides.value;
     if ((prev.x === null && snap.guideX !== null) || (prev.y === null && snap.guideY !== null)) {
@@ -223,7 +234,8 @@ export function createProfilbildGestureController(
     // The live element stays on screen until the RN thread has rendered the
     // committed model and calls `settle`; clearing it here would flash the old
     // position for the frames in between.
-    scheduleOnRN(commit, live.value);
+    // Only what this bout moved: until `settle`, `live` can still hold the last bout's element.
+    scheduleOnRN(commit, m.moved ? live.value : null);
   };
 
   return {
