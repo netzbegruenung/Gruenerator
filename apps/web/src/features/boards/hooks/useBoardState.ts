@@ -13,6 +13,13 @@ export interface RecurringSpawn {
   dueDate: string;
 }
 
+/** Outcome of setRowStatus/setRowDone, for activity logging. */
+export interface StatusChange {
+  spawned: RecurringSpawn[];
+  completed: boolean;
+  reopened: boolean;
+}
+
 interface BoardState {
   fields: Field[];
   rows: Row[];
@@ -255,37 +262,56 @@ export const useBoardState = (
   );
 
   /**
-   * Check a card off (move it to the done column) or reopen it (back to the column
-   * it came from). Returns null when nothing changed (no done column, already in
-   * that state, locked), else the recurring follow-up spawned by completing it.
+   * The one door for a card's status change outside a drag (detail panel, list
+   * drag, "Karte verschieben"): keeps the done bookkeeping in one place —
+   * statusBeforeDone and the recurring follow-up. Returns null when nothing
+   * changed, else what happened so the caller can log it.
    */
-  const setRowDone = useCallback(
-    (rowId: string, done: boolean): RecurringSpawn[] | null => {
+  const setRowStatus = useCallback(
+    (rowId: string, statusId: string): StatusChange | null => {
       if (isLockedRef.current) return null;
-      let spawned: RecurringSpawn[] | null = null;
+      let change: StatusChange | null = null;
       ydoc.transact(() => {
         const fields = yFields.toJSON() as Field[];
         const doneId = getDoneStatusId(fields);
-        if (!doneId) return;
         const rows = yRows.toJSON() as Row[];
         const index = rows.findIndex((r) => r.id === rowId);
         if (index === -1) return;
         const row = rows[index];
-        if ((row.cells[FIELD_IDS.STATUS] === doneId) === done) return;
-        const target = done ? doneId : reopenStatusId(row, fields, doneId);
-        if (!target) return;
+        const prev = row.cells[FIELD_IDS.STATUS];
+        if (prev === statusId) return;
         yRows.delete(index, 1);
-        yRows.insert(index, [withStatus(row, target, doneId)]);
-        spawned = [];
-        const next = done ? nextOccurrence(row, fields, doneId) : null;
+        yRows.insert(index, [withStatus(row, statusId, doneId)]);
+        const completed = !!doneId && statusId === doneId;
+        const spawned: RecurringSpawn[] = [];
+        const next = completed && doneId ? nextOccurrence(row, fields, doneId) : null;
         if (next) {
           yRows.push([next.row]);
           spawned.push({ rowId: next.row.id, dueDate: next.dueDate });
         }
+        change = { spawned, completed, reopened: !!doneId && prev === doneId };
       });
-      return spawned;
+      return change;
     },
     [ydoc, yRows, yFields]
+  );
+
+  /**
+   * Check a card off (move it to the done column) or reopen it (back to the column
+   * it came from). Null when nothing changed (no done column, already in that
+   * state, locked).
+   */
+  const setRowDone = useCallback(
+    (rowId: string, done: boolean): StatusChange | null => {
+      const fields = yFields.toJSON() as Field[];
+      const doneId = getDoneStatusId(fields);
+      const row = (yRows.toJSON() as Row[]).find((r) => r.id === rowId);
+      if (!doneId || !row) return null;
+      if ((row.cells[FIELD_IDS.STATUS] === doneId) === done) return null;
+      const target = done ? doneId : reopenStatusId(row, fields, doneId);
+      return target ? setRowStatus(rowId, target) : null;
+    },
+    [yRows, yFields, setRowStatus]
   );
 
   // --- Field CRUD ---
@@ -376,6 +402,7 @@ export const useBoardState = (
     deleteRow,
     duplicateRow,
     onDragReorder,
+    setRowStatus,
     setRowDone,
     addField,
     updateField,

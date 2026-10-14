@@ -466,9 +466,13 @@ export const CardDetailPanel = memo(function CardDetailPanel({
     (statusId: string) => {
       if (!row) return;
       onUpdateCell(row.id, FIELD_IDS.STATUS, statusId);
-      recordActivity.mutate({ type: 'card_moved' });
+      // Entering/leaving the done column is logged as completed/reopened upstream.
+      const touchesDone =
+        !!taskDone &&
+        (statusId === taskDone.doneStatusId || currentStatusId === taskDone.doneStatusId);
+      if (!touchesDone) recordActivity.mutate({ type: 'card_moved' });
     },
-    [row, onUpdateCell, recordActivity]
+    [row, onUpdateCell, recordActivity, taskDone, currentStatusId]
   );
 
   const handleDiscussInChat = useCallback(() => {

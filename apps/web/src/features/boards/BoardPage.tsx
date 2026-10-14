@@ -51,9 +51,9 @@ import { useViewData } from './hooks/useViewData';
 import { FIELD_IDS, getBoardType, isBoardArchived } from './types';
 import { getDoneStatusId } from './utils/taskDone';
 
-import type { BoardInitialStructure, RecurringSpawn } from './hooks/useBoardState';
+import type { BoardInitialStructure, RecurringSpawn, StatusChange } from './hooks/useBoardState';
 import type { QuickFilter } from './hooks/useViewData';
-import type { Row, ViewLayout } from './types';
+import type { CellValue, Row, ViewLayout } from './types';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 import type { Doc } from 'yjs';
 
@@ -397,21 +397,39 @@ function BoardViewContent({
   );
 
   const queryClient = useQueryClient();
-  const { setRowDone } = boardState;
-  const setDone = useCallback(
-    (rowId: string, done: boolean) => {
-      const spawned = setRowDone(rowId, done);
-      if (!spawned) return;
-      recordSpawns(spawned);
+  const { setRowStatus, setRowDone, updateRowCell } = boardState;
+  const recordStatusChange = useCallback(
+    (rowId: string, change: StatusChange | null) => {
+      if (!change) return;
+      recordSpawns(change.spawned);
+      if (!change.completed && !change.reopened) return;
       void getContractsClient()
         .boardActivity.recordActivity({
           params: { boardId, cardId: rowId },
-          body: { type: done ? 'card_completed' : 'card_reopened' },
+          body: { type: change.completed ? 'card_completed' : 'card_reopened' },
         })
         .then(() => queryClient.invalidateQueries({ queryKey: ['board-activity', boardId, rowId] }))
         .catch(() => {});
     },
-    [setRowDone, recordSpawns, boardId, queryClient]
+    [recordSpawns, boardId, queryClient]
+  );
+
+  const setDone = useCallback(
+    (rowId: string, done: boolean) => recordStatusChange(rowId, setRowDone(rowId, done)),
+    [recordStatusChange, setRowDone]
+  );
+
+  // Status writes go through setRowStatus so every path (panel "Karte verschieben",
+  // list drag) keeps the done bookkeeping, recurrence and activity log in sync.
+  const handleUpdateCell = useCallback(
+    (rowId: string, fieldId: string, value: CellValue) => {
+      if (fieldId === FIELD_IDS.STATUS && typeof value === 'string' && value) {
+        recordStatusChange(rowId, setRowStatus(rowId, value));
+        return;
+      }
+      updateRowCell(rowId, fieldId, value);
+    },
+    [recordStatusChange, setRowStatus, updateRowCell]
   );
 
   const doneStatusId = useMemo(() => getDoneStatusId(boardState.fields), [boardState.fields]);
@@ -566,7 +584,7 @@ function BoardViewContent({
           onDragReorder={handleDragReorder}
           addRow={boardState.addRow}
           updateRow={boardState.updateRow}
-          updateRowCell={boardState.updateRowCell}
+          updateRowCell={handleUpdateCell}
           deleteRow={boardState.deleteRow}
           duplicateRow={boardState.duplicateRow}
           updateField={boardState.updateField}
@@ -587,7 +605,7 @@ function BoardViewContent({
           fields={fields}
           rows={filteredRows}
           onRowClick={handleRowClick}
-          onCellUpdate={boardState.updateRowCell}
+          onCellUpdate={handleUpdateCell}
         />
       )}
 
@@ -596,7 +614,7 @@ function BoardViewContent({
           fields={fields}
           groups={groups}
           onRowClick={handleRowClick}
-          onCellUpdate={boardState.updateRowCell}
+          onCellUpdate={handleUpdateCell}
         />
       )}
 
@@ -616,7 +634,7 @@ function BoardViewContent({
           rows={filteredRows}
           activeView={activeView}
           onRowClick={handleRowClick}
-          onCellUpdate={boardState.updateRowCell}
+          onCellUpdate={handleUpdateCell}
         />
       )}
 
@@ -626,7 +644,7 @@ function BoardViewContent({
           fields={fields}
           open={detailOpen}
           onOpenChange={handleDetailClose}
-          onUpdateCell={boardState.updateRowCell}
+          onUpdateCell={handleUpdateCell}
           onUpdateRow={boardState.updateRow}
           onDelete={boardState.deleteRow}
           onDuplicate={(rowId) => boardState.duplicateRow(rowId, currentUserId)}
