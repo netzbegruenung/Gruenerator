@@ -388,6 +388,15 @@ describe('share link expiry', () => {
     expect((await get('/api/share/abc123/download')).status).toBe(410);
   });
 
+  it('keeps a Studio gallery file reachable past the date, as a plain XHR download', async () => {
+    const xhr = { headers: { 'x-test-user': 'somebody-else' } };
+    getShareByToken.mockResolvedValue(expired({ upload_source: 'studio-asset' }));
+    expect((await get('/api/share/abc123/download', xhr)).status).toBe(200);
+
+    getShareByToken.mockResolvedValue(expired({ upload_source: 'canvas-editor' }));
+    expect((await get('/api/share/abc123/download', xhr)).status).toBe(410);
+  });
+
   // Canvases store their images as /download URLs; a collaborator's canvas
   // must not go blank when the image's share link passes its date.
   describe('an image render through the download link', () => {

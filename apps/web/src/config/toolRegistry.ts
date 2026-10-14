@@ -396,6 +396,18 @@ const TOOLS = [
     theme: true,
   },
   {
+    id: 'sticker',
+    title: 'Sticker & Hintergründe',
+    path: '/studio/sticker',
+    icon: { navigation: 'sticker' },
+    tile: { group: 'studio-werkzeuge', description: 'Sticker erstellen, teilen & entdecken' },
+    search: {
+      id: 'tool-sticker',
+      subtitle: 'Sticker und Hintergründe erstellen, teilen und entdecken',
+      keywords: ['sticker', 'aufkleber', 'hintergrund', 'profilbild', 'wahlkampf'],
+    },
+  },
+  {
     id: 'bild-erweitern',
     title: 'Bild erweitern',
     path: '/studio/erweitern',
@@ -624,6 +636,7 @@ const SEARCH_ORDER = [
   'tool-studio',
   'tool-imagine',
   'tool-profilbild',
+  'tool-sticker',
   'tool-bild-erweitern',
   'tool-freisteller',
   'tool-mediathek',

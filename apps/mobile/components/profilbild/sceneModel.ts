@@ -5,23 +5,31 @@ import {
   gradientLine,
   PROFILBILD_SIZE,
   STICKER_BASE_WIDTH,
+  stickerById,
 } from '@gruenerator/shared/profilbild';
+import { isAssetStickerId } from '@gruenerator/shared/stickers';
 
 import type {
   FlatBackground,
   PersonPlacement,
   ProfilbildAssetSrc,
-  ProfilbildSticker,
+  SavedProfilbildSticker,
   Sized,
 } from '@gruenerator/shared/profilbild';
 import type { SkImage } from '@shopify/react-native-skia';
+
+/** The bundled assets by src, plus gallery stickers loaded in this session by share path. */
+export type SceneImages = Record<ProfilbildAssetSrc, SkImage> & Partial<Record<string, SkImage>>;
 
 export type MobileBackground =
   FlatBackground | { kind: 'image'; image: SkImage } | { kind: 'preset'; designId: string };
 
 export interface SceneSticker {
   uid: string;
-  src: ProfilbildAssetSrc;
+  /** A catalog id, or `asset:<uuid>` for a gallery sticker. */
+  id: SavedProfilbildSticker['id'];
+  /** A bundled asset src, or the gallery sticker's `/api/share/<token>/download` path. */
+  src: string;
   x: number;
   y: number;
   width: number;
@@ -53,10 +61,17 @@ export function initialModel(person: Sized, isAustria: boolean): ProfilbildModel
   return { background: swatches[0].background, person: defaultPlacement(person), stickers: [] };
 }
 
-export function newSticker(sticker: ProfilbildSticker, image: Sized, uid: string): SceneSticker {
+export interface StickerSource {
+  id: SavedProfilbildSticker['id'];
+  src: string;
+  defaultScale: number;
+}
+
+export function newSticker(sticker: StickerSource, image: Sized, uid: string): SceneSticker {
   const width = STICKER_BASE_WIDTH * PROFILBILD_SIZE * sticker.defaultScale;
   return {
     uid,
+    id: sticker.id,
     src: sticker.src,
     x: PROFILBILD_SIZE / 2,
     y: PROFILBILD_SIZE / 2,
@@ -64,6 +79,41 @@ export function newSticker(sticker: ProfilbildSticker, image: Sized, uid: string
     height: (width * image.height) / image.width,
     rotation: 0,
   };
+}
+
+/**
+ * Places saved stickers back. A gallery sticker whose image did not load stays
+ * out of the scene but is kept, so the next save does not drop it.
+ */
+export function restoreStickers(
+  saved: SavedProfilbildSticker[],
+  loaded: (src: string) => boolean
+): { stickers: SceneSticker[]; unrestored: SavedProfilbildSticker[] } {
+  const stickers: SceneSticker[] = [];
+  const unrestored: SavedProfilbildSticker[] = [];
+  saved.forEach((s, i) => {
+    const { id, src: savedSrc, ...box } = s;
+    const src = isAssetStickerId(id) ? savedSrc : stickerById(id)?.src;
+    if (src && (!isAssetStickerId(id) || loaded(src)))
+      stickers.push({ ...box, id, src, uid: `${id}-restored-${i}` });
+    else if (isAssetStickerId(id)) unrestored.push(s);
+  });
+  return { stickers, unrestored };
+}
+
+/** The stickers to save: the placed ones, then the gallery ones that could not be restored. */
+export function savedStickers(
+  stickers: SceneSticker[],
+  unrestored: SavedProfilbildSticker[]
+): SavedProfilbildSticker[] {
+  return [
+    ...stickers.map(({ uid: _uid, id, src, ...box }) => ({
+      id,
+      ...(isAssetStickerId(id) ? { src } : {}),
+      ...box,
+    })),
+    ...unrestored,
+  ];
 }
 
 type Stops<T> = readonly [T, T, ...T[]];

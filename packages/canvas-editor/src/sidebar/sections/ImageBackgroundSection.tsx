@@ -1,10 +1,19 @@
 import { shareCanvasPreviewUrl, shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
 import { MediaThumb } from '@gruenerator/shared/media-library/ui';
+import { isShareSrc } from '@gruenerator/shared/stickers';
 import { MasonryGrid, MasonryItem, Switch } from '@gruenerator/ui';
-import { useState, useEffect, useCallback, useRef, type ChangeEvent, type ReactNode } from 'react';
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  type ChangeEvent,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 import { FaCheck } from 'react-icons/fa';
 import { HiAdjustments, HiColorSwatch } from 'react-icons/hi';
-import { HiArrowUpTray, HiMagnifyingGlass, HiPhoto, HiXMark } from 'react-icons/hi2';
+import { HiArrowUpTray, HiMagnifyingGlass, HiPhoto, HiSquares2X2, HiXMark } from 'react-icons/hi2';
 
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import UnsplashAttribution from '../../common/UnsplashAttribution';
@@ -25,15 +34,54 @@ import {
   MOBILE_SEARCH_FIELD,
   MOBILE_SLIDER_ROWS,
 } from './BackgroundSection';
+import { GALLERY_SCOPES, GalleryTabs, StudioGalleryGrid } from './StudioGallery';
 
 import type { StockImage, StockImageAttribution } from '../../common/imageSourceTypes';
 import type { BackgroundColorOption } from '../types';
+import type { StudioAssetItem, StudioAssetScope } from '@gruenerator/contracts';
 import type { MediaItem } from '@gruenerator/shared/media-library';
 
 function buildUploadUrl(item: MediaItem): string | null {
   if (item.mediaUrl) return item.mediaUrl;
   if (item.shareToken) return `/api/share/${item.shareToken}/download`;
   return item.thumbnailUrl;
+}
+
+/**
+ * A stored share image as the File a background pick hands to `onImageChange`.
+ * The canvas renders the 2160px preview tier anyway; the stored original can be
+ * many MB and its /download awaits download tracking.
+ */
+async function fetchShareImageFile(url: string, filename: string): Promise<File> {
+  const response = await fetch(shareCanvasPreviewUrl(url) ?? url);
+  if (!response.ok) throw new Error('Bild konnte nicht geladen werden');
+  const blob = await response.blob();
+  const rawFile = new File([blob], filename, { type: blob.type || 'image/jpeg' });
+  // Same cap as persistImageSelection: this File backs the auto-save
+  // `originalImage`, so it should be the working size, not the raw original.
+  return downscaleImageForUpload(rawFile);
+}
+
+/**
+ * One pick sequence for both background panels: only the newest pick, from
+ * either "Bilder" or "Hintergründe", may change the background.
+ */
+interface BackgroundPick {
+  seqRef: RefObject<number>;
+  pendingId: string | null;
+  setPendingId: (id: string | null) => void;
+  begin: (id: string | null) => number;
+}
+
+function useBackgroundPick(): BackgroundPick {
+  const seqRef = useRef(0);
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const begin = useCallback((id: string | null) => {
+    seqRef.current += 1;
+    setPendingId(id);
+    return seqRef.current;
+  }, []);
+  return { seqRef, pendingId, setPendingId, begin };
 }
 
 function PickPending() {
@@ -96,7 +144,10 @@ function SearchContent({
   currentImageSrc,
   onImageChange,
   onActivateImage,
-}: Pick<ImageBackgroundSectionProps, 'currentImageSrc' | 'onImageChange' | 'onActivateImage'>) {
+  pick,
+}: Pick<ImageBackgroundSectionProps, 'currentImageSrc' | 'onImageChange' | 'onActivateImage'> & {
+  pick: BackgroundPick;
+}) {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [pickError, setPickError] = useState<string | null>(null);
@@ -107,14 +158,19 @@ function SearchContent({
   // while it's still active.
   // Picks resolve asynchronously; only the newest one may change the
   // background, and its tile shows a spinner until it has.
-  const pickSeqRef = useRef(0);
-  const [pendingPickId, setPendingPickId] = useState<string | null>(null);
-  const beginPick = useCallback((id: string | null) => {
-    pickSeqRef.current += 1;
-    setPendingPickId(id);
-    setPickError(null);
-    return pickSeqRef.current;
-  }, []);
+  const {
+    seqRef: pickSeqRef,
+    pendingId: pendingPickId,
+    setPendingId: setPendingPickId,
+    begin,
+  } = pick;
+  const beginPick = useCallback(
+    (id: string | null) => {
+      setPickError(null);
+      return begin(id);
+    },
+    [begin]
+  );
 
   const {
     items: uploadItems,
@@ -171,16 +227,8 @@ function SearchContent({
       const seq = beginPick(item.id);
       const isCurrent = () => seq === pickSeqRef.current;
       try {
-        // The canvas renders the 2160px preview tier anyway; the stored
-        // original can be many MB and its /download awaits download tracking.
-        const response = await fetch(shareCanvasPreviewUrl(url) ?? url);
-        if (!response.ok) throw new Error('Bild konnte nicht geladen werden');
-        const blob = await response.blob();
         const filename = item.originalFilename ?? item.title ?? `upload-${item.id}`;
-        const rawFile = new File([blob], filename, { type: blob.type || 'image/jpeg' });
-        // Same cap as persistImageSelection: this File backs the auto-save
-        // `originalImage`, so it should be the working size, not the raw original.
-        const file = await downscaleImageForUpload(rawFile);
+        const file = await fetchShareImageFile(url, filename);
         if (isCurrent()) applyLibraryImage(file, url);
       } catch (err) {
         if (!isCurrent()) return;
@@ -190,7 +238,7 @@ function SearchContent({
         if (isCurrent()) setPendingPickId(null);
       }
     },
-    [applyLibraryImage, beginPick]
+    [applyLibraryImage, beginPick, pickSeqRef, setPendingPickId]
   );
 
   // A new file goes into the library first (like the Uploads tab), so the
@@ -260,7 +308,15 @@ function SearchContent({
         setPickError(message);
       }
     },
-    [onImageChange, fetchUnsplashImageAsFile, trackUnsplashDownloadLive, uploadImage, beginPick]
+    [
+      onImageChange,
+      fetchUnsplashImageAsFile,
+      trackUnsplashDownloadLive,
+      uploadImage,
+      beginPick,
+      pickSeqRef,
+      setPendingPickId,
+    ]
   );
 
   // Tapping the earlier photo swaps its button for the selected tile; focus
@@ -640,6 +696,75 @@ function SearchContent({
 }
 
 /**
+ * The shared gallery's backgrounds (Entdecken / Meine / Gemerkt). A pick becomes
+ * the template's background photo — full-bleed, cover, under everything — with
+ * the gallery's own durable URL, so nothing is uploaded again.
+ */
+function GalleryBackgroundsContent({
+  currentImageSrc,
+  onImageChange,
+  pick,
+}: Pick<ImageBackgroundSectionProps, 'currentImageSrc' | 'onImageChange'> & {
+  pick: BackgroundPick;
+}) {
+  const isMobile = useIsCanvasMobile();
+  const [scope, setScope] = useState<StudioAssetScope>('shop');
+  const [pickError, setPickError] = useState<string | null>(null);
+  const { seqRef, pendingId, setPendingId, begin } = pick;
+
+  const handlePick = async (item: StudioAssetItem) => {
+    if (!isShareSrc(item.src)) return;
+    setPickError(null);
+    const seq = begin(item.id);
+    const isCurrent = () => seq === seqRef.current;
+    try {
+      const file = await fetchShareImageFile(item.src, item.title);
+      if (isCurrent()) onImageChange(file, item.src, null);
+    } catch {
+      if (isCurrent()) setPickError('Hintergrund konnte nicht geladen werden.');
+    } finally {
+      if (isCurrent()) setPendingId(null);
+    }
+  };
+
+  return (
+    <section
+      className={cn(
+        SIDEBAR_SECTION,
+        'gap-3 px-3 pb-4 max-canvas-mobile:gap-4 max-canvas-mobile:p-0'
+      )}
+    >
+      {!isMobile && (
+        <h3 className="m-0 text-xs font-semibold uppercase tracking-wide text-[var(--editor-text-muted)]">
+          Hintergründe
+        </h3>
+      )}
+      <GalleryTabs
+        label="Hintergrund-Auswahl"
+        tabs={GALLERY_SCOPES}
+        value={scope}
+        onChange={setScope}
+      />
+      {pickError && (
+        <div
+          role="alert"
+          className="text-xs text-[var(--editor-danger-fg)] bg-[var(--editor-danger-bg)] rounded-md px-2 py-1"
+        >
+          {pickError}
+        </div>
+      )}
+      <StudioGalleryGrid
+        kind="background"
+        scope={scope}
+        pendingId={pendingId}
+        selectedSrc={currentImageSrc ?? ''}
+        onPick={(item) => void handlePick(item)}
+      />
+    </section>
+  );
+}
+
+/**
  * Adjustment Controls Content - zoom, lock, gradient.
  *
  * All three used to be accepted as props and none but the gradient was drawn,
@@ -718,6 +843,7 @@ export function ImageBackgroundSection({
   onActivateImage,
 }: ImageBackgroundSectionProps) {
   const [defaultSubsection] = useState(initialSubsection);
+  const pick = useBackgroundPick();
   const hasAdjustments =
     (scale !== undefined && onScaleChange !== undefined) ||
     (gradientOpacity !== undefined && onGradientOpacityChange !== undefined) ||
@@ -738,6 +864,20 @@ export function ImageBackgroundSection({
           currentImageSrc={currentImageSrc}
           onImageChange={onImageChange}
           onActivateImage={onActivateImage}
+          pick={pick}
+        />
+      ),
+    },
+    {
+      id: 'gallery-backgrounds',
+      icon: HiSquares2X2,
+      label: 'Hintergründe',
+      content: (
+        <GalleryBackgroundsContent
+          // A kept-but-hidden photo (onActivateImage) is not the background.
+          {...(onActivateImage ? {} : { currentImageSrc })}
+          onImageChange={onImageChange}
+          pick={pick}
         />
       ),
     },

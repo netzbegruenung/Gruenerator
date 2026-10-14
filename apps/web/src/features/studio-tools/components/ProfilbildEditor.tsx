@@ -1,4 +1,3 @@
-import { CANVAS_COLORS } from '@gruenerator/shared/canvas-editor';
 import {
   clampPerson,
   COLOR_SWATCHES_AT,
@@ -15,20 +14,20 @@ import {
   snapSticker,
   STICKER_BASE_WIDTH,
   stickerById,
-  stickersForLocale,
   type PersonPlacement,
   type PresetDesign,
   type ProfilbildSticker,
   type SavedProfilbild,
   type SavedProfilbildSticker,
 } from '@gruenerator/shared/profilbild';
-import { isAssetStickerId } from '@gruenerator/shared/stickers';
+import { assetStickerId, isAssetStickerId, isShareSrc } from '@gruenerator/shared/stickers';
 import { Alert, AlertDescription, Button } from '@gruenerator/ui';
 import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { PiTrash } from 'react-icons/pi';
 
 import { useAuthStore } from '../../../stores/authStore';
 import { downloadDataUrl } from '../../../utils/downloadFile';
+import { BackgroundUploadDialog } from '../../studio-assets/BackgroundUploadDialog';
 import {
   loadShareFileDataUrl,
   type ProfilbildSaveInput,
@@ -43,10 +42,12 @@ import {
   type ProfilbildBackground,
   type TrimmedCutout,
 } from '../utils/composeProfilbild';
+import { type GalleryAsset } from '../utils/galleryAsset';
 import { loadCachedImage, resolvePreset } from '../utils/profilbildBackgrounds';
 import { type PlacedSticker, type StickerChange } from '../utils/profilbildStickers';
 
 import { CUSTOM_ID, ProfilbildBackgroundPicker } from './ProfilbildBackgroundPicker';
+import { ProfilbildStickerPicker } from './ProfilbildStickerPicker';
 import { TOOL_ACTIONS, TOOL_HINT, TOOL_LABEL, TOOL_PANEL, TOOL_PILL } from './ToolUi';
 
 import { cn } from '@/utils/cn';
@@ -92,9 +93,6 @@ const SAVE_STATUS = {
 };
 const PERSON = 'Person';
 
-const STICKER_TILE_CLASS =
-  'flex size-14 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-grey-300 p-1 outline-none transition-[box-shadow,transform] hover:-translate-y-px hover:shadow-md focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-grey-600';
-
 /**
  * A plain colour stays an editable profilbild canvas, its stickers as movable
  * elements; gradients, presets and own photos are handed over flattened as one
@@ -119,6 +117,8 @@ export interface ProfilbildReopen {
 export interface ProfilbildEditorProps {
   cutoutUrl: string;
   reopen?: ProfilbildReopen | null;
+  /** A gallery item handed over by deep link, applied once the photo is in. */
+  galleryAsset?: GalleryAsset | null;
   onEditInCanvas: (handoff: ProfilbildCanvasHandoff) => Promise<void>;
   onReset: () => void;
 }
@@ -126,6 +126,7 @@ export interface ProfilbildEditorProps {
 export function ProfilbildEditor({
   cutoutUrl,
   reopen = null,
+  galleryAsset = null,
   onEditInCanvas,
   onReset,
 }: ProfilbildEditorProps) {
@@ -138,6 +139,10 @@ export function ProfilbildEditor({
   const fileRef = useRef<HTMLInputElement>(null);
   const customUrlRef = useRef<string | null>(null);
   const isAustria = useAuthStore((s) => s.locale === 'de-AT');
+  const galleryAssetRef = useRef(galleryAsset);
+  const [sharingCustom, setSharingCustom] = useState(false);
+  // The own photo already shared to the gallery, so it is not offered twice.
+  const [sharedFile, setSharedFile] = useState<File | null>(null);
   const colorSwatches = isAustria ? COLOR_SWATCHES_AT : COLOR_SWATCHES_DE;
   const presets = useMemo(() => presetDesigns(isAustria), [isAustria]);
   const presetsRef = useRef(presets);
@@ -376,32 +381,61 @@ export function ProfilbildEditor({
     setSelectedSticker((cur) => (cur === uid ? null : cur));
   };
 
+  const placeSticker = (
+    sticker: Pick<PlacedSticker, 'id' | 'src' | 'label' | 'image'>,
+    scale: number,
+    aspect: number
+  ) => {
+    const uid = `sticker-${++stickerSeq.current}`;
+    const width = PROFILBILD_SIZE * STICKER_BASE_WIDTH * scale;
+    setStickers((list) => {
+      const shift = (list.length % 5) * 40;
+      return [
+        ...list,
+        {
+          ...sticker,
+          uid,
+          x: PROFILBILD_SIZE * 0.68 - shift,
+          y: PROFILBILD_SIZE * 0.72 - shift,
+          width,
+          height: width * aspect,
+          rotation: 0,
+        },
+      ];
+    });
+    setSelectedSticker(uid);
+  };
+
   const addSticker = async (sticker: ProfilbildSticker) => {
     setError(null);
     try {
       const image = await loadCachedImage(sticker.src);
-      const uid = `sticker-${++stickerSeq.current}`;
-      const width = PROFILBILD_SIZE * STICKER_BASE_WIDTH * sticker.defaultScale;
-      const height = (width * image.height) / image.width;
-      setStickers((list) => {
-        const shift = (list.length % 5) * 40;
-        return [
-          ...list,
-          {
-            uid,
-            id: sticker.id,
-            src: sticker.src,
-            label: sticker.label,
-            image,
-            x: PROFILBILD_SIZE * 0.68 - shift,
-            y: PROFILBILD_SIZE * 0.72 - shift,
-            width,
-            height,
-            rotation: 0,
-          },
-        ];
-      });
-      setSelectedSticker(uid);
+      placeSticker(
+        { id: sticker.id, src: sticker.src, label: sticker.label, image },
+        sticker.defaultScale,
+        image.height / image.width
+      );
+    } catch (cause) {
+      setError(errorMessage(cause, 'Sticker konnte nicht geladen werden.'));
+    }
+  };
+
+  // Loaded as a data URL, like a reopened gallery sticker, so the export canvas stays untainted.
+  const addGallerySticker = async (item: GalleryAsset) => {
+    setError(null);
+    if (!isShareSrc(item.src)) {
+      setError('Dieser Sticker kann nicht verwendet werden.');
+      return;
+    }
+    try {
+      const image = await loadImage(await loadShareFileDataUrl(item.src));
+      const aspect =
+        item.width > 0 && item.height > 0 ? item.height / item.width : image.height / image.width;
+      placeSticker(
+        { id: assetStickerId(item.id), src: item.src, label: item.title || 'Sticker', image },
+        1,
+        aspect
+      );
     } catch (cause) {
       setError(errorMessage(cause, 'Sticker konnte nicht geladen werden.'));
     }
@@ -510,6 +544,27 @@ export function ProfilbildEditor({
     }
   };
 
+  const pickGalleryBackground = async (item: GalleryAsset) => {
+    setError(null);
+    if (!isShareSrc(item.src)) {
+      setError('Dieser Hintergrund kann nicht verwendet werden.');
+      return;
+    }
+    const request = ++backgroundRequest.current;
+    try {
+      const img = await loadImage(await loadShareFileDataUrl(item.src));
+      if (request !== backgroundRequest.current) return;
+      if (customUrlRef.current) URL.revokeObjectURL(customUrlRef.current);
+      customUrlRef.current = null;
+      setCustomImage(img);
+      setCustomSource({ url: item.src, file: null });
+      setSelected(CUSTOM_ID);
+    } catch (cause) {
+      if (request !== backgroundRequest.current) return;
+      setError(errorMessage(cause, 'Hintergrund konnte nicht geladen werden.'));
+    }
+  };
+
   const selectPreset = async (design: PresetDesign) => {
     setError(null);
     const request = ++backgroundRequest.current;
@@ -523,6 +578,15 @@ export function ProfilbildEditor({
       setError(errorMessage(cause, 'Vorlage konnte nicht geladen werden.'));
     }
   };
+
+  // A gallery deep link lands once the photo (and a reopened state) is in.
+  useEffect(() => {
+    const asset = galleryAssetRef.current;
+    if (!asset || !cutout || !restored) return;
+    galleryAssetRef.current = null;
+    void (asset.kind === 'sticker' ? addGallerySticker(asset) : pickGalleryBackground(asset));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- applied once; the handlers only read state setters
+  }, [cutout, restored]);
 
   const placedStickers = (): SavedProfilbildSticker[] =>
     stickers.map(({ id, src, x, y, width, height, rotation }) => ({
@@ -787,12 +851,19 @@ export function ProfilbildEditor({
             presets={presets}
             selected={activeId}
             customImageSrc={customImage?.src ?? null}
+            customUrl={customSource.url}
             onSelect={(id) => {
               backgroundRequest.current++;
               setSelected(id);
             }}
             onSelectPreset={(design) => void selectPreset(design)}
+            onSelectGallery={(item) => void pickGalleryBackground(item)}
             onUpload={() => fileRef.current?.click()}
+            onShareCustom={
+              customSource.file && customSource.file !== sharedFile
+                ? () => setSharingCustom(true)
+                : null
+            }
           />
           <input
             ref={fileRef}
@@ -811,22 +882,12 @@ export function ProfilbildEditor({
 
         <fieldset className="m-0 flex min-w-0 flex-col gap-sm border-0 p-0">
           <legend className={cn(TOOL_LABEL, 'mb-sm')}>Sticker</legend>
-          <div className="flex flex-wrap gap-sm">
-            {stickersForLocale(isAustria ? 'de-AT' : 'de-DE').map((st) => (
-              <button
-                key={st.id}
-                type="button"
-                aria-label={`Sticker ${st.label} hinzufügen`}
-                title={st.label}
-                disabled={!cutout}
-                onClick={() => void addSticker(st)}
-                className={STICKER_TILE_CLASS}
-                style={{ background: CANVAS_COLORS.TANNE }}
-              >
-                <img src={st.src} alt="" aria-hidden="true" className="max-h-full max-w-full" />
-              </button>
-            ))}
-          </div>
+          <ProfilbildStickerPicker
+            locale={isAustria ? 'de-AT' : 'de-DE'}
+            disabled={!cutout}
+            onAddSystem={(st) => void addSticker(st)}
+            onAddAsset={(item) => void addGallerySticker(item)}
+          />
           {stickers.length > 0 ? (
             <p className={cn(TOOL_HINT, 'text-xs')}>
               Sticker antippen zum Auswählen – Ecken ziehen zum Vergrößern und Drehen.
@@ -889,6 +950,14 @@ export function ProfilbildEditor({
           </Alert>
         ) : null}
       </div>
+
+      {sharingCustom && customSource.file ? (
+        <BackgroundUploadDialog
+          initialFile={customSource.file}
+          onCreated={() => setSharedFile(customSource.file)}
+          onClose={() => setSharingCustom(false)}
+        />
+      ) : null}
     </div>
   );
 }

@@ -1,4 +1,3 @@
-import { type ProfilbildAssetSrc } from '@gruenerator/shared/profilbild';
 import { Canvas, Group, Rect, rect, rrect, type SkImage } from '@shopify/react-native-skia';
 import { type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -7,7 +6,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { borderRadius, colors, spacing, typography } from '../../theme';
 
 import { ProfilbildScene } from './ProfilbildScene';
-import { sceneScale, type ProfilbildModel } from './sceneModel';
+import { sceneScale, type ProfilbildModel, type SceneImages } from './sceneModel';
 
 export type PreviewVariant = 'rund' | 'quadrat' | 'instagram';
 
@@ -57,7 +56,7 @@ const STATS = [
 interface InstagramPreviewProps {
   model: ProfilbildModel;
   person: SkImage;
-  images: Record<ProfilbildAssetSrc, SkImage>;
+  images: SceneImages;
   isAustria: boolean;
 }
 

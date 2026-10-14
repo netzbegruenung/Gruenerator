@@ -190,6 +190,13 @@ export const STUDIO_WERKZEUGE: WorkplaceToolItem[] = [
     icon: getIcon('navigation', 'profilbild')!,
   },
   {
+    id: 'sticker',
+    title: 'Sticker & Hintergründe',
+    description: 'Sticker erstellen, teilen & entdecken',
+    path: '/studio/sticker',
+    icon: getIcon('navigation', 'sticker')!,
+  },
+  {
     id: 'bild-erweitern',
     title: 'Bild erweitern',
     description: 'Auf ein neues Format ergänzen',
