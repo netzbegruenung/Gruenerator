@@ -4,7 +4,10 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import { type ShareStatus, type StoredMediaType } from '@gruenerator/contracts';
-import { NON_LIBRARY_UPLOAD_SOURCES } from '@gruenerator/shared/media-library/constants';
+import {
+  NON_LIBRARY_UPLOAD_SOURCES,
+  type UPLOAD_SOURCES,
+} from '@gruenerator/shared/media-library/constants';
 import {
   parseSavedProfilbild,
   PROFILBILD_IMAGE_TYPE,
@@ -94,6 +97,9 @@ export type ShareTrashLookup = TrashedShareRow | Exclude<ShareTrashResult, 'ok'>
  * no item cap since; this does not bring either back.
  */
 const SHARE_LINK_MAX_AGE_DAYS = 30;
+
+const PROFILBILD_BACKGROUND_SOURCE =
+  'profilbild-background' satisfies (typeof UPLOAD_SOURCES)[number];
 
 /**
  * `expires_at` for a freshly created share, as a SQL expression.
@@ -1044,6 +1050,8 @@ class SharedMediaService {
    * A saved Profilbild's own background photo is an internal upload that only
    * this Profilbild refers to, so it goes once the Profilbild no longer does:
    * on purge, or when an update replaces it. Best-effort, like the files.
+   * Only its own `profilbild-background` upload qualifies — a background picked
+   * from the Studio gallery is a `studio-asset` share the gallery item owns.
    */
   private async dropProfilbildBackground(
     share: { user_id: string | null; image_type: string | null; image_metadata: unknown },
@@ -1053,7 +1061,14 @@ class SharedMediaService {
     const token = savedBackgroundShareToken(parseSavedProfilbild(share.image_metadata));
     if (!token || token === keepToken) return;
     try {
-      await this.purgeInternalShare(token, share.user_id);
+      await this.removeShare<{ id: string }>(
+        token,
+        `DELETE FROM shared_media
+         WHERE share_token = $1 AND COALESCE(is_library_item, TRUE) = FALSE
+           AND user_id = $2 AND upload_source = $3
+         RETURNING id`,
+        [token, share.user_id, PROFILBILD_BACKGROUND_SOURCE]
+      );
     } catch (error) {
       reportBackgroundError(error, {
         job: 'profilbild-background-purge',
