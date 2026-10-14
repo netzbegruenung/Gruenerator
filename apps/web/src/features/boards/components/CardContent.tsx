@@ -4,6 +4,7 @@ import { memo, useCallback, useMemo } from 'react';
 import { FiCheckSquare, FiFileText, FiMessageSquare } from 'react-icons/fi';
 
 import { useCardActivity } from '../context/BoardAwarenessContext';
+import { useTaskDone } from '../context/TaskDoneContext';
 import { checklistProgress, FIELD_IDS, parseAssignees, parseChecklists } from '../types';
 
 import type { Row, Field, SelectOption } from '../types';
@@ -39,6 +40,9 @@ export const CardContent = memo(function CardContent({
     },
     [onCardClick, row]
   );
+
+  const taskDone = useTaskDone();
+  const isDone = !!taskDone && row.cells[FIELD_IDS.STATUS] === taskDone.doneStatusId;
 
   const cardActivity = useCardActivity(row.id);
   const activeUser = cardActivity[0] ?? null;
@@ -178,7 +182,10 @@ export const CardContent = memo(function CardContent({
           editable
           activateOn="doubleClick"
           onTitleChange={(newTitle) => onRenameCard(row.id, newTitle)}
-          className="text-sm text-foreground font-medium"
+          className={cn(
+            'text-sm font-medium',
+            isDone ? 'text-muted-foreground line-through' : 'text-foreground'
+          )}
           inputClassName="w-full p-0 text-sm text-foreground font-medium bg-transparent border-none outline-none"
           editableClassName="cursor-pointer"
         />

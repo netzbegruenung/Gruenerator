@@ -34,7 +34,7 @@ export const LABEL_COLORS = [
 export const DEFAULT_STATUS_OPTIONS: SelectOption[] = [
   { id: 'status-todo', name: 'Zu erledigen', color: '#8da4bf' },
   { id: 'status-in-progress', name: 'In Arbeit', color: '#c4b08b' },
-  { id: 'status-done', name: 'Erledigt', color: '#7c9885' },
+  { id: 'status-done', name: 'Erledigt', color: '#7c9885', isDone: true },
 ];
 
 export const DEFAULT_FIELDS: Field[] = [

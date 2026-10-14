@@ -74,7 +74,7 @@ const redaktionStatusOptions: SelectOption[] = [
   { id: 'status-entwurf', name: 'Entwurf', color: COLUMN_COLORS[4] },
   { id: 'status-review', name: 'Review', color: COLUMN_COLORS[3] },
   { id: 'status-geplant', name: 'Geplant', color: COLUMN_COLORS[1] },
-  { id: 'status-veroeffentlicht', name: 'Veröffentlicht', color: COLUMN_COLORS[7] },
+  { id: 'status-veroeffentlicht', name: 'Veröffentlicht', color: COLUMN_COLORS[7], isDone: true },
 ];
 
 const redaktionPlatformOptions: SelectOption[] = [
@@ -150,7 +150,7 @@ const redaktionTemplate: BoardTemplate = {
 const eventStatusOptions: SelectOption[] = [
   { id: 'status-planung', name: 'Planung', color: COLUMN_COLORS[5] },
   { id: 'status-in-arbeit', name: 'In Arbeit', color: COLUMN_COLORS[4] },
-  { id: 'status-erledigt', name: 'Erledigt', color: COLUMN_COLORS[1] },
+  { id: 'status-erledigt', name: 'Erledigt', color: COLUMN_COLORS[1], isDone: true },
 ];
 
 const eventFields: Field[] = [
@@ -213,7 +213,7 @@ const wahlkampfStatusOptions: SelectOption[] = [
   { id: 'status-backlog', name: 'Backlog', color: COLUMN_COLORS[5] },
   { id: 'status-diese-woche', name: 'Diese Woche', color: COLUMN_COLORS[4] },
   { id: 'status-in-arbeit', name: 'In Arbeit', color: COLUMN_COLORS[6] },
-  { id: 'status-erledigt', name: 'Erledigt', color: COLUMN_COLORS[1] },
+  { id: 'status-erledigt', name: 'Erledigt', color: COLUMN_COLORS[1], isDone: true },
 ];
 
 const wahlkampfPriorityOptions: SelectOption[] = [
