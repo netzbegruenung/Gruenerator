@@ -335,7 +335,7 @@ export function ProfilbildScreen({
             }}
           />
         ) : (
-          <StickerPicker onAdd={addSticker} />
+          <StickerPicker isAustria={isAustria} onAdd={addSticker} />
         )}
         <Button
           variant="ghost"

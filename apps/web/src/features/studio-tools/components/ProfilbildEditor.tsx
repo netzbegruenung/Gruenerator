@@ -9,18 +9,20 @@ import {
   placementRect,
   presetDesigns,
   PROFILBILD_SIZE,
-  PROFILBILD_STICKERS,
   rescalePlacement,
   snapNudge,
   snapPerson,
   snapSticker,
   STICKER_BASE_WIDTH,
   stickerById,
+  stickersForLocale,
   type PersonPlacement,
   type PresetDesign,
   type ProfilbildSticker,
   type SavedProfilbild,
+  type SavedProfilbildSticker,
 } from '@gruenerator/shared/profilbild';
+import { isAssetStickerId } from '@gruenerator/shared/stickers';
 import { Alert, AlertDescription, Button } from '@gruenerator/ui';
 import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { PiTrash } from 'react-icons/pi';
@@ -94,8 +96,9 @@ const STICKER_TILE_CLASS =
   'flex size-14 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-grey-300 p-1 outline-none transition-[box-shadow,transform] hover:-translate-y-px hover:shadow-md focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-grey-600';
 
 /**
- * A plain colour without stickers stays an editable profilbild canvas; anything
- * else is handed over flattened as one 1080 image, since the canvas can't rebuild it.
+ * A plain colour stays an editable profilbild canvas, its stickers as movable
+ * elements; gradients, presets and own photos are handed over flattened as one
+ * 1080 image.
  */
 export type ProfilbildCanvasHandoff =
   | {
@@ -103,6 +106,7 @@ export type ProfilbildCanvasHandoff =
       backgroundColor: string;
       layout: ProfilbildLayout;
       cutoutDataUrl: string;
+      stickers: SavedProfilbildSticker[];
     }
   | { kind: 'flat'; imageDataUrl: string };
 
@@ -160,6 +164,8 @@ export function ProfilbildEditor({
   const [stickers, setStickers] = useState<PlacedSticker[]>([]);
   const [selectedSticker, setSelectedSticker] = useState<string | null>(null);
   const stickerSeq = useRef(0);
+  // Saved shop stickers whose image failed to load: kept in the saved state, not drawn.
+  const unrestoredStickers = useRef<SavedProfilbildSticker[]>([]);
   const backgroundRequest = useRef(0);
   const personLayerRef = useRef<HTMLButtonElement>(null);
   const [placement, setPlacement] = useState<PersonPlacement | null>(null);
@@ -229,13 +235,25 @@ export function ProfilbildEditor({
     }
     Promise.all(
       saved.stickers.map(async (s) => {
-        const sticker = stickerById(s.id);
-        if (!sticker) return null;
-        const image = await loadCachedImage(sticker.src);
+        const sticker = isAssetStickerId(s.id) ? null : stickerById(s.id);
+        const src = sticker?.src ?? s.src;
+        if (!src) return null;
+        // A shop sticker that fails to load must not take the others with it.
+        const image = sticker
+          ? await loadCachedImage(src)
+          : await loadShareFileDataUrl(src)
+              .then(loadImage)
+              .catch((cause: unknown) => {
+                unrestoredStickers.current.push(s);
+                fail(cause);
+                return null;
+              });
+        if (!image) return null;
         const placed: PlacedSticker = {
           ...s,
+          src,
           uid: `sticker-${++stickerSeq.current}`,
-          label: sticker.label,
+          label: sticker?.label ?? 'Sticker',
           image,
         };
         return placed;
@@ -293,7 +311,7 @@ export function ProfilbildEditor({
   );
 
   const colorBackground = flat?.background.kind === 'color' ? flat.background.color : null;
-  const flattenForCanvas = !colorBackground || stickers.length > 0;
+  const flattenForCanvas = !colorBackground;
   const rect = cutout && placement ? placementRect(cutout.image, placement) : null;
 
   const stickerNames = useMemo(() => {
@@ -372,6 +390,7 @@ export function ProfilbildEditor({
           {
             uid,
             id: sticker.id,
+            src: sticker.src,
             label: sticker.label,
             image,
             x: PROFILBILD_SIZE * 0.68 - shift,
@@ -505,6 +524,17 @@ export function ProfilbildEditor({
     }
   };
 
+  const placedStickers = (): SavedProfilbildSticker[] =>
+    stickers.map(({ id, src, x, y, width, height, rotation }) => ({
+      id,
+      ...(isAssetStickerId(id) ? { src } : {}),
+      x,
+      y,
+      width,
+      height,
+      rotation,
+    }));
+
   const saveInputFor = (imageDataUrl: string): ProfilbildSaveInput | null =>
     cutout && placement
       ? {
@@ -515,14 +545,7 @@ export function ProfilbildEditor({
             activeId === CUSTOM_ID
               ? { kind: 'custom', ...customSource }
               : { kind: 'id', id: activeId },
-          stickers: stickers.map(({ id, x, y, width, height, rotation }) => ({
-            id,
-            x,
-            y,
-            width,
-            height,
-            rotation,
-          })),
+          stickers: [...placedStickers(), ...unrestoredStickers.current],
         }
       : null;
 
@@ -604,6 +627,7 @@ export function ProfilbildEditor({
             imageSize: { w: rect.width, h: rect.height },
           },
           cutoutDataUrl: cutout.dataUrl ?? cutoutUrl,
+          stickers: placedStickers(),
         });
       }
     } catch (cause) {
@@ -788,7 +812,7 @@ export function ProfilbildEditor({
         <fieldset className="m-0 flex min-w-0 flex-col gap-sm border-0 p-0">
           <legend className={cn(TOOL_LABEL, 'mb-sm')}>Sticker</legend>
           <div className="flex flex-wrap gap-sm">
-            {PROFILBILD_STICKERS.map((st) => (
+            {stickersForLocale(isAustria ? 'de-AT' : 'de-DE').map((st) => (
               <button
                 key={st.id}
                 type="button"

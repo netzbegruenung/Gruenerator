@@ -1,4 +1,5 @@
 import { pinnedFormatId } from '@gruenerator/canvas-editor/formats';
+import { type AssetInstance } from '@gruenerator/canvas-editor/profilbildStickers';
 import { type CanvasDocument } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 
@@ -15,13 +16,14 @@ export interface ProfilbildLayout {
  * Hand a background-removed photo off to the profile-picture canvas. The
  * transparent PNG is uploaded to a durable media URL (a `data:` URL dies on
  * reload and can't be resolved by collaborators), then a `profilbild` canvas
- * is minted on its pinned square format.
+ * is minted on its pinned square format, with any stickers as asset instances.
  */
 export async function mintProfilbildCanvas(
   transparentDataUrl: string,
   title: string,
   backgroundColor?: string,
-  layout?: ProfilbildLayout
+  layout?: ProfilbildLayout,
+  assetInstances?: AssetInstance[]
 ): Promise<CanvasDocument> {
   const blob = await (await fetch(transparentDataUrl)).blob();
   const transparentImage = await uploadBlobToMediaLibrary(blob, { uploadSource: 'canvas-mint' });
@@ -31,6 +33,7 @@ export async function mintProfilbildCanvas(
     transparentImage,
     ...(backgroundColor ? { backgroundColor } : {}),
     ...(layout ? { imagePosition: layout.imagePosition, imageSize: layout.imageSize } : {}),
+    ...(assetInstances?.length ? { assetInstances } : {}),
   };
   const formatId = pinnedFormatId('profilbild') ?? 'profile-square';
   const result = await getContractsClient().canvas.create({

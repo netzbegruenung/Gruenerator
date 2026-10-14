@@ -148,6 +148,12 @@
       "import": "./dist/image-studio/index.js",
       "default": "./dist/image-studio/index.js"
     },
+    "./stickers": {
+      "development": "./src/stickers/index.ts",
+      "types": "./src/stickers/index.ts",
+      "import": "./dist/stickers/index.js",
+      "default": "./dist/stickers/index.js"
+    },
     "./profilbild": {
       "development": "./src/profilbild/index.ts",
       "types": "./src/profilbild/index.ts",

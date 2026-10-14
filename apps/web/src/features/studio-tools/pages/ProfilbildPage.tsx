@@ -1,4 +1,6 @@
+import { profilbildStickersToAssetInstances } from '@gruenerator/canvas-editor/profilbildStickers';
 import { getContractsClient } from '@gruenerator/shared/api';
+import { DEFAULT_CANVAS_SIZE } from '@gruenerator/shared/canvas-editor';
 import { parseSavedProfilbild, PROFILBILD_SIZE } from '@gruenerator/shared/profilbild';
 import { Alert, AlertDescription, Button } from '@gruenerator/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -73,7 +75,12 @@ const ProfilbildPage = () => {
             handoff.cutoutDataUrl,
             'Profilbild',
             handoff.backgroundColor,
-            handoff.layout
+            handoff.layout,
+            profilbildStickersToAssetInstances(
+              handoff.stickers,
+              PROFILBILD_SIZE,
+              DEFAULT_CANVAS_SIZE
+            )
           );
     seedCanvasQuery(queryClient, canvas);
     void navigate(`/studio/canvas/${canvas.id}`);

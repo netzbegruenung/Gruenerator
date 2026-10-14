@@ -1,4 +1,4 @@
-import { PROFILBILD_STICKERS, type ProfilbildSticker } from '@gruenerator/shared/profilbild';
+import { type ProfilbildSticker, stickersForLocale } from '@gruenerator/shared/profilbild';
 import { Image } from 'expo-image';
 import { Pressable, ScrollView, StyleSheet } from 'react-native';
 
@@ -9,7 +9,13 @@ import { PROFILBILD_ASSETS } from './profilbildAssets';
 
 const TILE = 64;
 
-export function StickerPicker({ onAdd }: { onAdd(sticker: ProfilbildSticker): void }) {
+export function StickerPicker({
+  isAustria,
+  onAdd,
+}: {
+  isAustria: boolean;
+  onAdd(sticker: ProfilbildSticker): void;
+}) {
   const theme = useTheme();
   return (
     <ScrollView
@@ -17,7 +23,7 @@ export function StickerPicker({ onAdd }: { onAdd(sticker: ProfilbildSticker): vo
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.row}
     >
-      {PROFILBILD_STICKERS.map((s) => (
+      {stickersForLocale(isAustria ? 'de-AT' : 'de-DE').map((s) => (
         <Pressable
           key={s.id}
           accessibilityRole="button"

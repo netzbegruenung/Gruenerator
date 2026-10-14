@@ -4,7 +4,12 @@ import { FaCheck } from 'react-icons/fa';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { useIconCatalog } from '../../../hooks/useIconCatalog';
-import { EMOJI_ASSETS, hasDarkPreview, sortLogoAssets } from '../../../utils/canvasAssets';
+import {
+  EMOJI_ASSETS,
+  hasDarkPreview,
+  sortLogoAssets,
+  stickerAssetsForLocale,
+} from '../../../utils/canvasAssets';
 import { CHART_TYPE_DEFS } from '../../../utils/chartUtils';
 import { cn } from '../../../utils/cn';
 import { matchesQuery } from '../../../utils/filterUtils';
@@ -73,6 +78,67 @@ export const MarkeStripTiles = memo(function MarkeStripTiles({
     </>
   );
 });
+
+function useLocaleStickers() {
+  const { userLocale = 'de-DE' } = useCanvasEditorServices();
+  return stickerAssetsForLocale(userLocale);
+}
+
+export const StickerStripTiles = memo(function StickerStripTiles({
+  onAddAsset,
+}: {
+  onAddAsset: (assetId: string) => void;
+}) {
+  const stickers = useLocaleStickers();
+  return (
+    <>
+      {stickers.slice(0, STRIP_COUNT).map((asset) => (
+        <StripTile
+          key={asset.id}
+          title={`${asset.label} hinzufügen`}
+          onClick={() => onAddAsset(asset.id)}
+          className={cn(hasDarkPreview(asset) && 'bg-secondary-600 hover:bg-secondary-700')}
+        >
+          <img src={asset.src} alt={asset.label} className="w-9 h-9 object-contain" />
+        </StripTile>
+      ))}
+    </>
+  );
+});
+
+/** All stickers of the viewer's locale as a grid, optionally narrowed by a query. */
+export function StickerGrid({
+  onAddAsset,
+  searchQuery = '',
+}: {
+  onAddAsset: (assetId: string) => void;
+  searchQuery?: string;
+}) {
+  const stickers = useLocaleStickers();
+  const query = searchQuery.trim();
+  const assets = query ? stickers.filter((a) => matchesQuery(query, a.label, a.tags)) : stickers;
+  return (
+    <div className="grid grid-cols-3 gap-2 w-full">
+      {assets.map((asset) => (
+        <button
+          key={asset.id}
+          type="button"
+          title={`${asset.label} hinzufügen`}
+          aria-label={`${asset.label} hinzufügen`}
+          onClick={() => onAddAsset(asset.id)}
+          className={cn(
+            'flex items-center justify-center aspect-square p-2 rounded-lg border-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)]',
+            hasDarkPreview(asset)
+              ? 'bg-secondary-600 hover:bg-secondary-700'
+              : 'bg-transparent hover:bg-[var(--editor-tile)]'
+          )}
+        >
+          <img src={asset.src} alt="" className="size-full object-contain" />
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export const EmojiStripTiles = memo(function EmojiStripTiles({
   onAddAsset,
