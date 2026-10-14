@@ -1,5 +1,10 @@
 import { type StudioAssetSource } from '@gruenerator/contracts';
-import { BADGE_PAD, STICKER_MAX_SIDE, type BadgeGeometry } from '@gruenerator/shared/stickers';
+import {
+  ALPHA_THRESHOLD,
+  BADGE_PAD,
+  STICKER_MAX_SIDE,
+  type BadgeGeometry,
+} from '@gruenerator/shared/stickers';
 import { slugifyName } from '@gruenerator/shared/utils';
 
 export type CreatorStep = 'mode' | 'design' | 'save' | 'done';
@@ -62,7 +67,7 @@ const hexChannel = (hex: string, i: number) => parseInt(hex.slice(1 + 2 * i, 3 +
  * every pixel in `color` and clears alpha at or below `threshold`, rescaling
  * the rest — the outline's silhouette in one filter.
  */
-export function tintThresholdMatrix(color: string, threshold = 8): number[] {
+export function tintThresholdMatrix(color: string, threshold = ALPHA_THRESHOLD): number[] {
   const t = threshold / 255;
   const s = 1 / (1 - t);
   const [r, g, b] = [0, 1, 2].map((c) => hexChannel(color, c));

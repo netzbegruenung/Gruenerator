@@ -1,3 +1,4 @@
+import { sameColor } from '@gruenerator/shared/stickers';
 import { Label, Switch } from '@gruenerator/ui';
 import { useEffect, useId, useState, type JSX, type ReactNode } from 'react';
 
@@ -91,9 +92,9 @@ export function SwatchPicker({
             key={s.id}
             type="button"
             aria-label={s.label}
-            aria-pressed={value === s.color}
+            aria-pressed={sameColor(value, s.color)}
             title={s.label}
-            disabled={disabledColor?.toLowerCase() === s.color.toLowerCase()}
+            disabled={disabledColor !== null && sameColor(disabledColor, s.color)}
             onClick={() => onChange(s.color)}
             className={cn(
               'size-10 shrink-0 cursor-pointer rounded-full border border-grey-300 disabled:cursor-not-allowed disabled:opacity-30 max-md:size-11 dark:border-grey-600',

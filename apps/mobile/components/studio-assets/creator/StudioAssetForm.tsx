@@ -61,6 +61,7 @@ export function StudioAssetForm({
         label="Unter „Entdecken“ öffentlich teilen"
         value={values.visibility === 'public'}
         onChange={(on) => set({ visibility: on ? 'public' : 'private' })}
+        disabled={disabled}
       >
         <View style={styles.field}>
           <FieldLabel>Sichtbar für</FieldLabel>
@@ -80,6 +81,7 @@ export function StudioAssetForm({
           label={STUDIO_ASSET_RIGHTS_LABEL}
           value={values.rights}
           onChange={(rights) => set({ rights })}
+          disabled={disabled}
         />
         {values.rights ? null : (
           <Text style={[styles.note, { color: theme.textSecondary }]}>

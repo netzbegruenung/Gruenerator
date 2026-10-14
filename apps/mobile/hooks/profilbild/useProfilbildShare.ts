@@ -1,4 +1,4 @@
-import { getContractsClient, getGlobalApiClient } from '@gruenerator/shared/api';
+import { getContractsClient } from '@gruenerator/shared/api';
 import {
   COLOR_SWATCHES_AT,
   COLOR_SWATCHES_DE,
@@ -25,6 +25,7 @@ import {
   type ProfilbildModel,
 } from '../../components/profilbild/sceneModel';
 import { resolveChatUrl } from '../../services/chatApiUrl';
+import { uploadToMediaShare } from '../../services/mediaUpload';
 import { secureStorage } from '../../services/storage';
 
 /** The model plus the picker selection it was made with. */
@@ -163,20 +164,12 @@ export async function loadProfilbildReopen(
 }
 
 async function uploadCustomBackground(uri: string): Promise<string> {
-  const form = new FormData();
-  // RN's FormData takes a file descriptor; `new Blob([bytes])` throws on RN.
-  form.append('file', {
+  const token = await uploadToMediaShare(
     uri,
-    name: 'profilbild-hintergrund.jpg',
-    type: 'image/jpeg',
-  } as unknown as Blob);
-  form.append('uploadSource', 'profilbild-background');
-  const res = await getGlobalApiClient().post<{ data?: { shareToken?: string } }>(
-    '/media/upload',
-    form,
-    { headers: { 'Content-Type': 'multipart/form-data' } }
+    'profilbild-hintergrund.jpg',
+    'image/jpeg',
+    'profilbild-background'
   );
-  const token = res.data?.data?.shareToken;
   if (!token) throw new Error('Hintergrundbild konnte nicht gespeichert werden.');
   return `/api/share/${token}/download`;
 }

@@ -44,8 +44,8 @@ export function BadgeDesigner({
   const theme = useTheme();
   const previewSize = usePreviewSize();
   const swatches = stickerSwatches(locale);
-  // The CD headline faces (GrueneTypeNeue, Gotham Narrow Ultra) ship only as web
-  // fonts; the app's own bold heading face stands in for them on the phone.
+  // The CD headline faces exist as TTFs (apps/api/public/fonts) but are not
+  // bundled into the app yet; its own bold heading face stands in until then.
   const typeface = useTypeface(badgeFont);
   const [text, setText] = useState(BADGE_DEFAULT_TEXT);
   const [shape, setShape] = useState<BadgeShapeId>('stoerer');
@@ -57,6 +57,7 @@ export function BadgeDesigner({
   );
   const [outlineOn, setOutlineOn] = useState(true);
   const [preview, setPreview] = useState<SkImage | null>(null);
+  const [renderFailed, setRenderFailed] = useState(false);
 
   const lines = badgeLines(text);
   const linesKey = lines.join('\n');
@@ -88,9 +89,11 @@ export function BadgeDesigner({
           textColor,
           outline: outlineOn,
         });
+        setRenderFailed(false);
         setPreview(image);
         onDraft({ image, suggestedTitle: badgeText.join(' ') });
       } catch {
+        setRenderFailed(true);
         onDraft(null);
       }
     }, RENDER_DELAY_MS);
@@ -103,6 +106,13 @@ export function BadgeDesigner({
         image={linesKey ? preview : null}
         size={previewSize}
         label={`Vorschau: ${shapeLabel}${lines.length ? ` mit „${lines.join(' ')}“` : ''}`}
+        placeholder={
+          !linesKey
+            ? 'Schreib einen Text, dann erscheint hier dein Badge.'
+            : renderFailed
+              ? 'Der Badge konnte nicht erstellt werden.'
+              : null
+        }
       />
       <View style={styles.field}>
         <FieldLabel>Text</FieldLabel>

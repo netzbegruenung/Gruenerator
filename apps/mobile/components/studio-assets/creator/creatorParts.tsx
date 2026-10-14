@@ -1,4 +1,4 @@
-import { type SolidSwatch } from '@gruenerator/shared/stickers';
+import { sameColor, type SolidSwatch } from '@gruenerator/shared/stickers';
 import { Canvas, Image, Rect, type SkImage } from '@shopify/react-native-skia';
 import { type ReactNode } from 'react';
 import {
@@ -56,10 +56,13 @@ export function StickerPreview({
   image,
   size,
   label,
+  placeholder = null,
 }: {
   image: SkImage | null;
   size: number;
   label: string;
+  /** Shown instead of the spinner when no image is coming. */
+  placeholder?: string | null;
 }) {
   const theme = useTheme();
   const dark = useColorScheme() === 'dark';
@@ -86,7 +89,16 @@ export function StickerPreview({
       </Canvas>
       {image ? null : (
         <View style={styles.previewBusy}>
-          <ActivityIndicator color={theme.textGreen} />
+          {placeholder ? (
+            <Text
+              accessibilityLiveRegion="polite"
+              style={[styles.placeholder, { color: theme.text, backgroundColor: theme.background }]}
+            >
+              {placeholder}
+            </Text>
+          ) : (
+            <ActivityIndicator color={theme.textGreen} />
+          )}
         </View>
       )}
     </View>
@@ -123,8 +135,8 @@ export function SwatchRow({
       <FieldLabel>{label}</FieldLabel>
       <View style={styles.swatches}>
         {swatches.map((s) => {
-          const selected = s.color.toLowerCase() === value.toLowerCase();
-          const disabled = disabledColor?.toLowerCase() === s.color.toLowerCase();
+          const selected = sameColor(s.color, value);
+          const disabled = disabledColor !== null && sameColor(disabledColor, s.color);
           return (
             <Pressable
               key={s.id}
@@ -155,11 +167,13 @@ export function SwitchRow({
   label,
   value,
   onChange,
+  disabled = false,
   children,
 }: {
   label: string;
   value: boolean;
   onChange: (value: boolean) => void;
+  disabled?: boolean;
   children?: ReactNode;
 }) {
   const theme = useTheme();
@@ -170,6 +184,7 @@ export function SwitchRow({
         <Switch
           value={value}
           onValueChange={onChange}
+          disabled={disabled}
           accessibilityLabel={label}
           trackColor={{ true: colors.primary[600], false: colors.grey[300] }}
         />
@@ -187,6 +202,13 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   previewBusy: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
+  placeholder: {
+    ...typography.body,
+    textAlign: 'center',
+    margin: spacing.large,
+    padding: spacing.small,
+    borderRadius: borderRadius.large,
+  },
   field: { gap: spacing.xsmall },
   label: { ...typography.bodyBold },
   hint: { ...typography.caption },

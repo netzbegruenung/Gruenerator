@@ -9,11 +9,12 @@ import { router } from 'expo-router';
 import { type ReactNode } from 'react';
 
 import { uploadStickerPng } from './uploadSticker';
-import { writeStickerPng } from './stickerRender';
+import { renderBadge, writeStickerPng } from './stickerRender';
 
 import { StickerCreatorScreen } from './StickerCreatorScreen';
 
 const mockCreate = jest.fn<(body: unknown) => Promise<StudioAssetItem>>();
+const mockTypeface = jest.fn<() => object | null>(() => null);
 jest.mock('@gruenerator/shared/studio-assets', () => ({
   ...jest.requireActual<Record<string, unknown>>('@gruenerator/shared/studio-assets'),
   useStudioAssetMutations: () => ({ create: { mutateAsync: mockCreate } }),
@@ -23,7 +24,7 @@ jest.mock('@shopify/react-native-skia', () => ({
   Canvas: () => null,
   Image: () => null,
   Rect: () => null,
-  useTypeface: () => null,
+  useTypeface: () => mockTypeface(),
 }));
 jest.mock('./stickerRender', () => ({
   StickerImageError: class extends Error {},
@@ -61,6 +62,7 @@ jest.mock('react-native-keyboard-controller', () => ({
 
 const mockUpload = uploadStickerPng as jest.MockedFunction<typeof uploadStickerPng>;
 const mockWrite = writeStickerPng as jest.MockedFunction<typeof writeStickerPng>;
+const mockRenderBadge = renderBadge as jest.MockedFunction<typeof renderBadge>;
 
 const item: StudioAssetItem = {
   id: '0b6f3c1e-8a4d-4f5e-9c2a-7d1e5b3a9f10',
@@ -110,6 +112,8 @@ beforeEach(() => {
 
 afterEach(() => {
   jest.clearAllMocks();
+  mockTypeface.mockReturnValue(null);
+  mockRenderBadge.mockReset();
 });
 
 describe('StickerCreatorScreen', () => {
@@ -177,5 +181,30 @@ describe('StickerCreatorScreen', () => {
     ).toBeTruthy();
     expect(mockCreate).not.toHaveBeenCalled();
     expect(screen.getByDisplayValue('Herz')).toBeTruthy();
+  });
+
+  it('locks the sharing switches while saving', async () => {
+    mockUpload.mockReturnValue(new Promise(() => {}));
+    await designUpload();
+    await act(async () => fireEvent.press(button('Sticker speichern')));
+    expect(screen.getByLabelText('Unter „Entdecken“ öffentlich teilen').props.disabled).toBe(true);
+  });
+
+  it('asks for text instead of spinning on an empty badge', async () => {
+    render(<StickerCreatorScreen locale="de-AT" returnTo={null} />);
+    fireEvent.press(button('Text-Badge'));
+    fireEvent.changeText(screen.getByLabelText('Text'), '  ');
+    expect(screen.getByText('Schreib einen Text, dann erscheint hier dein Badge.')).toBeTruthy();
+  });
+
+  it('says so when the badge cannot be drawn', async () => {
+    mockTypeface.mockReturnValue({});
+    mockRenderBadge.mockImplementation(() => {
+      throw new Error('no font');
+    });
+    render(<StickerCreatorScreen locale="de-DE" returnTo={null} />);
+    fireEvent.press(button('Text-Badge'));
+    expect(await screen.findByText('Der Badge konnte nicht erstellt werden.')).toBeTruthy();
+    isDisabled('Weiter');
   });
 });

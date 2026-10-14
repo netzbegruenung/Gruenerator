@@ -2,10 +2,12 @@
  * Sticker effect maths shared by the web (2D canvas) and mobile (Skia)
  * creators: fit, padding, alpha threshold and the outline's dilation disc.
  */
+import { ALPHA_THRESHOLD } from '../../profilbild/geometry.js';
+
+export { ALPHA_THRESHOLD };
 
 export const STICKER_MAX_SIDE = 1024;
 export const STICKER_MIN_SIDE = 64;
-const ALPHA_THRESHOLD = 8;
 /** Keeps antialiased edges off the canvas border even without effects. */
 const SAFETY_PAD = 4;
 
