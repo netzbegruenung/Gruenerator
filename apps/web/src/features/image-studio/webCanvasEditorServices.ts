@@ -16,6 +16,11 @@ import { uploadBlobToMediaLibrary } from './services/mediaUploadService';
 
 import type { CanvasEditorServices } from '@gruenerator/canvas-editor';
 
+// Neuer Tab, damit der Editor seinen ungespeicherten Stand behält.
+const openStickerCreator = () => {
+  window.open('/studio/sticker/neu?return=canvas', '_blank', 'noopener');
+};
+
 // Lazy: der Chat-Tab ist meist zu, und assistant-ui samt Markdown-Stack gehört
 // nicht in den Startpfad. Der Editor rendert Sektionen in einer Suspense-Grenze.
 const CanvasInlineChatSection = lazy(() =>
@@ -30,6 +35,7 @@ export const webCanvasEditorServices: CanvasEditorServices = {
   trackUnsplashDownloadLive,
   fetchUnsplashImageAsFile,
   openUnsplashSearch,
+  openStickerCreator,
   generateAiImage,
   uploadImage: uploadBlobToMediaLibrary,
   removeBackgroundFromImage,

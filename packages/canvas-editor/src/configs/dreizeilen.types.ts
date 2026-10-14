@@ -18,6 +18,7 @@ import type { IllustrationInstance } from '../utils/illustrations/types';
 import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance } from '../utils/shapes';
 import type { UserImageInstance } from '../utils/userImageUtils';
+import type { StickerRef } from '@gruenerator/shared/stickers';
 
 /**
  * DreizeilenFullState
@@ -154,6 +155,7 @@ export interface DreizeilenFullActions {
 
   // === Asset Actions ===
   addAsset: (assetId: string) => void;
+  addStickerAsset: (ref: StickerRef) => void;
   updateAsset: (id: string, partial: Partial<AssetInstance>) => void;
   removeAsset: (id: string) => void;
 

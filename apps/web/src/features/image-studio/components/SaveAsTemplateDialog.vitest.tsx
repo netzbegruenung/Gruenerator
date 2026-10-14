@@ -30,7 +30,7 @@ beforeAll(() => {
   setGlobalApiClient(createApiClient({ baseURL: 'http://localhost/api', authMode: 'cookie' }));
 
   // The dialog turns its rendered data: URL into a Blob via fetch(). MSW cannot
-  // pass a data: URL through under `onUnhandledRequest: 'error'`, so serve those
+  // pass a data: URL through under `onUnhandledFrame: 'error'`, so serve those
   // here and leave every http(s) request to MSW.
   const realFetch = globalThis.fetch;
   globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {

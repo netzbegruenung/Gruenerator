@@ -74,6 +74,13 @@ export const STUDIO_TOOLS: ToolDef[] = [
     icon: toolIconKey('profilbild'),
     route: '/(focused)/profilbild',
   },
+  {
+    id: 'sticker',
+    title: 'Sticker & Hintergründe',
+    description: 'Sticker erstellen, teilen & entdecken',
+    icon: toolIconKey('sticker'),
+    route: '/(focused)/sticker',
+  },
 ];
 
 /**
@@ -84,6 +91,7 @@ export const STUDIO_TOOL_GLYPHS: Record<string, IoniconsIconName> = {
   'ki-bildgenerierung': 'sparkles',
   reel: 'videocam',
   profilbild: 'person-circle',
+  sticker: 'happy',
 };
 
 /**

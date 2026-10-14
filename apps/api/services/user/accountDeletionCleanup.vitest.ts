@@ -23,6 +23,9 @@ const deleteLikesForEntity = vi.fn(async (type: string, id: string) => {
 const deleteLikesOfDeletedUser = vi.fn(async (userId: string) => {
   effects.push(`likes of ${userId}`);
 });
+const deleteFavoritesOfDeletedUser = vi.fn(async (userId: string) => {
+  effects.push(`favorites of ${userId}`);
+});
 const reportBackgroundError = vi.fn();
 const env: Record<string, string | undefined> = {};
 const listConnections = vi.fn(async () => ({
@@ -50,6 +53,9 @@ vi.mock('../docs/CollaborativeDocumentService.js', () => ({
 vi.mock('../entityLikes/EntityLikesService.js', () => ({
   deleteLikesForEntity,
   deleteLikesOfDeletedUser,
+}));
+vi.mock('../entityFavorites/EntityFavoritesService.js', () => ({
+  deleteFavoritesOfDeletedUser,
 }));
 vi.mock('../../utils/reportBackgroundError.js', () => ({ reportBackgroundError }));
 vi.mock('../../config/env.js', () => ({ env }));
@@ -79,6 +85,7 @@ describe('cleanUpBeforeProfileDelete', () => {
       'delete notebook nb-2',
       'likes notebook nb-2',
       'likes of user-1',
+      'favorites of user-1',
       'nango microsoft c-ms',
       'nango google c-g',
     ]);
@@ -106,6 +113,19 @@ describe('cleanUpBeforeProfileDelete', () => {
 
     expect(deleteNotebookCollection).not.toHaveBeenCalled();
     expect(effects).toContain('likes of user-1');
+  });
+
+  it('still reaches Nango when the favorites cannot be cleared, and reports it', async () => {
+    deleteFavoritesOfDeletedUser.mockRejectedValueOnce(new Error('pg down'));
+
+    await cleanUpBeforeProfileDelete('user-1');
+
+    expect(deleteFavoritesOfDeletedUser).toHaveBeenCalledWith('user-1');
+    expect(reportBackgroundError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'pg down' }),
+      expect.objectContaining({ job: 'account-deletion', store: 'entity_favorites' })
+    );
+    expect(effects).toContain('nango google c-g');
   });
 
   it('deletes the remaining connections when one Nango delete fails, and reports it', async () => {

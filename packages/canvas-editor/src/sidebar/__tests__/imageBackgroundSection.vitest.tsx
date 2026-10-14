@@ -6,11 +6,34 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ImageBackgroundSection } from '../sections/ImageBackgroundSection';
 
 import type { StockImage } from '../../common/imageSourceTypes';
+import type { StudioAssetItem } from '@gruenerator/contracts';
 import type { MediaItem } from '@gruenerator/shared/media-library';
+import type { StudioAssetsFilter } from '@gruenerator/shared/studio-assets';
 
 const upload = vi.fn<(file: File) => Promise<MediaItem | null>>();
 const unsplash = vi.hoisted(() => ({ results: [] as StockImage[] }));
 const library = vi.hoisted(() => ({ items: [] as MediaItem[] }));
+const gallery = vi.hoisted(() => ({
+  items: [] as StudioAssetItem[],
+  filters: [] as StudioAssetsFilter[],
+}));
+
+// The real hook needs react-query, which this lane loads with a second React copy.
+vi.mock('@gruenerator/shared/studio-assets', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  useStudioAssets: (filter: StudioAssetsFilter) => {
+    gallery.filters.push(filter);
+    return {
+      items: filter.kind === 'background' && filter.scope === 'shop' ? gallery.items : [],
+      isLoading: false,
+      isError: false,
+      hasNextPage: false,
+      isFetchingNextPage: false,
+      fetchNextPage: async () => {},
+      refetch: async () => {},
+    };
+  },
+}));
 
 vi.mock('../../hooks/useUnsplashSearch', () => ({
   useUnsplashSearch: () => ({
@@ -331,5 +354,159 @@ describe.each([true, false])('a library photo as background (mobile: %s)', (mobi
       within(tile).getByRole('button', { name: 'Bild wieder als Hintergrund verwenden' })
     );
     expect(onActivateImage).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe.each([true, false])('gallery backgrounds (mobile: %s)', (mobile) => {
+  const TOKEN = '0123456789abcdef0123456789abcdef';
+  const SRC = `/api/share/${TOKEN}/download`;
+  const wald: StudioAssetItem = {
+    id: '0b6f7a8e-3c2d-4e5f-9a1b-2c3d4e5f6a7b',
+    kind: 'background',
+    title: 'Waldlichtung',
+    tags: [],
+    src: SRC,
+    thumbUrl: null,
+    width: 2160,
+    height: 2160,
+    source: 'upload',
+    visibility: 'public',
+    audience: 'all',
+    moderation: 'ok',
+    isOwn: false,
+    authorName: null,
+    likesCount: 0,
+    liked: false,
+    favorited: false,
+    createdAt: '2026-10-14T00:00:00Z',
+  };
+  const fetchMock = vi.fn<typeof fetch>();
+
+  beforeEach(() => {
+    setViewport(mobile);
+    gallery.items = [wald];
+    gallery.filters = [];
+    fetchMock.mockReset();
+    // jsdom's Blob cannot back undici's Response; the pick only reads ok + blob().
+    fetchMock.mockResolvedValue({
+      ok: true,
+      blob: () => Promise.resolve(new Blob(['webp'], { type: 'image/webp' })),
+    } as Response);
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const openGallery = async () => {
+    if (mobile) await userEvent.click(screen.getByRole('tab', { name: 'Hintergründe' }));
+  };
+
+  it('sets a picked gallery background as the photo, by its own durable URL', async () => {
+    const onImageChange = vi.fn();
+    render(<ImageBackgroundSection onImageChange={onImageChange} />);
+    await openGallery();
+
+    const scopes = screen.getByRole('group', { name: 'Hintergrund-Auswahl' });
+    expect(
+      within(scopes)
+        .getAllByRole('button')
+        .map((t) => t.textContent)
+    ).toEqual(['Entdecken', 'Meine', 'Gemerkt']);
+    expect(gallery.filters.at(-1)).toEqual({
+      kind: 'background',
+      scope: 'shop',
+      q: '',
+      sort: 'new',
+    });
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Waldlichtung als Hintergrund verwenden' })
+    );
+
+    await waitFor(() => expect(onImageChange).toHaveBeenCalledTimes(1));
+    const [file, url, credit] = onImageChange.mock.calls[0]!;
+    expect(file).toBeInstanceOf(File);
+    expect((file as File).name).toBe('Waldlichtung');
+    expect(url).toBe(SRC);
+    expect(credit).toBeNull();
+    // The canvas preview tier, not the multi-MB original.
+    expect(fetchMock).toHaveBeenCalledWith(`/api/share/${TOKEN}/preview?w=2160&fmt=webp`);
+    expect(upload).not.toHaveBeenCalled();
+  });
+
+  it('marks the gallery background in use', async () => {
+    render(<ImageBackgroundSection currentImageSrc={SRC} onImageChange={() => {}} />);
+    await openGallery();
+    expect(
+      screen.getByRole('button', { name: 'Waldlichtung als Hintergrund verwenden' })
+    ).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('switches to own and remembered backgrounds', async () => {
+    render(<ImageBackgroundSection onImageChange={() => {}} />);
+    await openGallery();
+    await userEvent.click(screen.getByRole('button', { name: 'Meine' }));
+    expect(gallery.filters.at(-1)).toMatchObject({ kind: 'background', scope: 'mine' });
+    expect(screen.getByText('Du hast noch keine eigenen Hintergründe.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Gemerkt' }));
+    expect(gallery.filters.at(-1)).toMatchObject({ kind: 'background', scope: 'saved' });
+  });
+
+  it('shows the gallery preview, not the full download, as the tile image', async () => {
+    render(<ImageBackgroundSection onImageChange={() => {}} />);
+    await openGallery();
+    const tile = screen.getByRole('button', { name: 'Waldlichtung als Hintergrund verwenden' });
+    expect(tile.querySelector('img')?.getAttribute('src')).toBe(
+      `/api/share/${TOKEN}/preview?w=200&fmt=webp`
+    );
+  });
+
+  it.skipIf(mobile)('lets a later "Bilder" pick win over a slow gallery pick', async () => {
+    library.items = [libraryItem()];
+    let finishGallery: (r: Response) => void = () => {};
+    fetchMock.mockImplementationOnce(
+      () =>
+        new Promise<Response>((r) => {
+          finishGallery = r;
+        })
+    );
+    const onImageChange = vi.fn();
+    try {
+      render(<ImageBackgroundSection onImageChange={onImageChange} />);
+      await userEvent.click(
+        screen.getByRole('button', { name: 'Waldlichtung als Hintergrund verwenden' })
+      );
+      await userEvent.click(screen.getByTitle('eigen.png'));
+      await waitFor(() => expect(onImageChange).toHaveBeenCalledTimes(1));
+      expect(onImageChange.mock.calls[0]![1]).toBe('/api/share/tok1/download');
+
+      finishGallery({
+        ok: true,
+        blob: () => Promise.resolve(new Blob(['webp'], { type: 'image/webp' })),
+      } as Response);
+      await new Promise((r) => setTimeout(r, 0));
+      expect(onImageChange).toHaveBeenCalledTimes(1);
+      expect(
+        screen.getByRole('button', { name: 'Waldlichtung als Hintergrund verwenden' })
+      ).toHaveAttribute('aria-busy', 'false');
+    } finally {
+      library.items = [];
+    }
+  });
+
+  it('reports a failed load and leaves the background alone', async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 404 } as Response);
+    const onImageChange = vi.fn();
+    render(<ImageBackgroundSection onImageChange={onImageChange} />);
+    await openGallery();
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Waldlichtung als Hintergrund verwenden' })
+    );
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Hintergrund konnte nicht geladen werden.'
+    );
+    expect(onImageChange).not.toHaveBeenCalled();
   });
 });

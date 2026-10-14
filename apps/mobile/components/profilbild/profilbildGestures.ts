@@ -5,7 +5,6 @@ import {
   rescalePlacement,
   snapSticker,
   type PersonPlacement,
-  type ProfilbildAssetSrc,
   type SnapResult,
 } from '@gruenerator/shared/profilbild';
 import { type SkImage } from '@shopify/react-native-skia';
@@ -26,13 +25,13 @@ import {
   type LiveGesture,
 } from '../../hooks/profilbild/gestureMath';
 
-import { type ProfilbildModel, type SceneSticker } from './sceneModel';
+import { type ProfilbildModel, type SceneImages, type SceneSticker } from './sceneModel';
 
 export interface ProfilbildEditorProps {
   model: ProfilbildModel;
   onChange(model: ProfilbildModel): void;
   person: SkImage;
-  images: Record<ProfilbildAssetSrc, SkImage>;
+  images: SceneImages;
   isAustria: boolean;
   viewSize: number;
   selected: string | null;

@@ -5,7 +5,7 @@ import * as React from 'react';
 import { cn } from '../lib/cn';
 
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none active:scale-[0.97] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
@@ -16,7 +16,8 @@ const buttonVariants = cva(
           'border border-grey-200 dark:border-grey-700 bg-background shadow-xs hover:bg-hover-alt',
         secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
         ghost: 'hover:bg-hover-alt',
-        link: 'text-primary underline-offset-4 hover:underline',
+        // Inline text — a press scale would make the surrounding line jump.
+        link: 'text-primary underline-offset-4 hover:underline active:scale-100',
         brand:
           'rounded-full bg-secondary-600 text-white border-none hover:bg-secondary-700 hover:-translate-y-px hover:shadow-lg focus-visible:ring-secondary-600/50 disabled:opacity-100 disabled:bg-grey-300 disabled:text-grey-500',
         'brand-outline':

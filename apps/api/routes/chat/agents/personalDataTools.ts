@@ -54,6 +54,7 @@ import {
 import { findGroups } from '../../../services/groups/groupQueries.js';
 import { USER_VISIBLE_SHARE_STATUSES } from '../../../services/sharedMediaFilters.js';
 import { getSharedMediaService } from '../../../services/sharedMediaService.js';
+import { STUDIO_ASSET_SHARE_DELETE_MESSAGE } from '../../../services/studioAssets/studioAssetShare.js';
 import { getSubtitlerProjectService } from '../../../services/subtitler/ProjectService.js';
 import { getReelTranscript, reelUrl, searchReels } from '../../../services/subtitler/reelSearch.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
@@ -1046,6 +1047,7 @@ TYPISCHER ABLAUF für "such das Reel zu Thema X und schreib eine Caption": erst 
       }
       if (kind === 'sharepic') {
         const result = await getSharedMediaService().trashShare(userId, handle);
+        if (result === 'studio_asset') return { error: STUDIO_ASSET_SHARE_DELETE_MESSAGE };
         if (result !== 'ok') return { error: 'Bild nicht gefunden oder kein Zugriff.' };
         groundNote(sourceRegistry, 'Gelöscht', 'Bild liegt jetzt im Papierkorb.');
         return { ok: true, note: 'Bild liegt jetzt im Papierkorb.' };

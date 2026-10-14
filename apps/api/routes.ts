@@ -12,6 +12,7 @@ import authMiddleware from './middleware/authMiddleware.js';
 import { deprecatedRoute } from './middleware/deprecatedRoute.js';
 import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
 import { requireAiConsent } from './middleware/requireAiConsent.js';
+import { mountAdminReportsContractRouter } from './routes/admin/adminReportsContractRouter.js';
 import { mountChunkInspectorContractRouter } from './routes/admin/chunkInspectorContractRouter.js';
 import { mountConnectorTestContractRouter } from './routes/admin/connectorTestContractRouter.js';
 import { mountInstanceAdminOverviewContractRouter } from './routes/admin/instanceAdminOverviewContractRouter.js';
@@ -118,6 +119,7 @@ import { mountSheetsContractRouter } from './routes/sheets/sheetsContractRouter.
 import { mountSitesContractRouter } from './routes/sites/sitesContractRouter.js';
 import { mountSkillPromptContractRouter } from './routes/skills/skillPromptContractRouter.js';
 import { mountSkillVisibilityContractRouter } from './routes/skills/skillVisibilityContractRouter.js';
+import { mountStudioAssetsContractRouter } from './routes/studioAssets/studioAssetsContractRouter.js';
 import subtitlerRouter from './routes/subtitler/processingController.js';
 import subtitlerProjectRouter from './routes/subtitler/projectController.js';
 import subtitlerShareRouter from './routes/subtitler/shareController.js';
@@ -228,6 +230,20 @@ const contentReportLimiter = isRateLimitDisabled
       legacyHeaders: false,
       keyGenerator: perUserOrIpKey,
       message: { error: 'Too many requests, please try again later.' },
+    });
+
+// Studio shop uploads are rare and every one may go public at once — cap
+// creates and edits well below the general write budget.
+const studioAssetWriteLimiter = isRateLimitDisabled
+  ? (_req: Request, _res: Response, next: NextFunction) => next()
+  : rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 30,
+      standardHeaders: true,
+      legacyHeaders: false,
+      keyGenerator: perUserOrIpKey,
+      skip: (req) => req.method !== 'POST' && req.method !== 'PATCH',
+      message: { success: false, message: 'Zu viele Anfragen. Bitte versuche es später erneut.' },
     });
 
 const authenticatedReadLimiter = isRateLimitDisabled
@@ -489,6 +505,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/reisekosten', requireAuth, standardMutationLimiter);
   app.use('/api/reisekosten/extract-beleg', requireAiConsent);
   mountReisekostenContractRouter(app);
+  // Studio shop: user Sticker and Hintergründe.
+  app.use('/api/studio-assets', requireAuth, authenticatedReadLimiter, studioAssetWriteLimiter);
+  mountStudioAssetsContractRouter(app);
   // Explainables. The shared routes come first and terminate before the
   // requireAuth gate on the prefix below; `/shared/:token` would otherwise be
   // read as the owner's `/:ref`.
@@ -873,6 +892,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Gleiche Bauform: requireAuth am Präfix, requireInstanceAdmin pro Handler.
   app.use('/api/auth/admin/connector-test', requireAuth);
   mountConnectorTestContractRouter(app);
+  // Meldungen (content_reports) je Ziel, gleiche Bauform: requireAuth am
+  // Präfix, requireInstanceAdmin pro Handler.
+  app.use('/api/auth/admin/reports', requireAuth);
+  mountAdminReportsContractRouter(app);
   // Per-user external MCP server registry (EXPERIMENTAL). requireAuth at the
   // prefix — every route is user-scoped and handles user-entered credentials.
   app.use('/api/mcp/servers', requireAuth);

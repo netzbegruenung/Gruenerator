@@ -49,7 +49,7 @@ Playwright lane (`pnpm --filter @gruenerator/web test:a11y`).
   measure their anchor on mount and cmdk scrolls to the active item; without the
   stubs a test dies on a missing browser API instead of on the thing under test.
 - The MSW server ([src/test/msw-server.ts](src/test/msw-server.ts)) with
-  `onUnhandledRequest: 'error'`, so a stray real network call is a loud failure
+  `onUnhandledFrame: 'error'`, so a stray real network call is a loud failure
   rather than a silent hang. It ships **no** default handlers — each test
   registers its own via `server.use(...)`; `cleanup()` and `resetHandlers()` run
   in `afterEach`.

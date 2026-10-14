@@ -1,3 +1,4 @@
+import { applyPixelHitArea } from '@gruenerator/canvas-editor/pixelHitArea';
 import { CANVAS_COLORS } from '@gruenerator/shared/canvas-editor';
 import { BRAND_COLORS } from '@gruenerator/shared/image-studio';
 import {
@@ -12,7 +13,6 @@ import { type KonvaEventObject } from 'konva/lib/Node';
 import { useEffect, useRef, useState } from 'react';
 import { Circle, Image as KonvaImage, Layer, Line, Rect, Stage, Transformer } from 'react-konva';
 
-import { applyPixelHitArea } from '../utils/profilbildHitArea';
 import { type PlacedSticker, type StickerChange, stickerBox } from '../utils/profilbildStickers';
 
 import type Konva from 'konva';

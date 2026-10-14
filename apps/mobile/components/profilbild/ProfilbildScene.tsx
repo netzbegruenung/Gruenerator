@@ -4,7 +4,6 @@ import {
   placementRect,
   presetDesigns,
   type FlatBackground,
-  type ProfilbildAssetSrc,
 } from '@gruenerator/shared/profilbild';
 import {
   drawAsImage,
@@ -17,12 +16,12 @@ import {
   type SkImage,
 } from '@shopify/react-native-skia';
 
-import { stripeRects, type ProfilbildModel } from './sceneModel';
+import { stripeRects, type ProfilbildModel, type SceneImages } from './sceneModel';
 
 interface SceneProps {
   model: ProfilbildModel;
   person: SkImage;
-  images: Record<ProfilbildAssetSrc, SkImage>;
+  images: SceneImages;
   isAustria: boolean;
 }
 
@@ -95,25 +94,29 @@ export function ProfilbildScene({ model, person, images, isAustria }: SceneProps
     <Group>
       <BackgroundLayer model={model} images={images} isAustria={isAustria} />
       <Image image={person} {...rect} fit="fill" />
-      {model.stickers.map((s) => (
-        <Group
-          key={s.uid}
-          transform={[
-            { translateX: s.x },
-            { translateY: s.y },
-            { rotate: (s.rotation * Math.PI) / 180 },
-          ]}
-        >
-          <Image
-            image={images[s.src]}
-            x={-s.width / 2}
-            y={-s.height / 2}
-            width={s.width}
-            height={s.height}
-            fit="fill"
-          />
-        </Group>
-      ))}
+      {model.stickers.map((s) => {
+        const image = images[s.src];
+        if (!image) return null;
+        return (
+          <Group
+            key={s.uid}
+            transform={[
+              { translateX: s.x },
+              { translateY: s.y },
+              { rotate: (s.rotation * Math.PI) / 180 },
+            ]}
+          >
+            <Image
+              image={image}
+              x={-s.width / 2}
+              y={-s.height / 2}
+              width={s.width}
+              height={s.height}
+              fit="fill"
+            />
+          </Group>
+        );
+      })}
     </Group>
   );
 }

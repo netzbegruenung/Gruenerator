@@ -622,6 +622,20 @@ describe('media', () => {
     expect(trashProject).toHaveBeenCalledWith('u1', 'p1');
   });
 
+  it('points a Sticker/Hintergrund file to its own delete instead of trashing the share', async () => {
+    trashShare.mockResolvedValue('studio_asset');
+    const out = (await exec(makeMediaTool(askingCtx('u1', 'Lösch das Bild', 'ja')), {
+      action: 'delete',
+      type: 'all',
+      ref: 'sharepic:tok',
+      confirm: true,
+      limit: 15,
+    })) as { error?: string; ok?: boolean };
+    expect(trashShare).toHaveBeenCalledWith('u1', 'tok');
+    expect(out.ok).toBeUndefined();
+    expect(out.error).toBe('Dieses Bild gehört zu einem Sticker/Hintergrund – lösche es dort.');
+  });
+
   it('refuses a delete nobody asked for, even with confirm=true', async () => {
     const out = (await exec(
       makeMediaTool(askingCtx('u1', 'Generiere ein Bild', 'Mach es abends mit warmem Licht')),

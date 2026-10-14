@@ -36,21 +36,26 @@ const snapshot = {
 function serveMonitor() {
   server.use(
     http.get(MONITOR_LATEST, () => HttpResponse.json(snapshot)),
+    // Cross-origin XHR: jsdom enforces CORS on the response, so the mock carries
+    // the wildcard header the real API sends.
     http.get(BSKY_FEED, () =>
-      HttpResponse.json({
-        feed: [
-          {
-            post: {
-              uri: 'at://did:plc:x/app.bsky.feed.post/abc',
-              author: { handle: 'gruene-bundestag.de', displayName: 'Grüne Bundestag' },
-              record: {
-                text: 'Heute im Plenum: Wärmewende',
-                createdAt: '2026-08-26T09:00:00.000Z',
+      HttpResponse.json(
+        {
+          feed: [
+            {
+              post: {
+                uri: 'at://did:plc:x/app.bsky.feed.post/abc',
+                author: { handle: 'gruene-bundestag.de', displayName: 'Grüne Bundestag' },
+                record: {
+                  text: 'Heute im Plenum: Wärmewende',
+                  createdAt: '2026-08-26T09:00:00.000Z',
+                },
               },
             },
-          },
-        ],
-      })
+          ],
+        },
+        { headers: { 'access-control-allow-origin': '*' } }
+      )
     ),
     http.get(WHAT_HAPPENED, () =>
       HttpResponse.json({

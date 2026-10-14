@@ -87,6 +87,8 @@ export const UPLOAD_SOURCES = [
   'sharepic-creator',
   // A Profilbild's own background photo, kept so the saved Profilbild reopens as it was.
   'profilbild-background',
+  // A user-uploaded Sticker/Hintergrund of the Studio shop; the studio_assets row owns it.
+  'studio-asset',
 ] as const;
 
 /**
@@ -105,6 +107,7 @@ export const NON_LIBRARY_UPLOAD_SOURCES = [
   'gruenerator-vorlage',
   'canvas-element',
   'profilbild-background',
+  'studio-asset',
 ] as const;
 
 export const UPLOAD_SOURCE_LABELS: Record<string, string> = {

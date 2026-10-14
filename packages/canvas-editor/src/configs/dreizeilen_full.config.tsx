@@ -487,6 +487,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       propsFactory: (state, actions, context) => ({
         // Asset instance props
         onAddAsset: actions.addAsset,
+        onAddStickerAsset: actions.addStickerAsset,
         recommendedAssetIds: CANVAS_RECOMMENDED_ASSETS['dreizeilen'],
 
         // Auto-inject all feature props (icons, shapes, illustrations, balken)

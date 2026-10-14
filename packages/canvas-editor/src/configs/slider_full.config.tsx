@@ -64,6 +64,7 @@ import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance } from '../utils/shapes';
 import type { SliderColorScheme, SliderStyle } from '../utils/sliderLayout';
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
+import type { StickerRef } from '@gruenerator/shared/stickers';
 
 // Default arrow icon ID (HeroIcons chevron-right, resolved via canvasIcons.ts)
 /** Feste Id der Pille, die die Folien-Beschriftung traegt. */
@@ -200,6 +201,7 @@ export interface SliderActions {
 
   // Base actions
   addAsset: (assetId: string) => void;
+  addStickerAsset: (ref: StickerRef) => void;
   updateAsset: (id: string, partial: Partial<AssetInstance>) => void;
   removeAsset: (id: string) => void;
   toggleIcon: (id: string, selected: boolean) => void;
@@ -680,6 +682,7 @@ function createSliderConfig(brand: SliderBrand): FullCanvasConfig<SliderState, S
         propsFactory: (state, actions, context) => ({
           assetInstances: state.assetInstances,
           onAddAsset: actions.addAsset,
+          onAddStickerAsset: actions.addStickerAsset,
           onUpdateAsset: actions.updateAsset,
           onRemoveAsset: actions.removeAsset,
           onAddPillBadge: actions.addPillBadge,

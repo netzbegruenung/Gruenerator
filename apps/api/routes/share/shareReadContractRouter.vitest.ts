@@ -24,9 +24,10 @@ import type { Request } from 'express';
 
 const getUserShares = vi.fn<() => Promise<SharedMediaRow[]>>();
 const getShareByToken = vi.fn<(token: string) => Promise<SharedMediaRow | null>>();
+const trashShare = vi.fn<(userId: string, token: string) => Promise<string>>();
 
 vi.mock('./shareServices.js', () => ({
-  getSharedMediaService: () => Promise.resolve({ getUserShares, getShareByToken }),
+  getSharedMediaService: () => Promise.resolve({ getUserShares, getShareByToken, trashShare }),
 }));
 
 // Only the signing secret is overridden; everything else stays the real env, so
@@ -253,5 +254,24 @@ describe('getMyShare', () => {
 
   it('answers 401 without a session', async () => {
     expect((await call('tok-a', {} as Request)).status).toBe(401);
+  });
+});
+
+describe('deleteShare', () => {
+  const call = (shareToken: string) =>
+    shareReadContractRouter.deleteShare({ req, params: { shareToken } } as never);
+
+  it('trashes an ordinary share', async () => {
+    trashShare.mockResolvedValue('ok');
+    expect((await call('tok-a')).status).toBe(200);
+  });
+
+  it('refuses a Sticker/Hintergrund file and says where to delete it', async () => {
+    trashShare.mockResolvedValue('studio_asset');
+    const res = await call('tok-s');
+    expect(res.status).toBe(409);
+    expect((res.body as { error: string }).error).toBe(
+      'Dieses Bild gehört zu einem Sticker/Hintergrund – lösche es dort.'
+    );
   });
 });
