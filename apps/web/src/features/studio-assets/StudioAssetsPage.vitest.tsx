@@ -141,6 +141,26 @@ describe('StudioAssetsPage', () => {
     expect(within(dialog).getByText('Was stimmt mit „Sonnenblume“ nicht?')).toBeInTheDocument();
   });
 
+  it('drops a sticker the report auto-hid from the gallery right away', async () => {
+    server.use(
+      http.post('http://localhost/api/content-reports', () => {
+        store = store.filter((i) => i.id !== 'a-1');
+        return HttpResponse.json({ success: true });
+      })
+    );
+    const { user } = renderWithProviders(<StudioAssetsPage />);
+    await screen.findByRole('article', { name: 'Sonnenblume' });
+
+    const menu = await openMenu(user, 'Sonnenblume');
+    await user.click(within(menu).getByRole('menuitem', { name: 'Melden' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('radio', { name: 'Rechtswidrig' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Melden' }));
+
+    await waitFor(() => expect(screen.queryByRole('article', { name: 'Sonnenblume' })).toBeNull());
+    expect(screen.getByRole('article', { name: 'Mein Herz' })).toBeInTheDocument();
+  });
+
   it('hands the item to the Profilbild by deep link', async () => {
     const SRC = '/api/share/0123456789abcdef0123456789abcdef/download';
     store = [asset({ id: '0b6f3c1e-8a4d-4f5e-9c2a-7d1e5b3a9f10', src: SRC, height: 256 })];

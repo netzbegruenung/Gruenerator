@@ -76,6 +76,9 @@ export type TrashedShareRow = Pick<
 
 export type ShareTrashResult = 'ok' | 'not_found' | 'forbidden';
 
+/** A Sticker/Hintergrund's file: the `studio_assets` row owns it, not the share. */
+export type ShareTrashRefusal = 'studio_asset';
+
 /** Plain strings, not `{ status }` objects: `sharedMediaService.vitest.ts` reads every
  * `status: '…'` literal in this file as a `shared_media.status` the service writes. */
 export type ShareTrashLookup = TrashedShareRow | Exclude<ShareTrashResult, 'ok'>;
@@ -101,6 +104,7 @@ const SHARE_LINK_MAX_AGE_DAYS = 30;
 export type UploadSource = (typeof UPLOAD_SOURCES)[number];
 
 const PROFILBILD_BACKGROUND_SOURCE = 'profilbild-background' satisfies UploadSource;
+const STUDIO_ASSET_UPLOAD_SOURCE = 'studio-asset' satisfies UploadSource;
 
 /**
  * `expires_at` for a freshly created share, as a SQL expression.
@@ -934,14 +938,19 @@ class SharedMediaService {
    * Delete rights are the uploader's (`user_id`); restore and purge-now ask
    * exactly that.
    */
-  async trashShare(userId: string, shareToken: string): Promise<ShareTrashResult> {
+  async trashShare(
+    userId: string,
+    shareToken: string
+  ): Promise<ShareTrashResult | ShareTrashRefusal> {
     await this.ensureInitialized();
-    const rows = await this.postgres!.query<Pick<SharedMedia, 'user_id'>>(
-      'SELECT user_id FROM shared_media WHERE share_token = $1 AND deleted_at IS NULL',
+    const rows = await this.postgres!.query<Pick<SharedMedia, 'user_id' | 'upload_source'>>(
+      'SELECT user_id, upload_source FROM shared_media WHERE share_token = $1 AND deleted_at IS NULL',
       [shareToken]
     );
     if (rows.length === 0) return 'not_found';
     if (rows[0].user_id !== userId) return 'forbidden';
+    // Its purge would take the gallery row (FK cascade) past purgeStudioAsset.
+    if (rows[0].upload_source === STUDIO_ASSET_UPLOAD_SOURCE) return 'studio_asset';
     await this.postgres!.query(
       'UPDATE shared_media SET deleted_at = now() WHERE share_token = $1 AND deleted_at IS NULL',
       [shareToken]

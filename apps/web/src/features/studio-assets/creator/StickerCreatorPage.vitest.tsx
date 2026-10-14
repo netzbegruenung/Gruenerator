@@ -1,0 +1,311 @@
+import { type StudioAssetItem } from '@gruenerator/contracts';
+import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
+import { http, HttpResponse } from 'msw';
+import { type Ref, useImperativeHandle } from 'react';
+import { useLocation } from 'react-router-dom';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { useAuthStore } from '../../../stores/authStore';
+import { server } from '../../../test/msw-server';
+import { axe, renderWithProviders, screen, waitFor, within } from '../../../test-utils';
+
+import StickerCreatorPage from './StickerCreatorPage';
+
+import type * as StickerEffects from './stickerEffects';
+
+const { uploadShare, removeBackground, rendered } = vi.hoisted(() => ({
+  uploadShare: vi.fn(),
+  removeBackground: vi.fn(),
+  rendered: new Blob(['png'], { type: 'image/png' }),
+}));
+
+vi.mock('../../image-studio/services/mediaUploadService', () => ({
+  uploadBlobToMediaShare: uploadShare,
+}));
+vi.mock('../../image-studio/services/imageEditingService', () => ({
+  removeImageBackground: removeBackground,
+}));
+vi.mock('../../image-studio/utils/downscaleImage', () => ({
+  fileToDownscaledDataUrl: () => Promise.resolve('data:image/png;base64,cmF3'),
+}));
+// jsdom has no 2D canvas; the pixel maths is covered in packages/shared/src/stickers/creator.
+vi.mock('./stickerEffects', async (importOriginal) => {
+  const canvas = { width: 400, height: 300 };
+  return {
+    ...(await importOriginal<typeof StickerEffects>()),
+    loadImage: vi.fn().mockResolvedValue({}),
+    imageToCanvas: () => canvas,
+    trimTransparent: () => canvas,
+    canvasHasTransparency: () => true,
+    renderSticker: () => ({ width: 512, height: 384 }),
+    canvasToPngBlob: () => Promise.resolve(rendered),
+  };
+});
+// The badge exports through the Konva stage; stand in for it with a fixed PNG.
+vi.mock('react-konva', () => ({
+  Stage: ({ ref }: { ref?: Ref<unknown> }) => {
+    useImperativeHandle(ref, () => ({
+      width: () => 320,
+      height: () => 320,
+      toBlob: () => Promise.resolve(rendered),
+    }));
+    return null;
+  },
+  Layer: () => null,
+  Path: () => null,
+  Text: () => null,
+}));
+
+const API = 'http://localhost/api/studio-assets';
+const ID = '0b6f3c1e-8a4d-4f5e-9c2a-7d1e5b3a9f10';
+const SRC = '/api/share/0123456789abcdef0123456789abcdef/download';
+
+let body: Record<string, unknown> | null = null;
+const originalCreate = URL.createObjectURL;
+const originalRevoke = URL.revokeObjectURL;
+
+beforeAll(() => {
+  setGlobalApiClient(createApiClient({ baseURL: 'http://localhost/api', authMode: 'cookie' }));
+  URL.createObjectURL = () => 'blob:sticker';
+  URL.revokeObjectURL = () => {};
+});
+
+afterAll(() => {
+  URL.createObjectURL = originalCreate;
+  URL.revokeObjectURL = originalRevoke;
+});
+
+beforeEach(() => {
+  body = null;
+  uploadShare.mockReset().mockResolvedValue('tok-1');
+  removeBackground
+    .mockReset()
+    .mockResolvedValue({ base64: 'data:image/png;base64,Y3V0', objectUrl: 'blob:cutout' });
+  useAuthStore.setState({ locale: 'de-DE' });
+  server.use(
+    http.post(API, async ({ request }) => {
+      body = (await request.json()) as Record<string, unknown>;
+      const created: StudioAssetItem = {
+        id: ID,
+        kind: 'sticker',
+        title: String(body.title),
+        tags: [],
+        src: SRC,
+        thumbUrl: null,
+        width: 512,
+        height: 384,
+        source: 'upload',
+        visibility: 'private',
+        audience: 'de-DE',
+        moderation: 'ok',
+        isOwn: true,
+        authorName: null,
+        likesCount: 0,
+        liked: false,
+        favorited: false,
+        createdAt: '2026-10-14T00:00:00.000Z',
+      };
+      return HttpResponse.json(created, { status: 201 });
+    })
+  );
+});
+
+const Where = () => (
+  <output data-testid="where">{useLocation().pathname + useLocation().search}</output>
+);
+
+async function designUpload(user: ReturnType<typeof renderWithProviders>['user']) {
+  await user.click(screen.getByRole('button', { name: /Bild hochladen/ }));
+  const input = document.querySelector<HTMLInputElement>('input[type="file"]');
+  await user.upload(input!, new File(['raw'], 'Sonnenblume.png', { type: 'image/png' }));
+  const next = screen.getByRole('button', { name: 'Weiter' });
+  await waitFor(() => expect(next).toBeEnabled());
+  await user.click(next);
+  await screen.findByRole('heading', { name: 'Speichern' });
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+async function designCutout(user: ReturnType<typeof renderWithProviders>['user']) {
+  // The cutout path downscales through a data: URL fetch, which MSW would refuse.
+  const realFetch = globalThis.fetch;
+  vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) =>
+    String(input).startsWith('data:')
+      ? Promise.resolve({ blob: () => Promise.resolve(rendered) } as Response)
+      : realFetch(input, init)
+  );
+  await user.click(screen.getByRole('button', { name: /Foto freistellen/ }));
+  const input = document.querySelector<HTMLInputElement>('input[type="file"]');
+  await user.upload(input!, new File(['raw'], 'Portrait.jpg', { type: 'image/jpeg' }));
+}
+
+describe('StickerCreatorPage', () => {
+  it('offers three ways to start without axe violations', async () => {
+    const { container } = renderWithProviders(<StickerCreatorPage />);
+
+    for (const name of [/Bild hochladen/, /Foto freistellen/, /Text-Badge/])
+      expect(screen.getByRole('button', { name })).toBeInTheDocument();
+    expect(screen.getByRole('listitem', { current: 'step' })).toHaveTextContent('Art wählen');
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('saves an uploaded PNG as a private sticker', async () => {
+    const { user } = renderWithProviders(<StickerCreatorPage />);
+    await designUpload(user);
+
+    expect(screen.getByLabelText('Titel')).toHaveValue('Sonnenblume');
+    await user.click(screen.getByRole('button', { name: 'Sticker speichern' }));
+
+    expect(await screen.findByRole('heading', { name: 'Fertig!' })).toBeInTheDocument();
+    expect(uploadShare).toHaveBeenCalledWith(rendered, {
+      filename: 'sonnenblume.png',
+      uploadSource: 'studio-asset',
+    });
+    expect(body).toEqual({
+      shareToken: 'tok-1',
+      kind: 'sticker',
+      source: 'upload',
+      title: 'Sonnenblume',
+      tags: [],
+      visibility: 'private',
+      audience: 'de-DE',
+      rightsConfirmed: false,
+    });
+    expect(screen.getByRole('link', { name: 'Im Profilbild verwenden' })).toHaveAttribute(
+      'href',
+      expect.stringContaining(`/studio/profilbild?asset=${ID}`)
+    );
+  });
+
+  it('only shares publicly once the rights are confirmed', async () => {
+    const { user, container } = renderWithProviders(<StickerCreatorPage />);
+    await designUpload(user);
+
+    expect(screen.queryByText('Dein Name wird dabei angezeigt.')).toBeNull();
+    await user.click(screen.getByRole('checkbox', { name: /öffentlich teilen/ }));
+    expect(screen.getByText('Dein Name wird dabei angezeigt.')).toBeInTheDocument();
+    const submit = screen.getByRole('button', { name: 'Sticker speichern' });
+    expect(submit).toBeDisabled();
+    expect(within(container).getByRole('radio', { name: 'Deutschland' })).toBeChecked();
+    await user.click(screen.getByRole('checkbox', { name: /Rechte an diesem Bild/ }));
+    expect(submit).toBeEnabled();
+    expect(await axe(container)).toHaveNoViolations();
+
+    await user.click(submit);
+    await waitFor(() =>
+      expect(body).toMatchObject({ visibility: 'public', audience: 'de-DE', rightsConfirmed: true })
+    );
+  });
+
+  it('goes straight back to the Profilbild with the new sticker', async () => {
+    const { user } = renderWithProviders(
+      <>
+        <StickerCreatorPage />
+        <Where />
+      </>,
+      { route: '/studio/sticker/neu?return=profilbild' }
+    );
+    await designUpload(user);
+    await user.click(screen.getByRole('button', { name: 'Sticker speichern' }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('where').textContent).toMatch(/^\/studio\/profilbild\?/)
+    );
+    const params = new URLSearchParams(screen.getByTestId('where').textContent!.split('?')[1]);
+    expect(Object.fromEntries(params)).toEqual({
+      asset: ID,
+      kind: 'sticker',
+      src: SRC,
+      w: '512',
+      h: '384',
+      title: 'Sonnenblume',
+    });
+  });
+
+  it('points back to the canvas sidebar when opened from the canvas', async () => {
+    const { user } = renderWithProviders(<StickerCreatorPage />, {
+      route: '/studio/sticker/neu?return=canvas',
+    });
+    await designUpload(user);
+    await user.click(screen.getByRole('button', { name: 'Sticker speichern' }));
+
+    expect(await screen.findByText(/in der Seitenleiste unter „Meine“/)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Im Profilbild verwenden' })).toBeNull();
+  });
+
+  it('keeps the form and explains when the upload fails', async () => {
+    uploadShare.mockResolvedValue(null);
+    const { user } = renderWithProviders(<StickerCreatorPage />);
+    await designUpload(user);
+    await user.click(screen.getByRole('button', { name: 'Sticker speichern' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Das Hochladen hat nicht geklappt');
+    expect(body).toBeNull();
+    expect(screen.getByRole('button', { name: 'Sticker speichern' })).toBeEnabled();
+  });
+
+  it('retries a failed save with the file it already uploaded', async () => {
+    let attempts = 0;
+    server.use(
+      http.post(API, async ({ request }) => {
+        attempts += 1;
+        if (attempts === 1) return HttpResponse.json({ error: 'kaputt' }, { status: 500 });
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ error: 'egal' }, { status: 500 });
+      })
+    );
+    const { user } = renderWithProviders(<StickerCreatorPage />);
+    await designUpload(user);
+    const saveButton = screen.getByRole('button', { name: 'Sticker speichern' });
+    await user.click(saveButton);
+    await waitFor(() => expect(attempts).toBe(1));
+    await waitFor(() => expect(saveButton).toBeEnabled());
+    await user.click(saveButton);
+
+    await waitFor(() => expect(attempts).toBe(2));
+    expect(uploadShare).toHaveBeenCalledOnce();
+    expect(body).toMatchObject({ shareToken: 'tok-1' });
+  });
+
+  it('cuts out a photo and previews it with the outline on', async () => {
+    const { user } = renderWithProviders(<StickerCreatorPage />);
+    await designCutout(user);
+
+    expect(
+      await screen.findByRole('img', { name: 'Vorschau deines Stickers' })
+    ).toBeInTheDocument();
+    expect(removeBackground).toHaveBeenCalledOnce();
+    expect(screen.getByRole('switch', { name: 'Kontur' })).toBeChecked();
+    expect(screen.getByRole('slider', { name: /Stärke/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Weiter' })).toBeEnabled();
+  });
+
+  it('explains a failed cutout and retries it', async () => {
+    removeBackground.mockRejectedValueOnce(new Error('down'));
+    const { user } = renderWithProviders(<StickerCreatorPage />);
+    await designCutout(user);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Freistellen ist gerade nicht');
+    expect(screen.getByRole('button', { name: 'Weiter' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Erneut versuchen' }));
+
+    expect(
+      await screen.findByRole('img', { name: 'Vorschau deines Stickers' })
+    ).toBeInTheDocument();
+    expect(removeBackground).toHaveBeenCalledTimes(2);
+  });
+
+  it('mounts the badge designer with the default text and enables Weiter', async () => {
+    const { user } = renderWithProviders(<StickerCreatorPage />);
+    await user.click(screen.getByRole('button', { name: /Text-Badge/ }));
+
+    expect(screen.getByRole('textbox', { name: 'Text' })).toHaveValue('Jetzt\nGrün wählen!');
+    expect(screen.getByRole('img', { name: /mit „Jetzt Grün wählen!“/ })).toBeInTheDocument();
+    const next = screen.getByRole('button', { name: 'Weiter' });
+    await waitFor(() => expect(next).toBeEnabled());
+    await user.click(next);
+    expect(await screen.findByLabelText('Titel')).toHaveValue('Jetzt Grün wählen!');
+  });
+});

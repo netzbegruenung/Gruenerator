@@ -1,5 +1,6 @@
 import { type StudioAssetScope } from '@gruenerator/contracts';
 import { GRADIENT_SWATCHES, type PresetDesign, type Swatch } from '@gruenerator/shared/profilbild';
+import { STUDIO_ASSET_SCOPES } from '@gruenerator/shared/studio-assets';
 import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from '@gruenerator/ui';
 import { useState } from 'react';
 
@@ -24,12 +25,6 @@ const TILE_CLASS = `relative size-16 shrink-0 cursor-pointer overflow-hidden rou
 export const CUSTOM_ID = 'eigenes-bild';
 
 type Category = 'farben' | 'verlaeufe' | 'vorlagen' | 'entdecken' | 'eigenes';
-
-const GALLERY_SCOPES: { value: StudioAssetScope; label: string }[] = [
-  { value: 'shop', label: 'Öffentlich' },
-  { value: 'mine', label: 'Meine' },
-  { value: 'saved', label: 'Gemerkt' },
-];
 
 export interface ProfilbildBackgroundPickerProps {
   colors: Swatch[];
@@ -98,7 +93,7 @@ export function ProfilbildBackgroundPicker({
           Vorlagen
         </TabsTrigger>
         <TabsTrigger value="entdecken" className={TAB_CLS}>
-          Entdecken
+          Galerie
         </TabsTrigger>
         <TabsTrigger value="eigenes" className={TAB_CLS}>
           Eigenes Bild
@@ -148,7 +143,7 @@ export function ProfilbildBackgroundPicker({
 
       <TabsContent value="entdecken" className="flex flex-col gap-sm p-1 pt-sm">
         <div role="group" aria-label="Hintergründe aus der Galerie" className="flex gap-xs">
-          {GALLERY_SCOPES.map((s) => (
+          {STUDIO_ASSET_SCOPES.map((s) => (
             <button
               key={s.value}
               type="button"
@@ -187,7 +182,7 @@ export function ProfilbildBackgroundPicker({
             </Button>
             {onShareCustom ? (
               <Button type="button" size="sm" variant="ghost" onClick={onShareCustom}>
-                Im Bereich ‚Entdecken‘ teilen
+                Im Bereich „Entdecken“ teilen
               </Button>
             ) : null}
           </>

@@ -41,6 +41,7 @@ const {
   removeStudioAsset,
   updateStudioAsset,
 } = await import('./studioAssetsService.js');
+const { purgeStudioAsset } = await import('./studioAssetTrash.js');
 
 const me = randomUUID();
 const other = randomUUID();
@@ -358,6 +359,32 @@ describe.skipIf(!url)('Studio-Shop (studioAssetsService)', () => {
       [mine]
     );
     expect(row.deleted_at).not.toBeNull();
+  });
+
+  it('purge drops the file of a removed once-public asset and keeps an ok one', async () => {
+    const removed = await insertAsset(me, { moderation: 'removed', deleted: true });
+    const ok = await insertAsset(me, { deleted: true });
+    await pool.query('UPDATE studio_assets SET was_public = TRUE WHERE id = ANY($1::uuid[])', [
+      [removed, ok],
+    ]);
+    const tokenOf = async (id: string) =>
+      (
+        await one<{ share_token: string }>(
+          `SELECT m.share_token FROM shared_media m
+           JOIN studio_assets a ON a.media_id = m.id WHERE a.id = $1`,
+          [id]
+        )
+      ).share_token;
+    const removedToken = await tokenOf(removed);
+    const okToken = await tokenOf(ok);
+
+    expect(await purgeStudioAsset(removed, null)).toBe(true);
+    expect(await purgeStudioAsset(ok, null)).toBe(true);
+    const left = await pool.query<{ share_token: string }>(
+      'SELECT share_token FROM shared_media WHERE share_token = ANY($1)',
+      [[removedToken, okToken]]
+    );
+    expect(left.rows.map((r) => r.share_token)).toEqual([okToken]);
   });
 
   it('only public+ok or own assets can be liked/saved', async () => {

@@ -2,6 +2,7 @@ import { profilbildStickersToAssetInstances } from '@gruenerator/canvas-editor/p
 import { getContractsClient } from '@gruenerator/shared/api';
 import { DEFAULT_CANVAS_SIZE } from '@gruenerator/shared/canvas-editor';
 import { parseSavedProfilbild, PROFILBILD_SIZE } from '@gruenerator/shared/profilbild';
+import { galleryTarget } from '@gruenerator/shared/stickers';
 import { Alert, AlertDescription, Button } from '@gruenerator/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
@@ -21,7 +22,7 @@ import { BACKGROUND_REMOVAL_ERROR, useBackgroundRemoval } from '../hooks/useBack
 import { loadShareFileDataUrl } from '../hooks/useProfilbildShare';
 import { mintProfilbildCanvas, type ProfilbildLayout } from '../profilbildCanvas';
 import { hasProfilbildHandoffMarker, takeProfilbildHandoff } from '../profilbildHandoff';
-import { type GalleryAsset, parseProfilbildAssetParams } from '../utils/galleryAsset';
+import { parseProfilbildAssetParams } from '../utils/galleryAsset';
 
 const FULL_SHEET: ProfilbildLayout = {
   imagePosition: { x: 0, y: 0 },
@@ -38,9 +39,6 @@ async function loadReopen(
   const cutoutUrl = await loadShareFileDataUrl(`/api/share/${shareToken}/original`);
   return { cutoutUrl, reopen: { shareToken, saved } };
 }
-
-const galleryTarget = ({ title, kind }: GalleryAsset) =>
-  title ? `„${title}“` : kind === 'sticker' ? 'den Sticker' : 'den Hintergrund';
 
 const ProfilbildPage = () => {
   const location = useLocation();
@@ -69,6 +67,15 @@ const ProfilbildPage = () => {
   const cutoutUrl = reopenToken
     ? (reopened.data?.cutoutUrl ?? null)
     : (handoffUrl ?? (status === 'done' ? cutoutDataUrl : null));
+
+  // The deep link waits for a photo; once the editor has it, the hint is done.
+  const [pendingAsset, setPendingAsset] = useState(galleryAsset);
+  const [linkedAssetId, setLinkedAssetId] = useState(galleryAsset?.id ?? null);
+  if ((galleryAsset?.id ?? null) !== linkedAssetId) {
+    setLinkedAssetId(galleryAsset?.id ?? null);
+    setPendingAsset(galleryAsset);
+  }
+  if (cutoutUrl && pendingAsset) setPendingAsset(null);
 
   const editInCanvas = async (handoff: ProfilbildCanvasHandoff) => {
     if (!cutoutUrl) return;
@@ -134,9 +141,9 @@ const ProfilbildPage = () => {
           </div>
         ) : null}
 
-        {galleryAsset && !reopenToken && !cutoutUrl && status === 'idle' ? (
+        {pendingAsset && !reopenToken && !cutoutUrl && status === 'idle' ? (
           <p className="m-0 text-sm">
-            {`Lade zuerst ein Foto hoch – dann setzen wir ${galleryTarget(galleryAsset)} ein.`}
+            {`Lade zuerst ein Foto hoch – dann setzen wir ${galleryTarget(pendingAsset)} ein.`}
           </p>
         ) : null}
 

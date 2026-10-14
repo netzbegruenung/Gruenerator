@@ -37,10 +37,22 @@ const {
   recordContentReport,
   resolveReports,
 } = await import('./contentReportsService.js');
+const { restoreOwnedRow } = await import('../trash/ownedRowTrash.js');
+const { STUDIO_ASSET_TRASH } = await import('../studioAssets/studioAssetTrash.js');
+const { isRemovedStudioAssetShare } = await import('../studioAssets/studioAssetShare.js');
 
 const owner = randomUUID();
 const reporters = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
 const admin = randomUUID();
+
+/** What the file routes ask before serving the asset's image. */
+async function fileRemoved(assetId: string): Promise<boolean> {
+  const res = await pool.query<{ media_id: string }>(
+    'SELECT media_id FROM studio_assets WHERE id = $1',
+    [assetId]
+  );
+  return isRemovedStudioAssetShare({ id: res.rows[0]!.media_id, upload_source: 'studio-asset' });
+}
 
 async function moderationOf(id: string): Promise<string> {
   const res = await pool.query<{ moderation: string }>(
@@ -230,12 +242,27 @@ describe.skipIf(!url)('Meldungen (contentReportsService)', () => {
     expect(await countOpenReportTargets()).toBe(2);
   });
 
-  it('lists a trashed asset without its target', async () => {
+  it('a trashed asset stays a target the admin can remove; restoring it keeps the removal', async () => {
     const asset = await insertAsset();
     await reportBy(1, asset);
     await pool.query('UPDATE studio_assets SET deleted_at = now() WHERE id = $1', [asset]);
     const [group] = await listReportGroups({ status: 'open' });
-    expect(group).toMatchObject({ targetId: asset, target: null });
+    expect(group).toMatchObject({ targetId: asset, target: { id: asset, trashed: true } });
+
+    const res = await resolveReports(admin, {
+      kind: 'studio_asset',
+      targetId: asset,
+      action: 'remove',
+    });
+    expect(res).toEqual({ ok: true, value: { resolved: 1, moderation: 'removed' } });
+    expect(await moderationOf(asset)).toBe('removed');
+    expect(await fileRemoved(asset)).toBe(true);
+
+    expect(await restoreOwnedRow(STUDIO_ASSET_TRASH, owner, asset)).toBe('ok');
+    expect(await moderationOf(asset)).toBe('removed');
+    const [after] = await listReportGroups({ status: 'resolved' });
+    expect(after!.target).toMatchObject({ trashed: false, moderation: 'removed' });
+    expect(await fileRemoved(asset)).toBe(true);
   });
 
   it('remove takes the asset down and resolves every open report', async () => {
@@ -260,6 +287,7 @@ describe.skipIf(!url)('Meldungen (contentReportsService)', () => {
     const asset = await insertAsset();
     await reportBy(3, asset);
     expect(await moderationOf(asset)).toBe('hidden');
+    expect(await fileRemoved(asset)).toBe(false);
     const res = await resolveReports(admin, {
       kind: 'studio_asset',
       targetId: asset,
@@ -274,6 +302,7 @@ describe.skipIf(!url)('Meldungen (contentReportsService)', () => {
       action: 'restore',
     });
     expect(later).toEqual({ ok: true, value: { resolved: 0, moderation: 'ok' } });
+    expect(await fileRemoved(asset)).toBe(false);
     const rows = await pool.query('SELECT DISTINCT status, resolution FROM content_reports');
     expect(rows.rows).toEqual([{ status: 'resolved', resolution: 'restored' }]);
   });

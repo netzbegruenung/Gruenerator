@@ -104,6 +104,18 @@ const ALLOWLIST: readonly AllowEntry[] = [
     'eq(studioAssets.media_id',
   ],
   [
+    'apps/api/services/contentReports/contentReportsService.ts',
+    'studio_assets',
+    'moderation: an asset the owner trashed is still removed or restored by the admin',
+    'where(eq(studioAssets.id, assetId))',
+  ],
+  [
+    'apps/api/services/studioAssets/studioAssetShare.ts',
+    'studio_assets',
+    'moderation: a removed asset stays unserved while the owner has it in the Papierkorb',
+    "moderation = 'removed'",
+  ],
+  [
     'apps/api/services/entityFavorites/EntityFavoritesService.ts',
     'studio_assets',
     'account deletion: favorites of every Sticker/Hintergrund of the user, trashed ones cascade too',

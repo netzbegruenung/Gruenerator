@@ -19,7 +19,8 @@ const gallery = vi.hoisted(() => ({
 }));
 
 // The real hook needs react-query, which this lane loads with a second React copy.
-vi.mock('@gruenerator/shared/studio-assets', () => ({
+vi.mock('@gruenerator/shared/studio-assets', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
   useStudioAssets: (filter: StudioAssetsFilter) => {
     gallery.filters.push(filter);
     return {
@@ -407,10 +408,10 @@ describe.each([true, false])('gallery backgrounds (mobile: %s)', (mobile) => {
     render(<ImageBackgroundSection onImageChange={onImageChange} />);
     await openGallery();
 
-    const scopes = screen.getByRole('tablist', { name: 'Hintergrund-Auswahl' });
+    const scopes = screen.getByRole('group', { name: 'Hintergrund-Auswahl' });
     expect(
       within(scopes)
-        .getAllByRole('tab')
+        .getAllByRole('button')
         .map((t) => t.textContent)
     ).toEqual(['Entdecken', 'Meine', 'Gemerkt']);
     expect(gallery.filters.at(-1)).toEqual({
@@ -446,10 +447,10 @@ describe.each([true, false])('gallery backgrounds (mobile: %s)', (mobile) => {
   it('switches to own and remembered backgrounds', async () => {
     render(<ImageBackgroundSection onImageChange={() => {}} />);
     await openGallery();
-    await userEvent.click(screen.getByRole('tab', { name: 'Meine' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Meine' }));
     expect(gallery.filters.at(-1)).toMatchObject({ kind: 'background', scope: 'mine' });
     expect(screen.getByText('Du hast noch keine eigenen Hintergründe.')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('tab', { name: 'Gemerkt' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Gemerkt' }));
     expect(gallery.filters.at(-1)).toMatchObject({ kind: 'background', scope: 'saved' });
   });
 

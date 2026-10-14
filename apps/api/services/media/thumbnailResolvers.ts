@@ -16,6 +16,7 @@ import path from 'path';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { getSharedMediaService } from '../../routes/share/shareServices.js';
+import { isRemovedStudioAssetShare } from '../studioAssets/studioAssetShare.js';
 import { getSubtitlerProjectService } from '../subtitler/index.js';
 
 import { type ThumbnailKind } from './thumbnailSignature.js';
@@ -64,6 +65,7 @@ async function resolveMedia(shareToken: string): Promise<ResolvedThumbnail> {
   if (!share) return { ok: false, reason: 'not_found' };
   if (share.status === 'processing') return { ok: false, reason: 'processing' };
   if (share.status === 'failed') return { ok: false, reason: 'not_found' };
+  if (await isRemovedStudioAssetShare(share)) return { ok: false, reason: 'not_found' };
 
   // A video share's `file_path` is the mp4. This endpoint only ever produces
   // still images, so it uses the poster frame generated at upload — resizing an

@@ -13,6 +13,7 @@
 
 import type {
   ReapedShare,
+  ShareTrashRefusal,
   ShareTrashResult,
   UploadSource,
 } from '../../services/sharedMediaService.js';
@@ -82,7 +83,7 @@ export interface SharedMediaService {
     shareId?: string
   ): Promise<void>;
   /** Moves the share to the Papierkorb; the row and its files stay. */
-  trashShare(userId: string, shareToken: string): Promise<ShareTrashResult>;
+  trashShare(userId: string, shareToken: string): Promise<ShareTrashResult | ShareTrashRefusal>;
   /** Hard-deletes an internal artifact (`is_library_item = FALSE`), files included. */
   purgeInternalShare(
     shareToken: string,

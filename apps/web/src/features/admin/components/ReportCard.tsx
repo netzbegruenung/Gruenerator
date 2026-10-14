@@ -41,8 +41,9 @@ export default function ReportCard({ report, pending, onAction }: ReportCardProp
   return (
     <li className="flex gap-md p-md rounded-md border border-grey-200 dark:border-grey-700 bg-background list-none">
       {target ? (
+        // The signed thumbnail stays blocked once removed; the session-bound file still serves admins.
         <img
-          src={target.thumbUrl ?? target.src}
+          src={target.moderation === 'removed' ? target.src : (target.thumbUrl ?? target.src)}
           alt=""
           className="w-24 h-24 object-contain rounded-md bg-grey-100 dark:bg-grey-800 shrink-0"
         />
@@ -51,6 +52,7 @@ export default function ReportCard({ report, pending, onAction }: ReportCardProp
         <div className="flex flex-wrap items-center gap-xs">
           <h3 className="text-base font-semibold text-foreground-heading m-0">{heading}</h3>
           {moderation ? <Badge variant="destructive">{MODERATION_LABELS[moderation]}</Badge> : null}
+          {target?.trashed ? <Badge variant="secondary">Im Papierkorb</Badge> : null}
           {isAsset && !target ? <Badge variant="secondary">Nicht mehr verfügbar</Badge> : null}
         </div>
         <p className="text-sm text-grey-500 dark:text-grey-400 m-0 mt-xs">

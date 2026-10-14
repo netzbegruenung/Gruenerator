@@ -5,6 +5,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 
 import { server } from '../../../test/msw-server';
 import { renderWithProviders } from '../../../test-utils';
+import ReportsTabLabel from '../components/ReportsTabLabel';
 
 import ReportsTab from './ReportsTab';
 
@@ -34,6 +35,7 @@ const group = {
     moderation: 'hidden',
     ownerId: 'u-2',
     ownerName: 'Eva',
+    trashed: false,
   },
 };
 
@@ -68,6 +70,35 @@ describe('ReportsTab', () => {
     );
   });
 
+  it('still offers every action on an asset the owner moved to the Papierkorb', async () => {
+    server.use(
+      http.get(LIST, () =>
+        HttpResponse.json({ reports: [{ ...group, target: { ...group.target, trashed: true } }] })
+      )
+    );
+    renderWithProviders(<ReportsTab />);
+
+    expect(await screen.findByText('Im Papierkorb')).toBeInTheDocument();
+    for (const name of ['Entfernen', 'Wiederherstellen', 'Verwerfen']) {
+      expect(screen.getByRole('button', { name })).toBeInTheDocument();
+    }
+  });
+
+  it('shows a removed asset from its file, not from the blocked thumbnail', async () => {
+    const thumbUrl = 'http://localhost/api/thumbs/media/t/v/w200.webp';
+    server.use(
+      http.get(LIST, () =>
+        HttpResponse.json({
+          reports: [{ ...group, target: { ...group.target, moderation: 'removed', thumbUrl } }],
+        })
+      )
+    );
+    const { container } = renderWithProviders(<ReportsTab />);
+
+    expect(await screen.findByText('Entfernt')).toBeInTheDocument();
+    expect(container.querySelector('img')?.getAttribute('src')).toBe(group.target.src);
+  });
+
   it('asks for confirmation before removing', async () => {
     let body: unknown = null;
     server.use(
@@ -87,5 +118,11 @@ describe('ReportsTab', () => {
     await waitFor(() =>
       expect(body).toEqual({ kind: 'studio_asset', targetId: 'a-1', action: 'remove' })
     );
+  });
+
+  it('tells screen readers that the tab count means open reports', async () => {
+    server.use(http.get(`${LIST}/stats`, () => HttpResponse.json({ open: 2 })));
+    const { container } = renderWithProviders(<ReportsTabLabel />);
+    await waitFor(() => expect(container).toHaveTextContent('Meldungen(2 offen)'));
   });
 });

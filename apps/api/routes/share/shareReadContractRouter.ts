@@ -16,6 +16,7 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { buildThumbnailTileUrl, versionFromShareRow } from '../../services/media/thumbnailUrl.js';
 import { USER_SHARES_MAX_LIMIT } from '../../services/sharedMediaFilters.js';
+import { STUDIO_ASSET_SHARE_DELETE_MESSAGE } from '../../services/studioAssets/studioAssetShare.js';
 import { toCamelCase } from '../../utils/case.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
@@ -286,6 +287,12 @@ export const shareReadContractRouter = s.router(sharesReadContract, {
       const { shareToken } = params;
       const service = await getSharedMediaService();
       const result = await service.trashShare(userId, shareToken);
+      if (result === 'studio_asset') {
+        return {
+          status: 409 as const,
+          body: { success: false as const, error: STUDIO_ASSET_SHARE_DELETE_MESSAGE },
+        };
+      }
       if (result !== 'ok') {
         return {
           status: 404 as const,

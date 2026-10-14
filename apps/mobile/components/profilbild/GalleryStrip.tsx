@@ -4,7 +4,7 @@ import {
   type StudioAssetScope,
 } from '@gruenerator/contracts';
 import { isShareSrc } from '@gruenerator/shared/stickers';
-import { useStudioAssets } from '@gruenerator/shared/studio-assets';
+import { galleryScopeEmptyText, useStudioAssets } from '@gruenerator/shared/studio-assets';
 import { Image } from 'expo-image';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -15,7 +15,7 @@ import { secureStorage } from '../../services/storage';
 import { borderRadius, spacing, typography } from '../../theme';
 import { Button } from '../common/Button';
 
-import { galleryEmptyText, galleryErrorText, galleryTilePath } from './galleryModel';
+import { galleryErrorText, galleryTilePath } from './galleryModel';
 
 const TILE = 64;
 
@@ -55,7 +55,7 @@ export function GalleryStrip({ kind, scope, selectedSrc, onPick }: GalleryStripP
         </Button>
       </View>
     );
-  if (items.length === 0) return <Text style={hint}>{galleryEmptyText(kind, scope)}</Text>;
+  if (items.length === 0) return <Text style={hint}>{galleryScopeEmptyText(kind, scope)}</Text>;
   if (!token) return <ActivityIndicator color={theme.textGreen} style={styles.loading} />;
 
   return (

@@ -19,7 +19,8 @@ const gallery = vi.hoisted(() => ({
 }));
 
 // The real hook needs react-query, which this lane loads with a second React copy.
-vi.mock('@gruenerator/shared/studio-assets', () => ({
+vi.mock('@gruenerator/shared/studio-assets', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
   useStudioAssets: (filter: StudioAssetsFilter) => {
     gallery.filters.push(filter);
     return {
@@ -96,20 +97,20 @@ describe('StickerCatalog', () => {
     const onAddStickerAsset = vi.fn();
     render(<StickerCatalog onAddAsset={onAddAsset} onAddStickerAsset={onAddStickerAsset} />);
 
-    const tabs = screen.getByRole('tablist', { name: 'Sticker-Auswahl' });
+    const tabs = screen.getByRole('group', { name: 'Sticker-Auswahl' });
     expect(
       within(tabs)
-        .getAllByRole('tab')
+        .getAllByRole('button')
         .map((t) => t.textContent)
     ).toEqual(['Grüne', 'Entdecken', 'Meine', 'Gemerkt']);
-    expect(within(tabs).getByRole('tab', { name: 'Grüne' })).toHaveAttribute(
-      'aria-selected',
+    expect(within(tabs).getByRole('button', { name: 'Grüne' })).toHaveAttribute(
+      'aria-pressed',
       'true'
     );
     // The gallery is only asked for once its tab is opened.
     expect(gallery.filters).toEqual([]);
 
-    await userEvent.click(within(tabs).getByRole('tab', { name: 'Entdecken' }));
+    await userEvent.click(within(tabs).getByRole('button', { name: 'Entdecken' }));
     expect(gallery.filters.at(-1)).toEqual({ kind: 'sticker', scope: 'shop', q: '', sort: 'new' });
 
     await userEvent.click(screen.getByRole('button', { name: 'Klimaherz hinzufügen' }));
@@ -123,11 +124,11 @@ describe('StickerCatalog', () => {
       <StickerCatalog onAddAsset={() => {}} onAddStickerAsset={() => {}} searchQuery=" herz " />
     );
 
-    await userEvent.click(screen.getByRole('tab', { name: 'Meine' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Meine' }));
     expect(gallery.filters.at(-1)).toMatchObject({ scope: 'mine', q: 'herz' });
     expect(screen.getByText('Keine Sticker für „herz“.')).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('tab', { name: 'Gemerkt' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Gemerkt' }));
     expect(gallery.filters.at(-1)).toMatchObject({ scope: 'saved' });
     expect(screen.getByRole('button', { name: 'Gemerkter hinzufügen' })).toBeInTheDocument();
   });
@@ -142,7 +143,7 @@ describe('StickerCatalog', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Sticker erstellen' }));
     expect(openStickerCreator).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole('tab', { name: 'Meine' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('button', { name: 'Meine' })).toHaveAttribute('aria-pressed', 'true');
     expect(gallery.refetch).not.toHaveBeenCalled();
 
     window.dispatchEvent(new Event('focus'));
@@ -153,7 +154,7 @@ describe('StickerCatalog', () => {
 
   it('shows only the system stickers without a gallery handler or creator', () => {
     render(<StickerCatalog onAddAsset={() => {}} />);
-    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Sticker-Auswahl' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Sticker erstellen' })).not.toBeInTheDocument();
   });
 });
@@ -173,7 +174,7 @@ describe('Sticker card in the sidebar', () => {
     const heading = screen.getByRole('heading', { name: 'Sticker' });
     await userEvent.click(within(heading.parentElement!).getByRole('button', { name: 'Alle' }));
 
-    await userEvent.click(screen.getByRole('tab', { name: 'Entdecken' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Entdecken' }));
     await userEvent.click(screen.getByRole('button', { name: 'Klimaherz hinzufügen' }));
     expect(onAddStickerAsset).toHaveBeenCalledWith({ id: `asset:${UUID}`, src: SRC });
   });

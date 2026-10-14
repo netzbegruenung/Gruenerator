@@ -9,6 +9,7 @@ import {
   type ProfilbildAssetSrc,
   type Swatch,
 } from '@gruenerator/shared/profilbild';
+import { STUDIO_ASSET_SCOPES } from '@gruenerator/shared/studio-assets';
 import { Skia, type SkImage } from '@shopify/react-native-skia';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -21,7 +22,6 @@ import { borderRadius, spacing } from '../../theme';
 import { Button } from '../common/Button';
 import { SegmentedControl } from '../common/SegmentedControl';
 
-import { GALLERY_SCOPES } from './galleryModel';
 import { GalleryStrip } from './GalleryStrip';
 import { PROFILBILD_ASSETS } from './profilbildAssets';
 import { swatchGradient, type MobileBackground } from './sceneModel';
@@ -42,12 +42,8 @@ const CATEGORIES: { value: Category; label: string; short: string }[] = [
   { value: 'verlaeufe', label: 'Verlauf', short: 'Verlauf' },
   { value: 'vorlagen', label: 'Vorlagen', short: 'Vorlagen' },
   { value: 'eigenes', label: 'Eigenes Bild', short: 'Eigenes' },
-  { value: 'entdecken', label: 'Entdecken', short: 'Entdecken' },
+  { value: 'entdecken', label: 'Galerie', short: 'Galerie' },
 ];
-
-const GALLERY_FILTERS = GALLERY_SCOPES.map((s) =>
-  s.value === 'shop' ? { ...s, label: 'Öffentlich' } : s
-);
 
 const SWATCH = 44;
 const TILE = 64;
@@ -156,7 +152,7 @@ export function BackgroundPicker({
             accessibilityLabel="Hintergründe aus der Galerie"
             value={scope}
             onChange={(v) => setScope(v as StudioAssetScope)}
-            options={GALLERY_FILTERS.map((f) => ({ ...f, short: f.label, disabled: false }))}
+            options={STUDIO_ASSET_SCOPES.map((f) => ({ ...f, short: f.label, disabled: false }))}
           />
           <GalleryStrip
             kind="background"
