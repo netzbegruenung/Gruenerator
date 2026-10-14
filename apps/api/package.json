@@ -82,7 +82,7 @@
   "dependencies": {
     "@ai-sdk/mistral": "^4.0.59",
     "@ai-sdk/openai": "^4.0.78",
-    "@anthropic-ai/sdk": "^0.115.0",
+    "@anthropic-ai/sdk": "^0.131.0",
     "@better-auth/cimd": "^1.7.6",
     "@better-auth/drizzle-adapter": "^1.7.6",
     "@better-auth/mcp": "^1.7.6",
