@@ -33,10 +33,6 @@ minimumReleaseAgeExclude:
   - 'assistant-cloud'
   - 'safe-content-frame'
   - '@blocknote/*'
-  # Security fix GHSA-68fv-2mgg-jv7q (event-loop DoS), published 2026-09-30 by
-  # the same maintainer as 1.2.1. Exact version only; inert once it passes the
-  # gate on 2026-10-07, remove then.
-  - 'source-map-js@1.2.2'
   # @ai-sdk/mistral 4.0.59 sends `reasoning_effort` for mistral-large-4 (the
   # Mistral-Medium-3.5 lanes move to Large 4). Published 2026-10-07 with its two
   # provider packages. Exact versions only; inert from 2026-10-14, remove then.
