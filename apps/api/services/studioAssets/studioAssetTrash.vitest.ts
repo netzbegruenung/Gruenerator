@@ -1,7 +1,7 @@
 /**
  * Sticker/Hintergründe im Papierkorb. Trash touches only `deleted_at`; the
  * purge removes the row first, then likes, favorites and — only for assets
- * that were never public — the image file.
+ * that were never public or were removed by moderation — the image file.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -59,7 +59,7 @@ describe('studio asset Papierkorb', () => {
   });
 
   it('purge of a never-public asset removes row, likes, favorites and the file', async () => {
-    deleted = [{ id: ID, user_id: USER, src: SRC, was_public: false }];
+    deleted = [{ id: ID, user_id: USER, src: SRC, was_public: false, moderation: 'ok' }];
     const cutoff = new Date('2026-10-01T00:00:00Z');
     expect(await purgeStudioAsset(ID, cutoff)).toBe(true);
     expect(effects).toEqual([
@@ -72,7 +72,7 @@ describe('studio asset Papierkorb', () => {
   });
 
   it('purge of an ever-public asset keeps the file', async () => {
-    deleted = [{ id: ID, user_id: USER, src: SRC, was_public: true }];
+    deleted = [{ id: ID, user_id: USER, src: SRC, was_public: true, moderation: 'ok' }];
     expect(await purgeStudioAsset(ID, null)).toBe(true);
     expect(effects).toEqual([
       'DELETE FROM studio_assets',
@@ -82,13 +82,30 @@ describe('studio asset Papierkorb', () => {
     expect(purgeInternalShare).not.toHaveBeenCalled();
   });
 
+  it('purge of an ever-public asset removed by moderation also removes the file', async () => {
+    deleted = [{ id: ID, user_id: USER, src: SRC, was_public: true, moderation: 'removed' }];
+    expect(await purgeStudioAsset(ID, null)).toBe(true);
+    expect(effects).toEqual([
+      'DELETE FROM studio_assets',
+      `likes studio_asset ${ID}`,
+      `favorites studio_asset ${ID}`,
+      `media tok123 ${USER}`,
+    ]);
+  });
+
+  it('purge of an ever-public hidden asset keeps the file', async () => {
+    deleted = [{ id: ID, user_id: USER, src: SRC, was_public: true, moderation: 'hidden' }];
+    expect(await purgeStudioAsset(ID, null)).toBe(true);
+    expect(purgeInternalShare).not.toHaveBeenCalled();
+  });
+
   it('touches no side store when the row was restored meanwhile (0 rows)', async () => {
     expect(await purgeStudioAsset(ID, null)).toBe(false);
     expect(effects).toEqual(['DELETE FROM studio_assets']);
   });
 
   it('reports a failing side store and still purges the rest', async () => {
-    deleted = [{ id: ID, user_id: USER, src: SRC, was_public: false }];
+    deleted = [{ id: ID, user_id: USER, src: SRC, was_public: false, moderation: 'ok' }];
     deleteLikesForEntity.mockRejectedValueOnce(new Error('db down'));
     expect(await purgeStudioAsset(ID, null)).toBe(true);
     expect(reportBackgroundError).toHaveBeenCalledWith(
