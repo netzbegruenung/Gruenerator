@@ -1,5 +1,12 @@
+import {
+  type AssetStickerId,
+  isAssetStickerId,
+  isShareSrc,
+  SYSTEM_STICKERS,
+  type SystemSticker,
+} from '../stickers/catalog.js';
+
 import { type PersonPlacement } from './geometry.js';
-import { PROFILBILD_STICKERS, type ProfilbildSticker } from './stickers.js';
 
 /** `shared_media.image_type` of a saved Profilbild — already classified as a sharepic. */
 export const PROFILBILD_IMAGE_TYPE = 'profilbild';
@@ -14,7 +21,9 @@ export type SavedProfilbildBackground =
   | { kind: 'custom'; url: string };
 
 export interface SavedProfilbildSticker {
-  id: ProfilbildSticker['id'];
+  id: SystemSticker['id'] | AssetStickerId;
+  /** Only for shop stickers (`asset:<uuid>`): the `/api/share/<token>/download` path. */
+  src?: string;
   x: number;
   y: number;
   width: number;
@@ -33,7 +42,7 @@ export interface SavedProfilbild {
   stickers: SavedProfilbildSticker[];
 }
 
-const STICKER_IDS = new Set<string>(PROFILBILD_STICKERS.map((s) => s.id));
+const STICKER_IDS = new Set<string>(SYSTEM_STICKERS.map((s) => s.id));
 
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 
@@ -47,10 +56,16 @@ function parseBackground(raw: unknown): SavedProfilbildBackground | null {
 
 function parseSticker(raw: unknown): SavedProfilbildSticker | null {
   const s = raw as Record<string, unknown> | null;
-  if (!s || typeof s.id !== 'string' || !STICKER_IDS.has(s.id)) return null;
+  if (!s || typeof s.id !== 'string') return null;
   const { x, y, width, height, rotation } = s;
   if (!isNum(x) || !isNum(y) || !isNum(width) || !isNum(height) || !isNum(rotation)) return null;
-  return { id: s.id as ProfilbildSticker['id'], x, y, width, height, rotation };
+  if (STICKER_IDS.has(s.id)) {
+    return { id: s.id as SystemSticker['id'], x, y, width, height, rotation };
+  }
+  if (isAssetStickerId(s.id) && typeof s.src === 'string' && isShareSrc(s.src)) {
+    return { id: s.id, src: s.src, x, y, width, height, rotation };
+  }
+  return null;
 }
 
 /** Reads the editor state back out of a share's `image_metadata`; null when absent or foreign. */
@@ -84,12 +99,12 @@ export function savedBackgroundShareToken(saved: SavedProfilbild | null): string
   return SHARE_DOWNLOAD_RE.exec(saved.background.url)?.[1] ?? null;
 }
 
-export function stickerById(id: string): ProfilbildSticker | null {
-  return PROFILBILD_STICKERS.find((s) => s.id === id) ?? null;
+export function stickerById(id: string): SystemSticker | null {
+  return SYSTEM_STICKERS.find((s) => s.id === id) ?? null;
 }
 
-export function stickerBySrc(src: string): ProfilbildSticker | null {
-  return PROFILBILD_STICKERS.find((s) => s.src === src) ?? null;
+export function stickerBySrc(src: string): SystemSticker | null {
+  return SYSTEM_STICKERS.find((s) => s.src === src) ?? null;
 }
 
 /**

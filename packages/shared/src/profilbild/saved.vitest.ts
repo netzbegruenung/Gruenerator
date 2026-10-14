@@ -50,6 +50,33 @@ describe('parseSavedProfilbild', () => {
   });
 });
 
+describe('parseSavedProfilbild shop stickers', () => {
+  const UUID = '0b6f3c1e-8a4d-4f5e-9c2a-7d1e5b3a9f10';
+  const geo = { x: 1, y: 2, width: 3, height: 4, rotation: 0 };
+  const parse = (sticker: Record<string, unknown>) =>
+    parseSavedProfilbild({ profilbild: { ...SAVED, stickers: [sticker] } })?.stickers;
+
+  it('keeps a shop sticker with a share src', () => {
+    const sticker = { id: `asset:${UUID}`, src: '/api/share/tok/download', ...geo };
+    expect(parse(sticker)).toEqual([sticker]);
+  });
+
+  it('drops a shop sticker without or with a foreign src', () => {
+    expect(parse({ id: `asset:${UUID}`, ...geo })).toEqual([]);
+    expect(parse({ id: `asset:${UUID}`, src: 'https://evil/x.png', ...geo })).toEqual([]);
+    expect(parse({ id: `asset:${UUID}`, src: '/images/x.png', ...geo })).toEqual([]);
+  });
+
+  it('drops a malformed asset id', () => {
+    expect(parse({ id: 'asset:nope', src: '/api/share/tok/download', ...geo })).toEqual([]);
+    expect(parse({ id: UUID, src: '/api/share/tok/download', ...geo })).toEqual([]);
+  });
+
+  it('reads legacy data without src unchanged', () => {
+    expect(parseSavedProfilbild({ profilbild: SAVED })?.stickers).toEqual(SAVED.stickers);
+  });
+});
+
 describe('isProfilbildShare', () => {
   it('needs the editor state, not just the image type canvas exports share', () => {
     expect(
