@@ -151,7 +151,9 @@ export function leadModel(): ChatOpenAI {
     apiKey: requireMistralKey(),
     temperature: 0.3,
     configuration: { baseURL: MISTRAL_API_URL },
-    modelKwargs: { ...PARALLEL_TOOL_CALLS },
+    // Large 4 denkt ohne `reasoning_effort` von selbst (#4553); der Lead lief
+    // bis 12.10.2026 auf Medium 3.5 ohne Denken.
+    modelKwargs: { ...PARALLEL_TOOL_CALLS, reasoning_effort: 'none' },
   });
 }
 

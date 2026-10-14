@@ -83,11 +83,22 @@ describe('reasoning_effort for Mistral chat models', () => {
     expect(requests[0]?.body.reasoning_effort).toBe('high');
   });
 
-  it('stays off when the caller did not ask for it', async () => {
+  // Large 4 denkt ohne `reasoning_effort` von selbst (live 14.10.2026, #4553):
+  // „nicht gefragt" muss deshalb als `none` auf den Draht.
+  it('sends none for mistral-large-4 when the caller did not ask for it', async () => {
     const { getMistralChatModel } = await loadProviders();
     const requests = captureRequests();
 
     await generateText({ model: getMistralChatModel('mistral-large-4'), prompt: 'hi' });
+
+    expect(requests[0]?.body.reasoning_effort).toBe('none');
+  });
+
+  it('stays off for models that do not think by default', async () => {
+    const { getMistralChatModel } = await loadProviders();
+    const requests = captureRequests();
+
+    await generateText({ model: getMistralChatModel('mistral-medium-2604'), prompt: 'hi' });
 
     expect(requests[0]?.body).not.toHaveProperty('reasoning_effort');
   });
