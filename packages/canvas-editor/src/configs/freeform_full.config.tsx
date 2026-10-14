@@ -458,7 +458,7 @@ const withFreeformAi = (
 
       updateAdditionalText: (id: string, partial: Partial<AdditionalText>) => {
         const change = (s: FreeformState): FreeformState => {
-          const next = partial.text === undefined ? s : withCardFollowingText(s, id, partial.text);
+          const next = withCardFollowingText(s, id, partial);
           return {
             ...next,
             additionalTexts: next.additionalTexts.map((t) =>
