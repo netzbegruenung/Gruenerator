@@ -12,6 +12,6 @@ export const STUDIO_ASSET_MODERATION_BADGE = {
   },
   removed: {
     label: 'Entfernt',
-    hint: 'Nach Prüfung aus „Entdecken“ entfernt. Du kannst es weiter selbst nutzen, aber nicht mehr veröffentlichen.',
+    hint: 'Nach Prüfung entfernt. Das Bild wird nicht mehr ausgeliefert, auch nicht in deinen Designs.',
   },
 } as const satisfies Record<Exclude<StudioAssetModeration, 'ok'>, { label: string; hint: string }>;
