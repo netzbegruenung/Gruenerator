@@ -36,6 +36,11 @@
       "require": "./src/utils/pixelHitArea.ts",
       "types": "./src/utils/pixelHitArea.ts"
     },
+    "./profilbildStickers": {
+      "import": "./src/utils/profilbildStickerInstances.ts",
+      "require": "./src/utils/profilbildStickerInstances.ts",
+      "types": "./src/utils/profilbildStickerInstances.ts"
+    },
     "./skeleton": {
       "import": "./src/components/CanvasEditorSkeleton.tsx",
       "require": "./src/components/CanvasEditorSkeleton.tsx",

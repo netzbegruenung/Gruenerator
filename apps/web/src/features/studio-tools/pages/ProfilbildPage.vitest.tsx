@@ -328,6 +328,46 @@ describe('ProfilbildPage', () => {
     expect(share.create).not.toHaveBeenCalled();
   });
 
+  it('reopens a shop sticker from its share path and saves it with that path', async () => {
+    const shop = {
+      id: 'asset:0b6f3c1e-8a4d-4f5e-9c2a-7d1e5b3a9f10',
+      src: '/api/share/0123456789abcdef0123456789abcdef/download',
+      x: 300,
+      y: 400,
+      width: 150,
+      height: 150,
+      rotation: 0,
+    };
+    const system = { id: 'vielfalt', x: 500, y: 600, width: 200, height: 100, rotation: 30 };
+    share.getMyShare.mockResolvedValue({
+      status: 200,
+      body: {
+        share: {
+          imageMetadata: {
+            profilbild: {
+              v: 1,
+              person: { x: 100, y: 300, scale: 0.9 },
+              background: { kind: 'id', id: 'klee' },
+              stickers: [shop, system],
+            },
+          },
+        },
+      },
+    });
+    renderPage(null, '?share=tok9');
+    await screen.findByRole('button', { name: 'Sticker entfernen' });
+    expect(share.apiGet).toHaveBeenCalledWith('/share/0123456789abcdef0123456789abcdef/download', {
+      responseType: 'blob',
+    });
+
+    await downloadAndGetCompose();
+    await waitFor(() => expect(share.update).toHaveBeenCalledTimes(1));
+    const saved = share.update.mock.calls[0]?.[0].metadata.profilbild as unknown as {
+      stickers: unknown[];
+    };
+    expect(saved.stickers).toEqual([shop, system]);
+  });
+
   it('says so when a saved Profilbild cannot be reopened', async () => {
     share.getMyShare.mockResolvedValue({ status: 404, body: { success: false } });
     renderPage(null, '?share=gone');
@@ -500,23 +540,21 @@ describe('ProfilbildPage', () => {
     expect(mockCompose.mock.calls.at(-1)?.[0].background).toMatchObject({ kind: 'gradient' });
   });
 
-  it('flattens a plain colour with stickers for the canvas', async () => {
+  it('hands a plain colour with stickers to the canvas as movable elements', async () => {
     vi.mocked(mintProfilbildCanvas).mockResolvedValue({ id: 'c3' } as never);
     renderHandoff();
     await screen.findByTestId('konva-stage');
     fireEvent.click(await screen.findByRole('button', { name: 'Sticker Vielfalt hinzufügen' }));
     await screen.findByRole('button', { name: 'Vielfalt entfernen' });
-    expect(screen.getByText(/als Ganzes übernommen/)).toBeTruthy();
-    mockCompose.mockClear();
+    expect(screen.queryByText(/als Ganzes übernommen/)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'In Canvas bearbeiten' }));
     expect(await screen.findByText('canvas page')).toBeTruthy();
-    expect(mintProfilbildCanvas).toHaveBeenCalledWith(
-      'data:image/png;base64,OUT',
-      'Profilbild',
-      undefined,
-      FULL_SHEET
-    );
-    expect(mockCompose.mock.calls.at(-1)?.[0].stickers).toHaveLength(1);
+    const [url, , color, , assets] = vi.mocked(mintProfilbildCanvas).mock.calls[0] ?? [];
+    expect(url).toBe('data:image/png;base64,TRIM');
+    expect(color).toBeTruthy();
+    expect(assets).toHaveLength(1);
+    expect(assets?.[0]).toMatchObject({ assetId: 'vielfalt', rotation: 0, opacity: 1 });
+    expect(assets?.[0]?.scale).toBeGreaterThan(0);
   });
 
   it('switches between round, square and Instagram previews', async () => {

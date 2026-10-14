@@ -20,7 +20,9 @@ import {
   type PresetDesign,
   type ProfilbildSticker,
   type SavedProfilbild,
+  type SavedProfilbildSticker,
 } from '@gruenerator/shared/profilbild';
+import { isAssetStickerId } from '@gruenerator/shared/stickers';
 import { Alert, AlertDescription, Button } from '@gruenerator/ui';
 import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { PiTrash } from 'react-icons/pi';
@@ -94,8 +96,9 @@ const STICKER_TILE_CLASS =
   'flex size-14 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-grey-300 p-1 outline-none transition-[box-shadow,transform] hover:-translate-y-px hover:shadow-md focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-grey-600';
 
 /**
- * A plain colour without stickers stays an editable profilbild canvas; anything
- * else is handed over flattened as one 1080 image, since the canvas can't rebuild it.
+ * A plain colour stays an editable profilbild canvas, its stickers as movable
+ * elements; gradients, presets and own photos are handed over flattened as one
+ * 1080 image.
  */
 export type ProfilbildCanvasHandoff =
   | {
@@ -103,6 +106,7 @@ export type ProfilbildCanvasHandoff =
       backgroundColor: string;
       layout: ProfilbildLayout;
       cutoutDataUrl: string;
+      stickers: SavedProfilbildSticker[];
     }
   | { kind: 'flat'; imageDataUrl: string };
 
@@ -229,13 +233,24 @@ export function ProfilbildEditor({
     }
     Promise.all(
       saved.stickers.map(async (s) => {
-        const sticker = stickerById(s.id);
-        if (!sticker) return null;
-        const image = await loadCachedImage(sticker.src);
+        const sticker = isAssetStickerId(s.id) ? null : stickerById(s.id);
+        const src = sticker?.src ?? s.src;
+        if (!src) return null;
+        // A shop sticker whose share is gone must not take the others with it.
+        const image = sticker
+          ? await loadCachedImage(src)
+          : await loadShareFileDataUrl(src)
+              .then(loadImage)
+              .catch((cause: unknown) => {
+                fail(cause);
+                return null;
+              });
+        if (!image) return null;
         const placed: PlacedSticker = {
           ...s,
+          src,
           uid: `sticker-${++stickerSeq.current}`,
-          label: sticker.label,
+          label: sticker?.label ?? 'Sticker',
           image,
         };
         return placed;
@@ -293,7 +308,7 @@ export function ProfilbildEditor({
   );
 
   const colorBackground = flat?.background.kind === 'color' ? flat.background.color : null;
-  const flattenForCanvas = !colorBackground || stickers.length > 0;
+  const flattenForCanvas = !colorBackground;
   const rect = cutout && placement ? placementRect(cutout.image, placement) : null;
 
   const stickerNames = useMemo(() => {
@@ -372,6 +387,7 @@ export function ProfilbildEditor({
           {
             uid,
             id: sticker.id,
+            src: sticker.src,
             label: sticker.label,
             image,
             x: PROFILBILD_SIZE * 0.68 - shift,
@@ -505,6 +521,17 @@ export function ProfilbildEditor({
     }
   };
 
+  const savedStickers = (): SavedProfilbildSticker[] =>
+    stickers.map(({ id, src, x, y, width, height, rotation }) => ({
+      id,
+      ...(isAssetStickerId(id) ? { src } : {}),
+      x,
+      y,
+      width,
+      height,
+      rotation,
+    }));
+
   const saveInputFor = (imageDataUrl: string): ProfilbildSaveInput | null =>
     cutout && placement
       ? {
@@ -515,14 +542,7 @@ export function ProfilbildEditor({
             activeId === CUSTOM_ID
               ? { kind: 'custom', ...customSource }
               : { kind: 'id', id: activeId },
-          stickers: stickers.map(({ id, x, y, width, height, rotation }) => ({
-            id,
-            x,
-            y,
-            width,
-            height,
-            rotation,
-          })),
+          stickers: savedStickers(),
         }
       : null;
 
@@ -604,6 +624,7 @@ export function ProfilbildEditor({
             imageSize: { w: rect.width, h: rect.height },
           },
           cutoutDataUrl: cutout.dataUrl ?? cutoutUrl,
+          stickers: savedStickers(),
         });
       }
     } catch (cause) {
