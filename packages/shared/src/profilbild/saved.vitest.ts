@@ -60,6 +60,41 @@ describe('parseSavedProfilbild', () => {
   });
 });
 
+describe('parseSavedProfilbild free backgrounds', () => {
+  const withBg = (background: unknown) => ({ profilbild: { ...SAVED, background } });
+
+  it('keeps a free colour and a two-colour gradient, normalised', () => {
+    expect(
+      parseSavedProfilbild(
+        withBg({ kind: 'free', background: { kind: 'color', color: '#AB12CD' } })
+      )?.background
+    ).toEqual({ kind: 'free', background: { kind: 'color', color: '#ab12cd' } });
+    expect(
+      parseSavedProfilbild(
+        withBg({
+          kind: 'free',
+          background: { kind: 'gradient', stops: ['#257639', '#FCEC00'], angle: -45 },
+        })
+      )?.background
+    ).toEqual({
+      kind: 'free',
+      background: { kind: 'gradient', stops: ['#257639', '#fcec00'], angle: 315 },
+    });
+  });
+
+  it('refuses anything that is not a plain hex colour or a two-stop gradient', () => {
+    for (const background of [
+      { kind: 'color', color: 'red' },
+      { kind: 'color', color: 'url(https://evil.example/x.png)' },
+      { kind: 'gradient', stops: ['#000000'], angle: 0 },
+      { kind: 'gradient', stops: ['#000000', '#ffffff', '#ff0000'], angle: 0 },
+      { kind: 'gradient', stops: ['#000000', '#ffffff'], angle: Number.NaN },
+      { kind: 'stripes', colors: ['#000000'] },
+    ])
+      expect(parseSavedProfilbild(withBg({ kind: 'free', background }))).toBeNull();
+  });
+});
+
 describe('parseSavedProfilbild shop stickers', () => {
   const UUID = '0b6f3c1e-8a4d-4f5e-9c2a-7d1e5b3a9f10';
   const geo = { x: 1, y: 2, width: 3, height: 4, rotation: 0 };

@@ -1,4 +1,9 @@
-import { GRADIENT_SWATCHES, type PresetDesign, type Swatch } from '@gruenerator/shared/profilbild';
+import {
+  FREE_BACKGROUND_ID,
+  type FreeBackground,
+  type PresetDesign,
+  type Swatch,
+} from '@gruenerator/shared/profilbild';
 import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from '@gruenerator/ui';
 import { useState } from 'react';
 import { PiUploadSimple } from 'react-icons/pi';
@@ -7,6 +12,7 @@ import { type GalleryAsset } from '../utils/galleryAsset';
 import { flatCss } from '../utils/profilbildBackgrounds';
 
 import { ProfilbildDiscoverButton } from './ProfilbildDiscoverDialog';
+import { ProfilbildFreeColor } from './ProfilbildFreeColor';
 import { ProfilbildGalleryGrid } from './ProfilbildGalleryGrid';
 
 export const TAB_CLS =
@@ -29,6 +35,10 @@ type Category = 'farben' | 'vorlagen' | 'deine';
 
 export interface ProfilbildBackgroundPickerProps {
   colors: Swatch[];
+  /** Die Verläufe des Landes-CD. */
+  gradients: Swatch[];
+  freeBackground: FreeBackground | null;
+  onSelectFree: (bg: FreeBackground) => void;
   presets: PresetDesign[];
   selected: string;
   customImageSrc: string | null;
@@ -44,6 +54,9 @@ export interface ProfilbildBackgroundPickerProps {
 
 export function ProfilbildBackgroundPicker({
   colors,
+  gradients,
+  freeBackground,
+  onSelectFree,
   presets,
   selected,
   customImageSrc,
@@ -61,6 +74,12 @@ export function ProfilbildBackgroundPicker({
         ? 'deine'
         : 'farben'
   );
+
+  // Die CD-Farben des Landes als Schnellwahl im freien Farbwähler.
+  const palette = colors.flatMap((s) =>
+    s.background.kind === 'color' ? [{ hex: s.background.color, label: s.label }] : []
+  );
+  const freeSelected = selected === FREE_BACKGROUND_ID ? freeBackground : null;
 
   const renderSwatch = (s: Swatch) => (
     <button
@@ -95,9 +114,25 @@ export function ProfilbildBackgroundPicker({
       <TabsContent value="farben" className="flex flex-col gap-sm p-1 pt-sm">
         <div role="group" aria-label="Vollfarben" className="flex flex-wrap gap-sm">
           {colors.map(renderSwatch)}
+          <ProfilbildFreeColor
+            mode="color"
+            value={freeBackground?.kind === 'color' ? freeBackground : null}
+            pressed={freeSelected?.kind === 'color'}
+            palette={palette}
+            tileClassName={SWATCH_CLASS}
+            onChange={onSelectFree}
+          />
         </div>
         <div role="group" aria-label="Verläufe" className="flex flex-wrap gap-sm">
-          {GRADIENT_SWATCHES.map(renderSwatch)}
+          {gradients.map(renderSwatch)}
+          <ProfilbildFreeColor
+            mode="gradient"
+            value={freeBackground?.kind === 'gradient' ? freeBackground : null}
+            pressed={freeSelected?.kind === 'gradient'}
+            palette={palette}
+            tileClassName={SWATCH_CLASS}
+            onChange={onSelectFree}
+          />
         </div>
       </TabsContent>
 

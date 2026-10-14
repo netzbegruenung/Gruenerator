@@ -72,6 +72,54 @@ export const GRADIENT_SWATCHES: Swatch[] = [
   ),
 ];
 
+/** Verläufe aus dem AT-CD 2026 — Dunkelgrün dominiert, Hellgrün lockert auf. */
+export const GRADIENT_SWATCHES_AT: Swatch[] = [
+  gradient('at-dunkel-hell', 'Verlauf Dunkelgrün zu Hellgrün', [AT.DUNKELGRUEN, AT.HELLGRUEN], 180),
+  gradient('at-hell-gelb', 'Verlauf Hellgrün zu Gelb', [AT.HELLGRUEN, AT.GELB], 135),
+  gradient('at-dunkel-magenta', 'Verlauf Dunkelgrün zu Magenta', [AT.DUNKELGRUEN, AT.MAGENTA], 160),
+  gradient(
+    'at-dunkel-schwarz',
+    'Verlauf Dunkelgrün zu Schwarz',
+    [AT.DUNKELGRUEN, CANVAS_COLORS.BLACK],
+    160
+  ),
+];
+
+export const colorSwatches = (isAustria: boolean): Swatch[] =>
+  isAustria ? COLOR_SWATCHES_AT : COLOR_SWATCHES_DE;
+
+export const gradientSwatches = (isAustria: boolean): Swatch[] =>
+  isAustria ? GRADIENT_SWATCHES_AT : GRADIENT_SWATCHES;
+
+/** Id einer frei gewählten Farbe oder eines frei gewählten Verlaufs. */
+export const FREE_BACKGROUND_ID = 'eigene-farbe';
+
+/** Was frei gewählt werden kann — eine Farbe oder ein Verlauf aus zwei Farben. */
+export type FreeBackground = Extract<FlatBackground, { kind: 'color' | 'gradient' }>;
+
+const HEX = /^#[0-9a-f]{6}$/i;
+
+/** Prüft eine gespeicherte freie Farbe; alles andere ist kein gültiger Hintergrund. */
+export function parseFreeBackground(raw: unknown): FreeBackground | null {
+  const bg = raw as { kind?: unknown; color?: unknown; stops?: unknown; angle?: unknown } | null;
+  if (bg?.kind === 'color' && typeof bg.color === 'string' && HEX.test(bg.color))
+    return { kind: 'color', color: bg.color.toLowerCase() };
+  if (
+    bg?.kind === 'gradient' &&
+    Array.isArray(bg.stops) &&
+    bg.stops.length === 2 &&
+    bg.stops.every((c): c is string => typeof c === 'string' && HEX.test(c)) &&
+    typeof bg.angle === 'number' &&
+    Number.isFinite(bg.angle)
+  )
+    return {
+      kind: 'gradient',
+      stops: bg.stops.map((c) => c.toLowerCase()),
+      angle: ((bg.angle % 360) + 360) % 360,
+    };
+  return null;
+}
+
 export const PRIDE_STRIPES = ['#E40303', '#FF8C00', '#FFED00', '#008026', '#24408E', '#732982'];
 
 export interface PresetOverlay {

@@ -3,7 +3,8 @@ import {
   COLOR_SWATCHES_AT,
   COLOR_SWATCHES_DE,
   defaultPlacement,
-  GRADIENT_SWATCHES,
+  FREE_BACKGROUND_ID,
+  gradientSwatches,
   MIN_STICKER,
   placementRect,
   presetDesigns,
@@ -14,6 +15,7 @@ import {
   snapSticker,
   STICKER_BASE_WIDTH,
   stickerById,
+  type FreeBackground,
   type PersonPlacement,
   type PresetDesign,
   type ProfilbildSticker,
@@ -163,8 +165,13 @@ export function ProfilbildEditor({
     savedBackground
       ? savedBackground.kind === 'custom'
         ? CUSTOM_ID
-        : savedBackground.id
+        : savedBackground.kind === 'free'
+          ? FREE_BACKGROUND_ID
+          : savedBackground.id
       : (colorSwatches[0]?.id ?? 'tanne')
+  );
+  const [freeBackground, setFreeBackground] = useState<FreeBackground | null>(() =>
+    savedBackground?.kind === 'free' ? savedBackground.background : null
   );
   const [presetBackground, setPresetBackground] = useState<{
     design: PresetDesign;
@@ -233,7 +240,7 @@ export function ProfilbildEditor({
           if (alive) setCustomImage(img);
         })
         .catch(fail);
-    } else {
+    } else if (bg.kind === 'id') {
       const design = presetsRef.current.find((p) => p.id === bg.id);
       if (design)
         resolvePreset(design)
@@ -278,7 +285,14 @@ export function ProfilbildEditor({
 
   // A locale switch swaps the palette and the presets: a colour missing from the
   // new palette falls back to its first colour, a chosen preset is re-resolved.
-  const flatSwatches = [...colorSwatches, ...GRADIENT_SWATCHES];
+  const gradients = gradientSwatches(isAustria);
+  const flatSwatches = [
+    ...colorSwatches,
+    ...gradients,
+    ...(freeBackground
+      ? [{ id: FREE_BACKGROUND_ID, label: 'Eigene Farbe', background: freeBackground }]
+      : []),
+  ];
   const activeId =
     flatSwatches.some((s) => s.id === selected) ||
     presets.some((p) => p.id === selected) ||
@@ -608,7 +622,9 @@ export function ProfilbildEditor({
           background:
             activeId === CUSTOM_ID
               ? { kind: 'custom', ...customSource }
-              : { kind: 'id', id: activeId },
+              : activeId === FREE_BACKGROUND_ID && freeBackground
+                ? { kind: 'free', background: freeBackground }
+                : { kind: 'id', id: activeId },
           stickers: [...placedStickers(), ...unrestoredStickers.current],
         }
       : null;
@@ -619,6 +635,7 @@ export function ProfilbildEditor({
     placement,
     activeId,
     activeId === CUSTOM_ID ? [customUrl, customFile?.name, customFile?.size] : null,
+    activeId === FREE_BACKGROUND_ID ? freeBackground : null,
     stickers.map(({ id, x, y, width, height, rotation }) => [id, x, y, width, height, rotation]),
   ]);
   const ready = restored && !!cutout && !!placement && !!background;
@@ -848,6 +865,13 @@ export function ProfilbildEditor({
           <legend className={cn(TOOL_LABEL, 'mb-sm')}>Hintergrund</legend>
           <ProfilbildBackgroundPicker
             colors={colorSwatches}
+            gradients={gradients}
+            freeBackground={freeBackground}
+            onSelectFree={(bg) => {
+              backgroundRequest.current++;
+              setFreeBackground(bg);
+              setSelected(FREE_BACKGROUND_ID);
+            }}
             presets={presets}
             selected={activeId}
             customImageSrc={customImage?.src ?? null}

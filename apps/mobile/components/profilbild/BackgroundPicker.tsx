@@ -2,7 +2,7 @@ import { type StudioAssetItem, type StudioAssetScope } from '@gruenerator/contra
 import {
   COLOR_SWATCHES_AT,
   COLOR_SWATCHES_DE,
-  GRADIENT_SWATCHES,
+  gradientSwatches,
   presetDesigns,
   type FlatBackground,
   type PresetDesign,
@@ -77,9 +77,10 @@ export function BackgroundPicker({
 }: BackgroundPickerProps) {
   const theme = useTheme();
   const colors = isAustria ? COLOR_SWATCHES_AT : COLOR_SWATCHES_DE;
+  const gradients = gradientSwatches(isAustria);
   const presets = presetDesigns(isAustria);
   const [tab, setTab] = useState<Category>(() =>
-    GRADIENT_SWATCHES.some((s) => s.id === selected)
+    gradients.some((s) => s.id === selected)
       ? 'verlaeufe'
       : presets.some((p) => p.id === selected)
         ? 'vorlagen'
@@ -164,7 +165,7 @@ export function BackgroundPicker({
       ) : null}
       <View style={styles.row}>
         {tab === 'farben' ? colors.map(renderSwatch) : null}
-        {tab === 'verlaeufe' ? GRADIENT_SWATCHES.map(renderSwatch) : null}
+        {tab === 'verlaeufe' ? gradients.map(renderSwatch) : null}
         {tab === 'vorlagen' ? presets.map(renderPreset) : null}
         {tab === 'eigenes' ? (
           own ? (
