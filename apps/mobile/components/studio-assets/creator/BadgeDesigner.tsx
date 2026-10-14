@@ -17,7 +17,8 @@ import { useTypeface, type SkImage } from '@shopify/react-native-skia';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import badgeFont from '../../../assets/fonts/Raleway_700Bold.ttf';
+import gothamUltra from '../../../assets/fonts/GothamNarrow-Ultra.ttf';
+import grueneTypeNeue from '../../../assets/fonts/GrueneTypeNeue-Regular.ttf';
 import { useTheme } from '../../../hooks/useTheme';
 import { BODY_FONT, borderRadius, colors, spacing, typography } from '../../../theme';
 
@@ -34,6 +35,12 @@ import { measureBadgeLine, renderBadge } from './stickerRender';
 
 const RENDER_DELAY_MS = 150;
 
+/** The CD headline faces, as on web — a badge looks the same wherever it was made. */
+const BADGE_TYPEFACE: Record<StickerLocale, number> = {
+  'de-DE': grueneTypeNeue,
+  'de-AT': gothamUltra,
+};
+
 export function BadgeDesigner({
   locale,
   onDraft,
@@ -44,9 +51,7 @@ export function BadgeDesigner({
   const theme = useTheme();
   const previewSize = usePreviewSize();
   const swatches = stickerSwatches(locale);
-  // The CD headline faces exist as TTFs (apps/api/public/fonts) but are not
-  // bundled into the app yet; its own bold heading face stands in until then.
-  const typeface = useTypeface(badgeFont);
+  const typeface = useTypeface(BADGE_TYPEFACE[locale]);
   const [text, setText] = useState(BADGE_DEFAULT_TEXT);
   const [shape, setShape] = useState<BadgeShapeId>('stoerer');
   const [background, setBackground] = useState(() =>
