@@ -38,6 +38,14 @@ vi.mock('../database/services/PostgresService.js', () => ({
   }),
 }));
 
+// The canvas thumbnail purge reaches the service through this lazy accessor.
+vi.mock('../routes/share/shareServices.js', () => ({
+  getSharedMediaService: async () => {
+    const { default: Service } = await import('./sharedMediaService.js');
+    return new Service();
+  },
+}));
+
 const { default: SharedMediaService } = await import('./sharedMediaService.js');
 const { ORPHANED_SHARE_STATUSES, USER_VISIBLE_SHARE_STATUSES } =
   await import('./sharedMediaFilters.js');
@@ -513,6 +521,37 @@ describe('Papierkorb', () => {
     expect(sql).toContain('COALESCE(is_library_item, TRUE) = FALSE');
     expect(sql).not.toContain('deleted_at');
     expect(effects).toEqual(['DELETE FROM shared_media', 'rm tok-1']);
+  });
+
+  describe('a replaced canvas thumbnail', () => {
+    /** A fake `shared_media` that applies the purge's WHERE clause to one row. */
+    function shareRow(row: { upload_source: string; is_library_item: boolean }) {
+      query.mockImplementation((sql: string, params: unknown[]) => {
+        effects.push(sql.replace(/\s+/g, ' ').trim().split(' WHERE ')[0]);
+        const [token, owner, sources] = params as [string, string | null, string[] | null];
+        const matches =
+          token === 'tok-1' &&
+          !row.is_library_item &&
+          owner === null &&
+          sql.includes('upload_source = ANY($3)') &&
+          (sources === null || sources.includes(row.upload_source));
+        return Promise.resolve(matches ? [{ id: 'row-1' }] : []);
+      });
+    }
+
+    it('purges a real canvas thumbnail share', async () => {
+      const { deleteReplacedThumbnailShare } = await import('./canvas/canvasRepository.js');
+      shareRow({ upload_source: 'canvas-thumbnail', is_library_item: false });
+      await deleteReplacedThumbnailShare('/api/share/tok-1/download');
+      expect(effects).toEqual(['DELETE FROM shared_media', 'rm tok-1']);
+    });
+
+    it('purges nothing when the thumbnail pointed at a gallery item', async () => {
+      const { deleteReplacedThumbnailShare } = await import('./canvas/canvasRepository.js');
+      shareRow({ upload_source: 'studio-asset', is_library_item: false });
+      await deleteReplacedThumbnailShare('/api/share/tok-1/download');
+      expect(effects).toEqual(['DELETE FROM shared_media']);
+    });
   });
 
   const profilbildMeta = (url: string) => ({

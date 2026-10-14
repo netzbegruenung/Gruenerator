@@ -98,8 +98,9 @@ export type ShareTrashLookup = TrashedShareRow | Exclude<ShareTrashResult, 'ok'>
  */
 const SHARE_LINK_MAX_AGE_DAYS = 30;
 
-const PROFILBILD_BACKGROUND_SOURCE =
-  'profilbild-background' satisfies (typeof UPLOAD_SOURCES)[number];
+export type UploadSource = (typeof UPLOAD_SOURCES)[number];
+
+const PROFILBILD_BACKGROUND_SOURCE = 'profilbild-background' satisfies UploadSource;
 
 /**
  * `expires_at` for a freshly created share, as a SQL expression.
@@ -1032,16 +1033,23 @@ class SharedMediaService {
    * `is_library_item = FALSE` match — a library image someone set as a
    * thumbnail survives. Internal rows never pass through the Papierkorb: no
    * listing shows them, so nobody could restore them. `ownerId` limits it to
-   * one user's rows, for tokens that came from client-written metadata.
+   * one user's rows, for tokens that came from client-written metadata;
+   * `uploadSources` limits it to rows of those sources, for client-written
+   * tokens no owner check can cover (a collaborator's canvas thumbnail).
    */
-  async purgeInternalShare(shareToken: string, ownerId: string | null = null): Promise<boolean> {
+  async purgeInternalShare(
+    shareToken: string,
+    ownerId: string | null = null,
+    uploadSources: readonly UploadSource[] | null = null
+  ): Promise<boolean> {
     const row = await this.removeShare<{ id: string }>(
       shareToken,
       `DELETE FROM shared_media
        WHERE share_token = $1 AND COALESCE(is_library_item, TRUE) = FALSE
          AND ($2::uuid IS NULL OR user_id = $2)
+         AND ($3::text[] IS NULL OR upload_source = ANY($3))
        RETURNING id`,
-      [shareToken, ownerId]
+      [shareToken, ownerId, uploadSources]
     );
     return row !== null;
   }
