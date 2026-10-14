@@ -23,16 +23,16 @@
   },
   "license": "GPL-2.0-or-later",
   "devDependencies": {
-    "@wordpress/base-styles": "^6.20.0",
-    "@wordpress/scripts": "^31.8.0",
+    "@wordpress/base-styles": "^13.2.0",
+    "@wordpress/scripts": "^36.0.0",
     "sass": "^1.105.0",
-    "sass-loader": "^16.0.8",
+    "sass-loader": "^17.0.1",
     "typescript": "^6.0.3"
   },
   "dependencies": {
-    "@wordpress/block-editor": "^15.23.0",
-    "@wordpress/blocks": "^15.27.0",
-    "@wordpress/components": "^32.6.0",
+    "@wordpress/block-editor": "^18.0.0",
+    "@wordpress/blocks": "^16.1.0",
+    "@wordpress/components": "^41.0.0",
     "@wordpress/i18n": "^6.29.0"
   }
 }

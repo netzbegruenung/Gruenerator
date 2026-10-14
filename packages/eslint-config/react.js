@@ -1,5 +1,6 @@
 import baseConfig from './base.js';
 import a11yPlugin from 'eslint-plugin-jsx-a11y';
+import { fixupPluginRules } from '@eslint/compat';
 import reactPlugin from 'eslint-plugin-react';
 import reactHooksPlugin from 'eslint-plugin-react-hooks';
 import globals from 'globals';
@@ -18,7 +19,7 @@ export default [
       },
     },
     plugins: {
-      react: reactPlugin,
+      react: fixupPluginRules(reactPlugin),
       'react-hooks': reactHooksPlugin,
       'jsx-a11y': a11yPlugin,
     },
