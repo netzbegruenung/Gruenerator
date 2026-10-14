@@ -10,6 +10,7 @@ import { useShallow } from 'zustand/react/shallow';
 
 import { AiColumnDialog } from '../aiColumns/AiColumnDialog';
 import { BoardAwarenessProvider } from '../context/BoardAwarenessContext';
+import { useBoardReadOnly } from '../context/BoardReadOnlyContext';
 import { useBoardAwareness } from '../hooks/useBoardAwareness';
 import { FIELD_IDS } from '../types';
 import { COLUMN_COLORS } from '../utils/boardDefaults';
@@ -156,6 +157,7 @@ const ColumnBoard = memo(function ColumnBoard({
   );
   const onMoveLeft = useCallback(() => onMoveColumn(groupId, 'left'), [onMoveColumn, groupId]);
   const onMoveRight = useCallback(() => onMoveColumn(groupId, 'right'), [onMoveColumn, groupId]);
+  const readOnly = useBoardReadOnly();
   const onToggleDone = useCallback(
     () => onToggleDoneColumn?.(groupId),
     [onToggleDoneColumn, groupId]
@@ -214,7 +216,7 @@ const ColumnBoard = memo(function ColumnBoard({
           </KanbanCard>
         )}
       </KanbanCards>
-      <AddCardButton onAdd={onAdd} />
+      {!readOnly && <AddCardButton onAdd={onAdd} />}
     </KanbanBoard>
   );
 });
@@ -271,6 +273,7 @@ export function PlannerKanban({
   deepLinkRow,
   onDeepLinkConsumed,
 }: PlannerKanbanProps) {
+  const readOnly = useBoardReadOnly();
   const { userName, userAvatarRobotId } = useAuthStore(
     useShallow((s) => ({
       userName: s.user?.display_name ?? '',
@@ -751,9 +754,10 @@ export function PlannerKanban({
         onDragEnd={handleDragEnd}
         onDragCancel={handleDragEnd}
         renderOverlay={renderOverlay}
+        disabled={readOnly}
         className="items-start"
         after={
-          showColumnTools ? (
+          showColumnTools && !readOnly ? (
             <div className="flex items-start gap-2 shrink-0">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

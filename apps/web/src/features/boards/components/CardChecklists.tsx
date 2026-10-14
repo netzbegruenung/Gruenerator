@@ -2,6 +2,7 @@ import { useConfirm } from '@gruenerator/ui';
 import { memo, useCallback, useState } from 'react';
 import { FiCheckSquare, FiPlus, FiTrash2, FiUserPlus, FiX } from 'react-icons/fi';
 
+import { useBoardReadOnly } from '../context/BoardReadOnlyContext';
 import {
   checklistProgress,
   type CardAssignee,
@@ -137,8 +138,11 @@ export const CardChecklists = memo(function CardChecklists({
     [mutate]
   );
 
+  const readOnly = useBoardReadOnly();
   const overall = checklistProgress(groups);
   const overallPct = overall.total > 0 ? Math.round((overall.done / overall.total) * 100) : 0;
+
+  if (readOnly && groups.length === 0) return null;
 
   return (
     <section className="flex flex-col gap-2.5">
@@ -238,42 +242,46 @@ export const CardChecklists = memo(function CardChecklists({
                   </div>
                 ))}
               </div>
-              <input
-                value={newItemText[group.id] ?? ''}
-                onChange={(e) => setNewItemText((s) => ({ ...s, [group.id]: e.target.value }))}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    addItem(group.id);
-                  }
-                }}
-                placeholder="Eintrag hinzufügen…"
-                className="w-full rounded-md border border-grey-200 dark:border-grey-700 bg-transparent px-2 py-1.5 text-sm outline-none focus:border-primary-500 placeholder:text-grey-400 dark:placeholder:text-grey-300"
-              />
+              {!readOnly && (
+                <input
+                  value={newItemText[group.id] ?? ''}
+                  onChange={(e) => setNewItemText((s) => ({ ...s, [group.id]: e.target.value }))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addItem(group.id);
+                    }
+                  }}
+                  placeholder="Eintrag hinzufügen…"
+                  className="w-full rounded-md border border-grey-200 dark:border-grey-700 bg-transparent px-2 py-1.5 text-sm outline-none focus:border-primary-500 placeholder:text-grey-400 dark:placeholder:text-grey-300"
+                />
+              )}
             </div>
           );
         })}
-        <div className="flex items-center gap-1.5">
-          <input
-            value={newGroupTitle}
-            onChange={(e) => setNewGroupTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                addGroup();
-              }
-            }}
-            placeholder="Neue Checkliste…"
-            className="flex-1 rounded-md border border-grey-200 dark:border-grey-700 bg-transparent px-2 py-1.5 text-sm outline-none focus:border-primary-500 placeholder:text-grey-400 dark:placeholder:text-grey-300"
-          />
-          <button
-            onClick={addGroup}
-            className="flex items-center gap-1 text-xs text-grey-400 hover:text-primary-600 bg-transparent border-none cursor-pointer px-1.5 py-1"
-            title="Checkliste anlegen"
-          >
-            <FiPlus size={13} />
-          </button>
-        </div>
+        {!readOnly && (
+          <div className="flex items-center gap-1.5">
+            <input
+              value={newGroupTitle}
+              onChange={(e) => setNewGroupTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addGroup();
+                }
+              }}
+              placeholder="Neue Checkliste…"
+              className="flex-1 rounded-md border border-grey-200 dark:border-grey-700 bg-transparent px-2 py-1.5 text-sm outline-none focus:border-primary-500 placeholder:text-grey-400 dark:placeholder:text-grey-300"
+            />
+            <button
+              onClick={addGroup}
+              className="flex items-center gap-1 text-xs text-grey-400 hover:text-primary-600 bg-transparent border-none cursor-pointer px-1.5 py-1"
+              title="Checkliste anlegen"
+            >
+              <FiPlus size={13} />
+            </button>
+          </div>
+        )}
       </div>
     </section>
   );

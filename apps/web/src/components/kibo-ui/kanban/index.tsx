@@ -62,12 +62,14 @@ type KanbanContextProps<
   columns: C[];
   data: T[];
   cardsByColumn: Map<string, T[]>;
+  disabled: boolean;
 };
 
 const KanbanContext = createContext<KanbanContextProps>({
   columns: [],
   data: [],
   cardsByColumn: new Map(),
+  disabled: false,
 });
 
 // Exposes the column's drag-handle props to a `<KanbanColumnDragHandle>` rendered
@@ -118,7 +120,14 @@ export type KanbanBoardProps = {
   draggable?: boolean;
 };
 
-export const KanbanBoard = ({ id, children, className, draggable = false }: KanbanBoardProps) => {
+export const KanbanBoard = ({
+  id,
+  children,
+  className,
+  draggable: canDrag = false,
+}: KanbanBoardProps) => {
+  const { disabled } = useContext(KanbanContext);
+  const draggable = canDrag && !disabled;
   const { attributes, listeners, setNodeRef, transform, transition, isOver, isDragging } =
     useSortable({
       id,
@@ -166,8 +175,10 @@ const KanbanCardInner = <T extends KanbanItemProps = KanbanItemProps>({
   children,
   className,
 }: KanbanCardProps<T>) => {
+  const { disabled } = useContext(KanbanContext);
   const { attributes, listeners, setNodeRef, transition, transform, isDragging } = useSortable({
     id,
+    disabled,
     // dnd-kits Vorgabe ist das englische „sortable"; der Screenreader liest es
     // mitten in einer deutschen Oberfläche vor.
     attributes: { roleDescription: 'Aufgabenkarte' },
@@ -269,6 +280,8 @@ export type KanbanProviderProps<
   onDragEnd?: (event: DragEndEvent) => void;
   onDragOver?: (event: DragOverEvent) => void;
   onDragCancel?: (event: DragCancelEvent) => void;
+  /** Keine Karte und keine Spalte lässt sich ziehen (z. B. Board nur zur Ansicht). */
+  disabled?: boolean;
   /**
    * Inhalt der Karte im DragOverlay. Ohne diese Funktion zeigt das Overlay
    * nur den Kartennamen.
@@ -292,6 +305,7 @@ export const KanbanProvider = <
   after,
   onDataChange,
   onColumnReorder,
+  disabled = false,
   ...props
 }: KanbanProviderProps<T, C>) => {
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
@@ -454,8 +468,8 @@ export const KanbanProvider = <
   );
 
   const contextValue = useMemo(
-    () => ({ columns, data, cardsByColumn }),
-    [columns, data, cardsByColumn]
+    () => ({ columns, data, cardsByColumn, disabled }),
+    [columns, data, cardsByColumn, disabled]
   );
 
   return (
