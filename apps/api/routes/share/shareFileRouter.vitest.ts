@@ -66,6 +66,10 @@ vi.mock('../../database/services/PostgresService.js', () => ({
   getPostgresInstance: () => ({ query: dbQuery }),
 }));
 
+const adminIds = new Set<string>();
+const isInstanceAdmin = vi.fn((userId: string) => Promise.resolve(adminIds.has(userId)));
+vi.mock('../../utils/adminAuthz.js', () => ({ isInstanceAdmin }));
+
 vi.mock('../../middleware/authMiddleware.js', () => ({
   requireAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
@@ -130,6 +134,7 @@ afterAll(async () => {
 
 beforeEach(() => {
   removedMedia.clear();
+  adminIds.clear();
   dbQuery.mockClear();
   getShareByToken.mockReset();
   recordView.mockReset();
@@ -497,6 +502,35 @@ describe('a Sticker/Hintergrund moderation removed', () => {
       expect((await get(`/api/share/abc123/${route}`, owner)).status).toBe(200);
     }
   );
+
+  describe('for an instance admin', () => {
+    const admin = { headers: { 'x-test-user': 'admin-1' } };
+    beforeEach(() => {
+      adminIds.add('admin-1');
+      removedMedia.add('media-1');
+      getShareByToken.mockResolvedValue(studio());
+    });
+
+    it.each(['download', 'preview?w=200&fmt=webp', 'preview', 'thumbnail'])(
+      'still serves /%s, kept out of shared caches',
+      async (route) => {
+        const res = await get(`/api/share/abc123/${route}`, admin);
+        expect(res.status).toBe(200);
+        if (route !== 'download')
+          expect(res.headers.get('cache-control')).toBe('private, no-store');
+      }
+    );
+
+    it.each([
+      ['the owner', owner],
+      ['someone else', { headers: { 'x-test-user': 'other-1' } }],
+      ['an anonymous viewer', {}],
+    ])('keeps it blocked for %s', async (_who, init) => {
+      expect((await get('/api/share/abc123/download', init)).status).toBe(410);
+      expect((await get('/api/share/abc123/preview', init)).status).toBe(410);
+      expect((await get('/api/share/abc123/thumbnail', init)).status).toBe(404);
+    });
+  });
 
   it('never asks the database about a share that is no gallery file', async () => {
     removedMedia.add('media-1');

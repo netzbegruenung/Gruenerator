@@ -12,7 +12,8 @@ export const STUDIO_ASSET_SHARE_DELETE_MESSAGE =
 
 /**
  * True when moderation removed the asset this share belongs to. A removed
- * file is not served to anyone, the owner included; 'hidden' keeps serving.
+ * file is not served to anyone, the owner included — only instance admins
+ * still get it on the session-bound share routes; 'hidden' keeps serving.
  * Trashed assets count too: a removal must not lift because the owner trashed
  * the asset.
  */

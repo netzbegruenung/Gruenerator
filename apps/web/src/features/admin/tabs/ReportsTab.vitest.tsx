@@ -84,6 +84,21 @@ describe('ReportsTab', () => {
     }
   });
 
+  it('shows a removed asset from its file, not from the blocked thumbnail', async () => {
+    const thumbUrl = 'http://localhost/api/thumbs/media/t/v/w200.webp';
+    server.use(
+      http.get(LIST, () =>
+        HttpResponse.json({
+          reports: [{ ...group, target: { ...group.target, moderation: 'removed', thumbUrl } }],
+        })
+      )
+    );
+    const { container } = renderWithProviders(<ReportsTab />);
+
+    expect(await screen.findByText('Entfernt')).toBeInTheDocument();
+    expect(container.querySelector('img')?.getAttribute('src')).toBe(group.target.src);
+  });
+
   it('asks for confirmation before removing', async () => {
     let body: unknown = null;
     server.use(

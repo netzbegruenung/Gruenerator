@@ -41,8 +41,9 @@ export default function ReportCard({ report, pending, onAction }: ReportCardProp
   return (
     <li className="flex gap-md p-md rounded-md border border-grey-200 dark:border-grey-700 bg-background list-none">
       {target ? (
+        // The signed thumbnail stays blocked once removed; the session-bound file still serves admins.
         <img
-          src={target.thumbUrl ?? target.src}
+          src={target.moderation === 'removed' ? target.src : (target.thumbUrl ?? target.src)}
           alt=""
           className="w-24 h-24 object-contain rounded-md bg-grey-100 dark:bg-grey-800 shrink-0"
         />
