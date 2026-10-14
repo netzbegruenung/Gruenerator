@@ -7,19 +7,23 @@ import {
   presetDesigns,
   PROFILBILD_IMAGE_TYPE,
   PROFILBILD_METADATA_KEY,
-  stickerById,
-  stickerBySrc,
   type SavedProfilbild,
   type SavedProfilbildBackground,
+  type SavedProfilbildSticker,
 } from '@gruenerator/shared/profilbild';
 import { useShareStore } from '@gruenerator/shared/share';
+import { isAssetStickerId } from '@gruenerator/shared/stickers';
 import { ImageFormat, Skia, type SkImage } from '@shopify/react-native-skia';
 import { useQueryClient } from '@tanstack/react-query';
 import { File, Paths } from 'expo-file-system';
 import { useCallback, useRef } from 'react';
 
 import { CUSTOM_ID, type CustomBackground } from '../../components/profilbild/BackgroundPicker';
-import { type ProfilbildModel } from '../../components/profilbild/sceneModel';
+import {
+  restoreStickers,
+  savedStickers,
+  type ProfilbildModel,
+} from '../../components/profilbild/sceneModel';
 import { resolveChatUrl } from '../../services/chatApiUrl';
 import { secureStorage } from '../../services/storage';
 
@@ -37,6 +41,10 @@ export interface ProfilbildReopen extends ProfilbildSnapshot {
   personUri: string;
   /** Where the restored custom background is stored, so it is not uploaded again. */
   customUrl: string | null;
+  /** Gallery sticker images by share path. */
+  gallery: Record<string, SkImage>;
+  /** Gallery stickers whose image did not load; saved again as they were. */
+  unrestored: SavedProfilbildSticker[];
 }
 
 async function downloadShareFile(path: string, name: string): Promise<string> {
@@ -73,6 +81,27 @@ function restoreBackground(
   return { backgroundId: first.id, background: first.background };
 }
 
+export interface ShareImage {
+  uri: string;
+  image: SkImage;
+}
+
+const shareImages = new Map<string, Promise<ShareImage>>();
+
+/** A media-store file (`/api/share/<token>/download`) as a Skia image, loaded once per src. */
+export function loadShareImage(src: string): Promise<ShareImage> {
+  let pending = shareImages.get(src);
+  if (!pending) {
+    pending = downloadShareFile(src, 'profilbild-galerie').then(async (uri) => ({
+      uri,
+      image: await decode(uri),
+    }));
+    pending.catch(() => shareImages.delete(src));
+    shareImages.set(src, pending);
+  }
+  return pending;
+}
+
 /** Loads a saved Profilbild: its state from the share, the cutout and own photo from storage. */
 export async function loadProfilbildReopen(
   shareToken: string,
@@ -88,16 +117,26 @@ export async function loadProfilbildReopen(
   let custom: CustomBackground | null = null;
   if (saved.background.kind === 'custom') {
     const uri = await downloadShareFile(saved.background.url, 'profilbild-hintergrund');
-    custom = { uri, image: await decode(uri) };
+    custom = { uri, image: await decode(uri), galleryUrl: null };
   }
 
+  const gallery: Record<string, SkImage> = {};
+  const assetSrcs = new Set(
+    saved.stickers.flatMap((s) => (isAssetStickerId(s.id) && s.src ? [s.src] : []))
+  );
+  await Promise.all(
+    [...assetSrcs].map((src) =>
+      loadShareImage(src).then(
+        ({ image }) => {
+          gallery[src] = image;
+        },
+        () => {}
+      )
+    )
+  );
+
   const { backgroundId, background } = restoreBackground(saved.background, custom, isAustria);
-  const stickers = saved.stickers.flatMap((s, i) => {
-    const sticker = stickerById(s.id);
-    if (!sticker) return [];
-    const { id: _id, ...box } = s;
-    return [{ ...box, uid: `${s.id}-restored-${i}`, src: sticker.src }];
-  });
+  const { stickers, unrestored } = restoreStickers(saved.stickers, (src) => src in gallery);
   return {
     shareToken,
     person,
@@ -106,6 +145,8 @@ export async function loadProfilbildReopen(
     backgroundId,
     custom,
     customUrl: saved.background.kind === 'custom' ? saved.background.url : null,
+    gallery,
+    unrestored,
   };
 }
 
@@ -140,6 +181,7 @@ export function useProfilbildShare() {
   const queryClient = useQueryClient();
   const shareToken = useRef<string | null>(null);
   const uploaded = useRef(new Map<string, string>());
+  const unrestored = useRef<SavedProfilbildSticker[]>([]);
   const queue = useRef<Promise<unknown>>(Promise.resolve());
   // Bumped per photo, so a create still in flight cannot hand its share to the next photo.
   const session = useRef(0);
@@ -154,6 +196,7 @@ export function useProfilbildShare() {
     uploaded.current.clear();
     if (reopen?.custom && reopen.customUrl)
       uploaded.current.set(reopen.custom.uri, reopen.customUrl);
+    unrestored.current = reopen?.unrestored ?? [];
   }, []);
 
   const persist = useCallback(
@@ -166,9 +209,9 @@ export function useProfilbildShare() {
       if (forSession !== session.current) return;
       let background: SavedProfilbildBackground;
       if (snapshot.backgroundId === CUSTOM_ID && snapshot.custom) {
-        const uri = snapshot.custom.uri;
-        const url = uploaded.current.get(uri) ?? (await uploadCustomBackground(uri));
-        uploaded.current.set(uri, url);
+        const { uri, galleryUrl } = snapshot.custom;
+        const url = galleryUrl ?? uploaded.current.get(uri) ?? (await uploadCustomBackground(uri));
+        if (!galleryUrl) uploaded.current.set(uri, url);
         background = { kind: 'custom', url };
       } else {
         background = { kind: 'id', id: snapshot.backgroundId };
@@ -177,10 +220,7 @@ export function useProfilbildShare() {
         v: 1,
         person: snapshot.model.person,
         background,
-        stickers: snapshot.model.stickers.flatMap(({ src, uid: _uid, ...box }) => {
-          const sticker = stickerBySrc(src);
-          return sticker ? [{ id: sticker.id, ...box }] : [];
-        }),
+        stickers: savedStickers(snapshot.model.stickers, unrestored.current),
       };
       const metadata = { source: 'profilbild', [PROFILBILD_METADATA_KEY]: saved };
       if (shareToken.current) {
