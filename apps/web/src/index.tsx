@@ -61,6 +61,25 @@ if (sentryDsn) {
       }),
     ],
     tracesSampleRate: 0.1,
+    // GlitchTip ingests transactions but drops the streamed `span` envelope
+    // items that are the v11 default, so tracing would silently go dark.
+    traceLifecycle: 'static',
+    // v11 collects user info (incl. IP), cookies and bodies unless told
+    // otherwise. Pin the v10 default (the old `sendDefaultPii: false`).
+    dataCollection: {
+      userInfo: false,
+      cookies: false,
+      httpHeaders: {
+        request: { deny: ['forwarded', '-ip', 'remote-', 'via', '-user'] },
+        response: { deny: ['forwarded', '-ip', 'remote-', 'via', '-user'] },
+      },
+      httpBodies: [],
+      urlQueryParams: { deny: ['forwarded', '-ip', 'remote-', 'via', '-user'] },
+      genAI: { inputs: false, outputs: false },
+      databaseQueryData: false,
+      queues: false,
+      graphQL: { document: false, variables: false },
+    },
     ignoreErrors: [
       'ResizeObserver loop limit exceeded',
       'ResizeObserver loop completed with undelivered notifications',
