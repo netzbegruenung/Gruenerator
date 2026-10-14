@@ -15,6 +15,9 @@ import { useId, useState, type FormEvent, type JSX } from 'react';
 
 const TITLE_MAX = 120;
 
+export const RIGHTS_LABEL =
+  'Ich habe die Rechte an diesem Bild und es darf öffentlich geteilt werden.';
+
 interface AssetDialogProps {
   item: StudioAssetItem;
   busy: boolean;
@@ -50,7 +53,7 @@ export function PublishDialog({
             className="mt-0.5"
           />
           <Label htmlFor={checkboxId} className="text-sm leading-snug font-normal">
-            Ich habe die Rechte an diesem Bild und es darf öffentlich geteilt werden.
+            {RIGHTS_LABEL}
           </Label>
         </div>
         <DialogFooter>

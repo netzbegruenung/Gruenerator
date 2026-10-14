@@ -184,13 +184,13 @@ export const StudioAssetCard = memo(function StudioAssetCard({
           {moderation && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  className="shrink-0 rounded-full"
-                  aria-label={`${moderation.label}: ${moderation.hint}`}
+                <span
+                  // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Tooltip-Auslöser muss per Tastatur erreichbar sein
+                  tabIndex={0}
+                  className="shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary-600"
                 >
                   <Badge variant="destructive">{moderation.label}</Badge>
-                </button>
+                </span>
               </TooltipTrigger>
               <TooltipContent className="max-w-64">{moderation.hint}</TooltipContent>
             </Tooltip>

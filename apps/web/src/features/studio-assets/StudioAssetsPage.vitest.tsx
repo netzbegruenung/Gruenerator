@@ -10,6 +10,20 @@ import { axe, render, renderWithProviders, screen, waitFor, within } from '../..
 import { StudioAssetCard } from './StudioAssetCard';
 import StudioAssetsPage from './StudioAssetsPage';
 
+import type * as BackgroundImage from './backgroundImage';
+
+const { prepare, uploadShare } = vi.hoisted(() => ({
+  prepare: vi.fn(),
+  uploadShare: vi.fn(),
+}));
+vi.mock('./backgroundImage', async (importOriginal) => ({
+  ...(await importOriginal<typeof BackgroundImage>()),
+  prepareBackgroundImage: prepare,
+}));
+vi.mock('../image-studio/services/mediaUploadService', () => ({
+  uploadBlobToMediaShare: uploadShare,
+}));
+
 const API = 'http://localhost/api/studio-assets';
 
 const asset = (over: Partial<StudioAssetItem>): StudioAssetItem => ({
@@ -156,6 +170,105 @@ describe('StudioAssetsPage', () => {
   });
 });
 
+describe('StudioAssetsPage follow-ups', () => {
+  it('sends a quick double like in click order and ends unliked', async () => {
+    const calls: string[] = [];
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    server.use(
+      http.put(`${API}/:id/like`, async () => {
+        calls.push('like');
+        await gate;
+        return HttpResponse.json({ liked: true, likesCount: 3 });
+      }),
+      http.delete(`${API}/:id/like`, () => {
+        calls.push('unlike');
+        return HttpResponse.json({ liked: false, likesCount: 2 });
+      })
+    );
+    const { user } = renderWithProviders(<StudioAssetsPage />);
+    await screen.findByRole('article', { name: 'Sonnenblume' });
+
+    await user.click(within(card('Sonnenblume')).getByRole('button', { name: 'Gefällt mir (2)' }));
+    await user.click(within(card('Sonnenblume')).getByRole('button', { name: 'Gefällt mir (3)' }));
+
+    const button = within(card('Sonnenblume')).getByRole('button', { name: 'Gefällt mir (2)' });
+    expect(button).toHaveAttribute('aria-pressed', 'false');
+    await waitFor(() => expect(calls).toEqual(['like']));
+    release();
+    await waitFor(() => expect(calls).toEqual(['like', 'unlike']));
+    await waitFor(() => expect(listQueries.length).toBeGreaterThan(1));
+    expect(
+      within(card('Sonnenblume')).getByRole('button', { name: 'Gefällt mir (2)' })
+    ).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('keeps the grid when loading more fails and offers a retry', async () => {
+    server.use(
+      http.get(API, ({ request }) => {
+        const offset = new URL(request.url).searchParams.get('offset');
+        if (offset === '0') return HttpResponse.json({ items: [asset({})], hasMore: true });
+        return HttpResponse.json({ success: false, message: 'Kaputt.' }, { status: 500 });
+      })
+    );
+    const { user } = renderWithProviders(<StudioAssetsPage />);
+    await screen.findByRole('article', { name: 'Sonnenblume' });
+
+    await user.click(screen.getByRole('button', { name: 'Mehr laden' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Kaputt.');
+    expect(screen.getByRole('article', { name: 'Sonnenblume' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Erneut versuchen' })).toBeEnabled();
+  });
+
+  it('uploads a background and creates it with the chosen settings', async () => {
+    const blob = new Blob(['x'], { type: 'image/webp' });
+    prepare.mockResolvedValue(blob);
+    uploadShare.mockResolvedValue('tok-1');
+    let body: unknown = null;
+    server.use(
+      http.post(API, async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json(asset({ id: 'bg-1', kind: 'background', isOwn: true }), {
+          status: 201,
+        });
+      })
+    );
+    const { user } = renderWithProviders(<StudioAssetsPage />);
+    await user.click(await screen.findByRole('tab', { name: 'Hintergründe' }));
+    await user.click(screen.getAllByRole('button', { name: 'Hintergrund hochladen' })[0]!);
+
+    const dialog = await screen.findByRole('dialog');
+    const file = new File(['raw'], 'Wiese im Sommer.jpg', { type: 'image/jpeg' });
+    await user.upload(within(dialog).getByLabelText('Bild'), file);
+    expect(within(dialog).getByLabelText('Titel')).toHaveValue('Wiese im Sommer');
+    await user.type(within(dialog).getByLabelText(/Schlagwörter/), 'natur, sommer');
+    await user.click(within(dialog).getByRole('checkbox', { name: /öffentlich teilen/ }));
+    await user.click(within(dialog).getByRole('radio', { name: 'Alle' }));
+    const submit = within(dialog).getByRole('button', { name: 'Hochladen' });
+    expect(submit).toBeDisabled();
+    await user.click(within(dialog).getByRole('checkbox', { name: /Rechte an diesem Bild/ }));
+    await user.click(submit);
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(prepare).toHaveBeenCalledWith(file);
+    expect(uploadShare).toHaveBeenCalledWith(blob, {
+      filename: 'Wiese im Sommer.webp',
+      uploadSource: 'studio-asset',
+    });
+    expect(body).toEqual({
+      shareToken: 'tok-1',
+      kind: 'background',
+      source: 'upload',
+      title: 'Wiese im Sommer',
+      tags: ['natur', 'sommer'],
+      visibility: 'public',
+      audience: 'all',
+      rightsConfirmed: true,
+    });
+  });
+});
+
 describe('StudioAssetCard', () => {
   it('has no axe violations, including the moderation badge', async () => {
     const noop = () => {};
@@ -176,7 +289,7 @@ describe('StudioAssetCard', () => {
     );
 
     expect(screen.getByRole('button', { name: 'Merken' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: /^Ausgeblendet:/ })).toBeInTheDocument();
+    expect(screen.getByText('Ausgeblendet').closest('[tabindex="0"]')).not.toBeNull();
     expect(await axe(container)).toHaveNoViolations();
   });
 });

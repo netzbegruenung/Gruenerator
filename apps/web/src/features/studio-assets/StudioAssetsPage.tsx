@@ -4,7 +4,11 @@ import {
   type StudioAssetScope,
   type StudioAssetSort,
 } from '@gruenerator/contracts';
-import { useStudioAssetMutations, useStudioAssets } from '@gruenerator/shared/studio-assets';
+import {
+  useStudioAssetMutations,
+  useStudioAssets,
+  useStudioAssetToggles,
+} from '@gruenerator/shared/studio-assets';
 import { Button, toast } from '@gruenerator/ui';
 import { useCallback, useEffect, useState, type JSX } from 'react';
 import { HiPlus } from 'react-icons/hi';
@@ -23,7 +27,8 @@ import { ReportDialog } from '../../components/common/ReportDialog';
 import { UnderlineTabs, type UnderlineTab } from '../../components/common/UnderlineTabs';
 import { useTrashUndoToast } from '../trash/trashUndoToast';
 
-import { StudioAssetCard } from './StudioAssetCard';
+import { BackgroundUploadDialog } from './BackgroundUploadDialog';
+import { StudioAssetCard, type StudioAssetCardProps } from './StudioAssetCard';
 import { PublishDialog, RenameDialog } from './StudioAssetDialogs';
 
 const SEARCH_DEBOUNCE_MS = 400;
@@ -45,7 +50,8 @@ const SORT_OPTIONS: { id: StudioAssetSort; label: string }[] = [
   { id: 'popular', label: 'Beliebt' },
 ];
 
-type OpenDialog = { type: 'report' | 'publish' | 'rename'; item: StudioAssetItem } | null;
+type OpenDialog =
+  { type: 'report' | 'publish' | 'rename'; item: StudioAssetItem } | { type: 'upload' } | null;
 
 function emptyState(scope: StudioAssetScope, kind: StudioAssetKind, searching: boolean) {
   const plural = kind === 'sticker' ? 'Sticker' : 'Hintergründe';
@@ -53,7 +59,10 @@ function emptyState(scope: StudioAssetScope, kind: StudioAssetKind, searching: b
   if (scope === 'mine')
     return {
       title: `Du hast noch keine ${plural}`,
-      hint: 'Erstelle einen Sticker aus einem Foto und nutze ihn im Profilbild.',
+      hint:
+        kind === 'sticker'
+          ? 'Erstelle einen Sticker aus einem Foto und nutze ihn im Profilbild.'
+          : 'Lade ein eigenes Bild hoch und nutze es als Hintergrund im Profilbild.',
     };
   if (scope === 'saved')
     return {
@@ -66,7 +75,20 @@ function emptyState(scope: StudioAssetScope, kind: StudioAssetKind, searching: b
   };
 }
 
-function CreateButton(): JSX.Element {
+function CreateButton({
+  kind,
+  onUpload,
+}: {
+  kind: StudioAssetKind;
+  onUpload: () => void;
+}): JSX.Element {
+  // The Sticker-Creator only makes stickers; backgrounds are uploaded directly.
+  if (kind === 'background')
+    return (
+      <Button size="sm" onClick={onUpload}>
+        <HiPlus aria-hidden /> Hintergrund hochladen
+      </Button>
+    );
   return (
     <Button asChild size="sm">
       <Link to={CREATE_PATH}>
@@ -74,6 +96,13 @@ function CreateButton(): JSX.Element {
       </Link>
     </Button>
   );
+}
+
+function StudioAssetTile(
+  props: Omit<StudioAssetCardProps, 'onToggleLike' | 'onToggleFavorite'>
+): JSX.Element {
+  const { toggleLike, toggleFavorite } = useStudioAssetToggles(props.item.id);
+  return <StudioAssetCard {...props} onToggleLike={toggleLike} onToggleFavorite={toggleFavorite} />;
 }
 
 const StudioAssetsPage = (): JSX.Element => {
@@ -93,15 +122,22 @@ const StudioAssetsPage = (): JSX.Element => {
 
   // Only Entdecken has a popularity order; own and saved lists are newest first.
   const effectiveSort = scope === 'shop' ? sort : 'new';
-  const { items, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage, error } =
-    useStudioAssets({ kind, scope, q, sort: effectiveSort });
-  const { update, remove, toggleLike, toggleFavorite } = useStudioAssetMutations();
-  const { mutate: like } = toggleLike;
-  const { mutate: favorite } = toggleFavorite;
+  const {
+    items,
+    isLoading,
+    isFetchingNextPage,
+    isFetchNextPageError,
+    hasNextPage,
+    fetchNextPage,
+    refetch,
+    error,
+  } = useStudioAssets({ kind, scope, q, sort: effectiveSort });
+  const { update, remove } = useStudioAssetMutations();
   const { mutate: updateAsset } = update;
   const { mutate: removeAsset } = remove;
 
   const close = useCallback(() => setDialog(null), []);
+  const openUpload = useCallback(() => setDialog({ type: 'upload' }), []);
   const handleUse = useCallback(
     (item: StudioAssetItem) =>
       void navigate(`/studio/profilbild?asset=${encodeURIComponent(item.id)}`),
@@ -136,6 +172,7 @@ const StudioAssetsPage = (): JSX.Element => {
   );
 
   const empty = emptyState(scope, kind, q !== '');
+  const createButton = <CreateButton kind={kind} onUpload={openUpload} />;
 
   return (
     <PageShell wide>
@@ -169,7 +206,7 @@ const StudioAssetsPage = (): JSX.Element => {
             )}
           </>
         }
-        actions={<CreateButton />}
+        actions={createButton}
         meta={
           <PillTabs
             tabs={KIND_TABS}
@@ -187,7 +224,7 @@ const StudioAssetsPage = (): JSX.Element => {
         {SCOPE_TABS.find((t) => t.key === scope)?.label}:{' '}
         {kind === 'sticker' ? 'Sticker' : 'Hintergründe'}
       </h2>
-      {error ? (
+      {error && items.length === 0 ? (
         <p className="text-center text-error">{error.message}</p>
       ) : (
         <>
@@ -196,11 +233,9 @@ const StudioAssetsPage = (): JSX.Element => {
               <GallerySkeleton className="aspect-[4/5]" />
             ) : (
               items.map((item) => (
-                <StudioAssetCard
+                <StudioAssetTile
                   key={item.id}
                   item={item}
-                  onToggleLike={like}
-                  onToggleFavorite={favorite}
                   onUseInProfilbild={handleUse}
                   onReport={handleReport}
                   onPublish={handlePublish}
@@ -214,22 +249,38 @@ const StudioAssetsPage = (): JSX.Element => {
           </GalleryGrid>
 
           {!isLoading && items.length === 0 && (
-            <GalleryEmptyState {...empty} action={<CreateButton />} />
+            <GalleryEmptyState {...empty} action={createButton} />
           )}
 
-          {hasNextPage && (
-            <Button
-              variant="outline"
-              className="self-center"
-              onClick={() => void fetchNextPage()}
-              disabled={isFetchingNextPage}
-            >
-              {isFetchingNextPage ? 'Lädt …' : 'Mehr laden'}
-            </Button>
+          {error ? (
+            <div className="flex flex-col items-center gap-xs">
+              <p role="alert" className="m-0 text-center text-sm text-error">
+                {error.message}
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => void (isFetchNextPageError ? fetchNextPage() : refetch())}
+                disabled={isFetchingNextPage}
+              >
+                Erneut versuchen
+              </Button>
+            </div>
+          ) : (
+            hasNextPage && (
+              <Button
+                variant="outline"
+                className="self-center"
+                onClick={() => void fetchNextPage()}
+                disabled={isFetchingNextPage}
+              >
+                {isFetchingNextPage ? 'Lädt …' : 'Mehr laden'}
+              </Button>
+            )
           )}
         </>
       )}
 
+      {dialog?.type === 'upload' && <BackgroundUploadDialog onClose={close} />}
       {dialog?.type === 'report' && (
         <ReportDialog
           open

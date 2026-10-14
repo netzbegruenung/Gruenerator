@@ -13,7 +13,6 @@ import {
   useMutation,
   useQueryClient,
   type QueryClient,
-  type QueryKey,
 } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
@@ -74,25 +73,20 @@ export function useStudioAssets(filter: StudioAssetsFilter) {
   return { ...query, items };
 }
 
-type Snapshot = Array<[QueryKey, StudioAssetPages | undefined]>;
-
-/** Optimistically patches the item in every cached list; returns what to roll back to. */
-async function patchEverywhere(
+function patchEverywhere(
   qc: QueryClient,
   id: string,
   patch: (item: StudioAssetItem) => StudioAssetItem
-): Promise<Snapshot> {
-  await qc.cancelQueries({ queryKey: STUDIO_ASSETS_QUERY_KEY });
-  const snapshot = qc.getQueriesData<StudioAssetPages>({ queryKey: STUDIO_ASSETS_QUERY_KEY });
+) {
   qc.setQueriesData<StudioAssetPages>({ queryKey: STUDIO_ASSETS_QUERY_KEY }, (data) =>
     data ? patchStudioAssetPages(data, id, patch) : data
   );
-  return snapshot;
 }
 
-function restore(qc: QueryClient, snapshot: Snapshot | undefined) {
-  for (const [key, data] of snapshot ?? []) qc.setQueryData(key, data);
-}
+const toggledFavorite = (item: StudioAssetItem): StudioAssetItem => ({
+  ...item,
+  favorited: !item.favorited,
+});
 
 export function useStudioAssetMutations() {
   const qc = useQueryClient();
@@ -138,7 +132,27 @@ export function useStudioAssetMutations() {
     onSettled: invalidate,
   });
 
-  const toggleLike = useMutation({
+  return { create, update, remove };
+}
+
+/**
+ * Like and Merken for one item. Each toggle kind runs in its own mutation scope
+ * per item, so rapid clicks reach the server in order; every click still shows
+ * optimistically at once, and only the last response of a scope writes back.
+ */
+export function useStudioAssetToggles(id: string) {
+  const qc = useQueryClient();
+  const likeScope = `like:${id}`;
+  const favoriteScope = `favorite:${id}`;
+  const othersInScope = (scopeId: string) =>
+    qc.isMutating({ predicate: (m) => m.options.scope?.id === scopeId }) > 1;
+
+  const settle = async (scopeId: string) => {
+    if (!othersInScope(scopeId)) await qc.invalidateQueries({ queryKey: STUDIO_ASSETS_QUERY_KEY });
+  };
+
+  const like = useMutation({
+    scope: { id: likeScope },
     mutationFn: async (item: StudioAssetItem) => {
       const client = getContractsClient().studioAssets;
       const params = { id: item.id };
@@ -147,17 +161,20 @@ export function useStudioAssetMutations() {
         throw apiErrorFromResponse(res, 'Gefällt mir konnte nicht gespeichert werden.');
       return res.body;
     },
-    onMutate: (item) => patchEverywhere(qc, item.id, toggledLike),
-    onSuccess: ({ liked, likesCount }, item) => {
-      qc.setQueriesData<StudioAssetPages>({ queryKey: STUDIO_ASSETS_QUERY_KEY }, (data) =>
-        data ? patchStudioAssetPages(data, item.id, (i) => ({ ...i, liked, likesCount })) : data
-      );
+    onMutate: async () => {
+      await qc.cancelQueries({ queryKey: STUDIO_ASSETS_QUERY_KEY });
+      patchEverywhere(qc, id, toggledLike);
     },
-    onError: (_error, _item, snapshot) => restore(qc, snapshot),
-    onSettled: invalidate,
+    onSuccess: ({ liked, likesCount }) => {
+      if (othersInScope(likeScope)) return;
+      patchEverywhere(qc, id, (i) => ({ ...i, liked, likesCount }));
+    },
+    onError: () => patchEverywhere(qc, id, toggledLike),
+    onSettled: () => settle(likeScope),
   });
 
-  const toggleFavorite = useMutation({
+  const favorite = useMutation({
+    scope: { id: favoriteScope },
     mutationFn: async (item: StudioAssetItem) => {
       const client = getContractsClient().studioAssets;
       const params = { id: item.id };
@@ -168,10 +185,17 @@ export function useStudioAssetMutations() {
         throw apiErrorFromResponse(res, 'Merken konnte nicht gespeichert werden.');
       return res.body;
     },
-    onMutate: (item) => patchEverywhere(qc, item.id, (i) => ({ ...i, favorited: !i.favorited })),
-    onError: (_error, _item, snapshot) => restore(qc, snapshot),
-    onSettled: invalidate,
+    onMutate: async () => {
+      await qc.cancelQueries({ queryKey: STUDIO_ASSETS_QUERY_KEY });
+      patchEverywhere(qc, id, toggledFavorite);
+    },
+    onSuccess: ({ favorited }) => {
+      if (othersInScope(favoriteScope)) return;
+      patchEverywhere(qc, id, (i) => ({ ...i, favorited }));
+    },
+    onError: () => patchEverywhere(qc, id, toggledFavorite),
+    onSettled: () => settle(favoriteScope),
   });
 
-  return { create, update, remove, toggleLike, toggleFavorite };
+  return { toggleLike: like.mutate, toggleFavorite: favorite.mutate };
 }

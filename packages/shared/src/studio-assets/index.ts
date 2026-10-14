@@ -9,6 +9,7 @@ export {
   STUDIO_ASSETS_QUERY_KEY,
   studioAssetsKey,
   useStudioAssetMutations,
+  useStudioAssetToggles,
   useStudioAssets,
   type StudioAssetsFilter,
 } from './useStudioAssets.js';
