@@ -813,7 +813,7 @@ class SharedMediaService {
                 SELECT sm.id, sm.user_id, sm.share_token, sm.media_type, sm.title,
                        sm.file_path, sm.file_name, sm.thumbnail_path, sm.file_size, sm.mime_type,
                        sm.duration, sm.project_id, sm.image_type, sm.image_metadata,
-                       sm.status, sm.download_count, sm.view_count, sm.created_at,
+                       sm.status, sm.download_count, sm.view_count, sm.created_at, sm.upload_source,
                        sm.wolke_share_link_id, sm.wolke_file_path,
                        sm.expires_at, sm.password_hash, sm.transfer_files, sm.transfer_message,
                        COALESCE(p.first_name, p.display_name, 'Jemand') as sharer_name
