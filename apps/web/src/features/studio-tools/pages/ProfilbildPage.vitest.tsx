@@ -510,7 +510,7 @@ describe('ProfilbildPage', () => {
       within(screen.getByRole('tablist', { name: 'Hintergrund-Art' }))
         .getAllByRole('tab')
         .map((t) => t.textContent)
-    ).toEqual(['Vollfarben', 'Verläufe', 'Vorlagen', 'Entdecken', 'Eigenes Bild']);
+    ).toEqual(['Vollfarben', 'Verläufe', 'Vorlagen', 'Galerie', 'Eigenes Bild']);
     expect(
       within(screen.getByRole('tablist', { name: 'Sticker-Auswahl' }))
         .getAllByRole('tab')
@@ -948,7 +948,7 @@ describe('ProfilbildPage', () => {
       listOnly(galleryItem({ kind: 'background', title: 'Wiese' }));
       renderHandoff();
       await screen.findByTestId('konva-stage');
-      openTab('Entdecken', 'Hintergrund-Art');
+      openTab('Galerie', 'Hintergrund-Art');
       const tile = await screen.findByRole('button', { name: 'Wiese' });
       expect(tile.getAttribute('aria-pressed')).toBe('false');
       fireEvent.click(tile);
@@ -962,7 +962,7 @@ describe('ProfilbildPage', () => {
         url: GALLERY_SRC,
       });
       expect(share.upload).not.toHaveBeenCalled();
-      expect(screen.queryByRole('button', { name: 'Im Bereich ‚Entdecken‘ teilen' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Im Bereich „Entdecken“ teilen' })).toBeNull();
     });
 
     it('applies a deep-linked sticker once the photo is in', async () => {
@@ -1026,7 +1026,7 @@ describe('ProfilbildPage', () => {
       });
       await waitFor(() => expect(lastBackground()).toMatchObject({ kind: 'image' }));
       openTab('Eigenes Bild', 'Hintergrund-Art');
-      fireEvent.click(screen.getByRole('button', { name: 'Im Bereich ‚Entdecken‘ teilen' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Im Bereich „Entdecken“ teilen' }));
 
       const dialog = await screen.findByRole('dialog', { name: 'Hintergrund teilen' });
       expect(within(dialog).getByLabelText('Titel')).toHaveProperty('value', 'wiese');
@@ -1054,7 +1054,7 @@ describe('ProfilbildPage', () => {
         },
       });
       await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-      expect(screen.queryByRole('button', { name: 'Im Bereich ‚Entdecken‘ teilen' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Im Bereich „Entdecken“ teilen' })).toBeNull();
     });
   });
 

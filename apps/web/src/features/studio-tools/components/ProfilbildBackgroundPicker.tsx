@@ -93,7 +93,7 @@ export function ProfilbildBackgroundPicker({
           Vorlagen
         </TabsTrigger>
         <TabsTrigger value="entdecken" className={TAB_CLS}>
-          Entdecken
+          Galerie
         </TabsTrigger>
         <TabsTrigger value="eigenes" className={TAB_CLS}>
           Eigenes Bild
@@ -182,7 +182,7 @@ export function ProfilbildBackgroundPicker({
             </Button>
             {onShareCustom ? (
               <Button type="button" size="sm" variant="ghost" onClick={onShareCustom}>
-                Im Bereich ‚Entdecken‘ teilen
+                Im Bereich „Entdecken“ teilen
               </Button>
             ) : null}
           </>

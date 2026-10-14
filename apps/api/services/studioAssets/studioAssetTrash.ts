@@ -17,7 +17,7 @@ import {
 
 export const STUDIO_ASSET_TRASH: OwnedTrashTable = {
   table: 'studio_assets',
-  columns: 'id, title',
+  columns: 'id, title, kind',
 };
 
 const SHARE_TOKEN_RE = /^\/api\/share\/([^/]+)\/download$/;

@@ -8,6 +8,7 @@
  */
 import { type TrashItem, type TrashKind } from '@gruenerator/contracts';
 
+import { type StudioAssetRow } from '../../database/schema/studioAssets.js';
 import {
   NotebookQdrantHelper,
   type TrashedNotebook,
@@ -360,6 +361,7 @@ interface OwnedKindSpec<Row> {
   kind: TrashKind;
   table: OwnedTrashTable;
   title(row: Trashed<Row>): string;
+  subtype?(row: Trashed<Row>): string | null;
   trash(userId: string, id: string): Promise<OwnedTrashResult>;
   /** Only where a restore can clash with more than a unique index. */
   restore?(userId: string, id: string): Promise<OwnedRestoreResult>;
@@ -372,7 +374,7 @@ function ownedRowHandler<Row>(spec: OwnedKindSpec<Row>): TrashKindHandler {
       kind: spec.kind,
       id: row.id,
       title: spec.title(row),
-      subtype: null,
+      subtype: spec.subtype?.(row) ?? null,
       deletedAt: new Date(row.deleted_at),
     });
   return {
@@ -493,10 +495,15 @@ const podcastHandler = ownedRowHandler<Titled>({
   purge: purgePodcast,
 });
 
-const studioAssetHandler = ownedRowHandler<Titled>({
+const studioAssetHandler = ownedRowHandler<Titled & Pick<StudioAssetRow, 'kind'>>({
   kind: 'studio_asset',
   table: STUDIO_ASSET_TRASH,
-  title: (row) => titled(row.title, 'Unbenannter Sticker'),
+  title: (row) =>
+    titled(
+      row.title,
+      row.kind === 'background' ? 'Unbenannter Hintergrund' : 'Unbenannter Sticker'
+    ),
+  subtype: (row) => row.kind,
   trash: async (userId, id) => okOr404((await trashStudioAssets(userId, [id])).length > 0),
   purge: purgeStudioAsset,
 });
