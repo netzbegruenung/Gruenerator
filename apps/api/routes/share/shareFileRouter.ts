@@ -31,6 +31,7 @@ import express, { type Request, type Response, type Router } from 'express';
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { getThumbnailVariant } from '../../services/media/thumbnailCache.js';
 import { THUMBNAIL_WIDTHS, versionFromShareRow } from '../../services/media/thumbnailUrl.js';
+import { isRemovedStudioAssetShare } from '../../services/studioAssets/studioAssetShare.js';
 import { transferService } from '../../services/transferService.js';
 import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
@@ -190,7 +191,7 @@ router.get('/:shareToken/thumbnail', async (req: Request<ShareTokenParams>, res:
     const service = await getSharedMediaService();
     const share = await service.getShareByToken(shareToken);
 
-    if (!share || !share.thumbnail_path) {
+    if (!share || !share.thumbnail_path || (await isRemovedStudioAssetShare(share))) {
       return res.status(404).json({ error: 'Thumbnail nicht gefunden' });
     }
 
@@ -290,6 +291,9 @@ router.get(
   }
 );
 
+/** Moderation took the Sticker/Hintergrund down: its file is served to nobody, the owner included. */
+const REMOVED_MESSAGE = 'Dieses Bild wurde von der Moderation entfernt.';
+
 /** A Studio gallery Sticker/Hintergrund: content others pick for months, not a link. */
 const GALLERY_UPLOAD_SOURCE = 'studio-asset' satisfies (typeof UPLOAD_SOURCES)[number];
 
@@ -374,6 +378,10 @@ async function resolveShareMedia(
 
   if (!share) {
     res.status(410).json({ error: 'Medium nicht gefunden' });
+    return null;
+  }
+  if (await isRemovedStudioAssetShare(share)) {
+    res.status(410).json({ error: REMOVED_MESSAGE });
     return null;
   }
   if (share.status === 'processing') {
@@ -595,6 +603,11 @@ router.get(
 
       if (!share) {
         res.status(404).json({ success: false, error: 'Geteiltes Medium nicht gefunden' });
+        return;
+      }
+
+      if (await isRemovedStudioAssetShare(share)) {
+        res.status(410).json({ success: false, error: REMOVED_MESSAGE });
         return;
       }
 

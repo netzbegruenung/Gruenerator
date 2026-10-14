@@ -57,6 +57,15 @@ vi.mock('./shareServices.js', () => ({
   }),
 }));
 
+// The `studio_assets` rows moderation removed, by `media_id`.
+const removedMedia = new Set<string>();
+const dbQuery = vi.fn((_sql: string, params: unknown[]) =>
+  Promise.resolve(removedMedia.has(params[0] as string) ? [{ removed: true }] : [])
+);
+vi.mock('../../database/services/PostgresService.js', () => ({
+  getPostgresInstance: () => ({ query: dbQuery }),
+}));
+
 vi.mock('../../middleware/authMiddleware.js', () => ({
   requireAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
@@ -120,6 +129,8 @@ afterAll(async () => {
 });
 
 beforeEach(() => {
+  removedMedia.clear();
+  dbQuery.mockClear();
   getShareByToken.mockReset();
   recordView.mockReset();
   recordDownload.mockReset();
@@ -446,5 +457,51 @@ describe('share link expiry', () => {
       expired({ media_type: 'video', file_path: 'video', mime_type: 'video/mp4' })
     );
     expect((await get('/api/share/abc123/stream')).status).toBe(200);
+  });
+});
+
+describe('a Sticker/Hintergrund moderation removed', () => {
+  const owner = { headers: { 'x-test-user': 'owner-1' } };
+  const studio = (over: Record<string, unknown> = {}) =>
+    imageShare({
+      id: 'media-1',
+      user_id: 'owner-1',
+      upload_source: 'studio-asset',
+      thumbnail_path: 'abc123/thumbnail.jpg',
+      ...over,
+    });
+
+  it.each(['download', 'preview?w=200&fmt=webp', 'preview'])(
+    'answers /%s with 410 — for the owner too',
+    async (route) => {
+      removedMedia.add('media-1');
+      getShareByToken.mockResolvedValue(studio());
+      const res = await get(`/api/share/abc123/${route}`, owner);
+      expect(res.status).toBe(410);
+      expect(await res.json()).toMatchObject({
+        error: 'Dieses Bild wurde von der Moderation entfernt.',
+      });
+    }
+  );
+
+  it('hides its thumbnail', async () => {
+    removedMedia.add('media-1');
+    getShareByToken.mockResolvedValue(studio());
+    expect((await get('/api/share/abc123/thumbnail', owner)).status).toBe(404);
+  });
+
+  it.each(['download', 'preview?w=200&fmt=webp', 'thumbnail'])(
+    'keeps serving /%s while it is only hidden or after an admin restore',
+    async (route) => {
+      getShareByToken.mockResolvedValue(studio());
+      expect((await get(`/api/share/abc123/${route}`, owner)).status).toBe(200);
+    }
+  );
+
+  it('never asks the database about a share that is no gallery file', async () => {
+    removedMedia.add('media-1');
+    getShareByToken.mockResolvedValue(imageShare({ id: 'media-1', upload_source: 'upload' }));
+    expect((await get('/api/share/abc123/preview')).status).toBe(200);
+    expect(dbQuery).not.toHaveBeenCalled();
   });
 });
