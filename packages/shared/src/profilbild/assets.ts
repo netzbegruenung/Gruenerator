@@ -6,5 +6,8 @@ export type ProfilbildAssetSrc =
   | '/studio-tools/stickers/regenbogen.svg'
   | '/studio-tools/stickers/regenbogen-herz.svg'
   | '/studio-tools/stickers/vielfalt.svg'
+  | '/studio-tools/stickers/at-gruen-waehlen.png'
+  | '/studio-tools/stickers/at-klima-schuetzen.png'
+  | '/studio-tools/stickers/at-jetzt-gruen.png'
   | '/gruene-de-logo-weiss.png'
   | '/gruene-at-logo-weiss.png';
