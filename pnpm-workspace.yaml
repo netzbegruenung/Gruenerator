@@ -459,4 +459,7 @@ overrides:
   '@tiptap/react': ^3.31.4
   '@tiptap/static-renderer': ^3.31.4
   '@babel/core': 7.29.7
+  '@gruenerator/web>@babel/core': ^8.0.6
+  '@gruenerator/chat>@babel/core': ^8.0.6
+  '@gruenerator/gruen-o-mat>@babel/core': ^8.0.6
   '@react-native/community-cli-plugin>@react-native/metro-config': 0.84.1
