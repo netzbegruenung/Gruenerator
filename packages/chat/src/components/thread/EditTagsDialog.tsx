@@ -1,5 +1,6 @@
 'use client';
 
+import { isToastEvent } from '@gruenerator/ui';
 import { Tag, X } from 'lucide-react';
 import { Dialog as DialogPrimitive } from 'radix-ui';
 import { type KeyboardEvent, memo, useEffect, useState } from 'react';
@@ -99,7 +100,12 @@ export const EditTagsDialog = memo(function EditTagsDialog({
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-[1010] bg-black/40" />
-        <DialogPrimitive.Content className="fixed inset-0 z-[1010] m-auto h-fit max-h-[calc(100dvh-2rem)] w-full max-w-[24rem] overflow-y-auto rounded-xl border border-grey-200 dark:border-grey-700 bg-background-pure p-6 shadow-xl">
+        <DialogPrimitive.Content
+          className="fixed inset-0 z-[1010] m-auto h-fit max-h-[calc(100dvh-2rem)] w-full max-w-[24rem] overflow-y-auto rounded-xl border border-grey-200 dark:border-grey-700 bg-background-pure p-6 shadow-xl"
+          onInteractOutside={(event) => {
+            if (isToastEvent(event)) event.preventDefault();
+          }}
+        >
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Tag className="h-5 w-5 text-primary-600" />

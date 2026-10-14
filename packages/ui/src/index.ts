@@ -227,6 +227,7 @@ export { SelectCard, type SelectCardProps } from './components/select-card';
 export { LiteTooltip, type LiteTooltipProps } from './components/lite-tooltip';
 export { Toaster } from './components/sonner';
 export { toast } from 'sonner';
+export { isToastEvent } from './lib/toastEvent';
 export {
   NotificationBell,
   type NotificationBellProps,
