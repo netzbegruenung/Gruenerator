@@ -21,7 +21,7 @@ import { server } from '@/test/msw-server';
 import { axe, renderWithProviders } from '@/test-utils';
 
 const CANVAS = 'canvas-7';
-const DOCS = `http://localhost:3000/api/docs/${CANVAS}`;
+const DOCS = `http://localhost/api/docs/${CANVAS}`;
 
 const template = {
   id: 'tpl-1',
@@ -40,7 +40,7 @@ function setupHandlers(shareMode = 'private') {
   server.use(
     http.get(`${DOCS}/permissions`, () => HttpResponse.json([])),
     http.get(`${DOCS}/groups`, () => HttpResponse.json([])),
-    http.get('http://localhost:3000/api/docs/groups/me', () => HttpResponse.json([])),
+    http.get('http://localhost/api/docs/groups/me', () => HttpResponse.json([])),
     http.get(`${DOCS}/share`, () =>
       HttpResponse.json({
         share_mode: shareMode,
