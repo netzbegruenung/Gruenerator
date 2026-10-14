@@ -1,7 +1,7 @@
-diff --git a/dist/authorize-CLuqtSXQ.mjs b/dist/authorize-CLuqtSXQ.mjs
+diff --git a/dist/authorize-K1WHCNih.mjs b/dist/authorize-K1WHCNih.mjs
 index 52dbf4e..899aa1f 100644
---- a/dist/authorize-CLuqtSXQ.mjs
-+++ b/dist/authorize-CLuqtSXQ.mjs
+--- a/dist/authorize-K1WHCNih.mjs
++++ b/dist/authorize-K1WHCNih.mjs
 @@ -4404,7 +4404,11 @@ const oauthProvider = (options) => {
  		onRequest: handleIssuerMetadataRequest,
  		init: async (ctx) => {
