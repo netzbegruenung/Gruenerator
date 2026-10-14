@@ -7,48 +7,33 @@ packages:
 # Supply-chain settings (docs/CLAUDE-deps.md › B6). Both need pnpm >= 10.21;
 # `packageManager` in package.json pins the version CI and corepack use.
 #
-# A version must be seven days old before pnpm resolves it, transitives
-# included. The hijacked releases of 2025 (chalk/debug, Shai-Hulud) were
-# pulled within 48 h. Excluded: the families we sometimes need on the day a
-# bugfix ships.
+# A version must be three days old before pnpm resolves it, transitives
+# included. The known npm hijacks (chalk/debug, Shai-Hulud, nx, ua-parser-js,
+# axios 2026) were pulled within hours to under 48 h, so 72 h keeps more than
+# half the window as margin. Shortened from seven days on 2026-10-14: the longer
+# gate's real cost was a string of exact-version exclusions for fixes we needed
+# within the week, each of which would have passed a three-day gate unaided.
+# No family is excluded wholesale -- a blanket entry has no age protection at
+# all, which is the opposite of what this gate is for.
 #
 # pnpm 12 checks the WHOLE lockfile against this gate on every install,
 # --frozen-lockfile in CI and in the image builds included, not only new
-# resolutions. A young entry can therefore only sit in the lockfile if it is
-# excluded below; resolving one that is not is refused. So a lockfile that
-# passed the gate never blocks a later re-resolution. When one does
+# resolutions. A young entry can therefore only sit in the lockfile if it has
+# an exact exclusion (see below); resolving one that has not is refused. So a
+# lockfile that passed the gate never blocks a later re-resolution. When one does
 # (ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION naming entries nobody just added),
 # the lockfile was written around the gate -- that is the finding, not the
 # gate. Under pnpm 10, which re-checked locked entries only when re-resolving,
-# the same state froze every dependency change for seven days (#3216).
-minimumReleaseAge: 10080
-minimumReleaseAgeExclude:
-  # Security fix GHSA-vwc7-r8mq-g2x9 (symlink extraction escape) used at runtime
-  # in apps/api; 0.6.1 was blocked only by the age gate, not by any trust signal.
-  - 'adm-zip'
-  - '@assistant-ui/*'
-  # Same publisher and monorepo as @assistant-ui/*, pulled in lockstep by each
-  # release; without them the scoped exclusion cannot install a fresh bugfix.
-  - 'assistant-stream'
-  - 'assistant-cloud'
-  - 'safe-content-frame'
-  - '@blocknote/*'
-  # Security fix GHSA-68fv-2mgg-jv7q (event-loop DoS), published 2026-09-30 by
-  # the same maintainer as 1.2.1. Exact version only; inert once it passes the
-  # gate on 2026-10-07, remove then.
-  - 'source-map-js@1.2.2'
-  # @ai-sdk/mistral 4.0.59 sends `reasoning_effort` for mistral-large-4 (the
-  # Mistral-Medium-3.5 lanes move to Large 4). Published 2026-10-07 with its two
-  # provider packages. Exact versions only; inert from 2026-10-14, remove then.
-  - '@ai-sdk/mistral@4.0.59'
-  - '@ai-sdk/provider@4.0.24'
-  - '@ai-sdk/provider-utils@5.0.56'
+# the same state froze every dependency change for the whole window (#3216).
+minimumReleaseAge: 4320
 # No exemption by semver: the hijacked releases this gate exists for (chalk/debug,
 # Shai-Hulud) shipped as patch bumps. An urgent fix gets an exact-version entry
-# above -- `pnpm audit --fix` writes one itself for a too-young security patch.
+# in a `minimumReleaseAgeExclude:` list here (`name@x.y.z`, with why, publish date
+# and "inert from <date + 3 days>, remove then") -- `pnpm audit --fix` writes one
+# itself for a too-young security patch.
 # Prune drops exact entries once `pnpm add`/`update`/`remove`/`install` writes a
 # lockfile that no longer resolves them. An entry whose version stays locked is
-# kept, but it stops mattering once the version is seven days old.
+# kept, but it stops mattering once the version is three days old.
 minimumReleaseAgeExcludePrune: true
 # Fail the install when a package's provenance trust level drops between
 # releases (trusted publishing -> token), the signature of a taken-over
@@ -60,8 +45,8 @@ trustPolicy: no-downgrade
 # are long-locked and shipped, and every one of them aborted `pnpm install
 # --lockfile-only` (the check stops at the first hit, so the list was unbounded).
 # Only check releases younger than one year; minimumReleaseAge above already holds
-# every new version for seven days, which is the window the hijacks this policy
-# guards against (chalk/debug, Shai-Hulud) were live. Unit is MINUTES.
+# every new version for three days, longer than the hijacks this policy guards
+# against (chalk/debug, Shai-Hulud) were live. Unit is MINUTES.
 trustPolicyIgnoreAfter: 525600
 # The window does not cover the whole family. tailwind-merge@2.6.1 (2026-01-30) is
 # a 2.x backport of a single bugfix, published from the maintainer's own npm

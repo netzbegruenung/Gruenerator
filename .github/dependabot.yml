@@ -69,13 +69,14 @@ updates:
       time: '05:00'
       timezone: 'Europe/Berlin'
     open-pull-requests-limit: 10
-    # Seven days between a version's publish date and Dependabot proposing
-    # it: the hijacked releases of 2025 (chalk/debug, Shai-Hulud) were pulled
-    # within 48 h. Security updates are exempt from the cooldown. pnpm
-    # enforces the same window at install time via minimumReleaseAge in
-    # pnpm-workspace.yaml, so Dependabot never proposes what pnpm refuses.
+    # Three days between a version's publish date and Dependabot proposing
+    # it: the known npm hijacks (chalk/debug, Shai-Hulud, nx, ua-parser-js,
+    # axios 2026) were pulled within hours to under 48 h. Security updates are
+    # exempt from the cooldown. pnpm enforces the same window at install time
+    # via minimumReleaseAge in pnpm-workspace.yaml, so Dependabot never
+    # proposes what pnpm refuses. Keep both numbers in step.
     cooldown:
-      default-days: 7
+      default-days: 3
     labels:
       - 'dependencies'
     groups:
