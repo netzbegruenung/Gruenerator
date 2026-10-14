@@ -122,7 +122,7 @@ export const CONFIRM_ACTION_CONFIG: Record<
   create_user_agent: {
     title: 'Grünerator-Agent anlegen',
     description:
-      'Der Agent wird mit der entworfenen Rolle angelegt und ist danach unter „Meine Agenten" in der Agentura nutzbar. Rolle, Werkzeuge und Notebooks lassen sich jederzeit dort oder im Chat ändern.',
+      'Der Agent wird mit der entworfenen Rolle angelegt und ist danach unter „Grüneratoren" nutzbar. Rolle, Werkzeuge und Notebooks lassen sich jederzeit dort oder im Chat ändern.',
     icon: 'bot',
     confirmLabel: 'Anlegen',
   },

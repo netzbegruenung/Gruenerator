@@ -143,7 +143,7 @@ const SYSTEM_BODY_NOTE =
 const TYPE_SYSTEM = 'Rezept';
 const TYPE_USER = 'Eigene Textform';
 
-export const RECIPES_SETTINGS_URL = '/agentura?cat=meine';
+export const RECIPES_SETTINGS_URL = '/grueneratoren';
 
 /** Wie viel Beispieltext und Stilblock die Antwort zeigt. */
 const EXAMPLE_PREVIEW_CHARS = 200;
@@ -371,7 +371,7 @@ brief ist die Beschreibung der Person, was das Rezept tun soll — Textsorte, An
       );
     });
     if (results.length === 0) {
-      const note = `Es sind keine Rezepte verfügbar. Eigene Textformen lassen sich hier mit create oder in der Agentura (${RECIPES_SETTINGS_URL}) anlernen.`;
+      const note = `Es sind keine Rezepte verfügbar. Eigene Textformen lassen sich hier mit create oder unter Grüneratoren (${RECIPES_SETTINGS_URL}) anlernen.`;
       groundNote(sourceRegistry, 'Rezepte', note);
       return { resultCount: 0, results: [], note };
     }
@@ -601,7 +601,7 @@ brief ist die Beschreibung der Person, was das Rezept tun soll — Textsorte, An
     const note =
       kind === 'custom'
         ? `Textform „${form.title}" ${origin} — im Chat als @${form.mention} nutzbar, ändern in der Agentura (${recipeEditUrl(form.mention)}).`
-        : `Eigener Stil für @${form.mention} ${origin} — er ersetzt ab jetzt die mitgelieferten Vorgaben dieses Rezepts. Ändern in der Agentura (${RECIPES_SETTINGS_URL}).`;
+        : `Eigener Stil für @${form.mention} ${origin} — er ersetzt ab jetzt die mitgelieferten Vorgaben dieses Rezepts. Ändern unter Grüneratoren (${RECIPES_SETTINGS_URL}).`;
     groundNote(sourceRegistry, 'Textform angelegt', note);
     return {
       ok: true,
@@ -760,7 +760,7 @@ brief ist die Beschreibung der Person, was das Rezept tun soll — Textsorte, An
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
       return {
-        error: `Die Stilanalyse ist fehlgeschlagen (${reason}). Es wurde nichts gespeichert — später erneut versuchen oder in der Agentura (${RECIPES_SETTINGS_URL}) anlernen.`,
+        error: `Die Stilanalyse ist fehlgeschlagen (${reason}). Es wurde nichts gespeichert — später erneut versuchen oder unter Grüneratoren (${RECIPES_SETTINGS_URL}) anlernen.`,
       };
     }
   }

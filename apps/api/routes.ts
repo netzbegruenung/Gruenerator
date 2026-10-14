@@ -19,16 +19,16 @@ import { mountLandesverbandAdminContractRouter } from './routes/admin/landesverb
 import { mountLvAdminAssignmentContractRouter } from './routes/admin/lvAdminAssignmentContractRouter.js';
 import { mountAgentVisibilityContractRouter } from './routes/agents/agentVisibilityContractRouter.js';
 import antraegeRouter from './routes/antraege/index.js';
+import { mountAgentCommentsContractRouter } from './routes/auth/agentComments/agentCommentsContractRouter.js';
 import { mountGroupsContractRouter } from './routes/auth/groups/groupsContract/index.js';
 import { mountImageModelPreferenceContractRouter } from './routes/auth/imageModelPreferenceContractRouter.js';
 import authInitRouter from './routes/auth/initController.js';
 import { mountModelPreferencesContractRouter } from './routes/auth/modelPreferencesContractRouter.js';
 import { mountPromptsContractRouter } from './routes/auth/promptsContractRouter.js';
-import { mountAgentCommentsContractRouter } from './routes/auth/agentComments/agentCommentsContractRouter.js';
 import { mountEntityReactionsContractRouter } from './routes/auth/reactions/entityReactionsContractRouter.js';
+import { mountTemplateCommentsContractRouter } from './routes/auth/templateComments/templateCommentsContractRouter.js';
 import { mountAdminVorlagenContractRouter } from './routes/auth/templates/adminVorlagenContractRouter.js';
 import { mountTemplateInteractionsContractRouter } from './routes/auth/templates/templateInteractionsContractRouter.js';
-import { mountTemplateCommentsContractRouter } from './routes/auth/templateComments/templateCommentsContractRouter.js';
 import { mountUserTemplatesContractRouter } from './routes/auth/templates/userTemplatesContractRouter.js';
 import { mountUserProfileContractRouter } from './routes/auth/userProfileContractRouter.js';
 import { mountBoardActivityContractRouter } from './routes/boards/boardActivityContractRouter.js';
@@ -139,6 +139,7 @@ import { mountRecentValuesContractRouter } from './routes/user/recentValuesContr
 import { mountUserWebsitesContractRouter } from './routes/user/userWebsitesContractRouter.js';
 import { mountUserAgentsContractRouter } from './routes/userAgents/userAgentsContractRouter.js';
 import { mountUserAgentsSharingContractRouter } from './routes/userAgents/userAgentsSharingContractRouter.js';
+import { mountUserLibraryContractRouter } from './routes/userLibrary/userLibraryContractRouter.js';
 import { mountUserTextFormsContractRouter } from './routes/userTextForms/userTextFormsContractRouter.js';
 import v1ChatCompletionsRouter, {
   modelsRouter as v1ModelsRouter,
@@ -513,6 +514,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   // ordering). requireAuth at the prefix — returns user-specific data.
   app.use('/api/item-usage', requireAuth, publicReadLimiter);
   mountItemUsageContractRouter(app);
+  // ts-rest contract router for /api/user-library („Zu meinen Grüneratoren").
+  // requireAuth at the prefix — strictly the caller's own list.
+  app.use('/api/user-library', requireAuth, standardMutationLimiter);
+  mountUserLibraryContractRouter(app);
   // ts-rest contract router for /api/usage (personal consumption statistics).
   // requireAuth at the prefix — strictly the caller's own data.
   app.use('/api/usage', requireAuth, publicReadLimiter);
