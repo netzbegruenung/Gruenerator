@@ -986,9 +986,19 @@ describe('ProfilbildPage', () => {
       expect(screen.queryByRole('button', { name: 'Sonnenblume entfernen' })).toBeNull();
 
       fireEvent.click(screen.getByText('upload'));
+      await waitFor(() => expect(screen.queryByText(/Lade zuerst ein Foto hoch/)).toBeNull());
       await screen.findByRole('button', { name: 'Sonnenblume entfernen' });
       expect(screen.queryByText(/Lade zuerst ein Foto hoch/)).toBeNull();
       expect((await downloadAndGetCompose())?.stickers).toHaveLength(1);
+    });
+
+    it('drops the deep-link hint while the photo is being cut out', async () => {
+      mockRemove.mockReturnValue(new Promise(() => {}));
+      renderPage(null, `?asset=${GALLERY_ID}&kind=background&src=${GALLERY_SRC}`);
+      expect(screen.getByText(/dann setzen wir den Hintergrund ein/)).toBeTruthy();
+      fireEvent.click(screen.getByText('upload'));
+      expect(await screen.findByText('Person wird freigestellt …')).toBeTruthy();
+      expect(screen.queryByText(/Lade zuerst ein Foto hoch/)).toBeNull();
     });
 
     it('ignores a deep link whose src is not a share path', async () => {
@@ -1040,6 +1050,7 @@ describe('ProfilbildPage', () => {
         },
       });
       await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      expect(screen.queryByRole('button', { name: 'Im Bereich ‚Entdecken‘ teilen' })).toBeNull();
     });
   });
 

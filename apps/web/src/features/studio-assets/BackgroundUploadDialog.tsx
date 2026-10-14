@@ -49,11 +49,13 @@ export interface BackgroundUploadDialogProps {
   onClose: () => void;
   /** Shares an image picked elsewhere (the Profilbild's own photo) instead of asking for a file. */
   initialFile?: File;
+  onCreated?: () => void;
 }
 
 export function BackgroundUploadDialog({
   onClose,
   initialFile,
+  onCreated,
 }: BackgroundUploadDialogProps): JSX.Element {
   const ids = { file: useId(), title: useId(), tags: useId(), share: useId(), rights: useId() };
   const audienceName = useId();
@@ -112,6 +114,7 @@ export function BackgroundUploadDialog({
         rightsConfirmed: isPublic && rights,
       });
       toast.success(`„${title.trim()}“ ist gespeichert.`);
+      onCreated?.();
       onClose();
     } catch {
       // The create error is toasted by the global mutation handler.

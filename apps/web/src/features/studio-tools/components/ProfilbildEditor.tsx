@@ -141,6 +141,8 @@ export function ProfilbildEditor({
   const isAustria = useAuthStore((s) => s.locale === 'de-AT');
   const galleryAssetRef = useRef(galleryAsset);
   const [sharingCustom, setSharingCustom] = useState(false);
+  // The own photo already shared to the gallery, so it is not offered twice.
+  const [sharedFile, setSharedFile] = useState<File | null>(null);
   const colorSwatches = isAustria ? COLOR_SWATCHES_AT : COLOR_SWATCHES_DE;
   const presets = useMemo(() => presetDesigns(isAustria), [isAustria]);
   const presetsRef = useRef(presets);
@@ -857,7 +859,11 @@ export function ProfilbildEditor({
             onSelectPreset={(design) => void selectPreset(design)}
             onSelectGallery={(item) => void pickGalleryBackground(item)}
             onUpload={() => fileRef.current?.click()}
-            onShareCustom={customSource.file ? () => setSharingCustom(true) : null}
+            onShareCustom={
+              customSource.file && customSource.file !== sharedFile
+                ? () => setSharingCustom(true)
+                : null
+            }
           />
           <input
             ref={fileRef}
@@ -948,6 +954,7 @@ export function ProfilbildEditor({
       {sharingCustom && customSource.file ? (
         <BackgroundUploadDialog
           initialFile={customSource.file}
+          onCreated={() => setSharedFile(customSource.file)}
           onClose={() => setSharingCustom(false)}
         />
       ) : null}

@@ -134,8 +134,8 @@ const ProfilbildPage = () => {
           </div>
         ) : null}
 
-        {galleryAsset && !reopenToken && !cutoutUrl ? (
-          <p role="status" className="m-0 text-sm">
+        {galleryAsset && !reopenToken && !cutoutUrl && status === 'idle' ? (
+          <p className="m-0 text-sm">
             {`Lade zuerst ein Foto hoch – dann setzen wir ${galleryTarget(galleryAsset)} ein.`}
           </p>
         ) : null}
