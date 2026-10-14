@@ -5,12 +5,14 @@ import {
   type ProfilbildSticker,
 } from '@gruenerator/shared/profilbild';
 import { galleryTarget, isShareSrc, type GalleryAsset } from '@gruenerator/shared/stickers';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { type SkImage } from '@shopify/react-native-skia';
+import { Stack } from 'expo-router';
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  ScrollView,
+  Pressable,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -36,9 +38,10 @@ import {
 } from '../../services/imageEditMobile';
 import { saveImageToGallery } from '../../services/imageStudio';
 import { shareBase64Image } from '../../services/share';
-import { colors, spacing, typography } from '../../theme';
+import { borderRadius, colors, spacing, typography } from '../../theme';
 import { Button } from '../common/Button';
 import { SegmentedControl } from '../common/SegmentedControl';
+import { SkeletonBar, SkeletonGroup } from '../common/Skeleton';
 
 import { BackgroundPicker, CUSTOM_ID, type CustomBackground } from './BackgroundPicker';
 import { galleryStickerSource } from './galleryModel';
@@ -47,6 +50,7 @@ import { InstagramPreview, PreviewFrame, type PreviewVariant } from './PreviewFr
 import { ProfilbildEditor } from './ProfilbildEditor';
 import { nextStickerUid } from './profilbildGestures';
 import { exportProfilbildBase64 } from './ProfilbildScene';
+import { ProfilbildToolbar, ToolSheet, type ProfilbildTool } from './ProfilbildToolbar';
 import {
   initialModel,
   newSticker,
@@ -63,19 +67,19 @@ const VARIANTS: { value: PreviewVariant; label: string }[] = [
   { value: 'instagram', label: 'Instagram' },
 ];
 
+// The autosave as a badge on the stage; „Zuletzt" is where it lands.
 const SAVE_STATUS = {
-  idle: '',
-  saving: 'Wird gespeichert …',
-  saved: 'Unter „Zuletzt“ gespeichert',
-  error: 'Nicht gespeichert – die nächste Änderung versucht es erneut.',
+  idle: null,
+  saving: { text: 'Speichert …', label: 'Wird unter „Zuletzt“ gespeichert' },
+  saved: { text: '✓ Gespeichert', label: 'Unter „Zuletzt“ gespeichert' },
+  error: {
+    text: 'Nicht gespeichert',
+    label: 'Nicht gespeichert – die nächste Änderung versucht es erneut.',
+  },
 };
 
-type Panel = 'hintergrund' | 'sticker';
-
-const PANELS: { value: Panel; label: string }[] = [
-  { value: 'hintergrund', label: 'Hintergrund' },
-  { value: 'sticker', label: 'Sticker' },
-];
+/** A tool sheet takes at most half the screen; the stage keeps the rest above it. */
+const STAGE_HEIGHT_SHARE = 0.42;
 
 const segments = <T extends string>(list: { value: T; label: string }[]) =>
   list.map((o) => ({ ...o, short: o.label, disabled: false }));
@@ -105,8 +109,8 @@ export function ProfilbildScreen({
   galleryAsset: GalleryAsset | null;
 }) {
   const theme = useTheme();
-  const { width } = useWindowDimensions();
-  const viewSize = Math.min(width - spacing.xlarge, 360);
+  const { width, height } = useWindowDimensions();
+  const viewSize = Math.min(width - spacing.xlarge, 360, Math.round(height * STAGE_HEIGHT_SHARE));
   const { state, start, retry, reset, adopt } = useProfilbildCutout();
   const { save, begin } = useProfilbildShare();
   const [reopen, setReopen] = useState<ProfilbildReopen | null>(null);
@@ -127,7 +131,7 @@ export function ProfilbildScreen({
   const [gallery, setGallery] = useState<Record<string, SkImage>>({});
   const [selected, setSelected] = useState<string | null>(null);
   const [variant, setVariant] = useState<PreviewVariant>('rund');
-  const [panel, setPanel] = useState<Panel>('hintergrund');
+  const [tool, setTool] = useState<ProfilbildTool | null>(null);
   const [busy, setBusy] = useState<'save' | 'share' | null>(null);
   const busyRef = useRef(false);
   // Bumped per background choice, so a slow gallery load cannot override a later pick.
@@ -281,7 +285,6 @@ export function ProfilbildScreen({
   if (pendingAsset && ready) {
     setPendingAsset(null);
     setLandingAsset(pendingAsset);
-    if (pendingAsset.kind === 'sticker') setPanel('sticker');
   }
 
   const applyGalleryAsset = useEffectEvent((asset: GalleryAsset) => {
@@ -293,12 +296,28 @@ export function ProfilbildScreen({
     if (landingAsset) applyGalleryAsset(landingAsset);
   }, [landingAsset]);
 
+  // A reopened Profilbild lands in the editor's layout: stage, format, tools.
   if (reopenStatus === 'loading') {
     return (
-      <View style={[styles.centered, { backgroundColor: theme.background }]}>
-        <ActivityIndicator size="large" color={theme.textGreen} />
-        <Text style={[styles.error, { color: theme.text }]}>Profilbild wird geladen…</Text>
-      </View>
+      <SafeAreaView
+        edges={['bottom']}
+        accessible
+        accessibilityLabel="Profilbild wird geladen"
+        style={[styles.root, { backgroundColor: theme.background }]}
+      >
+        <SkeletonGroup style={styles.main}>
+          <SkeletonBar width={viewSize} height={viewSize} radius={0} />
+          <SkeletonBar width={viewSize} height={44} radius={borderRadius.large} />
+        </SkeletonGroup>
+        <SkeletonGroup style={[styles.toolbarSkeleton, { borderTopColor: theme.border }]}>
+          {[0, 1, 2].map((i) => (
+            <View key={i} style={styles.toolSkeleton}>
+              <SkeletonBar width={44} height={44} radius={borderRadius.large} />
+              <SkeletonBar width={56} height={10} />
+            </View>
+          ))}
+        </SkeletonGroup>
+      </SafeAreaView>
     );
   }
 
@@ -380,47 +399,87 @@ export function ProfilbildScreen({
     />
   );
 
+  const closeThen = (action: () => void) => () => {
+    setTool(null);
+    action();
+  };
+  const status = scene ? SAVE_STATUS[autosave.state] : null;
+
   // The editor opens straight away: before a photo the stage is the upload zone,
-  // and format, stickers and export wait for the photo.
+  // and stickers, the photo tool and export wait for the photo. Every tool opens
+  // a sheet low enough that its effect shows on the stage above it.
   return (
     <SafeAreaView edges={['bottom']} style={[styles.root, { backgroundColor: theme.background }]}>
-      <View style={styles.stage}>
-        {scene ? (
-          <PreviewFrame variant={variant} viewSize={viewSize}>
-            <ProfilbildEditor
-              {...scene}
-              onChange={setModel}
-              viewSize={viewSize}
-              selected={selected}
-              onSelect={setSelected}
+      <Stack.Screen
+        options={{
+          headerRight: () =>
+            scene ? (
+              <View style={styles.headerActions}>
+                <HeaderAction
+                  icon="share-outline"
+                  label="Teilen"
+                  busy={busy === 'share'}
+                  disabled={busy !== null}
+                  onPress={() => void run('share')}
+                />
+                <HeaderAction
+                  icon="download-outline"
+                  label="Speichern"
+                  busy={busy === 'save'}
+                  disabled={busy !== null}
+                  onPress={() => void run('save')}
+                />
+              </View>
+            ) : null,
+        }}
+      />
+      <View style={styles.main}>
+        <View>
+          {scene ? (
+            <PreviewFrame variant={variant} viewSize={viewSize}>
+              <ProfilbildEditor
+                {...scene}
+                onChange={setModel}
+                viewSize={viewSize}
+                selected={selected}
+                onSelect={setSelected}
+              />
+            </PreviewFrame>
+          ) : state.status === 'ready' ? (
+            <SkeletonGroup>
+              <SkeletonBar width={viewSize} height={viewSize} radius={0} />
+            </SkeletonGroup>
+          ) : (
+            <PhotoStage
+              size={viewSize}
+              state={state}
+              background={background}
+              images={pickerImages}
+              isAustria={isAustria}
+              pendingHint={
+                pendingAsset && !shareToken
+                  ? `Wähle zuerst ein Foto – dann setzen wir ${galleryTarget(pendingAsset)} ein.`
+                  : null
+              }
+              onPick={() => pick(pickImageForEditor)}
+              onTakePhoto={() => pick(takePhotoForEditor)}
+              onRetry={retry}
+              onReset={reset}
             />
-          </PreviewFrame>
-        ) : state.status === 'ready' ? (
-          <View style={[styles.waiting, { width: viewSize, height: viewSize }]}>
-            <ActivityIndicator size="large" color={theme.textGreen} />
-          </View>
-        ) : (
-          <PhotoStage
-            size={viewSize}
-            state={state}
-            background={background}
-            images={pickerImages}
-            isAustria={isAustria}
-            pendingHint={
-              pendingAsset && !shareToken
-                ? `Wähle zuerst ein Foto – dann setzen wir ${galleryTarget(pendingAsset)} ein.`
-                : null
-            }
-            onPick={() => pick(pickImageForEditor)}
-            onTakePhoto={() => pick(takePhotoForEditor)}
-            onRetry={retry}
-            onReset={reset}
-          />
-        )}
-      </View>
-      <ScrollView contentContainerStyle={styles.controls} keyboardShouldPersistTaps="handled">
+          )}
+          {status ? (
+            <View
+              accessible
+              accessibilityLiveRegion="polite"
+              accessibilityLabel={status.label}
+              style={styles.badge}
+            >
+              <Text style={styles.badgeText}>{status.text}</Text>
+            </View>
+          ) : null}
+        </View>
         {scene ? (
-          <>
+          <View style={[styles.format, { width: viewSize }]}>
             <SegmentedControl
               accessibilityLabel="Vorschau"
               value={variant}
@@ -428,70 +487,64 @@ export function ProfilbildScreen({
               options={segments(VARIANTS)}
             />
             {variant === 'instagram' ? <InstagramPreview {...scene} /> : null}
-            <SegmentedControl
-              accessibilityLabel="Bearbeiten"
-              value={panel}
-              onChange={(v) => setPanel(v as Panel)}
-              options={segments(PANELS)}
-            />
-            {panel === 'hintergrund' ? (
-              backgroundPicker
-            ) : (
-              <StickerPicker
-                isAustria={isAustria}
-                onAdd={addSticker}
-                onAddGallery={addGallerySticker}
-              />
-            )}
-            <Button
-              variant="ghost"
-              onPress={() => {
-                begin(null);
-                reset();
-              }}
-            >
-              Anderes Foto
-            </Button>
-          </>
-        ) : (
-          <>
-            <Text accessibilityRole="header" style={[styles.label, { color: theme.text }]}>
-              Hintergrund
-            </Text>
-            {backgroundPicker}
-          </>
-        )}
-      </ScrollView>
-      {scene ? (
-        <>
-          <Text
-            accessibilityLiveRegion="polite"
-            style={[styles.saveStatus, { color: theme.textSecondary }]}
-          >
-            {SAVE_STATUS[autosave.state]}
-          </Text>
-          <View style={[styles.actions, { borderTopColor: theme.border }]}>
-            <Button
-              style={styles.action}
-              onPress={() => void run('save')}
-              loading={busy === 'save'}
-              disabled={busy !== null}
-            >
-              Speichern
-            </Button>
-            <Button
-              variant="outline"
-              style={styles.action}
-              onPress={() => void run('share')}
-              loading={busy === 'share'}
-              disabled={busy !== null}
-            >
-              Teilen
-            </Button>
           </View>
-        </>
-      ) : null}
+        ) : null}
+      </View>
+      <ProfilbildToolbar
+        active={tool}
+        disabled={scene ? [] : ['sticker', 'foto']}
+        onOpen={(t) => setTool((open) => (open === t ? null : t))}
+      />
+      <ToolSheet title="Hintergrund" visible={tool === 'hintergrund'} onClose={() => setTool(null)}>
+        {backgroundPicker}
+      </ToolSheet>
+      <ToolSheet title="Sticker" visible={tool === 'sticker'} onClose={() => setTool(null)}>
+        <StickerPicker
+          isAustria={isAustria}
+          onAdd={(sticker) => closeThen(() => addSticker(sticker))()}
+          onAddGallery={(item) => closeThen(() => addGallerySticker(item))()}
+        />
+      </ToolSheet>
+      <ToolSheet title="Foto" visible={tool === 'foto'} onClose={() => setTool(null)}>
+        <Button onPress={closeThen(() => pick(pickImageForEditor))}>Anderes Foto wählen</Button>
+        <Button variant="outline" onPress={closeThen(() => pick(takePhotoForEditor))}>
+          Foto aufnehmen
+        </Button>
+      </ToolSheet>
     </SafeAreaView>
+  );
+}
+
+function HeaderAction({
+  icon,
+  label,
+  busy,
+  disabled,
+  onPress,
+}: {
+  icon: 'share-outline' | 'download-outline';
+  label: string;
+  busy: boolean;
+  disabled: boolean;
+  onPress(): void;
+}) {
+  const theme = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled, busy }}
+      disabled={disabled}
+      hitSlop={8}
+      onPress={onPress}
+      style={styles.headerButton}
+    >
+      {busy ? (
+        <ActivityIndicator size="small" color={theme.text} />
+      ) : (
+        <Ionicons name={icon} size={22} color={theme.text} />
+      )}
+    </Pressable>
   );
 }
 
@@ -505,24 +558,27 @@ const styles = StyleSheet.create({
     padding: spacing.medium,
   },
   buttons: { width: '100%', maxWidth: 360, gap: spacing.small },
-  waiting: { alignItems: 'center', justifyContent: 'center' },
-  label: { ...typography.bodyBold },
   error: { ...typography.body, textAlign: 'center' },
-  stage: { alignItems: 'center', paddingTop: spacing.medium },
-  controls: {
-    width: '100%',
-    maxWidth: 480,
-    alignSelf: 'center',
-    gap: spacing.medium,
-    padding: spacing.medium,
-  },
-  saveStatus: { ...typography.caption, textAlign: 'center', minHeight: 18 },
-  actions: {
+  main: { flex: 1, alignItems: 'center', paddingTop: spacing.medium, gap: spacing.medium },
+  format: { gap: spacing.medium },
+  // Mirrors ProfilbildToolbar, so the tools do not jump in when the editor loads.
+  toolbarSkeleton: {
     flexDirection: 'row',
-    gap: spacing.small,
-    paddingHorizontal: spacing.medium,
-    paddingTop: spacing.small,
+    justifyContent: 'space-around',
+    paddingVertical: spacing.small,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
-  action: { flex: 1 },
+  toolSkeleton: { alignItems: 'center', gap: spacing.xxsmall, minWidth: 88 },
+  badge: {
+    position: 'absolute',
+    top: spacing.small,
+    alignSelf: 'center',
+    paddingHorizontal: spacing.small,
+    paddingVertical: spacing.xxsmall,
+    borderRadius: borderRadius.full,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  badgeText: { ...typography.caption, color: colors.white, fontWeight: '600' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.medium },
+  headerButton: { minWidth: 32, minHeight: 32, alignItems: 'center', justifyContent: 'center' },
 });

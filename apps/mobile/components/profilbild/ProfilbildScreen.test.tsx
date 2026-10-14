@@ -3,7 +3,10 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { type ReactNode } from 'react';
 
 import { useProfilbildCutout } from '../../hooks/profilbild/useProfilbildCutout';
-import { useProfilbildShare } from '../../hooks/profilbild/useProfilbildShare';
+import {
+  loadProfilbildReopen,
+  useProfilbildShare,
+} from '../../hooks/profilbild/useProfilbildShare';
 import { pickImageForEditor } from '../../services/imageEditMobile';
 
 import { ProfilbildScreen } from './ProfilbildScreen';
@@ -64,6 +67,7 @@ const mockCutout = useProfilbildCutout as jest.MockedFunction<typeof useProfilbi
 const mockShare = useProfilbildShare as unknown as jest.MockedFunction<
   () => Record<string, unknown>
 >;
+const mockReopen = loadProfilbildReopen as jest.MockedFunction<typeof loadProfilbildReopen>;
 const mockPick = pickImageForEditor as jest.MockedFunction<typeof pickImageForEditor>;
 const mockStart = jest.fn();
 const mockBegin = jest.fn();
@@ -84,15 +88,34 @@ afterEach(() => {
 });
 
 describe('ProfilbildScreen before a photo', () => {
-  it('opens the editor straight away with the upload zone and the background picker', async () => {
+  it('opens the editor straight away with the upload zone and the toolbar', async () => {
     render(<ProfilbildScreen isAustria={false} shareToken={null} galleryAsset={null} />);
     await act(async () => {});
     expect(screen.getByText('Foto hochladen')).toBeTruthy();
-    expect(screen.getByRole('radio', { name: 'Farben' })).toBeTruthy();
-    // Format, stickers and export wait for the photo.
+    // The background is the one tool that works before the photo.
+    expect(screen.getByRole('button', { name: 'Hintergrund' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Sticker' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Foto' })).toBeDisabled();
+    // Format waits for the photo, and the pickers wait for their sheet.
     expect(screen.queryByRole('radiogroup', { name: 'Vorschau' })).toBeNull();
-    expect(screen.queryByRole('radio', { name: 'Sticker' })).toBeNull();
-    expect(screen.queryByText('Speichern')).toBeNull();
+    expect(screen.queryByRole('radio', { name: 'Farben' })).toBeNull();
+  });
+
+  it('opens the background picker in its sheet and closes it again', async () => {
+    render(<ProfilbildScreen isAustria={false} shareToken={null} galleryAsset={null} />);
+    await act(async () => {});
+    fireEvent.press(screen.getByRole('button', { name: 'Hintergrund' }));
+    expect(screen.getByRole('radio', { name: 'Farben' })).toBeTruthy();
+    fireEvent.press(screen.getByRole('button', { name: 'Fertig' }));
+    expect(screen.queryByRole('radio', { name: 'Farben' })).toBeNull();
+  });
+
+  it('shows the editor skeleton while a saved Profilbild loads', async () => {
+    mockReopen.mockReturnValue(new Promise(() => {}));
+    render(<ProfilbildScreen isAustria={false} shareToken="abc" galleryAsset={null} />);
+    await act(async () => {});
+    expect(screen.getByLabelText('Profilbild wird geladen')).toBeTruthy();
+    expect(screen.queryByText('Foto hochladen')).toBeNull();
   });
 
   it('starts a fresh save session for a picked photo', async () => {
