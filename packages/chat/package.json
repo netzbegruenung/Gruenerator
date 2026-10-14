@@ -80,7 +80,7 @@
     "jsdom": "30.0.1",
     "pyodide": "^314.0.7",
     "tailwind-merge": "^3.7.0",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "vitest": "^5.0.2",
     "vitest-axe": "^0.1.0"
   },

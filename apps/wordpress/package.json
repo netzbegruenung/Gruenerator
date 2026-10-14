@@ -27,7 +27,7 @@
     "@wordpress/scripts": "^31.8.0",
     "sass": "^1.105.0",
     "sass-loader": "^16.0.8",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   },
   "dependencies": {
     "@wordpress/block-editor": "^15.23.0",
