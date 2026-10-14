@@ -115,6 +115,7 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
           boardId={boardId}
           title={title}
           isArchived={isArchived}
+          readOnly={readOnly}
           expertMode={expertMode}
           onDelete={onDelete}
           onArchiveToggle={onArchiveToggle}
