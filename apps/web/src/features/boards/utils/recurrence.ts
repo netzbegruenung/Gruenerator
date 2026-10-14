@@ -32,7 +32,7 @@ function toIsoDate(d: Date): string {
  * make "daily" return the same date — so build the Date from local components.
  * Returns null for empty/invalid input.
  */
-function parseLocalDate(value: CellValue): Date | null {
+export function parseLocalDate(value: CellValue): Date | null {
   if (typeof value !== 'string' || !value) return null;
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
   if (!m) return null;

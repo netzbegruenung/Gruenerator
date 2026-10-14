@@ -5,6 +5,7 @@ import { FiCheckSquare, FiFileText, FiMessageSquare } from 'react-icons/fi';
 
 import { useCardActivity } from '../context/BoardAwarenessContext';
 import { checklistProgress, FIELD_IDS, parseAssignees, parseChecklists } from '../types';
+import { parseLocalDate } from '../utils/recurrence';
 
 import type { Row, Field, SelectOption } from '../types';
 
@@ -84,21 +85,19 @@ export const CardContent = memo(function CardContent({
     return options.filter((o) => labelIds.includes(o.id));
   }, [labelsField, labelIds]);
 
+  const dueDay = useMemo(() => parseLocalDate(dueDate), [dueDate]);
   const formattedDate = useMemo(
-    () =>
-      dueDate
-        ? new Date(dueDate).toLocaleDateString('de-DE', { day: '2-digit', month: 'short' })
-        : null,
-    [dueDate]
+    () => dueDay?.toLocaleDateString('de-DE', { day: '2-digit', month: 'short' }) ?? null,
+    [dueDay]
   );
 
   const isOverdue = useMemo(
-    () => (dueDate ? new Date(dueDate) < new Date(new Date().toDateString()) : false),
-    [dueDate]
+    () => (dueDay ? dueDay < new Date(new Date().toDateString()) : false),
+    [dueDay]
   );
   const isDueSoon = useMemo(
-    () => (dueDate && !isOverdue ? new Date(dueDate) <= new Date(Date.now() + 86_400_000) : false),
-    [dueDate, isOverdue]
+    () => (dueDay && !isOverdue ? dueDay <= new Date(Date.now() + 86_400_000) : false),
+    [dueDay, isOverdue]
   );
 
   return (
