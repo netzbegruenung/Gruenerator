@@ -265,7 +265,7 @@ export async function createExplainable(
         label: 'explainable',
       })
     );
-    if (!generated.ok) throw new Error(generated.error);
+    if (!generated.ok) throw generated.cause ?? new Error(generated.error);
     content = toContent(generated.data, input.sources);
   } catch (error) {
     log.warn(`Generation failed: ${(error as Error).message}`);

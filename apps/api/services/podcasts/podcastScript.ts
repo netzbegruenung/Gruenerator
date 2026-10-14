@@ -112,6 +112,6 @@ export async function generatePodcastScript(
     temperature: 0.6,
     label: 'podcast_script',
   });
-  if (!generated.ok) throw new Error(generated.error);
+  if (!generated.ok) throw generated.cause ?? new Error(generated.error);
   return generated.data;
 }
