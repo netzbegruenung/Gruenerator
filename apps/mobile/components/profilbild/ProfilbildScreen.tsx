@@ -7,8 +7,8 @@ import {
 import { galleryTarget, isShareSrc, type GalleryAsset } from '@gruenerator/shared/stickers';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { type SkImage } from '@shopify/react-native-skia';
-import { Stack } from 'expo-router';
-import { useEffect, useEffectEvent, useRef, useState } from 'react';
+import { Stack, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -123,6 +123,8 @@ export function ProfilbildScreen({
   // The Instagram preview: held on the stage, or opened from the hint until tapped away.
   const [peek, setPeek] = useState<'hold' | 'sticky' | null>(null);
   const [tool, setTool] = useState<ProfilbildTool | null>(null);
+  // A sheet is a Modal: left open it would lie over the next screen (Sticker erstellen, Entdecken).
+  useFocusEffect(useCallback(() => () => setTool(null), []));
   const [busy, setBusy] = useState<'save' | 'share' | null>(null);
   const busyRef = useRef(false);
   // Bumped per background choice, so a slow gallery load cannot override a later pick.
@@ -407,7 +409,7 @@ export function ProfilbildScreen({
             scene ? (
               <View style={styles.headerActions}>
                 <HeaderAction
-                  icon="share-outline"
+                  icon="share-social-outline"
                   label="Teilen"
                   busy={busy === 'share'}
                   disabled={busy !== null}
@@ -485,6 +487,22 @@ export function ProfilbildScreen({
             </Text>
           </Pressable>
         ) : null}
+        {/* Over the stage area only: the header and the toolbar stay in place. */}
+        {scene && peek === 'hold' ? (
+          <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+            <InstagramPeek {...scene} />
+          </View>
+        ) : null}
+        {scene && peek === 'sticky' ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Instagram-Vorschau schließen"
+            onPress={() => setPeek(null)}
+            style={StyleSheet.absoluteFill}
+          >
+            <InstagramPeek {...scene} />
+          </Pressable>
+        ) : null}
       </View>
       <ProfilbildToolbar
         active={tool}
@@ -507,21 +525,6 @@ export function ProfilbildScreen({
           Foto aufnehmen
         </Button>
       </ToolSheet>
-      {scene && peek === 'hold' ? (
-        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-          <InstagramPeek {...scene} />
-        </View>
-      ) : null}
-      {scene && peek === 'sticky' ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Instagram-Vorschau schließen"
-          onPress={() => setPeek(null)}
-          style={StyleSheet.absoluteFill}
-        >
-          <InstagramPeek {...scene} />
-        </Pressable>
-      ) : null}
     </SafeAreaView>
   );
 }
@@ -533,7 +536,7 @@ function HeaderAction({
   disabled,
   onPress,
 }: {
-  icon: 'share-outline' | 'download-outline';
+  icon: 'share-social-outline' | 'download-outline';
   label: string;
   busy: boolean;
   disabled: boolean;
