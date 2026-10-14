@@ -1490,9 +1490,12 @@ CREATE TABLE IF NOT EXISTS content_reports (
     resolution   TEXT NULL CHECK (resolution IN ('removed', 'restored', 'dismissed')),
     resolved_by  UUID NULL REFERENCES profiles(id) ON DELETE SET NULL,
     resolved_at  TIMESTAMPTZ NULL,
-    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT uq_content_reports_reporter_target UNIQUE (reporter_id, kind, target_id)
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- One open report per reporter and target; after a resolution they may report again.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_content_reports_open_reporter_target
+    ON content_reports (reporter_id, kind, target_id) WHERE status = 'open';
 
 CREATE INDEX IF NOT EXISTS idx_content_reports_status_created
     ON content_reports (status, created_at DESC);

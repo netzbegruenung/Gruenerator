@@ -2,8 +2,8 @@
  * Stored content reports: what users report, the auto-hide for public studio
  * assets, and the admin queue that resolves reports per target.
  *
- * One row per reporter and target (`uq_content_reports_reporter_target`), so a
- * repeated report is a no-op. Only studio assets carry a target the server
+ * One open row per reporter and target (`uq_content_reports_open_reporter_target`),
+ * so a repeated report is a no-op until the target has been resolved. Only studio assets carry a target the server
  * can act on; for the other kinds an admin action just closes the reports.
  */
 import {
@@ -92,6 +92,7 @@ export async function recordContentReport(
     })
     .onConflictDoNothing({
       target: [contentReports.reporter_id, contentReports.kind, contentReports.target_id],
+      where: sql`status = 'open'`,
     })
     .returning({ id: contentReports.id });
   const stored = inserted.length > 0;
@@ -106,6 +107,7 @@ export async function recordContentReport(
       .where(
         and(
           eq(studioAssets.id, body.targetId),
+          eq(studioAssets.visibility, 'public'),
           eq(studioAssets.moderation, 'ok'),
           notTrashed(studioAssets),
           sql`(SELECT count(DISTINCT cr.reporter_id) FROM content_reports cr
@@ -233,6 +235,8 @@ async function loadStudioAssetTargets(
   );
 }
 
+const NO_OPEN_REPORTS = fail(404, 'Keine offenen Meldungen für diesen Inhalt.');
+
 const ACTION_OUTCOME = {
   remove: { status: 'resolved', resolution: 'removed' },
   restore: { status: 'resolved', resolution: 'restored' },
@@ -251,6 +255,27 @@ export async function resolveReports(
 
   const db = getDrizzleInstance();
   return db.transaction(async (tx) => {
+    const outcome = ACTION_OUTCOME[body.action];
+    const closed = await tx
+      .update(contentReports)
+      .set({
+        status: outcome.status,
+        resolution: outcome.resolution,
+        resolved_by: adminId,
+        resolved_at: new Date(),
+      })
+      .where(
+        and(
+          eq(contentReports.kind, body.kind),
+          eq(contentReports.target_id, body.targetId),
+          eq(contentReports.status, 'open')
+        )
+      )
+      .returning({ id: contentReports.id });
+
+    // A stale or repeated dismiss must not lift a hide it did not decide on.
+    if (body.action === 'dismiss' && closed.length === 0) return NO_OPEN_REPORTS;
+
     let moderation: StudioAssetModeration | null = null;
     if (assetId) {
       if (body.action === 'remove' || body.action === 'restore') {
@@ -279,27 +304,7 @@ export async function resolveReports(
       moderation = row?.moderation ?? null;
     }
 
-    const outcome = ACTION_OUTCOME[body.action];
-    const closed = await tx
-      .update(contentReports)
-      .set({
-        status: outcome.status,
-        resolution: outcome.resolution,
-        resolved_by: adminId,
-        resolved_at: new Date(),
-      })
-      .where(
-        and(
-          eq(contentReports.kind, body.kind),
-          eq(contentReports.target_id, body.targetId),
-          eq(contentReports.status, 'open')
-        )
-      )
-      .returning({ id: contentReports.id });
-
-    if (closed.length === 0 && moderation === null) {
-      return fail(404, 'Keine offenen Meldungen für diesen Inhalt.');
-    }
+    if (closed.length === 0 && moderation === null) return NO_OPEN_REPORTS;
     return { ok: true as const, value: { resolved: closed.length, moderation } };
   });
 }

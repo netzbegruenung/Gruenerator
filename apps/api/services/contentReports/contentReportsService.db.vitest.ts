@@ -303,6 +303,32 @@ describe.skipIf(!url)('Meldungen (contentReportsService)', () => {
     expect(await moderationOf(asset)).toBe('ok');
   });
 
+  it('the same reporter can report again once the earlier report is dismissed', async () => {
+    const asset = await insertAsset();
+    await reportBy(1, asset);
+    await resolveReports(admin, { kind: 'studio_asset', targetId: asset, action: 'dismiss' });
+    const again = await recordContentReport(reporters[0]!, report(asset, { reason: 'illegal' }));
+    expect(again).toEqual({ ok: true, value: { stored: true, hidden: false } });
+    const repeat = await recordContentReport(reporters[0]!, report(asset));
+    expect(repeat).toEqual({ ok: true, value: { stored: false, hidden: false } });
+    const rows = await pool.query('SELECT status, reason FROM content_reports ORDER BY created_at');
+    expect(rows.rows).toEqual([
+      { status: 'dismissed', reason: 'offensive' },
+      { status: 'open', reason: 'illegal' },
+    ]);
+  });
+
+  it('a stale dismiss without open reports leaves a hidden asset hidden', async () => {
+    const asset = await insertAsset();
+    await reportBy(3, asset);
+    await resolveReports(admin, { kind: 'studio_asset', targetId: asset, action: 'remove' });
+    await pool.query("UPDATE studio_assets SET moderation = 'hidden' WHERE id = $1", [asset]);
+    expect(
+      await resolveReports(admin, { kind: 'studio_asset', targetId: asset, action: 'dismiss' })
+    ).toMatchObject({ ok: false, status: 404 });
+    expect(await moderationOf(asset)).toBe('hidden');
+  });
+
   it('other kinds: remove and dismiss close the reports, restore is refused', async () => {
     await recordContentReport(reporters[0]!, {
       kind: 'chat_message',
