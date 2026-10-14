@@ -54,6 +54,11 @@ const Toaster = ({ theme = 'light', ...props }: ToasterProps) => {
       }}
       style={
         {
+          // Ein modaler Radix-Dialog setzt `pointer-events: none` an den
+          // `<body>`, und sonner setzt nichts dagegen — der Toaster erbt es,
+          // Schließen-Knopf, Aktionen, Hover-Pause und Wischen sind dann tot.
+          // Dass der Klick den Dialog nicht schließt, regelt `isToastEvent`.
+          pointerEvents: 'auto',
           // `--popover`, `--popover-foreground` und `--border` sind in dieser
           // App nirgends definiert — es greift also immer der Rückfall, und der
           // muss eine FARBE sein. `--border-subtle` ist eine Kurzschreibweise
