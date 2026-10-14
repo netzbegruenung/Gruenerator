@@ -220,6 +220,12 @@
       "import": "./dist/groups/index.js",
       "default": "./dist/groups/index.js"
     },
+    "./studio-assets": {
+      "development": "./src/studio-assets/index.ts",
+      "types": "./src/studio-assets/index.ts",
+      "import": "./dist/studio-assets/index.js",
+      "default": "./dist/studio-assets/index.js"
+    },
     "./reactions": {
       "development": "./src/reactions/index.ts",
       "types": "./src/reactions/index.ts",

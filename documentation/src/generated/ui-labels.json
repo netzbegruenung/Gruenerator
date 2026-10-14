@@ -59,6 +59,11 @@
     "subtitle": "Fotos & Scans in Text umwandeln",
     "path": "/scanner"
   },
+  "catalog.tool-sticker": {
+    "title": "Sticker & Hintergründe",
+    "subtitle": "Sticker und Hintergründe erstellen, teilen und entdecken",
+    "path": "/studio/sticker"
+  },
   "catalog.tool-studio": {
     "title": "Studio",
     "subtitle": "Sharepics, KI-Bilder & Videos",
@@ -267,6 +272,11 @@
   "workplace.sheets": {
     "title": "Leere Tabelle",
     "subtitle": "Leere Kalkulationstabelle"
+  },
+  "workplace.sticker": {
+    "title": "Sticker & Hintergründe",
+    "subtitle": "Sticker erstellen, teilen & entdecken",
+    "path": "/studio/sticker"
   },
   "workplace.studio-voice": {
     "title": "Voice",
