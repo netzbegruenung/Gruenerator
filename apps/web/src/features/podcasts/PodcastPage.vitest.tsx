@@ -144,7 +144,13 @@ describe('PodcastPage', () => {
         return HttpResponse.json({ success: true });
       })
     );
-    const { user } = renderPage(base);
+    const { user, queryClient } = renderPage(base);
+    // The page redirects to the canonical slug and refetches under it. With the
+    // test client's gcTime 0 the handed-over cache entry is collected first, so
+    // the page remounts from its loading state when that refetch lands — a click
+    // before then opens a dialog that is gone a moment later.
+    await vi.waitFor(() => expect(screen.getByTestId('path')).toHaveTextContent('kxq7pm'));
+    await vi.waitFor(() => expect(queryClient.isFetching()).toBe(0));
 
     await user.click(await screen.findByRole('button', { name: /Löschen/ }));
     await user.click(await screen.findByRole('button', { name: 'Löschen' }));
