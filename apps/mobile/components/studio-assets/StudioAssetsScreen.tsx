@@ -11,7 +11,7 @@ import {
   useStudioAssets,
 } from '@gruenerator/shared/studio-assets';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -184,6 +184,22 @@ export function StudioAssetsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <Stack.Screen
+        options={{
+          headerRight: () => (
+            <Pressable
+              onPress={() => router.push('/(focused)/sticker-neu')}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Sticker erstellen"
+              style={styles.create}
+            >
+              <Ionicons name="add" size={20} color={theme.textGreen} />
+              <Text style={[styles.createText, { color: theme.textGreen }]}>Erstellen</Text>
+            </Pressable>
+          ),
+        }}
+      />
       <View style={styles.controls}>
         <SegmentedControl
           accessibilityLabel="Art"
@@ -275,6 +291,8 @@ export function StudioAssetsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  create: { flexDirection: 'row', alignItems: 'center', gap: spacing.xxsmall, minHeight: 44 },
+  createText: { ...typography.bodyBold },
   controls: {
     width: '100%',
     maxWidth: GRID_MAX_WIDTH,

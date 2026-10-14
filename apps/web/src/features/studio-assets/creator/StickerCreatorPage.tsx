@@ -1,5 +1,10 @@
 import { type StudioAssetItem, type StudioAssetSource } from '@gruenerator/contracts';
 import {
+  STICKER_CREATOR_MODES,
+  STICKER_CREATOR_STEPS,
+  stickerCreatorModeTitle,
+} from '@gruenerator/shared/stickers';
+import {
   assetFormBody,
   emptyAssetForm,
   isAssetFormComplete,
@@ -32,41 +37,23 @@ const UPLOAD_ERROR = 'Das Hochladen hat nicht geklappt. Bitte versuche es erneut
 type Step = 'mode' | 'design' | 'save' | 'done';
 type ReturnTo = 'profilbild' | 'canvas' | null;
 
-const STEPS = [
-  { key: 'mode', label: 'Art wählen' },
-  { key: 'design', label: 'Gestalten' },
-  { key: 'save', label: 'Speichern' },
-] as const;
-
-const MODES: { id: StudioAssetSource; title: string; text: string; icon: ReactNode }[] = [
-  {
-    id: 'upload',
-    title: 'Bild hochladen',
-    text: 'Du hast schon ein PNG oder WebP mit transparentem Hintergrund.',
-    icon: <PiImageSquare aria-hidden="true" className="size-7" />,
-  },
-  {
-    id: 'cutout',
-    title: 'Foto freistellen',
-    text: 'Aus einem Foto wird ein Sticker mit weißer Kontur – wie ausgeschnitten.',
-    icon: <PiScissors aria-hidden="true" className="size-7" />,
-  },
-  {
-    id: 'badge',
-    title: 'Text-Badge',
-    text: 'Störer, Banner oder Sprechblase mit deinem Text in den Parteifarben.',
-    icon: <PiTextAa aria-hidden="true" className="size-7" />,
-  },
-];
+const MODE_ICONS: Record<StudioAssetSource, ReactNode> = {
+  upload: <PiImageSquare aria-hidden="true" className="size-7" />,
+  cutout: <PiScissors aria-hidden="true" className="size-7" />,
+  badge: <PiTextAa aria-hidden="true" className="size-7" />,
+};
 
 const parseReturn = (raw: string | null): ReturnTo =>
   raw === 'profilbild' || raw === 'canvas' ? raw : null;
 
 function Stepper({ step }: { step: Step }): JSX.Element {
-  const active = step === 'done' ? STEPS.length : STEPS.findIndex((s) => s.key === step);
+  const active =
+    step === 'done'
+      ? STICKER_CREATOR_STEPS.length
+      : STICKER_CREATOR_STEPS.findIndex((s) => s.key === step);
   return (
     <ol aria-label="Fortschritt" className="m-0 flex list-none flex-wrap gap-xs p-0 text-sm">
-      {STEPS.map((s, i) => (
+      {STICKER_CREATOR_STEPS.map((s, i) => (
         <li
           key={s.key}
           aria-current={i === active ? 'step' : undefined}
@@ -99,7 +86,7 @@ function Stepper({ step }: { step: Step }): JSX.Element {
 function ModeCards({ onPick }: { onPick: (mode: StudioAssetSource) => void }): JSX.Element {
   return (
     <ul className="m-0 grid list-none gap-md p-0 sm:grid-cols-3">
-      {MODES.map((m) => (
+      {STICKER_CREATOR_MODES.map((m) => (
         <li key={m.id}>
           <button
             type="button"
@@ -112,7 +99,7 @@ function ModeCards({ onPick }: { onPick: (mode: StudioAssetSource) => void }): J
             )}
           >
             <span className="flex size-14 items-center justify-center rounded-full bg-primary-600/10 text-primary-600 transition-colors group-hover:bg-primary-600 group-hover:text-white dark:text-primary-400">
-              {m.icon}
+              {MODE_ICONS[m.id]}
             </span>
             <span className="text-base font-semibold text-foreground-heading">{m.title}</span>
             <span className="text-sm text-grey-600 dark:text-grey-400">{m.text}</span>
@@ -212,7 +199,7 @@ const StickerCreatorPage = (): JSX.Element => {
 
   const heading = {
     mode: 'Wie soll dein Sticker entstehen?',
-    design: MODES.find((m) => m.id === mode)?.title ?? 'Gestalten',
+    design: mode ? stickerCreatorModeTitle(mode) : 'Gestalten',
     save: 'Speichern',
     done: 'Fertig!',
   }[step];

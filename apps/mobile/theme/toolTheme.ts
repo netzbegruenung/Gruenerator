@@ -64,6 +64,11 @@ const TOOL_THEME: Record<string, ToolThemePair> = {
     light: { tile: '#DFEBD9', icon: '#3D6130', title: '#2F4D25', desc: '#5E7A53' },
     dark: { tile: '#1A2B16', icon: '#8FC27E', title: '#B3DAA5', desc: '#7FA672' },
   },
+  // Web's „Bild erweitern" coral: no web sticker tile to copy, and no mobile tool wears it.
+  sticker: {
+    light: { tile: '#F8E1D8', icon: '#9A4A30', title: '#7A3820', desc: '#8E6252' },
+    dark: { tile: '#2E1B14', icon: '#D69A82', title: '#EBBBA8', desc: '#B08272' },
+  },
 };
 
 const NEUTRAL: ToolThemePair = {
