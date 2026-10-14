@@ -206,6 +206,9 @@ describe.skipIf(!url)('Studio-Shop (studioAssetsService)', () => {
       [me, b]
     );
 
+    const jsonSyntax = await listStudioAssets(me, 'de-DE', query({ q: '"' }));
+    expect(jsonSyntax.items).toEqual([]);
+
     const percent = await listStudioAssets(me, 'de-DE', query({ q: '100%' }));
     expect(percent.items.map((i) => i.id)).toEqual([a]);
 
@@ -272,13 +275,49 @@ describe.skipIf(!url)('Studio-Shop (studioAssetsService)', () => {
 
   it('create stops at the quota', async () => {
     await pool.query(
+      `INSERT INTO shared_media (user_id, share_token, media_type, mime_type, upload_source)
+       SELECT $1, 'quota' || n, 'image', 'image/png', 'studio-asset' FROM generate_series(1, 300) n`,
+      [me]
+    );
+    await pool.query(
       `INSERT INTO studio_assets (user_id, kind, title, media_id, src, width, height, source)
-       SELECT $1, 'sticker', 'x', id, 'x', 64, 64, 'upload' FROM shared_media, generate_series(1, 300)
-       WHERE share_token = $2`,
-      [me, await insertMedia(me)]
+       SELECT $1, 'sticker', 'x', id, 'x', 64, 64, 'upload' FROM shared_media
+       WHERE share_token LIKE 'quota%'`,
+      [me]
     );
     const res = await createStudioAsset(me, createBody(await insertMedia(me)));
-    expect(res).toMatchObject({ ok: false, status: 409 });
+    expect(res).toMatchObject({
+      ok: false,
+      status: 409,
+      message: expect.stringContaining('Limit'),
+    });
+  });
+
+  it('a double submit on one image creates exactly one asset', async () => {
+    const token = await insertMedia(me);
+    const results = await Promise.all([
+      createStudioAsset(me, createBody(token)),
+      createStudioAsset(me, createBody(token)),
+    ]);
+    expect(results.filter((r) => r.ok)).toHaveLength(1);
+    expect(results.find((r) => !r.ok)).toMatchObject({
+      status: 409,
+      message: 'Dieses Bild wird schon verwendet.',
+    });
+    const count = await one<{ n: number }>('SELECT count(*)::int AS n FROM studio_assets');
+    expect(count.n).toBe(1);
+  });
+
+  it('the database refuses a second asset on the same image, trashed or not', async () => {
+    const id = await insertAsset(me, { deleted: true });
+    await expect(
+      pool.query(
+        `INSERT INTO studio_assets (user_id, kind, title, media_id, src, width, height, source)
+         SELECT user_id, kind, title, media_id, src, width, height, source
+         FROM studio_assets WHERE id = $1`,
+        [id]
+      )
+    ).rejects.toMatchObject({ code: '23505' });
   });
 
   it('update to public needs rights and marks the asset as once public', async () => {

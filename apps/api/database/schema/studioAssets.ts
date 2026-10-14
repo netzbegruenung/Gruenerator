@@ -14,6 +14,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 
@@ -51,6 +52,7 @@ export const studioAssets = pgTable(
     index('idx_studio_assets_trashed')
       .on(t.deleted_at)
       .where(sql`${t.deleted_at} IS NOT NULL`),
+    uniqueIndex('uq_studio_assets_media').on(t.media_id),
   ]
 );
 

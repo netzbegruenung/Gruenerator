@@ -21,10 +21,8 @@ import { sharedMedia } from '../../database/schema/media.js';
 import { studioAssets, type StudioAssetRow } from '../../database/schema/studioAssets.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { notTrashed } from '../../database/trash.js';
-import { getFavoritedEntityIdsForUser } from '../entityFavorites/EntityFavoritesService.js';
-import { getLikedEntityIdsForUser } from '../entityLikes/EntityLikesService.js';
 import { buildThumbnailTileUrl, versionFromShareRow } from '../media/thumbnailUrl.js';
-import { isRowId } from '../trash/ownedRowTrash.js';
+import { isRowId, isUniqueViolation } from '../trash/ownedRowTrash.js';
 
 import { trashStudioAssets } from './studioAssetTrash.js';
 
@@ -50,6 +48,7 @@ const fail = <S extends number>(status: S, message: string): StudioAssetFailure<
 });
 
 const NOT_FOUND = fail(404, 'Element nicht gefunden.');
+const MEDIA_IN_USE = fail(409, 'Dieses Bild wird schon verwendet.');
 const RIGHTS_REQUIRED = fail(
   400,
   'Bitte bestätige, dass du die Rechte an dem Bild hast, bevor du es öffentlich teilst.'
@@ -86,6 +85,12 @@ async function selectItems(
       mediaMetadata: sharedMedia.image_metadata,
       authorName: profiles.display_name,
       likesCount: likesCountSql,
+      liked: sql<boolean>`EXISTS (SELECT 1 FROM entity_likes el
+        WHERE el.user_id = ${userId} AND el.entity_type = 'studio_asset'
+          AND el.entity_id = ${studioAssets.id}::text)`,
+      favorited: sql<boolean>`EXISTS (SELECT 1 FROM entity_favorites ef
+        WHERE ef.user_id = ${userId} AND ef.entity_type = 'studio_asset'
+          AND ef.entity_id = ${studioAssets.id}::text)`,
     })
     .from(studioAssets)
     .leftJoin(sharedMedia, and(eq(sharedMedia.id, studioAssets.media_id), notTrashed(sharedMedia)))
@@ -95,15 +100,7 @@ async function selectItems(
     .limit(opts.limit)
     .offset(opts.offset ?? 0);
 
-  if (rows.length === 0) return [];
-  const [liked, favorited] = await Promise.all([
-    getLikedEntityIdsForUser({ userId, entityType: 'studio_asset' }),
-    getFavoritedEntityIdsForUser({ userId, entityType: 'studio_asset' }),
-  ]);
-  const likedSet = new Set(liked);
-  const favoritedSet = new Set(favorited);
-
-  return rows.map((r) => toItem(r, userId, likedSet, favoritedSet));
+  return rows.map((r) => toItem(r, userId));
 }
 
 function toItem(
@@ -114,10 +111,10 @@ function toItem(
     mediaMetadata: unknown;
     authorName: string | null;
     likesCount: number;
+    liked: boolean;
+    favorited: boolean;
   },
-  userId: string,
-  liked: Set<string>,
-  favorited: Set<string>
+  userId: string
 ): StudioAssetItem {
   const a = r.asset;
   return {
@@ -142,8 +139,8 @@ function toItem(
     isOwn: a.user_id === userId,
     authorName: r.authorName?.trim() || null,
     likesCount: Number(r.likesCount) || 0,
-    liked: liked.has(a.id),
-    favorited: favorited.has(a.id),
+    liked: r.liked === true,
+    favorited: r.favorited === true,
     createdAt: a.created_at.toISOString(),
   };
 }
@@ -182,7 +179,8 @@ export async function listStudioAssets(
     conditions.push(
       or(
         sql`${studioAssets.title} ILIKE ${pattern}`,
-        sql`${studioAssets.tags}::text ILIKE ${pattern}`
+        sql`EXISTS (SELECT 1 FROM jsonb_array_elements_text(${studioAssets.tags}) tag
+          WHERE tag ILIKE ${pattern})`
       )!
     );
   }
@@ -244,7 +242,7 @@ export async function createStudioAsset(
     .from(studioAssets)
     .where(eq(studioAssets.media_id, media.id))
     .limit(1);
-  if (used) return fail(409, 'Dieses Bild wird schon verwendet.');
+  if (used) return MEDIA_IN_USE;
 
   const [quota] = await db
     .select({ count: sql<number>`count(*)::int` })
@@ -257,25 +255,32 @@ export async function createStudioAsset(
     );
   }
 
-  const [inserted] = await db
-    .insert(studioAssets)
-    .values({
-      user_id: userId,
-      kind: body.kind,
-      title: body.title,
-      tags: normalizeTags(body.tags),
-      media_id: media.id,
-      src: `/api/share/${media.share_token}/download`,
-      width,
-      height,
-      source: body.source,
-      visibility: body.visibility,
-      was_public: body.visibility === 'public',
-      audience: body.audience,
-    })
-    .returning({ id: studioAssets.id });
+  let insertedId: string | null = null;
+  try {
+    const [inserted] = await db
+      .insert(studioAssets)
+      .values({
+        user_id: userId,
+        kind: body.kind,
+        title: body.title,
+        tags: normalizeTags(body.tags),
+        media_id: media.id,
+        src: `/api/share/${media.share_token}/download`,
+        width,
+        height,
+        source: body.source,
+        visibility: body.visibility,
+        was_public: body.visibility === 'public',
+        audience: body.audience,
+      })
+      .returning({ id: studioAssets.id });
+    insertedId = inserted?.id ?? null;
+  } catch (error) {
+    if (isUniqueViolation(error)) return MEDIA_IN_USE;
+    throw error;
+  }
 
-  const item = inserted ? await getItem(userId, inserted.id) : null;
+  const item = insertedId ? await getItem(userId, insertedId) : null;
   if (!item) throw new Error('studio asset vanished after insert');
   return { ok: true, value: item };
 }

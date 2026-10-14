@@ -76,11 +76,22 @@ describe.each([
   });
 });
 
-it('unlike stays possible without a visibility check', async () => {
-  const res = await call('unlike', { params: { id: ID } });
-  expect(res).toEqual({ status: 200, body: { liked: false, likesCount: 2 } });
-  expect(m.isStudioAssetVisible).not.toHaveBeenCalled();
-});
+it.each([
+  [true, 2],
+  [false, 0],
+])(
+  'unlike always removes the like; the count shows only when visible (%s)',
+  async (visible, likesCount) => {
+    m.isStudioAssetVisible.mockResolvedValue(visible);
+    const res = await call('unlike', { params: { id: ID } });
+    expect(res).toEqual({ status: 200, body: { liked: false, likesCount } });
+    expect(m.unlikeEntity).toHaveBeenCalledWith({
+      userId: 'viewer',
+      entityType: 'studio_asset',
+      entityId: ID,
+    });
+  }
+);
 
 it('list passes the viewer country', async () => {
   m.listStudioAssets.mockResolvedValue({ items: [], hasMore: false });

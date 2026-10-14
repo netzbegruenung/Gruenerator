@@ -30,3 +30,8 @@ CREATE INDEX IF NOT EXISTS idx_studio_assets_shop
 
 CREATE INDEX IF NOT EXISTS idx_studio_assets_trashed
     ON studio_assets (deleted_at) WHERE deleted_at IS NOT NULL;
+
+-- One asset per image, trashed rows included: the purge of one would delete
+-- the file another still shows.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_studio_assets_media
+    ON studio_assets (media_id);

@@ -3,7 +3,8 @@
  *
  * requireAuth and the rate limiters are applied at the /api/studio-assets
  * prefix in routes.ts. Liking and saving check that the caller may see the
- * asset; removing a like or a bookmark does not, so stale ones stay removable.
+ * asset; removing a like or a bookmark does not, so stale ones stay removable
+ * (unlike then reports a count of 0 for an asset the caller cannot see).
  */
 import { studioAssetsContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
@@ -112,7 +113,8 @@ export const studioAssetsContractRouter = s.router(studioAssetsContract, {
         entityType: 'studio_asset',
         entityId: params.id,
       });
-      return { status: 200 as const, body: { liked: false, likesCount: result.count } };
+      const likesCount = (await isStudioAssetVisible(userId, params.id)) ? result.count : 0;
+      return { status: 200 as const, body: { liked: false, likesCount } };
     } catch (error) {
       log.error('[studioAssetsContract.unlike] Error:', error);
       return serverError('Like entfernen fehlgeschlagen.');
