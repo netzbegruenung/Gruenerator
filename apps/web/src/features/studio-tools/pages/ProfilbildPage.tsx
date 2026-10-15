@@ -17,6 +17,7 @@ import {
   type ProfilbildCanvasHandoff,
   type ProfilbildReopen,
 } from '../components/ProfilbildEditor';
+import { RecentProfilbilder } from '../components/RecentProfilbilder';
 import { IMAGE_ACCEPT, ToolProcessing, ToolSpinner } from '../components/ToolUi';
 import { BACKGROUND_REMOVAL_ERROR, useBackgroundRemoval } from '../hooks/useBackgroundRemoval';
 import { loadShareFileDataUrl } from '../hooks/useProfilbildShare';
@@ -207,6 +208,7 @@ const ProfilbildPage = () => {
       bgClassName={getToolGradient('profilbild')}
     >
       <div className="flex flex-col gap-md">
+        {!reopenToken && !cutoutUrl ? <RecentProfilbilder /> : null}
         {reopenToken && reopened.isPending ? (
           <ToolProcessing imageUrl={null} label="Profilbild wird geladen …" />
         ) : reopenToken && reopened.isError ? (

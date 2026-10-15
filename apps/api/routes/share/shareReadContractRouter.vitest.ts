@@ -102,18 +102,29 @@ describe('listMyShares', () => {
 });
 
 describe('recentShares', () => {
-  it('counts the page it hands out, not everything it fetched', async () => {
-    getUserShares.mockResolvedValue(Array.from({ length: 12 }, (_, i) => row(String(i))));
+  it('asks the query for the page instead of slicing a full fetch', async () => {
+    getUserShares.mockResolvedValue(Array.from({ length: 5 }, (_, i) => row(String(i))));
 
     const res = await shareReadContractRouter.recentShares({
       req,
       query: { limit: '5' },
     } as never);
 
+    expect(getUserShares).toHaveBeenLastCalledWith('user-1', 'image', null, 5, null);
     const body = res.body as { shares: unknown[]; count: number; limit: number };
-    expect(body.shares).toHaveLength(5);
     expect(body.count).toBe(5);
     expect(body.limit).toBe(5);
+  });
+
+  it('passes the editor filter through to the query', async () => {
+    getUserShares.mockResolvedValue([]);
+
+    await shareReadContractRouter.recentShares({
+      req,
+      query: { limit: '3', editor: 'profilbild' },
+    } as never);
+
+    expect(getUserShares).toHaveBeenLastCalledWith('user-1', 'image', null, 3, 'profilbild');
   });
 });
 

@@ -62,6 +62,7 @@ const share = vi.hoisted(() => ({
   create: vi.fn(),
   update: vi.fn<(params: SavedUpdate) => Promise<{ shareToken: string }>>(),
   getMyShare: vi.fn(),
+  recentShares: vi.fn(),
   apiGet: vi.fn(),
   upload: vi.fn(),
   uploadShare: vi.fn(),
@@ -75,7 +76,7 @@ vi.mock('@gruenerator/shared/share', () => ({
 vi.mock('@gruenerator/shared/api', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   getContractsClient: () => ({
-    sharesRead: { getMyShare: share.getMyShare },
+    sharesRead: { getMyShare: share.getMyShare, recentShares: share.recentShares },
     studioAssets: { list: share.listAssets, create: share.createAsset },
   }),
 }));
@@ -186,6 +187,54 @@ describe('ProfilbildPage', () => {
     share.apiGet.mockResolvedValue({ data: new Blob(['x'], { type: 'image/png' }) });
     share.upload.mockResolvedValue('/api/share/bg1/download');
     share.listAssets.mockResolvedValue({ status: 200, body: { items: [], hasMore: false } });
+    share.recentShares.mockResolvedValue({ status: 200, body: { shares: [] } });
+  });
+
+  const recent = (token: string, createdAt: string) => ({
+    shareToken: token,
+    createdAt,
+    thumbnailUrl: `/api/thumbs/media/${token}.webp`,
+  });
+
+  it('offers the last saved Profilbilder and reopens one', async () => {
+    share.recentShares.mockResolvedValue({
+      status: 200,
+      body: {
+        shares: [recent('tok-a', '2026-10-14T09:00:00Z'), recent('tok-b', '2026-10-02T09:00:00Z')],
+      },
+    });
+    share.getMyShare.mockResolvedValue({ status: 404, body: { success: false } });
+    renderPage();
+
+    const nav = await screen.findByRole('navigation', { name: 'Deine Profilbilder' });
+    const links = within(nav).getAllByRole('link');
+    expect(links.map((l) => l.getAttribute('aria-label'))).toEqual([
+      'Profilbild vom 14.10. öffnen',
+      'Profilbild vom 02.10. öffnen',
+    ]);
+    expect(share.recentShares).toHaveBeenCalledWith({
+      query: { editor: 'profilbild', limit: '3' },
+    });
+
+    fireEvent.click(links[0]);
+    await waitFor(() =>
+      expect(share.getMyShare).toHaveBeenCalledWith({ params: { shareToken: 'tok-a' } })
+    );
+    expect(screen.queryByRole('navigation', { name: 'Deine Profilbilder' })).toBeNull();
+  });
+
+  it('shows no row without saved Profilbilder or once a photo is in', async () => {
+    renderPage();
+    await waitFor(() => expect(share.recentShares).toHaveBeenCalled());
+    expect(screen.queryByRole('navigation', { name: 'Deine Profilbilder' })).toBeNull();
+
+    share.recentShares.mockResolvedValue({
+      status: 200,
+      body: { shares: [recent('tok-a', '2026-10-14T09:00:00Z')] },
+    });
+    renderHandoff();
+    await screen.findByTestId('konva-stage');
+    expect(screen.queryByRole('navigation', { name: 'Deine Profilbilder' })).toBeNull();
   });
 
   it('saves a download under „Zuletzt“ and updates it on the next one', async () => {

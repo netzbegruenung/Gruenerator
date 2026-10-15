@@ -11,6 +11,7 @@ import { useCallback, useRef } from 'react';
 import apiClient from '../../../components/utils/apiClient';
 import { uploadBlobToMediaLibrary } from '../../image-studio/services/mediaUploadService';
 import { fileToDownscaledDataUrl } from '../../image-studio/utils/downscaleImage';
+import { RECENT_PROFILBILDER_KEY } from '../components/RecentProfilbilder';
 
 export type ProfilbildSaveBackground =
   | Extract<SavedProfilbildBackground, { kind: 'id' | 'free' }>
@@ -89,7 +90,10 @@ export function useProfilbildShare(initialShareToken: string | null) {
         });
         shareToken.current = share.shareToken;
       }
-      await queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['recent-activity'] }),
+        queryClient.invalidateQueries({ queryKey: RECENT_PROFILBILDER_KEY }),
+      ]);
     },
     [createImageShare, updateImageShare, queryClient, storeBackground]
   );

@@ -194,8 +194,13 @@ export const shareReadContractRouter = s.router(sharesReadContract, {
         };
       }
 
-      const allShares = await service.getUserShares(userId, 'image');
-      const recentShares = allShares.slice(0, limit);
+      const recentShares = await service.getUserShares(
+        userId,
+        'image',
+        null,
+        limit,
+        query.editor ?? null
+      );
       // Same contract as listMyShares: `count` is this page, `limit` the cap
       // that produced it.
       return {
