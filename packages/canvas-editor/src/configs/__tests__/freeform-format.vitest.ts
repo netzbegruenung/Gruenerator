@@ -67,7 +67,9 @@ describe('Freeform im Leinwandformat', () => {
       for (const format of CANVAS_FORMATS) {
         const sheet = (await loadCanvasConfig(id, format.id)).canvas;
         const sameAspect = sheet.width * format.height === sheet.height * format.width;
-        expect(templateFitsFormat(id, format.id), format.id).toBe(sameAspect);
+        // Digitale Vorlagen gehören nie auf ein Druckformat, auch nicht im passenden Verhältnis.
+        const fits = format.category === 'digital' && sameAspect;
+        expect(templateFitsFormat(id, format.id), format.id).toBe(fits);
       }
       // Unbekannte und fehlende Ids lösen auf 4:5 auf.
       const fitsDefault = templateFitsFormat(id, 'post-portrait');
