@@ -193,7 +193,7 @@ describe('getLanguages', () => {
     expect(languages).toEqual([
       {
         code: 'de',
-        name: 'German',
+        name: 'Deutsch',
         usableAsSource: true,
         usableAsTarget: true,
         formality: true,
@@ -201,14 +201,21 @@ describe('getLanguages', () => {
       },
       {
         code: 'en-GB',
-        name: 'English (British)',
+        name: 'Englisch (Vereinigtes Königreich)',
         usableAsSource: false,
         usableAsTarget: true,
         formality: false,
         glossary: false,
       },
     ]);
-    expect(setCachedJson).toHaveBeenCalledWith('deepl:languages:v1', languages, 3600);
+    expect(setCachedJson).toHaveBeenCalledWith(
+      'deepl:languages:v1',
+      [
+        expect.objectContaining({ code: 'de', name: 'German' }),
+        expect.objectContaining({ code: 'en-GB', name: 'English (British)' }),
+      ],
+      3600
+    );
   });
 
   it('serves the cache without touching the network', async () => {
@@ -225,6 +232,22 @@ describe('getLanguages', () => {
     const languages = await service.getLanguages();
     expect(fetchMock).not.toHaveBeenCalled();
     expect(languages).toHaveLength(1);
+    expect(languages[0]!.name).toBe('Deutsch');
+  });
+
+  it("keeps DeepL's name for a code ICU cannot name", async () => {
+    getCachedJson.mockResolvedValueOnce([
+      {
+        code: 'xx',
+        name: 'Unknownese',
+        usableAsSource: true,
+        usableAsTarget: true,
+        formality: false,
+        glossary: false,
+      },
+    ]);
+    const languages = await service.getLanguages();
+    expect(languages[0]!.name).toBe('Unknownese');
   });
 
   it('falls back to the stale copy when DeepL is down', async () => {
