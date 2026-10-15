@@ -30,6 +30,7 @@ export const PageWrapper = memo(function PageWrapper({
   callbacks,
   multiPageExport,
   onStateChange,
+  onObservedState,
   onToolbarStateChange,
   onAutoSaveShareToken,
   autoSave,
@@ -44,9 +45,10 @@ export const PageWrapper = memo(function PageWrapper({
       actions: Record<string, unknown>,
       selectedElement: string | null
     ) => {
-      onStateChange(page.id, state, actions, selectedElement);
+      if (isActive) onStateChange(page.id, state, actions, selectedElement);
+      onObservedState?.(page.id, state, actions);
     },
-    [onStateChange, page.id]
+    [onStateChange, onObservedState, isActive, page.id]
   );
 
   // A mouse activates the page on pointer-down (capture), so the page switch —
@@ -137,7 +139,7 @@ export const PageWrapper = memo(function PageWrapper({
           multiPageExport={multiPageExport}
           onToolbarStateChange={onToolbarStateChange}
           onAutoSaveShareToken={onAutoSaveShareToken}
-          onLiveState={isActive ? handleLiveState : undefined}
+          onLiveState={isActive || onObservedState ? handleLiveState : undefined}
           isActivePage={isActive}
           autoSave={autoSave}
           pageBinding={pageBinding}

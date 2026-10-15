@@ -331,6 +331,7 @@ function CollabCanvasStudioContent() {
               key={canvas.id}
               type={canvas.template_type}
               formatId={canvas.format}
+              documentTitle={canvas.title}
               initialState={canvas.initial_state}
               initialPages={initialPages}
               onExport={handleExport}

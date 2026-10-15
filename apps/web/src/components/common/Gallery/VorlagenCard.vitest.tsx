@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -73,5 +73,18 @@ describe('VorlagenCard', () => {
       />
     );
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('shows the neutral placeholder when the thumbnail does not load', () => {
+    const { container } = render(
+      <VorlagenCard
+        item={{ ...item, thumbnail_url: '/vorlagen/print/fehlt.webp' }}
+        onOpen={vi.fn()}
+      />
+    );
+    const img = screen.getByRole('img', { name: 'Dreizeiler' });
+    fireEvent.error(img);
+    expect(screen.queryByRole('img', { name: 'Dreizeiler' })).not.toBeInTheDocument();
+    expect(container.querySelector('svg.lucide-image')).not.toBeNull();
   });
 });

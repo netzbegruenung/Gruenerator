@@ -16,7 +16,8 @@ describe('Freeform im Leinwandformat', () => {
 
   it('kennt 4:5 als Standard, 3:4 und das Profilbild-Quadrat', () => {
     expect(DEFAULT_FORMAT_ID).toBe('post-portrait');
-    expect(CANVAS_FORMATS.map((f) => [f.id, f.width, f.height])).toEqual([
+    const digital = CANVAS_FORMATS.filter((f) => f.category === 'digital');
+    expect(digital.map((f) => [f.id, f.width, f.height])).toEqual([
       ['post-portrait', 1080, 1350],
       ['post-portrait-tall', 1080, 1440],
       ['profile-square', 1080, 1080],
@@ -66,7 +67,11 @@ describe('Freeform im Leinwandformat', () => {
       for (const format of CANVAS_FORMATS) {
         const sheet = (await loadCanvasConfig(id, format.id)).canvas;
         const sameAspect = sheet.width * format.height === sheet.height * format.width;
-        expect(templateFitsFormat(id, format.id), format.id).toBe(sameAspect);
+        // Auf ein Druckformat passt nur die leere Freeform-Seite.
+        const fits =
+          format.category === 'digital' ? sameAspect : id === 'freeform' || id === 'freeform-at';
+        if (fits) expect(sameAspect, format.id).toBe(true);
+        expect(templateFitsFormat(id, format.id), format.id).toBe(fits);
       }
       // Unbekannte und fehlende Ids lösen auf 4:5 auf.
       const fitsDefault = templateFitsFormat(id, 'post-portrait');
