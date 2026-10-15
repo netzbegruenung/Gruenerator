@@ -4,6 +4,16 @@ import {
   TRANSLATION_DOCUMENT_EXTENSIONS,
   TRANSLATION_DOCUMENT_MAX_BYTES,
 } from '@gruenerator/contracts';
+import {
+  AUTO,
+  defaultTarget,
+  glossaryTargets,
+  initialRecent,
+  NF,
+  pushRecent,
+  sourceOptions,
+  targetOptions,
+} from '@gruenerator/shared/translation';
 import { Alert, AlertDescription, Button } from '@gruenerator/ui';
 import { useId, useState, type DragEvent } from 'react';
 import { PiDownloadSimple, PiFileText, PiUploadSimple } from 'react-icons/pi';
@@ -16,16 +26,6 @@ import {
 
 import { FormalityMenu } from './FormalityMenu';
 import { LanguageBar } from './LanguageBar';
-import {
-  AUTO,
-  defaultTarget,
-  glossaryTargets,
-  initialRecent,
-  NF,
-  pushRecent,
-  sourceOptions,
-  targetOptions,
-} from './languageOptions';
 
 import { TreeBudgetChip } from '@/components/common/TreeBudgetLine';
 import { cn } from '@/utils/cn';

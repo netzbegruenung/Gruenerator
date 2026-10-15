@@ -154,6 +154,18 @@
       "import": "./dist/stickers/index.js",
       "default": "./dist/stickers/index.js"
     },
+    "./links": {
+      "development": "./src/links.ts",
+      "types": "./src/links.ts",
+      "import": "./dist/links.js",
+      "default": "./dist/links.js"
+    },
+    "./translation": {
+      "development": "./src/translation/index.ts",
+      "types": "./src/translation/index.ts",
+      "import": "./dist/translation/index.js",
+      "default": "./dist/translation/index.js"
+    },
     "./profilbild": {
       "development": "./src/profilbild/index.ts",
       "types": "./src/profilbild/index.ts",
