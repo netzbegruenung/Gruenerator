@@ -26,6 +26,7 @@ import {
 import { secureStorage } from '../../services/storage';
 import { colors, spacing, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 import { CONTENT_MAX_WIDTH } from '../../theme/layout';
+import { Fab } from '../common/Fab';
 import { SkeletonBar, SkeletonGroup } from '../common/Skeleton';
 
 interface ProjectListProps {
@@ -208,20 +209,6 @@ export function ProjectList({
     </SkeletonGroup>
   );
 
-  const renderHeader = () => (
-    <View style={styles.header}>
-      <Text style={[styles.headerTitle, { color: theme.text }]}>Meine Reels</Text>
-      <TouchableOpacity
-        style={[styles.newButton, { backgroundColor: colors.secondary[600] }]}
-        onPress={onNewReel}
-        accessibilityRole="button"
-      >
-        <Ionicons name="add" size={18} color="#fff" />
-        <Text style={styles.newButtonText}>Neu</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
   const renderFooter = () => {
     if (projects.length === 0) return null;
 
@@ -256,7 +243,6 @@ export function ProjectList({
 
   return (
     <View style={styles.container}>
-      {renderHeader()}
       <FlatList
         data={loading ? [] : projects}
         renderItem={renderProject}
@@ -275,6 +261,12 @@ export function ProjectList({
         }
         showsVerticalScrollIndicator={false}
       />
+      <Fab
+        icon="add"
+        accessibilityLabel="Neues Reel"
+        onPress={onNewReel}
+        style={{ backgroundColor: colors.secondary[600] }}
+      />
     </View>
   );
 }
@@ -283,35 +275,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing.large,
-    paddingVertical: spacing.medium,
-  },
-  headerTitle: {
-    fontFamily: BODY_FONT,
-    fontSize: 24,
-    fontWeight: '700',
-  },
-  newButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 40,
-    paddingHorizontal: spacing.medium,
-    borderRadius: 999,
-    gap: 4,
-  },
-  newButtonText: {
-    color: '#fff',
-    fontFamily: BODY_FONT,
-    fontSize: 14,
-    fontWeight: '600',
-  },
   listContent: {
     paddingHorizontal: spacing.large,
-    paddingBottom: spacing.large,
+    paddingTop: spacing.medium,
+    // Clear of the FAB.
+    paddingBottom: 96,
   },
   emptyListContent: {
     flexGrow: 1,
