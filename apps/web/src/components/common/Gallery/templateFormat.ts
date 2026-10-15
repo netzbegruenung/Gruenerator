@@ -44,7 +44,12 @@ const TYPE_PRESETS: Record<string, FormatPreset> = {
   profilbild: { ratioLabel: '1:1', typeLabel: 'Profilbild' },
   // Native Grünerator sharepic templates default to the post-portrait ratio.
   gruenerator: { ratioLabel: '4:5', typeLabel: 'Sharepic' },
+  // The Grünerator's print Vorlagen; the trim size comes from the blueprint.
+  print: { ratioLabel: 'Druck', typeLabel: 'Print' },
 };
+
+/** Types that open in the in-app editor and carry their canvas format. */
+const NATIVE_TYPES = new Set(['gruenerator', 'print']);
 
 const DEFAULT_PRESET: FormatPreset = {
   ratioLabel: '1:1',
@@ -85,19 +90,20 @@ const TAG_OVERRIDES: Array<{ match: string[]; ratioLabel: string }> = [
 
 const gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : a);
 
-/** A native Vorlage carries its canvas format in the blueprint, e.g. 3:4. */
+/** A native Vorlage carries its canvas format in the blueprint, e.g. 3:4 or 85 × 55 mm. */
 const blueprintRatio = (item: FormatSource): string | null => {
-  if (item.template_type !== 'gruenerator') return null;
+  if (!NATIVE_TYPES.has(item.template_type ?? '')) return null;
   const id = (item.content_data as { format?: unknown } | undefined)?.format;
   const format = typeof id === 'string' ? getCanvasFormat(id) : null;
   if (!format) return null;
+  if (format.print) return `${format.print.trimMm.w} × ${format.print.trimMm.h} mm`;
   const d = gcd(format.width, format.height);
   return `${format.width / d}:${format.height / d}`;
 };
 
 const deriveTool = (item: FormatSource): TemplateFormat['tool'] => {
   // Native Grünerator-Vorlagen open in the in-app editor — not an external tool.
-  if (item.template_type === 'gruenerator') return 'Grünerator';
+  if (NATIVE_TYPES.has(item.template_type ?? '')) return 'Grünerator';
 
   const url =
     (item.content_data as { originalUrl?: string } | undefined)?.originalUrl ||

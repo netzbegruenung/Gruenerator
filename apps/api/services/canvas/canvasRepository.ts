@@ -23,6 +23,7 @@ import {
   type DocumentAccessSubject,
 } from '../../routes/docs/documentAccess.js';
 import { type DocumentPermissions } from '../../routes/docs/types.js';
+import { crossesFormatCategory } from '../../routes/exports/pageConstants.js';
 import { likeContainsPattern } from '../../utils/sqlLike.js';
 import {
   trashCollaborativeDocument,
@@ -362,15 +363,30 @@ export async function checkCanvasWriteAccess(id: string, userId: string): Promis
   return { kind: 'ok' };
 }
 
+/**
+ * Would setting `format` move this canvas between digital and print? The
+ * same invariant as resize. Caller must have checked write access.
+ */
+export async function formatChangeCrossesCategory(id: string, format: string): Promise<boolean> {
+  const rows = (await db.query('SELECT format FROM canvas_documents WHERE document_id = $1', [
+    id,
+  ])) as Array<{ format: string | null }>;
+  return crossesFormatCategory(rows[0]?.format ?? null, format);
+}
+
 export async function updateCanvas(
   id: string,
   userId: string,
   patch: UpdateCanvasInput
-): Promise<MutationResult> {
+): Promise<MutationResult | { kind: 'category_mismatch' }> {
   const access = await checkCanvasWriteAccess(id, userId);
   if (access.kind !== 'ok') return access;
 
   const { title, thumbnail_url, page_count, format } = patch;
+
+  if (format !== undefined && (await formatChangeCrossesCategory(id, format))) {
+    return { kind: 'category_mismatch' };
+  }
 
   let replacedThumbnailUrl: string | null = null;
   if (thumbnail_url !== undefined) {
@@ -461,10 +477,16 @@ export async function deleteCanvas(id: string, userId: string): Promise<Mutation
 // ── Resize (duplicate-with-format) ───────────────────────────────────────────
 
 type ResizeResult =
-  { kind: 'ok'; newCanvasId: string } | { kind: 'not_found' } | { kind: 'forbidden' };
+  | { kind: 'ok'; newCanvasId: string }
+  | { kind: 'not_found' }
+  | { kind: 'forbidden' }
+  | { kind: 'category_mismatch' };
 
 type CanvasResizeSourceRow = Pick<CollabRow, 'id' | 'title' | 'created_by'> &
-  Pick<SidecarRow, 'template_type' | 'base_template_id' | 'page_count' | 'initial_state'>;
+  Pick<
+    SidecarRow,
+    'template_type' | 'base_template_id' | 'page_count' | 'initial_state' | 'format'
+  >;
 
 /** Caller must validate `formatId` (e.g. `getServerFormat`) before calling. */
 export async function resizeCanvas(
@@ -475,7 +497,8 @@ export async function resizeCanvas(
 ): Promise<ResizeResult> {
   const sourceRows = (await db.query(
     `SELECT cd.id, cd.title, cd.created_by,
-            cdoc.template_type, cdoc.base_template_id, cdoc.page_count, cdoc.initial_state
+            cdoc.template_type, cdoc.base_template_id, cdoc.page_count, cdoc.initial_state,
+            cdoc.format
      FROM collaborative_documents cd
      INNER JOIN canvas_documents cdoc ON cdoc.document_id = cd.id
      WHERE cd.id = $1 AND cd.document_subtype = $2 AND cd.is_deleted = false`,
@@ -494,6 +517,11 @@ export async function resizeCanvas(
     [id, CANVAS_SUBTYPE, userId]
   )) as Array<unknown>;
   if (accessRows.length === 0) return { kind: 'forbidden' };
+
+  // A print sheet is measured in mm with bleed; a digital one is not.
+  if (crossesFormatCategory(source.format, formatId)) {
+    return { kind: 'category_mismatch' };
+  }
 
   const newTitle = titleOverride ?? `${source.title} (${formatId})`;
 

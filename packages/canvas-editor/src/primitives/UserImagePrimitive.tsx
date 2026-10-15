@@ -12,7 +12,7 @@ import { Image, Group, Rect, Transformer } from 'react-konva';
 import { getActiveImageFilters, hasActiveImageFilters } from '../utils/imageFilters';
 import { useTrackPendingImage } from '../utils/pendingImages';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
-import { coverCrop, type UserImageInstance } from '../utils/userImageUtils';
+import { coverCrop, USER_PHOTO_NODE_NAME, type UserImageInstance } from '../utils/userImageUtils';
 
 import type Konva from 'konva';
 
@@ -145,6 +145,7 @@ function UserImagePrimitiveInner({
       >
         <Image
           ref={imageRef}
+          name={USER_PHOTO_NODE_NAME}
           image={image}
           width={width}
           height={height}
