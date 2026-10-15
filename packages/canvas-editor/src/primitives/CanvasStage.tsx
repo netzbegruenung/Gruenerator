@@ -22,6 +22,7 @@ import { CanvasTextEditorProvider } from '../components/CanvasTextOverlay';
 import { useHoverOutline } from '../hooks/useHoverOutline';
 import { withSelectionChromeHidden } from '../utils/captureStage';
 import { cn } from '../utils/cn';
+import { BACKGROUND_IMAGE_NODE_ID, printImageInfo } from '../utils/printImageInfo';
 import { MOUSE_DRAG_DISTANCE, TOUCH_DRAG_DISTANCE } from '../utils/touchInput';
 import { USER_PHOTO_NODE_NAME } from '../utils/userImageUtils';
 
@@ -342,14 +343,13 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
     const getPrintImages = useCallback((): PrintImageInfo[] => {
       const stage = displayStageRef.current;
       if (!stage) return [];
-      return stage.find<Konva.Image>(`.${USER_PHOTO_NODE_NAME}`).flatMap((node) => {
-        const source = node.image();
-        if (!source) return [];
-        const crop = node.crop();
-        const naturalWidthPx = crop?.width ?? (source as HTMLImageElement).naturalWidth;
-        const displayedWidthPx =
-          (node.width() * Math.abs(node.getAbsoluteScale().x)) / displayScale;
-        return [{ naturalWidthPx, displayedWidthPx }];
+      const nodes = [
+        ...stage.find<Konva.Image>(`.${USER_PHOTO_NODE_NAME}`),
+        ...stage.find<Konva.Image>(`#${BACKGROUND_IMAGE_NODE_ID}`),
+      ];
+      return nodes.flatMap((node) => {
+        const info = printImageInfo(node, displayScale);
+        return info ? [info] : [];
       });
     }, [displayScale]);
 
