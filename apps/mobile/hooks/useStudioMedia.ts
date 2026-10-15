@@ -53,9 +53,10 @@ const sharesQuery = {
  * fetch serves both. `/share/recent` has no type filter, so a Profilbild older
  * than the last twenty shares of any kind drops out (#4599).
  */
-export function useRecentProfilbilder(): RecentItem[] {
-  const { data } = useQuery(sharesQuery);
-  return useMemo(() => toProfilbildItems(data ?? []), [data]);
+export function useRecentProfilbilder(): { items: RecentItem[]; isPending: boolean } {
+  const { data, isPending } = useQuery(sharesQuery);
+  const items = useMemo(() => toProfilbildItems(data ?? []), [data]);
+  return { items, isPending };
 }
 
 export interface StudioMedia {

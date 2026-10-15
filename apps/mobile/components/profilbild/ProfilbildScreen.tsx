@@ -30,6 +30,7 @@ import {
   useProfilbildShare,
   type ProfilbildReopen,
 } from '../../hooks/profilbild/useProfilbildShare';
+import { useRecentProfilbilder } from '../../hooks/useStudioMedia';
 import { useTheme } from '../../hooks/useTheme';
 import {
   pickImageForEditor,
@@ -49,10 +50,10 @@ import { PhotoStage } from './PhotoStage';
 import { InstagramPeek, PreviewFrame } from './PreviewFrame';
 import { ProfilbildEditor } from './ProfilbildEditor';
 import { nextStickerUid } from './profilbildGestures';
+import { ProfilbildLibrary } from './ProfilbildLibrary';
 import { exportProfilbildBase64 } from './ProfilbildScene';
 import { ProfilbildToolbar, ToolSheet, type ProfilbildTool } from './ProfilbildToolbar';
 import { RecentPhotos } from './RecentPhotos';
-import { RecentProfilbilder } from './RecentProfilbilder';
 import {
   initialModel,
   newSticker,
@@ -272,6 +273,10 @@ export function ProfilbildScreen({
   // A gallery deep link waits here until the photo (and a reopened state) is in;
   // a later link (back from the sticker creator) queues its asset again.
   const [pendingAsset, setPendingAsset] = useState(galleryAsset);
+  // With saved Profilbilder the screen opens on them; „Neu" (or a handed-in
+  // share or sticker) goes straight to the editor.
+  const saved = useRecentProfilbilder();
+  const [creating, setCreating] = useState(false);
   const [linkedAssetId, setLinkedAssetId] = useState(galleryAsset?.id ?? null);
   const [landingAsset, setLandingAsset] = useState<GalleryAsset | null>(null);
   if ((galleryAsset?.id ?? null) !== linkedAssetId) {
@@ -353,6 +358,14 @@ export function ProfilbildScreen({
           isAustria,
         }
       : null;
+  const libraryCandidate =
+    !creating && !shareToken && !galleryAsset && !scene && state.status === 'idle';
+  const library =
+    libraryCandidate && saved.isPending
+      ? 'pending'
+      : libraryCandidate && saved.items.length > 0
+        ? 'list'
+        : null;
 
   const addSticker = (sticker: ProfilbildSticker) => {
     if (scene) placeSticker(sticker, scene.images[sticker.src]);
@@ -429,96 +442,113 @@ export function ProfilbildScreen({
             ) : null,
         }}
       />
-      <View style={styles.main}>
-        <View>
-          {scene ? (
-            <PreviewFrame viewSize={viewSize}>
-              <ProfilbildEditor
-                {...scene}
-                onChange={setModel}
-                viewSize={viewSize}
-                selected={selected}
-                onSelect={setSelected}
-                onPeek={(on) => setPeek((p) => (on ? 'hold' : p === 'hold' ? null : p))}
-              />
-            </PreviewFrame>
-          ) : state.status === 'ready' ? (
+      {library ? (
+        <View style={styles.main}>
+          {library === 'pending' ? (
             <SkeletonGroup>
               <SkeletonBar width={viewSize} height={viewSize} radius={0} />
             </SkeletonGroup>
           ) : (
-            <PhotoStage
-              size={viewSize}
-              state={state}
-              background={background}
-              images={pickerImages}
-              isAustria={isAustria}
-              pendingHint={
-                pendingAsset && !shareToken
-                  ? `Wähle zuerst ein Foto – dann setzen wir ${galleryTarget(pendingAsset)} ein.`
-                  : null
-              }
-              onRetry={retry}
-              onReset={reset}
+            <ProfilbildLibrary
+              items={saved.items}
+              width={viewSize}
+              onNew={() => setCreating(true)}
             />
           )}
-          {status ? (
-            <View
-              accessible
-              accessibilityLiveRegion="polite"
-              accessibilityLabel={status.label}
-              style={styles.badge}
+        </View>
+      ) : (
+        <View style={styles.main}>
+          <View>
+            {scene ? (
+              <PreviewFrame viewSize={viewSize}>
+                <ProfilbildEditor
+                  {...scene}
+                  onChange={setModel}
+                  viewSize={viewSize}
+                  selected={selected}
+                  onSelect={setSelected}
+                  onPeek={(on) => setPeek((p) => (on ? 'hold' : p === 'hold' ? null : p))}
+                />
+              </PreviewFrame>
+            ) : state.status === 'ready' ? (
+              <SkeletonGroup>
+                <SkeletonBar width={viewSize} height={viewSize} radius={0} />
+              </SkeletonGroup>
+            ) : (
+              <PhotoStage
+                size={viewSize}
+                state={state}
+                background={background}
+                images={pickerImages}
+                isAustria={isAustria}
+                pendingHint={
+                  pendingAsset && !shareToken
+                    ? `Wähle zuerst ein Foto – dann setzen wir ${galleryTarget(pendingAsset)} ein.`
+                    : null
+                }
+                onRetry={retry}
+                onReset={reset}
+              />
+            )}
+            {status ? (
+              <View
+                accessible
+                accessibilityLiveRegion="polite"
+                accessibilityLabel={status.label}
+                style={styles.badge}
+              >
+                <Text style={styles.badgeText}>{status.text}</Text>
+              </View>
+            ) : null}
+          </View>
+          {scene ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Instagram-Vorschau zeigen"
+              accessibilityHint="Oder das Bild gedrückt halten"
+              hitSlop={8}
+              onPress={() => setPeek('sticky')}
+              style={styles.hint}
             >
-              <Text style={styles.badgeText}>{status.text}</Text>
+              <Ionicons name="logo-instagram" size={16} color={theme.textSecondary} />
+              <Text style={[styles.hintText, { color: theme.textSecondary }]}>
+                Gedrückt halten: Instagram-Vorschau
+              </Text>
+            </Pressable>
+          ) : null}
+          {!scene && state.status === 'idle' ? (
+            <RecentPhotos
+              width={viewSize}
+              onPhoto={(uri) => pick(() => prepareUploadFromUri(uri))}
+              onCamera={() => pick(takePhotoForEditor)}
+              onLibrary={() => pick(pickImageForEditor)}
+            />
+          ) : null}
+          {/* Over the stage area only: the header and the toolbar stay in place. */}
+          {scene && peek === 'hold' ? (
+            <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+              <InstagramPeek {...scene} />
             </View>
           ) : null}
+          {scene && peek === 'sticky' ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Instagram-Vorschau schließen"
+              onPress={() => setPeek(null)}
+              style={StyleSheet.absoluteFill}
+            >
+              <InstagramPeek {...scene} />
+            </Pressable>
+          ) : null}
         </View>
-        {scene ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Instagram-Vorschau zeigen"
-            accessibilityHint="Oder das Bild gedrückt halten"
-            hitSlop={8}
-            onPress={() => setPeek('sticky')}
-            style={styles.hint}
-          >
-            <Ionicons name="logo-instagram" size={16} color={theme.textSecondary} />
-            <Text style={[styles.hintText, { color: theme.textSecondary }]}>
-              Gedrückt halten: Instagram-Vorschau
-            </Text>
-          </Pressable>
-        ) : null}
-        {!scene && state.status === 'idle' ? <RecentProfilbilder width={viewSize} /> : null}
-        {!scene && state.status === 'idle' ? (
-          <RecentPhotos
-            width={viewSize}
-            onPhoto={(uri) => pick(() => prepareUploadFromUri(uri))}
-            onCamera={() => pick(takePhotoForEditor)}
-            onLibrary={() => pick(pickImageForEditor)}
-          />
-        ) : null}
-        {/* Over the stage area only: the header and the toolbar stay in place. */}
-        {scene && peek === 'hold' ? (
-          <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-            <InstagramPeek {...scene} />
-          </View>
-        ) : null}
-        {scene && peek === 'sticky' ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Instagram-Vorschau schließen"
-            onPress={() => setPeek(null)}
-            style={StyleSheet.absoluteFill}
-          >
-            <InstagramPeek {...scene} />
-          </Pressable>
-        ) : null}
-      </View>
-      <ProfilbildToolbar
-        active={tool}
-        disabled={scene ? [] : ['sticker', 'foto']}
-        onOpen={(t) => setTool((open) => (open === t ? null : t))}
-      />
+      )}
+      {library ? null : (
+        <ProfilbildToolbar
+          active={tool}
+          disabled={scene ? [] : ['sticker', 'foto']}
+          onOpen={(t) => setTool((open) => (open === t ? null : t))}
+        />
+      )}
       <ToolSheet title="Hintergrund" visible={tool === 'hintergrund'} onClose={() => setTool(null)}>
         {backgroundPicker}
       </ToolSheet>
