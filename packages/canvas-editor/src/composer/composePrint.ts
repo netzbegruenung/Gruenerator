@@ -257,7 +257,46 @@ function withAccent(headline: string, akzent: string | undefined): string {
   return headline.replace(word, `==${word}==`);
 }
 
-function impressumText(impressum: PrintImpressum): string {
+/**
+ * The poster's V.i.S.d.P. / Impressum line: PT Sans / Gotham Book 8 pt (DE
+ * guide p. 10: 10 pt only above A3), turned to read bottom-up, centred in the
+ * left margin, starting half a margin above the trim bottom. Rotation turns
+ * around x/y, the text's top-left.
+ */
+function impressumElement(f: Frame, text: string): AdditionalText {
+  const { trim, theme } = f;
+  const size = f.pt(8);
+  const lineHeight = 1.2;
+  return {
+    id: PRINT_IMPRESSUM_ID,
+    text,
+    type: 'body',
+    x: trim.x + f.margin / 2 - (size * lineHeight) / 2,
+    y: trim.y + trim.height - f.margin / 2,
+    width: trim.height - f.margin,
+    fontSize: size,
+    fontFamily: theme.fonts.body,
+    fontStyle: 'normal',
+    fill: WHITE,
+    lineHeight,
+    rotation: -90,
+  };
+}
+
+/** The impressum element of a poster in `formatId`, at its standard position (for re-adding a deleted one). */
+export function composePrintImpressum(
+  formatId: PrintFormatId,
+  isAt: boolean,
+  text: string
+): AdditionalText {
+  const format = getCanvasFormat(formatId);
+  if (!format || !isPrintFormat(format)) {
+    throw new Error(`composePrintImpressum: ${formatId} is not a print format`);
+  }
+  return impressumElement(frame(format, isAt, defaultMeasure), text);
+}
+
+export function impressumText(impressum: PrintImpressum): string {
   return impressum.art === 'visdp'
     ? `V.i.S.d.P.: ${impressum.name}, ${impressum.anschrift}`
     : `Impressum: ${impressum.medieninhaber}, ${impressum.anschrift}`;
@@ -633,26 +672,6 @@ function typo(f: Frame, slots: PrintTypoSlots, impressum: PrintImpressum | null)
     Math.max(logoW, logoH)
   );
 
-  if (impressum) {
-    // PT Sans / Gotham Book 8 pt (DE guide p. 10: 10 pt only above A3), turned
-    // to read bottom-up, centred in the left margin, starting half a margin
-    // above the trim bottom. Rotation turns around x/y, the text's top-left.
-    const size = f.pt(8);
-    const lineHeight = 1.2;
-    p.text({
-      id: PRINT_IMPRESSUM_ID,
-      text: impressumText(impressum),
-      type: 'body',
-      x: trim.x + f.margin / 2 - (size * lineHeight) / 2,
-      y: trim.y + trim.height - f.margin / 2,
-      width: trim.height - f.margin,
-      fontSize: size,
-      fontFamily: theme.fonts.body,
-      fontStyle: 'normal',
-      fill: WHITE,
-      lineHeight,
-      rotation: -90,
-    });
-  }
+  if (impressum) p.text(impressumElement(f, impressumText(impressum)));
   return p.out;
 }

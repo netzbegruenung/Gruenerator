@@ -23,6 +23,7 @@
  * - useToolbarHandlers     — bundled toolbar actions for the active page
  */
 
+import { type PrintFormatId } from '@gruenerator/contracts';
 import {
   downloadBlob,
   downloadDataUrl,
@@ -43,6 +44,9 @@ import React, {
 
 import { PAGE_PERSISTED_STATE_KEYS } from '../../collab/pageElementStateKeys';
 import { createPageSyncedCallbacks } from '../../collab/wrapCallbacksWithPageSync';
+import { composePrintImpressum, PRINT_IMPRESSUM_ID } from '../../composer/composePrint';
+import { impressumLine, type ImpressumLocale } from '../../composer/printImpressum';
+import { type AdditionalText, type CanvasConfigId } from '../../configs/types';
 import {
   exportPrintPdf,
   lowResolutionWarnings,
@@ -71,6 +75,7 @@ import { PageThumbnailStrip } from '../PageThumbnailStrip';
 import { AddPageButton, TemplatePickerFlyout } from '../TemplatePickerFlyout';
 import { Toolbar } from '../Toolbar';
 import { ContextToolbar } from '../TopBar/ContextToolbar';
+import { type PrintImpressumGate } from '../TopBar/DownloadSection';
 import { MobileSelectionBar } from '../TopBar/MobileSelectionBar';
 import { MobileSelectionControls } from '../TopBar/MobileSelectionControls';
 
@@ -87,12 +92,17 @@ import { PageWrapper } from './PageWrapper';
 
 import type { CanvasEditorProps, PageWrapperProps } from './types';
 import type { CanvasSpecEditBridge } from '../../CanvasEditorProvider';
-import type { CanvasConfigId } from '../../configs/types';
 import type { SidebarTabId } from '../../sidebar/types';
 import type { ToolbarStateReport } from '../GenericCanvas';
 import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
 
 // Hoisted static JSX elements (Rule 6.3: avoids re-creation every render)
+/** The freeform page actions the impressum gate writes through. */
+interface FreeformImpressumActions {
+  updateAdditionalText?: (id: string, partial: Partial<AdditionalText>) => void;
+  addAdditionalTextElement?: (text: AdditionalText) => void;
+}
+
 const sidebarLoadingFallback = (
   <div
     style={{
@@ -682,6 +692,40 @@ function CanvasEditorInner({
     await downloadBlob(blob, printPdfFilename(documentTitle ?? null));
   }, [printFormat, printPages, canvasRefsRef, documentTitle]);
 
+  // Posters (one-sided print) must carry a filled-in V.i.S.d.P. / Impressum to
+  // export; the gate reads the element from the page state and writes through
+  // the page's own actions, so the edit is undoable and autosaved.
+  const impressumLocale: ImpressumLocale =
+    pages[currentPageIndex]?.configId === 'freeform-at' ? 'de-AT' : 'de-DE';
+  const impressumGate = useMemo<PrintImpressumGate | null>(() => {
+    if (!printFormat || printFormat.print.seiten !== 1) return null;
+    const state = activePageData?.state;
+    const actions = activePageData?.actions as FreeformImpressumActions | undefined;
+    if (!state || !actions) return null;
+    const texts = Array.isArray(state.additionalTexts)
+      ? (state.additionalTexts as AdditionalText[])
+      : [];
+    const element = texts.find((t) => t.id === PRINT_IMPRESSUM_ID) ?? null;
+    return {
+      locale: impressumLocale,
+      text: element ? element.text : null,
+      onSubmit: (parts) => {
+        const text = impressumLine(impressumLocale, parts);
+        if (element) {
+          actions.updateAdditionalText?.(PRINT_IMPRESSUM_ID, { text });
+        } else {
+          actions.addAdditionalTextElement?.(
+            composePrintImpressum(
+              printFormat.id as PrintFormatId,
+              impressumLocale === 'de-AT',
+              text
+            )
+          );
+        }
+      },
+    };
+  }, [printFormat, activePageData, impressumLocale]);
+
   const getPrintWarnings = useCallback(
     () => (printFormat ? lowResolutionWarnings(printFormat, printPages()) : []),
     [printFormat, printPages]
@@ -929,11 +973,16 @@ function CanvasEditorInner({
       onInvitePeople,
       onSaveAsTemplate,
       printExport: printFormat
-        ? { onDownloadPdf: handleDownloadPdf, getWarnings: getPrintWarnings }
+        ? {
+            onDownloadPdf: handleDownloadPdf,
+            getWarnings: getPrintWarnings,
+            impressum: impressumGate,
+          }
         : null,
     }),
     [
       printFormat,
+      impressumGate,
       handleDownloadPdf,
       getPrintWarnings,
       handleCaptureCanvas,
