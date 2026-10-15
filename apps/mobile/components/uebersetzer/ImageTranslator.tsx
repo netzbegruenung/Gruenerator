@@ -43,22 +43,19 @@ export function ImageTranslator({ onText }: { onText: (text: string) => void }) 
       return;
     }
     setBusy(image.name);
-    try {
-      const result = await uploadDocumentToScanner(image);
-      // null means the upload failed and the helper already showed an Alert.
-      if (!result) {
-        setError('Das Bild konnte nicht gelesen werden.');
-        return;
-      }
-      const text = result.text.trim();
-      if (!text) {
-        setError('Auf diesem Bild wurde kein Text gefunden.');
-        return;
-      }
-      onText(text);
-    } finally {
-      setBusy(null);
+    // Promise chain, not try/finally: the React Compiler cannot lower a finalizer.
+    const result = await uploadDocumentToScanner(image).finally(() => setBusy(null));
+    // null means the upload failed and the helper already showed an Alert.
+    if (!result) {
+      setError('Das Bild konnte nicht gelesen werden.');
+      return;
     }
+    const text = result.text.trim();
+    if (!text) {
+      setError('Auf diesem Bild wurde kein Text gefunden.');
+      return;
+    }
+    onText(text);
   };
 
   return (

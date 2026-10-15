@@ -16,7 +16,7 @@ import {
   useTranslateText,
 } from '@gruenerator/shared/translation';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -140,20 +140,20 @@ export function TextTranslator({
   // `translate.isPending` re-arms the timer once a run settles: text typed
   // during a run schedules a timer that sees the run still going and gives up,
   // and with `key` unchanged nothing else would ever ask again.
+  // The timer fires with the latest `run`, not the one from when it was set.
+  const runFromTimer = useEffectEvent(() => run());
   useEffect(() => {
     if (!canTranslate || manualOnly || outOfBudget) return;
     if (sentKey.current === key) return;
     const timer = setTimeout(() => {
       autoTimer.current = null;
-      run();
+      runFromTimer();
     }, AUTO_DEBOUNCE_MS);
     autoTimer.current = timer;
     return () => {
       autoTimer.current = null;
       clearTimeout(timer);
     };
-    // `run` is rebuilt on every render; the deps carry everything it reads.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, canTranslate, manualOnly, outOfBudget, translate.isPending]);
 
   const pickSource = (code: string) => {

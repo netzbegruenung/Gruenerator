@@ -116,13 +116,12 @@ export function DocumentTranslator({ data }: { data: TranslationLanguagesRespons
     if (!jobId || !status.data || sharing) return;
     setDownloadError(null);
     setSharing(true);
-    try {
-      await shareTranslatedDocument(jobId, status.data.filename);
-    } catch {
-      setDownloadError('Der Download ist fehlgeschlagen. Bitte noch einmal versuchen.');
-    } finally {
-      setSharing(false);
-    }
+    // Promise chain, not try/finally: the React Compiler cannot lower a finalizer.
+    await shareTranslatedDocument(jobId, status.data.filename)
+      .catch(() =>
+        setDownloadError('Der Download ist fehlgeschlagen. Bitte noch einmal versuchen.')
+      )
+      .finally(() => setSharing(false));
   };
 
   const error =
