@@ -110,6 +110,22 @@ describe('getUserShares', () => {
     expect(new Set(used)).toEqual(new Set(params.map((_, i) => i + 1)));
   });
 
+  it('drops rows whose saved editor state does not parse', async () => {
+    const valid = {
+      v: 1,
+      person: { x: 0, y: 0, scale: 0.85 },
+      background: { kind: 'id', id: 'tanne' },
+      stickers: [],
+    };
+    query.mockResolvedValueOnce([
+      { share_token: 'ok', image_type: 'profilbild', image_metadata: { profilbild: valid } },
+      { share_token: 'broken', image_type: 'profilbild', image_metadata: { profilbild: { v: 2 } } },
+    ]);
+    const service = new SharedMediaService();
+    const rows = await service.getUserShares('user-1', 'image', null, 3, 'profilbild');
+    expect(rows.map((r) => r.share_token)).toEqual(['ok']);
+  });
+
   it('adds no editor clause without a filter', async () => {
     const service = new SharedMediaService();
     await service.getUserShares('user-1', 'image', null, 3);

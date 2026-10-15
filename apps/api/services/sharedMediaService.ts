@@ -9,6 +9,7 @@ import {
   type UPLOAD_SOURCES,
 } from '@gruenerator/shared/media-library/constants';
 import {
+  isProfilbildShare,
   parseSavedProfilbild,
   PROFILBILD_IMAGE_TYPE,
   PROFILBILD_METADATA_KEY,
@@ -880,7 +881,15 @@ class SharedMediaService {
       query += ` ORDER BY created_at DESC LIMIT $${params.length}`;
 
       const results = await this.postgres!.query<SharedMediaRow>(query, params);
-      return results;
+      // SQL only sees that the key exists. Whether the editor can reopen the row
+      // is the parser's call — the same check „Zuletzt“ and mobile use — so a row
+      // with an unreadable state is not offered as a Profilbild. Such a row can
+      // shorten the page below `limit`; today every writer stores a valid state.
+      return editor === 'profilbild'
+        ? results.filter((r) =>
+            isProfilbildShare({ imageType: r.image_type, imageMetadata: r.image_metadata })
+          )
+        : results;
     } catch (error) {
       console.error('[SharedMediaService] Failed to get user shares:', error);
       throw new Error(`Failed to get user shares: ${(error as Error).message}`);
