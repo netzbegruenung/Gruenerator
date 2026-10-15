@@ -54,7 +54,7 @@ Der `aufruf` steht allein auf der letzten Slide (höchstens eine `dachzeile` dar
 ## Österreich
 
 - **Kritik und Erklärung: alle Slides auf `dunkelgruen`**. Cover und Hook: die Headline allein, oben links (`position: oben`, `align: links`). Argument-Slides zentriert. Statt Headline gern zwei `absatz`-Bausteine in großer Schrift.
-- Ein Motiv zum Thema als `foto-unten` (Text oben, Foto blendet unten ins Grün) – so bleibt die untere Hälfte nicht leer.
+- Ein Motiv zum Thema als `foto-unten` auf `dunkelgruen` (Text oben, Foto unten) – das Programm färbt das Foto grün ein, das häufigste Bildmittel der Posts. Auf dem Cover, gern auch auf Argument-Slides; der Schluss bleibt ohne Foto.
 - **Wort-Akzente** mit `==…==` in fast jeder Slide – das gelbe Vollkorn-Wort ist das Markenzeichen.
 - Brücke „Darum sagen wir:“ als `absatz` mit `betont: true`, darunter die Forderung.
 - **Foto-Satzkette** (Geschichte, persönlicher Bericht): jede Slide ein vollflächiges Foto (`foto`, Text unten zentriert), ein einziger Satz läuft mit „…“ über alle Slides, kein Logo.
