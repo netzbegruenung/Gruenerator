@@ -1,6 +1,7 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import * as Haptics from 'expo-haptics';
 import { useRouter, type Href } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 
@@ -20,7 +21,7 @@ import { getToolTheme } from '../../theme/toolTheme';
 import { BottomSheet } from '../common/BottomSheet';
 import { MenuIcon } from '../icons/WebMirrorIcons';
 
-import { type ToolDef } from './toolsConfig';
+import { isLinkTool, type WorkplaceTool } from './toolsConfig';
 
 /** Tools in the dock itself; the rest sit behind „Weitere". */
 const DOCKED = 3;
@@ -42,7 +43,7 @@ const FAVORITE_ACTION = 'favorite';
  * star on a row in the sheet. The descriptions the large tiles carried live on
  * as accessibility hints and in the sheet.
  */
-export function ToolDock({ tools }: { tools: ToolDef[] }) {
+export function ToolDock({ tools }: { tools: WorkplaceTool[] }) {
   const isDark = useColorScheme() === 'dark';
   const theme = isDark ? darkTheme : lightTheme;
   const router = useRouter();
@@ -58,11 +59,17 @@ export function ToolDock({ tools }: { tools: ToolDef[] }) {
   const docked = tools.slice(0, DOCKED);
   const more = tools.slice(DOCKED);
 
-  const favoriteLabel = (tool: ToolDef) =>
+  // A link is a public page, not a tool of one's own: it opens in the in-app
+  // browser and cannot be starred into the dock.
+  const open = (tool: WorkplaceTool) => {
+    if (isLinkTool(tool)) void WebBrowser.openBrowserAsync(tool.href);
+    else router.push(tool.route as Href);
+  };
+  const favoriteLabel = (tool: WorkplaceTool) =>
     favorites.includes(tool.id)
       ? `${tool.title} nicht mehr favorisieren`
       : `${tool.title} favorisieren`;
-  const toggle = (tool: ToolDef) => {
+  const toggle = (tool: WorkplaceTool) => {
     void Haptics.selectionAsync();
     toggleFavorite(tool.id);
   };
@@ -75,7 +82,7 @@ export function ToolDock({ tools }: { tools: ToolDef[] }) {
           return (
             <Pressable
               key={tool.id}
-              onPress={() => router.push(tool.route as Href)}
+              onPress={() => open(tool)}
               onLongPress={() => toggle(tool)}
               accessibilityRole="button"
               accessibilityLabel={tool.title}
@@ -170,7 +177,7 @@ export function ToolDock({ tools }: { tools: ToolDef[] }) {
               <Pressable
                 onPress={() => {
                   setMoreOpen(false);
-                  router.push(tool.route as Href);
+                  open(tool);
                 }}
                 accessibilityRole="button"
                 style={({ pressed }) => [
@@ -190,19 +197,25 @@ export function ToolDock({ tools }: { tools: ToolDef[] }) {
               </Pressable>
               {/* Beside the row, not inside it: a nested pressable swallows the
                   outer press on Android. */}
-              <Pressable
-                onPress={() => toggle(tool)}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={favoriteLabel(tool)}
-                style={styles.star}
-              >
-                <Ionicons
-                  name={isFavorite ? 'star' : 'star-outline'}
-                  size={20}
-                  color={isFavorite ? colors.secondary[500] : theme.textSecondary}
-                />
-              </Pressable>
+              {isLinkTool(tool) ? (
+                <View style={styles.star}>
+                  <Ionicons name="open-outline" size={18} color={theme.textSecondary} />
+                </View>
+              ) : (
+                <Pressable
+                  onPress={() => toggle(tool)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={favoriteLabel(tool)}
+                  style={styles.star}
+                >
+                  <Ionicons
+                    name={isFavorite ? 'star' : 'star-outline'}
+                    size={20}
+                    color={isFavorite ? colors.secondary[500] : theme.textSecondary}
+                  />
+                </Pressable>
+              )}
             </View>
           );
         })}
