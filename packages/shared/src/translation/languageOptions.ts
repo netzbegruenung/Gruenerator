@@ -50,23 +50,40 @@ export const NF = new Intl.NumberFormat('de-DE');
 /** How many languages the quick-pick strip holds before the oldest drops off. */
 export const RECENT_MAX = 4;
 
+/** Fills the quick-pick strip after the user's own wishes, most widely used first. */
+const COMMON_LANGUAGES = ['en', 'fr', 'es', 'it', 'tr', 'uk', 'ar', 'pl', 'ru'] as const;
+
 /**
- * Seeds the quick-pick strip. Wishes that this DeepL account does not offer are
- * dropped and the strip is topped up from the start of the list, so the bar is
- * never short and never shows a code the `<select>` does not have.
+ * Seeds the quick-pick strip. A wish this list does not offer falls back to a
+ * variant of the same language (`en-GB` → `en` among sources); the strip is
+ * then topped up with common languages and only as a last resort from the
+ * start of the list, so the bar is never short and never shows a code the
+ * `<select>` does not have.
  */
 export function initialRecent(
   options: readonly TranslationLanguage[],
   preferred: readonly string[],
   max: number = RECENT_MAX
 ): string[] {
-  const codes = new Set(options.map((l) => l.code));
-  const picked = preferred.filter((c) => c === AUTO || codes.has(c));
+  const picked: string[] = [];
+  for (const wish of [...preferred, ...COMMON_LANGUAGES]) {
+    if (picked.length >= max) return picked;
+    if (wish === AUTO) {
+      if (!picked.includes(AUTO)) picked.push(AUTO);
+      continue;
+    }
+    const root = rootLang(wish);
+    if (picked.some((c) => c !== AUTO && rootLang(c) === root)) continue;
+    const match =
+      options.find((l) => l.code.toLowerCase() === wish.toLowerCase()) ??
+      options.find((l) => rootLang(l.code) === root);
+    if (match) picked.push(match.code);
+  }
   for (const l of options) {
     if (picked.length >= max) break;
     if (!picked.includes(l.code)) picked.push(l.code);
   }
-  return picked.slice(0, max);
+  return picked;
 }
 
 /** Most recently chosen language first; `auto` stays pinned to the front. */
