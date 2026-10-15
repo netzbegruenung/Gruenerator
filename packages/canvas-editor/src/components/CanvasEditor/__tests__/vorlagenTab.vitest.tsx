@@ -37,6 +37,12 @@ vi.stubGlobal(
 vi.spyOn(Konva.Stage.prototype, 'toDataURL').mockReturnValue('data:,');
 Element.prototype.scrollIntoView ??= () => {};
 
+/** Tab by its tour id — read via the attribute, a literal selector would count as a tour anchor (check-tour-anchors). */
+const tabButton = (id: string) =>
+  [...document.querySelectorAll<HTMLElement>('[data-tour]')].find(
+    (el) => el.dataset.tour === `canvas-tab-${id}`
+  ) ?? null;
+
 const vorlagen: NonNullable<CanvasEditorServices['vorlagen']> = {
   list: async () => [],
   compose: async () => [],
@@ -56,7 +62,7 @@ async function renderEditor(services: CanvasEditorServices, formatId = 'post-por
       </CanvasEditorProvider>
     );
   });
-  for (let i = 0; i < 50 && !document.querySelector('[data-tour="canvas-tab-text"]'); i++) {
+  for (let i = 0; i < 50 && !tabButton('text'); i++) {
     await act(async () => {
       await new Promise((r) => setTimeout(r, 20));
     });

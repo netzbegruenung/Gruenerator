@@ -41,6 +41,12 @@ vi.stubGlobal(
 vi.spyOn(Konva.Stage.prototype, 'toDataURL').mockReturnValue('data:,');
 Element.prototype.scrollIntoView ??= () => {};
 
+/** Tab by its tour id — read via the attribute, a literal selector would count as a tour anchor (check-tour-anchors). */
+const tabButton = (id: string) =>
+  [...document.querySelectorAll<HTMLElement>('[data-tour]')].find(
+    (el) => el.dataset.tour === `canvas-tab-${id}`
+  ) ?? null;
+
 async function renderEditor(props: {
   initialTab?: SidebarTabId | null;
   onActiveTabChange?: (tab: SidebarTabId | null) => void;
@@ -111,7 +117,7 @@ describe('CanvasEditor initialTab', () => {
       );
     });
     const textTab = await waitFor(() => {
-      const el = document.querySelector<HTMLElement>('[data-tour="canvas-tab-text"]');
+      const el = tabButton('text');
       expect(el).not.toBeNull();
       return el!;
     });
@@ -135,9 +141,7 @@ describe('CanvasEditor initialTab', () => {
         />
       );
     });
-    await waitFor(() =>
-      expect(document.querySelector('[data-tour="canvas-tab-text"]')).not.toBeNull()
-    );
+    await waitFor(() => expect(tabButton('text')).not.toBeNull());
     expect(screen.queryByRole('button', { name: /KI-Chat/ })).toBeNull();
   });
 });
