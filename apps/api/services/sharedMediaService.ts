@@ -3,14 +3,16 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import { type ShareStatus, type StoredMediaType } from '@gruenerator/contracts';
+import { type ReopenEditor, type ShareStatus, type StoredMediaType } from '@gruenerator/contracts';
 import {
   NON_LIBRARY_UPLOAD_SOURCES,
   type UPLOAD_SOURCES,
 } from '@gruenerator/shared/media-library/constants';
 import {
+  isProfilbildShare,
   parseSavedProfilbild,
   PROFILBILD_IMAGE_TYPE,
+  PROFILBILD_METADATA_KEY,
   savedBackgroundShareToken,
 } from '@gruenerator/shared/profilbild/saved';
 import { stripDataUrlPrefix } from '@gruenerator/shared/utils';
@@ -844,7 +846,8 @@ class SharedMediaService {
     userId: string,
     mediaType: StoredMediaType | null = null,
     status: ShareStatus | readonly ShareStatus[] | null = null,
-    limit: number = USER_SHARES_MAX_LIMIT
+    limit: number = USER_SHARES_MAX_LIMIT,
+    editor: ReopenEditor | null = null
   ): Promise<SharedMediaRow[]> {
     await this.ensureInitialized();
 
@@ -865,11 +868,28 @@ class SharedMediaService {
                   AND ${creationFeedWhere(params, status, mediaType)}
             `;
 
+      // The image type alone also matches canvas exports of the profilbild
+      // template, which carry no editor state; the metadata key tells them apart.
+      if (editor === 'profilbild') {
+        params.push(PROFILBILD_IMAGE_TYPE);
+        query += ` AND image_type = $${params.length}`;
+        params.push(PROFILBILD_METADATA_KEY);
+        query += ` AND image_metadata ? $${params.length}`;
+      }
+
       params.push(Math.min(Math.max(1, Math.trunc(limit)), USER_SHARES_MAX_LIMIT));
       query += ` ORDER BY created_at DESC LIMIT $${params.length}`;
 
       const results = await this.postgres!.query<SharedMediaRow>(query, params);
-      return results;
+      // SQL only sees that the key exists. Whether the editor can reopen the row
+      // is the parser's call — the same check „Zuletzt“ and mobile use — so a row
+      // with an unreadable state is not offered as a Profilbild. Such a row can
+      // shorten the page below `limit`; today every writer stores a valid state.
+      return editor === 'profilbild'
+        ? results.filter((r) =>
+            isProfilbildShare({ imageType: r.image_type, imageMetadata: r.image_metadata })
+          )
+        : results;
     } catch (error) {
       console.error('[SharedMediaService] Failed to get user shares:', error);
       throw new Error(`Failed to get user shares: ${(error as Error).message}`);

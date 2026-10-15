@@ -1,6 +1,6 @@
 import { type FreeBackground } from '@gruenerator/shared/profilbild';
 import { Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import { PiArrowDown, PiArrowDownRight, PiArrowRight, PiPlus } from 'react-icons/pi';
 
 import { flatCss } from '../utils/profilbildBackgrounds';
@@ -61,27 +61,28 @@ function ColorField({
   );
 }
 
+const LABEL = 'Eigene Farbe';
+
 /**
- * Kachel „Eigene Farbe“ bzw. „Eigener Verlauf“ am Ende ihrer Reihe. Sie zeigt die
- * freie Wahl, sobald es eine gibt; der Wähler bietet die CD-Farben zuerst an.
+ * Eine Kachel „Eigene Farbe“ am Ende der Farbreihe. Im Wähler schaltet man
+ * zwischen einer Farbe und einem Verlauf um; die Kachel zeigt die freie Wahl,
+ * sobald es eine gibt, und der Wähler bietet die CD-Farben zuerst an.
  */
 export function ProfilbildFreeColor({
-  mode,
   value,
   pressed,
   palette,
   tileClassName,
   onChange,
 }: {
-  mode: 'color' | 'gradient';
-  /** Die aktuelle freie Wahl, wenn sie zu diesem Modus passt. */
+  /** Die aktuelle freie Wahl, Farbe oder Verlauf. */
   value: FreeBackground | null;
   pressed: boolean;
   palette: { hex: string; label: string }[];
   tileClassName: string;
   onChange: (bg: FreeBackground) => void;
 }) {
-  const label = mode === 'color' ? 'Eigene Farbe' : 'Eigener Verlauf';
+  const [mode, setMode] = useState<FreeBackground['kind']>(value?.kind ?? 'color');
   const first = palette[0]?.hex ?? '#005538';
   const second = palette[1]?.hex ?? '#ffffff';
   const color = value?.kind === 'color' ? value.color : first;
@@ -96,8 +97,8 @@ export function ProfilbildFreeColor({
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label={label}
-          title={label}
+          aria-label={LABEL}
+          title={LABEL}
           aria-pressed={pressed}
           // Eine schon gewählte freie Farbe gilt beim Antippen wieder.
           onClick={() => value && onChange(value)}
@@ -119,7 +120,29 @@ export function ProfilbildFreeColor({
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="flex w-72 flex-col gap-md">
-        <p className="m-0 text-sm font-semibold text-foreground-heading">{label}</p>
+        <p className="m-0 text-sm font-semibold text-foreground-heading">{LABEL}</p>
+        {/* Der Wechsel gilt sofort, damit die Bühne zeigt, was gewählt ist. */}
+        <div role="group" aria-label="Art" className="flex gap-xs">
+          {(
+            [
+              ['color', 'Farbe'],
+              ['gradient', 'Verlauf'],
+            ] as const
+          ).map(([kind, kindLabel]) => (
+            <button
+              key={kind}
+              type="button"
+              aria-pressed={mode === kind}
+              onClick={() => {
+                setMode(kind);
+                onChange(kind === 'color' ? { kind: 'color', color } : gradient);
+              }}
+              className={cn(TOOL_PILL, 'flex-1 px-sm')}
+            >
+              {kindLabel}
+            </button>
+          ))}
+        </div>
         {mode === 'color' ? (
           <ColorField
             label="Farbe"

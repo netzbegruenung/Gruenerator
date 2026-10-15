@@ -2,7 +2,7 @@ import {
   gradientLine,
   PROFILBILD_SIZE,
   placementRect,
-  presetDesigns,
+  allPresetDesigns,
   type FlatBackground,
   type PersonPlacement,
 } from '@gruenerator/shared/profilbild';
@@ -73,7 +73,7 @@ export function BackgroundLayer({
     return <Image image={bg.image} x={0} y={0} width={S} height={S} fit="cover" />;
   }
   if (bg.kind === 'preset') {
-    const design = presetDesigns(isAustria).find((d) => d.id === bg.designId);
+    const design = allPresetDesigns(isAustria).find((d) => d.id === bg.designId);
     if (!design) return null;
     return (
       <>

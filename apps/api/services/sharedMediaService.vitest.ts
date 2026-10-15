@@ -96,6 +96,42 @@ describe('getUserShares', () => {
     const used = [...sql.matchAll(/\$(\d+)/g)].map((m) => Number(m[1]));
     expect(new Set(used)).toEqual(new Set(params.map((_, i) => i + 1)));
   });
+
+  it('narrows to reopenable Profilbilder by type and editor state', async () => {
+    const service = new SharedMediaService();
+    await service.getUserShares('user-1', 'image', null, 3, 'profilbild');
+
+    const { sql, params } = lastCall();
+    // The type alone would also match canvas exports of the profilbild template.
+    const type = params.indexOf('profilbild') + 1;
+    expect(sql).toMatch(new RegExp(`image_type = \\$${type}\\b`));
+    expect(sql).toMatch(/image_metadata \? \$\d+/);
+    const used = [...sql.matchAll(/\$(\d+)/g)].map((m) => Number(m[1]));
+    expect(new Set(used)).toEqual(new Set(params.map((_, i) => i + 1)));
+  });
+
+  it('drops rows whose saved editor state does not parse', async () => {
+    const valid = {
+      v: 1,
+      person: { x: 0, y: 0, scale: 0.85 },
+      background: { kind: 'id', id: 'tanne' },
+      stickers: [],
+    };
+    query.mockResolvedValueOnce([
+      { share_token: 'ok', image_type: 'profilbild', image_metadata: { profilbild: valid } },
+      { share_token: 'broken', image_type: 'profilbild', image_metadata: { profilbild: { v: 2 } } },
+    ]);
+    const service = new SharedMediaService();
+    const rows = await service.getUserShares('user-1', 'image', null, 3, 'profilbild');
+    expect(rows.map((r) => r.share_token)).toEqual(['ok']);
+  });
+
+  it('adds no editor clause without a filter', async () => {
+    const service = new SharedMediaService();
+    await service.getUserShares('user-1', 'image', null, 3);
+
+    expect(lastCall().sql).not.toMatch(/image_metadata \?/);
+  });
 });
 
 describe('getMediaLibrary', () => {
