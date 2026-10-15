@@ -115,9 +115,9 @@ function ChatMock({ country }: { country: Country }) {
   }, [typing]);
 
   return (
-    <div className="flex h-full w-[88%] flex-col justify-start gap-2.5 md:h-[340px]">
+    <div className="flex h-full w-full flex-col justify-start gap-2 md:h-[340px] md:w-[88%] md:gap-2.5">
       <motion.span
-        className="max-w-[85%] self-end rounded-2xl rounded-br-sm bg-white px-3 py-2 text-[13px] leading-snug text-grey-900 shadow-md"
+        className="max-w-[85%] self-end rounded-2xl rounded-br-sm bg-white px-3 py-2 text-[12px] leading-snug md:text-[13px] text-grey-900 shadow-md"
         {...enter(0, { x: 12 })}
       >
         {EXAMPLE_PROMPT}
@@ -144,7 +144,7 @@ function ChatMock({ country }: { country: Country }) {
             key="answer"
             src={`${IMG}/${country}-emoji.webp`}
             alt=""
-            className="w-[58%] rounded-md shadow-lg ring-1 ring-black/10"
+            className="min-h-0 flex-1 self-start rounded-md shadow-lg ring-1 ring-black/10 md:w-[58%] md:flex-none"
             {...enter(0, { scale: 0.95, y: 6 })}
           />
         )}
@@ -157,7 +157,7 @@ function ChatMock({ country }: { country: Country }) {
 function EditorMock({ country }: { country: Country }) {
   return (
     <motion.div
-      className="flex w-[92%] overflow-hidden rounded-xl bg-white shadow-xl ring-1 ring-black/10"
+      className="flex w-[62%] max-w-[190px] overflow-hidden rounded-xl bg-white shadow-xl ring-1 ring-black/10 md:w-[92%] md:max-w-none"
       {...enter(0, { y: 8 })}
     >
       <div className="flex flex-col gap-3 border-r border-grey-200 bg-grey-50 px-2 py-3 text-grey-600">
@@ -166,7 +166,7 @@ function EditorMock({ country }: { country: Country }) {
         <HiOutlineSwatch className="size-5" />
         <HiOutlineArrowDownTray className="size-5" />
       </div>
-      <div className="flex flex-1 justify-center bg-grey-100 px-4 pt-10 pb-4">
+      <div className="flex flex-1 justify-center bg-grey-100 px-3 pt-8 pb-3 md:px-4 md:pt-10 md:pb-4">
         <div className="relative w-[82%]">
           <img
             src={`${IMG}/${country}-markierungen.webp`}
@@ -251,7 +251,7 @@ const SLIDES: readonly Slide[] = [
     eyebrow: 'Vorlagen',
     title: 'Vorlage auswählen und anpassen',
     visual: (country) => (
-      <div className="grid w-[78%] grid-cols-2 gap-2.5 md:w-[82%] md:gap-3">
+      <div className="grid w-full grid-cols-4 gap-2 md:w-[82%] md:grid-cols-2 md:gap-3">
         {TEMPLATES[country].map((key, i) => (
           <motion.img
             key={key}
@@ -324,7 +324,7 @@ const SLIDES: readonly Slide[] = [
     eyebrow: 'Jetzt loslegen',
     title: 'Erstes Sharepic im Studio erstellen',
     visual: (country) => (
-      <div className="flex w-[86%] items-start justify-center gap-3">
+      <div className="flex w-[70%] items-start justify-center gap-3 md:w-[86%]">
         {[`${country}-emoji`, `${country}-diagramm`, `${country}-markierungen`].map((key, i) => (
           <motion.img
             key={key}
@@ -415,7 +415,7 @@ export default function SharepicAnnouncementDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="gap-0 overflow-hidden p-0 sm:max-w-[860px]"
+        className="gap-0 overflow-hidden p-0 max-sm:top-0 max-sm:left-0 max-sm:h-dvh max-sm:max-h-dvh max-sm:max-w-full max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-none max-sm:border-none sm:max-w-[860px]"
         onOpenAutoFocus={() => setIndex(0)}
         onKeyDown={(e) => {
           if (e.key === 'ArrowRight') step(1);
@@ -423,11 +423,22 @@ export default function SharepicAnnouncementDialog({
         }}
       >
         <MotionConfig reducedMotion="user">
-          <div className="grid md:h-[560px] md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+          <motion.div
+            className="grid h-dvh grid-rows-[auto_minmax(0,1fr)] sm:h-[min(680px,calc(100dvh-2rem))] md:h-[min(560px,calc(100dvh-2rem))] md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:grid-rows-1"
+            // Wischen nur per Touch: mit der Maus soll Text markieren keine Folie wechseln.
+            // pan-y lässt das senkrechte Scrollen des Textes beim Browser.
+            style={{ touchAction: 'pan-y' }}
+            onPanEnd={(event, info) => {
+              if (event.pointerType !== 'touch') return;
+              if (Math.abs(info.offset.x) < 50 || Math.abs(info.offset.x) < Math.abs(info.offset.y))
+                return;
+              step(info.offset.x < 0 ? 1 : -1);
+            }}
+          >
             <div
               aria-hidden
               key={`visual-${index}`}
-              className="flex h-[220px] items-center justify-center gap-2 bg-primary-100 px-12 py-5 md:relative md:h-auto md:gap-0 md:px-6 md:py-0 dark:bg-primary-900/40"
+              className="flex h-[clamp(150px,30dvh,250px)] items-center justify-center gap-2 overflow-hidden bg-primary-100 px-12 py-5 max-sm:pt-[max(1.25rem,env(safe-area-inset-top))] md:relative md:h-auto md:gap-0 md:px-6 md:py-0 dark:bg-primary-900/40"
             >
               {slide.visual(country)}
             </div>
@@ -438,13 +449,13 @@ export default function SharepicAnnouncementDialog({
                 role="group"
                 aria-roledescription="Folie"
                 aria-label={`${index + 1} von ${SLIDES.length}`}
-                className="flex flex-1 flex-col gap-4 overflow-y-auto p-6 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-right-2 md:p-8"
+                className="flex flex-1 flex-col gap-4 overflow-y-auto p-5 sm:p-6 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-right-2 md:p-8"
               >
                 <div className="flex flex-col gap-2 pr-6">
                   <span className="text-xs font-bold tracking-wider text-primary-600 uppercase dark:text-primary-300">
                     {slide.eyebrow}
                   </span>
-                  <DialogTitle className="m-0 text-2xl leading-tight font-bold">
+                  <DialogTitle className="m-0 text-xl leading-tight font-bold sm:text-2xl">
                     {slide.title}
                   </DialogTitle>
                   <DialogDescription className="sr-only">
@@ -454,7 +465,7 @@ export default function SharepicAnnouncementDialog({
                 {slide.body(country, actions)}
               </div>
 
-              <div className="flex items-center justify-between gap-3 border-t border-grey-200 px-6 py-4 md:px-8 dark:border-grey-700">
+              <div className="flex items-center justify-between gap-3 border-t border-grey-200 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-4 md:px-8 dark:border-grey-700">
                 <Button
                   variant="ghost"
                   onClick={() => step(-1)}
@@ -497,7 +508,7 @@ export default function SharepicAnnouncementDialog({
                 </Button>
               </div>
             </div>
-          </div>
+          </motion.div>
         </MotionConfig>
       </DialogContent>
     </Dialog>
