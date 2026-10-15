@@ -65,7 +65,7 @@ export function AgentStartScreen({ variant }: { variant: EditorVariant }) {
     params: variant === 'recurring' ? { mode: 'recurring' } : {},
   } as const;
 
-  const handleGenerate = async () => {
+  const handleGenerate = () => {
     if (trimmed.length === 0 || draftMut.isPending) return;
     if (trimmed.length > MAX_DRAFT_BRIEF_CHARS) {
       setError(
@@ -74,26 +74,29 @@ export function AgentStartScreen({ variant }: { variant: EditorVariant }) {
       return;
     }
     setError(null);
-    try {
-      const spec = await draftMut.mutateAsync({ description: trimmed });
-      start({
-        identifier: null,
-        variant,
-        taskId: null,
-        // Wie im Web: ein AT-Profil macht den Agent österreichisch, egal was das Modell vorschlägt.
-        form: {
-          ...EMPTY_FORM,
-          locale,
-          ...specToFormState(spec),
-          ...(locale === 'de-AT' && { locale }),
+    draftMut.mutate(
+      { description: trimmed },
+      {
+        onSuccess: (spec) => {
+          start({
+            identifier: null,
+            variant,
+            taskId: null,
+            // Wie im Web: ein AT-Profil macht den Agent österreichisch, egal was das Modell vorschlägt.
+            form: {
+              ...EMPTY_FORM,
+              locale,
+              ...specToFormState(spec),
+              ...(locale === 'de-AT' && { locale }),
+            },
+            schedule: defaultScheduleFor(locale),
+            dirty: true,
+          });
+          router.replace(editorHref);
         },
-        schedule: defaultScheduleFor(locale),
-        dirty: true,
-      });
-      router.replace(editorHref);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Entwurf fehlgeschlagen.');
-    }
+        onError: (err) => setError(err.message || 'Entwurf fehlgeschlagen.'),
+      }
+    );
   };
 
   const handleManual = () => {

@@ -1,3 +1,4 @@
+import { type RecurringTask } from '@gruenerator/contracts';
 import { type Agent, USER_SELECTABLE_TOOLS } from '@gruenerator/shared/agents';
 import {
   EMPTY_FORM,
@@ -35,6 +36,7 @@ import {
   useAgentEditorHydrated,
   useAgentEditorStore,
   type AgentEditorSession,
+  type StartSessionInput,
 } from '../../../stores/agentEditorStore';
 import { BODY_FONT, borderRadius, colors, spacing, typography } from '../../../theme';
 import { Button, ListRow, SkeletonRows } from '../../common';
@@ -60,6 +62,32 @@ const SUB = '/(focused)/grueneratoren/agent-editor';
 
 type Params = { identifier?: string; mode?: string; taskId?: string };
 
+const nonEmpty = (value: unknown): string | null =>
+  typeof value === 'string' && value.length > 0 ? value : null;
+
+/** Sitzung aus einem gespeicherten Agent samt seiner Aufgabe (falls es eine gibt). */
+function sessionFromAgent(
+  a: Agent,
+  tasks: readonly RecurringTask[] | undefined,
+  taskId: string | null,
+  variant: AgentEditorSession['variant'],
+  locale: Parameters<typeof defaultScheduleFor>[0]
+): StartSessionInput {
+  const list = tasks ?? [];
+  const task =
+    (taskId ? list.find((t) => t.id === taskId) : null) ??
+    list.find((t) => t.agentIdentifier === a.identifier) ??
+    null;
+  return {
+    identifier: a.identifier,
+    variant,
+    taskId: task?.id ?? null,
+    form: hydrateFormState(a),
+    schedule: task ? recurrenceToSchedule(task) : defaultScheduleFor(locale),
+    dirty: false,
+  };
+}
+
 function taskFields(s: AgentEditorSession) {
   return {
     title: s.form.title.trim(),
@@ -79,10 +107,9 @@ function taskFields(s: AgentEditorSession) {
  */
 export function AgentEditorScreen() {
   const params = useLocalSearchParams<Params>();
-  const identifier =
-    typeof params.identifier === 'string' && params.identifier ? params.identifier : null;
+  const identifier = nonEmpty(params.identifier);
   const paramVariant = params.mode === 'recurring' ? 'recurring' : 'agent';
-  const paramTaskId = typeof params.taskId === 'string' && params.taskId ? params.taskId : null;
+  const paramTaskId = nonEmpty(params.taskId);
   const { locale } = useAuth();
   const hydrated = useAgentEditorHydrated();
 
@@ -105,6 +132,7 @@ export function AgentEditorScreen() {
   // diesem Agent auf dem Gerät.
   const agent = agentQ.data;
   const tasksSettled = !tasksQ.isPending;
+  const tasks = tasksQ.data;
   useEffect(() => {
     if (!hydrated || leavingRef.current) return;
     const s = useAgentEditorStore.getState();
@@ -122,26 +150,8 @@ export function AgentEditorScreen() {
     }
     if (!agent || !tasksSettled) return;
     if (s.active && s.identifier === identifier && s.dirty) return;
-    seedFromAgent(agent);
-    // `seedFromAgent` liest nur stabile Werte aus diesem Durchlauf.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated, identifier, agent, tasksSettled]);
-
-  function seedFromAgent(a: Agent) {
-    const tasks = tasksQ.data ?? [];
-    const task =
-      (paramTaskId ? tasks.find((t) => t.id === paramTaskId) : null) ??
-      tasks.find((t) => t.agentIdentifier === a.identifier) ??
-      null;
-    useAgentEditorStore.getState().start({
-      identifier: a.identifier,
-      variant: paramVariant,
-      taskId: task?.id ?? null,
-      form: hydrateFormState(a),
-      schedule: task ? recurrenceToSchedule(task) : defaultScheduleFor(locale),
-      dirty: false,
-    });
-  }
+    s.start(sessionFromAgent(agent, tasks, paramTaskId, paramVariant, locale));
+  }, [hydrated, identifier, agent, tasksSettled, tasks, paramTaskId, paramVariant, locale]);
 
   if (identifier !== null && !ready) {
     if (agentQ.isError) {
@@ -187,7 +197,10 @@ export function AgentEditorScreen() {
       restored={restored}
       onDiscardRestored={() => {
         setRestoredDismissed(true);
-        if (agent) seedFromAgent(agent);
+        if (agent)
+          useAgentEditorStore
+            .getState()
+            .start(sessionFromAgent(agent, tasks, paramTaskId, paramVariant, locale));
       }}
       leavingRef={leavingRef}
     />
@@ -270,7 +283,7 @@ function EditorForm({
     go();
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     const s = useAgentEditorStore.getState();
     const blocker = missingForSave(s.form);
     if (blocker) {
@@ -285,71 +298,35 @@ function EditorForm({
       return;
     }
     setSaving(true);
-    try {
-      const payload = formToPayload(s.form);
-      if (s.identifier === null) {
-        let agentId = s.createdIdentifier;
-        if (!agentId) {
-          const created = await createMut.mutateAsync({
-            identifier: newAgentIdentifier(s.form.title),
-            author: user?.display_name || 'Eigener Agent',
-            ...payload,
-          });
-          agentId = created.identifier;
-          s.setCreatedIdentifier(agentId);
-        }
-        if (s.variant === 'recurring') {
-          const taskBody = {
-            ...taskFields(s),
-            agentIdentifier: agentId,
-            locale: s.form.locale,
-            enabled: true,
-          };
-          let newTaskId: string;
-          try {
-            newTaskId = (await createTaskMut.mutateAsync(taskBody)).id;
-          } catch (err) {
-            Alert.alert(
-              'Zeitplan nicht gespeichert',
-              `Der Agent ist angelegt, aber der Zeitplan konnte nicht gespeichert werden. Bitte erneut speichern.${err instanceof Error ? `\n\n${err.message}` : ''}`
-            );
-            return;
-          }
-          leave(() =>
+    void saveSession(s, {
+      createAgent: createMut.mutateAsync,
+      updateAgent: updateMut.mutateAsync,
+      createTask: createTaskMut.mutateAsync,
+      updateTask: updateTaskMut.mutateAsync,
+      author: user?.display_name || 'Eigener Agent',
+    }).then((outcome) => {
+      setSaving(false);
+      switch (outcome.kind) {
+        case 'failed':
+          return Alert.alert(outcome.title, outcome.message);
+        case 'task':
+          return leave(() =>
             router.replace({
               pathname: '/(focused)/grueneratoren/aufgabe/[id]',
-              params: { id: newTaskId },
+              params: { id: outcome.taskId },
             })
           );
-        } else {
-          const slug = agentId;
-          leave(() =>
-            router.replace({ pathname: '/(focused)/grueneratoren/agent/[slug]', params: { slug } })
+        case 'agent':
+          return leave(() =>
+            router.replace({
+              pathname: '/(focused)/grueneratoren/agent/[slug]',
+              params: { slug: outcome.slug },
+            })
           );
-        }
-        return;
+        case 'updated':
+          return leave(() => router.back());
       }
-
-      await updateMut.mutateAsync(payload);
-      if (s.taskId) {
-        await updateTaskMut.mutateAsync({ id: s.taskId, patch: taskFields(s) });
-      } else if (s.variant === 'recurring') {
-        await createTaskMut.mutateAsync({
-          ...taskFields(s),
-          agentIdentifier: s.identifier,
-          locale: s.form.locale,
-          enabled: true,
-        });
-      }
-      leave(() => router.back());
-    } catch (err) {
-      Alert.alert(
-        'Speichern fehlgeschlagen',
-        err instanceof Error ? err.message : 'Speichern fehlgeschlagen.'
-      );
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
   const handleDuplicate = () => {
@@ -407,36 +384,10 @@ function EditorForm({
     ]);
   };
 
-  // Vorschauen der Unterseiten.
-  const toolCount = form.enabledTools.length + (form.inlineSourceLinks ? 1 : 0);
-  const toolPreview =
-    USER_SELECTABLE_TOOLS.filter((t) => form.enabledTools.includes(t.key))
-      .map((t) => t.label)
-      .concat(form.inlineSourceLinks ? ['Quell-Links'] : [])
-      .join(', ') || 'Keine';
-  const notebookPreview =
-    form.defaultNotebookIds
-      .map((id) => notebooks.titleFor(id))
-      .filter((t): t is string => t !== null)
-      .join(', ') ||
-    (form.defaultNotebookIds.length ? `${form.defaultNotebookIds.length} gewählt` : 'Keins');
-  const questionCount = form.openingQuestions.split('\n').filter((q) => q.trim()).length;
-  const greetingPreview =
-    [
-      form.openingMessage.trim() ? form.openingMessage.trim().split('\n')[0] : null,
-      questionCount ? `${questionCount} Startfrage${questionCount === 1 ? '' : 'n'}` : null,
-    ]
-      .filter(Boolean)
-      .join(' · ') || 'Keine';
-  const modelName = MODEL_OPTIONS.find((m) => m.id === currentModelId(form))?.name ?? form.model;
-  const tagCount = form.tags.split(',').filter((t) => t.trim()).length;
-  const advancedPreview = [
-    form.locale === 'de-AT' ? 'Österreich' : 'Deutschland',
-    modelName,
-    tagCount ? `${tagCount} Tag${tagCount === 1 ? '' : 's'}` : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  const { toolCount, toolPreview, notebookPreview, greetingPreview, advancedPreview } = rowPreviews(
+    form,
+    notebooks.titleFor
+  );
   const schedulePreview = `${describeRecurrence(scheduleToRecurrence(schedule))} · ${DELIVERY_LABEL[schedule.delivery]}`;
 
   const title = isEdit
@@ -455,7 +406,7 @@ function EditorForm({
               <ActivityIndicator color={theme.textGreen} accessibilityLabel="Wird gespeichert" />
             ) : (
               <Pressable
-                onPress={() => void handleSave()}
+                onPress={handleSave}
                 disabled={!canSave}
                 hitSlop={8}
                 accessibilityRole="button"
@@ -712,3 +663,120 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xsmall,
   },
 });
+
+type SaveOutcome =
+  | { kind: 'task'; taskId: string }
+  | { kind: 'agent'; slug: string }
+  | { kind: 'updated' }
+  | { kind: 'failed'; title: string; message: string };
+
+interface SaveDeps {
+  createAgent: ReturnType<typeof useCreateUserAgent>['mutateAsync'];
+  updateAgent: ReturnType<typeof useUpdateUserAgent>['mutateAsync'];
+  createTask: ReturnType<typeof useCreateRecurringTask>['mutateAsync'];
+  updateTask: ReturnType<typeof useUpdateRecurringTask>['mutateAsync'];
+  author: string;
+}
+
+const errorText = (err: unknown) =>
+  err instanceof Error ? err.message : 'Speichern fehlgeschlagen.';
+
+/**
+ * Speichert die Sitzung: Agent anlegen oder ändern, dann die Aufgabe. Steht
+ * außerhalb der Komponente, weil der React Compiler `try` mit bedingten
+ * Ausdrücken nicht übersetzt (`test/reactCompilerCoverage.vitest.ts`).
+ *
+ * Die ID eines schon angelegten Agents bleibt in der Sitzung — scheitert danach
+ * nur die Aufgabe, legt ein zweiter Versuch keinen zweiten Agent an.
+ */
+async function saveSession(
+  s: AgentEditorSession & { setCreatedIdentifier: (identifier: string) => void },
+  deps: SaveDeps
+): Promise<SaveOutcome> {
+  const payload = formToPayload(s.form);
+  try {
+    if (s.identifier === null) {
+      let agentId = s.createdIdentifier;
+      if (!agentId) {
+        const created = await deps.createAgent({
+          identifier: newAgentIdentifier(s.form.title),
+          author: deps.author,
+          ...payload,
+        });
+        agentId = created.identifier;
+        s.setCreatedIdentifier(agentId);
+      }
+      if (s.variant !== 'recurring') return { kind: 'agent', slug: agentId };
+      try {
+        const task = await deps.createTask({
+          ...taskFields(s),
+          agentIdentifier: agentId,
+          locale: s.form.locale,
+          enabled: true,
+        });
+        return { kind: 'task', taskId: task.id };
+      } catch (err) {
+        return {
+          kind: 'failed',
+          title: 'Zeitplan nicht gespeichert',
+          message: `Der Agent ist angelegt, aber der Zeitplan konnte nicht gespeichert werden. Bitte erneut speichern.\n\n${errorText(err)}`,
+        };
+      }
+    }
+
+    await deps.updateAgent(payload);
+    if (s.taskId) {
+      await deps.updateTask({ id: s.taskId, patch: taskFields(s) });
+    } else if (s.variant === 'recurring') {
+      await deps.createTask({
+        ...taskFields(s),
+        agentIdentifier: s.identifier,
+        locale: s.form.locale,
+        enabled: true,
+      });
+    }
+    return { kind: 'updated' };
+  } catch (err) {
+    return { kind: 'failed', title: 'Speichern fehlgeschlagen', message: errorText(err) };
+  }
+}
+
+/**
+ * Die Wert-Vorschauen der Unterseiten-Zeilen. Außerhalb der Komponente, weil der
+ * React Compiler Ternäre in `… || 'Keine'`-Ketten nicht übersetzt.
+ */
+function rowPreviews(
+  form: AgentEditorSession['form'],
+  notebookTitle: (id: string) => string | null
+) {
+  const toolCount = form.enabledTools.length + (form.inlineSourceLinks ? 1 : 0);
+  const toolPreview =
+    USER_SELECTABLE_TOOLS.filter((t) => form.enabledTools.includes(t.key))
+      .map((t) => t.label)
+      .concat(form.inlineSourceLinks ? ['Quell-Links'] : [])
+      .join(', ') || 'Keine';
+  const notebookPreview =
+    form.defaultNotebookIds
+      .map(notebookTitle)
+      .filter((t): t is string => t !== null)
+      .join(', ') ||
+    (form.defaultNotebookIds.length ? `${form.defaultNotebookIds.length} gewählt` : 'Keins');
+  const questionCount = form.openingQuestions.split('\n').filter((q) => q.trim()).length;
+  const greetingPreview =
+    [
+      form.openingMessage.trim() ? form.openingMessage.trim().split('\n')[0] : null,
+      questionCount ? `${questionCount} Startfrage${questionCount === 1 ? '' : 'n'}` : null,
+    ]
+      .filter(Boolean)
+      .join(' · ') || 'Keine';
+  const modelName = MODEL_OPTIONS.find((m) => m.id === currentModelId(form))?.name ?? form.model;
+  const tagCount = form.tags.split(',').filter((t) => t.trim()).length;
+  const advancedPreview = [
+    form.locale === 'de-AT' ? 'Österreich' : 'Deutschland',
+    modelName,
+    tagCount ? `${tagCount} Tag${tagCount === 1 ? '' : 's'}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  return { toolCount, toolPreview, notebookPreview, greetingPreview, advancedPreview };
+}

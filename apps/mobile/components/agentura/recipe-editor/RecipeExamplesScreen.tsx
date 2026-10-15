@@ -58,17 +58,20 @@ export function RecipeExamplesScreen() {
       return;
     }
     if (form.styleBlock.trim().length > 0 && !(await confirmOverwrite())) return;
-    try {
-      const styleBlock = await analyzeMut.mutateAsync({
+    analyzeMut.mutate(
+      {
         ...(form.textType ? { textType: form.textType } : {}),
         title: form.title.trim(),
         examples: status.examples.map((content) => ({ content })),
-      });
-      update({ styleBlock });
-      router.back();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Analyse fehlgeschlagen.');
-    }
+      },
+      {
+        onSuccess: (styleBlock) => {
+          update({ styleBlock });
+          router.back();
+        },
+        onError: (err) => setError(err.message || 'Analyse fehlgeschlagen.'),
+      }
+    );
   };
 
   const disabled = status.examples.length === 0 || !!status.blockReason || labelMissing;

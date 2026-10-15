@@ -218,11 +218,13 @@ function EditorForm({
   /** Gesetzt, sobald die Seite absichtlich verlassen wird (gespeichert, gelöscht, verworfen). */
   const leavingRef = useRef(false);
 
+  // Nur beim Öffnen: spätere Refetches überschreiben die Eingaben nicht.
+  const begun = useRef(false);
   useEffect(() => {
+    if (begun.current) return;
+    begun.current = true;
     if (!restored) begin(target, initial);
-    // Nur beim Öffnen: spätere Refetches überschreiben die Eingaben nicht.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [restored, begin, target, initial]);
 
   // Bis der Entwurf im Store steht, zeigt die Seite den Ausgangsstand.
   const ready = storeTarget === target;
