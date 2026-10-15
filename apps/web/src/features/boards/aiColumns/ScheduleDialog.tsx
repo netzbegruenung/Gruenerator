@@ -10,6 +10,7 @@ import {
   type ScheduleFrequency,
   type ScheduleRecurrence,
 } from '@gruenerator/contracts';
+import { TIMEZONES, WEEKDAYS } from '@gruenerator/shared/grueneratoren';
 import {
   Button,
   Dialog,
@@ -23,7 +24,6 @@ import {
 } from '@gruenerator/ui';
 import { useState } from 'react';
 
-import { TIMEZONES, WEEKDAYS } from '../../recurring-tasks/scheduleState';
 import { useScheduledAgentRuns } from '../hooks/useScheduledAgentRuns';
 
 interface ScheduleDialogProps {

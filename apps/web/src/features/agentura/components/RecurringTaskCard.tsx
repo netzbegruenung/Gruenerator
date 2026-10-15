@@ -6,12 +6,12 @@
  */
 import { type RecurringTask } from '@gruenerator/contracts';
 import { agenturaMetaLine } from '@gruenerator/shared/agents';
+import { DELIVERY_LABEL, describeRecurrence } from '@gruenerator/shared/grueneratoren';
 import { PiPause, PiPencilSimple, PiPlay, PiRepeat, PiTrash } from 'react-icons/pi';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { useDeleteRecurringTask, useUpdateRecurringTask } from '../../recurring-tasks/api';
 import { RunHistoryDisclosure } from '../../recurring-tasks/RunHistory';
-import { DELIVERY_LABEL, describeRecurrence } from '../../recurring-tasks/scheduleState';
 import { useRecurringRunNow } from '../../recurring-tasks/useRecurringRunNow';
 import { useTrashUndoToast } from '../../trash/trashUndoToast';
 

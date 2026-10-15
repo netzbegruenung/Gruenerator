@@ -13,8 +13,8 @@ const NATIVE_PATHS = [/^\/projekte\/[^/?#]+/, /^\/vorlagen(?:[?#]|$)/, /^\/noteb
  * Map a backend action_url (a web path) to a mobile route. Document URLs have
  * no expo-router screen — they open via the fullscreen doc editor, which reads
  * `id` from useLocalSearchParams. A path the app has a screen for is pushed
- * as-is; everything else (boards, recurring tasks, notebook settings) opens in
- * the web viewer rather than on expo-router's "Unmatched route" screen.
+ * as-is; everything else (boards, notebook settings) opens in the web viewer
+ * rather than on expo-router's "Unmatched route" screen.
  */
 export function actionUrlToRoute(url: string): Href {
   const documentId = documentIdFromUrl(url);
@@ -31,6 +31,42 @@ export function actionUrlToRoute(url: string): Href {
   if (chatThread) {
     return { pathname: '/(focused)/chat-conversation', params: { threadId: chatThread[1]! } };
   }
+  const grueneratoren = grueneratorenRoute(url);
+  if (grueneratoren) return grueneratoren;
   if (NATIVE_PATHS.some((pattern) => pattern.test(url))) return url as Href;
   return { pathname: '/(fullscreen)/web-viewer', params: { path: url } };
+}
+
+/**
+ * Grüneratoren-Pfade des Webs auf ihre Seiten in der App: Übersicht, Agentura,
+ * Detailseiten und wiederkehrende Aufgaben (Meldungen verlinken
+ * `/wiederkehrend?task=<id>`). Anlegen und Bearbeiten (`/agents/new`,
+ * `/agentura/rezept/neu`, `…/bearbeiten`) bleiben bewusst beim Web-Viewer —
+ * ein Link dorthin trägt keinen Entwurf mit, den die App übernehmen könnte.
+ */
+function grueneratorenRoute(url: string): Href | null {
+  const [path = '', query = ''] = url.split(/[?#]/);
+  if (path === '/grueneratoren' || path === '/agents') return '/(focused)/agents';
+  if (path === '/agentura') return { pathname: '/(focused)/agents', params: { agentura: '1' } };
+  if (path === '/wiederkehrend') {
+    const task = new URLSearchParams(query).get('task');
+    return task
+      ? { pathname: '/(focused)/grueneratoren/aufgabe/[id]', params: { id: task } }
+      : '/(focused)/agents';
+  }
+  const agent = path.match(/^\/agentura\/agent\/([^/]+)$/);
+  if (agent) {
+    return {
+      pathname: '/(focused)/grueneratoren/agent/[slug]',
+      params: { slug: decodeURIComponent(agent[1]!) },
+    };
+  }
+  const recipe = path.match(/^\/agentura\/(?:rezept|skill)\/([^/]+)$/);
+  if (recipe && recipe[1] !== 'neu') {
+    return {
+      pathname: '/(focused)/grueneratoren/rezept/[mention]',
+      params: { mention: decodeURIComponent(recipe[1]!) },
+    };
+  }
+  return null;
 }
