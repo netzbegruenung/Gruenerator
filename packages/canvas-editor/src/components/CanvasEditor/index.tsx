@@ -84,7 +84,7 @@ import {
   isPosterFormat,
   isPosterImpressumComplete,
   usePrintImpressumGate,
-  type ObservedPageState,
+  type ObservedPages,
 } from './hooks/usePrintImpressumGate';
 import { useScrollToAddedPage } from './hooks/useScrollToAddedPage';
 import { useToolbarHandlers } from './hooks/useToolbarHandlers';
@@ -662,23 +662,21 @@ function CanvasEditorInner({
     [currentPageIndex, canvasRefsRef, onDownload]
   );
 
-  // Page 1's live state for the poster impressum gate. The ref is for the
+  // Each poster page's live state for the impressum gate. The ref is for the
   // export re-check (no stale closure), the state re-renders the gate.
-  const [observedFirstPage, setObservedFirstPage] = useState<ObservedPageState | null>(null);
-  const observedFirstPageRef = useRef<ObservedPageState | null>(null);
+  const [observedPages, setObservedPages] = useState<ObservedPages>({});
+  const observedPagesRef = useRef<ObservedPages>({});
   const pagesRef = useRef(pages);
   useEffect(() => {
     pagesRef.current = pages;
   });
   const handleObservedState = useCallback(
     (pageId: string, state: Record<string, unknown>, actions: Record<string, unknown>) => {
-      const next = { pageId, state, actions };
-      observedFirstPageRef.current = next;
-      startTransition(() =>
-        setObservedFirstPage((prev) =>
-          prev?.pageId === pageId && prev.state === state && prev.actions === actions ? prev : next
-        )
-      );
+      const prev = observedPagesRef.current[pageId];
+      if (prev?.state === state && prev.actions === actions) return;
+      const next = { ...observedPagesRef.current, [pageId]: { pageId, state, actions } };
+      observedPagesRef.current = next;
+      startTransition(() => setObservedPages(next));
     },
     []
   );
@@ -702,7 +700,7 @@ function CanvasEditorInner({
     if (!printFormat) return;
     if (
       isPosterFormat(printFormat) &&
-      !isPosterImpressumComplete(pagesRef.current[0] ?? null, observedFirstPageRef.current)
+      !isPosterImpressumComplete(pagesRef.current, observedPagesRef.current)
     ) {
       throw new Error('Für Plakate ist ein Impressum Pflicht.');
     }
@@ -713,12 +711,11 @@ function CanvasEditorInner({
     const pdf = await exportPrintPdf({ format: printFormat, pages });
     const blob = new Blob([pdf as BlobPart], { type: 'application/pdf' });
     await downloadBlob(blob, printPdfFilename(documentTitle ?? null));
-  }, [printFormat, printPages, canvasRefsRef, documentTitle, pagesRef, observedFirstPageRef]);
+  }, [printFormat, printPages, canvasRefsRef, documentTitle, pagesRef, observedPagesRef]);
 
-  // Posters must carry a filled-in V.i.S.d.P. / Impressum on page 1, whichever
-  // page is active; the gate fails closed until page 1 has reported.
-  const firstPage = pages[0] ?? null;
-  const impressumGate = usePrintImpressumGate(printFormat, firstPage, observedFirstPage);
+  // Every poster page must carry a filled-in V.i.S.d.P. / Impressum, whichever
+  // page is active; the gate fails closed until every page has reported.
+  const impressumGate = usePrintImpressumGate(printFormat, pages, observedPages);
 
   const getPrintWarnings = useCallback(
     () => (printFormat ? lowResolutionWarnings(printFormat, printPages()) : []),
@@ -1247,9 +1244,7 @@ function CanvasEditorInner({
                   callbacks={getCallbacksForPage(page.id, page.configId)}
                   multiPageExport={index === 0 ? multiPageExportProps : undefined}
                   onStateChange={handlePageStateChange}
-                  onObservedState={
-                    index === 0 && isPosterFormat(printFormat) ? handleObservedState : undefined
-                  }
+                  onObservedState={isPosterFormat(printFormat) ? handleObservedState : undefined}
                   onToolbarStateChange={
                     isActive && !isPreview ? handleToolbarStateChange : undefined
                   }
