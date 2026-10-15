@@ -46,7 +46,6 @@ export {
   type ComposePrintOptions,
 } from './composePrint';
 export {
-  getPrintVorlage,
   PRINT_VORLAGEN,
   printVorlagenFor,
   type PrintVorlage,

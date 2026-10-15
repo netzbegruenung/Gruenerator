@@ -156,7 +156,3 @@ export type PrintVorlageId = (typeof PRINT_VORLAGEN)[number]['id'];
 export function printVorlagenFor(locale: PrintLocale): PrintVorlage[] {
   return PRINT_VORLAGEN.filter((v) => v.locale === locale);
 }
-
-export function getPrintVorlage(id: string): PrintVorlage | null {
-  return PRINT_VORLAGEN.find((v) => v.id === id) ?? null;
-}
