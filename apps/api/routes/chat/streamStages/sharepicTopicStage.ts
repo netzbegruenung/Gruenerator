@@ -46,9 +46,12 @@ export async function runSharepicTopicStage({
     // normales sharepic" carries none of its own, but the turn before it
     // does — and runSharepicGeneration resolves exactly that. Asking here
     // would throw away a topic the pipeline already knows. Both resolution
-    // paths count, in the order the generator tries them.
+    // paths count, in the order the generator tries them — and so does the
+    // material this turn brought along („mach daraus einen Slider" unter einer
+    // eingefügten PM), which `buildSharepicBackground` hands to the generator.
     const topicResolvable =
       !!classifiedState.creationTopic ||
+      !!classifiedState.attachmentContext?.trim() ||
       resolveReferentialTopic(sharepicText as string, classifiedState.messages ?? []).inherited;
     if (isSharepicTopicMissing(sharepicText as string) && !topicResolvable) {
       log.info('[ChatGraph] Sharepic topic missing — asking user for the topic');

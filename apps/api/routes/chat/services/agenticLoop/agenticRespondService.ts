@@ -1001,6 +1001,11 @@ export async function streamAgenticResponse(
     memoryRan: steps.some((step) => step.toolName === 'memory' && step.ok !== false),
     editedArtifacts: editedArtifactKinds(steps, finalState),
     guardedArtifacts: guardedArtifactKinds(finalState),
+    createdArtifact:
+      (finalState.sharepicVariants?.length ?? 0) > 0 ||
+      finalState.generatedImage != null ||
+      finalState.createdDocument != null ||
+      finalState.createdBoard != null,
     seenTexts: [
       // A name the user typed themselves is not one the model invented.
       finalState.lastUserTextNoMentions ?? '',

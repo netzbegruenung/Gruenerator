@@ -1158,6 +1158,9 @@ export interface ChatGraphState {
   // Literal: dieses Feld war der siebte Schreiber derselben Menge, und ein hier
   // fehlender Wert hätte im Katalog stumm kein Werkzeug montiert.
   compoundGenerationKind?: ArtifactKindId | null;
+  // Die Art wurde bestellt, nicht nur genannt. `false` heisst: Werkzeug montiert,
+  // aber `forceCompoundGeneration` holt es nicht nach — der Planer entscheidet.
+  compoundGenerationOrdered?: boolean;
   // Compound "research + edit the OPEN artefact" (editor sidebars): runs the
   // research loop, then feeds the gathered sources to the `edit_document` tool
   // as reference material. Synth writes only a short confirm.

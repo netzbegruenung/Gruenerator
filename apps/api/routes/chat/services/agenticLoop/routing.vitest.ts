@@ -17,6 +17,7 @@ import {
   type EditToolLoopInput,
   type AgenticDecisionInput,
   isReferentialFollowup,
+  namesSharepicWithoutOrder,
   needsThreadGrounding,
   looksLikeSelfContainedTurn,
   rewritesSuppliedText,
@@ -1695,5 +1696,53 @@ describe('compoundGenerationKind — Explainable', () => {
     expect(compoundGenerationKind('agentic', 'Recherchiere X und erstelle ein Dokument dazu')).toBe(
       'document'
     );
+  });
+});
+
+// Review 15.10.2026: das nackte `wandel` im Verbkern machte das Nomen „Wandel"
+// zur Bestellung und nahm Anschlussfragen ihren Bezug.
+describe('„Wandel" ist kein Erstell-Verb', () => {
+  it.each([
+    'Die Präsentation zum sozialen Wandel ist gut, danke',
+    'Fass das PDF-Dokument zum Wandel der Mobilität zusammen',
+  ])('bestellt nichts: %s', (text) => {
+    expect(compoundGenerationKind('produktion', text)).toBeNull();
+  });
+
+  it('eine Anschlussfrage zum Wandel bleibt rückbezüglich', () => {
+    expect(isReferentialFollowup('Und wie sieht der Wandel aus?')).toBe(true);
+  });
+
+  it('die Verbformen bleiben Aufträge', () => {
+    expect(compoundGenerationKind('produktion', 'wandle das in ein PDF um')).toBe('pdf');
+    expect(compoundGenerationKind('produktion', 'Verwandel die Notizen in eine Präsentation')).toBe(
+      'presentation'
+    );
+  });
+});
+
+// Review 15.10.2026: das Nomen allein gibt das Werkzeug frei — aber nicht für
+// ein vorhandenes Sharepic und nicht für den Bedien-„Slider".
+describe('namesSharepicWithoutOrder', () => {
+  it.each([
+    'Die Kernaussagen der PM gehören auf einen Sharepic-Slider.',
+    'Schick mir die PM als Sharepic-Karussell für Insta',
+    'kürze die PM auf die Hälfte. Dazu passt später ein Sharepic.',
+  ])('genannt: %s', (text) => {
+    expect(namesSharepicWithoutOrder('produktion', text)).toBe(true);
+  });
+
+  it.each([
+    'Der Slider für die Lautstärke hakt',
+    'Ich habe einen Slider auf der Website, wie viel Text passt da drauf?',
+    'Danke, das Sharepic sieht super aus',
+    'das Sharepic ist zu blau',
+    'erstelle ein Sharepic zur Kita',
+  ])('kein Freigabefall: %s', (text) => {
+    expect(namesSharepicWithoutOrder('produktion', text)).toBe(false);
+  });
+
+  it('gilt nur für Prosa- und Loop-Intents', () => {
+    expect(namesSharepicWithoutOrder('search', 'Dazu passt später ein Sharepic.')).toBe(false);
   });
 });

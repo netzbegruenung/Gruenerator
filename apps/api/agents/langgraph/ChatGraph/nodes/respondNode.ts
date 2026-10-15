@@ -1263,7 +1263,7 @@ const DIRECT_HONESTY_NOTE = `\nWICHTIG: In diesem Turn wurde NICHTS recherchiert
  * and no door; the product HAS a door, and it is one sentence wide.
  */
 const NO_HANDMADE_FILE_NOTE =
-  '\nDu kannst eine Datei nicht selbst in die Antwort schreiben. Gib deshalb NIEMALS einen `data:`-Block, Base64, einen Datei-Inhalt zum Selbst-Abspeichern oder einen ausgedachten Pfad/Link (`/office/…`, `/docs/…`) aus — nichts davon ergibt eine Datei, die sich öffnen lässt. Präsentationen, Dokumente, Tabellen und PDFs entstehen im Grünerator ausschließlich über die Erstellungsfunktion und erscheinen dann als Karte im Chat. Fehlt sie hier, sag das offen und biete an, sie anzulegen.';
+  '\nDu kannst eine Datei nicht selbst in die Antwort schreiben. Gib deshalb NIEMALS einen `data:`-Block, Base64, einen Datei-Inhalt zum Selbst-Abspeichern oder einen ausgedachten Pfad/Link (`/office/…`, `/docs/…`) aus — nichts davon ergibt eine Datei, die sich öffnen lässt. Präsentationen, Dokumente, Tabellen und PDFs entstehen im Grünerator ausschließlich über die Erstellungsfunktion und erscheinen dann als Karte im Chat. Fehlt sie hier, sag das offen und biete an, sie anzulegen — als eine Frage am Schluss, die die Art nennt (z. B. „Soll ich daraus eine Präsentation machen?").';
 
 // Same turn-outcome honesty, minus the citation ban: on a carried-source turn
 // the sources ARE real, persisted and chip-backed, so [N] is not a lie — only

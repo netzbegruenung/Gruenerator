@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 
-import { buildCreateTurnContext, withConversationContext } from './createTurn.js';
+import {
+  buildCreateTurnContext,
+  turnMaterialBlock,
+  withConversationContext,
+} from './createTurn.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 
@@ -103,5 +107,38 @@ describe('withConversationContext', () => {
     expect(withConversationContext('Prüfe deine bisherigen Angaben', '')).toBe(
       'Prüfe deine bisherigen Angaben'
     );
+  });
+});
+
+// Live 15.10.2026: „erstelle ein Sharepic aus dieser PM" mit Paste-Chip — die
+// Datei-Teile werden vor der Umwandlung verworfen, der Generator sah den Satz
+// allein. Das Material gehört zum Auftrag, nicht zum Verlauf.
+describe('turnMaterialBlock', () => {
+  it('rahmt das Material als Daten und steht vor dem Auftrag', () => {
+    const material = turnMaterialBlock('Die Kreisumlage steigt um einen Prozentpunkt.');
+    const brief = withConversationContext('erstelle ein Sharepic aus dieser PM', '', material);
+    expect(brief).toContain('Kreisumlage');
+    expect(brief.indexOf('Kreisumlage')).toBeLessThan(brief.indexOf('AUFTRAG:'));
+    expect(brief).toMatch(/<[^>]*type="anhang"/);
+  });
+
+  it('steht zwischen Verlauf und Auftrag', () => {
+    const brief = withConversationContext(
+      'mach daraus eine Präsentation',
+      'assistant: Gern.',
+      turnMaterialBlock('Kreisumlage')
+    );
+    expect(brief.indexOf('BISHERIGES GESPRÄCH')).toBeLessThan(brief.indexOf('Kreisumlage'));
+    expect(brief.indexOf('Kreisumlage')).toBeLessThan(brief.indexOf('AUFTRAG:'));
+  });
+
+  it('ohne Material bleibt alles wie vorher', () => {
+    expect(turnMaterialBlock(null)).toBe('');
+    expect(turnMaterialBlock('   ')).toBe('');
+    expect(withConversationContext('Auftrag', '', turnMaterialBlock(undefined))).toBe('Auftrag');
+  });
+
+  it('kappt grosses Material', () => {
+    expect(turnMaterialBlock('x'.repeat(5000), 1000).length).toBeLessThan(1500);
   });
 });

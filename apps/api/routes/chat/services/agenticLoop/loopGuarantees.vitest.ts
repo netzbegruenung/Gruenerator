@@ -205,3 +205,37 @@ describe('Bearbeitungs-Zusicherung — der Text entscheidet mit, nicht nur der I
     expect(execute).not.toHaveBeenCalled();
   });
 });
+
+// 15.10.2026: Das Sharepic-Nomen gibt das Werkzeug frei, bestellt aber nichts.
+// Holte die Garantie es nach, würde die blosse Erwähnung doch wieder erzwungen.
+describe('Erzeugungs-Zusicherung — nur für Bestelltes', () => {
+  const sharepicTurn = (ordered: boolean | undefined) =>
+    harness(
+      {
+        editToolSurface: null,
+        compoundGeneration: true,
+        compoundGenerationKind: 'sharepic',
+        ...(ordered !== undefined && { compoundGenerationOrdered: ordered }),
+      },
+      'kürze die PM. Dazu passt später ein Sharepic.',
+      'sharepic'
+    );
+
+  it('holt ein bestelltes Sharepic nach, wenn der Planer es liegen lässt', async () => {
+    const { run, execute } = sharepicTurn(true);
+    await run();
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
+
+  it('holt ein bloss genanntes Sharepic nicht nach', async () => {
+    const { run, execute } = sharepicTurn(false);
+    await run();
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it('ohne Merker gilt die Art als bestellt (Bestandsverhalten)', async () => {
+    const { run, execute } = sharepicTurn(undefined);
+    await run();
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
+});

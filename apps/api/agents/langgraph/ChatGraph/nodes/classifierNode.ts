@@ -27,6 +27,7 @@ import { agentAllowsTool } from '../../../../routes/chat/agents/agentToolWhiteli
 import { collectionsForLocale } from '../../../../routes/chat/agents/searchTools.js';
 import { isAgenticLoopEnabled } from '../../../../routes/chat/services/agenticLoop/flags.js';
 import {
+  compoundGenerationKind,
   isDocumentContextEditAllowed,
   isReferentialFollowup,
   looksLikeSelfContainedTurn,
@@ -36,7 +37,11 @@ import {
 } from '../../../../routes/chat/services/agenticLoop/routing.js';
 import { agenturaCreateTarget } from '../../../../routes/chat/services/agenturaContext.js';
 import { artifactKind } from '../../../../routes/chat/services/artifactKindRegistry.js';
-import { acceptsOffer, offerTopic } from '../../../../routes/chat/services/artifactOffer.js';
+import {
+  acceptsOffer,
+  offerTopic,
+  QUESTION_EDITABLE_KINDS,
+} from '../../../../routes/chat/services/artifactOffer.js';
 import {
   namedLoopArtifact,
   namesDocumentTarget,
@@ -1206,8 +1211,8 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
           extractMessageText(messages.filter((m) => m.role === 'assistant').pop()?.content)
         )) &&
       (state.lastTurnPendingConfirm === true ||
-        state.threadArtifacts?.some(
-          (a) => a.kind === 'sheet' || a.kind === 'presentation' || a.kind === 'explainable'
+        state.threadArtifacts?.some((a) =>
+          (QUESTION_EDITABLE_KINDS as readonly string[]).includes(a.kind)
         ) === true)
     ) {
       recordDecision('classifier.tier', 'tier2_artifact_question_accept');
@@ -1304,6 +1309,37 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // mention above already routed the request.
 
     if (hasAttachmentContext && userContent.length > 0) {
+      // Ein Erstell-Auftrag über dem Anhang ist ein Erstell-Turn, kein
+      // Schreibauftrag am Material. Dieser Rückfall lief vor jeder Erstell-Regel
+      // und machte „erstelle ein Sharepic aus dieser PM" oder „mach daraus eine
+      // Präsentation" mit Paste-Chip zu `produktion` ohne Werkzeug (live
+      // 15.10.2026). Dasselbe Prädikat wie der Router, damit beide dieselbe Art
+      // lesen. Arten ohne eigenen Intent (Dokument, Board) bleiben `produktion`;
+      // die hebt der Router mit dem Werkzeug in den Loop.
+      //
+      // Bewusst VOR dem Notebook-Zweig darunter: dessen erzwungene Suche baute
+      // nie ein Artefakt (`search` hat keine Erstell-Art), ein Notebook-Agent
+      // beantwortete „mach daraus eine Präsentation" also mit Text. Der bestellte
+      // Gegenstand und sein Stoff im Anhang gehen der Notebook-Erdung vor.
+      const orderedKind = compoundGenerationKind('produktion', askText);
+      const orderedIntent = orderedKind ? artifactKind(orderedKind).intent : null;
+      if (orderedKind && orderedIntent) {
+        log.info(`[Classifier] Creation order over an attachment → ${orderedIntent}`);
+        recordDecision('classifier.tier', 'tier2_attachment_create_order', {
+          inputs: { kind: orderedKind },
+        });
+        return {
+          intent: orderedIntent,
+          searchSources: [],
+          searchQuery: null,
+          detectedFilters: null,
+          reasoning: `Erstell-Auftrag über dem Anhang: ${artifactKind(orderedKind).label}`,
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs: Date.now() - startTime,
+        };
+      }
+
       // Agent-bound default notebooks (or a deliberate composer pick): the
       // attachment is working material (e.g. a pasted citizen email), but the
       // answer must still be grounded in the notebook. `produktion` would skip
