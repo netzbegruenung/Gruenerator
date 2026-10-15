@@ -419,7 +419,7 @@ export default function AgentsScreen() {
       : emptyNote(emptyText);
 
   return (
-    <ScreenScaffold title="Agentura" onBack={() => goBackOr('/start')}>
+    <ScreenScaffold title="Grüneratoren" onBack={() => goBackOr('/start')}>
       <View style={styles.column}>
         <View style={styles.controls}>
           <View

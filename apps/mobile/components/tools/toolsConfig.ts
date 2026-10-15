@@ -27,10 +27,10 @@ export type WorkplaceTool = ToolDef | LinkToolDef;
 
 export const isLinkTool = (tool: WorkplaceTool): tool is LinkToolDef => 'href' in tool;
 
-const AGENTURA: ToolDef = {
+const GRUENERATOREN: ToolDef = {
   id: 'agents',
-  title: 'Agentura',
-  description: 'Grüneratoren & Rezepte',
+  title: 'Grüneratoren',
+  description: 'Agents, Rezepte & Aufgaben',
   icon: toolIconKey('agents'),
   route: '/(focused)/agents',
 };
@@ -109,17 +109,17 @@ export const STUDIO_TOOL_GLYPHS: Record<string, IoniconsIconName> = {
 };
 
 /**
- * The tools on top of Arbeiten, in web's order (Agentura, Wissen, Projekte);
+ * The tools on top of Arbeiten, in web's order (Grüneratoren, Wissen, Projekte);
  * the dock shows the first three, favourites first, and the rest open from
  * „Weitere" — web's Weitere menu: Übersetzer, then the Doku and the newsletter
  * as links. Scanner has no web tile but is the one mobile-only tool; Vorlagen
  * sits next to it instead of in the create menu.
  *
  * Ids are F1 frozen: the favourites store persists them, so they keep their
- * spelling even where the title changed (`agents` is titled "Agentura" now).
+ * spelling even where the title changed (`agents` is titled "Grüneratoren" now).
  */
 export const WORKPLACE_TILES: WorkplaceTool[] = [
-  AGENTURA,
+  GRUENERATOREN,
   {
     id: 'wissen',
     title: 'Wissen',
