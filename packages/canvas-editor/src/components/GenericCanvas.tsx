@@ -56,6 +56,7 @@ import { stageCssScale } from '../utils/stageCssScale';
 import { getOptimalContainerWidth } from '../utils/viewport';
 
 import { CanvasRenderLayer } from './CanvasRenderLayer';
+import { PrintGuides } from './PrintGuides';
 import { ToolbarStateBridge } from './ToolbarStateBridge';
 
 import type { RemoteSelector } from './RemoteSelectionOverlay';
@@ -814,6 +815,8 @@ function GenericCanvasWithRef<
           isFontAvailable={isFontAvailable}
           remoteSelections={remoteSelections}
         />
+
+        <PrintGuides format={format} />
 
         {/* Attribution overlay - only visible during export */}
         {attributionOverlayData && (
