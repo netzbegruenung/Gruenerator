@@ -19,6 +19,7 @@ import {
 } from '../../theme';
 import { getToolTheme } from '../../theme/toolTheme';
 import { BottomSheet } from '../common/BottomSheet';
+import { SHEET_HANDOFF_MS } from '../common/CreateMenuSheet';
 import { MenuIcon } from '../icons/WebMirrorIcons';
 
 import { isLinkTool, type WorkplaceTool } from './toolsConfig';
@@ -177,7 +178,11 @@ export function ToolDock({ tools }: { tools: WorkplaceTool[] }) {
               <Pressable
                 onPress={() => {
                   setMoreOpen(false);
-                  open(tool);
+                  // The in-app browser is a native modal too: presented while
+                  // the sheet still slides out, iOS leaves an invisible layer
+                  // that swallows every tap. A route push does not present.
+                  if (isLinkTool(tool)) setTimeout(() => open(tool), SHEET_HANDOFF_MS);
+                  else open(tool);
                 }}
                 accessibilityRole="button"
                 style={({ pressed }) => [
