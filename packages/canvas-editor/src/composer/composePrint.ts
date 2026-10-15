@@ -206,6 +206,32 @@ function placeStack(p: Page, f: Frame, blocks: Block[], x: number, y: number, wi
   return cursor;
 }
 
+/**
+ * A stack laid out from `top`, each text as wide as `widthAt` allows where it
+ * starts (narrower beside a flower), its type shrunk until every word fits.
+ */
+function layoutStack(
+  f: Frame,
+  blocks: Block[],
+  top: number,
+  widthAt: (y: number) => number
+): { items: AdditionalText[]; bottom: number } {
+  let cursor = top;
+  const items = blocks.map((block, i) => {
+    if (i > 0) cursor += block.before;
+    const width = widthAt(cursor);
+    const { text, fontSize, fontFamily } = block.props;
+    const sized: Block = {
+      ...block,
+      props: { ...block.props, fontSize: wordsFit(f, text, fontSize, width, fontFamily) },
+    };
+    const item = { ...sized.props, x: f.inner.x, y: cursor, width };
+    cursor += blockHeight(f, sized, width);
+    return item;
+  });
+  return { items, bottom: cursor };
+}
+
 /** Largest size ≤ `size` at which every word of `text` fits `width` on its own. */
 function wordsFit(f: Frame, text: string, size: number, width: number, family: string): number {
   const words = text
@@ -466,17 +492,20 @@ function typo(f: Frame, slots: PrintTypoSlots, impressum: PrintImpressum | null)
   const h3 = 1.7 * u;
   const gap = 1.2 * u;
 
+  // A text starting above the flower's bottom edge (plus a gap) ends before
+  // its left edge, as in the lab; below it the column runs full width.
+  let widthAt = (_y: number) => inner.width;
   if (!isAt) {
     // Drawn first, so the text sits on it.
     const w = 0.4 * trim.width;
     const h = (w * ART.sunflower.h) / ART.sunflower.w;
-    p.asset(
-      'pr-blume',
-      'sunflower',
-      trim.x + trim.width * 1.14 - w / 2,
-      trim.y - 0.08 * trim.height + h / 2,
-      Math.max(w, h)
-    );
+    const cx = trim.x + trim.width * 1.14 - w / 2;
+    const cy = trim.y - 0.08 * trim.height + h / 2;
+    const size = Math.max(w, h);
+    p.asset('pr-blume', 'sunflower', cx, cy, size);
+    const flowerBottom = cy + size / 2;
+    const beside = cx - size / 2 - u - inner.x;
+    widthAt = (y) => (y < flowerBottom + gap ? beside : inner.width);
   }
 
   // Footer, bottom-up: logo bottom-right, the sender beside it, the web above.
@@ -577,15 +606,24 @@ function typo(f: Frame, slots: PrintTypoSlots, impressum: PrintImpressum | null)
     }
     return blocks;
   };
-  const room = footerTop - inner.y - 3 * gap;
-  let headSize = wordsFit(f, slots.headline, 5 * u, inner.width, head);
-  while (headSize > 1.7 * u && stackHeight(f, blockFor(headSize), inner.width) > room) {
-    headSize *= 0.97;
-  }
+  // Fitted at the highest start, where the most text runs beside the flower;
+  // any lower start only widens texts, so the block stays as tall or shrinks.
+  const top = inner.y + gap;
+  const room = footerTop - gap - top;
+  const heightAt = (blocks: Block[], y: number) => layoutStack(f, blocks, y, widthAt).bottom - y;
+  let headSize = 5 * u;
+  while (headSize > 1.7 * u && heightAt(blockFor(headSize), top) > room) headSize *= 0.97;
   const blocks = blockFor(headSize);
-  // The lab's spacers: 1.2 parts above the block, 1 part below.
-  const free = Math.max(0, room - stackHeight(f, blocks, inner.width));
-  placeStack(p, f, blocks, inner.x, inner.y + gap + (free * 1.2) / 2.2, inner.width);
+  // The lab's spacers: 1.2 parts above the block, 1 part below. Moving down
+  // can widen a text and shorten the block; settle in a few rounds.
+  let y = top;
+  for (let round = 0; round < 4; round++) {
+    const free = Math.max(0, room - heightAt(blocks, y));
+    y = top + (free * 1.2) / 2.2;
+  }
+  // A wider text may take its full size back and grow; then start at the top.
+  if (y + heightAt(blocks, y) > top + room) y = top;
+  for (const item of layoutStack(f, blocks, y, widthAt).items) p.text(item);
 
   p.asset(
     'pr-logo',

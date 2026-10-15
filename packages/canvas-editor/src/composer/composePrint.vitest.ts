@@ -299,6 +299,34 @@ describe('composePrint: typo poster', () => {
     }
   });
 
+  it('keeps every DE text clear of the sunflower, on A3 and A4', () => {
+    const long = {
+      ...plakat,
+      dachzeile: 'Einladung zum offenen Diskussionsabend mit unseren Abgeordneten zum Thema:',
+      headline: 'Bezahlbare Mieten, saubere Luft und ein Bus, der auch abends noch fährt',
+      akzent: 'saubere Luft',
+    };
+    for (const slots of [plakat, long]) {
+      for (const format of ['print-a3-hoch', 'print-a4-hoch']) {
+        const result = compose(typoSpec('de-DE', slots, format));
+        const blume = result.slides[0]!.assetInstances.find((a) => a.id === 'pr-blume')!;
+        const size = blume.scale * ASSET_TARGET_SIZE;
+        // The flower's full bounding box, transparent corners included.
+        const flower = { x: blume.x - size / 2, y: blume.y - size / 2, width: size, height: size };
+        for (const t of result.slides[0]!.additionalTexts) {
+          const box = textBox(t);
+          const apart =
+            box.x + box.width <= flower.x ||
+            box.y >= flower.y + flower.height ||
+            box.x >= flower.x + flower.width ||
+            box.y + box.height <= flower.y;
+          expect(apart, `${format} ${t.id}`).toBe(true);
+        }
+        expectInSafeZone(result);
+      }
+    }
+  });
+
   it('shrinks a long headline into the page, also on A4', () => {
     const long = {
       ...plakat,
