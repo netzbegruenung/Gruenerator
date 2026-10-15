@@ -420,8 +420,8 @@ export async function seedThreadTitleIfUnnamed(params: {
     .catch((err) => log.warn('[ChatGraph] Thread recall embedding failed:', err));
 }
 
-/** `metadata.offer`, wenn die Antwort das Angebot ihres Rezepts wirklich
- *  stellt — der nächste Turn liest es als `lastTurnOffer`. */
+/** `metadata.offer`, wenn die Antwort ein Erstell-Angebot wirklich stellt —
+ *  der nächste Turn liest es als `lastTurnOffer`. */
 function recordedOffer(
   finalState: ChatGraphState,
   text: string,
@@ -432,6 +432,7 @@ function recordedOffer(
     text,
     producedArtifact,
     pendingOffer: finalState.lastTurnOffer ?? null,
+    threadKinds: (finalState.threadArtifacts ?? []).map((a) => a.kind),
   });
   return offer ? { offer } : {};
 }

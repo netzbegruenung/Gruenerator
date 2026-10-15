@@ -161,6 +161,21 @@ describe('offerToRecord', () => {
     ).toEqual({ kind });
   });
 
+  it('records no free-form offer for a kind the thread already has', () => {
+    const text = 'Text …\n\nSoll ich daraus eine neue Folie machen?';
+    expect(
+      offerToRecord({
+        recipeMentions: [],
+        text,
+        producedArtifact: false,
+        threadKinds: ['presentation'],
+      })
+    ).toBeNull();
+    expect(offerToRecord({ recipeMentions: [], text, producedArtifact: false })).toEqual({
+      kind: 'presentation',
+    });
+  });
+
   it.each([
     'Soll ich die Tabelle noch um eine Spalte ergänzen?',
     'Soll ich das Dokument noch kürzen?',

@@ -136,6 +136,11 @@ export function offerToRecord(opts: {
   text: string;
   producedArtifact: boolean;
   pendingOffer?: ArtifactKindId | null;
+  /** Arten, die der Thread schon hat. Ein frei formuliertes Angebot dafür
+   *  („Soll ich daraus eine neue Folie machen?" neben einem Deck) kann
+   *  Bearbeiten wie Neubauen meinen — das „ja" darauf nimmt
+   *  `tier2_artifact_question_accept`, nicht der Neubau. */
+  threadKinds?: readonly string[];
 }): { kind: ArtifactKindId } | null {
   if (opts.producedArtifact) return null;
   const passages = [lastQuestion(opts.text), closingOffer(opts.text)].filter(
@@ -152,7 +157,7 @@ export function offerToRecord(opts: {
   }
   for (const passage of passages) {
     const kind = compoundGenerationKind('produktion', passage);
-    if (kind) return { kind };
+    if (kind) return opts.threadKinds?.includes(kind) ? null : { kind };
   }
   return null;
 }
