@@ -1,17 +1,20 @@
-import React, { memo } from 'react';
-import { HiOutlineSparkles } from 'react-icons/hi2';
-import { useNavigate } from 'react-router-dom';
+import React, { memo, useState } from 'react';
+// import { HiOutlineSparkles } from 'react-icons/hi2';
+// import { useNavigate } from 'react-router-dom';
 
 import ChatInner from './ChatInner';
+import SharepicAnnouncementDialog from './SharepicAnnouncementDialog';
 
 const CreatorSection: React.FC = memo(() => {
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
+  const [sharepicNewsOpen, setSharepicNewsOpen] = useState(false);
 
   return (
     <div className="w-full flex flex-col gap-sm">
       <ChatInner />
 
-      <div className="flex flex-col items-center gap-1 text-center">
+      <div className="flex flex-wrap items-center justify-center gap-2 text-center">
+        {/* Abgelöst durch den Sharepic-Knopf daneben.
         <button
           type="button"
           onClick={() =>
@@ -24,7 +27,18 @@ const CreatorSection: React.FC = memo(() => {
           <HiOutlineSparkles className="size-4" />
           Entdecke den neuen Grünerator
         </button>
+        */}
+        <button
+          type="button"
+          onClick={() => setSharepicNewsOpen(true)}
+          className="mt-1 inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-4 py-1.5 text-[13.5px] font-semibold text-grey-900 shadow-sm transition-colors hover:bg-grey-50"
+        >
+          <span className="text-primary-700">Neu:</span>
+          Entdecke die Sharepics
+        </button>
       </div>
+
+      <SharepicAnnouncementDialog open={sharepicNewsOpen} onOpenChange={setSharepicNewsOpen} />
     </div>
   );
 });
