@@ -3,6 +3,7 @@ import { createContext, useContext } from 'react';
 import type { ApplyResult } from './ai/applyOperation';
 import type { ReplaceDeckOps } from './collab/pagesDoc';
 import type { StockImage, StockImageAttribution } from './common/imageSourceTypes';
+import type { PrintVorlage } from './composer/printVorlagen';
 import type { HeterogeneousPage } from './configs/types';
 import type {
   CanvasAiCapabilities,
@@ -73,6 +74,11 @@ export interface CanvasVorlagenService {
   compose: (vorlage: SharepicVorlage) => Promise<VorlagePage[]>;
   /** Copies the Vorlage into a new design of the viewer's own and opens it. */
   openAsNew?: (vorlage: SharepicVorlage) => void;
+  /**
+   * The same for a print Vorlage. Print Vorlagen need no `list`/`compose`:
+   * they ship with this package and compose here (`composePrint`).
+   */
+  openPrintAsNew?: (vorlage: PrintVorlage) => void;
 }
 
 export interface CanvasEditorServices {

@@ -4,6 +4,7 @@ import { useId, useMemo, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useAuthStore } from '../../stores/authStore';
+import { usePrintVorlage } from '../vorlagen/hooks/usePrintVorlage';
 import { sharepicVorlagenQuery } from '../vorlagen/hooks/useSharepicVorlagen';
 
 import { CanvasChatDraftIdContext } from './CanvasChatDocContext';
@@ -50,6 +51,8 @@ export function WebCanvasEditorProvider({
   const draftId = useId();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  // The gallery's „Verwenden": compose the print Vorlage into a new canvas and open it.
+  const { openPrintVorlage } = usePrintVorlage();
   const services = useMemo<CanvasEditorServices>(() => {
     const { openStickerCreator, ...rest } = webCanvasEditorServices;
     return {
@@ -63,12 +66,13 @@ export function WebCanvasEditorProvider({
               // Same tab: the design is saved as it is edited, and Back returns to it.
               openAsNew: (vorlage: SharepicVorlage) =>
                 void navigate(`/studio/vorlage/${encodeURIComponent(vorlage.id)}`),
+              openPrintAsNew: (vorlage) => void openPrintVorlage(vorlage),
             },
           }
         : {}),
       userLocale: isAustrianUser ? 'de-AT' : 'de-DE',
     };
-  }, [isAustrianUser, allowStickerCreator, allowVorlagen, navigate, queryClient]);
+  }, [isAustrianUser, allowStickerCreator, allowVorlagen, navigate, queryClient, openPrintVorlage]);
   return (
     <CanvasEditorProvider services={services}>
       <CanvasChatDraftIdContext.Provider value={draftId}>

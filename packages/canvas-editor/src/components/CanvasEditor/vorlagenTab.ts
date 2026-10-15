@@ -1,7 +1,7 @@
 import { sharepicFormatSchema } from '@gruenerator/contracts';
 import { PiLayoutFill } from 'react-icons/pi';
 
-import { DEFAULT_FORMAT_ID } from '../../formats';
+import { DEFAULT_FORMAT_ID, getCanvasFormat, isPrintFormat } from '../../formats';
 
 import type { SidebarTab } from '../../sidebar/types';
 
@@ -16,9 +16,19 @@ export const vorlagenTab: SidebarTab = {
   ariaLabel: 'Grünerator-Vorlagen anwenden',
 };
 
-/** The catalogue has Vorlagen for the sharepic formats only, none for the profile picture. */
+/** True for a print format (Visitenkarte, Plakat); its Vorlagen are the print ones. */
+export function isPrintFormatId(formatId: string | undefined): boolean {
+  const format = formatId ? getCanvasFormat(formatId) : null;
+  return format !== null && isPrintFormat(format);
+}
+
+/**
+ * The sharepic formats and the print formats have Vorlagen (a print format
+ * without one shows the empty state); the profile picture has none.
+ */
 export const formatHasVorlagen = (formatId: string | undefined): boolean =>
-  sharepicFormatSchema.safeParse(formatId ?? DEFAULT_FORMAT_ID).success;
+  sharepicFormatSchema.safeParse(formatId ?? DEFAULT_FORMAT_ID).success ||
+  isPrintFormatId(formatId);
 
 /** Right above „Text"; first where a template has none. */
 export function withVorlagenTab(tabs: readonly SidebarTab[]): SidebarTab[] {

@@ -2,8 +2,13 @@
  * „Vorlagen" tab: the Grünerator-Vorlagen of the design's format, the ones
  * most like the design first (Canva's template panel). A pick lands on an
  * empty design straight away; on one with content it asks first — open the
- * Vorlage as a new sharepic, or replace this design with it (one undo step,
+ * Vorlage as a new design, or replace this design with it (one undo step,
  * offered back through the top bar banner).
+ *
+ * Two catalogues feed the same grid: the sharepic Vorlagen come from the
+ * host (`list`/`compose`), the print Vorlagen ship with this package and
+ * compose here. Both become a `VorlageCard` that knows how to compose and
+ * open itself, so picking, asking and replacing are one code path.
  */
 import { sharepicVorlageThumbPath, type SharepicVorlage } from '@gruenerator/contracts';
 import {
@@ -22,12 +27,20 @@ import { useEffect, useState } from 'react';
 import { v4 as uuid } from 'uuid';
 
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
-import { isDeckEmpty, vorlageDeckOps } from '../../collab/vorlageDeck';
+import { carryImpressum, isDeckEmpty, vorlageDeckOps } from '../../collab/vorlageDeck';
+import { composePrint } from '../../composer/composePrint';
+import { printVorlagenFor, type PrintVorlage } from '../../composer/printVorlagen';
+import { getCanvasFormat, isPrintFormat, type PrintCanvasFormat } from '../../formats';
 import { useCanvasStoreSelector } from '../../stores/CanvasStoreProvider';
 import { cn } from '../../utils/cn';
+import { ensureFontsReady } from '../../utils/ensureFontsReady';
 import { rankVorlagen, vorlagenForFormat } from '../../utils/vorlagenRelevance';
 
-import type { CanvasSpecEditBridge } from '../../CanvasEditorProvider';
+import type {
+  CanvasSpecEditBridge,
+  CanvasVorlagenService,
+  VorlagePage,
+} from '../../CanvasEditorProvider';
 import type { HeterogeneousPage } from '../../configs/types';
 
 export interface VorlagenSectionProps {
@@ -38,8 +51,54 @@ export interface VorlagenSectionProps {
   deck: Pick<CanvasSpecEditBridge, 'getPages' | 'replaceDeck'>;
 }
 
-type Load =
-  { status: 'loading' } | { status: 'error' } | { status: 'ready'; vorlagen: SharepicVorlage[] };
+/** One tile of the grid, whichever catalogue it comes from. */
+interface VorlageCard {
+  id: string;
+  titel: string;
+  beschreibung: string;
+  thumb: string;
+  seiten: number;
+  compose: () => Promise<VorlagePage[]>;
+  /** Null where the host cannot open a new design. */
+  openAsNew: (() => void) | null;
+}
+
+type Load = { status: 'loading' } | { status: 'error' } | { status: 'ready'; cards: VorlageCard[] };
+
+function sharepicCard(vorlage: SharepicVorlage, service: CanvasVorlagenService): VorlageCard {
+  const { openAsNew } = service;
+  return {
+    id: vorlage.id,
+    titel: vorlage.titel,
+    beschreibung: vorlage.beschreibung,
+    thumb: sharepicVorlageThumbPath(vorlage.id, 1, vorlage.thumbVersion),
+    seiten: vorlage.spec.slides.length,
+    compose: () => service.compose(vorlage),
+    openAsNew: openAsNew ? () => openAsNew(vorlage) : null,
+  };
+}
+
+function printCard(
+  vorlage: PrintVorlage,
+  format: PrintCanvasFormat,
+  service: CanvasVorlagenService
+): VorlageCard {
+  const { openPrintAsNew } = service;
+  return {
+    id: vorlage.id,
+    titel: vorlage.titel,
+    beschreibung: vorlage.beschreibung,
+    thumb: vorlage.thumb,
+    seiten: format.print.seiten,
+    // Composing measures text in the brand fonts, like the gallery's „Verwenden".
+    compose: async () => {
+      await ensureFontsReady();
+      const composed = composePrint(vorlage.spec);
+      return composed.slides.map((state) => ({ configId: composed.templateType, state }));
+    },
+    openAsNew: openPrintAsNew ? () => openPrintAsNew(vorlage) : null,
+  };
+}
 
 const HINT = 'm-0 py-4 text-center text-[13px] text-[var(--editor-text-muted)]';
 
@@ -49,7 +108,7 @@ const SECONDARY_BUTTON =
 const APPLY_ERROR = 'Die Vorlage ließ sich nicht anwenden. Bitte versuche es erneut.';
 
 export function VorlagenSection({ formatId, pages, deck }: VorlagenSectionProps) {
-  const { vorlagen: service } = useCanvasEditorServices();
+  const { vorlagen: service, userLocale = 'de-DE' } = useCanvasEditorServices();
   const setPending = useCanvasStoreSelector((s) => s.setPendingAiSuggestion);
   const [load, setLoad] = useState<Load>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
@@ -57,14 +116,22 @@ export function VorlagenSection({ formatId, pages, deck }: VorlagenSectionProps)
   // reshuffle the grid under the pointer.
   const [atOpen] = useState(() => ({ pages, empty: isDeckEmpty(pages) }));
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [asking, setAsking] = useState<SharepicVorlage | null>(null);
+  const [asking, setAsking] = useState<VorlageCard | null>(null);
   const [applyError, setApplyError] = useState<string | null>(null);
 
+  const format = getCanvasFormat(formatId);
+  const printFormat = format && isPrintFormat(format) ? format : null;
+
   useEffect(() => {
-    if (!service) return;
+    if (!service || printFormat) return;
     let live = true;
     service.list().then(
-      (vorlagen) => live && setLoad({ status: 'ready', vorlagen }),
+      (vorlagen) => {
+        if (!live) return;
+        const fitting = vorlagenForFormat(vorlagen, formatId);
+        const shown = atOpen.empty ? fitting : rankVorlagen(fitting, atOpen.pages);
+        setLoad({ status: 'ready', cards: shown.map((v) => sharepicCard(v, service)) });
+      },
       (err: unknown) => {
         console.warn('[VorlagenSection] loading the Vorlagen failed', err);
         if (live) setLoad({ status: 'error' });
@@ -73,16 +140,27 @@ export function VorlagenSection({ formatId, pages, deck }: VorlagenSectionProps)
     return () => {
       live = false;
     };
-  }, [service, attempt]);
+  }, [service, attempt, printFormat, formatId, atOpen]);
 
   if (!service) return null;
 
-  const apply = async (vorlage: SharepicVorlage, replacing: boolean) => {
+  // One print Vorlage per format and country, shipped with the package: nothing to load or rank.
+  const shownLoad: Load = printFormat
+    ? {
+        status: 'ready',
+        cards: printVorlagenFor(userLocale)
+          .filter((v) => v.spec.format === printFormat.id)
+          .map((v) => printCard(v, printFormat, service)),
+      }
+    : load;
+
+  const apply = async (vorlage: VorlageCard, replacing: boolean) => {
     setBusyId(vorlage.id);
     setApplyError(null);
     try {
-      const next = await service.compose(vorlage);
-      deck.replaceDeck(vorlageDeckOps(deck.getPages(), next, uuid));
+      const current = deck.getPages();
+      const next = carryImpressum(current, await vorlage.compose());
+      deck.replaceDeck(vorlageDeckOps(current, next, uuid));
       if (replacing) setPending({ title: vorlage.titel, undo: 'pages', source: 'vorlage' });
     } catch (err) {
       console.warn('[VorlagenSection] applying the Vorlage failed', err);
@@ -92,7 +170,7 @@ export function VorlagenSection({ formatId, pages, deck }: VorlagenSectionProps)
     }
   };
 
-  const choose = (vorlage: SharepicVorlage) => {
+  const choose = (vorlage: VorlageCard) => {
     if (busyId !== null) return;
     if (isDeckEmpty(deck.getPages())) void apply(vorlage, false);
     else setAsking(vorlage);
@@ -104,26 +182,36 @@ export function VorlagenSection({ formatId, pages, deck }: VorlagenSectionProps)
     if (vorlage) void apply(vorlage, true);
   };
 
-  const openAsNew = service.openAsNew;
   const confirmNew = () => {
     const vorlage = asking;
     setAsking(null);
-    if (vorlage && openAsNew) openAsNew(vorlage);
+    vorlage?.openAsNew?.();
   };
 
-  const aspect = formatId === 'post-portrait-tall' ? 'aspect-[3/4]' : 'aspect-[4/5]';
+  const newLabel = printFormat ? 'Als neues Design öffnen' : 'Als neues Sharepic öffnen';
+  const newTarget = printFormat ? 'neues Design' : 'neues Sharepic';
 
-  if (load.status === 'loading') {
+  // A print card shows its sheet as it is; the sharepic grid keeps its classes.
+  const aspect = printFormat
+    ? ''
+    : formatId === 'post-portrait-tall'
+      ? 'aspect-[3/4]'
+      : 'aspect-[4/5]';
+  const aspectStyle = printFormat
+    ? { aspectRatio: `${printFormat.width} / ${printFormat.height}` }
+    : undefined;
+
+  if (shownLoad.status === 'loading') {
     return (
       <div className="grid w-full grid-cols-2 gap-2" aria-busy="true" aria-label="Vorlagen laden">
         {[0, 1, 2, 3].map((i) => (
-          <Skeleton key={i} className={cn('w-full rounded-lg', aspect)} />
+          <Skeleton key={i} className={cn('w-full rounded-lg', aspect)} style={aspectStyle} />
         ))}
       </div>
     );
   }
 
-  if (load.status === 'error') {
+  if (shownLoad.status === 'error') {
     return (
       <div role="alert" className="flex flex-col items-center gap-2 py-2">
         <p className={HINT}>Vorlagen konnten nicht geladen werden.</p>
@@ -141,11 +229,9 @@ export function VorlagenSection({ formatId, pages, deck }: VorlagenSectionProps)
     );
   }
 
-  const fitting = vorlagenForFormat(load.vorlagen, formatId);
-  if (fitting.length === 0) {
+  if (shownLoad.cards.length === 0) {
     return <p className={HINT}>Für dieses Format gibt es noch keine Vorlagen.</p>;
   }
-  const shown = atOpen.empty ? fitting : rankVorlagen(fitting, atOpen.pages);
 
   return (
     <div className="flex w-full flex-col gap-2.5">
@@ -155,8 +241,8 @@ export function VorlagenSection({ formatId, pages, deck }: VorlagenSectionProps)
         </p>
       )}
       <ul className="m-0 grid w-full list-none grid-cols-2 gap-2 p-0">
-        {shown.map((vorlage) => {
-          const seiten = vorlage.spec.slides.length;
+        {shownLoad.cards.map((vorlage) => {
+          const { seiten } = vorlage;
           return (
             <li key={vorlage.id}>
               <button
@@ -173,9 +259,10 @@ export function VorlagenSection({ formatId, pages, deck }: VorlagenSectionProps)
                     'relative block w-full overflow-hidden rounded-lg bg-[var(--editor-tile)]',
                     aspect
                   )}
+                  style={aspectStyle}
                 >
                   <img
-                    src={sharepicVorlageThumbPath(vorlage.id, 1, vorlage.thumbVersion)}
+                    src={vorlage.thumb}
                     alt=""
                     loading="lazy"
                     className="size-full object-cover transition-transform duration-150 hover:scale-[1.02]"
@@ -205,16 +292,16 @@ export function VorlagenSection({ formatId, pages, deck }: VorlagenSectionProps)
           <AlertDialogHeader>
             <AlertDialogTitle>Vorlage „{asking?.titel}“ verwenden?</AlertDialogTitle>
             <AlertDialogDescription>
-              {openAsNew
-                ? 'Auf deinem Design ist schon etwas. Öffne die Vorlage als neues Sharepic oder ersetze dein aktuelles Design damit.'
+              {asking?.openAsNew
+                ? `Auf deinem Design ist schon etwas. Öffne die Vorlage als ${newTarget} oder ersetze dein aktuelles Design damit.`
                 : 'Die Vorlage ersetzt dein aktuelles Design. Rückgängig geht danach über „Vorlage verwerfen“.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            {openAsNew && (
+            {asking?.openAsNew && (
               <Button variant="outline" onClick={confirmNew}>
-                Als neues Sharepic öffnen
+                {newLabel}
               </Button>
             )}
             <AlertDialogAction onClick={confirmReplace}>Aktuelles ersetzen</AlertDialogAction>

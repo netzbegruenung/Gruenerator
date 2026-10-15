@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 
 import { getPagesMap, readPages, replaceDeck, seedPagesIfEmpty } from './pagesDoc';
-import { isDeckEmpty, vorlageDeckOps } from './vorlageDeck';
+import { carryImpressum, isDeckEmpty, vorlageDeckOps } from './vorlageDeck';
 
 const blank = {
   configId: 'freeform',
@@ -102,5 +102,53 @@ describe('vorlageDeckOps', () => {
     expect(readPages(doc).map((v) => ({ id: v.id, configId: v.configId, state: v.state }))).toEqual(
       before
     );
+  });
+});
+
+describe('carryImpressum', () => {
+  const imprint = (text: string) => ({ id: 'impressum', text, x: 10 });
+  const poster = (configId: string, text: string | null) => ({
+    configId,
+    state: {
+      additionalTexts: [{ id: 'headline', text: 'Botschaft' }, ...(text ? [imprint(text)] : [])],
+    },
+  });
+  const VORLAGE_DE = 'V.i.S.d.P.: Vorname Nachname, Straße Nr., PLZ Ort';
+  const textsOf = (page: { state: Record<string, unknown> }) =>
+    page.state.additionalTexts as { id: string; text: string }[];
+
+  it('writes the filled-in line of the design into the Vorlage', () => {
+    const [page] = carryImpressum(
+      [poster('freeform', 'V.i.S.d.P.: Anna Muster, Hauptstr. 1, 12345 Stadt')],
+      [poster('freeform', VORLAGE_DE)]
+    );
+    expect(textsOf(page!)).toEqual([
+      { id: 'headline', text: 'Botschaft' },
+      { id: 'impressum', text: 'V.i.S.d.P.: Anna Muster, Hauptstr. 1, 12345 Stadt', x: 10 },
+    ]);
+  });
+
+  it('keeps the Vorlage placeholder while the design has no filled-in line', () => {
+    const next = [poster('freeform', VORLAGE_DE)];
+    expect(carryImpressum([poster('freeform', VORLAGE_DE)], next)).toEqual(next);
+    expect(carryImpressum([poster('freeform', null)], next)).toEqual(next);
+  });
+
+  it('takes the first filled-in page and speaks the Vorlage country', () => {
+    const [page] = carryImpressum(
+      [
+        poster('freeform', 'V.i.S.d.P.: '),
+        poster('freeform', 'V.i.S.d.P.: Anna Muster, Hauptstr. 1, 12345 Stadt'),
+      ],
+      [poster('freeform-at', 'Impressum: Name/Organisation, Straße Nr., PLZ Ort')]
+    );
+    expect(textsOf(page!)[1]!.text).toBe('Impressum: Anna Muster, Hauptstr. 1, 12345 Stadt');
+  });
+
+  it('leaves pages without an impressum alone', () => {
+    const card = { configId: 'freeform', state: { additionalTexts: [{ id: 'name', text: 'X' }] } };
+    expect(
+      carryImpressum([poster('freeform', 'V.i.S.d.P.: Anna Muster, Hauptstr. 1, Stadt')], [card])
+    ).toEqual([card]);
   });
 });

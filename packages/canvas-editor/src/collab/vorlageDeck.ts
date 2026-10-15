@@ -1,5 +1,13 @@
 import { SHAREPIC_SOURCE_KEY } from '@gruenerator/contracts';
 
+import { PRINT_IMPRESSUM_ID } from '../composer/composePrint';
+import {
+  impressumLine,
+  isImpressumComplete,
+  parseImpressumLine,
+  type ImpressumLocale,
+  type ImpressumParts,
+} from '../composer/printImpressum';
 import { CARRIED_INSTANCE_KEYS } from '../configs/factory/carryInstanceState';
 
 import type { ReplaceDeckOps } from './pagesDoc';
@@ -58,4 +66,48 @@ export function vorlageDeckOps(
   });
   ops.removes = current.filter((p) => !kept.has(p.id)).map((p) => p.id);
   return ops;
+}
+
+interface TextElement {
+  id: string;
+  text?: string;
+}
+
+const textsOf = (state: Record<string, unknown>): TextElement[] =>
+  Array.isArray(state.additionalTexts) ? (state.additionalTexts as TextElement[]) : [];
+
+const impressumLocale = (configId: string): ImpressumLocale =>
+  configId === 'freeform-at' ? 'de-AT' : 'de-DE';
+
+/**
+ * A poster Vorlage ships placeholder V.i.S.d.P./Impressum text, which the
+ * export gate rejects. When the design being replaced already has a filled-in
+ * line, that line goes into the Vorlage's pages instead — written in the
+ * country form of each Vorlage page — so the replace does not undo it.
+ */
+export function carryImpressum<P extends DeckPage>(current: readonly DeckPage[], next: P[]): P[] {
+  let parts: ImpressumParts | null = null;
+  for (const page of current) {
+    const element = textsOf(page.state).find((t) => t.id === PRINT_IMPRESSUM_ID);
+    if (!element) continue;
+    const parsed = parseImpressumLine(impressumLocale(page.configId), element.text ?? '');
+    if (isImpressumComplete(parsed)) {
+      parts = parsed;
+      break;
+    }
+  }
+  const filled = parts;
+  if (!filled) return next;
+  return next.map((page) => {
+    const texts = textsOf(page.state);
+    if (!texts.some((t) => t.id === PRINT_IMPRESSUM_ID)) return page;
+    const text = impressumLine(impressumLocale(page.configId), filled);
+    return {
+      ...page,
+      state: {
+        ...page.state,
+        additionalTexts: texts.map((t) => (t.id === PRINT_IMPRESSUM_ID ? { ...t, text } : t)),
+      },
+    };
+  });
 }

@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CanvasEditorProvider, type CanvasVorlagenService } from '../../CanvasEditorProvider';
+import { PRINT_VORLAGEN } from '../../composer/printVorlagen';
 import { defaultCanvasEditorStore } from '../../stores/createCanvasEditorStore';
 import { VorlagenSection } from '../sections/VorlagenSection';
 
@@ -58,17 +59,23 @@ function setup(
   {
     service = {},
     formatId = 'post-portrait',
-  }: { service?: Partial<CanvasVorlagenService>; formatId?: string } = {}
+    userLocale = 'de-DE',
+  }: {
+    service?: Partial<CanvasVorlagenService>;
+    formatId?: string;
+    userLocale?: 'de-DE' | 'de-AT';
+  } = {}
 ) {
   const vorlagen: CanvasVorlagenService = {
     list: vi.fn(async () => CATALOGUE),
     compose: vi.fn(async () => COMPOSED),
     openAsNew: vi.fn(),
+    openPrintAsNew: vi.fn(),
     ...service,
   };
   const deck = { getPages: () => pages, replaceDeck: vi.fn(() => []) };
   render(
-    <CanvasEditorProvider services={{ vorlagen }}>
+    <CanvasEditorProvider services={{ vorlagen, userLocale }}>
       <VorlagenSection formatId={formatId} pages={pages} deck={deck} />
     </CanvasEditorProvider>
   );
@@ -187,5 +194,74 @@ describe('VorlagenSection', () => {
     expect(
       await screen.findByText('Für dieses Format gibt es noch keine Vorlagen.')
     ).toBeInTheDocument();
+  });
+});
+
+describe('VorlagenSection on a print design', () => {
+  const FILLED = 'V.i.S.d.P.: Anna Muster, Hauptstr. 1, 12345 Stadt';
+  const POSTER: HeterogeneousPage[] = [
+    {
+      id: 'p1',
+      configId: 'freeform',
+      state: { additionalTexts: [{ id: 'impressum', text: FILLED }] },
+    },
+  ];
+  const vorlageById = (id: string) => PRINT_VORLAGEN.find((v) => v.id === id)!;
+
+  it('shows the print Vorlage of the format and the country, not the sharepic catalogue', async () => {
+    const { vorlagen } = setup(EMPTY, { formatId: 'print-a3-hoch', userLocale: 'de-AT' });
+    const button = await card('Typo-Plakat A3');
+    expect(button.querySelector('img')?.getAttribute('src')).toBe(
+      '/vorlagen/print/at-plakat-typo-a3.webp'
+    );
+    expect(screen.getAllByRole('listitem')).toHaveLength(1);
+    expect(vorlagen.list).not.toHaveBeenCalled();
+  });
+
+  it('counts the two sides of a business card', async () => {
+    setup(EMPTY, { formatId: 'print-visitenkarte-quer' });
+    await card('Visitenkarte quer');
+    expect(screen.getByText('2 Seiten')).toBeInTheDocument();
+  });
+
+  it('says when a print format has no Vorlage yet', async () => {
+    setup(EMPTY, { formatId: 'print-a4-hoch' });
+    expect(
+      await screen.findByText('Für dieses Format gibt es noch keine Vorlagen.')
+    ).toBeInTheDocument();
+  });
+
+  it('replaces the poster through the print composer and keeps its filled-in impressum', async () => {
+    const { deck, vorlagen, user } = setup(POSTER, { formatId: 'print-a3-hoch' });
+    await user.click(await card('Typo-Plakat A3'));
+    const dialog = await screen.findByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Aktuelles ersetzen' }));
+
+    await waitFor(() => expect(deck.replaceDeck).toHaveBeenCalledTimes(1));
+    expect(vorlagen.compose).not.toHaveBeenCalled();
+    const [ops] = deck.replaceDeck.mock.calls[0] as unknown as [
+      { updates: { pageId: string; state: { additionalTexts: { id: string; text: string }[] } }[] },
+    ];
+    expect(ops.updates).toHaveLength(1);
+    const texts = ops.updates[0]!.state.additionalTexts;
+    expect(texts.find((t) => t.id === 'impressum')?.text).toBe(FILLED);
+    expect(texts.some((t) => t.text.includes('Hier steht deine'))).toBe(true);
+    expect(defaultCanvasEditorStore.getState().pendingAiSuggestion).toEqual({
+      title: 'Typo-Plakat A3',
+      undo: 'pages',
+      source: 'vorlage',
+    });
+  });
+
+  it('opens the print Vorlage as a new design', async () => {
+    const { deck, vorlagen, user } = setup(POSTER, { formatId: 'print-a3-hoch' });
+    await user.click(await card('Typo-Plakat A3'));
+    const dialog = await screen.findByRole('alertdialog');
+    expect(within(dialog).queryByRole('button', { name: /neues Sharepic/ })).toBeNull();
+    await user.click(within(dialog).getByRole('button', { name: 'Als neues Design öffnen' }));
+
+    expect(vorlagen.openPrintAsNew).toHaveBeenCalledWith(vorlageById('de-plakat-typo-a3'));
+    expect(vorlagen.openAsNew).not.toHaveBeenCalled();
+    expect(deck.replaceDeck).not.toHaveBeenCalled();
   });
 });

@@ -33,6 +33,12 @@ describe('formatHasVorlagen', () => {
     expect(formatHasVorlagen(undefined)).toBe(true);
   });
 
+  it('knows every print format, also one without a print Vorlage yet', () => {
+    expect(formatHasVorlagen('print-visitenkarte-quer')).toBe(true);
+    expect(formatHasVorlagen('print-a3-hoch')).toBe(true);
+    expect(formatHasVorlagen('print-a4-hoch')).toBe(true);
+  });
+
   it('has none for the profile picture', () => {
     expect(formatHasVorlagen('profile-square')).toBe(false);
   });
