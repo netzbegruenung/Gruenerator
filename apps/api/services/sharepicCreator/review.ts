@@ -197,7 +197,8 @@ export function validateReview(
   for (const op of parsed.data.patch) {
     const texts = op.op === 'set_text' ? [op.text] : op.op === 'set_headline' ? op.lines : [];
     // Live Gemma closed its JSON inside a line („==Hitzefallen.==],slide:0}]") and the next round repeated it.
-    if (texts.some((t) => /[{}[\]]/.test(t))) {
+    // „[…]" is how a shortened quote is marked, not JSON.
+    if (texts.some((t) => /[{}[\]]/.test(t.replace(/\[(?:…|\.\.\.)\]/g, '')))) {
       return {
         ok: false,
         error: 'Im Text stehen Klammern aus dem JSON – jede Zeile ist nur der sichtbare Text.',

@@ -200,6 +200,8 @@ describe('++marker++ passages', () => {
     const leaked = { op: 'set_headline', lines: ['werden zu', '==Hitzefallen.==],slide:0}]'] };
     const bad = validateReview({ ok: false, issues: [], patch: [leaked] }, [1]);
     expect(!bad.ok && bad.error).toContain('Klammern');
+    const cut = { op: 'set_text', item: 0, text: 'Wer heute nicht investiert, […] zahlt.' };
+    expect(validateReview({ ok: false, issues: [], patch: [cut] }, [1]).ok).toBe(true);
   });
 
   it('drops colour ops that recolour single carousel slides', () => {
