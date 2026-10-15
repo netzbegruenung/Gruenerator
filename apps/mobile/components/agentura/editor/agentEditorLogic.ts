@@ -7,7 +7,7 @@ import {
   type UserAgentInput,
 } from '@gruenerator/shared/grueneratoren';
 import { isModelEnabledByDefault, TEXT_MODELS } from '@gruenerator/shared/models';
-import { generateSlugSuffix, slugifyName } from '@gruenerator/shared/utils';
+import { slugifyName, slugSuffixFrom } from '@gruenerator/shared/utils';
 
 /** Dieselbe Modellauswahl wie im Chat-Composer, aus dem Katalog. */
 export const MODEL_OPTIONS = TEXT_MODELS.filter((m) => isModelEnabledByDefault(m.id));
@@ -36,9 +36,12 @@ export function taskInstructionTooLong(form: FormState): boolean {
   return form.systemRole.trim().length > MAX_TASK_INSTRUCTION;
 }
 
+/** Zufallsbytes — in der App `getRandomBytes` aus `expo-crypto` (Hermes hat kein `crypto`). */
+export type RandomBytes = (count: number) => Uint8Array;
+
 /** Suffix klein, damit der Identifier `^[a-z0-9-]+$` erfüllt. */
-export function newAgentIdentifier(title: string): string {
-  return `${slugifyName(title, 'agent')}-${generateSlugSuffix().toLowerCase()}`;
+export function newAgentIdentifier(title: string, randomBytes: RandomBytes): string {
+  return `${slugifyName(title, 'agent')}-${slugSuffixFrom(randomBytes).toLowerCase()}`;
 }
 
 const COPY_SUFFIX = ' (Kopie)';
@@ -50,9 +53,9 @@ export function copyTitle(title: string): string {
 }
 
 /** Duplikat wie im Web (`useDuplicateAgent`): gewöhnliches Anlegen mit kopierten Feldern. */
-export function duplicateAgentInput(agent: Agent): UserAgentInput {
+export function duplicateAgentInput(agent: Agent, randomBytes: RandomBytes): UserAgentInput {
   return {
-    identifier: newAgentIdentifier(agent.title),
+    identifier: newAgentIdentifier(agent.title, randomBytes),
     title: copyTitle(agent.title),
     description: agent.description,
     systemRole: agent.systemRole,

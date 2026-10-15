@@ -17,6 +17,7 @@ import {
   useUserAgent,
 } from '@gruenerator/shared/grueneratoren';
 import { useAuth } from '@gruenerator/shared/hooks';
+import { getRandomBytes } from 'expo-crypto';
 import { router, Stack, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
@@ -343,7 +344,7 @@ function EditorForm({
           onPress: () => {
             setDuplicating(true);
             createMut
-              .mutateAsync(duplicateAgentInput(savedAgent))
+              .mutateAsync(duplicateAgentInput(savedAgent, getRandomBytes))
               .then((copy) =>
                 leave(() =>
                   router.replace({ pathname: SUB, params: { identifier: copy.identifier } })
@@ -699,7 +700,7 @@ async function saveSession(
       let agentId = s.createdIdentifier;
       if (!agentId) {
         const created = await deps.createAgent({
-          identifier: newAgentIdentifier(s.form.title),
+          identifier: newAgentIdentifier(s.form.title, getRandomBytes),
           author: deps.author,
           ...payload,
         });

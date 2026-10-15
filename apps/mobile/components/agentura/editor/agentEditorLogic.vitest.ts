@@ -16,6 +16,8 @@ import {
 
 const valid = { ...EMPTY_FORM, title: 'T', description: 'D', systemRole: 'Du bist hilfreich.' };
 
+const bytes = (n: number) => Uint8Array.from({ length: n }, (_, i) => i * 11);
+
 describe('agentEditorLogic', () => {
   it('gates saving on title, description and a 10-char Anleitung', () => {
     expect(missingForSave(valid)).toBeNull();
@@ -30,8 +32,8 @@ describe('agentEditorLogic', () => {
   });
 
   it('builds identifiers that satisfy the contract regex', () => {
-    expect(newAgentIdentifier('Presse & Medien!')).toMatch(/^[a-z0-9-]+$/);
-    expect(newAgentIdentifier('')).toMatch(/^agent-[a-z0-9]+$/);
+    expect(newAgentIdentifier('Presse & Medien!', bytes)).toMatch(/^[a-z0-9-]+$/);
+    expect(newAgentIdentifier('', bytes)).toMatch(/^agent-[a-z0-9]+$/);
   });
 
   it('keeps a copied title within 100 characters', () => {
