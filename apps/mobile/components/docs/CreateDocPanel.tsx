@@ -176,14 +176,14 @@ export function CreateDocPanel({
             accessibilityRole="button"
             style={({ pressed }) => [
               styles.big,
-              { backgroundColor: colors.primary[600], opacity: pressed ? 0.85 : 1 },
+              { backgroundColor: colors.secondary[600], opacity: pressed ? 0.85 : 1 },
             ]}
           >
             <Ionicons name="sparkles" size={26} color={colors.white} />
             <View>
               <Text style={[styles.bigTitle, { color: colors.white }]}>Mit KI schreiben</Text>
               <Text style={[styles.bigDesc, { color: colors.white, opacity: 0.85 }]}>
-                Beschreiben, wir entwerfen
+                KI schreibt den ersten Entwurf
               </Text>
             </View>
           </Pressable>
@@ -251,13 +251,14 @@ const styles = StyleSheet.create({
   bigRow: { flexDirection: 'row', gap: spacing.small },
   big: {
     flex: 1,
-    minHeight: 112,
-    justifyContent: 'space-between',
+    gap: spacing.medium,
     padding: spacing.medium,
     borderRadius: borderRadius.xlarge,
   },
   bigTitle: { fontFamily: HEADING_FONT_SEMIBOLD, fontSize: 16 },
-  bigDesc: { fontFamily: BODY_FONT, fontSize: 13, marginTop: 2 },
+  // Room for two lines in both tiles, so their titles line up whether or not
+  // a description wraps.
+  bigDesc: { fontFamily: BODY_FONT, fontSize: 13, lineHeight: 17, minHeight: 34, marginTop: 2 },
   label: {
     fontFamily: BODY_FONT,
     fontSize: 12,
