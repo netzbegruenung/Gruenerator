@@ -46,11 +46,19 @@ const LANGUAGES_STALE_TTL_SECONDS = 7 * 24 * 60 * 60;
  */
 const GERMAN_LANGUAGE_NAMES = new Intl.DisplayNames(['de'], { type: 'language' });
 
+/** ICU spells out the country ("Englisch (Vereinigtes Königreich)"); the variant word stays short and sorts next to its language. */
+const SHORT_VARIANT_NAMES: Record<string, string> = {
+  'en-gb': 'Englisch (britisch)',
+  'en-us': 'Englisch (amerikanisch)',
+  'pt-br': 'Portugiesisch (brasilianisch)',
+  'pt-pt': 'Portugiesisch (europäisch)',
+};
+
 /** DeepL names its languages in English; keeps DeepL's name for codes ICU does not know. */
 function withGermanName(language: DeepLLanguage): DeepLLanguage {
-  let name: string | null = null;
+  let name: string | null = SHORT_VARIANT_NAMES[language.code.toLowerCase()] ?? null;
   try {
-    name = GERMAN_LANGUAGE_NAMES.of(language.code) ?? null;
+    name ??= GERMAN_LANGUAGE_NAMES.of(language.code) ?? null;
   } catch {
     // RangeError for a code that is not a well-formed BCP-47 tag
   }

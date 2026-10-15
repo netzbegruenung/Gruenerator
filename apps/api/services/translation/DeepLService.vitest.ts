@@ -201,7 +201,7 @@ describe('getLanguages', () => {
       },
       {
         code: 'en-GB',
-        name: 'Englisch (Vereinigtes Königreich)',
+        name: 'Englisch (britisch)',
         usableAsSource: false,
         usableAsTarget: true,
         formality: false,
