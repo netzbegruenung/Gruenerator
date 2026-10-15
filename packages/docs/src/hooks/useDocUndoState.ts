@@ -26,8 +26,7 @@ export interface UndoableEditor {
  * into y-prosemirror internals. Returns null when the plugin isn't registered
  * (non-collaborative editor, or the transient window inside the fork/merge
  * cycle). Reused by {@link getDocUndoFlags} (reads the stack) and by
- * guardDocUndoAcrossAIFork (rebuilds and restacks the manager across the AI
- * fork/merge cycle).
+ * guardDocUndoAcrossAIFork (pushes the accepted AI merge onto the stack).
  */
 export function getDocUndoManager(editor: UndoableEditor | null) {
   if (!editor) return null;

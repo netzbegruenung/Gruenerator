@@ -36,6 +36,15 @@ minimumReleaseAgeExclude:
   - '@assistant-ui/tap@0.9.23'
   - 'assistant-stream@0.3.51'
   - 'safe-content-frame@0.0.34'
+  # BlockNote 0.56.0 upgrade, published 2026-10-14 13:31-13:34 UTC as one lockstep
+  # release. Exact versions only; inert from 2026-10-17 13:35 UTC, remove then.
+  - '@blocknote/core@0.56.0'
+  - '@blocknote/react@0.56.0'
+  - '@blocknote/shadcn@0.56.0'
+  - '@blocknote/xl-ai@0.56.0'
+  - '@blocknote/xl-docx-exporter@0.56.0'
+  - '@blocknote/xl-multi-column@0.56.0'
+  - '@blocknote/xl-odt-exporter@0.56.0'
 # No exemption by semver: the hijacked releases this gate exists for (chalk/debug,
 # Shai-Hulud) shipped as patch bumps. An urgent fix gets an exact-version entry
 # in a `minimumReleaseAgeExclude:` list here (`name@x.y.z`, with why, publish date
@@ -453,12 +462,12 @@ overrides:
   prosemirror-view: ^1.42.6
   prosemirror-model: ^1.25.12
   prosemirror-transform: ^1.12.2
-  '@blocknote/core': ^0.55.0
-  '@blocknote/react': ^0.55.0
-  '@blocknote/shadcn': ^0.55.0
-  '@blocknote/xl-ai': ^0.55.0
-  '@blocknote/xl-docx-exporter': ^0.55.0
-  '@blocknote/xl-odt-exporter': ^0.55.0
+  '@blocknote/core': ^0.56.0
+  '@blocknote/react': ^0.56.0
+  '@blocknote/shadcn': ^0.56.0
+  '@blocknote/xl-ai': ^0.56.0
+  '@blocknote/xl-docx-exporter': ^0.56.0
+  '@blocknote/xl-odt-exporter': ^0.56.0
   '@assistant-ui/core': ^0.3.28
   '@assistant-ui/store': ^0.3.20
   '@assistant-ui/react': ^0.15.28
