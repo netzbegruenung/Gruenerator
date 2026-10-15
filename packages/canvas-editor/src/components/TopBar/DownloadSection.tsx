@@ -56,6 +56,8 @@ function ImpressumForm({ gate }: { gate: PrintImpressumGate }) {
   const [anschrift, setAnschrift] = useState(initial(current.anschrift));
   const [touched, setTouched] = useState(false);
   const valid = isImpressumComplete({ name, anschrift });
+  const nameError = touched && !isFilled(name) ? `Bitte ${labels.name} eintragen.` : null;
+  const anschriftError = touched && !isFilled(anschrift) ? 'Bitte Anschrift eintragen.' : null;
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -76,8 +78,14 @@ function ImpressumForm({ gate }: { gate: PrintImpressumGate }) {
           value={name}
           placeholder={labels.namePlaceholder}
           onChange={(e) => setName(e.target.value)}
-          aria-invalid={touched && !isFilled(name)}
+          aria-invalid={nameError !== null}
+          {...(nameError ? { 'aria-describedby': `${fieldId}-name-error` } : {})}
         />
+        {nameError && (
+          <p id={`${fieldId}-name-error`} role="alert" className="m-0 text-xs text-destructive">
+            {nameError}
+          </p>
+        )}
       </div>
       <div className="flex flex-col gap-1.5">
         <Label
@@ -91,8 +99,18 @@ function ImpressumForm({ gate }: { gate: PrintImpressumGate }) {
           value={anschrift}
           placeholder="Straße Nr., PLZ Ort"
           onChange={(e) => setAnschrift(e.target.value)}
-          aria-invalid={touched && !isFilled(anschrift)}
+          aria-invalid={anschriftError !== null}
+          {...(anschriftError ? { 'aria-describedby': `${fieldId}-anschrift-error` } : {})}
         />
+        {anschriftError && (
+          <p
+            id={`${fieldId}-anschrift-error`}
+            role="alert"
+            className="m-0 text-xs text-destructive"
+          >
+            {anschriftError}
+          </p>
+        )}
       </div>
       <Button type="submit" variant="brand" className="w-full rounded-lg">
         Übernehmen
