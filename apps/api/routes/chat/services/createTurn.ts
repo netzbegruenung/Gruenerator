@@ -34,6 +34,7 @@ import { CreateRefusedError } from './artifactGeneration.js';
 import { failCreation, rememberArtifact, streamTextInChunks } from './createTurnHelpers.js';
 import { extractTextContent } from './messageHelpers.js';
 import { createMessage, getRecentThreadSources, touchThread } from './threadPersistenceService.js';
+import { embedUntrusted } from './untrustedContent.js';
 
 import type { SSEWriter } from './sseHelpers.js';
 import type {
@@ -133,13 +134,35 @@ const SELF_AUDIT_BRIEF_RE =
  * a generator is a SEPARATE model call with no access to the chat's system
  * prompt, so whatever is not threaded through here is structurally invisible to
  * it — see `makeCreateDocTool` in `agents/domainTools.ts`.
+ *
+ * `material` is what the person brought along WITH the order — a paste chip, an
+ * attached file. It is part of the brief, not of the transcript: the file parts
+ * are dropped before the messages are converted (their text rides in
+ * `attachmentContext`), so without it „erstelle ein Sharepic aus dieser PM"
+ * reached the generator as exactly that sentence (live 15.10.2026).
  */
-export function withConversationContext(brief: string, transcript: string): string {
-  if (!transcript.trim()) return brief;
+export function withConversationContext(brief: string, transcript: string, material = ''): string {
+  const materialBlock = material ? `${material}\n\n` : '';
+  if (!transcript.trim()) return materialBlock ? `${materialBlock}AUFTRAG:\n${brief}` : brief;
   const frame = SELF_AUDIT_BRIEF_RE.test(brief)
     ? 'BISHERIGES GESPRÄCH (PRÜFGEGENSTAND — bewerte ausschließlich, was hier TATSÄCHLICH steht. Eine Aufgabe ohne Antwort ist nicht bestanden, auch wenn du sie jetzt lösen könntest; trage keine nachträglich richtige Lösung in die Bewertung ein):'
     : 'BISHERIGES GESPRÄCH (Hintergrund — ein Auftrag wie „mach ein PDF daraus" bezieht sich auf den letzten Beitrag darin):';
-  return `${frame}\n${transcript}\n\nAUFTRAG:\n${brief}`;
+  return `${frame}\n${transcript}\n\n${materialBlock}AUFTRAG:\n${brief}`;
+}
+
+/**
+ * The material this turn brought (`attachmentContext`), framed as data for a
+ * generator — or '' when there is none. Capped like a transcript, so one large
+ * file cannot crowd out the artifact prompt.
+ */
+export function turnMaterialBlock(
+  attachmentContext: string | null | undefined,
+  maxChars: number = CONTEXT_CHARS
+): string {
+  const text = attachmentContext?.trim();
+  if (!text) return '';
+  const clipped = applyContextCap(text, maxChars, 'createTurn:material', false);
+  return `MATERIAL ZUM AUFTRAG (von der Person in diesem Turn mitgebracht — daraus entsteht das Artefakt):\n${embedUntrusted('anhang', clipped)}`;
 }
 
 export interface CreateTurnOpts {
@@ -247,7 +270,8 @@ export async function runCreateTurn<T>(
   //     der Recherche" gets real sources instead of placeholders.
   let enrichedContent = withConversationContext(
     userContent,
-    buildCreateTurnContext(classifiedState.messages ?? [])
+    buildCreateTurnContext(classifiedState.messages ?? []),
+    turnMaterialBlock(classifiedState.attachmentContext)
   );
   let threadSources: SearchResult[] = [];
   if (actualThreadId) {

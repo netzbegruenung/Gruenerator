@@ -16,7 +16,11 @@ import { toUserFacingMessage } from '../../../../utils/errors/index.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { renderSourceLines, withResearchedSources } from '../agenticLoop/sourceRegistry.js';
 import { ARTIFACT_CONFIRMATION_TEXTS, type SharepicTurnFailure } from '../artifactConfirmations.js';
-import { buildCreateTurnContext, SHAREPIC_CONTEXT_CHARS } from '../createTurn.js';
+import {
+  buildCreateTurnContext,
+  SHAREPIC_CONTEXT_CHARS,
+  turnMaterialBlock,
+} from '../createTurn.js';
 import { extractTextContent } from '../messageHelpers.js';
 import { resolveReferentialTopic } from '../referentialTopic.js';
 import {
@@ -49,12 +53,15 @@ const log = createLogger('ChatGraphController');
  * Never throws: a sharepic without background is the old behaviour, a 500 is
  * not.
  */
-async function buildSharepicBackground(
+export async function buildSharepicBackground(
   state: ChatGraphState,
   threadId: string | null
 ): Promise<string | null> {
   const transcript = buildCreateTurnContext(state.messages ?? [], SHAREPIC_CONTEXT_CHARS);
-  let background = transcript.trim();
+  // Was die Person mit dem Auftrag mitgebracht hat (Paste-Chip, Datei): ohne das
+  // baute „wandle diese PM in ein Sharepic um" ein Sharepic aus dem Satz allein.
+  const material = turnMaterialBlock(state.attachmentContext, SHAREPIC_CONTEXT_CHARS);
+  let background = [transcript.trim(), material].filter(Boolean).join('\n\n');
   if (threadId) {
     try {
       const carried = await getRecentThreadSources(threadId, 6);
