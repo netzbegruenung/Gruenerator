@@ -273,10 +273,9 @@ export function ProfilbildScreen({
   // A gallery deep link waits here until the photo (and a reopened state) is in;
   // a later link (back from the sticker creator) queues its asset again.
   const [pendingAsset, setPendingAsset] = useState(galleryAsset);
-  // With saved Profilbilder the screen opens on them; „Neu" (or a handed-in
-  // share or sticker) goes straight to the editor.
+  // With saved Profilbilder the screen opens on them and starts a new one from
+  // there; a handed-in share or sticker goes straight to the editor.
   const saved = useRecentProfilbilder();
-  const [creating, setCreating] = useState(false);
   const [linkedAssetId, setLinkedAssetId] = useState(galleryAsset?.id ?? null);
   const [landingAsset, setLandingAsset] = useState<GalleryAsset | null>(null);
   if ((galleryAsset?.id ?? null) !== linkedAssetId) {
@@ -358,8 +357,7 @@ export function ProfilbildScreen({
           isAustria,
         }
       : null;
-  const libraryCandidate =
-    !creating && !shareToken && !galleryAsset && !scene && state.status === 'idle';
+  const libraryCandidate = !shareToken && !galleryAsset && !scene && state.status === 'idle';
   const library =
     libraryCandidate && saved.isPending
       ? 'pending'
@@ -452,7 +450,8 @@ export function ProfilbildScreen({
             <ProfilbildLibrary
               items={saved.items}
               width={viewSize}
-              onNew={() => setCreating(true)}
+              onPick={() => pick(pickImageForEditor)}
+              onCamera={() => pick(takePhotoForEditor)}
             />
           )}
         </View>
