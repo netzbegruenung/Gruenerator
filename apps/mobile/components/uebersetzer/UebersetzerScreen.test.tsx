@@ -138,6 +138,8 @@ describe('UebersetzerScreen', () => {
     expect(screen.getByLabelText('Ausgangstext')).toBeOnTheScreen();
     expect(screen.getByLabelText('Art der Übersetzung')).toBeOnTheScreen();
     expect(screen.getAllByLabelText('Von: Lade Sprachen').length).toBeGreaterThan(0);
+    // No target yet: the sheet button names no language rather than an empty one.
+    expect(screen.getAllByLabelText('Nach: alle Sprachen').length).toBeGreaterThan(0);
   });
 
   it('translates text typed while loading once the list lands', () => {

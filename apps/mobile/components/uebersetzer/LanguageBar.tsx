@@ -55,6 +55,8 @@ export function LanguageBar({
   const empty = options.length === 0;
   const nameOf = (code: string) =>
     code === AUTO ? (autoDisabled ? AUTO_OFF_LABEL : AUTO_LABEL) : languageName(options, code);
+  // Empty until the list lands — or for good, if it fails to load.
+  const current = nameOf(value);
 
   const q = query.trim().toLowerCase();
   const all = [
@@ -124,7 +126,9 @@ export function LanguageBar({
         disabled={empty}
         hitSlop={6}
         accessibilityRole="button"
-        accessibilityLabel={`${label}: ${nameOf(value)} – alle Sprachen`}
+        accessibilityLabel={
+          current ? `${label}: ${current} – alle Sprachen` : `${label}: alle Sprachen`
+        }
         accessibilityState={{ disabled: empty }}
         style={[styles.iconButton, empty && styles.off]}
       >
