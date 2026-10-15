@@ -13,11 +13,11 @@ import {
   type Citation,
   type StatusPartLike,
 } from '@gruenerator/chat';
+import { usePublicUserAgents } from '@gruenerator/shared/grueneratoren';
 import { useRouter } from 'expo-router';
 import { Fragment, memo, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { usePublicUserAgents } from '../../../hooks/agents/usePublicUserAgents';
 import { useTheme } from '../../../hooks/useTheme';
 import { chatType, spacing } from '../../../theme';
 import { routeWithParams } from '../../../types/routes';

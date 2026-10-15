@@ -41,6 +41,7 @@ export type { FormatRelativeTimeOptions } from './formatRelativeTime.js';
 // Resource URL slug helpers (Notion-style: name-prefix + stable 6-char suffix)
 export {
   slugifyName,
+  slugSuffixFrom,
   generateSlugSuffix,
   buildNotebookSlug,
   buildGroupSlug,

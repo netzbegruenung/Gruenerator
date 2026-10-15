@@ -47,6 +47,12 @@ module.exports = {
     // `nanoid/non-secure`, so the router tests in `test/navigation.test.tsx`
     // need the same stub.
     '^nanoid(/non-secure)?$': '<rootDir>/test/stubs/nanoid.ts',
+
+    // AgentGlyph importiert einzelne Phosphor-Symbole über den Quelltext-Export
+    // (`./src/icons/*`). Für Jest der fertige CommonJS-Build desselben Symbols —
+    // der Quelltext bräuchte eine eigene Transform-Ausnahme.
+    '^phosphor-react-native/src/icons/(.*)$':
+      '<rootDir>/../../node_modules/phosphor-react-native/lib/commonjs/icons/$1',
   },
 
   // NOTE: transformIgnorePatterns is deliberately NOT set. jest-expo's preset

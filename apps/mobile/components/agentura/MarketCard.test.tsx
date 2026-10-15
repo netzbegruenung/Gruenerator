@@ -8,7 +8,7 @@ import { MarketCard } from './MarketCard';
  * mit eigenem Namen, und ein Tipp darauf öffnet nicht den Chat.
  */
 const props = {
-  icon: 'sparkles-outline' as const,
+  iconKey: 'PiSparkle',
   title: 'Pressemitteilung',
   meta: 'Rezept',
   description: 'Schreibt eine Pressemitteilung.',
@@ -34,5 +34,15 @@ describe('MarketCard', () => {
     render(<MarketCard {...props} onPress={jest.fn()} added onToggleAdded={jest.fn()} />);
     const toggle = screen.getByLabelText('Pressemitteilung aus meinen Grüneratoren entfernen');
     expect(toggle.props.accessibilityState).toEqual({ selected: true });
+  });
+
+  it('opens the actions on a long press and through the VoiceOver action', () => {
+    const onLongPress = jest.fn();
+    render(<MarketCard {...props} onPress={jest.fn()} onLongPress={onLongPress} />);
+    const card = screen.getByLabelText('Pressemitteilung');
+
+    fireEvent(card, 'longPress');
+    fireEvent(card, 'accessibilityAction', { nativeEvent: { actionName: 'longpress' } });
+    expect(onLongPress).toHaveBeenCalledTimes(2);
   });
 });

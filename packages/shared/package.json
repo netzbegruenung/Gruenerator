@@ -244,6 +244,12 @@
       "import": "./dist/reactions/index.js",
       "default": "./dist/reactions/index.js"
     },
+    "./grueneratoren": {
+      "development": "./src/grueneratoren/index.ts",
+      "types": "./src/grueneratoren/index.ts",
+      "import": "./dist/grueneratoren/index.js",
+      "default": "./dist/grueneratoren/index.js"
+    },
     "./agents": {
       "development": "./src/agents/index.ts",
       "types": "./src/agents/index.ts",

@@ -1,5 +1,5 @@
 import { type AgentListItem } from '@gruenerator/chat';
-import { type TextForm } from '@gruenerator/contracts';
+import { type RecurringTask, type TextForm } from '@gruenerator/contracts';
 import {
   AGENTURA_TYPE_LABELS,
   SKILL_CATEGORY_LABELS,
@@ -12,10 +12,19 @@ import {
   landesverbandRegion,
   type Agent,
 } from '@gruenerator/shared/agents';
+import {
+  describeRecurrence,
+  useDeleteRecipe,
+  useDeleteRecurringTask,
+  useDeleteUserAgent,
+  usePublicUserAgents,
+  useRecurringTasks,
+  useUserAgents,
+} from '@gruenerator/shared/grueneratoren';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
-import { View, Text, SectionList, StyleSheet } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Alert, Pressable, View, Text, SectionList, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AgenturaSheet } from '../../components/agentura/AgenturaSheet';
@@ -25,16 +34,17 @@ import {
   type MarketAisle,
   type MarketItem,
 } from '../../components/agentura/marketItem';
+import { buildMarketMenuActions, type MarketMenuId } from '../../components/agentura/marketMenu';
 import { SearchField } from '../../components/agentura/SearchField';
-import { agentIcon } from '../../components/chat/sidebarIcons';
+import { MenuActionSheet } from '../../components/chat/MenuActionSheet';
 import { Button, ListGroup, SkeletonRows } from '../../components/common';
+import { SHEET_HANDOFF_MS } from '../../components/common/CreateMenuSheet';
 import { Fab } from '../../components/common/Fab';
 import { NeutralBackdrop } from '../../components/common/NeutralBackdrop';
 import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
 import { useAgenturaCatalog } from '../../hooks/agents/useAgenturaCatalog';
 import { useOwnRecipes } from '../../hooks/agents/useOwnRecipes';
-import { usePublicUserAgents } from '../../hooks/agents/usePublicUserAgents';
-import { useUserAgents } from '../../hooks/agents/useUserAgents';
+import { useSharedUserAgents } from '../../hooks/agents/useSharedUserAgents';
 import { useUserLibrary } from '../../hooks/agents/useUserLibrary';
 import { useTheme } from '../../hooks/useTheme';
 import { colors, spacing, BODY_FONT, HEADING_FONT_SEMIBOLD } from '../../theme';
@@ -42,17 +52,24 @@ import { CONTENT_MAX_WIDTH } from '../../theme/layout';
 import { routeWithParams } from '../../types/routes';
 import { goBackOr } from '../../utils/navigation';
 
-const SECTION_KINDS = ['agent', 'recipe'] as const;
+const SECTION_KINDS = ['agent', 'recipe', 'task'] as const;
+
+const CREATE_ACTIONS = [
+  { id: 'agent', title: 'Agent' },
+  { id: 'recipe', title: 'Rezept' },
+  { id: 'task', title: 'Wiederkehrende Aufgabe' },
+];
 
 /**
- * „Grüneratoren" — womit die Person arbeitet: eigene Agents und Rezepte und was
- * sie aus der Agentura dazugeholt hat, in einer Liste ohne Regale. Die Agentura
- * selbst ist ein Sheet darüber (`AgenturaSheet`), wie im Web das Popup über
+ * „Grüneratoren" — womit die Person arbeitet: eigene Agents, Rezepte und
+ * wiederkehrende Aufgaben, aus Projekten geteilte Agents und was sie aus der
+ * Agentura dazugeholt hat, in einer Liste ohne Regale. Die Agentura selbst ist
+ * ein Sheet darüber (`AgenturaSheet`), wie im Web das Popup über
  * `/grueneratoren`; `?agentura=1` öffnet sie direkt.
  *
- * Anlegen, Bearbeiten und Teilen bleiben im Web. Mit Projekten geteilte Agents
- * und Rezepte führt die App (noch) nicht — dafür bräuchte sie je Projekt einen
- * Abruf der geteilten Inhalte. Wiederkehrende Aufgaben gibt es mobil nicht.
+ * Ein Tipp öffnet die Detailseite (`(focused)/grueneratoren/…`), wie im Web;
+ * der lange Druck bietet Chat, Bearbeiten, Teilen und Löschen an. Angelegt wird
+ * über „+" oben rechts.
  */
 export default function AgentsScreen() {
   const theme = useTheme();
@@ -75,13 +92,29 @@ export default function AgentsScreen() {
 
   const { data: userAgents = [], isSuccess: agentsLoaded, isError: agentsFailed } = useUserAgents();
   const { data: publicAgents = [], isLoading: publicLoading } = usePublicUserAgents();
+  const { data: sharedEntries = [] } = useSharedUserAgents();
   const {
     data: ownRecipes = [],
     isSuccess: recipesLoaded,
     isError: recipesFailed,
   } = useOwnRecipes();
+  // Aufgaben sind ein Zusatz: scheitert ihre Liste, bleiben Agents und Rezepte stehen.
+  const tasks = useRecurringTasks();
   const library = useUserLibrary();
   const catalog = useAgenturaCatalog();
+  const deleteAgent = useDeleteUserAgent();
+  const deleteRecipe = useDeleteRecipe();
+  const deleteTask = useDeleteRecurringTask();
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [menuItem, setMenuItem] = useState<MarketItem | null>(null);
+  // Navigation und Rückfrage erst, wenn das Menü-Sheet weg ist — iOS zeigt
+  // nichts Neues, solange ein Modal noch hinausgleitet.
+  const handoff = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => clearTimeout(handoff.current ?? undefined), []);
+  const afterSheet = (run: () => void) => {
+    handoff.current = setTimeout(run, SHEET_HANDOFF_MS);
+  };
 
   const ownAgentKeys = useMemo(() => new Set(userAgents.map(agentKey)), [userAgents]);
 
@@ -93,71 +126,155 @@ export default function AgentsScreen() {
     [publicAgents, ownAgentKeys]
   );
 
-  const openAgent = useCallback(
-    (agent: Agent) => {
+  const startAgentChat = useCallback(
+    (agent: Agent, own: boolean) => {
       router.push(
         routeWithParams('/(focused)/chat-conversation', {
           threadId: 'new',
-          agentId: agentRef(agent, ownAgentKeys.has(agentKey(agent))),
-        })
-      );
-    },
-    [router, ownAgentKeys]
-  );
-
-  // A recipe is a composer mention, not an agent selection: open a fresh chat
-  // with the mention already typed, so the next thing the user does is describe
-  // the task rather than remember the syntax.
-  const openWithComposerText = useCallback(
-    (text: string) => {
-      router.push(
-        routeWithParams('/(focused)/chat-conversation', {
-          threadId: 'new',
-          initialComposerText: text,
+          agentId: agentRef(agent, own),
         })
       );
     },
     [router]
   );
 
-  const agentItem = (agent: Agent): MarketItem => ({
-    key: `a-${agentKey(agent)}`,
-    kind: 'agent',
-    isFavorite: false,
-    libraryRef: ownAgentKeys.has(agentKey(agent))
-      ? null
-      : { kind: 'agent', ref: agentRef(agent, false) },
-    systemRecipe: false,
-    icon: agentIcon(agent.iconKey),
-    title: agent.title,
-    meta: agenturaMetaLine([
-      'Agent',
-      isLandesverbandIdentifier(agent.identifier) && landesverbandLabel(agent.identifier),
-    ]),
-    author: agent.author,
-    description: agent.description,
-    searchText: searchTextOf([agent.title, agent.description, agent.identifier]),
-    onOpen: () => openAgent(agent),
-  });
+  // A recipe is a composer mention, not an agent selection: open a fresh chat
+  // with the mention already typed, so the next thing the user does is describe
+  // the task rather than remember the syntax.
+  const startRecipeChat = useCallback(
+    (mention: string) => {
+      router.push(
+        routeWithParams('/(focused)/chat-conversation', {
+          threadId: 'new',
+          initialComposerText: `@${mention} `,
+        })
+      );
+    },
+    [router]
+  );
 
-  const skillItem = (skill: AgentListItem): MarketItem => ({
-    key: `s-${skill.mention}`,
-    kind: 'recipe',
-    isFavorite: false,
-    libraryRef: { kind: 'recipe', ref: skill.mention },
-    systemRecipe: true,
-    icon: agentIcon(skill.iconKey),
-    title: skill.title,
-    meta: agenturaMetaLine([
-      'Rezept',
-      isLandesverbandIdentifier(skill.identifier)
-        ? landesverbandLabel(skill.identifier)
-        : SKILL_CATEGORY_LABELS[skill.skillCategory ?? 'sonstiges'],
-    ]),
-    description: skill.description,
-    searchText: searchTextOf([skill.title, skill.description, skill.mention]),
-    onOpen: () => openWithComposerText(`${skill.mention} `),
-  });
+  const confirmDelete = (title: string, onConfirm: () => void) =>
+    Alert.alert(`„${title}" löschen?`, 'Liegt danach 30 Tage im Papierkorb.', [
+      { text: 'Abbrechen', style: 'cancel' },
+      { text: 'Löschen', style: 'destructive', onPress: onConfirm },
+    ]);
+
+  const agentItem = (agent: Agent, origin: string | null = null): MarketItem => {
+    const own = ownAgentKeys.has(agentKey(agent));
+    const ref = agentRef(agent, own);
+    const libraryRef = own ? null : { kind: 'agent' as const, ref: agentRef(agent, false) };
+    const openDetail = () =>
+      router.push({ pathname: '/(focused)/grueneratoren/agent/[slug]', params: { slug: ref } });
+    return {
+      key: `a-${agentKey(agent)}`,
+      kind: 'agent',
+      isFavorite: false,
+      libraryRef,
+      systemRecipe: false,
+      iconKey: agent.iconKey ?? null,
+      title: agent.title,
+      meta: agenturaMetaLine([
+        'Agent',
+        isLandesverbandIdentifier(agent.identifier) && landesverbandLabel(agent.identifier),
+        origin,
+      ]),
+      author: agent.author,
+      description: agent.description,
+      searchText: searchTextOf([agent.title, agent.description, agent.identifier]),
+      onOpen: openDetail,
+      onStartChat: () => startAgentChat(agent, own),
+      actions: buildMarketMenuActions({
+        kind: 'agent',
+        own,
+        inLibrary: libraryRef ? library.has(libraryRef.kind, libraryRef.ref) : false,
+      }),
+      onAction: (id) => {
+        switch (id as MarketMenuId) {
+          case 'chat':
+            return startAgentChat(agent, own);
+          case 'details':
+            return openDetail();
+          case 'edit':
+            return router.push({
+              pathname: '/(focused)/grueneratoren/agent-editor',
+              params: { identifier: agent.identifier },
+            });
+          case 'share':
+            return router.push({
+              pathname: '/(focused)/grueneratoren/agent/[slug]/teilen',
+              params: { slug: ref },
+            });
+          case 'delete':
+            return confirmDelete(agent.title, () => deleteAgent.mutate(agent.identifier));
+          case 'remove':
+            if (libraryRef) library.remove(libraryRef.kind, libraryRef.ref);
+        }
+      },
+    };
+  };
+
+  const recipeActions = (
+    mention: string,
+    title: string,
+    own: boolean,
+    libraryRef: MarketItem['libraryRef']
+  ): Pick<MarketItem, 'onOpen' | 'onStartChat' | 'actions' | 'onAction'> => {
+    const openDetail = () =>
+      router.push({ pathname: '/(focused)/grueneratoren/rezept/[mention]', params: { mention } });
+    return {
+      onOpen: openDetail,
+      onStartChat: () => startRecipeChat(mention),
+      actions: buildMarketMenuActions({
+        kind: 'recipe',
+        own,
+        inLibrary: libraryRef ? library.has(libraryRef.kind, libraryRef.ref) : false,
+      }),
+      onAction: (id) => {
+        switch (id as MarketMenuId) {
+          case 'chat':
+            return startRecipeChat(mention);
+          case 'details':
+            return openDetail();
+          case 'edit':
+            return router.push({
+              pathname: '/(focused)/grueneratoren/rezept-editor',
+              params: { mention },
+            });
+          case 'share':
+            return router.push({
+              pathname: '/(focused)/grueneratoren/rezept/[mention]/teilen',
+              params: { mention },
+            });
+          case 'delete':
+            return confirmDelete(title, () => deleteRecipe.mutate(mention));
+          case 'remove':
+            if (libraryRef) library.remove(libraryRef.kind, libraryRef.ref);
+        }
+      },
+    };
+  };
+
+  const skillItem = (skill: AgentListItem): MarketItem => {
+    const libraryRef = { kind: 'recipe' as const, ref: skill.mention };
+    return {
+      key: `s-${skill.mention}`,
+      kind: 'recipe',
+      isFavorite: false,
+      libraryRef,
+      systemRecipe: true,
+      iconKey: skill.iconKey ?? null,
+      title: skill.title,
+      meta: agenturaMetaLine([
+        'Rezept',
+        isLandesverbandIdentifier(skill.identifier)
+          ? landesverbandLabel(skill.identifier)
+          : SKILL_CATEGORY_LABELS[skill.skillCategory ?? 'sonstiges'],
+      ]),
+      description: skill.description,
+      searchText: searchTextOf([skill.title, skill.description, skill.mention]),
+      ...recipeActions(skill.mention, skill.title, false, libraryRef),
+    };
+  };
 
   const recipeItem = (recipe: TextForm): MarketItem => ({
     key: `r-${recipe.id}`,
@@ -165,13 +282,56 @@ export default function AgentsScreen() {
     isFavorite: false,
     libraryRef: null,
     systemRecipe: false,
-    icon: agentIcon(recipe.iconKey ?? 'sparkles'),
+    iconKey: recipe.iconKey ?? null,
     title: recipe.title,
     meta: 'Rezept',
     description: recipe.description ?? `@${recipe.mention}`,
     searchText: searchTextOf([recipe.title, recipe.description, recipe.mention]),
-    onOpen: () => openWithComposerText(`@${recipe.mention} `),
+    ...recipeActions(recipe.mention, recipe.title, true, null),
   });
+
+  const taskItem = (task: RecurringTask): MarketItem => {
+    const openDetail = () =>
+      router.push({ pathname: '/(focused)/grueneratoren/aufgabe/[id]', params: { id: task.id } });
+    return {
+      key: `t-${task.id}`,
+      kind: 'task',
+      isFavorite: false,
+      libraryRef: null,
+      systemRecipe: false,
+      iconKey: 'PiCalendarBlank',
+      title: task.title,
+      meta: agenturaMetaLine([describeRecurrence(task.recurrence), !task.enabled && 'pausiert']),
+      description: task.instruction,
+      searchText: searchTextOf([task.title, task.instruction]),
+      onOpen: openDetail,
+      onStartChat: null,
+      actions: buildMarketMenuActions({
+        kind: 'task',
+        // Ohne zugehörigen Agent gibt es keinen Editor, der sie öffnen könnte.
+        own: task.agentIdentifier !== null,
+        inLibrary: false,
+      }),
+      onAction: (id) => {
+        switch (id as MarketMenuId) {
+          case 'details':
+            return openDetail();
+          case 'edit':
+            return router.push({
+              pathname: '/(focused)/grueneratoren/agent-editor',
+              params: { identifier: task.agentIdentifier ?? '', taskId: task.id },
+            });
+          case 'delete':
+            return confirmDelete(task.title, () => deleteTask.mutate(task.id));
+          // Bietet `buildMarketMenuActions` Aufgaben nicht an.
+          case 'chat':
+          case 'share':
+          case 'remove':
+            return;
+        }
+      },
+    };
+  };
 
   // Was die Agentura anbietet, nach Verweis — dieselben Verweise wie im Web:
   // agentRef bei Agents (uuid bei fremden), Mention bei Katalog-Rezepten.
@@ -203,11 +363,24 @@ export default function AgentsScreen() {
     return skill ? [skill] : [];
   });
 
+  // Aus Projekten geteilt — ohne die eigenen (die stehen schon oben) und ohne
+  // Doppelte mit der Bibliothek.
+  const addedAgentKeys = new Set(addedAgents.map(agentKey));
+  const projectAgents = sharedEntries.filter(
+    (e) => !ownAgentKeys.has(agentKey(e.agent)) && !addedAgentKeys.has(agentKey(e.agent))
+  );
+
   const allItems: MarketItem[] = [
-    ...userAgents.map(agentItem),
+    ...userAgents.map((a) => agentItem(a)),
     ...ownRecipes.map(recipeItem),
-    ...addedAgents.map(agentItem),
+    ...addedAgents.map((a) => agentItem(a)),
+    ...projectAgents.map((e) =>
+      // Fremde Agents tragen ihren Prompt nicht mit (#3781); für Kachel und
+      // Chat-Start reicht, was da ist.
+      agentItem(e.agent as Agent, e.groups[0] ? `aus ${e.groups[0].name}` : null)
+    ),
     ...addedSkills.map(skillItem),
+    ...(tasks.data ?? []).map(taskItem),
   ];
   const items = query ? allItems.filter((item) => item.searchText.includes(query)) : allItems;
   const sections = SECTION_KINDS.map((kind) => ({
@@ -218,7 +391,7 @@ export default function AgentsScreen() {
 
   // „Leer" erst, wenn alles geladen ist — vorher sind die Listen nur leere
   // Rückfälle, und „Noch nichts hier" wäre eine Behauptung ohne Grundlage.
-  const settled = agentsLoaded && recipesLoaded && library.loaded;
+  const settled = agentsLoaded && recipesLoaded && library.loaded && !tasks.isLoading;
   const failed = agentsFailed || recipesFailed || library.failed;
 
   // Nach Region statt nach Nutzung: bei mehreren Zuteilungen sollen die Sachen
@@ -232,7 +405,7 @@ export default function AgentsScreen() {
       key: 'offiziell',
       title: 'Offizielle Grüneratoren',
       items: [
-        ...[...pinned, ...unpinned].map(agentItem),
+        ...[...pinned, ...unpinned].map((a) => agentItem(a)),
         ...SKILL_CATEGORY_ORDER.flatMap((cat) =>
           (catalog.skillsByCategory.get(cat) ?? []).map(skillItem)
         ),
@@ -246,12 +419,12 @@ export default function AgentsScreen() {
       title: catalog.lvShelfLabel,
       items: catalog.rolesLoaded
         ? [
-            ...byRegion(catalog.lvSystemAgents, (a) => a.identifier).map(agentItem),
+            ...byRegion(catalog.lvSystemAgents, (a) => a.identifier).map((a) => agentItem(a)),
             ...byRegion(catalog.lvSkills, (s) => s.identifier).map(skillItem),
           ]
         : [],
     },
-    { key: 'oeffentlich', title: 'Öffentlich', items: communityAgents.map(agentItem) },
+    { key: 'oeffentlich', title: 'Öffentlich', items: communityAgents.map((a) => agentItem(a)) },
   ];
 
   const openShop = (initialQuery: string) => {
@@ -275,7 +448,7 @@ export default function AgentsScreen() {
     </ListGroup>
   ) : allItems.length === 0 ? (
     note(
-      'Noch nichts hier. Hol dir Agents und Rezepte aus der Agentura — eigene legst du am Rechner an.',
+      'Noch nichts hier. Leg über „+“ einen eigenen Agent oder ein Rezept an, oder hol dir welche aus der Agentura.',
       <Button onPress={() => openShop('')}>Zur Agentura</Button>
     )
   ) : (
@@ -292,6 +465,17 @@ export default function AgentsScreen() {
       backdrop={<NeutralBackdrop />}
       title="Grüneratoren"
       onBack={() => goBackOr('/start')}
+      headerRight={
+        <Pressable
+          onPress={() => setCreateOpen(true)}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Neu anlegen"
+          style={({ pressed }) => [styles.headerButton, { opacity: pressed ? 0.6 : 1 }]}
+        >
+          <Ionicons name="add" size={26} color={theme.text} />
+        </Pressable>
+      }
     >
       <View style={[styles.column, styles.controls]}>
         <SearchField value={search} onChange={setSearch} placeholder="Grüneratoren durchsuchen" />
@@ -310,11 +494,12 @@ export default function AgentsScreen() {
         )}
         renderItem={({ item }) => (
           <MarketCard
-            icon={item.icon}
+            iconKey={item.iconKey}
             title={item.title}
             meta={item.meta}
             description={item.description}
             onPress={item.onOpen}
+            onLongPress={item.actions.length > 0 ? () => setMenuItem(item) : undefined}
             added={item.libraryRef ? library.has(item.libraryRef.kind, item.libraryRef.ref) : null}
             onToggleAdded={() => {
               if (item.libraryRef) library.toggle(item.libraryRef.kind, item.libraryRef.ref);
@@ -349,6 +534,35 @@ export default function AgentsScreen() {
         publicLoading={publicLoading}
         initialQuery={shopQuery}
         library={library}
+      />
+
+      <MenuActionSheet
+        visible={createOpen}
+        theme={theme}
+        heading="Neu anlegen"
+        actions={CREATE_ACTIONS}
+        onClose={() => setCreateOpen(false)}
+        onSelect={(id) =>
+          afterSheet(() => {
+            if (id === 'recipe') router.push('/(focused)/grueneratoren/rezept/neu');
+            else
+              router.push({
+                pathname: '/(focused)/grueneratoren/agent/neu',
+                params: id === 'task' ? { mode: 'recurring' } : {},
+              });
+          })
+        }
+      />
+      <MenuActionSheet
+        visible={menuItem !== null}
+        theme={theme}
+        heading={menuItem?.title}
+        actions={menuItem?.actions ?? []}
+        onClose={() => setMenuItem(null)}
+        onSelect={(id) => {
+          const item = menuItem;
+          if (item) afterSheet(() => item.onAction(id));
+        }}
       />
     </ScreenScaffold>
   );
@@ -387,6 +601,12 @@ const styles = StyleSheet.create({
   },
   gap: {
     height: spacing.small,
+  },
+  headerButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   empty: {
     alignItems: 'center',

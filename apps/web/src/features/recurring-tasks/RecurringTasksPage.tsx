@@ -4,6 +4,7 @@
  * builder (`/agents/new?mode=recurring`), not here.
  */
 import { type RecurringTask } from '@gruenerator/contracts';
+import { DELIVERY_LABEL, describeRecurrence } from '@gruenerator/shared/grueneratoren';
 import { ConfirmDialogProvider, useConfirm } from '@gruenerator/ui';
 import { useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -12,7 +13,6 @@ import { useTrashUndoToast } from '../trash/trashUndoToast';
 
 import { useDeleteRecurringTask, useRecurringTasks, useUpdateRecurringTask } from './api';
 import { RunHistoryDisclosure } from './RunHistory';
-import { DELIVERY_LABEL, describeRecurrence } from './scheduleState';
 import { useRecurringRunNow } from './useRecurringRunNow';
 
 function TaskRow({ task, highlighted }: { task: RecurringTask; highlighted: boolean }) {

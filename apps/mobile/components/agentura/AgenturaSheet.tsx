@@ -16,6 +16,7 @@ import { SHEET_HANDOFF_MS } from '../common/CreateMenuSheet';
 import { SegmentedControl } from '../common/SegmentedControl';
 import { SkeletonRows } from '../common/Skeleton';
 
+import { AgentGlyph } from './AgentGlyph';
 import { MarketCard } from './MarketCard';
 import { type MarketAisle, type MarketItem } from './marketItem';
 import { SearchField } from './SearchField';
@@ -35,10 +36,11 @@ const TYPE_OPTIONS = (['all', 'agent', 'recipe'] as const).map((value) => ({
 /**
  * Die Agentura — der Shop als Sheet über der Übersicht, wie im Web das Popup.
  * Drei Gänge: was der Grünerator mitbringt, was der eigene Landesverband
- * bereitstellt, und was andere öffentlich geteilt haben. Eine Kachel öffnet ihre
- * Details im selben Sheet; von dort holt „Zu meinen Grüneratoren" sie auf die
- * Übersicht. Ein zweites Sheet für die Details müsste auf das Verschwinden des
- * ersten warten (`SHEET_HANDOFF_MS`) — der Inhaltswechsel nicht.
+ * bereitstellt, und was andere öffentlich geteilt haben. Eine Kachel öffnet eine
+ * Kurzansicht im selben Sheet; von dort holt „Zu meinen Grüneratoren" sie auf
+ * die Übersicht, „Alle Details" führt auf die Detailseite. Ein zweites Sheet
+ * für die Kurzansicht müsste auf das Verschwinden des ersten warten
+ * (`SHEET_HANDOFF_MS`) — der Inhaltswechsel nicht.
  */
 export function AgenturaSheet({
   visible,
@@ -92,11 +94,13 @@ export function AgenturaSheet({
     .filter((section) => section.data.length > 0);
   const filtered = searching || type !== 'all';
 
-  const startChat = (item: MarketItem) => {
+  // Chat und Detailseite schieben sich unter dem Sheet ein, sobald es weg ist.
+  const leaveFor = (run: () => void) => {
     onClose();
-    // Der Chat schiebt sich unter dem Sheet ein, sobald es weg ist.
-    timer.current = setTimeout(item.onOpen, SHEET_HANDOFF_MS);
+    timer.current = setTimeout(run, SHEET_HANDOFF_MS);
   };
+
+  const openedChat = opened?.onStartChat ?? null;
 
   return (
     <BottomSheet visible={visible} onClose={onClose} maxHeight="92%">
@@ -106,7 +110,8 @@ export function AgenturaSheet({
             item={opened}
             library={library}
             onBack={() => setOpened(null)}
-            onStartChat={() => startChat(opened)}
+            onStartChat={openedChat ? () => leaveFor(openedChat) : null}
+            onOpenDetails={() => leaveFor(opened.onOpen)}
           />
         ) : (
           <>
@@ -138,7 +143,7 @@ export function AgenturaSheet({
               )}
               renderItem={({ item }) => (
                 <MarketCard
-                  icon={item.icon}
+                  iconKey={item.iconKey}
                   title={item.title}
                   meta={item.meta}
                   description={item.description}
@@ -185,19 +190,21 @@ export function AgenturaSheet({
 
 /**
  * Ein Agent oder Rezept in der Agentura: worum es geht, und die Wege weiter —
- * auf die eigene Übersicht holen oder im Chat ausprobieren. Die volle
- * Detailseite des Webs gibt es mobil nicht.
+ * auf die eigene Übersicht holen, im Chat ausprobieren, oder die volle
+ * Detailseite.
  */
 function MarketItemDetail({
   item,
   library,
   onBack,
   onStartChat,
+  onOpenDetails,
 }: {
   item: MarketItem;
   library: Library;
   onBack: () => void;
-  onStartChat: () => void;
+  onStartChat: (() => void) | null;
+  onOpenDetails: () => void;
 }) {
   const theme = useTheme();
   const ref = item.libraryRef;
@@ -212,7 +219,7 @@ function MarketItemDetail({
 
       <View style={styles.detailHeader}>
         <View style={[styles.detailIcon, { backgroundColor: theme.backgroundAlt }]}>
-          <Ionicons name={item.icon} size={28} color={theme.text} />
+          <AgentGlyph iconKey={item.iconKey} size={28} color={theme.text} />
         </View>
         <View style={styles.detailTitles}>
           <Text style={[styles.detailTitle, { color: theme.text }]} accessibilityRole="header">
@@ -233,8 +240,13 @@ function MarketItemDetail({
             {added ? 'In meinen Grüneratoren' : 'Zu meinen Grüneratoren'}
           </Button>
         ) : null}
-        <Button variant={ref ? 'ghost' : 'primary'} onPress={onStartChat}>
-          Im Chat ausprobieren
+        {onStartChat ? (
+          <Button variant={ref ? 'ghost' : 'primary'} onPress={onStartChat}>
+            Im Chat ausprobieren
+          </Button>
+        ) : null}
+        <Button variant="ghost" onPress={onOpenDetails}>
+          Alle Details
         </Button>
       </View>
 

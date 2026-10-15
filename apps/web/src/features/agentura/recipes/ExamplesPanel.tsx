@@ -11,13 +11,17 @@ import {
   MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS,
   type TextFormType,
 } from '@gruenerator/contracts';
+import {
+  useAnalyzeRecipe,
+  EXAMPLE_SEPARATOR,
+  splitExamples,
+  splitStrategyLabel,
+} from '@gruenerator/shared/grueneratoren';
 import { Button, Textarea, toast, useConfirm } from '@gruenerator/ui';
 import { useId, useMemo, useRef, useState } from 'react';
 import { FiUpload } from 'react-icons/fi';
 
-import { useAnalyzeRecipe } from './api';
 import { EXAMPLE_FILE_ACCEPT, extractExampleText } from './extractExampleText';
-import { EXAMPLE_SEPARATOR, splitExamples, splitStrategyLabel } from './splitExamples';
 
 const NUM = (n: number) => n.toLocaleString('de-DE');
 
