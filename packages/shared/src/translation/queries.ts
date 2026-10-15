@@ -63,6 +63,9 @@ export function useTranslationLanguages() {
       );
     },
     staleTime: 60 * 60 * 1000,
+    // As long as it counts as fresh. With the clients' shorter defaults the
+    // hour only held while the page stayed open; every later visit fetched again.
+    gcTime: 60 * 60 * 1000,
     retry: false,
   });
 }

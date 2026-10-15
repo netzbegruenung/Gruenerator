@@ -11,7 +11,6 @@ import { colors, spacing, typography } from '../../theme';
 import { CONTENT_MAX_WIDTH } from '../../theme/layout';
 import { Button } from '../common/Button';
 import { SegmentedControl, type SegmentedOption } from '../common/SegmentedControl';
-import { SkeletonBar, SkeletonGroup } from '../common/Skeleton';
 
 import { DocumentTranslator } from './DocumentTranslator';
 import { ImageTranslator } from './ImageTranslator';
@@ -35,6 +34,11 @@ const TABS: SegmentedOption[] = [
  * The translator, ported from web's `/uebersetzer`: Text, Dokument and Bild as
  * tabs. Text and Dokument stay mounted so a result survives a tab switch; the
  * Bild tab reads the text off a photo and hands it to the Text tab.
+ *
+ * Nothing here waits for the language list: the tabs and the input render at
+ * once, and the pickers fill in when the list lands. An error never takes the
+ * translator away either — someone may have typed already — except "not
+ * configured", where there is nothing to translate with.
  */
 export function UebersetzerScreen() {
   const theme = useTheme();
@@ -42,62 +46,11 @@ export function UebersetzerScreen() {
   const [tab, setTab] = useState<Tab>('text');
   const [seed, setSeed] = useState<TextSeed | null>(null);
 
-  const body = () => {
-    if (languages.isPending) {
-      return (
-        <View accessible accessibilityLabel="Lade Sprachen">
-          <SkeletonGroup style={styles.skeleton}>
-            <SkeletonBar height={44} radius={12} />
-            <SkeletonBar height={200} radius={16} />
-            <SkeletonBar height={200} radius={16} />
-          </SkeletonGroup>
-        </View>
-      );
-    }
-    if (languages.error) {
-      const notConfigured = languages.error instanceof TranslationNotConfiguredError;
-      return (
-        <View style={styles.notice}>
-          <Text
-            accessibilityRole="alert"
-            style={[styles.noticeText, { color: notConfigured ? theme.text : colors.error[600] }]}
-          >
-            {languages.error.message}
-          </Text>
-          {notConfigured ? null : (
-            <Button variant="outline" onPress={() => void languages.refetch()}>
-              Erneut versuchen
-            </Button>
-          )}
-        </View>
-      );
-    }
-    const data = languages.data;
-    return (
-      <>
-        <SegmentedControl
-          accessibilityLabel="Art der Übersetzung"
-          value={tab}
-          onChange={(v) => setTab(v as Tab)}
-          options={TABS}
-        />
-        <View style={tab === 'text' ? null : styles.hidden}>
-          <TextTranslator data={data} seed={seed} />
-        </View>
-        <View style={tab === 'dokument' ? null : styles.hidden}>
-          <DocumentTranslator data={data} />
-        </View>
-        {tab === 'bild' ? (
-          <ImageTranslator
-            onText={(text) => {
-              setSeed((s) => ({ text, id: (s?.id ?? 0) + 1 }));
-              setTab('text');
-            }}
-          />
-        ) : null}
-      </>
-    );
-  };
+  // A failed refresh keeps the list it already has; only a list that never
+  // arrived is worth a notice.
+  const error = languages.data ? null : languages.error;
+  const notConfigured = error instanceof TranslationNotConfiguredError;
+  const data = languages.data ?? null;
 
   return (
     <SafeAreaView edges={['bottom']} style={[styles.root, { backgroundColor: theme.background }]}>
@@ -109,7 +62,45 @@ export function UebersetzerScreen() {
         <Text style={[styles.intro, { color: theme.textSecondary }]}>
           Texte und Dokumente mit DeepL übersetzen — das Grünen-Glossar wird automatisch angewendet.
         </Text>
-        {body()}
+        {error ? (
+          <View style={styles.notice}>
+            <Text
+              accessibilityRole="alert"
+              style={[styles.noticeText, { color: notConfigured ? theme.text : colors.error[600] }]}
+            >
+              {error.message}
+            </Text>
+            {notConfigured ? null : (
+              <Button variant="outline" onPress={() => void languages.refetch()}>
+                Erneut versuchen
+              </Button>
+            )}
+          </View>
+        ) : null}
+        {notConfigured ? null : (
+          <>
+            <SegmentedControl
+              accessibilityLabel="Art der Übersetzung"
+              value={tab}
+              onChange={(v) => setTab(v as Tab)}
+              options={TABS}
+            />
+            <View style={tab === 'text' ? null : styles.hidden}>
+              <TextTranslator data={data} loading={languages.isPending} seed={seed} />
+            </View>
+            <View style={tab === 'dokument' ? null : styles.hidden}>
+              <DocumentTranslator data={data} loading={languages.isPending} />
+            </View>
+            {tab === 'bild' ? (
+              <ImageTranslator
+                onText={(text) => {
+                  setSeed((s) => ({ text, id: (s?.id ?? 0) + 1 }));
+                  setTab('text');
+                }}
+              />
+            ) : null}
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -126,7 +117,6 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxlarge,
   },
   intro: { ...typography.bodySmall },
-  skeleton: { gap: spacing.medium },
   notice: { gap: spacing.medium, paddingVertical: spacing.large },
   noticeText: { ...typography.body },
   hidden: { display: 'none' },

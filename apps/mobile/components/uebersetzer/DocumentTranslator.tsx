@@ -44,26 +44,37 @@ function extensionOf(file: PickedFile): string {
  * Upload → poll → share. The server buffers DeepL's one-shot result, so the
  * share button can be pressed again if the first download fails.
  */
-export function DocumentTranslator({ data }: { data: TranslationLanguagesResponse }) {
+export function DocumentTranslator({
+  data,
+  loading,
+}: {
+  /** `null` until the language list arrives; starting waits for it. */
+  data: TranslationLanguagesResponse | null;
+  loading: boolean;
+}) {
   const theme = useTheme();
-  const { languages, glossaryPairs, quota } = data;
+  const languages = data?.languages ?? [];
+  const glossaryPairs = data?.glossaryPairs ?? [];
+  const quota = data?.quota ?? null;
   const sources = sourceOptions(languages);
   const targets = targetOptions(languages);
+  const fallbackTarget = defaultTarget(languages);
 
   const [file, setFile] = useState<PickedFile | null>(null);
   const [sourceLang, setSourceLang] = useState<string>(AUTO);
-  const [targetLang, setTargetLang] = useState<string>(() => defaultTarget(languages));
+  // As in the text tab: defaults follow the list, which may still be loading;
+  // with the target '' the start button stays off until it lands.
+  const [pickedTarget, setPickedTarget] = useState<string | null>(null);
+  const [pickedRecentSource, setPickedRecentSource] = useState<string[] | null>(null);
+  const [pickedRecentTarget, setPickedRecentTarget] = useState<string[] | null>(null);
   const [formality, setFormality] = useState<TranslationFormality>('default');
   const [asDocx, setAsDocx] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
-  const [recentSource, setRecentSource] = useState(() =>
-    initialRecent(sources, [AUTO, 'de', defaultTarget(languages)])
-  );
-  const [recentTarget, setRecentTarget] = useState(() =>
-    initialRecent(targets, [defaultTarget(languages), 'de'], 3)
-  );
+  const targetLang = pickedTarget ?? fallbackTarget;
+  const recentSource = pickedRecentSource ?? initialRecent(sources, [AUTO, 'de', fallbackTarget]);
+  const recentTarget = pickedRecentTarget ?? initialRecent(targets, [fallbackTarget, 'de'], 3);
 
   const upload = useUploadDocument();
   const status = useDocumentStatus(jobId);
@@ -172,10 +183,11 @@ export function DocumentTranslator({ data }: { data: TranslationLanguagesRespons
           value={sourceLang}
           onChange={(code) => {
             setSourceLang(code);
-            setRecentSource((r) => pushRecent(r, code));
+            setPickedRecentSource(pushRecent(recentSource, code));
           }}
           options={sources}
           recent={recentSource}
+          loading={loading}
           withAuto
           autoDisabled={sourceRequired}
         />
@@ -189,11 +201,12 @@ export function DocumentTranslator({ data }: { data: TranslationLanguagesRespons
         label="Nach"
         value={targetLang}
         onChange={(code) => {
-          setTargetLang(code);
-          setRecentTarget((r) => pushRecent(r, code, 3));
+          setPickedTarget(code);
+          setPickedRecentTarget(pushRecent(recentTarget, code, 3));
         }}
         options={targets}
         recent={recentTarget}
+        loading={loading}
       >
         {target?.formality ? <FormalityPicker value={formality} onChange={setFormality} /> : null}
       </LanguageBar>

@@ -60,29 +60,36 @@ const AUTO_MAX_CHARS = 2000;
  */
 export function TextTranslator({
   data,
+  loading,
   seed,
 }: {
-  data: TranslationLanguagesResponse;
+  /** `null` until the language list arrives — the input works without it. */
+  data: TranslationLanguagesResponse | null;
+  loading: boolean;
   seed: TextSeed | null;
 }) {
   const theme = useTheme();
   const dark = useColorScheme() === 'dark';
-  const { languages, quota } = data;
+  const languages = data?.languages ?? [];
+  const quota = data?.quota ?? null;
   const sources = sourceOptions(languages);
   const targets = targetOptions(languages);
+  const fallbackTarget = defaultTarget(languages);
 
   const [text, setText] = useState('');
   const [sourceLang, setSourceLang] = useState<string>(AUTO);
-  const [targetLang, setTargetLang] = useState<string>(() => defaultTarget(languages));
+  // The picks start empty and the defaults are read off the list on every
+  // render, because the list may still be on its way when the screen opens.
+  // Until it lands the target is '' and nothing is translated.
+  const [pickedTarget, setPickedTarget] = useState<string | null>(null);
+  const [pickedRecentSource, setPickedRecentSource] = useState<string[] | null>(null);
+  const [pickedRecentTarget, setPickedRecentTarget] = useState<string[] | null>(null);
   const [formality, setFormality] = useState<TranslationFormality>('default');
   const [result, setResult] = useState<TranslateTextResponse | null>(null);
   const [copied, setCopied] = useState(false);
-  const [recentSource, setRecentSource] = useState(() =>
-    initialRecent(sources, [AUTO, 'de', defaultTarget(languages)])
-  );
-  const [recentTarget, setRecentTarget] = useState(() =>
-    initialRecent(targets, [defaultTarget(languages), 'de'], 3)
-  );
+  const targetLang = pickedTarget ?? fallbackTarget;
+  const recentSource = pickedRecentSource ?? initialRecent(sources, [AUTO, 'de', fallbackTarget]);
+  const recentTarget = pickedRecentTarget ?? initialRecent(targets, [fallbackTarget, 'de'], 3);
 
   const translate = useTranslateText();
   /** The request whose answer is still wanted; anything older is discarded. */
@@ -94,7 +101,7 @@ export function TextTranslator({
 
   const target = targets.find((l) => l.code === targetLang);
   const tooLong = text.length > TRANSLATION_TEXT_MAX_CHARS;
-  const outOfBudget = quota.limit !== null && (quota.remaining ?? 0) <= 0;
+  const outOfBudget = quota !== null && quota.limit !== null && (quota.remaining ?? 0) <= 0;
   const manualOnly = text.length > AUTO_MAX_CHARS;
   const canTranslate = text.trim().length > 0 && !tooLong && !!targetLang;
   const key = `${sourceLang}|${targetLang}|${formality}|${text}`;
@@ -158,12 +165,12 @@ export function TextTranslator({
 
   const pickSource = (code: string) => {
     setSourceLang(code);
-    setRecentSource((r) => pushRecent(r, code));
+    setPickedRecentSource(pushRecent(recentSource, code));
   };
 
   const pickTarget = (code: string) => {
-    setTargetLang(code);
-    setRecentTarget((r) => pushRecent(r, code, 3));
+    setPickedTarget(code);
+    setPickedRecentTarget(pushRecent(recentTarget, code, 3));
   };
 
   const clear = () => {
@@ -229,6 +236,7 @@ export function TextTranslator({
           onChange={pickSource}
           options={sources}
           recent={recentSource}
+          loading={loading}
           withAuto
           onSwap={swap}
           swapDisabled={sourceLang === AUTO && !result}
@@ -271,6 +279,7 @@ export function TextTranslator({
           onChange={pickTarget}
           options={targets}
           recent={recentTarget}
+          loading={loading}
         >
           {target?.formality ? <FormalityPicker value={formality} onChange={setFormality} /> : null}
         </LanguageBar>
