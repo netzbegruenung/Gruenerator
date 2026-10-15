@@ -595,22 +595,20 @@ export interface ShapeInstance {
   fillGradient?: GradientFill | null;
   /** Blends the fill into what lies beneath (Konva `globalCompositeOperation`); omit for normal. */
   blendMode?: ShapeBlendMode;
-  /**
-   * Drawn, but not hit-tested: no select, no drag, clicks reach what lies
-   * beneath. Set by the sharepic composer on its full-canvas planes.
-   */
-  locked?: boolean;
 }
 
 /**
  * The composer's background planes (gradient, colour panel beside a photo
- * strip, contrast scrim, AT strip tint). Canvases composed before `locked`
- * existed carry these ids without the flag.
+ * strip, contrast scrim, AT strip tint): ordinary shapes, the ids only name
+ * their role for the colour pick, page inheritance and provenance. Canvases
+ * composed 07.–15.10.2026 still carry a `locked: true` that nothing reads any
+ * more — a lock the user can set needs a key of its own.
  */
 export const COMPOSER_PLANE_IDS: readonly string[] = ['sc-bg', 'sc-panel', 'sc-scrim', 'sc-tint'];
 
-export function isLockedShape(shape: Pick<ShapeInstance, 'id' | 'locked'>): boolean {
-  return shape.locked ?? COMPOSER_PLANE_IDS.includes(shape.id);
+/** Any colour plane the composer lays under the text, the header band and comparison columns included. */
+export function isComposerPlane(id: string): boolean {
+  return COMPOSER_PLANE_IDS.includes(id) || id === 'sc-kopfband' || id.endsWith('-flaeche');
 }
 
 /** `color`: hue and saturation of the fill, brightness of what lies beneath — a duotone. */

@@ -37,6 +37,7 @@ import {
 import { useCanvasAutoSave } from '../hooks/useCanvasAutoSave';
 import { useCanvasElementHandlers } from '../hooks/useCanvasElementHandlers';
 import { useCanvasKeyboardHandlers } from '../hooks/useCanvasKeyboardHandlers';
+import { useDeepSelect } from '../hooks/useDeepSelect';
 import { CanvasStage, SnapGuidelines, AttributionOverlay } from '../primitives';
 import {
   CanvasStoreProvider,
@@ -450,6 +451,7 @@ function GenericCanvasWithRef<
 
   const store = useCanvasStore();
   const { setSnapLines, updateElementPosition } = store.getState();
+  useDeepSelect(stageRef, !preview);
 
   // One selection across all pages: leaving the active page drops its own.
   useEffect(() => {

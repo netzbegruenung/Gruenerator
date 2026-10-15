@@ -32,7 +32,7 @@ export const FloatingLayerControls: React.FC<FloatingLayerControlsProps> = ({
         className={iconBtn}
         onClick={onMoveDown}
         disabled={!canMoveDown}
-        title="Ebene nach unten"
+        title="Ebene nach unten · Strg/⌘-Klick wählt, was darunter liegt"
         aria-label="Ebene nach unten"
       >
         <PiStackMinus />
