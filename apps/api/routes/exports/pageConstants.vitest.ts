@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { CANVAS_FORMATS } from '../../../../packages/canvas-editor/src/formats/index.js';
 
-import { formatCategory, SERVER_FORMATS } from './pageConstants.js';
+import { crossesFormatCategory, formatCategory, SERVER_FORMATS } from './pageConstants.js';
 
 describe('SERVER_FORMATS', () => {
   it('mirrors the canvas-editor format registry', () => {
@@ -40,5 +40,19 @@ describe('formatCategory', () => {
     [null, 'digital'],
   ] as const)('%s → %s', (id, category) => {
     expect(formatCategory(id)).toBe(category);
+  });
+});
+
+describe('crossesFormatCategory', () => {
+  it.each([
+    ['post-portrait', 'print-a3-hoch', true],
+    ['print-visitenkarte-quer', 'post-portrait', true],
+    // A null stored format is the digital default.
+    [null, 'print-a4-hoch', true],
+    [null, 'post-portrait-tall', false],
+    ['post-portrait', 'profile-square', false],
+    ['print-visitenkarte-quer', 'print-visitenkarte-hoch', false],
+  ] as const)('%s → %s: %s', (stored, next, crosses) => {
+    expect(crossesFormatCategory(stored, next)).toBe(crosses);
   });
 });

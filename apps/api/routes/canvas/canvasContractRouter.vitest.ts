@@ -6,6 +6,7 @@ const checkCanvasWriteAccess = vi.fn();
 const updateCanvas = vi.fn();
 const applyDeckChanges = vi.fn();
 const resizeCanvas = vi.fn();
+const formatChangeCrossesCategory = vi.fn();
 const getServerFormat = vi.fn();
 
 vi.mock('./services/canvasAiCheck.js', () => ({ checkCanvasEdit }));
@@ -14,10 +15,13 @@ vi.mock('../../services/canvas/canvasRepository.js', () => ({
   checkCanvasWriteAccess,
   updateCanvas,
   resizeCanvas,
+  formatChangeCrossesCategory,
 }));
 vi.mock('../../services/canvas/canvasStateService.js', () => ({ applyDeckChanges }));
 vi.mock('../../services/canvas/canvasVersionRepository.js', () => ({}));
 vi.mock('../exports/pageConstants.js', () => ({ getServerFormat }));
+
+const CATEGORY_ERROR = 'Druckformate und digitale Formate lassen sich nicht ineinander umwandeln.';
 
 const req = { user: { id: 'user-1', email: 'u@example.org' } } as never;
 const base = { threadId: 't1', variantId: 'v1' };
@@ -142,6 +146,7 @@ describe('canvas.replacePages', () => {
     checkCanvasWriteAccess.mockReset().mockResolvedValue({ kind: 'ok' });
     updateCanvas.mockReset().mockResolvedValue({ kind: 'ok' });
     applyDeckChanges.mockReset().mockResolvedValue(undefined);
+    formatChangeCrossesCategory.mockReset().mockResolvedValue(false);
   });
 
   it('replaces the whole page set and the format', async () => {
@@ -158,6 +163,21 @@ describe('canvas.replacePages', () => {
   it('leaves the format alone when none is sent', async () => {
     await replace({ pages });
     expect(updateCanvas).not.toHaveBeenCalled();
+  });
+
+  it('refuses a format of the other category before replacing any page', async () => {
+    formatChangeCrossesCategory.mockResolvedValue(true);
+    const res = await replace({ pages, format: 'print-a3-hoch' });
+    expect(res.status).toBe(400);
+    expect((res.body as { error: string }).error).toBe(CATEGORY_ERROR);
+    expect(formatChangeCrossesCategory).toHaveBeenCalledWith('c1', 'print-a3-hoch');
+    expect(applyDeckChanges).not.toHaveBeenCalled();
+    expect(updateCanvas).not.toHaveBeenCalled();
+  });
+
+  it('does not look up the format when none is sent', async () => {
+    await replace({ pages });
+    expect(formatChangeCrossesCategory).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -197,9 +217,7 @@ describe('canvas.resize', () => {
     resizeCanvas.mockResolvedValue({ kind: 'category_mismatch' });
     const res = await resize('print-a3-hoch');
     expect(res.status).toBe(400);
-    expect(res.body.error).toBe(
-      'Druckformate und digitale Formate lassen sich nicht ineinander umwandeln.'
-    );
+    expect(res.body.error).toBe(CATEGORY_ERROR);
   });
 
   it('rejects an unknown format before touching the canvas', async () => {
@@ -207,5 +225,34 @@ describe('canvas.resize', () => {
     const res = await resize('print-a5-quer');
     expect(res.status).toBe(400);
     expect(resizeCanvas).not.toHaveBeenCalled();
+  });
+});
+
+describe('canvas.update', () => {
+  const update = async (body: Record<string, unknown>) => {
+    const { canvasContractRouter } = await import('./canvasContractRouter.js');
+    return (
+      canvasContractRouter.update as unknown as (a: unknown) => Promise<{
+        status: number;
+        body: Record<string, unknown>;
+      }>
+    )({ req, params: { id: 'c1' }, body });
+  };
+
+  beforeEach(() => {
+    updateCanvas.mockReset().mockResolvedValue({ kind: 'ok' });
+  });
+
+  it('sets a format of the same category', async () => {
+    const res = await update({ format: 'post-portrait-tall' });
+    expect(res.status).toBe(200);
+    expect(updateCanvas).toHaveBeenCalledWith('c1', 'user-1', { format: 'post-portrait-tall' });
+  });
+
+  it('answers a category change with 400 like resize', async () => {
+    updateCanvas.mockResolvedValue({ kind: 'category_mismatch' });
+    const res = await update({ format: 'print-a3-hoch' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe(CATEGORY_ERROR);
   });
 });

@@ -75,3 +75,8 @@ export function getServerFormat(id: string): CanvasFormatLite | null {
 export function formatCategory(id: string | null): CanvasFormatCategoryLite {
   return id?.startsWith('print-') ? 'print' : 'digital';
 }
+
+/** Would moving a canvas from `stored` to `next` cross between digital and print? */
+export function crossesFormatCategory(stored: string | null, next: string): boolean {
+  return formatCategory(stored) !== formatCategory(next);
+}

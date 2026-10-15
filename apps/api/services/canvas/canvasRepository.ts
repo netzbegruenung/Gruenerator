@@ -23,7 +23,7 @@ import {
   type DocumentAccessSubject,
 } from '../../routes/docs/documentAccess.js';
 import { type DocumentPermissions } from '../../routes/docs/types.js';
-import { formatCategory } from '../../routes/exports/pageConstants.js';
+import { crossesFormatCategory } from '../../routes/exports/pageConstants.js';
 import { likeContainsPattern } from '../../utils/sqlLike.js';
 import {
   trashCollaborativeDocument,
@@ -363,15 +363,30 @@ export async function checkCanvasWriteAccess(id: string, userId: string): Promis
   return { kind: 'ok' };
 }
 
+/**
+ * Would setting `format` move this canvas between digital and print? The
+ * same invariant as resize. Caller must have checked write access.
+ */
+export async function formatChangeCrossesCategory(id: string, format: string): Promise<boolean> {
+  const rows = (await db.query('SELECT format FROM canvas_documents WHERE document_id = $1', [
+    id,
+  ])) as Array<{ format: string | null }>;
+  return crossesFormatCategory(rows[0]?.format ?? null, format);
+}
+
 export async function updateCanvas(
   id: string,
   userId: string,
   patch: UpdateCanvasInput
-): Promise<MutationResult> {
+): Promise<MutationResult | { kind: 'category_mismatch' }> {
   const access = await checkCanvasWriteAccess(id, userId);
   if (access.kind !== 'ok') return access;
 
   const { title, thumbnail_url, page_count, format } = patch;
+
+  if (format !== undefined && (await formatChangeCrossesCategory(id, format))) {
+    return { kind: 'category_mismatch' };
+  }
 
   let replacedThumbnailUrl: string | null = null;
   if (thumbnail_url !== undefined) {
@@ -504,7 +519,7 @@ export async function resizeCanvas(
   if (accessRows.length === 0) return { kind: 'forbidden' };
 
   // A print sheet is measured in mm with bleed; a digital one is not.
-  if (formatCategory(source.format) !== formatCategory(formatId)) {
+  if (crossesFormatCategory(source.format, formatId)) {
     return { kind: 'category_mismatch' };
   }
 

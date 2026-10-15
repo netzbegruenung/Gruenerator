@@ -28,6 +28,7 @@ import {
   cloneCanvas,
   createCanvas,
   deleteCanvas,
+  formatChangeCrossesCategory,
   getCanvas,
   listCanvases,
   resizeCanvas,
@@ -60,6 +61,9 @@ import { checkCanvasEdit } from './services/canvasAiCheck.js';
 import type { Application } from 'express';
 
 const log = createLogger('canvasContractRouter');
+
+const FORMAT_CATEGORY_ERROR =
+  'Druckformate und digitale Formate lassen sich nicht ineinander umwandeln.';
 
 const isCanvasPageDefArray = (v: unknown): v is CanvasPageDef[] =>
   Array.isArray(v) &&
@@ -193,12 +197,7 @@ export const canvasContractRouter = s.router(canvasContract, {
         return { status: 403 as const, body: { error: 'Access denied' } };
       }
       if (result.kind === 'category_mismatch') {
-        return {
-          status: 400 as const,
-          body: {
-            error: 'Druckformate und digitale Formate lassen sich nicht ineinander umwandeln.',
-          },
-        };
+        return { status: 400 as const, body: { error: FORMAT_CATEGORY_ERROR } };
       }
       return { status: 201 as const, body: { newCanvasId: result.newCanvasId } };
     } catch (error) {
@@ -406,6 +405,9 @@ export const canvasContractRouter = s.router(canvasContract, {
       if (result.kind === 'forbidden') {
         return { status: 403 as const, body: { error: 'Insufficient permissions' } };
       }
+      if (result.kind === 'category_mismatch') {
+        return { status: 400 as const, body: { error: FORMAT_CATEGORY_ERROR } };
+      }
       return { status: 200 as const, body: { message: 'Canvas updated successfully' } };
     } catch (error) {
       const err = error as Error;
@@ -427,6 +429,9 @@ export const canvasContractRouter = s.router(canvasContract, {
       }
       if (access.kind === 'forbidden') {
         return { status: 403 as const, body: { error: 'Insufficient permissions' } };
+      }
+      if (format !== undefined && (await formatChangeCrossesCategory(args.params.id, format))) {
+        return { status: 400 as const, body: { error: FORMAT_CATEGORY_ERROR } };
       }
       await applyDeckChanges(args.params.id, {
         seedPages: pages,
