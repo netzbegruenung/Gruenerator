@@ -5,16 +5,19 @@ const checkCanvasEdit = vi.fn();
 const checkCanvasWriteAccess = vi.fn();
 const updateCanvas = vi.fn();
 const applyDeckChanges = vi.fn();
+const resizeCanvas = vi.fn();
+const getServerFormat = vi.fn();
 
 vi.mock('./services/canvasAiCheck.js', () => ({ checkCanvasEdit }));
 vi.mock('../chat/services/sharepicEditService.js', () => ({ mintCanvasForVariant }));
 vi.mock('../../services/canvas/canvasRepository.js', () => ({
   checkCanvasWriteAccess,
   updateCanvas,
+  resizeCanvas,
 }));
 vi.mock('../../services/canvas/canvasStateService.js', () => ({ applyDeckChanges }));
 vi.mock('../../services/canvas/canvasVersionRepository.js', () => ({}));
-vi.mock('../exports/pageConstants.js', () => ({ getServerFormat: vi.fn() }));
+vi.mock('../exports/pageConstants.js', () => ({ getServerFormat }));
 
 const req = { user: { id: 'user-1', email: 'u@example.org' } } as never;
 const base = { threadId: 't1', variantId: 'v1' };
@@ -165,5 +168,44 @@ describe('canvas.replacePages', () => {
     const res = await replace({ pages });
     expect(res.status).toBe(status);
     expect(applyDeckChanges).not.toHaveBeenCalled();
+  });
+});
+
+describe('canvas.resize', () => {
+  const resize = async (formatId: string) => {
+    const { canvasContractRouter } = await import('./canvasContractRouter.js');
+    return (
+      canvasContractRouter.resize as unknown as (a: unknown) => Promise<{
+        status: number;
+        body: Record<string, unknown>;
+      }>
+    )({ req, params: { id: 'c1' }, body: { formatId } });
+  };
+
+  beforeEach(() => {
+    getServerFormat.mockReset().mockReturnValue({ id: 'x' });
+    resizeCanvas.mockReset().mockResolvedValue({ kind: 'ok', newCanvasId: 'c2' });
+  });
+
+  it('duplicates into a known format', async () => {
+    const res = await resize('post-portrait-tall');
+    expect(res.status).toBe(201);
+    expect(res.body).toEqual({ newCanvasId: 'c2' });
+  });
+
+  it('refuses to turn a digital canvas into print and vice versa', async () => {
+    resizeCanvas.mockResolvedValue({ kind: 'category_mismatch' });
+    const res = await resize('print-a3-hoch');
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe(
+      'Druckformate und digitale Formate lassen sich nicht ineinander umwandeln.'
+    );
+  });
+
+  it('rejects an unknown format before touching the canvas', async () => {
+    getServerFormat.mockReturnValue(null);
+    const res = await resize('print-a5-quer');
+    expect(res.status).toBe(400);
+    expect(resizeCanvas).not.toHaveBeenCalled();
   });
 });

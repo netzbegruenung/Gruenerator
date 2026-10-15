@@ -192,6 +192,14 @@ export const canvasContractRouter = s.router(canvasContract, {
       if (result.kind === 'forbidden') {
         return { status: 403 as const, body: { error: 'Access denied' } };
       }
+      if (result.kind === 'category_mismatch') {
+        return {
+          status: 400 as const,
+          body: {
+            error: 'Druckformate und digitale Formate lassen sich nicht ineinander umwandeln.',
+          },
+        };
+      }
       return { status: 201 as const, body: { newCanvasId: result.newCanvasId } };
     } catch (error) {
       const err = error as Error;

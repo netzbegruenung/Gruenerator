@@ -23,6 +23,7 @@ import {
   type DocumentAccessSubject,
 } from '../../routes/docs/documentAccess.js';
 import { type DocumentPermissions } from '../../routes/docs/types.js';
+import { formatCategory } from '../../routes/exports/pageConstants.js';
 import { likeContainsPattern } from '../../utils/sqlLike.js';
 import {
   trashCollaborativeDocument,
@@ -461,10 +462,16 @@ export async function deleteCanvas(id: string, userId: string): Promise<Mutation
 // ── Resize (duplicate-with-format) ───────────────────────────────────────────
 
 type ResizeResult =
-  { kind: 'ok'; newCanvasId: string } | { kind: 'not_found' } | { kind: 'forbidden' };
+  | { kind: 'ok'; newCanvasId: string }
+  | { kind: 'not_found' }
+  | { kind: 'forbidden' }
+  | { kind: 'category_mismatch' };
 
 type CanvasResizeSourceRow = Pick<CollabRow, 'id' | 'title' | 'created_by'> &
-  Pick<SidecarRow, 'template_type' | 'base_template_id' | 'page_count' | 'initial_state'>;
+  Pick<
+    SidecarRow,
+    'template_type' | 'base_template_id' | 'page_count' | 'initial_state' | 'format'
+  >;
 
 /** Caller must validate `formatId` (e.g. `getServerFormat`) before calling. */
 export async function resizeCanvas(
@@ -475,7 +482,8 @@ export async function resizeCanvas(
 ): Promise<ResizeResult> {
   const sourceRows = (await db.query(
     `SELECT cd.id, cd.title, cd.created_by,
-            cdoc.template_type, cdoc.base_template_id, cdoc.page_count, cdoc.initial_state
+            cdoc.template_type, cdoc.base_template_id, cdoc.page_count, cdoc.initial_state,
+            cdoc.format
      FROM collaborative_documents cd
      INNER JOIN canvas_documents cdoc ON cdoc.document_id = cd.id
      WHERE cd.id = $1 AND cd.document_subtype = $2 AND cd.is_deleted = false`,
@@ -494,6 +502,11 @@ export async function resizeCanvas(
     [id, CANVAS_SUBTYPE, userId]
   )) as Array<unknown>;
   if (accessRows.length === 0) return { kind: 'forbidden' };
+
+  // A print sheet is measured in mm with bleed; a digital one is not.
+  if (formatCategory(source.format) !== formatCategory(formatId)) {
+    return { kind: 'category_mismatch' };
+  }
 
   const newTitle = titleOverride ?? `${source.title} (${formatId})`;
 
