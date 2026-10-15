@@ -1,3 +1,4 @@
+import { type StudioAssetItem } from '@gruenerator/contracts';
 import {
   assetFormBody,
   isAssetFormComplete,
@@ -36,25 +37,23 @@ const titleFromFile = (name: string) => name.replace(/\.[^.]+$/, '').slice(0, TI
 
 export interface BackgroundUploadDialogProps {
   onClose: () => void;
-  /** Shares an image picked elsewhere (the Profilbild's own photo) instead of asking for a file. */
-  initialFile?: File;
-  onCreated?: () => void;
+  /** Gets the new gallery item, e.g. to apply it right away. */
+  onCreated?: (item: StudioAssetItem) => void;
 }
 
 export function BackgroundUploadDialog({
   onClose,
-  initialFile,
   onCreated,
 }: BackgroundUploadDialogProps): JSX.Element {
   const fileId = useId();
   const locale = useAuthStore((s) => s.locale);
   const { create } = useStudioAssetMutations();
 
-  const [file, setFile] = useState<File | null>(initialFile ?? null);
+  const [file, setFile] = useState<File | null>(null);
   const [form, setForm] = useState<StudioAssetFormValues>(() => ({
-    title: initialFile ? titleFromFile(initialFile.name) : '',
+    title: '',
     tags: '',
-    visibility: initialFile ? 'public' : 'private',
+    visibility: 'private',
     audience: locale,
     rights: false,
   }));
@@ -94,14 +93,14 @@ export function BackgroundUploadDialog({
     }
     uploaded.current = { file, token: shareToken };
     try {
-      await create.mutateAsync({
+      const item = await create.mutateAsync({
         shareToken,
         kind: 'background',
         source: 'upload',
         ...assetFormBody(form),
       });
       toast.success(`„${form.title.trim()}“ ist gespeichert.`);
-      onCreated?.();
+      onCreated?.(item);
       onClose();
     } catch {
       // The create error is toasted by the global mutation handler.
@@ -115,34 +114,28 @@ export function BackgroundUploadDialog({
       <DialogContent className="bg-background-pure">
         <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-md">
           <DialogHeader>
-            <DialogTitle>
-              {initialFile ? 'Hintergrund teilen' : 'Hintergrund hochladen'}
-            </DialogTitle>
+            <DialogTitle>Hintergrund hochladen</DialogTitle>
             <DialogDescription>
-              {initialFile
-                ? 'Dein Bild wird zusätzlich als Hintergrund unter „Sticker & Hintergründe“ gespeichert.'
-                : `PNG, JPEG oder WebP. Große Bilder werden auf ${BACKGROUND_MAX_SIDE} Pixel verkleinert.`}
+              {`PNG, JPEG oder WebP. Große Bilder werden auf ${BACKGROUND_MAX_SIDE} Pixel verkleinert.`}
             </DialogDescription>
           </DialogHeader>
 
-          {initialFile ? null : (
-            <div className="flex flex-col gap-xs">
-              <Label htmlFor={fileId}>Bild</Label>
-              <Input
-                id={fileId}
-                type="file"
-                accept={BACKGROUND_ACCEPT}
-                disabled={busy}
-                onChange={(e) => {
-                  const picked = e.target.files?.[0] ?? null;
-                  setFile(picked);
-                  setError(null);
-                  if (picked && !form.title.trim())
-                    setForm((f) => ({ ...f, title: titleFromFile(picked.name) }));
-                }}
-              />
-            </div>
-          )}
+          <div className="flex flex-col gap-xs">
+            <Label htmlFor={fileId}>Bild</Label>
+            <Input
+              id={fileId}
+              type="file"
+              accept={BACKGROUND_ACCEPT}
+              disabled={busy}
+              onChange={(e) => {
+                const picked = e.target.files?.[0] ?? null;
+                setFile(picked);
+                setError(null);
+                if (picked && !form.title.trim())
+                  setForm((f) => ({ ...f, title: titleFromFile(picked.name) }));
+              }}
+            />
+          </div>
           <StudioAssetFormFields values={form} onChange={setForm} locale={locale} disabled={busy} />
 
           {error && (
@@ -156,7 +149,7 @@ export function BackgroundUploadDialog({
               Abbrechen
             </Button>
             <Button type="submit" disabled={!canSubmit}>
-              {busy ? 'Wird hochgeladen …' : initialFile ? 'Speichern' : 'Hochladen'}
+              {busy ? 'Wird hochgeladen …' : 'Hochladen'}
             </Button>
           </DialogFooter>
         </form>

@@ -217,13 +217,9 @@ export function ProfilbildEditor({
   const moveHintId = useId();
   const igProfileRef = useRef<HTMLCanvasElement>(null);
   const igFeedRef = useRef<HTMLCanvasElement>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const customUrlRef = useRef<string | null>(null);
   const isAustria = useAuthStore((s) => s.locale === 'de-AT');
   const galleryAssetRef = useRef(galleryAsset);
-  const [sharingCustom, setSharingCustom] = useState(false);
-  // The own photo already shared to the gallery, so it is not offered twice.
-  const [sharedFile, setSharedFile] = useState<File | null>(null);
+  const [uploadingBackground, setUploadingBackground] = useState(false);
   const colorSwatches = isAustria ? COLOR_SWATCHES_AT : COLOR_SWATCHES_DE;
   const presets = useMemo(() => presetDesigns(isAustria), [isAustria]);
   // Lookups by id also know retired Vorlagen: a saved Profilbild may still name one.
@@ -234,9 +230,9 @@ export function ProfilbildEditor({
   const saveProfilbild = useProfilbildShare(reopen?.shareToken ?? null);
   const [cutout, setCutout] = useState<TrimmedCutout | null>(null);
   const [customImage, setCustomImage] = useState<HTMLImageElement | null>(null);
-  // Where the own background photo lives: a stored share file once saved, else the picked file.
-  const [customSource, setCustomSource] = useState<{ url: string | null; file: File | null }>(
-    () => ({ url: savedBackground?.kind === 'custom' ? savedBackground.url : null, file: null })
+  // The own background's stored share path: from the gallery, an upload or the saved state.
+  const [customUrl, setCustomUrl] = useState<string | null>(() =>
+    savedBackground?.kind === 'custom' ? savedBackground.url : null
   );
   const [selected, setSelected] = useState(() =>
     savedBackground
@@ -294,7 +290,6 @@ export function ProfilbildEditor({
 
   useEffect(
     () => () => {
-      if (customUrlRef.current) URL.revokeObjectURL(customUrlRef.current);
       if (announceTimer.current) window.clearTimeout(announceTimer.current);
     },
     []
@@ -624,28 +619,6 @@ export function ProfilbildEditor({
       setPlacement((p) => (p ? defaultPlacement(cutout.image, PROFILBILD_SIZE, p.scale) : p));
   };
 
-  const pickCustom = async (file: File) => {
-    setError(null);
-    const request = ++backgroundRequest.current;
-    const url = URL.createObjectURL(file);
-    try {
-      const img = await loadImage(url);
-      if (request !== backgroundRequest.current) {
-        URL.revokeObjectURL(url);
-        return;
-      }
-      if (customUrlRef.current) URL.revokeObjectURL(customUrlRef.current);
-      customUrlRef.current = url;
-      setCustomImage(img);
-      setCustomSource({ url: null, file });
-      setSelected(CUSTOM_ID);
-    } catch (cause) {
-      URL.revokeObjectURL(url);
-      if (request !== backgroundRequest.current) return;
-      setError(errorMessage(cause, 'Bild konnte nicht geladen werden.'));
-    }
-  };
-
   const pickGalleryBackground = async (item: GalleryAsset) => {
     setError(null);
     if (!isShareSrc(item.src)) {
@@ -656,10 +629,8 @@ export function ProfilbildEditor({
     try {
       const img = await loadImage(await loadShareFileDataUrl(item.src));
       if (request !== backgroundRequest.current) return;
-      if (customUrlRef.current) URL.revokeObjectURL(customUrlRef.current);
-      customUrlRef.current = null;
       setCustomImage(img);
-      setCustomSource({ url: item.src, file: null });
+      setCustomUrl(item.src);
       setSelected(CUSTOM_ID);
     } catch (cause) {
       if (request !== backgroundRequest.current) return;
@@ -708,8 +679,8 @@ export function ProfilbildEditor({
           cutoutDataUrl: cutout.dataUrl ?? cutoutUrl,
           person: placement,
           background:
-            activeId === CUSTOM_ID
-              ? { kind: 'custom', ...customSource }
+            activeId === CUSTOM_ID && customUrl
+              ? { kind: 'custom', url: customUrl }
               : activeId === FREE_BACKGROUND_ID && freeBackground
                 ? { kind: 'free', background: freeBackground }
                 : { kind: 'id', id: activeId },
@@ -718,11 +689,10 @@ export function ProfilbildEditor({
       : null;
 
   // What the saved Profilbild is made of; a change to any of it is worth saving.
-  const { file: customFile, url: customUrl } = customSource;
   const signature = JSON.stringify([
     placement,
     activeId,
-    activeId === CUSTOM_ID ? [customUrl, customFile?.name, customFile?.size] : null,
+    activeId === CUSTOM_ID ? customUrl : null,
     activeId === FREE_BACKGROUND_ID ? freeBackground : null,
     stickers.map(({ id, x, y, width, height, rotation }) => [id, x, y, width, height, rotation]),
   ]);
@@ -853,17 +823,14 @@ export function ProfilbildEditor({
       presets={presets}
       selected={activeId}
       customImageSrc={customImage?.src ?? null}
-      customUrl={customSource.url}
+      customUrl={customUrl}
       onSelect={(id) => {
         backgroundRequest.current++;
         setSelected(id);
       }}
       onSelectPreset={(design) => void selectPreset(design)}
       onSelectGallery={(item) => void pickGalleryBackground(item)}
-      onUpload={() => fileRef.current?.click()}
-      onShareCustom={
-        customSource.file && customSource.file !== sharedFile ? () => setSharingCustom(true) : null
-      }
+      onUpload={() => setUploadingBackground(true)}
     />
   );
 
@@ -1237,25 +1204,12 @@ export function ProfilbildEditor({
       <div aria-live="polite" className="sr-only">
         {announcement}
       </div>
-      <input
-        ref={fileRef}
-        type="file"
-        aria-label="Eigenes Hintergrundbild wählen"
-        accept="image/*"
-        className="hidden"
-        data-testid="profilbild-background-input"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          e.target.value = '';
-          if (file) void pickCustom(file);
-        }}
-      />
 
-      {sharingCustom && customSource.file ? (
+      {/* Ein eigener Hintergrund wird ein Galerie-Eintrag und gilt sofort. */}
+      {uploadingBackground ? (
         <BackgroundUploadDialog
-          initialFile={customSource.file}
-          onCreated={() => setSharedFile(customSource.file)}
-          onClose={() => setSharingCustom(false)}
+          onCreated={(item) => void pickGalleryBackground(item)}
+          onClose={() => setUploadingBackground(false)}
         />
       ) : null}
     </div>

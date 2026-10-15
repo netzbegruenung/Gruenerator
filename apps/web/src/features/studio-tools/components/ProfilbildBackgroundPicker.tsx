@@ -4,7 +4,6 @@ import {
   type PresetDesign,
   type Swatch,
 } from '@gruenerator/shared/profilbild';
-import { Button } from '@gruenerator/ui';
 
 import { type GalleryAsset } from '../utils/galleryAsset';
 import { flatCss } from '../utils/profilbildBackgrounds';
@@ -55,8 +54,6 @@ export interface ProfilbildBackgroundPickerProps {
   onSelectPreset: (design: PresetDesign) => void;
   onSelectGallery: (item: GalleryAsset) => void;
   onUpload: () => void;
-  /** Offered while the custom background is a freshly picked own photo. */
-  onShareCustom: (() => void) | null;
 }
 
 export function ProfilbildBackgroundPicker({
@@ -72,7 +69,6 @@ export function ProfilbildBackgroundPicker({
   onSelectPreset,
   onSelectGallery,
   onUpload,
-  onShareCustom,
 }: ProfilbildBackgroundPickerProps) {
   // Die CD-Farben des Landes als Schnellwahl im freien Farbwähler.
   const palette = colors.flatMap((s) =>
@@ -192,17 +188,6 @@ export function ProfilbildBackgroundPicker({
         >
           + Eigenen Hintergrund hochladen
         </button>
-        {onShareCustom ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="self-start"
-            onClick={onShareCustom}
-          >
-            Im Bereich „Entdecken“ teilen
-          </Button>
-        ) : null}
       </section>
     </div>
   );

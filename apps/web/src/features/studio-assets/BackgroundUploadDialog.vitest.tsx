@@ -36,14 +36,12 @@ describe('BackgroundUploadDialog', () => {
         return HttpResponse.json({ error: 'kaputt' }, { status: 500 });
       })
     );
-    const { user } = renderWithProviders(
-      <BackgroundUploadDialog
-        onClose={() => {}}
-        initialFile={new File(['raw'], 'Wiese.png', { type: 'image/png' })}
-      />
+    const { user } = renderWithProviders(<BackgroundUploadDialog onClose={() => {}} />);
+    await user.upload(
+      screen.getByLabelText('Bild'),
+      new File(['raw'], 'Wiese.png', { type: 'image/png' })
     );
-    await user.click(screen.getByLabelText('Unter „Entdecken“ öffentlich teilen'));
-    const submit = screen.getByRole('button', { name: 'Speichern' });
+    const submit = screen.getByRole('button', { name: 'Hochladen' });
     await user.click(submit);
     await waitFor(() => expect(tokens).toHaveLength(1));
     await waitFor(() => expect(submit).toBeEnabled());

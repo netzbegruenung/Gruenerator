@@ -333,29 +333,6 @@ describe('ProfilbildPage', () => {
     });
   });
 
-  it('stores an own background photo once and saves its URL', async () => {
-    renderHandoff();
-    await screen.findByTestId('konva-stage');
-    fireEvent.change(screen.getByTestId('profilbild-background-input'), {
-      target: { files: [new File(['p'], 'wiese.jpg', { type: 'image/jpeg' })] },
-    });
-    await waitFor(() =>
-      expect(lastBackground()).toMatchObject({ kind: 'image', image: { src: 'blob:orig' } })
-    );
-    await downloadAndGetCompose();
-    await waitFor(() => expect(share.create).toHaveBeenCalledTimes(1));
-    await downloadAndGetCompose();
-    await waitFor(() => expect(share.update).toHaveBeenCalledTimes(1));
-    expect(share.upload).toHaveBeenCalledTimes(1);
-    expect(share.upload.mock.calls[0]?.[1]).toMatchObject({
-      uploadSource: 'profilbild-background',
-    });
-    expect(share.update.mock.calls[0]?.[0].metadata.profilbild.background).toEqual({
-      kind: 'custom',
-      url: '/api/share/bg1/download',
-    });
-  });
-
   it('tells the person when the download worked but saving did not', async () => {
     share.create.mockRejectedValue(new Error('offline'));
     renderHandoff();
@@ -1082,7 +1059,6 @@ describe('ProfilbildPage', () => {
         url: GALLERY_SRC,
       });
       expect(share.upload).not.toHaveBeenCalled();
-      expect(screen.queryByRole('button', { name: 'Im Bereich „Entdecken“ teilen' })).toBeNull();
     });
 
     it('applies a deep-linked sticker once the photo is in', async () => {
@@ -1131,7 +1107,7 @@ describe('ProfilbildPage', () => {
       expect(screen.queryByText(/Lade zuerst ein Foto hoch/)).toBeNull();
     });
 
-    it('shares an own background photo as a separate gallery upload', async () => {
+    it('uploads an own background through the dialog and applies it', async () => {
       share.prepare.mockResolvedValue(new Blob(['w'], { type: 'image/webp' }));
       share.uploadShare.mockResolvedValue('tok-gallery');
       share.createAsset.mockResolvedValue({
@@ -1140,40 +1116,39 @@ describe('ProfilbildPage', () => {
       });
       renderHandoff();
       await screen.findByTestId('konva-stage');
-      const photo = new File(['p'], 'wiese.jpg', { type: 'image/jpeg' });
-      fireEvent.change(screen.getByTestId('profilbild-background-input'), {
-        target: { files: [photo] },
-      });
-      await waitFor(() => expect(lastBackground()).toMatchObject({ kind: 'image' }));
-      fireEvent.click(screen.getByRole('button', { name: 'Im Bereich „Entdecken“ teilen' }));
+      fireEvent.click(screen.getByRole('button', { name: /Eigenen Hintergrund hochladen/ }));
 
-      const dialog = await screen.findByRole('dialog', { name: 'Hintergrund teilen' });
+      const dialog = await screen.findByRole('dialog', { name: 'Hintergrund hochladen' });
+      const photo = new File(['p'], 'wiese.jpg', { type: 'image/jpeg' });
+      fireEvent.change(within(dialog).getByLabelText('Bild'), { target: { files: [photo] } });
       expect(within(dialog).getByLabelText('Titel')).toHaveProperty('value', 'wiese');
-      const save = within(dialog).getByRole('button', { name: 'Speichern' });
-      expect(save.hasAttribute('disabled')).toBe(true);
-      fireEvent.click(within(dialog).getByRole('checkbox', { name: /Rechte an diesem Bild/ }));
-      fireEvent.click(save);
+      // Private by default: no rights confirmation needed to upload.
+      expect(within(dialog).queryByRole('checkbox', { name: /Rechte an diesem Bild/ })).toBeNull();
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Hochladen' }));
 
       await waitFor(() => expect(share.createAsset).toHaveBeenCalledTimes(1));
-      expect(share.prepare).toHaveBeenCalledWith(photo);
-      expect(share.uploadShare).toHaveBeenCalledWith(expect.any(Blob), {
-        filename: 'wiese.webp',
-        uploadSource: 'studio-asset',
-      });
-      expect(share.createAsset.mock.calls[0]?.[0]).toEqual({
-        body: {
-          shareToken: 'tok-gallery',
-          kind: 'background',
-          source: 'upload',
-          title: 'wiese',
-          tags: [],
-          visibility: 'public',
-          audience: 'de-DE',
-          rightsConfirmed: true,
-        },
+      // Private unless the person shares it: nothing lands in „Entdecken" unasked.
+      expect(share.createAsset.mock.calls[0]?.[0]).toMatchObject({
+        body: { shareToken: 'tok-gallery', kind: 'background', visibility: 'private' },
       });
       await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-      expect(screen.queryByRole('button', { name: 'Im Bereich „Entdecken“ teilen' })).toBeNull();
+      await waitFor(() => expect(lastBackground()).toMatchObject({ kind: 'image' }));
+
+      await downloadAndGetCompose();
+      await waitFor(() => expect(share.create).toHaveBeenCalledTimes(1));
+      expect(createdProfilbild()?.background).toEqual({ kind: 'custom', url: GALLERY_SRC });
+      expect(share.upload).not.toHaveBeenCalled();
+    });
+
+    it('creates a sticker in a dialog without leaving the Profilbild', async () => {
+      renderHandoff();
+      await screen.findByTestId('konva-stage');
+      fireEvent.click(screen.getByRole('button', { name: 'Sticker erstellen' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Sticker erstellen' });
+      expect(within(dialog).getByText('Wie soll dein Sticker entstehen?')).toBeTruthy();
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Schließen' }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      expect(screen.getByTestId('konva-stage')).toBeTruthy();
     });
   });
 

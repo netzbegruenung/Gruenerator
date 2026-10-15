@@ -1,7 +1,16 @@
 import { stickersForLocale, type ProfilbildSticker } from '@gruenerator/shared/profilbild';
-import { PiPlus } from 'react-icons/pi';
-import { Link } from 'react-router-dom';
+import {
+  Button,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '@gruenerator/ui';
+import { useState } from 'react';
+import { PiPlus, PiX } from 'react-icons/pi';
 
+import { StickerCreator } from '../../studio-assets/creator/StickerCreator';
 import { type GalleryAsset } from '../utils/galleryAsset';
 
 import { ProfilbildDiscoverButton } from './ProfilbildDiscoverDialog';
@@ -39,47 +48,85 @@ export function ProfilbildStickerPicker({
   onAddSystem,
   onAddAsset,
 }: ProfilbildStickerPickerProps) {
+  const [creating, setCreating] = useState(false);
   return (
-    <ProfilbildGalleryGrid
-      kind="sticker"
-      source="own"
-      gridClassName={GRID_CLASS}
-      tileClassName={SHOP_TILE_CLASS}
-      disabled={disabled}
-      onPick={onAddAsset}
-      leading={stickersForLocale(locale).map((st) => (
-        <button
-          key={st.id}
-          type="button"
-          aria-label={`Sticker ${st.label} hinzufügen`}
-          title={st.label}
-          disabled={disabled}
-          onClick={() => onAddSystem(st)}
-          className={STICKER_TILE_CLASS}
-        >
-          <img src={st.src} alt="" aria-hidden="true" className="max-h-full max-w-full" />
-        </button>
-      ))}
-      trailing={
-        <>
-          <ProfilbildDiscoverButton
-            kind="sticker"
-            label="Shop"
-            buttonClassName={STICKER_ACTION_CLASS}
-            tileClassName={SHOP_DIALOG_TILE_CLASS}
+    <>
+      <ProfilbildGalleryGrid
+        kind="sticker"
+        source="own"
+        gridClassName={GRID_CLASS}
+        tileClassName={SHOP_TILE_CLASS}
+        disabled={disabled}
+        onPick={onAddAsset}
+        leading={stickersForLocale(locale).map((st) => (
+          <button
+            key={st.id}
+            type="button"
+            aria-label={`Sticker ${st.label} hinzufügen`}
+            title={st.label}
             disabled={disabled}
-            onPick={onAddAsset}
-          />
-          <Link
-            to="/studio/sticker/neu?return=profilbild"
-            aria-label="Sticker erstellen"
-            title="Sticker erstellen"
-            className={STICKER_ACTION_CLASS}
+            onClick={() => onAddSystem(st)}
+            className={STICKER_TILE_CLASS}
           >
-            <PiPlus aria-hidden className="size-5" />
-          </Link>
-        </>
-      }
-    />
+            <img src={st.src} alt="" aria-hidden="true" className="max-h-full max-w-full" />
+          </button>
+        ))}
+        trailing={
+          <>
+            <ProfilbildDiscoverButton
+              kind="sticker"
+              label="Shop"
+              buttonClassName={STICKER_ACTION_CLASS}
+              tileClassName={SHOP_DIALOG_TILE_CLASS}
+              disabled={disabled}
+              onPick={onAddAsset}
+            />
+            <button
+              type="button"
+              aria-label="Sticker erstellen"
+              title="Sticker erstellen"
+              disabled={disabled}
+              onClick={() => setCreating(true)}
+              className={STICKER_ACTION_CLASS}
+            >
+              <PiPlus aria-hidden className="size-5" />
+            </button>
+          </>
+        }
+      />
+      {/* Der Ersteller im Dialog: das Profilbild bleibt offen, der neue Sticker landet darauf. */}
+      <Dialog open={creating} onOpenChange={setCreating}>
+        <DialogContent
+          showCloseButton={false}
+          className="flex max-h-[min(90dvh,860px)] w-full flex-col gap-md overflow-y-auto rounded-[20px] p-lg sm:max-w-[min(900px,calc(100%-3rem))]"
+        >
+          <div className="flex items-start justify-between gap-md">
+            <div className="flex flex-col gap-1">
+              <DialogTitle className="m-0 text-xl leading-tight font-bold text-foreground-heading">
+                Sticker erstellen
+              </DialogTitle>
+              <DialogDescription className="m-0 text-sm text-muted-foreground">
+                Aus einem Bild, einem Foto oder als Text-Badge – fertig liegt er auf deinem
+                Profilbild.
+              </DialogDescription>
+            </div>
+            <DialogClose asChild>
+              <Button variant="ghost" size="icon" aria-label="Schließen" title="Schließen">
+                <PiX aria-hidden className="size-[18px]" />
+              </Button>
+            </DialogClose>
+          </div>
+          {creating ? (
+            <StickerCreator
+              returnTo="profilbild"
+              onCreated={(item) => {
+                setCreating(false);
+                onAddAsset(item);
+              }}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
