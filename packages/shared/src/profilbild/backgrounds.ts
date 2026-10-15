@@ -137,14 +137,73 @@ export interface PresetDesign {
   overlays: PresetOverlay[];
 }
 
-export function presetDesigns(isAustria: boolean): PresetDesign[] {
+/** Große Sonnenblume, angeschnitten oben rechts — das Motiv der Vorlagen. */
+const bigSunflower = (
+  src: '/sonnenblume_weiss.svg' | '/sonnenblume_gruen.png',
+  opacity: number
+): PresetOverlay => ({ src, x: 0.8, y: 0.28, width: 1, opacity });
+
+/** Die angebotenen Vorlagen: die große Sonnenblume in Farben und Lagen, dazu Pride. */
+export function presetDesigns(_isAustria: boolean): PresetDesign[] {
   return [
     {
       id: 'tanne-sonnenblume',
       label: 'Tanne mit großer Sonnenblume',
       base: { kind: 'color', color: CANVAS_COLORS.TANNE },
-      overlays: [{ src: '/sonnenblume_weiss.svg', x: 0.8, y: 0.28, width: 1, opacity: 0.12 }],
+      overlays: [bigSunflower('/sonnenblume_weiss.svg', 0.12)],
     },
+    {
+      id: 'klee-sonnenblume-gross',
+      label: 'Klee mit großer Sonnenblume',
+      base: { kind: 'color', color: CANVAS_COLORS.KLEE },
+      overlays: [bigSunflower('/sonnenblume_weiss.svg', 0.16)],
+    },
+    {
+      id: 'himmel-sonnenblume',
+      label: 'Himmel mit großer Sonnenblume',
+      base: { kind: 'color', color: CANVAS_COLORS.HIMMEL },
+      overlays: [bigSunflower('/sonnenblume_weiss.svg', 0.18)],
+    },
+    {
+      id: 'sand-sonnenblume-gross',
+      label: 'Sand mit großer Sonnenblume',
+      base: { kind: 'color', color: CANVAS_COLORS.SAND },
+      overlays: [bigSunflower('/sonnenblume_gruen.png', 0.22)],
+    },
+    {
+      id: 'sonne-sonnenblume',
+      label: 'Sonne mit großer Sonnenblume',
+      base: { kind: 'color', color: CANVAS_COLORS.SONNE },
+      overlays: [bigSunflower('/sonnenblume_weiss.svg', 0.22)],
+    },
+    {
+      id: 'tanne-sonnenblume-mitte',
+      label: 'Tanne mit Sonnenblume hinter der Person',
+      base: { kind: 'color', color: CANVAS_COLORS.TANNE },
+      overlays: [{ src: '/sonnenblume_weiss.svg', x: 0.5, y: 0.42, width: 1.3, opacity: 0.1 }],
+    },
+    {
+      id: 'tanne-klee-sonnenblume',
+      label: 'Verlauf Tanne zu Klee mit Sonnenblume',
+      base: { kind: 'gradient', stops: [CANVAS_COLORS.TANNE, CANVAS_COLORS.KLEE], angle: 180 },
+      overlays: [{ src: '/sonnenblume_weiss.svg', x: 0.18, y: 0.82, width: 1.1, opacity: 0.14 }],
+    },
+    {
+      id: 'pride',
+      label: 'Pride',
+      base: { kind: 'stripes', colors: PRIDE_STRIPES },
+      overlays: [],
+    },
+  ];
+}
+
+/**
+ * Nicht mehr angebotene Vorlagen. Gespeicherte Profilbilder nennen sie beim Namen
+ * (`background.id`), also bleiben sie auflösbar, statt still auf die erste Farbe
+ * zurückzufallen. Ausgemustert 10/2026.
+ */
+function retiredPresetDesigns(isAustria: boolean): PresetDesign[] {
+  return [
     {
       id: 'klee-sonnenblume',
       label: 'Klee mit Sonnenblume in der Ecke',
@@ -174,11 +233,10 @@ export function presetDesigns(isAustria: boolean): PresetDesign[] {
           base: { kind: 'color', color: CANVAS_COLORS.TANNE },
           overlays: [{ src: '/gruene-de-logo-weiss.png', x: 0.19, y: 0.1, width: 0.3, opacity: 1 }],
         },
-    {
-      id: 'pride',
-      label: 'Pride',
-      base: { kind: 'stripes', colors: PRIDE_STRIPES },
-      overlays: [],
-    },
   ];
+}
+
+/** Alles, was ein gespeichertes Profilbild als Vorlage nennen kann — angeboten oder ausgemustert. */
+export function allPresetDesigns(isAustria: boolean): PresetDesign[] {
+  return [...presetDesigns(isAustria), ...retiredPresetDesigns(isAustria)];
 }

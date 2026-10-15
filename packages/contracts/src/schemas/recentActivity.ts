@@ -9,6 +9,7 @@
 import { z } from 'zod';
 
 import { boardPreviewSchema } from './boards.js';
+import { reopenEditorSchema } from './shares.js';
 
 export const recentActivityItemSchema = z.object({
   id: z.string(),
@@ -29,7 +30,7 @@ export const recentActivityItemSchema = z.object({
   documentType: z.string().optional(),
   blurhash: z.string().optional(),
   /** Set on images that reopen in a Studio editor instead of the lightbox. */
-  editor: z.enum(['profilbild']).optional(),
+  editor: reopenEditorSchema.optional(),
 });
 
 export const recentActivityResponseSchema = z.object({

@@ -18,7 +18,7 @@ import type {
   UploadSource,
 } from '../../services/sharedMediaService.js';
 import type { SharedMediaRow, ShareResult } from '../../types/media.js';
-import type { ShareStatus, StoredMediaType } from '@gruenerator/contracts';
+import type { ReopenEditor, ShareStatus, StoredMediaType } from '@gruenerator/contracts';
 
 export interface CreateImageShareParams {
   imageBase64: string;
@@ -72,7 +72,8 @@ export interface SharedMediaService {
     userId: string,
     type: StoredMediaType | null,
     status?: ShareStatus | readonly ShareStatus[] | null,
-    limit?: number
+    limit?: number,
+    editor?: ReopenEditor | null
   ): Promise<SharedMediaRow[]>;
   getShareByToken(shareToken: string): Promise<SharedMediaRow | null>;
   recordView(shareToken: string): Promise<void>;

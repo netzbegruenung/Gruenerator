@@ -237,7 +237,7 @@ export default function ProfilbildStage({
         <Layer listening={false}>
           {round ? (
             <>
-              <Rect width={SIZE} height={SIZE} fill="rgba(0,0,0,0.45)" />
+              <Rect width={SIZE} height={SIZE} fill="rgba(255,255,255,0.32)" />
               <Circle
                 x={SIZE / 2}
                 y={SIZE / 2}
@@ -249,7 +249,7 @@ export default function ProfilbildStage({
                 x={SIZE / 2}
                 y={SIZE / 2}
                 radius={SIZE / 2 - stroke / 2}
-                stroke="rgba(255,255,255,0.8)"
+                stroke="rgba(255,255,255,0.9)"
                 strokeWidth={stroke}
               />
             </>

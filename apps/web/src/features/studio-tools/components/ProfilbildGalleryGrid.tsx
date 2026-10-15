@@ -30,6 +30,8 @@ export interface ProfilbildGalleryGridProps {
   /** Steht in derselben Kachelreihe hinter den Einträgen — Hochladen, Entdecken. */
   trailing?: ReactNode;
   emptyHint?: string;
+  /** Layout of the tile row; a flex row unless the caller sets a grid. */
+  gridClassName?: string;
 }
 
 /** Galerie-Einträge als Auswahlkacheln. */
@@ -57,6 +59,7 @@ function Tiles({
   leadingSrc = null,
   trailing,
   emptyHint,
+  gridClassName = 'flex flex-wrap items-center gap-sm',
   data,
   error,
 }: ProfilbildGalleryGridProps & {
@@ -68,7 +71,7 @@ function Tiles({
 
   return (
     <div className="flex flex-col gap-sm">
-      <div className="flex flex-wrap items-center gap-sm">
+      <div className={gridClassName}>
         {leadingSrc !== null && items.some((item) => item.src === leadingSrc) ? null : leading}
         {items.map((item) => (
           <button
