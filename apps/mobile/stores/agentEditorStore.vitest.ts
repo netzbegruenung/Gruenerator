@@ -29,6 +29,11 @@ describe('agentEditorStore', () => {
     expect(get().active).toBe(true);
     expect(get().dirty).toBe(false);
 
+    // Der Zeitwähler meldet beim Schließen den alten Wert zurück.
+    get().patchSchedule({ hour: DEFAULT_SCHEDULE.hour, minute: DEFAULT_SCHEDULE.minute });
+    get().patch({ title: 'Klima' });
+    expect(get().dirty).toBe(false);
+
     get().patch({ systemRole: 'Du bist ein Agent.' });
     expect(get().dirty).toBe(true);
     expect(get().form.title).toBe('Klima');

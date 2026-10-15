@@ -9,6 +9,8 @@ import { useSyncExternalStore } from 'react';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
+import { patchChanges } from './patchChanges';
+
 export type EditorVariant = 'agent' | 'recurring';
 
 /**
@@ -95,10 +97,17 @@ export const useAgentEditorStore = create<AgentEditorSession & AgentEditorAction
 
       start: (input) => set({ ...input, active: true, createdIdentifier: null }),
 
-      patch: (patch) => set((s) => ({ form: { ...s.form, ...patch }, dirty: true })),
+      patch: (patch) =>
+        set((s) => ({
+          form: { ...s.form, ...patch },
+          dirty: s.dirty || patchChanges(s.form, patch),
+        })),
 
       patchSchedule: (patch) =>
-        set((s) => ({ schedule: { ...s.schedule, ...patch }, dirty: true })),
+        set((s) => ({
+          schedule: { ...s.schedule, ...patch },
+          dirty: s.dirty || patchChanges(s.schedule, patch),
+        })),
 
       setCreatedIdentifier: (identifier) => set({ createdIdentifier: identifier }),
 

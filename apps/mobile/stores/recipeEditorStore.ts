@@ -4,6 +4,8 @@ import { useSyncExternalStore } from 'react';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
+import { patchChanges } from './patchChanges';
+
 /** Ziel eines Entwurfs: ein neues Rezept oder die Erwähnung, die bearbeitet wird. */
 export const NEW_RECIPE_TARGET = 'neu';
 
@@ -70,7 +72,11 @@ export const useRecipeEditorStore = create<RecipeEditorState & RecipeEditorActio
     (set) => ({
       ...INITIAL,
       begin: (target, form, dirty = false) => set({ target, form, dirty }),
-      update: (patch) => set((s) => ({ form: { ...s.form, ...patch }, dirty: true })),
+      update: (patch) =>
+        set((s) => ({
+          form: { ...s.form, ...patch },
+          dirty: s.dirty || patchChanges(s.form, patch),
+        })),
       clear: () => set(INITIAL),
     }),
     {
