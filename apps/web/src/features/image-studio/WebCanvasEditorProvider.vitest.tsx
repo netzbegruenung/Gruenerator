@@ -10,12 +10,17 @@ function DraftId() {
   return <span data-testid="draft">{useCanvasChatDraftId()}</span>;
 }
 
+function Vorlagen() {
+  const { vorlagen } = useCanvasEditorServices();
+  return <span data-testid="vorlagen">{vorlagen?.openAsNew ? 'ja' : 'nein'}</span>;
+}
+
 function StickerCreator() {
   const { openStickerCreator } = useCanvasEditorServices();
   return <span data-testid="creator">{openStickerCreator ? 'ja' : 'nein'}</span>;
 }
 
-function Vorlagen() {
+function PrintVorlagen() {
   const { vorlagen } = useCanvasEditorServices();
   return <span data-testid="print">{vorlagen?.openPrintAsNew ? 'ja' : 'nein'}</span>;
 }
@@ -24,13 +29,13 @@ describe('WebCanvasEditorProvider', () => {
   it('öffnet Print-Vorlagen als neues Design, außer wo Vorlagen gesperrt sind', () => {
     const { rerender } = renderWithProviders(
       <WebCanvasEditorProvider>
-        <Vorlagen />
+        <PrintVorlagen />
       </WebCanvasEditorProvider>
     );
     expect(screen.getByTestId('print').textContent).toBe('ja');
     rerender(
       <WebCanvasEditorProvider allowVorlagen={false}>
-        <Vorlagen />
+        <PrintVorlagen />
       </WebCanvasEditorProvider>
     );
     expect(screen.getByTestId('print').textContent).toBe('nein');
@@ -49,6 +54,21 @@ describe('WebCanvasEditorProvider', () => {
       </WebCanvasEditorProvider>
     );
     expect(screen.getByTestId('creator').textContent).toBe('nein');
+  });
+
+  it('bietet die Vorlagen an, außer wo das Design nicht ersetzt werden darf', () => {
+    const { rerender } = renderWithProviders(
+      <WebCanvasEditorProvider>
+        <Vorlagen />
+      </WebCanvasEditorProvider>
+    );
+    expect(screen.getByTestId('vorlagen').textContent).toBe('ja');
+    rerender(
+      <WebCanvasEditorProvider allowVorlagen={false}>
+        <Vorlagen />
+      </WebCanvasEditorProvider>
+    );
+    expect(screen.getByTestId('vorlagen').textContent).toBe('nein');
   });
 
   it('hält den Entwurfsschlüssel des Chats über Remounts des Abschnitts (#4273)', () => {
