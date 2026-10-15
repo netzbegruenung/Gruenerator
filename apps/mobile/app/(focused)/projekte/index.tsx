@@ -14,7 +14,7 @@ import {
 
 import { SkeletonBar, SkeletonGroup } from '../../../components/common/Skeleton';
 import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
-import { useProjekteTone } from '../../../components/projekte/projekteTone';
+import { ProjekteBackdrop, useProjekteTone } from '../../../components/projekte/projekteTone';
 import { ProjektTile } from '../../../components/projekte/ProjektTile';
 import { useUserGroups, type GroupSummary } from '../../../hooks/useGroups';
 import {
@@ -131,7 +131,7 @@ export default function ProjekteScreen() {
   }
 
   return (
-    <ScreenScaffold title="Projekte" onBack={handleBack}>
+    <ScreenScaffold backdrop={<ProjekteBackdrop />} title="Projekte" onBack={handleBack}>
       <ScrollView
         contentContainerStyle={[styles.column, styles.scrollContent]}
         showsVerticalScrollIndicator={false}

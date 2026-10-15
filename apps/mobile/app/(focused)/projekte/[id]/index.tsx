@@ -18,7 +18,7 @@ import { ScreenScaffold } from '../../../../components/navigation/ScreenScaffold
 import { GroupCommentsSheet } from '../../../../components/projekte/GroupCommentsSheet';
 import { GroupFeedCard } from '../../../../components/projekte/GroupFeedCard';
 import { GroupKindRows } from '../../../../components/projekte/GroupKindRows';
-import { useProjekteTone } from '../../../../components/projekte/projekteTone';
+import { ProjekteBackdrop, useProjekteTone } from '../../../../components/projekte/projekteTone';
 import { openGroupFeedItem, useBearerToken, useGroupFeed } from '../../../../hooks/useGroupContent';
 import { useGroupDetails } from '../../../../hooks/useGroups';
 import { useHiddenMemberIds } from '../../../../hooks/useHiddenMembers';
@@ -80,6 +80,7 @@ export default function ProjektDetailScreen() {
 
   const scaffold = (children: ReactNode): ReactNode => (
     <ScreenScaffold
+      backdrop={<ProjekteBackdrop />}
       title={group?.name ?? 'Projekt'}
       onBack={() => goBackOr('/(focused)/projekte')}
       headerRight={

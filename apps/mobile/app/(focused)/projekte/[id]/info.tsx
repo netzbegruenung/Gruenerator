@@ -7,7 +7,7 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { ListGroup, ListRow, SkeletonRows } from '../../../../components/common';
 import { ScreenScaffold } from '../../../../components/navigation/ScreenScaffold';
 import { FEED_KIND_ICONS } from '../../../../components/projekte/feedIcons';
-import { useProjekteTone } from '../../../../components/projekte/projekteTone';
+import { ProjekteBackdrop, useProjekteTone } from '../../../../components/projekte/projekteTone';
 import { GroupAvatar } from '../../../../components/workplace/GroupAvatar';
 import { useGroupFeed } from '../../../../hooks/useGroupContent';
 import { useGroupDetails, useGroupMembers } from '../../../../hooks/useGroups';
@@ -68,6 +68,7 @@ export default function ProjektInfoScreen() {
 
   return (
     <ScreenScaffold
+      backdrop={<ProjekteBackdrop />}
       title={group?.name ?? 'Projekt'}
       onBack={() => goBackOr({ pathname: '/(focused)/projekte/[id]', params: { id: id ?? '' } })}
     >
