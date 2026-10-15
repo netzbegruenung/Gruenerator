@@ -190,40 +190,51 @@ export function CreateDocPanel({
         </View>
         <Text style={[styles.label, { color: theme.textSecondary }]}>Vorlagen</Text>
         <View style={styles.grid}>
-          {templates
-            .filter((t) => t.id !== 'blank')
-            .map((template) => (
-              <Pressable
-                key={template.id}
-                onPress={() => onSelectTemplate(template)}
-                disabled={isCreating}
-                accessibilityRole="button"
-                accessibilityHint={template.description}
-                style={({ pressed }) => [
-                  styles.tile,
-                  {
-                    borderColor: theme.border,
-                    backgroundColor: pressed ? theme.surface : undefined,
-                  },
-                ]}
-              >
-                <Ionicons
-                  name={TEMPLATE_ICONS[template.id] ?? 'document-outline'}
-                  size={22}
-                  color={colors.secondary[600]}
-                />
-                <Text style={[styles.tileTitle, { color: theme.text }]} numberOfLines={1}>
-                  {template.name}
-                </Text>
-                <Text style={[styles.tileDesc, { color: theme.textSecondary }]} numberOfLines={2}>
-                  {template.description}
-                </Text>
-              </Pressable>
-            ))}
+          {pairs(templates.filter((t) => t.id !== 'blank')).map((row) => (
+            <View key={row[0].id} style={styles.gridRow}>
+              {row.map((template) => (
+                <Pressable
+                  key={template.id}
+                  onPress={() => onSelectTemplate(template)}
+                  disabled={isCreating}
+                  accessibilityRole="button"
+                  accessibilityHint={template.description}
+                  style={({ pressed }) => [
+                    styles.tile,
+                    {
+                      borderColor: theme.border,
+                      backgroundColor: pressed ? theme.surface : undefined,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name={TEMPLATE_ICONS[template.id] ?? 'document-outline'}
+                    size={22}
+                    color={colors.secondary[600]}
+                  />
+                  <Text style={[styles.tileTitle, { color: theme.text }]} numberOfLines={1}>
+                    {template.name}
+                  </Text>
+                  <Text style={[styles.tileDesc, { color: theme.textSecondary }]} numberOfLines={2}>
+                    {template.description}
+                  </Text>
+                </Pressable>
+              ))}
+              {/* An odd last row keeps its tile at column width. */}
+              {row.length === 1 ? <View style={styles.tileSpacer} /> : null}
+            </View>
+          ))}
         </View>
       </ScrollView>
     </View>
   );
+}
+
+/** Two tiles a row — a percentage width plus the gap overflowed and wrapped every tile alone. */
+function pairs<T>(items: T[]): T[][] {
+  const rows: T[][] = [];
+  for (let i = 0; i < items.length; i += 2) rows.push(items.slice(i, i + 2));
+  return rows;
 }
 
 const styles = StyleSheet.create({
@@ -255,9 +266,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginTop: spacing.small,
   },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small },
+  grid: { gap: spacing.small },
+  gridRow: { flexDirection: 'row', gap: spacing.small },
+  tileSpacer: { flex: 1 },
   tile: {
-    width: '48.5%',
+    flex: 1,
     minHeight: 100,
     gap: spacing.xxsmall,
     padding: spacing.small,
