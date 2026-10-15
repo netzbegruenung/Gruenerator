@@ -1,0 +1,128 @@
+import { mmToPx, type PrintCanvasFormat } from '../formats';
+
+import {
+  buildPrintPdf,
+  effectiveDpi,
+  planTiles,
+  type PrintPdfPage,
+  type PrintTile,
+} from './printPdf';
+
+export const PRINT_JPEG_QUALITY = 0.92;
+export const MIN_PRINT_DPI = 150;
+export const TARGET_PRINT_DPI = 300;
+
+export interface PrintExportImage {
+  naturalWidthPx: number;
+  displayedWidthPx: number;
+}
+
+/** What the export needs from one editor page. */
+export interface PrintExportPage {
+  captureTile: (tile: PrintTile, pixelRatio: number) => Promise<Uint8Array | null>;
+  getImages: () => PrintExportImage[];
+}
+
+/** Stage px → output px so that the canvas comes out at `exportDpi`. */
+export function printPixelRatio(format: PrintCanvasFormat): number {
+  return format.print.exportDpi / 25.4 / mmToPx(format, 1);
+}
+
+/** The PDF filename for a document title (no path characters, never empty). */
+export function printPdfFilename(title: string | null): string {
+  const base = (title ?? '')
+    .replace(/[\\/:*?"<>|]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return `${base || 'gruenerator-druck'}.pdf`;
+}
+
+/**
+ * Tiles of one page with their mm placement. The placement comes from the
+ * whole-pixel output rects relative to the total output size, never from the
+ * fractional stage rects — those would open seams between tiles.
+ */
+export function planPrintPage(format: PrintCanvasFormat): {
+  tiles: Array<{ tile: PrintTile; xMm: number; yMm: number; wMm: number; hMm: number }>;
+  pixelRatio: number;
+} {
+  const pixelRatio = printPixelRatio(format);
+  const { trimMm, bleedMm } = format.print;
+  const canvasWidthMm = trimMm.w + 2 * bleedMm;
+  const canvasHeightMm = trimMm.h + 2 * bleedMm;
+  const totalW = Math.round(format.width * pixelRatio);
+  const totalH = Math.round(format.height * pixelRatio);
+  const tiles = planTiles({ widthPx: format.width, heightPx: format.height, pixelRatio }).map(
+    (tile) => ({
+      tile,
+      xMm: (tile.outX / totalW) * canvasWidthMm,
+      yMm: (tile.outY / totalH) * canvasHeightMm,
+      wMm: (tile.outWidth / totalW) * canvasWidthMm,
+      hMm: (tile.outHeight / totalH) * canvasHeightMm,
+    })
+  );
+  return { tiles, pixelRatio };
+}
+
+export async function exportPrintPdf({
+  format,
+  pages,
+  onProgress,
+}: {
+  format: PrintCanvasFormat;
+  pages: PrintExportPage[];
+  onProgress?: (done: number, total: number) => void;
+}): Promise<Uint8Array> {
+  const { tiles, pixelRatio } = planPrintPage(format);
+  const pdfPages: PrintPdfPage[] = [];
+  const total = pages.length * tiles.length;
+  let done = 0;
+
+  for (let p = 0; p < pages.length; p++) {
+    const out: PrintPdfPage = { tiles: [] };
+    for (const planned of tiles) {
+      const jpeg = await pages[p].captureTile(planned.tile, pixelRatio);
+      if (!jpeg) throw new Error(`Seite ${p + 1} konnte nicht exportiert werden`);
+      out.tiles.push({
+        jpeg,
+        xMm: planned.xMm,
+        yMm: planned.yMm,
+        wMm: planned.wMm,
+        hMm: planned.hMm,
+      });
+      onProgress?.(++done, total);
+    }
+    pdfPages.push(out);
+  }
+
+  return buildPrintPdf({
+    pages: pdfPages,
+    trimMm: { width: format.print.trimMm.w, height: format.print.trimMm.h },
+    bleedMm: format.print.bleedMm,
+  });
+}
+
+/** One notice per photo that prints below MIN_PRINT_DPI. */
+export function lowResolutionWarnings(
+  format: PrintCanvasFormat,
+  pages: Array<Pick<PrintExportPage, 'getImages'>>
+): string[] {
+  const pxPerMm = mmToPx(format, 1);
+  const warnings: string[] = [];
+  let n = 0;
+  for (const page of pages) {
+    for (const image of page.getImages()) {
+      n += 1;
+      const dpi = effectiveDpi({
+        naturalWidthPx: image.naturalWidthPx,
+        displayedWidthMm: image.displayedWidthPx / pxPerMm,
+      });
+      if (Number.isFinite(dpi) && dpi < MIN_PRINT_DPI) {
+        warnings.push(
+          `Foto ${n} ist für den Druck zu klein (ca. ${Math.round(dpi)} dpi, empfohlen ${TARGET_PRINT_DPI}).`
+        );
+      }
+    }
+  }
+  return warnings;
+}

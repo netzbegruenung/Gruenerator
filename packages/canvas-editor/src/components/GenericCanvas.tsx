@@ -194,6 +194,14 @@ export interface GenericCanvasRef {
     includeBackground?: boolean;
   }) => string | undefined;
   captureCanvas: (options?: Partial<ExportOptions>) => Promise<string | null>;
+  /** One print tile as JPEG bytes (format px rect, whole-pixel output size). */
+  capturePrintTile: (
+    tile: { x: number; y: number; outWidth: number; outHeight: number },
+    pixelRatio: number,
+    quality: number
+  ) => Promise<Uint8Array | null>;
+  /** User photos with source and displayed width, for the print resolution check. */
+  getPrintImages: () => Array<{ naturalWidthPx: number; displayedWidthPx: number }>;
   /** False while an image element's source is still loading — a capture
    *  taken then is missing that image. */
   imagesSettled: () => boolean;
@@ -703,6 +711,11 @@ function GenericCanvasWithRef<
         await ensureFontsReady();
         return captureStageImageAsync(stageRef.current, options);
       },
+      capturePrintTile: async (tile, pixelRatio, quality) => {
+        await ensureFontsReady();
+        return stageRef.current?.toTileJpeg({ ...tile, pixelRatio, quality }) ?? null;
+      },
+      getPrintImages: () => stageRef.current?.getPrintImages() ?? [],
       imagesSettled: () => pendingImages.size === 0,
       captureCanvasForAi: async () =>
         captureStageImage(stageRef.current, { format: 'jpeg', pixelRatio: 1, quality: 0.85 }),

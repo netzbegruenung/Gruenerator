@@ -10,6 +10,8 @@ export interface CanvasEditorProps {
   initialConfigId: CanvasConfigId;
   /** The canvas document's format id. Absent: the default format. */
   formatId?: string;
+  /** Document title; names the print PDF (`<title>.pdf`). */
+  documentTitle?: string;
   initialProps: Record<string, unknown>;
   onExport: (base64: string) => void;
   onCancel: () => void;
