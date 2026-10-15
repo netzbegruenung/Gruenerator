@@ -4,7 +4,7 @@ import './canvas-editor.css';
 import { CanvasEditor } from './components/CanvasEditor';
 import { CanvasEditorSkeleton } from './components/CanvasEditorSkeleton';
 import { loadCanvasConfig, isValidCanvasType } from './configs/configLoader';
-import { getCanvasFormatOrDefault } from './formats';
+import { getCanvasFormatOrDefault, isUnsupportedFormatId } from './formats';
 import { HOST_CALLBACK_KEYS } from './hostCallbackKeys';
 
 import type { StockImageAttribution } from './common/imageSourceTypes';
@@ -117,6 +117,8 @@ export interface ControllableCanvasWrapperProps {
   type: string;
   /** The canvas document's format id. Absent: the default format. */
   formatId?: string;
+  /** Document title; names the print PDF (`<title>.pdf`). */
+  documentTitle?: string;
   initialState: CanvasState;
   imageSrc?: string;
   onExport: (base64: string) => void;
@@ -173,9 +175,31 @@ export interface ControllableCanvasWrapperProps {
   onActiveTabChange?: (tab: SidebarTabId | null) => void;
 }
 
-export function ControllableCanvasWrapper({
+/**
+ * A print format this build does not know must not open as 4:5: the editor
+ * (and with it the autosave) never mounts, the host chrome stays usable.
+ */
+export function ControllableCanvasWrapper(props: ControllableCanvasWrapperProps) {
+  if (isUnsupportedFormatId(props.formatId)) {
+    return (
+      <div className="flex flex-col h-full bg-[var(--editor-bg)]">
+        {props.chromeLeft && <div className="flex items-center p-2">{props.chromeLeft}</div>}
+        <div
+          role="alert"
+          className="m-auto max-w-sm px-4 text-center text-sm text-[var(--editor-text-secondary)]"
+        >
+          Format nicht unterstützt – bitte App aktualisieren.
+        </div>
+      </div>
+    );
+  }
+  return <ControllableCanvasEditor {...props} />;
+}
+
+function ControllableCanvasEditor({
   type,
   formatId,
+  documentTitle,
   initialState,
   imageSrc,
   onExport,
@@ -439,6 +463,7 @@ export function ControllableCanvasWrapper({
             key={componentKey}
             initialConfigId={type as CanvasConfigId}
             formatId={formatId}
+            documentTitle={documentTitle}
             initialProps={buildInitialProps()}
             onExport={onExport}
             onCancel={onCancel}

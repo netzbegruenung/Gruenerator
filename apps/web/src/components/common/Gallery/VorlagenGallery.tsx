@@ -1,3 +1,4 @@
+import { printVorlagenFor } from '@gruenerator/canvas-editor/print-vorlagen';
 import {
   GRUENERATOR_TEMPLATE_TYPE,
   sharepicCreatorLocaleSchema,
@@ -13,10 +14,16 @@ import { toast } from 'sonner';
 
 import { MeineVorlagenPanel } from '../../../features/vorlagen/components/MeineVorlagenPanel';
 import {
+  PRINT_TEMPLATE_TYPE,
+  PrintVorlageCard,
+  printMatches,
+} from '../../../features/vorlagen/components/PrintVorlagenSection';
+import {
   catalogMatches,
   useSharepicVorlageCards,
 } from '../../../features/vorlagen/components/SharepicVorlagenSection';
 import { useGrueneratorVorlage } from '../../../features/vorlagen/hooks/useGrueneratorVorlage';
+import { usePrintVorlage } from '../../../features/vorlagen/hooks/usePrintVorlage';
 import { useSharepicVorlagen } from '../../../features/vorlagen/hooks/useSharepicVorlagen';
 import { useVorlageInteractions } from '../../../features/vorlagen/hooks/useVorlageInteractions';
 import { useAuthStore } from '../../../stores/authStore';
@@ -147,6 +154,7 @@ const fetchVorlagen = async ({
 const CATEGORY_LABELS: Record<string, string> = {
   canva: 'Canva',
   [GRUENERATOR_TEMPLATE_TYPE]: 'Grünerator',
+  [PRINT_TEMPLATE_TYPE]: 'Print',
 };
 
 const fetchCategories = async (): Promise<CategoryItem[]> => {
@@ -192,8 +200,13 @@ const VorlagenGallery = memo((): JSX.Element => {
     () => [
       { id: ALL_FILTER, label: 'Alle Vorlagen' },
       { id: GRUENERATOR_TEMPLATE_TYPE, label: CATEGORY_LABELS[GRUENERATOR_TEMPLATE_TYPE] },
+      { id: PRINT_TEMPLATE_TYPE, label: CATEGORY_LABELS[PRINT_TEMPLATE_TYPE] },
       ...(categoriesQuery.data ?? []).filter(
-        (c) => c.id !== GRUENERATOR_TEMPLATE_TYPE && c.id !== ALL_FILTER && c.id !== MEINE_FILTER
+        (c) =>
+          c.id !== GRUENERATOR_TEMPLATE_TYPE &&
+          c.id !== PRINT_TEMPLATE_TYPE &&
+          c.id !== ALL_FILTER &&
+          c.id !== MEINE_FILTER
       ),
       { id: MEINE_FILTER, label: 'Meine Vorlagen' },
     ],
@@ -206,6 +219,8 @@ const VorlagenGallery = memo((): JSX.Element => {
       ? catParam
       : ALL_FILTER;
   const isMeine = selectedCategory === MEINE_FILTER;
+  // The print Vorlagen live in the client; the server has nothing for this filter.
+  const isPrint = selectedCategory === PRINT_TEMPLATE_TYPE;
   const selectFilter = useCallback(
     (key: string) =>
       setSearchParams(
@@ -251,7 +266,7 @@ const VorlagenGallery = memo((): JSX.Element => {
       onlyFavorites,
       land,
     ],
-    enabled: !isMeine,
+    enabled: !isMeine && !isPrint,
     staleTime: 30_000,
     gcTime: 60_000,
     refetchOnMount: 'always' as const,
@@ -272,7 +287,11 @@ const VorlagenGallery = memo((): JSX.Element => {
     !isMeine &&
     (selectedCategory === ALL_FILTER || selectedCategory === GRUENERATOR_TEMPLATE_TYPE) &&
     tags.length === 0;
-  const loadedItems = useMemo(() => dataQuery.data ?? [], [dataQuery.data]);
+  // `placeholderData` would keep the previous filter's items on the disabled query.
+  const loadedItems = useMemo(
+    () => (isPrint ? [] : (dataQuery.data ?? [])),
+    [isPrint, dataQuery.data]
+  );
   const catalogQuery = useSharepicVorlagen(land);
   const itemIds = useMemo(
     () => [
@@ -289,6 +308,7 @@ const VorlagenGallery = memo((): JSX.Element => {
     : loadedItems;
 
   const { openVorlage, usingId } = useGrueneratorVorlage();
+  const { openPrintVorlage, openingId } = usePrintVorlage();
 
   const handleTagClick = useCallback((tag: string) => {
     setInputValue((prev) => addTagToSearch(prev, tag));
@@ -324,18 +344,32 @@ const VorlagenGallery = memo((): JSX.Element => {
         : [],
     [showCatalog, catalogQuery.data, textQuery, onlyFavorites, favoritedIds]
   );
-  const total = items.length + catalog.length;
+  // Print Vorlagen have no likes or bookmarks yet, so „nur gemerkte" hides them.
+  const showPrint =
+    !isMeine && (selectedCategory === ALL_FILTER || isPrint) && tags.length === 0 && !onlyFavorites;
+  const printVorlagen = useMemo(
+    () => (showPrint ? printVorlagenFor(shownLand).filter((v) => printMatches(v, textQuery)) : []),
+    [showPrint, shownLand, textQuery]
+  );
+  const total = items.length + catalog.length + printVorlagen.length;
 
   // Most liked first, like the studio's „Beliebte Vorlagen"; the sort is
   // stable, so ties keep catalogue before community, newest community first.
   const sorted = useMemo(() => {
     const entries = [
-      ...catalog.map((vorlage) => ({ id: vorlage.id, vorlage, item: undefined })),
-      ...items.map((item) => ({ id: String(item.id), item, vorlage: undefined })),
+      ...catalog.map((vorlage) => ({ id: vorlage.id, vorlage, item: undefined, print: undefined })),
+      ...printVorlagen.map((print) => ({
+        id: print.id,
+        print,
+        vorlage: undefined,
+        item: undefined,
+      })),
+      ...items.map((item) => ({ id: String(item.id), item, vorlage: undefined, print: undefined })),
     ];
-    const likes = (e: (typeof entries)[number]) => likesCount(e.id, e.item?.likes_count);
+    const likes = (e: (typeof entries)[number]) =>
+      e.print ? 0 : likesCount(e.id, e.item?.likes_count);
     return entries.sort((a, b) => likes(b) - likes(a));
-  }, [catalog, items, likesCount]);
+  }, [catalog, printVorlagen, items, likesCount]);
   const { renderCard, dialog: catalogDialog } = useSharepicVorlageCards(catalog, interactions);
   const settled = !dataQuery.isLoading && (!showCatalog || !catalogQuery.isLoading);
   const emptyCause: EmptyCause =
@@ -475,6 +509,13 @@ const VorlagenGallery = memo((): JSX.Element => {
                     {sorted.map((entry) =>
                       entry.vorlage ? (
                         renderCard(entry.vorlage)
+                      ) : entry.print ? (
+                        <PrintVorlageCard
+                          key={entry.id}
+                          vorlage={entry.print}
+                          opening={openingId === entry.id}
+                          onOpen={(v) => void openPrintVorlage(v)}
+                        />
                       ) : (
                         <VorlagenCard
                           key={entry.id}

@@ -55,6 +55,7 @@ export const canvasContract = c.router(
       body: createCanvasBodySchema,
       responses: {
         201: canvasDocumentSchema,
+        400: canvasErrorResponseSchema,
         401: canvasErrorResponseSchema,
         500: canvasErrorResponseSchema,
       },
@@ -206,6 +207,7 @@ export const canvasContract = c.router(
       body: updateCanvasBodySchema,
       responses: {
         200: canvasMessageResponseSchema,
+        400: canvasErrorResponseSchema,
         401: canvasErrorResponseSchema,
         403: canvasErrorResponseSchema,
         404: canvasErrorResponseSchema,
@@ -222,6 +224,7 @@ export const canvasContract = c.router(
       body: replaceCanvasPagesBodySchema,
       responses: {
         200: canvasMessageResponseSchema,
+        400: canvasErrorResponseSchema,
         401: canvasErrorResponseSchema,
         403: canvasErrorResponseSchema,
         404: canvasErrorResponseSchema,

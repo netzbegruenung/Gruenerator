@@ -15,8 +15,6 @@
 import {
   accentLines,
   foldMarkerIntoAccent,
-  layoutRichTextBlock,
-  type MeasureRun,
   type SharepicColor,
   type SharepicCreatorLocale,
   type SharepicChartKind,
@@ -38,13 +36,17 @@ import { createCircleBadgeInstance } from '../utils/circleBadgeUtils';
 import { COLORS } from '../utils/dreizeilenLayout';
 import { createPillBadgeInstance } from '../utils/pillBadgeUtils';
 import { createShape, type ShapeInstance } from '../utils/shapes';
-import { runFont, type TextAccent, type TextMarker } from '../utils/textUtils';
+import { type TextAccent, type TextMarker } from '../utils/textUtils';
 import { VERANSTALTUNG_CONFIG } from '../utils/veranstaltungLayout';
 
 import {
+  AT_EMPHASIS_STYLE,
   BRUSH_ARROW,
+  DE_WORDMARK,
   defaultMeasure,
   inkOn,
+  layoutTextLines,
+  LIME,
   pageDots,
   SHAREPIC_COLOR_HEX,
   type MeasureText,
@@ -212,8 +214,6 @@ const QUOTE_LINE_HEIGHT = 1.3;
 const MARKER_PAD_X = 0.1;
 /** The marker on creme: the soft mint of the candidates' text slides (DdEhd82js3K, DdEv6ZPDs-O). */
 const MARKER_MINT = '#77F6A5';
-/** The DE word mark: black (set in a tone by opacity) on light and grass green, white on dark. */
-const DE_WORDMARK = { black: 'gruene-de-logo-schwarz', white: 'gruene-de-logo-weiss' } as const;
 /** Line-box ink: near-black, as on the story posts. */
 const BOX_INK = '#0B0F0C';
 /** DE `++marker++` inside a white card: grass green, dark ink. */
@@ -240,8 +240,6 @@ const VERGLEICH_SPALTEN = {
   theirsInk: '#5F6B66',
 } as const;
 
-/** DE accent: a lime marker box. AT accent: a yellow Vollkorn line. */
-const LIME = '#BEFF60';
 /** DE accent words on light ground — lime would vanish there. */
 const KLEE = '#008939';
 
@@ -444,12 +442,6 @@ function fitStoererText(
 }
 
 type HeadlineItem = Extract<SharepicItem, { type: 'headline' }>;
-
-/**
- * AT emphasis: Vollkorn Black Italic (CI 2026 p. 22), the `bold italic` face
- * in typography.css — `italic` alone loads Bold Italic.
- */
-const AT_EMPHASIS_STYLE = 'bold italic' as const;
 
 /** Every string of a slide with `++marker++` read as `==accent==` (AT has no marker boxes). */
 function foldMarkers<T>(value: T): T {
@@ -846,14 +838,7 @@ function composeSlide(
     family: string,
     weight: NonNullable<TextAccent['fontStyle']>,
     runAccent: TextAccent = accent
-  ) => {
-    // The renderer's own run fonts, so a Vollkorn run is measured in the face it is drawn in.
-    const measureRun: MeasureRun = (t, style) => {
-      const run = runFont(family, weight, style, runAccent);
-      return measure(t, size, run.fontFamily, run.fontStyle);
-    };
-    return layoutRichTextBlock(value, width, measureRun);
-  };
+  ) => layoutTextLines(measure, value, width, size, family, weight, runAccent);
   const lineCount = (...args: Parameters<typeof layoutLines>) => layoutLines(...args).length;
 
   // Date circle: free in the bottom-right corner, as on the posts; the text
