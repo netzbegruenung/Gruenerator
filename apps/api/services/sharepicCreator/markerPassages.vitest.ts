@@ -220,9 +220,31 @@ describe('++marker++ passages', () => {
     ];
     const kept = validateReview({ ok: false, issues: [], patch: piecemeal }, counts, story);
     expect(kept.ok && kept.value.patch).toEqual([piecemeal[3]]);
+    // #4616: the whole story turned mint, its zeilenboxen left on a plain colour.
     const whole = counts.map((_, slide) => ({ op: 'use_color', slide, color: 'mint' }));
     const all = validateReview({ ok: false, issues: [], patch: whole }, counts, story);
-    expect(all.ok && all.value.patch).toEqual(whole);
+    expect(all.ok && all.value.patch).toEqual([]);
+  });
+
+  it('lets a carousel swap its cover photo for the carousel colour', () => {
+    const slide = (background: object) => ({
+      background,
+      position: 'oben',
+      align: 'links',
+      items: [{ type: 'absatz', text: 'x' }],
+      logo: false,
+    });
+    const deck = [
+      slide({ kind: 'foto-unten', filename: 'stock.jpg', panelColor: 'dunkeltanne' }),
+      slide({ kind: 'farbe', color: 'dunkeltanne' }),
+      slide({ kind: 'farbe', color: 'dunkeltanne' }),
+    ] as never;
+    const cover = [{ op: 'use_color', slide: 0, color: 'dunkeltanne' }];
+    const kept = validateReview({ ok: false, issues: [], patch: cover }, [1, 1, 1], deck);
+    expect(kept.ok && kept.value.patch).toEqual(cover);
+    const other = [{ op: 'use_color', slide: 0, color: 'mint' }];
+    const dropped = validateReview({ ok: false, issues: [], patch: other }, [1, 1, 1], deck);
+    expect(dropped.ok && dropped.value.patch).toEqual([]);
   });
 
   it('folds a marker into an accent for Austria and leaves plain text untouched', () => {

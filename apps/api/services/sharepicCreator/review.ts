@@ -40,7 +40,7 @@ const REVIEW_SYSTEM = `Du bist Art Director für Sharepics im Instagram-Hochform
 Prüfe in dieser Reihenfolge:
 1. Fehler: Überlappt Text mit Text, Kreis oder Logo? Ist Text abgeschnitten oder läuft aus dem Bild? Ist jeder Text gut lesbar (Kontrast)? Stimmen Rechtschreibung und Grammatik?
 2. Wirkung (so wie gute Partei-Posts): Ist die Botschaft in zwei Sekunden klar? Ist die Headline groß und kurz genug – sonst kürzen? Gibt es höchstens einen bis zwei Akzente pro Slide? Bilden die Texte einen kompakten Block? Ist zu viel Text drauf? Passt das Foto zum Thema, und liegt der Text auf einer ruhigen Stelle?
-3. Nur bei Karussells: Sehen die Slides wie aus einem Guss aus (Hintergrund, Ausrichtung)? Ist die erste Slide ein starker Hook, die letzte ein klarer Schluss? Farbe ändert sich im Karussell nur für alle Slides gemeinsam: use_color für jede Foto-Slide in derselben Farbe wie die übrigen Farbflächen, set_color für jede Slide – nie einzelne Slides umfärben.
+3. Nur bei Karussells: Sehen die Slides wie aus einem Guss aus (Hintergrund, Ausrichtung)? Ist die erste Slide ein starker Hook, die letzte ein klarer Schluss? Farbe ändert sich im Karussell nur für alle Slides gemeinsam: use_color für jede Foto-Slide in derselben Farbe wie die übrigen Farbflächen, set_color für jede Slide – nie einzelne Slides umfärben. Eine Fotogeschichte (Fotos über die ganze Slide) behält ihre Fotos: dort kein use_color.
 
 Ist alles gut: ok = true, issues und patch leer. Sonst issues = höchstens 3 kurze deutsche Sätze für die Person, die das Sharepic erstellt (nenne eine Slide darin immer als „Slide N“ mit derselben Zahl wie im patch, ab 0 gezählt – nie „Folie“; das Programm übersetzt das für die Person), und patch = die kleinsten Änderungen, die das beheben. Jede Änderung nennt mit "slide":N die Slide (ohne Angabe: Slide 0):
 - {"op":"set_text","item":N,"text":…} – Text kürzen oder korrigieren, nie bei Zitat und Frage (bei liste die Punkte mit \\n trennen)
@@ -144,7 +144,9 @@ function protectsZitat(
  * of six story photos for mint, hellgrau and grasgrün, one slide at a time. A
  * colour op stands only when it recolours the whole carousel in one colour:
  * use_color on every stock photo (matching the colour slides already there),
- * set_color on every slide. Otherwise those ops go, silently.
+ * set_color on every slide. Otherwise those ops go, silently. A photo story
+ * (full-bleed photos) keeps its photos: live the review turned all six into
+ * mint, and the story's zeilenboxen stood on a plain colour (#4616).
  */
 function keepsCarouselLook(
   patch: SharepicReviewResponse['patch'],
@@ -152,6 +154,7 @@ function keepsCarouselLook(
 ): SharepicReviewResponse['patch'] {
   if (slides.length < 3) return patch;
   const all = slides.map((_, i) => i);
+  const story = slides.slice(1).some((s) => s.background.kind === 'foto');
   const photos = all.filter((i) => {
     const bg = slides[i]!.background;
     return (
@@ -169,7 +172,7 @@ function keepsCarouselLook(
     if (kind === 'use_color' && plain.size && !plain.has(ops[0]!.color)) return false;
     return targets.every((i) => ops.some((op) => (op.slide ?? 0) === i));
   };
-  const keepUse = whole('use_color', photos);
+  const keepUse = !story && whole('use_color', photos);
   const keepSet = whole('set_color', all);
   return patch.filter(
     (op) => (op.op !== 'use_color' || keepUse) && (op.op !== 'set_color' || keepSet)
