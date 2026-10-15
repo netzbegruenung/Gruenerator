@@ -9,12 +9,14 @@ import {
 import { useAuthStore } from '@gruenerator/shared/stores';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, type ReactNode } from 'react';
 import {
   View,
   Text,
   FlatList,
   TouchableOpacity,
+  Pressable,
+  useWindowDimensions,
   StyleSheet,
   useColorScheme,
   Alert,
@@ -23,6 +25,7 @@ import {
 
 import { secureStorage } from '../../services/storage';
 import { colors, spacing, lightTheme, darkTheme, BODY_FONT } from '../../theme';
+import { CONTENT_MAX_WIDTH } from '../../theme/layout';
 import { SkeletonBar, SkeletonGroup } from '../common/Skeleton';
 
 interface ProjectListProps {
@@ -30,14 +33,24 @@ interface ProjectListProps {
   onEditProject?: (project: Project) => void;
   onShareProject?: (project: Project) => void;
   onNewReel: () => void;
+  /** Shown instead of the list while there are no reels — the uploader. */
+  empty: ReactNode;
 }
+
+const COLUMNS = 2;
+const GAP = spacing.small;
 
 export function ProjectList({
   onSelectProject,
   onEditProject,
   onShareProject,
   onNewReel,
+  empty,
 }: ProjectListProps) {
+  const { width: windowWidth } = useWindowDimensions();
+  const tileWidth = Math.floor(
+    (Math.min(windowWidth, CONTENT_MAX_WIDTH) - spacing.large * 2 - GAP * (COLUMNS - 1)) / COLUMNS
+  );
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const { showActionSheetWithOptions } = useActionSheet();
@@ -129,119 +142,82 @@ export function ProjectList({
     [showActionSheetWithOptions, onSelectProject, onEditProject, onShareProject, confirmDelete]
   );
 
+  // A reel is a 9:16 video, so its tile is one: the picture is the point,
+  // title and date are read out to screen readers only.
   const renderProject = useCallback(
     ({ item }: { item: Project }) => {
       const thumbnailUrl = item.thumbnail_path ? getThumbnailUrl(item.id) : null;
       const duration = item.video_metadata?.duration;
 
       return (
-        <TouchableOpacity
-          style={[
-            styles.projectCard,
-            { backgroundColor: theme.card, borderColor: theme.cardBorder },
+        <Pressable
+          style={({ pressed }) => [
+            styles.tile,
+            { width: tileWidth, backgroundColor: theme.border },
+            pressed && styles.pressed,
           ]}
           onPress={() => onSelectProject(item)}
           onLongPress={() => showProjectOptions(item)}
-          activeOpacity={0.7}
           accessibilityRole="button"
+          accessibilityLabel={`${item.title}, ${formatDate(item.last_edited_at)}`}
+          accessibilityHint="Gedrückt halten für Optionen"
         >
-          <View style={styles.thumbnailContainer}>
-            {thumbnailUrl && authToken ? (
-              <Image
-                source={{
-                  uri: thumbnailUrl,
-                  headers: { Authorization: `Bearer ${authToken}` },
-                }}
-                style={styles.thumbnail}
-                contentFit="cover"
-              />
-            ) : (
-              <View style={[styles.thumbnailPlaceholder, { backgroundColor: theme.border }]}>
-                <Ionicons name="videocam" size={32} color={theme.textSecondary} />
-              </View>
-            )}
-            {duration && (
-              <View style={styles.durationBadge}>
-                <Text style={styles.durationText}>{formatDuration(duration)}</Text>
-              </View>
-            )}
-          </View>
-
-          <View style={styles.projectInfo}>
-            <Text style={[styles.projectTitle, { color: theme.text }]} numberOfLines={1}>
-              {item.title}
-            </Text>
-            <View style={styles.projectMeta}>
-              <Ionicons name="time-outline" size={12} color={theme.textSecondary} />
-              <Text style={[styles.projectDate, { color: theme.textSecondary }]}>
-                {formatDate(item.last_edited_at)}
-              </Text>
+          {thumbnailUrl && authToken ? (
+            <Image
+              source={{
+                uri: thumbnailUrl,
+                headers: { Authorization: `Bearer ${authToken}` },
+              }}
+              style={styles.fill}
+              contentFit="cover"
+              recyclingKey={item.id}
+            />
+          ) : (
+            <View style={styles.thumbnailPlaceholder}>
+              <Ionicons name="videocam" size={32} color={theme.textSecondary} />
             </View>
-          </View>
-
-          <TouchableOpacity
+          )}
+          {duration ? (
+            <View style={styles.durationBadge}>
+              <Ionicons name="play" size={10} color={colors.white} />
+              <Text style={styles.durationText}>{formatDuration(duration)}</Text>
+            </View>
+          ) : null}
+          <Pressable
             style={styles.moreButton}
             onPress={() => showProjectOptions(item)}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel="Weitere Optionen anzeigen"
+            accessibilityLabel={`Optionen für ${item.title}`}
           >
-            <Ionicons name="ellipsis-vertical" size={18} color={theme.textSecondary} />
-          </TouchableOpacity>
-        </TouchableOpacity>
+            <Ionicons name="ellipsis-horizontal" size={16} color={colors.white} />
+          </Pressable>
+        </Pressable>
       );
     },
-    [theme, onSelectProject, showProjectOptions, authToken]
+    [theme, tileWidth, onSelectProject, showProjectOptions, authToken]
   );
 
-  const renderEmpty = () => {
-    if (isLoading && !initialFetchComplete) {
-      // The card as `renderProject` draws it: the 80x60 thumbnail well on the
-      // left, title and date beside it.
-      return (
-        <>
-          {[0, 1, 2].map((i) => (
-            <View
-              key={i}
-              style={[
-                styles.projectCard,
-                { backgroundColor: theme.card, borderColor: theme.cardBorder },
-              ]}
-            >
-              <SkeletonGroup on="card" style={styles.skeletonCard}>
-                <SkeletonBar width={80} height={60} radius={8} />
-                <View style={styles.skeletonInfo}>
-                  <SkeletonBar width={(['66%', '48%', '74%'] as const)[i]} height={15} />
-                  <SkeletonBar width="34%" height={11} />
-                </View>
-              </SkeletonGroup>
-            </View>
-          ))}
-        </>
-      );
-    }
+  const loading = isLoading && !initialFetchComplete;
 
-    return (
-      <View style={styles.emptyContainer}>
-        <Ionicons name="videocam-outline" size={64} color={theme.textSecondary} />
-        <Text style={[styles.emptyTitle, { color: theme.text }]}>Noch keine Projekte</Text>
-        <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
-          Erstelle dein erstes Reel mit automatischen Untertiteln
-        </Text>
-      </View>
-    );
-  };
+  const renderSkeleton = () => (
+    <SkeletonGroup style={styles.skeletonGrid}>
+      {[0, 1, 2, 3].map((i) => (
+        <SkeletonBar key={i} width={tileWidth} height={(tileWidth * 16) / 9} radius={16} />
+      ))}
+    </SkeletonGroup>
+  );
 
   const renderHeader = () => (
     <View style={styles.header}>
       <Text style={[styles.headerTitle, { color: theme.text }]}>Meine Reels</Text>
       <TouchableOpacity
-        style={[styles.newButton, { backgroundColor: colors.primary[600] }]}
+        style={[styles.newButton, { backgroundColor: colors.secondary[600] }]}
         onPress={onNewReel}
         accessibilityRole="button"
       >
-        <Ionicons name="add" size={20} color="#fff" />
-        <Text style={styles.newButtonText}>Neues Reel</Text>
+        <Ionicons name="add" size={18} color="#fff" />
+        <Text style={styles.newButtonText}>Neu</Text>
       </TouchableOpacity>
     </View>
   );
@@ -275,15 +251,20 @@ export function ProjectList({
     );
   }
 
+  // No reels yet: the uploader is the whole screen, one tap from a first reel.
+  if (!loading && projects.length === 0) return <>{empty}</>;
+
   return (
     <View style={styles.container}>
       {renderHeader()}
       <FlatList
-        data={projects}
+        data={loading ? [] : projects}
         renderItem={renderProject}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={projects.length === 0 ? styles.emptyListContent : styles.listContent}
-        ListEmptyComponent={renderEmpty}
+        numColumns={COLUMNS}
+        columnWrapperStyle={styles.row}
+        contentContainerStyle={styles.listContent}
+        ListEmptyComponent={loading ? renderSkeleton : null}
         ListFooterComponent={renderFooter}
         refreshControl={
           <RefreshControl
@@ -317,9 +298,9 @@ const styles = StyleSheet.create({
   newButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    height: 40,
     paddingHorizontal: spacing.medium,
-    paddingVertical: spacing.small,
-    borderRadius: 8,
+    borderRadius: 999,
     gap: 4,
   },
   newButtonText: {
@@ -335,95 +316,53 @@ const styles = StyleSheet.create({
   emptyListContent: {
     flexGrow: 1,
   },
-  projectCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 12,
-    marginBottom: spacing.medium,
-    gap: spacing.medium,
-    borderWidth: 1,
+  row: { gap: GAP },
+  tile: {
+    aspectRatio: 9 / 16,
+    borderRadius: 16,
     overflow: 'hidden',
+    marginBottom: GAP,
   },
-  skeletonCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.medium,
-    flex: 1,
-    margin: spacing.medium,
-  },
-  skeletonInfo: { flex: 1, gap: 6 },
-  thumbnailContainer: {
-    width: 80,
-    height: 60,
-    borderRadius: 8,
-    overflow: 'hidden',
-    marginLeft: spacing.medium,
-    marginVertical: spacing.medium,
-  },
-  thumbnail: {
-    width: '100%',
-    height: '100%',
-  },
+  pressed: { opacity: 0.8 },
+  skeletonGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: GAP },
+  fill: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
   thumbnailPlaceholder: {
-    width: '100%',
-    height: '100%',
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
     justifyContent: 'center',
     alignItems: 'center',
   },
   durationBadge: {
     position: 'absolute',
-    bottom: 4,
-    right: 4,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    bottom: 8,
+    left: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 999,
   },
   durationText: {
     color: '#fff',
     fontFamily: BODY_FONT,
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  projectInfo: {
-    flex: 1,
-    gap: 4,
-    paddingVertical: spacing.medium,
-  },
-  projectTitle: {
-    fontFamily: BODY_FONT,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  projectMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  projectDate: {
-    fontFamily: BODY_FONT,
-    fontSize: 12,
+    fontSize: 11,
+    fontWeight: '700',
   },
   moreButton: {
-    padding: spacing.medium,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
     alignItems: 'center',
-    paddingHorizontal: spacing.xlarge,
-    gap: spacing.medium,
-  },
-  emptyTitle: {
-    fontFamily: BODY_FONT,
-    fontSize: 20,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  emptySubtitle: {
-    fontFamily: BODY_FONT,
-    fontSize: 14,
-    textAlign: 'center',
+    justifyContent: 'center',
   },
   footerText: {
     fontFamily: BODY_FONT,
