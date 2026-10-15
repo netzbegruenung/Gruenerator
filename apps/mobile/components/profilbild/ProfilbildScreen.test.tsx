@@ -99,7 +99,7 @@ describe('ProfilbildScreen before a photo', () => {
   it('opens the editor straight away with the upload zone and the toolbar', async () => {
     render(<ProfilbildScreen isAustria={false} shareToken={null} galleryAsset={null} />);
     await act(async () => {});
-    expect(screen.getByText('Dein Foto kommt hierher')).toBeTruthy();
+    expect(screen.getByText('Kein Foto ausgewählt')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Foto aufnehmen' })).toBeTruthy();
     // The background is the one tool that works before the photo.
     expect(screen.getByRole('button', { name: 'Hintergrund' })).toBeEnabled();
@@ -124,7 +124,7 @@ describe('ProfilbildScreen before a photo', () => {
     render(<ProfilbildScreen isAustria={false} shareToken="abc" galleryAsset={null} />);
     await act(async () => {});
     expect(screen.getByLabelText('Profilbild wird geladen')).toBeTruthy();
-    expect(screen.queryByText('Dein Foto kommt hierher')).toBeNull();
+    expect(screen.queryByText('Kein Foto ausgewählt')).toBeNull();
   });
 
   it('starts a fresh save session for a picked photo', async () => {

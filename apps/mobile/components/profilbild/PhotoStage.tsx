@@ -100,9 +100,9 @@ export function PhotoStage({
     <View style={[frame, { backgroundColor: dark ? colors.grey[800] : LIGHT_STAGE }]}>
       <View style={styles.zone}>
         <BackgroundPreview background={background} images={images} isAustria={isAustria} />
-        <Text style={[styles.title, { color: theme.text }]}>Dein Foto kommt hierher</Text>
+        <Text style={[styles.title, { color: theme.text }]}>Kein Foto ausgewählt</Text>
         <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-          {pendingHint ?? 'Wähle unten ein Foto – am besten ein Porträt'}
+          {pendingHint ?? 'Porträts funktionieren am besten'}
         </Text>
       </View>
     </View>
