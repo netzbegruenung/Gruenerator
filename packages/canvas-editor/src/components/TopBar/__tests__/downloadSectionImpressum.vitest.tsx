@@ -28,7 +28,12 @@ function Harness({
         onDownloadPdf,
         getWarnings: () => [],
         impressum: withGate
-          ? { locale, text, onSubmit: (parts) => setText(impressumLine(locale, parts)) }
+          ? {
+              ready: true,
+              locale,
+              text,
+              onSubmit: (parts) => setText(impressumLine(locale, parts)),
+            }
           : null,
       }}
     />

@@ -296,7 +296,7 @@ export function composePrintImpressum(
   return impressumElement(frame(format, isAt, defaultMeasure), text);
 }
 
-export function impressumText(impressum: PrintImpressum): string {
+function impressumText(impressum: PrintImpressum): string {
   return impressum.art === 'visdp'
     ? `V.i.S.d.P.: ${impressum.name}, ${impressum.anschrift}`
     : `Impressum: ${impressum.medieninhaber}, ${impressum.anschrift}`;

@@ -15,6 +15,7 @@ import { FaDownload } from 'react-icons/fa';
 
 import {
   IMPRESSUM_LABELS,
+  isFilled,
   isImpressumComplete,
   parseImpressumLine,
   type ImpressumLocale,
@@ -37,6 +38,8 @@ export interface PrintExportProps {
 }
 
 export interface PrintImpressumGate {
+  /** False until the page carrying the impressum has reported its state; export stays blocked. */
+  ready: boolean;
   locale: ImpressumLocale;
   /** The impressum line on the canvas; null when the element is gone. */
   text: string | null;
@@ -48,8 +51,7 @@ function ImpressumForm({ gate }: { gate: PrintImpressumGate }) {
   const fieldId = useId();
   const labels = IMPRESSUM_LABELS[gate.locale];
   const current = parseImpressumLine(gate.locale, gate.text ?? '');
-  const initial = (value: string) =>
-    isImpressumComplete({ name: value, anschrift: 'x' }) ? value : '';
+  const initial = (value: string) => (isFilled(value) ? value : '');
   const [name, setName] = useState(initial(current.name));
   const [anschrift, setAnschrift] = useState(initial(current.anschrift));
   const [touched, setTouched] = useState(false);
@@ -74,7 +76,7 @@ function ImpressumForm({ gate }: { gate: PrintImpressumGate }) {
           value={name}
           placeholder={labels.namePlaceholder}
           onChange={(e) => setName(e.target.value)}
-          aria-invalid={touched && !isImpressumComplete({ name, anschrift: 'x' })}
+          aria-invalid={touched && !isFilled(name)}
         />
       </div>
       <div className="flex flex-col gap-1.5">
@@ -89,7 +91,7 @@ function ImpressumForm({ gate }: { gate: PrintImpressumGate }) {
           value={anschrift}
           placeholder="Straße Nr., PLZ Ort"
           onChange={(e) => setAnschrift(e.target.value)}
-          aria-invalid={touched && !isImpressumComplete({ name: 'x', anschrift })}
+          aria-invalid={touched && !isFilled(anschrift)}
         />
       </div>
       <Button type="submit" variant="brand" className="w-full rounded-lg">
@@ -140,7 +142,8 @@ export function DownloadSection({
   const impressumGate = isPdf ? (printExport?.impressum ?? null) : null;
   const impressumBlocked =
     impressumGate !== null &&
-    !isImpressumComplete(parseImpressumLine(impressumGate.locale, impressumGate.text ?? ''));
+    (!impressumGate.ready ||
+      !isImpressumComplete(parseImpressumLine(impressumGate.locale, impressumGate.text ?? '')));
   const isMultiPage = pageCount > 1 && onDownloadAllZip && !isPdf;
   // JPEG has no alpha channel — the transparency toggle is only meaningful for
   // PNG/WebP.
@@ -266,7 +269,10 @@ export function DownloadSection({
         </div>
       )}
 
-      {impressumBlocked && impressumGate && <ImpressumForm gate={impressumGate} />}
+      {impressumBlocked && impressumGate && !impressumGate.ready && (
+        <DownloadNotice tone="info">Impressum wird geprüft …</DownloadNotice>
+      )}
+      {impressumBlocked && impressumGate?.ready && <ImpressumForm gate={impressumGate} />}
 
       {isPdf &&
         printWarnings.map((warning) => (

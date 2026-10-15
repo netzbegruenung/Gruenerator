@@ -41,11 +41,14 @@ export function parseImpressumLine(locale: ImpressumLocale, text: string): Impre
   return { name: body.slice(0, comma).trim(), anschrift: body.slice(comma + 1).trim() };
 }
 
+/** A field counts once it is non-empty and not one of the gallery placeholders. */
+export function isFilled(value: string): boolean {
+  const v = value.trim();
+  return v !== '' && !PLACEHOLDERS.has(v);
+}
+
 export function isImpressumComplete(parts: ImpressumParts): boolean {
-  return [parts.name, parts.anschrift].every((v) => {
-    const value = v.trim();
-    return value !== '' && !PLACEHOLDERS.has(value);
-  });
+  return isFilled(parts.name) && isFilled(parts.anschrift);
 }
 
 export const IMPRESSUM_LABELS: Record<

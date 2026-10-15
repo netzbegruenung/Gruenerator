@@ -117,6 +117,12 @@ export interface PageWrapperProps {
     actions: Record<string, unknown>,
     selectedElement: string | null
   ) => void;
+  /** Reports this page's live state even while it is not the active page (print impressum gate). */
+  onObservedState?: (
+    pageId: string,
+    state: Record<string, unknown>,
+    actions: Record<string, unknown>
+  ) => void;
   onToolbarStateChange?: (state: ToolbarStateReport) => void;
   /** See CanvasEditorProps.onAutoSaveShareToken. */
   onAutoSaveShareToken?: (token: string) => void;
