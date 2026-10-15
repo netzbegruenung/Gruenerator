@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 
 import { SkeletonBar, SkeletonGroup, SkeletonRows } from '../../../../components/common';
+import { SegmentedControl } from '../../../../components/common/SegmentedControl';
 import { ScreenScaffold } from '../../../../components/navigation/ScreenScaffold';
 import { GroupCommentsSheet } from '../../../../components/projekte/GroupCommentsSheet';
 import { GroupFeedCard } from '../../../../components/projekte/GroupFeedCard';
@@ -130,29 +131,6 @@ export default function ProjektDetailScreen() {
     );
   }
 
-  const segment = (key: ViewMode, label: string) => {
-    const selected = activeView === key;
-    return (
-      <Pressable
-        key={key}
-        onPress={() => setView(key)}
-        accessibilityRole="tab"
-        accessibilityState={{ selected }}
-        style={[styles.segment, selected && [styles.segmentOn, { backgroundColor: theme.card }]]}
-      >
-        <Text
-          style={[
-            styles.segmentText,
-            { color: selected ? theme.text : theme.textSecondary },
-            selected && styles.segmentTextOn,
-          ]}
-        >
-          {label}
-        </Text>
-      </Pressable>
-    );
-  };
-
   const emptyText = query.trim()
     ? `Kein Inhalt passt zu „${query.trim()}“.`
     : isPersonal
@@ -178,13 +156,20 @@ export default function ProjektDetailScreen() {
       >
         <View style={styles.padded}>
           {!isPersonal && (
-            <View
-              accessibilityRole="tablist"
-              style={[styles.segmented, { backgroundColor: theme.buttonBackground }]}
-            >
-              {segment('feed', 'Feed')}
-              {segment('all', `Alle · ${items.length}`)}
-            </View>
+            <SegmentedControl
+              accessibilityLabel="Ansicht"
+              value={activeView}
+              onChange={(v) => setView(v as ViewMode)}
+              options={[
+                { value: 'feed', label: 'Feed', short: 'Feed', disabled: false },
+                {
+                  value: 'all',
+                  label: `Alle, ${items.length} Inhalte`,
+                  short: `Alle · ${items.length}`,
+                  disabled: false,
+                },
+              ]}
+            />
           )}
           <View style={[styles.search, { backgroundColor: theme.buttonBackground }]}>
             <Ionicons name="search" size={18} color={theme.textSecondary} />
@@ -263,17 +248,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  segmented: { flexDirection: 'row', padding: 3, borderRadius: 12 },
-  segment: { flex: 1, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 9 },
-  segmentOn: {
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
-  },
-  segmentText: { fontFamily: BODY_FONT, fontSize: 15 },
-  segmentTextOn: { fontWeight: '700' },
   search: {
     height: 44,
     borderRadius: 12,
