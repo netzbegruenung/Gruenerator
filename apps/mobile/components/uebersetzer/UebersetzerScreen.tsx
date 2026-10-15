@@ -2,15 +2,16 @@ import {
   TranslationNotConfiguredError,
   useTranslationLanguages,
 } from '@gruenerator/shared/translation';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
+import * as Haptics from 'expo-haptics';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../hooks/useTheme';
-import { colors, spacing, typography } from '../../theme';
+import { borderRadius, colors, spacing, typography, HEADING_FONT_SEMIBOLD } from '../../theme';
 import { CONTENT_MAX_WIDTH } from '../../theme/layout';
 import { Button } from '../common/Button';
-import { SegmentedControl } from '../common/SegmentedControl';
 import { SkeletonBar, SkeletonGroup } from '../common/Skeleton';
 
 import { DocumentTranslator } from './DocumentTranslator';
@@ -19,11 +20,50 @@ import { TextTranslator, type TextSeed } from './TextTranslator';
 
 type Tab = 'text' | 'dokument' | 'bild';
 
-const TABS: { value: Tab; label: string; short: string; disabled: boolean }[] = [
-  { value: 'text', label: 'Text', short: 'Text', disabled: false },
-  { value: 'dokument', label: 'Dokument', short: 'Dokument', disabled: false },
-  { value: 'bild', label: 'Bild', short: 'Bild', disabled: false },
+const TABS: {
+  value: Tab;
+  label: string;
+  icon: 'text-outline' | 'document-text-outline' | 'image-outline';
+}[] = [
+  { value: 'text', label: 'Text', icon: 'text-outline' },
+  { value: 'dokument', label: 'Dokument', icon: 'document-text-outline' },
+  { value: 'bild', label: 'Bild', icon: 'image-outline' },
 ];
+
+/** Web's pill pair: outlined pills, the active one filled Eucalyptus. */
+function TabPills({ value, onChange }: { value: Tab; onChange: (tab: Tab) => void }) {
+  const theme = useTheme();
+  const isDark = useColorScheme() === 'dark';
+  return (
+    <View style={styles.pills} accessibilityRole="tablist" accessibilityLabel="Art der Übersetzung">
+      {TABS.map((t) => {
+        const active = t.value === value;
+        const color = active ? colors.white : theme.text;
+        return (
+          <Pressable
+            key={t.value}
+            onPress={() => {
+              if (!active) void Haptics.selectionAsync();
+              onChange(t.value);
+            }}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: active }}
+            style={({ pressed }) => [
+              styles.pill,
+              active
+                ? { backgroundColor: colors.secondary[600], borderColor: colors.secondary[600] }
+                : { borderColor: isDark ? colors.grey[700] : colors.grey[200] },
+              pressed && !active && { backgroundColor: theme.surface },
+            ]}
+          >
+            <Ionicons name={t.icon} size={16} color={color} />
+            <Text style={[styles.pillText, { color }]}>{t.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
 
 /**
  * The translator, ported from web's `/uebersetzer`: Text, Dokument and Bild as
@@ -69,12 +109,7 @@ export function UebersetzerScreen() {
     const data = languages.data;
     return (
       <>
-        <SegmentedControl
-          accessibilityLabel="Art der Übersetzung"
-          value={tab}
-          onChange={(v) => setTab(v as Tab)}
-          options={TABS}
-        />
+        <TabPills value={tab} onChange={setTab} />
         <View style={tab === 'text' ? null : styles.hidden}>
           <TextTranslator data={data} seed={seed} />
         </View>
@@ -120,6 +155,17 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxlarge,
   },
   intro: { ...typography.bodySmall },
+  pills: { flexDirection: 'row', gap: spacing.xsmall },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxsmall,
+    height: 40,
+    paddingHorizontal: spacing.medium,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+  },
+  pillText: { fontFamily: HEADING_FONT_SEMIBOLD, fontSize: 14 },
   skeleton: { gap: spacing.medium },
   notice: { gap: spacing.medium, paddingVertical: spacing.large },
   noticeText: { ...typography.body },
