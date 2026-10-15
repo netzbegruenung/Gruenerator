@@ -17,6 +17,15 @@ import { DownloadNotice } from '../DownloadNotice';
 
 export type CanvasDownloadChoice = 'png' | 'jpeg' | 'webp';
 
+type DownloadChoice = CanvasDownloadChoice | 'pdf';
+
+/** Print formats: PDF with bleed and crop marks is the default download. */
+export interface PrintExportProps {
+  onDownloadPdf: () => Promise<void>;
+  /** Notices for photos too small to print well. */
+  getWarnings: () => string[];
+}
+
 export interface DownloadSectionProps {
   onDownload: (
     format: CanvasDownloadChoice,
@@ -29,6 +38,7 @@ export interface DownloadSectionProps {
   exportProgress?: { current: number; total: number };
   exportError?: string | null;
   exportNotice?: string | null;
+  printExport?: PrintExportProps | null;
 }
 
 const DEFAULT_RASTER_PIXEL_RATIO = 1;
@@ -42,8 +52,10 @@ export function DownloadSection({
   exportProgress,
   exportError,
   exportNotice,
+  printExport = null,
 }: DownloadSectionProps) {
-  const [choice, setChoice] = useState<CanvasDownloadChoice>('png');
+  const [choice, setChoice] = useState<DownloadChoice>(printExport ? 'pdf' : 'png');
+  const [printWarnings] = useState<string[]>(() => printExport?.getWarnings() ?? []);
   const [scale, setScale] = useState<number>(DEFAULT_RASTER_PIXEL_RATIO);
   const [transparent, setTransparent] = useState(false);
   const [pageSelection, setPageSelection] = useState<'current' | 'all'>('current');
@@ -51,7 +63,8 @@ export function DownloadSection({
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const fieldId = useId();
 
-  const isMultiPage = pageCount > 1 && onDownloadAllZip;
+  const isPdf = choice === 'pdf' && printExport !== null;
+  const isMultiPage = pageCount > 1 && onDownloadAllZip && !isPdf;
   // JPEG has no alpha channel — the transparency toggle is only meaningful for
   // PNG/WebP.
   const supportsTransparency = choice !== 'jpeg';
@@ -60,11 +73,19 @@ export function DownloadSection({
     setIsDownloading(true);
     setDownloadError(null);
     try {
+      if (choice === 'pdf' && printExport) {
+        await printExport.onDownloadPdf();
+        return;
+      }
       if (pageSelection === 'all' && onDownloadAllZip) {
         await onDownloadAllZip();
         return;
       }
-      await onDownload(choice, scale, supportsTransparency && transparent);
+      await onDownload(
+        choice === 'pdf' ? 'png' : choice,
+        scale,
+        supportsTransparency && transparent
+      );
     } catch (err) {
       console.error('[DownloadSection] Download failed:', err);
       setDownloadError(downloadErrorMessage(err));
@@ -79,21 +100,22 @@ export function DownloadSection({
         <Label htmlFor={`${fieldId}-format`} className="text-xs font-medium text-foreground-muted">
           Format
         </Label>
-        <Select value={choice} onValueChange={(v) => setChoice(v as CanvasDownloadChoice)}>
+        <Select value={choice} onValueChange={(v) => setChoice(v as DownloadChoice)}>
           <SelectTrigger id={`${fieldId}-format`} size="sm" className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent position="popper" className="z-[10001]">
+            {printExport && <SelectItem value="pdf">PDF (Druck)</SelectItem>}
             <SelectItem value="png">PNG</SelectItem>
-            <SelectItem value="jpeg">JPG</SelectItem>
-            <SelectItem value="webp">WebP</SelectItem>
+            {!printExport && <SelectItem value="jpeg">JPG</SelectItem>}
+            {!printExport && <SelectItem value="webp">WebP</SelectItem>}
           </SelectContent>
         </Select>
       </div>
 
       {/* Resolution + transparency only apply to single-page export; the
           multi-page ZIP path renders at fixed settings. */}
-      {pageSelection === 'current' && (
+      {!isPdf && pageSelection === 'current' && (
         <>
           <div className="flex flex-col gap-1.5">
             <Label
@@ -166,6 +188,12 @@ export function DownloadSection({
         </div>
       )}
 
+      {isPdf &&
+        printWarnings.map((warning) => (
+          <DownloadNotice key={warning} tone="info">
+            {warning}
+          </DownloadNotice>
+        ))}
       {downloadError && <DownloadNotice>{downloadError}</DownloadNotice>}
       {exportError && !isMultiExporting && <DownloadNotice>{exportError}</DownloadNotice>}
       {exportNotice && <DownloadNotice tone="info">{exportNotice}</DownloadNotice>}

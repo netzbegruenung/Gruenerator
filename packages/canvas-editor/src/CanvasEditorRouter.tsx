@@ -117,6 +117,8 @@ export interface ControllableCanvasWrapperProps {
   type: string;
   /** The canvas document's format id. Absent: the default format. */
   formatId?: string;
+  /** Document title; names the print PDF (`<title>.pdf`). */
+  documentTitle?: string;
   initialState: CanvasState;
   imageSrc?: string;
   onExport: (base64: string) => void;
@@ -197,6 +199,7 @@ export function ControllableCanvasWrapper(props: ControllableCanvasWrapperProps)
 function ControllableCanvasEditor({
   type,
   formatId,
+  documentTitle,
   initialState,
   imageSrc,
   onExport,
@@ -460,6 +463,7 @@ function ControllableCanvasEditor({
             key={componentKey}
             initialConfigId={type as CanvasConfigId}
             formatId={formatId}
+            documentTitle={documentTitle}
             initialProps={buildInitialProps()}
             onExport={onExport}
             onCancel={onCancel}

@@ -23,7 +23,12 @@
  * - useToolbarHandlers     — bundled toolbar actions for the active page
  */
 
-import { downloadDataUrl, pickShareRoute, shareDataUrlViaNativeHost } from '@gruenerator/shared';
+import {
+  downloadBlob,
+  downloadDataUrl,
+  pickShareRoute,
+  shareDataUrlViaNativeHost,
+} from '@gruenerator/shared';
 import { Skeleton } from '@gruenerator/ui';
 import Konva from 'konva';
 import React, {
@@ -38,7 +43,14 @@ import React, {
 
 import { PAGE_PERSISTED_STATE_KEYS } from '../../collab/pageElementStateKeys';
 import { createPageSyncedCallbacks } from '../../collab/wrapCallbacksWithPageSync';
-import { getCanvasFormatOrDefault } from '../../formats';
+import {
+  exportPrintPdf,
+  lowResolutionWarnings,
+  PRINT_JPEG_QUALITY,
+  printPdfFilename,
+  type PrintExportPage,
+} from '../../export/printExport';
+import { getCanvasFormatOrDefault, isPrintFormat } from '../../formats';
 import { usePageManager, useMultiPageExport, usePageThumbnails } from '../../hooks';
 import { useDeckAutoSave } from '../../hooks/useDeckAutoSave';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
@@ -111,6 +123,7 @@ export function CanvasEditor(props: CanvasEditorProps) {
 function CanvasEditorInner({
   initialConfigId,
   formatId,
+  documentTitle,
   initialProps,
   onExport,
   onCancel,
@@ -643,6 +656,37 @@ function CanvasEditorInner({
     [currentPageIndex, canvasRefsRef, onDownload]
   );
 
+  // Print: one PDF page per editor page, in page order.
+  const printPages = useCallback((): PrintExportPage[] => {
+    const refs = canvasRefsRef.current;
+    return refs.map((ref) => ({
+      captureTile: async (tile, pixelRatio) =>
+        (await ref.current?.capturePrintTile(tile, pixelRatio, PRINT_JPEG_QUALITY)) ?? null,
+      getImages: () => ref.current?.getPrintImages() ?? [],
+    }));
+  }, [canvasRefsRef]);
+
+  const printFormat = useMemo(() => {
+    const f = getCanvasFormatOrDefault(formatId);
+    return isPrintFormat(f) ? f : null;
+  }, [formatId]);
+
+  const handleDownloadPdf = useCallback(async () => {
+    if (!printFormat) return;
+    const pages = printPages();
+    if (pages.some((_, i) => !canvasRefsRef.current[i]?.current)) {
+      throw new Error('Nicht alle Seiten konnten exportiert werden');
+    }
+    const pdf = await exportPrintPdf({ format: printFormat, pages });
+    const blob = new Blob([pdf as BlobPart], { type: 'application/pdf' });
+    await downloadBlob(blob, printPdfFilename(documentTitle ?? null));
+  }, [printFormat, printPages, canvasRefsRef, documentTitle]);
+
+  const getPrintWarnings = useCallback(
+    () => (printFormat ? lowResolutionWarnings(printFormat, printPages()) : []),
+    [printFormat, printPages]
+  );
+
   // Get active page data for shared sidebar
   const currentPage = pages[currentPageIndex];
   const activeConfig = currentPage ? loadedConfigs.get(currentPage.configId) : undefined;
@@ -884,8 +928,14 @@ function CanvasEditorInner({
       exportNotice: multiExportNotice,
       onInvitePeople,
       onSaveAsTemplate,
+      printExport: printFormat
+        ? { onDownloadPdf: handleDownloadPdf, getWarnings: getPrintWarnings }
+        : null,
     }),
     [
+      printFormat,
+      handleDownloadPdf,
+      getPrintWarnings,
       handleCaptureCanvas,
       handleDownload,
       noop,

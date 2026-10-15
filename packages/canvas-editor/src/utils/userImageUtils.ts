@@ -226,3 +226,6 @@ export function createUserImageInstanceFromUrl(
     img.src = url;
   });
 }
+
+/** Konva node name of a user photo's Image; the print export finds photos by it. */
+export const USER_PHOTO_NODE_NAME = 'user-photo';
