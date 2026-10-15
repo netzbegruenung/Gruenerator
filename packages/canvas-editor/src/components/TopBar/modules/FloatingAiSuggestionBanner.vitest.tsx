@@ -55,6 +55,23 @@ describe('FloatingAiSuggestionBanner', () => {
     expect(r.onUndo).not.toHaveBeenCalled();
   });
 
+  it('names a replaced Vorlage as such, not as an AI suggestion', () => {
+    const onUndoPages = vi.fn();
+    render(
+      <CanvasStoreProvider>
+        <Seed
+          pending={{ title: 'Zitat mit Foto', undo: 'pages', source: 'vorlage' }}
+          onStore={() => {}}
+        />
+        <FloatingAiSuggestionBanner onUndo={() => {}} onUndoPages={onUndoPages} />
+      </CanvasStoreProvider>
+    );
+    expect(screen.getByText('Vorlage: Zitat mit Foto')).toBeInTheDocument();
+    expect(screen.queryByText(/Vorschlag/)).toBeNull();
+    fireEvent.click(screen.getByLabelText('Vorlage verwerfen'));
+    expect(onUndoPages).toHaveBeenCalledTimes(1);
+  });
+
   it('reads on the green menu bar: title and revert glyph are white, not the page text colour', () => {
     // The banner only renders in TopBar, on --editor-menubar-gradient (#00553B →).
     // text-foreground (#3a3a3a) there was about 1.3:1.

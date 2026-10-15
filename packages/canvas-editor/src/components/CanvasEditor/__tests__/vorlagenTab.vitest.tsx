@@ -1,0 +1,93 @@
+/**
+ * Der Reiter „Vorlagen" hängt der Editor selbst ein — direkt über „Text", nur
+ * wenn der Host Vorlagen liefert und es für das Format welche gibt.
+ */
+import { act, render, screen } from '@testing-library/react';
+import Konva from 'konva';
+import React from 'react';
+import { describe, expect, it, vi } from 'vitest';
+
+import { CanvasEditorProvider, type CanvasEditorServices } from '../../../CanvasEditorProvider';
+import { CanvasEditor } from '../index';
+
+vi.mock('../../../sidebar/UserUploadsProvider', () => ({
+  UserUploadsProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  useUserUploads: () => ({ uploads: [], refresh: () => {} }),
+}));
+
+Object.defineProperty(document, 'fonts', {
+  configurable: true,
+  value: { check: () => true, load: async () => [], ready: Promise.resolve(), add() {} },
+});
+
+vi.stubGlobal(
+  'matchMedia',
+  vi.fn((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  }))
+);
+
+vi.spyOn(Konva.Stage.prototype, 'toDataURL').mockReturnValue('data:,');
+Element.prototype.scrollIntoView ??= () => {};
+
+const vorlagen: NonNullable<CanvasEditorServices['vorlagen']> = {
+  list: async () => [],
+  compose: async () => [],
+};
+
+async function renderEditor(services: CanvasEditorServices, formatId = 'post-portrait') {
+  await act(async () => {
+    render(
+      <CanvasEditorProvider services={services}>
+        <CanvasEditor
+          initialConfigId="freeform"
+          formatId={formatId}
+          initialProps={{}}
+          onExport={() => {}}
+          onCancel={() => {}}
+        />
+      </CanvasEditorProvider>
+    );
+  });
+  for (let i = 0; i < 50 && !document.querySelector('[data-tour="canvas-tab-text"]'); i++) {
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 20));
+    });
+  }
+  return [...document.querySelectorAll('[data-tour^="canvas-tab-"]')].map((el) =>
+    el.getAttribute('data-tour')!.replace('canvas-tab-', '')
+  );
+}
+
+describe('CanvasEditor Vorlagen-Reiter', () => {
+  it('steht direkt über Text und öffnet die Vorlagen', async () => {
+    const tabs = await renderEditor({ vorlagen });
+    expect(tabs.indexOf('vorlagen')).toBe(tabs.indexOf('text') - 1);
+
+    await act(async () => {
+      screen.getByRole('button', { name: 'Grünerator-Vorlagen anwenden' }).click();
+    });
+    expect(
+      await screen.findByText('Für dieses Format gibt es noch keine Vorlagen.')
+    ).toBeInTheDocument();
+  });
+
+  it('fehlt, wenn der Host keine Vorlagen liefert', async () => {
+    const tabs = await renderEditor({});
+    expect(tabs).toContain('text');
+    expect(tabs).not.toContain('vorlagen');
+  });
+
+  it('fehlt beim Profilbild-Format', async () => {
+    const tabs = await renderEditor({ vorlagen }, 'profile-square');
+    expect(tabs).toContain('text');
+    expect(tabs).not.toContain('vorlagen');
+  });
+});

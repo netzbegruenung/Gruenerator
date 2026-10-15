@@ -8,6 +8,7 @@ import type {
   CanvasAiCapabilities,
   CanvasAiOperation,
   CanvasAiSnapshot,
+  SharepicVorlage,
 } from '@gruenerator/contracts';
 import type { ComponentType, ReactNode } from 'react';
 
@@ -53,6 +54,25 @@ export interface ChatSectionContentProps {
   aiEdit?: CanvasAiEditBridge;
   /** Present in the multi-page editor once its pages doc is synced. */
   specEdit?: CanvasSpecEditBridge;
+}
+
+/** A page a Vorlage composes to, ready for `replaceDeck`. */
+export interface VorlagePage {
+  configId: string;
+  state: Record<string, unknown>;
+}
+
+/**
+ * The Grünerator-Vorlagen behind the „Vorlagen" tab. `compose` turns one
+ * into pages (needs the browser: fonts, photo tones) and keeps its spec on
+ * them, so the chat can go on editing it. Without `openAsNew` the tab only
+ * replaces the design.
+ */
+export interface CanvasVorlagenService {
+  list: () => Promise<SharepicVorlage[]>;
+  compose: (vorlage: SharepicVorlage) => Promise<VorlagePage[]>;
+  /** Copies the Vorlage into a new design of the viewer's own and opens it. */
+  openAsNew?: (vorlage: SharepicVorlage) => void;
 }
 
 export interface CanvasEditorServices {
@@ -145,6 +165,9 @@ export interface CanvasEditorServices {
    * section shows a "not configured" hint.
    */
   ChatSectionContent?: ComponentType<ChatSectionContentProps>;
+
+  /** Grünerator-Vorlagen for the „Vorlagen" tab; when omitted, the tab is hidden. */
+  vorlagen?: CanvasVorlagenService;
 }
 
 const CanvasEditorContext = createContext<CanvasEditorServices>({});
