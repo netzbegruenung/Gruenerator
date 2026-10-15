@@ -14,6 +14,8 @@ import {
   sharepicReviewResponseSchema,
   countMarkerPassages,
   hasUnpairedAccentMark,
+  isSharepicSceneRef,
+  isSharepicUploadId,
   SHAREPIC_MARKER_PASSAGES,
   stripInlineMarks,
   tightenAccentMarksDeep,
@@ -38,7 +40,7 @@ const REVIEW_SYSTEM = `Du bist Art Director für Sharepics im Instagram-Hochform
 Prüfe in dieser Reihenfolge:
 1. Fehler: Überlappt Text mit Text, Kreis oder Logo? Ist Text abgeschnitten oder läuft aus dem Bild? Ist jeder Text gut lesbar (Kontrast)? Stimmen Rechtschreibung und Grammatik?
 2. Wirkung (so wie gute Partei-Posts): Ist die Botschaft in zwei Sekunden klar? Ist die Headline groß und kurz genug – sonst kürzen? Gibt es höchstens einen bis zwei Akzente pro Slide? Bilden die Texte einen kompakten Block? Ist zu viel Text drauf? Passt das Foto zum Thema, und liegt der Text auf einer ruhigen Stelle?
-3. Nur bei Karussells: Sehen die Slides wie aus einem Guss aus (Hintergrund, Ausrichtung)? Ist die erste Slide ein starker Hook, die letzte ein klarer Schluss?
+3. Nur bei Karussells: Sehen die Slides wie aus einem Guss aus (Hintergrund, Ausrichtung)? Ist die erste Slide ein starker Hook, die letzte ein klarer Schluss? Farbe ändert sich im Karussell nur für alle Slides gemeinsam: use_color für jede Foto-Slide in derselben Farbe wie die übrigen Farbflächen, set_color für jede Slide – nie einzelne Slides umfärben.
 
 Ist alles gut: ok = true, issues und patch leer. Sonst issues = höchstens 3 kurze deutsche Sätze für die Person, die das Sharepic erstellt (nenne eine Slide darin immer als „Slide N“ mit derselben Zahl wie im patch, ab 0 gezählt – nie „Folie“; das Programm übersetzt das für die Person), und patch = die kleinsten Änderungen, die das beheben. Jede Änderung nennt mit "slide":N die Slide (ohne Angabe: Slide 0):
 - {"op":"set_text","item":N,"text":…} – Text kürzen oder korrigieren, nie bei Zitat und Frage (bei liste die Punkte mit \\n trennen)
@@ -137,6 +139,43 @@ function protectsZitat(
   return false;
 }
 
+/**
+ * A carousel holds one look (see carouselLook.ts). Live the review swapped three
+ * of six story photos for mint, hellgrau and grasgrün, one slide at a time. A
+ * colour op stands only when it recolours the whole carousel in one colour:
+ * use_color on every stock photo (matching the colour slides already there),
+ * set_color on every slide. Otherwise those ops go, silently.
+ */
+function keepsCarouselLook(
+  patch: SharepicReviewResponse['patch'],
+  slides: SharepicSlide[]
+): SharepicReviewResponse['patch'] {
+  if (slides.length < 3) return patch;
+  const all = slides.map((_, i) => i);
+  const photos = all.filter((i) => {
+    const bg = slides[i]!.background;
+    return (
+      bg.kind !== 'farbe' && !isSharepicUploadId(bg.filename) && !isSharepicSceneRef(bg.filename)
+    );
+  });
+  const plain = new Set(
+    slides.flatMap((s) => (s.background.kind === 'farbe' ? [s.background.color] : []))
+  );
+  const whole = (kind: 'use_color' | 'set_color', targets: number[]) => {
+    const ops = patch.flatMap((op) => (op.op === kind ? [op] : []));
+    const colors = new Set(ops.map((op) => op.color));
+    if (!ops.length) return true;
+    if (colors.size !== 1) return false;
+    if (kind === 'use_color' && plain.size && !plain.has(ops[0]!.color)) return false;
+    return targets.every((i) => ops.some((op) => (op.slide ?? 0) === i));
+  };
+  const keepUse = whole('use_color', photos);
+  const keepSet = whole('set_color', all);
+  return patch.filter(
+    (op) => (op.op !== 'use_color' || keepUse) && (op.op !== 'set_color' || keepSet)
+  );
+}
+
 /** `slides` (the draft the review looked at) lets the review protect its quotes. */
 export function validateReview(
   input: unknown,
@@ -154,6 +193,13 @@ export function validateReview(
   }
   for (const op of parsed.data.patch) {
     const texts = op.op === 'set_text' ? [op.text] : op.op === 'set_headline' ? op.lines : [];
+    // Live Gemma closed its JSON inside a line („==Hitzefallen.==],slide:0}]") and the next round repeated it.
+    if (texts.some((t) => /[{}[\]]/.test(t))) {
+      return {
+        ok: false,
+        error: 'Im Text stehen Klammern aus dem JSON – jede Zeile ist nur der sichtbare Text.',
+      };
+    }
     if (texts.some(hasUnpairedAccentMark)) {
       return {
         ok: false,
@@ -188,7 +234,10 @@ export function validateReview(
     }
   }
   const removed = new Set<string>();
-  const patch = parsed.data.patch.filter((op) => !protectsZitat(op, slides, removed));
+  const patch = keepsCarouselLook(
+    parsed.data.patch.filter((op) => !protectsZitat(op, slides, removed)),
+    slides
+  );
   return { ok: true, value: { ...parsed.data, issues: parsed.data.issues.slice(0, 3), patch } };
 }
 

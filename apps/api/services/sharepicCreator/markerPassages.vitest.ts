@@ -196,6 +196,35 @@ describe('++marker++ passages', () => {
     expect(good.ok && good.value.patch[0]).toMatchObject({ text: 'Los ++jetzt++' });
   });
 
+  it('rejects JSON leaking into a review patch line', () => {
+    const leaked = { op: 'set_headline', lines: ['werden zu', '==Hitzefallen.==],slide:0}]'] };
+    const bad = validateReview({ ok: false, issues: [], patch: [leaked] }, [1]);
+    expect(!bad.ok && bad.error).toContain('Klammern');
+  });
+
+  it('drops colour ops that recolour single carousel slides', () => {
+    const story = Array.from({ length: 6 }, () => ({
+      background: { kind: 'foto', filename: 'stock.jpg', textSeite: 'unten' },
+      position: 'mitte',
+      align: 'zentriert',
+      items: [{ type: 'absatz', text: 'x' }],
+      logo: false,
+    })) as never;
+    const counts = [1, 1, 1, 1, 1, 1];
+    // Live: three photos of a story swapped for three different colours.
+    const piecemeal = [
+      { op: 'use_color', slide: 0, color: 'mint' },
+      { op: 'use_color', slide: 1, color: 'hellgrau' },
+      { op: 'use_color', slide: 3, color: 'grasgruen' },
+      { op: 'set_text', slide: 2, item: 0, text: 'kürzer' },
+    ];
+    const kept = validateReview({ ok: false, issues: [], patch: piecemeal }, counts, story);
+    expect(kept.ok && kept.value.patch).toEqual([piecemeal[3]]);
+    const whole = counts.map((_, slide) => ({ op: 'use_color', slide, color: 'mint' }));
+    const all = validateReview({ ok: false, issues: [], patch: whole }, counts, story);
+    expect(all.ok && all.value.patch).toEqual(whole);
+  });
+
   it('folds a marker into an accent for Austria and leaves plain text untouched', () => {
     expect(foldMarkerIntoAccent('Wir ++bauen Wohnungen++ jetzt')).toBe(
       'Wir ==bauen Wohnungen== jetzt'
