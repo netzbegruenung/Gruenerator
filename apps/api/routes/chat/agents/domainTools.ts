@@ -36,7 +36,11 @@ import {
   runExplainableGeneration,
 } from '../services/artifactGeneration.js';
 import { artifactKind, type ArtifactKindId } from '../services/artifactKindRegistry.js';
-import { buildCreateTurnContext, withConversationContext } from '../services/createTurn.js';
+import {
+  buildCreateTurnContext,
+  turnMaterialBlock,
+  withConversationContext,
+} from '../services/createTurn.js';
 import {
   pdfKindFromText,
   runBoardGeneration,
@@ -461,7 +465,11 @@ function briefWithContext(
   state: ChatGraphState,
   sourceRegistry?: SourceRegistry
 ): string {
-  const withHistory = withConversationContext(prompt, buildCreateTurnContext(state.messages ?? []));
+  const withHistory = withConversationContext(
+    prompt,
+    buildCreateTurnContext(state.messages ?? []),
+    turnMaterialBlock(state.attachmentContext)
+  );
   return withResearchedSources(withHistory, sourceRegistry?.renderReference() ?? '');
 }
 

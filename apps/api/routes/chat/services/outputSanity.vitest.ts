@@ -11,7 +11,9 @@ import {
   stripPhantomMemoryClaim,
   stripPhantomArtifactEdit,
   stripPhantomSharepicEdit,
+  stripPhantomArtifactCreation,
   PHANTOM_ARTIFACT_EDIT_FALLBACK,
+  PHANTOM_CREATION_FALLBACK,
   PHANTOM_SHAREPIC_EDIT_FALLBACK,
   stripToolControlTokens,
   containsBrokenJsonPayload,
@@ -626,5 +628,82 @@ describe('stripPhantomArtifactEdit', () => {
   it('leaves plain text edits alone', () => {
     const text = 'Ich habe den Text gekürzt und die Einleitung angepasst.';
     expect(stripPhantomArtifactEdit(text, { edited: kinds(), guarded: all }).removed).toEqual([]);
+  });
+});
+
+// Live 15.10.2026, „ja mach das bitte" mit steps=0: die Antwort kündigte eine
+// Erstellung an, die nie lief.
+describe('stripPhantomArtifactCreation', () => {
+  const LIVE =
+    'Ich erstelle dir jetzt die Sharepics für den Slider basierend auf dem Entwurf. Da ein Slider aus mehreren Bildern besteht, generiere ich diese nacheinander für dich.\n\n(Hier erfolgt nun die Erstellung der Sharepics durch die entsprechenden Werkzeuge des Grünerators)';
+
+  it('ersetzt die Live-Antwort ganz', () => {
+    const out = stripPhantomArtifactCreation(LIVE, { createdArtifact: false });
+    expect(out.removed).toHaveLength(3);
+    expect(out.text).toBe(PHANTOM_CREATION_FALLBACK);
+  });
+
+  it('lässt sie stehen, wenn der Turn das Artefakt wirklich gebaut hat', () => {
+    expect(stripPhantomArtifactCreation(LIVE, { createdArtifact: true }).removed).toEqual([]);
+  });
+
+  it.each([
+    'Gerne erstelle ich dir jetzt die Präsentation.',
+    'Ich werde dir gleich eine Tabelle mit den Zahlen erstellen.',
+    'Die Sharepics werden jetzt erstellt.',
+    'Ich baue dir nun das Karussell.',
+  ])('streicht die Ankündigung: %s', (sentence) => {
+    const out = stripPhantomArtifactCreation(`Hier ist der Text.\n\n${sentence}`, {
+      createdArtifact: false,
+    });
+    expect(out.removed).toEqual([sentence]);
+    expect(out.text).toBe('Hier ist der Text.');
+  });
+
+  it.each([
+    // Angebote
+    'Soll ich daraus ein Sharepic machen?',
+    'Ich kann dir diese Kacheln auch als Sharepics erstellen.',
+    'Wenn du willst, mache ich dir daraus eine Präsentation.',
+    // Inhalt, den die Person bestellt hat
+    'Ich erstelle gerade Flyer und Plakate für unseren Infostand am Samstag.',
+    'Mit Sharepics erreichen wir junge Menschen besser.',
+    // leitet gelieferten Inhalt ein
+    'Ich erstelle dir hier eine Tabelle:',
+    // ehrliche Absage
+    'Ich mache dir jetzt kein Sharepic, weil du keins wolltest.',
+    // Änderung, die der Client nach dem Turn anwendet
+    'Ich setze dir das jetzt im Dokument um.',
+  ])('lässt stehen: %s', (sentence) => {
+    expect(stripPhantomArtifactCreation(sentence, { createdArtifact: false }).removed).toEqual([]);
+  });
+
+  it('rührt lange Antworten nicht an — dort ist es Inhalt', () => {
+    const long = `${'Ein langer Absatz mit Inhalt. '.repeat(30)}Ich erstelle dir jetzt die Präsentation.`;
+    expect(stripPhantomArtifactCreation(long, { createdArtifact: false }).removed).toEqual([]);
+  });
+});
+
+describe('Satz-Streicher behalten Absätze', () => {
+  it('eine gestrichene Zeile klebt den nächsten Absatz nicht an', () => {
+    const out = stripPhantomArtifactCreation(
+      'Gerne!\nIch erstelle dir jetzt die Präsentation.\n\n- Punkt eins\n- Punkt zwei',
+      { createdArtifact: false }
+    );
+    expect(out.text).toBe('Gerne!\n\n- Punkt eins\n- Punkt zwei');
+  });
+
+  it('eine Antwort mit Markdown-Tabelle bleibt unangetastet', () => {
+    const text =
+      'Gerne! Ich erstelle dir die Tabelle direkt hier im Chat.\n\n| a | b |\n|---|---|\n| 1 | 2 |';
+    expect(stripPhantomArtifactCreation(text, { createdArtifact: false }).text).toBe(text);
+  });
+
+  it('gilt auch für den Erinnerungs-Streicher', () => {
+    const out = stripPhantomMemoryClaim('Danke.\nIch habe mir das notiert.\n\n- Punkt', {
+      memoryRan: false,
+      stepCount: 0,
+    });
+    expect(out.text).toBe('Danke.\n\n- Punkt');
   });
 });

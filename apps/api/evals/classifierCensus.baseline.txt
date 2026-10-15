@@ -29,6 +29,7 @@ classifier.tier  (318)
     tier2_failed_tool_turn_followup    0
     tier2_offer_accept            0
     tier2_artifact_question_accept    0
+    tier2_attachment_create_order    0
     tier2.7_doc_targeted_edit     0
     tier3.8_existing_artifact_edit    0
     tier2.97_existing_artifact_order    6
