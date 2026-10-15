@@ -1697,3 +1697,25 @@ describe('compoundGenerationKind — Explainable', () => {
     );
   });
 });
+
+// Review 15.10.2026: das nackte `wandel` im Verbkern machte das Nomen „Wandel"
+// zur Bestellung und nahm Anschlussfragen ihren Bezug.
+describe('„Wandel" ist kein Erstell-Verb', () => {
+  it.each([
+    'Die Präsentation zum sozialen Wandel ist gut, danke',
+    'Fass das PDF-Dokument zum Wandel der Mobilität zusammen',
+  ])('bestellt nichts: %s', (text) => {
+    expect(compoundGenerationKind('produktion', text)).toBeNull();
+  });
+
+  it('eine Anschlussfrage zum Wandel bleibt rückbezüglich', () => {
+    expect(isReferentialFollowup('Und wie sieht der Wandel aus?')).toBe(true);
+  });
+
+  it('die Verbformen bleiben Aufträge', () => {
+    expect(compoundGenerationKind('produktion', 'wandle das in ein PDF um')).toBe('pdf');
+    expect(compoundGenerationKind('produktion', 'Verwandel die Notizen in eine Präsentation')).toBe(
+      'presentation'
+    );
+  });
+});

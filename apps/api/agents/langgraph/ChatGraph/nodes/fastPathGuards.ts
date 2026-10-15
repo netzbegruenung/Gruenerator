@@ -347,11 +347,13 @@ export function forbidsNewResearch(text: string): boolean {
  *
  * Umwandeln ist Erzeugen (15.10.2026): „wandle diese PM in einen Sharepic-Slider
  * um" kam als Textgliederung zurück, weil kein Verb hier passte. Nur Verbformen
- * (`wandle`, `wandel(n)`, `umwandeln`, `verwandle`), nicht die Nomen „Umwandlung"
- * oder „Verwandlung".
+ * (`wandle`, `umwandeln`, `verwandle`, `verwandel`), nicht die Nomen
+ * „Umwandlung"/„Verwandlung" — und kein nacktes `wandel`: „Wandel" ist eines
+ * der häufigsten Nomen in grüner Sprache („die Präsentation zum sozialen
+ * Wandel") und machte jede Erwähnung zur Bestellung.
  */
 export const CREATION_VERB_CORE =
-  'erstell|erzeug|generier|mach|bau|entwirf|entwerf|gestalte|(?:um|ver)?wand(?:le|el)';
+  'erstell|erzeug|generier|mach|bau|entwirf|entwerf|gestalte|(?:um|ver)?wandle|(?:um|ver)wandel';
 
 /** Any core creation verb, any inflection, anywhere — "is this an order at all?" */
 export const CREATION_VERB_RE = new RegExp(`\\b(?:${CREATION_VERB_CORE})[a-zäöü]*\\b`, 'i');

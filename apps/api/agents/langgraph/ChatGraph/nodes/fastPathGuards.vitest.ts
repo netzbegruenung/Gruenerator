@@ -470,7 +470,7 @@ describe('Karussell gehört zum Sharepic-Wortschatz', () => {
 describe('Umwandeln und Slider bestellen ein Sharepic', () => {
   it.each([
     'wandle diese pm in einen sharepic slider um',
-    'Wandel die Pressemitteilung in ein Sharepic um.',
+    'Verwandel die Pressemitteilung in ein Sharepic.',
     'verwandle die PM in ein Karussell',
     'Bitte die Rede in ein Sharepic umwandeln.',
     'mach daraus einen Slider',
@@ -483,6 +483,8 @@ describe('Umwandeln und Slider bestellen ein Sharepic', () => {
     // Nomen, kein Verb — als Aussagesatz, nicht nur als Frage.
     'Die Umwandlung der PM in ein Sharepic hat gestern gut geklappt.',
     'Die Verwandlung in ein Karussell war ihre Idee.',
+    // „Wandel" ist ein Nomen, kein Auftrag.
+    'Das Sharepic zum sozialen Wandel gefällt mir sehr.',
     'Was ist ein Slider?',
     'Mach den Post ohne Slider.',
   ])('kein Auftrag: %s', (text) => {
