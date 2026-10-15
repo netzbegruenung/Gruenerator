@@ -128,6 +128,9 @@ export function createAfterGather(p: GuaranteeContext): () => Promise<void> {
   const forceCompoundGeneration = async (): Promise<void> => {
     const kind = p.state.compoundGenerationKind;
     if (!kind) return;
+    // Nur genannt, nicht bestellt: ob das Artefakt entsteht, entscheidet der
+    // Planer. Nachholen hiesse, die blosse Erwähnung doch wieder zu erzwingen.
+    if (p.state.compoundGenerationOrdered === false) return;
     const already =
       p.state.generatedImage != null ||
       (p.state.sharepicVariants?.length ?? 0) > 0 ||

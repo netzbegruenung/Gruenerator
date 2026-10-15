@@ -37,6 +37,7 @@ import {
   isEditToolEnabled,
   isPixelTurn,
   looksLikeCompoundEdit,
+  namesSharepicWithoutOrder,
   resolveEditorSurfaceKind,
   type CompoundGenerationKind,
   type EditorSurfaceKind,
@@ -115,6 +116,13 @@ export interface TurnPlan {
   /** Die Fläche, deren `edit_document` montiert wird — nur bei `editToolLoop`. */
   editToolSurface: EditorSurfaceKind | null;
   compoundGenerationKind: CompoundGenerationKind | null;
+  /**
+   * Die Art wurde BESTELLT (Verb am Nomen), nicht nur genannt. Nur dann holt
+   * `forceCompoundGeneration` das Artefakt nach, wenn der Planer es liegen
+   * lässt; ein bloss genanntes Sharepic (`namesSharepicWithoutOrder`) ist
+   * montiert, die Entscheidung bleibt beim Planer.
+   */
+  compoundGenerationOrdered: boolean;
   /**
    * Der System-Tool-Auffang hat auf `web` umgeschrieben. Diese Intents sind
    * NON_SEARCH, der Klassifikator hat `searchQuery` also genullt — ohne
@@ -413,8 +421,19 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
     !p.forcedTool && !p.isSharepicRefinement && !editorSurface
       ? compoundGenerationKind(proposedIntent, p.lastUserText, p.mentionPinnedArtifactKind)
       : null;
-  const compoundKind =
+  const orderedKind =
     proposedKind === 'sharepic' && p.addressesThreadSharepic === true ? null : proposedKind;
+  // Genannt statt bestellt: das Werkzeug hängt, der Planer entscheidet.
+  const namedOnlyKind: CompoundGenerationKind | null =
+    orderedKind == null &&
+    !p.forcedTool &&
+    !p.isSharepicRefinement &&
+    !editorSurface &&
+    p.addressesThreadSharepic !== true &&
+    namesSharepicWithoutOrder(proposedIntent, p.lastUserText)
+      ? 'sharepic'
+      : null;
+  const compoundKind = orderedKind ?? namedOnlyKind;
 
   // Verbund „recherchiere UND bau es ins offene Dokument ein". Dieselben
   // Notausschalter wie {@link decideRunAgentic}, damit das Erzwingen der
@@ -541,6 +560,7 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
     editToolLoop,
     editToolSurface: editToolLoop ? editToolSurfaceKind : null,
     compoundGenerationKind: compoundKind,
+    compoundGenerationOrdered: orderedKind != null,
     backfillSearchQuery: fallback.backfillSearchQuery,
   };
 }

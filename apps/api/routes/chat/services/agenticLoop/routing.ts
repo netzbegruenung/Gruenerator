@@ -837,6 +837,29 @@ export function compoundGenerationKind(
 }
 
 /**
+ * Der Auftrag NENNT ein Sharepic, bestellt es aber nicht in einer Form, die
+ * `asksForSharepic` erkennt — „wandle unsere Forderungen zur Kitafinanzierung in
+ * einen Sharepic-Slider um" (Verb und Nomen zu weit auseinander), aber auch
+ * „Dazu passt später ein Sharepic." (blosse Erwähnung).
+ *
+ * Das Nomen ist die Freigabe, die Entscheidung trifft das Modell: der Turn
+ * bekommt das Sharepic-Werkzeug montiert, aber NICHT erzwungen
+ * (`compoundGenerationOrdered: false`), und der Planer ruft es, wenn der
+ * Auftrag eines meint. Die Verb-Regex entscheidet nur noch über den Zwang. Bis
+ * 15.10.2026 war sie ein hartes Veto, und jedes fehlende Verb kostete den Turn.
+ *
+ * Nur das Sharepic-Vokabular: es ist spezifisch. „Dokument", „PDF" und
+ * „Tabelle" meinen meist vorhandenes Material („was steht im PDF?"), dort bleibt
+ * das Verb die Bedingung fürs Montieren. Verneinung, Zitat und Meta-Frage fängt
+ * `hasExplicitSharepicWord` ab, die Post-Vorfahrt gilt wie bei der Bestellung.
+ */
+export function namesSharepicWithoutOrder(intent: string, raw: string): boolean {
+  if (intent !== 'agentic' && intent !== 'produktion' && intent !== 'direct') return false;
+  const t = stripQuotedSpans(orderText(raw ?? ''));
+  return hasExplicitSharepicWord(t) && !asksForSharepic(t) && !POST_NOUN_PATTERN.test(t);
+}
+
+/**
  * The five embedded editor surfaces whose sidebar can drive a tool-based edit of
  * the OPEN artifact inside the agentic loop (see editorTools). Distinct from
  * {@link CompoundGenerationKind} (which is about spawning a NEW artifact).
