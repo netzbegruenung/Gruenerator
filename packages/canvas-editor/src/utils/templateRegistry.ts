@@ -186,13 +186,14 @@ export function getTemplatesForLocale(locale: BrandLocale): TemplateInfo[] {
  * Can a page of this template sit in a document of this format? A template
  * with a pinned sheet fits only that format; every other template fits the
  * default format, and any other only if it follows it — a fixed sheet would
- * be stretched to the document's stage. No template fits a print format.
+ * be stretched to the document's stage. A print format takes only the blank
+ * freeform page.
  */
 export function templateFitsFormat(configId: CanvasConfigId, formatId?: string): boolean {
   // Resolve first: legacy rows carry removed format ids that render 4:5.
   const format = getCanvasFormatOrDefault(formatId);
-  // Every template here is a digital one; print pages come from the print Vorlagen.
-  if (format.category === 'print') return false;
+  // On print only the blank freeform page fits: its sheet is built from the format.
+  if (format.category === 'print') return configId === 'freeform' || configId === 'freeform-at';
   const resolved = format.id;
   const pinned = pinnedFormatId(configId);
   if (pinned) return resolved === pinned;
