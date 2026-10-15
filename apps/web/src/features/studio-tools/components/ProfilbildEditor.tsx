@@ -25,12 +25,14 @@ import {
   type SavedProfilbildSticker,
 } from '@gruenerator/shared/profilbild';
 import { assetStickerId, isAssetStickerId, isShareSrc } from '@gruenerator/shared/stickers';
+import { emptyAssetForm } from '@gruenerator/shared/studio-assets';
 import {
   Alert,
   AlertDescription,
   Button,
   Slider,
   ToggleGroup,
+  toast,
   ToggleGroupItem,
 } from '@gruenerator/ui';
 import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -48,7 +50,12 @@ import {
 
 import { useAuthStore } from '../../../stores/authStore';
 import { downloadDataUrl } from '../../../utils/downloadFile';
-import { BackgroundUploadDialog } from '../../studio-assets/BackgroundUploadDialog';
+import { BACKGROUND_ACCEPT } from '../../studio-assets/backgroundImage';
+import {
+  BackgroundUploadError,
+  titleFromFile,
+  useBackgroundAssetUpload,
+} from '../../studio-assets/useBackgroundAssetUpload';
 import {
   loadShareFileDataUrl,
   type ProfilbildSaveInput,
@@ -220,6 +227,9 @@ export function ProfilbildEditor({
   const isAustria = useAuthStore((s) => s.locale === 'de-AT');
   const galleryAssetRef = useRef(galleryAsset);
   const [uploadingBackground, setUploadingBackground] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const uploadBackgroundAsset = useBackgroundAssetUpload();
+  const locale = useAuthStore((s) => s.locale);
   const colorSwatches = isAustria ? COLOR_SWATCHES_AT : COLOR_SWATCHES_DE;
   const presets = useMemo(() => presetDesigns(isAustria), [isAustria]);
   // Lookups by id also know retired Vorlagen: a saved Profilbild may still name one.
@@ -638,6 +648,26 @@ export function ProfilbildEditor({
     }
   };
 
+  // Ein eigenes Foto wird ohne Umweg ein privater Galerie-Eintrag unter „Deine“ und gilt
+  // sofort; teilen lässt es sich später dort, wo die Galerie verwaltet wird.
+  const uploadBackground = async (file: File) => {
+    setError(null);
+    setUploadingBackground(true);
+    try {
+      const item = await uploadBackgroundAsset(file, {
+        ...emptyAssetForm(locale),
+        title: titleFromFile(file.name) || 'Hintergrund',
+      });
+      toast.success(`„${item.title}“ liegt jetzt unter „Deine“.`);
+      await pickGalleryBackground(item);
+    } catch (err) {
+      // Create errors are toasted by the global mutation handler.
+      if (err instanceof BackgroundUploadError) setError(err.message);
+    } finally {
+      setUploadingBackground(false);
+    }
+  };
+
   const selectPreset = async (design: PresetDesign) => {
     setError(null);
     const request = ++backgroundRequest.current;
@@ -830,7 +860,8 @@ export function ProfilbildEditor({
       }}
       onSelectPreset={(design) => void selectPreset(design)}
       onSelectGallery={(item) => void pickGalleryBackground(item)}
-      onUpload={() => setUploadingBackground(true)}
+      onUpload={() => fileRef.current?.click()}
+      uploading={uploadingBackground}
     />
   );
 
@@ -1205,13 +1236,19 @@ export function ProfilbildEditor({
         {announcement}
       </div>
 
-      {/* Ein eigener Hintergrund wird ein Galerie-Eintrag und gilt sofort. */}
-      {uploadingBackground ? (
-        <BackgroundUploadDialog
-          onCreated={(item) => void pickGalleryBackground(item)}
-          onClose={() => setUploadingBackground(false)}
-        />
-      ) : null}
+      <input
+        ref={fileRef}
+        type="file"
+        aria-label="Eigenes Hintergrundbild wählen"
+        accept={BACKGROUND_ACCEPT}
+        className="hidden"
+        data-testid="profilbild-background-input"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = '';
+          if (file) void uploadBackground(file);
+        }}
+      />
     </div>
   );
 }

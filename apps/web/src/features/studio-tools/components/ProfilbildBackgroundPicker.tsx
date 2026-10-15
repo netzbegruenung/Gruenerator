@@ -54,6 +54,8 @@ export interface ProfilbildBackgroundPickerProps {
   onSelectPreset: (design: PresetDesign) => void;
   onSelectGallery: (item: GalleryAsset) => void;
   onUpload: () => void;
+  /** While an own background is being uploaded. */
+  uploading: boolean;
 }
 
 export function ProfilbildBackgroundPicker({
@@ -69,6 +71,7 @@ export function ProfilbildBackgroundPicker({
   onSelectPreset,
   onSelectGallery,
   onUpload,
+  uploading,
 }: ProfilbildBackgroundPickerProps) {
   // Die CD-Farben des Landes als Schnellwahl im freien Farbwähler.
   const palette = colors.flatMap((s) =>
@@ -184,9 +187,10 @@ export function ProfilbildBackgroundPicker({
         <button
           type="button"
           onClick={onUpload}
-          className="h-12 w-full cursor-pointer rounded-[10px] border-[1.5px] border-dashed border-border bg-transparent text-sm text-muted-foreground outline-none transition-colors hover:border-primary-500 hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 md:h-14"
+          disabled={uploading}
+          className="h-12 w-full cursor-pointer rounded-[10px] border-[1.5px] border-dashed border-border bg-transparent text-sm text-muted-foreground outline-none transition-colors hover:border-primary-500 hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60 md:h-14"
         >
-          + Eigenen Hintergrund hochladen
+          {uploading ? 'Wird hochgeladen …' : '+ Eigenen Hintergrund hochladen'}
         </button>
       </section>
     </div>
