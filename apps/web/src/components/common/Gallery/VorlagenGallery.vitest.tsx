@@ -1,9 +1,11 @@
+import { composePrint } from '@gruenerator/canvas-editor/composer';
+import { PRINT_VORLAGEN } from '@gruenerator/canvas-editor/print-vorlagen';
 import { type SharepicVorlage } from '@gruenerator/contracts';
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { Route, Routes, useLocation } from 'react-router-dom';
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { server } from '../../../test/msw-server';
 
@@ -13,6 +15,23 @@ import { useAuthStore } from '@/stores/authStore';
 import { axe, renderWithProviders } from '@/test-utils';
 
 const API = 'http://localhost/api';
+
+// Opening a canvas warms the editor chunk, which would load after the test ends.
+vi.mock('../../../features/image-studio/routeChunks', () => ({
+  loadCanvasStudioPage: () => Promise.resolve(),
+}));
+
+/** jsdom has no canvas to measure text and no brand fonts to wait for. */
+const measure = (text: string, fontSize: number) => text.length * fontSize * 0.5;
+vi.mock('@gruenerator/canvas-editor/composer', async (importOriginal) => {
+  const actual = await importOriginal<{ composePrint: typeof composePrint }>();
+  return {
+    ...actual,
+    ensureFontsReady: async () => {},
+    composePrint: (spec: Parameters<typeof composePrint>[0]) =>
+      actual.composePrint(spec, { measure }),
+  };
+});
 
 const galleryItem = (id: string, title: string) => ({
   id,
@@ -111,6 +130,7 @@ function renderGallery(route = '/vorlagen') {
           </>
         }
       />
+      <Route path="/studio/canvas/:id" element={<p>Editor geöffnet</p>} />
     </Routes>,
     { route }
   );
@@ -163,6 +183,7 @@ describe('VorlagenGallery', () => {
     expect(options.map((o) => o.textContent)).toEqual([
       'Alle Vorlagen',
       'Grünerator',
+      'Print',
       'Canva',
       'Meine Vorlagen',
     ]);
@@ -229,7 +250,8 @@ describe('VorlagenGallery', () => {
     renderGallery();
 
     expect(await screen.findByRole('button', { name: 'Zitat auf Grün' })).toBeInTheDocument();
-    expect(await screen.findByText('1 Vorlage')).toBeInTheDocument();
+    // „Alle" shows the three print Vorlagen of the country too.
+    expect(await screen.findByText('4 Vorlagen')).toBeInTheDocument();
     expect(screen.queryByText(/Keine Vorlagen|Noch keine/)).not.toBeInTheDocument();
   });
 
@@ -268,12 +290,87 @@ describe('VorlagenGallery', () => {
     expect(screen.getByLabelText('Adresse')).toBeEmptyDOMElement();
   });
 
-  it('shows a plain empty state without any search or filter', async () => {
+  it('is never empty without a search or filter: the print Vorlagen are always there', async () => {
     serve({ gallery: [] });
     renderGallery();
 
-    expect(await screen.findByText('Noch keine Vorlagen')).toBeInTheDocument();
-    expect(screen.queryByText('Versuche einen anderen Suchbegriff.')).not.toBeInTheDocument();
+    expect(await screen.findByText('3 Vorlagen')).toBeInTheDocument();
+    expect(screen.queryByText(/Keine Vorlagen|Noch keine/)).not.toBeInTheDocument();
+  });
+
+  describe('Print', () => {
+    const printThumbs = () =>
+      screen
+        .getAllByRole('img')
+        .map((img) => img.getAttribute('src') ?? '')
+        .filter((src) => src.startsWith('/vorlagen/print/'));
+
+    it.each([
+      ['de-DE', ['de-visitenkarte-quer', 'de-visitenkarte-hoch', 'de-plakat-typo-a3']],
+      ['de-AT', ['at-visitenkarte-quer', 'at-visitenkarte-hoch', 'at-plakat-typo-a3']],
+    ] as const)('shows the three print Vorlagen of %s under „Print"', async (locale, ids) => {
+      useAuthStore.setState({ locale });
+      serve({ catalog: [catalogVorlage('k1', 'Zitat auf Grün')] });
+      renderGallery('/vorlagen?cat=print');
+
+      expect(await screen.findByText('3 Vorlagen')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Filter: Print' })).toBeInTheDocument();
+      expect(printThumbs()).toEqual(ids.map((id) => `/vorlagen/print/${id}.webp`));
+      expect(screen.getAllByText('Print · 85 × 55 mm')).toHaveLength(1);
+      expect(screen.getByText('Print · 297 × 420 mm')).toBeInTheDocument();
+      // Neither the catalogue nor community Vorlagen come along.
+      expect(screen.queryByText('Zitat auf Grün')).not.toBeInTheDocument();
+      expect(screen.queryByText('Plakat Klima')).not.toBeInTheDocument();
+    });
+
+    it('opens a print Vorlage as a canvas in its print format', async () => {
+      serve();
+      const bodies: Record<string, unknown>[] = [];
+      server.use(
+        http.post('*/api/canvas', async ({ request }) => {
+          bodies.push((await request.json()) as Record<string, unknown>);
+          return HttpResponse.json(
+            {
+              id: 'c-print',
+              title: 'Visitenkarte quer',
+              created_by: 'u1',
+              created_at: '2026-10-16T00:00:00Z',
+              updated_at: '2026-10-16T00:00:00Z',
+              permissions: null,
+              is_public: false,
+              template_type: 'freeform',
+              base_template_id: null,
+              thumbnail_url: null,
+              page_count: 2,
+              initial_state: {},
+              format: 'print-visitenkarte-quer',
+            },
+            { status: 201 }
+          );
+        })
+      );
+      const { user } = renderGallery('/vorlagen?cat=print');
+
+      await user.click(await screen.findByRole('button', { name: 'Visitenkarte quer' }));
+
+      expect(await screen.findByText('Editor geöffnet')).toBeInTheDocument();
+      const vorlage = PRINT_VORLAGEN.find((v) => v.id === 'de-visitenkarte-quer')!;
+      const composed = composePrint(vorlage.spec);
+      const pages = composed.slides.map((state, i) => ({
+        id: `seed-${i}`,
+        configId: 'freeform',
+        state,
+      }));
+      expect(bodies).toEqual([
+        {
+          title: 'Visitenkarte quer',
+          template_type: 'freeform',
+          format: 'print-visitenkarte-quer',
+          page_count: 2,
+          initial_state: { ...composed.slides[0], pages },
+        },
+      ]);
+    });
   });
 
   it('switches between small and large cards and remembers the choice', async () => {

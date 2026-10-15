@@ -8,18 +8,27 @@ const applyDeckChanges = vi.fn();
 const resizeCanvas = vi.fn();
 const formatChangeCrossesCategory = vi.fn();
 const getServerFormat = vi.fn();
+const createCanvas = vi.fn();
+const seedCanvasPages = vi.fn();
 
 vi.mock('./services/canvasAiCheck.js', () => ({ checkCanvasEdit }));
 vi.mock('../chat/services/sharepicEditService.js', () => ({ mintCanvasForVariant }));
 vi.mock('../../services/canvas/canvasRepository.js', () => ({
+  createCanvas,
   checkCanvasWriteAccess,
   updateCanvas,
   resizeCanvas,
   formatChangeCrossesCategory,
 }));
-vi.mock('../../services/canvas/canvasStateService.js', () => ({ applyDeckChanges }));
+vi.mock('../../services/canvas/canvasStateService.js', () => ({
+  applyDeckChanges,
+  seedCanvasPages,
+}));
 vi.mock('../../services/canvas/canvasVersionRepository.js', () => ({}));
-vi.mock('../exports/pageConstants.js', () => ({ getServerFormat }));
+vi.mock('../exports/pageConstants.js', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  getServerFormat,
+}));
 
 const CATEGORY_ERROR = 'Druckformate und digitale Formate lassen sich nicht ineinander umwandeln.';
 
@@ -254,5 +263,51 @@ describe('canvas.update', () => {
     const res = await update({ format: 'print-a3-hoch' });
     expect(res.status).toBe(400);
     expect(res.body.error).toBe(CATEGORY_ERROR);
+  });
+});
+
+describe('canvas.create', () => {
+  const create = async (body: Record<string, unknown>) => {
+    const { canvasContractRouter } = await import('./canvasContractRouter.js');
+    return (
+      canvasContractRouter.create as unknown as (a: unknown) => Promise<{
+        status: number;
+        body: unknown;
+      }>
+    )({ req, body });
+  };
+  const pages = [{ id: 'seed-0', configId: 'freeform', state: {} }];
+
+  beforeEach(() => {
+    createCanvas.mockReset().mockResolvedValue({ id: 'c1' });
+    seedCanvasPages.mockReset().mockResolvedValue(undefined);
+    getServerFormat.mockReset();
+  });
+
+  it('creates a canvas in a known print format', async () => {
+    getServerFormat.mockReturnValue({ id: 'print-a3-hoch' });
+    const res = await create({
+      template_type: 'freeform',
+      format: 'print-a3-hoch',
+      initial_state: { pages },
+    });
+    expect(res.status).toBe(201);
+    expect(createCanvas).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ format: 'print-a3-hoch' })
+    );
+  });
+
+  it('rejects an unknown print format', async () => {
+    getServerFormat.mockReturnValue(null);
+    const res = await create({ template_type: 'freeform', format: 'print-a0-quer' });
+    expect(res.status).toBe(400);
+    expect(createCanvas).not.toHaveBeenCalled();
+  });
+
+  it('lets an unknown digital id through, it renders as the default', async () => {
+    getServerFormat.mockReturnValue(null);
+    const res = await create({ template_type: 'freeform', format: 'story' });
+    expect(res.status).toBe(201);
   });
 });

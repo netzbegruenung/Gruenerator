@@ -54,7 +54,7 @@ import { logContractValidationError } from '../../utils/contractValidationLogger
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
 import { mintCanvasForVariant } from '../chat/services/sharepicEditService.js';
-import { getServerFormat } from '../exports/pageConstants.js';
+import { formatCategory, getServerFormat } from '../exports/pageConstants.js';
 
 import { checkCanvasEdit } from './services/canvasAiCheck.js';
 
@@ -98,6 +98,14 @@ export const canvasContractRouter = s.router(canvasContract, {
     try {
       const userId = getAuthedUser(args.req).id;
       const b = args.body;
+      // An unknown digital id renders as the default; an unknown print id would mint an unusable sheet.
+      if (
+        b.format !== undefined &&
+        formatCategory(b.format) === 'print' &&
+        !getServerFormat(b.format)
+      ) {
+        return { status: 400 as const, body: { error: `Unbekanntes Format '${b.format}'` } };
+      }
       const input: CreateCanvasInput = {
         template_type: b.template_type,
         ...(b.title !== undefined ? { title: b.title } : {}),
