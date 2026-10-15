@@ -555,6 +555,21 @@ const DEFINITE_SHAREPIC_RE = new RegExp(
   `\\b(?:das|dem|des|dieses|diesem|unser\\w*|mein\\w*|dein\\w*)\\s+(?:[a-zäöüß-]+\\s+)?(?:${SHAREPIC_NOUN_SRC})\\b`,
   'i'
 );
+/**
+ * Der Text meint ein VORHANDENES Sharepic: bestimmter oder besitzanzeigender
+ * Artikel am Nomen („das Sharepic ist zu blau", „der Slider hakt", „unser
+ * Karussell"). Breiter als {@link DEFINITE_SHAREPIC_RE}, das nur neben einem
+ * Wunsch-Verb gefragt wird: hier zählen auch der/die/den, weil Slider und
+ * Karussell maskulin bzw. neutral, Infografik feminin sind.
+ */
+const EXISTING_SHAREPIC_RE = new RegExp(
+  `\\b(?:der|die|den|das|dem|des|diese[mnrs]?|unser\\w*|mein\\w*|dein\\w*|euer\\w*|eure\\w*)\\s+(?:[a-zäöüß-]+\\s+)?(?:${SHAREPIC_NOUN_SRC})\\b`,
+  'i'
+);
+export function refersToExistingSharepic(text: string): boolean {
+  return EXISTING_SHAREPIC_RE.test(stripQuotedSpans(text ?? ''));
+}
+
 // Das Nomen eröffnet den Auftrag: „Sharepic zum Klimageld", „ein Zitatbild mit …",
 // auch mit Plattform davor („Insta-Karussell zum Klimaschutz").
 const SHAREPIC_NOMINAL_ORDER = new RegExp(

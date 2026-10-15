@@ -17,6 +17,7 @@ import {
   type EditToolLoopInput,
   type AgenticDecisionInput,
   isReferentialFollowup,
+  namesSharepicWithoutOrder,
   needsThreadGrounding,
   looksLikeSelfContainedTurn,
   rewritesSuppliedText,
@@ -1717,5 +1718,31 @@ describe('„Wandel" ist kein Erstell-Verb', () => {
     expect(compoundGenerationKind('produktion', 'Verwandel die Notizen in eine Präsentation')).toBe(
       'presentation'
     );
+  });
+});
+
+// Review 15.10.2026: das Nomen allein gibt das Werkzeug frei — aber nicht für
+// ein vorhandenes Sharepic und nicht für den Bedien-„Slider".
+describe('namesSharepicWithoutOrder', () => {
+  it.each([
+    'Die Kernaussagen der PM gehören auf einen Sharepic-Slider.',
+    'Schick mir die PM als Sharepic-Karussell für Insta',
+    'kürze die PM auf die Hälfte. Dazu passt später ein Sharepic.',
+  ])('genannt: %s', (text) => {
+    expect(namesSharepicWithoutOrder('produktion', text)).toBe(true);
+  });
+
+  it.each([
+    'Der Slider für die Lautstärke hakt',
+    'Ich habe einen Slider auf der Website, wie viel Text passt da drauf?',
+    'Danke, das Sharepic sieht super aus',
+    'das Sharepic ist zu blau',
+    'erstelle ein Sharepic zur Kita',
+  ])('kein Freigabefall: %s', (text) => {
+    expect(namesSharepicWithoutOrder('produktion', text)).toBe(false);
+  });
+
+  it('gilt nur für Prosa- und Loop-Intents', () => {
+    expect(namesSharepicWithoutOrder('search', 'Dazu passt später ein Sharepic.')).toBe(false);
   });
 });

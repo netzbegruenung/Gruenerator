@@ -73,22 +73,7 @@ export async function runActionGateStage({
     asksForSharepic(orderText(lastUserTextNoMentions));
 
   if (classifiedState.intent === 'sharepic' && !sharepicLicensed) {
-    // Das Wort steht im Auftrag, nur das Bestell-Verb fehlt: der Klassifikator
-    // hat ein Sharepic gesehen, die Regex keinen Auftrag. Der Einzeldurchlauf
-    // baut immer — er ist ein erzwungener Aufruf und bleibt der Bestellung
-    // vorbehalten. Der Turn geht stattdessen als `produktion` weiter, und der
-    // Router montiert das Werkzeug ohne Zwang (`namesSharepicWithoutOrder`):
-    // der Planer entscheidet. Bis 15.10.2026 endete so ein Turn in der festen
-    // Absage unten, auch bei „wandle diese PM in einen Sharepic-Slider um".
-    if (hasExplicitSharepicWord(orderText(lastUserTextNoMentions))) {
-      log.info(
-        '[ChatGraph] Sharepic named without an order → produktion, tool left to the planner'
-      );
-      recordDecision('router.intent_override', 'sharepic_named_to_planner', {
-        inputs: { intentBefore: 'sharepic', sharepicLicensed },
-      });
-      classifiedState.intent = 'produktion';
-    } else if (actualThreadId && (await threadHasSharepic(actualThreadId))) {
+    if (actualThreadId && (await threadHasSharepic(actualThreadId))) {
       // Sharepic-shaped, and there IS one — but the edit lanes declined it
       // (wrong template, ambiguous, not actually an edit). Answering
       // normally beats minting a surprise second sharepic.
@@ -96,6 +81,22 @@ export async function runActionGateStage({
       // Decision key unchanged (F1): the journal cards are named after it.
       recordDecision('router.intent_override', 'sharepic_unlicensed_to_direct', {
         inputs: { intentBefore: 'sharepic', sharepicLicensed, threadHasSharepic: true },
+      });
+      classifiedState.intent = 'produktion';
+    } else if (hasExplicitSharepicWord(orderText(lastUserTextNoMentions))) {
+      // Das Wort steht im Auftrag, nur das Bestell-Verb fehlt: der Klassifikator
+      // hat ein Sharepic gesehen, die Regex keinen Auftrag. Der Einzeldurchlauf
+      // baut immer — er ist ein erzwungener Aufruf und bleibt der Bestellung
+      // vorbehalten. Der Turn geht stattdessen als `produktion` weiter, und der
+      // Router montiert das Werkzeug ohne Zwang (`namesSharepicWithoutOrder`):
+      // der Planer entscheidet. Bis 15.10.2026 endete so ein Turn in der festen
+      // Absage unten. Nach dem Zweig darüber, damit ein Thread mit Sharepic
+      // weiterhin keinen Überraschungs-Zweiten bekommt.
+      log.info(
+        '[ChatGraph] Sharepic named without an order → produktion, tool left to the planner'
+      );
+      recordDecision('router.intent_override', 'sharepic_named_to_planner', {
+        inputs: { intentBefore: 'sharepic', sharepicLicensed },
       });
       classifiedState.intent = 'produktion';
     } else {

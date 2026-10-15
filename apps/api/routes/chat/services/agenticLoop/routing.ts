@@ -21,6 +21,7 @@ import {
   isMetaQuestionAbout,
   isNegatedArtifactRequest,
   POST_NOUN_PATTERN,
+  refersToExistingSharepic,
   stripQuotedSpans,
 } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import { looksLikeMemoryRequest } from '../../../../services/memory/memoryRequest.js';
@@ -856,7 +857,13 @@ export function compoundGenerationKind(
 export function namesSharepicWithoutOrder(intent: string, raw: string): boolean {
   if (intent !== 'agentic' && intent !== 'produktion' && intent !== 'direct') return false;
   const t = stripQuotedSpans(orderText(raw ?? ''));
-  return hasExplicitSharepicWord(t) && !asksForSharepic(t) && !POST_NOUN_PATTERN.test(t);
+  if (!hasExplicitSharepicWord(t) || asksForSharepic(t) || POST_NOUN_PATTERN.test(t)) return false;
+  // „Danke, das Sharepic sieht super aus", „der Slider hakt": ein vorhandenes,
+  // kein neues — dafür gibt es die Bearbeitungswege, kein Erstell-Werkzeug.
+  if (refersToExistingSharepic(t)) return false;
+  // „Slider" allein ist auch ein Bedienelement („einen Slider auf der Website").
+  // Ohne ein zweites Sharepic-Wort reicht es nur für eine Bestellung.
+  return hasExplicitSharepicWord(t.replace(/(?<!\p{L})slider[ns]?(?!\p{L})/giu, ' '));
 }
 
 /**

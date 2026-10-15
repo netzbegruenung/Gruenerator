@@ -1316,6 +1316,11 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       // 15.10.2026). Dasselbe Prädikat wie der Router, damit beide dieselbe Art
       // lesen. Arten ohne eigenen Intent (Dokument, Board) bleiben `produktion`;
       // die hebt der Router mit dem Werkzeug in den Loop.
+      //
+      // Bewusst VOR dem Notebook-Zweig darunter: dessen erzwungene Suche baute
+      // nie ein Artefakt (`search` hat keine Erstell-Art), ein Notebook-Agent
+      // beantwortete „mach daraus eine Präsentation" also mit Text. Der bestellte
+      // Gegenstand und sein Stoff im Anhang gehen der Notebook-Erdung vor.
       const orderedKind = compoundGenerationKind('produktion', askText);
       const orderedIntent = orderedKind ? artifactKind(orderedKind).intent : null;
       if (orderedKind && orderedIntent) {
