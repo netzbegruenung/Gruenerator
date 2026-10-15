@@ -1,227 +1,94 @@
-import {
-  agentsList,
-  useHiddenSkillMentions,
-  useUserLandesverbaende,
-  type AgentListItem,
-} from '@gruenerator/chat';
-import { type TextForm, type UserLibraryItemKind } from '@gruenerator/contracts';
+import { type AgentListItem } from '@gruenerator/chat';
+import { type TextForm } from '@gruenerator/contracts';
 import {
   AGENTURA_TYPE_LABELS,
-  DEFAULT_CATEGORY,
-  DEFAULT_TYPE,
   SKILL_CATEGORY_LABELS,
   SKILL_CATEGORY_ORDER,
   agentKey,
   agentRef,
-  agenturaCategoriesForPlatform,
   agenturaMetaLine,
-  getSystemAgent,
-  getVisibleSystemAgentsForLocale,
-  isAdminVisibleSkill,
-  isAgentVisibleForPlatform,
   isLandesverbandIdentifier,
-  isLvItemVisibleForRoles,
-  isSkillOfferedIn,
   landesverbandLabel,
   landesverbandRegion,
-  matchesAgenturaType,
   type Agent,
-  type AgenturaCategoryKey,
-  type AgenturaType,
 } from '@gruenerator/shared/agents';
-import { useAuth } from '@gruenerator/shared/hooks';
-import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
-import { useRouter } from 'expo-router';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
-import {
-  View,
-  Text,
-  Pressable,
-  FlatList,
-  StyleSheet,
-  TextInput,
-  useColorScheme,
-} from 'react-native';
+import { View, Text, SectionList, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AgenturaSheet } from '../../components/agentura/AgenturaSheet';
 import { MarketCard } from '../../components/agentura/MarketCard';
-import { ShelfTabs, TypeFilterRow } from '../../components/agentura/MarketFilters';
+import {
+  searchTextOf,
+  type MarketAisle,
+  type MarketItem,
+} from '../../components/agentura/marketItem';
+import { SearchField } from '../../components/agentura/SearchField';
 import { agentIcon } from '../../components/chat/sidebarIcons';
-import { ListGroup, SkeletonRows } from '../../components/common';
+import { Button, ListGroup, SkeletonRows } from '../../components/common';
+import { Fab } from '../../components/common/Fab';
 import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
-import { CURRENT_INSTANCE } from '../../config/instance';
+import { useAgenturaCatalog } from '../../hooks/agents/useAgenturaCatalog';
 import { useOwnRecipes } from '../../hooks/agents/useOwnRecipes';
 import { usePublicUserAgents } from '../../hooks/agents/usePublicUserAgents';
 import { useUserAgents } from '../../hooks/agents/useUserAgents';
 import { useUserLibrary } from '../../hooks/agents/useUserLibrary';
-import { spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
+import { useTheme } from '../../hooks/useTheme';
+import { colors, spacing, BODY_FONT, HEADING_FONT_SEMIBOLD } from '../../theme';
 import { CONTENT_MAX_WIDTH } from '../../theme/layout';
 import { routeWithParams } from '../../types/routes';
 import { goBackOr } from '../../utils/navigation';
 
-/**
- * Regal-Schild je Kategorie. Ein `Record` über die volle Schlüssel-Union, nicht
- * ein Nachschlagen mit Rückfall: ein neues Regal in der geteilten Registry
- * scheitert hier am Compiler, bis es ein Symbol hat. `empfohlen` und
- * `favoriten` sind stillgelegt (`platforms: []`) und erscheinen nie — der
- * Eintrag bleibt trotzdem, weil der Typ die Union verlangt.
- */
-const SHELF_ICONS: Record<AgenturaCategoryKey, IoniconsIconName> = {
-  empfohlen: 'star-outline',
-  meine: 'sparkles-outline',
-  landesverband: 'location-outline',
-  community: 'globe-outline',
-  gruenerator: 'storefront-outline',
-  favoriten: 'star',
-};
+const SECTION_KINDS = ['agent', 'recipe'] as const;
 
 /**
- * Nur die Gattungen, die es mobil gibt. „Wiederkehrend" und „Favoriten" führt
- * dieser Bildschirm nicht — sie kämen immer leer zurück.
- */
-const MOBILE_TYPE_FILTERS = (['all', 'agent', 'recipe'] as const).map((id) => ({
-  id,
-  label: AGENTURA_TYPE_LABELS[id],
-}));
-
-/**
- * The Agentura — the market of Grüneratoren, as a full screen in the style of
- * the four tabs.
+ * „Grüneratoren" — womit die Person arbeitet: eigene Agents und Rezepte und was
+ * sie aus der Agentura dazugeholt hat, in einer Liste ohne Regale. Die Agentura
+ * selbst ist ein Sheet darüber (`AgenturaSheet`), wie im Web das Popup über
+ * `/grueneratoren`; `?agentura=1` öffnet sie direkt.
  *
- * Creating, editing and sharing stay on web. Deshalb trägt die Kachel hier kein
- * Aktionsmenü und die Seite keinen „Neu"-Knopf — beides zeigte nur Wege, die auf
- * dem Telefon nirgends hinführen. Die eine Aktion, die es gibt, ist dieselbe wie
- * in der Agentura im Web: „Zu meinen Grüneratoren" (das Plus an der Karte). Was
- * so dazukommt, steht am Konto (`useUserLibrary`) und im Regal „Meine
- * Grüneratoren" neben dem Eigenen — auf beiden Plattformen.
- * Aus demselben Grund bietet der Typ-Filter nur „Alle", „Agents" und
- * „Rezepte": wiederkehrende Aufgaben und Favoriten gibt es mobil nicht, und ein
- * Filter, der immer leer zurückkommt, ist ein kaputter Filter.
- *
- * Regale und Typ-Filter sind dieselben wie im Web (`agenturaCategoriesForPlatform`,
- * `matchesAgenturaType`), und das Regal ist wie dort eine flache Liste statt
- * überschriebener Abschnitte.
+ * Anlegen, Bearbeiten und Teilen bleiben im Web. Mit Projekten geteilte Agents
+ * und Rezepte führt die App (noch) nicht — dafür bräuchte sie je Projekt einen
+ * Abruf der geteilten Inhalte. Wiederkehrende Aufgaben gibt es mobil nicht.
  */
 export default function AgentsScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  const theme = isDark ? darkTheme : lightTheme;
+  const theme = useTheme();
   const router = useRouter();
-  const { locale } = useAuth();
+  const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ agentura?: string }>();
 
-  const [shelf, setShelf] = useState<AgenturaCategoryKey>(DEFAULT_CATEGORY);
-  const [type, setType] = useState<AgenturaType>(DEFAULT_TYPE);
   const [search, setSearch] = useState('');
+  const [shopOpen, setShopOpen] = useState(params.agentura === '1');
+  // A deep link into an already open overview only changes its params.
+  const [linkedShop, setLinkedShop] = useState(params.agentura);
+  if (params.agentura !== linkedShop) {
+    setLinkedShop(params.agentura);
+    if (params.agentura === '1') setShopOpen(true);
+  }
+  const [shopQuery, setShopQuery] = useState('');
   const query = search.trim().toLowerCase();
 
-  const { data: userAgents = [], isLoading, error } = useUserAgents();
+  const { data: userAgents = [], isSuccess: agentsLoaded, isError: agentsFailed } = useUserAgents();
+  const { data: publicAgents = [], isLoading: publicLoading } = usePublicUserAgents();
   const {
-    data: publicAgents = [],
-    isLoading: publicLoading,
-    error: publicError,
-  } = usePublicUserAgents();
-  const { data: ownRecipes = [] } = useOwnRecipes();
+    data: ownRecipes = [],
+    isSuccess: recipesLoaded,
+    isError: recipesFailed,
+  } = useOwnRecipes();
   const library = useUserLibrary();
-
-  // Die Landesverbands-Zuteilung: LV-Agents und -Rezepte gehören den
-  // Leuten des jeweiligen Verbands, gebunden an die Rolle „Mitarbeiter*in
-  // Landesgeschäftsstelle". Gefiltert wird an der QUELLE — beide Regale, die
-  // Kategorien und die Suche erben es damit von selbst; ein Filter nur auf den
-  // Regalen ließe die Suche finden, was die Liste verbirgt.
-  //
-  // `lvIds === null` heißt „Rollen noch nicht geladen" und lässt durch, damit
-  // die Ladephase nichts wegnimmt, was gleich wieder erscheint.
-  const { lvIds, shelfLabel: lvShelfLabel, isHydrated: rolesLoaded } = useUserLandesverbaende();
-
-  const systemAgents = useMemo(
-    () =>
-      getVisibleSystemAgentsForLocale(locale, CURRENT_INSTANCE).filter(
-        (a) =>
-          isAgentVisibleForPlatform(a, 'mobile') && isLvItemVisibleForRoles(a.identifier, lvIds)
-      ),
-    [locale, lvIds]
-  );
-  const generalSystemAgents = useMemo(
-    () => systemAgents.filter((a) => !isLandesverbandIdentifier(a.identifier)),
-    [systemAgents]
-  );
-  const lvSystemAgents = useMemo(
-    () => systemAgents.filter((a) => isLandesverbandIdentifier(a.identifier)),
-    [systemAgents]
-  );
+  const catalog = useAgenturaCatalog();
 
   const ownAgentKeys = useMemo(() => new Set(userAgents.map(agentKey)), [userAgents]);
 
   // „Öffentlich": publicly-listed community agents, minus the ones the user
-  // already owns (those show under "Meine Grüneratoren"). By `agentKey`: a
-  // colleague's agent under one of the user's identifiers is still theirs.
+  // already owns. By `agentKey`: a colleague's agent under one of the user's
+  // identifiers is still theirs.
   const communityAgents = useMemo(
     () => publicAgents.filter((pa) => !ownAgentKeys.has(agentKey(pa))),
     [publicAgents, ownAgentKeys]
   );
-
-  const hiddenSkillMentions = useHiddenSkillMentions();
-
-  // Recipes ("Rezepte") whose owning agent is hidden on mobile would open a chat
-  // with an agent this app cannot render, so they are filtered the same way the
-  // agents are. Also drops anything an admin hid from discovery on this
-  // deployment, and anything this instance does not carry at all — the same
-  // three questions web's AgenturaPage asks.
-  const skills = useMemo(
-    () =>
-      agentsList.filter((s) => {
-        if (s.audience !== undefined && s.audience !== 'all' && s.audience !== locale) return false;
-        if (!isAdminVisibleSkill(s.mention, hiddenSkillMentions)) return false;
-        if (!isSkillOfferedIn(s, CURRENT_INSTANCE)) return false;
-        if (!isLvItemVisibleForRoles(s.identifier, lvIds)) return false;
-        const owner = getSystemAgent(s.identifier);
-        return !owner || isAgentVisibleForPlatform(owner, 'mobile');
-      }),
-    [locale, hiddenSkillMentions, lvIds]
-  );
-  const lvSkills = useMemo(
-    () => skills.filter((s) => isLandesverbandIdentifier(s.identifier)),
-    [skills]
-  );
-  const skillsByCategory = useMemo(() => {
-    const map = new Map<string, AgentListItem[]>();
-    for (const skill of skills) {
-      if (isLandesverbandIdentifier(skill.identifier)) continue;
-      const cat = skill.skillCategory ?? 'sonstiges';
-      map.set(cat, [...(map.get(cat) ?? []), skill]);
-    }
-    return map;
-  }, [skills]);
-
-  // Was „Zu meinen Grüneratoren" auflösen kann, nach Verweis — dieselben
-  // Verweise wie im Web: agentRef bei Agents (uuid bei fremden), Mention bei
-  // Katalog-Rezepten. Landesverbands-Inhalte erst mit geladenen Rollen, sonst
-  // stünden kurz die Inhalte aller Verbände in „Meine". Öffentliche
-  // Nutzer-Rezepte führt die App nicht; ein solcher Verweis bleibt hier aus und
-  // erscheint im Web.
-  const libraryAgents = useMemo(() => {
-    const lv = rolesLoaded ? lvSystemAgents : [];
-    const map = new Map<string, Agent>();
-    for (const agent of [...generalSystemAgents, ...lv, ...communityAgents])
-      map.set(agentRef(agent, false), agent);
-    return map;
-  }, [generalSystemAgents, lvSystemAgents, communityAgents, rolesLoaded]);
-  const librarySkills = useMemo(
-    () =>
-      new Map(
-        skills
-          .filter((s) => rolesLoaded || !isLandesverbandIdentifier(s.identifier))
-          .map((s) => [s.mention, s])
-      ),
-    [skills, rolesLoaded]
-  );
-  const addedAgents = library.items.flatMap((i) => {
-    const agent = i.kind === 'agent' ? (libraryAgents.get(i.ref) ?? null) : null;
-    return agent ? [agent] : [];
-  });
-  const addedSkills = library.items.flatMap((i) => {
-    const skill = i.kind === 'recipe' ? (librarySkills.get(i.ref) ?? null) : null;
-    return skill ? [skill] : [];
-  });
 
   const openAgent = useCallback(
     (agent: Agent) => {
@@ -250,47 +117,6 @@ export default function AgentsScreen() {
     [router]
   );
 
-  const openSkill = useCallback(
-    (skill: AgentListItem) => openWithComposerText(`${skill.mention} `),
-    [openWithComposerText]
-  );
-
-  // Das Landesverbands-Regal nennt seinen Verband beim Namen („Grüne Hessen").
-  // Vor der Hydratation ist `lvIds` `null` — der Name stünde also nicht fest und
-  // das Regal zeigte obendrein die Inhalte ALLER Verbände (der sichere Ausgang
-  // für Filter, siehe `useUserLandesverbaende`). Deshalb erscheint es erst, wenn
-  // die Rollen geladen sind, und trägt dann `lvShelfLabel` statt `cat.label`.
-  const shelves = useMemo(
-    () =>
-      agenturaCategoriesForPlatform('mobile')
-        .filter((c) => c.key !== 'landesverband' || rolesLoaded)
-        .map((c) => (c.key === 'landesverband' ? { ...c, label: lvShelfLabel } : c)),
-    [rolesLoaded, lvShelfLabel]
-  );
-  const activeShelf = shelves.find((c) => c.key === shelf);
-
-  const matches = (fields: (string | undefined)[]) =>
-    fields.some((f) => f?.toLowerCase().includes(query));
-
-  /**
-   * Eine fertig gezeichnete Kachel. Keine Union über die Quellen: Agent, Rezept
-   * aus dem Katalog und eigenes Rezept unterscheiden sich hier nur noch in
-   * Symbol, Zeile und Ziel — `kind` und `isFavorite` sind alles, was der
-   * gemeinsame Typ-Filter braucht.
-   */
-  interface MarketItem {
-    key: string;
-    kind: 'agent' | 'recipe';
-    isFavorite: boolean;
-    /** Verweis für „Zu meinen Grüneratoren"; `null` bei Eigenem. */
-    libraryRef: { kind: UserLibraryItemKind; ref: string } | null;
-    icon: IoniconsIconName;
-    title: string;
-    meta: string;
-    description?: string;
-    onPress: () => void;
-  }
-
   const agentItem = (agent: Agent): MarketItem => ({
     key: `a-${agentKey(agent)}`,
     kind: 'agent',
@@ -298,14 +124,17 @@ export default function AgentsScreen() {
     libraryRef: ownAgentKeys.has(agentKey(agent))
       ? null
       : { kind: 'agent', ref: agentRef(agent, false) },
+    systemRecipe: false,
     icon: agentIcon(agent.iconKey),
     title: agent.title,
     meta: agenturaMetaLine([
       'Agent',
       isLandesverbandIdentifier(agent.identifier) && landesverbandLabel(agent.identifier),
     ]),
+    author: agent.author,
     description: agent.description,
-    onPress: () => openAgent(agent),
+    searchText: searchTextOf([agent.title, agent.description, agent.identifier]),
+    onOpen: () => openAgent(agent),
   });
 
   const skillItem = (skill: AgentListItem): MarketItem => ({
@@ -313,6 +142,7 @@ export default function AgentsScreen() {
     kind: 'recipe',
     isFavorite: false,
     libraryRef: { kind: 'recipe', ref: skill.mention },
+    systemRecipe: true,
     icon: agentIcon(skill.iconKey),
     title: skill.title,
     meta: agenturaMetaLine([
@@ -322,7 +152,8 @@ export default function AgentsScreen() {
         : SKILL_CATEGORY_LABELS[skill.skillCategory ?? 'sonstiges'],
     ]),
     description: skill.description,
-    onPress: () => openSkill(skill),
+    searchText: searchTextOf([skill.title, skill.description, skill.mention]),
+    onOpen: () => openWithComposerText(`${skill.mention} `),
   });
 
   const recipeItem = (recipe: TextForm): MarketItem => ({
@@ -330,169 +161,153 @@ export default function AgentsScreen() {
     kind: 'recipe',
     isFavorite: false,
     libraryRef: null,
+    systemRecipe: false,
     icon: agentIcon(recipe.iconKey ?? 'sparkles'),
     title: recipe.title,
     meta: 'Rezept',
     description: recipe.description ?? `@${recipe.mention}`,
-    onPress: () => openWithComposerText(`@${recipe.mention} `),
+    searchText: searchTextOf([recipe.title, recipe.description, recipe.mention]),
+    onOpen: () => openWithComposerText(`@${recipe.mention} `),
   });
 
-  const emptyNote = (text: string): ReactNode => (
+  // Was die Agentura anbietet, nach Verweis — dieselben Verweise wie im Web:
+  // agentRef bei Agents (uuid bei fremden), Mention bei Katalog-Rezepten.
+  // Landesverbands-Inhalte erst mit geladenen Rollen, sonst stünden kurz die
+  // Inhalte aller Verbände auf der Übersicht. Öffentliche Nutzer-Rezepte führt
+  // die App nicht; ein solcher Verweis bleibt hier aus und erscheint im Web.
+  const shopAgents = useMemo(() => {
+    const lv = catalog.rolesLoaded ? catalog.lvSystemAgents : [];
+    const map = new Map<string, Agent>();
+    for (const agent of [...catalog.generalSystemAgents, ...lv, ...communityAgents])
+      map.set(agentRef(agent, false), agent);
+    return map;
+  }, [catalog.generalSystemAgents, catalog.lvSystemAgents, catalog.rolesLoaded, communityAgents]);
+  const shopSkills = useMemo(
+    () =>
+      new Map(
+        catalog.skills
+          .filter((s) => catalog.rolesLoaded || !isLandesverbandIdentifier(s.identifier))
+          .map((s) => [s.mention, s])
+      ),
+    [catalog.skills, catalog.rolesLoaded]
+  );
+  const addedAgents = library.items.flatMap((i) => {
+    const agent = i.kind === 'agent' ? (shopAgents.get(i.ref) ?? null) : null;
+    return agent && !ownAgentKeys.has(agentKey(agent)) ? [agent] : [];
+  });
+  const addedSkills = library.items.flatMap((i) => {
+    const skill = i.kind === 'recipe' ? (shopSkills.get(i.ref) ?? null) : null;
+    return skill ? [skill] : [];
+  });
+
+  const allItems: MarketItem[] = [
+    ...userAgents.map(agentItem),
+    ...ownRecipes.map(recipeItem),
+    ...addedAgents.map(agentItem),
+    ...addedSkills.map(skillItem),
+  ];
+  const items = query ? allItems.filter((item) => item.searchText.includes(query)) : allItems;
+  const sections = SECTION_KINDS.map((kind) => ({
+    key: kind,
+    title: AGENTURA_TYPE_LABELS[kind],
+    data: items.filter((item) => item.kind === kind),
+  })).filter((section) => section.data.length > 0);
+
+  // „Leer" erst, wenn alles geladen ist — vorher sind die Listen nur leere
+  // Rückfälle, und „Noch nichts hier" wäre eine Behauptung ohne Grundlage.
+  const settled = agentsLoaded && recipesLoaded && library.loaded;
+  const failed = agentsFailed || recipesFailed || library.failed;
+
+  // Nach Region statt nach Nutzung: bei mehreren Zuteilungen sollen die Sachen
+  // eines Verbands beieinanderstehen.
+  const byRegion = <T,>(list: readonly T[], id: (t: T) => string): T[] =>
+    [...list].sort((a, b) => landesverbandRegion(id(a)).localeCompare(landesverbandRegion(id(b))));
+  const pinned = catalog.generalSystemAgents.filter((a) => a.pinnedToSidebar);
+  const unpinned = catalog.generalSystemAgents.filter((a) => !a.pinnedToSidebar);
+  const aisles: MarketAisle[] = [
+    {
+      key: 'offiziell',
+      title: 'Offizielle Grüneratoren',
+      items: [
+        ...[...pinned, ...unpinned].map(agentItem),
+        ...SKILL_CATEGORY_ORDER.flatMap((cat) =>
+          (catalog.skillsByCategory.get(cat) ?? []).map(skillItem)
+        ),
+      ],
+    },
+    {
+      key: 'landesverband',
+      // Erst nach der Hydratation der Profilrollen: vorher lässt `lvIds === null`
+      // jeden Verband durch, und der Gang hieße kurz „Dein Landesverband" mit
+      // fremden Inhalten, bevor er auf „Grüne Hessen" umspringt.
+      title: catalog.lvShelfLabel,
+      items: catalog.rolesLoaded
+        ? [
+            ...byRegion(catalog.lvSystemAgents, (a) => a.identifier).map(agentItem),
+            ...byRegion(catalog.lvSkills, (s) => s.identifier).map(skillItem),
+          ]
+        : [],
+    },
+    { key: 'oeffentlich', title: 'Öffentlich', items: communityAgents.map(agentItem) },
+  ];
+
+  const openShop = (initialQuery: string) => {
+    setShopQuery(initialQuery);
+    setShopOpen(true);
+  };
+
+  const note = (text: string, action: ReactNode = null): ReactNode => (
     <View style={styles.empty}>
       <Ionicons name="sparkles-outline" size={40} color={theme.textSecondary} />
       <Text style={[styles.emptyText, { color: theme.textSecondary }]}>{text}</Text>
+      {action}
     </View>
   );
 
-  // What a shelf looks like before it arrives.
-  const shelfSkeleton = (
+  const placeholder: ReactNode = failed ? (
+    note('Deine Grüneratoren konnten nicht geladen werden. Versuch es gleich noch einmal.')
+  ) : !settled ? (
     <ListGroup>
       <SkeletonRows count={6} leading={44} on="card" />
     </ListGroup>
+  ) : allItems.length === 0 ? (
+    note(
+      'Noch nichts hier. Hol dir Agents und Rezepte aus der Agentura — eigene legst du am Rechner an.',
+      <Button onPress={() => openShop('')}>Zur Agentura</Button>
+    )
+  ) : (
+    note(
+      'Bei deinen Grüneratoren ist nichts dabei — vielleicht in der Agentura.',
+      <Button variant="outline" onPress={() => openShop(search.trim())}>
+        In der Agentura suchen
+      </Button>
+    )
   );
-
-  // --- Items ----------------------------------------------------------------
-  // Jedes Regal ist eine flache Liste. Die Reihenfolge trägt, was vorher
-  // Abschnittsüberschriften trugen: Eigenes zuerst, Angeheftetes vor dem Rest,
-  // Landesverbände nach Region.
-  let shelfItems: MarketItem[] = [];
-  let loading = false;
-  let loadError: string | null = null;
-
-  if (query) {
-    shelfItems = [
-      ...[...userAgents, ...communityAgents, ...systemAgents]
-        .filter((a) => matches([a.title, a.description, a.identifier]))
-        .map(agentItem),
-      ...ownRecipes
-        .filter((r) => matches([r.title, r.description ?? undefined, r.mention]))
-        .map(recipeItem),
-      ...skills.filter((s) => matches([s.title, s.description, s.mention])).map(skillItem),
-    ];
-  } else if (shelf === 'meine') {
-    loading = isLoading || (!library.loaded && !library.failed);
-    loadError = error ? 'Deine Agents konnten nicht geladen werden.' : null;
-    shelfItems = [
-      ...userAgents.map(agentItem),
-      ...ownRecipes.map(recipeItem),
-      ...addedAgents.map(agentItem),
-      ...addedSkills.map(skillItem),
-    ];
-  } else if (shelf === 'landesverband') {
-    const byRegion = <T,>(list: readonly T[], id: (t: T) => string): T[] =>
-      [...list].sort((a, b) =>
-        landesverbandRegion(id(a)).localeCompare(landesverbandRegion(id(b)))
-      );
-    shelfItems = [
-      ...byRegion(lvSystemAgents, (a) => a.identifier).map(agentItem),
-      ...byRegion(lvSkills, (s) => s.identifier).map(skillItem),
-    ];
-  } else if (shelf === 'community') {
-    loading = publicLoading;
-    loadError = publicError ? 'Die öffentlichen Agents konnten nicht geladen werden.' : null;
-    shelfItems = communityAgents.map(agentItem);
-  } else {
-    // „Offizielle": die angehefteten zuerst — das ist, was „Empfohlen" als
-    // eigenes Regal war, bevor es eine Reihung wurde.
-    const pinned = generalSystemAgents.filter((a) => a.pinnedToSidebar);
-    const rest = generalSystemAgents.filter((a) => !a.pinnedToSidebar);
-    shelfItems = [
-      ...[...pinned, ...rest].map(agentItem),
-      ...SKILL_CATEGORY_ORDER.flatMap((cat) => (skillsByCategory.get(cat) ?? []).map(skillItem)),
-    ];
-  }
-
-  const items = shelfItems.filter((item) => matchesAgenturaType(type, item));
-  const filteredOut = shelfItems.length > 0 && items.length === 0;
-
-  const emptyText = filteredOut
-    ? 'Hier gibt es nichts dieser Art. Wähl oben „Alle", um wieder alles zu sehen.'
-    : query
-      ? 'Keine Treffer. Versuch ein anderes Stichwort.'
-      : (activeShelf?.emptyText ?? 'Hier ist gerade nichts vorhanden.');
-
-  // Shown in place of the list: skeleton, error or the empty note.
-  const placeholder: ReactNode = loading
-    ? shelfSkeleton
-    : loadError
-      ? emptyNote(loadError)
-      : emptyNote(emptyText);
 
   return (
     <ScreenScaffold title="Grüneratoren" onBack={() => goBackOr('/start')}>
-      <View style={styles.column}>
-        <View style={styles.controls}>
-          <View
-            style={[
-              styles.searchField,
-              { backgroundColor: theme.surface, borderColor: theme.border },
-            ]}
-          >
-            <Ionicons name="search" size={18} color={theme.textSecondary} />
-            <TextInput
-              value={search}
-              onChangeText={setSearch}
-              placeholder="Grüneratoren und Rezepte durchsuchen"
-              placeholderTextColor={theme.textSecondary}
-              style={[styles.searchInput, { color: theme.text }]}
-              returnKeyType="search"
-              autoCorrect={false}
-              accessibilityLabel="Grüneratoren und Rezepte durchsuchen"
-            />
-            {search.length > 0 && (
-              <Pressable
-                onPress={() => setSearch('')}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel="Suche zurücksetzen"
-              >
-                <Ionicons name="close-circle" size={18} color={theme.textSecondary} />
-              </Pressable>
-            )}
-          </View>
-        </View>
-
-        {/* Hidden while searching: results already run across every shelf, so a
-          highlighted tab would claim a filter that isn't being applied. */}
-        {!query && (
-          <ShelfTabs
-            options={shelves.map((c) => ({
-              id: c.key,
-              label: c.label,
-              icon: SHELF_ICONS[c.key],
-            }))}
-            active={shelf}
-            onSelect={(key) => {
-              setShelf(key);
-              // Sonst öffnet das nächste Regal vorgefiltert auf eine Gattung, die
-              // es vielleicht gar nicht führt — und liest sich als leer.
-              setType(DEFAULT_TYPE);
-            }}
-          />
-        )}
-
-        <View style={styles.typeRow}>
-          <TypeFilterRow options={MOBILE_TYPE_FILTERS} active={type} onSelect={setType} />
-        </View>
+      <View style={[styles.column, styles.controls]}>
+        <SearchField value={search} onChange={setSearch} placeholder="Grüneratoren durchsuchen" />
       </View>
 
-      {/* A virtualised list, not a ScrollView: the official and Landesverband
-          shelves run to well over a hundred cards, and building all of them in
-          one go landed on the push animation — and again on every keystroke of
-          the search. */}
-      <FlatList
-        data={loading || loadError ? [] : items}
+      <SectionList
+        sections={settled && !failed ? sections : []}
         keyExtractor={(item) => item.key}
-        // Das Plus liest `library` aus dem Abschluss — ohne extraData zeichnet die
-        // Liste nach dem Umschalten nicht neu, weil `data` gleich bleibt.
+        // Das Häkchen liest `library` aus dem Abschluss — ohne extraData zeichnet
+        // die Liste nach dem Umschalten nicht neu.
         extraData={library.items}
+        renderSectionHeader={({ section }) => (
+          <Text style={[styles.sectionTitle, { color: theme.text }]} accessibilityRole="header">
+            {section.title}
+          </Text>
+        )}
         renderItem={({ item }) => (
           <MarketCard
             icon={item.icon}
             title={item.title}
             meta={item.meta}
             description={item.description}
-            onPress={item.onPress}
+            onPress={item.onOpen}
             added={item.libraryRef ? library.has(item.libraryRef.kind, item.libraryRef.ref) : null}
             onToggleAdded={() => {
               if (item.libraryRef) library.toggle(item.libraryRef.kind, item.libraryRef.ref);
@@ -501,11 +316,32 @@ export default function AgentsScreen() {
         )}
         ItemSeparatorComponent={ListGap}
         ListEmptyComponent={<>{placeholder}</>}
+        stickySectionHeadersEnabled={false}
         initialNumToRender={8}
         style={styles.scroll}
         contentContainerStyle={[styles.column, styles.scrollContent]}
         showsVerticalScrollIndicator={false}
         keyboardDismissMode="on-drag"
+      />
+
+      <Fab
+        icon="storefront-outline"
+        label="Agentura"
+        accessibilityLabel="Agentura öffnen"
+        onPress={() => openShop('')}
+        style={{
+          backgroundColor: colors.secondary[600],
+          bottom: Math.max(insets.bottom, spacing.medium),
+        }}
+      />
+
+      <AgenturaSheet
+        visible={shopOpen}
+        onClose={() => setShopOpen(false)}
+        aisles={aisles}
+        publicLoading={publicLoading}
+        initialQuery={shopQuery}
+        library={library}
       />
     </ScreenScaffold>
   );
@@ -526,39 +362,24 @@ const styles = StyleSheet.create({
   controls: {
     paddingHorizontal: spacing.medium,
     paddingTop: spacing.xsmall,
-    paddingBottom: spacing.medium,
-    gap: spacing.small,
-  },
-  searchField: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xsmall,
-    paddingHorizontal: spacing.medium,
-    height: 44,
-    borderRadius: borderRadius.full,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  searchInput: {
-    flex: 1,
-    fontFamily: BODY_FONT,
-    fontSize: 15,
-    paddingVertical: 0,
+    paddingBottom: spacing.small,
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: spacing.medium,
-    // Clears the floating tab capsule and leaves the last row room to breathe
-    // rather than ending flush against the bottom edge.
+    // Clears the extended FAB, so the last card is never hidden under it.
     paddingBottom: spacing.xxlarge * 2,
+  },
+  sectionTitle: {
+    fontFamily: HEADING_FONT_SEMIBOLD,
+    fontSize: 17,
+    paddingTop: spacing.medium,
+    paddingBottom: spacing.small,
   },
   gap: {
     height: spacing.small,
-  },
-  typeRow: {
-    paddingTop: spacing.small,
-    paddingBottom: spacing.small,
   },
   empty: {
     alignItems: 'center',
