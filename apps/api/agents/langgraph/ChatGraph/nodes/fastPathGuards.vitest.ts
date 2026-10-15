@@ -464,6 +464,36 @@ describe('Karussell gehört zum Sharepic-Wortschatz', () => {
   });
 });
 
+// 15.10.2026: „wandle diese pm in einen sharepic slider um" unter einer
+// eingefügten PM kam als Textgliederung zurück. Umwandeln ist Erzeugen, und
+// „Slider" heissen die Karussells im Chat.
+describe('Umwandeln und Slider bestellen ein Sharepic', () => {
+  it.each([
+    'wandle diese pm in einen sharepic slider um',
+    'Wandel die Pressemitteilung in ein Sharepic um.',
+    'verwandle die PM in ein Karussell',
+    'Bitte die Rede in ein Sharepic umwandeln.',
+    'mach daraus einen Slider',
+    'Erstelle einen Slider zu unseren Kita-Forderungen.',
+  ])('bestellt: %s', (text) => {
+    expect(asksForSharepic(text)).toBe(true);
+  });
+
+  it.each([
+    // Nomen, kein Verb — als Aussagesatz, nicht nur als Frage.
+    'Die Umwandlung der PM in ein Sharepic hat gestern gut geklappt.',
+    'Die Verwandlung in ein Karussell war ihre Idee.',
+    'Was ist ein Slider?',
+    'Mach den Post ohne Slider.',
+  ])('kein Auftrag: %s', (text) => {
+    expect(asksForSharepic(text)).toBe(false);
+  });
+
+  it('„Slider" ist Sharepic-Wortschatz', () => {
+    expect(hasExplicitSharepicWord('Der Slider zur Kreisumlage ist fertig.')).toBe(true);
+  });
+});
+
 // 06.10.2026: „Mach eine Infografik zu …" fiel in den agentischen Loop. Der
 // Sharepic-Creator setzt Zahlen als Diagramm — das ist die Infografik.
 describe('Infografik gehört zum Sharepic-Wortschatz', () => {

@@ -344,8 +344,14 @@ export function forbidsNewResearch(text: string): boolean {
  *
  * Callers build their patterns at MODULE scope: new RegExp compiles per call,
  * unlike a regex literal.
+ *
+ * Umwandeln ist Erzeugen (15.10.2026): „wandle diese PM in einen Sharepic-Slider
+ * um" kam als Textgliederung zurück, weil kein Verb hier passte. Nur Verbformen
+ * (`wandle`, `wandel(n)`, `umwandeln`, `verwandle`), nicht die Nomen „Umwandlung"
+ * oder „Verwandlung".
  */
-export const CREATION_VERB_CORE = 'erstell|erzeug|generier|mach|bau|entwirf|entwerf|gestalte';
+export const CREATION_VERB_CORE =
+  'erstell|erzeug|generier|mach|bau|entwirf|entwerf|gestalte|(?:um|ver)?wand(?:le|el)';
 
 /** Any core creation verb, any inflection, anywhere — "is this an order at all?" */
 export const CREATION_VERB_RE = new RegExp(`\\b(?:${CREATION_VERB_CORE})[a-zäöü]*\\b`, 'i');
@@ -477,10 +483,14 @@ export const EXPLAINABLE_ORDER_PATTERN = creationOrderPattern(EXPLAINABLE_NOUN, 
  * „Infografik" (06.10.2026): der Sharepic-Creator setzt Zahlen als Diagramm,
  * Icon-Liste oder Vergleich — genau das ist eine Infografik. Ohne das Wort
  * fiel „Mach eine Infografik zu …" in den agentischen Loop.
+ *
+ * „Slider" (15.10.2026): so heissen die Karussells im Chat und im Creator
+ * (`sharepicCreator/forms.ts`) — „wandle diese PM in einen Sharepic-Slider um"
+ * war der Live-Fall, „mach daraus einen Slider" trug das Wort gar nicht.
  */
 export const SHAREPIC_NOUN_SRC =
   'share[\\s-]?pics?|sharepics?|spruchbild\\w*|zitatbild\\w*|drei[\\s-]?zeiler\\w*' +
-  '|karussell\\w*|carousels?|infografik\\w*|infographics?|faktenbild\\w*';
+  '|karussell\\w*|carousels?|slider[ns]?|infografik\\w*|infographics?|faktenbild\\w*';
 export const SHAREPIC_WORD_RE = new RegExp(`\\b(${SHAREPIC_NOUN_SRC})\\b`, 'i');
 // Ein Satz, der nur aus dem Nomen besteht („Ein Karussell?", „Instagram-Karussell.").
 const BARE_SHAREPIC_NOUN_RE = new RegExp(
