@@ -52,7 +52,7 @@ export function extractInheritablePageState(
   // A composed sharepic's background is more than the keys above: a gradient
   // (`sc-bg`), the colour beside a photo strip (`sc-panel`, with the photo
   // shifted into the strip via imageOffset), the AT strip tint and the photo
-  // scrim are locked shapes. Without them a new page from a strip slide shows
+  // scrim are shapes. Without them a new page from a strip slide shows
   // a blank band where the panel was, and one from a gradient slide is flat.
   const shapes = Array.isArray(state.shapeInstances)
     ? (state.shapeInstances as ShapeInstance[])

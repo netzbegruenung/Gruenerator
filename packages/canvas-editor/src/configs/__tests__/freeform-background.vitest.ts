@@ -45,7 +45,6 @@ const CREDIT = {
 const planeShape = (id: string): ShapeInstance => ({
   ...createShape('rect', 540, 540, '#005538', '#005538'),
   id,
-  locked: true,
 });
 const userShape = { ...createShape('rect', 100, 100, '#ff0000', '#ff0000'), id: 'shape-own' };
 

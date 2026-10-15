@@ -19,26 +19,21 @@ function rectNode(shape: ShapeInstance) {
   return stage.findOne(`.shape-${shape.id}`)!;
 }
 
-const plane = (id: string, locked?: boolean): ShapeInstance => {
-  const shape = { ...createShape('rect', 300, 300, '#005538', '#005538'), id };
-  if (locked !== undefined) shape.locked = locked;
-  return shape;
-};
+const plane = (id: string): ShapeInstance => ({
+  ...createShape('rect', 300, 300, '#005538', '#005538'),
+  id,
+});
 
-describe('locked shapes', () => {
-  it('a locked plane is drawn but neither hit-tested nor draggable', () => {
-    const node = rectNode(plane('sc-bg', true));
-    expect(node.listening()).toBe(false);
-    expect(node.draggable()).toBe(false);
+describe('composer planes in the editor', () => {
+  it('a plane saved with the old `locked: true` is selectable and draggable', () => {
+    // Canvases composed 07.–15.10.2026 carry the flag; nothing reads it any more.
+    const node = rectNode({ ...plane('sc-panel'), locked: true } as ShapeInstance);
+    expect(node.listening()).toBe(true);
+    expect(node.draggable()).toBe(true);
   });
 
-  it('a composer plane from an older canvas (no flag) is locked by its id', () => {
+  it('a plane from before the flag, known only by its id, is too', () => {
     const node = rectNode(plane('sc-scrim'));
-    expect(node.listening()).toBe(false);
-  });
-
-  it('an ordinary shape stays selectable and draggable', () => {
-    const node = rectNode(plane('shape-1'));
     expect(node.listening()).toBe(true);
     expect(node.draggable()).toBe(true);
   });

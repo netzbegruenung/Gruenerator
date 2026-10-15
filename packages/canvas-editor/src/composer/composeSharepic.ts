@@ -592,9 +592,6 @@ function composeSlide(
     const shape = createShape('rect', x + w / 2, y + h / 2, fill, fill);
     return Object.assign(shape, { id, width: w, height: h });
   };
-  /** A full-canvas background plane: drawn, but clicks pass through to the photo. */
-  const plane = (...args: Parameters<typeof rect>) =>
-    Object.assign(rect(...args), { locked: true });
 
   // ── Surface: what the text sits on, and the planes that make it ──────────
   let areaTop = 0;
@@ -643,7 +640,7 @@ function composeSlide(
   };
   /** The colour beside a photo strip: flat, except Hellgrün, which keeps its glow. */
   const panel = (y: number, height: number, color: SharepicColor) => {
-    const shape = plane('sc-panel', 0, y, canvas.width, height, SHAREPIC_COLOR_HEX[color]);
+    const shape = rect('sc-panel', 0, y, canvas.width, height, SHAREPIC_COLOR_HEX[color]);
     const glow = GRADIENTS[color];
     if (glow?.type === 'radial') {
       shape.fillGradient = { type: 'radial', angle: 0, stops: evenStops(glow.stops) };
@@ -671,7 +668,7 @@ function composeSlide(
     const gradient = GRADIENTS[bg.color];
     if (gradient) {
       const { stops } = gradient;
-      const bgPlane = plane('sc-bg', 0, 0, canvas.width, canvas.height, stops[1]!);
+      const bgPlane = rect('sc-bg', 0, 0, canvas.width, canvas.height, stops[1]!);
       bgPlane.fillGradient = {
         type: gradient.type ?? 'linear',
         angle: gradient.angle,
@@ -706,7 +703,7 @@ function composeSlide(
     scrimDark = SCRIM_DARK[locale];
     scrimLevel = SCRIM_TEXT_ALPHA[options.photoTone?.(bg.filename, side) ?? 'mittel'];
     // Real stops follow in `setScrim`, once the geometry is known.
-    scrim = plane('sc-scrim', 0, 0, canvas.width, canvas.height, 'transparent');
+    scrim = rect('sc-scrim', 0, 0, canvas.width, canvas.height, 'transparent');
     addShape(scrim);
     if (vertical) {
       // Sized after layout, once the block's height is known.
@@ -727,7 +724,7 @@ function composeSlide(
   if (isAt && (bg.kind === 'foto-oben' || bg.kind === 'foto-unten')) {
     const top = bg.kind === 'foto-oben' ? 0 : areaBottom;
     const bottom = bg.kind === 'foto-oben' ? areaTop : canvas.height;
-    const tint = plane('sc-tint', 0, top, canvas.width, bottom - top, theme.colors.primary);
+    const tint = rect('sc-tint', 0, top, canvas.width, bottom - top, theme.colors.primary);
     addShape({ ...tint, blendMode: 'color' });
   }
 
@@ -1285,7 +1282,7 @@ function composeSlide(
       { key: 'rechts' as const, side: item.rechts, x: half, fill: SHAREPIC_COLOR_HEX.grasgruen },
     ];
     for (const col of cols) {
-      addShape(plane(`${id}-${col.key}-flaeche`, col.x, 0, half, canvas.height, col.fill));
+      addShape(rect(`${id}-${col.key}-flaeche`, col.x, 0, half, canvas.height, col.fill));
     }
     // Titles fill their column in the headline face, as tall as the longer one needs.
     const titleSize = Math.min(
@@ -3475,7 +3472,7 @@ function composeSlide(
     const card = out.shapeInstances.find((shape) => shape.id.endsWith('-card'));
     if (card) {
       const end = card.y - card.height / 2 - GAP;
-      const band = plane('sc-kopfband', 0, 0, canvas.width, end, SHAREPIC_COLOR_HEX[kopfband]);
+      const band = rect('sc-kopfband', 0, 0, canvas.width, end, SHAREPIC_COLOR_HEX[kopfband]);
       out.shapeInstances.unshift(band);
       out.layerOrder.unshift(band.id);
     }
