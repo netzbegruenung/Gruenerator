@@ -305,6 +305,19 @@ describe('canvas.create', () => {
     expect(createCanvas).not.toHaveBeenCalled();
   });
 
+  it('rejects a print format with a non-freeform template type', async () => {
+    getServerFormat.mockReturnValue({ id: 'print-a3-hoch' });
+    const res = await create({ template_type: 'zitat', format: 'print-a3-hoch' });
+    expect(res.status).toBe(400);
+    expect(createCanvas).not.toHaveBeenCalled();
+  });
+
+  it('accepts freeform-at for a print format', async () => {
+    getServerFormat.mockReturnValue({ id: 'print-a3-hoch' });
+    const res = await create({ template_type: 'freeform-at', format: 'print-a3-hoch' });
+    expect(res.status).toBe(201);
+  });
+
   it('lets an unknown digital id through, it renders as the default', async () => {
     getServerFormat.mockReturnValue(null);
     const res = await create({ template_type: 'freeform', format: 'story' });

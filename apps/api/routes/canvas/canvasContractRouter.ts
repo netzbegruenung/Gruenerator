@@ -78,6 +78,8 @@ const isCanvasPageDefArray = (v: unknown): v is CanvasPageDef[] =>
 
 const s = initServer();
 
+const PRINT_TEMPLATE_TYPES: ReadonlySet<string> = new Set(['freeform', 'freeform-at']);
+
 export const canvasContractRouter = s.router(canvasContract, {
   list: async (args) => {
     try {
@@ -105,6 +107,18 @@ export const canvasContractRouter = s.router(canvasContract, {
         !getServerFormat(b.format)
       ) {
         return { status: 400 as const, body: { error: `Unbekanntes Format '${b.format}'` } };
+      }
+      if (
+        b.format !== undefined &&
+        formatCategory(b.format) === 'print' &&
+        !PRINT_TEMPLATE_TYPES.has(b.template_type)
+      ) {
+        return {
+          status: 400 as const,
+          body: {
+            error: `Print-Formate brauchen eine freie Vorlage (freeform), nicht '${b.template_type}'`,
+          },
+        };
       }
       const input: CreateCanvasInput = {
         template_type: b.template_type,
