@@ -29,3 +29,14 @@ export function matchesAgenturaType(type: AgenturaType, item: AgenturaFilterable
 export function agenturaMetaLine(parts: (string | null | undefined | false)[]): string {
   return parts.filter((p): p is string => typeof p === 'string' && p.length > 0).join(' · ');
 }
+
+/**
+ * Stehen System-Rezepte (Katalog und Landesverband) im Shop?
+ *
+ * Der Grünerator wendet sie von selbst an — die Wortweiche im Chat und die
+ * Standard-Rezepte der System-Agents holen sie. Im Shop stehen sie deshalb erst,
+ * wenn jemand ausdrücklich nach Rezepten filtert oder sucht.
+ */
+export function showsSystemRecipes(type: AgenturaType, searching: boolean): boolean {
+  return type === 'recipe' || searching;
+}

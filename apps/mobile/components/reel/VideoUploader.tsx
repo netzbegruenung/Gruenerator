@@ -117,50 +117,63 @@ export function VideoUploader({ onVideoSelected }: VideoUploaderProps) {
     <View style={styles.container}>
       {!selectedVideo ? (
         <>
-          <View style={styles.iconContainer}>
-            <Ionicons name="videocam" size={64} color={theme.textGreen} />
+          {/* A reel in miniature: the 9:16 frame and the burned-in subtitle
+              this tool adds — the result, not a generic camera icon. */}
+          <View
+            style={[
+              styles.mock,
+              { backgroundColor: isDark ? colors.grey[800] : colors.primary[950] },
+            ]}
+          >
+            <Ionicons
+              name="person"
+              size={88}
+              color="rgba(255, 255, 255, 0.22)"
+              style={styles.mockPerson}
+            />
+            <View style={styles.mockSubtitle}>
+              <Text style={styles.mockSubtitleText}>Untertitel kommen</Text>
+            </View>
+            <View style={styles.mockSubtitle}>
+              <Text style={styles.mockSubtitleText}>automatisch dazu</Text>
+            </View>
           </View>
 
-          <Text style={[styles.title, { color: theme.text }]}>Automatische Reel-Erstellung</Text>
+          <Text style={[styles.title, { color: theme.text }]}>Reel mit Untertiteln</Text>
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-            Wähle ein Video aus oder nimm eines auf. Das Video wird automatisch optimiert und mit
-            Untertiteln versehen.
+            Video wählen oder aufnehmen – wir erkennen den Text und setzen die Untertitel.
           </Text>
 
           <View style={styles.buttonContainer}>
             <Pressable
-              style={[
+              style={({ pressed }) => [
                 styles.optionButton,
-                {
-                  backgroundColor: isDark ? colors.primary[950] : colors.primary[50],
-                  borderColor: isDark ? colors.primary[800] : colors.primary[200],
-                },
+                { backgroundColor: colors.secondary[600] },
+                pressed && styles.pressed,
               ]}
               onPress={pickVideo}
               accessibilityRole="button"
             >
-              <Ionicons name="images-outline" size={32} color={theme.textGreen} />
-              <Text style={[styles.optionText, { color: theme.textGreen }]}>Aus Galerie</Text>
+              <Ionicons name="images-outline" size={18} color={colors.white} />
+              <Text style={[styles.optionText, { color: colors.white }]}>Galerie</Text>
             </Pressable>
 
             <Pressable
-              style={[
+              style={({ pressed }) => [
                 styles.optionButton,
-                {
-                  backgroundColor: isDark ? colors.primary[950] : colors.primary[50],
-                  borderColor: isDark ? colors.primary[800] : colors.primary[200],
-                },
+                { borderWidth: 1.5, borderColor: colors.secondary[600] },
+                pressed && styles.pressed,
               ]}
               onPress={recordVideo}
               accessibilityRole="button"
             >
-              <Ionicons name="camera-outline" size={32} color={theme.textGreen} />
+              <Ionicons name="camera-outline" size={18} color={theme.textGreen} />
               <Text style={[styles.optionText, { color: theme.textGreen }]}>Aufnehmen</Text>
             </Pressable>
           </View>
 
           <Text style={[styles.hint, { color: theme.textSecondary }]}>
-            Max. {MAX_FILE_SIZE_MB}MB, bis zu 10 Minuten
+            Bis 10 Minuten, max. {MAX_FILE_SIZE_MB} MB
           </Text>
         </>
       ) : (
@@ -202,7 +215,11 @@ export function VideoUploader({ onVideoSelected }: VideoUploaderProps) {
 
 const styles = StyleSheet.create<{
   container: ViewStyle;
-  iconContainer: ViewStyle;
+  mock: ViewStyle;
+  mockPerson: TextStyle;
+  mockSubtitle: ViewStyle;
+  mockSubtitleText: TextStyle;
+  pressed: ViewStyle;
   title: TextStyle;
   subtitle: TextStyle;
   buttonContainer: ViewStyle;
@@ -224,9 +241,26 @@ const styles = StyleSheet.create<{
     justifyContent: 'center',
     alignItems: 'center',
   },
-  iconContainer: {
+  mock: {
+    width: 150,
+    aspectRatio: 9 / 16,
+    borderRadius: borderRadius.large,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 3,
+    paddingBottom: spacing.large,
     marginBottom: spacing.large,
   },
+  mockPerson: { position: 'absolute', top: 40 },
+  mockSubtitle: {
+    backgroundColor: colors.white,
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+  },
+  mockSubtitleText: { ...typography.caption, color: colors.grey[950], fontWeight: '800' },
+  pressed: { opacity: 0.75 },
   title: {
     ...typography.h2,
     textAlign: 'center',
@@ -235,21 +269,24 @@ const styles = StyleSheet.create<{
   subtitle: {
     ...typography.body,
     textAlign: 'center',
-    marginBottom: spacing.xlarge,
+    marginBottom: spacing.large,
     paddingHorizontal: spacing.medium,
   },
   buttonContainer: {
     flexDirection: 'row',
-    gap: spacing.medium,
-    marginBottom: spacing.large,
+    gap: spacing.small,
+    marginBottom: spacing.medium,
+    maxWidth: 360,
+    width: '100%',
   },
   optionButton: {
-    paddingVertical: spacing.large,
-    paddingHorizontal: spacing.xlarge,
-    borderRadius: borderRadius.large,
+    flex: 1,
+    flexDirection: 'row',
+    height: 48,
+    borderRadius: borderRadius.full,
     alignItems: 'center',
-    gap: spacing.small,
-    borderWidth: 1,
+    justifyContent: 'center',
+    gap: spacing.xsmall,
   },
   optionText: {
     ...typography.button,

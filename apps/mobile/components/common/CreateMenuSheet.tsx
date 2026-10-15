@@ -22,49 +22,68 @@ export interface CreateMenuEntry {
   tone: ToolTheme;
   icon: ReactNode;
   onPress: () => void;
+  /** Opens a page inside this sheet (see `page`) instead of closing it. */
+  opensPage?: boolean;
 }
 
 /**
  * The FAB's "Neu erstellen" menu: one row per create path, each in its tool's
- * hue. The sheet closes before the entry runs, so an entry that opens a second
- * sheet has to wait for this one to leave (see `SHEET_HANDOFF_MS`).
+ * hue. The sheet closes before the entry runs — except for an entry that opens
+ * a `page`, which replaces the menu inside the same sheet: a second sheet would
+ * have to wait for this one to leave (see `SHEET_HANDOFF_MS`).
  */
 export function CreateMenuSheet({
   visible,
   onClose,
   entries,
+  page,
 }: {
   visible: boolean;
   onClose: () => void;
   entries: CreateMenuEntry[];
+  /** Shown instead of the menu while set; it brings its own way back. */
+  page?: ReactNode;
 }) {
   const theme = useColorScheme() === 'dark' ? darkTheme : lightTheme;
 
+  // One sheet for both: switching to the page must not dismiss and re-present the Modal.
   return (
-    <BottomSheet visible={visible} onClose={onClose} padded>
-      <Text style={[styles.sheetTitle, { color: theme.text }]}>Neu erstellen</Text>
-      {entries.map((entry) => (
-        <Pressable
-          key={entry.key}
-          onPress={() => {
-            onClose();
-            entry.onPress();
-          }}
-          style={({ pressed }) => [
-            styles.row,
-            { backgroundColor: pressed ? theme.surface : 'transparent' },
-          ]}
-          accessibilityRole="button"
-        >
-          <View style={[styles.rowIcon, { backgroundColor: entry.tone.tile }]}>{entry.icon}</View>
-          <View style={styles.rowText}>
-            <Text style={[styles.rowTitle, { color: theme.text }]}>{entry.title}</Text>
-            <Text style={[styles.rowDesc, { color: theme.textSecondary }]}>
-              {entry.description}
-            </Text>
-          </View>
-        </Pressable>
-      ))}
+    <BottomSheet
+      visible={visible}
+      onClose={onClose}
+      padded
+      maxHeight={page ? '88%' : '85%'}
+      keyboardAvoiding
+    >
+      {page ?? (
+        <>
+          <Text style={[styles.sheetTitle, { color: theme.text }]}>Neu erstellen</Text>
+          {entries.map((entry) => (
+            <Pressable
+              key={entry.key}
+              onPress={() => {
+                if (!entry.opensPage) onClose();
+                entry.onPress();
+              }}
+              style={({ pressed }) => [
+                styles.row,
+                { backgroundColor: pressed ? theme.surface : 'transparent' },
+              ]}
+              accessibilityRole="button"
+            >
+              <View style={[styles.rowIcon, { backgroundColor: entry.tone.tile }]}>
+                {entry.icon}
+              </View>
+              <View style={styles.rowText}>
+                <Text style={[styles.rowTitle, { color: theme.text }]}>{entry.title}</Text>
+                <Text style={[styles.rowDesc, { color: theme.textSecondary }]}>
+                  {entry.description}
+                </Text>
+              </View>
+            </Pressable>
+          ))}
+        </>
+      )}
     </BottomSheet>
   );
 }

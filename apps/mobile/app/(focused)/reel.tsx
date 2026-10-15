@@ -182,6 +182,7 @@ export default function ReelScreen() {
           onEditProject={handleEditProject}
           onShareProject={handleShareProject}
           onNewReel={handleNewReel}
+          empty={<VideoUploader onVideoSelected={handleVideoSelected} />}
         />
       );
     }
@@ -259,6 +260,7 @@ export default function ReelScreen() {
         onEditProject={handleEditProject}
         onShareProject={handleShareProject}
         onNewReel={handleNewReel}
+        empty={<VideoUploader onVideoSelected={handleVideoSelected} />}
       />
     );
   };

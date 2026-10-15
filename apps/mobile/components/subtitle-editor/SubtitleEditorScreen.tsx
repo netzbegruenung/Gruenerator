@@ -20,7 +20,6 @@ import {
   ActivityIndicator,
   Platform,
   Keyboard,
-  Modal,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
@@ -30,8 +29,18 @@ import { useSubtitleEditor } from '../../hooks/useSubtitleEditor';
 import { useSubtitleExport } from '../../hooks/useSubtitleExport';
 import { secureStorage } from '../../services/storage';
 import { useSubtitleEditorStore } from '../../stores/subtitleEditorStore';
-import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
+import {
+  colors,
+  spacing,
+  borderRadius,
+  lightTheme,
+  darkTheme,
+  BODY_FONT,
+  HEADING_FONT_BOLD,
+  HEADING_FONT_SEMIBOLD,
+} from '../../theme';
 import { goHome } from '../../utils/navigation';
+import { BottomSheet } from '../common/BottomSheet';
 import { DraggableSplitView } from '../common/DraggableSplitView';
 import { CategoryBar, InlineBar } from '../common/editor-toolbar';
 import { SkeletonBar, SkeletonGroup, SkeletonRows } from '../common/Skeleton';
@@ -406,56 +415,56 @@ export function SubtitleEditorScreen({
           ))}
       </KeyboardAvoidingView>
 
-      <Modal
-        visible={showShareModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowShareModal(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setShowShareModal(false)}
-          accessibilityRole="button"
-          accessibilityLabel="Menü schließen"
-        >
-          <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
-            <Pressable
-              style={[styles.modalOption, { borderBottomColor: theme.border }]}
-              onPress={handleShareSave}
-              disabled={isSaving}
-              accessibilityRole="button"
-              accessibilityState={{ disabled: isSaving }}
-            >
-              {isSaving ? (
+      <BottomSheet visible={showShareModal} onClose={() => setShowShareModal(false)} padded>
+        <Text accessibilityRole="header" style={[styles.sheetTitle, { color: theme.text }]}>
+          Teilen
+        </Text>
+        {[
+          {
+            key: 'save',
+            title: 'Speichern',
+            desc: 'Änderungen sichern und zurück',
+            icon: 'checkmark-circle-outline' as const,
+            onPress: handleShareSave,
+            disabled: isSaving,
+            busy: isSaving,
+          },
+          {
+            key: 'export',
+            title: 'Exportieren',
+            desc: 'Video mit Untertiteln erstellen',
+            icon: 'download-outline' as const,
+            onPress: handleShareExport,
+            disabled: isSaving || exportHook.status !== 'idle',
+            busy: false,
+          },
+        ].map((row) => (
+          <Pressable
+            key={row.key}
+            onPress={row.onPress}
+            disabled={row.disabled}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: row.disabled }}
+            style={({ pressed }) => [
+              styles.sheetRow,
+              { backgroundColor: pressed ? theme.surface : 'transparent' },
+              row.disabled && !row.busy && styles.sheetRowOff,
+            ]}
+          >
+            <View style={[styles.sheetIcon, { backgroundColor: colors.primary[50] }]}>
+              {row.busy ? (
                 <ActivityIndicator size="small" color={colors.primary[600]} />
               ) : (
-                <Ionicons name="checkmark-circle-outline" size={24} color={colors.primary[600]} />
+                <Ionicons name={row.icon} size={22} color={colors.primary[600]} />
               )}
-              <View style={styles.modalOptionText}>
-                <Text style={[styles.modalOptionTitle, { color: theme.text }]}>Speichern</Text>
-                <Text style={[styles.modalOptionDesc, { color: theme.textSecondary }]}>
-                  Änderungen sichern und zurück
-                </Text>
-              </View>
-            </Pressable>
-            <Pressable
-              style={styles.modalOption}
-              onPress={handleShareExport}
-              disabled={isSaving || exportHook.status !== 'idle'}
-              accessibilityRole="button"
-              accessibilityState={{ disabled: isSaving || exportHook.status !== 'idle' }}
-            >
-              <Ionicons name="download-outline" size={24} color={colors.primary[600]} />
-              <View style={styles.modalOptionText}>
-                <Text style={[styles.modalOptionTitle, { color: theme.text }]}>Exportieren</Text>
-                <Text style={[styles.modalOptionDesc, { color: theme.textSecondary }]}>
-                  Video mit Untertiteln erstellen
-                </Text>
-              </View>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Modal>
+            </View>
+            <View style={styles.sheetText}>
+              <Text style={[styles.sheetRowTitle, { color: theme.text }]}>{row.title}</Text>
+              <Text style={[styles.sheetRowDesc, { color: theme.textSecondary }]}>{row.desc}</Text>
+            </View>
+          </Pressable>
+        ))}
+      </BottomSheet>
     </SafeAreaView>
   );
 }
@@ -537,38 +546,24 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.xlarge,
-  },
-  modalContent: {
-    width: '100%',
-    maxWidth: 320,
-    borderRadius: borderRadius.large,
-    overflow: 'hidden',
-  },
-  modalOption: {
+  sheetTitle: { fontFamily: HEADING_FONT_BOLD, fontSize: 18, paddingBottom: spacing.small },
+  sheetRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.medium,
-    padding: spacing.large,
-    borderBottomWidth: 1,
-    borderBottomColor: 'transparent',
+    gap: spacing.small,
+    paddingVertical: spacing.small,
+    paddingHorizontal: spacing.xsmall,
+    borderRadius: borderRadius.medium,
   },
-  modalOptionText: {
-    flex: 1,
+  sheetRowOff: { opacity: 0.4 },
+  sheetIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.medium,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  modalOptionTitle: {
-    fontFamily: BODY_FONT,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  modalOptionDesc: {
-    fontFamily: BODY_FONT,
-    fontSize: 13,
-    marginTop: 2,
-  },
+  sheetText: { flex: 1 },
+  sheetRowTitle: { fontFamily: HEADING_FONT_SEMIBOLD, fontSize: 16 },
+  sheetRowDesc: { fontFamily: BODY_FONT, fontSize: 13, marginTop: 1 },
 });

@@ -1,9 +1,8 @@
 import { type TranslationLanguage } from '@gruenerator/contracts';
+import { AUTO, AUTO_LABEL, languageName } from '@gruenerator/shared/translation';
 import { Button } from '@gruenerator/ui';
 import { type ReactNode } from 'react';
 import { PiArrowsLeftRight, PiCaretDown } from 'react-icons/pi';
-
-import { AUTO, AUTO_LABEL, languageName } from './languageOptions';
 
 import { cn } from '@/utils/cn';
 

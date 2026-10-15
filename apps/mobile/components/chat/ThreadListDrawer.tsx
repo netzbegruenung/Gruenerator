@@ -327,7 +327,7 @@ function DrawerSections({
           </Text>
         </Pressable>
       ))}
-      <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Letzte</Text>
+      <View style={[styles.sectionDivider, { backgroundColor: theme.border }]} />
     </View>
   );
 }
@@ -551,7 +551,7 @@ const styles = StyleSheet.create({
   },
   // ── Drawer geometry ──────────────────────────────────────────────────────
   // Two vertical edges, not four. Everything without an icon — the title, the
-  // "Letzte" label, the conversation rows — starts at DRAWER_EDGE; rows with an
+  // divider, the conversation rows — starts at DRAWER_EDGE; rows with an
   // icon put their LABEL at DRAWER_EDGE + icon + gap, and the icon itself on the
   // same edge as the text above it. Before this the four were 16, 20, 24 and 60,
   // three of which were nobody's decision — they fell out of a container padding
@@ -596,14 +596,12 @@ const styles = StyleSheet.create({
     ...chatType.chatBody,
     fontWeight: '500',
   },
-  sectionLabel: {
-    ...chatType.chatLabel,
-    fontWeight: '700',
-    paddingHorizontal: spacing.small,
-    // The turn from navigation to content. At the old 16 it read as one more
-    // row gap instead of a change of subject.
-    marginTop: spacing.xlarge + spacing.xsmall,
-    marginBottom: spacing.xsmall,
+  // The turn from navigation to the conversations, without a heading: a line
+  // says "change of subject" in less height than the old „Letzte" label.
+  sectionDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: spacing.small,
+    marginVertical: spacing.medium,
   },
   list: {
     flex: 1,
