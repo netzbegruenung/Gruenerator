@@ -78,6 +78,17 @@ export function useDeepSelect(
     });
 
     /** Replays the native press on `shape`: its item selects itself, Konva arms its drag. */
+    /**
+     * Takes the press away from Konva, which would otherwise select and arm
+     * the topmost shape. The page above still has to hear it: popovers close
+     * on a document-level mousedown outside them, and the press was outside.
+     * Re-sent from the container's parent, so this capture listener stays out.
+     */
+    const claim = (e: MouseEvent) => {
+      e.stopPropagation();
+      (container.parentElement ?? document).dispatchEvent(new MouseEvent(e.type, e));
+    };
+
     const press = (shape: Konva.Shape, evt: MouseEvent) => {
       shape.fire('mousedown', { evt, target: shape }, true);
     };
@@ -101,7 +112,7 @@ export function useDeepSelect(
 
       if (modifier) {
         const target = nextDeepTarget(stack, selected)!;
-        e.stopPropagation();
+        claim(e);
         // Wrapped round to the top: nothing is covered any more.
         deepRef.current = target === stack[0] ? null : target.id;
         press(target.shape, e);
@@ -111,7 +122,7 @@ export function useDeepSelect(
 
       const covered = stack.findIndex((item) => item.id === deepRef.current);
       if (covered <= 0) return;
-      e.stopPropagation();
+      claim(e);
       press(stack[covered]!.shape, e);
       const top = stack[0]!.id;
       let dragged = false;

@@ -144,6 +144,19 @@ describe('useDeepSelect', () => {
     expect(selected()).toBe('photo');
   });
 
+  it('a claimed press still reaches the page, so popovers close as on any click outside', () => {
+    const { click, drag } = mount();
+    let heard = 0;
+    const onDocument = () => {
+      heard += 1;
+    };
+    document.addEventListener('mousedown', onDocument);
+    click(100, true); // ctrl-click: claimed from Konva
+    drag(100, 20); // plain drag on the covered selection: claimed too
+    document.removeEventListener('mousedown', onDocument);
+    expect(heard).toBe(2);
+  });
+
   it('after a ctrl-click a plain click without moving goes back to the top', () => {
     const { selected, click } = mount();
     click(100, true);
