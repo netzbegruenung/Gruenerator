@@ -12,10 +12,12 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { canOpenInApp } from '../../hooks/useGroupContent';
 import { useTheme } from '../../hooks/useTheme';
-import { BODY_FONT, colors, typography } from '../../theme';
+import { resolveWebUrl } from '../../services/webOrigin';
+import { BODY_FONT, typography } from '../../theme';
 
 import { FEED_KIND_ICONS } from './feedIcons';
 import { FeedPreview } from './GroupFeedCard';
+import { useProjekteTone } from './projekteTone';
 
 /** Kachelmaß je Art: Sharepics hochkant, Texte quer, der Rest klein. */
 const TILE: Partial<Record<GroupFeedKind, [number, number]>> = {
@@ -36,6 +38,7 @@ interface GroupKindRowsProps {
 /** „Alle": angeheftete Leiste, dann eine horizontale Reihe je Art. */
 export function GroupKindRows({ items, showPinned, onOpen }: GroupKindRowsProps) {
   const theme = useTheme();
+  const tone = useProjekteTone();
   const pinned = items.filter(isPinned);
 
   return (
@@ -43,8 +46,8 @@ export function GroupKindRows({ items, showPinned, onOpen }: GroupKindRowsProps)
       {showPinned && pinned.length > 0 && (
         <View style={styles.section}>
           <View style={styles.pinnedHeader}>
-            <Ionicons name="pin" size={13} color={colors.primary[600]} />
-            <Text style={styles.pinnedLabel} accessibilityRole="header">
+            <Ionicons name="pin" size={13} color={tone.accent} />
+            <Text style={[styles.pinnedLabel, { color: tone.accent }]} accessibilityRole="header">
               Angeheftet
             </Text>
           </View>
@@ -62,19 +65,15 @@ export function GroupKindRows({ items, showPinned, onOpen }: GroupKindRowsProps)
                 accessibilityLabel={`${item.title}, ${groupFeedKindMeta(item.kind).label}`}
                 style={[styles.pinChip, { backgroundColor: theme.card }]}
               >
-                <View style={[styles.pinThumb, { backgroundColor: colors.primary[50] }]}>
+                <View style={[styles.pinThumb, { backgroundColor: tone.soft }]}>
                   {item.thumbnailUrl ? (
                     <Image
-                      source={{ uri: item.thumbnailUrl }}
+                      source={{ uri: resolveWebUrl(item.thumbnailUrl) }}
                       style={StyleSheet.absoluteFill}
                       contentFit="cover"
                     />
                   ) : (
-                    <Ionicons
-                      name={FEED_KIND_ICONS[item.kind]}
-                      size={22}
-                      color={colors.primary[600]}
-                    />
+                    <Ionicons name={FEED_KIND_ICONS[item.kind]} size={22} color={tone.accent} />
                   )}
                 </View>
                 <View style={styles.flex}>
@@ -148,7 +147,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.7,
     textTransform: 'uppercase',
-    color: colors.primary[700],
   },
   row: { gap: 12, paddingHorizontal: 20, paddingBottom: 4 },
   pinChip: {

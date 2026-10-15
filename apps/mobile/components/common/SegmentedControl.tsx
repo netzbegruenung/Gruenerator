@@ -24,6 +24,8 @@ interface SegmentedControlProps {
   onChange: (value: string) => void;
   /** Names the group for screen readers. */
   accessibilityLabel: string;
+  /** Fill of the chosen pill; a tool's own accent where it has one. */
+  activeColor?: string;
 }
 
 /**
@@ -35,6 +37,7 @@ export function SegmentedControl({
   value,
   onChange,
   accessibilityLabel,
+  activeColor = colors.secondary[600],
 }: SegmentedControlProps) {
   const theme = useTheme();
   const outline = useColorScheme() === 'dark' ? colors.grey[700] : colors.grey[200];
@@ -56,7 +59,7 @@ export function SegmentedControl({
             style={({ pressed }) => [
               styles.pill,
               selected
-                ? { backgroundColor: colors.secondary[600], borderColor: colors.secondary[600] }
+                ? { backgroundColor: activeColor, borderColor: activeColor }
                 : {
                     borderColor: outline,
                     backgroundColor: pressed ? theme.surface : 'transparent',

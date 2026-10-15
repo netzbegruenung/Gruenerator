@@ -7,12 +7,13 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { ListGroup, ListRow, SkeletonRows } from '../../../../components/common';
 import { ScreenScaffold } from '../../../../components/navigation/ScreenScaffold';
 import { FEED_KIND_ICONS } from '../../../../components/projekte/feedIcons';
+import { useProjekteTone } from '../../../../components/projekte/projekteTone';
 import { GroupAvatar } from '../../../../components/workplace/GroupAvatar';
 import { useGroupFeed } from '../../../../hooks/useGroupContent';
 import { useGroupDetails, useGroupMembers } from '../../../../hooks/useGroups';
 import { useTheme } from '../../../../hooks/useTheme';
 import { openUrl } from '../../../../services/share';
-import { colors, spacing, typography, borderRadius, BODY_FONT } from '../../../../theme';
+import { spacing, typography, borderRadius, BODY_FONT } from '../../../../theme';
 import { CONTENT_MAX_WIDTH } from '../../../../theme/layout';
 import { roleLabel } from '../../../../utils/groups';
 import { goBackOr } from '../../../../utils/navigation';
@@ -38,6 +39,7 @@ const LINK_ICONS: Record<string, IoniconsIconName> = {
 export default function ProjektInfoScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const theme = useTheme();
+  const tone = useProjekteTone();
 
   const detailsQuery = useGroupDetails(id);
   const membersQuery = useGroupMembers(id);
@@ -75,10 +77,15 @@ export default function ProjektInfoScreen() {
       >
         {group ? (
           <View style={styles.hero}>
-            <GroupAvatar name={group.name} avatarUrl={group.avatar_url} size={72} />
+            <GroupAvatar
+              groupId={group.id}
+              name={group.name}
+              avatarUrl={group.avatar_url}
+              size={72}
+            />
             <Text style={[styles.groupName, { color: theme.text }]}>{group.name}</Text>
-            <View style={[styles.roleBadge, { backgroundColor: colors.primary[600] + '18' }]}>
-              <Text style={[styles.roleBadgeText, { color: colors.primary[600] }]}>
+            <View style={[styles.roleBadge, { backgroundColor: tone.soft }]}>
+              <Text style={[styles.roleBadgeText, { color: tone.accent }]}>
                 {roleLabel(membership?.isAdmin ? 'admin' : (membership?.role ?? 'member'))}
               </Text>
             </View>

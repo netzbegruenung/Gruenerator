@@ -1,11 +1,12 @@
-import { getGroupInitials } from '@gruenerator/shared/groups';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { type GroupSummary } from '../../hooks/useGroups';
 import { useTheme } from '../../hooks/useTheme';
-import { colors, HEADING_FONT_BOLD, BODY_FONT } from '../../theme';
+import { HEADING_FONT_BOLD, BODY_FONT } from '../../theme';
 import { GroupAvatar } from '../workplace/GroupAvatar';
+
+import { useProjekteTone } from './projekteTone';
 
 /**
  * One project as web's ProjektTile: a square card, the avatar and the kind
@@ -24,7 +25,7 @@ export function ProjektTile({
   onPress(): void;
 }) {
   const theme = useTheme();
-  const dark = useColorScheme() === 'dark';
+  const tone = useProjekteTone();
   return (
     <Pressable
       onPress={onPress}
@@ -42,26 +43,11 @@ export function ProjektTile({
       ]}
     >
       <View style={styles.top}>
-        <View
-          style={[
-            styles.avatar,
-            { backgroundColor: dark ? colors.primary[900] : colors.primary[50] },
-          ]}
-        >
-          {group.avatar_url ? (
-            <GroupAvatar name={group.name} avatarUrl={group.avatar_url} size={40} />
-          ) : (
-            <Text
-              style={[styles.initials, { color: dark ? colors.primary[200] : colors.primary[600] }]}
-            >
-              {getGroupInitials(group.name)}
-            </Text>
-          )}
-        </View>
+        <GroupAvatar groupId={group.id} name={group.name} avatarUrl={group.avatar_url} size={40} />
         <Ionicons
           name={group.group_type === 'personal' ? 'person' : 'people'}
           size={18}
-          color={theme.textSecondary}
+          color={tone.accent}
         />
       </View>
       <View>
@@ -85,15 +71,6 @@ const styles = StyleSheet.create({
   },
   pressed: { opacity: 0.8, transform: [{ scale: 0.98 }] },
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  initials: { fontFamily: HEADING_FONT_BOLD, fontSize: 14 },
   name: { fontFamily: HEADING_FONT_BOLD, fontSize: 16, lineHeight: 20 },
   meta: { fontFamily: BODY_FONT, fontSize: 13, marginTop: 2 },
 });

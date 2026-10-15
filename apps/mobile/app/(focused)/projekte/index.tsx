@@ -14,6 +14,7 @@ import {
 
 import { SkeletonBar, SkeletonGroup } from '../../../components/common/Skeleton';
 import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
+import { useProjekteTone } from '../../../components/projekte/projekteTone';
 import { ProjektTile } from '../../../components/projekte/ProjektTile';
 import { useUserGroups, type GroupSummary } from '../../../hooks/useGroups';
 import {
@@ -41,6 +42,7 @@ export default function ProjekteScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
+  const tone = useProjekteTone();
 
   const { data: groups = [], isPending, isRefetching, error, refetch } = useUserGroups();
   // Web's grid: two squares across on a phone, three from tablet width.
@@ -94,7 +96,7 @@ export default function ProjekteScreen() {
           onPress={() => void refetch()}
           style={({ pressed }) => [
             styles.retryButton,
-            { backgroundColor: pressed ? colors.primary[700] : colors.primary[600] },
+            { backgroundColor: tone.accent, opacity: pressed ? 0.85 : 1 },
           ]}
           accessibilityRole="button"
         >

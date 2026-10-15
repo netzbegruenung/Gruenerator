@@ -18,6 +18,7 @@ import { ScreenScaffold } from '../../../../components/navigation/ScreenScaffold
 import { GroupCommentsSheet } from '../../../../components/projekte/GroupCommentsSheet';
 import { GroupFeedCard } from '../../../../components/projekte/GroupFeedCard';
 import { GroupKindRows } from '../../../../components/projekte/GroupKindRows';
+import { useProjekteTone } from '../../../../components/projekte/projekteTone';
 import { openGroupFeedItem, useBearerToken, useGroupFeed } from '../../../../hooks/useGroupContent';
 import { useGroupDetails } from '../../../../hooks/useGroups';
 import { useHiddenMemberIds } from '../../../../hooks/useHiddenMembers';
@@ -40,6 +41,7 @@ export default function ProjektDetailScreen() {
   const { id, beitrag } = useLocalSearchParams<{ id: string; beitrag?: string }>();
   const router = useRouter();
   const theme = useTheme();
+  const tone = useProjekteTone();
 
   const detailsQuery = useGroupDetails(id);
   const feedQuery = useGroupFeed(id);
@@ -121,7 +123,7 @@ export default function ProjektDetailScreen() {
           onPress={() => void detailsQuery.refetch()}
           style={({ pressed }) => [
             styles.retryButton,
-            { backgroundColor: pressed ? colors.primary[700] : colors.primary[600] },
+            { backgroundColor: tone.accent, opacity: pressed ? 0.85 : 1 },
           ]}
           accessibilityRole="button"
         >
@@ -158,6 +160,7 @@ export default function ProjektDetailScreen() {
           {!isPersonal && (
             <SegmentedControl
               accessibilityLabel="Ansicht"
+              activeColor={tone.accent}
               value={activeView}
               onChange={(v) => setView(v as ViewMode)}
               options={[
