@@ -9,10 +9,13 @@ const NF = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 });
 /** Like web's chip: only once fewer than this many Bäume are left is the balance worth a line. */
 const SHOW_BELOW = 5;
 
-/** The tree budget as one sentence, shown only while it is running low. */
-export function BudgetNote({ quota, hint }: { quota: TranslationQuota; hint?: string }) {
+/**
+ * The tree budget as one sentence, shown only while it is running low. `null`
+ * while the budget has not arrived yet.
+ */
+export function BudgetNote({ quota, hint }: { quota: TranslationQuota | null; hint?: string }) {
   const theme = useTheme();
-  if (quota.limit === null) return null;
+  if (quota === null || quota.limit === null) return null;
   const remaining = quota.remaining ?? Math.max(quota.limit - quota.used, 0);
   if (remaining >= SHOW_BELOW) return null;
   const trees = remaining === 1 ? '1 Baum' : `${NF.format(remaining)} Bäume`;

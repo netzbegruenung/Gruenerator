@@ -7,6 +7,7 @@ import { FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } fr
 import { useTheme } from '../../hooks/useTheme';
 import { borderRadius, colors, spacing, typography } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
+import { SkeletonBar, SkeletonGroup } from '../common/Skeleton';
 
 /** Stands in for "Automatisch erkennen" wherever auto is off. */
 const AUTO_OFF_LABEL = 'Bitte wählen';
@@ -19,6 +20,8 @@ interface LanguageBarProps {
   options: readonly TranslationLanguage[];
   /** The quick-pick chips, most recent first. */
   recent: readonly string[];
+  /** The language list is still on its way: placeholder chips instead. */
+  loading?: boolean;
   /** Offer "Automatisch erkennen" first (source side only). */
   withAuto?: boolean;
   /** A glossary translates into the chosen target — auto would silently drop it. */
@@ -39,6 +42,7 @@ export function LanguageBar({
   onChange,
   options,
   recent,
+  loading = false,
   withAuto = false,
   autoDisabled = false,
   onSwap,
@@ -48,8 +52,11 @@ export function LanguageBar({
   const theme = useTheme();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const empty = options.length === 0;
   const nameOf = (code: string) =>
     code === AUTO ? (autoDisabled ? AUTO_OFF_LABEL : AUTO_LABEL) : languageName(options, code);
+  // Empty until the list lands — or for good, if it fails to load.
+  const current = nameOf(value);
 
   const q = query.trim().toLowerCase();
   const all = [
@@ -65,49 +72,65 @@ export function LanguageBar({
 
   return (
     <View style={[styles.bar, { borderBottomColor: theme.border }]}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chips}
-        accessibilityLabel={`Schnellwahl ${label}`}
-      >
-        {recent.map((code) => {
-          const active = code === value;
-          const blocked = code === AUTO && autoDisabled;
-          return (
-            <Pressable
-              key={code}
-              onPress={() => onChange(code)}
-              disabled={blocked}
-              accessibilityRole="button"
-              accessibilityState={{ selected: active, disabled: blocked }}
-              style={[styles.chip, active && { borderBottomColor: colors.primary[600] }]}
-            >
-              <Text
-                style={[
-                  styles.chipText,
-                  {
-                    color: blocked
-                      ? theme.textSecondary
-                      : active
-                        ? colors.primary[600]
-                        : theme.text,
-                  },
-                ]}
-                numberOfLines={1}
+      {loading ? (
+        <View accessible accessibilityLabel={`${label}: Lade Sprachen`} style={styles.loading}>
+          {/* `card` in both tabs: the bar sits on a card under Text and on the
+              plain screen under Dokument, and only this shade shows on both. */}
+          <SkeletonGroup on="card" style={styles.loadingChips}>
+            <SkeletonBar width={72} height={14} />
+            <SkeletonBar width={56} height={14} />
+            <SkeletonBar width={64} height={14} />
+          </SkeletonGroup>
+        </View>
+      ) : (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chips}
+          accessibilityLabel={`Schnellwahl ${label}`}
+        >
+          {recent.map((code) => {
+            const active = code === value;
+            const blocked = code === AUTO && autoDisabled;
+            return (
+              <Pressable
+                key={code}
+                onPress={() => onChange(code)}
+                disabled={blocked}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active, disabled: blocked }}
+                style={[styles.chip, active && { borderBottomColor: colors.primary[600] }]}
               >
-                {nameOf(code)}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+                <Text
+                  style={[
+                    styles.chipText,
+                    {
+                      color: blocked
+                        ? theme.textSecondary
+                        : active
+                          ? colors.primary[600]
+                          : theme.text,
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {nameOf(code)}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      )}
       <Pressable
         onPress={() => setOpen(true)}
+        disabled={empty}
         hitSlop={6}
         accessibilityRole="button"
-        accessibilityLabel={`${label}: ${nameOf(value)} – alle Sprachen`}
-        style={styles.iconButton}
+        accessibilityLabel={
+          current ? `${label}: ${current} – alle Sprachen` : `${label}: alle Sprachen`
+        }
+        accessibilityState={{ disabled: empty }}
+        style={[styles.iconButton, empty && styles.off]}
       >
         <Ionicons name="chevron-down" size={20} color={theme.text} />
       </Pressable>
@@ -199,6 +222,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xxsmall,
   },
   chips: { alignItems: 'center' },
+  loading: { flex: 1, height: 44, justifyContent: 'center' },
+  loadingChips: { flexDirection: 'row', gap: spacing.large, paddingHorizontal: spacing.small },
   chip: {
     height: 44,
     justifyContent: 'center',
