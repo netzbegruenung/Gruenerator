@@ -1,5 +1,5 @@
-import { type DraftedAgentSpec, MAX_DRAFT_BRIEF_CHARS } from '@gruenerator/contracts';
-import { EMPTY_FORM, type FormState } from '@gruenerator/shared/grueneratoren';
+import { MAX_DRAFT_BRIEF_CHARS } from '@gruenerator/contracts';
+import { EMPTY_FORM, type FormState, specToFormState } from '@gruenerator/shared/grueneratoren';
 import { useCallback, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -10,24 +10,6 @@ import { useDraftAgent } from './api';
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
 import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
 import { useAuthStore } from '@/stores/authStore';
-
-/** Map a synthesized draft into the wizard's form state. The fields the LLM
- *  doesn't pick (identifier, model/provider/params, tags, notebook) keep the
- *  form's EMPTY defaults. */
-function specToFormState(spec: DraftedAgentSpec): Partial<FormState> {
-  return {
-    title: spec.title,
-    description: spec.description,
-    systemRole: spec.systemRole,
-    iconKey: spec.iconKey,
-    backgroundColor: spec.backgroundColor,
-    locale: spec.locale === 'de-AT' ? 'de-AT' : 'de-DE',
-    openingMessage: spec.openingMessage,
-    openingQuestions: spec.openingQuestions.join('\n'),
-    enabledTools: spec.enabledTools,
-    defaultRecipeMention: spec.defaultRecipeMention ?? null,
-  };
-}
 
 /**
  * Guided agent creator. A one-shot brief is drafted by the AI, then handed to

@@ -1,3 +1,5 @@
+import { type DraftedAgentSpec } from '@gruenerator/contracts';
+
 import { type Agent, DEFAULT_USER_AGENT_TOOLS, DEFAULT_AGENT_ICON } from '../agents/index.js';
 import { TEXT_MODEL_BY_ID } from '../models/index.js';
 
@@ -125,5 +127,23 @@ export function hydrateFormState(agent: Agent): FormState {
     provider: agent.provider,
     maxTokens: agent.params.max_tokens,
     temperature: agent.params.temperature,
+  };
+}
+
+/** Map a synthesized draft into the editor's form state. The fields the LLM
+ *  doesn't pick (identifier, model/provider/params, tags, notebook) keep the
+ *  form's EMPTY defaults. */
+export function specToFormState(spec: DraftedAgentSpec): Partial<FormState> {
+  return {
+    title: spec.title,
+    description: spec.description,
+    systemRole: spec.systemRole,
+    iconKey: spec.iconKey,
+    backgroundColor: spec.backgroundColor,
+    locale: spec.locale === 'de-AT' ? 'de-AT' : 'de-DE',
+    openingMessage: spec.openingMessage,
+    openingQuestions: spec.openingQuestions.join('\n'),
+    enabledTools: spec.enabledTools,
+    defaultRecipeMention: spec.defaultRecipeMention ?? null,
   };
 }
