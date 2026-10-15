@@ -7,7 +7,11 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import { type ReactNode } from 'react';
 
-import { COLOR_SWATCHES_DE, FREE_BACKGROUND_ID } from '@gruenerator/shared/profilbild';
+import {
+  COLOR_SWATCHES_DE,
+  FREE_BACKGROUND_ID,
+  type FreeBackground,
+} from '@gruenerator/shared/profilbild';
 import { useDiscoverStudioAssets, useOwnStudioAssets } from '@gruenerator/shared/studio-assets';
 import { secureStorage } from '../../services/storage';
 
@@ -98,7 +102,7 @@ afterEach(() => {
   jest.clearAllMocks();
 });
 
-async function renderBackgrounds(selected = 'tanne') {
+async function renderBackgrounds(selected = 'tanne', freeBackground: FreeBackground | null = null) {
   const onSelect = jest.fn();
   const onPickGallery = jest.fn();
   render(
@@ -107,7 +111,7 @@ async function renderBackgrounds(selected = 'tanne') {
       images={{}}
       selected={selected}
       custom={null}
-      freeBackground={null}
+      freeBackground={freeBackground}
       onSelect={onSelect}
       onCustom={jest.fn()}
       onPickGallery={onPickGallery}
@@ -125,7 +129,7 @@ describe('BackgroundPicker', () => {
     expect(screen.getByLabelText('Vollfarben')).toBeTruthy();
     expect(screen.getByLabelText('Verläufe')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Eigene Farbe' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Eigener Verlauf' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Eigener Verlauf' })).toBeNull();
   });
 
   it('offers the CD colours first and picks a free colour', async () => {
@@ -144,9 +148,26 @@ describe('BackgroundPicker', () => {
     });
   });
 
+  it('turns the free colour into a gradient that starts with it', async () => {
+    const { onSelect } = await renderBackgrounds(FREE_BACKGROUND_ID, {
+      kind: 'color',
+      color: '#ffffff',
+    });
+    fireEvent.press(screen.getByRole('button', { name: 'Eigene Farbe' }));
+    fireEvent.press(screen.getByRole('radio', { name: 'Verlauf' }));
+    expect(onSelect).toHaveBeenLastCalledWith(
+      FREE_BACKGROUND_ID,
+      expect.objectContaining({ kind: 'gradient', stops: ['#ffffff', expect.any(String)] })
+    );
+  });
+
   it('sets a free gradient’s direction', async () => {
-    const { onSelect } = await renderBackgrounds();
-    fireEvent.press(screen.getByRole('button', { name: 'Eigener Verlauf' }));
+    const { onSelect } = await renderBackgrounds(FREE_BACKGROUND_ID, {
+      kind: 'gradient',
+      stops: ['#005538', '#46962b'],
+      angle: 180,
+    });
+    fireEvent.press(screen.getByRole('button', { name: 'Eigene Farbe' }));
     fireEvent.press(screen.getByRole('button', { name: 'Diagonal' }));
     expect(onSelect).toHaveBeenLastCalledWith(
       FREE_BACKGROUND_ID,

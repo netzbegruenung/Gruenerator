@@ -4,14 +4,6 @@ import {
   type TranslationLanguagesResponse,
   TRANSLATION_TEXT_MAX_CHARS,
 } from '@gruenerator/contracts';
-import { IconSwap, Alert, AlertDescription, Button } from '@gruenerator/ui';
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
-import { PiCheck, PiCopy, PiX } from 'react-icons/pi';
-
-import { useTranslateText } from '../hooks/useTranslation';
-
-import { FormalityMenu } from './FormalityMenu';
-import { LanguageBar } from './LanguageBar';
 import {
   AUTO,
   defaultTarget,
@@ -21,7 +13,15 @@ import {
   pushRecent,
   sourceOptions,
   targetOptions,
-} from './languageOptions';
+} from '@gruenerator/shared/translation';
+import { IconSwap, Alert, AlertDescription, Button } from '@gruenerator/ui';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { PiCheck, PiCopy, PiX } from 'react-icons/pi';
+
+import { useTranslateText } from '../hooks/useTranslation';
+
+import { FormalityMenu } from './FormalityMenu';
+import { LanguageBar } from './LanguageBar';
 import { TranslationExportMenu } from './TranslationExportMenu';
 
 import { TreeBudgetChip } from '@/components/common/TreeBudgetLine';

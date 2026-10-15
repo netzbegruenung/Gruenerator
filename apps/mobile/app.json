@@ -65,7 +65,7 @@
       [
         "expo-media-library",
         {
-          "photosPermission": "Erlaube Grünerator, Reels in deiner Galerie zu speichern",
+          "photosPermission": "Erlaube Grünerator, deine Fotos zu zeigen – für Profilbilder und um Reels zu speichern",
           "savePhotosPermission": "Erlaube Grünerator, Reels in deiner Galerie zu speichern"
         }
       ],

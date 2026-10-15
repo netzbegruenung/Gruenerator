@@ -15,7 +15,7 @@ import {
   useColorScheme,
 } from 'react-native';
 
-import { useContentColumn, useLayout } from '../../hooks/useLayout';
+import { useContentColumn } from '../../hooks/useLayout';
 import { useOfficeSearch } from '../../hooks/useOfficeSearch';
 import {
   useOpenRecentItem,
@@ -29,12 +29,12 @@ import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
 import { colors, darkTheme, lightTheme, spacing, BODY_FONT } from '../../theme';
 import { officeTypeColor } from '../../theme/officeColors';
 import { getSurfaceFab, getToolTheme } from '../../theme/toolTheme';
-import { CreateMenuSheet, SHEET_HANDOFF_MS, type CreateMenuEntry } from '../common/CreateMenuSheet';
+import { CreateMenuSheet, type CreateMenuEntry } from '../common/CreateMenuSheet';
 import { EmptyState, type EmptyStateAction } from '../common/EmptyState';
 import { Fab } from '../common/Fab';
 import { RecentItemsSection, useRecentCardColumns } from '../common/RecentItemsSection';
 import { ViewModeToggle, type ViewMode } from '../common/ViewModeToggle';
-import { CreateDocSheet } from '../docs/CreateDocSheet';
+import { CreateDocPanel, type CreateDocStep } from '../docs/CreateDocPanel';
 import { toDocListItems } from '../docs/docListItems';
 import { NativeShareModal } from '../docs/NativeShareModal';
 import { useDocCreation } from '../docs/useDocCreation';
@@ -47,8 +47,8 @@ import {
   type OfficeKind,
 } from '../office/officeItem';
 import { useOfficeExtraItems } from '../office/useOfficeExtraItems';
+import { ToolDock } from '../tools/ToolDock';
 import { STUDIO_TOOLS, STUDIO_TOOL_GLYPHS, WORKPLACE_TILES } from '../tools/toolsConfig';
-import { ToolSquareGrid } from '../tools/ToolSquareGrid';
 
 import { LoadErrorNotice } from './LoadErrorNotice';
 import {
@@ -113,7 +113,6 @@ export function WorkplaceArbeitenPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const { gridWidth } = useLayout();
   const gridColumn = useContentColumn('grid');
   // Caps in whole rows, so a three- or five-column tablet grid never ends on a
   // lone card under a full row.
@@ -125,13 +124,18 @@ export function WorkplaceArbeitenPage() {
   const fabTone = getSurfaceFab('arbeiten', isDark);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
-  const [docSheetTemplates, setDocSheetTemplates] = useState(false);
   const [activeDoc, setActiveDoc] = useState<{ id: string; title: string } | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
-  const [docSheetPending, setDocSheetPending] = useState(false);
-  const [docSheetOpen, setDocSheetOpen] = useState(false);
+  // The "Neues Dokument" page inside the create menu, and which of its steps shows.
+  const [docStep, setDocStep] = useState<CreateDocStep | null>(null);
+  // The page stays as it is while the sheet slides out; the next open sets it.
+  const closeMenu = () => setMenuOpen(false);
+  const openMenu = () => {
+    setDocStep(null);
+    setMenuOpen(true);
+  };
 
   const recent = useRecentActivity();
   const openRecent = useOpenRecentItem();
@@ -142,7 +146,7 @@ export function WorkplaceArbeitenPage() {
   const docsError = useDocsStore((s) => s.error);
   const deleteDocument = useDocsStore((s) => s.deleteDocument);
   const fetchDocuments = useDocsStore((s) => s.fetchDocuments);
-  const { isCreating, createFromTemplate, generate } = useDocCreation(() => setDocSheetOpen(false));
+  const { isCreating, createFromTemplate, generate } = useDocCreation(closeMenu);
 
   useEffect(() => {
     if (user) {
@@ -271,9 +275,9 @@ export function WorkplaceArbeitenPage() {
     ]);
   };
 
-  const openDocSheet = (withTemplates: boolean) => {
-    setDocSheetTemplates(withTemplates);
-    setDocSheetOpen(true);
+  const openDocPage = (step: CreateDocStep) => {
+    setDocStep(step);
+    setMenuOpen(true);
   };
 
   const officeLoading = docsLoading && documents.length === 0;
@@ -313,7 +317,7 @@ export function WorkplaceArbeitenPage() {
       title: 'Mit KI erstellen',
       description: 'Beschreiben, den Entwurf schreibt die KI',
       tone: officeTypeColor('canvas', isDark),
-      onPress: () => openDocSheet(false),
+      onPress: () => openDocPage('ki'),
     },
     {
       key: 'templates',
@@ -321,7 +325,7 @@ export function WorkplaceArbeitenPage() {
       title: 'Vorlage wählen',
       description: 'Antrag, Pressemitteilung, Protokoll und mehr',
       tone: officeTypeColor('sheet', isDark),
-      onPress: () => openDocSheet(true),
+      onPress: () => openDocPage('start'),
     },
     ...STUDIO_TOOLS.map((tool) => ({
       key: tool.id,
@@ -340,17 +344,6 @@ export function WorkplaceArbeitenPage() {
     { key: 'reels', title: 'Reels', items: media.reels, tone: 'reel' },
   ] as const;
 
-  // The docs sheet opens only once the menu has slid out: iOS will not present
-  // a Modal while another one is still leaving.
-  useEffect(() => {
-    if (!docSheetPending) return;
-    const timer = setTimeout(() => {
-      setDocSheetPending(false);
-      setDocSheetOpen(true);
-    }, SHEET_HANDOFF_MS);
-    return () => clearTimeout(timer);
-  }, [docSheetPending]);
-
   const menuEntries = useMemo<CreateMenuEntry[]>(() => {
     const docsTone = getToolTheme('docs', isDark);
     return [
@@ -368,13 +361,11 @@ export function WorkplaceArbeitenPage() {
       {
         key: 'docs',
         title: 'Dokument',
-        description: 'Beschreiben, finden oder aus Vorlage',
+        description: 'Leer, aus Vorlage oder mit KI',
         tone: docsTone,
         icon: <Ionicons name="document-text" size={22} color={docsTone.icon} />,
-        onPress: () => {
-          setDocSheetTemplates(false);
-          setDocSheetPending(true);
-        },
+        opensPage: true,
+        onPress: () => setDocStep('start'),
       },
     ];
   }, [isDark, router]);
@@ -396,7 +387,7 @@ export function WorkplaceArbeitenPage() {
           />
         }
       >
-        <ToolSquareGrid tools={tiles} availableWidth={gridWidth} row />
+        <ToolDock tools={tiles} />
 
         {searchOpen ? (
           <View style={styles.section}>
@@ -519,7 +510,7 @@ export function WorkplaceArbeitenPage() {
       <Fab
         icon="add"
         accessibilityLabel="Neu erstellen"
-        onPress={() => setMenuOpen(true)}
+        onPress={openMenu}
         loading={isCreating}
         color={fabTone.icon}
         style={{ backgroundColor: fabTone.background, bottom: fabBottom }}
@@ -527,22 +518,20 @@ export function WorkplaceArbeitenPage() {
 
       <CreateMenuSheet
         visible={menuOpen}
-        onClose={() => setMenuOpen(false)}
+        onClose={closeMenu}
         entries={menuEntries}
-      />
-
-      <CreateDocSheet
-        visible={docSheetOpen}
-        onClose={() => setDocSheetOpen(false)}
-        items={officeItems}
-        isCreating={isCreating}
-        expandTemplates={docSheetTemplates}
-        onGenerate={(description) => void generate(description)}
-        onSelectTemplate={(template) => void createFromTemplate(template)}
-        onOpenItem={(item) => {
-          setDocSheetOpen(false);
-          openOfficeItem(item);
-        }}
+        page={
+          docStep ? (
+            <CreateDocPanel
+              step={docStep}
+              onStep={setDocStep}
+              onBack={() => setDocStep(null)}
+              isCreating={isCreating}
+              onGenerate={(description) => void generate(description)}
+              onSelectTemplate={(template) => void createFromTemplate(template)}
+            />
+          ) : null
+        }
       />
 
       {activeDoc && (

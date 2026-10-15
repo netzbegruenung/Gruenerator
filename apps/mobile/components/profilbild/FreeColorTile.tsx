@@ -8,6 +8,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { HEADING_FONT_BOLD, borderRadius, colors, spacing, typography } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
 import { Button } from '../common/Button';
+import { SegmentedControl, type SegmentedOption } from '../common/SegmentedControl';
 
 import { FlatFill } from './FlatFill';
 import {
@@ -83,20 +84,24 @@ function ColorField({
   );
 }
 
+const KINDS: SegmentedOption[] = [
+  { value: 'color', label: 'Vollfarbe', short: 'Vollfarbe', disabled: false },
+  { value: 'gradient', label: 'Verlauf', short: 'Verlauf', disabled: false },
+];
+
 /**
- * Tile „Eigene Farbe“ or „Eigener Verlauf“ at the end of its row. It shows the
- * free choice once there is one; the sheet offers the CD colours first.
+ * Tile „Eigene Farbe“ at the end of the colour row: one picker for a solid
+ * colour or a gradient, switched inside the sheet. It shows the free choice
+ * once there is one; the sheet offers the CD colours first.
  */
 export function FreeColorTile({
-  mode,
   value,
   selected,
   palette,
   size,
   onChange,
 }: {
-  mode: 'color' | 'gradient';
-  /** The current free choice, when it fits this mode. */
+  /** The current free choice. */
   value: FreeBackground | null;
   selected: boolean;
   palette: PaletteColor[];
@@ -105,9 +110,17 @@ export function FreeColorTile({
 }) {
   const theme = useTheme();
   const [open, setOpen] = useState(false);
-  const label = mode === 'color' ? 'Eigene Farbe' : 'Eigener Verlauf';
+  const label = 'Eigene Farbe';
+  const mode = value?.kind ?? 'color';
   const { color, gradient } = freeDefaults(value, palette);
   const [from, to] = gradient.stops;
+  // Switching carries the colour over: a solid becomes the gradient's start,
+  // a gradient's start becomes the solid.
+  const switchTo = (kind: string) => {
+    if (kind === mode) return;
+    if (kind === 'gradient') onChange({ ...gradient, stops: [color, to] });
+    else onChange({ kind: 'color', color: from });
+  };
 
   return (
     <>
@@ -153,6 +166,12 @@ export function FreeColorTile({
           <Text accessibilityRole="header" style={[styles.title, { color: theme.text }]}>
             {label}
           </Text>
+          <SegmentedControl
+            accessibilityLabel="Art der Farbe"
+            value={mode}
+            onChange={switchTo}
+            options={KINDS}
+          />
           {mode === 'color' ? (
             <ColorField
               label="Farbe"

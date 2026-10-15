@@ -1,7 +1,7 @@
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
-import { ActivityIndicator, Pressable, StyleSheet } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 
-import { colors, spacing } from '../../theme';
+import { colors, spacing, HEADING_FONT_SEMIBOLD } from '../../theme';
 
 import type { StyleProp, ViewStyle } from 'react-native';
 
@@ -20,8 +20,11 @@ export function Fab({
   loading = false,
   disabled = false,
   style,
+  label,
 }: {
   icon: IoniconsIconName;
+  /** Makes it an extended FAB: icon and text, for an action that must not be missed. */
+  label?: string;
   onPress: () => void;
   accessibilityLabel?: string;
   color?: string;
@@ -35,13 +38,19 @@ export function Fab({
       disabled={disabled || loading}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      style={({ pressed }) => [styles.fab, { opacity: pressed ? 0.85 : 1 }, style]}
+      style={({ pressed }) => [
+        styles.fab,
+        label ? styles.extended : null,
+        { opacity: pressed ? 0.85 : 1 },
+        style,
+      ]}
     >
       {loading ? (
         <ActivityIndicator size="small" color={color} />
       ) : (
         <Ionicons name={icon} size={22} color={color} />
       )}
+      {label ? <Text style={[styles.label, { color }]}>{label}</Text> : null}
     </Pressable>
   );
 }
@@ -63,4 +72,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.27,
     shadowRadius: 4.65,
   },
+  extended: {
+    width: 'auto',
+    flexDirection: 'row',
+    gap: spacing.xsmall,
+    paddingLeft: spacing.medium,
+    paddingRight: spacing.large,
+  },
+  label: { fontFamily: HEADING_FONT_SEMIBOLD, fontSize: 16 },
 });

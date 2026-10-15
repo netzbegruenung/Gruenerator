@@ -7,7 +7,7 @@ import { useDocsStore } from '../../stores/docsStore';
 
 /**
  * Creating a document from a template or from a description, then opening it —
- * what `CreateDocSheet` hands back to whoever hosts it. `onStart` closes that
+ * what `CreateDocPanel` hands back to whoever hosts it. `onStart` closes that
  * sheet: the sheet's own exit runs the action instead of `onClose`.
  */
 export function useDocCreation(onStart: () => void) {

@@ -1,4 +1,4 @@
-import { agentKey, matchesAgenturaType } from '@gruenerator/shared/agents';
+import { agentKey, matchesAgenturaType, showsSystemRecipes } from '@gruenerator/shared/agents';
 import {
   Button,
   Dialog,
@@ -149,11 +149,8 @@ function AgenturaMarket() {
 
   const q = search.trim().toLowerCase();
   const searching = q.length > 0;
-  // System-Rezepte (Katalog und Landesverband, erkennbar an der fehlenden
-  // Zeilen-id) wendet der Grünerator von selbst an — die Wortweiche im Chat und
-  // die Standard-Rezepte der System-Agents holen sie. Im Shop stehen sie deshalb
-  // erst, wenn jemand ausdrücklich nach Rezepten filtert oder sucht.
-  const showSystemRecipes = type === 'recipe' || searching;
+  // System-Rezepte erkennt man an der fehlenden Zeilen-id.
+  const showSystemRecipes = showsSystemRecipes(type, searching);
   const isSystemRecipe = (item: MarketItem) => item.kind === 'recipe' && item.entry.id === null;
   const shelvedAisles = aisles.map((aisle) => ({
     ...aisle,

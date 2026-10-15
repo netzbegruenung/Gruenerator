@@ -9,10 +9,11 @@ import { useAuthStore } from '@gruenerator/shared/stores';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
 import { memo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { canOpenInApp } from '../../hooks/useGroupContent';
 import { useTheme } from '../../hooks/useTheme';
+import { resolveWebUrl } from '../../services/webOrigin';
 import { BODY_FONT, borderRadius, colors, spacing, typography } from '../../theme';
 import { canHidePerson, feedItemPersonId } from '../../utils/hiddenMembers';
 import { confirmHidePerson } from '../common/confirmHidePerson';
@@ -21,10 +22,12 @@ import { ReportSheet } from '../common/ReportSheet';
 import { FEED_KIND_ICONS } from './feedIcons';
 import { GroupPostBody } from './GroupPostBody';
 import { ModerationMenuButton } from './ModerationMenuButton';
+import { useProjekteTone } from './projekteTone';
 
 /** Vorschau je Art — Sharepic als Bild, Text als Blatt, der Rest als Symbol. */
 export function FeedPreview({ item, height }: { item: GroupFeedItem; height: number }) {
   const theme = useTheme();
+  const tone = useProjekteTone();
   const isImage = item.kind === 'sharepic' || item.kind === 'sharepic-template';
   const paper = item.kind === 'doc' || item.kind === 'text';
 
@@ -36,7 +39,7 @@ export function FeedPreview({ item, height }: { item: GroupFeedItem; height: num
         </Text>
       ) : isImage && item.thumbnailUrl ? (
         <Image
-          source={{ uri: item.thumbnailUrl }}
+          source={{ uri: resolveWebUrl(item.thumbnailUrl) }}
           style={StyleSheet.absoluteFill}
           contentFit="contain"
           accessibilityIgnoresInvertColors
@@ -58,7 +61,7 @@ export function FeedPreview({ item, height }: { item: GroupFeedItem; height: num
         </View>
       ) : (
         <View style={[styles.iconTile, { backgroundColor: theme.card }]}>
-          <Ionicons name={FEED_KIND_ICONS[item.kind]} size={28} color={colors.primary[600]} />
+          <Ionicons name={FEED_KIND_ICONS[item.kind]} size={28} color={tone.accent} />
         </View>
       )}
     </View>
@@ -84,7 +87,7 @@ export const GroupFeedCard = memo(function GroupFeedCard({
   onShowComments,
 }: GroupFeedCardProps) {
   const theme = useTheme();
-  const dark = useColorScheme() === 'dark';
+  const tone = useProjekteTone();
   const pinned = isPinned(item);
   const share = item.share;
   const kind = groupFeedKindMeta(item.kind);
@@ -100,30 +103,23 @@ export const GroupFeedCard = memo(function GroupFeedCard({
       style={[
         styles.card,
         { backgroundColor: theme.card },
-        pinned
-          ? { borderColor: dark ? colors.primary[800] : colors.primary[200], borderWidth: 1 }
-          : styles.shadow,
+        pinned ? { borderColor: tone.soft, borderWidth: 1 } : styles.shadow,
       ]}
     >
       {pinned && (
-        <View
-          style={[
-            styles.pinBanner,
-            { backgroundColor: dark ? colors.primary[950] : colors.primary[50] },
-          ]}
-        >
-          <Ionicons name="pin" size={14} color={dark ? colors.primary[200] : colors.primary[700]} />
-          <Text
-            style={[styles.pinText, { color: dark ? colors.primary[200] : colors.primary[700] }]}
-          >
+        <View style={[styles.pinBanner, { backgroundColor: tone.soft }]}>
+          <Ionicons name="pin" size={14} color={tone.accent} />
+          <Text style={[styles.pinText, { color: tone.accent }]}>
             {share?.pinnedByName ? `Angeheftet von ${share.pinnedByName}` : 'Angeheftet'}
           </Text>
         </View>
       )}
 
       <View style={styles.header}>
-        <View style={[styles.avatar, { backgroundColor: colors.secondary[100] }]}>
-          <Text style={styles.avatarText}>{personInitials(item.sharedByName)}</Text>
+        <View style={[styles.avatar, { backgroundColor: tone.soft }]}>
+          <Text style={[styles.avatarText, { color: tone.accent }]}>
+            {personInitials(item.sharedByName)}
+          </Text>
         </View>
         <View style={styles.headerText}>
           <Text style={[styles.author, { color: theme.text }]} numberOfLines={1}>
@@ -159,7 +155,7 @@ export const GroupFeedCard = memo(function GroupFeedCard({
           </Pressable>
 
           <View style={styles.titleBlock}>
-            <Text style={styles.kindLabel}>{kind.label}</Text>
+            <Text style={[styles.kindLabel, { color: tone.accent }]}>{kind.label}</Text>
             <Text style={[styles.title, { color: theme.text }]} numberOfLines={2}>
               {item.title}
             </Text>
@@ -188,7 +184,7 @@ export const GroupFeedCard = memo(function GroupFeedCard({
             accessibilityLabel={`${item.title}: Öffnen`}
             style={({ pressed }) => [
               styles.cta,
-              { backgroundColor: pressed ? colors.primary[700] : colors.primary[600] },
+              { backgroundColor: tone.accent, opacity: pressed ? 0.85 : 1 },
             ]}
           >
             <Text style={styles.ctaText}>Öffnen</Text>
@@ -244,7 +240,6 @@ const styles = StyleSheet.create({
     fontFamily: BODY_FONT,
     fontSize: 13,
     fontWeight: '700',
-    color: colors.secondary[800],
   },
   headerText: { flex: 1, minWidth: 0 },
   author: { fontFamily: BODY_FONT, fontSize: 15, fontWeight: '700' },
@@ -296,7 +291,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
-    color: colors.primary[600],
   },
   title: { ...typography.h3, fontSize: 17, lineHeight: 22 },
   footer: {

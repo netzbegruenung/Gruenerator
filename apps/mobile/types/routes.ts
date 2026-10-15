@@ -20,6 +20,7 @@ export type AppRoute =
   | '/(focused)/profilbild'
   | '/(focused)/sticker'
   | '/(focused)/sticker-neu'
+  | '/(focused)/uebersetzer'
   // Wissen
   | '/(focused)/wissen'
   // Auth routes
