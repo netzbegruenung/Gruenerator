@@ -13,7 +13,7 @@ import {
   type Agent,
 } from '@gruenerator/shared/agents';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { View, Text, SectionList, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -61,6 +61,8 @@ export default function AgentsScreen() {
 
   const [search, setSearch] = useState('');
   const [shopOpen, setShopOpen] = useState(params.agentura === '1');
+  // The sheet is a native modal: left open, it would sit over the next screen.
+  useFocusEffect(useCallback(() => () => setShopOpen(false), []));
   // A deep link into an already open overview only changes its params.
   const [linkedShop, setLinkedShop] = useState(params.agentura);
   if (params.agentura !== linkedShop) {
