@@ -49,6 +49,7 @@ import { GEMMA_31B_ON_MELIOUS } from '../ai/gemmaHosts.js';
 import { aiObject } from '../ai/generate.js';
 import { getAttribution } from '../image/UnsplashAttributionService.js';
 
+import { carouselLookProblems } from './carouselLook.js';
 import { hasStockPhoto, searchStockPhotos, type StockPhoto } from './catalog.js';
 import { type CutOutPainter } from './cutOut.js';
 import { DraftFailedError, headlineLineTooLong } from './draftFailure.js';
@@ -1384,6 +1385,9 @@ export async function draftSharepic(
       if (mismatch) {
         return { ok: false, error: `Der Auftrag ist ein Sharepic der Form ${mismatch}` };
       }
+      // A new carousel holds one look; the last attempt passes rather than fail the draft.
+      const look = !current && attempt < attempts ? carouselLookProblems(checked.value) : null;
+      if (look) return { ok: false, error: look };
       // Like a drift: the last attempt passes, the reply then says the slide stayed.
       const untouched =
         current && attempt < attempts ? untouchedSlides(current, checked.value, asked) : [];
