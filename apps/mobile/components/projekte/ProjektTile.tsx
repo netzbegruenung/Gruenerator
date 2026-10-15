@@ -1,14 +1,16 @@
+import { getGroupInitials } from '@gruenerator/shared/groups';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 
 import { type GroupSummary } from '../../hooks/useGroups';
-import { HEADING_FONT_BOLD, BODY_FONT } from '../../theme';
-import { getToolTheme } from '../../theme/toolTheme';
+import { useTheme } from '../../hooks/useTheme';
+import { colors, HEADING_FONT_BOLD, BODY_FONT } from '../../theme';
 import { GroupAvatar } from '../workplace/GroupAvatar';
 
 /**
- * One project as web's ProjektTile: a square in the Projekte hue, the avatar
- * and the kind (personal or shared) on top, name and meta at the foot.
+ * One project as web's ProjektTile: a square card, the avatar and the kind
+ * (personal or shared) on top, name and meta at the foot. Neutral rather than
+ * web's Projekte blue, which clashes with the app's green.
  */
 export function ProjektTile({
   group,
@@ -21,7 +23,8 @@ export function ProjektTile({
   size: number;
   onPress(): void;
 }) {
-  const tone = getToolTheme('projekte', useColorScheme() === 'dark');
+  const theme = useTheme();
+  const dark = useColorScheme() === 'dark';
   return (
     <Pressable
       onPress={onPress}
@@ -29,25 +32,43 @@ export function ProjektTile({
       accessibilityLabel={`${group.name}, ${meta}`}
       style={({ pressed }) => [
         styles.tile,
-        { width: size, height: size, backgroundColor: tone.tile },
+        {
+          width: size,
+          height: size,
+          backgroundColor: theme.card,
+          borderColor: theme.cardBorder,
+        },
         pressed && styles.pressed,
       ]}
     >
       <View style={styles.top}>
-        <View style={styles.avatar}>
-          <GroupAvatar name={group.name} avatarUrl={group.avatar_url} size={40} />
+        <View
+          style={[
+            styles.avatar,
+            { backgroundColor: dark ? colors.primary[900] : colors.primary[50] },
+          ]}
+        >
+          {group.avatar_url ? (
+            <GroupAvatar name={group.name} avatarUrl={group.avatar_url} size={40} />
+          ) : (
+            <Text
+              style={[styles.initials, { color: dark ? colors.primary[200] : colors.primary[600] }]}
+            >
+              {getGroupInitials(group.name)}
+            </Text>
+          )}
         </View>
         <Ionicons
           name={group.group_type === 'personal' ? 'person' : 'people'}
           size={18}
-          color={tone.desc}
+          color={theme.textSecondary}
         />
       </View>
       <View>
-        <Text style={[styles.name, { color: tone.title }]} numberOfLines={2}>
+        <Text style={[styles.name, { color: theme.text }]} numberOfLines={2}>
           {group.name}
         </Text>
-        <Text style={[styles.meta, { color: tone.desc }]} numberOfLines={1}>
+        <Text style={[styles.meta, { color: theme.textSecondary }]} numberOfLines={1}>
           {meta}
         </Text>
       </View>
@@ -56,7 +77,12 @@ export function ProjektTile({
 }
 
 const styles = StyleSheet.create({
-  tile: { borderRadius: 20, padding: 16, justifyContent: 'space-between' },
+  tile: {
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 16,
+    justifyContent: 'space-between',
+  },
   pressed: { opacity: 0.8, transform: [{ scale: 0.98 }] },
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   avatar: {
@@ -64,8 +90,10 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  initials: { fontFamily: HEADING_FONT_BOLD, fontSize: 14 },
   name: { fontFamily: HEADING_FONT_BOLD, fontSize: 16, lineHeight: 20 },
   meta: { fontFamily: BODY_FONT, fontSize: 13, marginTop: 2 },
 });
