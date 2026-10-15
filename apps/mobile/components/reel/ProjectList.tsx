@@ -263,7 +263,7 @@ export function ProjectList({
       />
       <Fab
         icon="add"
-        accessibilityLabel="Neues Reel"
+        label="Neues Reel"
         onPress={onNewReel}
         style={{ backgroundColor: colors.secondary[600] }}
       />
