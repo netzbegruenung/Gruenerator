@@ -212,7 +212,7 @@ describe('Erzeugungs-Zusicherung — nur für Bestelltes', () => {
   const sharepicTurn = (ordered: boolean | undefined) =>
     harness(
       {
-        editToolSurface: undefined,
+        editToolSurface: null,
         compoundGeneration: true,
         compoundGenerationKind: 'sharepic',
         ...(ordered !== undefined && { compoundGenerationOrdered: ordered }),

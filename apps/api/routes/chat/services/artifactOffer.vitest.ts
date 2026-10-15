@@ -151,6 +151,16 @@ describe('offerToRecord', () => {
     });
   });
 
+  // Ohne Leerzeile ist der Schlussabsatz die ganze Antwort — ein „ich kann"
+  // am Anfang ist dann eine Einordnung, kein Angebot (Claude Review, #4613).
+  it('ignores a first-person aside early in a single-paragraph reply', () => {
+    const text =
+      'Ich kann aus dieser Meldung sicher eine Tabelle machen, aber zuerst eine Einordnung: ' +
+      'Die Novelle ändert drei Paragraphen. Das wirkt sich auf die Kommunen aus. ' +
+      'Besonders betroffen sind kleine Gemeinden.';
+    expect(offerToRecord({ recipeMentions: [], text, producedArtifact: false })).toBeNull();
+  });
+
   it.each([
     ['Soll ich daraus ein Karussell machen?', 'sharepic'],
     ['Soll ich daraus eine Präsentation erstellen?', 'presentation'],

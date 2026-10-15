@@ -102,9 +102,11 @@ function lastQuestion(text: string): string | null {
 const FIRST_PERSON_OFFER_RE =
   /(?<!\p{L})(?:soll(?:en)?\s+(?:ich|wir)|kann\s+ich|k[öo]nnen\s+wir|ich\s+kann|wir\s+k[öo]nnen)(?!\p{L})/iu;
 
-/** Die Sätze des Schlussabsatzes, die ein Angebot in Ich-Form machen — auch
- *  ohne Fragezeichen: „Ich kann dir … erstellen. Gib mir einfach Bescheid, ob ich
- *  das übernehmen soll!" (live 15.10.2026). */
+/** Die letzten zwei Sätze des Schlussabsatzes, die ein Angebot in Ich-Form
+ *  machen — auch ohne Fragezeichen: „Ich kann dir … erstellen. Gib mir einfach
+ *  Bescheid, ob ich das übernehmen soll!" (live 15.10.2026). Nur das Ende zählt:
+ *  ohne Leerzeile ist der Schlussabsatz die ganze Antwort, und ein „ich kann"
+ *  mitten darin ist kein Angebot. */
 function closingOfferSentences(text: string): string[] {
   const last =
     text
@@ -113,6 +115,8 @@ function closingOfferSentences(text: string): string[] {
       .at(-1) ?? '';
   return (last.match(/[^.!?\n]+[.!?]?/g) ?? [])
     .map((sentence) => sentence.trim())
+    .filter((sentence) => sentence.length > 0)
+    .slice(-2)
     .filter((sentence) => FIRST_PERSON_OFFER_RE.test(sentence));
 }
 
