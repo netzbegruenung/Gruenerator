@@ -12,7 +12,13 @@
 
     "paths": {
       "@gruenerator/shared": ["../../packages/shared/src/index.ts"],
-      "@gruenerator/shared/*": ["../../packages/shared/src/*"]
+      "@gruenerator/shared/*": ["../../packages/shared/src/*"],
+      // Einzel-Imports der Agent-Symbole (AgentGlyph): Metro nimmt den
+      // Quelltext-Export, tsc die veröffentlichten Typen — der Quelltext
+      // selbst typcheckt gegen unser react-native-svg nicht.
+      "phosphor-react-native/src/icons/*": [
+        "../../node_modules/phosphor-react-native/lib/typescript/icons/*"
+      ]
     }
   },
   "include": [

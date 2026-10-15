@@ -933,6 +933,9 @@ importers:
       katex:
         specifier: ^0.19.0
         version: 0.19.0
+      phosphor-react-native:
+        specifier: ^3.0.6
+        version: 3.0.6(react-native-svg@15.15.4(react-native@0.86.3(@babel/core@7.29.7(supports-color@10.2.2))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@10.2.2))(react@19.2.3)(supports-color@10.2.2))(@react-native/metro-config@0.84.1(@babel/core@7.29.7(supports-color@10.2.2))(supports-color@10.2.2))(@types/react@19.3.0)(react@19.2.3)(supports-color@10.2.2))(react@19.2.3))(react-native@0.86.3(@babel/core@7.29.7(supports-color@10.2.2))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@10.2.2))(react@19.2.3)(supports-color@10.2.2))(@react-native/metro-config@0.84.1(@babel/core@7.29.7(supports-color@10.2.2))(supports-color@10.2.2))(@types/react@19.3.0)(react@19.2.3)(supports-color@10.2.2))(react@19.2.3)
       react:
         specifier: 19.2.3
         version: 19.2.3
@@ -18574,6 +18577,13 @@ packages:
 
   pgpass@1.0.5:
     resolution: {integrity: sha512-FdW9r/jQZhSeohs1Z3sI1yxFQNFvMcnmfuj4WBMUTxOrAyLMaTcE1aAMBiTlbMNaXvBCQuVi0R7hd8udDSP7ug==}
+
+  phosphor-react-native@3.0.6:
+    resolution: {integrity: sha512-mIhv+hBbDWz3yLbTOq/esVUkrMoKzEvLIcSeZo3YTdT+sbOBxzxKg5WZN3wpqt3pkkhKf0wVpOyZ3d9mNBNRhg==}
+    peerDependencies:
+      react: '*'
+      react-native: '*'
+      react-native-svg: '*'
 
   picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
@@ -43117,6 +43127,12 @@ snapshots:
   pgpass@1.0.5:
     dependencies:
       split2: 4.2.0
+
+  phosphor-react-native@3.0.6(react-native-svg@15.15.4(react-native@0.86.3(@babel/core@7.29.7(supports-color@10.2.2))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@10.2.2))(react@19.2.3)(supports-color@10.2.2))(@react-native/metro-config@0.84.1(@babel/core@7.29.7(supports-color@10.2.2))(supports-color@10.2.2))(@types/react@19.3.0)(react@19.2.3)(supports-color@10.2.2))(react@19.2.3))(react-native@0.86.3(@babel/core@7.29.7(supports-color@10.2.2))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@10.2.2))(react@19.2.3)(supports-color@10.2.2))(@react-native/metro-config@0.84.1(@babel/core@7.29.7(supports-color@10.2.2))(supports-color@10.2.2))(@types/react@19.3.0)(react@19.2.3)(supports-color@10.2.2))(react@19.2.3):
+    dependencies:
+      react: 19.2.3
+      react-native: 0.86.3(@babel/core@7.29.7(supports-color@10.2.2))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@10.2.2))(react@19.2.3)(supports-color@10.2.2))(@react-native/metro-config@0.84.1(@babel/core@7.29.7(supports-color@10.2.2))(supports-color@10.2.2))(@types/react@19.3.0)(react@19.2.3)(supports-color@10.2.2)
+      react-native-svg: 15.15.4(react-native@0.86.3(@babel/core@7.29.7(supports-color@10.2.2))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@10.2.2))(react@19.2.3)(supports-color@10.2.2))(@react-native/metro-config@0.84.1(@babel/core@7.29.7(supports-color@10.2.2))(supports-color@10.2.2))(@types/react@19.3.0)(react@19.2.3)(supports-color@10.2.2))(react@19.2.3)
 
   picocolors@1.1.1: {}
 

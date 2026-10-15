@@ -8,10 +8,12 @@
  * die Gruppenliste (Parameter) und die Fehleranzeige (`onError`).
  */
 export * from './agentFormState.js';
+export * from './agentLookup.js';
 export * from './agentSharing.js';
 export * from './myGroupsForSharing.js';
 export * from './recipeFormState.js';
 export * from './recipeKind.js';
+export * from './recipeLookup.js';
 export * from './recipeSharing.js';
 export * from './recipes.js';
 export * from './recurringTasks.js';

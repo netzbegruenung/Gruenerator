@@ -27,13 +27,19 @@
  */
 import { type AgentListItem } from '@gruenerator/chat';
 import { type PublicTextForm, type TextForm } from '@gruenerator/contracts';
-import { useOwnRecipes, usePublicRecipes } from '@gruenerator/shared/grueneratoren';
+import {
+  resolveRecipeByMention,
+  useOwnRecipes,
+  usePublicRecipes,
+  type RecipeMatch,
+  type RecipeSource,
+} from '@gruenerator/shared/grueneratoren';
 
 import { findSkillByMention } from '../lib/lookups';
 
 import { useAuthBootstrap } from '@/hooks/useAuthBootstrapped';
 
-export type RecipeSource = 'system' | 'own' | 'shared' | 'public';
+export type { RecipeSource };
 
 export interface RecipeLookup {
   status: 'loading' | 'ready';
@@ -42,8 +48,7 @@ export interface RecipeLookup {
   skill: AgentListItem | null;
   /** The row behind an own/shared/public recipe. `null` for a system one. */
   form: TextForm | PublicTextForm | null;
-  /** The caller's own row on this mention, whatever the source — for a system
-   *  mention that is the override, for `source: 'own'` it is `form` again. */
+  /** See {@link RecipeMatch.ownOverride}. */
   ownOverride: TextForm | null;
   /** A list the answer depended on failed to load. */
   isError: boolean;
@@ -65,57 +70,8 @@ export function useRecipeByMention(mention: string): RecipeLookup {
   const ownQuery = useOwnRecipes(isBootstrapped && isAuthenticated && mention.length > 0);
   const publicQuery = usePublicRecipes(!skill && mention.length > 0);
 
-  // Mentions are stored exactly as typed, but a link may carry any casing.
-  const needle = mention.toLowerCase();
-  const sameMention = (form: { mention: string }) => form.mention.toLowerCase() === needle;
-
-  const ownRow = ownQuery.data?.find((f) => sameMention(f) && !f.sharedFromGroup) ?? null;
-
-  if (skill) {
-    return {
-      status: 'ready',
-      source: 'system',
-      skill,
-      form: null,
-      ownOverride: ownRow,
-      isError: false,
-    };
-  }
-
-  if (ownRow) {
-    return {
-      status: 'ready',
-      source: 'own',
-      skill: null,
-      form: ownRow,
-      ownOverride: ownRow,
-      isError: false,
-    };
-  }
-
-  const sharedRow = ownQuery.data?.find((f) => sameMention(f) && f.sharedFromGroup) ?? null;
-  if (sharedRow) {
-    return {
-      status: 'ready',
-      source: 'shared',
-      skill: null,
-      form: sharedRow,
-      ownOverride: null,
-      isError: false,
-    };
-  }
-
-  const publicRow = publicQuery.data?.find(sameMention) ?? null;
-  if (publicRow) {
-    return {
-      status: 'ready',
-      source: 'public',
-      skill: null,
-      form: publicRow,
-      ownOverride: null,
-      isError: false,
-    };
-  }
+  const match = resolveRecipeByMention(mention, skill, ownQuery.data, publicQuery.data);
+  if (match) return { status: 'ready', ...match, isError: false };
 
   // `!isBootstrapped`: the own list is still switched off for a reason that
   // has nothing to do with this recipe. Answering "nicht gefunden" here is the
