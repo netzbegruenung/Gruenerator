@@ -175,9 +175,8 @@ export function BackgroundPicker({
           <View accessibilityLabel="Vollfarben" style={styles.row}>
             {colors.map(renderSwatch)}
             <FreeColorTile
-              mode="color"
-              value={freeBackground?.kind === 'color' ? freeBackground : null}
-              selected={freeSelected?.kind === 'color'}
+              value={freeBackground}
+              selected={freeSelected !== null}
               palette={palette}
               size={SWATCH}
               onChange={selectFree}
@@ -185,14 +184,6 @@ export function BackgroundPicker({
           </View>
           <View accessibilityLabel="Verläufe" style={styles.row}>
             {gradients.map(renderSwatch)}
-            <FreeColorTile
-              mode="gradient"
-              value={freeBackground?.kind === 'gradient' ? freeBackground : null}
-              selected={freeSelected?.kind === 'gradient'}
-              palette={palette}
-              size={SWATCH}
-              onChange={selectFree}
-            />
           </View>
         </>
       ) : null}
