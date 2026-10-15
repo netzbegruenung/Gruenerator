@@ -771,7 +771,7 @@
     "id": "at-karussell-ernte",
     "land": "de-AT",
     "anlass": "karussell-erklaerung",
-    "vorbild": "@diegruenen, Dürre und Lebensmittel: Hook auf Foto, Erklärung mit Liste, Zahl mit Quelle, Wendung, Forderung mit Petition. Punktreihe als Seitenzahl, Teaser neben dem Pfeil, Schluss als petition-aufruf.",
+    "vorbild": "@diegruenen, Dürre und Lebensmittel: Hook auf Foto, Erklärung mit Liste, Zahl mit Quelle, Wendung, Forderung mit Petition. Teaser neben dem Pfeil, Schluss als petition-aufruf, ohne Logo und ohne Seitenzahl.",
     "spec": {
       "slides": [
         {
@@ -887,10 +887,9 @@
               "hinweis": "Link in der Bio"
             }
           ],
-          "logo": true
+          "logo": false
         }
-      ],
-      "seitenzahl": "punkte"
+      ]
     }
   },
   {
@@ -971,6 +970,80 @@
             }
           ],
           "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "at-karussell-fotokette",
+    "land": "de-AT",
+    "anlass": "karussell-geschichte",
+    "vorbild": "@diegruenen, Foto-Satzkette: jede Slide ein vollflächiges Foto, ein einziger Satz läuft mit „…“ über alle Slides, gelbe Wort-Akzente, kein Logo.",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "foto",
+            "filename": "<foto>",
+            "textSeite": "unten"
+          },
+          "position": "unten",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "absatz",
+              "text": "Letzten Sommer stand das Wasser in unserem ==Ortskern== einen halben Meter hoch …"
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "foto",
+            "filename": "<foto>",
+            "textSeite": "unten"
+          },
+          "position": "unten",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "absatz",
+              "text": "… und viele Familien haben dabei ==alles verloren==, was sie sich aufgebaut haben …"
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "foto",
+            "filename": "<foto>",
+            "textSeite": "unten"
+          },
+          "position": "unten",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "absatz",
+              "text": "… weil jedes Jahr mehr Boden unter ==Beton== verschwindet und der Regen nicht mehr versickern kann …"
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "foto",
+            "filename": "<foto>",
+            "textSeite": "unten"
+          },
+          "position": "unten",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "absatz",
+              "text": "… darum sagen wir: Schützen wir unsere Böden – ==bevor das nächste Hochwasser kommt.=="
+            }
+          ],
+          "logo": false
         }
       ]
     }

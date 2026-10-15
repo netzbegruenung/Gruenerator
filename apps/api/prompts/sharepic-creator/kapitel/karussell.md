@@ -8,9 +8,9 @@ Ausgewertet: die 20 neuesten Karussells beider Parteien (10/2026). Kritik, Erkl�
 2. **Kontext / Fakt** (15–45 Wörter): was los ist, mit den Zahlen aus dem Auftrag.
 3. **Kritik / Wendung**: was falsch läuft, wer es verantwortet – sachlich-empört, mit Beleg statt Beschimpfung. Brücken: „Doch …“, „Aber nicht nur das …“, „anstatt …“.
 4. **Lösung / Forderung**: `liste` mit 2–5 Forderungen oder ein Absatz „Darum sagen wir: …“.
-5. **Schluss**: ein `aufruf` (siehe unten) oder eine große These, `logo: true` – nur hier ein Logo.
+5. **Schluss**: ein `aufruf` (siehe unten) oder eine große These. Ein Logo nur hier – in Deutschland `logo: true`, in Österreich meist ohne.
 
-3–6 Slides für Kritik und Erklärung, bis 8 für eine Geschichte. Hook und Schluss kurz, die Mitte darf mehr Text haben.
+3–6 Slides für Kritik und Erklärung, bis 8 für eine Geschichte. Der Hook ist kurz. In Deutschland auch der Schluss; in Österreich trägt die letzte Slide oft Begründung, „Darum sagen wir:“ und Forderung zusammen.
 
 ## Was groß gehört
 
@@ -33,7 +33,7 @@ Das Programm setzt diese Teile selbst; du entscheidest nur, ob sie da sind.
 
 - **Weiter-Pfeil**: steht auf jeder Slide außer der letzten. `pfeil: false` nur, wenn er stört – etwa wenn jede Slide mit „…“ in die nächste läuft.
 - **`weiter`**: ein kurzer Teaser neben dem Pfeil, der zur nächsten Slide zieht – „Denn →“, „Deshalb →“, „Wie stoppen wir das?“, „Und jetzt?“. Nicht auf jeder Slide, eher dort, wo die nächste Slide die Antwort bringt; nie auf der letzten.
-- **`seitenzahl`**: nur bei nummerierten Inhalten (Gründe, Schritte) und ab 4 Slides – `punkte` (Punktreihe oben) oder `bruch` („2/5“ oben rechts). Sonst weglassen.
+- **`seitenzahl`**: selten – in keinem der 18 Partei-Karussells. Nur bei nummerierten Inhalten (Gründe, Schritte, Fakten) und ab 4 Slides – `punkte` (Punktreihe oben) oder `bruch` („2/5“ oben rechts). Sonst weglassen.
 
 ## Schluss-Slide: `aufruf`
 
@@ -53,12 +53,12 @@ Der `aufruf` steht allein auf der letzten Slide (höchstens eine `dachzeile` dar
 
 ## Österreich
 
-- **Alle Slides auf `dunkelgruen`**. Cover und Hook: die Headline allein, oben links (`position: oben`, `align: links`). Argument-Slides zentriert. Statt Headline gern zwei `absatz`-Bausteine in großer Schrift.
+- **Kritik und Erklärung: alle Slides auf `dunkelgruen`**. Cover und Hook: die Headline allein, oben links (`position: oben`, `align: links`). Argument-Slides zentriert. Statt Headline gern zwei `absatz`-Bausteine in großer Schrift.
 - Ein Motiv zum Thema als `foto-unten` (Text oben, Foto blendet unten ins Grün) – so bleibt die untere Hälfte nicht leer.
 - **Wort-Akzente** mit `==…==` in fast jeder Slide – das gelbe Vollkorn-Wort ist das Markenzeichen.
 - Brücke „Darum sagen wir:“ als `absatz` mit `betont: true`, darunter die Forderung.
-- **Schluss**: ein `aufruf` auf `dunkelgruen` oder die Forderung als Headline, `logo: true` – das Logo erscheint nur auf der letzten Slide und nur auf einer Farbfläche.
-- Seitenzahlen sind in Österreich üblicher als in Deutschland (Punktreihe beim Bund, „1/5“ in Niederösterreich).
+- **Foto-Satzkette** (Geschichte, persönlicher Bericht): jede Slide ein vollflächiges Foto (`foto`, Text unten zentriert), ein einziger Satz läuft mit „…“ über alle Slides, kein Logo.
+- **Schluss**: ein `aufruf` auf `dunkelgruen` oder die Forderung als Headline, gern mit Begründung und „Darum sagen wir:“ davor. Meist ohne Logo (7 von 10 Posts); wenn eins, dann nur auf der letzten Slide und nur auf einer Farbfläche.
 - Kein `button`.
 - Zahlen mit Quelle: `quelle`, wenn sie im Auftrag steht.
 
