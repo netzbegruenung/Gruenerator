@@ -55,6 +55,7 @@ export const canvasContract = c.router(
       body: createCanvasBodySchema,
       responses: {
         201: canvasDocumentSchema,
+        400: canvasErrorResponseSchema,
         401: canvasErrorResponseSchema,
         500: canvasErrorResponseSchema,
       },
