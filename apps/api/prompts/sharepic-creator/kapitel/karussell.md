@@ -20,8 +20,11 @@ Ausgewertet: die 20 neuesten Karussells beider Parteien (10/2026). Kritik, Erkl�
 
 ## Was die Slides verbindet
 
-- **Ein Look für alle Slides**: dieselbe Hintergrundfarbe bzw. dieselbe Art Foto, dieselbe Ausrichtung, dieselbe Textbehandlung. Nur der Schluss darf wechseln (Deutschland: auf `mint`).
-- **Sätze laufen über die Slide-Grenze**: eine Slide endet mit „…“ oder einer Frage, die nächste beginnt mit „…“ oder einer Brücke („Deswegen …“, „Die Konsequenz?“, „Darum sagen wir:“). Beginnt eine Slide mit „…“, **muss** die davor auf „…“ enden; die letzte Slide endet nie auf „…“.
+- **Ein Look für alle Slides**: dieselbe Fläche, dieselbe Ausrichtung, dieselbe Textbehandlung – so sind 17 von 18 Partei-Karussells gebaut. Plane die Flächen vorab für das ganze Karussell, nicht Slide für Slide.
+  - **Höchstens ein Flächenwechsel, nie zurück**: entweder direkt nach dem Cover, oder nach einer Fotostrecke für die letzten zwei Slides (Forderungen + Schluss gemeinsam). Auf einer festen Farbe bleiben auch die letzten Slides auf ihr. Nie Fläche A → B → A, nie eine dritte Fläche für den Schluss.
+  - **Fotos in einer Art**: ein Motiv als `foto-unten` nur auf dem Cover – oder die ganze Strecke auf Fotos (Geschichte). Nicht einzelne Mittel-Slides mit Foto zwischen Farbflächen.
+  - **Ausrichtung** bleibt zwischen Cover und Schluss gleich (alles links oder alles zentriert).
+- **Sätze laufen über die Slide-Grenze** (vor allem Österreich; Deutschland brückt mit Fragen wie „Die Konsequenz?“): eine Slide endet mit „…“ oder einer Frage, die nächste beginnt mit „…“ oder einer Brücke („Deswegen …“, „Die Konsequenz?“, „Darum sagen wir:“). Beginnt eine Slide mit „…“, **muss** die davor auf „…“ enden; die letzte Slide endet nie auf „…“.
 - **Fragen-Gerüst**: für Erklärstücke die Frage, die sich Leser*innen stellen, als `dachzeile` über die Slide („Warum?“, „Und was heißt das für uns?“, „Die Lösung?“), die Antwort darunter als `absatz`.
 
 ## Rahmen: Pfeil, Weiter-Text, Seitenzahl
@@ -44,8 +47,9 @@ Der `aufruf` steht allein auf der letzten Slide (höchstens eine `dachzeile` dar
 
 - **Geschichte auf Fotos**: jede Slide ein Foto, Text mittig zentriert in `zeilenboxen` aus `absatz`-Bausteinen. Der eine Satz, der zählt, ist `betont` (grüne Box). Ohne Logo, ohne Headline.
 - **Textslider** (Interview, Statement): Textseiten mit 300–500 Zeichen je Slide. Interview-Auszüge auf `creme` mit einem Kernsatz in `++…++`, Cover ein `zitat` auf Foto.
-- **Forderungen**: `mint`, `headline` „Unsere Forderungen:“ + `liste`.
-- **Schluss**: `mint` oder `grasgruen` mit einem `aufruf`, oder eine große Headline mit `akzent`, `logo: true`.
+- **Forderungen**: `headline` „Unsere Forderungen:“ + `liste` – nach einer Fotogeschichte auf `mint`, sonst auf der Farbe des Karussells.
+- **Schluss**: auf derselben Fläche wie die Forderungen mit einem `aufruf` oder einer großen Headline mit `akzent`, `logo: true`.
+- **Kritik und Erklärung**: Cover mit Motiv (`foto-unten`), dann alle Slides bis zum Schluss auf derselben Farbe (z. B. `dunkeltanne`, oben, links) – auch Forderungen und Schluss. Ein Wechsel auf `mint` am Ende gehört nur zur Fotogeschichte.
 
 ## Österreich
 
