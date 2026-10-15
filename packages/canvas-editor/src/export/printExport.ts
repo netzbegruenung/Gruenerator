@@ -30,11 +30,14 @@ export function printPixelRatio(format: PrintCanvasFormat): number {
 
 /** The PDF filename for a document title (no path characters, never empty). */
 export function printPdfFilename(title: string | null): string {
-  const base = (title ?? '')
-    .replace(/[\\/:*?"<>|]/g, ' ')
+  const cleaned = Array.from(title ?? '')
+    .map((ch) => (ch.charCodeAt(0) < 32 || /[\\/:*?"<>|]/.test(ch) ? ' ' : ch))
+    .join('')
     .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^\.+/, '')
     .trim();
-  return `${base || 'gruenerator-druck'}.pdf`;
+  return `${cleaned || 'gruenerator-druck'}.pdf`;
 }
 
 /**

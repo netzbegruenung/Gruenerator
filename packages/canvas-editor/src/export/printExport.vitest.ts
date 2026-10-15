@@ -103,6 +103,10 @@ describe('lowResolutionWarnings', () => {
 describe('printPdfFilename', () => {
   it('uses the title and strips path characters', () => {
     expect(printPdfFilename('Plakat / Herbst')).toBe('Plakat Herbst.pdf');
+    expect(printPdfFilename('Plakat\u0000Wahl\n2026')).toBe('Plakat Wahl 2026.pdf');
+    expect(printPdfFilename('Größe für Österreich')).toBe('Größe für Österreich.pdf');
+    expect(printPdfFilename('../geheim')).toBe('geheim.pdf');
+    expect(printPdfFilename('   ')).toBe('gruenerator-druck.pdf');
     expect(printPdfFilename(null)).toBe('gruenerator-druck.pdf');
   });
 });
