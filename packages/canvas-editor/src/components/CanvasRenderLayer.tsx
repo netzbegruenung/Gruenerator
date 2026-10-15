@@ -1,4 +1,5 @@
 import React, { memo, type ComponentProps } from 'react';
+import { Group } from 'react-konva';
 
 import { type GeometryReporter } from '../hooks/useGeometryReporter';
 import { useIconSetsFor } from '../hooks/useIconSetsFor';
@@ -15,6 +16,7 @@ import { ShapePrimitive } from '../primitives/ShapePrimitive';
 import { UserImagePrimitive } from '../primitives/UserImagePrimitive';
 import { useIsElementSelected } from '../stores/CanvasStoreProvider';
 import { getIconMapSync } from '../utils/canvasIcons';
+import { CANVAS_ITEM_NAME } from '../utils/deepSelect';
 import { resolveIconDef } from '../utils/iconInstances';
 
 import { GenericCanvasElement } from './GenericCanvasElement';
@@ -568,11 +570,16 @@ function CanvasRenderLayerInner<
       {sortedRenderList.map((item) => {
         const remote = remoteSelections?.get(item.id) ?? null;
         const rendered = renderCanvasItem(item);
-        if (!rendered || !remote) return rendered;
+        if (!rendered) return null;
+        // Names the item for a ctrl/⌘-click that picks what lies beneath (useDeepSelect).
         return (
-          <RemoteSelectionOverlay key={item.id} selector={remote}>
-            {rendered}
-          </RemoteSelectionOverlay>
+          <Group key={item.id} name={CANVAS_ITEM_NAME} canvasItemId={item.id}>
+            {remote ? (
+              <RemoteSelectionOverlay selector={remote}>{rendered}</RemoteSelectionOverlay>
+            ) : (
+              rendered
+            )}
+          </Group>
         );
       })}
     </>

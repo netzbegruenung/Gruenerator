@@ -94,7 +94,6 @@ describe('extractInheritablePageState', () => {
       expect(ids(page)).toEqual(['sc-panel']);
       expect(page.layerOrder).toEqual(['sc-panel']);
       const panel = (page.shapeInstances as ShapeInstance[])[0]!;
-      expect(panel.locked).toBe(true);
       expect(panel).toEqual((source.shapeInstances as ShapeInstance[])[0]);
       // Only the background: no text, no logo, no chrome.
       expect(page.additionalTexts).toEqual([]);

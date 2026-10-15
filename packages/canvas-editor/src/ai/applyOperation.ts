@@ -13,7 +13,7 @@
  *     suggestion doesn't abort the rest.
  */
 import { findElementRemover } from '../utils/removeElement';
-import { isLockedShape, type ShapeInstance } from '../utils/shapes';
+import { type ShapeInstance } from '../utils/shapes';
 
 import type { TemplateAiCapabilities } from './types';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
@@ -247,10 +247,6 @@ function applyOne<TState, TActions extends CanvasAiActionsBase>(
         // Same door as the Entf key: the collection the id lives in picks the
         // remover. Local cast as in dispatchUpdate — only optional fields are read.
         const state = getState() as Partial<BaseCanvasState>;
-        const shape = state.shapeInstances?.find((el) => el.id === op.elementId);
-        if (shape && isLockedShape(shape)) {
-          return { ok: false, reason: `shape "${op.elementId}" is a locked background plane` };
-        }
         const remove = findElementRemover(state, actions, op.elementId);
         if (!remove) return { ok: false, reason: `element "${op.elementId}" not found` };
         remove();
@@ -392,12 +388,10 @@ function dispatchUpdate<TState>(
 
   const shape = find(state.shapeInstances);
   if (shape) {
-    if (isLockedShape(shape)) {
-      return { ok: false, reason: `shape "${elementId}" is a locked background plane` };
-    }
     return run('shape', actions.updateShape, [...GEOMETRY, 'color'], () => {
       const { color, ...rest } = withScaleXY(patch, shape);
-      return { ...rest, ...(color != null && { fill: color }) };
+      // A solid colour replaces a gradient, as with the colour picker.
+      return { ...rest, ...(color != null && { fill: color, fillGradient: null }) };
     });
   }
 

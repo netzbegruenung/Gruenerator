@@ -3,7 +3,7 @@ import {
   buildSortedRenderList,
   type CanvasItem,
 } from '../utils/canvasLayerManager';
-import { isLockedShape } from '../utils/shapes';
+import { isComposerPlane } from '../utils/shapes';
 
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
 import type { FullCanvasConfig } from '../configs/types';
@@ -60,11 +60,12 @@ function describeItem(item: CanvasItem, state: BaseCanvasState): SummaryEntry | 
     }
     case 'shape': {
       const s = item.data;
-      const plane = isLockedShape(s) ? ' (Hintergrundfläche, gesperrt)' : '';
+      const plane = isComposerPlane(s.id) ? ' (Hintergrundfläche)' : '';
+      const gradient = s.fillGradient ? ' · Verlauf' : '';
       return {
         id: s.id,
         kind: 'shape',
-        label: `${s.type}${plane} · ${pos(s.x, s.y)} · ${size(s.width * s.scaleX, s.height * s.scaleY)} · Farbe ${s.fill}`,
+        label: `${s.type}${plane} · ${pos(s.x, s.y)} · ${size(s.width * s.scaleX, s.height * s.scaleY)} · Farbe ${s.fill}${gradient}`,
       };
     }
     case 'pill-badge': {

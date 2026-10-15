@@ -13,8 +13,14 @@ import {
 } from 'react-konva';
 
 import { gradientFillProps } from '../utils/gradientFill';
+import { translucentHitFunc } from '../utils/gradientHitArea';
 import { handDrawnPath } from '../utils/handDrawn';
-import { assertNever, isLockedShape, type ShapeInstance } from '../utils/shapes';
+import {
+  assertNever,
+  isComposerPlane,
+  STROKE_ONLY_SHAPES,
+  type ShapeInstance,
+} from '../utils/shapes';
 import { PATH_VIEWBOX, resizedShapeSize, shapeNodeScale } from '../utils/shapeTransform';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
 
@@ -165,7 +171,7 @@ interface CommonShapeProps {
   scaleX: number;
   scaleY: number;
   draggable: boolean;
-  listening: boolean;
+  hitFunc?: (context: Konva.Context, shape: Konva.Shape) => void;
   onMouseDown: (e: Konva.KonvaEventObject<MouseEvent>) => void;
   onTouchStart: (e: Konva.KonvaEventObject<TouchEvent>) => void;
   onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => void;
@@ -549,7 +555,12 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
     });
   };
 
-  const locked = isLockedShape(shape);
+  // A large composer plane lies under the finger wherever one touches the
+  // slide: as with the background photo, the first touch selects it and only a
+  // touch on the selected plane drags it.
+  const touchDragNeedsSelection = isComposerPlane(shape.id) && !isSelected && draggable;
+  const fillsArea = !STROKE_ONLY_SHAPES.has(shape.type) && !shape.type.startsWith('hand-');
+
   const commonProps: CommonShapeProps = {
     x: shape.x,
     y: shape.y,
@@ -558,14 +569,26 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
     rotation: shape.rotation,
     scaleX: shape.scaleX,
     scaleY: shape.scaleY,
-    draggable: draggable && !locked,
-    listening: !locked,
+    draggable,
+    hitFunc: fillsArea ? translucentHitFunc(shape.fillGradient) : undefined,
     onMouseDown: (e) => {
       e.cancelBubble = true;
       onSelect(shape.id);
     },
     onTouchStart: (e) => {
       e.cancelBubble = true;
+      if (touchDragNeedsSelection) {
+        const node = e.target;
+        node.draggable(false);
+        node.stopDrag();
+        const restore = () => {
+          window.removeEventListener('touchend', restore);
+          window.removeEventListener('touchcancel', restore);
+          node.draggable(draggable);
+        };
+        window.addEventListener('touchend', restore);
+        window.addEventListener('touchcancel', restore);
+      }
       onSelect(shape.id);
     },
     onDragEnd: handleDragEnd,
@@ -636,7 +659,6 @@ export const ShapePrimitive = memo(ShapePrimitiveInner, (prevProps, nextProps) =
   if (prevShape.shadowOpacity !== nextShape.shadowOpacity) return false;
   if (prevShape.fillGradient !== nextShape.fillGradient) return false;
   if (prevShape.blendMode !== nextShape.blendMode) return false;
-  if (prevShape.locked !== nextShape.locked) return false;
 
   if (prevProps.isSelected !== nextProps.isSelected) return false;
   if (prevProps.draggable !== nextProps.draggable) return false;
