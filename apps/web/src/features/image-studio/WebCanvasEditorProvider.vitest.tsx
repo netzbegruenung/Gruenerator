@@ -1,12 +1,18 @@
 import { useCanvasEditorServices } from '@gruenerator/canvas-editor';
-import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+
+import { renderWithProviders, screen } from '../../test-utils';
 
 import { useCanvasChatDraftId } from './CanvasChatDocContext';
 import { WebCanvasEditorProvider } from './WebCanvasEditorProvider';
 
 function DraftId() {
   return <span data-testid="draft">{useCanvasChatDraftId()}</span>;
+}
+
+function Vorlagen() {
+  const { vorlagen } = useCanvasEditorServices();
+  return <span data-testid="vorlagen">{vorlagen?.openAsNew ? 'ja' : 'nein'}</span>;
 }
 
 function StickerCreator() {
@@ -16,7 +22,7 @@ function StickerCreator() {
 
 describe('WebCanvasEditorProvider', () => {
   it('bietet den Sticker-Ersteller an, außer im WebView-Host /mobile-editor', () => {
-    const { rerender } = render(
+    const { rerender } = renderWithProviders(
       <WebCanvasEditorProvider>
         <StickerCreator />
       </WebCanvasEditorProvider>
@@ -30,8 +36,23 @@ describe('WebCanvasEditorProvider', () => {
     expect(screen.getByTestId('creator').textContent).toBe('nein');
   });
 
+  it('bietet die Vorlagen an, außer wo das Design nicht ersetzt werden darf', () => {
+    const { rerender } = renderWithProviders(
+      <WebCanvasEditorProvider>
+        <Vorlagen />
+      </WebCanvasEditorProvider>
+    );
+    expect(screen.getByTestId('vorlagen').textContent).toBe('ja');
+    rerender(
+      <WebCanvasEditorProvider allowVorlagen={false}>
+        <Vorlagen />
+      </WebCanvasEditorProvider>
+    );
+    expect(screen.getByTestId('vorlagen').textContent).toBe('nein');
+  });
+
   it('hält den Entwurfsschlüssel des Chats über Remounts des Abschnitts (#4273)', () => {
-    const { rerender } = render(
+    const { rerender } = renderWithProviders(
       <WebCanvasEditorProvider>
         <DraftId key="a" />
       </WebCanvasEditorProvider>
