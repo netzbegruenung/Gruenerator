@@ -27,6 +27,7 @@ import { agentAllowsTool } from '../../../../routes/chat/agents/agentToolWhiteli
 import { collectionsForLocale } from '../../../../routes/chat/agents/searchTools.js';
 import { isAgenticLoopEnabled } from '../../../../routes/chat/services/agenticLoop/flags.js';
 import {
+  compoundGenerationKind,
   isDocumentContextEditAllowed,
   isReferentialFollowup,
   looksLikeSelfContainedTurn,
@@ -1304,6 +1305,32 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // mention above already routed the request.
 
     if (hasAttachmentContext && userContent.length > 0) {
+      // Ein Erstell-Auftrag über dem Anhang ist ein Erstell-Turn, kein
+      // Schreibauftrag am Material. Dieser Rückfall lief vor jeder Erstell-Regel
+      // und machte „erstelle ein Sharepic aus dieser PM" oder „mach daraus eine
+      // Präsentation" mit Paste-Chip zu `produktion` ohne Werkzeug (live
+      // 15.10.2026). Dasselbe Prädikat wie der Router, damit beide dieselbe Art
+      // lesen. Arten ohne eigenen Intent (Dokument, Board) bleiben `produktion`;
+      // die hebt der Router mit dem Werkzeug in den Loop.
+      const orderedKind = compoundGenerationKind('produktion', askText);
+      const orderedIntent = orderedKind ? artifactKind(orderedKind).intent : null;
+      if (orderedKind && orderedIntent) {
+        log.info(`[Classifier] Creation order over an attachment → ${orderedIntent}`);
+        recordDecision('classifier.tier', 'tier2_attachment_create_order', {
+          inputs: { kind: orderedKind },
+        });
+        return {
+          intent: orderedIntent,
+          searchSources: [],
+          searchQuery: null,
+          detectedFilters: null,
+          reasoning: `Erstell-Auftrag über dem Anhang: ${artifactKind(orderedKind).label}`,
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs: Date.now() - startTime,
+        };
+      }
+
       // Agent-bound default notebooks (or a deliberate composer pick): the
       // attachment is working material (e.g. a pasted citizen email), but the
       // answer must still be grounded in the notebook. `produktion` would skip

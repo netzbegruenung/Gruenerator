@@ -1063,7 +1063,13 @@ export interface AgenticDecisionInput {
  * loop — the model choice only decides unified-vs-split MODE inside the loop.
  */
 export function decideRunAgentic(p: AgenticDecisionInput): boolean {
-  const compoundGen = isCompoundGenerationIntent(p.intent) && p.compoundGeneration;
+  // Eine zurückgewonnene Art hebt den Turn in die Schleife, wo ihr Werkzeug
+  // hängt — auch einen Prosa-Turn mit eigenem Material. Bis 15.10.2026 zählte
+  // das nur bei benannten Erzeugungs-Intents: „mach daraus ein Dokument" unter
+  // einem Anhang war `self-contained`, lief als Einzeldurchlauf, und das
+  // erkannte Dokument-Werkzeug wurde nie montiert.
+  const compoundGen =
+    p.compoundGeneration && (isCompoundGenerationIntent(p.intent) || isGroundableProse(p.intent));
   // "Füll mir das Formular aus" is an imperative with no question word, so
   // looksLikeToolableQuestion rejects it by design (content imperatives are
   // creative generation). With a PDF attached it is exactly a tool turn — and

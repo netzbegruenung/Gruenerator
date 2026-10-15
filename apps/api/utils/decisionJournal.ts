@@ -102,6 +102,9 @@ export const DECISION_POINTS = {
       'tier2_offer_accept',
       // „ja" auf eine Rückfrage zu Tabelle/Präsentation → Loop mit deren Werkzeugen.
       'tier2_artifact_question_accept',
+      // Erstell-Auftrag über einem Anhang („mach daraus eine Präsentation") →
+      // benannter Erstell-Intent, vor dem Anhang-Rückfall auf `produktion`.
+      'tier2_attachment_create_order',
       // Folgeauftrag auf ein Chat-Dokument ohne „komplett neu" → gezielt im Loop.
       'tier2.7_doc_targeted_edit',
       // Erstell-Verdikt ohne Erstell-Auftrag auf ein vorhandenes Artefakt → Loop.
