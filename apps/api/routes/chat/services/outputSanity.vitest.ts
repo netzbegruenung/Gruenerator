@@ -670,6 +670,10 @@ describe('stripPhantomArtifactCreation', () => {
     'Mit Sharepics erreichen wir junge Menschen besser.',
     // leitet gelieferten Inhalt ein
     'Ich erstelle dir hier eine Tabelle:',
+    // ehrliche Absage
+    'Ich mache dir jetzt kein Sharepic, weil du keins wolltest.',
+    // Änderung, die der Client nach dem Turn anwendet
+    'Ich setze dir das jetzt im Dokument um.',
   ])('lässt stehen: %s', (sentence) => {
     expect(stripPhantomArtifactCreation(sentence, { createdArtifact: false }).removed).toEqual([]);
   });
@@ -677,5 +681,29 @@ describe('stripPhantomArtifactCreation', () => {
   it('rührt lange Antworten nicht an — dort ist es Inhalt', () => {
     const long = `${'Ein langer Absatz mit Inhalt. '.repeat(30)}Ich erstelle dir jetzt die Präsentation.`;
     expect(stripPhantomArtifactCreation(long, { createdArtifact: false }).removed).toEqual([]);
+  });
+});
+
+describe('Satz-Streicher behalten Absätze', () => {
+  it('eine gestrichene Zeile klebt den nächsten Absatz nicht an', () => {
+    const out = stripPhantomArtifactCreation(
+      'Gerne!\nIch erstelle dir jetzt die Präsentation.\n\n- Punkt eins\n- Punkt zwei',
+      { createdArtifact: false }
+    );
+    expect(out.text).toBe('Gerne!\n\n- Punkt eins\n- Punkt zwei');
+  });
+
+  it('eine Antwort mit Markdown-Tabelle bleibt unangetastet', () => {
+    const text =
+      'Gerne! Ich erstelle dir die Tabelle direkt hier im Chat.\n\n| a | b |\n|---|---|\n| 1 | 2 |';
+    expect(stripPhantomArtifactCreation(text, { createdArtifact: false }).text).toBe(text);
+  });
+
+  it('gilt auch für den Erinnerungs-Streicher', () => {
+    const out = stripPhantomMemoryClaim('Danke.\nIch habe mir das notiert.\n\n- Punkt', {
+      memoryRan: false,
+      stepCount: 0,
+    });
+    expect(out.text).toBe('Danke.\n\n- Punkt');
   });
 });

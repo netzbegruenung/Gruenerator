@@ -7,6 +7,8 @@
  * respond lane leaves no text to persist — so it reports `MaybeHandled`.
  */
 
+import { isGroundableProse } from '@gruenerator/shared/chat-intents';
+
 import { buildSystemMessage } from '../../../agents/langgraph/ChatGraph/index.js';
 import { knownArtifactRefs } from '../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 import { promptCacheKeyForThread } from '../../../services/ai/promptCacheKey.js';
@@ -377,8 +379,11 @@ export async function runSinglePassAnswer({
     }
     // „Ich erstelle dir jetzt die Sharepics …" ohne Artefakt im Turn: nach dem
     // Turn läuft nichts mehr, die Erstellung findet nie statt (#4611).
+    // Nur auf Prosa-Turns: ein Bearbeitungs- oder Erstell-Intent hat seinen
+    // eigenen Ausgang, und eine Ankündigung kann dort wahr sein.
     const phantomCreation = stripPhantomArtifactCreation(fullText, {
       createdArtifact:
+        !isGroundableProse(finalState.intent ?? '') ||
         (sharepicVariants?.length ?? 0) > 0 ||
         generatedImage != null ||
         finalState.createdDocument != null,

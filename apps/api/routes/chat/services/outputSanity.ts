@@ -478,7 +478,8 @@ export function stripPhantomMemoryClaim(
       (turn.stepCount === 0 && MEMORY_SAVED_CLAIM_RE.test(sentence));
     if (hit) {
       removed.push(sentence.trim());
-      // Der Trenner des Satzes entfällt mit ihm; der davor hält die Nachbarn zusammen.
+      // Der Trenner des Satzes entfällt mit ihm; der stärkere hält die Nachbarn zusammen.
+      pendingSep = strongerSeparator(pendingSep, sep);
       continue;
     }
     out += pendingSep + sentence;
@@ -487,6 +488,13 @@ export function stripPhantomMemoryClaim(
   if (removed.length === 0) return { text, removed };
   out = out.trim();
   return { text: out.length > 0 ? out : PHANTOM_NOTE_FALLBACK, removed };
+}
+
+/** Beim Streichen eines Satzes bleibt der stärkere Trenner — sonst klebt der
+ *  nächste Absatz (eine Tabelle, eine Liste) an der vorigen Zeile. */
+function strongerSeparator(kept: string, dropped: string): string {
+  const breaks = (sep: string) => (sep.match(/\n/g) ?? []).length;
+  return breaks(dropped) > breaks(kept) ? dropped : kept;
 }
 
 /**
@@ -583,6 +591,7 @@ export function stripPhantomArtifactEdit(
     if (phantom || echo) {
       removed.push(sentence.trim());
       named.forEach((kind) => removedKinds.add(kind));
+      pendingSep = strongerSeparator(pendingSep, sep);
       continue;
     }
     out += pendingSep + sentence;
@@ -622,8 +631,10 @@ export function stripPhantomArtifactEdit(
  * Fragen sind Angebote und bleiben stehen. Und nur kurze Antworten: ein
  * geschriebener Text ist länger als die Floskel, die einen Aufruf ersetzt.
  */
+// Nur Erzeugen, nicht Ändern: „Ich setze dir das jetzt im Dokument um" kann
+// wahr sein, wenn der Client die Änderung nach dem Turn anwendet.
 const CREATE_VERB_1SG =
-  'erstelle|generiere|baue|entwerfe|gestalte|erzeuge|mache|lege|setze|wandle|bereite|zeichne|rendere';
+  'erstelle|generiere|baue|entwerfe|gestalte|erzeuge|mache|wandle|zeichne|rendere';
 const CREATE_VERB_INF =
   'erstellen|generieren|bauen|entwerfen|gestalten|erzeugen|machen|anlegen|umsetzen|umwandeln|zeichnen|rendern';
 const CREATE_PARTICIPLE =
@@ -640,10 +651,12 @@ const CREATION_NOUN_RE =
 const ADDRESSES_PERSON_RE =
   /(?<!\p{L})(?:jetzt|nun|gleich|sofort|nacheinander|direkt|dir|euch|für\s+dich|fuer\s+dich)(?!\p{L})|^\s*\(/iu;
 const CONDITIONAL_OFFER_RE = /(?<!\p{L})(?:wenn|falls|sofern)\s+(?:du|ihr|sie)(?!\p{L})/iu;
+// „Ich mache dir jetzt kein Sharepic" ist eine ehrliche Absage, keine Ankündigung.
+const NEGATED_RE = /(?<!\p{L})(?:kein\p{L}*|nicht|nichts)(?!\p{L})/iu;
 const CREATION_CLAIM_MAX_CHARS = 800;
 
 export const PHANTOM_CREATION_FALLBACK =
-  'Erstellt habe ich in diesem Schritt nichts — dafür lief kein Werkzeug. Schreib zum Beispiel „Mach daraus ein Sharepic", dann entsteht es.';
+  'Erstellt habe ich in diesem Schritt nichts — dafür lief kein Werkzeug. Sag mir noch einmal, was entstehen soll.';
 
 export function stripPhantomArtifactCreation(
   text: string,
@@ -653,6 +666,9 @@ export function stripPhantomArtifactCreation(
     return { text: typeof text === 'string' ? text : '', removed: [] };
   }
   if (turn.createdArtifact || text.length > CREATION_CLAIM_MAX_CHARS) return { text, removed: [] };
+  // Inhalt im Chat (Markdown-Tabelle, Codeblock) ist die Lieferung, auf die sich
+  // „Ich erstelle dir die Tabelle hier" bezieht.
+  if (/^\s*\|.*\|\s*$/m.test(text) || text.includes('```')) return { text, removed: [] };
   const removed: string[] = [];
   const parts = text.split(/((?<=[.!?)])[ \t]+|\s*\n\s*)/);
   let out = '';
@@ -668,11 +684,13 @@ export function stripPhantomArtifactCreation(
       !trimmed.endsWith('?') &&
       !trimmed.endsWith(':') &&
       !CONDITIONAL_OFFER_RE.test(trimmed) &&
+      !NEGATED_RE.test(trimmed) &&
       CREATION_ANNOUNCEMENT_RE.test(trimmed) &&
       CREATION_NOUN_RE.test(trimmed) &&
       ADDRESSES_PERSON_RE.test(trimmed);
     if (hit) {
       removed.push(trimmed);
+      pendingSep = strongerSeparator(pendingSep, sep);
       continue;
     }
     out += pendingSep + sentence;
