@@ -9,11 +9,12 @@ import {
   useColorScheme,
   Pressable,
   RefreshControl,
+  useWindowDimensions,
 } from 'react-native';
 
-import { ListGroup, ListRow, SkeletonRows } from '../../../components/common';
+import { SkeletonBar, SkeletonGroup } from '../../../components/common/Skeleton';
 import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
-import { GroupAvatar } from '../../../components/workplace/GroupAvatar';
+import { ProjektTile } from '../../../components/projekte/ProjektTile';
 import { useUserGroups, type GroupSummary } from '../../../hooks/useGroups';
 import {
   colors,
@@ -42,6 +43,11 @@ export default function ProjekteScreen() {
   const router = useRouter();
 
   const { data: groups = [], isPending, isRefetching, error, refetch } = useUserGroups();
+  // Web's grid: two squares across on a phone, three from tablet width.
+  const { width } = useWindowDimensions();
+  const inner = Math.min(width, CONTENT_MAX_WIDTH) - spacing.medium * 2;
+  const columns = inner >= 560 ? 3 : 2;
+  const tile = Math.floor((inner - GAP * (columns - 1)) / columns);
 
   const openGroup = useCallback(
     (groupId: string) => router.push(`/(focused)/projekte/${groupId}`),
@@ -69,9 +75,11 @@ export default function ProjekteScreen() {
     // same two lines of text. Five of them, which fills a phone screen without
     // claiming to know how many projects there are.
     body = (
-      <ListGroup>
-        <SkeletonRows count={5} leading={44} on="card" />
-      </ListGroup>
+      <SkeletonGroup style={styles.grid}>
+        {[0, 1, 2, 3].map((i) => (
+          <SkeletonBar key={i} width={tile} height={tile} radius={20} />
+        ))}
+      </SkeletonGroup>
     );
   } else if (error) {
     body = (
@@ -106,18 +114,17 @@ export default function ProjekteScreen() {
     );
   } else {
     body = (
-      <ListGroup>
-        {groups.map((group, i) => (
-          <ListRow
+      <View style={styles.grid}>
+        {groups.map((group) => (
+          <ProjektTile
             key={group.id}
-            leading={<GroupAvatar name={group.name} avatarUrl={group.avatar_url} size={44} />}
-            title={group.name}
-            value={metaFor(group)}
+            group={group}
+            meta={metaFor(group)}
+            size={tile}
             onPress={() => openGroup(group.id)}
-            last={i === groups.length - 1}
           />
         ))}
-      </ListGroup>
+      </View>
     );
   }
 
@@ -136,7 +143,10 @@ export default function ProjekteScreen() {
   );
 }
 
+const GAP = spacing.small;
+
 const styles = StyleSheet.create({
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: GAP },
   // Reading measure on a tablet; a phone is narrower than the cap anyway.
   column: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   scrollContent: {
