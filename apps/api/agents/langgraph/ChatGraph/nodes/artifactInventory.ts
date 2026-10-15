@@ -220,10 +220,15 @@ export const NO_PHANTOM_ACTION_RULE =
  * Das Angebot braucht eine geschlossene Liste: „eine Grafik" las das Modell als
  * alles Gestaltete und bot nach einem Postkartentext „ein Design-Layout für die
  * Postkarte" an (12.10.2026) — dafür gibt es kein Werkzeug, ein „ja" liefe ins
- * Leere.
+ * Leere. Aus demselben Grund steht das KI-Bild nicht in der Liste: es ist keine
+ * Art, die `offerToRecord` speichern kann.
+ *
+ * Und das Angebot braucht eine Form, die der Server wiedererkennt: live
+ * 15.10.2026 endete es mit „Gib mir einfach kurz Bescheid, ob ich das
+ * übernehmen soll!", und das „ja" darauf erzählte eine Erstellung, die nie lief.
  */
 export const NO_GRAPHICS_DENIAL_RULE =
-  'Ebenso: Behaupte NIE, du seist „nur ein Textmodell" oder könntest keine Grafiken, Bilder oder Sharepics erstellen — der Grünerator erstellt Sharepics, KI-Bilder und Grafiken aus Vorlagen. Fragt die Person nach einer Grafik und ist in diesem Turn keine entstanden, biete an, eine zu machen (z. B. „Soll ich daraus ein Sharepic machen?"), statt ein Layout als Text zu beschreiben. Biete nur an, was der Grünerator wirklich baut: ein Sharepic, ein KI-Bild, eine Präsentation, ein Dokument oder eine Tabelle. Postkarten, Flyer, Broschüren, Aufkleber und andere Druckprodukte sowie Layouts, Druckvorlagen oder Druckdateien dafür baut er nicht — biete sie NIE an und erwähne von dir aus nicht, dass du sie nicht baust; geht es um ein Druckprodukt, biete höchstens ein Sharepic mit dem Text an.';
+  'Ebenso: Behaupte NIE, du seist „nur ein Textmodell" oder könntest keine Grafiken, Bilder oder Sharepics erstellen — der Grünerator erstellt Sharepics, KI-Bilder und Grafiken aus Vorlagen. Fragt die Person nach einer Grafik und ist in diesem Turn keine entstanden, biete an, eine zu machen, statt ein Layout als Text zu beschreiben — als genau EINE Frage am Schluss, die die Art beim Namen nennt und mit „?" endet (z. B. „Soll ich daraus ein Sharepic machen?"), nicht als „Gib mir Bescheid". Biete nur an, was der Grünerator auf ein „ja" hin baut: ein Sharepic, eine Präsentation, ein Dokument oder eine Tabelle. Postkarten, Flyer, Broschüren, Aufkleber und andere Druckprodukte sowie Layouts, Druckvorlagen oder Druckdateien dafür baut er nicht — biete sie NIE an und erwähne von dir aus nicht, dass du sie nicht baust; geht es um ein Druckprodukt, biete höchstens ein Sharepic mit dem Text an.';
 
 /** Die Kehrseite: ein Werkzeug, das in DIESEM Turn nicht lief, fehlt dem
  *  Produkt nicht. Der Split-Schreiber hat nie Werkzeuge, der Einzeldurchlauf

@@ -127,13 +127,48 @@ describe('offerToRecord', () => {
     ).toBeNull();
   });
 
-  it('records nothing without a recipe', () => {
+  // Bis 15.10.2026 hiess es hier „records nothing without a recipe". Die
+  // Prompt-Regeln lassen das Modell aber auch ohne Rezept anbieten, und das „ja"
+  // darauf lief ins Leere. Gespeichert wird jetzt, was das Angebot als
+  // ERSTELLUNG formuliert — dasselbe Prädikat wie für einen Auftrag.
+  it('records an offer to create, even without a recipe', () => {
     expect(
       offerToRecord({
         recipeMentions: [],
         text: 'Soll ich daraus ein Sharepic machen?',
         producedArtifact: false,
       })
+    ).toEqual({ kind: 'sharepic' });
+  });
+
+  it('records the live offer that ended with „!" instead of a question', () => {
+    const text =
+      'Kachel 1: Stoppt die kommunale Unterfinanzierung!\n\n' +
+      'Da du nach einem Sharepic-Format gefragt hast: Ich kann dir diese Kacheln direkt als ' +
+      'fertige KI-Bilder oder Sharepics erstellen. Gib mir einfach kurz Bescheid, ob ich das übernehmen soll!';
+    expect(offerToRecord({ recipeMentions: [], text, producedArtifact: false })).toEqual({
+      kind: 'sharepic',
+    });
+  });
+
+  it.each([
+    ['Soll ich daraus ein Karussell machen?', 'sharepic'],
+    ['Soll ich daraus eine Präsentation erstellen?', 'presentation'],
+    ['Wenn du möchtest, kann ich daraus eine Tabelle machen.', 'sheet'],
+  ])('reads the kind from the offer: %s', (offer, kind) => {
+    expect(
+      offerToRecord({ recipeMentions: [], text: `Text …\n\n${offer}`, producedArtifact: false })
+    ).toEqual({ kind });
+  });
+
+  it.each([
+    'Soll ich die Tabelle noch um eine Spalte ergänzen?',
+    'Soll ich das Dokument noch kürzen?',
+    'Ich kann dir leider keine Präsentation erstellen. Sag Bescheid, wenn du den Text anders willst.',
+    'Passt das so?',
+  ])('records nothing for an offer that creates nothing: %s', (offer) => {
+    expect(
+      offerToRecord({ recipeMentions: [], text: `Text …\n\n${offer}`, producedArtifact: false })
     ).toBeNull();
   });
 
