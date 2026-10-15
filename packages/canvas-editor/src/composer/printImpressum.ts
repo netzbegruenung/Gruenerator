@@ -32,7 +32,11 @@ export function impressumLine(locale: ImpressumLocale, parts: ImpressumParts): s
   return `${PREFIX[locale]} ${parts.name.trim()}, ${parts.anschrift.trim()}`;
 }
 
-/** Splits the element text at the first comma; a missing prefix or comma leaves the part empty. */
+/**
+ * Splits the element text at the first comma; a missing prefix or comma leaves the part empty.
+ * Known limit: a comma inside the name (e.g. "Müller, Anna") splits wrongly when the form is
+ * re-opened with the stored line. Only the prefill is affected, the gate is not.
+ */
 export function parseImpressumLine(locale: ImpressumLocale, text: string): ImpressumParts {
   const prefix = PREFIX[locale];
   const body = (text.trim().startsWith(prefix) ? text.trim().slice(prefix.length) : text).trim();

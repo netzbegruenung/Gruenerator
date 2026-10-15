@@ -43,9 +43,7 @@ import React, {
 
 import { PAGE_PERSISTED_STATE_KEYS } from '../../collab/pageElementStateKeys';
 import { createPageSyncedCallbacks } from '../../collab/wrapCallbacksWithPageSync';
-import { composePrintImpressum, PRINT_IMPRESSUM_ID } from '../../composer/composePrint';
-import { impressumLine, type ImpressumLocale } from '../../composer/printImpressum';
-import { type AdditionalText, type CanvasConfigId } from '../../configs/types';
+import { type CanvasConfigId } from '../../configs/types';
 import {
   exportPrintPdf,
   lowResolutionWarnings,
@@ -676,8 +674,10 @@ function CanvasEditorInner({
     (pageId: string, state: Record<string, unknown>, actions: Record<string, unknown>) => {
       const next = { pageId, state, actions };
       observedFirstPageRef.current = next;
-      setObservedFirstPage((prev) =>
-        prev?.pageId === pageId && prev.state === state && prev.actions === actions ? prev : next
+      startTransition(() =>
+        setObservedFirstPage((prev) =>
+          prev?.pageId === pageId && prev.state === state && prev.actions === actions ? prev : next
+        )
       );
     },
     []
