@@ -470,6 +470,17 @@ const withFreeformAi = (
         debouncedSaveToHistory(change(getState()));
       },
 
+      /** Adds a finished text element (the poster's re-added impressum) as one history entry. */
+      addAdditionalTextElement: (text: AdditionalText) => {
+        const change = (s: FreeformState): FreeformState => ({
+          ...s,
+          additionalTexts: [...s.additionalTexts, text],
+          layerOrder: s.layerOrder.includes(text.id) ? s.layerOrder : [...s.layerOrder, text.id],
+        });
+        setState(change);
+        saveToHistory(change(getState()));
+      },
+
       // === Background Actions ===
       // Each is one user intent: it sets the mode with its content and records
       // ONE history entry. `getState` is the render-time state, so two actions

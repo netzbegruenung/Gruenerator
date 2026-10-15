@@ -1,5 +1,6 @@
 import {
   Button,
+  Input,
   Label,
   Select,
   SelectContent,
@@ -9,9 +10,17 @@ import {
   Skeleton,
   Switch,
 } from '@gruenerator/ui';
-import { useId, useState } from 'react';
+import { useId, useState, type FormEvent } from 'react';
 import { FaDownload } from 'react-icons/fa';
 
+import {
+  IMPRESSUM_LABELS,
+  isFilled,
+  isImpressumComplete,
+  parseImpressumLine,
+  type ImpressumLocale,
+  type ImpressumParts,
+} from '../../composer/printImpressum';
 import { downloadErrorMessage } from '../../utils/downloadError';
 import { DownloadNotice } from '../DownloadNotice';
 
@@ -24,6 +33,72 @@ export interface PrintExportProps {
   onDownloadPdf: () => Promise<void>;
   /** Notices for photos too small to print well. */
   getWarnings: () => string[];
+  /** Posters only: the PDF is blocked while this is missing or a placeholder. */
+  impressum?: PrintImpressumGate | null;
+}
+
+export interface PrintImpressumGate {
+  /** False until the page carrying the impressum has reported its state; export stays blocked. */
+  ready: boolean;
+  locale: ImpressumLocale;
+  /** The impressum line on the canvas; null when the element is gone. */
+  text: string | null;
+  /** Writes the line to the canvas (updates the element, or re-adds it). */
+  onSubmit: (parts: ImpressumParts) => void;
+}
+
+function ImpressumForm({ gate }: { gate: PrintImpressumGate }) {
+  const fieldId = useId();
+  const labels = IMPRESSUM_LABELS[gate.locale];
+  const current = parseImpressumLine(gate.locale, gate.text ?? '');
+  const initial = (value: string) => (isFilled(value) ? value : '');
+  const [name, setName] = useState(initial(current.name));
+  const [anschrift, setAnschrift] = useState(initial(current.anschrift));
+  const [touched, setTouched] = useState(false);
+  const valid = isImpressumComplete({ name, anschrift });
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    setTouched(true);
+    if (valid) gate.onSubmit({ name, anschrift });
+  };
+
+  return (
+    <form onSubmit={submit} className="flex flex-col gap-2" noValidate>
+      <h4 className="m-0 text-sm font-semibold text-foreground">Impressum ergänzen</h4>
+      <p className="m-0 text-xs text-foreground-muted">{labels.hint}</p>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor={`${fieldId}-name`} className="text-xs font-medium text-foreground-muted">
+          {labels.name}
+        </Label>
+        <Input
+          id={`${fieldId}-name`}
+          value={name}
+          placeholder={labels.namePlaceholder}
+          onChange={(e) => setName(e.target.value)}
+          aria-invalid={touched && !isFilled(name)}
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label
+          htmlFor={`${fieldId}-anschrift`}
+          className="text-xs font-medium text-foreground-muted"
+        >
+          Anschrift
+        </Label>
+        <Input
+          id={`${fieldId}-anschrift`}
+          value={anschrift}
+          placeholder="Straße Nr., PLZ Ort"
+          onChange={(e) => setAnschrift(e.target.value)}
+          aria-invalid={touched && !isFilled(anschrift)}
+        />
+      </div>
+      <Button type="submit" variant="brand" className="w-full rounded-lg">
+        Übernehmen
+      </Button>
+    </form>
+  );
 }
 
 export interface DownloadSectionProps {
@@ -64,12 +139,18 @@ export function DownloadSection({
   const fieldId = useId();
 
   const isPdf = choice === 'pdf' && printExport !== null;
+  const impressumGate = isPdf ? (printExport?.impressum ?? null) : null;
+  const impressumBlocked =
+    impressumGate !== null &&
+    (!impressumGate.ready ||
+      !isImpressumComplete(parseImpressumLine(impressumGate.locale, impressumGate.text ?? '')));
   const isMultiPage = pageCount > 1 && onDownloadAllZip && !isPdf;
   // JPEG has no alpha channel — the transparency toggle is only meaningful for
   // PNG/WebP.
   const supportsTransparency = choice !== 'jpeg';
 
   const handleDownload = async () => {
+    if (impressumBlocked) return;
     setIsDownloading(true);
     setDownloadError(null);
     try {
@@ -188,6 +269,11 @@ export function DownloadSection({
         </div>
       )}
 
+      {impressumBlocked && impressumGate && !impressumGate.ready && (
+        <DownloadNotice tone="info">Impressum wird geprüft …</DownloadNotice>
+      )}
+      {impressumBlocked && impressumGate?.ready && <ImpressumForm gate={impressumGate} />}
+
       {isPdf &&
         printWarnings.map((warning) => (
           <DownloadNotice key={warning} tone="info">
@@ -202,7 +288,7 @@ export function DownloadSection({
         variant="brand"
         className="w-full rounded-lg"
         onClick={handleDownload}
-        disabled={isDownloading || isMultiExporting}
+        disabled={isDownloading || isMultiExporting || impressumBlocked}
       >
         {isDownloading || isMultiExporting ? (
           <Skeleton className="size-3.5 rounded-full" />

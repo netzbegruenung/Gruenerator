@@ -43,6 +43,9 @@ import React, {
 
 import { PAGE_PERSISTED_STATE_KEYS } from '../../collab/pageElementStateKeys';
 import { createPageSyncedCallbacks } from '../../collab/wrapCallbacksWithPageSync';
+import { composePrintImpressum, PRINT_IMPRESSUM_ID } from '../../composer/composePrint';
+import { impressumLine, type ImpressumLocale } from '../../composer/printImpressum';
+import { type AdditionalText, type CanvasConfigId } from '../../configs/types';
 import {
   exportPrintPdf,
   lowResolutionWarnings,
@@ -79,6 +82,12 @@ import { useLoadedConfigs } from './hooks/useLoadedConfigs';
 import { useMobileSheetFit } from './hooks/useMobileSheetFit';
 import { usePageRefs } from './hooks/usePageRefs';
 import { usePageUndoRedoShortcuts } from './hooks/usePageUndoRedoShortcuts';
+import {
+  isPosterFormat,
+  isPosterImpressumComplete,
+  usePrintImpressumGate,
+  type ObservedPageState,
+} from './hooks/usePrintImpressumGate';
 import { useScrollToAddedPage } from './hooks/useScrollToAddedPage';
 import { useToolbarHandlers } from './hooks/useToolbarHandlers';
 import { useWorkAreaDeselect } from './hooks/useWorkAreaDeselect';
@@ -87,7 +96,6 @@ import { PageWrapper } from './PageWrapper';
 
 import type { CanvasEditorProps, PageWrapperProps } from './types';
 import type { CanvasSpecEditBridge } from '../../CanvasEditorProvider';
-import type { CanvasConfigId } from '../../configs/types';
 import type { SidebarTabId } from '../../sidebar/types';
 import type { ToolbarStateReport } from '../GenericCanvas';
 import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
@@ -656,6 +664,25 @@ function CanvasEditorInner({
     [currentPageIndex, canvasRefsRef, onDownload]
   );
 
+  // Page 1's live state for the poster impressum gate. The ref is for the
+  // export re-check (no stale closure), the state re-renders the gate.
+  const [observedFirstPage, setObservedFirstPage] = useState<ObservedPageState | null>(null);
+  const observedFirstPageRef = useRef<ObservedPageState | null>(null);
+  const pagesRef = useRef(pages);
+  useEffect(() => {
+    pagesRef.current = pages;
+  });
+  const handleObservedState = useCallback(
+    (pageId: string, state: Record<string, unknown>, actions: Record<string, unknown>) => {
+      const next = { pageId, state, actions };
+      observedFirstPageRef.current = next;
+      setObservedFirstPage((prev) =>
+        prev?.pageId === pageId && prev.state === state && prev.actions === actions ? prev : next
+      );
+    },
+    []
+  );
+
   // Print: one PDF page per editor page, in page order.
   const printPages = useCallback((): PrintExportPage[] => {
     const refs = canvasRefsRef.current;
@@ -673,6 +700,12 @@ function CanvasEditorInner({
 
   const handleDownloadPdf = useCallback(async () => {
     if (!printFormat) return;
+    if (
+      isPosterFormat(printFormat) &&
+      !isPosterImpressumComplete(pagesRef.current[0] ?? null, observedFirstPageRef.current)
+    ) {
+      throw new Error('Für Plakate ist ein Impressum Pflicht.');
+    }
     const pages = printPages();
     if (pages.some((_, i) => !canvasRefsRef.current[i]?.current)) {
       throw new Error('Nicht alle Seiten konnten exportiert werden');
@@ -680,7 +713,12 @@ function CanvasEditorInner({
     const pdf = await exportPrintPdf({ format: printFormat, pages });
     const blob = new Blob([pdf as BlobPart], { type: 'application/pdf' });
     await downloadBlob(blob, printPdfFilename(documentTitle ?? null));
-  }, [printFormat, printPages, canvasRefsRef, documentTitle]);
+  }, [printFormat, printPages, canvasRefsRef, documentTitle, pagesRef, observedFirstPageRef]);
+
+  // Posters must carry a filled-in V.i.S.d.P. / Impressum on page 1, whichever
+  // page is active; the gate fails closed until page 1 has reported.
+  const firstPage = pages[0] ?? null;
+  const impressumGate = usePrintImpressumGate(printFormat, firstPage, observedFirstPage);
 
   const getPrintWarnings = useCallback(
     () => (printFormat ? lowResolutionWarnings(printFormat, printPages()) : []),
@@ -929,11 +967,16 @@ function CanvasEditorInner({
       onInvitePeople,
       onSaveAsTemplate,
       printExport: printFormat
-        ? { onDownloadPdf: handleDownloadPdf, getWarnings: getPrintWarnings }
+        ? {
+            onDownloadPdf: handleDownloadPdf,
+            getWarnings: getPrintWarnings,
+            impressum: impressumGate,
+          }
         : null,
     }),
     [
       printFormat,
+      impressumGate,
       handleDownloadPdf,
       getPrintWarnings,
       handleCaptureCanvas,
@@ -1204,6 +1247,9 @@ function CanvasEditorInner({
                   callbacks={getCallbacksForPage(page.id, page.configId)}
                   multiPageExport={index === 0 ? multiPageExportProps : undefined}
                   onStateChange={handlePageStateChange}
+                  onObservedState={
+                    index === 0 && isPosterFormat(printFormat) ? handleObservedState : undefined
+                  }
                   onToolbarStateChange={
                     isActive && !isPreview ? handleToolbarStateChange : undefined
                   }
