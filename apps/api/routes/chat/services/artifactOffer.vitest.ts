@@ -176,6 +176,27 @@ describe('offerToRecord', () => {
     });
   });
 
+  it('records a sharepic offer even when the thread has one — no edit path would take the „ja"', () => {
+    expect(
+      offerToRecord({
+        recipeMentions: [],
+        text: 'Text …\n\nSoll ich daraus ein Sharepic machen?',
+        producedArtifact: false,
+        threadKinds: ['sharepic'],
+      })
+    ).toEqual({ kind: 'sharepic' });
+  });
+
+  it('a reader call to action at the end of a post is no offer', () => {
+    expect(
+      offerToRecord({
+        recipeMentions: [],
+        text: 'Post …\n\nMöchtest du dabei sein? Erstelle dein eigenes Sharepic auf gruenerator.de',
+        producedArtifact: false,
+      })
+    ).toBeNull();
+  });
+
   it.each([
     'Soll ich die Tabelle noch um eine Spalte ergänzen?',
     'Soll ich das Dokument noch kürzen?',

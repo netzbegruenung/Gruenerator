@@ -96,20 +96,33 @@ function lastQuestion(text: string): string | null {
   return questions?.at(-1) ?? null;
 }
 
-/** Ein Angebot, das nicht als Frage endet: „Ich kann dir … erstellen. Gib mir
- *  einfach Bescheid, ob ich das übernehmen soll!" (live 15.10.2026). */
-const OFFER_CUE_RE =
-  /\b(?:soll(?:en)?\s+(?:ich|wir)|kann\s+ich|ich\s+kann\s+(?:dir|euch|ihnen)|m[öo]chtest\s+du|willst\s+du|magst\s+du|bescheid)\b/i;
+/** Ein Angebot in Ich-Form: „Soll ich daraus …?", „Ich kann dir … erstellen."
+ *  Ein Leser-Aufruf am Ende eines Posts („Möchtest du dabei sein? Erstelle dein
+ *  eigenes Sharepic") ist keins — er spricht die Leser*innen an, nicht die Person. */
+const FIRST_PERSON_OFFER_RE =
+  /(?<!\p{L})(?:soll(?:en)?\s+(?:ich|wir)|kann\s+ich|k[öo]nnen\s+wir|ich\s+kann|wir\s+k[öo]nnen)(?!\p{L})/iu;
 
-/** Der Schlussabsatz, wenn er ein Angebot macht. */
-function closingOffer(text: string): string | null {
-  const last = text
-    .trim()
-    .split(/\n\s*\n/)
-    .at(-1)
-    ?.trim();
-  return last && OFFER_CUE_RE.test(last) ? last : null;
+/** Die Sätze des Schlussabsatzes, die ein Angebot in Ich-Form machen — auch
+ *  ohne Fragezeichen: „Ich kann dir … erstellen. Gib mir einfach Bescheid, ob ich
+ *  das übernehmen soll!" (live 15.10.2026). */
+function closingOfferSentences(text: string): string[] {
+  const last =
+    text
+      .trim()
+      .split(/\n\s*\n/)
+      .at(-1) ?? '';
+  return (last.match(/[^.!?\n]+[.!?]?/g) ?? [])
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => FIRST_PERSON_OFFER_RE.test(sentence));
 }
+
+/** Arten, deren „ja" auf eine Rückfrage `tier2_artifact_question_accept` als
+ *  Bearbeitung des vorhandenen Artefakts nimmt. */
+export const QUESTION_EDITABLE_KINDS: readonly ArtifactKindId[] = [
+  'sheet',
+  'presentation',
+  'explainable',
+];
 
 /**
  * Was in `metadata.offer` gespeichert wird: die Art nur, wenn das Angebot am
@@ -139,13 +152,15 @@ export function offerToRecord(opts: {
   /** Arten, die der Thread schon hat. Ein frei formuliertes Angebot dafür
    *  („Soll ich daraus eine neue Folie machen?" neben einem Deck) kann
    *  Bearbeiten wie Neubauen meinen — das „ja" darauf nimmt
-   *  `tier2_artifact_question_accept`, nicht der Neubau. */
+   *  `tier2_artifact_question_accept`, nicht der Neubau. Gilt nur für die Arten,
+   *  die dieser Zweig bearbeiten kann (`QUESTION_EDITABLE_KINDS`); bei allen
+   *  anderen liefe das „ja" sonst ins Leere. */
   threadKinds?: readonly string[];
 }): { kind: ArtifactKindId } | null {
   if (opts.producedArtifact) return null;
-  const passages = [lastQuestion(opts.text), closingOffer(opts.text)].filter(
-    (p): p is string => p != null
-  );
+  const question = lastQuestion(opts.text);
+  const offers = closingOfferSentences(opts.text);
+  const passages = [question, ...offers].filter((p): p is string => p != null);
   if (passages.length === 0) return null;
   // „Soll ich dir passende Sharepic-Vorlagen zeigen?" nennt das Sharepic, ist
   // aber das Galerie-Angebot — dessen „ja" nimmt `acceptsVorlagenOffer` an.
@@ -155,9 +170,15 @@ export function offerToRecord(opts: {
     const label = artifactKind(expected).label.toLowerCase();
     if (passages.some((p) => p.toLowerCase().includes(label))) return { kind: expected };
   }
-  for (const passage of passages) {
+  // Ohne Rezept zählt nur ein Angebot in Ich-Form.
+  const ownOffers = [question, ...offers].filter(
+    (p): p is string => p != null && FIRST_PERSON_OFFER_RE.test(p)
+  );
+  for (const passage of ownOffers) {
     const kind = compoundGenerationKind('produktion', passage);
-    if (kind) return opts.threadKinds?.includes(kind) ? null : { kind };
+    if (!kind) continue;
+    const editable = QUESTION_EDITABLE_KINDS.includes(kind) && opts.threadKinds?.includes(kind);
+    return editable ? null : { kind };
   }
   return null;
 }

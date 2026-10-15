@@ -37,7 +37,11 @@ import {
 } from '../../../../routes/chat/services/agenticLoop/routing.js';
 import { agenturaCreateTarget } from '../../../../routes/chat/services/agenturaContext.js';
 import { artifactKind } from '../../../../routes/chat/services/artifactKindRegistry.js';
-import { acceptsOffer, offerTopic } from '../../../../routes/chat/services/artifactOffer.js';
+import {
+  acceptsOffer,
+  offerTopic,
+  QUESTION_EDITABLE_KINDS,
+} from '../../../../routes/chat/services/artifactOffer.js';
 import {
   namedLoopArtifact,
   namesDocumentTarget,
@@ -1207,8 +1211,8 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
           extractMessageText(messages.filter((m) => m.role === 'assistant').pop()?.content)
         )) &&
       (state.lastTurnPendingConfirm === true ||
-        state.threadArtifacts?.some(
-          (a) => a.kind === 'sheet' || a.kind === 'presentation' || a.kind === 'explainable'
+        state.threadArtifacts?.some((a) =>
+          (QUESTION_EDITABLE_KINDS as readonly string[]).includes(a.kind)
         ) === true)
     ) {
       recordDecision('classifier.tier', 'tier2_artifact_question_accept');
