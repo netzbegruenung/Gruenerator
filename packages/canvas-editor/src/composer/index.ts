@@ -45,3 +45,10 @@ export {
   type ComposedPrint,
   type ComposePrintOptions,
 } from './composePrint';
+export {
+  getPrintVorlage,
+  PRINT_VORLAGEN,
+  printVorlagenFor,
+  type PrintVorlage,
+  type PrintVorlageId,
+} from './printVorlagen';
