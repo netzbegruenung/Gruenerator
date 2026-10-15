@@ -1,6 +1,7 @@
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { useState, type ReactNode } from 'react';
 import { Platform, Pressable, Share, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import Markdown from 'react-native-markdown-display';
 
 import { useTheme } from '../../../hooks/useTheme';
 import {
@@ -12,6 +13,7 @@ import {
   typography,
 } from '../../../theme';
 import { CONTENT_MAX_WIDTH } from '../../../theme/layout';
+import { getMarkdownStyles } from '../../chat/markdownStyles';
 import { Button, SkeletonRows, useSurfaceStyles } from '../../common';
 import { AgentGlyph } from '../AgentGlyph';
 
@@ -84,20 +86,40 @@ export function DetailHero({
 }
 
 /** Fließtext in einer Karte; ab `collapseAfter` Zeichen eingeklappt mit „Mehr anzeigen". */
-export function TextCard({ text, collapseAfter = 600 }: { text: string; collapseAfter?: number }) {
+/**
+ * Ein Textblock in einer Karte, ab `collapseAfter` Zeichen eingeklappt.
+ * `markdown` rendert wie das Web (Beschreibung, Begrüßung der Agents) — ohne
+ * `numberOfLines`, darum klappt es dann am Zeichen statt an der Zeile ein.
+ */
+export function TextCard({
+  text,
+  collapseAfter = 600,
+  markdown = false,
+}: {
+  text: string;
+  collapseAfter?: number;
+  markdown?: boolean;
+}) {
   const theme = useTheme();
   const { card } = useSurfaceStyles();
   const long = text.length > collapseAfter;
   const [expanded, setExpanded] = useState(false);
+  const folded = long && !expanded;
   return (
     <View style={[styles.card, card]}>
-      <Text
-        style={[styles.body, { color: theme.text }]}
-        selectable
-        {...(long && !expanded ? { numberOfLines: 10 } : {})}
-      >
-        {text}
-      </Text>
+      {markdown ? (
+        <Markdown style={getMarkdownStyles(theme)}>
+          {folded ? `${text.slice(0, collapseAfter).trimEnd()} …` : text}
+        </Markdown>
+      ) : (
+        <Text
+          style={[styles.body, { color: theme.text }]}
+          selectable
+          {...(folded ? { numberOfLines: 10 } : {})}
+        >
+          {text}
+        </Text>
+      )}
       {long ? (
         <Pressable
           onPress={() => setExpanded((v) => !v)}

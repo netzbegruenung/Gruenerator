@@ -169,13 +169,13 @@ export default function AgentDetailScreen() {
 
         {agent.description ? (
           <DetailSection title="Über diesen Agent">
-            <TextCard text={agent.description} />
+            <TextCard text={agent.description} markdown />
           </DetailSection>
         ) : null}
 
         {agent.openingMessage || agent.openingQuestions.length > 0 ? (
           <DetailSection title="Gesprächsbeginn">
-            {agent.openingMessage ? <TextCard text={agent.openingMessage} /> : null}
+            {agent.openingMessage ? <TextCard text={agent.openingMessage} markdown /> : null}
             {agent.openingQuestions.length > 0 ? (
               <ListGroup>
                 {agent.openingQuestions.map((question, i) => (
