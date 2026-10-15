@@ -13,8 +13,14 @@ import {
 } from 'react-konva';
 
 import { gradientFillProps } from '../utils/gradientFill';
+import { translucentHitFunc } from '../utils/gradientHitArea';
 import { handDrawnPath } from '../utils/handDrawn';
-import { assertNever, isComposerPlane, type ShapeInstance } from '../utils/shapes';
+import {
+  assertNever,
+  isComposerPlane,
+  STROKE_ONLY_SHAPES,
+  type ShapeInstance,
+} from '../utils/shapes';
 import { PATH_VIEWBOX, resizedShapeSize, shapeNodeScale } from '../utils/shapeTransform';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
 
@@ -165,6 +171,7 @@ interface CommonShapeProps {
   scaleX: number;
   scaleY: number;
   draggable: boolean;
+  hitFunc?: (context: Konva.Context, shape: Konva.Shape) => void;
   onMouseDown: (e: Konva.KonvaEventObject<MouseEvent>) => void;
   onTouchStart: (e: Konva.KonvaEventObject<TouchEvent>) => void;
   onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => void;
@@ -552,6 +559,7 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
   // slide: as with the background photo, the first touch selects it and only a
   // touch on the selected plane drags it.
   const touchDragNeedsSelection = isComposerPlane(shape.id) && !isSelected && draggable;
+  const fillsArea = !STROKE_ONLY_SHAPES.has(shape.type) && !shape.type.startsWith('hand-');
 
   const commonProps: CommonShapeProps = {
     x: shape.x,
@@ -562,6 +570,7 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
     scaleX: shape.scaleX,
     scaleY: shape.scaleY,
     draggable,
+    hitFunc: fillsArea ? translucentHitFunc(shape.fillGradient) : undefined,
     onMouseDown: (e) => {
       e.cancelBubble = true;
       onSelect(shape.id);
