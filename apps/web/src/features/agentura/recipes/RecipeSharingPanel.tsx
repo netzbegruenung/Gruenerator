@@ -21,6 +21,15 @@
 import { type PublicOwnership, type TextFormShareMode } from '@gruenerator/contracts';
 import { isApiErrorWithStatus } from '@gruenerator/shared/api';
 import {
+  useMyGroupsForSharing,
+  useShareRecipeWithGroup,
+  useUnshareRecipeFromGroup,
+  useRecipeGroupShares,
+  useRecipeShareSettings,
+  useSetRecipeIsPublic,
+  useSetRecipeShareMode,
+} from '@gruenerator/shared/grueneratoren';
+import {
   Button,
   Label,
   Select,
@@ -32,16 +41,6 @@ import {
 } from '@gruenerator/ui';
 import { useId, useMemo } from 'react';
 import { HiTrash } from 'react-icons/hi';
-
-import { useMyGroupsForSharing } from '../hooks/useMyGroupsForSharing';
-
-import { useShareRecipeWithGroup, useUnshareRecipeFromGroup } from './api';
-import {
-  useRecipeGroupShares,
-  useRecipeShareSettings,
-  useSetRecipeIsPublic,
-  useSetRecipeShareMode,
-} from './useRecipeSharing';
 
 import { cn } from '@/utils/cn';
 

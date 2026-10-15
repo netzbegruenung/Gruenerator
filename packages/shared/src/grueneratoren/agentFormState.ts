@@ -1,9 +1,5 @@
-import {
-  type Agent,
-  DEFAULT_USER_AGENT_TOOLS,
-  DEFAULT_AGENT_ICON,
-} from '@gruenerator/shared/agents';
-import { TEXT_MODEL_BY_ID } from '@gruenerator/shared/models';
+import { type Agent, DEFAULT_USER_AGENT_TOOLS, DEFAULT_AGENT_ICON } from '../agents/index.js';
+import { TEXT_MODEL_BY_ID } from '../models/index.js';
 
 export type Locale = 'de-DE' | 'de-AT';
 

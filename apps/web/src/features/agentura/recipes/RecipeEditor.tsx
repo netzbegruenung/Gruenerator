@@ -7,6 +7,16 @@ import {
   MAX_TEXT_FORM_TITLE_CHARS,
 } from '@gruenerator/contracts';
 import { isApiErrorWithStatus } from '@gruenerator/shared/api';
+import {
+  useDeleteRecipe,
+  useOwnRecipes,
+  useSaveRecipe,
+  classifyRecipeMention,
+  splitExamples,
+  effectiveMention,
+  recipeFormToPayload,
+  type RecipeFormState,
+} from '@gruenerator/shared/grueneratoren';
 import { slugifyName } from '@gruenerator/shared/utils';
 import { Button, Input, Textarea, useConfirm } from '@gruenerator/ui';
 import { useId, useMemo, useState } from 'react';
@@ -16,14 +26,10 @@ import { AgentAvatar } from '../../agents/icons/AgentAvatar';
 import { IconPicker } from '../../agents/icons/IconPicker';
 import { useTrashUndoToast } from '../../trash/trashUndoToast';
 
-import { useDeleteRecipe, useOwnRecipes, useSaveRecipe } from './api';
 import { ExamplesPanel } from './ExamplesPanel';
-import { effectiveMention, recipeFormToPayload, type RecipeFormState } from './recipeFormState';
-import { classifyRecipeMention } from './recipeKind';
 import { recipeMetaLine } from './recipeMeta';
 import { RecipePreview } from './RecipePreview';
 import { RecipeSharingPanel } from './RecipeSharingPanel';
-import { splitExamples } from './splitExamples';
 
 import PageContainer from '@/components/common/PageContainer';
 

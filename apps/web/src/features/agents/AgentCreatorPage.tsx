@@ -1,9 +1,9 @@
 import { type DraftedAgentSpec, MAX_DRAFT_BRIEF_CHARS } from '@gruenerator/contracts';
+import { EMPTY_FORM, type FormState } from '@gruenerator/shared/grueneratoren';
 import { useCallback, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import AgentEditor from './AgentEditor';
-import { EMPTY_FORM, type FormState } from './agentFormState';
 import AgentStartScreen from './AgentStartScreen';
 import { useDraftAgent } from './api';
 

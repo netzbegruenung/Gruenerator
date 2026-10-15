@@ -27,10 +27,9 @@
  */
 import { type AgentListItem } from '@gruenerator/chat';
 import { type PublicTextForm, type TextForm } from '@gruenerator/contracts';
+import { useOwnRecipes, usePublicRecipes } from '@gruenerator/shared/grueneratoren';
 
 import { findSkillByMention } from '../lib/lookups';
-
-import { useOwnRecipes, usePublicRecipes } from './api';
 
 import { useAuthBootstrap } from '@/hooks/useAuthBootstrapped';
 

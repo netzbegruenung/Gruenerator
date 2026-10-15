@@ -23,10 +23,11 @@ import {
   type TextFormShareMode,
   type TextFormShareSettings,
 } from '@gruenerator/contracts';
-import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { textFormErrorMessage, useOwnRecipes } from './api';
+import { ApiError, getContractsClient } from '../api/index.js';
+
+import { textFormErrorMessage, useOwnRecipes } from './recipes.js';
 
 const SHARE_SETTINGS_KEY = (mention: string) => ['recipe', 'share', 'settings', mention];
 

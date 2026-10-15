@@ -1,7 +1,7 @@
 import { TEXT_FORM_TYPE_LABELS } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { PRESETS, classifyRecipeMention } from './recipeKind';
+import { PRESETS, classifyRecipeMention } from './recipeKind.js';
 
 describe('classifyRecipeMention', () => {
   it('classifies a preset mention', () => {

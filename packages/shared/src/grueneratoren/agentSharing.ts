@@ -14,10 +14,11 @@ import {
   type UserAgentShareMode,
   type UserAgentShareSettings,
 } from '@gruenerator/contracts';
-import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { useMyGroupsForSharing } from './useMyGroupsForSharing';
+import { ApiError, getContractsClient } from '../api/index.js';
+
+import { useMyGroupsForSharing } from './myGroupsForSharing.js';
 
 export { useMyGroupsForSharing };
 

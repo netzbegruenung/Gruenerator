@@ -12,6 +12,7 @@ import {
   landesverbandRegion,
   type Agent,
 } from '@gruenerator/shared/agents';
+import { usePublicUserAgents, useUserAgents } from '@gruenerator/shared/grueneratoren';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
@@ -33,8 +34,6 @@ import { NeutralBackdrop } from '../../components/common/NeutralBackdrop';
 import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
 import { useAgenturaCatalog } from '../../hooks/agents/useAgenturaCatalog';
 import { useOwnRecipes } from '../../hooks/agents/useOwnRecipes';
-import { usePublicUserAgents } from '../../hooks/agents/usePublicUserAgents';
-import { useUserAgents } from '../../hooks/agents/useUserAgents';
 import { useUserLibrary } from '../../hooks/agents/useUserLibrary';
 import { useTheme } from '../../hooks/useTheme';
 import { colors, spacing, BODY_FONT, HEADING_FONT_SEMIBOLD } from '../../theme';

@@ -1,7 +1,7 @@
-import { type Agent } from '@gruenerator/shared/agents';
+import { type Agent } from '../agents/index.js';
 import { describe, expect, it } from 'vitest';
 
-import { EMPTY_FORM, formToPayload, hydrateFormState, type FormState } from './agentFormState';
+import { EMPTY_FORM, formToPayload, hydrateFormState, type FormState } from './agentFormState.js';
 
 const AGENT: Agent = {
   identifier: 'mein-agent',

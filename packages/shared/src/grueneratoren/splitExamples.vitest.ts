@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { EXAMPLE_SEPARATOR, joinExamples, splitExamples } from './splitExamples';
+import { EXAMPLE_SEPARATOR, joinExamples, splitExamples } from './splitExamples.js';
 
 describe('splitExamples', () => {
   it('splits on horizontal rules', () => {

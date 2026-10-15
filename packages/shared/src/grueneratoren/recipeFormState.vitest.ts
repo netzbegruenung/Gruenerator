@@ -8,7 +8,7 @@ import {
   hydrateRecipeForm,
   recipeFormToPayload,
   type RecipeFormState,
-} from './recipeFormState';
+} from './recipeFormState.js';
 
 const CUSTOM_FORM: TextForm = {
   id: '1',

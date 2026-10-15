@@ -16,8 +16,9 @@ import {
   type TextForm,
   type TextFormType,
 } from '@gruenerator/contracts';
-import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
+import { ApiError, getContractsClient } from '../api/index.js';
 
 const OWN_RECIPES_KEY = ['text-forms'];
 const PUBLIC_RECIPES_KEY = ['text-forms', 'public'];

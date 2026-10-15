@@ -15,11 +15,8 @@
  *                user's own to create.
  */
 import { type TextFormKind, type TextFormType } from '@gruenerator/contracts';
-import {
-  SKILLS,
-  isLandesverbandIdentifier,
-  isLvItemVisibleForRoles,
-} from '@gruenerator/shared/agents';
+
+import { SKILLS, isLandesverbandIdentifier, isLvItemVisibleForRoles } from '../agents/index.js';
 
 /**
  * `label` wird zum Titel des Rezepts (`RecipeEditorPage` seedet ihn daraus) und

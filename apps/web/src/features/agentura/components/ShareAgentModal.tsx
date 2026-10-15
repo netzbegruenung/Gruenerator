@@ -10,6 +10,15 @@
  * Agents are USED, not co-edited, so there is no edit-policy axis.
  */
 import {
+  useAddAgentGroupShare,
+  useAgentGroupShares,
+  useAgentShareSettings,
+  useMyGroupsForSharing,
+  useRemoveAgentGroupShare,
+  useSetAgentIsPublic,
+  useSetAgentShareMode,
+} from '@gruenerator/shared/grueneratoren';
+import {
   Button,
   Dialog,
   DialogContent,
@@ -29,16 +38,6 @@ import {
 import { useMemo } from 'react';
 import { HiTrash } from 'react-icons/hi';
 import { PiLink } from 'react-icons/pi';
-
-import {
-  useAddAgentGroupShare,
-  useAgentGroupShares,
-  useAgentShareSettings,
-  useMyGroupsForSharing,
-  useRemoveAgentGroupShare,
-  useSetAgentIsPublic,
-  useSetAgentShareMode,
-} from '../hooks/useAgentSharing';
 
 import type { PublicOwnership, UserAgentShareMode } from '@gruenerator/contracts';
 

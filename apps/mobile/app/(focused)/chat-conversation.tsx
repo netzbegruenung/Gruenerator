@@ -6,6 +6,7 @@ import {
   localizeAgent,
   type Agent,
 } from '@gruenerator/shared/agents';
+import { usePublicUserAgents, useUserAgents } from '@gruenerator/shared/grueneratoren';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { Redirect, useLocalSearchParams } from 'expo-router';
 import { useEffect, useEffectEvent, useMemo } from 'react';
@@ -15,8 +16,6 @@ import { AssistantThread, type ThreadWelcome } from '../../components/chat';
 import { ChatBackdrop } from '../../components/chat/ChatBackdrop';
 import { InitialTurnSender } from '../../components/chat/InitialTurnSender';
 import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
-import { usePublicUserAgents } from '../../hooks/agents/usePublicUserAgents';
-import { useUserAgents } from '../../hooks/agents/useUserAgents';
 import { useChatAgentSelection } from '../../hooks/useChatAgentSelection';
 import { MobileChatProvider } from '../../providers/MobileChatProvider';
 import { lightTheme, darkTheme } from '../../theme';

@@ -18,10 +18,11 @@ import {
   type TextFormKind,
   type TextFormType,
 } from '@gruenerator/contracts';
-import { DEFAULT_AGENT_ICON } from '@gruenerator/shared/agents';
-import { slugifyName } from '@gruenerator/shared/utils';
 
-import { joinExamples, splitExamples } from './splitExamples';
+import { DEFAULT_AGENT_ICON } from '../agents/index.js';
+import { slugifyName } from '../utils/index.js';
+
+import { joinExamples, splitExamples } from './splitExamples.js';
 
 export interface RecipeFormState {
   kind: TextFormKind;

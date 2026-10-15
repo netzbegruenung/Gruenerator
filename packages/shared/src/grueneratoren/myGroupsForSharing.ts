@@ -7,8 +7,9 @@
  * without importing agent-sharing internals.
  */
 import { type NotebookUserGroup } from '@gruenerator/contracts';
-import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
+
+import { ApiError, getContractsClient } from '../api/index.js';
 
 const MY_GROUPS_KEY = ['notebook', 'share', 'my-groups']; // shared endpoint
 

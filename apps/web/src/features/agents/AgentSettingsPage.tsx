@@ -1,10 +1,9 @@
+import { recurrenceToSchedule, hydrateFormState } from '@gruenerator/shared/grueneratoren';
 import { useParams } from 'react-router-dom';
 
 import { useRecurringTasks } from '../recurring-tasks/api';
-import { recurrenceToSchedule } from '../recurring-tasks/scheduleState';
 
 import AgentEditor from './AgentEditor';
-import { hydrateFormState } from './agentFormState';
 import { useUserAgent } from './api';
 
 import PageContainer from '@/components/common/PageContainer';

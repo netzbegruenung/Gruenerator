@@ -1,5 +1,6 @@
 import { type RecurringTask, type TextForm } from '@gruenerator/contracts';
 import { agentKey, agentRef, matchesAgenturaType } from '@gruenerator/shared/agents';
+import { useDeleteRecipe } from '@gruenerator/shared/grueneratoren';
 import {
   Button,
   ConfirmDialogProvider,
@@ -52,7 +53,6 @@ import {
   type MarketItem,
   type RecipeEntry,
 } from './lib/marketItems';
-import { useDeleteRecipe } from './recipes/api';
 import { recipeOriginLine } from './recipes/recipeMeta';
 
 import {

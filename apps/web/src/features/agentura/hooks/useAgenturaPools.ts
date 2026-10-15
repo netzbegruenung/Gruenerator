@@ -1,4 +1,5 @@
 import { agentKey } from '@gruenerator/shared/agents';
+import { useOwnRecipes, usePublicRecipes } from '@gruenerator/shared/grueneratoren';
 import { useMemo } from 'react';
 
 import {
@@ -9,7 +10,6 @@ import {
   type SharedAgentEntry,
 } from '../../agents/api';
 import { recipeFromForm, type RecipeEntry } from '../lib/marketItems';
-import { useOwnRecipes, usePublicRecipes } from '../recipes/api';
 import { recipeOriginLine } from '../recipes/recipeMeta';
 
 /**
