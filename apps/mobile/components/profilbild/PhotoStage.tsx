@@ -50,8 +50,6 @@ export function PhotoStage({
   images,
   isAustria,
   pendingHint,
-  onPick,
-  onTakePhoto,
   onRetry,
   onReset,
 }: {
@@ -61,8 +59,6 @@ export function PhotoStage({
   images: Partial<Record<string, SkImage>>;
   isAustria: boolean;
   pendingHint: string | null;
-  onPick(): void;
-  onTakePhoto(): void;
   onRetry(): void;
   onReset(): void;
 }) {
@@ -98,21 +94,16 @@ export function PhotoStage({
   }
 
   // Light instead of filled with the chosen background: that shows as a round
-  // preview with a silhouette, the way the finished Profilbild will look.
+  // preview with a silhouette, the way the finished Profilbild will look. The
+  // photo itself is picked below the stage (RecentPhotos).
   return (
     <View style={[frame, { backgroundColor: dark ? colors.grey[800] : LIGHT_STAGE }]}>
-      <View style={[styles.zone, { borderColor: dark ? colors.grey[600] : colors.grey[300] }]}>
+      <View style={styles.zone}>
         <BackgroundPreview background={background} images={images} isAustria={isAustria} />
-        <Text style={[styles.title, { color: theme.text }]}>Foto hochladen</Text>
+        <Text style={[styles.title, { color: theme.text }]}>Dein Foto kommt hierher</Text>
         <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-          {pendingHint ?? 'Wählen oder aufnehmen – am besten ein Porträt'}
+          {pendingHint ?? 'Wähle unten ein Foto – am besten ein Porträt'}
         </Text>
-        <View style={styles.buttons}>
-          <Button onPress={onPick}>Foto wählen</Button>
-          <Button variant="outline" onPress={onTakePhoto}>
-            Foto aufnehmen
-          </Button>
-        </View>
       </View>
     </View>
   );
@@ -127,9 +118,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.xsmall,
     padding: spacing.medium,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderRadius: borderRadius.large,
   },
   preview: {
     width: PREVIEW,

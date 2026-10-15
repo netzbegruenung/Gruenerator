@@ -53,6 +53,14 @@ jest.mock('../../services/imageEditMobile', () => ({
   pickImageForEditor: jest.fn(),
   takePhotoForEditor: jest.fn(),
 }));
+jest.mock('expo-media-library', () => ({
+  getPermissionsAsync: jest.fn(() => Promise.resolve({ granted: false, canAskAgain: true })),
+  requestPermissionsAsync: jest.fn(),
+  presentPermissionsPicker: jest.fn(),
+  Query: jest.fn(),
+  AssetField: { MEDIA_TYPE: 'mediaType', CREATION_TIME: 'creationTime' },
+  MediaType: { IMAGE: 'image' },
+}));
 jest.mock('../../services/imageStudio', () => ({ saveImageToGallery: jest.fn() }));
 jest.mock('../../services/share', () => ({ shareBase64Image: jest.fn() }));
 jest.mock('../../services/storage', () => ({
@@ -91,7 +99,8 @@ describe('ProfilbildScreen before a photo', () => {
   it('opens the editor straight away with the upload zone and the toolbar', async () => {
     render(<ProfilbildScreen isAustria={false} shareToken={null} galleryAsset={null} />);
     await act(async () => {});
-    expect(screen.getByText('Foto hochladen')).toBeTruthy();
+    expect(screen.getByText('Dein Foto kommt hierher')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Foto aufnehmen' })).toBeTruthy();
     // The background is the one tool that works before the photo.
     expect(screen.getByRole('button', { name: 'Hintergrund' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Sticker' })).toBeDisabled();
@@ -115,7 +124,7 @@ describe('ProfilbildScreen before a photo', () => {
     render(<ProfilbildScreen isAustria={false} shareToken="abc" galleryAsset={null} />);
     await act(async () => {});
     expect(screen.getByLabelText('Profilbild wird geladen')).toBeTruthy();
-    expect(screen.queryByText('Foto hochladen')).toBeNull();
+    expect(screen.queryByText('Dein Foto kommt hierher')).toBeNull();
   });
 
   it('starts a fresh save session for a picked photo', async () => {
@@ -123,7 +132,7 @@ describe('ProfilbildScreen before a photo', () => {
     mockPick.mockResolvedValue(ref as never);
     render(<ProfilbildScreen isAustria={false} shareToken={null} galleryAsset={null} />);
     await act(async () => {});
-    await act(async () => fireEvent.press(screen.getByText('Foto wählen')));
+    await act(async () => fireEvent.press(screen.getByText('Alle Fotos ›')));
     expect(mockBegin).toHaveBeenCalledWith(null);
     expect(mockStart).toHaveBeenCalledWith(ref);
   });

@@ -33,6 +33,7 @@ import {
 import { useTheme } from '../../hooks/useTheme';
 import {
   pickImageForEditor,
+  prepareUploadFromUri,
   takePhotoForEditor,
   type BevImageRef,
 } from '../../services/imageEditMobile';
@@ -50,6 +51,7 @@ import { ProfilbildEditor } from './ProfilbildEditor';
 import { nextStickerUid } from './profilbildGestures';
 import { exportProfilbildBase64 } from './ProfilbildScene';
 import { ProfilbildToolbar, ToolSheet, type ProfilbildTool } from './ProfilbildToolbar';
+import { RecentPhotos } from './RecentPhotos';
 import {
   initialModel,
   newSticker,
@@ -455,8 +457,6 @@ export function ProfilbildScreen({
                   ? `Wähle zuerst ein Foto – dann setzen wir ${galleryTarget(pendingAsset)} ein.`
                   : null
               }
-              onPick={() => pick(pickImageForEditor)}
-              onTakePhoto={() => pick(takePhotoForEditor)}
               onRetry={retry}
               onReset={reset}
             />
@@ -486,6 +486,14 @@ export function ProfilbildScreen({
               Gedrückt halten: Instagram-Vorschau
             </Text>
           </Pressable>
+        ) : null}
+        {!scene && state.status === 'idle' ? (
+          <RecentPhotos
+            width={viewSize}
+            onPhoto={(uri) => pick(() => prepareUploadFromUri(uri))}
+            onCamera={() => pick(takePhotoForEditor)}
+            onLibrary={() => pick(pickImageForEditor)}
+          />
         ) : null}
         {/* Over the stage area only: the header and the toolbar stay in place. */}
         {scene && peek === 'hold' ? (
