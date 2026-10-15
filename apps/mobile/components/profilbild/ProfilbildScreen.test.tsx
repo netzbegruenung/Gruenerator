@@ -53,6 +53,7 @@ jest.mock('../../services/imageEditMobile', () => ({
   pickImageForEditor: jest.fn(),
   takePhotoForEditor: jest.fn(),
 }));
+jest.mock('../../hooks/useStudioMedia', () => ({ useRecentProfilbilder: () => [] }));
 jest.mock('expo-media-library', () => ({
   getPermissionsAsync: jest.fn(() => Promise.resolve({ granted: false, canAskAgain: true })),
   requestPermissionsAsync: jest.fn(),

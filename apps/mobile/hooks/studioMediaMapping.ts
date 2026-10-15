@@ -77,6 +77,14 @@ export function toKiImageItems(shares: ShareListItem[]): RecentItem[] {
     .sort(byDateDesc);
 }
 
+/** Saved Profilbilder, newest first — they reopen in the native editor. */
+export function toProfilbildItems(shares: ShareListItem[]): RecentItem[] {
+  return shares
+    .filter((share) => isProfilbildShare(share))
+    .map(shareToItem)
+    .sort(byDateDesc);
+}
+
 export function toReelItems(projects: Project[]): RecentItem[] {
   return projects
     .map((project): RecentItem => ({

@@ -52,6 +52,7 @@ import { nextStickerUid } from './profilbildGestures';
 import { exportProfilbildBase64 } from './ProfilbildScene';
 import { ProfilbildToolbar, ToolSheet, type ProfilbildTool } from './ProfilbildToolbar';
 import { RecentPhotos } from './RecentPhotos';
+import { RecentProfilbilder } from './RecentProfilbilder';
 import {
   initialModel,
   newSticker,
@@ -487,6 +488,7 @@ export function ProfilbildScreen({
             </Text>
           </Pressable>
         ) : null}
+        {!scene && state.status === 'idle' ? <RecentProfilbilder width={viewSize} /> : null}
         {!scene && state.status === 'idle' ? (
           <RecentPhotos
             width={viewSize}
