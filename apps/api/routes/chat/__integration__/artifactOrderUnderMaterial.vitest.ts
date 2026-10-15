@@ -140,6 +140,7 @@ const { loopScript } = await import('./harness/loopScript.js');
 const { searchBackend } = await import('./harness/searchBackendStub.js');
 const { generatorControl, resetGeneratorControl } =
   await import('./harness/artifactGeneratorStub.js');
+const { PHANTOM_CREATION_FALLBACK } = await import('../services/outputSanity.js');
 
 /** Erkennungszeichen des Materials: steht nur in der PM, nie im Auftrag. */
 const MARKER = 'Kreisumlage';
@@ -307,5 +308,28 @@ describe('an artifact order over the material the turn brings', () => {
         'sharepic'
       );
     }
+  });
+});
+
+// Turn 2 des Live-Falls: ein Thread von vor der Reparatur, dessen freies
+// Angebot („… Gib mir einfach kurz Bescheid!") nie gespeichert wurde. Das „ja"
+// darauf baut nichts — dann darf die Antwort auch nichts ankündigen.
+describe('„ja" on an offer that was never recorded', () => {
+  const OFFER =
+    'Kachel 1: Stoppt die kommunale Unterfinanzierung!\n\nDa du nach einem Sharepic-Format gefragt hast: Ich kann dir diese Kacheln direkt als fertige KI-Bilder oder Sharepics erstellen. Gib mir einfach kurz Bescheid, ob ich das übernehmen soll!';
+  const PHANTOM =
+    'Ich erstelle dir jetzt die Sharepics für den Slider basierend auf dem Entwurf. Da ein Slider aus mehreren Bildern besteht, generiere ich diese nacheinander für dich.\n\n(Hier erfolgt nun die Erstellung der Sharepics durch die entsprechenden Werkzeuge des Grünerators)';
+
+  it('replaces the phantom announcement with an honest sentence', async () => {
+    loopScript.script(ANSWER, { text: PHANTOM });
+    respond.singlePassText = PHANTOM;
+    const { trace } = await runTurn(app.baseUrl, {
+      messages: [
+        userTurn('wandle diese pm in einen sharepic slider um', 'm0'),
+        { id: 'a0', role: 'assistant', parts: [{ type: 'text', text: OFFER }] },
+        userTurn('ja mach das bitte', 'm1'),
+      ],
+    });
+    expect(trace.fullText.trim()).toBe(PHANTOM_CREATION_FALLBACK);
   });
 });

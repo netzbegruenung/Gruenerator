@@ -30,6 +30,7 @@ import {
   stripFabricatedArtifactDelivery,
   stripFabricatedSystemClaims,
   stripPhantomMemoryClaim,
+  stripPhantomArtifactCreation,
   stripPhantomArtifactEdit,
 } from '../services/outputSanity.js';
 import {
@@ -374,6 +375,20 @@ export async function runSinglePassAnswer({
       );
       fullText = phantomEdit.text;
     }
+    // „Ich erstelle dir jetzt die Sharepics …" ohne Artefakt im Turn: nach dem
+    // Turn läuft nichts mehr, die Erstellung findet nie statt (#4611).
+    const phantomCreation = stripPhantomArtifactCreation(fullText, {
+      createdArtifact:
+        (sharepicVariants?.length ?? 0) > 0 ||
+        generatedImage != null ||
+        finalState.createdDocument != null,
+    });
+    if (phantomCreation.removed.length > 0) {
+      log.warn(
+        `[ChatGraph] Removed creation announcement without an artifact: ${phantomCreation.removed.join(' | ')}`
+      );
+      fullText = phantomCreation.text;
+    }
     // Telemetry only — the text is already on the wire; the prompt rules are the fix.
     if (announcesPendingWork(fullText)) {
       log.warn(
@@ -386,7 +401,8 @@ export async function runSinglePassAnswer({
       sanity.fabricated.length > 0 ||
       delivery.removed.length > 0 ||
       phantomNote.removed.length > 0 ||
-      phantomEdit.removed.length > 0
+      phantomEdit.removed.length > 0 ||
+      phantomCreation.removed.length > 0
     ) {
       fullText = citeClamp.text;
       sse.send('completion', { text: fullText, citations: finalState.citations });

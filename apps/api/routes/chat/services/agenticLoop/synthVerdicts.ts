@@ -21,6 +21,7 @@ import {
   stripFabricatedArtifactDelivery,
   stripFabricatedSystemClaims,
   stripPhantomMemoryClaim,
+  stripPhantomArtifactCreation,
   stripPhantomArtifactEdit,
   type EditableArtifactKind,
 } from '../outputSanity.js';
@@ -100,6 +101,8 @@ export function finalizeAnswerText(input: {
   editedArtifacts?: ReadonlySet<EditableArtifactKind>;
   /** Die Arten, die der Thread hat; ohne sie meint „Tabelle" die im Chat-Text. */
   guardedArtifacts?: ReadonlySet<EditableArtifactKind>;
+  /** Der Turn hat ein Artefakt erzeugt — nur dann darf eine Erstellung angekündigt sein. */
+  createdArtifact?: boolean;
   /** Rendered source block, the user's own words, attachments, open document —
    *  everything the model may legitimately name. */
   seenTexts: readonly string[];
@@ -152,6 +155,20 @@ export function finalizeAnswerText(input: {
     text = phantomEdit.text;
   }
 
+  // „Ich erstelle dir jetzt die Sharepics …" mit steps=0: nach dem Turn läuft
+  // nichts mehr (live 15.10.2026, #4611).
+  // Eine Änderung durch ein Werkzeug zählt mit: „Ich setze dir das jetzt am
+  // Sharepic um" beschreibt dann, was wirklich lief.
+  const phantomCreation = stripPhantomArtifactCreation(text, {
+    createdArtifact: input.createdArtifact === true || (input.editedArtifacts?.size ?? 0) > 0,
+  });
+  if (phantomCreation.removed.length > 0) {
+    warnings.push(
+      `[Agentic] Removed creation announcement without an artifact: ${phantomCreation.removed.join(' | ')}`
+    );
+    text = phantomCreation.text;
+  }
+
   if (
     defersToSearchDespiteSources(text, { sources: input.sourceCount, toolCalls: input.stepCount })
   ) {
@@ -198,7 +215,8 @@ export function finalizeAnswerText(input: {
     clamp.changed ||
     sanity.fabricated.length > 0 ||
     phantomNote.removed.length > 0 ||
-    phantomEdit.removed.length > 0;
+    phantomEdit.removed.length > 0 ||
+    phantomCreation.removed.length > 0;
   if (replaced) text = clamp.text;
 
   return { text, replaced, warnings };
