@@ -29,6 +29,7 @@ import { SearchField } from '../../components/agentura/SearchField';
 import { agentIcon } from '../../components/chat/sidebarIcons';
 import { Button, ListGroup, SkeletonRows } from '../../components/common';
 import { Fab } from '../../components/common/Fab';
+import { NeutralBackdrop } from '../../components/common/NeutralBackdrop';
 import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
 import { useAgenturaCatalog } from '../../hooks/agents/useAgenturaCatalog';
 import { useOwnRecipes } from '../../hooks/agents/useOwnRecipes';
@@ -287,7 +288,11 @@ export default function AgentsScreen() {
   );
 
   return (
-    <ScreenScaffold title="Grüneratoren" onBack={() => goBackOr('/start')}>
+    <ScreenScaffold
+      backdrop={<NeutralBackdrop />}
+      title="Grüneratoren"
+      onBack={() => goBackOr('/start')}
+    >
       <View style={[styles.column, styles.controls]}>
         <SearchField value={search} onChange={setSearch} placeholder="Grüneratoren durchsuchen" />
       </View>

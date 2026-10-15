@@ -13,12 +13,13 @@ import {
 } from 'react-native';
 
 import { SkeletonBar, SkeletonGroup, SkeletonRows } from '../../../../components/common';
+import { NeutralBackdrop } from '../../../../components/common/NeutralBackdrop';
 import { SegmentedControl } from '../../../../components/common/SegmentedControl';
 import { ScreenScaffold } from '../../../../components/navigation/ScreenScaffold';
 import { GroupCommentsSheet } from '../../../../components/projekte/GroupCommentsSheet';
 import { GroupFeedCard } from '../../../../components/projekte/GroupFeedCard';
 import { GroupKindRows } from '../../../../components/projekte/GroupKindRows';
-import { ProjekteBackdrop, useProjekteTone } from '../../../../components/projekte/projekteTone';
+import { useProjekteTone } from '../../../../components/projekte/projekteTone';
 import { openGroupFeedItem, useBearerToken, useGroupFeed } from '../../../../hooks/useGroupContent';
 import { useGroupDetails } from '../../../../hooks/useGroups';
 import { useHiddenMemberIds } from '../../../../hooks/useHiddenMembers';
@@ -80,7 +81,7 @@ export default function ProjektDetailScreen() {
 
   const scaffold = (children: ReactNode): ReactNode => (
     <ScreenScaffold
-      backdrop={<ProjekteBackdrop />}
+      backdrop={<NeutralBackdrop />}
       title={group?.name ?? 'Projekt'}
       onBack={() => goBackOr('/(focused)/projekte')}
       headerRight={

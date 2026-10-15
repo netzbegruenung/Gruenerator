@@ -12,9 +12,10 @@ import {
   useWindowDimensions,
 } from 'react-native';
 
+import { NeutralBackdrop } from '../../../components/common/NeutralBackdrop';
 import { SkeletonBar, SkeletonGroup } from '../../../components/common/Skeleton';
 import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
-import { ProjekteBackdrop, useProjekteTone } from '../../../components/projekte/projekteTone';
+import { useProjekteTone } from '../../../components/projekte/projekteTone';
 import { ProjektTile } from '../../../components/projekte/ProjektTile';
 import { useUserGroups, type GroupSummary } from '../../../hooks/useGroups';
 import {
@@ -131,7 +132,7 @@ export default function ProjekteScreen() {
   }
 
   return (
-    <ScreenScaffold backdrop={<ProjekteBackdrop />} title="Projekte" onBack={handleBack}>
+    <ScreenScaffold backdrop={<NeutralBackdrop />} title="Projekte" onBack={handleBack}>
       <ScrollView
         contentContainerStyle={[styles.column, styles.scrollContent]}
         showsVerticalScrollIndicator={false}
