@@ -25,10 +25,13 @@ export function ProfilbildDiscoverButton({
   buttonClassName,
   tileClassName,
   disabled = false,
+  label,
   onPick,
 }: {
   kind: StudioAssetKind;
   buttonClassName: string;
+  /** Visible text next to the icon, e.g. „Shop“. */
+  label?: string;
   /** Kacheln der Einträge im Popup — dieselben wie in der Auswahlreihe. */
   tileClassName: string;
   disabled?: boolean;
@@ -47,7 +50,8 @@ export function ProfilbildDiscoverButton({
         title={`${plural} entdecken`}
         className={buttonClassName}
       >
-        <PiStorefront aria-hidden className="size-5 text-grey-600 dark:text-grey-300" />
+        <PiStorefront aria-hidden className="size-5 shrink-0" />
+        {label}
       </button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent

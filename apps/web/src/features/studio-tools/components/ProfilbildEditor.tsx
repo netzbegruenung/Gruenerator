@@ -1,3 +1,4 @@
+import { useMediaQuery } from '@gruenerator/shared/hooks';
 import {
   clampPerson,
   COLOR_SWATCHES_AT,
@@ -23,9 +24,16 @@ import {
   type SavedProfilbildSticker,
 } from '@gruenerator/shared/profilbild';
 import { assetStickerId, isAssetStickerId, isShareSrc } from '@gruenerator/shared/stickers';
-import { Alert, AlertDescription, Button } from '@gruenerator/ui';
+import {
+  Alert,
+  AlertDescription,
+  Button,
+  Slider,
+  ToggleGroup,
+  ToggleGroupItem,
+} from '@gruenerator/ui';
 import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
-import { PiTrash } from 'react-icons/pi';
+import { PiArrowsOut, PiDotsThree, PiImage, PiSticker } from 'react-icons/pi';
 
 import { useAuthStore } from '../../../stores/authStore';
 import { downloadDataUrl } from '../../../utils/downloadFile';
@@ -54,7 +62,6 @@ import {
 
 import { CUSTOM_ID, ProfilbildBackgroundPicker } from './ProfilbildBackgroundPicker';
 import { ProfilbildStickerPicker } from './ProfilbildStickerPicker';
-import { TOOL_ACTIONS, TOOL_HINT, TOOL_LABEL, TOOL_PANEL, TOOL_PILL } from './ToolUi';
 
 import { cn } from '@/utils/cn';
 
@@ -74,6 +81,26 @@ const VARIANT_HINTS: Record<Variant, string> = {
   instagram: 'So erscheint das Bild auf Instagram – der Download bleibt quadratisch.',
 };
 
+type MobileSheet = 'hintergrund' | 'sticker' | 'groesse' | 'mehr';
+
+const MOBILE_TOOLS: { id: MobileSheet; label: string; icon: typeof PiImage }[] = [
+  { id: 'hintergrund', label: 'Hintergrund', icon: PiImage },
+  { id: 'sticker', label: 'Sticker', icon: PiSticker },
+  { id: 'groesse', label: 'Größe', icon: PiArrowsOut },
+  { id: 'mehr', label: 'Mehr', icon: PiDotsThree },
+];
+
+const SHEET_TITLES: Record<MobileSheet, string> = {
+  hintergrund: 'Hintergrund',
+  sticker: 'Sticker',
+  groesse: 'Größe der Person',
+  mehr: 'Mehr',
+};
+
+/** Gedrückt halten ohne Bewegung öffnet auf dem Handy die Instagram-Vorschau. */
+const PEEK_DELAY = 450;
+const PEEK_SLOP = 5;
+
 const NUDGE = 10;
 const NUDGE_FAST = NUDGE * 10;
 const ARROWS: Record<string, [number, number, string]> = {
@@ -82,7 +109,7 @@ const ARROWS: Record<string, [number, number, string]> = {
   ArrowUp: [0, -1, 'oben'],
   ArrowDown: [0, 1, 'unten'],
 };
-const PERSON_SCALE = { min: 0.7, max: 1, step: 0.05 };
+const PERSON_SCALE = { min: 0.5, max: 1.5, step: 0.05 };
 const STICKER_SCALE_STEP = 1.1;
 const STICKER_MAX = PROFILBILD_SIZE * 1.5;
 const ROTATE_STEP = 15;
@@ -121,6 +148,10 @@ export interface ProfilbildReopen {
 }
 
 export interface ProfilbildEditorProps {
+  title: string;
+  description: string;
+  /** Above the stage, e.g. the recent Profilbilder while the stage is empty. */
+  beforeStage?: ReactNode;
   /** The cut-out person; null until a photo is in — the editor shows `emptyStage` instead. */
   cutoutUrl: string | null;
   /**
@@ -136,6 +167,9 @@ export interface ProfilbildEditorProps {
 }
 
 export function ProfilbildEditor({
+  title,
+  description,
+  beforeStage,
   cutoutUrl,
   emptyStage,
   reopen = null,
@@ -143,10 +177,39 @@ export function ProfilbildEditor({
   onEditInCanvas,
   onReset,
 }: ProfilbildEditorProps) {
-  const sizeId = useId();
+  const backgroundHeadingId = useId();
+  const stickerHeadingId = useId();
+  const sizeHeadingId = useId();
+  const isMobile = useMediaQuery('(max-width: 767px)');
+  const [sheet, setSheet] = useState<MobileSheet | null>(null);
+  const [peek, setPeek] = useState(false);
+  const peekStart = useRef<{ x: number; y: number; timer: number } | null>(null);
+  const endPeek = () => {
+    if (peekStart.current) window.clearTimeout(peekStart.current.timer);
+    peekStart.current = null;
+    setPeek(false);
+  };
+  const peekHandlers = {
+    onPointerDown: (e: React.PointerEvent) => {
+      endPeek();
+      peekStart.current = {
+        x: e.clientX,
+        y: e.clientY,
+        timer: window.setTimeout(() => setPeek(true), PEEK_DELAY),
+      };
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      const start = peekStart.current;
+      if (start && !peek && Math.hypot(e.clientX - start.x, e.clientY - start.y) > PEEK_SLOP)
+        endPeek();
+    },
+    onPointerUp: endPeek,
+    onPointerCancel: endPeek,
+    // A long press would otherwise open the system menu instead of the preview.
+    onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+  };
+  useEffect(() => () => endPeek(), []);
   const moveHintId = useId();
-  const keysHintId = useId();
-  const layersId = useId();
   const igProfileRef = useRef<HTMLCanvasElement>(null);
   const igFeedRef = useRef<HTMLCanvasElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -190,7 +253,6 @@ export function ProfilbildEditor({
   // Saved stickers whose image failed to load: kept in the saved state, not drawn.
   const unrestoredStickers = useRef<SavedProfilbildSticker[]>([]);
   const backgroundRequest = useRef(0);
-  const personLayerRef = useRef<HTMLButtonElement>(null);
   const [placement, setPlacement] = useState<PersonPlacement | null>(null);
   const [variant, setVariant] = useState<Variant>('rund');
   const [canvasBusy, setCanvasBusy] = useState(false);
@@ -384,7 +446,7 @@ export function ProfilbildEditor({
 
   const composedRef = useRef<HTMLCanvasElement | null>(null);
   useEffect(() => {
-    if (variant !== 'instagram') return;
+    if (variant !== 'instagram' && !peek) return;
     const frame = requestAnimationFrame(() => {
       composedRef.current ??= document.createElement('canvas');
       const composed = compose(composedRef.current);
@@ -536,6 +598,13 @@ export function ProfilbildEditor({
       e.preventDefault();
       removeSticker(active.uid);
       announce(`${name} entfernt`);
+    } else if (e.key === ' ' && stickers.length > 0) {
+      e.preventDefault();
+      const order = [null, ...stickers.map((st) => st.uid)];
+      const next = order[(order.indexOf(selectedSticker) + 1) % order.length] ?? null;
+      setSelectedSticker(next);
+      const picked = stickers.find((st) => st.uid === next);
+      announce(`${picked ? (stickerNames.get(picked.uid) ?? picked.label) : PERSON} ausgewählt`);
     } else if (active && e.key === 'Escape') {
       e.preventDefault();
       setSelectedSticker(null);
@@ -731,284 +800,429 @@ export function ProfilbildEditor({
   };
 
   const scalePct = placement ? Math.round(placement.scale * 100) : 0;
+  const backgroundName =
+    activeId === CUSTOM_ID
+      ? 'Eigenes Bild'
+      : (flat?.label ?? presets.find((p) => p.id === activeId)?.label ?? '');
+  const hasPhoto = !!cutoutUrl;
+
+  const downloadButton = (
+    <Button
+      type="button"
+      variant="brand"
+      size={isMobile ? 'lg' : 'default'}
+      disabled={!cutout}
+      onClick={() => void download()}
+    >
+      Herunterladen
+    </Button>
+  );
+
+  const sizeSlider = (
+    <Slider
+      aria-label="Größe der Person"
+      min={PERSON_SCALE.min * 100}
+      max={PERSON_SCALE.max * 100}
+      step={1}
+      value={[scalePct]}
+      disabled={!placement}
+      onValueChange={([pct]) => {
+        if (cutout && pct !== undefined)
+          setPlacement((p) => (p ? rescalePlacement(cutout.image, p, pct / 100) : p));
+      }}
+    />
+  );
+
+  const backgroundPicker = (
+    <ProfilbildBackgroundPicker
+      colors={colorSwatches}
+      gradients={gradients}
+      freeBackground={freeBackground}
+      onSelectFree={(bg) => {
+        backgroundRequest.current++;
+        setFreeBackground(bg);
+        setSelected(FREE_BACKGROUND_ID);
+      }}
+      presets={presets}
+      selected={activeId}
+      customImageSrc={customImage?.src ?? null}
+      customUrl={customSource.url}
+      onSelect={(id) => {
+        backgroundRequest.current++;
+        setSelected(id);
+      }}
+      onSelectPreset={(design) => void selectPreset(design)}
+      onSelectGallery={(item) => void pickGalleryBackground(item)}
+      onUpload={() => fileRef.current?.click()}
+      onShareCustom={
+        customSource.file && customSource.file !== sharedFile ? () => setSharingCustom(true) : null
+      }
+    />
+  );
+
+  const stickerPicker = (
+    <ProfilbildStickerPicker
+      locale={isAustria ? 'de-AT' : 'de-DE'}
+      disabled={!cutout}
+      onAddSystem={(st) => void addSticker(st)}
+      onAddAsset={(item) => void addGallerySticker(item)}
+    />
+  );
+
+  // Unter der Bühne nur der Hinweis und eine Aktion: gearbeitet wird im Bild selbst.
+  const stageBar = (
+    <div className="flex w-full items-start justify-between gap-3">
+      <p id={moveHintId} className="m-0 text-xs leading-snug text-muted-foreground">
+        {isMobile
+          ? 'Ziehen zum Verschieben. Gedrückt halten für die Instagram-Vorschau.'
+          : 'Ziehen zum Verschieben. Leertaste wählt aus, Pfeiltasten bewegen, + / – skaliert, [ ] dreht, Entf löscht.'}
+      </p>
+      {selectedSticker ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="shrink-0"
+          onClick={() => {
+            const st = stickers.find((s) => s.uid === selectedSticker);
+            removeSticker(selectedSticker);
+            if (st) announce(`${stickerNames.get(st.uid) ?? st.label} entfernt`);
+          }}
+        >
+          Sticker entfernen
+        </Button>
+      ) : (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="shrink-0"
+          disabled={!cutout}
+          onClick={center}
+        >
+          Zentrieren
+        </Button>
+      )}
+    </div>
+  );
+
+  // Handy: immer Quadrat mit Kreisrand; Desktop: die gewählte Form.
+  const shape: Variant = isMobile ? 'rund' : variant;
+  const stageFrame = (
+    <div
+      {...(hasPhoto
+        ? {
+            role: 'application',
+            tabIndex: 0,
+            'aria-label': selectedSticker
+              ? 'Sticker verschieben – Pfeiltasten, Entf löscht'
+              : 'Person verschieben – Pfeiltasten',
+            'aria-describedby': moveHintId,
+            onKeyDown: onEditorKey,
+          }
+        : {})}
+      {...(isMobile && hasPhoto ? peekHandlers : {})}
+      className={cn(
+        'relative aspect-square w-full touch-manipulation overflow-hidden bg-surface shadow-lg outline-none select-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 focus-visible:ring-offset-background-alt',
+        shape === 'rund' && !isMobile && hasPhoto ? 'rounded-full' : 'rounded-[4%]',
+        'transition-[border-radius] duration-250 motion-reduce:transition-none'
+      )}
+    >
+      {!hasPhoto ? (
+        <div className="relative size-full">{emptyStage?.(backgroundPreview)}</div>
+      ) : cutout && rect && backgroundCanvas ? (
+        <Suspense fallback={null}>
+          <ProfilbildStage
+            background={backgroundCanvas}
+            person={cutout.image}
+            rect={rect}
+            round={isMobile}
+            onMove={moveTo}
+            stickers={stickers}
+            selectedSticker={selectedSticker}
+            onSelectSticker={setSelectedSticker}
+            onStickerChange={changeSticker}
+          />
+        </Suspense>
+      ) : null}
+      {peek ? (
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-black/40">
+          <div className="w-[86%]">
+            <InstagramPreview profileRef={igProfileRef} feedRef={igFeedRef} />
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+
+  const stage =
+    !isMobile && variant === 'instagram' && cutout ? (
+      <div className="w-[min(560px,100cqw_-_48px)]">
+        <InstagramPreview profileRef={igProfileRef} feedRef={igFeedRef} />
+      </div>
+    ) : (
+      <div
+        className={cn(
+          'flex flex-col items-center gap-3',
+          isMobile
+            ? sheet
+              ? 'w-[min(342px,100cqw_-_48px,100cqh_-_24px)]'
+              : 'w-[min(342px,100cqw_-_48px,100cqh_-_96px)]'
+            : 'w-[min(500px,100cqw_-_48px,100cqh_-_260px)]'
+        )}
+      >
+        {stageFrame}
+        {hasPhoto && !(isMobile && sheet) ? stageBar : null}
+      </div>
+    );
+
+  const errorAlert = error ? (
+    <Alert variant="destructive" role="alert" className="w-full max-w-[500px]">
+      <AlertDescription>{error}</AlertDescription>
+    </Alert>
+  ) : null;
+
+  const saveStatus = (className: string) => (
+    <p role="status" className={cn('m-0 text-muted-foreground', className)}>
+      {hasPhoto ? SAVE_STATUS[saveState] : ''}
+    </p>
+  );
+
+  const sectionHead = (heading: string, aside: ReactNode, id?: string) => (
+    <div className="flex items-baseline justify-between gap-sm">
+      <h2 id={id} className="m-0 text-base font-semibold text-foreground-heading">
+        {heading}
+      </h2>
+      <span className="min-w-0 truncate text-[13px] text-muted-foreground">{aside}</span>
+    </div>
+  );
 
   return (
-    <div className="grid gap-lg md:grid-cols-[300px_1fr] md:items-start">
-      <div className="mx-auto flex w-full max-w-[300px] flex-col gap-xs md:mx-0">
-        {/* Format, Sticker und Export wirken erst mit einem Foto — bis dahin fehlen sie. */}
-        {cutoutUrl ? (
-          <div role="group" aria-label="Vorschau" className="flex gap-xs">
-            {VARIANTS.map((o) => (
-              <button
-                key={o.value}
-                type="button"
-                aria-pressed={variant === o.value}
-                onClick={() => setVariant(o.value)}
-                className={cn(TOOL_PILL, 'flex-1 px-sm')}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
-        ) : null}
-
-        {variant === 'instagram' && cutout ? (
-          <InstagramPreview profileRef={igProfileRef} feedRef={igFeedRef} />
-        ) : (
-          <>
-            <div
-              {...(cutoutUrl
-                ? {
-                    role: 'application',
-                    tabIndex: 0,
-                    'aria-label': selectedSticker
-                      ? 'Sticker verschieben – Pfeiltasten, Entf löscht'
-                      : 'Person verschieben – Pfeiltasten',
-                    'aria-describedby': `${moveHintId} ${keysHintId}`,
-                    onKeyDown: onEditorKey,
-                  }
-                : {})}
-              className="aspect-square w-full overflow-hidden rounded-[14px] border border-grey-200 bg-grey-100 outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 dark:border-grey-700 dark:bg-grey-800"
-            >
-              {!cutoutUrl ? (
-                <div className="relative size-full">{emptyStage?.(backgroundPreview)}</div>
-              ) : cutout && rect && backgroundCanvas ? (
-                <Suspense fallback={null}>
-                  <ProfilbildStage
-                    background={backgroundCanvas}
-                    person={cutout.image}
-                    rect={rect}
-                    round={variant === 'rund'}
-                    onMove={moveTo}
-                    stickers={stickers}
-                    selectedSticker={selectedSticker}
-                    onSelectSticker={setSelectedSticker}
-                    onStickerChange={changeSticker}
-                  />
-                </Suspense>
-              ) : null}
-            </div>
-            <div aria-live="polite" className="sr-only">
-              {announcement}
-            </div>
-            {/* Verschieben, Ebenen und Tastatur gibt es erst mit einer Person auf der Bühne. */}
-            {cutoutUrl ? (
-              <>
-                <div className="flex items-start justify-between gap-sm">
-                  <p id={moveHintId} className={cn(TOOL_HINT, 'flex-1 text-xs')}>
-                    Person und Sticker ziehen – sie rasten an Mitte, Raster und Unterkante ein.
-                  </p>
-                  {selectedSticker ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="shrink-0"
-                      onClick={() => removeSticker(selectedSticker)}
-                    >
-                      Sticker entfernen
-                    </Button>
-                  ) : (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="shrink-0"
-                      disabled={!cutout}
-                      onClick={center}
-                    >
-                      Zentrieren
-                    </Button>
-                  )}
-                </div>
-                <p id={keysHintId} className={cn(TOOL_HINT, 'hidden text-xs md:block')}>
-                  Tastatur: Pfeile verschieben (Umschalt × 10), + / − Größe, [ / ] drehen, Entf
-                  löscht, Esc hebt die Auswahl auf.
-                </p>
-                <div className="flex flex-col gap-xs">
-                  <span id={layersId} className={cn(TOOL_LABEL, 'text-xs')}>
-                    Ebenen
-                  </span>
-                  <ul aria-labelledby={layersId} className="m-0 flex list-none flex-col gap-xs p-0">
-                    <li>
-                      <button
-                        ref={personLayerRef}
-                        type="button"
-                        aria-pressed={selectedSticker === null}
-                        disabled={!cutout}
-                        onClick={() => setSelectedSticker(null)}
-                        className={cn(TOOL_PILL, 'w-full justify-start')}
-                      >
-                        {PERSON}
-                      </button>
-                    </li>
-                    {stickers.map((st) => {
-                      const name = stickerNames.get(st.uid) ?? st.label;
-                      return (
-                        <li key={st.uid} className="flex items-center gap-xs">
-                          <button
-                            type="button"
-                            aria-pressed={selectedSticker === st.uid}
-                            onClick={() => setSelectedSticker(st.uid)}
-                            className={cn(TOOL_PILL, 'min-w-0 flex-1 justify-start truncate')}
-                          >
-                            {name}
-                          </button>
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="ghost"
-                            aria-label={`${name} entfernen`}
-                            className="shrink-0 max-md:size-11"
-                            onClick={() => {
-                              removeSticker(st.uid);
-                              announce(`${name} entfernt`);
-                              personLayerRef.current?.focus();
-                            }}
-                          >
-                            <PiTrash aria-hidden="true" />
-                          </Button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              </>
-            ) : null}
-          </>
+    <div className="flex h-dvh min-h-0 flex-col bg-background text-foreground">
+      <header
+        className={cn(
+          'flex flex-none items-center justify-between gap-md',
+          isMobile ? 'pt-1.5 pr-4 pb-2.5 pl-14' : 'h-[72px] border-b border-border px-6 lg:px-8'
         )}
-        {cutoutUrl ? <p className={cn(TOOL_HINT, 'text-xs')}>{VARIANT_HINTS[variant]}</p> : null}
-      </div>
-
-      <div className={cn(TOOL_PANEL, 'flex min-w-0 flex-col gap-lg')}>
-        <fieldset className="m-0 flex min-w-0 flex-col gap-sm border-0 p-0">
-          <legend className={cn(TOOL_LABEL, 'mb-sm')}>Hintergrund</legend>
-          <ProfilbildBackgroundPicker
-            colors={colorSwatches}
-            gradients={gradients}
-            freeBackground={freeBackground}
-            onSelectFree={(bg) => {
-              backgroundRequest.current++;
-              setFreeBackground(bg);
-              setSelected(FREE_BACKGROUND_ID);
-            }}
-            presets={presets}
-            selected={activeId}
-            customImageSrc={customImage?.src ?? null}
-            customUrl={customSource.url}
-            onSelect={(id) => {
-              backgroundRequest.current++;
-              setSelected(id);
-            }}
-            onSelectPreset={(design) => void selectPreset(design)}
-            onSelectGallery={(item) => void pickGalleryBackground(item)}
-            onUpload={() => fileRef.current?.click()}
-            onShareCustom={
-              customSource.file && customSource.file !== sharedFile
-                ? () => setSharingCustom(true)
-                : null
-            }
-          />
-          <input
-            ref={fileRef}
-            type="file"
-            aria-label="Eigenes Hintergrundbild wählen"
-            accept="image/*"
-            className="hidden"
-            data-testid="profilbild-background-input"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              e.target.value = '';
-              if (file) void pickCustom(file);
-            }}
-          />
-        </fieldset>
-
-        {cutoutUrl ? (
-          <fieldset className="m-0 flex min-w-0 flex-col gap-sm border-0 p-0">
-            <legend className={cn(TOOL_LABEL, 'mb-sm')}>Sticker</legend>
-            <ProfilbildStickerPicker
-              locale={isAustria ? 'de-AT' : 'de-DE'}
-              disabled={!cutout}
-              onAddSystem={(st) => void addSticker(st)}
-              onAddAsset={(item) => void addGallerySticker(item)}
-            />
-            {stickers.length > 0 ? (
-              <p className={cn(TOOL_HINT, 'text-xs')}>
-                Sticker antippen zum Auswählen – Ecken ziehen zum Vergrößern und Drehen.
-              </p>
-            ) : null}
-          </fieldset>
-        ) : null}
-
-        {cutoutUrl ? (
-          <div className="flex flex-col gap-xs">
-            <label htmlFor={sizeId} className={cn(TOOL_LABEL, 'flex justify-between')}>
-              Größe der Person{' '}
-              <span className="font-normal tabular-nums text-grey-600 dark:text-grey-400">
-                {scalePct} %
-              </span>
-            </label>
-            <input
-              id={sizeId}
-              type="range"
-              min={70}
-              max={100}
-              value={scalePct}
-              disabled={!placement}
-              onChange={(e) => {
-                const next = Number(e.target.value) / 100;
-                if (cutout) setPlacement((p) => (p ? rescalePlacement(cutout.image, p, next) : p));
-              }}
-              className="h-11 w-full cursor-pointer accent-primary-600 md:h-6"
-            />
-          </div>
-        ) : null}
-
-        {cutoutUrl ? (
-          <>
-            <div className={TOOL_ACTIONS}>
-              <Button
-                type="button"
-                variant="brand"
-                disabled={!cutout}
-                onClick={() => void download()}
-              >
-                Herunterladen
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={canvasBusy || !cutout}
-                onClick={() => void editInCanvas()}
-              >
-                {canvasBusy ? 'Canvas wird geöffnet …' : 'In Canvas bearbeiten'}
-              </Button>
-              {cutoutUrl ? (
-                <Button type="button" variant="ghost" className="sm:ml-auto" onClick={onReset}>
+      >
+        <div
+          className={cn('flex min-w-0', isMobile ? 'flex-col gap-0.5' : 'items-baseline gap-3.5')}
+        >
+          <h1
+            className={cn(
+              'm-0 shrink-0 font-semibold text-foreground-heading',
+              isMobile ? 'text-[22px]' : 'text-2xl'
+            )}
+          >
+            {title}
+          </h1>
+          {isMobile ? (
+            saveStatus('truncate text-xs')
+          ) : (
+            <span className="hidden truncate text-[15px] text-muted-foreground xl:inline">
+              {description}
+            </span>
+          )}
+        </div>
+        {hasPhoto ? (
+          <div className="flex flex-none items-center gap-2">
+            {isMobile ? null : (
+              <>
+                {saveStatus('mr-2 hidden text-[13px] lg:block')}
+                <Button type="button" variant="ghost" onClick={onReset}>
                   Anderes Foto
                 </Button>
-              ) : null}
-            </div>
-            <p role="status" className={cn(TOOL_HINT, '-mt-sm text-xs')}>
-              {SAVE_STATUS[saveState]}
-            </p>
-
-            {flattenForCanvas ? (
-              <p className={cn(TOOL_HINT, '-mt-sm text-xs')}>
-                Im Canvas wird das Bild als Ganzes übernommen – Person und Sticker sind dort nicht
-                mehr einzeln verschiebbar.
-              </p>
-            ) : null}
-          </>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={canvasBusy || !cutout}
+                  onClick={() => void editInCanvas()}
+                >
+                  {canvasBusy ? 'Canvas wird geöffnet …' : 'In Canvas bearbeiten'}
+                </Button>
+              </>
+            )}
+            {downloadButton}
+          </div>
         ) : null}
+      </header>
 
-        {error ? (
-          <Alert variant="destructive" role="alert">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
+      <div className="flex min-h-0 flex-1">
+        <main
+          // Die Bühne bemisst sich an dieser Fläche (Container-Einheiten): so groß wie
+          // möglich, ohne dass sie mit Umschalter und Hinweis über den Rand ragt.
+          className={cn(
+            'flex min-w-0 flex-1 flex-col items-center justify-center overflow-y-auto bg-background-alt [container-type:size]',
+            isMobile ? 'gap-3 px-6 py-3' : 'gap-7 p-6 lg:p-8'
+          )}
+        >
+          {beforeStage}
+          {stage}
+          {!isMobile && hasPhoto ? (
+            <div className="flex flex-none flex-col items-center gap-3.5">
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                aria-label="Vorschau"
+                value={variant}
+                onValueChange={(v) => {
+                  if (v) setVariant(v as Variant);
+                }}
+              >
+                {VARIANTS.map((o) => (
+                  <ToggleGroupItem key={o.value} value={o.value} className="px-4">
+                    {o.label}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+              <p className="m-0 text-[13px] text-muted-foreground">{VARIANT_HINTS[variant]}</p>
+            </div>
+          ) : null}
+          {errorAlert}
+        </main>
+
+        {!isMobile ? (
+          <aside className="flex w-[340px] flex-none flex-col gap-8 overflow-y-auto border-l border-border p-6 lg:w-[400px] lg:p-7">
+            <section aria-labelledby={backgroundHeadingId} className="flex flex-col gap-3.5">
+              {sectionHead('Hintergrund', backgroundName, backgroundHeadingId)}
+              {backgroundPicker}
+            </section>
+            {hasPhoto ? (
+              <>
+                <section aria-labelledby={stickerHeadingId} className="flex flex-col gap-3.5">
+                  {sectionHead('Sticker', 'Mehrere möglich', stickerHeadingId)}
+                  {stickerPicker}
+                </section>
+                <section aria-labelledby={sizeHeadingId} className="flex flex-col gap-3.5">
+                  <div className="flex items-baseline justify-between gap-sm">
+                    <h2
+                      id={sizeHeadingId}
+                      className="m-0 text-base font-semibold text-foreground-heading"
+                    >
+                      Größe der Person
+                    </h2>
+                    <span className="text-sm tabular-nums text-muted-foreground">{scalePct} %</span>
+                  </div>
+                  {sizeSlider}
+                </section>
+                {flattenForCanvas ? (
+                  <p className="mt-auto mb-0 text-[13px] leading-normal text-muted-foreground">
+                    „In Canvas bearbeiten“ übernimmt das Bild als Ganzes – Person und Sticker sind
+                    dort nicht mehr einzeln verschiebbar.
+                  </p>
+                ) : null}
+              </>
+            ) : null}
+          </aside>
         ) : null}
       </div>
+
+      {isMobile ? (
+        <>
+          {sheet ? (
+            <section
+              aria-label={SHEET_TITLES[sheet]}
+              className="relative z-10 -mt-5 flex max-h-[60dvh] flex-none flex-col gap-3 overflow-y-auto rounded-t-[22px] bg-background px-4 pt-2 pb-4 shadow-[0_-8px_24px_rgba(0,0,0,0.12)]"
+            >
+              <span
+                aria-hidden="true"
+                className="h-[5px] w-10 flex-none self-center rounded-full bg-border"
+              />
+              <div className="flex items-center justify-between">
+                <h2 className="m-0 text-[17px] font-semibold text-foreground-heading">
+                  {SHEET_TITLES[sheet]}
+                </h2>
+                <Button type="button" size="sm" variant="ghost" onClick={() => setSheet(null)}>
+                  Fertig
+                </Button>
+              </div>
+              {sheet === 'hintergrund' ? backgroundPicker : null}
+              {sheet === 'sticker' ? (
+                <div className="flex flex-col gap-2.5">
+                  <span className="text-[13px] text-muted-foreground">
+                    Mehrere möglich · auf dem Bild verschieben
+                  </span>
+                  <div className="max-h-[228px] overflow-y-auto">{stickerPicker}</div>
+                </div>
+              ) : null}
+              {sheet === 'groesse' ? (
+                <div className="flex flex-col gap-3.5 pb-1.5">
+                  <div className="flex justify-between text-sm">
+                    <strong>Größe der Person</strong>
+                    <span className="tabular-nums text-muted-foreground">{scalePct} %</span>
+                  </div>
+                  <div className="px-1 py-2">{sizeSlider}</div>
+                </div>
+              ) : null}
+              {sheet === 'mehr' ? (
+                <div className="flex flex-col gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="lg"
+                    className="h-12 w-full"
+                    disabled={canvasBusy || !cutout}
+                    onClick={() => void editInCanvas()}
+                  >
+                    {canvasBusy ? 'Canvas wird geöffnet …' : 'In Canvas bearbeiten'}
+                  </Button>
+                  {flattenForCanvas ? (
+                    <span className="px-1 pb-1.5 text-xs leading-snug text-muted-foreground">
+                      Im Canvas wird das Bild als Ganzes übernommen – Person und Sticker sind dort
+                      nicht mehr einzeln verschiebbar.
+                    </span>
+                  ) : null}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="lg"
+                    className="h-12 w-full"
+                    onClick={onReset}
+                  >
+                    Anderes Foto
+                  </Button>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
+          <nav
+            aria-label="Werkzeuge"
+            className="grid flex-none grid-cols-4 border-t border-border bg-background px-1.5 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]"
+          >
+            {MOBILE_TOOLS.map((tool) => (
+              <button
+                key={tool.id}
+                type="button"
+                aria-pressed={sheet === tool.id}
+                // Ohne Foto gibt es nur den Hintergrund zu wählen.
+                disabled={!hasPhoto && tool.id !== 'hintergrund'}
+                onClick={() => setSheet((s) => (s === tool.id ? null : tool.id))}
+                className="flex h-14 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg text-[11px] font-bold text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary-600 disabled:cursor-not-allowed disabled:opacity-40 aria-pressed:text-primary-600"
+              >
+                <tool.icon aria-hidden="true" className="size-6" />
+                {tool.label}
+              </button>
+            ))}
+          </nav>
+        </>
+      ) : null}
+
+      <div aria-live="polite" className="sr-only">
+        {announcement}
+      </div>
+      <input
+        ref={fileRef}
+        type="file"
+        aria-label="Eigenes Hintergrundbild wählen"
+        accept="image/*"
+        className="hidden"
+        data-testid="profilbild-background-input"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = '';
+          if (file) void pickCustom(file);
+        }}
+      />
 
       {sharingCustom && customSource.file ? (
         <BackgroundUploadDialog

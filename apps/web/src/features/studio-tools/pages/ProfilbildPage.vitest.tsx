@@ -111,9 +111,10 @@ vi.mock('react-konva', () => {
       <div data-testid="konva-stage">{children}</div>
     ),
     Layer: Node,
-    Image: forwardRef((_props: unknown, ref) => {
+    // Only stickers carry a rotation: they show up as nodes the tests can count.
+    Image: forwardRef((props: { rotation?: number }, ref) => {
       useImperativeHandle(ref, () => hit.node);
-      return null;
+      return props.rotation === undefined ? null : <span data-testid="konva-sticker" />;
     }),
     Rect: () => null,
     Line: () => null,
@@ -153,14 +154,11 @@ const renderHandoff = () => {
 
 const lastBackground = () => mockBackground.mock.calls.at(-1)?.[0];
 
-// Radix Tabs switch on mousedown, not click
-const openTab = (name: string, list?: string) => {
-  const scope = list ? within(screen.getByRole('tablist', { name: list })) : screen;
-  const tab = scope.getByRole('tab', { name });
-  fireEvent.mouseDown(tab, { button: 0, ctrlKey: false });
-  fireEvent.click(tab);
-  return tab;
-};
+const stickersOnStage = (count: number) =>
+  waitFor(() => expect(screen.queryAllByTestId('konva-sticker')).toHaveLength(count));
+
+/** What the stage last announced to screen readers. */
+const live = () => document.querySelector('.sr-only[aria-live="polite"]')?.textContent;
 
 const downloadAndGetCompose = async () => {
   const button = await screen.findByRole('button', { name: 'Herunterladen' });
@@ -389,7 +387,7 @@ describe('ProfilbildPage', () => {
     expect(klee.getAttribute('aria-pressed')).toBe('true');
     expect(share.getMyShare).toHaveBeenCalledWith({ params: { shareToken: 'tok9' } });
     expect(share.apiGet).toHaveBeenCalledWith('/share/tok9/original', { responseType: 'blob' });
-    await screen.findByRole('button', { name: 'Vielfalt entfernen' });
+    await stickersOnStage(1);
 
     const opts = await downloadAndGetCompose();
     expect(opts?.position).toEqual({ x: 100, y: 300 });
@@ -427,7 +425,7 @@ describe('ProfilbildPage', () => {
       },
     });
     renderPage(null, '?share=tok9');
-    await screen.findByRole('button', { name: 'Sticker entfernen' });
+    await stickersOnStage(2);
     expect(share.apiGet).toHaveBeenCalledWith('/share/0123456789abcdef0123456789abcdef/download', {
       responseType: 'blob',
     });
@@ -473,8 +471,8 @@ describe('ProfilbildPage', () => {
       },
     });
     renderPage(null, '?share=tok9');
-    await screen.findByRole('button', { name: 'Vielfalt entfernen' });
-    expect(screen.queryByRole('button', { name: 'Sticker entfernen' })).toBeNull();
+    // The shop sticker that failed to load is kept in the saved state, not drawn.
+    await stickersOnStage(1);
     expect(await screen.findByRole('alert')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Tanne' }));
@@ -542,11 +540,11 @@ describe('ProfilbildPage', () => {
   it('hints that a gradient reaches the canvas flattened', async () => {
     renderHandoff();
     await screen.findByRole('button', { name: 'Tanne' });
-    expect(screen.queryByText(/als Ganzes übernommen/)).toBeNull();
+    expect(screen.queryByText(/als Ganzes/)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Verlauf Himmel zu Tanne' }));
     expect(
       screen.getByText(
-        'Im Canvas wird das Bild als Ganzes übernommen – Person und Sticker sind dort nicht mehr einzeln verschiebbar.'
+        '„In Canvas bearbeiten“ übernimmt das Bild als Ganzes – Person und Sticker sind dort nicht mehr einzeln verschiebbar.'
       )
     ).toBeTruthy();
   });
@@ -575,18 +573,16 @@ describe('ProfilbildPage', () => {
     renderPage();
     fireEvent.click(screen.getByText('upload'));
     expect(await screen.findByRole('button', { name: 'Klee' })).toBeTruthy();
-    expect(
-      within(screen.getByRole('tablist', { name: 'Hintergrund-Art' }))
-        .getAllByRole('tab')
-        .map((t) => t.textContent)
-    ).toEqual(['Farben', 'Vorlagen', 'Deine']);
-    // Sticker haben keine Reiter mehr; Vollfarben und Verläufe stehen zusammen unter „Farben“.
-    expect(screen.queryByRole('tablist', { name: 'Sticker-Auswahl' })).toBeNull();
+    // Keine Reiter: Vorlagen, Farben und Deine stehen untereinander.
+    expect(screen.queryByRole('tablist')).toBeNull();
+    expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual([
+      'Vorlagen',
+      'Farben',
+      'Deine',
+    ]);
     expect(screen.getByRole('button', { name: 'Verlauf Tanne zu Klee' })).toBeTruthy();
-    openTab('Deine');
-    expect(screen.getByRole('button', { name: 'Bild hochladen' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Eigenen Hintergrund hochladen/ })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Hintergründe entdecken' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Klee' })).toBeNull();
   });
 
   it('re-renders with the clicked swatch and marks it pressed', async () => {
@@ -606,13 +602,15 @@ describe('ProfilbildPage', () => {
 
   it('scales the person around its bottom centre with the size slider', async () => {
     renderHandoff();
-    const slider = await screen.findByLabelText(/Größe/);
-    await waitFor(() => expect(slider.hasAttribute('disabled')).toBe(false));
-    fireEvent.change(slider, { target: { value: '100' } });
+    const slider = await screen.findByRole('slider', { name: 'Größe der Person' });
+    await waitFor(() => expect(slider.getAttribute('aria-valuenow')).toBe('85'));
+    for (let i = 0; i < 15; i++) fireEvent.keyDown(slider, { key: 'ArrowRight' });
     const opts = await downloadAndGetCompose();
     expect(opts?.scale).toBe(1);
-    // 600×800 cut-out at 100 % → 810×1080; bottom stays at 1080, centre within half a pixel
-    expect(opts?.position).toEqual({ x: 136, y: 0 });
+    // 600×800 cut-out at 100 % → 810×1080; bottom stays at 1080. Each of the 15
+    // steps rounds the left edge, so the centre may drift by a pixel.
+    expect(opts?.position?.y).toBe(0);
+    expect(Math.abs((opts?.position?.x ?? 0) - 136)).toBeLessThanOrEqual(1);
   });
 
   it('downloads the composed 1080 image as profilbild.png', async () => {
@@ -674,8 +672,8 @@ describe('ProfilbildPage', () => {
     renderHandoff();
     await screen.findByTestId('konva-stage');
     fireEvent.click(await screen.findByRole('button', { name: 'Sticker Vielfalt hinzufügen' }));
-    await screen.findByRole('button', { name: 'Vielfalt entfernen' });
-    expect(screen.queryByText(/als Ganzes übernommen/)).toBeNull();
+    await stickersOnStage(1);
+    expect(screen.queryByText(/als Ganzes/)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'In Canvas bearbeiten' }));
     expect(await screen.findByText('canvas page')).toBeTruthy();
     const [url, , color, , assets] = vi.mocked(mintProfilbildCanvas).mock.calls[0] ?? [];
@@ -698,7 +696,7 @@ describe('ProfilbildPage', () => {
     renderHandoff();
     await screen.findByTestId('konva-stage');
     const pressed = (name: string) =>
-      screen.getByRole('button', { name }).getAttribute('aria-pressed');
+      screen.getByRole('radio', { name }).getAttribute('aria-checked');
     expect([pressed('Rund'), pressed('Quadrat'), pressed('Instagram')]).toEqual([
       'true',
       'false',
@@ -706,14 +704,14 @@ describe('ProfilbildPage', () => {
     ]);
     expect(screen.getByText(/Vorschau rund wie in sozialen Netzwerken/)).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Quadrat' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Quadrat' }));
     expect(pressed('Quadrat')).toBe('true');
     expect(pressed('Rund')).toBe('false');
     expect(screen.getByText(/Der Download bleibt quadratisch/)).toBeTruthy();
     expect(screen.getByTestId('konva-stage')).toBeTruthy();
     expect(screen.queryByRole('img', { name: 'Vorschau als Instagram-Profilbild' })).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Instagram' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Instagram' }));
     expect(pressed('Instagram')).toBe('true');
     const mock = screen.getByRole('img', { name: 'Vorschau als Instagram-Profilbild' });
     expect(mock.textContent).toContain('So sieht es auf Instagram aus');
@@ -727,7 +725,7 @@ describe('ProfilbildPage', () => {
 
   it('has no axe violations in the Instagram preview', async () => {
     const { container } = renderHandoff();
-    fireEvent.click(await screen.findByRole('button', { name: 'Instagram' }));
+    fireEvent.click(await screen.findByRole('radio', { name: 'Instagram' }));
     await screen.findByRole('img', { name: 'Vorschau als Instagram-Profilbild' });
     expect(await axe(container)).toHaveNoViolations();
   });
@@ -762,7 +760,6 @@ describe('ProfilbildPage', () => {
   it('re-resolves a locale-specific Vorlage when the locale switches', async () => {
     renderHandoff();
     await screen.findByTestId('konva-stage');
-    openTab('Vorlagen');
     fireEvent.click(screen.getByRole('button', { name: 'Tanne mit Logo' }));
     await waitFor(() =>
       expect(lastBackground()).toMatchObject({
@@ -788,11 +785,9 @@ describe('ProfilbildPage', () => {
     vi.mocked(loadImage).mockImplementationOnce(
       () => new Promise((resolve) => (release = resolve)) as never
     );
-    openTab('Vorlagen');
     const tile = screen.getByRole('button', { name: 'Sand mit grüner Sonnenblume' });
     fireEvent.click(tile);
 
-    openTab('Farben');
     const klee = screen.getByRole('button', { name: 'Klee' });
     fireEvent.click(klee);
     await act(async () => release({ src: '/sonnenblume_gruen.png', width: 10, height: 10 }));
@@ -804,7 +799,6 @@ describe('ProfilbildPage', () => {
   it('applies a Vorlage with its base colour and overlay', async () => {
     renderHandoff();
     await screen.findByTestId('konva-stage');
-    openTab('Vorlagen');
     const tile = screen.getByRole('button', { name: 'Klee mit Sonnenblume in der Ecke' });
     fireEvent.click(tile);
     await waitFor(() => expect(tile.getAttribute('aria-pressed')).toBe('true'));
@@ -821,7 +815,7 @@ describe('ProfilbildPage', () => {
         },
       ],
     });
-    expect(screen.getByText(/als Ganzes übernommen/)).toBeTruthy();
+    expect(screen.getByText(/als Ganzes/)).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Pride' }));
     await waitFor(() =>
@@ -871,24 +865,21 @@ describe('ProfilbildPage', () => {
     expect(screen.queryByRole('button', { name: 'Sticker entfernen' })).toBeNull();
   });
 
-  it('selects, scales, rotates and removes layers by keyboard and announces it', async () => {
+  it('selects, scales, rotates and removes stickers by keyboard and announces it', async () => {
     renderHandoff();
     await screen.findByTestId('konva-stage');
     const mover = screen.getByRole('application', { name: 'Person verschieben – Pfeiltasten' });
-    const live = () => mover.parentElement?.querySelector('[aria-live="polite"]')?.textContent;
     fireEvent.click(await screen.findByRole('button', { name: 'Sticker Vielfalt hinzufügen' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Sticker Vielfalt hinzufügen' }));
-    const person = screen.getByRole('button', { name: 'Person' });
-    const second = await screen.findByRole('button', { name: 'Vielfalt 2' });
-    expect(second.getAttribute('aria-pressed')).toBe('true');
-    expect(person.getAttribute('aria-pressed')).toBe('false');
+    await stickersOnStage(2);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Vielfalt' }));
-    expect(screen.getByRole('button', { name: 'Vielfalt' }).getAttribute('aria-pressed')).toBe(
-      'true'
-    );
+    // Space walks Person → Vielfalt → Vielfalt 2; the new sticker starts selected.
+    fireEvent.keyDown(mover, { key: ' ' });
+    await waitFor(() => expect(live()).toBe('Person ausgewählt'));
+    fireEvent.keyDown(mover, { key: ' ' });
+    await waitFor(() => expect(live()).toBe('Vielfalt ausgewählt'));
     fireEvent.keyDown(mover, { key: ']' });
-    expect(live()).toBe('Vielfalt gedreht: 15°');
+    await waitFor(() => expect(live()).toBe('Vielfalt gedreht: 15°'));
     fireEvent.keyDown(mover, { key: '[' });
     fireEvent.keyDown(mover, { key: '[' });
     fireEvent.keyDown(mover, { key: '+' });
@@ -898,8 +889,7 @@ describe('ProfilbildPage', () => {
     expect(opts?.stickers?.[0]?.width).toBeCloseTo(326.7);
     await waitFor(() => expect(live()).toBe('Vielfalt vergrößert: 327 px breit'));
 
-    fireEvent.click(person);
-    expect(person.getAttribute('aria-pressed')).toBe('true');
+    fireEvent.keyDown(mover, { key: 'Escape' });
     fireEvent.keyDown(mover, { key: '+' });
     opts = await downloadAndGetCompose();
     expect(opts?.scale).toBe(0.9);
@@ -907,10 +897,11 @@ describe('ProfilbildPage', () => {
     fireEvent.keyDown(mover, { key: ']' });
     expect((await downloadAndGetCompose())?.stickers?.[0]).toMatchObject({ rotation: -15 });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Vielfalt 2 entfernen' }));
-    opts = await downloadAndGetCompose();
-    expect(opts?.stickers).toHaveLength(1);
-    expect(screen.queryByRole('button', { name: 'Vielfalt 2' })).toBeNull();
+    fireEvent.keyDown(mover, { key: ' ' });
+    fireEvent.keyDown(mover, { key: ' ' });
+    await waitFor(() => expect(live()).toBe('Vielfalt 2 ausgewählt'));
+    fireEvent.click(screen.getByRole('button', { name: 'Sticker entfernen' }));
+    await stickersOnStage(1);
     await waitFor(() => expect(live()).toBe('Vielfalt 2 entfernt'));
   });
 
@@ -918,13 +909,45 @@ describe('ProfilbildPage', () => {
     renderHandoff();
     await screen.findByTestId('konva-stage');
     const mover = screen.getByRole('application', { name: 'Person verschieben – Pfeiltasten' });
-    expect(screen.getByText(/Tastatur: Pfeile verschieben/)).toBeTruthy();
+    expect(screen.getByText(/Leertaste wählt aus, Pfeiltasten bewegen/)).toBeTruthy();
     fireEvent.click(await screen.findByRole('button', { name: 'Sticker Vielfalt hinzufügen' }));
-    await screen.findByRole('button', { name: 'Vielfalt entfernen' });
+    await screen.findByRole('button', { name: 'Sticker entfernen' });
     fireEvent.keyDown(mover, { key: 'ArrowRight' });
-    expect(mover.parentElement?.querySelector('[aria-live="polite"]')?.textContent).toBe(
-      'Vielfalt nach rechts verschoben'
-    );
+    expect(live()).toBe('Vielfalt nach rechts verschoben');
+  });
+
+  it('works with a bottom bar, sheets and a long-press preview on the phone', async () => {
+    // The matchMedia stub reads the width when a query is asked.
+    window.innerWidth = 390;
+    try {
+      renderHandoff();
+      await screen.findByTestId('konva-stage');
+      // Phone: no inspector, no shape toggle – the tools sit in the bottom bar.
+      expect(screen.queryByRole('radio', { name: 'Rund' })).toBeNull();
+      expect(screen.queryByRole('heading', { level: 2, name: 'Sticker' })).toBeNull();
+      const tools = screen.getByRole('navigation', { name: 'Werkzeuge' });
+
+      fireEvent.click(within(tools).getByRole('button', { name: 'Sticker' }));
+      expect(screen.getByRole('region', { name: 'Sticker' })).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: 'Sticker Vielfalt hinzufügen' }));
+      await stickersOnStage(1);
+      fireEvent.click(screen.getByRole('button', { name: 'Fertig' }));
+      expect(screen.queryByRole('region', { name: 'Sticker' })).toBeNull();
+
+      fireEvent.click(within(tools).getByRole('button', { name: 'Mehr' }));
+      expect(screen.getByRole('button', { name: 'Anderes Foto' })).toBeTruthy();
+      fireEvent.click(within(tools).getByRole('button', { name: 'Mehr' }));
+
+      const stage = screen.getByRole('application');
+      fireEvent.pointerDown(stage, { clientX: 10, clientY: 10 });
+      expect(
+        await screen.findByRole('img', { name: 'Vorschau als Instagram-Profilbild' })
+      ).toBeTruthy();
+      fireEvent.pointerUp(stage);
+      expect(screen.queryByRole('img', { name: 'Vorschau als Instagram-Profilbild' })).toBeNull();
+    } finally {
+      window.innerWidth = 1024;
+    }
   });
 
   it('removes the selected sticker with the Entfernen button', async () => {
@@ -936,14 +959,13 @@ describe('ProfilbildPage', () => {
     expect(screen.getByRole('button', { name: 'Zentrieren' })).toBeTruthy();
   });
 
-  it('has no axe violations with the Vorlagen tab and a sticker', async () => {
+  it('has no axe violations with a sticker', async () => {
     const { container } = renderHandoff();
     await screen.findByTestId('konva-stage');
     fireEvent.click(
       await screen.findByRole('button', { name: 'Sticker Regenbogen-Herz hinzufügen' })
     );
     await screen.findByRole('button', { name: 'Sticker entfernen' });
-    openTab('Vorlagen');
     expect(await axe(container)).toHaveNoViolations();
   });
 
@@ -998,7 +1020,7 @@ describe('ProfilbildPage', () => {
         )
       );
       fireEvent.click(await within(popup).findByRole('button', { name: 'Sonnenblume' }));
-      await screen.findByRole('button', { name: 'Sonnenblume entfernen' });
+      await stickersOnStage(1);
       expect(screen.queryByRole('dialog', { name: 'Sticker entdecken' })).toBeNull();
       expect(share.apiGet).toHaveBeenCalledWith(
         '/share/0123456789abcdef0123456789abcdef/download',
@@ -1020,7 +1042,6 @@ describe('ProfilbildPage', () => {
       listOnly(galleryItem({ kind: 'background', title: 'Wiese' }));
       renderHandoff();
       await screen.findByTestId('konva-stage');
-      openTab('Deine', 'Hintergrund-Art');
       const tile = await screen.findByRole('button', { name: 'Wiese' });
       expect(tile.getAttribute('aria-pressed')).toBe('false');
       fireEvent.click(tile);
@@ -1055,11 +1076,11 @@ describe('ProfilbildPage', () => {
       expect(
         screen.getByText('Lade zuerst ein Foto hoch – dann setzen wir „Sonnenblume“ ein.')
       ).toBeTruthy();
-      expect(screen.queryByRole('button', { name: 'Sonnenblume entfernen' })).toBeNull();
+      expect(screen.queryAllByTestId('konva-sticker')).toHaveLength(0);
 
       fireEvent.click(screen.getByText('upload'));
       await waitFor(() => expect(screen.queryByText(/Lade zuerst ein Foto hoch/)).toBeNull());
-      await screen.findByRole('button', { name: 'Sonnenblume entfernen' });
+      await stickersOnStage(1);
       expect(screen.queryByText(/Lade zuerst ein Foto hoch/)).toBeNull();
       expect((await downloadAndGetCompose())?.stickers).toHaveLength(1);
 
@@ -1097,7 +1118,6 @@ describe('ProfilbildPage', () => {
         target: { files: [photo] },
       });
       await waitFor(() => expect(lastBackground()).toMatchObject({ kind: 'image' }));
-      openTab('Deine', 'Hintergrund-Art');
       fireEvent.click(screen.getByRole('button', { name: 'Im Bereich „Entdecken“ teilen' }));
 
       const dialog = await screen.findByRole('dialog', { name: 'Hintergrund teilen' });

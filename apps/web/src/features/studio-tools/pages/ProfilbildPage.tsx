@@ -9,8 +9,6 @@ import { useMemo, useState } from 'react';
 import { PiUserFill } from 'react-icons/pi';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
-import PageContainer from '../../../components/common/PageContainer';
-import { getToolGradient } from '../../../config/toolTheme';
 import { seedCanvasQuery } from '../../image-studio/canvasQuery';
 import {
   ProfilbildEditor,
@@ -26,6 +24,9 @@ import { hasProfilbildHandoffMarker, takeProfilbildHandoff } from '../profilbild
 import { parseProfilbildAssetParams } from '../utils/galleryAsset';
 
 import { cn } from '@/utils/cn';
+
+const TITLE = 'Profilbild';
+const DESCRIPTION = 'Freistellen und Hintergrund per Klick wechseln';
 
 const FULL_SHEET: ProfilbildLayout = {
   imagePosition: { x: 0, y: 0 },
@@ -200,63 +201,66 @@ const ProfilbildPage = () => {
       void navigate(location.pathname, { replace: true, state: null });
   };
 
-  return (
-    <PageContainer
-      maxWidth="md"
-      title="Profilbild"
-      subtitle="Freistellen und Hintergrund per Klick wechseln"
-      bgClassName={getToolGradient('profilbild')}
-    >
-      <div className="flex flex-col gap-md">
-        {!reopenToken && !cutoutUrl ? <RecentProfilbilder /> : null}
-        {reopenToken && reopened.isPending ? (
-          <ToolProcessing imageUrl={null} label="Profilbild wird geladen …" />
-        ) : reopenToken && reopened.isError ? (
-          <div className="flex flex-col gap-md">
-            <Alert variant="destructive" role="alert">
-              <AlertDescription>Dieses Profilbild konnte nicht geöffnet werden.</AlertDescription>
-            </Alert>
-            <div className="flex flex-wrap gap-sm">
+  if (reopenToken && (reopened.isPending || reopened.isError))
+    return (
+      <div className="flex h-dvh min-h-0 flex-col bg-background text-foreground">
+        <header className="flex flex-none items-center pt-1.5 pr-4 pb-2.5 pl-14 md:h-[72px] md:border-b md:border-border md:px-6 md:py-0 lg:px-8">
+          <h1 className="m-0 text-[22px] font-semibold text-foreground-heading md:text-2xl">
+            {TITLE}
+          </h1>
+        </header>
+        <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-md bg-background-alt p-6">
+          {reopened.isPending ? (
+            <ToolProcessing imageUrl={null} label="Profilbild wird geladen …" />
+          ) : (
+            <>
+              <Alert variant="destructive" role="alert" className="max-w-md">
+                <AlertDescription>Dieses Profilbild konnte nicht geöffnet werden.</AlertDescription>
+              </Alert>
               <Button type="button" variant="brand" onClick={startOver}>
                 Neues Profilbild
               </Button>
-            </div>
-          </div>
-        ) : (
-          // Der Editor steht von Anfang an da; bis ein Foto drin ist, trägt die
-          // Bühne den Upload. Ein neuer Durchgang („Anderes Foto") ist eine neue
-          // Sitzung, damit das neue Foto nicht das vorige Profilbild überschreibt.
-          <ProfilbildEditor
-            key={`${reopenToken ?? 'new'}-${session}`}
-            cutoutUrl={cutoutUrl}
-            reopen={reopenToken ? (reopened.data?.reopen ?? null) : null}
-            galleryAsset={galleryAsset}
-            onEditInCanvas={editInCanvas}
-            onReset={startOver}
-            emptyStage={(backgroundPreview) => (
-              <PhotoStage
-                backgroundPreview={backgroundPreview}
-                status={status}
-                originalUrl={originalUrl}
-                uploadError={uploadError}
-                pendingHint={
-                  pendingAsset
-                    ? `Lade zuerst ein Foto hoch – dann setzen wir ${galleryTarget(pendingAsset)} ein.`
-                    : null
-                }
-                onFile={(file) => {
-                  setUploadError(null);
-                  start(file);
-                }}
-                onUploadError={setUploadError}
-                onRetry={retry}
-                onReset={reset}
-              />
-            )}
-          />
-        )}
+            </>
+          )}
+        </main>
       </div>
-    </PageContainer>
+    );
+
+  // Der Editor steht von Anfang an da; bis ein Foto drin ist, trägt die Bühne
+  // den Upload. Ein neuer Durchgang („Anderes Foto") ist eine neue Sitzung,
+  // damit das neue Foto nicht das vorige Profilbild überschreibt.
+  return (
+    <ProfilbildEditor
+      key={`${reopenToken ?? 'new'}-${session}`}
+      title={TITLE}
+      description={DESCRIPTION}
+      beforeStage={!reopenToken && !cutoutUrl ? <RecentProfilbilder /> : null}
+      cutoutUrl={cutoutUrl}
+      reopen={reopenToken ? (reopened.data?.reopen ?? null) : null}
+      galleryAsset={galleryAsset}
+      onEditInCanvas={editInCanvas}
+      onReset={startOver}
+      emptyStage={(backgroundPreview) => (
+        <PhotoStage
+          backgroundPreview={backgroundPreview}
+          status={status}
+          originalUrl={originalUrl}
+          uploadError={uploadError}
+          pendingHint={
+            pendingAsset
+              ? `Lade zuerst ein Foto hoch – dann setzen wir ${galleryTarget(pendingAsset)} ein.`
+              : null
+          }
+          onFile={(file) => {
+            setUploadError(null);
+            start(file);
+          }}
+          onUploadError={setUploadError}
+          onRetry={retry}
+          onReset={reset}
+        />
+      )}
+    />
   );
 };
 
