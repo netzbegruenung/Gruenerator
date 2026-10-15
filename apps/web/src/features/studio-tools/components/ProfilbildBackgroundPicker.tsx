@@ -137,26 +137,17 @@ export function ProfilbildBackgroundPicker({
         <div className="grid grid-cols-8 gap-1.5 p-0.5 md:flex md:flex-wrap md:gap-2.5">
           <div role="group" aria-label="Vollfarben" className="contents">
             {colors.map(renderSwatch)}
-            <ProfilbildFreeColor
-              mode="color"
-              value={freeBackground?.kind === 'color' ? freeBackground : null}
-              pressed={freeSelected?.kind === 'color'}
-              palette={palette}
-              tileClassName={SWATCH_CLASS}
-              onChange={onSelectFree}
-            />
           </div>
           <div role="group" aria-label="Verläufe" className="contents">
             {gradients.map(renderSwatch)}
-            <ProfilbildFreeColor
-              mode="gradient"
-              value={freeBackground?.kind === 'gradient' ? freeBackground : null}
-              pressed={freeSelected?.kind === 'gradient'}
-              palette={palette}
-              tileClassName={SWATCH_CLASS}
-              onChange={onSelectFree}
-            />
           </div>
+          <ProfilbildFreeColor
+            value={freeBackground}
+            pressed={freeSelected !== null}
+            palette={palette}
+            tileClassName={SWATCH_CLASS}
+            onChange={onSelectFree}
+          />
         </div>
       </section>
 

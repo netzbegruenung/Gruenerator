@@ -5,7 +5,7 @@ import {
   FREE_BACKGROUND_ID,
   gradientSwatches,
   parseSavedProfilbild,
-  presetDesigns,
+  allPresetDesigns,
   PROFILBILD_IMAGE_TYPE,
   PROFILBILD_METADATA_KEY,
   type SavedProfilbild,
@@ -80,7 +80,8 @@ function restoreBackground(
   const id = bg.kind === 'id' ? bg.id : '';
   const swatch = swatches.find((s) => s.id === id);
   if (swatch) return { backgroundId: swatch.id, background: swatch.background };
-  if (presetDesigns(isAustria).some((p) => p.id === id))
+  // Retired Vorlagen stay resolvable: saved Profilbilder still name them.
+  if (allPresetDesigns(isAustria).some((p) => p.id === id))
     return { backgroundId: id, background: { kind: 'preset', designId: id } };
   // An id this locale lacks falls back to its first colour, as on web.
   const first = swatches[0];

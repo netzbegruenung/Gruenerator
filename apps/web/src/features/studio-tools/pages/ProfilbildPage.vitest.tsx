@@ -600,6 +600,19 @@ describe('ProfilbildPage', () => {
     expect(lastBackground()).toMatchObject({ kind: 'gradient' });
   });
 
+  it('offers one free colour picker that switches between colour and gradient', async () => {
+    renderHandoff();
+    await screen.findByTestId('konva-stage');
+    expect(screen.getAllByRole('button', { name: 'Eigene Farbe' })).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Eigene Farbe' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Verlauf' }));
+    expect(lastBackground()).toMatchObject({ kind: 'gradient' });
+    expect(screen.getByRole('group', { name: 'Richtung' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Farbe' }));
+    expect(lastBackground()).toMatchObject({ kind: 'color' });
+    expect(screen.queryByRole('group', { name: 'Richtung' })).toBeNull();
+  });
+
   it('scales the person around its bottom centre with the size slider', async () => {
     renderHandoff();
     const slider = await screen.findByRole('slider', { name: 'Größe der Person' });
@@ -702,12 +715,10 @@ describe('ProfilbildPage', () => {
       'false',
       'false',
     ]);
-    expect(screen.getByText(/Vorschau rund wie in sozialen Netzwerken/)).toBeTruthy();
 
     fireEvent.click(screen.getByRole('radio', { name: 'Quadrat' }));
     expect(pressed('Quadrat')).toBe('true');
     expect(pressed('Rund')).toBe('false');
-    expect(screen.getByText(/Der Download bleibt quadratisch/)).toBeTruthy();
     expect(screen.getByTestId('konva-stage')).toBeTruthy();
     expect(screen.queryByRole('img', { name: 'Vorschau als Instagram-Profilbild' })).toBeNull();
 
@@ -757,25 +768,41 @@ describe('ProfilbildPage', () => {
     expect(screen.getByTestId('konva-stage')).toBeTruthy();
   });
 
-  it('re-resolves a locale-specific Vorlage when the locale switches', async () => {
+  it('offers the big sunflower in several colours and keeps retired Vorlagen reopenable', async () => {
     renderHandoff();
     await screen.findByTestId('konva-stage');
-    fireEvent.click(screen.getByRole('button', { name: 'Tanne mit Logo' }));
+    const offered = within(screen.getByRole('region', { name: 'Vorlagen' }))
+      .getAllByRole('button')
+      .map((b) => b.getAttribute('aria-label'));
+    expect(offered).toContain('Klee mit großer Sonnenblume');
+    expect(offered).not.toContain('Tanne mit Logo');
+    expect(offered).not.toContain('Klee mit Sonnenblume in der Ecke');
+  });
+
+  it('reopens a Profilbild saved with a retired Vorlage', async () => {
+    share.getMyShare.mockResolvedValue({
+      status: 200,
+      body: {
+        share: {
+          imageMetadata: {
+            profilbild: {
+              v: 1,
+              person: { x: 100, y: 300, scale: 0.9 },
+              background: { kind: 'id', id: 'logo' },
+              stickers: [],
+            },
+          },
+        },
+      },
+    });
+    renderPage(null, '?share=tok9');
     await waitFor(() =>
       expect(lastBackground()).toMatchObject({
+        kind: 'preset',
         overlays: [{ image: { src: '/gruene-de-logo-weiss.png' } }],
       })
     );
-    act(() => useAuthStore.setState({ locale: 'de-AT' }));
-    await waitFor(() =>
-      expect(lastBackground()).toMatchObject({
-        base: { kind: 'color', color: '#257639' },
-        overlays: [{ image: { src: '/gruene-at-logo-weiss.png' } }],
-      })
-    );
-    expect(
-      screen.getByRole('button', { name: 'Dunkelgrün mit Logo' }).getAttribute('aria-pressed')
-    ).toBe('true');
+    expect(screen.getByText('Tanne mit Logo')).toBeTruthy();
   });
 
   it('lets a swatch click cancel a still-loading Vorlage', async () => {
@@ -785,7 +812,7 @@ describe('ProfilbildPage', () => {
     vi.mocked(loadImage).mockImplementationOnce(
       () => new Promise((resolve) => (release = resolve)) as never
     );
-    const tile = screen.getByRole('button', { name: 'Sand mit grüner Sonnenblume' });
+    const tile = screen.getByRole('button', { name: 'Sand mit großer Sonnenblume' });
     fireEvent.click(tile);
 
     const klee = screen.getByRole('button', { name: 'Klee' });
@@ -799,7 +826,7 @@ describe('ProfilbildPage', () => {
   it('applies a Vorlage with its base colour and overlay', async () => {
     renderHandoff();
     await screen.findByTestId('konva-stage');
-    const tile = screen.getByRole('button', { name: 'Klee mit Sonnenblume in der Ecke' });
+    const tile = screen.getByRole('button', { name: 'Klee mit großer Sonnenblume' });
     fireEvent.click(tile);
     await waitFor(() => expect(tile.getAttribute('aria-pressed')).toBe('true'));
     expect(lastBackground()).toMatchObject({
@@ -807,11 +834,11 @@ describe('ProfilbildPage', () => {
       base: { kind: 'color', color: '#46962b' },
       overlays: [
         {
-          image: { src: '/images/Sonnenblume_RGB_gelb.png' },
-          x: 0.88,
-          y: 0.12,
-          width: 0.3,
-          opacity: 1,
+          image: { src: '/sonnenblume_weiss.svg' },
+          x: 0.8,
+          y: 0.28,
+          width: 1,
+          opacity: 0.16,
         },
       ],
     });

@@ -8,6 +8,7 @@ import {
   gradientSwatches,
   MIN_STICKER,
   placementRect,
+  allPresetDesigns,
   presetDesigns,
   PROFILBILD_SIZE,
   rescalePlacement,
@@ -33,7 +34,17 @@ import {
   ToggleGroupItem,
 } from '@gruenerator/ui';
 import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
-import { PiArrowsOut, PiDotsThree, PiImage, PiSticker } from 'react-icons/pi';
+import {
+  PiArrowsOut,
+  PiCameraRotate,
+  PiCircle,
+  PiCrosshairSimple,
+  PiDotsThree,
+  PiImage,
+  PiInstagramLogo,
+  PiSquare,
+  PiSticker,
+} from 'react-icons/pi';
 
 import { useAuthStore } from '../../../stores/authStore';
 import { downloadDataUrl } from '../../../utils/downloadFile';
@@ -69,17 +80,11 @@ const ProfilbildStage = lazy(() => import('./ProfilbildStage'));
 
 type Variant = 'rund' | 'quadrat' | 'instagram';
 
-const VARIANTS: { value: Variant; label: string }[] = [
-  { value: 'rund', label: 'Rund' },
-  { value: 'quadrat', label: 'Quadrat' },
-  { value: 'instagram', label: 'Instagram' },
+const VARIANTS: { value: Variant; label: string; icon: typeof PiCircle }[] = [
+  { value: 'rund', label: 'Rund', icon: PiCircle },
+  { value: 'quadrat', label: 'Quadrat', icon: PiSquare },
+  { value: 'instagram', label: 'Instagram', icon: PiInstagramLogo },
 ];
-
-const VARIANT_HINTS: Record<Variant, string> = {
-  rund: 'Vorschau rund wie in sozialen Netzwerken – der Download bleibt quadratisch.',
-  quadrat: 'Der Download bleibt quadratisch – Netzwerke schneiden selbst rund zu.',
-  instagram: 'So erscheint das Bild auf Instagram – der Download bleibt quadratisch.',
-};
 
 type MobileSheet = 'hintergrund' | 'sticker' | 'groesse' | 'mehr';
 
@@ -221,7 +226,9 @@ export function ProfilbildEditor({
   const [sharedFile, setSharedFile] = useState<File | null>(null);
   const colorSwatches = isAustria ? COLOR_SWATCHES_AT : COLOR_SWATCHES_DE;
   const presets = useMemo(() => presetDesigns(isAustria), [isAustria]);
-  const presetsRef = useRef(presets);
+  // Lookups by id also know retired Vorlagen: a saved Profilbild may still name one.
+  const knownPresets = useMemo(() => allPresetDesigns(isAustria), [isAustria]);
+  const presetsRef = useRef(knownPresets);
   const reopenRef = useRef(reopen);
   const savedBackground = reopen?.saved.background;
   const saveProfilbild = useProfilbildShare(reopen?.shareToken ?? null);
@@ -365,14 +372,14 @@ export function ProfilbildEditor({
   ];
   const activeId =
     flatSwatches.some((s) => s.id === selected) ||
-    presets.some((p) => p.id === selected) ||
+    knownPresets.some((p) => p.id === selected) ||
     selected === CUSTOM_ID
       ? selected
       : (colorSwatches[0]?.id ?? selected);
   const flat = flatSwatches.find((s) => s.id === activeId);
   const chosenDesign = presetBackground?.design;
   const stalePreset = chosenDesign
-    ? presets.find((p) => p.id === chosenDesign.id && p !== chosenDesign)
+    ? knownPresets.find((p) => p.id === chosenDesign.id && p !== chosenDesign)
     : undefined;
   useEffect(() => {
     if (!stalePreset) return;
@@ -803,7 +810,7 @@ export function ProfilbildEditor({
   const backgroundName =
     activeId === CUSTOM_ID
       ? 'Eigenes Bild'
-      : (flat?.label ?? presets.find((p) => p.id === activeId)?.label ?? '');
+      : (flat?.label ?? knownPresets.find((p) => p.id === activeId)?.label ?? '');
   const hasPhoto = !!cutoutUrl;
 
   const downloadButton = (
@@ -872,7 +879,11 @@ export function ProfilbildEditor({
   // Unter der Bühne nur der Hinweis und eine Aktion: gearbeitet wird im Bild selbst.
   const stageBar = (
     <div className="flex w-full items-start justify-between gap-3">
-      <p id={moveHintId} className="m-0 text-xs leading-snug text-muted-foreground">
+      {/* Auf dem Desktop nur für Screenreader: die Bühne beschreibt sich damit. */}
+      <p
+        id={moveHintId}
+        className={cn('m-0 text-xs leading-snug text-muted-foreground', !isMobile && 'sr-only')}
+      >
         {isMobile
           ? 'Ziehen zum Verschieben. Gedrückt halten für die Instagram-Vorschau.'
           : 'Ziehen zum Verschieben. Leertaste wählt aus, Pfeiltasten bewegen, + / – skaliert, [ ] dreht, Entf löscht.'}
@@ -891,7 +902,7 @@ export function ProfilbildEditor({
         >
           Sticker entfernen
         </Button>
-      ) : (
+      ) : isMobile ? (
         <Button
           type="button"
           size="sm"
@@ -902,7 +913,7 @@ export function ProfilbildEditor({
         >
           Zentrieren
         </Button>
-      )}
+      ) : null}
     </div>
   );
 
@@ -968,7 +979,7 @@ export function ProfilbildEditor({
             ? sheet
               ? 'w-[min(342px,100cqw_-_48px,100cqh_-_24px)]'
               : 'w-[min(342px,100cqw_-_48px,100cqh_-_96px)]'
-            : 'w-[min(500px,100cqw_-_48px,100cqh_-_260px)]'
+            : 'w-[min(500px,100cqw_-_48px,100cqh_-_190px)]'
         )}
       >
         {stageFrame}
@@ -981,12 +992,6 @@ export function ProfilbildEditor({
       <AlertDescription>{error}</AlertDescription>
     </Alert>
   ) : null;
-
-  const saveStatus = (className: string) => (
-    <p role="status" className={cn('m-0 text-muted-foreground', className)}>
-      {hasPhoto ? SAVE_STATUS[saveState] : ''}
-    </p>
-  );
 
   const sectionHead = (heading: string, aside: ReactNode, id?: string) => (
     <div className="flex items-baseline justify-between gap-sm">
@@ -1001,13 +1006,13 @@ export function ProfilbildEditor({
     <div className="flex h-dvh min-h-0 flex-col bg-background text-foreground">
       <header
         className={cn(
-          'flex flex-none items-center justify-between gap-md',
-          isMobile ? 'pt-1.5 pr-4 pb-2.5 pl-14' : 'h-[72px] border-b border-border px-6 lg:px-8'
+          'flex-none',
+          isMobile
+            ? 'flex items-center justify-between gap-md pt-1.5 pr-4 pb-2.5 pl-14'
+            : 'grid h-[72px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-md border-b border-border px-6 lg:px-8'
         )}
       >
-        <div
-          className={cn('flex min-w-0', isMobile ? 'flex-col gap-0.5' : 'items-baseline gap-3.5')}
-        >
+        <div className="flex min-w-0 items-baseline gap-3.5">
           <h1
             className={cn(
               'm-0 shrink-0 font-semibold text-foreground-heading',
@@ -1016,31 +1021,73 @@ export function ProfilbildEditor({
           >
             {title}
           </h1>
-          {isMobile ? (
-            saveStatus('truncate text-xs')
-          ) : (
+          {isMobile ? null : (
             <span className="hidden truncate text-[15px] text-muted-foreground xl:inline">
               {description}
             </span>
           )}
         </div>
-        {hasPhoto ? (
-          <div className="flex flex-none items-center gap-2">
-            {isMobile ? null : (
-              <>
-                {saveStatus('mr-2 hidden text-[13px] lg:block')}
-                <Button type="button" variant="ghost" onClick={onReset}>
-                  Anderes Foto
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={canvasBusy || !cutout}
-                  onClick={() => void editInCanvas()}
+        {/* Gespeichert wird still; die Ansage bleibt für Screenreader. */}
+        <p role="status" className="sr-only">
+          {hasPhoto ? SAVE_STATUS[saveState] : ''}
+        </p>
+        {!isMobile && hasPhoto ? (
+          <div className="flex items-center gap-2">
+            <ToggleGroup
+              type="single"
+              variant="outline"
+              aria-label="Vorschau"
+              value={variant}
+              onValueChange={(v) => {
+                if (v) setVariant(v as Variant);
+              }}
+            >
+              {VARIANTS.map((o) => (
+                <ToggleGroupItem
+                  key={o.value}
+                  value={o.value}
+                  aria-label={o.label}
+                  title={o.label}
+                  className="size-9"
                 >
-                  {canvasBusy ? 'Canvas wird geöffnet …' : 'In Canvas bearbeiten'}
-                </Button>
-              </>
+                  <o.icon aria-hidden="true" className="size-[18px]" />
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              aria-label="Zentrieren"
+              title="Zentrieren"
+              disabled={!cutout}
+              onClick={center}
+            >
+              <PiCrosshairSimple aria-hidden="true" className="size-[18px]" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              aria-label="Anderes Foto"
+              title="Anderes Foto"
+              onClick={onReset}
+            >
+              <PiCameraRotate aria-hidden="true" className="size-[18px]" />
+            </Button>
+          </div>
+        ) : null}
+        {hasPhoto ? (
+          <div className="flex items-center justify-end gap-2">
+            {isMobile ? null : (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={canvasBusy || !cutout}
+                onClick={() => void editInCanvas()}
+              >
+                {canvasBusy ? 'Canvas wird geöffnet …' : 'In Canvas bearbeiten'}
+              </Button>
             )}
             {downloadButton}
           </div>
@@ -1058,26 +1105,6 @@ export function ProfilbildEditor({
         >
           {beforeStage}
           {stage}
-          {!isMobile && hasPhoto ? (
-            <div className="flex flex-none flex-col items-center gap-3.5">
-              <ToggleGroup
-                type="single"
-                variant="outline"
-                aria-label="Vorschau"
-                value={variant}
-                onValueChange={(v) => {
-                  if (v) setVariant(v as Variant);
-                }}
-              >
-                {VARIANTS.map((o) => (
-                  <ToggleGroupItem key={o.value} value={o.value} className="px-4">
-                    {o.label}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
-              <p className="m-0 text-[13px] text-muted-foreground">{VARIANT_HINTS[variant]}</p>
-            </div>
-          ) : null}
           {errorAlert}
         </main>
 
