@@ -80,6 +80,29 @@ describe('Emoji category', () => {
     ).toEqual({ kind: 'asset', assetId: 'emoji-1f44d_1f3ff' });
   });
 
+  it('tones the sharepic set at the top of the grid as well', async () => {
+    const onAddAsset = await openEmoji();
+    await screen.findByText(/^19\d\d Elemente$/);
+    await userEvent.click(screen.getByRole('radio', { name: 'Dunkler Hautton' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Schreibende Hand hinzufügen' }));
+    expect(onAddAsset).toHaveBeenCalledWith('emoji-270d_1f3ff');
+  });
+
+  it('moves through the skin tones with the arrow keys, one tab stop', async () => {
+    await openEmoji();
+    const standard = screen.getByRole('radio', { name: 'Standard' });
+    expect(standard).toHaveAttribute('tabindex', '0');
+    expect(screen.getByRole('radio', { name: 'Heller Hautton' })).toHaveAttribute('tabindex', '-1');
+
+    standard.focus();
+    await userEvent.keyboard('{ArrowRight}');
+    const light = screen.getByRole('radio', { name: 'Heller Hautton' });
+    expect(light).toBeChecked();
+    expect(light).toHaveFocus();
+    await userEvent.keyboard('{ArrowLeft}{ArrowLeft}');
+    expect(screen.getByRole('radio', { name: 'Dunkler Hautton' })).toBeChecked();
+  });
+
   it('has an accessible skin-tone picker', async () => {
     await openEmoji();
     const group = screen.getByRole('radiogroup', { name: 'Hautton' });

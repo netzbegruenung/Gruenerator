@@ -275,11 +275,12 @@ export function useElementCatalog(
 
   const emojiItems = useMemo(() => {
     if (!emojiCatalog.data) return EMOJI_ITEMS;
-    const rest = emojiCatalog.data
-      .flatMap((g) => g.emoji)
-      .filter((e) => !SHAREPIC_EMOJI_IDS.has(e.id))
-      .map((e) => assetItem(withTone(e, emojiTone)));
-    return [...EMOJI_ITEMS, ...rest];
+    const all = emojiCatalog.data.flatMap((g) => g.emoji);
+    // The catalogue entries of the sharepic set carry their skin tones; keep its order.
+    const byId = new Map(all.map((e) => [e.id, e]));
+    const sharepic = EMOJI_ASSETS.flatMap((a) => byId.get(a.id) ?? []);
+    const rest = all.filter((e) => !SHAREPIC_EMOJI_IDS.has(e.id));
+    return [...sharepic, ...rest].map((e) => assetItem(withTone(e, emojiTone)));
   }, [emojiCatalog.data, emojiTone]);
 
   return useMemo(() => {

@@ -16,7 +16,7 @@ interface RawCatalog {
   groups: { label: string; emoji: RawEntry[] }[];
 }
 
-/** The sharepic set carries hand-picked campaign tags ("wahl", "klima") the Unicode names lack. */
+/** The sharepic set keeps its own names and its campaign tags ("wahl", "klima"). */
 const CURATED_BY_ID = new Map(EMOJI_ASSETS.map((a) => [a.id, a]));
 
 let catalog: EmojiCatalogGroup[] | null = null;
@@ -33,7 +33,7 @@ export async function loadEmojiCatalog(): Promise<EmojiCatalogGroup[]> {
       return {
         id,
         src: emojiCodeSrc(code),
-        label,
+        label: curated?.label ?? label,
         category: 'emoji',
         tags: curated ? [...tags, ...curated.tags] : ['emoji', ...tags],
         audience: 'all',
