@@ -75,3 +75,29 @@ describe('QdrantService startup', () => {
     await connecting;
   });
 });
+
+const { mistralEmbeddingService } = await import('../../../services/mistral/index.js');
+
+describe('QdrantService failed init', () => {
+  it('retries on the next init() instead of keeping the failed attempt', async () => {
+    vi.mocked(mistralEmbeddingService.init).mockRejectedValue(new Error('qdrant restarting'));
+
+    const service = new QdrantService();
+    await service.init();
+    expect(service.isConnected).toBe(false);
+
+    vi.mocked(mistralEmbeddingService.init).mockResolvedValue(undefined);
+    await service.init();
+    expect(service.isConnected).toBe(true);
+  });
+
+  it('lets isAvailable() retry after a failed init', async () => {
+    vi.mocked(mistralEmbeddingService.init).mockRejectedValue(new Error('qdrant restarting'));
+
+    const service = new QdrantService();
+    await expect(service.isAvailable()).resolves.toBe(false);
+
+    vi.mocked(mistralEmbeddingService.init).mockResolvedValue(undefined);
+    await expect(service.isAvailable()).resolves.toBe(true);
+  });
+});
