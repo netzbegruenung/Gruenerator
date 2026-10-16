@@ -19,6 +19,7 @@ import { type canvasDocuments } from '../../database/schema/canvas.js';
 import { type collaborative_documents } from '../../database/schema/collaborative.js';
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import {
+  autoGrantSharePermission,
   checkDocumentAccess,
   type DocumentAccessSubject,
 } from '../../routes/docs/documentAccess.js';
@@ -226,24 +227,65 @@ export async function searchCanvases(
   return rows.map(rowToCanvasListItem);
 }
 
+/**
+ * Whether this canvas is the frozen snapshot behind a Grünerator-Vorlage.
+ * Plain sharepics are shared with people only behind a login, never by public
+ * link; a Vorlage's owner may still publish its snapshot (ShareVorlageDialog).
+ */
+export async function isVorlageSnapshotCanvas(id: string): Promise<boolean> {
+  const rows = (await db.query(
+    `SELECT 1 FROM user_templates ut
+     WHERE ut.type = 'template'
+       AND ut.template_type = 'gruenerator'
+       AND ut.content_data->>'canvasId' = $1
+     LIMIT 1`,
+    [id]
+  )) as unknown[];
+  return rows.length > 0;
+}
+
 type GetResult =
   { kind: 'ok'; canvas: CanvasDocument } | { kind: 'not_found' } | { kind: 'forbidden' };
 
-export async function getCanvas(id: string, userId: string): Promise<GetResult> {
+/**
+ * `joinViaLink`: opening the canvas from a shared link ("Mit Anmeldung")
+ * enrolls the visitor as a collaborator, exactly like opening a document does,
+ * so they show up in the owner's share dialog and in their own canvas list.
+ * Only the studio's open read passes it — the many internal access checks
+ * through this function must not enroll anyone.
+ */
+export async function getCanvas(
+  id: string,
+  userId: string,
+  options: { joinViaLink?: boolean } = {}
+): Promise<GetResult> {
   const rows = (await db.query(
-    `SELECT ${CANVAS_SELECT_COLUMNS}
+    `SELECT ${CANVAS_SELECT_COLUMNS}, cd.share_permission
      FROM collaborative_documents cd
      INNER JOIN canvas_documents cdoc ON cdoc.document_id = cd.id
      LEFT JOIN profiles p ON cd.created_by = p.id
      WHERE cd.id = $1 AND cd.document_subtype = $2 AND cd.is_deleted = false`,
     [id, CANVAS_SUBTYPE]
-  )) as CanvasJoinedRow[];
+  )) as (CanvasJoinedRow & Pick<CollabRow, 'share_permission'>)[];
 
   const row = rows[0];
   if (!row) return { kind: 'not_found' };
 
-  const access = await checkDocumentAccess(toAccessSubject(row), userId);
+  const subject = toAccessSubject(row);
+  const access = await checkDocumentAccess(subject, userId);
   if (!access.hasAccess) return { kind: 'forbidden' };
+
+  if (options.joinViaLink) {
+    autoGrantSharePermission(
+      {
+        ...subject,
+        ...(row.share_permission === 'viewer' || row.share_permission === 'editor'
+          ? { share_permission: row.share_permission }
+          : {}),
+      },
+      userId
+    );
+  }
 
   return { kind: 'ok', canvas: rowToCanvasDocument(row) };
 }

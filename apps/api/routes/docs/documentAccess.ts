@@ -110,7 +110,13 @@ export async function checkDocumentWriteAccess(
   return groupAccess.length > 0 && groupAccess[0].permissions?.write === true;
 }
 
-export function autoGrantSharePermission(document: CollaborativeDocument, userId: string): void {
+export function autoGrantSharePermission(
+  document: Pick<
+    CollaborativeDocument,
+    'id' | 'created_by' | 'permissions' | 'share_mode' | 'share_permission'
+  >,
+  userId: string
+): void {
   const isLinkShared = document.share_mode === 'authenticated' || document.share_mode === 'public';
   if (
     !isLinkShared ||

@@ -182,7 +182,7 @@ const ALLOWLIST: readonly AllowEntry[] = [
   [
     'apps/api/services/canvas/canvasRepository.ts',
     'user_templates',
-    "hides a Vorlage's snapshot canvas from the canvas list; a trashed Vorlage keeps it hidden until the purge removes both",
+    "recognises a Vorlage's snapshot canvas (hidden from the canvas list, may get a public link); a trashed Vorlage keeps that status until the purge removes both",
     "ut.content_data->>'canvasId'",
   ],
   [

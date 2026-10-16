@@ -392,7 +392,7 @@ export const canvasContractRouter = s.router(canvasContract, {
   get: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
-      const result = await getCanvas(args.params.id, userId);
+      const result = await getCanvas(args.params.id, userId, { joinViaLink: true });
       if (result.kind === 'not_found') {
         return { status: 404 as const, body: { error: 'Canvas not found' } };
       }
