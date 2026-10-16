@@ -106,7 +106,7 @@ export interface UseCanvasElementHandlersOptions<
   actions: TActions;
   layout: LayoutResult;
   callbacks: Record<string, ((val: unknown) => void) | undefined>;
-  setSelectedElement: (id: string | null) => void;
+  selectElement: (id: string) => void;
   updateElementPosition: (id: string, x: number, y: number, w: number, h: number) => void;
   saveToHistory: (state: TState) => void;
   debouncedSaveToHistory: (state: TState) => void;
@@ -219,7 +219,7 @@ export function useCanvasElementHandlers<
     actions,
     layout,
     callbacks,
-    setSelectedElement,
+    selectElement,
     updateElementPosition,
     saveToHistory,
     debouncedSaveToHistory,
@@ -227,9 +227,9 @@ export function useCanvasElementHandlers<
 
   const handleElementSelect = useCallback(
     (id: string) => {
-      setSelectedElement(id);
+      selectElement(id);
     },
-    [setSelectedElement]
+    [selectElement]
   );
 
   const handleTextChange = useCallback(
@@ -353,9 +353,9 @@ export function useCanvasElementHandlers<
 
   const handleBalkenSelect = useCallback(
     (id: string) => {
-      setSelectedElement(id);
+      selectElement(id);
     },
-    [setSelectedElement]
+    [selectElement]
   );
 
   const handleBalkenDragEnd = useCallback(
@@ -423,9 +423,9 @@ export function useCanvasElementHandlers<
 
   const handleCircleBadgeSelect = useCallback(
     (id: string) => {
-      setSelectedElement(id);
+      selectElement(id);
     },
-    [setSelectedElement]
+    [selectElement]
   );
 
   const handleCircleBadgeDragEnd = useCallback(
@@ -473,9 +473,9 @@ export function useCanvasElementHandlers<
 
   const handlePillBadgeSelect = useCallback(
     (id: string) => {
-      setSelectedElement(id);
+      selectElement(id);
     },
-    [setSelectedElement]
+    [selectElement]
   );
 
   const handlePillBadgeTextChange = useCallback(

@@ -22,7 +22,7 @@ import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
  * - Copy (Ctrl+C): Copy selected element to clipboard
  * - Paste (Ctrl+V): Paste clipboard element with offset
  * - Duplicate (Ctrl+D): Copy + paste in one step
- * - Delete/Backspace: Remove selected element
+ * - Delete/Backspace: Remove selected element(s)
  * - Arrow keys: nudge, Enter: pick a frame image, Escape: deselect
  *
  * Kopieren, Einfügen und Duplizieren teilen sich mit dem Knopf in der
@@ -107,7 +107,7 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
       // ESCAPE — deselect (skipped while typing in an inline editor or input)
       if (e.key === 'Escape') {
         if (isTyping) return;
-        if (selectedElement) setSelectedElement(null);
+        if (store.getState().selectedLayerIds.length > 0) setSelectedElement(null);
         return;
       }
 
@@ -140,6 +140,19 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
         setState(result.state);
         saveToHistoryRef.current?.(result.state);
         setTimeout(() => setSelectedElement(result.newId), 0);
+        return;
+      }
+
+      // Mehrfachauswahl: nur Löschen, jedes Element über seine eigene Tür.
+      const selection = store.getState().selectedLayerIds;
+      if (selection.length > 1) {
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+          const removers = selection
+            .map((id) => findElementRemover(currentState, currentActions, id))
+            .filter((remove) => remove !== null);
+          removers.forEach((remove) => remove());
+          if (removers.length > 0) setSelectedElement(null);
+        }
         return;
       }
 

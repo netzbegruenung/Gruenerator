@@ -461,8 +461,8 @@ function GenericCanvasWithRef<
     // eslint-disable-next-line react-hooks/exhaustive-deps -- layoutKey is a stable string derived from layout-relevant state fields
   }, [config, layoutKey, isFontAvailable, fontGeneration]);
 
-  const { setSelectedElement, handleStageClick, handleSnapChange, getSnapTargets } =
-    useCanvasInteractions({ stageRef });
+  const { setSelectedElement, selectElement, handleStageClick, handleSnapChange, getSnapTargets } =
+    useCanvasInteractions({ stageRef, marqueeEnabled: !preview });
 
   const store = useCanvasStore();
   const { setSnapLines, updateElementPosition } = store.getState();
@@ -596,7 +596,7 @@ function GenericCanvasWithRef<
     actions,
     layout,
     callbacks,
-    setSelectedElement,
+    selectElement,
     updateElementPosition,
     saveToHistory,
     debouncedSaveToHistory,

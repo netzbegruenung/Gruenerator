@@ -32,6 +32,7 @@ import { useGeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { markerBoxes } from '../utils/markerBoxes';
 import { DEFAULT_TEXT_MARKER, markerInkOn } from '../utils/markerColors';
+import { isGroupDrag } from '../utils/multiSelect';
 import { calculateElementSnapPosition } from '../utils/snapping';
 import { runFont, runMeasurer } from '../utils/textUtils';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
@@ -178,6 +179,7 @@ export function CanvasRichText({
   const handleDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
       const node = e.target;
+      if (isGroupDrag(node)) return;
       if (!stageWidth || !stageHeight) return;
       if ((snapTargets && snapTargets.length > 0) || snapToCenter) {
         const result = calculateElementSnapPosition(

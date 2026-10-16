@@ -20,6 +20,7 @@ import { CANVAS_ITEM_NAME } from '../utils/deepSelect';
 import { resolveIconDef } from '../utils/iconInstances';
 
 import { GenericCanvasElement } from './GenericCanvasElement';
+import { MultiSelectionTransformer } from './MultiSelectionTransformer';
 import { RemoteSelectionOverlay, type RemoteSelector } from './RemoteSelectionOverlay';
 
 import type { CanvasElementConfig, FullCanvasConfig, LayoutResult } from '../configs/types';
@@ -582,6 +583,7 @@ function CanvasRenderLayerInner<
           </Group>
         );
       })}
+      <MultiSelectionTransformer renderKey={sortedRenderList} />
     </>
   );
 }

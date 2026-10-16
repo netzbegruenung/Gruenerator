@@ -15,6 +15,7 @@ import { overlayBoxForNode, useCanvasTextEditor } from '../components/CanvasText
 import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { gradientFillProps, type GradientFill } from '../utils/gradientFill';
+import { isGroupDrag } from '../utils/multiSelect';
 import { calculateSnapPosition, calculateElementSnapPosition } from '../utils/snapping';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
 
@@ -215,6 +216,7 @@ function CanvasTextInner({
   const handleDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
       const node = e.target as Konva.Text;
+      if (isGroupDrag(node)) return;
       const nodeWidth = node.width() * node.scaleX();
       const nodeHeight = node.height() * node.scaleY();
 
