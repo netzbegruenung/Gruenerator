@@ -63,6 +63,7 @@ export interface OptionalCanvasActions {
   updatePillBadge?: (id: string, attrs: Partial<PillBadgeInstance>) => void;
   updateFrame?: (id: string, attrs: Partial<FrameInstance>) => void;
   setFrameImage?: (id: string, file: File, objectUrl: string) => void;
+  addUserImageFromUrl?: (url: string, fileName: string, center?: { x: number; y: number }) => void;
   updateUserImage?: (id: string, attrs: Partial<UserImageInstance>) => void;
   updateChart?: (id: string, attrs: Partial<ChartInstance>) => void;
 

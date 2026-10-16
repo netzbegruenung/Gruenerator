@@ -125,14 +125,15 @@ function makeInstance(
   width: number,
   height: number,
   canvasWidth: number,
-  canvasHeight: number
+  canvasHeight: number,
+  center: { x: number; y: number } = { x: canvasWidth / 2, y: canvasHeight / 2 }
 ): UserImageInstance {
   return {
     id: makeId(),
     src,
     fileName,
-    x: canvasWidth / 2 - width / 2,
-    y: canvasHeight / 2 - height / 2,
+    x: center.x - width / 2,
+    y: center.y - height / 2,
     width,
     height,
     rotation: 0,
@@ -205,22 +206,32 @@ export async function downscaleImageForUpload(file: File): Promise<File> {
   }
 }
 
+/** `center` places the image's centre there (a drop point); default is the canvas centre. */
 export function createUserImageInstanceFromUrl(
   url: string,
   fileName: string,
   canvasWidth: number,
-  canvasHeight: number
+  canvasHeight: number,
+  center?: { x: number; y: number }
 ): Promise<UserImageInstance> {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
       const { width, height } = scaleToTarget(img.naturalWidth, img.naturalHeight);
-      resolve(makeInstance(url, fileName, width, height, canvasWidth, canvasHeight));
+      resolve(makeInstance(url, fileName, width, height, canvasWidth, canvasHeight, center));
     };
     img.onerror = () => {
       resolve(
-        makeInstance(url, fileName, FALLBACK_WIDTH, FALLBACK_HEIGHT, canvasWidth, canvasHeight)
+        makeInstance(
+          url,
+          fileName,
+          FALLBACK_WIDTH,
+          FALLBACK_HEIGHT,
+          canvasWidth,
+          canvasHeight,
+          center
+        )
       );
     };
     img.src = url;

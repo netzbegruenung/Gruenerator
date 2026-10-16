@@ -1,6 +1,7 @@
-import React, { useCallback, memo } from 'react';
+import React, { useCallback, useState, memo } from 'react';
 
 import { cn } from '../../utils/cn';
+import { isMediaDrag, readMediaDrag } from '../../utils/mediaDrop';
 import { GenericCanvas } from '../GenericCanvas';
 import { PageToolbar } from '../PageToolbar';
 import { ZoomableViewport } from '../ZoomableViewport';
@@ -82,6 +83,29 @@ export const PageWrapper = memo(function PageWrapper({
   );
   const handleClick = useCallback((e: React.MouseEvent) => activateFrom(e.target), [activateFrom]);
 
+  // An upload dragged from the sidebar lands where it is dropped, on this page.
+  const [isDropTarget, setIsDropTarget] = useState(false);
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    if (!isMediaDrag(e.dataTransfer)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    setIsDropTarget(true);
+  }, []);
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setIsDropTarget(false);
+  }, []);
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      setIsDropTarget(false);
+      const media = readMediaDrag(e.dataTransfer);
+      if (!media) return;
+      e.preventDefault();
+      if (!isActive) onSelect(index);
+      canvasRef.current?.dropMedia(e, media);
+    },
+    [isActive, onSelect, index, canvasRef]
+  );
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       // Only the wrapper itself — a bubbled Enter/Space from a toolbar button
@@ -102,9 +126,13 @@ export const PageWrapper = memo(function PageWrapper({
       className={cn(
         'heterogeneous-multipage__page-wrapper group relative cursor-pointer w-fit focus-visible:outline-2 focus-visible:outline-[var(--tanne,#0a2b1e)] focus-visible:outline-offset-1',
         '[&_.zoomable-viewport-wrapper]:w-fit [&_.zoomable-viewport-container]:p-0 [&_.zoomable-viewport-container]:overflow-visible',
-        isActive && 'heterogeneous-multipage__page-wrapper--active'
+        isActive && 'heterogeneous-multipage__page-wrapper--active',
+        isDropTarget && 'outline-2 outline-dashed outline-offset-4 outline-[var(--editor-accent)]'
       )}
       onPointerDownCapture={handlePointerDown}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
       onClick={handleClick}
       role="button"
       tabIndex={0}

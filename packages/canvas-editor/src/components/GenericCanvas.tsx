@@ -51,6 +51,7 @@ import { canvasFontFamilies } from '../utils/canvasFontFamilies';
 import { buildCanvasItems, buildSortedRenderList } from '../utils/canvasLayerManager';
 import { captureStageImage, captureStageImageAsync } from '../utils/captureStage';
 import { ensureFontsReady } from '../utils/ensureFontsReady';
+import { locateDrop, type MediaDragPayload } from '../utils/mediaDrop';
 import { PendingImagesContext } from '../utils/pendingImages';
 import { stageCssScale } from '../utils/stageCssScale';
 import { getOptimalContainerWidth } from '../utils/viewport';
@@ -211,6 +212,9 @@ export interface GenericCanvasRef {
   /** Clears this page's element selection — the per-page store lives behind
    *  CanvasStoreProvider, so the parent editor reaches it through this handle. */
   deselect: () => void;
+  /** Places a dragged upload where it was dropped: into the frame under the
+   *  pointer, else as a new image centred there. False when nothing was placed. */
+  dropMedia: (evt: { clientX: number; clientY: number }, media: MediaDragPayload) => boolean;
   /** Toolbar handlers — called by parent when toolbar is rendered at layout level */
   undo?: () => void;
   redo?: () => void;
@@ -721,6 +725,21 @@ function GenericCanvasWithRef<
       captureCanvasForAi: async () =>
         captureStageImage(stageRef.current, { format: 'jpeg', pixelRatio: 1, quality: 0.85 }),
       deselect: () => setSelectedElement(null),
+      dropMedia: (evt, media) => {
+        const stage = stageRef.current?.getStage();
+        if (!stage) return false;
+        const drop = locateDrop(stage, evt, stageWidth / referenceWidth);
+        if (!drop) return false;
+        if (drop.frameId && actions.setFrameImage) {
+          // The file argument is unused there; the durable URL is the image.
+          actions.setFrameImage(drop.frameId, new File([], media.name), media.url);
+          setSelectedElement(drop.frameId);
+          return true;
+        }
+        if (!actions.addUserImageFromUrl) return false;
+        actions.addUserImageFromUrl(media.url, media.name, drop.point);
+        return true;
+      },
       undo,
       redo,
       handleMoveLayer: (dir) => bridgeRef.current?.handleMoveLayer(dir),
@@ -796,6 +815,9 @@ function GenericCanvasWithRef<
       setSelectedElement,
       pendingImages,
       store,
+      actions,
+      stageWidth,
+      referenceWidth,
     ]
   );
 

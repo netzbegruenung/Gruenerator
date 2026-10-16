@@ -688,8 +688,8 @@ export function createUserImageActions<TState extends { userImageInstances: User
         commit(appendImage(instance));
       });
     },
-    addUserImageFromUrl: (url: string, fileName: string) => {
-      void createUserImageInstanceFromUrl(url, fileName, canvasWidth, canvasHeight).then(
+    addUserImageFromUrl: (url: string, fileName: string, center?: { x: number; y: number }) => {
+      void createUserImageInstanceFromUrl(url, fileName, canvasWidth, canvasHeight, center).then(
         (instance) => {
           commit(appendImage(instance));
         }
