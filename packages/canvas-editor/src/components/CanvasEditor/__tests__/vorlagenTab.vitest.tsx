@@ -44,8 +44,8 @@ const tabButton = (id: string) =>
   ) ?? null;
 
 const vorlagen: NonNullable<CanvasEditorServices['vorlagen']> = {
-  list: async () => [],
-  compose: async () => [],
+  listSeiten: async () => [],
+  composeSeite: async () => [],
 };
 
 async function renderEditor(services: CanvasEditorServices, formatId = 'post-portrait') {
@@ -81,7 +81,7 @@ describe('CanvasEditor Vorlagen-Reiter', () => {
       screen.getByRole('button', { name: 'Grünerator-Vorlagen anwenden' }).click();
     });
     expect(
-      await screen.findByText('Für dieses Format gibt es noch keine Vorlagen.')
+      await screen.findByText('Für dieses Format gibt es noch keine Seiten.')
     ).toBeInTheDocument();
   });
 

@@ -180,10 +180,70 @@ describe('sharepic Seiten catalogue', () => {
     expect(listSharepicSeiten(null).map((s) => s.id)).toEqual(['de-text']);
   });
 
-  it('is empty without Seiten files, next to a filled Vorlagen catalogue', () => {
-    writeCatalog({ 'de.json': [entry('de-rad', 'de-DE', 'tanne')] });
+  it('offers each Vorlage slide as a Seite in the Vorlage format, without the carousel teaser', () => {
+    const base = entry('de-karussell', 'de-DE', 'tanne');
+    const slide = base.spec.slides[0]!;
+    const karussell = {
+      ...base,
+      spec: {
+        ...base.spec,
+        format: 'post-portrait-tall',
+        slides: [
+          { ...slide, weiter: 'Denn' },
+          { ...slide, items: [{ type: 'zitat', text: 'Ein Satz.', name: 'Jemand' }] },
+          { ...slide, items: [{ type: 'aufruf', stil: 'ausruf', text: 'Mach mit' }] },
+        ],
+      },
+    };
+    writeCatalog({ 'de.json': [karussell, entry('de-rad', 'de-DE', 'tanne')] });
+
+    const seiten = listSharepicSeiten('de-DE');
+    expect(seiten.map((s) => [s.id, s.rolle, s.typ, s.formats])).toEqual([
+      ['de-karussell-s1', 'titel', 'text', ['post-portrait-tall']],
+      ['de-karussell-s2', 'inhalt', 'zitat', ['post-portrait-tall']],
+      ['de-karussell-s3', 'schluss', 'aufruf', ['post-portrait-tall']],
+      ['de-rad-s1', 'titel', 'text', ['post-portrait']],
+    ]);
+    expect(seiten[0]).toMatchObject({
+      titel: 'Titel de-karussell',
+      quelle: { vorlage: 'de-karussell', seite: 1 },
+      locale: 'de-DE',
+      attribution: null,
+    });
+    expect(seiten[0]!.slide).not.toHaveProperty('weiter');
+    expect(listSharepicVorlagen(null)).toHaveLength(2);
+  });
+
+  it('leaves out a Vorlage slide a curated Seite was taken from', () => {
+    writeCatalog({
+      'de.json': [entry('de-rad', 'de-DE', 'tanne')],
+      'seiten/de.json': [{ ...seite('de-text', 'tanne'), quelle: { vorlage: 'de-rad', seite: 1 } }],
+    });
+    expect(listSharepicSeiten(null).map((s) => s.id)).toEqual(['de-text']);
+  });
+
+  it('previews a Vorlage slide Seite with the Vorlage slide thumbnail', () => {
+    const base = entry('de-rad', 'de-DE', 'tanne');
+    writeCatalog({
+      'de.json': [
+        { ...base, spec: { ...base.spec, slides: [base.spec.slides[0]!, base.spec.slides[0]!] } },
+      ],
+    });
+    const thumbs = path.join(root, 'sharepic-vorlagen/thumbs');
+    expect(sharepicSeiteThumbFile('de-rad-s1', 'post-portrait')).toBe(
+      path.join(thumbs, 'de-rad.webp')
+    );
+    expect(sharepicSeiteThumbFile('de-rad-s2', 'post-portrait')).toBe(
+      path.join(thumbs, 'de-rad-2.webp')
+    );
+    expect(sharepicSeiteThumbFile('de-rad-s2', 'post-portrait-tall')).toBeNull();
+  });
+
+  it('skips a Vorlage slide whose Seite id would be too long', () => {
+    const id = 'a'.repeat(63);
+    writeCatalog({ 'de.json': [entry(id, 'de-DE', 'tanne')] });
+    expect(listSharepicVorlagen(null).map((v) => v.id)).toEqual([id]);
     expect(listSharepicSeiten(null)).toEqual([]);
-    expect(listSharepicVorlagen(null)).toHaveLength(1);
   });
 
   it('resolves a preview only in the formats the Seite was checked in', () => {

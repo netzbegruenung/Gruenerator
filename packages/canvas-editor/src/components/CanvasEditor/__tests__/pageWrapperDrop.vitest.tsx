@@ -11,7 +11,7 @@ vi.mock('../../ZoomableViewport', () => ({
   ZoomableViewport: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
-function setup(onDropVorlage?: (id: string) => void, placed = true) {
+function setup(onDropVorlage?: (id: string, pageId: string) => void, placed = true) {
   const onSelect = vi.fn();
   const dropElement = vi.fn(() => placed);
   const { getByRole } = render(
@@ -54,12 +54,12 @@ function fire(el: Element, kind: 'dragOver' | 'drop', dataTransfer: object = vor
 }
 
 describe('PageWrapper Vorlage drop', () => {
-  it('hands a dropped Vorlage on without selecting the page', () => {
+  it('hands a dropped Vorlage on with the page it landed on, without selecting it', () => {
     const onDropVorlage = vi.fn();
     const { page, onSelect } = setup(onDropVorlage);
     expect(fire(page, 'dragOver')).toBe(true);
     expect(fire(page, 'drop')).toBe(true);
-    expect(onDropVorlage).toHaveBeenCalledWith('zitat');
+    expect(onDropVorlage).toHaveBeenCalledWith('zitat', 'p2');
     expect(onSelect).not.toHaveBeenCalled();
   });
 

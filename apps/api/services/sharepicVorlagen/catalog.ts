@@ -4,6 +4,10 @@
  * one file per country, plus `thumbs/<id>.webp`. The single Seiten sit beside
  * them in `seiten/{de,at}.json` with `thumbs/seiten/<id>.<format>.webp`.
  *
+ * The editor offers only single Seiten: every Vorlage slide is one too
+ * (`<vorlage>-s<n>`, previewed by the Vorlage's slide thumbnail), unless a
+ * curated Seite names it as its `quelle` — that one has its own example text.
+ *
  * A missing directory is an empty catalogue and a warning — the gallery then
  * simply has no Grünerator section (same degradation as `internalPrompts.ts`).
  * An invalid entry is logged and skipped, so one typo does not empty a country.
@@ -23,9 +27,12 @@ import {
   sharepicSeiteFileEntrySchema,
   sharepicSpecSchema,
   sharepicVorlageFileEntrySchema,
+  sharepicVorlageIdSchema,
   slidePhotoFilename,
   type SharepicFormat,
   type SharepicSeite,
+  type SharepicSeiteRolle,
+  type SharepicSeiteTyp,
   type SharepicSlide,
   type SharepicCreatorLocale,
   type SharepicPhotoAttribution,
@@ -48,6 +55,8 @@ const RECHECK_MS = 30_000;
 interface Catalog {
   vorlagen: SharepicVorlage[];
   seiten: SharepicSeite[];
+  /** Preview file of each Seite taken from a Vorlage slide. */
+  derivedThumbs: Map<string, string>;
 }
 
 let cache: Catalog | null = null;
@@ -190,6 +199,89 @@ function loadSeiten(locale: SharepicCreatorLocale): SharepicSeite[] {
   });
 }
 
+const ITEM_TYP: Partial<Record<SharepicSlide['items'][number]['type'], SharepicSeiteTyp>> = {
+  zitat: 'zitat',
+  frage: 'frage',
+  liste: 'liste',
+  iconliste: 'liste',
+  diagramm: 'diagramm',
+  zahl: 'diagramm',
+  rechnung: 'diagramm',
+  vergleich: 'diagramm',
+  infografik: 'diagramm',
+  aufruf: 'aufruf',
+  button: 'aufruf',
+};
+
+const typOf = (slide: SharepicSlide): SharepicSeiteTyp =>
+  slide.items.map((item) => ITEM_TYP[item.type]).find((typ) => typ !== undefined) ?? 'text';
+
+function rolleOf(n: number, count: number): SharepicSeiteRolle {
+  if (n === 1) return 'titel';
+  return n === count ? 'schluss' : 'inhalt';
+}
+
+/** Each slide of a Vorlage as a Seite in the Vorlage's format; `weiter` only fits a carousel. */
+function seitenFromVorlage(vorlage: SharepicVorlage): { seite: SharepicSeite; thumb: string }[] {
+  const { slides } = vorlage.spec;
+  return slides.flatMap(({ weiter: _weiter, ...slide }, i) => {
+    const n = i + 1;
+    const id = `${vorlage.id}-s${n}`;
+    if (!sharepicVorlageIdSchema.safeParse(id).success) {
+      log.error(`Vorlage ${vorlage.id} slide ${n} skipped as a Seite: id ${id} too long`);
+      return [];
+    }
+    const asSpec = sharepicSpecSchema.safeParse({ locale: vorlage.locale, slides: [slide] });
+    if (!asSpec.success) {
+      const issue = asSpec.error.issues[0];
+      log.error(
+        `Vorlage ${vorlage.id} slide ${n} skipped as a Seite: ${issue?.path.join('.')} ${issue?.message ?? 'invalid'}`
+      );
+      return [];
+    }
+    const thumb = path.join(dir(), 'thumbs', thumbName(vorlage.id, n));
+    return [
+      {
+        seite: {
+          id,
+          titel: vorlage.titel,
+          rolle: rolleOf(n, slides.length),
+          typ: typOf(slide),
+          // No format on the spec is the default one, as the editor reads it.
+          formats: [vorlage.spec.format ?? 'post-portrait'],
+          slide,
+          quelle: { vorlage: vorlage.id, seite: n },
+          locale: vorlage.locale,
+          attribution: vorlage.attributions[i] ?? null,
+          thumbVersion: thumbVersionOf([thumb]),
+        },
+        thumb,
+      },
+    ];
+  });
+}
+
+/** The curated Seiten, then every Vorlage slide no curated Seite was taken from. */
+function seitenWithVorlagen(
+  curated: SharepicSeite[],
+  vorlagen: SharepicVorlage[]
+): Pick<Catalog, 'seiten' | 'derivedThumbs'> {
+  const taken = new Set(
+    curated.flatMap((s) => (s.quelle ? [`${s.quelle.vorlage}#${s.quelle.seite}`] : []))
+  );
+  const derived = vorlagen
+    .flatMap(seitenFromVorlage)
+    .filter(({ seite }) => !taken.has(`${seite.quelle!.vorlage}#${seite.quelle!.seite}`));
+  const seiten = uniqueIds([...curated, ...derived.map((d) => d.seite)], 'Seite');
+  const kept = new Set(seiten);
+  return {
+    seiten,
+    derivedThumbs: new Map(
+      derived.filter((d) => kept.has(d.seite)).map((d) => [d.seite.id, d.thumb])
+    ),
+  };
+}
+
 /** Drops (and logs) every entry whose id came earlier. */
 function uniqueIds<T extends { id: string }>(entries: T[], what: string): T[] {
   const seen = new Set<string>();
@@ -212,10 +304,9 @@ function all(): Catalog {
   if (!cache) {
     checkedAt = now;
     cacheSignature = contentSignature();
-    cache = {
-      vorlagen: uniqueIds([...loadCountry('de-DE'), ...loadCountry('de-AT')], 'Vorlage'),
-      seiten: uniqueIds([...loadSeiten('de-DE'), ...loadSeiten('de-AT')], 'Seite'),
-    };
+    const vorlagen = uniqueIds([...loadCountry('de-DE'), ...loadCountry('de-AT')], 'Vorlage');
+    const curated = uniqueIds([...loadSeiten('de-DE'), ...loadSeiten('de-AT')], 'Seite');
+    cache = { vorlagen, ...seitenWithVorlagen(curated, vorlagen) };
     log.info(
       `Loaded ${cache.vorlagen.length} sharepic Vorlage(n) and ${cache.seiten.length} Seite(n) from ${dir()}`
     );
@@ -251,6 +342,8 @@ export function sharepicSeiteThumbFile(id: string, format: string): string | nul
   const parsed = sharepicFormatSchema.safeParse(format);
   const seite = getSharepicSeite(id);
   if (!parsed.success || !seite?.formats.includes(parsed.data)) return null;
+  const derived = all().derivedThumbs.get(id);
+  if (derived) return derived;
   return path.join(dir(), 'thumbs', 'seiten', seiteThumbName(id, parsed.data));
 }
 
