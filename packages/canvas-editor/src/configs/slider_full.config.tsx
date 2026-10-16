@@ -12,15 +12,9 @@
  * `slider-at` (Österreich: Ein-Balken-Logo, Dunkelgrün/Hellgrün, Gotham).
  */
 
-import { HiPhotograph } from 'react-icons/hi';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
-import {
-  AssetsSection,
-  CombinedTextSection,
-  FrameSettingsSection,
-  ImageBackgroundSection,
-} from '../sidebar/sections';
+import { AssetsSection, CombinedTextSection, FrameSettingsSection } from '../sidebar/sections';
 import { recolorIconInstances } from '../utils/iconInstances';
 import { createPillBadgeInstance } from '../utils/pillBadgeUtils';
 import {
@@ -52,7 +46,6 @@ import type {
   AdditionalText,
 } from './types';
 import type { TemplateAiCapabilities } from '../ai/types';
-import type { ImageBackgroundSectionProps } from '../sidebar/sections/ImageBackgroundSection';
 import type { BackgroundColorOption, StockImageAttribution } from '../sidebar/types';
 import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
 import type { AssetInstance } from '../utils/canvasAssets';
@@ -167,8 +160,8 @@ export interface SliderActions {
   setColorScheme: (scheme: SliderColorScheme) => void;
   setBackgroundColor: (color: string) => void;
 
-  // Photo background. `onImageChange`'s shape, so `ImageBackgroundSection`
-  // hands a pick (photo + credit) over as one action and one undo step.
+  // Photo background. `onImageChange`'s shape, so a pick (photo + credit) is
+  // one action and one undo step.
   setCurrentImageSrc: (
     file: File | null,
     objectUrl?: string,
@@ -605,12 +598,6 @@ function createSliderConfig(brand: SliderBrand): FullCanvasConfig<SliderState, S
 
     tabs: [
       {
-        id: 'background',
-        icon: HiPhotograph,
-        label: 'Hintergrund',
-        ariaLabel: 'Farbschema wählen',
-      },
-      {
         id: 'text',
         icon: PiTextAa,
         label: 'Text',
@@ -633,40 +620,31 @@ function createSliderConfig(brand: SliderBrand): FullCanvasConfig<SliderState, S
       chatTab,
     ],
 
-    // 'background' was hidden here and left to getAutoSwitchTab below, which
-    // matched the id `background` — the colour plane, drawn `listening={false}`,
-    // so it never becomes the selection and the tab never opened.
-    getVisibleTabs: () => ['background', 'text', 'assets', 'tools', 'uploads', 'chat'],
+    getVisibleTabs: () => ['text', 'assets', 'tools', 'uploads', 'chat'],
 
     getAutoSwitchTab: (selectedElement) => {
-      if (selectedElement === 'background-image') return 'background';
       if (selectedElement?.startsWith('balken-')) return 'settings';
       if (selectedElement?.startsWith('chart-')) return 'chart-settings';
       if (selectedElement?.startsWith('frame-')) return 'frame-settings';
       return null;
     },
 
+    // The swatches pick a colour scheme: the plane sits under the photo and the
+    // scheme also colours pill and arrow.
+    background: (state, actions) => ({
+      currentImageSrc: state.currentImageSrc || undefined,
+      onImageChange: actions.setCurrentImageSrc,
+      colors: brand.backgroundColors,
+      paletteOnly: true,
+      currentColor: state.backgroundColor,
+      onColorChange: (color: string) => actions.setColorScheme(schemeForColor(color)),
+      scale: state.currentImageSrc ? (state.imageScale ?? 1) : undefined,
+      onScaleChange: state.currentImageSrc ? actions.setImageScale : undefined,
+      isLocked: state.isBackgroundLocked ?? false,
+      onToggleLock: state.currentImageSrc ? actions.toggleBackgroundLock : undefined,
+    }),
+
     sections: {
-      // The photo templates' picker: library, Unsplash and own uploads, the
-      // scheme swatches as its "Farbe" tab (the colour plane sits under the
-      // photo and the scheme also colours pill and arrow), zoom and lock.
-      background: section({
-        component: ImageBackgroundSection,
-        propsFactory: (state, actions) =>
-          ({
-            currentImageSrc: state.currentImageSrc || undefined,
-            onImageChange: actions.setCurrentImageSrc,
-            backgroundColor: state.backgroundColor,
-            backgroundColors: brand.backgroundColors,
-            onBackgroundColorChange: (color: string) =>
-              actions.setColorScheme(schemeForColor(color)),
-            scale: state.currentImageSrc ? (state.imageScale ?? 1) : undefined,
-            onScaleChange: state.currentImageSrc ? actions.setImageScale : undefined,
-            isLocked: state.isBackgroundLocked ?? false,
-            onToggleLock: state.currentImageSrc ? actions.toggleBackgroundLock : undefined,
-            initialSubsection: state.currentImageSrc ? 'image-search' : 'background-color',
-          }) satisfies ImageBackgroundSectionProps,
-      }),
       text: section({
         component: CombinedTextSection,
         propsFactory: (state, actions) => ({

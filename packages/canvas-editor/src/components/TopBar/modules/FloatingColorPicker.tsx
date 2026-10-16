@@ -12,6 +12,8 @@ interface FloatingColorPickerProps {
   colors?: typeof BRAND_COLORS;
   /** 'font' renders an "A" glyph with a colored underline (text elements); 'swatch' a filled chip. */
   variant?: 'font' | 'swatch';
+  /** False limits the choice to `colors`. */
+  allowCustom?: boolean;
 }
 
 const colorBtn =
@@ -24,6 +26,7 @@ export function FloatingColorPicker({
   onExpandChange,
   colors,
   variant = 'swatch',
+  allowCustom = true,
 }: FloatingColorPickerProps) {
   const colorOptions = colors ?? BRAND_COLORS;
   const [internalExpanded, setInternalExpanded] = React.useState(false);
@@ -115,13 +118,15 @@ export function FloatingColorPicker({
           type="button"
         />
       ))}
-      <CustomColorSwatch
-        value={currentColor}
-        presets={colorOptions.map((color) => color.value)}
-        onPick={onColorSelect}
-        className="size-8 max-canvas-mobile:size-[26px]"
-        outlineOffset={3}
-      />
+      {allowCustom && (
+        <CustomColorSwatch
+          value={currentColor}
+          presets={colorOptions.map((color) => color.value)}
+          onPick={onColorSelect}
+          className="size-8 max-canvas-mobile:size-[26px]"
+          outlineOffset={3}
+        />
+      )}
     </div>
   );
 }

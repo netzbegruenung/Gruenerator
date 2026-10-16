@@ -283,10 +283,10 @@ function applyOne<TState, TActions extends CanvasAiActionsBase>(
       case 'set-background-image':
         // Server-only operation: the chat backend resolves the stock-photo
         // query via ImageSelectionService before patching state. The studio
-        // applier has no resolver — users change images via the Hintergrund tab.
+        // applier has no resolver — users change images by clicking the background.
         return {
           ok: false,
-          reason: 'Hintergrundbilder bitte über den Hintergrund-Tab ändern',
+          reason: 'Hintergrundbilder bitte per Klick auf den Hintergrund ändern',
         };
 
       default: {

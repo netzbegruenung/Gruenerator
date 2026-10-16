@@ -24,7 +24,7 @@ interface MediaUploadResponse {
  * NB: returns `/api/share/<token>/download` (the raw image bytes), NOT the
  * upload response's `shareUrl` — that is the human-facing share *page* (HTML),
  * which a canvas background can't render. This matches how the rest of the
- * canvas editor resolves a media item to an image (ImageBackgroundSection,
+ * canvas editor resolves a media item to an image (`buildPlacementUrl`,
  * UploadsSection, mediaItemToFile).
  */
 export async function uploadBlobToMediaLibrary(
