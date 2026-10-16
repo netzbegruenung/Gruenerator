@@ -14,6 +14,7 @@ interface UseToolbarHandlersParams {
   canRedoPageOp: boolean;
   undoPageOp: () => void;
   redoPageOp: () => void;
+  discardReplaceDeck: () => void;
 }
 
 /**
@@ -37,6 +38,7 @@ export function useToolbarHandlers({
   canRedoPageOp,
   undoPageOp,
   redoPageOp,
+  discardReplaceDeck,
 }: UseToolbarHandlersParams) {
   return useMemo(() => {
     const page = () => canvasRefsRef.current[currentPageIndex]?.current ?? null;
@@ -48,8 +50,9 @@ export function useToolbarHandlers({
           undoPageOp();
         }
       },
-      // The spec path replaced the whole deck in one page-level step.
-      undoPages: undoPageOp,
+      // The spec path replaced the whole deck in one page-level step; Verwerfen
+      // takes it back for good, so Redo cannot re-apply it.
+      undoPages: discardReplaceDeck,
       redo: () => {
         if (toolbarState?.canRedo) {
           page()?.redo?.();
@@ -82,5 +85,6 @@ export function useToolbarHandlers({
     canRedoPageOp,
     undoPageOp,
     redoPageOp,
+    discardReplaceDeck,
   ]);
 }
