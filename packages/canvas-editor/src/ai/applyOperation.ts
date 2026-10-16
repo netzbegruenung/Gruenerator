@@ -380,7 +380,7 @@ function dispatchUpdate<TState>(
       const { color, scale, ...rest } = patch;
       return {
         ...rest,
-        ...(color != null && { fill: color }),
+        ...(color != null && { fill: color, fillGradient: null }),
         ...(scale != null && { fontSize: Math.round(text.fontSize * scale) }),
       };
     });
