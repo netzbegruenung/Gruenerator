@@ -146,6 +146,10 @@ async function main() {
 
   fs.mkdirSync(path.dirname(CATALOG_FILE), { recursive: true });
   fs.writeFileSync(CATALOG_FILE, JSON.stringify(catalog) + '\n');
+  // Same shape lint-staged would commit, so a re-run without changes stays diff-free.
+  execFileSync('npx', ['prettier', '--write', '--log-level', 'warn', CATALOG_FILE], {
+    stdio: 'inherit',
+  });
   fs.rmSync(work, { recursive: true, force: true });
 
   const count = catalog.groups.reduce((n, g) => n + g.emoji.length, 0);
