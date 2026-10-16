@@ -1106,6 +1106,7 @@ function CanvasEditorInner({
       chromeLeft={chromeLeft}
       chromeCenter={chromeCenter}
       chromeRight={chromeRight}
+      suggestionInBar={isMobileWeb}
     />
   ) : null;
 
