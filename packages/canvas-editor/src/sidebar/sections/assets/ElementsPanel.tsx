@@ -14,14 +14,13 @@ import { useDebounce } from '../../../hooks/useDebounce';
 import { useIsCanvasMobile } from '../../../hooks/useIsCanvasMobile';
 import { useTrackUnsplashDownload } from '../../../hooks/useTrackUnsplashDownload';
 import { cn } from '../../../utils/cn';
-import { matchesQuery } from '../../../utils/filterUtils';
-import { getEnglishSearchTerms } from '../../../utils/searchTranslations';
 import { IllustrationSettings } from '../IllustrationSettings';
 import { FramePreviewDefs } from '../RahmenSection';
 
 import { BackgroundCatalog } from './BackgroundCatalog';
 import { CategoryCard } from './CategoryCard';
 import { ElementGrid } from './ElementGrid';
+import { searchElements } from './elementSearch';
 import { ElementTile } from './ElementTile';
 import { RecentCarousel } from './RecentCarousel';
 import { StickerCatalog } from './StickerCatalog';
@@ -35,14 +34,7 @@ import type { StickerRef } from '@gruenerator/shared/stickers';
 /** Entrance: 12 staggered steps of 45 ms plus the 550 ms rise of the last one. */
 const ENTRANCE_MS = 12 * 45 + 600;
 const BRAND_COUNT = 4;
-/** Caps per kind in the search across all categories; a category's own search pages instead. */
-const GLOBAL_CAP: Partial<Record<CategoryId, number>> = { illustrationen: 30, icons: 20 };
 const DEFAULT_MAX_ICONS = 3;
-
-function matches(item: ElementItem, q: string, english: readonly string[]): boolean {
-  if (matchesQuery(q, item.label, item.keywords)) return true;
-  return english.some((term) => matchesQuery(term, item.label, item.keywords));
-}
 
 function countLabel(n: number): string {
   return `${n} ${n === 1 ? 'Element' : 'Elemente'}`;
@@ -250,26 +242,7 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
 
   const results = useMemo(() => {
     if (!hasQuery) return [];
-    const english = getEnglishSearchTerms(q.toLowerCase());
-    if (category) return category.items.filter((item) => matches(item, q, english));
-    const seen = new Set<string>();
-    const out: ElementItem[] = [];
-    for (const c of catalog) {
-      if (!c.searchable) continue;
-      let n = 0;
-      const cap = GLOBAL_CAP[c.id] ?? Infinity;
-      for (const item of c.items) {
-        if (n >= cap) break;
-        if (!matches(item, q, english)) continue;
-        // A sticker can share its file with a brand graphic; show it once.
-        const dedupe = item.thumb.t === 'img' ? item.thumb.src : item.key;
-        if (seen.has(dedupe)) continue;
-        seen.add(dedupe);
-        out.push(item);
-        n++;
-      }
-    }
-    return out;
+    return searchElements(catalog, q, category);
   }, [hasQuery, q, category, catalog]);
 
   const openCategory = (id: CategoryId) => {
