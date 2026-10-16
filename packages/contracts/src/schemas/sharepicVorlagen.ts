@@ -8,6 +8,7 @@
  */
 import { z } from 'zod';
 
+import { printFormatIdSchema } from './printCreator.js';
 import {
   sharepicCreatorLocaleSchema,
   sharepicFormatSchema,
@@ -97,6 +98,65 @@ export const sharepicSeiteSchema = sharepicSeiteFileEntrySchema.extend({
   thumbVersion: z.string().optional(),
 });
 export type SharepicSeite = z.infer<typeof sharepicSeiteSchema>;
+
+/**
+ * Every canvas format a document can have — the sharepic ones, the square
+ * profile picture (also the sticker sheet) and print. Mirrors `CANVAS_FORMATS`
+ * in the canvas editor, which checks itself against this list.
+ */
+export const canvasFormatIdSchema = z.enum([
+  ...sharepicFormatSchema.options,
+  'profile-square',
+  ...printFormatIdSchema.options,
+]);
+export type CanvasFormatId = z.infer<typeof canvasFormatIdSchema>;
+
+/** Whether a value holds a `blob:` URL anywhere — it dies with the tab that made it. */
+const holdsBlobUrl = (value: unknown): boolean =>
+  typeof value === 'string'
+    ? value.startsWith('blob:')
+    : Array.isArray(value)
+      ? value.some(holdsBlobUrl)
+      : typeof value === 'object' && value !== null && Object.values(value).some(holdsBlobUrl);
+
+/** A page as the editor holds it: its template and that template's state. */
+export const canvasVorlagePageSchema = z.object({
+  configId: z.string().min(1).max(40),
+  state: z
+    .record(z.string(), z.unknown())
+    .refine((state) => !holdsBlobUrl(state), 'holds a blob: URL — upload the image first'),
+});
+export type CanvasVorlagePage = z.infer<typeof canvasVorlagePageSchema>;
+
+/**
+ * A Grünerator-Vorlage for any format, saved as finished editor pages instead
+ * of a sharepic spec — exported from the editor by an instance admin. The
+ * Vorlagen tab offers the ones of the document's format. Entries live in the
+ * private checkout (`sharepic-vorlagen/canvas/{de,at}.json`).
+ */
+export const canvasVorlageFileEntrySchema = z.object({
+  id: sharepicVorlageIdSchema,
+  titel: z.string().min(1).max(80),
+  beschreibung: z.string().max(280),
+  format: canvasFormatIdSchema,
+  pages: z.array(canvasVorlagePageSchema).min(1).max(30),
+});
+export type CanvasVorlageFileEntry = z.infer<typeof canvasVorlageFileEntrySchema>;
+
+export const canvasVorlageSchema = canvasVorlageFileEntrySchema.extend({
+  locale: sharepicCreatorLocaleSchema,
+  /** Content hash of the preview; clients pass it on to `canvasVorlageThumbPath`. */
+  thumbVersion: z.string().optional(),
+});
+export type CanvasVorlage = z.infer<typeof canvasVorlageSchema>;
+
+export const canvasVorlagenListResponseSchema = z.object({
+  vorlagen: z.array(canvasVorlageSchema),
+});
+
+/** A canvas Vorlage's preview (its first page), served from the private checkout. */
+export const canvasVorlageThumbPath = (id: string, version?: string): string =>
+  `/api/sharepic-vorlagen/canvas/${encodeURIComponent(id)}/thumb${version ? `?v=${encodeURIComponent(version)}` : ''}`;
 
 export const sharepicSeitenListResponseSchema = z.object({
   seiten: z.array(sharepicSeiteSchema),

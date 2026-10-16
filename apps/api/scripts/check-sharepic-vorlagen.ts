@@ -1,7 +1,7 @@
 /**
  * Editorial check of the private sharepic Vorlagen catalogue
- * (`$INTERN_CONTENT_DIR/sharepic-vorlagen/{de,at}.json` and the single Seiten
- * in `seiten/{de,at}.json`). Run before merging a catalogue change in
+ * (`$INTERN_CONTENT_DIR/sharepic-vorlagen/{de,at}.json`, the single Seiten
+ * in `seiten/{de,at}.json` and the canvas Vorlagen in `canvas/{de,at}.json`). Run before merging a catalogue change in
  * gruenerator-intern:
  *
  *   INTERN_CONTENT_DIR=… pnpm --filter @gruenerator/api vorlagen:check
@@ -13,6 +13,8 @@
 import { existsSync } from 'node:fs';
 
 import {
+  canvasVorlageThumbFile,
+  listCanvasVorlagen,
   listSharepicSeiten,
   listSharepicVorlagen,
   sharepicSeiteThumbFile,
@@ -22,6 +24,7 @@ import { seiteProblems, vorlageProblems } from '../services/sharepicVorlagen/vor
 
 const vorlagen = listSharepicVorlagen(null);
 const seiten = listSharepicSeiten(null);
+const canvas = listCanvasVorlagen(null);
 let failed = vorlagen.length === 0;
 if (failed) console.error('No Vorlagen loaded — is INTERN_CONTENT_DIR set?');
 
@@ -51,10 +54,16 @@ for (const s of seiten) {
   report(`seite ${s.id}`, problems);
 }
 
+for (const v of canvas) {
+  const thumb = canvasVorlageThumbFile(v.id);
+  report(`canvas ${v.id}`, thumb && existsSync(thumb) ? [] : ['no thumbnail (export it again)']);
+}
+
 const count = <T extends { locale: string }>(list: T[], locale: string) =>
   list.filter((v) => v.locale === locale).length;
 console.log(
   `${vorlagen.length} Vorlagen (DE ${count(vorlagen, 'de-DE')}, AT ${count(vorlagen, 'de-AT')}), ` +
-    `${seiten.length} Seiten (DE ${count(seiten, 'de-DE')}, AT ${count(seiten, 'de-AT')})`
+    `${seiten.length} Seiten (DE ${count(seiten, 'de-DE')}, AT ${count(seiten, 'de-AT')}), ` +
+    `${canvas.length} canvas Vorlagen (DE ${count(canvas, 'de-DE')}, AT ${count(canvas, 'de-AT')})`
 );
 process.exit(failed ? 1 : 0);

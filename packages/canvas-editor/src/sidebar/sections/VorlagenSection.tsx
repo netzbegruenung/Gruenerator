@@ -6,14 +6,18 @@
  * replaced or asked. A Vorlage's slides come as Seiten of their own and stay
  * together in their order; the ones most like the design come first.
  *
- * A print design is one sheet set, so its Vorlagen stay whole: a pick lands on
+ * Every other format shows whole Vorlagen of exactly its size: the print
+ * Vorlagen, which ship with this package, and the canvas Vorlagen — finished
+ * pages such as the stickers — from the host (`listCanvas`). A pick lands on
  * an empty design straight away; on one with content it asks first — open the
  * Vorlage as a new design, or replace this design with it (one undo step,
  * offered back through the top bar banner).
  */
 import {
+  canvasVorlageThumbPath,
   sharepicFormatSchema,
   sharepicSeiteThumbPath,
+  type CanvasVorlage,
   type SharepicFormat,
   type SharepicSeite,
   type SharepicSeiteTyp,
@@ -85,7 +89,7 @@ export interface VorlagenSectionProps {
   canAddPage: boolean;
 }
 
-/** One print Vorlage tile. */
+/** One whole-Vorlage tile, print or canvas. */
 interface VorlageCard {
   id: string;
   titel: string;
@@ -118,6 +122,25 @@ function printCard(
       return composed.slides.map((state) => ({ configId: composed.templateType, state }));
     },
     openAsNew: openPrintAsNew ? () => openPrintAsNew(vorlage) : null,
+  };
+}
+
+function canvasCard(vorlage: CanvasVorlage): VorlageCard {
+  return {
+    id: vorlage.id,
+    titel: vorlage.titel,
+    beschreibung: vorlage.beschreibung,
+    thumb: canvasVorlageThumbPath(vorlage.id, vorlage.thumbVersion),
+    seiten: vorlage.pages.length,
+    // The pages are finished already; a copy, so the cached catalogue stays untouched.
+    compose: () =>
+      Promise.resolve(
+        vorlage.pages.map((page) => ({
+          configId: page.configId,
+          state: structuredClone(page.state),
+        }))
+      ),
+    openAsNew: null,
   };
 }
 
@@ -238,7 +261,7 @@ function LoadError({ text, onRetry }: { text: string; onRetry: () => void }) {
   );
 }
 
-/** A print Vorlage tile; the pick button covers the image. */
+/** A whole-Vorlage tile; the pick button covers the image. */
 function VorlageTile({
   vorlage,
   aspect,
@@ -257,15 +280,21 @@ function VorlageTile({
   canDrag: boolean;
   onPick: () => void;
 }) {
+  // A preview that failed to load (none exported yet) leaves the tile plain, not a broken image.
+  const [broken, setBroken] = useState(false);
   return (
     <li className="flex flex-col gap-1">
       <span className={cn('group', TILE_IMAGE, aspect)} style={aspectStyle}>
-        <img
-          src={vorlage.thumb}
-          alt=""
-          loading="lazy"
-          className="size-full object-cover transition-transform duration-150 group-hover:scale-[1.02]"
-        />
+        {broken ? null : (
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- onError ist ein technischer Ladefehler-Fallback, keine Bedienung
+          <img
+            src={vorlage.thumb}
+            alt=""
+            loading="lazy"
+            onError={() => setBroken(true)}
+            className="size-full object-cover transition-transform duration-150 group-hover:scale-[1.02]"
+          />
+        )}
         <button
           type="button"
           title={vorlage.beschreibung}
@@ -305,6 +334,8 @@ export function VorlagenSection({
   const [seitenLoad, setSeitenLoad] = useState<Load<SeiteTile>>({ status: 'loading' });
   const [seitenAttempt, setSeitenAttempt] = useState(0);
   const [typ, setTyp] = useState<SharepicSeiteTyp | 'alle'>('alle');
+  const [canvasLoad, setCanvasLoad] = useState<Load<VorlageCard>>({ status: 'loading' });
+  const [canvasAttempt, setCanvasAttempt] = useState(0);
 
   const format = getCanvasFormat(formatId);
   const printFormat = format && isPrintFormat(format) ? format : null;
@@ -312,6 +343,7 @@ export function VorlagenSection({
   const seitenFormat = sharepicFormat.success ? sharepicFormat.data : null;
   const listSeiten = service?.listSeiten;
   const composeSeite = service?.composeSeite;
+  const listCanvas = service?.listCanvas;
 
   useEffect(() => {
     if (!listSeiten || !seitenFormat) return;
@@ -335,6 +367,29 @@ export function VorlagenSection({
     };
   }, [listSeiten, seitenFormat, seitenAttempt, atOpen]);
 
+  // Sharepic formats are built from Seiten; every other format gets its canvas Vorlagen.
+  useEffect(() => {
+    if (seitenFormat || !listCanvas) return;
+    let live = true;
+    listCanvas().then(
+      (vorlagen) => {
+        if (live) {
+          setCanvasLoad({
+            status: 'ready',
+            items: vorlagen.filter((v) => v.format === formatId).map(canvasCard),
+          });
+        }
+      },
+      (err: unknown) => {
+        console.warn('[VorlagenSection] loading the canvas Vorlagen failed', err);
+        if (live) setCanvasLoad({ status: 'error' });
+      }
+    );
+    return () => {
+      live = false;
+    };
+  }, [listCanvas, seitenFormat, formatId, canvasAttempt]);
+
   // One print Vorlage per format and country, shipped with the package: nothing to load or rank.
   const printCards =
     printFormat && service
@@ -342,6 +397,8 @@ export function VorlagenSection({
           .filter((v) => v.spec.format === printFormat.id)
           .map((v) => printCard(v, printFormat, service))
       : [];
+  const canvas: Load<VorlageCard> = listCanvas ? canvasLoad : { status: 'ready', items: [] };
+  const wholeCards = [...printCards, ...(canvas.status === 'ready' ? canvas.items : [])];
 
   const apply = async (vorlage: VorlageCard, replacing: boolean) => {
     setBusyId(vorlage.id);
@@ -389,7 +446,7 @@ export function VorlagenSection({
 
   useImperativeHandle(ref, () => ({
     drop: (id, pageId) => {
-      const vorlage = printCards.find((v) => v.id === id);
+      const vorlage = wholeCards.find((v) => v.id === id);
       if (vorlage) {
         choose(vorlage);
         return;
@@ -414,15 +471,14 @@ export function VorlagenSection({
     vorlage?.openAsNew?.();
   };
 
-  // A print card shows its sheet as it is; the sharepic grid keeps its classes.
-  const aspect = printFormat
-    ? ''
-    : formatId === 'post-portrait-tall'
+  // A whole Vorlage shows its sheet as it is; the sharepic grid keeps its classes.
+  const aspect = seitenFormat
+    ? formatId === 'post-portrait-tall'
       ? 'aspect-[3/4]'
-      : 'aspect-[4/5]';
-  const aspectStyle = printFormat
-    ? { aspectRatio: `${printFormat.width} / ${printFormat.height}` }
-    : undefined;
+      : 'aspect-[4/5]'
+    : '';
+  const aspectStyle =
+    !seitenFormat && format ? { aspectRatio: `${format.width} / ${format.height}` } : undefined;
 
   const errorLine = applyError && (
     <p role="alert" className="m-0 text-[13px] text-[var(--editor-danger-fg)]">
@@ -430,12 +486,22 @@ export function VorlagenSection({
     </p>
   );
 
-  const printView =
-    printCards.length === 0 ? (
+  const wholeView =
+    canvas.status === 'error' ? (
+      <LoadError
+        text="Vorlagen konnten nicht geladen werden."
+        onRetry={() => {
+          setCanvasLoad({ status: 'loading' });
+          setCanvasAttempt((n) => n + 1);
+        }}
+      />
+    ) : canvas.status === 'loading' && wholeCards.length === 0 ? (
+      <LoadingGrid aspect={aspect} aspectStyle={aspectStyle} label="Vorlagen laden" />
+    ) : wholeCards.length === 0 ? (
       <p className={HINT}>Für dieses Format gibt es noch keine Vorlagen.</p>
     ) : (
       <ul className="m-0 grid w-full list-none grid-cols-2 gap-2 p-0">
-        {printCards.map((vorlage) => (
+        {wholeCards.map((vorlage) => (
           <VorlageTile
             key={vorlage.id}
             vorlage={vorlage}
@@ -539,7 +605,7 @@ export function VorlagenSection({
   return (
     <div className="flex w-full flex-col gap-2.5">
       {errorLine}
-      {printFormat ? printView : seitenView}
+      {seitenFormat ? seitenView : wholeView}
 
       <AlertDialog open={asking !== null} onOpenChange={(open) => !open && setAsking(null)}>
         <AlertDialogContent>

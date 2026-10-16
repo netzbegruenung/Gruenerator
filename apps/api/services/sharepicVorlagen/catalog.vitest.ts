@@ -5,8 +5,11 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  canvasVorlageThumbFile,
+  getCanvasVorlage,
   getSharepicSeite,
   getSharepicVorlage,
+  listCanvasVorlagen,
   listSharepicSeiten,
   listSharepicVorlagen,
   resetSharepicVorlagenCache,
@@ -269,5 +272,55 @@ describe('sharepic Seiten catalogue', () => {
     vi.advanceTimersByTime(31_000);
     writeFileSync(path.join(thumbs, 'de-text.post-portrait.webp'), 'bild-zwei');
     expect(getSharepicSeite('de-text')?.thumbVersion).not.toBe(first);
+  });
+});
+
+const canvasEntry = (id: string, state: Record<string, unknown> = { text: 'Hallo' }) => ({
+  id,
+  titel: `Titel ${id}`,
+  beschreibung: 'Ein Sticker.',
+  format: 'profile-square',
+  pages: [{ configId: 'sticker', state }],
+});
+
+describe('canvas Vorlagen catalogue', () => {
+  it('keeps the countries apart and carries the file country', () => {
+    writeCatalog({
+      'de.json': [entry('de-rad', 'de-DE', 'tanne')],
+      'canvas/de.json': [canvasEntry('sticker-danke')],
+      'canvas/at.json': [canvasEntry('sticker-at')],
+    });
+    expect(listCanvasVorlagen('de-DE').map((v) => v.id)).toEqual(['sticker-danke']);
+    expect(listCanvasVorlagen(null)).toHaveLength(2);
+    expect(getCanvasVorlage('sticker-at')).toMatchObject({
+      locale: 'de-AT',
+      format: 'profile-square',
+    });
+    expect(listSharepicVorlagen(null).map((v) => v.id)).toEqual(['de-rad']);
+  });
+
+  it('skips an unknown format, a page with a blob: URL and a duplicate', () => {
+    writeCatalog({
+      'canvas/de.json': [
+        canvasEntry('sticker-danke'),
+        { ...canvasEntry('falsches-format'), format: 'banner-xxl' },
+        canvasEntry('tab-bild', { image: { src: 'blob:http://localhost/1' } }),
+        canvasEntry('sticker-danke'),
+      ],
+    });
+    expect(listCanvasVorlagen(null).map((v) => v.id)).toEqual(['sticker-danke']);
+  });
+
+  it('resolves the preview for known ids and versions it by the image', () => {
+    writeCatalog({ 'canvas/de.json': [canvasEntry('sticker-danke')] });
+    expect(canvasVorlageThumbFile('unbekannt')).toBeNull();
+    expect(getCanvasVorlage('sticker-danke')?.thumbVersion).toBeUndefined();
+
+    mkdirSync(path.join(root, 'sharepic-vorlagen', 'thumbs', 'canvas'), { recursive: true });
+    const thumb = path.join(root, 'sharepic-vorlagen', 'thumbs', 'canvas', 'sticker-danke.webp');
+    writeFileSync(thumb, 'bild');
+    resetSharepicVorlagenCache();
+    expect(canvasVorlageThumbFile('sticker-danke')).toBe(thumb);
+    expect(getCanvasVorlage('sticker-danke')?.thumbVersion).toEqual(expect.any(String));
   });
 });

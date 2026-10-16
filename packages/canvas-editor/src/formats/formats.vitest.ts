@@ -1,3 +1,4 @@
+import { canvasFormatIdSchema } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -20,6 +21,12 @@ const print = (id: string): PrintCanvasFormat => {
 };
 
 describe('Format-Ids', () => {
+  it('match the contract list the Vorlagen catalogue validates against', () => {
+    expect(CANVAS_FORMATS.map((f) => f.id).sort()).toEqual(
+      [...canvasFormatIdSchema.options].sort()
+    );
+  });
+
   // F0: die Ids stehen in gespeicherten Leinwänden. Umbenennen gibt es nicht.
   it('bleiben unverändert', () => {
     expect(CANVAS_FORMATS.map((f) => [f.id, f.category])).toEqual([

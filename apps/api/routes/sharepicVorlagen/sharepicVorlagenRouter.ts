@@ -9,8 +9,11 @@ import { sharepicVorlagenContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import {
+  canvasVorlageThumbFile,
+  getCanvasVorlage,
   getSharepicSeite,
   getSharepicVorlage,
+  listCanvasVorlagen,
   listSharepicSeiten,
   listSharepicVorlagen,
   sharepicSeiteThumbFile,
@@ -41,6 +44,11 @@ export const sharepicVorlagenContractRouter = s.router(sharepicVorlagenContract,
     const locale = await resolveVorlagenLocale(req, query.land);
     return { status: 200 as const, body: { seiten: listSharepicSeiten(locale) } };
   },
+  canvas: async ({ req, query }) => {
+    getAuthedUser(req);
+    const locale = await resolveVorlagenLocale(req, query.land);
+    return { status: 200 as const, body: { vorlagen: listCanvasVorlagen(locale) } };
+  },
   get: async ({ req, params }) => {
     getAuthedUser(req);
     const vorlage = getSharepicVorlage(params.id);
@@ -69,6 +77,11 @@ function sendSeiteThumb(req: Request, res: Response): void {
   );
 }
 
+function sendCanvasThumb(req: Request, res: Response): void {
+  const id = String(req.params.id);
+  sendThumbFile(req, res, canvasVorlageThumbFile(id), getCanvasVorlage(id)?.thumbVersion);
+}
+
 function sendThumbFile(
   req: Request,
   res: Response,
@@ -93,6 +106,7 @@ function sendThumbFile(
 export function mountSharepicVorlagenRouter(app: Application): void {
   app.get('/api/sharepic-vorlagen/:id/thumb', sendThumb);
   app.get('/api/sharepic-vorlagen/seiten/:id/thumb', sendSeiteThumb);
+  app.get('/api/sharepic-vorlagen/canvas/:id/thumb', sendCanvasThumb);
   createExpressEndpoints(sharepicVorlagenContract, sharepicVorlagenContractRouter, app, {
     requestValidationErrorHandler: logContractValidationError(log, 'sharepicVorlagenContract'),
   });

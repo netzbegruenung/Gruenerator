@@ -16,6 +16,9 @@ const m = vi.hoisted(() => ({
   listSharepicSeiten: vi.fn((locale: string) => [{ id: `seite-${locale}` }]),
   getSharepicSeite: vi.fn(),
   sharepicSeiteThumbFile: vi.fn(),
+  listCanvasVorlagen: vi.fn((locale: string) => [{ id: `canvas-${locale}` }]),
+  getCanvasVorlage: vi.fn(),
+  canvasVorlageThumbFile: vi.fn(),
 }));
 
 vi.mock('../../utils/adminAuthz.js', () => ({ isInstanceAdmin: m.isInstanceAdmin }));
@@ -26,6 +29,9 @@ vi.mock('../../services/sharepicVorlagen/catalog.js', () => ({
   listSharepicSeiten: m.listSharepicSeiten,
   getSharepicSeite: m.getSharepicSeite,
   sharepicSeiteThumbFile: m.sharepicSeiteThumbFile,
+  listCanvasVorlagen: m.listCanvasVorlagen,
+  getCanvasVorlage: m.getCanvasVorlage,
+  canvasVorlageThumbFile: m.canvasVorlageThumbFile,
 }));
 
 const { sharepicVorlagenContractRouter, mountSharepicVorlagenRouter } =
@@ -66,6 +72,8 @@ function requestThumb(query: Record<string, string>, route = '/api/sharepic-vorl
   m.sharepicVorlageThumbFile.mockReturnValue(thumbFile);
   m.getSharepicSeite.mockReturnValue({ id: 'de-rad', thumbVersion: 'abc123abc123' });
   m.sharepicSeiteThumbFile.mockReturnValue(thumbFile);
+  m.getCanvasVorlage.mockReturnValue({ id: 'de-rad', thumbVersion: 'abc123abc123' });
+  m.canvasVorlageThumbFile.mockReturnValue(thumbFile);
   let handler: (req: unknown, res: unknown) => void = () => {};
   mountSharepicVorlagenRouter({
     get: (path: string, h: typeof handler) => {
@@ -140,4 +148,27 @@ it('routes /seiten to the Seiten list, not to the Vorlage with id "seiten"', asy
   } finally {
     server.close();
   }
+});
+
+it('lists the canvas Vorlagen of the viewer country, the other one only for an admin', async () => {
+  const canvas = (land?: 'de-AT') =>
+    (
+      sharepicVorlagenContractRouter.canvas as unknown as (
+        args: unknown
+      ) => Promise<{ body: { vorlagen: Array<{ id: string }> } }>
+    )({
+      req: { user: { id: 'viewer', locale: 'de-DE' }, headers: {} },
+      query: land ? { land } : {},
+    });
+  m.isInstanceAdmin.mockResolvedValue(false);
+  expect((await canvas('de-AT')).body.vorlagen).toEqual([{ id: 'canvas-de-DE' }]);
+  m.isInstanceAdmin.mockResolvedValue(true);
+  expect((await canvas('de-AT')).body.vorlagen).toEqual([{ id: 'canvas-de-AT' }]);
+});
+
+it('serves a canvas Vorlage preview, immutable with the current version', () => {
+  const route = '/api/sharepic-vorlagen/canvas/:id/thumb';
+  expect(requestThumb({ v: 'abc123abc123' }, route)).toBe('private, max-age=31536000, immutable');
+  expect(m.canvasVorlageThumbFile).toHaveBeenLastCalledWith('de-rad');
+  expect(requestThumb({}, route)).toBe('private, no-cache');
 });
