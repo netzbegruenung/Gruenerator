@@ -182,6 +182,22 @@ describe('no library cap', () => {
     }
   );
 
+  it('keeps an infographic illustration out of the Mediathek but marks it as KI', async () => {
+    await acceptingInserts().uploadMediaFile('user-1', {
+      fileBuffer: PNG_1PX,
+      originalFilename: 'infografik-illustration.png',
+      mimeType: 'image/png',
+      title: 'Infografik-Illustration (KI)',
+      altText: null,
+      uploadSource: 'sharepic-illustration',
+    });
+
+    const insert = queryOne.mock.calls.find(([sql]) => sql.includes('INSERT INTO shared_media'));
+    const params = insert?.[1] as unknown[];
+    expect(params[9]).toBe(false); // is_library_item
+    expect(params[14]).toBe('ki'); // content_origin
+  });
+
   it('createImageShare deletes nothing', async () => {
     const share = await acceptingInserts().createImageShare('user-1', {
       imageBase64: `data:image/png;base64,${PNG_1PX.toString('base64')}`,

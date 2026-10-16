@@ -2,8 +2,9 @@
  * An infographic's illustrations: FLUX.2 [klein] on Melious paints each point's
  * motive as a flat spot illustration on white, one call per motive, in
  * parallel. The white is cut away from the edges inward (white inside the
- * motive stays), the result is padded to a square and stored in the user's
- * media library; the spec carries it as `ki:<shareToken>`. Text never comes
+ * motive stays), the result is padded to a square and stored as an internal
+ * share — not a Mediathek item, a deck would scatter one per point there; the
+ * spec carries it as `ki:<shareToken>`. Text never comes
  * from the model — the composer sets titles and numbers as editable layers.
  */
 import fs from 'node:fs/promises';
@@ -242,7 +243,7 @@ export function createIllustrationPainter(userId: string): IllustrationPainter {
             mimeType: 'image/png',
             title: 'Infografik-Illustration (KI)',
             altText: motiv.slice(0, 300),
-            uploadSource: 'ai_generated',
+            uploadSource: 'sharepic-illustration',
           });
           return `ki:${share.shareToken}`;
         } catch (error) {
