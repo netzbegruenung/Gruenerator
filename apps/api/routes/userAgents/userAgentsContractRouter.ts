@@ -39,6 +39,7 @@ import { logContractValidationError } from '../../utils/contractValidationLogger
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
+import { buildRecipeCatalog } from '../chat/agents/recipeCatalog.js';
 
 import type { Application } from 'express';
 
@@ -224,8 +225,16 @@ export const userAgentsContractRouter = s.router(userAgentsContract, {
 
   draft: async (args) => {
     try {
-      getAuthedUser(args.req);
-      const spec = await draftAgentSpec([{ role: 'user', content: args.body.description }]);
+      const user = getAuthedUser(args.req);
+      const recipes = await buildRecipeCatalog({
+        userId: user.id,
+        userLocale: user.locale ?? extractLocaleFromRequest(args.req),
+        roles: await loadUserRoles(user.id),
+      });
+      const spec = await draftAgentSpec(
+        [{ role: 'user', content: args.body.description }],
+        recipes
+      );
       return { status: 200 as const, body: { success: true, spec } };
     } catch (error) {
       const err = error as Error;
