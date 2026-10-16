@@ -44,6 +44,8 @@ export interface ToolbarBridgeState {
   handleOutlineChange: (id: string, patch: { stroke?: string; strokeWidth?: number }) => void;
   handleBlurChange: (id: string, blur: number) => void;
   handleGradientSelect: (gradient: GradientFill | null) => void;
+  /** Ausschnitt mode for the selected framed photo. */
+  handleCropImage: () => void;
 }
 
 interface ToolbarStateBridgeProps<
@@ -99,6 +101,10 @@ export function ToolbarStateBridge<
   });
 
   const setSelectedElement = useCanvasStoreSelector((s) => s.setSelectedElement);
+  const setCroppingElement = useCanvasStoreSelector((s) => s.setCroppingElement);
+  const isCropping = useCanvasStoreSelector(
+    (s) => s.croppingElement !== null && s.croppingElement === s.selectedElement
+  );
 
   /**
    * Vorlagen-Grafiken liegen in keiner Sammlung des Zustands — gefunden werden
@@ -163,6 +169,7 @@ export function ToolbarStateBridge<
       handleOutlineChange: floatingHandlers.handleOutlineChange,
       handleBlurChange: floatingHandlers.handleBlurChange,
       handleGradientSelect: floatingHandlers.handleGradientSelect,
+      handleCropImage: () => setCroppingElement(isCropping ? null : selectedElement),
     };
   });
 
@@ -177,8 +184,10 @@ export function ToolbarStateBridge<
       canMoveDown: layerControls.canMoveDown,
       canDuplicate,
       canDelete,
+      isCropping,
     });
   }, [
+    isCropping,
     selectedElement,
     activeFloatingModule,
     canUndo,

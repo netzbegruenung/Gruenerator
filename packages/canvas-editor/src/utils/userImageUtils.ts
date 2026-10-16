@@ -42,8 +42,11 @@ export interface UserImageInstance {
   /** Mirrored left–right / top–bottom; flips the pixels, not the node. */
   flipX?: boolean;
   flipY?: boolean;
-  /** `cover`: the source is cropped (Konva `crop`) to fill width × height, centred. */
+  /** `cover`: the source is cropped (Konva `crop`) to fill width × height. */
   fit?: 'cover';
+  /** `cover` only: where the photo sits in its frame, a share of its overhang (-1 … 1, 0 centred). */
+  panX?: number;
+  panY?: number;
   /** `kreis`: clipped to the circle inside width × height. */
   mask?: 'kreis';
   /** Stock credit (Unsplash): the photo is hotlinked, so the credit travels with it. */
@@ -74,17 +77,6 @@ export interface ImageCrop {
   y: number;
   width: number;
   height: number;
-}
-
-/** The centred part of a `natural` source that fills a `frame` without distortion (Konva `crop`). */
-export function coverCrop(
-  natural: { width: number; height: number },
-  frame: { width: number; height: number }
-): ImageCrop {
-  const scale = Math.max(frame.width / natural.width, frame.height / natural.height);
-  const width = frame.width / scale;
-  const height = frame.height / scale;
-  return { x: (natural.width - width) / 2, y: (natural.height - height) / 2, width, height };
 }
 
 export interface CropPreset {

@@ -78,6 +78,8 @@ export interface CanvasEditorState<
    * was replaced in one Yjs step) reverts through the page-level undo instead.
    */
   pendingAiSuggestion: PendingAiSuggestion | null;
+  /** The framed photo in Ausschnitt mode (its photo moves inside the frame); null otherwise. */
+  croppingElement: string | null;
 }
 
 export interface CanvasEditorActions<
@@ -107,6 +109,7 @@ export interface CanvasEditorActions<
   resetTemplateScopedState: () => void;
 
   setPendingAiSuggestion: (pending: PendingAiSuggestion | null) => void;
+  setCroppingElement: (id: string | null) => void;
 }
 
 export interface CanvasEditorGetters {
@@ -126,7 +129,11 @@ export type CanvasEditorStoreState<
 // (Element-Transformer, Pille, Sheets) lesen nur `selectedElement` und treten
 // bei Mehrfachauswahl so von selbst zurück.
 function applySelection(
-  state: { selectedLayerIds: string[]; selectedElement: string | null },
+  state: {
+    selectedLayerIds: string[];
+    selectedElement: string | null;
+    croppingElement: string | null;
+  },
   ids: readonly string[]
 ): void {
   const unique = [...new Set(ids)];
@@ -136,6 +143,7 @@ function applySelection(
   if (current.length === unique.length && current.every((id, i) => id === unique[i])) return;
   state.selectedLayerIds = unique;
   state.selectedElement = unique.length === 1 ? unique[0] : null;
+  if (state.croppingElement !== state.selectedElement) state.croppingElement = null;
 }
 
 // =============================================================================
@@ -166,6 +174,7 @@ function createInitialState<
     renderVersion: 0,
     stateRestorationCallback: null,
     pendingAiSuggestion: null,
+    croppingElement: null,
   };
 }
 
@@ -369,6 +378,11 @@ export function createCanvasEditorStore<
       setPendingAiSuggestion: (pending) =>
         set((state) => {
           state.pendingAiSuggestion = pending;
+        }),
+
+      setCroppingElement: (id) =>
+        set((state) => {
+          state.croppingElement = id !== null && id === state.selectedElement ? id : null;
         }),
     }))
   );

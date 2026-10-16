@@ -178,6 +178,7 @@ export interface UseCanvasElementHandlersResult {
   handleFrameChange: (id: string, newAttrs: Partial<FrameInstance>) => void;
   handleFrameImageUpload: (id: string, file: File, objectUrl: string) => void;
   handleUserImageDragEnd: (id: string, x: number, y: number) => void;
+  handleUserImageCropEnd: (id: string, panX: number, panY: number) => void;
   handleUserImageTransformEnd: (
     id: string,
     x: number,
@@ -567,6 +568,13 @@ export function useCanvasElementHandlers<
     [actions]
   );
 
+  const handleUserImageCropEnd = useCallback(
+    (id: string, panX: number, panY: number) => {
+      actions.updateUserImage?.(id, { panX, panY });
+    },
+    [actions]
+  );
+
   const handleUserImageTransformEnd = useCallback(
     (id: string, x: number, y: number, width: number, height: number, rotation: number) => {
       actions.updateUserImage?.(id, { x, y, width, height, rotation });
@@ -619,6 +627,7 @@ export function useCanvasElementHandlers<
       handleFrameChange,
       handleFrameImageUpload,
       handleUserImageDragEnd,
+      handleUserImageCropEnd,
       handleUserImageTransformEnd,
       handleChartDragEnd,
       handleChartTransformEnd,
@@ -653,6 +662,7 @@ export function useCanvasElementHandlers<
       handleFrameChange,
       handleFrameImageUpload,
       handleUserImageDragEnd,
+      handleUserImageCropEnd,
       handleUserImageTransformEnd,
       handleChartDragEnd,
       handleChartTransformEnd,

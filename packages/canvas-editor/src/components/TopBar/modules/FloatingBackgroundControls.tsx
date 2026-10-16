@@ -209,7 +209,7 @@ export function BackgroundZoomControl({
           className="relative flex items-center select-none touch-none grow h-4"
           value={[scale]}
           onValueChange={(v) => onScaleChange(v[0])}
-          min={0.5}
+          min={1}
           max={3}
           step={0.01}
         >

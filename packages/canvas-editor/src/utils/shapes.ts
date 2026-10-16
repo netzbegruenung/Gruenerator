@@ -606,6 +606,32 @@ export interface ShapeInstance {
  */
 export const COMPOSER_PLANE_IDS: readonly string[] = ['sc-bg', 'sc-panel', 'sc-scrim', 'sc-tint'];
 
+/**
+ * The photo strip beside the composer's colour panel (`foto-oben` /
+ * `foto-unten`): the full-width part of the page the panel leaves free. The
+ * background photo is cover-fitted into it, so it pans inside the strip
+ * instead of sliding under the panel. Null when there is no such panel, or it
+ * no longer spans the page's width from one edge.
+ */
+export function photoStripBeside(
+  shapes: readonly ShapeInstance[] | null | undefined,
+  page: { width: number; height: number }
+): { x: number; y: number; width: number; height: number } | null {
+  const panel = shapes?.find((s) => s.id === 'sc-panel');
+  if (!panel || panel.type !== 'rect' || panel.rotation) return null;
+  const width = panel.width * (panel.scaleX ?? 1);
+  const height = panel.height * (panel.scaleY ?? 1);
+  const near = (a: number, b: number) => Math.abs(a - b) < 1;
+  if (!near(panel.x - width / 2, 0) || !near(width, page.width)) return null;
+  const top = panel.y - height / 2;
+  const bottom = panel.y + height / 2;
+  if (near(top, 0) && bottom < page.height - 1) {
+    return { x: 0, y: bottom, width: page.width, height: page.height - bottom };
+  }
+  if (near(bottom, page.height) && top > 1) return { x: 0, y: 0, width: page.width, height: top };
+  return null;
+}
+
 /** Any colour plane the composer lays under the text, the header band and comparison columns included. */
 export function isComposerPlane(id: string): boolean {
   return COMPOSER_PLANE_IDS.includes(id) || id === 'sc-kopfband' || id.endsWith('-flaeche');

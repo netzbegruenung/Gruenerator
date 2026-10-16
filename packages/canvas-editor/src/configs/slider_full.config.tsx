@@ -15,6 +15,7 @@
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { AssetsSection, CombinedTextSection, FrameSettingsSection } from '../sidebar/sections';
+import { zoomBackground } from '../utils/coverFit';
 import { recolorIconInstances } from '../utils/iconInstances';
 import { createPillBadgeInstance } from '../utils/pillBadgeUtils';
 import {
@@ -1019,8 +1020,9 @@ function createSliderConfig(brand: SliderBrand): FullCanvasConfig<SliderState, S
           saveToHistory({ ...state, ...patch });
         },
         setImageScale: (scale: number) => {
-          setState({ imageScale: scale } as Partial<SliderState>);
-          debouncedSaveToHistory({ ...getState(), imageScale: scale });
+          const zoom = zoomBackground(getState(), scale, SLIDER_CONFIG.canvas);
+          setState(zoom as Partial<SliderState>);
+          debouncedSaveToHistory({ ...getState(), ...zoom });
         },
         toggleBackgroundLock: () => {
           const state = getState();

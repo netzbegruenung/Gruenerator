@@ -8,6 +8,7 @@ import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi'
 import { AssetsSection, FrameSettingsSection } from '../sidebar/sections';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { CANVAS_RECOMMENDED_ASSETS, type AssetInstance } from '../utils/canvasAssets';
+import { zoomBackground } from '../utils/coverFit';
 import { VERANSTALTUNG_CONFIG, calculateVeranstaltungLayout } from '../utils/veranstaltungLayout';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
@@ -502,7 +503,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<
     },
     // Photo band at the top (40% of the canvas). coverFit center-crops to 2:1 to
     // match the backend reference (veranstaltung_canvas.ts). Fixed slot, not
-    // draggable, and centerZoom so the shared 0.5–3 zoom magnifies about the slot
+    // draggable, and centerZoom so the shared 1–3 zoom magnifies about the slot
     // centre: zoom-in is a centred crop (no top-left bias, no re-centre needed)
     // and zoom-out shrinks toward the centre over the green plane behind it
     // instead of leaving a corner gap. order 0 keeps it behind the green section.
@@ -790,8 +791,14 @@ export const veranstaltungFullConfig: FullCanvasConfig<
         saveToHistory({ ...getState(), currentImageSrc: src ?? '', backgroundImageFile: file });
       },
       setImageScale: (scale: number) => {
-        setState((prev) => ({ ...prev, imageScale: scale }));
-        debouncedSaveToHistory({ ...getState(), imageScale: scale });
+        const zoom = zoomBackground(
+          getState(),
+          scale,
+          { width: VERANSTALTUNG_CONFIG.canvas.width, height: VERANSTALTUNG_CONFIG.photo.height },
+          true
+        );
+        setState((prev) => ({ ...prev, ...zoom }));
+        debouncedSaveToHistory({ ...getState(), ...zoom });
       },
       toggleBackgroundLock: () => {
         setState((prev) => ({ ...prev, isBackgroundLocked: !prev.isBackgroundLocked }));

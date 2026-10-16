@@ -280,7 +280,7 @@ const DREIZEILEN_DESCRIPTOR: SharepicTemplateDescriptor = {
       kind: 'asset',
       positionStateKey: 'imageOffset',
       bounds: { minX: -540, maxX: 540, minY: -675, maxY: 675 },
-      scale: { stateKey: 'imageScale', min: 0.5, max: 3 },
+      scale: { stateKey: 'imageScale', min: 1, max: 3 },
       opacity: { stateKey: 'backgroundImageOpacity', min: 0.2, max: 1 },
       presenceStateKey: 'currentImageSrc',
     },
@@ -578,7 +578,7 @@ function backgroundPhotoElement(options?: { opacity: false }): SharepicElementDe
     kind: 'asset',
     positionStateKey: 'imageOffset',
     bounds: { minX: -540, maxX: 540, minY: -675, maxY: 675 },
-    scale: { stateKey: 'imageScale', min: 0.5, max: 3 },
+    scale: { stateKey: 'imageScale', min: 1, max: 3 },
     ...(options?.opacity === false
       ? {}
       : { opacity: { stateKey: 'backgroundImageOpacity', min: 0.2, max: 1 } }),

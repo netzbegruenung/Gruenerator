@@ -14,7 +14,7 @@ import { IllustrationPrimitive } from '../primitives/IllustrationPrimitive';
 import { PillBadge } from '../primitives/PillBadge';
 import { ShapePrimitive } from '../primitives/ShapePrimitive';
 import { UserImagePrimitive } from '../primitives/UserImagePrimitive';
-import { useIsElementSelected } from '../stores/CanvasStoreProvider';
+import { useCanvasStoreSelector, useIsElementSelected } from '../stores/CanvasStoreProvider';
 import { getIconMapSync } from '../utils/canvasIcons';
 import { CANVAS_ITEM_NAME } from '../utils/deepSelect';
 import { resolveIconDef } from '../utils/iconInstances';
@@ -143,6 +143,7 @@ interface CanvasRenderLayerProps<
     handleFrameChange: (id: string, newAttrs: Partial<FrameInstance>) => void;
     handleFrameImageUpload: (id: string, file: File, objectUrl: string) => void;
     handleUserImageDragEnd: (id: string, x: number, y: number) => void;
+    handleUserImageCropEnd: (id: string, panX: number, panY: number) => void;
     handleUserImageTransformEnd: (
       id: string,
       x: number,
@@ -219,6 +220,8 @@ function CanvasRenderLayerInner<
   isFontAvailable,
   remoteSelections,
 }: CanvasRenderLayerProps<TState, TActions>) {
+  const croppingElement = useCanvasStoreSelector((s) => s.croppingElement);
+  const setCroppingElement = useCanvasStoreSelector((s) => s.setCroppingElement);
   const iconCarrier = state as TState & Partial<OptionalCanvasStateProperties>;
   useIconSetsFor(iconCarrier.selectedIcons, iconCarrier.iconStates);
 
@@ -485,6 +488,11 @@ function CanvasRenderLayerInner<
           onTransformEnd={(x: number, y: number, w: number, h: number, r: number) =>
             handlers.handleUserImageTransformEnd(userImage.id, x, y, w, h, r)
           }
+          onCropEnd={(panX: number, panY: number) =>
+            handlers.handleUserImageCropEnd(userImage.id, panX, panY)
+          }
+          isCropping={croppingElement === userImage.id}
+          onCroppingChange={(on: boolean) => setCroppingElement(on ? userImage.id : null)}
         />
       );
     }

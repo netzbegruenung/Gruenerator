@@ -179,6 +179,14 @@ export interface ImageElementConfig<
    * about the centre with no drift into a corner and no re-centring needed.
    */
   centerZoom?: boolean;
+  /**
+   * The part of the element's box a cover-fitted photo fills; the rest stays
+   * free. Null: the whole box. The composer's photo strips use it.
+   */
+  frame?: (
+    state: TState,
+    layout: LayoutResult
+  ) => { x: number; y: number; width: number; height: number } | null;
 }
 
 /** Rectangle element configuration */

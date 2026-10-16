@@ -20,7 +20,8 @@ import { AssetsSection } from '../sidebar';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
 import { CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
-import { COMPOSER_PLANE_IDS } from '../utils/shapes';
+import { zoomBackground } from '../utils/coverFit';
+import { COMPOSER_PLANE_IDS, photoStripBeside } from '../utils/shapes';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/actionFactories';
@@ -384,6 +385,7 @@ const withFreeformAi = (
       draggable: true,
       transformable: true,
       coverFit: true,
+      frame: (state: FreeformState) => photoStripBeside(state.shapeInstances, { width, height }),
       visible: (state: FreeformState) =>
         state.backgroundMode === 'image' && state.hasBackgroundImage,
       opacity: (state: FreeformState) => state.backgroundImageOpacity,
@@ -512,8 +514,16 @@ const withFreeformAi = (
       },
 
       setImageScale: (scale: number) => {
-        setState((prev) => ({ ...prev, imageScale: scale }));
-        debouncedSaveToHistory({ ...getState(), imageScale: scale });
+        const state = getState();
+        const zoom = zoomBackground(
+          state,
+          scale,
+          { width, height },
+          false,
+          photoStripBeside(state.shapeInstances, { width, height })
+        );
+        setState((prev) => ({ ...prev, ...zoom }));
+        debouncedSaveToHistory({ ...getState(), ...zoom });
       },
 
       handleBackgroundImageDragEnd: (x: number, y: number) => {

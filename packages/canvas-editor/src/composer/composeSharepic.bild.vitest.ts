@@ -7,7 +7,8 @@ import {
 import { describe, expect, it } from 'vitest';
 
 import { tintRamp } from '../utils/imageFilters';
-import { coverCrop, CROP_PRESETS, cropPresetUpdate } from '../utils/userImageUtils';
+import { framedPhotoRect, visiblePart } from '../utils/coverFit';
+import { CROP_PRESETS, cropPresetUpdate } from '../utils/userImageUtils';
 
 import { composeSharepic } from './composeSharepic';
 import { slideProvenance } from './sharepicProvenance';
@@ -186,6 +187,10 @@ describe('image tint and crop', () => {
   });
 
   it('crops the centred part that fills the frame', () => {
+    const coverCrop = (
+      natural: { width: number; height: number },
+      frame: { width: number; height: number }
+    ) => visiblePart(natural, framedPhotoRect(natural, frame), { x: 0, y: 0, ...frame })?.crop;
     expect(coverCrop({ width: 3000, height: 2000 }, { width: 1080, height: 360 })).toEqual({
       x: 0,
       y: 500,

@@ -280,6 +280,16 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
 
   if (!image) return null;
 
+  // The slot the photo fills: the element's own box before zoom and pan.
+  const frame = config.coverFit
+    ? (config.frame?.(state, layout) ?? {
+        x: resolveValue(config.x, state, layout),
+        y: resolveValue(config.y, state, layout),
+        width: resolveValue(config.width, state, layout),
+        height: resolveValue(config.height, state, layout),
+      })
+    : null;
+
   return (
     <CanvasImage
       id={config.id}
@@ -292,6 +302,7 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
       color={typeof fill === 'string' ? fill : undefined}
       adjustments={config.id === BACKGROUND_IMAGE_NODE_ID ? backgroundAdjustments(state) : null}
       coverFit={config.coverFit}
+      frame={frame}
       draggable={config.draggable && !isLocked}
       touchDragNeedsSelection={config.id === 'background-image'}
       selected={selected}

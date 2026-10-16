@@ -91,6 +91,8 @@ export interface ToolbarStateReport {
   /** Ist die Auswahl löschbar? Dieselbe Frage wie die Entf-Taste — siehe
    *  `utils/removeElement.ts`. */
   canDelete: boolean;
+  /** The selected framed photo is in Ausschnitt mode. */
+  isCropping: boolean;
 }
 
 export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActions> {
@@ -236,6 +238,7 @@ export interface GenericCanvasRef {
   handleShadowChange?: (id: string, patch: ShadowPatch, type: string) => void;
   handleOutlineChange?: (id: string, patch: { stroke?: string; strokeWidth?: number }) => void;
   handleBlurChange?: (id: string, blur: number) => void;
+  handleCropImage?: () => void;
   handleGradientSelect?: (gradient: GradientFill | null) => void;
 }
 
@@ -851,6 +854,7 @@ function GenericCanvasWithRef<
         bridgeRef.current?.handleShadowChange(id, patch, type),
       handleOutlineChange: (id, patch) => bridgeRef.current?.handleOutlineChange(id, patch),
       handleBlurChange: (id, blur) => bridgeRef.current?.handleBlurChange(id, blur),
+      handleCropImage: () => bridgeRef.current?.handleCropImage(),
       handleGradientSelect: (gradient) => bridgeRef.current?.handleGradientSelect(gradient),
     }),
     [
