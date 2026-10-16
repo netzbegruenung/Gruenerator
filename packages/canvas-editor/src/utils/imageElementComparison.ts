@@ -10,6 +10,8 @@
  * erzwingt.
  */
 
+import { backgroundAdjustments } from './imageFilters';
+import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo';
 import { assertAsPosition, assertAsSize } from './stateTypeAssertions';
 
 import type { ImageElementConfig, LayoutElementResult, LayoutResult } from '../configs/types';
@@ -86,6 +88,13 @@ export function imageRenderInputsAreEqual<TState extends Record<string, unknown>
 
   const fillKey = prev.config.fillStateKey;
   if (fillKey && prev.state[fillKey] !== next.state[fillKey]) return false;
+
+  if (
+    prev.config.id === BACKGROUND_IMAGE_NODE_ID &&
+    backgroundAdjustments(prev.state) !== backgroundAdjustments(next.state)
+  ) {
+    return false;
+  }
 
   // Derived source and tint (e.g. a mark that follows the background colour).
   const { src, fill } = prev.config;

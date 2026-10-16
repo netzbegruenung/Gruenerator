@@ -38,6 +38,7 @@ import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '../../utils/shapes';
 import type {
   ElementPlacement,
+  ImageAdjustments,
   UserImageInstance,
   UserImagePlacement,
 } from '../../utils/userImageUtils';
@@ -762,6 +763,18 @@ export function createUserImageActions<TState extends { userImageInstances: User
         userImageInstances: s.userImageInstances.map((u) =>
           u.id === id ? { ...u, ...partial } : u
         ),
+      });
+      setState(change);
+      debouncedSaveToHistory(change(getState()));
+    },
+    /** The template background photo's "Bearbeiten" look; merges like `updateUserImage`. */
+    updateBackgroundImageAdjustments: (partial: Partial<ImageAdjustments>) => {
+      const change = (s: TState): TState => ({
+        ...s,
+        backgroundImageAdjustments: {
+          ...(s as { backgroundImageAdjustments?: ImageAdjustments }).backgroundImageAdjustments,
+          ...partial,
+        },
       });
       setState(change);
       debouncedSaveToHistory(change(getState()));
