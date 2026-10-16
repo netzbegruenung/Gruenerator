@@ -147,7 +147,7 @@ export function VorlageDetailDialog({
               <span className="text-sm text-grey-500">Keine Vorschau verfügbar</span>
             )}
           </div>
-          {/* Every page at a glance; pointing at one is enough to show it large. */}
+          {/* Every page at a glance; choosing one shows it large. */}
           {pages.length > 1 && (
             <div role="group" aria-label="Seiten" className="flex gap-2 overflow-x-auto pb-1">
               {pages.map((p, i) => (
@@ -157,7 +157,6 @@ export function VorlageDetailDialog({
                   aria-label={`Seite ${i + 1} von ${pages.length} anzeigen`}
                   aria-current={i === page}
                   onClick={() => setPage(i)}
-                  onMouseEnter={() => setPage(i)}
                   onFocus={() => setPage(i)}
                   className={cn(
                     'h-20 shrink-0 overflow-hidden rounded-lg border-2 bg-background-alt transition-colors',

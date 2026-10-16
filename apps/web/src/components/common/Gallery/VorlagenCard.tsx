@@ -1,7 +1,7 @@
 import { resolveStoredImageUrl } from '@gruenerator/shared/media-library/shareUrl';
 import { Badge, InteractiveCard } from '@gruenerator/ui';
 import { Bookmark, ExternalLink, Heart, Image as ImageIcon } from 'lucide-react';
-import { memo, useRef, useState, type JSX, type ReactNode } from 'react';
+import { memo, useState, type JSX, type ReactNode } from 'react';
 
 import { galleryCard, overlayAction, overlayRow } from './parts';
 import { getTemplateFormat, ratioLabelFromSize } from './templateFormat';
@@ -90,9 +90,8 @@ const VorlagenCard = memo(
     // A thumbnail that fails to load shows the neutral placeholder, not a broken image.
     const [failedUrl, setFailedUrl] = useState<string | null>(null);
     const showThumbnail = Boolean(thumbnailUrl) && failedUrl !== thumbnailUrl;
-    // Shown page: follows the pointer across the stage, set by a dot, back to 1 on leave.
+    // Shown page, chosen with the dots.
     const [page, setPage] = useState(0);
-    const stageRef = useRef<HTMLDivElement>(null);
     const pageCount = pages && pages.length > 1 ? pages.length : 0;
     const shownUrl = (page > 0 && resolveApiAssetUrl(pages?.[page])) || thumbnailUrl;
     const format = getTemplateFormat(item, stored ?? measured);
@@ -103,28 +102,9 @@ const VorlagenCard = memo(
     const stop = (e: React.MouseEvent) => e.stopPropagation();
 
     return (
-      <InteractiveCard
-        label={title}
-        onActivate={onOpen}
-        className={galleryCard}
-        // On the card, not the stage: the card's click surface lies over the
-        // stage and takes every pointer event before the stage could see it.
-        {...(pageCount > 0 && {
-          onPointerMove: (e: React.PointerEvent<HTMLDivElement>) => {
-            if (e.pointerType !== 'mouse' || !stageRef.current) return;
-            const { left, top, width, height } = stageRef.current.getBoundingClientRect();
-            if (e.clientY < top || e.clientY > top + height) return;
-            const x = (e.clientX - left) / width;
-            setPage(Math.min(pageCount - 1, Math.max(0, Math.floor(x * pageCount))));
-          },
-          onPointerLeave: () => setPage(0),
-        })}
-      >
+      <InteractiveCard label={title} onActivate={onOpen} className={galleryCard}>
         {/* Square neutral stage — the thumbnail is contained, never cropped. */}
-        <div
-          ref={stageRef}
-          className="relative flex aspect-square w-full items-center justify-center overflow-hidden bg-background-alt"
-        >
+        <div className="relative flex aspect-square w-full items-center justify-center overflow-hidden bg-background-alt">
           {thumbnailUrl && shownUrl && showThumbnail ? (
             // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- onLoad misst nur die Bildmaße, keine Bedienung
             <img

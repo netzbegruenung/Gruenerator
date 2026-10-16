@@ -98,10 +98,10 @@ describe('SharepicVorlagenCards', () => {
     const dialog = await screen.findByRole('dialog');
     const seen: Array<string | null> = [];
     for (let i = 1; i <= 3; i++) {
-      await user.hover(within(dialog).getByRole('button', { name: `Seite ${i} von 3 anzeigen` }));
+      await user.click(within(dialog).getByRole('button', { name: `Seite ${i} von 3 anzeigen` }));
       seen.push(within(dialog).getByRole('img').getAttribute('alt'));
     }
-    await user.hover(within(dialog).getByRole('button', { name: 'Seite 1 von 3 anzeigen' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Seite 1 von 3 anzeigen' }));
     expect(seen).toEqual([
       'Seite 1 von 3: Zitat de-karussell',
       'Seite 2 von 3: Zitat de-karussell',
