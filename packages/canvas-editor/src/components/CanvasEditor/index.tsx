@@ -177,6 +177,7 @@ function CanvasEditorInner({
     pagesDoc,
     undoPageOp,
     redoPageOp,
+    discardReplaceDeck,
     replaceDeck,
     canUndoPageOp,
     canRedoPageOp,
@@ -539,6 +540,7 @@ function CanvasEditorInner({
     canRedoPageOp,
     undoPageOp,
     redoPageOp,
+    discardReplaceDeck,
   });
 
   const handleCaptureCanvas = useCallback(

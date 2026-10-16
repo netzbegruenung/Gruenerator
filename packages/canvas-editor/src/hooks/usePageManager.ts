@@ -124,6 +124,8 @@ export interface UsePageManagerReturn {
   undoPageOp: () => void;
   /** Redo the most recently undone page-level operation. */
   redoPageOp: () => void;
+  /** Verwerfen of a replaced deck, see `YjsPagesApi['discardReplaceDeck']`. */
+  discardReplaceDeck: () => void;
   /** Replace a deck's pages as ONE page-level undo step; null before the doc syncs. */
   replaceDeck: YjsPagesApi['replaceDeck'] | null;
   canUndoPageOp: boolean;
@@ -443,6 +445,7 @@ export function usePageManager({
   const noopUndo = useCallback(() => {}, []);
   const undoPageOp = yjsPages?.undoPageOp ?? noopUndo;
   const redoPageOp = yjsPages?.redoPageOp ?? noopUndo;
+  const discardReplaceDeck = yjsPages?.discardReplaceDeck ?? noopUndo;
   const replaceDeck = yjsPages?.replaceDeck ?? null;
   const canUndoPageOp = yjsPages?.canUndoPageOp ?? false;
   const canRedoPageOp = yjsPages?.canRedoPageOp ?? false;
@@ -468,6 +471,7 @@ export function usePageManager({
     getPageYMap,
     undoPageOp,
     redoPageOp,
+    discardReplaceDeck,
     replaceDeck,
     canUndoPageOp,
     canRedoPageOp,
