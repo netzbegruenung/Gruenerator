@@ -142,4 +142,19 @@ describe('imageRenderInputsAreEqual', () => {
       false
     );
   });
+
+  it('zeichnet neu, wenn Quelle oder Tönung aus dem Zustand folgt', () => {
+    // Das Anführungszeichen von zitat-pure folgt der Hintergrundfarbe — ohne
+    // diesen Vergleich blieb es nach dem Farbwechsel bis zum Neuladen stehen.
+    const config: ImageElementConfig<State> = {
+      ...arrowConfig,
+      src: (s) => (s.bg === 'dark' ? '/quote-white.svg' : '/quote.svg'),
+      fill: (s) => (s.bg === 'dark' ? '#FFFFFF' : ''),
+    };
+    const layout = layoutWithArrowY(280);
+    const at = (bg: string) => ({ config, state: { bg }, layout, selected: false });
+
+    expect(imageRenderInputsAreEqual(at('light'), at('dark'))).toBe(false);
+    expect(imageRenderInputsAreEqual(at('dark'), at('dark'))).toBe(true);
+  });
 });

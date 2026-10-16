@@ -9,12 +9,18 @@
  * Übernommen wird beim nativen `change` (der Wähler schließt), nicht bei
  * jedem `input`: sonst schriebe jedes Ziehen im Wähler einen eigenen
  * Rückgängig-Schritt. Wer live vorschauen will, gibt `onPreview` mit.
+ *
+ * Ohne `onPreview` übernimmt zusätzlich eine kurze Pause beim Ziehen: macOS
+ * lässt sein Farbfenster offen und feuert `change` erst beim Schließen — bis
+ * dahin sah man nichts, und klappte die Palette vorher zu, ging die Farbe
+ * samt Listener verloren. Beim Abbauen wird eine offene Wahl noch übernommen.
  */
 import { useEffect, useRef, type CSSProperties, type InputHTMLAttributes } from 'react';
 
 import { cn } from '../utils/cn';
 
 const HEX6 = /^#[0-9a-f]{6}$/i;
+const DRAG_COMMIT_MS = 250;
 const COLOR_WHEEL =
   'conic-gradient(from 180deg, #ff4d4d, #ffd84d, #6ccd87, #0ba1dd, #8a4dff, #ff4dc4, #ff4d4d)';
 
@@ -47,18 +53,37 @@ export function CustomColorSwatch({
   const inputRef = useRef<HTMLInputElement>(null);
   const hex = value && HEX6.test(value) ? value.toUpperCase() : null;
   const pickRef = useRef(onPick);
+  const hexRef = useRef(hex);
   useEffect(() => {
     pickRef.current = onPick;
-  }, [onPick]);
+    hexRef.current = hex;
+  }, [onPick, hex]);
+  const hasPreview = !!onPreview;
 
   // React's onChange is the `input` event; the commit belongs on the native `change`.
   useEffect(() => {
     const input = inputRef.current;
     if (!input) return;
-    const onChange = () => pickRef.current(input.value.toUpperCase());
-    input.addEventListener('change', onChange);
-    return () => input.removeEventListener('change', onChange);
-  }, []);
+    let pending: ReturnType<typeof setTimeout> | null = null;
+    const commit = () => {
+      if (pending) clearTimeout(pending);
+      pending = null;
+      const picked = input.value.toUpperCase();
+      // With a preview the value already shows the pick; the commit must still run.
+      if (hasPreview || picked !== hexRef.current) pickRef.current(picked);
+    };
+    const onInput = () => {
+      if (pending) clearTimeout(pending);
+      pending = setTimeout(commit, DRAG_COMMIT_MS);
+    };
+    input.addEventListener('change', commit);
+    if (!hasPreview) input.addEventListener('input', onInput);
+    return () => {
+      input.removeEventListener('change', commit);
+      input.removeEventListener('input', onInput);
+      if (pending) commit();
+    };
+  }, [hasPreview]);
 
   // Uncontrolled: a controlled value would snap the open picker back on every drag.
   useEffect(() => {
