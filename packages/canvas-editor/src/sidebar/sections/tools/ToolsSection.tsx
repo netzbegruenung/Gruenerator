@@ -46,9 +46,6 @@ interface ToolCard {
   /** Generative tools, grouped under "Mit KI" on mobile. */
   ai: boolean;
   icon: IconType | ComponentType<{ size?: number; className?: string }>;
-  iconColor: string;
-  hoverShadow: string;
-  ring: string;
   available: boolean;
 }
 
@@ -56,7 +53,7 @@ function ToolCardButton({
   card,
   onClick,
 }: {
-  card: Pick<ToolCard, 'label' | 'icon' | 'iconColor' | 'hoverShadow' | 'ring'>;
+  card: Pick<ToolCard, 'label' | 'icon'>;
   onClick: () => void;
 }) {
   const Icon = card.icon;
@@ -66,23 +63,17 @@ function ToolCardButton({
       onClick={onClick}
       className={cn(
         'group flex flex-col items-center gap-sm cursor-pointer bg-transparent border-none p-0 rounded-lg',
-        'focus-visible:outline-none focus-visible:ring-2',
-        card.ring
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600'
       )}
     >
       <div
         className={cn(
           'flex items-center justify-center size-20 rounded-full bg-transparent',
           'transition-[box-shadow] duration-200 ease-out',
-          card.hoverShadow
+          'group-hover:shadow-sm group-hover:shadow-editor-active-fg/15'
         )}
       >
-        <span
-          className={cn(
-            'inline-flex items-center justify-center transition-transform duration-200 ease-out group-hover:scale-[1.04] text-3xl',
-            card.iconColor
-          )}
-        >
+        <span className="inline-flex items-center justify-center transition-transform duration-200 ease-out group-hover:scale-[1.04] text-3xl text-editor-active-fg">
           <Icon size={48} />
         </span>
       </div>
@@ -170,9 +161,6 @@ export function ToolsSection({ onJumpToUploads, onPlaceImageUrl }: ToolsSectionP
       ai: false,
       label: 'Hintergrund entfernen',
       icon: HiScissors,
-      iconColor: 'text-editor-secondary-fg',
-      hoverShadow: 'group-hover:shadow-sm group-hover:shadow-editor-secondary-fg/15',
-      ring: 'focus-visible:ring-primary-600',
       available: !!removeBackgroundFromImage,
     },
     {
@@ -181,9 +169,6 @@ export function ToolsSection({ onJumpToUploads, onPlaceImageUrl }: ToolsSectionP
       ai: true,
       label: 'KI-Bild erstellen',
       icon: HiSparkles,
-      iconColor: 'text-editor-active-fg',
-      hoverShadow: 'group-hover:shadow-sm group-hover:shadow-editor-active-fg/15',
-      ring: 'focus-visible:ring-primary-600',
       available: !!generateAiImage,
     },
     {
@@ -192,9 +177,6 @@ export function ToolsSection({ onJumpToUploads, onPlaceImageUrl }: ToolsSectionP
       ai: true,
       label: 'Mit KI bearbeiten',
       icon: HiPencilSquare,
-      iconColor: 'text-editor-text',
-      hoverShadow: 'group-hover:shadow-sm',
-      ring: 'focus-visible:ring-primary-600',
       available: !!editAiImage,
     },
     {
@@ -203,9 +185,6 @@ export function ToolsSection({ onJumpToUploads, onPlaceImageUrl }: ToolsSectionP
       ai: false,
       label: 'Unsplash-Fotos',
       icon: HiPhoto,
-      iconColor: 'text-editor-secondary-fg',
-      hoverShadow: 'group-hover:shadow-sm group-hover:shadow-editor-secondary-fg/15',
-      ring: 'focus-visible:ring-primary-600',
       available: !!searchUnsplashImages && !!onPlaceImageUrl,
     },
     {
@@ -214,9 +193,6 @@ export function ToolsSection({ onJumpToUploads, onPlaceImageUrl }: ToolsSectionP
       ai: false,
       label: 'QR-Code erstellen',
       icon: HiQrCode,
-      iconColor: 'text-editor-text',
-      hoverShadow: 'group-hover:shadow-sm group-hover:shadow-editor-text/15',
-      ring: 'focus-visible:ring-primary-600',
       available: true,
     },
     {
@@ -225,9 +201,6 @@ export function ToolsSection({ onJumpToUploads, onPlaceImageUrl }: ToolsSectionP
       ai: false,
       label: 'Verlaufstext erstellen',
       icon: PiTextT,
-      iconColor: 'text-editor-active-fg',
-      hoverShadow: 'group-hover:shadow-sm group-hover:shadow-editor-active-fg/15',
-      ring: 'focus-visible:ring-primary-600',
       available: true,
     },
     {
@@ -236,9 +209,6 @@ export function ToolsSection({ onJumpToUploads, onPlaceImageUrl }: ToolsSectionP
       ai: false,
       label: 'Blob erstellen',
       icon: PiDropSimpleFill,
-      iconColor: 'text-editor-secondary-fg',
-      hoverShadow: 'group-hover:shadow-sm group-hover:shadow-editor-secondary-fg/15',
-      ring: 'focus-visible:ring-primary-600',
       available: true,
     },
     {
@@ -247,9 +217,6 @@ export function ToolsSection({ onJumpToUploads, onPlaceImageUrl }: ToolsSectionP
       ai: false,
       label: 'Pfadtext erstellen',
       icon: PiPath,
-      iconColor: 'text-editor-text',
-      hoverShadow: 'group-hover:shadow-sm',
-      ring: 'focus-visible:ring-primary-600',
       available: true,
     },
   ];
