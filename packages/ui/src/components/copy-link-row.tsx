@@ -33,11 +33,18 @@ export function CopyLinkRow({ value, copyLabel, copiedLabel, className }: CopyLi
     <div className={cn('flex gap-xs', className)}>
       <input
         readOnly
+        aria-label="Link"
         value={value}
         onFocus={(e) => e.currentTarget.select()}
         className="flex-1 rounded-md border border-grey-200 bg-grey-50 px-sm py-xs text-xs text-grey-600 outline-none dark:border-grey-700 dark:bg-grey-800 dark:text-grey-300"
       />
-      <Button size="sm" variant="outline" onClick={handleCopy} className={cn(label && 'gap-xs')}>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={handleCopy}
+        className={cn(label && 'gap-xs')}
+        {...(label ? {} : { 'aria-label': copied ? 'Kopiert' : 'Link kopieren' })}
+      >
         <IconSwap swapped={copied} from={<Copy size={14} />} to={<Check size={14} />} />
         {label}
       </Button>
