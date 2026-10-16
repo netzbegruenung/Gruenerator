@@ -19,12 +19,14 @@ import { Image as KonvaImage, Transformer } from 'react-konva';
 import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { panWindowPhoto, zoomWindow, type Rect } from '../utils/coverFit';
+import { getActiveImageFilters, imageFilterAttrs } from '../utils/imageFilters';
 import { isGroupDrag } from '../utils/multiSelect';
 import { recacheNextFrame } from '../utils/recacheNextFrame';
 import { calculateElementSnapPosition } from '../utils/snapping';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type { SnapTarget, SnapLine } from '../utils/snapping';
+import type { ImageAdjustments } from '../utils/userImageUtils';
 import type { TransformConfig, TransformAnchor } from '@gruenerator/shared/canvas-editor';
 
 export interface CanvasImageProps {
@@ -56,10 +58,8 @@ export interface CanvasImageProps {
   listening?: boolean;
   color?: string;
   constrainToBounds?: boolean;
-  /** Brightness adjustment (-1 to 1, default 0) */
-  brightness?: number;
-  /** Apply grayscale filter */
-  grayscale?: boolean;
+  /** The "Bearbeiten" look (filters, vignette, flip); same fields as a free image. */
+  adjustments?: ImageAdjustments | null;
   /**
    * Cover-fitted background: x/y/width/height is a window of the frame's
    * aspect onto the photo's centre; the whole photo extends around it, and
@@ -105,14 +105,14 @@ function CanvasImageInner({
   listening,
   color,
   constrainToBounds = true,
-  brightness = 0,
-  grayscale = false,
+  adjustments,
   coverFit = false,
   frame,
 }: CanvasImageProps) {
   const imageRef = useRef<Konva.Image>(null);
   // Drag of a cover-fitted photo: the node under the pointer at drag start, and the pan so far.
   const panStartRef = useRef<{ part: Rect; dx: number; dy: number } | null>(null);
+  const adjustmentFilters = adjustments ? getActiveImageFilters(adjustments) : [];
   const trRef = useRef<Konva.Transformer>(null);
 
   const snap = useSnapScheduler({
@@ -128,8 +128,14 @@ function CanvasImageInner({
     natural && width > 0 && height > 0
       ? (frame ?? { x: 0, y: 0, width: stageWidth ?? width, height: stageHeight ?? height })
       : null;
+  const mirror =
+    adjustments?.flipX || adjustments?.flipY
+      ? { x: !!adjustments.flipX, y: !!adjustments.flipY }
+      : null;
   const part =
-    natural && slot ? panWindowPhoto(natural, { x, y, width, height }, slot, 0, 0).part : null;
+    natural && slot
+      ? panWindowPhoto(natural, { x, y, width, height }, slot, 0, 0, mirror).part
+      : null;
 
   useEffect(() => {
     if (selected && trRef.current && imageRef.current) {
@@ -145,13 +151,22 @@ function CanvasImageInner({
   useEffect(() => {
     const node = imageRef.current;
     if (!node || !image) return;
-    if (color || brightness !== 0 || grayscale) {
+    if (color || adjustmentFilters.length > 0) {
       node.cache();
     } else {
       node.clearCache();
     }
     node.getLayer()?.batchDraw();
-  }, [image, width, height, part?.crop.x, part?.crop.y, color, brightness, grayscale]);
+  }, [
+    image,
+    width,
+    height,
+    part?.crop.x,
+    part?.crop.y,
+    color,
+    adjustments,
+    adjustmentFilters.length,
+  ]);
 
   const handleTouchStart = useCallback(
     (e: Konva.KonvaEventObject<TouchEvent>) => {
@@ -256,7 +271,8 @@ function CanvasImageInner({
           { x, y, width, height },
           slot,
           node.x() - pan.part.x,
-          node.y() - pan.part.y
+          node.y() - pan.part.y,
+          mirror
         );
         if (!next.part) return;
         node.position(next.part.box);
@@ -317,6 +333,7 @@ function CanvasImageInner({
       snap,
       natural,
       slot,
+      mirror,
       x,
       y,
       width,
@@ -407,17 +424,11 @@ function CanvasImageInner({
         onTransform={handleTransform}
         onTransformEnd={handleTransformEnd}
         listening={listening}
-        filters={(() => {
-          const f: Array<((this: Konva.Node, imageData: ImageData) => void) | string> = [];
-          if (color) f.push(Konva.Filters.RGB);
-          if (brightness !== 0) f.push(Konva.Filters.Brighten);
-          if (grayscale) f.push(Konva.Filters.Grayscale);
-          return f;
-        })()}
+        filters={color ? [Konva.Filters.RGB, ...adjustmentFilters] : adjustmentFilters}
         red={color ? parseInt(color.slice(1, 3), 16) : undefined}
         green={color ? parseInt(color.slice(3, 5), 16) : undefined}
         blue={color ? parseInt(color.slice(5, 7), 16) : undefined}
-        brightness={brightness !== 0 ? brightness : undefined}
+        {...(adjustments ? imageFilterAttrs(adjustments) : {})}
       />
       {selected && (
         <Transformer
@@ -460,8 +471,7 @@ export const CanvasImage = memo(CanvasImageInner, (prevProps, nextProps) => {
     'listening',
     'constrainToBounds',
     'color',
-    'brightness',
-    'grayscale',
+    'adjustments',
     'coverFit',
   ];
 

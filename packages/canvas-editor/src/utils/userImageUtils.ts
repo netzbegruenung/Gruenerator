@@ -37,6 +37,11 @@ export interface UserImageInstance {
   tint?: string;
   /** How far the tint replaces the photo's own colours: 0..1. */
   tintStrength?: number;
+  /** Darkened edges: 0..1. */
+  vignette?: number;
+  /** Mirrored left–right / top–bottom; flips the pixels, not the node. */
+  flipX?: boolean;
+  flipY?: boolean;
   /** `cover`: the source is cropped (Konva `crop`) to fill width × height. */
   fit?: 'cover';
   /** `cover` only: where the photo sits in its frame, a share of its overhang (-1 … 1, 0 centred). */
@@ -62,6 +67,9 @@ export type ImageAdjustments = Pick<
   | 'invert'
   | 'tint'
   | 'tintStrength'
+  | 'vignette'
+  | 'flipX'
+  | 'flipY'
 >;
 
 export interface ImageCrop {

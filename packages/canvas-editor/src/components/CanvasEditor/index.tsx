@@ -66,6 +66,7 @@ import {
   type VorlagenSectionHandle,
 } from '../../sidebar/sections/VorlagenSection';
 import { UserUploadsProvider } from '../../sidebar/UserUploadsProvider';
+import { useCanvasStoreSelector } from '../../stores/CanvasStoreProvider';
 import { AutoSaveStoreProvider } from '../../stores/useAutoSaveStore';
 import { cn } from '../../utils/cn';
 import { ensureFontsReady } from '../../utils/ensureFontsReady';
@@ -80,6 +81,7 @@ import { Toolbar } from '../Toolbar';
 import { ContextToolbar } from '../TopBar/ContextToolbar';
 import { MobileSelectionBar } from '../TopBar/MobileSelectionBar';
 import { MobileSelectionControls } from '../TopBar/MobileSelectionControls';
+import { FloatingAiSuggestionBanner } from '../TopBar/modules/FloatingAiSuggestionBanner';
 
 import { autoSwitchTab } from './autoSwitchTab';
 import { useLoadedConfigs } from './hooks/useLoadedConfigs';
@@ -521,15 +523,15 @@ function CanvasEditorInner({
     [hasReplaceDeck]
   );
 
-  // The Vorlagen replace the whole deck, so they need the synced pages doc.
+  // The Vorlagen tab changes the deck, so it needs the synced pages doc.
   const { vorlagen: vorlagenService } = useCanvasEditorServices();
   const showVorlagen =
     vorlagenService !== undefined && hasReplaceDeck && formatHasVorlagen(formatId);
-  // A Vorlage dropped on a page goes to the open Vorlagen tab, which asks first
-  // on a design with content, as on a click.
+  // A tile dropped on a page goes to the open Vorlagen tab: a Seite lands
+  // after that page, a print Vorlage asks first on a design with content.
   const vorlagenRef = useRef<VorlagenSectionHandle>(null);
   const handleDropVorlage = useCallback(
-    (vorlageId: string) => vorlagenRef.current?.pick(vorlageId),
+    (id: string, pageId: string) => vorlagenRef.current?.drop(id, pageId),
     []
   );
 
@@ -564,6 +566,13 @@ function CanvasEditorInner({
   const handleDeselectAll = useCallback(() => {
     canvasRefsRef.current.forEach((ref) => ref.current?.deselect());
   }, [canvasRefsRef]);
+
+  // While a suggestion is open the pages are locked: keep or discard it first.
+  // A selection from before would still answer Delete and arrow keys.
+  const hasPendingSuggestion = useCanvasStoreSelector((s) => s.pendingAiSuggestion !== null);
+  useEffect(() => {
+    if (hasPendingSuggestion) handleDeselectAll();
+  }, [hasPendingSuggestion, handleDeselectAll]);
 
   // Mobile selection pill: reads the active page's selection geometry.
   const getSelectionBox = useCallback(
@@ -953,6 +962,7 @@ function CanvasEditorInner({
           pages={pages}
           deck={specEdit}
           onShowPage={showPage}
+          canAddPage={canAddMore}
         />
       ) : null;
     }
@@ -987,6 +997,7 @@ function CanvasEditorInner({
     formatId,
     pages,
     showPage,
+    canAddMore,
   ]);
 
   // Collab vor dem ersten Sync (noch keine Seiten) und der eine Render, in dem
@@ -1098,6 +1109,7 @@ function CanvasEditorInner({
       chromeLeft={chromeLeft}
       chromeCenter={chromeCenter}
       chromeRight={chromeRight}
+      suggestionInBar={isMobileWeb}
     />
   ) : null;
 
@@ -1142,10 +1154,17 @@ function CanvasEditorInner({
     contextControlsProps !== null &&
     (contextControlsProps.selectedElement !== null ||
       contextControlsProps.activeFloatingModule !== null);
-  const contextBarElement =
-    contextControlsProps && hasContextControls && !isMobileWeb ? (
-      <ContextToolbar {...contextControlsProps} />
-    ) : null;
+  // An open suggestion locks the pages (see the container below); the card
+  // takes the selection bar's place so the lock never looks like a dead click.
+  const contextBarElement = isMobileWeb ? null : hasPendingSuggestion ? (
+    <FloatingAiSuggestionBanner
+      variant="card"
+      onUndo={toolbarHandlers.undo}
+      onUndoPages={toolbarHandlers.undoPages}
+    />
+  ) : contextControlsProps && hasContextControls ? (
+    <ContextToolbar {...contextControlsProps} />
+  ) : null;
   const mobileSelectionElement =
     contextControlsProps && hasContextControls && isMobileWeb && isPanelOpen ? (
       <MobileSelectionControls {...contextControlsProps} />
@@ -1273,7 +1292,15 @@ function CanvasEditorInner({
         <CanvasEditorLayout
           // Vorschau vor dem Sync: zeigen, aber nichts anbieten, was schreibt —
           // die Seiten hängen noch an keinem Y.Map, jede Änderung ginge verloren.
-          sidebar={isPreview ? null : panel}
+          sidebar={
+            isPreview ? null : hasPendingSuggestion ? (
+              <div inert className="contents">
+                {panel}
+              </div>
+            ) : (
+              panel
+            )
+          }
           tabBar={isPreview ? null : tabBar}
           actions={null}
           toolbar={toolbarElement}
@@ -1293,11 +1320,14 @@ function CanvasEditorInner({
           onCanvasBackdropPointerDown={isMobileSheetOpen ? handlePanelClose : undefined}
         >
           <div
-            inert={isPreview}
+            inert={isPreview || hasPendingSuggestion}
             aria-busy={isPreview}
             ref={pagesContainerCallbackRef}
             onPointerDown={handleWorkAreaPointerDown}
-            className="heterogeneous-multipage__pages-container has-bottom-bar flex flex-col items-center gap-md p-sm pb-lg w-full max-canvas-mobile:gap-sm max-canvas-mobile:p-xs"
+            className={cn(
+              'heterogeneous-multipage__pages-container has-bottom-bar flex flex-col items-center gap-md p-sm pb-lg w-full max-canvas-mobile:gap-sm max-canvas-mobile:p-xs',
+              hasPendingSuggestion && 'opacity-60 transition-opacity duration-200'
+            )}
           >
             {pages.map((page, index) => {
               const config = loadedConfigs.get(page.configId);

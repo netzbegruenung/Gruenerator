@@ -17,6 +17,12 @@ export interface Size {
   height: number;
 }
 
+/** A photo mirrored by the flip filter (`flipX` / `flipY`). */
+export interface Mirror {
+  x?: boolean;
+  y?: boolean;
+}
+
 /**
  * The whole photo around `window`, a box with its own aspect that shows the
  * photo's centred, aspect-matched part (the legacy background model): the
@@ -105,7 +111,8 @@ export function panOfFramedPhoto(photo: Rect, frame: Size): { x: number; y: numb
 export function visiblePart(
   natural: Size,
   photo: Rect,
-  frame: Rect
+  frame: Rect,
+  mirror: Mirror | null = null
 ): { box: Rect; crop: Rect } | null {
   const left = Math.max(photo.x, frame.x);
   const top = Math.max(photo.y, frame.y);
@@ -114,13 +121,19 @@ export function visiblePart(
   if (right <= left || bottom <= top) return null;
   const sx = natural.width / photo.width;
   const sy = natural.height / photo.height;
+  const width = (right - left) * sx;
+  const height = (bottom - top) * sy;
+  const x = (left - photo.x) * sx;
+  const y = (top - photo.y) * sy;
   return {
     box: { x: left, y: top, width: right - left, height: bottom - top },
+    // A flip filter mirrors the drawn pixels; mirroring the crop as well makes
+    // the drawn part the mirror of the whole photo, not of its middle.
     crop: {
-      x: (left - photo.x) * sx,
-      y: (top - photo.y) * sy,
-      width: (right - left) * sx,
-      height: (bottom - top) * sy,
+      x: mirror?.x ? natural.width - x - width : x,
+      y: mirror?.y ? natural.height - y - height : y,
+      width,
+      height,
     },
   };
 }
@@ -178,7 +191,8 @@ export function panWindowPhoto(
   window: Rect,
   slot: Rect,
   dx: number,
-  dy: number
+  dy: number,
+  mirror: Mirror | null = null
 ): { dx: number; dy: number; part: { box: Rect; crop: Rect } | null } {
   const photo = photoRectAround(natural, window);
   // An old window that does not fill the slot moves as it always did: inside
@@ -187,7 +201,12 @@ export function panWindowPhoto(
   const moved = { ...window, x: window.x + held.dx, y: window.y + held.dy };
   return {
     ...held,
-    part: visiblePart(natural, photoRectAround(natural, moved), shownArea(natural, moved, slot)),
+    part: visiblePart(
+      natural,
+      photoRectAround(natural, moved),
+      shownArea(natural, moved, slot),
+      mirror
+    ),
   };
 }
 

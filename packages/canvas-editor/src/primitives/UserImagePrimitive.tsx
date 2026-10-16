@@ -16,7 +16,11 @@ import {
   visiblePart,
   type Rect as Box,
 } from '../utils/coverFit';
-import { getActiveImageFilters, hasActiveImageFilters } from '../utils/imageFilters';
+import {
+  getActiveImageFilters,
+  hasActiveImageFilters,
+  imageFilterAttrs,
+} from '../utils/imageFilters';
 import { useTrackPendingImage } from '../utils/pendingImages';
 import { recacheNextFrame } from '../utils/recacheNextFrame';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
@@ -110,6 +114,9 @@ function UserImagePrimitiveInner({
     userImage.invert,
     userImage.tint,
     userImage.tintStrength,
+    userImage.vignette,
+    userImage.flipX,
+    userImage.flipY,
     userImage.fit,
     userImage.panX,
     userImage.panY,
@@ -125,16 +132,27 @@ function UserImagePrimitiveInner({
   const photo = cover
     ? framedPhotoRect(natural, frame, { x: userImage.panX ?? 0, y: userImage.panY ?? 0 })
     : null;
-  const crop = (photo && visiblePart(natural, photo, frame)?.crop) ?? undefined;
+  const mirror = { x: !!userImage.flipX, y: !!userImage.flipY };
+  const crop = (photo && visiblePart(natural, photo, frame, mirror)?.crop) ?? undefined;
   const isCropping = cropping && !!photo;
+  // The dimmed whole photo mirrors by a negative scale, so its node origin
+  // sits on the far edge of a flipped axis.
+  const ghostShift = photo
+    ? { x: mirror.x ? photo.width : 0, y: mirror.y ? photo.height : 0 }
+    : { x: 0, y: 0 };
 
   const panPhoto = (node: Konva.Node) => {
     const start = panStartRef.current;
     if (!start) return null;
-    const { dx, dy } = clampPan(start, node.x() - start.x, node.y() - start.y, frame);
+    const { dx, dy } = clampPan(
+      start,
+      node.x() - ghostShift.x - start.x,
+      node.y() - ghostShift.y - start.y,
+      frame
+    );
     const moved = { ...start, x: start.x + dx, y: start.y + dy };
-    node.position(moved);
-    const part = visiblePart(natural, moved, frame);
+    node.position({ x: moved.x + ghostShift.x, y: moved.y + ghostShift.y });
+    const part = visiblePart(natural, moved, frame, mirror);
     if (part && imageRef.current) {
       imageRef.current.crop(part.crop);
       recacheNextFrame(imageRef.current);
@@ -187,7 +205,12 @@ function UserImagePrimitiveInner({
           <Image
             name="selection-chrome"
             image={image}
-            {...photo}
+            x={photo.x + ghostShift.x}
+            y={photo.y + ghostShift.y}
+            width={photo.width}
+            height={photo.height}
+            scaleX={mirror.x ? -1 : 1}
+            scaleY={mirror.y ? -1 : 1}
             opacity={0.35}
             draggable
             onMouseDown={(e) => {
@@ -221,14 +244,7 @@ function UserImagePrimitiveInner({
           crop={crop}
           cornerRadius={userImage.mask === 'kreis' ? Math.min(width, height) / 2 : 0}
           filters={getActiveImageFilters(userImage)}
-          blurRadius={userImage.blur ?? 0}
-          brightness={userImage.brightness ?? 0}
-          contrast={userImage.contrast ?? 0}
-          saturation={userImage.saturation ?? 0}
-          hue={userImage.hue ?? 0}
-          temperature={userImage.temperature ?? 0}
-          tint={userImage.tint}
-          tintStrength={userImage.tintStrength ?? 0}
+          {...imageFilterAttrs(userImage)}
           shadowColor={userImage.shadowColor}
           shadowBlur={userImage.shadowBlur}
           shadowOffsetX={userImage.shadowOffsetX}
@@ -290,6 +306,9 @@ export const UserImagePrimitive = memo(UserImagePrimitiveInner, (prevProps, next
   if (prev.invert !== next.invert) return false;
   if (prev.tint !== next.tint) return false;
   if (prev.tintStrength !== next.tintStrength) return false;
+  if (prev.vignette !== next.vignette) return false;
+  if (prev.flipX !== next.flipX) return false;
+  if (prev.flipY !== next.flipY) return false;
   if (prev.fit !== next.fit) return false;
   if (prev.panX !== next.panX) return false;
   if (prev.panY !== next.panY) return false;

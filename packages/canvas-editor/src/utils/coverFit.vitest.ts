@@ -173,3 +173,15 @@ describe('panWindowPhoto, below 100 %', () => {
     expect(panWindowPhoto(landscape, window, page, -1000, 0).dx).toBe(-270);
   });
 });
+
+describe('visiblePart, mirrored', () => {
+  it('shows the mirror of the whole photo, not of its middle', () => {
+    const frame = { x: 0, y: 0, width: 400, height: 400 };
+    // Panned to the photo's left edge: mirrored, that is the source's right edge.
+    const photo = framedPhotoRect(landscape, frame, { x: 1, y: 0 });
+    const plain = visiblePart(landscape, photo, frame)!.crop;
+    const mirrored = visiblePart(landscape, photo, frame, { x: true })!.crop;
+    expect(plain.x).toBeCloseTo(0);
+    expect(mirrored.x + mirrored.width).toBeCloseTo(landscape.width);
+  });
+});

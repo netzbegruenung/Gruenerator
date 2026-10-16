@@ -12,7 +12,7 @@ function DraftId() {
 
 function Vorlagen() {
   const { vorlagen } = useCanvasEditorServices();
-  return <span data-testid="vorlagen">{vorlagen?.openAsNew ? 'ja' : 'nein'}</span>;
+  return <span data-testid="vorlagen">{vorlagen ? 'ja' : 'nein'}</span>;
 }
 
 function StickerCreator() {
@@ -56,7 +56,7 @@ describe('WebCanvasEditorProvider', () => {
     expect(screen.getByTestId('creator').textContent).toBe('nein');
   });
 
-  it('bietet die Vorlagen an, außer wo das Design nicht ersetzt werden darf', () => {
+  it('bietet die Vorlagen an, außer wo das Design nicht verändert werden darf', () => {
     const { rerender } = renderWithProviders(
       <WebCanvasEditorProvider>
         <Vorlagen />

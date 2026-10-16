@@ -17,6 +17,10 @@
  * element's declared `order`. It used to be missing here, so every template
  * except `dreizeilen` and `freeform` (which read it from the props by hand)
  * handed a user their shapes back in the default order after a reload (#3420).
+ *
+ * `backgroundImageAdjustments` is the "Bearbeiten" look of the template's
+ * background photo. It rides here for the same reason: one read-back for every
+ * template, and the list doubles as the page's writer (PAGE_ELEMENT_STATE_KEYS).
  */
 
 import type { IconState } from './baseTypes';
@@ -28,7 +32,7 @@ import type { FrameInstance } from '../../utils/frameUtils';
 import type { IllustrationInstance } from '../../utils/illustrations/types';
 import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
 import type { ShapeInstance } from '../../utils/shapes';
-import type { UserImageInstance } from '../../utils/userImageUtils';
+import type { ImageAdjustments, UserImageInstance } from '../../utils/userImageUtils';
 import type { AdditionalText } from '../types';
 
 export interface CarriedInstanceState {
@@ -45,6 +49,7 @@ export interface CarriedInstanceState {
   chartInstances: ChartInstance[];
   userImageInstances: UserImageInstance[];
   layerOrder: string[];
+  backgroundImageAdjustments?: ImageAdjustments;
 }
 
 /** Every key `carryInstanceState` reads, for guards and re-seed logic. */
@@ -62,6 +67,7 @@ export const CARRIED_INSTANCE_KEYS = [
   'chartInstances',
   'userImageInstances',
   'layerOrder',
+  'backgroundImageAdjustments',
 ] as const;
 
 function list<T>(value: unknown): T[] {
@@ -86,5 +92,16 @@ export function carryInstanceState(props: Record<string, unknown>): CarriedInsta
     chartInstances: list<ChartInstance>(props.chartInstances),
     userImageInstances: list<UserImageInstance>(props.userImageInstances),
     layerOrder: list<string>(props.layerOrder),
+    ...carryBackgroundAdjustments(props),
   };
+}
+
+/** The background photo's look, when the seed carries one; omitted otherwise. */
+export function carryBackgroundAdjustments(
+  props: Record<string, unknown>
+): Pick<CarriedInstanceState, 'backgroundImageAdjustments'> {
+  const value = props.backgroundImageAdjustments;
+  return value && typeof value === 'object'
+    ? { backgroundImageAdjustments: value as ImageAdjustments }
+    : {};
 }

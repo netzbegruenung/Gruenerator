@@ -94,8 +94,8 @@ export const PageWrapper = memo(function PageWrapper({
   const handleClick = useCallback((e: React.MouseEvent) => activateFrom(e.target), [activateFrom]);
 
   // An upload, photo or Elemente tile dragged from the sidebar lands where it
-  // is dropped, on this page. A Vorlage replaces the whole design, so for it
-  // the page only hands the drop on.
+  // is dropped, on this page. A Vorlagen tile becomes a page of its own, so
+  // the page hands it on with its id: a Seite goes in after it.
   const [isDropTarget, setIsDropTarget] = useState(false);
   const handleDragOver = useCallback(
     (e: React.DragEvent) => {
@@ -122,7 +122,7 @@ export const PageWrapper = memo(function PageWrapper({
       const vorlageId = onDropVorlage ? readVorlageDrag(e.dataTransfer) : null;
       if (vorlageId) {
         e.preventDefault();
-        onDropVorlage?.(vorlageId);
+        onDropVorlage?.(vorlageId, page.id);
         return;
       }
       const media = readMediaDrag(e.dataTransfer);
@@ -136,7 +136,7 @@ export const PageWrapper = memo(function PageWrapper({
         trackDownload(media.name, media.attribution);
       } else if (element && canvasRef.current?.dropElement(e, element)) markDropPlaced();
     },
-    [isActive, onSelect, index, canvasRef, onDropVorlage, trackDownload]
+    [isActive, onSelect, index, canvasRef, onDropVorlage, page.id, trackDownload]
   );
 
   const handleKeyDown = useCallback(

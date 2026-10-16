@@ -229,6 +229,9 @@ export function ContextControls({
         />
       );
     }
+    if (background.currentImageSrc && handlers.onEditImage) {
+      groups.push(<EditImageButton key="edit-image" onClick={handlers.onEditImage} />);
+    }
     if (photoControls.length) {
       groups.push(
         <div key="photo" className="flex items-center gap-0.5">
@@ -409,30 +412,7 @@ export function ContextControls({
   }
 
   if (type === 'user-image' && handlers.onEditImage) {
-    groups.push(
-      <button
-        key="edit-image"
-        className="inline-flex items-center gap-1.5 h-8 shrink-0 rounded-md border-none bg-transparent px-2 cursor-pointer text-[13px] font-medium text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)]"
-        onClick={() => handlers.onEditImage!()}
-        title="Bild anpassen (Filter, Helligkeit, Kontrast…)"
-        type="button"
-      >
-        <svg
-          width="15"
-          height="15"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <circle cx="12" cy="12" r="3" />
-          <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4" />
-        </svg>
-        Bearbeiten
-      </button>
-    );
+    groups.push(<EditImageButton key="edit-image" onClick={handlers.onEditImage} />);
   }
 
   if (
@@ -618,5 +598,32 @@ export function ContextControls({
         </React.Fragment>
       ))}
     </>
+  );
+}
+
+/** Opens the "Bearbeiten" panel: filters, presets, flip — for a free image or the background photo. */
+function EditImageButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      className="inline-flex items-center gap-1.5 h-8 shrink-0 rounded-md border-none bg-transparent px-2 cursor-pointer text-[13px] font-medium text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)]"
+      onClick={onClick}
+      title="Bild anpassen (Filter, Helligkeit, Kontrast…)"
+      type="button"
+    >
+      <svg
+        width="15"
+        height="15"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="12" cy="12" r="3" />
+        <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4" />
+      </svg>
+      Bearbeiten
+    </button>
   );
 }
