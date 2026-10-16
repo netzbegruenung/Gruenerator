@@ -301,6 +301,7 @@ const withFreeformAi = (
       onColorChange: actions.setBackgroundColor,
       colorReplacesImage: true,
       currentImageSrc: isImage && state.hasBackgroundImage ? state.currentImageSrc : undefined,
+      imageAttribution: isImage ? state.imageAttribution : null,
       onImageChange: actions.setCurrentImageSrc,
       // Brings it back with its offset, zoom and credit.
       onRestoreImage:

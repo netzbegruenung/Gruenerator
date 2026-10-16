@@ -250,6 +250,7 @@ export function ContextControls({
         key="as-background"
         src={userImageSrc}
         fileName={typeof fileName === 'string' && fileName ? fileName : 'hintergrund'}
+        attribution={activeFloatingModule.data.attribution}
         onImageChange={background.onImageChange}
         onRemoveElement={() => {
           onRemoveUserImage(imageId);
@@ -429,7 +430,12 @@ export function ContextControls({
     );
   }
 
-  const credit = type === 'user-image' ? activeFloatingModule?.data.attribution : undefined;
+  const credit =
+    type === 'user-image'
+      ? activeFloatingModule?.data.attribution
+      : isPhoto
+        ? background?.imageAttribution
+        : undefined;
   if (credit) {
     groups.push(
       <span

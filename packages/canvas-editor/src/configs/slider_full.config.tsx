@@ -633,6 +633,7 @@ function createSliderConfig(brand: SliderBrand): FullCanvasConfig<SliderState, S
     // scheme also colours pill and arrow.
     background: (state, actions) => ({
       currentImageSrc: state.currentImageSrc || undefined,
+      imageAttribution: state.imageAttribution ?? null,
       onImageChange: actions.setCurrentImageSrc,
       colors: brand.backgroundColors,
       paletteOnly: true,
