@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import { axe } from '../../test-utils';
+
 import { DownloadSection, type PrintImpressumGate } from './DownloadSection';
 
 function renderGate(locale: PrintImpressumGate['locale']) {
@@ -10,19 +12,19 @@ function renderGate(locale: PrintImpressumGate['locale']) {
     text: null,
     onSubmit: vi.fn(),
   };
-  render(
+  const view = render(
     <DownloadSection
       onDownload={vi.fn()}
       pageCount={1}
       printExport={{ onDownloadPdf: vi.fn(), getWarnings: () => [], impressum: gate }}
     />
   );
-  return gate;
+  return { gate, container: view.container };
 }
 
 describe('Impressum form errors', () => {
   it('names each empty field in a linked, announced error (DE)', () => {
-    const gate = renderGate('de-DE');
+    const { gate } = renderGate('de-DE');
     expect(screen.queryByRole('alert')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Übernehmen' }));
     const alerts = screen.getAllByRole('alert').map((a) => a.textContent);
@@ -39,4 +41,14 @@ describe('Impressum form errors', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Übernehmen' }));
     expect(screen.getAllByRole('alert')[0]?.textContent).toBe('Bitte Medieninhaber eintragen.');
   });
+
+  it.each(['de-DE', 'de-AT'] as const)(
+    'has no axe violations before and after submit (%s)',
+    async (locale) => {
+      const { container } = renderGate(locale);
+      expect(await axe(container)).toHaveNoViolations();
+      fireEvent.click(screen.getByRole('button', { name: 'Übernehmen' }));
+      expect(await axe(container)).toHaveNoViolations();
+    }
+  );
 });
