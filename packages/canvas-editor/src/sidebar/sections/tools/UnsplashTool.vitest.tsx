@@ -30,13 +30,11 @@ function setup(total = 3) {
   }));
   const trackUnsplashDownloadLive = vi.fn(async () => {});
   const uploadImage = vi.fn(async () => 'https://example.org/copy');
-  const fetchUnsplashImageAsFile = vi.fn(async () => new File([], 'x.jpg'));
   const onPlaceImageUrl = vi.fn();
   const services: CanvasEditorServices = {
     searchUnsplashImages,
     trackUnsplashDownloadLive,
     uploadImage,
-    fetchUnsplashImageAsFile,
   };
   const view = render(
     <CanvasEditorProvider services={services}>
@@ -48,7 +46,6 @@ function setup(total = 3) {
     searchUnsplashImages,
     trackUnsplashDownloadLive,
     uploadImage,
-    fetchUnsplashImageAsFile,
     onPlaceImageUrl,
   };
 }
@@ -73,9 +70,8 @@ describe('UnsplashTool', () => {
     );
   });
 
-  it('places the hotlinked photo with its credit and tracks the download, without copying it', async () => {
-    const { onPlaceImageUrl, trackUnsplashDownloadLive, uploadImage, fetchUnsplashImageAsFile } =
-      setup();
+  it('places the hotlinked photo with its credit and tracks the download, without uploading it', async () => {
+    const { onPlaceImageUrl, trackUnsplashDownloadLive, uploadImage } = setup();
     await search('windrad');
     await userEvent.click(screen.getByRole('button', { name: 'Foto einfügen: Windrad 2' }));
 
@@ -88,7 +84,6 @@ describe('UnsplashTool', () => {
       photo(2).attribution
     );
     expect(uploadImage).not.toHaveBeenCalled();
-    expect(fetchUnsplashImageAsFile).not.toHaveBeenCalled();
   });
 
   it('loads the next page on "Mehr laden" and hides it once everything is shown', async () => {

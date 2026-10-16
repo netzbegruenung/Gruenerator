@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useUnsplashSearch, type UnsplashSearchFn } from '@gruenerator/shared/image-studio';
+import { useCallback, useEffect, useState } from 'react';
 import { HiMagnifyingGlass } from 'react-icons/hi2';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
-import { useUnsplashSearch } from '../../../hooks/useUnsplashSearch';
 
 import type { StockImage, StockImageAttribution } from '../../../common/imageSourceTypes';
 
@@ -30,7 +30,15 @@ function thumbnailUrl(url: string): string {
  * unaltered photo, so it never goes through the uploads / Mediathek.
  */
 export function UnsplashTool({ onPlaceImageUrl }: UnsplashToolProps) {
-  const { trackUnsplashDownloadLive, trackUnsplashDownload } = useCanvasEditorServices();
+  const { searchUnsplashImages, trackUnsplashDownloadLive, trackUnsplashDownload } =
+    useCanvasEditorServices();
+  const searchFn = useCallback<UnsplashSearchFn>(
+    (q, p, pp) =>
+      searchUnsplashImages
+        ? searchUnsplashImages(q, p, pp)
+        : Promise.resolve({ results: [], total: 0, total_pages: 0 }),
+    [searchUnsplashImages]
+  );
   const {
     searchResults,
     totalResults,
@@ -39,7 +47,7 @@ export function UnsplashTool({ onPlaceImageUrl }: UnsplashToolProps) {
     lastQuery,
     searchUnsplash,
     loadMoreResults,
-  } = useUnsplashSearch();
+  } = useUnsplashSearch(searchFn);
   const [query, setQuery] = useState('');
   const [placedId, setPlacedId] = useState<string | null>(null);
 

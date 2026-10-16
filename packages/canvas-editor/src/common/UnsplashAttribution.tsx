@@ -39,11 +39,7 @@ const UnsplashAttribution = ({
         {photographer}
       </a>
       <span> auf </span>
-      <a
-        href="https://unsplash.com/?utm_source=gruenerator&utm_medium=referral"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
+      <a href="https://unsplash.com" target="_blank" rel="noopener noreferrer">
         Unsplash
       </a>
     </div>
