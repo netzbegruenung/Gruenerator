@@ -9,10 +9,18 @@
 import { useState, useEffect, useRef, memo } from 'react';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
+import {
+  clampPan,
+  framedPhotoRect,
+  panOfFramedPhoto,
+  visiblePart,
+  type Rect as Box,
+} from '../utils/coverFit';
 import { getActiveImageFilters, hasActiveImageFilters } from '../utils/imageFilters';
 import { useTrackPendingImage } from '../utils/pendingImages';
+import { recacheNextFrame } from '../utils/recacheNextFrame';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
-import { coverCrop, USER_PHOTO_NODE_NAME, type UserImageInstance } from '../utils/userImageUtils';
+import { USER_PHOTO_NODE_NAME, type UserImageInstance } from '../utils/userImageUtils';
 
 import type Konva from 'konva';
 
@@ -22,6 +30,11 @@ export interface UserImagePrimitiveProps {
   onSelect: (id: string) => void;
   onDragEnd: (x: number, y: number) => void;
   onTransformEnd: (x: number, y: number, width: number, height: number, rotation: number) => void;
+  /** A `cover` photo moved inside its frame (Ausschnitt mode): its new `panX` / `panY`. */
+  onCropEnd?: (panX: number, panY: number) => void;
+  /** Ausschnitt mode (Canva's crop): double-click or the context bar's button turns it on. */
+  isCropping?: boolean;
+  onCroppingChange?: (on: boolean) => void;
   draggable?: boolean;
 }
 
@@ -31,8 +44,12 @@ function UserImagePrimitiveInner({
   onSelect,
   onDragEnd,
   onTransformEnd,
+  onCropEnd,
+  isCropping: cropping = false,
+  onCroppingChange,
   draggable = true,
 }: UserImagePrimitiveProps) {
+  const panStartRef = useRef<Box | null>(null);
   const groupRef = useRef<Konva.Group>(null);
   const imageRef = useRef<Konva.Image>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
@@ -94,16 +111,36 @@ function UserImagePrimitiveInner({
     userImage.tint,
     userImage.tintStrength,
     userImage.fit,
+    userImage.panX,
+    userImage.panY,
     userImage.mask,
   ]);
 
   if (!image) return null;
 
   const { width, height } = userImage;
-  const crop =
-    userImage.fit === 'cover'
-      ? coverCrop({ width: image.naturalWidth, height: image.naturalHeight }, { width, height })
-      : undefined;
+  const natural = { width: image.naturalWidth, height: image.naturalHeight };
+  const frame = { x: 0, y: 0, width, height };
+  const cover = userImage.fit === 'cover';
+  const photo = cover
+    ? framedPhotoRect(natural, frame, { x: userImage.panX ?? 0, y: userImage.panY ?? 0 })
+    : null;
+  const crop = (photo && visiblePart(natural, photo, frame)?.crop) ?? undefined;
+  const isCropping = cropping && !!photo;
+
+  const panPhoto = (node: Konva.Node) => {
+    const start = panStartRef.current;
+    if (!start) return null;
+    const { dx, dy } = clampPan(start, node.x() - start.x, node.y() - start.y, frame);
+    const moved = { ...start, x: start.x + dx, y: start.y + dy };
+    node.position(moved);
+    const part = visiblePart(natural, moved, frame);
+    if (part && imageRef.current) {
+      imageRef.current.crop(part.crop);
+      recacheNextFrame(imageRef.current);
+    }
+    return moved;
+  };
 
   return (
     <>
@@ -115,7 +152,9 @@ function UserImagePrimitiveInner({
         scaleY={userImage.scale}
         rotation={userImage.rotation}
         opacity={userImage.opacity}
-        draggable={draggable}
+        draggable={draggable && !isCropping}
+        onDblClick={() => cover && onCroppingChange?.(!cropping)}
+        onDblTap={() => cover && onCroppingChange?.(!cropping)}
         onMouseDown={(e) => {
           e.cancelBubble = true;
           onSelect(userImage.id);
@@ -143,9 +182,39 @@ function UserImagePrimitiveInner({
           onTransformEnd(node.x(), node.y(), newWidth, newHeight, newRotation);
         }}
       >
+        {isCropping && photo && (
+          // The whole photo, dimmed: what lies outside the frame shows where it can go.
+          <Image
+            name="selection-chrome"
+            image={image}
+            {...photo}
+            opacity={0.35}
+            draggable
+            onMouseDown={(e) => {
+              e.cancelBubble = true;
+            }}
+            onDragStart={(e) => {
+              e.cancelBubble = true;
+              panStartRef.current = { ...photo };
+            }}
+            onDragMove={(e) => {
+              e.cancelBubble = true;
+              panPhoto(e.target);
+            }}
+            onDragEnd={(e) => {
+              e.cancelBubble = true;
+              const moved = panPhoto(e.target);
+              panStartRef.current = null;
+              if (!moved) return;
+              const pan = panOfFramedPhoto(moved, frame);
+              onCropEnd?.(pan.x, pan.y);
+            }}
+          />
+        )}
         <Image
           ref={imageRef}
           name={USER_PHOTO_NODE_NAME}
+          listening={!isCropping}
           image={image}
           width={width}
           height={height}
@@ -180,7 +249,7 @@ function UserImagePrimitiveInner({
         )}
       </Group>
 
-      {isSelected && (
+      {isSelected && !isCropping && (
         <Transformer
           anchorStyleFunc={touchAnchorStyleFunc}
           ref={transformerRef}
@@ -222,6 +291,8 @@ export const UserImagePrimitive = memo(UserImagePrimitiveInner, (prevProps, next
   if (prev.tint !== next.tint) return false;
   if (prev.tintStrength !== next.tintStrength) return false;
   if (prev.fit !== next.fit) return false;
+  if (prev.panX !== next.panX) return false;
+  if (prev.panY !== next.panY) return false;
   if (prev.mask !== next.mask) return false;
   if (prev.shadowColor !== next.shadowColor) return false;
   if (prev.shadowBlur !== next.shadowBlur) return false;
@@ -231,6 +302,7 @@ export const UserImagePrimitive = memo(UserImagePrimitiveInner, (prevProps, next
 
   if (prevProps.isSelected !== nextProps.isSelected) return false;
   if (prevProps.draggable !== nextProps.draggable) return false;
+  if (prevProps.isCropping !== nextProps.isCropping) return false;
 
   return true;
 });

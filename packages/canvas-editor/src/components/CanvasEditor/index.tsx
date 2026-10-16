@@ -470,7 +470,8 @@ function CanvasEditorInner({
           prev.canMoveUp === report.canMoveUp &&
           prev.canMoveDown === report.canMoveDown &&
           prev.canDuplicate === report.canDuplicate &&
-          prev.canDelete === report.canDelete
+          prev.canDelete === report.canDelete &&
+          prev.isCropping === report.isCropping
         ) {
           return prev;
         }
@@ -1122,6 +1123,7 @@ function CanvasEditorInner({
         canMoveUp: toolbarState.canMoveUp ?? false,
         canMoveDown: toolbarState.canMoveDown ?? false,
         canDuplicate: toolbarState.canDuplicate ?? false,
+        isCropping: toolbarState.isCropping ?? false,
         handlers: {
           ...toolbarHandlers,
           onEditImage: () => setActiveTab('image-adjust'),

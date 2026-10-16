@@ -73,6 +73,7 @@ export function useToolbarHandlers({
       handleOutlineChange: (id: string, patch: { stroke?: string; strokeWidth?: number }) =>
         page()?.handleOutlineChange?.(id, patch),
       handleBlurChange: (id: string, blur: number) => page()?.handleBlurChange?.(id, blur),
+      handleCropImage: () => page()?.handleCropImage?.(),
       handleGradientSelect: (gradient: GradientFill | null) =>
         page()?.handleGradientSelect?.(gradient),
     };
