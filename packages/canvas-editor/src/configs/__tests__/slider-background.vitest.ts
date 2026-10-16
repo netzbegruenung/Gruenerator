@@ -1,16 +1,14 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { ImageBackgroundSection } from '../../sidebar';
 import { loadCanvasConfig } from '../configLoader';
 
 import type { StockImageAttribution } from '../../common/imageSourceTypes';
-import type { ImageBackgroundSectionProps } from '../../sidebar/sections/ImageBackgroundSection';
-import type { ImageElementConfig } from '../types';
+import type { BackgroundControls, ImageElementConfig } from '../types';
 
 /**
- * The slider used the old colour-only BackgroundSection: no library, no own
- * upload, no zoom or lock, and its photo pick, credit and scheme changes each
- * snapshotted the render-time state — undo landed on a mix.
+ * The slider's background controls (context bar): the scheme swatches, the
+ * photo, zoom and lock. Its photo pick, credit and scheme changes each used to
+ * snapshot the render-time state — undo landed on a mix.
  *
  * Driven with the stale `getState` GenericCanvas hands actions, so a history
  * entry only matches the result when the action snapshots what it produced.
@@ -55,40 +53,34 @@ describe.each(['slider', 'slider-at'] as const)('%s background picker', (id) => 
       (s) => debounced.push(s as State),
       {}
     );
-    const props = config.sections.background.propsFactory(
-      start,
-      actions,
-      undefined
-    ) as ImageBackgroundSectionProps;
+    const props = config.background!(start, actions) as BackgroundControls;
     return { props, history, debounced, current: () => state };
   };
 
-  it('uses the image picker with the scheme swatches as its colour tab', () => {
-    expect(config.sections.background.component).toBe(ImageBackgroundSection);
+  it('offers the scheme swatches as the background colours', () => {
     const { props } = harness(initial({}));
-    expect(props.backgroundColors?.length).toBe(2);
-    expect(props.backgroundColor).toBe(initial({}).backgroundColor);
+    expect(props.colors?.length).toBe(2);
+    expect(props.currentColor).toBe(initial({}).backgroundColor);
   });
 
   it('a swatch switches the scheme, as one history step', () => {
     const start = initial({});
     const { props, history, current } = harness(start);
-    const target = props.backgroundColors!.find((c) => c.color !== start.backgroundColor)!;
+    const target = props.colors!.find((c) => c.color !== start.backgroundColor)!;
 
-    props.onBackgroundColorChange!(target.color);
+    props.onColorChange!(target.color);
 
     expect(current().colorScheme).toBe(target.id);
     expect(current().backgroundColor).toBe(target.color);
     expect(history).toEqual([current()]);
   });
 
-  it('a photo pick sets photo and credit together, as one history step', () => {
+  it('a photo pick is one history step', () => {
     const { props, history, current } = harness(initial({}));
 
-    props.onImageChange(null, PHOTO, CREDIT);
+    props.onImageChange!(null, PHOTO, null);
 
     expect(current().currentImageSrc).toBe(PHOTO);
-    expect(current().imageAttribution).toBe(CREDIT);
     expect(history).toEqual([current()]);
   });
 
@@ -96,7 +88,7 @@ describe.each(['slider', 'slider-at'] as const)('%s background picker', (id) => 
     const { props, current } = harness(
       initial({ currentImageSrc: PHOTO, imageAttribution: CREDIT })
     );
-    props.onImageChange(null, OTHER, null);
+    props.onImageChange!(null, OTHER, null);
     expect(current().currentImageSrc).toBe(OTHER);
     expect(current().imageAttribution).toBeNull();
   });
@@ -106,7 +98,7 @@ describe.each(['slider', 'slider-at'] as const)('%s background picker', (id) => 
       initial({ currentImageSrc: PHOTO, imageAttribution: CREDIT })
     );
 
-    props.onImageChange(null, undefined, null);
+    props.onImageChange!(null, undefined, null);
 
     expect(current().currentImageSrc || null).toBeNull();
     expect(current().imageAttribution).toBeNull();
@@ -118,10 +110,8 @@ describe.each(['slider', 'slider-at'] as const)('%s background picker', (id) => 
     expect(without.onScaleChange).toBeUndefined();
     expect(without.onToggleLock).toBeUndefined();
 
-    expect(without.initialSubsection).toBe('background-color');
-
     const withPhoto = harness(initial({ currentImageSrc: PHOTO, imageScale: 1.4 })).props;
-    expect(withPhoto.initialSubsection).toBe('image-search');
+    expect(withPhoto.currentImageSrc).toBe(PHOTO);
     expect(withPhoto.scale).toBe(1.4);
     expect(withPhoto.onScaleChange).toBeTypeOf('function');
     expect(withPhoto.onToggleLock).toBeTypeOf('function');
@@ -141,10 +131,10 @@ describe.each(['slider', 'slider-at'] as const)('%s background picker', (id) => 
     expect(history).toEqual([current()]);
   });
 
-  it('the photo has zoom handles and opens the picker when selected', () => {
+  it('the photo has zoom handles and keeps the sidebar as it is when selected', () => {
     const photo = config.elements.find((e) => e.id === 'background-image') as ImageElementConfig;
     expect(photo.transformable).toBe(true);
     expect(photo.scaleKey).toBe('imageScale');
-    expect(config.getAutoSwitchTab?.('background-image')).toBe('background');
+    expect(config.getAutoSwitchTab?.('background-image')).toBeNull();
   });
 });

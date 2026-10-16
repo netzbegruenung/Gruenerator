@@ -19,6 +19,7 @@ export type AssetView =
   | 'browse'
   | 'marke'
   | 'sticker'
+  | 'hintergruende'
   | 'formen'
   | 'diagramme'
   | 'rahmen'
@@ -34,6 +35,7 @@ export interface CategoryCardDef {
 export const CATEGORY_CARDS: CategoryCardDef[] = [
   { id: 'marke', label: 'Marke' },
   { id: 'sticker', label: 'Sticker' },
+  { id: 'hintergruende', label: 'Hintergründe' },
   { id: 'formen', label: 'Formen' },
   { id: 'diagramme', label: 'Diagramme' },
   { id: 'rahmen', label: 'Rahmen' },

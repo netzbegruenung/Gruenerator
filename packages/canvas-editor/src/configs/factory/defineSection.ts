@@ -25,13 +25,13 @@ import type { SectionConfig, SectionContext } from '../types';
  * ```
  * const section = makeSectionDefiner<MyState, MyActions>();
  *
- * const backgroundSection = section({
- *   component: BackgroundSection,
- *   propsFactory: (state, actions) => ({ ... }),  // ← typed against BackgroundSectionProps
+ * const textSection = section({
+ *   component: CombinedTextSection,
+ *   propsFactory: (state, actions) => ({ ... }),  // ← typed against its props
  * });
  * ```
  *
- * If `BackgroundSection`'s prop type is later renamed, `propsFactory` here
+ * If `CombinedTextSection`'s prop type is later renamed, `propsFactory` here
  * fails to compile — instead of silently passing the wrong shape at runtime.
  *
  * This is also the *only* sanctioned producer of a branded `SectionConfig`

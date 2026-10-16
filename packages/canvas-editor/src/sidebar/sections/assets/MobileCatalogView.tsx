@@ -13,6 +13,7 @@ import { IconsSection } from '../IconsSection';
 import { IllustrationenSection } from '../IllustrationenSection';
 import { RahmenSection } from '../RahmenSection';
 
+import { BackgroundCatalog, BackgroundStripTiles } from './BackgroundCatalog';
 import { SearchResultsGrid } from './SearchResultsGrid';
 import { StickerCatalog } from './StickerCatalog';
 import {
@@ -43,6 +44,7 @@ const EMPTY_HINT = 'm-0 py-8 px-4 text-center text-[13px] text-[var(--editor-tex
 type CategoryId =
   | 'grafiken'
   | 'sticker'
+  | 'hintergruende'
   | 'badges'
   | 'formen'
   | 'diagramme'
@@ -115,6 +117,20 @@ export function MobileCatalogView({ search, ...props }: MobileCatalogViewProps) 
       carousel: <StickerStripTiles onAddAsset={onAddAsset} />,
       detail: (
         <StickerCatalog onAddAsset={onAddAsset} onAddStickerAsset={props.onAddStickerAsset} />
+      ),
+    });
+  }
+
+  if (props.onSetBackgroundImage) {
+    categories.push({
+      id: 'hintergruende',
+      label: 'Hintergründe',
+      carousel: <BackgroundStripTiles onImageChange={props.onSetBackgroundImage} />,
+      detail: (
+        <BackgroundCatalog
+          currentImageSrc={props.currentBackgroundSrc}
+          onImageChange={props.onSetBackgroundImage}
+        />
       ),
     });
   }
