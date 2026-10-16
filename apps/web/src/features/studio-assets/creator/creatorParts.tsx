@@ -57,34 +57,6 @@ export function StageFrame({
   );
 }
 
-/** A titled block of the side panel, styled like the Profilbild inspector. */
-export function PanelSection({
-  heading,
-  aside,
-  children,
-}: {
-  heading: string;
-  aside?: ReactNode;
-  children: ReactNode;
-}): JSX.Element {
-  const id = useId();
-  return (
-    <section aria-labelledby={id} className="flex flex-col gap-3.5">
-      <div className="flex items-baseline justify-between gap-sm">
-        <h2 id={id} className="m-0 text-base font-semibold text-foreground-heading">
-          {heading}
-        </h2>
-        {aside ? (
-          <span className="min-w-0 truncate text-[13px] text-muted-foreground tabular-nums">
-            {aside}
-          </span>
-        ) : null}
-      </div>
-      {children}
-    </section>
-  );
-}
-
 const RING =
   'outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 aria-pressed:ring-2 aria-pressed:ring-primary-600 aria-pressed:ring-offset-2';
 

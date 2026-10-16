@@ -57,6 +57,7 @@ vi.mock('react-konva', () => ({
     return null;
   },
   Path: () => null,
+  Image: () => null,
   Text: () => null,
   Line: () => null,
   Transformer: () => null,
@@ -121,19 +122,33 @@ const Where = () => (
   <output data-testid="where">{useLocation().pathname + useLocation().search}</output>
 );
 
-async function designUpload(user: ReturnType<typeof renderWithProviders>['user']) {
+type User = ReturnType<typeof renderWithProviders>['user'];
+
+async function designUpload(user: User) {
   const input = document.querySelector<HTMLInputElement>('input[type="file"]');
   await user.upload(input!, new File(['raw'], 'Sonnenblume.png', { type: 'image/png' }));
-  await waitFor(() =>
-    expect(screen.getByRole('button', { name: 'Sticker speichern' })).toBeEnabled()
-  );
+}
+
+/** The header button opens the save dialog once the design has a draft. */
+async function openSave(user: User) {
+  const open = screen.getByRole('button', { name: 'Sticker speichern' });
+  await waitFor(() => expect(open).toBeEnabled());
+  await user.click(open);
+  return screen.findByRole('dialog', { name: 'Sticker speichern' });
+}
+
+async function save(user: User) {
+  const dialog = await openSave(user);
+  await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+  return dialog;
 }
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
-async function designCutout(user: ReturnType<typeof renderWithProviders>['user']) {
+async function designCutout(user: User) {
   // The cutout path downscales through a data: URL fetch, which MSW would refuse.
   const realFetch = globalThis.fetch;
   vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) =>
@@ -160,10 +175,11 @@ describe('StickerCreatorPage', () => {
   it('saves an uploaded PNG as a private sticker', async () => {
     const { user } = renderWithProviders(<StickerCreatorPage />);
     await designUpload(user);
-
-    expect(screen.getByLabelText('Titel')).toHaveValue('Sonnenblume');
     expect(screen.queryByRole('switch', { name: 'Hintergrund entfernen' })).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Sticker speichern' }));
+
+    const dialog = await openSave(user);
+    expect(within(dialog).getByLabelText('Titel')).toHaveValue('Sonnenblume');
+    await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
 
     expect(await screen.findByRole('heading', { name: 'Fertig!' })).toBeInTheDocument();
     expect(uploadShare).toHaveBeenCalledWith(rendered, {
@@ -187,18 +203,19 @@ describe('StickerCreatorPage', () => {
   });
 
   it('only shares publicly once the rights are confirmed', async () => {
-    const { user, container } = renderWithProviders(<StickerCreatorPage />);
+    const { user } = renderWithProviders(<StickerCreatorPage />);
     await designUpload(user);
+    const dialog = await openSave(user);
 
-    expect(screen.queryByText('Dein Name wird dabei angezeigt.')).toBeNull();
-    await user.click(screen.getByRole('checkbox', { name: /öffentlich teilen/ }));
-    expect(screen.getByText('Dein Name wird dabei angezeigt.')).toBeInTheDocument();
-    const submit = screen.getByRole('button', { name: 'Sticker speichern' });
+    expect(within(dialog).queryByText('Dein Name wird dabei angezeigt.')).toBeNull();
+    await user.click(within(dialog).getByRole('checkbox', { name: /öffentlich teilen/ }));
+    expect(within(dialog).getByText('Dein Name wird dabei angezeigt.')).toBeInTheDocument();
+    const submit = within(dialog).getByRole('button', { name: 'Speichern' });
     expect(submit).toBeDisabled();
-    expect(within(container).getByRole('radio', { name: 'Deutschland' })).toBeChecked();
-    await user.click(screen.getByRole('checkbox', { name: /Rechte an diesem Bild/ }));
+    expect(within(dialog).getByRole('radio', { name: 'Deutschland' })).toBeChecked();
+    await user.click(within(dialog).getByRole('checkbox', { name: /Rechte an diesem Bild/ }));
     expect(submit).toBeEnabled();
-    expect(await axe(container)).toHaveNoViolations();
+    expect(await axe(dialog)).toHaveNoViolations();
 
     await user.click(submit);
     await waitFor(() =>
@@ -215,7 +232,7 @@ describe('StickerCreatorPage', () => {
       { route: '/studio/sticker/neu?return=profilbild' }
     );
     await designUpload(user);
-    await user.click(screen.getByRole('button', { name: 'Sticker speichern' }));
+    await save(user);
 
     await waitFor(() =>
       expect(screen.getByTestId('where').textContent).toMatch(/^\/studio\/profilbild\?/)
@@ -236,21 +253,23 @@ describe('StickerCreatorPage', () => {
       route: '/studio/sticker/neu?return=canvas',
     });
     await designUpload(user);
-    await user.click(screen.getByRole('button', { name: 'Sticker speichern' }));
+    await save(user);
 
     expect(await screen.findByText(/in der Seitenleiste unter „Meine“/)).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Im Profilbild verwenden' })).toBeNull();
   });
 
-  it('keeps the form and explains when the upload fails', async () => {
+  it('keeps the dialog open and explains when the upload fails', async () => {
     uploadShare.mockResolvedValue(null);
     const { user } = renderWithProviders(<StickerCreatorPage />);
     await designUpload(user);
-    await user.click(screen.getByRole('button', { name: 'Sticker speichern' }));
+    const dialog = await save(user);
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Das Hochladen hat nicht geklappt');
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'Das Hochladen hat nicht geklappt'
+    );
     expect(body).toBeNull();
-    expect(screen.getByRole('button', { name: 'Sticker speichern' })).toBeEnabled();
+    expect(within(dialog).getByRole('button', { name: 'Speichern' })).toBeEnabled();
   });
 
   it('retries a failed save with the file it already uploaded', async () => {
@@ -265,11 +284,11 @@ describe('StickerCreatorPage', () => {
     );
     const { user } = renderWithProviders(<StickerCreatorPage />);
     await designUpload(user);
-    const saveButton = screen.getByRole('button', { name: 'Sticker speichern' });
-    await user.click(saveButton);
+    const dialog = await save(user);
     await waitFor(() => expect(attempts).toBe(1));
-    await waitFor(() => expect(saveButton).toBeEnabled());
-    await user.click(saveButton);
+    const submit = within(dialog).getByRole('button', { name: 'Speichern' });
+    await waitFor(() => expect(submit).toBeEnabled());
+    await user.click(submit);
 
     await waitFor(() => expect(attempts).toBe(2));
     expect(uploadShare).toHaveBeenCalledOnce();
@@ -287,9 +306,7 @@ describe('StickerCreatorPage', () => {
     expect(screen.getByRole('switch', { name: 'Hintergrund entfernen' })).toBeChecked();
     expect(screen.getByRole('switch', { name: 'Kontur' })).toBeChecked();
     expect(screen.getByRole('slider', { name: /Stärke/ })).toBeInTheDocument();
-    const saveButton = screen.getByRole('button', { name: 'Sticker speichern' });
-    await waitFor(() => expect(saveButton).toBeEnabled());
-    await user.click(saveButton);
+    await save(user);
     await waitFor(() => expect(body).toMatchObject({ source: 'cutout', title: 'Portrait' }));
   });
 
@@ -299,9 +316,7 @@ describe('StickerCreatorPage', () => {
     await screen.findByRole('img', { name: 'Vorschau deines Stickers' });
 
     await user.click(screen.getByRole('switch', { name: 'Hintergrund entfernen' }));
-    const saveButton = screen.getByRole('button', { name: 'Sticker speichern' });
-    await waitFor(() => expect(saveButton).toBeEnabled());
-    await user.click(saveButton);
+    await save(user);
     await waitFor(() => expect(body).toMatchObject({ source: 'upload' }));
   });
 
@@ -326,29 +341,64 @@ describe('StickerCreatorPage', () => {
 
     expect(screen.getByRole('textbox', { name: 'Text' })).toHaveValue('Jetzt\nGrün wählen!');
     const stage = screen.getByRole('application', { name: /mit „Jetzt Grün wählen!“/ });
-    expect(screen.getByRole('slider', { name: 'Textgröße' })).toHaveAttribute(
-      'aria-valuenow',
-      '100'
-    );
+    const size = () => screen.getByRole('slider', { name: 'Textgröße' });
+    expect(size()).toHaveAttribute('aria-valuenow', '100');
 
     stage.focus();
     await user.keyboard('+');
-    expect(screen.getByRole('slider', { name: 'Textgröße' })).toHaveAttribute(
-      'aria-valuenow',
-      '110'
-    );
+    expect(size()).toHaveAttribute('aria-valuenow', '110');
     await user.keyboard('{ArrowRight}');
     await user.click(screen.getByRole('button', { name: 'Text zurücksetzen' }));
-    expect(screen.getByRole('slider', { name: 'Textgröße' })).toHaveAttribute(
-      'aria-valuenow',
-      '100'
-    );
+    expect(size()).toHaveAttribute('aria-valuenow', '100');
     expect(screen.getByRole('button', { name: 'Text zurücksetzen' })).toBeDisabled();
 
-    const saveButton = screen.getByRole('button', { name: 'Sticker speichern' });
-    await waitFor(() => expect(saveButton).toBeEnabled());
-    expect(screen.getByLabelText('Titel')).toHaveValue('Jetzt Grün wählen!');
-    await user.click(saveButton);
+    const dialog = await openSave(user);
+    expect(within(dialog).getByLabelText('Titel')).toHaveValue('Jetzt Grün wählen!');
+    await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
     await waitFor(() => expect(body).toMatchObject({ source: 'badge' }));
+  });
+
+  it('keeps the badge controls in tabs: outline colour and a picture background', async () => {
+    const { user } = renderWithProviders(<StickerCreatorPage />);
+    await user.click(screen.getByRole('radio', { name: 'Text-Badge' }));
+
+    await user.click(screen.getByRole('radio', { name: 'Form' }));
+    expect(screen.getByRole('switch', { name: 'Kontur' })).toBeChecked();
+    expect(screen.getByRole('group', { name: 'Farbe der Kontur' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('radio', { name: 'Farben' }));
+    expect(screen.getByRole('button', { name: 'Bild als Hintergrund' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Hintergrundbild wählen')).toHaveAttribute(
+      'accept',
+      'image/jpeg,image/png,image/webp'
+    );
+  });
+
+  it('adds an emoji to the badge and can remove it again', async () => {
+    // jsdom loads no images; the stage only needs the load to finish.
+    vi.stubGlobal(
+      'Image',
+      class {
+        width = 128;
+        height = 128;
+        onload: (() => void) | null = null;
+        set src(_: string) {
+          queueMicrotask(() => this.onload?.());
+        }
+      }
+    );
+    const { user } = renderWithProviders(<StickerCreatorPage />);
+    await user.click(screen.getByRole('radio', { name: 'Text-Badge' }));
+    await user.click(screen.getByRole('radio', { name: 'Emojis' }));
+
+    const [firstEmoji] = screen.getAllByRole('button', { name: /^Emoji .* hinzufügen$/ });
+    const label = firstEmoji!.getAttribute('aria-label')!.replace(/^Emoji | hinzufügen$/g, '');
+    await user.click(firstEmoji!);
+
+    expect(
+      screen.getByRole('application', { name: new RegExp(`, ${label}$`) })
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Entfernen' }));
+    expect(screen.getByRole('application', { name: /Grün wählen!“$/ })).toBeInTheDocument();
   });
 });

@@ -41,6 +41,11 @@
       "require": "./src/utils/pixelHitArea.ts",
       "types": "./src/utils/pixelHitArea.ts"
     },
+    "./stickerElements": {
+      "import": "./src/utils/stickerElements.ts",
+      "require": "./src/utils/stickerElements.ts",
+      "types": "./src/utils/stickerElements.ts"
+    },
     "./profilbildStickers": {
       "import": "./src/utils/profilbildStickerInstances.ts",
       "require": "./src/utils/profilbildStickerInstances.ts",

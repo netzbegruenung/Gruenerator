@@ -12,29 +12,26 @@ import {
   Alert,
   AlertDescription,
   Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
   toast,
   ToggleGroup,
   ToggleGroupItem,
 } from '@gruenerator/ui';
-import {
-  useCallback,
-  useId,
-  useRef,
-  useState,
-  type FormEvent,
-  type JSX,
-  type ReactNode,
-} from 'react';
+import { useCallback, useRef, useState, type FormEvent, type JSX, type ReactNode } from 'react';
 import { PiCheckCircle, PiImageSquare, PiTextAa } from 'react-icons/pi';
 import { Link } from 'react-router-dom';
 
 import { useAuthStore } from '../../../stores/authStore';
 import { uploadBlobToMediaShare } from '../../image-studio/services/mediaUploadService';
+import { CHECKERBOARD } from '../../studio-tools/components/ToolResultCard';
 import { profilbildAssetHref } from '../../studio-tools/utils/galleryAsset';
 import { StudioAssetFormFields } from '../StudioAssetFormFields';
 
 import { BadgeDesigner } from './BadgeDesigner';
-import { PanelSection, useObjectUrl, type DesignerParts, type StickerDraft } from './creatorParts';
+import { useObjectUrl, type DesignerParts, type StickerDraft } from './creatorParts';
 import { ImageStickerDesigner } from './ImageStickerDesigner';
 
 import { cn } from '@/utils/cn';
@@ -77,7 +74,6 @@ export function StickerCreator({
   returnTo = null,
   onCreated,
 }: StickerCreatorProps): JSX.Element {
-  const formId = useId();
   const locale = useAuthStore((s) => s.locale);
   const { create } = useStudioAssetMutations();
 
@@ -90,6 +86,7 @@ export function StickerCreator({
   const titleTouched = useRef(false);
   const uploaded = useRef<{ blob: Blob; token: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [saveOpen, setSaveOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const draftUrl = useObjectUrl(draft?.blob ?? null);
 
@@ -148,6 +145,7 @@ export function StickerCreator({
         ...assetFormBody(form),
       });
       toast.success(`„${item.title}“ ist gespeichert.`);
+      setSaveOpen(false);
       if (onCreated) {
         onCreated(item);
         return;
@@ -170,44 +168,8 @@ export function StickerCreator({
           {stage}
         </div>
       </main>
-      <aside className="flex flex-col gap-8 p-5 md:w-[340px] md:flex-none md:overflow-y-auto md:border-l md:border-border md:p-6 lg:w-[400px] lg:p-7">
-        <PanelSection heading="Art">
-          <ToggleGroup
-            type="single"
-            variant="outline"
-            aria-label="Art des Stickers"
-            value={kind}
-            onValueChange={(v) => {
-              if (v && v !== kind) switchKind(v as CreatorKind);
-            }}
-            className="w-full"
-          >
-            {KINDS.map((k) => (
-              <ToggleGroupItem key={k.value} value={k.value} className="h-10 flex-1 gap-1.5">
-                <k.icon aria-hidden="true" className="size-[18px]" />
-                {k.label}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-        </PanelSection>
-        <PanelSection heading="Gestalten">
-          <div className="flex flex-col gap-lg">{controls}</div>
-        </PanelSection>
-        <PanelSection heading="Speichern">
-          <form id={formId} onSubmit={(e) => void save(e)} className="flex flex-col gap-md">
-            <StudioAssetFormFields
-              values={form}
-              onChange={changeForm}
-              locale={locale}
-              disabled={busy}
-            />
-            {error ? (
-              <Alert variant="destructive" role="alert">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            ) : null}
-          </form>
-        </PanelSection>
+      <aside className="flex flex-col gap-5 p-5 md:w-[340px] md:flex-none md:overflow-y-auto md:border-l md:border-border md:p-6 lg:w-[400px] lg:p-7">
+        <div className="flex flex-col gap-lg">{controls}</div>
       </aside>
     </div>
   );
@@ -247,7 +209,7 @@ export function StickerCreator({
 
   return (
     <div className={cn('flex min-h-0 flex-col bg-background text-foreground', className)}>
-      <header className="flex flex-none items-center justify-between gap-md border-b border-border py-2.5 pr-4 pl-14 md:h-[72px] md:px-6 md:py-0 lg:px-8">
+      <header className="flex flex-none items-center justify-between gap-sm border-b border-border py-2.5 pr-4 pl-14 md:grid md:h-[72px] md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-md md:px-6 md:py-0 lg:px-8">
         <div className="flex min-w-0 items-baseline gap-3.5">
           {heading}
           {description ? (
@@ -256,10 +218,38 @@ export function StickerCreator({
             </span>
           ) : null}
         </div>
-        <div className="flex flex-none items-center gap-2">
+        {created ? (
+          <span aria-hidden="true" />
+        ) : (
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            aria-label="Art des Stickers"
+            value={kind}
+            onValueChange={(v) => {
+              if (v && v !== kind) switchKind(v as CreatorKind);
+            }}
+          >
+            {KINDS.map((k) => (
+              <ToggleGroupItem key={k.value} value={k.value} className="h-9 gap-1.5 px-3">
+                <k.icon aria-hidden="true" className="size-[18px]" />
+                <span className="max-sm:sr-only">{k.label}</span>
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        )}
+        <div className="flex flex-none items-center justify-end gap-2">
           {created ? null : (
-            <Button type="submit" form={formId} variant="brand" disabled={!canSave}>
-              {busy ? 'Wird gespeichert …' : 'Sticker speichern'}
+            <Button
+              type="button"
+              variant="brand"
+              disabled={!draft}
+              onClick={() => {
+                setError(null);
+                setSaveOpen(true);
+              }}
+            >
+              Sticker speichern
             </Button>
           )}
           {headerEnd}
@@ -275,6 +265,53 @@ export function StickerCreator({
             {shell}
           </ImageStickerDesigner>
         ))}
+      <Dialog open={saveOpen && !created} onOpenChange={(open) => !busy && setSaveOpen(open)}>
+        <DialogContent className="flex max-h-[min(90dvh,720px)] flex-col gap-md overflow-y-auto sm:max-w-[480px]">
+          <div className="flex items-center gap-md">
+            {draftUrl ? (
+              <img
+                src={draftUrl}
+                alt=""
+                className={cn(CHECKERBOARD, 'size-16 shrink-0 rounded-lg object-contain')}
+              />
+            ) : null}
+            <div className="flex min-w-0 flex-col gap-1">
+              <DialogTitle className="m-0 text-lg font-semibold text-foreground-heading">
+                Sticker speichern
+              </DialogTitle>
+              <DialogDescription className="m-0 text-sm text-muted-foreground">
+                Er landet in der Galerie unter „Meine“.
+              </DialogDescription>
+            </div>
+          </div>
+          <form onSubmit={(e) => void save(e)} className="flex flex-col gap-md">
+            <StudioAssetFormFields
+              values={form}
+              onChange={changeForm}
+              locale={locale}
+              disabled={busy}
+            />
+            {error ? (
+              <Alert variant="destructive" role="alert">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
+            <div className="flex justify-end gap-sm">
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={busy}
+                onClick={() => setSaveOpen(false)}
+              >
+                Abbrechen
+              </Button>
+              <Button type="submit" variant="brand" disabled={!canSave}>
+                {busy ? 'Wird gespeichert …' : 'Speichern'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
