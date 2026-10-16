@@ -54,6 +54,7 @@ import { logContractValidationError } from '../../utils/contractValidationLogger
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
 import { mintCanvasForVariant } from '../chat/services/sharepicEditService.js';
+import { redactDocumentForReader } from '../docs/documentAccess.js';
 import { formatCategory, getServerFormat } from '../exports/pageConstants.js';
 
 import { checkCanvasEdit } from './services/canvasAiCheck.js';
@@ -85,7 +86,10 @@ export const canvasContractRouter = s.router(canvasContract, {
     try {
       const userId = getAuthedUser(args.req).id;
       const canvases = await listCanvases(userId);
-      return { status: 200 as const, body: canvases };
+      return {
+        status: 200 as const,
+        body: canvases.map((canvas) => redactDocumentForReader(canvas, userId)),
+      };
     } catch (error) {
       const err = error as Error;
       log.error('[canvas.list] Error:', err);
@@ -399,7 +403,7 @@ export const canvasContractRouter = s.router(canvasContract, {
       if (result.kind === 'forbidden') {
         return { status: 403 as const, body: { error: 'Access denied' } };
       }
-      return { status: 200 as const, body: result.canvas };
+      return { status: 200 as const, body: redactDocumentForReader(result.canvas, userId) };
     } catch (error) {
       const err = error as Error;
       log.error('[canvas.get] Error:', err);
