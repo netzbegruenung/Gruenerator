@@ -28,6 +28,7 @@ import {
 } from '../../utils/userImageUtils';
 
 import type { IconState, BaseCanvasState } from './baseTypes';
+import type { StockImageAttribution } from '../../common/imageSourceTypes';
 import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
 import type { AssetInstance } from '../../utils/canvasAssets';
 import type { CircleBadgeInstance } from '../../utils/circleBadgeUtils';
@@ -688,12 +689,16 @@ export function createUserImageActions<TState extends { userImageInstances: User
         commit(appendImage(instance));
       });
     },
-    addUserImageFromUrl: (url: string, fileName: string) => {
-      void createUserImageInstanceFromUrl(url, fileName, canvasWidth, canvasHeight).then(
-        (instance) => {
-          commit(appendImage(instance));
-        }
-      );
+    addUserImageFromUrl: (url: string, fileName: string, attribution?: StockImageAttribution) => {
+      void createUserImageInstanceFromUrl(
+        url,
+        fileName,
+        canvasWidth,
+        canvasHeight,
+        attribution
+      ).then((instance) => {
+        commit(appendImage(instance));
+      });
     },
     /**
      * Place a freshly-picked file instantly via a local blob preview (dimensions

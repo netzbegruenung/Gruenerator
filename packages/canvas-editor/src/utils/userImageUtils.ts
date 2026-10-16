@@ -1,3 +1,5 @@
+import { type StockImageAttribution } from '../common/imageSourceTypes';
+
 export interface UserImageInstance {
   id: string;
   src: string;
@@ -39,6 +41,8 @@ export interface UserImageInstance {
   fit?: 'cover';
   /** `kreis`: clipped to the circle inside width × height. */
   mask?: 'kreis';
+  /** Stock credit (Unsplash): the photo is hotlinked, so the credit travels with it. */
+  attribution?: StockImageAttribution;
 }
 
 /** The adjustment fields, for reset / preset helpers. */
@@ -125,7 +129,8 @@ function makeInstance(
   width: number,
   height: number,
   canvasWidth: number,
-  canvasHeight: number
+  canvasHeight: number,
+  attribution?: StockImageAttribution
 ): UserImageInstance {
   return {
     id: makeId(),
@@ -138,6 +143,7 @@ function makeInstance(
     rotation: 0,
     scale: 1,
     opacity: 1,
+    ...(attribution && { attribution }),
   };
 }
 
@@ -209,18 +215,27 @@ export function createUserImageInstanceFromUrl(
   url: string,
   fileName: string,
   canvasWidth: number,
-  canvasHeight: number
+  canvasHeight: number,
+  attribution?: StockImageAttribution
 ): Promise<UserImageInstance> {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
       const { width, height } = scaleToTarget(img.naturalWidth, img.naturalHeight);
-      resolve(makeInstance(url, fileName, width, height, canvasWidth, canvasHeight));
+      resolve(makeInstance(url, fileName, width, height, canvasWidth, canvasHeight, attribution));
     };
     img.onerror = () => {
       resolve(
-        makeInstance(url, fileName, FALLBACK_WIDTH, FALLBACK_HEIGHT, canvasWidth, canvasHeight)
+        makeInstance(
+          url,
+          fileName,
+          FALLBACK_WIDTH,
+          FALLBACK_HEIGHT,
+          canvasWidth,
+          canvasHeight,
+          attribution
+        )
       );
     };
     img.src = url;

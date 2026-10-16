@@ -207,7 +207,7 @@ export interface DreizeilenFullActions {
 
   // === Placed Image Actions (Uploads / Tools) ===
   addUserImage: (file: File, objectUrl: string) => void;
-  addUserImageFromUrl: (url: string, fileName: string) => void;
+  addUserImageFromUrl: (url: string, fileName: string, attribution?: StockImageAttribution) => void;
   placeUserImageFromFile: (file: File) => Promise<string>;
   updateUserImage: (id: string, partial: Partial<UserImageInstance>) => void;
   removeUserImage: (id: string) => void;
