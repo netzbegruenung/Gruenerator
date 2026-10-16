@@ -47,6 +47,7 @@ describe('createSnapshotVersionStorage', () => {
             snapshot_count: 3,
           },
         ],
+        next_cursor: '4',
       },
     });
     const storage = createSnapshotVersionStorage('doc-1', () => true);
@@ -67,9 +68,18 @@ describe('createSnapshotVersionStorage', () => {
             secondaryLabel: '3 Änderungen',
           },
         ],
+        nextCursor: '4',
       },
     });
     expect(api.list).toHaveBeenCalledWith({ params: { id: 'doc-1' }, query: {} });
+  });
+
+  it('continues at the cursor and ends the history on the last page', async () => {
+    api.list.mockResolvedValue({ status: 200, body: { snapshots: [], next_cursor: null } });
+    const storage = createSnapshotVersionStorage('doc-1', () => true);
+
+    expect(await storage.list(signal, '4')).toEqual({ ok: true, value: { snapshots: [] } });
+    expect(api.list).toHaveBeenCalledWith({ params: { id: 'doc-1' }, query: { cursor: 4 } });
   });
 
   it('decodes stored content to the raw Yjs update', async () => {

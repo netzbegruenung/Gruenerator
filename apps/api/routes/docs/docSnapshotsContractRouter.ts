@@ -39,6 +39,7 @@ const db = getPostgresInstance();
 const s = initServer();
 
 const GROUP_WINDOW_MS = 30 * 60 * 1000;
+const PAGE_SIZE = 50;
 
 type SnapshotListRow = Pick<
   YjsDocumentSnapshotRow,
@@ -184,24 +185,53 @@ function toSnapshot(row: SnapshotListRow): DocSnapshot {
   };
 }
 
+/**
+ * One page of the history, newest first, starting at version `cursor`.
+ * Reads on until the entry after the page has begun, so an auto-save group
+ * at the end of a page is complete; that entry's version is the next cursor.
+ */
+async function readSnapshotPage(
+  documentId: string,
+  cursor: number | null,
+  limit: number,
+  grouped: boolean
+): Promise<{ snapshots: DocSnapshot[]; next_cursor: string | null }> {
+  const rows: SnapshotListRow[] = [];
+  let from = cursor;
+  for (;;) {
+    const batch = (await db.query(
+      `SELECT s.id, s.version, s.created_at, s.is_auto_save, s.label, s.created_by,
+              p.display_name AS created_by_name
+       FROM yjs_document_snapshots s
+       LEFT JOIN profiles p ON s.created_by = p.id
+       WHERE s.document_id = $1 AND ($2::int IS NULL OR s.version <= $2)
+       ORDER BY s.version DESC
+       LIMIT $3`,
+      [documentId, from, limit + 1]
+    )) as SnapshotListRow[];
+    rows.push(...batch);
+    const entries = grouped ? groupAutoSaves(rows) : rows.map(toSnapshot);
+    if (entries.length > limit) {
+      return { snapshots: entries.slice(0, limit), next_cursor: String(entries[limit].version) };
+    }
+    if (batch.length <= limit) return { snapshots: entries, next_cursor: null };
+    from = batch[batch.length - 1].version - 1;
+  }
+}
+
 export const docSnapshotsContractRouter = s.router(docSnapshotsContract, {
   list: async ({ req, params, query }) => {
     try {
       const access = await authorize(req.user?.id, params.id, 'read');
       if (denied(access)) return access;
 
-      const rows = (await db.query(
-        `SELECT s.id, s.version, s.created_at, s.is_auto_save, s.label, s.created_by,
-                p.display_name AS created_by_name
-         FROM yjs_document_snapshots s
-         LEFT JOIN profiles p ON s.created_by = p.id
-         WHERE s.document_id = $1
-         ORDER BY s.version DESC`,
-        [params.id]
-      )) as SnapshotListRow[];
-
-      const snapshots = query.grouped === 'false' ? rows.map(toSnapshot) : groupAutoSaves(rows);
-      return { status: 200, body: { snapshots } };
+      const page = await readSnapshotPage(
+        params.id,
+        query.cursor ?? null,
+        query.limit ?? PAGE_SIZE,
+        query.grouped !== 'false'
+      );
+      return { status: 200, body: page };
     } catch (error) {
       log.error('[list] Error:', error);
       return { status: 500, body: { error: 'Failed to list snapshots' } };

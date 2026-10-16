@@ -8,8 +8,8 @@
  */
 import { gzipSync } from 'zlib';
 
-import * as Y from 'yjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import * as Y from 'yjs';
 
 const { query, readLiveState, applyToLive, checkDocumentAccess, checkDocumentWriteAccess } =
   vi.hoisted(() => ({
@@ -24,7 +24,7 @@ vi.mock('../../database/services/PostgresService.js', () => ({
   getPostgresInstance: () => ({ query }),
 }));
 vi.mock('../../services/docs/snapshotRestore.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../services/docs/snapshotRestore.js')>()),
+  ...(await importOriginal<object>()),
   readLiveState,
   applyToLive,
 }));
@@ -155,65 +155,85 @@ describe('restore', () => {
 });
 
 describe('list', () => {
-  it('groups unnamed auto-saves within 30 minutes and sends ISO timestamps', async () => {
-    query.mockImplementation(async (sql: string) => {
-      if (sql.includes('FROM collaborative_documents')) {
-        return [
-          {
-            id: 'doc-1',
-            created_by: 'owner-1',
-            permissions: {},
-            is_public: false,
-            share_mode: 'private',
-          },
-        ];
-      }
-      return [
-        {
-          id: 'c',
-          version: 3,
-          created_at: new Date('2026-10-16T10:20:00Z'),
-          is_auto_save: true,
-          label: null,
-          created_by: null,
-          created_by_name: null,
-        },
-        {
-          id: 'b',
-          version: 2,
-          created_at: new Date('2026-10-16T10:00:00Z'),
-          is_auto_save: true,
-          label: null,
-          created_by: null,
-          created_by_name: null,
-        },
-        {
-          id: 'a',
-          version: 1,
-          created_at: new Date('2026-10-16T09:00:00Z'),
-          is_auto_save: false,
-          label: 'Stand A',
-          created_by: 'u-1',
-          created_by_name: 'Anna',
-        },
-      ];
-    });
+  const doc = {
+    id: 'doc-1',
+    created_by: 'owner-1',
+    permissions: {},
+    is_public: false,
+    share_mode: 'private',
+  };
+  const row = (version: number, at: string, label: string | null = null) => ({
+    id: `s-${version}`,
+    version,
+    created_at: new Date(at),
+    is_auto_save: label === null,
+    label,
+    created_by: label === null ? null : 'u-1',
+    created_by_name: label === null ? null : 'Anna',
+  });
+  // Two auto-saves 20 minutes apart (one group), then a named version.
+  const ROWS = [
+    row(3, '2026-10-16T10:20:00Z'),
+    row(2, '2026-10-16T10:00:00Z'),
+    row(1, '2026-10-16T09:00:00Z', 'Stand A'),
+  ];
 
-    const res = await handler('list')({ req: req(), params: { id: 'doc-1' }, query: {} });
+  beforeEach(() => {
+    // Applies the cursor ($2) and LIMIT ($3) the way Postgres would.
+    query.mockImplementation(async (sql: string, params: unknown[]) => {
+      if (sql.includes('FROM collaborative_documents')) return [doc];
+      const [, from, limit] = params as [string, number | null, number];
+      return ROWS.filter((r) => from === null || r.version <= from).slice(0, limit);
+    });
+  });
+
+  const list = (query: Record<string, unknown>) =>
+    handler('list')({ req: req(), params: { id: 'doc-1' }, query });
+
+  it('groups unnamed auto-saves within 30 minutes and sends ISO timestamps', async () => {
+    const res = await list({});
 
     expect(res.status).toBe(200);
-    expect(res.body.snapshots).toEqual([
-      expect.objectContaining({
-        version: 3,
-        snapshot_count: 2,
-        created_at: '2026-10-16T10:20:00.000Z',
-      }),
-      expect.objectContaining({
-        version: 1,
-        snapshot_count: 1,
-        label: 'Stand A',
-        created_by: 'u-1',
-      }),
-    ]);
+    expect(res.body).toEqual({
+      snapshots: [
+        expect.objectContaining({
+          version: 3,
+          snapshot_count: 2,
+          created_at: '2026-10-16T10:20:00.000Z',
+        }),
+        expect.objectContaining({
+          version: 1,
+          snapshot_count: 1,
+          label: 'Stand A',
+          created_by: 'u-1',
+        }),
+      ],
+      next_cursor: null,
+    });
+  });
+
+  it('reads past a page boundary so a group is complete, then continues at the cursor', async () => {
+    const first = await list({ limit: 1 });
+    expect(first.body).toEqual({
+      snapshots: [expect.objectContaining({ version: 3, snapshot_count: 2 })],
+      next_cursor: '1',
+    });
+
+    const second = await list({ limit: 1, cursor: 1 });
+    expect(second.body).toEqual({
+      snapshots: [expect.objectContaining({ version: 1, label: 'Stand A' })],
+      next_cursor: null,
+    });
+  });
+
+  it('pages ungrouped rows one by one', async () => {
+    const res = await list({ grouped: 'false', limit: 2 });
+    expect(res.body).toEqual({
+      snapshots: [
+        expect.objectContaining({ version: 3, snapshot_count: 1 }),
+        expect.objectContaining({ version: 2, snapshot_count: 1 }),
+      ],
+      next_cursor: '1',
+    });
   });
 });

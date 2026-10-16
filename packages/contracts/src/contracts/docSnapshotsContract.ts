@@ -43,7 +43,7 @@ export const docSnapshotsContract = c.router(
         404: docSnapshotErrorSchema,
         500: docSnapshotErrorSchema,
       },
-      summary: 'List stored versions, newest first',
+      summary: 'List stored versions, newest first, one page at a time',
     },
 
     create: {

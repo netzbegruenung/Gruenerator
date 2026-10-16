@@ -2,6 +2,7 @@ import {
   type VersionError,
   type VersionResult,
   type VersionSnapshot,
+  type VersionSnapshotPage,
   type VersionStorage,
 } from '@blocknote/core/extensions';
 import { getContractsClient } from '@gruenerator/shared/api';
@@ -109,11 +110,22 @@ export function createSnapshotVersionStorage(
   };
 
   return {
-    list: async (): Promise<VersionResult<{ snapshots: VersionSnapshot[] }>> => {
-      const res = await send(() => api().list({ params: { id: documentId }, query: {} }));
+    list: async (_signal, cursor): Promise<VersionResult<VersionSnapshotPage>> => {
+      const res = await send(() =>
+        api().list({
+          params: { id: documentId },
+          query: cursor === undefined ? {} : { cursor: Number(cursor) },
+        })
+      );
       if (!res) return NETWORK_FAILURE;
       if (res.status !== 200) return failure(res.status);
-      return { ok: true, value: { snapshots: res.body.snapshots.map(toSnapshot) } };
+      return {
+        ok: true,
+        value: {
+          snapshots: res.body.snapshots.map(toSnapshot),
+          ...(res.body.next_cursor !== null && { nextCursor: res.body.next_cursor }),
+        },
+      };
     },
     getContent: async (id): Promise<VersionResult<Uint8Array>> => {
       const res = await send(() => api().getContent({ params: params(id) }));

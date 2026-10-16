@@ -28,11 +28,20 @@ export const docSnapshotSchema = z.object({
   snapshot_count: z.number().int(),
 });
 
+export const DOC_SNAPSHOT_PAGE_SIZE_MAX = 100;
+
 export const listDocSnapshotsQuerySchema = z.object({
   grouped: z.enum(['true', 'false']).optional(),
+  limit: z.coerce.number().int().min(1).max(DOC_SNAPSHOT_PAGE_SIZE_MAX).optional(),
+  /** `next_cursor` of the previous page. */
+  cursor: z.coerce.number().int().optional(),
 });
 
-export const docSnapshotListSchema = z.object({ snapshots: z.array(docSnapshotSchema) });
+export const docSnapshotListSchema = z.object({
+  snapshots: z.array(docSnapshotSchema),
+  /** Null on the last page. */
+  next_cursor: z.string().nullable(),
+});
 
 export const createDocSnapshotBodySchema = z
   .object({ label: snapshotLabelSchema.nullish() })
