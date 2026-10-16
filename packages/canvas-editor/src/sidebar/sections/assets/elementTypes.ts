@@ -10,10 +10,10 @@ import type { ChartType } from '../../../utils/chartUtils';
 import type { FrameClipType } from '../../../utils/frameUtils';
 import type { KawaiiIllustrationType, SvgDef } from '../../../utils/illustrations/types';
 import type { ShapeType } from '../../../utils/shapes';
+import type { StickerRef } from '@gruenerator/shared/stickers';
 
-/** What a tile does: an element add, a photo placed as image, or an icon toggle. */
-export type ElementAction =
-  ElementDragPayload | ({ kind: 'media' } & MediaDragPayload) | { kind: 'icon'; iconId: string };
+/** What a tile does: an element add (icons toggle) or a photo placed as image. */
+export type ElementAction = ElementDragPayload | ({ kind: 'media' } & MediaDragPayload);
 
 /**
  * How a tile previews its element. Plain data, so a recent tile can be stored
@@ -40,9 +40,8 @@ export interface ElementItem {
   thumb: ElementThumbSpec;
 }
 
-/** Drag type and JSON for a tile; null when the action has no place on a page (icons). */
-export function dragDataFor(action: ElementAction): { type: string; data: string } | null {
-  if (action.kind === 'icon') return null;
+/** Drag type and JSON for a tile. */
+export function dragDataFor(action: ElementAction): { type: string; data: string } {
   if (action.kind === 'media') {
     const payload: MediaDragPayload = {
       url: action.url,
@@ -52,4 +51,15 @@ export function dragDataFor(action: ElementAction): { type: string; data: string
     return { type: MEDIA_DRAG_TYPE, data: JSON.stringify(payload) };
   }
   return { type: ELEMENT_DRAG_TYPE, data: JSON.stringify(action) };
+}
+
+/** A shared-gallery sticker as a tile, for the recent list and its drag. */
+export function galleryStickerItem(ref: StickerRef): ElementItem {
+  return {
+    key: `sticker:${ref.id}`,
+    label: 'Sticker',
+    keywords: ['sticker'],
+    action: { kind: 'sticker', ref },
+    thumb: { t: 'share', src: ref.src },
+  };
 }

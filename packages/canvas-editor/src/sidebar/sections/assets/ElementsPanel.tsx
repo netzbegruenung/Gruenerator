@@ -14,6 +14,7 @@ import { useDebounce } from '../../../hooks/useDebounce';
 import { useIsCanvasMobile } from '../../../hooks/useIsCanvasMobile';
 import { useTrackUnsplashDownload } from '../../../hooks/useTrackUnsplashDownload';
 import { cn } from '../../../utils/cn';
+import { MAX_ICON_SELECTIONS } from '../../../utils/iconInstances';
 import { IllustrationSettings } from '../IllustrationSettings';
 import { FramePreviewDefs } from '../RahmenSection';
 
@@ -22,6 +23,7 @@ import { CategoryCard } from './CategoryCard';
 import { ElementGrid } from './ElementGrid';
 import { searchElements } from './elementSearch';
 import { ElementTile } from './ElementTile';
+import { galleryStickerItem, type ElementItem } from './elementTypes';
 import { EmojiTonePicker } from './EmojiTonePicker';
 import { RecentCarousel } from './RecentCarousel';
 import { StickerCatalog } from './StickerCatalog';
@@ -29,13 +31,11 @@ import { canRun, useElementCatalog, type CategoryId } from './useElementCatalog'
 import { useRecentElements } from './useRecentElements';
 
 import type { ExtendedAssetsSectionProps } from './AssetsSection';
-import type { ElementItem } from './elementTypes';
 import type { StickerRef } from '@gruenerator/shared/stickers';
 
 /** Entrance: 12 staggered steps of 45 ms plus the 550 ms rise of the last one. */
 const ENTRANCE_MS = 12 * 45 + 600;
 const BRAND_COUNT = 4;
-const DEFAULT_MAX_ICONS = 3;
 
 function countLabel(n: number): string {
   return `${n} ${n === 1 ? 'Element' : 'Elemente'}`;
@@ -189,7 +189,7 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
         case 'icon': {
           const selected = p.selectedIcons ?? [];
           const isOn = selected.includes(action.iconId);
-          if (!isOn && selected.length >= (p.maxIconSelections ?? DEFAULT_MAX_ICONS)) return;
+          if (!isOn && selected.length >= (p.maxIconSelections ?? MAX_ICON_SELECTIONS)) return;
           p.onIconToggle?.(action.iconId, !isOn);
           if (isOn) return;
           break;
@@ -202,19 +202,12 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
 
   // A gallery sticker goes through the same path, so it lands in "Zuletzt" too.
   const addGallerySticker = useCallback(
-    (ref: StickerRef) =>
-      activate({
-        key: `sticker:${ref.id}`,
-        label: 'Sticker',
-        keywords: ['sticker'],
-        action: { kind: 'sticker', ref },
-        thumb: { t: 'share', src: ref.src },
-      }),
+    (ref: StickerRef) => activate(galleryStickerItem(ref)),
     [activate]
   );
 
   const selectedIcons = props.selectedIcons;
-  const maxIcons = props.maxIconSelections ?? DEFAULT_MAX_ICONS;
+  const maxIcons = props.maxIconSelections ?? MAX_ICON_SELECTIONS;
   const isSelected = useCallback(
     (item: ElementItem) =>
       item.action.kind === 'icon' && (selectedIcons?.includes(item.action.iconId) ?? false),
@@ -312,6 +305,7 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
         <StickerCatalog
           {...(props.onAddStickerAsset ? { onAddStickerAsset: addGallerySticker } : {})}
           searchQuery={q}
+          canDrag={canDrag}
         >
           {body}
         </StickerCatalog>

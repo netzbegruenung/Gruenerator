@@ -27,7 +27,8 @@ export type ElementDragPayload =
   | { kind: 'illustration'; id: string }
   | { kind: 'chart'; chartType: ChartType }
   | { kind: 'frame'; clipType: FrameClipType }
-  | { kind: 'balken'; mode: BalkenMode };
+  | { kind: 'balken'; mode: BalkenMode }
+  | { kind: 'icon'; iconId: string };
 
 const ELEMENT_KINDS = new Set<ElementDragPayload['kind']>([
   'asset',
@@ -37,6 +38,7 @@ const ELEMENT_KINDS = new Set<ElementDragPayload['kind']>([
   'chart',
   'frame',
   'balken',
+  'icon',
 ]);
 
 export function isElementDrag(dataTransfer: DataTransfer | null): boolean {
@@ -56,6 +58,21 @@ export function readElementDrag(dataTransfer: DataTransfer | null): ElementDragP
   } catch {
     return null;
   }
+}
+
+// `dragend.dropEffect` repeats the last dragover's answer even when the drop
+// placed nothing, so the page that handled the drop says whether it did.
+let dropPlaced = false;
+
+export function markDropPlaced(): void {
+  dropPlaced = true;
+}
+
+/** Whether the drop placed something; reading it resets it for the next drag. */
+export function takeDropPlaced(): boolean {
+  const placed = dropPlaced;
+  dropPlaced = false;
+  return placed;
 }
 
 /** Drag type of a Vorlagen tile; the payload is the Vorlage id. */

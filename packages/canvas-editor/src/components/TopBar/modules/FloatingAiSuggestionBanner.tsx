@@ -16,7 +16,8 @@ import { useCanvasStoreSelector } from '../../../stores/CanvasStoreProvider';
  * the singleton store which has no history.
  *
  * A suggestion flagged `undo: 'pages'` (spec path: the deck was replaced in one
- * Yjs step) reverts through `onUndoPages`, the page-level undo. The „Vorlagen"
+ * Yjs step) reverts through `onUndoPages`, which discards that replacement for
+ * good (`discardReplaceDeck`: Redo does not bring it back). The „Vorlagen"
  * tab uses the same banner after replacing a design (`source: 'vorlage'`).
  */
 interface FloatingAiSuggestionBannerProps {

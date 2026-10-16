@@ -2,7 +2,7 @@ import { createEvent, fireEvent, render } from '@testing-library/react';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { VORLAGE_DRAG_TYPE } from '../../../utils/mediaDrop';
+import { ELEMENT_DRAG_TYPE, VORLAGE_DRAG_TYPE, takeDropPlaced } from '../../../utils/mediaDrop';
 import { PageWrapper } from '../PageWrapper';
 
 vi.mock('../../GenericCanvas', () => ({ GenericCanvas: () => <canvas /> }));
@@ -11,8 +11,9 @@ vi.mock('../../ZoomableViewport', () => ({
   ZoomableViewport: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
-function setup(onDropVorlage?: (id: string) => void) {
+function setup(onDropVorlage?: (id: string) => void, placed = true) {
   const onSelect = vi.fn();
+  const dropElement = vi.fn(() => placed);
   const { getByRole } = render(
     <PageWrapper
       {...({
@@ -22,7 +23,7 @@ function setup(onDropVorlage?: (id: string) => void) {
         config: { canvas: { width: 100, height: 100 } },
         isActive: false,
         canDelete: true,
-        canvasRef: { current: null },
+        canvasRef: { current: { dropElement } },
         onSelect,
         onDelete: vi.fn(),
         onMovePage: vi.fn(),
@@ -35,18 +36,19 @@ function setup(onDropVorlage?: (id: string) => void) {
       } as unknown as React.ComponentProps<typeof PageWrapper>)}
     />
   );
-  return { page: getByRole('button', { name: 'Seite 2' }), onSelect };
+  return { page: getByRole('button', { name: 'Seite 2' }), onSelect, dropElement };
 }
 
-const vorlageTransfer = {
-  types: [VORLAGE_DRAG_TYPE],
-  getData: (type: string) => (type === VORLAGE_DRAG_TYPE ? 'zitat' : ''),
-  dropEffect: 'none',
-};
+function transfer(type: string, data: string) {
+  return { types: [type], getData: (t: string) => (t === type ? data : ''), dropEffect: 'none' };
+}
+
+const vorlageTransfer = transfer(VORLAGE_DRAG_TYPE, 'zitat');
+const iconTransfer = transfer(ELEMENT_DRAG_TYPE, JSON.stringify({ kind: 'icon', iconId: 'sun' }));
 
 /** Fires the event and says whether the page accepted it (`preventDefault`). */
-function fire(el: Element, kind: 'dragOver' | 'drop') {
-  const ev = createEvent[kind](el, { dataTransfer: vorlageTransfer });
+function fire(el: Element, kind: 'dragOver' | 'drop', dataTransfer: object = vorlageTransfer) {
+  const ev = createEvent[kind](el, { dataTransfer });
   fireEvent(el, ev);
   return ev.defaultPrevented;
 }
@@ -65,5 +67,22 @@ describe('PageWrapper Vorlage drop', () => {
     const { page } = setup();
     expect(fire(page, 'dragOver')).toBe(false);
     expect(fire(page, 'drop')).toBe(false);
+  });
+});
+
+describe('PageWrapper element drop', () => {
+  it('selects the page and hands a dropped icon to its canvas', () => {
+    const { page, onSelect, dropElement } = setup();
+    expect(fire(page, 'dragOver', iconTransfer)).toBe(true);
+    expect(fire(page, 'drop', iconTransfer)).toBe(true);
+    expect(onSelect).toHaveBeenCalledWith(1);
+    expect(dropElement).toHaveBeenCalledWith(expect.anything(), { kind: 'icon', iconId: 'sun' });
+    expect(takeDropPlaced()).toBe(true);
+  });
+
+  it('does not report a drop its canvas refused as placed', () => {
+    const { page } = setup(undefined, false);
+    expect(fire(page, 'drop', iconTransfer)).toBe(true);
+    expect(takeDropPlaced()).toBe(false);
   });
 });

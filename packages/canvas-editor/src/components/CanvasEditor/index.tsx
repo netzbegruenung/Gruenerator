@@ -177,6 +177,7 @@ function CanvasEditorInner({
     pagesDoc,
     undoPageOp,
     redoPageOp,
+    discardReplaceDeck,
     replaceDeck,
     canUndoPageOp,
     canRedoPageOp,
@@ -539,6 +540,7 @@ function CanvasEditorInner({
     canRedoPageOp,
     undoPageOp,
     redoPageOp,
+    discardReplaceDeck,
   });
 
   const handleCaptureCanvas = useCallback(
@@ -912,7 +914,9 @@ function CanvasEditorInner({
 
   // After a page switch or a deck replace there is one render before the new
   // page reports its state. The chat would unmount there and lose its running
-  // turn (#4273), so it keeps rendering against the last reported page.
+  // turn (#4273), so it keeps rendering against the last reported page. So does
+  // any tab while the new page shares the last one's config: a tile dropped on
+  // another page would otherwise lose its panel (open category, its dragend).
   const sectionSource = useMemo(
     () =>
       activeConfig && activeState && activeActions
@@ -942,7 +946,9 @@ function CanvasEditorInner({
         />
       ) : null;
     }
-    const source = sectionSource ?? (activeTab === 'chat' ? lastSectionSourceRef.current : null);
+    const last = lastSectionSourceRef.current;
+    const source =
+      sectionSource ?? (activeTab === 'chat' || last?.config === activeConfig ? last : null);
     if (!source) return null;
 
     const sectionConfig = source.config.sections[activeTab];
@@ -961,7 +967,17 @@ function CanvasEditorInner({
         <SectionComponent {...sectionProps} />
       </Suspense>
     );
-  }, [activeTab, sectionSource, shareProps, specEdit, showVorlagen, formatId, pages, showPage]);
+  }, [
+    activeTab,
+    sectionSource,
+    activeConfig,
+    shareProps,
+    specEdit,
+    showVorlagen,
+    formatId,
+    pages,
+    showPage,
+  ]);
 
   // Collab vor dem ersten Sync (noch keine Seiten) und der eine Render, in dem
   // die Seiten-Configs nachladen: das Layout bleibt stehen, nur die Fläche

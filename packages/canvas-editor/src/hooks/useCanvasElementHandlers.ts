@@ -84,7 +84,7 @@ export interface OptionalCanvasActions {
   // Removal / toggle actions (consumed by useCanvasKeyboardHandlers for
   // delete-key shortcuts; same factory-provided implementations).
   removeBalken?: (id: string) => void;
-  toggleIcon?: (id: string, enabled: boolean) => void;
+  toggleIcon?: (id: string, enabled: boolean, options?: ElementPlacement) => void;
   removeShape?: (id: string) => void;
   removeAdditionalText?: (id: string) => void;
   removeIllustration?: (id: string) => void;

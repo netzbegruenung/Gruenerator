@@ -140,11 +140,11 @@ export function createIconActions<
   const { defaultColor, defaultOpacity = 1 } = config;
 
   return {
-    toggleIcon: (id: string, selected: boolean) => {
+    toggleIcon: (id: string, selected: boolean, options?: ElementPlacement) => {
       if (selected) {
         const newIconState: IconState = {
-          x: canvasWidth / 2,
-          y: canvasHeight / 2,
+          x: options?.center?.x ?? canvasWidth / 2,
+          y: options?.center?.y ?? canvasHeight / 2,
           scale: 1,
           rotation: 0,
           ...(defaultColor ? { color: defaultColor } : {}),
