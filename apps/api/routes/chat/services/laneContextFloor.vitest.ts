@@ -11,9 +11,9 @@
 import { describe, it, expect } from 'vitest';
 
 import { AUTO_LANE_IDS } from '../agents/autoPolicy.js';
-import { AVAILABLE_MODELS, getModelConfig } from '../agents/providers.js';
+import { AVAILABLE_MODELS, getContextWindow, getModelConfig } from '../agents/providers.js';
 
-import { resolveLaneContextFloor } from './laneContextFloor.js';
+import { resolveLaneContextFloor, turnContextWindow } from './laneContextFloor.js';
 
 /** Every window a request on this lane could run against. Bis zum 29.08.2026
  *  konnten das ZWEI sein (Verdigado-Primär, Überlauf beim zweiten Host); die Bauform ist
@@ -49,5 +49,26 @@ describe('resolveLaneContextFloor', () => {
 
   it('gibt null zurück, wenn die Kennung unbekannt ist', () => {
     expect(resolveLaneContextFloor('gibt-es-nicht')).toBeNull();
+  });
+});
+
+describe('turnContextWindow', () => {
+  it('budgetiert auto gegen den Lane-Boden statt gegen 32k (#4668)', () => {
+    // state.contextWindowTokens kommt von hier und bleibt den ganzen Zug
+    // stehen — respondNode rechnet das Quellen-Budget daraus.
+    for (const id of [undefined, null, 'auto', 'mistral']) {
+      expect(turnContextWindow(id), String(id)).toBe(resolveLaneContextFloor(id));
+    }
+    expect(turnContextWindow('auto')).toBeGreaterThan(32_768);
+  });
+
+  it('ändert nichts an einer explizit gewählten Lane', () => {
+    for (const modelId of Object.keys(AVAILABLE_MODELS)) {
+      expect(turnContextWindow(modelId), modelId).toBe(getContextWindow(modelId));
+    }
+  });
+
+  it('bleibt bei unbekannter Kennung beim konservativen Standard', () => {
+    expect(turnContextWindow('gibt-es-nicht')).toBe(getContextWindow('gibt-es-nicht'));
   });
 });

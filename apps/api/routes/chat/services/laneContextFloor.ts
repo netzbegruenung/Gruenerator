@@ -49,7 +49,7 @@
  * model.
  */
 import { AUTO_LANE_IDS } from '../agents/autoPolicy.js';
-import { getModelConfig, type ModelConfig } from '../agents/providers.js';
+import { getContextWindow, getModelConfig, type ModelConfig } from '../agents/providers.js';
 
 /** Smallest window this lane can serve. Bis zum 29.08.2026 konnte eine Lane
  *  zwei verschieden grosse Seiten haben (Verdigado-Primär, Überlauf beim zweiten Host) und
@@ -94,4 +94,15 @@ export function resolveLaneContextFloor(modelId: string | null | undefined): num
   const config = getModelConfig(modelId);
   if (!config) return null; // unknown id — resolveModel falls back too
   return laneFloor(config);
+}
+
+/**
+ * The window a turn budgets against before its lane is resolved: the model's
+ * own window, raised to the lane floor. Without the floor `auto` resolved to
+ * `DEFAULT_CONTEXT_WINDOW` (32.768) — and `state.contextWindowTokens` keeps that
+ * value for the whole turn, so respondNode sized the source block for a
+ * quarter of the 128k the answering Gemma lane has (#4668).
+ */
+export function turnContextWindow(modelId: string | null | undefined): number {
+  return Math.max(resolveLaneContextFloor(modelId) ?? 0, getContextWindow(modelId));
 }

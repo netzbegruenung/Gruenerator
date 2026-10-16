@@ -45,7 +45,6 @@ import { ThreadId, UserId } from '../../../utils/types/branded.js';
 import { withTimeout } from '../../../utils/withTimeout.js';
 import { notebookIdFromSteps } from '../agents/notebookSourceTools.js';
 import { getPipelineAgent } from '../agents/pipelines/index.js';
-import { getContextWindow } from '../agents/providers.js';
 
 import { priorLookups, priorTurnRetrievalFailed } from './agenticLoop/catalogAssembly.js';
 import { getThreadAttachments } from './attachmentPersistenceService.js';
@@ -58,6 +57,7 @@ import { countCloudConnections } from './cloudConnectionContext.js';
 import { enrichContext } from './contextEnrichmentService.js';
 import { priorTurnEditables } from './editAddressee.js';
 import { backfillEmptyUserMessages } from './historyBackfill.js';
+import { turnContextWindow } from './laneContextFloor.js';
 import {
   extractTextContent,
   filterEmptyAssistantMessages,
@@ -843,7 +843,7 @@ export async function buildStreamContext({
   }
 
   // === Resolve context window for model-aware budgets ===
-  const contextWindowTokens = getContextWindow(modelId);
+  const contextWindowTokens = turnContextWindow(modelId);
 
   // === Initialize state ===
   const initialState = await initializeChatState({
