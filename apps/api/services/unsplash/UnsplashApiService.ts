@@ -223,6 +223,17 @@ async function fetchWithTimeout(
   }
 }
 
+export function parseDownloadLocation(downloadLocation: string): URL | null {
+  let url: URL;
+  try {
+    url = new URL(downloadLocation);
+  } catch {
+    return null;
+  }
+  if (url.origin !== UNSPLASH_API_BASE || url.username || url.password) return null;
+  return /^\/photos\/[\w-]+\/download$/.test(url.pathname) ? url : null;
+}
+
 // ============================================================================
 // Main Service Class
 // ============================================================================
@@ -379,10 +390,17 @@ export class UnsplashApiService {
       return;
     }
 
+    // The URL comes from the client and is fetched with our Client-ID header,
+    // so anything but Unsplash's own download endpoint would leak the key (#4654).
+    const url = parseDownloadLocation(downloadLocation);
+    if (!url) {
+      throw new UnsplashApiError('Invalid Unsplash download location', 400);
+    }
+
     console.log(`[UnsplashAPI] Tracking download`);
 
     try {
-      const response = await fetchWithTimeout(downloadLocation, {
+      const response = await fetchWithTimeout(url.href, {
         method: 'GET',
         headers: this.getHeaders(),
       });
