@@ -11,9 +11,9 @@ import { useMemo } from 'react';
 import { composePrintImpressum, PRINT_IMPRESSUM_ID } from '../../../composer/composePrint';
 import {
   impressumLine,
+  impressumLocaleOf,
   isImpressumComplete,
   parseImpressumLine,
-  type ImpressumLocale,
 } from '../../../composer/printImpressum';
 import { type PrintCanvasFormat } from '../../../formats';
 import { type PrintImpressumGate } from '../../TopBar/DownloadSection';
@@ -39,10 +39,6 @@ export type ObservedPages = Readonly<Record<string, ObservedPageState>>;
 export interface GatePage {
   id: string;
   configId: string;
-}
-
-export function impressumLocaleOf(page: GatePage | null): ImpressumLocale {
-  return page?.configId === 'freeform-at' ? 'de-AT' : 'de-DE';
 }
 
 /** Posters are the one-sided print formats (a static format flag); cards are two-sided. */

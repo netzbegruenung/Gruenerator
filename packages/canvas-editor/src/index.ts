@@ -7,6 +7,8 @@ export type {
   ChatSectionContentProps,
   CanvasAiEditBridge,
   CanvasSpecEditBridge,
+  CanvasVorlagenService,
+  VorlagePage,
 } from './CanvasEditorProvider';
 
 export { StandaloneCanvas } from './components/StandaloneCanvas';

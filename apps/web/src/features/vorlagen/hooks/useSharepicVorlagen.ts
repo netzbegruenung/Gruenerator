@@ -1,15 +1,15 @@
 import { type SharepicCreatorLocale, type SharepicVorlage } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
-import { useQuery } from '@tanstack/react-query';
+import { queryOptions, useQuery } from '@tanstack/react-query';
 
 /**
  * The Grünerator-Vorlagen for sharepics of the viewer's country — the server
  * detects it. `land` asks for the other country; the server honours it for
  * instance admins only. The catalogue changes with a deploy, not while
- * someone browses.
+ * someone browses. Shared by the gallery and the canvas editor's „Vorlagen" tab.
  */
-export function useSharepicVorlagen(land: SharepicCreatorLocale | null = null) {
-  return useQuery({
+export const sharepicVorlagenQuery = (land: SharepicCreatorLocale | null = null) =>
+  queryOptions({
     queryKey: ['sharepic-vorlagen', land],
     staleTime: 10 * 60_000,
     queryFn: async (): Promise<SharepicVorlage[]> => {
@@ -25,4 +25,7 @@ export function useSharepicVorlagen(land: SharepicCreatorLocale | null = null) {
       return res.body.vorlagen;
     },
   });
+
+export function useSharepicVorlagen(land: SharepicCreatorLocale | null = null) {
+  return useQuery(sharepicVorlagenQuery(land));
 }

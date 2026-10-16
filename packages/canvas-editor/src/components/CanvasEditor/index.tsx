@@ -41,6 +41,7 @@ import React, {
   startTransition,
 } from 'react';
 
+import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { PAGE_PERSISTED_STATE_KEYS } from '../../collab/pageElementStateKeys';
 import { createPageSyncedCallbacks } from '../../collab/wrapCallbacksWithPageSync';
 import { type CanvasConfigId } from '../../configs/types';
@@ -51,7 +52,7 @@ import {
   printPdfFilename,
   type PrintExportPage,
 } from '../../export/printExport';
-import { getCanvasFormatOrDefault, isPrintFormat } from '../../formats';
+import { DEFAULT_FORMAT_ID, getCanvasFormatOrDefault, isPrintFormat } from '../../formats';
 import { usePageManager, useMultiPageExport, usePageThumbnails } from '../../hooks';
 import { useDeckAutoSave } from '../../hooks/useDeckAutoSave';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
@@ -59,6 +60,7 @@ import { useZoomGestures } from '../../hooks/useZoomGestures';
 import { HOST_CALLBACK_KEYS } from '../../hostCallbackKeys';
 import { CanvasEditorLayout } from '../../layouts';
 import { SidebarTabBar, SidebarPanel } from '../../sidebar';
+import { VorlagenSection } from '../../sidebar/sections/VorlagenSection';
 import { UserUploadsProvider } from '../../sidebar/UserUploadsProvider';
 import { AutoSaveStoreProvider } from '../../stores/useAutoSaveStore';
 import { cn } from '../../utils/cn';
@@ -91,6 +93,7 @@ import { useToolbarHandlers } from './hooks/useToolbarHandlers';
 import { useWorkAreaDeselect } from './hooks/useWorkAreaDeselect';
 import { getMobileSelectionArea } from './mobileSelectionArea';
 import { PageWrapper } from './PageWrapper';
+import { formatHasVorlagen, vorlagenTab, withVorlagenTab } from './vorlagenTab';
 
 import type { CanvasEditorProps, PageWrapperProps } from './types';
 import type { CanvasSpecEditBridge } from '../../CanvasEditorProvider';
@@ -495,6 +498,11 @@ function CanvasEditorInner({
     [hasReplaceDeck]
   );
 
+  // The Vorlagen replace the whole deck, so they need the synced pages doc.
+  const { vorlagen: vorlagenService } = useCanvasEditorServices();
+  const showVorlagen =
+    vorlagenService !== undefined && hasReplaceDeck && formatHasVorlagen(formatId);
+
   const toolbarHandlers = useToolbarHandlers({
     canvasRefsRef,
     currentPageIndex,
@@ -744,14 +752,17 @@ function CanvasEditorInner({
   // `frame-settings` for `getAutoSwitchTab` to target).
   const visibleTabs = useMemo(() => {
     if (!activeConfig) return [];
+    let tabs = activeConfig.tabs;
     if (activeConfig.getVisibleTabs) {
       const visibleIds = activeConfig.getVisibleTabs(activeState, {
         selectedElement: activeSelectedElement,
       });
-      return activeConfig.tabs.filter((tab) => visibleIds.includes(tab.id));
+      tabs = activeConfig.tabs.filter((tab) => visibleIds.includes(tab.id));
     }
-    return activeConfig.tabs;
-  }, [activeConfig, activeState, activeSelectedElement]);
+    // Mobile has room for six areas; the chat gives way to the Vorlagen there for now.
+    if (isMobileWeb) tabs = tabs.filter((tab) => tab.id !== 'chat');
+    return showVorlagen ? withVorlagenTab(tabs) : tabs;
+  }, [activeConfig, activeState, activeSelectedElement, showVorlagen, isMobileWeb]);
 
   // Compute disabled tabs for active config
   const disabledTabs = useMemo(() => {
@@ -786,7 +797,9 @@ function CanvasEditorInner({
   const isPanelOpen = activeTab !== null;
   const isMobileSheetOpen = isMobileWeb && isPanelOpen;
   const panelTitle =
-    (activeTab && activeConfig?.tabs.find((tab) => tab.id === activeTab)?.label) || 'Auswahl';
+    activeTab === 'vorlagen'
+      ? vorlagenTab.label
+      : (activeTab && activeConfig?.tabs.find((tab) => tab.id === activeTab)?.label) || 'Auswahl';
   useMobileSheetFit({
     enabled: isMobileSheetOpen,
     zoom,
@@ -896,6 +909,11 @@ function CanvasEditorInner({
   // Render the active section based on configuration
   const renderActiveSection = useCallback(() => {
     if (!activeTab) return null;
+    if (activeTab === 'vorlagen') {
+      return showVorlagen && specEdit ? (
+        <VorlagenSection formatId={formatId ?? DEFAULT_FORMAT_ID} pages={pages} deck={specEdit} />
+      ) : null;
+    }
     const source = sectionSource ?? (activeTab === 'chat' ? lastSectionSourceRef.current : null);
     if (!source) return null;
 
@@ -914,7 +932,7 @@ function CanvasEditorInner({
         <SectionComponent {...sectionProps} />
       </Suspense>
     );
-  }, [activeTab, sectionSource, shareProps, specEdit]);
+  }, [activeTab, sectionSource, shareProps, specEdit, showVorlagen, formatId, pages]);
 
   // Collab vor dem ersten Sync (noch keine Seiten) und der eine Render, in dem
   // die Seiten-Configs nachladen: das Layout bleibt stehen, nur die Fläche
