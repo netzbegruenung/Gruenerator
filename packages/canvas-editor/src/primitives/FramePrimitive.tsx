@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback, memo } from 'react';
 import { Circle, Group, Image as KonvaImage, Line, Rect, Shape, Transformer } from 'react-konva';
 
+import { coverPhotoRect } from '../utils/coverFit';
 import { assertNever } from '../utils/shapes';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
 
@@ -352,12 +353,14 @@ function FramePrimitiveInner({
   let scaledH = h;
 
   if (image && imageNaturalSize.width > 0 && imageNaturalSize.height > 0) {
-    const coverScale =
-      Math.max(w / imageNaturalSize.width, h / imageNaturalSize.height) * frame.imageScale;
-    scaledW = imageNaturalSize.width * coverScale;
-    scaledH = imageNaturalSize.height * coverScale;
-    imgX = (w - scaledW) / 2 + frame.imageOffsetX;
-    imgY = (h - scaledH) / 2 + frame.imageOffsetY;
+    const photo = coverPhotoRect(imageNaturalSize, { width: w, height: h }, frame.imageScale, {
+      x: frame.imageOffsetX,
+      y: frame.imageOffsetY,
+    });
+    scaledW = photo.width;
+    scaledH = photo.height;
+    imgX = photo.x;
+    imgY = photo.y;
   }
 
   return (

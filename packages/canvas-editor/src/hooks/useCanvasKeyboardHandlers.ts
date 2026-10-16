@@ -104,6 +104,16 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
         target instanceof HTMLTextAreaElement ||
         target?.isContentEditable === true;
 
+      // Ausschnitt mode: Escape or Enter ends it and keeps the photo selected;
+      // the other keys wait, so an arrow cannot move the frame mid-crop.
+      if (!isTyping && store.getState().croppingElement) {
+        if (e.key === 'Escape' || e.key === 'Enter') {
+          e.preventDefault();
+          store.getState().setCroppingElement(null);
+        }
+        return;
+      }
+
       // ESCAPE — deselect (skipped while typing in an inline editor or input)
       if (e.key === 'Escape') {
         if (isTyping) return;

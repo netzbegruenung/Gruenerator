@@ -23,6 +23,7 @@ import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
 import { balkenExtent, fitBalkenAfterTextEdit, fitBalkenToCanvas } from '../utils/balkenBounds';
 import { CANVAS_RECOMMENDED_ASSETS, SYSTEM_ASSETS } from '../utils/canvasAssets';
+import { zoomBackground } from '../utils/coverFit';
 import {
   calculateDreizeilenLayout,
   COLOR_SCHEMES,
@@ -996,8 +997,12 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       },
 
       setImageScale: (scale: number) => {
-        setState((prev) => ({ ...prev, imageScale: scale }));
-        debouncedSaveToHistory({ ...getState(), imageScale: scale });
+        const zoom = zoomBackground(getState(), scale, {
+          width: CANVAS_WIDTH,
+          height: CANVAS_HEIGHT,
+        });
+        setState((prev) => ({ ...prev, ...zoom }));
+        debouncedSaveToHistory({ ...getState(), ...zoom });
       },
 
       handleBackgroundImageDragEnd: (x: number, y: number) => {

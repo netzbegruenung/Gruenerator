@@ -33,6 +33,8 @@ export interface ContextControlsProps {
   /** Vorlagen-Elemente und Icons lassen sich nicht duplizieren — der Knopf
    *  bleibt sichtbar und ausgegraut, statt zu verschwinden. */
   canDuplicate: boolean;
+  /** The selected framed photo is in Ausschnitt mode. */
+  isCropping?: boolean;
   handlers: {
     handleMoveLayer: (direction: 'up' | 'down') => void;
     handleDuplicate: () => void;
@@ -43,6 +45,8 @@ export interface ContextControlsProps {
     handleShadowChange?: (id: string, patch: ShadowPatch, type: string) => void;
     handleOutlineChange?: (id: string, patch: { stroke?: string; strokeWidth?: number }) => void;
     handleBlurChange?: (id: string, blur: number) => void;
+    /** Ausschnitt mode for a framed photo: the photo moves inside its frame. */
+    handleCropImage?: () => void;
     handleGradientSelect?: (gradient: GradientFill | null) => void;
     /** Opens the image-adjust ("Bearbeiten") panel for the selected image. */
     onEditImage?: () => void;
@@ -77,6 +81,7 @@ export function ContextControls({
   canMoveUp,
   canMoveDown,
   canDuplicate,
+  isCropping = false,
   handlers,
   background,
   onRemoveUserImage,
@@ -408,6 +413,39 @@ export function ContextControls({
 
   if (type === 'user-image' && handlers.onEditImage) {
     groups.push(<EditImageButton key="edit-image" onClick={handlers.onEditImage} />);
+  }
+
+  if (
+    type === 'user-image' &&
+    activeFloatingModule?.data.fit === 'cover' &&
+    handlers.handleCropImage
+  ) {
+    groups.push(
+      <button
+        key="crop-image"
+        className="inline-flex items-center gap-1.5 h-8 shrink-0 rounded-md border-none bg-transparent px-2 cursor-pointer text-[13px] font-medium text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] aria-pressed:bg-[var(--editor-active-bg)] aria-pressed:text-[var(--editor-active-fg)]"
+        onClick={() => handlers.handleCropImage!()}
+        title="Ausschnitt verschieben (oder Doppelklick aufs Bild)"
+        aria-pressed={isCropping}
+        type="button"
+      >
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M6 2v14a2 2 0 0 0 2 2h14" />
+          <path d="M18 22V8a2 2 0 0 0-2-2H2" />
+        </svg>
+        Ausschnitt
+      </button>
+    );
   }
 
   const credit =
