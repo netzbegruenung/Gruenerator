@@ -22,6 +22,7 @@ export const GERMAN_TO_ENGLISH: Record<string, string[]> = {
   erde: ['earth', 'globe', 'world', 'planet'],
   tier: ['animal', 'pet', 'creature'],
   vogel: ['bird', 'fly'],
+  taube: ['dove', 'bird', 'peace'],
   hund: ['dog', 'pet'],
   katze: ['cat', 'pet'],
   fisch: ['fish', 'sea'],
@@ -61,6 +62,7 @@ export const GERMAN_TO_ENGLISH: Record<string, string[]> = {
   fahrrad: ['bicycle', 'bike', 'cycle'],
   bus: ['bus', 'transit', 'transport'],
   zug: ['train', 'rail', 'transit'],
+  bahn: ['train', 'tram', 'rail', 'transit'],
   flugzeug: ['airplane', 'plane', 'flight', 'fly'],
   schiff: ['ship', 'boat', 'sail', 'anchor'],
   rakete: ['rocket', 'launch', 'space'],
@@ -139,6 +141,7 @@ export const GERMAN_TO_ENGLISH: Record<string, string[]> = {
 
   // Actions & UI
   suche: ['search', 'find', 'magnify', 'glass', 'look'],
+  lupe: ['search', 'zoom', 'magnifier', 'magnify'],
   einstellungen: ['settings', 'gear', 'cog', 'config', 'preferences'],
   teilen: ['share', 'social', 'send'],
   senden: ['send', 'paper', 'plane', 'submit'],
@@ -183,6 +186,10 @@ export const GERMAN_TO_ENGLISH: Record<string, string[]> = {
 
   // People & Social
   person: ['user', 'person', 'people', 'account', 'profile'],
+  frau: ['woman', 'female', 'girl'],
+  mann: ['man', 'male'],
+  kind: ['child', 'kid', 'baby'],
+  kinder: ['child', 'children', 'kid', 'baby'],
   benutzer: ['user', 'account', 'profile', 'person'],
   profil: ['profile', 'user', 'account', 'avatar'],
   gruppe: ['group', 'users', 'people', 'team', 'community'],
@@ -247,6 +254,7 @@ export const GERMAN_TO_ENGLISH: Record<string, string[]> = {
   punkt: ['dot', 'point', 'circle'],
   kreuz: ['cross', 'x', 'plus', 'close'],
   häkchen: ['check', 'tick', 'done', 'complete'],
+  haken: ['check', 'tick', 'done'],
   ausrufezeichen: ['exclamation', 'alert', 'warning'],
   fragezeichen: ['question', 'help', 'ask'],
   prozent: ['percent', 'percentage', 'discount'],
@@ -304,6 +312,19 @@ export const GERMAN_TO_ENGLISH: Record<string, string[]> = {
   energie: ['energy', 'lightning', 'bolt', 'power', 'battery'],
   solar: ['solar', 'sun', 'panel', 'energy'],
   windrad: ['windmill', 'wind', 'turbine', 'energy'],
+  windkraft: ['windmill', 'wind', 'turbine', 'energy'],
+  solaranlage: ['solar', 'panel', 'sun', 'energy'],
+  strom: ['bolt', 'plug', 'power', 'electricity', 'energy'],
+  müll: ['trash', 'garbage', 'recycle', 'bin'],
+  wald: ['forest', 'tree', 'trees', 'nature'],
+  landwirtschaft: ['farm', 'tractor', 'farming', 'agriculture', 'wheat'],
+  bauer: ['farmer', 'farm', 'tractor'],
+  europa: ['europe', 'eu', 'globe', 'world'],
+  wahlurne: ['vote', 'ballot', 'election'],
+  demo: ['protest', 'megaphone', 'speakerphone', 'march'],
+  megafon: ['megaphone', 'speakerphone', 'bullhorn', 'announcement'],
+  polizei: ['police', 'shield', 'badge'],
+  bildung: ['education', 'school', 'book', 'graduation'],
   politik: ['politics', 'vote', 'government', 'podium'],
   wahl: ['vote', 'election', 'ballot', 'check'],
   abstimmung: ['vote', 'poll', 'election', 'ballot'],
@@ -330,15 +351,29 @@ export const GERMAN_TO_ENGLISH: Record<string, string[]> = {
 /**
  * Get English search terms from German query
  */
-export function getEnglishSearchTerms(germanQuery: string): string[] {
-  const terms: string[] = [];
-  const lowerQuery = germanQuery.toLowerCase();
+export const foldUmlauts = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/ä/g, 'ae')
+    .replace(/ö/g, 'oe')
+    .replace(/ü/g, 'ue')
+    .replace(/ß/g, 'ss');
 
-  for (const [german, english] of Object.entries(GERMAN_TO_ENGLISH)) {
-    if (lowerQuery.includes(german)) {
-      terms.push(...english);
-    }
-  }
+const DICTIONARY = new Map(
+  Object.entries(GERMAN_TO_ENGLISH).map(([german, english]) => [foldUmlauts(german), english])
+);
+const KEYS_LONGEST_FIRST = [...DICTIONARY.keys()].sort((a, b) => b.length - a.length);
 
-  return [...new Set(terms)]; // Remove duplicates
+/**
+ * English terms for ONE folded German word. A word without its own entry falls
+ * back to its compound head, the last part (Sonnenblume → blume). Never match a
+ * key anywhere inside the word: "sport" contains "ort", "bildung" contains "bild".
+ */
+export function translateWord(word: string): { terms: string[]; exact: boolean } {
+  const own = DICTIONARY.get(word);
+  if (own) return { terms: own, exact: true };
+  const head = KEYS_LONGEST_FIRST.find(
+    (key) => key.length >= 4 && word.length > key.length && word.endsWith(key)
+  );
+  return { terms: head ? DICTIONARY.get(head)! : [], exact: false };
 }
