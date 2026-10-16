@@ -404,9 +404,8 @@ function EditorContent() {
     if (!docData || !editor) return;
     if (exportBlockedBySuggestions()) return;
     try {
-      const { DOCXExporter, docxDefaultSchemaMappings } =
-        await import('@blocknote/xl-docx-exporter');
-      const exporter = new DOCXExporter(editor.schema, docxDefaultSchemaMappings);
+      const { createDocxExporter } = await import('./documentExporters');
+      const exporter = createDocxExporter();
       const blob = await exporter.toBlob(editor.document);
       await downloadBlob(blob, `${docData.title || 'Dokument'}.docx`);
       setShowActionsMenu(false);
@@ -516,8 +515,8 @@ function EditorContent() {
     if (!docData || !editor) return;
     if (exportBlockedBySuggestions()) return;
     try {
-      const { ODTExporter, odtDefaultSchemaMappings } = await import('@blocknote/xl-odt-exporter');
-      const exporter = new ODTExporter(editor.schema, odtDefaultSchemaMappings);
+      const { createOdtExporter } = await import('./documentExporters');
+      const exporter = createOdtExporter();
       const blob = await exporter.toODTDocument(editor.document);
       await downloadBlob(blob, `${docData.title || 'Dokument'}.odt`);
       setShowActionsMenu(false);
