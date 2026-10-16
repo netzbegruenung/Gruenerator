@@ -58,6 +58,17 @@ export function readElementDrag(dataTransfer: DataTransfer | null): ElementDragP
   }
 }
 
+/** Drag type of a Vorlagen tile; the payload is the Vorlage id. */
+export const VORLAGE_DRAG_TYPE = 'application/x-gruenerator-vorlage';
+
+export function isVorlageDrag(dataTransfer: DataTransfer | null): boolean {
+  return !!dataTransfer && Array.from(dataTransfer.types).includes(VORLAGE_DRAG_TYPE);
+}
+
+export function readVorlageDrag(dataTransfer: DataTransfer | null): string | null {
+  return dataTransfer?.getData(VORLAGE_DRAG_TYPE) || null;
+}
+
 export function isMediaDrag(dataTransfer: DataTransfer | null): boolean {
   return !!dataTransfer && Array.from(dataTransfer.types).includes(MEDIA_DRAG_TYPE);
 }

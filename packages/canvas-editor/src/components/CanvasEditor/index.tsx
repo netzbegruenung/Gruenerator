@@ -61,7 +61,10 @@ import { HOST_CALLBACK_KEYS } from '../../hostCallbackKeys';
 import { CanvasEditorLayout } from '../../layouts';
 import { SidebarTabBar, SidebarPanel } from '../../sidebar';
 import { usePreloadElements } from '../../sidebar/sections/preloadElements';
-import { VorlagenSection } from '../../sidebar/sections/VorlagenSection';
+import {
+  VorlagenSection,
+  type VorlagenSectionHandle,
+} from '../../sidebar/sections/VorlagenSection';
 import { UserUploadsProvider } from '../../sidebar/UserUploadsProvider';
 import { AutoSaveStoreProvider } from '../../stores/useAutoSaveStore';
 import { cn } from '../../utils/cn';
@@ -520,6 +523,13 @@ function CanvasEditorInner({
   const { vorlagen: vorlagenService } = useCanvasEditorServices();
   const showVorlagen =
     vorlagenService !== undefined && hasReplaceDeck && formatHasVorlagen(formatId);
+  // A Vorlage dropped on a page goes to the open Vorlagen tab, which asks first
+  // on a design with content, as on a click.
+  const vorlagenRef = useRef<VorlagenSectionHandle>(null);
+  const handleDropVorlage = useCallback(
+    (vorlageId: string) => vorlagenRef.current?.pick(vorlageId),
+    []
+  );
 
   const toolbarHandlers = useToolbarHandlers({
     canvasRefsRef,
@@ -924,6 +934,7 @@ function CanvasEditorInner({
     if (activeTab === 'vorlagen') {
       return showVorlagen && specEdit ? (
         <VorlagenSection
+          ref={vorlagenRef}
           formatId={formatId ?? DEFAULT_FORMAT_ID}
           pages={pages}
           deck={specEdit}
@@ -1285,6 +1296,7 @@ function CanvasEditorInner({
                   onMovePage={movePage}
                   onDuplicatePage={duplicatePage}
                   onChangeTemplate={handleOpenTemplateChange}
+                  onDropVorlage={showVorlagen ? handleDropVorlage : undefined}
                   onExport={handleExport}
                   onCancel={onCancel}
                   callbacks={getCallbacksForPage(page.id, page.configId)}

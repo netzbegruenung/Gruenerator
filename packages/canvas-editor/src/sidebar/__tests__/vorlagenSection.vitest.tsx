@@ -1,11 +1,13 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { createRef } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CanvasEditorProvider, type CanvasVorlagenService } from '../../CanvasEditorProvider';
 import { PRINT_VORLAGEN } from '../../composer/printVorlagen';
 import { defaultCanvasEditorStore } from '../../stores/createCanvasEditorStore';
-import { VorlagenSection } from '../sections/VorlagenSection';
+import { VORLAGE_DRAG_TYPE } from '../../utils/mediaDrop';
+import { VorlagenSection, type VorlagenSectionHandle } from '../sections/VorlagenSection';
 
 import type { HeterogeneousPage } from '../../configs/types';
 import type { SharepicFormat, SharepicSeite, SharepicVorlage } from '@gruenerator/contracts';
@@ -79,18 +81,35 @@ function setup(
     replaceDeck: vi.fn((): string[] => []),
   };
   const onShowPage = vi.fn();
+  const handle = createRef<VorlagenSectionHandle>();
   render(
     <CanvasEditorProvider services={{ vorlagen, userLocale }}>
-      <VorlagenSection formatId={formatId} pages={pages} deck={deck} onShowPage={onShowPage} />
+      <VorlagenSection
+        ref={handle}
+        formatId={formatId}
+        pages={pages}
+        deck={deck}
+        onShowPage={onShowPage}
+      />
     </CanvasEditorProvider>
   );
-  return { vorlagen, deck, onShowPage, user: userEvent.setup() };
+  return { vorlagen, deck, onShowPage, handle, user: userEvent.setup() };
 }
 
 const card = (titel: string) =>
   screen.findByRole('button', { name: `Vorlage „${titel}“ anwenden` });
 
+function setViewport(mobile: boolean) {
+  window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+    matches: mobile && query.includes('max-width: 899px'),
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }));
+}
+
 beforeEach(() => {
+  setViewport(false);
   defaultCanvasEditorStore.getState().setPendingAiSuggestion(null);
 });
 
@@ -140,6 +159,64 @@ describe('VorlagenSection', () => {
       title: 'Zitat mit Foto',
       undo: 'pages',
       source: 'vorlage',
+    });
+  });
+
+  describe('drag onto a page', () => {
+    function dragStart(tile: HTMLElement) {
+      const data: Record<string, string> = {};
+      fireEvent.dragStart(tile, {
+        dataTransfer: {
+          setData: (type: string, value: string) => (data[type] = value),
+          setDragImage: () => {},
+          effectAllowed: '',
+        },
+      });
+      return data;
+    }
+
+    it('drags the Vorlage id', async () => {
+      setup(EMPTY);
+      const tile = await card('Karussell');
+      expect(tile).toHaveAttribute('draggable', 'true');
+      expect(dragStart(tile)[VORLAGE_DRAG_TYPE]).toBe('karussell');
+    });
+
+    it('applies a dropped Vorlage straight away on an empty design', async () => {
+      const { deck, vorlagen, handle } = setup(EMPTY);
+      await card('Zitat mit Foto');
+      act(() => handle.current?.pick('zitat'));
+      await waitFor(() => expect(deck.replaceDeck).toHaveBeenCalledTimes(1));
+      expect(vorlagen.compose).toHaveBeenCalledWith(CATALOGUE[0]);
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+    });
+
+    it('asks first when the design has content', async () => {
+      const { deck, handle, user } = setup(WITH_TEXT);
+      await card('Zitat mit Foto');
+      act(() => handle.current?.pick('zitat'));
+
+      const dialog = await screen.findByRole('alertdialog');
+      expect(within(dialog).getByText('Vorlage „Zitat mit Foto“ verwenden?')).toBeInTheDocument();
+      expect(deck.replaceDeck).not.toHaveBeenCalled();
+
+      await user.click(within(dialog).getByRole('button', { name: 'Aktuelles ersetzen' }));
+      await waitFor(() => expect(deck.replaceDeck).toHaveBeenCalledTimes(1));
+    });
+
+    it('ignores an id that is not in the grid', async () => {
+      const { deck, vorlagen, handle } = setup(WITH_TEXT);
+      await card('Zitat mit Foto');
+      act(() => handle.current?.pick('hoch'));
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+      expect(vorlagen.compose).not.toHaveBeenCalled();
+      expect(deck.replaceDeck).not.toHaveBeenCalled();
+    });
+
+    it('offers no drag on the mobile sheet', async () => {
+      setViewport(true);
+      setup(EMPTY);
+      expect(await card('Zitat mit Foto')).toHaveAttribute('draggable', 'false');
     });
   });
 

@@ -1,7 +1,14 @@
 import React, { useCallback, useState, memo } from 'react';
 
 import { cn } from '../../utils/cn';
-import { isElementDrag, isMediaDrag, readElementDrag, readMediaDrag } from '../../utils/mediaDrop';
+import {
+  isElementDrag,
+  isMediaDrag,
+  isVorlageDrag,
+  readElementDrag,
+  readMediaDrag,
+  readVorlageDrag,
+} from '../../utils/mediaDrop';
 import { GenericCanvas } from '../GenericCanvas';
 import { PageToolbar } from '../PageToolbar';
 import { ZoomableViewport } from '../ZoomableViewport';
@@ -26,6 +33,7 @@ export const PageWrapper = memo(function PageWrapper({
   onMovePage,
   onDuplicatePage,
   onChangeTemplate,
+  onDropVorlage,
   onExport,
   onCancel,
   callbacks,
@@ -84,20 +92,36 @@ export const PageWrapper = memo(function PageWrapper({
   const handleClick = useCallback((e: React.MouseEvent) => activateFrom(e.target), [activateFrom]);
 
   // An upload, photo or Elemente tile dragged from the sidebar lands where it
-  // is dropped, on this page.
+  // is dropped, on this page. A Vorlage replaces the whole design, so for it
+  // the page only hands the drop on.
   const [isDropTarget, setIsDropTarget] = useState(false);
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    if (!isMediaDrag(e.dataTransfer) && !isElementDrag(e.dataTransfer)) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
-    setIsDropTarget(true);
-  }, []);
+  const handleDragOver = useCallback(
+    (e: React.DragEvent) => {
+      if (
+        !isMediaDrag(e.dataTransfer) &&
+        !isElementDrag(e.dataTransfer) &&
+        !(onDropVorlage && isVorlageDrag(e.dataTransfer))
+      ) {
+        return;
+      }
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      setIsDropTarget(true);
+    },
+    [onDropVorlage]
+  );
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setIsDropTarget(false);
   }, []);
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       setIsDropTarget(false);
+      const vorlageId = onDropVorlage ? readVorlageDrag(e.dataTransfer) : null;
+      if (vorlageId) {
+        e.preventDefault();
+        onDropVorlage?.(vorlageId);
+        return;
+      }
       const media = readMediaDrag(e.dataTransfer);
       const element = media ? null : readElementDrag(e.dataTransfer);
       if (!media && !element) return;
@@ -106,7 +130,7 @@ export const PageWrapper = memo(function PageWrapper({
       if (media) canvasRef.current?.dropMedia(e, media);
       else if (element) canvasRef.current?.dropElement(e, element);
     },
-    [isActive, onSelect, index, canvasRef]
+    [isActive, onSelect, index, canvasRef, onDropVorlage]
   );
 
   const handleKeyDown = useCallback(
