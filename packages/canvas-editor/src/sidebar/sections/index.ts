@@ -16,8 +16,8 @@ export { CombinedTextSection } from './CombinedTextSection';
 export type { CombinedTextSectionProps } from './CombinedTextSection';
 export { ChatSection } from './ChatSection';
 export type { ChatSectionProps } from './ChatSection';
-// Static: IconsSection is already statically imported/rendered by AssetsSection
-// + BrowseView, so the previous lazy() wrapper was an ineffective dynamic import
+// Static: IconsSection used to be statically imported by AssetsSection, so the
+// previous lazy() wrapper was an ineffective dynamic import
 // (it confused the chunker). Export it directly.
 export { IconsSection } from './IconsSection';
 export { BadgeSection } from './BadgeSection';

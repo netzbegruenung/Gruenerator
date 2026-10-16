@@ -1,19 +1,13 @@
 import { type StudioAssetItem, type StudioAssetScope } from '@gruenerator/contracts';
-import { shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
 import { isShareSrc } from '@gruenerator/shared/stickers';
-import { useStudioAssets } from '@gruenerator/shared/studio-assets';
 import { useRef, useState } from 'react';
 
 import { fetchShareImageFile } from '../../../utils/mediaPlacement';
 import { GALLERY_SCOPES, GalleryTabs, StudioGalleryGrid } from '../StudioGallery';
 
-import { StripTile } from './CategoryStrip';
-
 import type { BackgroundControls } from '../../../configs/types';
 
 type ImageChange = NonNullable<BackgroundControls['onImageChange']>;
-
-const STRIP_COUNT = 8;
 
 /**
  * A gallery pick becomes the template's background photo with the gallery's own
@@ -40,32 +34,6 @@ function useBackgroundPick(onImageChange: ImageChange) {
   };
 
   return { pick, pendingId, error };
-}
-
-/** The first gallery backgrounds as strip tiles in the Elemente browse view. */
-export function BackgroundStripTiles({ onImageChange }: { onImageChange: ImageChange }) {
-  const { items } = useStudioAssets({ kind: 'background', scope: 'shop', q: '', sort: 'new' });
-  const { pick, pendingId } = useBackgroundPick(onImageChange);
-  return (
-    <>
-      {items.slice(0, STRIP_COUNT).map((item) => (
-        <StripTile
-          key={item.id}
-          title={`${item.title} als Hintergrund verwenden`}
-          onClick={() => void pick(item)}
-          disabled={pendingId === item.id}
-          className="overflow-hidden p-0"
-        >
-          <img
-            src={item.thumbUrl ?? shareThumbnailPreviewUrl(item.src, 200)}
-            alt=""
-            loading="lazy"
-            className="size-full object-cover rounded-[10px]"
-          />
-        </StripTile>
-      ))}
-    </>
-  );
 }
 
 /** The shared gallery's backgrounds (Entdecken / Meine / Gemerkt). */

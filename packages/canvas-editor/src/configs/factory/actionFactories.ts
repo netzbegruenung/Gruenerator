@@ -10,6 +10,7 @@ import { v4 as uuid } from 'uuid';
 import {
   BALKEN_FIT_MARGIN,
   BALKEN_FIT_MIN_SCALE,
+  balkenExtent,
   fitBalkenAfterTextEdit,
 } from '../../utils/balkenBounds';
 import { createBalkenInstanceFromPreset } from '../../utils/balkenUtils';
@@ -35,7 +36,11 @@ import type { FrameClipType, FrameInstance } from '../../utils/frameUtils';
 import type { IllustrationInstance } from '../../utils/illustrations/types';
 import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '../../utils/shapes';
-import type { UserImageInstance, UserImagePlacement } from '../../utils/userImageUtils';
+import type {
+  ElementPlacement,
+  UserImageInstance,
+  UserImagePlacement,
+} from '../../utils/userImageUtils';
 import type { AdditionalText } from '../types';
 import type { StickerRef } from '@gruenerator/shared/stickers';
 
@@ -73,17 +78,22 @@ export function createAssetActions<TState extends { assetInstances: AssetInstanc
   canvasHeight: number
 ) {
   return {
-    addAsset: (assetId: string) => {
-      const newInstance = createAssetInstance(assetId, canvasWidth, canvasHeight);
+    addAsset: (assetId: string, options?: ElementPlacement) => {
+      // Assets are anchored at their centre.
+      const newInstance = {
+        ...createAssetInstance(assetId, canvasWidth, canvasHeight),
+        ...options?.center,
+      };
       setState((prev) => ({
         ...prev,
         assetInstances: [...prev.assetInstances, newInstance],
       }));
       saveToHistory(getState());
     },
-    addStickerAsset: (ref: StickerRef) => {
-      const newInstance = createStickerInstance(ref, canvasWidth, canvasHeight);
-      if (!newInstance) return;
+    addStickerAsset: (ref: StickerRef, options?: ElementPlacement) => {
+      const sticker = createStickerInstance(ref, canvasWidth, canvasHeight);
+      if (!sticker) return;
+      const newInstance = { ...sticker, ...options?.center };
       setState((prev) => ({
         ...prev,
         assetInstances: [...prev.assetInstances, newInstance],
@@ -202,8 +212,9 @@ export function createShapeActions<TState extends { shapeInstances: ShapeInstanc
   defaultColor: string = BRAND_COLORS[0].value
 ) {
   return {
-    addShape: (type: ShapeType, color?: string) => {
-      const newShape = createShape(type, canvasWidth / 2, canvasHeight / 2, defaultColor, color);
+    addShape: (type: ShapeType, color?: string, options?: ElementPlacement) => {
+      const center = options?.center ?? { x: canvasWidth / 2, y: canvasHeight / 2 };
+      const newShape = createShape(type, center.x, center.y, defaultColor, color);
       setState((prev) => ({
         ...prev,
         shapeInstances: [...prev.shapeInstances, newShape],
@@ -242,9 +253,11 @@ export function createIllustrationActions<
   canvasHeight: number
 ) {
   return {
-    addIllustration: (id: string) => {
-      void createIllustration(id, canvasWidth, canvasHeight).then((newIllustration) => {
-        if (!newIllustration) return;
+    addIllustration: (id: string, options?: ElementPlacement) => {
+      void createIllustration(id, canvasWidth, canvasHeight).then((created) => {
+        if (!created) return;
+        // The primitive centres the artwork on x/y.
+        const newIllustration = { ...created, ...options?.center };
         setState((prev) => ({
           ...prev,
           illustrationInstances: [...prev.illustrationInstances, newIllustration],
@@ -512,8 +525,20 @@ export function createBalkenActions<TState extends { balkenInstances: BalkenInst
   canvasHeight: number
 ) {
   return {
-    addBalken: (mode: BalkenMode) => {
-      const newBalken = createBalkenInstanceFromPreset(mode);
+    addBalken: (mode: BalkenMode, options?: ElementPlacement) => {
+      const preset = createBalkenInstanceFromPreset(mode);
+      let newBalken = preset;
+      if (options?.center) {
+        // The bars lay out around the canvas centre; `offset` moves the group.
+        const box = balkenExtent(preset, canvasWidth, canvasHeight);
+        newBalken = {
+          ...preset,
+          offset: {
+            x: options.center.x - (box.left + box.right) / 2,
+            y: options.center.y - (box.top + box.bottom) / 2,
+          },
+        };
+      }
       setState((prev) => ({
         ...prev,
         balkenInstances: [...prev.balkenInstances, newBalken],
@@ -575,8 +600,16 @@ export function createChartActions<TState extends { chartInstances: ChartInstanc
   canvasHeight: number
 ) {
   return {
-    addChart: (chartType: ChartType) => {
-      const newChart = createChartInstance(chartType, canvasWidth, canvasHeight);
+    addChart: (chartType: ChartType, options?: ElementPlacement) => {
+      const created = createChartInstance(chartType, canvasWidth, canvasHeight);
+      // Charts store their top-left corner.
+      const newChart = options?.center
+        ? {
+            ...created,
+            x: options.center.x - created.width / 2,
+            y: options.center.y - created.height / 2,
+          }
+        : created;
       setState((prev) => ({
         ...prev,
         chartInstances: [...prev.chartInstances, newChart],
@@ -613,8 +646,9 @@ export function createFrameActions<TState extends { frameInstances: FrameInstanc
   canvasHeight: number
 ) {
   return {
-    addFrame: (clipType: FrameClipType) => {
-      const newFrame = createFrameInstance(clipType, canvasWidth / 2, canvasHeight / 2);
+    addFrame: (clipType: FrameClipType, options?: ElementPlacement) => {
+      const center = options?.center ?? { x: canvasWidth / 2, y: canvasHeight / 2 };
+      const newFrame = createFrameInstance(clipType, center.x, center.y);
       setState((prev) => ({
         ...prev,
         frameInstances: [...prev.frameInstances, newFrame],

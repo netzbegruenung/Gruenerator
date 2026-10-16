@@ -141,6 +141,8 @@
     --editor-active-fg: var(--primary-600);
     --editor-active-bg: var(--primary-100);
     --editor-active-soft: var(--primary-50);
+    --editor-stack-back: var(--primary-300);
+    --editor-stack-mid: var(--primary-200);
     --editor-green-deep: #00553B;                    /* brand deep green — no palette equivalent */
     --editor-menubar-gradient: linear-gradient(90deg, var(--editor-green-deep) 0%, #3E7D63 55%, #6BA88C 100%);
     --editor-topbar-height: 56px;
@@ -199,6 +201,8 @@
     --editor-active-fg: var(--primary-300);
     --editor-active-bg: var(--primary-900);
     --editor-active-soft: var(--primary-950);
+    --editor-stack-back: var(--primary-800);
+    --editor-stack-mid: var(--primary-700);
     --editor-canvas-bg: var(--grey-900);
     --editor-surface: #1e1e1e;
     --editor-inset: var(--grey-800);

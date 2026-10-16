@@ -1,0 +1,389 @@
+import { shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
+import { useStudioAssets } from '@gruenerator/shared/studio-assets';
+import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState, type ReactNode } from 'react';
+import { PiImageFill } from 'react-icons/pi';
+
+import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
+import { useAllIconsCatalog, useIconCatalog } from '../../../hooks/useIconCatalog';
+import {
+  ALL_ASSETS,
+  EMOJI_ASSETS,
+  hasDarkPreview,
+  sortLogoAssets,
+  stickerAssetsForLocale,
+  type AssetAudience,
+  type UniversalAsset,
+} from '../../../utils/canvasAssets';
+import { CHART_TYPE_DEFS } from '../../../utils/chartUtils';
+import { FRAME_CATEGORY_ORDER, FRAME_PRESETS, getFramePreset } from '../../../utils/frameUtils';
+import { KAWAII_ILLUSTRATIONS } from '../../../utils/illustrations/kawaii';
+import { getAllIllustrations } from '../../../utils/illustrations/registry';
+import { UNDRAW_FEATURED } from '../../../utils/illustrations/undraw';
+import { getShapeDef } from '../../../utils/shapes';
+import { ALL_PALETTE_SHAPES, getShapeVariant } from '../FormenSection';
+
+import { ElementThumb } from './ElementThumb';
+import { useStockPhotos } from './useStockPhotos';
+
+import type { ExtendedAssetsSectionProps } from './AssetsSection';
+import type { AssetView } from './constants';
+import type { ElementAction, ElementItem } from './elementTypes';
+import type { IconDef } from '../../../utils/canvasIcons';
+import type { IllustrationDef } from '../../../utils/illustrations/types';
+
+export type CategoryId = Exclude<AssetView, 'browse'>;
+
+export interface CatalogCategory {
+  id: CategoryId;
+  label: string;
+  tint: 'primary' | 'secondary';
+  cover: ReactNode;
+  /** Null when the size is unknown up front (galleries). */
+  count: number | null;
+  items: ElementItem[];
+  isLoading: boolean;
+  /** Galleries search server-side in their own grid, not in the shared one. */
+  searchable: boolean;
+}
+
+// --- Item builders (pure; the action carries everything a click or drop needs) ---
+
+function assetItem(asset: UniversalAsset): ElementItem {
+  return {
+    key: `asset:${asset.id}`,
+    label: asset.label,
+    keywords: asset.tags,
+    action: { kind: 'asset', assetId: asset.id },
+    thumb: { t: 'img', src: asset.src, ...(hasDarkPreview(asset) ? { inverse: true } : {}) },
+  };
+}
+
+const SHAPE_ITEMS: ElementItem[] = ALL_PALETTE_SHAPES.map((shape) => {
+  const def = getShapeDef(shape.id);
+  return {
+    key: `shape:${shape.id}`,
+    label: def.name,
+    keywords: def.tags,
+    action: { kind: 'shape', shapeType: shape.id, color: getShapeVariant(shape.id).color },
+    thumb: { t: 'shape', shapeType: shape.id },
+  };
+});
+
+const CHART_ITEMS: ElementItem[] = CHART_TYPE_DEFS.map((def) => ({
+  key: `chart:${def.id}`,
+  label: def.name,
+  keywords: def.tags,
+  action: { kind: 'chart', chartType: def.id },
+  thumb: { t: 'chart', chartType: def.id },
+}));
+
+const FRAME_ITEMS: ElementItem[] = [...FRAME_PRESETS]
+  .sort(
+    (a, b) =>
+      FRAME_CATEGORY_ORDER.indexOf(getFramePreset(a.id).category) -
+      FRAME_CATEGORY_ORDER.indexOf(getFramePreset(b.id).category)
+  )
+  .map((preset) => ({
+    key: `frame:${preset.id}`,
+    label: preset.name,
+    keywords: preset.tags,
+    action: { kind: 'frame', clipType: preset.id },
+    thumb: { t: 'frame', clipType: preset.id },
+  }));
+
+const EMOJI_ITEMS: ElementItem[] = EMOJI_ASSETS.map(assetItem);
+
+function illustrationItem(def: IllustrationDef): ElementItem {
+  return {
+    key: `illustration:${def.id}`,
+    label: def.name,
+    keywords: def.tags,
+    action: { kind: 'illustration', id: def.id },
+    thumb: def.source === 'kawaii' ? { t: 'kawaii', id: def.id } : { t: 'svg', def },
+  };
+}
+
+/** Shown before the full catalogue (~2,000 entries) has loaded, and as the card cover. */
+const FEATURED_ILLUSTRATION_ITEMS: ElementItem[] = [
+  ...KAWAII_ILLUSTRATIONS,
+  ...UNDRAW_FEATURED,
+].map(illustrationItem);
+
+function iconItem(icon: IconDef): ElementItem {
+  return {
+    key: `icon:${icon.id}`,
+    label: icon.name,
+    keywords: [icon.name.replace(/-/g, ' '), icon.library],
+    action: { kind: 'icon', iconId: icon.id },
+    thumb: { t: 'icon', iconId: icon.id },
+  };
+}
+
+const BALKEN_ITEMS: ElementItem[] = [
+  {
+    key: 'balken:single',
+    label: 'Balken',
+    keywords: ['balken', 'text', 'marke'],
+    action: { kind: 'balken', mode: 'single' },
+    thumb: { t: 'balken', mode: 'single' },
+  },
+  {
+    key: 'balken:triple',
+    label: 'Dreifach-Balken',
+    keywords: ['balken', 'dreizeilen', 'text', 'marke'],
+    action: { kind: 'balken', mode: 'triple' },
+    thumb: { t: 'balken', mode: 'triple' },
+  },
+];
+
+const ILLUSTRATIONS_QUERY_KEY = ['canvas', 'illustrations', 'all'] as const;
+
+const NO_RECOMMENDED: string[] = [];
+
+/**
+ * The gallery backgrounds come from the Profilbild-Grünerator and are not ready
+ * for the Elemente tab yet; flip this once they are.
+ */
+const SHOW_GALLERY_BACKGROUNDS = false;
+
+/** Whether this editor can perform the action — a config without shapes hides shape tiles. */
+export function canRun(action: ElementAction, props: ExtendedAssetsSectionProps): boolean {
+  switch (action.kind) {
+    case 'asset':
+      return props.onAddAsset !== undefined;
+    case 'sticker':
+      return props.onAddStickerAsset !== undefined;
+    case 'shape':
+      return props.onAddShape !== undefined;
+    case 'illustration':
+      return props.onAddIllustration !== undefined;
+    case 'chart':
+      return props.onAddChart !== undefined;
+    case 'frame':
+      return props.onAddFrame !== undefined;
+    case 'balken':
+      return props.onAddBalken !== undefined;
+    case 'media':
+      return props.onAddImageFromUrl !== undefined;
+    case 'icon':
+      return props.onIconToggle !== undefined && props.selectedIcons !== undefined;
+  }
+}
+
+function cover(items: readonly ElementItem[]): ReactNode {
+  const first = items[0];
+  if (!first) return null;
+  if (first.thumb.t === 'photo') {
+    return (
+      <span className="relative block size-14 rounded-lg overflow-hidden shadow-sm">
+        <ElementThumb thumb={first.thumb} eager />
+      </span>
+    );
+  }
+  return (
+    <span className="relative grid place-items-center size-14 [&_img]:size-full">
+      <ElementThumb thumb={first.thumb} eager />
+    </span>
+  );
+}
+
+function BackgroundCover() {
+  const { items } = useStudioAssets({ kind: 'background', scope: 'shop', q: '', sort: 'new' });
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const first = items[0];
+  const src = first ? (first.thumbUrl ?? shareThumbnailPreviewUrl(first.src, 200)) : null;
+  if (!src || src === failedSrc)
+    return <PiImageFill size={40} className="text-editor-secondary-fg" />;
+  return (
+    <span className="relative block size-14 rounded-lg overflow-hidden shadow-sm">
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- onError ist ein technischer Ladefehler-Fallback, keine Bedienung */}
+      <img
+        src={src}
+        alt=""
+        decoding="async"
+        onError={() => setFailedSrc(src)}
+        className="absolute inset-0 size-full object-cover"
+      />
+    </span>
+  );
+}
+
+/**
+ * Every Elemente category this editor offers, in display order, with its tiles.
+ * The big sets (all illustrations, all icon sets) load only once `needFull`
+ * asks for them — a search, or that category being open.
+ */
+export function useElementCatalog(
+  props: ExtendedAssetsSectionProps,
+  needFull: { illustrations: boolean; icons: boolean; photos: boolean }
+): CatalogCategory[] {
+  const { userLocale = 'de-DE', fetchStockImages } = useCanvasEditorServices();
+  const locale: AssetAudience = userLocale;
+  const recommendedAssetIds = props.recommendedAssetIds ?? NO_RECOMMENDED;
+
+  const hasAssets = props.onAddAsset !== undefined;
+  const hasBalken = props.onAddBalken !== undefined && locale === 'de-DE';
+  const hasIcons = props.onIconToggle !== undefined && props.selectedIcons !== undefined;
+  const hasIllustrations = props.onAddIllustration !== undefined;
+  const hasPhotos = props.onAddImageFromUrl !== undefined && fetchStockImages !== undefined;
+
+  const { data: defaultIcons, isLoading: iconsLoading } = useIconCatalog();
+  const { data: allIcons } = useAllIconsCatalog(hasIcons && needFull.icons);
+  const allIllustrations = useQuery({
+    queryKey: ILLUSTRATIONS_QUERY_KEY,
+    queryFn: getAllIllustrations,
+    enabled: hasIllustrations && needFull.illustrations,
+    staleTime: Infinity,
+    gcTime: Infinity,
+  });
+  // The photo catalogue is small and gives the Fotos card its cover: load it with the tab.
+  const photos = useStockPhotos(hasPhotos);
+
+  const markeItems = useMemo(() => {
+    const logos = hasAssets ? sortLogoAssets(recommendedAssetIds, locale).map(assetItem) : [];
+    const marks = hasAssets
+      ? ALL_ASSETS.filter(
+          (a) => a.category === 'mark' && (a.audience === 'all' || a.audience === locale)
+        ).map(assetItem)
+      : [];
+    return [...logos, ...(hasBalken ? BALKEN_ITEMS : []), ...marks];
+  }, [hasAssets, hasBalken, recommendedAssetIds, locale]);
+
+  const stickerItems = useMemo(
+    () => (hasAssets ? stickerAssetsForLocale(locale).map(assetItem) : []),
+    [hasAssets, locale]
+  );
+
+  const iconItems = useMemo(
+    () => ((needFull.icons && allIcons) || defaultIcons || []).map(iconItem),
+    [needFull.icons, allIcons, defaultIcons]
+  );
+
+  const illustrationItems = useMemo(
+    () => allIllustrations.data?.map(illustrationItem) ?? FEATURED_ILLUSTRATION_ITEMS,
+    [allIllustrations.data]
+  );
+
+  return useMemo(() => {
+    const categories: CatalogCategory[] = [];
+    const push = (c: Omit<CatalogCategory, 'tint' | 'cover'> & { cover?: ReactNode }) =>
+      categories.push({
+        ...c,
+        tint: categories.length % 2 === 0 ? 'primary' : 'secondary',
+        cover: c.cover ?? cover(c.items),
+      });
+
+    if (markeItems.length > 0)
+      push({
+        id: 'marke',
+        label: 'Marke',
+        count: markeItems.length,
+        items: markeItems,
+        isLoading: false,
+        searchable: true,
+      });
+    if (hasAssets)
+      push({
+        id: 'sticker',
+        label: 'Sticker',
+        count: stickerItems.length,
+        items: stickerItems,
+        isLoading: false,
+        searchable: true,
+      });
+    if (hasPhotos)
+      push({
+        id: 'fotos',
+        label: 'Fotos',
+        count: photos.items.length || null,
+        items: photos.items,
+        isLoading: photos.isLoading,
+        searchable: true,
+      });
+    if (SHOW_GALLERY_BACKGROUNDS && props.onSetBackgroundImage)
+      push({
+        id: 'hintergruende',
+        label: 'Hintergründe',
+        count: null,
+        items: [],
+        isLoading: false,
+        searchable: false,
+        cover: <BackgroundCover />,
+      });
+    if (props.onAddShape)
+      push({
+        id: 'formen',
+        label: 'Formen',
+        count: SHAPE_ITEMS.length,
+        items: SHAPE_ITEMS,
+        isLoading: false,
+        searchable: true,
+      });
+    if (props.onAddChart)
+      push({
+        id: 'diagramme',
+        label: 'Diagramme',
+        count: CHART_ITEMS.length,
+        items: CHART_ITEMS,
+        isLoading: false,
+        searchable: true,
+      });
+    if (props.onAddFrame)
+      push({
+        id: 'rahmen',
+        label: 'Rahmen',
+        count: FRAME_ITEMS.length,
+        items: FRAME_ITEMS,
+        isLoading: false,
+        searchable: true,
+      });
+    if (hasIllustrations)
+      push({
+        id: 'illustrationen',
+        label: 'Illustrationen',
+        count: allIllustrations.data?.length ?? null,
+        items: illustrationItems,
+        isLoading: allIllustrations.isLoading,
+        searchable: true,
+        cover: cover(FEATURED_ILLUSTRATION_ITEMS),
+      });
+    if (hasIcons)
+      push({
+        id: 'icons',
+        label: 'Icons',
+        count: iconItems.length || null,
+        items: iconItems,
+        isLoading: iconsLoading,
+        searchable: true,
+      });
+    if (hasAssets)
+      push({
+        id: 'emoji',
+        label: 'Emoji',
+        count: EMOJI_ITEMS.length,
+        items: EMOJI_ITEMS,
+        isLoading: false,
+        searchable: true,
+      });
+    return categories;
+  }, [
+    markeItems,
+    stickerItems,
+    hasAssets,
+    hasPhotos,
+    photos.items,
+    photos.isLoading,
+    props.onSetBackgroundImage,
+    props.onAddShape,
+    props.onAddChart,
+    props.onAddFrame,
+    hasIllustrations,
+    allIllustrations.data,
+    allIllustrations.isLoading,
+    illustrationItems,
+    hasIcons,
+    iconItems,
+    iconsLoading,
+  ]);
+}

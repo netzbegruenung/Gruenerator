@@ -121,10 +121,17 @@ function CanvasImageInner({
     }
   }, [selected]);
 
+  // Konva filters require the node to be cached first; without filters the
+  // cache is only an extra offscreen canvas redrawn on every change.
   useEffect(() => {
-    if (imageRef.current && image) {
-      imageRef.current.cache();
+    const node = imageRef.current;
+    if (!node || !image) return;
+    if (color || brightness !== 0 || grayscale) {
+      node.cache();
+    } else {
+      node.clearCache();
     }
+    node.getLayer()?.batchDraw();
   }, [image, width, height, color, brightness, grayscale]);
 
   const handleTouchStart = useCallback(

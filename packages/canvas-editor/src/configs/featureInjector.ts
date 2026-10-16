@@ -26,6 +26,7 @@ import type { FrameInstance } from '../utils/frameUtils';
 import type { IllustrationInstance } from '../utils/illustrations/types';
 import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance } from '../utils/shapes';
+import type { UserImagePlacement } from '../utils/userImageUtils';
 
 interface FeatureStateWithIcons {
   selectedIcons?: string[];
@@ -252,6 +253,16 @@ export function injectFeatureProps<S extends object, A extends object>(
         objectUrl: string
       ) => void;
     }
+  }
+
+  // === PHOTOS ===
+  // Convention: actions.addUserImageFromUrl (stock photos placed as user images)
+  if ('addUserImageFromUrl' in actions) {
+    injected.onAddImageFromUrl = actions.addUserImageFromUrl as (
+      url: string,
+      name: string,
+      options?: UserImagePlacement
+    ) => void;
   }
 
   // === BACKGROUND GALLERY ===
