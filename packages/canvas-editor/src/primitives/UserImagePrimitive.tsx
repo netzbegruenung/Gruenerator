@@ -9,7 +9,11 @@
 import { useState, useEffect, useRef, memo } from 'react';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
-import { getActiveImageFilters, hasActiveImageFilters } from '../utils/imageFilters';
+import {
+  getActiveImageFilters,
+  hasActiveImageFilters,
+  imageFilterAttrs,
+} from '../utils/imageFilters';
 import { useTrackPendingImage } from '../utils/pendingImages';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
 import { coverCrop, USER_PHOTO_NODE_NAME, type UserImageInstance } from '../utils/userImageUtils';
@@ -93,6 +97,9 @@ function UserImagePrimitiveInner({
     userImage.invert,
     userImage.tint,
     userImage.tintStrength,
+    userImage.vignette,
+    userImage.flipX,
+    userImage.flipY,
     userImage.fit,
     userImage.mask,
   ]);
@@ -152,14 +159,7 @@ function UserImagePrimitiveInner({
           crop={crop}
           cornerRadius={userImage.mask === 'kreis' ? Math.min(width, height) / 2 : 0}
           filters={getActiveImageFilters(userImage)}
-          blurRadius={userImage.blur ?? 0}
-          brightness={userImage.brightness ?? 0}
-          contrast={userImage.contrast ?? 0}
-          saturation={userImage.saturation ?? 0}
-          hue={userImage.hue ?? 0}
-          temperature={userImage.temperature ?? 0}
-          tint={userImage.tint}
-          tintStrength={userImage.tintStrength ?? 0}
+          {...imageFilterAttrs(userImage)}
           shadowColor={userImage.shadowColor}
           shadowBlur={userImage.shadowBlur}
           shadowOffsetX={userImage.shadowOffsetX}
@@ -221,6 +221,9 @@ export const UserImagePrimitive = memo(UserImagePrimitiveInner, (prevProps, next
   if (prev.invert !== next.invert) return false;
   if (prev.tint !== next.tint) return false;
   if (prev.tintStrength !== next.tintStrength) return false;
+  if (prev.vignette !== next.vignette) return false;
+  if (prev.flipX !== next.flipX) return false;
+  if (prev.flipY !== next.flipY) return false;
   if (prev.fit !== next.fit) return false;
   if (prev.mask !== next.mask) return false;
   if (prev.shadowColor !== next.shadowColor) return false;

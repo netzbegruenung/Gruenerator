@@ -1,12 +1,12 @@
 /**
- * Image adjustment filters for user images (Konva.Filters "Multiple Filters"
- * pattern: cache() the node, then apply an array of filters that read node
- * attrs). See https://konvajs.org/api/Konva.Filters.html
+ * Image adjustment filters for user images and background photos
+ * (Konva.Filters "Multiple Filters" pattern: cache() the node, then apply an
+ * array of filters that read node attrs). See https://konvajs.org/api/Konva.Filters.html
  */
 
 import Konva from 'konva';
 
-import type { ImageAdjustments, UserImageInstance } from './userImageUtils';
+import type { ImageAdjustments } from './userImageUtils';
 
 type KonvaFilter = typeof Konva.Filters.Grayscale;
 
@@ -68,8 +68,53 @@ export const TintFilter: KonvaFilter = function (imageData) {
   }
 };
 
+/**
+ * Darkens towards the edges by the node's `vignette` (0..1): untouched in the
+ * middle, full strength in the corners, eased in between.
+ */
+export const VignetteFilter: KonvaFilter = function (imageData) {
+  const strength = Math.max(0, Math.min(1, (this.getAttr('vignette') as number) || 0));
+  if (!strength) return;
+  const { width, height, data } = imageData;
+  const cx = width / 2;
+  const cy = height / 2;
+  for (let y = 0; y < height; y++) {
+    const dy = (y - cy) / cy;
+    for (let x = 0; x < width; x++) {
+      const dx = (x - cx) / cx;
+      // 0 in the middle, 1 in the corners.
+      const t = Math.min(1, Math.max(0, (Math.sqrt((dx * dx + dy * dy) / 2) - 0.35) / 0.65));
+      const k = 1 - strength * t * t * (3 - 2 * t);
+      const i = (y * width + x) * 4;
+      data[i] *= k;
+      data[i + 1] *= k;
+      data[i + 2] *= k;
+    }
+  }
+};
+
+/**
+ * Mirrors the pixels by the node's `flipX` / `flipY`. A pixel pass instead of
+ * a negative scale: the node keeps its geometry, so drag bounds, the
+ * transformer and the cover crop stay as they are.
+ */
+export const FlipFilter: KonvaFilter = function (imageData) {
+  const fx = !!this.getAttr('flipX');
+  const fy = !!this.getAttr('flipY');
+  if (!fx && !fy) return;
+  const { width, height, data } = imageData;
+  const src = new Uint32Array(data.buffer.slice(0));
+  const out = new Uint32Array(data.buffer, data.byteOffset, width * height);
+  for (let y = 0; y < height; y++) {
+    const sy = fy ? height - 1 - y : y;
+    for (let x = 0; x < width; x++) {
+      out[y * width + x] = src[sy * width + (fx ? width - 1 - x : x)]!;
+    }
+  }
+};
+
 /** Konva filter array for the image's currently-active adjustments. */
-export function getActiveImageFilters(img: UserImageInstance): KonvaFilter[] {
+export function getActiveImageFilters(img: ImageAdjustments): KonvaFilter[] {
   const filters: KonvaFilter[] = [];
   if (img.brightness) filters.push(Konva.Filters.Brighten);
   if (img.contrast) filters.push(Konva.Filters.Contrast);
@@ -80,14 +125,33 @@ export function getActiveImageFilters(img: UserImageInstance): KonvaFilter[] {
   if (img.sepia) filters.push(Konva.Filters.Sepia);
   if (img.invert) filters.push(Konva.Filters.Invert);
   if (img.tintStrength) filters.push(TintFilter);
+  if (img.vignette) filters.push(VignetteFilter);
+  if (img.flipX || img.flipY) filters.push(FlipFilter);
   return filters;
 }
 
-export function hasActiveImageFilters(img: UserImageInstance): boolean {
+export function hasActiveImageFilters(img: ImageAdjustments): boolean {
   return getActiveImageFilters(img).length > 0;
 }
 
-/** Clears every adjustment field (for the "reset" button). */
+/** The node attrs the filters above read. */
+export function imageFilterAttrs(img: ImageAdjustments) {
+  return {
+    blurRadius: img.blur ?? 0,
+    brightness: img.brightness ?? 0,
+    contrast: img.contrast ?? 0,
+    saturation: img.saturation ?? 0,
+    hue: img.hue ?? 0,
+    temperature: img.temperature ?? 0,
+    tint: img.tint,
+    tintStrength: img.tintStrength ?? 0,
+    vignette: img.vignette ?? 0,
+    flipX: !!img.flipX,
+    flipY: !!img.flipY,
+  };
+}
+
+/** Clears every look (for "reset" and as the base of a preset); a flip is not a look and stays. */
 export const EMPTY_ADJUSTMENTS: ImageAdjustments = {
   blur: 0,
   brightness: 0,
@@ -99,6 +163,7 @@ export const EMPTY_ADJUSTMENTS: ImageAdjustments = {
   sepia: false,
   invert: false,
   tintStrength: 0,
+  vignette: 0,
 };
 
 export interface ImagePreset {
@@ -126,3 +191,9 @@ export const IMAGE_PRESETS: ImagePreset[] = [
     values: { ...EMPTY_ADJUSTMENTS, sepia: true, contrast: -10, brightness: 0.05 },
   },
 ];
+
+/** The template background photo's look, stored on the page state; null when untouched. */
+export function backgroundAdjustments(state: Record<string, unknown>): ImageAdjustments | null {
+  const value = state.backgroundImageAdjustments;
+  return value && typeof value === 'object' ? (value as ImageAdjustments) : null;
+}

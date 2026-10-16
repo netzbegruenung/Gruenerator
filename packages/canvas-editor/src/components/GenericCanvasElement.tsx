@@ -17,7 +17,9 @@ import { CanvasText, CanvasImage, CanvasBackground } from '../primitives';
 import { useIsElementSelected } from '../stores/CanvasStoreProvider';
 import { canvasImageSourceUrl } from '../utils/canvasImageSource';
 import { imageRenderInputsAreEqual } from '../utils/imageElementComparison';
+import { backgroundAdjustments } from '../utils/imageFilters';
 import { useTrackPendingImage } from '../utils/pendingImages';
+import { BACKGROUND_IMAGE_NODE_ID } from '../utils/printImageInfo';
 // Die Aufloesung von x/y/width/height/opacity steht seit #3403 ausserhalb:
 // `templateElementToEntry` braucht dieselbe Rechnung, und zwei Fassungen
 // derselben Arithmetik driften auseinander.
@@ -288,6 +290,7 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
       height={height}
       opacity={opacity}
       color={typeof fill === 'string' ? fill : undefined}
+      adjustments={config.id === BACKGROUND_IMAGE_NODE_ID ? backgroundAdjustments(state) : null}
       coverFit={config.coverFit}
       draggable={config.draggable && !isLocked}
       touchDragNeedsSelection={config.id === 'background-image'}
