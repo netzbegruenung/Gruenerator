@@ -128,3 +128,79 @@ export type ContentResponse = z.infer<typeof contentResponseSchema>;
 export const contentErrorSchema = z.object({
   error: z.string(),
 });
+
+// ── Mediathek ──────────────────────────────────────────────────────────────
+
+/**
+ * What `?typ=` narrows the Mediathek to. `image`/`video`/`audio` are the old
+ * media-type filters (canvas Sharepics count as images, Reels as videos); the
+ * rest follow provenance. Old rows whose origin the backfill could not decide
+ * (`unknown`) sit with the Sharepics, as everywhere else.
+ */
+export const mediathekFilterSchema = z.enum([
+  'all',
+  'sharepic',
+  'ki',
+  'reel',
+  'upload',
+  'image',
+  'video',
+  'audio',
+]);
+export type MediathekFilter = z.infer<typeof mediathekFilterSchema>;
+
+/** One `shared_media` row in the shape `/api/media` has always returned. */
+export const mediathekMediaItemSchema = z.object({
+  kind: z.literal('media'),
+  id: z.string(),
+  shareToken: z.string(),
+  mediaType: z.enum(['image', 'video', 'audio']),
+  title: z.string().nullable(),
+  thumbnailUrl: z.string().nullable(),
+  fileSize: z.number(),
+  mimeType: z.string(),
+  duration: z.number().nullable(),
+  imageType: z.string().nullable(),
+  imageMetadata: z.record(z.unknown()).nullable(),
+  altText: z.string().nullable(),
+  uploadSource: z.string().nullable(),
+  contentOrigin: storedContentOriginSchema.nullable(),
+  originalFilename: z.string().nullable(),
+  /** `draft` is an autosaved Sharepic: shown, but not yet published. */
+  status: z.enum(['ready', 'draft']),
+  downloadCount: z.number(),
+  viewCount: z.number(),
+  createdAt: z.string(),
+});
+
+/**
+ * Everything the user has in the Mediathek: their media files, their Reels and
+ * the editable canvas Sharepics, as one list ordered by date.
+ */
+export const mediathekItemSchema = z.discriminatedUnion('kind', [
+  mediathekMediaItemSchema,
+  videoContentItemSchema,
+  canvasContentItemSchema,
+]);
+
+export type MediathekItem = z.infer<typeof mediathekItemSchema>;
+export type MediathekMediaItem = z.infer<typeof mediathekMediaItemSchema>;
+
+export const mediathekQuerySchema = z.object({
+  typ: mediathekFilterSchema.optional(),
+  search: z.string().optional(),
+  sort: z.enum(['newest', 'oldest']).optional(),
+  limit: z.string().optional(),
+  offset: z.string().optional(),
+});
+
+export const mediathekResponseSchema = z.object({
+  items: z.array(mediathekItemSchema),
+  /** Matches of the whole filter, search included — not just this page. */
+  total: z.number(),
+  limit: z.number(),
+  offset: z.number(),
+  hasMore: z.boolean(),
+});
+
+export type MediathekResponse = z.infer<typeof mediathekResponseSchema>;

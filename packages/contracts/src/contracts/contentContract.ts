@@ -14,6 +14,8 @@ import {
   contentQuerySchema,
   contentResponseSchema,
   contentErrorSchema,
+  mediathekQuerySchema,
+  mediathekResponseSchema,
 } from '../schemas/content.js';
 
 const c = initContract();
@@ -42,6 +44,24 @@ export const contentContract = c.router(
         500: contentErrorSchema,
       },
       summary: 'List the current user’s content, filterable by kind and paginated',
+    },
+
+    /**
+     * GET /api/content/mediathek?typ=sharepic&search=…&sort=newest&offset=0
+     *
+     * The Mediathek page: media files (drafts included), Reels and canvas
+     * Sharepics in one list. `/api/media` stays the asset pool the canvas
+     * picker and the global search read.
+     */
+    listMediathek: {
+      method: 'GET',
+      path: '/api/content/mediathek',
+      query: mediathekQuerySchema,
+      responses: {
+        200: mediathekResponseSchema,
+        500: contentErrorSchema,
+      },
+      summary: 'List everything in the current user’s Mediathek, filterable and paginated',
     },
   },
   { pathPrefix: '' }
