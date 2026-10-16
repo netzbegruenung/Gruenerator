@@ -1,7 +1,8 @@
 /**
  * The Grünerator-Vorlagen catalogue for sharepics, read from the private
  * content checkout: `<internContentRoot()>/sharepic-vorlagen/{de,at}.json`,
- * one file per country, plus `thumbs/<id>.webp`.
+ * one file per country, plus `thumbs/<id>.webp`. The single Seiten sit beside
+ * them in `seiten/{de,at}.json` with `thumbs/seiten/<id>.<format>.webp`.
  *
  * A missing directory is an empty catalogue and a warning — the gallery then
  * simply has no Grünerator section (same degradation as `internalPrompts.ts`).
@@ -18,8 +19,14 @@ import path from 'node:path';
 import {
   isSharepicSceneRef,
   isSharepicUploadId,
+  sharepicFormatSchema,
+  sharepicSeiteFileEntrySchema,
+  sharepicSpecSchema,
   sharepicVorlageFileEntrySchema,
   slidePhotoFilename,
+  type SharepicFormat,
+  type SharepicSeite,
+  type SharepicSlide,
   type SharepicCreatorLocale,
   type SharepicPhotoAttribution,
   type SharepicVorlage,
@@ -38,12 +45,19 @@ const dir = (): string => path.join(internContentRoot(), 'sharepic-vorlagen');
 
 const RECHECK_MS = 30_000;
 
-let cache: SharepicVorlage[] | null = null;
+interface Catalog {
+  vorlagen: SharepicVorlage[];
+  seiten: SharepicSeite[];
+}
+
+let cache: Catalog | null = null;
 let cacheSignature = '';
 let checkedAt = 0;
 
 const thumbName = (id: string, seite: number): string =>
   seite === 1 ? `${id}.webp` : `${id}-${seite}.webp`;
+
+const seiteThumbName = (id: string, format: SharepicFormat): string => `${id}.${format}.webp`;
 
 function statKey(file: string): string {
   try {
@@ -54,28 +68,33 @@ function statKey(file: string): string {
   }
 }
 
-function contentSignature(): string {
-  const thumbs = path.join(dir(), 'thumbs');
+function dirSignature(folder: string): string[] {
   let names: string[] = [];
   try {
-    names = readdirSync(thumbs).sort();
+    names = readdirSync(folder).sort();
   } catch {
     names = [];
   }
+  return [statKey(folder), ...names.map((name) => `${name}:${statKey(path.join(folder, name))}`)];
+}
+
+function contentSignature(): string {
   return [
     dir(),
     ...Object.values(FILES).map((name) => statKey(path.join(dir(), name))),
-    statKey(thumbs),
-    ...names.map((name) => `${name}:${statKey(path.join(thumbs, name))}`),
+    ...Object.values(FILES).map((name) => statKey(path.join(dir(), 'seiten', name))),
+    ...dirSignature(path.join(dir(), 'thumbs')),
+    ...dirSignature(path.join(dir(), 'thumbs', 'seiten')),
   ].join('|');
 }
 
-function thumbVersionOf(id: string, slideCount: number): string | undefined {
+/** Hash over the preview files that exist, or undefined when there is none. */
+function thumbVersionOf(files: string[]): string | undefined {
   const hash = createHash('sha1');
   let found = false;
-  for (let seite = 1; seite <= slideCount; seite++) {
+  for (const file of files) {
     try {
-      hash.update(readFileSync(path.join(dir(), 'thumbs', thumbName(id, seite))));
+      hash.update(readFileSync(file));
       found = true;
     } catch {
       continue;
@@ -84,31 +103,27 @@ function thumbVersionOf(id: string, slideCount: number): string | undefined {
   return found ? hash.digest('hex').slice(0, 12) : undefined;
 }
 
-function attributionsOf(entry: {
-  spec: SharepicVorlage['spec'];
-}): (SharepicPhotoAttribution | null)[] {
-  return entry.spec.slides.map((slide) => {
-    const photo = slidePhotoFilename(slide);
-    if (!photo || isSharepicUploadId(photo) || isSharepicSceneRef(photo)) return null;
-    const credit = getAttribution(photo);
-    return credit
-      ? {
-          photographer: credit.photographer,
-          profileUrl: credit.profileUrl,
-          photoUrl: credit.photoUrl,
-        }
-      : null;
-  });
+function attributionOf(slide: SharepicSlide): SharepicPhotoAttribution | null {
+  const photo = slidePhotoFilename(slide);
+  if (!photo || isSharepicUploadId(photo) || isSharepicSceneRef(photo)) return null;
+  const credit = getAttribution(photo);
+  return credit
+    ? {
+        photographer: credit.photographer,
+        profileUrl: credit.profileUrl,
+        photoUrl: credit.photoUrl,
+      }
+    : null;
 }
 
-function loadCountry(locale: SharepicCreatorLocale): SharepicVorlage[] {
-  const file = path.join(dir(), FILES[locale]);
+/** The file's entries, or [] (with a log line) when it is missing or no array. */
+function readArray(file: string, what: string): unknown[] {
   let raw: unknown;
   try {
     raw = JSON.parse(readFileSync(file, 'utf8'));
   } catch (error) {
     log.warn(
-      `No sharepic Vorlagen at ${file} — check the Salt rollout. (${toError(error).message})`
+      `No sharepic ${what} at ${file} — check the Salt rollout. (${toError(error).message})`
     );
     return [];
   }
@@ -116,7 +131,12 @@ function loadCountry(locale: SharepicCreatorLocale): SharepicVorlage[] {
     log.error(`${file} is not a JSON array`);
     return [];
   }
-  return raw.flatMap((item, i) => {
+  return raw;
+}
+
+function loadCountry(locale: SharepicCreatorLocale): SharepicVorlage[] {
+  const file = path.join(dir(), FILES[locale]);
+  return readArray(file, 'Vorlagen').flatMap((item, i) => {
     const parsed = sharepicVorlageFileEntrySchema.safeParse(item);
     if (!parsed.success) {
       log.error(`${file}[${i}] skipped: ${parsed.error.issues[0]?.message ?? 'invalid'}`);
@@ -132,14 +152,58 @@ function loadCountry(locale: SharepicCreatorLocale): SharepicVorlage[] {
       {
         ...parsed.data,
         locale,
-        attributions: attributionsOf(parsed.data),
-        thumbVersion: thumbVersionOf(parsed.data.id, parsed.data.spec.slides.length),
+        attributions: parsed.data.spec.slides.map(attributionOf),
+        thumbVersion: thumbVersionOf(
+          parsed.data.spec.slides.map((_, i) =>
+            path.join(dir(), 'thumbs', thumbName(parsed.data.id, i + 1))
+          )
+        ),
       },
     ];
   });
 }
 
-function all(): SharepicVorlage[] {
+function loadSeiten(locale: SharepicCreatorLocale): SharepicSeite[] {
+  const file = path.join(dir(), 'seiten', FILES[locale]);
+  return readArray(file, 'Seiten').flatMap((item, i) => {
+    const parsed = sharepicSeiteFileEntrySchema.safeParse(item);
+    // The slide must also hold as a spec of the file's country (colours, markers).
+    const asSpec = parsed.success
+      ? sharepicSpecSchema.safeParse({ locale, slides: [parsed.data.slide] })
+      : null;
+    const issue = !parsed.success ? parsed.error.issues[0] : asSpec?.error?.issues[0];
+    if (!parsed.success || !asSpec?.success) {
+      log.error(`${file}[${i}] skipped: ${issue?.path.join('.')} ${issue?.message ?? 'invalid'}`);
+      return [];
+    }
+    const { id, formats, slide } = parsed.data;
+    return [
+      {
+        ...parsed.data,
+        locale,
+        attribution: attributionOf(slide),
+        thumbVersion: thumbVersionOf(
+          formats.map((format) => path.join(dir(), 'thumbs', 'seiten', seiteThumbName(id, format)))
+        ),
+      },
+    ];
+  });
+}
+
+/** Drops (and logs) every entry whose id came earlier. */
+function uniqueIds<T extends { id: string }>(entries: T[], what: string): T[] {
+  const seen = new Set<string>();
+  return entries.filter((entry) => {
+    if (seen.has(entry.id)) {
+      log.error(`Duplicate sharepic ${what} id "${entry.id}" skipped`);
+      return false;
+    }
+    seen.add(entry.id);
+    return true;
+  });
+}
+
+function all(): Catalog {
   const now = Date.now();
   if (cache && now - checkedAt >= RECHECK_MS) {
     checkedAt = now;
@@ -148,27 +212,46 @@ function all(): SharepicVorlage[] {
   if (!cache) {
     checkedAt = now;
     cacheSignature = contentSignature();
-    const seen = new Set<string>();
-    cache = [...loadCountry('de-DE'), ...loadCountry('de-AT')].filter((v) => {
-      if (seen.has(v.id)) {
-        log.error(`Duplicate sharepic Vorlage id "${v.id}" skipped`);
-        return false;
-      }
-      seen.add(v.id);
-      return true;
-    });
-    log.info(`Loaded ${cache.length} sharepic Vorlage(n) from ${dir()}`);
+    cache = {
+      vorlagen: uniqueIds([...loadCountry('de-DE'), ...loadCountry('de-AT')], 'Vorlage'),
+      seiten: uniqueIds([...loadSeiten('de-DE'), ...loadSeiten('de-AT')], 'Seite'),
+    };
+    log.info(
+      `Loaded ${cache.vorlagen.length} sharepic Vorlage(n) and ${cache.seiten.length} Seite(n) from ${dir()}`
+    );
   }
   return cache;
 }
 
 /** The country's Vorlagen, or both countries' when `locale` is null. */
 export function listSharepicVorlagen(locale: SharepicCreatorLocale | null): SharepicVorlage[] {
-  return locale ? all().filter((v) => v.locale === locale) : all();
+  const { vorlagen } = all();
+  return locale ? vorlagen.filter((v) => v.locale === locale) : vorlagen;
 }
 
 export function getSharepicVorlage(id: string): SharepicVorlage | null {
-  return all().find((v) => v.id === id) ?? null;
+  return all().vorlagen.find((v) => v.id === id) ?? null;
+}
+
+/** The country's Seiten, or both countries' when `locale` is null. */
+export function listSharepicSeiten(locale: SharepicCreatorLocale | null): SharepicSeite[] {
+  const { seiten } = all();
+  return locale ? seiten.filter((s) => s.locale === locale) : seiten;
+}
+
+export function getSharepicSeite(id: string): SharepicSeite | null {
+  return all().seiten.find((s) => s.id === id) ?? null;
+}
+
+/**
+ * Absolute path of a Seite's preview in one format, or null for an unknown id
+ * or a format the Seite was not checked in. The file may still be missing.
+ */
+export function sharepicSeiteThumbFile(id: string, format: string): string | null {
+  const parsed = sharepicFormatSchema.safeParse(format);
+  const seite = getSharepicSeite(id);
+  if (!parsed.success || !seite?.formats.includes(parsed.data)) return null;
+  return path.join(dir(), 'thumbs', 'seiten', seiteThumbName(id, parsed.data));
 }
 
 /**

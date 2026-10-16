@@ -13,7 +13,9 @@ import {
   sharepicFormatSchema,
   sharepicFormSchema,
   sharepicPhotoAttributionSchema,
+  sharepicSlideSchema,
   sharepicSpecSchema,
+  type SharepicFormat,
 } from './sharepicCreator.js';
 
 export const sharepicVorlageIdSchema = z.string().regex(/^[a-z0-9-]{3,64}$/);
@@ -49,6 +51,67 @@ export const sharepicVorlageSchema = sharepicVorlageFileEntrySchema.extend({
   thumbVersion: z.string().optional(),
 });
 export type SharepicVorlage = z.infer<typeof sharepicVorlageSchema>;
+
+/**
+ * Grünerator-Seiten: single slides people add to their own carousel, kept
+ * apart from the Vorlagen because a slide out of a sequence needs its own
+ * example text. Files: `sharepic-vorlagen/seiten/{de,at}.json`, previews
+ * `thumbs/seiten/<id>.<format>.webp`.
+ */
+export const sharepicSeiteRolleSchema = z.enum(['titel', 'inhalt', 'schluss']);
+export type SharepicSeiteRolle = z.infer<typeof sharepicSeiteRolleSchema>;
+
+/** What the slide holds — the filter in the editor. */
+export const sharepicSeiteTypSchema = z.enum([
+  'text',
+  'liste',
+  'frage',
+  'zitat',
+  'diagramm',
+  'aufruf',
+]);
+export type SharepicSeiteTyp = z.infer<typeof sharepicSeiteTypSchema>;
+
+/** One entry as the private file holds it. Its locale is the file's country. */
+export const sharepicSeiteFileEntrySchema = z.object({
+  id: sharepicVorlageIdSchema,
+  titel: z.string().min(1).max(80),
+  rolle: sharepicSeiteRolleSchema,
+  typ: sharepicSeiteTypSchema,
+  /** The formats the slide was checked in; each has its own preview. */
+  formats: z
+    .array(sharepicFormatSchema)
+    .min(1)
+    .refine((f) => new Set(f).size === f.length, 'formats doppelt'),
+  slide: sharepicSlideSchema,
+  /** The Vorlage slide this one was taken from — for upkeep only. */
+  quelle: z.object({ vorlage: sharepicVorlageIdSchema, seite: z.number().int().min(1) }).optional(),
+});
+export type SharepicSeiteFileEntry = z.infer<typeof sharepicSeiteFileEntrySchema>;
+
+export const sharepicSeiteSchema = sharepicSeiteFileEntrySchema.extend({
+  locale: sharepicCreatorLocaleSchema,
+  /** Stock photo credit, null on colour or painted slides. */
+  attribution: sharepicPhotoAttributionSchema.nullable(),
+  /** Content hash of the previews; clients pass it on to `sharepicSeiteThumbPath`. */
+  thumbVersion: z.string().optional(),
+});
+export type SharepicSeite = z.infer<typeof sharepicSeiteSchema>;
+
+export const sharepicSeitenListResponseSchema = z.object({
+  seiten: z.array(sharepicSeiteSchema),
+});
+
+/** A Seite's preview in one format, served from the private checkout. */
+export const sharepicSeiteThumbPath = (
+  id: string,
+  format: SharepicFormat,
+  version?: string
+): string => {
+  const query = new URLSearchParams({ format });
+  if (version) query.set('v', version);
+  return `/api/sharepic-vorlagen/seiten/${encodeURIComponent(id)}/thumb?${query.toString()}`;
+};
 
 /**
  * `?land=` on the Vorlagen lists (catalogue, gallery, „Beliebte Vorlagen"):
