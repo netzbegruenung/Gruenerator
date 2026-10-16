@@ -1086,6 +1086,11 @@ function CanvasEditorInner({
           onEditImage: () => setActiveTab('image-adjust'),
         },
         background: backgroundControls,
+        // Boundary: page actions arrive as Record<string, unknown>.
+        onRemoveUserImage:
+          typeof activeActions?.removeUserImage === 'function'
+            ? (activeActions.removeUserImage as (id: string) => void)
+            : undefined,
         onDelete: toolbarOnDelete,
         onDeselect: handleDeselectAll,
       }

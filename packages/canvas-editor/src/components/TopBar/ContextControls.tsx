@@ -36,7 +36,6 @@ export interface ContextControlsProps {
   handlers: {
     handleMoveLayer: (direction: 'up' | 'down') => void;
     handleDuplicate: () => void;
-    handleDeleteElement?: () => void;
     handleColorSelect: (color: string) => void;
     handleOpacityChange: (id: string, opacity: number, type: string) => void;
     handleFontSizeChange: (id: string, size: number) => void;
@@ -50,6 +49,8 @@ export interface ContextControlsProps {
   };
   /** The page's background controls (colour plane and photo), if the template has them. */
   background?: BackgroundControls | null;
+  /** Removes one own image by id — not "the selection", which can change meanwhile. */
+  onRemoveUserImage?: (id: string) => void;
   onDelete?: () => void;
   /** Clears the element selection. Escape does the same, but is invisible. */
   onDeselect?: () => void;
@@ -76,6 +77,7 @@ export function ContextControls({
   canDuplicate,
   handlers,
   background,
+  onRemoveUserImage,
   onDelete,
   onDeselect,
   hideObjectActions = false,
@@ -235,16 +237,22 @@ export function ContextControls({
     typeof userImageSrc === 'string' &&
     !userImageSrc.startsWith('blob:') &&
     background?.onImageChange &&
-    handlers.handleDeleteElement
+    onRemoveUserImage &&
+    activeFloatingModule
   ) {
-    const fileName = activeFloatingModule?.data.fileName;
+    const fileName = activeFloatingModule.data.fileName;
+    // Captured now: the fetch is async and the selection may move before it lands.
+    const imageId = activeFloatingModule.data.id;
     groups.push(
       <SetAsBackgroundButton
         key="as-background"
         src={userImageSrc}
         fileName={typeof fileName === 'string' && fileName ? fileName : 'hintergrund'}
         onImageChange={background.onImageChange}
-        onRemoveElement={handlers.handleDeleteElement}
+        onRemoveElement={() => {
+          onRemoveUserImage(imageId);
+          onDeselect?.();
+        }}
       />
     );
   }

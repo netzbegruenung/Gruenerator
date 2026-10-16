@@ -7,6 +7,7 @@ import { ContextControls } from '../ContextControls';
 
 import type { BackgroundControls } from '../../../configs/types';
 import type { FloatingModuleState } from '../../../hooks/useFloatingModuleState';
+import type * as MediaPlacement from '../../../utils/mediaPlacement';
 
 /**
  * Die Hintergrund-Knöpfe der Kontextleiste: Farbfläche und Foto ersetzen den
@@ -179,7 +180,50 @@ describe('Foto ausgewählt', () => {
   });
 });
 
+vi.mock('../../../utils/mediaPlacement', async (importOriginal) => ({
+  ...(await importOriginal<typeof MediaPlacement>()),
+  fetchShareImageFile: async () => new File(['x'], 'foto.jpg'),
+}));
+
 describe('eigenes Bild ausgewählt', () => {
+  it('„Als Hintergrund" entfernt genau das geklickte Bild, auch wenn die Auswahl inzwischen wechselt', async () => {
+    const onRemoveUserImage = vi.fn();
+    const background = controls();
+    const { rerender } = render(
+      <ContextControls
+        selectedElement="user-image-1"
+        activeFloatingModule={userImage('/api/share/abc/download')}
+        canMoveUp
+        canMoveDown
+        canDuplicate
+        handlers={HANDLERS}
+        background={background}
+        onRemoveUserImage={onRemoveUserImage}
+      />
+    );
+    await userEvent.click(screen.getByText('Als Hintergrund'));
+    // Auswahl springt weiter, bevor der Abruf fertig ist.
+    rerender(
+      <ContextControls
+        selectedElement="shape-9"
+        activeFloatingModule={{ type: 'shape', data: { id: 'shape-9', fill: '#000' } }}
+        canMoveUp
+        canMoveDown
+        canDuplicate
+        handlers={HANDLERS}
+        background={background}
+        onRemoveUserImage={onRemoveUserImage}
+      />
+    );
+    await vi.waitFor(() => expect(onRemoveUserImage).toHaveBeenCalledWith('user-image-1'));
+    expect(onRemoveUserImage).not.toHaveBeenCalledWith('shape-9');
+    expect(background.onImageChange).toHaveBeenCalledWith(
+      expect.any(File),
+      '/api/share/abc/download',
+      null
+    );
+  });
+
   const userImage = (src: string): FloatingModuleState => ({
     type: 'user-image',
     data: { id: 'user-image-1', src, fileName: 'foto.jpg', opacity: 1 },
@@ -193,7 +237,8 @@ describe('eigenes Bild ausgewählt', () => {
         canMoveUp
         canMoveDown
         canDuplicate
-        handlers={{ ...HANDLERS, handleDeleteElement: vi.fn() }}
+        handlers={HANDLERS}
+        onRemoveUserImage={vi.fn()}
         background={controls()}
       />
     );
@@ -208,7 +253,8 @@ describe('eigenes Bild ausgewählt', () => {
         canMoveUp
         canMoveDown
         canDuplicate
-        handlers={{ ...HANDLERS, handleDeleteElement: vi.fn() }}
+        handlers={HANDLERS}
+        onRemoveUserImage={vi.fn()}
         background={controls()}
       />
     );
