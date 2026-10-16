@@ -211,6 +211,8 @@ export interface GenericCanvasRef {
   /** Clears this page's element selection — the per-page store lives behind
    *  CanvasStoreProvider, so the parent editor reaches it through this handle. */
   deselect: () => void;
+  /** Starts a marquee selection from a press outside the stage (the work area). */
+  beginMarquee: (evt: MouseEvent) => void;
   /** Places a dragged upload where it was dropped: into the frame under the
    *  pointer, else as a new image centred there. False when nothing was placed. */
   dropMedia: (evt: { clientX: number; clientY: number }, media: MediaDragPayload) => boolean;
@@ -461,8 +463,14 @@ function GenericCanvasWithRef<
     // eslint-disable-next-line react-hooks/exhaustive-deps -- layoutKey is a stable string derived from layout-relevant state fields
   }, [config, layoutKey, isFontAvailable, fontGeneration]);
 
-  const { setSelectedElement, selectElement, handleStageClick, handleSnapChange, getSnapTargets } =
-    useCanvasInteractions({ stageRef, marqueeEnabled: !preview });
+  const {
+    setSelectedElement,
+    selectElement,
+    beginMarquee,
+    handleStageClick,
+    handleSnapChange,
+    getSnapTargets,
+  } = useCanvasInteractions({ stageRef, marqueeEnabled: !preview });
 
   const store = useCanvasStore();
   const { setSnapLines, updateElementPosition } = store.getState();
@@ -710,6 +718,7 @@ function GenericCanvasWithRef<
       captureCanvasForAi: async () =>
         captureStageImage(stageRef.current, { format: 'jpeg', pixelRatio: 1, quality: 0.85 }),
       deselect: () => setSelectedElement(null),
+      beginMarquee,
       dropMedia: (evt, media) => {
         const stage = stageRef.current?.getStage();
         if (!stage) return false;
@@ -850,6 +859,7 @@ function GenericCanvasWithRef<
       elementHandlers.handleFontSizeChange,
       handleAlign,
       setSelectedElement,
+      beginMarquee,
       pendingImages,
       store,
       actions,

@@ -27,6 +27,8 @@ export interface UseCanvasInteractionsResult {
   setSelectedElement: (element: string | null) => void;
   /** Klick auf ein Element: ersetzt die Auswahl, mit Shift schaltet er es in der Auswahl um. */
   selectElement: (id: string) => void;
+  /** Rahmenzug, der außerhalb der Bühne begonnen hat (Arbeitsfläche um das Bild). */
+  beginMarquee: (evt: MouseEvent) => void;
   handleStageClick: (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => void;
   handleSnapChange: (h: boolean, v: boolean) => void;
   handlePositionChange: (id: string, x: number, y: number, width: number, height: number) => void;
@@ -40,7 +42,7 @@ export function useCanvasInteractions({
   const store = useCanvasStore();
   const { setSelectedElement, selectLayer, setSnapGuides, updateElementPosition } =
     store.getState();
-  const consumeMarqueeClick = useMarqueeSelection(stageRef, marqueeEnabled);
+  const { consumeMarqueeClick, beginMarquee } = useMarqueeSelection(stageRef, marqueeEnabled);
   // Die Primitive melden ihre Auswahl ohne Event, meist schon beim Druck.
   // Shift und „Zeiger ist unten" stehen deshalb vorher fest: ein nativer
   // Capture-Listener läuft vor Konvas eigenem Handler.
@@ -137,6 +139,7 @@ export function useCanvasInteractions({
   return {
     setSelectedElement,
     selectElement,
+    beginMarquee,
     handleStageClick,
     handleSnapChange,
     handlePositionChange,

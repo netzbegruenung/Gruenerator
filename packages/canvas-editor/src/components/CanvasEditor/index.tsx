@@ -582,7 +582,16 @@ function CanvasEditorInner({
   // background image, so the stage's own deselect (useCanvasInteractions) never
   // fires. The guard keeps clicks that bubble up from a page from deselecting.
   // Touch deselects only on a tap: the gutters are the scroll surfaces on mobile.
-  const handleWorkAreaPointerDown = useWorkAreaDeselect(handleDeselectAll);
+  // A mouse press there also starts a marquee on the active page, so a
+  // selection can be drawn from outside the artboard.
+  const handleWorkAreaMousePress = useCallback(
+    (evt: PointerEvent) => canvasRefsRef.current[currentPageIndex]?.current?.beginMarquee(evt),
+    [canvasRefsRef, currentPageIndex]
+  );
+  const handleWorkAreaPointerDown = useWorkAreaDeselect(
+    handleDeselectAll,
+    handleWorkAreaMousePress
+  );
 
   // The ONLY gallery autosave in this editor, for any page count — a
   // single-page doc is a one-page deck. Per-page useCanvasAutoSave is

@@ -35,18 +35,21 @@ const SHAPES = [box('a', 50, 40), box('b', 200, 40), box('c', 200, 115)];
 function Host({
   stageRef,
   storeRef,
+  beginRef,
   onChange,
 }: {
   stageRef: React.RefObject<CanvasStageRef | null>;
   storeRef: { current: CanvasEditorStoreApi | null };
+  beginRef: { current: ((evt: MouseEvent) => void) | null };
   onChange: (id: string, attrs: Partial<ShapeInstance>) => void;
 }) {
   storeRef.current = useCanvasStore();
   const selected = useCanvasStoreSelector((s) => s.selectedElement);
-  const { selectElement, handleStageClick } = useCanvasInteractions({
+  const { selectElement, handleStageClick, beginMarquee } = useCanvasInteractions({
     stageRef,
     marqueeEnabled: true,
   });
+  beginRef.current = beginMarquee;
   return (
     <CanvasStage
       ref={stageRef}
@@ -73,12 +76,14 @@ function Host({
 function mount() {
   const stageRef = createRef<CanvasStageRef>();
   const storeRef: { current: CanvasEditorStoreApi | null } = { current: null };
+  const beginMarquee: { current: ((evt: MouseEvent) => void) | null } = { current: null };
   const changes: Array<[string, Partial<ShapeInstance>]> = [];
   render(
     <CanvasStoreProvider>
       <Host
         stageRef={stageRef}
         storeRef={storeRef}
+        beginRef={beginMarquee}
         onChange={(id, attrs) => changes.push([id, attrs])}
       />
     </CanvasStoreProvider>
@@ -114,8 +119,14 @@ function mount() {
     fire(window, 'mouseup', x + dx, y + dy, shift);
   };
   const state = () => storeRef.current!.getState();
-  return { stage, state, click, drag, fire, changes, store: storeRef };
+  return { stage, state, click, drag, fire, changes, store: storeRef, beginMarquee };
 }
+
+/** Der Auswahlrahmen ist ein festes DOM-Element über der Seite. */
+const marqueeOverlay = () =>
+  [...document.body.children].find(
+    (el): el is HTMLElement => el instanceof HTMLElement && el.style.position === 'fixed'
+  ) ?? null;
 
 describe('Mehrfachauswahl', () => {
   it('Shift-Klick sammelt Elemente; der gemeinsame Transformer umfasst sie', () => {
@@ -172,18 +183,26 @@ describe('Mehrfachauswahl', () => {
     fire(stage.content, 'mousedown', 5, 5, false);
     for (let step = 1; step <= 4; step++)
       fire(window, 'mousemove', 5 + 60 * step, 5 + 17 * step, false);
-    const outlines = stage
-      .find('.selection-chrome')
-      .filter((node) => node.visible() && node.getAttr('fill') === undefined);
-    expect(outlines).toHaveLength(2);
+    const visibleOutlines = () => stage.find('.selection-chrome').filter((node) => node.visible());
+    expect(visibleOutlines()).toHaveLength(2);
+    expect(marqueeOverlay()).not.toBeNull();
     expect(writes).toBe(0);
     fire(window, 'mouseup', 245, 73, false);
     unsubscribe();
     expect(state().selectedLayerIds).toEqual(['a', 'b']);
     // Der Rahmen ist weg; die Auswahl trägt ihre zwei Element-Umrisse.
-    const visible = stage.find('.selection-chrome').filter((node) => node.visible());
-    expect(visible.filter((node) => node.getAttr('fill') !== undefined)).toHaveLength(0);
-    expect(visible).toHaveLength(2);
+    expect(marqueeOverlay()).toBeNull();
+    expect(visibleOutlines()).toHaveLength(2);
+  });
+
+  it('ein Rahmen darf außerhalb der Bühne beginnen (Arbeitsfläche)', () => {
+    const { state, fire, beginMarquee } = mount();
+    const down = new MouseEvent('mousedown', { button: 0, clientX: -40, clientY: -20 });
+    act(() => beginMarquee.current!(down));
+    for (let step = 1; step <= 4; step++)
+      fire(window, 'mousemove', -40 + 70 * step, -20 + 23 * step, false);
+    fire(window, 'mouseup', 240, 72, false);
+    expect(state().selectedLayerIds).toEqual(['a', 'b']);
   });
 
   it('Shift-Rahmen ergänzt die bestehende Auswahl', () => {
