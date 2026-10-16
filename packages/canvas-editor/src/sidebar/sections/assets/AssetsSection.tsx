@@ -11,6 +11,7 @@ import { BrowseView } from './BrowseView';
 import { MobileCatalogView } from './MobileCatalogView';
 import { useAssetSearch } from './useAssetSearch';
 
+import type { BackgroundControls } from '../../../configs/types';
 import type { BalkenInstance, BalkenMode } from '../../../primitives';
 import type { ChartInstance, ChartType } from '../../../utils/chartUtils';
 import type { FrameClipType, FrameInstance } from '../../../utils/frameUtils';
@@ -24,6 +25,9 @@ export interface ExtendedAssetsSectionProps {
   onAddAsset?: (assetId: string) => void;
   /** Adds a gallery sticker by ref; enables the Entdecken / Meine / Gemerkt lists. */
   onAddStickerAsset?: (ref: StickerRef) => void;
+  /** Sets the page's background photo; enables the gallery's Hintergründe. */
+  onSetBackgroundImage?: NonNullable<BackgroundControls['onImageChange']>;
+  currentBackgroundSrc?: string;
   onUpdateAsset?: (id: string, partial: Partial<AssetInstance>) => void;
   onRemoveAsset?: (id: string) => void;
   onAddPillBadge?: (preset?: string) => void;

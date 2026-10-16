@@ -1,13 +1,22 @@
 import React, { useState } from 'react';
 import { PiCopy } from 'react-icons/pi';
 
+import { type BackgroundControls } from '../../configs/types';
 import { type ShadowPatch } from '../../hooks/useFloatingModuleHandlers';
 import { type FloatingModuleState } from '../../hooks/useFloatingModuleState';
 import { type GradientFill } from '../../utils/gradientFill';
-import { FONT_COLORS, STROKE_ONLY_SHAPES } from '../../utils/shapes';
+import { BRAND_COLORS, FONT_COLORS, STROKE_ONLY_SHAPES } from '../../utils/shapes';
 import { useCanvasTextFormatting } from '../CanvasTextOverlay';
 import { type AlignmentDirection } from '../Toolbar';
 
+import {
+  BackgroundImagePicker,
+  BackgroundLockToggle,
+  BackgroundRemoveImageButton,
+  BackgroundRestoreImageButton,
+  BackgroundZoomControl,
+  SetAsBackgroundButton,
+} from './modules/FloatingBackgroundControls';
 import { FloatingColorPicker } from './modules/FloatingColorPicker';
 import { FloatingFontSizeControl } from './modules/FloatingFontSizeControl';
 import { FloatingGradientControl } from './modules/FloatingGradientControl';
@@ -27,6 +36,7 @@ export interface ContextControlsProps {
   handlers: {
     handleMoveLayer: (direction: 'up' | 'down') => void;
     handleDuplicate: () => void;
+    handleDeleteElement?: () => void;
     handleColorSelect: (color: string) => void;
     handleOpacityChange: (id: string, opacity: number, type: string) => void;
     handleFontSizeChange: (id: string, size: number) => void;
@@ -38,6 +48,8 @@ export interface ContextControlsProps {
     /** Opens the image-adjust ("Bearbeiten") panel for the selected image. */
     onEditImage?: () => void;
   };
+  /** The page's background controls (colour plane and photo), if the template has them. */
+  background?: BackgroundControls | null;
   onDelete?: () => void;
   /** Clears the element selection. Escape does the same, but is invisible. */
   onDeselect?: () => void;
@@ -63,6 +75,7 @@ export function ContextControls({
   canMoveDown,
   canDuplicate,
   handlers,
+  background,
   onDelete,
   onDeselect,
   hideObjectActions = false,
@@ -76,7 +89,9 @@ export function ContextControls({
     if (type === 'text') {
       return { color: activeFloatingModule?.data.fill || '#000000', variant: 'font' as const };
     }
-    if (type === 'image' || type === 'background') {
+    // The colour plane takes the template's palette, below.
+    if (type === 'background') return null;
+    if (type === 'image') {
       return activeFloatingModule?.data.fill !== undefined
         ? { color: activeFloatingModule?.data.fill || '#FFFFFF', variant: 'swatch' as const }
         : null;
@@ -93,8 +108,12 @@ export function ContextControls({
   };
 
   const colorConfig = activeFloatingModule ? showColorFor(activeFloatingModule.type) : null;
+  const isPlane = activeFloatingModule?.type === 'background';
+  const isPhoto = activeFloatingModule?.type === 'image' && !!activeFloatingModule.data.isPhoto;
+  // The background is not an object on the page: no opacity, layer order or copy.
   // Frame elements expose no formatting controls (matches prior Toolbar behavior).
-  const showOpacity = activeFloatingModule && activeFloatingModule.type !== 'frame';
+  const showOpacity = activeFloatingModule && activeFloatingModule.type !== 'frame' && !isPlane;
+  const showObjectActions = !isPlane && !isPhoto;
   const isText = activeFloatingModule?.type === 'text';
 
   // Build the present control groups, then interleave separators — this keeps
@@ -112,6 +131,120 @@ export function ContextControls({
         onExpandChange={setIsColorPickerExpanded}
         variant={colorConfig.variant}
         {...(isText ? { colors: FONT_COLORS } : {})}
+      />
+    );
+  }
+
+  // On the photo too: the photo covers the plane, so this is the only way to a colour.
+  if ((isPlane || isPhoto) && background?.colors?.length && background.onColorChange) {
+    const { onColorChange, onImageChange, colorReplacesImage, paletteOnly } = background;
+    const own = background.colors.map((c) => ({ id: c.id, name: c.label, value: c.color }));
+    const known = new Set(own.map((c) => c.value.toLowerCase()));
+    const palette = paletteOnly
+      ? own
+      : [...own, ...BRAND_COLORS.filter((c) => !known.has(c.value.toLowerCase()))];
+    const pickColor =
+      isPhoto && !colorReplacesImage && onImageChange
+        ? (color: string) => {
+            onImageChange(null, undefined, null);
+            onColorChange(color);
+            onDeselect?.();
+          }
+        : isPhoto
+          ? (color: string) => {
+              onColorChange(color);
+              onDeselect?.();
+            }
+          : onColorChange;
+    groups.push(
+      <FloatingColorPicker
+        key="background-color"
+        currentColor={(isPhoto ? '' : background.currentColor) || '#FFFFFF'}
+        onColorSelect={pickColor}
+        isExpanded={isColorPickerExpanded}
+        onExpandChange={setIsColorPickerExpanded}
+        colors={palette}
+        allowCustom={!paletteOnly}
+      />
+    );
+  }
+
+  if ((isPlane || isPhoto) && background?.onImageChange) {
+    const onImageChange = background.onImageChange;
+    groups.push(
+      <BackgroundImagePicker
+        key="background-image"
+        label={background.currentImageSrc ? 'Ersetzen' : 'Bild'}
+        currentImageSrc={background.currentImageSrc}
+        onImageChange={onImageChange}
+      />
+    );
+  }
+
+  if (isPlane && background?.onRestoreImage) {
+    groups.push(
+      <BackgroundRestoreImageButton key="restore-image" onRestore={background.onRestoreImage} />
+    );
+  }
+
+  if (isPhoto && background) {
+    const photoControls: React.ReactNode[] = [];
+    if (background.scale !== undefined && background.onScaleChange) {
+      photoControls.push(
+        <BackgroundZoomControl
+          key="zoom"
+          scale={background.scale}
+          onScaleChange={background.onScaleChange}
+        />
+      );
+    }
+    if (background.onToggleLock) {
+      photoControls.push(
+        <BackgroundLockToggle
+          key="lock"
+          isLocked={!!background.isLocked}
+          onToggle={background.onToggleLock}
+        />
+      );
+    }
+    if (background.onImageChange) {
+      const onImageChange = background.onImageChange;
+      photoControls.push(
+        <BackgroundRemoveImageButton
+          key="remove"
+          onRemove={() => {
+            onImageChange(null, undefined, null);
+            // The photo element is gone; a selection on it would keep these controls up.
+            onDeselect?.();
+          }}
+        />
+      );
+    }
+    if (photoControls.length) {
+      groups.push(
+        <div key="photo" className="flex items-center gap-0.5">
+          {photoControls}
+        </div>
+      );
+    }
+  }
+
+  const userImageSrc =
+    activeFloatingModule?.type === 'user-image' ? activeFloatingModule.data.src : undefined;
+  if (
+    typeof userImageSrc === 'string' &&
+    !userImageSrc.startsWith('blob:') &&
+    background?.onImageChange &&
+    handlers.handleDeleteElement
+  ) {
+    const fileName = activeFloatingModule?.data.fileName;
+    groups.push(
+      <SetAsBackgroundButton
+        key="as-background"
+        src={userImageSrc}
+        fileName={typeof fileName === 'string' && fileName ? fileName : 'hintergrund'}
+        onImageChange={background.onImageChange}
+        onRemoveElement={handlers.handleDeleteElement}
       />
     );
   }
@@ -298,7 +431,7 @@ export function ContextControls({
     );
   }
 
-  if (selectedElement) {
+  if (selectedElement && showObjectActions) {
     groups.push(
       <FloatingLayerControls
         key="layer"
@@ -314,7 +447,7 @@ export function ContextControls({
   // nicht sein Aussehen. Der Knopf bleibt bei Vorlagen-Elementen und Icons
   // sichtbar, aber deaktiviert — verschwände er, wäre unklar, ob die Aktion
   // fehlt oder nur hier nicht geht.
-  if (selectedElement && !hideObjectActions) {
+  if (selectedElement && showObjectActions && !hideObjectActions) {
     groups.push(
       <button
         key="duplicate"
@@ -365,8 +498,8 @@ export function ContextControls({
 
   // Last group: the only visible way out of a selection. Escape is bound in
   // useCanvasKeyboardHandlers but nothing in the UI ever said so, and the
-  // artboard is fully covered by elements — clicking "somewhere empty" just
-  // selects the background image instead of deselecting.
+  // artboard is fully covered — clicking "somewhere empty" selects the
+  // background instead of deselecting.
   if (onDeselect && selectedElement && !hideObjectActions) {
     groups.push(
       <button

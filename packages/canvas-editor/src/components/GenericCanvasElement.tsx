@@ -405,11 +405,15 @@ interface MemoizedBackgroundProps<
 > {
   config: BackgroundElementConfig<TState>;
   state: TState;
+  onSelect: (id: string) => void;
 }
 
 const MemoizedBackgroundElement = memo(function MemoizedBackgroundElement<
   TState extends Record<string, unknown> = Record<string, unknown>,
->({ config, state }: MemoizedBackgroundProps<TState>) {
+>({ config, state, onSelect }: MemoizedBackgroundProps<TState>) {
+  // Selecting the plane opens its colour and photo controls in the context bar.
+  const handleSelect = useCallback(() => onSelect(config.id), [onSelect, config.id]);
+
   // Der Typ bietet zwei Schlüssel an: `colorKey` (slider) und `fillStateKey`
   // (freeform). Gelesen wurde nur der erste, deshalb blieb der
   // Freeform-Hintergrund unabhängig von der Farbwahl immer weiß.
@@ -426,6 +430,7 @@ const MemoizedBackgroundElement = memo(function MemoizedBackgroundElement<
       width={config.width}
       height={config.height}
       color={color}
+      onSelect={handleSelect}
       {...(glow
         ? {
             gradient: {
@@ -553,6 +558,7 @@ export const GenericCanvasElement = memo(function GenericCanvasElement<
         <MemoizedBackgroundElement
           config={config as BackgroundElementConfig<Record<string, unknown>>}
           state={state as Record<string, unknown>}
+          onSelect={onSelect}
         />
       );
 

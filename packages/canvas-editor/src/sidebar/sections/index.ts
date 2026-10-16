@@ -38,14 +38,6 @@ export const AssetsSection = lazy(() =>
   import('./assets').then((m) => ({ default: m.AssetsSection }))
 );
 
-export const BackgroundSection = lazy(() =>
-  import('./BackgroundSection').then((m) => ({ default: m.BackgroundSection }))
-);
-
-export const ImageBackgroundSection = lazy(() =>
-  import('./ImageBackgroundSection').then((m) => ({ default: m.ImageBackgroundSection }))
-);
-
 export const GenericShareSection = lazy(() =>
   import('./GenericShareSection').then((m) => ({ default: m.GenericShareSection }))
 );
