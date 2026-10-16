@@ -86,22 +86,22 @@ describe('SharepicVorlagenCards', () => {
     expect(useAgentStore.getState().pendingDraft).toContain('(vorlage:de-zitat)');
   });
 
-  it('pages through every slide of a carousel, and says how many on the card', async () => {
+  it('shows every slide of a carousel, and its dots on the card', async () => {
     const karussell = vorlage('de-karussell', 'de-DE');
     karussell.spec.slides = [0, 1, 2].map(() => karussell.spec.slides[0]!);
     const { user } = renderCards([karussell]);
 
     const card = await screen.findByRole('button', { name: 'Zitat de-karussell' });
-    expect(screen.getByText('3 Seiten')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Seite 3 von 3 zeigen' })).toBeInTheDocument();
 
     await user.click(card);
     const dialog = await screen.findByRole('dialog');
-    const pager = within(dialog).getByRole('button', { name: /Nächste Seite/ });
     const seen: Array<string | null> = [];
-    for (let i = 0; i < 3; i++) {
+    for (let i = 1; i <= 3; i++) {
+      await user.click(within(dialog).getByRole('button', { name: `Seite ${i} von 3 anzeigen` }));
       seen.push(within(dialog).getByRole('img').getAttribute('alt'));
-      await user.click(pager);
     }
+    await user.click(within(dialog).getByRole('button', { name: 'Seite 1 von 3 anzeigen' }));
     expect(seen).toEqual([
       'Seite 1 von 3: Zitat de-karussell',
       'Seite 2 von 3: Zitat de-karussell',
