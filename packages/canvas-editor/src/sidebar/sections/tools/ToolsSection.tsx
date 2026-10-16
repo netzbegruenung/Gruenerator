@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { HiSparkles } from 'react-icons/hi';
 import { HiPencilSquare, HiPhoto, HiQrCode, HiScissors } from 'react-icons/hi2';
-import { PiArrowLeft, PiCaretRightBold, PiTextT, PiDropSimpleFill, PiPath } from 'react-icons/pi';
+import { PiArrowLeft, PiCaretRightBold, PiDropSimpleFill, PiPath } from 'react-icons/pi';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { useIsCanvasMobile } from '../../../hooks/useIsCanvasMobile';
 import { cn } from '../../../utils/cn';
+import { BRAND_COLORS } from '../../../utils/shapes';
 
 import { AiCreateTool } from './AiCreateTool';
 import { AiEditTool } from './AiEditTool';
@@ -47,6 +48,34 @@ interface ToolCard {
   ai: boolean;
   icon: IconType | ComponentType<{ size?: number; className?: string }>;
   available: boolean;
+}
+
+const brandColor = (id: string) => BRAND_COLORS.find((c) => c.id === id)?.value;
+
+// The letters carry the gradient themselves, so the tile shows what the tool makes.
+function GradientTextIcon({ size = 24, className }: { size?: number; className?: string }) {
+  const gradientId = useId();
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <defs>
+        <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor={brandColor('grashalm')} />
+          <stop offset="1" stopColor={brandColor('himmel')} />
+        </linearGradient>
+      </defs>
+      <text
+        x="12"
+        y="18"
+        textAnchor="middle"
+        fontSize="17"
+        fontWeight="900"
+        fontFamily="GrueneTypeNeue, ArvoGruen, sans-serif"
+        fill={`url(#${gradientId})`}
+      >
+        Aa
+      </text>
+    </svg>
+  );
 }
 
 function ToolCardButton({
@@ -199,8 +228,8 @@ export function ToolsSection({ onJumpToUploads, onPlaceImageUrl }: ToolsSectionP
       id: 'gradient-text',
       description: 'Schriftzug mit Farbverlauf gestalten',
       ai: false,
-      label: 'Verlaufstext erstellen',
-      icon: PiTextT,
+      label: 'Text mit Farbverlauf',
+      icon: GradientTextIcon,
       available: true,
     },
     {

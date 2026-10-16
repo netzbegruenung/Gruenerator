@@ -147,8 +147,8 @@ const SEED = {
 
 const config = createFreeformFullConfig(getCanvasFormatOrDefault(null));
 
-function freeform() {
-  let state = config.createInitialState(SEED);
+function freeform(seed: Record<string, unknown> = SEED) {
+  let state = config.createInitialState(seed);
   const getState = () => state;
   const setState = (u: Partial<FreeformState> | ((prev: FreeformState) => FreeformState)) => {
     state = typeof u === 'function' ? u(state) : { ...state, ...u };
@@ -222,6 +222,32 @@ describe('freeform op path', () => {
       fill: '#005538',
       fontSize: 144,
     });
+  });
+
+  it('update-element recolouring a gradient text drops the gradient', () => {
+    const gradient = {
+      type: 'linear',
+      angle: 90,
+      stops: [
+        { offset: 0, color: '#8ABD24' },
+        { offset: 1, color: '#0BA1DD' },
+      ],
+    };
+    const { ai, actions, getState } = freeform({
+      ...SEED,
+      additionalTexts: [{ ...SEED.additionalTexts[0], fillGradient: gradient }],
+    });
+    expect(getState().additionalTexts[0]).toMatchObject({ fillGradient: gradient });
+
+    const result = applyOperation(
+      { kind: 'update-element', elementId: 'txt-1', patch: { color: '#E6007E' } },
+      actions,
+      getState,
+      ai
+    );
+
+    expect(result).toEqual({ ok: true });
+    expect(getState().additionalTexts[0]).toMatchObject({ fill: '#E6007E', fillGradient: null });
   });
 
   it('remove-element reaches every listed kind and says when the id is unknown', () => {
