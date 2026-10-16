@@ -60,6 +60,21 @@ export function readElementDrag(dataTransfer: DataTransfer | null): ElementDragP
   }
 }
 
+// `dragend.dropEffect` repeats the last dragover's answer even when the drop
+// placed nothing, so the page that handled the drop says whether it did.
+let dropPlaced = false;
+
+export function markDropPlaced(): void {
+  dropPlaced = true;
+}
+
+/** Whether the drop placed something; reading it resets it for the next drag. */
+export function takeDropPlaced(): boolean {
+  const placed = dropPlaced;
+  dropPlaced = false;
+  return placed;
+}
+
 /** Drag type of a Vorlagen tile; the payload is the Vorlage id. */
 export const VORLAGE_DRAG_TYPE = 'application/x-gruenerator-vorlage';
 

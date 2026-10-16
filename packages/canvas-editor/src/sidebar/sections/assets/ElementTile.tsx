@@ -3,6 +3,7 @@ import { FaCheck } from 'react-icons/fa';
 
 import { cn } from '../../../utils/cn';
 import { onThumbnailHover } from '../../../utils/illustrations/svgCache';
+import { takeDropPlaced } from '../../../utils/mediaDrop';
 
 import { ElementThumb, thumbFillsTile, thumbNeedsDarkTile } from './ElementThumb';
 import { dragDataFor, type ElementItem } from './elementTypes';
@@ -43,6 +44,7 @@ export function elementDragProps(item: ElementItem) {
   return {
     draggable: true,
     onDragStart: (e: DragEvent<HTMLElement>) => {
+      takeDropPlaced();
       const drag = dragDataFor(item.action);
       e.dataTransfer.setData(drag.type, drag.data);
       e.dataTransfer.effectAllowed = 'copy';
@@ -52,8 +54,8 @@ export function elementDragProps(item: ElementItem) {
       if (preview)
         e.dataTransfer.setDragImage(preview, preview.offsetWidth / 2, preview.offsetHeight / 2);
     },
-    onDragEnd: (e: DragEvent<HTMLElement>) => {
-      if (e.dataTransfer.dropEffect !== 'none') useRecentElements.getState().remember(item);
+    onDragEnd: () => {
+      if (takeDropPlaced()) useRecentElements.getState().remember(item);
     },
   };
 }

@@ -6,6 +6,7 @@ import {
   isElementDrag,
   isMediaDrag,
   isVorlageDrag,
+  markDropPlaced,
   readElementDrag,
   readMediaDrag,
   readVorlageDrag,
@@ -130,8 +131,10 @@ export const PageWrapper = memo(function PageWrapper({
       e.preventDefault();
       if (!isActive) onSelect(index);
       if (media) {
-        if (canvasRef.current?.dropMedia(e, media)) trackDownload(media.name, media.attribution);
-      } else if (element) canvasRef.current?.dropElement(e, element);
+        if (!canvasRef.current?.dropMedia(e, media)) return;
+        markDropPlaced();
+        trackDownload(media.name, media.attribution);
+      } else if (element && canvasRef.current?.dropElement(e, element)) markDropPlaced();
     },
     [isActive, onSelect, index, canvasRef, onDropVorlage, trackDownload]
   );

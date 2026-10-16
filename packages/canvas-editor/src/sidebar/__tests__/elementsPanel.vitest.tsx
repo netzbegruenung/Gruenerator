@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CanvasEditorProvider } from '../../CanvasEditorProvider';
 import { useTrackUnsplashDownload } from '../../hooks/useTrackUnsplashDownload';
-import { ELEMENT_DRAG_TYPE, MEDIA_DRAG_TYPE } from '../../utils/mediaDrop';
+import { ELEMENT_DRAG_TYPE, MEDIA_DRAG_TYPE, markDropPlaced } from '../../utils/mediaDrop';
 import { ElementsPanel } from '../sections/assets/ElementsPanel';
 import { ElementTile } from '../sections/assets/ElementTile';
 import { dragDataFor } from '../sections/assets/elementTypes';
@@ -287,20 +287,32 @@ describe('ElementsPanel', () => {
     expect(tile).toHaveAttribute('draggable', 'true');
 
     const data: Record<string, string> = {};
-    fireEvent.dragStart(tile, {
-      dataTransfer: {
-        setData: (type: string, value: string) => (data[type] = value),
-        setDragImage: () => {},
-        effectAllowed: '',
-      },
-    });
+    const dragStart = () =>
+      fireEvent.dragStart(tile, {
+        dataTransfer: {
+          setData: (type: string, value: string) => (data[type] = value),
+          setDragImage: () => {},
+          effectAllowed: '',
+        },
+      });
+    dragStart();
     expect(JSON.parse(data[ELEMENT_DRAG_TYPE]!)).toEqual({
       kind: 'sticker',
       ref: { id: `asset:${UUID}`, src: SRC },
     });
 
-    fireEvent.dragEnd(tile, { dataTransfer: { dropEffect: 'none' } });
+    // The browser reports `copy` for a drop the page refused.
+    fireEvent.dragEnd(tile, { dataTransfer: { dropEffect: 'copy' } });
     expect(useRecentElements.getState().items).toEqual([]);
+
+    // A placed drop left over from another drag does not count for this one.
+    markDropPlaced();
+    dragStart();
+    fireEvent.dragEnd(tile, { dataTransfer: { dropEffect: 'copy' } });
+    expect(useRecentElements.getState().items).toEqual([]);
+
+    dragStart();
+    markDropPlaced();
     fireEvent.dragEnd(tile, { dataTransfer: { dropEffect: 'copy' } });
     expect(useRecentElements.getState().items[0]?.key).toBe(`sticker:asset:${UUID}`);
   });

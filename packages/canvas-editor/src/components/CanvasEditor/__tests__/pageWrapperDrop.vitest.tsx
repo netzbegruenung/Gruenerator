@@ -2,7 +2,7 @@ import { createEvent, fireEvent, render } from '@testing-library/react';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { ELEMENT_DRAG_TYPE, VORLAGE_DRAG_TYPE } from '../../../utils/mediaDrop';
+import { ELEMENT_DRAG_TYPE, VORLAGE_DRAG_TYPE, takeDropPlaced } from '../../../utils/mediaDrop';
 import { PageWrapper } from '../PageWrapper';
 
 vi.mock('../../GenericCanvas', () => ({ GenericCanvas: () => <canvas /> }));
@@ -11,9 +11,9 @@ vi.mock('../../ZoomableViewport', () => ({
   ZoomableViewport: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
-function setup(onDropVorlage?: (id: string) => void) {
+function setup(onDropVorlage?: (id: string) => void, placed = true) {
   const onSelect = vi.fn();
-  const dropElement = vi.fn(() => true);
+  const dropElement = vi.fn(() => placed);
   const { getByRole } = render(
     <PageWrapper
       {...({
@@ -77,5 +77,12 @@ describe('PageWrapper element drop', () => {
     expect(fire(page, 'drop', iconTransfer)).toBe(true);
     expect(onSelect).toHaveBeenCalledWith(1);
     expect(dropElement).toHaveBeenCalledWith(expect.anything(), { kind: 'icon', iconId: 'sun' });
+    expect(takeDropPlaced()).toBe(true);
+  });
+
+  it('does not report a drop its canvas refused as placed', () => {
+    const { page } = setup(undefined, false);
+    expect(fire(page, 'drop', iconTransfer)).toBe(true);
+    expect(takeDropPlaced()).toBe(false);
   });
 });
