@@ -28,7 +28,6 @@ import {
 } from '../../utils/userImageUtils';
 
 import type { IconState, BaseCanvasState } from './baseTypes';
-import type { StockImageAttribution } from '../../common/imageSourceTypes';
 import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
 import type { AssetInstance } from '../../utils/canvasAssets';
 import type { CircleBadgeInstance } from '../../utils/circleBadgeUtils';
@@ -36,7 +35,7 @@ import type { FrameClipType, FrameInstance } from '../../utils/frameUtils';
 import type { IllustrationInstance } from '../../utils/illustrations/types';
 import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '../../utils/shapes';
-import type { UserImageInstance } from '../../utils/userImageUtils';
+import type { UserImageInstance, UserImagePlacement } from '../../utils/userImageUtils';
 import type { AdditionalText } from '../types';
 import type { StickerRef } from '@gruenerator/shared/stickers';
 
@@ -689,16 +688,12 @@ export function createUserImageActions<TState extends { userImageInstances: User
         commit(appendImage(instance));
       });
     },
-    addUserImageFromUrl: (url: string, fileName: string, attribution?: StockImageAttribution) => {
-      void createUserImageInstanceFromUrl(
-        url,
-        fileName,
-        canvasWidth,
-        canvasHeight,
-        attribution
-      ).then((instance) => {
-        commit(appendImage(instance));
-      });
+    addUserImageFromUrl: (url: string, fileName: string, options?: UserImagePlacement) => {
+      void createUserImageInstanceFromUrl(url, fileName, canvasWidth, canvasHeight, options).then(
+        (instance) => {
+          commit(appendImage(instance));
+        }
+      );
     },
     /**
      * Place a freshly-picked file instantly via a local blob preview (dimensions

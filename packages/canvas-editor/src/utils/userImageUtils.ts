@@ -130,7 +130,7 @@ function makeInstance(
   height: number,
   canvasWidth: number,
   canvasHeight: number,
-  attribution?: StockImageAttribution
+  options: UserImagePlacement = {}
 ): UserImageInstance {
   return {
     id: makeId(),
@@ -143,7 +143,7 @@ function makeInstance(
     rotation: 0,
     scale: 1,
     opacity: 1,
-    ...(attribution && { attribution }),
+    ...(options.attribution && { attribution: options.attribution }),
   };
 }
 
@@ -211,19 +211,24 @@ export async function downscaleImageForUpload(file: File): Promise<File> {
   }
 }
 
+export interface UserImagePlacement {
+  /** Stock credit of a hotlinked photo, kept on the instance. */
+  attribution?: StockImageAttribution;
+}
+
 export function createUserImageInstanceFromUrl(
   url: string,
   fileName: string,
   canvasWidth: number,
   canvasHeight: number,
-  attribution?: StockImageAttribution
+  options?: UserImagePlacement
 ): Promise<UserImageInstance> {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
       const { width, height } = scaleToTarget(img.naturalWidth, img.naturalHeight);
-      resolve(makeInstance(url, fileName, width, height, canvasWidth, canvasHeight, attribution));
+      resolve(makeInstance(url, fileName, width, height, canvasWidth, canvasHeight, options));
     };
     img.onerror = () => {
       resolve(
@@ -234,7 +239,7 @@ export function createUserImageInstanceFromUrl(
           FALLBACK_HEIGHT,
           canvasWidth,
           canvasHeight,
-          attribution
+          options
         )
       );
     };

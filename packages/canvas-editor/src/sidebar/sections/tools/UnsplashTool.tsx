@@ -4,10 +4,11 @@ import { HiMagnifyingGlass } from 'react-icons/hi2';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 
-import type { StockImage, StockImageAttribution } from '../../../common/imageSourceTypes';
+import type { StockImage } from '../../../common/imageSourceTypes';
+import type { UserImagePlacement } from '../../../utils/userImageUtils';
 
 export interface UnsplashToolProps {
-  onPlaceImageUrl?: (url: string, fileName: string, attribution?: StockImageAttribution) => void;
+  onPlaceImageUrl?: (url: string, fileName: string, options?: UserImagePlacement) => void;
 }
 
 const SEARCH_DEBOUNCE_MS = 400;
@@ -64,7 +65,7 @@ export function UnsplashTool({ onPlaceImageUrl }: UnsplashToolProps) {
     } else if (trackUnsplashDownload) {
       void trackUnsplashDownload(image);
     }
-    onPlaceImageUrl(image.url, image.filename, image.attribution);
+    onPlaceImageUrl(image.url, image.filename, { attribution: image.attribution });
     setPlacedId(image.filename);
   };
 

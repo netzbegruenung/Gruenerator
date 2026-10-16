@@ -81,7 +81,7 @@ describe('UnsplashTool', () => {
     expect(onPlaceImageUrl).toHaveBeenCalledWith(
       'https://images.unsplash.com/photo-2?ixid=x',
       'annie-2-unsplash.jpg',
-      photo(2).attribution
+      { attribution: photo(2).attribution }
     );
     expect(uploadImage).not.toHaveBeenCalled();
   });

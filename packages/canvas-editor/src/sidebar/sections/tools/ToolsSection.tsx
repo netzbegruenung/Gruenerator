@@ -16,7 +16,7 @@ import { RemoveBackgroundTool } from './RemoveBackgroundTool';
 import { TextPathCreatorTool } from './TextPathCreatorTool';
 import { UnsplashTool } from './UnsplashTool';
 
-import type { StockImageAttribution } from '../../../common/imageSourceTypes';
+import type { UserImagePlacement } from '../../../utils/userImageUtils';
 import type { ComponentType } from 'react';
 import type { IconType } from 'react-icons';
 
@@ -24,7 +24,7 @@ export interface ToolsSectionProps {
   /** Optional callback the tools call after a successful upload to nudge the user toward the Uploads tab. */
   onJumpToUploads?: () => void;
   /** Places a generated image (by durable URL) straight onto the canvas. */
-  onPlaceImageUrl?: (url: string, fileName: string, attribution?: StockImageAttribution) => void;
+  onPlaceImageUrl?: (url: string, fileName: string, options?: UserImagePlacement) => void;
 }
 
 type ToolView =

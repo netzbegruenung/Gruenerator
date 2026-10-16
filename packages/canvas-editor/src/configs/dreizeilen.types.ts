@@ -17,7 +17,7 @@ import type { FrameClipType, FrameInstance } from '../utils/frameUtils';
 import type { IllustrationInstance } from '../utils/illustrations/types';
 import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance } from '../utils/shapes';
-import type { UserImageInstance } from '../utils/userImageUtils';
+import type { UserImageInstance, UserImagePlacement } from '../utils/userImageUtils';
 import type { StickerRef } from '@gruenerator/shared/stickers';
 
 /**
@@ -207,7 +207,7 @@ export interface DreizeilenFullActions {
 
   // === Placed Image Actions (Uploads / Tools) ===
   addUserImage: (file: File, objectUrl: string) => void;
-  addUserImageFromUrl: (url: string, fileName: string, attribution?: StockImageAttribution) => void;
+  addUserImageFromUrl: (url: string, fileName: string, options?: UserImagePlacement) => void;
   placeUserImageFromFile: (file: File) => Promise<string>;
   updateUserImage: (id: string, partial: Partial<UserImageInstance>) => void;
   removeUserImage: (id: string) => void;
