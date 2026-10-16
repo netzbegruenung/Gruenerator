@@ -1,4 +1,8 @@
-import { type SharepicCreatorLocale, type SharepicVorlage } from '@gruenerator/contracts';
+import {
+  type SharepicCreatorLocale,
+  type SharepicSeite,
+  type SharepicVorlage,
+} from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 
@@ -29,3 +33,17 @@ export const sharepicVorlagenQuery = (land: SharepicCreatorLocale | null = null)
 export function useSharepicVorlagen(land: SharepicCreatorLocale | null = null) {
   return useQuery(sharepicVorlagenQuery(land));
 }
+
+/** The single Seiten of the viewer's country, for the editor's „Vorlagen" tab. */
+export const sharepicSeitenQuery = () =>
+  queryOptions({
+    queryKey: ['sharepic-seiten'],
+    staleTime: 10 * 60_000,
+    queryFn: async (): Promise<SharepicSeite[]> => {
+      const res = await getContractsClient().sharepicVorlagen.seiten({ query: {} });
+      if (res.status !== 200) {
+        throw new ApiError(res.status, `Seiten konnten nicht geladen werden (HTTP ${res.status}).`);
+      }
+      return res.body.seiten;
+    },
+  });

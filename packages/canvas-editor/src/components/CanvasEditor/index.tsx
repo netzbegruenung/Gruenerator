@@ -484,6 +484,24 @@ function CanvasEditorInner({
   });
   // eslint-disable-next-line react-hooks/refs -- latest-ref write, read only by the bridge's handlers
   specEditRef.current = { pages, activePageId: pages[currentPageIndex]?.id ?? null, replaceDeck };
+  // A page the Vorlagen tab just added: shown as soon as the deck has it.
+  const pageToShowRef = useRef<string | null>(null);
+  const showPage = useCallback(
+    (pageId: string) => {
+      const index = specEditRef.current.pages.findIndex((p) => p.id === pageId);
+      if (index >= 0) handleThumbnailSelect(index);
+      else pageToShowRef.current = pageId;
+    },
+    [handleThumbnailSelect]
+  );
+  useEffect(() => {
+    const pageId = pageToShowRef.current;
+    if (!pageId) return;
+    const index = pages.findIndex((p) => p.id === pageId);
+    if (index < 0) return;
+    pageToShowRef.current = null;
+    handleThumbnailSelect(index);
+  }, [pages, handleThumbnailSelect]);
   const hasReplaceDeck = replaceDeck !== null;
   const specEdit = useMemo<CanvasSpecEditBridge | null>(
     () =>
@@ -900,7 +918,12 @@ function CanvasEditorInner({
     if (!activeTab) return null;
     if (activeTab === 'vorlagen') {
       return showVorlagen && specEdit ? (
-        <VorlagenSection formatId={formatId ?? DEFAULT_FORMAT_ID} pages={pages} deck={specEdit} />
+        <VorlagenSection
+          formatId={formatId ?? DEFAULT_FORMAT_ID}
+          pages={pages}
+          deck={specEdit}
+          onShowPage={showPage}
+        />
       ) : null;
     }
     const source = sectionSource ?? (activeTab === 'chat' ? lastSectionSourceRef.current : null);
@@ -921,7 +944,7 @@ function CanvasEditorInner({
         <SectionComponent {...sectionProps} />
       </Suspense>
     );
-  }, [activeTab, sectionSource, shareProps, specEdit, showVorlagen, formatId, pages]);
+  }, [activeTab, sectionSource, shareProps, specEdit, showVorlagen, formatId, pages, showPage]);
 
   // Collab vor dem ersten Sync (noch keine Seiten) und der eine Render, in dem
   // die Seiten-Configs nachladen: das Layout bleibt stehen, nur die Fläche
