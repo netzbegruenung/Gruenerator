@@ -76,7 +76,7 @@ export interface CanvasTextProps {
   stageWidth?: number;
   stageHeight?: number;
   onSnapChange?: (snapH: boolean, snapV: boolean) => void;
-  snapTargets?: SnapTarget[];
+  getSnapTargets?: (excludeId: string) => SnapTarget[];
   onPositionChange?: (id: string, x: number, y: number, width: number, height: number) => void;
   /** Meldet die gerenderte Geometrie als Snap-Ziel — unabhaengig davon, ob je gezogen wurde. */
   onGeometryChange?: GeometryReporter;
@@ -131,7 +131,7 @@ function CanvasTextInner({
   stageWidth,
   stageHeight,
   onSnapChange,
-  snapTargets,
+  getSnapTargets,
   onPositionChange,
   onGeometryChange,
   onSnapLinesChange,
@@ -222,13 +222,14 @@ function CanvasTextInner({
 
       if (!stageWidth || !stageHeight) return;
 
-      if ((snapTargets && snapTargets.length > 0) || snapToCenter) {
+      const snapTargets = getSnapTargets?.(id ?? '') ?? [];
+      if (snapTargets.length > 0 || snapToCenter) {
         const result = calculateElementSnapPosition(
           node.x(),
           node.y(),
           nodeWidth,
           nodeHeight,
-          snapTargets || [],
+          snapTargets,
           stageWidth,
           stageHeight,
           snap.hysteresis
@@ -238,7 +239,7 @@ function CanvasTextInner({
         snap.scheduleSnap(result.snapH, result.snapV, result.snapLines);
       }
     },
-    [snapToCenter, stageWidth, stageHeight, snapTargets, snap]
+    [id, snapToCenter, stageWidth, stageHeight, getSnapTargets, snap]
   );
 
   // A side handle only changes the width: turn that scale into width right
@@ -413,7 +414,6 @@ function CanvasTextSwitch(props: CanvasTextProps) {
 // Memoize to prevent re-renders when parent (ZitatPureCanvas) updates due to snap state changes
 export const CanvasText = memo(CanvasTextSwitch, (prevProps, nextProps) => {
   // Custom comparison: only re-render if these specific props changed
-  // Ignore snapTargets array reference changes (we use the values inside)
   const keysToCompare: (keyof CanvasTextProps)[] = [
     'id',
     'text',

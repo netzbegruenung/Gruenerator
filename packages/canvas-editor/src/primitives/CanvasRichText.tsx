@@ -81,7 +81,7 @@ export function CanvasRichText({
   stageWidth,
   stageHeight,
   onSnapChange,
-  snapTargets,
+  getSnapTargets,
   onPositionChange,
   onGeometryChange,
   onSnapLinesChange,
@@ -181,13 +181,14 @@ export function CanvasRichText({
       const node = e.target;
       if (isGroupDrag(node)) return;
       if (!stageWidth || !stageHeight) return;
-      if ((snapTargets && snapTargets.length > 0) || snapToCenter) {
+      const snapTargets = getSnapTargets?.(id ?? '') ?? [];
+      if (snapTargets.length > 0 || snapToCenter) {
         const result = calculateElementSnapPosition(
           node.x(),
           node.y(),
           blockWidth * node.scaleX(),
           blockHeight * node.scaleY(),
-          snapTargets || [],
+          snapTargets,
           stageWidth,
           stageHeight,
           snap.hysteresis
@@ -196,7 +197,7 @@ export function CanvasRichText({
         snap.scheduleSnap(result.snapH, result.snapV, result.snapLines);
       }
     },
-    [snapToCenter, stageWidth, stageHeight, snapTargets, snap, blockWidth, blockHeight]
+    [id, snapToCenter, stageWidth, stageHeight, getSnapTargets, snap, blockWidth, blockHeight]
   );
 
   const handleDragEnd = useCallback(

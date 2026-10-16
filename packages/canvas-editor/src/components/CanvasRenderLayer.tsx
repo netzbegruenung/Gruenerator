@@ -243,7 +243,7 @@ function CanvasRenderLayerInner<
           onSnapLinesChange={setSnapLines}
           stageWidth={stageWidth}
           stageHeight={stageHeight}
-          snapTargets={getSnapTargets(elementConfig.id)}
+          getSnapTargets={getSnapTargets}
         />
       );
     }
@@ -555,7 +555,7 @@ function CanvasRenderLayerInner<
           editable={true}
           onSnapChange={handleSnapChange}
           onSnapLinesChange={setSnapLines}
-          snapTargets={getSnapTargets(textItem.id)}
+          getSnapTargets={getSnapTargets}
           onGeometryChange={registerGeometry}
           stageWidth={stageWidth}
           stageHeight={stageHeight}
