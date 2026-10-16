@@ -6,6 +6,7 @@
  * - SVG illustrations — precache top 50 + stale-while-revalidate the rest
  * - Pyodide runtime (wasm + wheels) — cache-first, versioned by /pyodide/version.json
  * - Notebook cover images (/notebook-covers/) — stale-while-revalidate
+ * - Resized stock photos (/api/image-picker/stock-image/?w=) — stale-while-revalidate
  *
  * Browser-managed storage, with automatic cache versioning and cleanup.
  */
@@ -18,6 +19,11 @@ const CACHE_NAME = `gruenerator-illustrations-${CACHE_VERSION}`;
 // the Wissen tab (or a later session) paints them from cache with no network, and
 // an updated cover still lands on the next load. Bump the version to bust.
 const NOTEBOOK_COVERS_CACHE = `gruenerator-notebook-covers-${CACHE_VERSION}`;
+
+// Resized stock photos (Elemente sidebar tiles, canvas working tier): ~57 files
+// at a closed set of widths, so the cache stays bounded. Only `w=` variants —
+// the originals are up to 7.5 MB each and are downloaded once for export.
+const STOCK_IMAGES_CACHE = `gruenerator-stock-images-${CACHE_VERSION}`;
 
 // Pyodide runtime cache (in-browser Python). The ~12 MB wasm core + Python
 // wheels under /pyodide/ are NOT content-hashed and nginx serves them
@@ -173,7 +179,9 @@ self.addEventListener('activate', (event) => {
             .filter(
               (name) =>
                 (name.startsWith('gruenerator-illustrations-') && name !== CACHE_NAME) ||
-                (name.startsWith('gruenerator-notebook-covers-') && name !== NOTEBOOK_COVERS_CACHE)
+                (name.startsWith('gruenerator-notebook-covers-') &&
+                  name !== NOTEBOOK_COVERS_CACHE) ||
+                (name.startsWith('gruenerator-stock-images-') && name !== STOCK_IMAGES_CACHE)
             )
             .map((name) => {
               console.log('[SW] Deleting old cache:', name);
@@ -210,7 +218,18 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Only intercept illustration requests
+  // Resized stock photos: same-origin GETs only.
+  if (
+    url.pathname.startsWith('/api/image-picker/stock-image/') &&
+    url.searchParams.has('w') &&
+    url.origin === self.location.origin &&
+    event.request.method === 'GET'
+  ) {
+    event.respondWith(staleWhileRevalidate(event.request, STOCK_IMAGES_CACHE));
+    return;
+  }
+
+  // Only intercept illustration requests (includes /illustrations/thumbs/)
   if (!url.pathname.startsWith('/illustrations/')) {
     return;
   }

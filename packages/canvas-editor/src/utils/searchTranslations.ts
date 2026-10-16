@@ -370,10 +370,23 @@ const KEYS_LONGEST_FIRST = [...DICTIONARY.keys()].sort((a, b) => b.length - a.le
  * key anywhere inside the word: "sport" contains "ort", "bildung" contains "bild".
  */
 export function translateWord(word: string): { terms: string[]; exact: boolean } {
-  const own = DICTIONARY.get(word);
+  const own = DICTIONARY.get(word) ?? DICTIONARY.get(singularOf(word) ?? '');
   if (own) return { terms: own, exact: true };
+  const stem = singularOf(word) ?? word;
   const head = KEYS_LONGEST_FIRST.find(
-    (key) => key.length >= 4 && word.length > key.length && word.endsWith(key)
+    (key) => key.length >= 4 && stem.length > key.length && stem.endsWith(key)
   );
   return { terms: head ? DICTIONARY.get(head)! : [], exact: false };
+}
+
+/** German plural endings, longest first ("blumen" → "blume", "kinder" → "kind"). */
+export const GERMAN_PLURAL_ENDINGS = ['ern', 'en', 'er', 'e', 'n', 's'] as const;
+
+/** The dictionary entry a plural belongs to, if any. */
+function singularOf(word: string): string | null {
+  for (const ending of GERMAN_PLURAL_ENDINGS) {
+    const stem = word.slice(0, -ending.length);
+    if (word.endsWith(ending) && stem.length >= 3 && DICTIONARY.has(stem)) return stem;
+  }
+  return null;
 }

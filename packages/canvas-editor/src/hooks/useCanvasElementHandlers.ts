@@ -3,12 +3,17 @@ import { useCallback, useMemo } from 'react';
 import { resolveValue } from '../utils/canvasValueResolver';
 
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from '../configs/types';
-import type { CircleBadgeInstance } from '../primitives';
-import type { ChartInstance } from '../utils/chartUtils';
-import type { FrameInstance } from '../utils/frameUtils';
+import type { BalkenMode, CircleBadgeInstance } from '../primitives';
+import type { ChartInstance, ChartType } from '../utils/chartUtils';
+import type { FrameClipType, FrameInstance } from '../utils/frameUtils';
 import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
-import type { ShapeInstance } from '../utils/shapes';
-import type { UserImageInstance, UserImagePlacement } from '../utils/userImageUtils';
+import type { ShapeInstance, ShapeType } from '../utils/shapes';
+import type {
+  ElementPlacement,
+  UserImageInstance,
+  UserImagePlacement,
+} from '../utils/userImageUtils';
+import type { StickerRef } from '@gruenerator/shared/stickers';
 
 /**
  * Canvas Element Handlers - Handlers for all element interactions
@@ -66,6 +71,15 @@ export interface OptionalCanvasActions {
   addUserImageFromUrl?: (url: string, fileName: string, options?: UserImagePlacement) => void;
   updateUserImage?: (id: string, attrs: Partial<UserImageInstance>) => void;
   updateChart?: (id: string, attrs: Partial<ChartInstance>) => void;
+
+  // Add actions a dragged Elemente tile is dropped with (GenericCanvas `dropElement`).
+  addAsset?: (assetId: string, options?: ElementPlacement) => void;
+  addStickerAsset?: (ref: StickerRef, options?: ElementPlacement) => void;
+  addShape?: (type: ShapeType, color?: string, options?: ElementPlacement) => void;
+  addIllustration?: (id: string, options?: ElementPlacement) => void;
+  addChart?: (chartType: ChartType, options?: ElementPlacement) => void;
+  addFrame?: (clipType: FrameClipType, options?: ElementPlacement) => void;
+  addBalken?: (mode: BalkenMode, options?: ElementPlacement) => void;
 
   // Removal / toggle actions (consumed by useCanvasKeyboardHandlers for
   // delete-key shortcuts; same factory-provided implementations).

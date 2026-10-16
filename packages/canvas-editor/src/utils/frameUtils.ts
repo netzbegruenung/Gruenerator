@@ -43,8 +43,7 @@ export type FrameClipType =
 
 /**
  * Display category for the Rahmen palette. Each clip-type belongs to exactly
- * one category — RahmenSection groups by this field at render time and emits
- * a German-labeled subheader per category.
+ * one category; the Elemente catalogue orders the frames by it.
  */
 export type FrameCategory = 'geometric' | 'soft' | 'organic' | 'stars' | 'speech' | 'banners';
 
@@ -233,15 +232,6 @@ export const FRAME_CATEGORY_ORDER: readonly FrameCategory[] = [
   'speech',
   'banners',
 ];
-
-export const FRAME_CATEGORY_LABELS: Record<FrameCategory, string> = {
-  geometric: 'Geometrisch',
-  soft: 'Rund',
-  organic: 'Organisch',
-  stars: 'Sterne',
-  speech: 'Sprechblasen',
-  banners: 'Banner',
-};
 
 export const FRAME_ICON_MAP: Record<FrameClipType, IconType> = {
   circle: PiCircleFill,

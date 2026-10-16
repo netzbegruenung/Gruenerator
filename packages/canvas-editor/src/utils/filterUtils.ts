@@ -1,6 +1,4 @@
-import { type IconDef } from './canvasIcons';
-import { type IllustrationDef } from './illustrations/types';
-import { foldUmlauts, translateWord } from './searchTranslations';
+import { foldUmlauts, GERMAN_PLURAL_ENDINGS, translateWord } from './searchTranslations';
 
 /**
  * Asset search matches whole words, never substrings: "car" must not hit
@@ -19,6 +17,7 @@ type CompiledQuery = Term[][];
 
 const TAG_WEIGHT = 0.85;
 const INFLECTIONS = new Set(['s', 'es', 'ed', 'er', 'ing']);
+const PLURALS = new Set<string>(GERMAN_PLURAL_ENDINGS);
 const VARIANT_WORDS = new Set(['filled', 'fill', 'solid', 'line', 'outline', 'off', 'alt']);
 
 const toWords = (text: string) =>
@@ -45,6 +44,15 @@ function termScore(term: Term, words: string[]): number {
       // German compounds: "sonne" finds "Sonnenblume", "blume" finds "Sonnenblume".
       if (term.text.length >= 3 && word.startsWith(term.text)) best = Math.max(best, 0.7);
       else if (term.text.length >= 4 && word.endsWith(term.text)) best = Math.max(best, 0.6);
+      // Short compound heads ("rad" in "Zahnrad") are noisier ("eis" in "Kreis"): rank them last.
+      else if (term.text.length === 3 && word.endsWith(term.text)) best = Math.max(best, 0.4);
+      // German plural typed, singular stored: "menschen" finds the tag "mensch".
+      else if (
+        word.length >= 4 &&
+        term.text.startsWith(word) &&
+        PLURALS.has(term.text.slice(word.length))
+      )
+        best = Math.max(best, 0.7);
     } else if (word.startsWith(term.text) && INFLECTIONS.has(word.slice(term.text.length))) {
       // Inflections only ("tree" → "trees"), not other words ("car" → "cart", "star" → "stark").
       best = Math.max(best, term.weight * 0.8);
@@ -60,11 +68,16 @@ function scoreMatch(query: CompiledQuery, name: string, tags: readonly string[] 
   let total = 0;
   for (const terms of query) {
     let best = 0;
+    let corroborating = 0;
     for (const term of terms) {
-      best = Math.max(best, termScore(term, nameWords), termScore(term, tagWords) * TAG_WEIGHT);
+      const score = Math.max(termScore(term, nameWords), termScore(term, tagWords) * TAG_WEIGHT);
+      if (score > 0) corroborating++;
+      best = Math.max(best, score);
     }
     if (best === 0) return 0;
-    total += best;
+    // Several terms of one word agreeing ("fahrrad", "bicycle", "bike") lift an item
+    // above one that shares only a broad keyword, e.g. a photo's category.
+    total += best + Math.min(corroborating - 1, 2) * 0.05;
   }
   // The whole name IS the query, as typed or in its main translation: "Car" for "auto".
   const phrase = nameWords.join(' ');
@@ -89,23 +102,4 @@ export function rankByQuery<T>(
     if (score > 0) scored.push({ item, score });
   }
   return scored.sort((a, b) => b.score - a.score).map((s) => s.item);
-}
-
-export function matchesQuery(query: string, name: string, tags?: readonly string[]): boolean {
-  return scoreMatch(compileQuery(query), name, tags) > 0;
-}
-
-export function filterIllustrations(
-  illustrations: IllustrationDef[],
-  query: string
-): IllustrationDef[] {
-  if (!query.trim()) return illustrations;
-  return rankByQuery(illustrations, query, (ill) => [
-    ill.name,
-    ill.source !== 'kawaii' && ill.category ? [...ill.tags, ill.category] : ill.tags,
-  ]);
-}
-
-export function filterIcons(icons: IconDef[], query: string): IconDef[] {
-  return rankByQuery(icons, query, (icon) => [icon.name, [icon.library]]);
 }

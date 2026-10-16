@@ -3,10 +3,9 @@ import { PiX } from 'react-icons/pi';
 
 import { useIsCanvasMobile } from '../hooks/useIsCanvasMobile';
 import { useMobileSheet } from '../hooks/useMobileSheet';
+import { cn } from '../utils/cn';
 
 import type { SidebarPanelProps } from './types';
-
-import { cn } from '../utils/cn';
 
 interface ExtendedSidebarPanelProps extends SidebarPanelProps {
   /** Sheet title on mobile — the label of the active area. */
@@ -43,7 +42,7 @@ export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSideb
     };
   }, [isOpen, isDesktop]);
 
-  const { handleRef, isDragging, translateY } = useMobileSheet({
+  const { handleRef, sheetRef } = useMobileSheet({
     isOpen: isOpen && !isDesktop,
     onClose: onClose || (() => {}),
     threshold: 100,
@@ -58,15 +57,13 @@ export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSideb
     // Aufbau: Griff, Titel mit Schließen, dann der Inhalt des Bereichs.
     return (
       <section
+        ref={sheetRef}
         aria-label={title}
         className="sidebar-panel order-1 flex-none flex flex-col h-[clamp(300px,48dvh,420px)] bg-[var(--editor-surface)] rounded-t-[20px] shadow-[0_-4px_24px_rgba(0,0,0,0.12)] overflow-hidden"
-        style={
-          isDragging ? { transform: `translateY(${translateY}px)`, transition: 'none' } : undefined
-        }
       >
         <div
           ref={handleRef}
-          className="sidebar-panel__drag-handle flex-none h-5 -mb-1 flex items-center justify-center cursor-grab active:cursor-grabbing"
+          className="sidebar-panel__drag-handle flex-none h-5 -mb-1 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none"
         >
           <div className="w-9 h-1 rounded-sm bg-[var(--editor-border-strong)]" />
         </div>
