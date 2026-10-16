@@ -4,7 +4,7 @@
  * opt out before it reaches the singleton — connection + embedding init
  * still run, only `createCollections`/`createTextSearchIndexes` are skipped.
  */
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../../config/env.js', () => ({
   env: { QDRANT_API_KEY: 'test-key', QDRANT_URL: 'http://localhost:6333' },
@@ -73,5 +73,49 @@ describe('QdrantService startup', () => {
 
     await expect(service.isAvailable()).resolves.toBe(true);
     await connecting;
+  });
+});
+
+const { mistralEmbeddingService } = await import('../../../services/mistral/index.js');
+
+describe('QdrantService failed init', () => {
+  // Only Date is faked: the constructor's setTimeout must still fire normally.
+  beforeEach(() => vi.useFakeTimers({ toFake: ['Date'] }));
+  afterEach(() => vi.useRealTimers());
+
+  it('retries after the reconnect interval instead of keeping the failed attempt', async () => {
+    vi.mocked(mistralEmbeddingService.init).mockRejectedValue(new Error('qdrant restarting'));
+
+    const service = new QdrantService();
+    await service.init();
+    expect(service.isConnected).toBe(false);
+
+    vi.mocked(mistralEmbeddingService.init).mockResolvedValue(undefined);
+    vi.advanceTimersByTime(30_000);
+    await service.init();
+    expect(service.isConnected).toBe(true);
+  });
+
+  it('does not retry on every call while Qdrant is down', async () => {
+    vi.mocked(mistralEmbeddingService.init).mockRejectedValue(new Error('qdrant restarting'));
+    const service = new QdrantService();
+    await service.init();
+    vi.mocked(mistralEmbeddingService.init).mockClear();
+
+    await service.init();
+    await service.isAvailable();
+
+    expect(mistralEmbeddingService.init).not.toHaveBeenCalled();
+  });
+
+  it('lets isAvailable() retry after a failed init', async () => {
+    vi.mocked(mistralEmbeddingService.init).mockRejectedValue(new Error('qdrant restarting'));
+
+    const service = new QdrantService();
+    await expect(service.isAvailable()).resolves.toBe(false);
+
+    vi.mocked(mistralEmbeddingService.init).mockResolvedValue(undefined);
+    vi.advanceTimersByTime(30_000);
+    await expect(service.isAvailable()).resolves.toBe(true);
   });
 });
