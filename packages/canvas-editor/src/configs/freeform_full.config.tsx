@@ -20,6 +20,7 @@ import { AssetsSection } from '../sidebar';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
 import { CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
+import { zoomBackground } from '../utils/coverFit';
 import { COMPOSER_PLANE_IDS } from '../utils/shapes';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
@@ -512,8 +513,9 @@ const withFreeformAi = (
       },
 
       setImageScale: (scale: number) => {
-        setState((prev) => ({ ...prev, imageScale: scale }));
-        debouncedSaveToHistory({ ...getState(), imageScale: scale });
+        const zoom = zoomBackground(getState(), scale, { width, height });
+        setState((prev) => ({ ...prev, ...zoom }));
+        debouncedSaveToHistory({ ...getState(), ...zoom });
       },
 
       handleBackgroundImageDragEnd: (x: number, y: number) => {

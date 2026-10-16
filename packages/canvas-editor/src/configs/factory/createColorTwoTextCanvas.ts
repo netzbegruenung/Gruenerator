@@ -14,6 +14,7 @@ import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi'
 
 import { AssetsSection, CombinedTextSection, FrameSettingsSection } from '../../sidebar/sections';
 import { contrastRatio, luminance } from '../../utils/colorLuminance';
+import { zoomBackground } from '../../utils/coverFit';
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from '../commonSections';
 import { injectFeatureProps } from '../featureInjector';
 import { getPlaceholder } from '../placeholders';
@@ -595,7 +596,7 @@ export function createColorTwoTextCanvas<
           saveToHistory(getState());
         },
         setImageScale: (scale: number) => {
-          setState({ imageScale: scale } as Partial<State>);
+          setState(zoomBackground(getState(), scale, canvas) as Partial<State>);
         },
         toggleBackgroundLock: () => {
           setState((prev) => ({ ...prev, isBackgroundLocked: !prev.isBackgroundLocked }));
