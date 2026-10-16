@@ -30,6 +30,7 @@ import { overlayBoxForNode, useCanvasTextEditor } from '../components/CanvasText
 import { useFontGeneration } from '../hooks/useFontGeneration';
 import { useGeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
+import { gradientFillProps } from '../utils/gradientFill';
 import { markerBoxes } from '../utils/markerBoxes';
 import { DEFAULT_TEXT_MARKER, markerInkOn } from '../utils/markerColors';
 import { isGroupDrag } from '../utils/multiSelect';
@@ -63,6 +64,7 @@ export function CanvasRichText({
   shadowOffsetX,
   shadowOffsetY,
   shadowOpacity,
+  fillGradient,
   align = 'left',
   accent = null,
   marker: templateMarker = null,
@@ -298,6 +300,18 @@ export function CanvasRichText({
 
   const enabledAnchors = transformConfig?.enabledAnchors ?? DEFAULT_TEXT_ANCHORS;
 
+  // One gradient across the whole block: each run node paints it in its own
+  // coordinates, so the block box is shifted by the node's position.
+  const gradientAt = (nodeX: number, nodeY: number) =>
+    fillGradient
+      ? gradientFillProps(fillGradient, {
+          x: -nodeX,
+          y: -nodeY,
+          width: blockWidth,
+          height: blockHeight,
+        })
+      : null;
+
   return (
     <>
       <Group
@@ -366,6 +380,7 @@ export function CanvasRichText({
                   fontFamily={fontFamily}
                   fontStyle={fontStyle}
                   fill={fill}
+                  {...gradientAt(padding + offset, top)}
                   lineHeight={lineHeight}
                   wrap="none"
                   listening={false}
@@ -390,6 +405,10 @@ export function CanvasRichText({
                       }
                     : {
                         fill: run.accentColor ?? (run.accent && accent ? accent.fill : fill),
+                        // An accent keeps its own colour; only base-coloured runs carry the gradient.
+                        ...(!run.accentColor &&
+                          !(run.accent && accent) &&
+                          gradientAt(padding + offset + line.indent + run.x, top)),
                         stroke,
                         strokeWidth,
                         fillAfterStrokeEnabled: !!stroke && (strokeWidth ?? 0) > 0,
