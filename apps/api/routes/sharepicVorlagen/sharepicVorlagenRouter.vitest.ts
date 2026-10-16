@@ -13,6 +13,9 @@ const m = vi.hoisted(() => ({
   getSharepicVorlage: vi.fn(),
   sharepicVorlageThumbFile: vi.fn(),
   listSharepicVorlagen: vi.fn((locale: string) => [{ id: `vorlage-${locale}` }]),
+  listSharepicSeiten: vi.fn((locale: string) => [{ id: `seite-${locale}` }]),
+  getSharepicSeite: vi.fn(),
+  sharepicSeiteThumbFile: vi.fn(),
 }));
 
 vi.mock('../../utils/adminAuthz.js', () => ({ isInstanceAdmin: m.isInstanceAdmin }));
@@ -20,6 +23,9 @@ vi.mock('../../services/sharepicVorlagen/catalog.js', () => ({
   listSharepicVorlagen: m.listSharepicVorlagen,
   getSharepicVorlage: m.getSharepicVorlage,
   sharepicVorlageThumbFile: m.sharepicVorlageThumbFile,
+  listSharepicSeiten: m.listSharepicSeiten,
+  getSharepicSeite: m.getSharepicSeite,
+  sharepicSeiteThumbFile: m.sharepicSeiteThumbFile,
 }));
 
 const { sharepicVorlagenContractRouter, mountSharepicVorlagenRouter } =
@@ -55,13 +61,15 @@ it('ignores `land` for a non-admin', async () => {
 const thumbFile = path.join(mkdtempSync(path.join(tmpdir(), 'thumb-')), 'de-rad.webp');
 writeFileSync(thumbFile, 'bild');
 
-function requestThumb(query: Record<string, string>) {
+function requestThumb(query: Record<string, string>, route = '/api/sharepic-vorlagen/:id/thumb') {
   m.getSharepicVorlage.mockReturnValue({ id: 'de-rad', thumbVersion: 'abc123abc123' });
   m.sharepicVorlageThumbFile.mockReturnValue(thumbFile);
+  m.getSharepicSeite.mockReturnValue({ id: 'de-rad', thumbVersion: 'abc123abc123' });
+  m.sharepicSeiteThumbFile.mockReturnValue(thumbFile);
   let handler: (req: unknown, res: unknown) => void = () => {};
   mountSharepicVorlagenRouter({
-    get: (route: string, h: typeof handler) => {
-      if (route.endsWith('/thumb')) handler = h;
+    get: (path: string, h: typeof handler) => {
+      if (path === route) handler = h;
     },
     use: vi.fn(),
     post: vi.fn(),
@@ -88,4 +96,48 @@ it('serves a thumbnail with the current version as immutable', () => {
 it('makes a thumbnail with a stale or missing version revalidate', () => {
   expect(requestThumb({ v: 'old' })).toBe('private, no-cache');
   expect(requestThumb({})).toBe('private, no-cache');
+});
+
+it('serves a Seite preview by format, immutable with the current version', () => {
+  const route = '/api/sharepic-vorlagen/seiten/:id/thumb';
+  expect(requestThumb({ format: 'post-portrait', v: 'abc123abc123' }, route)).toBe(
+    'private, max-age=31536000, immutable'
+  );
+  expect(m.sharepicSeiteThumbFile).toHaveBeenLastCalledWith('de-rad', 'post-portrait');
+  expect(requestThumb({ format: 'post-portrait' }, route)).toBe('private, no-cache');
+});
+
+it('lists the Seiten of the viewer country, the other one only for an admin', async () => {
+  const seiten = (land?: 'de-AT') =>
+    (
+      sharepicVorlagenContractRouter.seiten as unknown as (
+        args: unknown
+      ) => Promise<{ body: { seiten: Array<{ id: string }> } }>
+    )({
+      req: { user: { id: 'viewer', locale: 'de-DE' }, headers: {} },
+      query: land ? { land } : {},
+    });
+  expect((await seiten()).body.seiten).toEqual([{ id: 'seite-de-DE' }]);
+  m.isInstanceAdmin.mockResolvedValue(true);
+  expect((await seiten('de-AT')).body.seiten).toEqual([{ id: 'seite-de-AT' }]);
+});
+
+it('routes /seiten to the Seiten list, not to the Vorlage with id "seiten"', async () => {
+  const { default: express } = await import('express');
+  const app = express();
+  app.use((req, _res, next) => {
+    (req as unknown as { user: unknown }).user = { id: 'viewer', locale: 'de-DE' };
+    next();
+  });
+  mountSharepicVorlagenRouter(app);
+  const server = app.listen(0);
+  try {
+    const { port } = server.address() as { port: number };
+    const res = await fetch(`http://127.0.0.1:${port}/api/sharepic-vorlagen/seiten`);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ seiten: [{ id: 'seite-de-DE' }] });
+    expect(m.getSharepicVorlage).not.toHaveBeenCalledWith('seiten');
+  } finally {
+    server.close();
+  }
 });

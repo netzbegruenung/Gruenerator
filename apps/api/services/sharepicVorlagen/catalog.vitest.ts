@@ -5,9 +5,12 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  getSharepicSeite,
   getSharepicVorlage,
+  listSharepicSeiten,
   listSharepicVorlagen,
   resetSharepicVorlagenCache,
+  sharepicSeiteThumbFile,
   sharepicVorlageThumbFile,
 } from './catalog.js';
 
@@ -39,6 +42,7 @@ function writeCatalog(files: Record<string, unknown>) {
   root = mkdtempSync(path.join(tmpdir(), 'intern-'));
   mkdirSync(path.join(root, 'sharepic-vorlagen'));
   for (const [name, content] of Object.entries(files)) {
+    mkdirSync(path.dirname(path.join(root, 'sharepic-vorlagen', name)), { recursive: true });
     writeFileSync(path.join(root, 'sharepic-vorlagen', name), JSON.stringify(content));
   }
 }
@@ -133,5 +137,77 @@ describe('sharepic Vorlagen catalogue', () => {
     const first = listSharepicVorlagen(null);
     vi.advanceTimersByTime(60_000);
     expect(listSharepicVorlagen(null)).toBe(first);
+  });
+});
+
+const seite = (id: string, color: string, formats = ['post-portrait']) => ({
+  id,
+  titel: `Seite ${id}`,
+  rolle: 'inhalt',
+  typ: 'text',
+  formats,
+  slide: {
+    background: { kind: 'farbe', color },
+    position: 'mitte',
+    align: 'links',
+    items: [{ type: 'absatz', text: 'Ein Absatz, der für sich steht.' }],
+    logo: false,
+  },
+});
+
+describe('sharepic Seiten catalogue', () => {
+  it('keeps the countries apart and carries the file country', () => {
+    writeCatalog({
+      'seiten/de.json': [seite('de-text', 'tanne')],
+      'seiten/at.json': [seite('at-text', 'dunkelgruen')],
+    });
+    expect(listSharepicSeiten('de-DE').map((s) => s.id)).toEqual(['de-text']);
+    expect(listSharepicSeiten(null)).toHaveLength(2);
+    expect(getSharepicSeite('at-text')).toMatchObject({ locale: 'de-AT', attribution: null });
+  });
+
+  it('skips an invalid entry, a slide the country cannot show and a duplicate', () => {
+    writeCatalog({
+      'seiten/de.json': [
+        seite('de-text', 'tanne'),
+        { id: 'kaputt' },
+        seite('doppelt-format', 'tanne', ['post-portrait', 'post-portrait']),
+        seite('de-text', 'mint'),
+      ],
+      // Tanne is a DE colour.
+      'seiten/at.json': [seite('at-falsch', 'tanne')],
+    });
+    expect(listSharepicSeiten(null).map((s) => s.id)).toEqual(['de-text']);
+  });
+
+  it('is empty without Seiten files, next to a filled Vorlagen catalogue', () => {
+    writeCatalog({ 'de.json': [entry('de-rad', 'de-DE', 'tanne')] });
+    expect(listSharepicSeiten(null)).toEqual([]);
+    expect(listSharepicVorlagen(null)).toHaveLength(1);
+  });
+
+  it('resolves a preview only in the formats the Seite was checked in', () => {
+    writeCatalog({ 'seiten/de.json': [seite('de-text', 'tanne')] });
+    const thumbs = path.join(root, 'sharepic-vorlagen/thumbs/seiten');
+    expect(sharepicSeiteThumbFile('de-text', 'post-portrait')).toBe(
+      path.join(thumbs, 'de-text.post-portrait.webp')
+    );
+    expect(sharepicSeiteThumbFile('de-text', 'post-portrait-tall')).toBeNull();
+    expect(sharepicSeiteThumbFile('de-text', '../x')).toBeNull();
+    expect(sharepicSeiteThumbFile('unbekannt', 'post-portrait')).toBeNull();
+  });
+
+  it('hashes the previews into thumbVersion and reloads when one changes', () => {
+    writeCatalog({ 'seiten/de.json': [seite('de-text', 'tanne')] });
+    const thumbs = path.join(root, 'sharepic-vorlagen/thumbs/seiten');
+    mkdirSync(thumbs, { recursive: true });
+    writeFileSync(path.join(thumbs, 'de-text.post-portrait.webp'), 'bild-eins');
+    const first = getSharepicSeite('de-text')?.thumbVersion;
+    expect(first).toMatch(/^[0-9a-f]{12}$/);
+
+    vi.useFakeTimers();
+    vi.advanceTimersByTime(31_000);
+    writeFileSync(path.join(thumbs, 'de-text.post-portrait.webp'), 'bild-zwei');
+    expect(getSharepicSeite('de-text')?.thumbVersion).not.toBe(first);
   });
 });

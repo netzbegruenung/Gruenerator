@@ -5,6 +5,8 @@
  *
  *   sharepic-vorlagen/thumbs/<id>.webp     cover slide, served as the gallery thumbnail
  *   sharepic-vorlagen/thumbs/<id>-<n>.webp further slides of a carousel, shown in the detail view
+ *   sharepic-vorlagen/thumbs/seiten/<id>.<format>.webp
+ *                                          a single Seite (`seiten/{de,at}.json`), once per format
  *
  * `sharepic-vorlagen/vorschau-fotos.json` (optional) maps a Vorlage id to
  * { "<stock filename in its spec>": "<photo path under sharepic-vorlagen/>" }:
@@ -32,11 +34,27 @@ interface Entry {
   spec: unknown;
 }
 
+interface SeiteEntry {
+  id: string;
+  formats: string[];
+  slide: unknown;
+}
+
 const decode = (dataUrl: string): Buffer => Buffer.from(dataUrl.split(',')[1]!, 'base64');
 
 const entries = ['de.json', 'at.json'].flatMap(
   (file) => JSON.parse(readFileSync(path.join(dir, file), 'utf8')) as Entry[]
 );
+const SEITEN_FILES = { 'de.json': 'de-DE', 'at.json': 'de-AT' } as const;
+const seiten = Object.entries(SEITEN_FILES).flatMap(([file, locale]) => {
+  const source = path.join(dir, 'seiten', file);
+  return existsSync(source)
+    ? (JSON.parse(readFileSync(source, 'utf8')) as SeiteEntry[]).map((seite) => ({
+        ...seite,
+        locale,
+      }))
+    : [];
+});
 const vorschauFile = path.join(dir, 'vorschau-fotos.json');
 const vorschau: Record<string, Record<string, string>> = existsSync(vorschauFile)
   ? (JSON.parse(readFileSync(vorschauFile, 'utf8')) as Record<string, Record<string, string>>)
@@ -48,7 +66,7 @@ const photosFor = (id: string): Record<string, string> =>
       `data:image/jpeg;base64,${readFileSync(path.join(dir, file)).toString('base64')}`,
     ])
   );
-mkdirSync(path.join(dir, 'thumbs'), { recursive: true });
+mkdirSync(path.join(dir, 'thumbs', 'seiten'), { recursive: true });
 
 const browser = await chromium.launch();
 const page = await browser.newPage();
@@ -74,6 +92,25 @@ for (const entry of entries) {
   }
   process.stdout.write(`${entry.id}: ${result.images.length} slide(s)\n`);
 }
+// A Seite alone, in each format it claims: the preview is where an overflowing text shows.
+for (const seite of seiten) {
+  for (const format of seite.formats) {
+    const result = await page.evaluate((input) => window.__sharepicHarness!.render(input), {
+      spec: { locale: seite.locale, format, slides: [seite.slide] },
+      photos: photosFor(seite.id),
+    });
+    if (!('images' in result)) {
+      failed++;
+      console.error(`seite ${seite.id} (${format}): ${result.error}`);
+      continue;
+    }
+    writeFileSync(
+      path.join(dir, 'thumbs', 'seiten', `${seite.id}.${format}.webp`),
+      decode(await webp(result.images[0]!, THUMB_WIDTH))
+    );
+    process.stdout.write(`seite ${seite.id}: ${format}\n`);
+  }
+}
 await browser.close();
-process.stdout.write(`${entries.length - failed}/${entries.length} rendered\n`);
+process.stdout.write(`${entries.length}+${seiten.length} entries, ${failed} failed render(s)\n`);
 process.exit(failed ? 1 : 0);
