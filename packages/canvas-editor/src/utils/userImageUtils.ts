@@ -212,11 +212,15 @@ export async function downscaleImageForUpload(file: File): Promise<File> {
   }
 }
 
-export interface UserImagePlacement {
+/** Where a new element goes; without `center` it lands in the canvas centre. */
+export interface ElementPlacement {
+  /** Centre of the new element (a drop point), in the template's reference space. */
+  center?: { x: number; y: number };
+}
+
+export interface UserImagePlacement extends ElementPlacement {
   /** Stock credit of a hotlinked photo, kept on the instance. */
   attribution?: StockImageAttribution;
-  /** Centre of the new image (a drop point); default is the canvas centre. */
-  center?: { x: number; y: number };
 }
 
 export function createUserImageInstanceFromUrl(

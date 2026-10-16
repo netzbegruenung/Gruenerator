@@ -1,7 +1,7 @@
 import React, { useCallback, useState, memo } from 'react';
 
 import { cn } from '../../utils/cn';
-import { isMediaDrag, readMediaDrag } from '../../utils/mediaDrop';
+import { isElementDrag, isMediaDrag, readElementDrag, readMediaDrag } from '../../utils/mediaDrop';
 import { GenericCanvas } from '../GenericCanvas';
 import { PageToolbar } from '../PageToolbar';
 import { ZoomableViewport } from '../ZoomableViewport';
@@ -83,10 +83,11 @@ export const PageWrapper = memo(function PageWrapper({
   );
   const handleClick = useCallback((e: React.MouseEvent) => activateFrom(e.target), [activateFrom]);
 
-  // An upload dragged from the sidebar lands where it is dropped, on this page.
+  // An upload, photo or Elemente tile dragged from the sidebar lands where it
+  // is dropped, on this page.
   const [isDropTarget, setIsDropTarget] = useState(false);
   const handleDragOver = useCallback((e: React.DragEvent) => {
-    if (!isMediaDrag(e.dataTransfer)) return;
+    if (!isMediaDrag(e.dataTransfer) && !isElementDrag(e.dataTransfer)) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
     setIsDropTarget(true);
@@ -98,10 +99,12 @@ export const PageWrapper = memo(function PageWrapper({
     (e: React.DragEvent) => {
       setIsDropTarget(false);
       const media = readMediaDrag(e.dataTransfer);
-      if (!media) return;
+      const element = media ? null : readElementDrag(e.dataTransfer);
+      if (!media && !element) return;
       e.preventDefault();
       if (!isActive) onSelect(index);
-      canvasRef.current?.dropMedia(e, media);
+      if (media) canvasRef.current?.dropMedia(e, media);
+      else if (element) canvasRef.current?.dropElement(e, element);
     },
     [isActive, onSelect, index, canvasRef]
   );

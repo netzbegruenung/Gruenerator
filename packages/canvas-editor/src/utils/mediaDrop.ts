@@ -1,12 +1,61 @@
+import type { ChartType } from './chartUtils';
+import type { FrameClipType } from './frameUtils';
+import type { ShapeType } from './shapes';
+import type { StockImageAttribution } from '../common/imageSourceTypes';
+import type { BalkenMode } from '../primitives/BalkenGroup';
+import type { StickerRef } from '@gruenerator/shared/stickers';
 import type Konva from 'konva';
 
-/** Drag type of an upload tile; the payload is `MediaDragPayload` as JSON. */
+/** Drag type of an upload or photo tile; the payload is `MediaDragPayload` as JSON. */
 export const MEDIA_DRAG_TYPE = 'application/x-gruenerator-media';
 
 export interface MediaDragPayload {
-  /** A durable URL (`buildPlacementUrl`), never a `blob:`. */
+  /** A durable URL (`buildPlacementUrl`, a stock URL), never a `blob:`. */
   url: string;
   name: string;
+  /** Stock credit of a catalogue photo, kept on the placed image. */
+  attribution?: StockImageAttribution;
+}
+
+/** Drag type of an Elemente tile; the payload is `ElementDragPayload` as JSON. */
+export const ELEMENT_DRAG_TYPE = 'application/x-gruenerator-element';
+
+export type ElementDragPayload =
+  | { kind: 'asset'; assetId: string }
+  | { kind: 'sticker'; ref: StickerRef }
+  | { kind: 'shape'; shapeType: ShapeType; color?: string }
+  | { kind: 'illustration'; id: string }
+  | { kind: 'chart'; chartType: ChartType }
+  | { kind: 'frame'; clipType: FrameClipType }
+  | { kind: 'balken'; mode: BalkenMode };
+
+const ELEMENT_KINDS = new Set<ElementDragPayload['kind']>([
+  'asset',
+  'sticker',
+  'shape',
+  'illustration',
+  'chart',
+  'frame',
+  'balken',
+]);
+
+export function isElementDrag(dataTransfer: DataTransfer | null): boolean {
+  return !!dataTransfer && Array.from(dataTransfer.types).includes(ELEMENT_DRAG_TYPE);
+}
+
+/** Shape check only; the drop target's action decides whether the id exists. */
+export function readElementDrag(dataTransfer: DataTransfer | null): ElementDragPayload | null {
+  const raw = dataTransfer?.getData(ELEMENT_DRAG_TYPE);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as { kind?: unknown };
+    return typeof parsed.kind === 'string' &&
+      ELEMENT_KINDS.has(parsed.kind as ElementDragPayload['kind'])
+      ? (parsed as ElementDragPayload)
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 export function isMediaDrag(dataTransfer: DataTransfer | null): boolean {
@@ -19,7 +68,11 @@ export function readMediaDrag(dataTransfer: DataTransfer | null): MediaDragPaylo
   try {
     const parsed = JSON.parse(raw) as Partial<MediaDragPayload>;
     return typeof parsed.url === 'string' && parsed.url && !parsed.url.startsWith('blob:')
-      ? { url: parsed.url, name: typeof parsed.name === 'string' ? parsed.name : 'bild' }
+      ? {
+          url: parsed.url,
+          name: typeof parsed.name === 'string' ? parsed.name : 'bild',
+          ...(parsed.attribution ? { attribution: parsed.attribution } : {}),
+        }
       : null;
   } catch {
     return null;
