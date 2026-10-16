@@ -14,7 +14,7 @@
  * This eliminates 60+ lines of manual prop passing per config (83% code reduction).
  */
 
-import { selectedCatalogIconIds } from '../utils/iconInstances';
+import { MAX_ICON_SELECTIONS, selectedCatalogIconIds } from '../utils/iconInstances';
 
 import type { IconState } from './factory/baseTypes';
 import type { SectionContext } from './types';
@@ -108,7 +108,7 @@ export function injectFeatureProps<S extends object, A extends object>(
       stateWithIcons.iconStates
     );
     injected.onIconToggle = actions.toggleIcon as (id: string, selected: boolean) => void;
-    injected.maxIconSelections = 3; // Standard max
+    injected.maxIconSelections = MAX_ICON_SELECTIONS;
 
     // Optional: icon update handler
     if ('updateIcon' in actions) {

@@ -34,14 +34,28 @@ interface ElementTileProps {
   eager?: boolean;
 }
 
-function startDrag(e: DragEvent<HTMLButtonElement>, item: ElementItem) {
-  const drag = dragDataFor(item.action);
-  if (!drag) return;
-  e.dataTransfer.setData(drag.type, drag.data);
-  e.dataTransfer.effectAllowed = 'copy';
-  const preview = e.currentTarget.querySelector<HTMLElement>('[data-tile-face]');
-  if (preview)
-    e.dataTransfer.setDragImage(preview, preview.offsetWidth / 2, preview.offsetHeight / 2);
+/**
+ * Makes a button drag `item` onto a page, previewed by its `[data-tile-face]`
+ * or else its image. A drop the page accepted counts like a click for
+ * "Zuletzt verwendet".
+ */
+export function elementDragProps(item: ElementItem) {
+  return {
+    draggable: true,
+    onDragStart: (e: DragEvent<HTMLElement>) => {
+      const drag = dragDataFor(item.action);
+      e.dataTransfer.setData(drag.type, drag.data);
+      e.dataTransfer.effectAllowed = 'copy';
+      const preview =
+        e.currentTarget.querySelector<HTMLElement>('[data-tile-face]') ??
+        e.currentTarget.querySelector<HTMLElement>('img');
+      if (preview)
+        e.dataTransfer.setDragImage(preview, preview.offsetWidth / 2, preview.offsetHeight / 2);
+    },
+    onDragEnd: (e: DragEvent<HTMLElement>) => {
+      if (e.dataTransfer.dropEffect !== 'none') useRecentElements.getState().remember(item);
+    },
+  };
 }
 
 export const ElementTile = memo(function ElementTile({
@@ -56,7 +70,8 @@ export const ElementTile = memo(function ElementTile({
 }: ElementTileProps) {
   const fills = thumbFillsTile(item.thumb);
   const dark = thumbNeedsDarkTile(item.thumb);
-  const draggable = canDrag && !disabled && item.action.kind !== 'icon';
+  // An icon already on the page has no second place to go.
+  const draggable = canDrag && !disabled && !selected;
   const svgDef = item.thumb.t === 'svg' ? item.thumb.def : null;
 
   return (
@@ -74,17 +89,7 @@ export const ElementTile = memo(function ElementTile({
         aria-label={`${item.label} hinzufügen`}
         {...(item.action.kind === 'icon' ? { 'aria-pressed': selected } : {})}
         disabled={disabled}
-        draggable={draggable}
-        {...(draggable
-          ? {
-              onDragStart: (e: DragEvent<HTMLButtonElement>) => startDrag(e, item),
-              // A drop the page accepted counts like a click for "Zuletzt verwendet".
-              onDragEnd: (e: DragEvent<HTMLButtonElement>) => {
-                if (e.dataTransfer.dropEffect !== 'none')
-                  useRecentElements.getState().remember(item);
-              },
-            }
-          : {})}
+        {...(draggable ? elementDragProps(item) : { draggable: false })}
         onClick={() => onActivate(item)}
         {...(svgDef ? { onPointerEnter: () => onThumbnailHover(svgDef.id, svgDef) } : {})}
         className={cn(

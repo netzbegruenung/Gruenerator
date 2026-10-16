@@ -15,6 +15,7 @@ import { useIsCanvasMobile } from '../../../hooks/useIsCanvasMobile';
 import { useTrackUnsplashDownload } from '../../../hooks/useTrackUnsplashDownload';
 import { cn } from '../../../utils/cn';
 import { matchesQuery } from '../../../utils/filterUtils';
+import { MAX_ICON_SELECTIONS } from '../../../utils/iconInstances';
 import { getEnglishSearchTerms } from '../../../utils/searchTranslations';
 import { IllustrationSettings } from '../IllustrationSettings';
 import { FramePreviewDefs } from '../RahmenSection';
@@ -23,13 +24,13 @@ import { BackgroundCatalog } from './BackgroundCatalog';
 import { CategoryCard } from './CategoryCard';
 import { ElementGrid } from './ElementGrid';
 import { ElementTile } from './ElementTile';
+import { galleryStickerItem, type ElementItem } from './elementTypes';
 import { RecentCarousel } from './RecentCarousel';
 import { StickerCatalog } from './StickerCatalog';
 import { canRun, useElementCatalog, type CategoryId } from './useElementCatalog';
 import { useRecentElements } from './useRecentElements';
 
 import type { ExtendedAssetsSectionProps } from './AssetsSection';
-import type { ElementItem } from './elementTypes';
 import type { StickerRef } from '@gruenerator/shared/stickers';
 
 /** Entrance: 12 staggered steps of 45 ms plus the 550 ms rise of the last one. */
@@ -37,7 +38,6 @@ const ENTRANCE_MS = 12 * 45 + 600;
 const BRAND_COUNT = 4;
 /** Caps per kind in the search across all categories; a category's own search pages instead. */
 const GLOBAL_CAP: Partial<Record<CategoryId, number>> = { illustrationen: 30, icons: 20 };
-const DEFAULT_MAX_ICONS = 3;
 
 function matches(item: ElementItem, q: string, english: readonly string[]): boolean {
   if (matchesQuery(q, item.label, item.keywords)) return true;
@@ -190,7 +190,7 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
         case 'icon': {
           const selected = p.selectedIcons ?? [];
           const isOn = selected.includes(action.iconId);
-          if (!isOn && selected.length >= (p.maxIconSelections ?? DEFAULT_MAX_ICONS)) return;
+          if (!isOn && selected.length >= (p.maxIconSelections ?? MAX_ICON_SELECTIONS)) return;
           p.onIconToggle?.(action.iconId, !isOn);
           if (isOn) return;
           break;
@@ -203,19 +203,12 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
 
   // A gallery sticker goes through the same path, so it lands in "Zuletzt" too.
   const addGallerySticker = useCallback(
-    (ref: StickerRef) =>
-      activate({
-        key: `sticker:${ref.id}`,
-        label: 'Sticker',
-        keywords: ['sticker'],
-        action: { kind: 'sticker', ref },
-        thumb: { t: 'share', src: ref.src },
-      }),
+    (ref: StickerRef) => activate(galleryStickerItem(ref)),
     [activate]
   );
 
   const selectedIcons = props.selectedIcons;
-  const maxIcons = props.maxIconSelections ?? DEFAULT_MAX_ICONS;
+  const maxIcons = props.maxIconSelections ?? MAX_ICON_SELECTIONS;
   const isSelected = useCallback(
     (item: ElementItem) =>
       item.action.kind === 'icon' && (selectedIcons?.includes(item.action.iconId) ?? false),
@@ -324,6 +317,7 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
         <StickerCatalog
           {...(props.onAddStickerAsset ? { onAddStickerAsset: addGallerySticker } : {})}
           searchQuery={q}
+          canDrag={canDrag}
         >
           {body}
         </StickerCatalog>

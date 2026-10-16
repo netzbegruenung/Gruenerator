@@ -6,6 +6,7 @@ import { CanvasEditorProvider } from '../../CanvasEditorProvider';
 import { useTrackUnsplashDownload } from '../../hooks/useTrackUnsplashDownload';
 import { ELEMENT_DRAG_TYPE, MEDIA_DRAG_TYPE } from '../../utils/mediaDrop';
 import { ElementsPanel } from '../sections/assets/ElementsPanel';
+import { ElementTile } from '../sections/assets/ElementTile';
 import { dragDataFor } from '../sections/assets/elementTypes';
 import { StickerCatalog } from '../sections/assets/StickerCatalog';
 import {
@@ -115,7 +116,7 @@ describe('StickerCatalog', () => {
     gallery.items['sticker:shop'] = [item()];
     const onAddStickerAsset = vi.fn();
     render(
-      <StickerCatalog onAddStickerAsset={onAddStickerAsset}>
+      <StickerCatalog onAddStickerAsset={onAddStickerAsset} canDrag={false}>
         <p>System-Sticker</p>
       </StickerCatalog>
     );
@@ -140,7 +141,7 @@ describe('StickerCatalog', () => {
   it('lists own and remembered stickers and passes the search', async () => {
     gallery.items['sticker:saved'] = [item({ title: 'Gemerkter' })];
     render(
-      <StickerCatalog onAddStickerAsset={() => {}} searchQuery=" herz ">
+      <StickerCatalog onAddStickerAsset={() => {}} searchQuery=" herz " canDrag={false}>
         {null}
       </StickerCatalog>
     );
@@ -158,7 +159,9 @@ describe('StickerCatalog', () => {
     const openStickerCreator = vi.fn();
     render(
       <CanvasEditorProvider services={{ openStickerCreator }}>
-        <StickerCatalog onAddStickerAsset={() => {}}>{null}</StickerCatalog>
+        <StickerCatalog onAddStickerAsset={() => {}} canDrag={false}>
+          {null}
+        </StickerCatalog>
       </CanvasEditorProvider>
     );
 
@@ -175,7 +178,7 @@ describe('StickerCatalog', () => {
 
   it('shows only the system stickers without a gallery handler', () => {
     render(
-      <StickerCatalog>
+      <StickerCatalog canDrag={false}>
         <p>System-Sticker</p>
       </StickerCatalog>
     );
@@ -275,6 +278,45 @@ describe('ElementsPanel', () => {
     );
   });
 
+  it('drags a gallery sticker by ref and remembers it once the page takes it', async () => {
+    gallery.items['sticker:shop'] = [item()];
+    render(<ElementsPanel onAddAsset={() => {}} onAddStickerAsset={() => {}} />);
+    await userEvent.click(screen.getByRole('button', { name: /^Sticker/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Entdecken' }));
+    const tile = screen.getByRole('button', { name: 'Klimaherz hinzufügen' });
+    expect(tile).toHaveAttribute('draggable', 'true');
+
+    const data: Record<string, string> = {};
+    fireEvent.dragStart(tile, {
+      dataTransfer: {
+        setData: (type: string, value: string) => (data[type] = value),
+        setDragImage: () => {},
+        effectAllowed: '',
+      },
+    });
+    expect(JSON.parse(data[ELEMENT_DRAG_TYPE]!)).toEqual({
+      kind: 'sticker',
+      ref: { id: `asset:${UUID}`, src: SRC },
+    });
+
+    fireEvent.dragEnd(tile, { dataTransfer: { dropEffect: 'none' } });
+    expect(useRecentElements.getState().items).toEqual([]);
+    fireEvent.dragEnd(tile, { dataTransfer: { dropEffect: 'copy' } });
+    expect(useRecentElements.getState().items[0]?.key).toBe(`sticker:asset:${UUID}`);
+  });
+
+  it('keeps gallery stickers click-only on the phone sheet', async () => {
+    setViewport(true);
+    gallery.items['sticker:shop'] = [item()];
+    render(<ElementsPanel onAddAsset={() => {}} onAddStickerAsset={() => {}} />);
+    await userEvent.click(screen.getByRole('button', { name: /^Sticker/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Entdecken' }));
+    expect(screen.getByRole('button', { name: 'Klimaherz hinzufügen' })).not.toHaveAttribute(
+      'draggable',
+      'true'
+    );
+  });
+
   it('adds a gallery sticker from the phone sheet and remembers it by ref', async () => {
     setViewport(true);
     gallery.items['sticker:shop'] = [item()];
@@ -290,6 +332,44 @@ describe('ElementsPanel', () => {
       kind: 'sticker',
       ref: { id: `asset:${UUID}`, src: SRC },
     });
+  });
+});
+
+describe('icon tiles', () => {
+  const sun: ElementItem = {
+    key: 'icon:tabler-sun',
+    label: 'sun',
+    keywords: ['sun'],
+    action: { kind: 'icon', iconId: 'tabler-sun' },
+    thumb: { t: 'icon', iconId: 'tabler-sun' },
+  };
+  const tile = (selected: boolean) => (
+    <ElementTile
+      item={sun}
+      variant="grid"
+      onActivate={() => {}}
+      enterIndex={null}
+      canDrag
+      selected={selected}
+    />
+  );
+
+  it('drag the icon onto a page', () => {
+    render(tile(false));
+    const button = screen.getByRole('button', { name: 'sun hinzufügen' });
+    expect(button).toHaveAttribute('draggable', 'true');
+    expect(dragDataFor(sun.action)).toEqual({
+      type: ELEMENT_DRAG_TYPE,
+      data: JSON.stringify({ kind: 'icon', iconId: 'tabler-sun' }),
+    });
+  });
+
+  it('do not drag an icon the page already shows', () => {
+    render(tile(true));
+    expect(screen.getByRole('button', { name: 'sun hinzufügen' })).toHaveAttribute(
+      'draggable',
+      'false'
+    );
   });
 });
 

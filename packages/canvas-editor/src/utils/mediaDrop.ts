@@ -27,7 +27,8 @@ export type ElementDragPayload =
   | { kind: 'illustration'; id: string }
   | { kind: 'chart'; chartType: ChartType }
   | { kind: 'frame'; clipType: FrameClipType }
-  | { kind: 'balken'; mode: BalkenMode };
+  | { kind: 'balken'; mode: BalkenMode }
+  | { kind: 'icon'; iconId: string };
 
 const ELEMENT_KINDS = new Set<ElementDragPayload['kind']>([
   'asset',
@@ -37,6 +38,7 @@ const ELEMENT_KINDS = new Set<ElementDragPayload['kind']>([
   'chart',
   'frame',
   'balken',
+  'icon',
 ]);
 
 export function isElementDrag(dataTransfer: DataTransfer | null): boolean {

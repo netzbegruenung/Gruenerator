@@ -56,6 +56,13 @@ describe('toggleIcon', () => {
     expect(h.current().iconStates['tabler-sun'].iconId).toBeUndefined();
   });
 
+  it('legt ein gezogenes Icon mittig auf den Drop-Punkt', () => {
+    const h = harness({ selectedIcons: [], iconStates: {} });
+    h.actions.toggleIcon('tabler-sun', true, { center: { x: 120, y: 900 } });
+
+    expect(h.current().iconStates['tabler-sun']).toMatchObject({ x: 120, y: 900 });
+  });
+
   it('räumt mit der Katalog-ID das Original UND jede Kopie ab', () => {
     const h = harness(threeSuns());
     h.actions.toggleIcon('tabler-sun', false);
