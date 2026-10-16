@@ -9,11 +9,14 @@ import {
 
 import type Konva from 'konva';
 
-type Filter = (this: Konva.Node, imageData: ImageData) => void;
+type FilterFn = (this: Konva.Node, imageData: ImageData) => void;
 
-/** Runs a filter on a node stand-in: the filters only read attrs. */
-const run = (filter: Filter, attrs: Record<string, unknown>, img: ImageData) =>
-  filter.call({ getAttr: (k: string) => attrs[k] } as unknown as Konva.Node, img);
+/**
+ * Runs a filter on a node stand-in: the filters only read attrs. Konva types a
+ * filter as `FilterFunction | string`; these two are functions.
+ */
+const run = (filter: typeof FlipFilter, attrs: Record<string, unknown>, img: ImageData) =>
+  (filter as FilterFn).call({ getAttr: (k: string) => attrs[k] } as unknown as Konva.Node, img);
 
 /** width × height pixels; the red channel holds the pixel's index. */
 function pixels(width: number, height: number, value?: number): ImageData {
