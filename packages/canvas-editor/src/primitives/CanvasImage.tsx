@@ -18,6 +18,7 @@ import { Image as KonvaImage, Transformer } from 'react-konva';
 
 import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
+import { isGroupDrag } from '../utils/multiSelect';
 import { calculateElementSnapPosition } from '../utils/snapping';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
 
@@ -45,7 +46,7 @@ export interface CanvasImageProps {
   stageWidth?: number;
   stageHeight?: number;
   onSnapChange?: (snapH: boolean, snapV: boolean) => void;
-  snapTargets?: SnapTarget[];
+  getSnapTargets?: (excludeId: string) => SnapTarget[];
   onPositionChange?: (id: string, x: number, y: number, width: number, height: number) => void;
   /** Meldet die gerenderte Geometrie als Snap-Ziel — unabhaengig davon, ob je gezogen wurde. */
   onGeometryChange?: GeometryReporter;
@@ -93,7 +94,7 @@ function CanvasImageInner({
   stageWidth,
   stageHeight,
   onSnapChange,
-  snapTargets,
+  getSnapTargets,
   onPositionChange,
   onGeometryChange,
   onSnapLinesChange,
@@ -215,6 +216,7 @@ function CanvasImageInner({
   const handleDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
       const node = e.target as Konva.Image;
+      if (isGroupDrag(node)) return;
       const nodeWidth = node.width() * node.scaleX();
       const nodeHeight = node.height() * node.scaleY();
 
@@ -227,13 +229,14 @@ function CanvasImageInner({
       let snapLines: SnapLine[] = [];
 
       // Apply snapping if enabled
-      if ((snapTargets && snapTargets.length > 0) || snapToCenter) {
+      const snapTargets = getSnapTargets?.(id ?? '') ?? [];
+      if (snapTargets.length > 0 || snapToCenter) {
         const result = calculateElementSnapPosition(
           node.x(),
           node.y(),
           nodeWidth,
           nodeHeight,
-          snapTargets || [],
+          snapTargets,
           stageWidth,
           stageHeight,
           snap.hysteresis
@@ -254,7 +257,7 @@ function CanvasImageInner({
       // Schedule snap state updates via RAF (throttled, batched)
       snap.scheduleSnap(snapH, snapV, snapLines);
     },
-    [snapToCenter, stageWidth, stageHeight, snapTargets, clampToBounds, snap]
+    [id, snapToCenter, stageWidth, stageHeight, getSnapTargets, clampToBounds, snap]
   );
 
   const handleTransform = useCallback(() => {
@@ -419,9 +422,6 @@ export const CanvasImage = memo(CanvasImageInner, (prevProps, nextProps) => {
   // These are expected to be stable references from useCallback in parent components.
   // Comparing them would cause unnecessary re-renders since callback identity can change
   // even when the actual function behavior is the same.
-
-  // We also don't compare snapTargets array - it changes during drag but doesn't affect
-  // the visual rendering of this component (only used in event handlers)
 
   return true;
 });

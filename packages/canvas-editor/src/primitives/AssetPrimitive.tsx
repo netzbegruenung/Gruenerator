@@ -8,6 +8,7 @@ import {
   isStickerLikeInstance,
   resolveAssetInstanceSrc,
 } from '../utils/canvasAssets';
+import { isGroupDrag } from '../utils/multiSelect';
 import { applyPixelHitArea } from '../utils/pixelHitArea';
 import { calculateCenteredSnapPosition } from '../utils/snapping';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
@@ -108,6 +109,7 @@ function AssetPrimitiveInner({
     (e: Konva.KonvaEventObject<DragEvent>) => {
       if (!stageWidth || !stageHeight) return;
       const node = e.currentTarget as Konva.Group;
+      if (isGroupDrag(node)) return;
 
       const result = calculateCenteredSnapPosition(
         node.x(),

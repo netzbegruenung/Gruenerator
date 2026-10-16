@@ -5,13 +5,9 @@
  * Performance optimizations:
  * - Early exit when both horizontal and vertical snaps are found
  * - Precomputed edge arrays to reduce allocations
- * - Bounding box overlap check to skip distant elements
  */
 
 export const SNAP_THRESHOLD = 20; // pixels - ~2% of 1000px canvas
-
-// Extended threshold for bounding box pre-check (skip elements that are far away)
-const SNAP_PROXIMITY_THRESHOLD = 200;
 
 // Once snapped to a guide, the cursor must drift this multiple of SNAP_THRESHOLD
 // past it before releasing — eliminates the threshold-edge oscillation that
@@ -152,38 +148,11 @@ export function calculateCenteredSnapPosition(
 }
 
 /**
- * Check if two bounding boxes are within proximity for snapping consideration
- * This is a fast pre-check to skip distant elements
- */
-function isWithinSnapProximity(
-  nodeX: number,
-  nodeY: number,
-  nodeWidth: number,
-  nodeHeight: number,
-  target: SnapTarget
-): boolean {
-  // Check if bounding boxes (expanded by proximity threshold) overlap
-  const nodeRight = nodeX + nodeWidth;
-  const nodeBottom = nodeY + nodeHeight;
-  const targetRight = target.x + target.width;
-  const targetBottom = target.y + target.height;
-
-  // Expand both boxes by proximity threshold and check overlap
-  return !(
-    nodeX - SNAP_PROXIMITY_THRESHOLD > targetRight ||
-    nodeRight + SNAP_PROXIMITY_THRESHOLD < target.x ||
-    nodeY - SNAP_PROXIMITY_THRESHOLD > targetBottom ||
-    nodeBottom + SNAP_PROXIMITY_THRESHOLD < target.y
-  );
-}
-
-/**
  * Calculate snapped position with element-to-element snapping
  * Checks both stage center and other elements for alignment
  *
  * Performance optimizations:
  * - Early exit when both H and V snaps are found
- * - Proximity pre-check to skip distant elements
  * - Reuses edge value calculations
  */
 export function calculateElementSnapPosition(
@@ -255,10 +224,6 @@ export function calculateElementSnapPosition(
   let bestV: BestV | null = null;
 
   for (const target of targets) {
-    if (!isWithinSnapProximity(nodeX, nodeY, nodeWidth, nodeHeight, target)) {
-      continue;
-    }
-
     const targetEdgeValsH = [target.x, target.x + target.width / 2, target.x + target.width];
     const targetEdgeValsV = [target.y, target.y + target.height / 2, target.y + target.height];
 

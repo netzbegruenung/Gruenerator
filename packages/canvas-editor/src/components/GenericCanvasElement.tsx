@@ -63,7 +63,7 @@ interface MemoizedTextProps<TState extends Record<string, unknown> = Record<stri
   onSnapLinesChange: (lines: SnapLine[]) => void;
   stageWidth: number;
   stageHeight: number;
-  snapTargets: SnapTarget[];
+  getSnapTargets: (excludeId: string) => SnapTarget[];
 }
 
 const MemoizedTextElement = memo(
@@ -81,7 +81,7 @@ const MemoizedTextElement = memo(
     onSnapLinesChange,
     stageWidth,
     stageHeight,
-    snapTargets,
+    getSnapTargets,
   }: MemoizedTextProps<TState>) {
     const text = assertAsString(state[config.textKey]);
     const customFontSize = getOptionalStateValue<number>(state, config.fontSizeStateKey);
@@ -147,7 +147,7 @@ const MemoizedTextElement = memo(
         stageWidth={stageWidth}
         stageHeight={stageHeight}
         onSnapChange={onSnapChange}
-        snapTargets={snapTargets}
+        getSnapTargets={getSnapTargets}
         onPositionChange={onPositionChange}
         onGeometryChange={onGeometryChange}
         onSnapLinesChange={onSnapLinesChange}
@@ -218,7 +218,7 @@ interface MemoizedImageProps<TState extends Record<string, unknown> = Record<str
   stageHeight: number;
   onSnapChange: (snapH: boolean, snapV: boolean) => void;
   onSnapLinesChange: (lines: SnapLine[]) => void;
-  snapTargets: SnapTarget[];
+  getSnapTargets: (excludeId: string) => SnapTarget[];
 }
 
 const MemoizedImageElement = memo(function MemoizedImageElement<
@@ -237,7 +237,7 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
   stageHeight,
   onSnapChange,
   onSnapLinesChange,
-  snapTargets,
+  getSnapTargets,
 }: MemoizedImageProps<TState>) {
   // Resolve image source
   let imageSrc: string | undefined;
@@ -298,7 +298,7 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
       stageWidth={stageWidth}
       stageHeight={stageHeight}
       onSnapChange={onSnapChange}
-      snapTargets={snapTargets}
+      getSnapTargets={getSnapTargets}
       onPositionChange={onPositionChange}
       onGeometryChange={onGeometryChange}
       onSnapLinesChange={onSnapLinesChange}
@@ -465,7 +465,7 @@ export interface GenericCanvasElementProps<
   onSnapLinesChange: (lines: SnapLine[]) => void;
   stageWidth: number;
   stageHeight: number;
-  snapTargets: SnapTarget[];
+  getSnapTargets: (excludeId: string) => SnapTarget[];
 }
 
 export const GenericCanvasElement = memo(function GenericCanvasElement<
@@ -485,7 +485,7 @@ export const GenericCanvasElement = memo(function GenericCanvasElement<
   onSnapLinesChange,
   stageWidth,
   stageHeight,
-  snapTargets,
+  getSnapTargets,
 }: GenericCanvasElementProps<TState>) {
   const selected = useIsElementSelected(config.id);
 
@@ -511,7 +511,7 @@ export const GenericCanvasElement = memo(function GenericCanvasElement<
           onSnapLinesChange={onSnapLinesChange}
           stageWidth={stageWidth}
           stageHeight={stageHeight}
-          snapTargets={snapTargets}
+          getSnapTargets={getSnapTargets}
         />
       );
 
@@ -531,7 +531,7 @@ export const GenericCanvasElement = memo(function GenericCanvasElement<
           stageHeight={stageHeight}
           onSnapChange={onSnapChange}
           onSnapLinesChange={onSnapLinesChange}
-          snapTargets={snapTargets}
+          getSnapTargets={getSnapTargets}
         />
       );
 
@@ -594,7 +594,7 @@ export const GenericCanvasElement = memo(function GenericCanvasElement<
               onSnapLinesChange={onSnapLinesChange}
               stageWidth={stageWidth}
               stageHeight={stageHeight}
-              snapTargets={snapTargets}
+              getSnapTargets={getSnapTargets}
             />
           ))}
         </Group>

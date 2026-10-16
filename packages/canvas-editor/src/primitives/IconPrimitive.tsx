@@ -4,6 +4,7 @@ import { Image, Group, Rect, Transformer } from 'react-konva';
 import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { generateIconDataUrl } from '../utils/canvasIcons';
+import { isGroupDrag } from '../utils/multiSelect';
 import { calculateCenteredSnapPosition } from '../utils/snapping';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
 
@@ -101,6 +102,7 @@ function IconPrimitiveInner({
     (e: Konva.KonvaEventObject<DragEvent>) => {
       if (!stageWidth || !stageHeight) return;
       const node = e.currentTarget as Konva.Group;
+      if (isGroupDrag(node)) return;
       const size = TARGET_SIZE * scale;
 
       const result = calculateCenteredSnapPosition(

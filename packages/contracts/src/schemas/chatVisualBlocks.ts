@@ -225,6 +225,14 @@ export function parseVisualBlock(language: string, code: string): VisualBlock | 
   } catch {
     return null;
   }
+  // Live 16.10.2026: the chart lane wrote `"yKey":["wert"]`, and the whole
+  // block fell back to raw JSON. The singular is unambiguous, so read it.
+  if (language === 'chart' && typeof json === 'object' && json !== null && !Array.isArray(json)) {
+    const { yKey, ...rest } = json as Record<string, unknown>;
+    if (rest['yKeys'] == null && yKey != null) {
+      json = { ...rest, yKeys: Array.isArray(yKey) ? yKey : [yKey] };
+    }
+  }
   const result = SCHEMAS[language].safeParse(json);
   if (!result.success) return null;
   // The cast is the boundary: `language` picked the schema, so the parsed value
