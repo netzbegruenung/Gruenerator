@@ -3,9 +3,9 @@ import { SHAREPIC_SOURCE_KEY } from '@gruenerator/contracts';
 import { PRINT_IMPRESSUM_ID } from '../composer/composePrint';
 import {
   impressumLine,
+  impressumLocaleOf,
   isImpressumComplete,
   parseImpressumLine,
-  type ImpressumLocale,
   type ImpressumParts,
 } from '../composer/printImpressum';
 import { CARRIED_INSTANCE_KEYS } from '../configs/factory/carryInstanceState';
@@ -76,9 +76,6 @@ interface TextElement {
 const textsOf = (state: Record<string, unknown>): TextElement[] =>
   Array.isArray(state.additionalTexts) ? (state.additionalTexts as TextElement[]) : [];
 
-const impressumLocale = (configId: string): ImpressumLocale =>
-  configId === 'freeform-at' ? 'de-AT' : 'de-DE';
-
 /**
  * A poster Vorlage ships placeholder V.i.S.d.P./Impressum text, which the
  * export gate rejects. When the design being replaced already has a filled-in
@@ -90,7 +87,7 @@ export function carryImpressum<P extends DeckPage>(current: readonly DeckPage[],
   for (const page of current) {
     const element = textsOf(page.state).find((t) => t.id === PRINT_IMPRESSUM_ID);
     if (!element) continue;
-    const parsed = parseImpressumLine(impressumLocale(page.configId), element.text ?? '');
+    const parsed = parseImpressumLine(impressumLocaleOf(page), element.text ?? '');
     if (isImpressumComplete(parsed)) {
       parts = parsed;
       break;
@@ -101,7 +98,7 @@ export function carryImpressum<P extends DeckPage>(current: readonly DeckPage[],
   return next.map((page) => {
     const texts = textsOf(page.state);
     if (!texts.some((t) => t.id === PRINT_IMPRESSUM_ID)) return page;
-    const text = impressumLine(impressumLocale(page.configId), filled);
+    const text = impressumLine(impressumLocaleOf(page), filled);
     return {
       ...page,
       state: {
