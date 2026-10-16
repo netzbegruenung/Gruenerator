@@ -261,3 +261,45 @@ describe('eigenes Bild ausgewählt', () => {
     expect(screen.queryByText('Als Hintergrund')).toBeNull();
   });
 });
+
+describe('Unsplash-Foto', () => {
+  const credit = {
+    photographer: 'Jane Doe',
+    profileUrl: 'https://unsplash.com/@jane?utm_source=gruenerator&utm_medium=referral',
+    photoUrl: 'https://unsplash.com/photos/abc?utm_source=gruenerator&utm_medium=referral',
+    downloadLocation: 'https://api.unsplash.com/photos/abc/download',
+  };
+  const hotlink = 'https://images.unsplash.com/photo-abc?ixid=1';
+
+  it('„Als Hintergrund" nimmt den Bildnachweis mit', async () => {
+    const background = controls();
+    render(
+      <ContextControls
+        selectedElement="user-image-1"
+        activeFloatingModule={{
+          type: 'user-image',
+          data: { id: 'user-image-1', src: hotlink, fileName: 'foto.jpg', attribution: credit },
+        }}
+        canMoveUp
+        canMoveDown
+        canDuplicate
+        handlers={HANDLERS}
+        background={background}
+        onRemoveUserImage={vi.fn()}
+      />
+    );
+    await userEvent.click(screen.getByText('Als Hintergrund'));
+    await vi.waitFor(() =>
+      expect(background.onImageChange).toHaveBeenCalledWith(expect.any(File), hotlink, credit)
+    );
+  });
+
+  it('zeigt den Bildnachweis, solange das Hintergrundfoto ausgewählt ist', () => {
+    renderBar(PHOTO, controls({ currentImageSrc: hotlink, imageAttribution: credit }));
+    expect(screen.getByRole('link', { name: 'Jane Doe' })).toHaveAttribute(
+      'href',
+      credit.profileUrl
+    );
+    expect(screen.getByRole('link', { name: 'Unsplash' })).toBeInTheDocument();
+  });
+});

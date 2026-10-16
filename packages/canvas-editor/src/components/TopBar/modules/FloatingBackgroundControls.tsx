@@ -17,6 +17,7 @@ import { cn } from '../../../utils/cn';
 import { buildPlacementUrl, fetchShareImageFile } from '../../../utils/mediaPlacement';
 import { downscaleImageForUpload } from '../../../utils/userImageUtils';
 
+import type { StockImageAttribution } from '../../../common/imageSourceTypes';
 import type { BackgroundControls } from '../../../configs/types';
 import type { MediaItem } from '@gruenerator/shared/media-library';
 
@@ -288,11 +289,14 @@ export function BackgroundRemoveImageButton({ onRemove }: { onRemove: () => void
 export function SetAsBackgroundButton({
   src,
   fileName,
+  attribution,
   onImageChange,
   onRemoveElement,
 }: {
   src: string;
   fileName: string;
+  /** Stock credit of the photo; the background keeps it. */
+  attribution?: StockImageAttribution;
   onImageChange: ImageChange;
   onRemoveElement: () => void;
 }) {
@@ -304,7 +308,7 @@ export function SetAsBackgroundButton({
     setFailed(false);
     try {
       const file = await fetchShareImageFile(src, fileName);
-      onImageChange(file, src, null);
+      onImageChange(file, src, attribution ?? null);
       onRemoveElement();
     } catch {
       setFailed(true);

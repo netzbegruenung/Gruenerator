@@ -16,12 +16,12 @@ import type { BalkenInstance } from '../primitives/BalkenGroup';
 import type { ChatSectionProps, ToolsSectionProps, UploadsSectionProps } from '../sidebar/sections';
 import type { SidebarTab } from '../sidebar/types';
 import type { ChartInstance } from '../utils/chartUtils';
-import type { UserImageInstance } from '../utils/userImageUtils';
+import type { UserImageInstance, UserImagePlacement } from '../utils/userImageUtils';
 
 interface ActionsWithChart {
   updateChart?: (id: string, partial: Partial<ChartInstance>) => void;
   removeChart?: (id: string) => void;
-  addUserImageFromUrl?: (url: string, fileName: string) => void;
+  addUserImageFromUrl?: (url: string, fileName: string, options?: UserImagePlacement) => void;
 }
 
 interface ActionsWithBalken {

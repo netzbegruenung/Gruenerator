@@ -18,7 +18,6 @@ import React, {
   useImperativeHandle,
   useLayoutEffect,
 } from 'react';
-import { Layer } from 'react-konva';
 
 import { HOST_EMITTED_STATE_KEYS } from '../collab/pageElementStateKeys';
 import { useEmitHostStateChanges } from '../collab/useEmitHostStateChanges';
@@ -38,7 +37,7 @@ import { useCanvasAutoSave } from '../hooks/useCanvasAutoSave';
 import { useCanvasElementHandlers } from '../hooks/useCanvasElementHandlers';
 import { useCanvasKeyboardHandlers } from '../hooks/useCanvasKeyboardHandlers';
 import { useDeepSelect } from '../hooks/useDeepSelect';
-import { CanvasStage, SnapGuidelines, AttributionOverlay } from '../primitives';
+import { CanvasStage, SnapGuidelines } from '../primitives';
 import {
   CanvasStoreProvider,
   useCanvasStore,
@@ -46,7 +45,6 @@ import {
 } from '../stores/CanvasStoreProvider';
 import { useAutoSaveStore } from '../stores/useAutoSaveStore';
 import { alignElementX, alignElementY } from '../utils/alignment';
-import { calculateAttributionOverlay, isCreditedPhotoVisible } from '../utils/attributionOverlay';
 import { canvasFontFamilies } from '../utils/canvasFontFamilies';
 import { buildCanvasItems, buildSortedRenderList } from '../utils/canvasLayerManager';
 import { captureStageImage, captureStageImageAsync } from '../utils/captureStage';
@@ -260,7 +258,6 @@ function GenericCanvasWithRef<
   // Export state (used by auto-save and attribution overlay)
   const [exportedImage, setExportedImage] = useState<string | null>(null);
   const exportedImageRef = useRef<string | null>(null);
-  const [isExporting, setIsExporting] = useState(false);
 
   useCanvasStoreReset(preview ? null : config.id);
 
@@ -508,7 +505,7 @@ function GenericCanvasWithRef<
   const lastAutoSaveHistoryIndexRef = useRef(-1);
 
   useEffect(() => {
-    if (historyIndex < 0 || isExporting) return;
+    if (historyIndex < 0) return;
     // historyIndex 0 is the initial mount snapshot — an untouched canvas is not dirty
     if (
       autoSaveEnabled &&
@@ -537,7 +534,7 @@ function GenericCanvasWithRef<
     }, 1500);
 
     return () => clearTimeout(timer);
-  }, [historyIndex, isExporting, autoSaveEnabled, setAutoSaveDirty]);
+  }, [historyIndex, autoSaveEnabled, setAutoSaveDirty]);
 
   // Push live state/actions/selection up to the shared sidebar. Replaces the
   // old 200ms poll in PageWrapper: updates land synchronously with edits.
@@ -621,23 +618,6 @@ function GenericCanvasWithRef<
 
   // Bridge ref for ToolbarStateBridge → useImperativeHandle communication
   const bridgeRef = useRef<ToolbarBridgeState | null>(null);
-
-  // Calculate attribution overlay data for export (only when exporting)
-  const attributionOverlayData = useMemo(() => {
-    if (!isExporting) return null;
-
-    const imageAttribution = state.imageAttribution;
-    if (!imageAttribution) return null;
-    if (!isCreditedPhotoVisible(config.elements, state)) return null;
-
-    return calculateAttributionOverlay(
-      imageAttribution,
-      config.canvas.width,
-      config.canvas.height,
-      'bottom-right',
-      10
-    );
-  }, [isExporting, state, config.elements, config.canvas.width, config.canvas.height]);
 
   /**
    * Konva berechnet den Zeilenumbruch eines Text-Knotens EINMAL, beim Setzen
@@ -852,13 +832,6 @@ function GenericCanvasWithRef<
         />
 
         <PrintGuides format={format} />
-
-        {/* Attribution overlay - only visible during export */}
-        {attributionOverlayData && (
-          <Layer listening={false}>
-            <AttributionOverlay data={attributionOverlayData} />
-          </Layer>
-        )}
 
         <SnapGuidelines stageWidth={config.canvas.width} stageHeight={config.canvas.height} />
       </CanvasStage>

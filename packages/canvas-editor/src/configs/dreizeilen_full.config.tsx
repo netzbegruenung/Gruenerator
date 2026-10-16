@@ -428,6 +428,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
 
   background: (state, actions) => ({
     currentImageSrc: state.currentImageSrc || undefined,
+    imageAttribution: state.imageAttribution ?? null,
     onImageChange: (file, url, attribution) => actions.setCurrentImageSrc(file, url, attribution),
     scale: state.imageScale,
     onScaleChange: actions.setImageScale,

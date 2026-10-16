@@ -2,6 +2,7 @@ import { useMemo, useRef } from 'react';
 
 import { resolveValue } from '../utils/canvasValueResolver';
 
+import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { FullCanvasConfig, LayoutResult } from '../configs/types';
 import type { BalkenInstance, CircleBadgeInstance } from '../primitives';
 import type { AssetInstance } from '../utils/canvasAssets';
@@ -57,6 +58,8 @@ export interface FloatingModuleState {
      * and don't support outline/shadow/gradient, so their controls are hidden.
      */
     isInstanceText?: boolean;
+    /** Stock credit of a placed (hotlinked) Unsplash photo. */
+    attribution?: StockImageAttribution;
     [key: string]: unknown;
   };
 }

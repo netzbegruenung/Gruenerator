@@ -1,3 +1,5 @@
+import { type StockImageAttribution } from '../common/imageSourceTypes';
+
 export interface UserImageInstance {
   id: string;
   src: string;
@@ -39,6 +41,8 @@ export interface UserImageInstance {
   fit?: 'cover';
   /** `kreis`: clipped to the circle inside width × height. */
   mask?: 'kreis';
+  /** Stock credit (Unsplash): the photo is hotlinked, so the credit travels with it. */
+  attribution?: StockImageAttribution;
 }
 
 /** The adjustment fields, for reset / preset helpers. */
@@ -140,6 +144,7 @@ function makeInstance(
     rotation: 0,
     scale: 1,
     opacity: 1,
+    ...(options.attribution && { attribution: options.attribution }),
   };
 }
 
@@ -208,6 +213,8 @@ export async function downscaleImageForUpload(file: File): Promise<File> {
 }
 
 export interface UserImagePlacement {
+  /** Stock credit of a hotlinked photo, kept on the instance. */
+  attribution?: StockImageAttribution;
   /** Centre of the new image (a drop point); default is the canvas centre. */
   center?: { x: number; y: number };
 }

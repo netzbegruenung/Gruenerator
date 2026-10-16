@@ -61,6 +61,8 @@ export interface ContextControlsProps {
 const ICON_BTN =
   'inline-flex items-center justify-center size-8 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] disabled:opacity-30 disabled:cursor-not-allowed';
 
+const UNSPLASH_HOME = 'https://unsplash.com/?utm_source=gruenerator&utm_medium=referral';
+
 const SEP = 'w-px h-[22px] bg-[var(--editor-border-soft)] mx-1 shrink-0';
 
 /**
@@ -248,6 +250,7 @@ export function ContextControls({
         key="as-background"
         src={userImageSrc}
         fileName={typeof fileName === 'string' && fileName ? fileName : 'hintergrund'}
+        attribution={activeFloatingModule.data.attribution}
         onImageChange={background.onImageChange}
         onRemoveElement={() => {
           onRemoveUserImage(imageId);
@@ -424,6 +427,40 @@ export function ContextControls({
         </svg>
         Bearbeiten
       </button>
+    );
+  }
+
+  const credit =
+    type === 'user-image'
+      ? activeFloatingModule?.data.attribution
+      : isPhoto
+        ? background?.imageAttribution
+        : undefined;
+  if (credit) {
+    groups.push(
+      <span
+        key="credit"
+        className="inline-flex items-center gap-1 h-8 shrink-0 px-1 text-[12px] text-[var(--editor-text-muted)] whitespace-nowrap"
+      >
+        Foto von
+        <a
+          href={credit.profileUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[var(--editor-text)] underline"
+        >
+          {credit.photographer}
+        </a>
+        auf
+        <a
+          href={UNSPLASH_HOME}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[var(--editor-text)] underline"
+        >
+          Unsplash
+        </a>
+      </span>
     );
   }
 

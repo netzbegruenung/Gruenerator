@@ -409,6 +409,7 @@ export function createColorTwoTextCanvas<
       currentColor: state.backgroundColor,
       onColorChange: actions.setBackgroundColor,
       currentImageSrc: state.currentImageSrc || undefined,
+      imageAttribution: state.imageAttribution ?? null,
       onImageChange: (file, url, attribution) => {
         actions.setCurrentImageSrc(file, url);
         if (attribution !== undefined) actions.setImageAttribution(attribution);
