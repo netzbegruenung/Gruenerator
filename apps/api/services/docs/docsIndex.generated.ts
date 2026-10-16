@@ -1832,6 +1832,14 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/features/sharepics",
     "pageTitle": "Sharepics: alle Varianten auf einen Blick",
+    "heading": "Mit anderen teilen",
+    "anchor": "#mit-anderen-teilen",
+    "category": "Features",
+    "text": "Über Teilen → Personen gibst du ein Sharepic an einzelne Personen weiter. Stell den Zugriffsmodus auf Mit Anmeldung und schick den Link weiter: Wer ihn angemeldet öffnet, steht danach in der Liste der Personen mit Zugriff. Dort legst du fest, ob jemand nur ansehen oder auch bearbeiten darf, und kannst den Zugriff jederzeit wieder entziehen. Daneben kannst du ein Sharepic mit deinen Projekten teilen. Anders als Dokumente lassen sich Sharepics nicht öffentlich teilen — der Link funktioniert immer nur mit Anmeldung. Das fertige Bild weiterzugeben, geht wie gewohnt über Teilen → Teilen oder den Download."
+  },
+  {
+    "url": "/docs/features/sharepics",
+    "pageTitle": "Sharepics: alle Varianten auf einen Blick",
     "heading": "Österreich",
     "anchor": "#österreich",
     "category": "Features",

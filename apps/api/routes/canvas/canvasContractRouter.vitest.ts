@@ -10,6 +10,8 @@ const formatChangeCrossesCategory = vi.fn();
 const getServerFormat = vi.fn();
 const createCanvas = vi.fn();
 const seedCanvasPages = vi.fn();
+const getCanvas = vi.fn();
+const listCanvases = vi.fn();
 
 vi.mock('./services/canvasAiCheck.js', () => ({ checkCanvasEdit }));
 vi.mock('../chat/services/sharepicEditService.js', () => ({ mintCanvasForVariant }));
@@ -19,6 +21,8 @@ vi.mock('../../services/canvas/canvasRepository.js', () => ({
   updateCanvas,
   resizeCanvas,
   formatChangeCrossesCategory,
+  getCanvas,
+  listCanvases,
 }));
 vi.mock('../../services/canvas/canvasStateService.js', () => ({
   applyDeckChanges,
@@ -322,5 +326,40 @@ describe('canvas.create', () => {
     getServerFormat.mockReturnValue(null);
     const res = await create({ template_type: 'freeform', format: 'story' });
     expect(res.status).toBe(201);
+  });
+});
+
+describe('canvas reads redact the collaborator list', () => {
+  const canvas = {
+    id: 'c1',
+    title: 'Busse statt Stau',
+    created_by: 'owner-1',
+    permissions: {
+      'user-1': { level: 'viewer', granted_at: '2026-10-16T00:00:00Z' },
+      'other-3': { level: 'editor', granted_at: '2026-10-16T00:00:00Z' },
+    },
+  };
+
+  type Handler = (a: unknown) => Promise<{ status: number; body: unknown }>;
+  const router = async () => (await import('./canvasContractRouter.js')).canvasContractRouter;
+
+  it('opens via link and hands a viewer only their own entry', async () => {
+    getCanvas.mockReset().mockResolvedValue({ kind: 'ok', canvas });
+    const res = await ((await router()).get as unknown as Handler)({
+      req,
+      params: { id: 'c1' },
+    });
+    expect(getCanvas).toHaveBeenCalledWith('c1', 'user-1', { joinViaLink: true });
+    expect((res.body as typeof canvas).permissions).toEqual({
+      'user-1': canvas.permissions['user-1'],
+    });
+  });
+
+  it('does the same for the canvas list', async () => {
+    listCanvases.mockReset().mockResolvedValue([canvas]);
+    const res = await ((await router()).list as unknown as Handler)({ req });
+    expect((res.body as (typeof canvas)[])[0]?.permissions).toEqual({
+      'user-1': canvas.permissions['user-1'],
+    });
   });
 });

@@ -1,4 +1,10 @@
-import { CollaboratorList, GroupShareControls } from '@gruenerator/docs';
+import {
+  CollaboratorList,
+  GroupShareControls,
+  ShareLinkRow,
+  ShareModeSelect,
+  type ShareMode,
+} from '@gruenerator/docs';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import {
   Button,
@@ -19,8 +25,12 @@ interface ShareCanvasDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+/** Sharepics reach people only behind a login — the server rejects 'public' too. */
+const SHAREPIC_SHARE_MODES: readonly ShareMode[] = ['private', 'authenticated'];
+
 /**
- * Giving other people access to *this* canvas — collaborators and groups.
+ * Giving other people access to *this* canvas — people via a login-gated link
+ * (whoever opens it becomes a collaborator, as with documents) and groups.
  * Minting a frozen copy for the Vorlagen-Galerie is a different act with a
  * different lifecycle and lives in {@link SaveAsTemplateDialog}.
  */
@@ -38,6 +48,8 @@ export function ShareCanvasDialog({ canvasId, open, onOpenChange }: ShareCanvasD
     userGroups,
     canvasGroups,
     isLoading,
+    setShareMode,
+    setSharePermission,
     revokeAccess,
     updatePermission,
     shareWithGroup,
@@ -93,9 +105,25 @@ export function ShareCanvasDialog({ canvasId, open, onOpenChange }: ShareCanvasD
         <DialogHeader>
           <DialogTitle>Canvas teilen</DialogTitle>
           <DialogDescription>
-            Teile diesen Canvas mit deinen Gruppen, um gemeinsam zu bearbeiten.
+            Teile diesen Canvas per Link mit einzelnen Personen oder mit deinen Projekten, um
+            gemeinsam zu bearbeiten.
           </DialogDescription>
         </DialogHeader>
+
+        <ShareModeSelect
+          value={shareSettings.share_mode}
+          onChange={(mode) => setShareMode.mutate(mode)}
+          disabled={setShareMode.isPending}
+          modes={SHAREPIC_SHARE_MODES}
+        />
+
+        {shareSettings.share_mode !== 'private' && (
+          <ShareLinkRow
+            shareUrl={`${window.location.origin}/studio/canvas/${canvasId}`}
+            linkPermission={shareSettings.share_permission}
+            onLinkPermissionChange={(permission) => setSharePermission.mutate(permission)}
+          />
+        )}
 
         <GroupShareControls
           userGroups={userGroups}

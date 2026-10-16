@@ -103,6 +103,14 @@ function CollabCanvasStudioContent() {
     return perm ? ['owner', 'editor'].includes(perm.level) : false;
   }, [canvas, user]);
 
+  // Only owners may manage who has access; everyone else would get a share
+  // dialog stuck loading on the owner-only share-settings endpoint (403).
+  const isOwner = useMemo(() => {
+    if (!canvas || !user) return false;
+    const uid = String(user.id);
+    return canvas.created_by === uid || canvas.permissions?.[uid]?.level === 'owner';
+  }, [canvas, user]);
+
   const handleTitleChange = useCallback(
     async (newTitle: string) => {
       if (!id) return;
@@ -352,10 +360,14 @@ function CollabCanvasStudioContent() {
               chromeLeft={chromeLeft}
               chromeCenter={chromeCenter}
               chromeRight={chromeRight}
-              onInvitePeople={() => {
-                setShareMounted(true);
-                setShareOpen(true);
-              }}
+              {...(isOwner
+                ? {
+                    onInvitePeople: () => {
+                      setShareMounted(true);
+                      setShareOpen(true);
+                    },
+                  }
+                : {})}
               onSaveAsTemplate={() => {
                 setSaveTemplateMounted(true);
                 setSaveTemplateOpen(true);
