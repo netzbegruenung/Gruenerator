@@ -8,7 +8,7 @@ import type { ChartInstance } from '../utils/chartUtils';
 import type { FrameInstance } from '../utils/frameUtils';
 import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance } from '../utils/shapes';
-import type { UserImageInstance } from '../utils/userImageUtils';
+import type { UserImageInstance, UserImagePlacement } from '../utils/userImageUtils';
 
 /**
  * Canvas Element Handlers - Handlers for all element interactions
@@ -63,6 +63,7 @@ export interface OptionalCanvasActions {
   updatePillBadge?: (id: string, attrs: Partial<PillBadgeInstance>) => void;
   updateFrame?: (id: string, attrs: Partial<FrameInstance>) => void;
   setFrameImage?: (id: string, file: File, objectUrl: string) => void;
+  addUserImageFromUrl?: (url: string, fileName: string, options?: UserImagePlacement) => void;
   updateUserImage?: (id: string, attrs: Partial<UserImageInstance>) => void;
   updateChart?: (id: string, attrs: Partial<ChartInstance>) => void;
 

@@ -24,6 +24,7 @@ import { IllustrationenSection } from '../IllustrationenSection';
 import { IllustrationThumb } from '../IllustrationThumb';
 import { RahmenSection } from '../RahmenSection';
 
+import { BackgroundCatalog, BackgroundStripTiles } from './BackgroundCatalog';
 import { CategoryJumpBar, type JumpBarItem } from './CategoryJumpBar';
 import { CategoryStrip, StripTile } from './CategoryStrip';
 import { CATEGORY_CARDS, PREVIEW_COMPONENTS, type AssetView } from './constants';
@@ -187,6 +188,7 @@ export function BrowseView(props: BrowseViewProps) {
   const hasChartsFeature = sectionProps.onAddChart !== undefined;
   const hasIllustrationsFeature = sectionProps.onAddIllustration !== undefined;
   const hasFramesFeature = sectionProps.onAddFrame !== undefined;
+  const hasBackgroundsFeature = sectionProps.onSetBackgroundImage !== undefined;
 
   const filteredIllustrations = useMemo(
     () => filterIllustrations(ALL_ILLUSTRATIONS, debouncedDrillDownQuery),
@@ -197,6 +199,7 @@ export function BrowseView(props: BrowseViewProps) {
     const featureMap: Record<string, boolean> = {
       marke: hasAssetsFeature || (hasBalkenFeature && userLocale === 'de-DE'),
       sticker: hasAssetsFeature,
+      hintergruende: hasBackgroundsFeature,
       formen: hasShapesFeature,
       diagramme: hasChartsFeature,
       rahmen: hasFramesFeature,
@@ -213,6 +216,7 @@ export function BrowseView(props: BrowseViewProps) {
     hasFramesFeature,
     hasIllustrationsFeature,
     hasIconsFeature,
+    hasBackgroundsFeature,
     userLocale,
   ]);
 
@@ -380,6 +384,8 @@ export function BrowseView(props: BrowseViewProps) {
         );
       case 'sticker':
         return <StickerStripTiles onAddAsset={sectionProps.onAddAsset!} />;
+      case 'hintergruende':
+        return <BackgroundStripTiles onImageChange={sectionProps.onSetBackgroundImage!} />;
       case 'formen':
         return <FormenStripTiles onAddShape={sectionProps.onAddShape!} />;
       case 'diagramme':
@@ -556,6 +562,14 @@ export function BrowseView(props: BrowseViewProps) {
             <StickerCatalog
               onAddAsset={sectionProps.onAddAsset!}
               onAddStickerAsset={sectionProps.onAddStickerAsset}
+              searchQuery={debouncedDrillDownQuery}
+            />
+          )}
+
+          {activeView === 'hintergruende' && hasBackgroundsFeature && (
+            <BackgroundCatalog
+              currentImageSrc={sectionProps.currentBackgroundSrc}
+              onImageChange={sectionProps.onSetBackgroundImage!}
               searchQuery={debouncedDrillDownQuery}
             />
           )}

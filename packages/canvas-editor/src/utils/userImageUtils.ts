@@ -132,12 +132,13 @@ function makeInstance(
   canvasHeight: number,
   options: UserImagePlacement = {}
 ): UserImageInstance {
+  const center = options.center ?? { x: canvasWidth / 2, y: canvasHeight / 2 };
   return {
     id: makeId(),
     src,
     fileName,
-    x: canvasWidth / 2 - width / 2,
-    y: canvasHeight / 2 - height / 2,
+    x: center.x - width / 2,
+    y: center.y - height / 2,
     width,
     height,
     rotation: 0,
@@ -214,6 +215,8 @@ export async function downscaleImageForUpload(file: File): Promise<File> {
 export interface UserImagePlacement {
   /** Stock credit of a hotlinked photo, kept on the instance. */
   attribution?: StockImageAttribution;
+  /** Centre of the new image (a drop point); default is the canvas centre. */
+  center?: { x: number; y: number };
 }
 
 export function createUserImageInstanceFromUrl(

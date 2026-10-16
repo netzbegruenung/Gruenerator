@@ -19,10 +19,7 @@ describe('withVorlagenTab', () => {
   });
 
   it('comes first where a template has no Text tab', () => {
-    expect(withVorlagenTab([tab('background')]).map((t) => t.id)).toEqual([
-      'vorlagen',
-      'background',
-    ]);
+    expect(withVorlagenTab([tab('elements')]).map((t) => t.id)).toEqual(['vorlagen', 'elements']);
   });
 });
 

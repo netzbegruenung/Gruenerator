@@ -24,7 +24,7 @@ function setViewport(mobile: boolean) {
 }
 
 const TABS: SidebarTab[] = [
-  { id: 'background', icon: PiImage, label: 'Hintergrund', ariaLabel: 'Hintergrund' },
+  { id: 'uploads', icon: PiImage, label: 'Uploads', ariaLabel: 'Uploads' },
   { id: 'text', icon: PiTextAa, label: 'Text', ariaLabel: 'Text' },
 ];
 
@@ -36,7 +36,7 @@ describe('mobile Leiste', () => {
     const nav = screen.getByRole('navigation', { name: 'Editor-Bereiche' });
     expect(nav).toHaveAttribute('data-suppress-feedback-launcher');
     expect(screen.getByRole('button', { name: 'Text' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: 'Hintergrund' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'Uploads' })).toHaveAttribute(
       'aria-pressed',
       'false'
     );
@@ -45,8 +45,8 @@ describe('mobile Leiste', () => {
   it('meldet den Tipp auf einen Bereich', async () => {
     const onTabClick = vi.fn();
     render(<SidebarTabBar tabs={TABS} activeTab={null} onTabClick={onTabClick} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Hintergrund' }));
-    expect(onTabClick).toHaveBeenCalledWith('background');
+    await userEvent.click(screen.getByRole('button', { name: 'Uploads' }));
+    expect(onTabClick).toHaveBeenCalledWith('uploads');
   });
 });
 

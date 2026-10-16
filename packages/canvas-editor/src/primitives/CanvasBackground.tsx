@@ -1,6 +1,7 @@
 /**
- * CanvasBackground - Non-interactive background layer
- * Supports solid colors, gradients, and background images
+ * CanvasBackground - background layer
+ * Supports solid colors, gradients, and background images. Non-interactive
+ * unless `onSelect` is given: then a click on it selects the background.
  */
 
 import { useEffect, useState, memo } from 'react';
@@ -25,6 +26,7 @@ export interface CanvasBackgroundProps {
   gradient?: GradientConfig;
   image?: string;
   opacity?: number;
+  onSelect?: () => void;
 }
 
 function CanvasBackgroundInner({
@@ -34,7 +36,12 @@ function CanvasBackgroundInner({
   gradient,
   image,
   opacity = 1,
+  onSelect,
 }: CanvasBackgroundProps) {
+  const interaction = onSelect
+    ? { listening: true, onClick: onSelect, onTap: onSelect }
+    : { listening: false };
+
   const [bgImage, setBgImage] = useState<HTMLImageElement | null>(null);
 
   useEffect(() => {
@@ -59,7 +66,7 @@ function CanvasBackgroundInner({
         width={width}
         height={height}
         opacity={opacity}
-        listening={false}
+        {...interaction}
         name="canvas-background"
       />
     );
@@ -80,7 +87,7 @@ function CanvasBackgroundInner({
         fillLinearGradientEndPoint={endPoint}
         fillLinearGradientColorStops={colorStops}
         opacity={opacity}
-        listening={false}
+        {...interaction}
         name="canvas-background"
       />
     );
@@ -103,7 +110,7 @@ function CanvasBackgroundInner({
         fillRadialGradientEndRadius={Math.hypot(width, height) / 2}
         fillRadialGradientColorStops={colorStops}
         opacity={opacity}
-        listening={false}
+        {...interaction}
         name="canvas-background"
       />
     );
@@ -117,7 +124,7 @@ function CanvasBackgroundInner({
       height={height}
       fill={color}
       opacity={opacity}
-      listening={false}
+      {...interaction}
       name="canvas-background"
     />
   );

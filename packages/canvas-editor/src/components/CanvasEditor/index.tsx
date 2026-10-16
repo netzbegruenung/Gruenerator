@@ -937,6 +937,7 @@ function CanvasEditorInner({
       selectedElement: source.selectedElement,
       ...shareProps,
       ...(specEdit && { specEdit }),
+      background: source.config.background?.(source.state, source.actions) ?? null,
     });
 
     return (
@@ -1069,6 +1070,10 @@ function CanvasEditorInner({
   // "Auswahl" block, not in the mobile bottom bar (`hideObjectActions`). Only
   // one of the two bars is mounted per viewport to avoid a hidden duplicate
   // React tree.
+  const backgroundControls =
+    activeConfig?.background && activeState && activeActions
+      ? activeConfig.background(activeState, activeActions)
+      : null;
   const contextControlsProps = toolbarState
     ? {
         selectedElement: toolbarState.selectedElement ?? null,
@@ -1080,6 +1085,12 @@ function CanvasEditorInner({
           ...toolbarHandlers,
           onEditImage: () => setActiveTab('image-adjust'),
         },
+        background: backgroundControls,
+        // Boundary: page actions arrive as Record<string, unknown>.
+        onRemoveUserImage:
+          typeof activeActions?.removeUserImage === 'function'
+            ? (activeActions.removeUserImage as (id: string) => void)
+            : undefined,
         onDelete: toolbarOnDelete,
         onDeselect: handleDeselectAll,
       }

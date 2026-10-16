@@ -254,5 +254,13 @@ export function injectFeatureProps<S extends object, A extends object>(
     }
   }
 
+  // === BACKGROUND GALLERY ===
+  // Comes from the config's background controls, not from a state convention.
+  const background = context?.background;
+  if (background?.onImageChange) {
+    injected.onSetBackgroundImage = background.onImageChange;
+    injected.currentBackgroundSrc = background.currentImageSrc;
+  }
+
   return injected;
 }

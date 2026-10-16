@@ -5,21 +5,17 @@ import type { IconType } from 'react-icons';
  * All possible sidebar tab IDs.
  *
  * Unified tabs (used in heterogeneous multi-page):
- * - 'background': Hintergrund (image or color based on template)
  * - 'text': Text editing section
  * - 'elements': Decorative elements (icons, shapes, illustrations)
  * - 'share': Export and sharing options
  *
  * Legacy tabs (template-specific, being migrated):
- * - 'image-background': Image background section (→ 'background')
- * - 'image': Image controls (→ 'background')
  * - 'assets': Elements section (→ 'elements')
  * - 'position': Dreizeilen-specific balken controls
  * - 'fontsize': Deprecated - merged into 'text'
  */
 export type SidebarTabId =
   // Unified tab IDs (used in heterogeneous multi-page mode)
-  | 'background'
   | 'text'
   | 'elements'
   | 'share'
@@ -31,13 +27,11 @@ export type SidebarTabId =
   // Legacy/template-specific tab IDs (for backwards compatibility)
   | 'fontsize'
   | 'assets'
-  | 'image'
   | 'position'
   | 'settings'
   | 'frame-settings'
   | 'chart-settings'
   | 'image-adjust'
-  | 'image-background'
   | 'design';
 
 export interface SidebarTab {
@@ -69,27 +63,6 @@ export interface TextSectionProps {
   onQuoteFontSizeChange?: (size: number) => void;
   onNameFontSizeChange?: (size: number) => void;
   onUpdateAdditionalTextFontSize?: (id: string, size: number) => void;
-}
-
-export interface BackgroundSectionProps {
-  // Color props. `readonly` because the palettes in configs/backgroundPalettes.ts
-  // are `as const` — a section only ever reads the list.
-  colors: readonly BackgroundColorOption[];
-  currentColor: string;
-  onColorChange: (color: string) => void;
-  gradientOpacity?: number;
-  onGradientOpacityChange?: (opacity: number) => void;
-
-  // Image props (optional - enables image subsection)
-  currentImageSrc?: string;
-  onImageChange?: (
-    file: File | null,
-    objectUrl?: string,
-    attribution?: StockImageAttribution | null
-  ) => void;
-
-  // Context for AI suggestions (optional)
-  textContext?: string;
 }
 
 // Stock image attribution interface (imported from image service)
