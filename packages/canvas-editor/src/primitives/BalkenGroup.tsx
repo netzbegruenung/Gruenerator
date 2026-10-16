@@ -17,6 +17,7 @@ import {
   calculateParallelogramPoints,
   flattenPoints,
 } from '../utils/dreizeilenLayout';
+import { isGroupDrag } from '../utils/multiSelect';
 import { calculateElementSnapPosition } from '../utils/snapping';
 import { stageCssScale } from '../utils/stageCssScale';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
@@ -222,6 +223,7 @@ function BalkenGroupInner({
   const handleDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
       const node = e.currentTarget as Konva.Group;
+      if (isGroupDrag(node)) return;
       const scaleX = node.scaleX();
       const scaleY = node.scaleY();
 

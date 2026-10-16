@@ -4,8 +4,14 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { useWorkAreaDeselect } from '../hooks/useWorkAreaDeselect';
 
-function Harness({ onDeselect }: { onDeselect: () => void }) {
-  const onPointerDown = useWorkAreaDeselect(onDeselect);
+function Harness({
+  onDeselect,
+  onMousePress,
+}: {
+  onDeselect: () => void;
+  onMousePress?: (evt: PointerEvent) => void;
+}) {
+  const onPointerDown = useWorkAreaDeselect(onDeselect, onMousePress);
   return (
     <div data-testid="area" onPointerDown={onPointerDown}>
       <div data-testid="page" />
@@ -32,6 +38,15 @@ describe('work area deselect', () => {
     const { area, onDeselect } = setup();
     fireEvent.pointerDown(area, { pointerType: 'mouse', clientX: 1, clientY: 1 });
     expect(onDeselect).toHaveBeenCalledTimes(1);
+  });
+
+  it('a mouse press also hands over to the marquee; with Shift it keeps the selection', () => {
+    const onDeselect = vi.fn();
+    const onMousePress = vi.fn();
+    const { getByTestId } = render(<Harness onDeselect={onDeselect} onMousePress={onMousePress} />);
+    fireEvent.pointerDown(getByTestId('area'), { pointerType: 'mouse', shiftKey: true });
+    expect(onDeselect).not.toHaveBeenCalled();
+    expect(onMousePress).toHaveBeenCalledTimes(1);
   });
 
   it('ignores pointerdown bubbling up from a page', () => {
