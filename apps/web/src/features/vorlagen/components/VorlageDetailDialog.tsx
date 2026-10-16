@@ -152,7 +152,8 @@ export function VorlageDetailDialog({
             <div role="group" aria-label="Seiten" className="flex gap-2 overflow-x-auto pb-1">
               {pages.map((p, i) => (
                 <button
-                  key={p.src}
+                  // eslint-disable-next-line react/no-array-index-key -- pages have no id and may repeat an image URL; order is the identity
+                  key={i}
                   type="button"
                   aria-label={`Seite ${i + 1} von ${pages.length} anzeigen`}
                   aria-current={i === page}
@@ -165,7 +166,7 @@ export function VorlageDetailDialog({
                       : 'border-transparent hover:border-grey-300 dark:hover:border-grey-600'
                   )}
                 >
-                  <img src={p.src} alt="" className="h-full w-auto" />
+                  <img src={p.src} alt="" loading="lazy" className="h-full w-auto" />
                 </button>
               ))}
             </div>

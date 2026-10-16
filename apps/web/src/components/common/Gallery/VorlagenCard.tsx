@@ -130,9 +130,10 @@ const VorlagenCard = memo(
           {/* Always there, so the card says it has pages before anyone points at it. */}
           {pageCount > 0 && (
             <div className="absolute inset-x-0 bottom-1 z-[2] flex justify-center">
-              {pages?.map((url, i) => (
+              {pages?.map((_, i) => (
                 <button
-                  key={url}
+                  // eslint-disable-next-line react/no-array-index-key -- pages have no id; order is the identity
+                  key={i}
                   type="button"
                   aria-label={`Seite ${i + 1} von ${pageCount} zeigen`}
                   aria-current={i === page}
