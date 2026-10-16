@@ -12,6 +12,7 @@ import { PiCaretLeftBold, PiMagnifyingGlass, PiX } from 'react-icons/pi';
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { useIsCanvasMobile } from '../../../hooks/useIsCanvasMobile';
+import { useTrackUnsplashDownload } from '../../../hooks/useTrackUnsplashDownload';
 import { cn } from '../../../utils/cn';
 import { matchesQuery } from '../../../utils/filterUtils';
 import { getEnglishSearchTerms } from '../../../utils/searchTranslations';
@@ -149,6 +150,7 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
     propsRef.current = props;
   });
   const remember = useRecentElements((s) => s.remember);
+  const trackDownload = useTrackUnsplashDownload();
 
   const activate = useCallback(
     (item: ElementItem) => {
@@ -177,7 +179,9 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
           p.onAddBalken?.(action.mode);
           break;
         case 'media':
-          p.onAddImageFromUrl?.(
+          if (!p.onAddImageFromUrl) return;
+          trackDownload(action.name, action.attribution);
+          p.onAddImageFromUrl(
             action.url,
             action.name,
             action.attribution ? { attribution: action.attribution } : {}
@@ -194,7 +198,7 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
       }
       remember(item);
     },
-    [remember]
+    [remember, trackDownload]
   );
 
   // A gallery sticker goes through the same path, so it lands in "Zuletzt" too.
