@@ -1,9 +1,10 @@
+import { type StudioAssetSource } from '@gruenerator/contracts';
 import { sameColor } from '@gruenerator/shared/stickers';
 import { Label, Switch } from '@gruenerator/ui';
-import { useEffect, useId, useState, type JSX, type ReactNode } from 'react';
+import { useEffect, useId, useState, type HTMLAttributes, type JSX, type ReactNode } from 'react';
 
 import { CHECKERBOARD } from '../../studio-tools/components/ToolResultCard';
-import { TOOL_LABEL, TOOL_PANEL } from '../../studio-tools/components/ToolUi';
+import { TOOL_LABEL } from '../../studio-tools/components/ToolUi';
 
 import { cn } from '@/utils/cn';
 
@@ -11,6 +12,13 @@ import { cn } from '@/utils/cn';
 export interface StickerDraft {
   blob: Blob;
   suggestedTitle: string;
+  source: StudioAssetSource;
+}
+
+/** A designer's two halves: the stage in the middle, its controls in the side panel. */
+export interface DesignerParts {
+  stage: ReactNode;
+  controls: ReactNode;
 }
 
 export function useObjectUrl(blob: Blob | null): string | null {
@@ -27,18 +35,20 @@ export function useObjectUrl(blob: Blob | null): string | null {
 }
 
 /** Checkerboard stage so transparent areas read as transparent. */
-export function PreviewFrame({
+export function StageFrame({
   children,
   className,
+  ...rest
 }: {
   children: ReactNode;
   className?: string;
-}): JSX.Element {
+} & HTMLAttributes<HTMLDivElement>): JSX.Element {
   return (
     <div
+      {...rest}
       className={cn(
         CHECKERBOARD,
-        'flex aspect-square w-full items-center justify-center overflow-hidden rounded-[14px] border border-grey-200 p-md dark:border-grey-700',
+        'relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-[4%] bg-background shadow-lg outline-none select-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 focus-visible:ring-offset-background-alt',
         className
       )}
     >
@@ -47,19 +57,31 @@ export function PreviewFrame({
   );
 }
 
-/** Preview left, controls right; stacked on narrow screens. */
-export function DesignLayout({
-  preview,
+/** A titled block of the side panel, styled like the Profilbild inspector. */
+export function PanelSection({
+  heading,
+  aside,
   children,
 }: {
-  preview: ReactNode;
+  heading: string;
+  aside?: ReactNode;
   children: ReactNode;
 }): JSX.Element {
+  const id = useId();
   return (
-    <div className="grid gap-md md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] md:items-start">
-      <div className="md:sticky md:top-md">{preview}</div>
-      <div className={cn(TOOL_PANEL, 'flex min-w-0 flex-col gap-lg')}>{children}</div>
-    </div>
+    <section aria-labelledby={id} className="flex flex-col gap-3.5">
+      <div className="flex items-baseline justify-between gap-sm">
+        <h2 id={id} className="m-0 text-base font-semibold text-foreground-heading">
+          {heading}
+        </h2>
+        {aside ? (
+          <span className="min-w-0 truncate text-[13px] text-muted-foreground tabular-nums">
+            {aside}
+          </span>
+        ) : null}
+      </div>
+      {children}
+    </section>
   );
 }
 

@@ -1,7 +1,7 @@
 import { type StudioAssetItem } from '@gruenerator/contracts';
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 import { http, HttpResponse } from 'msw';
-import { type Ref, useImperativeHandle } from 'react';
+import { type ReactNode, type Ref, useImperativeHandle } from 'react';
 import { useLocation } from 'react-router-dom';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -13,10 +13,11 @@ import StickerCreatorPage from './StickerCreatorPage';
 
 import type * as StickerEffects from './stickerEffects';
 
-const { uploadShare, removeBackground, rendered } = vi.hoisted(() => ({
+const { uploadShare, removeBackground, rendered, transparent } = vi.hoisted(() => ({
   uploadShare: vi.fn(),
   removeBackground: vi.fn(),
   rendered: new Blob(['png'], { type: 'image/png' }),
+  transparent: vi.fn(),
 }));
 
 vi.mock('../../image-studio/services/mediaUploadService', () => ({
@@ -36,24 +37,29 @@ vi.mock('./stickerEffects', async (importOriginal) => {
     loadImage: vi.fn().mockResolvedValue({}),
     imageToCanvas: () => canvas,
     trimTransparent: () => canvas,
-    canvasHasTransparency: () => true,
+    canvasHasTransparency: transparent,
     renderSticker: () => ({ width: 512, height: 384 }),
     canvasToPngBlob: () => Promise.resolve(rendered),
   };
 });
-// The badge exports through the Konva stage; stand in for it with a fixed PNG.
+// The badge exports its content layer; stand in for it with a fixed PNG.
 vi.mock('react-konva', () => ({
-  Stage: ({ ref }: { ref?: Ref<unknown> }) => {
+  Stage: ({ ref, children }: { ref?: Ref<unknown>; children?: ReactNode }) => {
     useImperativeHandle(ref, () => ({
       width: () => 320,
       height: () => 320,
-      toBlob: () => Promise.resolve(rendered),
+      container: () => document.createElement('div'),
     }));
+    return <>{children}</>;
+  },
+  Layer: ({ ref }: { ref?: Ref<unknown> }) => {
+    useImperativeHandle(ref, () => ({ toBlob: () => Promise.resolve(rendered) }));
     return null;
   },
-  Layer: () => null,
   Path: () => null,
   Text: () => null,
+  Line: () => null,
+  Transformer: () => null,
 }));
 
 const API = 'http://localhost/api/studio-assets';
@@ -78,6 +84,7 @@ afterAll(() => {
 beforeEach(() => {
   body = null;
   uploadShare.mockReset().mockResolvedValue('tok-1');
+  transparent.mockReset().mockReturnValue(true);
   removeBackground
     .mockReset()
     .mockResolvedValue({ base64: 'data:image/png;base64,Y3V0', objectUrl: 'blob:cutout' });
@@ -115,13 +122,11 @@ const Where = () => (
 );
 
 async function designUpload(user: ReturnType<typeof renderWithProviders>['user']) {
-  await user.click(screen.getByRole('button', { name: /Bild hochladen/ }));
   const input = document.querySelector<HTMLInputElement>('input[type="file"]');
   await user.upload(input!, new File(['raw'], 'Sonnenblume.png', { type: 'image/png' }));
-  const next = screen.getByRole('button', { name: 'Weiter' });
-  await waitFor(() => expect(next).toBeEnabled());
-  await user.click(next);
-  await screen.findByRole('heading', { name: 'Speichern' });
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Sticker speichern' })).toBeEnabled()
+  );
 }
 
 afterEach(() => {
@@ -136,18 +141,19 @@ async function designCutout(user: ReturnType<typeof renderWithProviders>['user']
       ? Promise.resolve({ blob: () => Promise.resolve(rendered) } as Response)
       : realFetch(input, init)
   );
-  await user.click(screen.getByRole('button', { name: /Foto freistellen/ }));
+  transparent.mockReturnValue(false);
   const input = document.querySelector<HTMLInputElement>('input[type="file"]');
   await user.upload(input!, new File(['raw'], 'Portrait.jpg', { type: 'image/jpeg' }));
 }
 
 describe('StickerCreatorPage', () => {
-  it('offers three ways to start without axe violations', async () => {
+  it('opens on the image upload with the badge one click away, without axe violations', async () => {
     const { container } = renderWithProviders(<StickerCreatorPage />);
 
-    for (const name of [/Bild hochladen/, /Foto freistellen/, /Text-Badge/])
-      expect(screen.getByRole('button', { name })).toBeInTheDocument();
-    expect(screen.getByRole('listitem', { current: 'step' })).toHaveTextContent('Art wählen');
+    expect(screen.getByRole('radio', { name: 'Bild' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Text-Badge' })).not.toBeChecked();
+    expect(screen.getByText('Bild hochladen')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sticker speichern' })).toBeDisabled();
     expect(await axe(container)).toHaveNoViolations();
   });
 
@@ -156,6 +162,7 @@ describe('StickerCreatorPage', () => {
     await designUpload(user);
 
     expect(screen.getByLabelText('Titel')).toHaveValue('Sonnenblume');
+    expect(screen.queryByRole('switch', { name: 'Hintergrund entfernen' })).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Sticker speichern' }));
 
     expect(await screen.findByRole('heading', { name: 'Fertig!' })).toBeInTheDocument();
@@ -277,9 +284,25 @@ describe('StickerCreatorPage', () => {
       await screen.findByRole('img', { name: 'Vorschau deines Stickers' })
     ).toBeInTheDocument();
     expect(removeBackground).toHaveBeenCalledOnce();
+    expect(screen.getByRole('switch', { name: 'Hintergrund entfernen' })).toBeChecked();
     expect(screen.getByRole('switch', { name: 'Kontur' })).toBeChecked();
     expect(screen.getByRole('slider', { name: /Stärke/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Weiter' })).toBeEnabled();
+    const saveButton = screen.getByRole('button', { name: 'Sticker speichern' });
+    await waitFor(() => expect(saveButton).toBeEnabled());
+    await user.click(saveButton);
+    await waitFor(() => expect(body).toMatchObject({ source: 'cutout', title: 'Portrait' }));
+  });
+
+  it('keeps a photo whole when the cutout is switched off', async () => {
+    const { user } = renderWithProviders(<StickerCreatorPage />);
+    await designCutout(user);
+    await screen.findByRole('img', { name: 'Vorschau deines Stickers' });
+
+    await user.click(screen.getByRole('switch', { name: 'Hintergrund entfernen' }));
+    const saveButton = screen.getByRole('button', { name: 'Sticker speichern' });
+    await waitFor(() => expect(saveButton).toBeEnabled());
+    await user.click(saveButton);
+    await waitFor(() => expect(body).toMatchObject({ source: 'upload' }));
   });
 
   it('explains a failed cutout and retries it', async () => {
@@ -288,7 +311,7 @@ describe('StickerCreatorPage', () => {
     await designCutout(user);
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Freistellen ist gerade nicht');
-    expect(screen.getByRole('button', { name: 'Weiter' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Sticker speichern' })).toBeDisabled();
     await user.click(screen.getByRole('button', { name: 'Erneut versuchen' }));
 
     expect(
@@ -297,15 +320,35 @@ describe('StickerCreatorPage', () => {
     expect(removeBackground).toHaveBeenCalledTimes(2);
   });
 
-  it('mounts the badge designer with the default text and enables Weiter', async () => {
+  it('designs a badge whose text moves and resizes on the stage', async () => {
     const { user } = renderWithProviders(<StickerCreatorPage />);
-    await user.click(screen.getByRole('button', { name: /Text-Badge/ }));
+    await user.click(screen.getByRole('radio', { name: 'Text-Badge' }));
 
     expect(screen.getByRole('textbox', { name: 'Text' })).toHaveValue('Jetzt\nGrün wählen!');
-    expect(screen.getByRole('img', { name: /mit „Jetzt Grün wählen!“/ })).toBeInTheDocument();
-    const next = screen.getByRole('button', { name: 'Weiter' });
-    await waitFor(() => expect(next).toBeEnabled());
-    await user.click(next);
-    expect(await screen.findByLabelText('Titel')).toHaveValue('Jetzt Grün wählen!');
+    const stage = screen.getByRole('application', { name: /mit „Jetzt Grün wählen!“/ });
+    expect(screen.getByRole('slider', { name: 'Textgröße' })).toHaveAttribute(
+      'aria-valuenow',
+      '100'
+    );
+
+    stage.focus();
+    await user.keyboard('+');
+    expect(screen.getByRole('slider', { name: 'Textgröße' })).toHaveAttribute(
+      'aria-valuenow',
+      '110'
+    );
+    await user.keyboard('{ArrowRight}');
+    await user.click(screen.getByRole('button', { name: 'Text zurücksetzen' }));
+    expect(screen.getByRole('slider', { name: 'Textgröße' })).toHaveAttribute(
+      'aria-valuenow',
+      '100'
+    );
+    expect(screen.getByRole('button', { name: 'Text zurücksetzen' })).toBeDisabled();
+
+    const saveButton = screen.getByRole('button', { name: 'Sticker speichern' });
+    await waitFor(() => expect(saveButton).toBeEnabled());
+    expect(screen.getByLabelText('Titel')).toHaveValue('Jetzt Grün wählen!');
+    await user.click(saveButton);
+    await waitFor(() => expect(body).toMatchObject({ source: 'badge' }));
   });
 });
