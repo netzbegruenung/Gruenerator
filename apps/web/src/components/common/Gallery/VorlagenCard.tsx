@@ -1,7 +1,7 @@
 import { resolveStoredImageUrl } from '@gruenerator/shared/media-library/shareUrl';
 import { Badge, InteractiveCard } from '@gruenerator/ui';
 import { Bookmark, ExternalLink, Heart, Image as ImageIcon } from 'lucide-react';
-import { memo, useState, type JSX, type ReactNode } from 'react';
+import { memo, useRef, useState, type JSX, type ReactNode } from 'react';
 
 import { galleryCard, overlayAction, overlayRow } from './parts';
 import { getTemplateFormat, ratioLabelFromSize } from './templateFormat';
@@ -90,10 +90,11 @@ const VorlagenCard = memo(
     // A thumbnail that fails to load shows the neutral placeholder, not a broken image.
     const [failedUrl, setFailedUrl] = useState<string | null>(null);
     const showThumbnail = Boolean(thumbnailUrl) && failedUrl !== thumbnailUrl;
-    // Page under the pointer; null while the pointer is elsewhere (page 1 shows).
-    const [scrubbed, setScrubbed] = useState<number | null>(null);
+    // Shown page: follows the pointer across the stage, set by a dot, back to 1 on leave.
+    const [page, setPage] = useState(0);
+    const stageRef = useRef<HTMLDivElement>(null);
     const pageCount = pages && pages.length > 1 ? pages.length : 0;
-    const shownUrl = (scrubbed !== null && resolveApiAssetUrl(pages?.[scrubbed])) || thumbnailUrl;
+    const shownUrl = (page > 0 && resolveApiAssetUrl(pages?.[page])) || thumbnailUrl;
     const format = getTemplateFormat(item, stored ?? measured);
     const title = item.title || 'Unbenannte Vorlage';
     const likesCount = typeof item.likes_count === 'number' ? item.likes_count : 0;
@@ -102,18 +103,27 @@ const VorlagenCard = memo(
     const stop = (e: React.MouseEvent) => e.stopPropagation();
 
     return (
-      <InteractiveCard label={title} onActivate={onOpen} className={galleryCard}>
+      <InteractiveCard
+        label={title}
+        onActivate={onOpen}
+        className={galleryCard}
+        // On the card, not the stage: the card's click surface lies over the
+        // stage and takes every pointer event before the stage could see it.
+        {...(pageCount > 0 && {
+          onPointerMove: (e: React.PointerEvent<HTMLDivElement>) => {
+            if (e.pointerType !== 'mouse' || !stageRef.current) return;
+            const { left, top, width, height } = stageRef.current.getBoundingClientRect();
+            if (e.clientY < top || e.clientY > top + height) return;
+            const x = (e.clientX - left) / width;
+            setPage(Math.min(pageCount - 1, Math.max(0, Math.floor(x * pageCount))));
+          },
+          onPointerLeave: () => setPage(0),
+        })}
+      >
         {/* Square neutral stage — the thumbnail is contained, never cropped. */}
         <div
+          ref={stageRef}
           className="relative flex aspect-square w-full items-center justify-center overflow-hidden bg-background-alt"
-          {...(pageCount > 0 && {
-            onPointerMove: (e: React.PointerEvent<HTMLDivElement>) => {
-              const { left, width } = e.currentTarget.getBoundingClientRect();
-              const x = (e.clientX - left) / width;
-              setScrubbed(Math.min(pageCount - 1, Math.max(0, Math.floor(x * pageCount))));
-            },
-            onPointerLeave: () => setScrubbed(null),
-          })}
         >
           {thumbnailUrl && shownUrl && showThumbnail ? (
             // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- onLoad misst nur die Bildmaße, keine Bedienung
@@ -137,16 +147,30 @@ const VorlagenCard = memo(
             <ImageIcon className="size-8 text-grey-400" aria-hidden="true" />
           )}
 
-          {pageCount > 0 && scrubbed !== null && (
-            <div aria-hidden className="absolute inset-x-3 bottom-2.5 flex gap-1">
+          {/* Always there, so the card says it has pages before anyone points at it. */}
+          {pageCount > 0 && (
+            <div className="absolute inset-x-0 bottom-1 z-[2] flex justify-center">
               {pages?.map((url, i) => (
-                <span
+                <button
                   key={url}
-                  className={cn(
-                    'h-1 flex-1 rounded-full',
-                    i === scrubbed ? 'bg-grey-700 dark:bg-grey-200' : 'bg-grey-300 dark:bg-grey-600'
-                  )}
-                />
+                  type="button"
+                  aria-label={`Seite ${i + 1} von ${pageCount} zeigen`}
+                  aria-current={i === page}
+                  onClick={(e) => {
+                    stop(e);
+                    setPage(i);
+                  }}
+                  className="group/dot flex size-6 items-center justify-center"
+                >
+                  <span
+                    className={cn(
+                      'size-2 rounded-full transition-colors',
+                      i === page
+                        ? 'bg-grey-700 dark:bg-grey-200'
+                        : 'bg-grey-300 group-hover/dot:bg-grey-500 dark:bg-grey-600'
+                    )}
+                  />
+                </button>
               ))}
             </div>
           )}

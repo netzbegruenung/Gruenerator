@@ -86,13 +86,13 @@ describe('SharepicVorlagenCards', () => {
     expect(useAgentStore.getState().pendingDraft).toContain('(vorlage:de-zitat)');
   });
 
-  it('shows every slide of a carousel, and says how many on the card', async () => {
+  it('shows every slide of a carousel, and its dots on the card', async () => {
     const karussell = vorlage('de-karussell', 'de-DE');
     karussell.spec.slides = [0, 1, 2].map(() => karussell.spec.slides[0]!);
     const { user } = renderCards([karussell]);
 
     const card = await screen.findByRole('button', { name: 'Zitat de-karussell' });
-    expect(screen.getByText('3 Seiten')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Seite 3 von 3 zeigen' })).toBeInTheDocument();
 
     await user.click(card);
     const dialog = await screen.findByRole('dialog');

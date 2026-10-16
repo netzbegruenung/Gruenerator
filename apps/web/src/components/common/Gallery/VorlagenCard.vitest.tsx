@@ -101,25 +101,51 @@ describe('VorlagenCard pages', () => {
       />
     );
     const img = screen.getByRole('img', { name: 'Dreizeiler' });
-    const stage = img.parentElement!;
-    vi.spyOn(stage, 'getBoundingClientRect').mockReturnValue({ left: 0, width: 300 } as DOMRect);
-    return { img, stage };
+    vi.spyOn(img.parentElement!, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      width: 300,
+      height: 300,
+    } as DOMRect);
+    // The pointer lands on the card's click surface, which covers the stage.
+    const surface = screen.getByRole('button', { name: 'Dreizeiler' });
+    const move = (clientX: number, clientY = 150) =>
+      fireEvent.pointerMove(surface, { clientX, clientY, pointerType: 'mouse' });
+    return { img, surface, move };
   }
 
-  it('shows the page under the pointer, and page 1 again on leave', () => {
-    const { img, stage } = renderCard(pages);
+  it('shows the page under the mouse, and page 1 again on leave', () => {
+    const { img, surface, move } = renderCard(pages);
     expect(img).toHaveAttribute('src', '/p1.webp');
-    fireEvent.pointerMove(stage, { clientX: 150 });
+    move(150);
     expect(img).toHaveAttribute('src', '/p2.webp');
-    fireEvent.pointerMove(stage, { clientX: 299 });
+    move(299);
     expect(img).toHaveAttribute('src', '/p3.webp');
-    fireEvent.pointerLeave(stage);
+    move(10, 400); // below the stage, over title and format
+    expect(img).toHaveAttribute('src', '/p3.webp');
+    fireEvent.pointerLeave(surface);
     expect(img).toHaveAttribute('src', '/p1.webp');
   });
 
-  it('stays on its thumbnail without further pages', () => {
-    const { img, stage } = renderCard();
-    fireEvent.pointerMove(stage, { clientX: 299 });
+  it('shows a page from its dot without opening the card', async () => {
+    const onOpen = vi.fn();
+    const { container } = render(
+      <VorlagenCard item={{ ...item, thumbnail_url: '/p1.webp' }} pages={pages} onOpen={onOpen} />
+    );
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Seite 3 von 3 zeigen' }));
+    expect(screen.getByRole('img', { name: 'Dreizeiler' })).toHaveAttribute('src', '/p3.webp');
+    expect(screen.getByRole('button', { name: 'Seite 3 von 3 zeigen' })).toHaveAttribute(
+      'aria-current',
+      'true'
+    );
+    expect(onOpen).not.toHaveBeenCalled();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('has no dots and stays put without further pages', () => {
+    const { img, move } = renderCard();
+    move(299);
     expect(img).toHaveAttribute('src', '/p1.webp');
+    expect(screen.queryByRole('button', { name: /Seite 1 von/ })).not.toBeInTheDocument();
   });
 });

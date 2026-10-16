@@ -1,8 +1,13 @@
 import { getCanvasFormat } from '@gruenerator/canvas-editor/formats';
 import { type PrintVorlage } from '@gruenerator/canvas-editor/print-vorlagen';
+import { Button } from '@gruenerator/ui';
+import { Pencil } from 'lucide-react';
 import { type JSX } from 'react';
 
+import { getTemplateFormat } from '../../../components/common/Gallery/templateFormat';
 import VorlagenCard from '../../../components/common/Gallery/VorlagenCard';
+
+import { VorlageDetailDialog } from './VorlageDetailDialog';
 
 /** The gallery's hard-wired category for the print Vorlagen. */
 export const PRINT_TEMPLATE_TYPE = 'print';
@@ -13,20 +18,22 @@ export const printMatches = (v: PrintVorlage, query: string): boolean => {
   return !q || `${v.titel} ${v.beschreibung}`.toLowerCase().includes(q);
 };
 
-const BADGE =
-  'rounded-full bg-[#0f1210]/60 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm';
+const pageCount = (v: PrintVorlage) => getCanvasFormat(v.spec.format)?.print?.seiten ?? 1;
 
-/** A print Vorlage in the gallery: a click opens it as an editable canvas. */
+/** Every page's preview in order; page n > 1 lives next to the thumb as `<thumb>-n.webp`. */
+const printPages = (v: PrintVorlage): string[] =>
+  Array.from({ length: pageCount(v) }, (_, i) =>
+    i === 0 ? v.thumb : v.thumb.replace(/\.webp$/, `-${i + 1}.webp`)
+  );
+
+/** A print Vorlage in the gallery: a click opens its detail dialog. */
 export function PrintVorlageCard({
   vorlage,
-  opening,
   onOpen,
 }: {
   vorlage: PrintVorlage;
-  opening: boolean;
   onOpen: (v: PrintVorlage) => void;
 }): JSX.Element {
-  const seiten = getCanvasFormat(vorlage.spec.format)?.print?.seiten ?? 1;
   return (
     <VorlagenCard
       item={{
@@ -36,18 +43,55 @@ export function PrintVorlageCard({
         thumbnail_url: vorlage.thumb,
         content_data: { format: vorlage.spec.format },
       }}
-      badge={
-        opening ? (
-          <span className={BADGE}>Wird geöffnet …</span>
-        ) : seiten > 1 ? (
-          <span className={BADGE}>{seiten} Seiten</span>
-        ) : undefined
-      }
-      // Page n > 1 of a print Vorlage previews as `<thumb>-n.webp`.
-      pages={Array.from({ length: seiten }, (_, i) =>
-        i === 0 ? vorlage.thumb : vorlage.thumb.replace(/\.webp$/, `-${i + 1}.webp`)
-      )}
+      pages={printPages(vorlage)}
       onOpen={() => onOpen(vorlage)}
+    />
+  );
+}
+
+/** A print Vorlage up close: every page, and the way into the editor. */
+export function PrintVorlageDialog({
+  vorlage,
+  opening,
+  onEdit,
+  onClose,
+}: {
+  vorlage: PrintVorlage;
+  opening: boolean;
+  onEdit: (v: PrintVorlage) => void;
+  onClose: () => void;
+}): JSX.Element {
+  const seiten = pageCount(vorlage);
+  const { formatLabel } = getTemplateFormat({
+    template_type: PRINT_TEMPLATE_TYPE,
+    content_data: { format: vorlage.spec.format },
+  });
+  return (
+    <VorlageDetailDialog
+      onClose={onClose}
+      reactions={false}
+      title={vorlage.titel}
+      description={vorlage.beschreibung}
+      meta={[formatLabel, seiten > 1 && `${seiten} Seiten`].filter(Boolean).join(' · ')}
+      pages={printPages(vorlage).map((src, i) => ({
+        src,
+        alt:
+          seiten > 1
+            ? `Seite ${i + 1} von ${seiten}: ${vorlage.titel}`
+            : `Vorschau: ${vorlage.titel}`,
+      }))}
+      primaryAction={
+        <Button
+          variant="brand"
+          size="brand-md"
+          className="w-full"
+          disabled={opening}
+          onClick={() => onEdit(vorlage)}
+        >
+          <Pencil className="size-4" aria-hidden="true" />
+          {opening ? 'Wird geöffnet …' : 'Bearbeiten'}
+        </Button>
+      }
     />
   );
 }

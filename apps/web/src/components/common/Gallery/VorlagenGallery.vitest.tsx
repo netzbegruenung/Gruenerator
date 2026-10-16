@@ -323,7 +323,7 @@ describe('VorlagenGallery', () => {
       expect(screen.queryByText('Plakat Klima')).not.toBeInTheDocument();
     });
 
-    it('opens a print Vorlage as a canvas in its print format', async () => {
+    it('shows a print Vorlage in a dialog first, then opens it as a canvas in its print format', async () => {
       serve();
       const bodies: Record<string, unknown>[] = [];
       server.use(
@@ -352,6 +352,13 @@ describe('VorlagenGallery', () => {
       const { user } = renderGallery('/vorlagen?cat=print');
 
       await user.click(await screen.findByRole('button', { name: 'Visitenkarte quer' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Visitenkarte quer' });
+      expect(bodies).toEqual([]);
+      expect(
+        within(dialog).getByRole('button', { name: 'Seite 2 von 2 anzeigen' })
+      ).toBeInTheDocument();
+      expect(within(dialog).queryByRole('button', { name: 'Liken' })).not.toBeInTheDocument();
+      await user.click(within(dialog).getByRole('button', { name: 'Bearbeiten' }));
 
       expect(await screen.findByText('Editor geöffnet')).toBeInTheDocument();
       const vorlage = PRINT_VORLAGEN.find((v) => v.id === 'de-visitenkarte-quer')!;

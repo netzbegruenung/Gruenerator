@@ -19,7 +19,7 @@ export const catalogMatches = (v: SharepicVorlage, query: string): boolean => {
 export function catalogCardProps(
   v: SharepicVorlage,
   likesCount: number
-): Pick<VorlagenCardProps, 'item' | 'badge' | 'pages'> {
+): Pick<VorlagenCardProps, 'item' | 'pages'> {
   return {
     item: {
       id: v.id,
@@ -30,12 +30,6 @@ export function catalogCardProps(
       likes_count: likesCount,
     },
     pages: v.spec.slides.map((_, i) => sharepicVorlageThumbPath(v.id, i + 1, v.thumbVersion)),
-    badge:
-      v.spec.slides.length > 1 ? (
-        <span className="rounded-full bg-[#0f1210]/60 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
-          {v.spec.slides.length} Seiten
-        </span>
-      ) : undefined,
   };
 }
 

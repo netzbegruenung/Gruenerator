@@ -40,6 +40,8 @@ interface VorlageDetailDialogProps extends VorlageInteractionProps {
   templateId?: string;
   /** Further sections, set off by a separator. */
   children?: ReactNode;
+  /** False for Vorlagen nobody can like or bookmark, rather than showing both as signed out. */
+  reactions?: boolean;
 }
 
 const ICON = 'size-[18px]';
@@ -60,6 +62,7 @@ export function VorlageDetailDialog({
   share,
   templateId,
   children,
+  reactions = true,
   liked = false,
   onToggleLike,
   likeToggling = false,
@@ -83,32 +86,40 @@ export function VorlageDetailDialog({
         )}
       >
         <div className="absolute top-4 right-4 flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Liken"
-            aria-pressed={liked}
-            title={onToggleLike ? 'Liken' : 'Melde dich an, um zu liken'}
-            disabled={!onToggleLike || likeToggling}
-            className={cn(liked && 'text-red-600 dark:text-red-400')}
-            onClick={onToggleLike}
-          >
-            <Heart aria-hidden className={ICON} fill={liked ? 'currentColor' : 'none'} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Merken"
-            aria-pressed={favorited}
-            title={
-              onToggleFavorite ? (favorited ? 'Gemerkt' : 'Merken') : 'Melde dich an, um zu merken'
-            }
-            disabled={!onToggleFavorite || favoriteToggling}
-            className={cn(favorited && 'text-primary-600 dark:text-primary-400')}
-            onClick={onToggleFavorite}
-          >
-            <Bookmark aria-hidden className={ICON} fill={favorited ? 'currentColor' : 'none'} />
-          </Button>
+          {reactions && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Liken"
+                aria-pressed={liked}
+                title={onToggleLike ? 'Liken' : 'Melde dich an, um zu liken'}
+                disabled={!onToggleLike || likeToggling}
+                className={cn(liked && 'text-red-600 dark:text-red-400')}
+                onClick={onToggleLike}
+              >
+                <Heart aria-hidden className={ICON} fill={liked ? 'currentColor' : 'none'} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Merken"
+                aria-pressed={favorited}
+                title={
+                  onToggleFavorite
+                    ? favorited
+                      ? 'Gemerkt'
+                      : 'Merken'
+                    : 'Melde dich an, um zu merken'
+                }
+                disabled={!onToggleFavorite || favoriteToggling}
+                className={cn(favorited && 'text-primary-600 dark:text-primary-400')}
+                onClick={onToggleFavorite}
+              >
+                <Bookmark aria-hidden className={ICON} fill={favorited ? 'currentColor' : 'none'} />
+              </Button>
+            </>
+          )}
           {share && (
             <Button
               variant="ghost"
@@ -129,7 +140,7 @@ export function VorlageDetailDialog({
         </div>
 
         <div className="flex flex-col gap-2">
-          <div className="flex aspect-[4/5] items-center justify-center overflow-hidden rounded-2xl bg-background-alt">
+          <div className="flex aspect-[4/5] max-h-[55dvh] items-center justify-center overflow-hidden rounded-2xl bg-background-alt">
             {current ? (
               <img src={current.src} alt={current.alt} className="size-full object-contain" />
             ) : (
