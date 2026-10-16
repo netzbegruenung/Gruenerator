@@ -1,8 +1,9 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, renderHook, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CanvasEditorProvider } from '../../CanvasEditorProvider';
+import { useTrackUnsplashDownload } from '../../hooks/useTrackUnsplashDownload';
 import { ELEMENT_DRAG_TYPE, MEDIA_DRAG_TYPE } from '../../utils/mediaDrop';
 import { ElementsPanel } from '../sections/assets/ElementsPanel';
 import { dragDataFor } from '../sections/assets/elementTypes';
@@ -349,6 +350,24 @@ describe('stock photo tiles', () => {
     expect(tile.keywords).toEqual(expect.arrayContaining(['Fahrrad', 'train']));
     // Media, not element: a drop onto a frame fills the frame with the photo.
     expect(dragDataFor(tile.action)?.type).toBe(MEDIA_DRAG_TYPE);
+  });
+
+  it('ping Unsplash on placement only when the photo has a download location', () => {
+    const trackUnsplashDownloadLive = vi.fn(() => Promise.resolve());
+    const { result } = renderHook(() => useTrackUnsplashDownload(), {
+      wrapper: ({ children }) => (
+        <CanvasEditorProvider services={{ trackUnsplashDownloadLive }}>
+          {children}
+        </CanvasEditorProvider>
+      ),
+    });
+    const credit = { photographer: 'Ana', profileUrl: 'https://u/ana', photoUrl: 'https://u/p' };
+
+    result.current('a.jpg', credit);
+    expect(trackUnsplashDownloadLive).not.toHaveBeenCalled();
+
+    result.current('a.jpg', { ...credit, downloadLocation: 'https://api.unsplash.com/d/1' });
+    expect(trackUnsplashDownloadLive).toHaveBeenCalledWith('https://api.unsplash.com/d/1');
   });
 
   it('carry no credit when the catalogue has only the placeholder', () => {

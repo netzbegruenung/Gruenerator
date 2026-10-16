@@ -1,5 +1,6 @@
 import React, { useCallback, useState, memo } from 'react';
 
+import { useTrackUnsplashDownload } from '../../hooks/useTrackUnsplashDownload';
 import { cn } from '../../utils/cn';
 import {
   isElementDrag,
@@ -113,6 +114,7 @@ export const PageWrapper = memo(function PageWrapper({
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setIsDropTarget(false);
   }, []);
+  const trackDownload = useTrackUnsplashDownload();
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       setIsDropTarget(false);
@@ -127,10 +129,11 @@ export const PageWrapper = memo(function PageWrapper({
       if (!media && !element) return;
       e.preventDefault();
       if (!isActive) onSelect(index);
-      if (media) canvasRef.current?.dropMedia(e, media);
-      else if (element) canvasRef.current?.dropElement(e, element);
+      if (media) {
+        if (canvasRef.current?.dropMedia(e, media)) trackDownload(media.name, media.attribution);
+      } else if (element) canvasRef.current?.dropElement(e, element);
     },
-    [isActive, onSelect, index, canvasRef, onDropVorlage]
+    [isActive, onSelect, index, canvasRef, onDropVorlage, trackDownload]
   );
 
   const handleKeyDown = useCallback(
