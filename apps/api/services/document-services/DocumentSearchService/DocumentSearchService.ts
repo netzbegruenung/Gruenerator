@@ -137,13 +137,9 @@ async function hideTrashedDocuments(response: SearchResponse): Promise<SearchRes
   return { ...response, results: response.results.filter((r) => !trashed.has(r.document_id)) };
 }
 
-const QDRANT_RECONNECT_INTERVAL_MS = 30_000;
-
 export class DocumentSearchService extends BaseSearchService {
   private qdrant: QdrantService;
   private qdrantOps: QdrantOperations | null;
-  private lastConnectAttemptAt: number;
-  private connecting: Promise<void> | null;
   private qdrantAvailable: boolean;
   private hybridConfig: HybridConfig;
 
@@ -156,8 +152,6 @@ export class DocumentSearchService extends BaseSearchService {
 
     this.qdrant = getQdrantInstance();
     this.qdrantOps = null;
-    this.lastConnectAttemptAt = 0;
-    this.connecting = null;
     this.qdrantAvailable = false;
     this.hybridConfig = vectorConfig.get('hybrid');
   }
@@ -169,27 +163,14 @@ export class DocumentSearchService extends BaseSearchService {
    * Called automatically before search operations.
    */
   async ensureInitialized(): Promise<void> {
+    // QdrantService throttles reconnects, so asking again on every call is cheap.
     if (this.qdrantOps) return;
-    if (this.connecting) return this.connecting;
-    // A failed connect costs seconds of backoff, so retry at most every 30 s
-    // instead of on every request while Qdrant is down.
-    if (Date.now() - this.lastConnectAttemptAt < QDRANT_RECONNECT_INTERVAL_MS) return;
-    this.lastConnectAttemptAt = Date.now();
 
-    this.connecting = this.connect().finally(() => {
-      this.connecting = null;
-    });
-    return this.connecting;
-  }
-
-  private async connect(): Promise<void> {
     await this.qdrant.init();
     this.qdrantAvailable = !!this.qdrant?.client && !!this.qdrant?.isConnected;
 
     if (this.qdrantAvailable && this.qdrant.client) {
       this.qdrantOps = new QdrantOperations(this.qdrant.client);
-    } else {
-      console.warn('[DocumentSearchService] Qdrant not available; vector searches will be skipped');
     }
   }
 
