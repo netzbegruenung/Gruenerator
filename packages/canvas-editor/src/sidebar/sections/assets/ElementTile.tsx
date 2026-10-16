@@ -3,6 +3,7 @@ import { FaCheck } from 'react-icons/fa';
 
 import { cn } from '../../../utils/cn';
 import { onThumbnailHover } from '../../../utils/illustrations/svgCache';
+import { takeDropPlaced } from '../../../utils/mediaDrop';
 
 import { ElementThumb, thumbFillsTile, thumbNeedsDarkTile } from './ElementThumb';
 import { dragDataFor, type ElementItem } from './elementTypes';
@@ -34,14 +35,29 @@ interface ElementTileProps {
   eager?: boolean;
 }
 
-function startDrag(e: DragEvent<HTMLButtonElement>, item: ElementItem) {
-  const drag = dragDataFor(item.action);
-  if (!drag) return;
-  e.dataTransfer.setData(drag.type, drag.data);
-  e.dataTransfer.effectAllowed = 'copy';
-  const preview = e.currentTarget.querySelector<HTMLElement>('[data-tile-face]');
-  if (preview)
-    e.dataTransfer.setDragImage(preview, preview.offsetWidth / 2, preview.offsetHeight / 2);
+/**
+ * Makes a button drag `item` onto a page, previewed by its `[data-tile-face]`
+ * or else its image. A drop the page accepted counts like a click for
+ * "Zuletzt verwendet".
+ */
+export function elementDragProps(item: ElementItem) {
+  return {
+    draggable: true,
+    onDragStart: (e: DragEvent<HTMLElement>) => {
+      takeDropPlaced();
+      const drag = dragDataFor(item.action);
+      e.dataTransfer.setData(drag.type, drag.data);
+      e.dataTransfer.effectAllowed = 'copy';
+      const preview =
+        e.currentTarget.querySelector<HTMLElement>('[data-tile-face]') ??
+        e.currentTarget.querySelector<HTMLElement>('img');
+      if (preview)
+        e.dataTransfer.setDragImage(preview, preview.offsetWidth / 2, preview.offsetHeight / 2);
+    },
+    onDragEnd: () => {
+      if (takeDropPlaced()) useRecentElements.getState().remember(item);
+    },
+  };
 }
 
 export const ElementTile = memo(function ElementTile({
@@ -56,7 +72,10 @@ export const ElementTile = memo(function ElementTile({
 }: ElementTileProps) {
   const fills = thumbFillsTile(item.thumb);
   const dark = thumbNeedsDarkTile(item.thumb);
-  const draggable = canDrag && !disabled && item.action.kind !== 'icon';
+  // `selected`/`disabled` describe the active page; a drag can target another
+  // page, whose canvas decides on the drop. Hence `aria-disabled`: a disabled
+  // button starts no drag.
+  const draggable = canDrag;
   const svgDef = item.thumb.t === 'svg' ? item.thumb.def : null;
 
   return (
@@ -73,19 +92,11 @@ export const ElementTile = memo(function ElementTile({
         title={item.label}
         aria-label={`${item.label} hinzufügen`}
         {...(item.action.kind === 'icon' ? { 'aria-pressed': selected } : {})}
-        disabled={disabled}
-        draggable={draggable}
-        {...(draggable
-          ? {
-              onDragStart: (e: DragEvent<HTMLButtonElement>) => startDrag(e, item),
-              // A drop the page accepted counts like a click for "Zuletzt verwendet".
-              onDragEnd: (e: DragEvent<HTMLButtonElement>) => {
-                if (e.dataTransfer.dropEffect !== 'none')
-                  useRecentElements.getState().remember(item);
-              },
-            }
-          : {})}
-        onClick={() => onActivate(item)}
+        aria-disabled={disabled}
+        {...(draggable ? elementDragProps(item) : { draggable: false })}
+        onClick={() => {
+          if (!disabled) onActivate(item);
+        }}
         {...(svgDef ? { onPointerEnter: () => onThumbnailHover(svgDef.id, svgDef) } : {})}
         className={cn(
           'group/tile relative grid place-items-center w-full rounded-xl p-0 border cursor-pointer',
@@ -108,7 +119,7 @@ export const ElementTile = memo(function ElementTile({
           className={cn(
             'relative grid place-items-center',
             fills ? 'absolute inset-0' : INNER[variant],
-            'transition-transform group-hover/tile:scale-[1.04] group-disabled/tile:scale-100',
+            'transition-transform group-hover/tile:scale-[1.04] group-aria-disabled/tile:scale-100',
             'motion-reduce:transition-none'
           )}
         >

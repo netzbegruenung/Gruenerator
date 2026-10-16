@@ -104,7 +104,7 @@ export interface BaseCanvasActions {
   removeAsset: (id: string) => void;
 
   // Icon management
-  toggleIcon: (id: string, selected: boolean) => void;
+  toggleIcon: (id: string, selected: boolean, options?: ElementPlacement) => void;
   updateIcon: (id: string, partial: Partial<IconState>) => void;
 
   // Shape management
