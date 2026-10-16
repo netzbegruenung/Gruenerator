@@ -11,7 +11,6 @@ import { buildSystemMessage } from '../../../agents/langgraph/ChatGraph/index.js
 import { withLangfuseTrace } from '../../../services/telemetry/langfuseTelemetry.js';
 import { streamAgenticResponse } from '../services/agenticLoop/agenticRespondService.js';
 import { applyCompaction, pruneMessages } from '../services/contextPruningService.js';
-import { resolveLaneContextFloor } from '../services/laneContextFloor.js';
 
 import { liftLoopOutcome } from './loopResumeEnd.js';
 
@@ -100,31 +99,16 @@ export async function runAgenticAnswer({
     retrievalExpected: true,
     loop: true,
   });
-  // `contextWindowTokens` was computed before the classifier ran, when `auto`
-  // had no concrete model yet (→ the conservative 32k default). Unlike the
-  // single-pass sibling this path cannot ask the resolution — `resolveModel`
-  // runs inside streamAgenticResponse, i.e. after this line. The lane FLOOR is
-  // the part that can be known here without side effects; see
-  // laneContextFloor.ts for why a floor and not the real window.
-  //
-  // It must be resolved before pruning, not just before compaction: pruning
-  // physically drops the oldest turns, and the compaction threshold derived
-  // from the stale default (`min(32768 × 0,4, 24000)` = 13.107) summarised
-  // agentic threads roughly twice as early as single-pass ones.
-  const laneFloor = resolveLaneContextFloor(modelId);
-  const budgetedContextWindow = Math.max(laneFloor ?? 0, contextWindowTokens);
+  // `contextWindowTokens` already carries the lane floor (turnContextWindow in
+  // streamContext): this path cannot ask the resolution — `resolveModel` runs
+  // inside streamAgenticResponse, i.e. after pruning.
   const prunedValidMessages = pruneMessages(
     validMessages as Parameters<typeof pruneMessages>[0],
-    budgetedContextWindow,
+    contextWindowTokens,
     systemMessage
   );
   const { systemMessage: finalSystemMessage, messages: contextMessages } = actualThreadId
-    ? await applyCompaction(
-        actualThreadId,
-        prunedValidMessages,
-        systemMessage,
-        budgetedContextWindow
-      )
+    ? await applyCompaction(actualThreadId, prunedValidMessages, systemMessage, contextWindowTokens)
     : { systemMessage, messages: prunedValidMessages };
 
   // The loop's gather/synth generations nest under this root span — they
