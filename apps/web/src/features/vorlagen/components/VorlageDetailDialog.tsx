@@ -129,23 +129,37 @@ export function VorlageDetailDialog({
         </div>
 
         <div className="flex flex-col gap-2">
-          <div className="relative flex aspect-[4/5] items-center justify-center overflow-hidden rounded-2xl bg-background-alt">
+          <div className="flex aspect-[4/5] items-center justify-center overflow-hidden rounded-2xl bg-background-alt">
             {current ? (
               <img src={current.src} alt={current.alt} className="size-full object-contain" />
             ) : (
               <span className="text-sm text-grey-500">Keine Vorschau verfügbar</span>
             )}
-            {pages.length > 1 && (
-              <button
-                type="button"
-                onClick={() => setPage((page + 1) % pages.length)}
-                aria-label={`Nächste Seite, gerade Seite ${page + 1} von ${pages.length}`}
-                className="absolute right-3.5 bottom-3.5 rounded-full bg-white/90 px-3 py-1.5 text-[13px] text-[#1c2b24] transition-colors hover:bg-white"
-              >
-                {page + 1} / {pages.length} →
-              </button>
-            )}
           </div>
+          {/* Every page at a glance; pointing at one is enough to show it large. */}
+          {pages.length > 1 && (
+            <div role="group" aria-label="Seiten" className="flex gap-2 overflow-x-auto pb-1">
+              {pages.map((p, i) => (
+                <button
+                  key={p.src}
+                  type="button"
+                  aria-label={`Seite ${i + 1} von ${pages.length} anzeigen`}
+                  aria-current={i === page}
+                  onClick={() => setPage(i)}
+                  onMouseEnter={() => setPage(i)}
+                  onFocus={() => setPage(i)}
+                  className={cn(
+                    'h-20 shrink-0 overflow-hidden rounded-lg border-2 bg-background-alt transition-colors',
+                    i === page
+                      ? 'border-primary-600 dark:border-primary-400'
+                      : 'border-transparent hover:border-grey-300 dark:hover:border-grey-600'
+                  )}
+                >
+                  <img src={p.src} alt="" className="h-full w-auto" />
+                </button>
+              ))}
+            </div>
+          )}
           {credits}
         </div>
 
