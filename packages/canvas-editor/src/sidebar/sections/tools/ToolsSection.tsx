@@ -6,6 +6,7 @@ import { PiArrowLeft, PiCaretRightBold, PiDropSimpleFill, PiPath } from 'react-i
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { useIsCanvasMobile } from '../../../hooks/useIsCanvasMobile';
 import { cn } from '../../../utils/cn';
+import { BRAND_COLORS } from '../../../utils/shapes';
 
 import { AiCreateTool } from './AiCreateTool';
 import { AiEditTool } from './AiEditTool';
@@ -49,6 +50,8 @@ interface ToolCard {
   available: boolean;
 }
 
+const brandColor = (id: string) => BRAND_COLORS.find((c) => c.id === id)?.value;
+
 // The letters carry the gradient themselves, so the tile shows what the tool makes.
 function GradientTextIcon({ size = 24, className }: { size?: number; className?: string }) {
   const gradientId = useId();
@@ -56,8 +59,8 @@ function GradientTextIcon({ size = 24, className }: { size?: number; className?:
     <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden="true">
       <defs>
         <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor="#8ABD24" />
-          <stop offset="1" stopColor="#0BA1DD" />
+          <stop offset="0" stopColor={brandColor('grashalm')} />
+          <stop offset="1" stopColor={brandColor('himmel')} />
         </linearGradient>
       </defs>
       <text
