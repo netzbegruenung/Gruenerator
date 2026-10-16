@@ -174,7 +174,7 @@ export interface DreizeilenFullActions {
   handleBackgroundImageTransformEnd: (width: number, height: number) => void;
 
   // === Icon Actions ===
-  toggleIcon: (iconId: string, selected: boolean) => void;
+  toggleIcon: (iconId: string, selected: boolean, options?: ElementPlacement) => void;
   updateIcon: (iconId: string, partial: Partial<DreizeilenFullState['iconStates'][string]>) => void;
   handleIconDragEnd: (iconId: string, x: number, y: number) => void;
 

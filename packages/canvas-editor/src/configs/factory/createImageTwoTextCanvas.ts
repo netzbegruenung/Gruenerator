@@ -138,7 +138,7 @@ export interface ImageTwoTextActions {
   addStickerAsset: (ref: StickerRef, options?: ElementPlacement) => void;
   updateAsset: (id: string, partial: Partial<AssetInstance>) => void;
   removeAsset: (id: string) => void;
-  toggleIcon: (id: string, selected: boolean) => void;
+  toggleIcon: (id: string, selected: boolean, options?: ElementPlacement) => void;
   updateIcon: (id: string, partial: Partial<IconState>) => void;
   addShape: (type: ShapeType, color?: string, options?: ElementPlacement) => void;
   updateShape: (id: string, partial: Partial<ShapeInstance>) => void;

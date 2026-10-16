@@ -10,7 +10,7 @@ import {
   galleryScopeEmptyText,
   useStudioAssets,
 } from '@gruenerator/shared/studio-assets';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ButtonHTMLAttributes } from 'react';
 
 import { cn } from '../../utils/cn';
 
@@ -80,6 +80,7 @@ export function StudioGalleryGrid({
   selectedSrc = null,
   refreshToken = 0,
   onPick,
+  dragProps,
 }: {
   kind: StudioAssetKind;
   scope: StudioAssetScope;
@@ -91,6 +92,10 @@ export function StudioGalleryGrid({
   /** Bumping it refetches the list (the query cache would otherwise keep it for minutes). */
   refreshToken?: number;
   onPick: (item: StudioAssetItem) => void;
+  /** Lets a tile be dragged onto a page; unset leaves the tiles click-only. */
+  dragProps?: (
+    item: StudioAssetItem
+  ) => Pick<ButtonHTMLAttributes<HTMLButtonElement>, 'draggable' | 'onDragStart' | 'onDragEnd'>;
 }) {
   const q = query.trim().slice(0, MAX_QUERY);
   const { items, isLoading, isError, hasNextPage, isFetchingNextPage, fetchNextPage, refetch } =
@@ -131,8 +136,10 @@ export function StudioGalleryGrid({
             aria-busy={pendingId === item.id}
             {...(selectedSrc === null ? {} : { 'aria-pressed': selectedSrc === item.src })}
             onClick={() => onPick(item)}
+            {...dragProps?.(item)}
             className={cn(
               'relative flex items-center justify-center overflow-hidden rounded-lg border-none cursor-pointer bg-[var(--editor-tile)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)]',
+              dragProps && 'active:cursor-grabbing',
               kind === 'sticker' ? 'aspect-square p-2' : 'aspect-[4/3] p-0',
               selectedSrc === item.src &&
                 'shadow-[0_0_0_2px_var(--editor-surface),0_0_0_4px_var(--editor-accent)]'

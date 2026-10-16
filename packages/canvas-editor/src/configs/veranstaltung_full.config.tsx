@@ -136,7 +136,7 @@ export interface VeranstaltungFullActions {
   updateAsset: (id: string, partial: Partial<AssetInstance>) => void;
   removeAsset: (id: string) => void;
   // Icons & Shapes
-  toggleIcon: (id: string, selected: boolean) => void;
+  toggleIcon: (id: string, selected: boolean, options?: ElementPlacement) => void;
   updateIcon: (
     id: string,
     partial: {

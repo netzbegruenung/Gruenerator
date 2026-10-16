@@ -49,6 +49,7 @@ import { canvasFontFamilies } from '../utils/canvasFontFamilies';
 import { buildCanvasItems, buildSortedRenderList } from '../utils/canvasLayerManager';
 import { captureStageImage, captureStageImageAsync } from '../utils/captureStage';
 import { ensureFontsReady } from '../utils/ensureFontsReady';
+import { MAX_ICON_SELECTIONS, selectedCatalogIconIds } from '../utils/iconInstances';
 import { locateDrop, type ElementDragPayload, type MediaDragPayload } from '../utils/mediaDrop';
 import { PendingImagesContext } from '../utils/pendingImages';
 import { stageCssScale } from '../utils/stageCssScale';
@@ -762,6 +763,18 @@ function GenericCanvasWithRef<
             if (!actions.addBalken) return false;
             actions.addBalken(payload.mode, placement);
             return true;
+          case 'icon': {
+            if (!actions.toggleIcon) return false;
+            // This page's icons; the sidebar's limit counts the active page's.
+            const { selectedIcons, iconStates } = liveStateRef.current.state as Partial<
+              Pick<BaseCanvasState, 'selectedIcons' | 'iconStates'>
+            >;
+            const onPage = selectedCatalogIconIds(selectedIcons, iconStates);
+            if (onPage.includes(payload.iconId) || onPage.length >= MAX_ICON_SELECTIONS)
+              return false;
+            actions.toggleIcon(payload.iconId, true, placement);
+            return true;
+          }
         }
       },
       undo,
