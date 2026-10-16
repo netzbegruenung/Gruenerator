@@ -109,7 +109,8 @@ export function cropPresetUpdate(
   };
 }
 
-const TARGET_MAX_DIMENSION = 300;
+/** A new image fits this share of the canvas on both axes; it is never upscaled past its own size. */
+const CANVAS_FIT_SHARE = 0.6;
 const FALLBACK_WIDTH = 300;
 const FALLBACK_HEIGHT = 200;
 
@@ -117,9 +118,17 @@ function makeId(): string {
   return `user-image-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
-function scaleToTarget(naturalW: number, naturalH: number): { width: number; height: number } {
-  const maxDim = Math.max(naturalW, naturalH);
-  const scaleFactor = maxDim > TARGET_MAX_DIMENSION ? TARGET_MAX_DIMENSION / maxDim : 1;
+export function fitToCanvas(
+  naturalW: number,
+  naturalH: number,
+  canvasWidth: number,
+  canvasHeight: number
+): { width: number; height: number } {
+  const scaleFactor = Math.min(
+    1,
+    (canvasWidth * CANVAS_FIT_SHARE) / naturalW,
+    (canvasHeight * CANVAS_FIT_SHARE) / naturalH
+  );
   return { width: naturalW * scaleFactor, height: naturalH * scaleFactor };
 }
 
@@ -234,7 +243,12 @@ export function createUserImageInstanceFromUrl(
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
-      const { width, height } = scaleToTarget(img.naturalWidth, img.naturalHeight);
+      const { width, height } = fitToCanvas(
+        img.naturalWidth,
+        img.naturalHeight,
+        canvasWidth,
+        canvasHeight
+      );
       resolve(makeInstance(url, fileName, width, height, canvasWidth, canvasHeight, options));
     };
     img.onerror = () => {
