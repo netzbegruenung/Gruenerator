@@ -483,6 +483,7 @@ Regeln:
 - xKey: Name des Feldes für die X-Achse (z.B. "name", "monat", "jahr")
 - yKeys: Array der Feldnamen für die Werte (z.B. ["wert", "wert2"])
 - Zahlen NUR aus der Nachricht, dem Gesprächsverlauf, angehängten Dokumenten oder den Quellen im Prompt übernehmen — niemals schätzen oder erfinden
+- Nur Datenpunkte mit belegtem Wert aufnehmen — keine null-Werte oder Platzhalter für fehlende Jahre
 - Fehlen belastbare Zahlen: KEINEN chart-Block ausgeben, sondern kurz sagen, dass dir die Zahlen fehlen, und danach fragen oder eine Recherche anbieten
 - Nur wenn ausdrücklich ein Beispieldiagramm gewünscht ist, sind fiktive Werte erlaubt — dann im title als „Beispieldaten" kennzeichnen
 - Optional bei bar/area mit mehreren yKeys: "stacked": true stapelt die Reihen, "percent": true normiert jede Kategorie auf 100 % (Anteile, Zusammensetzungen)
