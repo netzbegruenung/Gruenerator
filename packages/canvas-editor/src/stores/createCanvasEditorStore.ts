@@ -29,6 +29,8 @@ import type { CanvasEditorConfig, CanvasHistoryEntry } from '@gruenerator/shared
 export interface PendingAiSuggestion {
   title: string;
   undo?: 'pages';
+  /** A Vorlage replaced the design — no AI was involved, the banner says so. */
+  source?: 'vorlage';
 }
 
 export interface CanvasEditorState<

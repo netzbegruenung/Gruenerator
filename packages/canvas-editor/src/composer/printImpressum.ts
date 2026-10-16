@@ -10,6 +10,11 @@ const PREFIX = { 'de-DE': 'V.i.S.d.P.:', 'de-AT': 'Impressum:' } as const;
 
 export type ImpressumLocale = keyof typeof PREFIX;
 
+/** Austrian pages (`freeform-at`) carry the AT prefix, every other page the DE one. */
+export function impressumLocaleOf(page: { configId: string } | null): ImpressumLocale {
+  return page?.configId === 'freeform-at' ? 'de-AT' : 'de-DE';
+}
+
 export interface ImpressumParts {
   /** Name (DE) or Medieninhaber (AT). */
   name: string;

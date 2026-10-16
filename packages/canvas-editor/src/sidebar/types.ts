@@ -1,6 +1,5 @@
-import type { IconType } from 'react-icons';
-
 import type { AdditionalText } from '../configs/types';
+import type { IconType } from 'react-icons';
 
 /**
  * All possible sidebar tab IDs.
@@ -27,6 +26,8 @@ export type SidebarTabId =
   | 'uploads'
   | 'tools'
   | 'chat'
+  // Editor-level: the whole document, not a page (components/CanvasEditor/vorlagenTab.ts)
+  | 'vorlagen'
   // Legacy/template-specific tab IDs (for backwards compatibility)
   | 'fontsize'
   | 'assets'

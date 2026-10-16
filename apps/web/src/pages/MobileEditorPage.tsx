@@ -95,7 +95,7 @@ export default function MobileEditorPage() {
   };
 
   return (
-    <WebCanvasEditorProvider allowStickerCreator={false}>
+    <WebCanvasEditorProvider allowStickerCreator={false} allowVorlagen={false}>
       <MasterCanvasEditor
         type={data.type}
         initialState={initialState}
