@@ -28,6 +28,8 @@ export interface TemplateInfo {
    * template has one fixed 4:5 sheet and belongs only in 4:5 documents.
    */
   followsFormat?: true;
+  /** Opened by its own host only (the sticker creator), never offered in a picker. */
+  hiddenFromPicker?: true;
 }
 
 /**
@@ -97,6 +99,15 @@ export const TEMPLATE_REGISTRY: Record<CanvasConfigId, TemplateInfo> = {
     description: 'Profilbild mit transparentem Vordergrund auf farbigem Hintergrund',
     previewImage: '/imagine/previews/profilbild-preview.webp',
     category: 'profilbild',
+  },
+  sticker: {
+    id: 'sticker',
+    label: 'Sticker',
+    description: 'Transparente Fläche für einen Sticker',
+    previewImage: '/imagine/previews/freeform-preview.webp',
+    category: 'profilbild',
+    audience: 'all',
+    hiddenFromPicker: true,
   },
 
   // Österreich (de-AT) variants — kein Info-Sujet, das gibt es nur für de-DE
@@ -177,6 +188,7 @@ function templateAudience(t: TemplateInfo): TemplateAudience {
  */
 export function getTemplatesForLocale(locale: BrandLocale): TemplateInfo[] {
   return getAllTemplates().filter((t) => {
+    if (t.hiddenFromPicker) return false;
     const a = templateAudience(t);
     return a === 'all' || a === locale;
   });

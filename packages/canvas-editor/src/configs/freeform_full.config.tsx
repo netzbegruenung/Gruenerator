@@ -222,16 +222,18 @@ function composerPlanesFor(
 
 // Freeform hat kein Layout, das an einem Seitenverhältnis hängt: es nimmt das
 // Format der Leinwand (4:5 oder 3:4) als eigenes Blatt, statt es zu strecken.
-export const createFreeformFullConfig = ({
-  width,
-  height,
-}: CanvasFormat): FullCanvasConfig<FreeformState, FreeformActions> =>
-  withFreeformAi(createFreeformAiCapabilities(width, height), width, height);
+export const createFreeformFullConfig = (
+  { width, height }: CanvasFormat,
+  /** Colour of newly added text; white suits the default Tanne sheet. */
+  { fontColor = '#FFFFFF' }: { fontColor?: string } = {}
+): FullCanvasConfig<FreeformState, FreeformActions> =>
+  withFreeformAi(createFreeformAiCapabilities(width, height), width, height, fontColor);
 
 const withFreeformAi = (
   ai: TemplateAiCapabilities<FreeformState, FreeformActions>,
   width: number,
-  height: number
+  height: number,
+  fontColor: string
 ): FullCanvasConfig<FreeformState, FreeformActions> => ({
   id: 'freeform',
 
@@ -428,7 +430,7 @@ const withFreeformAi = (
       debouncedSaveToHistory,
       width,
       height,
-      '#FFFFFF'
+      fontColor
     );
 
     return {

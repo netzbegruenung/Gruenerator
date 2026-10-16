@@ -1,43 +1,20 @@
 import { type StudioAssetItem } from '@gruenerator/contracts';
-import {
-  assetFormBody,
-  emptyAssetForm,
-  isAssetFormComplete,
-  TITLE_MAX,
-  useStudioAssetMutations,
-  type StudioAssetFormValues,
-} from '@gruenerator/shared/studio-assets';
-import { slugifyName } from '@gruenerator/shared/utils';
-import {
-  Alert,
-  AlertDescription,
-  Button,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-  toast,
-  ToggleGroup,
-  ToggleGroupItem,
-} from '@gruenerator/ui';
-import { useCallback, useRef, useState, type FormEvent, type JSX, type ReactNode } from 'react';
-import { PiCheckCircle, PiImageSquare, PiTextAa } from 'react-icons/pi';
+import { Button, ToggleGroup, ToggleGroupItem } from '@gruenerator/ui';
+import { useCallback, useState, type JSX, type ReactNode } from 'react';
+import { PiCheckCircle, PiImageSquare, PiPaintBrush, PiTextAa } from 'react-icons/pi';
 import { Link } from 'react-router-dom';
 
 import { useAuthStore } from '../../../stores/authStore';
-import { uploadBlobToMediaShare } from '../../image-studio/services/mediaUploadService';
-import { CHECKERBOARD } from '../../studio-tools/components/ToolResultCard';
 import { profilbildAssetHref } from '../../studio-tools/utils/galleryAsset';
-import { StudioAssetFormFields } from '../StudioAssetFormFields';
 
 import { BadgeDesigner } from './BadgeDesigner';
 import { useObjectUrl, type DesignerParts, type StickerDraft } from './creatorParts';
 import { ImageStickerDesigner } from './ImageStickerDesigner';
+import { StickerSaveDialog } from './StickerSaveDialog';
 
 import { cn } from '@/utils/cn';
 
 const GALLERY_PATH = '/studio/sticker';
-const UPLOAD_ERROR = 'Das Hochladen hat nicht geklappt. Bitte versuche es erneut.';
 
 export type StickerCreatorReturn = 'profilbild' | 'canvas' | null;
 
@@ -75,87 +52,29 @@ export function StickerCreator({
   onCreated,
 }: StickerCreatorProps): JSX.Element {
   const locale = useAuthStore((s) => s.locale);
-  const { create } = useStudioAssetMutations();
-
   const [kind, setKind] = useState<CreatorKind>('image');
   const [session, setSession] = useState(0);
   const [draft, setDraft] = useState<StickerDraft | null>(null);
   const [created, setCreated] = useState<StudioAssetItem | null>(null);
-  const [form, setForm] = useState<StudioAssetFormValues>(() => emptyAssetForm(locale));
-  // Until the title is typed into, it follows the design (file name or badge text).
-  const titleTouched = useRef(false);
-  const uploaded = useRef<{ blob: Blob; token: string } | null>(null);
-  const [busy, setBusy] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const draftUrl = useObjectUrl(draft?.blob ?? null);
 
-  const takeDraft = useCallback((next: StickerDraft | null) => {
-    setDraft(next);
-    if (next && !titleTouched.current)
-      setForm((f) => ({ ...f, title: next.suggestedTitle.slice(0, TITLE_MAX) }));
-  }, []);
-
-  const changeForm = (next: StudioAssetFormValues) => {
-    if (next.title !== form.title) titleTouched.current = true;
-    setForm(next);
-  };
+  const takeDraft = useCallback((next: StickerDraft | null) => setDraft(next), []);
 
   const switchKind = (next: CreatorKind) => {
     setKind(next);
     setDraft(null);
-    setError(null);
   };
 
   const startOver = () => {
     setSession((n) => n + 1);
     setDraft(null);
     setCreated(null);
-    setForm(emptyAssetForm(locale));
-    titleTouched.current = false;
-    setError(null);
   };
 
-  const canSave = !!draft && isAssetFormComplete(form) && !busy;
-
-  const save = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!draft || !canSave) return;
-    setBusy(true);
-    setError(null);
-    // A retry after a failed create reuses the upload instead of orphaning another file.
-    const shareToken =
-      uploaded.current?.blob === draft.blob
-        ? uploaded.current.token
-        : await uploadBlobToMediaShare(draft.blob, {
-            filename: `${slugifyName(form.title, 'sticker')}.png`,
-            uploadSource: 'studio-asset',
-          }).catch(() => null);
-    if (!shareToken) {
-      setError(UPLOAD_ERROR);
-      setBusy(false);
-      return;
-    }
-    uploaded.current = { blob: draft.blob, token: shareToken };
-    try {
-      const item = await create.mutateAsync({
-        shareToken,
-        kind: 'sticker',
-        source: draft.source,
-        ...assetFormBody(form),
-      });
-      toast.success(`„${item.title}“ ist gespeichert.`);
-      setSaveOpen(false);
-      if (onCreated) {
-        onCreated(item);
-        return;
-      }
-      setCreated(item);
-    } catch {
-      // The create error is toasted by the global mutation handler.
-    } finally {
-      setBusy(false);
-    }
+  const saved = (item: StudioAssetItem) => {
+    if (onCreated) onCreated(item);
+    else setCreated(item);
   };
 
   const shell = ({ stage, controls }: DesignerParts) => (
@@ -239,15 +158,20 @@ export function StickerCreator({
           </ToggleGroup>
         )}
         <div className="flex flex-none items-center justify-end gap-2">
+          {created || onCreated ? null : (
+            <Button asChild variant="outline" className="max-md:hidden">
+              <Link to={`/studio/sticker/gestalten${returnTo ? `?return=${returnTo}` : ''}`}>
+                <PiPaintBrush aria-hidden="true" className="size-[18px]" />
+                Im Editor gestalten
+              </Link>
+            </Button>
+          )}
           {created ? null : (
             <Button
               type="button"
               variant="brand"
               disabled={!draft}
-              onClick={() => {
-                setError(null);
-                setSaveOpen(true);
-              }}
+              onClick={() => setSaveOpen(true)}
             >
               Sticker speichern
             </Button>
@@ -265,53 +189,13 @@ export function StickerCreator({
             {shell}
           </ImageStickerDesigner>
         ))}
-      <Dialog open={saveOpen && !created} onOpenChange={(open) => !busy && setSaveOpen(open)}>
-        <DialogContent className="flex max-h-[min(90dvh,720px)] flex-col gap-md overflow-y-auto sm:max-w-[480px]">
-          <div className="flex items-center gap-md">
-            {draftUrl ? (
-              <img
-                src={draftUrl}
-                alt=""
-                className={cn(CHECKERBOARD, 'size-16 shrink-0 rounded-lg object-contain')}
-              />
-            ) : null}
-            <div className="flex min-w-0 flex-col gap-1">
-              <DialogTitle className="m-0 text-lg font-semibold text-foreground-heading">
-                Sticker speichern
-              </DialogTitle>
-              <DialogDescription className="m-0 text-sm text-muted-foreground">
-                Er landet in der Galerie unter „Meine“.
-              </DialogDescription>
-            </div>
-          </div>
-          <form onSubmit={(e) => void save(e)} className="flex flex-col gap-md">
-            <StudioAssetFormFields
-              values={form}
-              onChange={changeForm}
-              locale={locale}
-              disabled={busy}
-            />
-            {error ? (
-              <Alert variant="destructive" role="alert">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            ) : null}
-            <div className="flex justify-end gap-sm">
-              <Button
-                type="button"
-                variant="ghost"
-                disabled={busy}
-                onClick={() => setSaveOpen(false)}
-              >
-                Abbrechen
-              </Button>
-              <Button type="submit" variant="brand" disabled={!canSave}>
-                {busy ? 'Wird gespeichert …' : 'Speichern'}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <StickerSaveDialog
+        key={session}
+        draft={draft}
+        open={saveOpen && !created}
+        onOpenChange={setSaveOpen}
+        onSaved={saved}
+      />
     </div>
   );
 }

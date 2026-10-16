@@ -4,6 +4,7 @@ import {
   MasterCanvasEditor,
   parseInitialPages,
   preloadCanvasTemplate,
+  type CanvasEditorExportApi,
   type InitialPageDef,
   type SidebarTabId,
 } from '@gruenerator/canvas-editor';
@@ -13,7 +14,7 @@ import { type CanvasDocument } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { EditableTitle } from '@gruenerator/shared/components/EditableTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PiArrowLeft, PiCheck } from 'react-icons/pi';
 import { useParams, useSearchParams } from 'react-router-dom';
 
@@ -28,6 +29,7 @@ import { useAuthStore } from '../../stores/authStore';
 import useCanvasUiStore from '../../stores/canvasUiStore';
 import { isEmbedded } from '../../utils/platform';
 import { useTourAutostart } from '../tours/useTourAutostart';
+import { ExportCanvasVorlageButton } from '../vorlagen/components/ExportCanvasVorlageButton';
 
 import { CanvasChatDocContext } from './CanvasChatDocContext';
 import { canvasQueryOptions } from './canvasQuery';
@@ -59,6 +61,7 @@ function CollabCanvasStudioContent() {
   const user = useAuthStore((s) => s.user);
   const config = useCollaborationConfig();
   const [shareOpen, setShareOpen] = useState(false);
+  const exportApi = useRef<CanvasEditorExportApi>(null);
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
   // Einmal geöffnet bleiben die Dialoge gemountet, damit ihre Schließ-Animation läuft.
   const [shareMounted, setShareMounted] = useState(false);
@@ -295,7 +298,14 @@ function CollabCanvasStudioContent() {
     </div>
   ) : null;
 
-  const chromeRight = <PresenceAvatars collaborators={collaborators} compact />;
+  const chromeRight = (
+    <div className="flex items-center gap-2">
+      {canvas && canEdit ? (
+        <ExportCanvasVorlageButton exportApi={exportApi} formatId={canvas.format} />
+      ) : null}
+      <PresenceAvatars collaborators={collaborators} compact />
+    </div>
+  );
 
   // Immersive layout hides the global app sidebar, so this back button is the
   // way out of the editor — mirrors the docs EditorTopBar back button.
@@ -360,6 +370,7 @@ function CollabCanvasStudioContent() {
               chromeLeft={chromeLeft}
               chromeCenter={chromeCenter}
               chromeRight={chromeRight}
+              exportApiRef={exportApi}
               {...(isOwner
                 ? {
                     onInvitePeople: () => {

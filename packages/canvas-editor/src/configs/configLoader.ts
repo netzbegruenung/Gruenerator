@@ -27,6 +27,7 @@ type CanvasConfigType =
   | 'slider'
   | 'freeform'
   | 'profilbild'
+  | 'sticker'
   // Österreich (de-AT) variants
   | 'zitat-at'
   | 'zitat-pure-at'
@@ -80,6 +81,9 @@ export async function loadCanvasConfig(
     case 'profilbild':
       return (await import('./profilbild_full.config')).profilbildFullConfig;
 
+    case 'sticker':
+      return (await import('./sticker_full.config')).stickerFullConfig;
+
     // Österreich (de-AT) variants
     case 'zitat-pure-at':
       return (await import('./zitat_pure_at_full.config')).zitatPureAtFullConfig;
@@ -120,6 +124,7 @@ export function isValidCanvasType(type: string): type is CanvasConfigType {
     'slider',
     'freeform',
     'profilbild',
+    'sticker',
     'zitat-at',
     'zitat-pure-at',
     'dreizeilen-overlay-at',
