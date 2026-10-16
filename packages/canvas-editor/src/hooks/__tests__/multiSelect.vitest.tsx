@@ -114,7 +114,7 @@ function mount() {
     fire(window, 'mouseup', x + dx, y + dy, shift);
   };
   const state = () => storeRef.current!.getState();
-  return { stage, state, click, drag, changes };
+  return { stage, state, click, drag, fire, changes, store: storeRef };
 }
 
 describe('Mehrfachauswahl', () => {
@@ -129,7 +129,7 @@ describe('Mehrfachauswahl', () => {
   });
 
   it('Ziehen eines Elements bewegt die ganze Auswahl, jedes schreibt zurück', () => {
-    const { state, click, drag, changes } = mount();
+    const { stage, state, click, drag, changes } = mount();
     click(50, 40);
     click(200, 40, true);
     drag(50, 40, 30, 20);
@@ -137,6 +137,13 @@ describe('Mehrfachauswahl', () => {
     expect(Object.keys(moved).sort()).toEqual(['a', 'b']);
     expect(moved.a).toMatchObject({ x: 80, y: 60 });
     expect(moved.b).toMatchObject({ x: 230, y: 60 });
+    // Je Element ein Umriss, der dem Zug gefolgt ist.
+    const outlineXs = stage
+      .find('.selection-chrome')
+      .filter((node) => node.visible())
+      .map((node) => Math.round(node.x()))
+      .sort((p, q) => p - q);
+    expect(outlineXs).toEqual([40, 190]);
     // Ein Zug klappt die Auswahl nicht zusammen.
     expect(state().selectedLayerIds).toEqual(['a', 'b']);
   });
@@ -154,6 +161,29 @@ describe('Mehrfachauswahl', () => {
     const { state, drag } = mount();
     drag(5, 5, 245, 70);
     expect(state().selectedLayerIds).toEqual(['a', 'b']);
+  });
+
+  it('der Rahmen zeigt seine Treffer schon während des Zugs, ohne den Store anzufassen', () => {
+    const { stage, state, fire, store } = mount();
+    let writes = 0;
+    const unsubscribe = store.current!.subscribe(() => {
+      writes += 1;
+    });
+    fire(stage.content, 'mousedown', 5, 5, false);
+    for (let step = 1; step <= 4; step++)
+      fire(window, 'mousemove', 5 + 60 * step, 5 + 17 * step, false);
+    const outlines = stage
+      .find('.selection-chrome')
+      .filter((node) => node.visible() && node.getAttr('fill') === undefined);
+    expect(outlines).toHaveLength(2);
+    expect(writes).toBe(0);
+    fire(window, 'mouseup', 245, 73, false);
+    unsubscribe();
+    expect(state().selectedLayerIds).toEqual(['a', 'b']);
+    // Der Rahmen ist weg; die Auswahl trägt ihre zwei Element-Umrisse.
+    const visible = stage.find('.selection-chrome').filter((node) => node.visible());
+    expect(visible.filter((node) => node.getAttr('fill') !== undefined)).toHaveLength(0);
+    expect(visible).toHaveLength(2);
   });
 
   it('Shift-Rahmen ergänzt die bestehende Auswahl', () => {

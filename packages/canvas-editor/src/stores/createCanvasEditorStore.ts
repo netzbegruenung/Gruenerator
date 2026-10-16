@@ -130,6 +130,10 @@ function applySelection(
   ids: readonly string[]
 ): void {
   const unique = [...new Set(ids)];
+  // Unverändert → nichts schreiben: Immer gibt dann denselben State zurück und
+  // kein Abonnent wird benachrichtigt (jeder Druck auf leere Fläche wählt ab).
+  const current = state.selectedLayerIds;
+  if (current.length === unique.length && current.every((id, i) => id === unique[i])) return;
   state.selectedLayerIds = unique;
   state.selectedElement = unique.length === 1 ? unique[0] : null;
 }
@@ -314,6 +318,7 @@ export function createCanvasEditorStore<
       // Snapping
       setSnapGuides: (h, v) =>
         set((state) => {
+          if (state.snapGuides.h === h && state.snapGuides.v === v) return;
           state.snapGuides = { h, v };
         }),
 

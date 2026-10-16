@@ -53,4 +53,17 @@ describe('Auswahl-Invariante', () => {
     store.getState().redo();
     expect(selection(store)).toEqual({ ids: ['a'], single: 'a' });
   });
+
+  it('eine unveränderte Auswahl benachrichtigt niemanden', () => {
+    const store = createCanvasEditorStore();
+    let writes = 0;
+    store.subscribe(() => {
+      writes += 1;
+    });
+    store.getState().setSelectedElement(null);
+    store.getState().deselectAll();
+    store.getState().setSelectedLayers(['a', 'b']);
+    store.getState().setSelectedLayers(['a', 'b']);
+    expect(writes).toBe(1);
+  });
 });
