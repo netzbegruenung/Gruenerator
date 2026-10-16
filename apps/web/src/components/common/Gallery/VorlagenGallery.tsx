@@ -1,4 +1,4 @@
-import { printVorlagenFor } from '@gruenerator/canvas-editor/print-vorlagen';
+import { printVorlagenFor, type PrintVorlage } from '@gruenerator/canvas-editor/print-vorlagen';
 import {
   GRUENERATOR_TEMPLATE_TYPE,
   sharepicCreatorLocaleSchema,
@@ -16,6 +16,7 @@ import { MeineVorlagenPanel } from '../../../features/vorlagen/components/MeineV
 import {
   PRINT_TEMPLATE_TYPE,
   PrintVorlageCard,
+  PrintVorlageDialog,
   printMatches,
 } from '../../../features/vorlagen/components/PrintVorlagenSection';
 import {
@@ -180,6 +181,7 @@ const VorlagenGallery = memo((): JSX.Element => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchMode, setSearchMode] = useState('title');
   const [previewTemplate, setPreviewTemplate] = useState<VorlageItem | null>(null);
+  const [previewPrint, setPreviewPrint] = useState<PrintVorlage | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [onlyFavorites, setOnlyFavorites] = useState(false);
   const [gridSize, toggleGridSize] = useGridSize('vorlagen-grid-size');
@@ -513,8 +515,7 @@ const VorlagenGallery = memo((): JSX.Element => {
                         <PrintVorlageCard
                           key={entry.id}
                           vorlage={entry.print}
-                          opening={openingId === entry.id}
-                          onOpen={(v) => void openPrintVorlage(v)}
+                          onOpen={setPreviewPrint}
                         />
                       ) : (
                         <VorlagenCard
@@ -548,6 +549,15 @@ const VorlagenGallery = memo((): JSX.Element => {
             </>
           )}
         </>
+      )}
+
+      {previewPrint && (
+        <PrintVorlageDialog
+          vorlage={previewPrint}
+          opening={openingId === previewPrint.id}
+          onEdit={(v) => void openPrintVorlage(v)}
+          onClose={() => setPreviewPrint(null)}
+        />
       )}
 
       {previewTemplate && (

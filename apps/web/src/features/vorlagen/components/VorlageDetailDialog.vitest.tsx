@@ -38,11 +38,25 @@ describe('VorlageDetailDialog', () => {
     expect(screen.queryByRole('button', { name: 'Teilen' })).not.toBeInTheDocument();
   });
 
-  it('pages through the preview', async () => {
+  it('shows every page and previews the one clicked, not the one hovered', async () => {
     renderDialog();
     expect(screen.getByRole('img')).toHaveAttribute('alt', 'Seite 1 von 2');
-    await userEvent.setup().click(screen.getByRole('button', { name: /Nächste Seite/ }));
+    expect(screen.getByRole('button', { name: 'Seite 1 von 2 anzeigen' })).toHaveAttribute(
+      'aria-current',
+      'true'
+    );
+    const user = userEvent.setup();
+    const second = screen.getByRole('button', { name: 'Seite 2 von 2 anzeigen' });
+    await user.hover(second);
+    expect(screen.getByRole('img')).toHaveAttribute('alt', 'Seite 1 von 2');
+    await user.click(second);
     expect(screen.getByRole('img')).toHaveAttribute('alt', 'Seite 2 von 2');
+    expect(await axe(screen.getByRole('dialog'))).toHaveNoViolations();
+  });
+
+  it('has no page strip for a single page', () => {
+    renderDialog({ pages: pages.slice(0, 1) });
+    expect(screen.queryByRole('group', { name: 'Seiten' })).not.toBeInTheDocument();
   });
 
   it('disables Like and Merken when signed out', async () => {
