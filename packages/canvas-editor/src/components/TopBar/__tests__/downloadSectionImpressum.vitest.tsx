@@ -47,19 +47,20 @@ describe('print impressum gate', () => {
     ['empty line', 'V.i.S.d.P.: '],
     ['placeholder', 'V.i.S.d.P.: Vorname Nachname, Straße Nr., PLZ Ort'],
     ['missing element', null],
-  ])('blocks the DE PDF on %s and shows the form', async (_, initial) => {
+  ])('warns on %s, shows the form and still downloads the DE PDF', async (_, initial) => {
     const onDownloadPdf = vi.fn().mockResolvedValue(undefined);
     render(<Harness locale="de-DE" initial={initial} onDownloadPdf={onDownloadPdf} />);
     expect(screen.getByText('Impressum ergänzen')).toBeTruthy();
     expect(
       screen.getByText('Für Plakate ist V.i.S.d.P. mit Name und Anschrift Pflicht.')
     ).toBeTruthy();
-    expect((download() as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText(/kein vollständiges Impressum/)).toBeTruthy();
+    expect((download() as HTMLButtonElement).disabled).toBe(false);
     await userEvent.click(download());
-    expect(onDownloadPdf).not.toHaveBeenCalled();
+    await waitFor(() => expect(onDownloadPdf).toHaveBeenCalledTimes(1));
   });
 
-  it('blocks the AT placeholder with the Medieninhaber hint', () => {
+  it('warns on the AT placeholder with the Medieninhaber hint', () => {
     render(
       <Harness
         locale="de-AT"
@@ -73,7 +74,7 @@ describe('print impressum gate', () => {
     expect(screen.getByLabelText('Medieninhaber')).toBeTruthy();
   });
 
-  it('keeps the form until both fields are filled, then releases the PDF', async () => {
+  it('keeps the form and warning until both fields are filled', async () => {
     const onDownloadPdf = vi.fn().mockResolvedValue(undefined);
     render(<Harness locale="de-DE" initial={null} onDownloadPdf={onDownloadPdf} />);
     await userEvent.type(screen.getByLabelText('Name'), 'Erika Muster');
@@ -83,12 +84,12 @@ describe('print impressum gate', () => {
     await userEvent.type(screen.getByLabelText('Anschrift'), 'Hauptstr. 1, 10115 Berlin');
     await userEvent.click(screen.getByRole('button', { name: 'Übernehmen' }));
     await waitFor(() => expect(screen.queryByText('Impressum ergänzen')).toBeNull());
-    expect((download() as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.queryByText(/kein vollständiges Impressum/)).toBeNull();
     await userEvent.click(download());
     await waitFor(() => expect(onDownloadPdf).toHaveBeenCalledTimes(1));
   });
 
-  it('never blocks without a gate (business card, digital)', async () => {
+  it('never warns without a gate (business card, digital)', async () => {
     const onDownloadPdf = vi.fn().mockResolvedValue(undefined);
     render(
       <Harness locale="de-DE" initial={null} onDownloadPdf={onDownloadPdf} withGate={false} />

@@ -82,7 +82,6 @@ import { usePageRefs } from './hooks/usePageRefs';
 import { usePageUndoRedoShortcuts } from './hooks/usePageUndoRedoShortcuts';
 import {
   isPosterFormat,
-  isPosterImpressumComplete,
   usePrintImpressumGate,
   type ObservedPages,
 } from './hooks/usePrintImpressumGate';
@@ -662,14 +661,10 @@ function CanvasEditorInner({
     [currentPageIndex, canvasRefsRef, onDownload]
   );
 
-  // Each poster page's live state for the impressum gate. The ref is for the
-  // export re-check (no stale closure), the state re-renders the gate.
+  // Each poster page's live state for the impressum warning. The ref dedupes
+  // reports without a stale closure, the state re-renders the gate.
   const [observedPages, setObservedPages] = useState<ObservedPages>({});
   const observedPagesRef = useRef<ObservedPages>({});
-  const pagesRef = useRef(pages);
-  useEffect(() => {
-    pagesRef.current = pages;
-  });
   const handleObservedState = useCallback(
     (pageId: string, state: Record<string, unknown>, actions: Record<string, unknown>) => {
       const prev = observedPagesRef.current[pageId];
@@ -698,12 +693,6 @@ function CanvasEditorInner({
 
   const handleDownloadPdf = useCallback(async () => {
     if (!printFormat) return;
-    if (
-      isPosterFormat(printFormat) &&
-      !isPosterImpressumComplete(pagesRef.current, observedPagesRef.current)
-    ) {
-      throw new Error('Für Plakate ist ein Impressum Pflicht.');
-    }
     const pages = printPages();
     if (pages.some((_, i) => !canvasRefsRef.current[i]?.current)) {
       throw new Error('Nicht alle Seiten konnten exportiert werden');
@@ -711,10 +700,10 @@ function CanvasEditorInner({
     const pdf = await exportPrintPdf({ format: printFormat, pages });
     const blob = new Blob([pdf as BlobPart], { type: 'application/pdf' });
     await downloadBlob(blob, printPdfFilename(documentTitle ?? null));
-  }, [printFormat, printPages, canvasRefsRef, documentTitle, pagesRef, observedPagesRef]);
+  }, [printFormat, printPages, canvasRefsRef, documentTitle]);
 
-  // Every poster page must carry a filled-in V.i.S.d.P. / Impressum, whichever
-  // page is active; the gate fails closed until every page has reported.
+  // Every poster page should carry a filled-in V.i.S.d.P. / Impressum, whichever
+  // page is active; the download warns (never blocks) once every page has reported.
   const impressumGate = usePrintImpressumGate(printFormat, pages, observedPages);
 
   const getPrintWarnings = useCallback(

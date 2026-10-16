@@ -33,12 +33,12 @@ export interface PrintExportProps {
   onDownloadPdf: () => Promise<void>;
   /** Notices for photos too small to print well. */
   getWarnings: () => string[];
-  /** Posters only: the PDF is blocked while this is missing or a placeholder. */
+  /** Posters only: warns (without blocking) while this is missing or a placeholder. */
   impressum?: PrintImpressumGate | null;
 }
 
 export interface PrintImpressumGate {
-  /** False until the page carrying the impressum has reported its state; export stays blocked. */
+  /** False until every poster page has reported its state; no warning until then. */
   ready: boolean;
   locale: ImpressumLocale;
   /** The impressum line on the canvas; null when the element is gone. */
@@ -158,17 +158,15 @@ export function DownloadSection({
 
   const isPdf = choice === 'pdf' && printExport !== null;
   const impressumGate = isPdf ? (printExport?.impressum ?? null) : null;
-  const impressumBlocked =
-    impressumGate !== null &&
-    (!impressumGate.ready ||
-      !isImpressumComplete(parseImpressumLine(impressumGate.locale, impressumGate.text ?? '')));
+  const impressumMissing =
+    impressumGate?.ready === true &&
+    !isImpressumComplete(parseImpressumLine(impressumGate.locale, impressumGate.text ?? ''));
   const isMultiPage = pageCount > 1 && onDownloadAllZip && !isPdf;
   // JPEG has no alpha channel — the transparency toggle is only meaningful for
   // PNG/WebP.
   const supportsTransparency = choice !== 'jpeg';
 
   const handleDownload = async () => {
-    if (impressumBlocked) return;
     setIsDownloading(true);
     setDownloadError(null);
     try {
@@ -287,10 +285,14 @@ export function DownloadSection({
         </div>
       )}
 
-      {impressumBlocked && impressumGate && !impressumGate.ready && (
-        <DownloadNotice tone="info">Impressum wird geprüft …</DownloadNotice>
+      {impressumMissing && impressumGate && (
+        <>
+          <DownloadNotice tone="info">
+            Noch kein vollständiges Impressum – herunterladen kannst du trotzdem.
+          </DownloadNotice>
+          <ImpressumForm gate={impressumGate} />
+        </>
       )}
-      {impressumBlocked && impressumGate?.ready && <ImpressumForm gate={impressumGate} />}
 
       {isPdf &&
         printWarnings.map((warning) => (
@@ -306,7 +308,7 @@ export function DownloadSection({
         variant="brand"
         className="w-full rounded-lg"
         onClick={handleDownload}
-        disabled={isDownloading || isMultiExporting || impressumBlocked}
+        disabled={isDownloading || isMultiExporting}
       >
         {isDownloading || isMultiExporting ? (
           <Skeleton className="size-3.5 rounded-full" />

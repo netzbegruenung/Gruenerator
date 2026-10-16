@@ -1,9 +1,9 @@
 /**
- * Export gate for the poster's V.i.S.d.P. / Impressum. Every poster page is a
- * printed poster of its own, so every page must carry a filled-in line
+ * Export warning for the poster's V.i.S.d.P. / Impressum. Every poster page is a
+ * printed poster of its own, so every page should carry a filled-in line
  * (composePrint puts it on the first; added pages need it too). The editor
- * feeds this hook each page's own state, keyed by page id. Fails closed: until
- * every page has reported, the gate is `ready: false` and blocks.
+ * feeds this hook each page's own state, keyed by page id. Until every page has
+ * reported, the gate is `ready: false` and stays silent; it never blocks the PDF.
  */
 import { type PrintFormatId } from '@gruenerator/contracts';
 import { useMemo } from 'react';
@@ -61,17 +61,6 @@ function pageComplete(page: GatePage, observed: ObservedPageState): boolean {
   return isImpressumComplete(parseImpressumLine(impressumLocaleOf(page), element?.text ?? ''));
 }
 
-/** True when every page has reported and carries a filled-in impressum line. */
-export function isPosterImpressumComplete(pages: GatePage[], observed: ObservedPages): boolean {
-  return (
-    pages.length > 0 &&
-    pages.every((page) => {
-      const report = observed[page.id];
-      return report !== undefined && pageComplete(page, report);
-    })
-  );
-}
-
 export function usePrintImpressumGate(
   format: PrintCanvasFormat | null,
   pages: GatePage[],
@@ -85,7 +74,7 @@ export function usePrintImpressumGate(
       return { ready: false, locale, text: null, onSubmit: () => {} };
     }
     const reported = pages.map((page, i) => ({ page, report: reports[i] as ObservedPageState }));
-    // The form shows the line that blocks: the first incomplete page's, else page 1's.
+    // The form shows the first incomplete page's line, else page 1's.
     const shown = reported.find(({ page, report }) => !pageComplete(page, report)) ?? reported[0];
     const shownElement = shown ? impressumElementOf(shown.report) : null;
     return {
