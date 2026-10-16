@@ -126,8 +126,9 @@ function makeInstance(
   height: number,
   canvasWidth: number,
   canvasHeight: number,
-  center: { x: number; y: number } = { x: canvasWidth / 2, y: canvasHeight / 2 }
+  options: UserImagePlacement = {}
 ): UserImageInstance {
+  const center = options.center ?? { x: canvasWidth / 2, y: canvasHeight / 2 };
   return {
     id: makeId(),
     src,
@@ -206,20 +207,24 @@ export async function downscaleImageForUpload(file: File): Promise<File> {
   }
 }
 
-/** `center` places the image's centre there (a drop point); default is the canvas centre. */
+export interface UserImagePlacement {
+  /** Centre of the new image (a drop point); default is the canvas centre. */
+  center?: { x: number; y: number };
+}
+
 export function createUserImageInstanceFromUrl(
   url: string,
   fileName: string,
   canvasWidth: number,
   canvasHeight: number,
-  center?: { x: number; y: number }
+  options?: UserImagePlacement
 ): Promise<UserImageInstance> {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
       const { width, height } = scaleToTarget(img.naturalWidth, img.naturalHeight);
-      resolve(makeInstance(url, fileName, width, height, canvasWidth, canvasHeight, center));
+      resolve(makeInstance(url, fileName, width, height, canvasWidth, canvasHeight, options));
     };
     img.onerror = () => {
       resolve(
@@ -230,7 +235,7 @@ export function createUserImageInstanceFromUrl(
           FALLBACK_HEIGHT,
           canvasWidth,
           canvasHeight,
-          center
+          options
         )
       );
     };

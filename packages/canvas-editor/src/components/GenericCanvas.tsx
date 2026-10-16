@@ -737,7 +737,7 @@ function GenericCanvasWithRef<
           return true;
         }
         if (!actions.addUserImageFromUrl) return false;
-        actions.addUserImageFromUrl(media.url, media.name, drop.point);
+        actions.addUserImageFromUrl(media.url, media.name, { center: drop.point });
         return true;
       },
       undo,
