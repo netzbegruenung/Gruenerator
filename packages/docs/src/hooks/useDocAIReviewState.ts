@@ -1,6 +1,11 @@
 import { useCallback, useSyncExternalStore } from 'react';
 
-import { getDocAIMenuStore, getDocForkStore } from '../lib/aiExtension';
+import {
+  getDocAIMenuStore,
+  getDocForkStore,
+  getDocVersioningStore,
+  isAIReviewFork,
+} from '../lib/aiExtension';
 import { isDocAIInvocationInFlight, subscribeDocAIInFlight } from '../lib/invokeDocumentAI';
 
 /**
@@ -29,6 +34,8 @@ export function useDocAIReviewState(editor: EditorLike, documentId: string): Doc
       const unsubs = [subscribeDocAIInFlight(onChange)];
       const forkStore = getDocForkStore(editor);
       if (forkStore?.subscribe) unsubs.push(forkStore.subscribe(onChange));
+      const versioningStore = getDocVersioningStore(editor);
+      if (versioningStore?.subscribe) unsubs.push(versioningStore.subscribe(onChange));
       const menuStore = getDocAIMenuStore(editor);
       if (menuStore?.subscribe) unsubs.push(menuStore.subscribe(onChange));
       return () => {
@@ -40,7 +47,7 @@ export function useDocAIReviewState(editor: EditorLike, documentId: string): Doc
 
   const isForked = useSyncExternalStore(
     subscribe,
-    useCallback(() => getDocForkStore(editor)?.state?.isForked ?? false, [editor])
+    useCallback(() => isAIReviewFork(editor), [editor])
   );
   const menuOpen = useSyncExternalStore(
     subscribe,

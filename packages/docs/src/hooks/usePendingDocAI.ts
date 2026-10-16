@@ -1,6 +1,6 @@
 import { useCallback, useSyncExternalStore } from 'react';
 
-import { getDocForkStore } from '../lib/aiExtension';
+import { getDocForkStore, getDocVersioningStore, isAIReviewFork } from '../lib/aiExtension';
 
 /**
  * Reactive view of whether AI suggestions are pending review for an editor.
@@ -19,17 +19,18 @@ type EditorLike = { getExtension?: (factory: any) => unknown } | null | undefine
 export function usePendingDocAI(editor: EditorLike): boolean {
   const subscribe = useCallback(
     (onChange: () => void) => {
-      const store = getDocForkStore(editor);
-      if (!store?.subscribe) return () => {};
-      return store.subscribe(onChange);
+      const unsubs = [getDocForkStore(editor), getDocVersioningStore(editor)].flatMap((store) =>
+        store?.subscribe ? [store.subscribe(onChange)] : []
+      );
+      return () => {
+        for (const unsub of unsubs) unsub();
+      };
     },
     [editor]
   );
 
-  const getSnapshot = useCallback(
-    () => getDocForkStore(editor)?.state?.isForked ?? false,
-    [editor]
-  );
+  // A version preview is a fork too, but nothing in it is lost on leaving.
+  const getSnapshot = useCallback(() => isAIReviewFork(editor), [editor]);
 
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }

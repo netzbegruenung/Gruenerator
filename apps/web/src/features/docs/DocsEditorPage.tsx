@@ -10,7 +10,6 @@ import {
   DocsProvider,
   useDocumentChat,
   BlockNoteEditor as BlockNoteEditorComponent,
-  VersionHistory,
   SuggestionsSidebar,
   usePendingDocAI,
   useDocUndoState,
@@ -18,7 +17,6 @@ import {
   hasPendingSuggestions,
   useVersionHistoryShortcut,
   useDocsAdapter,
-  createDocsApiClient,
   useUpdateDocument,
   lazyWithRetry,
   ErrorBoundary,
@@ -149,7 +147,6 @@ function EditorContent() {
   // uses `embedded=1` on the same query key.
   const isInlineEmbed = searchParams.get('embedded') === 'true';
   const adapter = useDocsAdapter();
-  const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
   const { user, isAuthResolved } = useAuth({ lazy: true });
   // Drives both the menu's availability hint and the chooser's options.
   const { data: letterheads = [] } = useQuery({
@@ -260,6 +257,8 @@ function EditorContent() {
   );
   const commentsPortalRef = useRef<HTMLDivElement>(null);
   const [commentsPortalTarget, setCommentsPortalTarget] = useState<HTMLElement | null>(null);
+  const versionsPortalRef = useRef<HTMLDivElement>(null);
+  const [versionsPortalTarget, setVersionsPortalTarget] = useState<HTMLElement | null>(null);
 
   const collabConfig = useCollaborationConfig();
   const { ydoc, provider, isConnected, isSynced, isLocalLoaded, authError } = useCollaboration({
@@ -540,7 +539,10 @@ function EditorContent() {
 
   useEffect(() => {
     setCommentsPortalTarget(activeSidebar === 'comments' ? commentsPortalRef.current : null);
+    setVersionsPortalTarget(activeSidebar === 'versions' ? versionsPortalRef.current : null);
   }, [activeSidebar]);
+
+  const closeVersions = useCallback(() => setActiveSidebar(null), []);
 
   const initialContent = useMemo(() => docData?.content || '', [docData?.content]);
 
@@ -927,6 +929,8 @@ function EditorContent() {
               isSynced={isSynced}
               editable={isEditable}
               commentsPortalTarget={commentsPortalTarget}
+              versionsPortalTarget={versionsPortalTarget}
+              onCloseVersions={closeVersions}
               onEditorReady={handleEditorReady}
               localUser={suggestionAuthor}
               // The app's WebView grants no microphone, so getUserMedia fails there.
@@ -970,26 +974,29 @@ function EditorContent() {
 
         {effectivePanel && effectivePanel !== 'chat' && (
           <aside className="w-80 min-w-80 max-w-80 flex flex-col border-l border-grey-200 dark:border-grey-700 bg-background dark:bg-grey-900 overflow-hidden max-md:fixed max-md:inset-0 max-md:w-full max-md:min-w-full max-md:max-w-full max-md:border-l-0 max-md:z-[200]">
-            <div className="py-2 px-3 border-b border-grey-200 dark:border-grey-700 shrink-0 flex items-center gap-2">
-              <span className="text-sm font-medium text-foreground flex-1">
-                {SIDEBAR_TITLES[effectivePanel]}
-              </span>
-              {effectivePanel === 'legacy-chat' && (
+            {/* BlockNote's history sidebar brings its own header (title, close, filter). */}
+            {effectivePanel !== 'versions' && (
+              <div className="py-2 px-3 border-b border-grey-200 dark:border-grey-700 shrink-0 flex items-center gap-2">
+                <span className="text-sm font-medium text-foreground flex-1">
+                  {SIDEBAR_TITLES[effectivePanel]}
+                </span>
+                {effectivePanel === 'legacy-chat' && (
+                  <button
+                    onClick={() => setActiveSidebar('chat')}
+                    className="text-xs text-grey-500 hover:text-foreground underline"
+                  >
+                    KI-Chat
+                  </button>
+                )}
                 <button
-                  onClick={() => setActiveSidebar('chat')}
-                  className="text-xs text-grey-500 hover:text-foreground underline"
+                  onClick={() => setActiveSidebar(null)}
+                  className="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg text-grey-500 hover:bg-grey-100 hover:text-foreground dark:hover:bg-grey-700"
+                  aria-label="Seitenleiste schließen"
                 >
-                  KI-Chat
+                  <FiX size={18} />
                 </button>
-              )}
-              <button
-                onClick={() => setActiveSidebar(null)}
-                className="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg text-grey-500 hover:bg-grey-100 hover:text-foreground dark:hover:bg-grey-700"
-                aria-label="Seitenleiste schließen"
-              >
-                <FiX size={18} />
-              </button>
-            </div>
+              </div>
+            )}
 
             {effectivePanel === 'legacy-chat' && hasLegacyMessages && (
               <div className="flex flex-1 flex-col overflow-hidden">
@@ -1018,19 +1025,8 @@ function EditorContent() {
               </div>
             )}
 
-            {effectivePanel === 'versions' && id && (
-              <VersionHistory
-                documentId={id}
-                apiClient={apiClient}
-                canEdit={canEdit}
-                onRestore={(html) => {
-                  if (!editor) return;
-                  const blocks = editor.tryParseHTMLToBlocks(html);
-                  if (blocks && blocks.length > 0) {
-                    editor.replaceBlocks(editor.document, blocks);
-                  }
-                }}
-              />
+            {effectivePanel === 'versions' && (
+              <div className="flex-1 overflow-y-auto" ref={versionsPortalRef} />
             )}
 
             {effectivePanel === 'suggestions' && editor && (

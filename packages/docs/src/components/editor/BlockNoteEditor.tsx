@@ -27,7 +27,8 @@ import {
   ThreadsSidebar,
 } from '@blocknote/react';
 import { filterSuggestionItems } from '@blocknote/core/extensions';
-import { ForkYDocExtension, withCollaboration } from '@blocknote/core/yjs';
+import { ForkYDocExtension, withCollaboration, YjsVersioningExtension } from '@blocknote/core/yjs';
+import { VersioningSidebar } from '@blocknote/react/versioning';
 import { BlockNoteView } from '@blocknote/shadcn';
 import {
   AIExtension,
@@ -48,7 +49,7 @@ import { useEditorStore } from '../../stores/editorStore';
 import { useBlockNoteComments } from '../../hooks/useBlockNoteComments';
 import { useResolveUsers } from '../../hooks/useResolveUsers';
 import { useMentionUsers } from '../../hooks/useMentionUsers';
-import { useDocsAdapter } from '../../context/DocsContext';
+import { createDocsApiClient, useDocsAdapter } from '../../context/DocsContext';
 import { useIsTouchDevice } from '@gruenerator/shared/hooks';
 import { useEditorPreferencesStore } from '../../stores/editorPreferencesStore';
 import { ErrorBoundary } from '../common/ErrorBoundary';
@@ -56,6 +57,7 @@ import { Mention } from './Mention';
 import { EditorDictationButton } from './EditorDictationButton';
 import { SuggestionPopover } from './SuggestionPopover';
 import { isDocAIForked } from '../../lib/aiExtension';
+import { createSnapshotVersionStorage } from '../../lib/snapshotVersionStorage';
 import { disableGcOnAIFork } from '../../lib/forkedDocGc';
 import { guardDocUndoAcrossAIFork } from '../../lib/undoAcrossAIFork';
 import { carryUndoAcrossEditorRecreate } from '../../lib/undoAcrossRecreate';
@@ -74,6 +76,9 @@ export interface BlockNoteEditorProps {
   editable?: boolean;
   showComments?: boolean;
   commentsPortalTarget?: HTMLElement | null;
+  /** Where the version history sidebar renders; collaborative editors only. */
+  versionsPortalTarget?: HTMLElement | null;
+  onCloseVersions?: () => void;
   ydoc?: Y.Doc;
   provider?: HocuspocusProvider | null;
   isSynced?: boolean;
@@ -154,6 +159,8 @@ const BlockNoteEditorInner = ({
   editable = true,
   showComments = true,
   commentsPortalTarget,
+  versionsPortalTarget,
+  onCloseVersions,
   ydoc,
   provider,
   isSynced = false,
@@ -177,6 +184,11 @@ const BlockNoteEditorInner = ({
   // applies, without churning the editor.
   const localUserRef = useRef(localUser);
   localUserRef.current = localUser;
+  // Same for edit rights: the version history hides its write actions without
+  // recreating the editor when `editable` flips.
+  const editableRef = useRef(editable);
+  editableRef.current = editable;
+  const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
 
   const collaborationUser = useMemo(() => {
     if (!provider?.awareness) return null;
@@ -260,6 +272,16 @@ const BlockNoteEditorInner = ({
       HoldTableFixesExtension({ isAIWriting: () => isDocAIInvocationInFlight(documentId) }),
     ];
 
+    if (collaborationOptions) {
+      exts.push(
+        YjsVersioningExtension({
+          storage: createSnapshotVersionStorage(apiClient, documentId, () => editableRef.current),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          resolveUsers: resolveUsers as any,
+        })
+      );
+    }
+
     if (showComments && threadStore) {
       exts.push(
         CommentsExtension({
@@ -318,6 +340,7 @@ const BlockNoteEditorInner = ({
     collaborationOptions,
     ydoc,
     provider,
+    apiClient,
   ]);
 
   const baseEditorOptions = {
@@ -564,6 +587,17 @@ const BlockNoteEditorInner = ({
                 <ThreadsSidebar filter="all" />
               </ErrorBoundary>,
               commentsPortalTarget
+            )}
+          {versionsPortalTarget &&
+            collaborationOptions &&
+            createPortal(
+              <ErrorBoundary
+                fallback={null}
+                onError={(err) => console.warn('[Versions] sidebar render failed:', err)}
+              >
+                <VersioningSidebar onClose={onCloseVersions} />
+              </ErrorBoundary>,
+              versionsPortalTarget
             )}
         </BlockNoteView>
       </ErrorBoundary>
