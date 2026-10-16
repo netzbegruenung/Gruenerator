@@ -36,6 +36,8 @@ interface ToolbarProps {
   chromeCenter?: React.ReactNode;
   /** Host-supplied content rendered in the right cluster, before the ShareDropdown (e.g. presence, people-share). */
   chromeRight?: React.ReactNode;
+  /** Mobile: the pending-suggestion banner lives here. Desktop shows it as a card in the context-bar slot. */
+  suggestionInBar: boolean;
 }
 
 export const Toolbar = memo(
@@ -47,6 +49,7 @@ export const Toolbar = memo(
     chromeLeft,
     chromeCenter,
     chromeRight,
+    suggestionInBar,
   }: ToolbarProps) => {
     const hasPendingAiSuggestion = useCanvasStoreSelector((s) => s.pendingAiSuggestion !== null);
 
@@ -64,15 +67,18 @@ export const Toolbar = memo(
       </div>
     ) : null;
 
-    // Override mode: when an AI suggestion is pending, replace the toolbar
-    // contents with the accept/revert banner. `handlers.undo` is the per-page
-    // canvas's undo (via the imperative ref), hitting the correct inner store.
+    // Override mode: when an AI suggestion is pending, undo/redo leave the bar
+    // (the decision is keep or discard). On mobile the accept/revert banner
+    // takes their place; `handlers.undo` is the per-page canvas's undo (via the
+    // imperative ref), hitting the correct inner store.
     if (hasPendingAiSuggestion) {
       return (
         <TopBar visible={true}>
           {chromeLeft}
           {centerSlot}
-          <FloatingAiSuggestionBanner onUndo={handlers.undo} onUndoPages={handlers.undoPages} />
+          {suggestionInBar && (
+            <FloatingAiSuggestionBanner onUndo={handlers.undo} onUndoPages={handlers.undoPages} />
+          )}
           {rightCluster}
         </TopBar>
       );
