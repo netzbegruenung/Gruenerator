@@ -24,6 +24,40 @@ describe('CustomColorSwatch', () => {
     expect(onPick).toHaveBeenLastCalledWith('#E6007E');
   });
 
+  it('ohne Vorschau übernimmt eine Pause beim Ziehen, einmal je Farbe', () => {
+    vi.useFakeTimers();
+    try {
+      const onPick = vi.fn();
+      const { rerender } = render(
+        <CustomColorSwatch value="#005538" presets={PRESETS} onPick={onPick} />
+      );
+      const input = screen.getByLabelText('Eigene Farbe') as HTMLInputElement;
+      fireEvent.input(input, { target: { value: '#aa0000' } });
+      fireEvent.input(input, { target: { value: '#e6007e' } });
+      expect(onPick).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(300);
+      expect(onPick).toHaveBeenCalledExactlyOnceWith('#E6007E');
+
+      // macOS schließt sein Farbfenster später: dasselbe `change` ist kein zweiter Schritt.
+      rerender(<CustomColorSwatch value="#E6007E" presets={PRESETS} onPick={onPick} />);
+      fireEvent.change(input, { target: { value: '#e6007e' } });
+      expect(onPick).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('übernimmt eine offene Wahl, wenn die Palette vorher zuklappt', () => {
+    const onPick = vi.fn();
+    const { unmount } = render(
+      <CustomColorSwatch value="#005538" presets={PRESETS} onPick={onPick} />
+    );
+    const input = screen.getByLabelText('Eigene Farbe') as HTMLInputElement;
+    fireEvent.input(input, { target: { value: '#e6007e' } });
+    unmount();
+    expect(onPick).toHaveBeenCalledExactlyOnceWith('#E6007E');
+  });
+
   it('zeigt eine Farbe außerhalb der Vorgaben gefüllt, eine Vorgabe als Farbkreis', () => {
     const { rerender } = render(
       <CustomColorSwatch value="#e6007e" presets={PRESETS} onPick={() => {}} />
