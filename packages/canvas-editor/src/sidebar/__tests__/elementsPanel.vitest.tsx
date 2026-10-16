@@ -355,14 +355,15 @@ describe('icon tiles', () => {
     action: { kind: 'icon', iconId: 'tabler-sun' },
     thumb: { t: 'icon', iconId: 'tabler-sun' },
   };
-  const tile = (selected: boolean) => (
+  const tile = (selected: boolean, disabled = false, onActivate = () => {}) => (
     <ElementTile
       item={sun}
       variant="grid"
-      onActivate={() => {}}
+      onActivate={onActivate}
       enterIndex={null}
       canDrag
       selected={selected}
+      disabled={disabled}
     />
   );
 
@@ -376,12 +377,23 @@ describe('icon tiles', () => {
     });
   });
 
-  it('do not drag an icon the page already shows', () => {
+  // The active page's state; another page may still take the icon.
+  it('drag an icon the active page already shows', () => {
     render(tile(true));
     expect(screen.getByRole('button', { name: 'sun hinzufügen' })).toHaveAttribute(
       'draggable',
-      'false'
+      'true'
     );
+  });
+
+  it('drag but do not click an icon while the active page is full', async () => {
+    const onActivate = vi.fn();
+    render(tile(false, true, onActivate));
+    const button = screen.getByRole('button', { name: 'sun hinzufügen' });
+    expect(button).toHaveAttribute('draggable', 'true');
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    await userEvent.click(button);
+    expect(onActivate).not.toHaveBeenCalled();
   });
 });
 

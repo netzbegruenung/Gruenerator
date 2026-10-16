@@ -72,8 +72,10 @@ export const ElementTile = memo(function ElementTile({
 }: ElementTileProps) {
   const fills = thumbFillsTile(item.thumb);
   const dark = thumbNeedsDarkTile(item.thumb);
-  // An icon already on the page has no second place to go.
-  const draggable = canDrag && !disabled && !selected;
+  // `selected`/`disabled` describe the active page; a drag can target another
+  // page, whose canvas decides on the drop. Hence `aria-disabled`: a disabled
+  // button starts no drag.
+  const draggable = canDrag;
   const svgDef = item.thumb.t === 'svg' ? item.thumb.def : null;
 
   return (
@@ -90,9 +92,11 @@ export const ElementTile = memo(function ElementTile({
         title={item.label}
         aria-label={`${item.label} hinzufügen`}
         {...(item.action.kind === 'icon' ? { 'aria-pressed': selected } : {})}
-        disabled={disabled}
+        aria-disabled={disabled}
         {...(draggable ? elementDragProps(item) : { draggable: false })}
-        onClick={() => onActivate(item)}
+        onClick={() => {
+          if (!disabled) onActivate(item);
+        }}
         {...(svgDef ? { onPointerEnter: () => onThumbnailHover(svgDef.id, svgDef) } : {})}
         className={cn(
           'group/tile relative grid place-items-center w-full rounded-xl p-0 border cursor-pointer',
@@ -115,7 +119,7 @@ export const ElementTile = memo(function ElementTile({
           className={cn(
             'relative grid place-items-center',
             fills ? 'absolute inset-0' : INNER[variant],
-            'transition-transform group-hover/tile:scale-[1.04] group-disabled/tile:scale-100',
+            'transition-transform group-hover/tile:scale-[1.04] group-aria-disabled/tile:scale-100',
             'motion-reduce:transition-none'
           )}
         >
