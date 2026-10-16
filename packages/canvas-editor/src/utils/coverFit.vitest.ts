@@ -185,3 +185,17 @@ describe('visiblePart, mirrored', () => {
     expect(mirrored.x + mirrored.width).toBeCloseTo(landscape.width);
   });
 });
+
+describe('zoomBackground in a strip', () => {
+  const slot = { width: 1080, height: 1350 };
+  const strip = { x: 0, y: 810, width: 1080, height: 540 };
+
+  it('zooms about the strip and keeps the window over it, not over the page', () => {
+    // The composer's foto-unten placement: the window's middle on the strip's.
+    const start = { imageOffset: { x: 0, y: 405 }, imageScale: 1 };
+    const next = zoomBackground(start, 2, slot, false, strip);
+    expect(next.imageScale).toBe(2);
+    // About the strip's middle (y 1080): 1080 - (1080 - 405) * 2.
+    expect(next.imageOffset.y).toBeCloseTo(-270);
+  });
+});

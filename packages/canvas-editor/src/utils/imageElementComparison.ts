@@ -96,6 +96,18 @@ export function imageRenderInputsAreEqual<TState extends Record<string, unknown>
     return false;
   }
 
+  const { frame: frameOf } = prev.config;
+  if (frameOf) {
+    const a = frameOf(prev.state, prev.layout);
+    const b = frameOf(next.state, next.layout);
+    if (
+      a !== b &&
+      (!a || !b || a.x !== b.x || a.y !== b.y || a.width !== b.width || a.height !== b.height)
+    ) {
+      return false;
+    }
+  }
+
   // Derived source and tint (e.g. a mark that follows the background colour).
   const { src, fill } = prev.config;
   if (typeof src === 'function' && src(prev.state) !== src(next.state)) return false;

@@ -226,7 +226,7 @@ export function covers(photo: Rect, frame: Rect, epsilon = 0.5): boolean {
  * slot so the zoom cannot open a gap.
  */
 export function zoomWindow(window: Rect, factor: number, slot: Rect): Rect {
-  const f = Math.max(slot.width / window.width, factor);
+  const f = Math.max(slot.width / window.width, slot.height / window.height, factor);
   const width = window.width * f;
   const height = window.height * f;
   const about = (start: number, middle: number) => middle - (middle - start) * f;
@@ -248,7 +248,9 @@ export function zoomBackground(
   current: { imageOffset?: { x: number; y: number } | null; imageScale?: number | null },
   nextScale: number,
   slot: Size,
-  centerZoom = false
+  centerZoom = false,
+  /** The part of the slot the photo fills, when not all of it (a composer strip). */
+  frame: Rect | null = null
 ): { imageOffset: { x: number; y: number }; imageScale: number } {
   const from = current.imageScale ?? 1;
   const offset = current.imageOffset ?? { x: 0, y: 0 };
@@ -259,8 +261,12 @@ export function zoomBackground(
     width: slot.width * from,
     height: slot.height * from,
   };
-  const zoomed = zoomWindow(window, nextScale / from, { x: 0, y: 0, ...slot });
-  const imageScale = zoomed.width / slot.width;
+  const zoomed = zoomWindow(
+    window,
+    Math.max(1, nextScale) / from,
+    frame ?? { x: 0, y: 0, ...slot }
+  );
+  const imageScale = Math.max(1, zoomed.width / slot.width);
   return {
     imageScale,
     imageOffset: {

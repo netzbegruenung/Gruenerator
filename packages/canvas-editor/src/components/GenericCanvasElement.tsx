@@ -282,12 +282,12 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
 
   // The slot the photo fills: the element's own box before zoom and pan.
   const frame = config.coverFit
-    ? {
+    ? (config.frame?.(state, layout) ?? {
         x: resolveValue(config.x, state, layout),
         y: resolveValue(config.y, state, layout),
         width: resolveValue(config.width, state, layout),
         height: resolveValue(config.height, state, layout),
-      }
+      })
     : null;
 
   return (
