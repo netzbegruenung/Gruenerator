@@ -2,8 +2,8 @@
  * Recipe-draft synthesis for the Agentura's "Rezept beschreiben → Entwurf" flow.
  *
  * Turns a description (or creator conversation) into a validated recipe spec
- * via a single Mistral structured-generation call — model, token budget,
- * temperature and timeout are pinned exactly like `draftAgentSpec` in
+ * via one forced tool call on the `creator_draft` lane — lane, token budget
+ * and temperature are the same as `draftAgentSpec` in
  * `../userAgents/agentDraftService.ts` (same conversational-creator shape).
  * Mirrored rather than shared: the closed sets (icons vs. tools/skills) and
  * the post-clamps (mention collision loop) differ enough that a shared helper
@@ -25,11 +25,12 @@ import {
   DEFAULT_AGENT_ICON,
   isSuggestedAgentIcon,
 } from '@gruenerator/shared/agents';
-import { generateObject } from 'ai';
 import { z } from 'zod';
+import { zodToJsonSchema } from 'zod-to-json-schema';
 
 import { createLogger } from '../../utils/logger.js';
-import { getModel } from '../ai/providers.js';
+import { aiObject } from '../ai/generate.js';
+import { type StructuredValidation } from '../ai/structuredParsing.js';
 
 import { deriveRecipeMention, normalizeTextFormMention } from './textFormKind.js';
 
@@ -68,6 +69,22 @@ const DraftSchema = z.object({
       'Markdown-Schreibvorgabe für eine Textsorte mit den Abschnitten Zweck, Aufbau und Struktur, Tonalität und Ansprache, Länge und Format, Was vermieden wird.'
     ),
 });
+type Draft = z.infer<typeof DraftSchema>;
+
+const DRAFT_TOOL_SCHEMA = zodToJsonSchema(DraftSchema, {
+  target: 'jsonSchema7',
+  $refStrategy: 'none',
+}) as Record<string, unknown>;
+
+function validateDraft(input: unknown): StructuredValidation<Draft> {
+  const parsed = DraftSchema.safeParse(input);
+  if (parsed.success) return { ok: true, value: parsed.data };
+  const issues = parsed.error.issues
+    .slice(0, 6)
+    .map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`)
+    .join('; ');
+  return { ok: false, error: `Ungültige Rezept-Spezifikation: ${issues}` };
+}
 
 function buildSystemPrompt(takenMentions: ReadonlySet<string>): string {
   const listed = [...takenMentions].slice(0, MAX_LISTED_MENTIONS);
@@ -163,19 +180,20 @@ export async function draftRecipeSpec(params: {
   messages: ReadonlyArray<{ role: string; content: string }>;
   takenMentions: ReadonlySet<string>;
 }): Promise<DraftedRecipeSpec> {
-  const model = getModel('mistral');
-
-  const result = await generateObject({
-    model,
-    schema: DraftSchema,
+  const generated = await aiObject<Draft>({
+    lane: 'creator_draft',
     system: buildSystemPrompt(params.takenMentions),
     prompt: `## Gespräch\n\n${buildTranscript(params.messages)}\n\nErstelle daraus die Rezept-Spezifikation.`,
+    toolName: 'create_recipe_spec',
+    toolDescription: 'Gibt die fertige Spezifikation des neuen Rezepts zurück.',
+    schema: DRAFT_TOOL_SCHEMA,
+    validate: validateDraft,
     maxOutputTokens: 4096,
     temperature: 0.4,
-    abortSignal: AbortSignal.timeout(60000),
+    label: 'recipe_draft',
   });
-
-  const draft = result.object;
+  if (!generated.ok) throw generated.cause ?? new Error(generated.error);
+  const draft = generated.data;
 
   // Clamp to the curated set so the synthesized icon always resolves.
   const iconKey = isSuggestedAgentIcon(draft.iconKey.trim())

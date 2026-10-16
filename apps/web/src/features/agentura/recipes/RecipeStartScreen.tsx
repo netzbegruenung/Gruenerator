@@ -1,11 +1,10 @@
+import { useOwnRecipes } from '@gruenerator/shared/grueneratoren';
 import { AIPromptInput, type AIPromptInputExample, Button, SectionHeader } from '@gruenerator/ui';
 import { useVoxtralDictation } from '@gruenerator/voice';
 import { useNavigate } from 'react-router-dom';
 
 import { PhosphorIcon } from '../../agents/icons/PhosphorIcon';
 import { MarketCard } from '../components/MarketCard';
-
-import { useOwnRecipes } from './api';
 
 import PageContainer from '@/components/common/PageContainer';
 

@@ -41,7 +41,7 @@ const SEED = {
       scaleY: 1,
       opacity: 1,
     },
-    // A composer plane from before the `locked` flag: locked by its id.
+    // A composer plane, its gradient a vertical Tanne fade.
     {
       id: 'sc-bg',
       type: 'rect',
@@ -50,6 +50,14 @@ const SEED = {
       width: 1080,
       height: 1350,
       fill: '#005538',
+      fillGradient: {
+        type: 'linear',
+        angle: 90,
+        stops: [
+          { offset: 0, color: '#005538' },
+          { offset: 1, color: '#002216' },
+        ],
+      },
       rotation: 0,
       scaleX: 1,
       scaleY: 1,
@@ -185,8 +193,10 @@ describe('freeform op path', () => {
     expect(byId.get('chart-1')).toMatchObject({ kind: 'chart' });
     expect(byId.get('icon-1')).toMatchObject({ kind: 'icon' });
     expect(byId.get('icon-1')!.label).toContain('x=540 y=300');
-    expect(byId.get('sc-bg')!.label).toContain('(Hintergrundfläche, gesperrt)');
-    expect(byId.get('shape-1')!.label).not.toContain('gesperrt');
+    expect(byId.get('sc-bg')!.label).toContain('(Hintergrundfläche)');
+    expect(byId.get('sc-bg')!.label).toContain('Verlauf');
+    expect(byId.get('sc-bg')!.label).not.toContain('gesperrt');
+    expect(byId.get('shape-1')!.label).not.toContain('Hintergrundfläche');
     // z-order: layerOrder first (shape behind the text), the rest on top.
     expect(byId.get('shape-1')!.label).toContain('Ebene 1/9');
     expect(byId.get('txt-1')!.label).toContain('Ebene 2/9');
@@ -271,9 +281,18 @@ describe('freeform op path', () => {
     expect(state.chartInstances[0]).not.toHaveProperty('color');
   });
 
-  it('leaves locked background planes alone', () => {
+  it('edits composer background planes like any shape', () => {
     const env = freeform();
-    expect(update('sc-bg', { x: 10 }, env).result.ok).toBe(false);
+    expect(update('sc-bg', { x: 10 }, env).result.ok).toBe(true);
+    expect(env.getState().shapeInstances.find((x) => x.id === 'sc-bg')).toMatchObject({ x: 10 });
+
+    // A solid colour replaces the gradient, which would otherwise hide it.
+    expect(update('sc-bg', { color: '#E6007E' }, env).result.ok).toBe(true);
+    expect(env.getState().shapeInstances.find((x) => x.id === 'sc-bg')).toMatchObject({
+      fill: '#E6007E',
+      fillGradient: null,
+    });
+
     expect(
       applyOperation(
         { kind: 'remove-element', elementId: 'sc-bg' },
@@ -281,7 +300,7 @@ describe('freeform op path', () => {
         env.getState,
         env.ai
       ).ok
-    ).toBe(false);
-    expect(env.getState().shapeInstances.find((x) => x.id === 'sc-bg')).toMatchObject({ x: 0 });
+    ).toBe(true);
+    expect(env.getState().shapeInstances.find((x) => x.id === 'sc-bg')).toBeUndefined();
   });
 });

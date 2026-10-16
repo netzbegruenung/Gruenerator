@@ -5,8 +5,12 @@
  * ScheduleDialog (frequency / time / weekday / month-day / timezone / delivery).
  */
 import { type ScheduleFrequency, type RecurringTaskDelivery } from '@gruenerator/contracts';
-
-import { DELIVERY_LABEL, TIMEZONES, WEEKDAYS, type ScheduleState } from './scheduleState';
+import {
+  DELIVERY_LABEL,
+  TIMEZONES,
+  WEEKDAYS,
+  type ScheduleState,
+} from '@gruenerator/shared/grueneratoren';
 
 const selectCls =
   'h-11 w-full rounded-sm border-0 bg-input-bg px-sm text-sm text-input-text outline-none transition-all focus-visible:ring-[3px] focus-visible:ring-ring/50';

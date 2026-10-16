@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@12.8.2",
+  "packageManager": "pnpm@12.12.1",
   "workspaces": [
     "apps/*",
     "packages/*",
@@ -13,18 +13,18 @@
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",
     "@commitlint/config-conventional": "^21.2.3",
-    "@types/node": "26.6.3",
+    "@types/node": "26.6.5",
     "concurrently": "^10.0.5",
     "cross-env": "^10.1.0",
     "eslint": "^9.39.5",
     "husky": "^9.1.7",
-    "knip": "^6.38.0",
+    "knip": "^6.40.0",
     "lint-staged": "^17.6.0",
-    "prettier": "3.9.9",
+    "prettier": "3.9.10",
     "semver": "^7.8.5",
-    "turbo": "^2.11.4",
+    "turbo": "^2.11.7",
     "typescript": "^6.0.3",
-    "wait-on": "^9.1.0"
+    "wait-on": "^9.5.1"
   },
   "scripts": {
     "knip": "knip",

@@ -24,7 +24,11 @@ export type ToolIconKey =
   | 'imageSquare'
   | 'videoCamera'
   | 'book'
-  | 'userCircle';
+  | 'userCircle'
+  | 'sticker'
+  | 'translate'
+  | 'newspaper'
+  | 'bookOpen';
 
 /**
  * Tool id → glyph. Ids are the shared ones (F1-frozen on mobile, where
@@ -40,6 +44,10 @@ export const TOOL_ICON_KEYS = {
   reel: 'videoCamera',
   wissen: 'book',
   profilbild: 'userCircle',
+  sticker: 'sticker',
+  uebersetzer: 'translate',
+  newsletter: 'newspaper',
+  doku: 'bookOpen',
 } as const satisfies Record<string, ToolIconKey>;
 
 export type ToolIconId = keyof typeof TOOL_ICON_KEYS;

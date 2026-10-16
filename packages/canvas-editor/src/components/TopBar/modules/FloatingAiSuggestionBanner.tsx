@@ -1,4 +1,4 @@
-import { Check, RotateCcw, Sparkles } from 'lucide-react';
+import { Check, LayoutTemplate, RotateCcw, Sparkles } from 'lucide-react';
 
 import { useCanvasStoreSelector } from '../../../stores/CanvasStoreProvider';
 
@@ -16,7 +16,8 @@ import { useCanvasStoreSelector } from '../../../stores/CanvasStoreProvider';
  * the singleton store which has no history.
  *
  * A suggestion flagged `undo: 'pages'` (spec path: the deck was replaced in one
- * Yjs step) reverts through `onUndoPages`, the page-level undo.
+ * Yjs step) reverts through `onUndoPages`, the page-level undo. The „Vorlagen"
+ * tab uses the same banner after replacing a design (`source: 'vorlage'`).
  */
 interface FloatingAiSuggestionBannerProps {
   onUndo: () => void;
@@ -32,6 +33,8 @@ export function FloatingAiSuggestionBanner({
 
   if (!pending) return null;
 
+  const noun = pending.source === 'vorlage' ? 'Vorlage' : 'Vorschlag';
+  const Icon = pending.source === 'vorlage' ? LayoutTemplate : Sparkles;
   const handleAccept = () => setPending(null);
 
   const handleReject = () => {
@@ -42,16 +45,16 @@ export function FloatingAiSuggestionBanner({
 
   return (
     <div className="flex w-full items-center gap-2">
-      <Sparkles className="size-4 shrink-0 text-white/90" aria-hidden="true" />
+      <Icon className="size-4 shrink-0 text-white/90" aria-hidden="true" />
       <span className="flex-1 truncate text-xs font-medium text-white">
-        Vorschlag: {pending.title}
+        {noun}: {pending.title}
       </span>
       <button
         type="button"
         onClick={handleReject}
         className="size-8 max-canvas-mobile:size-10 rounded-full border-none bg-transparent flex items-center justify-center text-white/90 transition-[background-color,color] duration-200 hover:bg-white/15 hover:text-white cursor-pointer"
-        title="Vorschlag verwerfen (Rückgängig)"
-        aria-label="Vorschlag verwerfen"
+        title={`${noun} verwerfen (Rückgängig)`}
+        aria-label={`${noun} verwerfen`}
       >
         <RotateCcw className="size-4" />
       </button>
@@ -59,8 +62,8 @@ export function FloatingAiSuggestionBanner({
         type="button"
         onClick={handleAccept}
         className="size-8 max-canvas-mobile:size-10 rounded-full border-none bg-primary flex items-center justify-center text-white transition-opacity duration-200 hover:opacity-90 cursor-pointer"
-        title="Vorschlag behalten"
-        aria-label="Vorschlag behalten"
+        title={`${noun} behalten`}
+        aria-label={`${noun} behalten`}
       >
         <Check className="size-4" />
       </button>

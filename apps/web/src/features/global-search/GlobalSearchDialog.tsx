@@ -120,7 +120,13 @@ export default function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchD
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-2xl">
+      {/* Opened by ⌘K many times a day — no enter/exit animation, it must feel instant. */}
+      <DialogContent
+        className="gap-0 overflow-hidden p-0 sm:max-w-2xl data-[state=closed]:animate-none! data-[state=open]:animate-none!"
+        overlayProps={{
+          className: 'data-[state=closed]:animate-none! data-[state=open]:animate-none!',
+        }}
+      >
         <DialogHeader className="sr-only">
           <DialogTitle>Suche</DialogTitle>
           <DialogDescription>

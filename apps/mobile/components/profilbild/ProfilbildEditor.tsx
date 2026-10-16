@@ -7,15 +7,23 @@ import * as Haptics from 'expo-haptics';
 import { useLayoutEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { makeMutable, useDerivedValue, type SharedValue } from 'react-native-reanimated';
+import { scheduleOnRN, scheduleOnUI } from 'react-native-worklets';
+
+import { roundModel } from '../../hooks/profilbild/gestureMath';
 
 import {
+  applyLive,
   createProfilbildGestureController,
+  idleMachine,
   NO_GUIDES,
+  type GestureContext,
   type Guides,
+  type LiveElement,
   type ProfilbildEditorProps,
 } from './profilbildGestures';
-import { ProfilbildScene } from './ProfilbildScene';
-import { sceneScale, type ProfilbildModel, type SceneSticker } from './sceneModel';
+import { ProfilbildScene, useLiveStickerBox } from './ProfilbildScene';
+import { sceneScale, type SceneSticker } from './sceneModel';
 
 const S = PROFILBILD_SIZE;
 const GRID_COLOR = 'rgba(255,255,255,0.7)';
@@ -23,49 +31,98 @@ const GRID_UNDERLAY = 'rgba(0,85,56,0.35)';
 const GUIDE_COLOR = BRAND_COLORS.GRASHALM;
 const GUIDE_CASING = CANVAS_COLORS.TANNE;
 const REMOVE_SIZE = 32;
+const HOLD_MS = 400;
+
+type Live = SharedValue<LiveElement | null>;
 
 export function ProfilbildEditor(props: ProfilbildEditorProps) {
   const { model, person, images, isAustria, viewSize, selected } = props;
-  const [draft, setDraft] = useState<ProfilbildModel | null>(null);
-  const [guides, setGuides] = useState<Guides>(NO_GUIDES);
+  const [gesturing, setGesturing] = useState(false);
 
   const [gestures] = useState(() => {
-    const c = createProfilbildGestureController({
-      setDraft,
-      setGuides,
-      haptic: () => void Haptics.selectionAsync(),
-    });
+    // The RN-thread side of the gestures: the latest props, and whether a
+    // commit is waiting to be on screen before the live element can go.
+    let latest: ProfilbildEditorProps | null = null;
+    let settlePending = false;
+    const live = makeMutable<LiveElement | null>(null);
+    const guides = makeMutable<Guides>(NO_GUIDES);
+    const c = createProfilbildGestureController(
+      {
+        ctx: makeMutable<GestureContext | null>(null),
+        machine: makeMutable(idleMachine()),
+        live,
+        guides,
+      },
+      {
+        select: (uid) => latest?.onSelect(uid),
+        start: () => setGesturing(true),
+        commit: (el) => {
+          setGesturing(false);
+          if (!el || !latest) return;
+          settlePending = true;
+          latest.onChange(roundModel(applyLive(latest.model, el)));
+        },
+        haptic: () => void Haptics.selectionAsync(),
+      }
+    );
+    const peek = (on: boolean) => {
+      if (on) void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      latest?.onPeek?.(on);
+    };
     const h = c.handlers;
-    const tap = Gesture.Tap()
-      .runOnJS(true)
-      .onEnd((e, success) => h.tapEnd(e, success));
+    const tap = Gesture.Tap().onEnd(h.tapEnd);
+    // Holding the stage still shows the Instagram preview until the finger lifts;
+    // any movement first makes it a pan instead.
+    const hold = Gesture.LongPress()
+      .minDuration(HOLD_MS)
+      .onStart(() => {
+        'worklet';
+        scheduleOnRN(peek, true);
+      })
+      // Every finish, cancelled ones included: a preview must never stay stuck open.
+      .onFinalize(() => {
+        'worklet';
+        scheduleOnRN(peek, false);
+      });
     const pan = Gesture.Pan()
-      .runOnJS(true)
       .onBegin(h.panBegin)
       .onStart(h.panStart)
       .onUpdate(h.panUpdate)
       .onEnd(h.end);
-    const pinch = Gesture.Pinch()
-      .runOnJS(true)
-      .onStart(h.pinchStart)
-      .onUpdate(h.pinchUpdate)
-      .onEnd(h.end);
+    const pinch = Gesture.Pinch().onStart(h.pinchStart).onUpdate(h.pinchUpdate).onEnd(h.end);
     const rotation = Gesture.Rotation()
-      .runOnJS(true)
       .onStart(h.rotationStart)
       .onUpdate(h.rotationUpdate)
       .onEnd(h.end);
-    return { sync: c.sync, gesture: Gesture.Race(Gesture.Simultaneous(pan, pinch, rotation), tap) };
+    return {
+      live,
+      guides,
+      gesture: Gesture.Race(Gesture.Simultaneous(pan, pinch, rotation), hold, tap),
+      sync(p: ProfilbildEditorProps) {
+        latest = p;
+        c.sync({
+          stickers: p.model.stickers,
+          person: p.model.person,
+          personSrc: { width: p.person.width(), height: p.person.height() },
+          selected: p.selected,
+          viewSize: p.viewSize,
+        });
+        // The committed model is on screen from this render on; the live element can go.
+        if (settlePending) {
+          settlePending = false;
+          scheduleOnUI(c.settle);
+        }
+      },
+    };
   });
   useLayoutEffect(() => {
-    gestures.sync(props, selected);
+    gestures.sync(props);
   });
+  const { live, guides } = gestures;
 
-  const shown = draft ?? model;
   const scale = sceneScale(viewSize);
   const stroke = 2 / scale;
-  const gesturing = draft !== null;
-  const sticker = shown.stickers.find((s) => s.uid === selected);
+  const sticker = model.stickers.find((s) => s.uid === selected);
 
   const remove = () => {
     props.onChange({ ...model, stickers: model.stickers.filter((s) => s.uid !== selected) });
@@ -77,49 +134,21 @@ export function ProfilbildEditor(props: ProfilbildEditorProps) {
       <GestureDetector gesture={gestures.gesture}>
         <Canvas style={{ width: viewSize, height: viewSize }}>
           <Group transform={[{ scale }]}>
-            <ProfilbildScene model={shown} person={person} images={images} isAustria={isAustria} />
-            {gesturing
-              ? gridLines(S).flatMap((p) => [
-                  guides.x === p ? null : (
-                    <GridLine key={`v${p}`} p1={vec(p, 0)} p2={vec(p, S)} stroke={stroke} />
-                  ),
-                  guides.y === p ? null : (
-                    <GridLine key={`h${p}`} p1={vec(0, p)} p2={vec(S, p)} stroke={stroke} />
-                  ),
-                ])
-              : null}
-            {gesturing && guides.x !== null ? (
-              <Guide p1={vec(guides.x, 0)} p2={vec(guides.x, S)} stroke={stroke} />
-            ) : null}
-            {gesturing && guides.y !== null ? (
-              guides.y === S ? (
-                <Guide
-                  p1={vec(0, S - stroke * 1.5)}
-                  p2={vec(S, S - stroke * 1.5)}
-                  stroke={stroke * 2}
-                />
-              ) : (
-                <Guide p1={vec(0, guides.y)} p2={vec(S, guides.y)} stroke={stroke} />
-              )
-            ) : null}
+            <ProfilbildScene
+              model={model}
+              person={person}
+              images={images}
+              isAustria={isAustria}
+              live={live}
+            />
+            {gridLines(S).flatMap((p) => [
+              <GridLine key={`v${p}`} axis="x" p={p} stroke={stroke} live={live} guides={guides} />,
+              <GridLine key={`h${p}`} axis="y" p={p} stroke={stroke} live={live} guides={guides} />,
+            ])}
+            <Guide axis="x" stroke={stroke} live={live} guides={guides} />
+            <Guide axis="y" stroke={stroke} live={live} guides={guides} />
             {sticker ? (
-              <Group
-                transform={[
-                  { translateX: sticker.x },
-                  { translateY: sticker.y },
-                  { rotate: (sticker.rotation * Math.PI) / 180 },
-                ]}
-              >
-                <Rect
-                  x={-sticker.width / 2}
-                  y={-sticker.height / 2}
-                  width={sticker.width}
-                  height={sticker.height}
-                  style="stroke"
-                  strokeWidth={stroke}
-                  color={GUIDE_COLOR}
-                />
-              </Group>
+              <SelectionOutline key={sticker.uid} sticker={sticker} stroke={stroke} live={live} />
             ) : null}
           </Group>
         </Canvas>
@@ -128,6 +157,23 @@ export function ProfilbildEditor(props: ProfilbildEditorProps) {
         <RemoveButton sticker={sticker} scale={scale} viewSize={viewSize} onPress={remove} />
       ) : null}
     </View>
+  );
+}
+
+function SelectionOutline({
+  sticker,
+  stroke,
+  live,
+}: {
+  sticker: SceneSticker;
+  stroke: number;
+  live: Live;
+}) {
+  const { transform, rect } = useLiveStickerBox(sticker, live);
+  return (
+    <Group transform={transform}>
+      <Rect rect={rect} style="stroke" strokeWidth={stroke} color={GUIDE_COLOR} />
+    </Group>
   );
 }
 
@@ -163,29 +209,52 @@ function RemoveButton({
   );
 }
 
-interface LineProps {
-  p1: ReturnType<typeof vec>;
-  p2: ReturnType<typeof vec>;
+interface OverlayProps {
+  axis: 'x' | 'y';
   stroke: number;
+  live: Live;
+  guides: SharedValue<Guides>;
 }
 
-function Guide({ p1, p2, stroke }: LineProps) {
+/** The snap guide on one axis, shown while a gesture holds an element on it. */
+function Guide({ axis, stroke, live, guides }: OverlayProps) {
+  const line = useDerivedValue(() => {
+    const g = guides.value[axis];
+    const visible = live.value !== null && g !== null;
+    if (axis === 'x') {
+      const x = g ?? 0;
+      return { p1: { x, y: 0 }, p2: { x, y: S }, width: stroke, visible };
+    }
+    // The bottom guide sits just inside the canvas edge, drawn thicker.
+    const bottom = g === S;
+    const y = bottom ? S - stroke * 1.5 : (g ?? 0);
+    return { p1: { x: 0, y }, p2: { x: S, y }, width: bottom ? stroke * 2 : stroke, visible };
+  });
+  const p1 = useDerivedValue(() => line.value.p1);
+  const p2 = useDerivedValue(() => line.value.p2);
+  const casing = useDerivedValue(() => line.value.width * 3);
+  const core = useDerivedValue(() => line.value.width * 1.5);
+  const opacity = useDerivedValue(() => (line.value.visible ? 1 : 0));
   return (
-    <>
-      <Line p1={p1} p2={p2} color={GUIDE_CASING} strokeWidth={stroke * 3} opacity={0.85} />
-      <Line p1={p1} p2={p2} color={GUIDE_COLOR} strokeWidth={stroke * 1.5} />
-    </>
+    <Group opacity={opacity}>
+      <Line p1={p1} p2={p2} color={GUIDE_CASING} strokeWidth={casing} opacity={0.85} />
+      <Line p1={p1} p2={p2} color={GUIDE_COLOR} strokeWidth={core} />
+    </Group>
   );
 }
 
-function GridLine({ p1, p2, stroke }: LineProps) {
+/** A thirds/centre grid line, shown while a gesture runs unless the guide covers it. */
+function GridLine({ axis, p, stroke, live, guides }: OverlayProps & { p: number }) {
+  const opacity = useDerivedValue(() => (live.value !== null && guides.value[axis] !== p ? 1 : 0));
+  const p1 = axis === 'x' ? vec(p, 0) : vec(0, p);
+  const p2 = axis === 'x' ? vec(p, S) : vec(S, p);
   return (
-    <>
+    <Group opacity={opacity}>
       <Line p1={p1} p2={p2} color={GRID_UNDERLAY} strokeWidth={stroke * 2.5} />
       <Line p1={p1} p2={p2} color={GRID_COLOR} strokeWidth={stroke}>
         <DashPathEffect intervals={[12, 10]} />
       </Line>
-    </>
+    </Group>
   );
 }
 

@@ -7,7 +7,8 @@
  * `FROM|JOIN <table>` and every Drizzle `.from(<symbol>)`/`.xxxJoin(<symbol>`
  * must name the trash state in the same statement — `deleted_at IS NULL`,
  * `deleted_at IS NOT NULL` (the trash side itself), `isNull(<t>.deleted_at)`,
- * `notTrashed(`; for `collaborative_documents` also `is_deleted = false`,
+ * `notTrashed(<t>)` — on the scanned table's own symbol, not a joined one; for
+ * `collaborative_documents` also `is_deleted = false`,
  * which the CHECK `collaborative_documents_trash_pair` makes equivalent.
  * An interpolated fragment counts when its own definition carries the clause
  * (`${docsAccessWhere(…)}`, `${CANVAS_ACCESS_WHERE}`, a local `where`).
@@ -91,6 +92,42 @@ const ALLOWLIST: readonly AllowEntry[] = [
     'account deletion: likes on every Vorlage of the user, trashed ones cascade too',
     'DELETE FROM entity_likes',
   ],
+  [
+    'apps/api/services/entityLikes/EntityLikesService.ts',
+    'studio_assets',
+    'account deletion: likes on every Sticker/Hintergrund of the user, trashed ones cascade too',
+    "entity_type = 'studio_asset'",
+  ],
+  [
+    'apps/api/services/studioAssets/studioAssetsService.ts',
+    'studio_assets',
+    'create: a trashed asset still owns its image until the purge, so it blocks reuse',
+    'eq(studioAssets.media_id',
+  ],
+  [
+    'apps/api/services/contentReports/contentReportsService.ts',
+    'studio_assets',
+    'moderation: an asset the owner trashed is still removed or restored by the admin',
+    'where(eq(studioAssets.id, assetId))',
+  ],
+  [
+    'apps/api/services/contentReports/contentReportsService.ts',
+    'studio_assets',
+    'moderation: the report queue shows reported assets the owner trashed, with their deletedAt',
+    'where(inArray(studioAssets.id, ids))',
+  ],
+  [
+    'apps/api/services/studioAssets/studioAssetShare.ts',
+    'studio_assets',
+    'moderation: a removed asset stays unserved while the owner has it in the Papierkorb',
+    "moderation = 'removed'",
+  ],
+  [
+    'apps/api/services/entityFavorites/EntityFavoritesService.ts',
+    'studio_assets',
+    'account deletion: favorites of every Sticker/Hintergrund of the user, trashed ones cascade too',
+    "entity_type = 'studio_asset'",
+  ],
   ['apps/api/routes/admin/chunkInspectorContractRouter.ts', 'documents', PERMANENT_ADMIN],
   ['apps/api/services/usage/userActivityStats.ts', 'chat_threads', PERMANENT_CREATED_COUNT],
   [
@@ -145,7 +182,7 @@ const ALLOWLIST: readonly AllowEntry[] = [
   [
     'apps/api/services/canvas/canvasRepository.ts',
     'user_templates',
-    "hides a Vorlage's snapshot canvas from the canvas list; a trashed Vorlage keeps it hidden until the purge removes both",
+    "recognises a Vorlage's snapshot canvas (hidden from the canvas list, may get a public link); a trashed Vorlage keeps that status until the purge removes both",
     "ut.content_data->>'canvasId'",
   ],
   [
@@ -349,6 +386,19 @@ function drizzleSymbols(): Map<string, TrashableTableName> {
   return symbols;
 }
 
+/**
+ * The clause must name the scanned table's own symbol: `notTrashed(sharedMedia)`
+ * on a joined table filters that join, never the `.from(studioAssets)` row.
+ */
+function drizzleFiltered(statement: string, symbol: string, table: TrashableTableName): boolean {
+  return (
+    new RegExp(`\\bnotTrashed\\(\\s*${symbol}\\s*\\)`).test(statement) ||
+    new RegExp(`\\bisNull\\(\\s*${symbol}\\.deleted_at\\s*\\)`).test(statement) ||
+    (table === 'collaborative_documents' &&
+      new RegExp(`\\beq\\(\\s*${symbol}\\.is_deleted\\s*,\\s*false\\s*\\)`).test(statement))
+  );
+}
+
 interface Offender {
   file: string;
   table: TrashableTableName;
@@ -405,12 +455,9 @@ function scan(): Offender[] {
       if (!table) continue;
       const end = source.indexOf(';', m.index);
       const statement = source.slice(m.index, end === -1 ? undefined : end);
-      const ok =
-        /\bnotTrashed\(/.test(statement) ||
-        new RegExp(`isNull\\(\\s*\\w+\\.deleted_at\\s*\\)`).test(statement) ||
-        (table === 'collaborative_documents' &&
-          new RegExp(`eq\\(\\s*\\w+\\.is_deleted\\s*,\\s*false\\s*\\)`).test(statement));
-      if (!ok) offenders.push({ file: rel, table, line: lineOf(m.index), statement });
+      if (!drizzleFiltered(statement, m[2], table)) {
+        offenders.push({ file: rel, table, line: lineOf(m.index), statement });
+      }
     }
   }
   return offenders;
@@ -451,6 +498,28 @@ describe('Papierkorb readers hide trashed rows', () => {
       const fragment = fragmentsIn(fs.readFileSync(path.join(repoRoot, file), 'utf8')).get(name);
       expect(fragment, name).toMatchObject({ trash: true, rowTrash: false });
     }
+  });
+
+  it('a Drizzle clause on a joined table excuses the join, never the base table', () => {
+    const statement = `.from(studioAssets)
+      .leftJoin(sharedMedia, and(eq(sharedMedia.id, studioAssets.media_id), notTrashed(sharedMedia)))
+      .where(inArray(studioAssets.id, ids))`;
+    expect(drizzleFiltered(statement, 'sharedMedia', 'shared_media')).toBe(true);
+    expect(drizzleFiltered(statement, 'studioAssets', 'studio_assets')).toBe(false);
+    expect(
+      drizzleFiltered(
+        `${statement}.where(notTrashed(studioAssets))`,
+        'studioAssets',
+        'studio_assets'
+      )
+    ).toBe(true);
+    expect(
+      drizzleFiltered(
+        '.from(sharedMedia).where(isNull(studioAssets.deleted_at))',
+        'sharedMedia',
+        'shared_media'
+      )
+    ).toBe(false);
   });
 
   it('every unfiltered reader is on the allowlist', () => {

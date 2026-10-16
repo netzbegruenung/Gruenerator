@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { HiSparkles } from 'react-icons/hi';
-import { HiPencilSquare, HiQrCode, HiScissors } from 'react-icons/hi2';
+import { HiPencilSquare, HiPhoto, HiQrCode, HiScissors } from 'react-icons/hi2';
 import { PiArrowLeft, PiCaretRightBold, PiTextT, PiDropSimpleFill, PiPath } from 'react-icons/pi';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
@@ -14,7 +14,9 @@ import { GradientTextTool } from './GradientTextTool';
 import { QRCodeTool } from './QRCodeTool';
 import { RemoveBackgroundTool } from './RemoveBackgroundTool';
 import { TextPathCreatorTool } from './TextPathCreatorTool';
+import { UnsplashTool } from './UnsplashTool';
 
+import type { UserImagePlacement } from '../../../utils/userImageUtils';
 import type { ComponentType } from 'react';
 import type { IconType } from 'react-icons';
 
@@ -22,7 +24,7 @@ export interface ToolsSectionProps {
   /** Optional callback the tools call after a successful upload to nudge the user toward the Uploads tab. */
   onJumpToUploads?: () => void;
   /** Places a generated image (by durable URL) straight onto the canvas. */
-  onPlaceImageUrl?: (url: string, fileName: string) => void;
+  onPlaceImageUrl?: (url: string, fileName: string, options?: UserImagePlacement) => void;
 }
 
 type ToolView =
@@ -33,7 +35,8 @@ type ToolView =
   | 'qr-code'
   | 'gradient-text'
   | 'blob'
-  | 'text-path';
+  | 'text-path'
+  | 'unsplash';
 
 interface ToolCard {
   id: Exclude<ToolView, 'browse'>;
@@ -155,7 +158,8 @@ function DrillDownHeader({ label, onBack }: { label: string; onBack: () => void 
 }
 
 export function ToolsSection({ onJumpToUploads, onPlaceImageUrl }: ToolsSectionProps) {
-  const { removeBackgroundFromImage, generateAiImage, editAiImage } = useCanvasEditorServices();
+  const { removeBackgroundFromImage, generateAiImage, editAiImage, searchUnsplashImages } =
+    useCanvasEditorServices();
   const [activeView, setActiveView] = useState<ToolView>('browse');
   const isMobile = useIsCanvasMobile();
 
@@ -192,6 +196,17 @@ export function ToolsSection({ onJumpToUploads, onPlaceImageUrl }: ToolsSectionP
       hoverShadow: 'group-hover:shadow-sm',
       ring: 'focus-visible:ring-primary-600',
       available: !!editAiImage,
+    },
+    {
+      id: 'unsplash',
+      description: 'Freie Fotos suchen und einfügen',
+      ai: false,
+      label: 'Unsplash-Fotos',
+      icon: HiPhoto,
+      iconColor: 'text-editor-secondary-fg',
+      hoverShadow: 'group-hover:shadow-sm group-hover:shadow-editor-secondary-fg/15',
+      ring: 'focus-visible:ring-primary-600',
+      available: !!searchUnsplashImages && !!onPlaceImageUrl,
     },
     {
       id: 'qr-code',
@@ -285,6 +300,7 @@ export function ToolsSection({ onJumpToUploads, onPlaceImageUrl }: ToolsSectionP
       {activeView === 'remove-bg' && <RemoveBackgroundTool onJumpToUploads={onJumpToUploads} />}
       {activeView === 'ai-create' && <AiCreateTool onJumpToUploads={onJumpToUploads} />}
       {activeView === 'ai-edit' && <AiEditTool onJumpToUploads={onJumpToUploads} />}
+      {activeView === 'unsplash' && <UnsplashTool onPlaceImageUrl={onPlaceImageUrl} />}
       {activeView === 'qr-code' && (
         <QRCodeTool onJumpToUploads={onJumpToUploads} onPlaceImageUrl={onPlaceImageUrl} />
       )}

@@ -76,6 +76,7 @@ export {
   emailContract,
   feedbackContract,
   contentReportContract,
+  adminReportsContract,
   modelPreferencesContract,
   imageModelPreferenceContract,
   mcpServersContract,
@@ -87,6 +88,7 @@ export {
   userTemplatesContract,
   sharedTemplateContract,
   templateInteractionsContract,
+  studioAssetsContract,
   userAgentsContract,
   userAgentsSharingContract,
   userTextFormsContract,
@@ -117,6 +119,7 @@ export * from './schemas/threads.js';
 export * from './schemas/chatThreadSharing.js';
 export * from './schemas/explainables.js';
 export * from './schemas/podcasts.js';
+export * from './schemas/studioAssets.js';
 export * from './schemas/textForm.js';
 export * from './schemas/exports.js';
 export * from './schemas/recentValues.js';
@@ -182,6 +185,7 @@ export * from './schemas/memory.js';
 export * from './schemas/email.js';
 export * from './schemas/feedback.js';
 export * from './schemas/contentReport.js';
+export * from './schemas/adminReports.js';
 export * from './schemas/translation.js';
 export * from './schemas/modelPreferences.js';
 export * from './schemas/imageModelPreference.js';
@@ -192,6 +196,7 @@ export * from './schemas/imageEdit.js';
 export * from './schemas/sharepicCreator.js';
 export * from './schemas/sharepicHandMarks.js';
 export * from './schemas/sharepicVorlagen.js';
+export * from './schemas/printCreator.js';
 export * from './schemas/adminVorlagen.js';
 export * from './schemas/userTemplates.js';
 export * from './schemas/sharedTemplate.js';

@@ -159,6 +159,7 @@ export function runRoutingStage({
   if (plan.compoundGenerationKind) {
     classifiedState.compoundGeneration = true;
     classifiedState.compoundGenerationKind = plan.compoundGenerationKind;
+    classifiedState.compoundGenerationOrdered = plan.compoundGenerationOrdered;
   }
   if (plan.compoundEdit) classifiedState.compoundEdit = true;
   if (plan.editToolSurface) {

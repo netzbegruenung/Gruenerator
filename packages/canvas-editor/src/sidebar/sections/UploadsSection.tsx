@@ -6,6 +6,7 @@ import { HiArrowUpTray, HiMagnifyingGlass } from 'react-icons/hi2';
 
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
 import { cn } from '../../utils/cn';
+import { MEDIA_DRAG_TYPE, type MediaDragPayload } from '../../utils/mediaDrop';
 import { buildPlacementUrl } from '../../utils/mediaPlacement';
 import { downscaleImageForUpload } from '../../utils/userImageUtils';
 import { SidebarHint } from '../components/SidebarHint';
@@ -98,6 +99,23 @@ export function UploadsSection({
     onPlaceFromUrl(url, item.originalFilename ?? item.title ?? 'image');
   };
 
+  // A tile dragged onto a page lands where it is dropped (PageWrapper).
+  const tileDragProps = (item: MediaItem) => {
+    const url = buildPlacementUrl(item);
+    if (!url || !onPlaceFromUrl) return {};
+    const payload: MediaDragPayload = {
+      url,
+      name: item.originalFilename ?? item.title ?? 'image',
+    };
+    return {
+      draggable: true,
+      onDragStart: (e: React.DragEvent) => {
+        e.dataTransfer.setData(MEDIA_DRAG_TYPE, JSON.stringify(payload));
+        e.dataTransfer.effectAllowed = 'copy';
+      },
+    };
+  };
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
@@ -122,6 +140,8 @@ export function UploadsSection({
 
   const dragProps = {
     onDragOver: (e: React.DragEvent) => {
+      // Files from the desktop only; a tile dragged out to the canvas is no upload.
+      if (!e.dataTransfer.types.includes('Files')) return;
       e.preventDefault();
       setIsDragOver(true);
     },
@@ -183,6 +203,7 @@ export function UploadsSection({
               <button
                 type="button"
                 onClick={() => handlePlace(item)}
+                {...tileDragProps(item)}
                 className="block size-full p-0 bg-transparent border-none cursor-pointer [&_picture]:size-full [&_img]:size-full [&_img]:object-cover"
                 title={item.title ?? item.originalFilename ?? ''}
               >
@@ -300,6 +321,7 @@ export function UploadsSection({
               <button
                 type="button"
                 onClick={() => handlePlace(item)}
+                {...tileDragProps(item)}
                 className="relative block w-full p-0 bg-transparent border-none cursor-pointer"
                 title={item.title ?? item.originalFilename ?? ''}
               >

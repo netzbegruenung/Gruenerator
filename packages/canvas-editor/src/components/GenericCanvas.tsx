@@ -18,7 +18,6 @@ import React, {
   useImperativeHandle,
   useLayoutEffect,
 } from 'react';
-import { Layer } from 'react-konva';
 
 import { HOST_EMITTED_STATE_KEYS } from '../collab/pageElementStateKeys';
 import { useEmitHostStateChanges } from '../collab/useEmitHostStateChanges';
@@ -37,7 +36,8 @@ import {
 import { useCanvasAutoSave } from '../hooks/useCanvasAutoSave';
 import { useCanvasElementHandlers } from '../hooks/useCanvasElementHandlers';
 import { useCanvasKeyboardHandlers } from '../hooks/useCanvasKeyboardHandlers';
-import { CanvasStage, SnapGuidelines, AttributionOverlay } from '../primitives';
+import { useDeepSelect } from '../hooks/useDeepSelect';
+import { CanvasStage, SnapGuidelines } from '../primitives';
 import {
   CanvasStoreProvider,
   useCanvasStore,
@@ -45,16 +45,17 @@ import {
 } from '../stores/CanvasStoreProvider';
 import { useAutoSaveStore } from '../stores/useAutoSaveStore';
 import { alignElementX, alignElementY } from '../utils/alignment';
-import { calculateAttributionOverlay, isCreditedPhotoVisible } from '../utils/attributionOverlay';
 import { canvasFontFamilies } from '../utils/canvasFontFamilies';
 import { buildCanvasItems, buildSortedRenderList } from '../utils/canvasLayerManager';
 import { captureStageImage, captureStageImageAsync } from '../utils/captureStage';
 import { ensureFontsReady } from '../utils/ensureFontsReady';
+import { locateDrop, type MediaDragPayload } from '../utils/mediaDrop';
 import { PendingImagesContext } from '../utils/pendingImages';
 import { stageCssScale } from '../utils/stageCssScale';
 import { getOptimalContainerWidth } from '../utils/viewport';
 
 import { CanvasRenderLayer } from './CanvasRenderLayer';
+import { PrintGuides } from './PrintGuides';
 import { ToolbarStateBridge } from './ToolbarStateBridge';
 
 import type { RemoteSelector } from './RemoteSelectionOverlay';
@@ -193,6 +194,14 @@ export interface GenericCanvasRef {
     includeBackground?: boolean;
   }) => string | undefined;
   captureCanvas: (options?: Partial<ExportOptions>) => Promise<string | null>;
+  /** One print tile as JPEG bytes (format px rect, whole-pixel output size). */
+  capturePrintTile: (
+    tile: { x: number; y: number; outWidth: number; outHeight: number },
+    pixelRatio: number,
+    quality: number
+  ) => Promise<Uint8Array | null>;
+  /** User photos with source and displayed width, for the print resolution check. */
+  getPrintImages: () => Array<{ naturalWidthPx: number; displayedWidthPx: number }>;
   /** False while an image element's source is still loading — a capture
    *  taken then is missing that image. */
   imagesSettled: () => boolean;
@@ -201,6 +210,9 @@ export interface GenericCanvasRef {
   /** Clears this page's element selection — the per-page store lives behind
    *  CanvasStoreProvider, so the parent editor reaches it through this handle. */
   deselect: () => void;
+  /** Places a dragged upload where it was dropped: into the frame under the
+   *  pointer, else as a new image centred there. False when nothing was placed. */
+  dropMedia: (evt: { clientX: number; clientY: number }, media: MediaDragPayload) => boolean;
   /** Toolbar handlers — called by parent when toolbar is rendered at layout level */
   undo?: () => void;
   redo?: () => void;
@@ -246,7 +258,6 @@ function GenericCanvasWithRef<
   // Export state (used by auto-save and attribution overlay)
   const [exportedImage, setExportedImage] = useState<string | null>(null);
   const exportedImageRef = useRef<string | null>(null);
-  const [isExporting, setIsExporting] = useState(false);
 
   useCanvasStoreReset(preview ? null : config.id);
 
@@ -450,6 +461,7 @@ function GenericCanvasWithRef<
 
   const store = useCanvasStore();
   const { setSnapLines, updateElementPosition } = store.getState();
+  useDeepSelect(stageRef, !preview);
 
   // One selection across all pages: leaving the active page drops its own.
   useEffect(() => {
@@ -493,7 +505,7 @@ function GenericCanvasWithRef<
   const lastAutoSaveHistoryIndexRef = useRef(-1);
 
   useEffect(() => {
-    if (historyIndex < 0 || isExporting) return;
+    if (historyIndex < 0) return;
     // historyIndex 0 is the initial mount snapshot — an untouched canvas is not dirty
     if (
       autoSaveEnabled &&
@@ -522,7 +534,7 @@ function GenericCanvasWithRef<
     }, 1500);
 
     return () => clearTimeout(timer);
-  }, [historyIndex, isExporting, autoSaveEnabled, setAutoSaveDirty]);
+  }, [historyIndex, autoSaveEnabled, setAutoSaveDirty]);
 
   // Push live state/actions/selection up to the shared sidebar. Replaces the
   // old 200ms poll in PageWrapper: updates land synchronously with edits.
@@ -607,23 +619,6 @@ function GenericCanvasWithRef<
   // Bridge ref for ToolbarStateBridge → useImperativeHandle communication
   const bridgeRef = useRef<ToolbarBridgeState | null>(null);
 
-  // Calculate attribution overlay data for export (only when exporting)
-  const attributionOverlayData = useMemo(() => {
-    if (!isExporting) return null;
-
-    const imageAttribution = state.imageAttribution;
-    if (!imageAttribution) return null;
-    if (!isCreditedPhotoVisible(config.elements, state)) return null;
-
-    return calculateAttributionOverlay(
-      imageAttribution,
-      config.canvas.width,
-      config.canvas.height,
-      'bottom-right',
-      10
-    );
-  }, [isExporting, state, config.elements, config.canvas.width, config.canvas.height]);
-
   /**
    * Konva berechnet den Zeilenumbruch eines Text-Knotens EINMAL, beim Setzen
    * seiner Eigenschaften, und legt ihn in `textArr` ab. Ist die Webschrift zu
@@ -701,10 +696,30 @@ function GenericCanvasWithRef<
         await ensureFontsReady();
         return captureStageImageAsync(stageRef.current, options);
       },
+      capturePrintTile: async (tile, pixelRatio, quality) => {
+        await ensureFontsReady();
+        return stageRef.current?.toTileJpeg({ ...tile, pixelRatio, quality }) ?? null;
+      },
+      getPrintImages: () => stageRef.current?.getPrintImages() ?? [],
       imagesSettled: () => pendingImages.size === 0,
       captureCanvasForAi: async () =>
         captureStageImage(stageRef.current, { format: 'jpeg', pixelRatio: 1, quality: 0.85 }),
       deselect: () => setSelectedElement(null),
+      dropMedia: (evt, media) => {
+        const stage = stageRef.current?.getStage();
+        if (!stage) return false;
+        const drop = locateDrop(stage, evt, stageWidth / referenceWidth);
+        if (!drop) return false;
+        if (drop.frameId && actions.setFrameImage) {
+          // The file argument is unused there; the durable URL is the image.
+          actions.setFrameImage(drop.frameId, new File([], media.name), media.url);
+          setSelectedElement(drop.frameId);
+          return true;
+        }
+        if (!actions.addUserImageFromUrl) return false;
+        actions.addUserImageFromUrl(media.url, media.name, { center: drop.point });
+        return true;
+      },
       undo,
       redo,
       handleMoveLayer: (dir) => bridgeRef.current?.handleMoveLayer(dir),
@@ -780,6 +795,9 @@ function GenericCanvasWithRef<
       setSelectedElement,
       pendingImages,
       store,
+      actions,
+      stageWidth,
+      referenceWidth,
     ]
   );
 
@@ -813,12 +831,7 @@ function GenericCanvasWithRef<
           remoteSelections={remoteSelections}
         />
 
-        {/* Attribution overlay - only visible during export */}
-        {attributionOverlayData && (
-          <Layer listening={false}>
-            <AttributionOverlay data={attributionOverlayData} />
-          </Layer>
-        )}
+        <PrintGuides format={format} />
 
         <SnapGuidelines stageWidth={config.canvas.width} stageHeight={config.canvas.height} />
       </CanvasStage>

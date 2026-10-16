@@ -19,6 +19,7 @@ import {
 } from '@gruenerator/chat';
 import { type PublicTextForm, type TextForm } from '@gruenerator/contracts';
 import { SKILL_CATEGORY_LABELS, isAdminVisibleSkill } from '@gruenerator/shared/agents';
+import { useDeleteRecipe, classifyRecipeMention } from '@gruenerator/shared/grueneratoren';
 import {
   Badge,
   Button,
@@ -51,8 +52,6 @@ import { SkillCard, TypeBadge } from './components/cards';
 import { ShareRecipeModal } from './components/ShareRecipeModal';
 import { useSkillPrompt } from './hooks/useSkillPrompt';
 import { relatedSkills } from './lib/lookups';
-import { useDeleteRecipe } from './recipes/api';
-import { classifyRecipeMention } from './recipes/recipeKind';
 import { recipeOriginLine } from './recipes/recipeMeta';
 import { useRecipeByMention, type RecipeSource } from './recipes/useRecipeByMention';
 

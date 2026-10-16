@@ -178,7 +178,7 @@ function createFilename(photo: UnsplashPhoto): string {
  * Transform Unsplash API photo response to StockImage format
  */
 function transformPhotoToStockImage(photo: UnsplashPhoto): StockImage {
-  const photographerName = formatPhotographerName(photo.user.username);
+  const photographerName = photo.user.name.trim() || formatPhotographerName(photo.user.username);
 
   return {
     filename: createFilename(photo),

@@ -5,11 +5,10 @@ type SelectionType = FloatingModuleState['type'];
 
 // Nur Bereiche, die das angetippte Objekt selbst zeigen. Text, Formen, Icons,
 // Grafiken und Uploads fehlen bewusst: ihre Tabs sind Kataloge zum Hinzufügen
-// und kennen die Auswahl nicht. Mehrere Kandidaten, weil ältere Vorlagen ihre
-// Bereiche unter Legacy-IDs führen (`assets`, `image-background`).
+// und kennen die Auswahl nicht. Hintergrund und Foto haben keinen Bereich mehr,
+// ihre Knöpfe stehen vollständig in der Auswahlleiste. Mehrere Kandidaten, weil
+// ältere Vorlagen ihre Bereiche unter Legacy-IDs führen (`assets`).
 const AREA_CANDIDATES: Partial<Record<SelectionType, readonly SidebarTabId[]>> = {
-  background: ['background', 'image-background', 'image'],
-  image: ['image', 'background', 'image-background'],
   illustration: ['elements', 'assets'],
   frame: ['elements', 'assets'],
   chart: ['chart-settings'],

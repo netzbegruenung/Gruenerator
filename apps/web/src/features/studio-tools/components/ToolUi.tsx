@@ -3,7 +3,7 @@ import { type ReactNode } from 'react';
 
 import { cn } from '@/utils/cn';
 
-const IMAGE_ACCEPT = { 'image/jpeg': [], 'image/png': [], 'image/webp': [] };
+export const IMAGE_ACCEPT = { 'image/jpeg': [], 'image/png': [], 'image/webp': [] };
 
 export const TOOL_PILL =
   'inline-flex h-9 cursor-pointer items-center justify-center rounded-full border border-grey-200 px-md text-sm font-semibold text-foreground transition-colors max-md:h-11 dark:border-grey-700 ' +

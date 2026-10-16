@@ -3,13 +3,14 @@
  *
  * Mount prefix: /api/sharepic-vorlagen
  *
- * The thumbnail (`GET /api/sharepic-vorlagen/:id/thumb`) is binary and stays a
- * plain Express route next to this one.
+ * The thumbnails (`GET /api/sharepic-vorlagen/:id/thumb` and
+ * `/seiten/:id/thumb`) are binary and stay plain Express routes next to this one.
  */
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
 
 import {
+  sharepicSeitenListResponseSchema,
   sharepicVorlageIdSchema,
   sharepicVorlageSchema,
   sharepicVorlagenErrorSchema,
@@ -31,6 +32,17 @@ export const sharepicVorlagenContract = c.router(
       },
       summary:
         "The Vorlagen of the viewer's country, detected from the profile; instance admins may pick the other with `land`",
+    },
+    // Before `get`: `seiten` is also a valid Vorlage id, and the first route wins.
+    seiten: {
+      method: 'GET',
+      path: '/api/sharepic-vorlagen/seiten',
+      query: vorlagenLandQuerySchema,
+      responses: {
+        200: sharepicSeitenListResponseSchema,
+        401: sharepicVorlagenErrorSchema,
+      },
+      summary: "Single slides to add to a carousel, in the viewer's country like `list`",
     },
     get: {
       method: 'GET',

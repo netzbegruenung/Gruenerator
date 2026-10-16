@@ -1,12 +1,16 @@
 import { useUserLandesverbaende } from '@gruenerator/chat';
+import {
+  useOwnRecipes,
+  classifyRecipeMention,
+  EMPTY_RECIPE_FORM,
+  hydrateRecipeForm,
+  type RecipeFormState,
+} from '@gruenerator/shared/grueneratoren';
 import { Button, ConfirmDialogProvider } from '@gruenerator/ui';
 import { type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
-import { useOwnRecipes } from './api';
 import RecipeEditor from './RecipeEditor';
-import { EMPTY_RECIPE_FORM, hydrateRecipeForm, type RecipeFormState } from './recipeFormState';
-import { classifyRecipeMention } from './recipeKind';
 
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
 import PageContainer from '@/components/common/PageContainer';

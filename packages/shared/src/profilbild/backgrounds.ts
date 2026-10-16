@@ -1,7 +1,7 @@
-import { CANVAS_COLORS } from '../canvas-editor/types';
-import { BRAND_COLORS } from '../image-studio/modification-constants';
+import { CANVAS_COLORS } from '../canvas-editor/types.js';
+import { BRAND_COLORS } from '../image-studio/modification-constants.js';
 
-import { type ProfilbildAssetSrc } from './assets';
+import { type ProfilbildAssetSrc } from './assets.js';
 
 export type FlatBackground =
   | { kind: 'color'; color: string }
@@ -72,6 +72,54 @@ export const GRADIENT_SWATCHES: Swatch[] = [
   ),
 ];
 
+/** Verläufe aus dem AT-CD 2026 — Dunkelgrün dominiert, Hellgrün lockert auf. */
+export const GRADIENT_SWATCHES_AT: Swatch[] = [
+  gradient('at-dunkel-hell', 'Verlauf Dunkelgrün zu Hellgrün', [AT.DUNKELGRUEN, AT.HELLGRUEN], 180),
+  gradient('at-hell-gelb', 'Verlauf Hellgrün zu Gelb', [AT.HELLGRUEN, AT.GELB], 135),
+  gradient('at-dunkel-magenta', 'Verlauf Dunkelgrün zu Magenta', [AT.DUNKELGRUEN, AT.MAGENTA], 160),
+  gradient(
+    'at-dunkel-schwarz',
+    'Verlauf Dunkelgrün zu Schwarz',
+    [AT.DUNKELGRUEN, CANVAS_COLORS.BLACK],
+    160
+  ),
+];
+
+export const colorSwatches = (isAustria: boolean): Swatch[] =>
+  isAustria ? COLOR_SWATCHES_AT : COLOR_SWATCHES_DE;
+
+export const gradientSwatches = (isAustria: boolean): Swatch[] =>
+  isAustria ? GRADIENT_SWATCHES_AT : GRADIENT_SWATCHES;
+
+/** Id einer frei gewählten Farbe oder eines frei gewählten Verlaufs. */
+export const FREE_BACKGROUND_ID = 'eigene-farbe';
+
+/** Was frei gewählt werden kann — eine Farbe oder ein Verlauf aus zwei Farben. */
+export type FreeBackground = Extract<FlatBackground, { kind: 'color' | 'gradient' }>;
+
+const HEX = /^#[0-9a-f]{6}$/i;
+
+/** Prüft eine gespeicherte freie Farbe; alles andere ist kein gültiger Hintergrund. */
+export function parseFreeBackground(raw: unknown): FreeBackground | null {
+  const bg = raw as { kind?: unknown; color?: unknown; stops?: unknown; angle?: unknown } | null;
+  if (bg?.kind === 'color' && typeof bg.color === 'string' && HEX.test(bg.color))
+    return { kind: 'color', color: bg.color.toLowerCase() };
+  if (
+    bg?.kind === 'gradient' &&
+    Array.isArray(bg.stops) &&
+    bg.stops.length === 2 &&
+    bg.stops.every((c): c is string => typeof c === 'string' && HEX.test(c)) &&
+    typeof bg.angle === 'number' &&
+    Number.isFinite(bg.angle)
+  )
+    return {
+      kind: 'gradient',
+      stops: bg.stops.map((c) => c.toLowerCase()),
+      angle: ((bg.angle % 360) + 360) % 360,
+    };
+  return null;
+}
+
 export const PRIDE_STRIPES = ['#E40303', '#FF8C00', '#FFED00', '#008026', '#24408E', '#732982'];
 
 export interface PresetOverlay {
@@ -89,14 +137,73 @@ export interface PresetDesign {
   overlays: PresetOverlay[];
 }
 
-export function presetDesigns(isAustria: boolean): PresetDesign[] {
+/** Große Sonnenblume, angeschnitten oben rechts — das Motiv der Vorlagen. */
+const bigSunflower = (
+  src: '/sonnenblume_weiss.svg' | '/sonnenblume_gruen.png',
+  opacity: number
+): PresetOverlay => ({ src, x: 0.8, y: 0.28, width: 1, opacity });
+
+/** Die angebotenen Vorlagen: die große Sonnenblume in Farben und Lagen, dazu Pride. */
+export function presetDesigns(_isAustria: boolean): PresetDesign[] {
   return [
     {
       id: 'tanne-sonnenblume',
       label: 'Tanne mit großer Sonnenblume',
       base: { kind: 'color', color: CANVAS_COLORS.TANNE },
-      overlays: [{ src: '/sonnenblume_weiss.svg', x: 0.8, y: 0.28, width: 1, opacity: 0.12 }],
+      overlays: [bigSunflower('/sonnenblume_weiss.svg', 0.12)],
     },
+    {
+      id: 'klee-sonnenblume-gross',
+      label: 'Klee mit großer Sonnenblume',
+      base: { kind: 'color', color: CANVAS_COLORS.KLEE },
+      overlays: [bigSunflower('/sonnenblume_weiss.svg', 0.16)],
+    },
+    {
+      id: 'himmel-sonnenblume',
+      label: 'Himmel mit großer Sonnenblume',
+      base: { kind: 'color', color: CANVAS_COLORS.HIMMEL },
+      overlays: [bigSunflower('/sonnenblume_weiss.svg', 0.18)],
+    },
+    {
+      id: 'sand-sonnenblume-gross',
+      label: 'Sand mit großer Sonnenblume',
+      base: { kind: 'color', color: CANVAS_COLORS.SAND },
+      overlays: [bigSunflower('/sonnenblume_gruen.png', 0.22)],
+    },
+    {
+      id: 'sonne-sonnenblume',
+      label: 'Sonne mit großer Sonnenblume',
+      base: { kind: 'color', color: CANVAS_COLORS.SONNE },
+      overlays: [bigSunflower('/sonnenblume_weiss.svg', 0.22)],
+    },
+    {
+      id: 'tanne-sonnenblume-mitte',
+      label: 'Tanne mit Sonnenblume hinter der Person',
+      base: { kind: 'color', color: CANVAS_COLORS.TANNE },
+      overlays: [{ src: '/sonnenblume_weiss.svg', x: 0.5, y: 0.42, width: 1.3, opacity: 0.1 }],
+    },
+    {
+      id: 'tanne-klee-sonnenblume',
+      label: 'Verlauf Tanne zu Klee mit Sonnenblume',
+      base: { kind: 'gradient', stops: [CANVAS_COLORS.TANNE, CANVAS_COLORS.KLEE], angle: 180 },
+      overlays: [{ src: '/sonnenblume_weiss.svg', x: 0.18, y: 0.82, width: 1.1, opacity: 0.14 }],
+    },
+    {
+      id: 'pride',
+      label: 'Pride',
+      base: { kind: 'stripes', colors: PRIDE_STRIPES },
+      overlays: [],
+    },
+  ];
+}
+
+/**
+ * Nicht mehr angebotene Vorlagen. Gespeicherte Profilbilder nennen sie beim Namen
+ * (`background.id`), also bleiben sie auflösbar, statt still auf die erste Farbe
+ * zurückzufallen. Ausgemustert 10/2026.
+ */
+function retiredPresetDesigns(isAustria: boolean): PresetDesign[] {
+  return [
     {
       id: 'klee-sonnenblume',
       label: 'Klee mit Sonnenblume in der Ecke',
@@ -126,11 +233,10 @@ export function presetDesigns(isAustria: boolean): PresetDesign[] {
           base: { kind: 'color', color: CANVAS_COLORS.TANNE },
           overlays: [{ src: '/gruene-de-logo-weiss.png', x: 0.19, y: 0.1, width: 0.3, opacity: 1 }],
         },
-    {
-      id: 'pride',
-      label: 'Pride',
-      base: { kind: 'stripes', colors: PRIDE_STRIPES },
-      overlays: [],
-    },
   ];
+}
+
+/** Alles, was ein gespeichertes Profilbild als Vorlage nennen kann — angeboten oder ausgemustert. */
+export function allPresetDesigns(isAustria: boolean): PresetDesign[] {
+  return [...presetDesigns(isAustria), ...retiredPresetDesigns(isAustria)];
 }

@@ -3,11 +3,15 @@ import { createContext, useContext } from 'react';
 import type { ApplyResult } from './ai/applyOperation';
 import type { ReplaceDeckOps } from './collab/pagesDoc';
 import type { StockImage, StockImageAttribution } from './common/imageSourceTypes';
+import type { PrintVorlage } from './composer/printVorlagen';
 import type { HeterogeneousPage } from './configs/types';
 import type {
   CanvasAiCapabilities,
   CanvasAiOperation,
   CanvasAiSnapshot,
+  SharepicFormat,
+  SharepicSeite,
+  SharepicVorlage,
 } from '@gruenerator/contracts';
 import type { ComponentType, ReactNode } from 'react';
 
@@ -55,6 +59,33 @@ export interface ChatSectionContentProps {
   specEdit?: CanvasSpecEditBridge;
 }
 
+/** A page a Vorlage composes to, ready for `replaceDeck`. */
+export interface VorlagePage {
+  configId: string;
+  state: Record<string, unknown>;
+}
+
+/**
+ * The Grünerator-Vorlagen behind the „Vorlagen" tab. `compose` turns one
+ * into pages (needs the browser: fonts, photo tones) and keeps its spec on
+ * them, so the chat can go on editing it. Without `openAsNew` the tab only
+ * replaces the design.
+ */
+export interface CanvasVorlagenService {
+  list: () => Promise<SharepicVorlage[]>;
+  compose: (vorlage: SharepicVorlage) => Promise<VorlagePage[]>;
+  /** Copies the Vorlage into a new design of the viewer's own and opens it. */
+  openAsNew?: (vorlage: SharepicVorlage) => void;
+  /** Single Seiten to add to the design; without both the tab offers no Seiten. */
+  listSeiten?: () => Promise<SharepicSeite[]>;
+  composeSeite?: (seite: SharepicSeite, format: SharepicFormat) => Promise<VorlagePage[]>;
+  /**
+   * The same for a print Vorlage. Print Vorlagen need no `list`/`compose`:
+   * they ship with this package and compose here (`composePrint`).
+   */
+  openPrintAsNew?: (vorlage: PrintVorlage) => void;
+}
+
 export interface CanvasEditorServices {
   /** Fetch curated stock images by category */
   fetchStockImages?: (category?: string | null) => Promise<{
@@ -92,6 +123,9 @@ export interface CanvasEditorServices {
 
   /** Open Unsplash search in browser */
   openUnsplashSearch?: (query: string) => void;
+
+  /** Open the host's sticker creator. When omitted, the Sticker card offers no "Sticker erstellen". */
+  openStickerCreator?: () => void;
 
   /**
    * Generate an image from a text prompt via the host's AI image pipeline.
@@ -142,6 +176,9 @@ export interface CanvasEditorServices {
    * section shows a "not configured" hint.
    */
   ChatSectionContent?: ComponentType<ChatSectionContentProps>;
+
+  /** Grünerator-Vorlagen for the „Vorlagen" tab; when omitted, the tab is hidden. */
+  vorlagen?: CanvasVorlagenService;
 }
 
 const CanvasEditorContext = createContext<CanvasEditorServices>({});

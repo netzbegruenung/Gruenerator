@@ -1,247 +1,40 @@
 import {
-  type CreateUserAgentBody,
-  type UpdateUserAgentBody,
-  type DraftedAgentSpec,
-} from '@gruenerator/contracts';
-import { SYSTEM_AGENTS, agentKey, type Agent } from '@gruenerator/shared/agents';
-import { ApiError, getContractsClient } from '@gruenerator/shared/api';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+  useSharedSystemAgents as useSharedSystemAgentsFor,
+  useSharedUserAgents as useSharedUserAgentsFor,
+  useUserAgents as useUserAgentsQuery,
+} from '@gruenerator/shared/grueneratoren';
 
 import { useOptimizedAuth } from '../../hooks/useAuth';
-import { useGroups, type GroupSummary } from '../groups/hooks/useGroups';
+import { useGroups } from '../groups/hooks/useGroups';
 
-// Derived from the ts-rest contract schemas — the single source of truth for
-// the /api/user-agents request shapes.
-export type UserAgentInput = CreateUserAgentBody;
-export type UserAgentPatch = UpdateUserAgentBody;
-
-const KEY = ['user-agents'] as const;
-
-/**
- * Read an error response body defensively. ts-rest's client response union
- * includes an `{ status: number; body: unknown }` fallback for undeclared
- * statuses, so in an error branch `res.body` collapses to `unknown`. One
- * boundary cast extracts the known error shape (message + optional conflict
- * agent).
- */
-function readError(body: unknown): { message: string; agent: Agent | null } {
-  const obj = (body ?? {}) as { message?: unknown; agent?: Agent };
-  return {
-    message: typeof obj.message === 'string' ? obj.message : 'Aktion fehlgeschlagen.',
-    agent: obj.agent ?? null,
-  };
-}
+// The hooks live in `@gruenerator/shared/grueneratoren` (shared with mobile).
+// This file binds the three that need web state — the auth gate and the
+// group list — and stays the import (and `vi.mock`) seat for web callers.
+export {
+  useCreateUserAgent,
+  useDeleteUserAgent,
+  useDraftAgent,
+  usePublicUserAgents,
+  useShareSystemAgentWithGroup,
+  useUpdateUserAgent,
+  useUserAgent,
+  type ForeignAgent,
+  type SharedAgentEntry,
+  type UserAgentInput,
+  type UserAgentPatch,
+} from '@gruenerator/shared/grueneratoren';
 
 export function useUserAgents() {
   const { user, isAuthenticated, loading: authLoading } = useOptimizedAuth();
-  return useQuery({
-    queryKey: KEY,
-    // Gate on resolved auth: the sidebar mounts before the auth bootstrap
-    // finishes, and an ungated query 401s during the login redirect.
-    enabled: !!user?.id && isAuthenticated && !authLoading,
-    queryFn: async (): Promise<Agent[]> => {
-      const res = await getContractsClient().userAgents.list();
-      if (res.status === 200) return res.body.agents;
-      throw new Error('Agents konnten nicht geladen werden.');
-    },
-  });
+  return useUserAgentsQuery(!!user?.id && isAuthenticated && !authLoading);
 }
 
-export function useUserAgent(identifier: string | undefined) {
-  return useQuery({
-    queryKey: [...KEY, identifier],
-    enabled: !!identifier,
-    queryFn: async (): Promise<Agent | null> => {
-      if (!identifier) return null;
-      const res = await getContractsClient().userAgents.get({ params: { identifier } });
-      if (res.status === 200) return res.body.agent;
-      if (res.status === 404) return null;
-      throw new Error('Agent konnte nicht geladen werden.');
-    },
-  });
-}
-
-export function useCreateUserAgent() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (input: UserAgentInput): Promise<Agent> => {
-      const res = await getContractsClient().userAgents.create({ body: input });
-      if (res.status === 201) return res.body.agent;
-      throw new Error(readError(res.body).message);
-    },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: KEY });
-    },
-  });
-}
-
-/**
- * Synthesize an agent spec from a one-shot freeform brief (the guided-assistant
- * start screen). The backend runs a Mistral structured-generation pass and
- * returns the validated spec to pre-fill the wizard.
- */
-export function useDraftAgent() {
-  return useMutation({
-    mutationFn: async (input: { description: string }): Promise<DraftedAgentSpec> => {
-      const res = await getContractsClient().userAgents.draft({ body: input });
-      if (res.status === 200) return res.body.spec;
-      throw new Error(readError(res.body).message);
-    },
-  });
-}
-
-export function useUpdateUserAgent(identifier: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (patch: UserAgentPatch): Promise<Agent> => {
-      const res = await getContractsClient().userAgents.update({
-        params: { identifier },
-        body: patch,
-      });
-      if (res.status === 200) return res.body.agent;
-      throw new Error(readError(res.body).message);
-    },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: KEY });
-    },
-  });
-}
-
-export function useShareSystemAgentWithGroup() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ groupId, identifier }: { groupId: string; identifier: string }) => {
-      const res = await getContractsClient().groups.shareContent({
-        params: { groupId },
-        body: {
-          contentType: 'system_agents',
-          contentId: identifier,
-          permissions: { read: true, write: false, collaborative: false },
-        },
-      });
-      if (res.status !== 200) throw new ApiError(res.status, 'share failed');
-    },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['shared-system-agents'] });
-    },
-  });
-}
-
-/** An agent someone else built — its prompt (`systemRole`) is owner-only (#3781). */
-export type ForeignAgent = Omit<Agent, 'systemRole'>;
-
-export interface SharedAgentEntry {
-  agent: ForeignAgent;
-  groups: GroupSummary[];
-}
-
-/**
- * Aggregates system agents shared into any group the current user belongs to.
- * One round-trip per group; groups list is cached by useGroups.
- */
 export function useSharedSystemAgents() {
   const { userGroups } = useGroups({ isActive: true });
-  const groupIds = userGroups.map((g) => g.id).sort();
-
-  return useQuery({
-    queryKey: ['shared-system-agents', groupIds],
-    enabled: groupIds.length > 0,
-    queryFn: async (): Promise<SharedAgentEntry[]> => {
-      const results = await Promise.all(
-        userGroups.map(async (group) => {
-          const res = await getContractsClient().groups.listGroupContent({
-            params: { groupId: group.id },
-          });
-          // Content buckets are loose records by contract; narrow per-bucket.
-          const bucket =
-            res.status === 200 ? (res.body.content.system_agents as Array<{ id: string }>) : [];
-          const ids = bucket.map((s) => s.id);
-          return { group, ids };
-        })
-      );
-
-      // Deduplicate by identifier; collect which groups each comes from.
-      const byIdentifier = new Map<string, SharedAgentEntry>();
-      for (const { group, ids } of results) {
-        for (const id of ids) {
-          const agent = SYSTEM_AGENTS.find((a) => a.identifier === id);
-          if (!agent) continue;
-          const existing = byIdentifier.get(id);
-          if (existing) {
-            existing.groups.push(group);
-          } else {
-            byIdentifier.set(id, { agent, groups: [group] });
-          }
-        }
-      }
-      return [...byIdentifier.values()];
-    },
-  });
+  return useSharedSystemAgentsFor(userGroups);
 }
 
-/**
- * Aggregates USER-created agents shared into any group the current user belongs
- * to. Mirrors useSharedSystemAgents, but each group's `/content` bucket already
- * carries the agent minus its prompt (no static registry to resolve against).
- * One round-trip per group; groups list is cached by useGroups.
- */
 export function useSharedUserAgents() {
   const { userGroups } = useGroups({ isActive: true });
-  const groupIds = userGroups.map((g) => g.id).sort();
-
-  return useQuery({
-    queryKey: ['shared-user-agents', groupIds],
-    enabled: groupIds.length > 0,
-    queryFn: async (): Promise<SharedAgentEntry[]> => {
-      const results = await Promise.all(
-        userGroups.map(async (group) => {
-          const res = await getContractsClient().groups.listGroupContent({
-            params: { groupId: group.id },
-          });
-          const agents = res.status === 200 ? res.body.content.user_agents : [];
-          return { group, agents };
-        })
-      );
-
-      // Deduplicate by row id — two owners can share an identifier; collect
-      // which groups each agent comes from.
-      const byKey = new Map<string, SharedAgentEntry>();
-      for (const { group, agents } of results) {
-        for (const agent of agents) {
-          const existing = byKey.get(agentKey(agent));
-          if (existing) {
-            existing.groups.push(group);
-          } else {
-            byKey.set(agentKey(agent), { agent, groups: [group] });
-          }
-        }
-      }
-      return [...byKey.values()];
-    },
-  });
-}
-
-/** Public Agentura discovery feed: agents listed publicly, locale-filtered server-side. */
-export function usePublicUserAgents() {
-  return useQuery({
-    queryKey: ['public-user-agents'],
-    queryFn: async (): Promise<Agent[]> => {
-      const res = await getContractsClient().userAgentsSharing.listPublic();
-      if (res.status === 200) return res.body.agents;
-      throw new Error('Öffentliche Agents konnten nicht geladen werden.');
-    },
-  });
-}
-
-export function useDeleteUserAgent() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (identifier: string): Promise<void> => {
-      const res = await getContractsClient().userAgents.remove({ params: { identifier } });
-      if (res.status !== 200) throw new ApiError(res.status, 'Löschen fehlgeschlagen.');
-    },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: KEY });
-    },
-  });
+  return useSharedUserAgentsFor(userGroups);
 }

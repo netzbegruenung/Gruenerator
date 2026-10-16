@@ -103,6 +103,14 @@ function CollabCanvasStudioContent() {
     return perm ? ['owner', 'editor'].includes(perm.level) : false;
   }, [canvas, user]);
 
+  // Only owners may manage who has access; everyone else would get a share
+  // dialog stuck loading on the owner-only share-settings endpoint (403).
+  const isOwner = useMemo(() => {
+    if (!canvas || !user) return false;
+    const uid = String(user.id);
+    return canvas.created_by === uid || canvas.permissions?.[uid]?.level === 'owner';
+  }, [canvas, user]);
+
   const handleTitleChange = useCallback(
     async (newTitle: string) => {
       if (!id) return;
@@ -323,7 +331,7 @@ function CollabCanvasStudioContent() {
   }
 
   return (
-    <WebCanvasEditorProvider>
+    <WebCanvasEditorProvider allowVorlagen={canEdit}>
       <CanvasChatDocContext.Provider value={chatDoc}>
         <div className="relative flex flex-col h-dvh bg-[var(--editor-bg)]">
           <div className="flex-1 min-h-0">
@@ -331,6 +339,7 @@ function CollabCanvasStudioContent() {
               key={canvas.id}
               type={canvas.template_type}
               formatId={canvas.format}
+              documentTitle={canvas.title}
               initialState={canvas.initial_state}
               initialPages={initialPages}
               onExport={handleExport}
@@ -351,10 +360,14 @@ function CollabCanvasStudioContent() {
               chromeLeft={chromeLeft}
               chromeCenter={chromeCenter}
               chromeRight={chromeRight}
-              onInvitePeople={() => {
-                setShareMounted(true);
-                setShareOpen(true);
-              }}
+              {...(isOwner
+                ? {
+                    onInvitePeople: () => {
+                      setShareMounted(true);
+                      setShareOpen(true);
+                    },
+                  }
+                : {})}
               onSaveAsTemplate={() => {
                 setSaveTemplateMounted(true);
                 setSaveTemplateOpen(true);

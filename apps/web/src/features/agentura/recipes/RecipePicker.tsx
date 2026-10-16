@@ -1,9 +1,8 @@
 import { agentsList, useHiddenSkillMentions, type AgentListItem } from '@gruenerator/chat';
 import { type PublicTextForm, type TextForm } from '@gruenerator/contracts';
 import { isAdminVisibleSkill, isSkillOfferedIn } from '@gruenerator/shared/agents';
+import { useOwnRecipes, usePublicRecipes } from '@gruenerator/shared/grueneratoren';
 import { useId, useMemo } from 'react';
-
-import { useOwnRecipes, usePublicRecipes } from './api';
 
 import { CURRENT_INSTANCE } from '@/config/instance';
 import { useAuthStore } from '@/stores/authStore';

@@ -1,26 +1,32 @@
-import { getContractsClient, getGlobalApiClient } from '@gruenerator/shared/api';
+import { getContractsClient } from '@gruenerator/shared/api';
 import {
   COLOR_SWATCHES_AT,
   COLOR_SWATCHES_DE,
-  GRADIENT_SWATCHES,
+  FREE_BACKGROUND_ID,
+  gradientSwatches,
   parseSavedProfilbild,
-  presetDesigns,
+  allPresetDesigns,
   PROFILBILD_IMAGE_TYPE,
   PROFILBILD_METADATA_KEY,
-  stickerById,
-  stickerBySrc,
   type SavedProfilbild,
   type SavedProfilbildBackground,
+  type SavedProfilbildSticker,
 } from '@gruenerator/shared/profilbild';
 import { useShareStore } from '@gruenerator/shared/share';
+import { isAssetStickerId } from '@gruenerator/shared/stickers';
 import { ImageFormat, Skia, type SkImage } from '@shopify/react-native-skia';
 import { useQueryClient } from '@tanstack/react-query';
 import { File, Paths } from 'expo-file-system';
 import { useCallback, useRef } from 'react';
 
 import { CUSTOM_ID, type CustomBackground } from '../../components/profilbild/BackgroundPicker';
-import { type ProfilbildModel } from '../../components/profilbild/sceneModel';
+import {
+  restoreStickers,
+  savedStickers,
+  type ProfilbildModel,
+} from '../../components/profilbild/sceneModel';
 import { resolveChatUrl } from '../../services/chatApiUrl';
+import { uploadToMediaShare } from '../../services/mediaUpload';
 import { secureStorage } from '../../services/storage';
 
 /** The model plus the picker selection it was made with. */
@@ -37,6 +43,10 @@ export interface ProfilbildReopen extends ProfilbildSnapshot {
   personUri: string;
   /** Where the restored custom background is stored, so it is not uploaded again. */
   customUrl: string | null;
+  /** Gallery sticker images by share path. */
+  gallery: Record<string, SkImage>;
+  /** Gallery stickers whose image did not load; saved again as they were. */
+  unrestored: SavedProfilbildSticker[];
 }
 
 async function downloadShareFile(path: string, name: string): Promise<string> {
@@ -62,15 +72,53 @@ function restoreBackground(
 ): { backgroundId: string; background: ProfilbildModel['background'] } {
   if (bg.kind === 'custom' && custom)
     return { backgroundId: CUSTOM_ID, background: { kind: 'image', image: custom.image } };
-  const swatches = [...(isAustria ? COLOR_SWATCHES_AT : COLOR_SWATCHES_DE), ...GRADIENT_SWATCHES];
+  if (bg.kind === 'free') return { backgroundId: FREE_BACKGROUND_ID, background: bg.background };
+  const swatches = [
+    ...(isAustria ? COLOR_SWATCHES_AT : COLOR_SWATCHES_DE),
+    ...gradientSwatches(isAustria),
+  ];
   const id = bg.kind === 'id' ? bg.id : '';
   const swatch = swatches.find((s) => s.id === id);
   if (swatch) return { backgroundId: swatch.id, background: swatch.background };
-  if (presetDesigns(isAustria).some((p) => p.id === id))
+  // Retired Vorlagen stay resolvable: saved Profilbilder still name them.
+  if (allPresetDesigns(isAustria).some((p) => p.id === id))
     return { backgroundId: id, background: { kind: 'preset', designId: id } };
   // An id this locale lacks falls back to its first colour, as on web.
   const first = swatches[0];
   return { backgroundId: first.id, background: first.background };
+}
+
+const shareImages = new Map<string, Promise<SkImage>>();
+
+async function downloadAndDecode(src: string): Promise<SkImage> {
+  const uri = await downloadShareFile(src, 'profilbild-galerie');
+  try {
+    return await decode(uri);
+  } finally {
+    try {
+      new File(uri).delete();
+    } catch {
+      // A leftover cache file is harmless; the OS clears the cache.
+    }
+  }
+}
+
+/**
+ * A media-store file (`/api/share/<token>/download`) as a Skia image, loaded once
+ * per src until `clearShareImages` (the Profilbild screen calls it on leaving).
+ */
+export function loadShareImage(src: string): Promise<SkImage> {
+  let pending = shareImages.get(src);
+  if (!pending) {
+    pending = downloadAndDecode(src);
+    pending.catch(() => shareImages.delete(src));
+    shareImages.set(src, pending);
+  }
+  return pending;
+}
+
+export function clearShareImages(): void {
+  shareImages.clear();
 }
 
 /** Loads a saved Profilbild: its state from the share, the cutout and own photo from storage. */
@@ -88,16 +136,26 @@ export async function loadProfilbildReopen(
   let custom: CustomBackground | null = null;
   if (saved.background.kind === 'custom') {
     const uri = await downloadShareFile(saved.background.url, 'profilbild-hintergrund');
-    custom = { uri, image: await decode(uri) };
+    custom = { uri, image: await decode(uri), galleryUrl: null };
   }
 
+  const gallery: Record<string, SkImage> = {};
+  const assetSrcs = new Set(
+    saved.stickers.flatMap((s) => (isAssetStickerId(s.id) && s.src ? [s.src] : []))
+  );
+  await Promise.all(
+    [...assetSrcs].map((src) =>
+      loadShareImage(src).then(
+        (image) => {
+          gallery[src] = image;
+        },
+        () => {}
+      )
+    )
+  );
+
   const { backgroundId, background } = restoreBackground(saved.background, custom, isAustria);
-  const stickers = saved.stickers.flatMap((s, i) => {
-    const sticker = stickerById(s.id);
-    if (!sticker) return [];
-    const { id: _id, ...box } = s;
-    return [{ ...box, uid: `${s.id}-restored-${i}`, src: sticker.src }];
-  });
+  const { stickers, unrestored } = restoreStickers(saved.stickers, (src) => src in gallery);
   return {
     shareToken,
     person,
@@ -106,24 +164,18 @@ export async function loadProfilbildReopen(
     backgroundId,
     custom,
     customUrl: saved.background.kind === 'custom' ? saved.background.url : null,
+    gallery,
+    unrestored,
   };
 }
 
 async function uploadCustomBackground(uri: string): Promise<string> {
-  const form = new FormData();
-  // RN's FormData takes a file descriptor; `new Blob([bytes])` throws on RN.
-  form.append('file', {
+  const token = await uploadToMediaShare(
     uri,
-    name: 'profilbild-hintergrund.jpg',
-    type: 'image/jpeg',
-  } as unknown as Blob);
-  form.append('uploadSource', 'profilbild-background');
-  const res = await getGlobalApiClient().post<{ data?: { shareToken?: string } }>(
-    '/media/upload',
-    form,
-    { headers: { 'Content-Type': 'multipart/form-data' } }
+    'profilbild-hintergrund.jpg',
+    'image/jpeg',
+    'profilbild-background'
   );
-  const token = res.data?.data?.shareToken;
   if (!token) throw new Error('Hintergrundbild konnte nicht gespeichert werden.');
   return `/api/share/${token}/download`;
 }
@@ -140,6 +192,7 @@ export function useProfilbildShare() {
   const queryClient = useQueryClient();
   const shareToken = useRef<string | null>(null);
   const uploaded = useRef(new Map<string, string>());
+  const unrestored = useRef<SavedProfilbildSticker[]>([]);
   const queue = useRef<Promise<unknown>>(Promise.resolve());
   // Bumped per photo, so a create still in flight cannot hand its share to the next photo.
   const session = useRef(0);
@@ -154,6 +207,7 @@ export function useProfilbildShare() {
     uploaded.current.clear();
     if (reopen?.custom && reopen.customUrl)
       uploaded.current.set(reopen.custom.uri, reopen.customUrl);
+    unrestored.current = reopen?.unrestored ?? [];
   }, []);
 
   const persist = useCallback(
@@ -166,10 +220,17 @@ export function useProfilbildShare() {
       if (forSession !== session.current) return;
       let background: SavedProfilbildBackground;
       if (snapshot.backgroundId === CUSTOM_ID && snapshot.custom) {
-        const uri = snapshot.custom.uri;
-        const url = uploaded.current.get(uri) ?? (await uploadCustomBackground(uri));
-        uploaded.current.set(uri, url);
+        const { uri, galleryUrl } = snapshot.custom;
+        const url = galleryUrl ?? uploaded.current.get(uri) ?? (await uploadCustomBackground(uri));
+        if (!galleryUrl) uploaded.current.set(uri, url);
         background = { kind: 'custom', url };
+      } else if (snapshot.backgroundId === FREE_BACKGROUND_ID) {
+        // A free colour or two-stop gradient; anything else cannot be a free choice.
+        const bg = snapshot.model.background;
+        background =
+          bg.kind === 'color' || (bg.kind === 'gradient' && bg.stops.length === 2)
+            ? { kind: 'free', background: bg }
+            : { kind: 'id', id: snapshot.backgroundId };
       } else {
         background = { kind: 'id', id: snapshot.backgroundId };
       }
@@ -177,10 +238,7 @@ export function useProfilbildShare() {
         v: 1,
         person: snapshot.model.person,
         background,
-        stickers: snapshot.model.stickers.flatMap(({ src, uid: _uid, ...box }) => {
-          const sticker = stickerBySrc(src);
-          return sticker ? [{ id: sticker.id, ...box }] : [];
-        }),
+        stickers: savedStickers(snapshot.model.stickers, unrestored.current),
       };
       const metadata = { source: 'profilbild', [PROFILBILD_METADATA_KEY]: saved };
       if (shareToken.current) {

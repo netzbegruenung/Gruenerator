@@ -1,7 +1,7 @@
+import { EMPTY_FORM } from '@gruenerator/shared/grueneratoren';
 import { useSearchParams } from 'react-router-dom';
 
 import AgentEditor from './AgentEditor';
-import { EMPTY_FORM } from './agentFormState';
 
 import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
 import { useAuthStore } from '@/stores/authStore';

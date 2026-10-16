@@ -1,7 +1,10 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
+import * as Haptics from 'expo-haptics';
+import { type ComponentProps } from 'react';
+import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 
 import { useTheme } from '../../hooks/useTheme';
-import { BODY_FONT } from '../../theme';
+import { borderRadius, colors, spacing, HEADING_FONT_SEMIBOLD } from '../../theme';
 
 export interface SegmentedOption {
   value: string;
@@ -10,6 +13,8 @@ export interface SegmentedOption {
   /** Shown in the segment. */
   short: string;
   disabled: boolean;
+  /** Shown before the label. */
+  icon?: ComponentProps<typeof Ionicons>['name'];
 }
 
 interface SegmentedControlProps {
@@ -19,41 +24,58 @@ interface SegmentedControlProps {
   onChange: (value: string) => void;
   /** Names the group for screen readers. */
   accessibilityLabel: string;
+  /** Fill of the chosen pill; a tool's own accent where it has one. */
+  activeColor?: string;
 }
 
-/** A native-style segmented control: one choice out of a few, all visible. */
+/**
+ * One choice out of a few, all visible: web's pill pair — outlined pills of
+ * equal width, the chosen one filled Eucalyptus.
+ */
 export function SegmentedControl({
   options,
   value,
   onChange,
   accessibilityLabel,
+  activeColor = colors.secondary[600],
 }: SegmentedControlProps) {
   const theme = useTheme();
+  const outline = useColorScheme() === 'dark' ? colors.grey[700] : colors.grey[200];
   return (
-    <View
-      style={[styles.track, { backgroundColor: theme.buttonBackground }]}
-      accessibilityRole="radiogroup"
-      accessibilityLabel={accessibilityLabel}
-    >
+    <View style={styles.row} accessibilityRole="radiogroup" accessibilityLabel={accessibilityLabel}>
       {options.map((option) => {
         const selected = option.value === value;
+        const color = selected ? colors.white : theme.text;
         return (
           <Pressable
             key={option.value}
-            onPress={() => onChange(option.value)}
+            onPress={() => {
+              // The tick of a native segmented control — only when the choice
+              // actually moves, so re-tapping the selected segment stays silent.
+              if (!selected) void Haptics.selectionAsync();
+              onChange(option.value);
+            }}
             disabled={option.disabled}
-            style={[
-              styles.segment,
-              selected && [styles.selected, { backgroundColor: theme.card }],
+            style={({ pressed }) => [
+              styles.pill,
+              selected
+                ? { backgroundColor: activeColor, borderColor: activeColor }
+                : {
+                    borderColor: outline,
+                    backgroundColor: pressed ? theme.surface : 'transparent',
+                  },
               option.disabled && styles.disabled,
             ]}
             accessibilityRole="radio"
             accessibilityLabel={option.label}
             accessibilityState={{ checked: selected, disabled: option.disabled }}
           >
+            {option.icon ? <Ionicons name={option.icon} size={16} color={color} /> : null}
             <Text
-              style={[styles.text, { color: theme.text }, selected && styles.selectedText]}
+              style={[styles.text, { color }]}
               numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.85}
             >
               {option.short}
             </Text>
@@ -65,23 +87,18 @@ export function SegmentedControl({
 }
 
 const styles = StyleSheet.create({
-  track: { flexDirection: 'row', borderRadius: 9, padding: 2 },
-  segment: {
+  row: { flexDirection: 'row', gap: spacing.xsmall },
+  pill: {
     flex: 1,
-    minHeight: 44,
-    borderRadius: 7,
+    flexDirection: 'row',
+    minHeight: 40,
+    gap: spacing.xxsmall,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 4,
-  },
-  selected: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.18,
-    shadowRadius: 3,
-    elevation: 2,
+    paddingHorizontal: spacing.small,
   },
   disabled: { opacity: 0.4 },
-  text: { fontFamily: BODY_FONT, fontSize: 12 },
-  selectedText: { fontWeight: '700' },
+  text: { fontFamily: HEADING_FONT_SEMIBOLD, fontSize: 14, flexShrink: 1 },
 });

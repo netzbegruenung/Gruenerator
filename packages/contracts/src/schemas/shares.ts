@@ -162,8 +162,14 @@ export const mySharesQuerySchema = z.object({
   status: shareStatusSchema.or(z.literal('')).optional(),
 });
 
+/** Studio editors a saved image reopens in, instead of the lightbox. */
+export const reopenEditorSchema = z.enum(['profilbild']);
+export type ReopenEditor = z.infer<typeof reopenEditorSchema>;
+
 export const recentSharesQuerySchema = z.object({
   limit: z.string().optional(),
+  /** Only images that reopen in this editor. Added 10/2026; older clients send none. */
+  editor: reopenEditorSchema.optional(),
 });
 
 /**

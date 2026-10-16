@@ -1,3 +1,5 @@
+import { type StockImageAttribution } from '../common/imageSourceTypes';
+
 export interface UserImageInstance {
   id: string;
   src: string;
@@ -39,6 +41,8 @@ export interface UserImageInstance {
   fit?: 'cover';
   /** `kreis`: clipped to the circle inside width × height. */
   mask?: 'kreis';
+  /** Stock credit (Unsplash): the photo is hotlinked, so the credit travels with it. */
+  attribution?: StockImageAttribution;
 }
 
 /** The adjustment fields, for reset / preset helpers. */
@@ -125,19 +129,22 @@ function makeInstance(
   width: number,
   height: number,
   canvasWidth: number,
-  canvasHeight: number
+  canvasHeight: number,
+  options: UserImagePlacement = {}
 ): UserImageInstance {
+  const center = options.center ?? { x: canvasWidth / 2, y: canvasHeight / 2 };
   return {
     id: makeId(),
     src,
     fileName,
-    x: canvasWidth / 2 - width / 2,
-    y: canvasHeight / 2 - height / 2,
+    x: center.x - width / 2,
+    y: center.y - height / 2,
     width,
     height,
     rotation: 0,
     scale: 1,
     opacity: 1,
+    ...(options.attribution && { attribution: options.attribution }),
   };
 }
 
@@ -205,24 +212,43 @@ export async function downscaleImageForUpload(file: File): Promise<File> {
   }
 }
 
+export interface UserImagePlacement {
+  /** Stock credit of a hotlinked photo, kept on the instance. */
+  attribution?: StockImageAttribution;
+  /** Centre of the new image (a drop point); default is the canvas centre. */
+  center?: { x: number; y: number };
+}
+
 export function createUserImageInstanceFromUrl(
   url: string,
   fileName: string,
   canvasWidth: number,
-  canvasHeight: number
+  canvasHeight: number,
+  options?: UserImagePlacement
 ): Promise<UserImageInstance> {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
       const { width, height } = scaleToTarget(img.naturalWidth, img.naturalHeight);
-      resolve(makeInstance(url, fileName, width, height, canvasWidth, canvasHeight));
+      resolve(makeInstance(url, fileName, width, height, canvasWidth, canvasHeight, options));
     };
     img.onerror = () => {
       resolve(
-        makeInstance(url, fileName, FALLBACK_WIDTH, FALLBACK_HEIGHT, canvasWidth, canvasHeight)
+        makeInstance(
+          url,
+          fileName,
+          FALLBACK_WIDTH,
+          FALLBACK_HEIGHT,
+          canvasWidth,
+          canvasHeight,
+          options
+        )
       );
     };
     img.src = url;
   });
 }
+
+/** Konva node name of a user photo's Image; the print export finds photos by it. */
+export const USER_PHOTO_NODE_NAME = 'user-photo';

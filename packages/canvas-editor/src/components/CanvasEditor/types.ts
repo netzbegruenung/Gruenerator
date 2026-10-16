@@ -10,6 +10,8 @@ export interface CanvasEditorProps {
   initialConfigId: CanvasConfigId;
   /** The canvas document's format id. Absent: the default format. */
   formatId?: string;
+  /** Document title; names the print PDF (`<title>.pdf`). */
+  documentTitle?: string;
   initialProps: Record<string, unknown>;
   onExport: (base64: string) => void;
   onCancel: () => void;
@@ -114,6 +116,12 @@ export interface PageWrapperProps {
     state: Record<string, unknown>,
     actions: Record<string, unknown>,
     selectedElement: string | null
+  ) => void;
+  /** Reports this page's live state even while it is not the active page (print impressum gate). */
+  onObservedState?: (
+    pageId: string,
+    state: Record<string, unknown>,
+    actions: Record<string, unknown>
   ) => void;
   onToolbarStateChange?: (state: ToolbarStateReport) => void;
   /** See CanvasEditorProps.onAutoSaveShareToken. */

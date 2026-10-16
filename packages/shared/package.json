@@ -148,6 +148,24 @@
       "import": "./dist/image-studio/index.js",
       "default": "./dist/image-studio/index.js"
     },
+    "./stickers": {
+      "development": "./src/stickers/index.ts",
+      "types": "./src/stickers/index.ts",
+      "import": "./dist/stickers/index.js",
+      "default": "./dist/stickers/index.js"
+    },
+    "./links": {
+      "development": "./src/links.ts",
+      "types": "./src/links.ts",
+      "import": "./dist/links.js",
+      "default": "./dist/links.js"
+    },
+    "./translation": {
+      "development": "./src/translation/index.ts",
+      "types": "./src/translation/index.ts",
+      "import": "./dist/translation/index.js",
+      "default": "./dist/translation/index.js"
+    },
     "./profilbild": {
       "development": "./src/profilbild/index.ts",
       "types": "./src/profilbild/index.ts",
@@ -214,11 +232,23 @@
       "import": "./dist/groups/index.js",
       "default": "./dist/groups/index.js"
     },
+    "./studio-assets": {
+      "development": "./src/studio-assets/index.ts",
+      "types": "./src/studio-assets/index.ts",
+      "import": "./dist/studio-assets/index.js",
+      "default": "./dist/studio-assets/index.js"
+    },
     "./reactions": {
       "development": "./src/reactions/index.ts",
       "types": "./src/reactions/index.ts",
       "import": "./dist/reactions/index.js",
       "default": "./dist/reactions/index.js"
+    },
+    "./grueneratoren": {
+      "development": "./src/grueneratoren/index.ts",
+      "types": "./src/grueneratoren/index.ts",
+      "import": "./dist/grueneratoren/index.js",
+      "default": "./dist/grueneratoren/index.js"
     },
     "./agents": {
       "development": "./src/agents/index.ts",
@@ -289,7 +319,7 @@
     "@ts-rest/core": "^3.52.1",
     "axios": "^1.20.0",
     "clsx": "^2.1.1",
-    "nanoid": "^6.0.1",
+    "nanoid": "^6.0.2",
     "react-icons": "^5.7.0",
     "tailwind-merge": "^3.7.0",
     "yjs": "^13.6.33",
@@ -299,19 +329,19 @@
   "devDependencies": {
     "@gruenerator/eslint-config": "workspace:*",
     "@gruenerator/ui": "workspace:*",
-    "@tanstack/react-query": "^5.104.0",
-    "@types/react": "19.2.18",
+    "@tanstack/react-query": "^5.104.1",
+    "@types/react": "19.3.0",
     "chokidar": "^5.0.0",
     "cross-env": "^10.1.0",
     "eslint": "^9.39.5",
     "gray-matter": "^4.0.3",
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",
-    "vitest": "^5.0.2"
+    "vitest": "^5.0.3"
   },
   "peerDependencies": {
     "@gruenerator/ui": "workspace:*",
-    "@tanstack/react-query": "^5.104.0",
+    "@tanstack/react-query": "^5.104.1",
     "react": "^19.0.0"
   },
   "peerDependenciesMeta": {

@@ -1,7 +1,9 @@
-import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Platform, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 
 import { BODY_FONT, darkTheme, lightTheme, spacing } from '../../theme';
+
+import { AgentGlyph } from './AgentGlyph';
 
 /**
  * Die Marktkachel auf Mobil — dieselbe Form wie im Web, als Karte statt als
@@ -13,26 +15,28 @@ import { BODY_FONT, darkTheme, lightTheme, spacing } from '../../theme';
  * dafür kein Raum. Die Karte trägt Symbol, Titel, Meta-Zeile und zwei Zeilen
  * Beschreibung — und liest sich damit wie die Kachel im Web.
  *
- * Bewusst ohne Aktionsmenü: Anlegen, Bearbeiten und Teilen passieren am
- * Rechner. Die einzige Aktion ist „Zu meinen Grüneratoren" (`added`), ein
- * eigener Knopf NEBEN der Kachel statt in ihr — ein Pressable fasst auf iOS
- * seine Kinder zu einem VoiceOver-Element zusammen, ein verschachtelter Knopf
- * wäre dort unerreichbar.
+ * „Zu meinen Grüneratoren" (`added`) ist ein eigener Knopf NEBEN der Kachel
+ * statt in ihr — ein Pressable fasst auf iOS seine Kinder zu einem
+ * VoiceOver-Element zusammen, ein verschachtelter Knopf wäre dort unerreichbar.
+ * Weitere Aktionen (Bearbeiten, Teilen, Löschen) hängen am langen Druck;
+ * VoiceOver erreicht sie über die benannte Aktion „Aktionen".
  */
 export function MarketCard({
-  icon,
+  iconKey,
   title,
   meta,
   description,
   onPress,
+  onLongPress,
   added = null,
   onToggleAdded,
 }: {
-  icon: IoniconsIconName;
+  iconKey: string | null;
   title: string;
   meta: string;
   description?: string;
   onPress: () => void;
+  onLongPress?: () => void;
   /** `null` = nichts anzubieten (Eigenes); sonst, ob es in „Meine Grüneratoren" liegt. */
   added?: boolean | null;
   onToggleAdded?: () => void;
@@ -44,9 +48,14 @@ export function MarketCard({
     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
       <Pressable
         onPress={onPress}
+        onLongPress={onLongPress}
         accessibilityRole="button"
         accessibilityLabel={title}
         accessibilityHint={meta}
+        accessibilityActions={onLongPress ? [{ name: 'longpress', label: 'Aktionen' }] : []}
+        onAccessibilityAction={(event) => {
+          if (event.nativeEvent.actionName === 'longpress') onLongPress?.();
+        }}
         style={({ pressed }) => [
           styles.content,
           offersToggle && styles.contentWithToggle,
@@ -55,7 +64,7 @@ export function MarketCard({
       >
         <View style={styles.header}>
           <View style={[styles.iconChip, { backgroundColor: theme.backgroundAlt }]}>
-            <Ionicons name={icon} size={20} color={theme.text} />
+            <AgentGlyph iconKey={iconKey} size={20} color={theme.text} />
           </View>
           <View style={styles.headerText}>
             <Text style={[styles.title, { color: theme.text }]} numberOfLines={2}>

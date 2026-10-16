@@ -1,7 +1,8 @@
 /**
  * Tests for the recipe-draft synthesis service.
  *
- * Mocks `ai.generateObject` and `getModel` so no real model call happens;
+ * Mocks `aiObject` (running the service's own `validate` on a canned draft) so
+ * no real model call happens;
  * asserts on the post-clamps (icon default, mention collision loop, mention
  * derived from title on an invalid slug, styleBlock truncation) and on the
  * party-internal boundary (no `internalPrompts` import in the module source).
@@ -13,18 +14,14 @@ import { fileURLToPath } from 'node:url';
 
 import { MAX_TEXT_FORM_STYLE_CHARS, textFormMentionSchema } from '@gruenerator/contracts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { type z } from 'zod';
+
+import { type AiObjectCall, type StructuredResult } from '../ai/generate.js';
 
 // ─── Module mocks (hoisted before imports) ────────────────────
 
-const mockGenerateObject = vi.fn();
-vi.mock('ai', () => ({
-  generateObject: (...args: unknown[]) => mockGenerateObject(...args),
-}));
-
-const mockGetModel = vi.fn((..._args: unknown[]) => ({ id: 'mock-model' }));
-vi.mock('../ai/providers.js', () => ({
-  getModel: (...args: unknown[]) => mockGetModel(...args),
+const mockAiObject = vi.fn();
+vi.mock('../ai/generate.js', () => ({
+  aiObject: (...args: unknown[]) => mockAiObject(...args),
 }));
 
 vi.mock('../../utils/logger.js', () => ({
@@ -53,23 +50,38 @@ function baseDraft(overrides: Partial<Record<string, unknown>> = {}): Record<str
   };
 }
 
+/** Answers like `aiObject` would after one model turn that returned `draft`. */
 function mockDraftResult(draft: Record<string, unknown>): void {
-  mockGenerateObject.mockResolvedValue({ object: draft });
+  mockAiObject.mockImplementation((call: AiObjectCall<unknown>): StructuredResult<unknown> => {
+    const validated = call.validate(draft, 1, 2);
+    return validated.ok
+      ? { ok: true, data: validated.value }
+      : { ok: false, error: validated.error };
+  });
 }
 
 beforeEach(() => {
-  mockGenerateObject.mockReset();
-  mockGetModel.mockClear();
+  mockAiObject.mockReset();
 });
 
 describe('draftRecipeSpec', () => {
-  it('calls getModel with mistral, same lane as the agent draft service', async () => {
+  it('runs on the creator_draft lane, same as the agent draft service', async () => {
     mockDraftResult(baseDraft());
     await draftRecipeSpec({
       messages: [{ role: 'user', content: 'Beschreibung' }],
       takenMentions: new Set(),
     });
-    expect(mockGetModel).toHaveBeenCalledWith('mistral');
+    expect(mockAiObject).toHaveBeenCalledWith(expect.objectContaining({ lane: 'creator_draft' }));
+  });
+
+  it('throws when no attempt produced a valid draft', async () => {
+    mockAiObject.mockResolvedValue({ ok: false, error: 'No provider produced an answer' });
+    await expect(
+      draftRecipeSpec({
+        messages: [{ role: 'user', content: 'Beschreibung' }],
+        takenMentions: new Set(),
+      })
+    ).rejects.toThrow('No provider produced an answer');
   });
 
   it('keeps a mention that is not taken', async () => {
@@ -178,19 +190,29 @@ describe('draftRecipeSpec', () => {
     expect(spec.description.length).toBe(500);
   });
 
-  it('passes a generation schema that accepts oversized fields, so the clamps can run', async () => {
+  it('validates oversized fields as ok, so the clamps can run', async () => {
     mockDraftResult(baseDraft());
     await draftRecipeSpec({
       messages: [{ role: 'user', content: 'Beschreibung' }],
       takenMentions: new Set(),
     });
-    const { schema } = mockGenerateObject.mock.calls[0][0] as { schema: z.ZodTypeAny };
+    const call = mockAiObject.mock.calls[0][0] as AiObjectCall<unknown>;
     const oversized = baseDraft({
       title: 'T'.repeat(200),
       mention: 'm'.repeat(80),
       description: 'D'.repeat(800),
     });
-    expect(schema.safeParse(oversized).success).toBe(true);
+    expect(call.validate(oversized, 1, 2).ok).toBe(true);
+  });
+
+  it('rejects a styleBlock below the save-body minimum', async () => {
+    mockDraftResult(baseDraft());
+    await draftRecipeSpec({
+      messages: [{ role: 'user', content: 'Beschreibung' }],
+      takenMentions: new Set(),
+    });
+    const call = mockAiObject.mock.calls[0][0] as AiObjectCall<unknown>;
+    expect(call.validate(baseDraft({ styleBlock: 'zu kurz' }), 1, 2).ok).toBe(false);
   });
 });
 

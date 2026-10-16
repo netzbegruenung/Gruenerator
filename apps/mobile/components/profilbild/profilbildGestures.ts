@@ -5,10 +5,11 @@ import {
   rescalePlacement,
   snapSticker,
   type PersonPlacement,
-  type ProfilbildAssetSrc,
+  type Sized,
   type SnapResult,
 } from '@gruenerator/shared/profilbild';
 import { type SkImage } from '@shopify/react-native-skia';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import {
   dragPerson,
@@ -16,7 +17,6 @@ import {
   pickTarget,
   pinchScale,
   restGesture,
-  roundModel,
   snapThreshold,
   startPinch,
   startRotation,
@@ -26,17 +26,19 @@ import {
   type LiveGesture,
 } from '../../hooks/profilbild/gestureMath';
 
-import { type ProfilbildModel, type SceneSticker } from './sceneModel';
+import { type ProfilbildModel, type SceneImages, type SceneSticker } from './sceneModel';
 
 export interface ProfilbildEditorProps {
   model: ProfilbildModel;
   onChange(model: ProfilbildModel): void;
   person: SkImage;
-  images: Record<ProfilbildAssetSrc, SkImage>;
+  images: SceneImages;
   isAustria: boolean;
   viewSize: number;
   selected: string | null;
   onSelect(uid: string | null): void;
+  /** The stage is held (`true`) or let go (`false`): the Instagram preview shows meanwhile. */
+  onPeek?(on: boolean): void;
 }
 
 type Target = { kind: 'person'; start: PersonPlacement } | { kind: 'sticker'; start: SceneSticker };
@@ -51,8 +53,47 @@ interface Point {
   y: number;
 }
 
+/** The element a gesture is moving, as it stands this frame. */
+export type LiveElement =
+  { kind: 'person'; placement: PersonPlacement } | { kind: 'sticker'; sticker: SceneSticker };
+
+/** What the gestures read from the editor's props, mirrored onto the UI thread after every render. */
+export interface GestureContext {
+  stickers: SceneSticker[];
+  person: PersonPlacement;
+  personSrc: Sized;
+  selected: string | null;
+  viewSize: number;
+}
+
+export interface GestureMachine {
+  /** Gestures (pan, pinch, rotation) currently active; the first begins, the last commits. */
+  active: number;
+  downAt: Point;
+  target: Target | null;
+  gesture: LiveGesture;
+  /** Whether this bout moved its target; `live` may still hold the previous bout's element. */
+  moved: boolean;
+}
+
+/** A shared value, or a plain `{ value }` in tests. */
+interface Cell<T> {
+  value: T;
+}
+
 const S = PROFILBILD_SIZE;
 export const NO_GUIDES: Guides = { x: null, y: null };
+
+export function idleMachine(): GestureMachine {
+  'worklet';
+  return {
+    active: 0,
+    downAt: { x: 0, y: 0 },
+    target: null,
+    gesture: restGesture(),
+    moved: false,
+  };
+}
 
 let stickerCounter = 0;
 
@@ -61,145 +102,191 @@ export function nextStickerUid(stickerId: string): string {
   return `${stickerId}-${stickerCounter}`;
 }
 
+/** Where the target stands for a gesture, snapped to the guides. */
+export function stepGesture(
+  t: Target,
+  g: LiveGesture,
+  personSrc: Sized,
+  viewSize: number
+): { element: LiveElement; snap: SnapResult } {
+  'worklet';
+  const dx = viewToCanvas(g.dx, viewSize);
+  const dy = viewToCanvas(g.dy, viewSize);
+  const threshold = snapThreshold(viewSize);
+  if (t.kind === 'person') {
+    const scaled = rescalePlacement(personSrc, t.start, pinchScale(t.start.scale, g.scale));
+    const snap = dragPerson(placementRect(personSrc, scaled), dx, dy, threshold);
+    return { element: { kind: 'person', placement: { ...scaled, x: snap.x, y: snap.y } }, snap };
+  }
+  const s = t.start;
+  const factor = Math.max(g.scale, MIN_STICKER / Math.min(s.width, s.height));
+  const box = {
+    x: s.x + dx,
+    y: s.y + dy,
+    width: s.width * factor,
+    height: s.height * factor,
+    rotation: s.rotation + (g.rotation * 180) / Math.PI,
+  };
+  const snap = snapSticker(box, S, threshold);
+  return { element: { kind: 'sticker', sticker: { ...s, ...box, x: snap.x, y: snap.y } }, snap };
+}
+
+/** The model with a gesture's result merged in. */
+export function applyLive(model: ProfilbildModel, live: LiveElement): ProfilbildModel {
+  if (live.kind === 'person') return { ...model, person: live.placement };
+  const moved = live.sticker;
+  return { ...model, stickers: model.stickers.map((s) => (s.uid === moved.uid ? moved : s)) };
+}
+
 /**
- * The editor's gesture state machine, outside React: RNGH calls these handlers
- * on the JS thread (`runOnJS(true)`), and the editor feeds in its latest props
- * through `sync` after every render.
+ * The editor's gesture state machine. Every handler is a worklet: RNGH runs
+ * them on the UI thread, where they move the live element and the guides in
+ * shared values that the Skia canvas draws directly — no React render per
+ * frame. The RN thread hears about a gesture only at its edges (`select` and
+ * `start` when it takes hold, `commit` once at the last finger up) and through
+ * `haptic`, once each time a guide appears.
+ *
+ * The props the hit test needs arrive through `sync`, which the editor calls
+ * after every render. The commit is applied on the RN thread to the
+ * editor's latest model, so a change that landed mid-gesture is kept.
  */
-export function createProfilbildGestureController(io: {
-  setDraft(m: ProfilbildModel | null): void;
-  setGuides(g: Guides): void;
-  haptic(): void;
-}) {
-  let ctx: { props: ProfilbildEditorProps; selected: string | null } | null = null;
-  let target: Target | null = null;
-  let live: LiveGesture = restGesture();
-  let active = 0;
-  let downAt: Point = { x: 0, y: 0 };
-  let latest: ProfilbildModel | null = null;
-  let lastGuides: Guides = NO_GUIDES;
+export function createProfilbildGestureController(
+  cells: {
+    ctx: Cell<GestureContext | null>;
+    machine: Cell<GestureMachine>;
+    live: Cell<LiveElement | null>;
+    guides: Cell<Guides>;
+  },
+  io: {
+    select(uid: string | null): void;
+    /** A gesture took hold of an element. */
+    start(): void;
+    /** The last finger is up; `live` is null when nothing moved. */
+    commit(live: LiveElement | null): void;
+    haptic(): void;
+  }
+) {
+  const { ctx, machine, live, guides } = cells;
+  const { select, start, commit, haptic } = io;
 
-  // Gestures only arrive once the editor has rendered, and it syncs on every render.
-  const current = () => ctx!;
-
-  const toCanvas = (p: Point) => {
-    const size = current().props.viewSize;
+  const toCanvas = (p: Point, size: number): Point => {
+    'worklet';
     return { x: viewToCanvas(p.x, size), y: viewToCanvas(p.y, size) };
   };
-  const srcOf = (img: SkImage) => ({ width: img.width(), height: img.height() });
 
   const begin = (at: Point) => {
-    if (active++ > 0) return;
-    live = restGesture();
-    const { props: p, selected: sel } = current();
-    const picked = pickTarget(
-      p.model.stickers,
-      sel,
-      toCanvas(at),
-      placementRect(srcOf(p.person), p.model.person)
-    );
-    if (picked?.kind === 'sticker') {
-      const sticker = p.model.stickers.find((s) => s.uid === picked.uid);
-      target = sticker ? { kind: 'sticker', start: sticker } : null;
-      if (picked.uid !== sel) p.onSelect(picked.uid);
+    'worklet';
+    const m = machine.value;
+    if (m.active > 0) {
+      machine.value = { ...m, active: m.active + 1 };
       return;
     }
-    target = picked ? { kind: 'person', start: p.model.person } : null;
-    if (sel) p.onSelect(null);
+    const c = ctx.value;
+    let target: Target | null = null;
+    if (c) {
+      const picked = pickTarget(
+        c.stickers,
+        c.selected,
+        toCanvas(at, c.viewSize),
+        placementRect(c.personSrc, c.person)
+      );
+      if (picked?.kind === 'sticker') {
+        const sticker = c.stickers.find((s) => s.uid === picked.uid);
+        target = sticker ? { kind: 'sticker', start: sticker } : null;
+        if (picked.uid !== c.selected) scheduleOnRN(select, picked.uid);
+      } else {
+        target = picked ? { kind: 'person', start: c.person } : null;
+        if (c.selected) scheduleOnRN(select, null);
+      }
+    }
+    machine.value = { ...m, active: 1, target, gesture: restGesture(), moved: false };
+    if (target) scheduleOnRN(start);
   };
 
-  const showGuides = (snap: SnapResult) => {
-    const prev = lastGuides;
+  const update = (gesture: LiveGesture) => {
+    'worklet';
+    const m = machine.value;
+    const c = ctx.value;
+    if (!m.target || !c) {
+      machine.value = { ...m, gesture };
+      return;
+    }
+    machine.value = { ...m, gesture, moved: true };
+    const { element, snap } = stepGesture(m.target, gesture, c.personSrc, c.viewSize);
+    const prev = guides.value;
     if ((prev.x === null && snap.guideX !== null) || (prev.y === null && snap.guideY !== null)) {
-      io.haptic();
+      scheduleOnRN(haptic);
     }
-    if (prev.x === snap.guideX && prev.y === snap.guideY) return;
-    lastGuides = { x: snap.guideX, y: snap.guideY };
-    io.setGuides(lastGuides);
-  };
-
-  const update = () => {
-    const t = target;
-    if (!t) return;
-    const { model: m, person: img, viewSize: size } = current().props;
-    const g = live;
-    const dx = viewToCanvas(g.dx, size);
-    const dy = viewToCanvas(g.dy, size);
-    const threshold = snapThreshold(size);
-    let next: ProfilbildModel;
-    let snap: SnapResult;
-    if (t.kind === 'person') {
-      const src = srcOf(img);
-      const scaled = rescalePlacement(src, t.start, pinchScale(t.start.scale, g.scale));
-      snap = dragPerson(placementRect(src, scaled), dx, dy, threshold);
-      next = { ...m, person: { ...scaled, x: snap.x, y: snap.y } };
-    } else {
-      const s = t.start;
-      const factor = Math.max(g.scale, MIN_STICKER / Math.min(s.width, s.height));
-      const box = {
-        x: s.x + dx,
-        y: s.y + dy,
-        width: s.width * factor,
-        height: s.height * factor,
-        rotation: s.rotation + (g.rotation * 180) / Math.PI,
-      };
-      snap = snapSticker(box, S, threshold);
-      const moved = { ...s, ...box, x: snap.x, y: snap.y };
-      next = { ...m, stickers: m.stickers.map((o) => (o.uid === s.uid ? moved : o)) };
+    if (prev.x !== snap.guideX || prev.y !== snap.guideY) {
+      guides.value = { x: snap.guideX, y: snap.guideY };
     }
-    showGuides(snap);
-    latest = next;
-    io.setDraft(next);
+    live.value = element;
   };
 
   const end = () => {
-    active = Math.max(0, active - 1);
-    if (active > 0) return;
-    const next = latest;
-    target = null;
-    latest = null;
-    lastGuides = NO_GUIDES;
-    io.setGuides(NO_GUIDES);
-    if (next) current().props.onChange(roundModel(next));
-    io.setDraft(null);
+    'worklet';
+    const m = machine.value;
+    const active = Math.max(0, m.active - 1);
+    if (active > 0) {
+      machine.value = { ...m, active };
+      return;
+    }
+    machine.value = idleMachine();
+    guides.value = NO_GUIDES;
+    // The live element stays on screen until the RN thread has rendered the
+    // committed model and calls `settle`; clearing it here would flash the old
+    // position for the frames in between.
+    // Only what this bout moved: until `settle`, `live` can still hold the last bout's element.
+    scheduleOnRN(commit, m.moved ? live.value : null);
   };
 
   return {
-    sync(props: ProfilbildEditorProps, selected: string | null) {
-      ctx = { props, selected };
+    /** Mirrors the editor's latest props onto the UI thread; called after every render. */
+    sync(c: GestureContext) {
+      ctx.value = c;
+    },
+    /** Drops the live element once the committed model is on screen, unless a new gesture has begun. */
+    settle() {
+      'worklet';
+      if (machine.value.active === 0) live.value = null;
     },
     handlers: {
       tapEnd(e: Point, success: boolean) {
-        if (!success) return;
-        const c = toCanvas(e);
-        current().props.onSelect(hitSticker(current().props.model.stickers, c.x, c.y));
+        'worklet';
+        const c = ctx.value;
+        if (!success || !c) return;
+        const p = toCanvas(e, c.viewSize);
+        scheduleOnRN(select, hitSticker(c.stickers, p.x, p.y));
       },
       panBegin(e: Point) {
-        downAt = { x: e.x, y: e.y };
+        'worklet';
+        machine.value = { ...machine.value, downAt: { x: e.x, y: e.y } };
       },
       panStart() {
-        begin(downAt);
+        'worklet';
+        begin(machine.value.downAt);
       },
       panUpdate(e: { translationX: number; translationY: number }) {
-        live.dx = e.translationX;
-        live.dy = e.translationY;
-        update();
+        'worklet';
+        update({ ...machine.value.gesture, dx: e.translationX, dy: e.translationY });
       },
       pinchStart(e: { focalX: number; focalY: number }) {
+        'worklet';
         begin({ x: e.focalX, y: e.focalY });
-        live = startPinch(live);
+        machine.value = { ...machine.value, gesture: startPinch(machine.value.gesture) };
       },
       pinchUpdate(e: { scale: number }) {
-        live = updatePinch(live, e.scale);
-        update();
+        'worklet';
+        update(updatePinch(machine.value.gesture, e.scale));
       },
       rotationStart(e: { anchorX: number; anchorY: number }) {
+        'worklet';
         begin({ x: e.anchorX, y: e.anchorY });
-        live = startRotation(live);
+        machine.value = { ...machine.value, gesture: startRotation(machine.value.gesture) };
       },
       rotationUpdate(e: { rotation: number }) {
-        live = updateRotation(live, e.rotation);
-        update();
+        'worklet';
+        update(updateRotation(machine.value.gesture, e.rotation));
       },
       end,
     },

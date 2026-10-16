@@ -23,7 +23,12 @@
  * - useToolbarHandlers     — bundled toolbar actions for the active page
  */
 
-import { downloadDataUrl, pickShareRoute, shareDataUrlViaNativeHost } from '@gruenerator/shared';
+import {
+  downloadBlob,
+  downloadDataUrl,
+  pickShareRoute,
+  shareDataUrlViaNativeHost,
+} from '@gruenerator/shared';
 import { Skeleton } from '@gruenerator/ui';
 import Konva from 'konva';
 import React, {
@@ -36,9 +41,18 @@ import React, {
   startTransition,
 } from 'react';
 
+import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { PAGE_PERSISTED_STATE_KEYS } from '../../collab/pageElementStateKeys';
 import { createPageSyncedCallbacks } from '../../collab/wrapCallbacksWithPageSync';
-import { getCanvasFormatOrDefault } from '../../formats';
+import { type CanvasConfigId } from '../../configs/types';
+import {
+  exportPrintPdf,
+  lowResolutionWarnings,
+  PRINT_JPEG_QUALITY,
+  printPdfFilename,
+  type PrintExportPage,
+} from '../../export/printExport';
+import { DEFAULT_FORMAT_ID, getCanvasFormatOrDefault, isPrintFormat } from '../../formats';
 import { usePageManager, useMultiPageExport, usePageThumbnails } from '../../hooks';
 import { useDeckAutoSave } from '../../hooks/useDeckAutoSave';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
@@ -46,6 +60,7 @@ import { useZoomGestures } from '../../hooks/useZoomGestures';
 import { HOST_CALLBACK_KEYS } from '../../hostCallbackKeys';
 import { CanvasEditorLayout } from '../../layouts';
 import { SidebarTabBar, SidebarPanel } from '../../sidebar';
+import { VorlagenSection } from '../../sidebar/sections/VorlagenSection';
 import { UserUploadsProvider } from '../../sidebar/UserUploadsProvider';
 import { AutoSaveStoreProvider } from '../../stores/useAutoSaveStore';
 import { cn } from '../../utils/cn';
@@ -67,15 +82,20 @@ import { useLoadedConfigs } from './hooks/useLoadedConfigs';
 import { useMobileSheetFit } from './hooks/useMobileSheetFit';
 import { usePageRefs } from './hooks/usePageRefs';
 import { usePageUndoRedoShortcuts } from './hooks/usePageUndoRedoShortcuts';
+import {
+  isPosterFormat,
+  usePrintImpressumGate,
+  type ObservedPages,
+} from './hooks/usePrintImpressumGate';
 import { useScrollToAddedPage } from './hooks/useScrollToAddedPage';
 import { useToolbarHandlers } from './hooks/useToolbarHandlers';
 import { useWorkAreaDeselect } from './hooks/useWorkAreaDeselect';
 import { getMobileSelectionArea } from './mobileSelectionArea';
 import { PageWrapper } from './PageWrapper';
+import { formatHasVorlagen, vorlagenTab, withVorlagenTab } from './vorlagenTab';
 
 import type { CanvasEditorProps, PageWrapperProps } from './types';
 import type { CanvasSpecEditBridge } from '../../CanvasEditorProvider';
-import type { CanvasConfigId } from '../../configs/types';
 import type { SidebarTabId } from '../../sidebar/types';
 import type { ToolbarStateReport } from '../GenericCanvas';
 import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
@@ -111,6 +131,7 @@ export function CanvasEditor(props: CanvasEditorProps) {
 function CanvasEditorInner({
   initialConfigId,
   formatId,
+  documentTitle,
   initialProps,
   onExport,
   onCancel,
@@ -463,6 +484,24 @@ function CanvasEditorInner({
   });
   // eslint-disable-next-line react-hooks/refs -- latest-ref write, read only by the bridge's handlers
   specEditRef.current = { pages, activePageId: pages[currentPageIndex]?.id ?? null, replaceDeck };
+  // A page the Vorlagen tab just added: shown as soon as the deck has it.
+  const pageToShowRef = useRef<string | null>(null);
+  const showPage = useCallback(
+    (pageId: string) => {
+      const index = specEditRef.current.pages.findIndex((p) => p.id === pageId);
+      if (index >= 0) handleThumbnailSelect(index);
+      else pageToShowRef.current = pageId;
+    },
+    [handleThumbnailSelect]
+  );
+  useEffect(() => {
+    const pageId = pageToShowRef.current;
+    if (!pageId) return;
+    const index = pages.findIndex((p) => p.id === pageId);
+    if (index < 0) return;
+    pageToShowRef.current = null;
+    handleThumbnailSelect(index);
+  }, [pages, handleThumbnailSelect]);
   const hasReplaceDeck = replaceDeck !== null;
   const specEdit = useMemo<CanvasSpecEditBridge | null>(
     () =>
@@ -475,6 +514,11 @@ function CanvasEditorInner({
         : null,
     [hasReplaceDeck]
   );
+
+  // The Vorlagen replace the whole deck, so they need the synced pages doc.
+  const { vorlagen: vorlagenService } = useCanvasEditorServices();
+  const showVorlagen =
+    vorlagenService !== undefined && hasReplaceDeck && formatHasVorlagen(formatId);
 
   const toolbarHandlers = useToolbarHandlers({
     canvasRefsRef,
@@ -643,6 +687,56 @@ function CanvasEditorInner({
     [currentPageIndex, canvasRefsRef, onDownload]
   );
 
+  // Each poster page's live state for the impressum warning. The ref dedupes
+  // reports without a stale closure, the state re-renders the gate.
+  const [observedPages, setObservedPages] = useState<ObservedPages>({});
+  const observedPagesRef = useRef<ObservedPages>({});
+  const handleObservedState = useCallback(
+    (pageId: string, state: Record<string, unknown>, actions: Record<string, unknown>) => {
+      const prev = observedPagesRef.current[pageId];
+      if (prev?.state === state && prev.actions === actions) return;
+      const next = { ...observedPagesRef.current, [pageId]: { pageId, state, actions } };
+      observedPagesRef.current = next;
+      startTransition(() => setObservedPages(next));
+    },
+    []
+  );
+
+  // Print: one PDF page per editor page, in page order.
+  const printPages = useCallback((): PrintExportPage[] => {
+    const refs = canvasRefsRef.current;
+    return refs.map((ref) => ({
+      captureTile: async (tile, pixelRatio) =>
+        (await ref.current?.capturePrintTile(tile, pixelRatio, PRINT_JPEG_QUALITY)) ?? null,
+      getImages: () => ref.current?.getPrintImages() ?? [],
+    }));
+  }, [canvasRefsRef]);
+
+  const printFormat = useMemo(() => {
+    const f = getCanvasFormatOrDefault(formatId);
+    return isPrintFormat(f) ? f : null;
+  }, [formatId]);
+
+  const handleDownloadPdf = useCallback(async () => {
+    if (!printFormat) return;
+    const pages = printPages();
+    if (pages.some((_, i) => !canvasRefsRef.current[i]?.current)) {
+      throw new Error('Nicht alle Seiten konnten exportiert werden');
+    }
+    const pdf = await exportPrintPdf({ format: printFormat, pages });
+    const blob = new Blob([pdf as BlobPart], { type: 'application/pdf' });
+    await downloadBlob(blob, printPdfFilename(documentTitle ?? null));
+  }, [printFormat, printPages, canvasRefsRef, documentTitle]);
+
+  // Every poster page should carry a filled-in V.i.S.d.P. / Impressum, whichever
+  // page is active; the download warns (never blocks) once every page has reported.
+  const impressumGate = usePrintImpressumGate(printFormat, pages, observedPages);
+
+  const getPrintWarnings = useCallback(
+    () => (printFormat ? lowResolutionWarnings(printFormat, printPages()) : []),
+    [printFormat, printPages]
+  );
+
   // Get active page data for shared sidebar
   const currentPage = pages[currentPageIndex];
   const activeConfig = currentPage ? loadedConfigs.get(currentPage.configId) : undefined;
@@ -665,14 +759,17 @@ function CanvasEditorInner({
   // `frame-settings` for `getAutoSwitchTab` to target).
   const visibleTabs = useMemo(() => {
     if (!activeConfig) return [];
+    let tabs = activeConfig.tabs;
     if (activeConfig.getVisibleTabs) {
       const visibleIds = activeConfig.getVisibleTabs(activeState, {
         selectedElement: activeSelectedElement,
       });
-      return activeConfig.tabs.filter((tab) => visibleIds.includes(tab.id));
+      tabs = activeConfig.tabs.filter((tab) => visibleIds.includes(tab.id));
     }
-    return activeConfig.tabs;
-  }, [activeConfig, activeState, activeSelectedElement]);
+    // Mobile has room for six areas; the chat gives way to the Vorlagen there for now.
+    if (isMobileWeb) tabs = tabs.filter((tab) => tab.id !== 'chat');
+    return showVorlagen ? withVorlagenTab(tabs) : tabs;
+  }, [activeConfig, activeState, activeSelectedElement, showVorlagen, isMobileWeb]);
 
   // Compute disabled tabs for active config
   const disabledTabs = useMemo(() => {
@@ -707,7 +804,9 @@ function CanvasEditorInner({
   const isPanelOpen = activeTab !== null;
   const isMobileSheetOpen = isMobileWeb && isPanelOpen;
   const panelTitle =
-    (activeTab && activeConfig?.tabs.find((tab) => tab.id === activeTab)?.label) || 'Auswahl';
+    activeTab === 'vorlagen'
+      ? vorlagenTab.label
+      : (activeTab && activeConfig?.tabs.find((tab) => tab.id === activeTab)?.label) || 'Auswahl';
   useMobileSheetFit({
     enabled: isMobileSheetOpen,
     zoom,
@@ -817,6 +916,16 @@ function CanvasEditorInner({
   // Render the active section based on configuration
   const renderActiveSection = useCallback(() => {
     if (!activeTab) return null;
+    if (activeTab === 'vorlagen') {
+      return showVorlagen && specEdit ? (
+        <VorlagenSection
+          formatId={formatId ?? DEFAULT_FORMAT_ID}
+          pages={pages}
+          deck={specEdit}
+          onShowPage={showPage}
+        />
+      ) : null;
+    }
     const source = sectionSource ?? (activeTab === 'chat' ? lastSectionSourceRef.current : null);
     if (!source) return null;
 
@@ -828,6 +937,7 @@ function CanvasEditorInner({
       selectedElement: source.selectedElement,
       ...shareProps,
       ...(specEdit && { specEdit }),
+      background: source.config.background?.(source.state, source.actions) ?? null,
     });
 
     return (
@@ -835,7 +945,7 @@ function CanvasEditorInner({
         <SectionComponent {...sectionProps} />
       </Suspense>
     );
-  }, [activeTab, sectionSource, shareProps, specEdit]);
+  }, [activeTab, sectionSource, shareProps, specEdit, showVorlagen, formatId, pages, showPage]);
 
   // Collab vor dem ersten Sync (noch keine Seiten) und der eine Render, in dem
   // die Seiten-Configs nachladen: das Layout bleibt stehen, nur die Fläche
@@ -884,8 +994,19 @@ function CanvasEditorInner({
       exportNotice: multiExportNotice,
       onInvitePeople,
       onSaveAsTemplate,
+      printExport: printFormat
+        ? {
+            onDownloadPdf: handleDownloadPdf,
+            getWarnings: getPrintWarnings,
+            impressum: impressumGate,
+          }
+        : null,
     }),
     [
+      printFormat,
+      impressumGate,
+      handleDownloadPdf,
+      getPrintWarnings,
       handleCaptureCanvas,
       handleDownload,
       noop,
@@ -949,6 +1070,10 @@ function CanvasEditorInner({
   // "Auswahl" block, not in the mobile bottom bar (`hideObjectActions`). Only
   // one of the two bars is mounted per viewport to avoid a hidden duplicate
   // React tree.
+  const backgroundControls =
+    activeConfig?.background && activeState && activeActions
+      ? activeConfig.background(activeState, activeActions)
+      : null;
   const contextControlsProps = toolbarState
     ? {
         selectedElement: toolbarState.selectedElement ?? null,
@@ -960,6 +1085,12 @@ function CanvasEditorInner({
           ...toolbarHandlers,
           onEditImage: () => setActiveTab('image-adjust'),
         },
+        background: backgroundControls,
+        // Boundary: page actions arrive as Record<string, unknown>.
+        onRemoveUserImage:
+          typeof activeActions?.removeUserImage === 'function'
+            ? (activeActions.removeUserImage as (id: string) => void)
+            : undefined,
         onDelete: toolbarOnDelete,
         onDeselect: handleDeselectAll,
       }
@@ -1154,6 +1285,7 @@ function CanvasEditorInner({
                   callbacks={getCallbacksForPage(page.id, page.configId)}
                   multiPageExport={index === 0 ? multiPageExportProps : undefined}
                   onStateChange={handlePageStateChange}
+                  onObservedState={isPosterFormat(printFormat) ? handleObservedState : undefined}
                   onToolbarStateChange={
                     isActive && !isPreview ? handleToolbarStateChange : undefined
                   }

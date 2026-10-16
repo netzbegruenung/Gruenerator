@@ -3,11 +3,16 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import { type ShareStatus, type StoredMediaType } from '@gruenerator/contracts';
-import { NON_LIBRARY_UPLOAD_SOURCES } from '@gruenerator/shared/media-library/constants';
+import { type ReopenEditor, type ShareStatus, type StoredMediaType } from '@gruenerator/contracts';
 import {
+  NON_LIBRARY_UPLOAD_SOURCES,
+  type UPLOAD_SOURCES,
+} from '@gruenerator/shared/media-library/constants';
+import {
+  isProfilbildShare,
   parseSavedProfilbild,
   PROFILBILD_IMAGE_TYPE,
+  PROFILBILD_METADATA_KEY,
   savedBackgroundShareToken,
 } from '@gruenerator/shared/profilbild/saved';
 import { stripDataUrlPrefix } from '@gruenerator/shared/utils';
@@ -73,6 +78,9 @@ export type TrashedShareRow = Pick<
 
 export type ShareTrashResult = 'ok' | 'not_found' | 'forbidden';
 
+/** A Sticker/Hintergrund's file: the `studio_assets` row owns it, not the share. */
+export type ShareTrashRefusal = 'studio_asset';
+
 /** Plain strings, not `{ status }` objects: `sharedMediaService.vitest.ts` reads every
  * `status: '…'` literal in this file as a `shared_media.status` the service writes. */
 export type ShareTrashLookup = TrashedShareRow | Exclude<ShareTrashResult, 'ok'>;
@@ -94,6 +102,16 @@ export type ShareTrashLookup = TrashedShareRow | Exclude<ShareTrashResult, 'ok'>
  * no item cap since; this does not bring either back.
  */
 const SHARE_LINK_MAX_AGE_DAYS = 30;
+
+export type UploadSource = (typeof UPLOAD_SOURCES)[number];
+
+const PROFILBILD_BACKGROUND_SOURCE = 'profilbild-background' satisfies UploadSource;
+const STUDIO_ASSET_UPLOAD_SOURCE = 'studio-asset' satisfies UploadSource;
+/** Sources a model painted: their rows carry `content_origin = 'ki'`. */
+const KI_UPLOAD_SOURCES: readonly string[] = [
+  'ai_generated',
+  'sharepic-illustration',
+] satisfies UploadSource[];
 
 /**
  * `expires_at` for a freshly created share, as a SQL expression.
@@ -807,7 +825,7 @@ class SharedMediaService {
                 SELECT sm.id, sm.user_id, sm.share_token, sm.media_type, sm.title,
                        sm.file_path, sm.file_name, sm.thumbnail_path, sm.file_size, sm.mime_type,
                        sm.duration, sm.project_id, sm.image_type, sm.image_metadata,
-                       sm.status, sm.download_count, sm.view_count, sm.created_at,
+                       sm.status, sm.download_count, sm.view_count, sm.created_at, sm.upload_source,
                        sm.wolke_share_link_id, sm.wolke_file_path,
                        sm.expires_at, sm.password_hash, sm.transfer_files, sm.transfer_message,
                        COALESCE(p.first_name, p.display_name, 'Jemand') as sharer_name
@@ -833,7 +851,8 @@ class SharedMediaService {
     userId: string,
     mediaType: StoredMediaType | null = null,
     status: ShareStatus | readonly ShareStatus[] | null = null,
-    limit: number = USER_SHARES_MAX_LIMIT
+    limit: number = USER_SHARES_MAX_LIMIT,
+    editor: ReopenEditor | null = null
   ): Promise<SharedMediaRow[]> {
     await this.ensureInitialized();
 
@@ -854,11 +873,28 @@ class SharedMediaService {
                   AND ${creationFeedWhere(params, status, mediaType)}
             `;
 
+      // The image type alone also matches canvas exports of the profilbild
+      // template, which carry no editor state; the metadata key tells them apart.
+      if (editor === 'profilbild') {
+        params.push(PROFILBILD_IMAGE_TYPE);
+        query += ` AND image_type = $${params.length}`;
+        params.push(PROFILBILD_METADATA_KEY);
+        query += ` AND image_metadata ? $${params.length}`;
+      }
+
       params.push(Math.min(Math.max(1, Math.trunc(limit)), USER_SHARES_MAX_LIMIT));
       query += ` ORDER BY created_at DESC LIMIT $${params.length}`;
 
       const results = await this.postgres!.query<SharedMediaRow>(query, params);
-      return results;
+      // SQL only sees that the key exists. Whether the editor can reopen the row
+      // is the parser's call — the same check „Zuletzt“ and mobile use — so a row
+      // with an unreadable state is not offered as a Profilbild. Such a row can
+      // shorten the page below `limit`; today every writer stores a valid state.
+      return editor === 'profilbild'
+        ? results.filter((r) =>
+            isProfilbildShare({ imageType: r.image_type, imageMetadata: r.image_metadata })
+          )
+        : results;
     } catch (error) {
       console.error('[SharedMediaService] Failed to get user shares:', error);
       throw new Error(`Failed to get user shares: ${(error as Error).message}`);
@@ -927,14 +963,19 @@ class SharedMediaService {
    * Delete rights are the uploader's (`user_id`); restore and purge-now ask
    * exactly that.
    */
-  async trashShare(userId: string, shareToken: string): Promise<ShareTrashResult> {
+  async trashShare(
+    userId: string,
+    shareToken: string
+  ): Promise<ShareTrashResult | ShareTrashRefusal> {
     await this.ensureInitialized();
-    const rows = await this.postgres!.query<Pick<SharedMedia, 'user_id'>>(
-      'SELECT user_id FROM shared_media WHERE share_token = $1 AND deleted_at IS NULL',
+    const rows = await this.postgres!.query<Pick<SharedMedia, 'user_id' | 'upload_source'>>(
+      'SELECT user_id, upload_source FROM shared_media WHERE share_token = $1 AND deleted_at IS NULL',
       [shareToken]
     );
     if (rows.length === 0) return 'not_found';
     if (rows[0].user_id !== userId) return 'forbidden';
+    // Its purge would take the gallery row (FK cascade) past purgeStudioAsset.
+    if (rows[0].upload_source === STUDIO_ASSET_UPLOAD_SOURCE) return 'studio_asset';
     await this.postgres!.query(
       'UPDATE shared_media SET deleted_at = now() WHERE share_token = $1 AND deleted_at IS NULL',
       [shareToken]
@@ -1026,16 +1067,23 @@ class SharedMediaService {
    * `is_library_item = FALSE` match — a library image someone set as a
    * thumbnail survives. Internal rows never pass through the Papierkorb: no
    * listing shows them, so nobody could restore them. `ownerId` limits it to
-   * one user's rows, for tokens that came from client-written metadata.
+   * one user's rows, for tokens that came from client-written metadata;
+   * `uploadSources` limits it to rows of those sources, for client-written
+   * tokens no owner check can cover (a collaborator's canvas thumbnail).
    */
-  async purgeInternalShare(shareToken: string, ownerId: string | null = null): Promise<boolean> {
+  async purgeInternalShare(
+    shareToken: string,
+    ownerId: string | null = null,
+    uploadSources: readonly UploadSource[] | null = null
+  ): Promise<boolean> {
     const row = await this.removeShare<{ id: string }>(
       shareToken,
       `DELETE FROM shared_media
        WHERE share_token = $1 AND COALESCE(is_library_item, TRUE) = FALSE
          AND ($2::uuid IS NULL OR user_id = $2)
+         AND ($3::text[] IS NULL OR upload_source = ANY($3))
        RETURNING id`,
-      [shareToken, ownerId]
+      [shareToken, ownerId, uploadSources]
     );
     return row !== null;
   }
@@ -1044,6 +1092,8 @@ class SharedMediaService {
    * A saved Profilbild's own background photo is an internal upload that only
    * this Profilbild refers to, so it goes once the Profilbild no longer does:
    * on purge, or when an update replaces it. Best-effort, like the files.
+   * Only its own `profilbild-background` upload qualifies — a background picked
+   * from the Studio gallery is a `studio-asset` share the gallery item owns.
    */
   private async dropProfilbildBackground(
     share: { user_id: string | null; image_type: string | null; image_metadata: unknown },
@@ -1053,7 +1103,14 @@ class SharedMediaService {
     const token = savedBackgroundShareToken(parseSavedProfilbild(share.image_metadata));
     if (!token || token === keepToken) return;
     try {
-      await this.purgeInternalShare(token, share.user_id);
+      await this.removeShare<{ id: string }>(
+        token,
+        `DELETE FROM shared_media
+         WHERE share_token = $1 AND COALESCE(is_library_item, TRUE) = FALSE
+           AND user_id = $2 AND upload_source = $3
+         RETURNING id`,
+        [token, share.user_id, PROFILBILD_BACKGROUND_SOURCE]
+      );
     } catch (error) {
       reportBackgroundError(error, {
         job: 'profilbild-background-purge',
@@ -1356,10 +1413,9 @@ class SharedMediaService {
       }
 
       // Everything arriving here is a source image, not a finished creation —
-      // including the canvas editor's background/asset uploads. `ai_generated` is
-      // the one source that would say otherwise; no caller assigns it today, but
-      // handling it means a future one gets the right bucket for free.
-      const contentOrigin = uploadSource === 'ai_generated' ? 'ki' : 'upload';
+      // including the canvas editor's background/asset uploads. Only the
+      // model-painted sources say otherwise.
+      const contentOrigin = KI_UPLOAD_SOURCES.includes(uploadSource) ? 'ki' : 'upload';
 
       const query = `
                 INSERT INTO shared_media

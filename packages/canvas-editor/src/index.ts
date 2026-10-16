@@ -7,6 +7,8 @@ export type {
   ChatSectionContentProps,
   CanvasAiEditBridge,
   CanvasSpecEditBridge,
+  CanvasVorlagenService,
+  VorlagePage,
 } from './CanvasEditorProvider';
 
 export { StandaloneCanvas } from './components/StandaloneCanvas';
@@ -53,6 +55,11 @@ export {
   DEFAULT_FORMAT_ID,
   getCanvasFormat,
   getCanvasFormatOrDefault,
+  isPrintFormat,
+  isUnsupportedFormatId,
+  mmToPx,
+  printGeometry,
+  UnsupportedCanvasFormatError,
 } from './formats';
 export type {
   CanvasFormat,
@@ -60,6 +67,9 @@ export type {
   CanvasFormatGroup,
   CanvasFormatIconKey,
   CanvasExportType,
+  CanvasPrintSpec,
+  PrintCanvasFormat,
+  PrintRect,
 } from './formats';
 
 export {

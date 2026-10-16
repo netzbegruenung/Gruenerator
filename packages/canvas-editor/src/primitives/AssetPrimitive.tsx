@@ -3,13 +3,20 @@ import { Image, Group, Rect, Transformer } from 'react-konva';
 
 import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
-import { ASSET_TARGET_SIZE, getAssetById } from '../utils/canvasAssets';
+import {
+  ASSET_TARGET_SIZE,
+  isStickerLikeInstance,
+  resolveAssetInstanceSrc,
+} from '../utils/canvasAssets';
+import { applyPixelHitArea } from '../utils/pixelHitArea';
 import { calculateCenteredSnapPosition } from '../utils/snapping';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type { AssetInstance } from '../utils/canvasAssets';
 import type { SnapLine, SnapTarget } from '../utils/snapping';
 import type Konva from 'konva';
+
+const EXPORT_PIXEL_RATIO = 2;
 
 export interface AssetPrimitiveProps {
   asset: AssetInstance;
@@ -41,23 +48,25 @@ function AssetPrimitiveInner({
   onGeometryChange,
 }: AssetPrimitiveProps) {
   const groupRef = useRef<Konva.Group>(null);
+  const imageRef = useRef<Konva.Image>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [imageSize, setImageSize] = useState({ width: 100, height: 100 });
 
-  // Load image from asset definition
+  const src = resolveAssetInstanceSrc(asset);
+  const stickerLike = isStickerLikeInstance(asset);
+
   useEffect(() => {
-    const assetDef = getAssetById(asset.assetId);
-    if (!assetDef) return;
+    if (!src) return;
 
     const img = new window.Image();
     img.crossOrigin = 'anonymous';
-    img.src = assetDef.src;
+    img.src = src;
     img.onload = () => {
       setImage(img);
       setImageSize({ width: img.naturalWidth, height: img.naturalHeight });
     };
-  }, [asset.assetId]);
+  }, [src]);
 
   // Attach transformer when selected
   useEffect(() => {
@@ -81,6 +90,14 @@ function AssetPrimitiveInner({
   // Die Gruppe ist mittig verankert (das Bild traegt offsetX/offsetY).
   const boxWidth = scaledWidth * asset.scale;
   const boxHeight = scaledHeight * asset.scale;
+
+  // Stickers: transparent pixels click through. The cache is what gets drawn,
+  // so it is sized for the export (pixelRatio 2) at the current scale.
+  useEffect(() => {
+    if (stickerLike && image && imageRef.current) {
+      applyPixelHitArea(imageRef.current, EXPORT_PIXEL_RATIO * asset.scale);
+    }
+  }, [stickerLike, image, scaledWidth, scaledHeight, asset.scale]);
 
   const reportGeometry = useGeometryReporter(asset.id, onGeometryChange);
   useEffect(() => {
@@ -154,6 +171,7 @@ function AssetPrimitiveInner({
         }}
       >
         <Image
+          ref={imageRef}
           image={image}
           width={scaledWidth}
           height={scaledHeight}
@@ -203,6 +221,7 @@ export const AssetPrimitive = memo(AssetPrimitiveInner, (prevProps, nextProps) =
 
   if (prev.id !== next.id) return false;
   if (prev.assetId !== next.assetId) return false;
+  if (prev.src !== next.src) return false;
   if (prev.x !== next.x) return false;
   if (prev.y !== next.y) return false;
   if (prev.scale !== next.scale) return false;

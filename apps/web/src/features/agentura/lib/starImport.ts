@@ -1,13 +1,7 @@
 import { agentKey } from '@gruenerator/shared/agents';
+import { type LibraryRef } from '@gruenerator/shared/grueneratoren';
 
 import { type AgentEntry, type RecipeEntry } from './marketItems';
-
-import type { UserLibraryItemKind } from '@gruenerator/contracts';
-
-export interface LibraryRef {
-  kind: UserLibraryItemKind;
-  ref: string;
-}
 
 /**
  * Bis Oktober 2026 hat der Stern einen Agent oder ein Rezept auf die Übersicht

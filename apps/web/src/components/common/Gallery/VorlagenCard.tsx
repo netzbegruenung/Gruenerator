@@ -84,6 +84,9 @@ const VorlagenCard = memo(
     const [measured, setMeasured] = useState(() =>
       thumbnailUrl ? measuredRatios.get(thumbnailUrl) : undefined
     );
+    // A thumbnail that fails to load shows the neutral placeholder, not a broken image.
+    const [failedUrl, setFailedUrl] = useState<string | null>(null);
+    const showThumbnail = Boolean(thumbnailUrl) && failedUrl !== thumbnailUrl;
     const format = getTemplateFormat(item, stored ?? measured);
     const title = item.title || 'Unbenannte Vorlage';
     const likesCount = typeof item.likes_count === 'number' ? item.likes_count : 0;
@@ -95,7 +98,7 @@ const VorlagenCard = memo(
       <InteractiveCard label={title} onActivate={onOpen} className={galleryCard}>
         {/* Square neutral stage — the thumbnail is contained, never cropped. */}
         <div className="relative flex aspect-square w-full items-center justify-center overflow-hidden bg-background-alt">
-          {thumbnailUrl ? (
+          {thumbnailUrl && showThumbnail ? (
             // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- onLoad misst nur die Bildmaße, keine Bedienung
             <img
               src={thumbnailUrl}
@@ -109,6 +112,7 @@ const VorlagenCard = memo(
                 measuredRatios.set(thumbnailUrl, label);
                 setMeasured(label);
               }}
+              onError={() => setFailedUrl(thumbnailUrl)}
               className="max-h-[88%] max-w-[88%] rounded-sm object-contain"
             />
           ) : (

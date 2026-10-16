@@ -30,8 +30,15 @@ export default function FocusedLayout() {
     >
       <Stack.Screen name="reel" options={{ ...toolHeader, title: 'Reel' }} />
       <Stack.Screen name="scanner" options={{ ...toolHeader, title: 'Scanner' }} />
+      <Stack.Screen name="uebersetzer" options={{ ...toolHeader, title: 'Übersetzer' }} />
       <Stack.Screen name="vorlagen" options={{ ...toolHeader, title: 'Vorlagen' }} />
       <Stack.Screen name="profilbild" options={{ ...toolHeader, title: 'Profilbild' }} />
+      <Stack.Screen name="sticker" options={{ ...toolHeader, title: 'Sticker & Hintergründe' }} />
+      <Stack.Screen
+        name="sticker-entdecken"
+        options={{ ...toolHeader, title: 'Entdecken', presentation: 'modal' }}
+      />
+      <Stack.Screen name="sticker-neu" options={{ ...toolHeader, title: 'Sticker erstellen' }} />
     </Stack>
   );
 }

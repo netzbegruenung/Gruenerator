@@ -43,6 +43,9 @@
 
 /* ── Full Tailwind (preflight + base + utilities) ── */
 @import 'tailwindcss';
+/* animate-in/-out, fade/zoom/slide-*, accordion-/collapsible-down: the
+   enter/exit utilities the Radix primitives in packages/ui are written against. */
+@import 'tw-animate-css';
 
 /* Override Tailwind's dark: variant to use the site's data-theme attribute
    instead of prefers-color-scheme (OS-level). This ensures dark: utilities

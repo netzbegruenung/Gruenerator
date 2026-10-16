@@ -24,6 +24,7 @@ import { SkeletonRows } from '../common/Skeleton';
 import { FEED_KIND_ICONS } from './feedIcons';
 import { GroupMentionText } from './GroupMentionText';
 import { ModerationMenuButton } from './ModerationMenuButton';
+import { useProjekteTone } from './projekteTone';
 
 interface GroupCommentsSheetProps {
   groupId: string;
@@ -34,6 +35,7 @@ interface GroupCommentsSheetProps {
 /** Kommentare eines Beitrags als Threads — in der App nur zum Lesen, geschrieben wird im Web. */
 export function GroupCommentsSheet({ groupId, item, onClose }: GroupCommentsSheetProps) {
   const theme = useTheme();
+  const tone = useProjekteTone();
   const shareId = item?.share?.shareId ?? '';
   const comments = useGroupShareComments(groupId, shareId, { enabled: !!item });
   const hiddenIds = useHiddenMemberIds();
@@ -46,14 +48,10 @@ export function GroupCommentsSheet({ groupId, item, onClose }: GroupCommentsShee
 
   const renderComment = (c: GroupShareComment, isReply: boolean) => (
     <View key={c.id} style={styles.comment}>
-      <View
-        style={[
-          styles.avatar,
-          isReply && styles.avatarReply,
-          { backgroundColor: colors.secondary[100] },
-        ]}
-      >
-        <Text style={styles.avatarText}>{personInitials(c.authorName)}</Text>
+      <View style={[styles.avatar, isReply && styles.avatarReply, { backgroundColor: tone.soft }]}>
+        <Text style={[styles.avatarText, { color: tone.accent }]}>
+          {personInitials(c.authorName)}
+        </Text>
       </View>
       <View style={styles.flex}>
         <View style={[styles.bubble, { backgroundColor: theme.surface }]}>
@@ -83,7 +81,7 @@ export function GroupCommentsSheet({ groupId, item, onClose }: GroupCommentsShee
         <View style={styles.root}>
           <View style={[styles.header, { borderBottomColor: theme.border }]}>
             <View style={[styles.headerIcon, { backgroundColor: theme.surface }]}>
-              <Ionicons name={FEED_KIND_ICONS[item.kind]} size={22} color={colors.primary[600]} />
+              <Ionicons name={FEED_KIND_ICONS[item.kind]} size={22} color={tone.accent} />
             </View>
             <View style={styles.flex}>
               <Text style={[styles.headerTitle, { color: theme.text }]} accessibilityRole="header">
@@ -171,7 +169,6 @@ const styles = StyleSheet.create({
     fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '700',
-    color: colors.secondary[800],
   },
   bubble: {
     alignSelf: 'flex-start',

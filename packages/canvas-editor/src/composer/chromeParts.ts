@@ -4,12 +4,17 @@
  * the AT arrow assets, text measurement. Kept apart so the page ops, which
  * every canvas editor loads, do not pull in the whole composer.
  */
-import { type SharepicColor, type SharepicCreatorLocale } from '@gruenerator/contracts';
+import {
+  layoutRichTextBlock,
+  type MeasureRun,
+  type SharepicColor,
+  type SharepicCreatorLocale,
+} from '@gruenerator/contracts';
 
 import { getBrandTheme } from '../brand/theme';
 import { COLORS } from '../utils/dreizeilenLayout';
 import { createShape, type ShapeInstance } from '../utils/shapes';
-import { measureTextWidthWithFont } from '../utils/textUtils';
+import { measureTextWidthWithFont, runFont, type TextAccent } from '../utils/textUtils';
 
 export type MeasureText = (
   text: string,
@@ -34,6 +39,43 @@ export const SHAREPIC_COLOR_HEX: Record<SharepicColor, string> = {
   hellgruen: getBrandTheme('de-AT').colors.secondary,
   weiss: '#FFFFFF',
 };
+
+/** DE accent: a lime marker box. AT accent: a yellow Vollkorn line. */
+export const LIME = '#BEFF60';
+
+/**
+ * AT emphasis: Vollkorn Black Italic (CI 2026 p. 22), the `bold italic` face
+ * in typography.css — `italic` alone loads Bold Italic.
+ */
+export const AT_EMPHASIS_STYLE = 'bold italic' as const;
+
+/**
+ * The DE word mark: black (set in a tone by opacity) on light and grass green,
+ * white on dark; `farbe` (sand lettering, yellow flower) for dark print grounds.
+ */
+export const DE_WORDMARK = {
+  black: 'gruene-de-logo-schwarz',
+  white: 'gruene-de-logo-weiss',
+  farbe: 'gruene-de-logo',
+} as const;
+
+/** Lines a rich text takes — the same layout the editor's renderer runs. */
+export function layoutTextLines(
+  measure: MeasureText,
+  value: string,
+  width: number,
+  size: number,
+  family: string,
+  weight: NonNullable<TextAccent['fontStyle']>,
+  accent: TextAccent | null
+) {
+  // The renderer's own run fonts, so a Vollkorn run is measured in the face it is drawn in.
+  const measureRun: MeasureRun = (t, style) => {
+    const run = runFont(family, weight, style, accent);
+    return measure(t, size, run.fontFamily, run.fontStyle);
+  };
+  return layoutRichTextBlock(value, width, measureRun);
+}
 
 /** The AT "swipe on" arrow is the posts' brush stroke: white, green on light ground. */
 export const BRUSH_ARROW = { onDark: 'brush-arrow-weiss', onLight: 'brush-arrow-gruen' } as const;

@@ -87,7 +87,7 @@ const FAILURE_TEXT: Record<CanvasAiOperationKind, string> = {
   'set-color-scheme': 'Farbschema lässt sich hier nicht ändern',
   'set-color-mode': 'Farbmodus lässt sich hier nicht ändern',
   'set-background-color': 'Hintergrundfarbe lässt sich hier nicht ändern',
-  'set-background-image': 'Hintergrundbild bitte über den Hintergrund-Tab ändern',
+  'set-background-image': 'Hintergrundbild bitte per Klick auf den Hintergrund ändern',
   'add-illustration': 'Illustration lässt sich hier nicht hinzufügen',
   'add-asset': 'Element lässt sich hier nicht hinzufügen',
   'remove-element': 'Element lässt sich hier nicht entfernen',

@@ -129,9 +129,8 @@ export function NotificationList({ onNavigate }: Props) {
             </Text>
           </View>
           <Pressable
-            onPress={() => dismiss(item.id)}
-            hitSlop={8}
-            style={styles.dismissBtn}
+            onPress={() => void dismiss(item.id)}
+            style={({ pressed }) => [styles.dismissBtn, pressed && { opacity: 0.5 }]}
             accessibilityLabel="Benachrichtigung schließen"
             accessibilityRole="button"
           >
@@ -246,6 +245,15 @@ const styles = StyleSheet.create({
   itemTitle: { fontFamily: BODY_FONT, fontSize: 13, fontWeight: '600' },
   itemBody: { fontFamily: BODY_FONT, fontSize: 12, lineHeight: 17 },
   itemTime: { fontFamily: BODY_FONT, fontSize: 10, marginTop: 2 },
-  dismissBtn: { paddingTop: 4 },
+  // 44pt to hit, pulled into the row's padding so the × keeps its place: a near
+  // miss landed on the row and opened the notification instead.
+  dismissBtn: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: -spacing.small,
+    marginRight: -spacing.small,
+  },
   footer: { paddingVertical: spacing.medium, alignItems: 'center' },
 });

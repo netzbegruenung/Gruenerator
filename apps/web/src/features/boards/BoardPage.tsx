@@ -8,6 +8,7 @@ import {
   useIsMobile,
   useScreenCornerReservation,
 } from '@gruenerator/ui';
+import { useQueryClient } from '@tanstack/react-query';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { FiMessageSquare } from 'react-icons/fi';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -39,6 +40,9 @@ import { CardDetailPanel } from './components/CardDetailPanel';
 import { PlannerKanban } from './components/PlannerKanban';
 import { ViewSwitcher } from './components/ViewSwitcher';
 import { ViewToolbar } from './components/ViewToolbar';
+import { WhiteboardUnavailable } from './components/WhiteboardUnavailable';
+import { BoardReadOnlyContext } from './context/BoardReadOnlyContext';
+import { TaskDoneProvider, type TaskDoneValue } from './context/TaskDoneContext';
 import { useBoardActivityFeed } from './hooks/useBoardActivityFeed';
 import { useBoardCollaboration } from './hooks/useBoardCollaboration';
 import { useBoardCommentSignal } from './hooks/useBoardCommentSignal';
@@ -47,18 +51,15 @@ import { useBoardState } from './hooks/useBoardState';
 import { useDuplicateBoard } from './hooks/useDuplicateBoard';
 import { useViewData } from './hooks/useViewData';
 import { FIELD_IDS, getBoardType, isBoardArchived } from './types';
+import { getDoneStatusId } from './utils/taskDone';
 
-import type { BoardInitialStructure } from './hooks/useBoardState';
+import type { BoardInitialStructure, RecurringSpawn, StatusChange } from './hooks/useBoardState';
 import type { QuickFilter } from './hooks/useViewData';
-import type { Row, ViewLayout } from './types';
+import type { CellValue, Row, ViewLayout } from './types';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 import type { Doc } from 'yjs';
 
 import { startTabLink } from '@/utils/startpage';
-
-const LazyExcalidrawBoard = lazy(() =>
-  import('./components/ExcalidrawBoard').then((m) => ({ default: m.ExcalidrawBoard }))
-);
 
 const LazyBoardAssistantPanel = lazy(() =>
   import('./BoardAssistantPanel').then((m) => ({ default: m.BoardAssistantPanel }))
@@ -150,7 +151,9 @@ function BoardContent() {
     });
   }, [duplicateBoard, navigate]);
 
-  const { ydoc, provider, isConnected, isSynced, authError } = useBoardCollaboration(id || '');
+  const { ydoc, provider, isConnected, isSynced, authError, isReadOnly } = useBoardCollaboration(
+    id || ''
+  );
   // Live comments: refetch a card's thread when the backend signals a change.
   useBoardCommentSignal(ydoc, id);
 
@@ -199,6 +202,7 @@ function BoardContent() {
         isConnected={isConnected}
         isSynced={isSynced}
         isArchived={isBoardArchived(board)}
+        readOnly={isReadOnly}
         expertMode={expertMode}
         provider={provider}
         onDelete={handleDelete}
@@ -212,25 +216,13 @@ function BoardContent() {
         compact={isWhiteboard}
       />
       {isWhiteboard ? (
-        <Suspense
-          fallback={
-            <div className="flex-1 flex items-center justify-center">
-              <div className="size-6 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
-            </div>
-          }
-        >
-          <LazyExcalidrawBoard
-            ydoc={ydoc}
-            provider={provider}
-            isSynced={isSynced}
-            isLocked={!!authError}
-          />
-        </Suspense>
+        <WhiteboardUnavailable ydoc={ydoc} isSynced={isSynced} title={board.title} />
       ) : (
         <BoardViewContent
           ydoc={ydoc}
           isSynced={isSynced}
-          isLocked={!!authError}
+          isLocked={!!authError || isReadOnly}
+          readOnly={isReadOnly}
           provider={provider}
           generatedStructure={generatedStructure}
           currentUserId={String(user?.id || '')}
@@ -265,6 +257,7 @@ function BoardViewContent({
   ydoc,
   isSynced,
   isLocked,
+  readOnly,
   provider,
   generatedStructure,
   currentUserId,
@@ -290,6 +283,7 @@ function BoardViewContent({
   ydoc: Doc;
   isSynced: boolean;
   isLocked: boolean;
+  readOnly: boolean;
   provider: HocuspocusProvider | null;
   generatedStructure: BoardInitialStructure | null;
   currentUserId: string;
@@ -370,11 +364,10 @@ function BoardViewContent({
     currentUserName: userName ?? undefined,
   });
 
-  // Drag handler that also mirrors a recurring follow-up card's due date into the
-  // relational table the reminder worker scans (Yjs cells aren't queryable in SQL).
-  const handleDragReorder = useCallback(
-    (rows: Row[], groupByFieldId: string) => {
-      const spawned = boardState.onDragReorder(rows, groupByFieldId);
+  // Mirror a recurring follow-up card's due date into the relational table the
+  // reminder worker scans (Yjs cells aren't queryable in SQL).
+  const recordSpawns = useCallback(
+    (spawned: RecurringSpawn[]) => {
       for (const card of spawned) {
         void getContractsClient()
           .boardActivity.recordActivity({
@@ -384,7 +377,62 @@ function BoardViewContent({
           .catch(() => {});
       }
     },
-    [boardState, boardId]
+    [boardId]
+  );
+
+  const handleDragReorder = useCallback(
+    (rows: Row[], groupByFieldId: string) => {
+      recordSpawns(boardState.onDragReorder(rows, groupByFieldId));
+    },
+    [boardState, recordSpawns]
+  );
+
+  const queryClient = useQueryClient();
+  const { setRowStatus, setRowDone, updateRowCell } = boardState;
+  const recordStatusChange = useCallback(
+    (rowId: string, change: StatusChange | null) => {
+      if (!change) return;
+      recordSpawns(change.spawned);
+      if (!change.completed && !change.reopened) return;
+      void getContractsClient()
+        .boardActivity.recordActivity({
+          params: { boardId, cardId: rowId },
+          body: { type: change.completed ? 'card_completed' : 'card_reopened' },
+        })
+        .then(() => queryClient.invalidateQueries({ queryKey: ['board-activity', boardId, rowId] }))
+        .catch(() => {});
+    },
+    [recordSpawns, boardId, queryClient]
+  );
+
+  const setDone = useCallback(
+    (rowId: string, done: boolean) => recordStatusChange(rowId, setRowDone(rowId, done)),
+    [recordStatusChange, setRowDone]
+  );
+
+  // Status writes go through setRowStatus so every path (panel "Karte verschieben",
+  // list drag) keeps the done bookkeeping, recurrence and activity log in sync.
+  const handleUpdateCell = useCallback(
+    (rowId: string, fieldId: string, value: CellValue) => {
+      if (fieldId === FIELD_IDS.STATUS && typeof value === 'string' && value) {
+        recordStatusChange(rowId, setRowStatus(rowId, value));
+        return;
+      }
+      updateRowCell(rowId, fieldId, value);
+    },
+    [recordStatusChange, setRowStatus, updateRowCell]
+  );
+
+  const doneStatusId = useMemo(() => getDoneStatusId(boardState.fields), [boardState.fields]);
+  const taskDone = useMemo<TaskDoneValue | null>(
+    () => (doneStatusId && !isLocked ? { doneStatusId, setDone } : null),
+    [doneStatusId, isLocked, setDone]
+  );
+
+  const liveSelectedRow = useMemo(
+    () =>
+      selectedRow ? (boardState.rows.find((r) => r.id === selectedRow.id) ?? selectedRow) : null,
+    [boardState.rows, selectedRow]
   );
 
   const handleAddView = useCallback(
@@ -449,195 +497,197 @@ function BoardViewContent({
   }, [layout, deepLinkRow, consumeDeepLink]);
 
   return (
-    <>
-      <BoardQuickBar
-        search={searchQuery}
-        onSearchChange={setSearchQuery}
-        quickFilters={quickFilters}
-        onToggleQuickFilter={toggleQuickFilter}
-        hasUser={Boolean(currentUserId || userName)}
-        includeArchived={includeArchived}
-        onToggleArchived={() => setIncludeArchived((v) => !v)}
-      />
+    <BoardReadOnlyContext.Provider value={readOnly}>
+      <TaskDoneProvider value={taskDone}>
+        <BoardQuickBar
+          search={searchQuery}
+          onSearchChange={setSearchQuery}
+          quickFilters={quickFilters}
+          onToggleQuickFilter={toggleQuickFilter}
+          hasUser={Boolean(currentUserId || userName)}
+          includeArchived={includeArchived}
+          onToggleArchived={() => setIncludeArchived((v) => !v)}
+        />
 
-      <BoardSettingsSheet
-        boardId={boardId}
-        boardTitle={boardTitle}
-        open={settingsOpen}
-        onOpenChange={onSettingsOpenChange}
-        description={boardDescription}
-        onSaveDescription={onSaveDescription}
-        fields={boardState.fields}
-        rows={filteredRows}
-        onOpenFullSettings={() => onFullSettingsChange({ open: true, section: 'general' })}
-      />
+        <BoardSettingsSheet
+          boardId={boardId}
+          boardTitle={boardTitle}
+          open={settingsOpen}
+          onOpenChange={onSettingsOpenChange}
+          description={boardDescription}
+          onSaveDescription={onSaveDescription}
+          fields={boardState.fields}
+          rows={filteredRows}
+          onOpenFullSettings={() => onFullSettingsChange({ open: true, section: 'general' })}
+        />
 
-      <BoardSettingsOverlay
-        open={fullSettings.open}
-        onOpenChange={(open) => onFullSettingsChange({ ...fullSettings, open })}
-        section={fullSettings.section}
-        onSectionChange={(section) => onFullSettingsChange({ ...fullSettings, section })}
-        boardId={boardId}
-        boardTitle={boardTitle}
-        description={boardDescription}
-        isArchived={isArchived}
-        fields={boardState.fields}
-        views={boardState.views}
-        addField={boardState.addField}
-        updateField={boardState.updateField}
-        removeField={boardState.removeField}
-        onAddView={handleAddView}
-        onRemoveView={handleDeleteView}
-        onRename={onRename}
-        onSaveDescription={onSaveDescription}
-        onArchiveToggle={onArchiveToggle}
-        onDuplicate={onDuplicate}
-        onDelete={onDelete}
-      />
-
-      <BoardActivitySheet
-        boardId={boardId}
-        open={activityOpen}
-        onOpenChange={onActivityOpenChange}
-      />
-
-      {expertMode && boardState.views.length > 0 && (
-        <>
-          <ViewSwitcher
-            views={boardState.views}
-            activeViewId={activeViewId}
-            onViewChange={setActiveViewId}
-            onAddView={handleAddView}
-            onDeleteView={handleDeleteView}
-          />
-          <ViewToolbar
-            fields={fields}
-            activeView={activeView}
-            onUpdateView={boardState.updateView}
-          />
-        </>
-      )}
-
-      {layout === 'kanban' && (
-        <PlannerKanban
-          fields={fields}
-          groups={groups}
-          swimlanes={swimlanes}
-          activeView={activeView}
-          onDragReorder={handleDragReorder}
-          addRow={boardState.addRow}
-          updateRow={boardState.updateRow}
-          updateRowCell={boardState.updateRowCell}
-          deleteRow={boardState.deleteRow}
-          duplicateRow={boardState.duplicateRow}
+        <BoardSettingsOverlay
+          open={fullSettings.open}
+          onOpenChange={(open) => onFullSettingsChange({ ...fullSettings, open })}
+          section={fullSettings.section}
+          onSectionChange={(section) => onFullSettingsChange({ ...fullSettings, section })}
+          boardId={boardId}
+          boardTitle={boardTitle}
+          description={boardDescription}
+          isArchived={isArchived}
+          fields={boardState.fields}
+          views={boardState.views}
+          addField={boardState.addField}
           updateField={boardState.updateField}
           removeField={boardState.removeField}
-          onUpdateView={boardState.updateView}
-          currentUserId={currentUserId}
+          onAddView={handleAddView}
+          onRemoveView={handleDeleteView}
+          onRename={onRename}
+          onSaveDescription={onSaveDescription}
+          onArchiveToggle={onArchiveToggle}
+          onDuplicate={onDuplicate}
+          onDelete={onDelete}
+        />
+
+        <BoardActivitySheet
           boardId={boardId}
-          boardTitle={boardTitle}
-          provider={provider}
-          expertMode={expertMode}
-          deepLinkRow={layout === 'kanban' ? deepLinkRow : null}
-          onDeepLinkConsumed={consumeDeepLink}
+          open={activityOpen}
+          onOpenChange={onActivityOpenChange}
         />
-      )}
 
-      {layout === 'table' && (
-        <BoardTableView
-          fields={fields}
-          rows={filteredRows}
-          onRowClick={handleRowClick}
-          onCellUpdate={boardState.updateRowCell}
-        />
-      )}
-
-      {layout === 'list' && (
-        <BoardListView
-          fields={fields}
-          groups={groups}
-          onRowClick={handleRowClick}
-          onCellUpdate={boardState.updateRowCell}
-        />
-      )}
-
-      {layout === 'calendar' && (
-        <BoardCalendarView
-          fields={fields}
-          rows={filteredRows}
-          activeView={activeView}
-          onRowClick={handleRowClick}
-          boardId={boardId}
-        />
-      )}
-
-      {layout === 'gantt' && (
-        <BoardGanttView
-          fields={fields}
-          rows={filteredRows}
-          activeView={activeView}
-          onRowClick={handleRowClick}
-          onCellUpdate={boardState.updateRowCell}
-        />
-      )}
-
-      {layout !== 'kanban' && (
-        <CardDetailPanel
-          row={selectedRow}
-          fields={fields}
-          open={detailOpen}
-          onOpenChange={handleDetailClose}
-          onUpdateCell={boardState.updateRowCell}
-          onUpdateRow={boardState.updateRow}
-          onDelete={boardState.deleteRow}
-          onDuplicate={(rowId) => boardState.duplicateRow(rowId, currentUserId)}
-          onUpdateField={boardState.updateField}
-          boardId={boardId}
-          boardTitle={boardTitle}
-          currentUserId={currentUserId}
-          expertMode={expertMode}
-        />
-      )}
-
-      {/* AI assistant — expert-only, and only once the board state is synced and a user is present. */}
-      {isSynced && userId && expertMode && (
-        <>
-          {/* Hidden while the panel is open — the fixed panel overlays the FAB's
-              corner (composer/send button), and the panel has its own close button. */}
-          {!assistantOpen && (
-            <Fab
-              icon={<FiMessageSquare />}
-              aria-label="KI-Board-Assistent öffnen"
-              title="KI-Board-Assistent"
-              onClick={() => {
-                setAssistantMounted(true);
-                setAssistantOpen(true);
-              }}
+        {expertMode && boardState.views.length > 0 && (
+          <>
+            <ViewSwitcher
+              views={boardState.views}
+              activeViewId={activeViewId}
+              onViewChange={setActiveViewId}
+              onAddView={handleAddView}
+              onDeleteView={handleDeleteView}
             />
-          )}
-          {assistantMounted && (
-            <EditorChatPanel
-              open={assistantOpen}
-              onClose={() => setAssistantOpen(false)}
-              closeLabel="Assistent schließen"
-              placement="overlay"
-            >
-              <Suspense fallback={null}>
-                <LazyBoardAssistantPanel
-                  boardId={boardId}
-                  userId={userId}
-                  userName={userName}
-                  boardTitle={boardTitle}
-                  boardState={boardState}
-                  groupByFieldId={activeView?.groupByFieldId ?? FIELD_IDS.STATUS}
-                  isOpen={assistantOpen}
-                />
-              </Suspense>
-            </EditorChatPanel>
-          )}
-        </>
-      )}
-    </>
+            <ViewToolbar
+              fields={fields}
+              activeView={activeView}
+              onUpdateView={boardState.updateView}
+            />
+          </>
+        )}
+
+        {layout === 'kanban' && (
+          <PlannerKanban
+            fields={fields}
+            groups={groups}
+            swimlanes={swimlanes}
+            activeView={activeView}
+            onDragReorder={handleDragReorder}
+            addRow={boardState.addRow}
+            updateRow={boardState.updateRow}
+            updateRowCell={handleUpdateCell}
+            deleteRow={boardState.deleteRow}
+            duplicateRow={boardState.duplicateRow}
+            updateField={boardState.updateField}
+            removeField={boardState.removeField}
+            onUpdateView={boardState.updateView}
+            currentUserId={currentUserId}
+            boardId={boardId}
+            boardTitle={boardTitle}
+            provider={provider}
+            expertMode={expertMode}
+            deepLinkRow={layout === 'kanban' ? deepLinkRow : null}
+            onDeepLinkConsumed={consumeDeepLink}
+          />
+        )}
+
+        {layout === 'table' && (
+          <BoardTableView
+            fields={fields}
+            rows={filteredRows}
+            onRowClick={handleRowClick}
+            onCellUpdate={handleUpdateCell}
+          />
+        )}
+
+        {layout === 'list' && (
+          <BoardListView
+            fields={fields}
+            groups={groups}
+            onRowClick={handleRowClick}
+            onCellUpdate={handleUpdateCell}
+          />
+        )}
+
+        {layout === 'calendar' && (
+          <BoardCalendarView
+            fields={fields}
+            rows={filteredRows}
+            activeView={activeView}
+            onRowClick={handleRowClick}
+            boardId={boardId}
+          />
+        )}
+
+        {layout === 'gantt' && (
+          <BoardGanttView
+            fields={fields}
+            rows={filteredRows}
+            activeView={activeView}
+            onRowClick={handleRowClick}
+            onCellUpdate={readOnly ? undefined : handleUpdateCell}
+          />
+        )}
+
+        {layout !== 'kanban' && (
+          <CardDetailPanel
+            row={liveSelectedRow}
+            fields={fields}
+            open={detailOpen}
+            onOpenChange={handleDetailClose}
+            onUpdateCell={handleUpdateCell}
+            onUpdateRow={boardState.updateRow}
+            onDelete={boardState.deleteRow}
+            onDuplicate={(rowId) => boardState.duplicateRow(rowId, currentUserId)}
+            onUpdateField={boardState.updateField}
+            boardId={boardId}
+            boardTitle={boardTitle}
+            currentUserId={currentUserId}
+            expertMode={expertMode}
+          />
+        )}
+
+        {/* AI assistant — expert-only, and only once the board state is synced and a user is present. */}
+        {isSynced && userId && expertMode && !readOnly && (
+          <>
+            {/* Hidden while the panel is open — the fixed panel overlays the FAB's
+              corner (composer/send button), and the panel has its own close button. */}
+            {!assistantOpen && (
+              <Fab
+                icon={<FiMessageSquare />}
+                aria-label="KI-Board-Assistent öffnen"
+                title="KI-Board-Assistent"
+                onClick={() => {
+                  setAssistantMounted(true);
+                  setAssistantOpen(true);
+                }}
+              />
+            )}
+            {assistantMounted && (
+              <EditorChatPanel
+                open={assistantOpen}
+                onClose={() => setAssistantOpen(false)}
+                closeLabel="Assistent schließen"
+                placement="overlay"
+              >
+                <Suspense fallback={null}>
+                  <LazyBoardAssistantPanel
+                    boardId={boardId}
+                    userId={userId}
+                    userName={userName}
+                    boardTitle={boardTitle}
+                    boardState={boardState}
+                    groupByFieldId={activeView?.groupByFieldId ?? FIELD_IDS.STATUS}
+                    isOpen={assistantOpen}
+                  />
+                </Suspense>
+              </EditorChatPanel>
+            )}
+          </>
+        )}
+      </TaskDoneProvider>
+    </BoardReadOnlyContext.Provider>
   );
 }
 

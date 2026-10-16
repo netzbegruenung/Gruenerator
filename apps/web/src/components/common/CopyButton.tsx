@@ -1,3 +1,4 @@
+import { IconSwap } from '@gruenerator/ui';
 import { useState } from 'react';
 import { IoCopyOutline, IoCheckmarkOutline } from 'react-icons/io5';
 
@@ -65,7 +66,11 @@ const CopyButton = ({
           'data-tooltip-content': isCopied ? 'Kopiert!' : 'In die Zwischenablage kopieren',
         })}
       >
-        {isCopied ? <IoCheckmarkOutline size={16} /> : <IoCopyOutline size={16} />}
+        <IconSwap
+          swapped={isCopied}
+          from={<IoCopyOutline size={16} />}
+          to={<IoCheckmarkOutline size={16} />}
+        />
       </button>
     );
   }
@@ -82,17 +87,12 @@ const CopyButton = ({
       aria-label={isCopied ? 'Kopiert!' : 'In die Zwischenablage kopieren'}
       title={isCopied ? 'Kopiert!' : 'In die Zwischenablage kopieren'}
     >
-      {isCopied ? (
-        <>
-          <IoCheckmarkOutline className="copy-icon" />
-          {!compact && <span>Kopiert!</span>}
-        </>
-      ) : (
-        <>
-          <IoCopyOutline className="copy-icon" />
-          {!compact && <span>In die Zwischenablage kopieren</span>}
-        </>
-      )}
+      <IconSwap
+        swapped={isCopied}
+        from={<IoCopyOutline className="copy-icon" />}
+        to={<IoCheckmarkOutline className="copy-icon" />}
+      />
+      {!compact && <span>{isCopied ? 'Kopiert!' : 'In die Zwischenablage kopieren'}</span>}
     </button>
   );
 };

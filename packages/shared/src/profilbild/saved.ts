@@ -1,5 +1,15 @@
+import { SHAREPIC_PHOTO_URL } from '@gruenerator/contracts';
+
+import {
+  type AssetStickerId,
+  isAssetStickerId,
+  isShareSrc,
+  SYSTEM_STICKERS,
+  type SystemSticker,
+} from '../stickers/catalog.js';
+
+import { parseFreeBackground, type FreeBackground } from './backgrounds.js';
 import { type PersonPlacement } from './geometry.js';
-import { PROFILBILD_STICKERS, type ProfilbildSticker } from './stickers.js';
 
 /** `shared_media.image_type` of a saved Profilbild — already classified as a sharepic. */
 export const PROFILBILD_IMAGE_TYPE = 'profilbild';
@@ -11,10 +21,17 @@ export type SavedProfilbildBackground =
   /** A swatch or preset id; an id the viewer's locale lacks falls back to its first colour. */
   | { kind: 'id'; id: string }
   /** The person's own photo, uploaded to the media store; a `/api/share/<token>/download` path. */
-  | { kind: 'custom'; url: string };
+  | { kind: 'custom'; url: string }
+  /**
+   * A freely chosen colour or two-colour gradient. Added 10/2026: binaries older
+   * than that read a Profilbild with it as not reopenable.
+   */
+  | { kind: 'free'; background: FreeBackground };
 
 export interface SavedProfilbildSticker {
-  id: ProfilbildSticker['id'];
+  id: SystemSticker['id'] | AssetStickerId;
+  /** Only for shop stickers (`asset:<uuid>`): the `/api/share/<token>/download` path. */
+  src?: string;
   x: number;
   y: number;
   width: number;
@@ -33,24 +50,34 @@ export interface SavedProfilbild {
   stickers: SavedProfilbildSticker[];
 }
 
-const STICKER_IDS = new Set<string>(PROFILBILD_STICKERS.map((s) => s.id));
+const STICKER_IDS = new Set<string>(SYSTEM_STICKERS.map((s) => s.id));
 
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 
 function parseBackground(raw: unknown): SavedProfilbildBackground | null {
-  const bg = raw as { kind?: unknown; id?: unknown; url?: unknown } | null;
+  const bg = raw as { kind?: unknown; id?: unknown; url?: unknown; background?: unknown } | null;
   if (bg?.kind === 'id' && typeof bg.id === 'string') return { kind: 'id', id: bg.id };
-  if (bg?.kind === 'custom' && typeof bg.url === 'string' && bg.url.startsWith('/api/share/'))
+  if (bg?.kind === 'free') {
+    const free = parseFreeBackground(bg.background);
+    return free ? { kind: 'free', background: free } : null;
+  }
+  if (bg?.kind === 'custom' && typeof bg.url === 'string' && isShareSrc(bg.url))
     return { kind: 'custom', url: bg.url };
   return null;
 }
 
 function parseSticker(raw: unknown): SavedProfilbildSticker | null {
   const s = raw as Record<string, unknown> | null;
-  if (!s || typeof s.id !== 'string' || !STICKER_IDS.has(s.id)) return null;
+  if (!s || typeof s.id !== 'string') return null;
   const { x, y, width, height, rotation } = s;
   if (!isNum(x) || !isNum(y) || !isNum(width) || !isNum(height) || !isNum(rotation)) return null;
-  return { id: s.id as ProfilbildSticker['id'], x, y, width, height, rotation };
+  if (STICKER_IDS.has(s.id)) {
+    return { id: s.id as SystemSticker['id'], x, y, width, height, rotation };
+  }
+  if (isAssetStickerId(s.id) && typeof s.src === 'string' && isShareSrc(s.src)) {
+    return { id: s.id, src: s.src, x, y, width, height, rotation };
+  }
+  return null;
 }
 
 /** Reads the editor state back out of a share's `image_metadata`; null when absent or foreign. */
@@ -73,23 +100,21 @@ export function parseSavedProfilbild(metadata: unknown): SavedProfilbild | null 
   };
 }
 
-const SHARE_DOWNLOAD_RE = /^\/api\/share\/([^/?#]+)\/download$/;
-
 /**
  * The share token of a saved own background photo. That upload belongs to this
  * Profilbild alone, so it goes when the Profilbild is purged or re-backgrounded.
  */
 export function savedBackgroundShareToken(saved: SavedProfilbild | null): string | null {
   if (saved?.background.kind !== 'custom') return null;
-  return SHARE_DOWNLOAD_RE.exec(saved.background.url)?.[1] ?? null;
+  return SHAREPIC_PHOTO_URL.exec(saved.background.url)?.[1] ?? null;
 }
 
-export function stickerById(id: string): ProfilbildSticker | null {
-  return PROFILBILD_STICKERS.find((s) => s.id === id) ?? null;
+export function stickerById(id: string): SystemSticker | null {
+  return SYSTEM_STICKERS.find((s) => s.id === id) ?? null;
 }
 
-export function stickerBySrc(src: string): ProfilbildSticker | null {
-  return PROFILBILD_STICKERS.find((s) => s.src === src) ?? null;
+export function stickerBySrc(src: string): SystemSticker | null {
+  return SYSTEM_STICKERS.find((s) => s.src === src) ?? null;
 }
 
 /**

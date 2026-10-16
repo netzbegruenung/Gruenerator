@@ -11,13 +11,13 @@ import {
   type CanvasAiOperation,
   type CanvasAiSnapshot,
 } from '@gruenerator/contracts';
-import { HiCog, HiPhotograph } from 'react-icons/hi';
+import { HiCog } from 'react-icons/hi';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { buildAssetCapability } from '../ai/assetCapability';
 import { describeCanvasElements } from '../ai/describeCanvasElements';
 import { buildIllustrationCapability } from '../ai/illustrationCapability';
-import { AssetsSection, ImageBackgroundSection } from '../sidebar';
+import { AssetsSection } from '../sidebar';
 import { BalkenSettingsSection } from '../sidebar/sections/BalkenSettingsSection';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
@@ -398,12 +398,6 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
   ai: dreizeilenAiCapabilities,
 
   tabs: [
-    {
-      id: 'image-background',
-      icon: HiPhotograph,
-      label: 'Hintergrund',
-      ariaLabel: 'Hintergrundbild ändern',
-    },
     { id: 'settings', icon: HiCog, label: 'Einstellungen', ariaLabel: 'Balken-Einstellungen' },
     {
       id: 'frame-settings',
@@ -422,17 +416,26 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
     // 'settings' tab kept registered but hidden — opened via getAutoSwitchTab on balken
     // selection so the icon strip doesn't shift when a balken is clicked.
     // 'share' is not in `tabs`, so listing it here filtered to nothing.
-    return ['image-background', 'text', 'assets', 'tools', 'uploads', 'chat'];
+    return ['text', 'assets', 'tools', 'uploads', 'chat'];
   },
 
   getAutoSwitchTab: (selectedElement) => {
-    // Clicking the background image opens the tab that replaces it.
-    if (selectedElement === 'background-image') return 'image-background';
     if (selectedElement?.includes('balken')) return 'settings';
     if (selectedElement?.startsWith('chart-')) return 'chart-settings';
     if (selectedElement?.startsWith('frame-')) return 'frame-settings';
     return null;
   },
+
+  background: (state, actions) => ({
+    currentImageSrc: state.currentImageSrc || undefined,
+    imageAttribution: state.imageAttribution ?? null,
+    onImageChange: (file, url, attribution) => actions.setCurrentImageSrc(file, url, attribution),
+    scale: state.imageScale,
+    onScaleChange: actions.setImageScale,
+    colors: PHOTO_BACKGROUND_COLORS_DE,
+    currentColor: state.backgroundColor,
+    onColorChange: actions.setBackgroundColor,
+  }),
 
   sections: {
     'frame-settings': section({
@@ -449,25 +452,6 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
           onRemoveFrame: actions.removeFrame,
         };
       },
-    }),
-
-    'image-background': section({
-      component: ImageBackgroundSection,
-      propsFactory: (state, actions) => ({
-        currentImageSrc: state.currentImageSrc,
-        onImageChange: (
-          file: File | null,
-          objectUrl?: string,
-          attribution?: StockImageAttribution | null
-        ) => {
-          actions.setCurrentImageSrc(file, objectUrl, attribution);
-        },
-        scale: state.imageScale,
-        onScaleChange: actions.setImageScale,
-        backgroundColor: state.backgroundColor,
-        backgroundColors: PHOTO_BACKGROUND_COLORS_DE,
-        onBackgroundColorChange: actions.setBackgroundColor,
-      }),
     }),
 
     text: section({
@@ -487,6 +471,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       propsFactory: (state, actions, context) => ({
         // Asset instance props
         onAddAsset: actions.addAsset,
+        onAddStickerAsset: actions.addStickerAsset,
         recommendedAssetIds: CANVAS_RECOMMENDED_ASSETS['dreizeilen'],
 
         // Auto-inject all feature props (icons, shapes, illustrations, balken)

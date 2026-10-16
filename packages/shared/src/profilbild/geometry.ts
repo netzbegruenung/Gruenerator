@@ -23,7 +23,10 @@ export function coverRect(src: Sized, size: number) {
   return { x: (size - width) / 2, y: (size - height) / 2, width, height };
 }
 
+// 'worklet': the mobile editor places the person on the UI thread (#4534). A worklet
+// takes no default parameters: the plugin does not capture what they read.
 export function personSize(src: Sized, size: number, scale: number) {
+  'worklet';
   const aspect = src.width / src.height;
   if (aspect > 1) {
     const width = Math.round(size * scale);
@@ -53,8 +56,9 @@ export function defaultPlacement(
   return { x, y, scale };
 }
 
-export function placementRect(src: Sized, p: PersonPlacement, size = PROFILBILD_SIZE) {
-  return { x: p.x, y: p.y, ...personSize(src, size, p.scale) };
+export function placementRect(src: Sized, p: PersonPlacement, size?: number) {
+  'worklet';
+  return { x: p.x, y: p.y, ...personSize(src, size ?? PROFILBILD_SIZE, p.scale) };
 }
 
 /** Rescales around the person's horizontal centre and bottom edge. */
@@ -62,10 +66,12 @@ export function rescalePlacement(
   src: Sized,
   p: PersonPlacement,
   scale: number,
-  size = PROFILBILD_SIZE
+  size?: number
 ): PersonPlacement {
-  const before = personSize(src, size, p.scale);
-  const after = personSize(src, size, scale);
+  'worklet';
+  const s = size ?? PROFILBILD_SIZE;
+  const before = personSize(src, s, p.scale);
+  const after = personSize(src, s, scale);
   return {
     x: Math.round(p.x + (before.width - after.width) / 2),
     y: p.y + before.height - after.height,

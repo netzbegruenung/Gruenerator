@@ -4,7 +4,10 @@ import { memo, useCallback, useMemo } from 'react';
 import { FiCheckSquare, FiFileText, FiMessageSquare } from 'react-icons/fi';
 
 import { useCardActivity } from '../context/BoardAwarenessContext';
+import { useBoardReadOnly } from '../context/BoardReadOnlyContext';
+import { useTaskDone } from '../context/TaskDoneContext';
 import { checklistProgress, FIELD_IDS, parseAssignees, parseChecklists } from '../types';
+import { parseLocalDate } from '../utils/recurrence';
 
 import type { Row, Field, SelectOption } from '../types';
 
@@ -40,8 +43,12 @@ export const CardContent = memo(function CardContent({
     [onCardClick, row]
   );
 
+  const taskDone = useTaskDone();
+  const isDone = !!taskDone && row.cells[FIELD_IDS.STATUS] === taskDone.doneStatusId;
+
   const cardActivity = useCardActivity(row.id);
   const activeUser = cardActivity[0] ?? null;
+  const readOnly = useBoardReadOnly();
   const isBeingEdited = activeUser?.selectedCardId === row.id;
   const isBeingDragged = activeUser?.draggedCardId === row.id;
 
@@ -84,21 +91,19 @@ export const CardContent = memo(function CardContent({
     return options.filter((o) => labelIds.includes(o.id));
   }, [labelsField, labelIds]);
 
+  const dueDay = useMemo(() => parseLocalDate(dueDate), [dueDate]);
   const formattedDate = useMemo(
-    () =>
-      dueDate
-        ? new Date(dueDate).toLocaleDateString('de-DE', { day: '2-digit', month: 'short' })
-        : null,
-    [dueDate]
+    () => dueDay?.toLocaleDateString('de-DE', { day: '2-digit', month: 'short' }) ?? null,
+    [dueDay]
   );
 
   const isOverdue = useMemo(
-    () => (dueDate ? new Date(dueDate) < new Date(new Date().toDateString()) : false),
-    [dueDate]
+    () => (dueDay ? dueDay < new Date(new Date().toDateString()) : false),
+    [dueDay]
   );
   const isDueSoon = useMemo(
-    () => (dueDate && !isOverdue ? new Date(dueDate) <= new Date(Date.now() + 86_400_000) : false),
-    [dueDate, isOverdue]
+    () => (dueDay && !isOverdue ? dueDay <= new Date(Date.now() + 86_400_000) : false),
+    [dueDay, isOverdue]
   );
 
   return (
@@ -175,10 +180,13 @@ export const CardContent = memo(function CardContent({
         <EditableTitle
           as="span"
           title={title}
-          editable
+          editable={!readOnly}
           activateOn="doubleClick"
           onTitleChange={(newTitle) => onRenameCard(row.id, newTitle)}
-          className="text-sm text-foreground font-medium"
+          className={cn(
+            'text-sm font-medium',
+            isDone ? 'text-muted-foreground line-through' : 'text-foreground'
+          )}
           inputClassName="w-full p-0 text-sm text-foreground font-medium bg-transparent border-none outline-none"
           editableClassName="cursor-pointer"
         />

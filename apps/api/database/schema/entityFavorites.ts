@@ -19,4 +19,4 @@ export const entityFavorites = pgTable(
 
 export type EntityFavorite = InferSelectModel<typeof entityFavorites>;
 
-export type EntityFavoriteType = 'template';
+export type EntityFavoriteType = 'template' | 'studio_asset';

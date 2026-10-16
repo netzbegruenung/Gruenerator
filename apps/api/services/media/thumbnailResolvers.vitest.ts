@@ -4,6 +4,9 @@ const dbQuery = vi.fn();
 vi.mock('../../database/services/PostgresService/PostgresService.js', () => ({
   getPostgresInstance: () => ({ query: (...a: unknown[]) => dbQuery(...a) }),
 }));
+vi.mock('../../database/services/PostgresService.js', () => ({
+  getPostgresInstance: () => ({ query: (...a: unknown[]) => dbQuery(...a) }),
+}));
 
 const getShareByToken = vi.fn();
 vi.mock('../../routes/share/shareServices.js', () => ({
@@ -99,6 +102,34 @@ describe('media', () => {
   ])('reports %s as not_found', async (_label, share, reason) => {
     getShareByToken.mockResolvedValue(share);
     expect(await resolveThumbnailSource('media', 'tok')).toEqual({ ok: false, reason });
+  });
+});
+
+describe('a Sticker/Hintergrund', () => {
+  const studio = {
+    id: 'media-1',
+    status: 'ready',
+    media_type: 'image',
+    file_path: 'tok/media.png',
+    upload_source: 'studio-asset',
+  };
+
+  it('is not_found once moderation removed it', async () => {
+    getShareByToken.mockResolvedValue(studio);
+    dbQuery.mockResolvedValue([{ removed: true }]);
+    expect(await resolveThumbnailSource('media', 'tok')).toEqual({
+      ok: false,
+      reason: 'not_found',
+    });
+    expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("moderation = 'removed'"), [
+      'media-1',
+    ]);
+  });
+
+  it('still resolves while it is only hidden', async () => {
+    getShareByToken.mockResolvedValue(studio);
+    dbQuery.mockResolvedValue([]);
+    expect(await resolveThumbnailSource('media', 'tok')).toMatchObject({ ok: true });
   });
 });
 

@@ -4,13 +4,12 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { applyOperation, type CanvasAiActionsBase } from '../../ai/applyOperation';
 import { getBrandTheme } from '../../brand/theme';
 import { SHAREPIC_COLOR_HEX } from '../../composer/composeSharepic';
-import { ImageBackgroundSection } from '../../sidebar';
 import { createShape, type ShapeInstance } from '../../utils/shapes';
 import { loadCanvasConfig } from '../configLoader';
 
 import type { TemplateAiCapabilities } from '../../ai/types';
 import type { StockImageAttribution } from '../../common/imageSourceTypes';
-import type { ImageBackgroundSectionProps } from '../../sidebar/sections/ImageBackgroundSection';
+import type { BackgroundControls } from '../types';
 
 /**
  * Freeform shows EITHER the photo OR the colour plane (`backgroundMode`). A
@@ -45,7 +44,6 @@ const CREDIT = {
 const planeShape = (id: string): ShapeInstance => ({
   ...createShape('rect', 540, 540, '#005538', '#005538'),
   id,
-  locked: true,
 });
 const userShape = { ...createShape('rect', 100, 100, '#ff0000', '#ff0000'), id: 'shape-own' };
 
@@ -71,11 +69,7 @@ describe.each(['freeform', 'freeform-at'] as const)('%s background picker', (id)
       (s) => history.push(s as State),
       {}
     );
-    const props = config.sections.background.propsFactory(
-      start,
-      actions,
-      undefined
-    ) as ImageBackgroundSectionProps;
+    const props = config.background!(start, actions) as BackgroundControls;
     return { props, actions, history, current: () => state };
   };
 
@@ -94,11 +88,11 @@ describe.each(['freeform', 'freeform-at'] as const)('%s background picker', (id)
 
   const ids = (s: State) => s.shapeInstances.map((shape) => shape.id);
 
-  it('uses the image picker with a colour tab', () => {
-    expect(config.sections.background.component).toBe(ImageBackgroundSection);
+  it('offers colours and a photo', () => {
     const { props } = harness(initial({}));
-    expect(props.backgroundColors?.length).toBeGreaterThan(0);
-    expect(props.onBackgroundColorChange).toBeTypeOf('function');
+    expect(props.colors?.length).toBeGreaterThan(0);
+    expect(props.onColorChange).toBeTypeOf('function');
+    expect(props.onImageChange).toBeTypeOf('function');
   });
 
   it('in image mode shows the photo as current, selects no colour and offers zoom', () => {
@@ -106,29 +100,27 @@ describe.each(['freeform', 'freeform-at'] as const)('%s background picker', (id)
       initial({ backgroundMode: 'image', currentImageSrc: PHOTO, imageScale: 1.4 })
     );
     expect(props.currentImageSrc).toBe(PHOTO);
-    const selectable = props.backgroundColors?.map((c) => c.color) ?? [];
-    expect(selectable).not.toContain(props.backgroundColor);
-    expect(props.initialSubsection).toBe('image-search');
-    expect(props.onActivateImage).toBeUndefined();
+    const selectable = props.colors?.map((c) => c.color) ?? [];
+    expect(selectable).not.toContain(props.currentColor);
+    expect(props.onRestoreImage).toBeUndefined();
     expect(props.scale).toBe(1.4);
     expect(props.onScaleChange).toBeTypeOf('function');
   });
 
-  it('in colour mode selects the plane colour, pins the replaced photo, no zoom', () => {
+  it('in colour mode selects the plane colour, offers the replaced photo back, no zoom', () => {
     const state = initial({ backgroundMode: 'color', currentImageSrc: PHOTO });
     const { props } = harness(state);
-    expect(props.currentImageSrc).toBe(PHOTO);
-    expect(props.backgroundColor).toBe(state.backgroundColor);
-    expect(props.initialSubsection).toBe('background-color');
-    expect(props.onActivateImage).toBeTypeOf('function');
+    expect(props.currentImageSrc).toBeUndefined();
+    expect(props.currentColor).toBe(state.backgroundColor);
+    expect(props.onRestoreImage).toBeTypeOf('function');
     expect(props.scale).toBeUndefined();
     expect(props.onScaleChange).toBeUndefined();
   });
 
-  it('in colour mode without a photo pins nothing', () => {
+  it('in colour mode without a photo offers none back', () => {
     const { props } = harness(initial({ backgroundMode: 'color' }));
     expect(props.currentImageSrc).toBeUndefined();
-    expect(props.onActivateImage).toBeUndefined();
+    expect(props.onRestoreImage).toBeUndefined();
   });
 
   it('tapping the replaced photo brings it back untouched, in one history step', () => {
@@ -140,7 +132,7 @@ describe.each(['freeform', 'freeform-at'] as const)('%s background picker', (id)
       imageOffset: { x: 12, y: -30 },
     });
     const { props, history, current } = harness(start);
-    props.onActivateImage?.();
+    props.onRestoreImage?.();
     const after = current();
     expect(after).toMatchObject({
       backgroundMode: 'image',
@@ -159,7 +151,7 @@ describe.each(['freeform', 'freeform-at'] as const)('%s background picker', (id)
       imageAttribution: CREDIT,
     });
     const { props, history, current } = harness(start);
-    props.onImageChange(null, undefined, null);
+    props.onImageChange!(null, undefined, null);
     const after = current();
     expect(after).toMatchObject({
       backgroundMode: 'color',
@@ -171,16 +163,16 @@ describe.each(['freeform', 'freeform-at'] as const)('%s background picker', (id)
     expect(history).toEqual([after]);
   });
 
-  it('choosing a photo switches to image mode with its credit, in one history step', () => {
-    const { props, history, current } = harness(initial({}));
+  it('choosing a photo switches to image mode and drops an old credit, in one history step', () => {
+    const { props, history, current } = harness(initial({ imageAttribution: CREDIT }));
     const file = new File(['x'], 'a.jpg', { type: 'image/jpeg' });
-    props.onImageChange(file, PHOTO, CREDIT);
+    props.onImageChange!(file, PHOTO, null);
     const after = current();
     expect(after).toMatchObject({
       backgroundMode: 'image',
       currentImageSrc: PHOTO,
       hasBackgroundImage: true,
-      imageAttribution: CREDIT,
+      imageAttribution: null,
     });
     expect(history).toEqual([after]);
   });
@@ -188,7 +180,7 @@ describe.each(['freeform', 'freeform-at'] as const)('%s background picker', (id)
   it('choosing a colour on a photo switches to colour mode, in one history step', () => {
     const start = initial({ backgroundMode: 'image', currentImageSrc: PHOTO });
     const { props, history, current } = harness(start);
-    props.onBackgroundColorChange?.('#123456');
+    props.onColorChange?.('#123456');
     const after = current();
     expect(after).toMatchObject({ backgroundMode: 'color', backgroundColor: '#123456' });
     // The photo stays in state, one tap away.
@@ -200,7 +192,7 @@ describe.each(['freeform', 'freeform-at'] as const)('%s background picker', (id)
     const { props, history, current } = harness(
       composed({ backgroundMode: 'color', backgroundColor: '#005538' })
     );
-    props.onBackgroundColorChange?.('#123456');
+    props.onColorChange?.('#123456');
     const after = current();
     expect(ids(after)).toEqual(['shape-own']);
     expect(after.layerOrder).toEqual(['shape-own']);
@@ -209,19 +201,19 @@ describe.each(['freeform', 'freeform-at'] as const)('%s background picker', (id)
 
   it('choosing a photo drops only the opaque gradient that would cover it', () => {
     const { props, current } = harness(composed({ backgroundMode: 'color' }));
-    props.onImageChange(new File(['x'], 'a.jpg'), PHOTO, null);
+    props.onImageChange!(new File(['x'], 'a.jpg'), PHOTO, null);
     expect(ids(current())).toEqual(['sc-panel', 'sc-scrim', 'sc-tint', 'shape-own']);
     expect(current().layerOrder).toEqual(['sc-panel', 'sc-scrim', 'sc-tint', 'shape-own']);
   });
 
   it('tapping the replaced photo brings back the composed look without the gradient', () => {
     const colour = harness(composed({ backgroundMode: 'image', currentImageSrc: PHOTO }));
-    colour.props.onBackgroundColorChange?.('#123456');
+    colour.props.onColorChange?.('#123456');
     const inColour = colour.current();
     expect(ids(inColour)).toEqual(['shape-own']);
 
     const back = harness(inColour);
-    back.props.onActivateImage?.();
+    back.props.onRestoreImage?.();
     const after = back.current();
     expect(after.backgroundMode).toBe('image');
     expect(after.layerOrder).toEqual(['sc-panel', 'sc-scrim', 'sc-tint', 'shape-own']);
@@ -232,17 +224,17 @@ describe.each(['freeform', 'freeform-at'] as const)('%s background picker', (id)
 
   it('a new photo after a colour also gets the composed look back', () => {
     const colour = harness(composed({ backgroundMode: 'image', currentImageSrc: PHOTO }));
-    colour.props.onBackgroundColorChange?.('#123456');
+    colour.props.onColorChange?.('#123456');
     const next = harness(colour.current());
-    next.props.onImageChange(new File(['x'], 'b.jpg'), PHOTO, null);
+    next.props.onImageChange!(new File(['x'], 'b.jpg'), PHOTO, null);
     expect(next.current().layerOrder).toEqual(['sc-panel', 'sc-scrim', 'sc-tint', 'shape-own']);
   });
 
   it('switching colours keeps the stash', () => {
     const first = harness(composed({ backgroundMode: 'image', currentImageSrc: PHOTO }));
-    first.props.onBackgroundColorChange?.('#123456');
+    first.props.onColorChange?.('#123456');
     const second = harness(first.current());
-    second.props.onBackgroundColorChange?.('#654321');
+    second.props.onColorChange?.('#654321');
     expect(second.current().stashedComposerPlanes.map((p) => p.shape.id)).toEqual([
       'sc-bg',
       'sc-panel',
@@ -269,7 +261,7 @@ describe.each(['freeform', 'freeform-at'] as const)('%s background picker', (id)
 
   it('offers every colour the composer seeds for its locale', () => {
     const { props } = harness(initial({}));
-    const palette = (props.backgroundColors ?? []).map((c) => c.color.toLowerCase());
+    const palette = (props.colors ?? []).map((c) => c.color.toLowerCase());
     const locale = id === 'freeform-at' ? 'de-AT' : 'de-DE';
     for (const name of SHAREPIC_LOCALE_COLORS[locale]) {
       expect(palette, name).toContain(SHAREPIC_COLOR_HEX[name].toLowerCase());
@@ -278,7 +270,7 @@ describe.each(['freeform', 'freeform-at'] as const)('%s background picker', (id)
 
   it('offers its own palette', () => {
     const { props } = harness(initial({}));
-    const colors = props.backgroundColors?.map((c) => c.color) ?? [];
+    const colors = props.colors?.map((c) => c.color) ?? [];
     if (id === 'freeform-at') {
       expect(colors).toContain(AT.colors.primary);
       expect(colors).toContain(AT.colors.accent);
@@ -310,15 +302,7 @@ describe('removing a photo clears its credit in the photo templates', () => {
         () => {},
         {}
       );
-      // ImageBackgroundSection on most, BackgroundSection on the slider; both
-      // hand the remove through onImageChange.
-      const tabId = ['background', 'image', 'image-background'].find((t) => t in config.sections);
-      const props = config.sections[tabId!].propsFactory(
-        start,
-        actions,
-        undefined
-      ) as ImageBackgroundSectionProps;
-      props.onImageChange(null, undefined, null);
+      config.background!(start, actions).onImageChange!(null, undefined, null);
       expect(state.imageAttribution ?? null).toBeNull();
       expect(state.currentImageSrc || null).toBeNull();
     },

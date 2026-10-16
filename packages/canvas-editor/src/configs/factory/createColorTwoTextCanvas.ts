@@ -10,15 +10,10 @@
  * Used by: Zitat Pure, Info
  */
 
-import { HiPhotograph } from 'react-icons/hi';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
-import {
-  AssetsSection,
-  CombinedTextSection,
-  FrameSettingsSection,
-  ImageBackgroundSection,
-} from '../../sidebar/sections';
+import { AssetsSection, CombinedTextSection, FrameSettingsSection } from '../../sidebar/sections';
+import { contrastRatio, luminance } from '../../utils/colorLuminance';
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from '../commonSections';
 import { injectFeatureProps } from '../featureInjector';
 import { getPlaceholder } from '../placeholders';
@@ -41,6 +36,7 @@ import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '../../utils/shapes';
 import type { UserImageInstance } from '../../utils/userImageUtils';
 import type { FullCanvasConfig, LayoutResult, CanvasElementConfig, AdditionalText } from '../types';
+import type { StickerRef } from '@gruenerator/shared/stickers';
 
 // ============================================================================
 // STATE TYPE
@@ -128,6 +124,7 @@ export interface ColorTwoTextActions {
 
   // Base actions
   addAsset: (assetId: string) => void;
+  addStickerAsset: (ref: StickerRef) => void;
   updateAsset: (id: string, partial: Partial<AssetInstance>) => void;
   removeAsset: (id: string) => void;
   toggleIcon: (id: string, selected: boolean) => void;
@@ -269,13 +266,24 @@ export function createColorTwoTextCanvas<
     passthroughStateKeys = [],
   } = options;
 
+  // A palette colour has its font colour; a freely picked one gets whichever of
+  // the template's font colours (or white) reads best on it.
+  const fontColorOn = (background: string): string => {
+    const mapped = textColorMap[background];
+    if (mapped) return mapped;
+    const bg = luminance(background);
+    const candidates = [...new Set([...Object.values(textColorMap), '#FFFFFF'])];
+    if (bg === null) return candidates[0]!;
+    return candidates.reduce((best, c) =>
+      contrastRatio(bg, luminance(c) ?? 1) > contrastRatio(bg, luminance(best) ?? 1) ? c : best
+    );
+  };
+
   // The background stack, bottom to top: the solid colour plane, the optional
   // photo over it, and a scrim that appears with the photo.
   //
-  // The colour plane is non-interactive by construction: CanvasBackground draws
-  // it with `listening={false}`, which is load-bearing — a full-bleed listening
-  // rect would swallow every click on empty canvas and useCanvasInteractions
-  // would stop deselecting.
+  // A click on the colour plane selects it (the context bar then shows its
+  // swatches); clicking the grey work area around the artboard deselects.
   //
   // The photo needs no mode flag to hide the colour: `CanvasImage` returns null
   // while `currentImageSrc` is empty, and `coverFit` fills the frame once it is
@@ -364,12 +372,6 @@ export function createColorTwoTextCanvas<
 
     tabs: [
       {
-        id: 'background',
-        icon: HiPhotograph,
-        label: 'Hintergrund',
-        ariaLabel: 'Hintergrundfarbe wählen',
-      },
-      {
         id: 'text',
         icon: PiTextAa,
         label: 'Text',
@@ -392,14 +394,8 @@ export function createColorTwoTextCanvas<
       chatTab,
     ],
 
-    // 'background' was kept out of this list and left to getAutoSwitchTab, on the
-    // assumption that clicking the background opens it. It cannot: the only
-    // background these templates draw is the colour plane, and CanvasBackground
-    // renders that with `listening={false}`, so it never becomes the selection.
-    // The colour picker was unreachable by any route — the tab strip is the only
-    // way in, and it is also the better affordance.
     // 'share' is not in `tabs`, so listing it here filtered to nothing.
-    getVisibleTabs: () => ['background', 'text', 'assets', 'tools', 'uploads', 'chat'],
+    getVisibleTabs: () => ['text', 'assets', 'tools', 'uploads', 'chat'],
 
     getAutoSwitchTab: (selectedElement) => {
       if (selectedElement?.startsWith('balken-')) return 'settings';
@@ -408,31 +404,23 @@ export function createColorTwoTextCanvas<
       return null;
     },
 
+    background: (state, actions) => ({
+      colors: backgroundColors,
+      currentColor: state.backgroundColor,
+      onColorChange: actions.setBackgroundColor,
+      currentImageSrc: state.currentImageSrc || undefined,
+      imageAttribution: state.imageAttribution ?? null,
+      onImageChange: (file, url, attribution) => {
+        actions.setCurrentImageSrc(file, url);
+        if (attribution !== undefined) actions.setImageAttribution(attribution);
+      },
+      scale: state.imageScale ?? 1,
+      onScaleChange: actions.setImageScale,
+      isLocked: state.isBackgroundLocked ?? false,
+      onToggleLock: actions.toggleBackgroundLock,
+    }),
+
     sections: {
-      background: section({
-        // ImageBackgroundSection, not BackgroundSection: it carries the better
-        // picker (own uploads + Unsplash, masonry) and since PR A the zoom and
-        // lock controls. The colour swatches ride along as its "Farbe" tab.
-        component: ImageBackgroundSection,
-        propsFactory: (state, actions) => ({
-          backgroundColor: state.backgroundColor,
-          backgroundColors,
-          onBackgroundColorChange: actions.setBackgroundColor,
-          currentImageSrc: state.currentImageSrc,
-          onImageChange: (
-            file: File | null,
-            objectUrl?: string,
-            attribution?: StockImageAttribution | null
-          ) => {
-            actions.setCurrentImageSrc(file, objectUrl);
-            if (attribution !== undefined) actions.setImageAttribution(attribution);
-          },
-          scale: state.imageScale ?? 1,
-          onScaleChange: actions.setImageScale,
-          isLocked: state.isBackgroundLocked ?? false,
-          onToggleLock: actions.toggleBackgroundLock,
-        }),
-      }),
       text: section({
         component: CombinedTextSection,
         propsFactory: (state, actions) => ({
@@ -448,6 +436,7 @@ export function createColorTwoTextCanvas<
         propsFactory: (state, actions, context) => ({
           assetInstances: state.assetInstances,
           onAddAsset: actions.addAsset,
+          onAddStickerAsset: actions.addStickerAsset,
           onUpdateAsset: actions.updateAsset,
           onRemoveAsset: actions.removeAsset,
           ...injectFeatureProps(state, actions, context),
@@ -483,9 +472,7 @@ export function createColorTwoTextCanvas<
       // the derived colour is meaningless and often dark (zitat-pure derives
       // #005437 from Hellgrün). White plus the gradient scrim is the only pair
       // that holds against an arbitrary photograph.
-      const fontColor = state.currentImageSrc
-        ? '#FFFFFF'
-        : textColorMap[state.backgroundColor] || Object.values(textColorMap)[0];
+      const fontColor = state.currentImageSrc ? '#FFFFFF' : fontColorOn(state.backgroundColor);
       return {
         ...baseLayout,
         _meta: {
@@ -551,7 +538,7 @@ export function createColorTwoTextCanvas<
       const getFontColor = () => {
         const state = getState();
         if (state.currentImageSrc) return '#FFFFFF';
-        return textColorMap[state.backgroundColor] || Object.values(textColorMap)[0];
+        return fontColorOn(state.backgroundColor);
       };
 
       const baseActions = createBaseActions(

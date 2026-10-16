@@ -10,6 +10,7 @@ export {
 
 // Components — Editor
 export { BlockNoteEditor, type BlockNoteEditorProps } from './components/editor/BlockNoteEditor';
+export { docsEditorSchema } from './components/editor/schema';
 export { PresenceAvatars } from './components/editor/PresenceAvatars';
 
 // Components — Document

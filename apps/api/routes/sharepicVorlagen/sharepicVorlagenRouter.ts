@@ -9,8 +9,11 @@ import { sharepicVorlagenContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import {
+  getSharepicSeite,
   getSharepicVorlage,
+  listSharepicSeiten,
   listSharepicVorlagen,
+  sharepicSeiteThumbFile,
   sharepicVorlageThumbFile,
 } from '../../services/sharepicVorlagen/catalog.js';
 import { resolveVorlagenLocale } from '../../services/sharepicVorlagen/vorlagenLocale.js';
@@ -33,6 +36,11 @@ export const sharepicVorlagenContractRouter = s.router(sharepicVorlagenContract,
     const locale = await resolveVorlagenLocale(req, query.land);
     return { status: 200 as const, body: { vorlagen: listSharepicVorlagen(locale) } };
   },
+  seiten: async ({ req, query }) => {
+    getAuthedUser(req);
+    const locale = await resolveVorlagenLocale(req, query.land);
+    return { status: 200 as const, body: { seiten: listSharepicSeiten(locale) } };
+  },
   get: async ({ req, params }) => {
     getAuthedUser(req);
     const vorlage = getSharepicVorlage(params.id);
@@ -42,14 +50,37 @@ export const sharepicVorlagenContractRouter = s.router(sharepicVorlagenContract,
 });
 
 function sendThumb(req: Request, res: Response): void {
-  const file = sharepicVorlageThumbFile(String(req.params.id), Number(req.query.seite ?? 1));
+  const id = String(req.params.id);
+  sendThumbFile(
+    req,
+    res,
+    sharepicVorlageThumbFile(id, Number(req.query.seite ?? 1)),
+    getSharepicVorlage(id)?.thumbVersion
+  );
+}
+
+function sendSeiteThumb(req: Request, res: Response): void {
+  const id = String(req.params.id);
+  sendThumbFile(
+    req,
+    res,
+    sharepicSeiteThumbFile(id, String(req.query.format)),
+    getSharepicSeite(id)?.thumbVersion
+  );
+}
+
+function sendThumbFile(
+  req: Request,
+  res: Response,
+  file: string | null,
+  current: string | undefined
+): void {
   if (!file || !existsSync(file)) {
     res.status(404).json({ error: 'Kein Vorschaubild.' });
     return;
   }
   // Private: the image shows party content, so no shared caches. A URL carrying
   // the current content hash never changes; any other revalidates (ETag).
-  const current = getSharepicVorlage(String(req.params.id))?.thumbVersion;
   const versioned = current !== undefined && req.query.v === current;
   res.setHeader(
     'Cache-Control',
@@ -61,6 +92,7 @@ function sendThumb(req: Request, res: Response): void {
 /** Mount after `requireAuth` on `/api/sharepic-vorlagen`. */
 export function mountSharepicVorlagenRouter(app: Application): void {
   app.get('/api/sharepic-vorlagen/:id/thumb', sendThumb);
+  app.get('/api/sharepic-vorlagen/seiten/:id/thumb', sendSeiteThumb);
   createExpressEndpoints(sharepicVorlagenContract, sharepicVorlagenContractRouter, app, {
     requestValidationErrorHandler: logContractValidationError(log, 'sharepicVorlagenContract'),
   });

@@ -24,10 +24,19 @@ interface MediaUploadResponse {
  * NB: returns `/api/share/<token>/download` (the raw image bytes), NOT the
  * upload response's `shareUrl` — that is the human-facing share *page* (HTML),
  * which a canvas background can't render. This matches how the rest of the
- * canvas editor resolves a media item to an image (ImageBackgroundSection,
+ * canvas editor resolves a media item to an image (`buildPlacementUrl`,
  * UploadsSection, mediaItemToFile).
  */
 export async function uploadBlobToMediaLibrary(
+  blob: Blob,
+  opts?: { filename?: string; uploadSource?: UploadSource }
+): Promise<string | null> {
+  const shareToken = await uploadBlobToMediaShare(blob, opts);
+  return shareToken ? `/api/share/${shareToken}/download` : null;
+}
+
+/** Same upload, but returns the share token — for callers that register the media elsewhere. */
+export async function uploadBlobToMediaShare(
   blob: Blob,
   opts?: { filename?: string; uploadSource?: UploadSource }
 ): Promise<string | null> {
@@ -41,6 +50,5 @@ export async function uploadBlobToMediaLibrary(
   const res = await apiClient.post<MediaUploadResponse>('/media/upload', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
-  const shareToken = res.data?.data?.shareToken;
-  return shareToken ? `/api/share/${shareToken}/download` : null;
+  return res.data?.data?.shareToken ?? null;
 }

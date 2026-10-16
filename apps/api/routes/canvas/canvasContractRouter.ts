@@ -28,6 +28,7 @@ import {
   cloneCanvas,
   createCanvas,
   deleteCanvas,
+  formatChangeCrossesCategory,
   getCanvas,
   listCanvases,
   resizeCanvas,
@@ -53,13 +54,17 @@ import { logContractValidationError } from '../../utils/contractValidationLogger
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
 import { mintCanvasForVariant } from '../chat/services/sharepicEditService.js';
-import { getServerFormat } from '../exports/pageConstants.js';
+import { redactDocumentForReader } from '../docs/documentAccess.js';
+import { formatCategory, getServerFormat } from '../exports/pageConstants.js';
 
 import { checkCanvasEdit } from './services/canvasAiCheck.js';
 
 import type { Application } from 'express';
 
 const log = createLogger('canvasContractRouter');
+
+const FORMAT_CATEGORY_ERROR =
+  'Druckformate und digitale Formate lassen sich nicht ineinander umwandeln.';
 
 const isCanvasPageDefArray = (v: unknown): v is CanvasPageDef[] =>
   Array.isArray(v) &&
@@ -74,12 +79,17 @@ const isCanvasPageDefArray = (v: unknown): v is CanvasPageDef[] =>
 
 const s = initServer();
 
+const PRINT_TEMPLATE_TYPES: ReadonlySet<string> = new Set(['freeform', 'freeform-at']);
+
 export const canvasContractRouter = s.router(canvasContract, {
   list: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
       const canvases = await listCanvases(userId);
-      return { status: 200 as const, body: canvases };
+      return {
+        status: 200 as const,
+        body: canvases.map((canvas) => redactDocumentForReader(canvas, userId)),
+      };
     } catch (error) {
       const err = error as Error;
       log.error('[canvas.list] Error:', err);
@@ -94,6 +104,26 @@ export const canvasContractRouter = s.router(canvasContract, {
     try {
       const userId = getAuthedUser(args.req).id;
       const b = args.body;
+      // An unknown digital id renders as the default; an unknown print id would mint an unusable sheet.
+      if (
+        b.format !== undefined &&
+        formatCategory(b.format) === 'print' &&
+        !getServerFormat(b.format)
+      ) {
+        return { status: 400 as const, body: { error: `Unbekanntes Format '${b.format}'` } };
+      }
+      if (
+        b.format !== undefined &&
+        formatCategory(b.format) === 'print' &&
+        !PRINT_TEMPLATE_TYPES.has(b.template_type)
+      ) {
+        return {
+          status: 400 as const,
+          body: {
+            error: `Print-Formate brauchen eine freie Vorlage (freeform), nicht '${b.template_type}'`,
+          },
+        };
+      }
       const input: CreateCanvasInput = {
         template_type: b.template_type,
         ...(b.title !== undefined ? { title: b.title } : {}),
@@ -191,6 +221,9 @@ export const canvasContractRouter = s.router(canvasContract, {
       }
       if (result.kind === 'forbidden') {
         return { status: 403 as const, body: { error: 'Access denied' } };
+      }
+      if (result.kind === 'category_mismatch') {
+        return { status: 400 as const, body: { error: FORMAT_CATEGORY_ERROR } };
       }
       return { status: 201 as const, body: { newCanvasId: result.newCanvasId } };
     } catch (error) {
@@ -363,14 +396,14 @@ export const canvasContractRouter = s.router(canvasContract, {
   get: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
-      const result = await getCanvas(args.params.id, userId);
+      const result = await getCanvas(args.params.id, userId, { joinViaLink: true });
       if (result.kind === 'not_found') {
         return { status: 404 as const, body: { error: 'Canvas not found' } };
       }
       if (result.kind === 'forbidden') {
         return { status: 403 as const, body: { error: 'Access denied' } };
       }
-      return { status: 200 as const, body: result.canvas };
+      return { status: 200 as const, body: redactDocumentForReader(result.canvas, userId) };
     } catch (error) {
       const err = error as Error;
       log.error('[canvas.get] Error:', err);
@@ -398,6 +431,9 @@ export const canvasContractRouter = s.router(canvasContract, {
       if (result.kind === 'forbidden') {
         return { status: 403 as const, body: { error: 'Insufficient permissions' } };
       }
+      if (result.kind === 'category_mismatch') {
+        return { status: 400 as const, body: { error: FORMAT_CATEGORY_ERROR } };
+      }
       return { status: 200 as const, body: { message: 'Canvas updated successfully' } };
     } catch (error) {
       const err = error as Error;
@@ -419,6 +455,9 @@ export const canvasContractRouter = s.router(canvasContract, {
       }
       if (access.kind === 'forbidden') {
         return { status: 403 as const, body: { error: 'Insufficient permissions' } };
+      }
+      if (format !== undefined && (await formatChangeCrossesCategory(args.params.id, format))) {
+        return { status: 400 as const, body: { error: FORMAT_CATEGORY_ERROR } };
       }
       await applyDeckChanges(args.params.id, {
         seedPages: pages,

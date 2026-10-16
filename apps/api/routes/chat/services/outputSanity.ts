@@ -478,7 +478,8 @@ export function stripPhantomMemoryClaim(
       (turn.stepCount === 0 && MEMORY_SAVED_CLAIM_RE.test(sentence));
     if (hit) {
       removed.push(sentence.trim());
-      // Der Trenner des Satzes entfällt mit ihm; der davor hält die Nachbarn zusammen.
+      // Der Trenner des Satzes entfällt mit ihm; der stärkere hält die Nachbarn zusammen.
+      pendingSep = strongerSeparator(pendingSep, sep);
       continue;
     }
     out += pendingSep + sentence;
@@ -487,6 +488,13 @@ export function stripPhantomMemoryClaim(
   if (removed.length === 0) return { text, removed };
   out = out.trim();
   return { text: out.length > 0 ? out : PHANTOM_NOTE_FALLBACK, removed };
+}
+
+/** Beim Streichen eines Satzes bleibt der stärkere Trenner — sonst klebt der
+ *  nächste Absatz (eine Tabelle, eine Liste) an der vorigen Zeile. */
+function strongerSeparator(kept: string, dropped: string): string {
+  const breaks = (sep: string) => (sep.match(/\n/g) ?? []).length;
+  return breaks(dropped) > breaks(kept) ? dropped : kept;
 }
 
 /**
@@ -583,6 +591,7 @@ export function stripPhantomArtifactEdit(
     if (phantom || echo) {
       removed.push(sentence.trim());
       named.forEach((kind) => removedKinds.add(kind));
+      pendingSep = strongerSeparator(pendingSep, sep);
       continue;
     }
     out += pendingSep + sentence;
@@ -596,6 +605,100 @@ export function stripPhantomArtifactEdit(
     text: onlySharepic ? PHANTOM_SHAREPIC_EDIT_FALLBACK : PHANTOM_ARTIFACT_EDIT_FALLBACK,
     removed,
   };
+}
+
+/**
+ * „Ich erstelle dir jetzt die Sharepics …", ohne dass in diesem Turn ein
+ * Artefakt entstanden ist. Live 15.10.2026 auf ein „ja mach das bitte" (steps=0):
+ *
+ *   Ich erstelle dir jetzt die Sharepics für den Slider basierend auf dem
+ *   Entwurf. Da ein Slider aus mehreren Bildern besteht, generiere ich diese
+ *   nacheinander für dich. (Hier erfolgt nun die Erstellung der Sharepics durch
+ *   die entsprechenden Werkzeuge des Grünerators)
+ *
+ * `stripPhantomArtifactEdit` kennt nur das Ich-Perfekt einer Änderung,
+ * `announcesPendingWork` nur das Passiv und schreibt nur Telemetrie. Nach dem
+ * Turn läuft nichts mehr — eine Erstellung, die er ankündigt, findet nie statt.
+ *
+ * Drei Bedingungen je Satz, alle nötig, damit bestellter Inhalt bleibt („Ich
+ * erstelle gerade Flyer für den Infostand" in einem geschriebenen Post):
+ *  - eine Ankündigung — Ich-Präsens oder Ich-Futur eines Erzeugungsverbs, das
+ *    Passiv „werden jetzt erstellt" oder „erfolgt nun die Erstellung";
+ *  - ein Artefakt-Nomen im selben Satz;
+ *  - ein Signal, dass der Satz die Person anspricht, statt Inhalt zu sein: ein
+ *    Jetzt-Wort, „dir/euch/für dich", oder die Klammer, mit der das Modell
+ *    einen Werkzeugaufruf nachspielt.
+ * Fragen sind Angebote und bleiben stehen. Und nur kurze Antworten: ein
+ * geschriebener Text ist länger als die Floskel, die einen Aufruf ersetzt.
+ */
+// Nur Erzeugen, nicht Ändern: „Ich setze dir das jetzt im Dokument um" kann
+// wahr sein, wenn der Client die Änderung nach dem Turn anwendet.
+const CREATE_VERB_1SG =
+  'erstelle|generiere|baue|entwerfe|gestalte|erzeuge|mache|wandle|zeichne|rendere';
+const CREATE_VERB_INF =
+  'erstellen|generieren|bauen|entwerfen|gestalten|erzeugen|machen|anlegen|umsetzen|umwandeln|zeichnen|rendern';
+const CREATE_PARTICIPLE =
+  'erstellt|generiert|gebaut|entworfen|gestaltet|erzeugt|angelegt|gerendert';
+const CREATION_ANNOUNCEMENT_RE = new RegExp(
+  `(?<!\\p{L})(?:ich\\s+(?:${CREATE_VERB_1SG})|(?:${CREATE_VERB_1SG})\\s+ich)(?!\\p{L})` +
+    `|(?<!\\p{L})ich\\s+werde\\s+[^.!?\\n]{0,80}?(?<!\\p{L})(?:${CREATE_VERB_INF})(?!\\p{L})` +
+    `|(?<!\\p{L})(?:wird|werden)\\s+(?:jetzt|nun|gerade|gleich|sofort)\\s+(?:[^.!?\\n]{0,40}?\\s)?(?:${CREATE_PARTICIPLE})(?!\\p{L})` +
+    `|(?<!\\p{L})erfolgt\\s+(?:jetzt\\s+|nun\\s+|gleich\\s+)?die\\s+(?:erstellung|generierung|umsetzung)(?!\\p{L})`,
+  'iu'
+);
+const CREATION_NOUN_RE =
+  /(?<!\p{L})(?:sharepics?|karussells?|slider|kacheln?|grafiken?|bild(?:er)?|ki-bild(?:er)?|präsentation(?:en)?|praesentation(?:en)?|folien?|tabellen?|dokument(?:e|s)?|pdfs?|boards?|explainables?)(?!\p{L})/iu;
+const ADDRESSES_PERSON_RE =
+  /(?<!\p{L})(?:jetzt|nun|gleich|sofort|nacheinander|direkt|dir|euch|für\s+dich|fuer\s+dich)(?!\p{L})|^\s*\(/iu;
+const CONDITIONAL_OFFER_RE = /(?<!\p{L})(?:wenn|falls|sofern)\s+(?:du|ihr|sie)(?!\p{L})/iu;
+// „Ich mache dir jetzt kein Sharepic" ist eine ehrliche Absage, keine Ankündigung.
+const NEGATED_RE = /(?<!\p{L})(?:kein\p{L}*|nicht|nichts)(?!\p{L})/iu;
+const CREATION_CLAIM_MAX_CHARS = 800;
+
+export const PHANTOM_CREATION_FALLBACK =
+  'Erstellt habe ich in diesem Schritt nichts — dafür lief kein Werkzeug. Sag mir noch einmal, was entstehen soll.';
+
+export function stripPhantomArtifactCreation(
+  text: string,
+  turn: { createdArtifact: boolean }
+): { text: string; removed: string[] } {
+  if (typeof text !== 'string' || text.length === 0) {
+    return { text: typeof text === 'string' ? text : '', removed: [] };
+  }
+  if (turn.createdArtifact || text.length > CREATION_CLAIM_MAX_CHARS) return { text, removed: [] };
+  // Inhalt im Chat (Markdown-Tabelle, Codeblock) ist die Lieferung, auf die sich
+  // „Ich erstelle dir die Tabelle hier" bezieht.
+  if (/^\s*\|.*\|\s*$/m.test(text) || text.includes('```')) return { text, removed: [] };
+  const removed: string[] = [];
+  const parts = text.split(/((?<=[.!?)])[ \t]+|\s*\n\s*)/);
+  let out = '';
+  let pendingSep = '';
+  for (let i = 0; i < parts.length; i += 2) {
+    const sentence = parts[i] ?? '';
+    const sep = parts[i + 1] ?? '';
+    const trimmed = sentence.trim();
+    // Frage = Angebot, Doppelpunkt = leitet gelieferten Inhalt ein („Ich
+    // erstelle dir hier eine Tabelle:" vor einer Markdown-Tabelle), „wenn du
+    // willst" = bedingtes Angebot. Alle drei bleiben.
+    const hit =
+      !trimmed.endsWith('?') &&
+      !trimmed.endsWith(':') &&
+      !CONDITIONAL_OFFER_RE.test(trimmed) &&
+      !NEGATED_RE.test(trimmed) &&
+      CREATION_ANNOUNCEMENT_RE.test(trimmed) &&
+      CREATION_NOUN_RE.test(trimmed) &&
+      ADDRESSES_PERSON_RE.test(trimmed);
+    if (hit) {
+      removed.push(trimmed);
+      pendingSep = strongerSeparator(pendingSep, sep);
+      continue;
+    }
+    out += pendingSep + sentence;
+    pendingSep = sep;
+  }
+  if (removed.length === 0) return { text, removed };
+  out = out.trim();
+  return { text: out.length > 0 ? out : PHANTOM_CREATION_FALLBACK, removed };
 }
 
 export function stripPhantomSharepicEdit(

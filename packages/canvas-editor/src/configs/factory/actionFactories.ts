@@ -13,7 +13,7 @@ import {
   fitBalkenAfterTextEdit,
 } from '../../utils/balkenBounds';
 import { createBalkenInstanceFromPreset } from '../../utils/balkenUtils';
-import { createAssetInstance } from '../../utils/canvasAssets';
+import { createAssetInstance, createStickerInstance } from '../../utils/canvasAssets';
 import { createChartInstance, type ChartInstance, type ChartType } from '../../utils/chartUtils';
 import { createCircleBadgeInstance } from '../../utils/circleBadgeUtils';
 import { duplicateElementInState } from '../../utils/duplicateElement';
@@ -35,8 +35,9 @@ import type { FrameClipType, FrameInstance } from '../../utils/frameUtils';
 import type { IllustrationInstance } from '../../utils/illustrations/types';
 import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '../../utils/shapes';
-import type { UserImageInstance } from '../../utils/userImageUtils';
+import type { UserImageInstance, UserImagePlacement } from '../../utils/userImageUtils';
 import type { AdditionalText } from '../types';
+import type { StickerRef } from '@gruenerator/shared/stickers';
 
 // ============================================================================
 // TYPE HELPERS
@@ -74,6 +75,15 @@ export function createAssetActions<TState extends { assetInstances: AssetInstanc
   return {
     addAsset: (assetId: string) => {
       const newInstance = createAssetInstance(assetId, canvasWidth, canvasHeight);
+      setState((prev) => ({
+        ...prev,
+        assetInstances: [...prev.assetInstances, newInstance],
+      }));
+      saveToHistory(getState());
+    },
+    addStickerAsset: (ref: StickerRef) => {
+      const newInstance = createStickerInstance(ref, canvasWidth, canvasHeight);
+      if (!newInstance) return;
       setState((prev) => ({
         ...prev,
         assetInstances: [...prev.assetInstances, newInstance],
@@ -678,8 +688,8 @@ export function createUserImageActions<TState extends { userImageInstances: User
         commit(appendImage(instance));
       });
     },
-    addUserImageFromUrl: (url: string, fileName: string) => {
-      void createUserImageInstanceFromUrl(url, fileName, canvasWidth, canvasHeight).then(
+    addUserImageFromUrl: (url: string, fileName: string, options?: UserImagePlacement) => {
+      void createUserImageInstanceFromUrl(url, fileName, canvasWidth, canvasHeight, options).then(
         (instance) => {
           commit(appendImage(instance));
         }

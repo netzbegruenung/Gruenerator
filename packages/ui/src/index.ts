@@ -70,6 +70,7 @@ export {
 export { Badge, badgeVariants } from './components/badge';
 export { Button, buttonVariants } from './components/button';
 export { CopyLinkRow } from './components/copy-link-row';
+export { IconSwap } from './components/icon-swap';
 export { Fab, type FabProps } from './components/fab';
 export { Checkbox } from './components/checkbox';
 export {
@@ -227,6 +228,7 @@ export { SelectCard, type SelectCardProps } from './components/select-card';
 export { LiteTooltip, type LiteTooltipProps } from './components/lite-tooltip';
 export { Toaster } from './components/sonner';
 export { toast } from 'sonner';
+export { isToastEvent } from './lib/toastEvent';
 export {
   NotificationBell,
   type NotificationBellProps,

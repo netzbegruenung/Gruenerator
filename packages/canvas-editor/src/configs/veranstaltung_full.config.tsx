@@ -3,10 +3,9 @@
  * Event sharepic with photo, green section, and date circle
  */
 
-import { HiPhotograph } from 'react-icons/hi';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
-import { AssetsSection, FrameSettingsSection, ImageBackgroundSection } from '../sidebar/sections';
+import { AssetsSection, FrameSettingsSection } from '../sidebar/sections';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { CANVAS_RECOMMENDED_ASSETS, type AssetInstance } from '../utils/canvasAssets';
 import { VERANSTALTUNG_CONFIG, calculateVeranstaltungLayout } from '../utils/veranstaltungLayout';
@@ -42,6 +41,7 @@ import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '../utils/shapes';
 import type { UserImageInstance } from '../utils/userImageUtils';
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
+import type { StickerRef } from '@gruenerator/shared/stickers';
 
 // ============================================================================
 // STATE TYPE
@@ -132,6 +132,7 @@ export interface VeranstaltungFullActions {
   setImageScale: (scale: number) => void;
   toggleBackgroundLock: () => void;
   addAsset: (assetId: string) => void;
+  addStickerAsset: (ref: StickerRef) => void;
   updateAsset: (id: string, partial: Partial<AssetInstance>) => void;
   removeAsset: (id: string) => void;
   // Icons & Shapes
@@ -397,7 +398,6 @@ export const veranstaltungFullConfig: FullCanvasConfig<
   ai: veranstaltungAiCapabilities,
 
   tabs: [
-    { id: 'image', icon: HiPhotograph, label: 'Bild', ariaLabel: 'Bild anpassen' },
     { id: 'text', icon: PiTextAa, label: 'Text', ariaLabel: 'Texte hinzufügen' },
     { id: 'assets', icon: PiSquaresFourFill, label: 'Elemente', ariaLabel: 'Dekorative Elemente' },
     {
@@ -411,38 +411,31 @@ export const veranstaltungFullConfig: FullCanvasConfig<
     chatTab,
   ],
 
-  getVisibleTabs: () => ['image', 'text', 'assets', 'tools', 'uploads', 'chat'],
+  getVisibleTabs: () => ['text', 'assets', 'tools', 'uploads', 'chat'],
 
   getAutoSwitchTab: (selectedElement) =>
     selectedElement?.startsWith('chart-')
       ? 'chart-settings'
       : selectedElement?.startsWith('frame-')
         ? 'frame-settings'
-        : selectedElement === 'background-image'
-          ? 'image'
-          : selectedElement?.startsWith('balken-')
-            ? 'settings'
-            : null,
+        : selectedElement?.startsWith('balken-')
+          ? 'settings'
+          : null,
+
+  background: (state, actions) => ({
+    currentImageSrc: state.currentImageSrc || undefined,
+    imageAttribution: state.imageAttribution ?? null,
+    onImageChange: (file, url, attribution) => {
+      actions.setCurrentImageSrc(file, url);
+      if (attribution !== undefined) actions.setImageAttribution?.(attribution);
+    },
+    scale: state.imageScale,
+    onScaleChange: actions.setImageScale,
+    isLocked: state.isBackgroundLocked,
+    onToggleLock: actions.toggleBackgroundLock,
+  }),
 
   sections: {
-    image: section({
-      component: ImageBackgroundSection,
-      propsFactory: (state, actions) => ({
-        currentImageSrc: state.currentImageSrc,
-        onImageChange: (
-          file: File | null,
-          objectUrl?: string,
-          attribution?: StockImageAttribution | null
-        ) => {
-          actions.setCurrentImageSrc(file, objectUrl);
-          if (attribution !== undefined) actions.setImageAttribution?.(attribution);
-        },
-        scale: state.imageScale,
-        onScaleChange: actions.setImageScale,
-        isLocked: state.isBackgroundLocked,
-        onToggleLock: actions.toggleBackgroundLock,
-      }),
-    }),
     text: section({
       component: CombinedTextSection,
       propsFactory: (state, actions) => ({
@@ -459,6 +452,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       propsFactory: (state, actions, context) => ({
         // Asset instance props
         onAddAsset: actions.addAsset,
+        onAddStickerAsset: actions.addStickerAsset,
         recommendedAssetIds: CANVAS_RECOMMENDED_ASSETS['veranstaltung'],
 
         // Auto-inject all feature props (icons, shapes, illustrations, balken)
