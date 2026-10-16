@@ -30,7 +30,6 @@ import { sanitizeMentionTokens } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { resumableStreams, startStreamRecorder } from '../../services/chat/resumableStreams.js';
-import { gatePandaModelId } from '../../services/user/pandaEntitlement.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 import { ThreadId, UserId } from '../../utils/types/branded.js';
@@ -124,6 +123,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         memoryContext,
         memoryRetrieveTimeMs,
         memoryEnabled,
+        modelId,
         contextWindowTokens,
         mentionTokenFields,
         lastUserTextRaw,
@@ -161,7 +161,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       const {
         agentId,
         forcedTools: bodyForcedTools,
-        modelId: requestedModelId,
         documentIds: rawDocumentIds,
         documentChatIds: rawDocumentChatIds,
         docMentionIds: rawDocMentionIds,
@@ -174,7 +173,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         currentReel: rawCurrentReel,
         reelUpload: rawReelUpload,
       } = args.body;
-      const modelId = await gatePandaModelId(requestedModelId, userId);
 
       // Durable mention tokens (parsed in streamContext) are the source of
       // truth; legacy body forcedTools (older clients) union in. Regex edit

@@ -38,6 +38,7 @@ import {
 import { findRole, resolveCustomSystemPrompt } from '../../../services/roles/roleSystemPrompt.js';
 import { loadUserRoles } from '../../../services/roles/userRoles.js';
 import { recordItemUsageSafe } from '../../../services/usage/ItemUsageService.js';
+import { gatePandaModelId } from '../../../services/user/pandaEntitlement.js';
 import { NextcloudShareManager } from '../../../utils/integrations/nextcloud/shareManager.js';
 import { createLogger } from '../../../utils/logger.js';
 import { captureSseError } from '../../../utils/observability/captureSseError.js';
@@ -45,7 +46,6 @@ import { ThreadId, UserId } from '../../../utils/types/branded.js';
 import { withTimeout } from '../../../utils/withTimeout.js';
 import { notebookIdFromSteps } from '../agents/notebookSourceTools.js';
 import { getPipelineAgent } from '../agents/pipelines/index.js';
-import { getContextWindow } from '../agents/providers.js';
 
 import { priorLookups, priorTurnRetrievalFailed } from './agenticLoop/catalogAssembly.js';
 import { getThreadAttachments } from './attachmentPersistenceService.js';
@@ -58,6 +58,7 @@ import { countCloudConnections } from './cloudConnectionContext.js';
 import { enrichContext } from './contextEnrichmentService.js';
 import { priorTurnEditables } from './editAddressee.js';
 import { backfillEmptyUserMessages } from './historyBackfill.js';
+import { turnContextWindow } from './laneContextFloor.js';
 import {
   extractTextContent,
   filterEmptyAssistantMessages,
@@ -193,6 +194,8 @@ export interface StreamContext {
   memoryContext: string | null;
   memoryRetrieveTimeMs: number;
   memoryEnabled: boolean;
+  /** The request's model after the Panda entitlement gate. */
+  modelId: StreamBody['modelId'];
   contextWindowTokens: number;
   /** Routing fields derived from durable mention tokens in the last user
    *  message ("@[Label](type:id)") — merged with the legacy body fields. */
@@ -254,7 +257,7 @@ export async function buildStreamContext({
     activeSkillMention: rawActiveSkillMention,
     activeRecipeId: rawActiveRecipeId,
     enabledTools,
-    modelId,
+    modelId: requestedModelId,
     attachments,
     documentIds: rawDocumentIds,
     textIds: rawTextIds,
@@ -843,7 +846,10 @@ export async function buildStreamContext({
   }
 
   // === Resolve context window for model-aware budgets ===
-  const contextWindowTokens = getContextWindow(modelId);
+  // Gated first: an unentitled Panda request is answered on Ultra, and the
+  // budgets must fit the model that answers.
+  const modelId = await gatePandaModelId(requestedModelId, userId);
+  const contextWindowTokens = turnContextWindow(modelId);
 
   // === Initialize state ===
   const initialState = await initializeChatState({
@@ -1041,6 +1047,7 @@ export async function buildStreamContext({
       memoryContext,
       memoryRetrieveTimeMs,
       memoryEnabled,
+      modelId,
       contextWindowTokens,
       mentionTokenFields,
       lastUserTextRaw,
