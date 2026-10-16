@@ -7,9 +7,14 @@ interface ShareModeSelectProps {
   value: ShareMode;
   onChange: (mode: ShareMode) => void;
   disabled?: boolean;
+  /** Modes the owner may pick (default: all). The current mode always stays listed. */
+  modes?: readonly ShareMode[];
 }
 
-export const ShareModeSelect = ({ value, onChange, disabled }: ShareModeSelectProps) => {
+export const ShareModeSelect = ({ value, onChange, disabled, modes }: ShareModeSelectProps) => {
+  const options = modes
+    ? SHARE_MODE_OPTIONS.filter((o) => modes.includes(o.value) || o.value === value)
+    : SHARE_MODE_OPTIONS;
   // The label used to float free of the select, so the control reached screen
   // readers unnamed (WCAG 4.1.2) and the mode description was never announced
   // with it. `useId` rather than a fixed id because a page can hold more than
@@ -30,7 +35,7 @@ export const ShareModeSelect = ({ value, onChange, disabled }: ShareModeSelectPr
         disabled={disabled}
         className="w-full rounded-md border border-grey-200 bg-background px-2.5 py-2 text-sm outline-none focus:border-primary-500 dark:border-grey-700"
       >
-        {SHARE_MODE_OPTIONS.map((opt) => (
+        {options.map((opt) => (
           <option key={opt.value} value={opt.value}>
             {opt.label}
           </option>

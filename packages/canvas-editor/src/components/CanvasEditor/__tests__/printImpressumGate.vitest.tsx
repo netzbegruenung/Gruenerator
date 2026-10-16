@@ -5,7 +5,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { getCanvasFormat, isPrintFormat, type PrintCanvasFormat } from '../../../formats';
 import { DownloadSection } from '../../TopBar/DownloadSection';
 import {
-  isPosterImpressumComplete,
   usePrintImpressumGate,
   type ObservedPages,
   type ObservedPageState,
@@ -42,42 +41,56 @@ function Gated({
   observedState,
   pages = [page1],
   format = poster,
+  onDownloadPdf = vi.fn(),
 }: {
   observedState: ObservedPages;
   pages?: { id: string; configId: string }[];
   format?: PrintCanvasFormat | null;
+  onDownloadPdf?: () => Promise<void>;
 }) {
   const gate = usePrintImpressumGate(format, pages, observedState);
   return (
     <DownloadSection
       onDownload={vi.fn()}
       pageCount={2}
-      printExport={{ onDownloadPdf: vi.fn(), getWarnings: () => [], impressum: gate }}
+      printExport={{ onDownloadPdf, getWarnings: () => [], impressum: gate }}
     />
   );
 }
 const downloadDisabled = () =>
   (screen.getByRole('button', { name: /Herunterladen/ }) as HTMLButtonElement).disabled;
+const warning = () => screen.queryByText(/kein vollständiges Impressum/);
 
 describe('usePrintImpressumGate', () => {
-  it('blocks a placeholder on page 1 (the active page is irrelevant)', () => {
+  it('warns about a placeholder on page 1 (the active page is irrelevant)', () => {
     render(<Gated observedState={byId(observed(PLACEHOLDER))} />);
-    expect(downloadDisabled()).toBe(true);
+    expect(warning()).toBeTruthy();
     expect(screen.getByText('Impressum ergänzen')).toBeTruthy();
-  });
-
-  it('allows a filled impressum on page 1', () => {
-    render(<Gated observedState={byId(observed(FILLED))} />);
     expect(downloadDisabled()).toBe(false);
   });
 
-  it('fails closed while a page has not reported, or only a removed page reported', () => {
+  it('still downloads the PDF without an impressum', async () => {
+    const onDownloadPdf = vi.fn(async () => {});
+    render(<Gated observedState={byId(observed(null))} onDownloadPdf={onDownloadPdf} />);
+    await userEvent.click(screen.getByRole('button', { name: /Herunterladen/ }));
+    expect(onDownloadPdf).toHaveBeenCalledTimes(1);
+  });
+
+  it('stays quiet on a filled impressum on page 1', () => {
+    render(<Gated observedState={byId(observed(FILLED))} />);
+    expect(warning()).toBeNull();
+    expect(screen.queryByText('Impressum ergänzen')).toBeNull();
+    expect(downloadDisabled()).toBe(false);
+  });
+
+  it('does not warn or block while a page has not reported, or only a removed page reported', () => {
     const { unmount } = render(<Gated observedState={{}} />);
-    expect(downloadDisabled()).toBe(true);
-    expect(screen.getByText('Impressum wird geprüft …')).toBeTruthy();
+    expect(warning()).toBeNull();
+    expect(downloadDisabled()).toBe(false);
     unmount();
     render(<Gated observedState={byId(observed(FILLED, {}, 'other'))} />);
-    expect(downloadDisabled()).toBe(true);
+    expect(warning()).toBeNull();
+    expect(downloadDisabled()).toBe(false);
   });
 
   it('never gates business cards or digital canvases', () => {
@@ -110,21 +123,16 @@ describe('usePrintImpressumGate', () => {
     });
   });
 
-  it('blocks a poster whose added page has no impressum', () => {
-    const { unmount } = render(
-      <Gated pages={[page1, page2]} observedState={byId(observed(FILLED))} />
-    );
-    expect(downloadDisabled()).toBe(true);
-    expect(screen.getByText('Impressum wird geprüft …')).toBeTruthy();
-    unmount();
+  it('warns about a poster whose added page has no impressum', () => {
     render(
       <Gated
         pages={[page1, page2]}
         observedState={byId(observed(FILLED), observed(null, {}, 'p2'))}
       />
     );
-    expect(downloadDisabled()).toBe(true);
+    expect(warning()).toBeTruthy();
     expect(screen.getByText('Impressum ergänzen')).toBeTruthy();
+    expect(downloadDisabled()).toBe(false);
   });
 
   it('writes the line to every page of the poster', async () => {
@@ -144,27 +152,5 @@ describe('usePrintImpressumGate', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Übernehmen' }));
     expect(update1).toHaveBeenCalledWith('impressum', { text: FILLED });
     expect(add2.mock.calls[0][0]).toMatchObject({ id: 'impressum', text: FILLED });
-  });
-});
-
-describe('isPosterImpressumComplete (export re-check)', () => {
-  it('is false when unknown, stale, missing or placeholder; true when filled', () => {
-    expect(isPosterImpressumComplete([page1], {})).toBe(false);
-    expect(isPosterImpressumComplete([], byId(observed(FILLED)))).toBe(false);
-    expect(isPosterImpressumComplete([page1], byId(observed(FILLED, {}, 'other')))).toBe(false);
-    expect(isPosterImpressumComplete([page1], byId(observed(null)))).toBe(false);
-    expect(isPosterImpressumComplete([page1], byId(observed(PLACEHOLDER)))).toBe(false);
-    expect(isPosterImpressumComplete([page1], byId(observed(FILLED)))).toBe(true);
-  });
-
-  it('requires every page of a multi-page poster', () => {
-    const both = [page1, page2];
-    expect(isPosterImpressumComplete(both, byId(observed(FILLED)))).toBe(false);
-    expect(
-      isPosterImpressumComplete(both, byId(observed(FILLED), observed(PLACEHOLDER, {}, 'p2')))
-    ).toBe(false);
-    expect(
-      isPosterImpressumComplete(both, byId(observed(FILLED), observed(FILLED, {}, 'p2')))
-    ).toBe(true);
   });
 });

@@ -8,13 +8,7 @@ import {
   memo,
 } from 'react';
 import { createPortal } from 'react-dom';
-import {
-  BlockNoteEditor as BlockNoteEditorCore,
-  BlockNoteSchema,
-  defaultBlockSpecs,
-  defaultInlineContentSpecs,
-  defaultStyleSpecs,
-} from '@blocknote/core';
+import { BlockNoteEditor as BlockNoteEditorCore } from '@blocknote/core';
 import { CommentsExtension } from '@blocknote/core/comments';
 import { de } from '@blocknote/core/locales';
 import {
@@ -52,7 +46,7 @@ import { useDocsAdapter } from '../../context/DocsContext';
 import { useIsTouchDevice } from '@gruenerator/shared/hooks';
 import { useEditorPreferencesStore } from '../../stores/editorPreferencesStore';
 import { ErrorBoundary } from '../common/ErrorBoundary';
-import { Mention } from './Mention';
+import { docsEditorSchema } from './schema';
 import { EditorDictationButton } from './EditorDictationButton';
 import { SuggestionPopover } from './SuggestionPopover';
 import { isDocAIForked } from '../../lib/aiExtension';
@@ -138,15 +132,6 @@ const EDITOR_DOM_ATTRIBUTES = {
 const EDITOR_TIPTAP_OPTIONS = {
   editorProps: { scrollThreshold: { top: 0, left: 0, right: 0, bottom: 72 } },
 };
-
-const schema = BlockNoteSchema.create({
-  blockSpecs: defaultBlockSpecs,
-  inlineContentSpecs: {
-    ...defaultInlineContentSpecs,
-    mention: Mention,
-  },
-  styleSpecs: defaultStyleSpecs,
-});
 
 const BlockNoteEditorInner = ({
   documentId,
@@ -328,7 +313,7 @@ const BlockNoteEditorInner = ({
   ]);
 
   const baseEditorOptions = {
-    schema,
+    schema: docsEditorSchema,
     tables: {
       splitCells: true,
       cellBackgroundColor: true,

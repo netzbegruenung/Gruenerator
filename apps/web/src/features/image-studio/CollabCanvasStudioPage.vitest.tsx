@@ -6,6 +6,7 @@ import { act, useSyncExternalStore } from 'react';
 import { Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { useAuthStore } from '../../stores/authStore';
 import { renderWithProviders, screen } from '../../test-utils';
 
 const collab = vi.hoisted(() => ({
@@ -16,7 +17,10 @@ const collab = vi.hoisted(() => ({
     isConnected: false,
     authError: null as string | null,
   },
-  editorProps: [] as Array<{ collaborative?: { previewBeforeSync?: boolean } }>,
+  editorProps: [] as Array<{
+    collaborative?: { previewBeforeSync?: boolean };
+    onInvitePeople?: () => void;
+  }>,
   listeners: new Set<() => void>(),
 }));
 
@@ -40,6 +44,7 @@ vi.mock('@gruenerator/canvas-editor', () => ({
   MasterCanvasEditor: (props: {
     chromeCenter?: React.ReactNode;
     collaborative?: { previewBeforeSync?: boolean };
+    onInvitePeople?: () => void;
   }) => {
     collab.editorProps.push(props);
     return <div>{props.chromeCenter}</div>;
@@ -120,6 +125,20 @@ afterEach(() => {
 });
 
 describe('CollabCanvasStudioPage', () => {
+  it('offers the people share dialog to the owner', async () => {
+    useAuthStore.setState({ user: { id: 'u1' } as never });
+    renderPage('/studio/canvas/c1');
+    await screen.findByText('Radwege');
+    expect(collab.editorProps.at(-1)?.onInvitePeople).toBeTypeOf('function');
+  });
+
+  it('hides it from someone the canvas was shared with', async () => {
+    useAuthStore.setState({ user: { id: 'u2' } as never });
+    renderPage('/studio/canvas/c1');
+    await screen.findByText('Radwege');
+    expect(collab.editorProps.at(-1)?.onInvitePeople).toBeUndefined();
+  });
+
   it('previews a fresh canvas and drops the flag from the URL once synced', async () => {
     renderPage('/studio/canvas/c1?fresh=1&embedded=1');
     await screen.findByText('Radwege');
