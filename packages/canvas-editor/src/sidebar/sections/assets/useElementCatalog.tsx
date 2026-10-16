@@ -49,7 +49,7 @@ export interface CatalogCategory {
 
 // --- Item builders (pure; the action carries everything a click or drop needs) ---
 
-function assetItem(asset: UniversalAsset): ElementItem {
+export function assetItem(asset: UniversalAsset): ElementItem {
   return {
     key: `asset:${asset.id}`,
     label: asset.label,
@@ -59,7 +59,7 @@ function assetItem(asset: UniversalAsset): ElementItem {
   };
 }
 
-const SHAPE_ITEMS: ElementItem[] = ALL_PALETTE_SHAPES.map((shape) => {
+export const SHAPE_ITEMS: ElementItem[] = ALL_PALETTE_SHAPES.map((shape) => {
   const def = getShapeDef(shape.id);
   return {
     key: `shape:${shape.id}`,
@@ -70,7 +70,7 @@ const SHAPE_ITEMS: ElementItem[] = ALL_PALETTE_SHAPES.map((shape) => {
   };
 });
 
-const CHART_ITEMS: ElementItem[] = CHART_TYPE_DEFS.map((def) => ({
+export const CHART_ITEMS: ElementItem[] = CHART_TYPE_DEFS.map((def) => ({
   key: `chart:${def.id}`,
   label: def.name,
   keywords: def.tags,
@@ -78,7 +78,7 @@ const CHART_ITEMS: ElementItem[] = CHART_TYPE_DEFS.map((def) => ({
   thumb: { t: 'chart', chartType: def.id },
 }));
 
-const FRAME_ITEMS: ElementItem[] = [...FRAME_PRESETS]
+export const FRAME_ITEMS: ElementItem[] = [...FRAME_PRESETS]
   .sort(
     (a, b) =>
       FRAME_CATEGORY_ORDER.indexOf(getFramePreset(a.id).category) -
@@ -92,13 +92,14 @@ const FRAME_ITEMS: ElementItem[] = [...FRAME_PRESETS]
     thumb: { t: 'frame', clipType: preset.id },
   }));
 
-const EMOJI_ITEMS: ElementItem[] = EMOJI_ASSETS.map(assetItem);
+export const EMOJI_ITEMS: ElementItem[] = EMOJI_ASSETS.map(assetItem);
 
-function illustrationItem(def: IllustrationDef): ElementItem {
+export function illustrationItem(def: IllustrationDef): ElementItem {
   return {
     key: `illustration:${def.id}`,
     label: def.name,
-    keywords: def.tags,
+    // The German category ("Menschen", "Natur") is often the only German word on an undraw entry.
+    keywords: def.source !== 'kawaii' && def.category ? [...def.tags, def.category] : def.tags,
     action: { kind: 'illustration', id: def.id },
     thumb: def.source === 'kawaii' ? { t: 'kawaii', id: def.id } : { t: 'svg', def },
   };
@@ -110,7 +111,7 @@ const FEATURED_ILLUSTRATION_ITEMS: ElementItem[] = [
   ...UNDRAW_FEATURED,
 ].map(illustrationItem);
 
-function iconItem(icon: IconDef): ElementItem {
+export function iconItem(icon: IconDef): ElementItem {
   return {
     key: `icon:${icon.id}`,
     label: icon.name,
