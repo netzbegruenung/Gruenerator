@@ -43,6 +43,10 @@ export function PrintVorlageCard({
           <span className={BADGE}>{seiten} Seiten</span>
         ) : undefined
       }
+      // Page n > 1 of a print Vorlage previews as `<thumb>-n.webp`.
+      pages={Array.from({ length: seiten }, (_, i) =>
+        i === 0 ? vorlage.thumb : vorlage.thumb.replace(/\.webp$/, `-${i + 1}.webp`)
+      )}
       onOpen={() => onOpen(vorlage)}
     />
   );

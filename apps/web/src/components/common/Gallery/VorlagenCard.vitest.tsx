@@ -88,3 +88,38 @@ describe('VorlagenCard', () => {
     expect(container.querySelector('svg.lucide-image')).not.toBeNull();
   });
 });
+
+describe('VorlagenCard pages', () => {
+  const pages = ['/p1.webp', '/p2.webp', '/p3.webp'];
+
+  function renderCard(cardPages?: string[]) {
+    render(
+      <VorlagenCard
+        item={{ ...item, thumbnail_url: '/p1.webp' }}
+        pages={cardPages}
+        onOpen={vi.fn()}
+      />
+    );
+    const img = screen.getByRole('img', { name: 'Dreizeiler' });
+    const stage = img.parentElement!;
+    vi.spyOn(stage, 'getBoundingClientRect').mockReturnValue({ left: 0, width: 300 } as DOMRect);
+    return { img, stage };
+  }
+
+  it('shows the page under the pointer, and page 1 again on leave', () => {
+    const { img, stage } = renderCard(pages);
+    expect(img).toHaveAttribute('src', '/p1.webp');
+    fireEvent.pointerMove(stage, { clientX: 150 });
+    expect(img).toHaveAttribute('src', '/p2.webp');
+    fireEvent.pointerMove(stage, { clientX: 299 });
+    expect(img).toHaveAttribute('src', '/p3.webp');
+    fireEvent.pointerLeave(stage);
+    expect(img).toHaveAttribute('src', '/p1.webp');
+  });
+
+  it('stays on its thumbnail without further pages', () => {
+    const { img, stage } = renderCard();
+    fireEvent.pointerMove(stage, { clientX: 299 });
+    expect(img).toHaveAttribute('src', '/p1.webp');
+  });
+});

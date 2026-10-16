@@ -29,6 +29,8 @@ export interface VorlagenCardProps {
   /** Top-right overlay actions menu (e.g. the 3-dot dropdown on "Meine Vorlagen"). */
   menu?: ReactNode;
   onOpen: () => void;
+  /** Every page's preview in order, for a multi-page Vorlage: moving the pointer across the stage shows them. */
+  pages?: string[];
   /** Opens the external/source URL directly (overlay action). Omitted when none exists. */
   onOpenExternal?: () => void;
   /** Whether the current user has liked this template. */
@@ -68,6 +70,7 @@ const VorlagenCard = memo(
     badge,
     menu,
     onOpen,
+    pages,
     onOpenExternal,
     liked = false,
     onToggleLike,
@@ -87,6 +90,10 @@ const VorlagenCard = memo(
     // A thumbnail that fails to load shows the neutral placeholder, not a broken image.
     const [failedUrl, setFailedUrl] = useState<string | null>(null);
     const showThumbnail = Boolean(thumbnailUrl) && failedUrl !== thumbnailUrl;
+    // Page under the pointer; null while the pointer is elsewhere (page 1 shows).
+    const [scrubbed, setScrubbed] = useState<number | null>(null);
+    const pageCount = pages && pages.length > 1 ? pages.length : 0;
+    const shownUrl = (scrubbed !== null && resolveApiAssetUrl(pages?.[scrubbed])) || thumbnailUrl;
     const format = getTemplateFormat(item, stored ?? measured);
     const title = item.title || 'Unbenannte Vorlage';
     const likesCount = typeof item.likes_count === 'number' ? item.likes_count : 0;
@@ -97,14 +104,25 @@ const VorlagenCard = memo(
     return (
       <InteractiveCard label={title} onActivate={onOpen} className={galleryCard}>
         {/* Square neutral stage — the thumbnail is contained, never cropped. */}
-        <div className="relative flex aspect-square w-full items-center justify-center overflow-hidden bg-background-alt">
-          {thumbnailUrl && showThumbnail ? (
+        <div
+          className="relative flex aspect-square w-full items-center justify-center overflow-hidden bg-background-alt"
+          {...(pageCount > 0 && {
+            onPointerMove: (e: React.PointerEvent<HTMLDivElement>) => {
+              const { left, width } = e.currentTarget.getBoundingClientRect();
+              const x = (e.clientX - left) / width;
+              setScrubbed(Math.min(pageCount - 1, Math.max(0, Math.floor(x * pageCount))));
+            },
+            onPointerLeave: () => setScrubbed(null),
+          })}
+        >
+          {thumbnailUrl && shownUrl && showThumbnail ? (
             // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- onLoad misst nur die Bildmaße, keine Bedienung
             <img
-              src={thumbnailUrl}
+              src={shownUrl}
               alt={title}
               loading="lazy"
               onLoad={(e) => {
+                if (shownUrl !== thumbnailUrl) return;
                 if (stored || measuredRatios.has(thumbnailUrl)) return;
                 const { naturalWidth, naturalHeight } = e.currentTarget;
                 const label = ratioLabelFromSize(naturalWidth, naturalHeight);
@@ -117,6 +135,20 @@ const VorlagenCard = memo(
             />
           ) : (
             <ImageIcon className="size-8 text-grey-400" aria-hidden="true" />
+          )}
+
+          {pageCount > 0 && scrubbed !== null && (
+            <div aria-hidden className="absolute inset-x-3 bottom-2.5 flex gap-1">
+              {pages?.map((url, i) => (
+                <span
+                  key={url}
+                  className={cn(
+                    'h-1 flex-1 rounded-full',
+                    i === scrubbed ? 'bg-grey-700 dark:bg-grey-200' : 'bg-grey-300 dark:bg-grey-600'
+                  )}
+                />
+              ))}
+            </div>
           )}
 
           {hasOverlay && (
