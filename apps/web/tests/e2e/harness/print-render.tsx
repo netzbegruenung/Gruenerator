@@ -8,11 +8,7 @@
  * part of the production build.
  */
 import { getCanvasFormat, isPrintFormat, printGeometry } from '@gruenerator/canvas-editor';
-import {
-  composePrint,
-  ensureFontsReady,
-  PRINT_VORLAGEN,
-} from '@gruenerator/canvas-editor/composer';
+import { composePrint, ensureFontsReady } from '@gruenerator/canvas-editor/composer';
 import { printSpecSchema } from '@gruenerator/contracts';
 
 import { renderSharepicToImage } from '../../../src/features/image-studio/renderSharepicToImage';
@@ -48,8 +44,6 @@ async function cropToTrim(dataUrl: string, formatId: string, width: number): Pro
 }
 
 window.__printHarness = {
-  vorlagen: () => PRINT_VORLAGEN.map(({ id, spec }) => ({ id, spec })),
-
   async render(spec, width) {
     const parsed = printSpecSchema.safeParse(spec);
     if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'invalid spec' };

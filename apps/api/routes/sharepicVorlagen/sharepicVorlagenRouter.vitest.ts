@@ -19,6 +19,9 @@ const m = vi.hoisted(() => ({
   listCanvasVorlagen: vi.fn((locale: string) => [{ id: `canvas-${locale}` }]),
   getCanvasVorlage: vi.fn(),
   canvasVorlageThumbFile: vi.fn(),
+  listPrintVorlagen: vi.fn((locale: string) => [{ id: `print-${locale}` }]),
+  getPrintVorlage: vi.fn(),
+  printVorlageThumbFile: vi.fn(),
 }));
 
 vi.mock('../../utils/adminAuthz.js', () => ({ isInstanceAdmin: m.isInstanceAdmin }));
@@ -32,6 +35,9 @@ vi.mock('../../services/sharepicVorlagen/catalog.js', () => ({
   listCanvasVorlagen: m.listCanvasVorlagen,
   getCanvasVorlage: m.getCanvasVorlage,
   canvasVorlageThumbFile: m.canvasVorlageThumbFile,
+  listPrintVorlagen: m.listPrintVorlagen,
+  getPrintVorlage: m.getPrintVorlage,
+  printVorlageThumbFile: m.printVorlageThumbFile,
 }));
 
 const { sharepicVorlagenContractRouter, mountSharepicVorlagenRouter } =
@@ -74,6 +80,8 @@ function requestThumb(query: Record<string, string>, route = '/api/sharepic-vorl
   m.sharepicSeiteThumbFile.mockReturnValue(thumbFile);
   m.getCanvasVorlage.mockReturnValue({ id: 'de-rad', thumbVersion: 'abc123abc123' });
   m.canvasVorlageThumbFile.mockReturnValue(thumbFile);
+  m.getPrintVorlage.mockReturnValue({ id: 'de-rad', thumbVersion: 'abc123abc123' });
+  m.printVorlageThumbFile.mockReturnValue(thumbFile);
   let handler: (req: unknown, res: unknown) => void = () => {};
   mountSharepicVorlagenRouter({
     get: (path: string, h: typeof handler) => {
@@ -171,4 +179,19 @@ it('serves a canvas Vorlage preview, immutable with the current version', () => 
   expect(requestThumb({ v: 'abc123abc123' }, route)).toBe('private, max-age=31536000, immutable');
   expect(m.canvasVorlageThumbFile).toHaveBeenLastCalledWith('de-rad');
   expect(requestThumb({}, route)).toBe('private, no-cache');
+});
+
+it('lists the print Vorlagen of the viewer country and serves a card back by `seite`', async () => {
+  const print = (
+    sharepicVorlagenContractRouter.print as unknown as (
+      args: unknown
+    ) => Promise<{ body: { vorlagen: Array<{ id: string }> } }>
+  )({ req: { user: { id: 'viewer', locale: 'de-DE' }, headers: {} }, query: {} });
+  expect((await print).body.vorlagen).toEqual([{ id: 'print-de-DE' }]);
+
+  const route = '/api/sharepic-vorlagen/print/:id/thumb';
+  expect(requestThumb({ seite: '2', v: 'abc123abc123' }, route)).toBe(
+    'private, max-age=31536000, immutable'
+  );
+  expect(m.printVorlageThumbFile).toHaveBeenLastCalledWith('de-rad', 2);
 });

@@ -7,11 +7,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   canvasVorlageThumbFile,
   getCanvasVorlage,
+  getPrintVorlage,
   getSharepicSeite,
   getSharepicVorlage,
   listCanvasVorlagen,
+  listPrintVorlagen,
   listSharepicSeiten,
   listSharepicVorlagen,
+  printVorlageThumbFile,
   resetSharepicVorlagenCache,
   sharepicSeiteThumbFile,
   sharepicVorlageThumbFile,
@@ -322,5 +325,67 @@ describe('canvas Vorlagen catalogue', () => {
     resetSharepicVorlagenCache();
     expect(canvasVorlageThumbFile('sticker-danke')).toBe(thumb);
     expect(getCanvasVorlage('sticker-danke')?.thumbVersion).toEqual(expect.any(String));
+  });
+});
+
+const printEntry = (
+  id: string,
+  locale: 'de-DE' | 'de-AT',
+  impressum: Record<string, string> | null = null
+) => ({
+  id,
+  titel: `Titel ${id}`,
+  beschreibung: '',
+  spec: impressum
+    ? {
+        locale,
+        produkt: 'plakat',
+        variante: 'typo',
+        format: 'print-a3-hoch',
+        impressum,
+        slots: { headline: 'Hier steht deine Botschaft' },
+      }
+    : {
+        locale,
+        produkt: 'visitenkarte',
+        variante: 'visitenkarte',
+        format: 'print-visitenkarte-quer',
+        impressum: null,
+        slots: { name: 'Vorname Nachname' },
+      },
+});
+
+describe('print Vorlagen catalogue', () => {
+  const visdp = { art: 'visdp', name: 'Vorname Nachname', anschrift: 'Straße Nr., PLZ Ort' };
+
+  it('keeps the countries apart and skips the wrong country and a filled-in impressum', () => {
+    writeCatalog({
+      'print/de.json': [
+        printEntry('de-karte', 'de-DE'),
+        printEntry('de-plakat', 'de-DE', visdp),
+        printEntry('falsches-land', 'de-AT'),
+        printEntry('echt', 'de-DE', { ...visdp, name: 'Anna Muster' }),
+      ],
+      'print/at.json': [printEntry('at-karte', 'de-AT')],
+    });
+    expect(listPrintVorlagen('de-DE').map((v) => v.id)).toEqual(['de-karte', 'de-plakat']);
+    expect(getPrintVorlage('at-karte')).toMatchObject({ locale: 'de-AT' });
+    expect(listPrintVorlagen(null)).toHaveLength(3);
+  });
+
+  it('resolves a preview per printed page: front and back of a card, the front of a poster', () => {
+    writeCatalog({
+      'print/de.json': [printEntry('de-karte', 'de-DE'), printEntry('de-plakat', 'de-DE', visdp)],
+    });
+    expect(printVorlageThumbFile('de-karte', 2)).toBe(
+      path.join(root, 'sharepic-vorlagen', 'thumbs', 'print', 'de-karte-2.webp')
+    );
+    expect(printVorlageThumbFile('de-plakat', 2)).toBeNull();
+    expect(printVorlageThumbFile('unbekannt')).toBeNull();
+
+    mkdirSync(path.join(root, 'sharepic-vorlagen', 'thumbs', 'print'), { recursive: true });
+    writeFileSync(path.join(root, 'sharepic-vorlagen', 'thumbs', 'print', 'de-karte.webp'), 'a');
+    resetSharepicVorlagenCache();
+    expect(getPrintVorlage('de-karte')?.thumbVersion).toEqual(expect.any(String));
   });
 });

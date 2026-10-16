@@ -1,28 +1,31 @@
 /**
- * Renders the print Vorlagen (`PRINT_VORLAGEN`) through the editor's own
- * renderer (harness `tests/e2e/harness/print-render.html`) and writes
+ * Renders the print Vorlagen of the private content checkout
+ * (`$INTERN_CONTENT_DIR/sharepic-vorlagen/print/{de,at}.json`) through the
+ * editor's own renderer (harness `tests/e2e/harness/print-render.html`) and
+ * writes beside them
  *
- *   apps/web/public/vorlagen/print/<id>.webp     front side, the gallery thumbnail
- *   apps/web/public/vorlagen/print/<id>-2.webp   back side of a two-page product
+ *   thumbs/print/<id>.webp     front side, the gallery thumbnail
+ *   thumbs/print/<id>-2.webp   back side of a two-page product
  *
- * cropped to the trimmed format, 540 px wide, without bleed or guides.
+ * cropped to the trimmed format, 540 px wide, without bleed or guides. A spec
+ * that does not parse or compose fails the run.
  *
  * Needs the web dev server (`VITE_DEV_PORT=3100 pnpm dev`):
- *   HARNESS_URL=http://localhost:3100 npx tsx apps/web/tests/e2e/harness/render-print-vorlagen.ts
+ *   INTERN_CONTENT_DIR=… HARNESS_URL=http://localhost:3100 \
+ *     npx tsx apps/web/tests/e2e/harness/render-print-vorlagen.ts
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import { chromium } from '@playwright/test';
 
 import type {} from './printHarness.js';
 
 const base = process.env.HARNESS_URL ?? 'http://localhost:3000';
-const outDir = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  '../../../public/vorlagen/print'
-);
+const root = process.env.INTERN_CONTENT_DIR;
+if (!root) throw new Error('INTERN_CONTENT_DIR is not set');
+const dir = path.join(root, 'sharepic-vorlagen');
+const outDir = path.join(dir, 'thumbs', 'print');
 const THUMB_WIDTH = 540;
 
 const decode = (dataUrl: string): Buffer => Buffer.from(dataUrl.split(',')[1]!, 'base64');
@@ -32,7 +35,12 @@ const browser = await chromium.launch();
 const page = await browser.newPage();
 await page.goto(`${base}/tests/e2e/harness/print-render.html`);
 await page.waitForFunction(() => window.__printHarness != null);
-const entries = await page.evaluate(() => window.__printHarness!.vorlagen());
+const entries = ['de.json', 'at.json'].flatMap((name) => {
+  const file = path.join(dir, 'print', name);
+  return existsSync(file)
+    ? (JSON.parse(readFileSync(file, 'utf8')) as { id: string; spec: unknown }[])
+    : [];
+});
 
 let failed = 0;
 for (const entry of entries) {

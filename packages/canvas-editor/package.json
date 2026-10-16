@@ -30,11 +30,6 @@
       "require": "./src/composer/index.ts",
       "types": "./src/composer/index.ts"
     },
-    "./print-vorlagen": {
-      "import": "./src/composer/printVorlagen.ts",
-      "require": "./src/composer/printVorlagen.ts",
-      "types": "./src/composer/printVorlagen.ts"
-    },
     "./configs/*": "./src/configs/*",
     "./pixelHitArea": {
       "import": "./src/utils/pixelHitArea.ts",

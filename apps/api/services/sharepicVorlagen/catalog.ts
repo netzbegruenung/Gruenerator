@@ -4,7 +4,8 @@
  * one file per country, plus `thumbs/<id>.webp`. The single Seiten sit beside
  * them in `seiten/{de,at}.json` with `thumbs/seiten/<id>.<format>.webp`. The
  * Vorlagen saved as editor pages, for every format, are `canvas/{de,at}.json`
- * with `thumbs/canvas/<id>.webp`.
+ * with `thumbs/canvas/<id>.webp`; the print Vorlagen `print/{de,at}.json` with
+ * `thumbs/print/<id>.webp` (and `<id>-2.webp` for a card's back).
  *
  * The editor offers only single Seiten: every Vorlage slide is one too
  * (`<vorlage>-s<n>`, previewed by the Vorlage's slide thumbnail), unless a
@@ -24,6 +25,9 @@ import path from 'node:path';
 
 import {
   canvasVorlageFileEntrySchema,
+  printImpressumIsPlaceholder,
+  printSeitenOf,
+  printVorlageFileEntrySchema,
   isSharepicSceneRef,
   isSharepicUploadId,
   sharepicFormatSchema,
@@ -33,6 +37,7 @@ import {
   sharepicVorlageIdSchema,
   slidePhotoFilename,
   type CanvasVorlage,
+  type PrintVorlage,
   type SharepicFormat,
   type SharepicSeite,
   type SharepicSeiteRolle,
@@ -62,6 +67,7 @@ interface Catalog {
   /** Preview file of each Seite taken from a Vorlage slide. */
   derivedThumbs: Map<string, string>;
   canvas: CanvasVorlage[];
+  print: PrintVorlage[];
 }
 
 let cache: Catalog | null = null;
@@ -98,9 +104,11 @@ function contentSignature(): string {
     ...Object.values(FILES).map((name) => statKey(path.join(dir(), name))),
     ...Object.values(FILES).map((name) => statKey(path.join(dir(), 'seiten', name))),
     ...Object.values(FILES).map((name) => statKey(path.join(dir(), 'canvas', name))),
+    ...Object.values(FILES).map((name) => statKey(path.join(dir(), 'print', name))),
     ...dirSignature(path.join(dir(), 'thumbs')),
     ...dirSignature(path.join(dir(), 'thumbs', 'seiten')),
     ...dirSignature(path.join(dir(), 'thumbs', 'canvas')),
+    ...dirSignature(path.join(dir(), 'thumbs', 'print')),
   ].join('|');
 }
 
@@ -310,6 +318,33 @@ function seitenWithVorlagen(
   };
 }
 
+const printThumbFile = (id: string, seite: number): string =>
+  path.join(dir(), 'thumbs', 'print', thumbName(id, seite));
+
+function loadPrint(locale: SharepicCreatorLocale): PrintVorlage[] {
+  const file = path.join(dir(), 'print', FILES[locale]);
+  return readArray(file, 'print Vorlagen').flatMap((item, i) => {
+    const parsed = printVorlageFileEntrySchema.safeParse(item);
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      log.error(`${file}[${i}] skipped: ${issue?.path.join('.')} ${issue?.message ?? 'invalid'}`);
+      return [];
+    }
+    const { spec, id } = parsed.data;
+    if (spec.locale !== locale) {
+      log.error(`${file}[${i}] skipped: spec.locale ${spec.locale} in the ${locale} file`);
+      return [];
+    }
+    // The export gate only recognises the shared placeholders as „not filled in“.
+    if (!printImpressumIsPlaceholder(spec)) {
+      log.error(`${file}[${i}] skipped: impressum holds no PRINT_IMPRESSUM_PLACEHOLDERS value`);
+      return [];
+    }
+    const seiten = Array.from({ length: printSeitenOf(spec) }, (_, s) => printThumbFile(id, s + 1));
+    return [{ ...parsed.data, locale, thumbVersion: thumbVersionOf(seiten) }];
+  });
+}
+
 /** Drops (and logs) every entry whose id came earlier. */
 function uniqueIds<T extends { id: string }>(entries: T[], what: string): T[] {
   const seen = new Set<string>();
@@ -338,9 +373,10 @@ function all(): Catalog {
       vorlagen,
       ...seitenWithVorlagen(curated, vorlagen),
       canvas: uniqueIds([...loadCanvas('de-DE'), ...loadCanvas('de-AT')], 'canvas Vorlage'),
+      print: uniqueIds([...loadPrint('de-DE'), ...loadPrint('de-AT')], 'print Vorlage'),
     };
     log.info(
-      `Loaded ${cache.vorlagen.length} sharepic Vorlage(n), ${cache.seiten.length} Seite(n) and ${cache.canvas.length} canvas Vorlage(n) from ${dir()}`
+      `Loaded ${cache.vorlagen.length} sharepic Vorlage(n), ${cache.seiten.length} Seite(n), ${cache.canvas.length} canvas and ${cache.print.length} print Vorlage(n) from ${dir()}`
     );
   }
   return cache;
@@ -405,6 +441,25 @@ export function getCanvasVorlage(id: string): CanvasVorlage | null {
 /** Absolute path of a canvas Vorlage's preview, or null for an unknown id. May be missing. */
 export function canvasVorlageThumbFile(id: string): string | null {
   return getCanvasVorlage(id) ? canvasThumbFile(id) : null;
+}
+
+/** The country's print Vorlagen, or both countries' when `locale` is null. */
+export function listPrintVorlagen(locale: SharepicCreatorLocale | null): PrintVorlage[] {
+  const { print } = all();
+  return locale ? print.filter((v) => v.locale === locale) : print;
+}
+
+export function getPrintVorlage(id: string): PrintVorlage | null {
+  return all().print.find((v) => v.id === id) ?? null;
+}
+
+/** Absolute path of a print page's preview (1-based), or null for an unknown id or page. May be missing. */
+export function printVorlageThumbFile(id: string, seite = 1): string | null {
+  const vorlage = getPrintVorlage(id);
+  if (!vorlage || !Number.isInteger(seite) || seite < 1 || seite > printSeitenOf(vorlage.spec)) {
+    return null;
+  }
+  return printThumbFile(id, seite);
 }
 
 /** Tests only. */

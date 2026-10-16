@@ -1,4 +1,4 @@
-import { canvasFormatIdSchema } from '@gruenerator/contracts';
+import { canvasFormatIdSchema, printSeitenOf, type PrintSpec } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -25,6 +25,13 @@ describe('Format-Ids', () => {
     expect(CANVAS_FORMATS.map((f) => f.id).sort()).toEqual(
       [...canvasFormatIdSchema.options].sort()
     );
+  });
+
+  it('give a print product as many pages as printSeitenOf (the Vorlagen previews)', () => {
+    for (const f of CANVAS_FORMATS.filter(isPrintFormat)) {
+      const produkt = f.id.includes('visitenkarte') ? 'visitenkarte' : 'plakat';
+      expect(printSeitenOf({ produkt } as PrintSpec), f.id).toBe(f.print.seiten);
+    }
   });
 
   // F0: die Ids stehen in gespeicherten Leinwänden. Umbenennen gibt es nicht.

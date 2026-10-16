@@ -6,18 +6,21 @@
  * replaced or asked. A Vorlage's slides come as Seiten of their own and stay
  * together in their order; the ones most like the design come first.
  *
- * Every other format shows whole Vorlagen of exactly its size: the print
- * Vorlagen, which ship with this package, and the canvas Vorlagen — finished
- * pages such as the stickers — from the host (`listCanvas`). A pick lands on
+ * Every other format shows whole Vorlagen of exactly its size, both from the
+ * host: the print Vorlagen (`listPrint`), whose specs compose here
+ * (`composePrint`), and the canvas Vorlagen — finished pages such as the
+ * stickers (`listCanvas`). A pick lands on
  * an empty design straight away; on one with content it asks first — open the
  * Vorlage as a new design, or replace this design with it (one undo step,
  * offered back through the top bar banner).
  */
 import {
   canvasVorlageThumbPath,
+  printVorlageThumbPath,
   sharepicFormatSchema,
   sharepicSeiteThumbPath,
   type CanvasVorlage,
+  type PrintVorlage,
   type SharepicFormat,
   type SharepicSeite,
   type SharepicSeiteTyp,
@@ -52,7 +55,6 @@ import {
   vorlageDeckOps,
 } from '../../collab/vorlageDeck';
 import { composePrint } from '../../composer/composePrint';
-import { printVorlagenFor, type PrintVorlage } from '../../composer/printVorlagen';
 import { getCanvasFormat, isPrintFormat, type PrintCanvasFormat } from '../../formats';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
 import { useCanvasStoreSelector } from '../../stores/CanvasStoreProvider';
@@ -106,14 +108,13 @@ type Load<T> = { status: 'loading' } | { status: 'error' } | { status: 'ready'; 
 function printCard(
   vorlage: PrintVorlage,
   format: PrintCanvasFormat,
-  service: CanvasVorlagenService
+  openPrintAsNew: CanvasVorlagenService['openPrintAsNew']
 ): VorlageCard {
-  const { openPrintAsNew } = service;
   return {
     id: vorlage.id,
     titel: vorlage.titel,
     beschreibung: vorlage.beschreibung,
-    thumb: vorlage.thumb,
+    thumb: printVorlageThumbPath(vorlage.id, 1, vorlage.thumbVersion),
     seiten: format.print.seiten,
     // Composing measures text in the brand fonts, like the gallery's „Verwenden".
     compose: async () => {
@@ -322,7 +323,7 @@ export function VorlagenSection({
   onShowPage,
   canAddPage,
 }: VorlagenSectionProps) {
-  const { vorlagen: service, userLocale = 'de-DE' } = useCanvasEditorServices();
+  const { vorlagen: service } = useCanvasEditorServices();
   const canDrag = !useIsCanvasMobile();
   const setPending = useCanvasStoreSelector((s) => s.setPendingAiSuggestion);
   // Ranked against the design as it was when the tab opened: a pick must not
@@ -334,8 +335,8 @@ export function VorlagenSection({
   const [seitenLoad, setSeitenLoad] = useState<Load<SeiteTile>>({ status: 'loading' });
   const [seitenAttempt, setSeitenAttempt] = useState(0);
   const [typ, setTyp] = useState<SharepicSeiteTyp | 'alle'>('alle');
-  const [canvasLoad, setCanvasLoad] = useState<Load<VorlageCard>>({ status: 'loading' });
-  const [canvasAttempt, setCanvasAttempt] = useState(0);
+  const [wholeLoad, setWholeLoad] = useState<Load<VorlageCard>>({ status: 'loading' });
+  const [wholeAttempt, setWholeAttempt] = useState(0);
 
   const format = getCanvasFormat(formatId);
   const printFormat = format && isPrintFormat(format) ? format : null;
@@ -344,6 +345,8 @@ export function VorlagenSection({
   const listSeiten = service?.listSeiten;
   const composeSeite = service?.composeSeite;
   const listCanvas = service?.listCanvas;
+  const listPrint = service?.listPrint;
+  const openPrintAsNew = service?.openPrintAsNew;
 
   useEffect(() => {
     if (!listSeiten || !seitenFormat) return;
@@ -367,38 +370,39 @@ export function VorlagenSection({
     };
   }, [listSeiten, seitenFormat, seitenAttempt, atOpen]);
 
-  // Sharepic formats are built from Seiten; every other format gets its canvas Vorlagen.
+  // Sharepic formats are built from Seiten; every other format gets its whole Vorlagen.
   useEffect(() => {
-    if (seitenFormat || !listCanvas) return;
+    if (seitenFormat) return;
     let live = true;
-    listCanvas().then(
-      (vorlagen) => {
-        if (live) {
-          setCanvasLoad({
-            status: 'ready',
-            items: vorlagen.filter((v) => v.format === formatId).map(canvasCard),
-          });
-        }
+    // On a print format the print Vorlagen of the format come first.
+    const print: Promise<VorlageCard[]> =
+      printFormat && listPrint
+        ? listPrint().then((vorlagen) =>
+            vorlagen
+              .filter((v) => v.spec.format === printFormat.id)
+              .map((v) => printCard(v, printFormat, openPrintAsNew))
+          )
+        : Promise.resolve([]);
+    const canvas: Promise<VorlageCard[]> = listCanvas
+      ? listCanvas().then((vorlagen) =>
+          vorlagen.filter((v) => v.format === formatId).map(canvasCard)
+        )
+      : Promise.resolve([]);
+    Promise.all([print, canvas]).then(
+      ([fromPrint, fromPages]) => {
+        if (live) setWholeLoad({ status: 'ready', items: [...fromPrint, ...fromPages] });
       },
       (err: unknown) => {
-        console.warn('[VorlagenSection] loading the canvas Vorlagen failed', err);
-        if (live) setCanvasLoad({ status: 'error' });
+        console.warn('[VorlagenSection] loading the Vorlagen failed', err);
+        if (live) setWholeLoad({ status: 'error' });
       }
     );
     return () => {
       live = false;
     };
-  }, [listCanvas, seitenFormat, formatId, canvasAttempt]);
+  }, [listPrint, listCanvas, openPrintAsNew, seitenFormat, printFormat, formatId, wholeAttempt]);
 
-  // One print Vorlage per format and country, shipped with the package: nothing to load or rank.
-  const printCards =
-    printFormat && service
-      ? printVorlagenFor(userLocale)
-          .filter((v) => v.spec.format === printFormat.id)
-          .map((v) => printCard(v, printFormat, service))
-      : [];
-  const canvas: Load<VorlageCard> = listCanvas ? canvasLoad : { status: 'ready', items: [] };
-  const wholeCards = [...printCards, ...(canvas.status === 'ready' ? canvas.items : [])];
+  const wholeCards = wholeLoad.status === 'ready' ? wholeLoad.items : [];
 
   const apply = async (vorlage: VorlageCard, replacing: boolean) => {
     setBusyId(vorlage.id);
@@ -487,15 +491,15 @@ export function VorlagenSection({
   );
 
   const wholeView =
-    canvas.status === 'error' ? (
+    wholeLoad.status === 'error' ? (
       <LoadError
         text="Vorlagen konnten nicht geladen werden."
         onRetry={() => {
-          setCanvasLoad({ status: 'loading' });
-          setCanvasAttempt((n) => n + 1);
+          setWholeLoad({ status: 'loading' });
+          setWholeAttempt((n) => n + 1);
         }}
       />
-    ) : canvas.status === 'loading' && wholeCards.length === 0 ? (
+    ) : wholeLoad.status === 'loading' ? (
       <LoadingGrid aspect={aspect} aspectStyle={aspectStyle} label="Vorlagen laden" />
     ) : wholeCards.length === 0 ? (
       <p className={HINT}>Für dieses Format gibt es noch keine Vorlagen.</p>

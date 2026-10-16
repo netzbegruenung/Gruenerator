@@ -1,7 +1,7 @@
-import { printVorlagenFor, type PrintVorlage } from '@gruenerator/canvas-editor/print-vorlagen';
 import {
   GRUENERATOR_TEMPLATE_TYPE,
   sharepicCreatorLocaleSchema,
+  type PrintVorlage,
   type SharepicCreatorLocale,
 } from '@gruenerator/contracts';
 import { Button } from '@gruenerator/ui';
@@ -25,7 +25,10 @@ import {
 } from '../../../features/vorlagen/components/SharepicVorlagenSection';
 import { useGrueneratorVorlage } from '../../../features/vorlagen/hooks/useGrueneratorVorlage';
 import { usePrintVorlage } from '../../../features/vorlagen/hooks/usePrintVorlage';
-import { useSharepicVorlagen } from '../../../features/vorlagen/hooks/useSharepicVorlagen';
+import {
+  printVorlagenQuery,
+  useSharepicVorlagen,
+} from '../../../features/vorlagen/hooks/useSharepicVorlagen';
 import { useVorlageInteractions } from '../../../features/vorlagen/hooks/useVorlageInteractions';
 import { useAuthStore } from '../../../stores/authStore';
 import ErrorBoundary from '../../ErrorBoundary';
@@ -349,9 +352,10 @@ const VorlagenGallery = memo((): JSX.Element => {
   // Print Vorlagen have no likes or bookmarks yet, so „nur gemerkte" hides them.
   const showPrint =
     !isMeine && (selectedCategory === ALL_FILTER || isPrint) && tags.length === 0 && !onlyFavorites;
+  const printQuery = useQuery({ ...printVorlagenQuery(land), enabled: showPrint });
   const printVorlagen = useMemo(
-    () => (showPrint ? printVorlagenFor(shownLand).filter((v) => printMatches(v, textQuery)) : []),
-    [showPrint, shownLand, textQuery]
+    () => (showPrint ? (printQuery.data ?? []).filter((v) => printMatches(v, textQuery)) : []),
+    [showPrint, printQuery.data, textQuery]
   );
   const total = items.length + catalog.length + printVorlagen.length;
 

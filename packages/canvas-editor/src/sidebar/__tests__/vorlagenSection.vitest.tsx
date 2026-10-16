@@ -4,13 +4,12 @@ import { createRef } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CanvasEditorProvider, type CanvasVorlagenService } from '../../CanvasEditorProvider';
-import { PRINT_VORLAGEN } from '../../composer/printVorlagen';
 import { defaultCanvasEditorStore } from '../../stores/createCanvasEditorStore';
 import { VORLAGE_DRAG_TYPE } from '../../utils/mediaDrop';
 import { VorlagenSection, type VorlagenSectionHandle } from '../sections/VorlagenSection';
 
 import type { HeterogeneousPage } from '../../configs/types';
-import type { CanvasVorlage, SharepicSeite } from '@gruenerator/contracts';
+import type { CanvasVorlage, PrintVorlage, SharepicSeite } from '@gruenerator/contracts';
 
 function seite(id: string, titel: string, over: Partial<SharepicSeite> = {}): SharepicSeite {
   return {
@@ -59,6 +58,63 @@ const textPage = (id: string): HeterogeneousPage => ({
 const WITH_TEXT = [textPage('p1')];
 const TWO_PAGES = [textPage('p1'), textPage('p2')];
 
+const PLAKAT_SLOTS = {
+  dachzeile: 'Einladung zum Gespräch:',
+  headline: 'Hier steht deine Botschaft',
+  akzent: 'Botschaft',
+  subline: 'Datum, Uhrzeit und Ort',
+};
+
+const PRINT: PrintVorlage[] = [
+  {
+    id: 'de-visitenkarte-quer',
+    titel: 'Visitenkarte quer',
+    beschreibung: '',
+    locale: 'de-DE',
+    spec: {
+      locale: 'de-DE',
+      produkt: 'visitenkarte',
+      variante: 'visitenkarte',
+      format: 'print-visitenkarte-quer',
+      impressum: null,
+      slots: { name: 'Vorname Nachname', funktion: 'Funktion', organisation: 'Ortsverband' },
+    },
+  },
+  {
+    id: 'de-plakat-typo-a3',
+    titel: 'Typo-Plakat A3',
+    beschreibung: '',
+    locale: 'de-DE',
+    spec: {
+      locale: 'de-DE',
+      produkt: 'plakat',
+      variante: 'typo',
+      format: 'print-a3-hoch',
+      impressum: { art: 'visdp', name: 'Vorname Nachname', anschrift: 'Straße Nr., PLZ Ort' },
+      slots: PLAKAT_SLOTS,
+    },
+  },
+  {
+    id: 'at-plakat-typo-a3',
+    titel: 'Typo-Plakat A3',
+    beschreibung: '',
+    locale: 'de-AT',
+    thumbVersion: 'v1',
+    spec: {
+      locale: 'de-AT',
+      produkt: 'plakat',
+      variante: 'typo',
+      format: 'print-a3-hoch',
+      impressum: {
+        art: 'impressum',
+        medieninhaber: 'Name/Organisation',
+        anschrift: 'Straße Nr., PLZ Ort',
+      },
+      slots: PLAKAT_SLOTS,
+    },
+  },
+] as PrintVorlage[];
+
 function setup(
   pages: HeterogeneousPage[],
   {
@@ -77,6 +133,8 @@ function setup(
     listSeiten: vi.fn(async () => SEITEN),
     composeSeite: vi.fn(async () => [SEITE_PAGE]),
     openPrintAsNew: vi.fn(),
+    // Like the host: the viewer's country only.
+    listPrint: vi.fn(async () => PRINT.filter((v) => v.locale === userLocale)),
     ...service,
   };
   const deck = {
@@ -376,13 +434,13 @@ describe('VorlagenSection on a print design', () => {
       state: { additionalTexts: [{ id: 'impressum', text: FILLED }] },
     },
   ];
-  const vorlageById = (id: string) => PRINT_VORLAGEN.find((v) => v.id === id)!;
+  const vorlageById = (id: string) => PRINT.find((v) => v.id === id)!;
 
   it('shows the print Vorlage of the format and the country, not the sharepic catalogue', async () => {
     const { vorlagen } = setup(EMPTY, { formatId: 'print-a3-hoch', userLocale: 'de-AT' });
     const button = await card('Typo-Plakat A3');
     expect(button.closest('li')?.querySelector('img')?.getAttribute('src')).toBe(
-      '/vorlagen/print/at-plakat-typo-a3.webp'
+      '/api/sharepic-vorlagen/print/at-plakat-typo-a3/thumb?v=v1'
     );
     expect(screen.getAllByRole('listitem')).toHaveLength(1);
     expect(vorlagen.listSeiten).not.toHaveBeenCalled();
