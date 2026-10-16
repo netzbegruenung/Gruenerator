@@ -7,7 +7,16 @@
 import Konva from 'konva';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { MEDIA_DRAG_TYPE, isMediaDrag, locateDrop, readMediaDrag } from '../mediaDrop';
+import {
+  ELEMENT_DRAG_TYPE,
+  MEDIA_DRAG_TYPE,
+  isElementDrag,
+  isMediaDrag,
+  locateDrop,
+  readElementDrag,
+  readMediaDrag,
+  type ElementDragPayload,
+} from '../mediaDrop';
 
 function transfer(data: Record<string, string>): DataTransfer {
   return {
@@ -34,6 +43,57 @@ describe('readMediaDrag', () => {
     expect(isMediaDrag(transfer({ Files: '' }))).toBe(false);
     expect(readMediaDrag(transfer({ [MEDIA_DRAG_TYPE]: '{kaputt' }))).toBeNull();
     expect(readMediaDrag(null)).toBeNull();
+  });
+
+  it('trägt die Bildrechte eines Stockfotos mit', () => {
+    const media = {
+      url: 'https://images.unsplash.com/photo-1',
+      name: 'wald',
+      attribution: {
+        photographer: 'Ada',
+        profileUrl: 'https://unsplash.com/@ada',
+        photoUrl: 'https://unsplash.com/photos/1',
+      },
+    };
+    const dt = transfer({ [MEDIA_DRAG_TYPE]: JSON.stringify(media) });
+    expect(readMediaDrag(dt)).toEqual(media);
+  });
+
+  it('liest eine Upload-Kachel von vor den Elementen weiter (ohne kind)', () => {
+    const dt = transfer({
+      [MEDIA_DRAG_TYPE]: JSON.stringify({ url: '/api/share/a/download', name: 'a.jpg' }),
+    });
+    expect(readElementDrag(dt)).toBeNull();
+    expect(readMediaDrag(dt)).toEqual({ url: '/api/share/a/download', name: 'a.jpg' });
+  });
+});
+
+describe('readElementDrag', () => {
+  const payloads: ElementDragPayload[] = [
+    { kind: 'asset', assetId: 'sonnenblume-gelb' },
+    { kind: 'sticker', ref: { id: 'sticker-1', src: '/stickers/1.png' } },
+    { kind: 'shape', shapeType: 'rect', color: '#ff0000' },
+    { kind: 'illustration', id: 'undraw-1' },
+    { kind: 'chart', chartType: 'bar' },
+    { kind: 'frame', clipType: 'circle' },
+    { kind: 'balken', mode: 'triple' },
+  ];
+
+  it.each(payloads)('liest eine $kind-Kachel', (payload) => {
+    const dt = transfer({ [ELEMENT_DRAG_TYPE]: JSON.stringify(payload) });
+    expect(isElementDrag(dt)).toBe(true);
+    expect(isMediaDrag(dt)).toBe(false);
+    expect(readElementDrag(dt)).toEqual(payload);
+  });
+
+  it('verwirft unbekannte Arten und kaputte Daten', () => {
+    expect(
+      readElementDrag(transfer({ [ELEMENT_DRAG_TYPE]: JSON.stringify({ kind: 'video' }) }))
+    ).toBeNull();
+    expect(readElementDrag(transfer({ [ELEMENT_DRAG_TYPE]: JSON.stringify({}) }))).toBeNull();
+    expect(readElementDrag(transfer({ [ELEMENT_DRAG_TYPE]: '{kaputt' }))).toBeNull();
+    expect(readElementDrag(null)).toBeNull();
+    expect(isElementDrag(transfer({ Files: '' }))).toBe(false);
   });
 });
 

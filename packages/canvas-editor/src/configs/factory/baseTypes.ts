@@ -14,7 +14,7 @@ import type { FrameClipType, FrameInstance } from '../../utils/frameUtils';
 import type { IllustrationInstance } from '../../utils/illustrations/types';
 import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '../../utils/shapes';
-import type { UserImageInstance } from '../../utils/userImageUtils';
+import type { ElementPlacement, UserImageInstance } from '../../utils/userImageUtils';
 import type { AdditionalText, LayoutResult } from '../types';
 import type { StickerRef } from '@gruenerator/shared/stickers';
 
@@ -98,8 +98,8 @@ export interface TextStylingState {
 /** Base actions shared by ALL canvas templates */
 export interface BaseCanvasActions {
   // Asset management
-  addAsset: (assetId: string) => void;
-  addStickerAsset: (ref: StickerRef) => void;
+  addAsset: (assetId: string, options?: ElementPlacement) => void;
+  addStickerAsset: (ref: StickerRef, options?: ElementPlacement) => void;
   updateAsset: (id: string, partial: Partial<AssetInstance>) => void;
   removeAsset: (id: string) => void;
 
@@ -108,12 +108,12 @@ export interface BaseCanvasActions {
   updateIcon: (id: string, partial: Partial<IconState>) => void;
 
   // Shape management
-  addShape: (type: ShapeType) => void;
+  addShape: (type: ShapeType, color?: string, options?: ElementPlacement) => void;
   updateShape: (id: string, partial: Partial<ShapeInstance>) => void;
   removeShape: (id: string) => void;
 
   // Illustration management
-  addIllustration: (id: string) => void;
+  addIllustration: (id: string, options?: ElementPlacement) => void;
   updateIllustration: (id: string, partial: Partial<IllustrationInstance>) => void;
   removeIllustration: (id: string) => void;
 
@@ -134,13 +134,13 @@ export interface BaseCanvasActions {
   removeCircleBadge: (id: string) => void;
 
   // Balken management
-  addBalken: (mode: BalkenMode) => void;
+  addBalken: (mode: BalkenMode, options?: ElementPlacement) => void;
   updateBalken: (id: string, partial: Partial<BalkenInstance>) => void;
   setBalkenText: (id: string, index: number, text: string) => void;
   removeBalken: (id: string) => void;
 
   // Frame management
-  addFrame: (clipType: FrameClipType) => void;
+  addFrame: (clipType: FrameClipType, options?: ElementPlacement) => void;
   updateFrame: (id: string, partial: Partial<FrameInstance>) => void;
   removeFrame: (id: string) => void;
   setFrameImage: (id: string, file: File, objectUrl: string) => void;
@@ -151,7 +151,7 @@ export interface BaseCanvasActions {
   removeUserImage: (id: string) => void;
 
   // Chart management
-  addChart: (chartType: ChartType) => void;
+  addChart: (chartType: ChartType, options?: ElementPlacement) => void;
   updateChart: (id: string, partial: Partial<ChartInstance>) => void;
   removeChart: (id: string) => void;
 }

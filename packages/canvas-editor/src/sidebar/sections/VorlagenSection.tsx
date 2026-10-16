@@ -1,8 +1,8 @@
 /**
  * „Vorlagen" tab: the Grünerator-Vorlagen of the design's format, the ones
- * most like the design first (Canva's template panel). A pick lands on an
- * empty design straight away; on one with content it asks first — open the
- * Vorlage as a new design, or replace this design with it (one undo step,
+ * most like the design first (Canva's template panel). A pick — a click, or
+ * on desktop a tile dragged onto a page — lands on an empty design straight
+ * away; on one with content it asks first — open the Vorlage as a new design, or replace this design with it (one undo step,
  * offered back through the top bar banner).
  *
  * Two catalogues feed the same grid: the sharepic Vorlagen come from the
@@ -35,7 +35,14 @@ import {
   Skeleton,
 } from '@gruenerator/ui';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useEffect, useState, type CSSProperties } from 'react';
+import {
+  useEffect,
+  useImperativeHandle,
+  useState,
+  type CSSProperties,
+  type DragEvent,
+  type Ref,
+} from 'react';
 import { v4 as uuid } from 'uuid';
 
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
@@ -48,9 +55,11 @@ import {
 import { composePrint } from '../../composer/composePrint';
 import { printVorlagenFor, type PrintVorlage } from '../../composer/printVorlagen';
 import { getCanvasFormat, isPrintFormat, type PrintCanvasFormat } from '../../formats';
+import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
 import { useCanvasStoreSelector } from '../../stores/CanvasStoreProvider';
 import { cn } from '../../utils/cn';
 import { ensureFontsReady } from '../../utils/ensureFontsReady';
+import { VORLAGE_DRAG_TYPE } from '../../utils/mediaDrop';
 import { rankVorlagen, vorlagenForFormat } from '../../utils/vorlagenRelevance';
 
 import { GalleryTabs } from './StudioGallery';
@@ -62,7 +71,14 @@ import type {
 } from '../../CanvasEditorProvider';
 import type { HeterogeneousPage } from '../../configs/types';
 
+/** Lets the editor hand a Vorlage dropped on a page to the tab. */
+export interface VorlagenSectionHandle {
+  /** Applies like a click on the tile: asks first on a design with content. */
+  pick: (vorlageId: string) => void;
+}
+
 export interface VorlagenSectionProps {
+  ref?: Ref<VorlagenSectionHandle>;
   formatId: string;
   /** The pages as they are now; the order is taken from the design when the tab opened. */
   pages: readonly HeterogeneousPage[];
@@ -224,6 +240,7 @@ function VorlageTile({
   aspectStyle,
   busy,
   disabled,
+  canDrag,
   onPick,
 }: {
   vorlage: VorlageCard;
@@ -231,11 +248,21 @@ function VorlageTile({
   aspectStyle?: CSSProperties;
   busy: boolean;
   disabled: boolean;
+  /** Mouse drag onto a page; off on touch layouts, where HTML5 DnD does not fire. */
+  canDrag: boolean;
   onPick: () => void;
 }) {
   const [shown, setShown] = useState(1);
   const { seiten, thumbAt } = vorlage;
   const browsable = thumbAt !== null && seiten > 1;
+  const startDrag = (e: DragEvent<HTMLButtonElement>) => {
+    e.dataTransfer.setData(VORLAGE_DRAG_TYPE, vorlage.id);
+    e.dataTransfer.effectAllowed = 'copy';
+    const preview = e.currentTarget.parentElement?.querySelector('img');
+    if (preview) {
+      e.dataTransfer.setDragImage(preview, preview.offsetWidth / 2, preview.offsetHeight / 2);
+    }
+  };
   return (
     <li className="flex flex-col gap-1">
       <span className={cn('group', TILE_IMAGE, aspect)} style={aspectStyle}>
@@ -252,7 +279,9 @@ function VorlageTile({
           aria-busy={busy}
           disabled={disabled}
           onClick={onPick}
-          className={TILE_OVERLAY}
+          draggable={canDrag && !disabled}
+          onDragStart={startDrag}
+          className={cn(TILE_OVERLAY, canDrag && 'active:cursor-grabbing')}
         />
         {seiten > 1 && (
           <span className={BADGE}>{browsable ? `${shown}/${seiten}` : `${seiten} Seiten`}</span>
@@ -293,8 +322,9 @@ const VIEWS = [
   { id: 'seiten', label: 'Einzelne Seiten' },
 ] as const;
 
-export function VorlagenSection({ formatId, pages, deck, onShowPage }: VorlagenSectionProps) {
+export function VorlagenSection({ ref, formatId, pages, deck, onShowPage }: VorlagenSectionProps) {
   const { vorlagen: service, userLocale = 'de-DE' } = useCanvasEditorServices();
+  const canDrag = !useIsCanvasMobile();
   const setPending = useCanvasStoreSelector((s) => s.setPendingAiSuggestion);
   const [load, setLoad] = useState<Load<VorlageCard>>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
@@ -361,17 +391,16 @@ export function VorlagenSection({ formatId, pages, deck, onShowPage }: VorlagenS
     };
   }, [wantsSeiten, listSeiten, seitenFormat, seitenAttempt, atOpen]);
 
-  if (!service) return null;
-
   // One print Vorlage per format and country, shipped with the package: nothing to load or rank.
-  const shownLoad: Load<VorlageCard> = printFormat
-    ? {
-        status: 'ready',
-        items: printVorlagenFor(userLocale)
-          .filter((v) => v.spec.format === printFormat.id)
-          .map((v) => printCard(v, printFormat, service)),
-      }
-    : load;
+  const shownLoad: Load<VorlageCard> =
+    printFormat && service
+      ? {
+          status: 'ready',
+          items: printVorlagenFor(userLocale)
+            .filter((v) => v.spec.format === printFormat.id)
+            .map((v) => printCard(v, printFormat, service)),
+        }
+      : load;
 
   const apply = async (vorlage: VorlageCard, replacing: boolean) => {
     setBusyId(vorlage.id);
@@ -413,6 +442,16 @@ export function VorlagenSection({ formatId, pages, deck, onShowPage }: VorlagenS
     if (isDeckEmpty(deck.getPages())) void apply(vorlage, false);
     else setAsking(vorlage);
   };
+
+  useImperativeHandle(ref, () => ({
+    pick: (vorlageId) => {
+      const vorlage =
+        shownLoad.status === 'ready' ? shownLoad.items.find((v) => v.id === vorlageId) : null;
+      if (vorlage) choose(vorlage);
+    },
+  }));
+
+  if (!service) return null;
 
   const confirmReplace = () => {
     const vorlage = asking;
@@ -473,6 +512,7 @@ export function VorlagenSection({ formatId, pages, deck, onShowPage }: VorlagenS
             aspectStyle={aspectStyle}
             busy={busyId === vorlage.id}
             disabled={busyId !== null}
+            canDrag={canDrag}
             onPick={() => choose(vorlage)}
           />
         ))}

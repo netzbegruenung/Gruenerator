@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { HiMagnifyingGlass } from 'react-icons/hi2';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
+import { useTrackUnsplashDownload } from '../../../hooks/useTrackUnsplashDownload';
 
 import type { StockImage } from '../../../common/imageSourceTypes';
 import type { UserImagePlacement } from '../../../utils/userImageUtils';
@@ -31,8 +32,8 @@ function thumbnailUrl(url: string): string {
  * unaltered photo, so it never goes through the uploads / Mediathek.
  */
 export function UnsplashTool({ onPlaceImageUrl }: UnsplashToolProps) {
-  const { searchUnsplashImages, trackUnsplashDownloadLive, trackUnsplashDownload } =
-    useCanvasEditorServices();
+  const { searchUnsplashImages } = useCanvasEditorServices();
+  const trackDownload = useTrackUnsplashDownload();
   const searchFn = useCallback<UnsplashSearchFn>(
     (q, p, pp) =>
       searchUnsplashImages
@@ -59,12 +60,7 @@ export function UnsplashTool({ onPlaceImageUrl }: UnsplashToolProps) {
 
   const handlePick = (image: StockImage) => {
     if (!image.url || !onPlaceImageUrl) return;
-    const downloadLocation = image.attribution?.downloadLocation;
-    if (downloadLocation && trackUnsplashDownloadLive) {
-      void trackUnsplashDownloadLive(downloadLocation);
-    } else if (trackUnsplashDownload) {
-      void trackUnsplashDownload(image);
-    }
+    trackDownload(image.filename, image.attribution);
     onPlaceImageUrl(image.url, image.filename, { attribution: image.attribution });
     setPlacedId(image.filename);
   };

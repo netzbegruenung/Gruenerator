@@ -1,12 +1,10 @@
 import { type StudioAssetScope } from '@gruenerator/contracts';
 import { assetStickerId, type StickerRef } from '@gruenerator/shared/stickers';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { HiPlus } from 'react-icons/hi2';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { GALLERY_SCOPES, GalleryTabs, StudioGalleryGrid, type GalleryTab } from '../StudioGallery';
-
-import { StickerGrid } from './stripTiles';
 
 type StickerTab = 'gruene' | StudioAssetScope;
 
@@ -16,17 +14,18 @@ const STICKER_TABS: readonly GalleryTab<StickerTab>[] = [
 ];
 
 /**
- * The Sticker card: the system stickers under "Grüne", the shared gallery under
- * Entdecken / Meine / Gemerkt. Without `onAddStickerAsset` only the system set.
+ * The Sticker category: the system stickers (`children`) under "Grüne", the
+ * shared gallery under Entdecken / Meine / Gemerkt. Without
+ * `onAddStickerAsset` only the system set.
  */
 export function StickerCatalog({
-  onAddAsset,
   onAddStickerAsset,
   searchQuery = '',
+  children,
 }: {
-  onAddAsset: (assetId: string) => void;
   onAddStickerAsset?: (ref: StickerRef) => void;
   searchQuery?: string;
+  children: ReactNode;
 }) {
   const { openStickerCreator } = useCanvasEditorServices();
   const [tab, setTab] = useState<StickerTab>('gruene');
@@ -44,7 +43,7 @@ export function StickerCatalog({
     return () => window.removeEventListener('focus', onFocus);
   }, []);
 
-  if (!onAddStickerAsset) return <StickerGrid onAddAsset={onAddAsset} searchQuery={searchQuery} />;
+  if (!onAddStickerAsset) return children;
 
   return (
     <div className="flex flex-col gap-3 w-full">
@@ -64,7 +63,7 @@ export function StickerCatalog({
         </button>
       )}
       {tab === 'gruene' ? (
-        <StickerGrid onAddAsset={onAddAsset} searchQuery={searchQuery} />
+        children
       ) : (
         <StudioGalleryGrid
           kind="sticker"

@@ -39,7 +39,7 @@ import type { FrameClipType, FrameInstance } from '../utils/frameUtils';
 import type { IllustrationInstance } from '../utils/illustrations/types';
 import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '../utils/shapes';
-import type { UserImageInstance } from '../utils/userImageUtils';
+import type { ElementPlacement, UserImageInstance } from '../utils/userImageUtils';
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 import type { StickerRef } from '@gruenerator/shared/stickers';
 
@@ -131,8 +131,8 @@ export interface VeranstaltungFullActions {
   setCurrentImageSrc: (file: File | null, objectUrl?: string) => void;
   setImageScale: (scale: number) => void;
   toggleBackgroundLock: () => void;
-  addAsset: (assetId: string) => void;
-  addStickerAsset: (ref: StickerRef) => void;
+  addAsset: (assetId: string, options?: ElementPlacement) => void;
+  addStickerAsset: (ref: StickerRef, options?: ElementPlacement) => void;
   updateAsset: (id: string, partial: Partial<AssetInstance>) => void;
   removeAsset: (id: string) => void;
   // Icons & Shapes
@@ -148,11 +148,11 @@ export interface VeranstaltungFullActions {
       opacity?: number;
     }
   ) => void;
-  addShape: (type: ShapeType) => void;
+  addShape: (type: ShapeType, color?: string, options?: ElementPlacement) => void;
   updateShape: (id: string, partial: Partial<ShapeInstance>) => void;
   removeShape: (id: string) => void;
   // Illustration actions
-  addIllustration: (id: string) => void;
+  addIllustration: (id: string, options?: ElementPlacement) => void;
   updateIllustration: (id: string, partial: Partial<IllustrationInstance>) => void;
   removeIllustration: (id: string) => void;
   // Additional Text actions
@@ -172,11 +172,11 @@ export interface VeranstaltungFullActions {
   updatePillBadge: (id: string, partial: Partial<PillBadgeInstance>) => void;
   removePillBadge: (id: string) => void;
   // Balken actions
-  addBalken: (mode: BalkenMode) => void;
+  addBalken: (mode: BalkenMode, options?: ElementPlacement) => void;
   updateBalken: (id: string, partial: Partial<BalkenInstance>) => void;
   removeBalken: (id: string) => void;
   // Frame actions
-  addFrame: (clipType: FrameClipType) => void;
+  addFrame: (clipType: FrameClipType, options?: ElementPlacement) => void;
   updateFrame: (id: string, partial: Partial<FrameInstance>) => void;
   removeFrame: (id: string) => void;
   setFrameImage: (id: string, file: File, objectUrl: string) => void;

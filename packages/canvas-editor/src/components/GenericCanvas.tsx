@@ -49,7 +49,7 @@ import { canvasFontFamilies } from '../utils/canvasFontFamilies';
 import { buildCanvasItems, buildSortedRenderList } from '../utils/canvasLayerManager';
 import { captureStageImage, captureStageImageAsync } from '../utils/captureStage';
 import { ensureFontsReady } from '../utils/ensureFontsReady';
-import { locateDrop, type MediaDragPayload } from '../utils/mediaDrop';
+import { locateDrop, type ElementDragPayload, type MediaDragPayload } from '../utils/mediaDrop';
 import { PendingImagesContext } from '../utils/pendingImages';
 import { stageCssScale } from '../utils/stageCssScale';
 import { getOptimalContainerWidth } from '../utils/viewport';
@@ -213,6 +213,8 @@ export interface GenericCanvasRef {
   /** Places a dragged upload where it was dropped: into the frame under the
    *  pointer, else as a new image centred there. False when nothing was placed. */
   dropMedia: (evt: { clientX: number; clientY: number }, media: MediaDragPayload) => boolean;
+  /** Adds a dragged Elemente tile centred where it was dropped. False when nothing was placed. */
+  dropElement: (evt: { clientX: number; clientY: number }, payload: ElementDragPayload) => boolean;
   /** Toolbar handlers — called by parent when toolbar is rendered at layout level */
   undo?: () => void;
   redo?: () => void;
@@ -353,16 +355,16 @@ function GenericCanvasWithRef<
   });
 
   const collectState = useCallback(() => state, [state]);
-  const restoreBaseRef = useRef(state);
+  const committedStateRef = useRef(state);
   useLayoutEffect(() => {
-    restoreBaseRef.current = state;
+    committedStateRef.current = state;
   }, [state]);
   // Text fields reach the page document only through their `on<Key>Change`
   // callback, so a restore reports each one it changed (#4247). The emitted
   // keys are left to useEmitHostStateChanges, which already reports them.
   const handleRestore = useCallback(
     (restoredState: Record<string, unknown>) => {
-      const prev = restoreBaseRef.current as Record<string, unknown>;
+      const prev = committedStateRef.current as Record<string, unknown>;
       setStateRaw((p) => ({ ...p, ...restoredState }) as TState);
       for (const [name, callback] of Object.entries(callbacks)) {
         const key = stateKeyOfCallback(name);
@@ -377,7 +379,9 @@ function GenericCanvasWithRef<
   const { saveToHistory, debouncedSaveToHistory, runHistoryBatch, undo, redo, canUndo, canRedo } =
     useCanvasHistorySetup(collectState, handleRestore, 500, shortcutsEnabled);
 
-  const getState = useCallback(() => state, [state]);
+  // Read through the ref so `actions` keeps its identity across edits; every
+  // action calls getState() when it runs, so it still sees the latest state.
+  const getState = useCallback(() => committedStateRef.current, []);
 
   // `runHistoryBatch` rides on the actions so the AI bridge (built from the
   // page's live actions) coalesces one op batch into one undo step.
@@ -717,8 +721,48 @@ function GenericCanvasWithRef<
           return true;
         }
         if (!actions.addUserImageFromUrl) return false;
-        actions.addUserImageFromUrl(media.url, media.name, { center: drop.point });
+        actions.addUserImageFromUrl(media.url, media.name, {
+          center: drop.point,
+          ...(media.attribution && { attribution: media.attribution }),
+        });
         return true;
+      },
+      dropElement: (evt, payload) => {
+        const stage = stageRef.current?.getStage();
+        if (!stage) return false;
+        const drop = locateDrop(stage, evt, stageWidth / referenceWidth);
+        if (!drop) return false;
+        const placement = { center: drop.point };
+        switch (payload.kind) {
+          case 'asset':
+            if (!actions.addAsset) return false;
+            actions.addAsset(payload.assetId, placement);
+            return true;
+          case 'sticker':
+            if (!actions.addStickerAsset) return false;
+            actions.addStickerAsset(payload.ref, placement);
+            return true;
+          case 'shape':
+            if (!actions.addShape) return false;
+            actions.addShape(payload.shapeType, payload.color, placement);
+            return true;
+          case 'illustration':
+            if (!actions.addIllustration) return false;
+            actions.addIllustration(payload.id, placement);
+            return true;
+          case 'chart':
+            if (!actions.addChart) return false;
+            actions.addChart(payload.chartType, placement);
+            return true;
+          case 'frame':
+            if (!actions.addFrame) return false;
+            actions.addFrame(payload.clipType, placement);
+            return true;
+          case 'balken':
+            if (!actions.addBalken) return false;
+            actions.addBalken(payload.mode, placement);
+            return true;
+        }
       },
       undo,
       redo,

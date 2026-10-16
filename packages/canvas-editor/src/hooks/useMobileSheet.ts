@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface UseMobileSheetOptions {
   isOpen: boolean;
@@ -9,10 +9,18 @@ interface UseMobileSheetOptions {
 
 interface UseMobileSheetReturn {
   handleRef: React.RefObject<HTMLDivElement | null>;
+  sheetRef: React.RefObject<HTMLElement | null>;
   isDragging: boolean;
-  translateY: number;
 }
 
+const SNAP_BACK_TRANSITION = 'transform 200ms cubic-bezier(.2,.8,.2,1)';
+
+/**
+ * Swipe-down-to-close for the mobile sheet. The drag writes the transform
+ * straight onto `sheetRef` — a React render per touchmove drops frames on a
+ * sheet full of tiles. Listeners sit on the handle only and are passive; the
+ * handle needs `touch-action: none` so the browser does not pan instead.
+ */
 export function useMobileSheet({
   isOpen,
   onClose,
@@ -20,77 +28,76 @@ export function useMobileSheet({
   velocityThreshold = 0.5,
 }: UseMobileSheetOptions): UseMobileSheetReturn {
   const handleRef = useRef<HTMLDivElement>(null);
+  const sheetRef = useRef<HTMLElement>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [translateY, setTranslateY] = useState(0);
 
-  const startYRef = useRef(0);
-  const currentYRef = useRef(0);
-  const startTimeRef = useRef(0);
-
-  const handleTouchStart = useCallback((e: TouchEvent) => {
-    if (!handleRef.current?.contains(e.target as Node)) return;
-
-    setIsDragging(true);
-    startYRef.current = e.touches[0].clientY;
-    currentYRef.current = e.touches[0].clientY;
-    startTimeRef.current = Date.now();
-  }, []);
-
-  const handleTouchMove = useCallback(
-    (e: TouchEvent) => {
-      if (!isDragging) return;
-
-      currentYRef.current = e.touches[0].clientY;
-      const deltaY = currentYRef.current - startYRef.current;
-
-      // Only allow dragging down
-      if (deltaY > 0) {
-        setTranslateY(deltaY);
-        e.preventDefault();
-      }
-    },
-    [isDragging]
-  );
-
-  const handleTouchEnd = useCallback(() => {
-    if (!isDragging) return;
-
-    setIsDragging(false);
-
-    const deltaY = currentYRef.current - startYRef.current;
-    const deltaTime = Date.now() - startTimeRef.current;
-    const velocity = deltaY / deltaTime;
-
-    // Close if dragged far enough or swiped fast enough
-    if (deltaY > threshold || velocity > velocityThreshold) {
-      onClose();
-    }
-
-    setTranslateY(0);
-  }, [isDragging, threshold, velocityThreshold, onClose]);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
-    if (!isOpen) {
-      setTranslateY(0);
-      return;
-    }
+    const handle = handleRef.current;
+    if (!isOpen || !handle) return;
 
-    document.addEventListener('touchstart', handleTouchStart, { passive: false });
-    document.addEventListener('touchmove', handleTouchMove, { passive: false });
-    document.addEventListener('touchend', handleTouchEnd);
-    document.addEventListener('touchcancel', handleTouchEnd);
+    let dragging = false;
+    let startY = 0;
+    let deltaY = 0;
+    let startTime = 0;
+
+    const onTouchStart = (e: TouchEvent) => {
+      dragging = true;
+      startY = e.touches[0].clientY;
+      deltaY = 0;
+      startTime = Date.now();
+      const sheet = sheetRef.current;
+      if (sheet) {
+        sheet.style.transition = 'none';
+        sheet.style.willChange = 'transform';
+      }
+      setIsDragging(true);
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!dragging) return;
+      // Only allow dragging down
+      deltaY = Math.max(0, e.touches[0].clientY - startY);
+      if (sheetRef.current) sheetRef.current.style.transform = `translateY(${deltaY}px)`;
+    };
+
+    const onTouchEnd = () => {
+      if (!dragging) return;
+      dragging = false;
+      setIsDragging(false);
+
+      const velocity = deltaY / Math.max(1, Date.now() - startTime);
+      const shouldClose = deltaY > threshold || velocity > velocityThreshold;
+      const sheet = sheetRef.current;
+      if (sheet) {
+        sheet.style.transition = shouldClose ? '' : SNAP_BACK_TRANSITION;
+        sheet.style.transform = '';
+        sheet.style.willChange = '';
+      }
+      // Close if dragged far enough or swiped fast enough
+      if (shouldClose) onCloseRef.current();
+    };
+
+    handle.addEventListener('touchstart', onTouchStart, { passive: true });
+    handle.addEventListener('touchmove', onTouchMove, { passive: true });
+    handle.addEventListener('touchend', onTouchEnd);
+    handle.addEventListener('touchcancel', onTouchEnd);
 
     return () => {
-      document.removeEventListener('touchstart', handleTouchStart);
-      document.removeEventListener('touchmove', handleTouchMove);
-      document.removeEventListener('touchend', handleTouchEnd);
-      document.removeEventListener('touchcancel', handleTouchEnd);
+      handle.removeEventListener('touchstart', onTouchStart);
+      handle.removeEventListener('touchmove', onTouchMove);
+      handle.removeEventListener('touchend', onTouchEnd);
+      handle.removeEventListener('touchcancel', onTouchEnd);
     };
-  }, [isOpen, handleTouchStart, handleTouchMove, handleTouchEnd]);
+  }, [isOpen, threshold, velocityThreshold]);
 
   return {
     handleRef,
+    sheetRef,
     isDragging,
-    translateY,
   };
 }

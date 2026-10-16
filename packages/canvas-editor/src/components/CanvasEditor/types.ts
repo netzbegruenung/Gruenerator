@@ -102,6 +102,8 @@ export interface PageWrapperProps {
   onDuplicatePage: (id: string) => void;
   /** Opens the template picker in replace mode for this page ("Vorlage ändern"). */
   onChangeTemplate?: (id: string) => void;
+  /** A Vorlagen tile dropped on this page; unset where the design has no Vorlagen tab. */
+  onDropVorlage?: (vorlageId: string) => void;
   onExport: (base64: string) => void;
   onCancel: () => void;
   callbacks: Record<string, (val: unknown) => void>;
