@@ -87,6 +87,16 @@ export function imageRenderInputsAreEqual<TState extends Record<string, unknown>
   const fillKey = prev.config.fillStateKey;
   if (fillKey && prev.state[fillKey] !== next.state[fillKey]) return false;
 
+  // Derived source and tint (e.g. a mark that follows the background colour).
+  const { src, fill } = prev.config;
+  if (typeof src === 'function' && src(prev.state) !== src(next.state)) return false;
+  if (
+    typeof fill === 'function' &&
+    fill(prev.state, prev.layout) !== fill(next.state, next.layout)
+  ) {
+    return false;
+  }
+
   const prevGeometry = geometryOf(prev.layout, prev.config.id);
   const nextGeometry = geometryOf(next.layout, next.config.id);
 
