@@ -1,45 +1,55 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { type DocsApiClient } from '../context/DocsContext';
-import { createSnapshotVersionStorage } from './snapshotVersionStorage';
+const api = vi.hoisted(() => ({
+  list: vi.fn(),
+  create: vi.fn(),
+  getContent: vi.fn(),
+  rename: vi.fn(),
+  restore: vi.fn(),
+}));
 
-function fakeClient(overrides: Partial<Record<keyof DocsApiClient, unknown>> = {}) {
-  return {
-    get: vi.fn(),
-    post: vi.fn().mockResolvedValue({}),
-    put: vi.fn().mockResolvedValue({}),
-    delete: vi.fn(),
-    ...overrides,
-  } as unknown as DocsApiClient & Record<'get' | 'post' | 'put', ReturnType<typeof vi.fn>>;
-}
+vi.mock('@gruenerator/shared/api', () => ({
+  getContractsClient: () => ({ docSnapshots: api }),
+}));
+
+const { createSnapshotVersionStorage } = await import('./snapshotVersionStorage');
 
 const signal = new AbortController().signal;
 
+beforeEach(() => {
+  for (const fn of Object.values(api)) fn.mockReset();
+});
+
 describe('createSnapshotVersionStorage', () => {
   it('maps grouped snapshot rows onto BlockNote versions', async () => {
-    const client = fakeClient({
-      get: vi.fn().mockResolvedValue({
+    api.list.mockResolvedValue({
+      status: 200,
+      body: {
         snapshots: [
           {
+            id: 'a',
             version: 7,
             created_at: '2026-10-16T10:00:00.000Z',
             is_auto_save: false,
             label: 'Entwurf',
             created_by: 'u-1',
+            created_by_name: 'Anna',
             snapshot_count: 1,
           },
           {
+            id: 'b',
             version: 5,
             created_at: '2026-10-16T09:00:00.000Z',
             is_auto_save: true,
             label: null,
             created_by: null,
+            created_by_name: null,
             snapshot_count: 3,
           },
         ],
-      }),
+      },
     });
-    const storage = createSnapshotVersionStorage(client, 'doc-1', () => true);
+    const storage = createSnapshotVersionStorage('doc-1', () => true);
 
     expect(await storage.list(signal)).toEqual({
       ok: true,
@@ -59,32 +69,35 @@ describe('createSnapshotVersionStorage', () => {
         ],
       },
     });
-    expect(client.get).toHaveBeenCalledWith('/docs/doc-1/snapshots');
+    expect(api.list).toHaveBeenCalledWith({ params: { id: 'doc-1' }, query: {} });
   });
 
   it('decodes stored content to the raw Yjs update', async () => {
     const bytes = new Uint8Array([1, 2, 250]);
-    const client = fakeClient({
-      get: vi.fn().mockResolvedValue({ update: Buffer.from(bytes).toString('base64') }),
+    api.getContent.mockResolvedValue({
+      status: 200,
+      body: { version: 5, update: Buffer.from(bytes).toString('base64') },
     });
-    const storage = createSnapshotVersionStorage(client, 'doc-1', () => true);
+    const storage = createSnapshotVersionStorage('doc-1', () => true);
 
-    const result = await storage.getContent('5', signal);
-    expect(result).toEqual({ ok: true, value: bytes });
-    expect(client.get).toHaveBeenCalledWith('/docs/doc-1/snapshots/5/content');
+    expect(await storage.getContent('5', signal)).toEqual({ ok: true, value: bytes });
+    expect(api.getContent).toHaveBeenCalledWith({ params: { id: 'doc-1', version: 5 } });
   });
 
   it('restores on the server against the live document', async () => {
-    const client = fakeClient();
-    const storage = createSnapshotVersionStorage(client, 'doc-1', () => true);
+    api.restore.mockResolvedValue({ status: 200, body: { success: true, new_version: 9 } });
+    const storage = createSnapshotVersionStorage('doc-1', () => true);
 
     expect(await storage.restore!('5')).toEqual({ ok: true, value: undefined });
-    expect(client.post).toHaveBeenCalledWith('/docs/doc-1/snapshots/5/restore', { apply: 'live' });
+    expect(api.restore).toHaveBeenCalledWith({
+      params: { id: 'doc-1', version: 5 },
+      body: { apply: 'live' },
+    });
   });
 
   it('offers no write actions to viewers, re-read on every access', () => {
     let canEdit = false;
-    const storage = createSnapshotVersionStorage(fakeClient(), 'doc-1', () => canEdit);
+    const storage = createSnapshotVersionStorage('doc-1', () => canEdit);
     expect(storage.create).toBeUndefined();
     expect(storage.restore).toBeUndefined();
     expect(storage.rename).toBeUndefined();
@@ -96,23 +109,26 @@ describe('createSnapshotVersionStorage', () => {
     expect(storage.remove).toBeUndefined();
   });
 
-  it('returns expected API failures as typed errors and rethrows bugs', async () => {
-    const withStatus = (status: number) => Object.assign(new Error('x'), { status });
-    const cases: Array<[unknown, unknown]> = [
-      [withStatus(403), { type: 'forbidden' }],
-      [withStatus(404), { type: 'not-found' }],
-      [withStatus(503), { type: 'server', status: 503 }],
-      [new TypeError('Failed to fetch'), { type: 'network' }],
+  it('returns non-2xx answers and lost requests as typed errors, rethrows bugs', async () => {
+    const storage = createSnapshotVersionStorage('doc-1', () => true);
+    const cases: Array<[number, unknown]> = [
+      [401, { type: 'forbidden' }],
+      [403, { type: 'forbidden' }],
+      [404, { type: 'not-found' }],
+      [500, { type: 'server', status: 500 }],
     ];
-    for (const [thrown, error] of cases) {
-      const client = fakeClient({ post: vi.fn().mockRejectedValue(thrown) });
-      const storage = createSnapshotVersionStorage(client, 'doc-1', () => true);
+    for (const [status, error] of cases) {
+      api.restore.mockResolvedValueOnce({ status, body: { error: 'x' } });
       expect(await storage.restore!('5')).toEqual({ ok: false, error });
     }
 
+    api.restore.mockRejectedValueOnce(
+      Object.assign(new Error('Network Error'), { isAxiosError: true })
+    );
+    expect(await storage.restore!('5')).toEqual({ ok: false, error: { type: 'network' } });
+
     const bug = new Error('bug');
-    const client = fakeClient({ post: vi.fn().mockRejectedValue(bug) });
-    const storage = createSnapshotVersionStorage(client, 'doc-1', () => true);
+    api.restore.mockRejectedValueOnce(bug);
     await expect(storage.restore!('5')).rejects.toBe(bug);
   });
 });

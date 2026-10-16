@@ -49,7 +49,7 @@ import { useEditorStore } from '../../stores/editorStore';
 import { useBlockNoteComments } from '../../hooks/useBlockNoteComments';
 import { useResolveUsers } from '../../hooks/useResolveUsers';
 import { useMentionUsers } from '../../hooks/useMentionUsers';
-import { createDocsApiClient, useDocsAdapter } from '../../context/DocsContext';
+import { useDocsAdapter } from '../../context/DocsContext';
 import { useIsTouchDevice } from '@gruenerator/shared/hooks';
 import { useEditorPreferencesStore } from '../../stores/editorPreferencesStore';
 import { ErrorBoundary } from '../common/ErrorBoundary';
@@ -188,7 +188,6 @@ const BlockNoteEditorInner = ({
   // recreating the editor when `editable` flips.
   const editableRef = useRef(editable);
   editableRef.current = editable;
-  const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
 
   const collaborationUser = useMemo(() => {
     if (!provider?.awareness) return null;
@@ -275,7 +274,7 @@ const BlockNoteEditorInner = ({
     if (collaborationOptions) {
       exts.push(
         YjsVersioningExtension({
-          storage: createSnapshotVersionStorage(apiClient, documentId, () => editableRef.current),
+          storage: createSnapshotVersionStorage(documentId, () => editableRef.current),
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           resolveUsers: resolveUsers as any,
         })
@@ -340,7 +339,6 @@ const BlockNoteEditorInner = ({
     collaborationOptions,
     ydoc,
     provider,
-    apiClient,
   ]);
 
   const baseEditorOptions = {
