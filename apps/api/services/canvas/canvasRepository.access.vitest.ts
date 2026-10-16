@@ -41,10 +41,27 @@ const row = {
   creator_name: 'Owner',
 };
 
+const grant = {
+  level: 'viewer',
+  granted_at: '2026-10-16T00:00:00Z',
+  granted_by: 'auto:share_link',
+};
+
+/** The canvas read returns `canvasRow`; the Vorlage-snapshot probe hits iff `snapshot`. */
+function primeDb(canvasRow: Record<string, unknown> = row, snapshot = false) {
+  query.mockReset().mockImplementation(async (sql: string) => {
+    if (/FROM user_templates/i.test(sql)) return snapshot ? [{ '?column?': 1 }] : [];
+    return [canvasRow];
+  });
+}
+
+const snapshotProbes = () =>
+  query.mock.calls.filter(([sql]) => /FROM user_templates/i.test(sql as string)).length;
+
 beforeEach(() => {
-  query.mockReset().mockResolvedValue([row]);
+  primeDb();
   checkDocumentAccess.mockReset().mockResolvedValue({ hasAccess: true });
-  autoGrantSharePermission.mockReset();
+  autoGrantSharePermission.mockReset().mockReturnValue(grant);
 });
 
 describe('getCanvas joinViaLink', () => {
@@ -60,6 +77,27 @@ describe('getCanvas joinViaLink', () => {
       }),
       'visitor-2'
     );
+  });
+
+  it('returns the canvas with the new entry, so an editor link is editable at once', async () => {
+    const res = await getCanvas('canvas-1', 'visitor-2', { joinViaLink: true });
+    expect(res.kind === 'ok' && res.canvas.permissions?.['visitor-2']).toEqual(grant);
+  });
+
+  it("never enrolls into a Vorlage's snapshot", async () => {
+    primeDb(row, true);
+    const res = await getCanvas('canvas-1', 'visitor-2', { joinViaLink: true });
+    expect(res.kind).toBe('ok');
+    expect(autoGrantSharePermission).not.toHaveBeenCalled();
+  });
+
+  it('skips the snapshot probe when nobody would be enrolled', async () => {
+    await getCanvas('canvas-1', 'owner-1', { joinViaLink: true });
+    expect(snapshotProbes()).toBe(0);
+    primeDb({ ...row, share_mode: 'private' });
+    await getCanvas('canvas-1', 'visitor-2', { joinViaLink: true });
+    expect(snapshotProbes()).toBe(0);
+    expect(autoGrantSharePermission).not.toHaveBeenCalled();
   });
 
   it('does not enroll anyone on a plain access check', async () => {

@@ -1,7 +1,7 @@
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 
 import { GRANTED_BY_SHARE_LINK } from './constants.js';
-import { type CollaborativeDocument } from './types.js';
+import { type CollaborativeDocument, type PermissionEntry } from './types.js';
 
 const db = getPostgresInstance();
 
@@ -116,24 +116,22 @@ export function autoGrantSharePermission(
     'id' | 'created_by' | 'permissions' | 'share_mode' | 'share_permission'
   >,
   userId: string
-): void {
+): PermissionEntry | null {
   const isLinkShared = document.share_mode === 'authenticated' || document.share_mode === 'public';
   if (
     !isLinkShared ||
     document.created_by === userId ||
     (document.permissions && document.permissions[userId])
   ) {
-    return;
+    return null;
   }
 
-  const permissionLevel = document.share_permission || 'editor';
-  const permissionEntry = JSON.stringify({
-    [userId]: {
-      level: permissionLevel,
-      granted_at: new Date().toISOString(),
-      granted_by: GRANTED_BY_SHARE_LINK,
-    },
-  });
+  const entry: PermissionEntry = {
+    level: document.share_permission || 'editor',
+    granted_at: new Date().toISOString(),
+    granted_by: GRANTED_BY_SHARE_LINK,
+  };
+  const permissionEntry = JSON.stringify({ [userId]: entry });
 
   db.query(
     `UPDATE collaborative_documents
@@ -146,6 +144,7 @@ export function autoGrantSharePermission(
     const errMsg = err instanceof Error ? err.message : String(err);
     console.error('[Docs] Error auto-adding user to permissions:', errMsg);
   });
+  return entry;
 }
 
 /**

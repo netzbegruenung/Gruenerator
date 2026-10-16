@@ -252,7 +252,10 @@ type GetResult =
  * enrolls the visitor as a collaborator, exactly like opening a document does,
  * so they show up in the owner's share dialog and in their own canvas list.
  * Only the studio's open read passes it — the many internal access checks
- * through this function must not enroll anyone.
+ * through this function must not enroll anyone. The returned canvas already
+ * carries the new entry, so an editor link is editable on the very first load.
+ * A Vorlage's snapshot is never enrolled into: every logged-in user may read
+ * a gallery Vorlage, and its ACL would otherwise collect each one of them.
  */
 export async function getCanvas(
   id: string,
@@ -275,8 +278,14 @@ export async function getCanvas(
   const access = await checkDocumentAccess(subject, userId);
   if (!access.hasAccess) return { kind: 'forbidden' };
 
-  if (options.joinViaLink) {
-    autoGrantSharePermission(
+  const canvas = rowToCanvasDocument(row);
+  const wouldJoin =
+    options.joinViaLink &&
+    (row.share_mode === 'authenticated' || row.share_mode === 'public') &&
+    row.created_by !== userId &&
+    !subject.permissions?.[userId];
+  if (wouldJoin && !(await isVorlageSnapshotCanvas(id))) {
+    const entry = autoGrantSharePermission(
       {
         ...subject,
         ...(row.share_permission === 'viewer' || row.share_permission === 'editor'
@@ -285,9 +294,10 @@ export async function getCanvas(
       },
       userId
     );
+    if (entry) canvas.permissions = { ...(canvas.permissions ?? {}), [userId]: entry };
   }
 
-  return { kind: 'ok', canvas: rowToCanvasDocument(row) };
+  return { kind: 'ok', canvas };
 }
 
 // ── Create ───────────────────────────────────────────────────────────────────
