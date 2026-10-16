@@ -1,6 +1,7 @@
 import type { BackgroundType, TextFieldConfig } from './unifiedTabs';
 import type { TemplateAiCapabilities } from '../ai/types';
 import type { CanvasSpecEditBridge } from '../CanvasEditorProvider';
+import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type { BackgroundColorOption, SidebarTabId, SidebarTab } from '../sidebar/types';
 import type { GradientFill } from '../utils/gradientFill';
@@ -402,8 +403,14 @@ export interface BackgroundControls {
   colorReplacesImage?: boolean;
   /** The photo now shown; undefined when there is none. */
   currentImageSrc?: string;
+  /** Stock credit of the photo now shown, if it is a hotlinked stock photo. */
+  imageAttribution?: StockImageAttribution | null;
   /** Sets the photo (`url` must be durable) or, with `null`, removes it. */
-  onImageChange?: (file: File | null, url?: string, attribution?: null) => void;
+  onImageChange?: (
+    file: File | null,
+    url?: string,
+    attribution?: StockImageAttribution | null
+  ) => void;
   /** Brings back a photo that a colour pick hid but kept (freeform). */
   onRestoreImage?: () => void;
   scale?: number;

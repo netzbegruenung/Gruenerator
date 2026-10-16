@@ -8,7 +8,6 @@ import {
   searchUnsplashImages,
   trackUnsplashDownload,
   trackUnsplashDownloadLive,
-  fetchUnsplashImageAsFile,
   openUnsplashSearch,
   generateAiImage,
 } from './services/imageSourceService';
@@ -33,7 +32,6 @@ export const webCanvasEditorServices: CanvasEditorServices = {
   searchUnsplashImages,
   trackUnsplashDownload,
   trackUnsplashDownloadLive,
-  fetchUnsplashImageAsFile,
   openUnsplashSearch,
   openStickerCreator,
   generateAiImage,
