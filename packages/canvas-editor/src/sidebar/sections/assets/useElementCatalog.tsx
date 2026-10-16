@@ -5,6 +5,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { PiImageFill } from 'react-icons/pi';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
+import { useEmojiCatalog } from '../../../hooks/useEmojiCatalog';
 import { useAllIconsCatalog, useIconCatalog } from '../../../hooks/useIconCatalog';
 import {
   ALL_ASSETS,
@@ -16,6 +17,7 @@ import {
   type UniversalAsset,
 } from '../../../utils/canvasAssets';
 import { CHART_TYPE_DEFS } from '../../../utils/chartUtils';
+import { withTone } from '../../../utils/emoji/emojiCatalog';
 import { FRAME_CATEGORY_ORDER, FRAME_PRESETS, getFramePreset } from '../../../utils/frameUtils';
 import { KAWAII_ILLUSTRATIONS } from '../../../utils/illustrations/kawaii';
 import { getAllIllustrations } from '../../../utils/illustrations/registry';
@@ -92,7 +94,9 @@ export const FRAME_ITEMS: ElementItem[] = [...FRAME_PRESETS]
     thumb: { t: 'frame', clipType: preset.id },
   }));
 
+/** The sharepic set: first in the grid, and all there is until the full catalogue loads. */
 export const EMOJI_ITEMS: ElementItem[] = EMOJI_ASSETS.map(assetItem);
+const SHAREPIC_EMOJI_IDS = new Set(EMOJI_ASSETS.map((a) => a.id));
 
 export function illustrationItem(def: IllustrationDef): ElementItem {
   return {
@@ -217,7 +221,9 @@ function BackgroundCover() {
  */
 export function useElementCatalog(
   props: ExtendedAssetsSectionProps,
-  needFull: { illustrations: boolean; icons: boolean; photos: boolean }
+  needFull: { illustrations: boolean; icons: boolean; photos: boolean; emoji: boolean },
+  /** Skin tone of the emoji tiles: 0 default, 1–5 light → dark. */
+  emojiTone = 0
 ): CatalogCategory[] {
   const { userLocale = 'de-DE', fetchStockImages } = useCanvasEditorServices();
   const locale: AssetAudience = userLocale;
@@ -238,6 +244,7 @@ export function useElementCatalog(
     staleTime: Infinity,
     gcTime: Infinity,
   });
+  const emojiCatalog = useEmojiCatalog(hasAssets && needFull.emoji);
   // The photo catalogue is small and gives the Fotos card its cover: load it with the tab.
   const photos = useStockPhotos(hasPhotos);
 
@@ -265,6 +272,16 @@ export function useElementCatalog(
     () => allIllustrations.data?.map(illustrationItem) ?? FEATURED_ILLUSTRATION_ITEMS,
     [allIllustrations.data]
   );
+
+  const emojiItems = useMemo(() => {
+    if (!emojiCatalog.data) return EMOJI_ITEMS;
+    const all = emojiCatalog.data.flatMap((g) => g.emoji);
+    // The catalogue entries of the sharepic set carry their skin tones; keep its order.
+    const byId = new Map(all.map((e) => [e.id, e]));
+    const sharepic = EMOJI_ASSETS.flatMap((a) => byId.get(a.id) ?? []);
+    const rest = all.filter((e) => !SHAREPIC_EMOJI_IDS.has(e.id));
+    return [...sharepic, ...rest].map((e) => assetItem(withTone(e, emojiTone)));
+  }, [emojiCatalog.data, emojiTone]);
 
   return useMemo(() => {
     const categories: CatalogCategory[] = [];
@@ -362,9 +379,9 @@ export function useElementCatalog(
       push({
         id: 'emoji',
         label: 'Emoji',
-        count: EMOJI_ITEMS.length,
-        items: EMOJI_ITEMS,
-        isLoading: false,
+        count: emojiCatalog.data ? emojiItems.length : null,
+        items: emojiItems,
+        isLoading: emojiCatalog.isLoading,
         searchable: true,
       });
     return categories;
@@ -386,5 +403,8 @@ export function useElementCatalog(
     hasIcons,
     iconItems,
     iconsLoading,
+    emojiCatalog.data,
+    emojiCatalog.isLoading,
+    emojiItems,
   ]);
 }

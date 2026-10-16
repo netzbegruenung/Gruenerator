@@ -380,21 +380,46 @@ const EMOJI_NAMES: Record<SharepicEmoji, [label: string, ...tags: string[]]> = {
   '🌈': ['Regenbogen', 'vielfalt', 'pride'],
 };
 
+/** Any vendored Noto emoji by its file code ("1f600", "1f9d1_1f3fb"). */
+export const emojiCodeAssetId = (code: string): string => `emoji-${code}`;
+export const emojiCodeSrc = (code: string): string => `/emoji/emoji_u${code}.svg`;
+
 /** The asset an emoji of a sharepic list is drawn with. */
-export const emojiAssetId = (emoji: SharepicEmoji): string => `emoji-${sharepicEmojiCode(emoji)}`;
+export const emojiAssetId = (emoji: SharepicEmoji): string =>
+  emojiCodeAssetId(sharepicEmojiCode(emoji));
 
 /** Noto Emoji (Apache-2.0, `public/emoji/LICENSE`): the closed set a sharepic list may use. */
 export const EMOJI_ASSETS: UniversalAsset[] = SHAREPIC_EMOJI.map((emoji) => {
   const [label, ...tags] = EMOJI_NAMES[emoji];
   return {
     id: emojiAssetId(emoji),
-    src: `/emoji/emoji_u${sharepicEmojiCode(emoji)}.svg`,
+    src: emojiCodeSrc(sharepicEmojiCode(emoji)),
     label,
     category: 'emoji',
     tags: ['emoji', ...tags],
     audience: 'all',
   };
 });
+
+const EMOJI_ID = /^emoji-([0-9a-f]{4,6}(?:_[0-9a-f]{4,6})*)$/;
+
+/**
+ * The full catalogue (`utils/emoji/emojiCatalog`) loads lazily, but a placed
+ * emoji must draw without it: its id alone names the file. The pattern keeps
+ * persisted state from pointing anywhere but `/emoji/`.
+ */
+function emojiAssetFromId(id: string): UniversalAsset | undefined {
+  const code = EMOJI_ID.exec(id)?.[1];
+  if (!code) return undefined;
+  return {
+    id,
+    src: emojiCodeSrc(code),
+    label: String.fromCodePoint(...code.split('_').map((cp) => parseInt(cp, 16))),
+    category: 'emoji',
+    tags: ['emoji'],
+    audience: 'all',
+  };
+}
 
 /** The shared sticker catalogue (`@gruenerator/shared/stickers`), the same set as the Profilbild. */
 export const STICKER_ASSETS: UniversalAsset[] = SYSTEM_STICKERS.map((s) => ({
@@ -465,11 +490,11 @@ export const CANVAS_RECOMMENDED_ASSETS: Record<string, string[]> = {
 };
 
 /**
- * Get asset by ID — Katalog UND Vorlagen-Varianten, denn beide koennen als
+ * Get asset by ID — Katalog, Vorlagen-Varianten und jedes Emoji, denn alle koennen als
  * Asset-Instanz auf der Flaeche liegen.
  */
 export function getAssetById(id: string): UniversalAsset | undefined {
-  return RESOLVABLE_ASSETS.find((asset) => asset.id === id);
+  return RESOLVABLE_ASSETS.find((asset) => asset.id === id) ?? emojiAssetFromId(id);
 }
 
 /**

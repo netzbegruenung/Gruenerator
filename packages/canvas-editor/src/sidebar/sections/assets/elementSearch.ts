@@ -4,7 +4,11 @@ import type { ElementItem } from './elementTypes';
 import type { CatalogCategory, CategoryId } from './useElementCatalog';
 
 /** Caps per kind in the search across all categories; a category's own search pages instead. */
-const GLOBAL_CAP: Partial<Record<CategoryId, number>> = { illustrationen: 30, icons: 20 };
+const GLOBAL_CAP: Partial<Record<CategoryId, number>> = {
+  illustrationen: 30,
+  icons: 20,
+  emoji: 30,
+};
 
 type SearchableCategory = Pick<CatalogCategory, 'id' | 'searchable' | 'items'>;
 
