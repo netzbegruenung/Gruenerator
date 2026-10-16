@@ -9,6 +9,8 @@ import type {
   CanvasAiCapabilities,
   CanvasAiOperation,
   CanvasAiSnapshot,
+  SharepicFormat,
+  SharepicSeite,
   SharepicVorlage,
 } from '@gruenerator/contracts';
 import type { ComponentType, ReactNode } from 'react';
@@ -74,6 +76,9 @@ export interface CanvasVorlagenService {
   compose: (vorlage: SharepicVorlage) => Promise<VorlagePage[]>;
   /** Copies the Vorlage into a new design of the viewer's own and opens it. */
   openAsNew?: (vorlage: SharepicVorlage) => void;
+  /** Single Seiten to add to the design; without both the tab offers no Seiten. */
+  listSeiten?: () => Promise<SharepicSeite[]>;
+  composeSeite?: (seite: SharepicSeite, format: SharepicFormat) => Promise<VorlagePage[]>;
   /**
    * The same for a print Vorlage. Print Vorlagen need no `list`/`compose`:
    * they ship with this package and compose here (`composePrint`).

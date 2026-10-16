@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 
 import { getPagesMap, readPages, replaceDeck, seedPagesIfEmpty } from './pagesDoc';
-import { carryImpressum, isDeckEmpty, vorlageDeckOps } from './vorlageDeck';
+import { carryImpressum, isDeckEmpty, seiteDeckOps, vorlageDeckOps } from './vorlageDeck';
 
 const blank = {
   configId: 'freeform',
@@ -150,5 +150,56 @@ describe('carryImpressum', () => {
     expect(
       carryImpressum([poster('freeform', 'V.i.S.d.P.: Anna Muster, Hauptstr. 1, Stadt')], [card])
     ).toEqual([card]);
+  });
+});
+
+describe('seiteDeckOps', () => {
+  const ids = () => 'neu';
+  const seite = {
+    configId: 'freeform',
+    state: { title: 'Seite', [SHAREPIC_SOURCE_KEY]: { v: 1, deck: 'eigenes', slide: {} } },
+  };
+  const page = (id: string, deck?: string) => ({
+    id,
+    configId: 'freeform',
+    state: {
+      additionalTexts: [{ id: 't', text: id }],
+      ...(deck ? { [SHAREPIC_SOURCE_KEY]: { v: 1, deck, slide: {} } } : {}),
+    },
+  });
+
+  it('inserts the Seite after the active page', () => {
+    expect(seiteDeckOps([page('a'), page('b'), page('c')], 'b', seite, ids)).toEqual({
+      updates: [],
+      inserts: [{ afterPageId: 'b', configId: 'freeform', state: seite.state, pageId: 'neu' }],
+      removes: [],
+    });
+  });
+
+  it('appends without an active page', () => {
+    expect(seiteDeckOps([page('a'), page('b')], null, seite, ids).inserts[0]?.afterPageId).toBe(
+      'b'
+    );
+  });
+
+  it('fills an empty design instead of adding a page to it', () => {
+    const empty = [{ id: 'leer', ...blank }];
+    expect(seiteDeckOps(empty, 'leer', seite, ids)).toEqual({
+      updates: [{ pageId: 'leer', state: seite.state }],
+      inserts: [],
+      removes: [],
+    });
+  });
+
+  it('joins the carousel of the page it follows, so the chat edits them together', () => {
+    const ops = seiteDeckOps([page('a', 'karussell'), page('b')], 'a', seite, ids);
+    expect(ops.inserts[0]?.state[SHAREPIC_SOURCE_KEY]).toEqual({
+      v: 1,
+      deck: 'karussell',
+      slide: {},
+    });
+    // After a hand-made page, the Seite keeps its own deck.
+    const own = seiteDeckOps([page('a', 'karussell'), page('b')], 'b', seite, ids);
+    expect(own.inserts[0]?.state[SHAREPIC_SOURCE_KEY]).toEqual(seite.state[SHAREPIC_SOURCE_KEY]);
   });
 });
