@@ -22,6 +22,7 @@ import { CategoryCard } from './CategoryCard';
 import { ElementGrid } from './ElementGrid';
 import { searchElements } from './elementSearch';
 import { ElementTile } from './ElementTile';
+import { EmojiTonePicker } from './EmojiTonePicker';
 import { RecentCarousel } from './RecentCarousel';
 import { StickerCatalog } from './StickerCatalog';
 import { canRun, useElementCatalog, type CategoryId } from './useElementCatalog';
@@ -129,11 +130,17 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
     if (props.selectedIllustrationId) setCat('illustrationen');
   }
 
-  const catalog = useElementCatalog(props, {
-    illustrations: hasQuery || cat === 'illustrationen',
-    icons: hasQuery,
-    photos: true,
-  });
+  const [emojiTone, setEmojiTone] = useState(0);
+  const catalog = useElementCatalog(
+    props,
+    {
+      illustrations: hasQuery || cat === 'illustrationen',
+      icons: hasQuery,
+      photos: true,
+      emoji: hasQuery || cat === 'emoji',
+    },
+    emojiTone
+  );
   const category = cat ? (catalog.find((c) => c.id === cat) ?? null) : null;
 
   // Handlers come in fresh props every render; the tiles get one stable callback.
@@ -292,6 +299,14 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
       ) : category.isLoading ? (
         <p className="m-0 py-8 text-center text-sm text-[var(--editor-text-muted)]">Lädt …</p>
       ) : null;
+    if (category.id === 'emoji') {
+      return (
+        <>
+          <EmojiTonePicker tone={emojiTone} onChange={setEmojiTone} />
+          {body}
+        </>
+      );
+    }
     if (category.id === 'sticker' && props.onAddAsset) {
       return (
         <StickerCatalog
