@@ -74,19 +74,19 @@ const deckOf = (state: Record<string, unknown>): string | null => {
 };
 
 /**
- * The deck change that adds one Seite: after the active page (or at the end),
+ * The deck change that adds one Seite: after the anchor page (or at the end),
  * in one undo step. An empty design is filled instead, so the blank page does
  * not stay in front. Following a page of a composed carousel, the Seite joins
  * that carousel, so the chat edits them as one.
  */
 export function seiteDeckOps(
   current: readonly { id: string; configId: string; state: Record<string, unknown> }[],
-  activePageId: string | null,
+  afterPageId: string | null,
   seite: DeckPage,
   newPageId: () => string
 ): ReplaceDeckOps {
   if (isDeckEmpty(current)) return vorlageDeckOps(current, [seite], newPageId);
-  const anchor = current.find((p) => p.id === activePageId) ?? current[current.length - 1] ?? null;
+  const anchor = current.find((p) => p.id === afterPageId) ?? current[current.length - 1] ?? null;
   const deck = anchor ? deckOf(anchor.state) : null;
   const own = seite.state[SHAREPIC_SOURCE_KEY];
   const state =

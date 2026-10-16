@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { SHAREPIC_COLOR_HEX } from '../composer/chromeParts';
 
-import { colorSimilarity, rankVorlagen, vorlagenForFormat } from './vorlagenRelevance';
+import { colorSimilarity, rankVorlagen } from './vorlagenRelevance';
 
 import type { SharepicColor, SharepicFormat } from '@gruenerator/contracts';
 
@@ -34,26 +34,6 @@ const photoPage = {
 };
 
 const ids = (list: { id: string }[]) => list.map((v) => v.id);
-
-describe('vorlagenForFormat', () => {
-  const list = [
-    vorlage('ohne-format', [farbe('tanne')]),
-    vorlage('hochkant', [farbe('tanne')], 'post-portrait'),
-    vorlage('hoch', [farbe('tanne')], 'post-portrait-tall'),
-  ];
-
-  it('treats a spec without format as 4:5', () => {
-    expect(ids(vorlagenForFormat(list, 'post-portrait'))).toEqual(['ohne-format', 'hochkant']);
-  });
-
-  it('offers 3:4 Vorlagen only on a 3:4 design', () => {
-    expect(ids(vorlagenForFormat(list, 'post-portrait-tall'))).toEqual(['hoch']);
-  });
-
-  it('has nothing for a format without Vorlagen', () => {
-    expect(vorlagenForFormat(list, 'profile-square')).toEqual([]);
-  });
-});
 
 describe('colorSimilarity', () => {
   const sim = (a: SharepicColor, b: SharepicColor) =>

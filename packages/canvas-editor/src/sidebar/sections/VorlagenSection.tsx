@@ -1,26 +1,22 @@
 /**
- * „Vorlagen" tab: the Grünerator-Vorlagen of the design's format, the ones
- * most like the design first (Canva's template panel). A pick — a click, or
- * on desktop a tile dragged onto a page — lands on an empty design straight
- * away; on one with content it asks first — open the Vorlage as a new design, or replace this design with it (one undo step,
+ * „Vorlagen" tab (Canva's template panel).
+ *
+ * A sharepic is built from single Seiten: a click adds one after the open
+ * page, a tile dragged onto a page adds it after that page, and nothing is
+ * replaced or asked. A Vorlage's slides come as Seiten of their own and stay
+ * together in their order; the ones most like the design come first.
+ *
+ * A print design is one sheet set, so its Vorlagen stay whole: a pick lands on
+ * an empty design straight away; on one with content it asks first — open the
+ * Vorlage as a new design, or replace this design with it (one undo step,
  * offered back through the top bar banner).
- *
- * Two catalogues feed the same grid: the sharepic Vorlagen come from the
- * host (`list`/`compose`), the print Vorlagen ship with this package and
- * compose here. Both become a `VorlageCard` that knows how to compose and
- * open itself, so picking, asking and replacing are one code path.
- *
- * Beside the whole Vorlagen, „Seiten" offers single slides to build a
- * carousel from: a pick adds the slide after the open page, nothing is asked.
  */
 import {
   sharepicFormatSchema,
   sharepicSeiteThumbPath,
-  sharepicVorlageThumbPath,
   type SharepicFormat,
   type SharepicSeite,
   type SharepicSeiteTyp,
-  type SharepicVorlage,
 } from '@gruenerator/contracts';
 import {
   AlertDialog,
@@ -34,7 +30,6 @@ import {
   Button,
   Skeleton,
 } from '@gruenerator/ui';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   useEffect,
   useImperativeHandle,
@@ -60,7 +55,7 @@ import { useCanvasStoreSelector } from '../../stores/CanvasStoreProvider';
 import { cn } from '../../utils/cn';
 import { ensureFontsReady } from '../../utils/ensureFontsReady';
 import { VORLAGE_DRAG_TYPE } from '../../utils/mediaDrop';
-import { rankVorlagen, vorlagenForFormat } from '../../utils/vorlagenRelevance';
+import { rankVorlagen } from '../../utils/vorlagenRelevance';
 
 import { GalleryTabs } from './StudioGallery';
 
@@ -71,10 +66,10 @@ import type {
 } from '../../CanvasEditorProvider';
 import type { HeterogeneousPage } from '../../configs/types';
 
-/** Lets the editor hand a Vorlage dropped on a page to the tab. */
+/** Lets the editor hand a tile dropped on a page to the tab. */
 export interface VorlagenSectionHandle {
-  /** Applies like a click on the tile: asks first on a design with content. */
-  pick: (vorlageId: string) => void;
+  /** A Seite goes in after `pageId`; a print Vorlage applies like a click on its tile. */
+  drop: (id: string, pageId: string) => void;
 }
 
 export interface VorlagenSectionProps {
@@ -86,16 +81,16 @@ export interface VorlagenSectionProps {
   deck: Pick<CanvasSpecEditBridge, 'getPages' | 'getActivePageId' | 'replaceDeck'>;
   /** Brings a page into view — the one a Seite was just added as. */
   onShowPage?: (pageId: string) => void;
+  /** False once the design holds as many pages as it may. */
+  canAddPage: boolean;
 }
 
-/** One tile of the grid, whichever catalogue it comes from. */
+/** One print Vorlage tile. */
 interface VorlageCard {
   id: string;
   titel: string;
   beschreibung: string;
   thumb: string;
-  /** Preview of a further slide (1-based); null where only the cover has one. */
-  thumbAt: ((seite: number) => string) | null;
   seiten: number;
   compose: () => Promise<VorlagePage[]>;
   /** Null where the host cannot open a new design. */
@@ -103,20 +98,6 @@ interface VorlageCard {
 }
 
 type Load<T> = { status: 'loading' } | { status: 'error' } | { status: 'ready'; items: T[] };
-
-function sharepicCard(vorlage: SharepicVorlage, service: CanvasVorlagenService): VorlageCard {
-  const { openAsNew } = service;
-  return {
-    id: vorlage.id,
-    titel: vorlage.titel,
-    beschreibung: vorlage.beschreibung,
-    thumb: sharepicVorlageThumbPath(vorlage.id, 1, vorlage.thumbVersion),
-    thumbAt: (seite) => sharepicVorlageThumbPath(vorlage.id, seite, vorlage.thumbVersion),
-    seiten: vorlage.spec.slides.length,
-    compose: () => service.compose(vorlage),
-    openAsNew: openAsNew ? () => openAsNew(vorlage) : null,
-  };
-}
 
 function printCard(
   vorlage: PrintVorlage,
@@ -129,7 +110,6 @@ function printCard(
     titel: vorlage.titel,
     beschreibung: vorlage.beschreibung,
     thumb: vorlage.thumb,
-    thumbAt: null,
     seiten: format.print.seiten,
     // Composing measures text in the brand fonts, like the gallery's „Verwenden".
     compose: async () => {
@@ -150,22 +130,53 @@ const SEITE_TYP_LABEL: Record<SharepicSeiteTyp, string> = {
   aufruf: 'Aufruf',
 };
 
-const ROLLE_ORDER = { titel: 0, inhalt: 1, schluss: 2 } as const;
+/** A Seite in the grid, with its place among the slides of its Vorlage. */
+interface SeiteTile {
+  seite: SharepicSeite;
+  n: number;
+  of: number;
+}
 
-/** The Seiten of the format, the ones most like the design first, closing slides last. */
+/**
+ * The Seiten of the format. The slides of one Vorlage stay together in their
+ * order and are ranked as one, the ones most like the design first; groups of
+ * closing slides only go last.
+ */
 function seitenFor(
   seiten: readonly SharepicSeite[],
   format: SharepicFormat,
   pages: readonly HeterogeneousPage[],
   empty: boolean
-): SharepicSeite[] {
-  const fitting = seiten
-    .filter((s) => s.formats.includes(format))
-    .map((seite) => ({ seite, spec: { format, slides: [seite.slide] } }));
-  const ranked = empty ? fitting : rankVorlagen(fitting, pages);
-  return ranked
-    .map((entry) => entry.seite)
-    .sort((a, b) => ROLLE_ORDER[a.rolle] - ROLLE_ORDER[b.rolle]);
+): SeiteTile[] {
+  const groups = new Map<string, SharepicSeite[]>();
+  for (const seite of seiten) {
+    if (!seite.formats.includes(format)) continue;
+    const key = seite.quelle ? `vorlage:${seite.quelle.vorlage}` : `seite:${seite.id}`;
+    const group = groups.get(key);
+    if (group) group.push(seite);
+    else groups.set(key, [seite]);
+  }
+  const entries = [...groups.values()].map((group) => {
+    group.sort((a, b) => (a.quelle?.seite ?? 0) - (b.quelle?.seite ?? 0));
+    return { group, spec: { format, slides: group.map((s) => s.slide) } };
+  });
+  const ranked = empty ? entries : rankVorlagen(entries, pages);
+  const closing = ({ group }: (typeof entries)[number]) =>
+    group.every((s) => s.rolle === 'schluss');
+  return [...ranked.filter((e) => !closing(e)), ...ranked.filter(closing)].flatMap(({ group }) =>
+    group.map((seite, i) => ({ seite, n: i + 1, of: group.length }))
+  );
+}
+
+/** Drag a tile onto a page, with its preview as the drag image. */
+function startDrag(e: DragEvent<HTMLElement>, id: string) {
+  e.dataTransfer.setData(VORLAGE_DRAG_TYPE, id);
+  e.dataTransfer.effectAllowed = 'copy';
+  const preview =
+    e.currentTarget.querySelector('img') ?? e.currentTarget.parentElement?.querySelector('img');
+  if (preview) {
+    e.dataTransfer.setDragImage(preview, preview.offsetWidth / 2, preview.offsetHeight / 2);
+  }
 }
 
 const HINT = 'm-0 py-4 text-center text-[13px] text-[var(--editor-text-muted)]';
@@ -186,9 +197,6 @@ const TILE_TITLE = 'line-clamp-2 text-[12px] font-medium leading-tight text-[var
 
 const BADGE =
   'pointer-events-none absolute right-1.5 top-1.5 rounded-full bg-black/60 px-1.5 py-px text-[10px] font-semibold text-white';
-
-const BROWSE_BUTTON =
-  'absolute top-1/2 z-[1] flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-none bg-black/55 p-0 text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)] disabled:hidden [@media(hover:none)]:opacity-100';
 
 const APPLY_ERROR = 'Die Vorlage ließ sich nicht anwenden. Bitte versuche es erneut.';
 const ADD_ERROR = 'Die Seite ließ sich nicht einfügen. Bitte versuche es erneut.';
@@ -230,10 +238,7 @@ function LoadError({ text, onRetry }: { text: string; onRetry: () => void }) {
   );
 }
 
-/**
- * A Vorlage tile; a carousel's slides can be leafed through before picking
- * it. The pick button covers the image, the arrows sit above it.
- */
+/** A print Vorlage tile; the pick button covers the image. */
 function VorlageTile({
   vorlage,
   aspect,
@@ -252,22 +257,11 @@ function VorlageTile({
   canDrag: boolean;
   onPick: () => void;
 }) {
-  const [shown, setShown] = useState(1);
-  const { seiten, thumbAt } = vorlage;
-  const browsable = thumbAt !== null && seiten > 1;
-  const startDrag = (e: DragEvent<HTMLButtonElement>) => {
-    e.dataTransfer.setData(VORLAGE_DRAG_TYPE, vorlage.id);
-    e.dataTransfer.effectAllowed = 'copy';
-    const preview = e.currentTarget.parentElement?.querySelector('img');
-    if (preview) {
-      e.dataTransfer.setDragImage(preview, preview.offsetWidth / 2, preview.offsetHeight / 2);
-    }
-  };
   return (
     <li className="flex flex-col gap-1">
       <span className={cn('group', TILE_IMAGE, aspect)} style={aspectStyle}>
         <img
-          src={browsable && shown > 1 ? thumbAt(shown) : vorlage.thumb}
+          src={vorlage.thumb}
           alt=""
           loading="lazy"
           className="size-full object-cover transition-transform duration-150 group-hover:scale-[1.02]"
@@ -280,34 +274,10 @@ function VorlageTile({
           disabled={disabled}
           onClick={onPick}
           draggable={canDrag && !disabled}
-          onDragStart={startDrag}
+          onDragStart={(e) => startDrag(e, vorlage.id)}
           className={cn(TILE_OVERLAY, canDrag && 'active:cursor-grabbing')}
         />
-        {seiten > 1 && (
-          <span className={BADGE}>{browsable ? `${shown}/${seiten}` : `${seiten} Seiten`}</span>
-        )}
-        {browsable && (
-          <>
-            <button
-              type="button"
-              aria-label={`Vorherige Seite von „${vorlage.titel}“`}
-              disabled={shown === 1}
-              onClick={() => setShown((n) => Math.max(1, n - 1))}
-              className={cn(BROWSE_BUTTON, 'left-1')}
-            >
-              <ChevronLeft className="size-4" aria-hidden />
-            </button>
-            <button
-              type="button"
-              aria-label={`Nächste Seite von „${vorlage.titel}“`}
-              disabled={shown === seiten}
-              onClick={() => setShown((n) => Math.min(seiten, n + 1))}
-              className={cn(BROWSE_BUTTON, 'right-1')}
-            >
-              <ChevronRight className="size-4" aria-hidden />
-            </button>
-          </>
-        )}
+        {vorlage.seiten > 1 && <span className={BADGE}>{vorlage.seiten} Seiten</span>}
         {busy && <Spinner />}
       </span>
       <span className={TILE_TITLE}>{vorlage.titel}</span>
@@ -315,27 +285,24 @@ function VorlageTile({
   );
 }
 
-type View = 'vorlagen' | 'seiten';
-
-const VIEWS = [
-  { id: 'vorlagen', label: 'Ganze Vorlagen' },
-  { id: 'seiten', label: 'Einzelne Seiten' },
-] as const;
-
-export function VorlagenSection({ ref, formatId, pages, deck, onShowPage }: VorlagenSectionProps) {
+export function VorlagenSection({
+  ref,
+  formatId,
+  pages,
+  deck,
+  onShowPage,
+  canAddPage,
+}: VorlagenSectionProps) {
   const { vorlagen: service, userLocale = 'de-DE' } = useCanvasEditorServices();
   const canDrag = !useIsCanvasMobile();
   const setPending = useCanvasStoreSelector((s) => s.setPendingAiSuggestion);
-  const [load, setLoad] = useState<Load<VorlageCard>>({ status: 'loading' });
-  const [attempt, setAttempt] = useState(0);
   // Ranked against the design as it was when the tab opened: a pick must not
   // reshuffle the grid under the pointer.
   const [atOpen] = useState(() => ({ pages, empty: isDeckEmpty(pages) }));
   const [busyId, setBusyId] = useState<string | null>(null);
   const [asking, setAsking] = useState<VorlageCard | null>(null);
   const [applyError, setApplyError] = useState<string | null>(null);
-  const [view, setView] = useState<View>('vorlagen');
-  const [seitenLoad, setSeitenLoad] = useState<Load<SharepicSeite>>({ status: 'loading' });
+  const [seitenLoad, setSeitenLoad] = useState<Load<SeiteTile>>({ status: 'loading' });
   const [seitenAttempt, setSeitenAttempt] = useState(0);
   const [typ, setTyp] = useState<SharepicSeiteTyp | 'alle'>('alle');
 
@@ -345,32 +312,9 @@ export function VorlagenSection({ ref, formatId, pages, deck, onShowPage }: Vorl
   const seitenFormat = sharepicFormat.success ? sharepicFormat.data : null;
   const listSeiten = service?.listSeiten;
   const composeSeite = service?.composeSeite;
-  const offersSeiten = seitenFormat !== null && !!listSeiten && !!composeSeite;
 
   useEffect(() => {
-    if (!service || printFormat) return;
-    let live = true;
-    service.list().then(
-      (vorlagen) => {
-        if (!live) return;
-        const fitting = vorlagenForFormat(vorlagen, formatId);
-        const shown = atOpen.empty ? fitting : rankVorlagen(fitting, atOpen.pages);
-        setLoad({ status: 'ready', items: shown.map((v) => sharepicCard(v, service)) });
-      },
-      (err: unknown) => {
-        console.warn('[VorlagenSection] loading the Vorlagen failed', err);
-        if (live) setLoad({ status: 'error' });
-      }
-    );
-    return () => {
-      live = false;
-    };
-  }, [service, attempt, printFormat, formatId, atOpen]);
-
-  // The Seiten load once the view is first opened.
-  const wantsSeiten = view === 'seiten';
-  useEffect(() => {
-    if (!wantsSeiten || !listSeiten || !seitenFormat) return;
+    if (!listSeiten || !seitenFormat) return;
     let live = true;
     listSeiten().then(
       (seiten) => {
@@ -389,18 +333,15 @@ export function VorlagenSection({ ref, formatId, pages, deck, onShowPage }: Vorl
     return () => {
       live = false;
     };
-  }, [wantsSeiten, listSeiten, seitenFormat, seitenAttempt, atOpen]);
+  }, [listSeiten, seitenFormat, seitenAttempt, atOpen]);
 
   // One print Vorlage per format and country, shipped with the package: nothing to load or rank.
-  const shownLoad: Load<VorlageCard> =
+  const printCards =
     printFormat && service
-      ? {
-          status: 'ready',
-          items: printVorlagenFor(userLocale)
-            .filter((v) => v.spec.format === printFormat.id)
-            .map((v) => printCard(v, printFormat, service)),
-        }
-      : load;
+      ? printVorlagenFor(userLocale)
+          .filter((v) => v.spec.format === printFormat.id)
+          .map((v) => printCard(v, printFormat, service))
+      : [];
 
   const apply = async (vorlage: VorlageCard, replacing: boolean) => {
     setBusyId(vorlage.id);
@@ -418,14 +359,17 @@ export function VorlagenSection({ ref, formatId, pages, deck, onShowPage }: Vorl
     }
   };
 
-  const addSeite = async (seite: SharepicSeite) => {
-    if (busyId !== null || !composeSeite || !seitenFormat) return;
+  // An empty design swaps its blank page for the Seite, so it always has room.
+  const full = !canAddPage && !isDeckEmpty(pages);
+
+  const addSeite = async (seite: SharepicSeite, afterPageId: string | null) => {
+    if (busyId !== null || full || !composeSeite || !seitenFormat) return;
     setBusyId(seite.id);
     setApplyError(null);
     try {
       const [page] = await composeSeite(seite, seitenFormat);
       if (!page) throw new Error('composed no page');
-      const ops = seiteDeckOps(deck.getPages(), deck.getActivePageId(), page, uuid);
+      const ops = seiteDeckOps(deck.getPages(), afterPageId, page, uuid);
       const [inserted] = deck.replaceDeck(ops);
       const shownId = inserted ?? ops.updates[0]?.pageId;
       if (shownId) onShowPage?.(shownId);
@@ -444,10 +388,15 @@ export function VorlagenSection({ ref, formatId, pages, deck, onShowPage }: Vorl
   };
 
   useImperativeHandle(ref, () => ({
-    pick: (vorlageId) => {
-      const vorlage =
-        shownLoad.status === 'ready' ? shownLoad.items.find((v) => v.id === vorlageId) : null;
-      if (vorlage) choose(vorlage);
+    drop: (id, pageId) => {
+      const vorlage = printCards.find((v) => v.id === id);
+      if (vorlage) {
+        choose(vorlage);
+        return;
+      }
+      const tile =
+        seitenLoad.status === 'ready' ? seitenLoad.items.find((t) => t.seite.id === id) : null;
+      if (tile) void addSeite(tile.seite, pageId);
     },
   }));
 
@@ -465,9 +414,6 @@ export function VorlagenSection({ ref, formatId, pages, deck, onShowPage }: Vorl
     vorlage?.openAsNew?.();
   };
 
-  const newLabel = printFormat ? 'Als neues Design öffnen' : 'Als neues Sharepic öffnen';
-  const newTarget = printFormat ? 'neues Design' : 'neues Sharepic';
-
   // A print card shows its sheet as it is; the sharepic grid keeps its classes.
   const aspect = printFormat
     ? ''
@@ -484,27 +430,12 @@ export function VorlagenSection({ ref, formatId, pages, deck, onShowPage }: Vorl
     </p>
   );
 
-  const vorlagenView = (() => {
-    if (shownLoad.status === 'loading') {
-      return <LoadingGrid aspect={aspect} aspectStyle={aspectStyle} label="Vorlagen laden" />;
-    }
-    if (shownLoad.status === 'error') {
-      return (
-        <LoadError
-          text="Vorlagen konnten nicht geladen werden."
-          onRetry={() => {
-            setLoad({ status: 'loading' });
-            setAttempt((n) => n + 1);
-          }}
-        />
-      );
-    }
-    if (shownLoad.items.length === 0) {
-      return <p className={HINT}>Für dieses Format gibt es noch keine Vorlagen.</p>;
-    }
-    return (
+  const printView =
+    printCards.length === 0 ? (
+      <p className={HINT}>Für dieses Format gibt es noch keine Vorlagen.</p>
+    ) : (
       <ul className="m-0 grid w-full list-none grid-cols-2 gap-2 p-0">
-        {shownLoad.items.map((vorlage) => (
+        {printCards.map((vorlage) => (
           <VorlageTile
             key={vorlage.id}
             vorlage={vorlage}
@@ -518,7 +449,6 @@ export function VorlagenSection({ ref, formatId, pages, deck, onShowPage }: Vorl
         ))}
       </ul>
     );
-  })();
 
   const seitenView = (() => {
     if (!seitenFormat) return null;
@@ -537,14 +467,21 @@ export function VorlagenSection({ ref, formatId, pages, deck, onShowPage }: Vorl
       );
     }
     if (seitenLoad.items.length === 0) {
-      return <p className={HINT}>Für dieses Format gibt es noch keine einzelnen Seiten.</p>;
+      return <p className={HINT}>Für dieses Format gibt es noch keine Seiten.</p>;
     }
     const typen = (Object.keys(SEITE_TYP_LABEL) as SharepicSeiteTyp[]).filter((t) =>
-      seitenLoad.items.some((s) => s.typ === t)
+      seitenLoad.items.some(({ seite }) => seite.typ === t)
     );
-    const shown = seitenLoad.items.filter((s) => typ === 'alle' || s.typ === typ);
+    const shown = seitenLoad.items.filter(({ seite }) => typ === 'alle' || seite.typ === typ);
     return (
       <>
+        <p className="m-0 text-[12px] text-[var(--editor-text-muted)]">
+          {full
+            ? 'Mehr Seiten passen nicht in dieses Design. Lösche eine, um eine neue einzufügen.'
+            : canDrag
+              ? 'Ein Klick fügt die Seite hinter der aktuellen ein. Auf eine Seite gezogen, landet sie dahinter.'
+              : 'Ein Klick fügt die Seite hinter der aktuellen ein.'}
+        </p>
         {typen.length > 1 && (
           <GalleryTabs
             label="Art der Seite"
@@ -557,29 +494,43 @@ export function VorlagenSection({ ref, formatId, pages, deck, onShowPage }: Vorl
           />
         )}
         <ul className="m-0 grid w-full list-none grid-cols-2 gap-2 p-0">
-          {shown.map((seite) => (
-            <li key={seite.id}>
-              <button
-                type="button"
-                aria-label={`Seite „${seite.titel}“ einfügen`}
-                aria-busy={busyId === seite.id}
-                disabled={busyId !== null}
-                onClick={() => void addSeite(seite)}
-                className={TILE_BUTTON}
-              >
-                <span className={cn(TILE_IMAGE, aspect)}>
-                  <img
-                    src={sharepicSeiteThumbPath(seite.id, seitenFormat, seite.thumbVersion)}
-                    alt=""
-                    loading="lazy"
-                    className="size-full object-cover transition-transform duration-150 hover:scale-[1.02]"
-                  />
-                  {busyId === seite.id && <Spinner />}
-                </span>
-                <span className={TILE_TITLE}>{seite.titel}</span>
-              </button>
-            </li>
-          ))}
+          {shown.map(({ seite, n, of }) => {
+            const disabled = busyId !== null || full;
+            return (
+              <li key={seite.id}>
+                <button
+                  type="button"
+                  aria-label={
+                    of > 1
+                      ? `Seite ${n} von ${of} aus „${seite.titel}“ einfügen`
+                      : `Seite „${seite.titel}“ einfügen`
+                  }
+                  aria-busy={busyId === seite.id}
+                  disabled={disabled}
+                  onClick={() => void addSeite(seite, deck.getActivePageId())}
+                  draggable={canDrag && !disabled}
+                  onDragStart={(e) => startDrag(e, seite.id)}
+                  className={cn(TILE_BUTTON, canDrag && 'active:cursor-grabbing')}
+                >
+                  <span className={cn(TILE_IMAGE, aspect)}>
+                    <img
+                      src={sharepicSeiteThumbPath(seite.id, seitenFormat, seite.thumbVersion)}
+                      alt=""
+                      loading="lazy"
+                      className="size-full object-cover transition-transform duration-150 hover:scale-[1.02]"
+                    />
+                    {of > 1 && (
+                      <span className={BADGE}>
+                        {n}/{of}
+                      </span>
+                    )}
+                    {busyId === seite.id && <Spinner />}
+                  </span>
+                  <span className={TILE_TITLE}>{seite.titel}</span>
+                </button>
+              </li>
+            );
+          })}
         </ul>
       </>
     );
@@ -587,16 +538,8 @@ export function VorlagenSection({ ref, formatId, pages, deck, onShowPage }: Vorl
 
   return (
     <div className="flex w-full flex-col gap-2.5">
-      {offersSeiten && (
-        <GalleryTabs label="Vorlagen oder Seiten" tabs={VIEWS} value={view} onChange={setView} />
-      )}
-      {offersSeiten && view === 'seiten' && (
-        <p className="m-0 text-[12px] text-[var(--editor-text-muted)]">
-          Ein Klick fügt die Seite hinter der aktuellen ein.
-        </p>
-      )}
       {errorLine}
-      {view === 'seiten' && offersSeiten ? seitenView : vorlagenView}
+      {printFormat ? printView : seitenView}
 
       <AlertDialog open={asking !== null} onOpenChange={(open) => !open && setAsking(null)}>
         <AlertDialogContent>
@@ -604,7 +547,7 @@ export function VorlagenSection({ ref, formatId, pages, deck, onShowPage }: Vorl
             <AlertDialogTitle>Vorlage „{asking?.titel}“ verwenden?</AlertDialogTitle>
             <AlertDialogDescription>
               {asking?.openAsNew
-                ? `Auf deinem Design ist schon etwas. Öffne die Vorlage als ${newTarget} oder ersetze dein aktuelles Design damit.`
+                ? 'Auf deinem Design ist schon etwas. Öffne die Vorlage als neues Design oder ersetze dein aktuelles Design damit.'
                 : 'Die Vorlage ersetzt dein aktuelles Design. Rückgängig geht danach über „Vorlage verwerfen“.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -612,7 +555,7 @@ export function VorlagenSection({ ref, formatId, pages, deck, onShowPage }: Vorl
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
             {asking?.openAsNew && (
               <Button variant="outline" onClick={confirmNew}>
-                {newLabel}
+                Als neues Design öffnen
               </Button>
             )}
             <AlertDialogAction onClick={confirmReplace}>Aktuelles ersetzen</AlertDialogAction>

@@ -520,15 +520,15 @@ function CanvasEditorInner({
     [hasReplaceDeck]
   );
 
-  // The Vorlagen replace the whole deck, so they need the synced pages doc.
+  // The Vorlagen tab changes the deck, so it needs the synced pages doc.
   const { vorlagen: vorlagenService } = useCanvasEditorServices();
   const showVorlagen =
     vorlagenService !== undefined && hasReplaceDeck && formatHasVorlagen(formatId);
-  // A Vorlage dropped on a page goes to the open Vorlagen tab, which asks first
-  // on a design with content, as on a click.
+  // A tile dropped on a page goes to the open Vorlagen tab: a Seite lands
+  // after that page, a print Vorlage asks first on a design with content.
   const vorlagenRef = useRef<VorlagenSectionHandle>(null);
   const handleDropVorlage = useCallback(
-    (vorlageId: string) => vorlagenRef.current?.pick(vorlageId),
+    (id: string, pageId: string) => vorlagenRef.current?.drop(id, pageId),
     []
   );
 
@@ -952,6 +952,7 @@ function CanvasEditorInner({
           pages={pages}
           deck={specEdit}
           onShowPage={showPage}
+          canAddPage={canAddMore}
         />
       ) : null;
     }
@@ -986,6 +987,7 @@ function CanvasEditorInner({
     formatId,
     pages,
     showPage,
+    canAddMore,
   ]);
 
   // Collab vor dem ersten Sync (noch keine Seiten) und der eine Render, in dem

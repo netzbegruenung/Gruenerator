@@ -10,35 +10,39 @@ import { VORLAGE_DRAG_TYPE } from '../../utils/mediaDrop';
 import { VorlagenSection, type VorlagenSectionHandle } from '../sections/VorlagenSection';
 
 import type { HeterogeneousPage } from '../../configs/types';
-import type { SharepicFormat, SharepicSeite, SharepicVorlage } from '@gruenerator/contracts';
+import type { SharepicSeite } from '@gruenerator/contracts';
 
-function vorlage(id: string, titel: string, format?: SharepicFormat, slides = 1): SharepicVorlage {
+function seite(id: string, titel: string, over: Partial<SharepicSeite> = {}): SharepicSeite {
   return {
     id,
     titel,
-    beschreibung: `${titel}, kurz beschrieben.`,
-    form: 'einzelbild',
-    herkunft: 'beispiel',
-    chat: { prompts: ['Ein Sharepic bitte'] },
+    rolle: 'inhalt',
+    typ: 'text',
+    formats: ['post-portrait'],
     locale: 'de-DE',
-    attributions: [],
-    thumbVersion: 'abc123',
-    spec: {
-      locale: 'de-DE',
-      ...(format ? { format } : {}),
-      slides: Array.from({ length: slides }, () => ({
-        background: { kind: 'farbe', color: 'tanne' },
-        items: [{ type: 'headline', text: 'Hallo' }],
-      })),
+    attribution: null,
+    thumbVersion: 'v1',
+    slide: {
+      background: { kind: 'farbe', color: 'tanne' },
+      items: [{ type: 'absatz', text: 'Text' }],
     },
-  } as unknown as SharepicVorlage;
+    ...over,
+  } as unknown as SharepicSeite;
 }
 
-const CATALOGUE = [
-  vorlage('zitat', 'Zitat mit Foto'),
-  vorlage('karussell', 'Karussell', undefined, 4),
-  vorlage('hoch', 'Hochformat', 'post-portrait-tall'),
+const fromKarussell = (seite: number) => ({ vorlage: 'karussell', seite });
+
+// Out of order on purpose: the grid puts a Vorlage's slides back in sequence.
+const SEITEN = [
+  seite('karussell-s2', 'Karussell', { quelle: fromKarussell(2), typ: 'liste' }),
+  seite('schluss', 'Kernsatz', { rolle: 'schluss', typ: 'aufruf' }),
+  seite('karussell-s1', 'Karussell', { quelle: fromKarussell(1), rolle: 'titel' }),
+  seite('text', 'Zwei Absätze'),
+  seite('gruende', 'Gründe', { quelle: fromKarussell(3), rolle: 'schluss' }),
+  seite('liste', 'Forderungen', { typ: 'liste' }),
+  seite('hoch', 'Nur 3:4', { formats: ['post-portrait-tall'] }),
 ];
+const SEITE_PAGE = { configId: 'freeform', state: { title: 'Seite' } };
 
 const EMPTY: HeterogeneousPage[] = [
   {
@@ -47,14 +51,13 @@ const EMPTY: HeterogeneousPage[] = [
     state: { backgroundMode: 'color', backgroundColor: '#005538' },
   },
 ];
-const WITH_TEXT: HeterogeneousPage[] = [
-  {
-    id: 'p1',
-    configId: 'freeform',
-    state: { backgroundColor: '#005538', additionalTexts: [{ id: 't1', text: 'Mein Text' }] },
-  },
-];
-const COMPOSED = [{ configId: 'freeform', state: { title: 'Vorlage' } }];
+const textPage = (id: string): HeterogeneousPage => ({
+  id,
+  configId: 'freeform',
+  state: { backgroundColor: '#005538', additionalTexts: [{ id: 't1', text: 'Mein Text' }] },
+});
+const WITH_TEXT = [textPage('p1')];
+const TWO_PAGES = [textPage('p1'), textPage('p2')];
 
 function setup(
   pages: HeterogeneousPage[],
@@ -62,16 +65,17 @@ function setup(
     service = {},
     formatId = 'post-portrait',
     userLocale = 'de-DE',
+    canAddPage = true,
   }: {
     service?: Partial<CanvasVorlagenService>;
     formatId?: string;
     userLocale?: 'de-DE' | 'de-AT';
+    canAddPage?: boolean;
   } = {}
 ) {
   const vorlagen: CanvasVorlagenService = {
-    list: vi.fn(async () => CATALOGUE),
-    compose: vi.fn(async () => COMPOSED),
-    openAsNew: vi.fn(),
+    listSeiten: vi.fn(async () => SEITEN),
+    composeSeite: vi.fn(async () => [SEITE_PAGE]),
     openPrintAsNew: vi.fn(),
     ...service,
   };
@@ -90,6 +94,7 @@ function setup(
         pages={pages}
         deck={deck}
         onShowPage={onShowPage}
+        canAddPage={canAddPage}
       />
     </CanvasEditorProvider>
   );
@@ -98,6 +103,12 @@ function setup(
 
 const card = (titel: string) =>
   screen.findByRole('button', { name: `Vorlage „${titel}“ anwenden` });
+
+const seitenTile = (titel: string) =>
+  screen.findByRole('button', { name: `Seite „${titel}“ einfügen` });
+
+const seitenLabels = () =>
+  screen.getAllByRole('button', { name: /^Seite / }).map((b) => b.getAttribute('aria-label'));
 
 function setViewport(mobile: boolean) {
   window.matchMedia = vi.fn().mockImplementation((query: string) => ({
@@ -108,175 +119,165 @@ function setViewport(mobile: boolean) {
   }));
 }
 
+function dragStart(tile: HTMLElement) {
+  const data: Record<string, string> = {};
+  fireEvent.dragStart(tile, {
+    dataTransfer: {
+      setData: (type: string, value: string) => (data[type] = value),
+      setDragImage: () => {},
+      effectAllowed: '',
+    },
+  });
+  return data;
+}
+
+const insertedAfter = (deck: ReturnType<typeof setup>['deck']) => {
+  const [ops] = deck.replaceDeck.mock.calls[0] as unknown as [
+    { inserts: { afterPageId: string | null; state: unknown }[]; removes: string[] },
+  ];
+  return ops;
+};
+
 beforeEach(() => {
   setViewport(false);
   defaultCanvasEditorStore.getState().setPendingAiSuggestion(null);
 });
 
-describe('VorlagenSection', () => {
-  it('shows only the Vorlagen of the design format', async () => {
+describe('VorlagenSection on a sharepic', () => {
+  it('shows only Seiten, a Vorlage’s slides together in order, closing slides last', async () => {
     setup(EMPTY);
-    await card('Zitat mit Foto');
-    expect(
-      screen.getByRole('button', { name: 'Vorlage „Karussell“ anwenden' })
-    ).toBeInTheDocument();
-    expect(screen.getByText('1/4')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Hochformat/ })).toBeNull();
+    await seitenTile('Zwei Absätze');
+    expect(screen.queryByRole('button', { name: /Ganze Vorlagen/ })).toBeNull();
+    expect(seitenLabels()).toEqual([
+      'Seite 1 von 3 aus „Karussell“ einfügen',
+      'Seite 2 von 3 aus „Karussell“ einfügen',
+      'Seite 3 von 3 aus „Gründe“ einfügen',
+      'Seite „Zwei Absätze“ einfügen',
+      'Seite „Forderungen“ einfügen',
+      'Seite „Kernsatz“ einfügen',
+    ]);
+    expect(screen.getByText('1/3')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Nur 3:4/ })).toBeNull();
   });
 
-  it('offers the 3:4 Vorlagen on a 3:4 design', async () => {
+  it('offers the 3:4 Seiten on a 3:4 design', async () => {
     setup(EMPTY, { formatId: 'post-portrait-tall' });
-    await card('Hochformat');
-    expect(screen.queryByRole('button', { name: /Zitat mit Foto/ })).toBeNull();
+    await seitenTile('Nur 3:4');
+    expect(seitenLabels()).toHaveLength(1);
   });
 
-  it('applies straight away on an empty design', async () => {
-    const { vorlagen, deck, user } = setup(EMPTY);
-    await user.click(await card('Zitat mit Foto'));
+  it('filters by kind', async () => {
+    const { user } = setup(EMPTY);
+    await seitenTile('Zwei Absätze');
+    await user.click(screen.getByRole('button', { name: 'Liste' }));
+    expect(seitenLabels()).toEqual([
+      'Seite 2 von 3 aus „Karussell“ einfügen',
+      'Seite „Forderungen“ einfügen',
+    ]);
+  });
+
+  it('adds a Seite after the open page without asking, and shows it', async () => {
+    const { deck, vorlagen, onShowPage, user } = setup(WITH_TEXT);
+    deck.replaceDeck.mockReturnValue(['neu']);
+    await user.click(await seitenTile('Forderungen'));
+
     await waitFor(() => expect(deck.replaceDeck).toHaveBeenCalledTimes(1));
-    expect(vorlagen.compose).toHaveBeenCalledWith(CATALOGUE[0]);
-    expect(deck.replaceDeck).toHaveBeenCalledWith({
-      updates: [{ pageId: 'p1', state: { title: 'Vorlage' } }],
-      inserts: [],
-      removes: [],
-    });
+    expect(vorlagen.composeSeite).toHaveBeenCalledWith(SEITEN[5], 'post-portrait');
+    const ops = insertedAfter(deck);
+    expect(ops.inserts).toEqual([
+      expect.objectContaining({ afterPageId: 'p1', state: SEITE_PAGE.state }),
+    ]);
+    expect(ops.removes).toEqual([]);
+    expect(onShowPage).toHaveBeenCalledWith('neu');
     expect(screen.queryByRole('alertdialog')).toBeNull();
     expect(defaultCanvasEditorStore.getState().pendingAiSuggestion).toBeNull();
   });
 
-  it('asks first on a design with content, and replaces it on request', async () => {
-    const { deck, vorlagen, user } = setup(WITH_TEXT);
-    await user.click(await card('Zitat mit Foto'));
-
-    const dialog = await screen.findByRole('alertdialog');
-    expect(within(dialog).getByText('Vorlage „Zitat mit Foto“ verwenden?')).toBeInTheDocument();
-    expect(deck.replaceDeck).not.toHaveBeenCalled();
-
-    await user.click(within(dialog).getByRole('button', { name: 'Aktuelles ersetzen' }));
+  it('fills an empty design with the Seite', async () => {
+    const { deck, onShowPage, user } = setup(EMPTY);
+    await user.click(await seitenTile('Zwei Absätze'));
     await waitFor(() => expect(deck.replaceDeck).toHaveBeenCalledTimes(1));
-    expect(vorlagen.openAsNew).not.toHaveBeenCalled();
-    expect(defaultCanvasEditorStore.getState().pendingAiSuggestion).toEqual({
-      title: 'Zitat mit Foto',
-      undo: 'pages',
-      source: 'vorlage',
+    expect(deck.replaceDeck).toHaveBeenCalledWith({
+      updates: [{ pageId: 'p1', state: SEITE_PAGE.state }],
+      inserts: [],
+      removes: [],
     });
+    expect(onShowPage).toHaveBeenCalledWith('p1');
   });
 
   describe('drag onto a page', () => {
-    function dragStart(tile: HTMLElement) {
-      const data: Record<string, string> = {};
-      fireEvent.dragStart(tile, {
-        dataTransfer: {
-          setData: (type: string, value: string) => (data[type] = value),
-          setDragImage: () => {},
-          effectAllowed: '',
-        },
-      });
-      return data;
-    }
-
-    it('drags the Vorlage id', async () => {
-      setup(EMPTY);
-      const tile = await card('Karussell');
+    it('drags the Seite id', async () => {
+      setup(WITH_TEXT);
+      const tile = await seitenTile('Forderungen');
       expect(tile).toHaveAttribute('draggable', 'true');
-      expect(dragStart(tile)[VORLAGE_DRAG_TYPE]).toBe('karussell');
+      expect(dragStart(tile)[VORLAGE_DRAG_TYPE]).toBe('liste');
     });
 
-    it('applies a dropped Vorlage straight away on an empty design', async () => {
-      const { deck, vorlagen, handle } = setup(EMPTY);
-      await card('Zitat mit Foto');
-      act(() => handle.current?.pick('zitat'));
+    it('adds a dropped Seite after the page it was dropped on', async () => {
+      const { deck, handle } = setup(TWO_PAGES);
+      await seitenTile('Forderungen');
+      act(() => handle.current?.drop('liste', 'p2'));
       await waitFor(() => expect(deck.replaceDeck).toHaveBeenCalledTimes(1));
-      expect(vorlagen.compose).toHaveBeenCalledWith(CATALOGUE[0]);
+      expect(insertedAfter(deck).inserts).toEqual([expect.objectContaining({ afterPageId: 'p2' })]);
       expect(screen.queryByRole('alertdialog')).toBeNull();
-    });
-
-    it('asks first when the design has content', async () => {
-      const { deck, handle, user } = setup(WITH_TEXT);
-      await card('Zitat mit Foto');
-      act(() => handle.current?.pick('zitat'));
-
-      const dialog = await screen.findByRole('alertdialog');
-      expect(within(dialog).getByText('Vorlage „Zitat mit Foto“ verwenden?')).toBeInTheDocument();
-      expect(deck.replaceDeck).not.toHaveBeenCalled();
-
-      await user.click(within(dialog).getByRole('button', { name: 'Aktuelles ersetzen' }));
-      await waitFor(() => expect(deck.replaceDeck).toHaveBeenCalledTimes(1));
     });
 
     it('ignores an id that is not in the grid', async () => {
       const { deck, vorlagen, handle } = setup(WITH_TEXT);
-      await card('Zitat mit Foto');
-      act(() => handle.current?.pick('hoch'));
-      expect(screen.queryByRole('alertdialog')).toBeNull();
-      expect(vorlagen.compose).not.toHaveBeenCalled();
+      await seitenTile('Forderungen');
+      act(() => handle.current?.drop('hoch', 'p1'));
+      expect(vorlagen.composeSeite).not.toHaveBeenCalled();
       expect(deck.replaceDeck).not.toHaveBeenCalled();
     });
 
     it('offers no drag on the mobile sheet', async () => {
       setViewport(true);
       setup(EMPTY);
-      expect(await card('Zitat mit Foto')).toHaveAttribute('draggable', 'false');
+      expect(await seitenTile('Forderungen')).toHaveAttribute('draggable', 'false');
     });
   });
 
-  it('opens the Vorlage as a new sharepic without touching the design', async () => {
-    const { deck, vorlagen, user } = setup(WITH_TEXT);
-    await user.click(await card('Karussell'));
-    const dialog = await screen.findByRole('alertdialog');
-    await user.click(within(dialog).getByRole('button', { name: 'Als neues Sharepic öffnen' }));
-
-    expect(vorlagen.openAsNew).toHaveBeenCalledWith(CATALOGUE[1]);
-    expect(vorlagen.compose).not.toHaveBeenCalled();
+  it('adds nothing once the design holds as many pages as it may', async () => {
+    const { deck, handle } = setup(WITH_TEXT, { canAddPage: false });
+    expect(await seitenTile('Forderungen')).toBeDisabled();
+    expect(screen.getByText(/Mehr Seiten passen nicht/)).toBeInTheDocument();
+    act(() => handle.current?.drop('liste', 'p1'));
     expect(deck.replaceDeck).not.toHaveBeenCalled();
   });
 
-  it('leaves the design alone on Abbrechen', async () => {
-    const { deck, user } = setup(WITH_TEXT);
-    await user.click(await card('Zitat mit Foto'));
-    await user.click(
-      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Abbrechen' })
-    );
-    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
-    expect(deck.replaceDeck).not.toHaveBeenCalled();
+  it('still fills an empty design at the page limit', async () => {
+    setup(EMPTY, { canAddPage: false });
+    expect(await seitenTile('Forderungen')).toBeEnabled();
   });
 
-  it('only offers to replace where the host cannot open a new design', async () => {
-    const { user } = setup(WITH_TEXT, { service: { openAsNew: undefined } });
-    await user.click(await card('Zitat mit Foto'));
-    const dialog = await screen.findByRole('alertdialog');
-    expect(within(dialog).queryByRole('button', { name: /neues Sharepic/ })).toBeNull();
-    expect(within(dialog).getByRole('button', { name: 'Aktuelles ersetzen' })).toBeInTheDocument();
-  });
-
-  it('says so when the Vorlage cannot be composed', async () => {
+  it('says so when a Seite cannot be added', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const { deck, user } = setup(EMPTY, {
-      service: { compose: vi.fn(async () => Promise.reject(new Error('Schrift fehlt'))) },
+    const { deck, user } = setup(WITH_TEXT, {
+      service: { composeSeite: vi.fn(async () => Promise.reject(new Error('x'))) },
     });
-    await user.click(await card('Zitat mit Foto'));
+    await user.click(await seitenTile('Zwei Absätze'));
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Die Vorlage ließ sich nicht anwenden.'
+      'Die Seite ließ sich nicht einfügen.'
     );
     expect(deck.replaceDeck).not.toHaveBeenCalled();
   });
 
-  it('can load the list again after a failure', async () => {
+  it('can load the Seiten again after a failure', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const list = vi
-      .fn<CanvasVorlagenService['list']>()
+    const listSeiten = vi
+      .fn<CanvasVorlagenService['listSeiten']>()
       .mockRejectedValueOnce(new Error('offline'))
-      .mockResolvedValueOnce(CATALOGUE);
-    const { user } = setup(EMPTY, { service: { list } });
+      .mockResolvedValueOnce(SEITEN);
+    const { user } = setup(EMPTY, { service: { listSeiten } });
     await user.click(await screen.findByRole('button', { name: 'Erneut versuchen' }));
-    expect(await card('Zitat mit Foto')).toBeInTheDocument();
-    expect(list).toHaveBeenCalledTimes(2);
+    expect(await seitenTile('Zwei Absätze')).toBeInTheDocument();
+    expect(listSeiten).toHaveBeenCalledTimes(2);
   });
 
-  it('says when a format has no Vorlagen yet', async () => {
-    setup(EMPTY, { service: { list: vi.fn(async () => [CATALOGUE[2]!]) } });
+  it('says when a format has no Seiten yet', async () => {
+    setup(EMPTY, { service: { listSeiten: vi.fn(async () => [SEITEN[6]!]) } });
     expect(
-      await screen.findByText('Für dieses Format gibt es noch keine Vorlagen.')
+      await screen.findByText('Für dieses Format gibt es noch keine Seiten.')
     ).toBeInTheDocument();
   });
 });
@@ -299,7 +300,7 @@ describe('VorlagenSection on a print design', () => {
       '/vorlagen/print/at-plakat-typo-a3.webp'
     );
     expect(screen.getAllByRole('listitem')).toHaveLength(1);
-    expect(vorlagen.list).not.toHaveBeenCalled();
+    expect(vorlagen.listSeiten).not.toHaveBeenCalled();
   });
 
   it('counts the two sides of a business card', async () => {
@@ -322,7 +323,7 @@ describe('VorlagenSection on a print design', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Aktuelles ersetzen' }));
 
     await waitFor(() => expect(deck.replaceDeck).toHaveBeenCalledTimes(1));
-    expect(vorlagen.compose).not.toHaveBeenCalled();
+    expect(vorlagen.composeSeite).not.toHaveBeenCalled();
     const [ops] = deck.replaceDeck.mock.calls[0] as unknown as [
       { updates: { pageId: string; state: { additionalTexts: { id: string; text: string }[] } }[] },
     ];
@@ -341,132 +342,37 @@ describe('VorlagenSection on a print design', () => {
     const { deck, vorlagen, user } = setup(POSTER, { formatId: 'print-a3-hoch' });
     await user.click(await card('Typo-Plakat A3'));
     const dialog = await screen.findByRole('alertdialog');
-    expect(within(dialog).queryByRole('button', { name: /neues Sharepic/ })).toBeNull();
     await user.click(within(dialog).getByRole('button', { name: 'Als neues Design öffnen' }));
 
     expect(vorlagen.openPrintAsNew).toHaveBeenCalledWith(vorlageById('de-plakat-typo-a3'));
-    expect(vorlagen.openAsNew).not.toHaveBeenCalled();
     expect(deck.replaceDeck).not.toHaveBeenCalled();
   });
-});
-
-function seite(id: string, titel: string, over: Partial<SharepicSeite> = {}): SharepicSeite {
-  return {
-    id,
-    titel,
-    rolle: 'inhalt',
-    typ: 'text',
-    formats: ['post-portrait'],
-    locale: 'de-DE',
-    attribution: null,
-    thumbVersion: 'v1',
-    slide: {
-      background: { kind: 'farbe', color: 'tanne' },
-      items: [{ type: 'absatz', text: 'Text' }],
-    },
-    ...over,
-  } as unknown as SharepicSeite;
-}
-
-const SEITEN = [
-  seite('schluss', 'Kernsatz', { rolle: 'schluss', typ: 'aufruf' }),
-  seite('text', 'Zwei Absätze'),
-  seite('liste', 'Forderungen', { typ: 'liste' }),
-  seite('hoch', 'Nur 3:4', { formats: ['post-portrait-tall'] }),
-];
-const SEITE_PAGE = { configId: 'freeform', state: { title: 'Seite' } };
-
-const seitenService = (): Partial<CanvasVorlagenService> => ({
-  listSeiten: vi.fn(async () => SEITEN),
-  composeSeite: vi.fn(async () => [SEITE_PAGE]),
-});
-
-const seitenTile = (titel: string) =>
-  screen.findByRole('button', { name: `Seite „${titel}“ einfügen` });
-
-describe('VorlagenSection Seiten', () => {
-  it('leafs through a carousel before picking it', async () => {
-    const { deck, user } = setup(WITH_TEXT);
-    await card('Karussell');
-    const previous = screen.getByRole('button', { name: 'Vorherige Seite von „Karussell“' });
-    expect(previous).toBeDisabled();
-    await user.click(screen.getByRole('button', { name: 'Nächste Seite von „Karussell“' }));
-    expect(screen.getByText('2/4')).toBeInTheDocument();
-    const tile = (await card('Karussell')).closest('li')!;
-    expect(tile.querySelector('img')?.getAttribute('src')).toContain('seite=2');
+  it('asks first when a print Vorlage is dropped on a design with content', async () => {
+    const { deck, handle } = setup(POSTER, { formatId: 'print-a3-hoch' });
+    await card('Typo-Plakat A3');
+    act(() => handle.current?.drop('de-plakat-typo-a3', 'p1'));
+    expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
     expect(deck.replaceDeck).not.toHaveBeenCalled();
-    expect(screen.queryByRole('alertdialog')).toBeNull();
   });
 
-  it('offers no Seiten without the host service or on a print format', async () => {
-    setup(WITH_TEXT);
-    await card('Zitat mit Foto');
-    expect(screen.queryByRole('button', { name: 'Einzelne Seiten' })).toBeNull();
-  });
-
-  it('lists the Seiten of the format, closing slides last, filtered by kind', async () => {
-    const { user } = setup(WITH_TEXT, { service: seitenService() });
-    await user.click(await screen.findByRole('button', { name: 'Einzelne Seiten' }));
-    await seitenTile('Zwei Absätze');
-    const titles = screen
-      .getAllByRole('button', { name: /^Seite „/ })
-      .map((b) => b.getAttribute('aria-label'));
-    expect(titles).toEqual([
-      'Seite „Zwei Absätze“ einfügen',
-      'Seite „Forderungen“ einfügen',
-      'Seite „Kernsatz“ einfügen',
-    ]);
-    await user.click(screen.getByRole('button', { name: 'Liste' }));
-    expect(screen.getAllByRole('button', { name: /^Seite „/ })).toHaveLength(1);
-    expect(screen.getByRole('button', { name: 'Seite „Forderungen“ einfügen' })).toBeTruthy();
-  });
-
-  it('adds a Seite after the open page without asking, and shows it', async () => {
-    const service = seitenService();
-    const { deck, onShowPage, user } = setup(WITH_TEXT, { service });
-    deck.replaceDeck.mockReturnValue(['neu']);
-    await user.click(await screen.findByRole('button', { name: 'Einzelne Seiten' }));
-    await user.click(await seitenTile('Forderungen'));
-
-    await waitFor(() => expect(deck.replaceDeck).toHaveBeenCalledTimes(1));
-    expect(service.composeSeite).toHaveBeenCalledWith(SEITEN[2], 'post-portrait');
-    const [ops] = deck.replaceDeck.mock.calls[0] as unknown as [
-      { inserts: { afterPageId: string | null; state: unknown }[]; removes: string[] },
-    ];
-    expect(ops.inserts).toEqual([
-      expect.objectContaining({ afterPageId: 'p1', state: SEITE_PAGE.state }),
-    ]);
-    expect(ops.removes).toEqual([]);
-    expect(onShowPage).toHaveBeenCalledWith('neu');
-    expect(screen.queryByRole('alertdialog')).toBeNull();
-  });
-
-  it('fills an empty design with the Seite', async () => {
-    const { deck, onShowPage, user } = setup(EMPTY, { service: seitenService() });
-    await user.click(await screen.findByRole('button', { name: 'Einzelne Seiten' }));
-    await user.click(await seitenTile('Zwei Absätze'));
-    await waitFor(() => expect(deck.replaceDeck).toHaveBeenCalledTimes(1));
-    expect(deck.replaceDeck).toHaveBeenCalledWith({
-      updates: [{ pageId: 'p1', state: SEITE_PAGE.state }],
-      inserts: [],
-      removes: [],
-    });
-    expect(onShowPage).toHaveBeenCalledWith('p1');
-  });
-
-  it('says so when a Seite cannot be added', async () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const { deck, user } = setup(WITH_TEXT, {
-      service: {
-        ...seitenService(),
-        composeSeite: vi.fn(async () => Promise.reject(new Error('x'))),
-      },
-    });
-    await user.click(await screen.findByRole('button', { name: 'Einzelne Seiten' }));
-    await user.click(await seitenTile('Zwei Absätze'));
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Die Seite ließ sich nicht einfügen.'
+  it('leaves the design alone on Abbrechen', async () => {
+    const { deck, user } = setup(POSTER, { formatId: 'print-a3-hoch' });
+    await user.click(await card('Typo-Plakat A3'));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Abbrechen' })
     );
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
     expect(deck.replaceDeck).not.toHaveBeenCalled();
+  });
+
+  it('only offers to replace where the host cannot open a new design', async () => {
+    const { user } = setup(POSTER, {
+      formatId: 'print-a3-hoch',
+      service: { openPrintAsNew: undefined },
+    });
+    await user.click(await card('Typo-Plakat A3'));
+    const dialog = await screen.findByRole('alertdialog');
+    expect(within(dialog).queryByRole('button', { name: /neues Design/ })).toBeNull();
+    expect(within(dialog).getByRole('button', { name: 'Aktuelles ersetzen' })).toBeInTheDocument();
   });
 });

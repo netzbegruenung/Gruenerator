@@ -7,7 +7,6 @@
  * spec names its grounds, a page's state holds its own.
  */
 import { SHAREPIC_COLOR_HEX } from '../composer/chromeParts';
-import { DEFAULT_FORMAT_ID } from '../formats';
 
 import type { SharepicBackground, SharepicFormat } from '@gruenerator/contracts';
 
@@ -28,10 +27,6 @@ interface Profile {
   /** The ground colour most pages share; null when no page has one. */
   color: string | null;
   pages: number;
-}
-
-export function vorlagenForFormat<T extends VorlageLike>(vorlagen: readonly T[], formatId: string) {
-  return vorlagen.filter((v) => (v.spec.format ?? DEFAULT_FORMAT_ID) === formatId);
 }
 
 /** Most frequent entry; the first one seen wins a tie. */
