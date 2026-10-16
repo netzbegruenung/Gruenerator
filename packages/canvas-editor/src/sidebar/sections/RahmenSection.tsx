@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 
+import { cn } from '../../utils/cn';
 import {
   FRAME_CATEGORY_LABELS,
   FRAME_CATEGORY_ORDER,
@@ -7,7 +8,6 @@ import {
   FRAME_PRESETS,
   getFramePreset,
 } from '../../utils/frameUtils';
-import { cn } from '../../utils/cn';
 import { SELECTABLE_CARD, SIDEBAR_SECTION } from '../sidebarStyles';
 
 import type {
@@ -18,6 +18,21 @@ import type {
 } from '../../utils/frameUtils';
 
 const PREVIEW_GRADIENT_ID = 'rahmen-preset-preview-gradient';
+
+/** The gradient every `FramePresetPreview` fills with; render once per document. */
+export function FramePreviewDefs() {
+  return (
+    <svg width="0" height="0" className="absolute" aria-hidden>
+      <defs>
+        <linearGradient id={PREVIEW_GRADIENT_ID} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#7dd3fc" />
+          <stop offset="55%" stopColor="#bbf7d0" />
+          <stop offset="100%" stopColor="#15803d" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
 
 export interface RahmenSectionProps {
   onAddFrame: (clipType: FrameClipType) => void;
@@ -67,15 +82,7 @@ export function RahmenSection({ onAddFrame, searchQuery = '' }: RahmenSectionPro
 
   return (
     <div className={cn(SIDEBAR_SECTION, 'gap-md')}>
-      <svg width="0" height="0" className="absolute" aria-hidden>
-        <defs>
-          <linearGradient id={PREVIEW_GRADIENT_ID} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#7dd3fc" />
-            <stop offset="55%" stopColor="#bbf7d0" />
-            <stop offset="100%" stopColor="#15803d" />
-          </linearGradient>
-        </defs>
-      </svg>
+      <FramePreviewDefs />
 
       {groupedFrames.map(({ category, presets }) => (
         <section key={category} className="flex flex-col gap-2">
@@ -101,7 +108,13 @@ export function RahmenSection({ onAddFrame, searchQuery = '' }: RahmenSectionPro
   );
 }
 
-function FramePresetPreview({ clipType }: { clipType: FrameClipType }) {
+export function FramePresetPreview({
+  clipType,
+  className = 'size-11',
+}: {
+  clipType: FrameClipType;
+  className?: string;
+}) {
   const path = FRAME_PRESET_PATHS[clipType];
   const clipId = `frame-preset-clip-${clipType}`;
   // Ring is the only annular preset; render its two subpaths with even-odd
@@ -110,7 +123,7 @@ function FramePresetPreview({ clipType }: { clipType: FrameClipType }) {
   const evenOddProps = isAnnular ? { clipRule: 'evenodd' as const } : {};
   const fillRuleProps = isAnnular ? { fillRule: 'evenodd' as const } : {};
   return (
-    <svg viewBox="0 0 44 44" className="size-11">
+    <svg viewBox="0 0 44 44" className={className}>
       <defs>
         <clipPath id={clipId} {...evenOddProps}>
           <path d={path} />

@@ -60,6 +60,7 @@ import { useZoomGestures } from '../../hooks/useZoomGestures';
 import { HOST_CALLBACK_KEYS } from '../../hostCallbackKeys';
 import { CanvasEditorLayout } from '../../layouts';
 import { SidebarTabBar, SidebarPanel } from '../../sidebar';
+import { usePreloadElements } from '../../sidebar/sections/preloadElements';
 import { VorlagenSection } from '../../sidebar/sections/VorlagenSection';
 import { UserUploadsProvider } from '../../sidebar/UserUploadsProvider';
 import { AutoSaveStoreProvider } from '../../stores/useAutoSaveStore';
@@ -770,6 +771,10 @@ function CanvasEditorInner({
     if (isMobileWeb) tabs = tabs.filter((tab) => tab.id !== 'chat');
     return showVorlagen ? withVorlagenTab(tabs) : tabs;
   }, [activeConfig, activeState, activeSelectedElement, showVorlagen, isMobileWeb]);
+
+  usePreloadElements(
+    activeConfig?.tabs.some((tab) => tab.id === 'elements' || tab.id === 'assets') ?? false
+  );
 
   // Compute disabled tabs for active config
   const disabledTabs = useMemo(() => {

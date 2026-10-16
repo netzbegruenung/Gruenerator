@@ -19,6 +19,7 @@ export type AssetView =
   | 'browse'
   | 'marke'
   | 'sticker'
+  | 'fotos'
   | 'hintergruende'
   | 'formen'
   | 'diagramme'
@@ -26,23 +27,6 @@ export type AssetView =
   | 'illustrationen'
   | 'icons'
   | 'emoji';
-
-export interface CategoryCardDef {
-  id: AssetView;
-  label: string;
-}
-
-export const CATEGORY_CARDS: CategoryCardDef[] = [
-  { id: 'marke', label: 'Marke' },
-  { id: 'sticker', label: 'Sticker' },
-  { id: 'hintergruende', label: 'Hintergründe' },
-  { id: 'formen', label: 'Formen' },
-  { id: 'diagramme', label: 'Diagramme' },
-  { id: 'rahmen', label: 'Rahmen' },
-  { id: 'illustrationen', label: 'Illustrationen' },
-  { id: 'icons', label: 'Icons' },
-  { id: 'emoji', label: 'Emoji' },
-];
 
 export const PREVIEW_COMPONENTS: Record<
   KawaiiIllustrationType,
