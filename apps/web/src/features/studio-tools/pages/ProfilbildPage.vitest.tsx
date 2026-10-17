@@ -1163,7 +1163,7 @@ describe('ProfilbildPage', () => {
       await screen.findByTestId('konva-stage');
       fireEvent.click(screen.getByRole('button', { name: 'Sticker erstellen' }));
       const dialog = await screen.findByRole('dialog', { name: 'Sticker erstellen' });
-      expect(within(dialog).getByText('Wie soll dein Sticker entstehen?')).toBeTruthy();
+      expect(within(dialog).getByRole('radio', { name: 'Text-Badge' })).toBeTruthy();
       fireEvent.click(within(dialog).getByRole('button', { name: 'Schließen' }));
       await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
       expect(screen.getByTestId('konva-stage')).toBeTruthy();

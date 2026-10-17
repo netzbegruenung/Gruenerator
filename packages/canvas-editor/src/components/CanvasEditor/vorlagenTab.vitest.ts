@@ -36,7 +36,11 @@ describe('formatHasVorlagen', () => {
     expect(formatHasVorlagen('print-a4-hoch')).toBe(true);
   });
 
-  it('has none for the profile picture', () => {
-    expect(formatHasVorlagen('profile-square')).toBe(false);
+  it('knows the square sheet of the profile picture and the sticker', () => {
+    expect(formatHasVorlagen('profile-square')).toBe(true);
+  });
+
+  it('has none for an id no build knows', () => {
+    expect(formatHasVorlagen('plakat-a0')).toBe(false);
   });
 });

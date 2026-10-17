@@ -1,5 +1,4 @@
 import { composePrint } from '@gruenerator/canvas-editor/composer';
-import { PRINT_VORLAGEN } from '@gruenerator/canvas-editor/print-vorlagen';
 import { type SharepicVorlage } from '@gruenerator/contracts';
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 import { screen, waitFor, within } from '@testing-library/react';
@@ -8,6 +7,7 @@ import { Route, Routes, useLocation } from 'react-router-dom';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { server } from '../../../test/msw-server';
+import { PRINT_VORLAGEN_FIXTURE } from '../../../test/printVorlagenFixture';
 
 import VorlagenGallery from './VorlagenGallery';
 
@@ -87,6 +87,13 @@ function serve({
     http.get('*/api/auth/vorlagen-categories', () =>
       HttpResponse.json({ categories: [{ id: 'canva', label: 'Canva' }] })
     ),
+    // Like the server: the viewer's country, the other one via `land`.
+    http.get(`${API}/sharepic-vorlagen/print`, ({ request }) => {
+      const land = new URL(request.url).searchParams.get('land') ?? useAuthStore.getState().locale;
+      return HttpResponse.json({
+        vorlagen: PRINT_VORLAGEN_FIXTURE.filter((v) => v.locale === land),
+      });
+    }),
     http.get(`${API}/sharepic-vorlagen`, ({ request }) => {
       catalogQueries.push(new URL(request.url).search);
       return HttpResponse.json({ vorlagen: catalog });
@@ -303,7 +310,7 @@ describe('VorlagenGallery', () => {
       screen
         .getAllByRole('img')
         .map((img) => img.getAttribute('src') ?? '')
-        .filter((src) => src.startsWith('/vorlagen/print/'));
+        .filter((src) => src.startsWith('/api/sharepic-vorlagen/print/'));
 
     it.each([
       ['de-DE', ['de-visitenkarte-quer', 'de-visitenkarte-hoch', 'de-plakat-typo-a3']],
@@ -315,7 +322,9 @@ describe('VorlagenGallery', () => {
 
       expect(await screen.findByText('3 Vorlagen')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Filter: Print' })).toBeInTheDocument();
-      expect(printThumbs()).toEqual(ids.map((id) => `/vorlagen/print/${id}.webp`));
+      expect(printThumbs()).toEqual(
+        ids.map((id) => `/api/sharepic-vorlagen/print/${id}/thumb?v=v1`)
+      );
       expect(screen.getAllByText('Print · 85 × 55 mm')).toHaveLength(1);
       expect(screen.getByText('Print · 297 × 420 mm')).toBeInTheDocument();
       // Neither the catalogue nor community Vorlagen come along.
@@ -361,7 +370,7 @@ describe('VorlagenGallery', () => {
       await user.click(within(dialog).getByRole('button', { name: 'Bearbeiten' }));
 
       expect(await screen.findByText('Editor geöffnet')).toBeInTheDocument();
-      const vorlage = PRINT_VORLAGEN.find((v) => v.id === 'de-visitenkarte-quer')!;
+      const vorlage = PRINT_VORLAGEN_FIXTURE.find((v) => v.id === 'de-visitenkarte-quer')!;
       const composed = composePrint(vorlage.spec);
       const pages = composed.slides.map((state, i) => ({
         id: `seed-${i}`,

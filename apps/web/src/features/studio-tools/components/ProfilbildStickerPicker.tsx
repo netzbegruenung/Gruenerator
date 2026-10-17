@@ -98,26 +98,26 @@ export function ProfilbildStickerPicker({
       <Dialog open={creating} onOpenChange={setCreating}>
         <DialogContent
           showCloseButton={false}
-          className="flex max-h-[min(90dvh,860px)] w-full flex-col gap-md overflow-y-auto rounded-[20px] p-lg sm:max-w-[min(900px,calc(100%-3rem))]"
+          className="flex h-[min(90dvh,860px)] w-full flex-col gap-0 overflow-hidden rounded-[20px] p-0 sm:max-w-[min(1180px,calc(100%-3rem))]"
         >
-          <div className="flex items-start justify-between gap-md">
-            <div className="flex flex-col gap-1">
-              <DialogTitle className="m-0 text-xl leading-tight font-bold text-foreground-heading">
-                Sticker erstellen
-              </DialogTitle>
-              <DialogDescription className="m-0 text-sm text-muted-foreground">
-                Aus einem Bild, einem Foto oder als Text-Badge – fertig liegt er auf deinem
-                Profilbild.
-              </DialogDescription>
-            </div>
-            <DialogClose asChild>
-              <Button variant="ghost" size="icon" aria-label="Schließen" title="Schließen">
-                <PiX aria-hidden className="size-[18px]" />
-              </Button>
-            </DialogClose>
-          </div>
+          <DialogDescription className="sr-only">
+            Aus einem Bild, einem Foto oder als Text-Badge – fertig liegt er auf deinem Profilbild.
+          </DialogDescription>
           {creating ? (
             <StickerCreator
+              className="min-h-0 flex-1"
+              heading={
+                <DialogTitle className="m-0 text-xl leading-tight font-bold text-foreground-heading">
+                  Sticker erstellen
+                </DialogTitle>
+              }
+              headerEnd={
+                <DialogClose asChild>
+                  <Button variant="ghost" size="icon" aria-label="Schließen" title="Schließen">
+                    <PiX aria-hidden className="size-[18px]" />
+                  </Button>
+                </DialogClose>
+              }
               returnTo="profilbild"
               onCreated={(item) => {
                 setCreating(false);

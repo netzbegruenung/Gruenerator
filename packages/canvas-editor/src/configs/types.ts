@@ -358,6 +358,7 @@ export type CanvasConfigId =
   | 'slider'
   | 'freeform'
   | 'profilbild'
+  | 'sticker'
   // Österreich (de-AT) variants
   | 'zitat-at'
   | 'zitat-pure-at'
