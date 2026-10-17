@@ -55,6 +55,16 @@ import { encodeHandMarks, placeHandMarks, sentinelBlind } from './handMarks';
 import { stripMarks } from './marks';
 import { SHAREPIC_ICON_FILLED, SHAREPIC_ICON_IDS, VERGLEICH_MARKER_IDS } from './sharepicIcons';
 import { slideProvenance, type SharepicProvenance } from './sharepicProvenance';
+import {
+  placeArrow,
+  shapePoint,
+  steckbriefSlots,
+  outlineSpan,
+  steckbriefOutline,
+  steckbriefPerson,
+  type Box,
+  type PlacedArrow,
+} from './steckbriefLayout';
 
 import type { IconState } from '../configs/factory/baseTypes';
 import type { AdditionalText } from '../configs/types';
@@ -222,6 +232,25 @@ const CARD_MARKER: TextMarker = {
   color: SHAREPIC_COLOR_HEX.dunkeltanne,
   padX: MARKER_PAD_X,
 };
+/**
+ * `steckbrief`: label width and the name's width (shares of the width), where
+ * the greeting's middle sits (share of the height), the hand and the
+ * sunflower in px, the arrows' length, gap to the person and stroke, the even
+ * dim over a photo.
+ */
+const STECKBRIEF = {
+  column: 0.36,
+  greetAt: { foto: 0.62, frei: 0.46 },
+  nameWidth: 0.27,
+  hand: 100,
+  blume: 96,
+  arrowMin: 190,
+  arrowMax: 370,
+  arrowGap: 22,
+  curlMin: 240,
+  stroke: 11,
+  scrim: 0.3,
+} as const;
 /** `blume`: the faded sunflower's size and strength per ground. */
 const BLUME = { size: 760, onLight: 0.12, onGrass: 0.1, onDark: 0.08 } as const;
 /** `absatz.klein`: the body size of the candidates' long text slides at 1080 px. */
@@ -523,6 +552,10 @@ function composeSlide(
   const bild =
     bg.kind === 'farbe' ? (spec.items.find((i): i is BildItem => i.type === 'bild') ?? null) : null;
   const bildIndex = bild ? spec.items.indexOf(bild) : -1;
+  type SteckbriefItem = Extract<SharepicItem, { type: 'steckbrief' }>;
+  const steckbrief = spec.items.find((i): i is SteckbriefItem => i.type === 'steckbrief') ?? null;
+  /** Where a steckbrief's person stands: the arrows point there. */
+  const person = steckbrief ? steckbriefPerson(canvas, bild?.ausschnitt === 'freigestellt') : null;
   const darkText = isAt ? theme.colors.primary : SHAREPIC_COLOR_HEX.dunkeltanne;
   const boxed = !isAt && !!spec.zeilenboxen;
   const quoteSlide = spec.items.some((i) => i.type === 'zitat');
@@ -710,6 +743,19 @@ function composeSlide(
       // Dense across the column and a gutter, from the picture's edge outward.
       setScrim(side, MARGIN + width + SCRIM_GUTTER);
     }
+  }
+  // A steckbrief's traits sit all round the person, not on one side: the
+  // photo is dimmed evenly, the text carries its shadow.
+  if (steckbrief && scrim) {
+    Object.assign(scrim, {
+      x: canvas.width / 2,
+      y: canvas.height / 2,
+      width: canvas.width,
+      height: canvas.height,
+      fill: `rgba(${scrimDark},${STECKBRIEF.scrim})`,
+      fillGradient: null,
+    });
+    scrimSide = null;
   }
   // AT sets a photo strip in green monochrome, as the posts do; a full-bleed
   // photo carries the text and stays as shot.
@@ -1027,6 +1073,11 @@ function composeSlide(
         break;
       }
       case 'freigestellt': {
+        if (person) {
+          // A steckbrief: the person in the middle, the traits around them.
+          photo(person.x, person.y, person.width, person.height);
+          break;
+        }
         // The person stands on the bottom edge; the footer lies over them.
         const top = Math.round(canvas.height * BILD_FREI_TOP);
         photo(0, top, canvas.width, canvas.height - top);
@@ -1248,6 +1299,261 @@ function composeSlide(
   /** Logo position when a layout moves it off the bottom-left corner. */
   /** A layout that moves the logo off the corner; it then stands on grass green. */
   const logoAt: { current: { x: number } | null } = { current: null };
+  /**
+   * `steckbrief`: the greeting and the name in the right column beside the
+   * face, the traits in two columns either side of the person, each with a
+   * hand-drawn arrow that starts beside it and just touches the person,
+   * clear of every text and the face (`placeArrow`).
+   */
+  const steckbriefAround = (id: string, item: SteckbriefItem): void => {
+    if (!person) return;
+    const W = canvas.width;
+    const H = canvas.height;
+    const colWidth = Math.round(W * STECKBRIEF.column);
+    const family = headFamily;
+    const ink = textColor;
+    const lineHeight = 1.05;
+    const measureLine = (l: string, size: number) => measure(l, size, family, 'normal');
+    const wrapAt = (value: string, size: number, width: number) =>
+      balancedWrap(value, width, (l) => measureLine(l, size));
+    // The AI label owns the bottom-left corner, the sunflower the bottom-right.
+    const floor = {
+      links: kiText ? kiTop - 24 : H - MARGIN,
+      rechts: H - (isAt ? MARGIN : STECKBRIEF.blume + 50),
+    };
+
+    // Greeting: small over the name, right-aligned beside the face, the waving hand right of the name.
+    const grussSize = isAt ? 46 : 52;
+    const hand = STECKBRIEF.hand;
+    const right = W - MARGIN;
+    const nameWidth = Math.round(W * STECKBRIEF.nameWidth);
+    const nameCap = isAt ? 150 : 180;
+    const nameSize = Math.min(nameCap, fitLine(item.name, nameCap, nameWidth, family));
+    const greetHeight = grussSize * lineHeight + nameSize;
+    const greetAt = surface === 'foto' ? STECKBRIEF.greetAt.foto : STECKBRIEF.greetAt.frei;
+    const greetTop = Math.round(H * greetAt - greetHeight / 2);
+
+    const on = surface === 'foto' ? 'foto' : 'frei';
+    const slots = steckbriefSlots(item.merkmale.length).map((slot) => ({
+      ...slot,
+      side: slot.side[on],
+      top: slot.top[on],
+    }));
+    const greetBottom = greetTop + greetHeight;
+    /** A right-hand place the greeting covers moves just below it. */
+    const topOf = (k: number) => {
+      const top = Math.round(H * slots[k]!.top);
+      return slots[k]!.side === 'rechts' && top > greetTop - 60 && top < greetBottom + 24
+        ? greetBottom + 24
+        : top;
+    };
+    // Beside the head a trait wraps narrower, so its text stays off hair and face.
+    const outline = steckbriefOutline(person);
+    const neckY = person.y + person.height * 0.6;
+    const widthOf = (k: number, size: number) => {
+      const top = topOf(k);
+      const left = slots[k]!.side === 'links';
+      let free = colWidth;
+      for (let y = top; y <= Math.min(neckY, top + 2 * size * lineHeight); y += 10) {
+        const span = outlineSpan(outline, y);
+        if (span) free = Math.min(free, left ? span[0] - 24 - MARGIN : right - span[1] - 24);
+      }
+      if (free >= colWidth) return colWidth;
+      // A word wider than the gap sets the width: a word to a line.
+      const longest = Math.max(...item.merkmale[k]!.split(/\s+/).map((w) => measureLine(w, size)));
+      return Math.min(colWidth, Math.ceil(Math.max(200, free, longest)));
+    };
+    /** Whether every trait fits its place: up to three lines, clear of the next one below. */
+    const fitsAt = (size: number) =>
+      slots.every((slot, k) => {
+        const lines = wrapAt(item.merkmale[k]!, size, widthOf(k, size));
+        const bottom = topOf(k) + lines.length * size * lineHeight;
+        const below = [
+          ...slots.flatMap((other, j) =>
+            other.side === slot.side && other.top > slot.top ? [topOf(j)] : []
+          ),
+          ...(slot.side === 'rechts' && topOf(k) < greetTop ? [greetTop] : []),
+          floor[slot.side],
+        ];
+        return lines.length <= 3 && bottom + size * 0.4 <= Math.min(...below);
+      });
+    let size = isAt ? 58 : 64;
+    while (size > 30 && !fitsAt(size)) size -= 2;
+
+    const turn = (pivot: { x: number; y: number }, rotation: number, p: { x: number; y: number }) =>
+      shapePoint(
+        { x: pivot.x, y: pivot.y, rotation, scaleX: 1, scaleY: 1 },
+        { x: p.x - pivot.x, y: p.y - pivot.y }
+      );
+    const step = size * lineHeight;
+    const labels = item.merkmale.map((merkmal, k) => {
+      const slot = slots[k]!;
+      const left = slot.side === 'links';
+      const lines = wrapAt(merkmal, size, widthOf(k, size));
+      const y = topOf(k);
+      const x = left ? MARGIN : right - colWidth;
+      const rotation = ((k % 3) - 1) * 2;
+      const pivot = { x, y };
+      const dir = left ? 1 : -1;
+      // Each line's ink, and the places a tail may start: beside a line, under the last, over the first.
+      const ink = lines.map((l, i) => {
+        const w = measureLine(l, size);
+        return { x: left ? MARGIN : right - w, y: y + i * step, width: w, height: step };
+      });
+      const innerOf = (r: Box) => (left ? r.x + r.width : r.x);
+      const first = ink[0]!;
+      const last = ink[ink.length - 1]!;
+      const prefer = {
+        x: person.x + person.width * slot.target.x,
+        y: person.y + person.height * slot.target.y,
+      };
+      const beside = ink.map((r) => ({ x: innerOf(r) + dir * 14, y: r.y + r.height / 2 }));
+      const below = [
+        { x: innerOf(last) - dir * Math.min(70, last.width / 3), y: last.y + last.height + 20 },
+        { x: last.x + last.width / 2, y: last.y + last.height + 20 },
+      ];
+      const above = [
+        { x: innerOf(first) - dir * Math.min(70, first.width / 3), y: first.y - 20 },
+        { x: first.x + first.width / 2, y: first.y - 20 },
+      ];
+      const froms =
+        prefer.y > last.y + last.height
+          ? [...below, ...beside, ...above]
+          : prefer.y < first.y
+            ? [...above, ...beside, ...below]
+            : [...beside, ...below, ...above];
+      return {
+        lines,
+        x,
+        y,
+        left,
+        rotation,
+        own: { rects: ink, pivot, rotation },
+        request: {
+          arrow: slot.arrow,
+          froms: froms.map((p) => turn(pivot, rotation, p)),
+          prefer,
+        },
+      };
+    });
+
+    const nameTop = greetTop + grussSize * lineHeight;
+    const nameInk = measureLine(item.name, nameSize);
+    const grussInk = measureLine(item.gruss, grussSize);
+    const still = { pivot: { x: 0, y: 0 }, rotation: 0 };
+    // The greeting keeps a wider berth than a trait: it is the slide's headline.
+    const berth = 16;
+    const corners: Box[] = [
+      { x: right - grussInk, y: greetTop, width: grussInk, height: grussSize * lineHeight },
+      { x: right - hand - 10 - nameInk, y: nameTop, width: nameInk + hand + 10, height: nameSize },
+      { x: right - hand, y: nameTop + nameSize * 0.55 - hand / 2, width: hand, height: hand },
+    ].map((r) => ({
+      x: r.x - berth,
+      y: r.y - berth,
+      width: r.width + 2 * berth,
+      height: r.height + 2 * berth,
+    }));
+    if (kiText) {
+      const kiWidth =
+        measure(kiText, KI_LABEL.fontSize, KI_LABEL.fontFamily, 'bold') + 2 * KI_LABEL.paddingX;
+      corners.push({ x: KI_LABEL.margin, y: kiTop, width: kiWidth, height: kiHeight });
+    }
+    const blume = !isAt && !swipeOn;
+    if (blume) {
+      corners.push({
+        x: W - MARGIN - STECKBRIEF.blume + 20,
+        y: H - MARGIN - STECKBRIEF.blume + 20,
+        width: STECKBRIEF.blume,
+        height: STECKBRIEF.blume,
+      });
+    }
+    const scene = {
+      canvas,
+      person,
+      stroke: STECKBRIEF.stroke,
+      gap: STECKBRIEF.arrowGap,
+      minLength: STECKBRIEF.arrowMin,
+      maxLength: STECKBRIEF.arrowMax,
+      curlMin: STECKBRIEF.curlMin,
+    };
+    const arrows: PlacedArrow[] = [];
+    labels.forEach((label, k) => {
+      const obstacles = [
+        { rects: corners, ...still },
+        ...labels.flatMap((other, j) => (j === k ? [] : [other.own])),
+      ];
+      arrows.push(
+        placeArrow({ ...label.request, own: label.own }, { ...scene, obstacles }, arrows)
+      );
+    });
+
+    const arrowShadow =
+      surface === 'foto'
+        ? { shadowColor: '#000000', shadowBlur: 12, shadowOffsetY: 2, shadowOpacity: 0.45 }
+        : {};
+    labels.forEach((label, k) => {
+      text(`${id}-${k}`, label.lines.join('\n'), label.y, size, family, {
+        type: 'header',
+        x: label.x,
+        width: colWidth,
+        align: label.left ? 'left' : 'right',
+        lineHeight,
+        rotation: label.rotation,
+        accent: null,
+        marker: null,
+      });
+      const { type, pose } = arrows[k]!;
+      addShape({
+        ...createShape(type, pose.x, pose.y, ink, ink),
+        id: `${id}-pfeil-${k}`,
+        ...pose,
+        strokeWidth: STECKBRIEF.stroke,
+        ...arrowShadow,
+      });
+    });
+
+    text(`${id}-gruss`, item.gruss, greetTop, grussSize, family, {
+      type: 'header',
+      x: right - nameWidth - hand,
+      width: nameWidth + hand,
+      align: 'right',
+      lineHeight,
+      accent: null,
+      marker: null,
+    });
+    text(`${id}-name`, item.name, nameTop, nameSize, family, {
+      type: 'header',
+      x: right - hand - 10 - nameWidth,
+      width: nameWidth,
+      align: 'right',
+      lineHeight: 1,
+      accent: null,
+      marker: null,
+    });
+    addShape({
+      ...createShape('hand-winken', right - hand / 2, nameTop + nameSize * 0.55, ink, ink),
+      id: `${id}-winken`,
+      width: hand,
+      height: hand,
+      rotation: -12,
+      strokeWidth: 8,
+      ...arrowShadow,
+    });
+
+    // DE: the small white sunflower in the bottom-right corner, as the posts close.
+    if (blume) {
+      out.assetInstances.push({
+        id: `${id}-blume`,
+        assetId: onLight ? 'sunflower-green' : 'sunflower-weiss',
+        x: W - MARGIN - STECKBRIEF.blume / 2 + 20,
+        y: H - MARGIN - STECKBRIEF.blume / 2 + 20,
+        scale: STECKBRIEF.blume / ASSET_TARGET_SIZE,
+        rotation: 0,
+        opacity: 1,
+      });
+      out.layerOrder.push(`${id}-blume`);
+    }
+  };
   /**
    * `vergleich` with `stil: "spalten"`: two half-slide columns, each a
    * three-line headline-face title over its points, the markers per point.
@@ -3261,6 +3567,10 @@ function composeSlide(
         }
         // Placed before the text group, in its own reserved area.
         case 'bild':
+          break;
+        // Takes the slide alone (schema): it draws round the person, not in the column.
+        case 'steckbrief':
+          placed.push({ height: 0, after: 0, place: () => steckbriefAround(id, item) });
           break;
         case 'button': {
           const size = 44;

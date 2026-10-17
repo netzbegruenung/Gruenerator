@@ -484,6 +484,13 @@ function renderShape(
     case 'hand-ausruf':
     case 'hand-marker':
     case 'hand-marker-box':
+    case 'hand-winken':
+    case 'hand-pfeil-schlaufe':
+    case 'hand-pfeil-welle':
+    case 'hand-pfeil-bogen':
+    case 'hand-pfeil-haken':
+    case 'hand-pfeil-herz':
+    case 'hand-pfeil-spirale':
       return (
         <Path
           ref={shapeRef as React.RefObject<Konva.Path>}

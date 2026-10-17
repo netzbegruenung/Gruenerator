@@ -124,6 +124,10 @@ const ITEM_RULES: Record<Exclude<SharepicItem['type'], 'headline'>, Rule[]> = {
     [/^-(adressat|hinweis)$/, '$1', V],
   ],
   bild: [],
+  steckbrief: [
+    [/^-(gruss|name)$/, '$1', V],
+    [/^-(\d+)$/, 'merkmale.$1', V],
+  ],
 };
 
 const valueAt = (source: unknown, field: string): unknown =>

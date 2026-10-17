@@ -81,7 +81,14 @@ export type ShapeType =
   | 'hand-pfeil'
   | 'hand-ausruf'
   | 'hand-marker'
-  | 'hand-marker-box';
+  | 'hand-marker-box'
+  | 'hand-winken'
+  | 'hand-pfeil-schlaufe'
+  | 'hand-pfeil-welle'
+  | 'hand-pfeil-bogen'
+  | 'hand-pfeil-haken'
+  | 'hand-pfeil-herz'
+  | 'hand-pfeil-spirale';
 
 /**
  * Display category for the Formen palette. Each shape belongs to exactly one
@@ -273,6 +280,48 @@ const SHAPE_DEFS: { readonly [K in ShapeType]: ShapeDef<K> } = {
     id: 'hand-marker-box',
     name: 'Textmarker-Box',
     tags: ['textmarker', 'marker', 'highlight', 'markieren', 'hervorheben', 'kasten', 'box'],
+    category: 'hand',
+  },
+  'hand-pfeil-schlaufe': {
+    id: 'hand-pfeil-schlaufe',
+    name: 'Schlaufenpfeil',
+    tags: ['pfeil', 'arrow', 'handgezeichnet', 'hand', 'schlaufe', 'kringel', 'loop'],
+    category: 'hand',
+  },
+  'hand-pfeil-welle': {
+    id: 'hand-pfeil-welle',
+    name: 'Wellenpfeil',
+    tags: ['pfeil', 'arrow', 'handgezeichnet', 'hand', 'welle', 'wellig', 'wave'],
+    category: 'hand',
+  },
+  'hand-pfeil-bogen': {
+    id: 'hand-pfeil-bogen',
+    name: 'Bogenpfeil',
+    tags: ['pfeil', 'arrow', 'handgezeichnet', 'hand', 'bogen', 'kurve', 'curve'],
+    category: 'hand',
+  },
+  'hand-pfeil-haken': {
+    id: 'hand-pfeil-haken',
+    name: 'Hakenpfeil',
+    tags: ['pfeil', 'arrow', 'handgezeichnet', 'hand', 'haken', 'kurve', 'hook'],
+    category: 'hand',
+  },
+  'hand-pfeil-herz': {
+    id: 'hand-pfeil-herz',
+    name: 'Herzpfeil',
+    tags: ['pfeil', 'arrow', 'handgezeichnet', 'hand', 'herz', 'liebe', 'heart'],
+    category: 'hand',
+  },
+  'hand-pfeil-spirale': {
+    id: 'hand-pfeil-spirale',
+    name: 'Kringelpfeil',
+    tags: ['pfeil', 'arrow', 'handgezeichnet', 'hand', 'kringel', 'spirale', 'curl'],
+    category: 'hand',
+  },
+  'hand-winken': {
+    id: 'hand-winken',
+    name: 'Winkende Hand',
+    tags: ['winken', 'hand', 'hallo', 'gruss', 'handgezeichnet', 'wave'],
     category: 'hand',
   },
   star: {
@@ -702,6 +751,13 @@ const DEFAULT_DIMENSIONS: Partial<Record<ShapeType, { width: number; height: num
   'hand-ausruf': { width: 110, height: 110 },
   'hand-marker': { width: 420, height: 80 },
   'hand-marker-box': { width: 420, height: 90 },
+  'hand-winken': { width: 160, height: 160 },
+  'hand-pfeil-schlaufe': { width: 300, height: 80 },
+  'hand-pfeil-welle': { width: 300, height: 64 },
+  'hand-pfeil-bogen': { width: 300, height: 64 },
+  'hand-pfeil-haken': { width: 260, height: 82 },
+  'hand-pfeil-herz': { width: 340, height: 95 },
+  'hand-pfeil-spirale': { width: 320, height: 72 },
 };
 
 const DEFAULT_CORNER_RADIUS: Partial<Record<ShapeType, number>> = {
@@ -719,6 +775,13 @@ const DEFAULT_STROKE_WIDTH: Partial<Record<ShapeType, number>> = {
   'hand-unterstrich': 12,
   'hand-pfeil': 12,
   'hand-ausruf': 10,
+  'hand-winken': 9,
+  'hand-pfeil-schlaufe': 9,
+  'hand-pfeil-welle': 9,
+  'hand-pfeil-bogen': 11,
+  'hand-pfeil-haken': 11,
+  'hand-pfeil-herz': 9,
+  'hand-pfeil-spirale': 9,
 };
 
 const DEFAULT_DASH: Partial<Record<ShapeType, number[]>> = {
