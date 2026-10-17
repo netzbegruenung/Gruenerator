@@ -1,5 +1,8 @@
 import { useMediaUpload } from '@gruenerator/shared/media-library';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef, useState } from 'react';
+
+import { MEDIATHEK_QUERY_KEY } from './useMediathek';
 
 export interface QueuedUpload {
   id: number;
@@ -15,7 +18,9 @@ export interface QueuedUpload {
  */
 export function useUploadQueue() {
   const failure = useRef<string | null>(null);
+  const queryClient = useQueryClient();
   const { upload, progress } = useMediaUpload({
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: MEDIATHEK_QUERY_KEY }),
     onError: (message) => {
       failure.current = message;
     },
