@@ -3,13 +3,14 @@ import { createContext, useContext } from 'react';
 import type { ApplyResult } from './ai/applyOperation';
 import type { ReplaceDeckOps } from './collab/pagesDoc';
 import type { StockImage, StockImageAttribution } from './common/imageSourceTypes';
-import type { PrintVorlage } from './composer/printVorlagen';
 import type { HeterogeneousPage } from './configs/types';
 import type {
   CanvasAiCapabilities,
   CanvasAiOperation,
   CanvasAiSnapshot,
   SharepicFormat,
+  CanvasVorlage,
+  PrintVorlage,
   SharepicSeite,
 } from '@gruenerator/contracts';
 import type { ComponentType, ReactNode } from 'react';
@@ -72,9 +73,12 @@ export interface VorlagePage {
 export interface CanvasVorlagenService {
   listSeiten: () => Promise<SharepicSeite[]>;
   composeSeite: (seite: SharepicSeite, format: SharepicFormat) => Promise<VorlagePage[]>;
+  /** Vorlagen saved as finished pages, for every format; the tab shows the document's. */
+  listCanvas?: () => Promise<CanvasVorlage[]>;
+  /** The print Vorlagen of the viewer's country; their specs compose here (`composePrint`). */
+  listPrint?: () => Promise<PrintVorlage[]>;
   /**
-   * Copies a print Vorlage into a new design of the viewer's own and opens it.
-   * Print Vorlagen ship with this package and compose here (`composePrint`);
+   * Copies a print Vorlage into a new design of the viewer's own and opens it;
    * without this the tab only replaces the design.
    */
   openPrintAsNew?: (vorlage: PrintVorlage) => void;

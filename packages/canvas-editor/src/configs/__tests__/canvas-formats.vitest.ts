@@ -11,7 +11,7 @@ import { TEMPLATE_REGISTRY } from '../../utils/templateRegistry';
 const INSTAGRAM = { width: 1080, height: 1350 } as const;
 
 /** Ein Profilbild ist quadratisch — das ist kein Ausrutscher, sondern der Zweck. */
-const QUADRATISCH = new Set(['profilbild']);
+const QUADRATISCH = new Set(['profilbild', 'sticker']);
 
 describe('Leinwandformate', () => {
   const ids = Object.keys(TEMPLATE_REGISTRY) as Array<keyof typeof TEMPLATE_REGISTRY>;

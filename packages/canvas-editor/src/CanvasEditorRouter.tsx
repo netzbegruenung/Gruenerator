@@ -8,6 +8,7 @@ import { getCanvasFormatOrDefault, isUnsupportedFormatId } from './formats';
 import { HOST_CALLBACK_KEYS } from './hostCallbackKeys';
 
 import type { StockImageAttribution } from './common/imageSourceTypes';
+import type { CanvasEditorExportApi } from './components/CanvasEditor/types';
 import type { FullCanvasConfig, CanvasConfigId } from './configs/types';
 import type { InitialPageDef } from './hooks/usePageManager';
 import type { SidebarTabId } from './sidebar/types';
@@ -173,6 +174,12 @@ export interface ControllableCanvasWrapperProps {
   initialTab?: SidebarTabId | null;
   /** Reports sidebar tab changes to the host (see CanvasEditorProps). */
   onActiveTabChange?: (tab: SidebarTabId | null) => void;
+  /** See CanvasEditorProps.galleryAutoSave. */
+  galleryAutoSave?: boolean;
+  /** See CanvasEditorProps.showShare. */
+  showShare?: boolean;
+  /** See CanvasEditorProps.exportApiRef. */
+  exportApiRef?: React.Ref<CanvasEditorExportApi>;
 }
 
 /**
@@ -219,6 +226,9 @@ function ControllableCanvasEditor({
   onAutoSaveShareToken,
   initialTab,
   onActiveTabChange,
+  galleryAutoSave,
+  showShare,
+  exportApiRef,
 }: ControllableCanvasWrapperProps) {
   const isCollab = !!collaborative;
   const [internalState, setInternalState] = useState<CanvasState>(initialState);
@@ -449,6 +459,7 @@ function ControllableCanvasEditor({
       case 'dreizeilen':
       case 'freeform':
       case 'profilbild':
+      case 'sticker':
       case 'zitat-at':
       case 'zitat-pure-at':
       case 'dreizeilen-overlay-at':
@@ -482,6 +493,9 @@ function ControllableCanvasEditor({
             onAutoSaveShareToken={onAutoSaveShareToken}
             initialTab={initialTab}
             onActiveTabChange={onActiveTabChange}
+            galleryAutoSave={galleryAutoSave}
+            showShare={showShare}
+            exportApiRef={exportApiRef}
           />
         );
 

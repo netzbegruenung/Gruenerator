@@ -4,7 +4,11 @@ import { useId, useMemo, type ReactNode } from 'react';
 
 import { useAuthStore } from '../../stores/authStore';
 import { usePrintVorlage } from '../vorlagen/hooks/usePrintVorlage';
-import { sharepicSeitenQuery } from '../vorlagen/hooks/useSharepicVorlagen';
+import {
+  canvasVorlagenQuery,
+  printVorlagenQuery,
+  sharepicSeitenQuery,
+} from '../vorlagen/hooks/useSharepicVorlagen';
 
 import { CanvasChatDraftIdContext } from './CanvasChatDocContext';
 import { webCanvasEditorServices } from './webCanvasEditorServices';
@@ -64,6 +68,8 @@ export function WebCanvasEditorProvider({
             vorlagen: {
               listSeiten: () => queryClient.fetchQuery(sharepicSeitenQuery()),
               composeSeite,
+              listCanvas: () => queryClient.fetchQuery(canvasVorlagenQuery()),
+              listPrint: () => queryClient.fetchQuery(printVorlagenQuery()),
               openPrintAsNew: (vorlage) => void openPrintVorlage(vorlage),
             },
           }

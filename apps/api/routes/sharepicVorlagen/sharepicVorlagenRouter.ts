@@ -9,10 +9,16 @@ import { sharepicVorlagenContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import {
+  canvasVorlageThumbFile,
+  getCanvasVorlage,
+  getPrintVorlage,
   getSharepicSeite,
   getSharepicVorlage,
+  listCanvasVorlagen,
+  listPrintVorlagen,
   listSharepicSeiten,
   listSharepicVorlagen,
+  printVorlageThumbFile,
   sharepicSeiteThumbFile,
   sharepicVorlageThumbFile,
 } from '../../services/sharepicVorlagen/catalog.js';
@@ -40,6 +46,16 @@ export const sharepicVorlagenContractRouter = s.router(sharepicVorlagenContract,
     getAuthedUser(req);
     const locale = await resolveVorlagenLocale(req, query.land);
     return { status: 200 as const, body: { seiten: listSharepicSeiten(locale) } };
+  },
+  canvas: async ({ req, query }) => {
+    getAuthedUser(req);
+    const locale = await resolveVorlagenLocale(req, query.land);
+    return { status: 200 as const, body: { vorlagen: listCanvasVorlagen(locale) } };
+  },
+  print: async ({ req, query }) => {
+    getAuthedUser(req);
+    const locale = await resolveVorlagenLocale(req, query.land);
+    return { status: 200 as const, body: { vorlagen: listPrintVorlagen(locale) } };
   },
   get: async ({ req, params }) => {
     getAuthedUser(req);
@@ -69,6 +85,21 @@ function sendSeiteThumb(req: Request, res: Response): void {
   );
 }
 
+function sendCanvasThumb(req: Request, res: Response): void {
+  const id = String(req.params.id);
+  sendThumbFile(req, res, canvasVorlageThumbFile(id), getCanvasVorlage(id)?.thumbVersion);
+}
+
+function sendPrintThumb(req: Request, res: Response): void {
+  const id = String(req.params.id);
+  sendThumbFile(
+    req,
+    res,
+    printVorlageThumbFile(id, Number(req.query.seite ?? 1)),
+    getPrintVorlage(id)?.thumbVersion
+  );
+}
+
 function sendThumbFile(
   req: Request,
   res: Response,
@@ -93,6 +124,8 @@ function sendThumbFile(
 export function mountSharepicVorlagenRouter(app: Application): void {
   app.get('/api/sharepic-vorlagen/:id/thumb', sendThumb);
   app.get('/api/sharepic-vorlagen/seiten/:id/thumb', sendSeiteThumb);
+  app.get('/api/sharepic-vorlagen/canvas/:id/thumb', sendCanvasThumb);
+  app.get('/api/sharepic-vorlagen/print/:id/thumb', sendPrintThumb);
   createExpressEndpoints(sharepicVorlagenContract, sharepicVorlagenContractRouter, app, {
     requestValidationErrorHandler: logContractValidationError(log, 'sharepicVorlagenContract'),
   });

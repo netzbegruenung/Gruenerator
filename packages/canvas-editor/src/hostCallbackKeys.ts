@@ -32,6 +32,8 @@ export const HOST_CALLBACK_KEYS: Record<CanvasConfigId, readonly string[]> = {
   // element only renders when backgroundMode === 'image'.
   freeform: ['backgroundMode', ...BG_IMAGE_KEYS],
   profilbild: [],
+  // Inherits freeform's state; its background keys are unused (no background plane).
+  sticker: ['backgroundMode', ...BG_IMAGE_KEYS],
   'zitat-at': ['quote', 'name', ...BG_IMAGE_KEYS],
   'zitat-pure-at': ['quote', 'name', ...BG_IMAGE_KEYS],
   'dreizeilen-overlay-at': ['line1', 'accent', 'line3', 'subline', ...BG_IMAGE_KEYS],

@@ -1,4 +1,6 @@
 import {
+  type CanvasVorlage,
+  type PrintVorlage,
   type SharepicCreatorLocale,
   type SharepicSeite,
   type SharepicVorlage,
@@ -45,5 +47,41 @@ export const sharepicSeitenQuery = () =>
         throw new ApiError(res.status, `Seiten konnten nicht geladen werden (HTTP ${res.status}).`);
       }
       return res.body.seiten;
+    },
+  });
+
+/** Vorlagen stored as finished canvas pages, for every format; the editor filters by its own. */
+export const canvasVorlagenQuery = () =>
+  queryOptions({
+    queryKey: ['canvas-vorlagen'],
+    staleTime: 10 * 60_000,
+    queryFn: async (): Promise<CanvasVorlage[]> => {
+      const res = await getContractsClient().sharepicVorlagen.canvas({ query: {} });
+      if (res.status !== 200) {
+        throw new ApiError(
+          res.status,
+          `Vorlagen konnten nicht geladen werden (HTTP ${res.status}).`
+        );
+      }
+      return res.body.vorlagen;
+    },
+  });
+
+/** The print Vorlagen of the viewer's country; `land` like `sharepicVorlagenQuery`. */
+export const printVorlagenQuery = (land: SharepicCreatorLocale | null = null) =>
+  queryOptions({
+    queryKey: ['print-vorlagen', land],
+    staleTime: 10 * 60_000,
+    queryFn: async (): Promise<PrintVorlage[]> => {
+      const res = await getContractsClient().sharepicVorlagen.print({
+        query: land ? { land } : {},
+      });
+      if (res.status !== 200) {
+        throw new ApiError(
+          res.status,
+          `Vorlagen konnten nicht geladen werden (HTTP ${res.status}).`
+        );
+      }
+      return res.body.vorlagen;
     },
   });

@@ -30,16 +30,16 @@
       "require": "./src/composer/index.ts",
       "types": "./src/composer/index.ts"
     },
-    "./print-vorlagen": {
-      "import": "./src/composer/printVorlagen.ts",
-      "require": "./src/composer/printVorlagen.ts",
-      "types": "./src/composer/printVorlagen.ts"
-    },
     "./configs/*": "./src/configs/*",
     "./pixelHitArea": {
       "import": "./src/utils/pixelHitArea.ts",
       "require": "./src/utils/pixelHitArea.ts",
       "types": "./src/utils/pixelHitArea.ts"
+    },
+    "./stickerElements": {
+      "import": "./src/utils/stickerElements.ts",
+      "require": "./src/utils/stickerElements.ts",
+      "types": "./src/utils/stickerElements.ts"
     },
     "./profilbildStickers": {
       "import": "./src/utils/profilbildStickerInstances.ts",

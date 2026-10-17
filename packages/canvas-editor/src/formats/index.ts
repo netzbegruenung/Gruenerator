@@ -144,6 +144,7 @@ export const DEFAULT_FORMAT_ID = 'post-portrait';
  */
 const PINNED_TEMPLATE_FORMATS: Readonly<Record<string, string>> = {
   profilbild: 'profile-square',
+  sticker: 'profile-square',
 };
 
 export function pinnedFormatId(templateId: string): string | null {

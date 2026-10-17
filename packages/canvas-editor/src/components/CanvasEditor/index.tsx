@@ -33,6 +33,7 @@ import { Skeleton } from '@gruenerator/ui';
 import Konva from 'konva';
 import React, {
   useCallback,
+  useImperativeHandle,
   useRef,
   useMemo,
   useEffect,
@@ -43,6 +44,7 @@ import React, {
 
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { PAGE_PERSISTED_STATE_KEYS } from '../../collab/pageElementStateKeys';
+import { serializeDeck } from '../../collab/pagesDoc';
 import { createPageSyncedCallbacks } from '../../collab/wrapCallbacksWithPageSync';
 import { type CanvasConfigId } from '../../configs/types';
 import {
@@ -155,6 +157,9 @@ function CanvasEditorInner({
   onAutoSaveShareToken,
   initialTab = null,
   onActiveTabChange,
+  galleryAutoSave = true,
+  showShare = true,
+  exportApiRef,
 }: CanvasEditorProps) {
   // Note: onAutoSaveShareToken is threaded down to useCanvasAutoSave (via
   // PageWrapper → GenericCanvas) instead of a store subscription here — a
@@ -555,6 +560,18 @@ function CanvasEditorInner({
     [currentPageIndex, canvasRefsRef]
   );
 
+  useImperativeHandle(
+    exportApiRef,
+    () => ({
+      captureActivePage: async ({ pixelRatio = 1, transparent = false } = {}) => {
+        await ensureFontsReady();
+        return handleCaptureCanvas({ format: 'png', pixelRatio, includeBackground: !transparent });
+      },
+      getPages: () => serializeDeck(pagesDoc).map(({ configId, state }) => ({ configId, state })),
+    }),
+    [handleCaptureCanvas, pagesDoc]
+  );
+
   const handleCaptureCanvasForAi = useCallback(async () => {
     const ref = canvasRefsRef.current[currentPageIndex];
     if (!ref?.current) return null;
@@ -613,7 +630,7 @@ function CanvasEditorInner({
   }, [canvasRefsRef]);
   useDeckAutoSave({
     ydoc: pagesDoc,
-    enabled: !collaborative,
+    enabled: !collaborative && galleryAutoSave,
     deckType: pages[0]?.configId ?? initialConfigId,
     captureImage: captureFirstPage,
     onShareToken: onAutoSaveShareToken,
@@ -1105,7 +1122,7 @@ function CanvasEditorInner({
       canUndo={(toolbarState?.canUndo ?? false) || canUndoPageOp}
       canRedo={(toolbarState?.canRedo ?? false) || canRedoPageOp}
       handlers={toolbarHandlers}
-      shareProps={toolbarState ? toolbarShareProps : undefined}
+      shareProps={toolbarState && showShare ? toolbarShareProps : undefined}
       chromeLeft={chromeLeft}
       chromeCenter={chromeCenter}
       chromeRight={chromeRight}

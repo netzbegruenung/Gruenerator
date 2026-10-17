@@ -9,6 +9,12 @@
 import { z } from 'zod';
 
 import {
+  printFormatIdSchema,
+  printLocaleSchema,
+  printSpecSchema,
+  type PrintSpec,
+} from './printCreator.js';
+import {
   sharepicCreatorLocaleSchema,
   sharepicFormatSchema,
   sharepicFormSchema,
@@ -97,6 +103,124 @@ export const sharepicSeiteSchema = sharepicSeiteFileEntrySchema.extend({
   thumbVersion: z.string().optional(),
 });
 export type SharepicSeite = z.infer<typeof sharepicSeiteSchema>;
+
+/**
+ * Every canvas format a document can have — the sharepic ones, the square
+ * profile picture (also the sticker sheet) and print. Mirrors `CANVAS_FORMATS`
+ * in the canvas editor, which checks itself against this list.
+ */
+export const canvasFormatIdSchema = z.enum([
+  ...sharepicFormatSchema.options,
+  'profile-square',
+  ...printFormatIdSchema.options,
+]);
+export type CanvasFormatId = z.infer<typeof canvasFormatIdSchema>;
+
+/** Whether a value holds a `blob:` URL anywhere — it dies with the tab that made it. */
+const holdsBlobUrl = (value: unknown): boolean =>
+  typeof value === 'string'
+    ? value.startsWith('blob:')
+    : Array.isArray(value)
+      ? value.some(holdsBlobUrl)
+      : typeof value === 'object' && value !== null && Object.values(value).some(holdsBlobUrl);
+
+/** A page as the editor holds it: its template and that template's state. */
+export const canvasVorlagePageSchema = z.object({
+  configId: z.string().min(1).max(40),
+  state: z
+    .record(z.string(), z.unknown())
+    .refine((state) => !holdsBlobUrl(state), 'holds a blob: URL — upload the image first'),
+});
+export type CanvasVorlagePage = z.infer<typeof canvasVorlagePageSchema>;
+
+/**
+ * A Grünerator-Vorlage for any format, saved as finished editor pages instead
+ * of a sharepic spec — exported from the editor by an instance admin. The
+ * Vorlagen tab offers the ones of the document's format. Entries live in the
+ * private checkout (`sharepic-vorlagen/canvas/{de,at}.json`).
+ */
+export const canvasVorlageFileEntrySchema = z.object({
+  id: sharepicVorlageIdSchema,
+  titel: z.string().min(1).max(80),
+  beschreibung: z.string().max(280),
+  format: canvasFormatIdSchema,
+  pages: z.array(canvasVorlagePageSchema).min(1).max(30),
+});
+export type CanvasVorlageFileEntry = z.infer<typeof canvasVorlageFileEntrySchema>;
+
+export const canvasVorlageSchema = canvasVorlageFileEntrySchema.extend({
+  locale: sharepicCreatorLocaleSchema,
+  /** Content hash of the preview; clients pass it on to `canvasVorlageThumbPath`. */
+  thumbVersion: z.string().optional(),
+});
+export type CanvasVorlage = z.infer<typeof canvasVorlageSchema>;
+
+export const canvasVorlagenListResponseSchema = z.object({
+  vorlagen: z.array(canvasVorlageSchema),
+});
+
+/** A canvas Vorlage's preview (its first page), served from the private checkout. */
+export const canvasVorlageThumbPath = (id: string, version?: string): string =>
+  `/api/sharepic-vorlagen/canvas/${encodeURIComponent(id)}/thumb${version ? `?v=${encodeURIComponent(version)}` : ''}`;
+
+/**
+ * The placeholder values the print Vorlagen ship in their impressum. The
+ * editor's export gate treats them as „not filled in yet“, so a Vorlage must
+ * use exactly these — the catalogue skips one that does not.
+ */
+export const PRINT_IMPRESSUM_PLACEHOLDERS = [
+  'Vorname Nachname',
+  'Name/Organisation',
+  'Straße Nr., PLZ Ort',
+] as const;
+
+/** Whether the spec's impressum, if any, holds only the placeholders. */
+export function printImpressumIsPlaceholder(spec: PrintSpec): boolean {
+  const { impressum } = spec;
+  if (!impressum) return true;
+  const values = [
+    impressum.art === 'visdp' ? impressum.name : impressum.medieninhaber,
+    impressum.anschrift,
+  ];
+  return values.every((v) => (PRINT_IMPRESSUM_PLACEHOLDERS as readonly string[]).includes(v));
+}
+
+/** Printed pages of a product: a business card has a back, a poster does not. */
+export const printSeitenOf = (spec: PrintSpec): number => (spec.produkt === 'visitenkarte' ? 2 : 1);
+
+/**
+ * A print Vorlage (gallery category „Print"): a placeholder spec the composer
+ * turns into pages. One file per country in the private content checkout,
+ * `print/{de,at}.json`. The ids are persisted (F0): links, likes and
+ * bookmarks point at them.
+ */
+export const printVorlageFileEntrySchema = z.object({
+  id: sharepicVorlageIdSchema,
+  titel: z.string().min(1).max(80),
+  beschreibung: z.string().max(280),
+  spec: printSpecSchema,
+});
+export type PrintVorlageFileEntry = z.infer<typeof printVorlageFileEntrySchema>;
+
+export const printVorlageSchema = printVorlageFileEntrySchema.extend({
+  locale: printLocaleSchema,
+  /** Content hash of the previews; clients pass it on to `printVorlageThumbPath`. */
+  thumbVersion: z.string().optional(),
+});
+export type PrintVorlage = z.infer<typeof printVorlageSchema>;
+
+export const printVorlagenListResponseSchema = z.object({
+  vorlagen: z.array(printVorlageSchema),
+});
+
+/** Page `seite` (1-based) of a print Vorlage's preview; the back of a card is page 2. */
+export const printVorlageThumbPath = (id: string, seite = 1, version?: string): string => {
+  const query = new URLSearchParams();
+  if (seite > 1) query.set('seite', String(seite));
+  if (version) query.set('v', version);
+  const search = query.toString();
+  return `/api/sharepic-vorlagen/print/${encodeURIComponent(id)}/thumb${search ? `?${search}` : ''}`;
+};
 
 export const sharepicSeitenListResponseSchema = z.object({
   seiten: z.array(sharepicSeiteSchema),

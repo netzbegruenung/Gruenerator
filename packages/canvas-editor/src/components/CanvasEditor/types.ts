@@ -85,6 +85,27 @@ export interface CanvasEditorProps {
   initialTab?: SidebarTabId | null;
   /** Fired whenever the open sidebar tab changes, including on mount. Desktop only. */
   onActiveTabChange?: (tab: SidebarTabId | null) => void;
+  /**
+   * Local mode only: false keeps the editor out of the gallery — a host that
+   * saves the result itself (the sticker creator) would otherwise leave a
+   * draft behind for every attempt. Default true.
+   */
+  galleryAutoSave?: boolean;
+  /** False hides the toolbar's share/download menu, for a host with its own way out. Default true. */
+  showShare?: boolean;
+  /** Lets the host render the active page itself, e.g. to save it somewhere else. */
+  exportApiRef?: React.Ref<CanvasEditorExportApi>;
+}
+
+/** What `exportApiRef` exposes to the host. */
+export interface CanvasEditorExportApi {
+  /** The active page as a PNG data URL; null when it is not mounted. */
+  captureActivePage: (options?: {
+    pixelRatio?: number;
+    transparent?: boolean;
+  }) => Promise<string | null>;
+  /** The deck as a Vorlage stores it: config and state per page. */
+  getPages: () => { configId: string; state: Record<string, unknown> }[];
 }
 
 export interface PageWrapperProps {
