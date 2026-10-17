@@ -10,6 +10,8 @@ import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
 
 import {
+  canvasVorlagenListResponseSchema,
+  printVorlagenListResponseSchema,
   sharepicSeitenListResponseSchema,
   sharepicVorlageIdSchema,
   sharepicVorlageSchema,
@@ -43,6 +45,29 @@ export const sharepicVorlagenContract = c.router(
         401: sharepicVorlagenErrorSchema,
       },
       summary: "Single slides to add to a carousel, in the viewer's country like `list`",
+    },
+    // Before `get` as well, for the same reason.
+    canvas: {
+      method: 'GET',
+      path: '/api/sharepic-vorlagen/canvas',
+      query: vorlagenLandQuerySchema,
+      responses: {
+        200: canvasVorlagenListResponseSchema,
+        401: sharepicVorlagenErrorSchema,
+      },
+      summary:
+        "Vorlagen saved as editor pages, for every format (sticker, Profilbild, print …), in the viewer's country like `list`",
+    },
+    // Before `get` as well, for the same reason.
+    print: {
+      method: 'GET',
+      path: '/api/sharepic-vorlagen/print',
+      query: vorlagenLandQuerySchema,
+      responses: {
+        200: printVorlagenListResponseSchema,
+        401: sharepicVorlagenErrorSchema,
+      },
+      summary: "Print Vorlagen (business cards, posters) in the viewer's country like `list`",
     },
     get: {
       method: 'GET',

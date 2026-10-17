@@ -197,6 +197,7 @@ const StudioAssetsDiscoverPage = lazy(() =>
 const StickerCreatorPage = lazy(
   () => import('../features/studio-assets/creator/StickerCreatorPage')
 );
+const StickerCanvasPage = lazy(() => import('../features/studio-assets/creator/StickerCanvasPage'));
 
 // Legacy KI routes (/studio/ki, /imagine, /bild-editor) now redirect to the Studio, where KI-Bilder
 // are made from the composer.
@@ -870,6 +871,12 @@ const standardRoutes: RouteConfig[] = [
     path: '/studio/sticker/neu',
     component: StickerCreatorPage,
     layoutMode: 'sidebarOnly',
+  },
+  {
+    accent: 'studio',
+    path: '/studio/sticker/gestalten',
+    component: StickerCanvasPage,
+    layoutMode: 'immersive',
   },
   { path: '/studio/templates/profilbild', component: ProfilbildRedirect },
   { path: '/studio/ki', component: ImageStudioKiRedirect },

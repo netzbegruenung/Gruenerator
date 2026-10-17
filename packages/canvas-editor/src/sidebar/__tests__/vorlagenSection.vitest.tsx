@@ -4,13 +4,12 @@ import { createRef } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CanvasEditorProvider, type CanvasVorlagenService } from '../../CanvasEditorProvider';
-import { PRINT_VORLAGEN } from '../../composer/printVorlagen';
 import { defaultCanvasEditorStore } from '../../stores/createCanvasEditorStore';
 import { VORLAGE_DRAG_TYPE } from '../../utils/mediaDrop';
 import { VorlagenSection, type VorlagenSectionHandle } from '../sections/VorlagenSection';
 
 import type { HeterogeneousPage } from '../../configs/types';
-import type { SharepicSeite } from '@gruenerator/contracts';
+import type { CanvasVorlage, PrintVorlage, SharepicSeite } from '@gruenerator/contracts';
 
 function seite(id: string, titel: string, over: Partial<SharepicSeite> = {}): SharepicSeite {
   return {
@@ -59,6 +58,63 @@ const textPage = (id: string): HeterogeneousPage => ({
 const WITH_TEXT = [textPage('p1')];
 const TWO_PAGES = [textPage('p1'), textPage('p2')];
 
+const PLAKAT_SLOTS = {
+  dachzeile: 'Einladung zum Gespräch:',
+  headline: 'Hier steht deine Botschaft',
+  akzent: 'Botschaft',
+  subline: 'Datum, Uhrzeit und Ort',
+};
+
+const PRINT: PrintVorlage[] = [
+  {
+    id: 'de-visitenkarte-quer',
+    titel: 'Visitenkarte quer',
+    beschreibung: '',
+    locale: 'de-DE',
+    spec: {
+      locale: 'de-DE',
+      produkt: 'visitenkarte',
+      variante: 'visitenkarte',
+      format: 'print-visitenkarte-quer',
+      impressum: null,
+      slots: { name: 'Vorname Nachname', funktion: 'Funktion', organisation: 'Ortsverband' },
+    },
+  },
+  {
+    id: 'de-plakat-typo-a3',
+    titel: 'Typo-Plakat A3',
+    beschreibung: '',
+    locale: 'de-DE',
+    spec: {
+      locale: 'de-DE',
+      produkt: 'plakat',
+      variante: 'typo',
+      format: 'print-a3-hoch',
+      impressum: { art: 'visdp', name: 'Vorname Nachname', anschrift: 'Straße Nr., PLZ Ort' },
+      slots: PLAKAT_SLOTS,
+    },
+  },
+  {
+    id: 'at-plakat-typo-a3',
+    titel: 'Typo-Plakat A3',
+    beschreibung: '',
+    locale: 'de-AT',
+    thumbVersion: 'v1',
+    spec: {
+      locale: 'de-AT',
+      produkt: 'plakat',
+      variante: 'typo',
+      format: 'print-a3-hoch',
+      impressum: {
+        art: 'impressum',
+        medieninhaber: 'Name/Organisation',
+        anschrift: 'Straße Nr., PLZ Ort',
+      },
+      slots: PLAKAT_SLOTS,
+    },
+  },
+] as PrintVorlage[];
+
 function setup(
   pages: HeterogeneousPage[],
   {
@@ -77,6 +133,8 @@ function setup(
     listSeiten: vi.fn(async () => SEITEN),
     composeSeite: vi.fn(async () => [SEITE_PAGE]),
     openPrintAsNew: vi.fn(),
+    // Like the host: the viewer's country only.
+    listPrint: vi.fn(async () => PRINT.filter((v) => v.locale === userLocale)),
     ...service,
   };
   const deck = {
@@ -282,6 +340,91 @@ describe('VorlagenSection on a sharepic', () => {
   });
 });
 
+const canvasVorlage = (
+  id: string,
+  titel: string,
+  format: CanvasVorlage['format']
+): CanvasVorlage => ({
+  id,
+  titel,
+  beschreibung: '',
+  format,
+  locale: 'de-DE',
+  thumbVersion: 'v1',
+  pages: [{ configId: 'sticker', state: { additionalTexts: [{ id: 't1', text: titel }] } }],
+});
+
+const CANVAS_CATALOGUE = [
+  canvasVorlage('sticker-danke', 'Danke-Sticker', 'profile-square'),
+  canvasVorlage('quer-plakat', 'Plakat-Entwurf', 'print-a3-hoch'),
+  canvasVorlage('sharepic-seite', 'Fertige Seite', 'post-portrait'),
+];
+
+describe('VorlagenSection canvas Vorlagen', () => {
+  const listCanvas = () => vi.fn(async () => CANVAS_CATALOGUE);
+
+  it('shows the canvas Vorlagen of exactly the format, and no Seiten', async () => {
+    const { vorlagen } = setup(EMPTY, {
+      formatId: 'profile-square',
+      service: { listCanvas: listCanvas() },
+    });
+    await card('Danke-Sticker');
+    expect(screen.getAllByRole('listitem')).toHaveLength(1);
+    expect(vorlagen.listSeiten).not.toHaveBeenCalled();
+  });
+
+  it('leaves a sharepic format to its Seiten', async () => {
+    const service = { listCanvas: listCanvas() };
+    setup(EMPTY, { service });
+    await seitenTile('Zwei Absätze');
+    expect(service.listCanvas).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: /^Vorlage / })).toBeNull();
+  });
+
+  it('puts them behind the print Vorlage of the format', async () => {
+    setup(EMPTY, { formatId: 'print-a3-hoch', service: { listCanvas: listCanvas() } });
+    await card('Plakat-Entwurf');
+    const titles = screen.getAllByRole('listitem').map((li) => li.textContent);
+    expect(titles).toEqual(['Typo-Plakat A3', 'Plakat-Entwurf']);
+  });
+
+  it('applies a copy of the stored pages', async () => {
+    const { deck, user } = setup(EMPTY, {
+      formatId: 'profile-square',
+      service: { listCanvas: listCanvas() },
+    });
+    await user.click(await card('Danke-Sticker'));
+    await waitFor(() => expect(deck.replaceDeck).toHaveBeenCalledTimes(1));
+    const [ops] = deck.replaceDeck.mock.calls[0] as unknown as [
+      { inserts: { configId: string; state: unknown }[]; removes: string[] },
+    ];
+    const stored = CANVAS_CATALOGUE[0]!.pages[0]!;
+    expect(ops.removes).toEqual(['p1']);
+    expect(ops.inserts[0]).toMatchObject({ configId: 'sticker', state: stored.state });
+    expect(ops.inserts[0]?.state).not.toBe(stored.state);
+  });
+
+  it('says when the canvas Vorlagen fail to load and loads them again', async () => {
+    const failing = vi
+      .fn<() => Promise<CanvasVorlage[]>>()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce(CANVAS_CATALOGUE);
+    const { user } = setup(EMPTY, { formatId: 'profile-square', service: { listCanvas: failing } });
+    const alert = await screen.findByRole('alert');
+    await user.click(within(alert).getByRole('button', { name: 'Erneut versuchen' }));
+    await card('Danke-Sticker');
+  });
+
+  it('leaves a tile plain when its preview does not load', async () => {
+    setup(EMPTY, { formatId: 'profile-square', service: { listCanvas: listCanvas() } });
+    const button = await card('Danke-Sticker');
+    const img = button.closest('li')!.querySelector('img')!;
+    fireEvent.error(img);
+    expect(button.closest('li')!.querySelector('img')).toBeNull();
+    expect(screen.getByText('Danke-Sticker')).toBeInTheDocument();
+  });
+});
+
 describe('VorlagenSection on a print design', () => {
   const FILLED = 'V.i.S.d.P.: Anna Muster, Hauptstr. 1, 12345 Stadt';
   const POSTER: HeterogeneousPage[] = [
@@ -291,13 +434,13 @@ describe('VorlagenSection on a print design', () => {
       state: { additionalTexts: [{ id: 'impressum', text: FILLED }] },
     },
   ];
-  const vorlageById = (id: string) => PRINT_VORLAGEN.find((v) => v.id === id)!;
+  const vorlageById = (id: string) => PRINT.find((v) => v.id === id)!;
 
   it('shows the print Vorlage of the format and the country, not the sharepic catalogue', async () => {
     const { vorlagen } = setup(EMPTY, { formatId: 'print-a3-hoch', userLocale: 'de-AT' });
     const button = await card('Typo-Plakat A3');
     expect(button.closest('li')?.querySelector('img')?.getAttribute('src')).toBe(
-      '/vorlagen/print/at-plakat-typo-a3.webp'
+      '/api/sharepic-vorlagen/print/at-plakat-typo-a3/thumb?v=v1'
     );
     expect(screen.getAllByRole('listitem')).toHaveLength(1);
     expect(vorlagen.listSeiten).not.toHaveBeenCalled();

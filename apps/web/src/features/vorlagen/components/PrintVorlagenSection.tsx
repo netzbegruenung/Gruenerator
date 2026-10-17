@@ -1,5 +1,4 @@
-import { getCanvasFormat } from '@gruenerator/canvas-editor/formats';
-import { type PrintVorlage } from '@gruenerator/canvas-editor/print-vorlagen';
+import { printSeitenOf, printVorlageThumbPath, type PrintVorlage } from '@gruenerator/contracts';
 import { Button } from '@gruenerator/ui';
 import { Pencil } from 'lucide-react';
 import { type JSX } from 'react';
@@ -18,12 +17,12 @@ export const printMatches = (v: PrintVorlage, query: string): boolean => {
   return !q || `${v.titel} ${v.beschreibung}`.toLowerCase().includes(q);
 };
 
-const pageCount = (v: PrintVorlage) => getCanvasFormat(v.spec.format)?.print?.seiten ?? 1;
+const pageCount = (v: PrintVorlage) => printSeitenOf(v.spec);
 
-/** Every page's preview in order; page n > 1 lives next to the thumb as `<thumb>-n.webp`. */
+/** Every page's preview in order, the front first. */
 const printPages = (v: PrintVorlage): string[] =>
   Array.from({ length: pageCount(v) }, (_, i) =>
-    i === 0 ? v.thumb : v.thumb.replace(/\.webp$/, `-${i + 1}.webp`)
+    printVorlageThumbPath(v.id, i + 1, v.thumbVersion)
   );
 
 /** A print Vorlage in the gallery: a click opens its detail dialog. */
@@ -40,7 +39,7 @@ export function PrintVorlageCard({
         id: vorlage.id,
         title: vorlage.titel,
         template_type: PRINT_TEMPLATE_TYPE,
-        thumbnail_url: vorlage.thumb,
+        thumbnail_url: printVorlageThumbPath(vorlage.id, 1, vorlage.thumbVersion),
         content_data: { format: vorlage.spec.format },
       }}
       pages={printPages(vorlage)}

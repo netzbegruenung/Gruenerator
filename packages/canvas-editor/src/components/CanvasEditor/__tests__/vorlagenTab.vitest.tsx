@@ -91,9 +91,9 @@ describe('CanvasEditor Vorlagen-Reiter', () => {
     expect(tabs).not.toContain('vorlagen');
   });
 
-  it('fehlt beim Profilbild-Format', async () => {
+  it('steht auch beim Profilbild-Format (Canvas-Vorlagen)', async () => {
     const tabs = await renderEditor({ vorlagen }, 'profile-square');
     expect(tabs).toContain('text');
-    expect(tabs).not.toContain('vorlagen');
+    expect(tabs).toContain('vorlagen');
   });
 });

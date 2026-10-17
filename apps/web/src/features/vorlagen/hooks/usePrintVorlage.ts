@@ -1,4 +1,4 @@
-import { type PrintVorlage } from '@gruenerator/canvas-editor/print-vorlagen';
+import { type PrintVorlage } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef, useState } from 'react';

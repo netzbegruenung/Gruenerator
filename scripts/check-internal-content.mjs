@@ -40,6 +40,7 @@ const failures = [];
 const PRIVATE_PREFIXES = [
   '.external/', // sidecar checkouts, incl. the internal skill prompts
   'documentation/docs/intern/', // internal analyses and corpus dumps
+  'apps/web/public/vorlagen/', // Vorlagen previews: served by the API from INTERN_CONTENT_DIR
 ];
 
 // ── 1. Tracked files under a private prefix ─────────────────────────────────

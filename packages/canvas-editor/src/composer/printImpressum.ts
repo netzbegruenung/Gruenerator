@@ -4,7 +4,7 @@
  * `Impressum: <medieninhaber>, <anschrift>`. The export gate reads that text
  * back, so what counts as filled in is decided here.
  */
-import { PRINT_VORLAGEN } from './printVorlagen';
+import { PRINT_IMPRESSUM_PLACEHOLDERS } from '@gruenerator/contracts';
 
 const PREFIX = { 'de-DE': 'V.i.S.d.P.:', 'de-AT': 'Impressum:' } as const;
 
@@ -22,16 +22,7 @@ export interface ImpressumParts {
 }
 
 /** The values the gallery templates ship with; they stand for „not filled in yet“. */
-const PLACEHOLDERS: ReadonlySet<string> = new Set(
-  PRINT_VORLAGEN.flatMap(({ spec }) => {
-    const { impressum } = spec;
-    if (!impressum) return [];
-    return [
-      impressum.art === 'visdp' ? impressum.name : impressum.medieninhaber,
-      impressum.anschrift,
-    ];
-  }).map((v) => v.trim())
-);
+const PLACEHOLDERS: ReadonlySet<string> = new Set(PRINT_IMPRESSUM_PLACEHOLDERS);
 
 export function impressumLine(locale: ImpressumLocale, parts: ImpressumParts): string {
   return `${PREFIX[locale]} ${parts.name.trim()}, ${parts.anschrift.trim()}`;

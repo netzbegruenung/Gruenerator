@@ -1,12 +1,12 @@
+import { mediathekFilterSchema, type MediathekFilter } from '@gruenerator/contracts';
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
-import type { MediaType, SortOrder } from '@gruenerator/shared/media-library';
+import type { SortOrder } from '@gruenerator/shared/media-library';
 
-export type MediaTypeFilter = MediaType | 'all';
+export type MediaTypeFilter = MediathekFilter;
 
 const SEARCH_DEBOUNCE_MS = 400;
-const TYPES: readonly MediaTypeFilter[] = ['all', 'image', 'video', 'audio'];
 
 export interface MediaLibraryFilters {
   type: MediaTypeFilter;
@@ -30,8 +30,7 @@ export interface MediaLibraryFilters {
  */
 export function useMediaLibraryFilters(): MediaLibraryFilters {
   const [params, setParams] = useSearchParams();
-  const typeParam = params.get('typ') as MediaTypeFilter | null;
-  const type = typeParam && TYPES.includes(typeParam) ? typeParam : 'all';
+  const type = mediathekFilterSchema.catch('all').parse(params.get('typ'));
   const sort: SortOrder = params.get('sort') === 'oldest' ? 'oldest' : 'newest';
 
   const [searchInput, setSearchInput] = useState('');

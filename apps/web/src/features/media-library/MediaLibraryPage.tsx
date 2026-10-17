@@ -1,7 +1,8 @@
-import { useMediaLibrary, type MediaItem } from '@gruenerator/shared/media-library';
+import { type MediaItem } from '@gruenerator/shared/media-library';
 import { Button } from '@gruenerator/ui';
-import { useCallback, useEffect, useRef, useState, type DragEvent, type JSX } from 'react';
+import { useCallback, useRef, useState, type DragEvent, type JSX } from 'react';
 import { HiArrowUpTray } from 'react-icons/hi2';
+import { useNavigate } from 'react-router-dom';
 
 import {
   FilterChip,
@@ -17,12 +18,14 @@ import { ShareMediaModal } from '../../components/common/ShareMediaModal';
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import { useTrashUndoToast } from '../trash/trashUndoToast';
 
+import { LinkedEntryCard } from './components/LinkedEntryCard';
 import { MediaCard } from './components/MediaCard';
 import { MediaDetailDialog } from './components/MediaDetailDialog';
 import { MediaToolbar, typeLabel } from './components/MediaToolbar';
 import { UploadQueueList } from './components/UploadQueueList';
 import { useMediaDownload } from './hooks/useMediaDownload';
 import { useMediaLibraryFilters } from './hooks/useMediaLibraryFilters';
+import { useMediathek, type MediathekEntry } from './hooks/useMediathek';
 import { useUploadQueue } from './hooks/useUploadQueue';
 import { mediaTitle } from './mediaFormat';
 
@@ -65,24 +68,19 @@ function useFileDrop(onFiles: (files: FileList) => void) {
 }
 
 function MediaLibrary(): JSX.Element {
+  const navigate = useNavigate();
   const filters = useMediaLibraryFilters();
   const {
-    items,
-    pagination,
+    entries,
+    total,
+    hasMore,
     isLoading,
     isFetchingNextPage,
     error,
-    setFilters,
     loadMore,
-    deleteItem,
-    updateItem,
-  } = useMediaLibrary({
-    initialFilters: { type: filters.type, sort: filters.sort, search: filters.search || undefined },
-  });
-
-  useEffect(() => {
-    setFilters({ type: filters.type, sort: filters.sort, search: filters.search || undefined });
-  }, [filters.type, filters.sort, filters.search, setFilters]);
+    remove,
+    update,
+  } = useMediathek({ typ: filters.type, search: filters.search, sort: filters.sort });
 
   const [gridSize, toggleGridSize] = useGridSize('mediathek-grid-size');
   const { queue, progress, enqueue, dismiss } = useUploadQueue();
@@ -92,17 +90,39 @@ function MediaLibrary(): JSX.Element {
 
   const [openId, setOpenId] = useState<string | null>(null);
   const [sharing, setSharing] = useState<MediaItem | null>(null);
-  const openItem = items.find((item) => item.id === openId) ?? null;
+  const openItem =
+    entries.flatMap((entry) =>
+      entry.kind === 'media' && entry.id === openId ? [entry.item] : []
+    )[0] ?? null;
 
   // DELETE /api/media/:id takes the row id; the trash addresses a share by its token.
-  const handleDelete = useCallback(
-    async (item: MediaItem) => {
-      if (await deleteItem(item.id)) {
-        setOpenId((current) => (current === item.id ? null : current));
-        showTrashUndo({ kind: 'shared_media', id: item.shareToken, title: item.title });
+  const handleDeleteEntry = useCallback(
+    async (entry: MediathekEntry) => {
+      if (!(await remove(entry))) return;
+      if (entry.kind === 'media') {
+        setOpenId((current) => (current === entry.id ? null : current));
+        showTrashUndo({ kind: 'shared_media', id: entry.item.shareToken, title: entry.item.title });
+      } else {
+        showTrashUndo({
+          kind: entry.kind === 'canvas' ? 'collaborative_document' : 'subtitler_project',
+          id: entry.id,
+          title: entry.title,
+        });
       }
     },
-    [deleteItem, showTrashUndo]
+    [remove, showTrashUndo]
+  );
+  const handleDelete = useCallback(
+    (item: MediaItem) => handleDeleteEntry({ kind: 'media', id: item.id, item }),
+    [handleDeleteEntry]
+  );
+  const handleOpenLinked = useCallback(
+    (entry: Exclude<MediathekEntry, { kind: 'media' }>) => void navigate(entry.href),
+    [navigate]
+  );
+  const handleDeleteLinked = useCallback(
+    (entry: Exclude<MediathekEntry, { kind: 'media' }>) => void handleDeleteEntry(entry),
+    [handleDeleteEntry]
   );
 
   const handleOpen = useCallback((item: MediaItem) => setOpenId(item.id), []);
@@ -116,7 +136,6 @@ function MediaLibrary(): JSX.Element {
   );
   const handleDownload = useCallback((item: MediaItem) => void download(item), [download]);
 
-  const total = pagination.total || items.length;
   const settled = !isLoading;
 
   return (
@@ -126,7 +145,7 @@ function MediaLibrary(): JSX.Element {
           title="Mediathek"
           description={
             <p className="m-0 text-sm leading-relaxed text-pretty text-grey-500 dark:text-grey-400">
-              Deine Bilder, Sharepics, KI-Bilder, Videos und Audios an einem Ort.
+              Deine Bilder, Sharepics, KI-Bilder, Reels, Videos und Audios an einem Ort.
             </p>
           }
           toolbar={
@@ -167,25 +186,34 @@ function MediaLibrary(): JSX.Element {
         ) : (
           <>
             <GalleryGrid size={gridSize}>
-              {!settled && items.length === 0 ? (
+              {!settled && entries.length === 0 ? (
                 <GallerySkeleton className="aspect-[4/5]" />
               ) : (
-                items.map((item, index) => (
-                  <MediaCard
-                    key={item.id}
-                    item={item}
-                    index={index}
-                    onOpen={handleOpen}
-                    onDownload={handleDownload}
-                    onShare={canShare(item) ? handleShare : undefined}
-                    onDelete={handleDeleteCard}
-                  />
-                ))
+                entries.map((entry, index) =>
+                  entry.kind === 'media' ? (
+                    <MediaCard
+                      key={`media-${entry.id}`}
+                      item={entry.item}
+                      index={index}
+                      onOpen={handleOpen}
+                      onDownload={handleDownload}
+                      onShare={canShare(entry.item) ? handleShare : undefined}
+                      onDelete={handleDeleteCard}
+                    />
+                  ) : (
+                    <LinkedEntryCard
+                      key={`${entry.kind}-${entry.id}`}
+                      entry={entry}
+                      onOpen={handleOpenLinked}
+                      onDelete={handleDeleteLinked}
+                    />
+                  )
+                )
               )}
               {isFetchingNextPage && <GallerySkeleton count={4} className="aspect-[4/5]" />}
             </GalleryGrid>
 
-            {settled && items.length === 0 && (
+            {settled && entries.length === 0 && (
               <GalleryEmptyState
                 {...(filters.isFiltered
                   ? {
@@ -199,12 +227,12 @@ function MediaLibrary(): JSX.Element {
                     }
                   : {
                       title: 'Noch keine Medien',
-                      hint: 'Lade Bilder oder Videos hoch oder zieh sie hierher. Sharepics, KI-Bilder und Audios aus dem Studio landen automatisch hier.',
+                      hint: 'Lade Bilder oder Videos hoch oder zieh sie hierher. Sharepics, KI-Bilder, Reels und Audios aus dem Studio landen automatisch hier.',
                     })}
               />
             )}
 
-            {pagination.hasMore && (
+            {hasMore && (
               <Button
                 variant="outline"
                 className="self-center"
@@ -235,7 +263,7 @@ function MediaLibrary(): JSX.Element {
         <MediaDetailDialog
           item={openItem}
           onClose={() => setOpenId(null)}
-          onSave={updateItem}
+          onSave={update}
           onDownload={handleDownload}
           onShare={canShare(openItem) ? handleShare : undefined}
           onDelete={handleDeleteCard}
