@@ -16,7 +16,8 @@ import { WebCanvasEditorProvider } from '../../image-studio/WebCanvasEditorProvi
 import { profilbildAssetHref } from '../../studio-tools/utils/galleryAsset';
 import { ExportCanvasVorlageButton } from '../../vorlagen/components/ExportCanvasVorlageButton';
 
-import { SwatchPicker, SwitchRow, type StickerDraft } from './creatorParts';
+import { SwatchPicker, SwitchRow, useObjectUrl, type StickerDraft } from './creatorParts';
+import { StickerDoneCard } from './StickerDoneCard';
 import {
   canvasToPngBlob,
   imageToCanvas,
@@ -50,6 +51,8 @@ const StickerCanvasPage = (): JSX.Element => {
   const [draft, setDraft] = useState<StickerDraft | null>(null);
   const [saveOpen, setSaveOpen] = useState(false);
   const [capturing, setCapturing] = useState(false);
+  const [created, setCreated] = useState<StudioAssetItem | null>(null);
+  const draftUrl = useObjectUrl(created ? (draft?.blob ?? null) : null);
 
   const leave = () =>
     void navigate(returnTo === 'profilbild' ? '/studio/profilbild' : GALLERY_PATH);
@@ -89,8 +92,11 @@ const StickerCanvasPage = (): JSX.Element => {
     };
   }, [motif, outlineOn, outlineColor, shadowOn]);
 
-  const saved = (item: StudioAssetItem) =>
-    void navigate(returnTo === 'profilbild' ? profilbildAssetHref(item) : GALLERY_PATH);
+  // A tab the canvas opened stays open on the closing step; the canvas picks the sticker up itself.
+  const saved = (item: StudioAssetItem) => {
+    if (returnTo === 'canvas') setCreated(item);
+    else void navigate(returnTo === 'profilbild' ? profilbildAssetHref(item) : GALLERY_PATH);
+  };
 
   return (
     <WebCanvasEditorProvider allowStickerCreator={false}>
@@ -136,6 +142,15 @@ const StickerCanvasPage = (): JSX.Element => {
             </div>
           }
         />
+        {created ? (
+          <StickerDoneCard
+            className="absolute inset-0 z-10"
+            item={created}
+            previewUrl={draftUrl}
+            returnTo="canvas"
+            onStartOver={() => setCreated(null)}
+          />
+        ) : null}
       </div>
       <StickerSaveDialog draft={draft} open={saveOpen} onOpenChange={setSaveOpen} onSaved={saved}>
         <div className="flex flex-col gap-md rounded-lg bg-background-alt p-sm">

@@ -1,20 +1,18 @@
 import { type StudioAssetItem } from '@gruenerator/contracts';
 import { Button, ToggleGroup, ToggleGroupItem } from '@gruenerator/ui';
 import { useCallback, useState, type JSX, type ReactNode } from 'react';
-import { PiCheckCircle, PiImageSquare, PiPaintBrush, PiTextAa } from 'react-icons/pi';
+import { PiImageSquare, PiPaintBrush, PiTextAa } from 'react-icons/pi';
 import { Link } from 'react-router-dom';
 
 import { useAuthStore } from '../../../stores/authStore';
-import { profilbildAssetHref } from '../../studio-tools/utils/galleryAsset';
 
 import { BadgeDesigner } from './BadgeDesigner';
 import { useObjectUrl, type DesignerParts, type StickerDraft } from './creatorParts';
 import { ImageStickerDesigner } from './ImageStickerDesigner';
+import { StickerDoneCard } from './StickerDoneCard';
 import { StickerSaveDialog } from './StickerSaveDialog';
 
 import { cn } from '@/utils/cn';
-
-const GALLERY_PATH = '/studio/sticker';
 
 export type StickerCreatorReturn = 'profilbild' | 'canvas' | null;
 
@@ -94,36 +92,12 @@ export function StickerCreator({
   );
 
   const doneCard = created ? (
-    <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-md overflow-y-auto bg-background-alt p-6 text-center">
-      <PiCheckCircle aria-hidden="true" className="size-12 text-primary-600" />
-      {draftUrl ? (
-        <img src={draftUrl} alt="" className="max-h-[240px] max-w-full object-contain" />
-      ) : null}
-      <h2 className="m-0 text-lg font-semibold text-foreground-heading">Fertig!</h2>
-      {returnTo === 'canvas' ? (
-        <p className="m-0 max-w-[32rem] text-pretty text-foreground">
-          „{created.title}“ ist gespeichert. Du findest ihn im Canvas in der Seitenleiste unter
-          „Meine“ – du kannst diesen Tab jetzt schließen.
-        </p>
-      ) : (
-        <p className="m-0 max-w-[32rem] text-pretty text-foreground">
-          „{created.title}“ ist gespeichert und liegt in der Galerie unter „Meine“.
-        </p>
-      )}
-      <div className="flex flex-wrap justify-center gap-sm">
-        {returnTo !== 'canvas' && (
-          <Button asChild variant="brand">
-            <Link to={profilbildAssetHref(created)}>Im Profilbild verwenden</Link>
-          </Button>
-        )}
-        <Button asChild variant="outline">
-          <Link to={GALLERY_PATH}>Zur Galerie</Link>
-        </Button>
-        <Button type="button" variant="ghost" onClick={startOver}>
-          Noch einen Sticker
-        </Button>
-      </div>
-    </main>
+    <StickerDoneCard
+      item={created}
+      previewUrl={draftUrl}
+      returnTo={returnTo}
+      onStartOver={startOver}
+    />
   ) : null;
 
   return (

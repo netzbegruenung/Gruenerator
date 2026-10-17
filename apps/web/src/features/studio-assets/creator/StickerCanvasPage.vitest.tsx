@@ -103,6 +103,23 @@ describe('StickerCanvasPage', () => {
     expect(body).toMatchObject({ shareToken: 'tok-1', kind: 'sticker', source: 'badge' });
   });
 
+  it('stays on a closing step when the canvas opened the tab', async () => {
+    const { user } = renderWithProviders(
+      <>
+        <StickerCanvasPage />
+        <Where />
+      </>,
+      { route: '/studio/sticker/gestalten?return=canvas' }
+    );
+    await user.click(screen.getByRole('button', { name: 'Als Sticker speichern' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Sticker speichern' });
+    await waitFor(() => expect(within(dialog).getByLabelText('Titel')).toHaveValue('Mein Sticker'));
+    await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+
+    expect(await screen.findByText(/du kannst diesen Tab jetzt schließen/)).toBeInTheDocument();
+    expect(screen.getByTestId('where')).toHaveTextContent('/studio/sticker/gestalten');
+  });
+
   it('renders the outline round the whole motif and drops it on request', async () => {
     const { user } = renderWithProviders(<StickerCanvasPage />);
     await user.click(screen.getByRole('button', { name: 'Als Sticker speichern' }));
