@@ -10,7 +10,7 @@ import {
 } from '@gruenerator/canvas-editor';
 import { CanvasEditorSkeleton } from '@gruenerator/canvas-editor/skeleton';
 import { getAuthErrorMessage, PresenceAvatars, useCollaborators } from '@gruenerator/collab';
-import { type CanvasDocument } from '@gruenerator/contracts';
+import { sharepicFormatSchema, type CanvasDocument } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { EditableTitle } from '@gruenerator/shared/components/EditableTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -300,7 +300,8 @@ function CollabCanvasStudioContent() {
 
   const chromeRight = (
     <div className="flex items-center gap-2">
-      {canvas && canEdit ? (
+      {/* Sharepic formats are built from Seiten; a whole Vorlage there would never be offered. */}
+      {canvas && canEdit && !sharepicFormatSchema.safeParse(canvas.format).success ? (
         <ExportCanvasVorlageButton exportApi={exportApi} formatId={canvas.format} />
       ) : null}
       <PresenceAvatars collaborators={collaborators} compact />
