@@ -4,6 +4,7 @@
  * come from the private checkout (`services/sharepicVorlagen/catalog.ts`).
  */
 import { existsSync } from 'node:fs';
+import path from 'node:path';
 
 import { sharepicVorlagenContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
@@ -14,6 +15,7 @@ import {
   listSharepicSeiten,
   listSharepicVorlagen,
   sharepicSeiteThumbFile,
+  sharepicVorlageAssetFile,
   sharepicVorlageThumbFile,
 } from '../../services/sharepicVorlagen/catalog.js';
 import { resolveVorlagenLocale } from '../../services/sharepicVorlagen/vorlagenLocale.js';
@@ -89,8 +91,32 @@ function sendThumbFile(
   res.type('image/webp').sendFile(file);
 }
 
+const ASSET_TYPES: Record<string, string> = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.webp': 'image/webp',
+};
+
+/**
+ * A photo a Vorlage ships (`vorlage:<file>`). Copies of the Vorlage keep the
+ * URL, so a file is never replaced in place: a new photo gets a new name.
+ */
+function sendAsset(req: Request, res: Response): void {
+  const file = sharepicVorlageAssetFile(String(req.params.file));
+  if (!file) {
+    res.status(404).json({ error: 'Kein Bild.' });
+    return;
+  }
+  res.setHeader('Cache-Control', 'private, max-age=604800');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.type(ASSET_TYPES[path.extname(file).toLowerCase()] ?? 'application/octet-stream');
+  res.sendFile(file);
+}
+
 /** Mount after `requireAuth` on `/api/sharepic-vorlagen`. */
 export function mountSharepicVorlagenRouter(app: Application): void {
+  app.get('/api/sharepic-vorlagen/assets/:file', sendAsset);
   app.get('/api/sharepic-vorlagen/:id/thumb', sendThumb);
   app.get('/api/sharepic-vorlagen/seiten/:id/thumb', sendSeiteThumb);
   createExpressEndpoints(sharepicVorlagenContract, sharepicVorlagenContractRouter, app, {

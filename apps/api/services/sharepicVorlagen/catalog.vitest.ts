@@ -11,6 +11,7 @@ import {
   listSharepicVorlagen,
   resetSharepicVorlagenCache,
   sharepicSeiteThumbFile,
+  sharepicVorlageAssetFile,
   sharepicVorlageThumbFile,
 } from './catalog.js';
 
@@ -269,5 +270,23 @@ describe('sharepic Seiten catalogue', () => {
     vi.advanceTimersByTime(31_000);
     writeFileSync(path.join(thumbs, 'de-text.post-portrait.webp'), 'bild-zwei');
     expect(getSharepicSeite('de-text')?.thumbVersion).not.toBe(first);
+  });
+});
+
+describe('Vorlage photos', () => {
+  it('resolves a shipped file and nothing outside assets/', () => {
+    writeCatalog({ 'de.json': [], 'assets/person.jpg': 'bild', 'geheim.jpg': 'nein' });
+    expect(sharepicVorlageAssetFile('person.jpg')).toBe(
+      path.join(root, 'sharepic-vorlagen', 'assets', 'person.jpg')
+    );
+    for (const name of [
+      '../geheim.jpg',
+      '..%2Fgeheim.jpg',
+      'fehlt.jpg',
+      'person.gif',
+      'Person.jpg',
+    ]) {
+      expect(sharepicVorlageAssetFile(name)).toBeNull();
+    }
   });
 });
