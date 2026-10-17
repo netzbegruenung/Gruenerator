@@ -413,9 +413,10 @@ export async function fetchCanvasesByIds(
      INNER JOIN canvas_documents cdoc ON cdoc.document_id = cd.id
      LEFT JOIN profiles p ON cd.created_by = p.id
      WHERE cd.is_deleted = false
+       AND cd.document_subtype = $3
        AND cd.id::text = ANY($2::text[])
        AND ${collabAccessWhere(1)}`,
-    [userId, ids]
+    [userId, ids, CANVAS_SUBTYPE]
   )) as CanvasRow[];
   return rows.map(toCanvasItem);
 }

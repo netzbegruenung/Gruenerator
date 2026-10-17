@@ -2,6 +2,7 @@ import {
   type MediathekFilter,
   type MediathekItem,
   type MediathekMediaItem,
+  type TrashKind,
 } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import {
@@ -16,6 +17,7 @@ import { keepPreviousData, useInfiniteQuery, useQueryClient } from '@tanstack/re
 import { useCallback, useMemo } from 'react';
 
 import apiClient from '../../../components/utils/apiClient';
+import { invalidateAfterTrashChange } from '../../trash/invalidateAfterTrashChange';
 
 /**
  * Under `['content']` because the endpoint is `/api/content/mediathek`: a restore
@@ -25,6 +27,12 @@ import apiClient from '../../../components/utils/apiClient';
 export const MEDIATHEK_QUERY_KEY = ['content', 'mediathek'] as const;
 
 const PAGE_SIZE = 50;
+
+const TRASH_KIND = {
+  media: 'shared_media',
+  canvas: 'collaborative_document',
+  video: 'subtitler_project',
+} as const satisfies Record<MediathekItem['kind'], TrashKind>;
 
 /** The card and dialog components speak `MediaItem`; the wire is a little wider. */
 export function toMediaItem({
@@ -98,7 +106,6 @@ export function useMediathek(filters: { typ: MediathekFilter; search: string; so
         } else if (entry.kind === 'canvas') {
           const res = await getContractsClient().canvas.remove({ params: { id: entry.id } });
           if (res.status !== 200) return false;
-          void queryClient.invalidateQueries({ queryKey: ['canvas', 'list'] });
         } else {
           await apiClient.delete(entry.deleteEndpoint.replace(/^\/api/, ''));
         }
@@ -106,10 +113,12 @@ export function useMediathek(filters: { typ: MediathekFilter; search: string; so
         console.warn('[useMediathek] delete failed', err);
         return false;
       }
-      refresh();
+      // Every list of that kind, not just this one: the Studio strips and
+      // „Zuletzt" show the same item. `['content']` covers the Mediathek itself.
+      invalidateAfterTrashChange(queryClient, TRASH_KIND[entry.kind]);
       return true;
     },
-    [queryClient, refresh]
+    [queryClient]
   );
 
   const update = useCallback(

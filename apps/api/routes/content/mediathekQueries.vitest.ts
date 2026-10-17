@@ -35,7 +35,10 @@ const mediaRow = (id: string, extra: Record<string, unknown> = {}) => ({
 function respond(page: Array<{ kind: string; id: string }>, rows: Record<string, unknown[]>) {
   query.mockImplementation((sql) => {
     if (sql.includes('WITH entries')) {
-      return Promise.resolve(page.map((p) => ({ ...p, total: String(page.length + 3) })));
+      const total = String(page.length + 3);
+      return Promise.resolve(
+        page.length ? page.map((p) => ({ ...p, total })) : [{ kind: null, id: null, total }]
+      );
     }
     if (sql.includes('FROM shared_media')) return Promise.resolve(rows.media ?? []);
     if (sql.includes('FROM subtitler_projects')) return Promise.resolve(rows.video ?? []);
@@ -108,6 +111,14 @@ describe('listMediathek', () => {
     expect(result.items.map((i) => i.id)).toEqual(['m1']);
   });
 
+  it('keeps the total when the page lands past the end', async () => {
+    respond([], {});
+
+    const result = await listMediathek('u1', { offset: '100' });
+
+    expect(result).toMatchObject({ items: [], total: 3, hasMore: false });
+  });
+
   it.each([
     ['sharepic', `kind = 'canvas'`],
     ['ki', `origin = 'ki'`],
@@ -127,7 +138,7 @@ describe('listMediathek', () => {
     await listMediathek('u1', { search: 'Klima' });
 
     const [sql, params] = query.mock.calls[0]!;
-    expect(sql).toMatch(/COUNT\(\*\) OVER \(\)[\s\S]*title ILIKE \$3/);
+    expect(sql).toMatch(/filtered AS \([\s\S]*title ILIKE \$3[\s\S]*COUNT\(\*\) FROM filtered/);
     expect(params[2]).toBe('%Klima%');
   });
 });

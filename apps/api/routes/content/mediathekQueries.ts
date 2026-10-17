@@ -92,17 +92,25 @@ export async function listMediathek(
        FROM collaborative_documents cd
        INNER JOIN canvas_documents cdoc ON cdoc.document_id = cd.id
        WHERE cd.created_by = $1 AND cd.document_subtype = $2 AND cd.is_deleted = false
+     ),
+     filtered AS (
+       SELECT kind, id, date FROM entries WHERE ${FILTER_WHERE[filter]} AND ${searchWhere}
      )
-     SELECT kind, id, COUNT(*) OVER () AS total
-     FROM entries
-     WHERE ${FILTER_WHERE[filter]} AND ${searchWhere}
-     ORDER BY date ${direction}, id ${direction}
-     LIMIT $${params.length - 1} OFFSET $${params.length}`,
+     -- One row even for an empty page, so the count survives an offset past the end.
+     SELECT (SELECT COUNT(*) FROM filtered) AS total, page.kind, page.id
+     FROM (SELECT 1) AS one
+     LEFT JOIN LATERAL (
+       SELECT kind, id FROM filtered
+       ORDER BY date ${direction}, id ${direction}
+       LIMIT $${params.length - 1} OFFSET $${params.length}
+     ) AS page ON TRUE`,
     params
-  )) as Array<{ kind: MediathekItem['kind']; id: string; total: string }>;
+  )) as Array<{ kind: MediathekItem['kind'] | null; id: string | null; total: string }>;
 
+  const total = Number(rows[0]?.total ?? 0);
+  const page = rows.flatMap((row) => (row.kind && row.id ? [{ kind: row.kind, id: row.id }] : []));
   const idsOf = (kind: MediathekItem['kind']) =>
-    rows.filter((row) => row.kind === kind).map((row) => row.id);
+    page.filter((row) => row.kind === kind).map((row) => row.id);
   const [media, videos, canvases] = await Promise.all([
     fetchMediaByIds(userId, idsOf('media')),
     fetchVideosByIds(userId, idsOf('video')),
@@ -113,9 +121,8 @@ export async function listMediathek(
   );
 
   // A row trashed between the two reads drops out instead of failing the page.
-  const items = rows.flatMap((row) => byKey.get(`${row.kind}:${row.id}`) ?? []);
-  const total = rows[0] ? Number(rows[0].total) : 0;
-  return { items, total, limit, offset, hasMore: offset + rows.length < total };
+  const items = page.flatMap((row) => byKey.get(`${row.kind}:${row.id}`) ?? []);
+  return { items, total, limit, offset, hasMore: offset + page.length < total };
 }
 
 async function fetchMediaByIds(userId: string, ids: string[]): Promise<MediathekMediaItem[]> {
