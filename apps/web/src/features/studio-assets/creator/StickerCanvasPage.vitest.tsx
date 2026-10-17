@@ -107,12 +107,10 @@ describe('StickerCanvasPage', () => {
     const { user } = renderWithProviders(<StickerCanvasPage />);
     await user.click(screen.getByRole('button', { name: 'Als Sticker speichern' }));
     const dialog = await screen.findByRole('dialog', { name: 'Sticker speichern' });
-    await waitFor(() =>
-      expect(renderSticker).toHaveBeenLastCalledWith(
-        expect.anything(),
-        expect.objectContaining({ outline: expect.objectContaining({ color: expect.any(String) }) })
-      )
-    );
+    const lastOutline = () =>
+      (renderSticker.mock.lastCall?.[1] as { outline: { color: string } | null } | undefined)
+        ?.outline;
+    await waitFor(() => expect(lastOutline()?.color).toEqual(expect.stringMatching(/^#/)));
 
     await user.click(within(dialog).getByRole('switch', { name: 'Kontur' }));
     await waitFor(() =>
