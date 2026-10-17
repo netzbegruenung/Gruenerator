@@ -13,6 +13,10 @@ import { useNavigate } from 'react-router-dom';
 
 import apiClient from '../../../components/utils/apiClient';
 import { getPublicAppOrigin, resolveApiAssetUrl } from '../../../utils/platform';
+import {
+  mediathekPath,
+  ShowAllInMediathek,
+} from '../../media-library/components/ShowAllInMediathek';
 import { showTrashUndoToast } from '../../trash/trashUndoToast';
 import { REELS_QUERY_KEY, useReels, type ReelItem } from '../hooks/useContent';
 import { RECENT_ACTIVITY_KEY } from '../hooks/useRecentActivity';
@@ -121,7 +125,13 @@ const ReelsSection: React.FC = memo(() => {
 
   return (
     <section className="mb-xl">
-      <SectionHeader title="Reels" onCreate={handleCreate} createLabel="Neues Reel erstellen" />
+      <SectionHeader
+        title="Reels"
+        onTitleClick={() => void navigate(mediathekPath('reel'))}
+        onCreate={handleCreate}
+        createLabel="Neues Reel erstellen"
+        actions={reels.length > 0 && <ShowAllInMediathek typ="reel" />}
+      />
 
       {isLoading ? (
         <CardGrid columns="5">
