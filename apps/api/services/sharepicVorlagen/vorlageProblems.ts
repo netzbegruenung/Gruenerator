@@ -1,4 +1,7 @@
 import {
+  isSharepicSceneRef,
+  isSharepicUploadId,
+  SHAREPIC_VORLAGE_REF,
   type SharepicCreatorLocale,
   type SharepicSeiteFileEntry,
   type SharepicSlide,
@@ -9,13 +12,16 @@ import {
 import { hasStockPhoto } from '../sharepicCreator/catalog.js';
 import { namedSharepicForm } from '../sharepicCreator/forms.js';
 
+import { sharepicVorlageAssetFile } from './catalog.js';
+
 /**
  * What the schema cannot see about a catalogue entry. The loader serves an
  * entry anyway — these are editorial checks for `pnpm vorlagen:check`:
  *
  * - every chat prompt must make the creator pick the entry's form (or, for an
  *   Einzelbild, leave the choice to it), or the hint promises the wrong thing;
- * - photos must be stock photos we host;
+ * - photos must be stock photos we host or files in `assets/` (`vorlage:`),
+ *   never one user's (`upload:`, `ki:`); a cut-out on a colour ships its cut-out;
  * - `++marker++` is DE-only; AT marks with `==…==`.
  */
 export function vorlageProblems(entry: SharepicVorlageFileEntry): string[] {
@@ -53,10 +59,30 @@ export function seiteProblems(
   return problems;
 }
 
+function photoProblem(filename: string): string | null {
+  if (isSharepicUploadId(filename) || isSharepicSceneRef(filename)) {
+    return `${filename} belongs to one user, not to the catalogue`;
+  }
+  const asset = SHAREPIC_VORLAGE_REF.exec(filename)?.[1];
+  if (asset) return sharepicVorlageAssetFile(asset) ? null : `missing asset ${asset}`;
+  return hasStockPhoto(filename) ? null : `unknown stock photo ${filename}`;
+}
+
 function photoProblems(slides: readonly SharepicSlide[]): string[] {
-  return slides.flatMap(({ background }) =>
-    background.kind !== 'farbe' && !hasStockPhoto(background.filename)
-      ? [`unknown stock photo ${background.filename}`]
-      : []
-  );
+  return slides.flatMap(({ background, items }) => {
+    const bilder = items.flatMap((i) => (i.type === 'bild' ? [i] : []));
+    return [
+      ...(background.kind !== 'farbe' ? [background.filename] : []),
+      ...bilder.flatMap((b) => [b.quelle, ...(b.freisteller ? [b.freisteller] : [])]),
+    ]
+      .map(photoProblem)
+      .concat(
+        bilder.map((b) =>
+          b.ausschnitt === 'freigestellt' && !b.freisteller
+            ? `bild ${b.quelle} is freigestellt but ships no freisteller: the copy shows it uncut`
+            : null
+        )
+      )
+      .filter((p): p is string => p !== null);
+  });
 }

@@ -2,6 +2,7 @@ import {
   accentLines,
   isSharepicSceneRef,
   isSharepicUploadId,
+  isSharepicVorlageRef,
   type SharepicItem,
   type SharepicPatchOp,
   type SharepicSlide,
@@ -38,6 +39,7 @@ function withText(item: SharepicItem, text: string): SharepicItem | null {
     case 'schlagzeile':
     case 'bingo':
     case 'bild':
+    case 'steckbrief':
       return null;
     case 'iconliste': {
       // One line per row, so every row keeps its icon.
@@ -133,7 +135,12 @@ export function applySharepicPatch(spec: SharepicSpec, ops: SharepicPatchOp[]): 
         break;
       case 'set_text_side':
         // A painted scene keeps its calm area on one side only — the text stays there.
-        if (next.background.kind === 'foto' && !isSharepicSceneRef(next.background.filename))
+        // A steckbrief keeps its greeting at the top, the person in the middle.
+        if (
+          next.background.kind === 'foto' &&
+          !isSharepicSceneRef(next.background.filename) &&
+          !next.items.some((i) => i.type === 'steckbrief')
+        )
           next.background = { ...next.background, textSeite: op.textSeite };
         else skipped.push(op);
         break;
@@ -145,12 +152,15 @@ export function applySharepicPatch(spec: SharepicSpec, ops: SharepicPatchOp[]): 
         else skipped.push(op);
         break;
       case 'use_color':
-        // The person brought this photo themselves, or paid trees for the painted scene —
-        // a review never swaps it for a colour.
+        // The person brought this photo themselves, paid trees for the painted scene,
+        // or took it with the Vorlage — a review never swaps it for a colour. A
+        // steckbrief's person is its photo.
         if (
           next.background.kind !== 'farbe' &&
           (isSharepicUploadId(next.background.filename) ||
-            isSharepicSceneRef(next.background.filename))
+            isSharepicSceneRef(next.background.filename) ||
+            isSharepicVorlageRef(next.background.filename) ||
+            next.items.some((i) => i.type === 'steckbrief'))
         )
           skipped.push(op);
         else next.background = { kind: 'farbe', color: op.color };

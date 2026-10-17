@@ -96,6 +96,11 @@ export const FORM_RECIPES: Record<SharepicFormId, FormRecipe> = {
     kapitel: ['veranstaltung'],
     anlass: ['veranstaltung'],
   },
+  vorstellung: {
+    wann: 'eine Person stellt sich vor: Name, Foto, ein paar Stichworte über sie',
+    kapitel: ['vorstellung', 'fotos'],
+    anlass: ['vorstellung'],
+  },
 };
 
 export function formCatalog(): string {
@@ -118,6 +123,10 @@ const NAMED: [SharepicFormId, RegExp][] = [
     /vergleichs-?(?:grafik|bild|sharepic|kachel)\p{L}*|gegen(?:ü|ue)berstellung\p{L}*|als\s+vergleich|vergleich\s*:/giu,
   ],
   ['interview', /interview\p{L}*/giu],
+  [
+    'vorstellung',
+    /steckbrief\p{L}*|vorstellungs-?(?:post|bild|kachel|sharepic)\p{L}*|stell\p{L}*\s+mich\s+vor/giu,
+  ],
   ['rechnung', /rechenweg\p{L}*|als\s+rechnung|rechnung\s*:/giu],
   ['termine', /termin(?:en?|übersicht|kalender|liste|plan)(?!\p{L})|save\s+the\s+dates?/giu],
   ['zahl', /gro(?:ß|ss)e[nr]?\s+zahl|countdown|noch\s+\d+\s+tage/giu],
@@ -228,5 +237,9 @@ export function formMismatch(
       return spec.slides.some((slide) => slide.datum)
         ? null
         : `${label}: Datum (und Ort) gehören in "datum" der Slide (Kapitel veranstaltung).`;
+    case 'vorstellung':
+      return has('steckbrief')
+        ? null
+        : `${label}: setz die Person als {"type":"steckbrief","gruss","name","merkmale":[…3–10]} – Name und Merkmale nur aus dem Auftrag (Kapitel vorstellung).`;
   }
 }
