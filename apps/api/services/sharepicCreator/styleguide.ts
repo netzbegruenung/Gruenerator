@@ -43,6 +43,8 @@ export const STYLEGUIDE_CHAPTERS = {
     'Schlagzeile als Beleg, Zitat der Gegenseite mit „Fakt ist:“, Good News, Bullshit-Bingo und Starterpack',
   'iconliste-vergleich':
     'Punkte mit Themen-Icons, der Plan der anderen gegen unseren (Vergleich mit ✗/✓) und Mythos gegen Fakt (Faktencheck)',
+  vorstellung:
+    'Steckbrief: eine Person stellt sich vor – Gruß, großer Name, Merkmale mit Pfeilen um das Foto',
 } as const;
 
 export type StyleguideChapter = keyof typeof STYLEGUIDE_CHAPTERS;
@@ -108,6 +110,7 @@ export const EXAMPLE_OCCASIONS = [
   'zahlen',
   'vergleich',
   'infografik',
+  'vorstellung',
 ] as const;
 export type ExampleOccasion = (typeof EXAMPLE_OCCASIONS)[number];
 export const exampleOccasionSchema = z.enum(EXAMPLE_OCCASIONS);

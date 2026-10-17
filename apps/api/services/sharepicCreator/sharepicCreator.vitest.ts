@@ -740,6 +740,39 @@ describe('quotes keep their speaker', () => {
     ]);
   });
 
+  it('leaves a steckbrief slide as laid out: no text, headline, removal or photo op', () => {
+    const slides = [
+      {
+        ...base,
+        background: { kind: 'farbe', color: 'tanne' },
+        items: [
+          {
+            type: 'steckbrief',
+            gruss: 'Hallo, ich bin',
+            name: 'Lena',
+            merkmale: ['Imkerin', 'Radfahrerin', 'Stadträtin'],
+          },
+          {
+            type: 'bild',
+            quelle: 'vorlage:lena.jpg',
+            ausschnitt: 'freigestellt',
+            filter: 'original',
+          },
+        ],
+      },
+    ] as never;
+    const patch = [
+      { op: 'set_text', item: 0, text: 'Hallo' },
+      { op: 'remove_item', item: 0 },
+      { op: 'remove_item', item: 1 },
+      { op: 'set_headline', lines: ['Das bin', 'ich'] },
+      { op: 'use_color', color: 'mint' },
+      { op: 'set_color', color: 'mint' },
+    ];
+    const result = validateReview({ ok: false, issues: [], patch }, [2], slides);
+    expect(result.ok && result.value.patch).toEqual([{ op: 'set_color', color: 'mint' }]);
+  });
+
   it('drops set_text on a zitat or frage', () => {
     const slides = [
       {
