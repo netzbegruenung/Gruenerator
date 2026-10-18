@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { PiCopy, PiLockSimple, PiLockSimpleOpen } from 'react-icons/pi';
+import { PiCopy, PiLockSimple, PiLockSimpleOpen, PiTrash } from 'react-icons/pi';
 
 import { type BackgroundControls } from '../../configs/types';
 import { type ShadowPatch } from '../../hooks/useFloatingModuleHandlers';
 import { type FloatingModuleState } from '../../hooks/useFloatingModuleState';
+import { formatShortcut, isMacPlatform, shortcutOf } from '../../utils/canvasCommandRegistry';
 import { type GradientFill } from '../../utils/gradientFill';
 import { type LockState } from '../../utils/layerLock';
 import { BRAND_COLORS, FONT_COLORS, STROKE_ONLY_SHAPES } from '../../utils/shapes';
@@ -60,6 +61,10 @@ export interface ContextControlsProps {
   background?: BackgroundControls | null;
   /** Removes one own image by id — not "the selection", which can change meanwhile. */
   onRemoveUserImage?: (id: string) => void;
+  /** Löscht die Auswahl — nur die Desktop-Leiste gibt es mit; mobil liegt Löschen in der Pille. */
+  onDeleteElement?: () => void;
+  /** Vorlagen-Elemente und gesperrte lassen sich nicht löschen. */
+  canDelete?: boolean;
   onDelete?: () => void;
   /** Clears the element selection. Escape does the same, but is invisible. */
   onDeselect?: () => void;
@@ -69,6 +74,9 @@ export interface ContextControlsProps {
 
 const ICON_BTN =
   'inline-flex items-center justify-center size-8 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] disabled:opacity-30 disabled:cursor-not-allowed';
+
+const DANGER_BTN =
+  'inline-flex items-center justify-center size-8 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-danger-bg)] hover:text-[var(--editor-danger-fg)] disabled:opacity-30 disabled:cursor-not-allowed';
 
 const UNSPLASH_HOME = 'https://unsplash.com/?utm_source=gruenerator&utm_medium=referral';
 
@@ -92,6 +100,8 @@ export function ContextControls({
   handlers,
   background,
   onRemoveUserImage,
+  onDeleteElement,
+  canDelete = false,
   onDelete,
   onDeselect,
   hideObjectActions = false,
@@ -564,6 +574,29 @@ export function ContextControls({
         type="button"
       >
         {isLocked ? <PiLockSimple size={18} /> : <PiLockSimpleOpen size={18} />}
+      </button>
+    );
+  }
+
+  if (selectedElement && showObjectActions && !hideObjectActions && onDeleteElement) {
+    const label = `Löschen (${formatShortcut(shortcutOf('delete')!, isMacPlatform())})`;
+    groups.push(
+      <button
+        key="delete-element"
+        className={DANGER_BTN}
+        onClick={onDeleteElement}
+        disabled={!canDelete}
+        title={
+          canDelete
+            ? label
+            : isLocked
+              ? 'Gesperrt — zum Löschen erst entsperren'
+              : 'Dieses Element gehört zur Vorlage und lässt sich nicht löschen'
+        }
+        aria-label={label}
+        type="button"
+      >
+        <PiTrash size={18} />
       </button>
     );
   }

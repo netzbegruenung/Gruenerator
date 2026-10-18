@@ -1186,7 +1186,11 @@ function CanvasEditorInner({
       onUndoPages={toolbarHandlers.undoPages}
     />
   ) : contextControlsProps && hasContextControls ? (
-    <ContextToolbar {...contextControlsProps} />
+    <ContextToolbar
+      {...contextControlsProps}
+      canDelete={toolbarState?.canDelete ?? false}
+      onDeleteElement={toolbarHandlers.handleDeleteElement}
+    />
   ) : null;
   const mobileSelectionElement =
     contextControlsProps && hasContextControls && isMobileWeb && isPanelOpen ? (
