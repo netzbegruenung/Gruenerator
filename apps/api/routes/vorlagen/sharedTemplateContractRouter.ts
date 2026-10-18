@@ -14,7 +14,11 @@
  * here — sharing a Vorlage with a group or by link needs no review.
  */
 
-import { sharedTemplateContract, type SharedTemplate } from '@gruenerator/contracts';
+import {
+  type ModerationState,
+  sharedTemplateContract,
+  type SharedTemplate,
+} from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
@@ -35,6 +39,7 @@ interface TemplateRow {
   thumbnail_url: string | null;
   content_data: unknown;
   user_id: string | null;
+  moderation: ModerationState;
   [key: string]: unknown;
 }
 
@@ -60,13 +65,15 @@ export const sharedTemplateContractRouter = s.router(sharedTemplateContract, {
       await postgres.ensureInitialized();
 
       const template = await postgres.queryOne<TemplateRow>(
-        `SELECT id, title, description, thumbnail_url, content_data, user_id
+        `SELECT id, title, description, thumbnail_url, content_data, user_id, moderation
            FROM user_templates
           WHERE id = $1 AND type = 'template' AND deleted_at IS NULL`,
         [args.params.id],
         { table: 'user_templates' }
       );
       if (!template) return notFound;
+      const isOwner = viewerId !== null && viewerId === template.user_id;
+      if (template.moderation === 'removed' && !isOwner) return notFound;
 
       // Only Grünerator-Vorlagen carry a snapshot canvas. Canva links and
       // uploaded files have nothing to gate on and nothing to clone, so they
@@ -85,7 +92,7 @@ export const sharedTemplateContractRouter = s.router(sharedTemplateContract, {
       if (!snapshot) return notFound;
 
       const access = resolveSharedTemplateAccess(snapshot, {
-        isOwner: viewerId !== null && viewerId === template.user_id,
+        isOwner,
         isAnonymous: viewerId === null,
       });
       if (access.kind === 'hidden') return notFound;

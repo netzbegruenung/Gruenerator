@@ -2,7 +2,7 @@
  * ts-rest contract router for reporting objectionable content.
  *
  * POST /api/content-reports → stores the report (content_reports, idempotent
- * per reporter and target; may auto-hide a studio asset) and emails it to the
+ * per reporter and target; may auto-hide a moderatable target) and emails it to the
  * operator. The row is the record: a failed mail is logged, not returned. Auth
  * is applied at the prefix in routes.ts, so `req.user` is populated here.
  */

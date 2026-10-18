@@ -1,6 +1,8 @@
 /**
  * Meldungen gegen ein echtes PostgreSQL: Doppelmeldung, eigene Inhalte, das
- * automatische Ausblenden ab drei Meldenden und die Admin-Aktionen.
+ * automatische Ausblenden ab drei Meldenden und die Admin-Aktionen — für
+ * Sticker/Hintergründe ebenso wie für Agents, Rezepte und Vorlagen, samt dem,
+ * was die öffentlichen Leser danach noch zeigen.
  *
  * Läuft nur mit `MIGRATIONS_TEST_DATABASE_URL` (CI-Job „Tests") und legt sich
  * wie `studioAssetsService.db.vitest.ts` eine eigene Datenbank an.
@@ -30,6 +32,9 @@ vi.mock('../../database/services/PostgresService/PostgresService.js', async (imp
   getPostgresInstance: () => adapter,
 }));
 
+// The gallery module mounts routes; its auth middleware would boot Better Auth.
+vi.mock('../../middleware/authMiddleware.js', () => ({ default: { requireAuth: vi.fn() } }));
+
 const {
   AUTO_HIDE_REPORT_THRESHOLD,
   countOpenReportTargets,
@@ -40,6 +45,11 @@ const {
 const { restoreOwnedRow } = await import('../trash/ownedRowTrash.js');
 const { STUDIO_ASSET_TRASH } = await import('../studioAssets/studioAssetTrash.js');
 const { isRemovedStudioAssetShare } = await import('../studioAssets/studioAssetShare.js');
+const { getPublicUserAgent, listPublicUserAgents } =
+  await import('../userAgents/userAgentsRepository.js');
+const { listPublicTextForms, updateTextFormSharing, upsertTextForm } =
+  await import('../user/textFormRepository.js');
+const { buildGalleryTemplates } = await import('../../routes/auth/templates/templateGallery.js');
 
 const owner = randomUUID();
 const reporters = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
@@ -84,6 +94,66 @@ async function insertAsset(
   return res.rows[0]!.id;
 }
 
+async function insertAgent(o: { shareMode?: string; locale?: string } = {}): Promise<string> {
+  const res = await pool.query<{ id: string }>(
+    `INSERT INTO user_agents (user_id, identifier, title, description, system_role, avatar,
+                              background_color, model, provider, params, opening_message,
+                              author, share_mode, is_public, locale)
+     VALUES ($1, $2, 'Pressebot', 'Schreibt', 'Rolle', '', '#fff', 'm', 'mistral', '{}'::jsonb,
+             'Hallo', 'Anna', $3, $4, $5)
+     RETURNING id`,
+    [
+      owner,
+      `bot-${randomUUID().slice(0, 8)}`,
+      o.shareMode ?? 'authenticated',
+      (o.shareMode ?? 'authenticated') === 'authenticated',
+      o.locale ?? 'de-DE',
+    ]
+  );
+  return res.rows[0]!.id;
+}
+
+async function insertRecipe(o: { isPublic?: boolean; audience?: string } = {}): Promise<string> {
+  const res = await pool.query<{ id: string }>(
+    `INSERT INTO user_text_forms (user_id, kind, mention, title, style_block, share_mode,
+                                  is_public, public_ownership, audience)
+     VALUES ($1, 'custom', $2, 'Pressemitteilung', 'Stil', 'authenticated', $3, 'owner', $4)
+     RETURNING id`,
+    [owner, `pm-${randomUUID().slice(0, 8)}`, o.isPublic ?? true, o.audience ?? 'de-DE']
+  );
+  return res.rows[0]!.id;
+}
+
+async function insertTemplate(o: { isPrivate?: boolean } = {}): Promise<string> {
+  const res = await pool.query<{ id: string }>(
+    `INSERT INTO user_templates (user_id, title, template_type, is_private, status, audience)
+     VALUES ($1, 'Plakat', 'gruenerator', $2, 'published', 'de-DE')
+     RETURNING id`,
+    [owner, o.isPrivate ?? false]
+  );
+  return res.rows[0]!.id;
+}
+
+const TABLE_OF = {
+  user_agent: 'user_agents',
+  user_text_form: 'user_text_forms',
+  user_template: 'user_templates',
+} as const;
+
+const INSERT_OF = {
+  user_agent: () => insertAgent(),
+  user_text_form: () => insertRecipe(),
+  user_template: () => insertTemplate(),
+} as const;
+
+async function moderationIn(kind: keyof typeof TABLE_OF, id: string): Promise<string> {
+  const res = await pool.query<{ moderation: string }>(
+    `SELECT moderation FROM ${TABLE_OF[kind]} WHERE id = $1`,
+    [id]
+  );
+  return res.rows[0]!.moderation;
+}
+
 const report = (targetId: string, o: Partial<ContentReportCreate> = {}): ContentReportCreate => ({
   kind: 'studio_asset',
   targetId,
@@ -125,6 +195,9 @@ describe.skipIf(!url)('Meldungen (contentReportsService)', () => {
   beforeEach(async () => {
     await pool.query('DELETE FROM content_reports');
     await pool.query('DELETE FROM studio_assets');
+    await pool.query('DELETE FROM user_agents');
+    await pool.query('DELETE FROM user_text_forms');
+    await pool.query('DELETE FROM user_templates');
   });
 
   it('stores one row per reporter and target; a repeat is a no-op', async () => {
@@ -376,6 +449,165 @@ describe.skipIf(!url)('Meldungen (contentReportsService)', () => {
     expect(await resolveReports(admin, { ...body, action: 'dismiss' })).toMatchObject({
       ok: false,
       status: 404,
+    });
+  });
+
+  it.each(['user_agent', 'user_text_form', 'user_template'] as const)(
+    'reports on a public %s: own refused, hidden at the threshold, restore and remove',
+    async (kind) => {
+      const id = await INSERT_OF[kind]();
+      expect(await recordContentReport(owner, report(id, { kind }))).toMatchObject({
+        ok: false,
+        status: 400,
+      });
+      for (const reporter of reporters.slice(0, 2)) {
+        await recordContentReport(reporter, report(id, { kind }));
+      }
+      expect(await moderationIn(kind, id)).toBe('ok');
+      expect(await recordContentReport(reporters[2]!, report(id, { kind }))).toEqual({
+        ok: true,
+        value: { stored: true, hidden: true },
+      });
+      expect(await moderationIn(kind, id)).toBe('hidden');
+      expect(await recordContentReport(reporters[3]!, report(id, { kind }))).toMatchObject({
+        status: 404,
+      });
+
+      expect(await resolveReports(admin, { kind, targetId: id, action: 'remove' })).toEqual({
+        ok: true,
+        value: { resolved: 3, moderation: 'removed' },
+      });
+      expect(await resolveReports(admin, { kind, targetId: id, action: 'restore' })).toEqual({
+        ok: true,
+        value: { resolved: 0, moderation: 'ok' },
+      });
+    }
+  );
+
+  it('only publicly reachable agents, recipes and Vorlagen can be reported', async () => {
+    for (const [kind, id] of [
+      ['user_agent', await insertAgent({ shareMode: 'groups' })],
+      ['user_text_form', await insertRecipe({ isPublic: false })],
+      ['user_template', await insertTemplate({ isPrivate: true })],
+    ] as const) {
+      expect(await recordContentReport(reporters[0]!, report(id, { kind }))).toMatchObject({
+        ok: false,
+        status: 404,
+      });
+    }
+  });
+
+  it('previews every moderatable kind in the queue, trashed ones too', async () => {
+    const agent = await insertAgent();
+    const recipe = await insertRecipe();
+    const template = await insertTemplate();
+    const asset = await insertAsset();
+    await recordContentReport(reporters[0]!, report(agent, { kind: 'user_agent' }));
+    await recordContentReport(reporters[0]!, report(recipe, { kind: 'user_text_form' }));
+    await recordContentReport(reporters[0]!, report(template, { kind: 'user_template' }));
+    await recordContentReport(reporters[0]!, report(asset));
+    await pool.query('UPDATE user_text_forms SET deleted_at = now() WHERE id = $1', [recipe]);
+    await pool.query("UPDATE studio_assets SET moderation = 'removed' WHERE id = $1", [asset]);
+
+    const groups = await listReportGroups({ status: 'open' });
+    const byKind = new Map(groups.map((g) => [g.kind, g]));
+    const ownerPart = { ownerId: owner, ownerName: 'Sticker-Person' };
+    expect(byKind.get('user_agent')).toMatchObject({
+      target: null,
+      preview: {
+        title: 'Pressebot',
+        thumbUrl: null,
+        moderation: 'ok',
+        trashed: false,
+        ...ownerPart,
+      },
+    });
+    expect(byKind.get('user_agent')!.preview!.href).toMatch(/^\/agentura\/agent\/bot-/);
+    expect(byKind.get('user_text_form')).toMatchObject({
+      preview: { title: 'Pressemitteilung', trashed: true, ...ownerPart },
+    });
+    expect(byKind.get('user_template')).toMatchObject({
+      preview: { title: 'Plakat', href: `/vorlagen/v/${template}`, ...ownerPart },
+    });
+    const assetGroup = byKind.get('studio_asset')!;
+    expect(assetGroup.target).toMatchObject({ id: asset, moderation: 'removed' });
+    // The signed thumbnail is blocked once removed; the preview points at the file.
+    expect(assetGroup.preview).toMatchObject({
+      thumbUrl: assetGroup.target!.src,
+      moderation: 'removed',
+    });
+  });
+
+  it('public readers drop hidden items; link access only refuses removed ones', async () => {
+    const agent = await insertAgent();
+    const identifier = (
+      await pool.query<{ identifier: string }>('SELECT identifier FROM user_agents WHERE id = $1', [
+        agent,
+      ])
+    ).rows[0]!.identifier;
+    const recipe = await insertRecipe();
+    const template = await insertTemplate();
+    const listed = async () => ({
+      agents: (await listPublicUserAgents(reporters[0]!, 'de-DE')).map((a) => a.id),
+      recipes: (await listPublicTextForms('de-DE')).map((f) => f.id),
+      templates: (await buildGalleryTemplates({ audience: 'de-DE' })).map((t) => t.id),
+    });
+    expect(await listed()).toEqual({ agents: [agent], recipes: [recipe], templates: [template] });
+
+    for (const table of ['user_agents', 'user_text_forms', 'user_templates']) {
+      await pool.query(`UPDATE ${table} SET moderation = 'hidden'`);
+    }
+    expect(await listed()).toEqual({ agents: [], recipes: [], templates: [] });
+    expect((await getPublicUserAgent(identifier))?.id).toBe(agent);
+
+    await pool.query("UPDATE user_agents SET moderation = 'removed'");
+    expect(await getPublicUserAgent(identifier)).toBeUndefined();
+  });
+
+  it('the public recipe listing shows the viewer country plus all', async () => {
+    const de = await insertRecipe({ audience: 'de-DE' });
+    const at = await insertRecipe({ audience: 'de-AT' });
+    const all = await insertRecipe({ audience: 'all' });
+    const ids = async (locale: string) =>
+      (await listPublicTextForms(locale)).map((f) => f.id).sort();
+    expect(await ids('de-DE')).toEqual([de, all].sort());
+    expect(await ids('de-AT')).toEqual([at, all].sort());
+  });
+
+  it('a new recipe takes its owner locale as audience', async () => {
+    await pool.query("UPDATE profiles SET locale = 'de-AT' WHERE id = $1", [owner]);
+    try {
+      const form = await upsertTextForm(owner, {
+        kind: 'custom',
+        mention: 'wahlaufruf',
+        title: 'Wahlaufruf',
+        examples: [],
+        styleBlock: 'Stil',
+      });
+      const res = await pool.query<{ audience: string }>(
+        'SELECT audience FROM user_text_forms WHERE id = $1',
+        [form.id]
+      );
+      expect(res.rows[0]!.audience).toBe('de-AT');
+    } finally {
+      await pool.query('UPDATE profiles SET locale = NULL WHERE id = $1', [owner]);
+    }
+  });
+
+  it('a removed recipe cannot be listed publicly again', async () => {
+    const recipe = await insertRecipe({ isPublic: false });
+    const { mention } = (
+      await pool.query<{ mention: string }>(
+        "UPDATE user_text_forms SET moderation = 'removed' WHERE id = $1 RETURNING mention",
+        [recipe]
+      )
+    ).rows[0]!;
+    expect(
+      await updateTextFormSharing(owner, mention, { is_public: true, public_ownership: 'owner' })
+    ).toEqual({ ok: false, reason: 'removed' });
+    expect(await updateTextFormSharing(owner, mention, { share_mode: 'groups' })).toEqual({
+      ok: true,
+      updated: true,
     });
   });
 });

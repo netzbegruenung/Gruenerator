@@ -6,6 +6,7 @@
  * at the boundary so the rest of the stack handles a single canonical type.
  */
 
+import { type ModerationState } from '@gruenerator/contracts';
 import { type Agent, type AgentProvider } from '@gruenerator/shared/agents';
 import { and, asc, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 
@@ -255,6 +256,7 @@ export interface UserAgentSharing {
   audience: UserAgentAudience;
   is_public: boolean;
   public_ownership: UserAgentPublicOwnership | null;
+  moderation: ModerationState;
 }
 
 export interface UserAgentSharingPatch {
@@ -281,6 +283,7 @@ export async function getAgentSharing(
       locale: userAgents.locale,
       is_public: userAgents.is_public,
       public_ownership: userAgents.public_ownership,
+      moderation: userAgents.moderation,
     })
     .from(userAgents)
     .where(and(ownedByHandle(userId, handle), notTrashed(userAgents)))
@@ -293,6 +296,7 @@ export async function getAgentSharing(
     audience: normalizeAudience(row.locale),
     is_public: row.is_public,
     public_ownership: (row.public_ownership as UserAgentPublicOwnership | null) ?? null,
+    moderation: row.moderation,
   };
 }
 
@@ -401,7 +405,8 @@ export async function getGroupSharedUserAgent(
  * It also does not filter on locale. Locale narrows DISCOVERY
  * (`listPublicUserAgents`); someone opening one specific agent has already
  * found it, and filtering here would hide a German agent from an Austrian
- * account that was handed the link.
+ * account that was handed the link. Moderation likewise: a hidden agent only
+ * leaves the listing, a removed one is gone for everyone but its owner.
  *
  * `identifier` is unique per OWNER, not globally, so the `LIMIT 1` has to pick
  * one — same `created_at, id` order as `getGroupSharedUserAgent`, so the choice
@@ -416,6 +421,7 @@ export async function getPublicUserAgent(identifier: string): Promise<UserAgentR
       and(
         eq(userAgents.identifier, identifier),
         eq(userAgents.share_mode, 'authenticated'),
+        ne(userAgents.moderation, 'removed'),
         notTrashed(userAgents)
       )
     )
@@ -443,7 +449,7 @@ export async function getAccessibleUserAgentById(
         AND ua.deleted_at IS NULL
         AND (
           ua.user_id = $2::uuid
-          OR ua.share_mode = 'authenticated'
+          OR (ua.share_mode = 'authenticated' AND ua.moderation <> 'removed')
           OR (
             ua.share_mode <> 'private'
             AND EXISTS (
@@ -595,7 +601,7 @@ export function mergeMentionableAgents(
 
 /**
  * Public Agentura discovery feed: agents listed publicly (is_public=true atop
- * share_mode='authenticated'), filtered to the viewer's locale.
+ * share_mode='authenticated') and unmoderated, filtered to the viewer's locale.
  *
  * One entry per identifier. `identifier` is only unique per owner, so several
  * people publishing the same slug put duplicates into the feed — and every
@@ -616,6 +622,7 @@ export async function listPublicUserAgents(
         eq(userAgents.is_public, true),
         eq(userAgents.share_mode, 'authenticated'),
         eq(userAgents.locale, normalizeAudience(viewerLocale)),
+        eq(userAgents.moderation, 'ok'),
         notTrashed(userAgents)
       )
     )

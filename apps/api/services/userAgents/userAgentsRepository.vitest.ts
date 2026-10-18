@@ -193,3 +193,12 @@ describe('user agent Papierkorb', () => {
     await expect(purgeUserAgent(ID, null)).resolves.toBe(false);
   });
 });
+
+describe('moderation on link access', () => {
+  it('the uuid ladder refuses a removed agent to everyone but its owner', async () => {
+    rawSql.length = 0;
+    await getAccessibleUserAgentById('11111111-1111-4111-8111-111111111111', 'u2');
+    expect(rawSql[0]).toContain("(ua.share_mode = 'authenticated' AND ua.moderation <> 'removed')");
+    expect(rawSql[0]).toContain('ua.user_id = $2::uuid');
+  });
+});

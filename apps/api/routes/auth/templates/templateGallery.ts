@@ -73,7 +73,7 @@ export async function buildGalleryTemplates(
   const postgres = getPostgresInstance();
   await postgres.ensureInitialized();
 
-  const conditions = ['is_private = $1', 'status = $2'];
+  const conditions = ['is_private = $1', 'status = $2', "moderation = 'ok'"];
   const params: unknown[] = [false, 'published'];
   let paramIndex = 3;
 
@@ -410,7 +410,7 @@ router.get(
         `SELECT DISTINCT template_type
        FROM user_templates
        WHERE is_private = $1 AND status = $2 AND template_type IS NOT NULL
-         AND deleted_at IS NULL
+         AND moderation = 'ok' AND deleted_at IS NULL
        ORDER BY template_type ASC`,
         [false, 'published'],
         { table: 'user_templates' }

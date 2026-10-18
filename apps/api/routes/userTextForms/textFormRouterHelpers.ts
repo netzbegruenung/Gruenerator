@@ -14,7 +14,7 @@ import { type TextFormSharingResult } from '../../services/user/textFormReposito
 
 /** What the router answers with when a sharing write did not go through. */
 export interface SharingFailure {
-  status: 400 | 404 | 409;
+  status: 400 | 403 | 404 | 409;
   message: string;
 }
 
@@ -39,11 +39,18 @@ export function collectTakenMentions(
  * went through. `updated: false` means the owner has no such recipe (404);
  * `not_custom` that it exists but overrides a system recipe, which is not the
  * owner's to hand out (409); `ownership_required` that the patch would list it
- * publicly without the legal attestation (400).
+ * publicly without the legal attestation (400); `removed` that moderation took it
+ * down and it cannot be listed again (403).
  */
 export function sharingFailure(result: TextFormSharingResult): SharingFailure | null {
   if (result.ok) {
     return result.updated ? null : { status: 404, message: 'Rezept nicht gefunden.' };
+  }
+  if (result.reason === 'removed') {
+    return {
+      status: 403,
+      message: 'Dieses Rezept wurde entfernt und kann nicht mehr veröffentlicht werden.',
+    };
   }
   if (result.reason === 'not_custom') {
     return {

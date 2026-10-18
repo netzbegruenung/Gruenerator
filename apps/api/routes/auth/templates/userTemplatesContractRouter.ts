@@ -111,6 +111,14 @@ function formatTemplate(row: Record<string, unknown>): UserTemplate {
 
 const TABLE = { table: 'user_templates' } as const;
 
+const REMOVED_TEMPLATE = {
+  status: 403 as const,
+  body: {
+    success: false as const,
+    message: 'Diese Vorlage wurde entfernt und kann nicht mehr veröffentlicht werden.',
+  },
+};
+
 // ── Router ─────────────────────────────────────────────────────────────────────
 
 const s = initServer();
@@ -536,7 +544,7 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       await postgres.ensureInitialized();
 
       const existingTemplate = await postgres.queryOne(
-        `SELECT user_id, metadata, status, content_data FROM user_templates
+        `SELECT user_id, metadata, status, content_data, moderation FROM user_templates
          WHERE id = $1 AND type = $2 AND deleted_at IS NULL`,
         [id, 'template'],
         TABLE
@@ -592,6 +600,10 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
           const snapshotId = snapshotCanvasId(existingTemplate.content_data);
           if (snapshotId) await markCanvasAsGalleryTemplate(snapshotId);
         }
+      }
+
+      if (updateData.is_private === false && existingTemplate.moderation === 'removed') {
+        return REMOVED_TEMPLATE;
       }
 
       if (metadata !== undefined) {
@@ -682,7 +694,7 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       await postgres.ensureInitialized();
 
       const existingTemplate = await postgres.queryOne(
-        `SELECT user_id, metadata FROM user_templates
+        `SELECT user_id, metadata, moderation FROM user_templates
          WHERE id = $1 AND type = $2 AND deleted_at IS NULL`,
         [id, 'template'],
         TABLE
@@ -711,6 +723,9 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
         updateData.description = description ? String(description).trim() : null;
       if (is_private !== undefined) updateData.is_private = is_private;
       if (template_type !== undefined) updateData.template_type = template_type;
+      if (updateData.is_private === false && existingTemplate.moderation === 'removed') {
+        return REMOVED_TEMPLATE;
+      }
 
       const result = await postgres.update('user_templates', updateData, { id, user_id: userId });
 

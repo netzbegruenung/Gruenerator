@@ -115,7 +115,8 @@ export interface TextFormSharingPatch {
  * that mapping belongs to the router.
  */
 export type TextFormSharingResult =
-  { ok: true; updated: boolean } | { ok: false; reason: 'not_custom' | 'ownership_required' };
+  | { ok: true; updated: boolean }
+  | { ok: false; reason: 'not_custom' | 'ownership_required' | 'removed' };
 
 /** What {@link applySharingPatch} decided: the state to write, or why not. */
 export type SharingPatchVerdict =
@@ -314,8 +315,11 @@ const GROUP_SHARE_EXISTS = `(tf.share_mode <> 'private' AND EXISTS (
            WHERE gcs.content_type = $2 AND gcs.content_id = tf.id::text
         ))`;
 
-/** The public disjunct: listed, authenticated — and custom, never a system override. */
-const PUBLIC_VISIBLE = `(tf.is_public = TRUE AND tf.share_mode = 'authenticated' AND tf.kind = 'custom')`;
+/** The public disjunct: listed, authenticated, unmoderated — and custom, never a system override.
+ * Also the chat's public injection branch: a hidden or removed recipe stops loading for
+ * everyone but its owner and the Projekte it is shared into. */
+const PUBLIC_VISIBLE = `(tf.is_public = TRUE AND tf.share_mode = 'authenticated' AND tf.kind = 'custom'
+          AND tf.moderation = 'ok')`;
 
 /** Was der Aufrufer OHNE den offenen Katalog sieht: seine eigenen Zeilen und
  * die, die in eines seiner Projekte geteilt sind. */
@@ -483,6 +487,7 @@ export async function updateTextFormSharing(
       share_mode: userTextForms.share_mode,
       is_public: userTextForms.is_public,
       public_ownership: userTextForms.public_ownership,
+      moderation: userTextForms.moderation,
     })
     .from(userTextForms)
     .where(
@@ -515,6 +520,8 @@ export async function updateTextFormSharing(
     patch
   );
   if (!verdict.ok) return verdict;
+  if (verdict.next.is_public && row.moderation === 'removed')
+    return { ok: false, reason: 'removed' };
 
   const updated = await db
     .update(userTextForms)

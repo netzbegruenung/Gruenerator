@@ -131,6 +131,12 @@ export const userAgentsSharingContractRouter = s.router(userAgentsSharingContrac
         return { status: 404 as const, body: { error: 'Agent*in nicht gefunden' } };
       }
       const { is_public, public_ownership } = args.body;
+      if (is_public && sharing.moderation === 'removed') {
+        return {
+          status: 403 as const,
+          body: { error: 'Dieser Agent wurde entfernt und kann nicht mehr gelistet werden.' },
+        };
+      }
       if (is_public) {
         if (!public_ownership) {
           return {
