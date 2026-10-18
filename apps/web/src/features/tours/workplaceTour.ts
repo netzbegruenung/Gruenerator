@@ -85,7 +85,7 @@ export function startWorkplaceTour(navigate: NavigateFn): void {
         popover: {
           title: 'Deine Werkzeuge',
           description:
-            'Die Kacheln führen in alle Bereiche: Agentura, Office, Studio, Wissen und Projekte — unter „Weitere“ liegen Extras wie Scanner oder Transkription.',
+            'Die Kacheln führen in alle Bereiche: Grüneratoren, Office, Studio, Wissen und Projekte — unter „Weitere“ liegen Extras wie Scanner oder Transkription.',
           side: 'top',
         },
       },

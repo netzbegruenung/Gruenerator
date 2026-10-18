@@ -9,16 +9,8 @@ import {
   type AgenturaType,
 } from '../lib/categories';
 
-/** Herkunft im Shop — die Gänge der Agentura. */
-export const SHOP_ORIGINS = ['offiziell', 'landesverband', 'oeffentlich'] as const;
-export type ShopOrigin = (typeof SHOP_ORIGINS)[number];
-
 // Moved to @gruenerator/shared/marketplace so web and mobile map old links alike.
-export {
-  AGENTURA_PATH,
-  GRUENERATOREN_PATH,
-  legacyAgenturaRedirect,
-} from '@gruenerator/shared/marketplace';
+export { legacyAgenturaRedirect } from '@gruenerator/shared/marketplace';
 
 export interface MarketParams<O extends string> {
   search: string;
