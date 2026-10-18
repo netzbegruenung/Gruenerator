@@ -178,6 +178,14 @@ export const marketplaceItemParamsSchema = z.object({
   ref: z.string().min(1).max(200),
 });
 
+export const marketplaceItemQuerySchema = z.object({
+  platform: marketplacePlatformSchema.default('web'),
+});
+
+/** One item, for a shared link (`/marktplatz?item=<kind>:<ref>`). */
+export const marketplaceItemResponseSchema = z.object({ item: marketplaceItemSchema });
+export type MarketplaceItemResponse = z.infer<typeof marketplaceItemResponseSchema>;
+
 export const marketplaceLikeResponseSchema = z.object({
   liked: z.boolean(),
   likesCount: z.number().int(),

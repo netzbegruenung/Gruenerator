@@ -9,6 +9,8 @@ import { initContract } from '@ts-rest/core';
 import {
   marketplaceErrorSchema,
   marketplaceItemParamsSchema,
+  marketplaceItemQuerySchema,
+  marketplaceItemResponseSchema,
   marketplaceLikeResponseSchema,
   marketplaceListQuerySchema,
   marketplaceListResponseSchema,
@@ -29,6 +31,20 @@ export const marketplaceContract = c.router(
         500: marketplaceErrorSchema,
       },
       summary: 'One section per requested kind; a single kind pages by offset',
+    },
+
+    get: {
+      method: 'GET',
+      path: '/api/marketplace/:kind/:ref',
+      pathParams: marketplaceItemParamsSchema,
+      query: marketplaceItemQuerySchema,
+      responses: {
+        200: marketplaceItemResponseSchema,
+        401: marketplaceErrorSchema,
+        404: marketplaceErrorSchema,
+        500: marketplaceErrorSchema,
+      },
+      summary: 'One item the caller may see, for a shared link',
     },
 
     like: {
