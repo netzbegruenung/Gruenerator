@@ -140,7 +140,7 @@ const Hero = ({ device }: { device: VisitorDevice }) => {
                 variant="brand-outline"
                 size="lg"
                 className="gap-2"
-                aria-label="iOS-Beta über TestFlight laden"
+                aria-label="iPhone & iPad: Beta über TestFlight laden"
               >
                 <a href={TESTFLIGHT_URL} target="_blank" rel="noopener noreferrer">
                   <FaApple className="text-lg" />

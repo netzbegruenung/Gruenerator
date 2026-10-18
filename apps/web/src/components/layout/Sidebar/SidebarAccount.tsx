@@ -228,7 +228,8 @@ const SidebarAccount = memo(function SidebarAccount({
               <button
                 type="button"
                 className="relative flex size-9 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-hover-alt"
-                aria-label="Benachrichtigungen"
+                // Badge count stays in the name — WCAG 2.5.3 Label in Name.
+                aria-label={`Benachrichtigungen: ${unreadBadgeLabel} ungelesen`}
               >
                 <Bell className="size-[18px]" />
                 {unreadBadge('-top-0.5 -right-0.5')}
@@ -261,8 +262,8 @@ const SidebarAccount = memo(function SidebarAccount({
               onPointerEnter={warmSettingsShell}
               onFocus={warmSettingsShell}
               className="flex min-w-0 flex-1 items-start gap-2 rounded-md px-3 py-1 transition-colors hover:bg-hover-alt"
-              aria-label="Konto-Menü öffnen"
             >
+              <span className="sr-only">Konto-Menü öffnen:</span>{' '}
               <span className="mt-0.5 shrink-0">{avatarEl}</span>
               <span className="line-clamp-2 break-words text-left text-sm font-medium text-foreground-heading">
                 {accountLabel}
@@ -284,9 +285,9 @@ const SidebarAccount = memo(function SidebarAccount({
                     onPointerEnter={warmSettingsShell}
                     onFocus={warmSettingsShell}
                     className="flex size-9 items-center justify-center rounded-full transition-colors hover:bg-hover-alt"
-                    aria-label="Konto-Menü öffnen"
                   >
-                    {avatarEl}
+                    {/* Name from content, not aria-label: the initials are visible text (WCAG 2.5.3). */}
+                    <span className="sr-only">Konto-Menü öffnen:</span> {avatarEl}
                   </button>
                 </DropdownMenuTrigger>
               </TooltipTrigger>

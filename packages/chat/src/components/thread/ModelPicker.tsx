@@ -63,7 +63,9 @@ export const ModelPicker = memo(function ModelPicker() {
   const currentShortName = ('shortName' in current && current.shortName) || current.name;
 
   const triggerLabel = isAuto ? (
-    <span>Auto</span>
+    <span>
+      Auto <span className="sr-only">(automatisch, empfohlen)</span>
+    </span>
   ) : (
     <span>
       <span className="max-sm:hidden">{current.name}</span>
@@ -78,7 +80,7 @@ export const ModelPicker = memo(function ModelPicker() {
       onChange={setSelectedModel}
       sheetTitle="Modell wählen"
       sectionTitle="Modell"
-      ariaLabel={isAuto ? 'Modell wählen – Automatisch (empfohlen)' : 'Modell wählen'}
+      label="Modell wählen"
       triggerLabel={triggerLabel}
     />
   );
