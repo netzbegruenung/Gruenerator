@@ -80,13 +80,18 @@ function categoryRank(skill: Skill): number {
   return index === -1 ? SKILL_CATEGORY_ORDER.length : index;
 }
 
+/**
+ * `forList` drops the public recipes the viewer already gets through a project
+ * (#4699). `isVisible` passes false: like and save must keep working for them.
+ */
 async function candidates(
   ctx: MarketplaceContext,
-  systemRecipes: boolean
+  systemRecipes: boolean,
+  forList: boolean
 ): Promise<Candidate<'recipe'>[]> {
   const [catalog, listings] = await Promise.all([
     ctx.officialCatalog(),
-    listPublicTextFormListings(ctx.audience),
+    listPublicTextFormListings(ctx.audience, forList ? ctx.userId : null),
   ]);
   const general = catalog.generalSkills
     .map((skill, index) => ({ skill, index }))
@@ -124,10 +129,15 @@ export const recipeSource: MarketplaceSource<'recipe'> = {
   likeType: 'recipe',
   reportKind: 'user_text_form',
   async list(ctx, query) {
-    return pageCandidates(ctx, recipeSource, query, await candidates(ctx, query.systemRecipes));
+    return pageCandidates(
+      ctx,
+      recipeSource,
+      query,
+      await candidates(ctx, query.systemRecipes, true)
+    );
   },
   async isVisible(ctx, ref) {
-    return (await candidates(ctx, true)).some((c) => c.item.ref === ref);
+    return (await candidates(ctx, true, false)).some((c) => c.item.ref === ref);
   },
   save: librarySave('recipe'),
 };

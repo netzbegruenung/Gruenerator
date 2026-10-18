@@ -131,7 +131,7 @@ describe('recipeSource.list', () => {
       authorName: 'Kim',
       recipe: { mention: 'mein-stil', rowId: FORM_ID, system: false },
     });
-    expect(m.listPublicTextFormListings).toHaveBeenCalledWith('de-DE');
+    expect(m.listPublicTextFormListings).toHaveBeenCalledWith('de-DE', 'viewer');
   });
 
   it('keeps each country’s catalogue recipes to itself', async () => {
@@ -143,7 +143,7 @@ describe('recipeSource.list', () => {
     for (const s of skills.filter((s) => s.audience === 'de-AT')) {
       expect(de).not.toContain(s.mention);
     }
-    expect(m.listPublicTextFormListings).toHaveBeenCalledWith('de-AT');
+    expect(m.listPublicTextFormListings).toHaveBeenCalledWith('de-AT', 'viewer');
   });
 
   it('binds Landesverband recipes to the role', async () => {
@@ -182,6 +182,13 @@ describe('recipeSource visibility and save', () => {
     expect(await recipeSource.isVisible(ctx(), first)).toBe(true);
     expect(await recipeSource.isVisible(ctx(), FORM_ID)).toBe(true);
     expect(await recipeSource.isVisible(ctx(), 'gibt-es-nicht')).toBe(false);
+  });
+
+  it('only the list leaves out what a project already shares (#4699)', async () => {
+    await recipeSource.list(ctx(), query());
+    expect(m.listPublicTextFormListings).toHaveBeenLastCalledWith('de-DE', 'viewer');
+    await recipeSource.isVisible(ctx(), FORM_ID);
+    expect(m.listPublicTextFormListings).toHaveBeenLastCalledWith('de-DE', null);
   });
 
   it('saves under the same ref „Meine Grüneratoren" resolves', async () => {

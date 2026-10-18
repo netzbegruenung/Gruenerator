@@ -145,12 +145,12 @@ describe('agentSource.list', () => {
       agent: { identifier: 'antragshelfer', slug: USER_AGENT_ID, isUserAgent: true },
     });
     expect(page.items[0]).toMatchObject({ origin: 'offiziell', reportKind: null });
-    expect(m.listPublicUserAgentListings).toHaveBeenCalledWith('viewer', 'de-DE');
+    expect(m.listPublicUserAgentListings).toHaveBeenCalledWith('viewer', 'de-DE', 'viewer');
   });
 
   it('serves an Austrian viewer only Austrian and shared official agents', async () => {
     const page = await agentSource.list(ctx({ locale: 'de-AT' }), query());
-    expect(m.listPublicUserAgentListings).toHaveBeenCalledWith('viewer', 'de-AT');
+    expect(m.listPublicUserAgentListings).toHaveBeenCalledWith('viewer', 'de-AT', 'viewer');
     const official = page.items.filter((i) => i.origin !== 'oeffentlich');
     expect(official.length).toBeGreaterThan(0);
     expect(official.every((i) => i.audience === 'all' || i.audience === 'de-AT')).toBe(true);
@@ -225,6 +225,13 @@ describe('agentSource visibility and save', () => {
     expect(await agentSource.isVisible(ctx(), first)).toBe(true);
     expect(await agentSource.isVisible(ctx(), USER_AGENT_ID)).toBe(true);
     expect(await agentSource.isVisible(ctx(), 'gibt-es-nicht')).toBe(false);
+  });
+
+  it('only the list leaves out what a project already shares (#4699)', async () => {
+    await agentSource.list(ctx(), query());
+    expect(m.listPublicUserAgentListings).toHaveBeenLastCalledWith('viewer', 'de-DE', 'viewer');
+    await agentSource.isVisible(ctx(), USER_AGENT_ID);
+    expect(m.listPublicUserAgentListings).toHaveBeenLastCalledWith('viewer', 'de-DE', null);
   });
 
   it('stores an own agent under its identifier, a foreign one under its uuid', async () => {

@@ -145,6 +145,34 @@ async function insertAsset(o: Row & { kind?: 'sticker' | 'background' } = {}): P
   return res.rows[0]!.id;
 }
 
+/** A project with `members` (active) and `former` (left, `is_active = false`). */
+async function insertGroup(
+  o: { members?: string[]; former?: string[]; deleted?: boolean } = {}
+): Promise<string> {
+  const res = await pool.query<{ id: string }>(
+    `INSERT INTO groups (name, deleted_at) VALUES ('Ortsverband', ${trashed(o)}) RETURNING id`
+  );
+  const id = res.rows[0]!.id;
+  for (const [userId, active] of [
+    ...(o.members ?? []).map((u) => [u, true] as const),
+    ...(o.former ?? []).map((u) => [u, false] as const),
+  ]) {
+    await pool.query(
+      'INSERT INTO group_memberships (group_id, user_id, is_active) VALUES ($1, $2, $3)',
+      [id, userId, active]
+    );
+  }
+  return id;
+}
+
+async function shareInto(groupId: string, contentType: string, contentId: string): Promise<void> {
+  await pool.query(
+    `INSERT INTO group_content_shares (group_id, shared_by_user_id, content_type, content_id)
+     VALUES ($1, $2, $3, $4)`,
+    [groupId, other, contentType, contentId]
+  );
+}
+
 const ctx = (locale: 'de-DE' | 'de-AT' = 'de-DE') =>
   buildMarketplaceContext({ userId: me, locale, platform: 'web', instanceId: 'production' });
 
@@ -187,6 +215,7 @@ describe.skipIf(!url)('Marktplatz (marketplaceService)', () => {
 
   beforeEach(async () => {
     for (const table of [
+      'groups',
       'entity_likes',
       'entity_favorites',
       'user_library_items',
@@ -251,6 +280,39 @@ describe.skipIf(!url)('Marktplatz (marketplaceService)', () => {
       expect(await publicRefs(kind, 'de-DE', { scope: 'saved' })).toEqual([]);
     });
   });
+
+  it.each([
+    ['agent', insertAgent, 'user_agents'],
+    ['recipe', insertRecipe, 'user_text_forms'],
+  ] as const)(
+    '%s: „Öffentlich“ leaves out what a project already shares with the viewer (#4699)',
+    async (kind, insert, contentType) => {
+      const project = await insertGroup({ members: [me, other] });
+      const shared = await insert({});
+      await shareInto(project, contentType, shared);
+      const ownShared = await insert({ owner: me });
+      await shareInto(project, contentType, ownShared);
+      const plain = await insert({});
+      const left = await insert({});
+      await shareInto(await insertGroup({ members: [other], former: [me] }), contentType, left);
+      const inTrashedProject = await insert({});
+      await shareInto(
+        await insertGroup({ members: [me, other], deleted: true }),
+        contentType,
+        inTrashedProject
+      );
+
+      expect((await publicRefs(kind)).sort()).toEqual(
+        [ownShared, plain, left, inTrashedProject].sort()
+      );
+      // Like and save resolve against the unfiltered list.
+      expect(await setLike(ctx(), kind, shared, true)).toMatchObject({ ok: true });
+      expect(await setSaved(ctx(), kind, shared, true)).toEqual({
+        ok: true,
+        value: { saved: true },
+      });
+    }
+  );
 
   it('a Studio item does not show up under the other kind', async () => {
     const sticker = await insertAsset({ kind: 'sticker' });

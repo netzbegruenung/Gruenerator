@@ -282,7 +282,7 @@ export async function listPublicTextForms(
   viewerLocale: string,
   limit = 200
 ): Promise<PublicTextForm[]> {
-  return (await listPublicTextFormListings(viewerLocale, limit)).map((l) => l.form);
+  return (await listPublicTextFormListings(viewerLocale, null, limit)).map((l) => l.form);
 }
 
 /** A public recipe with what the Marktplatz shows around it: owner, audience and age. */
@@ -293,9 +293,17 @@ export interface PublicTextFormListing {
   createdAt: Date;
 }
 
-/** {@link listPublicTextForms}, keeping owner, audience and creation time of each row. */
+/**
+ * {@link listPublicTextForms}, keeping owner, audience and creation time of each row.
+ *
+ * `excludeGroupSharedFor` (the Marktplatz list, #4699) drops foreign recipes the
+ * viewer already receives through one of their projects — those live under
+ * „Grüneratoren", not „Öffentlich". Opt-in: liking and saving resolve against
+ * the unfiltered list, so a shared public recipe stays likeable.
+ */
 export async function listPublicTextFormListings(
   viewerLocale: string,
+  excludeGroupSharedFor: string | null = null,
   limit = 200
 ): Promise<PublicTextFormListing[]> {
   const pg = getPostgresInstance();
@@ -305,9 +313,16 @@ export async function listPublicTextFormListings(
        LEFT JOIN profiles p ON p.id = tf.user_id
       WHERE ${PUBLIC_VISIBLE} AND tf.deleted_at IS NULL
         AND tf.audience IN ($1, 'all')
+        AND ($3::uuid IS NULL OR tf.user_id = $3::uuid OR NOT EXISTS (
+          SELECT 1 FROM group_content_shares gcs
+           INNER JOIN group_memberships gm
+                   ON gm.group_id = gcs.group_id AND gm.user_id = $3::uuid AND gm.is_active = TRUE
+           INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
+           WHERE gcs.content_type = $4 AND gcs.content_id = tf.id::text
+        ))
       ORDER BY tf.updated_at DESC, tf.id
       LIMIT $2`,
-    [viewerAudience(viewerLocale), limit]
+    [viewerAudience(viewerLocale), limit, excludeGroupSharedFor, TEXT_FORM_CONTENT_TYPE]
   )) as unknown as Array<UserTextFormRow & { owner_name: string | null }>;
 
   return rows

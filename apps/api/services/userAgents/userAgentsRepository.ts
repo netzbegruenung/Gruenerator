@@ -8,7 +8,7 @@
 
 import { type ModerationState } from '@gruenerator/contracts';
 import { type Agent, type AgentProvider } from '@gruenerator/shared/agents';
-import { and, asc, desc, eq, inArray, ne, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, ne, or, sql } from 'drizzle-orm';
 
 import { userAgents, type UserAgentRow } from '../../database/schema/userAgents.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
@@ -627,10 +627,18 @@ export interface PublicUserAgentListing {
   createdAt: Date;
 }
 
-/** {@link listPublicUserAgents}, keeping the owner and creation time of each row. */
+/**
+ * {@link listPublicUserAgents}, keeping the owner and creation time of each row.
+ *
+ * `excludeGroupSharedFor` (the Marktplatz list, #4699) drops foreign agents the
+ * viewer already receives through one of their projects — those live under
+ * „Grüneratoren", not „Öffentlich". Opt-in: liking and saving resolve against
+ * the unfiltered list, so a shared public agent stays likeable.
+ */
 export async function listPublicUserAgentListings(
   viewerId: string,
-  viewerLocale: string
+  viewerLocale: string,
+  excludeGroupSharedFor: string | null = null
 ): Promise<PublicUserAgentListing[]> {
   const db = getDrizzleInstance();
   const rows = await db
@@ -642,7 +650,22 @@ export async function listPublicUserAgentListings(
         eq(userAgents.share_mode, 'authenticated'),
         eq(userAgents.locale, normalizeAudience(viewerLocale)),
         eq(userAgents.moderation, 'ok'),
-        notTrashed(userAgents)
+        notTrashed(userAgents),
+        excludeGroupSharedFor
+          ? or(
+              eq(userAgents.user_id, excludeGroupSharedFor),
+              sql`NOT EXISTS (
+                SELECT 1
+                  FROM group_content_shares gcs
+                  JOIN group_memberships gm ON gm.group_id = gcs.group_id
+                  INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
+                 WHERE gcs.content_type = 'user_agents'
+                   AND gcs.content_id = ${userAgents.id}::text
+                   AND gm.user_id = ${excludeGroupSharedFor}::uuid
+                   AND gm.is_active = true
+              )`
+            )
+          : sql`TRUE`
       )
     )
     .orderBy(

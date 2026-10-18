@@ -77,10 +77,17 @@ function publicItem(ctx: MarketplaceContext, listing: PublicUserAgentListing): A
   };
 }
 
-async function candidates(ctx: MarketplaceContext): Promise<Candidate<'agent'>[]> {
+/**
+ * `forList` drops the public agents the viewer already gets through a project
+ * (#4699). `isVisible` passes false: like and save must keep working for them.
+ */
+async function candidates(
+  ctx: MarketplaceContext,
+  forList: boolean
+): Promise<Candidate<'agent'>[]> {
   const [catalog, listings] = await Promise.all([
     ctx.officialCatalog(),
-    listPublicUserAgentListings(ctx.userId, ctx.audience),
+    listPublicUserAgentListings(ctx.userId, ctx.audience, forList ? ctx.userId : null),
   ]);
   // Nach Region statt Registry: bei mehreren Zuteilungen stehen die Sachen
   // eines Verbands beieinander — wie in der Agentura.
@@ -121,10 +128,10 @@ export const agentSource: MarketplaceSource<'agent'> = {
   likeType: 'agent',
   reportKind: 'user_agent',
   async list(ctx, query) {
-    return pageCandidates(ctx, agentSource, query, await candidates(ctx));
+    return pageCandidates(ctx, agentSource, query, await candidates(ctx, true));
   },
   async isVisible(ctx, ref) {
-    return (await candidates(ctx)).some((c) => c.item.ref === ref);
+    return (await candidates(ctx, false)).some((c) => c.item.ref === ref);
   },
   save: librarySave('agent', ownAgentLibraryRefs),
 };
