@@ -85,6 +85,12 @@ export function NotebookComposer({
     activeAnswerMode?.mode === 'auto' && onManualSubmit ? (magicIntent ?? null) : null;
   const searches = isManual || activeMagicIntent === 'suche';
   const magicSuffix = activeMagicIntent ? MAGIC_INTENT_LABELS[activeMagicIntent] : null;
+  const answerModeDetail = [
+    activeAnswerMode?.shortLabel ? activeAnswerMode.label : null,
+    magicSuffix,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <GrueneratorComposer
@@ -129,8 +135,18 @@ export function NotebookComposer({
                   sectionTitle="Antwortmodus"
                   // The short name only — what Magic Search recognised shows
                   // on the send button, the label would squeeze the input.
-                  triggerLabel={activeAnswerMode.shortLabel ?? activeAnswerMode.label}
-                  ariaLabel={`Antwortmodus wählen – ${activeAnswerMode.label}${magicSuffix ? ` · ${magicSuffix}` : ''}`}
+                  triggerLabel={
+                    <>
+                      {activeAnswerMode.shortLabel ?? activeAnswerMode.label}
+                      {answerModeDetail && (
+                        <>
+                          {' '}
+                          <span className="sr-only">({answerModeDetail})</span>
+                        </>
+                      )}
+                    </>
+                  }
+                  label="Antwortmodus wählen"
                 />
               ),
             }

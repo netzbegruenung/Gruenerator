@@ -6,6 +6,6 @@
   - button "🚲 Verkehrswende in Kommunen"
   - button "🌍 Klimaschutz für Kommunen"
   - button "⚡ Energiewende aktuell"
-  - button "Modell wählen – Automatisch (empfohlen)"
+  - 'button "Modell wählen: Auto (automatisch, empfohlen)"'
   - button "Diktat starten"
   - paragraph: KI-Systeme können Fakten falsch interpretieren. Bitte prüfe die Quellen.

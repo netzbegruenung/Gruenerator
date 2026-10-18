@@ -32,7 +32,13 @@ interface ComposerOptionPickerProps<T extends string> {
   sheetTitle: string;
   /** Section heading inside the mobile sheet. */
   sectionTitle: string;
-  ariaLabel: string;
+  /**
+   * What the picker chooses. Screen readers hear it before the visible value
+   * ("Modell wählen: Auto"). Not an aria-label: the visible text has to stay
+   * part of the name (WCAG 2.5.3), and only the content knows which of the
+   * responsive variants is on screen.
+   */
+  label: string;
   /** Overrides the default trigger text (the current option's name). */
   triggerLabel?: ReactNode;
 }
@@ -58,7 +64,7 @@ export function ComposerOptionPicker<T extends string>({
   onChange,
   sheetTitle,
   sectionTitle,
-  ariaLabel,
+  label,
   triggerLabel,
 }: ComposerOptionPickerProps<T>) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -138,12 +144,8 @@ export function ComposerOptionPicker<T extends string>({
       dropdownAlign="end"
       dropdownClassName="w-72 max-w-[90vw]"
       trigger={
-        <button
-          type="button"
-          className={composerToolbarButtonClass(isCompact)}
-          aria-label={ariaLabel}
-        >
-          {triggerLabel ?? defaultTriggerLabel}
+        <button type="button" className={composerToolbarButtonClass(isCompact)}>
+          <span className="sr-only">{label}:</span> {triggerLabel ?? defaultTriggerLabel}
         </button>
       }
       desktopContent={desktopContent}
