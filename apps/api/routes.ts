@@ -21,6 +21,7 @@ import { mountLvAdminAssignmentContractRouter } from './routes/admin/lvAdminAssi
 import { mountAgentVisibilityContractRouter } from './routes/agents/agentVisibilityContractRouter.js';
 import antraegeRouter from './routes/antraege/index.js';
 import { mountAgentCommentsContractRouter } from './routes/auth/agentComments/agentCommentsContractRouter.js';
+import { mountEntityCommentsContractRouter } from './routes/auth/entityComments/entityCommentsContractRouter.js';
 import { mountGroupsContractRouter } from './routes/auth/groups/groupsContract/index.js';
 import { mountImageModelPreferenceContractRouter } from './routes/auth/imageModelPreferenceContractRouter.js';
 import authInitRouter from './routes/auth/initController.js';
@@ -412,6 +413,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountAgentCommentsContractRouter(app);
   app.use('/api/auth/template-comments', requireAuth);
   mountTemplateCommentsContractRouter(app);
+  // Comments on every marketplace item; the two above are its legacy surfaces.
+  app.use('/api/comments', requireAuth);
+  mountEntityCommentsContractRouter(app);
   // ts-rest contract router for user prompts (custom_prompts + saved_prompts
   // CRUD) — mounts BEFORE authRouter so contract routes match first; the
   // legacy userCustomPrompts router keeps the semantic-search / discovery

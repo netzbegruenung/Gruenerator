@@ -476,6 +476,18 @@ export async function getTextFormForInjectionById(
   return loadInjection(INJECTION_BY_ID_SQL, userId, id);
 }
 
+/** May the caller see this recipe row — own, shared into one of their projects, or public? */
+export async function isTextFormVisibleTo(id: string, userId: string): Promise<boolean> {
+  if (!UUID_RE.test(id)) return false;
+  const rows = await getPostgresInstance().query(
+    `SELECT 1 AS ok FROM user_text_forms tf
+      WHERE tf.id = $3::uuid AND ${VISIBLE_TO_CALLER} AND tf.deleted_at IS NULL
+      LIMIT 1`,
+    [userId, TEXT_FORM_CONTENT_TYPE, id]
+  );
+  return rows.length > 0;
+}
+
 /** Owner-scoped lookup of a recipe's sharing state (and its UUID). */
 export async function getTextFormSharing(
   userId: string,
