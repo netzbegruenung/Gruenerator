@@ -1,4 +1,5 @@
 export {
+  MARKETPLACE_COMMENT_TYPE,
   entityCommentsKey,
   useAddEntityComment,
   useDeleteEntityComment,

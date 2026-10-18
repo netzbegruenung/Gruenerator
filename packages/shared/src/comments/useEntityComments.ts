@@ -7,6 +7,7 @@
 import {
   type EntityComment,
   type EntityCommentType,
+  type MarketplaceKind,
   type ReactionSummary,
 } from '@gruenerator/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -21,6 +22,15 @@ export interface EntityDiscussion {
 }
 
 type ApplyReactions = (reactions: ReactionSummary[]) => ReactionSummary[];
+
+/** A Marktplatz kind's comment type — the same as its like type, Sticker and Hintergründe share one. */
+export const MARKETPLACE_COMMENT_TYPE: Record<MarketplaceKind, EntityCommentType> = {
+  agent: 'agent',
+  recipe: 'recipe',
+  template: 'template',
+  sticker: 'studio_asset',
+  background: 'studio_asset',
+};
 
 export const entityCommentsKey = (type: EntityCommentType, id: string) =>
   ['entity-comments', type, id] as const;

@@ -5,6 +5,7 @@ import {
   getVisibleSystemAgentsForLocale,
   type Agent,
 } from '@gruenerator/shared/agents';
+import { useMarketplaceItem } from '@gruenerator/shared/marketplace';
 import { Button, CardGrid } from '@gruenerator/ui';
 import { useMemo, useState } from 'react';
 import {
@@ -21,9 +22,9 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { CURRENT_INSTANCE } from '../../config/instance';
 import { useUserAgents } from '../agents/api';
 import { PhosphorIcon } from '../agents/icons/PhosphorIcon';
+import { MarketplaceDiscussion } from '../marketplace/MarketplaceDiscussion';
 
 import { AddToLibraryButton } from './components/AddToLibraryButton';
-import { AgentDiscussion } from './components/AgentDiscussion';
 import { AgentCard } from './components/cards';
 import { ExamplePreview } from './components/ExamplePreview';
 import { ShareAgentModal } from './components/ShareAgentModal';
@@ -47,6 +48,9 @@ function AgentDetailPage() {
   const userLocale = useAuthStore((s) => s.locale) ?? 'de-DE';
   const { data: userAgents = [] } = useUserAgents();
   const { agent, isUserAgent, isOwn: isOwnAgent, isLoading } = useAgentBySlug(slug);
+  // The Marktplatz names a user agent by its row, an official one by its identifier.
+  const itemRef = agent ? (isUserAgent ? (agent.id ?? null) : agent.identifier) : null;
+  const marketItem = useMarketplaceItem(itemRef ? { kind: 'agent', ref: itemRef } : null);
 
   const agentFavorites = useAgentFavoritesStore((s) => s.favoriteIdentifiers);
   const toggleAgentFavorite = useAgentFavoritesStore((s) => s.toggle);
@@ -294,7 +298,15 @@ function AgentDetailPage() {
         </CardGrid>
       )}
 
-      {isUserAgent && agent.id && <AgentDiscussion agentId={agent.id} isOwner={isOwnAgent} />}
+      {itemRef && (
+        <div className="mt-xl">
+          <MarketplaceDiscussion
+            target={{ kind: 'agent', ref: itemRef }}
+            item={marketItem.data ?? null}
+            canModerate={isOwnAgent}
+          />
+        </div>
+      )}
     </PageContainer>
   );
 }
