@@ -14,7 +14,7 @@ const byId = (id: string): WorkplaceToolItem => {
   return tool;
 };
 
-const ICON = byId('agents').icon;
+const ICON = byId('marktplatz').icon;
 const mk = (id: string): WorkplaceToolItem => ({
   id,
   title: id,
@@ -35,7 +35,7 @@ const externalTool: WorkplaceToolItem = {
 
 describe('isFavouritableTool', () => {
   it('accepts internal-route tools', () => {
-    expect(isFavouritableTool(byId('agents'))).toBe(true);
+    expect(isFavouritableTool(byId('marktplatz'))).toBe(true);
   });
 
   it('rejects external-link tools', () => {
