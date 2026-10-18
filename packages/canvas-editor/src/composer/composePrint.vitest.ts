@@ -425,3 +425,186 @@ describe('composePrint: typo poster', () => {
     }
   });
 });
+
+describe('composePrint: DE photo posters', () => {
+  const visdp = impressum('de-DE');
+  const kandidat = {
+    name: 'Maximiliane Musterfrau',
+    subline: 'Für Musterstadt in den Landtag',
+    stoerer: 'Hier steht der Störertext.',
+    web: 'gruene-musterstadt.de',
+    foto: 'vorlage:person.jpg',
+  };
+  const thema = {
+    dachzeile: 'Hier steht eine',
+    headline: 'Themen-Headline für bezahlbare Mieten',
+    akzent: 'Mieten',
+    stoerer: 'Jetzt mitmachen!',
+    web: 'gruene.de',
+    foto: 'wind-unsplash.jpg',
+  };
+  const leute = [
+    {
+      rolle: 'Es diskutieren:',
+      name: 'Dominik Lorenzen',
+      funktion: 'Wirtschaftspolitischer Sprecher',
+    },
+    { name: 'Florian Giese', funktion: 'Onkel Emma – unverpackt bio einkaufen' },
+    { rolle: 'Begrüßung und Moderation:', name: 'Jennifer Jasberg', funktion: 'Vorsitzende' },
+  ];
+  const veranstaltung = {
+    dachzeile: 'Diskussionsabend zum Thema:',
+    headline: 'Wie wird unsere Stadt klimafest?',
+    akzent: 'klimafest?',
+    subline: 'Mit Gästen aus Politik und Praxis.',
+    datum: 'Freitag 27.10. 19 Uhr',
+    mitwirkende: leute,
+    ort: 'Kulturforum Serrahn, Serrahnstraße 1',
+    web: 'gruene-bergedorf.de',
+    foto: 'wind-unsplash.jpg',
+  };
+  const spec = (variante: string, format: string, slots: object, stil?: string) => ({
+    locale: 'de-DE',
+    produkt: 'plakat',
+    variante,
+    format,
+    impressum: visdp,
+    slots,
+    ...(stil ? { stil } : {}),
+  });
+  const FOTO_FORMATS = ['print-a1-hoch', 'print-a3-hoch', 'print-grossflaeche', 'print-citylight'];
+  const cases: Array<[string, ReturnType<typeof spec>]> = [];
+  for (const format of FOTO_FORMATS) {
+    for (const stil of [undefined, 'tanne', 'klee']) {
+      cases.push([
+        `kandidat ${format} ${stil ?? 'foto'}`,
+        spec('kandidat', format, kandidat, stil),
+      ]);
+      cases.push([`thema ${format} ${stil ?? 'foto'}`, spec('thema', format, thema, stil)]);
+    }
+  }
+  for (const format of ['print-a3-hoch', 'print-a3-quer', 'print-a1-hoch', 'print-a1-quer']) {
+    cases.push([`veranstaltung ${format}`, spec('veranstaltung', format, veranstaltung)]);
+    const portraits = {
+      ...veranstaltung,
+      mitwirkende: leute.map((m) => ({ ...m, foto: 'vorlage:p.jpg' })),
+    };
+    cases.push([
+      `veranstaltung ${format} portraits`,
+      spec('veranstaltung', format, portraits, 'portraits'),
+    ]);
+  }
+
+  const circleBox = (c: { x: number; y: number; radius: number }): PrintRect => ({
+    x: c.x - c.radius,
+    y: c.y - c.radius,
+    width: 2 * c.radius,
+    height: 2 * c.radius,
+  });
+  const overlaps = (a: PrintRect, b: PrintRect) =>
+    a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+
+  for (const [name, s] of cases) {
+    describe(name, () => {
+      const result = compose(s);
+      const slide = result.slides[0]!;
+      const format = getCanvasFormat(s.format)!;
+      const { trim, safe } = printGeometry(format as never);
+
+      it('lays one page out within the safe zone', () => {
+        expect(result.slides).toHaveLength(1);
+        expectInSafeZone(result);
+        for (const c of slide.circleBadgeInstances) {
+          expect(inside(circleBox(c), safe), c.id).toBe(true);
+        }
+      });
+
+      it('keeps the Störer off every text', () => {
+        for (const c of slide.circleBadgeInstances) {
+          expect(c.backgroundColor).toBe('#0BA1DD');
+          expect(c.textColor).toBe('#F5F1E9');
+          for (const t of slide.additionalTexts) {
+            expect(overlaps(circleBox(c), textBox(t)), `${c.id} / ${t.id}`).toBe(false);
+          }
+        }
+      });
+
+      it('cuts the sunflower at an edge', () => {
+        const [blume] = sunflowers(result);
+        expect(blume?.assetId).toBe('sunflower');
+        const size = blume!.scale * ASSET_TARGET_SIZE;
+        const box = { x: blume!.x - size / 2, y: blume!.y - size / 2, width: size, height: size };
+        expect(inside(box, trim)).toBe(false);
+      });
+
+      it('carries the V.i.S.d.P. turned in the margin', () => {
+        expect(textOf(result, 0, PRINT_IMPRESSUM_ID)?.rotation).toBe(-90);
+      });
+    });
+  }
+
+  it('puts the photo behind a framed motif and covers the rest with the ground', () => {
+    const full = compose(spec('kandidat', 'print-a1-hoch', kandidat)).slides[0]!;
+    expect(full.backgroundMode).toBe('image');
+    expect(full.currentImageSrc).toBe('/api/sharepic-vorlagen/assets/person.jpg');
+    expect(full.shapeInstances.filter((s) => s.id.startsWith('pr-grund'))).toEqual([]);
+    for (const [stil, ground] of [
+      ['tanne', SHAREPIC_COLOR_HEX.tanne],
+      ['klee', '#008939'],
+    ] as const) {
+      const framed = compose(spec('thema', 'print-a1-hoch', thema, stil)).slides[0]!;
+      expect(framed.currentImageSrc).toBe('/api/image-picker/stock-image/wind-unsplash.jpg');
+      const grund = framed.shapeInstances.filter((s) => s.id.startsWith('pr-grund'));
+      expect(grund.length).toBeGreaterThan(0);
+      for (const g of grund) expect(g.fill).toBe(ground);
+    }
+  });
+
+  it('takes the photo route the caller gives', () => {
+    const result = composePrint(
+      printSpecSchema.parse(spec('kandidat', 'print-a1-hoch', kandidat)),
+      {
+        measure,
+        photoSrc: (foto) => `blob:${foto}`,
+      }
+    );
+    expect(result.slides[0]!.currentImageSrc).toBe('blob:vorlage:person.jpg');
+  });
+
+  it('keeps every text of the billboard off its joins', () => {
+    for (const stil of [undefined, 'tanne', 'klee']) {
+      for (const variante of ['kandidat', 'thema'] as const) {
+        const result = compose(
+          spec(variante, 'print-grossflaeche', variante === 'kandidat' ? kandidat : thema, stil)
+        );
+        const { trim } = printGeometry(getCanvasFormat('print-grossflaeche') as never);
+        const midX = trim.x + trim.width / 2;
+        const midY = trim.y + trim.height / 2;
+        const boxes = [
+          ...result.slides[0]!.additionalTexts.map((t) => [t.id, textBox(t)] as const),
+          ...result.slides[0]!.circleBadgeInstances.map((c) => [c.id, circleBox(c)] as const),
+        ];
+        for (const [id, b] of boxes) {
+          const crossesX = b.x < midX && b.x + b.width > midX;
+          const crossesY = b.y < midY && b.y + b.height > midY;
+          expect(crossesX || crossesY, `${variante} ${stil ?? 'foto'} ${id}`).toBe(false);
+        }
+      }
+    }
+  });
+
+  it('shows each speaker; the portraits variant beside a round picture', () => {
+    for (const format of ['print-a3-hoch', 'print-a3-quer']) {
+      const v1 = compose(spec('veranstaltung', format, veranstaltung)).slides[0]!;
+      expect(v1.additionalTexts.filter((t) => t.id.startsWith('pr-person-'))).toHaveLength(3);
+      expect(v1.circleBadgeInstances.map((c) => c.id)).toEqual(['pr-datum']);
+      const portraits = {
+        ...veranstaltung,
+        mitwirkende: leute.map((m) => ({ ...m, foto: 'vorlage:p.jpg' })),
+      };
+      const v2 = compose(spec('veranstaltung', format, portraits, 'portraits')).slides[0]!;
+      expect(v2.backgroundMode).toBe('color');
+      expect(v2.userImageInstances.map((i) => i.mask)).toEqual(['kreis', 'kreis', 'kreis']);
+    }
+  });
+});
