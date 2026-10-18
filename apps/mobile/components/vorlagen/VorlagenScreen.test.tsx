@@ -2,12 +2,13 @@
    babel-plugin-jest-hoist keeps it above the hoisted `jest.mock` factories
    (see components/chat/ConfirmActionCard.test.tsx). */
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { type SharepicVorlage } from '@gruenerator/contracts';
+import { type MarketplaceItemOf, type SharepicVorlage } from '@gruenerator/contracts';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { type ReactElement, type ReactNode } from 'react';
 
+import { useMarketplaceKind } from '@gruenerator/shared/marketplace';
 import { useSharepicVorlagen } from '../../hooks/useSharepicVorlagen';
 import { openUrl } from '../../services/share';
 import { secureStorage } from '../../services/storage';
@@ -27,9 +28,18 @@ jest.mock('@gruenerator/chat', () => ({
 jest.mock('../../hooks/useSharepicVorlagen', () => ({ useSharepicVorlagen: jest.fn() }));
 jest.mock('../../services/storage', () => ({ secureStorage: { getToken: jest.fn() } }));
 jest.mock('../../services/share', () => ({ openUrl: jest.fn() }));
+jest.mock('@gruenerator/shared/marketplace', () => ({
+  ...jest.requireActual<Record<string, unknown>>('@gruenerator/shared/marketplace'),
+  useMarketplaceKind: jest.fn(),
+  useMarketplaceLike: () => ({ mutate: jest.fn() }),
+  useMarketplaceSave: () => ({ mutate: jest.fn() }),
+}));
+jest.mock('@tanstack/react-query', () => ({
+  ...jest.requireActual<Record<string, unknown>>('@tanstack/react-query'),
+  useQueryClient: () => ({ invalidateQueries: jest.fn() }),
+}));
 jest.mock('../../services/vorlagen', () => ({
-  fetchVorlagen: jest.fn(),
-  fetchVorlagenCategories: jest.fn(),
+  ...jest.requireActual<Record<string, unknown>>('../../services/vorlagen'),
   fetchMyTemplates: jest.fn(),
   fetchTemplateInteractions: jest.fn(),
   setTemplateLike: jest.fn(),
@@ -45,6 +55,13 @@ jest.mock('../common/BottomSheet', () => ({
 
 const mockVorlagen = useSharepicVorlagen as unknown as jest.MockedFunction<
   () => { data: SharepicVorlage[] | undefined; isLoading: boolean; refetch: () => Promise<void> }
+>;
+const mockSaved = useMarketplaceKind as unknown as jest.MockedFunction<
+  (params: { kind: string; scope: string; enabled: boolean }) => {
+    items: unknown[];
+    isLoading: boolean;
+    refetch: () => Promise<void>;
+  }
 >;
 const mockGetToken = secureStorage.getToken as jest.MockedFunction<typeof secureStorage.getToken>;
 const api = vorlagen as unknown as {
@@ -72,21 +89,42 @@ const karussell = {
   ],
 } as unknown as SharepicVorlage;
 
+/** A bookmarked public Vorlage, as the Marktplatz's „Gemerkt" hands it over. */
 const plakat = {
-  id: 'g1',
+  key: 'template:g1',
+  ref: 'g1',
+  kind: 'template',
+  origin: 'oeffentlich',
   title: 'Plakat Klima',
-  template_type: 'canva',
-  external_url: 'https://canva.com/g1',
-};
+  description: null,
+  thumbnailUrl: null,
+  iconKey: null,
+  authorName: 'Kim',
+  audience: 'all',
+  likesCount: 0,
+  liked: false,
+  saved: true,
+  isOwn: false,
+  reportKind: 'user_template',
+  createdAt: null,
+  template: {
+    templateType: 'canva',
+    externalUrl: 'https://canva.com/g1',
+    images: [],
+    categories: [],
+    tags: [],
+    contentData: {},
+    metadata: {},
+  },
+} satisfies MarketplaceItemOf<'template'>;
 
 function setup({
   catalog = [karussell],
-  gallery = [plakat] as vorlagen.Template[],
+  saved = [plakat] as MarketplaceItemOf<'template'>[],
   bookmarked = [] as string[],
 } = {}) {
   mockVorlagen.mockReturnValue({ data: catalog, isLoading: false, refetch: async () => {} });
-  api.fetchVorlagen.mockResolvedValue(gallery as never);
-  api.fetchVorlagenCategories.mockResolvedValue([{ id: 'canva', label: 'Canva' }] as never);
+  mockSaved.mockReturnValue({ items: saved, isLoading: false, refetch: async () => {} });
   api.fetchMyTemplates.mockResolvedValue([
     { id: 'mine-1', title: 'Mein Canva-Plakat', template_type: 'canva' },
   ] as never);
@@ -135,45 +173,52 @@ beforeEach(() => {
 });
 
 describe('VorlagenScreen', () => {
-  it('lists catalogue and gallery Vorlagen in one grid, without an empty state', async () => {
+  it('lists the Grünerator-Vorlagen, without the public ones, and points to the Marktplatz', async () => {
     setup();
     await renderScreen();
 
     expect(
       screen.getByRole('button', { name: 'Klimaschutz in drei Schritten, 3 Seiten' })
     ).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Plakat Klima' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Plakat Klima' })).toBeNull();
     expect(screen.queryByText(/Noch keine/)).toBeNull();
-    expect(screen.queryByText(/Neue Vorlage/)).toBeNull();
     expect(imageUris()).toEqual(
       expect.arrayContaining([
         expect.stringMatching(/\/sharepic-vorlagen\/klima-karussell\/thumb$/),
       ])
     );
-    expect(api.fetchVorlagen).toHaveBeenCalledWith({});
+    // The saved public Vorlagen are only asked for under the bookmark filter.
+    expect(mockSaved).toHaveBeenLastCalledWith(
+      expect.objectContaining({ kind: 'template', scope: 'saved', enabled: false })
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: 'Öffentliche Vorlagen' }));
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/(focused)/marktplatz',
+      params: { art: 'vorlagen' },
+    });
   });
 
   it('has like and bookmark on every card, and no reactions', async () => {
     setup();
     await renderScreen();
 
-    expect(screen.getAllByRole('button', { name: 'Gefällt mir' })).toHaveLength(2);
-    expect(screen.getAllByRole('button', { name: 'Merken' })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: 'Gefällt mir' })).toHaveLength(1);
     expect(screen.queryByText(/Reaktion/)).toBeNull();
 
-    fireEvent.press(screen.getAllByRole('button', { name: 'Merken' })[0]!);
+    fireEvent.press(screen.getByRole('button', { name: 'Merken' }));
     await act(async () => {});
     expect(api.setTemplateBookmark).toHaveBeenCalledWith('klima-karussell', true);
-    expect(screen.getAllByRole('button', { name: 'Merken' })[0]!.props.accessibilityState).toEqual(
+    expect(screen.getByRole('button', { name: 'Merken' }).props.accessibilityState).toEqual(
       expect.objectContaining({ selected: true })
     );
 
-    fireEvent.press(screen.getAllByRole('button', { name: 'Gefällt mir' })[1]!);
+    fireEvent.press(screen.getByRole('button', { name: 'Gefällt mir' }));
     await act(async () => {});
-    expect(api.setTemplateLike).toHaveBeenCalledWith('g1', true);
+    expect(api.setTemplateLike).toHaveBeenCalledWith('klima-karussell', true);
   });
 
-  it('keeps the filter plain at „Alle" and marks another choice', async () => {
+  it('filters between all and the own Vorlagen only', async () => {
     setup();
     await renderScreen();
     expect(header().filterLabel).toBeNull();
@@ -182,14 +227,8 @@ describe('VorlagenScreen', () => {
     expect(option('Alle Vorlagen').props.accessibilityState).toEqual(
       expect.objectContaining({ selected: true })
     );
-    expect(option('Grünerator')).toBeTruthy();
     expect(option('Meine Vorlagen')).toBeTruthy();
-
-    fireEvent.press(option('Canva'));
-    await act(async () => {});
-    expect(header().filterLabel).toBe('Canva');
-    expect(api.fetchVorlagen).toHaveBeenLastCalledWith({ templateType: 'canva' });
-    expect(screen.queryByRole('button', { name: /Klimaschutz/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Canva' })).toBeNull();
   });
 
   it('shows the own Vorlagen under „Meine Vorlagen" without the list controls', async () => {
@@ -201,39 +240,32 @@ describe('VorlagenScreen', () => {
     await act(async () => {});
 
     expect(screen.getByRole('button', { name: 'Mein Canva-Plakat' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Klimaschutz/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Öffentliche Vorlagen' })).toBeNull();
     expect(header().showListControls).toBe(false);
     expect(header().filterLabel).toBe('Meine Vorlagen');
   });
 
-  it('filters to bookmarked Vorlagen and explains an empty bookmark list', async () => {
+  it('shows bookmarked Vorlagen, public ones from the Marktplatz included', async () => {
     setup({ bookmarked: ['g1'] });
     await renderScreen();
 
     act(() => header().onToggleBookmarked());
     await act(async () => {});
-    expect(api.fetchVorlagen).toHaveBeenLastCalledWith({ favorites: true });
+    expect(mockSaved).toHaveBeenLastCalledWith(
+      expect.objectContaining({ kind: 'template', scope: 'saved', enabled: true })
+    );
     expect(screen.queryByRole('button', { name: /Klimaschutz/ })).toBeNull();
     expect(screen.getByRole('button', { name: 'Plakat Klima' })).toBeTruthy();
 
-    fireEvent.press(screen.getAllByRole('button', { name: 'Merken' })[0]!);
+    fireEvent.press(screen.getByRole('button', { name: 'Merken' }));
     await act(async () => {});
+    expect(api.setTemplateBookmark).toHaveBeenCalledWith('g1', false);
     expect(screen.getByText('Noch keine gemerkten Vorlagen')).toBeTruthy();
   });
 
-  it('says a category is empty and points back to all Vorlagen', async () => {
-    setup({ gallery: [] });
-    await renderScreen();
-
-    act(() => header().onOpenFilter());
-    fireEvent.press(option('Canva'));
-    await act(async () => {});
-
-    expect(screen.getByText('In dieser Kategorie gibt es noch keine Vorlagen')).toBeTruthy();
-    expect(screen.getByText(/Alle Vorlagen/)).toBeTruthy();
-  });
-
   it('shows a plain empty state without any filter', async () => {
-    setup({ catalog: [], gallery: [] });
+    setup({ catalog: [] });
     await renderScreen();
     expect(screen.getByText('Noch keine Vorlagen')).toBeTruthy();
     expect(screen.queryByText(/Suchbegriff/)).toBeNull();

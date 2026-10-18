@@ -1,9 +1,9 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
+import { Image, type ImageSource } from 'expo-image';
 import { Platform, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 
 import { BODY_FONT, darkTheme, lightTheme, spacing } from '../../theme';
-
-import { AgentGlyph } from './AgentGlyph';
+import { AgentGlyph } from '../agentura/AgentGlyph';
 
 /**
  * Die Marktkachel auf Mobil — dieselbe Form wie im Web, als Karte statt als
@@ -20,6 +20,11 @@ import { AgentGlyph } from './AgentGlyph';
  * VoiceOver-Element zusammen, ein verschachtelter Knopf wäre dort unerreichbar.
  * Weitere Aktionen (Bearbeiten, Teilen, Löschen) hängen am langen Druck;
  * VoiceOver erreicht sie über die benannte Aktion „Aktionen".
+ *
+ * Im Marktplatz trägt dieselbe Karte jede Art: Vorlagen, Sticker und
+ * Hintergründe zeigen statt des Symbols ihr Bild (`image`), und ihr Knopf
+ * merkt sie („Merken", `toggle="bookmark"`) statt sie zu den Grüneratoren zu
+ * holen.
  */
 export function MarketCard({
   iconKey,
@@ -30,6 +35,9 @@ export function MarketCard({
   onLongPress,
   added = null,
   onToggleAdded,
+  image = null,
+  imageFit = 'cover',
+  toggle = 'library',
 }: {
   iconKey: string | null;
   title: string;
@@ -40,6 +48,12 @@ export function MarketCard({
   /** `null` = nichts anzubieten (Eigenes); sonst, ob es in „Meine Grüneratoren" liegt. */
   added?: boolean | null;
   onToggleAdded?: () => void;
+  /** Ein Vorschaubild statt des Symbols. */
+  image?: ImageSource | null;
+  /** `contain` für freigestellte Sticker. */
+  imageFit?: 'cover' | 'contain';
+  /** `bookmark`: der Knopf merkt statt „Zu meinen Grüneratoren". */
+  toggle?: 'library' | 'bookmark';
 }) {
   const theme = useColorScheme() === 'dark' ? darkTheme : lightTheme;
   const offersToggle = added !== null && onToggleAdded !== undefined;
@@ -63,9 +77,20 @@ export function MarketCard({
         ]}
       >
         <View style={styles.header}>
-          <View style={[styles.iconChip, { backgroundColor: theme.backgroundAlt }]}>
-            <AgentGlyph iconKey={iconKey} size={20} color={theme.text} />
-          </View>
+          {image ? (
+            <View style={[styles.imageChip, { backgroundColor: theme.backgroundAlt }]}>
+              <Image
+                source={image}
+                contentFit={imageFit}
+                style={imageFit === 'contain' ? styles.imageContain : StyleSheet.absoluteFill}
+                accessibilityIgnoresInvertColors
+              />
+            </View>
+          ) : (
+            <View style={[styles.iconChip, { backgroundColor: theme.backgroundAlt }]}>
+              <AgentGlyph iconKey={iconKey} size={20} color={theme.text} />
+            </View>
+          )}
           <View style={styles.headerText}>
             <Text style={[styles.title, { color: theme.text }]} numberOfLines={2}>
               {title}
@@ -87,13 +112,27 @@ export function MarketCard({
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel={
-            added ? `${title} aus meinen Grüneratoren entfernen` : `${title} zu meinen Grüneratoren`
+            toggle === 'bookmark'
+              ? added
+                ? `${title} nicht mehr merken`
+                : `${title} merken`
+              : added
+                ? `${title} aus meinen Grüneratoren entfernen`
+                : `${title} zu meinen Grüneratoren`
           }
           accessibilityState={{ selected: added === true }}
           style={({ pressed }) => [styles.toggle, { opacity: pressed ? 0.6 : 1 }]}
         >
           <Ionicons
-            name={added ? 'checkmark-circle' : 'add-circle-outline'}
+            name={
+              toggle === 'bookmark'
+                ? added
+                  ? 'bookmark'
+                  : 'bookmark-outline'
+                : added
+                  ? 'checkmark-circle'
+                  : 'add-circle-outline'
+            }
             size={26}
             color={added ? theme.textGreen : theme.textSecondary}
           />
@@ -133,6 +172,18 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  imageChip: {
+    width: 56,
+    height: 56,
+    borderRadius: 10,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imageContain: {
+    width: 48,
+    height: 48,
   },
   headerText: {
     flex: 1,
