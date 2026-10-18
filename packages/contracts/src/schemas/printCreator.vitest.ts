@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { printImpressumSchema, printSpecSchema } from './printCreator.js';
+import { printFotoSrc, printImpressumSchema, printSpecSchema } from './printCreator.js';
 
 const visdp = { art: 'visdp', name: 'Max Muster', anschrift: 'Musterstr. 1, 10115 Berlin' };
 const medien = { art: 'impressum', medieninhaber: 'Die Grünen Wien', anschrift: 'Lindengasse 40' };
@@ -82,7 +82,7 @@ describe('printSpecSchema', () => {
     expect(printSpecSchema.safeParse({ ...karte, locale: 'de-AT', stil: 'klee' }).success).toBe(
       false
     );
-    expect(printSpecSchema.safeParse({ ...plakat, stil: 'klee' }).success).toBe(false);
+    expect(printSpecSchema.safeParse({ ...plakat, stil: 'sand' }).success).toBe(false);
     expect(printSpecSchema.safeParse({ ...karte, stil: 'lila' }).success).toBe(false);
   });
 
@@ -95,6 +95,92 @@ describe('printSpecSchema', () => {
     expect(printSpecSchema.safeParse({ ...plakat, locale: 'de-AT' }).success).toBe(false);
     expect(printSpecSchema.safeParse({ ...karte, locale: 'de-AT', impressum: visdp }).success).toBe(
       false
+    );
+  });
+});
+
+describe('printSpecSchema: photo posters', () => {
+  const kandidat = {
+    locale: 'de-DE',
+    produkt: 'plakat',
+    variante: 'kandidat',
+    format: 'print-a1-hoch',
+    impressum: visdp,
+    slots: { name: 'Pit Mende', subline: 'Für NRW in den Landtag', foto: 'vorlage:person.jpg' },
+  };
+  const veranstaltung = {
+    locale: 'de-DE',
+    produkt: 'plakat',
+    variante: 'veranstaltung',
+    format: 'print-a3-quer',
+    impressum: visdp,
+    slots: {
+      headline: 'Wie wird die Stadt klimafest?',
+      mitwirkende: [{ rolle: 'Es diskutieren:', name: 'Kim Grün' }],
+      foto: 'wind-unsplash.jpg',
+    },
+  };
+
+  it('accepts candidate, topic and event posters on their formats', () => {
+    expect(printSpecSchema.safeParse(kandidat).success).toBe(true);
+    for (const format of ['print-a3-hoch', 'print-grossflaeche', 'print-citylight']) {
+      expect(printSpecSchema.safeParse({ ...kandidat, format }).success, format).toBe(true);
+    }
+    expect(
+      printSpecSchema.safeParse({
+        ...kandidat,
+        variante: 'thema',
+        stil: 'klee',
+        slots: { headline: 'Bus und Bahn für alle', foto: 'x.jpg' },
+      }).success
+    ).toBe(true);
+    expect(printSpecSchema.safeParse(veranstaltung).success).toBe(true);
+  });
+
+  it('takes only stock files and catalogue photos', () => {
+    for (const foto of ['upload:1', 'ki:abc', 'https://example.org/a.jpg', 'vorlage:../x.jpg']) {
+      expect(
+        printSpecSchema.safeParse({ ...kandidat, slots: { ...kandidat.slots, foto } }).success,
+        foto
+      ).toBe(false);
+    }
+  });
+
+  it('needs a photo for the event poster V1, none for the portraits variant', () => {
+    const { foto: _, ...ohneFoto } = veranstaltung.slots;
+    expect(printSpecSchema.safeParse({ ...veranstaltung, slots: ohneFoto }).success).toBe(false);
+    expect(
+      printSpecSchema.safeParse({ ...veranstaltung, stil: 'portraits', slots: ohneFoto }).success
+    ).toBe(true);
+  });
+
+  it('offers the DE photo posters in Germany only', () => {
+    const at = { art: 'impressum', medieninhaber: 'Die Grünen Wien', anschrift: 'Lindengasse 40' };
+    expect(printSpecSchema.safeParse({ ...kandidat, locale: 'de-AT', impressum: at }).success).toBe(
+      false
+    );
+  });
+
+  it('keeps each variante on its formats and caps the speakers', () => {
+    expect(printSpecSchema.safeParse({ ...kandidat, format: 'print-a3-quer' }).success).toBe(false);
+    expect(
+      printSpecSchema.safeParse({ ...veranstaltung, format: 'print-grossflaeche' }).success
+    ).toBe(false);
+    const fuenf = Array.from({ length: 5 }, (_, i) => ({ name: `Person ${i}` }));
+    expect(
+      printSpecSchema.safeParse({
+        ...veranstaltung,
+        slots: { ...veranstaltung.slots, mitwirkende: fuenf },
+      }).success
+    ).toBe(false);
+  });
+});
+
+describe('printFotoSrc', () => {
+  it('serves catalogue photos from the Vorlagen route and stock photos from the picker', () => {
+    expect(printFotoSrc('vorlage:person.jpg')).toBe('/api/sharepic-vorlagen/assets/person.jpg');
+    expect(printFotoSrc('wind-unsplash.jpg')).toBe(
+      '/api/image-picker/stock-image/wind-unsplash.jpg'
     );
   });
 });
