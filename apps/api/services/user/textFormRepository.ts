@@ -36,9 +36,10 @@ import { userTextForms, type UserTextFormRow } from '../../database/schema/textF
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { notTrashed } from '../../database/trash.js';
+import { deleteLikesForEntity } from '../entityLikes/EntityLikesService.js';
 import { notifyContentShared } from '../groups/groupContent.js';
 import { assertCanShareToGroup } from '../groups/groupMembership.js';
-import { deleteTrashedRow, type OwnedTrashTable } from '../trash/ownedRowTrash.js';
+import { deleteTrashedRow, purgeSideStore, type OwnedTrashTable } from '../trash/ownedRowTrash.js';
 
 import {
   isListableTextForm,
@@ -748,9 +749,13 @@ export const TEXT_FORM_TRASH: OwnedTrashTable = {
   columns: 'id, title, mention',
 };
 
-/** Hard-delete a trashed recipe. Its `group_content_shares` rows were never removed on delete either. */
+/** Hard-delete a trashed recipe and its likes. Its `group_content_shares` rows were never removed on delete either. */
 export async function purgeTextForm(id: string, cutoff: Date | null): Promise<boolean> {
-  return (await deleteTrashedRow(TEXT_FORM_TRASH, id, cutoff)) !== null;
+  if ((await deleteTrashedRow(TEXT_FORM_TRASH, id, cutoff)) === null) return false;
+  await purgeSideStore('user_text_form', id, 'entity_likes', () =>
+    deleteLikesForEntity('recipe', id)
+  );
+  return true;
 }
 
 // ── Mentionable list ─────────────────────────────────────────────────────────

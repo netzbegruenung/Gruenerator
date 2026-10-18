@@ -14,7 +14,8 @@ import { userAgents, type UserAgentRow } from '../../database/schema/userAgents.
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { notTrashed } from '../../database/trash.js';
-import { deleteTrashedRow, type OwnedTrashTable } from '../trash/ownedRowTrash.js';
+import { deleteLikesForEntity } from '../entityLikes/EntityLikesService.js';
+import { deleteTrashedRow, purgeSideStore, type OwnedTrashTable } from '../trash/ownedRowTrash.js';
 
 import { isUserAgentId } from './userAgentHandle.js';
 
@@ -226,9 +227,12 @@ export async function deleteUserAgent(userId: string, handle: string): Promise<b
  */
 export const USER_AGENT_TRASH: OwnedTrashTable = { table: 'user_agents', columns: 'id, title' };
 
-/** Hard-delete a trashed agent. Its `group_content_shares` rows were never removed on delete either. */
+/** Hard-delete a trashed agent and its likes. Its `group_content_shares` rows were never removed on delete either. */
 export async function purgeUserAgent(id: string, cutoff: Date | null): Promise<boolean> {
-  return (await deleteTrashedRow(USER_AGENT_TRASH, id, cutoff)) !== null;
+  if ((await deleteTrashedRow(USER_AGENT_TRASH, id, cutoff)) === null) return false;
+  // Keyed like `user_library_items`: a user agent's ref is its row uuid.
+  await purgeSideStore('user_agent', id, 'entity_likes', () => deleteLikesForEntity('agent', id));
+  return true;
 }
 
 // ── Sharing ────────────────────────────────────────────────────────────────

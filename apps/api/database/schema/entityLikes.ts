@@ -20,4 +20,5 @@ export const entityLikes = pgTable(
 
 export type EntityLike = InferSelectModel<typeof entityLikes>;
 
-export type EntityLikeType = 'notebook' | 'template' | 'studio_asset';
+/** `agent` and `recipe` are keyed by the ref `user_library_items` stores. */
+export type EntityLikeType = 'notebook' | 'template' | 'studio_asset' | 'agent' | 'recipe';
