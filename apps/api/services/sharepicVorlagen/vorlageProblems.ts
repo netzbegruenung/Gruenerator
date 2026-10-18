@@ -2,6 +2,7 @@ import {
   isSharepicSceneRef,
   isSharepicUploadId,
   SHAREPIC_VORLAGE_REF,
+  type PrintSpec,
   type SharepicCreatorLocale,
   type SharepicSeiteFileEntry,
   type SharepicSlide,
@@ -58,6 +59,20 @@ export function seiteProblems(
     }
   }
   return problems;
+}
+
+/** A print Vorlage's photos: each a stock photo we host or a file in `assets/`. */
+export function printProblems(spec: PrintSpec): string[] {
+  const fotos =
+    spec.variante === 'kandidat' || spec.variante === 'thema'
+      ? [spec.slots.foto]
+      : spec.variante === 'veranstaltung'
+        ? [spec.slots.foto, ...(spec.slots.mitwirkende ?? []).map((m) => m.foto)]
+        : [];
+  return fotos
+    .filter((foto): foto is string => foto !== undefined)
+    .map(photoProblem)
+    .filter((p): p is string => p !== null);
 }
 
 function photoProblem(filename: string): string | null {
