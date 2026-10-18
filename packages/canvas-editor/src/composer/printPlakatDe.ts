@@ -8,7 +8,7 @@
  * Every layout shares one grammar: a motif area (the photo, the whole page or
  * touching one or two edges of a Tanne/Klee ground), the text block low on the
  * left, a Störer in Himmel with Sand type, the sunflower in Sonne cut by an
- * edge, the domain as the sender, centred at the foot (billboard: bottom right),
+ * edge, the domain as the sender, centred at the foot (billboard: at the right),
  * and the V.i.S.d.P. turned in the left margin.
  *
  * The photo is the page's background image, cover-fitted and centred on the
@@ -387,8 +387,8 @@ function fotoPlakat(
         }
     : { x: inner.x, width: inner.width * 0.86 };
 
-  // The sender: centred at the foot; the billboard's on the field at the bottom
-  // right, right of the join (p. 43 has it top right, on a photo it would need a fade).
+  // The sender: centred at the foot; the billboard's top right, right of the
+  // join (p. 43) — on a full photo at the bottom right, on the field.
   const web = spec.slots.web
     ? absender(
         f,
@@ -433,7 +433,9 @@ function fotoPlakat(
   placeStack(p, f, blocks, column.x, textTop, column.width);
   if (web && billboard) {
     const w = inner.x + inner.width - midX - gap;
-    p.text({ ...web.props, align: 'right', x: midX + gap, y: bottom - webHeight, width: w });
+    // On the ground it keeps its place top right; on a full photo it moves to the field.
+    const y = full ? bottom - webHeight : inner.y;
+    p.text({ ...web.props, align: 'right', x: midX + gap, y, width: w });
   } else if (web) {
     p.text({ ...web.props, x: inner.x, y: bottom - webHeight, width: inner.width });
   }
