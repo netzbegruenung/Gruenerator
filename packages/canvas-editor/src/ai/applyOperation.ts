@@ -280,6 +280,14 @@ function applyOne<TState, TActions extends CanvasAiActionsBase>(
 
       case 'update-element': {
         const cleanPatch = stripNullPatchFields(op.patch);
+        // A lock pins position, size and rotation; colour and opacity stay
+        // editable, as they do by hand.
+        const movesElement = (['x', 'y', 'scale', 'rotation'] as const).some(
+          (key) => cleanPatch[key] !== undefined
+        );
+        if (movesElement && isLayerLocked(getState() as Partial<BaseCanvasState>, op.elementId)) {
+          return { ok: false, reason: `element "${op.elementId}" is locked` };
+        }
         const dispatchResult = dispatchUpdate(op.elementId, cleanPatch, actions, getState);
         return dispatchResult;
       }
