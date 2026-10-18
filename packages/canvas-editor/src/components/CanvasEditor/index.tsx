@@ -84,6 +84,7 @@ import { ContextToolbar } from '../TopBar/ContextToolbar';
 import { MobileSelectionBar } from '../TopBar/MobileSelectionBar';
 import { MobileSelectionControls } from '../TopBar/MobileSelectionControls';
 import { FloatingAiSuggestionBanner } from '../TopBar/modules/FloatingAiSuggestionBanner';
+import { MultiSelectionToolbar } from '../TopBar/MultiSelectionToolbar';
 
 import { autoSwitchTab } from './autoSwitchTab';
 import { useLoadedConfigs } from './hooks/useLoadedConfigs';
@@ -1189,6 +1190,20 @@ function CanvasEditorInner({
       {...contextControlsProps}
       canDelete={toolbarState?.canDelete ?? false}
       onDeleteElement={toolbarHandlers.handleDeleteElement}
+    />
+  ) : toolbarState && toolbarState.selectionCount > 1 ? (
+    // Not part of `hasContextControls`: mobile would show its selection bar.
+    <MultiSelectionToolbar
+      count={toolbarState.selectionCount}
+      canCopy={toolbarState.canCopy}
+      canDelete={toolbarState.canDelete}
+      lockState={toolbarState.lockState}
+      canLock={toolbarState.canLock}
+      onCopy={toolbarHandlers.handleCopy}
+      onDuplicate={toolbarHandlers.handleDuplicate}
+      onToggleLock={toolbarHandlers.handleToggleLock}
+      onDelete={toolbarHandlers.handleDeleteElement}
+      onDeselect={handleDeselectAll}
     />
   ) : null;
   const mobileSelectionElement =
