@@ -1,4 +1,4 @@
-import { PiGlobe } from 'react-icons/pi';
+import { PiGlobe, PiStorefront } from 'react-icons/pi';
 import { RiSpyLine } from 'react-icons/ri';
 
 import { getIcon, getIconById as getIconFromRegistry } from '../../../config/icons';
@@ -79,6 +79,15 @@ export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResul
     description: 'Deine KI-Grüneratoren',
     icon: RiSpyLine,
     activePaths: ['/grueneratoren', '/agentura', '/agents'],
+  };
+
+  items.marktplatz = {
+    id: 'marktplatz',
+    path: '/marktplatz',
+    title: 'Marktplatz',
+    description: 'Agents, Rezepte, Vorlagen und Sticker entdecken',
+    icon: PiStorefront,
+    activePaths: ['/marktplatz'],
   };
 
   if (import.meta.env.DEV) {

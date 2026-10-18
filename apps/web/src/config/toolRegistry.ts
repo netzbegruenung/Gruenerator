@@ -160,12 +160,24 @@ const TOOLS = [
     icon: { component: RiSpyLine },
     tile: { group: 'organisieren', description: 'Agents, Rezepte & Aufgaben' },
     search: {
+      // F1: the id predates the overview (it named the Agentura); the shop is `tool-marktplatz` now.
       id: 'tool-agentura',
       subtitle: 'Deine Agents, Rezepte und Aufgaben',
       icon: { navigation: 'desk' },
-      keywords: ['agentura', 'agent', 'agenten', 'grünerator', 'grueneratoren', 'skills', 'ki'],
+      keywords: ['agent', 'agenten', 'grünerator', 'grueneratoren', 'skills', 'ki'],
     },
     theme: true,
+  },
+  {
+    id: 'marktplatz',
+    title: 'Marktplatz',
+    path: '/marktplatz',
+    icon: { navigation: 'marktplatz' },
+    search: {
+      id: 'tool-marktplatz',
+      subtitle: 'Agents, Rezepte, Vorlagen und Sticker entdecken',
+      keywords: ['marktplatz', 'agentura', 'shop', 'entdecken', 'öffentlich', 'community'],
+    },
   },
   {
     id: 'projekte',
@@ -650,6 +662,7 @@ const SEARCH_ORDER = [
   'tool-chat',
   'tool-suche',
   'tool-agentura',
+  'tool-marktplatz',
   'tool-projekte',
 ] as const satisfies readonly ToolSearchId[];
 
