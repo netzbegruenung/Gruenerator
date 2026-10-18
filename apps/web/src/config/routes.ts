@@ -377,6 +377,9 @@ const AgentSettingsPage = lazy(() => import('../features/agents/AgentSettingsPag
 const AgenturaPage = lazy(() => import('../features/agentura/AgenturaPage'));
 const GrueneratorenPage = lazy(() => import('../features/agentura/GrueneratorenPage'));
 const MarketplacePage = lazy(() => import('../features/marketplace/MarketplacePage'));
+const MarketplaceLandesverbandPage = lazy(
+  () => import('../features/marketplace/MarketplaceLandesverbandPage')
+);
 const AgentDetailPage = lazy(() => import('../features/agentura/AgentDetailPage'));
 const RecipeDetailPage = lazy(() => import('../features/agentura/RecipeDetailPage'));
 const RecipeEditorPage = lazy(() => import('../features/agentura/recipes/RecipeEditorPage'));
@@ -454,6 +457,8 @@ const standardRoutes: RouteConfig[] = [
   { path: '/agentura', component: AgenturaPage },
   { path: '/grueneratoren', component: GrueneratorenPage },
   { path: '/marktplatz', component: MarketplacePage },
+  // A Landesverband's page in the Marktplatz; the slug is the hub slug of `/agents/<slug>`.
+  { path: '/marktplatz/landesverband/:slug', component: MarketplaceLandesverbandPage },
   {
     path: '/agents',
     component: lazy(() => Promise.resolve({ default: createRedirect('/grueneratoren') })),
