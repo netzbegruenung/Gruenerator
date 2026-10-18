@@ -99,6 +99,8 @@ interface MarketplaceDiscussionProps {
   canModerate: boolean;
   /** „Link kopieren" points here; left out where the page has its own way to share. */
   shareHref?: string;
+  /** „Kommentare": one below the item's title. Default 2, for pages whose `h1` is the item. */
+  headingLevel?: 2 | 3 | 4;
 }
 
 /**
@@ -111,7 +113,9 @@ export function MarketplaceDiscussion({
   item,
   canModerate,
   shareHref,
+  headingLevel = 2,
 }: MarketplaceDiscussionProps): JSX.Element {
+  const Heading = `h${headingLevel}` as const;
   const type = MARKETPLACE_COMMENT_TYPE[target.kind];
   const userId = useAuthStore((s) => s.user?.id) ?? null;
   const queryClient = useQueryClient();
@@ -157,7 +161,7 @@ export function MarketplaceDiscussion({
         {discussion.data && <ItemReactions target={target} reactions={discussion.data.reactions} />}
       </div>
 
-      <h2 className="m-0 text-lg font-bold text-foreground-heading">Kommentare</h2>
+      <Heading className="m-0 text-lg font-bold text-foreground-heading">Kommentare</Heading>
       {discussion.isLoading && <p className="m-0 text-sm text-foreground-muted">Lädt …</p>}
       {discussion.isError && (
         <p className="m-0 text-sm text-red-600 dark:text-red-400">{errMessage(discussion.error)}</p>

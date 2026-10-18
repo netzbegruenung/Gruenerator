@@ -2,7 +2,8 @@
  * What account deletion removes before the profile row goes. No FK cascade
  * reaches any of it: `collaborative_documents.created_by` is SET NULL,
  * notebooks live in Qdrant, `entity_likes` and `entity_comments` have no FK to
- * the item at all, and the OAuth
+ * the item at all, `user_agents` and `user_text_forms` have no FK to the
+ * profile (#4723), and the OAuth
  * tokens of connected accounts (Microsoft, Google, …) live in Nango. Account
  * deletion stays hard — nothing here goes through the Papierkorb.
  *
@@ -22,8 +23,36 @@ import {
   deleteLikesForEntity,
   deleteLikesOfDeletedUser,
 } from '../entityLikes/EntityLikesService.js';
+import { type OwnedTrashTable, trashAllOwnedRowsOfDeletedUser } from '../trash/ownedRowTrash.js';
+import { purgeUserAgent, USER_AGENT_TRASH } from '../userAgents/userAgentsRepository.js';
+
+import { purgeTextForm, TEXT_FORM_TRASH } from './textFormRepository.js';
 
 const log = createLogger('accountDeletion');
+
+/**
+ * Every row of the person, trashed ones included, through the kind's purge —
+ * so likes, comments and item reactions go with it. Returns how many went.
+ */
+async function purgeAllOwnedRows(
+  t: OwnedTrashTable,
+  userId: string,
+  purge: (id: string, cutoff: Date | null) => Promise<boolean>
+): Promise<number> {
+  let purged = 0;
+  try {
+    for (const id of await trashAllOwnedRowsOfDeletedUser(t, userId)) {
+      try {
+        if (await purge(id, null)) purged++;
+      } catch (error) {
+        reportBackgroundError(error, { job: 'account-deletion', kind: t.table, id });
+      }
+    }
+  } catch (error) {
+    reportBackgroundError(error, { job: 'account-deletion', store: t.table });
+  }
+  return purged;
+}
 
 export async function cleanUpBeforeProfileDelete(userId: string): Promise<void> {
   const postgres = getPostgresInstance();
@@ -47,6 +76,9 @@ export async function cleanUpBeforeProfileDelete(userId: string): Promise<void> 
   } catch (error) {
     reportBackgroundError(error, { job: 'account-deletion', store: 'notebook_collections' });
   }
+
+  const agents = await purgeAllOwnedRows(USER_AGENT_TRASH, userId, purgeUserAgent);
+  const recipes = await purgeAllOwnedRows(TEXT_FORM_TRASH, userId, purgeTextForm);
 
   try {
     await deleteLikesOfDeletedUser(userId);
@@ -76,6 +108,6 @@ export async function cleanUpBeforeProfileDelete(userId: string): Promise<void> 
   }
 
   log.info(
-    `Removed ${docs} sole-owned documents, ${notebooks} notebooks and ${connections} connections of ${userId}`
+    `Removed ${docs} sole-owned documents, ${notebooks} notebooks, ${agents} agents, ${recipes} recipes and ${connections} connections of ${userId}`
   );
 }

@@ -374,6 +374,13 @@ const VISIBLE_TO_CALLER = `(
           OR ${PUBLIC_VISIBLE}
         )`;
 
+/** {@link VISIBLE_TO_CALLER} with the public disjunct limited to the viewer's
+ * country (`$4`, from {@link viewerAudience}), as in the Marktplatz. */
+const VISIBLE_TO_CALLER_IN_AUDIENCE = `(
+          ${VISIBLE_TO_CALLER_NO_PUBLIC}
+          OR (${PUBLIC_VISIBLE} AND tf.audience IN ($4, 'all'))
+        )`;
+
 /** own 0 / group 1 / public 2 — the precedence `pickVisibleTextForm` encodes,
  * expressed in SQL so a `LIMIT 1` can rely on it. */
 const ACCESS_RANK_SQL = `CASE
@@ -851,13 +858,17 @@ interface MentionableRow {
  * Ein öffentliches Rezept bleibt dabei erreichbar: über die ausdrückliche
  * Mention und die Auswahl im Composer. Das `recipes`-Werkzeug zählt es NICHT
  * auf — es liest dieselben Quellen wie der Katalog.
+ *
+ * Mit `viewerLocale` kommt der offene Katalog dazu, getrennt nach Land wie im
+ * Marktplatz (`audience IN (viewerLocale, 'all')`, #4724). Eigene und in ein
+ * Projekt geteilte Rezepte bleiben ungefiltert.
  */
 export async function listMentionableTextForms(
   userId: string,
   limit = 200,
-  opts: { includePublic?: boolean } = {}
+  opts: { includePublic: false } | { viewerLocale: string }
 ): Promise<MentionableTextForm[]> {
-  const includePublic = opts.includePublic ?? true;
+  const includePublic = 'viewerLocale' in opts;
   const pg = getPostgresInstance();
   const rows = (await pg.query(
     `SELECT tf.id, tf.user_id, tf.created_at, tf.mention, tf.title, tf.description,
@@ -876,11 +887,13 @@ export async function listMentionableTextForms(
             COALESCE(p.first_name, p.display_name) AS owner_name
        FROM user_text_forms tf
        LEFT JOIN profiles p ON p.id = tf.user_id
-      WHERE ${includePublic ? VISIBLE_TO_CALLER : VISIBLE_TO_CALLER_NO_PUBLIC}
+      WHERE ${includePublic ? VISIBLE_TO_CALLER_IN_AUDIENCE : VISIBLE_TO_CALLER_NO_PUBLIC}
         AND tf.deleted_at IS NULL
       ORDER BY access_rank, tf.created_at, tf.id
       LIMIT $3`,
-    [userId, TEXT_FORM_CONTENT_TYPE, limit]
+    'viewerLocale' in opts
+      ? [userId, TEXT_FORM_CONTENT_TYPE, limit, viewerAudience(opts.viewerLocale)]
+      : [userId, TEXT_FORM_CONTENT_TYPE, limit]
   )) as unknown as MentionableRow[];
 
   const withAccess = rows.map((row) => ({ ...row, access: accessFromRank(row.access_rank) }));

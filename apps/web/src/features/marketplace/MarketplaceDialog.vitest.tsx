@@ -94,6 +94,14 @@ describe('MarketplaceDialog', () => {
     const agents = await within(dialog).findByRole('region', { name: 'Agents' });
     await user.click(within(agents).getByRole('button', { name: 'Pressearbeit' }));
 
+    // Under the dialog's title (h2): the item h3, its comments h4.
+    expect(
+      await within(dialog).findByRole('heading', { level: 3, name: 'Pressearbeit' })
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole('heading', { level: 4, name: 'Kommentare' })
+    ).toBeInTheDocument();
+
     const writeText = vi.spyOn(navigator.clipboard, 'writeText');
     await user.click(await within(dialog).findByRole('button', { name: 'Link kopieren' }));
     expect(writeText).toHaveBeenCalledWith(

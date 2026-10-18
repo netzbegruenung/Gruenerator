@@ -90,7 +90,7 @@ describe('Rezept Papierkorb', () => {
   it('own, shared and mentionable readers hide trashed recipes', async () => {
     await listTextForms('u1');
     expect(whereSql(0)).toContain('"deleted_at" is null');
-    await listMentionableTextForms('u1');
+    await listMentionableTextForms('u1', undefined, { viewerLocale: 'de-DE' });
     for (const sql of rawSql.filter((s) => s.includes('FROM user_text_forms tf'))) {
       expect(sql).toContain('tf.deleted_at IS NULL');
     }

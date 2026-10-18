@@ -43,7 +43,7 @@ beforeEach(() => {
 
 describe('group-share readers skip private recipes', () => {
   it('listMentionableTextForms (and every GROUP_SHARE_EXISTS user)', async () => {
-    await listMentionableTextForms('u1');
+    await listMentionableTextForms('u1', undefined, { viewerLocale: 'de-DE' });
     const where = rawSql[0]?.slice(rawSql[0].indexOf('WHERE (')) ?? '';
     expect(where).toContain("tf.share_mode <> 'private' AND tf.moderation <> 'removed' AND EXISTS");
   });
