@@ -3,7 +3,13 @@ import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 
 import { getPagesMap, readPages, replaceDeck, seedPagesIfEmpty } from './pagesDoc';
-import { carryImpressum, isDeckEmpty, seiteDeckOps, vorlageDeckOps } from './vorlageDeck';
+import {
+  carryImpressum,
+  isDeckEmpty,
+  pageSwapOps,
+  seiteDeckOps,
+  vorlageDeckOps,
+} from './vorlageDeck';
 
 const blank = {
   configId: 'freeform',
@@ -201,5 +207,48 @@ describe('seiteDeckOps', () => {
     // After a hand-made page, the Seite keeps its own deck.
     const own = seiteDeckOps([page('a', 'karussell'), page('b')], 'b', seite, ids);
     expect(own.inserts[0]?.state[SHAREPIC_SOURCE_KEY]).toEqual(seite.state[SHAREPIC_SOURCE_KEY]);
+  });
+});
+
+describe('pageSwapOps', () => {
+  const deck = [
+    { id: 'a', configId: 'freeform' },
+    { id: 'b', configId: 'freeform' },
+    { id: 'c', configId: 'dreizeilen' },
+  ];
+  const page = { configId: 'freeform', state: { title: 'Rückseite' } };
+
+  it('rewrites the target page in place under the same config', () => {
+    expect(pageSwapOps(deck, 'b', page, () => 'n')).toEqual({
+      updates: [{ pageId: 'b', state: page.state }],
+      inserts: [],
+      removes: [],
+    });
+  });
+
+  it('replaces a page of another config at its position', () => {
+    expect(pageSwapOps(deck, 'c', page, () => 'n')).toEqual({
+      updates: [],
+      inserts: [{ afterPageId: 'b', configId: 'freeform', state: page.state, pageId: 'n' }],
+      removes: ['c'],
+    });
+  });
+
+  it('takes the last page when the target is gone', () => {
+    expect(pageSwapOps(deck, 'weg', page, () => 'n').removes).toEqual(['c']);
+  });
+
+  it('keeps the page order on a real document', () => {
+    const doc = new Y.Doc();
+    seedPagesIfEmpty(doc, [
+      { id: 'a', configId: 'freeform', state: { title: 'Vorne' } },
+      { id: 'b', configId: 'dreizeilen', state: { title: 'Hinten' } },
+    ]);
+    replaceDeck(
+      doc,
+      pageSwapOps(readPages(doc), 'a', { configId: 'x', state: {} }, () => 'n'),
+      'local'
+    );
+    expect(readPages(doc).map((p) => p.id)).toEqual(['n', 'b']);
   });
 });
