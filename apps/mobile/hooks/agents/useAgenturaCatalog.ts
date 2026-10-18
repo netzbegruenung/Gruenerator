@@ -27,10 +27,18 @@ import { CURRENT_INSTANCE } from '../../config/instance';
 export function useAgenturaCatalog() {
   const { locale } = useAuth();
   const { lvIds, shelfLabel: lvShelfLabel, isHydrated: rolesLoaded } = useUserLandesverbaende();
-  const hiddenSkillMentions = useHiddenSkillMentions();
-  const hiddenAgentIdentifiers = useHiddenAgentIdentifiers();
-  const hiddenSkillKey = hiddenSkillMentions.join(',');
-  const hiddenAgentKey = hiddenAgentIdentifiers.join(',');
+  // The array identity changes on every fetch; the joined key is stable, so the
+  // lists are rebuilt from it.
+  const hiddenSkillKey = useHiddenSkillMentions().join(',');
+  const hiddenAgentKey = useHiddenAgentIdentifiers().join(',');
+  const hiddenSkillMentions = useMemo(
+    () => (hiddenSkillKey ? hiddenSkillKey.split(',') : []),
+    [hiddenSkillKey]
+  );
+  const hiddenAgentIdentifiers = useMemo(
+    () => (hiddenAgentKey ? hiddenAgentKey.split(',') : []),
+    [hiddenAgentKey]
+  );
 
   // Recipes whose owning agent is hidden on mobile would open a chat with an
   // agent this app cannot render; `platform: 'mobile'` drops them with it.
@@ -45,8 +53,7 @@ export function useAgenturaCatalog() {
         lvIds,
         skills: agentsList,
       }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- die Array-Identität wechselt bei jedem Abruf; die Schlüssel sind die stabile Abhängigkeit
-    [locale, lvIds, hiddenAgentKey, hiddenSkillKey]
+    [locale, lvIds, hiddenAgentIdentifiers, hiddenSkillMentions]
   );
 
   const skillsByCategory = useMemo(() => {
