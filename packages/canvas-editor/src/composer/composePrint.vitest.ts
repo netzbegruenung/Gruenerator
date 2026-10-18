@@ -28,13 +28,14 @@ const karte = {
   mail: 'max.mustermann@gruene.de',
   web: 'gruene.de',
 };
-const cardSpec = (locale: Locale, format: string, slots: object = karte) => ({
+const cardSpec = (locale: Locale, format: string, slots: object = karte, stil?: string) => ({
   locale,
   produkt: 'visitenkarte',
   variante: 'visitenkarte',
   format,
   impressum: null,
   slots,
+  ...(stil ? { stil } : {}),
 });
 
 const plakat = {
@@ -62,7 +63,9 @@ const typoSpec = (locale: Locale, slots: object = plakat, format = 'print-a3-hoc
 const ASPECT: Record<string, { w: number; h: number }> = {
   'gruene-de-logo': { w: 710, h: 379 },
   'gruene-de-logo-weiss': { w: 710, h: 379 },
+  'gruene-de-logo-schwarz': { w: 710, h: 379 },
   'gruene-at-logo-weiss': { w: 1410, h: 1239 },
+  'gruene-at-logo-gruen': { w: 1410, h: 1239 },
 };
 
 function textBox(t: AdditionalText): PrintRect {
@@ -210,6 +213,83 @@ describe('composePrint: business card', () => {
     for (const locale of LOCALES) {
       for (const format of CARD_FORMATS) expectInSafeZone(compose(cardSpec(locale, format, long)));
     }
+  });
+});
+
+describe('composePrint: business card colourways', () => {
+  const tanne = SHAREPIC_COLOR_HEX.tanne;
+  const at = getBrandTheme('de-AT').colors;
+  const STILE: Record<Locale, Record<string, { grounds: string[]; logo: string }>> = {
+    'de-DE': {
+      klee: { grounds: ['#008939', '#008939'], logo: 'gruene-de-logo' },
+      sand: { grounds: ['#F5F1E9', tanne], logo: 'gruene-de-logo-schwarz' },
+      schlicht: { grounds: [tanne, tanne], logo: 'gruene-de-logo' },
+    },
+    'de-AT': {
+      hellgruen: { grounds: [at.secondary, '#FFFFFF'], logo: 'gruene-at-logo-weiss' },
+      weiss: { grounds: ['#FFFFFF', at.primary], logo: 'gruene-at-logo-gruen' },
+      gruen: { grounds: [at.primary, at.primary], logo: 'gruene-at-logo-weiss' },
+    },
+  };
+
+  for (const locale of LOCALES) {
+    for (const [stil, look] of Object.entries(STILE[locale])) {
+      for (const format of CARD_FORMATS) {
+        it(`${locale} ${stil} ${format}: grounds, logo and safe zone`, () => {
+          const result = compose(cardSpec(locale, format, karte, stil));
+          expectBackgroundCoversBleed(result, look.grounds);
+          const logo = result.slides[0]!.assetInstances.find((a) => a.id === 'pr-logo');
+          expect(logo?.assetId).toBe(look.logo);
+          expectInSafeZone(result);
+        });
+      }
+    }
+  }
+
+  it('DE: never a sunflower on Sand, and schlicht carries only the word mark on the back', () => {
+    for (const format of CARD_FORMATS) {
+      const sand = compose(cardSpec('de-DE', format, karte, 'sand'));
+      expect(sand.slides[0]!.assetInstances.map((a) => a.assetId)).not.toContain('sunflower');
+      expect(textOf(sand, 0, 'pr-name')?.fill).toBe(tanne);
+      const schlicht = compose(cardSpec('de-DE', format, karte, 'schlicht'));
+      expect(sunflowers(schlicht)).toEqual([]);
+      expect(schlicht.slides[1]!.assetInstances.map((a) => a.assetId)).toEqual(['gruene-de-logo']);
+    }
+  });
+
+  it('AT: type on a green back turns white', () => {
+    for (const stil of ['weiss', 'gruen']) {
+      const result = compose(cardSpec('de-AT', 'print-visitenkarte-quer', karte, stil));
+      for (const t of result.slides[1]!.additionalTexts) expect(t.fill).toBe('#FFFFFF');
+    }
+  });
+});
+
+describe('composePrint: upright card', () => {
+  const bottomOf = (t: AdditionalText) => {
+    const box = textBox(t);
+    return box.y + box.height;
+  };
+
+  it('DE: the head at the top, the contact group down above the logo', () => {
+    const result = compose(cardSpec('de-DE', 'print-visitenkarte-hoch'));
+    const { safe: inner } = printGeometry(getCanvasFormat('print-visitenkarte-hoch') as never);
+    const name = textOf(result, 0, 'pr-name')!;
+    const kontakt = textOf(result, 0, 'pr-kontakt')!;
+    const logo = result.slides[0]!.assetInstances.find((a) => a.id === 'pr-logo')!;
+    expect(name.y - inner.y).toBeLessThan(inner.height * 0.15);
+    expect(bottomOf(kontakt)).toBeLessThan(assetBox(logo).y);
+    expect(bottomOf(kontakt)).toBeGreaterThan(inner.y + inner.height * 0.6);
+  });
+
+  it('AT: the name in the upper third, the contact group low on the back', () => {
+    const result = compose(cardSpec('de-AT', 'print-visitenkarte-hoch'));
+    const { safe } = printGeometry(getCanvasFormat('print-visitenkarte-hoch') as never);
+    const name = textOf(result, 1, 'pr-name')!;
+    const kontakt = textOf(result, 1, 'pr-kontakt')!;
+    expect(name.y).toBeLessThan(safe.y + safe.height / 3);
+    expect(bottomOf(kontakt)).toBeGreaterThan(safe.y + safe.height * 0.8);
+    expect(textOf(result, 1, 'pr-funktion')!.y).toBeGreaterThan(bottomOf(name));
   });
 });
 

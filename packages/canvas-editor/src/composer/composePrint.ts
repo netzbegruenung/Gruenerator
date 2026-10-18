@@ -17,6 +17,7 @@ import {
   type PrintFormatId,
   type PrintImpressum,
   type PrintSpec,
+  type PrintStil,
   type PrintTypoSlots,
   type PrintVisitenkarteSlots,
 } from '@gruenerator/contracts';
@@ -69,6 +70,9 @@ const ART = {
 
 const PT_IN_MM = 25.4 / 72;
 const WHITE = '#FFFFFF';
+/** DE styleguide p. 11. */
+const KLEE = '#008939';
+const SAND = '#F5F1E9';
 /** Headline leading of the lab: GrueneTypeNeue 1.05, Gotham Ultra 1. */
 const HEAD_LEADING = { 'de-DE': 1.05, 'de-AT': 1 } as const;
 const BODY_LEADING = 1.3;
@@ -312,8 +316,8 @@ export function composePrint(spec: PrintSpec, options: ComposePrintOptions = {})
   const slides =
     spec.variante === 'visitenkarte'
       ? isAt
-        ? visitenkarteAt(f, spec.slots)
-        : visitenkarteDe(f, spec.slots)
+        ? visitenkarteAt(f, spec.slots, spec.stil)
+        : visitenkarteDe(f, spec.slots, spec.stil)
       : [typo(f, spec.slots, spec.impressum)];
   return { templateType: isAt ? 'freeform-at' : 'freeform', format: spec.format, slides };
 }
@@ -331,18 +335,21 @@ function cardType(f: Frame, fit: number) {
   };
 }
 
+const isHoch = (f: Frame) => f.trim.height > f.trim.width;
+
 /** The contact blocks of a card, one per filled slot, in reading order. */
 function cardBlocks(
   f: Frame,
   slots: PrintVisitenkarteSlots,
   fit: number,
   width: number,
-  ink: { name: string; funktion: string; body: string },
+  ink: CardInk,
   align: 'left' | 'center'
 ): Block[] {
   const { theme, u } = f;
   const { klein, text } = cardType(f, fit);
-  const nameBase = (f.isAt ? 1.7 : 2.4) * u * fit;
+  // AT upright: the name large over two lines, as on CD p. 95.
+  const nameBase = (f.isAt && !isHoch(f) ? 1.7 : 2.4) * u * fit;
   const nameSize = wordsFit(f, slots.name, nameBase, width, theme.fonts.headline);
   const body = (id: string, value: string, before: number): Block => ({
     before,
@@ -414,46 +421,126 @@ function cardBlocks(
   return blocks;
 }
 
+interface CardInk {
+  name: string;
+  funktion: string;
+  body: string;
+}
+
+/**
+ * An upright card split in two (CD p. 32 / p. 95): the head from `headTop`
+ * down, the contact group ending at `restBottom`, at least a group gap apart.
+ * False, placing nothing, when that does not fit at full size; the caller
+ * then stacks as on a landscape card.
+ */
+function splitCard(
+  p: Page,
+  f: Frame,
+  blocks: Block[],
+  x: number,
+  width: number,
+  headTop: number,
+  restBottom: number
+): boolean {
+  // The head: the name, in DE with the function; the rest is the contact group.
+  const headIds = f.isAt ? ['pr-name'] : ['pr-name', 'pr-funktion'];
+  const head = blocks.filter((b) => headIds.includes(b.props.id));
+  const rest = blocks.filter((b) => !head.includes(b));
+  if (!rest.length) return false;
+  const headHeight = stackHeight(f, head, width);
+  const restHeight = stackHeight(f, rest, width);
+  if (headTop + headHeight + 1.2 * f.u > restBottom - restHeight) return false;
+  placeStack(p, f, head, x, headTop, width);
+  placeStack(p, f, rest, x, restBottom - restHeight, width);
+  return true;
+}
+
+/** DE colourways (CD p. 11/32): front ground, ink, logo; the back's ground. */
+const DE_KARTE = {
+  tanne: {
+    front: SHAREPIC_COLOR_HEX.tanne,
+    ink: { name: WHITE, funktion: SHAREPIC_COLOR_HEX.mint, body: WHITE },
+    logo: DE_WORDMARK.farbe,
+    back: SHAREPIC_COLOR_HEX.tanne,
+  },
+  klee: {
+    front: KLEE,
+    ink: { name: WHITE, funktion: SHAREPIC_COLOR_HEX.mint, body: WHITE },
+    logo: DE_WORDMARK.farbe,
+    back: KLEE,
+  },
+  // Sand with Tanne type; the sunflower never stands on Sand (p. 21), so the back stays Tanne.
+  sand: {
+    front: SAND,
+    ink: { name: SHAREPIC_COLOR_HEX.tanne, funktion: KLEE, body: SHAREPIC_COLOR_HEX.tanne },
+    logo: DE_WORDMARK.black,
+    back: SHAREPIC_COLOR_HEX.tanne,
+  },
+} as const;
+
 /**
  * DE (CD p. 32): front Tanne, name in the headline face, function in mint,
  * address and contacts small, the colour logo bottom-right; back Tanne with a
- * large yellow sunflower cut by the edges.
+ * large yellow sunflower cut by the edges. `klee` and `sand` change the
+ * grounds; `schlicht` puts only the word mark on the back.
  */
-function visitenkarteDe(f: Frame, slots: PrintVisitenkarteSlots): ComposedSlide[] {
+function visitenkarteDe(
+  f: Frame,
+  slots: PrintVisitenkarteSlots,
+  stil: PrintStil | undefined
+): ComposedSlide[] {
   const { inner, trim, u } = f;
-  const tanne = SHAREPIC_COLOR_HEX.tanne;
-  const ink = { name: WHITE, funktion: SHAREPIC_COLOR_HEX.mint, body: WHITE };
+  const look = stil === 'klee' || stil === 'sand' ? DE_KARTE[stil] : DE_KARTE.tanne;
+  const { ink } = look;
 
-  const front = page(tanne);
+  const front = page(look.front);
   const logoW = 6 * u;
   const logoH = (logoW * ART.deLogo.h) / ART.deLogo.w;
   const logoTop = inner.y + inner.height - logoH;
-  // Full width while the column ends above the logo; beside it otherwise.
-  const narrow = inner.width - logoW - u;
-  let chosen = { blocks: cardBlocks(f, slots, 1, inner.width, ink, 'left'), width: inner.width };
-  for (const fit of FIT_STEPS) {
-    const wide = cardBlocks(f, slots, fit, inner.width, ink, 'left');
-    if (stackHeight(f, wide, inner.width) <= logoTop - 0.5 * u - inner.y) {
-      chosen = { blocks: wide, width: inner.width };
-      break;
+  const hoch = isHoch(f);
+  const split =
+    hoch &&
+    splitCard(
+      front,
+      f,
+      cardBlocks(f, slots, 1, inner.width, ink, 'left'),
+      inner.x,
+      inner.width,
+      inner.y,
+      logoTop - 1.2 * u
+    );
+  if (!split) {
+    // Full width while the column ends above the logo; beside it otherwise.
+    const narrow = inner.width - logoW - u;
+    let chosen = { blocks: cardBlocks(f, slots, 1, inner.width, ink, 'left'), width: inner.width };
+    for (const fit of FIT_STEPS) {
+      const wide = cardBlocks(f, slots, fit, inner.width, ink, 'left');
+      if (stackHeight(f, wide, inner.width) <= logoTop - 0.5 * u - inner.y) {
+        chosen = { blocks: wide, width: inner.width };
+        break;
+      }
+      const beside = cardBlocks(f, slots, fit, narrow, ink, 'left');
+      chosen = { blocks: beside, width: narrow };
+      if (stackHeight(f, beside, narrow) <= inner.height) break;
     }
-    const beside = cardBlocks(f, slots, fit, narrow, ink, 'left');
-    chosen = { blocks: beside, width: narrow };
-    if (stackHeight(f, beside, narrow) <= inner.height) break;
+    placeStack(front, f, chosen.blocks, inner.x, inner.y, chosen.width);
   }
-  placeStack(front, f, chosen.blocks, inner.x, inner.y, chosen.width);
-  front.asset(
-    'pr-logo',
-    DE_WORDMARK.farbe,
-    inner.x + inner.width - logoW / 2,
-    logoTop + logoH / 2,
-    logoW
-  );
+  front.asset('pr-logo', look.logo, inner.x + inner.width - logoW / 2, logoTop + logoH / 2, logoW);
 
+  const back = page(look.back);
+  if (stil === 'schlicht') {
+    const w = 0.6 * f.shortSide;
+    back.asset(
+      'pr-logo-rueck',
+      DE_WORDMARK.farbe,
+      trim.x + trim.width / 2,
+      trim.y + trim.height / 2,
+      w
+    );
+    return [front.out, back.out];
+  }
   // Back: the lab's flower, relative to the trim box (quer: cut top and
   // right; hoch: cut left, right and bottom).
-  const back = page(tanne);
-  const hoch = trim.height > trim.width;
   const blume = hoch
     ? { left: -0.3, top: 0.22, width: 1.5 }
     : { left: 0.28, top: -0.22, width: 0.9 };
@@ -471,25 +558,50 @@ function visitenkarteDe(f: Frame, slots: PrintVisitenkarteSlots): ComposedSlide[
 
 /**
  * AT (CD p. 95): front Dunkelgrün with only the white logo in the middle;
- * back white, everything centred in Dunkelgrün — no sunflower.
+ * back white, everything centred in Dunkelgrün — no sunflower. `hellgruen`
+ * takes the alternative green for the front (drawn as its glow, see
+ * `surfaceGlow`), `weiss` swaps the grounds
+ * (green logo on white, white type on green), `gruen` keeps both sides green.
  */
-function visitenkarteAt(f: Frame, slots: PrintVisitenkarteSlots): ComposedSlide[] {
+function visitenkarteAt(
+  f: Frame,
+  slots: PrintVisitenkarteSlots,
+  stil: PrintStil | undefined
+): ComposedSlide[] {
   const { inner, trim, theme } = f;
   const green = theme.colors.primary;
+  const frontGround =
+    stil === 'hellgruen' ? theme.colors.secondary : stil === 'weiss' ? WHITE : green;
+  const backGround = stil === 'weiss' || stil === 'gruen' ? green : WHITE;
+  const inkColor = backGround === WHITE ? green : WHITE;
 
-  const front = page(green);
-  const logoW = 0.34 * f.shortSide;
+  const front = page(frontGround);
   front.asset(
     'pr-logo',
-    'gruene-at-logo-weiss',
+    frontGround === WHITE ? 'gruene-at-logo-gruen' : 'gruene-at-logo-weiss',
     trim.x + trim.width / 2,
     trim.y + trim.height / 2,
-    logoW
+    0.34 * f.shortSide
   );
 
-  const back = page(WHITE);
-  const ink = { name: green, funktion: green, body: green };
-  let blocks = cardBlocks(f, slots, 1, inner.width, ink, 'center');
+  const back = page(backGround);
+  const ink = { name: inkColor, funktion: inkColor, body: inkColor };
+  const full = cardBlocks(f, slots, 1, inner.width, ink, 'center');
+  if (
+    isHoch(f) &&
+    splitCard(
+      back,
+      f,
+      full,
+      inner.x,
+      inner.width,
+      inner.y + 0.12 * inner.height,
+      inner.y + 0.92 * inner.height
+    )
+  ) {
+    return [front.out, back.out];
+  }
+  let blocks = full;
   for (const fit of FIT_STEPS) {
     blocks = cardBlocks(f, slots, fit, inner.width, ink, 'center');
     if (stackHeight(f, blocks, inner.width) <= inner.height) break;
