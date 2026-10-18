@@ -137,8 +137,15 @@ describe('printSpecSchema: photo posters', () => {
     expect(printSpecSchema.safeParse(veranstaltung).success).toBe(true);
   });
 
-  it('takes only stock files and catalogue photos', () => {
-    for (const foto of ['upload:1', 'ki:abc', 'https://example.org/a.jpg', 'vorlage:../x.jpg']) {
+  it('takes only stock files and catalogue photos, the latter exactly as named', () => {
+    for (const foto of [
+      'upload:1',
+      'ki:abc',
+      'https://example.org/a.jpg',
+      'vorlage:../x.jpg',
+      'VORLAGE:person.jpg',
+      'vorlage:Person.JPG',
+    ]) {
       expect(
         printSpecSchema.safeParse({ ...kandidat, slots: { ...kandidat.slots, foto } }).success,
         foto

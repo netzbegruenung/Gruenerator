@@ -107,7 +107,12 @@ export const printFotoSchema = z
   .regex(
     new RegExp(`^(?:[\\w.-]+\\.jpe?g|${SHAREPIC_VORLAGE_REF.source.slice(1, -1)})$`, 'i'),
     'Stockfoto oder vorlage:<datei>'
-  );
+  )
+  // The pattern ignores case for stock names; a Vorlage's file name is exact,
+  // or printFotoSrc would take it for a stock photo.
+  .refine((f) => !/^vorlage:/i.test(f) || SHAREPIC_VORLAGE_REF.test(f), {
+    message: 'vorlage: nur mit dem Dateinamen aus dem Katalog',
+  });
 
 /** Where the browser loads a print photo from. */
 export const printFotoSrc = (foto: string): string =>
