@@ -21,9 +21,12 @@ describe('parseMarketplaceParams / serializeMarketplaceParams', () => {
       origin: 'landesverband',
       q: 'Klima & Wald',
       sort: 'beliebt',
+      item: { kind: 'recipe', ref: 'presse' },
     };
     const query = serializeMarketplaceParams(filters).toString();
-    expect(query).toBe('art=hintergruende&von=landesverband&q=Klima+%26+Wald&sort=beliebt');
+    expect(query).toBe(
+      'art=hintergruende&von=landesverband&q=Klima+%26+Wald&sort=beliebt&item=recipe%3Apresse'
+    );
     expect(parse(query)).toEqual(filters);
   });
 
@@ -36,6 +39,23 @@ describe('parseMarketplaceParams / serializeMarketplaceParams', () => {
 
   it('falls back to the defaults for unknown values', () => {
     expect(parse('art=shop&von=gruppe&sort=az')).toEqual(DEFAULT_MARKETPLACE_FILTERS);
+  });
+
+  it('reads the opened item as <kind>:<ref>, splitting at the first colon', () => {
+    expect(parse('item=template%3A0b6f3c1e-8a4d').item).toEqual({
+      kind: 'template',
+      ref: '0b6f3c1e-8a4d',
+    });
+    expect(parse('item=agent:a:b').item).toEqual({ kind: 'agent', ref: 'a:b' });
+    expect(marketplaceHref({ item: { kind: 'sticker', ref: 's1' } })).toBe(
+      '/marktplatz?item=sticker%3As1'
+    );
+  });
+
+  it('ignores an item param it cannot read', () => {
+    for (const raw of ['', 'agent', 'agent:', 'buch:1', `agent:${'x'.repeat(201)}`]) {
+      expect(parse(`item=${raw}`).item).toBeNull();
+    }
   });
 
   it('reads expo-router params, including array values', () => {

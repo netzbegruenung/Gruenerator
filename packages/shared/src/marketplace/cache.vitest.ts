@@ -100,6 +100,15 @@ describe('patchMarketplaceCache', () => {
     expect(next.pageParams).toBe(data.pageParams);
   });
 
+  it('patches a single cached item, and leaves another one alone', () => {
+    const item = recipe('r1');
+    expect(patchMarketplaceCache(item, { kind: 'recipe', ref: 'r1' }, likeToggled)).toMatchObject({
+      liked: true,
+      likesCount: 3,
+    });
+    expect(patchMarketplaceCache(item, { kind: 'recipe', ref: 'r2' }, likeToggled)).toBe(item);
+  });
+
   it('matches on kind as well as ref', () => {
     const data = sections();
     const next = patchMarketplaceCache(data, { kind: 'background', ref: 'r1' }, likeToggled);

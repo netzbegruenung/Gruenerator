@@ -13,6 +13,8 @@ import { useMemo } from 'react';
 
 import { apiErrorFromResponse, getContractsClient } from '../api/index.js';
 
+import { type MarketplaceTarget } from './cache.js';
+
 /** Root of every Marktplatz query; interactions patch and invalidate below it. */
 export const MARKETPLACE_QUERY_KEY = ['marketplace'] as const;
 export const MARKETPLACE_PAGE_SIZE = 24;
@@ -61,6 +63,8 @@ export const marketplaceKeys = {
     ] as const,
   kind: (p: MarketplaceKindParams) =>
     [...MARKETPLACE_QUERY_KEY, 'kind', { kind: p.kind, ...filterKey(p) }] as const,
+  item: (target: MarketplaceTarget, platform: MarketplacePlatform) =>
+    [...MARKETPLACE_QUERY_KEY, 'item', { kind: target.kind, ref: target.ref, platform }] as const,
 };
 
 /** The query the contract takes; `null`/empty filters are left out rather than sent as strings. */
@@ -128,4 +132,31 @@ export function useMarketplaceKind(params: MarketplaceKindParams) {
     [query.data]
   );
   return { ...query, items };
+}
+
+/**
+ * One item by kind and ref — a shared link (`item=<kind>:<ref>`) or a page
+ * that is not a Marktplatz list. Sits under the Marktplatz key, so a like or
+ * save patches it like every list. `null` target = nothing to load; a 404
+ * (gone, or not for this viewer) is an error.
+ */
+export function useMarketplaceItem(
+  target: MarketplaceTarget | null,
+  options: { platform?: MarketplacePlatform; enabled?: boolean } = {}
+) {
+  const platform = options.platform ?? 'web';
+  return useQuery({
+    queryKey: marketplaceKeys.item(target ?? { kind: 'agent', ref: '' }, platform),
+    queryFn: async (): Promise<MarketplaceItem> => {
+      const res = await getContractsClient().marketplace.get({
+        params: { kind: target!.kind, ref: target!.ref },
+        query: { platform },
+      });
+      if (res.status !== 200)
+        throw apiErrorFromResponse(res, 'Der Eintrag konnte nicht geladen werden.');
+      return res.body.item;
+    },
+    enabled: target !== null && (options.enabled ?? true),
+    retry: false,
+  });
 }

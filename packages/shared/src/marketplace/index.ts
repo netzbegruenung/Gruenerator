@@ -34,6 +34,7 @@ export {
   MARKETPLACE_QUERY_KEY,
   MARKETPLACE_SECTION_LIMIT,
   marketplaceKeys,
+  useMarketplaceItem,
   useMarketplaceKind,
   useMarketplaceSections,
   type MarketplaceKindParams,

@@ -1,4 +1,5 @@
 import {
+  marketplaceKindSchema,
   marketplaceOriginSchema,
   marketplaceSortSchema,
   type MarketplaceKind,
@@ -6,6 +7,7 @@ import {
   type MarketplaceSort,
 } from '@gruenerator/contracts';
 
+import { type MarketplaceTarget } from './cache.js';
 import {
   DEFAULT_MARKETPLACE_SORT,
   DEFAULT_MARKETPLACE_TAB,
@@ -25,6 +27,8 @@ export interface MarketplaceFilters {
   origin: MarketplaceOrigin | null;
   q: string;
   sort: MarketplaceSort;
+  /** The item opened in its detail (`item=<kind>:<ref>`), so a link can share it; `null` = the list. */
+  item: MarketplaceTarget | null;
 }
 
 export const DEFAULT_MARKETPLACE_FILTERS: MarketplaceFilters = {
@@ -32,7 +36,22 @@ export const DEFAULT_MARKETPLACE_FILTERS: MarketplaceFilters = {
   origin: null,
   q: '',
   sort: DEFAULT_MARKETPLACE_SORT,
+  item: null,
 };
+
+/** Same bound as the API's `ref` path parameter. */
+const ITEM_REF_MAX = 200;
+
+/** `<kind>:<ref>` — split at the first colon, since a ref may hold more. */
+function parseItemParam(raw: string | null): MarketplaceTarget | null {
+  if (!raw) return null;
+  const colon = raw.indexOf(':');
+  if (colon === -1) return null;
+  const kind = marketplaceKindSchema.safeParse(raw.slice(0, colon));
+  const ref = raw.slice(colon + 1);
+  if (!kind.success || !ref || ref.length > ITEM_REF_MAX) return null;
+  return { kind: kind.data, ref };
+}
 
 /** Web's `URLSearchParams` or expo-router's `useLocalSearchParams()`. */
 export type MarketplaceParamSource =
@@ -68,16 +87,18 @@ export function parseMarketplaceParams(source: MarketplaceParamSource): Marketpl
     origin: origin.success ? origin.data : null,
     q: readParam(source, 'q') ?? '',
     sort: sort.success ? sort.data : DEFAULT_MARKETPLACE_FILTERS.sort,
+    item: parseItemParam(readParam(source, 'item')),
   };
 }
 
-/** `art`, `von`, `q`, `sort` — defaults left out, so the plain page stays `/marktplatz`. */
+/** `art`, `von`, `q`, `sort`, `item` — defaults left out, so the plain page stays `/marktplatz`. */
 export function serializeMarketplaceParams(filters: MarketplaceFilters): URLSearchParams {
   const params = new URLSearchParams();
   if (filters.tab !== DEFAULT_MARKETPLACE_FILTERS.tab) params.set('art', filters.tab);
   if (filters.origin !== null) params.set('von', filters.origin);
   if (filters.q.trim()) params.set('q', filters.q);
   if (filters.sort !== DEFAULT_MARKETPLACE_FILTERS.sort) params.set('sort', filters.sort);
+  if (filters.item) params.set('item', `${filters.item.kind}:${filters.item.ref}`);
   return params;
 }
 

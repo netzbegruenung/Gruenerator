@@ -10,9 +10,12 @@ import { USER_LIBRARY_QUERY_KEY } from '../grueneratoren/userLibrary.js';
 import { toggledLike } from '../studio-assets/cache.js';
 import { STUDIO_ASSETS_QUERY_KEY } from '../studio-assets/useStudioAssets.js';
 
-/** `useMarketplaceSections` caches the plain response, `useMarketplaceKind` its pages. */
+/**
+ * `useMarketplaceSections` caches the plain response, `useMarketplaceKind` its
+ * pages, `useMarketplaceItem` the one item.
+ */
 export type MarketplaceCacheData =
-  MarketplaceListResponse | InfiniteData<MarketplaceListResponse, number>;
+  MarketplaceListResponse | InfiniteData<MarketplaceListResponse, number> | MarketplaceItem;
 
 export interface MarketplaceTarget {
   kind: MarketplaceKind;
@@ -42,6 +45,10 @@ export function patchMarketplaceCache<D extends MarketplaceCacheData>(
   target: MarketplaceTarget,
   patch: ItemPatch
 ): D {
+  if ('kind' in data) {
+    // Boundary cast: in this branch `D` is the item shape, and `patch` keeps it.
+    return (data.kind === target.kind && data.ref === target.ref ? patch(data) : data) as D;
+  }
   if ('pages' in data) {
     return {
       ...data,
