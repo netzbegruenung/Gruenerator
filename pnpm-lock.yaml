@@ -246,7 +246,7 @@ overrides:
   js-yaml@>=4 <5: '>=4.3.2 <5'
   svgo@>=3 <4: '>=3.3.5 <4'
   colord: '>=2.9.4'
-  fflate: '>=0.4.9 <0.5'
+  fflate@>=0.4 <0.5: '>=0.4.9 <0.5'
   '@swc/html': '>=1.16.2 <2'
   '@opentelemetry/core': ^2.12.0
   vite>esbuild: ^0.28.1
@@ -1556,8 +1556,8 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       fflate:
-        specifier: '>=0.4.9 <0.5'
-        version: 0.4.9
+        specifier: ^0.8.3
+        version: 0.8.3
       immer:
         specifier: ^11.1.21
         version: 11.1.21
@@ -14932,8 +14932,8 @@ packages:
   fetch-nodeshim@0.4.10:
     resolution: {integrity: sha512-m6I8ALe4L4XpdETy7MJZWs6L1IVMbjs99bwbpIKphxX+0CTns4IKDWJY0LWfr4YsFjfg+z1TjzTMU8lKl8rG0w==}
 
-  fflate@0.4.9:
-    resolution: {integrity: sha512-zdxgIEddhfsyCaWpJ2SdXEP8ZMrKJ6+5jl4OupODcywU0IhRk6gdXuVGcPICyfx2H97hVK7xmJtRLPjkxAX8Vw==}
+  fflate@0.8.3:
+    resolution: {integrity: sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA==}
 
   ffmpeg-static@5.3.0:
     resolution: {integrity: sha512-H+K6sW6TiIX6VGend0KQwthe+kaceeH/luE8dIZyOP35ik7ahYojDuqlTV1bOrtEwl01sy2HFNGQfi5IDJvotg==}
@@ -38377,7 +38377,7 @@ snapshots:
 
   fetch-nodeshim@0.4.10: {}
 
-  fflate@0.4.9: {}
+  fflate@0.8.3: {}
 
   ffmpeg-static@5.3.0(supports-color@10.2.2):
     dependencies:

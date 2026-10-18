@@ -24,8 +24,6 @@ export function zipPageImages(dataUrls: string[]): Blob {
       c.charCodeAt(0)
     );
   });
-  // Stored, not deflated: PNG and JPEG are compressed already. fflate types its
-  // output as ArrayBufferLike; it always allocates a plain ArrayBuffer.
-  const zipped = zipSync(files, { level: 0 }) as Uint8Array<ArrayBuffer>;
-  return new Blob([zipped], { type: 'application/zip' });
+  // Stored, not deflated: PNG and JPEG are compressed already.
+  return new Blob([zipSync(files, { level: 0 })], { type: 'application/zip' });
 }
