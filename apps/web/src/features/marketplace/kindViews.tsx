@@ -8,7 +8,15 @@ import { MARKETPLACE_ORIGIN_BADGE } from '@gruenerator/shared/marketplace';
 import { resolveStoredImageUrl } from '@gruenerator/shared/media-library/shareUrl';
 import { Button, cn } from '@gruenerator/ui';
 import { useState, type JSX, type ReactNode } from 'react';
-import { PiArrowSquareOut, PiChatCircleText, PiPencilSimple, PiUserCircle } from 'react-icons/pi';
+import {
+  PiArrowSquareOut,
+  PiChatCircleText,
+  PiImage,
+  PiLayout,
+  PiPencilSimple,
+  PiSticker,
+  PiUserCircle,
+} from 'react-icons/pi';
 import { Link } from 'react-router-dom';
 
 import { PhosphorIcon } from '../agents/icons/PhosphorIcon';
@@ -21,9 +29,14 @@ import { resolveApiAssetUrl } from '@/utils/platform';
 /** What picker mode hands over. */
 export type MarketplaceAssetItem = MarketplaceItemOf<'sticker'> | MarketplaceItemOf<'background'>;
 
-/** Either a kind icon (Agents, Rezepte) or an image (Vorlagen, Sticker, Hintergründe). */
+/**
+ * Either a kind icon (Agents, Rezepte) or an image (Vorlagen, Sticker,
+ * Hintergründe). An image carries its kind icon too, for when it has no src or
+ * the preview does not load.
+ */
 export type MarketplaceVisual =
-  { type: 'icon'; icon: ReactNode } | { type: 'image'; src: string | null; cutout: boolean };
+  | { type: 'icon'; icon: ReactNode }
+  | { type: 'image'; src: string | null; cutout: boolean; icon: ReactNode };
 
 interface KindView<K extends MarketplaceKind> {
   /** The kind in one word, first in a card's meta line. */
@@ -126,6 +139,7 @@ const templateVisual = (item: MarketplaceItemOf<'template'>): MarketplaceVisual 
   type: 'image',
   src: templateImageSrc(item.thumbnailUrl),
   cutout: false,
+  icon: <PiLayout />,
 });
 
 function TemplateActions({ item }: { item: MarketplaceItemOf<'template'> }) {
@@ -174,6 +188,7 @@ function TemplatePages({ item }: { item: MarketplaceItemOf<'template'> }) {
           type: 'image',
           src: current?.src ?? templateImageSrc(item.thumbnailUrl),
           cutout: false,
+          icon: <PiLayout />,
         }}
         className="rounded-xl border border-grey-200 dark:border-grey-700"
       />
@@ -209,6 +224,7 @@ const assetVisual = (item: MarketplaceAssetItem): MarketplaceVisual => ({
   type: 'image',
   src: item.asset.thumbUrl ?? item.asset.src,
   cutout: item.kind === 'sticker',
+  icon: item.kind === 'sticker' ? <PiSticker /> : <PiImage />,
 });
 
 function AssetActions({ item }: { item: MarketplaceAssetItem }) {
@@ -279,7 +295,11 @@ const CHECKERBOARD =
   'bg-[repeating-conic-gradient(#ececec_0%_25%,#ffffff_0%_50%)] bg-[length:16px_16px] ' +
   'dark:bg-[repeating-conic-gradient(#2a2a2a_0%_25%,#1f1f1f_0%_50%)]';
 
-/** The image area of a card or detail: contained on a quiet stage, cut-outs on a checkerboard. */
+/**
+ * The image area of a card or detail: contained on a quiet stage, cut-outs on a
+ * checkerboard. Without a src, or once the preview fails to load, the kind icon
+ * stands in — an empty tile reads as still loading (#4732).
+ */
 export function VisualImage({
   visual,
   className,
@@ -287,22 +307,32 @@ export function VisualImage({
   visual: Extract<MarketplaceVisual, { type: 'image' }>;
   className?: string;
 }) {
+  // Keyed by src: a new image gets its own chance to load.
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const showImage = visual.src !== null && visual.src !== failedSrc;
+
   return (
     <div
       className={cn(
         'flex aspect-[4/3] w-full items-center justify-center overflow-hidden',
-        visual.cutout ? cn(CHECKERBOARD, 'p-[8%]') : 'bg-background-alt',
+        visual.cutout && showImage ? cn(CHECKERBOARD, 'p-[8%]') : 'bg-background-alt',
         className
       )}
     >
-      {visual.src && (
+      {showImage ? (
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- onError is a load-failure fallback, not an interaction
         <img
-          src={visual.src}
+          src={visual.src ?? ''}
           alt=""
           loading="lazy"
           decoding="async"
+          onError={() => setFailedSrc(visual.src)}
           className="max-h-full max-w-full object-contain"
         />
+      ) : (
+        <span aria-hidden className="text-4xl text-foreground-muted">
+          {visual.icon}
+        </span>
       )}
     </div>
   );
