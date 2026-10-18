@@ -68,6 +68,37 @@ export function vorlageDeckOps(
   return ops;
 }
 
+/**
+ * The deck change that puts one page of a print Vorlage in place of
+ * `pageId` (the last page when it is gone), in one undo step: rewritten in
+ * place under the same config, else replaced at its position.
+ */
+export function pageSwapOps(
+  current: readonly { id: string; configId: string }[],
+  pageId: string | null,
+  page: DeckPage,
+  newPageId: () => string
+): ReplaceDeckOps {
+  const found = current.findIndex((p) => p.id === pageId);
+  const at = found === -1 ? current.length - 1 : found;
+  const target = current[at];
+  if (target?.configId === page.configId) {
+    return { updates: [{ pageId: target.id, state: page.state }], inserts: [], removes: [] };
+  }
+  return {
+    updates: [],
+    inserts: [
+      {
+        afterPageId: current[at - 1]?.id ?? null,
+        configId: page.configId,
+        state: page.state,
+        pageId: newPageId(),
+      },
+    ],
+    removes: target ? [target.id] : [],
+  };
+}
+
 const deckOf = (state: Record<string, unknown>): string | null => {
   const source = state[SHAREPIC_SOURCE_KEY] as { deck?: unknown } | undefined;
   return typeof source?.deck === 'string' ? source.deck : null;

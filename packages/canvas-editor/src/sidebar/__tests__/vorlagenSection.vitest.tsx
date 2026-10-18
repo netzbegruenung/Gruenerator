@@ -446,10 +446,84 @@ describe('VorlagenSection on a print design', () => {
     expect(vorlagen.listSeiten).not.toHaveBeenCalled();
   });
 
-  it('counts the two sides of a business card', async () => {
-    setup(EMPTY, { formatId: 'print-visitenkarte-quer' });
-    await card('Visitenkarte quer');
-    expect(screen.getByText('2 Seiten')).toBeInTheDocument();
+  describe('a Vorlage of several pages', () => {
+    const KARTE: HeterogeneousPage[] = [textPage('p1'), textPage('p2')];
+    const side = (n: number) =>
+      screen.findByRole('button', { name: `Seite ${n} von 2 aus „Visitenkarte quer“ übernehmen` });
+    type Ops = {
+      updates: { pageId: string; state: { additionalTexts: { text: string }[] } }[];
+      inserts: unknown[];
+      removes: string[];
+    };
+    const opsOf = (deck: ReturnType<typeof setup>['deck']) =>
+      (deck.replaceDeck.mock.calls[0] as unknown as [Ops])[0];
+
+    it('offers each side of a business card as its own tile', async () => {
+      setup(EMPTY, { formatId: 'print-visitenkarte-quer' });
+      await side(1);
+      const back = await side(2);
+      expect(back.closest('li')?.querySelector('img')?.getAttribute('src')).toBe(
+        '/api/sharepic-vorlagen/print/de-visitenkarte-quer/thumb?seite=2'
+      );
+      expect(screen.getByText('2/2')).toBeInTheDocument();
+    });
+
+    it('brings the whole Vorlage to an empty design and shows the picked side', async () => {
+      const { deck, onShowPage, user } = setup(EMPTY, { formatId: 'print-visitenkarte-quer' });
+      await user.click(await side(2));
+      await waitFor(() => expect(deck.replaceDeck).toHaveBeenCalledTimes(1));
+      const ops = opsOf(deck);
+      expect(ops.updates).toHaveLength(1);
+      expect(ops.inserts).toHaveLength(1);
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+      expect(onShowPage).not.toHaveBeenCalledWith('p1');
+    });
+
+    it('asks, then puts the side in place of the open page only', async () => {
+      const { deck, onShowPage, user } = setup(KARTE, { formatId: 'print-visitenkarte-quer' });
+      await user.click(await side(2));
+      const dialog = await screen.findByRole('alertdialog');
+      await user.click(within(dialog).getByRole('button', { name: 'Seite ersetzen' }));
+      await waitFor(() => expect(deck.replaceDeck).toHaveBeenCalledTimes(1));
+      const ops = opsOf(deck);
+      expect(ops.updates.map((u) => u.pageId)).toEqual(['p1']);
+      expect(ops.inserts).toEqual([]);
+      expect(ops.removes).toEqual([]);
+      expect(ops.updates[0]!.state.additionalTexts.some((t) => t.text === 'Mein Text')).toBe(false);
+      expect(onShowPage).toHaveBeenCalledWith('p1');
+      expect(defaultCanvasEditorStore.getState().pendingAiSuggestion?.undo).toBe('pages');
+    });
+
+    it('puts a dropped side in place of the page it was dropped on', async () => {
+      const { deck, handle, user } = setup(KARTE, { formatId: 'print-visitenkarte-quer' });
+      await side(1);
+      act(() => handle.current?.drop('de-visitenkarte-quer#1', 'p2'));
+      const dialog = await screen.findByRole('alertdialog');
+      await user.click(within(dialog).getByRole('button', { name: 'Seite ersetzen' }));
+      await waitFor(() => expect(deck.replaceDeck).toHaveBeenCalledTimes(1));
+      expect(opsOf(deck).updates.map((u) => u.pageId)).toEqual(['p2']);
+    });
+
+    it('fills a blank page without asking', async () => {
+      const { deck, user } = setup([textPage('p1'), { ...EMPTY[0]!, id: 'p2' }], {
+        formatId: 'print-visitenkarte-quer',
+      });
+      deck.getActivePageId = () => 'p2';
+      await user.click(await side(2));
+      await waitFor(() => expect(deck.replaceDeck).toHaveBeenCalledTimes(1));
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+      expect(opsOf(deck).updates.map((u) => u.pageId)).toEqual(['p2']);
+      expect(defaultCanvasEditorStore.getState().pendingAiSuggestion).toBeNull();
+    });
+
+    it('still opens the whole Vorlage as a new design', async () => {
+      const { deck, vorlagen, user } = setup(KARTE, { formatId: 'print-visitenkarte-quer' });
+      await user.click(await side(1));
+      const dialog = await screen.findByRole('alertdialog');
+      await user.click(within(dialog).getByRole('button', { name: 'Als neues Design öffnen' }));
+      expect(vorlagen.openPrintAsNew).toHaveBeenCalledWith(vorlageById('de-visitenkarte-quer'));
+      expect(deck.replaceDeck).not.toHaveBeenCalled();
+    });
   });
 
   it('says when a print format has no Vorlage yet', async () => {
