@@ -1,3 +1,7 @@
+import {
+  agenturaToMarketplaceHref,
+  stickerDiscoverToMarketplaceHref,
+} from '@gruenerator/shared/marketplace';
 import { type Href } from 'expo-router';
 
 /** `/document/<id>` (API canonical) or `/office/<id>` / legacy `/docs/<id>` (web routes) → document id. */
@@ -7,7 +11,12 @@ export function documentIdFromUrl(url: string): string | null {
 }
 
 /** Web paths the app has a native screen for under the same path. */
-const NATIVE_PATHS = [/^\/projekte\/[^/?#]+/, /^\/vorlagen(?:[?#]|$)/, /^\/notebook\/[^/?#]+/];
+const NATIVE_PATHS = [
+  /^\/projekte\/[^/?#]+/,
+  /^\/vorlagen(?:[?#]|$)/,
+  /^\/marktplatz(?:[?#]|$)/,
+  /^\/notebook\/[^/?#]+/,
+];
 
 /**
  * Map a backend action_url (a web path) to a mobile route. Document URLs have
@@ -33,13 +42,17 @@ export function actionUrlToRoute(url: string): Href {
   }
   const grueneratoren = grueneratorenRoute(url);
   if (grueneratoren) return grueneratoren;
+  // Das alte „Entdecken" für Sticker und Hintergründe ist heute der Marktplatz.
+  const [path = '', query = ''] = url.split(/[?#]/);
+  if (path === '/studio/sticker/entdecken')
+    return stickerDiscoverToMarketplaceHref(new URLSearchParams(query)) as Href;
   if (NATIVE_PATHS.some((pattern) => pattern.test(url))) return url as Href;
   return { pathname: '/(fullscreen)/web-viewer', params: { path: url } };
 }
 
 /**
- * Grüneratoren-Pfade des Webs auf ihre Seiten in der App: Übersicht, Agentura,
- * Detailseiten und wiederkehrende Aufgaben (Meldungen verlinken
+ * Grüneratoren-Pfade des Webs auf ihre Seiten in der App: Übersicht, Agentura
+ * (heute der Marktplatz), Detailseiten und wiederkehrende Aufgaben (Meldungen verlinken
  * `/wiederkehrend?task=<id>`). Anlegen und Bearbeiten (`/agents/new`,
  * `/agentura/rezept/neu`, `…/bearbeiten`) bleiben bewusst beim Web-Viewer —
  * ein Link dorthin trägt keinen Entwurf mit, den die App übernehmen könnte.
@@ -47,7 +60,11 @@ export function actionUrlToRoute(url: string): Href {
 function grueneratorenRoute(url: string): Href | null {
   const [path = '', query = ''] = url.split(/[?#]/);
   if (path === '/grueneratoren' || path === '/agents') return '/(focused)/agents';
-  if (path === '/agentura') return { pathname: '/(focused)/agents', params: { agentura: '1' } };
+  if (path === '/agentura') {
+    const target = agenturaToMarketplaceHref(new URLSearchParams(query));
+    // Die alten Übersichts-Regale führen auf `/grueneratoren`.
+    return target.startsWith('/grueneratoren') ? '/(focused)/agents' : (target as Href);
+  }
   if (path === '/wiederkehrend') {
     const task = new URLSearchParams(query).get('task');
     return task

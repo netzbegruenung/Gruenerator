@@ -2,7 +2,7 @@
    babel-plugin-jest-hoist keeps it above the hoisted `jest.mock` factories
    (see components/chat/ConfirmActionCard.test.tsx). */
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { type StudioAssetItem } from '@gruenerator/contracts';
+import { type MarketplaceItemOf, type StudioAssetItem } from '@gruenerator/contracts';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import { type ReactNode } from 'react';
@@ -12,7 +12,8 @@ import {
   FREE_BACKGROUND_ID,
   type FreeBackground,
 } from '@gruenerator/shared/profilbild';
-import { useDiscoverStudioAssets, useOwnStudioAssets } from '@gruenerator/shared/studio-assets';
+import { useMarketplaceKind } from '@gruenerator/shared/marketplace';
+import { useOwnStudioAssets } from '@gruenerator/shared/studio-assets';
 import { secureStorage } from '../../services/storage';
 
 import { BackgroundPicker } from './BackgroundPicker';
@@ -21,8 +22,19 @@ import { StickerPicker } from './StickerPicker';
 jest.mock('@gruenerator/shared/studio-assets', () => ({
   ...jest.requireActual<Record<string, unknown>>('@gruenerator/shared/studio-assets'),
   useOwnStudioAssets: jest.fn(),
-  useDiscoverStudioAssets: jest.fn(),
 }));
+jest.mock('@gruenerator/shared/marketplace', () => ({
+  ...jest.requireActual<Record<string, unknown>>('@gruenerator/shared/marketplace'),
+  useMarketplaceKind: jest.fn(),
+  useMarketplaceSections: () => ({ sections: [], isLoading: false, isError: false }),
+  useMarketplaceLike: () => ({ mutate: jest.fn() }),
+  useMarketplaceSave: () => ({ mutate: jest.fn() }),
+}));
+jest.mock('@tanstack/react-query', () => ({
+  ...jest.requireActual<Record<string, unknown>>('@tanstack/react-query'),
+  useQueryClient: () => ({ invalidateQueries: jest.fn() }),
+}));
+jest.mock('../common/Skeleton', () => ({ SkeletonRows: () => null }));
 // Skia needs the native module; the pickers only use it to decode an upload.
 jest.mock('@shopify/react-native-skia', () => ({
   Skia: {},
@@ -43,8 +55,8 @@ jest.mock('../common/BottomSheet', () => ({
 const mockOwn = useOwnStudioAssets as unknown as jest.MockedFunction<
   (kind: string, q: string) => Record<string, unknown>
 >;
-const mockDiscover = useDiscoverStudioAssets as unknown as jest.MockedFunction<
-  (kind: string, q: string, sort: string) => Record<string, unknown>
+const mockMarketplace = useMarketplaceKind as unknown as jest.MockedFunction<
+  (params: { kind: string }) => Record<string, unknown>
 >;
 const mockGetToken = secureStorage.getToken as jest.MockedFunction<typeof secureStorage.getToken>;
 
@@ -92,10 +104,37 @@ const shared = asset({
   isOwn: false,
 });
 
+/** A shared asset as the Marktplatz lists it. */
+const marketItem = (a: StudioAssetItem): MarketplaceItemOf<'background'> => ({
+  key: `background:${a.id}`,
+  ref: a.id,
+  kind: 'background',
+  origin: 'oeffentlich',
+  title: a.title,
+  description: null,
+  thumbnailUrl: null,
+  iconKey: null,
+  authorName: 'Kim',
+  audience: 'all',
+  likesCount: 0,
+  liked: false,
+  saved: false,
+  isOwn: false,
+  reportKind: 'studio_asset',
+  createdAt: null,
+  asset: a,
+});
+
 beforeEach(() => {
   mockGetToken.mockResolvedValue('tok');
   mockOwn.mockReturnValue(section([own]));
-  mockDiscover.mockReturnValue(section([shared]));
+  mockMarketplace.mockReturnValue({
+    items: [marketItem(shared)],
+    isLoading: false,
+    isError: false,
+    hasNextPage: false,
+    isFetchingNextPage: false,
+  });
 });
 
 afterEach(() => {
@@ -175,18 +214,25 @@ describe('BackgroundPicker', () => {
     );
   });
 
-  it('shows own and saved backgrounds under Deine, then upload and Entdecken', async () => {
+  it('shows own and saved backgrounds under Deine, then upload and the Marktplatz', async () => {
     const { onPickGallery } = await renderBackgrounds();
     fireEvent.press(screen.getByRole('radio', { name: 'Deine' }));
     expect(mockOwn).toHaveBeenCalledWith('background', '');
     expect(screen.getByRole('button', { name: 'Hintergrund „Wiese“' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Bild hochladen' })).toBeTruthy();
 
-    fireEvent.press(screen.getByRole('button', { name: 'Hintergründe entdecken' }));
-    expect(screen.getByRole('header', { name: 'Hintergründe entdecken' })).toBeTruthy();
-    fireEvent.press(screen.getByRole('button', { name: 'Hintergrund „Berge“' }));
-    expect(onPickGallery).toHaveBeenCalledWith(shared);
-    expect(screen.queryByRole('header', { name: 'Hintergründe entdecken' })).toBeNull();
+    fireEvent.press(screen.getByRole('button', { name: 'Hintergründe im Marktplatz' }));
+    await act(async () => {});
+    expect(screen.getByRole('header', { name: 'Hintergründe im Marktplatz' })).toBeTruthy();
+    // Only backgrounds: no kind tabs, the server is asked for that one kind.
+    expect(screen.queryByRole('button', { name: 'Agents' })).toBeNull();
+    expect(mockMarketplace).toHaveBeenLastCalledWith(
+      expect.objectContaining({ kind: 'background', platform: 'mobile', enabled: true })
+    );
+    fireEvent.press(screen.getByRole('button', { name: 'Berge' }));
+    const { id, kind, src, title, width, height } = shared;
+    expect(onPickGallery).toHaveBeenCalledWith({ id, kind, src, title, width, height });
+    expect(screen.queryByRole('header', { name: 'Hintergründe im Marktplatz' })).toBeNull();
   });
 
   it('opens on Deine when the own photo is in use', async () => {
@@ -196,7 +242,7 @@ describe('BackgroundPicker', () => {
 });
 
 describe('StickerPicker', () => {
-  it('lists the Grüne stickers, then own and saved, then Erstellen and Entdecken — no tabs', async () => {
+  it('lists the Grüne stickers, then own and saved, then Erstellen and the Marktplatz — no tabs', async () => {
     mockOwn.mockReturnValue(section([asset({ kind: 'sticker', title: 'Herz' })]));
     render(<StickerPicker isAustria={false} onAdd={jest.fn()} onAddGallery={jest.fn()} />);
     await act(async () => {});
@@ -209,6 +255,6 @@ describe('StickerPicker', () => {
       pathname: '/(focused)/sticker-neu',
       params: { return: 'profilbild' },
     });
-    expect(screen.getByRole('button', { name: 'Sticker entdecken' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Sticker im Marktplatz' })).toBeTruthy();
   });
 });
