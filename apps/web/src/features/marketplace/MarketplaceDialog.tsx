@@ -130,7 +130,13 @@ function DialogBody({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-lg py-lg">
-        <MarketplaceBrowser filters={filters} onChange={setFilters} kinds={kinds} onPick={onPick} />
+        <MarketplaceBrowser
+          filters={filters}
+          onChange={setFilters}
+          kinds={kinds}
+          onPick={onPick}
+          headingLevel={3}
+        />
       </div>
     </>
   );

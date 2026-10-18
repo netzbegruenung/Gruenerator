@@ -42,10 +42,21 @@ vi.mock('../agents/AdminHiddenAgentsService.js', () => ({
 vi.mock('../skills/AdminHiddenSkillsService.js', () => ({
   getEffectiveHiddenSkillMentions: async () => new Set<string>(),
 }));
+// Account deletion's other stores; this file only checks what it does to the shelf.
+vi.mock('../../database/services/NotebookQdrantHelper.js', () => ({
+  NotebookQdrantHelper: class {
+    listAllNotebookIdsOfUser = async () => [];
+  },
+}));
+vi.mock('../connections/ConnectionService.js', () => ({
+  ConnectionService: { deleteAllConnections: async () => 0 },
+}));
 
 const { buildMarketplaceContext } = await import('./context.js');
 const { listMarketplace, setLike, setSaved } = await import('./marketplaceService.js');
 const { deleteLikesOfDeletedUser } = await import('../entityLikes/EntityLikesService.js');
+const { cleanUpBeforeProfileDelete } = await import('../user/accountDeletionCleanup.js');
+const { listMentionableTextForms } = await import('../user/textFormRepository.js');
 
 const me = randomUUID();
 const other = randomUUID();
@@ -445,6 +456,58 @@ describe.skipIf(!url)('Marktplatz (marketplaceService)', () => {
     );
     // Likes on the person's rows and their own likes are gone; an official agent's stay.
     expect(left.rows).toEqual([{ entity_type: 'agent', entity_id: 'pressebot' }]);
+  });
+
+  it('account deletion purges the person’s Agents and Rezepte, trashed ones too (#4723)', async () => {
+    const agent = await insertAgent({ title: 'Ritas Agent' });
+    const trashedAgent = await insertAgent({ deleted: true });
+    const recipe = await insertRecipe({ title: 'Ritas Rezept' });
+    const trashedRecipe = await insertRecipe({ deleted: true });
+    const myAgent = await insertAgent({ owner: me });
+    const myRecipe = await insertRecipe({ owner: me });
+    await pool.query(
+      `INSERT INTO entity_likes (user_id, entity_type, entity_id)
+       VALUES ($1, 'agent', $2), ($1, 'recipe', $3), ($1, 'agent', $4)`,
+      [me, agent, recipe, trashedAgent]
+    );
+    await pool.query(
+      `INSERT INTO entity_comments (entity_type, entity_id, user_id, body)
+       VALUES ('agent', $1, $2, 'am Agent'), ('recipe', $3, $2, 'am Rezept')`,
+      [agent, me, trashedRecipe]
+    );
+    expect(await publicRefs('agent')).toContain(agent);
+
+    await cleanUpBeforeProfileDelete(other);
+
+    const ids = async (table: string) =>
+      (await pool.query<{ id: string }>(`SELECT id FROM ${table} ORDER BY id`)).rows.map(
+        (r) => r.id
+      );
+    expect(await ids('user_agents')).toEqual([myAgent]);
+    expect(await ids('user_text_forms')).toEqual([myRecipe]);
+    expect((await pool.query('SELECT 1 FROM entity_likes')).rowCount).toBe(0);
+    expect((await pool.query('SELECT 1 FROM entity_comments')).rowCount).toBe(0);
+    expect(await publicRefs('agent')).toEqual([myAgent]);
+    expect(await publicRefs('recipe')).toEqual([myRecipe]);
+  });
+
+  it('the recipe mention list splits public recipes by country like the shelf (#4724)', async () => {
+    const de = await insertRecipe({ audience: 'de-DE' });
+    const at = await insertRecipe({ audience: 'de-AT' });
+    const all = await insertRecipe({ audience: 'all' });
+    const ownAt = await insertRecipe({ owner: me, audience: 'de-AT', isPublic: false });
+    const sharedAt = await insertRecipe({ audience: 'de-AT', isPublic: false });
+    await shareInto(await insertGroup({ members: [me] }), 'user_text_forms', sharedAt);
+
+    const mentionable = async (viewerLocale: string) =>
+      (await listMentionableTextForms(me, undefined, { viewerLocale })).map((f) => f.id).sort();
+
+    // Own and project-shared recipes stay, whatever their country.
+    expect(await mentionable('de-DE')).toEqual([de, all, ownAt, sharedAt].sort());
+    expect(await mentionable('de-AT')).toEqual([at, all, ownAt, sharedAt].sort());
+    // The picker offers the public recipes the shelf shows, no more.
+    expect(await publicRefs('recipe', 'de-DE')).toEqual(expect.arrayContaining([de, all]));
+    expect(await publicRefs('recipe', 'de-DE')).not.toContain(at);
   });
 
   it('answers 409 once „Meine Grüneratoren“ is full', async () => {
