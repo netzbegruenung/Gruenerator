@@ -25,6 +25,7 @@ afterEach(() => {
 
 describe('downloadBlob — browser', () => {
   it('appends the anchor before clicking it', async () => {
+    vi.useFakeTimers();
     // Firefox ignores a synthetic click on a detached node. The board CSV
     // export used to get this wrong; the shared helper is where it stays right.
     let attachedAtClick: boolean | null = null;
@@ -37,12 +38,34 @@ describe('downloadBlob — browser', () => {
     const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
 
     await downloadBlob(new Blob(['x'], { type: 'text/csv' }), 'board.csv');
+    vi.runAllTimers();
+    vi.useRealTimers();
 
     expect(clickSpy).toHaveBeenCalledOnce();
     expect(attachedAtClick).toBe(true);
     expect(revoke).toHaveBeenCalledWith('blob:fake');
     // And it does not leave the anchor behind.
     expect(document.querySelectorAll('a[download]')).toHaveLength(0);
+  });
+
+  it('keeps the object URL alive after the click', async () => {
+    // Chrome on Android hands the click to its download manager, which reads
+    // the URL later. Revoked in the same tick, the download vanished silently:
+    // the multi-page ZIP on Android Chrome did nothing at all.
+    vi.useFakeTimers();
+    try {
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+      vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:fake');
+      const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+
+      await downloadBlob(new Blob(['x'], { type: 'application/zip' }), 'seiten.zip');
+      expect(revoke).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(60_000);
+      expect(revoke).toHaveBeenCalledWith('blob:fake');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
