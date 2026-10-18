@@ -206,7 +206,7 @@ describe('MarketplacePage', () => {
     await user.click(within(agents).getByRole('button', { name: 'Pressearbeit' }));
 
     expect(
-      await screen.findByRole('heading', { level: 3, name: 'Pressearbeit' })
+      await screen.findByRole('heading', { level: 2, name: 'Pressearbeit' })
     ).toBeInTheDocument();
     expect(screen.getByLabelText('Adresse')).toHaveTextContent('?item=agent%3Aagent-pressearbeit');
     expect(screen.getByRole('link', { name: 'Alle Details' })).toHaveAttribute(
@@ -241,7 +241,7 @@ describe('MarketplacePage', () => {
     );
     const { user } = renderPage('/marktplatz?art=vorlagen&item=template%3Atpl-1');
 
-    expect(await screen.findByRole('heading', { level: 3, name: 'Plakat' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Plakat' })).toBeInTheDocument();
     expect(asked).toHaveBeenCalledWith('template', 'tpl-1');
 
     // The Vorlage's own part of the detail: every page, the chosen one large.
@@ -289,6 +289,16 @@ describe('MarketplacePage', () => {
   it('has no axe violations', async () => {
     const { container } = renderPage();
     await screen.findByRole('region', { name: 'Agents' });
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('nests the opened item under the page heading, with no axe violations', async () => {
+    const { container } = renderPage('/marktplatz?item=agent%3Aagent-pressearbeit');
+
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Pressearbeit' })
+    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: 'Kommentare' })).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 });

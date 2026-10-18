@@ -18,13 +18,17 @@ export function MarketplaceItemDetail({
   actions,
   onBack,
   shareHref,
+  headingLevel,
 }: {
   item: MarketplaceItem;
   actions: MarketplaceActions;
   onBack: () => void;
   /** Where „Link kopieren" points: the Marktplatz with this item open. */
   shareHref: string;
+  /** The title's level: 2 under the page's `h1`, 3 under a dialog's title. */
+  headingLevel: 2 | 3;
 }): JSX.Element {
+  const Heading = headingLevel === 3 ? 'h3' : 'h2';
   const view = viewOf(item);
   const visual = view.visual(item);
   const { PrimaryActions, DetailExtras } = view;
@@ -58,9 +62,9 @@ export function MarketplaceItemDetail({
           </span>
         )}
         <div className="min-w-0">
-          <h3 className="m-0 text-2xl leading-tight font-bold tracking-tight text-foreground-heading">
+          <Heading className="m-0 text-2xl leading-tight font-bold tracking-tight text-foreground-heading">
             {item.title}
-          </h3>
+          </Heading>
           <p className="m-0 mt-1 text-sm text-foreground-muted">{metaLine(item)}</p>
         </div>
       </header>
@@ -90,6 +94,7 @@ export function MarketplaceItemDetail({
         item={item}
         canModerate={item.isOwn}
         shareHref={shareHref}
+        headingLevel={headingLevel === 3 ? 4 : 3}
       />
     </div>
   );

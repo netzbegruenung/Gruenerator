@@ -155,6 +155,8 @@ interface MarketplaceBrowserProps {
   kinds?: readonly MarketplaceKind[];
   /** Picker mode: choosing a sticker or background hands it over instead of opening it. */
   onPick?: (item: MarketplaceAssetItem) => void;
+  /** The opened item's title: 2 on the page (under its `h1`), 3 in a dialog (under its `h2`). */
+  headingLevel?: 2 | 3;
 }
 
 const isAsset = (item: MarketplaceItem): item is MarketplaceAssetItem =>
@@ -173,6 +175,7 @@ export function MarketplaceBrowser({
   onChange,
   kinds = MARKETPLACE_KINDS,
   onPick,
+  headingLevel = 2,
 }: MarketplaceBrowserProps): JSX.Element {
   const tabs = tabsFor(kinds);
   const tab = shownTab(filters.tab, kinds);
@@ -232,6 +235,7 @@ export function MarketplaceBrowser({
             actions={actions}
             onBack={back}
             shareHref={marketplaceHref({ ...filters, tab: shownTab(filters.tab, kinds) })}
+            headingLevel={headingLevel}
           />
           {dialogs}
         </>
