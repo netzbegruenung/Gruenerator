@@ -36,6 +36,7 @@ import {
 import { useCanvasAutoSave } from '../hooks/useCanvasAutoSave';
 import { useCanvasElementHandlers } from '../hooks/useCanvasElementHandlers';
 import { useCanvasKeyboardHandlers } from '../hooks/useCanvasKeyboardHandlers';
+import { useContextPress } from '../hooks/useContextPress';
 import { useDeepSelect } from '../hooks/useDeepSelect';
 import { CanvasStage, SnapGuidelines } from '../primitives';
 import {
@@ -492,6 +493,8 @@ function GenericCanvasWithRef<
 
   const store = useCanvasStore();
   const { setSnapLines, updateElementPosition } = store.getState();
+  // Before the deep select: a ⌃-click on a Mac is a right-click, not a pick.
+  useContextPress(stageRef, !preview);
   useDeepSelect(stageRef, !preview);
 
   // One selection across all pages: leaving the active page drops its own.

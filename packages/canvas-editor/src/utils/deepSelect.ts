@@ -78,3 +78,17 @@ export function nextDeepTarget<T extends { id: string }>(
   const at = stack.findIndex((item) => item.id === selectedId);
   return stack[(Math.max(at, 0) + 1) % stack.length]!;
 }
+
+/**
+ * What a right-press selects, given the items under the pointer (topmost
+ * first): null keeps the selection — the press hit something already
+ * selected, a member of a multi-selection or a deep-picked item under its
+ * cover. Otherwise the topmost item alone, or nothing on empty stage.
+ */
+export function contextPressSelection(
+  stackIds: readonly string[],
+  selectedIds: readonly string[]
+): string[] | null {
+  if (stackIds.some((id) => selectedIds.includes(id))) return null;
+  return stackIds.length > 0 ? [stackIds[0]!] : [];
+}
