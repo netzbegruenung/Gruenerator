@@ -20,6 +20,7 @@
  */
 
 import {
+  type GroupAudience,
   type MentionableTextForm,
   type PublicOwnership,
   type PublicTextForm,
@@ -93,7 +94,7 @@ export interface TextFormSharingState {
 }
 
 /** Sharing state of one recipe, owner-scoped. Mirrors `UserAgentSharing`
- * without `audience`: recipes have no locale. */
+ * without `audience`: it follows the owner's locale and is not edited here. */
 export interface TextFormSharing extends TextFormSharingState {
   /** The recipe's UUID — the group_content_shares.content_id for this row. */
   id: string;
@@ -275,21 +276,29 @@ function toPublicTextForm(form: TextForm): PublicTextForm {
  * Die Antwort trägt die Beispiele NICHT — es sind die Originaltexte fremder
  * Leute; veröffentlicht ist die Anweisung, nicht ihr Rohstoff.
  */
-export async function listPublicTextForms(limit = 200): Promise<PublicTextForm[]> {
+export async function listPublicTextForms(
+  viewerLocale: string,
+  limit = 200
+): Promise<PublicTextForm[]> {
   const pg = getPostgresInstance();
   const rows = (await pg.query(
     `SELECT tf.*, COALESCE(p.first_name, p.display_name) AS owner_name
        FROM user_text_forms tf
        LEFT JOIN profiles p ON p.id = tf.user_id
       WHERE ${PUBLIC_VISIBLE} AND tf.deleted_at IS NULL
+        AND tf.audience IN ($1, 'all')
       ORDER BY tf.updated_at DESC, tf.id
-      LIMIT $1`,
-    [limit]
+      LIMIT $2`,
+    [viewerAudience(viewerLocale), limit]
   )) as unknown as Array<UserTextFormRow & { owner_name: string | null }>;
 
   return rows
     .filter((row) => isShareableTextForm(row.kind as TextFormKind, row.mention))
     .map((row) => toPublicTextForm(rowToTextForm(row, { ownerName: row.owner_name ?? null })));
+}
+
+function viewerAudience(locale: string): Exclude<GroupAudience, 'all'> {
+  return locale === 'de-AT' ? 'de-AT' : 'de-DE';
 }
 
 /** An active group share of `tf` reaching `$1::uuid`. Written once, used by
@@ -676,6 +685,8 @@ export async function upsertTextForm(userId: string, input: TextFormInput): Prom
     icon_key: input.iconKey ?? null,
     analyzed_at: now,
     updated_at: now,
+    // Insert only, not in the conflict set: the owner's locale when the recipe was created.
+    audience: sql<GroupAudience>`COALESCE((SELECT locale FROM profiles WHERE id = ${userId}), 'all')`,
   };
   const rows = await db
     .insert(userTextForms)

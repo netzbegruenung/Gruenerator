@@ -121,8 +121,8 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
 
   listPublic: async (args) => {
     try {
-      getAuthedUser(args.req);
-      const forms = await listPublicTextForms();
+      const user = getAuthedUser(args.req);
+      const forms = await listPublicTextForms(user.locale ?? extractLocaleFromRequest(args.req));
       return { status: 200 as const, body: { success: true, forms } };
     } catch (error) {
       const err = error as Error;
