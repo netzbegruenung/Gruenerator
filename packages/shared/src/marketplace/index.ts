@@ -62,3 +62,17 @@ export {
   toGalleryAsset,
   type MarketplaceCardModel,
 } from './viewModel.js';
+export {
+  FRONTPAGE_SHELVES,
+  FRONTPAGE_TEXT_KINDS,
+  FRONTPAGE_VISUAL_KINDS,
+  MARKETPLACE_FEATURES,
+  fallbackFeature,
+  featureFor,
+  isFrontpageView,
+  landesverbandShelf,
+  newestShelf,
+  popularShelf,
+  visualShelf,
+  type MarketplaceFeature,
+} from './frontpage.js';
