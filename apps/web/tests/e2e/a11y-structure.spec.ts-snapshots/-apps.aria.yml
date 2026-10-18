@@ -8,7 +8,7 @@
     - /url: https://play.google.com/store/apps/details?id=de.gruenerator.app
     - img
     - text: Android
-  - link "iOS-Beta über TestFlight laden":
+  - 'link "iPhone & iPad: Beta über TestFlight laden"':
     - /url: https://testflight.apple.com/join/WZnQJzvU
     - img
     - text: iPhone & iPad
