@@ -124,11 +124,18 @@ describe('actionUrlToRoute for Grüneratoren', () => {
     });
   });
 
-  it('opens the overview and the Agentura', () => {
+  it('opens the overview, and the Agentura as the Marktplatz', () => {
     expect(actionUrlToRoute('/grueneratoren')).toBe('/(focused)/agents');
-    expect(actionUrlToRoute('/agentura?von=oeffentlich')).toEqual({
-      pathname: '/(focused)/agents',
-      params: { agentura: '1' },
-    });
+    expect(actionUrlToRoute('/agentura?von=oeffentlich')).toBe('/marktplatz?von=oeffentlich');
+    expect(actionUrlToRoute('/agentura?type=recipe')).toBe('/marktplatz?art=rezepte');
+    // The old overview shelves still mean the overview.
+    expect(actionUrlToRoute('/agentura?cat=meine')).toBe('/(focused)/agents');
+  });
+
+  it('opens the Marktplatz and the old sticker Entdecken natively', () => {
+    expect(actionUrlToRoute('/marktplatz?art=vorlagen')).toBe('/marktplatz?art=vorlagen');
+    expect(actionUrlToRoute('/studio/sticker/entdecken?q=sonne')).toBe(
+      '/marktplatz?art=sticker&q=sonne'
+    );
   });
 });
