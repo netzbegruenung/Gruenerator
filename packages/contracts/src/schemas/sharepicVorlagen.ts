@@ -15,9 +15,11 @@ import {
   type PrintSpec,
 } from './printCreator.js';
 import {
+  sharepicColorSchema,
   sharepicCreatorLocaleSchema,
   sharepicFormatSchema,
   sharepicFormSchema,
+  sharepicItemSchema,
   sharepicPhotoAttributionSchema,
   sharepicSlideSchema,
   sharepicSpecSchema,
@@ -103,6 +105,62 @@ export const sharepicSeiteSchema = sharepicSeiteFileEntrySchema.extend({
   thumbVersion: z.string().optional(),
 });
 export type SharepicSeite = z.infer<typeof sharepicSeiteSchema>;
+
+/**
+ * Grünerator-Blöcke: one or two slide items (a list on its card, a quote, a
+ * Terminliste …) the editor composes and drops onto the current page as
+ * separate elements. Files: `sharepic-vorlagen/bloecke/{de,at}.json`,
+ * previews `thumbs/bloecke/<id>.webp` (the block alone, cut to its bounds).
+ */
+export const sharepicBlockGruppeSchema = z.enum(['listen', 'text', 'zahlen', 'meldungen']);
+export type SharepicBlockGruppe = z.infer<typeof sharepicBlockGruppeSchema>;
+
+/** One entry as the private file holds it. Its locale is the file's country. */
+export const sharepicBlockFileEntrySchema = z.object({
+  id: sharepicVorlageIdSchema,
+  titel: z.string().min(1).max(80),
+  gruppe: sharepicBlockGruppeSchema,
+  /** Search words beside the title („Aufzählung“, „Mythos“). */
+  stichworte: z.array(z.string().min(2).max(40)).max(8).default([]),
+  items: z.array(sharepicItemSchema).min(1).max(2),
+  /** The ground the preview was composed on; the editor composes on the page's own. */
+  color: sharepicColorSchema,
+});
+export type SharepicBlockFileEntry = z.infer<typeof sharepicBlockFileEntrySchema>;
+
+export const sharepicBlockSchema = sharepicBlockFileEntrySchema.extend({
+  locale: sharepicCreatorLocaleSchema,
+  /** Content hash of the preview; clients pass it on to `sharepicBlockThumbPath`. */
+  thumbVersion: z.string().optional(),
+});
+export type SharepicBlock = z.infer<typeof sharepicBlockSchema>;
+
+export const sharepicBloeckeListResponseSchema = z.object({
+  bloecke: z.array(sharepicBlockSchema),
+});
+
+/** A block's preview, served from the private checkout. */
+export const sharepicBlockThumbPath = (id: string, version?: string): string =>
+  `/api/sharepic-vorlagen/bloecke/${encodeURIComponent(id)}/thumb${version ? `?v=${encodeURIComponent(version)}` : ''}`;
+
+/** The one-slide spec a block is composed (and checked) as: its items alone on a colour ground. */
+export const sharepicBlockSpec = (
+  locale: z.infer<typeof sharepicCreatorLocaleSchema>,
+  block: Pick<SharepicBlockFileEntry, 'items' | 'color'>,
+  format?: SharepicFormat
+) => ({
+  locale,
+  ...(format ? { format } : {}),
+  slides: [
+    {
+      background: { kind: 'farbe' as const, color: block.color },
+      position: 'mitte' as const,
+      align: 'links' as const,
+      items: block.items,
+      logo: false,
+    },
+  ],
+});
 
 /**
  * Every canvas format a document can have — the sharepic ones, the square
