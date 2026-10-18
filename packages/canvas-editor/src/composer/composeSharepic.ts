@@ -1461,9 +1461,8 @@ function composeSlide(
       const innerOf = (r: Box) => (left ? r.x + r.width : r.x);
       const first = ink[0]!;
       const last = ink[ink.length - 1]!;
-      const onPhoto = bg.kind === 'foto';
-      const target = onPhoto ? slot.fotoTarget : slot.target;
-      const anchor = onPhoto ? slot.fotoAnchor : slot.anchor;
+      const design = bg.kind === 'foto' ? slot.foto : slot;
+      const { target, anchor } = design;
       const prefer = {
         x: person.x + person.width * target.x,
         y: person.y + person.height * target.y,
@@ -1499,10 +1498,10 @@ function composeSlide(
         rotation,
         own: { rects: ink, pivot, rotation },
         request: {
-          arrow: slot.arrow,
+          arrow: design.arrow,
           froms: froms.map((p) => turn(pivot, rotation, p)),
           prefer,
-          designed: { from: turn(pivot, rotation, designedFrom), to: prefer, bow: slot.bow },
+          designed: { from: turn(pivot, rotation, designedFrom), to: prefer, bow: design.bow },
         },
       };
     });

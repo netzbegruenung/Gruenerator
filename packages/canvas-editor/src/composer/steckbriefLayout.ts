@@ -128,9 +128,11 @@ export interface SteckbriefSlot {
   anchor: 'innen' | 'unten' | 'oben';
   /** Which way the stroke bows (see `arrowPose`). */
   bow: 1 | -1;
-  /** On a background photo the person is larger: where the arrow ends and starts there. */
-  fotoTarget: Point;
-  fotoAnchor: 'innen' | 'unten' | 'oben';
+  /**
+   * On a background photo the person is larger and reaches the slide's edges:
+   * the arrow there, aimed at the contour on the trait's own side.
+   */
+  foto: Pick<SteckbriefSlot, 'target' | 'anchor' | 'arrow' | 'bow'>;
 }
 
 export const STECKBRIEF_SLOTS: readonly SteckbriefSlot[] = [
@@ -141,8 +143,7 @@ export const STECKBRIEF_SLOTS: readonly SteckbriefSlot[] = [
     arrow: 'hand-pfeil-spirale',
     anchor: 'unten',
     bow: 1,
-    fotoTarget: { x: 0.25, y: 0.36 },
-    fotoAnchor: 'unten',
+    foto: { target: { x: 0.25, y: 0.36 }, anchor: 'unten', arrow: 'hand-pfeil-spirale', bow: 1 },
   },
   {
     side: 'rechts',
@@ -151,8 +152,7 @@ export const STECKBRIEF_SLOTS: readonly SteckbriefSlot[] = [
     arrow: 'hand-pfeil-herz',
     anchor: 'unten',
     bow: -1,
-    fotoTarget: { x: 0.745, y: 0.26 },
-    fotoAnchor: 'unten',
+    foto: { target: { x: 0.745, y: 0.26 }, anchor: 'unten', arrow: 'hand-pfeil-herz', bow: -1 },
   },
   {
     side: 'links',
@@ -161,8 +161,7 @@ export const STECKBRIEF_SLOTS: readonly SteckbriefSlot[] = [
     arrow: 'hand-pfeil-haken',
     anchor: 'unten',
     bow: 1,
-    fotoTarget: { x: 0.36, y: 0.6 },
-    fotoAnchor: 'unten',
+    foto: { target: { x: 0.27, y: 0.46 }, anchor: 'unten', arrow: 'hand-pfeil-haken', bow: 1 },
   },
   {
     side: 'rechts',
@@ -171,8 +170,7 @@ export const STECKBRIEF_SLOTS: readonly SteckbriefSlot[] = [
     arrow: 'hand-pfeil-bogen',
     anchor: 'unten',
     bow: -1,
-    fotoTarget: { x: 0.73, y: 0.36 },
-    fotoAnchor: 'unten',
+    foto: { target: { x: 0.73, y: 0.36 }, anchor: 'unten', arrow: 'hand-pfeil-bogen', bow: -1 },
   },
   {
     side: 'links',
@@ -181,8 +179,7 @@ export const STECKBRIEF_SLOTS: readonly SteckbriefSlot[] = [
     arrow: 'hand-pfeil-bogen',
     anchor: 'oben',
     bow: -1,
-    fotoTarget: { x: 0.42, y: 0.62 },
-    fotoAnchor: 'oben',
+    foto: { target: { x: 0.22, y: 0.6 }, anchor: 'oben', arrow: 'hand-pfeil-bogen', bow: 1 },
   },
   {
     side: 'rechts',
@@ -191,8 +188,7 @@ export const STECKBRIEF_SLOTS: readonly SteckbriefSlot[] = [
     arrow: 'hand-pfeil-bogen',
     anchor: 'innen',
     bow: 1,
-    fotoTarget: { x: 0.78, y: 0.64 },
-    fotoAnchor: 'oben',
+    foto: { target: { x: 0.56, y: 0.58 }, anchor: 'innen', arrow: 'hand-pfeil-bogen', bow: -1 },
   },
   {
     side: 'links',
@@ -201,8 +197,7 @@ export const STECKBRIEF_SLOTS: readonly SteckbriefSlot[] = [
     arrow: 'hand-pfeil-welle',
     anchor: 'oben',
     bow: 1,
-    fotoTarget: { x: 0.4, y: 0.75 },
-    fotoAnchor: 'innen',
+    foto: { target: { x: 0.15, y: 0.63 }, anchor: 'oben', arrow: 'hand-pfeil-bogen', bow: 1 },
   },
   {
     side: 'rechts',
@@ -211,8 +206,7 @@ export const STECKBRIEF_SLOTS: readonly SteckbriefSlot[] = [
     arrow: 'hand-pfeil-haken',
     anchor: 'innen',
     bow: 1,
-    fotoTarget: { x: 0.62, y: 0.76 },
-    fotoAnchor: 'innen',
+    foto: { target: { x: 0.61, y: 0.63 }, anchor: 'innen', arrow: 'hand-pfeil-bogen', bow: 1 },
   },
   {
     side: 'links',
@@ -221,8 +215,7 @@ export const STECKBRIEF_SLOTS: readonly SteckbriefSlot[] = [
     arrow: 'hand-pfeil-bogen',
     anchor: 'innen',
     bow: 1,
-    fotoTarget: { x: 0.34, y: 0.58 },
-    fotoAnchor: 'innen',
+    foto: { target: { x: 0.3, y: 0.5 }, anchor: 'innen', arrow: 'hand-pfeil-bogen', bow: 1 },
   },
   {
     side: 'links',
@@ -231,8 +224,7 @@ export const STECKBRIEF_SLOTS: readonly SteckbriefSlot[] = [
     arrow: 'hand-pfeil-schlaufe',
     anchor: 'unten',
     bow: 1,
-    fotoTarget: { x: 0.26, y: 0.27 },
-    fotoAnchor: 'innen',
+    foto: { target: { x: 0.26, y: 0.27 }, anchor: 'innen', arrow: 'hand-pfeil-schlaufe', bow: 1 },
   },
 ];
 
