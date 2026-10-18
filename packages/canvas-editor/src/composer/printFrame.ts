@@ -374,24 +374,14 @@ export function motif(
 }
 
 /**
- * A fade from nothing to `rgb` at `alpha`: towards the foot of `r` (90°), or
- * towards its top (270°).
+ * The ground for type on a photo: one flat colour from `top` to the foot of
+ * the photo, cut hard into it. Print pages have no fades.
  */
-export function scrim(p: Page, id: string, r: Rect, rgb: string, alpha: number, angle = 90) {
-  const shape = rect(id, r, `rgba(${rgb},${alpha})`);
-  shape.fillGradient = {
-    type: 'linear',
-    angle,
-    stops: [0, 0.3, 0.6, 1].map((t) => ({
-      offset: t,
-      color: `rgba(${rgb},${(alpha * t * t * (3 - 2 * t)).toFixed(3)})`,
-    })),
-  };
-  p.shape(shape);
+export function feld(p: Page, foto: Rect, top: number, fill: string) {
+  const bottom = foto.y + foto.height;
+  if (top >= bottom) return;
+  p.shape(rect('pr-feld', { x: foto.x, y: top, width: foto.width, height: bottom - top }, fill));
 }
-
-export const hexRgb = (hex: string) =>
-  [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(',');
 
 /** The sunflower in Sonne (CD p. 21), centred on cx/cy as shares of the trim box. */
 export function blume(p: Page, f: Frame, cx: number, cy: number, size: number) {

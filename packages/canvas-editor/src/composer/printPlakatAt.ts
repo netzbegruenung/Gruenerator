@@ -15,7 +15,6 @@ import { type ComposedSlide } from './composeSharepic';
 import {
   ART,
   fitStack,
-  hexRgb,
   HEAD_LEADING,
   impressumElement,
   impressumText,
@@ -23,7 +22,6 @@ import {
   page,
   placeStack,
   rect,
-  scrim,
   stackHeight,
   stoerer,
   WHITE,
@@ -203,10 +201,10 @@ function overlay(f: Frame, spec: AtPlakatSpec, src: PhotoSrc, logoW: number): Co
 }
 
 /**
- * Person (p. 83): the person on the photo, standing on Dunkelgrün that the
- * photo fades into; the headline large at the top left (landscape: left of the
- * person), the logo in the corner opposite (upright bottom left, landscape top
- * right), the Störer beside the person.
+ * Person (p. 83): the person on the photo, cut hard against Dunkelgrün; the
+ * headline large at the top left (landscape: left of the person), the logo
+ * bottom left on the green, the Störer beside the person (landscape on the
+ * seam). No fades: on print every edge is hard.
  */
 function person(f: Frame, spec: AtPlakatSpec, src: PhotoSrc, logoW: number): ComposedSlide {
   const { inner, trim } = f;
@@ -222,26 +220,10 @@ function person(f: Frame, spec: AtPlakatSpec, src: PhotoSrc, logoW: number): Com
     green,
     src
   );
-  // The seam fades into the green, as on the studio photos of the CD.
-  const rgb = hexRgb(green);
-  if (quer) {
-    scrim(p, 'pr-scrim', { ...foto, width: foto.width * 0.35 }, rgb, 1, 180);
-    // The logo stands top right on the photo.
-    scrim(
-      p,
-      'pr-scrim-oben',
-      { ...foto, height: inner.y + 2.2 * logoHeight(logoW) },
-      rgb,
-      0.75,
-      270
-    );
-  } else {
-    scrim(p, 'pr-scrim', { ...foto, height: foto.height * 0.3 }, rgb, 1, 270);
-  }
-
   const logoH = logoHeight(logoW);
-  const width = quer ? foto.x + foto.width * 0.2 - inner.x : inner.width * 0.92;
-  const room = quer ? inner.height * 0.62 : foto.y + foto.height * 0.12 - inner.y;
+  // The headline stays on the green, clear of the photo's edge.
+  const width = quer ? foto.x - X - inner.x : inner.width * 0.92;
+  const room = quer ? inner.height * 0.62 : foto.y - 0.5 * X - inner.y;
   const blocks = fitStack(
     f,
     (size) => aussage(f, spec.slots, size, 'left'),
@@ -252,14 +234,15 @@ function person(f: Frame, spec: AtPlakatSpec, src: PhotoSrc, logoW: number): Com
   placeStack(p, f, blocks, inner.x, inner.y, width);
   const textBottom = inner.y + stackHeight(f, blocks, width);
 
-  if (quer) logo(p, inner.x + inner.width - logoW / 2, inner.y + logoH / 2, logoW);
-  else logo(p, inner.x + logoW / 2, inner.y + inner.height - logoH / 2, logoW);
+  // Both on the green: bottom left, never on the photo.
+  logo(p, inner.x + logoW / 2, inner.y + inner.height - logoH / 2, logoW);
 
   if (spec.slots.stoerer) {
     const r = 0.09 * f.shortSide;
-    const x = quer ? inner.x + r + X : inner.x + r;
+    // Landscape: on the seam, below the text; upright beside the person.
+    const x = quer ? foto.x : inner.x + r;
     const y = quer
-      ? inner.y + inner.height - r - X
+      ? Math.max(textBottom + X + r, inner.y + inner.height - logoH - X - r)
       : Math.min(inner.y + inner.height - logoH - X - r, textBottom + 0.3 * trim.height);
     stoerer(p, f, 'pr-stoerer', spec.slots.stoerer, x, y, r);
   }

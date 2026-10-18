@@ -2,12 +2,13 @@
  * The DE photo posters of the 2024 styleguide: candidate (p. 38/39), topic
  * (p. 40/41), billboard (p. 42/43), citylight (p. 46/47) and the event poster
  * in both versions (p. 23–28). Built in today's practice: the Textbalken are
- * gone, the type stands on the photo over a scrim or on the ground colour.
+ * gone, the type stands on a flat Tanne field cut hard into the photo, or on
+ * the ground colour. No fades: every edge is hard.
  *
  * Every layout shares one grammar: a motif area (the photo, the whole page or
  * touching one or two edges of a Tanne/Klee ground), the text block low on the
  * left, a Störer in Himmel with Sand type, the sunflower in Sonne cut by an
- * edge, the domain as the sender, centred at the foot (billboard: top right),
+ * edge, the domain as the sender, centred at the foot (billboard: bottom right),
  * and the V.i.S.d.P. turned in the left margin.
  *
  * The photo is the page's background image, cover-fitted and centred on the
@@ -34,14 +35,13 @@ import {
   fitWords,
   FULL,
   HEAD_LEADING,
-  hexRgb,
   impressumElement,
   impressumText,
   KLEE,
   motif,
   page,
   placeStack,
-  scrim,
+  feld,
   stackHeight,
   stoerer,
   WHITE,
@@ -57,8 +57,6 @@ type PlakatSpec = Extract<PrintSpec, { variante: 'kandidat' | 'thema' | 'veranst
 
 const TANNE = SHAREPIC_COLOR_HEX.tanne;
 const MINT = SHAREPIC_COLOR_HEX.mint;
-/** Dunkeltanne as rgb, for the scrim over a photo. */
-const SCRIM_RGB = '0,38,26';
 const DE_ACCENT: TextAccent = { fill: LIME };
 
 /**
@@ -243,7 +241,8 @@ function fotoPlakat(
         }
     : { x: inner.x, width: inner.width * 0.86 };
 
-  // The sender: centred at the foot; the billboard's at the top right (p. 43).
+  // The sender: centred at the foot; the billboard's on the field at the bottom
+  // right, right of the join (p. 43 has it top right, on a photo it would need a fade).
   const web = spec.slots.web
     ? absender(
         f,
@@ -280,44 +279,15 @@ function fotoPlakat(
   );
   const textTop = textBottom - stackHeight(f, blocks, column.width);
 
-  // Contrast for the type on the photo: a fade into Dunkeltanne below the text
-  // on a full page, into the ground at the foot of a framed photo.
-  if (full) {
-    const y = Math.max(0, textTop - 0.2 * trim.height);
-    scrim(
-      p,
-      'pr-scrim',
-      { x: 0, y, width: f.format.width, height: f.format.height - y },
-      SCRIM_RGB,
-      0.85
-    );
-    // The billboard's sender stands top right on the photo.
-    if (billboard && web) {
-      scrim(
-        p,
-        'pr-scrim-oben',
-        { x: 0, y: 0, width: f.format.width, height: inner.y + webHeight + 3 * gap },
-        SCRIM_RGB,
-        0.7,
-        270
-      );
-    }
-  } else if (!quer) {
-    const h = fotoRect.height * 0.4;
-    scrim(
-      p,
-      'pr-scrim',
-      { ...fotoRect, y: fotoRect.y + fotoRect.height - h, height: h },
-      hexRgb(layout.ground),
-      1
-    );
-  }
+  // The type never stands on the photo itself: from just above it down, a flat
+  // field in Tanne (the ground colour on a framed photo) cuts the photo off.
+  if (full || !quer) feld(p, fotoRect, textTop - gap, full ? TANNE : layout.ground);
 
   blume(p, f, layout.blume.cx, layout.blume.cy, layout.blume.size * f.shortSide);
   placeStack(p, f, blocks, column.x, textTop, column.width);
   if (web && billboard) {
     const w = inner.x + inner.width - midX - gap;
-    p.text({ ...web.props, align: 'right', x: midX + gap, y: inner.y, width: w });
+    p.text({ ...web.props, align: 'right', x: midX + gap, y: bottom - webHeight, width: w });
   } else if (web) {
     p.text({ ...web.props, x: inner.x, y: bottom - webHeight, width: inner.width });
   }
@@ -390,7 +360,7 @@ function veranstaltungFoto(
   const fotoRect = motif(p, f, foto, area, TANNE, src);
   const r = 0.1 * f.shortSide;
 
-  // The headline group sits low on the photo, over a fade into Tanne / Dunkeltanne.
+  // The headline group sits low, on a Tanne field cut hard into the photo.
   // Upright, the group ends left of the date Störer on the photo's edge.
   const groupWidth = quer
     ? fotoRect.width - (inner.x - trim.x) - gap
@@ -405,14 +375,7 @@ function veranstaltungFoto(
     groupRoom
   );
   const groupTop = groupBottom - stackHeight(f, group, groupWidth);
-  const fade = fotoRect.y + fotoRect.height - Math.max(0, groupTop - 0.15 * trim.height);
-  scrim(
-    p,
-    'pr-scrim',
-    { ...fotoRect, y: fotoRect.y + fotoRect.height - fade, height: fade },
-    quer ? SCRIM_RGB : hexRgb(TANNE),
-    quer ? 0.85 : 1
-  );
+  feld(p, fotoRect, groupTop - gap, TANNE);
 
   // The panel: speakers, place, sender.
   const panel = quer
