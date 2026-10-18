@@ -250,6 +250,12 @@
       "import": "./dist/reactions/index.js",
       "default": "./dist/reactions/index.js"
     },
+    "./comments": {
+      "development": "./src/comments/index.ts",
+      "types": "./src/comments/index.ts",
+      "import": "./dist/comments/index.js",
+      "default": "./dist/comments/index.js"
+    },
     "./grueneratoren": {
       "development": "./src/grueneratoren/index.ts",
       "types": "./src/grueneratoren/index.ts",

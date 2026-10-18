@@ -1,21 +1,18 @@
 import { type MenuAction } from '@expo/ui/community/menu';
-import { REACTION_EMOJIS, type AgentComment, type ReactionSummary } from '@gruenerator/contracts';
+import { REACTION_EMOJIS, type EntityComment, type ReactionSummary } from '@gruenerator/contracts';
+import {
+  useAddEntityComment,
+  useDeleteEntityComment,
+  useEntityComments,
+  useToggleCommentReaction,
+  useToggleItemReaction,
+} from '@gruenerator/shared/comments';
 import {
   errMessage,
   formatFeedDate,
   personInitials,
   threadComments,
 } from '@gruenerator/shared/groups';
-import {
-  agentCommentsKey,
-  patchAgentCommentReactions,
-  patchAgentReactions,
-  useAddAgentComment,
-  useAgentComments,
-  useDeleteAgentComment,
-  useToggleReaction,
-  type AgentDiscussion as AgentDiscussionData,
-} from '@gruenerator/shared/reactions';
 import { useAuthStore } from '@gruenerator/shared/stores';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -98,22 +95,12 @@ function ReactionChips({
 }
 
 function AgentReactions({ agentId, reactions }: { agentId: string; reactions: ReactionSummary[] }) {
-  const { toggle } = useToggleReaction<AgentDiscussionData>({
-    entityType: 'agent',
-    entityId: agentId,
-    queryKey: agentCommentsKey(agentId),
-    update: patchAgentReactions,
-  });
+  const { toggle } = useToggleItemReaction('agent', agentId);
   return <ReactionChips reactions={withAllEmojis(reactions)} onToggle={toggle} />;
 }
 
-function CommentReactions({ comment }: { comment: AgentComment }) {
-  const { toggle } = useToggleReaction<AgentDiscussionData>({
-    entityType: 'agent_comment',
-    entityId: comment.id,
-    queryKey: agentCommentsKey(comment.agentId),
-    update: (data, apply) => patchAgentCommentReactions(data, comment.id, apply),
-  });
+function CommentReactions({ comment }: { comment: EntityComment }) {
+  const { toggle } = useToggleCommentReaction(comment);
   return (
     <ReactionChips
       reactions={comment.reactions}
@@ -132,11 +119,11 @@ export function AgentDiscussion({ agentId, isOwner }: { agentId: string; isOwner
   const { card } = useSurfaceStyles();
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const hiddenIds = useHiddenMemberIds();
-  const discussion = useAgentComments(agentId);
-  const addComment = useAddAgentComment(agentId);
-  const deleteComment = useDeleteAgentComment(agentId);
+  const discussion = useEntityComments('agent', agentId);
+  const addComment = useAddEntityComment('agent', agentId);
+  const deleteComment = useDeleteEntityComment('agent', agentId);
   const [draft, setDraft] = useState('');
-  const [menuFor, setMenuFor] = useState<AgentComment | null>(null);
+  const [menuFor, setMenuFor] = useState<EntityComment | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
     () => () => {
@@ -153,7 +140,7 @@ export function AgentDiscussion({ agentId, isOwner }: { agentId: string; isOwner
     [discussion.data, hiddenIds]
   );
 
-  const actionsFor = (c: AgentComment): MenuAction[] => {
+  const actionsFor = (c: EntityComment): MenuAction[] => {
     const actions: MenuAction[] = [];
     if (isOwner || (c.userId !== null && c.userId === userId))
       actions.push({ id: 'delete', title: 'Kommentar löschen', attributes: { destructive: true } });
@@ -161,7 +148,7 @@ export function AgentDiscussion({ agentId, isOwner }: { agentId: string; isOwner
     return actions;
   };
 
-  const handleMenu = (comment: AgentComment, id: string) => {
+  const handleMenu = (comment: EntityComment, id: string) => {
     // Das Menü-Sheet geht noch; iOS zeigt im selben Moment keinen zweiten Dialog.
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
@@ -196,7 +183,7 @@ export function AgentDiscussion({ agentId, isOwner }: { agentId: string; isOwner
     );
   };
 
-  const renderComment = (c: AgentComment, isReply: boolean) => {
+  const renderComment = (c: EntityComment, isReply: boolean) => {
     const actions = actionsFor(c);
     return (
       <Pressable

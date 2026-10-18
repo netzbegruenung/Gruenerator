@@ -1,27 +1,19 @@
-import { type ReactionSummary, type TemplateComment } from '@gruenerator/contracts';
-import { errMessage } from '@gruenerator/shared/groups';
-import { useToggleReaction } from '@gruenerator/shared/reactions';
-
+import { type EntityComment, type ReactionSummary } from '@gruenerator/contracts';
 import {
-  templateCommentsKey,
-  useAddTemplateComment,
-  useDeleteTemplateComment,
-  useTemplateComments,
-} from '../hooks/useTemplateComments';
+  useAddEntityComment,
+  useDeleteEntityComment,
+  useEntityComments,
+  useToggleCommentReaction,
+} from '@gruenerator/shared/comments';
+import { errMessage } from '@gruenerator/shared/groups';
 
 import { CommentThread } from '@/components/common/CommentThread';
-import { useUserTemplates } from '@/features/auth/hooks/useProfileData';
 import { ReactionBar } from '@/components/reactions/ReactionBar';
+import { useUserTemplates } from '@/features/auth/hooks/useProfileData';
 import { useAuthStore } from '@/stores/authStore';
 
-function CommentReactions({ comment }: { comment: TemplateComment }) {
-  const { toggle } = useToggleReaction<TemplateComment[]>({
-    entityType: 'template_comment',
-    entityId: comment.id,
-    queryKey: templateCommentsKey(comment.templateId),
-    update: (data, apply) =>
-      data.map((c) => (c.id === comment.id ? { ...c, reactions: apply(c.reactions) } : c)),
-  });
+function CommentReactions({ comment }: { comment: EntityComment }) {
+  const { toggle } = useToggleCommentReaction(comment);
   const hasReacted = (reactions: ReactionSummary[], emoji: string) =>
     reactions.find((r) => r.emoji === emoji)?.reacted ?? false;
   return (
@@ -35,22 +27,22 @@ function CommentReactions({ comment }: { comment: TemplateComment }) {
 /** Kommentare unter einer Vorlage; die eigene Vorlage darf fremde Kommentare löschen. */
 export function VorlageComments({ templateId }: { templateId: string }) {
   const userId = useAuthStore((s) => s.user?.id) ?? null;
-  const comments = useTemplateComments(templateId);
-  const addComment = useAddTemplateComment(templateId);
-  const deleteComment = useDeleteTemplateComment(templateId);
+  const discussion = useEntityComments('template', templateId);
+  const addComment = useAddEntityComment('template', templateId);
+  const deleteComment = useDeleteEntityComment('template', templateId);
   const { query: ownTemplates } = useUserTemplates({ isActive: true });
   const isOwner = ownTemplates.data?.some((t) => String(t.id) === templateId) ?? false;
 
   return (
     <section aria-label="Kommentare" className="flex flex-col gap-md">
       <h3 className="m-0 text-base font-bold">Kommentare</h3>
-      {comments.isLoading && <p className="m-0 text-sm text-muted-foreground">Lädt …</p>}
-      {comments.isError && (
-        <p className="m-0 text-sm text-red-600 dark:text-red-400">{errMessage(comments.error)}</p>
+      {discussion.isLoading && <p className="m-0 text-sm text-muted-foreground">Lädt …</p>}
+      {discussion.isError && (
+        <p className="m-0 text-sm text-red-600 dark:text-red-400">{errMessage(discussion.error)}</p>
       )}
-      {comments.data && (
+      {discussion.data && (
         <CommentThread
-          comments={comments.data}
+          comments={discussion.data.comments}
           currentUserId={userId}
           canModerate={isOwner}
           onSubmit={(input) => addComment.mutateAsync(input)}

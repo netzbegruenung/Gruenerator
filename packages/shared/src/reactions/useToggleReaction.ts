@@ -1,4 +1,5 @@
 import {
+  type EntityCommentType,
   reactionEmojiSchema,
   type ReactionEntityType,
   type ReactionSummary,
@@ -12,6 +13,8 @@ import { applyReaction } from './applyReaction.js';
 export interface UseToggleReactionOptions<TData> {
   entityType: ReactionEntityType;
   entityId: string;
+  /** The item kind of a `marketplace_item`; `entityId` is then its ref. */
+  itemType?: EntityCommentType;
   /** The query whose cached data carries this entity's reactions. */
   queryKey: QueryKey;
   /** Returns `data` with this entity's reactions replaced by `apply(current)`. */
@@ -27,11 +30,13 @@ interface ToggleVariables {
 export function useToggleReaction<TData>({
   entityType,
   entityId,
+  itemType,
   queryKey,
   update,
 }: UseToggleReactionOptions<TData>) {
   const queryClient = useQueryClient();
-  const scopeId = `${entityType}:${entityId}`;
+  const scopeId = `${entityType}:${itemType ?? ''}:${entityId}`;
+  const query = itemType ? { itemType } : {};
 
   // Patches only this entity; other entities in the same query keep their state.
   const patch = (apply: (reactions: ReactionSummary[]) => ReactionSummary[]) =>
@@ -47,13 +52,14 @@ export function useToggleReaction<TData>({
     mutationFn: async ({ emoji, reacted }) => {
       const client = getContractsClient().entityReactions;
       if (reacted) {
-        const res = await client.removeReaction({ params: { entityType, entityId, emoji } });
+        const res = await client.removeReaction({ params: { entityType, entityId, emoji }, query });
         if (res.status !== 200)
           throw apiErrorFromResponse(res, 'Reaktion konnte nicht entfernt werden.');
         return res.body.reactions;
       }
       const res = await client.addReaction({
         params: { entityType, entityId, emoji: reactionEmojiSchema.parse(emoji) },
+        query,
       });
       if (res.status !== 200)
         throw apiErrorFromResponse(res, 'Reaktion konnte nicht gespeichert werden.');

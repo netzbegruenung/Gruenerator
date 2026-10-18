@@ -1,15 +1,12 @@
-import { type AgentComment, type ReactionSummary } from '@gruenerator/contracts';
-import { errMessage } from '@gruenerator/shared/groups';
+import { type EntityComment, type ReactionSummary } from '@gruenerator/contracts';
 import {
-  agentCommentsKey,
-  patchAgentCommentReactions,
-  patchAgentReactions,
-  useAddAgentComment,
-  useAgentComments,
-  useDeleteAgentComment,
-  useToggleReaction,
-  type AgentDiscussion as AgentDiscussionData,
-} from '@gruenerator/shared/reactions';
+  useAddEntityComment,
+  useDeleteEntityComment,
+  useEntityComments,
+  useToggleCommentReaction,
+  useToggleItemReaction,
+} from '@gruenerator/shared/comments';
+import { errMessage } from '@gruenerator/shared/groups';
 
 import { CommentThread } from '@/components/common/CommentThread';
 import { ReactionBar } from '@/components/reactions/ReactionBar';
@@ -19,12 +16,7 @@ const hasReacted = (reactions: ReactionSummary[], emoji: string) =>
   reactions.find((r) => r.emoji === emoji)?.reacted ?? false;
 
 function AgentReactions({ agentId, reactions }: { agentId: string; reactions: ReactionSummary[] }) {
-  const { toggle } = useToggleReaction<AgentDiscussionData>({
-    entityType: 'agent',
-    entityId: agentId,
-    queryKey: agentCommentsKey(agentId),
-    update: patchAgentReactions,
-  });
+  const { toggle } = useToggleItemReaction('agent', agentId);
   return (
     <ReactionBar
       reactions={reactions}
@@ -33,13 +25,8 @@ function AgentReactions({ agentId, reactions }: { agentId: string; reactions: Re
   );
 }
 
-function CommentReactions({ comment }: { comment: AgentComment }) {
-  const { toggle } = useToggleReaction<AgentDiscussionData>({
-    entityType: 'agent_comment',
-    entityId: comment.id,
-    queryKey: agentCommentsKey(comment.agentId),
-    update: (data, apply) => patchAgentCommentReactions(data, comment.id, apply),
-  });
+function CommentReactions({ comment }: { comment: EntityComment }) {
+  const { toggle } = useToggleCommentReaction(comment);
   return (
     <ReactionBar
       reactions={comment.reactions}
@@ -51,9 +38,9 @@ function CommentReactions({ comment }: { comment: AgentComment }) {
 /** Reaktionen auf den Agenten und Kommentar-Threads darunter, wie im Gruppen-Feed. */
 export function AgentDiscussion({ agentId, isOwner }: { agentId: string; isOwner: boolean }) {
   const userId = useAuthStore((s) => s.user?.id) ?? null;
-  const discussion = useAgentComments(agentId);
-  const addComment = useAddAgentComment(agentId);
-  const deleteComment = useDeleteAgentComment(agentId);
+  const discussion = useEntityComments('agent', agentId);
+  const addComment = useAddEntityComment('agent', agentId);
+  const deleteComment = useDeleteEntityComment('agent', agentId);
 
   if (discussion.isLoading) return <p className="text-foreground-muted">Lädt …</p>;
   if (discussion.isError) {

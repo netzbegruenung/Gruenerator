@@ -37,8 +37,7 @@ import {
   presentationsContract,
   boardCommentsContract,
   entityReactionsContract,
-  agentCommentsContract,
-  templateCommentsContract,
+  entityCommentsContract,
   boardAgentContract,
   boardActivityContract,
   boardSubscriptionsContract,
@@ -303,8 +302,7 @@ const _sheetsClient = () => initClient(sheetsContract, CLIENT_OPTS);
 const _presentationsClient = () => initClient(presentationsContract, CLIENT_OPTS);
 const _boardCommentsClient = () => initClient(boardCommentsContract, CLIENT_OPTS);
 const _entityReactionsClient = () => initClient(entityReactionsContract, CLIENT_OPTS);
-const _agentCommentsClient = () => initClient(agentCommentsContract, CLIENT_OPTS);
-const _templateCommentsClient = () => initClient(templateCommentsContract, CLIENT_OPTS);
+const _entityCommentsClient = () => initClient(entityCommentsContract, CLIENT_OPTS);
 const _boardAgentClient = () => initClient(boardAgentContract, CLIENT_OPTS);
 const _boardActivityClient = () => initClient(boardActivityContract, CLIENT_OPTS);
 const _boardSubscriptionsClient = () => initClient(boardSubscriptionsContract, CLIENT_OPTS);
@@ -393,8 +391,7 @@ export interface ContractsClient {
   presentations: ReturnType<typeof _presentationsClient>;
   boardComments: ReturnType<typeof _boardCommentsClient>;
   entityReactions: ReturnType<typeof _entityReactionsClient>;
-  agentComments: ReturnType<typeof _agentCommentsClient>;
-  templateComments: ReturnType<typeof _templateCommentsClient>;
+  entityComments: ReturnType<typeof _entityCommentsClient>;
   boardAgent: ReturnType<typeof _boardAgentClient>;
   boardActivity: ReturnType<typeof _boardActivityClient>;
   boardSubscriptions: ReturnType<typeof _boardSubscriptionsClient>;
@@ -496,8 +493,7 @@ export function getContractsClient(): ContractsClient {
     presentations: _presentationsClient(),
     boardComments: _boardCommentsClient(),
     entityReactions: _entityReactionsClient(),
-    agentComments: _agentCommentsClient(),
-    templateComments: _templateCommentsClient(),
+    entityComments: _entityCommentsClient(),
     boardAgent: _boardAgentClient(),
     boardActivity: _boardActivityClient(),
     boardSubscriptions: _boardSubscriptionsClient(),

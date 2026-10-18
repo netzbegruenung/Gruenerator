@@ -2,17 +2,17 @@ import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const comments = vi.hoisted(() => ({
-  data: [] as unknown[],
+  data: { reactions: [], comments: [] as unknown[] } as unknown,
   isLoading: false,
   isError: false,
 }));
 const ownTemplates = vi.hoisted(() => ({ data: [] as Array<{ id: string }> }));
 
-vi.mock('../hooks/useTemplateComments', () => ({
-  templateCommentsKey: (id: string) => ['template-comments', id],
-  useTemplateComments: () => comments,
-  useAddTemplateComment: () => ({ mutateAsync: vi.fn() }),
-  useDeleteTemplateComment: () => ({ mutate: vi.fn(), isPending: false }),
+vi.mock('@gruenerator/shared/comments', () => ({
+  useEntityComments: () => comments,
+  useAddEntityComment: () => ({ mutateAsync: vi.fn() }),
+  useDeleteEntityComment: () => ({ mutate: vi.fn(), isPending: false }),
+  useToggleCommentReaction: () => ({ toggle: vi.fn() }),
 }));
 vi.mock('@/features/auth/hooks/useProfileData', () => ({
   useUserTemplates: () => ({ query: ownTemplates }),
@@ -21,15 +21,13 @@ vi.mock('@/stores/authStore', () => ({
   useAuthStore: (select: (s: { user: { id: string } }) => unknown) =>
     select({ user: { id: 'me' } }),
 }));
-vi.mock('@gruenerator/shared/reactions', () => ({
-  useToggleReaction: () => ({ toggle: vi.fn() }),
-}));
 
 import { VorlageComments } from './VorlageComments';
 
 const foreign = {
   id: 'c1',
-  templateId: 't1',
+  entityType: 'template',
+  entityId: 't1',
   parentId: null,
   userId: 'someone-else',
   authorName: 'Anna Beispiel',
@@ -39,7 +37,7 @@ const foreign = {
 };
 
 beforeEach(() => {
-  comments.data = [foreign];
+  comments.data = { reactions: [], comments: [foreign] };
   comments.isLoading = false;
   comments.isError = false;
   ownTemplates.data = [];
@@ -64,7 +62,7 @@ describe('VorlageComments', () => {
 
   it('shows a loading hint while the comments load', () => {
     comments.isLoading = true;
-    comments.data = undefined as never;
+    comments.data = undefined;
     render(<VorlageComments templateId="t1" />);
     expect(screen.getByText('Lädt …')).toBeInTheDocument();
   });

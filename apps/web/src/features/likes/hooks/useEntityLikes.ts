@@ -7,9 +7,13 @@ import { useAuthStore } from '../../../stores/authStore';
 import { TEMPLATE_ENGAGEMENT_KEY } from '../../vorlagen/hooks/useTemplateEngagement';
 
 import type { NotebookCollection } from '../../../types/notebook';
-import type { TemplateEngagementResponse } from '@gruenerator/contracts';
+import type {
+  EntityLikeType as AnyEntityLikeType,
+  TemplateEngagementResponse,
+} from '@gruenerator/contracts';
 
-export type EntityLikeType = 'notebook' | 'template';
+/** The like types this hook serves; the others like through the marketplace. */
+export type EntityLikeType = Extract<AnyEntityLikeType, 'notebook' | 'template'>;
 
 const likedIdsQueryKey = (entityType: EntityLikeType) => ['entityLikes', entityType] as const;
 
