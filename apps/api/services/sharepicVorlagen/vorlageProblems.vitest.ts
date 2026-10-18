@@ -1,7 +1,11 @@
 import { type SharepicSeiteFileEntry, type SharepicVorlageFileEntry } from '@gruenerator/contracts';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { seiteProblems, vorlageProblems } from './vorlageProblems.js';
+vi.mock('./catalog.js', () => ({
+  sharepicVorlageAssetFile: (file: string) => (file === 'person.jpg' ? `/assets/${file}` : null),
+}));
+
+const { seiteProblems, vorlageProblems } = await import('./vorlageProblems.js');
 
 const entry = (over: Partial<SharepicVorlageFileEntry> = {}): SharepicVorlageFileEntry => ({
   id: 'de-zitat',
@@ -96,5 +100,51 @@ describe('seiteProblems', () => {
       'unknown stock photo nicht-da.jpg',
       '++marker++ in an AT slide',
     ]);
+  });
+});
+
+describe('vorlageProblems — photos', () => {
+  const steckbrief = (bild: Record<string, unknown>) =>
+    entry({
+      form: 'vorstellung',
+      chat: { prompts: ['Steckbrief-Sharepic: Hallo, ich bin Lena'] },
+      spec: {
+        locale: 'de-DE',
+        slides: [
+          {
+            background: { kind: 'farbe', color: 'tanne' },
+            position: 'mitte',
+            align: 'links',
+            items: [
+              {
+                type: 'steckbrief',
+                gruss: 'Hallo, ich bin',
+                name: 'Lena',
+                merkmale: ['Fährt Rad', 'Spielt Gitarre', 'Kocht gern'],
+              },
+              { type: 'bild', ausschnitt: 'freigestellt', filter: 'original', ...bild } as never,
+            ],
+            logo: false,
+          },
+        ],
+      },
+    });
+
+  it('passes a shipped photo with its shipped cut-out', () => {
+    expect(
+      vorlageProblems(
+        steckbrief({ quelle: 'vorlage:person.jpg', freisteller: 'vorlage:person.jpg' })
+      )
+    ).toEqual([]);
+  });
+
+  it('flags a missing asset and a user photo', () => {
+    // Uncut is fine on a steckbrief: the photo keeps its own background.
+    expect(vorlageProblems(steckbrief({ quelle: 'vorlage:fehlt.jpg' }))).toEqual([
+      'missing asset fehlt.jpg',
+    ]);
+    expect(
+      vorlageProblems(steckbrief({ quelle: 'upload:1', freisteller: 'vorlage:person.jpg' }))
+    ).toEqual(['upload:1 belongs to one user, not to the catalogue']);
   });
 });

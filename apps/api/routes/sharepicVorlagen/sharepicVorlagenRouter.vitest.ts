@@ -16,6 +16,7 @@ const m = vi.hoisted(() => ({
   listSharepicSeiten: vi.fn((locale: string) => [{ id: `seite-${locale}` }]),
   getSharepicSeite: vi.fn(),
   sharepicSeiteThumbFile: vi.fn(),
+  sharepicVorlageAssetFile: vi.fn(),
   listCanvasVorlagen: vi.fn((locale: string) => [{ id: `canvas-${locale}` }]),
   getCanvasVorlage: vi.fn(),
   canvasVorlageThumbFile: vi.fn(),
@@ -32,6 +33,7 @@ vi.mock('../../services/sharepicVorlagen/catalog.js', () => ({
   listSharepicSeiten: m.listSharepicSeiten,
   getSharepicSeite: m.getSharepicSeite,
   sharepicSeiteThumbFile: m.sharepicSeiteThumbFile,
+  sharepicVorlageAssetFile: m.sharepicVorlageAssetFile,
   listCanvasVorlagen: m.listCanvasVorlagen,
   getCanvasVorlage: m.getCanvasVorlage,
   canvasVorlageThumbFile: m.canvasVorlageThumbFile,
@@ -194,4 +196,30 @@ it('lists the print Vorlagen of the viewer country and serves a card back by `se
     'private, max-age=31536000, immutable'
   );
   expect(m.printVorlageThumbFile).toHaveBeenLastCalledWith('de-rad', 2);
+});
+
+it('serves a Vorlage photo with its type, privately cached, and 404s an unknown one', async () => {
+  const { default: express } = await import('express');
+  const app = express();
+  mountSharepicVorlagenRouter(app);
+  const photo = path.join(mkdtempSync(path.join(tmpdir(), 'asset-')), 'person-frei.webp');
+  writeFileSync(photo, 'bild');
+  const server = app.listen(0);
+  try {
+    const { port } = server.address() as { port: number };
+    m.sharepicVorlageAssetFile.mockReturnValue(photo);
+    const res = await fetch(
+      `http://127.0.0.1:${port}/api/sharepic-vorlagen/assets/person-frei.webp`
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('image/webp');
+    expect(res.headers.get('cache-control')).toBe('private, max-age=604800');
+    expect(res.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(m.sharepicVorlageAssetFile).toHaveBeenLastCalledWith('person-frei.webp');
+    m.sharepicVorlageAssetFile.mockReturnValue(null);
+    const missing = await fetch(`http://127.0.0.1:${port}/api/sharepic-vorlagen/assets/x.webp`);
+    expect(missing.status).toBe(404);
+  } finally {
+    server.close();
+  }
 });

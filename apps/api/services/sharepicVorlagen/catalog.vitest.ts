@@ -17,6 +17,7 @@ import {
   printVorlageThumbFile,
   resetSharepicVorlagenCache,
   sharepicSeiteThumbFile,
+  sharepicVorlageAssetFile,
   sharepicVorlageThumbFile,
 } from './catalog.js';
 
@@ -387,5 +388,23 @@ describe('print Vorlagen catalogue', () => {
     writeFileSync(path.join(root, 'sharepic-vorlagen', 'thumbs', 'print', 'de-karte.webp'), 'a');
     resetSharepicVorlagenCache();
     expect(getPrintVorlage('de-karte')?.thumbVersion).toEqual(expect.any(String));
+  });
+});
+
+describe('Vorlage photos', () => {
+  it('resolves a shipped file and nothing outside assets/', () => {
+    writeCatalog({ 'de.json': [], 'assets/person.jpg': 'bild', 'geheim.jpg': 'nein' });
+    expect(sharepicVorlageAssetFile('person.jpg')).toBe(
+      path.join(root, 'sharepic-vorlagen', 'assets', 'person.jpg')
+    );
+    for (const name of [
+      '../geheim.jpg',
+      '..%2Fgeheim.jpg',
+      'fehlt.jpg',
+      'person.gif',
+      'Person.jpg',
+    ]) {
+      expect(sharepicVorlageAssetFile(name)).toBeNull();
+    }
   });
 });
