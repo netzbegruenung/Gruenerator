@@ -16,6 +16,7 @@ import {
   hasUnpairedAccentMark,
   isSharepicSceneRef,
   isSharepicUploadId,
+  isSharepicVorlageRef,
   SHAREPIC_MARKER_PASSAGES,
   stripInlineMarks,
   tightenAccentMarksDeep,
@@ -52,7 +53,7 @@ Ist alles gut: ok = true, issues und patch leer. Sonst issues = höchstens 3 kur
 - {"op":"set_color","color":…} – Hintergrund- bzw. Flächenfarbe
 - {"op":"remove_extra","extra":"stoerer"|"datum"|"ort"|"logo"|"quelle"}
 - {"op":"use_color","color":…} – das Foto passt nicht erkennbar zum Thema (Motiv und Auftrag haben nichts miteinander zu tun): stattdessen Markenfarbe – im Zweifel lieber Farbe als ein beliebiges Foto
-Eigene Fotos (filename "upload:N") hat die Person selbst mitgebracht: nie durch eine Farbe ersetzen (kein use_color) – auch dann nicht, wenn das Motiv nicht zum Thema passt.
+Eigene Fotos (filename "upload:N") hat die Person selbst mitgebracht, Fotos einer Vorlage ("vorlage:…") gehören zu ihr: nie durch eine Farbe ersetzen (kein use_color) – auch dann nicht, wenn das Motiv nicht zum Thema passt.
 Diese Elemente SIND Corporate Design und kein Fehler: der Datumskreis (Deutschland Tanne oder grasgrün, Österreich magenta), der Störer-Kreis (Deutschland grasgrün mit dunkler Schrift, auf grasgrüner Fläche Tanne; Österreich magenta), der Lime-Marker hinter einer Headline-Zeile und lime Einzelwörter (Deutschland), weiße und grüne Zeilenboxen (Deutschland), gelbe kursive Wörter oder Zeilen (Österreich), der Farbverlauf über dem Foto, die Farbfläche, die ins Foto ausblendet, das einfarbig grün eingefärbte Foto über oder unter der Farbfläche (Österreich), der Weiter-Pfeil unten rechts (in einem Karussell, darf auch fehlen) mit einem kurzen Teaser daneben, die Seitenzahl oben („2/5“ oder eine Punktreihe), die kleine Quellenzeile, das dunkle Schild „KI-Generiert …“ unten links auf jeder Slide (Pflichtkennzeichnung, nie entfernen oder bemängeln).
 In Karussells sind Slides ohne Headline gewollt: Geschichte, Kontext und Kritik stehen dort als Absätze (absatz), oft in Zeilenboxen. Mach daraus keine Headline – kürze höchstens den Text.
 Eine Headline mit "groesse":"gross" ist auf Wunsch der Person größer gesetzt: nicht als zu groß bemängeln; ein set_headline darauf behält die Größe.
@@ -64,6 +65,7 @@ Der Schluss-Aufruf (aufruf) auf der letzten Slide ist gewollt, in Deutschland wi
 Schlagzeilen-Karte (schlagzeile, gerade oder leicht gedreht wie ein Zeitungsausriss), Bingo-Raster (bingo) und ein Zitat der Gegenseite auf blassem Feld mit ✗ (zitat mit seite gegner) sind gewollt: kein set_text darauf, nicht weglassen; der Wortlaut stammt aus dem Auftrag.
 Große Zahl (zahl), Rechnung (rechnung) und Termine (termine) sind gewollt, auch die große Ziffer oder blasse Hintergrundziffer eines nummerierten Punkts und die Ziffern, Pfeile oder Häkchen vor Listenpunkten: kein set_text darauf, nicht zur Headline machen; ihre Zahlen und Daten stammen aus dem Auftrag.
 Icon-Liste (iconliste) und Vergleich (vergleich) sind gewollt, die Icons und ✓/✗ gehören dazu: eine iconliste kürzt set_text nur mit genau einer Zeile je Punkt (\\n getrennt), die Icons bleiben; ein vergleich bekommt kein set_text und wird keine Headline.
+Ein Steckbrief (steckbrief) ist gewollt: der kleine Gruß, der große Name mit winkender Hand, die verstreuten Merkmale mit handgezeichneten Pfeilen zur Person und die kleine Sonnenblume gehören dazu. Kein set_text darauf, nie weglassen, keine Headline dazusetzen; Name und Merkmale stammen aus dem Auftrag.
 Hervorhebung in Texten wie im Entwurf: ==Wort== für den Akzent – kein **fett** einführen, wo der Entwurf ==…== nutzt.
 Erfinde keine neuen Inhalte. Ändere nichts, was gut ist. Melde nur, was man sieht. Schlage nichts vor, was du schon einmal vorgeschlagen hast.`;
 
@@ -97,7 +99,8 @@ function normalizePatch(input: unknown): unknown {
 /**
  * A quote that becomes a headline loses its speaker; one that is removed loses
  * the point of the slide; rewording a quote or question falsifies what was
- * said; a chart or comparison has no text to reword. All are dropped, silently, like any other bad op. `removed` collects
+ * said; a chart or comparison has no text to reword; a steckbrief slide is
+ * laid out as a whole. All are dropped, silently, like any other bad op. `removed` collects
  * the quotes earlier ops of the same patch already take away, so two removals
  * cannot together leave none.
  */
@@ -106,6 +109,17 @@ function protectsZitat(
   slides: SharepicSlide[],
   removed: Set<string>
 ): boolean {
+  // A steckbrief fills its slide: its texts, its person and the photo layout stay.
+  if (
+    (op.op === 'set_text' ||
+      op.op === 'set_headline' ||
+      op.op === 'remove_item' ||
+      op.op === 'use_color' ||
+      op.op === 'set_text_side') &&
+    slides[op.slide ?? 0]?.items.some((i) => i.type === 'steckbrief')
+  ) {
+    return true;
+  }
   if (op.op !== 'set_text' && op.op !== 'set_headline' && op.op !== 'remove_item') return false;
   // The closing call carries its slide alone: no headline joins it.
   if (op.op === 'set_headline' && slides[op.slide ?? 0]?.items.some((i) => i.type === 'aufruf')) {
@@ -158,7 +172,10 @@ function keepsCarouselLook(
   const photos = all.filter((i) => {
     const bg = slides[i]!.background;
     return (
-      bg.kind !== 'farbe' && !isSharepicUploadId(bg.filename) && !isSharepicSceneRef(bg.filename)
+      bg.kind !== 'farbe' &&
+      !isSharepicUploadId(bg.filename) &&
+      !isSharepicSceneRef(bg.filename) &&
+      !isSharepicVorlageRef(bg.filename)
     );
   });
   const plain = new Set(

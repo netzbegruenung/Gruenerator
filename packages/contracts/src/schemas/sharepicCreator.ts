@@ -217,6 +217,9 @@ export const SHAREPIC_LIMITS = {
   schlagzeileMedium: 30,
   schlagzeileTitel: 120,
   bingoFeld: 28,
+  steckbriefGruss: 24,
+  steckbriefName: 24,
+  steckbriefMerkmal: 32,
   slides: 8,
 } as const;
 
@@ -433,6 +436,23 @@ export type SharepicInfografikForm = z.infer<typeof sharepicInfografikFormSchema
 export const SHAREPIC_SCENE_REF = /^ki:([\w-]{16,64})$/;
 export const isSharepicSceneRef = (filename: string): boolean => SHAREPIC_SCENE_REF.test(filename);
 
+/**
+ * A photo the Grünerator-Vorlagen catalogue ships beside its entries
+ * (`<intern>/sharepic-vorlagen/assets/<file>`): `vorlage:<file>`. Only the
+ * catalogue writes one; a copy of the Vorlage keeps it.
+ */
+export const SHAREPIC_VORLAGE_REF = /^vorlage:([a-z0-9][a-z0-9-]{0,62}\.(?:jpe?g|png|webp))$/;
+export const isSharepicVorlageRef = (filename: string): boolean =>
+  SHAREPIC_VORLAGE_REF.test(filename);
+/** Where the API serves a `vorlage:` photo. */
+export const sharepicVorlageAssetPath = (ref: string): string =>
+  `/api/sharepic-vorlagen/assets/${encodeURIComponent(SHAREPIC_VORLAGE_REF.exec(ref)?.[1] ?? '')}`;
+/** A ready cut-out: painted for this draft (`ki:`) or shipped by the catalogue (`vorlage:`). */
+const sharepicCutOutRefSchema = z.union([
+  z.string().regex(SHAREPIC_SCENE_REF),
+  z.string().regex(SHAREPIC_VORLAGE_REF),
+]);
+
 const sharepicInfografikPunktSchema = z.object({
   /** Short title — may be the figure itself ("300 Becher"). */
   titel: line(SHAREPIC_LIMITS.infografikTitel),
@@ -469,16 +489,20 @@ export const SHAREPIC_UPLOAD_MAX = 4;
 export const SHAREPIC_UPLOAD_ID = new RegExp(`^upload:[1-${SHAREPIC_UPLOAD_MAX}]$`);
 export const isSharepicUploadId = (filename: string): boolean => SHAREPIC_UPLOAD_ID.test(filename);
 
-/** A stock photo's file name, the id of one of the user's own photos, or a painted scene. */
+/** A stock photo's file name, the id of one of the user's own photos, a painted scene or a Vorlage's photo. */
 const sharepicPhotoFilenameSchema = z
   .string()
   .regex(
     new RegExp(
-      `^(?:[\\w.-]+\\.jpe?g|${SHAREPIC_UPLOAD_ID.source.slice(1, -1)}|${SHAREPIC_SCENE_REF.source.slice(1, -1)})$`,
+      `^(?:[\\w.-]+\\.jpe?g|${SHAREPIC_UPLOAD_ID.source.slice(1, -1)}|${SHAREPIC_SCENE_REF.source.slice(1, -1)}|${SHAREPIC_VORLAGE_REF.source.slice(1, -1)})$`,
       'i'
     ),
     'filename aus fotos_suchen oder die id eines eigenen Fotos (upload:N) übernehmen'
-  );
+  )
+  // The pattern ignores case for stock names; a Vorlage's file name is exact.
+  .refine((f) => !/^vorlage:/i.test(f) || SHAREPIC_VORLAGE_REF.test(f), {
+    message: 'vorlage: nur mit dem Dateinamen aus dem Katalog',
+  });
 
 /** Where a photo inside the slide sits; the composer gives each a fixed place beside the text. */
 export const sharepicBildAusschnittSchema = z.enum([
@@ -671,8 +695,22 @@ export const sharepicItemSchema = z.discriminatedUnion('type', [
     quelle: sharepicPhotoFilenameSchema,
     ausschnitt: sharepicBildAusschnittSchema,
     filter: sharepicBildFilterSchema,
-    /** `freigestellt` only: the cut-out of `quelle`, set by the server. */
-    freisteller: z.string().regex(SHAREPIC_SCENE_REF).optional(),
+    /** `freigestellt` only: the cut-out of `quelle`, set by the server (or shipped by a Vorlage). */
+    freisteller: sharepicCutOutRefSchema.optional(),
+  }),
+  /**
+   * A person introduces themselves: the greeting small, the name large with a
+   * waving hand, short traits around them, each with a hand-drawn arrow to
+   * the person. Fills the slide; the person is the background photo or a
+   * cut-out `bild` on a colour.
+   */
+  z.object({
+    type: z.literal('steckbrief'),
+    /** Small above the name: "Hallo, ich bin". */
+    gruss: line(SHAREPIC_LIMITS.steckbriefGruss),
+    name: line(SHAREPIC_LIMITS.steckbriefName),
+    /** In the person's own words, from the request: "Bouldert trotz Höhenangst". */
+    merkmale: z.array(line(SHAREPIC_LIMITS.steckbriefMerkmal)).min(3).max(10),
   }),
   z.object({
     type: z.literal('aufruf'),
@@ -702,6 +740,7 @@ export const SHAREPIC_ITEM_LABELS: Record<SharepicItemType, string> = {
   liste: 'Liste',
   rechnung: 'Rechnung',
   schlagzeile: 'Schlagzeile',
+  steckbrief: 'Steckbrief',
   termine: 'Termine',
   text: 'Text',
   vergleich: 'Vergleich',
@@ -733,6 +772,7 @@ export const SHAREPIC_REQUEST_BOUND_ITEMS: ReadonlySet<SharepicItemType> =
     'schlagzeile',
     'faktencheck',
     'bingo',
+    'steckbrief',
   ]);
 
 const ORDINALS = ['erst', 'zweit', 'dritt', 'viert', 'fünft', 'sechst', 'siebt', 'acht'];
@@ -762,6 +802,7 @@ const CONTENT_STEMS: Partial<Record<SharepicItemType, string>> = {
   rechnung: 'rechnung',
   frage: 'frage',
   aufruf: 'aufruf',
+  steckbrief: 'steckbrief',
 };
 const CONTENT_REFS = Object.entries(CONTENT_STEMS).map(([type, stem]) => {
   const word = `${stem}(?:e|en|n|s|es)?`;
@@ -1278,11 +1319,37 @@ export const sharepicSpecSchema = sharepicSpecShapeSchema.superRefine((spec, ctx
         )
       ) {
         issue(
-          'Ein bild teilt die Slide nur mit Text (dachzeile, headline, absatz, text, zitat, frage, button) – keine Karte, infografik oder aufruf daneben.'
+          'Ein bild teilt die Slide nur mit Text (dachzeile, headline, absatz, text, zitat, frage, button, steckbrief) – keine Karte, infografik oder aufruf daneben.'
         );
       }
       if (bilder.some((b) => b.freisteller && b.ausschnitt !== 'freigestellt')) {
         issue('freisteller gibt es nur bei ausschnitt "freigestellt".');
+      }
+    }
+    if (slide.items.some((i) => i.type === 'steckbrief')) {
+      const others = slide.items.filter((i) => i.type !== 'steckbrief');
+      if (slide.items.length - others.length > 1) issue('Höchstens ein steckbrief pro Slide.');
+      const bild = others.length === 1 && others[0]!.type === 'bild' ? others[0] : null;
+      // The person is the whole photo, or a cut-out on a colour.
+      const onPhoto = bg.kind === 'foto' && others.length === 0;
+      const cutOut = bg.kind === 'farbe' && bild?.ausschnitt === 'freigestellt';
+      if (!onPhoto && !cutOut) {
+        issue(
+          'Ein steckbrief steht allein auf einem Foto der Person (background kind "foto") oder auf einer Farbe mit genau einem bild, ausschnitt "freigestellt".'
+        );
+      }
+      if (
+        slide.stoerer ||
+        slide.datum ||
+        slide.ort ||
+        slide.nummer ||
+        slide.zeilenboxen ||
+        slide.blume ||
+        slide.quelle
+      ) {
+        issue(
+          'Ein steckbrief hat keine Extras (stoerer, datum, ort, nummer, zeilenboxen, blume, quelle).'
+        );
       }
     }
     if (slide.zeilenboxen && spec.locale !== 'de-DE') {
@@ -1496,6 +1563,7 @@ export const SHAREPIC_FORMS = [
   { id: 'faktencheck', label: 'Faktencheck', stichworte: ['Faktencheck', 'Mythencheck'] },
   { id: 'faktenbild', label: 'Faktenbild', stichworte: ['Faktenbild'] },
   { id: 'veranstaltung', label: 'Veranstaltung', stichworte: ['Veranstaltung', 'Einladung'] },
+  { id: 'vorstellung', label: 'Vorstellung', stichworte: ['Steckbrief', 'Vorstellungspost'] },
 ] as const;
 export type SharepicFormId = (typeof SHAREPIC_FORMS)[number]['id'];
 export const sharepicFormSchema = z.enum(

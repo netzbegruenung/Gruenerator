@@ -33,6 +33,10 @@ describe('namedSharepicForm', () => {
     ['Sharepic für Österreich mit einer großen Zahl: 3,1 Grad', 'zahl'],
     ['Infografik mit einer großen Zahl: 420 €', 'infografik'],
     ['Noch 3 Tage bis zur Wahl!', 'zahl'],
+    ['Steckbrief für unsere Kandidatin Lena', 'vorstellung'],
+    ['Ein Vorstellungspost für Jonas, Imker und Radfahrer', 'vorstellung'],
+    ['Ich stelle mich vor: Lena, Imkerin aus Kassel', 'vorstellung'],
+    ['Vorstellung unseres Wahlprogramms', null],
   ])('%s → %s', (text, form) => {
     expect(namedSharepicForm(text)).toBe(form);
   });
@@ -118,6 +122,12 @@ describe('formMismatch', () => {
   it('wants a quote item for a quote', () => {
     expect(formMismatch('zitat', { locale: 'de-DE', slides: [headline] }, false)).toContain(
       '"type":"zitat"'
+    );
+  });
+
+  it('wants a steckbrief for a Vorstellung', () => {
+    expect(formMismatch('vorstellung', { locale: 'de-DE', slides: [headline] }, false)).toContain(
+      '"type":"steckbrief"'
     );
   });
 });
