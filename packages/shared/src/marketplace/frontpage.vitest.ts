@@ -83,6 +83,12 @@ describe('shelves', () => {
     expect(popularShelf([section('agent', thin)])).toEqual([]);
   });
 
+  it('drops the focused item before cutting a shelf to size', () => {
+    const liked = [9, 5, 4, 3, 2, 1].map((n) => it_('agent', `a${n}`, { likesCount: n }));
+    const shelf = popularShelf([section('agent', liked)], 'agent:a9');
+    expect(refs(shelf)).toEqual(['a5', 'a4', 'a3', 'a2', 'a1']);
+  });
+
   it('Zum Gestalten: kinds take turns, hidden below three', () => {
     const shelf = visualShelf([
       section('template', [it_('template', 't1'), it_('template', 't2'), it_('template', 't3')]),

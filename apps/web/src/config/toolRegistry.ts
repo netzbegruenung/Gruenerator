@@ -691,6 +691,7 @@ export interface DerivedTile {
   href?: string;
   audience?: ToolAudience;
   icon: IconType;
+  badge?: string;
 }
 
 export function toolsWithTile(group: WorkplaceTileGroup): DerivedTile[] {

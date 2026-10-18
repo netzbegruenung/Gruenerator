@@ -175,11 +175,6 @@
     "subtitle": "Deine KI-Grüneratoren",
     "path": "/grueneratoren"
   },
-  "menu.marktplatz": {
-    "title": "Marktplatz",
-    "subtitle": "Agents, Rezepte, Vorlagen und Sticker entdecken",
-    "path": "/marktplatz"
-  },
   "menu.sites": {
     "title": "Sites",
     "subtitle": "Kandidat*innen-Site-Builder",
@@ -193,11 +188,6 @@
   "menu.support": {
     "title": "Support",
     "path": "/support"
-  },
-  "workplace.agents": {
-    "title": "Grüneratoren",
-    "subtitle": "Agents, Rezepte & Aufgaben",
-    "path": "/grueneratoren"
   },
   "workplace.bild-erweitern": {
     "title": "Bild erweitern",
@@ -235,6 +225,11 @@
     "title": "Hintergrund entfernen",
     "subtitle": "Person oder Motiv freistellen",
     "path": "/studio/freistellen"
+  },
+  "workplace.marktplatz": {
+    "title": "Marktplatz",
+    "subtitle": "Agents, Rezepte & Vorlagen entdecken",
+    "path": "/marktplatz"
   },
   "workplace.mcp": {
     "title": "Apps & MCP",
