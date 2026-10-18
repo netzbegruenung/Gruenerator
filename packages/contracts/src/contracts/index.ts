@@ -94,3 +94,4 @@ export { instanceAdminOverviewContract } from './instanceAdminOverviewContract.j
 export { translationContract } from './translationContract.js';
 export { lvAdminAssignmentContract } from './lvAdminAssignmentContract.js';
 export { landesverbandAdminContract } from './landesverbandAdminContract.js';
+export { marketplaceContract } from './marketplaceContract.js';
