@@ -185,6 +185,25 @@ describe('MarketplacePage', () => {
       within(shelf).getByRole('heading', { name: 'Aus deinem Landesverband · Grüne Hessen' })
     ).toBeInTheDocument();
     expect(within(shelf).getAllByRole('heading', { level: 3 })).toHaveLength(2);
+    // One Landesverband: „Alle anzeigen" opens its page.
+    expect(within(shelf).getByRole('link', { name: 'Alle anzeigen' })).toHaveAttribute(
+      'href',
+      '/marktplatz/landesverband/gruene-hessen'
+    );
+  });
+
+  it('keeps „Alle anzeigen" on the filtered list with several Landesverbände', async () => {
+    lv.ids = ['hessen', 'berlin'];
+    serveFrom([
+      item('agent', 'LV-Agent', { origin: 'landesverband' }),
+      item('recipe', 'LV-Rezept', { origin: 'landesverband' }),
+    ]);
+    const { user } = renderPage();
+
+    const shelf = await screen.findByRole('region', { name: 'Aus deinem Landesverband' });
+    expect(within(shelf).queryByRole('link', { name: 'Alle anzeigen' })).toBeNull();
+    await user.click(within(shelf).getByRole('button', { name: 'Alle anzeigen' }));
+    expect(screen.getByRole('status', { name: 'Adresse' })).toHaveTextContent('von=landesverband');
   });
 
   it('falls back to the newest official item when the featured one is not there', async () => {

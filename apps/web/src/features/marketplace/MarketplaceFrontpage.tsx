@@ -5,12 +5,14 @@ import {
   type MarketplaceOrigin,
   type MarketplaceSort,
 } from '@gruenerator/contracts';
+import { getLandesverbandHubsByIds } from '@gruenerator/shared/agents';
 import {
   FRONTPAGE_SHELVES,
   FRONTPAGE_TEXT_KINDS,
   FRONTPAGE_VISUAL_KINDS,
   fallbackFeature,
   featureFor,
+  landesverbandHubHref,
   landesverbandShelf,
   marketplaceOriginLabel,
   newestShelf,
@@ -44,6 +46,7 @@ import { chatPathOf, metaLine, viewOf } from './kindViews';
 import { MarketplaceCard } from './MarketplaceCard';
 import { type MarketplaceActions } from './useMarketplaceActions';
 
+import { CURRENT_INSTANCE } from '@/config/instance';
 import { useAuthStore } from '@/stores/authStore';
 
 /** Headline face of the brand per country, as in the sharepic themes. */
@@ -117,6 +120,9 @@ export function MarketplaceFrontpage({
   const locale = useAuthStore((s) => s.locale) === 'de-AT' ? 'de-AT' : 'de-DE';
   const { lvIds } = useUserLandesverbaende();
   const hasLv = (lvIds?.length ?? 0) > 0;
+  // Exactly one Landesverband: „Alle anzeigen" opens its page instead of the filtered list.
+  const lvHubs = getLandesverbandHubsByIds(lvIds ?? [], CURRENT_INSTANCE);
+  const lvHub = lvIds?.length === 1 && lvHubs.length === 1 ? lvHubs[0] : null;
 
   const newest = useShelf(FRONTPAGE_TEXT_KINDS, 'neu', FRONTPAGE_SHELVES.neu.show);
   const popular = useShelf(FRONTPAGE_TEXT_KINDS, 'beliebt', FRONTPAGE_SHELVES.beliebt.show);
@@ -161,7 +167,15 @@ export function MarketplaceFrontpage({
         <section aria-label="Aus deinem Landesverband">
           <SectionHeader
             title={`Aus deinem Landesverband · ${marketplaceOriginLabel('landesverband', lvIds)}`}
-            actions={<BrowseButton onClick={() => onBrowse({ origin: 'landesverband' })} />}
+            actions={
+              lvHub ? (
+                <Button asChild variant="ghost" size="sm">
+                  <Link to={landesverbandHubHref(lvHub.slug)}>Alle anzeigen</Link>
+                </Button>
+              ) : (
+                <BrowseButton onClick={() => onBrowse({ origin: 'landesverband' })} />
+              )
+            }
           />
           <div className="grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-3">
             {lvItems.map((item) => (

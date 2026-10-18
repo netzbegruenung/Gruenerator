@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogTitle } from '@gruenerator/ui';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import RolesSection from './RolesSection';
@@ -21,6 +21,22 @@ import RolesSection from './RolesSection';
  * user-event weigert sich, auf `pointer-events: none` zu klicken, und ist damit
  * das Prüfmittel für genau diesen Fehler.
  */
+
+const lv = vi.hoisted(() => ({ ids: null as readonly string[] | null }));
+vi.mock('@gruenerator/chat', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  useUserLandesverbaende: () => ({
+    lvIds: lv.ids,
+    headings: { agents: 'Grüne Berlin', skills: '' },
+    shelfLabel: '',
+    isHydrated: true,
+  }),
+}));
+
+function Where() {
+  const { pathname, search } = useLocation();
+  return <output aria-label="Adresse">{`${pathname}${search}`}</output>;
+}
 
 vi.mock('../../../stores/authStore', () => ({
   useAuthStore: (selector: (s: unknown) => unknown) =>
@@ -59,6 +75,7 @@ function renderSection() {
             <RolesSection />
           </DialogContent>
         </Dialog>
+        <Where />
       </QueryClientProvider>
     </MemoryRouter>
   );
@@ -71,6 +88,50 @@ async function openBundeslandStep(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByText('Land'));
   return { input: screen.getByPlaceholderText('Bundesland eingeben...'), onOpenChange };
 }
+
+/**
+ * Der Weg zum zugeteilten Landesverband: bei genau einem direkt auf seine Seite
+ * im Marktplatz, bei mehreren ein Knopf je Landesverband. Lässt sich keiner
+ * auflösen, bleibt es beim gefilterten Marktplatz.
+ */
+describe('RolesSection — Weg zum Landesverband', () => {
+  afterEach(() => {
+    lv.ids = null;
+  });
+
+  it('führt bei einem Landesverband auf dessen Seite', async () => {
+    lv.ids = ['berlin'];
+    const user = userEvent.setup();
+    renderSection();
+    await user.click(screen.getByRole('button', { name: 'Zu deinem Landesverband' }));
+    expect(screen.getByRole('status', { name: 'Adresse', hidden: true })).toHaveTextContent(
+      '/marktplatz/landesverband/gruene-berlin'
+    );
+  });
+
+  it('zeigt bei zwei Landesverbänden zwei Knöpfe', async () => {
+    lv.ids = ['berlin', 'hessen'];
+    const user = userEvent.setup();
+    renderSection();
+    expect(screen.queryByRole('button', { name: 'Zu deinem Landesverband' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Grüne Berlin' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Grüne Hessen' }));
+    expect(screen.getByRole('status', { name: 'Adresse', hidden: true })).toHaveTextContent(
+      '/marktplatz/landesverband/gruene-hessen'
+    );
+  });
+
+  it('bleibt beim gefilterten Marktplatz, wenn sich kein Landesverband auflösen lässt', async () => {
+    // Hamburg ist abgeschaltet (`enabled: false`) — seine Seite gibt es nicht.
+    lv.ids = ['hamburg'];
+    const user = userEvent.setup();
+    renderSection();
+    await user.click(screen.getByRole('button', { name: 'Zu deinem Landesverband' }));
+    expect(screen.getByRole('status', { name: 'Adresse', hidden: true })).toHaveTextContent(
+      '/marktplatz?von=landesverband'
+    );
+  });
+});
 
 describe('RolesSection — Rollen-Assistent (de-AT)', () => {
   it('hält die Bundesland-Liste beim Klick ins Feld offen', async () => {
