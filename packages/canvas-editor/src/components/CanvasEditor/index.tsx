@@ -997,6 +997,7 @@ function CanvasEditorInner({
       ...shareProps,
       ...(specEdit && { specEdit }),
       background: source.config.background?.(source.state, source.actions) ?? null,
+      chartColors: source.config.chartColors,
     });
 
     return (

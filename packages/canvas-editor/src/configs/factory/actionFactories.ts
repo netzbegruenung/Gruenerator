@@ -598,11 +598,13 @@ export function createChartActions<TState extends { chartInstances: ChartInstanc
   saveToHistory: HistorySaver<TState>,
   debouncedSaveToHistory: HistorySaver<TState>,
   canvasWidth: number,
-  canvasHeight: number
+  canvasHeight: number,
+  /** Series colours of a new chart; the page's country palette. */
+  chartColors?: readonly string[]
 ) {
   return {
     addChart: (chartType: ChartType, options?: ElementPlacement) => {
-      const created = createChartInstance(chartType, canvasWidth, canvasHeight);
+      const created = createChartInstance(chartType, canvasWidth, canvasHeight, chartColors);
       // Charts store their top-left corner.
       const newChart = options?.center
         ? {
@@ -804,7 +806,8 @@ export function createBaseActions<TState extends BaseCanvasState>(
   debouncedSaveToHistory: HistorySaver<TState>,
   canvasWidth: number,
   canvasHeight: number,
-  fontColor?: string
+  fontColor?: string,
+  chartColors?: readonly string[]
 ) {
   return {
     ...createAssetActions(
@@ -868,7 +871,8 @@ export function createBaseActions<TState extends BaseCanvasState>(
       saveToHistory,
       debouncedSaveToHistory,
       canvasWidth,
-      canvasHeight
+      canvasHeight,
+      chartColors
     ),
     ...createFrameActions(
       getState,
