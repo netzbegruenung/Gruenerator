@@ -27,6 +27,9 @@ export const printVarianteSchema = z.enum([
   'kandidat',
   'thema',
   'veranstaltung',
+  'geteilt',
+  'overlay',
+  'person',
 ]);
 export type PrintVariante = z.infer<typeof printVarianteSchema>;
 
@@ -144,6 +147,16 @@ export const printVeranstaltungSlotsSchema = z.object({
 });
 export type PrintVeranstaltungSlots = z.infer<typeof printVeranstaltungSlotsSchema>;
 
+/** AT posters (CD 2026 p. 80–84): one headline with its yellow accent, on or beside a photo. */
+export const printAtPlakatSlotsSchema = z.object({
+  headline: text(PRINT_HEADLINE_MAX),
+  akzent: text(PRINT_TEXT_MAX).optional(),
+  subline: text(PRINT_TEXT_MAX).optional(),
+  stoerer: text(PRINT_STOERER_MAX).optional(),
+  foto: printFotoSchema,
+});
+export type PrintAtPlakatSlots = z.infer<typeof printAtPlakatSlotsSchema>;
+
 /** DE: V.i.S.d.P. */
 export const printImpressumDeSchema = z.object({
   art: z.literal('visdp'),
@@ -161,6 +174,13 @@ export const printImpressumSchema = z.discriminatedUnion('art', [
   printImpressumAtSchema,
 ]);
 export type PrintImpressum = z.infer<typeof printImpressumSchema>;
+
+const AT_PLAKAT_FORMATS = [
+  'print-a1-hoch',
+  'print-a1-quer',
+  'print-a3-hoch',
+  'print-a3-quer',
+] as const satisfies readonly PrintFormatId[];
 
 /**
  * What each variante belongs to, the countries whose CD has it, which formats
@@ -197,6 +217,25 @@ export const PRINT_VARIANTEN = {
     laender: ['de-DE'],
     formats: ['print-a3-hoch', 'print-a3-quer', 'print-a1-hoch', 'print-a1-quer'],
     stile: { 'de-DE': ['portraits'], 'de-AT': [] },
+  },
+  // AT: the photo beside the green (p. 80), under a square box (p. 81/82, `hellgruen`), or the person (p. 83).
+  geteilt: {
+    produkt: 'plakat',
+    laender: ['de-AT'],
+    formats: AT_PLAKAT_FORMATS,
+    stile: { 'de-DE': [], 'de-AT': [] },
+  },
+  overlay: {
+    produkt: 'plakat',
+    laender: ['de-AT'],
+    formats: AT_PLAKAT_FORMATS,
+    stile: { 'de-DE': [], 'de-AT': ['hellgruen'] },
+  },
+  person: {
+    produkt: 'plakat',
+    laender: ['de-AT'],
+    formats: AT_PLAKAT_FORMATS,
+    stile: { 'de-DE': [], 'de-AT': [] },
   },
 } as const satisfies Record<
   PrintVariante,
@@ -242,6 +281,11 @@ const printVeranstaltungSpecSchema = z.object({
   variante: z.literal('veranstaltung'),
   slots: printVeranstaltungSlotsSchema,
 });
+const printAtPlakatSpecSchema = z.object({
+  ...printBase,
+  variante: z.enum(['geteilt', 'overlay', 'person']),
+  slots: printAtPlakatSlotsSchema,
+});
 
 export const printSpecSchema = z
   .discriminatedUnion('variante', [
@@ -250,6 +294,7 @@ export const printSpecSchema = z
     printKandidatSpecSchema,
     printThemaSpecSchema,
     printVeranstaltungSpecSchema,
+    printAtPlakatSpecSchema,
   ])
   .superRefine((spec, ctx) => {
     const issue = (path: string, message: string) =>

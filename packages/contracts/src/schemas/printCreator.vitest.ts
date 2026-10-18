@@ -176,6 +176,47 @@ describe('printSpecSchema: photo posters', () => {
   });
 });
 
+describe('printSpecSchema: AT posters', () => {
+  const at = { art: 'impressum', medieninhaber: 'Die Grünen Wien', anschrift: 'Lindengasse 40' };
+  const plakat = (variante: string, extra: object = {}) => ({
+    locale: 'de-AT',
+    produkt: 'plakat',
+    variante,
+    format: 'print-a1-hoch',
+    impressum: at,
+    slots: { headline: 'Das ist eine dreizeilige Headline.', akzent: 'dreizeilige', foto: 'x.jpg' },
+    ...extra,
+  });
+
+  it('accepts split, overlay and person posters in Austria only', () => {
+    for (const variante of ['geteilt', 'overlay', 'person']) {
+      expect(printSpecSchema.safeParse(plakat(variante)).success, variante).toBe(true);
+      expect(printSpecSchema.safeParse(plakat(variante, { format: 'print-a3-quer' })).success).toBe(
+        true
+      );
+      expect(
+        printSpecSchema.safeParse(
+          plakat(variante, {
+            locale: 'de-DE',
+            impressum: { art: 'visdp', name: 'A', anschrift: 'B' },
+          })
+        ).success
+      ).toBe(false);
+    }
+  });
+
+  it('gives the overlay its Hellgrün box, and nothing else a stil', () => {
+    expect(printSpecSchema.safeParse(plakat('overlay', { stil: 'hellgruen' })).success).toBe(true);
+    expect(printSpecSchema.safeParse(plakat('geteilt', { stil: 'hellgruen' })).success).toBe(false);
+  });
+
+  it('needs the photo', () => {
+    expect(
+      printSpecSchema.safeParse(plakat('person', { slots: { headline: 'Ohne Foto' } })).success
+    ).toBe(false);
+  });
+});
+
 describe('printFotoSrc', () => {
   it('serves catalogue photos from the Vorlagen route and stock photos from the picker', () => {
     expect(printFotoSrc('vorlage:person.jpg')).toBe('/api/sharepic-vorlagen/assets/person.jpg');
