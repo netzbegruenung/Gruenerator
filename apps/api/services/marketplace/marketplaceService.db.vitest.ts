@@ -56,6 +56,7 @@ const { buildMarketplaceContext } = await import('./context.js');
 const { listMarketplace, setLike, setSaved } = await import('./marketplaceService.js');
 const { deleteLikesOfDeletedUser } = await import('../entityLikes/EntityLikesService.js');
 const { cleanUpBeforeProfileDelete } = await import('../user/accountDeletionCleanup.js');
+const { listMentionableTextForms } = await import('../user/textFormRepository.js');
 
 const me = randomUUID();
 const other = randomUUID();
@@ -488,6 +489,25 @@ describe.skipIf(!url)('Marktplatz (marketplaceService)', () => {
     expect((await pool.query('SELECT 1 FROM entity_comments')).rowCount).toBe(0);
     expect(await publicRefs('agent')).toEqual([myAgent]);
     expect(await publicRefs('recipe')).toEqual([myRecipe]);
+  });
+
+  it('the recipe mention list splits public recipes by country like the shelf (#4724)', async () => {
+    const de = await insertRecipe({ audience: 'de-DE' });
+    const at = await insertRecipe({ audience: 'de-AT' });
+    const all = await insertRecipe({ audience: 'all' });
+    const ownAt = await insertRecipe({ owner: me, audience: 'de-AT', isPublic: false });
+    const sharedAt = await insertRecipe({ audience: 'de-AT', isPublic: false });
+    await shareInto(await insertGroup({ members: [me] }), 'user_text_forms', sharedAt);
+
+    const mentionable = async (viewerLocale: string) =>
+      (await listMentionableTextForms(me, undefined, { viewerLocale })).map((f) => f.id).sort();
+
+    // Own and project-shared recipes stay, whatever their country.
+    expect(await mentionable('de-DE')).toEqual([de, all, ownAt, sharedAt].sort());
+    expect(await mentionable('de-AT')).toEqual([at, all, ownAt, sharedAt].sort());
+    // The picker offers the public recipes the shelf shows, no more.
+    expect(await publicRefs('recipe', 'de-DE')).toEqual(expect.arrayContaining([de, all]));
+    expect(await publicRefs('recipe', 'de-DE')).not.toContain(at);
   });
 
   it('answers 409 once „Meine Grüneratoren“ is full', async () => {

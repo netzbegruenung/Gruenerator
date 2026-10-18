@@ -675,7 +675,9 @@ describe.skipIf(!url)('Meldungen (contentReportsService)', () => {
       groupBucket: (await listUserAgentsByIds([agent])).map((a) => a.id),
       agentPicker: (await listMentionableUserAgents(userId)).map((a) => a.id),
       recipes: (await listTextForms(userId)).map((f) => f.id),
-      recipePicker: (await listMentionableTextForms(userId)).map((f) => f.id),
+      recipePicker: (
+        await listMentionableTextForms(userId, undefined, { viewerLocale: 'de-DE' })
+      ).map((f) => f.id),
       injection: (await getTextFormForInjection(userId, mention))?.id ?? null,
       injectionById: (await getTextFormForInjectionById(recipe, userId))?.id ?? null,
     });
@@ -713,7 +715,9 @@ describe.skipIf(!url)('Meldungen (contentReportsService)', () => {
     expect((await getAccessibleUserAgentById(agent, owner))?.id).toBe(agent);
     expect((await listMentionableUserAgents(owner)).map((a) => a.id)).toEqual([agent]);
     expect((await listTextForms(owner)).map((f) => f.id)).toEqual([recipe]);
-    expect((await listMentionableTextForms(owner)).map((f) => f.id)).toEqual([recipe]);
+    expect(
+      (await listMentionableTextForms(owner, undefined, { viewerLocale: 'de-DE' })).map((f) => f.id)
+    ).toEqual([recipe]);
     expect((await getTextFormForInjection(owner, mention))?.id).toBe(recipe);
   });
 
