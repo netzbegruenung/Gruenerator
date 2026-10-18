@@ -10,6 +10,7 @@ import type { Request } from 'express';
 
 const m = vi.hoisted(() => ({
   listMarketplace: vi.fn(),
+  getMarketplaceFrontpage: vi.fn(),
   getMarketplaceItem: vi.fn(),
   setLike: vi.fn(),
   setSaved: vi.fn(),
@@ -18,6 +19,7 @@ const m = vi.hoisted(() => ({
 
 vi.mock('../../services/marketplace/marketplaceService.js', () => ({
   listMarketplace: m.listMarketplace,
+  getMarketplaceFrontpage: m.getMarketplaceFrontpage,
   getMarketplaceItem: m.getMarketplaceItem,
   setLike: m.setLike,
   setSaved: m.setSaved,
@@ -60,6 +62,24 @@ describe('list', () => {
   it('500 when the service throws', async () => {
     m.listMarketplace.mockRejectedValue(new Error('db down'));
     const res = await call('list', { query: marketplaceListQuerySchema.parse({}) });
+    expect(res.status).toBe(500);
+  });
+});
+
+describe('frontpage', () => {
+  it('builds the page in the viewer’s country and platform', async () => {
+    const page = { featured: null, featureId: null, shelves: [] };
+    m.getMarketplaceFrontpage.mockResolvedValue(page);
+    const res = await call('frontpage', { query: { platform: 'mobile' } });
+    expect(res).toEqual({ status: 200, body: page });
+    expect(m.getMarketplaceFrontpage).toHaveBeenCalledWith({
+      ctx: { userId: 'viewer', locale: 'de-AT', platform: 'mobile' },
+    });
+  });
+
+  it('500 when the service throws', async () => {
+    m.getMarketplaceFrontpage.mockRejectedValue(new Error('db down'));
+    const res = await call('frontpage', { query: { platform: 'web' } });
     expect(res.status).toBe(500);
   });
 });

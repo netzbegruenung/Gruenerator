@@ -3,7 +3,10 @@ import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_MARKETPLACE_FILTERS } from './filters';
 import {
+  MARKETPLACE_FEATURES,
+  composeFrontpage,
   fallbackFeature,
+  featureById,
   featureFor,
   isFrontpageView,
   landesverbandShelf,
@@ -103,5 +106,57 @@ describe('shelves', () => {
     ]);
     expect(pick?.ref).toBe('official');
     expect(fallbackFeature([])).toBeNull();
+  });
+});
+
+describe('composeFrontpage', () => {
+  const official = it_('agent', 'official', { createdAt: '2026-09-01' });
+  const liked = [1, 2, 3, 4, 5].map((n) => it_('recipe', `r${n}`, { likesCount: n }));
+  const visuals = [it_('template', 't1'), it_('sticker', 's1'), it_('background', 'b1')];
+  const sections = {
+    landesverband: [section('agent', [it_('agent', 'lv1')])],
+    neu: [section('agent', [official, it_('agent', 'other', { createdAt: '2026-08-01' })])],
+    beliebt: [section('recipe', liked)],
+    gestalten: [
+      section('template', [visuals[0]!]),
+      section('sticker', [visuals[1]!]),
+      { ...section('background', [visuals[2]!]), hasMore: true },
+    ],
+  };
+  const feature = MARKETPLACE_FEATURES[0];
+
+  it('orders the shelves top to bottom and leaves out the ones below their minimum', () => {
+    const page = composeFrontpage({ sections, curated: null });
+    expect(page.shelves.map((s) => s.shelfId)).toEqual(['neu', 'beliebt', 'gestalten']);
+    expect(page.shelves.find((s) => s.shelfId === 'gestalten')?.hasMore).toBe(true);
+    expect(page.shelves.find((s) => s.shelfId === 'beliebt')?.hasMore).toBe(false);
+  });
+
+  it('falls back to the newest official item and keeps it out of „Neu"', () => {
+    const page = composeFrontpage({ sections, curated: null });
+    expect(page.featured?.ref).toBe('official');
+    expect(page.featureId).toBeNull();
+    expect(refs(page.shelves.find((s) => s.shelfId === 'neu')!.items)).toEqual(['other']);
+  });
+
+  it('names the curated slot when its item is there', () => {
+    const item = it_('agent', feature.ref);
+    const page = composeFrontpage({ sections, curated: { feature, item } });
+    expect(page.featured).toBe(item);
+    expect(page.featureId).toBe(feature.id);
+    expect(featureById(page.featureId)).toBe(feature);
+    expect(refs(page.shelves.find((s) => s.shelfId === 'neu')!.items)).toEqual([
+      'official',
+      'other',
+    ]);
+  });
+
+  it('is empty, not broken, for an empty catalogue', () => {
+    const empty = { landesverband: [], neu: [], beliebt: [], gestalten: [] };
+    expect(composeFrontpage({ sections: empty, curated: null })).toEqual({
+      featured: null,
+      featureId: null,
+      shelves: [],
+    });
   });
 });

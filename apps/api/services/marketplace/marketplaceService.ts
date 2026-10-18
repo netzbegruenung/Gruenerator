@@ -3,14 +3,24 @@
  * Modell. Jede Art hat ihren Adapter in `sources/`; hier wird nur verteilt.
  */
 import {
+  marketplaceListQuerySchema,
+  type MarketplaceFrontpageResponse,
+  type MarketplaceFrontpageShelfId,
   type MarketplaceItem,
   type MarketplaceKind,
   type MarketplaceLikeResponse,
   type MarketplaceListQuery,
   type MarketplaceListResponse,
   type MarketplaceSaveResponse,
+  type MarketplaceSection,
 } from '@gruenerator/contracts';
 import { showsSystemRecipes } from '@gruenerator/shared/agents';
+import {
+  FRONTPAGE_SHELF_QUERIES,
+  FRONTPAGE_SHELVES,
+  composeFrontpage,
+  featureFor,
+} from '@gruenerator/shared/marketplace/frontpage';
 
 import { likeEntity, unlikeEntity } from '../entityLikes/EntityLikesService.js';
 
@@ -52,6 +62,44 @@ export async function listMarketplace(
     })
   );
   return { sections };
+}
+
+/**
+ * The front page („Start") in one answer: one list per shelf and the „Im
+ * Fokus" item, side by side, then `composeFrontpage` — the shelf rules live
+ * there, not here. Without a Landesverband the shelf is not even listed.
+ */
+export async function getMarketplaceFrontpage(
+  ctx: MarketplaceContext
+): Promise<MarketplaceFrontpageResponse> {
+  const catalog = await ctx.officialCatalog();
+  const hasLv = catalog.lvAgents.length > 0 || catalog.lvSkills.length > 0;
+
+  const shelf = async (id: MarketplaceFrontpageShelfId): Promise<MarketplaceSection[]> => {
+    if (id === 'landesverband' && !hasLv) return [];
+    const spec = FRONTPAGE_SHELF_QUERIES[id];
+    const query = marketplaceListQuerySchema.parse({
+      kinds: spec.kinds.join(','),
+      sort: spec.sort,
+      origin: spec.origin,
+      platform: ctx.platform,
+      sectionLimit: FRONTPAGE_SHELVES[id].show,
+    });
+    return (await listMarketplace(ctx, query)).sections;
+  };
+
+  const feature = featureFor(ctx.audience);
+  const [landesverband, neu, beliebt, gestalten, item] = await Promise.all([
+    shelf('landesverband'),
+    shelf('neu'),
+    shelf('beliebt'),
+    shelf('gestalten'),
+    feature ? getMarketplaceItem(ctx, feature.kind, feature.ref) : null,
+  ]);
+  return composeFrontpage({
+    sections: { landesverband, neu, beliebt, gestalten },
+    curated: feature && item ? { feature, item } : null,
+  });
 }
 
 /** One item for a shared link; `null` when it does not exist or the viewer may not see it. */

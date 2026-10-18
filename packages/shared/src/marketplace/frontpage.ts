@@ -1,7 +1,13 @@
 import {
+  marketplaceFrontpageShelfIdSchema,
+  type MarketplaceFrontpageResponse,
+  type MarketplaceFrontpageShelf,
+  type MarketplaceFrontpageShelfId,
   type MarketplaceItem,
   type MarketplaceKind,
+  type MarketplaceOrigin,
   type MarketplaceSection,
+  type MarketplaceSort,
 } from '@gruenerator/contracts';
 
 import { type MarketplaceTarget } from './cache.js';
@@ -12,8 +18,10 @@ import { DEFAULT_MARKETPLACE_SORT } from './registry.js';
  * The Marktplatz front page — what „Start" shows instead of one aisle per kind.
  * Small on purpose: every shelf hides itself below its minimum, so a thin
  * catalogue reads as a short page rather than a page of half-empty rows.
- * A new shelf is a new entry here plus its rendering, not a new request shape —
- * each one is a `sections` query with its own kinds, origin and sort.
+ * The server composes the page (`GET /api/marketplace/frontpage`) from the
+ * rules below; clients only render it. A new shelf is a new entry here plus
+ * its rendering — each one is a `sections` list with its own kinds, origin
+ * and sort.
  */
 
 /** The front page replaces the list only while nothing narrows it; a search gets the result list. */
@@ -64,6 +72,11 @@ export function featureFor(locale: string | null): MarketplaceFeature | null {
   return MARKETPLACE_FEATURES.find((f) => f.audience === 'all' || f.audience === audience) ?? null;
 }
 
+/** The slot behind a front page answer's `featureId`; `null` for the fallback item. */
+export function featureById(id: string | null): MarketplaceFeature | null {
+  return MARKETPLACE_FEATURES.find((f) => f.id === id) ?? null;
+}
+
 /** Agents and Rezepte — the kinds with an origin and a text card. */
 export const FRONTPAGE_TEXT_KINDS = [
   'agent',
@@ -83,6 +96,20 @@ export const FRONTPAGE_SHELVES = {
   beliebt: { show: 5, min: 5 },
   gestalten: { show: 8, min: 3 },
 } as const;
+
+interface ShelfQuery {
+  kinds: readonly MarketplaceKind[];
+  sort: MarketplaceSort;
+  origin: MarketplaceOrigin | null;
+}
+
+/** What each shelf asks the list for; `sectionLimit` is the shelf's `show`. */
+export const FRONTPAGE_SHELF_QUERIES = {
+  landesverband: { kinds: FRONTPAGE_TEXT_KINDS, sort: 'empfohlen', origin: 'landesverband' },
+  neu: { kinds: FRONTPAGE_TEXT_KINDS, sort: 'neu', origin: null },
+  beliebt: { kinds: FRONTPAGE_TEXT_KINDS, sort: 'beliebt', origin: null },
+  gestalten: { kinds: FRONTPAGE_VISUAL_KINDS, sort: 'empfohlen', origin: null },
+} as const satisfies Record<MarketplaceFrontpageShelfId, ShelfQuery>;
 
 const createdDesc = (a: MarketplaceItem, b: MarketplaceItem) =>
   (b.createdAt ?? '').localeCompare(a.createdAt ?? '');
@@ -146,4 +173,37 @@ export function fallbackFeature(sections: readonly MarketplaceSection[]): Market
       .filter((i) => i.origin === 'offiziell')
       .sort(createdDesc)[0] ?? null
   );
+}
+
+/**
+ * The whole page from one `sections` answer per shelf. `curated` is the „Im
+ * Fokus" slot with the item the viewer may see, or `null` when there is no
+ * slot or its item is gone — then the newest official item stands in. The
+ * featured item is not repeated under „Neu". Empty shelves are left out.
+ */
+export function composeFrontpage(input: {
+  sections: Record<MarketplaceFrontpageShelfId, readonly MarketplaceSection[]>;
+  curated: { feature: MarketplaceFeature; item: MarketplaceItem } | null;
+}): MarketplaceFrontpageResponse {
+  const { sections, curated } = input;
+  const featured = curated?.item ?? fallbackFeature(sections.neu);
+  const items: Record<MarketplaceFrontpageShelfId, MarketplaceItem[]> = {
+    landesverband: landesverbandShelf(sections.landesverband),
+    neu: newestShelf(sections.neu).filter((i) => i.key !== featured?.key),
+    beliebt: popularShelf(sections.beliebt),
+    gestalten: visualShelf(sections.gestalten),
+  };
+  // Top to bottom: the enum's order is the page's.
+  const shelves: MarketplaceFrontpageShelf[] = marketplaceFrontpageShelfIdSchema.options
+    .filter((id) => items[id].length > 0)
+    .map((shelfId) => {
+      const source = sections[shelfId];
+      const total = source.reduce((n, s) => n + s.items.length, 0);
+      return {
+        shelfId,
+        items: items[shelfId],
+        hasMore: source.some((s) => s.hasMore) || total > items[shelfId].length,
+      };
+    });
+  return { featured, featureId: curated ? curated.feature.id : null, shelves };
 }

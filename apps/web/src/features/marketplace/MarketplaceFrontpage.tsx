@@ -1,23 +1,9 @@
 import { useUserLandesverbaende } from '@gruenerator/chat';
+import { type MarketplaceFrontpageShelfId, type MarketplaceItem } from '@gruenerator/contracts';
 import {
-  type MarketplaceItem,
-  type MarketplaceKind,
-  type MarketplaceOrigin,
-  type MarketplaceSort,
-} from '@gruenerator/contracts';
-import {
-  FRONTPAGE_SHELVES,
-  FRONTPAGE_TEXT_KINDS,
-  FRONTPAGE_VISUAL_KINDS,
-  fallbackFeature,
-  featureFor,
-  landesverbandShelf,
+  featureById,
   marketplaceOriginLabel,
-  newestShelf,
-  popularShelf,
-  useMarketplaceItem,
-  useMarketplaceSections,
-  visualShelf,
+  useMarketplaceFrontpage,
   type MarketplaceFeature,
   type MarketplaceFilters,
   type MarketplaceTabSlug,
@@ -85,18 +71,6 @@ const KIND_TILES: { slug: MarketplaceTabSlug; label: string; hint: string; icon:
   },
 ];
 
-const BASE = { q: '', scope: 'shop', platform: 'web' } as const;
-
-function useShelf(
-  kinds: readonly MarketplaceKind[],
-  sort: MarketplaceSort,
-  sectionLimit: number,
-  origin: MarketplaceOrigin | null = null,
-  enabled = true
-) {
-  return useMarketplaceSections({ ...BASE, kinds, sort, origin, sectionLimit, enabled });
-}
-
 interface MarketplaceFrontpageProps {
   actions: MarketplaceActions;
   onSelect: (item: MarketplaceItem) => void;
@@ -106,8 +80,8 @@ interface MarketplaceFrontpageProps {
 
 /**
  * „Start" on `/marktplatz`: one featured item, then shelves that each hide
- * below their minimum (`FRONTPAGE_SHELVES`), so a small catalogue gives a
- * short page. Every shelf is its own `sections` query.
+ * below their minimum, so a small catalogue gives a short page. The server
+ * composes all of it in one answer (`composeFrontpage`); this only renders.
  */
 export function MarketplaceFrontpage({
   actions,
@@ -118,28 +92,18 @@ export function MarketplaceFrontpage({
   const { lvIds } = useUserLandesverbaende();
   const hasLv = (lvIds?.length ?? 0) > 0;
 
-  const newest = useShelf(FRONTPAGE_TEXT_KINDS, 'neu', FRONTPAGE_SHELVES.neu.show);
-  const popular = useShelf(FRONTPAGE_TEXT_KINDS, 'beliebt', FRONTPAGE_SHELVES.beliebt.show);
-  const visuals = useShelf(FRONTPAGE_VISUAL_KINDS, 'empfohlen', FRONTPAGE_SHELVES.gestalten.show);
-  const lv = useShelf(
-    FRONTPAGE_TEXT_KINDS,
-    'empfohlen',
-    FRONTPAGE_SHELVES.landesverband.show,
-    'landesverband',
-    hasLv
-  );
+  const page = useMarketplaceFrontpage();
+  const shelf = (id: MarketplaceFrontpageShelfId): MarketplaceItem[] =>
+    page.data?.shelves.find((s) => s.shelfId === id)?.items ?? [];
 
-  const feature = featureFor(locale);
-  const featured = useMarketplaceItem(feature);
-  // A curated item the viewer cannot see (gone, other country) gives way to the newest official one.
-  const fallback = featured.isError || !feature ? fallbackFeature(newest.sections) : null;
-  const focusItem = featured.data ?? fallback;
-  const focusPending = feature !== null && featured.isPending;
+  const focusItem = page.data?.featured ?? null;
+  const feature = featureById(page.data?.featureId ?? null);
+  const focusPending = page.isPending;
 
-  const lvItems = hasLv ? landesverbandShelf(lv.sections) : [];
-  const newItems = newestShelf(newest.sections).filter((i) => i.key !== focusItem?.key);
-  const popularItems = popularShelf(popular.sections);
-  const visualItems = visualShelf(visuals.sections);
+  const lvItems = hasLv ? shelf('landesverband') : [];
+  const newItems = shelf('neu');
+  const popularItems = shelf('beliebt');
+  const visualItems = shelf('gestalten');
 
   return (
     <div className="flex flex-col gap-2xl">
@@ -149,7 +113,7 @@ export function MarketplaceFrontpage({
         focusItem && (
           <FocusSlot
             item={focusItem}
-            feature={featured.data ? feature : null}
+            feature={feature}
             fontFamily={DISPLAY_FONT[locale]}
             actions={actions}
             onSelect={onSelect}
