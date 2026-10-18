@@ -14,6 +14,10 @@ import { getFavoritedEntityIdsForUser } from '../../../services/entityFavorites/
 import { getLikeCountsForEntities } from '../../../services/entityLikes/EntityLikesService.js';
 import { resolveVorlagenLocale } from '../../../services/sharepicVorlagen/vorlagenLocale.js';
 import { isUserTemplateId } from '../../../services/templateInteractions/templateTarget.js';
+import {
+  listGalleryTemplates,
+  type GalleryFilters,
+} from '../../../services/templates/galleryTemplates.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -34,136 +38,32 @@ const router: Router = express.Router();
 // Shared gallery builder
 // ============================================================================
 
-export interface GalleryFilters {
-  searchTerm?: string;
-  searchMode?: string;
-  templateType?: string;
-  tags?: string;
-  /**
-   * When set, restrict the gallery to templates targeted at this locale plus
-   * the locale-agnostic 'all'. Omit to return templates for every audience
-   * (used by the favorites lookup, and when the user turns the locale filter off).
-   */
-  audience?: 'de-DE' | 'de-AT';
-  /** Only these user_templates ids (UUIDs). */
-  ids?: string[];
-  /** Newest first; defaults to 100. */
-  limit?: number;
-}
-
 /**
  * Build the published Vorlagen gallery list from user-submitted templates,
- * applying the search/type/tag/audience filters used by GET /vorlagen.
- * Extracted so the template-interactions favorites endpoint can resolve
- * favorited ids back to full gallery objects without duplicating the query.
+ * applying the search/type/tag/audience filters used by GET /vorlagen. The
+ * query lives in `listGalleryTemplates`; this keeps the snake_case shape the
+ * legacy endpoints (and shipped mobile binaries) read.
  */
 export async function buildGalleryTemplates(
   filters: GalleryFilters = {}
 ): Promise<Array<Record<string, unknown>>> {
-  const {
-    searchTerm = '',
-    searchMode = 'title',
-    templateType,
-    tags,
-    audience,
-    ids,
-    limit = 100,
-  } = filters;
-
-  const postgres = getPostgresInstance();
-  await postgres.ensureInitialized();
-
-  const conditions = ['is_private = $1', 'status = $2', "moderation = 'ok'"];
-  const params: unknown[] = [false, 'published'];
-  let paramIndex = 3;
-
-  if (audience) {
-    // Include locale-agnostic ('all') templates alongside the viewer's locale.
-    conditions.push(`audience IN ($${paramIndex}, 'all')`);
-    params.push(audience);
-    paramIndex++;
-  }
-
-  if (ids) {
-    conditions.push(`id = ANY($${paramIndex++}::uuid[])`);
-    params.push(ids);
-  }
-
-  if (templateType && templateType !== 'all') {
-    conditions.push(`template_type = $${paramIndex++}`);
-    params.push(templateType);
-  }
-
-  if (tags) {
-    try {
-      const tagsArray = JSON.parse(tags) as unknown[];
-      if (Array.isArray(tagsArray) && tagsArray.length > 0) {
-        conditions.push(`tags @> $${paramIndex++}::jsonb`);
-        params.push(JSON.stringify(tagsArray));
-      }
-    } catch {
-      log.warn('[Vorlagen Gallery] Invalid tags JSON:', tags);
-    }
-  }
-
-  if (searchTerm && String(searchTerm).trim().length > 0) {
-    const term = `%${String(searchTerm).trim()}%`;
-    if (searchMode === 'fulltext') {
-      conditions.push(`(title ILIKE $${paramIndex} OR description ILIKE $${paramIndex})`);
-      params.push(term);
-    } else {
-      conditions.push(`title ILIKE $${paramIndex}`);
-      params.push(term);
-    }
-  }
-
-  const query = `
-      SELECT id, title, description, template_type, thumbnail_url, external_url,
-             images, categories, tags, content_data, metadata, audience, created_at, updated_at
-      FROM user_templates
-      WHERE deleted_at IS NULL AND ${conditions.join(' AND ')}
-      ORDER BY created_at DESC
-      LIMIT $${params.length + 1}
-    `;
-  params.push(limit);
-
-  const data = await postgres.query(query, params, { table: 'user_templates' });
-
-  const userVorlagen = (
-    (data || []) as Array<{
-      id: string;
-      title: string;
-      description: string;
-      template_type: string;
-      thumbnail_url: string;
-      external_url: string;
-      images: unknown[];
-      categories: string[];
-      tags: string[];
-      content_data: unknown;
-      metadata: unknown;
-      audience: string;
-      created_at: string;
-      updated_at: string;
-    }>
-  ).map((item) => ({
+  const rows = await listGalleryTemplates(filters);
+  return rows.map((item) => ({
     id: item.id,
     title: item.title,
     description: item.description,
-    template_type: item.template_type,
-    thumbnail_url: item.thumbnail_url,
-    external_url: item.external_url,
-    images: item.images || [],
-    categories: item.categories || [],
-    tags: item.tags || [],
-    content_data: item.content_data || {},
-    metadata: item.metadata || {},
-    audience: item.audience || 'all',
-    created_at: item.created_at,
-    updated_at: item.updated_at,
+    template_type: item.templateType,
+    thumbnail_url: item.thumbnailUrl,
+    external_url: item.externalUrl,
+    images: item.images,
+    categories: item.categories,
+    tags: item.tags,
+    content_data: item.contentData,
+    metadata: item.metadata,
+    audience: item.audience,
+    created_at: item.createdAt,
+    updated_at: item.updatedAt,
   }));
-
-  return userVorlagen as Array<Record<string, unknown>>;
 }
 
 /**

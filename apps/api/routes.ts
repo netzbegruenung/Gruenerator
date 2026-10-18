@@ -75,6 +75,7 @@ import {
   wolkeWatchRouter,
 } from './routes/internal/index.js';
 import { markdownController as markdownRouter } from './routes/markdown/index.js';
+import { mountMarketplaceContractRouter } from './routes/marketplace/marketplaceContractRouter.js';
 import { mountMcpOAuthCallbackRouter } from './routes/mcp/mcpOAuthCallbackRouter.js';
 import { mountMcpServersContractRouter } from './routes/mcp/mcpServersContractRouter.js';
 import { createMcpAppsRouter } from './routes/mcp-apps/mcpAppsRouter.js';
@@ -508,6 +509,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Studio shop: user Sticker and Hintergründe.
   app.use('/api/studio-assets', requireAuth, authenticatedReadLimiter, studioAssetWriteLimiter);
   mountStudioAssetsContractRouter(app);
+  // Marktplatz: Agents, Rezepte, Vorlagen, Sticker und Hintergründe in einer Liste.
+  // Likes and saves are PUT/DELETE, which the studio-asset write cap skips, so
+  // they take the general write ceiling.
+  app.use('/api/marketplace', requireAuth, authenticatedReadLimiter, standardMutationLimiter);
+  mountMarketplaceContractRouter(app);
   // Explainables. The shared routes come first and terminate before the
   // requireAuth gate on the prefix below; `/shared/:token` would otherwise be
   // read as the owner's `/:ref`.

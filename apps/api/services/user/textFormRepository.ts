@@ -282,6 +282,22 @@ export async function listPublicTextForms(
   viewerLocale: string,
   limit = 200
 ): Promise<PublicTextForm[]> {
+  return (await listPublicTextFormListings(viewerLocale, limit)).map((l) => l.form);
+}
+
+/** A public recipe with what the Marktplatz shows around it: owner, audience and age. */
+export interface PublicTextFormListing {
+  form: PublicTextForm;
+  userId: string;
+  audience: GroupAudience;
+  createdAt: Date;
+}
+
+/** {@link listPublicTextForms}, keeping owner, audience and creation time of each row. */
+export async function listPublicTextFormListings(
+  viewerLocale: string,
+  limit = 200
+): Promise<PublicTextFormListing[]> {
   const pg = getPostgresInstance();
   const rows = (await pg.query(
     `SELECT tf.*, COALESCE(p.first_name, p.display_name) AS owner_name
@@ -296,7 +312,12 @@ export async function listPublicTextForms(
 
   return rows
     .filter((row) => isShareableTextForm(row.kind as TextFormKind, row.mention))
-    .map((row) => toPublicTextForm(rowToTextForm(row, { ownerName: row.owner_name ?? null })));
+    .map((row) => ({
+      form: toPublicTextForm(rowToTextForm(row, { ownerName: row.owner_name ?? null })),
+      userId: row.user_id,
+      audience: row.audience,
+      createdAt: new Date(row.created_at),
+    }));
 }
 
 function viewerAudience(locale: string): Exclude<GroupAudience, 'all'> {

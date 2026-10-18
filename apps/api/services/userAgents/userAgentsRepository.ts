@@ -617,6 +617,21 @@ export async function listPublicUserAgents(
   viewerId: string,
   viewerLocale: string
 ): Promise<UserAgentRecord[]> {
+  return (await listPublicUserAgentListings(viewerId, viewerLocale)).map((l) => l.agent);
+}
+
+/** A public listing with what the Marktplatz shows around the agent: owner and age. */
+export interface PublicUserAgentListing {
+  agent: UserAgentRecord;
+  userId: string;
+  createdAt: Date;
+}
+
+/** {@link listPublicUserAgents}, keeping the owner and creation time of each row. */
+export async function listPublicUserAgentListings(
+  viewerId: string,
+  viewerLocale: string
+): Promise<PublicUserAgentListing[]> {
   const db = getDrizzleInstance();
   const rows = await db
     .select()
@@ -638,5 +653,5 @@ export async function listPublicUserAgents(
   const seen = new Set<string>();
   return rows
     .filter((row) => !seen.has(row.identifier) && seen.add(row.identifier))
-    .map(rowToAgent);
+    .map((row) => ({ agent: rowToAgent(row), userId: row.user_id, createdAt: row.created_at }));
 }

@@ -334,14 +334,34 @@ export async function removeStudioAsset(userId: string, id: string): Promise<boo
   return moved.length > 0;
 }
 
-/** Can the caller like or save this asset? Public and unmoderated, or their own. */
-export async function isStudioAssetVisible(userId: string, id: string): Promise<boolean> {
+/**
+ * Can the caller like or save this asset? Public and unmoderated, or their own.
+ * The Marktplatz narrows it to one kind and to the shop's country rule.
+ */
+export async function isStudioAssetVisible(
+  userId: string,
+  id: string,
+  scope: { kind?: StudioAssetKind; locale?: Exclude<GroupAudience, 'all'> } = {}
+): Promise<boolean> {
   if (!isRowId(id)) return false;
+  const visible = scope.locale
+    ? or(
+        and(isPublicOk(), inArray(studioAssets.audience, [scope.locale, 'all'])),
+        eq(studioAssets.user_id, userId)
+      )!
+    : visibleTo(userId);
   const db = getDrizzleInstance();
   const [row] = await db
     .select({ id: studioAssets.id })
     .from(studioAssets)
-    .where(and(eq(studioAssets.id, id), visibleTo(userId), notTrashed(studioAssets)))
+    .where(
+      and(
+        eq(studioAssets.id, id),
+        scope.kind ? eq(studioAssets.kind, scope.kind) : undefined,
+        visible,
+        notTrashed(studioAssets)
+      )
+    )
     .limit(1);
   return Boolean(row);
 }
