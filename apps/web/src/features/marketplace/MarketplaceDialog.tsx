@@ -123,7 +123,9 @@ function DialogBody({
         <DialogDescription className="m-0 max-w-[40rem] text-sm leading-relaxed text-pretty text-grey-500 dark:text-grey-400">
           {onPick
             ? 'Was andere öffentlich teilen. Tippe ein Bild an, um es zu verwenden.'
-            : 'Offizielle Inhalte, die deines Landesverbands und was andere öffentlich teilen.'}
+            : kinds.some((kind) => kind === 'agent' || kind === 'recipe')
+              ? 'Offizielle Inhalte, die deines Landesverbands und was andere öffentlich teilen.'
+              : 'Was andere öffentlich teilen.'}
         </DialogDescription>
       </div>
 
