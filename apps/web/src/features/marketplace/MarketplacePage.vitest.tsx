@@ -206,6 +206,19 @@ describe('MarketplacePage', () => {
     expect(screen.getByRole('status', { name: 'Adresse' })).toHaveTextContent('von=landesverband');
   });
 
+  it('does not show the featured item a second time under „Beliebt"', async () => {
+    serveFrom([
+      { ...FEATURED, likesCount: 9 },
+      ...[1, 2, 3, 4, 5].map((n) => item('agent', `Agent ${n}`, { likesCount: n })),
+    ]);
+    renderPage();
+
+    await screen.findByRole('region', { name: 'Leichte Sprache' });
+    const popular = await screen.findByRole('region', { name: 'Beliebt' });
+    expect(within(popular).queryByText('Leichte Sprache')).toBeNull();
+    expect(within(popular).getAllByRole('listitem')).toHaveLength(5);
+  });
+
   it('falls back to the newest official item when the featured one is not there', async () => {
     server.use(
       http.get(`${API}/agent/gruenerator-leichte-sprache`, () =>
