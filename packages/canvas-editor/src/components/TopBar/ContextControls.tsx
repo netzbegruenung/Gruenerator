@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { PiCopy } from 'react-icons/pi';
+import { PiCopy, PiLockSimple, PiLockSimpleOpen } from 'react-icons/pi';
 
 import { type BackgroundControls } from '../../configs/types';
 import { type ShadowPatch } from '../../hooks/useFloatingModuleHandlers';
 import { type FloatingModuleState } from '../../hooks/useFloatingModuleState';
 import { type GradientFill } from '../../utils/gradientFill';
+import { type LockState } from '../../utils/layerLock';
 import { BRAND_COLORS, FONT_COLORS, STROKE_ONLY_SHAPES } from '../../utils/shapes';
 import { useCanvasTextFormatting } from '../CanvasTextOverlay';
 import { type AlignmentDirection } from '../Toolbar';
@@ -35,6 +36,9 @@ export interface ContextControlsProps {
   canDuplicate: boolean;
   /** The selected framed photo is in Ausschnitt mode. */
   isCropping?: boolean;
+  /** Gesperrt: nicht ziehen, skalieren, ausrichten, löschen — gestalten geht weiter. */
+  lockState?: LockState;
+  canLock?: boolean;
   handlers: {
     handleMoveLayer: (direction: 'up' | 'down') => void;
     handleDuplicate: () => void;
@@ -48,6 +52,7 @@ export interface ContextControlsProps {
     /** Ausschnitt mode for a framed photo: the photo moves inside its frame. */
     handleCropImage?: () => void;
     handleGradientSelect?: (gradient: GradientFill | null) => void;
+    handleToggleLock?: () => void;
     /** Opens the image-adjust ("Bearbeiten") panel for the selected image. */
     onEditImage?: () => void;
   };
@@ -82,6 +87,8 @@ export function ContextControls({
   canMoveDown,
   canDuplicate,
   isCropping = false,
+  lockState = 'none',
+  canLock = false,
   handlers,
   background,
   onRemoveUserImage,
@@ -124,6 +131,7 @@ export function ContextControls({
   const showOpacity = activeFloatingModule && activeFloatingModule.type !== 'frame' && !isPlane;
   const showObjectActions = !isPlane && !isPhoto;
   const isText = activeFloatingModule?.type === 'text';
+  const isLocked = lockState === 'all';
 
   // Build the present control groups, then interleave separators — this keeps
   // dividers strictly between groups (no dangling leading/trailing divider
@@ -300,6 +308,7 @@ export function ContextControls({
       <div key="align" className="flex items-center gap-0.5">
         <button
           className={ICON_BTN}
+          disabled={isLocked}
           onClick={() => handlers.handleAlign!('left')}
           title="Links ausrichten"
         >
@@ -319,6 +328,7 @@ export function ContextControls({
         </button>
         <button
           className={ICON_BTN}
+          disabled={isLocked}
           onClick={() => handlers.handleAlign!('center-h')}
           title="Horizontal zentrieren"
         >
@@ -338,6 +348,7 @@ export function ContextControls({
         </button>
         <button
           className={ICON_BTN}
+          disabled={isLocked}
           onClick={() => handlers.handleAlign!('center-v')}
           title="Vertikal zentrieren"
         >
@@ -526,6 +537,33 @@ export function ContextControls({
         type="button"
       >
         <PiCopy size={18} />
+      </button>
+    );
+  }
+
+  if (
+    selectedElement &&
+    showObjectActions &&
+    !hideObjectActions &&
+    canLock &&
+    handlers.handleToggleLock
+  ) {
+    const label = isLocked ? 'Entsperren' : 'Sperren';
+    groups.push(
+      <button
+        key="lock"
+        className={`${ICON_BTN} aria-pressed:bg-[var(--editor-active-bg)] aria-pressed:text-[var(--editor-active-fg)]`}
+        onClick={handlers.handleToggleLock}
+        aria-pressed={isLocked}
+        title={
+          isLocked
+            ? 'Entsperren — wieder bewegen und löschen'
+            : 'Sperren — Lage und Größe festhalten'
+        }
+        aria-label={label}
+        type="button"
+      >
+        {isLocked ? <PiLockSimple size={18} /> : <PiLockSimpleOpen size={18} />}
       </button>
     );
   }

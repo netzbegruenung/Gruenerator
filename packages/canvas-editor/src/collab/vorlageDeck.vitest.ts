@@ -23,6 +23,8 @@ describe('isDeckEmpty', () => {
     expect(
       isDeckEmpty([{ configId: 'freeform', state: { additionalTexts: [], layerOrder: ['x'] } }])
     ).toBe(true);
+    // Eine Sperre auf einem längst gelöschten Element ist kein Inhalt.
+    expect(isDeckEmpty([{ configId: 'freeform', state: { lockedLayerIds: ['x'] } }])).toBe(true);
   });
 
   it.each([

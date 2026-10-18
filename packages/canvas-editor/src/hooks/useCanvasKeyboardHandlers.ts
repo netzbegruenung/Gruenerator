@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 import { commandForKey } from '../utils/canvasCommandRegistry';
+import { isLayerLocked } from '../utils/layerLock';
 import { assertAsPosition } from '../utils/stateTypeAssertions';
 
 import type { OptionalCanvasActions } from './useCanvasElementHandlers';
@@ -156,6 +157,11 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
         ArrowRight: [1, 0],
       };
       if (e.key in NUDGE_DELTAS) {
+        // Gesperrt: die Pfeile schieben nicht, scrollen aber auch nicht die Seite.
+        if (isLayerLocked(currentState, selectedElement)) {
+          e.preventDefault();
+          return;
+        }
         const [ux, uy] = NUDGE_DELTAS[e.key];
         const step = e.shiftKey ? 10 : 1;
         const dx = ux * step;

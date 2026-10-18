@@ -1,5 +1,6 @@
 import { canMoveLayer, type CanvasItem } from './canvasLayerManager';
 import { findDuplicableEntry, type TemplateEntryLookup } from './duplicateElement';
+import { isLockable, lockedIdsOf, lockStateOf, type LockState } from './layerLock';
 import { findElementRemover } from './removeElement';
 
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
@@ -19,6 +20,10 @@ export interface SelectionCapabilities {
   canBringForward: boolean;
   /** Dasselbe nach hinten; unter den Hintergrund geht es nicht. */
   canSendBackward: boolean;
+  /** Wie viel der sperrbaren Auswahl gesperrt ist. */
+  lock: LockState;
+  /** Mindestens ein ausgewähltes Element lässt sich sperren. */
+  canLock: boolean;
 }
 
 export interface SelectionCapabilitiesInput {
@@ -37,11 +42,22 @@ export function selectionCapabilities({
   renderList,
 }: SelectionCapabilitiesInput): SelectionCapabilities {
   const single = ids.length === 1 ? ids[0]! : null;
+  const lockable = lockableIds(ids, renderList);
   return {
     count: ids.length,
     canCopy: ids.some((id) => findDuplicableEntry(state, id, template) !== null),
     canDelete: ids.some((id) => findElementRemover(state, actions, id) !== null),
     canBringForward: single !== null && canMoveLayer(renderList, single, 'forward'),
     canSendBackward: single !== null && canMoveLayer(renderList, single, 'backward'),
+    lock: lockStateOf(lockedIdsOf(state), lockable),
+    canLock: lockable.length > 0,
   };
+}
+
+/** Die Ids der Auswahl, die sich sperren lassen. */
+export function lockableIds(ids: readonly string[], renderList: readonly CanvasItem[]): string[] {
+  return ids.filter((id) => {
+    const item = renderList.find((i) => i.id === id);
+    return item !== undefined && isLockable(item);
+  });
 }

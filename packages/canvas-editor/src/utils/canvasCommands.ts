@@ -20,10 +20,15 @@ import {
   type InsertOffset,
   type TemplateEntryLookup,
 } from './duplicateElement';
+import { lockedIdsOf, toggledLocks } from './layerLock';
 import { locateDrop } from './mediaDrop';
 import { selectableItemIds } from './multiSelect';
 import { findElementRemover } from './removeElement';
-import { selectionCapabilities, type SelectionCapabilities } from './selectionCapabilities';
+import {
+  lockableIds,
+  selectionCapabilities,
+  type SelectionCapabilities,
+} from './selectionCapabilities';
 
 import type { PageCommandId } from './canvasCommandRegistry';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
@@ -62,6 +67,8 @@ export interface CanvasCommands {
   remove: () => void;
   selectAll: () => void;
   moveLayer: (step: LayerStep) => void;
+  /** Sperrt die Auswahl, oder entsperrt sie, wenn schon alles gesperrt ist. */
+  toggleLock: () => void;
   /** Öffnet die Dateiauswahl für den ausgewählten Rahmen; false ohne Rahmen. */
   insertFrameImage: () => boolean;
   editText: () => void;
@@ -158,6 +165,15 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
     ctx.saveToHistory(next);
   };
 
+  const toggleLock = () => {
+    const ids = lockableIds(selection(), ctx.getRenderList());
+    if (ids.length === 0) return;
+    const state = ctx.getState();
+    const next = { ...state, lockedLayerIds: toggledLocks(lockedIdsOf(state), ids) };
+    ctx.setState(next);
+    ctx.saveToHistory(next);
+  };
+
   const insertFrameImage = () => {
     const id = ctx.store.getState().selectedElement;
     const setFrameImage = ctx.getActions().setFrameImage;
@@ -206,6 +222,7 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
     remove,
     selectAll,
     moveLayer,
+    toggleLock,
     insertFrameImage,
     editText,
   };
@@ -235,7 +252,7 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
       case 'sendToBack':
         return moveLayer('back');
       case 'toggleLock':
-        return;
+        return toggleLock();
       case 'editText':
         return editText();
       case 'insertFrameImage':

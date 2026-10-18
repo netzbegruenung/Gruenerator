@@ -52,6 +52,7 @@ import { captureStageImage, captureStageImageAsync } from '../utils/captureStage
 import { itemBodyRect } from '../utils/deepSelect';
 import { ensureFontsReady } from '../utils/ensureFontsReady';
 import { MAX_ICON_SELECTIONS, selectedCatalogIconIds } from '../utils/iconInstances';
+import { isLayerLocked } from '../utils/layerLock';
 import { locateDrop, type ElementDragPayload, type MediaDragPayload } from '../utils/mediaDrop';
 import { PendingImagesContext } from '../utils/pendingImages';
 import { stageCssScale } from '../utils/stageCssScale';
@@ -78,6 +79,7 @@ import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
 import type { PageCommandId } from '../utils/canvasCommandRegistry';
 import type { GradientFill } from '../utils/gradientFill';
+import type { LockState } from '../utils/layerLock';
 import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 import type * as Y from 'yjs';
@@ -101,6 +103,9 @@ export interface ToolbarStateReport {
   selectionCount: number;
   /** Lässt sich mindestens ein ausgewähltes Element kopieren? */
   canCopy: boolean;
+  /** Wie viel der sperrbaren Auswahl gesperrt ist — siehe `utils/layerLock.ts`. */
+  lockState: LockState;
+  canLock: boolean;
 }
 
 export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActions> {
@@ -713,7 +718,7 @@ function GenericCanvasWithRef<
   const handleAlign = useCallback(
     (direction: AlignmentDirection) => {
       const selectedElement = store.getState().selectedElement;
-      if (!selectedElement) return;
+      if (!selectedElement || isLayerLocked(committedStateRef.current, selectedElement)) return;
       const stage = stageRef.current?.getStage();
       if (!stage) return;
 

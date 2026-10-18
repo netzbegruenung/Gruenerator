@@ -68,13 +68,18 @@ function itemId(item: Konva.Group): string | null {
   return typeof id === 'string' ? id : null;
 }
 
-/** Die ziehbaren Knoten zu den ausgewählten Ids, in Auswahlreihenfolge. */
-export function findDragNodes(root: Konva.Container, ids: readonly string[]): Konva.Node[] {
+function itemsById(root: Konva.Container): Map<string, Konva.Group> {
   const byId = new Map<string, Konva.Group>();
   for (const item of canvasItems(root)) {
     const id = itemId(item);
     if (id !== null) byId.set(id, item);
   }
+  return byId;
+}
+
+/** Die ziehbaren Knoten zu den ausgewählten Ids, in Auswahlreihenfolge. */
+export function findDragNodes(root: Konva.Container, ids: readonly string[]): Konva.Node[] {
+  const byId = itemsById(root);
   const nodes: Konva.Node[] = [];
   for (const id of ids) {
     const item = byId.get(id);
@@ -82,6 +87,16 @@ export function findDragNodes(root: Konva.Container, ids: readonly string[]): Ko
     if (node) nodes.push(node);
   }
   return nodes;
+}
+
+/**
+ * Die Element-Gruppen zu den ausgewählten Ids — auch die, die sich nicht ziehen
+ * lassen. Ein gesperrtes Element bleibt beim Gruppenzug stehen, ausgewählt ist
+ * es trotzdem, und das muss man sehen.
+ */
+export function findItemGroups(root: Konva.Container, ids: readonly string[]): Konva.Group[] {
+  const byId = itemsById(root);
+  return ids.map((id) => byId.get(id)).filter((item) => item !== undefined);
 }
 
 /** Was „Alles auswählen“ nimmt: jedes ziehbare Element, wie ein Rahmen über die ganze Fläche. */

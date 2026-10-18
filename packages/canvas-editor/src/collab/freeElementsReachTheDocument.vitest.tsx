@@ -185,6 +185,7 @@ describe('freie Elemente im gemeinsamen Dokument', () => {
       chartInstances: [{ id: 'chart-1', chartType: 'bar' }],
       userImageInstances: [{ id: 'img-1', src: 'blob:x' }],
       layerOrder: ['shape-1', 'asset-1'],
+      lockedLayerIds: ['shape-1'],
       backgroundImageAdjustments: { vignette: 0.4, flipX: true },
     };
     expect(Object.keys(edited)).toEqual([...PAGE_ELEMENT_STATE_KEYS]);

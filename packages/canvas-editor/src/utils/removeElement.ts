@@ -1,3 +1,5 @@
+import { isLayerLocked } from './layerLock';
+
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
 import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
 
@@ -7,15 +9,16 @@ type WithId = { id: string };
  * Löschen eines Canvas-Elements — eine Tür für die Entf-Taste und den
  * Löschen-Knopf der mobilen Auswahl. Liefert die Löschung als Funktion, oder
  * `null`, wenn die Auswahl nicht löschbar ist (Vorlagen-Elemente liegen in
- * keiner Sammlung, oder der Config fehlt die passende Aktion). So kann der
- * Knopf seinen Zustand aus derselben Frage ableiten, die das Löschen stellt.
+ * keiner Sammlung, gesperrte bleiben stehen, oder der Config fehlt die passende
+ * Aktion). So kann der Knopf seinen Zustand aus derselben Frage ableiten, die
+ * das Löschen stellt.
  */
 export function findElementRemover(
   state: Partial<BaseCanvasState>,
   actions: OptionalCanvasActions,
   id: string | null
 ): (() => void) | null {
-  if (!id) return null;
+  if (!id || isLayerLocked(state, id)) return null;
   const has = (list: readonly WithId[] | undefined) => !!list?.some((item) => item.id === id);
   const bind = (remove: ((id: string) => void) | undefined) => (remove ? () => remove(id) : null);
 

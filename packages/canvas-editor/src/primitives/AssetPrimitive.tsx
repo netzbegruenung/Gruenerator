@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import {
@@ -48,6 +49,7 @@ function AssetPrimitiveInner({
   onSnapLinesChange,
   onGeometryChange,
 }: AssetPrimitiveProps) {
+  const locked = useIsItemLocked();
   const groupRef = useRef<Konva.Group>(null);
   const imageRef = useRef<Konva.Image>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
@@ -140,7 +142,7 @@ function AssetPrimitiveInner({
         scaleY={asset.scale}
         rotation={asset.rotation}
         opacity={asset.opacity}
-        draggable={draggable}
+        draggable={draggable && !locked}
         onMouseDown={(e) => {
           e.cancelBubble = true;
           onSelect(asset.id);
@@ -207,6 +209,7 @@ function AssetPrimitiveInner({
           borderStroke="#005437"
           anchorStroke="#005437"
           anchorFill="#ffffff"
+          {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}
     </>

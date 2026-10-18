@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { PiCopy, PiDotsThreeBold, PiTrash } from 'react-icons/pi';
+import { PiCopy, PiDotsThreeBold, PiLockSimpleOpen, PiTrash } from 'react-icons/pi';
 
 import { useIsCanvasTextEditing } from './CanvasTextOverlay';
 
@@ -26,6 +26,9 @@ export interface MobileSelectionPillProps {
   onDuplicate: () => void;
   onDelete: () => void;
   onMore?: () => void;
+  /** Gesperrt (am Desktop): statt Löschen steht hier Entsperren. */
+  isLocked?: boolean;
+  onUnlock?: () => void;
 }
 
 /**
@@ -44,6 +47,8 @@ export function MobileSelectionPill({
   onDuplicate,
   onDelete,
   onMore,
+  isLocked = false,
+  onUnlock,
 }: MobileSelectionPillProps) {
   const [box, setBox] = useState<SelectionBox | null>(null);
   const [manipulating, setManipulating] = useState(false);
@@ -75,7 +80,7 @@ export function MobileSelectionPill({
 
   useLayoutEffect(() => {
     if (pillRef.current) setPillWidth(pillRef.current.offsetWidth);
-  }, [box, canDuplicate, canDelete, onMore]);
+  }, [box, canDuplicate, canDelete, onMore, isLocked]);
 
   if (manipulating || isEditingText || !box) return null;
 
@@ -101,15 +106,21 @@ export function MobileSelectionPill({
       >
         <PiCopy size={20} aria-hidden />
       </button>
-      <button
-        type="button"
-        className={BTN}
-        onClick={onDelete}
-        disabled={!canDelete}
-        aria-label="Löschen"
-      >
-        <PiTrash size={20} aria-hidden />
-      </button>
+      {isLocked && onUnlock ? (
+        <button type="button" className={BTN} onClick={onUnlock} aria-label="Entsperren">
+          <PiLockSimpleOpen size={20} aria-hidden />
+        </button>
+      ) : (
+        <button
+          type="button"
+          className={BTN}
+          onClick={onDelete}
+          disabled={!canDelete}
+          aria-label="Löschen"
+        >
+          <PiTrash size={20} aria-hidden />
+        </button>
+      )}
       {onMore && (
         <button type="button" className={BTN} onClick={onMore} aria-label="Mehr Optionen">
           <PiDotsThreeBold size={20} aria-hidden />

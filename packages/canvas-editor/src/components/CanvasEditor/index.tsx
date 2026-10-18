@@ -480,7 +480,9 @@ function CanvasEditorInner({
           prev.canDelete === report.canDelete &&
           prev.isCropping === report.isCropping &&
           prev.selectionCount === report.selectionCount &&
-          prev.canCopy === report.canCopy
+          prev.canCopy === report.canCopy &&
+          prev.lockState === report.lockState &&
+          prev.canLock === report.canLock
         ) {
           return prev;
         }
@@ -1155,6 +1157,8 @@ function CanvasEditorInner({
         canMoveDown: toolbarState.canMoveDown ?? false,
         canDuplicate: toolbarState.canDuplicate ?? false,
         isCropping: toolbarState.isCropping ?? false,
+        lockState: toolbarState.lockState,
+        canLock: toolbarState.canLock,
         handlers: {
           ...toolbarHandlers,
           onEditImage: () => setActiveTab('image-adjust'),
@@ -1214,6 +1218,8 @@ function CanvasEditorInner({
         onDuplicate={toolbarHandlers.handleDuplicate}
         onDelete={toolbarHandlers.handleDeleteElement}
         onMore={openSelectionArea}
+        isLocked={toolbarState.lockState === 'all'}
+        onUnlock={toolbarHandlers.handleToggleLock}
       />
     ) : null;
 

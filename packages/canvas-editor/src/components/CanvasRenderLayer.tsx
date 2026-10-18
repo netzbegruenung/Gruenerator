@@ -18,7 +18,9 @@ import { useCanvasStoreSelector, useIsElementSelected } from '../stores/CanvasSt
 import { getIconMapSync } from '../utils/canvasIcons';
 import { CANVAS_ITEM_NAME } from '../utils/deepSelect';
 import { resolveIconDef } from '../utils/iconInstances';
+import { lockedIdsOf } from '../utils/layerLock';
 
+import { CanvasItemLockContext } from './canvasItemLock';
 import { GenericCanvasElement } from './GenericCanvasElement';
 import { MultiSelectionTransformer } from './MultiSelectionTransformer';
 import { RemoteSelectionOverlay, type RemoteSelector } from './RemoteSelectionOverlay';
@@ -574,6 +576,8 @@ function CanvasRenderLayerInner<
     return null;
   };
 
+  const lockedIds = new Set(lockedIdsOf(state));
+
   return (
     <>
       {sortedRenderList.map((item) => {
@@ -583,11 +587,13 @@ function CanvasRenderLayerInner<
         // Names the item for a ctrl/⌘-click that picks what lies beneath (useDeepSelect).
         return (
           <Group key={item.id} name={CANVAS_ITEM_NAME} canvasItemId={item.id}>
-            {remote ? (
-              <RemoteSelectionOverlay selector={remote}>{rendered}</RemoteSelectionOverlay>
-            ) : (
-              rendered
-            )}
+            <CanvasItemLockContext.Provider value={lockedIds.has(item.id)}>
+              {remote ? (
+                <RemoteSelectionOverlay selector={remote}>{rendered}</RemoteSelectionOverlay>
+              ) : (
+                rendered
+              )}
+            </CanvasItemLockContext.Provider>
           </Group>
         );
       })}

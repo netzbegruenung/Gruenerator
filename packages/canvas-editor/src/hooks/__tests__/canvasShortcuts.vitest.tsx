@@ -44,6 +44,7 @@ function mockCommands(): CanvasCommands {
     remove: vi.fn(),
     selectAll: vi.fn(),
     moveLayer: vi.fn(),
+    toggleLock: vi.fn(),
     insertFrameImage: vi.fn(() => true),
     editText: vi.fn(),
     run: vi.fn(),

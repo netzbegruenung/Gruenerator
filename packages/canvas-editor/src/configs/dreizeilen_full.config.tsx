@@ -681,6 +681,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
 
       // Layer Ordering
       layerOrder: (props.layerOrder as string[] | undefined) ?? [],
+      lockedLayerIds: (props.lockedLayerIds as string[] | undefined) ?? [],
       ...carryBackgroundAdjustments(props),
 
       // UI State

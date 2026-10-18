@@ -3,6 +3,7 @@ import {
   buildSortedRenderList,
   type CanvasItem,
 } from '../utils/canvasLayerManager';
+import { isLayerLocked } from '../utils/layerLock';
 import { isComposerPlane } from '../utils/shapes';
 
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
@@ -36,7 +37,8 @@ export function describeCanvasElements(state: BaseCanvasState): SummaryEntry[] {
   const entries = items.flatMap((item, i) => {
     const entry = describeItem(item, state);
     if (!entry) return [];
-    return [{ ...entry, label: `${entry.label} · Ebene ${i + 1}/${total}` }];
+    const locked = isLayerLocked(state, item.id) ? ' · gesperrt' : '';
+    return [{ ...entry, label: `${entry.label} · Ebene ${i + 1}/${total}${locked}` }];
   });
   if (entries.length <= MAX_ENTRIES) return entries;
   const listed = entries.slice(0, MAX_ENTRIES);

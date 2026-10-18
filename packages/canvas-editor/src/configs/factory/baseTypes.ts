@@ -38,6 +38,8 @@ export interface BaseCanvasState {
   userImageInstances: UserImageInstance[];
   chartInstances: ChartInstance[];
   layerOrder?: string[];
+  /** Gesperrte Elemente: nicht ziehen, skalieren, drehen oder löschen. */
+  lockedLayerIds?: string[];
   imageAttribution?: StockImageAttribution | null;
   [key: string]: unknown;
 }

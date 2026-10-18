@@ -144,6 +144,8 @@ export function ToolbarStateBridge<
       isCropping,
       selectionCount: capabilities.count,
       canCopy: capabilities.canCopy,
+      lockState: capabilities.lock,
+      canLock: capabilities.canLock,
     });
   }, [
     isCropping,
@@ -156,6 +158,8 @@ export function ToolbarStateBridge<
     capabilities.canCopy,
     capabilities.canDelete,
     capabilities.count,
+    capabilities.lock,
+    capabilities.canLock,
     onToolbarStateChange,
   ]);
 

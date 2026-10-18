@@ -55,6 +55,7 @@ const DERIVED: Partial<Record<CanvasConfigType, string[]>> = {
 function seedFor(key: string): unknown {
   if (key === 'selectedIcons') return ['guard-icon'];
   if (key === 'layerOrder') return ['guard-shapeInstances', 'guard-assetInstances'];
+  if (key === 'lockedLayerIds') return ['guard-shapeInstances'];
   if (key === 'iconStates') {
     return { 'guard-icon': { x: 11, y: 22, scale: 1, rotation: 0, opacity: 0.5 } };
   }
