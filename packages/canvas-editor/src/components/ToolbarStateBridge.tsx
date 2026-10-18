@@ -12,12 +12,10 @@
 
 import { useCallback, useEffect, type MutableRefObject } from 'react';
 
-import { useCanvasLayerControls } from '../hooks/useCanvasLayerControls';
 import { useFloatingModuleHandlers } from '../hooks/useFloatingModuleHandlers';
 import { useFloatingModuleState } from '../hooks/useFloatingModuleState';
-import { useCanvasStoreSelector } from '../stores/CanvasStoreProvider';
-import { canDuplicateElement, duplicateElementInState } from '../utils/duplicateElement';
-import { findElementRemover } from '../utils/removeElement';
+import { useCanvasStoreSelector, useCanvasStoreShallow } from '../stores/CanvasStoreProvider';
+import { selectionCapabilities } from '../utils/selectionCapabilities';
 import { findTemplateEntry } from '../utils/templateElementInstance';
 
 import type { ToolbarStateReport } from './GenericCanvas';
@@ -31,13 +29,6 @@ import type { GradientFill } from '../utils/gradientFill';
 
 export interface ToolbarBridgeState {
   activeFloatingModule: FloatingModuleState | null;
-  canMoveUp: boolean;
-  canMoveDown: boolean;
-  canDuplicate: boolean;
-  canDelete: boolean;
-  handleMoveLayer: (direction: 'up' | 'down') => void;
-  handleDuplicate: () => void;
-  handleDelete: () => void;
   handleColorSelect: (color: string) => void;
   handleOpacityChange: (id: string, opacity: number, type: string) => void;
   handleShadowChange: (id: string, patch: ShadowPatch, type: string) => void;
@@ -59,7 +50,6 @@ interface ToolbarStateBridgeProps<
   actions: TActions;
   sortedRenderList: CanvasItem[];
   setState: (partial: Partial<TState> | ((prev: TState) => TState)) => void;
-  saveToHistory: (state: TState) => void;
   debouncedSaveToHistory: (state: TState) => void;
   canUndo: boolean;
   canRedo: boolean;
@@ -77,7 +67,6 @@ export function ToolbarStateBridge<
   actions,
   sortedRenderList,
   setState,
-  saveToHistory,
   debouncedSaveToHistory,
   canUndo,
   canRedo,
@@ -92,15 +81,7 @@ export function ToolbarStateBridge<
     layout,
   });
 
-  const layerControls = useCanvasLayerControls({
-    selectedElement,
-    sortedRenderList,
-    setState,
-    saveToHistory,
-    state,
-  });
-
-  const setSelectedElement = useCanvasStoreSelector((s) => s.setSelectedElement);
+  const selectedLayerIds = useCanvasStoreShallow((s) => s.selectedLayerIds);
   const setCroppingElement = useCanvasStoreSelector((s) => s.setCroppingElement);
   const isCropping = useCanvasStoreSelector(
     (s) => s.croppingElement !== null && s.croppingElement === s.selectedElement
@@ -116,31 +97,14 @@ export function ToolbarStateBridge<
     [config.elements, state, layout]
   );
 
-  const canDuplicate = canDuplicateElement(state, selectedElement, templateEntry);
-
-  /**
-   * Dupliziert die Auswahl. `saveToHistory` ist hier nicht optional: `setState`
-   * allein schreibt keinen Verlaufseintrag, und ohne ihn ließe sich die Kopie
-   * nicht rückgängig machen — der Fehler, den der Strg+D-Pfad jahrelang hatte.
-   */
-  const handleDuplicate = useCallback(() => {
-    if (!selectedElement) return;
-    const result = duplicateElementInState(state, selectedElement, { template: templateEntry });
-    if (!result) return;
-    setState(result.state);
-    saveToHistory(result.state);
-    setSelectedElement(result.newId);
-  }, [selectedElement, state, setState, saveToHistory, setSelectedElement, templateEntry]);
-
-  // Dieselbe Frage wie die Entf-Taste: Vorlagen-Elemente liegen in keiner
-  // Sammlung und sind nicht löschbar.
-  const removeSelected = findElementRemover(state, actions, selectedElement);
-  const canDelete = removeSelected !== null;
-  const handleDelete = useCallback(() => {
-    if (!removeSelected) return;
-    removeSelected();
-    setSelectedElement(null);
-  }, [removeSelected, setSelectedElement]);
+  // Dieselben Fragen, die die Türen beim Ausführen stellen (`utils/canvasCommands.ts`).
+  const capabilities = selectionCapabilities({
+    ids: selectedLayerIds,
+    state,
+    actions,
+    template: templateEntry,
+    renderList: sortedRenderList,
+  });
 
   const floatingHandlers = useFloatingModuleHandlers({
     activeFloatingModule,
@@ -156,13 +120,6 @@ export function ToolbarStateBridge<
   useEffect(() => {
     bridgeRef.current = {
       activeFloatingModule,
-      canMoveUp: layerControls.canMoveUp,
-      canMoveDown: layerControls.canMoveDown,
-      canDuplicate,
-      canDelete,
-      handleMoveLayer: layerControls.handleMoveLayer,
-      handleDuplicate,
-      handleDelete,
       handleColorSelect: floatingHandlers.handleColorSelect,
       handleOpacityChange: floatingHandlers.handleOpacityChange,
       handleShadowChange: floatingHandlers.handleShadowChange,
@@ -180,11 +137,15 @@ export function ToolbarStateBridge<
       activeFloatingModule,
       canUndo,
       canRedo,
-      canMoveUp: layerControls.canMoveUp,
-      canMoveDown: layerControls.canMoveDown,
-      canDuplicate,
-      canDelete,
+      canMoveUp: capabilities.canBringForward,
+      canMoveDown: capabilities.canSendBackward,
+      canDuplicate: capabilities.canCopy,
+      canDelete: capabilities.canDelete,
       isCropping,
+      selectionCount: capabilities.count,
+      canCopy: capabilities.canCopy,
+      lockState: capabilities.lock,
+      canLock: capabilities.canLock,
     });
   }, [
     isCropping,
@@ -192,10 +153,13 @@ export function ToolbarStateBridge<
     activeFloatingModule,
     canUndo,
     canRedo,
-    layerControls.canMoveUp,
-    layerControls.canMoveDown,
-    canDuplicate,
-    canDelete,
+    capabilities.canBringForward,
+    capabilities.canSendBackward,
+    capabilities.canCopy,
+    capabilities.canDelete,
+    capabilities.count,
+    capabilities.lock,
+    capabilities.canLock,
     onToolbarStateChange,
   ]);
 

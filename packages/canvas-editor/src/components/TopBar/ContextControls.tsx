@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { PiCopy } from 'react-icons/pi';
+import { PiCopy, PiLockSimple, PiLockSimpleOpen, PiTrash } from 'react-icons/pi';
 
 import { type BackgroundControls } from '../../configs/types';
 import { type ShadowPatch } from '../../hooks/useFloatingModuleHandlers';
 import { type FloatingModuleState } from '../../hooks/useFloatingModuleState';
+import { formatShortcut, isMacPlatform, shortcutOf } from '../../utils/canvasCommandRegistry';
 import { type GradientFill } from '../../utils/gradientFill';
+import { type LockState } from '../../utils/layerLock';
 import { BRAND_COLORS, FONT_COLORS, STROKE_ONLY_SHAPES } from '../../utils/shapes';
 import { useCanvasTextFormatting } from '../CanvasTextOverlay';
 import { type AlignmentDirection } from '../Toolbar';
@@ -35,6 +37,11 @@ export interface ContextControlsProps {
   canDuplicate: boolean;
   /** The selected framed photo is in Ausschnitt mode. */
   isCropping?: boolean;
+  /** Gesperrt: nicht ziehen, skalieren, ausrichten, löschen — gestalten geht weiter. */
+  lockState?: LockState;
+  canLock?: boolean;
+  /** Zählt hoch, wenn das Kontextmenü „Bild ersetzen …“ wählt: die Bildauswahl öffnet sich. */
+  backgroundPickerRequest?: number;
   handlers: {
     handleMoveLayer: (direction: 'up' | 'down') => void;
     handleDuplicate: () => void;
@@ -48,6 +55,7 @@ export interface ContextControlsProps {
     /** Ausschnitt mode for a framed photo: the photo moves inside its frame. */
     handleCropImage?: () => void;
     handleGradientSelect?: (gradient: GradientFill | null) => void;
+    handleToggleLock?: () => void;
     /** Opens the image-adjust ("Bearbeiten") panel for the selected image. */
     onEditImage?: () => void;
   };
@@ -55,7 +63,12 @@ export interface ContextControlsProps {
   background?: BackgroundControls | null;
   /** Removes one own image by id — not "the selection", which can change meanwhile. */
   onRemoveUserImage?: (id: string) => void;
-  onDelete?: () => void;
+  /** Löscht die Auswahl — nur die Desktop-Leiste gibt es mit; mobil liegt Löschen in der Pille. */
+  onDeleteElement?: () => void;
+  /** Vorlagen-Elemente und gesperrte lassen sich nicht löschen. */
+  canDelete?: boolean;
+  /** Mobil, im „Auswahl“-Block des Sheets: die Seite löschen. */
+  onDeletePage?: () => void;
   /** Clears the element selection. Escape does the same, but is invisible. */
   onDeselect?: () => void;
   /** Mobil: Duplizieren, Löschen und Abwählen liegen in Pille und ✓, nicht hier. */
@@ -65,13 +78,17 @@ export interface ContextControlsProps {
 const ICON_BTN =
   'inline-flex items-center justify-center size-8 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] disabled:opacity-30 disabled:cursor-not-allowed';
 
+const DANGER_BTN =
+  'inline-flex items-center justify-center size-8 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-danger-bg)] hover:text-[var(--editor-danger-fg)] disabled:opacity-30 disabled:cursor-not-allowed';
+
 const UNSPLASH_HOME = 'https://unsplash.com/?utm_source=gruenerator&utm_medium=referral';
 
 const SEP = 'w-px h-[22px] bg-[var(--editor-border-soft)] mx-1 shrink-0';
 
 /**
  * ContextControls — the selection-driven formatting controls (color, font size,
- * alignment, opacity, layer order, delete page). Shared between the desktop
+ * alignment, opacity, layer order, duplicate, lock, delete; delete page in the
+ * mobile sheet). Shared between the desktop
  * floating ContextToolbar and the mobile bottom context row; owns its own
  * color-picker expansion state. Renders nothing when there is no active module.
  */
@@ -82,10 +99,15 @@ export function ContextControls({
   canMoveDown,
   canDuplicate,
   isCropping = false,
+  lockState = 'none',
+  canLock = false,
+  backgroundPickerRequest = 0,
   handlers,
   background,
   onRemoveUserImage,
-  onDelete,
+  onDeleteElement,
+  canDelete = false,
+  onDeletePage,
   onDeselect,
   hideObjectActions = false,
 }: ContextControlsProps) {
@@ -124,6 +146,7 @@ export function ContextControls({
   const showOpacity = activeFloatingModule && activeFloatingModule.type !== 'frame' && !isPlane;
   const showObjectActions = !isPlane && !isPhoto;
   const isText = activeFloatingModule?.type === 'text';
+  const isLocked = lockState === 'all';
 
   // Build the present control groups, then interleave separators — this keeps
   // dividers strictly between groups (no dangling leading/trailing divider
@@ -186,6 +209,7 @@ export function ContextControls({
         label={background.currentImageSrc ? 'Ersetzen' : 'Bild'}
         currentImageSrc={background.currentImageSrc}
         onImageChange={onImageChange}
+        openRequest={backgroundPickerRequest}
       />
     );
   }
@@ -300,6 +324,7 @@ export function ContextControls({
       <div key="align" className="flex items-center gap-0.5">
         <button
           className={ICON_BTN}
+          disabled={isLocked}
           onClick={() => handlers.handleAlign!('left')}
           title="Links ausrichten"
         >
@@ -319,6 +344,7 @@ export function ContextControls({
         </button>
         <button
           className={ICON_BTN}
+          disabled={isLocked}
           onClick={() => handlers.handleAlign!('center-h')}
           title="Horizontal zentrieren"
         >
@@ -338,6 +364,7 @@ export function ContextControls({
         </button>
         <button
           className={ICON_BTN}
+          disabled={isLocked}
           onClick={() => handlers.handleAlign!('center-v')}
           title="Vertikal zentrieren"
         >
@@ -530,17 +557,69 @@ export function ContextControls({
     );
   }
 
-  if (onDelete && !hideObjectActions) {
+  if (
+    selectedElement &&
+    showObjectActions &&
+    !hideObjectActions &&
+    canLock &&
+    handlers.handleToggleLock
+  ) {
+    const label = isLocked ? 'Entsperren' : 'Sperren';
+    groups.push(
+      <button
+        key="lock"
+        className={`${ICON_BTN} aria-pressed:bg-[var(--editor-active-bg)] aria-pressed:text-[var(--editor-active-fg)]`}
+        onClick={handlers.handleToggleLock}
+        aria-pressed={isLocked}
+        title={
+          isLocked
+            ? 'Entsperren — wieder bewegen und löschen'
+            : 'Sperren — Lage und Größe festhalten'
+        }
+        aria-label={label}
+        type="button"
+      >
+        {isLocked ? <PiLockSimple size={18} /> : <PiLockSimpleOpen size={18} />}
+      </button>
+    );
+  }
+
+  if (selectedElement && showObjectActions && !hideObjectActions && onDeleteElement) {
+    const label = `Löschen (${formatShortcut(shortcutOf('delete')!, isMacPlatform())})`;
+    groups.push(
+      <button
+        key="delete-element"
+        className={DANGER_BTN}
+        onClick={onDeleteElement}
+        disabled={!canDelete}
+        title={
+          canDelete
+            ? label
+            : isLocked
+              ? 'Gesperrt — zum Löschen erst entsperren'
+              : 'Dieses Element gehört zur Vorlage und lässt sich nicht löschen'
+        }
+        aria-label={label}
+        type="button"
+      >
+        <PiTrash size={18} />
+      </button>
+    );
+  }
+
+  if (onDeletePage && !hideObjectActions) {
     groups.push(
       <button
         key="delete"
-        className="inline-flex items-center justify-center size-8 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text-secondary)] transition-colors duration-150 hover:text-red-600 hover:bg-red-500/10"
+        className="inline-flex items-center justify-center size-8 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text-secondary)] transition-colors duration-150 hover:text-[var(--editor-danger-fg)] hover:bg-[var(--editor-danger-bg)]"
         onClick={() => {
           if (window.confirm('Seite wirklich löschen?')) {
-            onDelete();
+            onDeletePage();
           }
         }}
         title="Seite löschen"
+        aria-label="Seite löschen"
+        type="button"
       >
         <svg
           width="18"

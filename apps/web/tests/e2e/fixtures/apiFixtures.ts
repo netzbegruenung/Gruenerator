@@ -106,7 +106,12 @@ async function json(route: Route, body: unknown): Promise<void> {
  * die zuletzt registrierte gewinnt. Deshalb steht die Auffangregel zuerst und
  * die spezifischen danach; andersherum würde die Auffangregel alles schlucken.
  */
-export async function installApiFixtures(page: Page): Promise<void> {
+/**
+ * Was jede Seite des Editors ruhig stellt, ohne die API anzufassen: Banner und
+ * Touren aus, react-scan blockiert. `installApiFixtures` baut darauf auf; ein
+ * Test gegen den echten Dev-Stack nimmt nur das hier.
+ */
+export async function quietEditorChrome(page: Page): Promise<void> {
   await page.addInitScript(() => {
     // Der Schlüssel, den das Banner in `index.html` wirklich liest. Die drei
     // Namen in `pageHelpers.ts` (`cookie-consent`, `gruenerator_cookie_consent`,
@@ -145,6 +150,10 @@ export async function installApiFixtures(page: Page): Promise<void> {
   // Blockieren statt ausschließen, damit die Lane nebenbei auch nicht mehr
   // davon abhängt, dass unpkg.com erreichbar ist.
   await page.route('**/react-scan/**', (route) => route.abort());
+}
+
+export async function installApiFixtures(page: Page): Promise<void> {
+  await quietEditorChrome(page);
 
   // Auffangregel: leere, wohlgeformte Antwort statt eines Netzwerkfehlers.
   // `data` und `items` gleichzeitig, weil beide Hüllenformen im Bestand

@@ -81,7 +81,8 @@ export const PageWrapper = memo(function PageWrapper({
   );
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
-      if (e.pointerType === 'mouse' && e.button === 0) {
+      // The right button too: the context menu acts on the page it opens over.
+      if (e.pointerType === 'mouse' && (e.button === 0 || e.button === 2)) {
         activateFrom(e.target);
       } else if (
         e.pointerType === 'touch' &&

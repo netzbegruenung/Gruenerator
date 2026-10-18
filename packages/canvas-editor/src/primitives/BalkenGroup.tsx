@@ -8,6 +8,7 @@
 import { useRef, useCallback, useMemo, useEffect, useState, memo } from 'react';
 import { Group, Line, Text, Rect, Transformer } from 'react-konva';
 
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { useFontGeneration } from '../hooks/useFontGeneration';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { calculateBalkenLayouts } from '../utils/balkenBounds';
@@ -105,6 +106,7 @@ function BalkenGroupInner({
   opacity = 1,
   barOffsets,
 }: BalkenGroupProps) {
+  const locked = useIsItemLocked();
   const groupRef = useRef<Konva.Group>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -402,7 +404,7 @@ function BalkenGroupInner({
         scaleY={scale}
         rotation={rotation}
         opacity={opacity}
-        draggable={editingIndex === null} // Disable drag while editing
+        draggable={editingIndex === null && !locked} // Disable drag while editing
         onDragStart={snap.onDragStart}
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
@@ -479,6 +481,7 @@ function BalkenGroupInner({
             if (newBox.width > maxSize || newBox.height > maxSize) return oldBox;
             return newBox;
           }}
+          {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}
     </>

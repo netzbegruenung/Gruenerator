@@ -9,7 +9,7 @@
  * gleichmäßige Skala).
  *
  * Neben dem Rahmen um die ganze Auswahl trägt jedes Element einen eigenen
- * Umriss. Die Umrisse sind lose Konva-Knoten, die dem `dragmove` des
+ * Umriss, auch ein gesperrtes, das beim Zug stehen bleibt. Die Umrisse sind lose Konva-Knoten, die dem `dragmove` des
  * Transformers folgen — ein Gruppenzug rendert keine React-Komponente neu.
  */
 
@@ -19,6 +19,7 @@ import { Transformer } from 'react-konva';
 import { useCanvasStoreSelector, useCanvasStoreShallow } from '../stores/CanvasStoreProvider';
 import {
   findDragNodes,
+  findItemGroups,
   MULTI_SELECTION_TRANSFORMER_NAME,
   SELECTION_COLOR,
   syncOutlines,
@@ -44,8 +45,9 @@ function MultiSelectionTransformerInner({ renderKey }: MultiSelectionTransformer
     const found = ids.length > 1 ? findDragNodes(layer, ids) : [];
     const nodes = found.length > 1 ? found : [];
     tr.nodes(nodes);
+    const outlined = ids.length > 1 ? findItemGroups(layer, ids) : [];
     const outlines = outlinesRef.current;
-    const follow = () => syncOutlines(layer, outlines, nodes);
+    const follow = () => syncOutlines(layer, outlines, outlined);
     follow();
     tr.moveToTop();
     tr.on('dragmove.outlines dragend.outlines', follow);

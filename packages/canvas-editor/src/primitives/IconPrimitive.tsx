@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { generateIconDataUrl } from '../utils/canvasIcons';
@@ -55,6 +56,7 @@ function IconPrimitiveInner({
   onSnapLinesChange,
   onGeometryChange,
 }: IconPrimitiveProps) {
+  const locked = useIsItemLocked();
   const groupRef = useRef<Konva.Group>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
   const [image, setImage] = useState<HTMLImageElement | null>(null);
@@ -144,7 +146,7 @@ function IconPrimitiveInner({
         scaleY={scale * baseScale}
         rotation={rotation}
         opacity={opacity}
-        draggable
+        draggable={!locked}
         onMouseDown={onSelect}
         onTouchStart={onSelect}
         onDragStart={snap.onDragStart}
@@ -195,6 +197,7 @@ function IconPrimitiveInner({
           ref={transformerRef}
           keepRatio={true}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
+          {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}
     </>

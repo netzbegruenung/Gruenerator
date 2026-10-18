@@ -13,6 +13,7 @@
 import { useRef, useCallback, useEffect, useState, memo } from 'react';
 import { Group, Circle, Text, Rect, Transformer } from 'react-konva';
 
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { isGroupDrag } from '../utils/multiSelect';
 import { calculateElementSnapPosition } from '../utils/snapping';
@@ -88,6 +89,7 @@ function CircleBadgeInner({
   stageWidth,
   stageHeight,
 }: CircleBadgeProps) {
+  const locked = useIsItemLocked();
   const groupRef = useRef<Konva.Group>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -259,7 +261,7 @@ function CircleBadgeInner({
         scaleY={scale}
         rotation={rotation}
         opacity={opacity}
-        draggable={editingIndex === null}
+        draggable={editingIndex === null && !locked}
         onDragStart={snap.onDragStart}
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
@@ -323,6 +325,7 @@ function CircleBadgeInner({
             if (newBox.width > maxSize || newBox.height > maxSize) return oldBox;
             return newBox;
           }}
+          {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}
     </>

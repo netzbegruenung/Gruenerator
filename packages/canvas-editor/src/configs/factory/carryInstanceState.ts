@@ -18,6 +18,9 @@
  * except `dreizeilen` and `freeform` (which read it from the props by hand)
  * handed a user their shapes back in the default order after a reload (#3420).
  *
+ * `lockedLayerIds` is the same kind of id array: which of these elements the
+ * user locked. Copies and pastes get new ids, so they come out unlocked.
+ *
  * `backgroundImageAdjustments` is the "Bearbeiten" look of the template's
  * background photo. It rides here for the same reason: one read-back for every
  * template, and the list doubles as the page's writer (PAGE_ELEMENT_STATE_KEYS).
@@ -49,6 +52,7 @@ export interface CarriedInstanceState {
   chartInstances: ChartInstance[];
   userImageInstances: UserImageInstance[];
   layerOrder: string[];
+  lockedLayerIds: string[];
   backgroundImageAdjustments?: ImageAdjustments;
 }
 
@@ -67,6 +71,7 @@ export const CARRIED_INSTANCE_KEYS = [
   'chartInstances',
   'userImageInstances',
   'layerOrder',
+  'lockedLayerIds',
   'backgroundImageAdjustments',
 ] as const;
 
@@ -92,6 +97,7 @@ export function carryInstanceState(props: Record<string, unknown>): CarriedInsta
     chartInstances: list<ChartInstance>(props.chartInstances),
     userImageInstances: list<UserImageInstance>(props.userImageInstances),
     layerOrder: list<string>(props.layerOrder),
+    lockedLayerIds: list<string>(props.lockedLayerIds),
     ...carryBackgroundAdjustments(props),
   };
 }

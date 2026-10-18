@@ -9,6 +9,7 @@
 import { useState, useEffect, useRef, memo } from 'react';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import {
   clampPan,
   framedPhotoRect,
@@ -53,6 +54,7 @@ function UserImagePrimitiveInner({
   onCroppingChange,
   draggable = true,
 }: UserImagePrimitiveProps) {
+  const locked = useIsItemLocked();
   const panStartRef = useRef<Box | null>(null);
   const groupRef = useRef<Konva.Group>(null);
   const imageRef = useRef<Konva.Image>(null);
@@ -170,7 +172,7 @@ function UserImagePrimitiveInner({
         scaleY={userImage.scale}
         rotation={userImage.rotation}
         opacity={userImage.opacity}
-        draggable={draggable && !isCropping}
+        draggable={draggable && !isCropping && !locked}
         onDblClick={() => cover && onCroppingChange?.(!cropping)}
         onDblTap={() => cover && onCroppingChange?.(!cropping)}
         onMouseDown={(e) => {
@@ -276,6 +278,7 @@ function UserImagePrimitiveInner({
           borderStroke="#005437"
           anchorStroke="#005437"
           anchorFill="#ffffff"
+          {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}
     </>

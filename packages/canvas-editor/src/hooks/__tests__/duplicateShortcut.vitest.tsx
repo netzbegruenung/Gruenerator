@@ -3,6 +3,7 @@ import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createCanvasEditorStore } from '../../stores/createCanvasEditorStore';
+import { createCanvasCommands } from '../../utils/canvasCommands';
 import { useCanvasKeyboardHandlers } from '../useCanvasKeyboardHandlers';
 
 import type { BaseCanvasState } from '../../configs/factory/baseTypes';
@@ -35,6 +36,18 @@ function setup(initial?: Partial<BaseCanvasState>) {
     store.getState().setSelectedElement(id);
   });
   const saveToHistory = vi.fn();
+  const commands = createCanvasCommands<BaseCanvasState>({
+    store,
+    getState: () => state,
+    setState,
+    saveToHistory,
+    runHistoryBatch: (fn) => fn(),
+    getActions: () => ({}),
+    template: () => null,
+    getRenderList: () => [],
+    getStage: () => null,
+    logicalScale: () => 1,
+  });
 
   const view = renderHook(
     (props: { state: BaseCanvasState }) =>
@@ -44,6 +57,7 @@ function setup(initial?: Partial<BaseCanvasState>) {
         actions: {},
         setState,
         setSelectedElement,
+        commands,
         saveToHistory,
       }),
     { initialProps: { state } }
@@ -59,8 +73,6 @@ function setup(initial?: Partial<BaseCanvasState>) {
   };
 }
 
-/** Die Auswahl der Kopie haengt an einem `setTimeout(…, 0)` aus dem Bestand:
- *  sie wird erst gesetzt, wenn die Zustandsaenderung durch ist. */
 function pressCtrlD() {
   act(() => {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', ctrlKey: true, bubbles: true }));
@@ -81,7 +93,7 @@ describe('Strg+D', () => {
     pressCtrlD();
 
     expect(h.currentState().shapeInstances).toHaveLength(2);
-    expect(h.setSelectedElement).toHaveBeenCalledWith(h.currentState().shapeInstances[1].id);
+    expect(h.store.getState().selectedElement).toBe(h.currentState().shapeInstances[1].id);
   });
 
   /**

@@ -26,6 +26,7 @@ import { layoutRichTextBlock } from '@gruenerator/contracts';
 import { useRef, useEffect, useCallback, useMemo, useState, Fragment } from 'react';
 import { Group, Rect, Text as KonvaText, Transformer } from 'react-konva';
 
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { overlayBoxForNode, useCanvasTextEditor } from '../components/CanvasTextOverlay';
 import { useFontGeneration } from '../hooks/useFontGeneration';
 import { useGeometryReporter } from '../hooks/useGeometryReporter';
@@ -88,6 +89,7 @@ export function CanvasRichText({
   onGeometryChange,
   onSnapLinesChange,
 }: CanvasTextProps) {
+  const locked = useIsItemLocked();
   const groupRef = useRef<Konva.Group>(null);
   const trRef = useRef<Konva.Transformer>(null);
   const { open, isEditing } = useCanvasTextEditor(id, editable);
@@ -323,7 +325,7 @@ export function CanvasRichText({
         height={blockHeight}
         rotation={rotation}
         opacity={opacity}
-        draggable={draggable && !isEditing}
+        draggable={draggable && !isEditing && !locked}
         visible={!isEditing}
         onMouseDown={onSelect}
         onTouchStart={onSelect}
@@ -445,6 +447,7 @@ export function CanvasRichText({
             if (newBox.width > maxWidth) return oldBox;
             return newBox;
           }}
+          {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}
     </>

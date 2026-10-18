@@ -307,6 +307,30 @@ describe('freeform op path', () => {
     expect(state.chartInstances[0]).not.toHaveProperty('color');
   });
 
+  it('update-element leaves a locked element in place but still recolours it', () => {
+    const env = freeform({ ...SEED, lockedLayerIds: ['shape-1'] });
+    for (const patch of [{ x: 10 }, { scale: 2 }, { rotation: 15 }, { y: 5, color: '#FFD320' }]) {
+      expect(
+        applyOperation(
+          { kind: 'update-element', elementId: 'shape-1', patch },
+          env.actions,
+          env.getState,
+          env.ai
+        )
+      ).toEqual({ ok: false, reason: 'element "shape-1" is locked' });
+    }
+    expect(env.getState().shapeInstances.find((x) => x.id === 'shape-1')).toMatchObject({
+      x: 0,
+      y: 1100,
+      scaleX: 1,
+      rotation: 0,
+      fill: '#8ABD24',
+    });
+
+    expect(update('shape-1', { color: '#FFD320' }, env).result).toEqual({ ok: true });
+    expect(env.getState().shapeInstances.find((x) => x.id === 'shape-1')!.fill).toBe('#FFD320');
+  });
+
   it('edits composer background planes like any shape', () => {
     const env = freeform();
     expect(update('sc-bg', { x: 10 }, env).result.ok).toBe(true);

@@ -66,6 +66,10 @@ export function extractInheritablePageState(
       ...order.filter((id) => ids.includes(id)),
       ...ids.filter((id) => !order.includes(id)),
     ];
+    const locked = Array.isArray(state.lockedLayerIds) ? (state.lockedLayerIds as string[]) : [];
+    if (locked.some((id) => ids.includes(id))) {
+      inherited.lockedLayerIds = locked.filter((id) => ids.includes(id));
+    }
   } else if (planes.some((plane) => plane.id === 'sc-panel')) {
     // Another template lays out its own content, which free planes would
     // cover; it gets the photo back centred instead of shifted towards a

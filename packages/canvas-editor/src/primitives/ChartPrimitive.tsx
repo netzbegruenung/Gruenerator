@@ -13,6 +13,7 @@ import { memo, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { chartSeriesOutlines, type ChartInstance } from '../utils/chartUtils';
 import { useTrackPendingImage } from '../utils/pendingImages';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
@@ -325,6 +326,7 @@ function ChartPrimitiveInner({
   onTransformEnd,
   draggable = true,
 }: ChartPrimitiveProps) {
+  const locked = useIsItemLocked();
   const groupRef = useRef<Konva.Group>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
   // The image with the visual state it was drawn from: while they differ, a
@@ -386,7 +388,7 @@ function ChartPrimitiveInner({
         scaleY={chart.scale}
         rotation={chart.rotation}
         opacity={chart.opacity}
-        draggable={draggable}
+        draggable={draggable && !locked}
         onMouseDown={(e) => {
           e.cancelBubble = true;
           onSelect(chart.id);
@@ -437,6 +439,7 @@ function ChartPrimitiveInner({
           borderStroke="#005437"
           anchorStroke="#005437"
           anchorFill="#ffffff"
+          {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}
     </>
