@@ -811,7 +811,7 @@ describe('composePrint: flyer, letterhead, newspaper', () => {
     ['letterhead', brief, 2, []],
     ['newspaper', zeitung, 4, [3]],
   ] as const)(
-    '%s: its pages, the imprint where the format wants it, all inside the safe zone',
+    '%s: its pages, the imprint where the format wants it, inside the safe zone, no fades',
     (_, s, pages, imprint) => {
       const result = compose(s);
       expect(result.slides).toHaveLength(pages);
@@ -819,6 +819,9 @@ describe('composePrint: flyer, letterhead, newspaper', () => {
       const format = getCanvasFormat(result.format)!;
       expect(format.print?.seiten).toBe(pages);
       expectInSafeZone(result);
+      for (const slide of result.slides) {
+        expect(slide.shapeInstances.filter((x) => x.fillGradient)).toEqual([]);
+      }
     }
   );
 

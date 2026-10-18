@@ -26,7 +26,7 @@ import {
   placeStack,
   rect,
   SAND,
-  scrim,
+  feld,
   stackHeight,
   stoerer,
   WHITE,
@@ -229,37 +229,14 @@ export function flyerFalz(f: Frame, spec: FlyerFalzSpec, src: PhotoSrc): Compose
     stoerer(aussen, f, 'pr-stoerer', s.stoerer, ruecken.x + ruecken.width - pad - r, y, r);
   }
 
-  // Title panel: the photo over the whole panel, the statement low over a scrim.
+  // Title panel: the photo over the whole panel, the statement low on a Tanne
+  // field cut hard into it.
   const titelVoll = panel(f, 'aussen', 2);
   const titel = inTrim(f, titelVoll);
   foto(aussen, 'pr-foto-titel', titelFoto!, titelVoll, src);
-  scrim(
-    aussen,
-    'pr-scrim',
-    { ...titelVoll, y: titelVoll.height * 0.45, height: titelVoll.height * 0.55 },
-    '0,38,26',
-    0.85
-  );
-  blume(aussen, f, (titel.x + titel.width - f.trim.x) / f.trim.width, 0.52, titel.width * 0.6);
   const titelSize = f.pt(30);
   const webSize = f.pt(20);
   const webY = titel.y + titel.height - pad - webSize;
-  if (s.web) {
-    aussen.text({
-      id: 'pr-web',
-      text: s.web,
-      type: 'subheader',
-      x: titel.x + pad,
-      y: webY,
-      width: titel.width - 2 * pad,
-      fontSize: webSize,
-      fontFamily: f.theme.fonts.headline,
-      fontStyle: 'normal',
-      fill: WHITE,
-      lineHeight: 1,
-      align: 'center',
-    });
-  }
   const accent: TextAccent = { fill: LIME };
   const titelWidth = titel.width - 2 * pad;
   const titelBlocks = fitStack(
@@ -302,7 +279,26 @@ export function flyerFalz(f: Frame, spec: FlyerFalzSpec, src: PhotoSrc): Compose
     titel.height * 0.4
   );
   const titelH = stackHeight(f, titelBlocks, titelWidth);
-  placeStack(aussen, f, titelBlocks, titel.x + pad, webY - pad - titelH, titelWidth);
+  const titelTop = webY - pad - titelH;
+  feld(aussen, titelVoll, titelTop - pad, TANNE);
+  blume(aussen, f, (titel.x + titel.width - f.trim.x) / f.trim.width, 0.52, titel.width * 0.6);
+  placeStack(aussen, f, titelBlocks, titel.x + pad, titelTop, titelWidth);
+  if (s.web) {
+    aussen.text({
+      id: 'pr-web',
+      text: s.web,
+      type: 'subheader',
+      x: titel.x + pad,
+      y: webY,
+      width: titel.width - 2 * pad,
+      fontSize: webSize,
+      fontFamily: f.theme.fonts.headline,
+      fontStyle: 'normal',
+      fill: WHITE,
+      lineHeight: 1,
+      align: 'center',
+    });
+  }
   if (spec.impressum) aussen.text(impressumElement(f, impressumText(spec.impressum)));
 
   // ── Inside ─────────────────────────────────────────────────────────────────

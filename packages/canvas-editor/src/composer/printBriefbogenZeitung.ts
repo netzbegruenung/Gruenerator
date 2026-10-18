@@ -28,7 +28,6 @@ import {
   page,
   placeStack,
   rect,
-  scrim,
   stackHeight,
   stoerer,
   WHITE,
@@ -132,13 +131,13 @@ export function gemeindezeitung(f: Frame, spec: ZeitungSpec, src: PhotoSrc): Com
     opacity: 1,
     fit: 'cover',
   });
-  scrim(
-    cover,
-    'pr-scrim',
-    { x: 0, y: 0, width: f.format.width, height: trim.y + mm(f, 30) },
-    '0,0,0',
-    0.45,
-    270
+  // The issue line on a Dunkelgrün strip across the head, cut hard into the photo.
+  cover.shape(
+    rect(
+      'pr-kopf',
+      { x: 0, y: 0, width: f.format.width, height: inner.y + f.pt(9) * BODY_LEADING + 0.5 * X },
+      dunkel
+    )
   );
   cover.text({
     ...zeile(f, 'pr-ausgabe', s.ausgabe, f.pt(9), WHITE, true),
