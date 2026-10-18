@@ -6,24 +6,74 @@
  */
 import { z } from 'zod';
 
+import { SHAREPIC_VORLAGE_REF, sharepicVorlageAssetPath } from './sharepicCreator.js';
+
 export const PRINT_NAME_MAX = 60;
 export const PRINT_HEADLINE_MAX = 80;
 export const PRINT_TEXT_MAX = 120;
+/** A Störer holds a few words (CD p. 15); the circle takes three lines at most. */
+export const PRINT_STOERER_MAX = 40;
+export const PRINT_MITWIRKENDE_MAX = 4;
 
 export const printLocaleSchema = z.enum(['de-DE', 'de-AT']);
 export type PrintLocale = z.infer<typeof printLocaleSchema>;
 
-export const printProduktSchema = z.enum(['visitenkarte', 'plakat']);
+export const printProduktSchema = z.enum([
+  'visitenkarte',
+  'plakat',
+  'flyer',
+  'briefbogen',
+  'zeitung',
+]);
 export type PrintProdukt = z.infer<typeof printProduktSchema>;
 
-export const printVarianteSchema = z.enum(['visitenkarte', 'typo']);
+export const printVarianteSchema = z.enum([
+  'visitenkarte',
+  'typo',
+  'kandidat',
+  'thema',
+  'veranstaltung',
+  'geteilt',
+  'overlay',
+  'person',
+  'flyer-falz',
+  'flyer-a6',
+  'briefbogen',
+  'gemeindezeitung',
+]);
 export type PrintVariante = z.infer<typeof printVarianteSchema>;
+
+/**
+ * A colourway of a variante. Absent: the variante's standard look. Which
+ * values a variante takes, per country, says `PRINT_VARIANTEN`.
+ */
+export const printStilSchema = z.enum([
+  'klee',
+  'sand',
+  'schlicht',
+  'hellgruen',
+  'weiss',
+  'gruen',
+  'tanne',
+  'portraits',
+]);
+export type PrintStil = z.infer<typeof printStilSchema>;
 
 export const printFormatIdSchema = z.enum([
   'print-visitenkarte-quer',
   'print-visitenkarte-hoch',
   'print-a3-hoch',
   'print-a4-hoch',
+  'print-a3-quer',
+  'print-a1-hoch',
+  'print-a1-quer',
+  'print-grossflaeche',
+  'print-citylight',
+  'print-flyer-dinlang',
+  'print-a6-hoch',
+  'print-a6-quer',
+  'print-briefbogen-a4',
+  'print-zeitung-a4',
 ]);
 export type PrintFormatId = z.infer<typeof printFormatIdSchema>;
 
@@ -51,6 +101,166 @@ export const printTypoSlotsSchema = z.object({
 });
 export type PrintTypoSlots = z.infer<typeof printTypoSlotsSchema>;
 
+/** A photo a print Vorlage ships: a stock photo we host, or one of the catalogue's (`vorlage:<file>`). */
+export const printFotoSchema = z
+  .string()
+  .regex(
+    new RegExp(`^(?:[\\w.-]+\\.jpe?g|${SHAREPIC_VORLAGE_REF.source.slice(1, -1)})$`, 'i'),
+    'Stockfoto oder vorlage:<datei>'
+  )
+  // The pattern ignores case for stock names; a Vorlage's file name is exact,
+  // or printFotoSrc would take it for a stock photo.
+  .refine((f) => !/^vorlage:/i.test(f) || SHAREPIC_VORLAGE_REF.test(f), {
+    message: 'vorlage: nur mit dem Dateinamen aus dem Katalog',
+  });
+
+/** Where the browser loads a print photo from. */
+export const printFotoSrc = (foto: string): string =>
+  SHAREPIC_VORLAGE_REF.test(foto)
+    ? sharepicVorlageAssetPath(foto)
+    : `/api/image-picker/stock-image/${encodeURIComponent(foto)}`;
+
+/** Candidate poster (CD p. 38): the person on the photo, name and line below. */
+export const printKandidatSlotsSchema = z.object({
+  name: text(PRINT_NAME_MAX),
+  subline: text(PRINT_TEXT_MAX).optional(),
+  stoerer: text(PRINT_STOERER_MAX).optional(),
+  web: text(PRINT_TEXT_MAX).optional(),
+  foto: printFotoSchema,
+});
+export type PrintKandidatSlots = z.infer<typeof printKandidatSlotsSchema>;
+
+/** Topic poster (CD p. 40): a photo and one statement. */
+export const printThemaSlotsSchema = z.object({
+  dachzeile: text(PRINT_TEXT_MAX).optional(),
+  headline: text(PRINT_HEADLINE_MAX),
+  akzent: text(PRINT_TEXT_MAX).optional(),
+  stoerer: text(PRINT_STOERER_MAX).optional(),
+  web: text(PRINT_TEXT_MAX).optional(),
+  foto: printFotoSchema,
+});
+export type PrintThemaSlots = z.infer<typeof printThemaSlotsSchema>;
+
+export const printMitwirkendeSchema = z.object({
+  /** The line above a group: „Es diskutieren:“, „Begrüßung und Moderation:“. */
+  rolle: text(PRINT_NAME_MAX).optional(),
+  name: text(PRINT_NAME_MAX),
+  funktion: text(PRINT_TEXT_MAX).optional(),
+  /** `portraits` only: the round picture beside the name. */
+  foto: printFotoSchema.optional(),
+});
+export type PrintMitwirkende = z.infer<typeof printMitwirkendeSchema>;
+
+/** Event poster (CD p. 23 V1, p. 26 V2 `portraits`): topic, who speaks, when and where. */
+export const printVeranstaltungSlotsSchema = z.object({
+  dachzeile: text(PRINT_TEXT_MAX).optional(),
+  headline: text(PRINT_HEADLINE_MAX),
+  akzent: text(PRINT_TEXT_MAX).optional(),
+  subline: text(PRINT_TEXT_MAX).optional(),
+  /** Date and time, set in the Störer: „Freitag 27.10. 19 Uhr“. */
+  datum: text(PRINT_STOERER_MAX).optional(),
+  mitwirkende: z.array(printMitwirkendeSchema).max(PRINT_MITWIRKENDE_MAX).optional(),
+  ort: text(PRINT_TEXT_MAX).optional(),
+  web: text(PRINT_TEXT_MAX).optional(),
+  /** V1's photo; `portraits` has none. */
+  foto: printFotoSchema.optional(),
+});
+export type PrintVeranstaltungSlots = z.infer<typeof printVeranstaltungSlotsSchema>;
+
+/** AT posters (CD 2026 p. 80–84): one headline with its yellow accent, on or beside a photo. */
+export const printAtPlakatSlotsSchema = z.object({
+  headline: text(PRINT_HEADLINE_MAX),
+  akzent: text(PRINT_TEXT_MAX).optional(),
+  subline: text(PRINT_TEXT_MAX).optional(),
+  stoerer: text(PRINT_STOERER_MAX).optional(),
+  foto: printFotoSchema,
+});
+export type PrintAtPlakatSlots = z.infer<typeof printAtPlakatSlotsSchema>;
+
+/** Body copy of a flyer or newspaper; paragraphs split by blank lines. */
+export const PRINT_FLIESSTEXT_MAX = 1500;
+const fliesstext = text(PRINT_FLIESSTEXT_MAX);
+
+export const printAbschnittSchema = z.object({
+  ueberschrift: text(PRINT_HEADLINE_MAX),
+  text: fliesstext,
+});
+export type PrintAbschnitt = z.infer<typeof printAbschnittSchema>;
+
+/** Contact lines of a flyer or letterhead, as on the business card. */
+export const printKontaktSchema = printVisitenkarteSlotsSchema.partial();
+export type PrintKontakt = z.infer<typeof printKontaktSchema>;
+
+/**
+ * DE folded flyer (CD p. 29/30): DIN lang, roll fold on A4 landscape. Outside:
+ * inner flap, back panel with contact and Störer, title panel. Inside: three
+ * panels of sections, one with the list.
+ */
+export const printFlyerFalzSlotsSchema = z.object({
+  headline: text(PRINT_HEADLINE_MAX),
+  akzent: text(PRINT_TEXT_MAX).optional(),
+  subline: text(PRINT_TEXT_MAX).optional(),
+  abschnitte: z.array(printAbschnittSchema).min(1).max(5),
+  liste: z
+    .object({
+      ueberschrift: text(PRINT_HEADLINE_MAX),
+      punkte: z.array(text(PRINT_NAME_MAX)).min(1).max(8),
+    })
+    .optional(),
+  kontakt: printKontaktSchema,
+  stoerer: text(PRINT_STOERER_MAX).optional(),
+  web: text(PRINT_TEXT_MAX).optional(),
+  /** The title photo first, then up to three inside. */
+  fotos: z.array(printFotoSchema).min(1).max(4),
+});
+export type PrintFlyerFalzSlots = z.infer<typeof printFlyerFalzSlotsSchema>;
+
+/** AT flyer A6 (CD 2026 p. 94): the cover, the back with two columns. */
+export const printFlyerA6SlotsSchema = z.object({
+  headline: text(PRINT_HEADLINE_MAX),
+  akzent: text(PRINT_TEXT_MAX).optional(),
+  stoerer: text(PRINT_STOERER_MAX).optional(),
+  foto: printFotoSchema,
+  rueckseite: z.object({
+    headline: text(PRINT_HEADLINE_MAX),
+    akzent: text(PRINT_TEXT_MAX).optional(),
+    abschnitte: z.array(printAbschnittSchema).min(1).max(2),
+    /** Upright only: the photo across the foot of the back. */
+    foto: printFotoSchema.optional(),
+  }),
+});
+export type PrintFlyerA6Slots = z.infer<typeof printFlyerA6SlotsSchema>;
+
+/** DE letterhead (CD p. 32): first page with the Tanne band, a follow-up page. */
+export const printBriefbogenSlotsSchema = printKontaktSchema.extend({
+  organisation: text(PRINT_TEXT_MAX),
+});
+export type PrintBriefbogenSlots = z.infer<typeof printBriefbogenSlotsSchema>;
+
+/** AT Gemeindezeitung (CD 2026 p. 96): cover with teasers, two article pages, back with contact. */
+export const printGemeindezeitungSlotsSchema = z.object({
+  titel: text(PRINT_NAME_MAX),
+  ausgabe: text(PRINT_NAME_MAX),
+  stoerer: text(PRINT_STOERER_MAX).optional(),
+  foto: printFotoSchema,
+  teaser: z
+    .array(z.object({ headline: text(PRINT_TEXT_MAX), text: text(PRINT_HEADLINE_MAX * 2) }))
+    .max(6),
+  /** One per inside page. */
+  artikel: z
+    .array(
+      z.object({
+        headline: text(PRINT_HEADLINE_MAX),
+        vorspann: text(PRINT_TEXT_MAX * 2).optional(),
+        text: z.string().trim().min(1).max(4000),
+        foto: printFotoSchema.optional(),
+      })
+    )
+    .length(2),
+  kontakt: printKontaktSchema,
+});
+export type PrintGemeindezeitungSlots = z.infer<typeof printGemeindezeitungSlotsSchema>;
+
 /** DE: V.i.S.d.P. */
 export const printImpressumDeSchema = z.object({
   art: z.literal('visdp'),
@@ -69,17 +279,111 @@ export const printImpressumSchema = z.discriminatedUnion('art', [
 ]);
 export type PrintImpressum = z.infer<typeof printImpressumSchema>;
 
-const VISITENKARTE_FORMATS: readonly PrintFormatId[] = [
-  'print-visitenkarte-quer',
-  'print-visitenkarte-hoch',
-];
-const TYPO_FORMATS: readonly PrintFormatId[] = ['print-a3-hoch', 'print-a4-hoch'];
+/** Products that are handed out or put up and so carry a V.i.S.d.P. / Impressum. */
+export const PRINT_IMPRESSUM_PFLICHT: readonly PrintProdukt[] = ['plakat', 'flyer', 'zeitung'];
+
+const AT_PLAKAT_FORMATS = [
+  'print-a1-hoch',
+  'print-a1-quer',
+  'print-a3-hoch',
+  'print-a3-quer',
+] as const satisfies readonly PrintFormatId[];
+
+/**
+ * What each variante belongs to, the countries whose CD has it, which formats
+ * it lays out on, and its colourways per country.
+ */
+export const PRINT_VARIANTEN = {
+  visitenkarte: {
+    produkt: 'visitenkarte',
+    laender: ['de-DE', 'de-AT'],
+    formats: ['print-visitenkarte-quer', 'print-visitenkarte-hoch'],
+    stile: { 'de-DE': ['klee', 'sand', 'schlicht'], 'de-AT': ['hellgruen', 'weiss', 'gruen'] },
+  },
+  typo: {
+    produkt: 'plakat',
+    laender: ['de-DE', 'de-AT'],
+    formats: ['print-a3-hoch', 'print-a4-hoch', 'print-a1-hoch'],
+    stile: { 'de-DE': ['klee'], 'de-AT': [] },
+  },
+  // Absent stil: the photo fills the page; `tanne`/`klee`: it touches one or two edges (CD p. 38–41).
+  kandidat: {
+    produkt: 'plakat',
+    laender: ['de-DE'],
+    formats: ['print-a1-hoch', 'print-a3-hoch', 'print-grossflaeche', 'print-citylight'],
+    stile: { 'de-DE': ['tanne', 'klee'], 'de-AT': [] },
+  },
+  thema: {
+    produkt: 'plakat',
+    laender: ['de-DE'],
+    formats: ['print-a1-hoch', 'print-a3-hoch', 'print-grossflaeche', 'print-citylight'],
+    stile: { 'de-DE': ['tanne', 'klee'], 'de-AT': [] },
+  },
+  veranstaltung: {
+    produkt: 'plakat',
+    laender: ['de-DE'],
+    formats: ['print-a3-hoch', 'print-a3-quer', 'print-a1-hoch', 'print-a1-quer'],
+    stile: { 'de-DE': ['portraits'], 'de-AT': [] },
+  },
+  // AT: the photo beside the green (p. 80), under a square box (p. 81/82, `hellgruen`), or the person (p. 83).
+  geteilt: {
+    produkt: 'plakat',
+    laender: ['de-AT'],
+    formats: AT_PLAKAT_FORMATS,
+    stile: { 'de-DE': [], 'de-AT': [] },
+  },
+  overlay: {
+    produkt: 'plakat',
+    laender: ['de-AT'],
+    formats: AT_PLAKAT_FORMATS,
+    stile: { 'de-DE': [], 'de-AT': ['hellgruen'] },
+  },
+  person: {
+    produkt: 'plakat',
+    laender: ['de-AT'],
+    formats: AT_PLAKAT_FORMATS,
+    stile: { 'de-DE': [], 'de-AT': [] },
+  },
+  'flyer-falz': {
+    produkt: 'flyer',
+    laender: ['de-DE'],
+    formats: ['print-flyer-dinlang'],
+    stile: { 'de-DE': [], 'de-AT': [] },
+  },
+  'flyer-a6': {
+    produkt: 'flyer',
+    laender: ['de-AT'],
+    formats: ['print-a6-hoch', 'print-a6-quer'],
+    stile: { 'de-DE': [], 'de-AT': [] },
+  },
+  briefbogen: {
+    produkt: 'briefbogen',
+    laender: ['de-DE'],
+    formats: ['print-briefbogen-a4'],
+    stile: { 'de-DE': [], 'de-AT': [] },
+  },
+  gemeindezeitung: {
+    produkt: 'zeitung',
+    laender: ['de-AT'],
+    formats: ['print-zeitung-a4'],
+    stile: { 'de-DE': [], 'de-AT': [] },
+  },
+} as const satisfies Record<
+  PrintVariante,
+  {
+    produkt: PrintProdukt;
+    laender: readonly PrintLocale[];
+    formats: readonly PrintFormatId[];
+    stile: Record<PrintLocale, readonly PrintStil[]>;
+  }
+>;
 
 const printBase = {
   locale: printLocaleSchema,
   produkt: printProduktSchema,
   format: printFormatIdSchema,
   impressum: printImpressumSchema.nullable(),
+  stil: printStilSchema.optional(),
 };
 
 const printVisitenkarteSpecSchema = z.object({
@@ -93,21 +397,83 @@ const printTypoSpecSchema = z.object({
   slots: printTypoSlotsSchema,
 });
 
+const printKandidatSpecSchema = z.object({
+  ...printBase,
+  variante: z.literal('kandidat'),
+  slots: printKandidatSlotsSchema,
+});
+const printThemaSpecSchema = z.object({
+  ...printBase,
+  variante: z.literal('thema'),
+  slots: printThemaSlotsSchema,
+});
+const printVeranstaltungSpecSchema = z.object({
+  ...printBase,
+  variante: z.literal('veranstaltung'),
+  slots: printVeranstaltungSlotsSchema,
+});
+const printFlyerFalzSpecSchema = z.object({
+  ...printBase,
+  variante: z.literal('flyer-falz'),
+  slots: printFlyerFalzSlotsSchema,
+});
+const printFlyerA6SpecSchema = z.object({
+  ...printBase,
+  variante: z.literal('flyer-a6'),
+  slots: printFlyerA6SlotsSchema,
+});
+const printBriefbogenSpecSchema = z.object({
+  ...printBase,
+  variante: z.literal('briefbogen'),
+  slots: printBriefbogenSlotsSchema,
+});
+const printGemeindezeitungSpecSchema = z.object({
+  ...printBase,
+  variante: z.literal('gemeindezeitung'),
+  slots: printGemeindezeitungSlotsSchema,
+});
+const printAtPlakatSpecSchema = z.object({
+  ...printBase,
+  variante: z.enum(['geteilt', 'overlay', 'person']),
+  slots: printAtPlakatSlotsSchema,
+});
+
 export const printSpecSchema = z
-  .discriminatedUnion('variante', [printVisitenkarteSpecSchema, printTypoSpecSchema])
+  .discriminatedUnion('variante', [
+    printVisitenkarteSpecSchema,
+    printTypoSpecSchema,
+    printKandidatSpecSchema,
+    printThemaSpecSchema,
+    printVeranstaltungSpecSchema,
+    printAtPlakatSpecSchema,
+    printFlyerFalzSpecSchema,
+    printFlyerA6SpecSchema,
+    printBriefbogenSpecSchema,
+    printGemeindezeitungSpecSchema,
+  ])
   .superRefine((spec, ctx) => {
     const issue = (path: string, message: string) =>
       ctx.addIssue({ code: 'custom', path: [path], message });
 
-    const isCard = spec.variante === 'visitenkarte';
-    if (spec.produkt !== (isCard ? 'visitenkarte' : 'plakat')) {
+    const variante = PRINT_VARIANTEN[spec.variante];
+    if (!(variante.laender as readonly PrintLocale[]).includes(spec.locale)) {
+      issue('variante', `variante ${spec.variante} gibt es in ${spec.locale} nicht`);
+    }
+    if (spec.produkt !== variante.produkt) {
       issue('produkt', `produkt passt nicht zu variante ${spec.variante}`);
     }
-    if (!(isCard ? VISITENKARTE_FORMATS : TYPO_FORMATS).includes(spec.format)) {
+    if (!(variante.formats as readonly PrintFormatId[]).includes(spec.format)) {
       issue('format', `format ${spec.format} ist für ${spec.variante} nicht erlaubt`);
     }
-    if (spec.produkt === 'plakat' && spec.impressum === null) {
-      issue('impressum', 'Plakate brauchen ein Impressum bzw. V.i.S.d.P.');
+    if (spec.stil && !(variante.stile[spec.locale] as readonly PrintStil[]).includes(spec.stil)) {
+      issue('stil', `stil ${spec.stil} gibt es für ${spec.variante} in ${spec.locale} nicht`);
+    }
+    if (spec.variante === 'veranstaltung' && spec.stil !== 'portraits' && !spec.slots.foto) {
+      issue('slots', 'Das Veranstaltungsplakat V1 braucht ein Foto');
+    }
+    // Everything handed out needs one; a letterhead and a business card do not.
+    if (PRINT_IMPRESSUM_PFLICHT.includes(spec.produkt) && spec.impressum === null) {
+      issue('impressum', 'Plakate, Flyer und Zeitungen brauchen ein Impressum bzw. V.i.S.d.P.');
     }
     if (spec.impressum !== null) {
       const expected = spec.locale === 'de-AT' ? 'impressum' : 'visdp';

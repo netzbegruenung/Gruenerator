@@ -1,5 +1,5 @@
 import { composePrint } from '@gruenerator/canvas-editor/composer';
-import { type SharepicVorlage } from '@gruenerator/contracts';
+import { PRINT_UNGETESTET_HINWEIS, type SharepicVorlage } from '@gruenerator/contracts';
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
@@ -367,6 +367,7 @@ describe('VorlagenGallery', () => {
         within(dialog).getByRole('button', { name: 'Seite 2 von 2 anzeigen' })
       ).toBeInTheDocument();
       expect(within(dialog).queryByRole('button', { name: 'Liken' })).not.toBeInTheDocument();
+      expect(within(dialog).getByRole('note')).toHaveTextContent(PRINT_UNGETESTET_HINWEIS);
       await user.click(within(dialog).getByRole('button', { name: 'Bearbeiten' }));
 
       expect(await screen.findByText('Editor geöffnet')).toBeInTheDocument();

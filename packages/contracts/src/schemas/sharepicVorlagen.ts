@@ -174,6 +174,10 @@ export const PRINT_IMPRESSUM_PLACEHOLDERS = [
   'Straße Nr., PLZ Ort',
 ] as const;
 
+/** Shown with every print Vorlage and every print PDF until a test print has been checked. */
+export const PRINT_UNGETESTET_HINWEIS =
+  'Die Druckergebnisse sind bisher ungetestet. Lass vor einer großen Auflage einen Probedruck machen.';
+
 /** Whether the spec's impressum, if any, holds only the placeholders. */
 export function printImpressumIsPlaceholder(spec: PrintSpec): boolean {
   const { impressum } = spec;
@@ -185,8 +189,17 @@ export function printImpressumIsPlaceholder(spec: PrintSpec): boolean {
   return values.every((v) => (PRINT_IMPRESSUM_PLACEHOLDERS as readonly string[]).includes(v));
 }
 
-/** Printed pages of a product: a business card has a back, a poster does not. */
-export const printSeitenOf = (spec: PrintSpec): number => (spec.produkt === 'visitenkarte' ? 2 : 1);
+/** Printed pages per product: a card, flyer and letterhead have two, the newspaper four. */
+const PRINT_SEITEN: Record<PrintSpec['produkt'], number> = {
+  visitenkarte: 2,
+  plakat: 1,
+  flyer: 2,
+  briefbogen: 2,
+  zeitung: 4,
+};
+
+export const printSeitenOf = (spec: Pick<PrintSpec, 'produkt'>): number =>
+  PRINT_SEITEN[spec.produkt];
 
 /**
  * A print Vorlage (gallery category „Print"): a placeholder spec the composer

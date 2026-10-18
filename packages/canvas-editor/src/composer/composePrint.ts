@@ -15,39 +15,61 @@
  */
 import {
   type PrintFormatId,
-  type PrintImpressum,
   type PrintSpec,
+  type PrintStil,
   type PrintTypoSlots,
   type PrintVisitenkarteSlots,
+  type PrintImpressum,
+  printFotoSrc,
 } from '@gruenerator/contracts';
 
-import { getBrandTheme, type BrandTheme } from '../brand/theme';
-import {
-  getCanvasFormat,
-  isPrintFormat,
-  mmToPx,
-  printGeometry,
-  type PrintCanvasFormat,
-  type PrintRect,
-} from '../formats';
-import { ASSET_TARGET_SIZE } from '../utils/canvasAssets';
+import { getCanvasFormat, isPrintFormat } from '../formats';
 import { type TextAccent } from '../utils/textUtils';
 
 import {
   AT_EMPHASIS_STYLE,
   DE_WORDMARK,
   defaultMeasure,
-  layoutTextLines,
   LIME,
   SHAREPIC_COLOR_HEX,
   type MeasureText,
 } from './chromeParts';
 import { type ComposedSlide } from './composeSharepic';
+import { briefbogen, gemeindezeitung } from './printBriefbogenZeitung';
+import { flyerA6, flyerFalz } from './printFlyer';
+import {
+  ART,
+  BODY_LEADING,
+  frame,
+  HEAD_LEADING,
+  impressumElement,
+  impressumText,
+  KLEE,
+  layoutStack,
+  page,
+  placeStack,
+  SAND,
+  stackHeight,
+  WHITE,
+  withAccent,
+  wordsFit,
+  blockHeight,
+  kontaktText,
+  type Block,
+  type Frame,
+  type Page,
+} from './printFrame';
+import { plakatAt } from './printPlakatAt';
+import { plakatDe } from './printPlakatDe';
 
 import type { AdditionalText } from '../configs/types';
 
+export { PRINT_IMPRESSUM_ID } from './printFrame';
+
 export interface ComposePrintOptions {
   measure?: MeasureText;
+  /** Where a photo slot loads from; default the API's routes (`printFotoSrc`). */
+  photoSrc?: (foto: string) => string;
 }
 
 export interface ComposedPrint {
@@ -55,232 +77,6 @@ export interface ComposedPrint {
   format: PrintFormatId;
   /** One page per printed side, front first. */
   slides: ComposedSlide[];
-}
-
-/** Element id of the poster's V.i.S.d.P. / Impressum line; later steps find and update it by this. */
-export const PRINT_IMPRESSUM_ID = 'impressum';
-
-/** Longer side ÷ shorter side of the logo and flower artwork (`apps/web/public`). */
-const ART = {
-  deLogo: { w: 710, h: 379 },
-  atLogo: { w: 1410, h: 1239 },
-  sunflower: { w: 2000, h: 2015 },
-} as const;
-
-const PT_IN_MM = 25.4 / 72;
-const WHITE = '#FFFFFF';
-/** Headline leading of the lab: GrueneTypeNeue 1.05, Gotham Ultra 1. */
-const HEAD_LEADING = { 'de-DE': 1.05, 'de-AT': 1 } as const;
-const BODY_LEADING = 1.3;
-/** Contact lines: the letter in bold, then the value (CD p. 32 / p. 95). */
-const KONTAKT = [
-  ['T', 'telefon'],
-  ['M', 'mobil'],
-  ['E', 'mail'],
-  ['W', 'web'],
-] as const;
-
-interface Page {
-  out: ComposedSlide;
-  text: (props: AdditionalText) => void;
-  /** An asset centred on x/y whose longer side is `size` px. */
-  asset: (id: string, assetId: string, x: number, y: number, size: number) => void;
-}
-
-function page(backgroundColor: string): Page {
-  const out: ComposedSlide = {
-    backgroundMode: 'color',
-    backgroundColor,
-    hasBackgroundImage: false,
-    imageAttribution: null,
-    additionalTexts: [],
-    pillBadgeInstances: [],
-    circleBadgeInstances: [],
-    shapeInstances: [],
-    assetInstances: [],
-    chartInstances: [],
-    userImageInstances: [],
-    selectedIcons: [],
-    iconStates: {},
-    layerOrder: [],
-  };
-  return {
-    out,
-    text: (props) => {
-      out.additionalTexts.push(props);
-      out.layerOrder.push(props.id);
-    },
-    asset: (id, assetId, x, y, size) => {
-      out.assetInstances.push({
-        id,
-        assetId,
-        x,
-        y,
-        scale: size / ASSET_TARGET_SIZE,
-        rotation: 0,
-        opacity: 1,
-      });
-      out.layerOrder.push(id);
-    },
-  };
-}
-
-/** What every print layout measures against. */
-interface Frame {
-  format: PrintCanvasFormat;
-  isAt: boolean;
-  theme: BrandTheme;
-  measure: MeasureText;
-  trim: PrintRect;
-  /** The trim box less the margin: where text and logos go. */
-  inner: PrintRect;
-  margin: number;
-  /** Type unit: short trim side / 24. */
-  u: number;
-  pt: (points: number) => number;
-  shortSide: number;
-}
-
-function frame(format: PrintCanvasFormat, isAt: boolean, measure: MeasureText): Frame {
-  const px = (mm: number) => mmToPx(format, mm);
-  const { trim, safe } = printGeometry(format);
-  const shortMm = Math.min(format.print.trimMm.w, format.print.trimMm.h);
-  const u = px(shortMm / 24);
-  const cdMargin = isAt ? px(shortMm * 0.06) : Math.max(1.6 * u, px(4));
-  const margin = Math.max(cdMargin, safe.x - trim.x);
-  return {
-    format,
-    isAt,
-    theme: getBrandTheme(isAt ? 'de-AT' : 'de-DE'),
-    measure,
-    trim,
-    inner: {
-      x: trim.x + margin,
-      y: trim.y + margin,
-      width: trim.width - 2 * margin,
-      height: trim.height - 2 * margin,
-    },
-    margin,
-    u,
-    pt: (points) => px(points * PT_IN_MM),
-    shortSide: px(shortMm),
-  };
-}
-
-/** A text to stack: its props without position, and the height it takes at a width. */
-interface Block {
-  props: Omit<AdditionalText, 'x' | 'y' | 'width'>;
-  /** Space above, when something precedes it. */
-  before: number;
-}
-
-function blockHeight(f: Frame, block: Block, width: number): number {
-  const { text, fontSize, fontFamily, fontStyle, lineHeight, accent } = block.props;
-  const lines = layoutTextLines(
-    f.measure,
-    text,
-    width,
-    fontSize,
-    fontFamily,
-    fontStyle ?? 'normal',
-    accent ?? null
-  );
-  return lines.length * fontSize * (lineHeight ?? 1.2);
-}
-
-function stackHeight(f: Frame, blocks: Block[], width: number): number {
-  return blocks.reduce(
-    (sum, block, i) => sum + (i > 0 ? block.before : 0) + blockHeight(f, block, width),
-    0
-  );
-}
-
-/** Places `blocks` top-down from `y`; returns the bottom edge. */
-function placeStack(p: Page, f: Frame, blocks: Block[], x: number, y: number, width: number) {
-  let cursor = y;
-  blocks.forEach((block, i) => {
-    if (i > 0) cursor += block.before;
-    p.text({ ...block.props, x, y: cursor, width });
-    cursor += blockHeight(f, block, width);
-  });
-  return cursor;
-}
-
-/**
- * A stack laid out from `top`, each text as wide as `widthAt` allows where it
- * starts (narrower beside a flower), its type shrunk until every word fits.
- */
-function layoutStack(
-  f: Frame,
-  blocks: Block[],
-  top: number,
-  widthAt: (y: number) => number
-): { items: AdditionalText[]; bottom: number } {
-  let cursor = top;
-  const items = blocks.map((block, i) => {
-    if (i > 0) cursor += block.before;
-    const width = widthAt(cursor);
-    const { text, fontSize, fontFamily } = block.props;
-    const sized: Block = {
-      ...block,
-      props: { ...block.props, fontSize: wordsFit(f, text, fontSize, width, fontFamily) },
-    };
-    const item = { ...sized.props, x: f.inner.x, y: cursor, width };
-    cursor += blockHeight(f, sized, width);
-    return item;
-  });
-  return { items, bottom: cursor };
-}
-
-/** Largest size ≤ `size` at which every word of `text` fits `width` on its own. */
-function wordsFit(f: Frame, text: string, size: number, width: number, family: string): number {
-  const words = text
-    .replace(/\*\*|==/g, '')
-    .split(/\s+/)
-    .filter(Boolean);
-  const widest = Math.max(1, ...words.map((w) => f.measure(w, size, family, 'normal')));
-  return widest > width ? (size * width) / widest : size;
-}
-
-function kontaktText(slots: PrintVisitenkarteSlots): string | null {
-  const lines = KONTAKT.flatMap(([letter, key]) => {
-    const value = slots[key];
-    return value ? [`**${letter}** ${value}`] : [];
-  });
-  return lines.length ? lines.join('\n') : null;
-}
-
-/** The headline with its accent words marked `==…==` (first occurrence; absent: unmarked). */
-function withAccent(headline: string, akzent: string | undefined): string {
-  const word = akzent?.trim();
-  if (!word || !headline.includes(word)) return headline;
-  return headline.replace(word, `==${word}==`);
-}
-
-/**
- * The poster's V.i.S.d.P. / Impressum line: PT Sans / Gotham Book 8 pt (DE
- * guide p. 10: 10 pt only above A3), turned to read bottom-up, centred in the
- * left margin, starting half a margin above the trim bottom. Rotation turns
- * around x/y, the text's top-left.
- */
-function impressumElement(f: Frame, text: string): AdditionalText {
-  const { trim, theme } = f;
-  const size = f.pt(8);
-  const lineHeight = 1.2;
-  return {
-    id: PRINT_IMPRESSUM_ID,
-    text,
-    type: 'body',
-    x: trim.x + f.margin / 2 - (size * lineHeight) / 2,
-    y: trim.y + trim.height - f.margin / 2,
-    width: trim.height - f.margin,
-    fontSize: size,
-    fontFamily: theme.fonts.body,
-    fontStyle: 'normal',
-    fill: WHITE,
-    lineHeight,
-    rotation: -90,
-  };
 }
 
 /** The impressum element of a poster in `formatId`, at its standard position (for re-adding a deleted one). */
@@ -296,12 +92,6 @@ export function composePrintImpressum(
   return impressumElement(frame(format, isAt, defaultMeasure), text);
 }
 
-function impressumText(impressum: PrintImpressum): string {
-  return impressum.art === 'visdp'
-    ? `V.i.S.d.P.: ${impressum.name}, ${impressum.anschrift}`
-    : `Impressum: ${impressum.medieninhaber}, ${impressum.anschrift}`;
-}
-
 export function composePrint(spec: PrintSpec, options: ComposePrintOptions = {}): ComposedPrint {
   const format = getCanvasFormat(spec.format);
   if (!format || !isPrintFormat(format)) {
@@ -309,12 +99,36 @@ export function composePrint(spec: PrintSpec, options: ComposePrintOptions = {})
   }
   const isAt = spec.locale === 'de-AT';
   const f = frame(format, isAt, options.measure ?? defaultMeasure);
-  const slides =
-    spec.variante === 'visitenkarte'
-      ? isAt
-        ? visitenkarteAt(f, spec.slots)
-        : visitenkarteDe(f, spec.slots)
-      : [typo(f, spec.slots, spec.impressum)];
+  let slides: ComposedSlide[];
+  switch (spec.variante) {
+    case 'visitenkarte':
+      slides = isAt
+        ? visitenkarteAt(f, spec.slots, spec.stil)
+        : visitenkarteDe(f, spec.slots, spec.stil);
+      break;
+    case 'typo':
+      slides = [typo(f, spec.slots, spec.impressum, spec.stil)];
+      break;
+    case 'geteilt':
+    case 'overlay':
+    case 'person':
+      slides = [plakatAt(f, spec, options.photoSrc ?? printFotoSrc)];
+      break;
+    case 'flyer-falz':
+      slides = flyerFalz(f, spec, options.photoSrc ?? printFotoSrc);
+      break;
+    case 'flyer-a6':
+      slides = flyerA6(f, spec, options.photoSrc ?? printFotoSrc);
+      break;
+    case 'briefbogen':
+      slides = briefbogen(f, spec);
+      break;
+    case 'gemeindezeitung':
+      slides = gemeindezeitung(f, spec, options.photoSrc ?? printFotoSrc);
+      break;
+    default:
+      slides = [plakatDe(f, spec, options.photoSrc ?? printFotoSrc)];
+  }
   return { templateType: isAt ? 'freeform-at' : 'freeform', format: spec.format, slides };
 }
 
@@ -331,18 +145,21 @@ function cardType(f: Frame, fit: number) {
   };
 }
 
+const isHoch = (f: Frame) => f.trim.height > f.trim.width;
+
 /** The contact blocks of a card, one per filled slot, in reading order. */
 function cardBlocks(
   f: Frame,
   slots: PrintVisitenkarteSlots,
   fit: number,
   width: number,
-  ink: { name: string; funktion: string; body: string },
+  ink: CardInk,
   align: 'left' | 'center'
 ): Block[] {
   const { theme, u } = f;
   const { klein, text } = cardType(f, fit);
-  const nameBase = (f.isAt ? 1.7 : 2.4) * u * fit;
+  // AT upright: the name large over two lines, as on CD p. 95.
+  const nameBase = (f.isAt && !isHoch(f) ? 1.7 : 2.4) * u * fit;
   const nameSize = wordsFit(f, slots.name, nameBase, width, theme.fonts.headline);
   const body = (id: string, value: string, before: number): Block => ({
     before,
@@ -414,46 +231,126 @@ function cardBlocks(
   return blocks;
 }
 
+interface CardInk {
+  name: string;
+  funktion: string;
+  body: string;
+}
+
+/**
+ * An upright card split in two (CD p. 32 / p. 95): the head from `headTop`
+ * down, the contact group ending at `restBottom`, at least a group gap apart.
+ * False, placing nothing, when that does not fit at full size; the caller
+ * then stacks as on a landscape card.
+ */
+function splitCard(
+  p: Page,
+  f: Frame,
+  blocks: Block[],
+  x: number,
+  width: number,
+  headTop: number,
+  restBottom: number
+): boolean {
+  // The head: the name, in DE with the function; the rest is the contact group.
+  const headIds = f.isAt ? ['pr-name'] : ['pr-name', 'pr-funktion'];
+  const head = blocks.filter((b) => headIds.includes(b.props.id));
+  const rest = blocks.filter((b) => !head.includes(b));
+  if (!rest.length) return false;
+  const headHeight = stackHeight(f, head, width);
+  const restHeight = stackHeight(f, rest, width);
+  if (headTop + headHeight + 1.2 * f.u > restBottom - restHeight) return false;
+  placeStack(p, f, head, x, headTop, width);
+  placeStack(p, f, rest, x, restBottom - restHeight, width);
+  return true;
+}
+
+/** DE colourways (CD p. 11/32): front ground, ink, logo; the back's ground. */
+const DE_KARTE = {
+  tanne: {
+    front: SHAREPIC_COLOR_HEX.tanne,
+    ink: { name: WHITE, funktion: SHAREPIC_COLOR_HEX.mint, body: WHITE },
+    logo: DE_WORDMARK.farbe,
+    back: SHAREPIC_COLOR_HEX.tanne,
+  },
+  klee: {
+    front: KLEE,
+    ink: { name: WHITE, funktion: SHAREPIC_COLOR_HEX.mint, body: WHITE },
+    logo: DE_WORDMARK.farbe,
+    back: KLEE,
+  },
+  // Sand with Tanne type; the sunflower never stands on Sand (p. 21), so the back stays Tanne.
+  sand: {
+    front: SAND,
+    ink: { name: SHAREPIC_COLOR_HEX.tanne, funktion: KLEE, body: SHAREPIC_COLOR_HEX.tanne },
+    logo: DE_WORDMARK.black,
+    back: SHAREPIC_COLOR_HEX.tanne,
+  },
+} as const;
+
 /**
  * DE (CD p. 32): front Tanne, name in the headline face, function in mint,
  * address and contacts small, the colour logo bottom-right; back Tanne with a
- * large yellow sunflower cut by the edges.
+ * large yellow sunflower cut by the edges. `klee` and `sand` change the
+ * grounds; `schlicht` puts only the word mark on the back.
  */
-function visitenkarteDe(f: Frame, slots: PrintVisitenkarteSlots): ComposedSlide[] {
+function visitenkarteDe(
+  f: Frame,
+  slots: PrintVisitenkarteSlots,
+  stil: PrintStil | undefined
+): ComposedSlide[] {
   const { inner, trim, u } = f;
-  const tanne = SHAREPIC_COLOR_HEX.tanne;
-  const ink = { name: WHITE, funktion: SHAREPIC_COLOR_HEX.mint, body: WHITE };
+  const look = stil === 'klee' || stil === 'sand' ? DE_KARTE[stil] : DE_KARTE.tanne;
+  const { ink } = look;
 
-  const front = page(tanne);
+  const front = page(look.front);
   const logoW = 6 * u;
   const logoH = (logoW * ART.deLogo.h) / ART.deLogo.w;
   const logoTop = inner.y + inner.height - logoH;
-  // Full width while the column ends above the logo; beside it otherwise.
-  const narrow = inner.width - logoW - u;
-  let chosen = { blocks: cardBlocks(f, slots, 1, inner.width, ink, 'left'), width: inner.width };
-  for (const fit of FIT_STEPS) {
-    const wide = cardBlocks(f, slots, fit, inner.width, ink, 'left');
-    if (stackHeight(f, wide, inner.width) <= logoTop - 0.5 * u - inner.y) {
-      chosen = { blocks: wide, width: inner.width };
-      break;
+  const hoch = isHoch(f);
+  const split =
+    hoch &&
+    splitCard(
+      front,
+      f,
+      cardBlocks(f, slots, 1, inner.width, ink, 'left'),
+      inner.x,
+      inner.width,
+      inner.y,
+      logoTop - 1.2 * u
+    );
+  if (!split) {
+    // Full width while the column ends above the logo; beside it otherwise.
+    const narrow = inner.width - logoW - u;
+    let chosen = { blocks: cardBlocks(f, slots, 1, inner.width, ink, 'left'), width: inner.width };
+    for (const fit of FIT_STEPS) {
+      const wide = cardBlocks(f, slots, fit, inner.width, ink, 'left');
+      if (stackHeight(f, wide, inner.width) <= logoTop - 0.5 * u - inner.y) {
+        chosen = { blocks: wide, width: inner.width };
+        break;
+      }
+      const beside = cardBlocks(f, slots, fit, narrow, ink, 'left');
+      chosen = { blocks: beside, width: narrow };
+      if (stackHeight(f, beside, narrow) <= inner.height) break;
     }
-    const beside = cardBlocks(f, slots, fit, narrow, ink, 'left');
-    chosen = { blocks: beside, width: narrow };
-    if (stackHeight(f, beside, narrow) <= inner.height) break;
+    placeStack(front, f, chosen.blocks, inner.x, inner.y, chosen.width);
   }
-  placeStack(front, f, chosen.blocks, inner.x, inner.y, chosen.width);
-  front.asset(
-    'pr-logo',
-    DE_WORDMARK.farbe,
-    inner.x + inner.width - logoW / 2,
-    logoTop + logoH / 2,
-    logoW
-  );
+  front.asset('pr-logo', look.logo, inner.x + inner.width - logoW / 2, logoTop + logoH / 2, logoW);
 
+  const back = page(look.back);
+  if (stil === 'schlicht') {
+    const w = 0.6 * f.shortSide;
+    back.asset(
+      'pr-logo-rueck',
+      DE_WORDMARK.farbe,
+      trim.x + trim.width / 2,
+      trim.y + trim.height / 2,
+      w
+    );
+    return [front.out, back.out];
+  }
   // Back: the lab's flower, relative to the trim box (quer: cut top and
   // right; hoch: cut left, right and bottom).
-  const back = page(tanne);
-  const hoch = trim.height > trim.width;
   const blume = hoch
     ? { left: -0.3, top: 0.22, width: 1.5 }
     : { left: 0.28, top: -0.22, width: 0.9 };
@@ -471,25 +368,50 @@ function visitenkarteDe(f: Frame, slots: PrintVisitenkarteSlots): ComposedSlide[
 
 /**
  * AT (CD p. 95): front Dunkelgrün with only the white logo in the middle;
- * back white, everything centred in Dunkelgrün — no sunflower.
+ * back white, everything centred in Dunkelgrün — no sunflower. `hellgruen`
+ * takes the alternative green for the front (drawn as its glow, see
+ * `surfaceGlow`), `weiss` swaps the grounds
+ * (green logo on white, white type on green), `gruen` keeps both sides green.
  */
-function visitenkarteAt(f: Frame, slots: PrintVisitenkarteSlots): ComposedSlide[] {
+function visitenkarteAt(
+  f: Frame,
+  slots: PrintVisitenkarteSlots,
+  stil: PrintStil | undefined
+): ComposedSlide[] {
   const { inner, trim, theme } = f;
   const green = theme.colors.primary;
+  const frontGround =
+    stil === 'hellgruen' ? theme.colors.secondary : stil === 'weiss' ? WHITE : green;
+  const backGround = stil === 'weiss' || stil === 'gruen' ? green : WHITE;
+  const inkColor = backGround === WHITE ? green : WHITE;
 
-  const front = page(green);
-  const logoW = 0.34 * f.shortSide;
+  const front = page(frontGround);
   front.asset(
     'pr-logo',
-    'gruene-at-logo-weiss',
+    frontGround === WHITE ? 'gruene-at-logo-gruen' : 'gruene-at-logo-weiss',
     trim.x + trim.width / 2,
     trim.y + trim.height / 2,
-    logoW
+    0.34 * f.shortSide
   );
 
-  const back = page(WHITE);
-  const ink = { name: green, funktion: green, body: green };
-  let blocks = cardBlocks(f, slots, 1, inner.width, ink, 'center');
+  const back = page(backGround);
+  const ink = { name: inkColor, funktion: inkColor, body: inkColor };
+  const full = cardBlocks(f, slots, 1, inner.width, ink, 'center');
+  if (
+    isHoch(f) &&
+    splitCard(
+      back,
+      f,
+      full,
+      inner.x,
+      inner.width,
+      inner.y + 0.12 * inner.height,
+      inner.y + 0.92 * inner.height
+    )
+  ) {
+    return [front.out, back.out];
+  }
+  let blocks = full;
   for (const fit of FIT_STEPS) {
     blocks = cardBlocks(f, slots, fit, inner.width, ink, 'center');
     if (stackHeight(f, blocks, inner.width) <= inner.height) break;
@@ -509,15 +431,20 @@ function visitenkarteAt(f: Frame, slots: PrintVisitenkarteSlots): ComposedSlide[
 // ── Typo poster ─────────────────────────────────────────────────────────────
 
 /**
- * DE (CD p. 26): Tanne, a cut sunflower top-right, kicker, a huge headline
+ * DE (CD p. 26/44): Tanne (`klee`: Klee), a cut sunflower top-right, kicker, a huge headline
  * whose accent is lime (colour only, no marker box), subline, the web address
  * large, sender and logo at the bottom. AT: Dunkelgrün, the accent in yellow
  * Vollkorn Black Italic, logo bottom-right, no sunflower. Both: the
  * V.i.S.d.P. / Impressum turned −90° in the left margin.
  */
-function typo(f: Frame, slots: PrintTypoSlots, impressum: PrintImpressum | null): ComposedSlide {
+function typo(
+  f: Frame,
+  slots: PrintTypoSlots,
+  impressum: PrintImpressum | null,
+  stil: PrintStil | undefined
+): ComposedSlide {
   const { inner, trim, theme, u, isAt } = f;
-  const p = page(isAt ? theme.colors.primary : SHAREPIC_COLOR_HEX.tanne);
+  const p = page(isAt ? theme.colors.primary : stil === 'klee' ? KLEE : SHAREPIC_COLOR_HEX.tanne);
   const head = theme.fonts.headline;
   const hervor = isAt ? WHITE : SHAREPIC_COLOR_HEX.mint;
   const accent: TextAccent = isAt

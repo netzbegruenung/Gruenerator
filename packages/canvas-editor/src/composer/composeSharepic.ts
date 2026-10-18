@@ -433,7 +433,7 @@ export function largestSizeWordsFit(
 }
 
 /** Distance between Störer lines, as a share of the font size. */
-const STOERER_LINE_STEP = 1.1;
+export const STOERER_LINE_STEP = 1.1;
 /** The DE design guide keeps 10 % of the Störer free around its text. */
 const STOERER_TEXT_SHARE = 0.9;
 /** Largest Störer type as a share of the radius (88 px at 125). */
@@ -449,7 +449,7 @@ const STOERER_RADII = [175, 165, 155, 145, 135, 125, 115, 105, 95];
  * `size` high, centred on its offset — taller than the glyphs, so the margin
  * only grows.
  */
-function fitStoererText(
+export function fitStoererText(
   text: string,
   radius: number,
   measureLine: (line: string, size: number) => number,

@@ -1,4 +1,9 @@
-import { printSeitenOf, printVorlageThumbPath, type PrintVorlage } from '@gruenerator/contracts';
+import {
+  PRINT_UNGETESTET_HINWEIS,
+  printSeitenOf,
+  printVorlageThumbPath,
+  type PrintVorlage,
+} from '@gruenerator/contracts';
 import { Button } from '@gruenerator/ui';
 import { Pencil } from 'lucide-react';
 import { type JSX } from 'react';
@@ -91,6 +96,10 @@ export function PrintVorlageDialog({
           {opening ? 'Wird geöffnet …' : 'Bearbeiten'}
         </Button>
       }
-    />
+    >
+      <p role="note" className="m-0 text-sm text-grey-600 dark:text-grey-400">
+        {PRINT_UNGETESTET_HINWEIS}
+      </p>
+    </VorlageDetailDialog>
   );
 }

@@ -9,8 +9,8 @@ import {
 } from './printPdf';
 
 export const PRINT_JPEG_QUALITY = 0.92;
-export const MIN_PRINT_DPI = 150;
-export const TARGET_PRINT_DPI = 300;
+/** A photo warns below this share of its format's export resolution (150 of 300 dpi). */
+const MIN_PRINT_DPI_SHARE = 0.5;
 
 export interface PrintExportImage {
   naturalWidthPx: number;
@@ -105,7 +105,7 @@ export async function exportPrintPdf({
   });
 }
 
-/** One notice per photo that prints below MIN_PRINT_DPI. */
+/** One notice per photo that prints below half the format's export resolution. */
 export function lowResolutionWarnings(
   format: PrintCanvasFormat,
   pages: Array<Pick<PrintExportPage, 'getImages'>>
@@ -120,9 +120,9 @@ export function lowResolutionWarnings(
         naturalWidthPx: image.naturalWidthPx,
         displayedWidthMm: image.displayedWidthPx / pxPerMm,
       });
-      if (Number.isFinite(dpi) && dpi < MIN_PRINT_DPI) {
+      if (Number.isFinite(dpi) && dpi < format.print.exportDpi * MIN_PRINT_DPI_SHARE) {
         warnings.push(
-          `Foto ${n} ist für den Druck zu klein (ca. ${Math.round(dpi)} dpi, empfohlen ${TARGET_PRINT_DPI}).`
+          `Foto ${n} ist für den Druck zu klein (ca. ${Math.round(dpi)} dpi, empfohlen ${format.print.exportDpi}).`
         );
       }
     }

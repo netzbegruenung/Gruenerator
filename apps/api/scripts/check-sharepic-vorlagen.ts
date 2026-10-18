@@ -25,7 +25,11 @@ import {
   sharepicSeiteThumbFile,
   sharepicVorlageThumbFile,
 } from '../services/sharepicVorlagen/catalog.js';
-import { seiteProblems, vorlageProblems } from '../services/sharepicVorlagen/vorlageProblems.js';
+import {
+  printProblems,
+  seiteProblems,
+  vorlageProblems,
+} from '../services/sharepicVorlagen/vorlageProblems.js';
 
 const vorlagen = listSharepicVorlagen(null);
 const seiten = listSharepicSeiten(null);
@@ -66,7 +70,7 @@ for (const v of canvas) {
 }
 
 for (const v of print) {
-  const problems: string[] = [];
+  const problems = printProblems(v.spec);
   for (let seite = 1; seite <= printSeitenOf(v.spec); seite++) {
     const thumb = printVorlageThumbFile(v.id, seite);
     if (!thumb || !existsSync(thumb))
