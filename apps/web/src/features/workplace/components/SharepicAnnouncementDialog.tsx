@@ -1,3 +1,4 @@
+import { useMediaQuery } from '@gruenerator/shared/hooks';
 import {
   Button,
   canRequestFeedback,
@@ -36,6 +37,7 @@ const DOCS_LINKS = [
   },
 ] as const;
 const IMG = '/images/sharepic-news';
+const LAUNCH_VIDEO = '/videos/sharepic-launch';
 
 const EXAMPLE_PROMPT =
   'Sharepic mit vier Tipps zum Mitmachen: wählen gehen, informiert bleiben, zur Demo kommen, weitersagen. Mit Emojis.';
@@ -82,6 +84,8 @@ interface Slide {
   title: string;
   visual: (country: Country) => ReactNode;
   body: (country: Country, actions: SlideActions) => ReactNode;
+  /** Visual füllt die ganze Folie; Titel und Text bleiben nur für Screenreader. */
+  wide?: true;
 }
 
 function Lead({ children }: { children: ReactNode }) {
@@ -203,7 +207,42 @@ function EditorMock({ country }: { country: Country }) {
   );
 }
 
+/**
+ * Launch-Video: quer im Dialog, hochkant auf dem Handy, wo der Dialog den ganzen Schirm füllt.
+ * Startet stumm, Ton über die Steuerleiste; bei reduzierter Bewegung erst auf Klick.
+ */
+function LaunchVideo() {
+  const reduceMotion = useReducedMotion();
+  const src = useMediaQuery('(max-width: 639px)') ? `${LAUNCH_VIDEO}-hochkant` : LAUNCH_VIDEO;
+  return (
+    <video
+      key={src}
+      src={`${src}.mp4`}
+      poster={`${src}-poster.webp`}
+      autoPlay={!reduceMotion}
+      muted
+      playsInline
+      controls
+      preload="metadata"
+      aria-label="Video: Ein Satz im Chat wird zum Sharepic-Karussell. Neu im Grünerator: die besten Sharepics aller Zeiten."
+      className="size-full object-contain sm:object-cover"
+    />
+  );
+}
+
 const SLIDES: readonly Slide[] = [
+  {
+    eyebrow: 'Neu im Grünerator',
+    title: 'Die besten Sharepics aller Zeiten',
+    wide: true,
+    visual: () => <LaunchVideo />,
+    body: () => (
+      <Lead>
+        Ein Satz im Chat, ein ganzes Karussell als Antwort. Auf den nächsten Folien zeigen wir dir,
+        wie das geht.
+      </Lead>
+    ),
+  },
   {
     eyebrow: 'Neu im Grünerator',
     title: 'Sharepics mit KI erstellen',
@@ -424,7 +463,11 @@ export default function SharepicAnnouncementDialog({
       >
         <MotionConfig reducedMotion="user">
           <motion.div
-            className="grid h-dvh grid-rows-[auto_minmax(0,1fr)] sm:h-[min(680px,calc(100dvh-2rem))] md:h-[min(560px,calc(100dvh-2rem))] md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:grid-rows-1"
+            className={`grid h-dvh sm:h-[min(680px,calc(100dvh-2rem))] md:h-[min(560px,calc(100dvh-2rem))] ${
+              slide.wide
+                ? 'grid-rows-[minmax(0,1fr)_auto]'
+                : 'grid-rows-[auto_minmax(0,1fr)] md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:grid-rows-1'
+            }`}
             // Wischen nur per Touch: mit der Maus soll Text markieren keine Folie wechseln.
             // pan-y lässt das senkrechte Scrollen des Textes beim Browser.
             style={{ touchAction: 'pan-y' }}
@@ -435,13 +478,22 @@ export default function SharepicAnnouncementDialog({
               step(info.offset.x < 0 ? 1 : -1);
             }}
           >
-            <div
-              aria-hidden
-              key={`visual-${index}`}
-              className="flex h-[clamp(150px,30dvh,250px)] items-center justify-center gap-2 overflow-hidden bg-primary-100 px-12 py-5 max-sm:pt-[max(1.25rem,env(safe-area-inset-top))] md:relative md:h-auto md:gap-0 md:px-6 md:py-0 dark:bg-primary-900/40"
-            >
-              {slide.visual(country)}
-            </div>
+            {slide.wide ? (
+              <div
+                key={`visual-${index}`}
+                className="min-h-0 overflow-hidden bg-black max-sm:pt-[env(safe-area-inset-top)]"
+              >
+                {slide.visual(country)}
+              </div>
+            ) : (
+              <div
+                aria-hidden
+                key={`visual-${index}`}
+                className="flex h-[clamp(150px,30dvh,250px)] items-center justify-center gap-2 overflow-hidden bg-primary-100 px-12 py-5 max-sm:pt-[max(1.25rem,env(safe-area-inset-top))] md:relative md:h-auto md:gap-0 md:px-6 md:py-0 dark:bg-primary-900/40"
+              >
+                {slide.visual(country)}
+              </div>
+            )}
 
             <div className="flex min-h-0 flex-col">
               <div
@@ -449,7 +501,9 @@ export default function SharepicAnnouncementDialog({
                 role="group"
                 aria-roledescription="Folie"
                 aria-label={`${index + 1} von ${SLIDES.length}`}
-                className="flex flex-1 flex-col gap-4 overflow-y-auto p-5 sm:p-6 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-right-2 md:p-8"
+                className={`flex flex-1 flex-col gap-4 overflow-y-auto p-5 sm:p-6 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-right-2 md:p-8 ${
+                  slide.wide ? 'sr-only' : ''
+                }`}
               >
                 <div className="flex flex-col gap-2 pr-6">
                   <span className="text-xs font-bold tracking-wider text-primary-600 uppercase dark:text-primary-300">
