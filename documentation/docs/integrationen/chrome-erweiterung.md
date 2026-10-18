@@ -174,6 +174,6 @@ Warum das so ist und woran man es erkennt, steht unter [Risiken und Gefahren von
 
 ## Und jetzt?
 
-- Der Grünerator lässt sich auch andersherum einbinden: [in ChatGPT, Claude und Le Chat](./ki-chat-einrichten).
-- Externe Dienste in den Chat holen: [Konnektoren](./konnektoren).
+- Der Grünerator lässt sich auch andersherum einbinden: [in ChatGPT, Claude und Le Chat](../guides/fortgeschrittene/gruenerator-mit-ki-chat-verbinden).
+- Externe Dienste in den Chat holen: [Konnektoren](../guides/fortgeschrittene/konnektoren-einrichten).
 - Für alles, was kein Browser sein muss, ist der [Chat auf gruenerator.eu](../chat/ki-chat) der schnellere Weg.
