@@ -95,7 +95,10 @@ beforeEach(() => {
       const params = new URL(request.url).searchParams;
       queries.push(params);
       return HttpResponse.json(sectionsResponse(respond(params)));
-    })
+    }),
+    http.get('http://localhost/api/comments/:type/:id', () =>
+      HttpResponse.json({ success: true, reactions: [], comments: [] })
+    )
   );
 });
 
@@ -205,6 +208,7 @@ describe('MarketplacePage', () => {
     expect(
       await screen.findByRole('heading', { level: 3, name: 'Pressearbeit' })
     ).toBeInTheDocument();
+    expect(screen.getByLabelText('Adresse')).toHaveTextContent('?item=agent%3Aagent-pressearbeit');
     expect(screen.getByRole('link', { name: 'Alle Details' })).toHaveAttribute(
       'href',
       '/agentura/agent/presse'
@@ -216,6 +220,60 @@ describe('MarketplacePage', () => {
     );
     await waitFor(() => expect(save).toHaveBeenCalledWith('agent', 'agent-pressearbeit'));
 
+    await user.click(screen.getByRole('button', { name: 'Zurück zum Marktplatz' }));
+    expect(await screen.findByRole('region', { name: 'Agents' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Adresse')).toBeEmptyDOMElement();
+  });
+
+  it('opens a shared link’s item directly, and copies a link back to it', async () => {
+    const vorlage = item('template', 'Plakat', { ref: 'tpl-1', authorName: 'Kim' });
+    if (vorlage.kind !== 'template') throw new Error('fixture');
+    vorlage.template.images = [
+      { url: 'https://example.org/1.png', title: null },
+      { url: 'https://example.org/2.png', title: null },
+    ];
+    const asked = vi.fn();
+    server.use(
+      http.get(`${API}/:kind/:ref`, ({ params }) => {
+        asked(params.kind, params.ref);
+        return HttpResponse.json({ item: vorlage });
+      })
+    );
+    const { user } = renderPage('/marktplatz?art=vorlagen&item=template%3Atpl-1');
+
+    expect(await screen.findByRole('heading', { level: 3, name: 'Plakat' })).toBeInTheDocument();
+    expect(asked).toHaveBeenCalledWith('template', 'tpl-1');
+
+    // The Vorlage's own part of the detail: every page, the chosen one large.
+    const pages = screen.getByRole('group', { name: 'Seiten' });
+    const second = within(pages).getByRole('button', { name: 'Seite 2 von 2 anzeigen' });
+    await user.click(second);
+    expect(second).toHaveAttribute('aria-current', 'true');
+    expect(within(pages).getByRole('button', { name: 'Seite 1 von 2 anzeigen' })).toHaveAttribute(
+      'aria-current',
+      'false'
+    );
+
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText');
+    await user.click(screen.getByRole('button', { name: 'Link kopieren' }));
+    expect(writeText).toHaveBeenCalledWith(
+      `${window.location.origin}/marktplatz?art=vorlagen&item=template%3Atpl-1`
+    );
+    expect(await axe(pages)).toHaveNoViolations();
+    expect(
+      await axe(screen.getByRole('region', { name: 'Reaktionen und Kommentare' }))
+    ).toHaveNoViolations();
+  });
+
+  it('says so when a shared item is gone', async () => {
+    server.use(
+      http.get(`${API}/:kind/:ref`, () =>
+        HttpResponse.json({ success: false, message: 'Element nicht gefunden.' }, { status: 404 })
+      )
+    );
+    const { user } = renderPage('/marktplatz?item=agent%3Aweg');
+
+    expect(await screen.findByText('Dieser Eintrag ist nicht verfügbar')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Zurück zum Marktplatz' }));
     expect(await screen.findByRole('region', { name: 'Agents' })).toBeInTheDocument();
   });

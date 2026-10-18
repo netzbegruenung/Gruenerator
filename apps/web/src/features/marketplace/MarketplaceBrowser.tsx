@@ -12,8 +12,10 @@ import {
   MARKETPLACE_SORTS,
   MARKETPLACE_TABS,
   marketplaceEmptyText,
+  marketplaceHref,
   marketplaceOriginLabel,
   tabForKind,
+  useMarketplaceItem,
   useMarketplaceKind,
   useMarketplaceSections,
   type MarketplaceFilters,
@@ -22,7 +24,7 @@ import {
 } from '@gruenerator/shared/marketplace';
 import { useDebouncedSearch } from '@gruenerator/shared/studio-assets';
 import { Button, cn, pillActive, pillBase, pillInactive } from '@gruenerator/ui';
-import { useState, type JSX } from 'react';
+import { type JSX } from 'react';
 import { LuArrowDownUp } from 'react-icons/lu';
 import { PiFunnel, PiFunnelFill } from 'react-icons/pi';
 
@@ -163,7 +165,8 @@ const isAsset = (item: MarketplaceItem): item is MarketplaceAssetItem =>
  * Agentura's layout: kind tabs, the active filters as chips, then one aisle
  * per kind („Alle") or the paged aisle of one kind. A tile opens its detail in
  * place. Filters are controlled — the page keeps them in the address, the
- * dialog in local state.
+ * dialog in local state — and so is the opened item (`filters.item`), which
+ * lets a shared link open its detail directly.
  */
 export function MarketplaceBrowser({
   filters,
@@ -179,7 +182,7 @@ export function MarketplaceBrowser({
   const { lvIds } = useUserLandesverbaende();
   const { actions, dialogs } = useMarketplaceActions();
   const [gridSize, toggleGridSize] = useGridSize('marketplace-grid-size', 'large');
-  const [opened, setOpened] = useState<MarketplaceItem | null>(null);
+  const opened = filters.item;
 
   const origin = showsOrigins(tabKinds) ? filters.origin : null;
   const base = { origin, q, sort: filters.sort, scope: 'shop', platform: 'web' } as const;
@@ -209,17 +212,45 @@ export function MarketplaceBrowser({
 
   const select = (item: MarketplaceItem) => {
     if (onPick && isAsset(item)) onPick(item);
-    else setOpened(item);
+    else set({ item: { kind: item.kind, ref: item.ref } });
   };
-  // The detail follows the cache, so a like or save shows there at once.
-  const openedLive = opened ? (items.find((i) => i.key === opened.key) ?? opened) : null;
+  // The detail follows the cache, so a like or save shows there at once. An
+  // item the lists do not hold (a shared link, another tab) is loaded alone.
+  const listed = opened
+    ? (items.find((i) => i.kind === opened.kind && i.ref === opened.ref) ?? null)
+    : null;
+  const single = useMarketplaceItem(opened, { enabled: listed === null });
+  const openedItem = listed ?? single.data ?? null;
+  const back = () => set({ item: null });
 
-  if (openedLive) {
+  if (opened) {
+    if (openedItem) {
+      return (
+        <>
+          <MarketplaceItemDetail
+            item={openedItem}
+            actions={actions}
+            onBack={back}
+            shareHref={marketplaceHref({ ...filters, tab: shownTab(filters.tab, kinds) })}
+          />
+          {dialogs}
+        </>
+      );
+    }
     return (
-      <>
-        <MarketplaceItemDetail item={openedLive} actions={actions} onBack={() => setOpened(null)} />
-        {dialogs}
-      </>
+      <div className="flex flex-col gap-md">
+        <Button variant="ghost" size="sm" className="self-start" onClick={back}>
+          Zurück zum Marktplatz
+        </Button>
+        {single.isError ? (
+          <GalleryEmptyState
+            title="Dieser Eintrag ist nicht verfügbar"
+            hint="Vielleicht wurde er gelöscht oder ist nicht mehr öffentlich."
+          />
+        ) : (
+          <p className="m-0 text-sm text-foreground-muted">Lädt …</p>
+        )}
+      </div>
     );
   }
 

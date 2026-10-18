@@ -13,15 +13,20 @@ import { MarketplaceBrowser, MarketplaceToolbar } from './MarketplaceBrowser';
 
 /**
  * `/marktplatz` — Agents, Rezepte, Vorlagen, Sticker und Hintergründe in einer
- * Liste. Die Filter stehen in der Adresse (`?art=…&von=…&q=…&sort=…`), damit
- * ein geteilter Link dieselbe Ansicht öffnet.
+ * Liste. Die Filter und der geöffnete Eintrag stehen in der Adresse
+ * (`?art=…&von=…&q=…&sort=…&item=<art>:<ref>`), damit ein geteilter Link
+ * dieselbe Ansicht öffnet.
  */
 function MarketplacePage(): JSX.Element {
   const [params, setParams] = useSearchParams();
   const filters = useMemo(() => parseMarketplaceParams(params), [params]);
+  // Opening an item is a step of its own, so the browser's back closes it again.
   const setFilters = useCallback(
-    (next: MarketplaceFilters) => setParams(serializeMarketplaceParams(next), { replace: true }),
-    [setParams]
+    (next: MarketplaceFilters) =>
+      setParams(serializeMarketplaceParams(next), {
+        replace: next.item === null || filters.item !== null,
+      }),
+    [setParams, filters.item]
   );
 
   return (

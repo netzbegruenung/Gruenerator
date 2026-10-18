@@ -1,29 +1,33 @@
 import { type MarketplaceItem } from '@gruenerator/contracts';
-import { canReport } from '@gruenerator/shared/marketplace';
 import { Button } from '@gruenerator/ui';
 import { type JSX } from 'react';
-import { PiArrowLeft, PiCheck, PiFlag, PiHeart, PiHeartFill, PiPlus } from 'react-icons/pi';
+import { PiArrowLeft, PiCheck, PiPlus } from 'react-icons/pi';
 
 import { VisualImage, metaLine, viewOf } from './kindViews';
+import { MarketplaceDiscussion } from './MarketplaceDiscussion';
 import { type MarketplaceActions } from './useMarketplaceActions';
 
 /**
  * An item opened in the Marktplatz — the Agentura's detail for every kind:
  * what it is, save it („Zu meinen Grüneratoren" or „Merken"), the kind's own
- * ways on (chat, product page, Vorlage, Profilbild), like and report.
+ * ways on (chat, product page, Vorlage, Profilbild), and the interaction block
+ * every kind shares (like, link, report, reactions, comments).
  */
 export function MarketplaceItemDetail({
   item,
   actions,
   onBack,
+  shareHref,
 }: {
   item: MarketplaceItem;
   actions: MarketplaceActions;
   onBack: () => void;
+  /** Where „Link kopieren" points: the Marktplatz with this item open. */
+  shareHref: string;
 }): JSX.Element {
   const view = viewOf(item);
   const visual = view.visual(item);
-  const { PrimaryActions } = view;
+  const { PrimaryActions, DetailExtras } = view;
 
   return (
     <div className="flex flex-col gap-lg">
@@ -36,11 +40,15 @@ export function MarketplaceItemDetail({
         Zurück zum Marktplatz
       </button>
 
-      {visual.type === 'image' && (
-        <VisualImage
-          visual={visual}
-          className="max-w-md rounded-xl border border-grey-200 dark:border-grey-700"
-        />
+      {DetailExtras ? (
+        <DetailExtras item={item} />
+      ) : (
+        visual.type === 'image' && (
+          <VisualImage
+            visual={visual}
+            className="max-w-md rounded-xl border border-grey-200 dark:border-grey-700"
+          />
+        )
       )}
 
       <header className="flex items-center gap-md">
@@ -69,28 +77,6 @@ export function MarketplaceItemDetail({
           </Button>
         )}
         <PrimaryActions item={item} />
-        <Button
-          variant="ghost"
-          aria-pressed={item.liked}
-          aria-label={`Gefällt mir (${item.likesCount})`}
-          title="Gefällt mir"
-          onClick={() => actions.toggleLike(item)}
-        >
-          {item.liked ? (
-            <PiHeartFill aria-hidden className="text-primary-600 dark:text-primary-400" />
-          ) : (
-            <PiHeart aria-hidden />
-          )}
-          <span aria-hidden className="tabular-nums">
-            {item.likesCount}
-          </span>
-        </Button>
-        {canReport(item) && (
-          <Button variant="ghost" onClick={() => actions.report(item)}>
-            <PiFlag aria-hidden />
-            Melden
-          </Button>
-        )}
       </div>
 
       {item.description && (
@@ -98,6 +84,13 @@ export function MarketplaceItemDetail({
           {item.description}
         </p>
       )}
+
+      <MarketplaceDiscussion
+        target={{ kind: item.kind, ref: item.ref }}
+        item={item}
+        canModerate={item.isOwn}
+        shareHref={shareHref}
+      />
     </div>
   );
 }

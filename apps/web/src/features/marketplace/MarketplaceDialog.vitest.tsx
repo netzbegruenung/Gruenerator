@@ -80,6 +80,31 @@ describe('MarketplaceDialog', () => {
     );
   });
 
+  it('keeps the opened item local, and its link points to the Marktplatz page', async () => {
+    server.use(
+      http.get('http://localhost/api/comments/:type/:id', () =>
+        HttpResponse.json({ success: true, reactions: [], comments: [] })
+      )
+    );
+    const { user } = renderWithProviders(
+      <Harness kinds={['agent', 'recipe']} initialQuery="presse" />,
+      { route: '/grueneratoren' }
+    );
+    const dialog = await screen.findByRole('dialog', { name: 'Marktplatz' });
+    const agents = await within(dialog).findByRole('region', { name: 'Agents' });
+    await user.click(within(agents).getByRole('button', { name: 'Pressearbeit' }));
+
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText');
+    await user.click(await within(dialog).findByRole('button', { name: 'Link kopieren' }));
+    expect(writeText).toHaveBeenCalledWith(
+      `${window.location.origin}/marktplatz?q=presse&item=agent%3Aagent-pressearbeit`
+    );
+    expect(within(dialog).getByRole('link', { name: 'Im Marktplatz öffnen' })).toHaveAttribute(
+      'href',
+      '/marktplatz?q=presse&item=agent%3Aagent-pressearbeit'
+    );
+  });
+
   it('shows no tabs for a single kind and links to its tab', async () => {
     renderWithProviders(<Harness kinds={['template']} title="Öffentliche Vorlagen" />);
     const dialog = await screen.findByRole('dialog', { name: 'Öffentliche Vorlagen' });

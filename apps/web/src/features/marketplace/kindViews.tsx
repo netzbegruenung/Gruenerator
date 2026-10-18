@@ -7,7 +7,7 @@ import {
 import { MARKETPLACE_ORIGIN_BADGE } from '@gruenerator/shared/marketplace';
 import { resolveStoredImageUrl } from '@gruenerator/shared/media-library/shareUrl';
 import { Button, cn } from '@gruenerator/ui';
-import { type JSX, type ReactNode } from 'react';
+import { useState, type JSX, type ReactNode } from 'react';
 import { PiArrowSquareOut, PiChatCircleText, PiPencilSimple, PiUserCircle } from 'react-icons/pi';
 import { Link } from 'react-router-dom';
 
@@ -33,6 +33,11 @@ interface KindView<K extends MarketplaceKind> {
   visual: (item: MarketplaceItemOf<K>) => MarketplaceVisual;
   /** The ways on from the detail — try it, use it, open its own page. */
   PrimaryActions: (props: { item: MarketplaceItemOf<K> }) => JSX.Element | null;
+  /**
+   * Optional: what only this kind shows in the detail, in place of the plain
+   * image (a Vorlage's pages). Everything else in the detail is the same for all.
+   */
+  DetailExtras?: (props: { item: MarketplaceItemOf<K> }) => JSX.Element | null;
 }
 
 interface SaveLabel {
@@ -134,6 +139,54 @@ function TemplateActions({ item }: { item: MarketplaceItemOf<'template'> }) {
   );
 }
 
+/**
+ * Every page of a Vorlage: the chosen one large, all of them as a strip below
+ * once there is more than one — the pager of the old Vorlagen detail.
+ */
+function TemplatePages({ item }: { item: MarketplaceItemOf<'template'> }) {
+  const pages = item.template.images.flatMap((image) => {
+    const src = templateImageSrc(image.url);
+    return src ? [{ src }] : [];
+  });
+  const [page, setPage] = useState(0);
+  const current = pages[page] ?? pages[0] ?? null;
+
+  return (
+    <div className="flex max-w-md flex-col gap-2">
+      <VisualImage
+        visual={{
+          type: 'image',
+          src: current?.src ?? templateImageSrc(item.thumbnailUrl),
+          cutout: false,
+        }}
+        className="rounded-xl border border-grey-200 dark:border-grey-700"
+      />
+      {pages.length > 1 && (
+        <div role="group" aria-label="Seiten" className="flex gap-2 overflow-x-auto pb-1">
+          {pages.map((p, i) => (
+            <button
+              // eslint-disable-next-line react/no-array-index-key -- pages have no id and may repeat an image URL; order is the identity
+              key={i}
+              type="button"
+              aria-label={`Seite ${i + 1} von ${pages.length} anzeigen`}
+              aria-current={i === page}
+              onClick={() => setPage(i)}
+              className={cn(
+                'h-20 shrink-0 overflow-hidden rounded-lg border-2 bg-background-alt transition-colors',
+                i === page
+                  ? 'border-primary-600 dark:border-primary-400'
+                  : 'border-transparent hover:border-grey-300 dark:hover:border-grey-600'
+              )}
+            >
+              <img src={p.src} alt="" loading="lazy" className="h-full w-auto" />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Sticker & Hintergründe ───────────────────────────────────────────────────
 
 const assetVisual = (item: MarketplaceAssetItem): MarketplaceVisual => ({
@@ -171,6 +224,7 @@ export const KIND_VIEWS: { [K in MarketplaceKind]: KindView<K> } = {
     saveLabel: BOOKMARK,
     visual: templateVisual,
     PrimaryActions: TemplateActions,
+    DetailExtras: TemplatePages,
   },
   sticker: {
     label: 'Sticker',
@@ -194,6 +248,7 @@ interface AnyKindView {
   saveLabel: SaveLabel;
   visual: (item: MarketplaceItem) => MarketplaceVisual;
   PrimaryActions: (props: { item: MarketplaceItem }) => JSX.Element | null;
+  DetailExtras?: (props: { item: MarketplaceItem }) => JSX.Element | null;
 }
 export const viewOf = (item: MarketplaceItem): AnyKindView =>
   KIND_VIEWS[item.kind] as unknown as AnyKindView;
