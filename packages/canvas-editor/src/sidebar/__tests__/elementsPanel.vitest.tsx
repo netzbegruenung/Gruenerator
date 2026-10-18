@@ -43,6 +43,10 @@ vi.mock('@gruenerator/shared/studio-assets', async (importOriginal) => ({
     };
   },
 }));
+// The real Icon fetches its set over the network on a timer that can outlive jsdom.
+vi.mock('@iconify/react', () => ({
+  Icon: ({ icon }: { icon: string }) => <span data-icon={icon} />,
+}));
 vi.mock('@tanstack/react-query', () => ({
   useQuery: (options: { initialData?: () => unknown }) => ({
     data: options.initialData?.(),
