@@ -40,6 +40,8 @@ export interface ContextControlsProps {
   /** Gesperrt: nicht ziehen, skalieren, ausrichten, löschen — gestalten geht weiter. */
   lockState?: LockState;
   canLock?: boolean;
+  /** Zählt hoch, wenn das Kontextmenü „Bild ersetzen …“ wählt: die Bildauswahl öffnet sich. */
+  backgroundPickerRequest?: number;
   handlers: {
     handleMoveLayer: (direction: 'up' | 'down') => void;
     handleDuplicate: () => void;
@@ -99,6 +101,7 @@ export function ContextControls({
   isCropping = false,
   lockState = 'none',
   canLock = false,
+  backgroundPickerRequest = 0,
   handlers,
   background,
   onRemoveUserImage,
@@ -206,6 +209,7 @@ export function ContextControls({
         label={background.currentImageSrc ? 'Ersetzen' : 'Bild'}
         currentImageSrc={background.currentImageSrc}
         onImageChange={onImageChange}
+        openRequest={backgroundPickerRequest}
       />
     );
   }

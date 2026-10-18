@@ -73,6 +73,7 @@ import { AutoSaveStoreProvider } from '../../stores/useAutoSaveStore';
 import { cn } from '../../utils/cn';
 import { ensureFontsReady } from '../../utils/ensureFontsReady';
 import { getCategoryForTemplate } from '../../utils/templateRegistry';
+import { CanvasContextMenu } from '../CanvasContextMenu/CanvasContextMenu';
 import { CanvasPageSkeleton, CanvasTabRailSkeleton } from '../CanvasEditorSkeleton';
 import { CanvasMetaBar, CanvasZoomIndicator } from '../CanvasMetaBar';
 import { CanvasTextEditorProvider } from '../CanvasTextOverlay';
@@ -87,6 +88,7 @@ import { FloatingAiSuggestionBanner } from '../TopBar/modules/FloatingAiSuggesti
 import { MultiSelectionToolbar } from '../TopBar/MultiSelectionToolbar';
 
 import { autoSwitchTab } from './autoSwitchTab';
+import { useCanvasContextMenu } from './hooks/useCanvasContextMenu';
 import { useLoadedConfigs } from './hooks/useLoadedConfigs';
 import { useMobileSheetFit } from './hooks/useMobileSheetFit';
 import { usePageRefs } from './hooks/usePageRefs';
@@ -595,6 +597,26 @@ function CanvasEditorInner({
   useEffect(() => {
     if (hasPendingSuggestion) handleDeselectAll();
   }, [hasPendingSuggestion, handleDeselectAll]);
+
+  // Desktop right-click menu; "Bild ersetzen …" opens the bar's picker.
+  const [backgroundPickerRequest, setBackgroundPickerRequest] = useState(0);
+  const requestBackgroundPicker = useCallback(() => setBackgroundPickerRequest((n) => n + 1), []);
+  const openImageAdjust = useCallback(() => setActiveTab('image-adjust'), []);
+  const pageIds = useMemo(() => pages.map((page) => page.id), [pages]);
+  const contextMenuRef = useCanvasContextMenu({
+    containerRef: pagesContainerRef,
+    canvasRefsRef,
+    pageDomRefsRef,
+    pageIds,
+    currentPageIndex,
+    canAddPage: canAddMore,
+    enabled: !isMobileWeb && !isPreview && !hasPendingSuggestion,
+    duplicatePage,
+    removePage,
+    openImageAdjust,
+    deselectAll: handleDeselectAll,
+    requestBackgroundPicker,
+  });
 
   // Mobile selection pill: reads the active page's selection geometry.
   const getSelectionBox = useCallback(
@@ -1160,6 +1182,7 @@ function CanvasEditorInner({
         isCropping: toolbarState.isCropping ?? false,
         lockState: toolbarState.lockState,
         canLock: toolbarState.canLock,
+        backgroundPickerRequest,
         handlers: {
           ...toolbarHandlers,
           onEditImage: () => setActiveTab('image-adjust'),
@@ -1449,6 +1472,9 @@ function CanvasEditorInner({
           </div>
         </CanvasEditorLayout>
         {selectionPill}
+        {!isMobileWeb && !isPreview && (
+          <CanvasContextMenu handleRef={contextMenuRef} closeKey={zoom} />
+        )}
       </CanvasTextEditorProvider>
     </UserUploadsProvider>
   );

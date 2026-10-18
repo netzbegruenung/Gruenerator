@@ -65,6 +65,10 @@ export type PageCommandId = {
 
 export const CANVAS_COMMAND_IDS = Object.keys(CANVAS_COMMANDS) as CanvasCommandId[];
 
+export function isPageCommand(id: CanvasCommandId): id is PageCommandId {
+  return CANVAS_COMMANDS[id].scope === 'page';
+}
+
 export function shortcutOf(id: CanvasCommandId): CommandShortcut | null {
   const spec: CommandSpec = CANVAS_COMMANDS[id];
   return spec.shortcut;

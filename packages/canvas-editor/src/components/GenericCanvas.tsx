@@ -38,6 +38,7 @@ import { useCanvasElementHandlers } from '../hooks/useCanvasElementHandlers';
 import { useCanvasKeyboardHandlers } from '../hooks/useCanvasKeyboardHandlers';
 import { useContextPress } from '../hooks/useContextPress';
 import { useDeepSelect } from '../hooks/useDeepSelect';
+import { floatingModuleFor } from '../hooks/useFloatingModuleState';
 import { CanvasStage, SnapGuidelines } from '../primitives';
 import {
   CanvasStoreProvider,
@@ -55,6 +56,7 @@ import { ensureFontsReady } from '../utils/ensureFontsReady';
 import { MAX_ICON_SELECTIONS, selectedCatalogIconIds } from '../utils/iconInstances';
 import { isLayerLocked } from '../utils/layerLock';
 import { locateDrop, type ElementDragPayload, type MediaDragPayload } from '../utils/mediaDrop';
+import { selectableItemIds } from '../utils/multiSelect';
 import { PendingImagesContext } from '../utils/pendingImages';
 import { stageCssScale } from '../utils/stageCssScale';
 import { findTemplateEntry } from '../utils/templateElementInstance';
@@ -64,6 +66,7 @@ import { CanvasRenderLayer } from './CanvasRenderLayer';
 import { PrintGuides } from './PrintGuides';
 import { ToolbarStateBridge } from './ToolbarStateBridge';
 
+import type { CanvasMenuSnapshot } from './CanvasContextMenu/canvasMenuModel';
 import type { RemoteSelector } from './RemoteSelectionOverlay';
 import type { ToolbarBridgeState } from './ToolbarStateBridge';
 
@@ -242,6 +245,8 @@ export interface GenericCanvasRef {
   handleDeleteElement?: () => void;
   /** Führt einen Seiten-Befehl aus; `at` ist der Punkt eines Rechtsklicks. */
   runCommand?: (id: PageCommandId, at: ClientPoint | null) => void;
+  /** Was das Kontextmenü beim Öffnen über diese Seite wissen muss. */
+  getMenuSnapshot?: () => CanvasMenuSnapshot;
   /** Box der Auswahl in Fensterkoordinaten, für Bedienelemente am Objekt. */
   getSelectionBox?: () => SelectionBox | null;
   /** Meldet Beginn (`true`) und Ende (`false`) von Ziehen und Transformieren;
@@ -843,6 +848,24 @@ function GenericCanvasWithRef<
       handleDuplicate: commands.duplicate,
       handleDeleteElement: commands.remove,
       runCommand: commands.run,
+      getMenuSnapshot: () => {
+        const { selectedLayerIds, selectedElement, croppingElement } = store.getState();
+        const committed = committedStateRef.current;
+        const layer = stageRef.current?.getStage()?.getLayers()[0];
+        return {
+          selection: selectedLayerIds,
+          module: floatingModuleFor(
+            selectedElement,
+            config,
+            committed,
+            commandInputsRef.current.layout
+          ),
+          caps: commands.capabilities(),
+          canSelectAll: layer ? selectableItemIds(layer).length > 0 : false,
+          isCropping: croppingElement !== null,
+          background: config.background?.(committed, actions) ?? null,
+        };
+      },
       getSelectionBox: () => {
         const ids = store.getState().selectedLayerIds;
         const stage = stageRef.current?.getStage();
@@ -919,6 +942,7 @@ function GenericCanvasWithRef<
       stageWidth,
       referenceWidth,
       commands,
+      config,
     ]
   );
 

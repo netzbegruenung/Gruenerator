@@ -1,7 +1,7 @@
 import { MediaThumb } from '@gruenerator/shared/media-library/ui';
 import { Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
 import { Slider } from 'radix-ui';
-import { useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import {
   HiArrowUpTray,
   HiLockClosed,
@@ -37,12 +37,18 @@ export function BackgroundImagePicker({
   label,
   currentImageSrc,
   onImageChange,
+  openRequest = 0,
 }: {
   label: string;
   currentImageSrc?: string;
   onImageChange: ImageChange;
+  /** Each new value opens the picker — the context menu's "Bild ersetzen …". */
+  openRequest?: number;
 }) {
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (openRequest > 0) setOpen(true);
+  }, [openRequest]);
   const { items, isLoading, error, search, setSearch, upload, hasMore, loadMore } =
     useUserUploads();
   const fileInputRef = useRef<HTMLInputElement>(null);
