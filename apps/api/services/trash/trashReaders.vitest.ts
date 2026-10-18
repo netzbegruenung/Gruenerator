@@ -99,6 +99,18 @@ const ALLOWLIST: readonly AllowEntry[] = [
     "entity_type = 'studio_asset'",
   ],
   [
+    'apps/api/services/entityLikes/EntityLikesService.ts',
+    'user_agents',
+    'account deletion: likes on every Agent of the user, trashed ones cascade too',
+    "entity_type = 'agent'",
+  ],
+  [
+    'apps/api/services/entityLikes/EntityLikesService.ts',
+    'user_text_forms',
+    'account deletion: likes on every Rezept of the user, trashed ones cascade too',
+    "entity_type = 'recipe'",
+  ],
+  [
     'apps/api/services/studioAssets/studioAssetsService.ts',
     'studio_assets',
     'create: a trashed asset still owns its image until the purge, so it blocks reuse',

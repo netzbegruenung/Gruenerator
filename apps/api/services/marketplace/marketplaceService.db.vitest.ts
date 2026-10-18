@@ -45,6 +45,7 @@ vi.mock('../skills/AdminHiddenSkillsService.js', () => ({
 
 const { buildMarketplaceContext } = await import('./context.js');
 const { listMarketplace, setLike, setSaved } = await import('./marketplaceService.js');
+const { deleteLikesOfDeletedUser } = await import('../entityLikes/EntityLikesService.js');
 
 const me = randomUUID();
 const other = randomUUID();
@@ -413,6 +414,37 @@ describe.skipIf(!url)('Marktplatz (marketplaceService)', () => {
     expect(await publicRefs('agent', 'de-DE', { scope: 'saved' })).toEqual(
       expect.arrayContaining([own, foreign])
     );
+  });
+
+  it('account deletion takes the likes on the person’s Agents and Rezepte along (#4701)', async () => {
+    const agent = await insertAgent({});
+    const trashedAgent = await insertAgent({ deleted: true });
+    const recipe = await insertRecipe({});
+    const trashedRecipe = await insertRecipe({ deleted: true });
+    const myAgent = await insertAgent({ owner: me });
+    const myRecipe = await insertRecipe({ owner: me });
+    await pool.query(
+      `INSERT INTO entity_likes (user_id, entity_type, entity_id)
+       SELECT $1, kind, ref FROM unnest($2::text[], $3::text[]) AS t(kind, ref)`,
+      [
+        me,
+        ['agent', 'agent', 'recipe', 'recipe', 'agent'],
+        [agent, trashedAgent, recipe, trashedRecipe, 'pressebot'],
+      ]
+    );
+    await pool.query(
+      `INSERT INTO entity_likes (user_id, entity_type, entity_id)
+       VALUES ($1, 'agent', $2), ($1, 'recipe', $3)`,
+      [other, myAgent, myRecipe]
+    );
+
+    await deleteLikesOfDeletedUser(other);
+
+    const left = await pool.query<{ entity_type: string; entity_id: string }>(
+      'SELECT entity_type, entity_id FROM entity_likes ORDER BY entity_type, entity_id'
+    );
+    // Likes on the person's rows and their own likes are gone; an official agent's stay.
+    expect(left.rows).toEqual([{ entity_type: 'agent', entity_id: 'pressebot' }]);
   });
 
   it('answers 409 once „Meine Grüneratoren“ is full', async () => {
