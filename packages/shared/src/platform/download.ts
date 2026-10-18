@@ -66,6 +66,13 @@ export function exceedsNativeLimit(base64: string): boolean {
   return base64.length > WEBVIEW_DOWNLOAD_MAX_BASE64_LENGTH;
 }
 
+/**
+ * How long an object URL outlives its click. Chrome on Android hands the click
+ * to its download manager, which reads the URL only afterwards — revoked in the
+ * same tick, the download vanishes without an error.
+ */
+const OBJECT_URL_TTL_MS = 60_000;
+
 /** The browser path: a real anchor click. */
 function clickAnchor(href: string, filename: string, revoke: boolean): void {
   const a = document.createElement('a');
@@ -76,7 +83,7 @@ function clickAnchor(href: string, filename: string, revoke: boolean): void {
   document.body.appendChild(a);
   a.click();
   a.remove();
-  if (revoke) URL.revokeObjectURL(href);
+  if (revoke) setTimeout(() => URL.revokeObjectURL(href), OBJECT_URL_TTL_MS);
 }
 
 function postToHost(base64: string, mime: string, filename: string): void {

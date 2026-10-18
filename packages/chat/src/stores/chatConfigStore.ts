@@ -156,7 +156,7 @@ export interface ChatConfig {
   updateSharepicThumbnail?: (canvasId: string, imageDataUrl: string) => Promise<void>;
   /**
    * Bundles rendered slide PNGs (data URLs) into a ZIP download (deck
-   * variants). Platform-specific — web posts to /api/exports/zip.
+   * variants). Platform-specific — web packs them in the browser.
    */
   downloadSharepicZip?: (images: string[], canvasType: string) => Promise<void>;
   /**

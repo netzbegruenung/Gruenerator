@@ -26,8 +26,11 @@ beforeAll(() => {
 // Klick und `dismiss` lassen sonner den Toast erst nach einem 200-ms-Timer
 // entfernen. Läuft der nach dem Abbau von jsdom, stirbt sein `setState` an
 // `window is not defined` (#4563) — deshalb hier abwarten, bis er weg ist.
+// Ein `dismiss` auf einen Toast, den der Klick schon entfernt, stellt einen
+// zweiten Timer, der erst nach diesem Warten feuert — daher nur für Toasts,
+// die sonner noch nicht als `data-removed` führt.
 afterEach(async () => {
-  toast.dismiss();
+  if (document.querySelector('[data-sonner-toast]:not([data-removed="true"])')) toast.dismiss();
   await waitFor(() => expect(document.querySelector('[data-sonner-toast]')).toBeNull());
 });
 

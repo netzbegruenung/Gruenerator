@@ -31,6 +31,11 @@
       "types": "./src/composer/index.ts"
     },
     "./configs/*": "./src/configs/*",
+    "./zip": {
+      "import": "./src/utils/zipPageImages.ts",
+      "require": "./src/utils/zipPageImages.ts",
+      "types": "./src/utils/zipPageImages.ts"
+    },
     "./pixelHitArea": {
       "import": "./src/utils/pixelHitArea.ts",
       "require": "./src/utils/pixelHitArea.ts",
@@ -92,6 +97,7 @@
     "@tiptap/pm": "^3.31.4",
     "@tiptap/react": "^3.31.4",
     "clsx": "^2.1.1",
+    "fflate": "^0.8.3",
     "immer": "^11.1.21",
     "konva": "^10.7.1",
     "lucide-react": "^1.52.0",
