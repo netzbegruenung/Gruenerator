@@ -5,13 +5,7 @@ import {
   useUserLandesverbaende,
   type AgentListItem,
 } from '@gruenerator/chat';
-import {
-  getVisibleSystemAgentsForLocale,
-  isAdminVisibleAgent,
-  isAdminVisibleSkill,
-  isLvItemVisibleForRoles,
-  isSkillOfferedIn,
-} from '@gruenerator/shared/agents';
+import { isLvItemVisibleForRoles, selectOfficialCatalog } from '@gruenerator/shared/agents';
 import { useMemo } from 'react';
 
 import { CURRENT_INSTANCE } from '../../../config/instance';
@@ -24,7 +18,7 @@ import { useAuthStore } from '@/stores/authStore';
 /**
  * Alles, was der Grünerator selbst mitbringt: System-Agents, der Rezept-Katalog
  * und die Inhalte des eigenen Landesverbands — gefiltert nach Locale, Instanz
- * und dem, was ein Admin ausgeblendet hat.
+ * und dem, was ein Admin ausgeblendet hat (`selectOfficialCatalog`).
  */
 export function useSystemCatalog(sharedAgents: SharedAgentEntry[]) {
   const userLocale = useAuthStore((s) => s.locale) ?? 'de-DE';
@@ -32,28 +26,31 @@ export function useSystemCatalog(sharedAgents: SharedAgentEntry[]) {
   const hiddenSkillMentions = useHiddenSkillMentions();
   const hiddenAgentIdentifiers = useHiddenAgentIdentifiers();
   const hiddenAgentKey = hiddenAgentIdentifiers.join(',');
+  const hiddenSkillKey = hiddenSkillMentions.join(',');
 
-  // All skills available to this locale, minus any an admin hid from discovery
-  // on this deployment and minus what this instance does not carry at all.
-  const allSkills = useMemo(
+  // `lvIds: null` on purpose: `systemAgents` feeds the agent index, which must
+  // resolve every Landesverband agent, and `allSkills` has always carried all
+  // of them too. The role filter applies to the Landesverband aisle below.
+  const catalog = useMemo(
     () =>
-      agentsList.filter(
-        (s) =>
-          (s.audience === undefined || s.audience === 'all' || s.audience === userLocale) &&
-          isAdminVisibleSkill(s.mention, hiddenSkillMentions) &&
-          isSkillOfferedIn(s, CURRENT_INSTANCE)
-      ),
-    [userLocale, hiddenSkillMentions]
+      selectOfficialCatalog({
+        locale: userLocale,
+        instanceId: CURRENT_INSTANCE,
+        platform: 'web',
+        hiddenAgentIds: hiddenAgentIdentifiers,
+        hiddenSkillMentions,
+        lvIds: null,
+        skills: agentsList,
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- die Array-Identität wechselt bei jedem Abruf; die Schlüssel sind die stabile Abhängigkeit
+    [userLocale, hiddenAgentKey, hiddenSkillKey]
   );
+  const allSkills = catalog.skills;
 
   const systemAgents = useMemo(() => {
     const sharedIds = new Set(sharedAgents.map((e) => e.agent.identifier));
-    return getVisibleSystemAgentsForLocale(userLocale, CURRENT_INSTANCE).filter(
-      (a) =>
-        !sharedIds.has(a.identifier) && isAdminVisibleAgent(a.identifier, hiddenAgentIdentifiers)
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- die Array-Identität wechselt bei jedem Abruf; `hiddenAgentKey` ist die stabile Abhängigkeit
-  }, [userLocale, sharedAgents, hiddenAgentKey]);
+    return catalog.agents.filter((a) => !sharedIds.has(a.identifier));
+  }, [catalog.agents, sharedAgents]);
 
   const generalSystemAgents = useMemo(
     () => systemAgents.filter((a) => !isLandesverbandIdentifier(a.identifier)),
@@ -74,26 +71,21 @@ export function useSystemCatalog(sharedAgents: SharedAgentEntry[]) {
     [systemAgents, lvIds]
   );
   const lvSkills = useMemo(
-    () =>
-      allSkills.filter(
-        (s) =>
-          isLandesverbandIdentifier(s.identifier) && isLvItemVisibleForRoles(s.identifier, lvIds)
-      ),
-    [allSkills, lvIds]
+    () => catalog.lvSkills.filter((s) => isLvItemVisibleForRoles(s.identifier, lvIds)),
+    [catalog.lvSkills, lvIds]
   );
 
   // Skills grouped by category (LV skills live in the Landesverband aisle instead).
   const skillsByCategory = useMemo(() => {
     const map = new Map<string, AgentListItem[]>();
-    for (const skill of allSkills) {
-      if (isLandesverbandIdentifier(skill.identifier)) continue;
+    for (const skill of catalog.generalSkills) {
       const cat = skill.skillCategory ?? 'sonstiges';
       const list = map.get(cat) ?? [];
       list.push(skill);
       map.set(cat, list);
     }
     return map;
-  }, [allSkills]);
+  }, [catalog.generalSkills]);
 
   return {
     allSkills,

@@ -47,6 +47,9 @@ export interface OfficialCatalogInput<S extends Skill = Skill> {
 }
 
 export interface OfficialCatalog<S extends Skill = Skill> {
+  /** Everything below, unsplit and in source order. */
+  agents: Agent[];
+  skills: S[];
   generalAgents: Agent[];
   lvAgents: Agent[];
   generalSkills: S[];
@@ -82,6 +85,8 @@ export function selectOfficialCatalog<S extends Skill = Skill>(
   });
 
   return {
+    agents,
+    skills,
     generalAgents: agents.filter((a) => !isLandesverbandIdentifier(a.identifier)),
     lvAgents: agents.filter((a) => isLandesverbandIdentifier(a.identifier)),
     generalSkills: skills.filter((s) => !isLandesverbandIdentifier(s.identifier)),
