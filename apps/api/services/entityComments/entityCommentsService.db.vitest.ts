@@ -267,7 +267,7 @@ describe.skipIf(!url)('Kommentare an Marktplatz-Beiträgen (entityCommentsServic
     await pool.query(fs.readFileSync(MIGRATION, 'utf8'));
 
     const rows = await pool.query(
-      `SELECT id, entity_type, entity_id, user_id, body, parent_id FROM entity_comments ORDER BY body`
+      `SELECT id, entity_type, entity_id, user_id, body, parent_id FROM entity_comments ORDER BY body COLLATE "C"`
     );
     expect(rows.rows).toEqual([
       {
