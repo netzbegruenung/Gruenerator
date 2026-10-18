@@ -217,6 +217,79 @@ describe('printSpecSchema: AT posters', () => {
   });
 });
 
+describe('printSpecSchema: flyer, letterhead, newspaper', () => {
+  const visdp = { art: 'visdp', name: 'Vorname Nachname', anschrift: 'Straße Nr., PLZ Ort' };
+  const at = {
+    art: 'impressum',
+    medieninhaber: 'Name/Organisation',
+    anschrift: 'Straße Nr., PLZ Ort',
+  };
+  const flyer = {
+    locale: 'de-DE',
+    produkt: 'flyer',
+    variante: 'flyer-falz',
+    format: 'print-flyer-dinlang',
+    impressum: visdp,
+    slots: {
+      headline: 'Mehr Grün für die Stadt',
+      abschnitte: [{ ueberschrift: 'Worum es geht', text: 'Ein Absatz.' }],
+      kontakt: { organisation: 'BÜNDNIS 90/DIE GRÜNEN Musterstadt' },
+      fotos: ['a.jpg'],
+    },
+  };
+  const brief = {
+    locale: 'de-DE',
+    produkt: 'briefbogen',
+    variante: 'briefbogen',
+    format: 'print-briefbogen-a4',
+    impressum: null,
+    slots: { organisation: 'BÜNDNIS 90/DIE GRÜNEN Musterstadt', web: 'gruene-musterstadt.de' },
+  };
+  const zeitung = {
+    locale: 'de-AT',
+    produkt: 'zeitung',
+    variante: 'gemeindezeitung',
+    format: 'print-zeitung-a4',
+    impressum: at,
+    slots: {
+      titel: 'Zeitungsname',
+      ausgabe: 'Ausgabe 02/26',
+      foto: 'a.jpg',
+      teaser: [],
+      artikel: [
+        { headline: 'Eins', text: 'Text.' },
+        { headline: 'Zwei', text: 'Text.' },
+      ],
+      kontakt: {},
+    },
+  };
+
+  it('accepts each product on its format', () => {
+    expect(printSpecSchema.safeParse(flyer).success).toBe(true);
+    expect(printSpecSchema.safeParse(brief).success).toBe(true);
+    expect(printSpecSchema.safeParse(zeitung).success).toBe(true);
+  });
+
+  it('wants the imprint on flyer and newspaper, none on the letterhead', () => {
+    expect(printSpecSchema.safeParse({ ...flyer, impressum: null }).success).toBe(false);
+    expect(printSpecSchema.safeParse({ ...zeitung, impressum: null }).success).toBe(false);
+    expect(printSpecSchema.safeParse({ ...brief, impressum: visdp }).success).toBe(true);
+  });
+
+  it('keeps the newspaper at two articles and the flyer at five sections', () => {
+    expect(
+      printSpecSchema.safeParse({
+        ...zeitung,
+        slots: { ...zeitung.slots, artikel: [zeitung.slots.artikel[0]] },
+      }).success
+    ).toBe(false);
+    const sechs = Array.from({ length: 6 }, () => flyer.slots.abschnitte[0]);
+    expect(
+      printSpecSchema.safeParse({ ...flyer, slots: { ...flyer.slots, abschnitte: sechs } }).success
+    ).toBe(false);
+  });
+});
+
 describe('printFotoSrc', () => {
   it('serves catalogue photos from the Vorlagen route and stock photos from the picker', () => {
     expect(printFotoSrc('vorlage:person.jpg')).toBe('/api/sharepic-vorlagen/assets/person.jpg');
