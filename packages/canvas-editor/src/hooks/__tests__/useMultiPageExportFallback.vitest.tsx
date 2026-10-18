@@ -2,6 +2,7 @@ import type * as SharedModule from '@gruenerator/shared';
 
 import { NativeDownloadTooLargeError } from '@gruenerator/shared';
 import { act, renderHook, waitFor } from '@testing-library/react';
+import { unzipSync } from 'fflate';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const downloadBlob = vi.fn();
@@ -15,9 +16,6 @@ vi.mock('@gruenerator/shared', async (importOriginal) => {
     downloadDataUrl: (...a: unknown[]): unknown => downloadDataUrl(...a),
   };
 });
-vi.mock('../../CanvasEditorProvider', () => ({
-  useCanvasEditorServices: () => ({ apiBaseUrl: '' }),
-}));
 
 import { useMultiPageExport } from '../useMultiPageExport';
 
@@ -29,10 +27,7 @@ describe('useMultiPageExport too-large ZIP', () => {
   beforeEach(() => {
     downloadBlob.mockReset();
     downloadDataUrl.mockReset();
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({ ok: true, blob: async () => new Blob(['zip']) })
-    );
+    vi.stubGlobal('fetch', vi.fn());
     vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
@@ -89,47 +84,18 @@ describe('useMultiPageExport too-large ZIP', () => {
   });
 });
 
-describe('useMultiPageExport error messages', () => {
-  beforeEach(() => {
-    downloadBlob.mockReset();
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-  });
-
-  async function errorFor(fetchImpl: () => Promise<unknown>): Promise<string | null> {
-    vi.stubGlobal('fetch', vi.fn().mockImplementation(fetchImpl));
+describe('useMultiPageExport client-side ZIP', () => {
+  it('packs the pages in the browser without a network call', async () => {
+    downloadBlob.mockReset().mockResolvedValue(undefined);
+    vi.stubGlobal('fetch', vi.fn());
     const { result } = renderHook(() => useMultiPageExport({ canvasRefs: refs, canvasType: 'x' }));
     await act(() => result.current.downloadAllAsZip());
-    return result.current.error;
-  }
 
-  const status =
-    (code: number, body: unknown = {}) =>
-    async () => ({
-      ok: false,
-      status: code,
-      json: async () => body,
-    });
-
-  it('says the connection dropped instead of the raw fetch error', async () => {
-    const error = await errorFor(() => Promise.reject(new TypeError('Failed to fetch')));
-    expect(error).toContain('Keine Verbindung');
-  });
-
-  it('names an expired session', async () => {
-    expect(await errorFor(status(401))).toContain('Sitzung');
-  });
-
-  it('names a payload that is too large, whatever the server says', async () => {
-    const error = await errorFor(status(413, { message: 'request entity too large' }));
-    expect(error).toContain('zu groß');
-  });
-
-  it('asks to wait when rate limited', async () => {
-    expect(await errorFor(status(429))).toContain('Moment');
-  });
-
-  it('keeps the server message for a rejected request', async () => {
-    const error = await errorFor(status(400, { message: 'Ungültiges Bildformat bei Seite 2' }));
-    expect(error).toBe('Ungültiges Bildformat bei Seite 2');
+    expect(fetch).not.toHaveBeenCalled();
+    const [blob, name] = downloadBlob.mock.calls[0] as [Blob, string];
+    expect(name).toMatch(/^gruenerator-x-.*\.zip$/);
+    const entries = unzipSync(new Uint8Array(await blob.arrayBuffer()));
+    expect(Object.keys(entries)).toEqual(['seite-1.png', 'seite-2.png']);
+    expect(result.current.error).toBeNull();
   });
 });

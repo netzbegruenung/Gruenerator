@@ -1555,6 +1555,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      fflate:
+        specifier: '>=0.4.9 <0.5'
+        version: 0.4.9
       immer:
         specifier: ^11.1.21
         version: 11.1.21
@@ -14928,6 +14931,9 @@ packages:
 
   fetch-nodeshim@0.4.10:
     resolution: {integrity: sha512-m6I8ALe4L4XpdETy7MJZWs6L1IVMbjs99bwbpIKphxX+0CTns4IKDWJY0LWfr4YsFjfg+z1TjzTMU8lKl8rG0w==}
+
+  fflate@0.4.9:
+    resolution: {integrity: sha512-zdxgIEddhfsyCaWpJ2SdXEP8ZMrKJ6+5jl4OupODcywU0IhRk6gdXuVGcPICyfx2H97hVK7xmJtRLPjkxAX8Vw==}
 
   ffmpeg-static@5.3.0:
     resolution: {integrity: sha512-H+K6sW6TiIX6VGend0KQwthe+kaceeH/luE8dIZyOP35ik7ahYojDuqlTV1bOrtEwl01sy2HFNGQfi5IDJvotg==}
@@ -38370,6 +38376,8 @@ snapshots:
       xml-js: 1.6.11
 
   fetch-nodeshim@0.4.10: {}
+
+  fflate@0.4.9: {}
 
   ffmpeg-static@5.3.0(supports-color@10.2.2):
     dependencies:

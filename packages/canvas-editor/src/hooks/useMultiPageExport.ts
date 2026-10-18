@@ -1,34 +1,19 @@
 /**
  * useMultiPageExport - Coordinates batch export for multi-page canvases
  *
- * Collects PNG data URLs from multiple canvas refs and sends to backend
- * for ZIP generation. Handles progress tracking and error states.
+ * Collects PNG data URLs from multiple canvas refs and packs them into a ZIP
+ * in the browser. Handles progress tracking and error states.
  */
 
 import { downloadBlob, downloadDataUrl } from '@gruenerator/shared';
 import { useState, useCallback, useEffect, useRef, type RefObject } from 'react';
 
-import { useCanvasEditorServices } from '../CanvasEditorProvider';
 import { isDownloadTooLarge } from '../utils/downloadError';
+import { zipPageImages } from '../utils/zipPageImages';
 
 import type { GenericCanvasRef } from '../components/GenericCanvas';
 
 const NOTICE_LIFETIME_MS = 5000;
-
-// By status, not by the server's text: outside development the global error
-// handler replaces it with a generic line (a body-parser 413 included).
-function zipFailureMessage(status: number, serverMessage: string | undefined): string {
-  if (status === 401 || status === 403) {
-    return 'Deine Sitzung ist abgelaufen. Bitte melde dich neu an und versuche es noch einmal.';
-  }
-  if (status === 413) {
-    return 'Die Seiten sind zusammen zu groß für ein ZIP. Bitte lade sie einzeln herunter.';
-  }
-  if (status === 429) {
-    return 'Zu viele Downloads in kurzer Zeit. Bitte warte einen Moment und versuche es dann noch einmal.';
-  }
-  return serverMessage || `Der ZIP-Export ist fehlgeschlagen (Fehler ${status}).`;
-}
 
 export interface UseMultiPageExportProps {
   canvasRefs: RefObject<GenericCanvasRef | null>[];
@@ -53,7 +38,6 @@ export function useMultiPageExport({
   canvasRefs,
   canvasType,
 }: UseMultiPageExportProps): UseMultiPageExportReturn {
-  const { apiBaseUrl: API_BASE = '' } = useCanvasEditorServices();
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState<ExportProgress>({ current: 0, total: 0 });
   const [error, setError] = useState<string | null>(null);
@@ -116,29 +100,7 @@ export function useMultiPageExport({
         throw new Error('Keine Bilder konnten exportiert werden');
       }
 
-      // Send to backend for ZIP creation
-      const response = await fetch(`${API_BASE}/api/exports/zip`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          images,
-          canvasType,
-        }),
-      }).catch(() => {
-        throw new Error(
-          'Keine Verbindung zum Server. Bitte prüfe deine Internetverbindung und versuche es noch einmal.'
-        );
-      });
-
-      if (!response.ok) {
-        const errorData = (await response.json().catch(() => ({}))) as { message?: string };
-        throw new Error(zipFailureMessage(response.status, errorData.message));
-      }
-
-      // Download the ZIP file
-      const blob = await response.blob();
+      const blob = zipPageImages(images);
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
       const filename = `gruenerator-${canvasType}-${timestamp}.zip`;
 
