@@ -22,31 +22,35 @@ import {
   type PrintSpec,
 } from '@gruenerator/contracts';
 
-import { createCircleBadgeInstance } from '../utils/circleBadgeUtils';
-import { createShape } from '../utils/shapes';
 import { type TextAccent } from '../utils/textUtils';
 
 import { LIME, SHAREPIC_COLOR_HEX } from './chromeParts';
-import { fitStoererText, STOERER_LINE_STEP, type ComposedSlide } from './composeSharepic';
+import { type ComposedSlide } from './composeSharepic';
 import {
-  ART,
   BODY_LEADING,
   blockHeight,
+  blume,
+  fitStack,
+  fitWords,
+  FULL,
   HEAD_LEADING,
-  HIMMEL,
+  hexRgb,
   impressumElement,
   impressumText,
   KLEE,
+  motif,
   page,
   placeStack,
-  SAND,
+  scrim,
   stackHeight,
+  stoerer,
   WHITE,
   withAccent,
-  wordsFit,
+  type Area,
   type Block,
   type Frame,
   type Page,
+  type PhotoSrc,
 } from './printFrame';
 
 type PlakatSpec = Extract<PrintSpec, { variante: 'kandidat' | 'thema' | 'veranstaltung' }>;
@@ -56,128 +60,6 @@ const MINT = SHAREPIC_COLOR_HEX.mint;
 /** Dunkeltanne as rgb, for the scrim over a photo. */
 const SCRIM_RGB = '0,38,26';
 const DE_ACCENT: TextAccent = { fill: LIME };
-
-/** Share of the trim box: 0 and 1 reach into the bleed. */
-interface Area {
-  x0: number;
-  x1: number;
-  y0: number;
-  y1: number;
-}
-
-interface Rect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-const FULL: Area = { x0: 0, x1: 1, y0: 0, y1: 1 };
-
-/** The area in canvas px; an edge at 0 or 1 runs out into the bleed. */
-function areaRect(f: Frame, a: Area): Rect {
-  const { trim, format } = f;
-  const x = a.x0 <= 0 ? 0 : trim.x + a.x0 * trim.width;
-  const y = a.y0 <= 0 ? 0 : trim.y + a.y0 * trim.height;
-  const right = a.x1 >= 1 ? format.width : trim.x + a.x1 * trim.width;
-  const bottom = a.y1 >= 1 ? format.height : trim.y + a.y1 * trim.height;
-  return { x, y, width: right - x, height: bottom - y };
-}
-
-function rect(id: string, r: Rect, fill: string) {
-  const shape = createShape('rect', r.x + r.width / 2, r.y + r.height / 2, fill, fill);
-  return Object.assign(shape, { id, width: r.width, height: r.height });
-}
-
-/**
- * The photo behind everything, centred on the motif area, and the ground
- * panels around it. Moving the cover-fitted photo by half the panel width
- * never uncovers more than the panel hides.
- */
-function motif(p: Page, f: Frame, foto: string, area: Area, ground: string, src: PhotoSrc): Rect {
-  const r = areaRect(f, area);
-  const { width, height } = f.format;
-  Object.assign(p.out, {
-    backgroundMode: 'image',
-    backgroundColor: ground,
-    hasBackgroundImage: true,
-    currentImageSrc: src(foto),
-    imageScale: 1,
-    imageOffset: { x: r.x + r.width / 2 - width / 2, y: r.y + r.height / 2 - height / 2 },
-  } satisfies Partial<ComposedSlide>);
-  const panels: Rect[] = [
-    { x: 0, y: 0, width, height: r.y },
-    { x: 0, y: r.y + r.height, width, height: height - r.y - r.height },
-    { x: 0, y: r.y, width: r.x, height: r.height },
-    { x: r.x + r.width, y: r.y, width: width - r.x - r.width, height: r.height },
-  ];
-  panels
-    .filter((panel) => panel.width > 0.5 && panel.height > 0.5)
-    .forEach((panel, i) => p.shape(rect(`pr-grund-${i + 1}`, panel, ground)));
-  return r;
-}
-
-/**
- * A fade from nothing to `rgb` at `alpha`: towards the foot of `r` (90°), or
- * towards its top (270°).
- */
-function scrim(p: Page, id: string, r: Rect, rgb: string, alpha: number, angle = 90) {
-  const shape = rect(id, r, `rgba(${rgb},${alpha})`);
-  shape.fillGradient = {
-    type: 'linear',
-    angle,
-    stops: [0, 0.3, 0.6, 1].map((t) => ({
-      offset: t,
-      color: `rgba(${rgb},${(alpha * t * t * (3 - 2 * t)).toFixed(3)})`,
-    })),
-  };
-  p.shape(shape);
-}
-
-const hexRgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(',');
-
-/** The sunflower in Sonne (CD p. 21), centred on cx/cy as shares of the trim box. */
-function blume(p: Page, f: Frame, cx: number, cy: number, size: number) {
-  const { trim } = f;
-  const h = (size * ART.sunflower.h) / ART.sunflower.w;
-  p.asset(
-    'pr-blume',
-    'sunflower',
-    trim.x + cx * trim.width,
-    trim.y + cy * trim.height,
-    Math.max(size, h)
-  );
-}
-
-/** Himmel with Sand type, tilted 7° (CD p. 15), its text within 90 % of the circle. */
-function stoerer(p: Page, f: Frame, id: string, text: string, x: number, y: number, r: number) {
-  const family = f.theme.fonts.headline;
-  const fitted = fitStoererText(
-    text,
-    r,
-    (line, size) => f.measure(line, size, family, 'bold'),
-    Math.round(r * 0.6),
-    1
-  ) ?? { lines: [text], size: Math.round(r * 0.3) };
-  p.badge(
-    createCircleBadgeInstance('default', {
-      id,
-      x,
-      y,
-      radius: r,
-      rotation: -7,
-      backgroundColor: HIMMEL,
-      textColor: SAND,
-      textLines: fitted.lines.map((line, i) => ({
-        text: line,
-        yOffset: (i - (fitted.lines.length - 1) / 2) * fitted.size * STOERER_LINE_STEP,
-        fontFamily: family,
-        fontSize: fitted.size,
-        fontWeight: 'bold' as const,
-      })),
-    })
-  );
-}
 
 /**
  * The domain as the sender (CD p. 7–9): GrueneType, as large as A1's 162 pt
@@ -260,40 +142,6 @@ const fliess = (
   },
 });
 
-/**
- * Each text sized so its longest word fits `width`, with 5 % to spare: the
- * editor breaks a word after a hyphen that the measure keeps on one line.
- */
-function fitWords(f: Frame, blocks: Block[], width: number): Block[] {
-  return blocks.map((b) => ({
-    ...b,
-    props: {
-      ...b.props,
-      fontSize: wordsFit(f, b.props.text, b.props.fontSize, width * 0.95, b.props.fontFamily),
-    },
-  }));
-}
-
-/**
- * The largest stack `build(size)` makes that fits `width` × `maxHeight`, the
- * headline starting at `start` and shrinking in 4 % steps.
- */
-function fitStack(
-  f: Frame,
-  build: (size: number) => Block[],
-  start: number,
-  width: number,
-  maxHeight: number
-): Block[] {
-  let size = start;
-  let blocks = fitWords(f, build(size), width);
-  while (size > start * 0.3 && stackHeight(f, blocks, width) > maxHeight) {
-    size *= 0.96;
-    blocks = fitWords(f, build(size), width);
-  }
-  return blocks;
-}
-
 /** The headline group: Dachzeile (mint, 43 %), headline (100 %, lime accent), subline (43 %). */
 function aussage(
   f: Frame,
@@ -317,8 +165,6 @@ function kandidatBlocks(f: Frame, slots: PrintKandidatSlots, size: number): Bloc
   }
   return blocks;
 }
-
-type PhotoSrc = (foto: string) => string;
 
 /** Where a candidate's or topic's parts go, per ground and orientation. */
 interface FotoLayout {

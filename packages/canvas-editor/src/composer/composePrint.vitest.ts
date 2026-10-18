@@ -608,3 +608,104 @@ describe('composePrint: DE photo posters', () => {
     }
   });
 });
+
+describe('composePrint: AT posters', () => {
+  const slots = {
+    headline: 'Das ist eine dreizeilige Headline.',
+    akzent: 'dreizeilige',
+    subline: 'Das ist eine Subline.',
+    stoerer: 'Hier steht ein Störer.',
+    foto: 'wind-unsplash.jpg',
+  };
+  const spec = (variante: string, format: string, stil?: string) => ({
+    locale: 'de-AT',
+    produkt: 'plakat',
+    variante,
+    format,
+    impressum: impressum('de-AT'),
+    slots,
+    ...(stil ? { stil } : {}),
+  });
+  const at = getBrandTheme('de-AT').colors;
+  const cases: Array<[string, ReturnType<typeof spec>]> = [];
+  for (const format of ['print-a1-hoch', 'print-a1-quer', 'print-a3-hoch', 'print-a3-quer']) {
+    cases.push([`geteilt ${format}`, spec('geteilt', format)]);
+    cases.push([`overlay ${format}`, spec('overlay', format)]);
+    cases.push([`overlay ${format} hellgruen`, spec('overlay', format, 'hellgruen')]);
+    cases.push([`person ${format}`, spec('person', format)]);
+  }
+
+  for (const [name, s] of cases) {
+    describe(name, () => {
+      const result = compose(s);
+      const slide = result.slides[0]!;
+
+      it('lays one page out within the safe zone, with the white logo and no sunflower', () => {
+        expect(result.templateType).toBe('freeform-at');
+        expectInSafeZone(result);
+        expect(slide.assetInstances.map((a) => a.assetId)).toEqual(['gruene-at-logo-weiss']);
+        expect(sunflowers(result)).toEqual([]);
+      });
+
+      it('sets the accent in yellow Vollkorn and the Störer in Magenta', () => {
+        expect(textOf(result, 0, 'pr-headline')?.accent).toEqual({
+          fill: at.accent,
+          fontFamily: 'Vollkorn',
+          fontStyle: 'bold italic',
+        });
+        const [stoerer] = slide.circleBadgeInstances;
+        expect(stoerer?.backgroundColor).toBe(at.stoerer);
+        expect(stoerer?.textColor).toBe('#FFFFFF');
+      });
+
+      it('keeps the Störer and the logo off the text', () => {
+        const boxes = slide.additionalTexts.map((t) => textBox(t));
+        const [stoerer] = slide.circleBadgeInstances;
+        const logo = assetBox(slide.assetInstances[0]!);
+        const circle = {
+          x: stoerer!.x - stoerer!.radius,
+          y: stoerer!.y - stoerer!.radius,
+          width: 2 * stoerer!.radius,
+          height: 2 * stoerer!.radius,
+        };
+        for (const b of boxes) {
+          for (const other of [circle, logo]) {
+            const apart =
+              b.x + b.width <= other.x ||
+              other.x + other.width <= b.x ||
+              b.y + b.height <= other.y ||
+              other.y + other.height <= b.y;
+            expect(apart).toBe(true);
+          }
+        }
+      });
+    });
+  }
+
+  it('puts the overlay box, 0.6 × the short side, in Dunkelgrün or flat Hellgrün', () => {
+    const { trim } = printGeometry(getCanvasFormat('print-a1-hoch') as never);
+    for (const [stil, fill] of [
+      [undefined, at.primary],
+      ['hellgruen', at.secondary],
+    ] as const) {
+      const box = compose(spec('overlay', 'print-a1-hoch', stil)).slides[0]!.shapeInstances.find(
+        (sh) => sh.id === 'pr-box'
+      )!;
+      expect(box.fill).toBe(fill);
+      expect(box.fillGradient).toBeUndefined();
+      expect(box.width).toBeCloseTo(0.6 * Math.min(trim.width, trim.height));
+      expect(box.width).toBe(box.height);
+    }
+  });
+
+  it('measures the accent word in its wider face, so it never breaks', () => {
+    // Vollkorn twice as wide as Gotham in this stand-in measure.
+    const wide = (text: string, size: number, family: string) =>
+      text.length * size * (family === 'Vollkorn' ? 1 : 0.5);
+    const result = composePrint(printSpecSchema.parse(spec('geteilt', 'print-a3-quer')), {
+      measure: wide,
+    });
+    const h = textOf(result, 0, 'pr-headline')!;
+    expect(wide('dreizeilige', h.fontSize, 'Vollkorn')).toBeLessThanOrEqual(h.width);
+  });
+});

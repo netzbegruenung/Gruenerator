@@ -11,11 +11,13 @@ import { getBrandTheme, type BrandTheme } from '../brand/theme';
 import { mmToPx, printGeometry, type PrintCanvasFormat, type PrintRect } from '../formats';
 import { type CircleBadgeInstance } from '../primitives/CircleBadge';
 import { ASSET_TARGET_SIZE } from '../utils/canvasAssets';
-import { type ShapeInstance } from '../utils/shapes';
+import { createCircleBadgeInstance } from '../utils/circleBadgeUtils';
+import { createShape, type ShapeInstance } from '../utils/shapes';
+import { type TextAccent } from '../utils/textUtils';
 import { type UserImageInstance } from '../utils/userImageUtils';
 
 import { layoutTextLines, type MeasureText } from './chromeParts';
-import { type ComposedSlide } from './composeSharepic';
+import { fitStoererText, STOERER_LINE_STEP, type ComposedSlide } from './composeSharepic';
 
 import type { AdditionalText } from '../configs/types';
 
@@ -204,7 +206,10 @@ export function layoutStack(
     const { text, fontSize, fontFamily } = block.props;
     const sized: Block = {
       ...block,
-      props: { ...block.props, fontSize: wordsFit(f, text, fontSize, width, fontFamily) },
+      props: {
+        ...block.props,
+        fontSize: wordsFit(f, text, fontSize, width, fontFamily, block.props.accent ?? null),
+      },
     };
     const item = { ...sized.props, x: f.inner.x, y: cursor, width };
     cursor += blockHeight(f, sized, width);
@@ -213,19 +218,34 @@ export function layoutStack(
   return { items, bottom: cursor };
 }
 
-/** Largest size ≤ `size` at which every word of `text` fits `width` on its own. */
+/**
+ * Largest size ≤ `size` at which every word of `text` fits `width` on its own.
+ * Words marked `==…==` are measured in the accent's face (AT: Vollkorn Black
+ * Italic runs wider than Gotham).
+ */
 export function wordsFit(
   f: Frame,
   text: string,
   size: number,
   width: number,
-  family: string
+  family: string,
+  accent: TextAccent | null = null
 ): number {
-  const words = text
-    .replace(/\*\*|==/g, '')
-    .split(/\s+/)
-    .filter(Boolean);
-  const widest = Math.max(1, ...words.map((w) => f.measure(w, size, family, 'normal')));
+  const measured = text
+    .replace(/\*\*/g, '')
+    .split(/(==[^=]*==)/)
+    .flatMap((part) => {
+      const marked = part.startsWith('==') && part.endsWith('==') && part.length > 4;
+      const face = marked
+        ? { family: accent?.fontFamily ?? family, style: accent?.fontStyle ?? 'normal' }
+        : { family, style: 'normal' as const };
+      return part
+        .replace(/==/g, '')
+        .split(/\s+/)
+        .filter(Boolean)
+        .map((w) => f.measure(w, size, face.family, face.style));
+    });
+  const widest = Math.max(1, ...measured);
   return widest > width ? (size * width) / widest : size;
 }
 
@@ -275,4 +295,191 @@ export function impressumText(impressum: PrintImpressum): string {
   return impressum.art === 'visdp'
     ? `V.i.S.d.P.: ${impressum.name}, ${impressum.anschrift}`
     : `Impressum: ${impressum.medieninhaber}, ${impressum.anschrift}`;
+}
+
+// ── Poster parts ──────────────────────────────────────────────────────────────
+
+/** Where a photo slot loads from. */
+export type PhotoSrc = (foto: string) => string;
+
+/** Share of the trim box: 0 and 1 reach into the bleed. */
+export interface Area {
+  x0: number;
+  x1: number;
+  y0: number;
+  y1: number;
+}
+
+export interface Rect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export const FULL: Area = { x0: 0, x1: 1, y0: 0, y1: 1 };
+
+/** The area in canvas px; an edge at 0 or 1 runs out into the bleed. */
+export function areaRect(f: Frame, a: Area): Rect {
+  const { trim, format } = f;
+  const x = a.x0 <= 0 ? 0 : trim.x + a.x0 * trim.width;
+  const y = a.y0 <= 0 ? 0 : trim.y + a.y0 * trim.height;
+  const right = a.x1 >= 1 ? format.width : trim.x + a.x1 * trim.width;
+  const bottom = a.y1 >= 1 ? format.height : trim.y + a.y1 * trim.height;
+  return { x, y, width: right - x, height: bottom - y };
+}
+
+export function rect(id: string, r: Rect, fill: string) {
+  const shape = createShape('rect', r.x + r.width / 2, r.y + r.height / 2, fill, fill);
+  return Object.assign(shape, { id, width: r.width, height: r.height });
+}
+
+/**
+ * The photo behind everything, centred on the motif area, and the ground
+ * panels around it. Moving the cover-fitted photo by half the panel width
+ * never uncovers more than the panel hides.
+ */
+export function motif(
+  p: Page,
+  f: Frame,
+  foto: string,
+  area: Area,
+  ground: string,
+  src: PhotoSrc
+): Rect {
+  const r = areaRect(f, area);
+  const { width, height } = f.format;
+  Object.assign(p.out, {
+    backgroundMode: 'image',
+    backgroundColor: ground,
+    hasBackgroundImage: true,
+    currentImageSrc: src(foto),
+    imageScale: 1,
+    imageOffset: { x: r.x + r.width / 2 - width / 2, y: r.y + r.height / 2 - height / 2 },
+  } satisfies Partial<ComposedSlide>);
+  const panels: Rect[] = [
+    { x: 0, y: 0, width, height: r.y },
+    { x: 0, y: r.y + r.height, width, height: height - r.y - r.height },
+    { x: 0, y: r.y, width: r.x, height: r.height },
+    { x: r.x + r.width, y: r.y, width: width - r.x - r.width, height: r.height },
+  ];
+  panels
+    .filter((panel) => panel.width > 0.5 && panel.height > 0.5)
+    .forEach((panel, i) => p.shape(rect(`pr-grund-${i + 1}`, panel, ground)));
+  return r;
+}
+
+/**
+ * A fade from nothing to `rgb` at `alpha`: towards the foot of `r` (90°), or
+ * towards its top (270°).
+ */
+export function scrim(p: Page, id: string, r: Rect, rgb: string, alpha: number, angle = 90) {
+  const shape = rect(id, r, `rgba(${rgb},${alpha})`);
+  shape.fillGradient = {
+    type: 'linear',
+    angle,
+    stops: [0, 0.3, 0.6, 1].map((t) => ({
+      offset: t,
+      color: `rgba(${rgb},${(alpha * t * t * (3 - 2 * t)).toFixed(3)})`,
+    })),
+  };
+  p.shape(shape);
+}
+
+export const hexRgb = (hex: string) =>
+  [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(',');
+
+/** The sunflower in Sonne (CD p. 21), centred on cx/cy as shares of the trim box. */
+export function blume(p: Page, f: Frame, cx: number, cy: number, size: number) {
+  const { trim } = f;
+  const h = (size * ART.sunflower.h) / ART.sunflower.w;
+  p.asset(
+    'pr-blume',
+    'sunflower',
+    trim.x + cx * trim.width,
+    trim.y + cy * trim.height,
+    Math.max(size, h)
+  );
+}
+
+/**
+ * The Störer, its text within 90 % of the circle: DE Himmel with Sand type,
+ * tilted 7° (CD p. 15); AT Magenta with white type, tilted 8°.
+ */
+export function stoerer(
+  p: Page,
+  f: Frame,
+  id: string,
+  text: string,
+  x: number,
+  y: number,
+  r: number
+) {
+  const family = f.theme.fonts.headline;
+  const fitted = fitStoererText(
+    text,
+    r,
+    (line, size) => f.measure(line, size, family, 'bold'),
+    Math.round(r * 0.6),
+    1
+  ) ?? { lines: [text], size: Math.round(r * 0.3) };
+  p.badge(
+    createCircleBadgeInstance('default', {
+      id,
+      x,
+      y,
+      radius: r,
+      rotation: f.isAt ? -8 : -7,
+      backgroundColor: f.isAt ? f.theme.colors.stoerer : HIMMEL,
+      textColor: f.isAt ? WHITE : SAND,
+      textLines: fitted.lines.map((line, i) => ({
+        text: line,
+        yOffset: (i - (fitted.lines.length - 1) / 2) * fitted.size * STOERER_LINE_STEP,
+        fontFamily: family,
+        fontSize: fitted.size,
+        fontWeight: 'bold' as const,
+      })),
+    })
+  );
+}
+
+/**
+ * Each text sized so its longest word fits `width`, with 5 % to spare: the
+ * editor breaks a word after a hyphen that the measure keeps on one line.
+ */
+export function fitWords(f: Frame, blocks: Block[], width: number): Block[] {
+  return blocks.map((b) => ({
+    ...b,
+    props: {
+      ...b.props,
+      fontSize: wordsFit(
+        f,
+        b.props.text,
+        b.props.fontSize,
+        width * 0.95,
+        b.props.fontFamily,
+        b.props.accent ?? null
+      ),
+    },
+  }));
+}
+
+/**
+ * The largest stack `build(size)` makes that fits `width` × `maxHeight`, the
+ * headline starting at `start` and shrinking in 4 % steps.
+ */
+export function fitStack(
+  f: Frame,
+  build: (size: number) => Block[],
+  start: number,
+  width: number,
+  maxHeight: number
+): Block[] {
+  let size = start;
+  let blocks = fitWords(f, build(size), width);
+  while (size > start * 0.3 && stackHeight(f, blocks, width) > maxHeight) {
+    size *= 0.96;
+    blocks = fitWords(f, build(size), width);
+  }
+  return blocks;
 }

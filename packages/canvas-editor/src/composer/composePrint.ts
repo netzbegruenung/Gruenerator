@@ -56,6 +56,7 @@ import {
   type Frame,
   type Page,
 } from './printFrame';
+import { plakatAt } from './printPlakatAt';
 import { plakatDe } from './printPlakatDe';
 
 import type { AdditionalText } from '../configs/types';
@@ -118,6 +119,11 @@ export function composePrint(spec: PrintSpec, options: ComposePrintOptions = {})
       break;
     case 'typo':
       slides = [typo(f, spec.slots, spec.impressum, spec.stil)];
+      break;
+    case 'geteilt':
+    case 'overlay':
+    case 'person':
+      slides = [plakatAt(f, spec, options.photoSrc ?? printFotoSrc)];
       break;
     default:
       slides = [plakatDe(f, spec, options.photoSrc ?? printFotoSrc)];
