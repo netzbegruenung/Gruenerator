@@ -17,7 +17,7 @@ export function MarketplaceScreen({ initialFilters }: { initialFilters: Marketpl
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.column}>
-        <MarketplaceBrowser initialFilters={initialFilters} />
+        <MarketplaceBrowser initialFilters={initialFilters} frontpage />
       </View>
     </View>
   );

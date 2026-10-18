@@ -163,7 +163,7 @@ afterEach(() => {
 });
 
 describe('MarketplaceScreen', () => {
-  it('shows one aisle per kind under „Alle", and „Alle anzeigen" opens that kind', async () => {
+  it('shows one aisle per kind under „Alle" in the sheet, and „Alle anzeigen" opens that kind', async () => {
     setup({
       sections: [
         { kind: 'agent', items: [agent], hasMore: false },
@@ -171,7 +171,9 @@ describe('MarketplaceScreen', () => {
         { kind: 'sticker', items: [sticker], hasMore: true },
       ],
     });
-    await renderScreen();
+    // The screen opens on the front page (MarketplaceFrontpage.test.tsx); the sheet keeps the aisles.
+    render(<MarketplaceSheet visible onClose={jest.fn()} />);
+    await act(async () => {});
 
     expect(mockSections).toHaveBeenLastCalledWith(
       expect.objectContaining({ platform: 'mobile', scope: 'shop', enabled: true })

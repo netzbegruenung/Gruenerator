@@ -9,6 +9,7 @@ import {
   MARKETPLACE_ORIGINS,
   MARKETPLACE_SORTS,
   MARKETPLACE_TABS,
+  isFrontpageView,
   marketplaceEmptyText,
   marketplaceOriginLabel,
   tabForKind,
@@ -49,6 +50,7 @@ import { useShareToken } from '../studio-assets/useShareToken';
 
 import { marketplaceCardProps } from './kindViews';
 import { MarketCard } from './MarketCard';
+import { MarketplaceFrontpage } from './MarketplaceFrontpage';
 import { MarketplaceItemDetail } from './MarketplaceItemDetail';
 import { marketplaceShareUrl } from './marketplaceTarget';
 import { useMarketplaceActions, type Navigate } from './useMarketplaceActions';
@@ -69,6 +71,8 @@ export interface MarketplaceBrowserProps {
   description?: string;
   /** Inside a sheet: no report form (a modal over the modal). */
   inSheet?: boolean;
+  /** The Marktplatz screen: „Start" shows the front page while nothing narrows the list. */
+  frontpage?: boolean;
 }
 
 interface Aisle {
@@ -101,10 +105,12 @@ export function MarketplaceBrowser({
   title,
   description,
   inSheet = false,
+  frontpage = false,
 }: MarketplaceBrowserProps) {
   const theme = useTheme();
   const token = useShareToken();
   const lvIds = useLandesverbandIds();
+  const locale = useUserProfileStore((s) => s.locale) === 'de-AT' ? 'de-AT' : 'de-DE';
   const tabs = tabsFor(kinds);
   const [tab, setTab] = useState<MarketplaceTabSlug>(
     tabs.some((t) => t.slug === initialFilters.tab) ? initialFilters.tab : tabs[0]!.slug
@@ -121,8 +127,14 @@ export function MarketplaceBrowser({
     tab === 'alle' ? kinds : (tabs.find((t) => t.slug === tab)?.kinds ?? kinds);
   const multi = tabKinds.length > 1;
   const singleKind = tabKinds[0]!;
+  const showFrontpage =
+    frontpage && isFrontpageView({ tab, origin, q: searchInput, sort, item: null });
   const base = { origin, q, sort, scope: 'shop', platform: 'mobile' } as const;
-  const sections = useMarketplaceSections({ ...base, kinds: tabKinds, enabled: multi });
+  const sections = useMarketplaceSections({
+    ...base,
+    kinds: tabKinds,
+    enabled: multi && !showFrontpage,
+  });
   const paged = useMarketplaceKind({ ...base, kind: singleKind, enabled: !multi });
   const query = multi ? sections : paged;
 
@@ -231,7 +243,7 @@ export function MarketplaceBrowser({
             {tabs.map((t) => (
               <Chip
                 key={t.slug}
-                label={t.label}
+                label={frontpage && t.slug === 'alle' ? 'Start' : t.label}
                 selected={t.slug === tab}
                 onPress={() => setTab(t.slug)}
               />
@@ -251,52 +263,70 @@ export function MarketplaceBrowser({
           <SortChip value={sort} onChange={setSort} />
         </ChipRow>
       </View>
-      <SectionList
-        sections={aisles}
-        keyExtractor={(item) => item.key}
-        renderSectionHeader={({ section }) => (
-          <View style={styles.aisleHeader}>
-            <Text style={[styles.aisle, { color: theme.text }]} accessibilityRole="header">
-              {section.title}
-            </Text>
-            {section.more ? (
-              <Pressable
-                onPress={() => section.more && setTab(section.more)}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={`Alle ${section.title} anzeigen`}
-              >
-                <Text style={[styles.more, { color: theme.textGreen }]}>Alle anzeigen</Text>
-              </Pressable>
-            ) : null}
-          </View>
-        )}
-        renderItem={({ item }) => (
-          <MarketCard
-            {...marketplaceCardProps(item, token)}
-            onPress={() => (onPick ? onPick(item) : setOpened({ kind: item.kind, ref: item.ref }))}
-            onToggleAdded={() => actions.toggleSave(item)}
-          />
-        )}
-        ItemSeparatorComponent={Gap}
-        stickySectionHeadersEnabled={false}
-        ListEmptyComponent={<>{placeholder}</>}
-        ListFooterComponent={
-          !multi && paged.isFetchingNextPage ? (
-            <ActivityIndicator color={theme.textGreen} style={styles.footer} />
-          ) : null
-        }
-        onEndReached={() => {
-          if (!multi && paged.hasNextPage && !paged.isFetchingNextPage) void paged.fetchNextPage();
-        }}
-        onEndReachedThreshold={0.5}
-        initialNumToRender={8}
-        style={styles.list}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        keyboardDismissMode="on-drag"
-        keyboardShouldPersistTaps="handled"
-      />
+      {showFrontpage ? (
+        <MarketplaceFrontpage
+          locale={locale}
+          lvIds={lvIds}
+          token={token}
+          actions={actions}
+          onSelect={(item) => setOpened({ kind: item.kind, ref: item.ref })}
+          onBrowse={(patch) => {
+            if (patch.tab) setTab(patch.tab);
+            if ('origin' in patch) setOrigin(patch.origin ?? null);
+            if (patch.sort) setSort(patch.sort);
+          }}
+        />
+      ) : (
+        <SectionList
+          sections={aisles}
+          keyExtractor={(item) => item.key}
+          renderSectionHeader={({ section }) => (
+            <View style={styles.aisleHeader}>
+              <Text style={[styles.aisle, { color: theme.text }]} accessibilityRole="header">
+                {section.title}
+              </Text>
+              {section.more ? (
+                <Pressable
+                  onPress={() => section.more && setTab(section.more)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Alle ${section.title} anzeigen`}
+                >
+                  <Text style={[styles.more, { color: theme.textGreen }]}>Alle anzeigen</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          )}
+          renderItem={({ item }) => (
+            <MarketCard
+              {...marketplaceCardProps(item, token)}
+              onPress={() =>
+                onPick ? onPick(item) : setOpened({ kind: item.kind, ref: item.ref })
+              }
+              onToggleAdded={() => actions.toggleSave(item)}
+            />
+          )}
+          ItemSeparatorComponent={Gap}
+          stickySectionHeadersEnabled={false}
+          ListEmptyComponent={<>{placeholder}</>}
+          ListFooterComponent={
+            !multi && paged.isFetchingNextPage ? (
+              <ActivityIndicator color={theme.textGreen} style={styles.footer} />
+            ) : null
+          }
+          onEndReached={() => {
+            if (!multi && paged.hasNextPage && !paged.isFetchingNextPage)
+              void paged.fetchNextPage();
+          }}
+          onEndReachedThreshold={0.5}
+          initialNumToRender={8}
+          style={styles.list}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
+        />
+      )}
     </View>
   );
 }
