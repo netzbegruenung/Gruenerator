@@ -5,7 +5,7 @@
  *
  * Pure: no React, no Konva. Text is measured through the injected `measure`.
  */
-import { type PrintImpressum } from '@gruenerator/contracts';
+import { type PrintImpressum, type PrintKontakt } from '@gruenerator/contracts';
 
 import { getBrandTheme, type BrandTheme } from '../brand/theme';
 import { mmToPx, printGeometry, type PrintCanvasFormat, type PrintRect } from '../formats';
@@ -275,7 +275,11 @@ export function impressumElement(f: Frame, text: string): AdditionalText {
     id: PRINT_IMPRESSUM_ID,
     text,
     type: 'body',
-    x: trim.x + inset - (size * lineHeight) / 2,
+    // The folded flyer carries it on the back panel, along the fold to the title (CD p. 29).
+    x:
+      f.format.id === 'print-flyer-dinlang'
+        ? trim.x + mmToPx(f.format, 197) - inset - (size * lineHeight) / 2
+        : trim.x + inset - (size * lineHeight) / 2,
     y: trim.y + trim.height - end,
     // The billboard is pasted from four parts (CD p. 43): no text across its horizontal join.
     width:
@@ -482,4 +486,63 @@ export function fitStack(
     blocks = fitWords(f, build(size), width);
   }
   return blocks;
+}
+
+/** `v` millimetres in canvas px. */
+export const mm = (f: Frame, v: number) => mmToPx(f.format, v);
+
+/** Contact lines: the letter in bold, then the value (CD p. 32 / p. 95). */
+const KONTAKT = [
+  ['T', 'telefon'],
+  ['M', 'mobil'],
+  ['E', 'mail'],
+  ['W', 'web'],
+] as const;
+
+export function kontaktText(slots: PrintKontakt): string | null {
+  const lines = KONTAKT.flatMap(([letter, key]) => {
+    const value = slots[key];
+    return value ? [`**${letter}** ${value}`] : [];
+  });
+  return lines.length ? lines.join('\n') : null;
+}
+
+/**
+ * Body copy set in `columns` balanced columns of `width` × `height`, in the
+ * editor's own line breaks; paragraphs (blank lines) stay apart. Returns each
+ * column's text; what does not fit is cut.
+ */
+export function flowColumns(
+  f: Frame,
+  text: string,
+  columns: number,
+  width: number,
+  height: number,
+  size: number,
+  family: string,
+  lineHeight: number
+): string[] {
+  const fits = Math.max(1, Math.floor(height / (size * lineHeight)));
+  const lines = text
+    .split(/\n\s*\n/)
+    .flatMap((paragraph, i) => [
+      ...(i > 0 ? [''] : []),
+      ...layoutTextLines(
+        f.measure,
+        paragraph.replace(/\s+/g, ' ').trim(),
+        width,
+        size,
+        family,
+        'normal',
+        null
+      ).map((line) => line.runs.map((run) => run.text).join('')),
+    ]);
+  // Balanced: short copy spreads over every column instead of filling the first.
+  const perColumn = Math.min(fits, Math.ceil(lines.length / columns));
+  return Array.from({ length: columns }, (_, c) =>
+    lines
+      .slice(c * perColumn, (c + 1) * perColumn)
+      .join('\n')
+      .replace(/^\n+|\n+$/g, '')
+  );
 }

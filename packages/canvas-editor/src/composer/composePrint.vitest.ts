@@ -709,3 +709,149 @@ describe('composePrint: AT posters', () => {
     expect(wide('dreizeilige', h.fontSize, 'Vollkorn')).toBeLessThanOrEqual(h.width);
   });
 });
+
+describe('composePrint: flyer, letterhead, newspaper', () => {
+  const kontakt = {
+    organisation: 'BÜNDNIS 90/DIE GRÜNEN Musterstadt',
+    name: 'Kim Grün',
+    adresse: 'Musterstraße 1, 12345 Musterstadt',
+    telefon: '0123 456789',
+    mail: 'ov@beispiel.de',
+    web: 'gruene-musterstadt.de',
+  };
+  const absatz = 'Ein Absatz mit ein paar Sätzen zum Thema, der auf dem Flyer gut lesbar bleibt.';
+  const flyer = {
+    locale: 'de-DE',
+    produkt: 'flyer',
+    variante: 'flyer-falz',
+    format: 'print-flyer-dinlang',
+    impressum: impressum('de-DE'),
+    slots: {
+      headline: 'Mehr Grün für Musterstadt',
+      akzent: 'Grün',
+      subline: 'Was wir vorhaben.',
+      abschnitte: Array.from({ length: 5 }, (_, i) => ({
+        ueberschrift: `Teil ${i + 1}`,
+        text: absatz,
+      })),
+      liste: { ueberschrift: 'Unsere Ziele', punkte: ['Radwege', 'Bäume', 'Busse'] },
+      kontakt,
+      stoerer: 'Jetzt Mitglied werden!',
+      web: 'gruene.de',
+      fotos: ['a.jpg', 'b.jpg', 'c.jpg', 'd.jpg'],
+    },
+  };
+  const a6 = (format: string) => ({
+    locale: 'de-AT',
+    produkt: 'flyer',
+    variante: 'flyer-a6',
+    format,
+    impressum: impressum('de-AT'),
+    slots: {
+      headline: 'Das ist eine dreizeilige Headline.',
+      akzent: 'Headline.',
+      stoerer: 'Hier steht ein Störer.',
+      foto: 'a.jpg',
+      rueckseite: {
+        headline: 'Worum es geht',
+        abschnitte: [
+          { ueberschrift: 'Eins', text: absatz },
+          { ueberschrift: 'Zwei', text: absatz },
+        ],
+        foto: 'b.jpg',
+      },
+    },
+  });
+  const brief = {
+    locale: 'de-DE',
+    produkt: 'briefbogen',
+    variante: 'briefbogen',
+    format: 'print-briefbogen-a4',
+    impressum: null,
+    slots: kontakt,
+  };
+  const artikel = Array.from({ length: 12 }, () => absatz).join('\n\n');
+  const zeitung = {
+    locale: 'de-AT',
+    produkt: 'zeitung',
+    variante: 'gemeindezeitung',
+    format: 'print-zeitung-a4',
+    impressum: impressum('de-AT'),
+    slots: {
+      titel: 'Grünes Blatt',
+      ausgabe: 'Ausgabe 02/26',
+      stoerer: 'Neu!',
+      foto: 'a.jpg',
+      teaser: Array.from({ length: 6 }, (_, i) => ({ headline: `Thema ${i + 1}`, text: 'Kurz.' })),
+      artikel: [
+        { headline: 'Ein Artikel', vorspann: 'Vorspann.', text: artikel, foto: 'b.jpg' },
+        { headline: 'Noch einer', text: artikel },
+      ],
+      kontakt,
+    },
+  };
+
+  const imprintPages = (result: ComposedPrint) =>
+    result.slides.flatMap((s, i) =>
+      s.additionalTexts.some((t) => t.id === PRINT_IMPRESSUM_ID) ? [i] : []
+    );
+
+  it.each([
+    ['flyer DIN lang', flyer, 2, [0]],
+    ['flyer A6 hoch', a6('print-a6-hoch'), 2, [1]],
+    ['flyer A6 quer', a6('print-a6-quer'), 2, [1]],
+    ['letterhead', brief, 2, []],
+    ['newspaper', zeitung, 4, [3]],
+  ] as const)(
+    '%s: its pages, the imprint where the format wants it, all inside the safe zone',
+    (_, s, pages, imprint) => {
+      const result = compose(s);
+      expect(result.slides).toHaveLength(pages);
+      expect(imprintPages(result)).toEqual(imprint);
+      const format = getCanvasFormat(result.format)!;
+      expect(format.print?.seiten).toBe(pages);
+      expectInSafeZone(result);
+    }
+  );
+
+  it('puts the folded flyer’s imprint along the fold to the title panel', () => {
+    const result = compose(flyer);
+    const { trim } = printGeometry(getCanvasFormat('print-flyer-dinlang') as never);
+    const box = textBox(textOf(result, 0, PRINT_IMPRESSUM_ID)!);
+    const fold = trim.x + (197 / 297) * trim.width;
+    expect(box.x + box.width).toBeLessThan(fold);
+    expect(box.x).toBeGreaterThan(fold - 0.06 * trim.width);
+  });
+
+  it('keeps every flyer photo replaceable and in the sunflower’s CD colour', () => {
+    const result = compose(flyer);
+    const fotos = result.slides.flatMap((s) => s.userImageInstances.map((i) => i.fileName));
+    expect(fotos.sort()).toEqual(['a.jpg', 'b.jpg', 'c.jpg', 'd.jpg']);
+    expect(sunflowers(result).every((a) => a.assetId === 'sunflower')).toBe(true);
+  });
+
+  it('sets the articles in three balanced columns', () => {
+    const result = compose(zeitung);
+    for (const page of [1, 2]) {
+      const spalten = result.slides[page]!.additionalTexts.filter((t) =>
+        t.id.startsWith('pr-spalte-')
+      );
+      expect(spalten.map((t) => t.id)).toEqual(['pr-spalte-1', 'pr-spalte-2', 'pr-spalte-3']);
+      const lines = spalten.map((t) => t.text.split('\n').length);
+      expect(Math.max(...lines) - Math.min(...lines)).toBeLessThanOrEqual(2);
+    }
+    // Nothing of a fitting article is lost.
+    const words = (text: string) => text.replace(/\s+/g, ' ').trim();
+    const set = result.slides[2]!.additionalTexts.filter((t) => t.id.startsWith('pr-spalte-'))
+      .map((t) => t.text)
+      .join(' ');
+    expect(words(set).length).toBe(words(artikel.replace(/\n\s*\n/g, ' ')).length);
+  });
+
+  it('gives the letterhead its band on the first page only', () => {
+    const result = compose(brief);
+    expect(result.slides[0]!.shapeInstances.map((s) => s.id)).toEqual(['pr-band']);
+    expect(result.slides[1]!.shapeInstances).toEqual([]);
+    expect(result.slides[0]!.assetInstances.map((a) => a.assetId)).toEqual(['gruene-de-logo']);
+  });
+});

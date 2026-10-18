@@ -35,6 +35,8 @@ import {
   type MeasureText,
 } from './chromeParts';
 import { type ComposedSlide } from './composeSharepic';
+import { briefbogen, gemeindezeitung } from './printBriefbogenZeitung';
+import { flyerA6, flyerFalz } from './printFlyer';
 import {
   ART,
   BODY_LEADING,
@@ -52,6 +54,7 @@ import {
   withAccent,
   wordsFit,
   blockHeight,
+  kontaktText,
   type Block,
   type Frame,
   type Page,
@@ -74,20 +77,6 @@ export interface ComposedPrint {
   format: PrintFormatId;
   /** One page per printed side, front first. */
   slides: ComposedSlide[];
-}
-const KONTAKT = [
-  ['T', 'telefon'],
-  ['M', 'mobil'],
-  ['E', 'mail'],
-  ['W', 'web'],
-] as const;
-
-function kontaktText(slots: PrintVisitenkarteSlots): string | null {
-  const lines = KONTAKT.flatMap(([letter, key]) => {
-    const value = slots[key];
-    return value ? [`**${letter}** ${value}`] : [];
-  });
-  return lines.length ? lines.join('\n') : null;
 }
 
 /** The impressum element of a poster in `formatId`, at its standard position (for re-adding a deleted one). */
@@ -124,6 +113,18 @@ export function composePrint(spec: PrintSpec, options: ComposePrintOptions = {})
     case 'overlay':
     case 'person':
       slides = [plakatAt(f, spec, options.photoSrc ?? printFotoSrc)];
+      break;
+    case 'flyer-falz':
+      slides = flyerFalz(f, spec, options.photoSrc ?? printFotoSrc);
+      break;
+    case 'flyer-a6':
+      slides = flyerA6(f, spec, options.photoSrc ?? printFotoSrc);
+      break;
+    case 'briefbogen':
+      slides = briefbogen(f, spec);
+      break;
+    case 'gemeindezeitung':
+      slides = gemeindezeitung(f, spec, options.photoSrc ?? printFotoSrc);
       break;
     default:
       slides = [plakatDe(f, spec, options.photoSrc ?? printFotoSrc)];
