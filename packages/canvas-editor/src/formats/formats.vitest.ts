@@ -44,6 +44,11 @@ describe('Format-Ids', () => {
       ['print-visitenkarte-hoch', 'print'],
       ['print-a3-hoch', 'print'],
       ['print-a4-hoch', 'print'],
+      ['print-a3-quer', 'print'],
+      ['print-a1-hoch', 'print'],
+      ['print-a1-quer', 'print'],
+      ['print-grossflaeche', 'print'],
+      ['print-citylight', 'print'],
     ]);
   });
 
@@ -66,11 +71,16 @@ describe('Druckformate', () => {
     ['print-visitenkarte-hoch', { w: 55, h: 85 }, 3, 2, 1341, 2000],
     ['print-a3-hoch', { w: 297, h: 420 }, 4, 1, 1423, 2000],
     ['print-a4-hoch', { w: 210, h: 297 }, 4, 1, 1426, 2000],
-  ])('%s', (id, trimMm, safeMm, seiten, width, height) => {
+    ['print-a3-quer', { w: 420, h: 297 }, 4, 1, 2000, 1423],
+    ['print-a1-hoch', { w: 594, h: 841 }, 10, 1, 1417, 2000, 150],
+    ['print-a1-quer', { w: 841, h: 594 }, 10, 1, 2000, 1417, 150],
+    ['print-grossflaeche', { w: 594, h: 420 }, 10, 1, 2000, 1420, 150],
+    ['print-citylight', { w: 237, h: 350 }, 8, 1, 1365, 2000, 150],
+  ])('%s', (id, trimMm, safeMm, seiten, width, height, exportDpi = 300) => {
     const f = print(id);
-    expect(f.print).toEqual({ trimMm, bleedMm: 3, safeMm, exportDpi: 300, seiten });
+    expect(f.print).toEqual({ trimMm, bleedMm: 3, safeMm, exportDpi, seiten });
     expect([f.width, f.height]).toEqual([width, height]);
-    expect(f.dpi).toBe(300);
+    expect(f.dpi).toBe(exportDpi);
     expect(f.group).toBe('print');
     expect(f.exportable).toEqual(['pdf', 'png']);
     expect(f.defaultExport).toBe('pdf');

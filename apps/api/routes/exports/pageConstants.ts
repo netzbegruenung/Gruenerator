@@ -40,14 +40,15 @@ const print = (
   height: number,
   trimMm: { w: number; h: number },
   safeMm: number,
-  seiten: 1 | 2
+  seiten: 1 | 2,
+  exportDpi = 300
 ): CanvasFormatLite => ({
   id,
   category: 'print',
   width,
   height,
-  dpi: 300,
-  print: { trimMm, bleedMm: 3, safeMm, exportDpi: 300, seiten },
+  dpi: exportDpi,
+  print: { trimMm, bleedMm: 3, safeMm, exportDpi, seiten },
 });
 
 /**
@@ -61,6 +62,11 @@ export const SERVER_FORMATS: Readonly<Record<string, CanvasFormatLite>> = {
   'print-visitenkarte-hoch': print('print-visitenkarte-hoch', 1341, 2000, { w: 55, h: 85 }, 3, 2),
   'print-a3-hoch': print('print-a3-hoch', 1423, 2000, { w: 297, h: 420 }, 4, 1),
   'print-a4-hoch': print('print-a4-hoch', 1426, 2000, { w: 210, h: 297 }, 4, 1),
+  'print-a3-quer': print('print-a3-quer', 2000, 1423, { w: 420, h: 297 }, 4, 1),
+  'print-a1-hoch': print('print-a1-hoch', 1417, 2000, { w: 594, h: 841 }, 10, 1, 150),
+  'print-a1-quer': print('print-a1-quer', 2000, 1417, { w: 841, h: 594 }, 10, 1, 150),
+  'print-grossflaeche': print('print-grossflaeche', 2000, 1420, { w: 594, h: 420 }, 10, 1, 150),
+  'print-citylight': print('print-citylight', 1365, 2000, { w: 237, h: 350 }, 8, 1, 150),
 };
 
 export function getServerFormat(id: string): CanvasFormatLite | null {

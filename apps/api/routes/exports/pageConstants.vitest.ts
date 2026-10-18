@@ -16,7 +16,7 @@ describe('SERVER_FORMATS', () => {
     );
   });
 
-  it('knows the four print formats', () => {
+  it('knows the print formats', () => {
     expect(
       Object.values(SERVER_FORMATS)
         .filter((f) => f.category === 'print')
@@ -26,6 +26,11 @@ describe('SERVER_FORMATS', () => {
       'print-visitenkarte-hoch',
       'print-a3-hoch',
       'print-a4-hoch',
+      'print-a3-quer',
+      'print-a1-hoch',
+      'print-a1-quer',
+      'print-grossflaeche',
+      'print-citylight',
     ]);
   });
 });

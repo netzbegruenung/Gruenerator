@@ -55,6 +55,8 @@ export const CANVAS_FORMAT_GROUP_ORDER: ReadonlyArray<CanvasFormatGroup> = [
 
 const PRINT_BLEED_MM = 3;
 const PRINT_EXPORT_DPI = 300;
+/** Large formats print from a distance: 150 dpi, the usual large-format rate. */
+const PRINT_LARGE_EXPORT_DPI = 150;
 /** Working resolution: the long side including bleed is 2000 px. */
 const PRINT_LONG_SIDE_PX = 2000;
 
@@ -63,7 +65,8 @@ function printFormat(
   name: string,
   trimMm: { w: number; h: number },
   safeMm: number,
-  seiten: 1 | 2
+  seiten: 1 | 2,
+  exportDpi = PRINT_EXPORT_DPI
 ): PrintCanvasFormat {
   const pxPerMm = PRINT_LONG_SIDE_PX / (Math.max(trimMm.w, trimMm.h) + 2 * PRINT_BLEED_MM);
   return {
@@ -74,11 +77,11 @@ function printFormat(
     category: 'print',
     width: Math.round((trimMm.w + 2 * PRINT_BLEED_MM) * pxPerMm),
     height: Math.round((trimMm.h + 2 * PRINT_BLEED_MM) * pxPerMm),
-    dpi: PRINT_EXPORT_DPI,
+    dpi: exportDpi,
     iconKey: trimMm.w > trimMm.h ? 'landscape' : 'portrait',
     defaultExport: 'pdf',
     exportable: ['pdf', 'png'],
-    print: { trimMm, bleedMm: PRINT_BLEED_MM, safeMm, exportDpi: PRINT_EXPORT_DPI, seiten },
+    print: { trimMm, bleedMm: PRINT_BLEED_MM, safeMm, exportDpi, seiten },
   };
 }
 
@@ -132,6 +135,20 @@ export const CANVAS_FORMATS: ReadonlyArray<CanvasFormat> = [
   printFormat('print-visitenkarte-hoch', 'Visitenkarte hoch', { w: 55, h: 85 }, 3, 2),
   printFormat('print-a3-hoch', 'Plakat A3 hoch', { w: 297, h: 420 }, 4, 1),
   printFormat('print-a4-hoch', 'Plakat A4 hoch', { w: 210, h: 297 }, 4, 1),
+  printFormat('print-a3-quer', 'Plakat A3 quer', { w: 420, h: 297 }, 4, 1),
+  printFormat('print-a1-hoch', 'Plakat A1 hoch', { w: 594, h: 841 }, 10, 1, PRINT_LARGE_EXPORT_DPI),
+  printFormat('print-a1-quer', 'Plakat A1 quer', { w: 841, h: 594 }, 10, 1, PRINT_LARGE_EXPORT_DPI),
+  // 18/1 billboard: the artwork is supplied at A2 and enlarged (CD p. 43).
+  printFormat(
+    'print-grossflaeche',
+    'Großfläche 18/1 (Vorlage A2)',
+    { w: 594, h: 420 },
+    10,
+    1,
+    PRINT_LARGE_EXPORT_DPI
+  ),
+  // Visible area 230 × 342 mm (CD p. 47): the safe zone ends inside it.
+  printFormat('print-citylight', 'Citylight', { w: 237, h: 350 }, 8, 1, PRINT_LARGE_EXPORT_DPI),
 ];
 
 export const DEFAULT_FORMAT_ID = 'post-portrait';
