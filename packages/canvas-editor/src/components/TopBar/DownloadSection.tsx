@@ -1,3 +1,4 @@
+import { PRINT_UNGETESTET_HINWEIS } from '@gruenerator/contracts';
 import {
   Button,
   Input,
@@ -294,6 +295,7 @@ export function DownloadSection({
         </>
       )}
 
+      {isPdf && <DownloadNotice tone="info">{PRINT_UNGETESTET_HINWEIS}</DownloadNotice>}
       {isPdf &&
         printWarnings.map((warning) => (
           <DownloadNotice key={warning} tone="info">

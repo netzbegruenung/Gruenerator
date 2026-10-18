@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { printImpressumSchema, printSpecSchema } from './printCreator.js';
+import { printFotoSrc, printImpressumSchema, printSpecSchema } from './printCreator.js';
 
 const visdp = { art: 'visdp', name: 'Max Muster', anschrift: 'Musterstr. 1, 10115 Berlin' };
 const medien = { art: 'impressum', medieninhaber: 'Die Grünen Wien', anschrift: 'Lindengasse 40' };
@@ -72,6 +72,20 @@ describe('printSpecSchema', () => {
     expect(printSpecSchema.safeParse({ ...plakat, produkt: 'visitenkarte' }).success).toBe(false);
   });
 
+  it('takes a colourway only where the variante offers it in that country', () => {
+    expect(printSpecSchema.safeParse({ ...karte, stil: 'klee' }).success).toBe(true);
+    expect(printSpecSchema.safeParse({ ...karte, stil: 'sand' }).success).toBe(true);
+    expect(
+      printSpecSchema.safeParse({ ...karte, locale: 'de-AT', stil: 'hellgruen' }).success
+    ).toBe(true);
+    expect(printSpecSchema.safeParse({ ...karte, stil: 'hellgruen' }).success).toBe(false);
+    expect(printSpecSchema.safeParse({ ...karte, locale: 'de-AT', stil: 'klee' }).success).toBe(
+      false
+    );
+    expect(printSpecSchema.safeParse({ ...plakat, stil: 'sand' }).success).toBe(false);
+    expect(printSpecSchema.safeParse({ ...karte, stil: 'lila' }).success).toBe(false);
+  });
+
   it('requires an impressum for posters', () => {
     expect(printSpecSchema.safeParse({ ...plakat, impressum: null }).success).toBe(false);
   });
@@ -81,6 +95,213 @@ describe('printSpecSchema', () => {
     expect(printSpecSchema.safeParse({ ...plakat, locale: 'de-AT' }).success).toBe(false);
     expect(printSpecSchema.safeParse({ ...karte, locale: 'de-AT', impressum: visdp }).success).toBe(
       false
+    );
+  });
+});
+
+describe('printSpecSchema: photo posters', () => {
+  const kandidat = {
+    locale: 'de-DE',
+    produkt: 'plakat',
+    variante: 'kandidat',
+    format: 'print-a1-hoch',
+    impressum: visdp,
+    slots: { name: 'Pit Mende', subline: 'Für NRW in den Landtag', foto: 'vorlage:person.jpg' },
+  };
+  const veranstaltung = {
+    locale: 'de-DE',
+    produkt: 'plakat',
+    variante: 'veranstaltung',
+    format: 'print-a3-quer',
+    impressum: visdp,
+    slots: {
+      headline: 'Wie wird die Stadt klimafest?',
+      mitwirkende: [{ rolle: 'Es diskutieren:', name: 'Kim Grün' }],
+      foto: 'wind-unsplash.jpg',
+    },
+  };
+
+  it('accepts candidate, topic and event posters on their formats', () => {
+    expect(printSpecSchema.safeParse(kandidat).success).toBe(true);
+    for (const format of ['print-a3-hoch', 'print-grossflaeche', 'print-citylight']) {
+      expect(printSpecSchema.safeParse({ ...kandidat, format }).success, format).toBe(true);
+    }
+    expect(
+      printSpecSchema.safeParse({
+        ...kandidat,
+        variante: 'thema',
+        stil: 'klee',
+        slots: { headline: 'Bus und Bahn für alle', foto: 'x.jpg' },
+      }).success
+    ).toBe(true);
+    expect(printSpecSchema.safeParse(veranstaltung).success).toBe(true);
+  });
+
+  it('takes only stock files and catalogue photos, the latter exactly as named', () => {
+    for (const foto of [
+      'upload:1',
+      'ki:abc',
+      'https://example.org/a.jpg',
+      'vorlage:../x.jpg',
+      'VORLAGE:person.jpg',
+      'vorlage:Person.JPG',
+    ]) {
+      expect(
+        printSpecSchema.safeParse({ ...kandidat, slots: { ...kandidat.slots, foto } }).success,
+        foto
+      ).toBe(false);
+    }
+  });
+
+  it('needs a photo for the event poster V1, none for the portraits variant', () => {
+    const { foto: _, ...ohneFoto } = veranstaltung.slots;
+    expect(printSpecSchema.safeParse({ ...veranstaltung, slots: ohneFoto }).success).toBe(false);
+    expect(
+      printSpecSchema.safeParse({ ...veranstaltung, stil: 'portraits', slots: ohneFoto }).success
+    ).toBe(true);
+  });
+
+  it('offers the DE photo posters in Germany only', () => {
+    const at = { art: 'impressum', medieninhaber: 'Die Grünen Wien', anschrift: 'Lindengasse 40' };
+    expect(printSpecSchema.safeParse({ ...kandidat, locale: 'de-AT', impressum: at }).success).toBe(
+      false
+    );
+  });
+
+  it('keeps each variante on its formats and caps the speakers', () => {
+    expect(printSpecSchema.safeParse({ ...kandidat, format: 'print-a3-quer' }).success).toBe(false);
+    expect(
+      printSpecSchema.safeParse({ ...veranstaltung, format: 'print-grossflaeche' }).success
+    ).toBe(false);
+    const fuenf = Array.from({ length: 5 }, (_, i) => ({ name: `Person ${i}` }));
+    expect(
+      printSpecSchema.safeParse({
+        ...veranstaltung,
+        slots: { ...veranstaltung.slots, mitwirkende: fuenf },
+      }).success
+    ).toBe(false);
+  });
+});
+
+describe('printSpecSchema: AT posters', () => {
+  const at = { art: 'impressum', medieninhaber: 'Die Grünen Wien', anschrift: 'Lindengasse 40' };
+  const plakat = (variante: string, extra: object = {}) => ({
+    locale: 'de-AT',
+    produkt: 'plakat',
+    variante,
+    format: 'print-a1-hoch',
+    impressum: at,
+    slots: { headline: 'Das ist eine dreizeilige Headline.', akzent: 'dreizeilige', foto: 'x.jpg' },
+    ...extra,
+  });
+
+  it('accepts split, overlay and person posters in Austria only', () => {
+    for (const variante of ['geteilt', 'overlay', 'person']) {
+      expect(printSpecSchema.safeParse(plakat(variante)).success, variante).toBe(true);
+      expect(printSpecSchema.safeParse(plakat(variante, { format: 'print-a3-quer' })).success).toBe(
+        true
+      );
+      expect(
+        printSpecSchema.safeParse(
+          plakat(variante, {
+            locale: 'de-DE',
+            impressum: { art: 'visdp', name: 'A', anschrift: 'B' },
+          })
+        ).success
+      ).toBe(false);
+    }
+  });
+
+  it('gives the overlay its Hellgrün box, and nothing else a stil', () => {
+    expect(printSpecSchema.safeParse(plakat('overlay', { stil: 'hellgruen' })).success).toBe(true);
+    expect(printSpecSchema.safeParse(plakat('geteilt', { stil: 'hellgruen' })).success).toBe(false);
+  });
+
+  it('needs the photo', () => {
+    expect(
+      printSpecSchema.safeParse(plakat('person', { slots: { headline: 'Ohne Foto' } })).success
+    ).toBe(false);
+  });
+});
+
+describe('printSpecSchema: flyer, letterhead, newspaper', () => {
+  const visdp = { art: 'visdp', name: 'Vorname Nachname', anschrift: 'Straße Nr., PLZ Ort' };
+  const at = {
+    art: 'impressum',
+    medieninhaber: 'Name/Organisation',
+    anschrift: 'Straße Nr., PLZ Ort',
+  };
+  const flyer = {
+    locale: 'de-DE',
+    produkt: 'flyer',
+    variante: 'flyer-falz',
+    format: 'print-flyer-dinlang',
+    impressum: visdp,
+    slots: {
+      headline: 'Mehr Grün für die Stadt',
+      abschnitte: [{ ueberschrift: 'Worum es geht', text: 'Ein Absatz.' }],
+      kontakt: { organisation: 'BÜNDNIS 90/DIE GRÜNEN Musterstadt' },
+      fotos: ['a.jpg'],
+    },
+  };
+  const brief = {
+    locale: 'de-DE',
+    produkt: 'briefbogen',
+    variante: 'briefbogen',
+    format: 'print-briefbogen-a4',
+    impressum: null,
+    slots: { organisation: 'BÜNDNIS 90/DIE GRÜNEN Musterstadt', web: 'gruene-musterstadt.de' },
+  };
+  const zeitung = {
+    locale: 'de-AT',
+    produkt: 'zeitung',
+    variante: 'gemeindezeitung',
+    format: 'print-zeitung-a4',
+    impressum: at,
+    slots: {
+      titel: 'Zeitungsname',
+      ausgabe: 'Ausgabe 02/26',
+      foto: 'a.jpg',
+      teaser: [],
+      artikel: [
+        { headline: 'Eins', text: 'Text.' },
+        { headline: 'Zwei', text: 'Text.' },
+      ],
+      kontakt: {},
+    },
+  };
+
+  it('accepts each product on its format', () => {
+    expect(printSpecSchema.safeParse(flyer).success).toBe(true);
+    expect(printSpecSchema.safeParse(brief).success).toBe(true);
+    expect(printSpecSchema.safeParse(zeitung).success).toBe(true);
+  });
+
+  it('wants the imprint on flyer and newspaper, none on the letterhead', () => {
+    expect(printSpecSchema.safeParse({ ...flyer, impressum: null }).success).toBe(false);
+    expect(printSpecSchema.safeParse({ ...zeitung, impressum: null }).success).toBe(false);
+    expect(printSpecSchema.safeParse({ ...brief, impressum: visdp }).success).toBe(true);
+  });
+
+  it('keeps the newspaper at two articles and the flyer at five sections', () => {
+    expect(
+      printSpecSchema.safeParse({
+        ...zeitung,
+        slots: { ...zeitung.slots, artikel: [zeitung.slots.artikel[0]] },
+      }).success
+    ).toBe(false);
+    const sechs = Array.from({ length: 6 }, () => flyer.slots.abschnitte[0]);
+    expect(
+      printSpecSchema.safeParse({ ...flyer, slots: { ...flyer.slots, abschnitte: sechs } }).success
+    ).toBe(false);
+  });
+});
+
+describe('printFotoSrc', () => {
+  it('serves catalogue photos from the Vorlagen route and stock photos from the picker', () => {
+    expect(printFotoSrc('vorlage:person.jpg')).toBe('/api/sharepic-vorlagen/assets/person.jpg');
+    expect(printFotoSrc('wind-unsplash.jpg')).toBe(
+      '/api/image-picker/stock-image/wind-unsplash.jpg'
     );
   });
 });

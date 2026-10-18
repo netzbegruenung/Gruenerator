@@ -2,6 +2,7 @@ import {
   isSharepicSceneRef,
   isSharepicUploadId,
   SHAREPIC_VORLAGE_REF,
+  type PrintSpec,
   type SharepicCreatorLocale,
   type SharepicSeiteFileEntry,
   type SharepicSlide,
@@ -58,6 +59,33 @@ export function seiteProblems(
     }
   }
   return problems;
+}
+
+/** A print Vorlage's photos: each a stock photo we host or a file in `assets/`. */
+export function printProblems(spec: PrintSpec): string[] {
+  return printFotos(spec)
+    .filter((foto): foto is string => foto !== undefined)
+    .map(photoProblem)
+    .filter((p): p is string => p !== null);
+}
+
+function printFotos(spec: PrintSpec): (string | undefined)[] {
+  switch (spec.variante) {
+    case 'visitenkarte':
+    case 'typo':
+    case 'briefbogen':
+      return [];
+    case 'veranstaltung':
+      return [spec.slots.foto, ...(spec.slots.mitwirkende ?? []).map((m) => m.foto)];
+    case 'flyer-falz':
+      return spec.slots.fotos;
+    case 'flyer-a6':
+      return [spec.slots.foto, spec.slots.rueckseite.foto];
+    case 'gemeindezeitung':
+      return [spec.slots.foto, ...spec.slots.artikel.map((a) => a.foto)];
+    default:
+      return [spec.slots.foto];
+  }
 }
 
 function photoProblem(filename: string): string | null {

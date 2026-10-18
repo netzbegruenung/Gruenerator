@@ -91,7 +91,7 @@ import { useMobileSheetFit } from './hooks/useMobileSheetFit';
 import { usePageRefs } from './hooks/usePageRefs';
 import { usePageUndoRedoShortcuts } from './hooks/usePageUndoRedoShortcuts';
 import {
-  isPosterFormat,
+  needsImpressum,
   usePrintImpressumGate,
   type ObservedPages,
 } from './hooks/usePrintImpressumGate';
@@ -1376,7 +1376,7 @@ function CanvasEditorInner({
                   callbacks={getCallbacksForPage(page.id, page.configId)}
                   multiPageExport={index === 0 ? multiPageExportProps : undefined}
                   onStateChange={handlePageStateChange}
-                  onObservedState={isPosterFormat(printFormat) ? handleObservedState : undefined}
+                  onObservedState={needsImpressum(printFormat) ? handleObservedState : undefined}
                   onToolbarStateChange={
                     isActive && !isPreview ? handleToolbarStateChange : undefined
                   }

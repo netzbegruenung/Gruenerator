@@ -1,11 +1,15 @@
-import { type SharepicSeiteFileEntry, type SharepicVorlageFileEntry } from '@gruenerator/contracts';
+import {
+  printSpecSchema,
+  type SharepicSeiteFileEntry,
+  type SharepicVorlageFileEntry,
+} from '@gruenerator/contracts';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('./catalog.js', () => ({
   sharepicVorlageAssetFile: (file: string) => (file === 'person.jpg' ? `/assets/${file}` : null),
 }));
 
-const { seiteProblems, vorlageProblems } = await import('./vorlageProblems.js');
+const { printProblems, seiteProblems, vorlageProblems } = await import('./vorlageProblems.js');
 
 const entry = (over: Partial<SharepicVorlageFileEntry> = {}): SharepicVorlageFileEntry => ({
   id: 'de-zitat',
@@ -146,5 +150,25 @@ describe('vorlageProblems — photos', () => {
     expect(
       vorlageProblems(steckbrief({ quelle: 'upload:1', freisteller: 'vorlage:person.jpg' }))
     ).toEqual(['upload:1 belongs to one user, not to the catalogue']);
+  });
+});
+
+describe('printProblems', () => {
+  const veranstaltung = (foto: string, portrait: string) =>
+    printSpecSchema.parse({
+      locale: 'de-DE',
+      produkt: 'plakat',
+      variante: 'veranstaltung',
+      format: 'print-a3-hoch',
+      impressum: { art: 'visdp', name: 'Vorname Nachname', anschrift: 'Straße Nr., PLZ Ort' },
+      slots: { headline: 'Abend', foto, mitwirkende: [{ name: 'Kim', foto: portrait }] },
+    });
+
+  it('checks the poster photo and every portrait', () => {
+    expect(printProblems(veranstaltung('vorlage:person.jpg', 'vorlage:person.jpg'))).toEqual([]);
+    expect(printProblems(veranstaltung('vorlage:fehlt.jpg', 'vorlage:auch.jpg'))).toEqual([
+      'missing asset fehlt.jpg',
+      'missing asset auch.jpg',
+    ]);
   });
 });

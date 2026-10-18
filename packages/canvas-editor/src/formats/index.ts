@@ -18,8 +18,16 @@ export interface CanvasPrintSpec {
   bleedMm: number;
   safeMm: number;
   exportDpi: number;
-  seiten: 1 | 2;
+  seiten: number;
+  /**
+   * Where the V.i.S.d.P. / Impressum must stand: on every page (a poster set
+   * of separate sheets), on the first or last page only, or nowhere (cards,
+   * letterheads).
+   */
+  impressum: PrintImpressumSeite | null;
 }
+
+export type PrintImpressumSeite = 'jede-seite' | 'erste-seite' | 'letzte-seite';
 
 export interface CanvasFormat {
   id: string;
@@ -55,6 +63,8 @@ export const CANVAS_FORMAT_GROUP_ORDER: ReadonlyArray<CanvasFormatGroup> = [
 
 const PRINT_BLEED_MM = 3;
 const PRINT_EXPORT_DPI = 300;
+/** Large formats print from a distance: 150 dpi, the usual large-format rate. */
+const PRINT_LARGE_EXPORT_DPI = 150;
 /** Working resolution: the long side including bleed is 2000 px. */
 const PRINT_LONG_SIDE_PX = 2000;
 
@@ -63,22 +73,24 @@ function printFormat(
   name: string,
   trimMm: { w: number; h: number },
   safeMm: number,
-  seiten: 1 | 2
+  seiten: number,
+  exportDpi = PRINT_EXPORT_DPI,
+  impressum: PrintImpressumSeite | null = seiten === 1 ? 'jede-seite' : null
 ): PrintCanvasFormat {
   const pxPerMm = PRINT_LONG_SIDE_PX / (Math.max(trimMm.w, trimMm.h) + 2 * PRINT_BLEED_MM);
   return {
     id,
     label: `${name} · ${trimMm.w} × ${trimMm.h} mm`,
-    description: `${trimMm.w} × ${trimMm.h} mm · ${PRINT_BLEED_MM} mm Beschnitt · ${seiten === 2 ? 'Vorder- und Rückseite' : 'einseitig'}`,
+    description: `${trimMm.w} × ${trimMm.h} mm · ${PRINT_BLEED_MM} mm Beschnitt · ${seiten === 1 ? 'einseitig' : seiten === 2 ? 'Vorder- und Rückseite' : `${seiten} Seiten`}`,
     group: 'print',
     category: 'print',
     width: Math.round((trimMm.w + 2 * PRINT_BLEED_MM) * pxPerMm),
     height: Math.round((trimMm.h + 2 * PRINT_BLEED_MM) * pxPerMm),
-    dpi: PRINT_EXPORT_DPI,
+    dpi: exportDpi,
     iconKey: trimMm.w > trimMm.h ? 'landscape' : 'portrait',
     defaultExport: 'pdf',
     exportable: ['pdf', 'png'],
-    print: { trimMm, bleedMm: PRINT_BLEED_MM, safeMm, exportDpi: PRINT_EXPORT_DPI, seiten },
+    print: { trimMm, bleedMm: PRINT_BLEED_MM, safeMm, exportDpi, seiten, impressum },
   };
 }
 
@@ -132,6 +144,58 @@ export const CANVAS_FORMATS: ReadonlyArray<CanvasFormat> = [
   printFormat('print-visitenkarte-hoch', 'Visitenkarte hoch', { w: 55, h: 85 }, 3, 2),
   printFormat('print-a3-hoch', 'Plakat A3 hoch', { w: 297, h: 420 }, 4, 1),
   printFormat('print-a4-hoch', 'Plakat A4 hoch', { w: 210, h: 297 }, 4, 1),
+  printFormat('print-a3-quer', 'Plakat A3 quer', { w: 420, h: 297 }, 4, 1),
+  printFormat('print-a1-hoch', 'Plakat A1 hoch', { w: 594, h: 841 }, 10, 1, PRINT_LARGE_EXPORT_DPI),
+  printFormat('print-a1-quer', 'Plakat A1 quer', { w: 841, h: 594 }, 10, 1, PRINT_LARGE_EXPORT_DPI),
+  // 18/1 billboard: the artwork is supplied at A2 and enlarged (CD p. 43).
+  printFormat(
+    'print-grossflaeche',
+    'Großfläche 18/1 (Vorlage A2)',
+    { w: 594, h: 420 },
+    10,
+    1,
+    PRINT_LARGE_EXPORT_DPI
+  ),
+  // Visible area 230 × 342 mm (CD p. 47): the safe zone ends inside it.
+  printFormat('print-citylight', 'Citylight', { w: 237, h: 350 }, 8, 1, PRINT_LARGE_EXPORT_DPI),
+  // Roll fold to DIN lang: panels 100 / 100 / 97 mm, outside and inside (CD p. 29/30).
+  printFormat(
+    'print-flyer-dinlang',
+    'Flyer DIN lang (A4 quer, Wickelfalz)',
+    { w: 297, h: 210 },
+    4,
+    2,
+    PRINT_EXPORT_DPI,
+    'erste-seite'
+  ),
+  printFormat(
+    'print-a6-hoch',
+    'Flyer A6 hoch',
+    { w: 105, h: 148 },
+    3,
+    2,
+    PRINT_EXPORT_DPI,
+    'letzte-seite'
+  ),
+  printFormat(
+    'print-a6-quer',
+    'Flyer A6 quer',
+    { w: 148, h: 105 },
+    3,
+    2,
+    PRINT_EXPORT_DPI,
+    'letzte-seite'
+  ),
+  printFormat('print-briefbogen-a4', 'Briefbogen A4', { w: 210, h: 297 }, 5, 2),
+  printFormat(
+    'print-zeitung-a4',
+    'Zeitung A4',
+    { w: 210, h: 297 },
+    5,
+    4,
+    PRINT_EXPORT_DPI,
+    'letzte-seite'
+  ),
 ];
 
 export const DEFAULT_FORMAT_ID = 'post-portrait';
