@@ -565,6 +565,7 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       }
 
       const updateData: Record<string, unknown> = {};
+      let snapshotToOpen: string | null = null;
 
       if (title !== undefined) updateData.title = String(title).trim();
       if (description !== undefined)
@@ -597,14 +598,15 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
         // may have shared the same snapshot with a group or by link, and the
         // gallery listing is already gone via is_private/status.
         if (!transition.is_private) {
-          const snapshotId = snapshotCanvasId(existingTemplate.content_data);
-          if (snapshotId) await markCanvasAsGalleryTemplate(snapshotId);
+          snapshotToOpen = snapshotCanvasId(existingTemplate.content_data);
         }
       }
 
       if (updateData.is_private === false && existingTemplate.moderation === 'removed') {
         return REMOVED_TEMPLATE;
       }
+
+      if (snapshotToOpen) await markCanvasAsGalleryTemplate(snapshotToOpen);
 
       if (metadata !== undefined) {
         const existingMetadata = (existingTemplate.metadata || {}) as Record<string, unknown>;
