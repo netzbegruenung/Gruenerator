@@ -651,6 +651,10 @@ describe('composePrint: AT posters', () => {
         expect(sunflowers(result)).toEqual([]);
       });
 
+      it('has no fade: every plane is one flat colour with hard edges', () => {
+        expect(slide.shapeInstances.filter((x) => x.fillGradient)).toEqual([]);
+      });
+
       it('sets the accent in yellow Vollkorn and the Störer in Magenta', () => {
         expect(textOf(result, 0, 'pr-headline')?.accent).toEqual({
           fill: at.accent,
