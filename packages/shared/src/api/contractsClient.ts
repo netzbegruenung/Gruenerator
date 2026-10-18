@@ -72,6 +72,7 @@ import {
   sharedTemplateContract,
   templateInteractionsContract,
   studioAssetsContract,
+  marketplaceContract,
   userAgentsContract,
   userAgentsSharingContract,
   skillPromptContract,
@@ -338,6 +339,7 @@ const _userTemplatesClient = () => initClient(userTemplatesContract, CLIENT_OPTS
 const _sharedTemplateClient = () => initClient(sharedTemplateContract, CLIENT_OPTS);
 const _templateInteractionsClient = () => initClient(templateInteractionsContract, CLIENT_OPTS);
 const _studioAssetsClient = () => initClient(studioAssetsContract, CLIENT_OPTS);
+const _marketplaceClient = () => initClient(marketplaceContract, CLIENT_OPTS);
 const _userAgentsClient = () => initClient(userAgentsContract, CLIENT_OPTS);
 const _userAgentsSharingClient = () => initClient(userAgentsSharingContract, CLIENT_OPTS);
 const _skillPromptClient = () => initClient(skillPromptContract, CLIENT_OPTS);
@@ -428,6 +430,7 @@ export interface ContractsClient {
   sharedTemplate: ReturnType<typeof _sharedTemplateClient>;
   templateInteractions: ReturnType<typeof _templateInteractionsClient>;
   studioAssets: ReturnType<typeof _studioAssetsClient>;
+  marketplace: ReturnType<typeof _marketplaceClient>;
   userAgents: ReturnType<typeof _userAgentsClient>;
   userAgentsSharing: ReturnType<typeof _userAgentsSharingClient>;
   skillPrompt: ReturnType<typeof _skillPromptClient>;
@@ -530,6 +533,7 @@ export function getContractsClient(): ContractsClient {
     sharedTemplate: _sharedTemplateClient(),
     templateInteractions: _templateInteractionsClient(),
     studioAssets: _studioAssetsClient(),
+    marketplace: _marketplaceClient(),
     userAgents: _userAgentsClient(),
     userAgentsSharing: _userAgentsSharingClient(),
     skillPrompt: _skillPromptClient(),
