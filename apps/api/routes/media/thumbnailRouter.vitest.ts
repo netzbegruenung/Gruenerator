@@ -31,6 +31,9 @@ const envMock = {
 };
 vi.mock('../../config/env.js', () => ({ env: envMock }));
 
+const log = { debug: vi.fn(), warn: vi.fn(), error: vi.fn(), info: vi.fn() };
+vi.mock('../../utils/logger.js', () => ({ createLogger: () => log }));
+
 const resolveThumbnailSource = vi.fn();
 vi.mock('../../services/media/thumbnailResolvers.js', () => ({
   resolveThumbnailSource: (...args: unknown[]) => resolveThumbnailSource(...args),
@@ -241,6 +244,30 @@ describe('GET /api/thumbs/:kind/:id/:v', () => {
       const res = await get(url);
       expect(res.status).toBe(404);
       expect(res.headers.get('cache-control')).toBe('no-store');
+    });
+
+    // #4732: both 404 branches answered the same body, so a missing file looked
+    // exactly like a deleted row. The log tells them apart; the client must not.
+    it('logs which branch 404ed, and where it looked, without telling the client', async () => {
+      log.debug.mockClear();
+      log.warn.mockClear();
+      const missing = path.join(tmpDir, 'missing-on-this-machine.png');
+      resolveThumbnailSource.mockResolvedValue({
+        ok: true,
+        sourcePath: missing,
+        contentType: 'image/png',
+      });
+      const url = buildThumbnailUrl({ ...D, v: 'gone-log' }, { w: 400, fmt: 'webp' }) as string;
+      const res = await get(url);
+      expect(res.status).toBe(404);
+      expect(await res.text()).not.toContain(tmpDir);
+      expect(log.warn).toHaveBeenCalledTimes(1);
+      expect(log.warn.mock.calls[0]?.[0]).toContain(missing);
+
+      resolveThumbnailSource.mockResolvedValue({ ok: false, reason: 'processing' });
+      await get(signed());
+      expect(log.debug).toHaveBeenCalledWith('404 media/abc123: processing');
+      expect(log.warn).toHaveBeenCalledTimes(1);
     });
 
     it('does not leak an internal failure as a broken 200', async () => {

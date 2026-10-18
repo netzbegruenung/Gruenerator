@@ -148,6 +148,40 @@ const RECENT_GRID = 'grid-cols-2 max-sm:gap-3';
 // Schematic preview bodies (placeholder bars, board/table/slides plates) are
 // shared with the Office overview — see components/common/SchematicPreviews.
 
+const ImagePlaceholder = () => (
+  <div
+    className="flex h-[128px] items-center justify-center sm:h-[210px]"
+    style={{
+      background:
+        'repeating-linear-gradient(135deg, var(--color-grey-100) 0 10px, var(--color-grey-200) 10px 20px)',
+    }}
+    aria-hidden
+  >
+    <span className="rounded-md bg-white/80 px-2 py-1 text-[11px] text-grey-500 dark:bg-grey-900/70 dark:text-grey-300">
+      Bild-Vorschau
+    </span>
+  </div>
+);
+
+/** A thumbnail that fails to load falls back to the placeholder, not a broken image (#4732). */
+const ThumbnailOrPlaceholder = ({ src, alt }: { src: string; alt: string }) => {
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  if (failedSrc === src) return <ImagePlaceholder />;
+  return (
+    <div className={PREVIEW_PLATE}>
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- onError is a load-failure fallback, not an interaction */}
+      <img
+        src={src}
+        alt={alt}
+        className="h-full w-full object-cover"
+        loading="lazy"
+        decoding="async"
+        onError={() => setFailedSrc(src)}
+      />
+    </div>
+  );
+};
+
 // Flat preview surface: media fills the plate (object-cover), documents show
 // their heading + excerpt directly on the tinted plate, boards a schematic, and
 // content-less items the prose outline — no floating paper sheet.
@@ -171,31 +205,13 @@ const PreviewArea = memo(({ item }: { item: RecentItem }) => {
     }
     if (item.thumbnailUrl) {
       return (
-        <div className={PREVIEW_PLATE}>
-          <img
-            src={resolveApiAssetUrl(shareThumbnailPreviewUrl(item.thumbnailUrl))}
-            alt={item.title || FALLBACK_TITLES[item.type]}
-            className="h-full w-full object-cover"
-            loading="lazy"
-            decoding="async"
-          />
-        </div>
+        <ThumbnailOrPlaceholder
+          src={resolveApiAssetUrl(shareThumbnailPreviewUrl(item.thumbnailUrl))}
+          alt={item.title || FALLBACK_TITLES[item.type]}
+        />
       );
     }
-    return (
-      <div
-        className="flex h-[128px] items-center justify-center sm:h-[210px]"
-        style={{
-          background:
-            'repeating-linear-gradient(135deg, var(--color-grey-100) 0 10px, var(--color-grey-200) 10px 20px)',
-        }}
-        aria-hidden
-      >
-        <span className="rounded-md bg-white/80 px-2 py-1 text-[11px] text-grey-500 dark:bg-grey-900/70 dark:text-grey-300">
-          Bild-Vorschau
-        </span>
-      </div>
-    );
+    return <ImagePlaceholder />;
   }
 
   // Tables show a few calm Label · Wert rows, centered on the plate.
