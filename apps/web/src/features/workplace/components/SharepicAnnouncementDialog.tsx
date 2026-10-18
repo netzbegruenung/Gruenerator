@@ -9,7 +9,7 @@ import {
   requestFeedback,
 } from '@gruenerator/ui';
 import { AnimatePresence, motion, MotionConfig, useReducedMotion } from 'motion/react';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import {
   HiArrowLeft,
   HiArrowRight,
@@ -215,6 +215,7 @@ function LaunchVideo() {
   const reduceMotion = useReducedMotion();
   const src = useMediaQuery('(max-width: 639px)') ? `${LAUNCH_VIDEO}-hochkant` : LAUNCH_VIDEO;
   return (
+    // Keine Untertitel nötig: keine Sprache, nur Musik; jeder Text steht im Bild und im aria-label.
     <video
       key={src}
       src={`${src}.mp4`}
@@ -450,6 +451,11 @@ export default function SharepicAnnouncementDialog({
   };
   const step = (delta: number) =>
     setIndex((i) => Math.min(SLIDES.length - 1, Math.max(0, i + delta)));
+  // Pfeiltasten und Wischen auf der Video-Steuerleiste gehören dem Video (Spulen, Lautstärke),
+  // nicht dem Folienwechsel. Die Steuerleiste lebt im Shadow DOM; ihre Events tragen das <video> als Ziel.
+  const inVideo = (target: EventTarget | null) =>
+    target instanceof Element && !!target.closest('video');
+  const panStartedInVideo = useRef(false);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -457,6 +463,7 @@ export default function SharepicAnnouncementDialog({
         className="gap-0 overflow-hidden p-0 max-sm:top-0 max-sm:left-0 max-sm:h-dvh max-sm:max-h-dvh max-sm:max-w-full max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-none max-sm:border-none sm:max-w-[860px]"
         onOpenAutoFocus={() => setIndex(0)}
         onKeyDown={(e) => {
+          if (inVideo(e.target)) return;
           if (e.key === 'ArrowRight') step(1);
           if (e.key === 'ArrowLeft') step(-1);
         }}
@@ -471,8 +478,12 @@ export default function SharepicAnnouncementDialog({
             // Wischen nur per Touch: mit der Maus soll Text markieren keine Folie wechseln.
             // pan-y lässt das senkrechte Scrollen des Textes beim Browser.
             style={{ touchAction: 'pan-y' }}
+            // Motion liest pointerup am window; nur beim pointerdown ist das Ziel noch verlässlich.
+            onPointerDownCapture={(e) => {
+              panStartedInVideo.current = inVideo(e.target);
+            }}
             onPanEnd={(event, info) => {
-              if (event.pointerType !== 'touch') return;
+              if (event.pointerType !== 'touch' || panStartedInVideo.current) return;
               if (Math.abs(info.offset.x) < 50 || Math.abs(info.offset.x) < Math.abs(info.offset.y))
                 return;
               step(info.offset.x < 0 ? 1 : -1);
