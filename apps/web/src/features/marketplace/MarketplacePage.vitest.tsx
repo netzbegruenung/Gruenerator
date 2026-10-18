@@ -4,8 +4,18 @@
  * gefiltert wird, der Landesverband nur mit Rolle, und eine Kachel öffnet ihre
  * Details an Ort und Stelle.
  */
-import { type MarketplaceItem, type MarketplaceSection } from '@gruenerator/contracts';
+import {
+  type MarketplaceFrontpageResponse,
+  type MarketplaceFrontpageShelfId,
+  type MarketplaceItem,
+  type MarketplaceSection,
+} from '@gruenerator/contracts';
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
+import {
+  FRONTPAGE_SHELF_QUERIES,
+  composeFrontpage,
+  featureFor,
+} from '@gruenerator/shared/marketplace/frontpage';
 import { http, HttpResponse } from 'msw';
 import { Route, Routes, useLocation } from 'react-router-dom';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -32,6 +42,8 @@ vi.mock('@gruenerator/chat', async (importOriginal) => ({
 }));
 
 let queries: URLSearchParams[] = [];
+let frontpageRequests = 0;
+let itemRequests = 0;
 let savedRefs = new Set<string>();
 let respond: (params: URLSearchParams) => MarketplaceSection[] = () => [];
 
@@ -45,6 +57,33 @@ const ALL: MarketplaceItem[] = [
   item('recipe', 'Fremdes Rezept', { origin: 'oeffentlich', authorName: 'Sam Beispiel' }),
   item('sticker', 'Sonnenblume', { authorName: 'Kim' }),
 ];
+
+/** The curated „Im Fokus" item as the server sees it; `null` = gone for this viewer. */
+let curated: MarketplaceItem | null = FEATURED;
+
+/** Like the server: one list per shelf, then the shared shelf rules. */
+function frontpageResponse(): MarketplaceFrontpageResponse {
+  const shelf = (id: MarketplaceFrontpageShelfId) => {
+    const spec = FRONTPAGE_SHELF_QUERIES[id];
+    if (id === 'landesverband' && !lv.ids?.length) return [];
+    return respond(
+      new URLSearchParams({
+        kinds: spec.kinds.join(','),
+        ...(spec.origin && { origin: spec.origin }),
+      })
+    );
+  };
+  const feature = featureFor('de-DE')!;
+  return composeFrontpage({
+    sections: {
+      landesverband: shelf('landesverband'),
+      neu: shelf('neu'),
+      beliebt: shelf('beliebt'),
+      gestalten: shelf('gestalten'),
+    },
+    curated: curated ? { feature, item: curated } : null,
+  });
+}
 
 /** Like the server: the asked kinds, filtered by origin and search. */
 function serveFrom(items: MarketplaceItem[], hasMore = false) {
@@ -94,6 +133,9 @@ beforeEach(() => {
   localStorage.clear();
   lv.ids = null;
   queries = [];
+  frontpageRequests = 0;
+  itemRequests = 0;
+  curated = FEATURED;
   savedRefs = new Set();
   serveFrom(ALL);
   server.use(
@@ -102,9 +144,14 @@ beforeEach(() => {
       queries.push(params);
       return HttpResponse.json(sectionsResponse(respond(params)));
     }),
-    http.get(`${API}/agent/gruenerator-leichte-sprache`, () =>
-      HttpResponse.json({ item: FEATURED })
-    ),
+    http.get(`${API}/frontpage`, () => {
+      frontpageRequests += 1;
+      return HttpResponse.json(frontpageResponse());
+    }),
+    http.get(`${API}/agent/gruenerator-leichte-sprache`, () => {
+      itemRequests += 1;
+      return HttpResponse.json({ item: FEATURED });
+    }),
     http.get('http://localhost/api/comments/:type/:id', () =>
       HttpResponse.json({ success: true, reactions: [], comments: [] })
     )
@@ -130,16 +177,10 @@ describe('MarketplacePage', () => {
     expect(screen.getByRole('region', { name: 'Nach Art stöbern' })).toBeInTheDocument();
 
     expect(screen.getByRole('button', { name: 'Start' })).toHaveAttribute('aria-pressed', 'true');
-    const asked = queries.map((q) => `${q.get('kinds')}|${q.get('sort')}`);
-    expect(asked).toEqual(
-      expect.arrayContaining([
-        'agent,recipe|neu',
-        'agent,recipe|beliebt',
-        'template,sticker,background|empfohlen',
-      ])
-    );
-    // The per-kind list is not asked for while the front page shows.
-    expect(asked).not.toContain('agent,recipe,template,sticker,background|empfohlen');
+    // One request for the whole page: no list per shelf, no extra one for „Im Fokus".
+    expect(frontpageRequests).toBe(1);
+    expect(queries).toEqual([]);
+    expect(itemRequests).toBe(0);
   });
 
   it('gives way to one section per kind as soon as someone searches', async () => {
@@ -220,11 +261,7 @@ describe('MarketplacePage', () => {
   });
 
   it('falls back to the newest official item when the featured one is not there', async () => {
-    server.use(
-      http.get(`${API}/agent/gruenerator-leichte-sprache`, () =>
-        HttpResponse.json({ success: false, message: 'Element nicht gefunden.' }, { status: 404 })
-      )
-    );
+    curated = null;
     renderPage();
 
     const focus = await screen.findByRole('region', { name: 'Pressearbeit' });
@@ -306,18 +343,14 @@ describe('MarketplacePage', () => {
 
   it('keeps an empty catalogue’s front page to the ways in', async () => {
     serveFrom([]);
-    server.use(
-      http.get(`${API}/agent/gruenerator-leichte-sprache`, () =>
-        HttpResponse.json({ success: false, message: 'Element nicht gefunden.' }, { status: 404 })
-      )
-    );
+    curated = null;
     renderPage();
 
     expect(await screen.findByRole('region', { name: 'Nach Art stöbern' })).toBeInTheDocument();
     expect(
       screen.getByRole('heading', { name: 'Du hast ein Rezept, das funktioniert?' })
     ).toBeInTheDocument();
-    await waitFor(() => expect(queries.length).toBeGreaterThan(0));
+    await waitFor(() => expect(frontpageRequests).toBe(1));
     expect(screen.queryByRole('region', { name: 'Neu im Marktplatz' })).toBeNull();
   });
 

@@ -202,6 +202,39 @@ export type MarketplaceLikeResponse = z.infer<typeof marketplaceLikeResponseSche
 export const marketplaceSaveResponseSchema = z.object({ saved: z.boolean() });
 export type MarketplaceSaveResponse = z.infer<typeof marketplaceSaveResponseSchema>;
 
+/** F0 — the shelves of the front page („Start"), in the order the server returns them. */
+export const marketplaceFrontpageShelfIdSchema = z.enum([
+  'landesverband',
+  'neu',
+  'beliebt',
+  'gestalten',
+]);
+export type MarketplaceFrontpageShelfId = z.infer<typeof marketplaceFrontpageShelfIdSchema>;
+
+export const marketplaceFrontpageShelfSchema = z.object({
+  shelfId: marketplaceFrontpageShelfIdSchema,
+  items: z.array(marketplaceItemSchema),
+  /** More behind „Alle anzeigen" than the shelf shows. */
+  hasMore: z.boolean(),
+});
+export type MarketplaceFrontpageShelf = z.infer<typeof marketplaceFrontpageShelfSchema>;
+
+export const marketplaceFrontpageQuerySchema = z.object({
+  platform: marketplacePlatformSchema.default('web'),
+});
+
+/**
+ * The whole front page in one answer. A shelf below its minimum is left out,
+ * not sent empty. `featureId` names the curated „Im Fokus" slot the item came
+ * from; `null` = the fallback (newest official item), which has no pitch.
+ */
+export const marketplaceFrontpageResponseSchema = z.object({
+  featured: marketplaceItemSchema.nullable(),
+  featureId: z.string().nullable(),
+  shelves: z.array(marketplaceFrontpageShelfSchema),
+});
+export type MarketplaceFrontpageResponse = z.infer<typeof marketplaceFrontpageResponseSchema>;
+
 export const marketplaceErrorSchema = z.object({
   success: z.literal(false),
   message: z.string(),

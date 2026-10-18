@@ -1,4 +1,5 @@
 import {
+  type MarketplaceFrontpageResponse,
   type MarketplaceItem,
   type MarketplaceKind,
   type MarketplaceListResponse,
@@ -68,6 +69,8 @@ export const marketplaceKeys = {
     [...MARKETPLACE_QUERY_KEY, 'kind', { kind: p.kind, ...filterKey(p) }] as const,
   item: (target: MarketplaceTarget, platform: MarketplacePlatform) =>
     [...MARKETPLACE_QUERY_KEY, 'item', { kind: target.kind, ref: target.ref, platform }] as const,
+  frontpage: (platform: MarketplacePlatform) =>
+    [...MARKETPLACE_QUERY_KEY, 'frontpage', { platform }] as const,
 };
 
 /** The query the contract takes; `null`/empty filters are left out rather than sent as strings. */
@@ -162,5 +165,26 @@ export function useMarketplaceItem(
     },
     enabled: target !== null && (options.enabled ?? true),
     retry: false,
+  });
+}
+
+/**
+ * The front page („Start") in one request: the featured item and the shelves,
+ * composed by the server (`composeFrontpage`). Under the Marktplatz key, so a
+ * like or save patches it like every list.
+ */
+export function useMarketplaceFrontpage(
+  options: { platform?: MarketplacePlatform; enabled?: boolean } = {}
+) {
+  const platform = options.platform ?? 'web';
+  return useQuery({
+    queryKey: marketplaceKeys.frontpage(platform),
+    queryFn: async (): Promise<MarketplaceFrontpageResponse> => {
+      const res = await getContractsClient().marketplace.frontpage({ query: { platform } });
+      if (res.status !== 200)
+        throw apiErrorFromResponse(res, 'Der Marktplatz konnte nicht geladen werden.');
+      return res.body;
+    },
+    enabled: options.enabled ?? true,
   });
 }
