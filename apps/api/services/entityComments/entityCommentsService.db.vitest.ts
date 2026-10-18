@@ -299,13 +299,13 @@ describe.skipIf(!url)('Kommentare an Marktplatz-Beiträgen (entityCommentsServic
     const reactions = await pool.query(
       `SELECT emoji, entity_comment_id, item_type, item_id, agent_id, agent_comment_id,
               template_comment_id
-         FROM entity_reactions ORDER BY emoji`
+         FROM entity_reactions ORDER BY emoji COLLATE "C"`
     );
     const legacy = { agent_id: null, agent_comment_id: null, template_comment_id: null };
     expect(reactions.rows).toEqual(
       expect.arrayContaining([
-        { emoji: '👍', entity_comment_id: parent, item_type: null, item_id: null, ...legacy },
         { emoji: '🎉', entity_comment_id: tmplComment, item_type: null, item_id: null, ...legacy },
+        { emoji: '👍', entity_comment_id: parent, item_type: null, item_id: null, ...legacy },
         { emoji: '🚀', entity_comment_id: null, item_type: 'agent', item_id: agent, ...legacy },
       ])
     );
