@@ -111,8 +111,8 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
   },
 
   // ── Organisieren ──────────────────────────────────────────────────────────
-  agents: {
-    note: 'Deine Agents, Rezepte und wiederkehrenden Aufgaben an einem Ort: eigene anlegen und aus dem Marktplatz offizielle und öffentliche dazuholen.',
+  marktplatz: {
+    note: 'Offizielle, Landesverbands- und öffentliche Agents, Rezepte, Vorlagen, Sticker und Hintergründe: stöbern, ausprobieren, zu deinen Grüneratoren holen und Eigenes teilen.',
     platform: ['web', 'desktop', 'mobile'],
     readMore: { label: 'Grüneratoren und Marktplatz', href: '/docs/features/marktplatz' },
   },

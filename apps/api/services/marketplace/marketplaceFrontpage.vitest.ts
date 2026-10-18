@@ -91,13 +91,13 @@ describe('getMarketplaceFrontpage', () => {
 
     expect(listed()).toEqual(
       expect.arrayContaining([
-        { kind: 'agent', sort: 'empfohlen', origin: 'landesverband', limit: 3 },
-        { kind: 'recipe', sort: 'empfohlen', origin: 'landesverband', limit: 3 },
-        { kind: 'agent', sort: 'neu', origin: null, limit: 4 },
-        { kind: 'recipe', sort: 'beliebt', origin: null, limit: 5 },
-        { kind: 'template', sort: 'empfohlen', origin: null, limit: 8 },
-        { kind: 'sticker', sort: 'empfohlen', origin: null, limit: 8 },
-        { kind: 'background', sort: 'empfohlen', origin: null, limit: 8 },
+        { kind: 'agent', sort: 'empfohlen', origin: 'landesverband', limit: 4 },
+        { kind: 'recipe', sort: 'empfohlen', origin: 'landesverband', limit: 4 },
+        { kind: 'agent', sort: 'neu', origin: null, limit: 5 },
+        { kind: 'recipe', sort: 'beliebt', origin: null, limit: 6 },
+        { kind: 'template', sort: 'empfohlen', origin: null, limit: 9 },
+        { kind: 'sticker', sort: 'empfohlen', origin: null, limit: 9 },
+        { kind: 'background', sort: 'empfohlen', origin: null, limit: 9 },
       ])
     );
     expect(m.list).toHaveBeenCalledTimes(9);

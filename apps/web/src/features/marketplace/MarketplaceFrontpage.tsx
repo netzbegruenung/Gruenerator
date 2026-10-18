@@ -223,7 +223,7 @@ export function MarketplaceFrontpage({
 
       <section
         aria-labelledby="marktplatz-mitmachen"
-        className="flex flex-wrap items-center justify-between gap-md rounded-xl bg-background-sand px-lg py-lg dark:bg-grey-800"
+        className="flex flex-wrap items-center justify-between gap-md rounded-xl bg-background-sand px-lg py-lg dark:border dark:border-grey-700"
       >
         <div className="flex max-w-[40rem] flex-col gap-1">
           <h2
@@ -238,7 +238,7 @@ export function MarketplaceFrontpage({
           </p>
         </div>
         <div className="flex flex-wrap gap-xs">
-          <Button asChild>
+          <Button asChild className="dark:bg-primary-700 dark:hover:bg-primary-800">
             <Link to="/agentura/rezept/neu">Rezept erstellen</Link>
           </Button>
           <Button asChild variant="outline">

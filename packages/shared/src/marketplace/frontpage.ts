@@ -117,33 +117,42 @@ const createdDesc = (a: MarketplaceItem, b: MarketplaceItem) =>
 /** Hidden below `min`: a shelf with one tile looks broken, not small. */
 const atLeast = (items: MarketplaceItem[], min: number) => (items.length >= min ? items : []);
 
+/**
+ * `exclude` is the focused item's key: it leaves before a shelf is cut to
+ * size, so the shelf still fills up and only then checks its minimum.
+ */
+const itemsOf = (sections: readonly MarketplaceSection[], exclude: string | null) =>
+  sections.flatMap((s) => s.items).filter((i) => i.key !== exclude);
+
 /** Landesverband shelf: the server's order across Agents and Rezepte. */
-export function landesverbandShelf(sections: readonly MarketplaceSection[]): MarketplaceItem[] {
+export function landesverbandShelf(
+  sections: readonly MarketplaceSection[],
+  exclude: string | null = null
+): MarketplaceItem[] {
   const { show, min } = FRONTPAGE_SHELVES.landesverband;
-  return atLeast(sections.flatMap((s) => s.items).slice(0, show), min);
+  return atLeast(itemsOf(sections, exclude).slice(0, show), min);
 }
 
 /** Newest first across kinds — every section is already newest-first within its kind. */
-export function newestShelf(sections: readonly MarketplaceSection[]): MarketplaceItem[] {
+export function newestShelf(
+  sections: readonly MarketplaceSection[],
+  exclude: string | null = null
+): MarketplaceItem[] {
   const { show, min } = FRONTPAGE_SHELVES.neu;
-  return atLeast(
-    sections
-      .flatMap((s) => s.items)
-      .sort(createdDesc)
-      .slice(0, show),
-    min
-  );
+  return atLeast(itemsOf(sections, exclude).sort(createdDesc).slice(0, show), min);
 }
 
 /**
  * Most liked across kinds. Only liked items count — an unliked one in a
  * „Beliebt" list would rank on nothing — so a young catalogue has no list yet.
  */
-export function popularShelf(sections: readonly MarketplaceSection[]): MarketplaceItem[] {
+export function popularShelf(
+  sections: readonly MarketplaceSection[],
+  exclude: string | null = null
+): MarketplaceItem[] {
   const { show, min } = FRONTPAGE_SHELVES.beliebt;
   return atLeast(
-    sections
-      .flatMap((s) => s.items)
+    itemsOf(sections, exclude)
       .filter((i) => i.likesCount > 0)
       .sort((a, b) => b.likesCount - a.likesCount || createdDesc(a, b))
       .slice(0, show),
@@ -152,9 +161,12 @@ export function popularShelf(sections: readonly MarketplaceSection[]): Marketpla
 }
 
 /** Image kinds taken in turns, so one kind with many items does not fill the row. */
-export function visualShelf(sections: readonly MarketplaceSection[]): MarketplaceItem[] {
+export function visualShelf(
+  sections: readonly MarketplaceSection[],
+  exclude: string | null = null
+): MarketplaceItem[] {
   const { show, min } = FRONTPAGE_SHELVES.gestalten;
-  const queues = sections.map((s) => [...s.items]);
+  const queues = sections.map((s) => s.items.filter((i) => i.key !== exclude));
   const out: MarketplaceItem[] = [];
   while (out.length < show && queues.some((q) => q.length > 0)) {
     for (const q of queues) {
@@ -187,11 +199,13 @@ export function composeFrontpage(input: {
 }): MarketplaceFrontpageResponse {
   const { sections, curated } = input;
   const featured = curated?.item ?? fallbackFeature(sections.neu);
+  // The featured item is not shown a second time in any shelf.
+  const focusKey = featured?.key ?? null;
   const items: Record<MarketplaceFrontpageShelfId, MarketplaceItem[]> = {
-    landesverband: landesverbandShelf(sections.landesverband),
-    neu: newestShelf(sections.neu).filter((i) => i.key !== featured?.key),
-    beliebt: popularShelf(sections.beliebt),
-    gestalten: visualShelf(sections.gestalten),
+    landesverband: landesverbandShelf(sections.landesverband, focusKey),
+    neu: newestShelf(sections.neu, focusKey),
+    beliebt: popularShelf(sections.beliebt, focusKey),
+    gestalten: visualShelf(sections.gestalten, focusKey),
   };
   // Top to bottom: the enum's order is the page's.
   const shelves: MarketplaceFrontpageShelf[] = marketplaceFrontpageShelfIdSchema.options

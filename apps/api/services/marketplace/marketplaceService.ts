@@ -83,7 +83,8 @@ export async function getMarketplaceFrontpage(
       sort: spec.sort,
       origin: spec.origin,
       platform: ctx.platform,
-      sectionLimit: FRONTPAGE_SHELVES[id].show,
+      // One spare per kind, so a shelf still fills up once the featured item leaves it.
+      sectionLimit: FRONTPAGE_SHELVES[id].show + 1,
     });
     return (await listMarketplace(ctx, query)).sections;
   };
