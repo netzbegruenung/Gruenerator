@@ -10,6 +10,7 @@ import {
 import { PiCaretLeftBold, PiMagnifyingGlass, PiX } from 'react-icons/pi';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
+import { useBlockInsert } from '../../../components/CanvasEditor/blockInsert';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { useIsCanvasMobile } from '../../../hooks/useIsCanvasMobile';
 import { useTrackUnsplashDownload } from '../../../hooks/useTrackUnsplashDownload';
@@ -27,10 +28,11 @@ import { galleryStickerItem, type ElementItem } from './elementTypes';
 import { EmojiTonePicker } from './EmojiTonePicker';
 import { RecentCarousel } from './RecentCarousel';
 import { StickerCatalog } from './StickerCatalog';
-import { canRun, useElementCatalog, type CategoryId } from './useElementCatalog';
+import { BLOCK_GRUPPEN, canRun, useElementCatalog, type CategoryId } from './useElementCatalog';
 import { useRecentElements } from './useRecentElements';
 
 import type { ExtendedAssetsSectionProps } from './AssetsSection';
+import type { SharepicBlock } from '@gruenerator/contracts';
 import type { StickerRef } from '@gruenerator/shared/stickers';
 
 /** Entrance: 12 staggered steps of 45 ms plus the 550 ms rise of the last one. */
@@ -94,6 +96,32 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
   return <h3 className="m-0 text-base font-bold text-[var(--editor-text)]">{children}</h3>;
 }
 
+/** The Blöcke category: its tiles under one heading per group (Listen, Text …). */
+function BlockGroups({
+  blocks,
+  items,
+  grid,
+}: {
+  blocks: readonly SharepicBlock[];
+  items: readonly ElementItem[];
+  grid: (items: readonly ElementItem[]) => React.ReactNode;
+}) {
+  const gruppeOf = new Map(blocks.map((b) => [`block:${b.id}`, b.gruppe]));
+  const groups = (Object.keys(BLOCK_GRUPPEN) as SharepicBlock['gruppe'][])
+    .map((gruppe) => ({ gruppe, items: items.filter((i) => gruppeOf.get(i.key) === gruppe) }))
+    .filter((g) => g.items.length > 0);
+  return (
+    <div className="flex flex-col gap-5">
+      {groups.map((g) => (
+        <section key={g.gruppe} className="flex flex-col gap-2.5">
+          <SectionHeading>{BLOCK_GRUPPEN[g.gruppe]}</SectionHeading>
+          {grid(g.items)}
+        </section>
+      ))}
+    </div>
+  );
+}
+
 /**
  * The Elemente tab: a start page (recent, brand, category cards), a category
  * page, and a search — in the category or across all of them. Desktop and
@@ -149,6 +177,11 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
     propsRef.current = props;
   });
   const remember = useRecentElements((s) => s.remember);
+  const blocks = useBlockInsert();
+  const blocksRef = useRef(blocks);
+  useLayoutEffect(() => {
+    blocksRef.current = blocks;
+  });
   const trackDownload = useTrackUnsplashDownload();
 
   const activate = useCallback(
@@ -185,6 +218,10 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
             action.name,
             action.attribution ? { attribution: action.attribution } : {}
           );
+          break;
+        case 'block':
+          if (!blocksRef.current) return;
+          void blocksRef.current.insert(action.blockId);
           break;
         case 'icon': {
           const selected = p.selectedIcons ?? [];
@@ -223,7 +260,7 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
 
   const storedRecent = useRecentElements((s) => s.items);
   const recent = useMemo(
-    () => storedRecent.filter((item) => canRun(item.action, props)),
+    () => storedRecent.filter((item) => canRun(item.action, props, blocks)),
     // `props` changes identity every render; what matters is which handlers exist.
 
     [
@@ -237,6 +274,7 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
       props.onAddBalken,
       props.onAddImageFromUrl,
       props.onIconToggle,
+      blocks,
     ]
   );
 
@@ -292,6 +330,9 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
       ) : category.isLoading ? (
         <p className="m-0 py-8 text-center text-sm text-[var(--editor-text-muted)]">Lädt …</p>
       ) : null;
+    if (category.id === 'bloecke' && !hasQuery && blocks) {
+      return <BlockGroups blocks={blocks.bloecke} items={items} grid={grid} />;
+    }
     if (category.id === 'emoji') {
       return (
         <>

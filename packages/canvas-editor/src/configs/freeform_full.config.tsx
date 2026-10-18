@@ -16,6 +16,7 @@ import { describeCanvasElements } from '../ai/describeCanvasElements';
 import { buildIllustrationCapability } from '../ai/illustrationCapability';
 import { withCardFollowingText } from '../composer/cardFollowsText';
 import { SHAREPIC_COLOR_HEX } from '../composer/composeSharepic';
+import { type LiftedBlock } from '../composer/liftBlock';
 import { AssetsSection } from '../sidebar';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
@@ -471,6 +472,28 @@ const withFreeformAi = (
           ...s,
           additionalTexts: [...s.additionalTexts, text],
           layerOrder: s.layerOrder.includes(text.id) ? s.layerOrder : [...s.layerOrder, text.id],
+        });
+        setState(change);
+        saveToHistory(change(getState()));
+      },
+
+      /**
+       * Adds a composed block (`liftBlock`) on top of the page as one history
+       * entry: every element in its collection, icons with their states.
+       */
+      insertBlock: (block: LiftedBlock) => {
+        const change = (s: FreeformState): FreeformState => ({
+          ...s,
+          additionalTexts: [...s.additionalTexts, ...block.additionalTexts],
+          shapeInstances: [...s.shapeInstances, ...block.shapeInstances],
+          assetInstances: [...s.assetInstances, ...block.assetInstances],
+          chartInstances: [...s.chartInstances, ...block.chartInstances],
+          userImageInstances: [...s.userImageInstances, ...block.userImageInstances],
+          pillBadgeInstances: [...s.pillBadgeInstances, ...block.pillBadgeInstances],
+          circleBadgeInstances: [...s.circleBadgeInstances, ...block.circleBadgeInstances],
+          selectedIcons: [...s.selectedIcons, ...block.selectedIcons],
+          iconStates: { ...s.iconStates, ...block.iconStates },
+          layerOrder: [...s.layerOrder, ...block.layerOrder],
         });
         setState(change);
         saveToHistory(change(getState()));

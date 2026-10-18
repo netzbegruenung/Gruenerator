@@ -5,7 +5,9 @@
  * them in `seiten/{de,at}.json` with `thumbs/seiten/<id>.<format>.webp`. The
  * Vorlagen saved as editor pages, for every format, are `canvas/{de,at}.json`
  * with `thumbs/canvas/<id>.webp`; the print Vorlagen `print/{de,at}.json` with
- * `thumbs/print/<id>.webp` (and `<id>-2.webp` for a card's back).
+ * `thumbs/print/<id>.webp` (and `<id>-2.webp` for a card's back). The blocks
+ * the editor drops onto a page are `bloecke/{de,at}.json` with
+ * `thumbs/bloecke/<id>.webp`.
  *
  * The editor offers only single Seiten: every Vorlage slide is one too
  * (`<vorlage>-s<n>`, previewed by the Vorlage's slide thumbnail), unless a
@@ -32,6 +34,8 @@ import {
   isSharepicUploadId,
   isSharepicVorlageRef,
   SHAREPIC_VORLAGE_REF,
+  sharepicBlockFileEntrySchema,
+  sharepicBlockSpec,
   sharepicFormatSchema,
   sharepicSeiteFileEntrySchema,
   sharepicSpecSchema,
@@ -40,6 +44,7 @@ import {
   slidePhotoFilename,
   type CanvasVorlage,
   type PrintVorlage,
+  type SharepicBlock,
   type SharepicFormat,
   type SharepicSeite,
   type SharepicSeiteRolle,
@@ -70,6 +75,7 @@ interface Catalog {
   derivedThumbs: Map<string, string>;
   canvas: CanvasVorlage[];
   print: PrintVorlage[];
+  bloecke: SharepicBlock[];
 }
 
 let cache: Catalog | null = null;
@@ -107,10 +113,12 @@ function contentSignature(): string {
     ...Object.values(FILES).map((name) => statKey(path.join(dir(), 'seiten', name))),
     ...Object.values(FILES).map((name) => statKey(path.join(dir(), 'canvas', name))),
     ...Object.values(FILES).map((name) => statKey(path.join(dir(), 'print', name))),
+    ...Object.values(FILES).map((name) => statKey(path.join(dir(), 'bloecke', name))),
     ...dirSignature(path.join(dir(), 'thumbs')),
     ...dirSignature(path.join(dir(), 'thumbs', 'seiten')),
     ...dirSignature(path.join(dir(), 'thumbs', 'canvas')),
     ...dirSignature(path.join(dir(), 'thumbs', 'print')),
+    ...dirSignature(path.join(dir(), 'thumbs', 'bloecke')),
   ].join('|');
 }
 
@@ -353,6 +361,31 @@ function loadPrint(locale: SharepicCreatorLocale): PrintVorlage[] {
   });
 }
 
+const blockThumbFile = (id: string): string => path.join(dir(), 'thumbs', 'bloecke', `${id}.webp`);
+
+function loadBloecke(locale: SharepicCreatorLocale): SharepicBlock[] {
+  const file = path.join(dir(), 'bloecke', FILES[locale]);
+  return readArray(file, 'Blöcke').flatMap((item, i) => {
+    const parsed = sharepicBlockFileEntrySchema.safeParse(item);
+    // The items must also hold as a slide of the file's country (colours, markers, limits).
+    const asSpec = parsed.success
+      ? sharepicSpecSchema.safeParse(sharepicBlockSpec(locale, parsed.data))
+      : null;
+    const issue = !parsed.success ? parsed.error.issues[0] : asSpec?.error?.issues[0];
+    if (!parsed.success || !asSpec?.success) {
+      log.error(`${file}[${i}] skipped: ${issue?.path.join('.')} ${issue?.message ?? 'invalid'}`);
+      return [];
+    }
+    return [
+      {
+        ...parsed.data,
+        locale,
+        thumbVersion: thumbVersionOf([blockThumbFile(parsed.data.id)]),
+      },
+    ];
+  });
+}
+
 /** Drops (and logs) every entry whose id came earlier. */
 function uniqueIds<T extends { id: string }>(entries: T[], what: string): T[] {
   const seen = new Set<string>();
@@ -382,9 +415,10 @@ function all(): Catalog {
       ...seitenWithVorlagen(curated, vorlagen),
       canvas: uniqueIds([...loadCanvas('de-DE'), ...loadCanvas('de-AT')], 'canvas Vorlage'),
       print: uniqueIds([...loadPrint('de-DE'), ...loadPrint('de-AT')], 'print Vorlage'),
+      bloecke: uniqueIds([...loadBloecke('de-DE'), ...loadBloecke('de-AT')], 'Block'),
     };
     log.info(
-      `Loaded ${cache.vorlagen.length} sharepic Vorlage(n), ${cache.seiten.length} Seite(n), ${cache.canvas.length} canvas and ${cache.print.length} print Vorlage(n) from ${dir()}`
+      `Loaded ${cache.vorlagen.length} sharepic Vorlage(n), ${cache.seiten.length} Seite(n), ${cache.canvas.length} canvas and ${cache.print.length} print Vorlage(n), ${cache.bloecke.length} Block/Blöcke from ${dir()}`
     );
   }
   return cache;
@@ -468,6 +502,21 @@ export function printVorlageThumbFile(id: string, seite = 1): string | null {
     return null;
   }
   return printThumbFile(id, seite);
+}
+
+/** The country's blocks, or both countries' when `locale` is null. */
+export function listSharepicBloecke(locale: SharepicCreatorLocale | null): SharepicBlock[] {
+  const { bloecke } = all();
+  return locale ? bloecke.filter((b) => b.locale === locale) : bloecke;
+}
+
+export function getSharepicBlock(id: string): SharepicBlock | null {
+  return all().bloecke.find((b) => b.id === id) ?? null;
+}
+
+/** Absolute path of a block's preview, or null for an unknown id. May be missing. */
+export function sharepicBlockThumbFile(id: string): string | null {
+  return getSharepicBlock(id) ? blockThumbFile(id) : null;
 }
 
 /**

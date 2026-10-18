@@ -8,14 +8,17 @@ import {
   canvasVorlageThumbFile,
   getCanvasVorlage,
   getPrintVorlage,
+  getSharepicBlock,
   getSharepicSeite,
   getSharepicVorlage,
   listCanvasVorlagen,
   listPrintVorlagen,
+  listSharepicBloecke,
   listSharepicSeiten,
   listSharepicVorlagen,
   printVorlageThumbFile,
   resetSharepicVorlagenCache,
+  sharepicBlockThumbFile,
   sharepicSeiteThumbFile,
   sharepicVorlageAssetFile,
   sharepicVorlageThumbFile,
@@ -276,6 +279,57 @@ describe('sharepic Seiten catalogue', () => {
     vi.advanceTimersByTime(31_000);
     writeFileSync(path.join(thumbs, 'de-text.post-portrait.webp'), 'bild-zwei');
     expect(getSharepicSeite('de-text')?.thumbVersion).not.toBe(first);
+  });
+});
+
+const block = (id: string, color: string, text = 'Mehr ++Busse++ am Abend') => ({
+  id,
+  titel: `Block ${id}`,
+  gruppe: 'listen',
+  stichworte: ['Aufzählung'],
+  color,
+  items: [{ type: 'liste', stil: 'pfeile', items: [text, 'Radwege ausbauen'] }],
+});
+
+describe('sharepic Blöcke catalogue', () => {
+  it('keeps the countries apart and carries the file country', () => {
+    writeCatalog({
+      'bloecke/de.json': [block('de-block-liste', 'mint')],
+      'bloecke/at.json': [block('at-block-liste', 'dunkelgruen', 'Mehr ==Busse== am Abend')],
+    });
+    expect(listSharepicBloecke('de-DE').map((b) => b.id)).toEqual(['de-block-liste']);
+    expect(listSharepicBloecke(null)).toHaveLength(2);
+    expect(getSharepicBlock('at-block-liste')).toMatchObject({
+      locale: 'de-AT',
+      gruppe: 'listen',
+      stichworte: ['Aufzählung'],
+    });
+  });
+
+  it('skips an invalid entry, a colour the country cannot show and a duplicate', () => {
+    writeCatalog({
+      'bloecke/de.json': [
+        block('de-block-liste', 'mint'),
+        { id: 'kaputt' },
+        block('de-block-liste', 'tanne'),
+        // Dunkelgrün is an AT colour.
+        block('de-block-falsch', 'dunkelgruen'),
+      ],
+    });
+    expect(listSharepicBloecke(null).map((b) => b.id)).toEqual(['de-block-liste']);
+  });
+
+  it('resolves the preview of a known block only', () => {
+    writeCatalog({ 'bloecke/de.json': [block('de-block-liste', 'mint')] });
+    expect(sharepicBlockThumbFile('de-block-liste')).toBe(
+      path.join(root, 'sharepic-vorlagen/thumbs/bloecke/de-block-liste.webp')
+    );
+    expect(sharepicBlockThumbFile('unbekannt')).toBeNull();
+  });
+
+  it('has no blocks when the folder is missing', () => {
+    writeCatalog({ 'de.json': [entry('de-rad', 'de-DE', 'tanne')] });
+    expect(listSharepicBloecke(null)).toEqual([]);
   });
 });
 
