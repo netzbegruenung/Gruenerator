@@ -105,6 +105,10 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
     note: 'Alle deine Bilder, Sharepics, KI-Bilder, Videos und Audios an einem Ort: hochladen (auch per Drag & Drop), nach Art filtern, durchsuchen, Titel und Alt-Text pflegen, herunterladen, teilen oder in den Papierkorb legen — ohne Obergrenze.',
     platform: ['web'],
   },
+  'bildgenerator-at': {
+    note: 'Nur für Österreich: ein Link zum Sharepic-Bildgenerator der Grünen Österreich auf bildgenerator.gruene.at. Er läuft außerhalb des Grünerators — was du dort erstellst, landet nicht in deiner Mediathek.',
+    platform: ['web'],
+  },
 
   // ── Organisieren ──────────────────────────────────────────────────────────
   agents: {

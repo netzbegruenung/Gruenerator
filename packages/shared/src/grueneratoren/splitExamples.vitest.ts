@@ -15,6 +15,19 @@ describe('splitExamples', () => {
     expect(res.examples).toEqual(['Hallo Welt', 'Zweiter Post']);
   });
 
+  it('splits on decorated headings', () => {
+    const res = splitExamples('--- Beispiel 1 ---\nEins\n## Post #2:\nZwei\nNr. 3)\nDrei');
+    expect(res.strategy).toBe('heading');
+    expect(res.examples).toEqual(['Eins', 'Zwei', 'Drei']);
+  });
+
+  it('stays linear on lines full of tabs', () => {
+    const line = 'post' + '\t'.repeat(50_000) + 'x';
+    const started = performance.now();
+    splitExamples(`${line}\nA\n\n\nB`);
+    expect(performance.now() - started).toBeLessThan(200);
+  });
+
   it('splits on bare numbering', () => {
     const res = splitExamples('1.\nErster\n2)\nZweiter');
     expect(res.strategy).toBe('numbered');

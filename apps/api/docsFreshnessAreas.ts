@@ -123,3 +123,25 @@ export function foldersForChangedFiles(changedFiles: string[]): string[] {
 function matchesPrefix(changedFile: string, prefix: string): boolean {
   return changedFile === prefix || changedFile.startsWith(`${prefix}/`);
 }
+
+/**
+ * The docs Docusaurus leaves out of the build (`docs.exclude` in
+ * `documentation/docusaurus.config.ts`), as a predicate over paths relative to
+ * `documentation/docs/`.
+ *
+ * Read from the config source instead of copied: an unpublished page is parked,
+ * not stale, and auditing it files an issue nobody can act on (#4646 asked to
+ * delete the Chrome-extension page, whose extension is waiting for the Web
+ * Store). Throws when the block is missing, so a reformatted config fails loudly
+ * instead of silently auditing everything again.
+ */
+export function unpublishedDocMatcher(configSource: string): (docPath: string) => boolean {
+  const block = /\bexclude:\s*\[([^\]]*)\]/.exec(configSource);
+  if (!block) throw new Error("No 'docs.exclude' array found in docusaurus.config.ts");
+  const entries = [...block[1].matchAll(/['"]([^'"]+)['"]/g)].map((m) => m[1]);
+  if (entries.length === 0) throw new Error("Parsed 'docs.exclude' but found no entries");
+  return (docPath) =>
+    entries.some((entry) =>
+      entry.endsWith('/**') ? docPath.startsWith(entry.slice(0, -2)) : docPath === entry
+    );
+}
