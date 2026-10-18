@@ -25,6 +25,8 @@ const adapter = {
   ensureInitialized: async () => {},
   query: async (text: string, params?: unknown[]): Promise<unknown[]> =>
     (await pool.query<Record<string, unknown>>(text, params)).rows,
+  queryOne: async (text: string, params?: unknown[]): Promise<unknown> =>
+    (await pool.query<Record<string, unknown>>(text, params)).rows[0] ?? null,
 };
 
 vi.mock('../../database/services/PostgresService/PostgresService.js', async (importOriginal) => ({
@@ -45,10 +47,23 @@ const {
 const { restoreOwnedRow } = await import('../trash/ownedRowTrash.js');
 const { STUDIO_ASSET_TRASH } = await import('../studioAssets/studioAssetTrash.js');
 const { isRemovedStudioAssetShare } = await import('../studioAssets/studioAssetShare.js');
-const { getPublicUserAgent, listPublicUserAgents } =
-  await import('../userAgents/userAgentsRepository.js');
-const { listPublicTextForms, updateTextFormSharing, upsertTextForm } =
-  await import('../user/textFormRepository.js');
+const {
+  getAccessibleUserAgentById,
+  getGroupSharedUserAgent,
+  getPublicUserAgent,
+  listMentionableUserAgents,
+  listPublicUserAgents,
+  listUserAgentsByIds,
+} = await import('../userAgents/userAgentsRepository.js');
+const {
+  getTextFormForInjection,
+  getTextFormForInjectionById,
+  listMentionableTextForms,
+  listPublicTextForms,
+  listTextForms,
+  updateTextFormSharing,
+  upsertTextForm,
+} = await import('../user/textFormRepository.js');
 const { buildGalleryTemplates } = await import('../../routes/auth/templates/templateGallery.js');
 
 const owner = randomUUID();
@@ -198,6 +213,7 @@ describe.skipIf(!url)('Meldungen (contentReportsService)', () => {
     await pool.query('DELETE FROM user_agents');
     await pool.query('DELETE FROM user_text_forms');
     await pool.query('DELETE FROM user_templates');
+    await pool.query('DELETE FROM groups');
   });
 
   it('stores one row per reporter and target; a repeat is a no-op', async () => {
@@ -562,6 +578,88 @@ describe.skipIf(!url)('Meldungen (contentReportsService)', () => {
 
     await pool.query("UPDATE user_agents SET moderation = 'removed'");
     expect(await getPublicUserAgent(identifier)).toBeUndefined();
+  });
+
+  it('a removed agent or recipe is cut off from its projects, its owner keeps it (#4700)', async () => {
+    const member = reporters[0]!;
+    const project = (
+      await pool.query<{ id: string }>("INSERT INTO groups (name) VALUES ('OV') RETURNING id")
+    ).rows[0]!.id;
+    for (const userId of [owner, member]) {
+      await pool.query('INSERT INTO group_memberships (group_id, user_id) VALUES ($1, $2)', [
+        project,
+        userId,
+      ]);
+    }
+    const agent = await insertAgent({ shareMode: 'groups' });
+    const recipe = await insertRecipe({ isPublic: false });
+    for (const [type, id] of [
+      ['user_agents', agent],
+      ['user_text_forms', recipe],
+    ]) {
+      await pool.query(
+        `INSERT INTO group_content_shares (group_id, shared_by_user_id, content_type, content_id)
+         VALUES ($1, $2, $3, $4)`,
+        [project, owner, type, id]
+      );
+    }
+    const { identifier } = (
+      await pool.query<{ identifier: string }>('SELECT identifier FROM user_agents WHERE id = $1', [
+        agent,
+      ])
+    ).rows[0]!;
+    const { mention } = (
+      await pool.query<{ mention: string }>('SELECT mention FROM user_text_forms WHERE id = $1', [
+        recipe,
+      ])
+    ).rows[0]!;
+
+    const reach = async (userId: string) => ({
+      byId: (await getAccessibleUserAgentById(agent, userId))?.id ?? null,
+      byIdentifier: (await getGroupSharedUserAgent(identifier, userId))?.id ?? null,
+      groupBucket: (await listUserAgentsByIds([agent])).map((a) => a.id),
+      agentPicker: (await listMentionableUserAgents(userId)).map((a) => a.id),
+      recipes: (await listTextForms(userId)).map((f) => f.id),
+      recipePicker: (await listMentionableTextForms(userId)).map((f) => f.id),
+      injection: (await getTextFormForInjection(userId, mention))?.id ?? null,
+      injectionById: (await getTextFormForInjectionById(recipe, userId))?.id ?? null,
+    });
+    const everything = {
+      byId: agent,
+      byIdentifier: agent,
+      groupBucket: [agent],
+      agentPicker: [agent],
+      recipes: [recipe],
+      recipePicker: [recipe],
+      injection: recipe,
+      injectionById: recipe,
+    };
+
+    expect(await reach(member)).toEqual(everything);
+
+    // Hidden only leaves the public listing (#4703 decides more).
+    await pool.query("UPDATE user_agents SET moderation = 'hidden'");
+    await pool.query("UPDATE user_text_forms SET moderation = 'hidden'");
+    expect(await reach(member)).toEqual(everything);
+
+    await pool.query("UPDATE user_agents SET moderation = 'removed'");
+    await pool.query("UPDATE user_text_forms SET moderation = 'removed'");
+    expect(await reach(member)).toEqual({
+      byId: null,
+      byIdentifier: null,
+      groupBucket: [],
+      agentPicker: [],
+      recipes: [],
+      recipePicker: [],
+      injection: null,
+      injectionById: null,
+    });
+    // The owner still reaches both through the own-row branches.
+    expect((await getAccessibleUserAgentById(agent, owner))?.id).toBe(agent);
+    expect((await listMentionableUserAgents(owner)).map((a) => a.id)).toEqual([agent]);
+    expect((await listTextForms(owner)).map((f) => f.id)).toEqual([recipe]);
+    expect((await listMentionableTextForms(owner)).map((f) => f.id)).toEqual([recipe]);
+    expect((await getTextFormForInjection(owner, mention))?.id).toBe(recipe);
   });
 
   it('the public recipe listing shows the viewer country plus all', async () => {

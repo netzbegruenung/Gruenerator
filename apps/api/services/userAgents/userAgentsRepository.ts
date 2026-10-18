@@ -342,7 +342,12 @@ export async function listUserAgentsByIds(
     .select()
     .from(userAgents)
     .where(
-      and(inArray(userAgents.id, ids), ne(userAgents.share_mode, 'private'), notTrashed(userAgents))
+      and(
+        inArray(userAgents.id, ids),
+        ne(userAgents.share_mode, 'private'),
+        ne(userAgents.moderation, 'removed'),
+        notTrashed(userAgents)
+      )
     );
   return rows.map((row) => {
     const { systemRole: _systemRole, ...agent } = rowToAgent(row);
@@ -379,6 +384,7 @@ export async function getGroupSharedUserAgent(
        FROM user_agents ua
       WHERE ua.identifier = $1
         AND ua.share_mode <> 'private'
+        AND ua.moderation <> 'removed'
         AND ua.deleted_at IS NULL
         AND EXISTS (
           SELECT 1
@@ -410,7 +416,8 @@ export async function getGroupSharedUserAgent(
  * (`listPublicUserAgents`); someone opening one specific agent has already
  * found it, and filtering here would hide a German agent from an Austrian
  * account that was handed the link. Moderation likewise: a hidden agent only
- * leaves the listing, a removed one is gone for everyone but its owner.
+ * leaves the listing, a removed one is gone for everyone but its owner — the
+ * project-share paths above check it too (#4700).
  *
  * `identifier` is unique per OWNER, not globally, so the `LIMIT 1` has to pick
  * one — same `created_at, id` order as `getGroupSharedUserAgent`, so the choice
@@ -456,6 +463,7 @@ export async function getAccessibleUserAgentById(
           OR (ua.share_mode = 'authenticated' AND ua.moderation <> 'removed')
           OR (
             ua.share_mode <> 'private'
+            AND ua.moderation <> 'removed'
             AND EXISTS (
               SELECT 1
                 FROM group_content_shares gcs
@@ -568,6 +576,7 @@ export async function listMentionableUserAgents(
                ON gm.group_id = gcs.group_id AND gm.user_id = $1::uuid AND gm.is_active = true
       WHERE ua.user_id <> $1::uuid
         AND ua.share_mode <> 'private'
+        AND ua.moderation <> 'removed'
         AND ua.deleted_at IS NULL
         AND g.deleted_at IS NULL
       ORDER BY ua.created_at, ua.id, g.name`,

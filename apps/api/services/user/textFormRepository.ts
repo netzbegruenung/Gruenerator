@@ -237,6 +237,7 @@ export async function listTextForms(userId: string): Promise<TextForm[]> {
        LEFT JOIN profiles p ON p.id = tf.user_id
       WHERE tf.user_id <> $2::uuid
         AND tf.share_mode <> 'private'
+        AND tf.moderation <> 'removed'
         AND tf.deleted_at IS NULL
         AND g.deleted_at IS NULL
       ORDER BY tf.created_at, tf.id, g.name`,
@@ -343,8 +344,9 @@ function viewerAudience(locale: string): Exclude<GroupAudience, 'all'> {
  * every query that has to answer "may this user see this row". A share row of a
  * private recipe grants nothing: setting a recipe back to private revokes group
  * access without deleting the rows (#3803), and the sharing panel lists group
- * shares only in 'groups' mode. */
-const GROUP_SHARE_EXISTS = `(tf.share_mode <> 'private' AND EXISTS (
+ * shares only in 'groups' mode. A removed recipe grants nothing either: the
+ * moderation outcome reaches the Projekte too (#4700); a hidden one stays. */
+const GROUP_SHARE_EXISTS = `(tf.share_mode <> 'private' AND tf.moderation <> 'removed' AND EXISTS (
           SELECT 1 FROM group_content_shares gcs
            INNER JOIN group_memberships gm
                    ON gm.group_id = gcs.group_id AND gm.user_id = $1::uuid AND gm.is_active = TRUE
@@ -353,8 +355,8 @@ const GROUP_SHARE_EXISTS = `(tf.share_mode <> 'private' AND EXISTS (
         ))`;
 
 /** The public disjunct: listed, authenticated, unmoderated — and custom, never a system override.
- * Also the chat's public injection branch: a hidden or removed recipe stops loading for
- * everyone but its owner and the Projekte it is shared into. */
+ * Also the chat's public injection branch: a hidden recipe stops loading for everyone but
+ * its owner and the Projekte it is shared into, a removed one for everyone but its owner. */
 const PUBLIC_VISIBLE = `(tf.is_public = TRUE AND tf.share_mode = 'authenticated' AND tf.kind = 'custom'
           AND tf.moderation = 'ok')`;
 
