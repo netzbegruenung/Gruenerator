@@ -478,7 +478,9 @@ function CanvasEditorInner({
           prev.canMoveDown === report.canMoveDown &&
           prev.canDuplicate === report.canDuplicate &&
           prev.canDelete === report.canDelete &&
-          prev.isCropping === report.isCropping
+          prev.isCropping === report.isCropping &&
+          prev.selectionCount === report.selectionCount &&
+          prev.canCopy === report.canCopy
         ) {
           return prev;
         }

@@ -84,6 +84,16 @@ export function findDragNodes(root: Konva.Container, ids: readonly string[]): Ko
   return nodes;
 }
 
+/** Was „Alles auswählen“ nimmt: jedes ziehbare Element, wie ein Rahmen über die ganze Fläche. */
+export function selectableItemIds(root: Konva.Container): string[] {
+  const ids: string[] = [];
+  for (const item of canvasItems(root)) {
+    const id = itemId(item);
+    if (id !== null && dragNodeOfItem(item)) ids.push(id);
+  }
+  return ids;
+}
+
 /** Alle ziehbaren Elemente, deren Umriss das Rechteck (Bühnenkoordinaten) schneidet. */
 export function itemsInRect(
   root: Konva.Container,

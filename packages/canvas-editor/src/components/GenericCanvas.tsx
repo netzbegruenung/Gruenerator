@@ -45,14 +45,17 @@ import {
 } from '../stores/CanvasStoreProvider';
 import { useAutoSaveStore } from '../stores/useAutoSaveStore';
 import { alignElementX, alignElementY } from '../utils/alignment';
+import { createCanvasCommands, type ClientPoint } from '../utils/canvasCommands';
 import { canvasFontFamilies } from '../utils/canvasFontFamilies';
 import { buildCanvasItems, buildSortedRenderList } from '../utils/canvasLayerManager';
 import { captureStageImage, captureStageImageAsync } from '../utils/captureStage';
+import { itemBodyRect } from '../utils/deepSelect';
 import { ensureFontsReady } from '../utils/ensureFontsReady';
 import { MAX_ICON_SELECTIONS, selectedCatalogIconIds } from '../utils/iconInstances';
 import { locateDrop, type ElementDragPayload, type MediaDragPayload } from '../utils/mediaDrop';
 import { PendingImagesContext } from '../utils/pendingImages';
 import { stageCssScale } from '../utils/stageCssScale';
+import { findTemplateEntry } from '../utils/templateElementInstance';
 import { getOptimalContainerWidth } from '../utils/viewport';
 
 import { CanvasRenderLayer } from './CanvasRenderLayer';
@@ -73,6 +76,7 @@ import type { ShadowPatch } from '../hooks/useFloatingModuleHandlers';
 import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
 import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
+import type { PageCommandId } from '../utils/canvasCommandRegistry';
 import type { GradientFill } from '../utils/gradientFill';
 import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
@@ -93,6 +97,10 @@ export interface ToolbarStateReport {
   canDelete: boolean;
   /** The selected framed photo is in Ausschnitt mode. */
   isCropping: boolean;
+  /** Wie viele Elemente ausgewählt sind; bei mehr als einem ist `selectedElement` null. */
+  selectionCount: number;
+  /** Lässt sich mindestens ein ausgewähltes Element kopieren? */
+  canCopy: boolean;
 }
 
 export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActions> {
@@ -226,6 +234,8 @@ export interface GenericCanvasRef {
   handleMoveLayer?: (direction: 'up' | 'down') => void;
   handleDuplicate?: () => void;
   handleDeleteElement?: () => void;
+  /** Führt einen Seiten-Befehl aus; `at` ist der Punkt eines Rechtsklicks. */
+  runCommand?: (id: PageCommandId, at: ClientPoint | null) => void;
   /** Box der Auswahl in Fensterkoordinaten, für Bedienelemente am Objekt. */
   getSelectionBox?: () => SelectionBox | null;
   /** Meldet Beginn (`true`) und Ende (`false`) von Ziehen und Transformieren;
@@ -613,24 +623,54 @@ function GenericCanvasWithRef<
     debouncedSaveToHistory,
   });
 
-  useCanvasKeyboardHandlers({
-    store,
-    state,
-    actions,
-    setState: setStateWrapper,
-    setSelectedElement,
-    elements: config.elements,
-    layout,
-    saveToHistory,
-    enabled: shortcutsEnabled,
-  });
-
   const canvasItems = useMemo(() => buildCanvasItems(config, state), [config, state]);
 
   const sortedRenderList = useMemo(
     () => buildSortedRenderList(canvasItems, state.layerOrder ?? []),
     [canvasItems, state.layerOrder]
   );
+
+  // The doors read the page at call time, not from a render closure: a menu
+  // or key acts on what is on screen now.
+  const commandInputsRef = useRef({ layout, sortedRenderList, actions });
+  useLayoutEffect(() => {
+    commandInputsRef.current = { layout, sortedRenderList, actions };
+  }, [layout, sortedRenderList, actions]);
+  const logicalScale = stageWidth / referenceWidth;
+  const commands = useMemo(
+    () =>
+      createCanvasCommands<TState>({
+        store,
+        getState: () => committedStateRef.current,
+        setState: setStateWrapper,
+        saveToHistory,
+        runHistoryBatch,
+        getActions: () => commandInputsRef.current.actions,
+        template: (id) =>
+          findTemplateEntry(
+            config.elements,
+            committedStateRef.current,
+            commandInputsRef.current.layout,
+            id
+          ),
+        getRenderList: () => commandInputsRef.current.sortedRenderList,
+        getStage: () => stageRef.current?.getStage() ?? null,
+        logicalScale: () => logicalScale,
+      }),
+    [store, setStateWrapper, saveToHistory, runHistoryBatch, config.elements, logicalScale]
+  );
+
+  useCanvasKeyboardHandlers({
+    store,
+    state,
+    actions,
+    setState: setStateWrapper,
+    setSelectedElement,
+    commands,
+    elements: config.elements,
+    saveToHistory,
+    enabled: shortcutsEnabled,
+  });
 
   // Bridge ref for ToolbarStateBridge → useImperativeHandle communication
   const bridgeRef = useRef<ToolbarBridgeState | null>(null);
@@ -791,23 +831,24 @@ function GenericCanvasWithRef<
       },
       undo,
       redo,
-      handleMoveLayer: (dir) => bridgeRef.current?.handleMoveLayer(dir),
-      handleDuplicate: () => bridgeRef.current?.handleDuplicate(),
-      handleDeleteElement: () => bridgeRef.current?.handleDelete(),
+      handleMoveLayer: (dir) => commands.moveLayer(dir === 'up' ? 'forward' : 'backward'),
+      handleDuplicate: commands.duplicate,
+      handleDeleteElement: commands.remove,
+      runCommand: commands.run,
       getSelectionBox: () => {
-        const selectedElement = store.getState().selectedElement;
+        const ids = store.getState().selectedLayerIds;
         const stage = stageRef.current?.getStage();
-        if (!selectedElement || !stage) return null;
-        // Instanz-Primitive (Formen, Balken, Illustrationen, Rahmen, …) tragen
-        // keine Konva-Id; ausgewählt hängt aber jedes an seinem Transformer.
-        const node =
-          stage.findOne(`#${selectedElement}`) ??
-          stage
-            .find<Konva.Transformer>('Transformer')
-            .map((tr) => tr.nodes()[0])
-            .find((n) => n !== undefined);
-        if (!node) return null;
-        const rect = node.getClientRect();
+        if (ids.length === 0 || !stage) return null;
+        const rects = ids.map((id) => itemBodyRect(stage, id)).filter((r) => r !== null);
+        if (rects.length === 0) return null;
+        const left = Math.min(...rects.map((r) => r.x));
+        const top = Math.min(...rects.map((r) => r.y));
+        const rect = {
+          x: left,
+          y: top,
+          width: Math.max(...rects.map((r) => r.x + r.width)) - left,
+          height: Math.max(...rects.map((r) => r.y + r.height)) - top,
+        };
         const container = stage.container().getBoundingClientRect();
         const cssScale = stageCssScale(stage, container);
         return {
@@ -869,6 +910,7 @@ function GenericCanvasWithRef<
       actions,
       stageWidth,
       referenceWidth,
+      commands,
     ]
   );
 
@@ -918,7 +960,6 @@ function GenericCanvasWithRef<
         actions={actions}
         sortedRenderList={sortedRenderList}
         setState={setStateWrapper}
-        saveToHistory={saveToHistory}
         debouncedSaveToHistory={debouncedSaveToHistory}
         canUndo={canUndo}
         canRedo={canRedo}
