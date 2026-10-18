@@ -1,7 +1,8 @@
 /**
- * `/marktplatz`: Reiter nach Art, Herkunft und Sortierung in der Adresse, ein
- * Abschnitt je Art unter „Alle", der Landesverband nur mit Rolle, und eine
- * Kachel öffnet ihre Details an Ort und Stelle.
+ * `/marktplatz`: „Start" als Startseite, Reiter nach Art, Herkunft und
+ * Sortierung in der Adresse, ein Abschnitt je Art, sobald gesucht oder
+ * gefiltert wird, der Landesverband nur mit Rolle, und eine Kachel öffnet ihre
+ * Details an Ort und Stelle.
  */
 import { type MarketplaceItem, type MarketplaceSection } from '@gruenerator/contracts';
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
@@ -33,6 +34,11 @@ vi.mock('@gruenerator/chat', async (importOriginal) => ({
 let queries: URLSearchParams[] = [];
 let savedRefs = new Set<string>();
 let respond: (params: URLSearchParams) => MarketplaceSection[] = () => [];
+
+const FEATURED = item('agent', 'Leichte Sprache', {
+  ref: 'gruenerator-leichte-sprache',
+  origin: 'offiziell',
+});
 
 const ALL: MarketplaceItem[] = [
   item('agent', 'Pressearbeit', { origin: 'offiziell' }),
@@ -96,6 +102,9 @@ beforeEach(() => {
       queries.push(params);
       return HttpResponse.json(sectionsResponse(respond(params)));
     }),
+    http.get(`${API}/agent/gruenerator-leichte-sprache`, () =>
+      HttpResponse.json({ item: FEATURED })
+    ),
     http.get('http://localhost/api/comments/:type/:id', () =>
       HttpResponse.json({ success: true, reactions: [], comments: [] })
     )
@@ -103,34 +112,102 @@ beforeEach(() => {
 });
 
 describe('MarketplacePage', () => {
-  it('shows one section per kind under „Alle", and asks for every kind', async () => {
+  it('opens on „Start": the featured item, then only the shelves that have enough', async () => {
     renderPage();
+
+    const focus = await screen.findByRole('region', { name: 'Leichte Sprache' });
+    expect(within(focus).getByRole('link', { name: 'Im Chat ausprobieren' })).toHaveAttribute(
+      'href',
+      '/agents/presse'
+    );
+    const fresh = await screen.findByRole('region', { name: 'Neu im Marktplatz' });
+    expect(within(fresh).getByRole('heading', { name: 'Pressearbeit' })).toBeInTheDocument();
+    expect(within(fresh).getByText('Rezept · Sam Beispiel')).toBeInTheDocument();
+    // Below their minimum: no likes yet, one image, no Landesverband.
+    expect(screen.queryByRole('region', { name: 'Beliebt' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Zum Gestalten' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Aus deinem Landesverband' })).toBeNull();
+    expect(screen.getByRole('region', { name: 'Nach Art stöbern' })).toBeInTheDocument();
+
+    expect(screen.getByRole('button', { name: 'Start' })).toHaveAttribute('aria-pressed', 'true');
+    const asked = queries.map((q) => `${q.get('kinds')}|${q.get('sort')}`);
+    expect(asked).toEqual(
+      expect.arrayContaining([
+        'agent,recipe|neu',
+        'agent,recipe|beliebt',
+        'template,sticker,background|empfohlen',
+      ])
+    );
+    // The per-kind list is not asked for while the front page shows.
+    expect(asked).not.toContain('agent,recipe,template,sticker,background|empfohlen');
+  });
+
+  it('gives way to one section per kind as soon as someone searches', async () => {
+    renderPage('/marktplatz?q=e');
 
     const agents = await screen.findByRole('region', { name: 'Agents' });
     expect(within(agents).getByRole('heading', { name: 'Pressearbeit' })).toBeInTheDocument();
-    expect(within(agents).getByText('Agent · Offiziell')).toBeInTheDocument();
-    const recipes = screen.getByRole('region', { name: 'Rezepte' });
-    expect(within(recipes).getByText('Rezept · Sam Beispiel')).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Sticker' })).toBeInTheDocument();
-    // An empty kind has no section.
-    expect(screen.queryByRole('region', { name: 'Vorlagen' })).toBeNull();
-
-    expect(Object.fromEntries(queries[0])).toMatchObject({
+    expect(screen.getByRole('region', { name: 'Rezepte' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Neu im Marktplatz' })).toBeNull();
+    expect(Object.fromEntries(queries.at(-1)!)).toMatchObject({
       kinds: 'agent,recipe,template,sticker,background',
-      sort: 'empfohlen',
-      scope: 'shop',
-      platform: 'web',
+      q: 'e',
       sectionLimit: '12',
     });
-    expect(screen.getByRole('button', { name: 'Alle' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('shows „Beliebt" and „Zum Gestalten" once there is enough', async () => {
+    serveFrom([
+      ...[1, 2, 3, 4, 5].map((n) => item('agent', `Agent ${n}`, { likesCount: n })),
+      item('template', 'Plakat'),
+      item('sticker', 'Sonne'),
+      item('background', 'Wiese'),
+    ]);
+    renderPage();
+
+    const popular = await screen.findByRole('region', { name: 'Beliebt' });
+    const rows = within(popular).getAllByRole('listitem');
+    expect(rows).toHaveLength(5);
+    expect(rows[0]).toHaveTextContent('Agent 5');
+    expect(screen.getByRole('region', { name: 'Zum Gestalten' })).toBeInTheDocument();
+  });
+
+  it('shows the Landesverband shelf only with a role', async () => {
+    lv.ids = ['hessen'];
+    serveFrom([
+      item('agent', 'LV-Agent', { origin: 'landesverband' }),
+      item('recipe', 'LV-Rezept', { origin: 'landesverband' }),
+    ]);
+    renderPage();
+
+    const shelf = await screen.findByRole('region', { name: 'Aus deinem Landesverband' });
+    expect(
+      within(shelf).getByRole('heading', { name: 'Aus deinem Landesverband · Grüne Hessen' })
+    ).toBeInTheDocument();
+    expect(within(shelf).getAllByRole('heading', { level: 3 })).toHaveLength(2);
+  });
+
+  it('falls back to the newest official item when the featured one is not there', async () => {
+    server.use(
+      http.get(`${API}/agent/gruenerator-leichte-sprache`, () =>
+        HttpResponse.json({ success: false, message: 'Element nicht gefunden.' }, { status: 404 })
+      )
+    );
+    renderPage();
+
+    const focus = await screen.findByRole('region', { name: 'Pressearbeit' });
+    expect(within(focus).getByText('Neu im Marktplatz')).toBeInTheDocument();
+    // The focused item is not shown a second time.
+    const fresh = await screen.findByRole('region', { name: 'Neu im Marktplatz' });
+    expect(within(fresh).queryByRole('heading', { name: 'Pressearbeit' })).toBeNull();
   });
 
   it('switches to one kind through its tab or „Alle anzeigen", pages it, and keeps it in the address', async () => {
     serveFrom(ALL, true);
     const { user } = renderPage();
-    const recipes = await screen.findByRole('region', { name: 'Rezepte' });
+    const kinds = await screen.findByRole('region', { name: 'Nach Art stöbern' });
 
-    await user.click(within(recipes).getByRole('button', { name: 'Alle anzeigen' }));
+    await user.click(within(kinds).getByRole('button', { name: /Rezepte/ }));
 
     expect(screen.getByRole('button', { name: 'Rezepte' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByLabelText('Adresse')).toHaveTextContent('?art=rezepte');
@@ -157,7 +234,7 @@ describe('MarketplacePage', () => {
 
   it('filters by origin and shows the filter as a chip', async () => {
     const { user } = renderPage();
-    await screen.findByRole('region', { name: 'Agents' });
+    await screen.findByRole('region', { name: 'Neu im Marktplatz' });
 
     await user.click(screen.getByRole('button', { name: 'Herkunft' }));
     await user.click(await screen.findByRole('menuitemradio', { name: 'Offiziell' }));
@@ -172,23 +249,44 @@ describe('MarketplacePage', () => {
 
   it('names the Landesverband after the person’s own, and offers it only with a role', async () => {
     const { user, unmount } = renderPage();
-    await screen.findByRole('region', { name: 'Agents' });
+    await screen.findByRole('region', { name: 'Neu im Marktplatz' });
     await user.click(screen.getByRole('button', { name: 'Herkunft' }));
     expect(screen.queryByRole('menuitemradio', { name: /Grüne|Landesverband/ })).toBeNull();
     unmount();
 
     lv.ids = ['hessen'];
     const second = renderPage();
-    await screen.findByRole('region', { name: 'Agents' });
+    await screen.findByRole('region', { name: 'Neu im Marktplatz' });
     await second.user.click(screen.getByRole('button', { name: 'Herkunft' }));
     expect(await screen.findByRole('menuitemradio', { name: 'Grüne Hessen' })).toBeInTheDocument();
   });
 
-  it('says so when there is nothing, and when a search finds nothing', async () => {
+  it('says so when a kind or a search finds nothing', async () => {
     serveFrom([]);
-    renderPage();
+    const { unmount } = renderPage('/marktplatz?art=agents');
     expect(await screen.findByText('Hier ist gerade nichts')).toBeInTheDocument();
-    expect(screen.getByText('Im Marktplatz gibt es hier noch nichts.')).toBeInTheDocument();
+    expect(screen.getByText('Hier gibt es noch keine Agents.')).toBeInTheDocument();
+    unmount();
+
+    renderPage('/marktplatz?q=xyz');
+    expect(await screen.findByText('Keine Treffer für „xyz“.')).toBeInTheDocument();
+  });
+
+  it('keeps an empty catalogue’s front page to the ways in', async () => {
+    serveFrom([]);
+    server.use(
+      http.get(`${API}/agent/gruenerator-leichte-sprache`, () =>
+        HttpResponse.json({ success: false, message: 'Element nicht gefunden.' }, { status: 404 })
+      )
+    );
+    renderPage();
+
+    expect(await screen.findByRole('region', { name: 'Nach Art stöbern' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Du hast ein Rezept, das funktioniert?' })
+    ).toBeInTheDocument();
+    await waitFor(() => expect(queries.length).toBeGreaterThan(0));
+    expect(screen.queryByRole('region', { name: 'Neu im Marktplatz' })).toBeNull();
   });
 
   it('opens a tile in place and saves it to „Meine Grüneratoren"', async () => {
@@ -201,9 +299,9 @@ describe('MarketplacePage', () => {
       })
     );
     const { user } = renderPage();
-    const agents = await screen.findByRole('region', { name: 'Agents' });
+    const fresh = await screen.findByRole('region', { name: 'Neu im Marktplatz' });
 
-    await user.click(within(agents).getByRole('button', { name: 'Pressearbeit' }));
+    await user.click(within(fresh).getByRole('button', { name: 'Pressearbeit' }));
 
     expect(
       await screen.findByRole('heading', { level: 2, name: 'Pressearbeit' })
@@ -221,7 +319,7 @@ describe('MarketplacePage', () => {
     await waitFor(() => expect(save).toHaveBeenCalledWith('agent', 'agent-pressearbeit'));
 
     await user.click(screen.getByRole('button', { name: 'Zurück zum Marktplatz' }));
-    expect(await screen.findByRole('region', { name: 'Agents' })).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Neu im Marktplatz' })).toBeInTheDocument();
     expect(screen.getByLabelText('Adresse')).toBeEmptyDOMElement();
   });
 
@@ -275,20 +373,28 @@ describe('MarketplacePage', () => {
 
     expect(await screen.findByText('Dieser Eintrag ist nicht verfügbar')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Zurück zum Marktplatz' }));
-    expect(await screen.findByRole('region', { name: 'Agents' })).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Neu im Marktplatz' })).toBeInTheDocument();
   });
 
   it('reports someone else’s item from the detail, but not official content', async () => {
     const { user } = renderPage();
-    const recipes = await screen.findByRole('region', { name: 'Rezepte' });
-    await user.click(within(recipes).getByRole('button', { name: 'Fremdes Rezept' }));
+    const fresh = await screen.findByRole('region', { name: 'Neu im Marktplatz' });
+    await user.click(within(fresh).getByRole('button', { name: 'Fremdes Rezept' }));
     await user.click(await screen.findByRole('button', { name: 'Melden' }));
     expect(await screen.findByRole('dialog', { name: 'Inhalt melden' })).toBeInTheDocument();
   });
 
+  it('offers to start one’s own Agent, Rezept, Vorlage or Sticker from „+"', async () => {
+    const { user } = renderPage();
+    await user.click(screen.getByRole('button', { name: 'Inhalt hinzufügen' }));
+    const items = await screen.findAllByRole('menuitem');
+    expect(items.map((i) => i.textContent)).toEqual(['Agent', 'Rezept', 'Vorlage', 'Sticker']);
+  });
+
   it('has no axe violations', async () => {
     const { container } = renderPage();
-    await screen.findByRole('region', { name: 'Agents' });
+    await screen.findByRole('region', { name: 'Leichte Sprache' });
+    await screen.findByRole('region', { name: 'Neu im Marktplatz' });
     expect(await axe(container)).toHaveNoViolations();
   });
 

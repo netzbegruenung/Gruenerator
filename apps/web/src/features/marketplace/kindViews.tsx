@@ -86,18 +86,34 @@ function ChatAndDetails({ chatPath, detailPath }: { chatPath: string; detailPath
   );
 }
 
+const agentChatPath = (item: MarketplaceItemOf<'agent'>) =>
+  `/agents/${encodeURIComponent(item.agent.slug)}`;
+
+function recipeChatPath(item: MarketplaceItemOf<'recipe'>): string {
+  const mention = encodeURIComponent(item.recipe.mention);
+  // A user recipe needs its row, or the chat takes the bundled body of a catalogue recipe by the same name.
+  return item.recipe.rowId
+    ? `/chat?rezept=${mention}&rezeptId=${encodeURIComponent(item.recipe.rowId)}`
+    : `/chat?skill=${mention}`;
+}
+
+/** Where „Im Chat ausprobieren" leads; only Agents and Rezepte run in the chat. */
+export function chatPathOf(item: MarketplaceItem): string | null {
+  if (item.kind === 'agent') return agentChatPath(item);
+  if (item.kind === 'recipe') return recipeChatPath(item);
+  return null;
+}
+
 function AgentActions({ item }: { item: MarketplaceItemOf<'agent'> }) {
   const slug = encodeURIComponent(item.agent.slug);
-  return <ChatAndDetails chatPath={`/agents/${slug}`} detailPath={`/agentura/agent/${slug}`} />;
+  return <ChatAndDetails chatPath={agentChatPath(item)} detailPath={`/agentura/agent/${slug}`} />;
 }
 
 function RecipeActions({ item }: { item: MarketplaceItemOf<'recipe'> }) {
   const mention = encodeURIComponent(item.recipe.mention);
-  // A user recipe needs its row, or the chat takes the bundled body of a catalogue recipe by the same name.
-  const chatPath = item.recipe.rowId
-    ? `/chat?rezept=${mention}&rezeptId=${encodeURIComponent(item.recipe.rowId)}`
-    : `/chat?skill=${mention}`;
-  return <ChatAndDetails chatPath={chatPath} detailPath={`/agentura/rezept/${mention}`} />;
+  return (
+    <ChatAndDetails chatPath={recipeChatPath(item)} detailPath={`/agentura/rezept/${mention}`} />
+  );
 }
 
 // ── Vorlagen ─────────────────────────────────────────────────────────────────

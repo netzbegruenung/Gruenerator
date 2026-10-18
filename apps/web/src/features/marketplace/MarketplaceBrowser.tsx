@@ -12,6 +12,7 @@ import {
   MARKETPLACE_SORTS,
   MARKETPLACE_TABS,
   marketplaceEmptyText,
+  isFrontpageView,
   marketplaceHref,
   marketplaceOriginLabel,
   tabForKind,
@@ -42,6 +43,7 @@ import { MarketSection } from '../agentura/components/MarketSection';
 
 import { type MarketplaceAssetItem } from './kindViews';
 import { MarketplaceCard } from './MarketplaceCard';
+import { MarketplaceFrontpage } from './MarketplaceFrontpage';
 import { MarketplaceItemDetail } from './MarketplaceItemDetail';
 import { useMarketplaceActions } from './useMarketplaceActions';
 
@@ -157,6 +159,8 @@ interface MarketplaceBrowserProps {
   onPick?: (item: MarketplaceAssetItem) => void;
   /** The opened item's title: 2 on the page (under its `h1`), 3 in a dialog (under its `h2`). */
   headingLevel?: 2 | 3;
+  /** `/marktplatz` only: the unfiltered first tab is „Start", the front page, instead of „Alle". */
+  frontpage?: boolean;
 }
 
 const isAsset = (item: MarketplaceItem): item is MarketplaceAssetItem =>
@@ -176,9 +180,11 @@ export function MarketplaceBrowser({
   kinds = MARKETPLACE_KINDS,
   onPick,
   headingLevel = 2,
+  frontpage = false,
 }: MarketplaceBrowserProps): JSX.Element {
   const tabs = tabsFor(kinds);
   const tab = shownTab(filters.tab, kinds);
+  const showFrontpage = frontpage && isFrontpageView({ ...filters, tab });
   const tabKinds = kindsOfTab(tab, kinds);
   const singleKind = tab === 'alle' ? null : (tabKinds[0] ?? null);
   const q = useDebouncedSearch(filters.q);
@@ -192,7 +198,7 @@ export function MarketplaceBrowser({
   const sectionsQuery = useMarketplaceSections({
     ...base,
     kinds: tabKinds,
-    enabled: singleKind === null,
+    enabled: singleKind === null && !showFrontpage,
   });
   const kindQuery = useMarketplaceKind({
     ...base,
@@ -270,112 +276,118 @@ export function MarketplaceBrowser({
               onClick={() => set({ tab: t.slug })}
               className={cn(pillBase, 'text-sm', t.slug === tab ? pillActive : pillInactive)}
             >
-              {t.label}
+              {frontpage && t.slug === 'alle' ? 'Start' : t.label}
             </button>
           ))}
         </div>
       )}
 
-      <span role="status" aria-live="polite" className="sr-only">
-        {`${items.length} ${items.length === 1 ? 'Eintrag' : 'Einträge'}`}
-      </span>
-      {filtered && (
-        <GalleryCountRow count={null} onReset={reset}>
-          {origin && (
-            <FilterChip
-              label={marketplaceOriginLabel(origin, lvIds)}
-              onRemove={() => set({ origin: null })}
-            />
-          )}
-          {sorted && (
-            <FilterChip
-              label={MARKETPLACE_SORTS.find((s) => s.value === filters.sort)?.label ?? ''}
-              onRemove={() => set({ sort: DEFAULT_MARKETPLACE_SORT })}
-            />
-          )}
-          {searching && (
-            <FilterChip label={`„${filters.q.trim()}“`} onRemove={() => set({ q: '' })} />
-          )}
-        </GalleryCountRow>
-      )}
-
-      {items.length > 0 ? (
-        <div className="flex flex-col gap-xl">
-          {sections.map((section, index) => {
-            const sectionTab = tabForKind(section.kind);
-            const showAll = singleKind === null && tabs.some((t) => t.slug === sectionTab.slug);
-            return (
-              <div key={section.kind} className="flex flex-col">
-                <MarketSection
-                  title={sectionTab.label}
-                  gridSize={gridSize}
-                  aside={
-                    <div className="flex items-center gap-xs">
-                      {showAll && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => set({ tab: sectionTab.slug })}
-                        >
-                          Alle anzeigen
-                        </Button>
-                      )}
-                      {index === 0 && (
-                        <GridSizeToggle gridSize={gridSize} onToggle={toggleGridSize} />
-                      )}
-                    </div>
-                  }
-                >
-                  {section.items.map((item) => (
-                    <MarketplaceCard
-                      key={item.key}
-                      item={item}
-                      actions={actions}
-                      onSelect={() => select(item)}
-                    />
-                  ))}
-                </MarketSection>
-                {singleKind !== null && kindQuery.hasNextPage && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-md self-center"
-                    onClick={() => void kindQuery.fetchNextPage()}
-                    disabled={kindQuery.isFetchingNextPage}
-                  >
-                    {kindQuery.isFetchingNextPage ? 'Lädt …' : 'Mehr laden'}
-                  </Button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      ) : active.isError ? (
-        <GalleryEmptyState
-          title="Der Marktplatz konnte nicht geladen werden"
-          hint={active.error?.message ?? 'Versuch es gleich noch einmal.'}
-          action={
-            <Button variant="outline" size="sm" onClick={() => void active.refetch()}>
-              Erneut versuchen
-            </Button>
-          }
-        />
-      ) : active.isPending ? (
-        <div className="grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-3">
-          <GallerySkeleton count={6} className="h-[190px]" />
-        </div>
+      {showFrontpage ? (
+        <MarketplaceFrontpage actions={actions} onSelect={select} onBrowse={set} />
       ) : (
-        <GalleryEmptyState
-          title={filtered ? 'Nichts gefunden' : 'Hier ist gerade nichts'}
-          hint={marketplaceEmptyText(tab, filters.q)}
-          action={
-            filtered ? (
-              <Button variant="outline" size="sm" onClick={reset}>
-                Zurücksetzen
-              </Button>
-            ) : undefined
-          }
-        />
+        <>
+          <span role="status" aria-live="polite" className="sr-only">
+            {`${items.length} ${items.length === 1 ? 'Eintrag' : 'Einträge'}`}
+          </span>
+          {filtered && (
+            <GalleryCountRow count={null} onReset={reset}>
+              {origin && (
+                <FilterChip
+                  label={marketplaceOriginLabel(origin, lvIds)}
+                  onRemove={() => set({ origin: null })}
+                />
+              )}
+              {sorted && (
+                <FilterChip
+                  label={MARKETPLACE_SORTS.find((s) => s.value === filters.sort)?.label ?? ''}
+                  onRemove={() => set({ sort: DEFAULT_MARKETPLACE_SORT })}
+                />
+              )}
+              {searching && (
+                <FilterChip label={`„${filters.q.trim()}“`} onRemove={() => set({ q: '' })} />
+              )}
+            </GalleryCountRow>
+          )}
+
+          {items.length > 0 ? (
+            <div className="flex flex-col gap-xl">
+              {sections.map((section, index) => {
+                const sectionTab = tabForKind(section.kind);
+                const showAll = singleKind === null && tabs.some((t) => t.slug === sectionTab.slug);
+                return (
+                  <div key={section.kind} className="flex flex-col">
+                    <MarketSection
+                      title={sectionTab.label}
+                      gridSize={gridSize}
+                      aside={
+                        <div className="flex items-center gap-xs">
+                          {showAll && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => set({ tab: sectionTab.slug })}
+                            >
+                              Alle anzeigen
+                            </Button>
+                          )}
+                          {index === 0 && (
+                            <GridSizeToggle gridSize={gridSize} onToggle={toggleGridSize} />
+                          )}
+                        </div>
+                      }
+                    >
+                      {section.items.map((item) => (
+                        <MarketplaceCard
+                          key={item.key}
+                          item={item}
+                          actions={actions}
+                          onSelect={() => select(item)}
+                        />
+                      ))}
+                    </MarketSection>
+                    {singleKind !== null && kindQuery.hasNextPage && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-md self-center"
+                        onClick={() => void kindQuery.fetchNextPage()}
+                        disabled={kindQuery.isFetchingNextPage}
+                      >
+                        {kindQuery.isFetchingNextPage ? 'Lädt …' : 'Mehr laden'}
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : active.isError ? (
+            <GalleryEmptyState
+              title="Der Marktplatz konnte nicht geladen werden"
+              hint={active.error?.message ?? 'Versuch es gleich noch einmal.'}
+              action={
+                <Button variant="outline" size="sm" onClick={() => void active.refetch()}>
+                  Erneut versuchen
+                </Button>
+              }
+            />
+          ) : active.isPending ? (
+            <div className="grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-3">
+              <GallerySkeleton count={6} className="h-[190px]" />
+            </div>
+          ) : (
+            <GalleryEmptyState
+              title={filtered ? 'Nichts gefunden' : 'Hier ist gerade nichts'}
+              hint={marketplaceEmptyText(tab, filters.q)}
+              action={
+                filtered ? (
+                  <Button variant="outline" size="sm" onClick={reset}>
+                    Zurücksetzen
+                  </Button>
+                ) : undefined
+              }
+            />
+          )}
+        </>
       )}
       {dialogs}
     </div>
