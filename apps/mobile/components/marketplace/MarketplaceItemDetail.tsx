@@ -43,7 +43,9 @@ export function MarketplaceItemDetail({
 }) {
   const theme = useTheme();
   const card = marketplaceCardProps(item, token);
-  const library = kindView(item.kind).toggle === 'library';
+  const view = kindView(item.kind);
+  const library = view.toggle === 'library';
+  const { DetailExtras } = view;
   const large = item.kind === 'template' || item.kind === 'background' || item.kind === 'sticker';
 
   return (
@@ -58,7 +60,9 @@ export function MarketplaceItemDetail({
         <Text style={[styles.backText, { color: theme.textSecondary }]}>Zurück zum Marktplatz</Text>
       </Pressable>
 
-      {large && card.image ? (
+      {DetailExtras ? (
+        <DetailExtras item={item} />
+      ) : large && card.image ? (
         <View style={[styles.preview, { backgroundColor: theme.backgroundAlt }]}>
           <Image
             source={card.image}

@@ -6,11 +6,17 @@ import {
 import { agenturaMetaLine } from '@gruenerator/shared/agents';
 import { toCardModel } from '@gruenerator/shared/marketplace';
 import { isShareSrc } from '@gruenerator/shared/stickers';
-import { type ImageSource } from 'expo-image';
+import { Image, type ImageSource } from 'expo-image';
+import { useState, type ReactElement } from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { useTheme } from '../../hooks/useTheme';
 import { resolveChatUrl } from '../../services/chatApiUrl';
 import { getPublicImageUrl } from '../../services/vorlagen';
+import { BODY_FONT, borderRadius } from '../../theme';
 import { galleryTilePath } from '../profilbild/galleryModel';
+
+import { templatePageUris } from './marketplaceTarget';
 
 interface KindView<I extends MarketplaceItem> {
   /** The singular, first in the card's meta line. */
@@ -21,6 +27,11 @@ interface KindView<I extends MarketplaceItem> {
   /** The picture in the card's media area; `null` draws the icon. */
   // Method syntax on purpose: bivariant, so each kind's view fits the lookup below.
   image(item: I, token: string | null): ImageSource | null;
+  /**
+   * Optional: what only this kind shows in the detail, in place of the plain
+   * picture (a Vorlage's pages). Everything else in the detail is the same for all.
+   */
+  DetailExtras?: (props: { item: I }) => ReactElement | null;
 }
 
 const noImage = () => null;
@@ -49,10 +60,66 @@ const KIND_VIEWS: { [K in MarketplaceKind]: KindView<MarketplaceItemOf<K>> } = {
       const uri = getPublicImageUrl(item.thumbnailUrl ?? undefined);
       return uri ? { uri } : null;
     },
+    DetailExtras: TemplatePages,
   },
   sticker: { label: 'Sticker', toggle: 'bookmark', imageFit: 'contain', image: assetImage },
   background: { label: 'Hintergrund', toggle: 'bookmark', imageFit: 'cover', image: assetImage },
 };
+
+/**
+ * Every page of a Vorlage, swiped one at a time, with „Seite 2 von 3" below once
+ * there is more than one — the pager of the web detail (`TemplatePages`).
+ */
+function TemplatePages({ item }: { item: MarketplaceItemOf<'template'> }) {
+  const theme = useTheme();
+  const pages = templatePageUris(item, (url) => getPublicImageUrl(url));
+  const [width, setWidth] = useState(0);
+  const [page, setPage] = useState(0);
+  if (pages.length === 0) return null;
+
+  return (
+    <View style={styles.pages}>
+      <View
+        style={[styles.stage, { backgroundColor: theme.backgroundAlt }]}
+        onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
+      >
+        {width > 0 ? (
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={(e) =>
+              setPage(
+                Math.min(
+                  pages.length - 1,
+                  Math.max(0, Math.round(e.nativeEvent.contentOffset.x / width))
+                )
+              )
+            }
+          >
+            {pages.map((uri, i) => (
+              <Image
+                // Pages have no id and may repeat an image URL; order is the identity.
+                // eslint-disable-next-line react/no-array-index-key
+                key={i}
+                source={{ uri }}
+                contentFit="contain"
+                style={{ width, height: '100%' }}
+                accessibilityLabel={`Seite ${i + 1} von ${pages.length}`}
+                accessibilityIgnoresInvertColors
+              />
+            ))}
+          </ScrollView>
+        ) : null}
+      </View>
+      {pages.length > 1 ? (
+        <Text style={[styles.pageCount, { color: theme.textSecondary }]}>
+          {`Seite ${page + 1} von ${pages.length}`}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
 
 export function kindView(kind: MarketplaceKind): KindView<MarketplaceItem> {
   // Each entry takes its own kind; `item.kind` picks the entry, which `K` cannot carry.
@@ -79,3 +146,14 @@ export function marketplaceCardProps(item: MarketplaceItem, token: string | null
     added: view.toggle === 'library' && item.isOwn ? null : card.saved,
   };
 }
+
+const styles = StyleSheet.create({
+  pages: { gap: 6 },
+  stage: {
+    width: '100%',
+    aspectRatio: 4 / 3,
+    borderRadius: borderRadius.large,
+    overflow: 'hidden',
+  },
+  pageCount: { fontFamily: BODY_FONT, fontSize: 13, textAlign: 'center' },
+});

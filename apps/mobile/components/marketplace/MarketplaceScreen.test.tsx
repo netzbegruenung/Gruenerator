@@ -280,6 +280,37 @@ describe('MarketplaceScreen detail', () => {
       })
     );
   });
+
+  it('shows every page of a Vorlage', async () => {
+    const vorlage = {
+      ...base,
+      key: 'template:v1',
+      ref: 'v1',
+      kind: 'template',
+      origin: 'oeffentlich',
+      title: 'Plakat',
+      template: {
+        templateType: 'canva',
+        externalUrl: 'https://canva.com/x',
+        images: [
+          { url: 'https://example.org/1.png', title: null },
+          { url: 'https://example.org/2.png', title: null },
+        ],
+        categories: [],
+        tags: [],
+        contentData: {},
+        metadata: {},
+      },
+    } as unknown as MarketplaceItemOf<'template'>;
+    setup({ items: [vorlage] });
+    render(
+      <MarketplaceScreen initialFilters={{ ...DEFAULT_MARKETPLACE_FILTERS, tab: 'vorlagen' }} />
+    );
+    await act(async () => {});
+
+    fireEvent.press(screen.getByRole('button', { name: 'Plakat' }));
+    expect(screen.getByText('Seite 1 von 2')).toBeTruthy();
+  });
 });
 
 describe('MarketplaceSheet', () => {

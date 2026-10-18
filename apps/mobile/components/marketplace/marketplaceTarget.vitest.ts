@@ -1,7 +1,12 @@
-import { type MarketplaceItem } from '@gruenerator/contracts';
+import { type MarketplaceItem, type MarketplaceItemOf } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { marketplaceOpenTarget, marketplaceRoute, marketplaceShareUrl } from './marketplaceTarget';
+import {
+  marketplaceOpenTarget,
+  marketplaceRoute,
+  marketplaceShareUrl,
+  templatePageUris,
+} from './marketplaceTarget';
 
 const template = (templateType: string | null, externalUrl: string | null) =>
   ({
@@ -70,5 +75,27 @@ describe('marketplaceShareUrl', () => {
     expect(
       marketplaceShareUrl({ origin: 'oeffentlich', q: 'wind', item: { kind: 'agent', ref: 'u1' } })
     ).toBe('https://gruenerator.eu/marktplatz?von=oeffentlich&q=wind&item=agent%3Au1');
+  });
+});
+
+describe('templatePageUris', () => {
+  const resolve = (url: string) => (url.startsWith('bad') ? null : `https://cdn/${url}`);
+  const vorlage = (images: string[], thumbnailUrl: string | null) => ({
+    thumbnailUrl,
+    template: {
+      images: images.map((url) => ({ url, title: null })),
+    } as unknown as MarketplaceItemOf<'template'>['template'],
+  });
+
+  it('lists every page that resolves, in order', () => {
+    expect(templatePageUris(vorlage(['1.png', 'bad.png', '2.png'], 't.png'), resolve)).toEqual([
+      'https://cdn/1.png',
+      'https://cdn/2.png',
+    ]);
+  });
+
+  it('falls back to the thumbnail, then to nothing', () => {
+    expect(templatePageUris(vorlage([], 't.png'), resolve)).toEqual(['https://cdn/t.png']);
+    expect(templatePageUris(vorlage(['bad.png'], null), resolve)).toEqual([]);
   });
 });

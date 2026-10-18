@@ -1,4 +1,4 @@
-import { type MarketplaceItem } from '@gruenerator/contracts';
+import { type MarketplaceItem, type MarketplaceItemOf } from '@gruenerator/contracts';
 import {
   DEFAULT_MARKETPLACE_FILTERS,
   itemHref,
@@ -74,4 +74,18 @@ export function marketplaceShareUrl(
   filters: Partial<MarketplaceFilters> & Pick<MarketplaceFilters, 'item'>
 ): string {
   return `${WEB_ORIGIN}${marketplaceHref(filters)}`;
+}
+
+/** A Vorlage's pages as image URLs; without any, its thumbnail stands in. */
+export function templatePageUris(
+  item: Pick<MarketplaceItemOf<'template'>, 'thumbnailUrl' | 'template'>,
+  resolve: (url: string) => string | null
+): string[] {
+  const pages = item.template.images.flatMap((image) => {
+    const uri = resolve(image.url);
+    return uri ? [uri] : [];
+  });
+  if (pages.length > 0) return pages;
+  const thumb = item.thumbnailUrl ? resolve(item.thumbnailUrl) : null;
+  return thumb ? [thumb] : [];
 }
