@@ -1,8 +1,6 @@
 import { type MarketplaceItem } from '@gruenerator/contracts';
 import {
   MARKETPLACE_TABS,
-  featureFor,
-  frontpageView,
   marketplaceOriginLabel,
   type MarketplaceFeature,
   type MarketplaceFilters,
@@ -112,8 +110,8 @@ export interface MarketplaceFrontpageProps {
 
 /**
  * „Start" of the Marktplatz (web: `MarketplaceFrontpage`): one featured item,
- * then shelves that each hide below their minimum — the rules are
- * `frontpageView` in shared, this file only draws them.
+ * then shelves that each hide below their minimum — the server applies the
+ * rules from shared (`composeFrontpage`), this file only draws them.
  */
 export function MarketplaceFrontpage({
   locale,
@@ -126,9 +124,7 @@ export function MarketplaceFrontpage({
   const theme = useTheme();
   const router = useRouter();
   const hasLandesverband = (lvIds?.length ?? 0) > 0;
-  const feature = featureFor(locale);
-  const shelves = useFrontpageShelves(feature, hasLandesverband);
-  const view = frontpageView({ ...shelves, feature, hasLandesverband });
+  const view = useFrontpageShelves(hasLandesverband);
   const display = DISPLAY_FONT[locale];
   const [fontLoaded] = useFonts({ [display.family]: display.asset });
 

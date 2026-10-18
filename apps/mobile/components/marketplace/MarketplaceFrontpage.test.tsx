@@ -13,10 +13,13 @@ import { router } from 'expo-router';
 import { useUserProfileStore } from '@gruenerator/chat/stores';
 import {
   DEFAULT_MARKETPLACE_FILTERS,
+  MARKETPLACE_FEATURES,
+  useMarketplaceFrontpage,
   useMarketplaceItem,
   useMarketplaceKind,
   useMarketplaceSections,
 } from '@gruenerator/shared/marketplace';
+import { composeFrontpage } from '@gruenerator/shared/marketplace/frontpage';
 import { secureStorage } from '../../services/storage';
 
 import { MarketplaceScreen } from './MarketplaceScreen';
@@ -26,6 +29,7 @@ jest.mock('@gruenerator/shared/marketplace', () => ({
   useMarketplaceSections: jest.fn(),
   useMarketplaceKind: jest.fn(),
   useMarketplaceItem: jest.fn(),
+  useMarketplaceFrontpage: jest.fn(),
   useMarketplaceSave: () => ({ mutate: jest.fn() }),
 }));
 // The short view (with its discussion and sheets) is MarketplaceScreen.test.tsx's.
@@ -48,6 +52,9 @@ const mockKind = useMarketplaceKind as unknown as jest.MockedFunction<
 >;
 const mockItem = useMarketplaceItem as unknown as jest.MockedFunction<
   (target: unknown, options: { platform?: string; enabled?: boolean }) => Record<string, unknown>
+>;
+const mockFrontpage = useMarketplaceFrontpage as unknown as jest.MockedFunction<
+  (options: { platform?: string }) => Record<string, unknown>
 >;
 const mockGetToken = secureStorage.getToken as jest.MockedFunction<typeof secureStorage.getToken>;
 
@@ -105,6 +112,20 @@ function setup(shelves: Shelves, featured: MarketplaceItem | null = leichteSprac
     hasNextPage: false,
     isFetchingNextPage: false,
   });
+  // The server composes the page with shared's rules; the test does the same.
+  mockFrontpage.mockReturnValue({
+    data: composeFrontpage({
+      sections: {
+        landesverband: answer(shelves.landesverband),
+        neu: answer(shelves.neu),
+        beliebt: answer(shelves.beliebt),
+        gestalten: [],
+      },
+      curated: featured ? { feature: MARKETPLACE_FEATURES[0], item: featured } : null,
+    }),
+    isPending: false,
+    isError: false,
+  });
   mockItem.mockImplementation((target) =>
     target && typeof target === 'object' && 'pitch' in target
       ? { data: featured ?? undefined, isPending: false, isError: featured === null }
@@ -136,12 +157,8 @@ describe('MarketplaceFrontpage', () => {
     expect(screen.getByText(/Übersetzt Beschlüsse/)).toBeTruthy();
     // The example is decoration for screen readers, as on the web (aria-hidden).
     expect(screen.getByText(/Rad-Weg/, { includeHiddenElements: true })).toBeTruthy();
-    // Every query asks for what the app can open.
-    expect(mockSections).toHaveBeenCalledWith(expect.objectContaining({ platform: 'mobile' }));
-    expect(mockItem).toHaveBeenCalledWith(
-      expect.objectContaining({ ref: 'gruenerator-leichte-sprache' }),
-      { platform: 'mobile' }
-    );
+    // One request for the whole page, asking for what the app can open.
+    expect(mockFrontpage).toHaveBeenCalledWith({ platform: 'mobile' });
 
     fireEvent.press(screen.getByText('Im Chat ausprobieren'));
     expect(router.push).toHaveBeenCalledWith(
@@ -180,10 +197,8 @@ describe('MarketplaceFrontpage', () => {
     ];
     setup({ landesverband: lv });
     await renderStart();
+    // The server sends the shelf; without a Landesverband of their own the app has no label for it.
     expect(screen.queryByRole('header', { name: /Aus deinem Landesverband/ })).toBeNull();
-    expect(mockSections).toHaveBeenCalledWith(
-      expect.objectContaining({ origin: 'landesverband', enabled: false })
-    );
   });
 
   it('shows the Landesverband shelf for a member of one', async () => {

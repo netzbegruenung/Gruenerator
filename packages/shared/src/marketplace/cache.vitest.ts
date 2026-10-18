@@ -1,9 +1,10 @@
 import {
+  type MarketplaceFrontpageResponse,
   type MarketplaceItem,
   type MarketplaceListResponse,
   type StudioAssetItem,
 } from '@gruenerator/contracts';
-import { type InfiniteData } from '@tanstack/react-query';
+import { QueryClient, type InfiniteData } from '@tanstack/react-query';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -13,7 +14,9 @@ import {
   saveToggled,
   withLike,
   withSaved,
+  type MarketplaceCacheData,
 } from './cache';
+import { MARKETPLACE_QUERY_KEY, marketplaceKeys } from './useMarketplace';
 
 const base = {
   origin: 'oeffentlich' as const,
@@ -113,6 +116,67 @@ describe('patchMarketplaceCache', () => {
     const data = sections();
     const next = patchMarketplaceCache(data, { kind: 'background', ref: 'r1' }, likeToggled);
     expect(next.sections).toEqual(data.sections);
+  });
+});
+
+describe('front page cache', () => {
+  const frontpage = (): MarketplaceFrontpageResponse => ({
+    featured: recipe('r1'),
+    featureId: 'leichte-sprache',
+    shelves: [
+      { shelfId: 'neu', items: [recipe('r2'), background], hasMore: false },
+      { shelfId: 'beliebt', items: [recipe('r1'), recipe('r3')], hasMore: true },
+      { shelfId: 'gestalten', items: [background], hasMore: false },
+    ],
+  });
+
+  it('patches the featured item and every shelf that holds the target', () => {
+    const data = frontpage();
+    const next = patchMarketplaceCache(data, { kind: 'recipe', ref: 'r1' }, likeToggled);
+    expect(next.featured).toMatchObject({ ref: 'r1', liked: true, likesCount: 3 });
+    expect(next.shelves[1]!.items[0]).toMatchObject({ ref: 'r1', liked: true, likesCount: 3 });
+    expect(next.shelves[1]!.items[1]).toBe(data.shelves[1]!.items[1]);
+    expect(next.shelves[0]).toBe(data.shelves[0]);
+    expect(next.shelves[2]).toBe(data.shelves[2]);
+  });
+
+  it('matches on kind as well as ref across a mixed shelf', () => {
+    const data = frontpage();
+    const next = patchMarketplaceCache(data, { kind: 'recipe', ref: 'a1' }, saveToggled);
+    expect(next.shelves).toEqual(data.shelves);
+    expect(next.featured).toBe(data.featured);
+  });
+
+  // The like and save hooks walk every query under MARKETPLACE_QUERY_KEY; a
+  // front page key outside it, or a shape the patch does not know, would leave
+  // a like on the front page out of step with every other view.
+  it('is reached by the Marktplatz-wide patch the like and save hooks run', () => {
+    const qc = new QueryClient();
+    qc.setQueryData(marketplaceKeys.frontpage('web'), frontpage());
+    qc.setQueryData(marketplaceKeys.item({ kind: 'recipe', ref: 'r1' }, 'web'), recipe('r1'));
+    qc.setQueryData(
+      marketplaceKeys.sections({
+        kinds: ['recipe'],
+        origin: null,
+        q: '',
+        sort: 'empfohlen',
+        scope: 'shop',
+        platform: 'web',
+      }),
+      sections()
+    );
+
+    qc.setQueriesData<MarketplaceCacheData>({ queryKey: MARKETPLACE_QUERY_KEY }, (data) =>
+      data ? patchMarketplaceCache(data, { kind: 'recipe', ref: 'r1' }, saveToggled) : data
+    );
+
+    const page = qc.getQueryData<MarketplaceFrontpageResponse>(marketplaceKeys.frontpage('web'));
+    expect(page?.featured?.saved).toBe(true);
+    expect(page?.shelves[1]!.items[0]!.saved).toBe(true);
+    expect(
+      qc.getQueryData<MarketplaceItem>(marketplaceKeys.item({ kind: 'recipe', ref: 'r1' }, 'web'))
+        ?.saved
+    ).toBe(true);
   });
 });
 
