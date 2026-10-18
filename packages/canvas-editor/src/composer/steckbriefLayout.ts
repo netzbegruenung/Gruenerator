@@ -112,70 +112,95 @@ export function steckbriefFace(person: Box): Box {
 export interface SteckbriefSlot {
   side: 'links' | 'rechts';
   top: number;
+  /** Where the arrow ends, just off the silhouette (shares of the frame). */
   target: Point;
   arrow: DesignedArrowType;
+  /** Where its tail starts: beside the inner edge, under the last line, over the first. */
+  anchor: 'innen' | 'unten' | 'oben';
+  /** Which way the stroke bows (see `arrowPose`). */
+  bow: 1 | -1;
 }
 
 export const STECKBRIEF_SLOTS: readonly SteckbriefSlot[] = [
   {
     side: 'links',
     top: 0.05,
-    target: { x: 0.3, y: 0.14 },
+    target: { x: 0.33, y: 0.115 },
     arrow: 'hand-pfeil-spirale',
+    anchor: 'unten',
+    bow: 1,
   },
   {
     side: 'rechts',
     top: 0.07,
-    target: { x: 0.6, y: 0.11 },
+    target: { x: 0.62, y: 0.095 },
     arrow: 'hand-pfeil-herz',
+    anchor: 'unten',
+    bow: -1,
   },
   {
     side: 'links',
     top: 0.36,
-    target: { x: 0.22, y: 0.24 },
+    target: { x: 0.31, y: 0.5 },
     arrow: 'hand-pfeil-haken',
+    anchor: 'unten',
+    bow: 1,
   },
   {
     side: 'rechts',
     top: 0.25,
-    target: { x: 0.74, y: 0.2 },
+    target: { x: 0.78, y: 0.215 },
     arrow: 'hand-pfeil-bogen',
+    anchor: 'unten',
+    bow: -1,
   },
   {
     side: 'links',
     top: 0.7,
-    target: { x: 0.12, y: 0.62 },
-    arrow: 'hand-pfeil-schlaufe',
+    target: { x: 0.3, y: 0.52 },
+    arrow: 'hand-pfeil-bogen',
+    anchor: 'oben',
+    bow: -1,
   },
   {
     side: 'rechts',
     top: 0.64,
-    target: { x: 0.9, y: 0.62 },
+    target: { x: 0.74, y: 0.565 },
     arrow: 'hand-pfeil-bogen',
+    anchor: 'innen',
+    bow: 1,
   },
   {
     side: 'links',
     top: 0.83,
-    target: { x: 0.3, y: 0.7 },
+    target: { x: 0.42, y: 0.62 },
     arrow: 'hand-pfeil-welle',
+    anchor: 'oben',
+    bow: 1,
   },
   {
     side: 'rechts',
     top: 0.8,
-    target: { x: 0.7, y: 0.7 },
+    target: { x: 0.64, y: 0.78 },
     arrow: 'hand-pfeil-haken',
+    anchor: 'innen',
+    bow: 1,
   },
   {
     side: 'links',
     top: 0.52,
     target: { x: 0.26, y: 0.4 },
     arrow: 'hand-pfeil-bogen',
+    anchor: 'innen',
+    bow: 1,
   },
   {
     side: 'links',
     top: 0.2,
-    target: { x: 0.25, y: 0.18 },
+    target: { x: 0.24, y: 0.17 },
     arrow: 'hand-pfeil-schlaufe',
+    anchor: 'unten',
+    bow: 1,
   },
 ];
 
@@ -354,6 +379,8 @@ export interface ArrowScene {
 
 export interface ArrowRequest {
   arrow: DesignedArrowType;
+  /** The slot's own arrow, set by hand for the fixed portrait; taken when it touches nothing. */
+  designed?: { from: Point; to: Point; bow: 1 | -1 };
   /** Where the tail may start, the likelier first. */
   froms: Point[];
   /** Where on the person this slot would rather point (canvas px). */
@@ -368,6 +395,9 @@ export interface PlacedArrow {
   line: Point[];
   barbs: Point[];
 }
+
+/** Below this a set arrow is a stub: a short label sits too close to its target. */
+const DESIGNED_MIN_LENGTH = 120;
 
 const CURLY: readonly DesignedArrowType[] = [
   'hand-pfeil-herz',
@@ -522,6 +552,14 @@ export function placeArrow(
     const want = flat ? { x: 0, y: 1 } : { x: Math.sign(mid.x - centreX) || 1, y: 0 };
     return bx * want.x + by * want.y < 0 ? 18 : 0;
   };
+
+  if (req.designed) {
+    const { from, to, bow } = req.designed;
+    const pose = arrowPose(req.arrow, from, to, stroke, bow);
+    const arrow = { type: req.arrow, pose, ...arrowSamples(req.arrow, pose, stroke) };
+    const long = Math.hypot(to.x - from.x, to.y - from.y) >= DESIGNED_MIN_LENGTH;
+    if (long && hits(arrow, outlineDistance(outline, from) < 0) === 0) return arrow;
+  }
 
   let best: { arrow: PlacedArrow; score: number } | null = null;
   for (const c of candidates.slice(0, 2500)) {

@@ -231,8 +231,8 @@ const ARROW_DESIGNS = {
   },
   // One soft swing: an S lying on its side.
   'hand-pfeil-welle': {
-    pen: 0.5,
-    head: 7.5,
+    pen: 0.75,
+    head: 5.5,
     lead: 0.5,
     knots: [
       [0, 0],
@@ -247,8 +247,8 @@ const ARROW_DESIGNS = {
   },
   // One loop above the line, then a long run in: "Tierschützerin", "Jess".
   'hand-pfeil-schlaufe': {
-    pen: 0.5,
-    head: 7.5,
+    pen: 0.75,
+    head: 5.5,
     lead: 0.5,
     knots: [
       [0, 0],
@@ -269,8 +269,8 @@ const ARROW_DESIGNS = {
   },
   // A hook, a small curl and a heart, then a long run in: "Musikliebhaberin".
   'hand-pfeil-herz': {
-    pen: 0.5,
-    head: 7.5,
+    pen: 0.75,
+    head: 5.5,
     lead: 0.5,
     knots: [
       [0, -14],
@@ -292,8 +292,8 @@ const ARROW_DESIGNS = {
   },
   // A hook and two quick curls, then an S into the target: "Handwerklich …".
   'hand-pfeil-spirale': {
-    pen: 0.5,
-    head: 7.5,
+    pen: 0.75,
+    head: 5.5,
     lead: 0.5,
     knots: [
       [0, -8],

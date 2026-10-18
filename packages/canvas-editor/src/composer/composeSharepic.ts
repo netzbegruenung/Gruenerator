@@ -241,7 +241,7 @@ const CARD_MARKER: TextMarker = {
 const STECKBRIEF = {
   column: 0.36,
   greetAt: 0.55,
-  nameWidth: 0.24,
+  nameWidth: 0.21,
   hand: 100,
   blume: 96,
   arrowMin: 190,
@@ -996,14 +996,15 @@ function composeSlide(
   else if (kiText) areaBottom = Math.min(areaBottom, kiTop - KI_LABEL.gap - 20 + MARGIN);
 
   /**
-   * A steckbrief photo with its own background melts into the ground at its
-   * sides and top, so the traits and the greeting reaching over it sit on
+   * A steckbrief portrait melts into the ground at its sides (and, with the
+   * photo's own background, its top), so the traits and the greeting reaching over it sit on
    * the slide, not on a hard edge. Strips in the ground's colour (sampled
    * along a gradient ground), opaque outside, clear inside.
    */
   const fadeIntoGround = (
     box: { x: number; y: number; width: number; height: number },
-    color: SharepicColor
+    color: SharepicColor,
+    withTop: boolean
   ) => {
     const gradient = GRADIENTS[color];
     const rgbOf = (hex: string) =>
@@ -1039,11 +1040,11 @@ function composeSlide(
       addShape(shape);
     };
     const depth = Math.round(box.width * STECKBRIEF.fade);
-    const top = Math.max(0, box.y);
+    const from = Math.max(0, box.y);
     const segments = 4;
-    const segment = (canvas.height - top) / segments;
+    const segment = (canvas.height - from) / segments;
     for (let k = 0; k < segments; k++) {
-      const y = top + k * segment;
+      const y = from + k * segment;
       strip(`sc-steckbrief-fade-links-${k}`, box.x, y, depth, segment + 1, 'links');
       strip(
         `sc-steckbrief-fade-rechts-${k}`,
@@ -1054,7 +1055,7 @@ function composeSlide(
         'rechts'
       );
     }
-    strip('sc-steckbrief-fade-oben', box.x, top, box.width, depth, 'oben');
+    if (withTop) strip('sc-steckbrief-fade-oben', box.x, from, box.width, depth, 'oben');
   };
 
   // ── A photo in the slide: a fixed place per ausschnitt, the text keeps clear ──
@@ -1125,7 +1126,9 @@ function composeSlide(
         if (person) {
           // A steckbrief: the person in the middle, the traits around them.
           photo(person.x, person.y, person.width, person.height);
-          if (!bild.freisteller && bg.kind === 'farbe') fadeIntoGround(person, bg.color);
+          // The portrait is cut at the shoulders: its sides melt into the ground,
+          // and a photo with its own background its top as well.
+          if (bg.kind === 'farbe') fadeIntoGround(person, bg.color, !bild.freisteller);
           break;
         }
         // The person stands on the bottom edge; the footer lies over them.
@@ -1453,13 +1456,21 @@ function composeSlide(
       };
       const beside = ink.map((r) => ({ x: innerOf(r) + dir * 14, y: r.y + r.height / 2 }));
       const below = [
-        { x: innerOf(last) - dir * Math.min(70, last.width / 3), y: last.y + last.height + 20 },
-        { x: last.x + last.width / 2, y: last.y + last.height + 20 },
+        { x: innerOf(last) - dir * Math.min(70, last.width / 3), y: last.y + last.height + 8 },
+        { x: last.x + last.width / 2, y: last.y + last.height + 8 },
       ];
       const above = [
-        { x: innerOf(first) - dir * Math.min(70, first.width / 3), y: first.y - 20 },
-        { x: first.x + first.width / 2, y: first.y - 20 },
+        { x: innerOf(first) - dir * Math.min(70, first.width / 3), y: first.y - 8 },
+        { x: first.x + first.width / 2, y: first.y - 8 },
       ];
+      const designedFrom =
+        slot.anchor === 'unten'
+          ? below[0]!
+          : slot.anchor === 'oben'
+            ? above[0]!
+            : beside.reduce((a, b) =>
+                Math.abs(b.y - prefer.y) < Math.abs(a.y - prefer.y) ? b : a
+              );
       const froms =
         prefer.y > last.y + last.height
           ? [...below, ...beside, ...above]
@@ -1477,6 +1488,7 @@ function composeSlide(
           arrow: slot.arrow,
           froms: froms.map((p) => turn(pivot, rotation, p)),
           prefer,
+          designed: { from: turn(pivot, rotation, designedFrom), to: prefer, bow: slot.bow },
         },
       };
     });
