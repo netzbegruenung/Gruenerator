@@ -511,6 +511,10 @@ describe('composePrint: DE photo posters', () => {
       const format = getCanvasFormat(s.format)!;
       const { trim, safe } = printGeometry(format as never);
 
+      it('has no fade: every plane is one flat colour with hard edges', () => {
+        expect(slide.shapeInstances.filter((x) => x.fillGradient)).toEqual([]);
+      });
+
       it('lays one page out within the safe zone', () => {
         expect(result.slides).toHaveLength(1);
         expectInSafeZone(result);
