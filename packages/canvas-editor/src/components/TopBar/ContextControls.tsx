@@ -65,7 +65,8 @@ export interface ContextControlsProps {
   onDeleteElement?: () => void;
   /** Vorlagen-Elemente und gesperrte lassen sich nicht löschen. */
   canDelete?: boolean;
-  onDelete?: () => void;
+  /** Mobil, im „Auswahl“-Block des Sheets: die Seite löschen. */
+  onDeletePage?: () => void;
   /** Clears the element selection. Escape does the same, but is invisible. */
   onDeselect?: () => void;
   /** Mobil: Duplizieren, Löschen und Abwählen liegen in Pille und ✓, nicht hier. */
@@ -84,7 +85,8 @@ const SEP = 'w-px h-[22px] bg-[var(--editor-border-soft)] mx-1 shrink-0';
 
 /**
  * ContextControls — the selection-driven formatting controls (color, font size,
- * alignment, opacity, layer order, delete page). Shared between the desktop
+ * alignment, opacity, layer order, duplicate, lock, delete; delete page in the
+ * mobile sheet). Shared between the desktop
  * floating ContextToolbar and the mobile bottom context row; owns its own
  * color-picker expansion state. Renders nothing when there is no active module.
  */
@@ -102,7 +104,7 @@ export function ContextControls({
   onRemoveUserImage,
   onDeleteElement,
   canDelete = false,
-  onDelete,
+  onDeletePage,
   onDeselect,
   hideObjectActions = false,
 }: ContextControlsProps) {
@@ -601,17 +603,19 @@ export function ContextControls({
     );
   }
 
-  if (onDelete && !hideObjectActions) {
+  if (onDeletePage && !hideObjectActions) {
     groups.push(
       <button
         key="delete"
-        className="inline-flex items-center justify-center size-8 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text-secondary)] transition-colors duration-150 hover:text-red-600 hover:bg-red-500/10"
+        className="inline-flex items-center justify-center size-8 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text-secondary)] transition-colors duration-150 hover:text-[var(--editor-danger-fg)] hover:bg-[var(--editor-danger-bg)]"
         onClick={() => {
           if (window.confirm('Seite wirklich löschen?')) {
-            onDelete();
+            onDeletePage();
           }
         }}
         title="Seite löschen"
+        aria-label="Seite löschen"
+        type="button"
       >
         <svg
           width="18"

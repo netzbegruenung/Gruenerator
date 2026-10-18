@@ -1141,10 +1141,10 @@ function CanvasEditorInner({
   // Render only when the canvas has reported an actual element selection (not
   // merely because delete-page is available on a multi-page doc — page ops live
   // in the page toolbar / thumbnail strip). While an element is selected, the
-  // delete-page action rides along in the desktop card and the mobile sheet's
-  // "Auswahl" block, not in the mobile bottom bar (`hideObjectActions`). Only
-  // one of the two bars is mounted per viewport to avoid a hidden duplicate
-  // React tree.
+  // delete-page action rides along only in the mobile sheet's "Auswahl" block;
+  // in the desktop card it sat next to the element actions and deleted the
+  // page instead of the element. Only one of the two bars is mounted per
+  // viewport to avoid a hidden duplicate React tree.
   const backgroundControls =
     activeConfig?.background && activeState && activeActions
       ? activeConfig.background(activeState, activeActions)
@@ -1169,7 +1169,6 @@ function CanvasEditorInner({
           typeof activeActions?.removeUserImage === 'function'
             ? (activeActions.removeUserImage as (id: string) => void)
             : undefined,
-        onDelete: toolbarOnDelete,
         onDeselect: handleDeselectAll,
       }
     : null;
@@ -1194,7 +1193,7 @@ function CanvasEditorInner({
   ) : null;
   const mobileSelectionElement =
     contextControlsProps && hasContextControls && isMobileWeb && isPanelOpen ? (
-      <MobileSelectionControls {...contextControlsProps} />
+      <MobileSelectionControls {...contextControlsProps} onDeletePage={toolbarOnDelete} />
     ) : null;
   const openSelectionArea = mobileSelectionArea
     ? () => setActiveTab(mobileSelectionArea)
