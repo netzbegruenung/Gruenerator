@@ -13,6 +13,9 @@ export const contentReportKindSchema = z.enum([
   'studio_asset',
 ]);
 
+/** F0: persisted in the `moderation` column of every moderatable table. */
+export const moderationStateSchema = z.enum(['ok', 'hidden', 'removed']);
+
 export const contentReportReasonSchema = z.enum([
   'offensive',
   'false_information',
@@ -46,6 +49,7 @@ export const contentReportErrorSchema = z.object({
 });
 
 export type ContentReportKind = z.infer<typeof contentReportKindSchema>;
+export type ModerationState = z.infer<typeof moderationStateSchema>;
 export type ContentReportReason = z.infer<typeof contentReportReasonSchema>;
 export type ContentReportStatus = z.infer<typeof contentReportStatusSchema>;
 export type ContentReportResolution = z.infer<typeof contentReportResolutionSchema>;

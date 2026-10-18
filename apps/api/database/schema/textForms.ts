@@ -1,3 +1,4 @@
+import { type ModerationState } from '@gruenerator/contracts';
 import { type InferSelectModel, sql } from 'drizzle-orm';
 import {
   boolean,
@@ -35,6 +36,8 @@ export const userTextForms = pgTable(
     share_mode: text('share_mode').notNull().default('private'),
     is_public: boolean('is_public').notNull().default(false),
     public_ownership: text('public_ownership'),
+    // See migrations/zz_20261019_marketplace_moderation.sql.
+    moderation: text('moderation').$type<ModerationState>().notNull().default('ok'),
     created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     deleted_at: timestamp('deleted_at', { withTimezone: true }),

@@ -504,6 +504,9 @@ CREATE TABLE IF NOT EXISTS user_templates (
     is_example BOOLEAN DEFAULT FALSE,
     status TEXT DEFAULT 'published',
     audience TEXT NOT NULL DEFAULT 'all',
+    -- zz_20261019_marketplace_moderation.sql; user_agents and user_text_forms
+    -- get the column (and user_text_forms its audience) there.
+    moderation TEXT NOT NULL DEFAULT 'ok' CHECK (moderation IN ('ok', 'hidden', 'removed')),
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     vector_indexed_at TIMESTAMPTZ,

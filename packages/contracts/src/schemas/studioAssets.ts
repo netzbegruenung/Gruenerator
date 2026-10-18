@@ -4,6 +4,7 @@
  */
 import { z } from 'zod';
 
+import { moderationStateSchema } from './contentReport.js';
 import { groupAudienceSchema } from './groups.js';
 
 export const studioAssetKindSchema = z.enum(['sticker', 'background']);
@@ -15,7 +16,7 @@ export type StudioAssetSource = z.infer<typeof studioAssetSourceSchema>;
 export const studioAssetVisibilitySchema = z.enum(['private', 'public']);
 export type StudioAssetVisibility = z.infer<typeof studioAssetVisibilitySchema>;
 
-export const studioAssetModerationSchema = z.enum(['ok', 'hidden', 'removed']);
+export const studioAssetModerationSchema = moderationStateSchema;
 export type StudioAssetModeration = z.infer<typeof studioAssetModerationSchema>;
 
 export const studioAssetScopeSchema = z.enum(['shop', 'mine', 'saved']);
