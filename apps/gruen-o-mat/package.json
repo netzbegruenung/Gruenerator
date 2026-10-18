@@ -14,7 +14,7 @@
   "dependencies": {
     "@assistant-ui/react": "^0.15.28",
     "@gruenerator/chat": "workspace:*",
-    "lucide-react": "^1.52.0",
+    "lucide-react": "^1.57.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-router-dom": "^7.18.4",
@@ -32,6 +32,6 @@
     "eslint": "^9.39.5",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
-    "vite": "^8.3.3"
+    "vite": "^8.3.4"
   }
 }

@@ -2,7 +2,9 @@ import {
   isSharepicSceneRef,
   isSharepicUploadId,
   SHAREPIC_VORLAGE_REF,
+  sharepicBlockSpec,
   type PrintSpec,
+  type SharepicBlockFileEntry,
   type SharepicCreatorLocale,
   type SharepicSeiteFileEntry,
   type SharepicSlide,
@@ -57,6 +59,18 @@ export function seiteProblems(
     if (!source || seite > source.spec.slides.length) {
       problems.push(`quelle ${vorlage}#${seite} is not in the Vorlagen catalogue`);
     }
+  }
+  return problems;
+}
+
+/** The same photo and marker checks for a block's items. */
+export function blockProblems(
+  entry: SharepicBlockFileEntry,
+  locale: SharepicCreatorLocale
+): string[] {
+  const problems = photoProblems(sharepicBlockSpec(locale, entry).slides as SharepicSlide[]);
+  if (locale === 'de-AT' && JSON.stringify(entry.items).includes('++')) {
+    problems.push('++marker++ in an AT block');
   }
   return problems;
 }

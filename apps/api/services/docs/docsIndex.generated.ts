@@ -125,12 +125,6 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Der Grünerator ist kein Suchfeld mit festen Befehlen — du schreibst in normalem Deutsch, was du brauchst. Diese Seite zeigt, was dabei alles möglich ist, mit Musterfragen zum Abschauen und Weiterschr…"
   },
   {
-    "url": "/docs/features/agentura",
-    "title": "Grüneratoren und Agentura",
-    "category": "Features",
-    "lead": "Deine Agents, Rezepte und wiederkehrenden Aufgaben findest du unter Grüneratoren. Das ist der gleichnamige Eintrag in der Seitenleiste, die Adresse ist /grueneratoren. Alles Offizielle und alles, was…"
-  },
-  {
     "url": "/docs/features/boards",
     "title": "Boards",
     "category": "Features",
@@ -159,6 +153,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "title": "Landesverband-Agents",
     "category": "Features",
     "lead": "Der Grünerator hat für mehrere Landesverbände eigene, regional getunte Agents. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sprecher…"
+  },
+  {
+    "url": "/docs/features/marktplatz",
+    "title": "Grüneratoren und Marktplatz",
+    "category": "Features",
+    "lead": "Deine Agents, Rezepte und wiederkehrenden Aufgaben findest du unter Grüneratoren. Das ist der gleichnamige Eintrag in der Seitenleiste, die Adresse ist /grueneratoren. Alles Offizielle und alles, was…"
   },
   {
     "url": "/docs/features/notebooks",
@@ -1286,86 +1286,6 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "text": "Manches ist nur in der Web-Version möglich. Excel-/CSV-Vorlagen über den Chat ausfüllen geht nur in der Web-Version unter gruenerator.eu; gespeicherte Tabellen öffnet die App aber im eingebetteten Editor. Reel-Untertitel bearbeitest du im Chat bislang nur in der Web-Version unter gruenerator.eu. Sharepics entstehen dagegen auch in der App — du siehst sie direkt im Gespräch, kannst sie teilen und speichern; zum Feinschliff öffnet sich der Editor eingebettet, ohne dass du die App verlässt. Einige Quellen decken nur Deutschland ab. Bundestag, Abgeordnetenwatch, Bahn, tagesschau und Gesetze (deutsches Bundesrecht) beziehen sich auf deutsche Daten. Bei österreichischen Fragen weicht der Grünerator auf die Websuche aus. Nicht jede Zusatzquelle ist überall angebunden. Bahn, Wetterdienst, tagesschau, trivago und Gesetze werden pro Umgebung eingerichtet. Fehlt eine, greift der Grünerator auf die Websuche zurück und sagt dazu, worauf die Antwort beruht — erfundene Abfahrtszeiten gibt es nicht. Erfindet der Grünerator nichts? Bei Recherchen und Datenquellen nennt er die Belege. Prüfe Zahlen und Zitate trotzdem, bevor sie nach außen gehen — mehr dazu unter Risiken und Gefahren von LLMs. Du…"
   },
   {
-    "url": "/docs/features/agentura",
-    "pageTitle": "Grüneratoren und Agentura",
-    "heading": "Grüneratoren und Agentura",
-    "anchor": "",
-    "category": "Features",
-    "text": "Deine Agents, Rezepte und wiederkehrenden Aufgaben findest du unter Grüneratoren. Das ist der gleichnamige Eintrag in der Seitenleiste, die Adresse ist /grueneratoren. Alles Offizielle und alles, was andere öffentlich teilen, liegt in der Agentura, dem Laden daneben. Was du dort findest, holst du mit einem Klick zu deinen Grüneratoren. Früher hieß die ganze Seite Agentura und war in Regale mit Reitern aufgeteilt (Meine Grüneratoren, Offizielle Grüneratoren, Öffentlich …). Heute heißt nur noch der Laden Agentura. Aus Skills sind Rezepte geworden, aus Von der Basis wurde Öffentlich. Alte Links, Lesezeichen und die Adresse /agents führen automatisch an die richtige Stelle."
-  },
-  {
-    "url": "/docs/features/agentura",
-    "pageTitle": "Grüneratoren und Agentura",
-    "heading": "Agents und Rezepte",
-    "anchor": "#agents-und-rezepte",
-    "category": "Features",
-    "text": "Es gibt zwei Arten von Helfern: Agents sind spezialisierte KI-Persönlichkeiten mit eigenem Ton, eigenem Wissen und eigenen Werkzeugen. Du öffnest sie direkt im Chat und arbeitest dort mit ihnen. Du kannst sie auch mitten im Gespräch mit @ aufrufen, so wie ein Rezept. Rezepte sind kurze Schnellbefehle für eine konkrete Aufgabe, z. B. eine Pressemitteilung im Stil deines Landesverbands. Du rufst sie im Chat mit @ auf. Eine Faustregel: Ein Agent ist ein eigenständiges Gegenüber für ein ganzes Themenfeld. Ein Rezept ist eine einzelne Vorlage, die du auf jeden beliebigen Agenten anwenden kannst. Grüneratoren ist der Überbegriff für Agents, Rezepte und wiederkehrende Aufgaben. Die einzelne KI-Persönlichkeit heißt Agent. „Der Grünerator“ ohne Zusatz meint das Produkt als Ganzes."
-  },
-  {
-    "url": "/docs/features/agentura",
-    "pageTitle": "Grüneratoren und Agentura",
-    "heading": "Deine Grüneratoren",
-    "anchor": "#deine-grüneratoren",
-    "category": "Features",
-    "text": "Die Seite Grüneratoren zeigt, womit du arbeitest, in drei Abschnitten: Agents, Rezepte und Wiederkehrende Aufgaben. Dazu gehört dreierlei: was du selbst gebaut hast, was jemand in einem deiner Projekte geteilt hat, was du dir aus der Agentura dazugeholt hast. Woher eine Karte stammt, steht in ihrer grauen Zeile unter dem Titel. Weitere Aktionen liegen im Menü mit den drei Punkten: Bearbeiten, Teilen und Löschen bei Eigenem, Aus meinen Grüneratoren entfernen bei Dazugeholtem. Oben rechts stehen drei Schaltflächen: die Suche über Titel, Beschreibung und @-Namen, das Laden-Symbol, das die Agentura öffnet, Neu, um einen Agent, ein Rezept oder eine Wiederkehrende Aufgabe anzulegen. Unter Verlauf & Steuerung im selben Menü siehst du, wann deine wiederkehrenden Aufgaben gelaufen sind. Rechts neben der ersten Überschrift schaltest du zwischen drei und vier Karten pro Zeile um. Ein Agent kann auch nach Zeitplan laufen, etwa „jeden Montag eine Presseschau“. Angelegt wird er über Neu → Wiederkehrende Aufgabe. Im Editor erscheint dann ein zusätzlicher Zeitplan-Tab. Denselben Tab siehst du, wenn du später einen Agenten mit Zeitplan bearbeitest."
-  },
-  {
-    "url": "/docs/features/agentura",
-    "pageTitle": "Grüneratoren und Agentura",
-    "heading": "Der Stern",
-    "anchor": "#der-stern",
-    "category": "Features",
-    "text": "Der Stern ist eine Abkürzung im Alltag. Auf deine Grüneratoren-Seite bringt er nichts mehr, das macht Zu meinen Grüneratoren. Agents heftest du mit dem Stern an deine Seitenleiste an und öffnest sie von dort mit einem Klick im Chat. Das geht mit eigenen, System- und Landesverbands-Agents ebenso wie mit solchen, die jemand anderes gebaut und über ein Projekt oder öffentlich geteilt hat. Ändert der Ersteller den Namen eines geteilten Agenten, zeigt deine Seitenleiste den neuen Namen, sobald du deine Grüneratoren das nächste Mal öffnest. Rezepte mit Stern stehen im Chat direkt im Plus-Menü neben dem Eingabefeld, ohne dass du sie erst suchen musst. Das gilt am Rechner wie in der App. Früher legte der Stern einen Agent oder ein Rezept in das Regal Meine Grüneratoren. Beim ersten Öffnen deiner Grüneratoren-Seite holt der Grünerator diese Sterne einmalig zu deinen Grüneratoren. Dabei verschwindet nichts, was vorher dort lag. Die Sterne bleiben stehen."
-  },
-  {
-    "url": "/docs/features/agentura",
-    "pageTitle": "Grüneratoren und Agentura",
-    "heading": "Detailseiten",
-    "anchor": "#detailseiten",
-    "category": "Features",
-    "text": "Jeder Agent und jedes Rezept hat eine eigene Detailseite, wie ein Produkt im Laden. Agents (/agentura/agent/...): Kopfbereich mit den Aktionen Im Chat öffnen und dem Stern. Bei Agents, die nicht dir gehören, kommt Zu meinen Grüneratoren dazu. Bei deinen eigenen Agents gibt es Teilen, bei allen anderen heißt dieselbe Schaltfläche Link kopieren. Übersicht: Beschreibung des Agenten. Gesprächsbeginn: Begrüßungsnachricht und eine Vorschau auf Beispiel-Antworten. Fähigkeiten: welche Werkzeuge der Agent nutzt und auf welches Wissen er zugreift. Verwandte: ähnliche Agents, die zum Thema passen. Rezepte (/agentura/rezept/...): Kopfbereich mit den Aktionen Im Chat verwenden und dem Stern. Bei Rezepten, die nicht dir gehören, kommt Zu meinen Grüneratoren dazu. Bei deinen eigenen Rezepten gibt es Bearbeiten, Teilen und Löschen, bei allen anderen heißt die Teilen-Schaltfläche Link kopieren. Mitgelieferte Rezepte, die du anpassen darfst (z. B. Presse, Instagram, Landesverbands-Rezepte), haben im Kopfbereich zusätzlich Mit eigenen Beispielen anpassen. Hast du schon einen eigenen Stil hinterlegt, heißt dieselbe Schaltfläche Angepassten Stil bearbeiten, und ein Abzeichen zeigt Du hast diesen Stil…"
-  },
-  {
-    "url": "/docs/features/agentura",
-    "pageTitle": "Grüneratoren und Agentura",
-    "heading": "Die Agentura",
-    "anchor": "#die-agentura",
-    "category": "Features",
-    "text": "Das Laden-Symbol oben rechts öffnet die Agentura als Fenster über deinen Grüneratoren. Direkt erreichst du sie unter /agentura. Sie ist in drei Gänge aufgeteilt: Offizielle Grüneratoren: die Agents des Grünerators. Dein Landesverband: nur mit der passenden Rolle sichtbar, mit dem Namen deines Verbands als Überschrift (bei den Grünen Hessen also Grüne Hessen). Siehe Landesverband einrichten. Öffentlich: Agents und Rezepte, die andere für alle freigegeben haben. Mitgelieferte Rezepte wie die Pressemitteilung wendet der Grünerator ohnehin von selbst an, wenn du darum bittest. Deshalb stehen sie nicht in den Gängen. Über das Suchfeld oben in der Agentura findest du sie trotzdem. Ein Klick auf eine Karte zeigt die Kurzbeschreibung mit drei Schaltflächen: Zu meinen Grüneratoren legt den Agent oder das Rezept auf deine Seite. Das ist an deinem Konto gespeichert, gilt also am Rechner und in der App. Ein zweiter Klick (In meinen Grüneratoren) nimmt es wieder heraus. Im Chat ausprobieren öffnet ein neues Gespräch damit. Alle Details führt zur ausführlichen Detailseite. Auf den Karten der Agents siehst du außerdem Fähigkeits-Hinweise: welche Werkzeuge sie nutzen, ob sie auf ein…"
-  },
-  {
-    "url": "/docs/features/agentura",
-    "pageTitle": "Grüneratoren und Agentura",
-    "heading": "Eigene Agents bauen",
-    "anchor": "#eigene-agents-bauen",
-    "category": "Features",
-    "text": "Du kannst deine eigenen Agents bauen, ganz ohne technische Vorkenntnisse. Wie das Schritt für Schritt geht, liest du unter Eigene Agents erstellen."
-  },
-  {
-    "url": "/docs/features/agentura",
-    "pageTitle": "Grüneratoren und Agentura",
-    "heading": "Eigene Rezepte bauen",
-    "anchor": "#eigene-rezepte-bauen",
-    "category": "Features",
-    "text": "Genauso kannst du dir eigene Rezepte bauen: eine Schreibvorgabe für eine bestimmte Textsorte, die du danach per @mention auf jeden Agenten anwendest. Wie das Schritt für Schritt geht, liest du unter Eigene Rezepte erstellen."
-  },
-  {
-    "url": "/docs/features/agentura",
-    "pageTitle": "Grüneratoren und Agentura",
-    "heading": "In der App",
-    "anchor": "#in-der-app",
-    "category": "Features",
-    "text": "Die App zeigt den Markt als Regale mit Reitern, mit Meine Grüneratoren als Startansicht: Meine Grüneratoren enthält dort deine eigenen Agents und Rezepte und alles, was du dir am Rechner oder in der App dazugeholt hast. Dazuholen geht in der App über das Plus oben rechts an jeder Karte. Ein Häkchen zeigt, dass es schon bei dir liegt, und ein weiterer Tipp nimmt es wieder heraus. Eigene Agents und Rezepte legst du am Rechner an."
-  },
-  {
-    "url": "/docs/features/agentura",
-    "pageTitle": "Grüneratoren und Agentura",
-    "heading": "Tipps für die Nutzung",
-    "anchor": "#tipps-für-die-nutzung",
-    "category": "Features",
-    "text": "Probier einen Agenten aus, bevor du ihn dazuholst. In der Agentura öffnet Im Chat ausprobieren ein Gespräch mit der ganzen Konfiguration. Hol dir, was du regelmäßig brauchst, zu deinen Grüneratoren. Den Rest findest du jederzeit wieder in der Agentura. Hefte deine wichtigsten Agents mit dem Stern an, damit sie in der Seitenleiste auftauchen. Schau dir vor dem Bauen ähnliche Agents an. Über die „Verwandte“-Liste auf den Detailseiten findest du Vorbilder. Mehr zum Arbeiten mit Agents im Gespräch findest du unter KI-Chat."
-  },
-  {
     "url": "/docs/features/boards",
     "pageTitle": "Boards",
     "heading": "Boards",
@@ -1475,7 +1395,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Features",
     "anchor": "",
     "category": "Features",
-    "text": "Neben dem Chat gibt es im Grünerator drei größere Flächen. Diese Seiten beschreiben, was es dort gibt — jede Funktion, jeden Schalter. Wenn du stattdessen eine bestimmte Aufgabe erledigen willst, sind die Guides für Einsteiger*innen der kürzere Weg. Office — Dokumente, Tabellen, Präsentationen und Boards, gemeinsam bearbeitbar und mit KI-Unterstützung direkt im Editor. Grüneratoren und Agentura — deine Agents, Rezepte und Aufgaben an einem Ort, dazu die Agentura als Laden für offizielle und öffentliche: fertige dazuholen, eigene bauen. Notebooks — eigenes Wissen bündeln und durchsuchbar machen: Quellarten, Teilen, Verwaltung. Landesverbände — welche Inhalte der Landesverbände im Grünerator stecken und was ihre Agents können."
+    "text": "Neben dem Chat gibt es im Grünerator drei größere Flächen. Diese Seiten beschreiben, was es dort gibt — jede Funktion, jeden Schalter. Wenn du stattdessen eine bestimmte Aufgabe erledigen willst, sind die Guides für Einsteiger*innen der kürzere Weg. Office — Dokumente, Tabellen, Präsentationen und Boards, gemeinsam bearbeitbar und mit KI-Unterstützung direkt im Editor. Grüneratoren und Marktplatz — deine Agents, Rezepte und Aufgaben an einem Ort, dazu der Marktplatz für offizielle und öffentliche Agents, Rezepte, Vorlagen, Sticker und Hintergründe: fertige dazuholen, merken, eigene veröffentlichen. Notebooks — eigenes Wissen bündeln und durchsuchbar machen: Quellarten, Teilen, Verwaltung. Landesverbände — welche Inhalte der Landesverbände im Grünerator stecken und was ihre Agents können."
   },
   {
     "url": "/docs/features/ki-im-editor",
@@ -1572,6 +1492,142 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#wahlprüfsteine-beantworten",
     "category": "Features",
     "text": "Die Wahlprüfstein-Agents beantworten Fragenkataloge von Verbänden und Initiativen (Wahlprüfsteine): Du fügst den Katalog ein, der Agent recherchiert die Positionen des Landesverbands und antwortet im Format des Katalogs und im Stil des Landesverbands. Auch sie erreichst du über die Landesverband-Seite — dort wählst du Wahlprüfsteine."
+  },
+  {
+    "url": "/docs/features/marktplatz",
+    "pageTitle": "Grüneratoren und Marktplatz",
+    "heading": "Grüneratoren und Marktplatz",
+    "anchor": "",
+    "category": "Features",
+    "text": "Deine Agents, Rezepte und wiederkehrenden Aufgaben findest du unter Grüneratoren. Das ist der gleichnamige Eintrag in der Seitenleiste, die Adresse ist /grueneratoren. Alles Offizielle und alles, was andere öffentlich teilen, liegt im Marktplatz unter /marktplatz. Dort gibt es nicht nur Agents und Rezepte, sondern auch Vorlagen, Sticker und Hintergründe. Früher gab es drei getrennte Schaufenster: die Agentura für Agents und Rezepte, die öffentlichen Vorlagen auf der Vorlagen-Seite und Entdecken bei Sticker & Hintergründe. Heute liegt das alles zusammen im Marktplatz. Aus Skills sind Rezepte geworden, aus Von der Basis wurde Öffentlich. Alte Links und Lesezeichen (/agentura, /studio/sticker/entdecken, /agents) führen automatisch an die richtige Stelle."
+  },
+  {
+    "url": "/docs/features/marktplatz",
+    "pageTitle": "Grüneratoren und Marktplatz",
+    "heading": "Agents und Rezepte",
+    "anchor": "#agents-und-rezepte",
+    "category": "Features",
+    "text": "Es gibt zwei Arten von Helfern: Agents sind spezialisierte KI-Persönlichkeiten mit eigenem Ton, eigenem Wissen und eigenen Werkzeugen. Du öffnest sie direkt im Chat und arbeitest dort mit ihnen. Du kannst sie auch mitten im Gespräch mit @ aufrufen, so wie ein Rezept. Rezepte sind kurze Schnellbefehle für eine konkrete Aufgabe, z. B. eine Pressemitteilung im Stil deines Landesverbands. Du rufst sie im Chat mit @ auf. Eine Faustregel: Ein Agent ist ein eigenständiges Gegenüber für ein ganzes Themenfeld. Ein Rezept ist eine einzelne Vorlage, die du auf jeden beliebigen Agenten anwenden kannst. Grüneratoren ist der Überbegriff für Agents, Rezepte und wiederkehrende Aufgaben. Die einzelne KI-Persönlichkeit heißt Agent. „Der Grünerator“ ohne Zusatz meint das Produkt als Ganzes."
+  },
+  {
+    "url": "/docs/features/marktplatz",
+    "pageTitle": "Grüneratoren und Marktplatz",
+    "heading": "Deine Grüneratoren",
+    "anchor": "#deine-grüneratoren",
+    "category": "Features",
+    "text": "Die Seite Grüneratoren zeigt, womit du arbeitest, in drei Abschnitten: Agents, Rezepte und Wiederkehrende Aufgaben. Dazu gehört dreierlei: was du selbst gebaut hast, was jemand in einem deiner Projekte geteilt hat, was du dir aus dem Marktplatz dazugeholt hast. Woher eine Karte stammt, steht in ihrer grauen Zeile unter dem Titel. Weitere Aktionen liegen im Menü mit den drei Punkten: Bearbeiten, Teilen und Löschen bei Eigenem, Aus meinen Grüneratoren entfernen bei Dazugeholtem. Oben rechts stehen drei Schaltflächen: die Suche über Titel, Beschreibung und @-Namen, das Laden-Symbol (Marktplatz), das den Marktplatz mit Agents und Rezepten als Fenster über deiner Seite öffnet, Neu, um einen Agent, ein Rezept oder eine Wiederkehrende Aufgabe anzulegen. Unter Verlauf & Steuerung im selben Menü siehst du, wann deine wiederkehrenden Aufgaben gelaufen sind. Rechts neben der ersten Überschrift schaltest du zwischen drei und vier Karten pro Zeile um. Ein Agent kann auch nach Zeitplan laufen, etwa „jeden Montag eine Presseschau“. Angelegt wird er über Neu → Wiederkehrende Aufgabe. Im Editor erscheint dann ein zusätzlicher Zeitplan-Tab. Denselben Tab siehst du, wenn du später einen Agenten mit…"
+  },
+  {
+    "url": "/docs/features/marktplatz",
+    "pageTitle": "Grüneratoren und Marktplatz",
+    "heading": "Der Marktplatz",
+    "anchor": "#der-marktplatz",
+    "category": "Features",
+    "text": "Den ganzen Marktplatz erreichst du unter /marktplatz. Oben wählst du die Art: Alle: von jeder Art die ersten Einträge. Mit Alle anzeigen geht es zur ganzen Liste einer Art. Agents und Rezepte. Vorlagen: Vorlagen, die andere öffentlich geteilt haben. Die offiziellen Grünerator- und Druckvorlagen stehen weiter auf der Seite Vorlagen. Sticker und Hintergründe für dein Profilbild. Den Marktplatz gibt es auch als Fenster an den Stellen, wo du ihn brauchst, schon passend vorgefiltert: über deinen Grüneratoren (Agents und Rezepte), auf der Seite Vorlagen über Öffentliche Vorlagen, bei Sticker & Hintergründe über Entdecken und im Profilbild-Editor. Dort genügt ein Klick auf einen Sticker oder Hintergrund, und er landet in deinem Bild. Im Marktplatz öffnen oben im Fenster bringt dich zur vollen Seite."
+  },
+  {
+    "url": "/docs/features/marktplatz",
+    "pageTitle": "Grüneratoren und Marktplatz",
+    "heading": "Der Stern",
+    "anchor": "#der-stern",
+    "category": "Features",
+    "text": "Der Stern ist eine Abkürzung im Alltag. Auf deine Grüneratoren-Seite bringt er nichts mehr, das macht Zu meinen Grüneratoren. Agents heftest du mit dem Stern an deine Seitenleiste an und öffnest sie von dort mit einem Klick im Chat. Das geht mit eigenen, System- und Landesverbands-Agents ebenso wie mit solchen, die jemand anderes gebaut und über ein Projekt oder öffentlich geteilt hat. Ändert der Ersteller den Namen eines geteilten Agenten, zeigt deine Seitenleiste den neuen Namen, sobald du deine Grüneratoren das nächste Mal öffnest. Rezepte mit Stern stehen im Chat direkt im Plus-Menü neben dem Eingabefeld, ohne dass du sie erst suchen musst. Das gilt am Rechner wie in der App. Früher legte der Stern einen Agent oder ein Rezept in das Regal Meine Grüneratoren. Beim ersten Öffnen deiner Grüneratoren-Seite holt der Grünerator diese Sterne einmalig zu deinen Grüneratoren. Dabei verschwindet nichts, was vorher dort lag. Die Sterne bleiben stehen."
+  },
+  {
+    "url": "/docs/features/marktplatz",
+    "pageTitle": "Grüneratoren und Marktplatz",
+    "heading": "Detailseiten",
+    "anchor": "#detailseiten",
+    "category": "Features",
+    "text": "Jeder Agent und jedes Rezept hat eine eigene Detailseite, wie ein Produkt im Laden. Im Marktplatz kommst du über Alle Details dorthin. Agents (/agentura/agent/...): Kopfbereich mit den Aktionen Im Chat öffnen und dem Stern. Bei Agents, die nicht dir gehören, kommt Zu meinen Grüneratoren dazu. Bei deinen eigenen Agents gibt es Teilen, bei allen anderen heißt dieselbe Schaltfläche Link kopieren. Übersicht: Beschreibung des Agenten. Gesprächsbeginn: Begrüßungsnachricht und eine Vorschau auf Beispiel-Antworten. Fähigkeiten: welche Werkzeuge der Agent nutzt und auf welches Wissen er zugreift. Verwandte: ähnliche Agents, die zum Thema passen. Rezepte (/agentura/rezept/...): Kopfbereich mit den Aktionen Im Chat verwenden und dem Stern. Bei Rezepten, die nicht dir gehören, kommt Zu meinen Grüneratoren dazu. Bei deinen eigenen Rezepten gibt es Bearbeiten, Teilen und Löschen, bei allen anderen heißt die Teilen-Schaltfläche Link kopieren. Mitgelieferte Rezepte, die du anpassen darfst (z. B. Presse, Instagram, Landesverbands-Rezepte), haben im Kopfbereich zusätzlich Mit eigenen Beispielen anpassen. Hast du schon einen eigenen Stil hinterlegt, heißt dieselbe Schaltfläche Angepassten Stil…"
+  },
+  {
+    "url": "/docs/features/marktplatz",
+    "pageTitle": "Grüneratoren und Marktplatz",
+    "heading": "Deutschland und Österreich",
+    "anchor": "#deutschland-und-österreich",
+    "category": "Features",
+    "text": "Der Marktplatz zeigt dir nur, was für dein Land gedacht ist: Inhalte für Deutschland oder für Österreich, je nachdem, welches Land in deinem Konto steht, dazu alles, was für beide gilt. Eine Vorlage aus Österreich siehst du in Deutschland also nicht, und umgekehrt."
+  },
+  {
+    "url": "/docs/features/marktplatz",
+    "pageTitle": "Grüneratoren und Marktplatz",
+    "heading": "Eigene Agents bauen",
+    "anchor": "#eigene-agents-bauen",
+    "category": "Features",
+    "text": "Du kannst deine eigenen Agents bauen, ganz ohne technische Vorkenntnisse. Wie das Schritt für Schritt geht, liest du unter Eigene Agents erstellen."
+  },
+  {
+    "url": "/docs/features/marktplatz",
+    "pageTitle": "Grüneratoren und Marktplatz",
+    "heading": "Eigene Rezepte bauen",
+    "anchor": "#eigene-rezepte-bauen",
+    "category": "Features",
+    "text": "Genauso kannst du dir eigene Rezepte bauen: eine Schreibvorgabe für eine bestimmte Textsorte, die du danach per @mention auf jeden Agenten anwendest. Wie das Schritt für Schritt geht, liest du unter Eigene Rezepte erstellen."
+  },
+  {
+    "url": "/docs/features/marktplatz",
+    "pageTitle": "Grüneratoren und Marktplatz",
+    "heading": "Eigenes veröffentlichen",
+    "anchor": "#eigenes-veröffentlichen",
+    "category": "Features",
+    "text": "Was du baust oder hochlädst, bleibt privat, bis du es selbst freigibst. So geht es: Agents: in deinen Grüneratoren über Teilen am Agenten. Schalte dort Auf „Öffentlich“ listen ein. Rezepte: genauso über Teilen und Auf „Öffentlich“ listen. Dabei bestätigst du einmal, dass du die Inhalte besitzt oder sie veröffentlichen darfst. Vorlagen: auf der Seite Vorlagen unter Meine Vorlagen, im Menü der Vorlage über Zur Galerie einreichen. Das Grünerator-Team prüft eine eingereichte Vorlage, bevor sie im Marktplatz erscheint. Privat machen nimmt sie wieder heraus. Sticker und Hintergründe: bei Sticker & Hintergründe über Öffentlich machen an der Karte. Dabei bestätigst du, dass du die Bildrechte hast. Was du veröffentlichst, erscheint unter Öffentlich, und zwar für das Land, das in deinem Konto steht."
+  },
+  {
+    "url": "/docs/features/marktplatz",
+    "pageTitle": "Grüneratoren und Marktplatz",
+    "heading": "Ein Eintrag im Detail",
+    "anchor": "#ein-eintrag-im-detail",
+    "category": "Features",
+    "text": "Ein Klick auf eine Karte zeigt die Kurzbeschreibung und die Schaltflächen dazu: Zu meinen Grüneratoren (bei Agents und Rezepten) oder Merken (bei Vorlagen, Stickern und Hintergründen), siehe unten. Was du mit dem Eintrag machen kannst: bei Agents und Rezepten Im Chat ausprobieren und Alle Details, bei Vorlagen Vorlage verwenden oder In Canva öffnen, bei Stickern und Hintergründen Im Profilbild verwenden. Gefällt mir, mit der Zahl der bisherigen Likes. Melden bei öffentlichen Einträgen anderer. Auf den Karten der Agents siehst du außerdem Fähigkeits-Hinweise: welche Werkzeuge sie nutzen, ob sie auf ein Wissens-Notebook zugreifen und für welche Region sie gedacht sind."
+  },
+  {
+    "url": "/docs/features/marktplatz",
+    "pageTitle": "Grüneratoren und Marktplatz",
+    "heading": "Herkunft",
+    "anchor": "#herkunft",
+    "category": "Features",
+    "text": "Mit dem Filter Herkunft grenzt du ein, woher ein Eintrag kommt: Offiziell: Agents und Rezepte des Grünerators. Dein Landesverband: nur mit der passenden Rolle sichtbar, mit dem Namen deines Verbands (bei den Grünen Hessen also Grüne Hessen). Siehe Landesverband einrichten. Öffentlich: was andere für alle freigegeben haben. Statt eines Abzeichens steht hier der Name der Person auf der Karte. Vorlagen, Sticker und Hintergründe gibt es im Marktplatz nur unter Öffentlich. Mitgelieferte Rezepte wie die Pressemitteilung wendet der Grünerator ohnehin von selbst an, wenn du darum bittest. Über die Suche im Marktplatz findest du sie trotzdem."
+  },
+  {
+    "url": "/docs/features/marktplatz",
+    "pageTitle": "Grüneratoren und Marktplatz",
+    "heading": "In der App",
+    "anchor": "#in-der-app",
+    "category": "Features",
+    "text": "Auch die App hat den Marktplatz, mit denselben Arten, derselben Herkunft und derselben Trennung nach Land. Er öffnet sich über deinen Grüneratoren (Agents und Rezepte), auf der Vorlagen-Seite, bei Sticker & Hintergründe und in der Sticker- und Hintergrund-Auswahl des Profilbild-Editors. Was du am Rechner gemerkt oder zu deinen Grüneratoren geholt hast, ist in der App schon da, und umgekehrt. Eigene Agents und Rezepte legst du am Rechner an."
+  },
+  {
+    "url": "/docs/features/marktplatz",
+    "pageTitle": "Grüneratoren und Marktplatz",
+    "heading": "Melden",
+    "anchor": "#melden",
+    "category": "Features",
+    "text": "Siehst du etwas, das nicht in den Marktplatz gehört (zum Beispiel beleidigend, falsch oder mit fremden Bildrechten), dann öffne den Eintrag und klicke auf Melden. Wähle einen Grund der Meldung und schick sie ab. Das geht bei allen öffentlichen Einträgen anderer: Agents, Rezepte, Vorlagen, Sticker und Hintergründe. Offizielle Inhalte und deine eigenen kannst du nicht melden. Melden mehrere Personen denselben Eintrag, verschwindet er vorläufig aus dem Marktplatz, bis das Grünerator-Team ihn geprüft hat. Danach kommt er zurück, oder er bleibt entfernt."
+  },
+  {
+    "url": "/docs/features/marktplatz",
+    "pageTitle": "Grüneratoren und Marktplatz",
+    "heading": "Merken oder „Zu meinen Grüneratoren“?",
+    "anchor": "#merken-oder-zu-meinen-grüneratoren",
+    "category": "Features",
+    "text": "Beides speichert etwas an deinem Konto, gilt also am Rechner und in der App. Der Unterschied ist, wo es danach auftaucht: Zu meinen Grüneratoren legt einen Agent oder ein Rezept auf deine Seite Grüneratoren, neben deine eigenen. Ein zweiter Klick (In meinen Grüneratoren) nimmt es wieder heraus. Merken setzt ein Lesezeichen auf eine Vorlage, einen Sticker oder einen Hintergrund. Gemerkte Vorlagen findest du auf der Seite Vorlagen über Nur gemerkte Vorlagen, gemerkte Sticker und Hintergründe in deiner Sammlung bei Sticker & Hintergründe. Gemerkt zeigt, dass es schon gespeichert ist. Ein weiterer Klick nimmt es wieder heraus."
+  },
+  {
+    "url": "/docs/features/marktplatz",
+    "pageTitle": "Grüneratoren und Marktplatz",
+    "heading": "Suchen und sortieren",
+    "anchor": "#suchen-und-sortieren",
+    "category": "Features",
+    "text": "Das Suchfeld durchsucht Titel und Beschreibung. Unter Sortierung wählst du Empfohlen, Neu oder Beliebt (nach „Gefällt mir“). Art, Herkunft, Suche und Sortierung stehen in der Adresse (URL). Du kannst eine Ansicht also als Link weitergeben."
+  },
+  {
+    "url": "/docs/features/marktplatz",
+    "pageTitle": "Grüneratoren und Marktplatz",
+    "heading": "Tipps für die Nutzung",
+    "anchor": "#tipps-für-die-nutzung",
+    "category": "Features",
+    "text": "Probier einen Agenten aus, bevor du ihn dazuholst. Im Marktplatz öffnet Im Chat ausprobieren ein Gespräch mit der ganzen Konfiguration. Hol dir, was du regelmäßig brauchst, zu deinen Grüneratoren. Den Rest findest du jederzeit wieder im Marktplatz. Hefte deine wichtigsten Agents mit dem Stern an, damit sie in der Seitenleiste auftauchen. Schau dir vor dem Bauen ähnliche Agents an. Über die „Verwandte“-Liste auf den Detailseiten findest du Vorbilder. Mehr zum Arbeiten mit Agents im Gespräch findest du unter KI-Chat."
   },
   {
     "url": "/docs/features/notebooks",
@@ -2731,7 +2787,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Ein mitgeliefertes Rezept anpassen",
     "anchor": "#ein-mitgeliefertes-rezept-anpassen",
     "category": "Guides",
-    "text": "Rezepte, die der Grünerator mitbringt (z. B. Presse, Instagram, Facebook, Landesverbands-Rezepte), kannst du mit deinem eigenen Stil überschreiben, ohne sie neu zu bauen: Such das Rezept in der Agentura (mitgelieferte Rezepte findest du dort über die Suche), öffne Alle Details und klicke auf seiner Detailseite auf „Mit eigenen Beispielen anpassen\". Das öffnet denselben Editor — Name und @mention sind dabei fest vorgegeben, Anleitung und Beispiele füllst du selbst. Danach zeigt die Detailseite des Rezepts das Abzeichen „Du hast diesen Stil angepasst\", und die Schaltfläche heißt fortan „Angepassten Stil bearbeiten\"."
+    "text": "Rezepte, die der Grünerator mitbringt (z. B. Presse, Instagram, Facebook, Landesverbands-Rezepte), kannst du mit deinem eigenen Stil überschreiben, ohne sie neu zu bauen: Such das Rezept im Marktplatz (mitgelieferte Rezepte findest du dort über die Suche), öffne Alle Details und klicke auf seiner Detailseite auf „Mit eigenen Beispielen anpassen\". Das öffnet denselben Editor — Name und @mention sind dabei fest vorgegeben, Anleitung und Beispiele füllst du selbst. Danach zeigt die Detailseite des Rezepts das Abzeichen „Du hast diesen Stil angepasst\", und die Schaltfläche heißt fortan „Angepassten Stil bearbeiten\"."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
@@ -2787,7 +2843,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Teilen",
     "anchor": "#teilen",
     "category": "Guides",
-    "text": "Unter Teilen am Ende des Formulars (nur bei bereits gespeicherten eigenen Rezepten) legst du die Sichtbarkeit fest: Privat — nur du siehst das Rezept. Mit Projekten geteilt — du wählst eines oder mehrere deiner Projekte aus; alle Mitglieder können das Rezept dann im Chat nutzen. Das geht auch im Chat („Teile mein Rezept @einladung mit der Klima-AG\"); der Chat zeigt dir dann eine Karte, und geteilt wird erst, wenn du sie bestätigst. Mit Anmeldung — alle eingeloggten Nutzer*innen können es aufrufen. Zusätzlich kannst du dein Rezept „Öffentlich\" listen, damit es andere in der Agentura entdecken. Dafür bestätigst du einmal, dass du die Inhalte besitzt (oder zur Veröffentlichung berechtigt bist) oder dass sie öffentlich verfügbar sind — dieses Attest erscheint, sobald du die Listung aktivierst."
+    "text": "Unter Teilen am Ende des Formulars (nur bei bereits gespeicherten eigenen Rezepten) legst du die Sichtbarkeit fest: Privat — nur du siehst das Rezept. Mit Projekten geteilt — du wählst eines oder mehrere deiner Projekte aus; alle Mitglieder können das Rezept dann im Chat nutzen. Das geht auch im Chat („Teile mein Rezept @einladung mit der Klima-AG\"); der Chat zeigt dir dann eine Karte, und geteilt wird erst, wenn du sie bestätigst. Mit Anmeldung — alle eingeloggten Nutzer*innen können es aufrufen. Zusätzlich kannst du dein Rezept „Öffentlich\" listen, damit es andere im Marktplatz finden. Dafür bestätigst du einmal, dass du die Inhalte besitzt (oder zur Veröffentlichung berechtigt bist) oder dass sie öffentlich verfügbar sind — dieses Attest erscheint, sobald du die Listung aktivierst."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
@@ -2795,7 +2851,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Tipps für die Nutzung",
     "anchor": "#tipps-für-die-nutzung",
     "category": "Guides",
-    "text": "Ein Rezept je Textsorte — mische nicht mehrere Anlässe in eine Anleitung. Keine Fakten oder Namen in die Anleitung — die gibst du beim Aufruf im Chat mit. Kombiniere Rezept + Quelle + Thema im Chat, z. B. @presse @grundsatz Klimaschutz in Kommunen. Schau dir ähnliche Rezepte in der Agentura an, bevor du eines neu baust — vielleicht reicht ein angepasster Stil eines mitgelieferten Rezepts."
+    "text": "Ein Rezept je Textsorte — mische nicht mehrere Anlässe in eine Anleitung. Keine Fakten oder Namen in die Anleitung — die gibst du beim Aufruf im Chat mit. Kombiniere Rezept + Quelle + Thema im Chat, z. B. @presse @grundsatz Klimaschutz in Kommunen. Schau dir ähnliche Rezepte im Marktplatz an, bevor du eines neu baust — vielleicht reicht ein angepasster Stil eines mitgelieferten Rezepts."
   },
   {
     "url": "/docs/guides/fortgeschrittene/gruene-wolke-einbinden",
@@ -3075,7 +3131,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 1: Deine Rolle eintragen",
     "anchor": "#schritt-1-deine-rolle-eintragen",
     "category": "Guides",
-    "text": "Öffne die Einstellungen — über dein Profilbild unten in der Seitenleiste oder direkt über /settings. Geh zu Personalisierung. Wenn du den Grünerator zum ersten Mal benutzt, ist das gleich der erste Schritt der Einrichtung („Was machst du bei den Grünen?“). Unter Deine Rollen auf Hinzufügen. Wähle nacheinander: Ebene: Land Bundesland: dein Landesverband Rolle: Mitarbeiter*in Landesgeschäftsstelle (in Österreich: Mitarbeiter*in Landesorganisation) Der Assistent zeigt dir zum Schluss, was diese Rolle freischaltet — zum Beispiel „4 Agenten und 5 Rezepte sowie das Notebook Hessen erscheinen künftig in der Agentura und im Chat“. Speichern, fertig. Danach steht unter deinen Rollen ein Knopf „Zu deinem Landesverband“, der die Agentura direkt bei deinem Landesverband öffnet. Die Inhalte eines Landesverbands hängen an der Geschäftsstellen-Rolle und nur an ihr. Landtagsfraktion, MdL-Büro, Kreisverband oder Ortsverband geben zwar auch ein Bundesland an, schalten die LV-Agents aber nicht frei — sie sind das Material eines bestimmten Landesverbands, kein allgemeiner Bestand. Umgekehrt gilt: Ohne passende Rolle siehst du die LV-Inhalte nicht. Das ist Absicht und kein Fehler — vor der Zuteilung…"
+    "text": "Öffne die Einstellungen — über dein Profilbild unten in der Seitenleiste oder direkt über /settings. Geh zu Personalisierung. Wenn du den Grünerator zum ersten Mal benutzt, ist das gleich der erste Schritt der Einrichtung („Was machst du bei den Grünen?“). Unter Deine Rollen auf Hinzufügen. Wähle nacheinander: Ebene: Land Bundesland: dein Landesverband Rolle: Mitarbeiter*in Landesgeschäftsstelle (in Österreich: Mitarbeiter*in Landesorganisation) Der Assistent zeigt dir zum Schluss, was diese Rolle freischaltet — zum Beispiel „4 Agenten und 5 Rezepte sowie das Notebook Hessen erscheinen künftig im Marktplatz und im Chat“. Speichern, fertig. Danach steht unter deinen Rollen ein Knopf „Zu deinem Landesverband“, der den Marktplatz direkt bei deinem Landesverband öffnet. Die Inhalte eines Landesverbands hängen an der Geschäftsstellen-Rolle und nur an ihr. Landtagsfraktion, MdL-Büro, Kreisverband oder Ortsverband geben zwar auch ein Bundesland an, schalten die LV-Agents aber nicht frei — sie sind das Material eines bestimmten Landesverbands, kein allgemeiner Bestand. Umgekehrt gilt: Ohne passende Rolle siehst du die LV-Inhalte nicht. Das ist Absicht und kein Fehler — vor der Zuteilung…"
   },
   {
     "url": "/docs/guides/landesverbaende/landesverband-einrichten",
@@ -3083,7 +3139,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 2: Was du jetzt hast",
     "anchor": "#schritt-2-was-du-jetzt-hast",
     "category": "Guides",
-    "text": "Ein eigener Gang in der Agentura. Er trägt den Namen deines Landesverbands (bei Hessen also „Grüne Hessen“). Darin stehen die drei Agents deines Verbands: Öffentlichkeitsarbeit, Bürger*innenanfragen und Wahlprüfsteine. Eure Rezepte stehen dort nicht im Gang; du findest sie über die Suche der Agentura und im Chat über @ (siehe unten). Mit Zu meinen Grüneratoren holst du dir, was du täglich brauchst, auf deine eigene Seite. In der App ist es ein eigenes Regal mit Agents und Rezepten. Eure Rezepte im Chat. Die Presse- und Instagram-Rezepte deines Landesverbands tauchen jetzt in der Rezept-Liste des Chats auf und lassen sich mit @ erwähnen, etwa @presse-hessen-partei oder @insta-hessen. Welche es je Landesverband gibt, steht unter Landesverband-Agents. Euer Notebook. Die Wissensdatenbank deines Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) erscheint in der Auswahl und lässt sich im Chat als Quelle erwähnen. Und die Automatik: Bittest du den Chat einfach um „eine Pressemitteilung zu …“, nimmt er von selbst eure Vorlage statt der allgemeinen. Du musst dafür nichts erwähnen und nichts einstellen — die Rolle in deinem Profil genügt. Das gilt im normalen Chat genauso wie…"
+    "text": "Eine eigene Herkunft im Marktplatz. Sie trägt den Namen deines Landesverbands (bei Hessen also „Grüne Hessen“). Darunter stehen die drei Agents deines Verbands, Öffentlichkeitsarbeit, Bürger*innenanfragen und Wahlprüfsteine, und eure Rezepte. Im Chat erreichst du die Rezepte außerdem über @ (siehe unten). Mit Zu meinen Grüneratoren holst du dir, was du täglich brauchst, auf deine eigene Seite. In der App ist es derselbe Filter. Eure Rezepte im Chat. Die Presse- und Instagram-Rezepte deines Landesverbands tauchen jetzt in der Rezept-Liste des Chats auf und lassen sich mit @ erwähnen, etwa @presse-hessen-partei oder @insta-hessen. Welche es je Landesverband gibt, steht unter Landesverband-Agents. Euer Notebook. Die Wissensdatenbank deines Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) erscheint in der Auswahl und lässt sich im Chat als Quelle erwähnen. Und die Automatik: Bittest du den Chat einfach um „eine Pressemitteilung zu …“, nimmt er von selbst eure Vorlage statt der allgemeinen. Du musst dafür nichts erwähnen und nichts einstellen — die Rolle in deinem Profil genügt. Das gilt im normalen Chat genauso wie dann, wenn du gerade in einer Rolle aus der Auswahlliste…"
   },
   {
     "url": "/docs/guides/landesverbaende/landesverband-einrichten",
@@ -3747,7 +3803,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Was direkt aus dem Code kommt",
     "anchor": "#was-direkt-aus-dem-code-kommt",
     "category": "Sonstiges",
-    "text": "Für die Teile, die reine Aufzählung sind, gibt es keine abgetippte Kopie in der Doku. Ein Skript liest die Konfigurationsdateien des Grünerators und schreibt daraus eine Datenliste, die die Doku-Seite beim Bauen einbindet: Was | Woraus | Wo du es siehst | ------------------------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | Werkzeuge und ihre Gruppen | Die Kachel- und Katalog-Konfiguration der Weboberfläche | Alle Werkzeuge | Chat-Fähigkeiten | Die Liste der Absichten, die der Chat erkennen kann, plus die @-Erwähnungen | Was kann ich fragen? | Einstellungen | Der Aufbau des Einstellungen-Dialogs und alle Schalter darin | Einstellungen | Office-Funktionen | Die Verträge zwischen App und KI — und was der Editor davon wirklich ausführt | Office-Überblick | Dateilimits, Sammlungen, Konnektoren | Die Upload-Prüfung und die Konnektor-Registry | Dateien hinzufügen, Konnektoren | Regale der Agentura in der App | Der Kategorien-Katalog des Marktplatzes | Agentura | Namen von Werkzeugen und Menüpunkten im…"
+    "text": "Für die Teile, die reine Aufzählung sind, gibt es keine abgetippte Kopie in der Doku. Ein Skript liest die Konfigurationsdateien des Grünerators und schreibt daraus eine Datenliste, die die Doku-Seite beim Bauen einbindet: Was | Woraus | Wo du es siehst | ------------------------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | Werkzeuge und ihre Gruppen | Die Kachel- und Katalog-Konfiguration der Weboberfläche | Alle Werkzeuge | Chat-Fähigkeiten | Die Liste der Absichten, die der Chat erkennen kann, plus die @-Erwähnungen | Was kann ich fragen? | Einstellungen | Der Aufbau des Einstellungen-Dialogs und alle Schalter darin | Einstellungen | Office-Funktionen | Die Verträge zwischen App und KI — und was der Editor davon wirklich ausführt | Office-Überblick | Dateilimits, Sammlungen, Konnektoren | Die Upload-Prüfung und die Konnektor-Registry | Dateien hinzufügen, Konnektoren | Namen von Werkzeugen und Menüpunkten im Fließtext | Dieselben Konfigurationen | überall dort, wo ein Name genannt wird | Zwei…"
   },
   {
     "url": "/docs/webinare",

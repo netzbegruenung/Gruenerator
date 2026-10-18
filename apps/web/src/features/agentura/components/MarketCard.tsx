@@ -22,7 +22,13 @@ import { PiCopySimple, PiMinusCircle, PiPencilSimple, PiStar, PiStarFill } from 
  * eine Zeile Text.
  */
 interface MarketCardProps {
-  icon: ReactNode;
+  /** Das Gattungs-Icon links neben dem Titel; Kacheln mit `media` brauchen keins. */
+  icon?: ReactNode;
+  /**
+   * Bildfläche über dem Titel — im Marktplatz für Vorlagen, Sticker und
+   * Hintergründe. Rahmen, Titel, Meta-Zeile und Menü bleiben dieselben.
+   */
+  media?: ReactNode;
   title: string;
   /** Meta-Zeile unter dem Titel — Gattung plus, was die Kachel sonst ausmacht. */
   meta: string;
@@ -35,6 +41,8 @@ interface MarketCardProps {
   onDelete?: () => void;
   /** Nimmt eine aus der Agentura geholte Kachel wieder von der Übersicht. */
   onRemoveFromLibrary?: (() => void) | null;
+  /** Weitere Menüeinträge (z. B. „Gefällt mir", „Melden" im Marktplatz). */
+  menuItems?: ReactNode;
   /** Zusätzliche Bedienelemente unter der Beschreibung (z. B. Takt-Steuerung). */
   footer?: ReactNode;
   /**
@@ -48,6 +56,7 @@ interface MarketCardProps {
 
 export function MarketCard({
   icon,
+  media,
   title,
   meta,
   description,
@@ -58,6 +67,7 @@ export function MarketCard({
   onDuplicate,
   onDelete,
   onRemoveFromLibrary,
+  menuItems,
   footer,
   headingLevel = 2,
 }: MarketCardProps) {
@@ -68,10 +78,17 @@ export function MarketCard({
       onActivate={onSelect}
       className="group flex cursor-pointer flex-col gap-sm rounded-lg border border-grey-200 bg-card p-md shadow-xs transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-primary hover:shadow-md dark:border-grey-700"
     >
+      {media && (
+        <div className="-mx-md -mt-md mb-xs overflow-hidden rounded-t-lg border-b border-grey-200 dark:border-grey-700">
+          {media}
+        </div>
+      )}
       <div className="flex items-start gap-sm">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-background-alt text-xl text-foreground-heading">
-          {icon}
-        </span>
+        {icon != null && (
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-background-alt text-xl text-foreground-heading">
+            {icon}
+          </span>
+        )}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-xs">
             <Heading className="m-0 min-w-0 text-base font-semibold leading-tight text-foreground-heading">
@@ -115,6 +132,7 @@ export function MarketCard({
               Aus meinen Grüneratoren entfernen
             </DropdownMenuItem>
           )}
+          {menuItems}
         </CardActionsMenu>
       </div>
       {description && (

@@ -35,6 +35,19 @@ const GRUENERATOREN: ToolDef = {
   route: '/(focused)/agents',
 };
 
+/**
+ * Agents, Rezepte, Vorlagen, Sticker und Hintergründe zum Holen (web: the
+ * Agentura tool, `tool-agentura`, now titled „Marktplatz"). It wears the
+ * Agentura's glyph, so `agents` is the key here.
+ */
+const MARKTPLATZ: ToolDef = {
+  id: 'marktplatz',
+  title: 'Marktplatz',
+  description: 'Agents, Rezepte, Vorlagen & Sticker',
+  icon: toolIconKey('agents'),
+  route: '/(focused)/marktplatz',
+};
+
 const PROJEKTE: ToolDef = {
   id: 'projekte',
   title: 'Projekte',
@@ -91,7 +104,7 @@ export const STUDIO_TOOLS: ToolDef[] = [
   {
     id: 'sticker',
     title: 'Sticker & Hintergründe',
-    description: 'Sticker erstellen, teilen & entdecken',
+    description: 'Sticker erstellen & teilen',
     icon: toolIconKey('sticker'),
     route: '/(focused)/sticker',
   },
@@ -113,7 +126,7 @@ export const STUDIO_TOOL_GLYPHS: Record<string, IoniconsIconName> = {
  * the dock shows the first three, favourites first, and the rest open from
  * „Weitere" — web's Weitere menu: Übersetzer, then the Doku and the newsletter
  * as links. Scanner has no web tile but is the one mobile-only tool; Vorlagen
- * sits next to it instead of in the create menu.
+ * sits next to it instead of in the create menu, the Marktplatz after it.
  *
  * Ids are F1 frozen: the favourites store persists them, so they keep their
  * spelling even where the title changed (`agents` is titled "Grüneratoren" now).
@@ -130,6 +143,7 @@ export const WORKPLACE_TILES: WorkplaceTool[] = [
   PROJEKTE,
   SCANNER,
   VORLAGEN,
+  MARKTPLATZ,
   {
     id: 'uebersetzer',
     title: 'Übersetzer',

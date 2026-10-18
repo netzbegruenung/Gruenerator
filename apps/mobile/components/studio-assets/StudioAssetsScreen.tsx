@@ -13,18 +13,18 @@ import { useTheme } from '../../hooks/useTheme';
 import { colors, spacing, typography } from '../../theme';
 import { GRID_MAX_WIDTH } from '../../theme/layout';
 import { Button } from '../common/Button';
+import { marketplaceRoute } from '../marketplace/marketplaceTarget';
 
 import { StudioAssetEmpty, StudioAssetSearchField, useTileSize } from './StudioAssetParts';
 import { StudioAssetSection } from './StudioAssetSection';
 import { useShareToken } from './useShareToken';
 import { useStudioAssetActions } from './useStudioAssetActions';
 
-export const DISCOVER_ROUTE = '/(focused)/sticker-entdecken';
 const CREATE_ROUTE = '/(focused)/sticker-neu';
 
 /**
  * „Sticker & Hintergründe“: the person's own collection — created and saved —
- * by kind, without tabs. What others share opens as Entdecken over it.
+ * by kind, without tabs. What others share is in the Marktplatz.
  */
 export function StudioAssetsScreen() {
   const theme = useTheme();
@@ -46,8 +46,7 @@ export function StudioAssetsScreen() {
   const settled = stickers.settled && backgrounds.settled;
   const error = stickers.error ?? backgrounds.error;
 
-  const discover = (query = '') =>
-    router.push(query ? { pathname: DISCOVER_ROUTE, params: { q: query } } : DISCOVER_ROUTE);
+  const discover = (q = '') => router.push(marketplaceRoute({ tab: 'sticker', q }));
   const create = () => router.push(CREATE_ROUTE);
 
   const refresh = () => {
@@ -67,7 +66,7 @@ export function StudioAssetsScreen() {
                 onPress={() => discover()}
                 hitSlop={8}
                 accessibilityRole="button"
-                accessibilityLabel="Entdecken"
+                accessibilityLabel="Marktplatz"
                 style={styles.headerButton}
               >
                 <Ionicons name="storefront-outline" size={22} color={theme.text} />
@@ -98,8 +97,8 @@ export function StudioAssetsScreen() {
         }
       >
         <Text style={[styles.description, { color: theme.textSecondary }]}>
-          Deine Sticker und Hintergründe für Profilbild und Canvas. Was andere teilen, findest du
-          unter Entdecken.
+          Deine Sticker und Hintergründe für Profilbild und Canvas. Was andere teilen, findest du im
+          Marktplatz.
         </Text>
         <View style={styles.searchRow}>
           <StudioAssetSearchField value={searchInput} onChange={setSearchInput} />
@@ -125,20 +124,20 @@ export function StudioAssetsScreen() {
         ) : !settled ? null : q ? (
           <StudioAssetEmpty
             title="Keine Treffer"
-            hint="Bei deinen Stickern und Hintergründen ist nichts dabei — vielleicht unter Entdecken."
+            hint="Bei deinen Stickern und Hintergründen ist nichts dabei — vielleicht im Marktplatz."
           >
             <Button variant="outline" onPress={() => discover(q)}>
-              Unter Entdecken suchen
+              Im Marktplatz suchen
             </Button>
           </StudioAssetEmpty>
         ) : (
           <StudioAssetEmpty
             title="Noch keine Sticker oder Hintergründe"
-            hint="Erstelle einen Sticker oder merke dir etwas unter Entdecken."
+            hint="Erstelle einen Sticker oder merke dir etwas im Marktplatz."
           >
             <Button onPress={create}>Sticker erstellen</Button>
             <Button variant="outline" onPress={() => discover()}>
-              Entdecken
+              Zum Marktplatz
             </Button>
           </StudioAssetEmpty>
         )}

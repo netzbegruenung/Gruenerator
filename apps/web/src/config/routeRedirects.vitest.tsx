@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest';
 import {
   LegacyNotebookIdRedirectComponent,
   RetiredStudioCategoryRedirectComponent,
+  StickerDiscoverRedirectComponent,
   VorlagenMeineRedirectComponent,
   routes,
 } from './routes';
@@ -127,5 +128,29 @@ describe('RetiredStudioCategoryRedirect', () => {
   it.each(['/studio/ki-alt', '/studio/unknown/type'])('sends %s to the studio landing', (entry) => {
     renderStudioRedirectFrom(entry);
     expect(screen.getByTestId('path')).toHaveTextContent(/^\/studio$/);
+  });
+});
+
+describe('StickerDiscoverRedirect', () => {
+  function renderDiscover(entry: string) {
+    render(
+      <MemoryRouter initialEntries={[entry]}>
+        <Routes>
+          <Route path="/studio/sticker/entdecken" element={<StickerDiscoverRedirectComponent />} />
+          <Route path="/marktplatz" element={<LandingProbe />} />
+        </Routes>
+      </MemoryRouter>
+    );
+  }
+
+  it('opens the Sticker tab of the Marktplatz', () => {
+    renderDiscover('/studio/sticker/entdecken');
+    expect(screen.getByTestId('path')).toHaveTextContent('/marktplatz');
+    expect(screen.getByTestId('search')).toHaveTextContent('?art=sticker');
+  });
+
+  it('keeps the search', () => {
+    renderDiscover('/studio/sticker/entdecken?q=sonne');
+    expect(screen.getByTestId('search')).toHaveTextContent('?art=sticker&q=sonne');
   });
 });

@@ -20,6 +20,7 @@
  */
 
 import {
+  type GroupAudience,
   type MentionableTextForm,
   type PublicOwnership,
   type PublicTextForm,
@@ -35,9 +36,11 @@ import { userTextForms, type UserTextFormRow } from '../../database/schema/textF
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { notTrashed } from '../../database/trash.js';
+import { deleteCommentsForEntity } from '../entityComments/entityCommentsCleanup.js';
+import { deleteLikesForEntity } from '../entityLikes/EntityLikesService.js';
 import { notifyContentShared } from '../groups/groupContent.js';
 import { assertCanShareToGroup } from '../groups/groupMembership.js';
-import { deleteTrashedRow, type OwnedTrashTable } from '../trash/ownedRowTrash.js';
+import { deleteTrashedRow, purgeSideStore, type OwnedTrashTable } from '../trash/ownedRowTrash.js';
 
 import {
   isListableTextForm,
@@ -93,7 +96,7 @@ export interface TextFormSharingState {
 }
 
 /** Sharing state of one recipe, owner-scoped. Mirrors `UserAgentSharing`
- * without `audience`: recipes have no locale. */
+ * without `audience`: it follows the owner's locale and is not edited here. */
 export interface TextFormSharing extends TextFormSharingState {
   /** The recipe's UUID — the group_content_shares.content_id for this row. */
   id: string;
@@ -114,7 +117,8 @@ export interface TextFormSharingPatch {
  * that mapping belongs to the router.
  */
 export type TextFormSharingResult =
-  { ok: true; updated: boolean } | { ok: false; reason: 'not_custom' | 'ownership_required' };
+  | { ok: true; updated: boolean }
+  | { ok: false; reason: 'not_custom' | 'ownership_required' | 'removed' };
 
 /** What {@link applySharingPatch} decided: the state to write, or why not. */
 export type SharingPatchVerdict =
@@ -234,6 +238,7 @@ export async function listTextForms(userId: string): Promise<TextForm[]> {
        LEFT JOIN profiles p ON p.id = tf.user_id
       WHERE tf.user_id <> $2::uuid
         AND tf.share_mode <> 'private'
+        AND tf.moderation <> 'removed'
         AND tf.deleted_at IS NULL
         AND g.deleted_at IS NULL
       ORDER BY tf.created_at, tf.id, g.name`,
@@ -275,29 +280,74 @@ function toPublicTextForm(form: TextForm): PublicTextForm {
  * Die Antwort trägt die Beispiele NICHT — es sind die Originaltexte fremder
  * Leute; veröffentlicht ist die Anweisung, nicht ihr Rohstoff.
  */
-export async function listPublicTextForms(limit = 200): Promise<PublicTextForm[]> {
+export async function listPublicTextForms(
+  viewerLocale: string,
+  limit = 200
+): Promise<PublicTextForm[]> {
+  return (await listPublicTextFormListings(viewerLocale, null, limit)).map((l) => l.form);
+}
+
+/** A public recipe with what the Marktplatz shows around it: owner, audience and age. */
+export interface PublicTextFormListing {
+  form: PublicTextForm;
+  userId: string;
+  audience: GroupAudience;
+  createdAt: Date;
+}
+
+/**
+ * {@link listPublicTextForms}, keeping owner, audience and creation time of each row.
+ *
+ * `excludeGroupSharedFor` (the Marktplatz list, #4699) drops foreign recipes the
+ * viewer already receives through one of their projects — those live under
+ * „Grüneratoren", not „Öffentlich". Opt-in: liking and saving resolve against
+ * the unfiltered list, so a shared public recipe stays likeable.
+ */
+export async function listPublicTextFormListings(
+  viewerLocale: string,
+  excludeGroupSharedFor: string | null = null,
+  limit = 200
+): Promise<PublicTextFormListing[]> {
   const pg = getPostgresInstance();
   const rows = (await pg.query(
     `SELECT tf.*, COALESCE(p.first_name, p.display_name) AS owner_name
        FROM user_text_forms tf
        LEFT JOIN profiles p ON p.id = tf.user_id
       WHERE ${PUBLIC_VISIBLE} AND tf.deleted_at IS NULL
+        AND tf.audience IN ($1, 'all')
+        AND ($3::uuid IS NULL OR tf.user_id = $3::uuid OR NOT EXISTS (
+          SELECT 1 FROM group_content_shares gcs
+           INNER JOIN group_memberships gm
+                   ON gm.group_id = gcs.group_id AND gm.user_id = $3::uuid AND gm.is_active = TRUE
+           INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
+           WHERE gcs.content_type = $4 AND gcs.content_id = tf.id::text
+        ))
       ORDER BY tf.updated_at DESC, tf.id
-      LIMIT $1`,
-    [limit]
+      LIMIT $2`,
+    [viewerAudience(viewerLocale), limit, excludeGroupSharedFor, TEXT_FORM_CONTENT_TYPE]
   )) as unknown as Array<UserTextFormRow & { owner_name: string | null }>;
 
   return rows
     .filter((row) => isShareableTextForm(row.kind as TextFormKind, row.mention))
-    .map((row) => toPublicTextForm(rowToTextForm(row, { ownerName: row.owner_name ?? null })));
+    .map((row) => ({
+      form: toPublicTextForm(rowToTextForm(row, { ownerName: row.owner_name ?? null })),
+      userId: row.user_id,
+      audience: row.audience,
+      createdAt: new Date(row.created_at),
+    }));
+}
+
+function viewerAudience(locale: string): Exclude<GroupAudience, 'all'> {
+  return locale === 'de-AT' ? 'de-AT' : 'de-DE';
 }
 
 /** An active group share of `tf` reaching `$1::uuid`. Written once, used by
  * every query that has to answer "may this user see this row". A share row of a
  * private recipe grants nothing: setting a recipe back to private revokes group
  * access without deleting the rows (#3803), and the sharing panel lists group
- * shares only in 'groups' mode. */
-const GROUP_SHARE_EXISTS = `(tf.share_mode <> 'private' AND EXISTS (
+ * shares only in 'groups' mode. A removed recipe grants nothing either: the
+ * moderation outcome reaches the Projekte too (#4700); a hidden one stays. */
+const GROUP_SHARE_EXISTS = `(tf.share_mode <> 'private' AND tf.moderation <> 'removed' AND EXISTS (
           SELECT 1 FROM group_content_shares gcs
            INNER JOIN group_memberships gm
                    ON gm.group_id = gcs.group_id AND gm.user_id = $1::uuid AND gm.is_active = TRUE
@@ -305,8 +355,11 @@ const GROUP_SHARE_EXISTS = `(tf.share_mode <> 'private' AND EXISTS (
            WHERE gcs.content_type = $2 AND gcs.content_id = tf.id::text
         ))`;
 
-/** The public disjunct: listed, authenticated — and custom, never a system override. */
-const PUBLIC_VISIBLE = `(tf.is_public = TRUE AND tf.share_mode = 'authenticated' AND tf.kind = 'custom')`;
+/** The public disjunct: listed, authenticated, unmoderated — and custom, never a system override.
+ * Also the chat's public injection branch: a hidden recipe stops loading for everyone but
+ * its owner and the Projekte it is shared into, a removed one for everyone but its owner. */
+const PUBLIC_VISIBLE = `(tf.is_public = TRUE AND tf.share_mode = 'authenticated' AND tf.kind = 'custom'
+          AND tf.moderation = 'ok')`;
 
 /** Was der Aufrufer OHNE den offenen Katalog sieht: seine eigenen Zeilen und
  * die, die in eines seiner Projekte geteilt sind. */
@@ -424,6 +477,18 @@ export async function getTextFormForInjectionById(
   return loadInjection(INJECTION_BY_ID_SQL, userId, id);
 }
 
+/** May the caller see this recipe row — own, shared into one of their projects, or public? */
+export async function isTextFormVisibleTo(id: string, userId: string): Promise<boolean> {
+  if (!UUID_RE.test(id)) return false;
+  const rows = await getPostgresInstance().query(
+    `SELECT 1 AS ok FROM user_text_forms tf
+      WHERE tf.id = $3::uuid AND ${VISIBLE_TO_CALLER} AND tf.deleted_at IS NULL
+      LIMIT 1`,
+    [userId, TEXT_FORM_CONTENT_TYPE, id]
+  );
+  return rows.length > 0;
+}
+
 /** Owner-scoped lookup of a recipe's sharing state (and its UUID). */
 export async function getTextFormSharing(
   userId: string,
@@ -474,6 +539,7 @@ export async function updateTextFormSharing(
       share_mode: userTextForms.share_mode,
       is_public: userTextForms.is_public,
       public_ownership: userTextForms.public_ownership,
+      moderation: userTextForms.moderation,
     })
     .from(userTextForms)
     .where(
@@ -506,6 +572,8 @@ export async function updateTextFormSharing(
     patch
   );
   if (!verdict.ok) return verdict;
+  if (verdict.next.is_public && row.moderation === 'removed')
+    return { ok: false, reason: 'removed' };
 
   const updated = await db
     .update(userTextForms)
@@ -676,6 +744,8 @@ export async function upsertTextForm(userId: string, input: TextFormInput): Prom
     icon_key: input.iconKey ?? null,
     analyzed_at: now,
     updated_at: now,
+    // Insert only, not in the conflict set: the owner's locale when the recipe was created.
+    audience: sql<GroupAudience>`COALESCE((SELECT locale FROM profiles WHERE id = ${userId}), 'all')`,
   };
   const rows = await db
     .insert(userTextForms)
@@ -730,9 +800,16 @@ export const TEXT_FORM_TRASH: OwnedTrashTable = {
   columns: 'id, title, mention',
 };
 
-/** Hard-delete a trashed recipe. Its `group_content_shares` rows were never removed on delete either. */
+/** Hard-delete a trashed recipe and its likes. Its `group_content_shares` rows were never removed on delete either. */
 export async function purgeTextForm(id: string, cutoff: Date | null): Promise<boolean> {
-  return (await deleteTrashedRow(TEXT_FORM_TRASH, id, cutoff)) !== null;
+  if ((await deleteTrashedRow(TEXT_FORM_TRASH, id, cutoff)) === null) return false;
+  await purgeSideStore('user_text_form', id, 'entity_likes', () =>
+    deleteLikesForEntity('recipe', id)
+  );
+  await purgeSideStore('user_text_form', id, 'entity_comments', () =>
+    deleteCommentsForEntity('recipe', id)
+  );
+  return true;
 }
 
 // ── Mentionable list ─────────────────────────────────────────────────────────

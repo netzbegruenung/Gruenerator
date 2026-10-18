@@ -19,13 +19,16 @@ import {
   canvasVorlageThumbFile,
   listCanvasVorlagen,
   listPrintVorlagen,
+  listSharepicBloecke,
   listSharepicSeiten,
   listSharepicVorlagen,
   printVorlageThumbFile,
+  sharepicBlockThumbFile,
   sharepicSeiteThumbFile,
   sharepicVorlageThumbFile,
 } from '../services/sharepicVorlagen/catalog.js';
 import {
+  blockProblems,
   printProblems,
   seiteProblems,
   vorlageProblems,
@@ -35,6 +38,7 @@ const vorlagen = listSharepicVorlagen(null);
 const seiten = listSharepicSeiten(null);
 const canvas = listCanvasVorlagen(null);
 const print = listPrintVorlagen(null);
+const bloecke = listSharepicBloecke(null);
 let failed = vorlagen.length === 0;
 if (failed) console.error('No Vorlagen loaded — is INTERN_CONTENT_DIR set?');
 
@@ -79,12 +83,20 @@ for (const v of print) {
   report(`print ${v.id}`, problems);
 }
 
+for (const b of bloecke) {
+  const problems = blockProblems(b, b.locale);
+  const thumb = sharepicBlockThumbFile(b.id);
+  if (!thumb || !existsSync(thumb)) problems.push('no preview (run the render script)');
+  report(`block ${b.id}`, problems);
+}
+
 const count = <T extends { locale: string }>(list: T[], locale: string) =>
   list.filter((v) => v.locale === locale).length;
 console.log(
   `${vorlagen.length} Vorlagen (DE ${count(vorlagen, 'de-DE')}, AT ${count(vorlagen, 'de-AT')}), ` +
     `${seiten.length} Seiten (DE ${count(seiten, 'de-DE')}, AT ${count(seiten, 'de-AT')}), ` +
     `${canvas.length} canvas Vorlagen (DE ${count(canvas, 'de-DE')}, AT ${count(canvas, 'de-AT')}), ` +
-    `${print.length} print Vorlagen (DE ${count(print, 'de-DE')}, AT ${count(print, 'de-AT')})`
+    `${print.length} print Vorlagen (DE ${count(print, 'de-DE')}, AT ${count(print, 'de-AT')}), ` +
+    `${bloecke.length} Blöcke (DE ${count(bloecke, 'de-DE')}, AT ${count(bloecke, 'de-AT')})`
 );
 process.exit(failed ? 1 : 0);

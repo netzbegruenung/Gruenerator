@@ -5,11 +5,11 @@ import {
   useDeleteUserAgent,
   useUserAgents,
 } from '@gruenerator/shared/grueneratoren';
+import { useMarketplaceItem } from '@gruenerator/shared/marketplace';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { Alert, ScrollView, View } from 'react-native';
 
-import { AgentDiscussion } from '../../../../../components/agentura/detail/AgentDiscussion';
 import {
   agentKnowledge,
   agentShareUrl,
@@ -29,6 +29,7 @@ import {
 import { LibraryToggleButton } from '../../../../../components/agentura/detail/LibraryToggleButton';
 import { agentIcon } from '../../../../../components/chat/sidebarIcons';
 import { Button, ListGroup, ListRow } from '../../../../../components/common';
+import { MarketplaceDiscussion } from '../../../../../components/marketplace/MarketplaceDiscussion';
 import { useAgentBySlug } from '../../../../../hooks/agents/useAgentBySlug';
 import { useAgenturaCatalog } from '../../../../../hooks/agents/useAgenturaCatalog';
 import { routeWithParams } from '../../../../../types/routes';
@@ -46,6 +47,11 @@ export default function AgentDetailScreen() {
   const catalog = useAgenturaCatalog();
   const { data: ownAgents = [] } = useUserAgents();
   const deleteAgent = useDeleteUserAgent();
+  // The Marktplatz's key for this agent: its row id for a user agent, the identifier for a system one.
+  const itemRef = agent ? (isUserAgent ? (agent.id ?? null) : agent.identifier) : null;
+  const marketItem = useMarketplaceItem(itemRef ? { kind: 'agent', ref: itemRef } : null, {
+    platform: 'mobile',
+  });
 
   const ownKeys = useMemo(() => new Set(ownAgents.map(agentKey)), [ownAgents]);
   const related = useMemo(
@@ -233,7 +239,13 @@ export default function AgentDetailScreen() {
           </DetailSection>
         ) : null}
 
-        {isUserAgent && agent.id ? <AgentDiscussion agentId={agent.id} isOwner={isOwn} /> : null}
+        {itemRef ? (
+          <MarketplaceDiscussion
+            target={{ kind: 'agent', ref: itemRef }}
+            item={marketItem.data ?? null}
+            canModerate={isOwn}
+          />
+        ) : null}
 
         {isOwn ? (
           <ListGroup>

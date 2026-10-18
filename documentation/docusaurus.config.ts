@@ -147,7 +147,7 @@ const config: Config = {
           { from: '/docs/office/praesentationen', to: '/docs/features/praesentationen' },
           { from: '/docs/office/boards', to: '/docs/features/boards' },
           { from: '/docs/office/ki-im-editor', to: '/docs/features/ki-im-editor' },
-          { from: '/docs/grueneratoren/agentura', to: '/docs/features/agentura' },
+          { from: '/docs/grueneratoren/agentura', to: '/docs/features/marktplatz' },
           { from: '/docs/wissen/landesverbaende', to: '/docs/features/landesverbaende' },
           {
             from: '/docs/grueneratoren/eigene-agentinnen-erstellen',
@@ -159,7 +159,10 @@ const config: Config = {
           },
           { from: '/docs/wissen/inhaltsdatenbank', to: '/docs/sonstiges/inhaltsdatenbank' },
           // agents/* → grueneratoren/*
-          { from: '/docs/agents/agentura', to: '/docs/features/agentura' },
+          { from: '/docs/agents/agentura', to: '/docs/features/marktplatz' },
+          // Marktplatz 10/2026: the Agentura, the public Vorlagen and the
+          // sticker „Entdecken" merged into one Marktplatz page.
+          { from: '/docs/features/agentura', to: '/docs/features/marktplatz' },
           {
             from: '/docs/agents/eigene-agentinnen-erstellen',
             to: '/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen',

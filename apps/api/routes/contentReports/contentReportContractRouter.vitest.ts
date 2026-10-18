@@ -1,3 +1,4 @@
+import { contentReportCreateSchema } from '@gruenerator/contracts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const sendEmail = vi.fn<(m: { subject: string; html: string; text: string }) => Promise<boolean>>();
@@ -81,6 +82,14 @@ describe('contentReportContractRouter.create', () => {
       body: { success: false, error: 'Eigene Inhalte kannst du nicht melden.' },
     });
     expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('accepts reports on public agents, recipes and Vorlagen', async () => {
+    for (const kind of ['user_agent', 'user_text_form', 'user_template'] as const) {
+      expect(contentReportCreateSchema.safeParse({ ...body, kind }).success).toBe(true);
+      expect(await create({ ...body, kind })).toEqual({ status: 200, body: { success: true } });
+      expect(recordContentReport).toHaveBeenLastCalledWith('user-1', { ...body, kind });
+    }
   });
 
   it('notes an auto-hide in the mail', async () => {

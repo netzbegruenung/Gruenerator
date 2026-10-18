@@ -9,6 +9,9 @@
  * and once that override exists the page says so and links to it. Everything
  * else about it — Anleitung, Vorlage, Verwandte, Favorit, Link kopieren — is
  * unchanged, including for everyone who may not override anything.
+ *
+ * Every view ends in the Marktplatz's interaction block: like, reactions and
+ * comments, keyed like the Marktplatz (mention for catalogue, row id otherwise).
  */
 import {
   agentsList,
@@ -20,6 +23,7 @@ import {
 import { type PublicTextForm, type TextForm } from '@gruenerator/contracts';
 import { SKILL_CATEGORY_LABELS, isAdminVisibleSkill } from '@gruenerator/shared/agents';
 import { useDeleteRecipe, classifyRecipeMention } from '@gruenerator/shared/grueneratoren';
+import { useMarketplaceItem } from '@gruenerator/shared/marketplace';
 import {
   Badge,
   Button,
@@ -45,6 +49,7 @@ import {
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { AgentAvatar } from '../agents/icons/AgentAvatar';
+import { MarketplaceDiscussion } from '../marketplace/MarketplaceDiscussion';
 import { useTrashUndoToast } from '../trash/trashUndoToast';
 
 import { AddToLibraryButton } from './components/AddToLibraryButton';
@@ -67,17 +72,28 @@ const ICON_BTN =
 function BackLink() {
   return (
     <Link
-      to="/agentura"
+      to="/marktplatz"
       className="mb-md inline-flex items-center gap-xs text-sm text-foreground-muted transition-colors hover:text-foreground"
     >
       <PiArrowLeft className="h-4 w-4" />
-      Agentura
+      Marktplatz
     </Link>
   );
 }
 
 function copyPageLink() {
   void navigator.clipboard?.writeText(window.location.href);
+}
+
+/** Like, reactions and comments — the Marktplatz's block for this recipe. */
+function RecipeDiscussion({ itemRef, isOwn }: { itemRef: string; isOwn: boolean }) {
+  const target = { kind: 'recipe', ref: itemRef } as const;
+  const item = useMarketplaceItem(target);
+  return (
+    <div className="mt-xl">
+      <MarketplaceDiscussion target={target} item={item.data ?? null} canModerate={isOwn} />
+    </div>
+  );
 }
 
 // ── The shipped catalogue ────────────────────────────────────────────────────
@@ -216,6 +232,8 @@ function SystemRecipeView({
           </TabsContent>
         )}
       </Tabs>
+
+      <RecipeDiscussion itemRef={skill.mention} isOwn={false} />
     </PageContainer>
   );
 }
@@ -385,6 +403,8 @@ function UserRecipeView({
           {exampleCount === 1 ? '1 Beispiel hinterlegt' : `${exampleCount} Beispiele hinterlegt`}
         </p>
       )}
+
+      <RecipeDiscussion itemRef={form.id} isOwn={isOwn} />
     </PageContainer>
   );
 }
@@ -430,7 +450,7 @@ function RecipeDetailPage() {
           Die Rezepte konnten gerade nicht abgerufen werden. Bitte lade die Seite neu.
         </p>
         <Button asChild variant="outline">
-          <Link to="/agentura">Zurück zur Agentura</Link>
+          <Link to="/marktplatz">Zurück zum Marktplatz</Link>
         </Button>
       </PageContainer>
     );
@@ -440,7 +460,7 @@ function RecipeDetailPage() {
     <PageContainer maxWidth="lg" title="Rezept nicht gefunden">
       <div className="text-center">
         <Button asChild variant="brand">
-          <Link to="/agentura">Zurück zur Agentura</Link>
+          <Link to="/marktplatz">Zurück zum Marktplatz</Link>
         </Button>
       </div>
     </PageContainer>

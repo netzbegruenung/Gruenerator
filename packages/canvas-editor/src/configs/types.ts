@@ -311,6 +311,8 @@ export interface SectionContext {
   specEdit?: CanvasSpecEditBridge;
   /** The page's background controls, for sections that set the background. */
   background?: BackgroundControls | null;
+  /** The page's chart palette (`FullCanvasConfig.chartColors`). */
+  chartColors?: readonly string[];
   onDownload?: () => void;
   onNavigateToGallery?: () => void;
   /** Opens the host's "als Vorlage speichern" flow; the entry hides without it. */
@@ -469,6 +471,8 @@ export interface FullCanvasConfig<
   ) => TActions;
   /** The background's colour and photo controls for the context bar. */
   background?: (state: TState, actions: TActions) => BackgroundControls;
+  /** Series colours for charts on this page, its country's palette; absent: `CHART_COLORS`. */
+  chartColors?: readonly string[];
   /** Optional function to determine disabled tabs */
   getDisabledTabs?: (state: TState) => SidebarTabId[];
   /** Optional function to determine visible tabs.
