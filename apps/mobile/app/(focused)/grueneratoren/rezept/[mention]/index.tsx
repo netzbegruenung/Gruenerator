@@ -15,6 +15,7 @@ import {
   useDeleteRecipe,
   type RecipeSource,
 } from '@gruenerator/shared/grueneratoren';
+import { useMarketplaceItem } from '@gruenerator/shared/marketplace';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Alert, ScrollView, View } from 'react-native';
 
@@ -39,6 +40,7 @@ import {
 import { LibraryToggleButton } from '../../../../../components/agentura/detail/LibraryToggleButton';
 import { useSkillPrompt } from '../../../../../components/agentura/detail/useSkillPrompt';
 import { Button, ListGroup, ListRow, SkeletonRows } from '../../../../../components/common';
+import { MarketplaceDiscussion } from '../../../../../components/marketplace/MarketplaceDiscussion';
 import { useRecipeByMention } from '../../../../../hooks/agents/useRecipeByMention';
 import { useTheme } from '../../../../../hooks/useTheme';
 import { colors } from '../../../../../theme';
@@ -111,6 +113,13 @@ function FavoriteButton({ mention }: { mention: string }) {
   );
 }
 
+/** Gefällt mir, Reaktionen und Kommentare — der Block des Marktplatzes für dieses Rezept. */
+function RecipeDiscussion({ itemRef, isOwn }: { itemRef: string; isOwn: boolean }) {
+  const target = { kind: 'recipe', ref: itemRef } as const;
+  const item = useMarketplaceItem(target, { platform: 'mobile' });
+  return <MarketplaceDiscussion target={target} item={item.data ?? null} canModerate={isOwn} />;
+}
+
 // ── Katalog ──────────────────────────────────────────────────────────────────
 
 function SystemRecipe({
@@ -156,6 +165,8 @@ function SystemRecipe({
       />
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
+        automaticallyAdjustKeyboardInsets
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={detailStyles.scrollContent}
       >
         <DetailHero
@@ -205,6 +216,8 @@ function SystemRecipe({
             <TextCard text={prompt.data} />
           </DetailSection>
         ) : null}
+
+        <RecipeDiscussion itemRef={skill.mention} isOwn={false} />
       </ScrollView>
     </>
   );
@@ -263,6 +276,8 @@ function UserRecipe({ form, source }: { form: TextForm | PublicTextForm; source:
       />
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
+        automaticallyAdjustKeyboardInsets
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={detailStyles.scrollContent}
       >
         <DetailHero
@@ -308,6 +323,8 @@ function UserRecipe({ form, source }: { form: TextForm | PublicTextForm; source:
         <DetailSection title="Beispiele">
           <Hint>{exampleCountLabel(exampleCountOf(form))}</Hint>
         </DetailSection>
+
+        <RecipeDiscussion itemRef={form.id} isOwn={isOwn} />
 
         {isOwn ? (
           <ListGroup>

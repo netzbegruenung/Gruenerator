@@ -58,7 +58,7 @@ export function StudioAssetFormFields({
           className="mt-0.5"
         />
         <Label htmlFor={ids.share} className="text-sm leading-snug font-normal">
-          Unter „Entdecken“ öffentlich teilen
+          Im Marktplatz öffentlich teilen
         </Label>
       </div>
 

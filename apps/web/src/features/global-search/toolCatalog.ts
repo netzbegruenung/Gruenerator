@@ -270,7 +270,15 @@ export const CATALOG: ToolCatalogEntry[] = [
     subtitle: 'Deine Agents, Rezepte und Aufgaben',
     path: '/grueneratoren',
     icon: nav('desk'),
-    keywords: ['agentura', 'agent', 'agenten', 'grünerator', 'grueneratoren', 'skills', 'ki'],
+    keywords: ['agent', 'agenten', 'grünerator', 'grueneratoren', 'skills', 'ki'],
+  },
+  {
+    id: 'tool-marktplatz',
+    title: 'Marktplatz',
+    subtitle: 'Agents, Rezepte, Vorlagen und Sticker entdecken',
+    path: '/marktplatz',
+    icon: nav('marktplatz'),
+    keywords: ['marktplatz', 'agentura', 'shop', 'entdecken', 'öffentlich', 'community'],
   },
   {
     id: 'tool-projekte',

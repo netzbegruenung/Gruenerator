@@ -535,4 +535,22 @@ describe('Papierkorb: trashed content in Projekte', () => {
     expect(sqls.find((sql) => sql.includes('FROM user_documents'))).toContain('deleted_at IS NULL');
     expect(sqls.find((sql) => sql.includes('FROM user_templates'))).toContain('deleted_at IS NULL');
   });
+
+  it('leaves Vorlagen a moderator removed out of the Projekt (#4700)', async () => {
+    const query = vi.fn(async (sql: string) =>
+      sql.includes('FROM group_content_shares')
+        ? [{ content_type: 'database', content_id: 'v1', permissions: {} }]
+        : []
+    );
+    await hydrateGroupContent('g1', 'viewer', {
+      postgres: { query } as unknown as HydrateGroupContentDeps['postgres'],
+      getNotebookCollectionsByIds: vi.fn(async () => []) as never,
+      listUserAgentsByIds: vi.fn(async () => []),
+      getReactionSummaries: vi.fn(async () => new Map()),
+    });
+    const sqls = query.mock.calls.map(([sql]) => sql);
+    expect(sqls.find((sql) => sql.includes('FROM user_templates'))).toContain(
+      "moderation <> 'removed'"
+    );
+  });
 });

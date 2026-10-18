@@ -1,8 +1,10 @@
-import { useLocalSearchParams } from 'expo-router';
+import { stickerDiscoverToMarketplaceHref } from '@gruenerator/shared/marketplace';
+import { Redirect, useLocalSearchParams, type Href } from 'expo-router';
 
-import { StudioAssetsDiscoverScreen } from '../../components/studio-assets/StudioAssetsDiscoverScreen';
-
-export default function StickerDiscoverRoute() {
-  const { q } = useLocalSearchParams<{ q?: string }>();
-  return <StudioAssetsDiscoverScreen initialQuery={typeof q === 'string' ? q : ''} />;
+/**
+ * The old „Entdecken" for Sticker und Hintergründe. It is the Marktplatz now;
+ * this path stays forever: shipped binaries and links may still open it.
+ */
+export default function LegacyStickerDiscoverRoute() {
+  return <Redirect href={stickerDiscoverToMarketplaceHref(useLocalSearchParams()) as Href} />;
 }

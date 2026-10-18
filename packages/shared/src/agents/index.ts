@@ -116,6 +116,12 @@ export {
 export { isSkillOfferedIn, skillPolicyOffers, type SkillInstanceView } from './skillInstances.js';
 
 export {
+  selectOfficialCatalog,
+  type OfficialCatalog,
+  type OfficialCatalogInput,
+} from './officialCatalog.js';
+
+export {
   AGENT_ICON_KEYS,
   DEFAULT_AGENT_ICON,
   SUGGESTED_AGENT_ICONS,

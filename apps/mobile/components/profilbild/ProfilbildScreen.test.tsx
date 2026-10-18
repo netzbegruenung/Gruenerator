@@ -14,7 +14,6 @@ import { ProfilbildScreen } from './ProfilbildScreen';
 jest.mock('@gruenerator/shared/studio-assets', () => ({
   ...jest.requireActual<Record<string, unknown>>('@gruenerator/shared/studio-assets'),
   useOwnStudioAssets: jest.fn(),
-  useDiscoverStudioAssets: jest.fn(),
 }));
 // Skia needs the native module; the stage drawing is covered by the scene tests.
 jest.mock('@shopify/react-native-skia', () => ({

@@ -8,31 +8,30 @@ import {
 } from '@gruenerator/ui';
 import { useState, type JSX } from 'react';
 import { PiImage, PiPlus, PiSticker, PiStorefront } from 'react-icons/pi';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { GalleryEmptyState } from '../../components/common/Gallery/parts';
 import { PageHero, PageHeroSearch, PageShell } from '../../components/common/PageHero';
+import { MarketplaceDialog } from '../marketplace/MarketplaceDialog';
 
-import { StudioAssetsDiscoverDialog } from './StudioAssetsDiscoverDialog';
 import { StudioAssetSection } from './StudioAssetSection';
 import { useStudioAssetActions } from './useStudioAssetActions';
 
-const STUDIO_ASSETS_PATH = '/studio/sticker';
-const DISCOVER_PATH = '/studio/sticker/entdecken';
 const CREATE_PATH = '/studio/sticker/neu';
 
-/** Wie bei der Agentura: Schließen führt per `navigate(-1)` zurück, wenn das Popup von hier kam. */
-const FROM_OVERVIEW = { fromOverview: true } as const;
+/** Im Marktplatz-Popup über der Sammlung gibt es nur Sticker und Hintergründe. */
+const MARKET_KINDS = ['sticker', 'background'] as const;
 
 /**
  * „Sticker & Hintergründe“: die eigene Sammlung — selbst erstellt und gemerkt —
- * nach Art gegliedert. Was andere teilen, liegt im Entdecken-Popup darüber
- * (`discoverOpen`, Adresse `/studio/sticker/entdecken`).
+ * nach Art gegliedert. Was andere teilen, liegt unter „Entdecken“ im
+ * Marktplatz, als Popup darüber.
  */
-function StudioAssetsView({ discoverOpen }: { discoverOpen: boolean }): JSX.Element {
+function StudioAssetsPage(): JSX.Element {
   const navigate = useNavigate();
-  const location = useLocation();
   const [searchInput, setSearchInput] = useState('');
+  // `null` = zu; sonst die Suche, mit der das Popup aufgeht.
+  const [discover, setDiscover] = useState<{ q: string } | null>(null);
   const q = useDebouncedSearch(searchInput);
   const { handlers, openUpload, dialogs } = useStudioAssetActions();
   const stickers = useOwnStudioAssets('sticker', q);
@@ -45,12 +44,6 @@ function StudioAssetsView({ discoverOpen }: { discoverOpen: boolean }): JSX.Elem
   const settled = stickers.settled && backgrounds.settled;
   const error = stickers.error ?? backgrounds.error;
   const total = stickers.data.items.length + backgrounds.data.items.length;
-
-  const closeDiscover = () => {
-    const state = location.state as { fromOverview?: boolean } | null;
-    if (state?.fromOverview) void navigate(-1);
-    else void navigate(STUDIO_ASSETS_PATH, { replace: true });
-  };
 
   return (
     <PageShell wide>
@@ -69,15 +62,14 @@ function StudioAssetsView({ discoverOpen }: { discoverOpen: boolean }): JSX.Elem
               onQuery={setSearchInput}
               placeholder="Sticker und Hintergründe durchsuchen…"
             />
-            <Button asChild variant="ghost" size="icon">
-              <Link
-                to={DISCOVER_PATH}
-                state={FROM_OVERVIEW}
-                aria-label="Entdecken"
-                title="Entdecken"
-              >
-                <PiStorefront aria-hidden className="size-[18px]" />
-              </Link>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Entdecken"
+              title="Entdecken"
+              onClick={() => setDiscover({ q: '' })}
+            >
+              <PiStorefront aria-hidden className="size-[18px]" />
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -121,10 +113,8 @@ function StudioAssetsView({ discoverOpen }: { discoverOpen: boolean }): JSX.Elem
           title="Keine Treffer"
           hint="Bei deinen Stickern und Hintergründen ist nichts dabei — vielleicht unter Entdecken."
           action={
-            <Button asChild variant="outline" size="sm">
-              <Link to={`${DISCOVER_PATH}?q=${encodeURIComponent(q)}`} state={FROM_OVERVIEW}>
-                Unter Entdecken suchen
-              </Link>
+            <Button variant="outline" size="sm" onClick={() => setDiscover({ q })}>
+              Unter Entdecken suchen
             </Button>
           }
         />
@@ -144,30 +134,25 @@ function StudioAssetsView({ discoverOpen }: { discoverOpen: boolean }): JSX.Elem
                 <PiImage />
                 Hintergrund hochladen
               </Button>
-              <Button asChild variant="outline" size="brand-sm">
-                <Link to={DISCOVER_PATH} state={FROM_OVERVIEW}>
-                  <PiStorefront />
-                  Entdecken
-                </Link>
+              <Button variant="outline" size="brand-sm" onClick={() => setDiscover({ q: '' })}>
+                <PiStorefront />
+                Entdecken
               </Button>
             </div>
           }
         />
       )}
 
-      <StudioAssetsDiscoverDialog
-        open={discoverOpen}
-        onClose={closeDiscover}
-        initialQuery={new URLSearchParams(location.search).get('q') ?? ''}
+      <MarketplaceDialog
+        open={discover !== null}
+        onOpenChange={(open) => !open && setDiscover(null)}
+        kinds={MARKET_KINDS}
+        initialQuery={discover?.q ?? ''}
+        title="Entdecken"
       />
       {dialogs}
     </PageShell>
   );
 }
-
-const StudioAssetsPage = (): JSX.Element => <StudioAssetsView discoverOpen={false} />;
-
-/** `/studio/sticker/entdecken` — die Übersicht mit offenem Entdecken-Popup. */
-export const StudioAssetsDiscoverPage = (): JSX.Element => <StudioAssetsView discoverOpen />;
 
 export default StudioAssetsPage;

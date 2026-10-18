@@ -38,6 +38,10 @@ vi.mock('../../database/services/DrizzleService.js', () => ({
     },
   }),
 }));
+const deleteLikesForEntity = vi.fn(async (_type: string, _id: string) => {});
+vi.mock('../entityLikes/EntityLikesService.js', () => ({ deleteLikesForEntity }));
+const deleteCommentsForEntity = vi.fn(async (_type: string, _id: string) => {});
+vi.mock('../entityComments/entityCommentsCleanup.js', () => ({ deleteCommentsForEntity }));
 vi.mock('../../database/services/PostgresService.js', () => ({
   getPostgresInstance: () => ({
     queryOne: async (sql: string) => {
@@ -188,8 +192,21 @@ describe('user agent Papierkorb', () => {
     expect(rawSql[0]).toContain('deleted_at IS NOT NULL');
     expect(rawSql[0]).toContain('deleted_at < $2');
     expect(rawParams[0]).toEqual([ID, cutoff]);
+    expect(deleteLikesForEntity).toHaveBeenCalledWith('agent', ID);
+    expect(deleteCommentsForEntity).toHaveBeenCalledWith('agent', ID);
 
+    deleteLikesForEntity.mockClear();
     rawRows = [];
     await expect(purgeUserAgent(ID, null)).resolves.toBe(false);
+    expect(deleteLikesForEntity).not.toHaveBeenCalled();
+  });
+});
+
+describe('moderation on link access', () => {
+  it('the uuid ladder refuses a removed agent to everyone but its owner', async () => {
+    rawSql.length = 0;
+    await getAccessibleUserAgentById('11111111-1111-4111-8111-111111111111', 'u2');
+    expect(rawSql[0]).toContain("(ua.share_mode = 'authenticated' AND ua.moderation <> 'removed')");
+    expect(rawSql[0]).toContain('ua.user_id = $2::uuid');
   });
 });

@@ -1,3 +1,4 @@
+import { type GroupAudience, type ModerationState } from '@gruenerator/contracts';
 import { type InferSelectModel, sql } from 'drizzle-orm';
 import {
   boolean,
@@ -28,13 +29,17 @@ export const userTextForms = pgTable(
     model: text('model'),
     analyzed_at: timestamp('analyzed_at', { withTimezone: true }),
     // Recipe metadata + sharing (see migrations/user_text_forms_recipe_columns.sql).
-    // Mirrors user_agents' share model; no locale/audience column — recipes
-    // have none, deliberately unlike agents.
+    // Mirrors user_agents' share model.
     description: text('description'),
     icon_key: text('icon_key'),
     share_mode: text('share_mode').notNull().default('private'),
     is_public: boolean('is_public').notNull().default(false),
     public_ownership: text('public_ownership'),
+    // Set to the creator's locale on insert; narrows the public listing only
+    // (migrations/zz_20261019b_text_forms_audience.sql).
+    audience: text('audience').$type<GroupAudience>().notNull().default('all'),
+    // See migrations/zz_20261019_marketplace_moderation.sql.
+    moderation: text('moderation').$type<ModerationState>().notNull().default('ok'),
     created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     deleted_at: timestamp('deleted_at', { withTimezone: true }),
@@ -47,6 +52,11 @@ export const userTextForms = pgTable(
     index('idx_user_text_forms_user_id').on(t.user_id),
     index('idx_user_text_forms_public').on(t.is_public),
     index('idx_user_text_forms_mention').on(t.mention),
+    index('idx_user_text_forms_public_listing')
+      .on(t.audience, t.updated_at.desc())
+      .where(
+        sql`${t.is_public} = TRUE AND ${t.share_mode} = 'authenticated' AND ${t.kind} = 'custom' AND ${t.moderation} = 'ok' AND ${t.deleted_at} IS NULL`
+      ),
   ]
 );
 

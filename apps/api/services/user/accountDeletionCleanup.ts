@@ -1,7 +1,8 @@
 /**
  * What account deletion removes before the profile row goes. No FK cascade
  * reaches any of it: `collaborative_documents.created_by` is SET NULL,
- * notebooks live in Qdrant, `entity_likes` has no FK at all, and the OAuth
+ * notebooks live in Qdrant, `entity_likes` and `entity_comments` have no FK to
+ * the item at all, and the OAuth
  * tokens of connected accounts (Microsoft, Google, …) live in Nango. Account
  * deletion stays hard — nothing here goes through the Papierkorb.
  *
@@ -15,6 +16,7 @@ import { createLogger } from '../../utils/logger.js';
 import { reportBackgroundError } from '../../utils/reportBackgroundError.js';
 import { ConnectionService } from '../connections/ConnectionService.js';
 import { purgeSoleOwnedCollaborativeDocuments } from '../docs/CollaborativeDocumentService.js';
+import { deleteCommentsOnItemsOfDeletedUser } from '../entityComments/entityCommentsCleanup.js';
 import { deleteFavoritesOfDeletedUser } from '../entityFavorites/EntityFavoritesService.js';
 import {
   deleteLikesForEntity,
@@ -50,6 +52,12 @@ export async function cleanUpBeforeProfileDelete(userId: string): Promise<void> 
     await deleteLikesOfDeletedUser(userId);
   } catch (error) {
     reportBackgroundError(error, { job: 'account-deletion', store: 'entity_likes' });
+  }
+
+  try {
+    await deleteCommentsOnItemsOfDeletedUser(userId);
+  } catch (error) {
+    reportBackgroundError(error, { job: 'account-deletion', store: 'entity_comments' });
   }
 
   try {

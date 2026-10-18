@@ -20,6 +20,7 @@ export type AppRoute =
   | '/(focused)/profilbild'
   | '/(focused)/sticker'
   | '/(focused)/sticker-neu'
+  | '/(focused)/marktplatz'
   | '/(focused)/uebersetzer'
   // Wissen
   | '/(focused)/wissen'

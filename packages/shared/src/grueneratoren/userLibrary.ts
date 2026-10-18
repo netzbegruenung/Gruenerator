@@ -4,7 +4,8 @@ import { useCallback, useMemo } from 'react';
 
 import { getContractsClient } from '../api/index.js';
 
-const QUERY_KEY = ['user-library'] as const;
+export const USER_LIBRARY_QUERY_KEY = ['user-library'] as const;
+const QUERY_KEY = USER_LIBRARY_QUERY_KEY;
 
 export interface LibraryRef {
   kind: UserLibraryItemKind;

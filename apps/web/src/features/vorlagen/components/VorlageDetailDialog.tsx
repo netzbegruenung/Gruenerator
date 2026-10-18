@@ -11,10 +11,11 @@ import { Bookmark, Heart, Share2, X } from 'lucide-react';
 import { useState, type JSX, type ReactNode } from 'react';
 
 import { type VorlagenCardProps } from '../../../components/common/Gallery/VorlagenCard';
+import { MarketplaceDiscussion } from '../../marketplace/MarketplaceDiscussion';
 
 import { ShareVorlageDialog, type VorlageShareTarget } from './ShareVorlageDialog';
-import { VorlageComments } from './VorlageComments';
 
+import { useUserTemplates } from '@/features/auth/hooks/useProfileData';
 import { cn } from '@/utils/cn';
 
 export type VorlageInteractionProps = Pick<
@@ -45,6 +46,23 @@ interface VorlageDetailDialogProps extends VorlageInteractionProps {
 }
 
 const ICON = 'size-[18px]';
+
+/**
+ * Reactions and comments under a Vorlage — the Marktplatz's block without its
+ * like, which this dialog shows in its own header. The Vorlage's owner may
+ * delete other people's comments.
+ */
+function VorlageDiscussion({ templateId }: { templateId: string }) {
+  const { query: ownTemplates } = useUserTemplates({ isActive: true });
+  const isOwner = ownTemplates.data?.some((t) => String(t.id) === templateId) ?? false;
+  return (
+    <MarketplaceDiscussion
+      target={{ kind: 'template', ref: templateId }}
+      item={null}
+      canModerate={isOwner}
+    />
+  );
+}
 
 /**
  * The one detail view for every Vorlage — Grünerator catalogue, Canva and
@@ -194,7 +212,7 @@ export function VorlageDetailDialog({
           {templateId && (
             <>
               <Separator />
-              <VorlageComments templateId={templateId} />
+              <VorlageDiscussion templateId={templateId} />
             </>
           )}
         </div>

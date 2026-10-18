@@ -1,34 +1,39 @@
 /**
- * Stored content reports: what users report, the auto-hide for public studio
- * assets, and the admin queue that resolves reports per target.
+ * Stored content reports: what users report, the auto-hide for public
+ * Agents, Rezepte, Vorlagen and studio assets, and the admin queue that
+ * resolves reports per target.
  *
  * One open row per reporter and target (`uq_content_reports_open_reporter_target`),
- * so a repeated report is a no-op until the target has been resolved. Only studio assets carry a target the server
- * can act on; for the other kinds an admin action just closes the reports.
+ * so a repeated report is a no-op until the target has been resolved. The
+ * kinds in `MODERATION_TARGETS` carry a target the server can act on; for the
+ * others an admin action just closes the reports.
  */
 import {
   type AdminReportGroup,
   type AdminReportListQuery,
+  type AdminReportPreview,
   type AdminReportResolveBody,
   type AdminReportResolveResponse,
-  type AdminReportStudioAssetTarget,
   type ContentReportCreate,
   type ContentReportKind,
   type ContentReportReason,
-  type StudioAssetModeration,
+  type ModeratableReportKind,
+  moderatableReportKindSchema,
+  type ModerationState,
 } from '@gruenerator/contracts';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 
 import { contentReports } from '../../database/schema/contentReports.js';
-import { profiles } from '../../database/schema/core.js';
-import { sharedMedia } from '../../database/schema/media.js';
-import { studioAssets } from '../../database/schema/studioAssets.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
-import { notTrashed } from '../../database/trash.js';
-import { buildThumbnailTileUrl, versionFromShareRow } from '../media/thumbnailUrl.js';
 import { isRowId } from '../trash/ownedRowTrash.js';
 
-/** Distinct open reporters that hide a public studio asset until an admin looks. */
+import {
+  loadStudioAssetTargets,
+  MODERATION_TARGETS,
+  moderationTargetFor,
+} from './moderationTargets.js';
+
+/** Distinct open reporters that hide a public moderatable target until an admin looks. */
 export const AUTO_HIDE_REPORT_THRESHOLD = 3;
 const LIST_LIMIT = 200;
 const NOTES_PER_GROUP = 5;
@@ -50,7 +55,7 @@ const fail = <S extends number>(status: S, message: string): ContentReportFailur
 export interface RecordedReport {
   /** False when this reporter had already reported the target. */
   stored: boolean;
-  /** True when this report pushed a studio asset over the threshold. */
+  /** True when this report pushed a moderatable target over the threshold. */
   hidden: boolean;
 }
 
@@ -59,23 +64,14 @@ export async function recordContentReport(
   body: ContentReportCreate
 ): Promise<ContentReportResult<RecordedReport, 400 | 404>> {
   const db = getDrizzleInstance();
-  const isAsset = body.kind === 'studio_asset';
+  const target = moderationTargetFor(body.kind, body.targetId);
 
-  if (isAsset) {
-    if (!isRowId(body.targetId)) return fail(404, 'Element nicht gefunden.');
-    const [asset] = await db
-      .select({
-        user_id: studioAssets.user_id,
-        visibility: studioAssets.visibility,
-        moderation: studioAssets.moderation,
-      })
-      .from(studioAssets)
-      .where(and(eq(studioAssets.id, body.targetId), notTrashed(studioAssets)))
-      .limit(1);
-    if (!asset || asset.visibility !== 'public' || asset.moderation !== 'ok') {
-      return fail(404, 'Element nicht gefunden.');
+  if (moderatableReportKindSchema.safeParse(body.kind).success) {
+    const reportable = target ? await target.loadReportable(body.targetId) : null;
+    if (!reportable) return fail(404, 'Element nicht gefunden.');
+    if (reportable.ownerId === reporterId) {
+      return fail(400, 'Eigene Inhalte kannst du nicht melden.');
     }
-    if (asset.user_id === reporterId) return fail(400, 'Eigene Inhalte kannst du nicht melden.');
   }
 
   const inserted = await db
@@ -97,27 +93,18 @@ export async function recordContentReport(
     .returning({ id: contentReports.id });
   const stored = inserted.length > 0;
 
-  let hidden = false;
-  if (isAsset && stored) {
-    // One statement: the count and the flip cannot interleave with another
-    // report's, and the last of concurrent reports always sees all of them.
-    const flipped = await db
-      .update(studioAssets)
-      .set({ moderation: 'hidden', updated_at: new Date() })
-      .where(
-        and(
-          eq(studioAssets.id, body.targetId),
-          eq(studioAssets.visibility, 'public'),
-          eq(studioAssets.moderation, 'ok'),
-          notTrashed(studioAssets),
-          sql`(SELECT count(DISTINCT cr.reporter_id) FROM content_reports cr
-               WHERE cr.kind = 'studio_asset' AND cr.target_id = ${body.targetId}
-                 AND cr.status = 'open') >= ${AUTO_HIDE_REPORT_THRESHOLD}`
-        )
-      )
-      .returning({ id: studioAssets.id });
-    hidden = flipped.length > 0;
-  }
+  // One statement: the count and the flip cannot interleave with another
+  // report's, and the last of concurrent reports always sees all of them.
+  const hidden =
+    target !== null &&
+    stored &&
+    (await target.hideIf(
+      db,
+      body.targetId,
+      sql`(SELECT count(DISTINCT cr.reporter_id) FROM content_reports cr
+           WHERE cr.kind = ${body.kind} AND cr.target_id = ${body.targetId}
+             AND cr.status = 'open') >= ${AUTO_HIDE_REPORT_THRESHOLD}`
+    ));
 
   return { ok: true, value: { stored, hidden } };
 }
@@ -166,10 +153,16 @@ export async function listReportGroups(query: AdminReportListQuery): Promise<Adm
     ORDER BY latest_at DESC
     LIMIT ${LIST_LIMIT}`);
 
-  const assetIds = result.rows
-    .filter((g) => g.kind === 'studio_asset' && isRowId(g.target_id))
-    .map((g) => g.target_id);
-  const targets = await loadStudioAssetTargets(assetIds);
+  const idsByKind = new Map<ModeratableReportKind, string[]>();
+  for (const g of result.rows) {
+    const kind = moderatableReportKindSchema.safeParse(g.kind);
+    if (!kind.success || !isRowId(g.target_id)) continue;
+    idsByKind.set(kind.data, [...(idsByKind.get(kind.data) ?? []), g.target_id]);
+  }
+  const [assetTargets, previews] = await Promise.all([
+    loadStudioAssetTargets(idsByKind.get('studio_asset') ?? []),
+    loadPreviews(idsByKind),
+  ]);
 
   return result.rows.map((g) => ({
     kind: g.kind,
@@ -185,56 +178,21 @@ export async function listReportGroups(query: AdminReportListQuery): Promise<Adm
     excerpt: g.excerpt,
     groupId: g.group_id,
     threadId: g.thread_id,
-    target: g.kind === 'studio_asset' ? (targets.get(g.target_id) ?? null) : null,
+    target: g.kind === 'studio_asset' ? (assetTargets.get(g.target_id) ?? null) : null,
+    preview: previews.get(`${g.kind}:${g.target_id}`) ?? null,
   }));
 }
 
-async function loadStudioAssetTargets(
-  ids: string[]
-): Promise<Map<string, AdminReportStudioAssetTarget>> {
-  if (ids.length === 0) return new Map();
-  const db = getDrizzleInstance();
-  const rows = await db
-    .select({
-      id: studioAssets.id,
-      title: studioAssets.title,
-      src: studioAssets.src,
-      kind: studioAssets.kind,
-      moderation: studioAssets.moderation,
-      ownerId: studioAssets.user_id,
-      ownerName: profiles.display_name,
-      deletedAt: studioAssets.deleted_at,
-      shareToken: sharedMedia.share_token,
-      mediaCreatedAt: sharedMedia.created_at,
-      mediaMetadata: sharedMedia.image_metadata,
+async function loadPreviews(
+  idsByKind: Map<ModeratableReportKind, string[]>
+): Promise<Map<string, AdminReportPreview>> {
+  const perKind = await Promise.all(
+    [...idsByKind].map(async ([kind, ids]) => {
+      const previews = await MODERATION_TARGETS[kind].previews(ids);
+      return [...previews].map(([id, p]) => [`${kind}:${id}`, p] as const);
     })
-    .from(studioAssets)
-    .leftJoin(sharedMedia, and(eq(sharedMedia.id, studioAssets.media_id), notTrashed(sharedMedia)))
-    .leftJoin(profiles, eq(profiles.id, studioAssets.user_id))
-    .where(inArray(studioAssets.id, ids));
-
-  return new Map(
-    rows.map((r) => [
-      r.id,
-      {
-        id: r.id,
-        title: r.title,
-        src: r.src,
-        thumbUrl: r.shareToken
-          ? buildThumbnailTileUrl(
-              'media',
-              r.shareToken,
-              versionFromShareRow({ created_at: r.mediaCreatedAt, image_metadata: r.mediaMetadata })
-            )
-          : null,
-        kind: r.kind,
-        moderation: r.moderation,
-        ownerId: r.ownerId,
-        ownerName: r.ownerName?.trim() || null,
-        trashed: r.deletedAt !== null,
-      },
-    ])
   );
+  return new Map(perKind.flat());
 }
 
 const NO_OPEN_REPORTS = fail(404, 'Keine offenen Meldungen für diesen Inhalt.');
@@ -249,11 +207,14 @@ export async function resolveReports(
   adminId: string,
   body: AdminReportResolveBody
 ): Promise<ContentReportResult<AdminReportResolveResponse, 400 | 404>> {
-  const isAsset = body.kind === 'studio_asset';
-  if (!isAsset && body.action === 'restore') {
-    return fail(400, 'Wiederherstellen gibt es nur für Sticker und Hintergründe.');
+  const moderatable = moderatableReportKindSchema.safeParse(body.kind).success;
+  if (!moderatable && body.action === 'restore') {
+    return fail(
+      400,
+      'Wiederherstellen gibt es nur für Agents, Rezepte, Vorlagen, Sticker und Hintergründe.'
+    );
   }
-  const assetId = isAsset && isRowId(body.targetId) ? body.targetId : null;
+  const target = moderationTargetFor(body.kind, body.targetId);
 
   const db = getDrizzleInstance();
   return db.transaction(async (tx) => {
@@ -278,27 +239,17 @@ export async function resolveReports(
     // A stale or repeated dismiss must not lift a hide it did not decide on.
     if (body.action === 'dismiss' && closed.length === 0) return NO_OPEN_REPORTS;
 
-    let moderation: StudioAssetModeration | null = null;
-    // Trashed assets too: the owner trashing a reported asset must not dodge its removal.
-    if (assetId) {
-      if (body.action === 'remove' || body.action === 'restore') {
-        await tx
-          .update(studioAssets)
-          .set({ moderation: body.action === 'remove' ? 'removed' : 'ok', updated_at: new Date() })
-          .where(eq(studioAssets.id, assetId));
-      } else {
-        // Only the auto-hide sets 'hidden'; dismissing the reports lifts it.
-        await tx
-          .update(studioAssets)
-          .set({ moderation: 'ok', updated_at: new Date() })
-          .where(and(eq(studioAssets.id, assetId), eq(studioAssets.moderation, 'hidden')));
-      }
-      const [row] = await tx
-        .select({ moderation: studioAssets.moderation })
-        .from(studioAssets)
-        .where(eq(studioAssets.id, assetId))
-        .limit(1);
-      moderation = row?.moderation ?? null;
+    let moderation: ModerationState | null = null;
+    if (target) {
+      moderation =
+        body.action === 'dismiss'
+          ? // Only the auto-hide sets 'hidden'; dismissing the reports lifts it.
+            await target.setModeration(tx, body.targetId, 'ok', 'hidden')
+          : await target.setModeration(
+              tx,
+              body.targetId,
+              body.action === 'remove' ? 'removed' : 'ok'
+            );
     }
 
     if (closed.length === 0 && moderation === null) return NO_OPEN_REPORTS;

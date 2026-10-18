@@ -6,6 +6,7 @@
  */
 import { type StudioAssetRow } from '../../database/schema/studioAssets.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { deleteCommentsForEntity } from '../entityComments/entityCommentsCleanup.js';
 import { deleteFavoritesForEntity } from '../entityFavorites/EntityFavoritesService.js';
 import { deleteLikesForEntity } from '../entityLikes/EntityLikesService.js';
 import { getSharedMediaService } from '../sharedMediaService.js';
@@ -50,6 +51,9 @@ export async function purgeStudioAsset(id: string, cutoff: Date | null): Promise
 
   await purgeSideStore('studio_asset', id, 'entity_likes', () =>
     deleteLikesForEntity('studio_asset', id)
+  );
+  await purgeSideStore('studio_asset', id, 'entity_comments', () =>
+    deleteCommentsForEntity('studio_asset', id)
   );
   await purgeSideStore('studio_asset', id, 'entity_favorites', () =>
     deleteFavoritesForEntity('studio_asset', id)

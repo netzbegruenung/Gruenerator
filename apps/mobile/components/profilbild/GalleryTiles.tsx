@@ -1,10 +1,6 @@
 import { type StudioAssetItem, type StudioAssetKind } from '@gruenerator/contracts';
 import { isShareSrc } from '@gruenerator/shared/stickers';
-import {
-  useDiscoverStudioAssets,
-  useOwnStudioAssets,
-  type StudioAssetSectionData,
-} from '@gruenerator/shared/studio-assets';
+import { useOwnStudioAssets, type StudioAssetSectionData } from '@gruenerator/shared/studio-assets';
 import { Image } from 'expo-image';
 import { type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -21,9 +17,6 @@ export const PICKER_TILE = 64;
 
 export interface GalleryTilesProps {
   kind: StudioAssetKind;
-  /** `own`: created and saved; `shop`: what others share (Entdecken). */
-  source: 'own' | 'shop';
-  q?: string;
   /** The src of the item in use, marked selected; null when the tiles only add. */
   selectedSrc?: string | null;
   onPick(item: StudioAssetItem): void;
@@ -31,23 +24,17 @@ export interface GalleryTilesProps {
   leading?: ReactNode;
   /** The src of `leading`; when it is already an item, `leading` is left out instead of doubled. */
   leadingSrc?: string | null;
-  /** Stands in the same row after the items — upload, create, Entdecken. */
+  /** Stands in the same row after the items — upload, create, Marktplatz. */
   trailing?: ReactNode;
   emptyHint?: string;
 }
 
-/** Gallery items as picker tiles in one wrapping row (web: `ProfilbildGalleryGrid`). */
+/**
+ * The own gallery items — created and saved — as picker tiles in one wrapping
+ * row (web: `ProfilbildGalleryGrid`).
+ */
 export function GalleryTiles(props: GalleryTilesProps) {
-  return props.source === 'own' ? <OwnTiles {...props} /> : <ShopTiles {...props} />;
-}
-
-function OwnTiles(props: GalleryTilesProps) {
-  const { data } = useOwnStudioAssets(props.kind, props.q ?? '');
-  return <Tiles {...props} data={data} />;
-}
-
-function ShopTiles(props: GalleryTilesProps) {
-  const { data } = useDiscoverStudioAssets(props.kind, props.q ?? '', 'new');
+  const { data } = useOwnStudioAssets(props.kind, '');
   return <Tiles {...props} data={data} />;
 }
 
@@ -136,7 +123,7 @@ function Tiles({
   );
 }
 
-/** An empty tile for an action at the end of a picker row — upload, create, Entdecken. */
+/** An empty tile for an action at the end of a picker row — upload, create, Marktplatz. */
 export function ActionTile({
   label,
   children,

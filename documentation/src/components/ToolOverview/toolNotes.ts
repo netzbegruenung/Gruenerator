@@ -90,7 +90,7 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
     platform: ['web'],
   },
   sticker: {
-    note: 'Sticker und Hintergründe für dein Profilbild: unter „Entdecken“ findest du, was andere geteilt haben, und kannst es liken, dir merken oder melden. Eigene Sticker bleiben privat, bis du sie mit Bestätigung der Bildrechte öffentlich machst.',
+    note: 'Sticker und Hintergründe für dein Profilbild: unter „Entdecken“ öffnet sich der Marktplatz mit dem, was andere geteilt haben: liken, merken oder melden. Eigene Sticker bleiben privat, bis du sie mit Bestätigung der Bildrechte öffentlich machst.',
     platform: ['web'],
   },
   'bild-erweitern': {
@@ -112,9 +112,9 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
 
   // ── Organisieren ──────────────────────────────────────────────────────────
   agents: {
-    note: 'Deine Agents, Rezepte und wiederkehrenden Aufgaben an einem Ort: eigene anlegen und aus der Agentura offizielle und öffentliche dazuholen.',
+    note: 'Deine Agents, Rezepte und wiederkehrenden Aufgaben an einem Ort: eigene anlegen und aus dem Marktplatz offizielle und öffentliche dazuholen.',
     platform: ['web', 'desktop', 'mobile'],
-    readMore: { label: 'Grüneratoren und Agentura', href: '/docs/features/agentura' },
+    readMore: { label: 'Grüneratoren und Marktplatz', href: '/docs/features/marktplatz' },
   },
   projekte: {
     note: 'Projekte bündeln Chats, Dokumente und Mitglieder zu einem Arbeitszusammenhang — etwa für eine Kampagne oder einen Ortsverband.',

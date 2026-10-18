@@ -1,18 +1,11 @@
 import {
   agentsList,
+  useHiddenAgentIdentifiers,
   useHiddenSkillMentions,
   useUserLandesverbaende,
   type AgentListItem,
 } from '@gruenerator/chat';
-import {
-  getSystemAgent,
-  getVisibleSystemAgentsForLocale,
-  isAdminVisibleSkill,
-  isAgentVisibleForPlatform,
-  isLandesverbandIdentifier,
-  isLvItemVisibleForRoles,
-  isSkillOfferedIn,
-} from '@gruenerator/shared/agents';
+import { selectOfficialCatalog } from '@gruenerator/shared/agents';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { useMemo } from 'react';
 
@@ -21,7 +14,8 @@ import { CURRENT_INSTANCE } from '../../config/instance';
 /**
  * Was der Grünerator mitbringt: System-Agents und Katalog-Rezepte, so gefiltert,
  * wie die App sie zeigen kann — Locale, Instanz, Admin-Sperren, Plattform und
- * die Landesverbands-Zuteilung.
+ * die Landesverbands-Zuteilung (`selectOfficialCatalog`, dieselbe Funktion wie
+ * im Web und auf dem Server).
  *
  * Die Zuteilung greift an der QUELLE: LV-Agents und -Rezepte gehören den Leuten
  * des jeweiligen Verbands, gebunden an die Rolle „Mitarbeiter*in
@@ -33,60 +27,50 @@ import { CURRENT_INSTANCE } from '../../config/instance';
 export function useAgenturaCatalog() {
   const { locale } = useAuth();
   const { lvIds, shelfLabel: lvShelfLabel, isHydrated: rolesLoaded } = useUserLandesverbaende();
-  const hiddenSkillMentions = useHiddenSkillMentions();
-
-  const systemAgents = useMemo(
-    () =>
-      getVisibleSystemAgentsForLocale(locale, CURRENT_INSTANCE).filter(
-        (a) =>
-          isAgentVisibleForPlatform(a, 'mobile') && isLvItemVisibleForRoles(a.identifier, lvIds)
-      ),
-    [locale, lvIds]
+  // The array identity changes on every fetch; the joined key is stable, so the
+  // lists are rebuilt from it.
+  const hiddenSkillKey = useHiddenSkillMentions().join(',');
+  const hiddenAgentKey = useHiddenAgentIdentifiers().join(',');
+  const hiddenSkillMentions = useMemo(
+    () => (hiddenSkillKey ? hiddenSkillKey.split(',') : []),
+    [hiddenSkillKey]
   );
-  const generalSystemAgents = useMemo(
-    () => systemAgents.filter((a) => !isLandesverbandIdentifier(a.identifier)),
-    [systemAgents]
-  );
-  const lvSystemAgents = useMemo(
-    () => systemAgents.filter((a) => isLandesverbandIdentifier(a.identifier)),
-    [systemAgents]
+  const hiddenAgentIdentifiers = useMemo(
+    () => (hiddenAgentKey ? hiddenAgentKey.split(',') : []),
+    [hiddenAgentKey]
   );
 
   // Recipes whose owning agent is hidden on mobile would open a chat with an
-  // agent this app cannot render, so they are filtered the same way the agents
-  // are — plus admin-hidden and not-offered-on-this-instance, as on web.
-  const skills = useMemo(
+  // agent this app cannot render; `platform: 'mobile'` drops them with it.
+  const catalog = useMemo(
     () =>
-      agentsList.filter((s) => {
-        if (s.audience !== undefined && s.audience !== 'all' && s.audience !== locale) return false;
-        if (!isAdminVisibleSkill(s.mention, hiddenSkillMentions)) return false;
-        if (!isSkillOfferedIn(s, CURRENT_INSTANCE)) return false;
-        if (!isLvItemVisibleForRoles(s.identifier, lvIds)) return false;
-        const owner = getSystemAgent(s.identifier);
-        return !owner || isAgentVisibleForPlatform(owner, 'mobile');
+      selectOfficialCatalog({
+        locale,
+        instanceId: CURRENT_INSTANCE,
+        platform: 'mobile',
+        hiddenAgentIds: hiddenAgentIdentifiers,
+        hiddenSkillMentions,
+        lvIds,
+        skills: agentsList,
       }),
-    [locale, hiddenSkillMentions, lvIds]
+    [locale, lvIds, hiddenAgentIdentifiers, hiddenSkillMentions]
   );
-  const lvSkills = useMemo(
-    () => skills.filter((s) => isLandesverbandIdentifier(s.identifier)),
-    [skills]
-  );
+
   const skillsByCategory = useMemo(() => {
     const map = new Map<string, AgentListItem[]>();
-    for (const skill of skills) {
-      if (isLandesverbandIdentifier(skill.identifier)) continue;
+    for (const skill of catalog.generalSkills) {
       const cat = skill.skillCategory ?? 'sonstiges';
       map.set(cat, [...(map.get(cat) ?? []), skill]);
     }
     return map;
-  }, [skills]);
+  }, [catalog.generalSkills]);
 
   return {
-    systemAgents,
-    generalSystemAgents,
-    lvSystemAgents,
-    skills,
-    lvSkills,
+    systemAgents: catalog.agents,
+    generalSystemAgents: catalog.generalAgents,
+    lvSystemAgents: catalog.lvAgents,
+    skills: catalog.skills,
+    lvSkills: catalog.lvSkills,
     skillsByCategory,
     rolesLoaded,
     lvShelfLabel,
