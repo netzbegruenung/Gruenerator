@@ -22,6 +22,7 @@ import LegacyKiBildgenerierungRoute from '../app/(focused)/ki-bildgenerierung';
 import LegacyNotebookChatRoute from '../app/(focused)/notebook-chat';
 import LegacyNotebookDetailRoute from '../app/(focused)/notebook-detail';
 import LegacyResearchRoute from '../app/(focused)/research';
+import LegacyStickerDiscoverRoute from '../app/(focused)/sticker-entdecken';
 import LegacyAllThreadsRoute from '../app/(fullscreen)/all-threads';
 import LegacyImageStudioEditorRoute from '../app/(fullscreen)/image-studio-editor';
 import LegacyWebviewEditorRoute from '../app/(fullscreen)/webview-editor';
@@ -57,6 +58,8 @@ const tree = {
   '(focused)/reel': Stub,
   '(focused)/scanner': Stub,
   '(focused)/vorlagen': Stub,
+  '(focused)/marktplatz': Stub,
+  '(focused)/sticker-entdecken': LegacyStickerDiscoverRoute,
   '(focused)/wissen': Stub,
   '(fullscreen)/_layout': () => <Stack />,
   '(fullscreen)/subtitle-editor': Stub,
@@ -196,6 +199,14 @@ describe('tools and Wissen open on a stack, not as hidden tabs', () => {
 
   it('the tool paths are unchanged by the move (F0)', () => {
     expect(renderRouter(tree, { initialUrl: '/vorlagen' }).getPathname()).toBe('/vorlagen');
+  });
+});
+
+describe('the old sticker Entdecken is the Marktplatz now', () => {
+  it('/sticker-entdecken redirects to the Sticker tab, search kept', () => {
+    const r = renderRouter(tree, { initialUrl: '/sticker-entdecken?q=sonne' });
+    expect(r.getPathname()).toBe('/marktplatz');
+    expect(r.getSearchParams()).toMatchObject({ art: 'sticker', q: 'sonne' });
   });
 });
 

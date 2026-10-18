@@ -3,13 +3,11 @@ import { type RecurringTask, type TextForm } from '@gruenerator/contracts';
 import {
   AGENTURA_TYPE_LABELS,
   SKILL_CATEGORY_LABELS,
-  SKILL_CATEGORY_ORDER,
   agentKey,
   agentRef,
   agenturaMetaLine,
   isLandesverbandIdentifier,
   landesverbandLabel,
-  landesverbandRegion,
   type Agent,
 } from '@gruenerator/shared/agents';
 import {
@@ -27,13 +25,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Alert, Pressable, View, Text, SectionList, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AgenturaSheet } from '../../components/agentura/AgenturaSheet';
-import { MarketCard } from '../../components/agentura/MarketCard';
-import {
-  searchTextOf,
-  type MarketAisle,
-  type MarketItem,
-} from '../../components/agentura/marketItem';
+import { searchTextOf, type MarketItem } from '../../components/agentura/marketItem';
 import { buildMarketMenuActions, type MarketMenuId } from '../../components/agentura/marketMenu';
 import { SearchField } from '../../components/agentura/SearchField';
 import { MenuActionSheet } from '../../components/chat/MenuActionSheet';
@@ -41,6 +33,9 @@ import { Button, ListGroup, SkeletonRows } from '../../components/common';
 import { SHEET_HANDOFF_MS } from '../../components/common/CreateMenuSheet';
 import { Fab } from '../../components/common/Fab';
 import { NeutralBackdrop } from '../../components/common/NeutralBackdrop';
+import { MarketCard } from '../../components/marketplace/MarketCard';
+import { MarketplaceSheet } from '../../components/marketplace/MarketplaceSheet';
+import { marketplaceRoute } from '../../components/marketplace/marketplaceTarget';
 import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
 import { useAgenturaCatalog } from '../../hooks/agents/useAgenturaCatalog';
 import { useOwnRecipes } from '../../hooks/agents/useOwnRecipes';
@@ -54,6 +49,9 @@ import { goBackOr } from '../../utils/navigation';
 
 const SECTION_KINDS = ['agent', 'recipe', 'task'] as const;
 
+/** Was das Sheet über der Übersicht anbietet — wie im Web. */
+const AGENTURA_KINDS = ['agent', 'recipe'] as const;
+
 const CREATE_ACTIONS = [
   { id: 'agent', title: 'Agent' },
   { id: 'recipe', title: 'Rezept' },
@@ -62,10 +60,11 @@ const CREATE_ACTIONS = [
 
 /**
  * „Grüneratoren" — womit die Person arbeitet: eigene Agents, Rezepte und
- * wiederkehrende Aufgaben, aus Projekten geteilte Agents und was sie aus der
- * Agentura dazugeholt hat, in einer Liste ohne Regale. Die Agentura selbst ist
- * ein Sheet darüber (`AgenturaSheet`), wie im Web das Popup über
- * `/grueneratoren`; `?agentura=1` öffnet sie direkt.
+ * wiederkehrende Aufgaben, aus Projekten geteilte Agents und was sie aus dem
+ * Marktplatz dazugeholt hat, in einer Liste ohne Regale. Der Marktplatz für
+ * Agents und Rezepte ist ein Sheet darüber (`MarketplaceSheet`), wie im Web das
+ * Popup über `/grueneratoren`; das alte `?agentura=1` leitet auf den
+ * Marktplatz-Bildschirm weiter.
  *
  * Ein Tipp öffnet die Detailseite (`(focused)/grueneratoren/…`), wie im Web;
  * der lange Druck bietet Chat, Bearbeiten, Teilen und Löschen an. Angelegt wird
@@ -78,20 +77,18 @@ export default function AgentsScreen() {
   const params = useLocalSearchParams<{ agentura?: string }>();
 
   const [search, setSearch] = useState('');
-  const [shopOpen, setShopOpen] = useState(params.agentura === '1');
+  const [shopOpen, setShopOpen] = useState(false);
   // The sheet is a native modal: left open, it would sit over the next screen.
   useFocusEffect(useCallback(() => () => setShopOpen(false), []));
-  // A deep link into an already open overview only changes its params.
-  const [linkedShop, setLinkedShop] = useState(params.agentura);
-  if (params.agentura !== linkedShop) {
-    setLinkedShop(params.agentura);
-    if (params.agentura === '1') setShopOpen(true);
-  }
+  // `?agentura=1` (alte Links und Binaries) meinte den Shop — der ist heute der Marktplatz.
+  useEffect(() => {
+    if (params.agentura === '1') router.replace(marketplaceRoute({ tab: 'agents' }));
+  }, [params.agentura, router]);
   const [shopQuery, setShopQuery] = useState('');
   const query = search.trim().toLowerCase();
 
   const { data: userAgents = [], isSuccess: agentsLoaded, isError: agentsFailed } = useUserAgents();
-  const { data: publicAgents = [], isLoading: publicLoading } = usePublicUserAgents();
+  const { data: publicAgents = [] } = usePublicUserAgents();
   const { data: sharedEntries = [] } = useSharedUserAgents();
   const {
     data: ownRecipes = [],
@@ -168,9 +165,7 @@ export default function AgentsScreen() {
     return {
       key: `a-${agentKey(agent)}`,
       kind: 'agent',
-      isFavorite: false,
       libraryRef,
-      systemRecipe: false,
       iconKey: agent.iconKey ?? null,
       title: agent.title,
       meta: agenturaMetaLine([
@@ -178,11 +173,9 @@ export default function AgentsScreen() {
         isLandesverbandIdentifier(agent.identifier) && landesverbandLabel(agent.identifier),
         origin,
       ]),
-      author: agent.author,
       description: agent.description,
       searchText: searchTextOf([agent.title, agent.description, agent.identifier]),
       onOpen: openDetail,
-      onStartChat: () => startAgentChat(agent, own),
       actions: buildMarketMenuActions({
         kind: 'agent',
         own,
@@ -218,12 +211,11 @@ export default function AgentsScreen() {
     title: string,
     own: boolean,
     libraryRef: MarketItem['libraryRef']
-  ): Pick<MarketItem, 'onOpen' | 'onStartChat' | 'actions' | 'onAction'> => {
+  ): Pick<MarketItem, 'onOpen' | 'actions' | 'onAction'> => {
     const openDetail = () =>
       router.push({ pathname: '/(focused)/grueneratoren/rezept/[mention]', params: { mention } });
     return {
       onOpen: openDetail,
-      onStartChat: () => startRecipeChat(mention),
       actions: buildMarketMenuActions({
         kind: 'recipe',
         own,
@@ -259,9 +251,7 @@ export default function AgentsScreen() {
     return {
       key: `s-${skill.mention}`,
       kind: 'recipe',
-      isFavorite: false,
       libraryRef,
-      systemRecipe: true,
       iconKey: skill.iconKey ?? null,
       title: skill.title,
       meta: agenturaMetaLine([
@@ -279,9 +269,7 @@ export default function AgentsScreen() {
   const recipeItem = (recipe: TextForm): MarketItem => ({
     key: `r-${recipe.id}`,
     kind: 'recipe',
-    isFavorite: false,
     libraryRef: null,
-    systemRecipe: false,
     iconKey: recipe.iconKey ?? null,
     title: recipe.title,
     meta: 'Rezept',
@@ -296,16 +284,13 @@ export default function AgentsScreen() {
     return {
       key: `t-${task.id}`,
       kind: 'task',
-      isFavorite: false,
       libraryRef: null,
-      systemRecipe: false,
       iconKey: 'PiCalendarBlank',
       title: task.title,
       meta: agenturaMetaLine([describeRecurrence(task.recurrence), !task.enabled && 'pausiert']),
       description: task.instruction,
       searchText: searchTextOf([task.title, task.instruction]),
       onOpen: openDetail,
-      onStartChat: null,
       actions: buildMarketMenuActions({
         kind: 'task',
         // Ohne zugehörigen Agent gibt es keinen Editor, der sie öffnen könnte.
@@ -333,7 +318,7 @@ export default function AgentsScreen() {
     };
   };
 
-  // Was die Agentura anbietet, nach Verweis — dieselben Verweise wie im Web:
+  // Was der Marktplatz anbietet, nach Verweis — dieselben Verweise wie im Web:
   // agentRef bei Agents (uuid bei fremden), Mention bei Katalog-Rezepten.
   // Landesverbands-Inhalte erst mit geladenen Rollen, sonst stünden kurz die
   // Inhalte aller Verbände auf der Übersicht. Öffentliche Nutzer-Rezepte führt
@@ -394,39 +379,6 @@ export default function AgentsScreen() {
   const settled = agentsLoaded && recipesLoaded && library.loaded && !tasks.isLoading;
   const failed = agentsFailed || recipesFailed || library.failed;
 
-  // Nach Region statt nach Nutzung: bei mehreren Zuteilungen sollen die Sachen
-  // eines Verbands beieinanderstehen.
-  const byRegion = <T,>(list: readonly T[], id: (t: T) => string): T[] =>
-    [...list].sort((a, b) => landesverbandRegion(id(a)).localeCompare(landesverbandRegion(id(b))));
-  const pinned = catalog.generalSystemAgents.filter((a) => a.pinnedToSidebar);
-  const unpinned = catalog.generalSystemAgents.filter((a) => !a.pinnedToSidebar);
-  const aisles: MarketAisle[] = [
-    {
-      key: 'offiziell',
-      title: 'Offizielle Grüneratoren',
-      items: [
-        ...[...pinned, ...unpinned].map((a) => agentItem(a)),
-        ...SKILL_CATEGORY_ORDER.flatMap((cat) =>
-          (catalog.skillsByCategory.get(cat) ?? []).map(skillItem)
-        ),
-      ],
-    },
-    {
-      key: 'landesverband',
-      // Erst nach der Hydratation der Profilrollen: vorher lässt `lvIds === null`
-      // jeden Verband durch, und der Gang hieße kurz „Dein Landesverband" mit
-      // fremden Inhalten, bevor er auf „Grüne Hessen" umspringt.
-      title: catalog.lvShelfLabel,
-      items: catalog.rolesLoaded
-        ? [
-            ...byRegion(catalog.lvSystemAgents, (a) => a.identifier).map((a) => agentItem(a)),
-            ...byRegion(catalog.lvSkills, (s) => s.identifier).map(skillItem),
-          ]
-        : [],
-    },
-    { key: 'oeffentlich', title: 'Öffentlich', items: communityAgents.map((a) => agentItem(a)) },
-  ];
-
   const openShop = (initialQuery: string) => {
     setShopQuery(initialQuery);
     setShopOpen(true);
@@ -448,14 +400,14 @@ export default function AgentsScreen() {
     </ListGroup>
   ) : allItems.length === 0 ? (
     note(
-      'Noch nichts hier. Leg über „+“ einen eigenen Agent oder ein Rezept an, oder hol dir welche aus der Agentura.',
-      <Button onPress={() => openShop('')}>Zur Agentura</Button>
+      'Noch nichts hier. Leg über „+“ einen eigenen Agent oder ein Rezept an, oder hol dir welche aus dem Marktplatz.',
+      <Button onPress={() => openShop('')}>Zum Marktplatz</Button>
     )
   ) : (
     note(
-      'Bei deinen Grüneratoren ist nichts dabei — vielleicht in der Agentura.',
+      'Bei deinen Grüneratoren ist nichts dabei — vielleicht im Marktplatz.',
       <Button variant="outline" onPress={() => openShop(search.trim())}>
-        In der Agentura suchen
+        Im Marktplatz suchen
       </Button>
     )
   );
@@ -518,8 +470,8 @@ export default function AgentsScreen() {
 
       <Fab
         icon="storefront-outline"
-        label="Agentura"
-        accessibilityLabel="Agentura öffnen"
+        label="Marktplatz"
+        accessibilityLabel="Marktplatz öffnen"
         onPress={() => openShop('')}
         style={{
           backgroundColor: colors.secondary[600],
@@ -527,13 +479,12 @@ export default function AgentsScreen() {
         }}
       />
 
-      <AgenturaSheet
+      <MarketplaceSheet
         visible={shopOpen}
         onClose={() => setShopOpen(false)}
-        aisles={aisles}
-        publicLoading={publicLoading}
+        kinds={AGENTURA_KINDS}
         initialQuery={shopQuery}
-        library={library}
+        description="Offizielle Agents und Rezepte, die deines Landesverbands und was andere öffentlich teilen."
       />
 
       <MenuActionSheet
