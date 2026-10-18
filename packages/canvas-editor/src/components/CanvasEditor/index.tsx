@@ -73,6 +73,7 @@ import { AutoSaveStoreProvider } from '../../stores/useAutoSaveStore';
 import { cn } from '../../utils/cn';
 import { ensureFontsReady } from '../../utils/ensureFontsReady';
 import { getCategoryForTemplate } from '../../utils/templateRegistry';
+import { CanvasContextMenu } from '../CanvasContextMenu/CanvasContextMenu';
 import { CanvasPageSkeleton, CanvasTabRailSkeleton } from '../CanvasEditorSkeleton';
 import { CanvasMetaBar, CanvasZoomIndicator } from '../CanvasMetaBar';
 import { CanvasTextEditorProvider } from '../CanvasTextOverlay';
@@ -84,9 +85,11 @@ import { ContextToolbar } from '../TopBar/ContextToolbar';
 import { MobileSelectionBar } from '../TopBar/MobileSelectionBar';
 import { MobileSelectionControls } from '../TopBar/MobileSelectionControls';
 import { FloatingAiSuggestionBanner } from '../TopBar/modules/FloatingAiSuggestionBanner';
+import { MultiSelectionToolbar } from '../TopBar/MultiSelectionToolbar';
 
 import { autoSwitchTab } from './autoSwitchTab';
 import { BlockInsertProvider } from './blockInsert';
+import { useCanvasContextMenu } from './hooks/useCanvasContextMenu';
 import { useLoadedConfigs } from './hooks/useLoadedConfigs';
 import { useMobileSheetFit } from './hooks/useMobileSheetFit';
 import { usePageRefs } from './hooks/usePageRefs';
@@ -479,7 +482,11 @@ function CanvasEditorInner({
           prev.canMoveDown === report.canMoveDown &&
           prev.canDuplicate === report.canDuplicate &&
           prev.canDelete === report.canDelete &&
-          prev.isCropping === report.isCropping
+          prev.isCropping === report.isCropping &&
+          prev.selectionCount === report.selectionCount &&
+          prev.canCopy === report.canCopy &&
+          prev.lockState === report.lockState &&
+          prev.canLock === report.canLock
         ) {
           return prev;
         }
@@ -591,6 +598,26 @@ function CanvasEditorInner({
   useEffect(() => {
     if (hasPendingSuggestion) handleDeselectAll();
   }, [hasPendingSuggestion, handleDeselectAll]);
+
+  // Desktop right-click menu; "Bild ersetzen …" opens the bar's picker.
+  const [backgroundPickerRequest, setBackgroundPickerRequest] = useState(0);
+  const requestBackgroundPicker = useCallback(() => setBackgroundPickerRequest((n) => n + 1), []);
+  const openImageAdjust = useCallback(() => setActiveTab('image-adjust'), []);
+  const pageIds = useMemo(() => pages.map((page) => page.id), [pages]);
+  const contextMenuRef = useCanvasContextMenu({
+    containerRef: pagesContainerRef,
+    canvasRefsRef,
+    pageDomRefsRef,
+    pageIds,
+    currentPageIndex,
+    canAddPage: canAddMore,
+    enabled: !isMobileWeb && !isPreview && !hasPendingSuggestion,
+    duplicatePage,
+    removePage,
+    openImageAdjust,
+    deselectAll: handleDeselectAll,
+    requestBackgroundPicker,
+  });
 
   // Mobile selection pill: reads the active page's selection geometry.
   const getSelectionBox = useCallback(
@@ -1139,10 +1166,10 @@ function CanvasEditorInner({
   // Render only when the canvas has reported an actual element selection (not
   // merely because delete-page is available on a multi-page doc — page ops live
   // in the page toolbar / thumbnail strip). While an element is selected, the
-  // delete-page action rides along in the desktop card and the mobile sheet's
-  // "Auswahl" block, not in the mobile bottom bar (`hideObjectActions`). Only
-  // one of the two bars is mounted per viewport to avoid a hidden duplicate
-  // React tree.
+  // delete-page action rides along only in the mobile sheet's "Auswahl" block;
+  // in the desktop card it sat next to the element actions and deleted the
+  // page instead of the element. Only one of the two bars is mounted per
+  // viewport to avoid a hidden duplicate React tree.
   const backgroundControls =
     activeConfig?.background && activeState && activeActions
       ? activeConfig.background(activeState, activeActions)
@@ -1155,6 +1182,9 @@ function CanvasEditorInner({
         canMoveDown: toolbarState.canMoveDown ?? false,
         canDuplicate: toolbarState.canDuplicate ?? false,
         isCropping: toolbarState.isCropping ?? false,
+        lockState: toolbarState.lockState,
+        canLock: toolbarState.canLock,
+        backgroundPickerRequest,
         handlers: {
           ...toolbarHandlers,
           onEditImage: () => setActiveTab('image-adjust'),
@@ -1165,7 +1195,6 @@ function CanvasEditorInner({
           typeof activeActions?.removeUserImage === 'function'
             ? (activeActions.removeUserImage as (id: string) => void)
             : undefined,
-        onDelete: toolbarOnDelete,
         onDeselect: handleDeselectAll,
       }
     : null;
@@ -1182,11 +1211,29 @@ function CanvasEditorInner({
       onUndoPages={toolbarHandlers.undoPages}
     />
   ) : contextControlsProps && hasContextControls ? (
-    <ContextToolbar {...contextControlsProps} />
+    <ContextToolbar
+      {...contextControlsProps}
+      canDelete={toolbarState?.canDelete ?? false}
+      onDeleteElement={toolbarHandlers.handleDeleteElement}
+    />
+  ) : toolbarState && toolbarState.selectionCount > 1 ? (
+    // Not part of `hasContextControls`: mobile would show its selection bar.
+    <MultiSelectionToolbar
+      count={toolbarState.selectionCount}
+      canCopy={toolbarState.canCopy}
+      canDelete={toolbarState.canDelete}
+      lockState={toolbarState.lockState}
+      canLock={toolbarState.canLock}
+      onCopy={toolbarHandlers.handleCopy}
+      onDuplicate={toolbarHandlers.handleDuplicate}
+      onToggleLock={toolbarHandlers.handleToggleLock}
+      onDelete={toolbarHandlers.handleDeleteElement}
+      onDeselect={handleDeselectAll}
+    />
   ) : null;
   const mobileSelectionElement =
     contextControlsProps && hasContextControls && isMobileWeb && isPanelOpen ? (
-      <MobileSelectionControls {...contextControlsProps} />
+      <MobileSelectionControls {...contextControlsProps} onDeletePage={toolbarOnDelete} />
     ) : null;
   const openSelectionArea = mobileSelectionArea
     ? () => setActiveTab(mobileSelectionArea)
@@ -1214,6 +1261,8 @@ function CanvasEditorInner({
         onDuplicate={toolbarHandlers.handleDuplicate}
         onDelete={toolbarHandlers.handleDeleteElement}
         onMore={openSelectionArea}
+        isLocked={toolbarState.lockState === 'all'}
+        onUnlock={toolbarHandlers.handleToggleLock}
       />
     ) : null;
 
@@ -1431,6 +1480,9 @@ function CanvasEditorInner({
             </div>
           </CanvasEditorLayout>
           {selectionPill}
+          {!isMobileWeb && !isPreview && (
+            <CanvasContextMenu handleRef={contextMenuRef} closeKey={zoom} />
+          )}
         </CanvasTextEditorProvider>
       </UserUploadsProvider>
     </BlockInsertProvider>

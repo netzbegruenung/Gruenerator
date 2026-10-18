@@ -145,6 +145,279 @@ function floatingModuleEqual(
   );
 }
 
+/**
+ * Die Leisten-Daten zu einem Element, ohne Hook — das Kontextmenü fragt sie
+ * beim Öffnen ab, bevor die Leiste die neue Auswahl gemeldet hat.
+ */
+export function floatingModuleFor<
+  TState extends Record<string, unknown>,
+  TActions = Record<string, unknown>,
+>(
+  selectedElement: string | null,
+  config: FullCanvasConfig<TState, TActions>,
+  state: TState,
+  layout: LayoutResult
+): FloatingModuleState | null {
+  if (!selectedElement) return null;
+
+  // Check if Text element (from config)
+  const textElement = config.elements.find((e) => e.id === selectedElement && e.type === 'text');
+  if (textElement && textElement.type === 'text') {
+    const fontSizeStateKey = textElement.fontSizeStateKey as string | undefined;
+    const fillStateKey = textElement.fillStateKey as string | undefined;
+
+    const currentFontSize =
+      getStateProperty<number>(state, fontSizeStateKey) ||
+      resolveValue<number, TState>(
+        textElement.fontSize as number | ((state: TState, layout: LayoutResult) => number),
+        state,
+        layout
+      ) ||
+      24;
+    const currentOpacity = resolveToolbarOpacity(textElement, state, layout);
+    const currentFill = fillStateKey
+      ? getStateProperty<string>(state, fillStateKey)
+      : textElement.fill !== undefined
+        ? resolveValue<string | undefined, TState>(
+            textElement.fill as
+              string | ((state: TState, layout: LayoutResult) => string | undefined),
+            state,
+            layout
+          )
+        : undefined;
+
+    return {
+      type: 'text' as const,
+      data: {
+        id: selectedElement,
+        fontSize: currentFontSize,
+        opacity: typeof currentOpacity === 'number' ? currentOpacity : 1,
+        fill: typeof currentFill === 'string' ? currentFill : '#000000',
+      },
+    };
+  }
+
+  // Check if Image element (from config)
+  const imageElement = config.elements.find((e) => e.id === selectedElement && e.type === 'image');
+  if (imageElement && imageElement.type === 'image') {
+    const fillStateKey = imageElement.fillStateKey as string | undefined;
+
+    const currentOpacity = resolveToolbarOpacity(imageElement, state, layout);
+
+    // Get fill from state or resolve from config
+    let currentFill: string | undefined = undefined;
+    if (fillStateKey) {
+      currentFill = getStateProperty<string>(state, fillStateKey);
+    } else if (imageElement.fill) {
+      currentFill = resolveValue<string, TState>(
+        imageElement.fill as string | ((state: TState, layout: LayoutResult) => string),
+        state,
+        layout
+      );
+    }
+
+    return {
+      type: 'image' as const,
+      data: {
+        id: selectedElement,
+        opacity: typeof currentOpacity === 'number' ? currentOpacity : 1,
+        fill: typeof currentFill === 'string' && currentFill ? currentFill : undefined,
+        // Das austauschbare Foto der Vorlage — nicht Deko mit festem `src`
+        // und nicht der Profilbild-Avatar (`transparentImage`).
+        isPhoto: imageElement.srcKey === 'currentImageSrc',
+      },
+    };
+  }
+
+  // Check if Background element (from config)
+  const backgroundElement = config.elements.find(
+    (e) => e.id === selectedElement && e.type === 'background'
+  );
+  if (backgroundElement && backgroundElement.type === 'background') {
+    const fillStateKey = backgroundElement.fillStateKey as string | undefined;
+
+    const currentOpacity = resolveToolbarOpacity(backgroundElement, state, layout);
+
+    let currentFill: string | undefined = undefined;
+    if (fillStateKey) {
+      currentFill = getStateProperty<string>(state, fillStateKey);
+    } else if (backgroundElement.fill) {
+      currentFill = resolveValue<string, TState>(
+        backgroundElement.fill as string | ((state: TState, layout: LayoutResult) => string),
+        state,
+        layout
+      );
+    }
+    if (!currentFill) {
+      const colorKey = (backgroundElement as { colorKey?: string }).colorKey;
+      if (colorKey) {
+        currentFill = getStateProperty<string>(state, colorKey);
+      }
+    }
+
+    return {
+      type: 'background' as const,
+      data: {
+        id: selectedElement,
+        opacity: typeof currentOpacity === 'number' ? currentOpacity : 1,
+        fill: typeof currentFill === 'string' && currentFill ? currentFill : undefined,
+      },
+    };
+  }
+
+  // Check if Shape
+  const shapeInstances = getStateArray<ShapeInstance>(state, 'shapeInstances');
+  const shape = shapeInstances.find((s) => s.id === selectedElement);
+  if (shape) {
+    return {
+      type: 'shape' as const,
+      data: { ...shape, id: selectedElement },
+    };
+  }
+
+  // Check if Icon
+  const selectedIcons = getStateArray<string>(state, 'selectedIcons');
+  const isIcon = selectedIcons.includes(selectedElement);
+  if (isIcon) {
+    const iconStatesObj = getStateProperty<Record<string, unknown>>(state, 'iconStates');
+    const iconState = iconStatesObj?.[selectedElement] ?? {};
+    return {
+      type: 'icon' as const,
+      data: { id: selectedElement, ...iconState },
+    };
+  }
+
+  // Check if Additional Text
+  const additionalTexts = getStateArray<{
+    id: string;
+    fontSize?: number;
+    opacity?: number;
+    fill?: string;
+    stroke?: string;
+    strokeWidth?: number;
+    shadowColor?: string;
+    shadowBlur?: number;
+    shadowOffsetX?: number;
+    shadowOffsetY?: number;
+    shadowOpacity?: number;
+    fillGradient?: GradientFill | null;
+  }>(state, 'additionalTexts');
+  const additionalText = additionalTexts.find((t) => t.id === selectedElement);
+  if (additionalText) {
+    return {
+      type: 'text' as const,
+      data: {
+        id: selectedElement,
+        isInstanceText: true,
+        fontSize: additionalText.fontSize,
+        opacity: additionalText.opacity ?? 1,
+        fill: additionalText.fill,
+        stroke: additionalText.stroke,
+        strokeWidth: additionalText.strokeWidth,
+        shadowColor: additionalText.shadowColor,
+        shadowBlur: additionalText.shadowBlur,
+        shadowOffsetX: additionalText.shadowOffsetX,
+        shadowOffsetY: additionalText.shadowOffsetY,
+        shadowOpacity: additionalText.shadowOpacity,
+        fillGradient: additionalText.fillGradient,
+      },
+    };
+  }
+
+  // Check if Balken
+  const balkenInstances = getStateArray<BalkenInstance>(state, 'balkenInstances');
+  const balken = balkenInstances.find((b) => b.id === selectedElement);
+  if (balken) {
+    return {
+      type: 'balken' as const,
+      data: {
+        id: selectedElement,
+        opacity: balken.opacity ?? 1,
+      },
+    };
+  }
+
+  // Check if Illustration
+  const illustrationInstances = getStateArray<IllustrationInstance>(state, 'illustrationInstances');
+  const illustration = illustrationInstances.find((i) => i.id === selectedElement);
+  if (illustration) {
+    return {
+      type: 'illustration' as const,
+      data: { ...illustration, id: selectedElement },
+    };
+  }
+
+  // Check if Frame
+  const frameInstances = getStateArray<FrameInstance>(state, 'frameInstances');
+  const frame = frameInstances.find((f) => f.id === selectedElement);
+  if (frame) {
+    return {
+      type: 'frame' as const,
+      data: { ...frame, id: selectedElement },
+    };
+  }
+
+  // Check if Asset
+  const assetInstances = getStateArray<AssetInstance>(state, 'assetInstances');
+  const asset = assetInstances.find((a) => a.id === selectedElement);
+  if (asset) {
+    return {
+      type: 'asset' as const,
+      data: { ...asset, id: selectedElement },
+    };
+  }
+
+  // Check if User Image
+  const userImageInstances = getStateArray<UserImageInstance>(state, 'userImageInstances');
+  const userImage = userImageInstances.find((u) => u.id === selectedElement);
+  if (userImage) {
+    return {
+      type: 'user-image' as const,
+      data: { ...userImage, id: selectedElement, opacity: userImage.opacity ?? 1 },
+    };
+  }
+
+  // Badges: the swatch colours the badge body (`backgroundColor`), not its text.
+  const pillBadgeInstances = getStateArray<PillBadgeInstance>(state, 'pillBadgeInstances');
+  const pillBadge = pillBadgeInstances.find((p) => p.id === selectedElement);
+  if (pillBadge) {
+    return {
+      type: 'pill-badge' as const,
+      data: {
+        id: selectedElement,
+        fill: pillBadge.backgroundColor,
+        opacity: pillBadge.opacity ?? 1,
+      },
+    };
+  }
+
+  const circleBadgeInstances = getStateArray<CircleBadgeInstance>(state, 'circleBadgeInstances');
+  const circleBadge = circleBadgeInstances.find((c) => c.id === selectedElement);
+  if (circleBadge) {
+    return {
+      type: 'circle-badge' as const,
+      data: {
+        id: selectedElement,
+        fill: circleBadge.backgroundColor,
+        opacity: circleBadge.opacity ?? 1,
+      },
+    };
+  }
+
+  // Charts: series colours live in the chart-settings tab; the bar only
+  // carries opacity.
+  const chartInstances = getStateArray<ChartInstance>(state, 'chartInstances');
+  const chart = chartInstances.find((c) => c.id === selectedElement);
+  if (chart) {
+    return {
+      type: 'chart' as const,
+      data: { id: selectedElement, opacity: chart.opacity ?? 1 },
+    };
+  }
+
+  return null;
+}
+
 export function useFloatingModuleState<
   TState extends Record<string, unknown>,
   TActions = Record<string, unknown>,
@@ -152,271 +425,10 @@ export function useFloatingModuleState<
   const { selectedElement, config, state, layout } = options;
   const prevRef = useRef<FloatingModuleState | null>(null);
 
-  const computed = useMemo(() => {
-    if (!selectedElement) return null;
-
-    // Check if Text element (from config)
-    const textElement = config.elements.find((e) => e.id === selectedElement && e.type === 'text');
-    if (textElement && textElement.type === 'text') {
-      const fontSizeStateKey = textElement.fontSizeStateKey as string | undefined;
-      const fillStateKey = textElement.fillStateKey as string | undefined;
-
-      const currentFontSize =
-        getStateProperty<number>(state, fontSizeStateKey) ||
-        resolveValue<number, TState>(
-          textElement.fontSize as number | ((state: TState, layout: LayoutResult) => number),
-          state,
-          layout
-        ) ||
-        24;
-      const currentOpacity = resolveToolbarOpacity(textElement, state, layout);
-      const currentFill = fillStateKey
-        ? getStateProperty<string>(state, fillStateKey)
-        : textElement.fill !== undefined
-          ? resolveValue<string | undefined, TState>(
-              textElement.fill as
-                string | ((state: TState, layout: LayoutResult) => string | undefined),
-              state,
-              layout
-            )
-          : undefined;
-
-      return {
-        type: 'text' as const,
-        data: {
-          id: selectedElement,
-          fontSize: currentFontSize,
-          opacity: typeof currentOpacity === 'number' ? currentOpacity : 1,
-          fill: typeof currentFill === 'string' ? currentFill : '#000000',
-        },
-      };
-    }
-
-    // Check if Image element (from config)
-    const imageElement = config.elements.find(
-      (e) => e.id === selectedElement && e.type === 'image'
-    );
-    if (imageElement && imageElement.type === 'image') {
-      const fillStateKey = imageElement.fillStateKey as string | undefined;
-
-      const currentOpacity = resolveToolbarOpacity(imageElement, state, layout);
-
-      // Get fill from state or resolve from config
-      let currentFill: string | undefined = undefined;
-      if (fillStateKey) {
-        currentFill = getStateProperty<string>(state, fillStateKey);
-      } else if (imageElement.fill) {
-        currentFill = resolveValue<string, TState>(
-          imageElement.fill as string | ((state: TState, layout: LayoutResult) => string),
-          state,
-          layout
-        );
-      }
-
-      return {
-        type: 'image' as const,
-        data: {
-          id: selectedElement,
-          opacity: typeof currentOpacity === 'number' ? currentOpacity : 1,
-          fill: typeof currentFill === 'string' && currentFill ? currentFill : undefined,
-          // Das austauschbare Foto der Vorlage — nicht Deko mit festem `src`
-          // und nicht der Profilbild-Avatar (`transparentImage`).
-          isPhoto: imageElement.srcKey === 'currentImageSrc',
-        },
-      };
-    }
-
-    // Check if Background element (from config)
-    const backgroundElement = config.elements.find(
-      (e) => e.id === selectedElement && e.type === 'background'
-    );
-    if (backgroundElement && backgroundElement.type === 'background') {
-      const fillStateKey = backgroundElement.fillStateKey as string | undefined;
-
-      const currentOpacity = resolveToolbarOpacity(backgroundElement, state, layout);
-
-      let currentFill: string | undefined = undefined;
-      if (fillStateKey) {
-        currentFill = getStateProperty<string>(state, fillStateKey);
-      } else if (backgroundElement.fill) {
-        currentFill = resolveValue<string, TState>(
-          backgroundElement.fill as string | ((state: TState, layout: LayoutResult) => string),
-          state,
-          layout
-        );
-      }
-      if (!currentFill) {
-        const colorKey = (backgroundElement as { colorKey?: string }).colorKey;
-        if (colorKey) {
-          currentFill = getStateProperty<string>(state, colorKey);
-        }
-      }
-
-      return {
-        type: 'background' as const,
-        data: {
-          id: selectedElement,
-          opacity: typeof currentOpacity === 'number' ? currentOpacity : 1,
-          fill: typeof currentFill === 'string' && currentFill ? currentFill : undefined,
-        },
-      };
-    }
-
-    // Check if Shape
-    const shapeInstances = getStateArray<ShapeInstance>(state, 'shapeInstances');
-    const shape = shapeInstances.find((s) => s.id === selectedElement);
-    if (shape) {
-      return {
-        type: 'shape' as const,
-        data: { ...shape, id: selectedElement },
-      };
-    }
-
-    // Check if Icon
-    const selectedIcons = getStateArray<string>(state, 'selectedIcons');
-    const isIcon = selectedIcons.includes(selectedElement);
-    if (isIcon) {
-      const iconStatesObj = getStateProperty<Record<string, unknown>>(state, 'iconStates');
-      const iconState = iconStatesObj?.[selectedElement] ?? {};
-      return {
-        type: 'icon' as const,
-        data: { id: selectedElement, ...iconState },
-      };
-    }
-
-    // Check if Additional Text
-    const additionalTexts = getStateArray<{
-      id: string;
-      fontSize?: number;
-      opacity?: number;
-      fill?: string;
-      stroke?: string;
-      strokeWidth?: number;
-      shadowColor?: string;
-      shadowBlur?: number;
-      shadowOffsetX?: number;
-      shadowOffsetY?: number;
-      shadowOpacity?: number;
-      fillGradient?: GradientFill | null;
-    }>(state, 'additionalTexts');
-    const additionalText = additionalTexts.find((t) => t.id === selectedElement);
-    if (additionalText) {
-      return {
-        type: 'text' as const,
-        data: {
-          id: selectedElement,
-          isInstanceText: true,
-          fontSize: additionalText.fontSize,
-          opacity: additionalText.opacity ?? 1,
-          fill: additionalText.fill,
-          stroke: additionalText.stroke,
-          strokeWidth: additionalText.strokeWidth,
-          shadowColor: additionalText.shadowColor,
-          shadowBlur: additionalText.shadowBlur,
-          shadowOffsetX: additionalText.shadowOffsetX,
-          shadowOffsetY: additionalText.shadowOffsetY,
-          shadowOpacity: additionalText.shadowOpacity,
-          fillGradient: additionalText.fillGradient,
-        },
-      };
-    }
-
-    // Check if Balken
-    const balkenInstances = getStateArray<BalkenInstance>(state, 'balkenInstances');
-    const balken = balkenInstances.find((b) => b.id === selectedElement);
-    if (balken) {
-      return {
-        type: 'balken' as const,
-        data: {
-          id: selectedElement,
-          opacity: balken.opacity ?? 1,
-        },
-      };
-    }
-
-    // Check if Illustration
-    const illustrationInstances = getStateArray<IllustrationInstance>(
-      state,
-      'illustrationInstances'
-    );
-    const illustration = illustrationInstances.find((i) => i.id === selectedElement);
-    if (illustration) {
-      return {
-        type: 'illustration' as const,
-        data: { ...illustration, id: selectedElement },
-      };
-    }
-
-    // Check if Frame
-    const frameInstances = getStateArray<FrameInstance>(state, 'frameInstances');
-    const frame = frameInstances.find((f) => f.id === selectedElement);
-    if (frame) {
-      return {
-        type: 'frame' as const,
-        data: { ...frame, id: selectedElement },
-      };
-    }
-
-    // Check if Asset
-    const assetInstances = getStateArray<AssetInstance>(state, 'assetInstances');
-    const asset = assetInstances.find((a) => a.id === selectedElement);
-    if (asset) {
-      return {
-        type: 'asset' as const,
-        data: { ...asset, id: selectedElement },
-      };
-    }
-
-    // Check if User Image
-    const userImageInstances = getStateArray<UserImageInstance>(state, 'userImageInstances');
-    const userImage = userImageInstances.find((u) => u.id === selectedElement);
-    if (userImage) {
-      return {
-        type: 'user-image' as const,
-        data: { ...userImage, id: selectedElement, opacity: userImage.opacity ?? 1 },
-      };
-    }
-
-    // Badges: the swatch colours the badge body (`backgroundColor`), not its text.
-    const pillBadgeInstances = getStateArray<PillBadgeInstance>(state, 'pillBadgeInstances');
-    const pillBadge = pillBadgeInstances.find((p) => p.id === selectedElement);
-    if (pillBadge) {
-      return {
-        type: 'pill-badge' as const,
-        data: {
-          id: selectedElement,
-          fill: pillBadge.backgroundColor,
-          opacity: pillBadge.opacity ?? 1,
-        },
-      };
-    }
-
-    const circleBadgeInstances = getStateArray<CircleBadgeInstance>(state, 'circleBadgeInstances');
-    const circleBadge = circleBadgeInstances.find((c) => c.id === selectedElement);
-    if (circleBadge) {
-      return {
-        type: 'circle-badge' as const,
-        data: {
-          id: selectedElement,
-          fill: circleBadge.backgroundColor,
-          opacity: circleBadge.opacity ?? 1,
-        },
-      };
-    }
-
-    // Charts: series colours live in the chart-settings tab; the bar only
-    // carries opacity.
-    const chartInstances = getStateArray<ChartInstance>(state, 'chartInstances');
-    const chart = chartInstances.find((c) => c.id === selectedElement);
-    if (chart) {
-      return {
-        type: 'chart' as const,
-        data: { id: selectedElement, opacity: chart.opacity ?? 1 },
-      };
-    }
-
-    return null;
-  }, [selectedElement, state, config.elements, layout]);
+  const computed = useMemo(
+    () => floatingModuleFor(selectedElement, config, state, layout),
+    [selectedElement, config, state, layout]
+  );
 
   // Return stable reference when derived values haven't changed
   if (floatingModuleEqual(prevRef.current, computed)) {

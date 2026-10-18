@@ -1,33 +1,22 @@
 import { useEffect, useRef } from 'react';
 
-import { CanvasClipboard } from '../utils/canvasClipboard';
-import {
-  duplicateElementInState,
-  findDuplicableEntry,
-  insertInstance,
-} from '../utils/duplicateElement';
-import { findElementRemover } from '../utils/removeElement';
+import { commandForKey } from '../utils/canvasCommandRegistry';
+import { isLayerLocked } from '../utils/layerLock';
 import { assertAsPosition } from '../utils/stateTypeAssertions';
-import { findTemplateEntry } from '../utils/templateElementInstance';
 
 import type { OptionalCanvasActions } from './useCanvasElementHandlers';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
-import type { CanvasElementConfig, LayoutResult } from '../configs/types';
+import type { CanvasElementConfig } from '../configs/types';
 import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
+import type { CanvasCommands } from '../utils/canvasCommands';
 
 /**
  * Canvas Keyboard Handlers - Keyboard shortcuts for canvas
  *
- * Handles:
- * - Copy (Ctrl+C): Copy selected element to clipboard
- * - Paste (Ctrl+V): Paste clipboard element with offset
- * - Duplicate (Ctrl+D): Copy + paste in one step
- * - Delete/Backspace: Remove selected element(s)
- * - Arrow keys: nudge, Enter: pick a frame image, Escape: deselect
- *
- * Kopieren, Einfügen und Duplizieren teilen sich mit dem Knopf in der
- * Kontextleiste eine Tür: `utils/duplicateElement.ts`. Wer hier eine
- * Elementart vermisst, trägt sie dort ein, nicht hier.
+ * Die Kürzel stehen in `utils/canvasCommandRegistry.ts` und laufen über
+ * dieselben Türen wie Kontextmenü und Leiste (`utils/canvasCommands.ts`).
+ * Hier bleiben nur die Tasten, die keine Befehle sind: Pfeile schieben,
+ * Escape hebt die Auswahl auf.
  *
  * Automatically prevents actions when typing in input/textarea fields.
  */
@@ -38,11 +27,10 @@ export interface UseCanvasKeyboardHandlersOptions<TState extends Partial<BaseCan
   actions: OptionalCanvasActions;
   setState: (partial: Partial<TState> | ((prev: TState) => TState)) => void;
   setSelectedElement: (id: string | null) => void;
+  /** Die Türen der Seite — Kopieren, Einfügen, Duplizieren, Löschen … */
+  commands: CanvasCommands;
   /** Config-Elemente der Vorlage — fuer Pfeiltasten an layoutgebundenen Elementen. */
   elements?: readonly CanvasElementConfig<TState>[];
-  /** Gerechnetes Layout — zusammen mit `elements` die aufgeloeste Lage einer
-   *  Vorlagen-Grafik, aus der Strg+D eine Asset-Instanz macht (#3403). */
-  layout?: LayoutResult;
   saveToHistory?: (state: TState) => void;
   /**
    * Attach the global keydown listener. Defaults to true; offscreen preview
@@ -64,8 +52,8 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
     actions,
     setState,
     setSelectedElement,
+    commands,
     elements,
-    layout,
     saveToHistory,
     enabled = true,
   } = options;
@@ -73,26 +61,22 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
   // Use refs for values that the handler reads but shouldn't trigger re-attachment
   const stateRef = useRef(state);
   const actionsRef = useRef(actions);
+  const commandsRef = useRef(commands);
   const elementsRef = useRef(elements);
-  const layoutRef = useRef(layout);
   const saveToHistoryRef = useRef(saveToHistory);
   useEffect(() => {
     stateRef.current = state;
     actionsRef.current = actions;
+    commandsRef.current = commands;
     elementsRef.current = elements;
-    layoutRef.current = layout;
     saveToHistoryRef.current = saveToHistory;
   });
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const selectedElement = store.getState().selectedElement;
-      const isCtrlOrCmd = e.ctrlKey || e.metaKey;
       const currentState = stateRef.current;
       const currentActions = actionsRef.current;
-      /** Vorlagen-Grafiken: dieselbe Tür wie für den Knopf in der Kontextleiste. */
-      const templateEntry = (id: string) =>
-        findTemplateEntry(elementsRef.current, currentState, layoutRef.current, id);
 
       // Während getippt wird gehört JEDE dieser Tasten dem Textfeld: Strg+D
       // setzt dort kein Duplikat auf die Fläche, Strg+C/V meint die Textauswahl.
@@ -103,6 +87,9 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
         target instanceof HTMLInputElement ||
         target instanceof HTMLTextAreaElement ||
         target?.isContentEditable === true;
+      // Im offenen Kontextmenü gehören Pfeile, Enter und Escape dem Menü:
+      // sonst schöbe ArrowDown das Element und Enter öffnete die Dateiauswahl.
+      if (target instanceof Element && target.closest('[role="menu"]')) return;
 
       // Ausschnitt mode: Escape or Enter ends it and keeps the photo selected;
       // the other keys wait, so an arrow cannot move the frame mid-crop.
@@ -123,57 +110,44 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
 
       if (isTyping) return;
 
-      // DUPLICATE (Ctrl+D) — dieselbe Tür wie der Knopf in der Kontextleiste.
-      if (isCtrlOrCmd && e.key === 'd' && selectedElement) {
-        e.preventDefault();
-        // Das Ergebnis wird VOR dem Schreiben berechnet, nicht im Updater:
-        // React ruft den Updater erst beim nächsten Rendern, die neue Id und
-        // der Zustand für den Verlauf stünden hier sonst noch nicht bereit.
-        const result = duplicateElementInState(currentState, selectedElement, {
-          template: templateEntry,
-        });
-        if (!result) return;
-        setState(result.state);
-        // Ohne diesen Eintrag lässt sich das Duplikat nicht rückgängig machen:
-        // `setState` allein schreibt keinen Verlauf.
-        saveToHistoryRef.current?.(result.state);
-        setTimeout(() => setSelectedElement(result.newId), 0);
-        return;
-      }
-
-      // PASTE (Ctrl+V)
-      if (isCtrlOrCmd && e.key === 'v') {
-        const entry = CanvasClipboard.paste();
-        if (!entry) return;
-
-        const result = insertInstance(currentState, entry);
-        setState(result.state);
-        saveToHistoryRef.current?.(result.state);
-        setTimeout(() => setSelectedElement(result.newId), 0);
-        return;
-      }
-
-      // Mehrfachauswahl: nur Löschen, jedes Element über seine eigene Tür.
       const selection = store.getState().selectedLayerIds;
-      if (selection.length > 1) {
-        if (e.key === 'Delete' || e.key === 'Backspace') {
-          const removers = selection
-            .map((id) => findElementRemover(currentState, currentActions, id))
-            .filter((remove) => remove !== null);
-          removers.forEach((remove) => remove());
-          if (removers.length > 0) setSelectedElement(null);
-        }
-        return;
+      const commands = commandsRef.current;
+      switch (commandForKey(e)) {
+        case 'duplicate':
+          if (selection.length === 0) break;
+          e.preventDefault();
+          commands.duplicate();
+          return;
+        case 'paste':
+          commands.paste(null);
+          return;
+        case 'copy':
+          commands.copy();
+          return;
+        case 'cut':
+          if (selection.length === 0) break;
+          e.preventDefault();
+          commands.cut();
+          return;
+        case 'selectAll':
+          e.preventDefault();
+          commands.selectAll();
+          return;
+        case 'delete':
+          commands.remove();
+          return;
+        case 'insertFrameImage':
+          if (selection.length === 1 && commands.insertFrameImage()) {
+            e.preventDefault();
+            return;
+          }
+          break;
+        default:
+          break;
       }
 
-      if (!selectedElement) return;
-
-      // COPY (Ctrl+C)
-      if (isCtrlOrCmd && e.key === 'c') {
-        const entry = findDuplicableEntry(currentState, selectedElement, templateEntry);
-        if (entry) CanvasClipboard.copy(entry.type, entry.data);
-        return;
-      }
+      // Schieben gibt es nur für ein einzelnes Element.
+      if (selection.length > 1 || !selectedElement) return;
 
       // ARROW KEYS — nudge selected element (1px, Shift = 10px)
       const NUDGE_DELTAS: Record<string, [number, number]> = {
@@ -183,6 +157,11 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
         ArrowRight: [1, 0],
       };
       if (e.key in NUDGE_DELTAS) {
+        // Gesperrt: die Pfeile schieben nicht, scrollen aber auch nicht die Seite.
+        if (isLayerLocked(currentState, selectedElement)) {
+          e.preventDefault();
+          return;
+        }
         const [ux, uy] = NUDGE_DELTAS[e.key];
         const step = e.shiftKey ? 10 : 1;
         const dx = ux * step;
@@ -296,37 +275,6 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
           }
         }
         return;
-      }
-
-      // ENTER — open file picker for selected frame
-      if (e.key === 'Enter' && currentActions.setFrameImage) {
-        const setFrameImage = currentActions.setFrameImage;
-        const frame = currentState.frameInstances?.find((f) => f.id === selectedElement);
-        if (frame) {
-          e.preventDefault();
-          const input = document.createElement('input');
-          input.type = 'file';
-          input.accept = 'image/*';
-          input.addEventListener('change', () => {
-            const file = input.files?.[0];
-            if (file) {
-              const objectUrl = URL.createObjectURL(file);
-              setFrameImage(selectedElement, file, objectUrl);
-            }
-            input.remove();
-          });
-          input.click();
-          return;
-        }
-      }
-
-      // DELETE / BACKSPACE — dieselbe Tür wie der Löschen-Knopf der mobilen Auswahl.
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        const remove = findElementRemover(currentState, currentActions, selectedElement);
-        if (remove) {
-          remove();
-          setSelectedElement(null);
-        }
       }
     };
 

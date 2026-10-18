@@ -14,6 +14,7 @@
 import { useRef, useCallback, useEffect, useState, memo } from 'react';
 import { Group, Rect, Text, Transformer } from 'react-konva';
 
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { isGroupDrag } from '../utils/multiSelect';
 import { calculatePillBadgeDimensions } from '../utils/pillBadgeUtils';
@@ -82,6 +83,7 @@ function PillBadgeInner({
   stageHeight,
   isFontAvailable: _isFontAvailable,
 }: PillBadgeProps) {
+  const locked = useIsItemLocked();
   const groupRef = useRef<Konva.Group>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -257,7 +259,7 @@ function PillBadgeInner({
         scaleY={scale}
         rotation={rotation}
         opacity={opacity}
-        draggable={!isEditing}
+        draggable={!isEditing && !locked}
         onDragStart={snap.onDragStart}
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
@@ -317,6 +319,7 @@ function PillBadgeInner({
             if (newBox.width > maxSize || newBox.height > maxSize) return oldBox;
             return newBox;
           }}
+          {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}
     </>

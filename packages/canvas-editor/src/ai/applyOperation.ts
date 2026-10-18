@@ -12,6 +12,7 @@
  *   - Each op is wrapped in try/catch so one bad op in a multi-op
  *     suggestion doesn't abort the rest.
  */
+import { isLayerLocked } from '../utils/layerLock';
 import { findElementRemover } from '../utils/removeElement';
 import { type ShapeInstance } from '../utils/shapes';
 
@@ -247,6 +248,9 @@ function applyOne<TState, TActions extends CanvasAiActionsBase>(
         // Same door as the Entf key: the collection the id lives in picks the
         // remover. Local cast as in dispatchUpdate — only optional fields are read.
         const state = getState() as Partial<BaseCanvasState>;
+        if (isLayerLocked(state, op.elementId)) {
+          return { ok: false, reason: `element "${op.elementId}" is locked` };
+        }
         const remove = findElementRemover(state, actions, op.elementId);
         if (!remove) return { ok: false, reason: `element "${op.elementId}" not found` };
         remove();
@@ -276,6 +280,14 @@ function applyOne<TState, TActions extends CanvasAiActionsBase>(
 
       case 'update-element': {
         const cleanPatch = stripNullPatchFields(op.patch);
+        // A lock pins position, size and rotation; colour and opacity stay
+        // editable, as they do by hand.
+        const movesElement = (['x', 'y', 'scale', 'rotation'] as const).some(
+          (key) => cleanPatch[key] !== undefined
+        );
+        if (movesElement && isLayerLocked(getState() as Partial<BaseCanvasState>, op.elementId)) {
+          return { ok: false, reason: `element "${op.elementId}" is locked` };
+        }
         const dispatchResult = dispatchUpdate(op.elementId, cleanPatch, actions, getState);
         return dispatchResult;
       }

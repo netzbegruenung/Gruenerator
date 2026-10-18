@@ -12,6 +12,7 @@ import {
   Transformer,
 } from 'react-konva';
 
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { gradientFillProps } from '../utils/gradientFill';
 import { translucentHitFunc } from '../utils/gradientHitArea';
 import { handDrawnPath } from '../utils/handDrawn';
@@ -514,8 +515,10 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
   isSelected,
   onSelect,
   onChange,
-  draggable = true,
+  draggable: draggableProp = true,
 }) => {
+  const locked = useIsItemLocked();
+  const draggable = draggableProp && !locked;
   const shapeRef = useRef<Konva.Shape>(null);
   const trRef = useRef<Konva.Transformer>(null);
 
@@ -641,6 +644,7 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
           borderStroke={transformerStroke}
           anchorStroke={transformerStroke}
           anchorFill="#ffffff"
+          {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}
     </>

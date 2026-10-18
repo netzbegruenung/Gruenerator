@@ -46,6 +46,14 @@ Der Vergleich prüft nur die Namen, nicht die Werte. Wer einen Wert ändert, än
 - Unterbereiche eines Bereichs erscheinen als Filter-Chips im Sheet (`SubsectionTabBar`), nicht als zweite Tab-Reihe.
 - Antippen wählt nur aus, es öffnet **kein** Sheet — die Fläche behält ihre Größe (Canva-Muster). Die Bereichs-Leiste weicht dann der Auswahl-Leiste (`MobileSelectionBar`, selber Slot, selbe Höhe) mit der Formatierung, „Mehr" und ✓; über dem Objekt steht die Pille (`MobileSelectionPill`) mit Duplizieren, Löschen und „…", die beim Ziehen und Transformieren verschwindet. Den Bereich der Auswahl (`mobileSelectionArea.ts`) öffnet erst „Mehr"/„…" — zuerst das Ziel von `getAutoSwitchTab` (wie Desktop, auch versteckte Tabs), sonst nur ein Tab, der das Objekt selbst zeigt (Illustration/Rahmen → Detailansicht im Katalog). Text, Formen, Icons, Grafiken, Uploads und Vorlagen-Deko (`image` ohne `currentImageSrc`) haben kein „Mehr": ihre Tabs sind Kataloge zum Hinzufügen. Hintergrund und Foto auch nicht — es gibt keinen Hintergrund-Tab mehr; Farbe, Bild, Zoom und Fixieren stehen vollständig in der Auswahl-Leiste (`config.background` → `ContextControls`). Oben im Sheet steht dann der Auswahl-Block (`MobileSelectionControls`). Schließen des Sheets hebt die Auswahl nicht auf.
 - Löschen läuft für Taste und Pille über `utils/removeElement.ts` — wer eine Elementart ergänzt, trägt sie dort ein.
+- Ist ein Element gesperrt, zeigt die Pille statt Löschen „Entsperren". Mobil gibt es kein Kontextmenü.
+
+## Befehle, Kontextmenü, Sperren
+
+- **Eine Tür je Befehl.** Kopieren, Ausschneiden, Einfügen, Duplizieren, Löschen, Ebenen, Sperren und Alles auswählen stehen in `utils/canvasCommands.ts`, pro Seite, erreichbar über `GenericCanvasRef.runCommand`. Tastatur, Kontextleiste, Pille und Kontextmenü rufen diese Türen. Nichts daneben verdrahten.
+- **Namen und Kürzel** stehen nur in `utils/canvasCommandRegistry.ts`. Das Kürzel im Menü ist dasselbe, auf das die Tastatur hört; `canvasShortcuts.vitest.tsx` prüft das. Was mit einer Auswahl geht, beantwortet für Leiste und Menü dieselbe Funktion: `utils/selectionCapabilities.ts`.
+- **Das Kontextmenü gibt es einmal pro Editor** (`components/CanvasContextMenu/`), und nur auf dem Desktop. Der Grund: jede gemountete Radix-Menü-Wurzel hängt einen Keydown-Listener an `document`. Was ein Rechts-Druck auswählt, entscheidet `hooks/useContextPress.ts`, bevor Konva den Druck bekommt.
+- **Sperren:** Die gesperrten Ids stehen in `lockedLayerIds` auf der Seite (`utils/layerLock.ts`); die Primitive lesen sie über `useIsItemLocked()`. Ein neues Primitiv nimmt die Sperre in `draggable` auf und legt `LOCKED_TRANSFORMER` an seinen Transformer.
 
 ## Prüfen
 

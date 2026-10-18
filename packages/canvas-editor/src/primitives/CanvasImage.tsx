@@ -16,6 +16,7 @@ import Konva from 'konva';
 import { useRef, useEffect, useCallback, memo } from 'react';
 import { Image as KonvaImage, Transformer } from 'react-konva';
 
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { panWindowPhoto, zoomWindow, type Rect } from '../utils/coverFit';
@@ -109,6 +110,7 @@ function CanvasImageInner({
   coverFit = false,
   frame,
 }: CanvasImageProps) {
+  const locked = useIsItemLocked();
   const imageRef = useRef<Konva.Image>(null);
   // Drag of a cover-fitted photo: the node under the pointer at drag start, and the pan so far.
   const panStartRef = useRef<{ part: Rect; dx: number; dy: number } | null>(null);
@@ -414,7 +416,7 @@ function CanvasImageInner({
         height={part?.box.height ?? height}
         crop={part?.crop}
         opacity={opacity}
-        draggable={draggable}
+        draggable={draggable && !locked}
         dragBoundFunc={dragBoundFunc}
         onMouseDown={onSelect}
         onTouchStart={handleTouchStart}
@@ -447,6 +449,7 @@ function CanvasImageInner({
             if (newBox.width > maxWidth) return oldBox;
             return newBox;
           }}
+          {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}
     </>

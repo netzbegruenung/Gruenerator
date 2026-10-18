@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback, memo } from 'react';
 import { Circle, Group, Image as KonvaImage, Line, Rect, Shape, Transformer } from 'react-konva';
 
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { coverPhotoRect } from '../utils/coverFit';
 import { assertNever } from '../utils/shapes';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
@@ -251,6 +252,7 @@ function FramePrimitiveInner({
   onChange,
   draggable = true,
 }: FramePrimitiveProps) {
+  const locked = useIsItemLocked();
   const groupRef = useRef<Konva.Group>(null);
   const trRef = useRef<Konva.Transformer>(null);
   const [image, setImage] = useState<HTMLImageElement | null>(null);
@@ -377,7 +379,7 @@ function FramePrimitiveInner({
         opacity={frame.opacity}
         offsetX={w / 2}
         offsetY={h / 2}
-        draggable={draggable}
+        draggable={draggable && !locked}
         onMouseDown={handleSelect}
         onTouchStart={handleSelect}
         onDragEnd={handleDragEnd}
@@ -495,6 +497,7 @@ function FramePrimitiveInner({
           borderStroke="#005437"
           anchorStroke="#005437"
           anchorFill="#ffffff"
+          {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}
     </>

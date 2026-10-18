@@ -11,6 +11,7 @@ import { hasInlineMarks, hasListMarkers } from '@gruenerator/contracts';
 import { useRef, useEffect, useState, useCallback, memo } from 'react';
 import { Text as KonvaText, Transformer } from 'react-konva';
 
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { overlayBoxForNode, useCanvasTextEditor } from '../components/CanvasTextOverlay';
 import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
@@ -136,6 +137,7 @@ function CanvasTextInner({
   onGeometryChange,
   onSnapLinesChange,
 }: CanvasTextProps) {
+  const locked = useIsItemLocked();
   const textRef = useRef<Konva.Text>(null);
   const trRef = useRef<Konva.Transformer>(null);
   const { open, isEditing } = useCanvasTextEditor(id, editable);
@@ -360,7 +362,7 @@ function CanvasTextInner({
         lineHeight={lineHeight}
         wrap={wrap}
         padding={padding}
-        draggable={draggable && !isEditing}
+        draggable={draggable && !isEditing && !locked}
         visible={!isEditing}
         onMouseDown={onSelect}
         onTouchStart={onSelect}
@@ -389,6 +391,7 @@ function CanvasTextInner({
             if (newBox.width > maxWidth) return oldBox;
             return newBox;
           }}
+          {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}
     </>
