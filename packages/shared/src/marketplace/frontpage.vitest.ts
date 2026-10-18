@@ -5,6 +5,7 @@ import { DEFAULT_MARKETPLACE_FILTERS } from './filters';
 import {
   fallbackFeature,
   featureFor,
+  frontpageView,
   isFrontpageView,
   landesverbandShelf,
   newestShelf,
@@ -103,5 +104,52 @@ describe('shelves', () => {
     ]);
     expect(pick?.ref).toBe('official');
     expect(fallbackFeature([])).toBeNull();
+  });
+});
+
+describe('frontpageView', () => {
+  const feature = featureFor('de-DE');
+  const empty = { newest: [], popular: [], visuals: [], landesverband: [] };
+  const lvSections = [section('agent', [it_('agent', 'lv1'), it_('agent', 'lv2')])];
+
+  it('shows the curated item with its pitch and keeps it out of „Neu"', () => {
+    const curated = it_('agent', 'leichte');
+    const view = frontpageView({
+      ...empty,
+      feature,
+      featured: { item: curated, pending: false, failed: false },
+      hasLandesverband: false,
+      newest: [section('agent', [curated, it_('agent', 'other')])],
+    });
+    expect(view.focus?.ref).toBe('leichte');
+    expect(view.focusFeature?.id).toBe('leichte-sprache');
+    expect(refs(view.neu)).toEqual(['other']);
+  });
+
+  it('falls back to the newest official item when the curated one is gone', () => {
+    const view = frontpageView({
+      ...empty,
+      feature,
+      featured: { item: null, pending: false, failed: true },
+      hasLandesverband: false,
+      newest: [section('agent', [it_('agent', 'official')])],
+    });
+    expect(view.focus?.ref).toBe('official');
+    expect(view.focusFeature).toBeNull();
+  });
+
+  it('shows the Landesverband shelf only with a Landesverband', () => {
+    const input = {
+      ...empty,
+      feature,
+      featured: { item: null, pending: true, failed: false },
+      landesverband: lvSections,
+    };
+    expect(frontpageView({ ...input, hasLandesverband: false }).landesverband).toEqual([]);
+    expect(refs(frontpageView({ ...input, hasLandesverband: true }).landesverband)).toEqual([
+      'lv1',
+      'lv2',
+    ]);
+    expect(frontpageView({ ...input, hasLandesverband: true }).focusPending).toBe(true);
   });
 });

@@ -69,10 +69,13 @@ export {
   MARKETPLACE_FEATURES,
   fallbackFeature,
   featureFor,
+  frontpageView,
   isFrontpageView,
   landesverbandShelf,
   newestShelf,
   popularShelf,
   visualShelf,
+  type FrontpageInput,
+  type FrontpageView,
   type MarketplaceFeature,
 } from './frontpage.js';

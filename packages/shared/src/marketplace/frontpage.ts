@@ -147,3 +147,44 @@ export function fallbackFeature(sections: readonly MarketplaceSection[]): Market
       .sort(createdDesc)[0] ?? null
   );
 }
+
+export interface FrontpageInput {
+  /** `featureFor(locale)`. */
+  feature: MarketplaceFeature | null;
+  /** The curated item as loaded; `failed` = the viewer cannot see it (gone, other country). */
+  featured: { item: MarketplaceItem | null; pending: boolean; failed: boolean };
+  hasLandesverband: boolean;
+  /** One `sections` answer per shelf, as listed in `FRONTPAGE_SHELVES`. */
+  newest: readonly MarketplaceSection[];
+  popular: readonly MarketplaceSection[];
+  visuals: readonly MarketplaceSection[];
+  landesverband: readonly MarketplaceSection[];
+}
+
+export interface FrontpageView {
+  focus: MarketplaceItem | null;
+  /** `null` = the fallback item, which has no pitch or example of its own. */
+  focusFeature: MarketplaceFeature | null;
+  focusPending: boolean;
+  landesverband: MarketplaceItem[];
+  neu: MarketplaceItem[];
+  beliebt: MarketplaceItem[];
+  gestalten: MarketplaceItem[];
+}
+
+/** Everything the front page shows, from the shelf answers — the same on every platform. */
+export function frontpageView(input: FrontpageInput): FrontpageView {
+  const { feature, featured } = input;
+  const fallback = featured.failed || !feature ? fallbackFeature(input.newest) : null;
+  const focus = featured.item ?? fallback;
+  return {
+    focus,
+    focusFeature: featured.item ? feature : null,
+    focusPending: feature !== null && featured.pending,
+    landesverband: input.hasLandesverband ? landesverbandShelf(input.landesverband) : [],
+    // The focus item does not stand twice on the page.
+    neu: newestShelf(input.newest).filter((i) => i.key !== focus?.key),
+    beliebt: popularShelf(input.popular),
+    gestalten: visualShelf(input.visuals),
+  };
+}
