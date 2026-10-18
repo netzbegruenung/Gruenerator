@@ -561,6 +561,61 @@ export const bildAt: SharepicSpec = {
   ],
 };
 
+const steckbriefItem = {
+  type: 'steckbrief',
+  gruss: 'Hallo, ich bin',
+  name: 'Lena',
+  merkmale: [
+    'Fährt Rad bei jedem Wetter',
+    'Seit 10 Jahren im Ortsverband',
+    'Gärtnert auf dem Balkon',
+    'Liest gern Krimis',
+    'Kocht vegetarisch',
+    'Spielt Gitarre',
+    'Ehrenamtlich im Tierheim',
+    'Kaffee schwarz, bitte',
+  ],
+} as const;
+const steckbriefFrei = (color: 'tanne' | 'dunkelgruen'): SharepicSpec['slides'][number] => ({
+  background: { kind: 'farbe', color },
+  position: 'mitte',
+  align: 'links',
+  items: [
+    { ...steckbriefItem, merkmale: [...steckbriefItem.merkmale] },
+    {
+      type: 'bild',
+      quelle: 'vorlage:person.jpg',
+      ausschnitt: 'freigestellt',
+      filter: 'original',
+      freisteller: 'vorlage:person-frei.webp',
+    },
+  ],
+  logo: false,
+});
+export const steckbrief: SharepicSpec = {
+  locale: 'de-DE',
+  format: 'post-portrait-tall',
+  slides: [steckbriefFrei('tanne')],
+};
+export const steckbriefFoto: SharepicSpec = {
+  locale: 'de-DE',
+  format: 'post-portrait-tall',
+  slides: [
+    {
+      background: { kind: 'foto', filename: 'vorlage:person.jpg', textSeite: 'oben' },
+      position: 'mitte',
+      align: 'links',
+      items: [{ ...steckbriefItem, merkmale: [...steckbriefItem.merkmale] }],
+      logo: false,
+    },
+  ],
+};
+export const steckbriefAt: SharepicSpec = {
+  locale: 'de-AT',
+  format: 'post-portrait-tall',
+  slides: [steckbriefFrei('dunkelgruen')],
+};
+
 /** Beyond the provenance specs: one per feature of the other composer tests. */
 export const MORE_SPECS = {
   foto,
@@ -582,4 +637,7 @@ export const MORE_SPECS = {
   handMarksDe,
   bild,
   bildAt,
+  steckbrief,
+  steckbriefFoto,
+  steckbriefAt,
 };

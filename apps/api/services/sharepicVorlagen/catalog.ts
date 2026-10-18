@@ -20,7 +20,7 @@
  * a `thumbVersion` (hash of its thumbnails) so clients can cache the images forever.
  */
 import { createHash } from 'node:crypto';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 import {
@@ -30,6 +30,8 @@ import {
   printVorlageFileEntrySchema,
   isSharepicSceneRef,
   isSharepicUploadId,
+  isSharepicVorlageRef,
+  SHAREPIC_VORLAGE_REF,
   sharepicFormatSchema,
   sharepicSeiteFileEntrySchema,
   sharepicSpecSchema,
@@ -129,7 +131,13 @@ function thumbVersionOf(files: string[]): string | undefined {
 
 function attributionOf(slide: SharepicSlide): SharepicPhotoAttribution | null {
   const photo = slidePhotoFilename(slide);
-  if (!photo || isSharepicUploadId(photo) || isSharepicSceneRef(photo)) return null;
+  if (
+    !photo ||
+    isSharepicUploadId(photo) ||
+    isSharepicSceneRef(photo) ||
+    isSharepicVorlageRef(photo)
+  )
+    return null;
   const credit = getAttribution(photo);
   return credit
     ? {
@@ -460,6 +468,19 @@ export function printVorlageThumbFile(id: string, seite = 1): string | null {
     return null;
   }
   return printThumbFile(id, seite);
+}
+
+/**
+ * Absolute path of a photo the catalogue ships (`vorlage:<file>`), or null for
+ * a name that is no such file. The name is held to the ref's own pattern, so
+ * no path leaves `assets/`.
+ */
+export function sharepicVorlageAssetFile(file: string): string | null {
+  if (!SHAREPIC_VORLAGE_REF.test(`vorlage:${file}`)) return null;
+  const assets = path.join(dir(), 'assets');
+  const resolved = path.resolve(assets, file);
+  if (!resolved.startsWith(assets + path.sep) || !existsSync(resolved)) return null;
+  return resolved;
 }
 
 /** Tests only. */
