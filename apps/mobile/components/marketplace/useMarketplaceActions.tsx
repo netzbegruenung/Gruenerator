@@ -1,19 +1,10 @@
 import { type MarketplaceItem } from '@gruenerator/contracts';
-import {
-  MARKETPLACE_QUERY_KEY,
-  canReport,
-  toGalleryAsset,
-  useMarketplaceLike,
-  useMarketplaceSave,
-} from '@gruenerator/shared/marketplace';
+import { toGalleryAsset, useMarketplaceSave } from '@gruenerator/shared/marketplace';
 import { profilbildAssetParams } from '@gruenerator/shared/stickers';
-import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useState, type ReactNode } from 'react';
 import { Alert, Linking } from 'react-native';
 
 import { routeWithParams } from '../../types/routes';
-import { ReportSheet, type ReportTarget } from '../common/ReportSheet';
 
 import { marketplaceOpenTarget } from './marketplaceTarget';
 
@@ -31,21 +22,17 @@ export interface MarketplaceActions {
   startChat: (item: MarketplaceItem) => void;
   /** A sticker or background into the Profilbild. */
   toProfilbild: (item: MarketplaceItem) => void;
-  toggleLike: (item: MarketplaceItem) => void;
   /** „Zu meinen Grüneratoren" for Agents and Rezepte, „Merken" for the rest. */
   toggleSave: (item: MarketplaceItem) => void;
-  report: (item: MarketplaceItem) => void;
-  /** Goes once into the caller's tree. */
-  sheets: ReactNode;
 }
 
-/** What a Marktplatz item can do, the same on the screen and in the sheet. */
+/**
+ * What a Marktplatz item can do, the same on the screen and in the sheet. Like
+ * and report sit in the item's interaction block (`MarketplaceDiscussion`).
+ */
 export function useMarketplaceActions(navigate: Navigate = navigateNow): MarketplaceActions {
   const router = useRouter();
-  const queryClient = useQueryClient();
-  const like = useMarketplaceLike();
   const save = useMarketplaceSave();
-  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
 
   const open = (item: MarketplaceItem) => {
     const target = marketplaceOpenTarget(item);
@@ -90,18 +77,7 @@ export function useMarketplaceActions(navigate: Navigate = navigateNow): Marketp
     open,
     startChat,
     toProfilbild,
-    toggleLike: (item) => like.mutate(item, { onError: showError }),
     // A full „Meine Grüneratoren" answers 409 with the server's sentence — shown as is.
     toggleSave: (item) => save.mutate(item, { onError: showError }),
-    report: (item) => {
-      if (canReport(item)) setReportTarget({ kind: item.reportKind, targetId: item.ref });
-    },
-    sheets: (
-      <ReportSheet
-        target={reportTarget}
-        onClose={() => setReportTarget(null)}
-        onReported={() => void queryClient.invalidateQueries({ queryKey: MARKETPLACE_QUERY_KEY })}
-      />
-    ),
   };
 }

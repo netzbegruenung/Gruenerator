@@ -10,9 +10,11 @@ import {
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import { type ReactNode } from 'react';
+import { Share } from 'react-native';
 
 import {
   DEFAULT_MARKETPLACE_FILTERS,
+  useMarketplaceItem,
   useMarketplaceKind,
   useMarketplaceSections,
 } from '@gruenerator/shared/marketplace';
@@ -26,6 +28,7 @@ jest.mock('@gruenerator/shared/marketplace', () => ({
   ...jest.requireActual<Record<string, unknown>>('@gruenerator/shared/marketplace'),
   useMarketplaceSections: jest.fn(),
   useMarketplaceKind: jest.fn(),
+  useMarketplaceItem: jest.fn(),
   useMarketplaceLike: () => ({ mutate: jest.fn() }),
   useMarketplaceSave: () => ({ mutate: mockSave }),
 }));
@@ -33,6 +36,20 @@ jest.mock('@tanstack/react-query', () => ({
   ...jest.requireActual<Record<string, unknown>>('@tanstack/react-query'),
   useQueryClient: () => ({ invalidateQueries: jest.fn() }),
 }));
+jest.mock('@gruenerator/shared/comments', () => ({
+  ...jest.requireActual<Record<string, unknown>>('@gruenerator/shared/comments'),
+  useEntityComments: () => ({
+    isPending: false,
+    isError: false,
+    data: { reactions: [], comments: [] },
+  }),
+  useAddEntityComment: () => ({ mutateAsync: jest.fn() }),
+  useDeleteEntityComment: () => ({ mutate: jest.fn() }),
+  useToggleItemReaction: () => ({ toggle: jest.fn() }),
+  useToggleCommentReaction: () => ({ toggle: jest.fn() }),
+}));
+jest.mock('../../hooks/useHiddenMembers', () => ({ useHiddenMemberIds: () => new Set() }));
+jest.mock('../common/confirmHidePerson', () => ({ confirmHidePerson: jest.fn() }));
 jest.mock('../../services/storage', () => ({ secureStorage: { getToken: jest.fn() } }));
 // Reanimated has no native module under jest; the placeholder is not under test.
 jest.mock('../common/Skeleton', () => ({ SkeletonRows: () => null }));
@@ -47,6 +64,9 @@ const mockSections = useMarketplaceSections as unknown as jest.MockedFunction<
 >;
 const mockKind = useMarketplaceKind as unknown as jest.MockedFunction<
   (params: { kind: string; enabled: boolean }) => Record<string, unknown>
+>;
+const mockItem = useMarketplaceItem as unknown as jest.MockedFunction<
+  (target: unknown, options: { platform?: string; enabled?: boolean }) => Record<string, unknown>
 >;
 const mockGetToken = secureStorage.getToken as jest.MockedFunction<typeof secureStorage.getToken>;
 
@@ -126,6 +146,7 @@ function setup({ sections = [] as MarketplaceSection[], items = [] as Marketplac
     hasNextPage: false,
     isFetchingNextPage: false,
   });
+  mockItem.mockReturnValue({ data: undefined, isError: false });
 }
 
 async function renderScreen(tab: 'alle' | 'agents' | 'sticker' = 'alle') {
@@ -207,7 +228,72 @@ describe('MarketplaceScreen', () => {
   });
 });
 
+describe('MarketplaceScreen detail', () => {
+  it('opens the item of a shared link, loading it when no list holds it', async () => {
+    setup();
+    mockItem.mockReturnValue({ data: publicAgent, isError: false });
+    render(
+      <MarketplaceScreen
+        initialFilters={{
+          ...DEFAULT_MARKETPLACE_FILTERS,
+          tab: 'agents',
+          item: { kind: 'agent', ref: 'u1' },
+        }}
+      />
+    );
+    await act(async () => {});
+
+    expect(mockItem).toHaveBeenLastCalledWith(
+      { kind: 'agent', ref: 'u1' },
+      { platform: 'mobile', enabled: true }
+    );
+    expect(screen.getByRole('header', { name: 'Kommunal-Helfer' })).toBeTruthy();
+  });
+
+  it('says so when the shared item is gone', async () => {
+    setup();
+    mockItem.mockReturnValue({ data: undefined, isError: true });
+    render(
+      <MarketplaceScreen
+        initialFilters={{ ...DEFAULT_MARKETPLACE_FILTERS, item: { kind: 'agent', ref: 'weg' } }}
+      />
+    );
+    await act(async () => {});
+    expect(screen.getByText(/Dieser Eintrag ist nicht verfügbar/)).toBeTruthy();
+  });
+
+  it('shares the web Marktplatz with the item open', async () => {
+    setup({ items: [publicAgent] });
+    const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' });
+    await renderScreen('agents');
+
+    fireEvent.press(screen.getByRole('button', { name: 'Kommunal-Helfer' }));
+    // A listed item needs no request of its own.
+    expect(mockItem).toHaveBeenLastCalledWith(
+      { kind: 'agent', ref: 'u1' },
+      { platform: 'mobile', enabled: false }
+    );
+    fireEvent.press(screen.getByText('Teilen'));
+    expect(share).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: 'https://gruenerator.eu/marktplatz?art=agents&item=agent%3Au1',
+      })
+    );
+  });
+});
+
 describe('MarketplaceSheet', () => {
+  it('opens a detail without a report form', async () => {
+    setup({ items: [publicAgent] });
+    render(<MarketplaceSheet visible onClose={jest.fn()} kinds={['agent']} initialTab="agents" />);
+    await act(async () => {});
+
+    fireEvent.press(screen.getByRole('button', { name: 'Kommunal-Helfer' }));
+    expect(screen.getByRole('header', { name: 'Kommunal-Helfer' })).toBeTruthy();
+    expect(screen.getByText('Teilen')).toBeTruthy();
+    expect(screen.queryByText('Melden')).toBeNull();
+  });
+
   it('as a picker hands the tapped item back and closes', async () => {
     setup({ items: [sticker] });
     const onPick = jest.fn();

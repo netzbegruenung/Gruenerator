@@ -1,5 +1,4 @@
 import { type MarketplaceItem } from '@gruenerator/contracts';
-import { canReport } from '@gruenerator/shared/marketplace';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -16,24 +15,29 @@ import { AgentGlyph } from '../agentura/AgentGlyph';
 import { Button } from '../common/Button';
 
 import { kindView, marketplaceCardProps } from './kindViews';
+import { MarketplaceDiscussion } from './MarketplaceDiscussion';
 import { type MarketplaceActions } from './useMarketplaceActions';
 
 /**
  * One Marktplatz item up close, in place of the list (the Agentura's short
- * view, for every kind): what it is, and the ways on — keep it, try it, open
- * it, like it, report it.
+ * view, for every kind): what it is, the ways on — keep it, try it, open it —
+ * and the interaction block every kind shares (like, share, report,
+ * reactions, comments).
  */
 export function MarketplaceItemDetail({
   item,
   token,
   actions,
   onBack,
+  shareUrl,
   allowReport,
 }: {
   item: MarketplaceItem;
   token: string | null;
   actions: MarketplaceActions;
   onBack: () => void;
+  /** Where „Teilen" points: the web Marktplatz with this item open. */
+  shareUrl: string;
   /** Off inside a sheet: the report form would be a modal over the modal. */
   allowReport: boolean;
 }) {
@@ -43,7 +47,12 @@ export function MarketplaceItemDetail({
   const large = item.kind === 'template' || item.kind === 'background' || item.kind === 'sticker';
 
   return (
-    <ScrollView contentContainerStyle={styles.detail} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      contentContainerStyle={styles.detail}
+      showsVerticalScrollIndicator={false}
+      automaticallyAdjustKeyboardInsets
+      keyboardShouldPersistTaps="handled"
+    >
       <Pressable onPress={onBack} hitSlop={8} accessibilityRole="button" style={styles.back}>
         <Ionicons name="arrow-back" size={16} color={theme.textSecondary} />
         <Text style={[styles.backText, { color: theme.textSecondary }]}>Zurück zum Marktplatz</Text>
@@ -107,19 +116,19 @@ export function MarketplaceItemDetail({
             Im Profilbild verwenden
           </Button>
         )}
-        <Button variant="ghost" onPress={() => actions.toggleLike(item)}>
-          {item.liked ? `Gefällt dir (${item.likesCount})` : `Gefällt mir (${item.likesCount})`}
-        </Button>
-        {allowReport && canReport(item) ? (
-          <Button variant="ghost" onPress={() => actions.report(item)}>
-            Melden
-          </Button>
-        ) : null}
       </View>
 
       {card.description ? (
         <Text style={[styles.body, { color: theme.text }]}>{card.description}</Text>
       ) : null}
+
+      <MarketplaceDiscussion
+        target={{ kind: item.kind, ref: item.ref }}
+        item={item}
+        canModerate={item.isOwn}
+        shareUrl={shareUrl}
+        allowReport={allowReport}
+      />
     </ScrollView>
   );
 }

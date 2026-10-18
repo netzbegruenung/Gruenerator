@@ -134,6 +134,10 @@ describe('actionUrlToRoute for Grüneratoren', () => {
 
   it('opens the Marktplatz and the old sticker Entdecken natively', () => {
     expect(actionUrlToRoute('/marktplatz?art=vorlagen')).toBe('/marktplatz?art=vorlagen');
+    // A shared item link opens its detail in the native screen.
+    expect(actionUrlToRoute('/marktplatz?art=agents&item=agent%3Au1')).toBe(
+      '/marktplatz?art=agents&item=agent%3Au1'
+    );
     expect(actionUrlToRoute('/studio/sticker/entdecken?q=sonne')).toBe(
       '/marktplatz?art=sticker&q=sonne'
     );

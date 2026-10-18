@@ -2,10 +2,13 @@ import { type MarketplaceItem } from '@gruenerator/contracts';
 import {
   DEFAULT_MARKETPLACE_FILTERS,
   itemHref,
+  marketplaceHref,
   serializeMarketplaceParams,
   type MarketplaceFilters,
 } from '@gruenerator/shared/marketplace';
 import { type Href } from 'expo-router';
+
+import { WEB_ORIGIN } from '../../services/webOrigin';
 
 /** Where a tap on a Marktplatz card leads in the app. */
 export type MarketplaceOpenTarget =
@@ -60,4 +63,15 @@ export function marketplaceOpenTarget(item: MarketplaceItem): MarketplaceOpenTar
 export function marketplaceRoute(filters: Partial<MarketplaceFilters> = {}): Href {
   const params = serializeMarketplaceParams({ ...DEFAULT_MARKETPLACE_FILTERS, ...filters });
   return { pathname: '/(focused)/marktplatz', params: Object.fromEntries(params) };
+}
+
+/**
+ * The web Marktplatz with this item open (`…/marktplatz?art=…&item=<kind>:<ref>`),
+ * for „Teilen" — the link is for someone else, so always the web page; the app
+ * opens the same path in place (`/marktplatz?item=`).
+ */
+export function marketplaceShareUrl(
+  filters: Partial<MarketplaceFilters> & Pick<MarketplaceFilters, 'item'>
+): string {
+  return `${WEB_ORIGIN}${marketplaceHref(filters)}`;
 }

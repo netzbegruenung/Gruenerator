@@ -14,7 +14,10 @@ import {
 } from '../../../theme';
 import { CONTENT_MAX_WIDTH } from '../../../theme/layout';
 import { getMarkdownStyles } from '../../chat/markdownStyles';
-import { Button, SkeletonRows, useSurfaceStyles } from '../../common';
+// Direct imports, not the `common` barrel: it pulls Reanimated into every screen test.
+import { Button } from '../../common/Button';
+import { useSurfaceStyles } from '../../common/ListRow';
+import { SkeletonRows } from '../../common/Skeleton';
 import { AgentGlyph } from '../AgentGlyph';
 
 /**

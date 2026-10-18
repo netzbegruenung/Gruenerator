@@ -12,11 +12,13 @@ import {
   marketplaceEmptyText,
   marketplaceOriginLabel,
   tabForKind,
+  useMarketplaceItem,
   useMarketplaceKind,
   useMarketplaceSections,
   type MarketplaceFilters,
   type MarketplaceTab,
   type MarketplaceTabSlug,
+  type MarketplaceTarget,
 } from '@gruenerator/shared/marketplace';
 import { useDebouncedSearch } from '@gruenerator/shared/studio-assets';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
@@ -48,6 +50,7 @@ import { useShareToken } from '../studio-assets/useShareToken';
 import { marketplaceCardProps } from './kindViews';
 import { MarketCard } from './MarketCard';
 import { MarketplaceItemDetail } from './MarketplaceItemDetail';
+import { marketplaceShareUrl } from './marketplaceTarget';
 import { useMarketplaceActions, type Navigate } from './useMarketplaceActions';
 
 /** How many cards a kind previews under „Alle". */
@@ -110,7 +113,8 @@ export function MarketplaceBrowser({
   const [sort, setSort] = useState(initialFilters.sort);
   const [searchInput, setSearchInput] = useState(initialFilters.q);
   const q = useDebouncedSearch(searchInput);
-  const [opened, setOpened] = useState<MarketplaceItem | null>(null);
+  // `item=<kind>:<ref>` in the address (a shared link) opens its detail at once.
+  const [opened, setOpened] = useState<MarketplaceTarget | null>(initialFilters.item);
   const actions = useMarketplaceActions(navigate);
 
   const tabKinds: readonly MarketplaceKind[] =
@@ -138,10 +142,14 @@ export function MarketplaceBrowser({
         more: null,
       })).filter((aisle) => aisle.data.length > 0);
 
-  // The short view follows the lists, so a like or save shows there at once.
-  const current = opened
-    ? (aisles.flatMap((a) => a.data).find((i) => i.key === opened.key) ?? opened)
+  // The short view follows the lists, so a like or save shows there at once. An
+  // item the lists do not hold (a shared link, another tab) is loaded alone.
+  const listed = opened
+    ? (aisles.flatMap((a) => a.data).find((i) => i.kind === opened.kind && i.ref === opened.ref) ??
+      null)
     : null;
+  const single = useMarketplaceItem(opened, { platform: 'mobile', enabled: listed === null });
+  const current = listed ?? single.data ?? null;
 
   const note = (text: string, action: ReactNode = null) => (
     <View style={styles.note}>
@@ -163,17 +171,41 @@ export function MarketplaceBrowser({
     note(marketplaceEmptyText(tab, q))
   );
 
-  if (current) {
+  if (opened) {
+    if (current) {
+      return (
+        <View style={styles.root}>
+          <MarketplaceItemDetail
+            item={current}
+            token={token}
+            actions={actions}
+            onBack={() => setOpened(null)}
+            shareUrl={marketplaceShareUrl({ tab, origin, q, sort, item: opened })}
+            allowReport={!inSheet}
+          />
+        </View>
+      );
+    }
     return (
       <View style={styles.root}>
-        <MarketplaceItemDetail
-          item={current}
-          token={token}
-          actions={actions}
-          onBack={() => setOpened(null)}
-          allowReport={!inSheet}
-        />
-        {actions.sheets}
+        <Pressable
+          onPress={() => setOpened(null)}
+          hitSlop={8}
+          accessibilityRole="button"
+          style={styles.back}
+        >
+          <Ionicons name="arrow-back" size={16} color={theme.textSecondary} />
+          <Text style={[styles.backText, { color: theme.textSecondary }]}>
+            Zurück zum Marktplatz
+          </Text>
+        </Pressable>
+        {single.isError ? (
+          note(
+            'Dieser Eintrag ist nicht verfügbar. Vielleicht wurde er gelöscht oder ist nicht mehr öffentlich.'
+          )
+        ) : (
+          <SkeletonRows count={3} leading={40} on="card" style={styles.loading} />
+        )}
       </View>
     );
   }
@@ -242,7 +274,7 @@ export function MarketplaceBrowser({
         renderItem={({ item }) => (
           <MarketCard
             {...marketplaceCardProps(item, token)}
-            onPress={() => (onPick ? onPick(item) : setOpened(item))}
+            onPress={() => (onPick ? onPick(item) : setOpened({ kind: item.kind, ref: item.ref }))}
             onToggleAdded={() => actions.toggleSave(item)}
           />
         )}
@@ -265,7 +297,6 @@ export function MarketplaceBrowser({
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
       />
-      {actions.sheets}
     </View>
   );
 }
@@ -410,6 +441,17 @@ const styles = StyleSheet.create({
     fontSize: 17,
   },
   more: { fontFamily: BODY_FONT, fontSize: 14, fontWeight: '600' },
+  back: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xsmall,
+    alignSelf: 'flex-start',
+    paddingTop: spacing.small,
+  },
+  backText: {
+    fontFamily: HEADING_FONT_SEMIBOLD,
+    fontSize: 14,
+  },
   gap: {
     height: spacing.small,
   },

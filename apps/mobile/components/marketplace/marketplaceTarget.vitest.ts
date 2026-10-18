@@ -1,7 +1,7 @@
 import { type MarketplaceItem } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { marketplaceOpenTarget, marketplaceRoute } from './marketplaceTarget';
+import { marketplaceOpenTarget, marketplaceRoute, marketplaceShareUrl } from './marketplaceTarget';
 
 const template = (templateType: string | null, externalUrl: string | null) =>
   ({
@@ -56,5 +56,19 @@ describe('marketplaceRoute', () => {
       pathname: '/(focused)/marktplatz',
       params: { art: 'sticker', q: 'sonne' },
     });
+  });
+});
+
+describe('marketplaceShareUrl', () => {
+  it('points at the web Marktplatz with the item open', () => {
+    expect(marketplaceShareUrl({ tab: 'vorlagen', item: { kind: 'template', ref: 'v1' } })).toBe(
+      'https://gruenerator.eu/marktplatz?art=vorlagen&item=template%3Av1'
+    );
+  });
+
+  it('keeps the filters the list was showing', () => {
+    expect(
+      marketplaceShareUrl({ origin: 'oeffentlich', q: 'wind', item: { kind: 'agent', ref: 'u1' } })
+    ).toBe('https://gruenerator.eu/marktplatz?von=oeffentlich&q=wind&item=agent%3Au1');
   });
 });
