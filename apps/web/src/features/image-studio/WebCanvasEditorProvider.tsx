@@ -1,4 +1,5 @@
 import { CanvasEditorProvider } from '@gruenerator/canvas-editor';
+import { sharepicBlockSpec } from '@gruenerator/contracts';
 import { useQueryClient } from '@tanstack/react-query';
 import { useId, useMemo, type ReactNode } from 'react';
 
@@ -7,6 +8,7 @@ import { usePrintVorlage } from '../vorlagen/hooks/usePrintVorlage';
 import {
   canvasVorlagenQuery,
   printVorlagenQuery,
+  sharepicBloeckeQuery,
   sharepicSeitenQuery,
 } from '../vorlagen/hooks/useSharepicVorlagen';
 
@@ -15,6 +17,8 @@ import { webCanvasEditorServices } from './webCanvasEditorServices';
 
 import type { CanvasEditorServices, VorlagePage } from '@gruenerator/canvas-editor';
 import type {
+  SharepicBlock,
+  SharepicColor,
   SharepicFormat,
   SharepicPhotoAttribution,
   SharepicSeite,
@@ -41,6 +45,17 @@ async function composeSpec(
 /** A single Seite, composed in the design's format. */
 const composeSeite = (seite: SharepicSeite, format: SharepicFormat) =>
   composeSpec({ locale: seite.locale, format, slides: [seite.slide] }, [seite.attribution]);
+
+/** A block alone on `color`, composed like a Seite; the editor cuts its elements out. */
+async function composeBlock(
+  block: SharepicBlock,
+  { format, color }: { format: SharepicFormat; color: SharepicColor }
+) {
+  const { composeCreatorSharepic, creatorPhotoSrc } = await import('./freitext/composeForRender');
+  const spec = sharepicBlockSpec(block.locale, { ...block, color }, format);
+  const composed = await composeCreatorSharepic(spec, [null], creatorPhotoSrc, false);
+  return composed.slides[0]!;
+}
 
 export function WebCanvasEditorProvider({
   children,
@@ -71,6 +86,8 @@ export function WebCanvasEditorProvider({
               listCanvas: () => queryClient.fetchQuery(canvasVorlagenQuery()),
               listPrint: () => queryClient.fetchQuery(printVorlagenQuery()),
               openPrintAsNew: (vorlage) => void openPrintVorlage(vorlage),
+              listBloecke: () => queryClient.fetchQuery(sharepicBloeckeQuery()),
+              composeBlock,
             },
           }
         : {}),
