@@ -174,6 +174,10 @@ export const PRINT_IMPRESSUM_PLACEHOLDERS = [
   'Straße Nr., PLZ Ort',
 ] as const;
 
+/** Shown with every print Vorlage and every print PDF until a test print has been checked. */
+export const PRINT_UNGETESTET_HINWEIS =
+  'Die Druckergebnisse sind bisher ungetestet. Lass vor einer großen Auflage einen Probedruck machen.';
+
 /** Whether the spec's impressum, if any, holds only the placeholders. */
 export function printImpressumIsPlaceholder(spec: PrintSpec): boolean {
   const { impressum } = spec;
