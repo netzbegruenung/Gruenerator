@@ -3,7 +3,7 @@ import { MARKETPLACE_QUERY_KEY, useMarketplaceKind } from '@gruenerator/shared/m
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useQueryClient } from '@tanstack/react-query';
 import { Image, type ImageSource } from 'expo-image';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
@@ -114,11 +114,23 @@ export function VorlagenScreen() {
 
   useEffect(() => {
     void secureStorage.getToken().then(setToken);
-    void fetchTemplateInteractions().then((r) => {
-      setLiked(r.liked);
-      setBookmarked(r.bookmarked);
-    });
   }, []);
+
+  // Re-read on focus: a public Vorlage saved in the Marktplatz changes these
+  // sets through another path, and „Gemerkt" filters by them.
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      void fetchTemplateInteractions().then((r) => {
+        if (cancelled) return;
+        setLiked(r.liked);
+        setBookmarked(r.bookmarked);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, [])
+  );
 
   const loadTemplates = useCallback(
     () => (filter === MEINE ? fetchMyTemplates() : Promise.resolve([])).then(setTemplates),
