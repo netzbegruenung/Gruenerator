@@ -6,6 +6,7 @@ import { http, HttpResponse } from 'msw';
 import { Route, Routes, useLocation } from 'react-router-dom';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { item } from '../../../test/marketplaceFixtures';
 import { server } from '../../../test/msw-server';
 import { PRINT_VORLAGEN_FIXTURE } from '../../../test/printVorlagenFixture';
 
@@ -33,13 +34,6 @@ vi.mock('@gruenerator/canvas-editor/composer', async (importOriginal) => {
   };
 });
 
-const galleryItem = (id: string, title: string) => ({
-  id,
-  title,
-  template_type: 'canva',
-  external_url: `https://canva.com/${id}`,
-});
-
 const catalogVorlage = (id: string, titel: string): SharepicVorlage => ({
   id,
   locale: 'de-DE',
@@ -63,30 +57,28 @@ const catalogVorlage = (id: string, titel: string): SharepicVorlage => ({
   },
 });
 
-let galleryQueries: URLSearchParams[] = [];
+let marketplaceQueries: URLSearchParams[] = [];
 let catalogQueries: string[] = [];
+
+/** Public Vorlagen live in the Marktplatz; `/vorlagen` only asks it for the bookmarked ones. */
+const PUBLIC = [item('template', 'Flyer Radweg', { ref: 'g2' })];
 
 function serve({
   favoriteIds = [] as string[],
-  gallery = [galleryItem('g1', 'Plakat Klima'), galleryItem('g2', 'Flyer Radweg')],
-  catalog = [] as SharepicVorlage[],
+  catalog = [catalogVorlage('k1', 'Plakat Klima')] as SharepicVorlage[],
 } = {}) {
-  galleryQueries = [];
+  marketplaceQueries = [];
   catalogQueries = [];
   server.use(
-    http.get('*/api/auth/vorlagen', ({ request }) => {
+    http.get(`${API}/marketplace`, ({ request }) => {
       const params = new URL(request.url).searchParams;
-      galleryQueries.push(params);
-      // Like the server: `favorites=1` resolves the bookmarks, not a filtered page.
-      const vorlagen =
-        params.get('favorites') === '1'
-          ? gallery.filter((g) => favoriteIds.includes(String(g.id)))
-          : gallery;
-      return HttpResponse.json({ vorlagen });
+      marketplaceQueries.push(params);
+      const items =
+        params.get('scope') === 'saved'
+          ? PUBLIC.filter((i) => favoriteIds.includes(i.ref)).map((i) => ({ ...i, saved: true }))
+          : PUBLIC;
+      return HttpResponse.json({ sections: [{ kind: 'template', items, hasMore: false }] });
     }),
-    http.get('*/api/auth/vorlagen-categories', () =>
-      HttpResponse.json({ categories: [{ id: 'canva', label: 'Canva' }] })
-    ),
     // Like the server: the viewer's country, the other one via `land`.
     http.get(`${API}/sharepic-vorlagen/print`, ({ request }) => {
       const land = new URL(request.url).searchParams.get('land') ?? useAuthStore.getState().locale;
@@ -170,6 +162,7 @@ describe('VorlagenGallery', () => {
       'Nur gemerkte Vorlagen',
       'Filter',
       'Große Kacheln',
+      'Öffentliche Vorlagen',
     ]) {
       expect(screen.getByRole('button', { name })).toBeInTheDocument();
     }
@@ -187,28 +180,25 @@ describe('VorlagenGallery', () => {
     await user.click(plain);
     const menu = await screen.findByRole('menu');
     const options = within(menu).getAllByRole('menuitemradio');
+    // Community categories (Canva …) are gone: public Vorlagen live in the Marktplatz.
     expect(options.map((o) => o.textContent)).toEqual([
       'Alle Vorlagen',
       'Grünerator',
       'Print',
-      'Canva',
       'Meine Vorlagen',
     ]);
     expect(within(menu).getByRole('menuitemradio', { name: 'Alle Vorlagen' })).toHaveAttribute(
       'aria-checked',
       'true'
     );
-    await user.click(within(menu).getByRole('menuitemradio', { name: 'Canva' }));
+    await user.click(within(menu).getByRole('menuitemradio', { name: 'Print' }));
 
-    expect(screen.getByLabelText('Adresse')).toHaveTextContent('?cat=canva');
-    const active = screen.getByRole('button', { name: 'Filter: Canva' });
+    expect(screen.getByLabelText('Adresse')).toHaveTextContent('?cat=print');
+    const active = screen.getByRole('button', { name: 'Filter: Print' });
     expect(active).toHaveClass('text-primary-600');
     expect(active.querySelector('span')).not.toBeNull();
-    await waitFor(() =>
-      expect(galleryQueries.some((q) => q.get('templateType') === 'canva')).toBe(true)
-    );
 
-    await user.click(screen.getByRole('button', { name: 'Filter „Canva“ entfernen' }));
+    await user.click(screen.getByRole('button', { name: 'Filter „Print“ entfernen' }));
     expect(screen.getByLabelText('Adresse')).toBeEmptyDOMElement();
     const reset = screen.getByRole('button', { name: 'Filter' });
     expect(reset).not.toHaveClass('text-primary-600');
@@ -226,8 +216,12 @@ describe('VorlagenGallery', () => {
 
     expect(toggle).toHaveAttribute('aria-pressed', 'true');
     await waitFor(() => expect(screen.queryByText('Plakat Klima')).not.toBeInTheDocument());
-    expect(galleryQueries.at(-1)?.get('favorites')).toBe('1');
-    expect(screen.getAllByText('Flyer Radweg').length).toBeGreaterThan(0);
+    // The bookmarked public Vorlage comes from the Marktplatz.
+    expect((await screen.findAllByText('Flyer Radweg')).length).toBeGreaterThan(0);
+    expect(Object.fromEntries(marketplaceQueries.at(-1)!)).toMatchObject({
+      kinds: 'template',
+      scope: 'saved',
+    });
     expect(screen.queryByRole('button', { name: /Gemerkt/ })).not.toBeInTheDocument();
   });
 
@@ -240,20 +234,37 @@ describe('VorlagenGallery', () => {
     expect(screen.getByRole('button', { name: 'Vorlage hinzufügen' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Suchen' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Große Kacheln' })).not.toBeInTheDocument();
-    expect(galleryQueries).toHaveLength(0);
+    expect(marketplaceQueries).toHaveLength(0);
     expect(await axe(container)).toHaveNoViolations();
   });
 
   it('never asks for other countries', async () => {
     serve();
     renderGallery();
-    await waitFor(() => expect(galleryQueries.length).toBeGreaterThan(0));
-    expect(galleryQueries.every((q) => !q.has('localeFilter'))).toBe(true);
     await waitFor(() => expect(catalogQueries).toEqual(['']));
   });
 
+  it('asks the Marktplatz only for bookmarks, and opens the public Vorlagen there', async () => {
+    serve();
+    const { user } = renderGallery();
+    expect((await screen.findAllByText('Plakat Klima')).length).toBeGreaterThan(0);
+    expect(marketplaceQueries).toHaveLength(0);
+    expect(screen.queryByText('Flyer Radweg')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Öffentliche Vorlagen' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Öffentliche Vorlagen' });
+    expect(
+      await within(dialog).findByRole('heading', { name: 'Flyer Radweg' })
+    ).toBeInTheDocument();
+    expect(Object.fromEntries(marketplaceQueries.at(-1)!)).toMatchObject({
+      kinds: 'template',
+      scope: 'shop',
+    });
+  });
+
   it('lists catalogue and gallery Vorlagen in one grid without an empty state', async () => {
-    serve({ gallery: [], catalog: [catalogVorlage('k1', 'Zitat auf Grün')] });
+    serve({ catalog: [catalogVorlage('k1', 'Zitat auf Grün')] });
     renderGallery();
 
     expect(await screen.findByRole('button', { name: 'Zitat auf Grün' })).toBeInTheDocument();
@@ -263,7 +274,7 @@ describe('VorlagenGallery', () => {
   });
 
   it('says to try another term when a search finds nothing', async () => {
-    serve({ gallery: [] });
+    serve();
     const { user } = renderGallery();
 
     await user.click(await screen.findByRole('button', { name: 'Suchen' }));
@@ -286,8 +297,8 @@ describe('VorlagenGallery', () => {
   });
 
   it('offers the way back to all Vorlagen when a category is empty', async () => {
-    serve({ gallery: [] });
-    const { user } = renderGallery('/vorlagen?cat=canva');
+    serve({ catalog: [] });
+    const { user } = renderGallery('/vorlagen?cat=gruenerator');
 
     expect(
       await screen.findByText('In dieser Kategorie gibt es noch keine Vorlagen')
@@ -298,7 +309,7 @@ describe('VorlagenGallery', () => {
   });
 
   it('is never empty without a search or filter: the print Vorlagen are always there', async () => {
-    serve({ gallery: [] });
+    serve({ catalog: [] });
     renderGallery();
 
     expect(await screen.findByText('3 Vorlagen')).toBeInTheDocument();
@@ -415,7 +426,6 @@ describe('VorlagenGallery', () => {
       expect((await screen.findAllByText('Plakat Klima')).length).toBeGreaterThan(0);
 
       expect(screen.queryByRole('button', { name: /^Land/ })).not.toBeInTheDocument();
-      expect(galleryQueries.every((q) => !q.has('land'))).toBe(true);
       await waitFor(() => expect(catalogQueries).toEqual(['']));
     });
 
@@ -443,7 +453,6 @@ describe('VorlagenGallery', () => {
       const active = screen.getByRole('button', { name: 'Land: Österreich' });
       expect(active).toHaveClass('text-primary-600');
       expect(active.querySelector('span')).not.toBeNull();
-      await waitFor(() => expect(galleryQueries.at(-1)?.get('land')).toBe('de-AT'));
       await waitFor(() => expect(catalogQueries).toContain('?land=de-AT'));
 
       await user.click(active);
@@ -462,7 +471,6 @@ describe('VorlagenGallery', () => {
       renderGallery('/vorlagen?land=de-AT');
 
       expect(await screen.findByRole('button', { name: 'Land: Österreich' })).toBeInTheDocument();
-      await waitFor(() => expect(galleryQueries[0]?.get('land')).toBe('de-AT'));
       await waitFor(() => expect(catalogQueries).toEqual(['?land=de-AT']));
     });
   });

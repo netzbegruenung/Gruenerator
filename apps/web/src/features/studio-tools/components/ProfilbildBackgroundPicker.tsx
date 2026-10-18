@@ -8,9 +8,9 @@ import {
 import { type GalleryAsset } from '../utils/galleryAsset';
 import { flatCss } from '../utils/profilbildBackgrounds';
 
-import { ProfilbildDiscoverButton } from './ProfilbildDiscoverDialog';
 import { ProfilbildFreeColor } from './ProfilbildFreeColor';
 import { ProfilbildGalleryGrid } from './ProfilbildGalleryGrid';
+import { ProfilbildMarketplaceButton } from './ProfilbildMarketplaceButton';
 
 export const TAB_CLS =
   'h-9 flex-none rounded-full border border-grey-200 px-md text-sm font-semibold text-foreground max-md:h-11 dark:border-grey-700 ' +
@@ -24,8 +24,6 @@ const RING =
 const SWATCH_CLASS = `aspect-square w-full shrink-0 cursor-pointer rounded-full md:size-8 ${RING}`;
 /** Kachel im Fünferraster des Inspektors (Vorlagen, Deine). */
 export const TILE_CLASS = `relative aspect-square w-full min-w-0 cursor-pointer overflow-hidden rounded-[10px] ${RING}`;
-/** Kachel fester Größe für den Entdecken-Dialog. */
-const DIALOG_TILE_CLASS = `relative size-16 shrink-0 cursor-pointer overflow-hidden rounded-[10px] ${RING}`;
 
 export const CUSTOM_ID = 'eigenes-bild';
 
@@ -156,7 +154,6 @@ export function ProfilbildBackgroundPicker({
         <h3 className={SECTION_LABEL_CLASS}>Deine</h3>
         <ProfilbildGalleryGrid
           kind="background"
-          source="own"
           gridClassName={TILE_GRID}
           tileClassName={TILE_CLASS}
           selectedSrc={selected === CUSTOM_ID ? (customUrl ?? '') : ''}
@@ -176,10 +173,9 @@ export function ProfilbildBackgroundPicker({
             ) : null
           }
           trailing={
-            <ProfilbildDiscoverButton
+            <ProfilbildMarketplaceButton
               kind="background"
-              buttonClassName={ACTION_TILE_CLASS}
-              tileClassName={DIALOG_TILE_CLASS}
+              className={ACTION_TILE_CLASS}
               onPick={onSelectGallery}
             />
           }

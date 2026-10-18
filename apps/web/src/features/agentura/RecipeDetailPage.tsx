@@ -67,11 +67,11 @@ const ICON_BTN =
 function BackLink() {
   return (
     <Link
-      to="/agentura"
+      to="/marktplatz"
       className="mb-md inline-flex items-center gap-xs text-sm text-foreground-muted transition-colors hover:text-foreground"
     >
       <PiArrowLeft className="h-4 w-4" />
-      Agentura
+      Marktplatz
     </Link>
   );
 }
@@ -430,7 +430,7 @@ function RecipeDetailPage() {
           Die Rezepte konnten gerade nicht abgerufen werden. Bitte lade die Seite neu.
         </p>
         <Button asChild variant="outline">
-          <Link to="/agentura">Zurück zur Agentura</Link>
+          <Link to="/marktplatz">Zurück zum Marktplatz</Link>
         </Button>
       </PageContainer>
     );
@@ -440,7 +440,7 @@ function RecipeDetailPage() {
     <PageContainer maxWidth="lg" title="Rezept nicht gefunden">
       <div className="text-center">
         <Button asChild variant="brand">
-          <Link to="/agentura">Zurück zur Agentura</Link>
+          <Link to="/marktplatz">Zurück zum Marktplatz</Link>
         </Button>
       </div>
     </PageContainer>

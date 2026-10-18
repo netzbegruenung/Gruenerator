@@ -78,7 +78,7 @@ function AgentDetailPage() {
       <PageContainer maxWidth="sm" title="Grünerator-Agent nicht gefunden">
         <div className="text-center">
           <Button asChild variant="brand">
-            <Link to="/agentura">Zurück zur Agentura</Link>
+            <Link to="/marktplatz">Zurück zum Marktplatz</Link>
           </Button>
         </div>
       </PageContainer>
@@ -122,11 +122,11 @@ function AgentDetailPage() {
   return (
     <PageContainer maxWidth="sm">
       <Link
-        to="/agentura"
+        to="/marktplatz"
         className="mb-xl inline-flex items-center gap-xs text-sm font-semibold text-foreground-muted transition-colors hover:text-primary-700 dark:hover:text-primary-300"
       >
         <PiArrowLeft className="h-4 w-4" />
-        Agentura
+        Marktplatz
       </Link>
 
       <header className="mb-md flex items-center gap-md">
