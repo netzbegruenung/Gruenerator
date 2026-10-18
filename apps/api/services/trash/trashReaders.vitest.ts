@@ -111,6 +111,30 @@ const ALLOWLIST: readonly AllowEntry[] = [
     "entity_type = 'recipe'",
   ],
   [
+    'apps/api/services/entityComments/entityCommentsCleanup.ts',
+    'user_agents',
+    'account deletion: comments and item reactions on every Agent of the user, trashed ones cascade too',
+    'owned_items',
+  ],
+  [
+    'apps/api/services/entityComments/entityCommentsCleanup.ts',
+    'user_text_forms',
+    'account deletion: comments and item reactions on every Rezept of the user, trashed ones cascade too',
+    'owned_items',
+  ],
+  [
+    'apps/api/services/entityComments/entityCommentsCleanup.ts',
+    'user_templates',
+    'account deletion: comments and item reactions on every Vorlage of the user, trashed ones cascade too',
+    'owned_items',
+  ],
+  [
+    'apps/api/services/entityComments/entityCommentsCleanup.ts',
+    'studio_assets',
+    'account deletion: comments and item reactions on every Sticker/Hintergrund of the user, trashed ones cascade too',
+    'owned_items',
+  ],
+  [
     'apps/api/services/studioAssets/studioAssetsService.ts',
     'studio_assets',
     'create: a trashed asset still owns its image until the purge, so it blocks reuse',

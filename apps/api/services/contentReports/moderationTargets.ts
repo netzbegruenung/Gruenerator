@@ -12,13 +12,16 @@ import {
   type AdminReportStudioAssetTarget,
   GRUENERATOR_TEMPLATE_TYPE,
   type ContentReportKind,
+  type EntityCommentType,
   type ModeratableReportKind,
   moderatableReportKindSchema,
   type ModerationState,
 } from '@gruenerator/contracts';
+import { getSystemAgent } from '@gruenerator/shared/agents';
 import { and, eq, inArray, type SQL } from 'drizzle-orm';
 
 import { profiles } from '../../database/schema/core.js';
+import { entityComments } from '../../database/schema/entityComments.js';
 import { sharedMedia } from '../../database/schema/media.js';
 import { studioAssets } from '../../database/schema/studioAssets.js';
 import { userTemplates } from '../../database/schema/templates.js';
@@ -33,8 +36,11 @@ type Tx = Parameters<Parameters<DrizzleDB['transaction']>[0]>[0];
 export type ModerationDb = DrizzleDB | Tx;
 
 export interface ModerationTarget {
-  /** The owner of a live, publicly reachable target in moderation 'ok'; null otherwise. */
-  loadReportable(id: string): Promise<{ ownerId: string } | null>;
+  /**
+   * The owner of a live, publicly reachable target in moderation 'ok'; null
+   * otherwise. A comment's owner is its author — null once the person is gone.
+   */
+  loadReportable(id: string): Promise<{ ownerId: string | null } | null>;
   /** 'ok' → 'hidden' in one statement, only while the target is reportable and `when` holds. */
   hideIf(db: ModerationDb, id: string, when: SQL): Promise<boolean>;
   /** Trashed rows included; `onlyFrom` limits the write to that current state. Returns the state after. */
@@ -376,11 +382,127 @@ const userTemplateTarget: ModerationTarget = {
   },
 };
 
+// ── Kommentare an Marktplatz-Beiträgen ──────────────────────────────────────
+
+const ITEM_TARGET = {
+  agent: userAgentTarget,
+  recipe: userTextFormTarget,
+  template: userTemplateTarget,
+  studio_asset: studioAssetTarget,
+} as const satisfies Record<EntityCommentType, ModerationTarget>;
+
+const ITEM_LABEL = {
+  agent: 'Agent',
+  recipe: 'Rezept',
+  template: 'Vorlage',
+  studio_asset: 'Sticker/Hintergrund',
+} as const satisfies Record<EntityCommentType, string>;
+
+const EXCERPT_MAX = 140;
+
+const excerptOf = (body: string): string => {
+  const flat = body.replace(/\s+/g, ' ').trim();
+  return flat.length > EXCERPT_MAX ? `${flat.slice(0, EXCERPT_MAX - 1)}…` : flat;
+};
+
+/** The item a comment sits on, as the queue names it: its title when one is cheap to get. */
+async function itemPreviews(
+  rows: { entityType: EntityCommentType; entityId: string }[]
+): Promise<Map<string, { title: string | null; href: string | null }>> {
+  const out = new Map<string, { title: string | null; href: string | null }>();
+  for (const type of Object.keys(ITEM_TARGET) as EntityCommentType[]) {
+    const ids = [...new Set(rows.filter((r) => r.entityType === type).map((r) => r.entityId))];
+    const rowIds = ids.filter(isRowId);
+    const previews = await ITEM_TARGET[type].previews(rowIds);
+    for (const id of ids) {
+      const p = previews.get(id);
+      const official = type === 'agent' && !isRowId(id) ? getSystemAgent(id) : undefined;
+      out.set(`${type}:${id}`, {
+        title: p?.title ?? official?.title ?? null,
+        href: p?.href ?? null,
+      });
+    }
+  }
+  return out;
+}
+
+const commentReportable = eq(entityComments.moderation, 'ok');
+
+const entityCommentTarget: ModerationTarget = {
+  async loadReportable(id) {
+    const [row] = await getDrizzleInstance()
+      .select({ ownerId: entityComments.user_id })
+      .from(entityComments)
+      .where(and(eq(entityComments.id, id), commentReportable))
+      .limit(1);
+    return row ?? null;
+  },
+  async hideIf(db, id, when) {
+    const rows = await db
+      .update(entityComments)
+      .set({ moderation: 'hidden' })
+      .where(and(eq(entityComments.id, id), commentReportable, when))
+      .returning({ id: entityComments.id });
+    return rows.length > 0;
+  },
+  async setModeration(db, id, state, onlyFrom) {
+    await db
+      .update(entityComments)
+      .set({ moderation: state })
+      .where(
+        and(
+          eq(entityComments.id, id),
+          onlyFrom ? eq(entityComments.moderation, onlyFrom) : undefined
+        )
+      );
+    const [row] = await db
+      .select({ moderation: entityComments.moderation })
+      .from(entityComments)
+      .where(eq(entityComments.id, id))
+      .limit(1);
+    return row?.moderation ?? null;
+  },
+  async previews(ids) {
+    if (ids.length === 0) return new Map();
+    const rows = await getDrizzleInstance()
+      .select({
+        id: entityComments.id,
+        entityType: entityComments.entity_type,
+        entityId: entityComments.entity_id,
+        body: entityComments.body,
+        moderation: entityComments.moderation,
+        ownerId: entityComments.user_id,
+        ownerName: profiles.display_name,
+      })
+      .from(entityComments)
+      .leftJoin(profiles, eq(profiles.id, entityComments.user_id))
+      .where(inArray(entityComments.id, ids));
+    const items = await itemPreviews(rows);
+    const out = new Map<string, AdminReportPreview>();
+    for (const r of rows) {
+      // The queue names an owner; a comment of a deleted person has none to name.
+      if (!r.ownerId) continue;
+      const item = items.get(`${r.entityType}:${r.entityId}`);
+      out.set(r.id, {
+        title: `„${excerptOf(r.body)}“ · ${ITEM_LABEL[r.entityType]} ${item?.title ?? r.entityId}`,
+        thumbUrl: null,
+        href: item?.href ?? null,
+        ownerId: r.ownerId,
+        ownerName: trimmedName(r.ownerName),
+        moderation: r.moderation,
+        trashed: false,
+      });
+    }
+    return out;
+  },
+};
+
 export const MODERATION_TARGETS = {
   studio_asset: studioAssetTarget,
   user_agent: userAgentTarget,
   user_text_form: userTextFormTarget,
   user_template: userTemplateTarget,
+  entity_comment: entityCommentTarget,
 } as const satisfies Record<ModeratableReportKind, ModerationTarget>;
 
 /** The registry entry for a report kind and a well-formed row id, or null. */

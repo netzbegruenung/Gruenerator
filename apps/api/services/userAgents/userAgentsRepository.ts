@@ -14,6 +14,7 @@ import { userAgents, type UserAgentRow } from '../../database/schema/userAgents.
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { notTrashed } from '../../database/trash.js';
+import { deleteCommentsForEntity } from '../entityComments/entityCommentsCleanup.js';
 import { deleteLikesForEntity } from '../entityLikes/EntityLikesService.js';
 import { deleteTrashedRow, purgeSideStore, type OwnedTrashTable } from '../trash/ownedRowTrash.js';
 
@@ -232,6 +233,9 @@ export async function purgeUserAgent(id: string, cutoff: Date | null): Promise<b
   if ((await deleteTrashedRow(USER_AGENT_TRASH, id, cutoff)) === null) return false;
   // Keyed like `user_library_items`: a user agent's ref is its row uuid.
   await purgeSideStore('user_agent', id, 'entity_likes', () => deleteLikesForEntity('agent', id));
+  await purgeSideStore('user_agent', id, 'entity_comments', () =>
+    deleteCommentsForEntity('agent', id)
+  );
   return true;
 }
 

@@ -209,6 +209,7 @@ describe.skipIf(!url)('Meldungen (contentReportsService)', () => {
 
   beforeEach(async () => {
     await pool.query('DELETE FROM content_reports');
+    await pool.query('DELETE FROM entity_comments');
     await pool.query('DELETE FROM studio_assets');
     await pool.query('DELETE FROM user_agents');
     await pool.query('DELETE FROM user_text_forms');
@@ -499,6 +500,60 @@ describe.skipIf(!url)('Meldungen (contentReportsService)', () => {
       });
     }
   );
+
+  it('comments: own refused, hidden at the threshold for all but the author, restore brings it back', async () => {
+    const agent = await insertAgent();
+    const res = await pool.query<{ id: string }>(
+      `INSERT INTO entity_comments (entity_type, entity_id, user_id, body)
+       VALUES ('agent', $1, $2, 'Ein   Kommentar') RETURNING id`,
+      [agent, owner]
+    );
+    const id = res.rows[0]!.id;
+    const kind = 'entity_comment' as const;
+    const commentModeration = async () =>
+      (await pool.query('SELECT moderation FROM entity_comments WHERE id = $1', [id])).rows[0]
+        .moderation as string;
+
+    expect(await recordContentReport(owner, report(id, { kind }))).toMatchObject({
+      ok: false,
+      status: 400,
+    });
+    for (const reporter of reporters.slice(0, 2)) {
+      await recordContentReport(reporter, report(id, { kind }));
+    }
+    expect(await commentModeration()).toBe('ok');
+    expect(await recordContentReport(reporters[2]!, report(id, { kind }))).toEqual({
+      ok: true,
+      value: { stored: true, hidden: true },
+    });
+    expect(await commentModeration()).toBe('hidden');
+    expect(await recordContentReport(reporters[3]!, report(id, { kind }))).toMatchObject({
+      status: 404,
+    });
+
+    const { listEntityComments } = await import('../entityComments/entityCommentsService.js');
+    const visibleTo = async (userId: string) => {
+      const out = await listEntityComments('agent', agent, userId);
+      return out.status === 200 ? out.data.comments.map((c) => c.id) : null;
+    };
+    expect(await visibleTo(reporters[0]!)).toEqual([]);
+    expect(await visibleTo(owner)).toEqual([id]);
+
+    const [group] = await listReportGroups({ status: 'open', kind });
+    expect(group!.preview).toMatchObject({
+      title: '„Ein Kommentar“ · Agent Pressebot',
+      href: expect.stringMatching(/^\/agentura\/agent\/bot-/),
+      ownerId: owner,
+      moderation: 'hidden',
+      trashed: false,
+    });
+
+    expect(await resolveReports(admin, { kind, targetId: id, action: 'restore' })).toEqual({
+      ok: true,
+      value: { resolved: 3, moderation: 'ok' },
+    });
+    expect(await visibleTo(reporters[0]!)).toEqual([id]);
+  });
 
   it('only publicly reachable agents, recipes and Vorlagen can be reported', async () => {
     for (const [kind, id] of [

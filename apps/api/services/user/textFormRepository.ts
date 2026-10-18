@@ -36,6 +36,7 @@ import { userTextForms, type UserTextFormRow } from '../../database/schema/textF
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { notTrashed } from '../../database/trash.js';
+import { deleteCommentsForEntity } from '../entityComments/entityCommentsCleanup.js';
 import { deleteLikesForEntity } from '../entityLikes/EntityLikesService.js';
 import { notifyContentShared } from '../groups/groupContent.js';
 import { assertCanShareToGroup } from '../groups/groupMembership.js';
@@ -804,6 +805,9 @@ export async function purgeTextForm(id: string, cutoff: Date | null): Promise<bo
   if ((await deleteTrashedRow(TEXT_FORM_TRASH, id, cutoff)) === null) return false;
   await purgeSideStore('user_text_form', id, 'entity_likes', () =>
     deleteLikesForEntity('recipe', id)
+  );
+  await purgeSideStore('user_text_form', id, 'entity_comments', () =>
+    deleteCommentsForEntity('recipe', id)
   );
   return true;
 }

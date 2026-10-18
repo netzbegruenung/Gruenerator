@@ -20,6 +20,9 @@ const deleteCanvas = vi.fn(async (id: string, _owner: string) => {
 const deleteLikesForEntity = vi.fn(async (type: string, id: string) => {
   effects.push(`likes ${type} ${id}`);
 });
+const deleteCommentsForEntity = vi.fn(async (type: string, id: string) => {
+  effects.push(`comments ${type} ${id}`);
+});
 const deleteFavoritesForEntity = vi.fn(async (type: string, id: string) => {
   effects.push(`favorites ${type} ${id}`);
 });
@@ -41,6 +44,7 @@ vi.mock('../../utils/reportBackgroundError.js', () => ({ reportBackgroundError }
 vi.mock('./templateEnrichment.js', () => ({ deleteTemplateVector }));
 vi.mock('../canvas/canvasRepository.js', () => ({ deleteCanvas }));
 vi.mock('../entityLikes/EntityLikesService.js', () => ({ deleteLikesForEntity }));
+vi.mock('../entityComments/entityCommentsCleanup.js', () => ({ deleteCommentsForEntity }));
 vi.mock('../entityFavorites/EntityFavoritesService.js', () => ({ deleteFavoritesForEntity }));
 vi.mock('../docs/CollaborativeDocumentService.js', () => ({ purgeCollaborativeDocument }));
 
@@ -80,6 +84,7 @@ describe('Vorlage Papierkorb', () => {
       `trash canvas ${CANVAS}`,
       `purge canvas ${CANVAS}`,
       `likes template ${ID}`,
+      `comments template ${ID}`,
       `favorites template ${ID}`,
     ]);
     expect(params[0]).toEqual([ID, cutoff]);
@@ -93,6 +98,7 @@ describe('Vorlage Papierkorb', () => {
       'DELETE FROM user_templates',
       `qdrant ${ID}`,
       `likes template ${ID}`,
+      `comments template ${ID}`,
       `favorites template ${ID}`,
     ]);
   });

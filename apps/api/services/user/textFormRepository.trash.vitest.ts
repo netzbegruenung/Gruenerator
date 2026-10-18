@@ -52,6 +52,8 @@ vi.mock('../../database/services/DrizzleService.js', () => ({
 }));
 const deleteLikesForEntity = vi.fn(async (_type: string, _id: string) => {});
 vi.mock('../entityLikes/EntityLikesService.js', () => ({ deleteLikesForEntity }));
+const deleteCommentsForEntity = vi.fn(async (_type: string, _id: string) => {});
+vi.mock('../entityComments/entityCommentsCleanup.js', () => ({ deleteCommentsForEntity }));
 vi.mock('../../database/services/PostgresService.js', () => ({
   getPostgresInstance: () => ({
     query: async (sql: string, params: unknown[] = []) => {
@@ -116,6 +118,7 @@ describe('Rezept Papierkorb', () => {
     expect(rawSql[0]).toContain('deleted_at IS NOT NULL');
     expect(rawParams[0]).toEqual([ID, cutoff]);
     expect(deleteLikesForEntity).toHaveBeenCalledWith('recipe', ID);
+    expect(deleteCommentsForEntity).toHaveBeenCalledWith('recipe', ID);
 
     deleteLikesForEntity.mockClear();
     rawRows = [];
