@@ -156,6 +156,7 @@ const SHOW_GALLERY_BACKGROUNDS = false;
 
 /** Group headings of the Blöcke category, in display order. */
 export const BLOCK_GRUPPEN: Record<SharepicBlock['gruppe'], string> = {
+  kopf: 'Kopf',
   listen: 'Listen',
   text: 'Text',
   zahlen: 'Zahlen & Fakten',

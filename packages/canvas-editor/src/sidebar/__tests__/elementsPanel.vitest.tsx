@@ -510,6 +510,7 @@ describe('ElementsPanel — Blöcke', () => {
       bloecke: [
         block('de-block-pfeile', 'Liste mit Pfeilen', 'listen', ['Aufzählung']),
         block('de-block-zitat', 'Zitat', 'text', ['Statement']),
+        block('de-block-kopf', 'Kopf mit Dachzeile', 'kopf', ['Überschrift']),
       ],
       isLoading: false,
       insert,
@@ -530,8 +531,12 @@ describe('ElementsPanel — Blöcke', () => {
   it('shows the blocks under their groups and inserts one on click', async () => {
     const insert = renderWithBlocks();
     await userEvent.click(screen.getByRole('button', { name: /^Blöcke/ }));
-    expect(screen.getByRole('heading', { name: 'Listen' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Text' })).toBeInTheDocument();
+    const headings = screen.getAllByRole('heading').map((h) => h.textContent);
+    expect(headings.filter((h) => ['Kopf', 'Listen', 'Text'].includes(h ?? ''))).toEqual([
+      'Kopf',
+      'Listen',
+      'Text',
+    ]);
 
     await userEvent.click(screen.getByRole('button', { name: 'Zitat hinzufügen' }));
     expect(insert).toHaveBeenCalledWith('de-block-zitat');

@@ -112,7 +112,7 @@ export type SharepicSeite = z.infer<typeof sharepicSeiteSchema>;
  * separate elements. Files: `sharepic-vorlagen/bloecke/{de,at}.json`,
  * previews `thumbs/bloecke/<id>.webp` (the block alone, cut to its bounds).
  */
-export const sharepicBlockGruppeSchema = z.enum(['listen', 'text', 'zahlen', 'meldungen']);
+export const sharepicBlockGruppeSchema = z.enum(['kopf', 'listen', 'text', 'zahlen', 'meldungen']);
 export type SharepicBlockGruppe = z.infer<typeof sharepicBlockGruppeSchema>;
 
 /** One entry as the private file holds it. Its locale is the file's country. */
