@@ -3,6 +3,7 @@ import { createContext, useContext } from 'react';
 import type { ApplyResult } from './ai/applyOperation';
 import type { ReplaceDeckOps } from './collab/pagesDoc';
 import type { StockImage, StockImageAttribution } from './common/imageSourceTypes';
+import type { ComposedSlide } from './composer/composeSharepic';
 import type { HeterogeneousPage } from './configs/types';
 import type {
   CanvasAiCapabilities,
@@ -11,6 +12,8 @@ import type {
   SharepicFormat,
   CanvasVorlage,
   PrintVorlage,
+  SharepicBlock,
+  SharepicColor,
   SharepicSeite,
 } from '@gruenerator/contracts';
 import type { ComponentType, ReactNode } from 'react';
@@ -82,6 +85,13 @@ export interface CanvasVorlagenService {
    * without this the tab only replaces the design.
    */
   openPrintAsNew?: (vorlage: PrintVorlage) => void;
+  /** The Grünerator-Blöcke of the viewer's country, for the Elemente panel. */
+  listBloecke?: () => Promise<SharepicBlock[]>;
+  /** Composes a block on `color` in `format` (needs the browser: fonts); the slide holds it alone. */
+  composeBlock?: (
+    block: SharepicBlock,
+    options: { format: SharepicFormat; color: SharepicColor }
+  ) => Promise<ComposedSlide>;
 }
 
 export interface CanvasEditorServices {

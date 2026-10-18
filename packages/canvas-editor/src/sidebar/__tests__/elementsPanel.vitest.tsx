@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CanvasEditorProvider } from '../../CanvasEditorProvider';
+import { BlockInsertContext, type BlockInsertApi } from '../../components/CanvasEditor/blockInsert';
 import { useTrackUnsplashDownload } from '../../hooks/useTrackUnsplashDownload';
 import { ELEMENT_DRAG_TYPE, MEDIA_DRAG_TYPE, markDropPlaced } from '../../utils/mediaDrop';
 import { ElementsPanel } from '../sections/assets/ElementsPanel';
@@ -17,7 +18,7 @@ import {
 import { stockPhotoItem } from '../sections/assets/useStockPhotos';
 
 import type { ElementItem } from '../sections/assets/elementTypes';
-import type { StudioAssetItem } from '@gruenerator/contracts';
+import type { SharepicBlock, StudioAssetItem } from '@gruenerator/contracts';
 import type { StudioAssetsFilter } from '@gruenerator/shared/studio-assets';
 
 const gallery = vi.hoisted(() => ({
@@ -480,5 +481,97 @@ describe('stock photo tiles', () => {
       attribution: { photographer: 'Unknown', profileUrl: '', photoUrl: '' },
     });
     expect(tile.action).not.toHaveProperty('attribution');
+  });
+});
+
+describe('ElementsPanel — Blöcke', () => {
+  const block = (
+    id: string,
+    titel: string,
+    gruppe: SharepicBlock['gruppe'],
+    stichworte: string[]
+  ) =>
+    ({
+      id,
+      titel,
+      gruppe,
+      stichworte,
+      color: 'mint',
+      locale: 'de-DE',
+      items: [{ type: 'liste', items: ['A', 'B'] }],
+    }) satisfies SharepicBlock;
+
+  function renderWithBlocks(insert = vi.fn(async () => true)) {
+    const api: BlockInsertApi = {
+      bloecke: [
+        block('de-block-pfeile', 'Liste mit Pfeilen', 'listen', ['Aufzählung']),
+        block('de-block-zitat', 'Zitat', 'text', ['Statement']),
+      ],
+      isLoading: false,
+      insert,
+    };
+    render(
+      <BlockInsertContext.Provider value={api}>
+        <ElementsPanel onAddShape={() => {}} />
+      </BlockInsertContext.Provider>
+    );
+    return insert;
+  }
+
+  it('offers the category only when the editor has blocks for the page', () => {
+    render(<ElementsPanel onAddShape={() => {}} />);
+    expect(screen.queryByRole('button', { name: /^Blöcke/ })).not.toBeInTheDocument();
+  });
+
+  it('shows the blocks under their groups and inserts one on click', async () => {
+    const insert = renderWithBlocks();
+    await userEvent.click(screen.getByRole('button', { name: /^Blöcke/ }));
+    expect(screen.getByRole('heading', { name: 'Listen' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Text' })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Zitat hinzufügen' }));
+    expect(insert).toHaveBeenCalledWith('de-block-zitat');
+    expect(useRecentElements.getState().items.map((i) => i.key)).toEqual(['block:de-block-zitat']);
+  });
+
+  it('drags a block by its id on desktop', async () => {
+    renderWithBlocks();
+    await userEvent.click(screen.getByRole('button', { name: /^Blöcke/ }));
+    const data: Record<string, string> = {};
+    fireEvent.dragStart(screen.getByRole('button', { name: 'Liste mit Pfeilen hinzufügen' }), {
+      dataTransfer: {
+        setData: (type: string, value: string) => (data[type] = value),
+        setDragImage: () => {},
+        effectAllowed: '',
+      },
+    });
+    expect(JSON.parse(data[ELEMENT_DRAG_TYPE]!)).toEqual({
+      kind: 'block',
+      blockId: 'de-block-pfeile',
+    });
+  });
+
+  it('finds a block by its search words', async () => {
+    renderWithBlocks();
+    await search('Aufzählung');
+    expect(
+      screen.getByRole('button', { name: 'Liste mit Pfeilen hinzufügen' })
+    ).toBeInTheDocument();
+  });
+
+  it('hides a remembered block the page cannot take', () => {
+    useRecentElements.setState({
+      items: [
+        {
+          key: 'block:at-block-x',
+          label: 'Fremd',
+          keywords: [],
+          action: { kind: 'block', blockId: 'at-block-x' },
+          thumb: { t: 'img', src: '/x.webp' },
+        },
+      ],
+    });
+    renderWithBlocks();
+    expect(screen.queryByRole('heading', { name: 'Zuletzt verwendet' })).not.toBeInTheDocument();
   });
 });
