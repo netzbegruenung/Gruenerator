@@ -111,6 +111,14 @@ function formatTemplate(row: Record<string, unknown>): UserTemplate {
 
 const TABLE = { table: 'user_templates' } as const;
 
+const REMOVED_TEMPLATE = {
+  status: 403 as const,
+  body: {
+    success: false as const,
+    message: 'Diese Vorlage wurde entfernt und kann nicht mehr veröffentlicht werden.',
+  },
+};
+
 // ── Router ─────────────────────────────────────────────────────────────────────
 
 const s = initServer();
@@ -536,7 +544,7 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       await postgres.ensureInitialized();
 
       const existingTemplate = await postgres.queryOne(
-        `SELECT user_id, metadata, status, content_data FROM user_templates
+        `SELECT user_id, metadata, status, content_data, moderation FROM user_templates
          WHERE id = $1 AND type = $2 AND deleted_at IS NULL`,
         [id, 'template'],
         TABLE
@@ -557,6 +565,7 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       }
 
       const updateData: Record<string, unknown> = {};
+      let snapshotToOpen: string | null = null;
 
       if (title !== undefined) updateData.title = String(title).trim();
       if (description !== undefined)
@@ -589,10 +598,15 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
         // may have shared the same snapshot with a group or by link, and the
         // gallery listing is already gone via is_private/status.
         if (!transition.is_private) {
-          const snapshotId = snapshotCanvasId(existingTemplate.content_data);
-          if (snapshotId) await markCanvasAsGalleryTemplate(snapshotId);
+          snapshotToOpen = snapshotCanvasId(existingTemplate.content_data);
         }
       }
+
+      if (updateData.is_private === false && existingTemplate.moderation === 'removed') {
+        return REMOVED_TEMPLATE;
+      }
+
+      if (snapshotToOpen) await markCanvasAsGalleryTemplate(snapshotToOpen);
 
       if (metadata !== undefined) {
         const existingMetadata = (existingTemplate.metadata || {}) as Record<string, unknown>;
@@ -682,7 +696,7 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       await postgres.ensureInitialized();
 
       const existingTemplate = await postgres.queryOne(
-        `SELECT user_id, metadata FROM user_templates
+        `SELECT user_id, metadata, moderation FROM user_templates
          WHERE id = $1 AND type = $2 AND deleted_at IS NULL`,
         [id, 'template'],
         TABLE
@@ -711,6 +725,9 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
         updateData.description = description ? String(description).trim() : null;
       if (is_private !== undefined) updateData.is_private = is_private;
       if (template_type !== undefined) updateData.template_type = template_type;
+      if (updateData.is_private === false && existingTemplate.moderation === 'removed') {
+        return REMOVED_TEMPLATE;
+      }
 
       const result = await postgres.update('user_templates', updateData, { id, user_id: userId });
 

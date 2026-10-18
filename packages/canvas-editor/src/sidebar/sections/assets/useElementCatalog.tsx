@@ -1,3 +1,4 @@
+import { sharepicBlockThumbPath, type SharepicBlock } from '@gruenerator/contracts';
 import { shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
 import { useStudioAssets } from '@gruenerator/shared/studio-assets';
 import { useQuery } from '@tanstack/react-query';
@@ -5,6 +6,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { PiImageFill } from 'react-icons/pi';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
+import { useBlockInsert, type BlockInsertApi } from '../../../components/CanvasEditor/blockInsert';
 import { useEmojiCatalog } from '../../../hooks/useEmojiCatalog';
 import { useAllIconsCatalog, useIconCatalog } from '../../../hooks/useIconCatalog';
 import {
@@ -152,8 +154,32 @@ const NO_RECOMMENDED: string[] = [];
  */
 const SHOW_GALLERY_BACKGROUNDS = false;
 
+/** Group headings of the Blöcke category, in display order. */
+export const BLOCK_GRUPPEN: Record<SharepicBlock['gruppe'], string> = {
+  kopf: 'Kopf',
+  listen: 'Listen',
+  text: 'Text',
+  zahlen: 'Zahlen & Fakten',
+  meldungen: 'Termine & Meldungen',
+};
+
+/** A Grünerator-Block as a tile: its preview is the block alone, cut to its bounds. */
+export function blockItem(block: SharepicBlock): ElementItem {
+  return {
+    key: `block:${block.id}`,
+    label: block.titel,
+    keywords: [block.titel, BLOCK_GRUPPEN[block.gruppe], ...block.stichworte],
+    action: { kind: 'block', blockId: block.id },
+    thumb: { t: 'img', src: sharepicBlockThumbPath(block.id, block.thumbVersion) },
+  };
+}
+
 /** Whether this editor can perform the action — a config without shapes hides shape tiles. */
-export function canRun(action: ElementAction, props: ExtendedAssetsSectionProps): boolean {
+export function canRun(
+  action: ElementAction,
+  props: ExtendedAssetsSectionProps,
+  blocks: BlockInsertApi | null = null
+): boolean {
   switch (action.kind) {
     case 'asset':
       return props.onAddAsset !== undefined;
@@ -173,6 +199,8 @@ export function canRun(action: ElementAction, props: ExtendedAssetsSectionProps)
       return props.onAddImageFromUrl !== undefined;
     case 'icon':
       return props.onIconToggle !== undefined && props.selectedIcons !== undefined;
+    case 'block':
+      return !!blocks?.bloecke.some((b) => b.id === action.blockId);
   }
 }
 
@@ -245,6 +273,8 @@ export function useElementCatalog(
     gcTime: Infinity,
   });
   const emojiCatalog = useEmojiCatalog(hasAssets && needFull.emoji);
+  const blocks = useBlockInsert();
+  const blockItems = useMemo(() => blocks?.bloecke.map(blockItem) ?? [], [blocks?.bloecke]);
   // The photo catalogue is small and gives the Fotos card its cover: load it with the tab.
   const photos = useStockPhotos(hasPhotos);
 
@@ -299,6 +329,15 @@ export function useElementCatalog(
         count: markeItems.length,
         items: markeItems,
         isLoading: false,
+        searchable: true,
+      });
+    if (blocks && (blockItems.length > 0 || blocks.isLoading))
+      push({
+        id: 'bloecke',
+        label: 'Blöcke',
+        count: blockItems.length || null,
+        items: blockItems,
+        isLoading: blocks.isLoading,
         searchable: true,
       });
     if (hasAssets)
@@ -387,6 +426,8 @@ export function useElementCatalog(
     return categories;
   }, [
     markeItems,
+    blocks,
+    blockItems,
     stickerItems,
     hasAssets,
     hasPhotos,

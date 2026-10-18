@@ -42,6 +42,8 @@ export const EMBEDDABLE_PATH_PREFIXES: readonly string[] = [
   // `/studio/canvas/:id` client-side.
   '/studio/vorlage/',
   '/texte/',
+  // A Grünerator-Vorlage opened from the Marktplatz (`marketplaceOpenTarget`).
+  '/vorlagen/v/',
   // No trailing slash, and that is the rule rather than an oversight: an entry
   // that ends in `/` matches a prefix (a resource id follows), one that does not
   // must match the whole path. The offscreen sharepic renderer takes no

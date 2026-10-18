@@ -77,6 +77,7 @@ describe('readElementDrag', () => {
     { kind: 'chart', chartType: 'bar' },
     { kind: 'frame', clipType: 'circle' },
     { kind: 'balken', mode: 'triple' },
+    { kind: 'block', blockId: 'de-block-liste' },
   ];
 
   it.each(payloads)('liest eine $kind-Kachel', (payload) => {

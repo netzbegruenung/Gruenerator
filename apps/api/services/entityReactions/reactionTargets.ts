@@ -4,8 +4,11 @@
  * - `group_share` / `group_comment`: Mitglied der Gruppe (`findViewer` aus dem
  *   Gruppen-Feed); in Projekten (`group_type='personal'`) gibt es wie beim
  *   Kommentieren keine Reaktionen.
- * - `agent` / `agent_comment`: wer den Agenten öffnen darf (`findAccessibleAgent`).
- * - `template_comment`: wer die Vorlage sehen darf (`templateExistsFor`).
+ * - `marketplace_item`: wer den Beitrag sehen darf (`commentTargets[itemType]`);
+ *   das alte `agent` ist der Beitrag `('agent', id)`.
+ * - `entity_comment` (und die alten `agent_comment` / `template_comment`, deren
+ *   Kommentare mit gleicher id kopiert wurden): wer den Beitrag sehen darf, und
+ *   der Kommentar ist nicht ausgeblendet — außer für seine Autor*in.
  * - `board_comment`: Zugriff aufs Board des Kommentars (`checkBoardAccess`,
  *   dieselbe Prüfung wie die Board-Kommentar-Routen).
  *
@@ -15,14 +18,13 @@
  * `board_comment` stupst es die Karte an (`bumpCardComments`), damit andere
  * Board-Clients den Kommentar-Thread neu laden. Gruppen brauchen keinen Hook.
  */
-import { type ReactionEntityType } from '@gruenerator/contracts';
+import { type EntityCommentType, type ReactionEntityType } from '@gruenerator/contracts';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { checkBoardAccess } from '../../routes/boards/boardAccess.js';
 import { isInstanceAdmin } from '../../utils/adminAuthz.js';
 import { bumpCardComments } from '../boards/boardLiveSignalService.js';
-import { templateExistsFor } from '../templateInteractions/templateTarget.js';
-import { findAccessibleAgent } from '../agentComments/agentCommentsService.js';
+import { commentTargets } from '../entityComments/commentTargets.js';
 import { findViewer, type GroupFeedDeps } from '../groups/groupFeed.js';
 
 export type ReactionAccess = 'ok' | 'not_found' | 'forbidden';
@@ -33,9 +35,11 @@ export interface ReactionTargetResult {
   onChanged?: () => void;
 }
 
+/** `itemType` names the kind of a `marketplace_item`; null for every other entity type. */
 export type ReactionTargetCheck = (
   userId: string,
-  entityId: string
+  entityId: string,
+  itemType: EntityCommentType | null
 ) => Promise<ReactionTargetResult>;
 
 export interface ReactionTargetDeps {
@@ -112,46 +116,43 @@ export async function checkBoardCommentReaction(
   return { access: 'ok', onChanged: () => void deps.bumpCardComments(row.board_id, row.card_id) };
 }
 
-export async function checkAgentReaction(userId: string, agentId: string): Promise<ReactionAccess> {
-  return (await findAccessibleAgent(agentId, userId)) ? 'ok' : 'not_found';
+export async function checkItemReaction(
+  userId: string,
+  itemType: EntityCommentType | null,
+  itemId: string
+): Promise<ReactionAccess> {
+  if (!itemType) return 'not_found';
+  return (await commentTargets[itemType].canView(userId, itemId)) ? 'ok' : 'not_found';
 }
 
-export async function checkAgentCommentReaction(
+export async function checkEntityCommentReaction(
   userId: string,
   commentId: string,
   deps: ReactionTargetDeps = defaultDeps()
 ): Promise<ReactionAccess> {
   if (!UUID_RE.test(commentId)) return 'not_found';
   const row = (await deps.postgres.queryOne(
-    'SELECT agent_id FROM agent_comments WHERE id = $1',
-    [commentId],
-    { table: 'agent_comments' }
-  )) as { agent_id: string } | null;
-  return row ? checkAgentReaction(userId, row.agent_id) : 'not_found';
+    `SELECT entity_type, entity_id FROM entity_comments
+      WHERE id = $1 AND (moderation = 'ok' OR user_id = $2)`,
+    [commentId, userId],
+    { table: 'entity_comments' }
+  )) as { entity_type: EntityCommentType; entity_id: string } | null;
+  return row ? checkItemReaction(userId, row.entity_type, row.entity_id) : 'not_found';
 }
 
-export async function checkTemplateCommentReaction(
-  userId: string,
-  commentId: string,
-  deps: ReactionTargetDeps = defaultDeps()
-): Promise<ReactionAccess> {
-  if (!UUID_RE.test(commentId)) return 'not_found';
-  const row = (await deps.postgres.queryOne(
-    'SELECT template_id FROM template_comments WHERE id = $1',
-    [commentId],
-    { table: 'template_comments' }
-  )) as { template_id: string } | null;
-  if (!row) return 'not_found';
-  return (await templateExistsFor(userId, row.template_id)) ? 'ok' : 'not_found';
-}
+const commentCheck: ReactionTargetCheck = async (userId, id) => ({
+  access: await checkEntityCommentReaction(userId, id),
+});
 
 export const reactionTargets: Record<ReactionEntityType, ReactionTargetCheck> = {
   group_share: async (userId, id) => ({ access: await checkGroupShareReaction(userId, id) }),
   group_comment: async (userId, id) => ({ access: await checkGroupCommentReaction(userId, id) }),
   board_comment: (userId, id) => checkBoardCommentReaction(userId, id),
-  agent: async (userId, id) => ({ access: await checkAgentReaction(userId, id) }),
-  agent_comment: async (userId, id) => ({ access: await checkAgentCommentReaction(userId, id) }),
-  template_comment: async (userId, id) => ({
-    access: await checkTemplateCommentReaction(userId, id),
+  agent: async (userId, id) => ({ access: await checkItemReaction(userId, 'agent', id) }),
+  marketplace_item: async (userId, id, itemType) => ({
+    access: await checkItemReaction(userId, itemType, id),
   }),
+  agent_comment: commentCheck,
+  template_comment: commentCheck,
+  entity_comment: commentCheck,
 };

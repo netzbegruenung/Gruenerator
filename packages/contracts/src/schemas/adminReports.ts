@@ -8,8 +8,9 @@ import {
   contentReportKindSchema,
   contentReportReasonSchema,
   contentReportStatusSchema,
+  moderationStateSchema,
 } from './contentReport.js';
-import { studioAssetKindSchema, studioAssetModerationSchema } from './studioAssets.js';
+import { studioAssetKindSchema } from './studioAssets.js';
 
 export const adminReportActionSchema = z.enum(['remove', 'restore', 'dismiss']);
 export type AdminReportAction = z.infer<typeof adminReportActionSchema>;
@@ -31,13 +32,26 @@ export const adminReportStudioAssetTargetSchema = z.object({
   src: z.string(),
   thumbUrl: z.string().nullable(),
   kind: studioAssetKindSchema,
-  moderation: studioAssetModerationSchema,
+  moderation: moderationStateSchema,
   ownerId: z.string(),
   ownerName: z.string().nullable(),
   /** The owner moved it to the Papierkorb; moderation still applies to it. */
   trashed: z.boolean(),
 });
 export type AdminReportStudioAssetTarget = z.infer<typeof adminReportStudioAssetTargetSchema>;
+
+/** What the queue shows of any moderatable target, whatever its kind. */
+export const adminReportPreviewSchema = z.object({
+  title: z.string(),
+  /** Already the URL an admin can load; a removed asset's signed thumbnail is blocked. */
+  thumbUrl: z.string().nullable(),
+  href: z.string().nullable(),
+  ownerId: z.string(),
+  ownerName: z.string().nullable(),
+  moderation: moderationStateSchema,
+  trashed: z.boolean(),
+});
+export type AdminReportPreview = z.infer<typeof adminReportPreviewSchema>;
 
 export const adminReportGroupSchema = z.object({
   kind: contentReportKindSchema,
@@ -51,8 +65,10 @@ export const adminReportGroupSchema = z.object({
   excerpt: z.string().nullable(),
   groupId: z.string().nullable(),
   threadId: z.string().nullable(),
-  /** Only for kind 'studio_asset'; null when the asset is gone or in the Papierkorb. */
+  /** Only for kind 'studio_asset'; null when the asset is gone. Kept for shipped clients — read `preview`. */
   target: adminReportStudioAssetTargetSchema.nullable(),
+  /** Every moderatable kind; null for the others and when the target is gone. */
+  preview: adminReportPreviewSchema.nullable(),
 });
 export type AdminReportGroup = z.infer<typeof adminReportGroupSchema>;
 
@@ -70,7 +86,7 @@ export type AdminReportResolveBody = z.infer<typeof adminReportResolveBodySchema
 
 export const adminReportResolveResponseSchema = z.object({
   resolved: z.number().int(),
-  moderation: studioAssetModerationSchema.nullable(),
+  moderation: moderationStateSchema.nullable(),
 });
 export type AdminReportResolveResponse = z.infer<typeof adminReportResolveResponseSchema>;
 

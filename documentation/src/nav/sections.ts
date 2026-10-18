@@ -125,7 +125,7 @@ export const SECTIONS: DocSection[] = [
     label: 'Features',
     icon: '📄',
     description:
-      'Office, die Agentura und die Inhalte der Landesverbände — was der Grünerator neben dem Chat kann.',
+      'Office, der Marktplatz und die Inhalte der Landesverbände — was der Grünerator neben dem Chat kann.',
     intro: '/docs/features/intro',
     sidebarId: 'featuresSidebar',
     navbar: 'direct',
@@ -133,7 +133,7 @@ export const SECTIONS: DocSection[] = [
       { label: 'Überblick', to: '/docs/features/intro' },
       { label: 'Office', to: '/docs/features/office' },
       { label: 'Sharepics', to: '/docs/features/sharepics' },
-      { label: 'Agentura', to: '/docs/features/agentura' },
+      { label: 'Marktplatz', to: '/docs/features/marktplatz' },
       { label: 'Notebooks', to: '/docs/features/notebooks' },
       { label: 'Landesverbände', to: '/docs/features/landesverbaende' },
     ],

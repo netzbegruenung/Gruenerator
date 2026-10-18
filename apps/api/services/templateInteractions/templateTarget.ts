@@ -37,7 +37,7 @@ export async function templateExistsFor(
   const row = await deps.postgres.queryOne(
     `SELECT 1 AS ok FROM user_templates
       WHERE id = $1 AND deleted_at IS NULL
-        AND ((is_private = false AND status = 'published') OR user_id = $2)`,
+        AND ((is_private = false AND status = 'published' AND moderation = 'ok') OR user_id = $2)`,
     [templateId, userId],
     { table: 'user_templates' }
   );

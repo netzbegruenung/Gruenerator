@@ -2,11 +2,12 @@
  * Freeform AT Full Canvas Configuration (Österreich / de-AT)
  *
  * Thin wrapper over the DE freeform config: same free-design behaviour, but
- * seeded with the Austrian CI — dunkelgrüner Default-Hintergrund, Gotham-Font
- * und AT-Farbpalette im Hintergrund-Picker.
+ * seeded with the Austrian CI — dunkelgrüner Default-Hintergrund, Gotham-Font,
+ * AT-Farbpalette im Hintergrund-Picker und in neuen Diagrammen.
  */
 
 import { getBrandTheme } from '../brand/theme';
+import { CHART_PALETTES } from '../utils/chartUtils';
 
 import {
   createFreeformFullConfig,
@@ -30,7 +31,7 @@ const AT_BACKGROUND_COLORS = [
 export const createFreeformAtFullConfig = (
   format: CanvasFormat
 ): FullCanvasConfig<FreeformState, FreeformActions> => {
-  const base = createFreeformFullConfig(format);
+  const base = createFreeformFullConfig(format, { chartColors: CHART_PALETTES['de-AT'] });
   return {
     ...base,
     id: 'freeform-at',

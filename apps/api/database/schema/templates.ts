@@ -1,4 +1,5 @@
-import { type InferSelectModel } from 'drizzle-orm';
+import { type ModerationState } from '@gruenerator/contracts';
+import { type InferSelectModel, sql } from 'drizzle-orm';
 import { boolean, index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 export const userTemplates = pgTable(
@@ -23,6 +24,8 @@ export const userTemplates = pgTable(
     // Locale targeting ('de-DE' | 'de-AT' | 'all'); set to the creator's locale
     // on insert so the gallery can be scoped to the viewer's audience.
     audience: text('audience').notNull().default('all'),
+    // See migrations/zz_20261019_marketplace_moderation.sql.
+    moderation: text('moderation').$type<ModerationState>().notNull().default('ok'),
     created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     deleted_at: timestamp('deleted_at', { withTimezone: true }),
@@ -38,6 +41,11 @@ export const userTemplates = pgTable(
     index('idx_user_templates_metadata').on(t.metadata),
     index('idx_user_templates_tags').on(t.tags),
     index('idx_user_templates_categories').on(t.categories),
+    index('idx_user_templates_public_listing')
+      .on(t.audience, t.created_at.desc())
+      .where(
+        sql`${t.is_private} = FALSE AND ${t.status} = 'published' AND ${t.moderation} = 'ok' AND ${t.deleted_at} IS NULL`
+      ),
   ]
 );
 

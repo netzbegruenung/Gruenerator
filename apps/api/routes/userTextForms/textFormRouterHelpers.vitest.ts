@@ -48,4 +48,8 @@ describe('sharingFailure', () => {
   it('turns a missing attestation into 400', () => {
     expect(sharingFailure({ ok: false, reason: 'ownership_required' })?.status).toBe(400);
   });
+
+  it('turns a moderated-away recipe into 403', () => {
+    expect(sharingFailure({ ok: false, reason: 'removed' })?.status).toBe(403);
+  });
 });

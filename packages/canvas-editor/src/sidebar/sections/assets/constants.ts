@@ -18,6 +18,7 @@ import type { KawaiiIllustrationType } from '../../../utils/illustrations/types'
 export type AssetView =
   | 'browse'
   | 'marke'
+  | 'bloecke'
   | 'sticker'
   | 'fotos'
   | 'hintergruende'

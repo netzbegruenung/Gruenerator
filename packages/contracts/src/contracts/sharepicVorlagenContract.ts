@@ -12,6 +12,7 @@ import { z } from 'zod';
 import {
   canvasVorlagenListResponseSchema,
   printVorlagenListResponseSchema,
+  sharepicBloeckeListResponseSchema,
   sharepicSeitenListResponseSchema,
   sharepicVorlageIdSchema,
   sharepicVorlageSchema,
@@ -68,6 +69,18 @@ export const sharepicVorlagenContract = c.router(
         401: sharepicVorlagenErrorSchema,
       },
       summary: "Print Vorlagen (business cards, posters) in the viewer's country like `list`",
+    },
+    // Before `get` as well, for the same reason.
+    bloecke: {
+      method: 'GET',
+      path: '/api/sharepic-vorlagen/bloecke',
+      query: vorlagenLandQuerySchema,
+      responses: {
+        200: sharepicBloeckeListResponseSchema,
+        401: sharepicVorlagenErrorSchema,
+      },
+      summary:
+        "Building blocks (a list on its card, a quote …) the editor drops onto a page, in the viewer's country like `list`",
     },
     get: {
       method: 'GET',

@@ -9,6 +9,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { item as marketplaceItem } from '../../test/marketplaceFixtures';
+
 import RecipeDetailPage from './RecipeDetailPage';
 
 import { axe, render, screen, userEvent, waitFor, within } from '@/test-utils';
@@ -19,6 +21,9 @@ const remove = vi.hoisted(() => vi.fn());
 const getPrompt = vi.hoisted(() => vi.fn());
 const getShareSettings = vi.hoisted(() => vi.fn());
 const listMyGroups = vi.hoisted(() => vi.fn());
+const listEntityComments = vi.hoisted(() => vi.fn());
+const getItem = vi.hoisted(() => vi.fn());
+const like = vi.hoisted(() => vi.fn());
 const lv = vi.hoisted(() => ({ lvIds: null as readonly string[] | null }));
 
 vi.mock('@gruenerator/shared/api', async (importOriginal) => ({
@@ -27,6 +32,8 @@ vi.mock('@gruenerator/shared/api', async (importOriginal) => ({
     userTextForms: { list, listPublic, remove, getShareSettings },
     skillPrompt: { getPrompt },
     notebookSharing: { listMyGroups },
+    entityComments: { listEntityComments },
+    marketplace: { get: getItem, like },
   }),
 }));
 
@@ -118,6 +125,62 @@ beforeEach(() => {
     body: { share_mode: 'private', is_public: false, public_ownership: null },
   });
   listMyGroups.mockReset().mockResolvedValue({ status: 200, body: [] });
+  listEntityComments
+    .mockReset()
+    .mockResolvedValue({ status: 200, body: { success: true, reactions: [], comments: [] } });
+  // Not listed in the Marktplatz unless a test says so: no like then.
+  getItem.mockReset().mockResolvedValue({ status: 404, body: { success: false, message: '' } });
+  like.mockReset().mockResolvedValue({ status: 200, body: { liked: true, likesCount: 3 } });
+});
+
+describe('RecipeDetailPage — Marktplatz-Block', () => {
+  it('trägt Like, Reaktionen und Kommentare unter dem Katalog-Rezept, über die Mention', async () => {
+    getItem.mockResolvedValue({
+      status: 200,
+      body: { item: marketplaceItem('recipe', 'Presse', { ref: 'presse', likesCount: 2 }) },
+    });
+    listEntityComments.mockResolvedValue({
+      status: 200,
+      body: {
+        success: true,
+        reactions: [],
+        comments: [
+          {
+            id: 'c1',
+            entityType: 'recipe',
+            entityId: 'presse',
+            parentId: null,
+            userId: 'jemand',
+            authorName: 'Anna Beispiel',
+            body: 'Hilft mir sehr',
+            createdAt: '2026-10-13T10:00:00Z',
+            reactions: [],
+          },
+        ],
+      },
+    });
+    renderPage('presse');
+
+    expect(await screen.findByText('Hilft mir sehr')).toBeInTheDocument();
+    expect(listEntityComments).toHaveBeenCalledWith({
+      params: { entityType: 'recipe', entityId: 'presse' },
+    });
+    await userEvent.click(await screen.findByRole('button', { name: 'Gefällt mir (2)' }));
+    await waitFor(() =>
+      expect(like).toHaveBeenCalledWith({ params: { kind: 'recipe', ref: 'presse' } })
+    );
+  });
+
+  it('hängt die Kommentare eines eigenen Rezepts an die Zeile, ohne Like außerhalb des Marktplatzes', async () => {
+    list.mockResolvedValue({ status: 200, body: { success: true, forms: [ownRow()] } });
+    renderPage('mein-rezept');
+
+    expect(await screen.findByRole('heading', { name: 'Kommentare' })).toBeInTheDocument();
+    expect(listEntityComments).toHaveBeenCalledWith({
+      params: { entityType: 'recipe', entityId: 'row-1' },
+    });
+    expect(screen.queryByRole('button', { name: /Gefällt mir/ })).toBeNull();
+  });
 });
 
 describe('RecipeDetailPage — Systemrezept', () => {

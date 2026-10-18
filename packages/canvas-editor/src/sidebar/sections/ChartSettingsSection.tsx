@@ -23,6 +23,8 @@ export interface ChartSettingsSectionProps {
   selectedChart: ChartInstance | null;
   onUpdateChart: (id: string, partial: Partial<ChartInstance>) => void;
   onRemoveChart: (id: string) => void;
+  /** The swatches: the page's country palette. */
+  palette?: readonly string[];
 }
 
 const TYPE_OPTIONS: { id: ChartType; label: string; icon: IconType }[] = [
@@ -38,6 +40,7 @@ export function ChartSettingsSection({
   selectedChart,
   onUpdateChart,
   onRemoveChart,
+  palette = CHART_COLORS,
 }: ChartSettingsSectionProps) {
   const chart = selectedChart;
   if (!chart) return null;
@@ -170,11 +173,11 @@ export function ChartSettingsSection({
           Farbe
         </span>
         <div className="flex flex-wrap items-center gap-1.5">
-          {CHART_COLORS.map((c) => (
+          {palette.map((c) => (
             <button
               key={c}
               type="button"
-              onClick={() => update({ colors: [c, ...CHART_COLORS.filter((x) => x !== c)] })}
+              onClick={() => update({ colors: [c, ...palette.filter((x) => x !== c)] })}
               title={c}
               className="size-6 rounded-full border border-black/10 transition-transform hover:scale-110"
               style={{
@@ -186,8 +189,8 @@ export function ChartSettingsSection({
           ))}
           <CustomColorSwatch
             value={chart.colors[0]}
-            presets={CHART_COLORS}
-            onPick={(color) => update({ colors: [color, ...CHART_COLORS] })}
+            presets={palette}
+            onPick={(color) => update({ colors: [color, ...palette] })}
             className="size-6"
           />
         </div>

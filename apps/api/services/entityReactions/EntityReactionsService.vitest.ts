@@ -44,9 +44,9 @@ describe('addReaction / removeReaction', () => {
       group_share: entityReactions.group_share_id,
       group_comment: entityReactions.group_comment_id,
       board_comment: entityReactions.board_comment_id,
-      agent: entityReactions.agent_id,
-      agent_comment: entityReactions.agent_comment_id,
-      template_comment: entityReactions.template_comment_id,
+      agent_comment: entityReactions.entity_comment_id,
+      template_comment: entityReactions.entity_comment_id,
+      entity_comment: entityReactions.entity_comment_id,
     });
   });
 
@@ -54,9 +54,9 @@ describe('addReaction / removeReaction', () => {
     ['group_share', 'group_share_id'],
     ['group_comment', 'group_comment_id'],
     ['board_comment', 'board_comment_id'],
-    ['agent', 'agent_id'],
-    ['agent_comment', 'agent_comment_id'],
-    ['template_comment', 'template_comment_id'],
+    ['agent_comment', 'entity_comment_id'],
+    ['template_comment', 'entity_comment_id'],
+    ['entity_comment', 'entity_comment_id'],
   ] as const)('%s schreibt in %s, idempotent ohne Konfliktziel', async (type, column) => {
     await addReaction('u1', type, 'e1', '🎉');
     expect(values).toHaveBeenCalledWith({ user_id: 'u1', [column]: 'e1', emoji: '🎉' });
@@ -132,6 +132,9 @@ describe('getReactionRows / summarizeReactionRows', () => {
       agent_id: null,
       agent_comment_id: null,
       template_comment_id: null,
+      entity_comment_id: null,
+      item_type: null,
+      item_id: null,
       user_id,
       emoji,
       created_at: new Date(iso),

@@ -23,6 +23,9 @@ const deleteLikesForEntity = vi.fn(async (type: string, id: string) => {
 const deleteLikesOfDeletedUser = vi.fn(async (userId: string) => {
   effects.push(`likes of ${userId}`);
 });
+const deleteCommentsOnItemsOfDeletedUser = vi.fn(async (userId: string) => {
+  effects.push(`comments on items of ${userId}`);
+});
 const deleteFavoritesOfDeletedUser = vi.fn(async (userId: string) => {
   effects.push(`favorites of ${userId}`);
 });
@@ -53,6 +56,9 @@ vi.mock('../docs/CollaborativeDocumentService.js', () => ({
 vi.mock('../entityLikes/EntityLikesService.js', () => ({
   deleteLikesForEntity,
   deleteLikesOfDeletedUser,
+}));
+vi.mock('../entityComments/entityCommentsCleanup.js', () => ({
+  deleteCommentsOnItemsOfDeletedUser,
 }));
 vi.mock('../entityFavorites/EntityFavoritesService.js', () => ({
   deleteFavoritesOfDeletedUser,
@@ -85,6 +91,7 @@ describe('cleanUpBeforeProfileDelete', () => {
       'delete notebook nb-2',
       'likes notebook nb-2',
       'likes of user-1',
+      'comments on items of user-1',
       'favorites of user-1',
       'nango microsoft c-ms',
       'nango google c-g',
