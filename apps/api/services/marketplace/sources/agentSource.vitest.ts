@@ -227,6 +227,14 @@ describe('agentSource visibility and save', () => {
     expect(await agentSource.isVisible(ctx(), 'gibt-es-nicht')).toBe(false);
   });
 
+  it('gets one visible item with its likes, and null for anything else', async () => {
+    m.likes.set(USER_AGENT_ID, 3);
+    const item = await agentSource.get(ctx(), USER_AGENT_ID);
+    expect(item).toMatchObject({ kind: 'agent', ref: USER_AGENT_ID, likesCount: 3 });
+    expect(m.listPublicUserAgentListings).toHaveBeenLastCalledWith('viewer', 'de-DE', null);
+    expect(await agentSource.get(ctx(), 'gibt-es-nicht')).toBeNull();
+  });
+
   it('only the list leaves out what a project already shares (#4699)', async () => {
     await agentSource.list(ctx(), query());
     expect(m.listPublicUserAgentListings).toHaveBeenLastCalledWith('viewer', 'de-DE', 'viewer');

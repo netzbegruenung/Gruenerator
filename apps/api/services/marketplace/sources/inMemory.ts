@@ -53,6 +53,19 @@ export function compareCandidates<K extends MarketplaceKind>(
   return recommended;
 }
 
+/** The one candidate behind `ref`, enriched — `null` when the viewer cannot see it. */
+export async function findCandidate<K extends MarketplaceKind>(
+  ctx: MarketplaceContext,
+  source: MarketplaceSource<K>,
+  candidates: Candidate<K>[],
+  ref: string
+): Promise<MarketplaceItemOf<K> | null> {
+  const found = candidates.find((c) => c.item.ref === ref);
+  if (!found) return null;
+  const [item] = await enrichItems(ctx, source, [found.item]);
+  return item ?? null;
+}
+
 export async function pageCandidates<K extends MarketplaceKind>(
   ctx: MarketplaceContext,
   source: MarketplaceSource<K>,

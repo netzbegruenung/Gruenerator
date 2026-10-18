@@ -40,6 +40,8 @@ export interface MarketplaceSource<K extends MarketplaceKind> {
   list(ctx: MarketplaceContext, query: SourceQuery): Promise<SourcePage<K>>;
   /** May the viewer like or save this ref? Same visibility as the shop list. */
   isVisible(ctx: MarketplaceContext, ref: string): Promise<boolean>;
+  /** One item the viewer may see, as the list builds it — with likes and `saved`. */
+  get(ctx: MarketplaceContext, ref: string): Promise<MarketplaceItemOf<K> | null>;
   save: {
     /** The subset of `refs` the viewer has saved. */
     has(ctx: MarketplaceContext, refs: string[]): Promise<Set<string>>;

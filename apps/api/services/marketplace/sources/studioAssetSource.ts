@@ -5,7 +5,11 @@
 import { type MarketplaceItemOf, type StudioAssetItem } from '@gruenerator/contracts';
 
 import { favoriteEntity, unfavoriteEntity } from '../../entityFavorites/EntityFavoritesService.js';
-import { isStudioAssetVisible, listStudioAssets } from '../../studioAssets/studioAssetsService.js';
+import {
+  getStudioAsset,
+  isStudioAssetVisible,
+  listStudioAssets,
+} from '../../studioAssets/studioAssetsService.js';
 import { favoritedAmong } from '../enrich.js';
 
 import type { MarketplaceSource } from './types.js';
@@ -56,6 +60,13 @@ export function studioAssetSource<K extends AssetKind>(kind: K): MarketplaceSour
       return { items: page.items.map((a) => toItem(kind, a)), hasMore: page.hasMore };
     },
     isVisible: (ctx, ref) => isStudioAssetVisible(ctx.userId, ref, { kind, locale: ctx.audience }),
+    async get(ctx, ref) {
+      // The asset reader alone does not know the shop's kind and country rule.
+      if (!(await isStudioAssetVisible(ctx.userId, ref, { kind, locale: ctx.audience })))
+        return null;
+      const asset = await getStudioAsset(ctx.userId, ref);
+      return asset ? toItem(kind, asset) : null;
+    },
     save: {
       has: (ctx, refs) => favoritedAmong(ctx.userId, 'studio_asset', refs),
       async add(ctx, ref) {

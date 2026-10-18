@@ -153,6 +153,9 @@ async function getItem(userId: string, id: string): Promise<StudioAssetItem | nu
   return item ?? null;
 }
 
+/** One asset the caller may see: public and unmoderated, or their own. */
+export const getStudioAsset = getItem;
+
 export async function listStudioAssets(
   userId: string,
   locale: Exclude<GroupAudience, 'all'>,

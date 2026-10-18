@@ -93,6 +93,13 @@ export const templateSource: MarketplaceSource<'template'> = {
     const rows = await listGalleryTemplates({ audience: ctx.audience, ids: [ref], limit: 1 });
     return rows.length > 0;
   },
+  async get(ctx, ref) {
+    if (!isUserTemplateId(ref)) return null;
+    const [row] = await listGalleryTemplates({ audience: ctx.audience, ids: [ref], limit: 1 });
+    if (!row) return null;
+    const [item] = await enrichItems(ctx, templateSource, [toItem(ctx, row)], { counts: false });
+    return item ?? null;
+  },
   save: {
     has: (ctx, refs) => favoritedAmong(ctx.userId, 'template', refs),
     async add(ctx, ref) {

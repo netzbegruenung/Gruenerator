@@ -12,6 +12,7 @@ const m = vi.hoisted(() => ({
   listGalleryTemplates: vi.fn(),
   listStudioAssets: vi.fn(),
   isStudioAssetVisible: vi.fn(),
+  getStudioAsset: vi.fn(),
   getFavoritedEntityIdsForUser: vi.fn(),
   favoriteEntity: vi.fn(),
   unfavoriteEntity: vi.fn(),
@@ -25,6 +26,7 @@ vi.mock('../../templates/galleryTemplates.js', () => ({
 vi.mock('../../studioAssets/studioAssetsService.js', () => ({
   listStudioAssets: m.listStudioAssets,
   isStudioAssetVisible: m.isStudioAssetVisible,
+  getStudioAsset: m.getStudioAsset,
 }));
 vi.mock('../../entityFavorites/EntityFavoritesService.js', () => ({
   getFavoritedEntityIdsForUser: m.getFavoritedEntityIdsForUser,
@@ -147,6 +149,25 @@ describe('templateSource', () => {
   });
 });
 
+describe('templateSource.get', () => {
+  it('builds the item from the gallery row of the viewer’s country', async () => {
+    expect(await templateSource.get(ctx(), 'kein-uuid')).toBeNull();
+    expect(m.listGalleryTemplates).not.toHaveBeenCalled();
+
+    m.listGalleryTemplates.mockResolvedValue([row(ID)]);
+    const item = await templateSource.get(ctx('de-DE'), ID);
+    expect(m.listGalleryTemplates).toHaveBeenCalledWith({ audience: 'de-DE', ids: [ID], limit: 1 });
+    expect(item).toMatchObject({ kind: 'template', ref: ID, likesCount: 4 });
+    expect(item?.template.images).toEqual([{ url: '/share/abc', title: 'Seite 1' }]);
+    expect(m.enrichItems).toHaveBeenCalledWith(expect.anything(), templateSource, [item], {
+      counts: false,
+    });
+
+    m.listGalleryTemplates.mockResolvedValue([]);
+    expect(await templateSource.get(ctx(), ID)).toBeNull();
+  });
+});
+
 describe('studioAssetSource', () => {
   const asset = {
     id: ID,
@@ -198,6 +219,26 @@ describe('studioAssetSource', () => {
           asset,
         }),
       ],
+    });
+  });
+
+  it('gets one asset only through the shop’s kind and country rule', async () => {
+    m.isStudioAssetVisible.mockResolvedValue(false);
+    expect(await studioAssetSource('background').get(ctx(), ID)).toBeNull();
+    expect(m.isStudioAssetVisible).toHaveBeenCalledWith('viewer', ID, {
+      kind: 'background',
+      locale: 'de-AT',
+    });
+    expect(m.getStudioAsset).not.toHaveBeenCalled();
+
+    m.isStudioAssetVisible.mockResolvedValue(true);
+    m.getStudioAsset.mockResolvedValue(asset);
+    expect(await studioAssetSource('background').get(ctx(), ID)).toMatchObject({
+      kind: 'background',
+      ref: ID,
+      liked: true,
+      saved: true,
+      asset,
     });
   });
 

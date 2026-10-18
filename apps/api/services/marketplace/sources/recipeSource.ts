@@ -17,7 +17,7 @@ import {
 } from '../../user/textFormRepository.js';
 import { type MarketplaceContext } from '../context.js';
 
-import { pageCandidates, type Candidate } from './inMemory.js';
+import { findCandidate, pageCandidates, type Candidate } from './inMemory.js';
 import { librarySave } from './librarySave.js';
 
 import type { MarketplaceSource } from './types.js';
@@ -138,6 +138,9 @@ export const recipeSource: MarketplaceSource<'recipe'> = {
   },
   async isVisible(ctx, ref) {
     return (await candidates(ctx, true, false)).some((c) => c.item.ref === ref);
+  },
+  async get(ctx, ref) {
+    return findCandidate(ctx, recipeSource, await candidates(ctx, true, false), ref);
   },
   save: librarySave('recipe'),
 };

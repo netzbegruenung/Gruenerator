@@ -3,6 +3,7 @@
  * Modell. Jede Art hat ihren Adapter in `sources/`; hier wird nur verteilt.
  */
 import {
+  type MarketplaceItem,
   type MarketplaceKind,
   type MarketplaceLikeResponse,
   type MarketplaceListQuery,
@@ -51,6 +52,15 @@ export async function listMarketplace(
     })
   );
   return { sections };
+}
+
+/** One item for a shared link; `null` when it does not exist or the viewer may not see it. */
+export async function getMarketplaceItem(
+  ctx: MarketplaceContext,
+  kind: MarketplaceKind,
+  ref: string
+): Promise<MarketplaceItem | null> {
+  return sourceOf(kind).get(ctx, ref);
 }
 
 export type Outcome<T> = { ok: true; value: T } | { ok: false; status: 404 | 409 };

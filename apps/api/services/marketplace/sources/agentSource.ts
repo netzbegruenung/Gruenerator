@@ -19,7 +19,7 @@ import {
 } from '../../userAgents/userAgentsRepository.js';
 import { type MarketplaceContext } from '../context.js';
 
-import { pageCandidates, type Candidate } from './inMemory.js';
+import { findCandidate, pageCandidates, type Candidate } from './inMemory.js';
 import { librarySave } from './librarySave.js';
 
 import type { MarketplaceSource } from './types.js';
@@ -132,6 +132,9 @@ export const agentSource: MarketplaceSource<'agent'> = {
   },
   async isVisible(ctx, ref) {
     return (await candidates(ctx, false)).some((c) => c.item.ref === ref);
+  },
+  async get(ctx, ref) {
+    return findCandidate(ctx, agentSource, await candidates(ctx, false), ref);
   },
   save: librarySave('agent', ownAgentLibraryRefs),
 };

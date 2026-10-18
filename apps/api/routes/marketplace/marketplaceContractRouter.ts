@@ -11,6 +11,7 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import { buildMarketplaceContext } from '../../services/marketplace/context.js';
 import {
+  getMarketplaceItem,
   listMarketplace,
   setLike,
   setSaved,
@@ -64,6 +65,21 @@ export const marketplaceContractRouter = s.router(marketplaceContract, {
     } catch (error) {
       log.error('[marketplaceContract.list] Error:', error);
       return serverError('Fehler beim Laden des Marktplatzes.');
+    }
+  },
+
+  get: async ({ req, params, query }) => {
+    try {
+      const item = await getMarketplaceItem(
+        contextFor(viewer(req), query.platform),
+        params.kind,
+        params.ref
+      );
+      if (!item) return NOT_FOUND;
+      return { status: 200 as const, body: { item } };
+    } catch (error) {
+      log.error('[marketplaceContract.get] Error:', error);
+      return serverError('Fehler beim Laden des Eintrags.');
     }
   },
 
