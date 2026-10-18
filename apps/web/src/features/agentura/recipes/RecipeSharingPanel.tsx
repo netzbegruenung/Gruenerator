@@ -224,7 +224,7 @@ export function RecipeSharingPanel({ mention, enabled }: RecipeSharingPanelProps
             Auf „Öffentlich“ listen
           </Label>
           <p className="text-xs text-grey-500 dark:text-grey-400">
-            Dein Rezept erscheint dann in der Agentura unter „Öffentlich“ zum Entdecken.
+            Dein Rezept erscheint dann im Marktplatz unter „Öffentlich“.
           </p>
           {!isPublic && shareMode !== 'authenticated' ? (
             <p className="text-xs text-grey-500 dark:text-grey-400">
