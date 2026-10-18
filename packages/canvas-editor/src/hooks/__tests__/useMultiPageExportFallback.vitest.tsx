@@ -88,3 +88,48 @@ describe('useMultiPageExport too-large ZIP', () => {
     expect(result.current.error).toBe('kaputt');
   });
 });
+
+describe('useMultiPageExport error messages', () => {
+  beforeEach(() => {
+    downloadBlob.mockReset();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  async function errorFor(fetchImpl: () => Promise<unknown>): Promise<string | null> {
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(fetchImpl));
+    const { result } = renderHook(() => useMultiPageExport({ canvasRefs: refs, canvasType: 'x' }));
+    await act(() => result.current.downloadAllAsZip());
+    return result.current.error;
+  }
+
+  const status =
+    (code: number, body: unknown = {}) =>
+    async () => ({
+      ok: false,
+      status: code,
+      json: async () => body,
+    });
+
+  it('says the connection dropped instead of the raw fetch error', async () => {
+    const error = await errorFor(() => Promise.reject(new TypeError('Failed to fetch')));
+    expect(error).toContain('Keine Verbindung');
+  });
+
+  it('names an expired session', async () => {
+    expect(await errorFor(status(401))).toContain('Sitzung');
+  });
+
+  it('names a payload that is too large, whatever the server says', async () => {
+    const error = await errorFor(status(413, { message: 'request entity too large' }));
+    expect(error).toContain('zu groß');
+  });
+
+  it('asks to wait when rate limited', async () => {
+    expect(await errorFor(status(429))).toContain('Moment');
+  });
+
+  it('keeps the server message for a rejected request', async () => {
+    const error = await errorFor(status(400, { message: 'Ungültiges Bildformat bei Seite 2' }));
+    expect(error).toBe('Ungültiges Bildformat bei Seite 2');
+  });
+});

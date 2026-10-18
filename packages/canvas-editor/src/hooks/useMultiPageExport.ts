@@ -15,6 +15,21 @@ import type { GenericCanvasRef } from '../components/GenericCanvas';
 
 const NOTICE_LIFETIME_MS = 5000;
 
+// By status, not by the server's text: outside development the global error
+// handler replaces it with a generic line (a body-parser 413 included).
+function zipFailureMessage(status: number, serverMessage: string | undefined): string {
+  if (status === 401 || status === 403) {
+    return 'Deine Sitzung ist abgelaufen. Bitte melde dich neu an und versuche es noch einmal.';
+  }
+  if (status === 413) {
+    return 'Die Seiten sind zusammen zu groß für ein ZIP. Bitte lade sie einzeln herunter.';
+  }
+  if (status === 429) {
+    return 'Zu viele Downloads in kurzer Zeit. Bitte warte einen Moment und versuche es dann noch einmal.';
+  }
+  return serverMessage || `Der ZIP-Export ist fehlgeschlagen (Fehler ${status}).`;
+}
+
 export interface UseMultiPageExportProps {
   canvasRefs: RefObject<GenericCanvasRef | null>[];
   canvasType: string;
@@ -111,11 +126,15 @@ export function useMultiPageExport({
           images,
           canvasType,
         }),
+      }).catch(() => {
+        throw new Error(
+          'Keine Verbindung zum Server. Bitte prüfe deine Internetverbindung und versuche es noch einmal.'
+        );
       });
 
       if (!response.ok) {
         const errorData = (await response.json().catch(() => ({}))) as { message?: string };
-        throw new Error(errorData.message || `ZIP-Export fehlgeschlagen (${response.status})`);
+        throw new Error(zipFailureMessage(response.status, errorData.message));
       }
 
       // Download the ZIP file
