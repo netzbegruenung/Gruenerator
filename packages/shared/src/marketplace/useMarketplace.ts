@@ -27,6 +27,8 @@ interface MarketplaceQueryBase {
   sort: MarketplaceSort;
   scope: MarketplaceScope;
   platform: MarketplacePlatform;
+  /** One Landesverband by its LV id — the Marktplatz page of that Landesverband. */
+  lv?: string;
   /** Default `true`; a closed picker passes `false`. */
   enabled?: boolean;
 }
@@ -47,6 +49,7 @@ const filterKey = (p: MarketplaceQueryBase) => ({
   sort: p.sort,
   scope: p.scope,
   platform: p.platform,
+  ...(p.lv ? { lv: p.lv } : {}),
 });
 
 export const marketplaceKeys = {
@@ -80,6 +83,7 @@ function listQuery(
     scope: p.scope,
     platform: p.platform,
     ...(p.origin !== null ? { origin: p.origin } : {}),
+    ...(p.lv ? { lv: p.lv } : {}),
     ...(q ? { q } : {}),
     ...page,
   };

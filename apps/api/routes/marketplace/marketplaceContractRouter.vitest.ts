@@ -57,6 +57,18 @@ describe('list', () => {
     );
   });
 
+  it('passes a requested Landesverband on to the context', async () => {
+    m.listMarketplace.mockResolvedValue({ sections: [] });
+    const query = marketplaceListQuerySchema.parse({ kinds: 'agent', lv: 'berlin' });
+    await call('list', { query });
+    expect(m.buildMarketplaceContext).toHaveBeenCalledWith({
+      userId: 'viewer',
+      locale: 'de-AT',
+      platform: 'web',
+      lvId: 'berlin',
+    });
+  });
+
   it('500 when the service throws', async () => {
     m.listMarketplace.mockRejectedValue(new Error('db down'));
     const res = await call('list', { query: marketplaceListQuerySchema.parse({}) });

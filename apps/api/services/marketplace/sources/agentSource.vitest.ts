@@ -94,12 +94,13 @@ const query = (o: Partial<SourceQuery> = {}): SourceQuery => ({
   ...o,
 });
 
-const ctx = (o: { locale?: string; platform?: 'web' | 'mobile' } = {}) =>
+const ctx = (o: { locale?: string; platform?: 'web' | 'mobile'; lvId?: string } = {}) =>
   buildMarketplaceContext({
     userId: 'viewer',
     locale: o.locale ?? 'de-DE',
     platform: o.platform ?? 'web',
     instanceId: 'production',
+    ...(o.lvId !== undefined ? { lvId: o.lvId } : {}),
   });
 
 const HESSEN_ROLE = {
@@ -170,6 +171,34 @@ describe('agentSource.list', () => {
     expect(withRole.items.every((i) => lvIdForAgentIdentifier(i.ref) === 'hessen')).toBe(true);
   });
 
+  it('lists one requested Landesverband, with or without its role', async () => {
+    const berlin = await agentSource.list(
+      ctx({ lvId: 'berlin' }),
+      query({ origin: 'landesverband' })
+    );
+    expect(berlin.items.length).toBeGreaterThan(0);
+    expect(berlin.items.every((i) => lvIdForAgentIdentifier(i.ref) === 'berlin')).toBe(true);
+
+    // The role of another Landesverband does not widen the page.
+    m.loadUserRoles.mockResolvedValue([HESSEN_ROLE]);
+    const stillBerlin = await agentSource.list(
+      ctx({ lvId: 'berlin' }),
+      query({ origin: 'landesverband' })
+    );
+    expect(stillBerlin.items.map((i) => i.ref)).toEqual(berlin.items.map((i) => i.ref));
+  });
+
+  it('lists nothing for an unknown, switched-off or foreign-country Landesverband', async () => {
+    m.loadUserRoles.mockResolvedValue([HESSEN_ROLE]);
+    const lvRefs = (c: ReturnType<typeof ctx>) => refs(c, query({ origin: 'landesverband' }));
+    expect(await lvRefs(ctx({ lvId: 'atlantis' }))).toEqual([]);
+    // Hamburg switched its notebook off (`enabled: false`).
+    expect(await lvRefs(ctx({ lvId: 'hamburg' }))).toEqual([]);
+    expect(await lvRefs(ctx({ lvId: 'oesterreich' }))).toEqual([]);
+    expect(await lvRefs(ctx({ locale: 'de-AT', lvId: 'berlin' }))).toEqual([]);
+    expect((await lvRefs(ctx({ locale: 'de-AT', lvId: 'oesterreich' }))).length).toBeGreaterThan(0);
+  });
+
   it('drops an agent an admin hid', async () => {
     const [first] = await refs();
     m.getHiddenAgentIdentifiersCached.mockResolvedValue([first]);
@@ -233,6 +262,15 @@ describe('agentSource visibility and save', () => {
     expect(item).toMatchObject({ kind: 'agent', ref: USER_AGENT_ID, likesCount: 3 });
     expect(m.listPublicUserAgentListings).toHaveBeenLastCalledWith('viewer', 'de-DE', null);
     expect(await agentSource.get(ctx(), 'gibt-es-nicht')).toBeNull();
+  });
+
+  it('resolves a Landesverband agent without its role, but not a switched-off one', async () => {
+    const berlinAgent = 'gruenerator-buergeranfragen-berlin';
+    expect(await refs(ctx(), query({ origin: 'landesverband' }))).toEqual([]);
+    expect(await agentSource.isVisible(ctx(), berlinAgent)).toBe(true);
+    expect(await agentSource.get(ctx(), berlinAgent)).toMatchObject({ origin: 'landesverband' });
+    expect(await agentSource.isVisible(ctx(), 'gruenerator-buergeranfragen-hamburg')).toBe(false);
+    expect(await agentSource.isVisible(ctx({ locale: 'de-AT' }), berlinAgent)).toBe(false);
   });
 
   it('only the list leaves out what a project already shares (#4699)', async () => {

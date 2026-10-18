@@ -143,6 +143,13 @@ const kindsQuerySchema = z
 export const marketplaceListQuerySchema = z.object({
   kinds: kindsQuerySchema,
   origin: marketplaceOriginSchema.nullable().default(null),
+  /**
+   * One Landesverband (its LV id, e.g. `berlin`) — the Marktplatz page of that
+   * Landesverband. Its Agents and Rezepte are listed whether or not the viewer
+   * holds its role, like `/agents/<slug>`; an id that is unknown, switched off
+   * or for the other country lists no Landesverband content at all.
+   */
+  lv: z.string().trim().min(1).max(64).nullable().default(null),
   q: z
     .string()
     .trim()
