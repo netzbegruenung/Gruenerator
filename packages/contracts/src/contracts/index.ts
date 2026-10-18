@@ -25,6 +25,7 @@ export { boardCommentsContract } from './boardCommentsContract.js';
 export { entityReactionsContract } from './entityReactionsContract.js';
 export { agentCommentsContract } from './agentCommentsContract.js';
 export { templateCommentsContract } from './templateCommentsContract.js';
+export { entityCommentsContract } from './entityCommentsContract.js';
 export { boardAgentContract } from './boardAgentContract.js';
 export { boardActivityContract } from './boardActivityContract.js';
 export { boardSubscriptionsContract } from './boardSubscriptionsContract.js';

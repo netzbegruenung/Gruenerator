@@ -1,7 +1,7 @@
 /**
  * Zod schemas for reporting objectionable content (user-generated project
- * posts/comments, AI chat output and the public Agents, Rezepte, Vorlagen and
- * studio assets). Each report is stored in `content_reports` and emailed to the
+ * posts/comments, AI chat output, the public Agents, Rezepte, Vorlagen and
+ * studio assets, and the comments on them). Each report is stored in `content_reports` and emailed to the
  * operator.
  */
 import { z } from 'zod';
@@ -15,6 +15,7 @@ export const contentReportKindSchema = z.enum([
   'user_agent',
   'user_text_form',
   'user_template',
+  'entity_comment',
 ]);
 
 /** The kinds whose row carries a `moderation` column the reports can act on. */
@@ -23,6 +24,7 @@ export const moderatableReportKindSchema = contentReportKindSchema.extract([
   'user_agent',
   'user_text_form',
   'user_template',
+  'entity_comment',
 ]);
 
 /** F0: persisted in the `moderation` column of every moderatable table. */

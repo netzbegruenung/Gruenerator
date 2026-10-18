@@ -41,6 +41,7 @@ export {
   entityReactionsContract,
   agentCommentsContract,
   templateCommentsContract,
+  entityCommentsContract,
   boardAgentContract,
   boardActivityContract,
   boardSubscriptionsContract,
@@ -154,6 +155,8 @@ export * from './schemas/boardComments.js';
 export * from './schemas/entityReactions.js';
 export * from './schemas/agentComments.js';
 export * from './schemas/templateComments.js';
+export * from './schemas/entityLikes.js';
+export * from './schemas/entityComments.js';
 export * from './schemas/boardActivity.js';
 export * from './schemas/boardSubscriptions.js';
 export * from './schemas/boardSchedules.js';
