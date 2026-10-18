@@ -29,6 +29,17 @@ const deleteCommentsOnItemsOfDeletedUser = vi.fn(async (userId: string) => {
 const deleteFavoritesOfDeletedUser = vi.fn(async (userId: string) => {
   effects.push(`favorites of ${userId}`);
 });
+const trashAllOwnedRowsOfDeletedUser = vi.fn(async (t: { table: string }) =>
+  t.table === 'user_agents' ? ['a-1', 'a-2'] : ['r-1']
+);
+const purgeUserAgent = vi.fn(async (id: string, cutoff: Date | null) => {
+  effects.push(`purge agent ${id} ${String(cutoff)}`);
+  return true;
+});
+const purgeTextForm = vi.fn(async (id: string, cutoff: Date | null) => {
+  effects.push(`purge recipe ${id} ${String(cutoff)}`);
+  return true;
+});
 const reportBackgroundError = vi.fn();
 const env: Record<string, string | undefined> = {};
 const listConnections = vi.fn(async () => ({
@@ -63,6 +74,15 @@ vi.mock('../entityComments/entityCommentsCleanup.js', () => ({
 vi.mock('../entityFavorites/EntityFavoritesService.js', () => ({
   deleteFavoritesOfDeletedUser,
 }));
+vi.mock('../trash/ownedRowTrash.js', () => ({ trashAllOwnedRowsOfDeletedUser }));
+vi.mock('../userAgents/userAgentsRepository.js', () => ({
+  purgeUserAgent,
+  USER_AGENT_TRASH: { table: 'user_agents', columns: 'id, title' },
+}));
+vi.mock('./textFormRepository.js', () => ({
+  purgeTextForm,
+  TEXT_FORM_TRASH: { table: 'user_text_forms', columns: 'id, title, mention' },
+}));
 vi.mock('../../utils/reportBackgroundError.js', () => ({ reportBackgroundError }));
 vi.mock('../../config/env.js', () => ({ env }));
 vi.mock('../../config/nango.js', () => ({
@@ -90,6 +110,9 @@ describe('cleanUpBeforeProfileDelete', () => {
       'likes notebook nb-1',
       'delete notebook nb-2',
       'likes notebook nb-2',
+      'purge agent a-1 null',
+      'purge agent a-2 null',
+      'purge recipe r-1 null',
       'likes of user-1',
       'comments on items of user-1',
       'favorites of user-1',
@@ -97,6 +120,45 @@ describe('cleanUpBeforeProfileDelete', () => {
       'nango google c-g',
     ]);
     expect(listConnections).toHaveBeenCalledWith({ userId: 'user-1' });
+  });
+
+  it('trashes and purges every agent and recipe of the user, trashed ones included', async () => {
+    await cleanUpBeforeProfileDelete('user-1');
+
+    expect(trashAllOwnedRowsOfDeletedUser).toHaveBeenCalledWith(
+      expect.objectContaining({ table: 'user_agents' }),
+      'user-1'
+    );
+    expect(trashAllOwnedRowsOfDeletedUser).toHaveBeenCalledWith(
+      expect.objectContaining({ table: 'user_text_forms' }),
+      'user-1'
+    );
+  });
+
+  it('purges the other agents and the recipes when one agent purge fails, and reports it', async () => {
+    purgeUserAgent.mockRejectedValueOnce(new Error('pg down'));
+
+    await cleanUpBeforeProfileDelete('user-1');
+
+    expect(effects).toContain('purge agent a-2 null');
+    expect(effects).toContain('purge recipe r-1 null');
+    expect(reportBackgroundError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'pg down' }),
+      expect.objectContaining({ job: 'account-deletion', kind: 'user_agents', id: 'a-1' })
+    );
+  });
+
+  it('still purges the recipes when the agents cannot be listed', async () => {
+    trashAllOwnedRowsOfDeletedUser.mockRejectedValueOnce(new Error('pg down'));
+
+    await cleanUpBeforeProfileDelete('user-1');
+
+    expect(purgeUserAgent).not.toHaveBeenCalled();
+    expect(effects).toContain('purge recipe r-1 null');
+    expect(reportBackgroundError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'pg down' }),
+      expect.objectContaining({ job: 'account-deletion', store: 'user_agents' })
+    );
   });
 
   it('keeps a notebook’s likes when the notebook itself could not be deleted', async () => {

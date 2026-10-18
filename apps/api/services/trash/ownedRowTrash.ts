@@ -68,6 +68,23 @@ export async function trashOwnedRow(
   return 'ok';
 }
 
+/**
+ * Account deletion: trash every row of the user — a trashed row keeps its
+ * date — and return all their ids, so the kind's `purge*` takes each one with
+ * its side stores.
+ */
+export async function trashAllOwnedRowsOfDeletedUser(
+  t: OwnedTrashTable,
+  userId: string
+): Promise<string[]> {
+  const rows = await getPostgresInstance().query<{ id: string }>(
+    `UPDATE ${t.table} SET deleted_at = COALESCE(deleted_at, now())
+     WHERE user_id = $1 RETURNING id`,
+    [userId]
+  );
+  return rows.map((r) => r.id);
+}
+
 /** A trashed row the user may restore or purge. */
 export async function getTrashedOwnedRow<Row>(
   t: OwnedTrashTable,
