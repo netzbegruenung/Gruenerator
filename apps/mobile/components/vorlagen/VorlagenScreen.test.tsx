@@ -5,8 +5,8 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { type MarketplaceItemOf, type SharepicVorlage } from '@gruenerator/contracts';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
-import { type ReactElement, type ReactNode } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { type EffectCallback, type ReactElement, type ReactNode, useEffect } from 'react';
 
 import { useMarketplaceKind } from '@gruenerator/shared/marketplace';
 import { useSharepicVorlagen } from '../../hooks/useSharepicVorlagen';
@@ -166,8 +166,14 @@ function imageUris() {
     .map((node) => (node.props.source as { uri: string }).uri);
 }
 
+// The screen reads its likes and bookmarks on focus; mounted means focused here.
+const mockFocusEffect = useFocusEffect as unknown as jest.MockedFunction<
+  (effect: EffectCallback) => void
+>;
+
 beforeEach(() => {
   jest.clearAllMocks();
+  mockFocusEffect.mockImplementation((effect) => useEffect(effect, [effect]));
   mockGetToken.mockResolvedValue('tok');
   usePreferencesStore.setState({ vorlagenGridSize: 'small' });
 });
