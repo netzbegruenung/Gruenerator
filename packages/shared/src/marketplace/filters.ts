@@ -110,6 +110,14 @@ export function marketplaceHref(filters: Partial<MarketplaceFilters> = {}): stri
   return query ? `${MARKETPLACE_PATH}?${query}` : MARKETPLACE_PATH;
 }
 
+/**
+ * Die Seite eines Landesverbands im Marktplatz. `slug` ist der Hub-Slug
+ * (`LvHub.slug`, z. B. `gruene-berlin`) — derselbe wie in `/agents/<slug>`.
+ */
+export function landesverbandHubHref(slug: string): string {
+  return `${MARKETPLACE_PATH}/landesverband/${encodeURIComponent(slug)}`;
+}
+
 export function kindsForTab(tab: MarketplaceTabSlug): readonly MarketplaceKind[] {
   return getMarketplaceTab(tab).kinds;
 }

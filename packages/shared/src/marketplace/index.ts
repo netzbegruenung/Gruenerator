@@ -21,6 +21,7 @@ export {
   MARKETPLACE_PATH,
   agenturaToMarketplaceHref,
   kindsForTab,
+  landesverbandHubHref,
   legacyAgenturaRedirect,
   marketplaceHref,
   parseMarketplaceParams,
