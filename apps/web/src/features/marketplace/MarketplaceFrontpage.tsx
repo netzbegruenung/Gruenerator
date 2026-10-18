@@ -94,7 +94,15 @@ function useShelf(
   origin: MarketplaceOrigin | null = null,
   enabled = true
 ) {
-  return useMarketplaceSections({ ...BASE, kinds, sort, origin, sectionLimit, enabled });
+  // One spare per kind, so a shelf still fills up once the focused item leaves it.
+  return useMarketplaceSections({
+    ...BASE,
+    kinds,
+    sort,
+    origin,
+    sectionLimit: sectionLimit + 1,
+    enabled,
+  });
 }
 
 interface MarketplaceFrontpageProps {
@@ -136,10 +144,12 @@ export function MarketplaceFrontpage({
   const focusItem = featured.data ?? fallback;
   const focusPending = feature !== null && featured.isPending;
 
-  const lvItems = hasLv ? landesverbandShelf(lv.sections) : [];
-  const newItems = newestShelf(newest.sections).filter((i) => i.key !== focusItem?.key);
-  const popularItems = popularShelf(popular.sections);
-  const visualItems = visualShelf(visuals.sections);
+  // The focused item is not shown a second time in any shelf.
+  const focusKey = focusItem?.key ?? null;
+  const lvItems = hasLv ? landesverbandShelf(lv.sections, focusKey) : [];
+  const newItems = newestShelf(newest.sections, focusKey);
+  const popularItems = popularShelf(popular.sections, focusKey);
+  const visualItems = visualShelf(visuals.sections, focusKey);
 
   return (
     <div className="flex flex-col gap-2xl">
@@ -259,7 +269,7 @@ export function MarketplaceFrontpage({
 
       <section
         aria-labelledby="marktplatz-mitmachen"
-        className="flex flex-wrap items-center justify-between gap-md rounded-xl bg-background-sand px-lg py-lg dark:bg-grey-800"
+        className="flex flex-wrap items-center justify-between gap-md rounded-xl bg-background-sand px-lg py-lg dark:border dark:border-grey-700"
       >
         <div className="flex max-w-[40rem] flex-col gap-1">
           <h2
@@ -274,7 +284,7 @@ export function MarketplaceFrontpage({
           </p>
         </div>
         <div className="flex flex-wrap gap-xs">
-          <Button asChild>
+          <Button asChild className="dark:bg-primary-700 dark:hover:bg-primary-800">
             <Link to="/agentura/rezept/neu">Rezept erstellen</Link>
           </Button>
           <Button asChild variant="outline">
