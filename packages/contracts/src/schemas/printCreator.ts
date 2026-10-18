@@ -19,6 +19,13 @@ export type PrintProdukt = z.infer<typeof printProduktSchema>;
 export const printVarianteSchema = z.enum(['visitenkarte', 'typo']);
 export type PrintVariante = z.infer<typeof printVarianteSchema>;
 
+/**
+ * A colourway of a variante. Absent: the variante's standard look. Which
+ * values a variante takes, per country, says `PRINT_VARIANTEN`.
+ */
+export const printStilSchema = z.enum(['klee', 'sand', 'schlicht', 'hellgruen', 'weiss', 'gruen']);
+export type PrintStil = z.infer<typeof printStilSchema>;
+
 export const printFormatIdSchema = z.enum([
   'print-visitenkarte-quer',
   'print-visitenkarte-hoch',
@@ -69,17 +76,33 @@ export const printImpressumSchema = z.discriminatedUnion('art', [
 ]);
 export type PrintImpressum = z.infer<typeof printImpressumSchema>;
 
-const VISITENKARTE_FORMATS: readonly PrintFormatId[] = [
-  'print-visitenkarte-quer',
-  'print-visitenkarte-hoch',
-];
-const TYPO_FORMATS: readonly PrintFormatId[] = ['print-a3-hoch', 'print-a4-hoch'];
+/** What each variante belongs to, which formats it lays out on, and its colourways per country. */
+export const PRINT_VARIANTEN = {
+  visitenkarte: {
+    produkt: 'visitenkarte',
+    formats: ['print-visitenkarte-quer', 'print-visitenkarte-hoch'],
+    stile: { 'de-DE': ['klee', 'sand', 'schlicht'], 'de-AT': ['hellgruen', 'weiss', 'gruen'] },
+  },
+  typo: {
+    produkt: 'plakat',
+    formats: ['print-a3-hoch', 'print-a4-hoch'],
+    stile: { 'de-DE': [], 'de-AT': [] },
+  },
+} as const satisfies Record<
+  PrintVariante,
+  {
+    produkt: PrintProdukt;
+    formats: readonly PrintFormatId[];
+    stile: Record<PrintLocale, readonly PrintStil[]>;
+  }
+>;
 
 const printBase = {
   locale: printLocaleSchema,
   produkt: printProduktSchema,
   format: printFormatIdSchema,
   impressum: printImpressumSchema.nullable(),
+  stil: printStilSchema.optional(),
 };
 
 const printVisitenkarteSpecSchema = z.object({
@@ -99,12 +122,15 @@ export const printSpecSchema = z
     const issue = (path: string, message: string) =>
       ctx.addIssue({ code: 'custom', path: [path], message });
 
-    const isCard = spec.variante === 'visitenkarte';
-    if (spec.produkt !== (isCard ? 'visitenkarte' : 'plakat')) {
+    const variante = PRINT_VARIANTEN[spec.variante];
+    if (spec.produkt !== variante.produkt) {
       issue('produkt', `produkt passt nicht zu variante ${spec.variante}`);
     }
-    if (!(isCard ? VISITENKARTE_FORMATS : TYPO_FORMATS).includes(spec.format)) {
+    if (!(variante.formats as readonly PrintFormatId[]).includes(spec.format)) {
       issue('format', `format ${spec.format} ist für ${spec.variante} nicht erlaubt`);
+    }
+    if (spec.stil && !(variante.stile[spec.locale] as readonly PrintStil[]).includes(spec.stil)) {
+      issue('stil', `stil ${spec.stil} gibt es für ${spec.variante} in ${spec.locale} nicht`);
     }
     if (spec.produkt === 'plakat' && spec.impressum === null) {
       issue('impressum', 'Plakate brauchen ein Impressum bzw. V.i.S.d.P.');

@@ -72,6 +72,20 @@ describe('printSpecSchema', () => {
     expect(printSpecSchema.safeParse({ ...plakat, produkt: 'visitenkarte' }).success).toBe(false);
   });
 
+  it('takes a colourway only where the variante offers it in that country', () => {
+    expect(printSpecSchema.safeParse({ ...karte, stil: 'klee' }).success).toBe(true);
+    expect(printSpecSchema.safeParse({ ...karte, stil: 'sand' }).success).toBe(true);
+    expect(
+      printSpecSchema.safeParse({ ...karte, locale: 'de-AT', stil: 'hellgruen' }).success
+    ).toBe(true);
+    expect(printSpecSchema.safeParse({ ...karte, stil: 'hellgruen' }).success).toBe(false);
+    expect(printSpecSchema.safeParse({ ...karte, locale: 'de-AT', stil: 'klee' }).success).toBe(
+      false
+    );
+    expect(printSpecSchema.safeParse({ ...plakat, stil: 'klee' }).success).toBe(false);
+    expect(printSpecSchema.safeParse({ ...karte, stil: 'lila' }).success).toBe(false);
+  });
+
   it('requires an impressum for posters', () => {
     expect(printSpecSchema.safeParse({ ...plakat, impressum: null }).success).toBe(false);
   });
