@@ -236,11 +236,12 @@ const CARD_MARKER: TextMarker = {
  * `steckbrief`: label width and the name's width (shares of the width), where
  * the greeting's middle sits (share of the height), the hand and the
  * sunflower in px, the arrows' length, gap to the person and stroke, how far a
- * photo with its own background fades in from its edges (share of its width).
+ * photo with its own background fades in from its edges (share of its width),
+ * how far the dim reaches down a background photo (share of the height).
  */
 const STECKBRIEF = {
   column: 0.36,
-  greetAt: 0.55,
+  greetAt: { foto: 0.62, frei: 0.55 },
   nameWidth: 0.21,
   hand: 100,
   blume: 96,
@@ -250,6 +251,8 @@ const STECKBRIEF = {
   curlMin: 240,
   stroke: 11,
   fade: 0.22,
+  scrimTop: 0.18,
+  scrimMax: 0.3,
 } as const;
 /** `blume`: the faded sunflower's size and strength per ground. */
 const BLUME = { size: 760, onLight: 0.12, onGrass: 0.1, onDark: 0.08 } as const;
@@ -555,7 +558,7 @@ function composeSlide(
   type SteckbriefItem = Extract<SharepicItem, { type: 'steckbrief' }>;
   const steckbrief = spec.items.find((i): i is SteckbriefItem => i.type === 'steckbrief') ?? null;
   /** Where a steckbrief's person stands: the arrows point there. */
-  const person = steckbrief ? steckbriefPerson(canvas) : null;
+  const person = steckbrief ? steckbriefPerson(canvas, bg.kind === 'foto') : null;
   const darkText = isAt ? theme.colors.primary : SHAREPIC_COLOR_HEX.dunkeltanne;
   const boxed = !isAt && !!spec.zeilenboxen;
   const quoteSlide = spec.items.some((i) => i.type === 'zitat');
@@ -743,6 +746,13 @@ function composeSlide(
       // Dense across the column and a gutter, from the picture's edge outward.
       setScrim(side, MARGIN + width + SCRIM_GUTTER);
     }
+  }
+  // A steckbrief on its photo: only the top traits stand on the sky; the rest
+  // of the portrait stays as shot, the text carries a shadow.
+  if (steckbrief && scrim) {
+    scrimSide = null;
+    scrimLevel = Math.min(scrimLevel, STECKBRIEF.scrimMax);
+    setScrim('oben', canvas.height * STECKBRIEF.scrimTop);
   }
   // AT sets a photo strip in green monochrome, as the posts do; a full-bleed
   // photo carries the text and stays as shot.
@@ -1383,7 +1393,8 @@ function composeSlide(
     const nameCap = isAt ? 150 : 180;
     const nameSize = Math.min(nameCap, fitLine(item.name, nameCap, nameWidth, family));
     const greetHeight = grussSize * lineHeight + nameSize;
-    const greetTop = Math.round(H * STECKBRIEF.greetAt - greetHeight / 2);
+    const greetAt = bg.kind === 'foto' ? STECKBRIEF.greetAt.foto : STECKBRIEF.greetAt.frei;
+    const greetTop = Math.round(H * greetAt - greetHeight / 2);
 
     const slots = steckbriefSlots(item.merkmale.length);
     const greetBottom = greetTop + greetHeight;
@@ -1450,9 +1461,12 @@ function composeSlide(
       const innerOf = (r: Box) => (left ? r.x + r.width : r.x);
       const first = ink[0]!;
       const last = ink[ink.length - 1]!;
+      const onPhoto = bg.kind === 'foto';
+      const target = onPhoto ? slot.fotoTarget : slot.target;
+      const anchor = onPhoto ? slot.fotoAnchor : slot.anchor;
       const prefer = {
-        x: person.x + person.width * slot.target.x,
-        y: person.y + person.height * slot.target.y,
+        x: person.x + person.width * target.x,
+        y: person.y + person.height * target.y,
       };
       const beside = ink.map((r) => ({ x: innerOf(r) + dir * 14, y: r.y + r.height / 2 }));
       const below = [
@@ -1464,9 +1478,9 @@ function composeSlide(
         { x: first.x + first.width / 2, y: first.y - 8 },
       ];
       const designedFrom =
-        slot.anchor === 'unten'
+        anchor === 'unten'
           ? below[0]!
-          : slot.anchor === 'oben'
+          : anchor === 'oben'
             ? above[0]!
             : beside.reduce((a, b) =>
                 Math.abs(b.y - prefer.y) < Math.abs(a.y - prefer.y) ? b : a
@@ -1543,9 +1557,9 @@ function composeSlide(
       );
     });
 
-    // A photo with its own background: what reaches over its edge keeps a shadow.
+    // On a photo the text and the arrows keep a shadow.
     const overPhoto =
-      bild && !bild.freisteller
+      surface === 'foto' || (bild && !bild.freisteller)
         ? { shadowColor: '#000000', shadowBlur: 12, shadowOffsetY: 2, shadowOpacity: 0.45 }
         : {};
     labels.forEach((label, k) => {

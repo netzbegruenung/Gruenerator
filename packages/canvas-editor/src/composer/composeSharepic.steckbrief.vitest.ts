@@ -49,13 +49,12 @@ describe('steckbrief — schema', () => {
     expect(sharepicSpecSchema.safeParse(withSlide(steckbrief, change)).success).toBe(false);
   });
 
-  it('rejects a full-bleed photo: the person has one place', () => {
-    const fullBleed = withSlide(steckbriefFoto, (s) => ({
+  it('wants a photo steckbrief alone on its photo', () => {
+    const crowded = withSlide(steckbriefFoto, (s) => ({
       ...s,
-      background: { kind: 'foto', filename: 'vorlage:person.jpg', textSeite: 'oben' },
-      items: [s.items[0]],
+      items: [...s.items, { type: 'headline', lines: ['Hallo'] }],
     }));
-    expect(sharepicSpecSchema.safeParse(fullBleed).success).toBe(false);
+    expect(sharepicSpecSchema.safeParse(crowded).success).toBe(false);
   });
 
   it.each([2, 11])('rejects %i traits', (count) => {
@@ -74,7 +73,7 @@ describe('steckbrief — schema', () => {
     (ref) => {
       const bad = withSlide(steckbriefFoto, (s) => ({
         ...s,
-        items: [s.items[0], { ...s.items[1], quelle: ref }],
+        background: { kind: 'foto', filename: ref, textSeite: 'oben' },
       }));
       expect(sharepicSpecSchema.safeParse(bad).success).toBe(false);
     }
@@ -143,15 +142,22 @@ describe('steckbrief — layout', () => {
     expect(at.assetInstances.some((a) => a.assetId.startsWith('sunflower'))).toBe(false);
   });
 
-  it('stands the person with its own background in the same place as the cut-out', () => {
-    const photo = slideOf(steckbriefFoto).userImageInstances[0]!;
-    const cutOut = slideOf(steckbrief).userImageInstances[0]!;
-    expect(photo.src).toContain('vorlage:person.jpg');
-    expect({ ...photo, src: '', id: '' }).toMatchObject({ ...cutOut, src: '', id: '' });
-    const name = slideOf(steckbriefFoto).additionalTexts.find(
-      (t) => t.id === 'sc-0-steckbrief-name'
-    )!;
+  it('shows the whole photo, the person framed as it is cover-fitted', () => {
+    const slide = slideOf(steckbriefFoto);
+    expect(slide.currentImageSrc).toContain('vorlage:person.jpg');
+    expect(slide.userImageInstances).toHaveLength(0);
+    const name = slide.additionalTexts.find((t) => t.id === 'sc-0-steckbrief-name')!;
     expect(name.shadowOpacity).toBeGreaterThan(0);
+  });
+
+  it('stands an uncut photo on a colour in the cut-out place', () => {
+    const uncut = withSlide(steckbrief, (s) => ({
+      ...s,
+      items: [s.items[0], { ...s.items[1], freisteller: undefined }],
+    })) as SharepicSpec;
+    const photo = slideOf(uncut).userImageInstances[0]!;
+    const cutOut = slideOf(steckbrief).userImageInstances[0]!;
+    expect({ ...photo, src: '' }).toMatchObject({ ...cutOut, src: '' });
   });
 });
 
@@ -189,7 +195,10 @@ describe('steckbrief — arrows', () => {
 
   it.each(cases)('%s: no arrow crosses a text, the face, or ends off the person', (_, spec) => {
     const slide = slideOf(spec);
-    const person = steckbriefPerson({ width: 1080, height: 1440 });
+    const person = steckbriefPerson(
+      { width: 1080, height: 1440 },
+      spec.slides[0]!.background.kind === 'foto'
+    );
     const outline = steckbriefOutline(person);
     const face = steckbriefFace(person);
     const labels = slide.additionalTexts

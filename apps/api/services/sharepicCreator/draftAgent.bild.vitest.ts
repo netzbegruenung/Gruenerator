@@ -167,8 +167,19 @@ describe('validateDraft — steckbrief', () => {
     expect(validateDraft(withoutLocale(steckbrief(traits)), 'de-DE', BRIEF).ok).toBe(false);
   });
 
-  it('stands an own photo uncut, with its background', () => {
-    const own = steckbrief(traits, { quelle: 'upload:1' });
+  it('takes an own photo as the whole background', () => {
+    const own: SharepicSpec = {
+      locale: 'de-DE',
+      slides: [
+        {
+          background: { kind: 'foto', filename: 'upload:1', textSeite: 'oben' },
+          position: 'mitte',
+          align: 'links',
+          items: [{ type: 'steckbrief', gruss: 'Hallo, ich bin', name: 'Lena', merkmale: traits }],
+          logo: false,
+        },
+      ],
+    };
     expect(validateDraft(withoutLocale(own), 'de-DE', BRIEF, ['upload:1']).ok).toBe(true);
   });
 });
