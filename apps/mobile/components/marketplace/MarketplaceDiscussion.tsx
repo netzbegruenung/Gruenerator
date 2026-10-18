@@ -187,9 +187,9 @@ function CommentComposer({
       setDraft('');
     } catch (error) {
       Alert.alert('Fehler', errMessage(error));
-    } finally {
-      setPending(false);
     }
+    // No `finally`: the React Compiler cannot lower it (reactCompilerCoverage).
+    setPending(false);
   };
 
   return (
