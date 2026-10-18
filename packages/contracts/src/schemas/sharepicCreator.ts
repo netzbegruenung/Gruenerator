@@ -701,8 +701,8 @@ export const sharepicItemSchema = z.discriminatedUnion('type', [
   /**
    * A person introduces themselves: the greeting small, the name large with a
    * waving hand, short traits around them, each with a hand-drawn arrow to
-   * the person. Fills the slide; the person is the background photo or a
-   * cut-out `bild`.
+   * the person. Fills the slide; the person is its `bild`, cut out or with
+   * the photo's own background.
    */
   z.object({
     type: z.literal('steckbrief'),
@@ -1330,21 +1330,11 @@ export const sharepicSpecSchema = sharepicSpecShapeSchema.superRefine((spec, ctx
       const others = slide.items.filter((i) => i.type !== 'steckbrief');
       if (slide.items.length - others.length > 1) issue('Höchstens ein steckbrief pro Slide.');
       const bild = others.length === 1 && others[0]!.type === 'bild' ? others[0] : null;
-      if (bg.kind === 'foto') {
-        if (others.length || bg.textSeite !== 'oben') {
-          issue(
-            'Ein steckbrief auf einem Foto trägt die Slide allein, mit textSeite "oben" (die Person steht in der Mitte).'
-          );
-        }
-      } else if (bg.kind === 'farbe') {
-        if (others.length !== 1 || bild?.ausschnitt !== 'freigestellt') {
-          issue(
-            'Ein steckbrief auf einer Farbe braucht genau ein bild mit ausschnitt "freigestellt" – die Person in der Mitte.'
-          );
-        }
-      } else {
+      // One place for the person, cut out (with `freisteller`) or with the
+      // photo's own background (without): a full-bleed photo leaves no room.
+      if (bg.kind !== 'farbe' || bild?.ausschnitt !== 'freigestellt') {
         issue(
-          'Ein steckbrief steht auf einem Foto (kind "foto") oder einer Farbe mit freigestelltem bild.'
+          'Ein steckbrief steht auf einer Farbe mit genau einem bild, ausschnitt "freigestellt" – die Person in der Mitte (ohne freisteller mit ihrem Fotohintergrund).'
         );
       }
       if (

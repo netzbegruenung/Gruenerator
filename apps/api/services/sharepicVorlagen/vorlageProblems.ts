@@ -21,7 +21,8 @@ import { sharepicVorlageAssetFile } from './catalog.js';
  * - every chat prompt must make the creator pick the entry's form (or, for an
  *   Einzelbild, leave the choice to it), or the hint promises the wrong thing;
  * - photos must be stock photos we host or files in `assets/` (`vorlage:`),
- *   never one user's (`upload:`, `ki:`); a cut-out on a colour ships its cut-out;
+ *   never one user's (`upload:`, `ki:`); a cut-out ships its cut-out (a steckbrief
+ *   may show its person uncut);
  * - `++marker++` is DE-only; AT marks with `==…==`.
  */
 export function vorlageProblems(entry: SharepicVorlageFileEntry): string[] {
@@ -71,6 +72,8 @@ function photoProblem(filename: string): string | null {
 function photoProblems(slides: readonly SharepicSlide[]): string[] {
   return slides.flatMap(({ background, items }) => {
     const bilder = items.flatMap((i) => (i.type === 'bild' ? [i] : []));
+    // A steckbrief may show its person uncut, with the photo's own background.
+    const uncutAllowed = items.some((i) => i.type === 'steckbrief');
     return [
       ...(background.kind !== 'farbe' ? [background.filename] : []),
       ...bilder.flatMap((b) => [b.quelle, ...(b.freisteller ? [b.freisteller] : [])]),
@@ -78,7 +81,7 @@ function photoProblems(slides: readonly SharepicSlide[]): string[] {
       .map(photoProblem)
       .concat(
         bilder.map((b) =>
-          b.ausschnitt === 'freigestellt' && !b.freisteller
+          b.ausschnitt === 'freigestellt' && !b.freisteller && !uncutAllowed
             ? `bild ${b.quelle} is freigestellt but ships no freisteller: the copy shows it uncut`
             : null
         )

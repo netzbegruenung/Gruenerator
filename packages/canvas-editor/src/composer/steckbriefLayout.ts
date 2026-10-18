@@ -20,26 +20,19 @@ export interface Box {
 
 type Point = { x: number; y: number };
 
+/** The portrait's height as a share of the slide's. */
+const STECKBRIEF_PERSON_HEIGHT = 0.74;
+
 /**
- * Where the person stands, as the 2:3 portrait frame they were shot in: a
- * cut-out stands on the bottom edge, as tall as 70 % of the slide, a little
- * left of centre (the greeting stands beside the face on the right); a photo
- * is that frame cover-fitted to the slide, centred.
+ * Where the person stands, as the 2:3 portrait frame they were shot in: centred
+ * on the bottom edge, the same place cut out or with the photo's own
+ * background, so both read alike and the traits have the slide around them.
  */
-export function steckbriefPerson(canvas: { width: number; height: number }, cutOut: boolean): Box {
-  if (!cutOut) {
-    const width = Math.max(canvas.width, (canvas.height * 2) / 3);
-    const height = width * 1.5;
-    return {
-      x: (canvas.width - width) / 2,
-      y: (canvas.height - height) / 2,
-      width,
-      height,
-    };
-  }
-  const height = canvas.height * 0.7;
+export function steckbriefPerson(canvas: { width: number; height: number }): Box {
+  const height = canvas.height * STECKBRIEF_PERSON_HEIGHT;
   const width = Math.min(canvas.width * 0.66, (height * 2) / 3);
-  const x = (canvas.width - width) / 2 - canvas.width * 0.07;
+  // A touch left of centre: the greeting stands beside the face on the right.
+  const x = (canvas.width - width) / 2 - canvas.width * 0.04;
   return { x, y: canvas.height - height, width, height };
 }
 
@@ -117,70 +110,70 @@ export function steckbriefFace(person: Box): Box {
  * traits still spread round the person.
  */
 export interface SteckbriefSlot {
-  side: { frei: 'links' | 'rechts'; foto: 'links' | 'rechts' };
-  top: { frei: number; foto: number };
+  side: 'links' | 'rechts';
+  top: number;
   target: Point;
   arrow: DesignedArrowType;
 }
 
 export const STECKBRIEF_SLOTS: readonly SteckbriefSlot[] = [
   {
-    side: { frei: 'links', foto: 'links' },
-    top: { frei: 0.05, foto: 0.03 },
+    side: 'links',
+    top: 0.05,
     target: { x: 0.3, y: 0.14 },
     arrow: 'hand-pfeil-spirale',
   },
   {
-    side: { frei: 'rechts', foto: 'rechts' },
-    top: { frei: 0.07, foto: 0.04 },
+    side: 'rechts',
+    top: 0.07,
     target: { x: 0.6, y: 0.11 },
     arrow: 'hand-pfeil-herz',
   },
   {
-    side: { frei: 'links', foto: 'links' },
-    top: { frei: 0.36, foto: 0.36 },
+    side: 'links',
+    top: 0.36,
     target: { x: 0.22, y: 0.24 },
     arrow: 'hand-pfeil-haken',
   },
   {
-    side: { frei: 'rechts', foto: 'rechts' },
-    top: { frei: 0.25, foto: 0.25 },
+    side: 'rechts',
+    top: 0.25,
     target: { x: 0.74, y: 0.2 },
     arrow: 'hand-pfeil-bogen',
   },
   {
-    side: { frei: 'links', foto: 'links' },
-    top: { frei: 0.7, foto: 0.64 },
+    side: 'links',
+    top: 0.7,
     target: { x: 0.12, y: 0.62 },
     arrow: 'hand-pfeil-schlaufe',
   },
   {
-    side: { frei: 'rechts', foto: 'rechts' },
-    top: { frei: 0.64, foto: 0.64 },
+    side: 'rechts',
+    top: 0.64,
     target: { x: 0.9, y: 0.62 },
     arrow: 'hand-pfeil-bogen',
   },
   {
-    side: { frei: 'links', foto: 'links' },
-    top: { frei: 0.83, foto: 0.8 },
+    side: 'links',
+    top: 0.83,
     target: { x: 0.3, y: 0.7 },
     arrow: 'hand-pfeil-welle',
   },
   {
-    side: { frei: 'rechts', foto: 'rechts' },
-    top: { frei: 0.8, foto: 0.8 },
+    side: 'rechts',
+    top: 0.8,
     target: { x: 0.7, y: 0.7 },
     arrow: 'hand-pfeil-haken',
   },
   {
-    side: { frei: 'links', foto: 'rechts' },
-    top: { frei: 0.52, foto: 0.41 },
+    side: 'links',
+    top: 0.52,
     target: { x: 0.26, y: 0.4 },
     arrow: 'hand-pfeil-bogen',
   },
   {
-    side: { frei: 'links', foto: 'links' },
-    top: { frei: 0.2, foto: 0.2 },
+    side: 'links',
+    top: 0.2,
     target: { x: 0.25, y: 0.18 },
     arrow: 'hand-pfeil-schlaufe',
   },

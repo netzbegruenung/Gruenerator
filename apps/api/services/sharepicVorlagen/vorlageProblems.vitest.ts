@@ -138,10 +138,10 @@ describe('vorlageProblems — photos', () => {
     ).toEqual([]);
   });
 
-  it('flags a missing asset, a user photo and a cut-out without its file', () => {
+  it('flags a missing asset and a user photo', () => {
+    // Uncut is fine on a steckbrief: the photo keeps its own background.
     expect(vorlageProblems(steckbrief({ quelle: 'vorlage:fehlt.jpg' }))).toEqual([
       'missing asset fehlt.jpg',
-      'bild vorlage:fehlt.jpg is freigestellt but ships no freisteller: the copy shows it uncut',
     ]);
     expect(
       vorlageProblems(steckbrief({ quelle: 'upload:1', freisteller: 'vorlage:person.jpg' }))

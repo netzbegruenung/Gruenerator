@@ -235,13 +235,13 @@ const CARD_MARKER: TextMarker = {
 /**
  * `steckbrief`: label width and the name's width (shares of the width), where
  * the greeting's middle sits (share of the height), the hand and the
- * sunflower in px, the arrows' length, gap to the person and stroke, the even
- * dim over a photo.
+ * sunflower in px, the arrows' length, gap to the person and stroke, how far a
+ * photo with its own background fades in from its edges (share of its width).
  */
 const STECKBRIEF = {
   column: 0.36,
-  greetAt: { foto: 0.62, frei: 0.46 },
-  nameWidth: 0.27,
+  greetAt: 0.55,
+  nameWidth: 0.24,
   hand: 100,
   blume: 96,
   arrowMin: 190,
@@ -249,7 +249,7 @@ const STECKBRIEF = {
   arrowGap: 22,
   curlMin: 240,
   stroke: 11,
-  scrim: 0.3,
+  fade: 0.22,
 } as const;
 /** `blume`: the faded sunflower's size and strength per ground. */
 const BLUME = { size: 760, onLight: 0.12, onGrass: 0.1, onDark: 0.08 } as const;
@@ -555,7 +555,7 @@ function composeSlide(
   type SteckbriefItem = Extract<SharepicItem, { type: 'steckbrief' }>;
   const steckbrief = spec.items.find((i): i is SteckbriefItem => i.type === 'steckbrief') ?? null;
   /** Where a steckbrief's person stands: the arrows point there. */
-  const person = steckbrief ? steckbriefPerson(canvas, bild?.ausschnitt === 'freigestellt') : null;
+  const person = steckbrief ? steckbriefPerson(canvas) : null;
   const darkText = isAt ? theme.colors.primary : SHAREPIC_COLOR_HEX.dunkeltanne;
   const boxed = !isAt && !!spec.zeilenboxen;
   const quoteSlide = spec.items.some((i) => i.type === 'zitat');
@@ -743,19 +743,6 @@ function composeSlide(
       // Dense across the column and a gutter, from the picture's edge outward.
       setScrim(side, MARGIN + width + SCRIM_GUTTER);
     }
-  }
-  // A steckbrief's traits sit all round the person, not on one side: the
-  // photo is dimmed evenly, the text carries its shadow.
-  if (steckbrief && scrim) {
-    Object.assign(scrim, {
-      x: canvas.width / 2,
-      y: canvas.height / 2,
-      width: canvas.width,
-      height: canvas.height,
-      fill: `rgba(${scrimDark},${STECKBRIEF.scrim})`,
-      fillGradient: null,
-    });
-    scrimSide = null;
   }
   // AT sets a photo strip in green monochrome, as the posts do; a full-bleed
   // photo carries the text and stays as shot.
@@ -1008,6 +995,68 @@ function composeSlide(
   if (spec.quelle) areaBottom = Math.min(areaBottom, quelleY - 20);
   else if (kiText) areaBottom = Math.min(areaBottom, kiTop - KI_LABEL.gap - 20 + MARGIN);
 
+  /**
+   * A steckbrief photo with its own background melts into the ground at its
+   * sides and top, so the traits and the greeting reaching over it sit on
+   * the slide, not on a hard edge. Strips in the ground's colour (sampled
+   * along a gradient ground), opaque outside, clear inside.
+   */
+  const fadeIntoGround = (
+    box: { x: number; y: number; width: number; height: number },
+    color: SharepicColor
+  ) => {
+    const gradient = GRADIENTS[color];
+    const rgbOf = (hex: string) =>
+      [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(',');
+    /** The ground at height `y`: the flat colour, or the vertical gradient's colour there. */
+    const groundAt = (y: number) => {
+      if (!gradient || gradient.type === 'radial') return rgbOf(SHAREPIC_COLOR_HEX[color]);
+      const t = Math.min(1, Math.max(0, y / canvas.height)) * (gradient.stops.length - 1);
+      const k = Math.min(gradient.stops.length - 2, Math.floor(t));
+      const [a, b] = [rgbOf(gradient.stops[k]!), rgbOf(gradient.stops[k + 1]!)].map((c) =>
+        c.split(',').map(Number)
+      );
+      return a!.map((v, i) => Math.round(v + (b![i]! - v) * (t - k))).join(',');
+    };
+    const strip = (
+      id: string,
+      x: number,
+      y: number,
+      w: number,
+      h: number,
+      side: SharepicTextSide
+    ) => {
+      const shape = rect(id, x, y, w, h, 'transparent');
+      const ground = groundAt(y + h / 2);
+      shape.fillGradient = {
+        type: 'linear',
+        angle: SCRIM_ANGLE[side],
+        stops: SCRIM_EASE.map((t) => ({
+          offset: t,
+          color: `rgba(${ground},${(t * t * (3 - 2 * t)).toFixed(3)})`,
+        })),
+      };
+      addShape(shape);
+    };
+    const depth = Math.round(box.width * STECKBRIEF.fade);
+    const top = Math.max(0, box.y);
+    const segments = 4;
+    const segment = (canvas.height - top) / segments;
+    for (let k = 0; k < segments; k++) {
+      const y = top + k * segment;
+      strip(`sc-steckbrief-fade-links-${k}`, box.x, y, depth, segment + 1, 'links');
+      strip(
+        `sc-steckbrief-fade-rechts-${k}`,
+        box.x + box.width - depth,
+        y,
+        depth,
+        segment + 1,
+        'rechts'
+      );
+    }
+    strip('sc-steckbrief-fade-oben', box.x, top, box.width, depth, 'oben');
+  };
+
   // ── A photo in the slide: a fixed place per ausschnitt, the text keeps clear ──
   if (bild) {
     const id = `sc-${bildIndex}-bild`;
@@ -1076,6 +1125,7 @@ function composeSlide(
         if (person) {
           // A steckbrief: the person in the middle, the traits around them.
           photo(person.x, person.y, person.width, person.height);
+          if (!bild.freisteller && bg.kind === 'farbe') fadeIntoGround(person, bg.color);
           break;
         }
         // The person stands on the bottom edge; the footer lies over them.
@@ -1330,15 +1380,9 @@ function composeSlide(
     const nameCap = isAt ? 150 : 180;
     const nameSize = Math.min(nameCap, fitLine(item.name, nameCap, nameWidth, family));
     const greetHeight = grussSize * lineHeight + nameSize;
-    const greetAt = surface === 'foto' ? STECKBRIEF.greetAt.foto : STECKBRIEF.greetAt.frei;
-    const greetTop = Math.round(H * greetAt - greetHeight / 2);
+    const greetTop = Math.round(H * STECKBRIEF.greetAt - greetHeight / 2);
 
-    const on = surface === 'foto' ? 'foto' : 'frei';
-    const slots = steckbriefSlots(item.merkmale.length).map((slot) => ({
-      ...slot,
-      side: slot.side[on],
-      top: slot.top[on],
-    }));
+    const slots = steckbriefSlots(item.merkmale.length);
     const greetBottom = greetTop + greetHeight;
     /** A right-hand place the greeting covers moves just below it. */
     const topOf = (k: number) => {
@@ -1487,8 +1531,9 @@ function composeSlide(
       );
     });
 
-    const arrowShadow =
-      surface === 'foto'
+    // A photo with its own background: what reaches over its edge keeps a shadow.
+    const overPhoto =
+      bild && !bild.freisteller
         ? { shadowColor: '#000000', shadowBlur: 12, shadowOffsetY: 2, shadowOpacity: 0.45 }
         : {};
     labels.forEach((label, k) => {
@@ -1501,6 +1546,7 @@ function composeSlide(
         rotation: label.rotation,
         accent: null,
         marker: null,
+        ...overPhoto,
       });
       const { type, pose } = arrows[k]!;
       addShape({
@@ -1508,7 +1554,7 @@ function composeSlide(
         id: `${id}-pfeil-${k}`,
         ...pose,
         strokeWidth: STECKBRIEF.stroke,
-        ...arrowShadow,
+        ...overPhoto,
       });
     });
 
@@ -1520,6 +1566,7 @@ function composeSlide(
       lineHeight,
       accent: null,
       marker: null,
+      ...overPhoto,
     });
     text(`${id}-name`, item.name, nameTop, nameSize, family, {
       type: 'header',
@@ -1529,6 +1576,7 @@ function composeSlide(
       lineHeight: 1,
       accent: null,
       marker: null,
+      ...overPhoto,
     });
     addShape({
       ...createShape('hand-winken', right - hand / 2, nameTop + nameSize * 0.55, ink, ink),
@@ -1537,7 +1585,7 @@ function composeSlide(
       height: hand,
       rotation: -12,
       strokeWidth: 8,
-      ...arrowShadow,
+      ...overPhoto,
     });
 
     // DE: the small white sunflower in the bottom-right corner, as the posts close.

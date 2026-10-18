@@ -600,13 +600,19 @@ export const steckbrief: SharepicSpec = {
 export const steckbriefFoto: SharepicSpec = {
   locale: 'de-DE',
   format: 'post-portrait-tall',
+  // The person with the photo's own background: the same place, no cut-out.
   slides: [
     {
-      background: { kind: 'foto', filename: 'vorlage:person.jpg', textSeite: 'oben' },
-      position: 'mitte',
-      align: 'links',
-      items: [{ ...steckbriefItem, merkmale: [...steckbriefItem.merkmale] }],
-      logo: false,
+      ...steckbriefFrei('tanne'),
+      items: [
+        { ...steckbriefItem, merkmale: [...steckbriefItem.merkmale] },
+        {
+          type: 'bild',
+          quelle: 'vorlage:person.jpg',
+          ausschnitt: 'freigestellt',
+          filter: 'original',
+        },
+      ],
     },
   ],
 };

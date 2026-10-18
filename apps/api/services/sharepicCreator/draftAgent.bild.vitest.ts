@@ -166,6 +166,11 @@ describe('validateDraft — steckbrief', () => {
   it('takes a Vorlage photo only when the Vorlage brought it', () => {
     expect(validateDraft(withoutLocale(steckbrief(traits)), 'de-DE', BRIEF).ok).toBe(false);
   });
+
+  it('stands an own photo uncut, with its background', () => {
+    const own = steckbrief(traits, { quelle: 'upload:1' });
+    expect(validateDraft(withoutLocale(own), 'de-DE', BRIEF, ['upload:1']).ok).toBe(true);
+  });
 });
 
 describe('draftSharepic — a Vorlage cut-out', () => {
