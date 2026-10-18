@@ -20,6 +20,7 @@ import { AssetsSection } from '../sidebar';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
 import { CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
+import { CHART_PALETTES } from '../utils/chartUtils';
 import { zoomBackground } from '../utils/coverFit';
 import { COMPOSER_PLANE_IDS, photoStripBeside } from '../utils/shapes';
 
@@ -224,18 +225,31 @@ function composerPlanesFor(
 // Format der Leinwand (4:5 oder 3:4) als eigenes Blatt, statt es zu strecken.
 export const createFreeformFullConfig = (
   { width, height }: CanvasFormat,
-  /** Colour of newly added text; white suits the default Tanne sheet. */
-  { fontColor = '#FFFFFF' }: { fontColor?: string } = {}
+  {
+    /** Colour of newly added text; white suits the default Tanne sheet. */
+    fontColor = '#FFFFFF',
+    /** Series colours of a new chart, the country's palette. */
+    chartColors = CHART_PALETTES['de-DE'],
+  }: { fontColor?: string; chartColors?: readonly string[] } = {}
 ): FullCanvasConfig<FreeformState, FreeformActions> =>
-  withFreeformAi(createFreeformAiCapabilities(width, height), width, height, fontColor);
+  withFreeformAi(
+    createFreeformAiCapabilities(width, height),
+    width,
+    height,
+    fontColor,
+    chartColors
+  );
 
 const withFreeformAi = (
   ai: TemplateAiCapabilities<FreeformState, FreeformActions>,
   width: number,
   height: number,
-  fontColor: string
+  fontColor: string,
+  chartColors: readonly string[]
 ): FullCanvasConfig<FreeformState, FreeformActions> => ({
   id: 'freeform',
+
+  chartColors,
 
   canvas: { width, height },
 
@@ -430,7 +444,8 @@ const withFreeformAi = (
       debouncedSaveToHistory,
       width,
       height,
-      fontColor
+      fontColor,
+      chartColors
     );
 
     return {

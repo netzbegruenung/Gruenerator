@@ -31,7 +31,12 @@ import {
 import { getBrandTheme, HELLGRUEN_GLOW } from '../brand/theme';
 import { DEFAULT_FORMAT_ID, getCanvasFormatOrDefault, type CanvasFormat } from '../formats';
 import { ASSET_TARGET_SIZE, emojiAssetId, type AssetInstance } from '../utils/canvasAssets';
-import { createChartInstance, type ChartInstance, type ChartType } from '../utils/chartUtils';
+import {
+  CHART_PALETTES,
+  createChartInstance,
+  type ChartInstance,
+  type ChartType,
+} from '../utils/chartUtils';
 import { createCircleBadgeInstance } from '../utils/circleBadgeUtils';
 import { COLORS } from '../utils/dreizeilenLayout';
 import { createPillBadgeInstance } from '../utils/pillBadgeUtils';
@@ -281,21 +286,6 @@ const CHART_TYPE: Record<SharepicChartKind, ChartType> = {
   linie: 'line',
   kreis: 'pie',
   donut: 'donut',
-};
-/**
- * Chart series on the white card, strongest first, one colour per part of a
- * pie (the spec allows five). Light ones (DE grass green and lime, AT yellow)
- * never open the list: on white they only read next to a dark green.
- */
-const CHART_PALETTE: Record<SharepicCreatorLocale, string[]> = {
-  'de-DE': ['#00261A', KLEE, '#00CC4F', '#005538', LIME],
-  'de-AT': [
-    getBrandTheme('de-AT').colors.primary,
-    getBrandTheme('de-AT').colors.secondary,
-    getBrandTheme('de-AT').colors.accent,
-    '#0B6620',
-    '#7CC650',
-  ],
 };
 /** The chart's card. Series too light for it get an outline (`chartSeriesOutlines`). */
 const CHART_CARD = '#FFFFFF';
@@ -2351,7 +2341,7 @@ function composeSlide(
           // Shares of a whole: what the values leave to 100 % is drawn too.
           const rest = round && item.einheit === '%' && sum < 99.5;
           if (rest) data.push({ name: 'Rest', value: Math.round((100 - sum) * 10) / 10 });
-          const palette = CHART_PALETTE[locale];
+          const palette = CHART_PALETTES[locale];
           // A long bar or line series reads as one colour; a few parts get one each.
           const colors =
             round || data.length <= 3
