@@ -1,7 +1,8 @@
 /**
- * Export warning for the poster's V.i.S.d.P. / Impressum. Every poster page is a
- * printed poster of its own, so every page should carry a filled-in line
- * (composePrint puts it on the first; added pages need it too). The editor
+ * Export warning for the V.i.S.d.P. / Impressum. The format says which pages
+ * carry it: every poster page is a printed poster of its own, so each needs a
+ * filled-in line (composePrint puts it on the first; added pages need it
+ * too); a flyer carries it once, on its first or last page. The editor
  * feeds this hook each page's own state, keyed by page id. Until every page has
  * reported, the gate is `ready: false` and stays silent; it never blocks the PDF.
  */
@@ -41,9 +42,16 @@ export interface GatePage {
   configId: string;
 }
 
-/** Posters are the one-sided print formats (a static format flag); cards are two-sided. */
-export function isPosterFormat(format: PrintCanvasFormat | null): format is PrintCanvasFormat {
-  return format !== null && format.print.seiten === 1;
+/** Formats that carry a V.i.S.d.P. / Impressum: posters, flyers, the newspaper — not cards or letterheads. */
+export function needsImpressum(format: PrintCanvasFormat | null): format is PrintCanvasFormat {
+  return format !== null && format.print.impressum !== null;
+}
+
+/** The pages that must carry the line. */
+function impressumPages(format: PrintCanvasFormat, pages: GatePage[]): GatePage[] {
+  if (format.print.impressum === 'erste-seite') return pages.slice(0, 1);
+  if (format.print.impressum === 'letzte-seite') return pages.slice(-1);
+  return pages;
 }
 
 function impressumElementOf(observed: ObservedPageState): AdditionalText | null {
@@ -63,13 +71,14 @@ export function usePrintImpressumGate(
   observed: ObservedPages
 ): PrintImpressumGate | null {
   return useMemo(() => {
-    if (!isPosterFormat(format)) return null;
+    if (!needsImpressum(format)) return null;
     const locale = impressumLocaleOf(pages[0] ?? null);
-    const reports = pages.map((page) => observed[page.id]);
-    if (pages.length === 0 || reports.some((r) => r === undefined)) {
+    const scope = impressumPages(format, pages);
+    const reports = scope.map((page) => observed[page.id]);
+    if (scope.length === 0 || reports.some((r) => r === undefined)) {
       return { ready: false, locale, text: null, onSubmit: () => {} };
     }
-    const reported = pages.map((page, i) => ({ page, report: reports[i] as ObservedPageState }));
+    const reported = scope.map((page, i) => ({ page, report: reports[i] as ObservedPageState }));
     // The form shows the first incomplete page's line, else page 1's.
     const shown = reported.find(({ page, report }) => !pageComplete(page, report)) ?? reported[0];
     const shownElement = shown ? impressumElementOf(shown.report) : null;

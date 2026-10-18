@@ -154,3 +154,45 @@ describe('usePrintImpressumGate', () => {
     expect(add2.mock.calls[0][0]).toMatchObject({ id: 'impressum', text: FILLED });
   });
 });
+
+describe('usePrintImpressumGate: where the format wants the line', () => {
+  const flyer = printFormat('print-flyer-dinlang');
+  const zeitung = printFormat('print-zeitung-a4');
+  const brief = printFormat('print-briefbogen-a4');
+  const page3 = { id: 'p3', configId: 'freeform' };
+
+  it('asks a flyer for its first page only', () => {
+    const { result } = renderHook(() =>
+      usePrintImpressumGate(flyer, [page1, page2], byId(observed(FILLED), observed(null, {}, 'p2')))
+    );
+    expect(result.current?.ready).toBe(true);
+    expect(result.current?.text).toBe(FILLED);
+  });
+
+  it('asks the newspaper for its last page only and writes it there', () => {
+    const add = vi.fn();
+    const first = vi.fn();
+    const { result } = renderHook(() =>
+      usePrintImpressumGate(
+        zeitung,
+        [page1, page2, page3],
+        byId(
+          observed(null, { addAdditionalTextElement: first }),
+          observed(null, {}, 'p2'),
+          observed(null, { addAdditionalTextElement: add }, 'p3')
+        )
+      )
+    );
+    expect(result.current?.text).toBeNull();
+    result.current?.onSubmit({ name: 'Erika Muster', anschrift: 'Hauptstr. 1, 10115 Berlin' });
+    expect(add).toHaveBeenCalledTimes(1);
+    expect(first).not.toHaveBeenCalled();
+  });
+
+  it('leaves the letterhead alone', () => {
+    const { result } = renderHook(() =>
+      usePrintImpressumGate(brief, [page1, page2], byId(observed(null)))
+    );
+    expect(result.current).toBeNull();
+  });
+});

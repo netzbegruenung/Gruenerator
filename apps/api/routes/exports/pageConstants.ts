@@ -13,7 +13,8 @@ export interface CanvasPrintSpecLite {
   bleedMm: number;
   safeMm: number;
   exportDpi: number;
-  seiten: 1 | 2;
+  seiten: number;
+  impressum: 'jede-seite' | 'erste-seite' | 'letzte-seite' | null;
 }
 
 export interface CanvasFormatLite {
@@ -40,15 +41,16 @@ const print = (
   height: number,
   trimMm: { w: number; h: number },
   safeMm: number,
-  seiten: 1 | 2,
-  exportDpi = 300
+  seiten: number,
+  exportDpi = 300,
+  impressum: CanvasPrintSpecLite['impressum'] = seiten === 1 ? 'jede-seite' : null
 ): CanvasFormatLite => ({
   id,
   category: 'print',
   width,
   height,
   dpi: exportDpi,
-  print: { trimMm, bleedMm: 3, safeMm, exportDpi, seiten },
+  print: { trimMm, bleedMm: 3, safeMm, exportDpi, seiten, impressum },
 });
 
 /**
@@ -67,6 +69,47 @@ export const SERVER_FORMATS: Readonly<Record<string, CanvasFormatLite>> = {
   'print-a1-quer': print('print-a1-quer', 2000, 1417, { w: 841, h: 594 }, 10, 1, 150),
   'print-grossflaeche': print('print-grossflaeche', 2000, 1420, { w: 594, h: 420 }, 10, 1, 150),
   'print-citylight': print('print-citylight', 1365, 2000, { w: 237, h: 350 }, 8, 1, 150),
+  'print-flyer-dinlang': print(
+    'print-flyer-dinlang',
+    2000,
+    1426,
+    { w: 297, h: 210 },
+    4,
+    2,
+    300,
+    'erste-seite'
+  ),
+  'print-a6-hoch': print(
+    'print-a6-hoch',
+    1442,
+    2000,
+    { w: 105, h: 148 },
+    3,
+    2,
+    300,
+    'letzte-seite'
+  ),
+  'print-a6-quer': print(
+    'print-a6-quer',
+    2000,
+    1442,
+    { w: 148, h: 105 },
+    3,
+    2,
+    300,
+    'letzte-seite'
+  ),
+  'print-briefbogen-a4': print('print-briefbogen-a4', 1426, 2000, { w: 210, h: 297 }, 5, 2),
+  'print-zeitung-a4': print(
+    'print-zeitung-a4',
+    1426,
+    2000,
+    { w: 210, h: 297 },
+    5,
+    4,
+    300,
+    'letzte-seite'
+  ),
 };
 
 export function getServerFormat(id: string): CanvasFormatLite | null {

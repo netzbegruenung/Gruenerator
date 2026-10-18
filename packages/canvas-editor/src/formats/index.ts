@@ -18,8 +18,16 @@ export interface CanvasPrintSpec {
   bleedMm: number;
   safeMm: number;
   exportDpi: number;
-  seiten: 1 | 2;
+  seiten: number;
+  /**
+   * Where the V.i.S.d.P. / Impressum must stand: on every page (a poster set
+   * of separate sheets), on the first or last page only, or nowhere (cards,
+   * letterheads).
+   */
+  impressum: PrintImpressumSeite | null;
 }
+
+export type PrintImpressumSeite = 'jede-seite' | 'erste-seite' | 'letzte-seite';
 
 export interface CanvasFormat {
   id: string;
@@ -65,14 +73,15 @@ function printFormat(
   name: string,
   trimMm: { w: number; h: number },
   safeMm: number,
-  seiten: 1 | 2,
-  exportDpi = PRINT_EXPORT_DPI
+  seiten: number,
+  exportDpi = PRINT_EXPORT_DPI,
+  impressum: PrintImpressumSeite | null = seiten === 1 ? 'jede-seite' : null
 ): PrintCanvasFormat {
   const pxPerMm = PRINT_LONG_SIDE_PX / (Math.max(trimMm.w, trimMm.h) + 2 * PRINT_BLEED_MM);
   return {
     id,
     label: `${name} · ${trimMm.w} × ${trimMm.h} mm`,
-    description: `${trimMm.w} × ${trimMm.h} mm · ${PRINT_BLEED_MM} mm Beschnitt · ${seiten === 2 ? 'Vorder- und Rückseite' : 'einseitig'}`,
+    description: `${trimMm.w} × ${trimMm.h} mm · ${PRINT_BLEED_MM} mm Beschnitt · ${seiten === 1 ? 'einseitig' : seiten === 2 ? 'Vorder- und Rückseite' : `${seiten} Seiten`}`,
     group: 'print',
     category: 'print',
     width: Math.round((trimMm.w + 2 * PRINT_BLEED_MM) * pxPerMm),
@@ -81,7 +90,7 @@ function printFormat(
     iconKey: trimMm.w > trimMm.h ? 'landscape' : 'portrait',
     defaultExport: 'pdf',
     exportable: ['pdf', 'png'],
-    print: { trimMm, bleedMm: PRINT_BLEED_MM, safeMm, exportDpi, seiten },
+    print: { trimMm, bleedMm: PRINT_BLEED_MM, safeMm, exportDpi, seiten, impressum },
   };
 }
 
@@ -149,6 +158,44 @@ export const CANVAS_FORMATS: ReadonlyArray<CanvasFormat> = [
   ),
   // Visible area 230 × 342 mm (CD p. 47): the safe zone ends inside it.
   printFormat('print-citylight', 'Citylight', { w: 237, h: 350 }, 8, 1, PRINT_LARGE_EXPORT_DPI),
+  // Roll fold to DIN lang: panels 100 / 100 / 97 mm, outside and inside (CD p. 29/30).
+  printFormat(
+    'print-flyer-dinlang',
+    'Flyer DIN lang (A4 quer, Wickelfalz)',
+    { w: 297, h: 210 },
+    4,
+    2,
+    PRINT_EXPORT_DPI,
+    'erste-seite'
+  ),
+  printFormat(
+    'print-a6-hoch',
+    'Flyer A6 hoch',
+    { w: 105, h: 148 },
+    3,
+    2,
+    PRINT_EXPORT_DPI,
+    'letzte-seite'
+  ),
+  printFormat(
+    'print-a6-quer',
+    'Flyer A6 quer',
+    { w: 148, h: 105 },
+    3,
+    2,
+    PRINT_EXPORT_DPI,
+    'letzte-seite'
+  ),
+  printFormat('print-briefbogen-a4', 'Briefbogen A4', { w: 210, h: 297 }, 5, 2),
+  printFormat(
+    'print-zeitung-a4',
+    'Zeitung A4',
+    { w: 210, h: 297 },
+    5,
+    4,
+    PRINT_EXPORT_DPI,
+    'letzte-seite'
+  ),
 ];
 
 export const DEFAULT_FORMAT_ID = 'post-portrait';

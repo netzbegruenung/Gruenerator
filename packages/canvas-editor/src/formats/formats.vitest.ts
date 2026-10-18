@@ -1,4 +1,4 @@
-import { canvasFormatIdSchema, printSeitenOf, type PrintSpec } from '@gruenerator/contracts';
+import { canvasFormatIdSchema, PRINT_VARIANTEN, printSeitenOf } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -29,8 +29,10 @@ describe('Format-Ids', () => {
 
   it('give a print product as many pages as printSeitenOf (the Vorlagen previews)', () => {
     for (const f of CANVAS_FORMATS.filter(isPrintFormat)) {
-      const produkt = f.id.includes('visitenkarte') ? 'visitenkarte' : 'plakat';
-      expect(printSeitenOf({ produkt } as PrintSpec), f.id).toBe(f.print.seiten);
+      const varianten = Object.values(PRINT_VARIANTEN).filter((v) =>
+        (v.formats as readonly string[]).includes(f.id)
+      );
+      for (const v of varianten) expect(printSeitenOf(v), f.id).toBe(f.print.seiten);
     }
   });
 
@@ -49,6 +51,11 @@ describe('Format-Ids', () => {
       ['print-a1-quer', 'print'],
       ['print-grossflaeche', 'print'],
       ['print-citylight', 'print'],
+      ['print-flyer-dinlang', 'print'],
+      ['print-a6-hoch', 'print'],
+      ['print-a6-quer', 'print'],
+      ['print-briefbogen-a4', 'print'],
+      ['print-zeitung-a4', 'print'],
     ]);
   });
 
@@ -76,9 +83,21 @@ describe('Druckformate', () => {
     ['print-a1-quer', { w: 841, h: 594 }, 10, 1, 2000, 1417, 150],
     ['print-grossflaeche', { w: 594, h: 420 }, 10, 1, 2000, 1420, 150],
     ['print-citylight', { w: 237, h: 350 }, 8, 1, 1365, 2000, 150],
-  ])('%s', (id, trimMm, safeMm, seiten, width, height, exportDpi = 300) => {
+    ['print-flyer-dinlang', { w: 297, h: 210 }, 4, 2, 2000, 1426, 300, 'erste-seite'],
+    ['print-a6-hoch', { w: 105, h: 148 }, 3, 2, 1442, 2000, 300, 'letzte-seite'],
+    ['print-a6-quer', { w: 148, h: 105 }, 3, 2, 2000, 1442, 300, 'letzte-seite'],
+    ['print-briefbogen-a4', { w: 210, h: 297 }, 5, 2, 1426, 2000, 300, null],
+    ['print-zeitung-a4', { w: 210, h: 297 }, 5, 4, 1426, 2000, 300, 'letzte-seite'],
+  ] as const)('%s', (id, trimMm, safeMm, seiten, width, height, exportDpi = 300, impressum?) => {
     const f = print(id);
-    expect(f.print).toEqual({ trimMm, bleedMm: 3, safeMm, exportDpi, seiten });
+    expect(f.print).toEqual({
+      trimMm,
+      bleedMm: 3,
+      safeMm,
+      exportDpi,
+      seiten,
+      impressum: impressum === undefined ? (seiten === 1 ? 'jede-seite' : null) : impressum,
+    });
     expect([f.width, f.height]).toEqual([width, height]);
     expect(f.dpi).toBe(exportDpi);
     expect(f.group).toBe('print');

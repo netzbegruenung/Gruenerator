@@ -31,6 +31,11 @@ describe('SERVER_FORMATS', () => {
       'print-a1-quer',
       'print-grossflaeche',
       'print-citylight',
+      'print-flyer-dinlang',
+      'print-a6-hoch',
+      'print-a6-quer',
+      'print-briefbogen-a4',
+      'print-zeitung-a4',
     ]);
   });
 });
