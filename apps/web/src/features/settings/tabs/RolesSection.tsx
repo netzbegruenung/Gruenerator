@@ -266,7 +266,7 @@ export default function RolesSection() {
 
     return {
       title: offer.title,
-      beschreibung: `${aufzaehlung} sowie das Notebook ${offer.title} erscheinen künftig in der Agentura und im Chat.`,
+      beschreibung: `${aufzaehlung} sowie das Notebook ${offer.title} erscheinen künftig im Marktplatz und im Chat.`,
     };
   }, [wizEbene, wizBundesland, wizRolle, isAustrian]);
 
@@ -884,9 +884,9 @@ export default function RolesSection() {
                   Dialog schließt mit, sonst läge die Agentur dahinter.
 
                   Grüneratoren und Rezepte des Landesverbands stehen seit dem
-                  Regal-Umbau beide im Agentura-Gang von=landesverband, deshalb
-                  ein Knopf statt zwei. Der Gang steht AUSDRÜCKLICH im Link: ein
-                  nacktes `/agentura` zeigt alle Gänge, und das Zugeteilte stünde
+                  Regal-Umbau beide im Marktplatz unter von=landesverband, deshalb
+                  ein Knopf statt zwei. Die Herkunft steht AUSDRÜCKLICH im Link:
+                  ein nacktes `/marktplatz` zeigt alle, und das Zugeteilte stünde
                   zwischen den offiziellen. */}
               {lvIds !== null && lvIds.length > 0 && (
                 <div className="mt-md border-t border-grey-200 pt-md dark:border-grey-700">
@@ -898,7 +898,7 @@ export default function RolesSection() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => goTo('/agentura?von=landesverband')}
+                      onClick={() => goTo('/marktplatz?von=landesverband')}
                     >
                       Zu deinem Landesverband
                     </Button>

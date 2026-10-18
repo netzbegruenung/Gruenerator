@@ -185,8 +185,8 @@ export async function searchTemplates(query: string, limit = 15): Promise<Templa
     }>(
       `SELECT id, title, description, thumbnail_url, external_url
        FROM user_templates
-       WHERE status = 'published' AND is_private = false AND id = ANY($1)
-         AND deleted_at IS NULL`,
+       WHERE status = 'published' AND is_private = false AND moderation = 'ok'
+         AND id = ANY($1) AND deleted_at IS NULL`,
       [ids],
       { table: 'user_templates' }
     );

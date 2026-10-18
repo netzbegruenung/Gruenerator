@@ -2,6 +2,7 @@ import {
   type CanvasVorlage,
   type PrintVorlage,
   type SharepicCreatorLocale,
+  type SharepicBlock,
   type SharepicSeite,
   type SharepicVorlage,
 } from '@gruenerator/contracts';
@@ -47,6 +48,20 @@ export const sharepicSeitenQuery = () =>
         throw new ApiError(res.status, `Seiten konnten nicht geladen werden (HTTP ${res.status}).`);
       }
       return res.body.seiten;
+    },
+  });
+
+/** The Grünerator-Blöcke of the viewer's country, for the editor's Elemente panel. */
+export const sharepicBloeckeQuery = () =>
+  queryOptions({
+    queryKey: ['sharepic-bloecke'],
+    staleTime: 10 * 60_000,
+    queryFn: async (): Promise<SharepicBlock[]> => {
+      const res = await getContractsClient().sharepicVorlagen.bloecke({ query: {} });
+      if (res.status !== 200) {
+        throw new ApiError(res.status, `Blöcke konnten nicht geladen werden (HTTP ${res.status}).`);
+      }
+      return res.body.bloecke;
     },
   });
 

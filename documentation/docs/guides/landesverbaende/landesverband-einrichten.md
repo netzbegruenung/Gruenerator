@@ -19,11 +19,11 @@ Dafür musst du ihm einmal sagen, wo du arbeitest. Das dauert eine Minute und is
    - **Ebene:** Land
    - **Bundesland:** dein Landesverband
    - **Rolle:** _Mitarbeiter\*in Landesgeschäftsstelle_ (in Österreich: _Mitarbeiter\*in Landesorganisation_)
-5. Der Assistent zeigt dir zum Schluss, was diese Rolle freischaltet — zum Beispiel „4 Agenten und 5 Rezepte sowie das Notebook Hessen erscheinen künftig in der Agentura und im Chat“. Speichern, fertig.
+5. Der Assistent zeigt dir zum Schluss, was diese Rolle freischaltet — zum Beispiel „4 Agenten und 5 Rezepte sowie das Notebook Hessen erscheinen künftig im Marktplatz und im Chat“. Speichern, fertig.
 
 ![Die Einstellungen, Bereich Personalisierung: oben das Feld „Anweisungen“, darunter der Kasten „Deine Rollen“ mit der Rolle „Mitarbeiter\*in Landesgeschäftsstelle, Hessen“, dem Hinweis „Über deine Rolle sind dir die Inhalte von Grüne Hessen zugeteilt“ und dem Knopf „Zu deinem Landesverband“.](/assets/images/landesverband-tutorial/rolle-anlegen.webp)
 
-Danach steht unter deinen Rollen ein Knopf **„Zu deinem Landesverband“**, der die Agentura direkt bei deinem Landesverband öffnet.
+Danach steht unter deinen Rollen ein Knopf **„Zu deinem Landesverband“**, der den Marktplatz direkt bei deinem Landesverband öffnet.
 
 :::info[Genau diese Rolle ist der Schlüssel]
 Die Inhalte eines Landesverbands hängen an der **Geschäftsstellen-Rolle** und nur an ihr. Landtagsfraktion, MdL-Büro, Kreisverband oder Ortsverband geben zwar auch ein Bundesland an, schalten die LV-Agents aber nicht frei — sie sind das Material eines bestimmten Landesverbands, kein allgemeiner Bestand.
@@ -35,7 +35,7 @@ Du kannst mehrere Rollen anlegen (etwa Landesgeschäftsstelle **und** Kreisverba
 
 ## Schritt 2: Was du jetzt hast
 
-**Ein eigener Gang in der [Agentura](/docs/features/agentura).** Er trägt den Namen deines Landesverbands (bei Hessen also „Grüne Hessen“). Darin stehen die drei Agents deines Verbands: **Öffentlichkeitsarbeit**, **Bürger\*innenanfragen** und **Wahlprüfsteine**. Eure Rezepte stehen dort nicht im Gang; du findest sie über die Suche der Agentura und im Chat über `@` (siehe unten). Mit **Zu meinen Grüneratoren** holst du dir, was du täglich brauchst, auf deine eigene Seite. In der App ist es ein eigenes Regal mit Agents und Rezepten.
+**Eine eigene Herkunft im [Marktplatz](/docs/features/marktplatz).** Sie trägt den Namen deines Landesverbands (bei Hessen also „Grüne Hessen“). Darunter stehen die drei Agents deines Verbands, **Öffentlichkeitsarbeit**, **Bürger\*innenanfragen** und **Wahlprüfsteine**, und eure Rezepte. Im Chat erreichst du die Rezepte außerdem über `@` (siehe unten). Mit **Zu meinen Grüneratoren** holst du dir, was du täglich brauchst, auf deine eigene Seite. In der App ist es derselbe Filter.
 
 **Eure Rezepte im Chat.** Die Presse- und Instagram-Rezepte deines Landesverbands tauchen jetzt in der Rezept-Liste des Chats auf und lassen sich mit `@` erwähnen, etwa `@presse-hessen-partei` oder `@insta-hessen`. Welche es je Landesverband gibt, steht unter [Landesverband-Agents](/docs/features/landesverbaende).
 

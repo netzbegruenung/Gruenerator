@@ -110,13 +110,15 @@ export const chartSettingsSectionEntry = defineCommonSection({
   propsFactory: (state, actions, context) => {
     const s = state as { chartInstances?: ChartInstance[] };
     const a = actions as ActionsWithChart;
-    const selectedId = (context as { selectedElement?: string | null } | undefined)
-      ?.selectedElement;
+    const ctx = context as
+      { selectedElement?: string | null; chartColors?: readonly string[] } | undefined;
+    const selectedId = ctx?.selectedElement;
     const selectedChart = selectedId
       ? (s.chartInstances?.find((c) => c.id === selectedId) ?? null)
       : null;
     return {
       selectedChart,
+      ...(ctx?.chartColors && { palette: ctx.chartColors }),
       onUpdateChart: a.updateChart ?? (() => {}),
       onRemoveChart: a.removeChart ?? (() => {}),
     };

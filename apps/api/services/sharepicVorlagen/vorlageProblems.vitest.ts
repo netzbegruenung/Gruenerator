@@ -1,5 +1,6 @@
 import {
   printSpecSchema,
+  type SharepicBlockFileEntry,
   type SharepicSeiteFileEntry,
   type SharepicVorlageFileEntry,
 } from '@gruenerator/contracts';
@@ -9,7 +10,8 @@ vi.mock('./catalog.js', () => ({
   sharepicVorlageAssetFile: (file: string) => (file === 'person.jpg' ? `/assets/${file}` : null),
 }));
 
-const { printProblems, seiteProblems, vorlageProblems } = await import('./vorlageProblems.js');
+const { blockProblems, printProblems, seiteProblems, vorlageProblems } =
+  await import('./vorlageProblems.js');
 
 const entry = (over: Partial<SharepicVorlageFileEntry> = {}): SharepicVorlageFileEntry => ({
   id: 'de-zitat',
@@ -103,6 +105,27 @@ describe('seiteProblems', () => {
     expect(seiteProblems(seite({ slide, quelle: undefined }), 'de-AT', [])).toEqual([
       'unknown stock photo nicht-da.jpg',
       '++marker++ in an AT slide',
+    ]);
+  });
+});
+
+describe('blockProblems', () => {
+  const block = (text: string): SharepicBlockFileEntry => ({
+    id: 'at-block-zitat',
+    titel: 'Zitat',
+    gruppe: 'text',
+    stichworte: [],
+    color: 'dunkelgruen',
+    items: [{ type: 'zitat', text, name: 'Vorname Nachname' }],
+  });
+
+  it('passes an AT block with AT accents', () => {
+    expect(blockProblems(block('Mehr ==Platz== fürs Rad.'), 'de-AT')).toEqual([]);
+  });
+
+  it('flags a DE marker in an AT block', () => {
+    expect(blockProblems(block('Mehr ++Platz++ fürs Rad.'), 'de-AT')).toEqual([
+      '++marker++ in an AT block',
     ]);
   });
 });

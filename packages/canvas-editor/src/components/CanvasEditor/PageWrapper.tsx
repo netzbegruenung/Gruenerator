@@ -15,6 +15,8 @@ import { GenericCanvas } from '../GenericCanvas';
 import { PageToolbar } from '../PageToolbar';
 import { ZoomableViewport } from '../ZoomableViewport';
 
+import { useBlockInsert } from './blockInsert';
+
 import type { PageWrapperProps } from './types';
 
 /**
@@ -116,6 +118,7 @@ export const PageWrapper = memo(function PageWrapper({
     if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setIsDropTarget(false);
   }, []);
   const trackDownload = useTrackUnsplashDownload();
+  const blocks = useBlockInsert();
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       setIsDropTarget(false);
@@ -134,9 +137,15 @@ export const PageWrapper = memo(function PageWrapper({
         if (!canvasRef.current?.dropMedia(e, media)) return;
         markDropPlaced();
         trackDownload(media.name, media.attribution);
+      } else if (element?.kind === 'block') {
+        if (!blocks) return;
+        // Composed after the drop; `dragend` asks right away, so it counts as placed.
+        markDropPlaced();
+        const at = { clientX: e.clientX, clientY: e.clientY };
+        void blocks.insert(element.blockId, { pageIndex: index, at });
       } else if (element && canvasRef.current?.dropElement(e, element)) markDropPlaced();
     },
-    [isActive, onSelect, index, canvasRef, onDropVorlage, page.id, trackDownload]
+    [isActive, onSelect, index, canvasRef, onDropVorlage, page.id, trackDownload, blocks]
   );
 
   const handleKeyDown = useCallback(

@@ -7,6 +7,7 @@
 
 import { gzipSync, gunzipSync } from 'node:zlib';
 
+import { type ModerationState } from '@gruenerator/contracts';
 import * as Y from 'yjs';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
@@ -47,6 +48,7 @@ interface UserTemplateRow {
   title: string;
   is_private: boolean;
   status: string;
+  moderation: ModerationState;
   content_data: { yjs?: string; subtype?: string } | null;
 }
 
@@ -150,7 +152,7 @@ export async function createDocFromTemplate(
   const db = getPostgresInstance();
 
   const templateRows = (await db.query(
-    `SELECT id, user_id, template_type, title, is_private, status, content_data
+    `SELECT id, user_id, template_type, title, is_private, status, moderation, content_data
      FROM user_templates
      WHERE id = $1 AND type = 'template' AND deleted_at IS NULL`,
     [templateId]
@@ -162,7 +164,8 @@ export async function createDocFromTemplate(
   const template = templateRows[0];
 
   const ownsTemplate = template.user_id === userId;
-  const isPublicPublished = !template.is_private && template.status === 'published';
+  const isPublicPublished =
+    !template.is_private && template.status === 'published' && template.moderation !== 'removed';
   if (!ownsTemplate && !isPublicPublished) {
     throw new Error('Not authorized to use this template');
   }

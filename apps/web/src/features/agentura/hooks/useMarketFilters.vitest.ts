@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { SHOP_ORIGINS, legacyAgenturaRedirect, parseMarketParams } from './useMarketFilters';
+import { legacyAgenturaRedirect, parseMarketParams } from './useMarketFilters';
 
-const parse = (query: string) => parseMarketParams(new URLSearchParams(query), SHOP_ORIGINS);
+const ORIGINS = ['offiziell', 'landesverband', 'oeffentlich'] as const;
+const parse = (query: string) => parseMarketParams(new URLSearchParams(query), ORIGINS);
 const redirect = (query: string) => legacyAgenturaRedirect(new URLSearchParams(query));
 
 describe('parseMarketParams', () => {

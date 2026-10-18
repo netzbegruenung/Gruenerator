@@ -25,6 +25,7 @@ import { useSelectionAwareness } from '../collab/useSelectionAwareness';
 import { useYjsCanvasBinding } from '../collab/useYjsCanvasBinding';
 import { useYjsPageStateSync } from '../collab/useYjsPageStateSync';
 import { stateKeyOfCallback } from '../collab/wrapCallbacksWithPageSync';
+import { blockElementIds, placeBlock, type LiftedBlock } from '../composer/liftBlock';
 import { getCanvasFormatOrDefault } from '../formats';
 import {
   useCanvasInteractions,
@@ -189,6 +190,15 @@ export interface SelectionBox {
   height: number;
 }
 
+/** Canvas px between blocks clicked in one after another. */
+const BLOCK_CASCADE = 40;
+
+/** What a block is composed against: the page's background. */
+export interface BlockPageSurface {
+  backgroundMode?: unknown;
+  backgroundColor?: unknown;
+}
+
 export interface GenericCanvasRef {
   toDataURL: (options?: {
     format?: 'png' | 'jpeg' | 'webp';
@@ -220,6 +230,15 @@ export interface GenericCanvasRef {
   dropMedia: (evt: { clientX: number; clientY: number }, media: MediaDragPayload) => boolean;
   /** Adds a dragged Elemente tile centred where it was dropped. False when nothing was placed. */
   dropElement: (evt: { clientX: number; clientY: number }, payload: ElementDragPayload) => boolean;
+  /**
+   * Composes a block for this page (`make` gets its background) and adds it,
+   * centred where it was dropped or on the canvas, as one undo step; its parts
+   * are selected together after. False when the page holds no blocks.
+   */
+  insertBlock: (
+    make: (page: BlockPageSurface) => Promise<LiftedBlock | null>,
+    at?: { clientX: number; clientY: number }
+  ) => Promise<boolean>;
   /** Toolbar handlers — called by parent when toolbar is rendered at layout level */
   undo?: () => void;
   redo?: () => void;
@@ -556,6 +575,7 @@ function GenericCanvasWithRef<
   // old 200ms poll in PageWrapper: updates land synchronously with edits.
   const onLiveState = props.onLiveState;
   const liveStateRef = useRef({ state, actions });
+  const clickedBlocksRef = useRef(0);
   liveStateRef.current = { state, actions };
   useEffect(() => {
     if (!onLiveState) return;
@@ -740,6 +760,28 @@ function GenericCanvasWithRef<
         });
         return true;
       },
+      insertBlock: async (make, at) => {
+        if (!actions.insertBlock) return false;
+        // The drop point before the await: the pointer is only known now.
+        const stage = stageRef.current?.getStage();
+        const drop = at && stage ? locateDrop(stage, at, stageWidth / referenceWidth) : null;
+        const { backgroundMode, backgroundColor } = liveStateRef.current.state as BlockPageSurface;
+        const block = await make({ backgroundMode, backgroundColor });
+        if (!block) return false;
+        const canvas = { width: referenceWidth, height: referenceHeight };
+        // Clicked in again and again, each lands a step down-right, not on the last.
+        const step = drop ? 0 : (clickedBlocksRef.current++ % 5) * BLOCK_CASCADE;
+        const placed = placeBlock(
+          block,
+          drop?.point ?? { x: canvas.width / 2 + step, y: canvas.height / 2 + step },
+          canvas
+        );
+        const { insertBlock } = liveStateRef.current.actions;
+        if (!insertBlock) return false;
+        insertBlock(placed);
+        store.getState().setSelectedLayers(blockElementIds(placed));
+        return true;
+      },
       dropElement: (evt, payload) => {
         const stage = stageRef.current?.getStage();
         if (!stage) return false;
@@ -787,6 +829,9 @@ function GenericCanvasWithRef<
             actions.toggleIcon(payload.iconId, true, placement);
             return true;
           }
+          // Composed asynchronously: the page wrapper hands it to `insertBlock`.
+          case 'block':
+            return false;
         }
       },
       undo,
@@ -869,6 +914,7 @@ function GenericCanvasWithRef<
       actions,
       stageWidth,
       referenceWidth,
+      referenceHeight,
     ]
   );
 

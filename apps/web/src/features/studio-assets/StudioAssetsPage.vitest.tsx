@@ -5,11 +5,12 @@ import { http, HttpResponse } from 'msw';
 import { useLocation } from 'react-router-dom';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { item } from '../../test/marketplaceFixtures';
 import { server } from '../../test/msw-server';
 import { axe, render, renderWithProviders, screen, waitFor, within } from '../../test-utils';
 
 import { StudioAssetCard } from './StudioAssetCard';
-import StudioAssetsPage, { StudioAssetsDiscoverPage } from './StudioAssetsPage';
+import StudioAssetsPage from './StudioAssetsPage';
 
 import type * as BackgroundImage from './backgroundImage';
 
@@ -83,12 +84,13 @@ beforeEach(() => {
   );
 });
 
-const DISCOVER_ROUTE = '/studio/sticker/entdecken';
-const renderDiscover = () =>
-  renderWithProviders(<StudioAssetsDiscoverPage />, { route: DISCOVER_ROUTE });
+const ROUTE = '/studio/sticker';
+/** Sonnenblume is someone else's sticker; gemerkt, it shows in the own collection. */
+const savedSonnenblume = () => asset({ favorited: true });
+const renderOverview = () => renderWithProviders(<StudioAssetsPage />, { route: ROUTE });
 /**
  * Wartet, bis die ersten `n` Listenabfragen raus sind — danach zählt jede weitere
- * als Nachladen. Unter dem Popup lädt die Übersicht mit: 4 eigene + 2 Entdecken.
+ * als Nachladen. Die Übersicht lädt eigene und gemerkte je Art: 4.
  */
 const queriesSettled = (n: number) => waitFor(() => expect(listQueries.length).toBe(n));
 const ownPublic = () =>
@@ -125,20 +127,26 @@ describe('StudioAssetsPage', () => {
     );
   });
 
-  it('lists the Entdecken stickers in the popup', async () => {
-    renderDiscover();
+  it('opens Entdecken as the Marktplatz for Sticker and Hintergründe', async () => {
+    const marketQueries: URLSearchParams[] = [];
+    server.use(
+      http.get('http://localhost/api/marketplace', ({ request }) => {
+        marketQueries.push(new URL(request.url).searchParams);
+        return HttpResponse.json({
+          sections: [{ kind: 'sticker', items: [item('sticker', 'Sonnenblume')], hasMore: false }],
+        });
+      })
+    );
+    const { user } = renderOverview();
+    await screen.findByRole('article', { name: 'Mein Herz' });
+
+    await user.click(screen.getByRole('button', { name: 'Entdecken' }));
 
     const popup = await screen.findByRole('dialog', { name: 'Entdecken' });
-    expect(await within(popup).findByRole('article', { name: 'Sonnenblume' })).toBeInTheDocument();
-    expect(within(card('Sonnenblume')).getByText('Kim')).toBeInTheDocument();
-    const stickerQuery = listQueries.find((q) => q.get('kind') === 'sticker');
-    expect(Object.fromEntries(stickerQuery!)).toMatchObject({
-      kind: 'sticker',
-      scope: 'shop',
-      sort: 'new',
-      offset: '0',
-      limit: '48',
-    });
+    expect(await within(popup).findByRole('heading', { name: 'Sonnenblume' })).toBeInTheDocument();
+    const tabs = within(within(popup).getByRole('group', { name: 'Art' })).getAllByRole('button');
+    expect(tabs.map((t) => t.textContent)).toEqual(['Alle', 'Sticker', 'Hintergründe']);
+    expect(marketQueries[0]?.get('kinds')).toBe('sticker,background');
   });
 
   it('shows a like at once and sends it', async () => {
@@ -153,9 +161,10 @@ describe('StudioAssetsPage', () => {
         return HttpResponse.json({ liked: true, likesCount: 3 });
       })
     );
-    const { user } = renderDiscover();
+    store = [savedSonnenblume(), ...store.slice(1)];
+    const { user } = renderOverview();
     await screen.findByRole('article', { name: 'Sonnenblume' });
-    await queriesSettled(6);
+    await queriesSettled(4);
 
     await user.click(within(card('Sonnenblume')).getByRole('button', { name: 'Gefällt mir (2)' }));
 
@@ -163,15 +172,15 @@ describe('StudioAssetsPage', () => {
     expect(pressed).toHaveAttribute('aria-pressed', 'true');
     await waitFor(() => expect(like).toHaveBeenCalledWith('a-1'));
     release();
-    await waitFor(() => expect(listQueries.length).toBeGreaterThan(6));
+    await waitFor(() => expect(listQueries.length).toBeGreaterThan(4));
     expect(
       within(card('Sonnenblume')).getByRole('button', { name: 'Gefällt mir (3)' })
     ).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('opens the report dialog for someone else’s sticker only', async () => {
-    store = [asset({}), ownPublic()];
-    const { user } = renderDiscover();
+    store = [savedSonnenblume(), ownPublic()];
+    const { user } = renderOverview();
     await screen.findByRole('article', { name: 'Sonnenblume' });
 
     const ownMenu = await openMenu(user, 'Mein Herz');
@@ -192,8 +201,8 @@ describe('StudioAssetsPage', () => {
         return HttpResponse.json({ success: true });
       })
     );
-    store = [asset({}), ownPublic()];
-    const { user } = renderDiscover();
+    store = [savedSonnenblume(), ownPublic()];
+    const { user } = renderOverview();
     await screen.findByRole('article', { name: 'Sonnenblume' });
 
     const menu = await openMenu(user, 'Sonnenblume');
@@ -208,14 +217,16 @@ describe('StudioAssetsPage', () => {
 
   it('hands the item to the Profilbild by deep link', async () => {
     const SRC = '/api/share/0123456789abcdef0123456789abcdef/download';
-    store = [asset({ id: '0b6f3c1e-8a4d-4f5e-9c2a-7d1e5b3a9f10', src: SRC, height: 256 })];
+    store = [
+      asset({ id: '0b6f3c1e-8a4d-4f5e-9c2a-7d1e5b3a9f10', src: SRC, height: 256, favorited: true }),
+    ];
     const Where = () => <output data-testid="where">{useLocation().search}</output>;
     const { user } = renderWithProviders(
       <>
-        <StudioAssetsDiscoverPage />
+        <StudioAssetsPage />
         <Where />
       </>,
-      { route: DISCOVER_ROUTE }
+      { route: ROUTE }
     );
     await screen.findByRole('article', { name: 'Sonnenblume' });
 
@@ -279,9 +290,10 @@ describe('StudioAssetsPage follow-ups', () => {
         return HttpResponse.json({ liked: false, likesCount: 2 });
       })
     );
-    const { user } = renderDiscover();
+    store = [savedSonnenblume(), ...store.slice(1)];
+    const { user } = renderOverview();
     await screen.findByRole('article', { name: 'Sonnenblume' });
-    await queriesSettled(6);
+    await queriesSettled(4);
 
     await user.click(within(card('Sonnenblume')).getByRole('button', { name: 'Gefällt mir (2)' }));
     await user.click(within(card('Sonnenblume')).getByRole('button', { name: 'Gefällt mir (3)' }));
@@ -291,7 +303,7 @@ describe('StudioAssetsPage follow-ups', () => {
     await waitFor(() => expect(calls).toEqual(['like']));
     release();
     await waitFor(() => expect(calls).toEqual(['like', 'unlike']));
-    await waitFor(() => expect(listQueries.length).toBeGreaterThan(6));
+    await waitFor(() => expect(listQueries.length).toBeGreaterThan(4));
     expect(
       within(card('Sonnenblume')).getByRole('button', { name: 'Gefällt mir (2)' })
     ).toHaveAttribute('aria-pressed', 'false');
@@ -301,14 +313,14 @@ describe('StudioAssetsPage follow-ups', () => {
     server.use(
       http.get(API, ({ request }) => {
         const params = new URL(request.url).searchParams;
-        if (params.get('kind') !== 'sticker')
+        if (params.get('kind') !== 'sticker' || params.get('scope') !== 'saved')
           return HttpResponse.json({ items: [], hasMore: false });
         if (params.get('offset') === '0')
-          return HttpResponse.json({ items: [asset({})], hasMore: true });
+          return HttpResponse.json({ items: [savedSonnenblume()], hasMore: true });
         return HttpResponse.json({ success: false, message: 'Kaputt.' }, { status: 500 });
       })
     );
-    const { user } = renderDiscover();
+    const { user } = renderOverview();
     await screen.findByRole('article', { name: 'Sonnenblume' });
 
     await user.click(screen.getByRole('button', { name: 'Mehr laden' }));

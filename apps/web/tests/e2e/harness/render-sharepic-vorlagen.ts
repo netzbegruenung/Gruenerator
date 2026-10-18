@@ -7,6 +7,8 @@
  *   sharepic-vorlagen/thumbs/<id>-<n>.webp further slides of a carousel, shown in the detail view
  *   sharepic-vorlagen/thumbs/seiten/<id>.<format>.webp
  *                                          a single Seite (`seiten/{de,at}.json`), once per format
+ *   sharepic-vorlagen/thumbs/bloecke/<id>.webp
+ *                                          a block (`bloecke/{de,at}.json`) alone, cut to its bounds
  *
  * `sharepic-vorlagen/vorschau-fotos.json` (optional) maps a Vorlage id to
  * { "<stock filename in its spec>": "<photo path under sharepic-vorlagen/>" }:
@@ -59,6 +61,22 @@ const seiten = Object.entries(SEITEN_FILES)
       : [];
   })
   .filter((s) => only.size === 0 || only.has(s.id));
+interface BlockEntry {
+  id: string;
+  items: unknown[];
+  color: string;
+}
+const bloecke = Object.entries(SEITEN_FILES)
+  .flatMap(([file, locale]) => {
+    const source = path.join(dir, 'bloecke', file);
+    return existsSync(source)
+      ? (JSON.parse(readFileSync(source, 'utf8')) as BlockEntry[]).map((block) => ({
+          ...block,
+          locale,
+        }))
+      : [];
+  })
+  .filter((b) => only.size === 0 || only.has(b.id));
 const vorschauFile = path.join(dir, 'vorschau-fotos.json');
 const vorschau: Record<string, Record<string, string>> = existsSync(vorschauFile)
   ? (JSON.parse(readFileSync(vorschauFile, 'utf8')) as Record<string, Record<string, string>>)
@@ -82,6 +100,7 @@ const photosFor = (id: string, spec: unknown): Record<string, string> =>
     ),
   ]);
 mkdirSync(path.join(dir, 'thumbs', 'seiten'), { recursive: true });
+mkdirSync(path.join(dir, 'thumbs', 'bloecke'), { recursive: true });
 
 const browser = await chromium.launch();
 const page = await browser.newPage();
@@ -126,6 +145,34 @@ for (const seite of seiten) {
     process.stdout.write(`seite ${seite.id}: ${format}\n`);
   }
 }
+// A block alone on its ground, as the editor drops it: the preview is the block, not a slide.
+for (const block of bloecke) {
+  const spec = {
+    locale: block.locale,
+    slides: [
+      {
+        background: { kind: 'farbe', color: block.color },
+        position: 'mitte',
+        align: 'links',
+        items: block.items,
+        logo: false,
+      },
+    ],
+  };
+  const result = await page.evaluate((input) => window.__sharepicHarness!.renderBlock(input), {
+    spec,
+    photos: photosFor(block.id, spec),
+  });
+  if (!('image' in result)) {
+    failed++;
+    console.error(`block ${block.id}: ${result.error}`);
+    continue;
+  }
+  writeFileSync(path.join(dir, 'thumbs', 'bloecke', `${block.id}.webp`), decode(result.image));
+  process.stdout.write(`block ${block.id}\n`);
+}
 await browser.close();
-process.stdout.write(`${entries.length}+${seiten.length} entries, ${failed} failed render(s)\n`);
+process.stdout.write(
+  `${entries.length}+${seiten.length}+${bloecke.length} entries, ${failed} failed render(s)\n`
+);
 process.exit(failed ? 1 : 0);
