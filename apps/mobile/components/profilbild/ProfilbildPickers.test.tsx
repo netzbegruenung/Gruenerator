@@ -27,6 +27,7 @@ jest.mock('@gruenerator/shared/marketplace', () => ({
   ...jest.requireActual<Record<string, unknown>>('@gruenerator/shared/marketplace'),
   useMarketplaceKind: jest.fn(),
   useMarketplaceSections: () => ({ sections: [], isLoading: false, isError: false }),
+  useMarketplaceItem: () => ({ data: null, isError: false }),
   useMarketplaceLike: () => ({ mutate: jest.fn() }),
   useMarketplaceSave: () => ({ mutate: jest.fn() }),
 }));
