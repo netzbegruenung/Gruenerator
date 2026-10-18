@@ -106,7 +106,7 @@ export function startWorkplaceTour(navigate: NavigateFn): void {
         popover: {
           title: 'Die Seitenleiste',
           description:
-            'Suche (⌘K), deine Grüneratoren und Projekte als Schnellzugriff — und über „Neu“ startest du von überall Chats, Dokumente oder Boards.',
+            'Suche (⌘K), deine Grüneratoren, Projekte und angehefteten Favoriten als Schnellzugriff — in jedem Projekt startest du direkt einen neuen Chat.',
           side: 'right',
           onPrevClick: (_el, _step, opts) => {
             collapseSidebar(() => opts.driver.movePrevious());
