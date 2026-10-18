@@ -33,8 +33,18 @@ const RULE_LINE = /^[ \t]*(?:[-*=_~][ \t]*){3,}$/;
  * Trenner gelesen — und Trennzeilen verschwinden ersatzlos, das Beispiel zerfiele
  * still in zwei Bruchstücke.
  */
-const HEADING_LINE =
-  /^[ \t]*[-*=_~#]*[ \t]*(?:beispiel|example|post|text|nr\.?)[ \t]*#?[ \t]*\d{1,3}[ \t]*[.:)\]-]*[ \t]*[-*=_~#]*[ \t]*$/i;
+const HEADING_CORE = /^(?:beispiel|example|post|text|nr\.?) ?#? ?\d{1,3} ?[.:)\]-]*$/i;
+
+/** Zierrat am Rand einer Überschrift; per Schleife abgeschält, weil verkettete `[ \t]*` im Regex bei Tab-Folgen polynomiell backtracken. */
+const HEADING_DECORATION = ' \t-*=_~#';
+
+function isHeadingLine(line: string): boolean {
+  let start = 0;
+  let end = line.length;
+  while (start < end && HEADING_DECORATION.includes(line.charAt(start))) start++;
+  while (end > start && HEADING_DECORATION.includes(line.charAt(end - 1))) end--;
+  return HEADING_CORE.test(line.slice(start, end).replace(/[ \t]+/g, ' '));
+}
 
 /** Reine Aufzählungszeile: „1.", „2)". */
 const NUMBERED_LINE = /^[ \t]*(\d{1,3})[.)][ \t]*$/;
@@ -101,7 +111,7 @@ export function splitExamples(raw: string): SplitResult {
 
   const candidates: Array<[SplitStrategy, () => string[]]> = [
     ['rule', () => splitAtLines(text, (l) => RULE_LINE.test(l))],
-    ['heading', () => splitAtLines(text, (l) => HEADING_LINE.test(l))],
+    ['heading', () => splitAtLines(text, isHeadingLine)],
     ['numbered', () => splitNumbered(text)],
     ['blank', () => text.split(BLANK_RUN)],
   ];
