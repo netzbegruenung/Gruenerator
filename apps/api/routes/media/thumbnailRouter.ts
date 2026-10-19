@@ -123,9 +123,10 @@ router.get('/:kind/:id/:v', async (req: Request<ThumbParams>, res: Response) => 
       source
     );
     if (!variant) {
-      // The row resolves but its file does not (a render failure logged its own
-      // error above). Locally that is a worktree whose uploads/ never saw the
-      // upload; in production it is a real inconsistency. The path stays in
+      // The row resolves but no variant comes back. Only a render failure has
+      // already logged an error; a missing source file has not, so this line is
+      // often the only one. Locally that is a worktree whose uploads/ never saw
+      // the upload; in production it is a real inconsistency. The path stays in
       // the log, never in the response.
       log.warn(`404 ${kind}/${id}: source file missing at ${source.sourcePath}`);
       return fail(res, 404, 'Vorschau nicht verfügbar');
