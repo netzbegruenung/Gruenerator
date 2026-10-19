@@ -188,6 +188,12 @@ describe('agentSource.list', () => {
     expect(stillBerlin.items.map((i) => i.ref)).toEqual(berlin.items.map((i) => i.ref));
   });
 
+  it('does not load the roles when a Landesverband is asked for by `lv`', async () => {
+    m.loadUserRoles.mockClear();
+    await agentSource.list(ctx({ lvId: 'berlin' }), query({ origin: 'landesverband' }));
+    expect(m.loadUserRoles).not.toHaveBeenCalled();
+  });
+
   it('lists nothing for an unknown, switched-off or foreign-country Landesverband', async () => {
     m.loadUserRoles.mockResolvedValue([HESSEN_ROLE]);
     const lvRefs = (c: ReturnType<typeof ctx>) => refs(c, query({ origin: 'landesverband' }));
