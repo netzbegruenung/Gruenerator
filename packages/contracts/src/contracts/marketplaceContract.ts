@@ -8,6 +8,8 @@ import { initContract } from '@ts-rest/core';
 
 import {
   marketplaceErrorSchema,
+  marketplaceFrontpageQuerySchema,
+  marketplaceFrontpageResponseSchema,
   marketplaceItemParamsSchema,
   marketplaceItemQuerySchema,
   marketplaceItemResponseSchema,
@@ -31,6 +33,18 @@ export const marketplaceContract = c.router(
         500: marketplaceErrorSchema,
       },
       summary: 'One section per requested kind; a single kind pages by offset',
+    },
+
+    frontpage: {
+      method: 'GET',
+      path: '/api/marketplace/frontpage',
+      query: marketplaceFrontpageQuerySchema,
+      responses: {
+        200: marketplaceFrontpageResponseSchema,
+        401: marketplaceErrorSchema,
+        500: marketplaceErrorSchema,
+      },
+      summary: 'The front page („Start"): the featured item and the ordered shelves',
     },
 
     get: {
