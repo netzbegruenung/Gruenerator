@@ -1,3 +1,5 @@
+import { type UserAgentShareMode } from '@gruenerator/contracts';
+
 import { type LandesverbandContentType } from '../search/collections/landesverbandSources.js';
 
 import type { ComponentType } from 'react';
@@ -195,6 +197,11 @@ export interface Agent {
    * via prefix special-case, so they need no `iconKey` of their own.
    */
   iconKey?: string;
+  /**
+   * Who can see a user-created agent — only on the owner's own list
+   * (`GET /api/user-agents`); registry agents and other lists leave it out.
+   */
+  shareMode?: UserAgentShareMode;
   /**
    * Surfaces this agent as a pinned entry in the web sidebar (always visible,
    * separate from user favorites). Label and icon come from the agent's

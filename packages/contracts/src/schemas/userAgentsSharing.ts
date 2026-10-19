@@ -15,12 +15,11 @@
 import { z } from 'zod';
 
 import { notebookAudienceSchema, publicOwnershipSchema } from './notebookCollections.js';
-import { userAgentSchema } from './userAgents.js';
+import { userAgentSchema, userAgentShareModeSchema } from './userAgents.js';
 
 // ── Closed sets ──────────────────────────────────────────────────────────────
 
-export const userAgentShareModeSchema = z.enum(['private', 'groups', 'authenticated']);
-export type UserAgentShareMode = z.infer<typeof userAgentShareModeSchema>;
+export { userAgentShareModeSchema, type UserAgentShareMode } from './userAgents.js';
 
 // ── Settings shape ──────────────────────────────────────────────────────────
 
