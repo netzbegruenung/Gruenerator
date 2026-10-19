@@ -1,6 +1,7 @@
 /**
  * ts-rest-Router für die Texte-Generatoren mit fester Anfrage/Antwort-Form:
  *   POST /api/texte/alttext   — Alt-Text aus einem Bild
+ *   POST /api/texte/alttext/slides — je Seite eines Sharepics ein Alt-Text
  *   POST /api/texte/website   — Landing-Page-Inhalte für den Seitenbauer
  *
  * Löst `routes/texte/alttext.ts` und `routes/texte/website.ts` ab. Die dritte
@@ -20,6 +21,7 @@ import {
   localizePlaceholders,
 } from '../../services/localization/index.js';
 import { visionService } from '../../services/vision/index.js';
+import { describeSlides } from '../../services/vision/slideAltText.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -57,6 +59,28 @@ const texteContractRouter = s.router(texteContract, {
         },
       };
     }
+  },
+
+  generateSlideAltTexts: async ({ body, req }) => {
+    const total = body.slides.length;
+    const altTexts = await describeSlides(
+      body.slides,
+      (slide, i) =>
+        visionService.generateSlideAltText(slide.imageBase64, {
+          texts: slide.texts,
+          index: i + 1,
+          total,
+        }),
+      (i, reason) =>
+        log.warn('[alttext/slides] Seite %d/%d für %s:', i + 1, total, userId(req), reason)
+    );
+    if (altTexts.every((t) => t === null)) {
+      return {
+        status: 500 as const,
+        body: { error: 'Fehler bei der Erstellung der Alt-Texte' },
+      };
+    }
+    return { status: 200 as const, body: { altTexts } };
   },
 
   generateWebsiteContent: async ({ body, req, res }) => {

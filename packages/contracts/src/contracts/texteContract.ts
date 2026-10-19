@@ -16,6 +16,8 @@ import { initContract } from '@ts-rest/core';
 import {
   altTextBodySchema,
   altTextResponseSchema,
+  slideAltTextBodySchema,
+  slideAltTextResponseSchema,
   websiteGenerateBodySchema,
   websiteGenerateResponseSchema,
   texteErrorSchema,
@@ -40,6 +42,24 @@ export const texteContract = c.router({
       500: texteErrorSchema,
     },
     summary: 'Alt-Text für ein Bild erzeugen',
+  },
+
+  /**
+   * POST /api/texte/alttext/slides
+   * Je Seite eines Sharepics oder Karussells ein Alt-Text (Canvas-Editor, Tool „Alt-Texte").
+   */
+  generateSlideAltTexts: {
+    method: 'POST',
+    path: '/api/texte/alttext/slides',
+    body: slideAltTextBodySchema,
+    responses: {
+      200: slideAltTextResponseSchema,
+      400: texteErrorSchema,
+      401: texteErrorSchema,
+      403: texteErrorSchema,
+      500: texteErrorSchema,
+    },
+    summary: 'Alt-Texte für die Seiten eines Sharepics erzeugen',
   },
 
   /**

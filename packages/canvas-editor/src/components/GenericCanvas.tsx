@@ -51,7 +51,11 @@ import { alignElementX, alignElementY } from '../utils/alignment';
 import { createCanvasCommands, type ClientPoint } from '../utils/canvasCommands';
 import { canvasFontFamilies } from '../utils/canvasFontFamilies';
 import { buildCanvasItems, buildSortedRenderList } from '../utils/canvasLayerManager';
-import { captureStageImage, captureStageImageAsync } from '../utils/captureStage';
+import {
+  captureStageImage,
+  captureStageImageAsync,
+  visibleStageTexts,
+} from '../utils/captureStage';
 import { itemBodyRect } from '../utils/deepSelect';
 import { ensureFontsReady } from '../utils/ensureFontsReady';
 import { MAX_ICON_SELECTIONS, selectedCatalogIconIds } from '../utils/iconInstances';
@@ -237,6 +241,8 @@ export interface GenericCanvasRef {
   imagesSettled: () => boolean;
   /** Lightweight JPEG capture for sending the canvas to vision models. */
   captureCanvasForAi: () => Promise<string | null>;
+  /** The page's visible texts in reading order, for alt texts. */
+  getVisibleTexts: () => string[];
   /** Clears this page's element selection — the per-page store lives behind
    *  CanvasStoreProvider, so the parent editor reaches it through this handle. */
   deselect: () => void;
@@ -793,6 +799,7 @@ function GenericCanvasWithRef<
       imagesSettled: () => pendingImages.size === 0,
       captureCanvasForAi: async () =>
         captureStageImage(stageRef.current, { format: 'jpeg', pixelRatio: 1, quality: 0.85 }),
+      getVisibleTexts: () => visibleStageTexts(stageRef.current?.getStage() ?? null),
       deselect: () => setSelectedElement(null),
       beginMarquee,
       dropMedia: (evt, media) => {
