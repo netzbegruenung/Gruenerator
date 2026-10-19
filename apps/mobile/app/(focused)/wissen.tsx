@@ -19,7 +19,6 @@ import {
 import { BottomComposerBar } from '../../components/common/BottomComposerBar';
 import { NotebookGradientBackground } from '../../components/common/NotebookGradientBackground';
 import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
-import { CommunityNotebooksSection } from '../../components/notebook/CommunityNotebooksSection';
 import { NotebookCoverArt } from '../../components/notebook/NotebookCoverArt';
 import { NotebookCreator } from '../../components/notebook/NotebookCreator';
 import { NotebookSection } from '../../components/notebook/NotebookSection';
@@ -28,6 +27,7 @@ import {
   notebookTileGridStyle,
   useNotebookTileGrid,
 } from '../../components/notebook/NotebookTile';
+import { PublicNotebooksEntry } from '../../components/notebook/PublicNotebooksEntry';
 import {
   getMobileNotebooksByCategory,
   getResearchRegions,
@@ -345,7 +345,7 @@ export default function NotebooksScreen() {
               )}
             </View>
 
-            <CommunityNotebooksSection enabled={!!user} onOpen={handleCollectionPress} />
+            <PublicNotebooksEntry enabled={!!user} />
           </View>
 
           <NotebookCreator

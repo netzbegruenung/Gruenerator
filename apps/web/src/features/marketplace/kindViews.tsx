@@ -13,6 +13,7 @@ import {
   PiChatCircleText,
   PiImage,
   PiLayout,
+  PiNotebook,
   PiPencilSimple,
   PiSticker,
   PiUserCircle,
@@ -238,6 +239,21 @@ function AssetActions({ item }: { item: MarketplaceAssetItem }) {
   );
 }
 
+// ── Notebooks ────────────────────────────────────────────────────────────────
+
+const notebookVisual = (): MarketplaceVisual => ({ type: 'icon', icon: <PiNotebook /> });
+
+function NotebookActions({ item }: { item: MarketplaceItemOf<'notebook'> }) {
+  return (
+    <Button asChild variant="outline">
+      <Link to={`/notebooks/${encodeURIComponent(item.notebook.slug)}`}>
+        <PiNotebook aria-hidden />
+        Notebook öffnen
+      </Link>
+    </Button>
+  );
+}
+
 /**
  * Everything kind-specific about the Marktplatz in one place: the word for
  * the kind, how saving is worded, the card's icon or image, and what the
@@ -269,6 +285,12 @@ export const KIND_VIEWS: { [K in MarketplaceKind]: KindView<K> } = {
     saveLabel: BOOKMARK,
     visual: assetVisual,
     PrimaryActions: AssetActions,
+  },
+  notebook: {
+    label: 'Notebook',
+    saveLabel: BOOKMARK,
+    visual: notebookVisual,
+    PrimaryActions: NotebookActions,
   },
 };
 

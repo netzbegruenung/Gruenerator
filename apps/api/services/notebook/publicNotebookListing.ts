@@ -37,6 +37,11 @@ function defaultDeps(): PublicNotebookListingDeps {
 /**
  * Alle `is_public`-Notebooks, die zur Locale der betrachtenden Person passen.
  *
+ * Gelistet wird nur, was andere auch öffnen dürfen (`share_mode =
+ * 'authenticated'` — `updateCollection` kann `is_public` an dieser Regel
+ * vorbei setzen), was keine Meldung ausgeblendet hat und was einer Person
+ * gehört: System-Notebooks stehen in ihrer eigenen Registry.
+ *
  * Die Reihenfolge bleibt die des Helpers; Sortierung und Anreicherung sind
  * Sache der Aufrufer.
  */
@@ -45,5 +50,11 @@ export async function listPublicNotebooksForViewer(
   deps: PublicNotebookListingDeps = defaultDeps()
 ): Promise<NotebookCollection[]> {
   const collections = await deps.helper.getPublicNotebookCollections();
-  return collections.filter((c) => c.audience === viewerLocale);
+  return collections.filter(
+    (c) =>
+      c.audience === viewerLocale &&
+      c.share_mode === 'authenticated' &&
+      c.moderation === 'ok' &&
+      c.user_id !== 'SYSTEM'
+  );
 }

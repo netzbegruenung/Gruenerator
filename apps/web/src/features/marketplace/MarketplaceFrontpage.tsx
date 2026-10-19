@@ -19,6 +19,7 @@ import {
   PiHeart,
   PiImage,
   PiLayout,
+  PiNotebook,
   PiPlus,
   PiSparkle,
   PiSticker,
@@ -71,6 +72,12 @@ const KIND_TILES: { slug: MarketplaceTabSlug; label: string; hint: string; icon:
     label: 'Hintergründe',
     hint: 'Flächen und Fotos für Sharepics',
     icon: <PiImage />,
+  },
+  {
+    slug: 'notebooks',
+    label: 'Notebooks',
+    hint: 'Gesammeltes Wissen zum Nachfragen',
+    icon: <PiNotebook />,
   },
 ];
 
@@ -206,7 +213,7 @@ export function MarketplaceFrontpage({
 
       <section aria-label="Nach Art stöbern">
         <SectionHeader title="Nach Art stöbern" />
-        <ul className="m-0 grid list-none grid-cols-1 gap-sm p-0 sm:grid-cols-2 lg:grid-cols-5">
+        <ul className="m-0 grid list-none grid-cols-1 gap-sm p-0 sm:grid-cols-3 lg:grid-cols-6">
           {KIND_TILES.map((tile) => (
             <li key={tile.slug}>
               <button

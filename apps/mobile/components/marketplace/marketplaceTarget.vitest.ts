@@ -38,6 +38,20 @@ describe('marketplaceOpenTarget', () => {
     });
   });
 
+  it('opens a Notebook on its native page', () => {
+    expect(
+      marketplaceOpenTarget({
+        kind: 'notebook',
+        ref: 'nb-1',
+        title: 'Klimaschutz',
+        notebook: { slug: 'klimaschutz-Ab3xK9' },
+      } as unknown as MarketplaceItem)
+    ).toEqual({
+      type: 'route',
+      href: { pathname: '/notebook/[id]', params: { id: 'nb-1', title: 'Klimaschutz' } },
+    });
+  });
+
   it('opens a Grünerator-Vorlage in the web viewer and an external one at its URL', () => {
     expect(marketplaceOpenTarget(template('gruenerator', null))).toEqual({
       type: 'route',

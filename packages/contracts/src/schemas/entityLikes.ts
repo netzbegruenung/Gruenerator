@@ -18,5 +18,5 @@ export type EntityLikeType = z.infer<typeof entityLikeTypeSchema>;
  * like likes: `(entityType, entityId)` with `entityId` = the item's `ref`.
  * F0: persisted in `entity_comments.entity_type` and `entity_reactions.item_type`.
  */
-export const entityCommentTypeSchema = entityLikeTypeSchema.exclude(['notebook']);
+export const entityCommentTypeSchema = entityLikeTypeSchema;
 export type EntityCommentType = z.infer<typeof entityCommentTypeSchema>;

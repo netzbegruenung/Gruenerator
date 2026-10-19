@@ -19,6 +19,7 @@ describe('Marktplatz registry', () => {
       ['vorlagen', 'Vorlagen'],
       ['sticker', 'Sticker'],
       ['hintergruende', 'Hintergründe'],
+      ['notebooks', 'Notebooks'],
     ]);
   });
 

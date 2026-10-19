@@ -32,7 +32,7 @@ export const entityReactions = pgTable(
     check('entity_reactions_item_pair', sql`(${t.item_type} IS NULL) = (${t.item_id} IS NULL)`),
     check(
       'entity_reactions_item_type',
-      sql`${t.item_type} IN ('agent', 'recipe', 'template', 'studio_asset')`
+      sql`${t.item_type} IN ('agent', 'recipe', 'template', 'studio_asset', 'notebook')`
     ),
     uniqueIndex('uq_entity_reactions_group_share')
       .on(t.group_share_id, t.user_id, t.emoji)

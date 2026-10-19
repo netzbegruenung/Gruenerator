@@ -66,4 +66,16 @@ describe('checkNotebookAccess', () => {
       canEdit: false,
     });
   });
+
+  it('closes the open door of a removed notebook, but not its projects', async () => {
+    const removed = { ...ROW, share_mode: 'authenticated', moderation: 'removed' };
+    mockHelper.getNotebookCollection.mockResolvedValue(removed);
+    expect((await checkNotebookAccess('nb-1', 'someone')).canRead).toBe(false);
+
+    mockPg.query
+      .mockResolvedValueOnce([{ group_id: 'g1' }])
+      .mockResolvedValueOnce([{ role: 'member', is_creator: false }]);
+    expect((await checkNotebookAccess('nb-1', 'member')).canRead).toBe(true);
+    expect((await checkNotebookAccess('nb-1', 'owner')).canRead).toBe(true);
+  });
 });

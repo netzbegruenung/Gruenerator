@@ -53,6 +53,7 @@ export function toGalleryAsset(
  * Where a card leads. Agents and Rezepte keep their Agentura product pages;
  * a Grünerator-Vorlage opens `/vorlagen/v/<id>`, an external one its own URL.
  * Sticker and Hintergründe have no page — `null`, the card opens in place.
+ * A Notebook opens itself (read-only for everyone but its owner).
  */
 export function itemHref(item: MarketplaceItem): string | null {
   switch (item.kind) {
@@ -68,6 +69,8 @@ export function itemHref(item: MarketplaceItem): string | null {
     case 'sticker':
     case 'background':
       return null;
+    case 'notebook':
+      return `/notebooks/${encodeURIComponent(item.notebook.slug)}`;
   }
 }
 

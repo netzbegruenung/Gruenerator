@@ -42,6 +42,8 @@ import {
   trashDocuments,
   type TrashedDocumentRow,
 } from '../document-services/PostgresDocumentService/metadataOperations.js';
+import { deleteCommentsForEntity } from '../entityComments/entityCommentsCleanup.js';
+import { deleteFavoritesForEntity } from '../entityFavorites/EntityFavoritesService.js';
 import { deleteLikesForEntity } from '../entityLikes/EntityLikesService.js';
 import { EXPLAINABLE_TRASH } from '../explainables/explainableRepository.js';
 import { purgeExplainable, trashExplainable } from '../explainables/explainableTrash.js';
@@ -269,6 +271,12 @@ const notebookHandler: TrashKindHandler = {
     if (!(await notebookHelper.purgeNotebookCollection(id, cutoff))) return false;
     await purgeSideStore('notebook', id, 'entity_likes', () =>
       deleteLikesForEntity('notebook', id)
+    );
+    await purgeSideStore('notebook', id, 'entity_comments', () =>
+      deleteCommentsForEntity('notebook', id)
+    );
+    await purgeSideStore('notebook', id, 'entity_favorites', () =>
+      deleteFavoritesForEntity('notebook', id)
     );
     return true;
   },

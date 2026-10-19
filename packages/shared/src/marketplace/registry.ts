@@ -12,7 +12,8 @@ import { landesverbandShelfLabel } from '../agents/landesverbandForRoles.js';
  * (react-icons on web, Ionicons on mobile), keyed by `MarketplaceTabIcon`, so
  * neither rendering library leaks into the other bundle.
  */
-export type MarketplaceTabIcon = 'all' | 'agent' | 'recipe' | 'template' | 'sticker' | 'background';
+export type MarketplaceTabIcon =
+  'all' | 'agent' | 'recipe' | 'template' | 'sticker' | 'background' | 'notebook';
 
 interface MarketplaceTabDef {
   /** F0 — the `?art=` value in shared links. */
@@ -66,6 +67,13 @@ export const MARKETPLACE_TABS = [
     icon: 'background',
     kinds: ['background'],
     emptyText: 'Hier gibt es noch keine Hintergründe.',
+  },
+  {
+    slug: 'notebooks',
+    label: 'Notebooks',
+    icon: 'notebook',
+    kinds: ['notebook'],
+    emptyText: 'Hier gibt es noch keine Notebooks.',
   },
 ] as const satisfies readonly MarketplaceTabDef[];
 

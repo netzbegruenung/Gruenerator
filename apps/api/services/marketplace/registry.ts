@@ -1,6 +1,7 @@
 import { type MarketplaceKind } from '@gruenerator/contracts';
 
 import { agentSource } from './sources/agentSource.js';
+import { notebookSource } from './sources/notebookSource.js';
 import { recipeSource } from './sources/recipeSource.js';
 import { studioAssetSource } from './sources/studioAssetSource.js';
 import { templateSource } from './sources/templateSource.js';
@@ -18,6 +19,7 @@ export const MARKETPLACE_SOURCES: { [K in MarketplaceKind]: MarketplaceSource<K>
   template: templateSource,
   sticker: studioAssetSource('sticker'),
   background: studioAssetSource('background'),
+  notebook: notebookSource,
 };
 
 export function sourceOf<K extends MarketplaceKind>(kind: K): MarketplaceSource<K> {
