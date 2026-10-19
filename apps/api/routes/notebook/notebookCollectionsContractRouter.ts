@@ -827,7 +827,9 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       // the sharing routes, and validate before any metadata or document write.
       const visibilityPlan = planNotebookVisibility(
         existingCollection,
-        isOwner && typeof is_public === 'boolean' ? { is_public, public_ownership } : {}
+        isOwner && typeof is_public === 'boolean'
+          ? { is_public, public_ownership: public_ownership ?? null }
+          : {}
       );
       if (!visibilityPlan.ok) {
         return { status: 400 as const, body: { error: visibilityPlan.error } };
