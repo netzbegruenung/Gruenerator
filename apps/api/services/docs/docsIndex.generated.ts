@@ -257,6 +257,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Am Ende hast du ein fertiges Sharepic oder Karussell im Grünen-Design. Du kannst mit einer Vorlage beginnen, deinen Text im Studio eingeben oder das Sharepic direkt im Chat anfordern."
   },
   {
+    "url": "/docs/guides/einsteigerinnen/sharepics-im-editor-bearbeiten",
+    "title": "Wie bearbeite ich Sharepics im Editor?",
+    "category": "Guides",
+    "lead": "In etwa fünf bis zehn Minuten passt du Texte, Farben und Anordnung eines vorhandenen Sharepics an und lädst das Ergebnis herunter. Dieser Guide zeigt den Editor im Browser; die Screenshots stammen au…"
+  },
+  {
     "url": "/docs/guides/einsteigerinnen/sharepics-ki-bilder-studio",
     "title": "Sharepics und KI-Bilder im Studio erstellen",
     "category": "Guides",
@@ -2403,7 +2409,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Im Editor weiterarbeiten",
     "anchor": "#im-editor-weiterarbeiten",
     "category": "Guides",
-    "text": "Mit „Herunterladen“ speicherst du ein einzelnes Sharepic als PNG. Bei einem Karussell heißt der Button „Als ZIP herunterladen“. Mit „Im Editor öffnen“ wird das Ergebnis als bearbeitbare Leinwand angelegt; bei einem Karussell wird jede Slide zu einer eigenen Seite. Dort kannst du Texte, Größen, Positionen und weitere Gestaltungselemente einzeln ändern. Öffnest du ein Sharepic aus dem normalen Chat, heißt der entsprechende Button dort kurz „Studio“."
+    "text": "Mit „Herunterladen“ speicherst du ein einzelnes Sharepic als PNG. Bei einem Karussell heißt der Button „Als ZIP herunterladen“. Mit „Im Editor öffnen“ wird das Ergebnis als bearbeitbare Leinwand angelegt; bei einem Karussell wird jede Slide zu einer eigenen Seite. Dort kannst du Texte, Größen, Positionen und weitere Gestaltungselemente einzeln ändern. Öffnest du ein Sharepic aus dem normalen Chat, heißt der entsprechende Button dort kurz „Studio“. Die einzelnen Schritte mit Screenshots findest du im Guide Wie bearbeite ich Sharepics im Editor?."
   },
   {
     "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
@@ -2460,6 +2466,46 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#welcher-einstieg-passt-zu-mir",
     "category": "Guides",
     "text": "Vorlage verwenden: Du suchst zuerst einen passenden Look und ersetzt anschließend die Inhalte. Im Studio erstellen: Du hast schon ein Thema oder einen Text und möchtest daraus gezielt ein Sharepic machen. Im Chat erstellen: Du arbeitest ohnehin an einem Beitrag und möchtest im selben Gespräch ein Sharepic dazu erzeugen."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepics-im-editor-bearbeiten",
+    "pageTitle": "Wie bearbeite ich Sharepics im Editor?",
+    "heading": "Wie bearbeite ich Sharepics im Editor?",
+    "anchor": "",
+    "category": "Guides",
+    "text": "In etwa fünf bis zehn Minuten passt du Texte, Farben und Anordnung eines vorhandenen Sharepics an und lädst das Ergebnis herunter. Dieser Guide zeigt den Editor im Browser; die Screenshots stammen aus einem österreichischen Beispiel-Karussell."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepics-im-editor-bearbeiten",
+    "pageTitle": "Wie bearbeite ich Sharepics im Editor?",
+    "heading": "Damit die Bearbeitung gelingt",
+    "anchor": "#damit-die-bearbeitung-gelingt",
+    "category": "Guides",
+    "text": "Kurze Texte bleiben lesbar. Prüfe nach jeder Änderung Zeilenumbrüche und Abstände auf jeder Seite. Gezielt stapeln. Über das Rechtsklick-Menü kannst du ein Objekt beispielsweise Ganz nach vorne holen oder Ganz nach hinten legen. KI gezielt einsetzen. Unter Chat kannst du Änderungen beschreiben. Prüfe anschließend das Ergebnis auf allen betroffenen Seiten."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepics-im-editor-bearbeiten",
+    "pageTitle": "Wie bearbeite ich Sharepics im Editor?",
+    "heading": "So geht's",
+    "anchor": "#so-gehts",
+    "category": "Guides",
+    "text": "Sharepic öffnen. Öffne dein vorhandenes Sharepic im Studio. Du siehst die bearbeitbaren Seiten und unten ihre Miniaturen. Klicke auf die gewünschte Seite. Wenn du noch keinen Entwurf hast, beginne mit Sharepic erstellen. Text ändern. Doppelklicke auf einen Text auf der Leinwand und schreibe deine Korrektur. Mit einem Klick außerhalb beendest du die Eingabe. Alternativ öffnest du links Text und bearbeitest die vorhandenen Textfelder. Dort kannst du auch neue Texte hinzufügen. Gestaltung anpassen. Klicke ein Element an: Oben erscheint die dazu passende Werkzeugleiste, etwa für Textfarbe, Schriftgröße, Ausrichtung und Deckkraft. Ziehe das Element an seine neue Position oder nutze die Griffe am Auswahlrahmen zum Vergrößern und Verkleinern. Während der direkten Texteingabe kannst du Textstellen markieren und die angebotene Textformatierung verwenden. Bilder oder Elemente ergänzen. Unter Elemente findest du unter anderem Formen, Icons und Fotos. Eigene Bilder fügst du über Uploads hinzu. Anschließend wählst du das eingefügte Objekt auf der Leinwand aus und passt Größe und Position an. Karussell ordnen. Wechsle über die Miniaturen zwischen den Seiten. Die Pfeile oberhalb einer Seite…"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepics-im-editor-bearbeiten",
+    "pageTitle": "Wie bearbeite ich Sharepics im Editor?",
+    "heading": "Weiterlesen",
+    "anchor": "#weiterlesen",
+    "category": "Guides",
+    "text": "Sharepics: alle Varianten auf einen Blick Kennzeichnungs-Guide Bildnachweise & Lizenzen"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/sharepics-im-editor-bearbeiten",
+    "pageTitle": "Wie bearbeite ich Sharepics im Editor?",
+    "heading": "Wenn etwas nicht klappt",
+    "anchor": "#wenn-etwas-nicht-klappt",
+    "category": "Guides",
+    "text": "Ein Objekt lässt sich nicht bewegen? Prüfe das Schloss in der Auswahlleiste und entsperre es bei Bedarf. Eine versehentliche Änderung machst du über den Rückwärtspfeil oben rückgängig. Die Verbindung ist getrennt? Änderungen werden automatisch synchronisiert. Stelle die Verbindung wieder her, bevor du den Editor verlässt. Vor dem Veröffentlichen: Prüfe Namen, Zahlen und Zitate, Bildrechte und Fotonachweise. Erhalte die erforderliche KI-Kennzeichnung."
   },
   {
     "url": "/docs/guides/einsteigerinnen/sharepics-ki-bilder-studio",
