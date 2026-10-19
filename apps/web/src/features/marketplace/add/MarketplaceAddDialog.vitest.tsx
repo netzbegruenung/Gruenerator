@@ -241,6 +241,28 @@ describe('MarketplaceAddDialog', () => {
     ]);
   });
 
+  it('marks an Agent shared into a project as „Projekt" in the list', async () => {
+    server.use(
+      http.get(`${API}/user-agents`, () =>
+        HttpResponse.json({
+          agents: [
+            {
+              id: 'agent-1',
+              identifier: 'presse-ab12',
+              title: 'Presse',
+              description: '',
+              shareMode: 'groups',
+            },
+          ],
+        })
+      )
+    );
+    const { user } = renderDialog();
+    await user.click(within(dialog()).getByRole('button', { name: /Agent/ }));
+    const row = await screen.findByRole('button', { name: /Presse/ });
+    expect(row).toHaveTextContent('Projekt');
+  });
+
   it('offers only one’s own recipes, and moves a public one into a project', async () => {
     const { user } = renderDialog();
     await user.click(within(dialog()).getByRole('button', { name: /Rezept/ }));

@@ -136,7 +136,12 @@ function useOwnAgents() {
         key: a.identifier,
         title: a.title,
         description: a.description || null,
-        badge: publicIds.has(a.id) ? 'public' : null,
+        // Group shares are not on the list; `groups` is the mode a project share sets.
+        badge: sharingVisibility({
+          shareMode: a.shareMode ?? 'private',
+          isPublic: publicIds.has(a.id),
+          groupIds: [],
+        }),
         value: a,
       }));
   }, [own.data, listed.data]);
