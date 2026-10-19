@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 
+import { slideAltText } from '../lib/slideAltText';
 import { notifyError } from '../lib/notify';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import { useAgentStore } from '../stores/chatStore';
@@ -17,6 +18,7 @@ import type { SharepicVariant } from './useChatGraphStream';
 export function useSliderDeckArtifact(variant: SharepicVariant) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
+  const [imageAltText, setImageAltText] = useState('Karussell-Vorschau');
   const [isRendering, setIsRendering] = useState(true);
   const [renderError, setRenderError] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -77,6 +79,7 @@ export function useSliderDeckArtifact(variant: SharepicVariant) {
         if (cancelled) return;
         if (dataUrl) {
           setImageBase64(dataUrl);
+          setImageAltText(slideAltText(pages[safeIndex] ?? {}, safeIndex, slideCount));
           setRenderError(false);
           if (safeIndex === 0) maybeUploadThumbnail(variant.id, dataUrl, viewPages != null);
         } else {
@@ -92,7 +95,7 @@ export function useSliderDeckArtifact(variant: SharepicVariant) {
     return () => {
       cancelled = true;
     };
-  }, [renderSlide, safeIndex, slideCount, variant.id, viewPages]);
+  }, [renderSlide, safeIndex, slideCount, variant.id, viewPages, pages]);
 
   // Thread-reload rehydration: a deck renders its CURRENT pages (which may
   // have changed in the studio), not the stale generation-time pages.
@@ -269,6 +272,7 @@ export function useSliderDeckArtifact(variant: SharepicVariant) {
 
   return {
     imageBase64,
+    imageAltText,
     isRendering,
     renderError,
     isExporting,
