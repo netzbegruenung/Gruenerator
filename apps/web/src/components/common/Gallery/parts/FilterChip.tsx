@@ -10,12 +10,14 @@ export function FilterChip({
   label: string;
   onRemove: () => void;
 }): JSX.Element {
+  const quotedLabel = label.startsWith('„') && label.endsWith('“') ? label : `„${label}“`;
+
   return (
     <button
       type="button"
       onClick={onRemove}
       className="inline-flex items-center gap-1 rounded-full bg-primary-500/10 py-1 pl-3 pr-2 text-xs font-medium text-primary-600 transition-colors hover:bg-primary-500/20 dark:text-primary-400"
-      aria-label={`Filter „${label}“ entfernen`}
+      aria-label={`Filter ${quotedLabel} entfernen`}
     >
       {label}
       <HiXMark className="size-3.5" aria-hidden="true" />
