@@ -17,8 +17,14 @@ import { createLogger } from '../../utils/logger.js';
 import { reportBackgroundError } from '../../utils/reportBackgroundError.js';
 import { ConnectionService } from '../connections/ConnectionService.js';
 import { purgeSoleOwnedCollaborativeDocuments } from '../docs/CollaborativeDocumentService.js';
-import { deleteCommentsOnItemsOfDeletedUser } from '../entityComments/entityCommentsCleanup.js';
-import { deleteFavoritesOfDeletedUser } from '../entityFavorites/EntityFavoritesService.js';
+import {
+  deleteCommentsForEntity,
+  deleteCommentsOnItemsOfDeletedUser,
+} from '../entityComments/entityCommentsCleanup.js';
+import {
+  deleteFavoritesForEntity,
+  deleteFavoritesOfDeletedUser,
+} from '../entityFavorites/EntityFavoritesService.js';
 import {
   deleteLikesForEntity,
   deleteLikesOfDeletedUser,
@@ -68,6 +74,9 @@ export async function cleanUpBeforeProfileDelete(userId: string): Promise<void> 
       try {
         await helper.deleteNotebookCollection(id);
         await deleteLikesForEntity('notebook', id);
+        // Notebooks are not in Postgres, so the item sweeps below cannot see them.
+        await deleteCommentsForEntity('notebook', id);
+        await deleteFavoritesForEntity('notebook', id);
         notebooks++;
       } catch (error) {
         reportBackgroundError(error, { job: 'account-deletion', kind: 'notebook', id });
