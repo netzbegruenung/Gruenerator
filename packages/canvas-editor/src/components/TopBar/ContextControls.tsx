@@ -442,17 +442,14 @@ export function ContextControls({
     groups.push(<EditImageButton key="edit-image" onClick={handlers.onEditImage} />);
   }
 
-  if (
-    type === 'user-image' &&
-    activeFloatingModule?.data.fit === 'cover' &&
-    handlers.handleCropImage
-  ) {
+  if (type === 'user-image' && handlers.handleCropImage) {
     groups.push(
       <button
         key="crop-image"
+        disabled={isLocked}
         className="inline-flex items-center gap-1.5 h-8 shrink-0 rounded-md border-none bg-transparent px-2 cursor-pointer text-[13px] font-medium text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] aria-pressed:bg-[var(--editor-active-bg)] aria-pressed:text-[var(--editor-active-fg)]"
         onClick={() => handlers.handleCropImage!()}
-        title="Ausschnitt verschieben (oder Doppelklick aufs Bild)"
+        title="Zuschneiden (oder Doppelklick aufs Bild; Enter zum Beenden)"
         aria-pressed={isCropping}
         type="button"
       >
@@ -470,7 +467,7 @@ export function ContextControls({
           <path d="M6 2v14a2 2 0 0 0 2 2h14" />
           <path d="M18 22V8a2 2 0 0 0-2-2H2" />
         </svg>
-        Ausschnitt
+        {isCropping ? 'Fertig' : 'Zuschneiden'}
       </button>
     );
   }
