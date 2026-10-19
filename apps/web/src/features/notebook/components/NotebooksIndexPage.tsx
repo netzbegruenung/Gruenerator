@@ -1,9 +1,10 @@
-import { deriveIndexingState } from '@gruenerator/contracts';
+import { deriveIndexingState, type MarketplaceItemOf } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import coverEigene from '@gruenerator/shared/assets/notebook-covers/eigene.webp';
 import coverLaenderverbaende from '@gruenerator/shared/assets/notebook-covers/landesverbaende.webp';
 import coverNeu from '@gruenerator/shared/assets/notebook-covers/notebook-neu.webp';
 import { canShareIntoGroup } from '@gruenerator/shared/groups';
+import { useMarketplaceKind } from '@gruenerator/shared/marketplace';
 import { buildNotebookSlug } from '@gruenerator/shared/utils';
 import {
   ConfirmDialogProvider,
@@ -34,7 +35,6 @@ import {
 import { Link, useNavigate } from 'react-router-dom';
 
 import FavouriteStar from '../../../components/common/FavouriteStar';
-import { LikeButton } from '../../../components/common/LikeButton';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import { NotebookIcon } from '../../../config/icons';
 import { sortToolsByFavourites } from '../../../config/workplaceToolsConfig';
@@ -43,7 +43,7 @@ import useSidebarFavouritesStore, { useIsFavourite } from '../../../stores/sideb
 import { getPublicAppOrigin } from '../../../utils/platform';
 import { useNotebookCollections } from '../../auth/hooks/useProfileData';
 import { useGroups } from '../../groups/hooks/useGroups';
-import { useEntityLikes } from '../../likes/hooks/useEntityLikes';
+import { MarketplaceDialog } from '../../marketplace/MarketplaceDialog';
 import { useMonitorSnapshot, usePolls, useWhatHappened } from '../../monitor/hooks/useMonitor';
 import { useMonitorLocaleParam } from '../../monitor/hooks/useMonitorLocaleParam';
 import { useTrashUndoToast } from '../../trash/trashUndoToast';
@@ -55,7 +55,6 @@ import {
   isNotebookVisibleForLocale,
   type NotebookConfigEntry,
 } from '../config/notebooksConfig';
-import { usePublicNotebookCollections } from '../hooks/usePublicNotebookCollections';
 import { useSharedNotebookCollections } from '../hooks/useSharedNotebookCollections';
 import { useNotebookPrefetch } from '../preload';
 import { loadNotebookPage } from '../routeChunks';
@@ -146,45 +145,30 @@ const publicNotebookSlug = (c: NotebookCollection): string =>
   c.slug_suffix ? buildNotebookSlug(c.name, c.slug_suffix) : c.id;
 const publicNotebookHref = (c: NotebookCollection): string => `/notebooks/${publicNotebookSlug(c)}`;
 
-// Author attribution is what distinguishes a community notebook; fall back to
-// its description when the creator has no display name.
-const publicNotebookMeta = (c: NotebookCollection): string | undefined =>
-  c.creator_name ? `von ${c.creator_name}` : (c.description ?? undefined);
+// Author attribution is what distinguishes a public notebook; fall back to its
+// description when the creator has no display name.
+const savedNotebookMeta = (item: MarketplaceItemOf<'notebook'>): string | undefined =>
+  item.authorName ? `von ${item.authorName}` : (item.description ?? undefined);
 
 /**
- * „Öffentlich" — publicly listed community notebooks, opened from the
- * category tile in the notebook row. Likes stay visible (not hover-revealed)
- * because the count is part of the card's information.
+ * „Gemerkt" — public notebooks the person bookmarked in the Marktplatz. The
+ * public notebooks themselves are listed there now; this is the way back.
  */
-const BasisNotebooks = memo(({ collections }: { collections: NotebookCollection[] }) => {
+const SavedNotebooks = memo(({ items }: { items: MarketplaceItemOf<'notebook'>[] }) => {
   const navigate = useNavigate();
   const prefetch = useNotebookPrefetch();
-  const { likedIds, toggleLike, isToggling, canLike } = useEntityLikes('notebook');
-
   return (
     <section className="mt-md">
-      <SectionHeader title="Öffentlich" />
+      <SectionHeader title="Gemerkt" />
       <div className={NOTEBOOK_SCROLL_ROW}>
-        {collections.map((c) => (
-          <div key={c.id} className={NOTEBOOK_SCROLL_ITEM}>
+        {items.map((item) => (
+          <div key={item.ref} className={NOTEBOOK_SCROLL_ITEM}>
             <NotebookGalleryCard
-              title={c.name}
-              coverNode={
-                <NotebookCoverArt title={c.name} subtitle={publicNotebookMeta(c)} reserveTopRight />
-              }
+              title={item.title}
+              coverNode={<NotebookCoverArt title={item.title} subtitle={savedNotebookMeta(item)} />}
               accent="pink"
-              onActivate={() => void navigate(publicNotebookHref(c))}
-              onIntent={() => prefetch(publicNotebookSlug(c))}
-              action={
-                <LikeButton
-                  liked={likedIds.has(c.id)}
-                  count={c.likes_count ?? 0}
-                  loading={isToggling(c.id)}
-                  disabled={!canLike}
-                  disabledReason={canLike ? undefined : 'Melde dich an, um zu liken'}
-                  onToggle={() => toggleLike(c.id)}
-                />
-              }
+              onActivate={() => void navigate(`/notebooks/${item.notebook.slug}`)}
+              onIntent={() => prefetch(item.notebook.slug)}
             />
           </div>
         ))}
@@ -192,7 +176,7 @@ const BasisNotebooks = memo(({ collections }: { collections: NotebookCollection[
     </section>
   );
 });
-BasisNotebooks.displayName = 'BasisNotebooks';
+SavedNotebooks.displayName = 'SavedNotebooks';
 
 // Which Projekt a notebook reached the viewer through — the one thing that
 // tells two same-named shared notebooks apart.
@@ -671,7 +655,7 @@ export function NotebooksIndexFooter() {
     [isAustrian]
   );
   const [openCategory, setOpenCategory] = useState<
-    'laender' | 'parlamente' | 'eigene' | 'basis' | 'geteilt' | null
+    'laender' | 'parlamente' | 'eigene' | 'gemerkt' | 'geteilt' | null
   >(null);
 
   const { query: collectionsQuery, deleteQACollection } = useNotebookCollections({
@@ -759,11 +743,25 @@ export function NotebooksIndexFooter() {
     [allNotebooks, favouriteIds]
   );
 
-  // „Öffentlich": öffentlich gelistete Notebooks anderer Nutzer*innen. Sie
-  // haben eine eigene aufklappbare Kategorie-Kachel (wie Landesverbände und
-  // Eigene) und tauchen zusätzlich in der vereinten Suche auf. Eigene Notebooks
-  // fallen raus — die stehen schon unter "Eigene".
-  const { data: basisData } = usePublicNotebookCollections({ enabled: true });
+  // „Öffentlich": öffentlich gelistete Notebooks anderer stehen seit #4733 im
+  // Marktplatz; die Kachel öffnet ihn. Was die Person dort gemerkt hat, steht
+  // hier unter „Gemerkt" und in der vereinten Suche.
+  const [marketplaceOpen, setMarketplaceOpen] = useState(false);
+  const savedQuery = useMarketplaceKind({
+    kind: 'notebook',
+    scope: 'saved',
+    origin: null,
+    q: '',
+    sort: 'neu',
+    platform: 'web',
+  });
+  const savedNotebooks = useMemo(
+    () =>
+      savedQuery.items.filter(
+        (item): item is MarketplaceItemOf<'notebook'> => item.kind === 'notebook'
+      ),
+    [savedQuery.items]
+  );
   const ownIds = useMemo(() => new Set(qaCollections.map((c) => c.id)), [qaCollections]);
 
   // „Mit dir geteilt": über Projekte geteilte Notebooks anderer. Ein Notebook,
@@ -774,12 +772,6 @@ export function NotebooksIndexFooter() {
     () => (sharedData ?? EMPTY_COLLECTIONS).filter((c) => !ownIds.has(c.id)),
     [sharedData, ownIds]
   );
-  const basisCollections = useMemo(() => {
-    const sharedIds = new Set(sharedCollections.map((c) => c.id));
-    return (basisData ?? EMPTY_COLLECTIONS).filter(
-      (c) => !ownIds.has(c.id) && !sharedIds.has(c.id)
-    );
-  }, [basisData, ownIds, sharedCollections]);
 
   const searchHits = useMemo<NotebookSearchHit[]>(() => {
     if (!trimmed) return [];
@@ -823,14 +815,14 @@ export function NotebooksIndexFooter() {
           void navigate(publicNotebookHref(c), { state: { freshConversation: true } }),
       });
     }
-    for (const c of basisCollections) {
-      if (!hit(c.name, c.description)) continue;
+    for (const item of savedNotebooks) {
+      if (!hit(item.title, item.description)) continue;
       hits.push({
-        key: `basis-${c.id}`,
-        title: c.name,
+        key: `saved-${item.ref}`,
+        title: item.title,
         icon: HiBookOpen,
-        coverNode: <NotebookCoverArt title={c.name} subtitle={publicNotebookMeta(c)} />,
-        onActivate: () => void navigate(publicNotebookHref(c)),
+        coverNode: <NotebookCoverArt title={item.title} subtitle={savedNotebookMeta(item)} />,
+        onActivate: () => void navigate(`/notebooks/${item.notebook.slug}`),
       });
     }
     return hits;
@@ -839,7 +831,7 @@ export function NotebooksIndexFooter() {
     orderedSystem,
     qaCollections,
     sharedCollections,
-    basisCollections,
+    savedNotebooks,
     navigate,
     handleView,
   ]);
@@ -943,18 +935,26 @@ export function NotebooksIndexFooter() {
                 />
               </div>
             )}
-            {basisCollections.length > 0 && (
+            <div className={NOTEBOOK_SCROLL_ITEM}>
+              <NotebookGalleryCard
+                title="Öffentlich"
+                coverNode={<NotebookCoverArt title="Öffentlich" subtitle="Im Marktplatz stöbern" />}
+                accent="pink"
+                onActivate={() => setMarketplaceOpen(true)}
+              />
+            </div>
+            {savedNotebooks.length > 0 && (
               <div className={NOTEBOOK_SCROLL_ITEM}>
                 <NotebookGalleryCard
-                  title="Öffentlich"
+                  title="Gemerkt"
                   coverNode={
                     <NotebookCoverArt
-                      title="Öffentlich"
-                      subtitle={`${basisCollections.length} ${basisCollections.length === 1 ? 'öffentliches Notebook' : 'öffentliche Notebooks'}`}
+                      title="Gemerkt"
+                      subtitle={`${savedNotebooks.length} ${savedNotebooks.length === 1 ? 'gemerktes Notebook' : 'gemerkte Notebooks'}`}
                     />
                   }
                   accent="pink"
-                  onActivate={() => setOpenCategory((c) => (c === 'basis' ? null : 'basis'))}
+                  onActivate={() => setOpenCategory((c) => (c === 'gemerkt' ? null : 'gemerkt'))}
                 />
               </div>
             )}
@@ -1008,8 +1008,8 @@ export function NotebooksIndexFooter() {
         </section>
       )}
 
-      {!trimmed && openCategory === 'basis' && basisCollections.length > 0 && (
-        <BasisNotebooks collections={basisCollections} />
+      {!trimmed && openCategory === 'gemerkt' && savedNotebooks.length > 0 && (
+        <SavedNotebooks items={savedNotebooks} />
       )}
 
       {!trimmed && openCategory === 'geteilt' && sharedCollections.length > 0 && (
@@ -1032,6 +1032,13 @@ export function NotebooksIndexFooter() {
       )}
 
       {!trimmed && <WissenToolsRow />}
+
+      <MarketplaceDialog
+        open={marketplaceOpen}
+        onOpenChange={setMarketplaceOpen}
+        kinds={['notebook']}
+        title="Öffentliche Notebooks"
+      />
     </>
   );
 }

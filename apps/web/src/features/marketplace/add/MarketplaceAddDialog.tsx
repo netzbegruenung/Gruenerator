@@ -29,7 +29,7 @@ export interface MarketplaceAddDialogProps {
 
 /**
  * „Element hinzufügen": something the person already has — an Agent, Rezept,
- * Vorlage, Sticker or Hintergrund — goes into the Marktplatz, into a project,
+ * Vorlage, Sticker, Hintergrund or Notebook — goes into the Marktplatz, into a project,
  * or back to private. Creating happens elsewhere; this only shares.
  */
 export function MarketplaceAddDialog({

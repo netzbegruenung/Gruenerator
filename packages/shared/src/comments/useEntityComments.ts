@@ -30,6 +30,7 @@ export const MARKETPLACE_COMMENT_TYPE: Record<MarketplaceKind, EntityCommentType
   template: 'template',
   sticker: 'studio_asset',
   background: 'studio_asset',
+  notebook: 'notebook',
 };
 
 export const entityCommentsKey = (type: EntityCommentType, id: string) =>

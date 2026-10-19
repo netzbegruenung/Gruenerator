@@ -191,7 +191,7 @@ describe('MarketplacePage', () => {
     expect(screen.getByRole('region', { name: 'Rezepte' })).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Neu im Marktplatz' })).toBeNull();
     expect(Object.fromEntries(queries.at(-1)!)).toMatchObject({
-      kinds: 'agent,recipe,template,sticker,background',
+      kinds: 'agent,recipe,template,sticker,background,notebook',
       q: 'e',
       sectionLimit: '12',
     });

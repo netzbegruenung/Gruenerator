@@ -115,6 +115,10 @@ export function MarketplaceItemDetail({
           <Button variant="ghost" onPress={() => actions.open(item)}>
             Vorlage öffnen
           </Button>
+        ) : item.kind === 'notebook' ? (
+          <Button variant="ghost" onPress={() => actions.open(item)}>
+            Notebook öffnen
+          </Button>
         ) : (
           <Button variant="ghost" onPress={() => actions.toProfilbild(item)}>
             Im Profilbild verwenden
