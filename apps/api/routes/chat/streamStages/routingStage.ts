@@ -71,6 +71,8 @@ export interface RoutingStageResult {
   pipelineOriginal: string;
 }
 
+/** Ab hier ist eine getippte Nachricht an einen Pipeline-Agenten selbst der Ausgangstext. */
+const MIN_TYPED_TRANSFER_CHARS = 400;
 export function runRoutingStage({
   sse,
   classifiedState,
@@ -178,9 +180,18 @@ export function runRoutingStage({
   // genagelt, die Nachschritte messen gegen dieselbe Variable. Vorher entschied
   // Schritt 1 selbst, was er aus dem Thread-Kontext für gemeint hielt — und dort
   // liegt der Volltext jedes früheren Anhangs.
-  const pipelineOriginal = pipelineAgent
+  const resolvedOriginal = pipelineAgent
     ? resolveOriginalText(classifiedState, lastUserText, promptIsPastedText)
     : '';
+  // Übertragen wird nur Material: Eingefügtes, ein Anhang oder eine Mention —
+  // oder eine getippte Nachricht, die lang genug ist, um selbst der Text zu
+  // sein. Eine kurze Frage an den Agenten („Was ist Leichte Sprache?") liefe
+  // sonst als Ausgangstext durch Übertragung und Prüfkette.
+  const isMaterial =
+    promptIsPastedText ||
+    resolvedOriginal.trim() !== lastUserText.trim() ||
+    resolvedOriginal.length >= MIN_TYPED_TRANSFER_CHARS;
+  const pipelineOriginal = isMaterial ? resolvedOriginal : '';
   if (pipelineAgent) {
     classifiedState.pipelineSourceText = pipelineOriginal || null;
     log.info(

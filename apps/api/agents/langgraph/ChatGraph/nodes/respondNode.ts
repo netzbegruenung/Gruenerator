@@ -1709,6 +1709,12 @@ function resolveAnswerFormatOwner(
   state: ChatGraphState,
   activeTextForm: string | null
 ): string | null {
+  // Eine Übertragung (Einfache/Leichte Sprache) hat Form UND Umfang schon
+  // festgelegt: das Regelwerk der Persona und „vollständig, ohne Kürzung" im
+  // angehefteten Ausgangstext. Ohne diesen Eintrag bekam sie zuletzt im Prompt
+  // „bis zu 6 Absätze" bzw. „1-2 Absätze" und den Visual-Block-Katalog — am
+  // 19.10.2026 wurden aus 12567 Zeichen Original so 2102 Zeichen Fassung.
+  if (state.pipelineSourceText) return 'transfer';
   if (state.synthesisMode) return `synthesis:${state.synthesisMode}`;
   if (INTENTS_WITH_OWN_FORMAT.has(state.intent)) return `intent:${String(state.intent)}`;
   if (state.taskShape != null) return `task_shape:${state.taskShape}`;
@@ -1796,6 +1802,10 @@ function buildAnswerFormatRule(
   // an empty string: the numbered list would show a bare "2." and the citation
   // block below counts on rules 1–4 existing.
   const formatOwner = resolveAnswerFormatOwner(state, activeTextForm);
+  if (formatOwner === 'transfer') {
+    note('own_format', { formatOwner });
+    return 'Form und Umfang gibt das Regelwerk der Übertragung oben vor. Übertrage den Text unter ZU ÜBERTRAGENDER TEXT vollständig, Abschnitt für Abschnitt, ohne Längengrenze. Titel und Zwischenüberschriften als Markdown (`# Titel`, `## Zwischenüberschrift`). Gib nur die Fassung aus — keine Einleitung, keine Rückfrage und kein Angebot am Schluss.';
+  }
   if (formatOwner?.startsWith('synthesis:') || formatOwner?.startsWith('intent:')) {
     note('own_format', { formatOwner });
     return 'Form und Umfang dieser Antwort sind oben bereits vorgegeben — halte dich genau daran.';
