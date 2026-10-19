@@ -214,3 +214,124 @@ describe('attachWolke', () => {
     expect(mockAttach).not.toHaveBeenCalled();
   });
 });
+
+describe('updateCollection visibility', () => {
+  const call = (patch: Record<string, unknown>) =>
+    handler('updateCollection')({
+      req,
+      params: { id: 'nb-1' },
+      body: { name: 'Updated notebook', ...patch },
+    });
+
+  beforeEach(() => {
+    mockHelper.getNotebookCollection.mockResolvedValue({
+      id: 'nb-1',
+      user_id: 'user-1',
+      share_mode: 'private',
+      is_public: false,
+      settings: {},
+    });
+  });
+
+  it.each(['private', 'groups'])(
+    'rejects listing with share_mode %s before writing',
+    async (share_mode) => {
+      mockHelper.getNotebookCollection.mockResolvedValue({
+        id: 'nb-1',
+        user_id: 'user-1',
+        share_mode,
+        is_public: false,
+        settings: {},
+      });
+
+      mockPg.query.mockResolvedValue([{ id: 'd1' }]);
+      const res = await call({ is_public: true, public_ownership: 'owner', document_ids: ['d1'] });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain('Mit Anmeldung');
+      expect(mockHelper.updateNotebookCollection).not.toHaveBeenCalled();
+      expect(mockPg.query).not.toHaveBeenCalled();
+      expect(mockHelper.addDocumentsToCollection).not.toHaveBeenCalled();
+    }
+  );
+
+  it('rejects listing without an ownership statement', async () => {
+    mockHelper.getNotebookCollection.mockResolvedValue({
+      id: 'nb-1',
+      user_id: 'user-1',
+      share_mode: 'authenticated',
+      is_public: false,
+      settings: {},
+    });
+
+    const res = await call({ is_public: true, public_ownership: null });
+
+    expect(res.status).toBe(400);
+    expect(mockHelper.updateNotebookCollection).not.toHaveBeenCalled();
+  });
+
+  it.each(['owner', 'public_data'])(
+    'lists authenticated notebooks with %s ownership in the metadata write',
+    async (public_ownership) => {
+      mockHelper.getNotebookCollection.mockResolvedValue({
+        id: 'nb-1',
+        user_id: 'user-1',
+        share_mode: 'authenticated',
+        is_public: true,
+        settings: {},
+      });
+
+      expect((await call({ is_public: true, public_ownership })).status).toBe(200);
+      expect(mockHelper.updateNotebookCollection).toHaveBeenCalledExactlyOnceWith(
+        'nb-1',
+        expect.objectContaining({
+          name: 'Updated notebook',
+          is_public: true,
+          public_ownership,
+        })
+      );
+    }
+  );
+
+  it('clears ownership when unlisting', async () => {
+    expect((await call({ is_public: false, public_ownership: 'owner' })).status).toBe(200);
+    expect(mockHelper.updateNotebookCollection).toHaveBeenCalledWith(
+      'nb-1',
+      expect.objectContaining({
+        is_public: false,
+        public_ownership: null,
+      })
+    );
+  });
+
+  it.each([{}, { is_public: null, public_ownership: null }])(
+    'leaves visibility untouched for metadata-only edits: %j',
+    async (patch) => {
+      expect((await call(patch)).status).toBe(200);
+      const update = mockHelper.updateNotebookCollection.mock.calls[0]?.[1] as Record<
+        string,
+        unknown
+      >;
+      expect(update).not.toHaveProperty('is_public');
+      expect(update).not.toHaveProperty('public_ownership');
+    }
+  );
+
+  it('does not let collaborators change visibility through a metadata edit', async () => {
+    mockHelper.getNotebookCollection.mockResolvedValue({
+      id: 'nb-1',
+      user_id: 'other',
+      share_mode: 'private',
+      is_public: false,
+      settings: {},
+    });
+
+    expect((await call({ is_public: true, public_ownership: 'owner' })).status).toBe(200);
+    const update = mockHelper.updateNotebookCollection.mock.calls[0]?.[1] as Record<
+      string,
+      unknown
+    >;
+    expect(update).not.toHaveProperty('is_public');
+    expect(update).not.toHaveProperty('public_ownership');
+  });
+});
