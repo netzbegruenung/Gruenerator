@@ -90,7 +90,8 @@ async function candidates(
   forList: boolean
 ): Promise<Candidate<'recipe'>[]> {
   const [catalog, listings] = await Promise.all([
-    ctx.officialCatalog(),
+    // Discovery follows the assignment, resolution does not (`resolvableCatalog`).
+    forList ? ctx.officialCatalog() : ctx.resolvableCatalog(),
     listPublicTextFormListings(ctx.audience, forList ? ctx.userId : null),
   ]);
   const general = catalog.generalSkills

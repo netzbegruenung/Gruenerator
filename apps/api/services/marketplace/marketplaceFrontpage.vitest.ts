@@ -43,16 +43,18 @@ function item(kind: MarketplaceKind, ref: string, over: Partial<MarketplaceItem>
 }
 
 function ctx(lv: boolean, audience: 'de-DE' | 'de-AT' = 'de-DE'): MarketplaceContext {
+  const catalog = () =>
+    Promise.resolve({
+      lvAgents: lv ? [{ identifier: 'lv-agent' }] : [],
+      lvSkills: [],
+    } as unknown as Awaited<ReturnType<MarketplaceContext['officialCatalog']>>);
   return {
+    resolvableCatalog: catalog,
     userId: 'viewer',
     audience,
     instanceId: 'gruenerator' as MarketplaceContext['instanceId'],
     platform: 'mobile',
-    officialCatalog: () =>
-      Promise.resolve({
-        lvAgents: lv ? [{ identifier: 'lv-agent' }] : [],
-        lvSkills: [],
-      } as unknown as Awaited<ReturnType<MarketplaceContext['officialCatalog']>>),
+    officialCatalog: catalog,
   };
 }
 

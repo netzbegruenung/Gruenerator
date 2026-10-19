@@ -46,9 +46,10 @@ const serverError = (message: string) => ({
 
 function contextFor(
   user: { userId: string; locale: string | null },
-  platform: MarketplacePlatform = 'web'
+  platform: MarketplacePlatform = 'web',
+  lvId: string | null = null
 ) {
-  return buildMarketplaceContext({ ...user, platform });
+  return buildMarketplaceContext({ ...user, platform, ...(lvId !== null ? { lvId } : {}) });
 }
 
 const viewer = (req: RequestWithLocale & { user?: unknown }) => ({
@@ -61,7 +62,7 @@ const s = initServer();
 export const marketplaceContractRouter = s.router(marketplaceContract, {
   list: async ({ req, query }) => {
     try {
-      const body = await listMarketplace(contextFor(viewer(req), query.platform), query);
+      const body = await listMarketplace(contextFor(viewer(req), query.platform, query.lv), query);
       return { status: 200 as const, body };
     } catch (error) {
       log.error('[marketplaceContract.list] Error:', error);

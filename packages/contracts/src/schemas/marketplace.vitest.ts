@@ -7,6 +7,7 @@ describe('marketplaceListQuerySchema', () => {
     expect(marketplaceListQuerySchema.parse({})).toEqual({
       kinds: [...MARKETPLACE_KINDS],
       origin: null,
+      lv: null,
       q: null,
       sort: 'empfohlen',
       scope: 'shop',
@@ -32,6 +33,12 @@ describe('marketplaceListQuerySchema', () => {
     expect(marketplaceListQuerySchema.parse({ q: '   ' }).q).toBeNull();
     expect(marketplaceListQuerySchema.parse({ q: ' klima ' }).q).toBe('klima');
     expect(marketplaceListQuerySchema.safeParse({ q: 'x'.repeat(81) }).success).toBe(false);
+  });
+
+  it('takes an optional Landesverband id, trimmed and bounded', () => {
+    expect(marketplaceListQuerySchema.parse({ lv: ' berlin ' }).lv).toBe('berlin');
+    expect(marketplaceListQuerySchema.safeParse({ lv: '' }).success).toBe(false);
+    expect(marketplaceListQuerySchema.safeParse({ lv: 'x'.repeat(65) }).success).toBe(false);
   });
 
   it('caps limit at 60', () => {

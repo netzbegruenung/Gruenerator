@@ -6,6 +6,7 @@
  */
 import { type GroupAudience, type MarketplacePlatform } from '@gruenerator/contracts';
 import {
+  getLandesverbandHubById,
   landesverbandIdsForRoles,
   selectOfficialCatalog,
   type OfficialCatalog,
@@ -20,6 +21,8 @@ import { getEffectiveHiddenSkillMentions } from '../skills/AdminHiddenSkillsServ
 
 export type ViewerAudience = Exclude<GroupAudience, 'all'>;
 
+type Roles = Awaited<ReturnType<typeof loadUserRoles>>;
+
 export interface MarketplaceContext {
   userId: string;
   /** The viewer's country; every source shows `audience ∈ {audience, 'all'}`. */
@@ -28,6 +31,26 @@ export interface MarketplaceContext {
   platform: MarketplacePlatform;
   /** The official catalogue for this viewer — memoised, loaded on first use. */
   officialCatalog(): Promise<OfficialCatalog>;
+  /**
+   * The same catalogue without the Landesverband assignment — what an item
+   * link, a like or a save may resolve. The assignment decides discovery, not
+   * access: `/agents/<slug>` opens every Landesverband's agents too.
+   */
+  resolvableCatalog(): Promise<OfficialCatalog>;
+}
+
+/**
+ * The Landesverband a request asks for (`?lv=`), through the same gate as
+ * `/agents/<slug>`: unknown, switched off (`enabled: false`) or for the other
+ * country gives `[]` — no Landesverband content, never someone else's.
+ */
+function requestedLvIds(
+  lvId: string,
+  audience: ViewerAudience,
+  instanceId: InstanceId
+): readonly string[] {
+  const hub = getLandesverbandHubById(lvId, instanceId);
+  return hub && hub.audience === audience ? [hub.lvId] : [];
 }
 
 export function buildMarketplaceContext(params: {
@@ -35,10 +58,47 @@ export function buildMarketplaceContext(params: {
   locale: string | null;
   platform: MarketplacePlatform;
   instanceId?: InstanceId;
+  /** `?lv=` — one Landesverband instead of the viewer's own (see `requestedLvIds`). */
+  lvId?: string | null;
 }): MarketplaceContext {
   const audience: ViewerAudience = params.locale === 'de-AT' ? 'de-AT' : 'de-DE';
   const instanceId = params.instanceId ?? CURRENT_INSTANCE;
+  const lvId = params.lvId ?? null;
+  let inputs: Promise<{ hiddenAgentIds: string[]; hiddenSkillMentions: string[] }> | null = null;
+  let roles: Promise<Roles> | null = null;
   let catalog: Promise<OfficialCatalog> | null = null;
+  let resolvable: Promise<OfficialCatalog> | null = null;
+
+  const loadInputs = () => {
+    inputs ??= (async () => {
+      const [landesverbandId, hiddenAgentIds] = await Promise.all([
+        getUserLandesverbandId(params.userId),
+        getHiddenAgentIdentifiersCached(),
+      ]);
+      const hiddenSkillMentions = await getEffectiveHiddenSkillMentions(landesverbandId);
+      return { hiddenAgentIds, hiddenSkillMentions: [...hiddenSkillMentions] };
+    })();
+    return inputs;
+  };
+  // Only the viewer's own Landesverbände need the roles; `?lv=` and resolution do not.
+  const loadRoles = () => (roles ??= loadUserRoles(params.userId));
+
+  const select = async (
+    lvIds: () => Promise<readonly string[] | null> | readonly string[] | null
+  ) => {
+    const [{ hiddenAgentIds, hiddenSkillMentions }, ids] = await Promise.all([
+      loadInputs(),
+      lvIds(),
+    ]);
+    return selectOfficialCatalog({
+      locale: audience,
+      instanceId,
+      platform: params.platform,
+      hiddenAgentIds,
+      hiddenSkillMentions,
+      lvIds: ids,
+    });
+  };
 
   return {
     userId: params.userId,
@@ -46,24 +106,17 @@ export function buildMarketplaceContext(params: {
     instanceId,
     platform: params.platform,
     officialCatalog() {
-      catalog ??= (async () => {
-        const [roles, landesverbandId, hiddenAgentIds] = await Promise.all([
-          loadUserRoles(params.userId),
-          getUserLandesverbandId(params.userId),
-          getHiddenAgentIdentifiersCached(),
-        ]);
-        const hiddenSkillMentions = await getEffectiveHiddenSkillMentions(landesverbandId);
-        return selectOfficialCatalog({
-          locale: audience,
-          instanceId,
-          platform: params.platform,
-          hiddenAgentIds,
-          hiddenSkillMentions: [...hiddenSkillMentions],
-          // Server-side the roles are always known: no role is `[]`, never `null`.
-          lvIds: landesverbandIdsForRoles(roles, audience),
-        });
-      })();
+      // Server-side the roles are always known: no role is `[]`, never `null`.
+      catalog ??= select(async () =>
+        lvId !== null
+          ? requestedLvIds(lvId, audience, instanceId)
+          : landesverbandIdsForRoles(await loadRoles(), audience)
+      );
       return catalog;
+    },
+    resolvableCatalog() {
+      resolvable ??= select(() => null);
+      return resolvable;
     },
   };
 }
