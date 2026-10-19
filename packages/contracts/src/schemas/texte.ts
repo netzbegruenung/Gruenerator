@@ -27,6 +27,34 @@ export const altTextResponseSchema = z.object({
 });
 export type AltTextResponse = z.infer<typeof altTextResponseSchema>;
 
+/** Instagram nimmt bis zu 20 Bilder je Karussell und 1000 Zeichen Alt-Text je Bild. */
+export const SLIDE_ALT_TEXT_MAX_SLIDES = 20;
+export const SLIDE_ALT_TEXT_MAX_CHARS = 1000;
+
+export const slideAltTextBodySchema = z.object({
+  slides: z
+    .array(
+      z.object({
+        /** Die Seite als Bild (Data-URL oder Base64). */
+        imageBase64: z.string().min(1),
+        /**
+         * Die Texte der Seite, so wie sie im Editor stehen. Das Modell übernimmt
+         * daraus Schreibweise, Zahlen und Namen, statt sie aus Pixeln zu lesen.
+         */
+        texts: z.array(z.string()).max(200),
+      })
+    )
+    .min(1)
+    .max(SLIDE_ALT_TEXT_MAX_SLIDES),
+});
+export type SlideAltTextBody = z.infer<typeof slideAltTextBodySchema>;
+
+export const slideAltTextResponseSchema = z.object({
+  /** Je Seite ein Alt-Text, in Seitenreihenfolge; `null`, wo die Seite scheiterte. */
+  altTexts: z.array(z.string().nullable()),
+});
+export type SlideAltTextResponse = z.infer<typeof slideAltTextResponseSchema>;
+
 // ── Landing-Page-Inhalte ────────────────────────────────────────────────────
 
 export const websiteThemeSchema = z.object({

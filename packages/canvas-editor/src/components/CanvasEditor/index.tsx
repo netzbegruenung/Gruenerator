@@ -107,7 +107,7 @@ import { PageWrapper } from './PageWrapper';
 import { formatHasVorlagen, vorlagenTab, withVorlagenTab } from './vorlagenTab';
 
 import type { CanvasEditorProps, PageWrapperProps } from './types';
-import type { CanvasSpecEditBridge } from '../../CanvasEditorProvider';
+import type { AltTextPage, AltTextScope, CanvasSpecEditBridge } from '../../CanvasEditorProvider';
 import type { SidebarTabId } from '../../sidebar/types';
 import type { ToolbarStateReport } from '../GenericCanvas';
 import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
@@ -586,6 +586,25 @@ function CanvasEditorInner({
     return await ref.current.captureCanvasForAi();
   }, [currentPageIndex, canvasRefsRef]);
 
+  const collectAltTextPages = useCallback(
+    async (scope: AltTextScope): Promise<AltTextPage[]> => {
+      await ensureFontsReady();
+      const refs = canvasRefsRef.current;
+      const indices = scope === 'active' ? [currentPageIndex] : refs.map((_, i) => i);
+      const pages: AltTextPage[] = [];
+      for (const index of indices) {
+        const ref = refs[index]?.current;
+        const image = ref ? await ref.captureCanvasForAi() : null;
+        if (!ref || !image) {
+          throw new Error(`Seite ${index + 1} konnte nicht erfasst werden`);
+        }
+        pages.push({ pageNumber: index + 1, image, texts: ref.getVisibleTexts() });
+      }
+      return pages;
+    },
+    [currentPageIndex, canvasRefsRef]
+  );
+
   // Every page, not just the active one: a selection left behind on page 2
   // keeps its context bar alive after the user scrolls away.
   const handleDeselectAll = useCallback(() => {
@@ -940,6 +959,7 @@ function CanvasEditorInner({
       onCaptureCanvas: () => {},
       captureCanvasImage: handleCaptureCanvas,
       captureCanvasImageForAi: handleCaptureCanvasForAi,
+      collectAltTextPages,
       onDownload: async () => {
         const ref = canvasRefsRef.current[currentPageIndex];
         if (ref?.current) {
@@ -972,6 +992,7 @@ function CanvasEditorInner({
       multiExportNotice,
       handleCaptureCanvas,
       handleCaptureCanvasForAi,
+      collectAltTextPages,
       onSaveAsTemplate,
     ]
   );
