@@ -137,10 +137,10 @@
       "title": "Organisieren",
       "tools": [
         {
-          "id": "agents",
-          "title": "Grüneratoren",
-          "description": "Agents, Rezepte & Aufgaben",
-          "path": "/grueneratoren"
+          "id": "marktplatz",
+          "title": "Marktplatz",
+          "description": "Agents, Rezepte & Vorlagen entdecken",
+          "path": "/marktplatz"
         },
         {
           "id": "projekte",

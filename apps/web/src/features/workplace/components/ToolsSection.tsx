@@ -22,7 +22,7 @@ import {
   type WorkplaceToolMenu,
   type WorkplaceToolMenuItem,
 } from '../../../config/workplaceToolsConfig';
-import useSidebarFavouritesStore from '../../../stores/sidebarFavouritesStore';
+import useSidebarFavouritesStore, { useIsFavourite } from '../../../stores/sidebarFavouritesStore';
 
 import type { IconType } from '../../../config/icons';
 
@@ -164,6 +164,8 @@ function OfficeTileInner({
 export function OfficeTile({ tool, themeKey }: { tool: WorkplaceToolItem; themeKey?: string }) {
   const favouritable = isFavouritableTool(tool);
   const styleKey = themeKey ?? tool.id;
+  // A pinned tile shows its star for good; the badge would sit under it, and whoever pinned it knows it.
+  const starred = useIsFavourite(tool.id);
   return (
     // The star sits beside the link (not nested inside it — a button inside an
     // <a> is invalid and doubles the tab stop confusingly). `group` lives here so
@@ -179,6 +181,11 @@ export function OfficeTile({ tool, themeKey }: { tool: WorkplaceToolItem; themeK
           title={tool.title}
           description={tool.description}
         />
+        {tool.badge && !starred && (
+          <span className="absolute top-3 right-3 rounded-full bg-primary-600 px-2 py-0.5 text-[11px] leading-tight font-bold text-white transition-opacity group-focus-within:opacity-0 group-hover:opacity-0">
+            {tool.badge}
+          </span>
+        )}
       </Link>
       {favouritable && <FavouriteStar id={tool.id} size={16} className="absolute right-3 top-3" />}
     </div>
@@ -470,9 +477,9 @@ function FavoriteTile({ favorite }: { favorite: FavoriteItem }) {
 const byId = (id: string): WorkplaceToolItem | undefined =>
   WORKPLACE_TOOLS.find((t) => t.id === id);
 
-// Default order: Agentura first, then the office apps, then Projekte (after Wissen).
+// Default order: Marktplatz first, then the office apps, then Projekte (after Wissen).
 const OFFICE_ROW_TOOLS: WorkplaceToolItem[] = [
-  byId('agents'),
+  byId('marktplatz'),
   ...OFFICE_TOOLS,
   byId('projekte'),
 ].filter((t): t is WorkplaceToolItem => Boolean(t));

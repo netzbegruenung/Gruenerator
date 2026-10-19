@@ -10,6 +10,7 @@ import withAuthRequired from '../../components/common/LoginRequired/withAuthRequ
 import { PageHero, PageShell } from '../../components/common/PageHero';
 
 import { MarketplaceBrowser, MarketplaceToolbar } from './MarketplaceBrowser';
+import { MarketplaceCreateMenu } from './MarketplaceCreateMenu';
 
 /**
  * `/marktplatz` — Agents, Rezepte, Vorlagen, Sticker und Hintergründe in einer
@@ -39,9 +40,14 @@ function MarketplacePage(): JSX.Element {
             teilen — dazu Vorlagen, Sticker und Hintergründe.
           </p>
         }
-        toolbar={<MarketplaceToolbar filters={filters} onChange={setFilters} />}
+        toolbar={
+          <>
+            <MarketplaceToolbar filters={filters} onChange={setFilters} />
+            <MarketplaceCreateMenu />
+          </>
+        }
       />
-      <MarketplaceBrowser filters={filters} onChange={setFilters} />
+      <MarketplaceBrowser filters={filters} onChange={setFilters} frontpage />
     </PageShell>
   );
 }

@@ -97,6 +97,32 @@ export function getLandesverbandHubBySlug(
 }
 
 /**
+ * Dieselbe Auflösung wie {@link getLandesverbandHubBySlug}, nur über die LV-Id
+ * (`berlin`, `mecklenburg-vorpommern`) — für Aufrufer, die mit Rollen oder einer
+ * API-Anfrage statt mit einer Adresse arbeiten. Läuft absichtlich DURCH das
+ * Slug-Gate, damit ein abgeschalteter Landesverband auf keinem der beiden Wege
+ * wieder auftaucht.
+ */
+export function getLandesverbandHubById(
+  lvId: string,
+  instanceId: InstanceId = DEFAULT_INSTANCE_ID
+): LvHub | null {
+  const hub = LV_HUBS.find((entry) => entry.lvId === lvId);
+  return hub ? getLandesverbandHubBySlug(hub.slug, instanceId) : null;
+}
+
+/** Die auflösbaren Hubs zu einer Liste von LV-Ids, in deren Reihenfolge. */
+export function getLandesverbandHubsByIds(
+  lvIds: readonly string[],
+  instanceId: InstanceId = DEFAULT_INSTANCE_ID
+): LvHub[] {
+  return lvIds.flatMap((lvId) => {
+    const hub = getLandesverbandHubById(lvId, instanceId);
+    return hub ? [hub] : [];
+  });
+}
+
+/**
  * Hubs visible to a user's locale on a given instance. A Landesverband is
  * inherently locale-specific (the AT hub surfaces only for Austrian users, the
  * rest only for German users) — so unlike agents, a hub never has an `'all'`

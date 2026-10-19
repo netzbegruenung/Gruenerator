@@ -5,6 +5,7 @@ import {
   localizeAgent,
   type LvHub,
 } from '@gruenerator/shared/agents';
+import { landesverbandHubHref } from '@gruenerator/shared/marketplace';
 import { NOTEBOOK_ICONS } from '@gruenerator/shared/notebook-icons';
 import { SelectCard } from '@gruenerator/ui';
 import { PiArrowRight } from 'react-icons/pi';
@@ -69,6 +70,19 @@ export function LandesverbandHub({ hub, onNavigate, userLocale }: LandesverbandH
           />
         ))}
       </div>
+
+      {/* Die Seite im Marktplatz führt das Land wie der Marktplatz selbst — der
+          Link erscheint nur, wo sie für diese Person auch aufgeht. */}
+      {hub.audience === userLocale && (
+        <button
+          type="button"
+          onClick={() => onNavigate(landesverbandHubHref(hub.slug))}
+          className="inline-flex items-center gap-1 self-start text-sm text-primary-600 hover:underline dark:text-primary-400"
+        >
+          Im Marktplatz ansehen
+          <PiArrowRight aria-hidden="true" className="h-4 w-4" />
+        </button>
+      )}
 
       {notebookPath && (
         <button

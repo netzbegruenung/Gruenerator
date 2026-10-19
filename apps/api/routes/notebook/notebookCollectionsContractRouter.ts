@@ -41,6 +41,7 @@ import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import { summarizeDocumentRows } from '../../services/notebook/corpusState.js';
 import { listGroupSharedNotebooksForUser } from '../../services/notebook/groupSharedNotebookListing.js';
 import { fetchDocumentMetadata } from '../../services/notebook/notebookSources.js';
+import { planNotebookVisibility } from '../../services/notebook/notebookVisibility.js';
 import { attachWolkeFolderToNotebook } from '../../services/notebook/notebookWolkeAttach.js';
 import { listPublicNotebooksForViewer } from '../../services/notebook/publicNotebookListing.js';
 import { createNotification } from '../../services/notifications/NotificationService.js';
@@ -813,15 +814,6 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         };
       }
 
-      if (is_public === true && !public_ownership) {
-        return {
-          status: 400 as const,
-          body: {
-            error: 'public_ownership is required when is_public is true (owner | public_data)',
-          },
-        };
-      }
-
       const guard = await requireNotebookEdit(collectionId, userId);
       if (guard) return guard;
 
@@ -831,6 +823,15 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       }
 
       const isOwner = existingCollection.user_id === userId;
+      // Keep legacy metadata/full-sync clients on the same listing rules as
+      // the sharing routes, and validate before any metadata or document write.
+      const visibilityPlan = planNotebookVisibility(
+        existingCollection,
+        isOwner && typeof is_public === 'boolean' ? { is_public, public_ownership } : {}
+      );
+      if (!visibilityPlan.ok) {
+        return { status: 400 as const, body: { error: visibilityPlan.error } };
+      }
 
       let allDocumentIds: string[] = [];
       let wolkeDocuments: DocumentRecord[] = [];
@@ -937,10 +938,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         updateData.remove_missing_on_sync = false;
       }
 
-      if (isOwner && typeof is_public === 'boolean') {
-        updateData.is_public = is_public;
-        updateData.public_ownership = is_public ? (public_ownership ?? null) : null;
-      }
+      Object.assign(updateData, visibilityPlan.updates);
 
       await notebookHelper.updateNotebookCollection(collectionId, updateData);
 

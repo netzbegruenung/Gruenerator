@@ -1,4 +1,5 @@
 import {
+  type MarketplaceFrontpageResponse,
   type MarketplaceItem,
   type MarketplaceKind,
   type MarketplaceListResponse,
@@ -27,6 +28,8 @@ interface MarketplaceQueryBase {
   sort: MarketplaceSort;
   scope: MarketplaceScope;
   platform: MarketplacePlatform;
+  /** One Landesverband by its LV id — the Marktplatz page of that Landesverband. */
+  lv?: string;
   /** Default `true`; a closed picker passes `false`. */
   enabled?: boolean;
 }
@@ -47,6 +50,7 @@ const filterKey = (p: MarketplaceQueryBase) => ({
   sort: p.sort,
   scope: p.scope,
   platform: p.platform,
+  ...(p.lv ? { lv: p.lv } : {}),
 });
 
 export const marketplaceKeys = {
@@ -65,6 +69,8 @@ export const marketplaceKeys = {
     [...MARKETPLACE_QUERY_KEY, 'kind', { kind: p.kind, ...filterKey(p) }] as const,
   item: (target: MarketplaceTarget, platform: MarketplacePlatform) =>
     [...MARKETPLACE_QUERY_KEY, 'item', { kind: target.kind, ref: target.ref, platform }] as const,
+  frontpage: (platform: MarketplacePlatform) =>
+    [...MARKETPLACE_QUERY_KEY, 'frontpage', { platform }] as const,
 };
 
 /** The query the contract takes; `null`/empty filters are left out rather than sent as strings. */
@@ -80,6 +86,7 @@ function listQuery(
     scope: p.scope,
     platform: p.platform,
     ...(p.origin !== null ? { origin: p.origin } : {}),
+    ...(p.lv ? { lv: p.lv } : {}),
     ...(q ? { q } : {}),
     ...page,
   };
@@ -158,5 +165,26 @@ export function useMarketplaceItem(
     },
     enabled: target !== null && (options.enabled ?? true),
     retry: false,
+  });
+}
+
+/**
+ * The front page („Start") in one request: the featured item and the shelves,
+ * composed by the server (`composeFrontpage`). Under the Marktplatz key, so a
+ * like or save patches it like every list.
+ */
+export function useMarketplaceFrontpage(
+  options: { platform?: MarketplacePlatform; enabled?: boolean } = {}
+) {
+  const platform = options.platform ?? 'web';
+  return useQuery({
+    queryKey: marketplaceKeys.frontpage(platform),
+    queryFn: async (): Promise<MarketplaceFrontpageResponse> => {
+      const res = await getContractsClient().marketplace.frontpage({ query: { platform } });
+      if (res.status !== 200)
+        throw apiErrorFromResponse(res, 'Der Marktplatz konnte nicht geladen werden.');
+      return res.body;
+    },
+    enabled: options.enabled ?? true,
   });
 }

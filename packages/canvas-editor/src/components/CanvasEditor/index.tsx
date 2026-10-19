@@ -71,6 +71,7 @@ import { UserUploadsProvider } from '../../sidebar/UserUploadsProvider';
 import { useCanvasStoreSelector } from '../../stores/CanvasStoreProvider';
 import { AutoSaveStoreProvider } from '../../stores/useAutoSaveStore';
 import { cn } from '../../utils/cn';
+import { collectAltTextPages as collectCapturedAltTextPages } from '../../utils/collectAltTextPages';
 import { ensureFontsReady } from '../../utils/ensureFontsReady';
 import { getCategoryForTemplate } from '../../utils/templateRegistry';
 import { CanvasContextMenu } from '../CanvasContextMenu/CanvasContextMenu';
@@ -591,16 +592,7 @@ function CanvasEditorInner({
       await ensureFontsReady();
       const refs = canvasRefsRef.current;
       const indices = scope === 'active' ? [currentPageIndex] : refs.map((_, i) => i);
-      const pages: AltTextPage[] = [];
-      for (const index of indices) {
-        const ref = refs[index]?.current;
-        const image = ref ? await ref.captureCanvasForAi() : null;
-        if (!ref || !image) {
-          throw new Error(`Seite ${index + 1} konnte nicht erfasst werden`);
-        }
-        pages.push({ pageNumber: index + 1, image, texts: ref.getVisibleTexts() });
-      }
-      return pages;
+      return collectCapturedAltTextPages(refs, indices);
     },
     [currentPageIndex, canvasRefsRef]
   );

@@ -260,6 +260,9 @@ export async function installApiFixtures(page: Page): Promise<void> {
       data: [],
       pagination: { total: 0, limit: 24, offset: 0, hasMore: false },
     },
+    // `marketplaceFrontpageResponseSchema`: `shelves` is read with `.find`, so the
+    // catch-all object would crash „Start" into the error boundary.
+    '/api/marketplace/frontpage': { featured: null, featureId: null, shelves: [] },
   };
   for (const [pfad, antwort] of Object.entries(SONDERFORMEN)) {
     await page.route(

@@ -86,7 +86,8 @@ async function candidates(
   forList: boolean
 ): Promise<Candidate<'agent'>[]> {
   const [catalog, listings] = await Promise.all([
-    ctx.officialCatalog(),
+    // Discovery follows the assignment, resolution does not (`resolvableCatalog`).
+    forList ? ctx.officialCatalog() : ctx.resolvableCatalog(),
     listPublicUserAgentListings(ctx.userId, ctx.audience, forList ? ctx.userId : null),
   ]);
   // Nach Region statt Registry: bei mehreren Zuteilungen stehen die Sachen

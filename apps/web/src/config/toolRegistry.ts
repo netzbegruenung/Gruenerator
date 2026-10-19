@@ -49,8 +49,8 @@ export interface ToolDefinition {
   /** Restricts the tool to one country's users (matched against the user locale). */
   audience?: ToolAudience;
   icon: ToolIconRef;
-  /** Colored tile on the Arbeiten tab or the /studio landing page. */
-  tile?: { group: WorkplaceTileGroup; description: string };
+  /** Colored tile on the Arbeiten tab or the /studio landing page; `badge` sits top-right (e.g. „Neu"). */
+  tile?: { group: WorkplaceTileGroup; description: string; badge?: string };
   /** Row inside the "Weitere" dropdown tile (the single menu, `menuRoot` below). */
   menuItem?: {
     description: string;
@@ -158,7 +158,6 @@ const TOOLS = [
     title: 'Grüneratoren',
     path: '/grueneratoren',
     icon: { component: RiSpyLine },
-    tile: { group: 'organisieren', description: 'Agents, Rezepte & Aufgaben' },
     search: {
       // F1: the id predates the overview (it named the Agentura); the shop is `tool-marktplatz` now.
       id: 'tool-agentura',
@@ -173,11 +172,17 @@ const TOOLS = [
     title: 'Marktplatz',
     path: '/marktplatz',
     icon: { navigation: 'marktplatz' },
+    tile: {
+      group: 'organisieren',
+      description: 'Agents, Rezepte & Vorlagen entdecken',
+      badge: 'Neu',
+    },
     search: {
       id: 'tool-marktplatz',
       subtitle: 'Agents, Rezepte, Vorlagen und Sticker entdecken',
       keywords: ['marktplatz', 'agentura', 'shop', 'entdecken', 'öffentlich', 'community'],
     },
+    theme: true,
   },
   {
     id: 'projekte',
@@ -625,6 +630,8 @@ const LEGACY_FAVOURITE_ITEMS: readonly {
   { id: 'notebooks', title: 'Wissen', path: '/wissen', icon: { navigation: 'notebooks' } },
   { id: 'gruppen', title: 'Projekte', path: '/projekte', icon: { navigation: 'projekte' } },
   { id: 'spaces', title: 'Projekte', path: '/projekte', icon: { navigation: 'projekte' } },
+  // The Grüneratoren tile left the Arbeiten strip for the Marktplatz (the overview is in the sidebar).
+  { id: 'agents', title: 'Grüneratoren', path: '/grueneratoren', icon: { component: RiSpyLine } },
 ];
 
 // Row order of the "Weitere" menu — reorder the menu here, not in TOOLS. Every
@@ -684,6 +691,7 @@ export interface DerivedTile {
   href?: string;
   audience?: ToolAudience;
   icon: IconType;
+  badge?: string;
 }
 
 export function toolsWithTile(group: WorkplaceTileGroup): DerivedTile[] {
@@ -698,6 +706,7 @@ export function toolsWithTile(group: WorkplaceTileGroup): DerivedTile[] {
       ...(tool.href != null ? { href: tool.href } : {}),
       ...(tool.audience != null ? { audience: tool.audience } : {}),
       icon: resolveToolIcon(tool.icon),
+      ...(tool.tile.badge != null ? { badge: tool.tile.badge } : {}),
     });
   }
   return out;
