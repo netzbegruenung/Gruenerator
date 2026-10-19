@@ -23,6 +23,7 @@ interface SliderDeckCardProps {
 export function SliderDeckCard({ variant }: SliderDeckCardProps) {
   const {
     imageBase64,
+    imageAltText,
     isRendering,
     renderError,
     isExporting,
@@ -74,7 +75,7 @@ export function SliderDeckCard({ variant }: SliderDeckCardProps) {
           type="button"
           onClick={openInStudio}
           className="block w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          aria-label="Slider-Karussell im Editor öffnen"
+          aria-label={`${imageAltText}. Im Editor öffnen`}
         >
           {isRendering && !imageBase64 && (
             <div className="flex h-64 items-center justify-center">
@@ -87,7 +88,7 @@ export function SliderDeckCard({ variant }: SliderDeckCardProps) {
           {imageBase64 && (
             <img
               src={imageBase64}
-              alt={`Karussell-Folie ${selectedIndex + 1} von ${slideCount}`}
+              alt={imageAltText}
               className={cn(
                 'mx-auto max-h-[420px] w-auto transition-opacity',
                 isRendering ? 'opacity-50' : 'opacity-100'
