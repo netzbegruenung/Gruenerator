@@ -501,14 +501,11 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         ? await postgres.query<{
             id: string;
             display_name: string | null;
-            email: string | null;
-          }>('SELECT id::text AS id, display_name, email FROM profiles WHERE id::text = ANY($1)', [
+          }>('SELECT id::text AS id, display_name FROM profiles WHERE id::text = ANY($1)', [
             userIds,
           ])
         : [];
-      const nameByUserId = new Map(
-        profileRows.map((p) => [p.id, p.display_name ?? p.email?.split('@')[0] ?? null] as const)
-      );
+      const nameByUserId = new Map(profileRows.map((p) => [p.id, p.display_name] as const));
 
       const transformedData = await Promise.all(
         collections.map(async (collection) => {
@@ -827,7 +824,9 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       // the sharing routes, and validate before any metadata or document write.
       const visibilityPlan = planNotebookVisibility(
         existingCollection,
-        isOwner && typeof is_public === 'boolean' ? { is_public, public_ownership } : {}
+        isOwner && typeof is_public === 'boolean'
+          ? { is_public, public_ownership: public_ownership ?? null }
+          : {}
       );
       if (!visibilityPlan.ok) {
         return { status: 400 as const, body: { error: visibilityPlan.error } };

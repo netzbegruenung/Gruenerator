@@ -153,7 +153,9 @@ const callListPublicCollections = () =>
   (
     notebookCollectionsContractRouter.listPublicCollections as (args: unknown) => Promise<{
       status: number;
-      body: { collections?: Array<{ id: string; document_count: number }> };
+      body: {
+        collections?: Array<{ id: string; document_count: number; creator_name: string | null }>;
+      };
     }>
   )({
     req: { user: { id: 'user-1' }, originalUrl: '/api/auth/notebook-collections/public' },
@@ -208,5 +210,36 @@ describe('listPublicCollections — links are resolved in bulk, not per notebook
       (res.body.collections ?? []).map((c) => [c.id, c.document_count])
     );
     expect(counts).toEqual({ 'pub-1': 2, 'pub-2': 1, 'pub-3': 0 });
+  });
+});
+
+describe('listPublicCollections — creator privacy', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockHelper.getCollectionDocumentsForCollections.mockResolvedValue(new Map());
+  });
+
+  it('uses only display names, never email addresses or their local parts', async () => {
+    mockHelper.getPublicNotebookCollections.mockResolvedValue([
+      { id: 'named', user_id: 'u1', name: 'Named', audience: 'de-DE' },
+      { id: 'unnamed', user_id: 'u2', name: 'Unnamed', audience: 'de-DE' },
+      { id: 'empty', user_id: 'u3', name: 'Empty', audience: 'de-DE' },
+      { id: 'missing', user_id: 'u4', name: 'Missing', audience: 'de-DE' },
+    ]);
+    mockPg.query.mockResolvedValue([
+      { id: 'u1', display_name: 'Public name', email: 'private-one@example.org' },
+      { id: 'u2', display_name: null, email: 'private-two@example.org' },
+      { id: 'u3', display_name: '', email: 'private-three@example.org' },
+    ]);
+
+    const res = await callListPublicCollections();
+
+    expect(res.status).toBe(200);
+    expect(res.body.collections?.map((c) => [c.id, c.creator_name])).toEqual([
+      ['named', 'Public name'],
+      ['unnamed', null],
+      ['empty', ''],
+      ['missing', null],
+    ]);
   });
 });
