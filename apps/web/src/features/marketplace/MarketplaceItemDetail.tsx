@@ -19,6 +19,7 @@ export function MarketplaceItemDetail({
   onBack,
   shareHref,
   headingLevel,
+  backLabel = 'Zurück zum Marktplatz',
 }: {
   item: MarketplaceItem;
   actions: MarketplaceActions;
@@ -27,6 +28,8 @@ export function MarketplaceItemDetail({
   shareHref: string;
   /** The title's level: 2 under the page's `h1`, 3 under a dialog's title. */
   headingLevel: 2 | 3;
+  /** The back link's text; a page inside the Marktplatz names where it leads. */
+  backLabel?: string;
 }): JSX.Element {
   const Heading = headingLevel === 3 ? 'h3' : 'h2';
   const view = viewOf(item);
@@ -41,7 +44,7 @@ export function MarketplaceItemDetail({
         className="inline-flex w-fit items-center gap-xs text-sm font-semibold text-foreground-muted transition-colors hover:text-primary-700 dark:hover:text-primary-300"
       >
         <PiArrowLeft aria-hidden className="h-4 w-4" />
-        Zurück zum Marktplatz
+        {backLabel}
       </button>
 
       {DetailExtras ? (

@@ -1,7 +1,12 @@
 import { type UserRole, useUserLandesverbaende } from '@gruenerator/chat';
-import { isLandesverbandRolle, landesverbandOfferForBundesland } from '@gruenerator/shared/agents';
+import {
+  getLandesverbandHubsByIds,
+  isLandesverbandRolle,
+  landesverbandOfferForBundesland,
+} from '@gruenerator/shared/agents';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { getInstance } from '@gruenerator/shared/instances';
+import { landesverbandHubHref } from '@gruenerator/shared/marketplace';
 import {
   type EbeneConfig,
   DE_EBENEN,
@@ -206,6 +211,8 @@ export default function RolesSection() {
   // Die Landesverbands-Zuteilung dieser Person — dieselbe Quelle, aus der
   // Agentur, Bibliothek und Mention-Menü sie lesen.
   const { lvIds, headings: lvHeadings } = useUserLandesverbaende();
+  // One button per Landesverband page; none resolvable keeps the filtered Marktplatz.
+  const lvHubs = useMemo(() => getLandesverbandHubsByIds(lvIds ?? [], CURRENT_INSTANCE), [lvIds]);
   const navigate = useNavigate();
   const closeSettings = useSettingsDialogStore((s) => s.close);
   const goTo = useCallback(
@@ -895,13 +902,26 @@ export default function RolesSection() {
                     zugeteilt.
                   </p>
                   <div className="mt-sm flex flex-wrap gap-sm">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => goTo('/marktplatz?von=landesverband')}
-                    >
-                      Zu deinem Landesverband
-                    </Button>
+                    {lvHubs.length === 0 ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => goTo('/marktplatz?von=landesverband')}
+                      >
+                        Zu deinem Landesverband
+                      </Button>
+                    ) : (
+                      lvHubs.map((hub) => (
+                        <Button
+                          key={hub.lvId}
+                          variant="outline"
+                          size="sm"
+                          onClick={() => goTo(landesverbandHubHref(hub.slug))}
+                        >
+                          {lvHubs.length === 1 ? 'Zu deinem Landesverband' : hub.name}
+                        </Button>
+                      ))
+                    )}
                   </div>
                 </div>
               )}

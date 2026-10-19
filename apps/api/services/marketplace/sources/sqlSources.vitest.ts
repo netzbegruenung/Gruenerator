@@ -46,6 +46,7 @@ const ctx = (audience: 'de-DE' | 'de-AT' = 'de-AT') => ({
   instanceId: 'production' as const,
   platform: 'web' as const,
   officialCatalog: vi.fn(),
+  resolvableCatalog: vi.fn(),
 });
 
 const query = (o: Partial<SourceQuery> = {}): SourceQuery => ({

@@ -73,13 +73,17 @@ const query = (o: Partial<SourceQuery> = {}): SourceQuery => ({
   ...o,
 });
 
-const ctx = (o: { locale?: string; platform?: 'web' | 'mobile' } = {}) =>
+const ctx = (o: { locale?: string; platform?: 'web' | 'mobile'; lvId?: string } = {}) =>
   buildMarketplaceContext({
     userId: 'viewer',
     locale: o.locale ?? 'de-DE',
     platform: o.platform ?? 'web',
     instanceId: 'production',
+    ...(o.lvId !== undefined ? { lvId: o.lvId } : {}),
   });
+
+const ownerLv = (mention: string) =>
+  lvIdForAgentIdentifier(skills.find((s) => s.mention === mention)!.identifier);
 
 const refs = async (c = ctx(), q = query()) =>
   (await recipeSource.list(c, q)).items.map((i) => i.ref);
@@ -159,6 +163,16 @@ describe('recipeSource.list', () => {
         return lvIdForAgentIdentifier(owner) === 'hessen';
       })
     ).toBe(true);
+  });
+
+  it('lists the recipes of one requested Landesverband, and none for a hidden one', async () => {
+    const berlin = await refs(ctx({ lvId: 'berlin' }), query({ origin: 'landesverband' }));
+    expect(berlin.length).toBeGreaterThan(0);
+    expect(berlin.every((ref) => ownerLv(ref) === 'berlin')).toBe(true);
+    expect(await refs(ctx({ lvId: 'hamburg' }), query({ origin: 'landesverband' }))).toEqual([]);
+    expect(
+      await refs(ctx({ locale: 'de-AT', lvId: 'berlin' }), query({ origin: 'landesverband' }))
+    ).toEqual([]);
   });
 
   it('drops a recipe an admin hid', async () => {

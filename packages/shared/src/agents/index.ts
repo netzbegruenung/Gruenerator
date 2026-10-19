@@ -108,6 +108,8 @@ export {
   LV_HUBS,
   type LvHub,
   getLandesverbandHubBySlug,
+  getLandesverbandHubById,
+  getLandesverbandHubsByIds,
   getLandesverbandHubs,
   getHubMemberAgentIds,
   hasLandesverbandContentIn,
