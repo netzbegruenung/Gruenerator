@@ -5,6 +5,7 @@
 
 import * as crypto from 'crypto';
 
+import { type ModerationState, moderationStateSchema } from '@gruenerator/contracts';
 import { generateSlugSuffix } from '@gruenerator/shared/utils';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -51,6 +52,12 @@ const NOTEBOOK_EDIT_POLICIES: readonly NotebookEditPolicy[] = [
   'all_members',
 ];
 const NOTEBOOK_AUDIENCES: readonly NotebookAudience[] = ['de-DE', 'de-AT'];
+
+/** A point without the field predates moderation and was never reported away. */
+function normalizeModeration(raw: unknown): ModerationState {
+  const parsed = moderationStateSchema.safeParse(raw);
+  return parsed.success ? parsed.data : 'ok';
+}
 
 function normalizeShareMode(raw: unknown): NotebookShareMode {
   return NOTEBOOK_SHARE_MODES.includes(raw as NotebookShareMode)
@@ -109,6 +116,8 @@ interface NotebookCollectionData {
    * mints a fresh suffix.
    */
   slug_suffix?: string | null;
+  /** Set by the content reports (Marktplatz); `hidden`/`removed` drop it from public listings. */
+  moderation?: ModerationState;
 }
 
 interface NotebookCollection {
@@ -133,6 +142,7 @@ interface NotebookCollection {
   edit_policy: NotebookEditPolicy;
   audience: NotebookAudience;
   slug_suffix: string | null;
+  moderation: ModerationState;
   notebook_collection_documents?: CollectionDocument[];
 }
 
@@ -289,6 +299,9 @@ class NotebookQdrantHelper {
           edit_policy: normalizeEditPolicy(collectionData.edit_policy),
           audience: normalizeAudience(collectionData.audience),
           slug_suffix: slugSuffix,
+          // The whole payload is rewritten on every update (rename included);
+          // dropping the field here would quietly undo a removal.
+          moderation: normalizeModeration(collectionData.moderation),
         },
       };
 
@@ -782,6 +795,27 @@ class NotebookQdrantHelper {
     });
     logger.info(`Moved Notebook collection to the Papierkorb: ${collectionId}`);
     return 'ok';
+  }
+
+  /**
+   * Set the moderation state of one notebook, trashed or not — a report must
+   * reach an item its owner trashed to dodge it. `onlyFrom` limits the write
+   * to that current state. Returns the state after, `null` when it is gone.
+   */
+  async setNotebookModeration(
+    collectionId: string,
+    state: ModerationState,
+    onlyFrom?: ModerationState
+  ): Promise<ModerationState | null> {
+    await this.ensureInitialized();
+    const current = await this.getNotebookCollection(collectionId, { includeTrashed: true });
+    if (!current) return null;
+    if (onlyFrom !== undefined && current.moderation !== onlyFrom) return current.moderation;
+    await this.qdrantOps!.client.setPayload(this.qdrant.collections.notebook_collections, {
+      payload: { moderation: state },
+      filter: { must: [{ key: 'collection_id', match: { value: collectionId } }] },
+    });
+    return state;
   }
 
   /** Undo {@link trashNotebookCollection}: drop the `deleted_at` payload key. */
@@ -1362,6 +1396,7 @@ class NotebookQdrantHelper {
         typeof payload.slug_suffix === 'string' && payload.slug_suffix.length > 0
           ? payload.slug_suffix
           : null,
+      moderation: normalizeModeration(payload.moderation),
     };
   }
 

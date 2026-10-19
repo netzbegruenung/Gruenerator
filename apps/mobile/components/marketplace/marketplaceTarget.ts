@@ -20,7 +20,8 @@ export type MarketplaceOpenTarget =
 /**
  * The app's counterpart of `itemHref` (which names web paths): Agents and
  * Rezepte open their native detail pages, a Grünerator-Vorlage its web page in
- * the web viewer, an external Vorlage (Canva …) its own URL.
+ * the web viewer, an external Vorlage (Canva …) its own URL, a Notebook its
+ * native page.
  */
 export function marketplaceOpenTarget(item: MarketplaceItem): MarketplaceOpenTarget {
   switch (item.kind) {
@@ -56,6 +57,11 @@ export function marketplaceOpenTarget(item: MarketplaceItem): MarketplaceOpenTar
     case 'sticker':
     case 'background':
       return { type: 'none' };
+    case 'notebook':
+      return {
+        type: 'route',
+        href: { pathname: '/notebook/[id]', params: { id: item.ref, title: item.title } },
+      };
   }
 }
 

@@ -114,12 +114,15 @@ async function accessFor(
   const shareMode = collection.share_mode;
   const editPolicy = collection.edit_policy;
 
-  if (shareMode === 'authenticated') {
+  // A notebook a report removed stays with its owner and its projects; the
+  // open door for every logged-in user closes, as for user agents.
+  const removed = collection.moderation === 'removed';
+  if (shareMode === 'authenticated' && !removed) {
     if (!userId) return { exists: true, isOwner: false, canRead: false, canEdit: false };
     return { exists: true, isOwner: false, canRead: true, canEdit: false };
   }
 
-  if (shareMode === 'groups') {
+  if (shareMode === 'groups' || shareMode === 'authenticated') {
     if (!userId) return { exists: true, isOwner: false, canRead: false, canEdit: false };
     const sharedGroupIds = await getSharedGroupIds(notebookId);
     if (sharedGroupIds.length === 0) {

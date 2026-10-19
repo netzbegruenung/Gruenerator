@@ -10,13 +10,17 @@
  *   catalogue recipe's mention.
  * - `template`: a user template's uuid or a catalogue Vorlage id (`templateExistsFor`).
  * - `studio_asset`: the owner's, or public and unmoderated (`isStudioAssetVisible`).
+ * - `notebook`: a user notebook's uuid, readable per `checkNotebookAccess`
+ *   (owner, project share, or `authenticated` and not removed).
  *
  * Official items have no owner. Trashed rows are invisible and unowned.
  */
 import { type EntityCommentType } from '@gruenerator/contracts';
 import { getSystemAgent, resolveSkillMention } from '@gruenerator/shared/agents';
 
+import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { checkNotebookAccess } from '../../routes/notebook/notebookAccess.js';
 import { isStudioAssetVisible } from '../studioAssets/studioAssetsService.js';
 import { isUserTemplateId, templateExistsFor } from '../templateInteractions/templateTarget.js';
 import { isRowId } from '../trash/ownedRowTrash.js';
@@ -36,6 +40,8 @@ async function ownerOf(sql: string, table: string, id: string): Promise<string |
   } | null;
   return row?.user_id ?? null;
 }
+
+let notebookHelper: NotebookQdrantHelper | null = null;
 
 export const commentTargets = {
   agent: {
@@ -81,5 +87,17 @@ export const commentTargets = {
         'studio_assets',
         id
       ),
+  },
+  notebook: {
+    async canView(userId, id) {
+      return isRowId(id) && (await checkNotebookAccess(id, userId)).canRead;
+    },
+    async ownerId(id) {
+      if (!isRowId(id)) return null;
+      const notebook = await (notebookHelper ??= new NotebookQdrantHelper()).getNotebookCollection(
+        id
+      );
+      return notebook && notebook.user_id !== 'SYSTEM' ? notebook.user_id : null;
+    },
   },
 } satisfies Record<EntityCommentType, CommentTarget>;

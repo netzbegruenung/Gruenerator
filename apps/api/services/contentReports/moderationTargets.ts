@@ -18,7 +18,8 @@ import {
   type ModerationState,
 } from '@gruenerator/contracts';
 import { getSystemAgent } from '@gruenerator/shared/agents';
-import { and, eq, inArray, type SQL } from 'drizzle-orm';
+import { buildNotebookSlug } from '@gruenerator/shared/utils';
+import { and, eq, inArray, sql, type SQL } from 'drizzle-orm';
 
 import { profiles } from '../../database/schema/core.js';
 import { entityComments } from '../../database/schema/entityComments.js';
@@ -28,6 +29,7 @@ import { userTemplates } from '../../database/schema/templates.js';
 import { userTextForms } from '../../database/schema/textForms.js';
 import { userAgents } from '../../database/schema/userAgents.js';
 import { type DrizzleDB, getDrizzleInstance } from '../../database/services/DrizzleService.js';
+import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { notTrashed } from '../../database/trash.js';
 import { buildThumbnailTileUrl, versionFromShareRow } from '../media/thumbnailUrl.js';
 import { isRowId } from '../trash/ownedRowTrash.js';
@@ -382,6 +384,81 @@ const userTemplateTarget: ModerationTarget = {
   },
 };
 
+// ── Notebooks ───────────────────────────────────────────────────────────────
+
+/*
+ * Notebooks live in Qdrant, not in a table, so the state is a payload field and
+ * nothing here runs inside the report's transaction. `hideIf` asks Postgres
+ * whether `when` holds and then flips the payload: not atomic, but the flip is
+ * idempotent, and the last of concurrent reports still sees all of them.
+ */
+let notebookHelper: NotebookQdrantHelper | null = null;
+const notebooks = () => (notebookHelper ??= new NotebookQdrantHelper());
+
+/** Reachable by every signed-in user, like an agent; listing is not required to report. */
+async function reportableNotebook(id: string) {
+  const notebook = await notebooks().getNotebookCollection(id);
+  return notebook &&
+    notebook.user_id !== 'SYSTEM' &&
+    notebook.share_mode === 'authenticated' &&
+    notebook.moderation === 'ok'
+    ? notebook
+    : null;
+}
+
+const notebookTarget: ModerationTarget = {
+  async loadReportable(id) {
+    const notebook = await reportableNotebook(id);
+    return notebook ? { ownerId: notebook.user_id } : null;
+  },
+  async hideIf(db, id, when) {
+    if (!(await reportableNotebook(id))) return false;
+    const result = await db.execute<{ hit: boolean }>(sql`SELECT (${when}) AS hit`);
+    if (result.rows[0]?.hit !== true) return false;
+    return (await notebooks().setNotebookModeration(id, 'hidden', 'ok')) === 'hidden';
+  },
+  async setModeration(_db, id, state, onlyFrom) {
+    return notebooks().setNotebookModeration(id, state, onlyFrom);
+  },
+  async previews(ids) {
+    if (ids.length === 0) return new Map();
+    const found = (
+      await Promise.all(
+        ids.map((id) => notebooks().getNotebookCollection(id, { includeTrashed: true }))
+      )
+    ).filter((n) => n !== null);
+    const trashed = new Set(
+      (await Promise.all(ids.map((id) => notebooks().getTrashedNotebookCollection(id))))
+        .filter((n) => n !== null)
+        .map((n) => n.id)
+    );
+    const ownerIds = [...new Set(found.map((n) => n.user_id))].filter(isRowId);
+    const names = ownerIds.length
+      ? await getDrizzleInstance()
+          .select({ id: profiles.id, name: profiles.display_name })
+          .from(profiles)
+          .where(inArray(profiles.id, ownerIds))
+      : [];
+    const nameOf = new Map(names.map((r) => [r.id, trimmedName(r.name)]));
+    return new Map(
+      found.map((n) => [
+        n.id,
+        {
+          title: n.name,
+          thumbUrl: null,
+          href: `/notebooks/${encodeURIComponent(
+            n.slug_suffix ? buildNotebookSlug(n.name, n.slug_suffix) : n.id
+          )}`,
+          ownerId: n.user_id,
+          ownerName: nameOf.get(n.user_id) ?? null,
+          moderation: n.moderation,
+          trashed: trashed.has(n.id),
+        },
+      ])
+    );
+  },
+};
+
 // ── Kommentare an Marktplatz-Beiträgen ──────────────────────────────────────
 
 const ITEM_TARGET = {
@@ -389,6 +466,7 @@ const ITEM_TARGET = {
   recipe: userTextFormTarget,
   template: userTemplateTarget,
   studio_asset: studioAssetTarget,
+  notebook: notebookTarget,
 } as const satisfies Record<EntityCommentType, ModerationTarget>;
 
 const ITEM_LABEL = {
@@ -396,6 +474,7 @@ const ITEM_LABEL = {
   recipe: 'Rezept',
   template: 'Vorlage',
   studio_asset: 'Sticker/Hintergrund',
+  notebook: 'Notebook',
 } as const satisfies Record<EntityCommentType, string>;
 
 const EXCERPT_MAX = 140;
@@ -503,6 +582,7 @@ export const MODERATION_TARGETS = {
   user_text_form: userTextFormTarget,
   user_template: userTemplateTarget,
   entity_comment: entityCommentTarget,
+  notebook: notebookTarget,
 } as const satisfies Record<ModeratableReportKind, ModerationTarget>;
 
 /** The registry entry for a report kind and a well-formed row id, or null. */

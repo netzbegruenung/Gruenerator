@@ -11,6 +11,7 @@ const REPORT_KIND = {
   template: 'user_template',
   sticker: 'studio_asset',
   background: 'studio_asset',
+  notebook: 'notebook',
 } as const;
 
 const slug = (title: string) => title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
@@ -94,6 +95,8 @@ export function item(
           createdAt: '2026-10-01T00:00:00.000Z',
         },
       };
+    case 'notebook':
+      return { ...base, kind, notebook: { slug: `${slug(title)}-Ab3xK9` } };
   }
 }
 

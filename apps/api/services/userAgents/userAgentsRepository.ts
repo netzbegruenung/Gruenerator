@@ -152,13 +152,19 @@ function ownedByHandle(userId: string, handle: string) {
   );
 }
 
-export async function listUserAgents(userId: string): Promise<UserAgentRecord[]> {
+/** The owner's own agents, with their share mode (the list is the only reader that needs it). */
+export async function listUserAgents(
+  userId: string
+): Promise<(UserAgentRecord & { shareMode: UserAgentShareMode })[]> {
   const db = getDrizzleInstance();
   const agentRows = await db
     .select()
     .from(userAgents)
     .where(and(eq(userAgents.user_id, userId), notTrashed(userAgents)));
-  return agentRows.map(rowToAgent);
+  return agentRows.map((row) => ({
+    ...rowToAgent(row),
+    shareMode: row.share_mode as UserAgentShareMode,
+  }));
 }
 
 export async function getUserAgent(

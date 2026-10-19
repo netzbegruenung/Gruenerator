@@ -64,6 +64,7 @@ const KIND_VIEWS: { [K in MarketplaceKind]: KindView<MarketplaceItemOf<K>> } = {
   },
   sticker: { label: 'Sticker', toggle: 'bookmark', imageFit: 'contain', image: assetImage },
   background: { label: 'Hintergrund', toggle: 'bookmark', imageFit: 'cover', image: assetImage },
+  notebook: { label: 'Notebook', toggle: 'bookmark', imageFit: 'cover', image: noImage },
 };
 
 /**

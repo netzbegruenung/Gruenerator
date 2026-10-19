@@ -191,7 +191,7 @@ describe('MarketplacePage', () => {
     expect(screen.getByRole('region', { name: 'Rezepte' })).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Neu im Marktplatz' })).toBeNull();
     expect(Object.fromEntries(queries.at(-1)!)).toMatchObject({
-      kinds: 'agent,recipe,template,sticker,background',
+      kinds: 'agent,recipe,template,sticker,background,notebook',
       q: 'e',
       sectionLimit: '12',
     });
@@ -449,11 +449,16 @@ describe('MarketplacePage', () => {
     expect(await screen.findByRole('dialog', { name: 'Inhalt melden' })).toBeInTheDocument();
   });
 
-  it('offers to start one’s own Agent, Rezept, Vorlage or Sticker from „+"', async () => {
+  it('opens „Element hinzufügen" from „+", offering what one already has, not a creator', async () => {
     const { user } = renderPage();
-    await user.click(screen.getByRole('button', { name: 'Inhalt hinzufügen' }));
-    const items = await screen.findAllByRole('menuitem');
-    expect(items.map((i) => i.textContent)).toEqual(['Agent', 'Rezept', 'Vorlage', 'Sticker']);
+    await user.click(screen.getByRole('button', { name: 'Element hinzufügen' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Element hinzufügen' });
+    expect(
+      within(dialog)
+        .getAllByRole('button')
+        .map((b) => b.textContent)
+    ).toEqual(expect.arrayContaining([expect.stringContaining('Agent')]));
+    expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
   });
 
   it('has no axe violations', async () => {

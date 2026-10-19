@@ -1302,12 +1302,13 @@ CREATE INDEX IF NOT EXISTS idx_board_comments_user ON board_comments(user_id);
 CREATE INDEX IF NOT EXISTS idx_board_comments_mentioned ON board_comments USING gin(mentioned_user_ids) WHERE mentioned_user_ids != '{}';
 CREATE INDEX IF NOT EXISTS idx_board_comment_reactions_comment ON board_comment_reactions(comment_id);
 
--- Comments on marketplace items (zz_20261020_entity_comments.sql), keyed like
+-- Comments on marketplace items (zz_20261020_entity_comments.sql, notebooks since
+-- zz_20261020b_entity_comments_notebook.sql), keyed like
 -- likes: `(entity_type, entity_id)` with the item's marketplace ref, no FK.
 CREATE TABLE IF NOT EXISTS entity_comments (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     entity_type TEXT NOT NULL
-        CHECK (entity_type IN ('agent', 'recipe', 'template', 'studio_asset')),
+        CHECK (entity_type IN ('agent', 'recipe', 'template', 'studio_asset', 'notebook')),
     entity_id   TEXT NOT NULL,
     user_id     UUID REFERENCES profiles(id) ON DELETE SET NULL,
     body        TEXT NOT NULL,
@@ -1338,7 +1339,7 @@ CREATE TABLE IF NOT EXISTS entity_reactions (
     item_type         TEXT,
     item_id           TEXT,
     CONSTRAINT entity_reactions_item_type
-        CHECK (item_type IN ('agent', 'recipe', 'template', 'studio_asset')),
+        CHECK (item_type IN ('agent', 'recipe', 'template', 'studio_asset', 'notebook')),
     CONSTRAINT entity_reactions_item_pair CHECK ((item_type IS NULL) = (item_id IS NULL)),
     CONSTRAINT entity_reactions_one_target
         CHECK (num_nonnulls(group_share_id, group_comment_id, board_comment_id,
