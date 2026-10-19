@@ -16,9 +16,22 @@ export const marketplaceKindSchema = z.enum([
   'template',
   'sticker',
   'background',
+  'notebook',
 ]);
 export type MarketplaceKind = z.infer<typeof marketplaceKindSchema>;
 export const MARKETPLACE_KINDS = marketplaceKindSchema.options;
+
+/**
+ * F0 — what an absent `kinds` means, forever: the kinds the first clients knew.
+ * A client that names no kinds must never receive one it cannot render.
+ */
+export const LEGACY_DEFAULT_KINDS = [
+  'agent',
+  'recipe',
+  'template',
+  'sticker',
+  'background',
+] as const satisfies readonly MarketplaceKind[];
 
 /** F0 — the same values as the Agentura's `?von=`. */
 export const marketplaceOriginSchema = z.enum(['offiziell', 'landesverband', 'oeffentlich']);
@@ -113,12 +126,22 @@ export const marketplaceBackgroundItemSchema = z.object({
   asset: studioAssetItemSchema,
 });
 
+export const marketplaceNotebookItemSchema = z.object({
+  ...baseItem,
+  kind: z.literal('notebook'),
+  notebook: z.object({
+    /** `/notebooks/<slug>` — name slug plus suffix, the uuid for pre-backfill rows. */
+    slug: z.string(),
+  }),
+});
+
 export const marketplaceItemSchema = z.discriminatedUnion('kind', [
   marketplaceAgentItemSchema,
   marketplaceRecipeItemSchema,
   marketplaceTemplateItemSchema,
   marketplaceStickerItemSchema,
   marketplaceBackgroundItemSchema,
+  marketplaceNotebookItemSchema,
 ]);
 export type MarketplaceItem = z.infer<typeof marketplaceItemSchema>;
 export type MarketplaceItemOf<K extends MarketplaceKind> = Extract<MarketplaceItem, { kind: K }>;
@@ -127,15 +150,16 @@ export type MarketplaceItemOf<K extends MarketplaceKind> = Extract<MarketplaceIt
  * `kinds` is also the client's capability declaration: a client lists the
  * kinds it can render, and the server answers only those. Unknown values are
  * dropped, not rejected — an older server keeps serving a newer client. An
- * absent parameter means every kind; a present one that names no known kind
- * means none.
+ * absent parameter means `LEGACY_DEFAULT_KINDS`, not every kind, so a kind
+ * added later never reaches a client that did not ask for it; a present one
+ * that names no known kind means none.
  */
 const kindsQuerySchema = z
   .string()
   .max(200)
   .optional()
   .transform((raw): MarketplaceKind[] => {
-    if (raw === undefined) return [...MARKETPLACE_KINDS];
+    if (raw === undefined) return [...LEGACY_DEFAULT_KINDS];
     const wanted = new Set(raw.split(',').map((k) => k.trim()));
     return MARKETPLACE_KINDS.filter((k) => wanted.has(k));
   });

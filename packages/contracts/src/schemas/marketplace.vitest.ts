@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import { MARKETPLACE_KINDS, marketplaceListQuerySchema } from './marketplace.js';
+import {
+  LEGACY_DEFAULT_KINDS,
+  MARKETPLACE_KINDS,
+  marketplaceListQuerySchema,
+} from './marketplace.js';
 
 describe('marketplaceListQuerySchema', () => {
-  it('defaults to every kind, sort empfohlen and the shop', () => {
+  it('defaults to the legacy kinds, sort empfohlen and the shop', () => {
     expect(marketplaceListQuerySchema.parse({})).toEqual({
-      kinds: [...MARKETPLACE_KINDS],
+      kinds: [...LEGACY_DEFAULT_KINDS],
       origin: null,
       q: null,
       sort: 'empfohlen',
@@ -21,6 +25,22 @@ describe('marketplaceListQuerySchema', () => {
     expect(marketplaceListQuerySchema.parse({ kinds: 'sticker, agent,hologram' }).kinds).toEqual([
       'agent',
       'sticker',
+    ]);
+  });
+
+  it('never hands a kind added later to a client that did not name it', () => {
+    // A shipped build sends the list compiled into it; one without the
+    // parameter gets the kinds the first clients knew — never `notebook`.
+    const shipped = 'agent,recipe,template,sticker,background';
+    expect(marketplaceListQuerySchema.parse({ kinds: shipped }).kinds).not.toContain('notebook');
+    expect(marketplaceListQuerySchema.parse({}).kinds).not.toContain('notebook');
+    expect(MARKETPLACE_KINDS).toContain('notebook');
+  });
+
+  it('serves notebooks to a client that asks for them', () => {
+    expect(marketplaceListQuerySchema.parse({ kinds: 'notebook,agent' }).kinds).toEqual([
+      'agent',
+      'notebook',
     ]);
   });
 

@@ -16,6 +16,7 @@ export const contentReportKindSchema = z.enum([
   'user_text_form',
   'user_template',
   'entity_comment',
+  'notebook',
 ]);
 
 /** The kinds whose row carries a `moderation` column the reports can act on. */
@@ -25,6 +26,7 @@ export const moderatableReportKindSchema = contentReportKindSchema.extract([
   'user_text_form',
   'user_template',
   'entity_comment',
+  'notebook',
 ]);
 
 /** F0: persisted in the `moderation` column of every moderatable table. */
