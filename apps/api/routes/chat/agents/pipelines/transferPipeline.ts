@@ -1,5 +1,6 @@
 /**
- * Die Bauform „Übertragung + blinde Rückübersetzung + Prüfbericht".
+ * Die Bauform „Übertragung + blinde Rückübersetzung + Prüfbericht
+ * (+ Überarbeitung, wenn der Bericht nicht freigibt)".
  *
  * Sie passt auf jeden Agenten, der einen vorhandenen Text in ein anderes
  * Sprachregister überträgt statt einen neuen zu schreiben — Einfache Sprache,
@@ -23,7 +24,7 @@
  * aber erst nach dem Fehlverhalten.
  */
 
-import { type PipelineAgent, type PipelineStep } from './types.js';
+import { type PipelineAgent } from './types.js';
 
 export interface TransferPipelineSpec {
   identifier: string;
@@ -42,8 +43,6 @@ export interface TransferPipelineSpec {
   ownDevices: readonly string[];
   /** Persona für Schritt 1, oder null, wenn sie aus dem intern-Repo kommt. */
   systemRole: string | null;
-  /** Voreinstellung 400 — siehe `PipelineAgent.minProducedChars`. */
-  minProducedChars?: number;
 }
 
 function rueckuebersetzungPrompt(spec: TransferPipelineSpec): string {
@@ -268,166 +267,172 @@ oder überzählige Wörterbuch-Einträge, uneinheitliche Begriffe,
 stehengebliebene Wörter der Verwaltungs- und Nachrichtensprache sowie
 Amts- und Funktionsbezeichnungen, die vor einem Namen zusammengezogen
 statt in einem eigenen Satz aufgelöst sind.
-Wenn du hier nichts findest, benenne die acht geprüften Stellen
+Findest du hier nichts, ist das kein Befund - aber prüfe die acht
 trotzdem.
 
 AUSGABE
+Gib dein Ergebnis ausschliesslich über das Werkzeug \`pruefbericht\` zurück.
+- abdeckung: die Liste aus Schritt 1, ein Eintrag je Punkt, lückenlos.
+- beiwerk: die nicht gezählten Zeilen, gesammelt in einer Zeile.
+- modalitaet: die Liste aus Schritt 2c, je Stelle mit beiden Zitaten. Sie
+  ist auch dann vollständig, wenn jede Stelle erhalten ist: sie ist der
+  Nachweis, dass du abgezählt und nicht nur überflogen hast.
+- befunde: jeder Befund aus Schritt 2, 2b und 3. Regelverstösse aus
+  Schritt 3 tragen die Fehlerart "r".
+  KRITISCH = inhaltlich falsch oder politisch verfälscht
+  HOCH     = wesentlicher Inhalt fehlt oder ist missverständlich
+  MITTEL   = Regelverstoss, der das Verstehen erschwert
+  NIEDRIG  = stilistisch, ohne Verständnisfolgen
+  Ein Modalitäts-Fehler (c) ist mindestens HOCH: er verändert, was der
+  Urheber zugesagt, gefordert oder nur für möglich gehalten hat.
+  Jede Abdeckungszeile mit "verkürzt" oder "fehlt" ist auch ein Befund,
+  in aller Regel eine AUSLASSUNG (a).
+  beleg: das wörtliche Zitat aus dem Original. Findest du keinen Beleg,
+  streiche den Befund. Bei einem Regelverstoss steht das Zitat der
+  Fassung in "stelle", und "beleg" bleibt leer.
+  korrektur: für KRITISCH und HOCH der neu formulierte Abschnitt in
+  ${spec.registerName} (${spec.levelLabel}, dasselbe Regelwerk wie die
+  Fassung), für MITTEL der korrigierte Satz.
+- begruendung: deine Einschätzung in höchstens 5 Sätzen. Ein Urteil
+  (Freigabe, Ablehnung) nennst du NICHT - das rechnet das System aus
+  deinen Listen.
+- risiko: was auch nach einer Korrektur eine menschliche Entscheidung
+  braucht.
 
-A. Abdeckungstabelle mit Auszählung
-A2. Modalitäts-Abgleich - die Tabelle aus Schritt 2c, vollständig und
-   mit beiden Zitaten je Zeile. Sie steht auch dann da, wenn jede Zeile
-   "ja" trägt: sie ist der Nachweis, dass du abgezählt und nicht nur
-   überflogen hast.
-B. Befund-Tabelle
-   | Nr | Stelle | Fehlerart | Schweregrad | Beschreibung |
-   KRITISCH = inhaltlich falsch oder politisch verfälscht
-   HOCH     = wesentlicher Inhalt fehlt oder ist missverständlich
-   MITTEL   = Regelverstoß, der das Verstehen erschwert
-   NIEDRIG  = stilistisch, ohne Verständnisfolgen
-   Ein Modalitäts-Fehler (c) ist mindestens HOCH: er verändert, was der
-   Urheber zugesagt, gefordert oder nur für möglich gehalten hat. Das
-   ist kein Stilproblem, sondern eine andere politische Aussage.
-   Für jeden Befund: Zitiere die belegende Stelle aus dem Original.
-   Findest du keinen Beleg, streiche den Befund.
-   B muss jede Zeile aus A aufnehmen, die "verkürzt" oder "fehlt"
-   trägt: was dort fehlt, ist ein Befund - in aller Regel eine
-   AUSLASSUNG (a). Eine A-Zeile ohne Befund in B heisst, du hast den
-   Mangel gesehen und nicht gemeldet.
-C. Korrektur-Vorschläge - für JEDEN Befund KRITISCH und HOCH, keinen
-   auslassen. Formuliere den Abschnitt neu, in ${spec.registerName}
-   (${spec.levelLabel}, dasselbe Regelwerk wie die Fassung).
-   Bei MITTEL genügt der korrigierte Satz statt des ganzen Abschnitts -
-   aber er steht da. Ein Befund ohne Korrektur zwingt die lesende
-   Person, den Fehler selbst zu beheben, den du bereits kennst.
-D. Fehlerarten-Nachweis - eine Zeile je Fehlerart a) bis i), in dieser
-   Reihenfolge, jede entweder mit der Nummer des Befunds aus B oder mit
-   "geprüft, kein Befund". Schweigen zu einer Fehlerart ist kein
-   Unbedenklichkeitsnachweis, und genau als solcher wird es gelesen.
-   "geprüft, kein Befund" bei a) ist ausgeschlossen, solange A eine
-   Zeile mit "verkürzt" oder "fehlt" trägt. Widersprechen sich A und D,
-   gilt A. Dasselbe gilt für c) gegenüber A2: jede Zeile dort mit
-   "nein" ist ein Befund.
-E. Gesamturteil
-   FREIGABE / ÜBERARBEITUNG / ABLEHNUNG, Begründung in max. 5 Sätzen.
-   ABLEHNUNG zwingend, wenn ein KRITISCH-Befund vorliegt oder mehr als
-   ein Viertel der Punkte aus Schritt 1 fehlt oder verkürzt ist.
-   FREIGABE nur, wenn D für jede Fehlerart eine Zeile trägt, A2
-   vorliegt und keine ihrer Zeilen "nein" trägt, und kein Befund
-   KRITISCH oder HOCH ist. Im Zweifel ÜBERARBEITUNG.
-   Ein Bericht ohne einen einzigen Befund ist möglich, aber selten.
-   Bevor du ihn abgibst, geh A, A2 und Schritt 2b noch einmal durch:
-   Trägt jede Aussage Dritter in der Fassung denselben Grad wie im
-   Original? Steht der Anlass der Äusserung darin? Sind die Fachwörter
-   gekennzeichnet? Findest du dabei nichts, ist "keine Befunde" dein
-   Ergebnis - findest du etwas, war es kein sorgfältiger Bericht,
-   sondern ein schneller.
-F. Verbleibendes Risiko - was auch nach Korrektur eine menschliche
-   Entscheidung braucht.
+Ein Bericht ohne einen einzigen Befund ist möglich, aber selten. Bevor du
+ihn abgibst, geh die Listen noch einmal durch: Trägt jede Aussage Dritter
+in der Fassung denselben Grad wie im Original? Steht der Anlass der
+Äusserung darin? Findest du dabei nichts, ist "keine Befunde" dein
+Ergebnis.
 
-Kein Lob, keine Stärken-Zusammenfassung, keine Einleitung, keine
-Ankündigung deines Vorgehens.`;
+Kein Lob, keine Stärken-Zusammenfassung, keine Einleitung.`;
+}
+
+function ueberarbeitungPrompt(spec: TransferPipelineSpec): string {
+  const regelwerk = spec.systemRole
+    ? `${spec.systemRole}\n\n`
+    : `Du überträgst Texte in ${spec.registerName} (${spec.levelLabel}).\n\n`;
+
+  return `${regelwerk}ÜBERARBEITUNG
+Deine Fassung ist von einer unabhängigen Prüf-Instanz geprüft worden. Du
+bekommst drei Blöcke: das <original>, die <fassung> und die nummerierte
+Liste <punkte>, die die Prüfung beanstandet hat.
+
+Schreibe die Fassung vollständig neu - als fertigen Text in
+${spec.registerName}, nach dem Regelwerk oben:
+- Behebe jeden Punkt der Liste. Steht ein Vorschlag dabei, nutze ihn, wenn
+  er dem Regelwerk folgt; sonst formuliere selbst.
+- Prüfe jeden Punkt am Original, bevor du ihn umsetzt. Steht das, was der
+  Punkt verlangt, nicht im Original, setzt du ihn nicht um.
+- Was die Liste nicht beanstandet, übernimmst du aus der Fassung
+  unverändert.
+- Eine Auslassung behebst du an der Stelle, an der sie im Original steht,
+  nicht als Nachtrag am Ende.
+- Ergänze nichts, was nicht im Original steht.
+- Behalte die Form: Titel als \`# \`, Zwischenüberschriften als \`## \`,
+  Aufzählungen als Liste.
+
+Gib nur die überarbeitete Fassung aus. Kein Kommentar zu den Änderungen,
+keine Liste der behobenen Punkte, keine Einleitung.`;
+}
+
+function nachpruefungPrompt(spec: TransferPipelineSpec): string {
+  const devices = spec.ownDevices.map((d) => `- ${d}`).join('\n');
+
+  return `ROLLE
+Du bist Prüf-Instanz. Eine Fassung in ${spec.registerName} wurde
+überarbeitet, weil eine frühere Prüfung Mängel fand. Du prüfst, ob die
+Mängel behoben sind - nicht den ganzen Text noch einmal von vorn.
+
+Du bekommst vier Blöcke: das <original>, die <vorige_fassung>, die
+<neue_fassung> und die nummerierte Liste <punkte> der Mängel.
+
+AUFGABE
+1. Für JEDEN Punkt der Liste: Ist er in der neuen Fassung behoben?
+   "behoben" ist eine Behauptung, die du belegen musst: zitiere in "beleg"
+   den Satz der neuen Fassung, der den Mangel behebt. Findest du ihn
+   nicht, ist der Punkt nicht behoben.
+   Bei einer Auslassung: steht der Inhalt des Originals jetzt da?
+   Bei Modalität: trägt die Stelle jetzt denselben Grad wie das Original
+   - Möglichkeit bleibt Möglichkeit ("kann"), Plan bleibt Plan ("soll"),
+   Bedingung bleibt Bedingung, und die Folge einer Bedingung steht nicht
+   im blossen Indikativ?
+2. neue_befunde: NUR, was die Überarbeitung neu verschlechtert hat.
+   Vergleiche dafür die neue mit der vorigen Fassung: Inhalt, der vorher
+   da war und jetzt fehlt; eine Zahl oder ein Name, der jetzt falsch ist;
+   etwas, das nicht im Original steht. Für jeden neuen Befund ein
+   wörtlicher Beleg aus dem Original.
+   Keine Hinzufügung sind die Mittel, die das Regelwerk der Fassung
+   vorschreibt:
+${devices}
+
+Gib das Ergebnis ausschliesslich über das Werkzeug \`nachpruefung\`
+zurück: je Punkt ein Eintrag mit seiner Nummer. Keine Einleitung.`;
 }
 
 /** F1: `id` ist die SSE-`stepId` und wird nicht umbenannt. */
 const RUECK_ID = 'es-rueck';
 const PRUEF_ID = 'es-pruefung';
 
-/**
- * Obergrenze für das Original im Prüfkontext. Siehe `buildUserMessage` des
- * Prüfschritts für die Begründung — und dafür, warum die Kürzung angesagt wird.
- */
-const MAX_ORIGINAL_CHARS = 24000;
-
 export function buildTransferPipeline(spec: TransferPipelineSpec): PipelineAgent {
-  const rueck: PipelineStep = {
-    id: RUECK_ID,
-    title: 'Rückübersetzung (blind)…',
-    heading: '\n\n---\n\n## Rückübersetzung (blind erstellt)\n\n',
-    systemPrompt: rueckuebersetzungPrompt(spec),
-    requestType: 'chat_einfache_sprache_rueck',
-    // Reichlich bemessen, und zwar aus zwei Richtungen: die Rückübersetzung ist
-    // kürzer als ihre Vorlage (der Prompt verlangt das), aber Gemma 4 ist ein
-    // Reasoning-Modell — seine Denk-Tokens zählen gegen dieses Budget, und ein
-    // zu knapper Deckel liefert leeren `content` statt einer kurzen Antwort.
-    maxTokens: 3000,
-    // Ruhig 8 s, im langsamen Lauf 64 s. Derselbe Abstand wie bei der Prüfung.
-    hedgeAfterMs: 30_000,
-    // NUR die Fassung. Kein Original, kein Verlauf — sonst ist die Blindheit
-    // dahin und der Schritt misst nichts mehr.
-    buildUserMessage: (ctx) => ctx.produced.trim() || null,
-    missingText:
-      'Die blinde Rückübersetzung ist nicht zustande gekommen. Der Prüfbericht ' +
-      'unten stützt sich deshalb nur auf den Abgleich mit dem Original.',
-  };
-
-  const pruefung: PipelineStep = {
-    id: PRUEF_ID,
-    title: 'Prüfe Vollständigkeit…',
-    heading: '\n\n---\n\n## Prüfbericht\n\n',
-    systemPrompt: pruefungPrompt(spec),
-    requestType: 'chat_einfache_sprache_pruefung',
-    // Angehoben mit der Modalitäts-Tabelle aus Schritt 2c: sie bringt zwei
-    // Zitate je Zeile. Gemma 4 denkt gegen dasselbe Budget, und ein
-    // abgeschnittener Bericht verliert als Erstes das Gesamturteil am Ende.
-    maxTokens: 11000,
-    // Niedriger als die Rückübersetzung: hier wird gezählt und belegt, nicht
-    // formuliert.
-    temperature: 0.1,
-    // Gemessen 14.08.2026: 35,9 s und 36,9 s in zwei ruhigen Läufen, dann ein
-    // Lauf unter Last, in dem schon die Rückübersetzung von 8 s auf 43,6 s
-    // stieg und die Prüfung in die globale 120-s-Sperre fiel. Ergebnis war
-    // „Die Fassung oben ist ungeprüft" — der Ausfall genau des Schritts, für
-    // den es diesen Agenten gibt. Die Fassung steht zu diesem Zeitpunkt längst
-    // auf dem Bildschirm, es wartet niemand auf ein leeres Fenster; also lieber
-    // spät prüfen als gar nicht. Die Sperre bricht die Anfrage beim Anbieter
-    // nicht ab (siehe `executeWithTimeout`), sie beendet nur das Warten.
-    timeoutMs: 240_000,
-    // Deutlich über den ruhigen 36 s, damit der Griff die Ausnahme bleibt: er
-    // kostet den Aufruf doppelt. Der langsame Lauf lag bei 218 s, der Sibling
-    // schafft denselben Bericht in rund 16 s — es ist also reichlich Abstand
-    // zwischen „heute etwas träge" und „hier stimmt etwas nicht".
-    hedgeAfterMs: 75_000,
-    buildUserMessage: (ctx) => {
-      // Drei Texte plus Systemprompt müssen in ein Fenster passen, und das
-      // Original ist der einzige unbegrenzte Teil — Fassung und Rückübersetzung
-      // sind durch ihre eigenen Token-Deckel schon beschränkt. Die Kürzung wird
-      // im Prompt ANGESAGT: still gekürzt wäre die Abdeckungsliste
-      // unvollständig, ohne dass es jemand merkt, und genau diese Liste ist das
-      // Prüfmittel.
-      const gekuerzt = ctx.original.length > MAX_ORIGINAL_CHARS;
-      const original = gekuerzt ? ctx.original.slice(0, MAX_ORIGINAL_CHARS) : ctx.original;
-      const kuerzungsHinweis = gekuerzt
-        ? '\n\n(Gekürzt — das Original ist länger als hier gezeigt. Beziehe die ' +
-          'Abdeckungsliste nur auf den gezeigten Teil und sage das im Bericht.)'
-        : '';
-
-      // Der Prompt kennt drei benannte Texte und behandelt einen fehlenden
-      // ausdrücklich. Deshalb wird die ausgefallene Rückübersetzung BENANNT
-      // statt weggelassen — sonst prüft das Modell zwei Texte und meldet es nicht.
-      const rueckText = ctx.previous.get(RUECK_ID);
-      return (
-        `<original>\n${original}${kuerzungsHinweis}\n</original>\n\n` +
-        `<fassung>\n${ctx.produced}\n</fassung>\n\n` +
-        (rueckText
-          ? `<rueckuebersetzung>\n${rueckText}\n</rueckuebersetzung>`
-          : '<rueckuebersetzung>\n(Die Rückübersetzung ist nicht zustande gekommen. ' +
-            'Prüfe ohne sie und sage das.)\n</rueckuebersetzung>')
-      );
-    },
-    missingText:
-      'Die Prüfung ist nicht zustande gekommen. Die Fassung oben ist **ungeprüft** — ' +
-      'lass sie vor der Veröffentlichung gegenlesen.',
-  };
-
   return {
     identifier: spec.identifier,
+    registerName: spec.registerName,
     systemRole: spec.systemRole,
     forceIntent: 'produktion',
-    minProducedChars: spec.minProducedChars ?? 400,
-    noOriginalText:
-      'Der Ausgangstext war hier nicht auffindbar, deshalb konnte die Fassung oben nicht ' +
-      'gegen ihn geprüft werden. Sie ist **ungeprüft**. Füge den Originaltext direkt in die ' +
-      'Nachricht ein, dann läuft die Prüfung mit.',
-    steps: [rueck, pruefung],
+    steps: {
+      rueck: {
+        id: RUECK_ID,
+        title: 'Rückübersetzung (blind)…',
+        systemPrompt: rueckuebersetzungPrompt(spec),
+        requestType: 'chat_einfache_sprache_rueck',
+        // Reichlich bemessen, und zwar aus zwei Richtungen: die Rückübersetzung
+        // ist kürzer als ihre Vorlage (der Prompt verlangt das), aber Gemma 4 ist
+        // ein Reasoning-Modell — seine Denk-Tokens zählen gegen dieses Budget,
+        // und ein zu knapper Deckel liefert leeren `content` statt einer kurzen
+        // Antwort.
+        maxTokens: 6000,
+        // Ruhig 8 s, im langsamen Lauf 64 s. Derselbe Abstand wie bei der Prüfung.
+        hedgeAfterMs: 30_000,
+      },
+      pruefung: {
+        id: PRUEF_ID,
+        title: 'Prüfe Vollständigkeit…',
+        systemPrompt: pruefungPrompt(spec),
+        requestType: 'chat_einfache_sprache_pruefung',
+        // Zwei Listen mit je zwei Zitaten pro Zeile, als JSON. Gemma 4 denkt
+        // gegen dasselbe Budget, und ein abgeschnittener Bericht ist hier ein
+        // ungültiges Objekt.
+        maxTokens: 14000,
+        // Hier wird gezählt und belegt, nicht formuliert.
+        temperature: 0.1,
+        // Gemessen 14.08.2026: 36 s ruhig, 218 s unter Last; der Sibling schafft
+        // denselben Bericht in rund 16 s. Die Sperre bricht die Anfrage beim
+        // Anbieter nicht ab (siehe `executeWithTimeout`), sie beendet nur das
+        // Warten.
+        timeoutMs: 240_000,
+        hedgeAfterMs: 75_000,
+      },
+      ueberarbeitung: {
+        id: 'es-ueberarbeitung',
+        title: 'Überarbeite die Fassung…',
+        systemPrompt: ueberarbeitungPrompt(spec),
+        requestType: 'chat_einfache_sprache_ueberarbeitung',
+        // Eine ganze Fassung, und Gemma 4 denkt gegen dasselbe Budget.
+        maxTokens: 12000,
+        timeoutMs: 240_000,
+        hedgeAfterMs: 75_000,
+      },
+      nachpruefung: {
+        id: 'es-nachpruefung',
+        title: 'Prüfe die Überarbeitung…',
+        systemPrompt: nachpruefungPrompt(spec),
+        requestType: 'chat_einfache_sprache_nachpruefung',
+        maxTokens: 8000,
+        temperature: 0.1,
+        timeoutMs: 240_000,
+        hedgeAfterMs: 60_000,
+      },
+    },
   };
 }

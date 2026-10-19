@@ -15,7 +15,7 @@
  * persistence and a reload see what is on screen.
  */
 
-import { runAgentPipeline } from '../services/agentPipeline.js';
+import { runTransferTurn } from '../services/agentPipeline.js';
 import { type executeIntentPipeline } from '../services/intentExecutionService.js';
 import { type createPendingAssistantWriter } from '../services/pendingAssistantWriter.js';
 import { type SSEWriter } from '../services/sseHelpers.js';
@@ -161,6 +161,34 @@ export async function runResponseStage({
     },
   });
 
+  // Ein Übertragungs-Turn (Einfache/Leichte Sprache) hat seine eigene Kette:
+  // Fassung, Prüfung, Nachbesserung — und gesendet wird nur der fertige Text.
+  // `pipelineOriginal` ist leer, wenn der Turn nichts zu übertragen hat (eine
+  // Frage an den Agenten); dann antwortet er wie jeder andere.
+  if (pipelineAgent && pipelineOriginal) {
+    const transfer = await runTransferTurn({
+      pipeline: pipelineAgent,
+      state: classifiedState,
+      sse,
+      original: pipelineOriginal,
+      instruction: lastUserText.trim() === pipelineOriginal.trim() ? '' : lastUserText.trim(),
+      userId,
+      modelId,
+      requestId,
+    });
+    return {
+      handled: false,
+      finalState: classifiedState,
+      fullText: transfer.fullText,
+      generatedImage: null,
+      sharepicVariants: [],
+      createdDocument: transfer.createdDocument,
+      createdBoard: null,
+      agenticSteps: undefined,
+      langfuseTraceId: undefined,
+    };
+  }
+
   if (runAgentic) {
     const agentic = await runAgenticAnswer({
       sse,
@@ -242,21 +270,6 @@ export async function runResponseStage({
     return { handled: true, result: { status: 200 as const, body: undefined } };
   }
 
-  // === Pipeline-Agenten: die Nachschritte, jeder mit eigenem Kontext ===
-  // Laufen NACH der gestromten Antwort und hängen an denselben Text an,
-  // damit Persistenz und Neuladen sehen, was auf dem Bildschirm steht.
-  // `pipelineOriginal` ist dieselbe Zeichenkette, die Schritt 1 oben im
-  // Systemprompt festgenagelt bekam — die Prüfung misst nichts anderes, als
-  // was übertragen werden sollte.
-  if (pipelineAgent) {
-    fullText += await runAgentPipeline({
-      pipeline: pipelineAgent,
-      state: finalState,
-      sse,
-      produced: fullText,
-      original: pipelineOriginal,
-    });
-  }
   return {
     handled: false,
     finalState,
