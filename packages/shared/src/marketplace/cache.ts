@@ -1,4 +1,5 @@
 import {
+  type MarketplaceFrontpageResponse,
   type MarketplaceItem,
   type MarketplaceKind,
   type MarketplaceListResponse,
@@ -12,10 +13,13 @@ import { STUDIO_ASSETS_QUERY_KEY } from '../studio-assets/useStudioAssets.js';
 
 /**
  * `useMarketplaceSections` caches the plain response, `useMarketplaceKind` its
- * pages, `useMarketplaceItem` the one item.
+ * pages, `useMarketplaceItem` the one item, `useMarketplaceFrontpage` the page.
  */
 export type MarketplaceCacheData =
-  MarketplaceListResponse | InfiniteData<MarketplaceListResponse, number> | MarketplaceItem;
+  | MarketplaceListResponse
+  | InfiniteData<MarketplaceListResponse, number>
+  | MarketplaceItem
+  | MarketplaceFrontpageResponse;
 
 export interface MarketplaceTarget {
   kind: MarketplaceKind;
@@ -23,6 +27,9 @@ export interface MarketplaceTarget {
 }
 
 type ItemPatch = (item: MarketplaceItem) => MarketplaceItem;
+
+const isTarget = (item: MarketplaceItem, target: MarketplaceTarget) =>
+  item.kind === target.kind && item.ref === target.ref;
 
 function patchSections(
   sections: MarketplaceSection[],
@@ -47,7 +54,20 @@ export function patchMarketplaceCache<D extends MarketplaceCacheData>(
 ): D {
   if ('kind' in data) {
     // Boundary cast: in this branch `D` is the item shape, and `patch` keeps it.
-    return (data.kind === target.kind && data.ref === target.ref ? patch(data) : data) as D;
+    return (isTarget(data, target) ? patch(data) : data) as D;
+  }
+  if ('shelves' in data) {
+    // A shelf mixes kinds, so the match is per item.
+    return {
+      ...data,
+      featured:
+        data.featured && isTarget(data.featured, target) ? patch(data.featured) : data.featured,
+      shelves: data.shelves.map((shelf) =>
+        shelf.items.some((i) => isTarget(i, target))
+          ? { ...shelf, items: shelf.items.map((i) => (isTarget(i, target) ? patch(i) : i)) }
+          : shelf
+      ),
+    };
   }
   if ('pages' in data) {
     return {

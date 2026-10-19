@@ -34,6 +34,7 @@ export {
   MARKETPLACE_QUERY_KEY,
   MARKETPLACE_SECTION_LIMIT,
   marketplaceKeys,
+  useMarketplaceFrontpage,
   useMarketplaceItem,
   useMarketplaceKind,
   useMarketplaceSections,
@@ -62,3 +63,10 @@ export {
   toGalleryAsset,
   type MarketplaceCardModel,
 } from './viewModel.js';
+export {
+  MARKETPLACE_FEATURES,
+  featureById,
+  featureFor,
+  isFrontpageView,
+  type MarketplaceFeature,
+} from './frontpage.js';
