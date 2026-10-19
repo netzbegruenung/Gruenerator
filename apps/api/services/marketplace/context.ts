@@ -64,36 +64,39 @@ export function buildMarketplaceContext(params: {
   const audience: ViewerAudience = params.locale === 'de-AT' ? 'de-AT' : 'de-DE';
   const instanceId = params.instanceId ?? CURRENT_INSTANCE;
   const lvId = params.lvId ?? null;
-  let inputs: Promise<{
-    roles: Roles;
-    hiddenAgentIds: string[];
-    hiddenSkillMentions: string[];
-  }> | null = null;
+  let inputs: Promise<{ hiddenAgentIds: string[]; hiddenSkillMentions: string[] }> | null = null;
+  let roles: Promise<Roles> | null = null;
   let catalog: Promise<OfficialCatalog> | null = null;
   let resolvable: Promise<OfficialCatalog> | null = null;
 
   const loadInputs = () => {
     inputs ??= (async () => {
-      const [roles, landesverbandId, hiddenAgentIds] = await Promise.all([
-        loadUserRoles(params.userId),
+      const [landesverbandId, hiddenAgentIds] = await Promise.all([
         getUserLandesverbandId(params.userId),
         getHiddenAgentIdentifiersCached(),
       ]);
       const hiddenSkillMentions = await getEffectiveHiddenSkillMentions(landesverbandId);
-      return { roles, hiddenAgentIds, hiddenSkillMentions: [...hiddenSkillMentions] };
+      return { hiddenAgentIds, hiddenSkillMentions: [...hiddenSkillMentions] };
     })();
     return inputs;
   };
+  // Only the viewer's own Landesverbände need the roles; `?lv=` and resolution do not.
+  const loadRoles = () => (roles ??= loadUserRoles(params.userId));
 
-  const select = async (lvIds: (roles: Roles) => readonly string[] | null) => {
-    const { roles, hiddenAgentIds, hiddenSkillMentions } = await loadInputs();
+  const select = async (
+    lvIds: () => Promise<readonly string[] | null> | readonly string[] | null
+  ) => {
+    const [{ hiddenAgentIds, hiddenSkillMentions }, ids] = await Promise.all([
+      loadInputs(),
+      lvIds(),
+    ]);
     return selectOfficialCatalog({
       locale: audience,
       instanceId,
       platform: params.platform,
       hiddenAgentIds,
       hiddenSkillMentions,
-      lvIds: lvIds(roles),
+      lvIds: ids,
     });
   };
 
@@ -104,10 +107,10 @@ export function buildMarketplaceContext(params: {
     platform: params.platform,
     officialCatalog() {
       // Server-side the roles are always known: no role is `[]`, never `null`.
-      catalog ??= select((roles) =>
+      catalog ??= select(async () =>
         lvId !== null
           ? requestedLvIds(lvId, audience, instanceId)
-          : landesverbandIdsForRoles(roles, audience)
+          : landesverbandIdsForRoles(await loadRoles(), audience)
       );
       return catalog;
     },
