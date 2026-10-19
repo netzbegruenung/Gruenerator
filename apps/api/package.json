@@ -99,7 +99,7 @@
     "@langchain/langgraph": "^1.4.20",
     "@langchain/langgraph-checkpoint-postgres": "^1.0.6",
     "@langchain/openai": "^1.6.2",
-    "@langfuse/langchain": "^5.13.0",
+    "@langfuse/langchain": "^6.0.0",
     "@langfuse/otel": "^5.13.0",
     "@langfuse/tracing": "^5.13.0",
     "@langfuse/vercel-ai-sdk": "^5.13.0",
