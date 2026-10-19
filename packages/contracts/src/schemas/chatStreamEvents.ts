@@ -386,6 +386,12 @@ export const documentCreatedEventSchema = z.object({
   title: z.string(),
   subtype: z.string(),
   url: z.string(),
+  /**
+   * Ein Begleitdokument (z. B. das Prüfprotokoll einer Übertragung): die Karte
+   * erscheint, das Panel dockt NICHT von selbst an — die Antwort ist der Text im
+   * Chat, nicht das Dokument. Fehlt = bisheriges Verhalten.
+   */
+  background: z.boolean().optional(),
 });
 export type DocumentCreatedEvent = z.infer<typeof documentCreatedEventSchema>;
 

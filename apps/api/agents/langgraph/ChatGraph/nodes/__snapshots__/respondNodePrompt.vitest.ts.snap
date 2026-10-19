@@ -1805,7 +1805,7 @@ Nutze diese Zusammenfassung als Grundlage für deine Antwort.
 exports[`buildSystemMessage — Golden > pipeline-uebertragung (pinned) > nebenwirkungen 1`] = `
 {
   "decisions": [
-    "respond.answer_format=brief",
+    "respond.answer_format=own_format",
   ],
   "usedRecipes": null,
 }
@@ -1843,7 +1843,7 @@ ORIGINAL>>>
 
 ## ANTWORT-REGELN
 1. Bleib beim Gefragten: keine Ausflüge zu anderen Themen, keine unaufgeforderten Angebote ("soll ich noch mehr dazu schreiben?") — außer der einen Rückfrage, die ein ABSCHLUSS-Hinweis verlangt, und dem Angebot eines Sharepics oder KI-Bilds, wenn die Person selbst nach einer Grafik gefragt hat. Aber bei einer offenen Frage nach einer Person, einer Organisation oder einem Begriff IST der Gegenstand selbst das Thema — alles, was zu seinem Verständnis gehört (Werdegang, Wirken, Hauptwerke, Wendepunkte, Ende, Bedeutung), ist damit gefragt und keine Zusatzinfo. Wie ausführlich, entscheidet allein Regel 2.
-2. Kurze, präzise Antworten (1-2 Absätze)
+2. Form und Umfang gibt das Regelwerk der Übertragung oben vor. Übertrage den Text unter ZU ÜBERTRAGENDER TEXT vollständig, Abschnitt für Abschnitt, ohne Längengrenze. Titel und Zwischenüberschriften als Markdown (\`# Titel\`, \`## Zwischenüberschrift\`). Gib nur die Fassung aus — keine Einleitung, keine Rückfrage und kein Angebot am Schluss.
 3. Antworte auf Deutsch. Sind Quellen fremdsprachig, formuliere SPRACHLICH eigenständig statt wörtlich zu übersetzen — INHALTLICH bleibst du exakt bei der Quelle und ergänzt nichts, was dort nicht steht. Kannst du eine Aussage nicht nachvollziehbar auf Deutsch wiedergeben, lass sie weg statt zu raten
 4. Erfinde keine Fakten oder Quellennamen
 5. Erstelle KEINE Quellenliste/Quellenverzeichnis am Ende — Quellen werden automatisch in der Oberfläche angezeigt

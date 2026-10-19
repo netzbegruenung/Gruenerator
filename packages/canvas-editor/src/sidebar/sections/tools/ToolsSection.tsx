@@ -1,6 +1,12 @@
 import { useId, useState } from 'react';
 import { HiSparkles } from 'react-icons/hi';
-import { HiPencilSquare, HiPhoto, HiQrCode, HiScissors } from 'react-icons/hi2';
+import {
+  HiChatBubbleBottomCenterText,
+  HiPencilSquare,
+  HiPhoto,
+  HiQrCode,
+  HiScissors,
+} from 'react-icons/hi2';
 import { PiArrowLeft, PiCaretRightBold, PiDropSimpleFill, PiPath } from 'react-icons/pi';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
@@ -10,6 +16,7 @@ import { BRAND_COLORS } from '../../../utils/shapes';
 
 import { AiCreateTool } from './AiCreateTool';
 import { AiEditTool } from './AiEditTool';
+import { AltTextTool, type AltTextPagesSource } from './AltTextTool';
 import { BlobCreatorTool } from './BlobCreatorTool';
 import { GradientTextTool } from './GradientTextTool';
 import { QRCodeTool } from './QRCodeTool';
@@ -26,6 +33,8 @@ export interface ToolsSectionProps {
   onJumpToUploads?: () => void;
   /** Places a generated image (by durable URL) straight onto the canvas. */
   onPlaceImageUrl?: (url: string, fileName: string, options?: UserImagePlacement) => void;
+  /** The editor's pages for the alt-text tool; only the multi-page editor provides them. */
+  altTextPages?: AltTextPagesSource;
 }
 
 type ToolView =
@@ -37,7 +46,8 @@ type ToolView =
   | 'gradient-text'
   | 'blob'
   | 'text-path'
-  | 'unsplash';
+  | 'unsplash'
+  | 'alt-text';
 
 interface ToolCard {
   id: Exclude<ToolView, 'browse'>;
@@ -177,9 +187,18 @@ function DrillDownHeader({ label, onBack }: { label: string; onBack: () => void 
   );
 }
 
-export function ToolsSection({ onJumpToUploads, onPlaceImageUrl }: ToolsSectionProps) {
-  const { removeBackgroundFromImage, generateAiImage, editAiImage, searchUnsplashImages } =
-    useCanvasEditorServices();
+export function ToolsSection({
+  onJumpToUploads,
+  onPlaceImageUrl,
+  altTextPages,
+}: ToolsSectionProps) {
+  const {
+    removeBackgroundFromImage,
+    generateAiImage,
+    editAiImage,
+    searchUnsplashImages,
+    generateSlideAltTexts,
+  } = useCanvasEditorServices();
   const [activeView, setActiveView] = useState<ToolView>('browse');
   const isMobile = useIsCanvasMobile();
 
@@ -207,6 +226,14 @@ export function ToolsSection({ onJumpToUploads, onPlaceImageUrl }: ToolsSectionP
       label: 'Mit KI bearbeiten',
       icon: HiPencilSquare,
       available: !!editAiImage,
+    },
+    {
+      id: 'alt-text',
+      description: 'Bildbeschreibung für Screenreader',
+      ai: true,
+      label: 'Alt-Texte',
+      icon: HiChatBubbleBottomCenterText,
+      available: !!generateSlideAltTexts && !!altTextPages,
     },
     {
       id: 'unsplash',
@@ -297,6 +324,7 @@ export function ToolsSection({ onJumpToUploads, onPlaceImageUrl }: ToolsSectionP
       {activeView === 'ai-create' && <AiCreateTool onJumpToUploads={onJumpToUploads} />}
       {activeView === 'ai-edit' && <AiEditTool onJumpToUploads={onJumpToUploads} />}
       {activeView === 'unsplash' && <UnsplashTool onPlaceImageUrl={onPlaceImageUrl} />}
+      {activeView === 'alt-text' && altTextPages && <AltTextTool pages={altTextPages} />}
       {activeView === 'qr-code' && (
         <QRCodeTool onJumpToUploads={onJumpToUploads} onPlaceImageUrl={onPlaceImageUrl} />
       )}
