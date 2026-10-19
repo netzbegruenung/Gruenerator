@@ -145,7 +145,12 @@ const nichtBehoben = (...nr: number[]): Answer => ({
 
 function run(
   script: Script,
-  overrides: { original?: string; fassung?: string; pipeline?: PipelineAgent } = {}
+  overrides: {
+    original?: string;
+    fassung?: string;
+    pipeline?: PipelineAgent;
+    revisionLane?: Parameters<typeof checkAndRevise>[0]['revisionLane'];
+  } = {}
 ) {
   const { sse, sent } = fakeSse();
   const { calls } = fakePool(script);
@@ -154,6 +159,7 @@ function run(
     sse: sse as never,
     original: overrides.original ?? ORIGINAL,
     fassung: overrides.fassung ?? FASSUNG,
+    ...(overrides.revisionLane && { revisionLane: overrides.revisionLane }),
   });
   return { promise, sent, calls };
 }
@@ -238,6 +244,30 @@ describe('checkAndRevise', () => {
     });
     expect(out.protokoll).toContain('### Überarbeitung, Runde 1');
     expect(out.protokoll).toContain('### Nachprüfung, Runde 1');
+  });
+
+  it('schreibt die Überarbeitung mit der Lane der Fassung, prüft aber auf der Prüf-Lane', async () => {
+    // Die Überarbeitung schreibt den Text, den die Person liest: eine
+    // ausdrückliche Modellwahl muss auch hier gelten (Review zu #4746).
+    const { promise, calls } = run(
+      {
+        [RUECK_TYPE]: 'Fachdeutsch.',
+        [PRUEF_TYPE]: mitHoch,
+        [UEBER_TYPE]: 'Neue Fassung.',
+        [NACH_TYPE]: behoben(1),
+      },
+      {
+        revisionLane: {
+          primary: { provider: 'mistral', model: 'mistral-large-latest' },
+          hedge: null,
+        },
+      }
+    );
+    await promise;
+
+    expect(calls.find((c) => c.type === UEBER_TYPE)?.provider).toBe('mistral');
+    expect(calls.find((c) => c.type === PRUEF_TYPE)?.provider).toBe('cortecs');
+    expect(calls.find((c) => c.type === NACH_TYPE)?.provider).toBe('cortecs');
   });
 
   it('bricht nach MAX_ROUNDS (2) ab, wenn ein HOCH-Punkt offen bleibt', async () => {
@@ -738,10 +768,11 @@ describe('Pipeline-Registry', () => {
 
   it('gibt jedem Schritt beider Pipelines Id, Titel, Prompt, Typ und Budget', () => {
     for (const pipeline of [ES, LS]) {
-      for (const step of Object.values(pipeline.steps)) {
+      for (const [name, step] of Object.entries(pipeline.steps)) {
         expect(step.id.length).toBeGreaterThan(0);
         expect(step.title.length).toBeGreaterThan(0);
-        expect(step.systemPrompt.length).toBeGreaterThan(100);
+        // Die Fassung bekommt ihren Prompt aus dem Antwortknoten.
+        if (name !== 'fassung') expect(step.systemPrompt.length).toBeGreaterThan(100);
         expect(step.requestType).toMatch(/^chat_einfache_sprache_/);
         expect(step.maxTokens).toBeGreaterThan(0);
       }

@@ -15,6 +15,7 @@
  * persistence and a reload see what is on screen.
  */
 
+import { withLangfuseTrace } from '../../../services/telemetry/langfuseTelemetry.js';
 import { runTransferTurn } from '../services/agentPipeline.js';
 import { type executeIntentPipeline } from '../services/intentExecutionService.js';
 import { type createPendingAssistantWriter } from '../services/pendingAssistantWriter.js';
@@ -166,16 +167,27 @@ export async function runResponseStage({
   // `pipelineOriginal` ist leer, wenn der Turn nichts zu übertragen hat (eine
   // Frage an den Agenten); dann antwortet er wie jeder andere.
   if (pipelineAgent && pipelineOriginal) {
-    const transfer = await runTransferTurn({
-      pipeline: pipelineAgent,
-      state: classifiedState,
-      sse,
-      original: pipelineOriginal,
-      instruction: lastUserText.trim() === pipelineOriginal.trim() ? '' : lastUserText.trim(),
-      userId,
-      modelId,
-      requestId,
-    });
+    // Derselbe `chat-turn`-Trace wie auf den anderen Pfaden: ohne ihn fehlen
+    // dem Turn die Langfuse-Spur und die Feedback-Knöpfe unter der Nachricht.
+    let transferTraceId: string | undefined;
+    const transfer = await withLangfuseTrace(
+      buildTurnTrace(classifiedState.intent ?? 'produktion'),
+      async (trace) => {
+        transferTraceId = trace.traceId;
+        const result = await runTransferTurn({
+          pipeline: pipelineAgent,
+          state: classifiedState,
+          sse,
+          original: pipelineOriginal,
+          instruction: lastUserText.trim() === pipelineOriginal.trim() ? '' : lastUserText.trim(),
+          userId,
+          modelId,
+          requestId,
+        });
+        trace.update({ input: pipelineOriginal, output: result.fullText });
+        return result;
+      }
+    );
     return {
       handled: false,
       finalState: classifiedState,
@@ -185,7 +197,7 @@ export async function runResponseStage({
       createdDocument: transfer.createdDocument,
       createdBoard: null,
       agenticSteps: undefined,
-      langfuseTraceId: undefined,
+      langfuseTraceId: transferTraceId,
     };
   }
 

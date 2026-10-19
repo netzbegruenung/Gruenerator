@@ -423,8 +423,24 @@ export async function checkAndRevise(params: {
    * mittleren Abschnitt wieder Titel und Schlusshinweis auf.
    */
   sectionRole?: string;
+  /**
+   * Wer die Überarbeitung schreibt — dieselbe Lane wie die Fassung. Sie
+   * schreibt den Text, den die Person am Ende liest; eine ausdrückliche
+   * Modellwahl gilt deshalb auch hier. Die Prüfschritte bleiben auf der
+   * Prüf-Lane.
+   */
+  revisionLane?: LanePair;
 }): Promise<PartOutcome> {
-  const { pipeline, sse, original, fassung, suffix = '', label = '', sectionRole = '' } = params;
+  const {
+    pipeline,
+    sse,
+    original,
+    fassung,
+    suffix = '',
+    label = '',
+    sectionRole = '',
+    revisionLane = PRUEF_LANE,
+  } = params;
   const { rueck, pruefung, ueberarbeitung, nachpruefung } = pipeline.steps;
   const tool = pipeline.identifier;
 
@@ -489,7 +505,7 @@ export async function checkAndRevise(params: {
       () =>
         textStep(
           ueberarbeitung,
-          PRUEF_LANE,
+          revisionLane,
           `${originalBlock(original)}\n\n<fassung>\n${current}\n</fassung>\n\n<punkte>\n${punkte}\n</punkte>`,
           ueberarbeitung.id + runde,
           ueberarbeitung.systemPrompt + sectionRole
@@ -690,17 +706,18 @@ export async function runTransferTurn(params: {
         customSystemPrompt: null,
         pipelineSourceText: section,
       })) + sectionNote(i, n);
+    const step = pipeline.steps.fassung;
     const fassung = await withProgress(
       sse,
       tool,
-      `es-fassung${suffix}`,
-      n > 1 ? `Übertrage Abschnitt ${i + 1} von ${n}…` : 'Schreibe die Fassung…',
+      step.id + suffix,
+      n > 1 ? `Übertrage Abschnitt ${i + 1} von ${n}…` : step.title,
       () =>
         textStep(
-          { ...pipeline.steps.ueberarbeitung, maxTokens: 16000 },
+          step,
           fassungLane,
           instruction || `Übertrage den Text in ${pipeline.registerName}.`,
-          `es-fassung${suffix}`,
+          step.id + suffix,
           system
         )
     );
@@ -710,6 +727,7 @@ export async function runTransferTurn(params: {
       sse,
       original: section,
       fassung: trimSectionFrame(fassung, i, n),
+      revisionLane: fassungLane,
       ...(n > 1 && {
         suffix,
         label: ` (Abschnitt ${i + 1} von ${n})`,

@@ -381,6 +381,17 @@ export function buildTransferPipeline(spec: TransferPipelineSpec): PipelineAgent
     systemRole: spec.systemRole,
     forceIntent: 'produktion',
     steps: {
+      fassung: {
+        id: 'es-fassung',
+        title: 'Schreibe die Fassung…',
+        systemPrompt: '',
+        requestType: 'chat_einfache_sprache_fassung',
+        // Eine Fassung in Leichter Sprache ist länger als ihr Original, und das
+        // Modell denkt gegen dasselbe Budget.
+        maxTokens: 16000,
+        timeoutMs: 240_000,
+        hedgeAfterMs: 75_000,
+      },
       rueck: {
         id: RUECK_ID,
         title: 'Rückübersetzung (blind)…',

@@ -72,6 +72,9 @@ export interface PipelineAgent {
    */
   readonly forceIntent: 'produktion';
   readonly steps: {
+    /** Die erste Fassung. Ihr Systemprompt kommt aus dem Antwortknoten
+     *  (Persona + angehefteter Ausgangstext), `systemPrompt` bleibt leer. */
+    readonly fassung: PipelineStep;
     /** Blinde Rückübersetzung: bekommt NUR die Fassung. */
     readonly rueck: PipelineStep;
     /** Prüfbericht als Objekt (`pruefbericht.ts`). */
