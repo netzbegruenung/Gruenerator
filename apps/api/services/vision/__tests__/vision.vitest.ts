@@ -14,7 +14,7 @@ const TINY_RED_PNG =
 
 describe('Vision — unit tests', () => {
   describe('isVisionCapable', () => {
-    it('returns true for every answer lane measured on 2026-10-07', () => {
+    it('returns true for every answer lane measured on 2026-10-07 (Mistral Large 4: 2026-10-19)', () => {
       for (const model of [
         'mistral-medium-2604',
         'mistral-small-latest',
@@ -22,6 +22,7 @@ describe('Vision — unit tests', () => {
         'gemma-4-31b-it',
         'gemma-4-31b:balanced',
         'mistral-small-4-119b-instruct',
+        'mistral-large-4',
       ]) {
         expect(isVisionCapable(model), model).toBe(true);
       }
