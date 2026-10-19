@@ -12,7 +12,7 @@
     "lint:fix": "eslint . --fix"
   },
   "dependencies": {
-    "@assistant-ui/react": "^0.15.28",
+    "@assistant-ui/react": "^0.15.29",
     "@gruenerator/chat": "workspace:*",
     "lucide-react": "^1.57.0",
     "react": "19.3.0",
