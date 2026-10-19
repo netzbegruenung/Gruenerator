@@ -8,7 +8,13 @@ import { MARKETPLACE_ORIGIN_BADGE } from '@gruenerator/shared/marketplace';
 import { resolveStoredImageUrl } from '@gruenerator/shared/media-library/shareUrl';
 import { Button, cn } from '@gruenerator/ui';
 import { useState, type JSX, type ReactNode } from 'react';
-import { PiArrowSquareOut, PiChatCircleText, PiPencilSimple, PiUserCircle } from 'react-icons/pi';
+import {
+  PiArrowSquareOut,
+  PiChatCircleText,
+  PiNotebook,
+  PiPencilSimple,
+  PiUserCircle,
+} from 'react-icons/pi';
 import { Link } from 'react-router-dom';
 
 import { PhosphorIcon } from '../agents/icons/PhosphorIcon';
@@ -222,6 +228,21 @@ function AssetActions({ item }: { item: MarketplaceAssetItem }) {
   );
 }
 
+// ── Notebooks ────────────────────────────────────────────────────────────────
+
+const notebookVisual = (): MarketplaceVisual => ({ type: 'icon', icon: <PiNotebook /> });
+
+function NotebookActions({ item }: { item: MarketplaceItemOf<'notebook'> }) {
+  return (
+    <Button asChild variant="outline">
+      <Link to={`/notebooks/${encodeURIComponent(item.notebook.slug)}`}>
+        <PiNotebook aria-hidden />
+        Notebook öffnen
+      </Link>
+    </Button>
+  );
+}
+
 /**
  * Everything kind-specific about the Marktplatz in one place: the word for
  * the kind, how saving is worded, the card's icon or image, and what the
@@ -253,6 +274,12 @@ export const KIND_VIEWS: { [K in MarketplaceKind]: KindView<K> } = {
     saveLabel: BOOKMARK,
     visual: assetVisual,
     PrimaryActions: AssetActions,
+  },
+  notebook: {
+    label: 'Notebook',
+    saveLabel: BOOKMARK,
+    visual: notebookVisual,
+    PrimaryActions: NotebookActions,
   },
 };
 

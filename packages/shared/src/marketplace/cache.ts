@@ -112,5 +112,8 @@ export function relatedQueryKeys(
     case 'sticker':
     case 'background':
       return [STUDIO_ASSETS_QUERY_KEY];
+    case 'notebook':
+      // „Gemerkt" on /notebooks reads the Marktplatz query itself.
+      return [];
   }
 }

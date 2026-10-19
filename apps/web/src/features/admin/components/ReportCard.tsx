@@ -18,6 +18,7 @@ const KIND_LABELS: Record<ContentReportKind, string> = {
   user_text_form: 'Rezept',
   user_template: 'Vorlage',
   entity_comment: 'Kommentar im Marktplatz',
+  notebook: 'Notebook',
 };
 
 const MODERATION_LABELS: Record<Exclude<ModerationState, 'ok'>, string> = {

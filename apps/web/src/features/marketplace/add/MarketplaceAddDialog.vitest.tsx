@@ -150,6 +150,33 @@ beforeEach(() => {
       })
     ),
     http.put(`${API}/auth/user-templates/:id`, record('PUT')),
+    http.get(`${API}/auth/notebook-collections`, () =>
+      HttpResponse.json({
+        success: true,
+        collections: [
+          { id: 'nb-1', user_id: 'u1', name: 'Kreisverband', description: null },
+          {
+            id: 'nb-2',
+            user_id: 'other',
+            name: 'Geteilt von anderen',
+            description: null,
+            access_source: 'shared',
+          },
+        ],
+      })
+    ),
+    http.get(`${API}/auth/notebook-collections/:id/share`, () =>
+      HttpResponse.json({
+        share_mode: 'private',
+        edit_policy: 'owner_only',
+        audience: 'de-DE',
+        is_public: false,
+        public_ownership: null,
+      })
+    ),
+    http.get(`${API}/auth/notebook-collections/:id/groups`, () => HttpResponse.json([])),
+    http.put(`${API}/auth/notebook-collections/:id/share/mode`, record('PUT')),
+    http.put(`${API}/auth/notebook-collections/:id/share/is-public`, record('PUT')),
     http.get(`${API}/studio-assets`, ({ request }) => {
       const kind = new URL(request.url).searchParams.get('kind');
       return HttpResponse.json({ items: kind === 'sticker' ? [ASSET] : [], hasMore: false });
@@ -174,6 +201,7 @@ describe('MarketplaceAddDialog', () => {
       'Vorlage',
       'Sticker',
       'Hintergrund',
+      'Notebook',
     ]);
     expect(within(dialog()).getByRole('listitem', { current: 'step' })).toHaveTextContent('1. Art');
     expect(await axe(container)).toHaveNoViolations();
@@ -283,6 +311,30 @@ describe('MarketplaceAddDialog', () => {
       body: { is_private: false, status: 'pending_review' },
     });
     expect(screen.getByRole('status', { name: 'Adresse', hidden: true })).toHaveTextContent('');
+  });
+
+  it('lists one’s own notebooks only, and makes one public with the ownership statement', async () => {
+    const { user } = renderDialog();
+    await user.click(within(dialog()).getByRole('button', { name: /Notebook/ }));
+    await user.click(await screen.findByRole('button', { name: /Kreisverband/ }));
+    expect(screen.queryByRole('button', { name: /Geteilt von anderen/ })).not.toBeInTheDocument();
+
+    await user.click(await screen.findByRole('radio', { name: /Öffentlich im Marktplatz/ }));
+    await user.click(screen.getByRole('radio', { name: /Inhalte sind öffentlich verfügbar/ }));
+    await user.click(screen.getByRole('button', { name: 'Fertig' }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('status', { name: 'Adresse', hidden: true })).toHaveTextContent(
+        'item=notebook%3Anb-1'
+      )
+    );
+    expect(calls.map((c) => [c.path, c.body])).toEqual([
+      ['/api/auth/notebook-collections/nb-1/share/mode', { mode: 'authenticated' }],
+      [
+        '/api/auth/notebook-collections/nb-1/share/is-public',
+        { is_public: true, public_ownership: 'public_data' },
+      ],
+    ]);
   });
 
   it('points to where a kind is made when one has none yet', async () => {

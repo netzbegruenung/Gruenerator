@@ -6,76 +6,37 @@ import { shouldRetryQuery } from '../../../components/utils/queryRetry';
 import { useAuthStore } from '../../../stores/authStore';
 import { TEMPLATE_ENGAGEMENT_KEY } from '../../vorlagen/hooks/useTemplateEngagement';
 
-import type { NotebookCollection } from '../../../types/notebook';
 import type {
   EntityLikeType as AnyEntityLikeType,
   TemplateEngagementResponse,
 } from '@gruenerator/contracts';
 
 /** The like types this hook serves; the others like through the marketplace. */
-export type EntityLikeType = Extract<AnyEntityLikeType, 'notebook' | 'template'>;
+export type EntityLikeType = Extract<AnyEntityLikeType, 'template'>;
 
 const likedIdsQueryKey = (entityType: EntityLikeType) => ['entityLikes', entityType] as const;
 
-const PUBLIC_NOTEBOOKS_KEY = ['notebookCollections', 'public'] as const;
 const VORLAGEN_GALLERY_KEY = ['vorlagen-gallery'] as const;
 
-async function fetchLikedIds(entityType: EntityLikeType): Promise<string[]> {
+async function fetchLikedIds(): Promise<string[]> {
   const client = getContractsClient();
-  if (entityType === 'notebook') {
-    const result = await client.notebookCollections.listMyLikedCollections();
-    if (result.status !== 200) throw new ApiError(result.status, 'Konnte Likes nicht laden');
-    return result.body.liked_ids;
-  }
-  // template
   const result = await client.templateInteractions.listMyLikedTemplates();
   if (result.status !== 200) throw new ApiError(result.status, 'Konnte Likes nicht laden');
   return result.body.liked_ids;
 }
 
-async function callLike(
-  entityType: EntityLikeType,
-  entityId: string
-): Promise<{ liked: boolean; count: number }> {
+async function callLike(entityId: string): Promise<{ liked: boolean; count: number }> {
   const client = getContractsClient();
-  if (entityType === 'notebook') {
-    const result = await client.notebookCollections.likeCollection({ params: { id: entityId } });
-    if (result.status !== 200) throw new ApiError(result.status, 'Like fehlgeschlagen');
-    return { liked: true, count: result.body.count };
-  }
-  // template
   const result = await client.templateInteractions.likeTemplate({ params: { id: entityId } });
   if (result.status !== 200) throw new ApiError(result.status, 'Like fehlgeschlagen');
   return { liked: true, count: result.body.count };
 }
 
-async function callUnlike(
-  entityType: EntityLikeType,
-  entityId: string
-): Promise<{ liked: boolean; count: number }> {
+async function callUnlike(entityId: string): Promise<{ liked: boolean; count: number }> {
   const client = getContractsClient();
-  if (entityType === 'notebook') {
-    const result = await client.notebookCollections.unlikeCollection({ params: { id: entityId } });
-    if (result.status !== 200) throw new ApiError(result.status, 'Unlike fehlgeschlagen');
-    return { liked: false, count: result.body.count };
-  }
-  // template
   const result = await client.templateInteractions.unlikeTemplate({ params: { id: entityId } });
   if (result.status !== 200) throw new ApiError(result.status, 'Unlike fehlgeschlagen');
   return { liked: false, count: result.body.count };
-}
-
-function patchPublicNotebooksCache(
-  qc: ReturnType<typeof useQueryClient>,
-  entityId: string,
-  delta: number
-) {
-  qc.setQueryData<NotebookCollection[] | undefined>(PUBLIC_NOTEBOOKS_KEY, (prev) => {
-    if (!prev) return prev;
-    return prev.map((c) =>
-      c.id === entityId ? { ...c, likes_count: Math.max(0, (c.likes_count ?? 0) + delta) } : c
-    );
-  });
 }
 
 /**
@@ -115,16 +76,6 @@ function patchTemplateGalleryCache(
   );
 }
 
-function patchEntityCache(
-  entityType: EntityLikeType,
-  qc: ReturnType<typeof useQueryClient>,
-  entityId: string,
-  delta: number
-) {
-  if (entityType === 'notebook') patchPublicNotebooksCache(qc, entityId, delta);
-  else patchTemplateGalleryCache(qc, entityId, delta);
-}
-
 export interface UseEntityLikesResult {
   likedIds: Set<string>;
   isLoaded: boolean;
@@ -140,7 +91,7 @@ export function useEntityLikes(entityType: EntityLikeType): UseEntityLikesResult
 
   const query = useQuery({
     queryKey: likedIdsQueryKey(entityType),
-    queryFn: () => fetchLikedIds(entityType),
+    queryFn: fetchLikedIds,
     enabled: isAuthenticated,
     retry: (failureCount, error) => shouldRetryQuery(failureCount, error, 1),
     staleTime: 5 * 60 * 1000,
@@ -153,7 +104,7 @@ export function useEntityLikes(entityType: EntityLikeType): UseEntityLikesResult
   // re-render before mutationFn runs would otherwise read the flipped state.
   const mutation = useMutation({
     mutationFn: async ({ entityId, wasLiked }: { entityId: string; wasLiked: boolean }) =>
-      wasLiked ? callUnlike(entityType, entityId) : callLike(entityType, entityId),
+      wasLiked ? callUnlike(entityId) : callLike(entityId),
     onMutate: async ({ entityId, wasLiked: isCurrentlyLiked }) => {
       setPending((prev) => {
         const next = new Set(prev);
@@ -166,13 +117,13 @@ export function useEntityLikes(entityType: EntityLikeType): UseEntityLikesResult
         : [...previousIds, entityId];
       qc.setQueryData(likedIdsQueryKey(entityType), nextIds);
 
-      patchEntityCache(entityType, qc, entityId, isCurrentlyLiked ? -1 : 1);
+      patchTemplateGalleryCache(qc, entityId, isCurrentlyLiked ? -1 : 1);
       return { previousIds, wasLiked: isCurrentlyLiked };
     },
     onError: (_err, { entityId }, context) => {
       if (context) {
         qc.setQueryData(likedIdsQueryKey(entityType), context.previousIds);
-        patchEntityCache(entityType, qc, entityId, context.wasLiked ? 1 : -1);
+        patchTemplateGalleryCache(qc, entityId, context.wasLiked ? 1 : -1);
       }
     },
     onSettled: (_data, _err, { entityId }) => {

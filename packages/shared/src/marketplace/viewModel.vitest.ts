@@ -138,6 +138,19 @@ describe('itemHref', () => {
   it('has no page for Sticker', () => {
     expect(itemHref(sticker)).toBeNull();
   });
+
+  it('opens a Notebook by its slug', () => {
+    const notebook: MarketplaceItem = {
+      ...base,
+      kind: 'notebook',
+      key: 'notebook:n1',
+      ref: 'n1',
+      title: 'Klimaschutz',
+      reportKind: 'notebook',
+      notebook: { slug: 'klimaschutz-Ab3xK9' },
+    };
+    expect(itemHref(notebook)).toBe('/notebooks/klimaschutz-Ab3xK9');
+  });
 });
 
 describe('canReport', () => {

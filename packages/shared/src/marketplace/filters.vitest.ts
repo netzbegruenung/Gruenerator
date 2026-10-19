@@ -69,7 +69,15 @@ describe('parseMarketplaceParams / serializeMarketplaceParams', () => {
 
 describe('kindsForTab', () => {
   it('maps a tab to the kinds it asks the server for', () => {
-    expect(kindsForTab('alle')).toEqual(['agent', 'recipe', 'template', 'sticker', 'background']);
+    expect(kindsForTab('alle')).toEqual([
+      'agent',
+      'recipe',
+      'template',
+      'sticker',
+      'background',
+      'notebook',
+    ]);
+    expect(kindsForTab('notebooks')).toEqual(['notebook']);
     expect(kindsForTab('hintergruende')).toEqual(['background']);
     expect(kindsForTab('rezepte')).toEqual(['recipe']);
   });

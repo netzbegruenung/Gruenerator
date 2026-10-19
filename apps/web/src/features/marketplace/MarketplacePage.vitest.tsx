@@ -139,7 +139,7 @@ describe('MarketplacePage', () => {
       ])
     );
     // The per-kind list is not asked for while the front page shows.
-    expect(asked).not.toContain('agent,recipe,template,sticker,background|empfohlen');
+    expect(asked).not.toContain('agent,recipe,template,sticker,background,notebook|empfohlen');
   });
 
   it('gives way to one section per kind as soon as someone searches', async () => {
@@ -150,7 +150,7 @@ describe('MarketplacePage', () => {
     expect(screen.getByRole('region', { name: 'Rezepte' })).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Neu im Marktplatz' })).toBeNull();
     expect(Object.fromEntries(queries.at(-1)!)).toMatchObject({
-      kinds: 'agent,recipe,template,sticker,background',
+      kinds: 'agent,recipe,template,sticker,background,notebook',
       q: 'e',
       sectionLimit: '12',
     });

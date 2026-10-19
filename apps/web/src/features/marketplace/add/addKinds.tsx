@@ -23,10 +23,19 @@ import {
 import { useStudioAssetMutations, useStudioAssets } from '@gruenerator/shared/studio-assets';
 import { LoadingSection } from '@gruenerator/ui';
 import { useMemo, type JSX, type ReactNode } from 'react';
-import { PiFileText, PiImage, PiLayout, PiSparkle, PiSticker } from 'react-icons/pi';
+import { PiFileText, PiImage, PiLayout, PiNotebook, PiSparkle, PiSticker } from 'react-icons/pi';
 
-import { useUserTemplates } from '../../auth/hooks/useProfileData';
+import { type NotebookCollection } from '../../../types/notebook';
+import { useNotebookCollections, useUserTemplates } from '../../auth/hooks/useProfileData';
 import { type UserTemplate } from '../../auth/services/profileApiService';
+import {
+  useAddNotebookGroupShare,
+  useNotebookGroupShares,
+  useNotebookShareSettings,
+  useRemoveNotebookGroupShare,
+  useSetNotebookIsPublic,
+  useSetNotebookShareMode,
+} from '../../notebook/hooks/useNotebookSharing';
 
 import { OwnItemPicker, type OwnItem, type OwnItemBadge } from './OwnItemPicker';
 import { applySharing, sharingVisibility, type SharingState } from './sharing';
@@ -332,6 +341,71 @@ function AssetVisibility({ item, onBack, onDone }: StepProps & { item: StudioAss
   );
 }
 
+// ── Notebooks ────────────────────────────────────────────────────────────────
+
+function useOwnNotebooks() {
+  const { query } = useNotebookCollections({ isActive: true });
+  const items = useMemo<OwnItem<NotebookCollection>[]>(
+    () =>
+      (query.data ?? [])
+        // Shared and public notebooks of others come in the same list.
+        .filter((n) => n.access_source == null || n.access_source === 'owned')
+        .map((n) => ({
+          key: n.id,
+          title: n.name,
+          description: n.description,
+          badge: sharingVisibility({
+            shareMode: n.share_mode ?? 'private',
+            isPublic: n.is_public === true,
+            groupIds: [],
+          }),
+          value: n,
+        })),
+    [query.data]
+  );
+  return { items, loading: query.isPending, error: query.isError };
+}
+
+function NotebookVisibility({ item, onBack, onDone }: StepProps & { item: NotebookCollection }) {
+  const settings = useNotebookShareSettings(item.id, true);
+  const shares = useNotebookGroupShares(item.id, true);
+  const setMode = useSetNotebookShareMode(item.id);
+  const setPublic = useSetNotebookIsPublic(item.id);
+  const addGroup = useAddNotebookGroupShare(item.id);
+  const removeGroup = useRemoveNotebookGroupShare(item.id);
+
+  if (settings.isPending || shares.isPending) return <Loading />;
+  if (settings.isError || shares.isError) return <LoadFailed />;
+
+  const state: SharingState = {
+    shareMode: settings.data.share_mode,
+    isPublic: settings.data.is_public,
+    groupIds: shares.data.map((s) => s.group_id),
+  };
+  return (
+    <VisibilityStep
+      current={sharingVisibility(state)}
+      currentGroupIds={state.groupIds}
+      projectUnavailable={null}
+      publicRequirement="ownership"
+      initialOwnership={settings.data.public_ownership}
+      onBack={onBack}
+      onApply={async (choice) => {
+        await applySharing(choice, state, {
+          setMode: setMode.mutateAsync,
+          setPublic: setPublic.mutateAsync,
+          addGroup: addGroup.mutateAsync,
+          removeGroup: removeGroup.mutateAsync,
+        });
+        onDone({
+          marketplaceItem: choice.choice === 'public' ? { kind: 'notebook', ref: item.id } : null,
+          message: RESULT_MESSAGE[choice.choice](item.name),
+        });
+      }}
+    />
+  );
+}
+
 /** The kinds „Element hinzufügen" offers, in the order of the Marktplatz tabs. */
 export const ADD_KINDS: readonly AddKind[] = [
   defineKind({
@@ -383,5 +457,15 @@ export const ADD_KINDS: readonly AddKind[] = [
     create: { href: '/studio/sticker', label: 'Zu Sticker & Hintergründe' },
     useItems: useOwnBackgrounds,
     Visibility: AssetVisibility,
+  }),
+  defineKind({
+    kind: 'notebook',
+    label: 'Notebook',
+    pluralLabel: 'Notebooks',
+    hint: 'Gesammelte Quellen zum Nachfragen',
+    icon: <PiNotebook aria-hidden />,
+    create: { href: '/notebooks/neu', label: 'Notebook erstellen' },
+    useItems: useOwnNotebooks,
+    Visibility: NotebookVisibility,
   }),
 ];
