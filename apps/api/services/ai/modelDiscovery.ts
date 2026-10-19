@@ -37,17 +37,21 @@ interface OpenAIModelsResponse {
 // hosts that emit `reasoning_content`).
 //
 // `vision` is a property of the ENDPOINT, not of the weights: catalogs listed
-// image input for hosts that answered a real image turn with HTTP 500. Every
-// `true` below for an answer lane was measured on 2026-10-07 with one PNG
+// image input for hosts that answered a real image turn with HTTP 500. The
+// 2026-10-07 endpoint check used one PNG
 // (two shapes plus a text line, read back correctly): Mistral Medium 3.5 and
 // Small on the Mistral API, Gemma 4 31B on Cortecs and Melious, Mistral Small
-// 3.2 on Cortecs, Mistral Small 4 on Melious.
+// 3.2 on Cortecs, Mistral Small 4 on Melious. Later checks, including Mistral
+// Large 4 on the Mistral API (2026-10-19), are documented per entry below.
 const MODEL_METADATA: Record<string, { name: string; reasoning: boolean; vision: boolean }> = {
   'mistral-medium-2604': { name: 'Mistral Medium 3.5', reasoning: true, vision: true },
   'mistral-medium-3.5': { name: 'Mistral Medium 3.5', reasoning: true, vision: true },
-  // Kann Bilder, aber am 06.10.2026 (Preview-Start) kamen 3 von 4 Bild-Anfragen
-  // mit 503 zurück. Bis das trägt, gehen Bilder weiter an VISION_MODEL.
-  'mistral-large-4': { name: 'Mistral Large 4', reasoning: true, vision: false },
+  // Am 06.10.2026 (Preview-Start) kamen 3 von 4 Bild-Anfragen mit 503 zurück.
+  // Am 19.10.2026 gemessen: 96 Bild-Anfragen, 0 Fehler, einfache Bildfragen in
+  // 3–13 s korrekt gelesen. Unter einem langen Regel-Prompt lief das Denken bei
+  // 17 von 86 Anfragen bis ins Token-Limit (leere Antwort) — ein Denk-, kein
+  // Bildproblem; der Alt-Text-Dienst bleibt deshalb bei VISION_MODEL.
+  'mistral-large-4': { name: 'Mistral Large 4', reasoning: true, vision: true },
   'mistral-large-2512': { name: 'Mistral Large', reasoning: false, vision: false },
   'mistral-large-latest': { name: 'Mistral Large', reasoning: false, vision: false },
   'mistral-small-latest': { name: 'Mistral Small', reasoning: false, vision: true },
