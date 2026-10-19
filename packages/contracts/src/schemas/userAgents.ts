@@ -78,6 +78,10 @@ const identifierSchema = z
 // `id` is the row's uuid and the agent's stable handle. `identifier` is only
 // unique per owner, so two people's agents can share one — anything that keys,
 // dedupes or addresses a user agent across owners must use `id`.
+/** Who can see and use an agent (re-exported by `userAgentsSharing.ts`). */
+export const userAgentShareModeSchema = z.enum(['private', 'groups', 'authenticated']);
+export type UserAgentShareMode = z.infer<typeof userAgentShareModeSchema>;
+
 export const userAgentSchema = z.object({
   id: z.string().uuid(),
   identifier: z.string(),
@@ -86,6 +90,8 @@ export const userAgentSchema = z.object({
   systemRole: z.string(),
   avatar: z.string(),
   iconKey: z.string().optional(),
+  /** Set on the owner's own list, so a picker can tell project-shared from private. */
+  shareMode: userAgentShareModeSchema.optional(),
   backgroundColor: z.string(),
   tags: z.array(z.string()).readonly(),
   model: z.string(),
