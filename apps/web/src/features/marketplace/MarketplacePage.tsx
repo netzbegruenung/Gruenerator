@@ -9,8 +9,8 @@ import { useSearchParams } from 'react-router-dom';
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import { PageHero, PageShell } from '../../components/common/PageHero';
 
+import { MarketplaceAddButton } from './MarketplaceAddButton';
 import { MarketplaceBrowser, MarketplaceToolbar } from './MarketplaceBrowser';
-import { MarketplaceCreateMenu } from './MarketplaceCreateMenu';
 
 /**
  * `/marktplatz` — Agents, Rezepte, Vorlagen, Sticker und Hintergründe in einer
@@ -43,7 +43,7 @@ function MarketplacePage(): JSX.Element {
         toolbar={
           <>
             <MarketplaceToolbar filters={filters} onChange={setFilters} />
-            <MarketplaceCreateMenu />
+            <MarketplaceAddButton />
           </>
         }
       />
