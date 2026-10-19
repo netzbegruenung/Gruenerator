@@ -112,13 +112,25 @@ router.get('/:kind/:id/:v', async (req: Request<ThumbParams>, res: Response) => 
 
   try {
     const source = await resolveThumbnailSource(kind as ThumbnailKind, id);
-    if (!source.ok) return fail(res, 404, 'Vorschau nicht verfügbar');
+    if (!source.ok) {
+      // An expected state (deleted row, upload still processing): debug only.
+      log.debug(`404 ${kind}/${id}: ${source.reason}`);
+      return fail(res, 404, 'Vorschau nicht verfügbar');
+    }
 
     const variant = await getThumbnailVariant(
       { kind: kind as ThumbnailKind, id, v, width, fmt },
       source
     );
-    if (!variant) return fail(res, 404, 'Vorschau nicht verfügbar');
+    if (!variant) {
+      // The row resolves but no variant comes back. Only a render failure has
+      // already logged an error; a missing source file has not, so this line is
+      // often the only one. Locally that is a worktree whose uploads/ never saw
+      // the upload; in production it is a real inconsistency. The path stays in
+      // the log, never in the response.
+      log.warn(`404 ${kind}/${id}: source file missing at ${source.sourcePath}`);
+      return fail(res, 404, 'Vorschau nicht verfügbar');
+    }
 
     res.setHeader('Content-Type', variant.contentType);
     res.setHeader('Content-Length', variant.size);
