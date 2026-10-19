@@ -268,8 +268,10 @@ export function nummeriert(punkte: readonly OffenerPunkt[]): string {
     .join('\n');
 }
 
+// Der Backslash zuerst: ein Zitat, das selbst `\|` enthält, schlösse die Zelle
+// sonst trotz Maskierung.
 const zelle = (s: string | null | undefined): string =>
-  (s ?? '').replace(/\|/g, '\\|').replace(/\n+/g, ' ').trim() || '–';
+  (s ?? '').replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\n+/g, ' ').trim() || '–';
 
 export function renderPruefbericht(bericht: Pruefbericht, urteil: Urteil): string {
   const voll = bericht.abdeckung.filter((p) => p.status === 'vollständig').length;

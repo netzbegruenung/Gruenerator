@@ -18,6 +18,8 @@ import {
   longSentenceShare,
   numberRecall,
   parseProtocolHeader,
+  decodeEntities,
+  stripTags,
 } from './metrics.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -117,16 +119,14 @@ async function fetchProtocol(base: string, headers: Record<string, string>, id: 
 }
 
 function htmlToMarkdownish(html: string): string {
-  return html
-    .replace(/<h([1-6])[^>]*>/gi, (_, n: string) => `\n${'#'.repeat(Number(n))} `)
-    .replace(/<li[^>]*>/gi, '\n- ')
-    .replace(/<\/(p|h[1-6]|div|tr)>|<br\s*\/?>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
+  return decodeEntities(
+    stripTags(
+      html
+        .replace(/<h([1-6])[^>]*>/gi, (_, n: string) => `\n${'#'.repeat(Number(n))} `)
+        .replace(/<li[^>]*>/gi, '\n- ')
+        .replace(/<\/(p|h[1-6]|div|tr)>|<br\s*\/?>/gi, '\n')
+    )
+  )
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }

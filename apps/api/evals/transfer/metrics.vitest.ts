@@ -11,6 +11,8 @@ import {
   longSentenceShare,
   numberRecall,
   parseProtocolHeader,
+  decodeEntities,
+  stripTags,
 } from './metrics.js';
 
 describe('extractNumbers', () => {
@@ -99,5 +101,16 @@ describe('pageChromeLines', () => {
   it('zählt Navigationszeilen, nicht Fliesstext', () => {
     expect(pageChromeLines('Weiter zum Inhalt\nSuche\n## Impressum\nDas Netz ist lang.')).toBe(3);
     expect(pageChromeLines('Die Suche nach Lösungen dauert.')).toBe(0);
+  });
+});
+
+describe('stripTags / decodeEntities', () => {
+  it('lässt kein Tag übrig, auch kein verschachteltes', () => {
+    const out = stripTags('<scr<b>ipt>alert(1)</script>Text');
+    expect(out).not.toMatch(/[<>]/);
+    expect(out).toContain('Text');
+  });
+  it('entschlüsselt nur einmal', () => {
+    expect(decodeEntities('&amp;lt;b&amp;gt; &uuml;')).toBe('&lt;b&gt; ü');
   });
 });

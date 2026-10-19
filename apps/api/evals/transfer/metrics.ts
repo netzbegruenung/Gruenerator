@@ -60,13 +60,42 @@ export interface ProtocolHeader {
   runden: number;
 }
 
+/**
+ * Entfernt Tags, bis keine mehr übrig sind — ein einzelner Durchlauf macht aus
+ * `<scr<b>ipt>` wieder ein Tag. Übrig gebliebene spitze Klammern fallen weg.
+ */
+export function stripTags(html: string): string {
+  let out = html;
+  let prev: string;
+  do {
+    prev = out;
+    out = out.replace(/<[^>]*>/g, '');
+  } while (out !== prev);
+  return out.replace(/[<>]/g, '');
+}
+
+const ENTITIES: Record<string, string> = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  nbsp: ' ',
+  auml: 'ä',
+  ouml: 'ö',
+  uuml: 'ü',
+  Auml: 'Ä',
+  Ouml: 'Ö',
+  Uuml: 'Ü',
+  szlig: 'ß',
+};
+
+/** In EINEM Durchgang — nacheinander ersetzt würde aus `&amp;lt;` erst `&lt;`, dann `<`. */
+export function decodeEntities(text: string): string {
+  return text.replace(/&([a-zA-Z]+);/g, (whole, name: string) => ENTITIES[name] ?? whole);
+}
+
 export function parseProtocolHeader(text: string): ProtocolHeader | null {
-  const plain = text
-    .replace(/<\/(p|h[1-6]|li|div)>|<br\s*\/?>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&uuml;/g, 'ü')
-    .replace(/&Uuml;/g, 'Ü')
-    .replace(/&amp;/g, '&');
+  const plain = decodeEntities(stripTags(text.replace(/<\/(p|h[1-6]|li|div)>|<br\s*\/?>/gi, '\n')));
   const urteil = /^\s*Urteil:\s*(FREIGABE|ÜBERARBEITUNG|ABLEHNUNG|UNGEPRÜFT)\b/m.exec(plain);
   const runden = /^\s*Runden:\s*(\d+)/m.exec(plain);
   if (!urteil || !runden) return null;
