@@ -81,9 +81,10 @@ export function coverPhotoRect(
 export function framedPhotoRect(
   natural: Size,
   frame: Size,
-  pan: { x: number; y: number } = { x: 0, y: 0 }
+  pan: { x: number; y: number } = { x: 0, y: 0 },
+  zoom = 1
 ): Rect {
-  const photo = coverPhotoRect(natural, frame);
+  const photo = coverPhotoRect(natural, frame, Math.max(1, zoom));
   const clamp = (v: number) => Math.max(-1, Math.min(1, v));
   return {
     ...photo,

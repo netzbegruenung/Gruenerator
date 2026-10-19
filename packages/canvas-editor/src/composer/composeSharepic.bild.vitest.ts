@@ -213,6 +213,9 @@ describe('image tint and crop', () => {
       height: 300,
       fit: 'cover',
       mask: 'kreis',
+      cropZoom: 1,
+      panX: 0,
+      panY: 0,
     });
     const original = CROP_PRESETS.find((p) => p.id === 'original')!;
     expect(cropPresetUpdate(img, original, { width: 1000, height: 1000 })).toEqual({
@@ -220,6 +223,9 @@ describe('image tint and crop', () => {
       height: 300,
       fit: undefined,
       mask: undefined,
+      cropZoom: 1,
+      panX: 0,
+      panY: 0,
     });
   });
 });

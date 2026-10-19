@@ -44,6 +44,8 @@ export interface UserImageInstance {
   flipY?: boolean;
   /** `cover`: the source is cropped (Konva `crop`) to fill width × height. */
   fit?: 'cover';
+  /** Magnification inside the crop frame; 1 just covers it. */
+  cropZoom?: number;
   /** `cover` only: where the photo sits in its frame, a share of its overhang (-1 … 1, 0 centred). */
   panX?: number;
   panY?: number;
@@ -106,6 +108,9 @@ export function cropPresetUpdate(
     height,
     fit: preset.ratio ? 'cover' : undefined,
     mask: preset.mask,
+    cropZoom: 1,
+    panX: 0,
+    panY: 0,
   };
 }
 

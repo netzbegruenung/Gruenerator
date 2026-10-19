@@ -145,7 +145,7 @@ interface CanvasRenderLayerProps<
     handleFrameChange: (id: string, newAttrs: Partial<FrameInstance>) => void;
     handleFrameImageUpload: (id: string, file: File, objectUrl: string) => void;
     handleUserImageDragEnd: (id: string, x: number, y: number) => void;
-    handleUserImageCropEnd: (id: string, panX: number, panY: number) => void;
+    handleUserImageCropEnd: (id: string, patch: Partial<UserImageInstance>) => void;
     handleUserImageTransformEnd: (
       id: string,
       x: number,
@@ -490,8 +490,8 @@ function CanvasRenderLayerInner<
           onTransformEnd={(x: number, y: number, w: number, h: number, r: number) =>
             handlers.handleUserImageTransformEnd(userImage.id, x, y, w, h, r)
           }
-          onCropEnd={(panX: number, panY: number) =>
-            handlers.handleUserImageCropEnd(userImage.id, panX, panY)
+          onCropEnd={(patch: Partial<UserImageInstance>) =>
+            handlers.handleUserImageCropEnd(userImage.id, patch)
           }
           isCropping={croppingElement === userImage.id}
           onCroppingChange={(on: boolean) => setCroppingElement(on ? userImage.id : null)}
