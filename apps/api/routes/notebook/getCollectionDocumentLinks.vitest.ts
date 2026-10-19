@@ -170,9 +170,30 @@ describe('listPublicCollections — links are resolved in bulk, not per notebook
 
   it('asks once for all notebooks and never falls back to the per-notebook lookup', async () => {
     mockHelper.getPublicNotebookCollections.mockResolvedValue([
-      { id: 'pub-1', user_id: 'u1', name: 'Eins', audience: 'de-DE' },
-      { id: 'pub-2', user_id: 'u2', name: 'Zwei', audience: 'de-DE' },
-      { id: 'pub-3', user_id: 'u3', name: 'Drei', audience: 'de-DE' },
+      {
+        id: 'pub-1',
+        user_id: 'u1',
+        name: 'Eins',
+        audience: 'de-DE',
+        share_mode: 'authenticated',
+        moderation: 'ok',
+      },
+      {
+        id: 'pub-2',
+        user_id: 'u2',
+        name: 'Zwei',
+        audience: 'de-DE',
+        share_mode: 'authenticated',
+        moderation: 'ok',
+      },
+      {
+        id: 'pub-3',
+        user_id: 'u3',
+        name: 'Drei',
+        audience: 'de-DE',
+        share_mode: 'authenticated',
+        moderation: 'ok',
+      },
     ]);
     mockHelper.getCollectionDocumentsForCollections.mockResolvedValue(
       new Map([
@@ -221,10 +242,38 @@ describe('listPublicCollections — creator privacy', () => {
 
   it('uses only display names, never email addresses or their local parts', async () => {
     mockHelper.getPublicNotebookCollections.mockResolvedValue([
-      { id: 'named', user_id: 'u1', name: 'Named', audience: 'de-DE' },
-      { id: 'unnamed', user_id: 'u2', name: 'Unnamed', audience: 'de-DE' },
-      { id: 'empty', user_id: 'u3', name: 'Empty', audience: 'de-DE' },
-      { id: 'missing', user_id: 'u4', name: 'Missing', audience: 'de-DE' },
+      {
+        id: 'named',
+        user_id: 'u1',
+        name: 'Named',
+        audience: 'de-DE',
+        share_mode: 'authenticated',
+        moderation: 'ok',
+      },
+      {
+        id: 'unnamed',
+        user_id: 'u2',
+        name: 'Unnamed',
+        audience: 'de-DE',
+        share_mode: 'authenticated',
+        moderation: 'ok',
+      },
+      {
+        id: 'empty',
+        user_id: 'u3',
+        name: 'Empty',
+        audience: 'de-DE',
+        share_mode: 'authenticated',
+        moderation: 'ok',
+      },
+      {
+        id: 'missing',
+        user_id: 'u4',
+        name: 'Missing',
+        audience: 'de-DE',
+        share_mode: 'authenticated',
+        moderation: 'ok',
+      },
     ]);
     mockPg.query.mockResolvedValue([
       { id: 'u1', display_name: 'Public name', email: 'private-one@example.org' },
