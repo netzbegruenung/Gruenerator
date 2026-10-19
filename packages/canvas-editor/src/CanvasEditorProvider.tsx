@@ -94,6 +94,17 @@ export interface CanvasVorlagenService {
   ) => Promise<ComposedSlide>;
 }
 
+/** Which pages the alt-text tool describes. */
+export type AltTextScope = 'all' | 'active';
+
+/** One page for the alt-text tool: its image and the texts the editor knows it shows. */
+export interface AltTextPage {
+  /** 1-based, as the page strip numbers it. */
+  pageNumber: number;
+  image: string;
+  texts: string[];
+}
+
 export interface CanvasEditorServices {
   /** Fetch curated stock images by category */
   fetchStockImages?: (category?: string | null) => Promise<{
@@ -165,6 +176,14 @@ export interface CanvasEditorServices {
    * the AI-edit tool is hidden.
    */
   editAiImage?: (image: File, instruction: string) => Promise<{ file: File; objectUrl: string }>;
+
+  /**
+   * One alt text per page, in the given order; `null` where a page failed.
+   * When omitted, the alt-text tool is hidden.
+   */
+  generateSlideAltTexts?: (
+    pages: ReadonlyArray<Pick<AltTextPage, 'image' | 'texts'>>
+  ) => Promise<Array<string | null>>;
 
   /** API base URL for multi-page export */
   apiBaseUrl?: string;

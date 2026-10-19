@@ -1,6 +1,6 @@
 import type { BackgroundType, TextFieldConfig } from './unifiedTabs';
 import type { TemplateAiCapabilities } from '../ai/types';
-import type { CanvasSpecEditBridge } from '../CanvasEditorProvider';
+import type { AltTextPage, AltTextScope, CanvasSpecEditBridge } from '../CanvasEditorProvider';
 import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type { BackgroundColorOption, SidebarTabId, SidebarTab } from '../sidebar/types';
@@ -307,6 +307,10 @@ export interface SectionContext {
   captureCanvasImage?: () => Promise<string | null>;
   /** Higher-fidelity capture variant used to feed canvas images to the AI. */
   captureCanvasImageForAi?: () => Promise<string | null>;
+  /** Pages as image plus their texts, for the alt-text tool (multi-page editor only). */
+  collectAltTextPages?: (scope: AltTextScope) => Promise<AltTextPage[]>;
+  /** Number of pages in the editor. */
+  pageCount?: number;
   /** Spec-path bridge for the chat section (multi-page editor only). */
   specEdit?: CanvasSpecEditBridge;
   /** The page's background controls, for sections that set the background. */

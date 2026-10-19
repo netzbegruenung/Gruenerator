@@ -6,6 +6,12 @@ import { createLogger } from '../../utils/logger.js';
 import { GEMMA_31B_PRIMARY } from '../ai/gemmaHosts.js';
 import { getModel, type ProviderName } from '../ai/providers.js';
 
+import {
+  SLIDE_ALT_TEXT_PROMPT,
+  buildSlideAltTextUserPrompt,
+  cleanSlideAltText,
+} from './slideAltText.js';
+
 import type { ExtractionResult } from '../OcrService/types.js';
 
 const log = createLogger('VisionService');
@@ -252,6 +258,42 @@ export class VisionService {
 
     const match = result.text.match(/<alt_text>(.*?)<\/alt_text>/s);
     return match ? match[1].trim() : result.text;
+  }
+
+  /** Alt-Text für eine Sharepic-Seite; `texts` sind die Texte der Seite aus dem Editor. */
+  async generateSlideAltText(
+    imageSource: string,
+    slide: { texts: readonly string[]; index: number; total: number },
+    options?: VisionOptions
+  ): Promise<string> {
+    const { model, provider, modelId } = resolveVisionModel(options);
+    const startTime = Date.now();
+
+    const result = await generateText({
+      model,
+      system: SLIDE_ALT_TEXT_PROMPT,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            resolveImageContent(imageSource),
+            {
+              type: 'text',
+              text: buildSlideAltTextUserPrompt(slide.texts, slide.index, slide.total),
+            },
+          ],
+        },
+      ],
+      maxOutputTokens: options?.maxTokens ?? 1200,
+      temperature: options?.temperature ?? 0.2,
+    });
+
+    log.info(
+      `[Vision] Slide alt text ${slide.index}/${slide.total} (${provider}/${modelId}, ${Date.now() - startTime}ms)`
+    );
+    const altText = cleanSlideAltText(result.text);
+    if (!altText) throw new Error('Leerer Alt-Text');
+    return altText;
   }
 }
 

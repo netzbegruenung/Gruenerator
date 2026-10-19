@@ -90,11 +90,17 @@ export const toolsTab: SidebarTab = {
 
 export const toolsSectionEntry = defineCommonSection({
   component: ToolsSection,
-  propsFactory: (_state, actions): ToolsSectionProps => {
+  propsFactory: (_state, actions, context): ToolsSectionProps => {
     const a = actions as ActionsWithChart;
     const props: ToolsSectionProps = {};
     // Tools place their generated image straight onto the canvas (durable URL).
     if (a.addUserImageFromUrl) props.onPlaceImageUrl = a.addUserImageFromUrl;
+    if (context?.collectAltTextPages) {
+      props.altTextPages = {
+        collect: context.collectAltTextPages,
+        pageCount: context.pageCount ?? 1,
+      };
+    }
     return props;
   },
 });
