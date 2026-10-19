@@ -282,3 +282,45 @@ describe('Inline-Zitate — die Textsorte schlägt die Erwähnung, ausser bei @d
     }
   });
 });
+
+/**
+ * Eine Übertragung (Einfache/Leichte Sprache) ist der fünfte Eigentümer.
+ *
+ * Am 19.10.2026 wurden aus 12567 Zeichen Original eine Fassung von 2102
+ * Zeichen: der Antwortknoten befahl zuletzt im Prompt „bis zu 6 Absätze" und
+ * legte den Katalog der visuellen Bausteine daneben. Der angeheftete
+ * Ausgangstext (`pipelineSourceText`) besitzt Form und Umfang.
+ */
+describe('Formatregel — eine Übertragung ist ein Eigentümer', () => {
+  const TRANSFER = 'Übertrage den Text unter ZU ÜBERTRAGENDER TEXT vollständig';
+  const CATALOGUE = '## VISUELLE BAUSTEINE';
+  const transfer = (over: Partial<ChatGraphState> = {}) =>
+    state({
+      pipelineSourceText: 'Der Gemeinderat hat beschlossen, die Radwege auszubauen.',
+      visualBlocks: ['bars', 'callout'],
+      ...over,
+    } as Partial<ChatGraphState>);
+
+  it('setzt die Übertragungsregel und verdrängt die generische', async () => {
+    const prompt = await buildSystemMessage(transfer());
+    expect(prompt).toContain(TRANSFER);
+    expect(prompt).not.toContain(GENERIC);
+  });
+
+  it('lässt den Katalog der visuellen Bausteine weg', async () => {
+    const prompt = await buildSystemMessage(transfer());
+    expect(prompt).not.toContain(CATALOGUE);
+    // Gegenprobe: ohne angehefteten Text steht er bei demselben Zustand drin.
+    const ohne = await buildSystemMessage(transfer({ pipelineSourceText: null }));
+    expect(ohne).toContain(CATALOGUE);
+    expect(ohne).not.toContain(TRANSFER);
+  });
+
+  it('schlägt auch die Rechercheform', async () => {
+    const prompt = await buildSystemMessage(transfer({ intent: 'research' }), {
+      retrievalExpected: true,
+    });
+    expect(prompt).toContain(TRANSFER);
+    expect(prompt).not.toContain('gliedere sie mit');
+  });
+});
