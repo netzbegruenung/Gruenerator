@@ -14,6 +14,7 @@ import { createLogger } from '../../utils/logger.js';
 
 import { BadContentRequest, listContent } from './contentController.js';
 import { listMediathek } from './mediathekQueries.js';
+import { listOffice } from './officeQueries.js';
 
 import type { Application } from 'express';
 
@@ -33,6 +34,20 @@ export const contentContractRouter = s.router(contentContract, {
       }
       log.error('[contentContract.listContent] Error:', error);
       return { status: 500 as const, body: { error: 'Inhalte konnten nicht geladen werden.' } };
+    }
+  },
+  listOffice: async (args) => {
+    try {
+      return {
+        status: 200 as const,
+        body: await listOffice(getAuthedUser(args.req).id, args.query),
+      };
+    } catch (error) {
+      log.error('[contentContract.listOffice] Error:', error);
+      return {
+        status: 500 as const,
+        body: { error: 'Office-Inhalte konnten nicht geladen werden.' },
+      };
     }
   },
   listMediathek: async (args) => {

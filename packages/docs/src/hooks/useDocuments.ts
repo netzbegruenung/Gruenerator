@@ -11,13 +11,14 @@ export const docsKeys = {
   list: () => ['documents', 'list'] as const,
 };
 
-export function useDocuments() {
+export function useDocuments(options?: { enabled?: boolean }) {
   const adapter = useDocsAdapter();
   const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
   const setCachedDocs = useDocumentCacheStore((s) => s.setCachedDocs);
 
   return useQuery({
     queryKey: docsKeys.list(),
+    enabled: options?.enabled,
     queryFn: async () => {
       const docs = await apiClient.get<Document[]>('/docs');
       setCachedDocs(docs);
