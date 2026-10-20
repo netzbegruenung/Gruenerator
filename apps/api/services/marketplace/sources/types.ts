@@ -18,7 +18,7 @@ export interface SourceQuery {
   scope: MarketplaceScope;
   offset: number;
   limit: number;
-  /** Catalogue recipes are applied automatically, so the shop lists them only on request. */
+  /** Catalogue recipes are applied automatically, so the shop lists them only among saved items. */
   systemRecipes: boolean;
 }
 

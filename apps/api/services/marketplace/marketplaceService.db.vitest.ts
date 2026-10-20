@@ -383,12 +383,21 @@ describe.skipIf(!url)('Marktplatz (marketplaceService)', () => {
     expect(await publicRefs('template', 'de-DE', { sort: 'neu' })).toEqual([quiet, liked]);
   });
 
-  it('the Alle tab leaves catalogue recipes out, the Rezepte tab and a search bring them in', async () => {
+  it('never lists catalogue recipes, but keeps a saved one under „gespeichert“', async () => {
     const official = (r: Awaited<ReturnType<typeof list>>) =>
       r.sections.find((s) => s.kind === 'recipe')!.items.filter((i) => i.origin === 'offiziell');
     expect(official(await list({ kinds: 'agent,recipe' }))).toEqual([]);
-    expect(official(await list({ kinds: 'recipe' })).length).toBeGreaterThan(0);
-    expect(official(await list({ kinds: 'agent,recipe', q: 'presse' })).length).toBeGreaterThan(0);
+    expect(official(await list({ kinds: 'recipe' }))).toEqual([]);
+    expect(official(await list({ kinds: 'agent,recipe', q: 'presse' }))).toEqual([]);
+
+    const mention = (await ctx().officialCatalog()).generalSkills[0]!.mention;
+    expect(await setSaved(ctx(), 'recipe', mention, true)).toEqual({
+      ok: true,
+      value: { saved: true },
+    });
+    expect(official(await list({ kinds: 'recipe', scope: 'saved' })).map((i) => i.ref)).toEqual([
+      mention,
+    ]);
   });
 
   it('saves Agents and Rezepte to „Meine Grüneratoren“, the rest to „Gemerkt“', async () => {
