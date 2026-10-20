@@ -241,32 +241,6 @@ export function MarketplaceFrontpage({
           ))}
         </ul>
       </section>
-
-      <section
-        aria-labelledby="marktplatz-mitmachen"
-        className="flex flex-wrap items-center justify-between gap-md rounded-xl bg-background-sand px-lg py-lg dark:border dark:border-grey-700"
-      >
-        <div className="flex max-w-[40rem] flex-col gap-1">
-          <h2
-            id="marktplatz-mitmachen"
-            className="m-0 text-lg font-semibold text-foreground-heading"
-          >
-            Du hast ein Rezept, das funktioniert?
-          </h2>
-          <p className="m-0 text-sm leading-relaxed text-foreground-muted">
-            Teile es öffentlich — dann taucht es hier unter „Neu“ auf, und andere Kreis- und
-            Ortsverbände können es mit einem Klick übernehmen.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-xs">
-          <Button asChild className="dark:bg-primary-700 dark:hover:bg-primary-800">
-            <Link to="/agentura/rezept/neu">Rezept erstellen</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link to="/grueneratoren">Eigenes teilen</Link>
-          </Button>
-        </div>
-      </section>
     </div>
   );
 }

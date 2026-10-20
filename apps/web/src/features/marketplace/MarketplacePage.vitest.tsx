@@ -347,9 +347,6 @@ describe('MarketplacePage', () => {
     renderPage();
 
     expect(await screen.findByRole('region', { name: 'Nach Art stöbern' })).toBeInTheDocument();
-    expect(
-      screen.getByRole('heading', { name: 'Du hast ein Rezept, das funktioniert?' })
-    ).toBeInTheDocument();
     await waitFor(() => expect(frontpageRequests).toBe(1));
     expect(screen.queryByRole('region', { name: 'Neu im Marktplatz' })).toBeNull();
   });
