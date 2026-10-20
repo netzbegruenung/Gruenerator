@@ -80,7 +80,7 @@ describe('list', () => {
 
 describe('frontpage', () => {
   it('builds the page in the viewer’s country and platform', async () => {
-    const page = { featured: null, featureId: null, shelves: [] };
+    const page = { featured: null, featureId: null, shelves: [], collections: [] };
     m.getMarketplaceFrontpage.mockResolvedValue(page);
     const res = await call('frontpage', { query: { platform: 'mobile' } });
     expect(res).toEqual({ status: 200, body: page });

@@ -1,9 +1,15 @@
 import { type MarketplaceItem, type MarketplaceSection } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
+import { getSystemAgent } from '../agents/system';
+import { hasSystemRecipe } from '../agents/skills/index';
+
 import { DEFAULT_MARKETPLACE_FILTERS } from './filters';
 import {
+  MARKETPLACE_COLLECTIONS,
   MARKETPLACE_FEATURES,
+  collectionById,
+  composeCollection,
   composeFrontpage,
   fallbackFeature,
   featureById,
@@ -13,6 +19,7 @@ import {
   newestShelf,
   popularShelf,
   visualShelf,
+  hasPreview,
 } from './frontpage';
 
 function it_(
@@ -28,6 +35,10 @@ function it_(
     title: ref,
     createdAt: over.createdAt ?? '2026-10-01T00:00:00.000Z',
     likesCount: over.likesCount ?? 0,
+    thumbnailUrl: `/${ref}.webp`,
+    ...((kind === 'sticker' || kind === 'background') && {
+      asset: { thumbUrl: `/${ref}.webp`, src: `/${ref}.png` },
+    }),
   } as MarketplaceItem;
 }
 
@@ -44,6 +55,7 @@ describe('isFrontpageView', () => {
     expect(isFrontpageView(DEFAULT_MARKETPLACE_FILTERS)).toBe(true);
     expect(isFrontpageView({ ...DEFAULT_MARKETPLACE_FILTERS, q: '  ' })).toBe(true);
     expect(isFrontpageView({ ...DEFAULT_MARKETPLACE_FILTERS, q: 'presse' })).toBe(false);
+    expect(isFrontpageView({ ...DEFAULT_MARKETPLACE_FILTERS, collection: 'canva' })).toBe(false);
     expect(isFrontpageView({ ...DEFAULT_MARKETPLACE_FILTERS, origin: 'offiziell' })).toBe(false);
     expect(isFrontpageView({ ...DEFAULT_MARKETPLACE_FILTERS, sort: 'neu' })).toBe(false);
     expect(isFrontpageView({ ...DEFAULT_MARKETPLACE_FILTERS, tab: 'agents' })).toBe(false);
@@ -132,14 +144,14 @@ describe('composeFrontpage', () => {
   const feature = MARKETPLACE_FEATURES[0];
 
   it('orders the shelves top to bottom and leaves out the ones below their minimum', () => {
-    const page = composeFrontpage({ sections, curated: null });
+    const page = composeFrontpage({ sections, curated: null, collections: [] });
     expect(page.shelves.map((s) => s.shelfId)).toEqual(['neu', 'beliebt', 'gestalten']);
     expect(page.shelves.find((s) => s.shelfId === 'gestalten')?.hasMore).toBe(true);
     expect(page.shelves.find((s) => s.shelfId === 'beliebt')?.hasMore).toBe(false);
   });
 
   it('falls back to the newest official item and keeps it out of „Neu"', () => {
-    const page = composeFrontpage({ sections, curated: null });
+    const page = composeFrontpage({ sections, curated: null, collections: [] });
     expect(page.featured?.ref).toBe('official');
     expect(page.featureId).toBeNull();
     expect(refs(page.shelves.find((s) => s.shelfId === 'neu')!.items)).toEqual(['other']);
@@ -147,7 +159,7 @@ describe('composeFrontpage', () => {
 
   it('names the curated slot when its item is there', () => {
     const item = it_('agent', feature.ref);
-    const page = composeFrontpage({ sections, curated: { feature, item } });
+    const page = composeFrontpage({ sections, curated: { feature, item }, collections: [] });
     expect(page.featured).toBe(item);
     expect(page.featureId).toBe(feature.id);
     expect(featureById(page.featureId)).toBe(feature);
@@ -159,10 +171,73 @@ describe('composeFrontpage', () => {
 
   it('is empty, not broken, for an empty catalogue', () => {
     const empty = { landesverband: [], neu: [], beliebt: [], gestalten: [] };
-    expect(composeFrontpage({ sections: empty, curated: null })).toEqual({
+    expect(composeFrontpage({ sections: empty, curated: null, collections: [] })).toEqual({
       featured: null,
       featureId: null,
       shelves: [],
+      collections: [],
     });
+  });
+});
+
+describe('collections', () => {
+  const starter = collectionById('starter')!;
+
+  it('keeps the pinned order, then the fills, each item once, cut to `show`', () => {
+    const def = { ...starter, show: 3, min: 1 };
+    const page = composeCollection(def, [
+      [it_('agent', 'a1'), null, it_('recipe', 'r1')],
+      [it_('recipe', 'r1'), it_('sticker', 's1'), it_('sticker', 's2')],
+    ]);
+    expect(page?.collectionId).toBe('starter');
+    expect(refs(page!.items)).toEqual(['a1', 'r1', 's1']);
+  });
+
+  it('is left out below its minimum', () => {
+    expect(composeCollection({ ...starter, min: 2 }, [[it_('agent', 'a1'), null]])).toBeNull();
+  });
+
+  // A renamed identifier would not fail anywhere else: the server drops what it
+  // cannot resolve, and the collection shrinks without a word.
+  it('pins only refs the official catalogue has', () => {
+    for (const collection of MARKETPLACE_COLLECTIONS) {
+      for (const target of collection.pinned) {
+        const known =
+          target.kind === 'agent'
+            ? getSystemAgent(target.ref) !== undefined
+            : hasSystemRecipe(target.ref);
+        expect(known, `${collection.id}: ${target.kind}:${target.ref}`).toBe(true);
+      }
+    }
+  });
+
+  it('can always reach its minimum', () => {
+    for (const collection of MARKETPLACE_COLLECTIONS) {
+      const reachable =
+        collection.pinned.length +
+        collection.fill.reduce((n, f) => n + f.limit * f.kinds.length, 0);
+      expect(reachable, collection.id).toBeGreaterThanOrEqual(collection.min);
+    }
+  });
+});
+
+describe('Zum Gestalten without pictures', () => {
+  it('keeps a Vorlage without a picture (drawn as a mock), leaves out a bare sticker', () => {
+    const plain = { ...it_('template', 'ohne'), thumbnailUrl: null } as MarketplaceItem;
+    const blank = {
+      ...it_('sticker', 'leer'),
+      asset: { thumbUrl: null, src: '' },
+    } as MarketplaceItem;
+    expect(hasPreview(plain)).toBe(false);
+    expect(hasPreview(blank)).toBe(false);
+    expect(
+      refs(
+        visualShelf([
+          section('template', [plain, it_('template', 't1')]),
+          section('sticker', [blank, it_('sticker', 's1')]),
+          section('background', [it_('background', 'b1')]),
+        ])
+      )
+    ).toEqual(['ohne', 's1', 'b1', 't1']);
   });
 });

@@ -2,6 +2,7 @@ import { type MarketplaceItem, type MarketplaceKind } from '@gruenerator/contrac
 import { getLandesverbandHubBySlug, type LvHub } from '@gruenerator/shared/agents';
 import {
   DEFAULT_MARKETPLACE_FILTERS,
+  LANDESVERBAND_COVERS,
   MARKETPLACE_PATH,
   marketplaceHref,
   parseMarketplaceParams,
@@ -9,21 +10,23 @@ import {
   useMarketplaceItem,
   useMarketplaceKind,
 } from '@gruenerator/shared/marketplace';
-import { NOTEBOOK_ICONS } from '@gruenerator/shared/notebook-icons';
-import { getNotebookDefinition } from '@gruenerator/shared/notebooks';
-import { Button, SectionHeader } from '@gruenerator/ui';
+import { Button, SectionHeader, ShowcaseCardImage, ShowcaseMedia } from '@gruenerator/ui';
 import { type JSX, type ReactNode } from 'react';
-import { PiCaretRight } from 'react-icons/pi';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 
 import { GalleryEmptyState, GallerySkeleton } from '../../components/common/Gallery/parts';
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import { PageHero, PageShell } from '../../components/common/PageHero';
-import NotebookGalleryCard from '../notebook/components/NotebookGalleryCard';
 import { getNotebookById } from '../notebook/config/notebooksConfig';
 
-import { MarketplaceCard } from './MarketplaceCard';
+import { lvBannerImage } from './landesverbandCovers';
 import { MarketplaceItemDetail } from './MarketplaceItemDetail';
+import {
+  DISPLAY_FONT,
+  MarketplaceShowcaseCard,
+  SHOWCASE_GRID,
+  showcaseToneAt,
+} from './MarketplaceShowcaseCard';
 import { useMarketplaceActions, type MarketplaceActions } from './useMarketplaceActions';
 
 import { CURRENT_INSTANCE } from '@/config/instance';
@@ -31,11 +34,9 @@ import { useAuthStore } from '@/stores/authStore';
 
 type Locale = 'de-DE' | 'de-AT';
 
-const GRID = 'grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-3';
-
 /**
  * `/marktplatz/landesverband/<slug>` — die Seite eines Landesverbands im
- * Marktplatz: Notebook, Agents, Rezepte und eine kurze Anleitung.
+ * Marktplatz: Agents, Rezepte und der Weg ins Notebook.
  *
  * Aufgelöst wird über `getLandesverbandHubBySlug`, dasselbe Gate wie
  * `/agents/<slug>`: ein abgeschalteter Landesverband (`enabled: false`) ist
@@ -50,9 +51,7 @@ function MarketplaceLandesverbandPage(): JSX.Element {
   const resolved = getLandesverbandHubBySlug(slug, CURRENT_INSTANCE);
   const hub = resolved && resolved.audience === locale ? resolved : null;
 
-  return (
-    <PageShell wide>{hub ? <HubView hub={hub} locale={locale} /> : <NotAvailable />}</PageShell>
-  );
+  return <PageShell wide>{hub ? <HubView hub={hub} /> : <NotAvailable />}</PageShell>;
 }
 
 function NotAvailable(): JSX.Element {
@@ -84,8 +83,7 @@ function useHubKind(kind: MarketplaceKind, hub: LvHub) {
   });
 }
 
-function HubView({ hub, locale }: { hub: LvHub; locale: Locale }): JSX.Element {
-  const navigate = useNavigate();
+function HubView({ hub }: { hub: LvHub }): JSX.Element {
   const [params, setParams] = useSearchParams();
   const { actions, dialogs } = useMarketplaceActions();
   const agents = useHubKind('agent', hub);
@@ -146,28 +144,10 @@ function HubView({ hub, locale }: { hub: LvHub; locale: Locale }): JSX.Element {
   }
 
   const notebook = getNotebookById(hub.notebookId) ?? null;
-  const notebookAlias = getNotebookDefinition(hub.notebookId)?.mention.alias ?? null;
-  const firstRecipeMention =
-    recipeItems[0]?.kind === 'recipe' ? recipeItems[0].recipe.mention : null;
 
   return (
     <div className="flex flex-col gap-2xl">
-      <HubHeader hub={hub} coverImage={notebook?.coverImage ?? null} />
-
-      {notebook && (
-        <section aria-label="Notebook">
-          <SectionHeader title="Notebook" />
-          <div className="w-full max-w-56">
-            <NotebookGalleryCard
-              title={notebook.title}
-              meta={notebook.meta}
-              icon={notebook.icon}
-              {...(notebook.coverImage ? { coverImage: notebook.coverImage } : {})}
-              onActivate={() => navigate(notebook.path)}
-            />
-          </div>
-        </section>
-      )}
+      <HubHeader hub={hub} notebookPath={notebook?.path ?? null} />
 
       <ItemSection
         title="Agents"
@@ -184,14 +164,6 @@ function HubView({ hub, locale }: { hub: LvHub; locale: Locale }): JSX.Element {
         onSelect={select}
       />
 
-      <HowTo
-        hub={hub}
-        locale={locale}
-        notebookAlias={notebook ? notebookAlias : null}
-        hasNotebook={notebook !== null}
-        hasAgents={agentItems.length > 0}
-        recipeMention={firstRecipeMention}
-      />
       {dialogs}
     </div>
   );
@@ -202,55 +174,52 @@ const hubRank = (hub: LvHub, ref: string): number => {
   return index === -1 ? hub.agentIds.length : index;
 };
 
-function HubHeader({ hub, coverImage }: { hub: LvHub; coverImage: string | null }): JSX.Element {
-  const Icon = NOTEBOOK_ICONS[hub.notebookId];
+function HubHeader({
+  hub,
+  notebookPath,
+}: {
+  hub: LvHub;
+  notebookPath: string | null;
+}): JSX.Element {
+  const cover = LANDESVERBAND_COVERS[hub.lvId];
   return (
-    <div className="flex flex-col gap-md">
-      <nav aria-label="Brotkrümelnavigation">
-        <ol className="m-0 flex list-none flex-wrap items-center gap-xs p-0 text-sm text-foreground-muted">
-          <li>
-            <Link
-              to={MARKETPLACE_PATH}
-              className="font-semibold text-foreground-muted no-underline hover:text-primary-700 hover:underline dark:hover:text-primary-300"
-            >
-              Marktplatz
-            </Link>
-          </li>
-          <li aria-hidden className="flex items-center">
-            <PiCaretRight className="size-3.5" />
-          </li>
-          <li aria-current="page" className="text-foreground">
-            {hub.name}
-          </li>
-        </ol>
-      </nav>
-      <div className="flex items-center gap-md">
-        {coverImage ? (
-          <img
-            src={coverImage}
-            alt=""
-            decoding="async"
-            className="size-20 shrink-0 rounded-xl border border-grey-200 object-cover sm:size-24 dark:border-grey-700"
-          />
-        ) : (
-          <span
-            aria-hidden
-            className="flex size-20 shrink-0 items-center justify-center rounded-xl bg-primary-500/10 text-4xl text-primary-600 sm:size-24 dark:text-primary-300"
-          >
-            <Icon />
-          </span>
-        )}
-        <div className="min-w-0 flex-1">
-          <PageHero
-            title={hub.name}
-            description={
-              <p className="m-0 text-sm leading-relaxed text-pretty text-foreground-muted">
-                {`Notebook, Agents und Rezepte von ${hub.name} an einem Ort.`}
-              </p>
-            }
-          />
-        </div>
-      </div>
+    <div className="flex flex-col gap-xl">
+      {/* Without a breadcrumb the photo opens the page: its top edge sits as far
+          from the top as the page edge from the side. */}
+      <ShowcaseMedia tone="tanne" className="aspect-[3/1] w-full rounded-2xl md:-mt-4">
+        <ShowcaseCardImage
+          {...lvBannerImage(cover)}
+          alt={cover.alt}
+          credit={cover.credit && { ...cover.credit, source: 'Unsplash' }}
+          loading="eager"
+          fetchPriority="high"
+        />
+      </ShowcaseMedia>
+      <header className="flex max-w-[42rem] flex-col gap-xs">
+        <span className="text-sm font-semibold tracking-[0.06em] text-primary-700 uppercase dark:text-primary-300">
+          Landesverband
+        </span>
+        <h1
+          className="m-0 text-[clamp(2.25rem,4.5vw,3rem)] leading-[1.05] font-bold tracking-[-0.02em] text-balance text-foreground-heading"
+          style={{ fontFamily: DISPLAY_FONT }}
+        >
+          {hub.name}
+        </h1>
+        <p className="m-0 text-lg leading-relaxed text-foreground-muted">
+          {`Agents und Rezepte von ${hub.name} an einem Ort.`}
+          {notebookPath && (
+            <>
+              {' '}
+              <Link
+                to={notebookPath}
+                className="font-semibold whitespace-nowrap text-primary-700 underline-offset-4 hover:underline dark:text-primary-300"
+              >
+                Zum Notebook
+              </Link>
+            </>
+          )}
+        </p>
+      </header>
     </div>
   );
 }
@@ -278,11 +247,12 @@ function ItemSection({
   let body: ReactNode;
   if (items.length > 0) {
     body = (
-      <div className={GRID}>
-        {items.map((item) => (
-          <MarketplaceCard
+      <div className={SHOWCASE_GRID}>
+        {items.map((item, index) => (
+          <MarketplaceShowcaseCard
             key={item.key}
             item={item}
+            tone={showcaseToneAt(index)}
             actions={actions}
             onSelect={() => onSelect(item)}
           />
@@ -302,8 +272,8 @@ function ItemSection({
     );
   } else if (query.isPending) {
     body = (
-      <div className={GRID}>
-        <GallerySkeleton count={3} className="h-[190px]" />
+      <div className={SHOWCASE_GRID}>
+        <GallerySkeleton count={4} className="h-[190px]" />
       </div>
     );
   } else {
@@ -313,86 +283,6 @@ function ItemSection({
     <section aria-label={title}>
       <SectionHeader title={title} />
       {body}
-    </section>
-  );
-}
-
-/**
- * Die Anleitung folgt der Doku (`documentation/docs/features/landesverbaende.md`)
- * und nennt nur, was die Seite wirklich zeigt: das Notebook mit seiner
- * `@`-Erwähnung aus der Registry, die Agents, ein Rezept aus der Liste.
- * Keine Zahlen, nichts über einen einzelnen Landesverband, was nicht in den
- * Daten steht.
- */
-function HowTo({
-  hub,
-  locale,
-  notebookAlias,
-  hasNotebook,
-  hasAgents,
-  recipeMention,
-}: {
-  hub: LvHub;
-  locale: Locale;
-  notebookAlias: string | null;
-  hasNotebook: boolean;
-  hasAgents: boolean;
-  recipeMention: string | null;
-}): JSX.Element | null {
-  const steps: { title: string; text: string }[] = [];
-  if (hasNotebook) {
-    steps.push({
-      title: 'Notebook befragen',
-      text: notebookAlias
-        ? `Das Notebook durchsucht die offiziellen Inhalte von ${hub.name}. Öffne es oder binde es im Chat mit @${notebookAlias} als Quelle ein.`
-        : `Das Notebook durchsucht die offiziellen Inhalte von ${hub.name}. Öffne es und stell deine Frage.`,
-    });
-  }
-  if (hasAgents) {
-    steps.push({
-      title: 'Agent wählen',
-      text: `Jeder Agent hat eine eigene Aufgabe und recherchiert automatisch im Notebook von ${hub.name}.`,
-    });
-  }
-  if (recipeMention) {
-    steps.push({
-      title: 'Rezept nutzen',
-      text: `Tippe im Chat eine Rezept-Abkürzung wie @${recipeMention} und direkt dahinter dein Anliegen. Das Rezept gibt dem passenden Agent gleich die richtige Aufgabe mit.`,
-    });
-  }
-  if (steps.length === 0) return null;
-
-  const heading =
-    locale === 'de-AT'
-      ? 'So nutzt du diese Inhalte'
-      : 'So nutzt du die Inhalte deines Landesverbands';
-  return (
-    <section
-      aria-labelledby="landesverband-anleitung"
-      className="rounded-xl bg-background-sand px-lg py-lg dark:bg-grey-800"
-    >
-      <h2
-        id="landesverband-anleitung"
-        className="m-0 mb-md text-lg font-semibold text-foreground-heading"
-      >
-        {heading}
-      </h2>
-      <ol className="m-0 grid list-none grid-cols-1 gap-md p-0 md:grid-cols-3">
-        {steps.map((step, index) => (
-          <li key={step.title} className="flex gap-sm">
-            <span
-              aria-hidden
-              className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary-600 text-sm font-bold text-white dark:bg-primary-300 dark:text-grey-900"
-            >
-              {index + 1}
-            </span>
-            <div className="flex min-w-0 flex-col gap-1">
-              <h3 className="m-0 text-base font-semibold text-foreground-heading">{step.title}</h3>
-              <p className="m-0 text-sm leading-relaxed text-foreground-muted">{step.text}</p>
-            </div>
-          </li>
-        ))}
-      </ol>
     </section>
   );
 }

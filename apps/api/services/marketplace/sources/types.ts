@@ -20,6 +20,8 @@ export interface SourceQuery {
   limit: number;
   /** Catalogue recipes are applied automatically, so the shop lists them only on request. */
   systemRecipes: boolean;
+  /** Vorlagen only — one `template_type`; the other sources ignore it. Front page collections only. */
+  templateType?: 'canva';
 }
 
 export interface SourcePage<K extends MarketplaceKind> {

@@ -88,6 +88,7 @@ export {
   landesverbandLabel,
   landesverbandRegion,
   type LandesverbandEntry,
+  type LandesverbandId,
 } from './landesverbaende.js';
 
 export {

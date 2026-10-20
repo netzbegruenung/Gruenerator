@@ -243,6 +243,16 @@ export const marketplaceFrontpageShelfSchema = z.object({
 });
 export type MarketplaceFrontpageShelf = z.infer<typeof marketplaceFrontpageShelfSchema>;
 
+/** F0 — the `?kollektion=` value in shared links; title and copy live in the client registry. */
+export const marketplaceCollectionIdSchema = z.enum(['starter', 'barrierefreiheit', 'canva']);
+export type MarketplaceCollectionId = z.infer<typeof marketplaceCollectionIdSchema>;
+
+export const marketplaceFrontpageCollectionSchema = z.object({
+  collectionId: marketplaceCollectionIdSchema,
+  items: z.array(marketplaceItemSchema),
+});
+export type MarketplaceFrontpageCollection = z.infer<typeof marketplaceFrontpageCollectionSchema>;
+
 export const marketplaceFrontpageQuerySchema = z.object({
   platform: marketplacePlatformSchema.default('web'),
 });
@@ -256,6 +266,8 @@ export const marketplaceFrontpageResponseSchema = z.object({
   featured: marketplaceItemSchema.nullable(),
   featureId: z.string().nullable(),
   shelves: z.array(marketplaceFrontpageShelfSchema),
+  /** Curated collections with the items this viewer may see; one below its minimum is left out. */
+  collections: z.array(marketplaceFrontpageCollectionSchema),
 });
 export type MarketplaceFrontpageResponse = z.infer<typeof marketplaceFrontpageResponseSchema>;
 

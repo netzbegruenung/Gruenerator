@@ -38,6 +38,10 @@ function item(kind: MarketplaceKind, ref: string, over: Partial<MarketplaceItem>
     title: ref,
     createdAt: '2026-10-01T00:00:00.000Z',
     likesCount: 0,
+    thumbnailUrl: `/${ref}.webp`,
+    ...((kind === 'sticker' || kind === 'background') && {
+      asset: { thumbUrl: `/${ref}.webp`, src: `/${ref}.png` },
+    }),
     ...over,
   } as MarketplaceItem;
 }
@@ -58,14 +62,15 @@ function ctx(lv: boolean, audience: 'de-DE' | 'de-AT' = 'de-DE'): MarketplaceCon
   };
 }
 
-/** Every list answers two items per kind, so each shelf above its minimum shows. */
+/** Every list answers up to five items per kind, so each shelf above its minimum shows. */
 function catalogue() {
   m.list.mockImplementation((kind: MarketplaceKind, query: SourceQuery) =>
     Promise.resolve({
-      items: [1, 2, 3, 4, 5].map((n) =>
+      items: [1, 2, 3, 4, 5].slice(0, query.limit).map((n) =>
         item(kind, `${kind}-${query.origin ?? 'all'}-${query.sort}-${n}`, {
           likesCount: n,
-          createdAt: `2026-10-0${n}T00:00:00.000Z`,
+          // Newest first, as the sources answer; `limit` then keeps the newest.
+          createdAt: `2026-10-0${6 - n}T00:00:00.000Z`,
         })
       ),
       hasMore: false,
@@ -87,6 +92,49 @@ beforeEach(() => {
 });
 
 describe('getMarketplaceFrontpage', () => {
+  it('resolves each collection: pinned items through their source, fills as lists', async () => {
+    // The viewer may not see the Kommunalpolitik agent; it drops out, the rest keeps its order.
+    m.get.mockImplementation((kind, ref) =>
+      Promise.resolve(ref === 'gruenerator-antrag' ? null : item(kind, ref))
+    );
+    const page = await getMarketplaceFrontpage(ctx(false));
+
+    const starter = page.collections.find((c) => c.collectionId === 'starter')!;
+    expect(starter.items.map((i) => i.key).slice(0, 4)).toEqual([
+      'agent:gruenerator-oeffentlichkeitsarbeit',
+      'recipe:presse',
+      'recipe:instagram',
+      'recipe:antrag',
+    ]);
+    expect(m.list.mock.calls.filter(([, q]) => q.templateType === 'canva')).toEqual([
+      ['template', expect.objectContaining({ sort: 'beliebt', limit: 5, origin: null })],
+    ]);
+    const canva = page.collections.find((c) => c.collectionId === 'canva')!;
+    expect(canva.items.map((i) => i.kind)).toEqual([
+      'template',
+      'template',
+      'template',
+      'template',
+      'template',
+      'sticker',
+      'sticker',
+      'background',
+    ]);
+    expect(page.collections.map((c) => c.collectionId)).toEqual([
+      'starter',
+      'barrierefreiheit',
+      'canva',
+    ]);
+  });
+
+  it('leaves out a collection below its minimum', async () => {
+    m.get.mockImplementation((kind, ref) =>
+      Promise.resolve(ref === 'gruenerator-einfache-sprache' ? null : item(kind, ref))
+    );
+    const page = await getMarketplaceFrontpage(ctx(false));
+    expect(page.collections.map((c) => c.collectionId)).not.toContain('barrierefreiheit');
+  });
+
   it('asks each shelf’s kinds with its sort, origin and size, and keeps the shelf order', async () => {
     m.get.mockResolvedValue(item('agent', 'gruenerator-leichte-sprache'));
     const page = await getMarketplaceFrontpage(ctx(true));
@@ -95,14 +143,15 @@ describe('getMarketplaceFrontpage', () => {
       expect.arrayContaining([
         { kind: 'agent', sort: 'empfohlen', origin: 'landesverband', limit: 4 },
         { kind: 'recipe', sort: 'empfohlen', origin: 'landesverband', limit: 4 },
-        { kind: 'agent', sort: 'neu', origin: null, limit: 5 },
+        { kind: 'agent', sort: 'neu', origin: null, limit: 4 },
         { kind: 'recipe', sort: 'beliebt', origin: null, limit: 6 },
         { kind: 'template', sort: 'empfohlen', origin: null, limit: 9 },
         { kind: 'sticker', sort: 'empfohlen', origin: null, limit: 9 },
         { kind: 'background', sort: 'empfohlen', origin: null, limit: 9 },
       ])
     );
-    expect(m.list).toHaveBeenCalledTimes(9);
+    // Nine shelf lists plus the three fills of the Canva collection.
+    expect(m.list).toHaveBeenCalledTimes(12);
     expect(page.shelves.map((s) => s.shelfId)).toEqual([
       'landesverband',
       'neu',

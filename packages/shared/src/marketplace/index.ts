@@ -65,9 +65,20 @@ export {
   type MarketplaceCardModel,
 } from './viewModel.js';
 export {
+  MARKETPLACE_COLLECTIONS,
   MARKETPLACE_FEATURES,
+  collectionById,
   featureById,
   featureFor,
   isFrontpageView,
+  type MarketplaceCollection,
+  type MarketplaceCollectionCover,
   type MarketplaceFeature,
 } from './frontpage.js';
+export { LANDESVERBAND_COVERS } from './landesverbandCovers.js';
+export {
+  MARKETPLACE_CATEGORIES,
+  categoryById,
+  type MarketplaceCategory,
+  type MarketplaceCategoryId,
+} from './categories.js';

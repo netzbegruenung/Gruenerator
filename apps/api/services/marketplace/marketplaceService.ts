@@ -18,8 +18,11 @@ import { showsSystemRecipes } from '@gruenerator/shared/agents';
 import {
   FRONTPAGE_SHELF_QUERIES,
   FRONTPAGE_SHELVES,
+  collectionsFor,
+  composeCollection,
   composeFrontpage,
   featureFor,
+  type MarketplaceCollection,
 } from '@gruenerator/shared/marketplace/frontpage';
 
 import { likeEntity, unlikeEntity } from '../entityLikes/EntityLikesService.js';
@@ -90,17 +93,40 @@ export async function getMarketplaceFrontpage(
   };
 
   const feature = featureFor(ctx.audience);
-  const [landesverband, neu, beliebt, gestalten, item] = await Promise.all([
+  const [landesverband, neu, beliebt, gestalten, item, collections] = await Promise.all([
     shelf('landesverband'),
     shelf('neu'),
     shelf('beliebt'),
     shelf('gestalten'),
     feature ? getMarketplaceItem(ctx, feature.kind, feature.ref) : null,
+    Promise.all(collectionsFor(ctx.audience).map((c) => resolveCollection(ctx, c))),
   ]);
   return composeFrontpage({
     sections: { landesverband, neu, beliebt, gestalten },
     curated: feature && item ? { feature, item } : null,
+    collections: collections.filter((c) => c !== null),
   });
+}
+
+/** The pinned items one by one (each through its source's visibility), the fills as lists. */
+async function resolveCollection(ctx: MarketplaceContext, collection: MarketplaceCollection) {
+  const pinned = Promise.all(collection.pinned.map((t) => getMarketplaceItem(ctx, t.kind, t.ref)));
+  const fills = collection.fill.flatMap((fill) =>
+    fill.kinds.map(async (kind) => {
+      const page = await sourceOf(kind).list(ctx, {
+        origin: null,
+        q: null,
+        sort: fill.sort,
+        scope: 'shop',
+        offset: 0,
+        limit: fill.limit,
+        systemRecipes: false,
+        ...(fill.templateType && { templateType: fill.templateType }),
+      });
+      return page.items;
+    })
+  );
+  return composeCollection(collection, await Promise.all([pinned, ...fills]));
 }
 
 /** One item for a shared link; `null` when it does not exist or the viewer may not see it. */

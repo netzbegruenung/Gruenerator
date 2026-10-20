@@ -122,6 +122,7 @@ function setup(shelves: Shelves, featured: MarketplaceItem | null = leichteSprac
         gestalten: [],
       },
       curated: featured ? { feature: MARKETPLACE_FEATURES[0], item: featured } : null,
+      collections: [],
     }),
     isPending: false,
     isError: false,
