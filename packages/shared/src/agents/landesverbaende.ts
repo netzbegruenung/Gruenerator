@@ -273,6 +273,8 @@ export const LANDESVERBAENDE = [
   },
 ] as const satisfies readonly LandesverbandEntry[];
 
+export type LandesverbandId = (typeof LANDESVERBAENDE)[number]['id'];
+
 /**
  * The registry, widened to the declared interface. The literal tuple above has
  * no `beschlussAgentId` key on entries without one, so reading the optional

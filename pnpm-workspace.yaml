@@ -368,7 +368,7 @@ overrides:
   '@grpc/grpc-js': '>=1.14.5 <2'
   basic-ftp: '>=6.0.1'
   langsmith: '>=0.4.6'
-  markdown-it: '>=14.2.0 <15'
+  markdown-it: '>=14.3.3 <15'
   tar: '>=7.5.11'
   smol-toml: '>=1.9.0'
   undici: '>=8.12.1'
@@ -391,6 +391,8 @@ overrides:
   ajv@<7: '>=6.14.0 <7'
   serialize-javascript: '>=7.1.2'
   webpack-dev-server: '>=5.2.5'
+  launch-editor: '>=2.14.2'
+  follow-redirects: '>=1.16.1'
   '@tootallnate/once': '>=2.0.0'
   loader-utils: ^2.0.4
   dompurify: '>=3.4.16'

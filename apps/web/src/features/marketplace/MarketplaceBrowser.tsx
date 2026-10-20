@@ -24,7 +24,7 @@ import {
   type MarketplaceTabSlug,
 } from '@gruenerator/shared/marketplace';
 import { useDebouncedSearch } from '@gruenerator/shared/studio-assets';
-import { Button, cn, pillActive, pillBase, pillInactive } from '@gruenerator/ui';
+import { Button, cn } from '@gruenerator/ui';
 import { type JSX } from 'react';
 import { LuArrowDownUp } from 'react-icons/lu';
 import { PiFunnel, PiFunnelFill } from 'react-icons/pi';
@@ -43,6 +43,8 @@ import { MarketSection } from '../agentura/components/MarketSection';
 
 import { type MarketplaceAssetItem } from './kindViews';
 import { MarketplaceCard } from './MarketplaceCard';
+import { MarketplaceCategoryView } from './MarketplaceCategoryView';
+import { MarketplaceCollectionView } from './MarketplaceCollections';
 import { MarketplaceFrontpage } from './MarketplaceFrontpage';
 import { MarketplaceItemDetail } from './MarketplaceItemDetail';
 import { useMarketplaceActions } from './useMarketplaceActions';
@@ -198,7 +200,7 @@ export function MarketplaceBrowser({
   const sectionsQuery = useMarketplaceSections({
     ...base,
     kinds: tabKinds,
-    enabled: singleKind === null && !showFrontpage,
+    enabled: singleKind === null && !showFrontpage && !(frontpage && filters.category),
   });
   const kindQuery = useMarketplaceKind({
     ...base,
@@ -264,17 +266,51 @@ export function MarketplaceBrowser({
     );
   }
 
+  if (frontpage && filters.category) {
+    return (
+      <>
+        <MarketplaceCategoryView id={filters.category} actions={actions} onSelect={select} />
+        {dialogs}
+      </>
+    );
+  }
+
+  if (frontpage && filters.collection) {
+    return (
+      <>
+        <MarketplaceCollectionView
+          id={filters.collection}
+          actions={actions}
+          onSelect={select}
+          onBack={() => set({ collection: null })}
+          onOpen={(collection) => set({ collection })}
+        />
+        {dialogs}
+      </>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-md">
-      {tabs.length > 1 && (
-        <div role="group" aria-label="Art" className="flex flex-wrap gap-1.5">
+      {/* On `/marktplatz` the categories at the end of the front page replace the tabs. */}
+      {tabs.length > 1 && !frontpage && (
+        <div
+          role="group"
+          aria-label="Art"
+          className="flex gap-lg overflow-x-auto border-b border-grey-200 dark:border-grey-700"
+        >
           {tabs.map((t) => (
             <button
               key={t.slug}
               type="button"
               aria-pressed={t.slug === tab}
               onClick={() => set({ tab: t.slug })}
-              className={cn(pillBase, 'text-sm', t.slug === tab ? pillActive : pillInactive)}
+              className={cn(
+                '-mb-px shrink-0 cursor-pointer border-b-[3px] bg-transparent px-0.5 pt-xs pb-sm text-[15px] whitespace-nowrap transition-colors',
+                t.slug === tab
+                  ? 'border-primary-600 font-semibold text-primary-700 dark:border-primary-300 dark:text-primary-300'
+                  : 'border-transparent text-foreground-muted hover:text-foreground-heading'
+              )}
             >
               {frontpage && t.slug === 'alle' ? 'Start' : t.label}
             </button>

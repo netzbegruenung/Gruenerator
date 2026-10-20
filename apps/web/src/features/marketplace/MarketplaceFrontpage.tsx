@@ -1,85 +1,42 @@
 import { useUserLandesverbaende } from '@gruenerator/chat';
 import { type MarketplaceFrontpageShelfId, type MarketplaceItem } from '@gruenerator/contracts';
-import { getLandesverbandHubsByIds } from '@gruenerator/shared/agents';
+import { getLandesverbandHubs, getLandesverbandHubsByIds } from '@gruenerator/shared/agents';
 import {
+  LANDESVERBAND_COVERS,
+  MARKETPLACE_CATEGORIES,
   featureById,
   landesverbandHubHref,
+  marketplaceHref,
   marketplaceOriginLabel,
   useMarketplaceFrontpage,
+  type MarketplaceCategoryId,
   type MarketplaceFeature,
   type MarketplaceFilters,
-  type MarketplaceTabSlug,
 } from '@gruenerator/shared/marketplace';
-import { Button, SectionHeader } from '@gruenerator/ui';
-import { type JSX, type ReactNode } from 'react';
-import {
-  PiBookOpenText,
-  PiCaretRight,
-  PiChatCircleText,
-  PiHeart,
-  PiImage,
-  PiLayout,
-  PiNotebook,
-  PiPlus,
-  PiSparkle,
-  PiSticker,
-  PiCheck,
-} from 'react-icons/pi';
-import { Link } from 'react-router-dom';
+import { Button, SectionHeader, ScrollArea, ScrollBar, ShowcasePhotoCard } from '@gruenerator/ui';
+import { useMemo, type JSX, type ReactNode } from 'react';
+import { PiChatCircleText, PiHeart, PiImage, PiPlus, PiSparkle, PiCheck } from 'react-icons/pi';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { GallerySkeleton } from '../../components/common/Gallery/parts';
 
 import { chatPathOf, metaLine, viewOf } from './kindViews';
+import { lvCardImage } from './landesverbandCovers';
 import { MarketplaceCard } from './MarketplaceCard';
+import { categoryTileImage } from './MarketplaceCategoryView';
+import { CollectionCards } from './MarketplaceCollections';
+import {
+  DISPLAY_FONT,
+  MarketplaceShowcaseCard,
+  MarketplaceVisualCard,
+  SHOWCASE_GRID,
+  showcaseToneAt,
+  useBrokenPreviews,
+} from './MarketplaceShowcaseCard';
 import { type MarketplaceActions } from './useMarketplaceActions';
 
 import { CURRENT_INSTANCE } from '@/config/instance';
 import { useAuthStore } from '@/stores/authStore';
-
-/** Headline face of the brand per country, as in the sharepic themes. */
-const DISPLAY_FONT = {
-  'de-DE': "'GrueneType', 'PT Sans', sans-serif",
-  'de-AT': "'GothamNarrow-Ultra', 'PT Sans', sans-serif",
-} as const;
-
-const KIND_TILES: { slug: MarketplaceTabSlug; label: string; hint: string; icon: ReactNode }[] = [
-  {
-    slug: 'agents',
-    label: 'Agents',
-    hint: 'Mit eigener Rolle und eigenem Wissen',
-    icon: <PiSparkle />,
-  },
-  {
-    slug: 'rezepte',
-    label: 'Rezepte',
-    hint: 'Fertige Anleitungen für eine Textsorte',
-    icon: <PiBookOpenText />,
-  },
-  {
-    slug: 'vorlagen',
-    label: 'Vorlagen',
-    hint: 'Sharepics und Layouts zum Anpassen',
-    icon: <PiLayout />,
-  },
-  {
-    slug: 'sticker',
-    label: 'Sticker',
-    hint: 'Freigestellte Motive für deine Bilder',
-    icon: <PiSticker />,
-  },
-  {
-    slug: 'hintergruende',
-    label: 'Hintergründe',
-    hint: 'Flächen und Fotos für Sharepics',
-    icon: <PiImage />,
-  },
-  {
-    slug: 'notebooks',
-    label: 'Notebooks',
-    hint: 'Gesammeltes Wissen zum Nachfragen',
-    icon: <PiNotebook />,
-  },
-];
 
 interface MarketplaceFrontpageProps {
   actions: MarketplaceActions;
@@ -98,7 +55,6 @@ export function MarketplaceFrontpage({
   onSelect,
   onBrowse,
 }: MarketplaceFrontpageProps): JSX.Element {
-  const locale = useAuthStore((s) => s.locale) === 'de-AT' ? 'de-AT' : 'de-DE';
   const { lvIds } = useUserLandesverbaende();
   const hasLv = (lvIds?.length ?? 0) > 0;
   // Exactly one Landesverband: „Alle anzeigen" opens its page instead of the filtered list.
@@ -116,7 +72,16 @@ export function MarketplaceFrontpage({
   const lvItems = hasLv ? shelf('landesverband') : [];
   const newItems = shelf('neu');
   const popularItems = shelf('beliebt');
-  const visualItems = shelf('gestalten');
+  const visualShelfItems = useMemo(
+    () => page.data?.shelves.find((s) => s.shelfId === 'gestalten')?.items ?? [],
+    [page.data]
+  );
+  const brokenPreviews = useBrokenPreviews(visualShelfItems);
+  // The server already applied the shelf minimum. Here a Vorlage whose preview
+  // fails becomes a mock sheet, a sticker or background without one leaves.
+  const visualItems = visualShelfItems.filter(
+    (item) => item.kind === 'template' || !brokenPreviews.has(item.key)
+  );
 
   return (
     <div className="flex flex-col gap-2xl">
@@ -127,12 +92,17 @@ export function MarketplaceFrontpage({
           <FocusSlot
             item={focusItem}
             feature={feature}
-            fontFamily={DISPLAY_FONT[locale]}
+            fontFamily={DISPLAY_FONT}
             actions={actions}
             onSelect={onSelect}
           />
         )
       )}
+
+      <CollectionCards
+        collections={page.data?.collections ?? []}
+        onOpen={(collection) => onBrowse({ collection })}
+      />
 
       {lvItems.length > 0 && (
         <section aria-label="Aus deinem Landesverband">
@@ -161,36 +131,34 @@ export function MarketplaceFrontpage({
         </section>
       )}
 
-      {(newItems.length > 0 || popularItems.length > 0) && (
-        <div className="flex flex-wrap items-start gap-xl">
-          {newItems.length > 0 && (
-            <section aria-label="Neu im Marktplatz" className="min-w-0 flex-[999_1_34rem]">
-              <SectionHeader
-                title="Neu im Marktplatz"
-                actions={<BrowseButton onClick={() => onBrowse({ sort: 'neu' })} />}
+      {newItems.length > 0 && (
+        <section aria-label="Neu im Marktplatz">
+          <SectionHeader
+            title="Neu im Marktplatz"
+            actions={<BrowseButton onClick={() => onBrowse({ sort: 'neu' })} />}
+          />
+          <div className={SHOWCASE_GRID}>
+            {newItems.map((item, index) => (
+              <MarketplaceShowcaseCard
+                key={item.key}
+                item={item}
+                tone={showcaseToneAt(index)}
+                actions={actions}
+                onSelect={() => onSelect(item)}
               />
-              <div className="grid grid-cols-1 gap-md sm:grid-cols-2">
-                {newItems.map((item) => (
-                  <MarketplaceCard
-                    key={item.key}
-                    item={item}
-                    actions={actions}
-                    onSelect={() => onSelect(item)}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
-          {popularItems.length > 0 && (
-            <section aria-label="Beliebt" className="min-w-0 flex-[1_1_18rem]">
-              <SectionHeader
-                title="Beliebt"
-                actions={<BrowseButton onClick={() => onBrowse({ sort: 'beliebt' })} />}
-              />
-              <PopularList items={popularItems} onSelect={onSelect} />
-            </section>
-          )}
-        </div>
+            ))}
+          </div>
+        </section>
+      )}
+      <LandesverbandRow />
+      {popularItems.length > 0 && (
+        <section aria-label="Beliebt">
+          <SectionHeader
+            title="Beliebt"
+            actions={<BrowseButton onClick={() => onBrowse({ sort: 'beliebt' })} />}
+          />
+          <PopularList items={popularItems} onSelect={onSelect} />
+        </section>
       )}
 
       {visualItems.length > 0 && (
@@ -198,76 +166,122 @@ export function MarketplaceFrontpage({
           <SectionHeader
             title="Zum Gestalten"
             actions={
-              <BrowseButton label="Alle Vorlagen" onClick={() => onBrowse({ tab: 'vorlagen' })} />
+              <BrowseButton
+                label="Alle Vorlagen"
+                onClick={() => onBrowse({ category: 'vorlagen' })}
+              />
             }
           />
-          <ul className="m-0 -mx-1 flex list-none snap-x gap-md overflow-x-auto px-1 pb-1">
-            {visualItems.map((item) => (
-              <li key={item.key} className="w-56 shrink-0 snap-start">
-                <MarketplaceCard item={item} actions={actions} onSelect={() => onSelect(item)} />
+          <ScrollRow>
+            {visualItems.map((item, index) => (
+              <li key={item.key} className="w-60 shrink-0">
+                <MarketplaceVisualCard
+                  item={item}
+                  tone={showcaseToneAt(index)}
+                  broken={brokenPreviews.has(item.key)}
+                  actions={actions}
+                  onSelect={() => onSelect(item)}
+                />
               </li>
             ))}
-          </ul>
+          </ScrollRow>
         </section>
       )}
 
-      <section aria-label="Nach Art stöbern">
-        <SectionHeader title="Nach Art stöbern" />
-        <ul className="m-0 grid list-none grid-cols-1 gap-sm p-0 sm:grid-cols-3 lg:grid-cols-6">
-          {KIND_TILES.map((tile) => (
-            <li key={tile.slug}>
-              <button
-                type="button"
-                onClick={() => onBrowse({ tab: tile.slug })}
-                className="flex w-full cursor-pointer items-center gap-sm rounded-lg border border-grey-200 bg-card p-md text-left transition-colors hover:border-primary dark:border-grey-700"
-              >
-                <span
-                  aria-hidden
-                  className="flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-background-alt text-xl text-primary-600 dark:text-primary-300"
-                >
-                  {tile.icon}
-                </span>
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="text-base font-semibold text-foreground-heading">
-                    {tile.label}
-                  </span>
-                  <span className="text-[13px] leading-snug text-foreground-muted">
-                    {tile.hint}
-                  </span>
-                </span>
-                <PiCaretRight aria-hidden className="shrink-0 text-grey-400" />
-              </button>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section
-        aria-labelledby="marktplatz-mitmachen"
-        className="flex flex-wrap items-center justify-between gap-md rounded-xl bg-background-sand px-lg py-lg dark:border dark:border-grey-700"
-      >
-        <div className="flex max-w-[40rem] flex-col gap-1">
-          <h2
-            id="marktplatz-mitmachen"
-            className="m-0 text-lg font-semibold text-foreground-heading"
-          >
-            Du hast ein Rezept, das funktioniert?
-          </h2>
-          <p className="m-0 text-sm leading-relaxed text-foreground-muted">
-            Teile es öffentlich — dann taucht es hier unter „Neu“ auf, und andere Kreis- und
-            Ortsverbände können es mit einem Klick übernehmen.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-xs">
-          <Button asChild className="dark:bg-primary-700 dark:hover:bg-primary-800">
-            <Link to="/agentura/rezept/neu">Rezept erstellen</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link to="/grueneratoren">Eigenes teilen</Link>
-          </Button>
-        </div>
-      </section>
+      <CategoryTiles onOpen={(category) => onBrowse({ category })} />
     </div>
+  );
+}
+
+/**
+ * „Kategorien": the four ways into the Marktplatz, photo tiles with their
+ * text on a dark gradient. They replace the tabs above the front page.
+ */
+function CategoryTiles({ onOpen }: { onOpen: (id: MarketplaceCategoryId) => void }): JSX.Element {
+  return (
+    <section aria-labelledby="marktplatz-kategorien" className="flex flex-col gap-md">
+      <h2 id="marktplatz-kategorien" className="m-0 text-xl font-semibold text-foreground-heading">
+        Kategorien
+      </h2>
+      <ul className="m-0 grid list-none grid-cols-1 gap-md p-0 md:grid-cols-2">
+        {MARKETPLACE_CATEGORIES.map((category) => {
+          const href = marketplaceHref({ category: category.id });
+          return (
+            <li key={category.id}>
+              <ShowcasePhotoCard
+                title={category.title}
+                kicker={category.kicker}
+                description={category.description}
+                credit={{ ...category.cover.credit, source: 'Unsplash' }}
+                href={href}
+                onActivate={(event) => {
+                  event.preventDefault();
+                  onOpen(category.id);
+                }}
+                {...categoryTileImage(category)}
+                titleFont={DISPLAY_FONT}
+                className="aspect-video"
+              />
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+/** A sideways row with the repo's thin scrollbar, below the cards instead of over them. */
+function ScrollRow({ children }: { children: ReactNode }): JSX.Element {
+  return (
+    <ScrollArea className="-mx-1">
+      <ul className="m-0 flex w-max list-none gap-md px-1 pt-1 pb-4">{children}</ul>
+      <ScrollBar orientation="horizontal" />
+    </ScrollArea>
+  );
+}
+
+/**
+ * „Landesverbände": one photo card per Landesverband of the viewer's country,
+ * their own first. Each opens the Landesverband's page in the Marktplatz.
+ */
+function LandesverbandRow(): JSX.Element | null {
+  const navigate = useNavigate();
+  const { lvIds } = useUserLandesverbaende();
+  const locale = useAuthStore((s) => s.locale) === 'de-AT' ? 'de-AT' : 'de-DE';
+  const own = new Set(lvIds ?? []);
+  const hubs = [...getLandesverbandHubs(locale, CURRENT_INSTANCE)].sort(
+    (a, b) => Number(own.has(b.lvId)) - Number(own.has(a.lvId))
+  );
+  if (hubs.length === 0) return null;
+  return (
+    <section aria-labelledby="marktplatz-landesverbaende" className="flex flex-col gap-md">
+      <h2
+        id="marktplatz-landesverbaende"
+        className="m-0 text-xl font-semibold text-foreground-heading"
+      >
+        Landesverbände
+      </h2>
+      <ScrollRow>
+        {hubs.map((hub) => {
+          const href = landesverbandHubHref(hub.slug);
+          return (
+            <li key={hub.lvId} className="w-52 shrink-0">
+              <ShowcasePhotoCard
+                title={hub.title}
+                badge={own.has(hub.lvId) ? 'Dein Landesverband' : null}
+                href={href}
+                onActivate={(event) => {
+                  event.preventDefault();
+                  void navigate(href);
+                }}
+                {...lvCardImage(LANDESVERBAND_COVERS[hub.lvId])}
+                titleFont={DISPLAY_FONT}
+              />
+            </li>
+          );
+        })}
+      </ScrollRow>
+    </section>
   );
 }
 
@@ -314,7 +328,7 @@ function FocusSlot({
           </span>
           <h2
             id="marktplatz-fokus"
-            className="m-0 text-[clamp(2.25rem,5vw,3.25rem)] leading-[0.95] font-normal text-balance text-white dark:text-[#B5DEC6]"
+            className="m-0 text-[clamp(2.25rem,5vw,3.25rem)] leading-[1.05] font-bold text-balance text-white dark:text-[#B5DEC6]"
             style={{ fontFamily }}
           >
             {item.title}

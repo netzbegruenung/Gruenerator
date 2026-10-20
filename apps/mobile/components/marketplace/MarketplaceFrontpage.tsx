@@ -8,7 +8,6 @@ import {
 } from '@gruenerator/shared/marketplace';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useFonts } from 'expo-font';
-import { useRouter } from 'expo-router';
 import { type ComponentProps, type ReactNode } from 'react';
 import {
   Platform,
@@ -24,9 +23,7 @@ import gothamUltra from '../../assets/fonts/GothamNarrow-Ultra.ttf';
 import grueneType from '../../assets/fonts/GrueneType.ttf';
 import { useTheme } from '../../hooks/useTheme';
 import { BODY_FONT, HEADING_FONT_BOLD, HEADING_FONT_SEMIBOLD, colors, spacing } from '../../theme';
-import { route } from '../../types/routes';
 import { AgentGlyph } from '../agentura/AgentGlyph';
-import { Button } from '../common/Button';
 import { SkeletonRows } from '../common/Skeleton';
 
 import { kindView, marketplaceCardProps } from './kindViews';
@@ -122,7 +119,6 @@ export function MarketplaceFrontpage({
   onBrowse,
 }: MarketplaceFrontpageProps) {
   const theme = useTheme();
-  const router = useRouter();
   const hasLandesverband = (lvIds?.length ?? 0) > 0;
   const view = useFrontpageShelves(hasLandesverband);
   const display = DISPLAY_FONT[locale];
@@ -244,24 +240,6 @@ export function MarketplaceFrontpage({
           ))}
         </View>
       </Shelf>
-
-      <View style={[styles.join, { backgroundColor: theme.backgroundSand }]}>
-        <Text style={[styles.joinTitle, { color: theme.text }]} accessibilityRole="header">
-          Du hast ein Rezept, das funktioniert?
-        </Text>
-        <Text style={[styles.joinBody, { color: theme.textSecondary }]}>
-          Teile es öffentlich — dann taucht es hier unter „Neu“ auf, und andere Kreis- und
-          Ortsverbände können es mit einem Klick übernehmen.
-        </Text>
-        <View style={styles.joinActions}>
-          <Button onPress={() => router.push('/(focused)/grueneratoren/rezept/neu')}>
-            Rezept erstellen
-          </Button>
-          <Button variant="outline" onPress={() => router.push(route('/(focused)/agents'))}>
-            Eigenes teilen
-          </Button>
-        </View>
-      </View>
     </ScrollView>
   );
 }
@@ -568,13 +546,4 @@ const styles = StyleSheet.create({
   },
   kindLabel: { fontFamily: BODY_FONT, fontSize: 15, fontWeight: '600' },
   kindHint: { fontFamily: BODY_FONT, fontSize: 13, lineHeight: 18 },
-  join: {
-    borderRadius: radius,
-    borderCurve: 'continuous',
-    padding: spacing.large,
-    gap: spacing.small,
-  },
-  joinTitle: { fontFamily: HEADING_FONT_SEMIBOLD, fontSize: 17 },
-  joinBody: { fontFamily: BODY_FONT, fontSize: 14, lineHeight: 21 },
-  joinActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xsmall },
 });

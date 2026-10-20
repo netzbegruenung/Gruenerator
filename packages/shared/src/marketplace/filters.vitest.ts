@@ -22,10 +22,12 @@ describe('parseMarketplaceParams / serializeMarketplaceParams', () => {
       q: 'Klima & Wald',
       sort: 'beliebt',
       item: { kind: 'recipe', ref: 'presse' },
+      collection: 'starter',
+      category: 'grueneratoren',
     };
     const query = serializeMarketplaceParams(filters).toString();
     expect(query).toBe(
-      'art=hintergruende&von=landesverband&q=Klima+%26+Wald&sort=beliebt&item=recipe%3Apresse'
+      'art=hintergruende&von=landesverband&q=Klima+%26+Wald&sort=beliebt&item=recipe%3Apresse&kollektion=starter&kategorie=grueneratoren'
     );
     expect(parse(query)).toEqual(filters);
   });
@@ -38,7 +40,9 @@ describe('parseMarketplaceParams / serializeMarketplaceParams', () => {
   });
 
   it('falls back to the defaults for unknown values', () => {
-    expect(parse('art=shop&von=gruppe&sort=az')).toEqual(DEFAULT_MARKETPLACE_FILTERS);
+    expect(parse('art=shop&von=gruppe&sort=az&kollektion=unbekannt&kategorie=apps')).toEqual(
+      DEFAULT_MARKETPLACE_FILTERS
+    );
   });
 
   it('reads the opened item as <kind>:<ref>, splitting at the first colon', () => {

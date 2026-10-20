@@ -5,7 +5,7 @@
  * Verweise wie in „Meine Grüneratoren".
  *
  * Katalog-Rezepte stehen nur in der Liste, wenn `query.systemRecipes` gilt
- * (siehe `showsSystemRecipes`): der Grünerator wendet sie von selbst an.
+ * (nur „gespeichert"): der Grünerator wendet sie von selbst an.
  * Liken, Merken und `isVisible` kennen sie immer.
  */
 import { type MarketplaceItemOf } from '@gruenerator/contracts';

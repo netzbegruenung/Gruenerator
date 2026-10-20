@@ -128,6 +128,10 @@ describe('front page cache', () => {
       { shelfId: 'beliebt', items: [recipe('r1'), recipe('r3')], hasMore: true },
       { shelfId: 'gestalten', items: [background], hasMore: false },
     ],
+    collections: [
+      { collectionId: 'starter', items: [recipe('r3'), recipe('r1')] },
+      { collectionId: 'canva', items: [background] },
+    ],
   });
 
   it('patches the featured item and every shelf that holds the target', () => {
@@ -138,6 +142,9 @@ describe('front page cache', () => {
     expect(next.shelves[1]!.items[1]).toBe(data.shelves[1]!.items[1]);
     expect(next.shelves[0]).toBe(data.shelves[0]);
     expect(next.shelves[2]).toBe(data.shelves[2]);
+    expect(next.collections[0]!.items[1]).toMatchObject({ ref: 'r1', liked: true });
+    expect(next.collections[0]!.items[0]).toBe(data.collections[0]!.items[0]);
+    expect(next.collections[1]).toBe(data.collections[1]);
   });
 
   it('matches on kind as well as ref across a mixed shelf', () => {

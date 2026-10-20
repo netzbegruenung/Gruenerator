@@ -1,5 +1,7 @@
 import {
   marketplaceFrontpageShelfIdSchema,
+  type MarketplaceCollectionId,
+  type MarketplaceFrontpageCollection,
   type MarketplaceFrontpageResponse,
   type MarketplaceFrontpageShelf,
   type MarketplaceFrontpageShelfId,
@@ -13,6 +15,7 @@ import {
 import { type MarketplaceTarget } from './cache.js';
 import { type MarketplaceFilters } from './filters.js';
 import { DEFAULT_MARKETPLACE_SORT } from './registry.js';
+import { WAHLKAMPF_SAMPLES } from './sampleCollection.js';
 
 /**
  * The Marktplatz front page — what „Start" shows instead of one aisle per kind.
@@ -29,6 +32,8 @@ export function isFrontpageView(filters: MarketplaceFilters): boolean {
   return (
     filters.tab === 'alle' &&
     filters.item === null &&
+    filters.collection === null &&
+    filters.category === null &&
     filters.q.trim() === '' &&
     filters.origin === null &&
     filters.sort === DEFAULT_MARKETPLACE_SORT
@@ -75,6 +80,184 @@ export function featureFor(locale: string | null): MarketplaceFeature | null {
 /** The slot behind a front page answer's `featureId`; `null` for the fallback item. */
 export function featureById(id: string | null): MarketplaceFeature | null {
   return MARKETPLACE_FEATURES.find((f) => f.id === id) ?? null;
+}
+
+export interface MarketplaceCollectionFill {
+  kinds: readonly MarketplaceKind[];
+  sort: MarketplaceSort;
+  /** Per kind, so one kind with many items does not crowd out the next. */
+  limit: number;
+  /** Vorlagen only: one `template_type`, e.g. the ones that open in Canva. */
+  templateType?: 'canva';
+}
+
+export interface MarketplaceCollectionCover {
+  /**
+   * File stem under `/images/marketplace/collections/`, served as
+   * `<stem>-640.webp` and `<stem>-1200.webp`. nginx serves `/images/**` as
+   * immutable, so a new picture needs a new stem, never the old name.
+   */
+  file: string;
+  alt: string;
+  /** Unsplash photos name their photographer; our own pictures carry `null`. */
+  credit: { author: string; profileUrl: string; photoUrl: string } | null;
+}
+
+export interface MarketplaceCollection {
+  id: MarketplaceCollectionId;
+  audience: 'de-DE' | 'de-AT' | 'all';
+  kicker: string;
+  title: string;
+  description: string;
+  /** Tints the picture area when there is no cover. */
+  tone: 'tanne' | 'klee' | 'sand';
+  cover: MarketplaceCollectionCover | null;
+  /** Hand-picked, in this order; an item the viewer may not see drops out. */
+  pinned: readonly MarketplaceTarget[];
+  /** Filled in after `pinned`, for content that has no stable ref across instances. */
+  fill: readonly MarketplaceCollectionFill[];
+  show: number;
+  /** Below this many visible items the collection is left out. */
+  min: number;
+  /** `false`: reachable only by its link (`?kollektion=<id>`), not in the row of collections. */
+  listed?: false;
+  /** Entries that exist only as files, shown before everything resolved (see `sampleCollection.ts`). */
+  samples?: readonly MarketplaceItem[];
+}
+
+/** The collections of the front page, curated by PR, in display order. */
+export const MARKETPLACE_COLLECTIONS = [
+  {
+    id: 'starter',
+    audience: 'all',
+    kicker: 'Zum Einstieg',
+    title: 'Starterpaket',
+    description:
+      'Die Agents und Rezepte, mit denen die meisten anfangen: Pressemitteilung, Social Media, Anträge und Antworten an Bürger*innen.',
+    tone: 'tanne',
+    cover: {
+      file: 'starter-v1',
+      alt: 'Eine junge Pflanze mit wenigen Blättern vor einer hellen Wand',
+      credit: {
+        author: 'Igor Son',
+        profileUrl: 'https://unsplash.com/@igorson?utm_source=gruenerator&utm_medium=referral',
+        photoUrl:
+          'https://unsplash.com/photos/green-leaf-plant-FV_PxCqgtwc?utm_source=gruenerator&utm_medium=referral',
+      },
+    },
+    pinned: [
+      { kind: 'agent', ref: 'gruenerator-oeffentlichkeitsarbeit' },
+      { kind: 'recipe', ref: 'presse' },
+      { kind: 'recipe', ref: 'instagram' },
+      { kind: 'agent', ref: 'gruenerator-antrag' },
+      { kind: 'recipe', ref: 'antrag' },
+      { kind: 'agent', ref: 'gruenerator-rede-schreiber' },
+      { kind: 'agent', ref: 'gruenerator-buergerservice' },
+      { kind: 'recipe', ref: 'buergermail' },
+    ],
+    fill: [],
+    show: 8,
+    min: 3,
+  },
+  {
+    id: 'barrierefreiheit',
+    audience: 'all',
+    kicker: 'Für alle verständlich',
+    title: 'Barrierefrei kommunizieren',
+    description:
+      'Texte in Einfacher und Leichter Sprache, damit eure Beschlüsse, Einladungen und Pressetexte alle erreichen.',
+    tone: 'klee',
+    cover: {
+      file: 'barrierefreiheit-v1',
+      alt: 'Ein helles Treppenhaus mit Handlauf unter einem Oberlicht',
+      credit: {
+        author: 'Fluxtonia',
+        profileUrl: 'https://unsplash.com/@fluxtonia?utm_source=gruenerator&utm_medium=referral',
+        photoUrl:
+          'https://unsplash.com/photos/a-staircase-with-a-skylight-above-it-nyvOrbNgRlc?utm_source=gruenerator&utm_medium=referral',
+      },
+    },
+    pinned: [
+      { kind: 'agent', ref: 'gruenerator-leichte-sprache' },
+      { kind: 'agent', ref: 'gruenerator-einfache-sprache' },
+    ],
+    fill: [],
+    show: 6,
+    min: 2,
+  },
+  {
+    id: 'canva',
+    audience: 'all',
+    kicker: 'Weiter in Canva',
+    title: 'Für Canva',
+    description:
+      'Vorlagen, die sich direkt in Canva öffnen, dazu Sticker und Hintergründe für eure eigenen Designs.',
+    tone: 'sand',
+    cover: {
+      file: 'canva-v1',
+      alt: 'Eine salbeigrüne Wand mit leeren weißen Blättern im Raster, daneben eine Pflanze am Fenster',
+      credit: null,
+    },
+    pinned: [],
+    fill: [
+      { kinds: ['template'], sort: 'beliebt', limit: 5, templateType: 'canva' },
+      { kinds: ['sticker', 'background'], sort: 'beliebt', limit: 2 },
+    ],
+    show: 8,
+    min: 3,
+  },
+  {
+    id: 'wahlkampf-moritz',
+    audience: 'all',
+    kicker: 'Musterkollektion',
+    title: 'Wahlkampf für Moritz',
+    description:
+      'So kann ein Wahlkampf-Paket aussehen: Vorlagen für Plakat, Sharepic, Story und Flyer, passende Hintergründe und Sticker, dazu die Agents und Rezepte für die Texte.',
+    tone: 'klee',
+    cover: {
+      file: 'wahlkampf-v1',
+      alt: 'Ein Infostand mit Sonnenblumen auf einem Marktplatz am Morgen',
+      credit: null,
+    },
+    pinned: [
+      { kind: 'agent', ref: 'gruenerator-oeffentlichkeitsarbeit' },
+      { kind: 'recipe', ref: 'presse' },
+      { kind: 'recipe', ref: 'instagram' },
+      { kind: 'agent', ref: 'gruenerator-rede-schreiber' },
+    ],
+    fill: [],
+    samples: WAHLKAMPF_SAMPLES,
+    show: 14,
+    min: 1,
+    listed: false,
+  },
+] as const satisfies readonly MarketplaceCollection[];
+
+export function collectionsFor(locale: string | null): readonly MarketplaceCollection[] {
+  const audience = locale === 'de-AT' ? 'de-AT' : 'de-DE';
+  return MARKETPLACE_COLLECTIONS.filter((c) => c.audience === 'all' || c.audience === audience);
+}
+
+export function collectionById(id: MarketplaceCollectionId | null): MarketplaceCollection | null {
+  return MARKETPLACE_COLLECTIONS.find((c) => c.id === id) ?? null;
+}
+
+/**
+ * One collection from its resolved parts: samples first, then pinned, then each fill, each
+ * item once, cut to `show`; `null` below `min`.
+ */
+export function composeCollection(
+  collection: MarketplaceCollection,
+  resolved: readonly (readonly (MarketplaceItem | null)[])[]
+): MarketplaceFrontpageCollection | null {
+  const seen = new Set<string>();
+  const items: MarketplaceItem[] = [];
+  for (const item of [...(collection.samples ?? []), ...resolved.flat()]) {
+    if (!item || seen.has(item.key) || items.length >= collection.show) continue;
+    seen.add(item.key);
+    items.push(item);
+  }
+  return items.length >= collection.min ? { collectionId: collection.id, items } : null;
 }
 
 /** Agents and Rezepte — the kinds with an origin and a text card. */
@@ -161,12 +344,24 @@ export function popularShelf(
 }
 
 /** Image kinds taken in turns, so one kind with many items does not fill the row. */
+/**
+ * A picture of its own. „Zum Gestalten" is about pictures: a Vorlage without
+ * one is drawn as a mock sheet, a sticker or background without one leaves.
+ */
+export function hasPreview(item: MarketplaceItem): boolean {
+  if (item.kind === 'sticker' || item.kind === 'background')
+    return Boolean(item.asset.thumbUrl ?? item.asset.src);
+  return item.thumbnailUrl !== null;
+}
+
 export function visualShelf(
   sections: readonly MarketplaceSection[],
   exclude: string | null = null
 ): MarketplaceItem[] {
   const { show, min } = FRONTPAGE_SHELVES.gestalten;
-  const queues = sections.map((s) => s.items.filter((i) => i.key !== exclude));
+  const queues = sections.map((s) =>
+    s.items.filter((i) => i.key !== exclude && (i.kind === 'template' || hasPreview(i)))
+  );
   const out: MarketplaceItem[] = [];
   while (out.length < show && queues.some((q) => q.length > 0)) {
     for (const q of queues) {
@@ -196,8 +391,9 @@ export function fallbackFeature(sections: readonly MarketplaceSection[]): Market
 export function composeFrontpage(input: {
   sections: Record<MarketplaceFrontpageShelfId, readonly MarketplaceSection[]>;
   curated: { feature: MarketplaceFeature; item: MarketplaceItem } | null;
+  collections: MarketplaceFrontpageCollection[];
 }): MarketplaceFrontpageResponse {
-  const { sections, curated } = input;
+  const { sections, curated, collections } = input;
   const featured = curated?.item ?? fallbackFeature(sections.neu);
   // The featured item is not shown a second time in any shelf.
   const focusKey = featured?.key ?? null;
@@ -219,5 +415,5 @@ export function composeFrontpage(input: {
         hasMore: source.some((s) => s.hasMore) || total > items[shelfId].length,
       };
     });
-  return { featured, featureId: curated ? curated.feature.id : null, shelves };
+  return { featured, featureId: curated ? curated.feature.id : null, shelves, collections };
 }

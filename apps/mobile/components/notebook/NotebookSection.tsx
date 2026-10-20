@@ -1,11 +1,10 @@
-import { memo, useCallback } from 'react';
+import { memo, useCallback, type ReactNode } from 'react';
 import { View, Text, StyleSheet, useColorScheme } from 'react-native';
 
-import { getNotebookCover } from '../../config/notebookCovers';
+import { getLandesverbandPhoto } from '../../config/landesverbandPhotos';
 import { type MobileNotebookEntry } from '../../config/notebooksConfig';
 import { spacing, lightTheme, darkTheme, HEADING_FONT_BOLD } from '../../theme';
 
-import { NotebookCoverArt } from './NotebookCoverArt';
 import { NotebookTile, notebookTileGridStyle, useNotebookTileGrid } from './NotebookTile';
 
 /**
@@ -15,8 +14,7 @@ import { NotebookTile, notebookTileGridStyle, useNotebookTileGrid } from './Note
  * makes `memo` mean anything: an inline `() => onNotebookPress(notebook)` is a
  * fresh function on every render, so every tile would re-render even when
  * nothing about it changed. With the notebook and the (stable) section
- * callbacks as props, all five sections' tiles — 19 of them, each with a cover
- * image — sit out a re-render caused by anything else on the screen.
+ * callbacks as props, all five sections' tiles sit out a re-render caused by anything else on the screen.
  */
 const SectionTile = memo(function SectionTile({
   notebook,
@@ -31,19 +29,14 @@ const SectionTile = memo(function SectionTile({
 }) {
   const handlePress = useCallback(() => onPress(notebook), [onPress, notebook]);
   const handleLongPress = useCallback(() => onLongPress?.(notebook), [onLongPress, notebook]);
-  const cover = getNotebookCover(notebook.id);
 
   return (
     <NotebookTile
       title={notebook.title}
       meta={notebook.meta}
       icon={notebook.icon}
-      cover={cover}
-      coverNode={
-        cover ? undefined : (
-          <NotebookCoverArt title={notebook.title} subtitle={notebook.meta} size={size} />
-        )
-      }
+      // A Landesverband notebook shows the photo of its Marktplatz card.
+      photo={getLandesverbandPhoto(notebook.id)}
       size={size}
       onPress={handlePress}
       onLongPress={onLongPress ? handleLongPress : undefined}
@@ -53,16 +46,18 @@ const SectionTile = memo(function SectionTile({
 
 /**
  * A titled grid of system notebooks — the mobile echo of web's notebook gallery.
- * Renders nothing when empty.
+ * Renders nothing when empty. `trailing` tiles follow the notebooks in the same grid.
  */
 export const NotebookSection = memo(function NotebookSection({
   title,
   notebooks,
   onNotebookPress,
   onNotebookLongPress,
+  trailing,
 }: {
   title: string;
   notebooks: MobileNotebookEntry[];
+  trailing?: ReactNode;
   onNotebookPress: (notebook: MobileNotebookEntry) => void;
   onNotebookLongPress?: (notebook: MobileNotebookEntry) => void;
 }) {
@@ -70,7 +65,7 @@ export const NotebookSection = memo(function NotebookSection({
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const { size } = useNotebookTileGrid();
 
-  if (notebooks.length === 0) return null;
+  if (notebooks.length === 0 && !trailing) return null;
 
   return (
     <View style={styles.section}>
@@ -85,6 +80,7 @@ export const NotebookSection = memo(function NotebookSection({
             onLongPress={onNotebookLongPress}
           />
         ))}
+        {trailing}
       </View>
     </View>
   );

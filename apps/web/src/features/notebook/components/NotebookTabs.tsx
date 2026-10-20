@@ -13,8 +13,8 @@ export function NotebookTabs({
 }) {
   const chatPath = getNotebookPath(config);
   const tabs: ReadonlyArray<GlassTab<NotebookTab>> = [
-    { id: 'chat', label: 'Chat', path: chatPath, tone: 'neutral' },
-    { id: 'uebersicht', label: 'Übersicht', path: `${chatPath}/uebersicht`, tone: 'green' },
+    { id: 'chat', label: 'Chat', path: chatPath },
+    { id: 'uebersicht', label: 'Übersicht', path: `${chatPath}/uebersicht` },
   ];
   return <GlassTabBar tabs={tabs} active={active} ariaLabel="Notebook-Bereiche" />;
 }

@@ -97,21 +97,21 @@ beforeEach(() => {
 });
 
 describe('MarketplaceLandesverbandPage', () => {
-  it('shows cover, notebook, agents in hub order, recipes and the how-to', async () => {
+  it('shows the photo, the way into the notebook, agents in hub order and recipes', async () => {
     const { container } = renderPage('gruene-berlin');
 
     expect(screen.getByRole('heading', { level: 1, name: 'Grüne Berlin' })).toBeInTheDocument();
-    const crumbs = screen.getByRole('navigation', { name: 'Brotkrümelnavigation' });
-    expect(within(crumbs).getByRole('link', { name: 'Marktplatz' })).toHaveAttribute(
-      'href',
-      '/marktplatz'
-    );
+    expect(
+      screen.getByRole('img', { name: 'Das Brandenburger Tor mit dem Fernsehturm dahinter' })
+    ).toHaveAttribute('src', '/images/marketplace/landesverbaende/berlin-v1-640.webp');
 
+    // The notebook is a text link in the intro, not a card of its own.
     const notebook = getNotebookById(berlin.notebookId)!;
-    expect(notebook.coverImage).toBeTruthy();
-    expect(container.querySelector(`img[src="${notebook.coverImage}"]`)).not.toBeNull();
-    const notebookSection = screen.getByRole('region', { name: 'Notebook' });
-    expect(within(notebookSection).getByRole('button', { name: notebook.title })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Zum Notebook' })).toHaveAttribute(
+      'href',
+      notebook.path
+    );
+    expect(screen.queryByRole('region', { name: 'Notebook' })).toBeNull();
 
     const agentSection = await screen.findByRole('region', { name: 'Agents' });
     await within(agentSection).findByRole('heading', { name: 'Öffentlichkeitsarbeit Berlin' });
@@ -125,12 +125,6 @@ describe('MarketplaceLandesverbandPage', () => {
       await within(recipeSection).findByRole('heading', { name: 'Bürger-Mail Berlin' })
     ).toBeVisible();
 
-    const howTo = screen.getByRole('region', {
-      name: 'So nutzt du die Inhalte deines Landesverbands',
-    });
-    expect(within(howTo).getByText(/@berlin als Quelle/)).toBeInTheDocument();
-    expect(within(howTo).getByText(/@buerger-berlin/)).toBeInTheDocument();
-
     // Both aisles ask for exactly this Landesverband.
     expect(queries.map((q) => `${q.get('kinds')}|${q.get('origin')}|${q.get('lv')}`)).toEqual(
       expect.arrayContaining(['agent|landesverband|berlin', 'recipe|landesverband|berlin'])
@@ -139,14 +133,13 @@ describe('MarketplaceLandesverbandPage', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('hides empty sections and the steps that would point at them', async () => {
+  it('hides an empty section', async () => {
     recipes = [];
     renderPage('gruene-berlin');
 
     await screen.findByRole('heading', { name: 'Öffentlichkeitsarbeit Berlin' });
     await waitFor(() => expect(screen.queryByRole('region', { name: 'Rezepte' })).toBeNull());
-    expect(screen.queryByText('Rezept nutzen')).toBeNull();
-    expect(screen.getByText('Agent wählen')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Agents' })).toBeInTheDocument();
   });
 
   it('opens an agent in place and comes back to the Landesverband', async () => {
@@ -202,9 +195,7 @@ describe('MarketplaceLandesverbandPage', () => {
 
     renderPage('gruene-oesterreich');
     expect(screen.getByRole('heading', { level: 1, name: 'Grüne Österreich' })).toBeInTheDocument();
-    expect(
-      await screen.findByRole('region', { name: 'So nutzt du diese Inhalte' })
-    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Zum Notebook' })).toBeInTheDocument();
     await waitFor(() =>
       expect(queries.map((q) => q.get('lv'))).toEqual(
         expect.arrayContaining(['oesterreich', 'oesterreich'])
