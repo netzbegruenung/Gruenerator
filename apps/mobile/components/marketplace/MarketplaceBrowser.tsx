@@ -128,7 +128,16 @@ export function MarketplaceBrowser({
   const multi = tabKinds.length > 1;
   const singleKind = tabKinds[0]!;
   const showFrontpage =
-    frontpage && isFrontpageView({ tab, origin, q: searchInput, sort, item: null });
+    frontpage &&
+    isFrontpageView({
+      tab,
+      origin,
+      q: searchInput,
+      sort,
+      item: null,
+      collection: null,
+      category: null,
+    });
   const base = { origin, q, sort, scope: 'shop', platform: 'mobile' } as const;
   const sections = useMarketplaceSections({
     ...base,

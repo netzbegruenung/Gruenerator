@@ -80,6 +80,7 @@ export const templateSource: MarketplaceSource<'template'> = {
       audience: ctx.audience,
       ...(ids && { ids }),
       ...(query.q && { searchTerm: query.q, searchMode: 'fulltext' }),
+      ...(query.templateType && { templateType: query.templateType }),
       sort: query.sort === 'neu' ? 'new' : 'popular',
       offset: query.offset,
       limit: query.limit + 1,

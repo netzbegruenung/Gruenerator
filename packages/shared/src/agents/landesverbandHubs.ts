@@ -5,7 +5,7 @@ import {
   isNotebookResolvableIn,
 } from '../notebooks/index.js';
 
-import { LANDESVERBAENDE, landesverbandAgentIds } from './landesverbaende.js';
+import { LANDESVERBAENDE, landesverbandAgentIds, type LandesverbandId } from './landesverbaende.js';
 import { type SystemAgentId } from './system.js';
 import { type AgentAudience } from './types.js';
 
@@ -25,11 +25,13 @@ import { type AgentAudience } from './types.js';
  */
 export interface LvHub {
   /** Internal LV id (matches the `lv` key in the agent specs). */
-  lvId: string;
+  lvId: LandesverbandId;
   /** Branded URL slug — `/agents/<slug>` resolves to this hub. */
   slug: string;
   /** Display name on the landing, e.g. "Grüne Berlin". */
   name: string;
+  /** The Land alone, e.g. "Berlin" — where a heading already says „Landesverbände". */
+  title: string;
   /** The LV notebook every agent pins. Also drives the hub's icon (the LV's
    *  chosen notebook icon) via `NOTEBOOK_ICONS` on the web side. */
   notebookId: NotebookId;
@@ -60,6 +62,7 @@ export const LV_HUBS: readonly LvHub[] = LANDESVERBAENDE.map((lv) => ({
   lvId: lv.id,
   slug: lv.hub.slug,
   name: lv.hub.name,
+  title: lv.title,
   notebookId: lv.notebookId,
   prAgentId: lv.prAgentId as SystemAgentId,
   buergerAgentId: lv.buergerAgentId as SystemAgentId,

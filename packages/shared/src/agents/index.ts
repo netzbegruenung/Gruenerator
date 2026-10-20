@@ -73,7 +73,6 @@ export {
 export {
   agenturaMetaLine,
   matchesAgenturaType,
-  showsSystemRecipes,
   type AgenturaFilterable,
 } from './agenturaFilter.js';
 
@@ -88,6 +87,7 @@ export {
   landesverbandLabel,
   landesverbandRegion,
   type LandesverbandEntry,
+  type LandesverbandId,
 } from './landesverbaende.js';
 
 export {
