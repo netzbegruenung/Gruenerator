@@ -245,7 +245,7 @@ export const FRONTPAGE_VISUAL_KINDS = [
 /** How many items each shelf shows, and below how many it hides. */
 export const FRONTPAGE_SHELVES = {
   landesverband: { show: 3, min: 2 },
-  neu: { show: 3, min: 1 },
+  neu: { show: 4, min: 1 },
   beliebt: { show: 5, min: 5 },
   gestalten: { show: 8, min: 3 },
 } as const;

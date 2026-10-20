@@ -29,6 +29,7 @@ import {
   DISPLAY_FONT,
   MarketplaceShowcaseCard,
   MarketplaceVisualCard,
+  SHOWCASE_GRID,
   showcaseToneAt,
   useBrokenPreviews,
 } from './MarketplaceShowcaseCard';
@@ -136,7 +137,7 @@ export function MarketplaceFrontpage({
             title="Neu im Marktplatz"
             actions={<BrowseButton onClick={() => onBrowse({ sort: 'neu' })} />}
           />
-          <div className="grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-3">
+          <div className={SHOWCASE_GRID}>
             {newItems.map((item, index) => (
               <MarketplaceShowcaseCard
                 key={item.key}

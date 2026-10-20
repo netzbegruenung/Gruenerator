@@ -14,7 +14,6 @@ import {
   type MarketplaceSaveResponse,
   type MarketplaceSection,
 } from '@gruenerator/contracts';
-import { showsSystemRecipes } from '@gruenerator/shared/agents';
 import {
   FRONTPAGE_SHELF_QUERIES,
   FRONTPAGE_SHELVES,
@@ -34,12 +33,11 @@ import type { SourceQuery } from './sources/types.js';
 
 /**
  * Mehrere Arten → je Art die erste Seite (`sectionLimit`); genau eine Art →
- * `offset`/`limit`. Katalog-Rezepte gelten wie in der Agentura nur, wenn nach
- * Rezepten allein gefragt oder gesucht wird — und für „gespeichert" immer.
+ * `offset`/`limit`. Katalog-Rezepte wendet der Grünerator von selbst an; sie
+ * stehen nur unter „gespeichert", nie in der Liste.
  */
 export function toSourceQuery(query: MarketplaceListQuery): SourceQuery {
   const single = query.kinds.length === 1;
-  const onlyRecipes = single && query.kinds[0] === 'recipe';
   return {
     origin: query.origin,
     q: query.q,
@@ -47,9 +45,7 @@ export function toSourceQuery(query: MarketplaceListQuery): SourceQuery {
     scope: query.scope,
     offset: single ? query.offset : 0,
     limit: single ? query.limit : query.sectionLimit,
-    systemRecipes:
-      query.scope === 'saved' ||
-      showsSystemRecipes(onlyRecipes ? 'recipe' : 'all', query.q !== null),
+    systemRecipes: query.scope === 'saved',
   };
 }
 

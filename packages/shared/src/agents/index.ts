@@ -73,7 +73,6 @@ export {
 export {
   agenturaMetaLine,
   matchesAgenturaType,
-  showsSystemRecipes,
   type AgenturaFilterable,
 } from './agenturaFilter.js';
 
