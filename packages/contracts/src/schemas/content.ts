@@ -204,3 +204,41 @@ export const mediathekResponseSchema = z.object({
 });
 
 export type MediathekResponse = z.infer<typeof mediathekResponseSchema>;
+
+// ── Office library ─────────────────────────────────────────────────────────
+export const officeFilterSchema = z.enum(['all', 'doc', 'sheet', 'pres', 'board']);
+export type OfficeFilter = z.infer<typeof officeFilterSchema>;
+
+export const officeQuerySchema = z.object({
+  typ: officeFilterSchema.optional(),
+  search: z.string().max(500).optional(),
+  sort: z.enum(['newest', 'oldest']).optional(),
+  limit: z
+    .string()
+    .regex(/^[1-9]\d*$/)
+    .optional(),
+  offset: z.string().regex(/^\d+$/).optional(),
+});
+export type OfficeQuery = z.infer<typeof officeQuerySchema>;
+
+/** Card projection; never downloads complete document bodies for a list. */
+export const officeItemSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  updated_at: z.string(),
+  document_subtype: z.string(),
+  content: z.string(),
+  creator_name: z.string(),
+  access_type: z.enum(['owner', 'direct', 'group']),
+  group_shares: z.array(z.object({ group_id: z.string(), group_name: z.string() })),
+});
+export type OfficeItem = z.infer<typeof officeItemSchema>;
+
+export const officeResponseSchema = z.object({
+  items: z.array(officeItemSchema),
+  total: z.number(),
+  limit: z.number(),
+  offset: z.number(),
+  hasMore: z.boolean(),
+});
+export type OfficeResponse = z.infer<typeof officeResponseSchema>;

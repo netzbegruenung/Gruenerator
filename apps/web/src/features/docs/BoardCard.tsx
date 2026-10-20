@@ -8,13 +8,18 @@ import { type Board, getBoardPreview, getBoardType } from '../boards/types';
 
 import { CardActionMenu } from './CardActionMenu';
 
+export type BoardCardBoard = Pick<
+  Board,
+  'id' | 'title' | 'updated_at' | 'content' | 'creator_name'
+>;
+
 export const BoardCard = memo(function BoardCard({
   board,
   onDelete,
   onRename,
   onShare,
 }: {
-  board: Board;
+  board: BoardCardBoard;
   onDelete: (id: string, e: React.MouseEvent) => void;
   onRename: (board: { id: string; title: string }, e: React.MouseEvent) => void;
   onShare?: (board: { id: string; title: string }, e: React.MouseEvent) => void;
