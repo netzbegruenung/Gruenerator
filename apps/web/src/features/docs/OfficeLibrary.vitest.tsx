@@ -110,10 +110,10 @@ describe('OfficeLibrary', () => {
     const user = userEvent.setup();
     const { container } = renderLibrary();
     await screen.findByText('Keine Inhalte gefunden');
-    await user.click(screen.getByRole('button', { name: 'Filter', exact: true }));
+    await user.click(screen.getByRole('button', { name: 'Filter' }));
     await user.click(screen.getByRole('menuitemradio', { name: 'Tabellen' }));
     await waitFor(() => expect(seen.at(-1)?.get('typ')).toBe('sheet'));
-    await user.click(screen.getByRole('button', { name: 'Sortierung', exact: true }));
+    await user.click(screen.getByRole('button', { name: 'Sortierung' }));
     await user.click(screen.getByRole('menuitemradio', { name: 'Älteste zuerst' }));
     await waitFor(() => expect(seen.at(-1)?.get('sort')).toBe('oldest'));
     expect(await axe(container)).toHaveNoViolations();
