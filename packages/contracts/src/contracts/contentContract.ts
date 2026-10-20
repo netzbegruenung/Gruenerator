@@ -16,6 +16,8 @@ import {
   contentErrorSchema,
   mediathekQuerySchema,
   mediathekResponseSchema,
+  officeQuerySchema,
+  officeResponseSchema,
 } from '../schemas/content.js';
 
 const c = initContract();
@@ -44,6 +46,17 @@ export const contentContract = c.router(
         500: contentErrorSchema,
       },
       summary: 'List the current user’s content, filterable by kind and paginated',
+    },
+
+    listOffice: {
+      method: 'GET',
+      path: '/api/content/office',
+      query: officeQuerySchema,
+      responses: {
+        200: officeResponseSchema,
+        500: contentErrorSchema,
+      },
+      summary: 'Search and paginate all accessible Office documents and boards',
     },
 
     /**
