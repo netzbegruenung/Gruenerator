@@ -82,3 +82,4 @@ export {
   type MarketplaceCategory,
   type MarketplaceCategoryId,
 } from './categories.js';
+export { isSampleItem, sampleImageOf } from './sampleCollection.js';

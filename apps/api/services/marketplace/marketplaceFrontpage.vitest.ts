@@ -120,10 +120,12 @@ describe('getMarketplaceFrontpage', () => {
       'sticker',
       'background',
     ]);
+    // The sample collection travels along: its link must open it, only the front page hides it.
     expect(page.collections.map((c) => c.collectionId)).toEqual([
       'starter',
       'barrierefreiheit',
       'canva',
+      'wahlkampf-moritz',
     ]);
   });
 

@@ -1,6 +1,8 @@
 import { type MarketplaceCollectionId, type MarketplaceItem } from '@gruenerator/contracts';
 import {
   collectionById,
+  isSampleItem,
+  sampleImageOf,
   useMarketplaceFrontpage,
   type MarketplaceCollection,
 } from '@gruenerator/shared/marketplace';
@@ -21,6 +23,7 @@ import { MarketplaceCard } from './MarketplaceCard';
 import {
   DISPLAY_FONT,
   MarketplaceShowcaseCard,
+  MarketplaceVisualCard,
   SHOWCASE_GRID,
   showcaseToneAt,
 } from './MarketplaceShowcaseCard';
@@ -105,7 +108,8 @@ export function CollectionCards({
 }): JSX.Element | null {
   const cards = collections.flatMap((c) => {
     const def = collectionById(c.collectionId);
-    return def ? [{ def, items: c.items }] : [];
+    // An unlisted collection is shared by its link only.
+    return def && def.listed !== false ? [{ def, items: c.items }] : [];
   });
   if (cards.length === 0) return null;
   return (
@@ -141,6 +145,12 @@ export function CollectionCards({
       </ul>
     </section>
   );
+}
+
+/** A sample entry has no detail page; it shows its picture in a new tab. */
+function openSample(item: MarketplaceItem) {
+  const src = sampleImageOf(item);
+  if (src) window.open(src, '_blank', 'noopener');
 }
 
 /** Agents and Rezepte land in „Meine Grüneratoren"; everything else is only „Merken". */
@@ -240,7 +250,16 @@ export function MarketplaceCollectionView({
         </h2>
         <div className={SHOWCASE_GRID}>
           {items.map((item, index) =>
-            isAddable(item) ? (
+            isSampleItem(item) ? (
+              <MarketplaceVisualCard
+                key={item.key}
+                item={item}
+                tone={showcaseToneAt(index)}
+                broken={false}
+                actions={null}
+                onSelect={() => openSample(item)}
+              />
+            ) : isAddable(item) ? (
               <MarketplaceShowcaseCard
                 key={item.key}
                 item={item}

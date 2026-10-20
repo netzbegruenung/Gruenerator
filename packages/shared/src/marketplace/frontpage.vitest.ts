@@ -5,6 +5,7 @@ import { getSystemAgent } from '../agents/system';
 import { hasSystemRecipe } from '../agents/skills/index';
 
 import { DEFAULT_MARKETPLACE_FILTERS } from './filters';
+import { isSampleItem } from './sampleCollection';
 import {
   MARKETPLACE_COLLECTIONS,
   MARKETPLACE_FEATURES,
@@ -191,6 +192,17 @@ describe('collections', () => {
     ]);
     expect(page?.collectionId).toBe('starter');
     expect(refs(page!.items)).toEqual(['a1', 'r1', 's1']);
+  });
+
+  it('puts a collection’s file-only samples first, and they never read as real rows', () => {
+    const wahlkampf = collectionById('wahlkampf-moritz')!;
+    const page = composeCollection(wahlkampf, [[it_('agent', 'a1')]]);
+    const items = page!.items;
+    expect(items.at(-1)?.ref).toBe('a1');
+    expect(items.slice(0, -1).every(isSampleItem)).toBe(true);
+    expect(isSampleItem(it_('agent', 'a1'))).toBe(false);
+    // Reachable by its link only.
+    expect(wahlkampf.listed).toBe(false);
   });
 
   it('is left out below its minimum', () => {

@@ -15,6 +15,7 @@ import {
 import { type MarketplaceTarget } from './cache.js';
 import { type MarketplaceFilters } from './filters.js';
 import { DEFAULT_MARKETPLACE_SORT } from './registry.js';
+import { WAHLKAMPF_SAMPLES } from './sampleCollection.js';
 
 /**
  * The Marktplatz front page — what „Start" shows instead of one aisle per kind.
@@ -118,6 +119,10 @@ export interface MarketplaceCollection {
   show: number;
   /** Below this many visible items the collection is left out. */
   min: number;
+  /** `false`: reachable only by its link (`?kollektion=<id>`), not in the row of collections. */
+  listed?: false;
+  /** Entries that exist only as files, shown before everything resolved (see `sampleCollection.ts`). */
+  samples?: readonly MarketplaceItem[];
 }
 
 /** The collections of the front page, curated by PR, in display order. */
@@ -201,6 +206,31 @@ export const MARKETPLACE_COLLECTIONS = [
     show: 8,
     min: 3,
   },
+  {
+    id: 'wahlkampf-moritz',
+    audience: 'all',
+    kicker: 'Musterkollektion',
+    title: 'Wahlkampf für Moritz',
+    description:
+      'So kann ein Wahlkampf-Paket aussehen: Vorlagen für Plakat, Sharepic, Story und Flyer, passende Hintergründe und Sticker, dazu die Agents und Rezepte für die Texte.',
+    tone: 'klee',
+    cover: {
+      file: 'wahlkampf-v1',
+      alt: 'Ein Infostand mit Sonnenblumen auf einem Marktplatz am Morgen',
+      credit: null,
+    },
+    pinned: [
+      { kind: 'agent', ref: 'gruenerator-oeffentlichkeitsarbeit' },
+      { kind: 'recipe', ref: 'presse' },
+      { kind: 'recipe', ref: 'instagram' },
+      { kind: 'agent', ref: 'gruenerator-rede-schreiber' },
+    ],
+    fill: [],
+    samples: WAHLKAMPF_SAMPLES,
+    show: 14,
+    min: 1,
+    listed: false,
+  },
 ] as const satisfies readonly MarketplaceCollection[];
 
 export function collectionsFor(locale: string | null): readonly MarketplaceCollection[] {
@@ -213,7 +243,7 @@ export function collectionById(id: MarketplaceCollectionId | null): MarketplaceC
 }
 
 /**
- * One collection from its resolved parts: pinned first, then each fill, each
+ * One collection from its resolved parts: samples first, then pinned, then each fill, each
  * item once, cut to `show`; `null` below `min`.
  */
 export function composeCollection(
@@ -222,7 +252,7 @@ export function composeCollection(
 ): MarketplaceFrontpageCollection | null {
   const seen = new Set<string>();
   const items: MarketplaceItem[] = [];
-  for (const item of resolved.flat()) {
+  for (const item of [...(collection.samples ?? []), ...resolved.flat()]) {
     if (!item || seen.has(item.key) || items.length >= collection.show) continue;
     seen.add(item.key);
     items.push(item);

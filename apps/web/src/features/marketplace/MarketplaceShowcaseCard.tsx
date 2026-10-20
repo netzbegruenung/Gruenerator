@@ -60,9 +60,11 @@ export function MarketplaceShowcaseCard({
       titleFont={DISPLAY_FONT}
       size="compact"
       actions={
-        <CardActionsMenu>
-          <MarketplaceMenuItems item={item} actions={actions} />
-        </CardActionsMenu>
+        actions && (
+          <CardActionsMenu>
+            <MarketplaceMenuItems item={item} actions={actions} />
+          </CardActionsMenu>
+        )
       }
     />
   );
@@ -80,7 +82,8 @@ export function MarketplaceVisualCard({
   tone: ShowcaseTone;
   /** Its preview did not load; a Vorlage is then drawn as a mock sheet. */
   broken: boolean;
-  actions: MarketplaceActions;
+  /** `null` for a sample entry, which nobody can like, save or report. */
+  actions: MarketplaceActions | null;
   onSelect: () => void;
 }): JSX.Element {
   const visual = viewOf(item).visual(item);
@@ -102,9 +105,11 @@ export function MarketplaceVisualCard({
       size="compact"
       mediaClassName="aspect-[4/3]"
       actions={
-        <CardActionsMenu>
-          <MarketplaceMenuItems item={item} actions={actions} />
-        </CardActionsMenu>
+        actions && (
+          <CardActionsMenu>
+            <MarketplaceMenuItems item={item} actions={actions} />
+          </CardActionsMenu>
+        )
       }
     />
   );

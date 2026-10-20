@@ -244,7 +244,12 @@ export const marketplaceFrontpageShelfSchema = z.object({
 export type MarketplaceFrontpageShelf = z.infer<typeof marketplaceFrontpageShelfSchema>;
 
 /** F0 — the `?kollektion=` value in shared links; title and copy live in the client registry. */
-export const marketplaceCollectionIdSchema = z.enum(['starter', 'barrierefreiheit', 'canva']);
+export const marketplaceCollectionIdSchema = z.enum([
+  'starter',
+  'barrierefreiheit',
+  'canva',
+  'wahlkampf-moritz',
+]);
 export type MarketplaceCollectionId = z.infer<typeof marketplaceCollectionIdSchema>;
 
 export const marketplaceFrontpageCollectionSchema = z.object({
