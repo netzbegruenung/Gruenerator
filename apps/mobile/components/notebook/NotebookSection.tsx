@@ -1,12 +1,8 @@
-import {
-  landesverbandCardPaths,
-  landesverbandCoverForNotebook,
-} from '@gruenerator/shared/marketplace';
 import { memo, useCallback, type ReactNode } from 'react';
 import { View, Text, StyleSheet, useColorScheme } from 'react-native';
 
+import { getLandesverbandPhoto } from '../../config/landesverbandPhotos';
 import { type MobileNotebookEntry } from '../../config/notebooksConfig';
-import { resolveWebUrl } from '../../services/webOrigin';
 import { spacing, lightTheme, darkTheme, HEADING_FONT_BOLD } from '../../theme';
 
 import { NotebookTile, notebookTileGridStyle, useNotebookTileGrid } from './NotebookTile';
@@ -33,15 +29,14 @@ const SectionTile = memo(function SectionTile({
 }) {
   const handlePress = useCallback(() => onPress(notebook), [onPress, notebook]);
   const handleLongPress = useCallback(() => onLongPress?.(notebook), [onLongPress, notebook]);
-  // A Landesverband notebook shows the photo of its Marktplatz card.
-  const lvCover = landesverbandCoverForNotebook(notebook.id);
 
   return (
     <NotebookTile
       title={notebook.title}
       meta={notebook.meta}
       icon={notebook.icon}
-      photo={lvCover ? resolveWebUrl(landesverbandCardPaths(lvCover).w480) : null}
+      // A Landesverband notebook shows the photo of its Marktplatz card.
+      photo={getLandesverbandPhoto(notebook.id)}
       size={size}
       onPress={handlePress}
       onLongPress={onLongPress ? handleLongPress : undefined}

@@ -31,8 +31,8 @@ export const NotebookTile = memo(function NotebookTile({
   title: string;
   meta?: string;
   icon: IoniconsIconName;
-  /** Absolute photo URL; the title is drawn over it. */
-  photo?: string | null;
+  /** Bundled photo (Metro image module); the title is drawn over it. */
+  photo?: number | null;
   /** Drawn cover for a notebook of a person. Ignored when `photo` is set. */
   coverNode?: ReactNode;
   /** Control pinned to the top-right corner, e.g. a like button. Its own presses do not reach the tile. */
@@ -64,11 +64,10 @@ export const NotebookTile = memo(function NotebookTile({
       {photo ? (
         <>
           <Image
-            source={{ uri: photo }}
+            source={photo}
             style={StyleSheet.absoluteFill}
             contentFit="cover"
             cachePolicy="memory-disk"
-            transition={150}
           />
           <LinearGradient
             colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.82)']}
