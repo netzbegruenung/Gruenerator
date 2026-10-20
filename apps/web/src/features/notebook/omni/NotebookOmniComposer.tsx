@@ -364,7 +364,8 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
           onClick={runPrimary}
           disabled={question.length === 0}
           aria-label="Fragen oder suchen"
-          className="flex h-[42px] w-[42px] flex-none items-center justify-center rounded-full bg-[#D6006E] text-white transition-[background,transform] hover:bg-[#B4005C] active:scale-95 disabled:opacity-50"
+          // Same colours as the Wissen tiles; empty, it takes the tile tone instead of fading.
+          className="flex h-[42px] w-[42px] flex-none items-center justify-center rounded-full bg-[#C80050] text-white transition-[background,transform] enabled:hover:bg-[#A00044] enabled:active:scale-95 disabled:bg-[#FCDDE4] disabled:text-[#C80050] dark:bg-[#EE6090] dark:text-[#2C121A] dark:enabled:hover:bg-[#F2A6C0] dark:disabled:bg-[#2C121A] dark:disabled:text-[#EE6090]"
         >
           <svg
             viewBox="0 0 24 24"

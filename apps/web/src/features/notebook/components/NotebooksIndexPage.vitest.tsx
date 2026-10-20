@@ -87,20 +87,29 @@ afterEach(() => {
   marketplaceQueries = [];
 });
 
-describe('NotebooksIndexFooter — „Öffentlich" and „Gemerkt"', () => {
-  it('opens the Marktplatz on the notebooks from the „Öffentlich" tile', async () => {
+describe('NotebooksIndexFooter — „Gemerkt" and Landesverbände', () => {
+  it('has no „Öffentlich" tile — public notebooks live in the Marktplatz', async () => {
+    serveCollections([]);
+
+    renderWithProviders(<NotebooksIndexFooter />);
+    expect(await screen.findByRole('button', { name: /Landesverbände/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Öffentlich/ })).not.toBeInTheDocument();
+  });
+
+  it('shows the Landesverband notebooks with their Marktplatz photos', async () => {
     serveCollections([]);
 
     const { user } = renderWithProviders(<NotebooksIndexFooter />);
-    expect(await screen.findByText('Im Marktplatz stöbern')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /Öffentlich/ }));
+    await user.click(await screen.findByRole('button', { name: /Landesverbände/ }));
 
-    expect(
-      await screen.findByRole('dialog', { name: 'Öffentliche Notebooks' })
-    ).toBeInTheDocument();
-    expect(
-      marketplaceQueries.some((q) => q.get('kinds') === 'notebook' && q.get('scope') === 'shop')
-    ).toBe(true);
+    const section = screen
+      .getByRole('heading', { level: 2, name: 'Landesverbände' })
+      .closest('section');
+    const photos = [...section!.querySelectorAll('img')].map((img) => img.getAttribute('src'));
+    expect(photos.length).toBeGreaterThan(0);
+    expect(photos.every((src) => src?.startsWith('/images/marketplace/landesverbaende/'))).toBe(
+      true
+    );
   });
 
   it('lists the notebooks bookmarked in the Marktplatz under „Gemerkt", with their author', async () => {
@@ -122,7 +131,7 @@ describe('NotebooksIndexFooter — „Öffentlich" and „Gemerkt"', () => {
 
     renderWithProviders(<NotebooksIndexFooter />);
 
-    expect(await screen.findByText('Neues Notebook erstellen')).toBeInTheDocument();
+    expect(await screen.findByText('Neues erstellen')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Gemerkt/ })).not.toBeInTheDocument();
   });
 });
@@ -143,12 +152,11 @@ describe('NotebooksIndexFooter — „Parlamente"', () => {
       .getByRole('heading', { level: 2, name: 'Parlamente' })
       .closest('section');
     expect(section).not.toBeNull();
-    // Every tile is a cover now (designed webp or NotebookCoverArt), so the
-    // title is the stretched button's label, not a footer heading.
+    // A tile's name is its title plus description; the title is its first line.
     const titles = within(section!)
       .getAllByRole('button')
-      .map((b) => b.getAttribute('aria-label'))
-      .filter((label) => label && !/favorit/i.test(label));
+      .filter((b) => !/favorit/i.test(b.getAttribute('aria-label') ?? ''))
+      .map((b) => b.querySelector('.min-w-0 > span')?.textContent);
     expect(titles).toEqual([
       'Bundestagsfraktion',
       'Bundestag: Reden & Drucksachen',
@@ -166,7 +174,7 @@ describe('NotebooksIndexFooter — „Parlamente"', () => {
 
     renderWithProviders(<NotebooksIndexFooter />);
 
-    expect(await screen.findByText('Neues Notebook erstellen')).toBeInTheDocument();
+    expect(await screen.findByText('Neues erstellen')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Parlamente/ })).not.toBeInTheDocument();
   });
 });
@@ -202,7 +210,7 @@ describe('NotebooksIndexFooter — „Mit dir geteilt"', () => {
 
     renderWithProviders(<NotebooksIndexFooter />);
 
-    expect(await screen.findByText('Neues Notebook erstellen')).toBeInTheDocument();
+    expect(await screen.findByText('Neues erstellen')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Mit dir geteilt/ })).not.toBeInTheDocument();
   });
 });
@@ -297,7 +305,7 @@ describe('NotebooksIndexFooter — Wissensdatenbank offline', () => {
 
     renderWithProviders(<NotebooksIndexFooter />);
 
-    expect(await screen.findByText('Neues Notebook erstellen')).toBeInTheDocument();
+    expect(await screen.findByText('Neues erstellen')).toBeInTheDocument();
     await new Promise((r) => setTimeout(r, 1500));
     expect(screen.queryByText(NOTICE)).not.toBeInTheDocument();
   });
