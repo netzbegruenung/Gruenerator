@@ -164,12 +164,12 @@ export function MarketplaceFrontpage({
       {(newItems.length > 0 || popularItems.length > 0) && (
         <div className="flex flex-wrap items-start gap-xl">
           {newItems.length > 0 && (
-            <section aria-label="Neu im Marktplatz" className="min-w-0 flex-[999_1_34rem]">
+            <section aria-label="Neu im Marktplatz" className="min-w-0 basis-full">
               <SectionHeader
                 title="Neu im Marktplatz"
                 actions={<BrowseButton onClick={() => onBrowse({ sort: 'neu' })} />}
               />
-              <div className="grid grid-cols-1 gap-md sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-4">
                 {newItems.map((item) => (
                   <MarketplaceCard
                     key={item.key}
