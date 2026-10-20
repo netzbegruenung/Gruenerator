@@ -1,9 +1,8 @@
 import { deriveIndexingState, type MarketplaceItemOf } from '@gruenerator/contracts';
-import { LANDESVERBAENDE } from '@gruenerator/shared/agents';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { canShareIntoGroup } from '@gruenerator/shared/groups';
 import {
-  LANDESVERBAND_COVERS,
+  landesverbandCoverForNotebook,
   marketplaceHref,
   useMarketplaceKind,
 } from '@gruenerator/shared/marketplace';
@@ -103,17 +102,13 @@ const HIDDEN_NOTEBOOK_IDS = [
   'boell-stiftung-notebook',
 ];
 
-// Landesverband-Notebooks zeigen dasselbe Foto wie ihre Karte im Marktplatz.
-const LV_COVER_BY_NOTEBOOK = new Map(
-  LANDESVERBAENDE.map((lv) => [lv.notebookId as string, LANDESVERBAND_COVERS[lv.id]])
-);
-
 const NotebookCard = memo(({ notebook }: { notebook: NotebookConfigEntry }) => {
   const navigate = useNavigate();
   const prefetch = useNotebookPrefetch();
   const starred = useIsFavourite(notebook.id);
   const open = () => void navigate(notebook.path, { state: { freshConversation: true } });
-  const lvCover = LV_COVER_BY_NOTEBOOK.get(notebook.id);
+  // Landesverband-Notebooks zeigen dasselbe Foto wie ihre Karte im Marktplatz.
+  const lvCover = landesverbandCoverForNotebook(notebook.id);
   const star = <FavouriteStar id={notebook.id} size={16} tone="notebook" />;
   if (lvCover) {
     return (

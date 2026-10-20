@@ -1,35 +1,27 @@
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { memo, useMemo, type ReactNode } from 'react';
 import { View, Text, Pressable, StyleSheet, useColorScheme, type ViewStyle } from 'react-native';
 
 import { useLayout } from '../../hooks/useLayout';
-import {
-  colors,
-  spacing,
-  borderRadius,
-  lightTheme,
-  darkTheme,
-  BODY_FONT,
-  HEADING_FONT_SEMIBOLD,
-} from '../../theme';
+import { spacing, borderRadius, BODY_FONT, HEADING_FONT_BOLD } from '../../theme';
 import { gridColumns } from '../../theme/layout';
+import { getToolTheme } from '../../theme/toolTheme';
 
 /**
  * Notebook gallery tile — the mobile port of web's `NotebookGalleryCard`.
  *
- * A notebook with a branded cover renders as the bare 1:1 image: its title is
- * part of the artwork, so a footer would print it twice. `coverNode` is the same
- * deal for a notebook whose cover is drawn rather than shipped (a user's own, a
- * community one — see `NotebookCoverArt`). Everything else keeps a ghost-icon
- * preview above a title/meta footer, which is what makes a mixed section still
- * line up as one grid.
+ * Three looks, one square: a `photo` (a Landesverband's Marktplatz picture)
+ * with the title on a dark gradient; a drawn `coverNode` for a notebook of a
+ * person (see `NotebookCoverArt`); otherwise the coloured tool tile — icon on
+ * top, title and meta below — in the Wissen tone, with its own dark pair.
  */
 export const NotebookTile = memo(function NotebookTile({
   title,
   meta,
   icon,
-  cover,
+  photo,
   coverNode,
   overlay,
   size,
@@ -39,9 +31,9 @@ export const NotebookTile = memo(function NotebookTile({
   title: string;
   meta?: string;
   icon: IoniconsIconName;
-  /** Metro image module from `config/notebookCovers`. */
-  cover?: number | null;
-  /** Drawn cover for a notebook that has no shipped webp. Ignored when `cover` is set. */
+  /** Absolute photo URL; the title is drawn over it. */
+  photo?: string | null;
+  /** Drawn cover for a notebook of a person. Ignored when `photo` is set. */
   coverNode?: ReactNode;
   /** Control pinned to the top-right corner, e.g. a like button. Its own presses do not reach the tile. */
   overlay?: ReactNode;
@@ -50,62 +42,59 @@ export const NotebookTile = memo(function NotebookTile({
   onPress: () => void;
   onLongPress?: () => void;
 }) {
-  const isDark = useColorScheme() === 'dark';
-  const theme = isDark ? darkTheme : lightTheme;
+  const tone = getToolTheme('notebooks', useColorScheme() === 'dark');
 
   return (
     <Pressable
       onPress={onPress}
       onLongPress={onLongPress}
       accessibilityRole="button"
-      accessibilityLabel={title}
+      accessibilityLabel={meta && !photo ? `${title}, ${meta}` : title}
       style={({ pressed }) => [
         styles.tile,
         {
           width: size,
-          backgroundColor: theme.card,
-          borderColor: theme.cardBorder,
+          height: size,
+          backgroundColor: tone.tile,
           opacity: pressed ? 0.9 : 1,
           transform: [{ scale: pressed ? 0.98 : 1 }],
         },
       ]}
     >
-      {cover ? (
-        <Image
-          source={cover}
-          style={{ width: size, height: size }}
-          contentFit="cover"
-          // The covers are bundled, so there is nothing to download — but
-          // expo-image's default `disk` policy still re-decodes all eleven from
-          // storage every time this gallery remounts, which is every switch back
-          // to the Wissen tab. The memory cache is a hint rather than a promise
-          // (expo-image purges it aggressively under pressure), and the tiles are
-          // decoded at view size, so the ceiling is single-digit megabytes.
-          cachePolicy="memory-disk"
-        />
+      {photo ? (
+        <>
+          <Image
+            source={{ uri: photo }}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={150}
+          />
+          <LinearGradient
+            colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.82)']}
+            locations={[0.42, 0.72, 1]}
+            style={StyleSheet.absoluteFill}
+          />
+          <Text style={[styles.title, styles.photoTitle]} numberOfLines={2}>
+            {title}
+          </Text>
+        </>
       ) : coverNode ? (
         coverNode
       ) : (
-        <>
-          <View
-            style={[
-              styles.iconPreview,
-              { height: Math.round(size * 0.8), backgroundColor: theme.surface },
-            ]}
-          >
-            <Ionicons name={icon} size={32} color={isDark ? colors.grey[500] : colors.grey[400]} />
-          </View>
-          <View style={[styles.footer, { borderTopColor: theme.cardBorder }]}>
-            <Text style={[styles.title, { color: theme.text }]} numberOfLines={2}>
+        <View style={styles.toolBody}>
+          <Ionicons name={icon} size={26} color={tone.icon} />
+          <View>
+            <Text style={[styles.title, { color: tone.title }]} numberOfLines={3}>
               {title}
             </Text>
             {meta ? (
-              <Text style={[styles.meta, { color: theme.textSecondary }]} numberOfLines={1}>
+              <Text style={[styles.meta, { color: tone.desc }]} numberOfLines={3}>
                 {meta}
               </Text>
             ) : null}
           </View>
-        </>
+        </View>
       )}
       {overlay ? <View style={styles.overlay}>{overlay}</View> : null}
     </Pressable>
@@ -149,26 +138,29 @@ const styles = StyleSheet.create({
   },
   tile: {
     borderRadius: borderRadius.large,
-    borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
   },
-  iconPreview: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  footer: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: spacing.xsmall,
-    paddingVertical: spacing.xsmall,
+  toolBody: {
+    flex: 1,
+    justifyContent: 'space-between',
+    padding: spacing.medium,
   },
   title: {
-    fontFamily: HEADING_FONT_SEMIBOLD,
-    fontSize: 13,
-    lineHeight: 17,
+    fontFamily: HEADING_FONT_BOLD,
+    fontSize: 16,
+    lineHeight: 19,
+  },
+  photoTitle: {
+    position: 'absolute',
+    left: spacing.medium,
+    right: spacing.medium,
+    bottom: spacing.medium,
+    color: '#FFFFFF',
   },
   meta: {
     fontFamily: BODY_FONT,
-    fontSize: 11,
-    marginTop: 1,
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: 2,
   },
 });

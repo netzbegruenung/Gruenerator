@@ -1,4 +1,4 @@
-import { type LandesverbandId } from '../agents/landesverbaende.js';
+import { LANDESVERBAENDE, type LandesverbandId } from '../agents/landesverbaende.js';
 
 import { type MarketplaceCollectionCover } from './frontpage.js';
 
@@ -122,3 +122,21 @@ export const LANDESVERBAND_COVERS: Record<LandesverbandId, MarketplaceCollection
     },
   },
 };
+
+/** Origin-relative; the web serves the files, the app prefixes the web origin. */
+export const LANDESVERBAND_COVER_DIR = '/images/marketplace/landesverbaende';
+
+/** The 3:4 card crop of a cover, at 320 and 480 px width. */
+export const landesverbandCardPaths = (cover: MarketplaceCollectionCover) => ({
+  w320: `${LANDESVERBAND_COVER_DIR}/${cover.file}-card-320.webp`,
+  w480: `${LANDESVERBAND_COVER_DIR}/${cover.file}-card-480.webp`,
+});
+
+const COVER_BY_NOTEBOOK = new Map<string, MarketplaceCollectionCover>(
+  LANDESVERBAENDE.map((lv) => [lv.notebookId, LANDESVERBAND_COVERS[lv.id]])
+);
+
+/** A Landesverband notebook shows its Landesverband's Marktplatz photo; any other notebook `null`. */
+export const landesverbandCoverForNotebook = (
+  notebookId: string
+): MarketplaceCollectionCover | null => COVER_BY_NOTEBOOK.get(notebookId) ?? null;

@@ -75,7 +75,12 @@ export {
   type MarketplaceCollectionCover,
   type MarketplaceFeature,
 } from './frontpage.js';
-export { LANDESVERBAND_COVERS } from './landesverbandCovers.js';
+export {
+  LANDESVERBAND_COVERS,
+  LANDESVERBAND_COVER_DIR,
+  landesverbandCardPaths,
+  landesverbandCoverForNotebook,
+} from './landesverbandCovers.js';
 export {
   MARKETPLACE_CATEGORIES,
   categoryById,
