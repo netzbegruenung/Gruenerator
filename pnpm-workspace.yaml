@@ -368,7 +368,7 @@ overrides:
   '@grpc/grpc-js': '>=1.14.5 <2'
   basic-ftp: '>=6.0.1'
   langsmith: '>=0.4.6'
-  markdown-it: '>=14.2.0 <15'
+  markdown-it: '>=14.3.3 <15'
   tar: '>=7.5.11'
   smol-toml: '>=1.9.0'
   undici: '>=8.12.1'
@@ -410,6 +410,8 @@ overrides:
   lodash: '>=4.18.0'
   '@esbuild-kit/core-utils>esbuild': ^0.25.0
   axios: '>=1.19.0'
+  follow-redirects: '>=1.16.1'
+  launch-editor: '>=2.14.2'
   postcss: '>=8.5.29'
   uuid: '>=14.0.2'
   qs: '>=6.16.0'
