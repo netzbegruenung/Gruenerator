@@ -297,10 +297,13 @@ describe('GET /api/thumbs/:kind/:id/:v', () => {
   it('serves a rendered variant from disk on the second request', async () => {
     const url = buildThumbnailUrl({ ...D, v: 'warm' }, { w: 400, fmt: 'webp' }) as string;
     const first = Buffer.from(await (await get(url)).arrayBuffer());
-    // The write is fire-and-forget, so the second request is what proves it landed.
-    await new Promise((r) => setTimeout(r, 50));
-    const cached = await fs.readFile(path.join(cacheDir, 'media', 'ab', D.id, 'warm', 'w400.webp'));
-    expect(cached).toEqual(first);
+    // Wait for the fire-and-forget write to land before exercising the disk-cache hit.
+    await vi.waitFor(async () => {
+      const cached = await fs.readFile(
+        path.join(cacheDir, 'media', 'ab', D.id, 'warm', 'w400.webp')
+      );
+      expect(cached).toEqual(first);
+    });
     expect(Buffer.from(await (await get(url)).arrayBuffer())).toEqual(first);
   });
 });
