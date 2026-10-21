@@ -4,7 +4,11 @@ import { describe, expect, it } from 'vitest';
 import { ROBOT_ID_MAX, ROBOT_ID_MIN } from '../avatar/index.js';
 
 import { type CollectionStoryBlock, resolveStory } from './collectionStory.js';
-import { MARKETPLACE_COLLECTIONS, type MarketplaceCollection } from './frontpage.js';
+import {
+  collectionForThema,
+  MARKETPLACE_COLLECTIONS,
+  type MarketplaceCollection,
+} from './frontpage.js';
 
 // Widened: the `as const` registry is a tuple of literal types, not all of which name `story`.
 const COLLECTIONS: readonly MarketplaceCollection[] = MARKETPLACE_COLLECTIONS;
@@ -115,5 +119,12 @@ describe('collection stories in the registry', () => {
         }
       }
     }
+  });
+});
+
+describe('collectionForThema', () => {
+  it('leads a themed Vorlage back to its listed collection', () => {
+    expect(collectionForThema('queer')?.id).toBe('queer');
+    expect(collectionForThema('frauen')?.id).toBe('gleichstellung');
   });
 });

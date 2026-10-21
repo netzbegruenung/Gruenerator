@@ -27,7 +27,7 @@ export const QUEER_COLLECTION = {
   fill: [],
   show: 14,
   min: 0,
-  listed: false,
+  row: 'themen',
   story: [
     { type: 'vorlagen', thema: 'queer', heading: 'Sharepics für euren Kanal' },
     // Juna and Bunti, the Pride-Edition Friends with the rainbow.

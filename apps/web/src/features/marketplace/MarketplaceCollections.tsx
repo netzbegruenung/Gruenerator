@@ -15,7 +15,7 @@ import {
   ShowcaseMedia,
   cn,
 } from '@gruenerator/ui';
-import { type JSX } from 'react';
+import { type JSX, useId } from 'react';
 import { PiCheck } from 'react-icons/pi';
 
 import { GalleryEmptyState, GallerySkeleton } from '../../components/common/Gallery/parts';
@@ -125,27 +125,35 @@ export function CollectionCards({
   collections,
   onOpen,
   title = 'Kollektionen',
+  row,
 }: {
   collections: { collectionId: MarketplaceCollectionId; items: MarketplaceItem[] }[];
   onOpen: (id: MarketplaceCollectionId) => void;
   title?: string;
+  /** Only the collections of this front page row (`rest`: those without one); all when left out. */
+  row?: NonNullable<MarketplaceCollection['row']> | 'rest';
 }): JSX.Element | null {
+  const headingId = useId();
   const cards = collections.flatMap((c) => {
     const def = collectionById(c.collectionId);
     // An unlisted collection is shared by its link only.
-    return def && def.listed !== false ? [{ def, items: c.items }] : [];
+    if (!def || def.listed === false) return [];
+    if (row && (def.row ?? 'rest') !== row) return [];
+    return [{ def, items: c.items }];
   });
   if (cards.length === 0) return null;
   return (
-    <section aria-labelledby="marktplatz-kollektionen" className="flex flex-col gap-md">
-      <h2
-        id="marktplatz-kollektionen"
-        className="m-0 text-xl font-semibold text-foreground-heading"
-      >
+    <section aria-labelledby={headingId} className="flex flex-col gap-md">
+      <h2 id={headingId} className="m-0 text-xl font-semibold text-foreground-heading">
         {title}
       </h2>
       <ul
-        className={cn('m-0 grid list-none grid-cols-1 gap-md p-0 md:grid-cols-3', SWIPE_BELOW_MD)}
+        className={cn(
+          'm-0 grid list-none grid-cols-1 gap-md p-0',
+          // Two or four cards stand in pairs; three columns would leave one or two alone.
+          cards.length % 2 === 0 && cards.length < 6 ? 'md:grid-cols-2' : 'md:grid-cols-3',
+          SWIPE_BELOW_MD
+        )}
       >
         {cards.map(({ def, items }) => (
           <li key={def.id}>
@@ -161,7 +169,7 @@ export function CollectionCards({
                   decorative
                 />
               }
-              meta={`${def.kicker} · ${countLabel(items.length)}`}
+              meta={items.length > 0 ? `${def.kicker} · ${countLabel(items.length)}` : def.kicker}
               title={def.title}
               description={plainText(def.description)}
               titleFont={DISPLAY_FONT}

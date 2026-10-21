@@ -96,6 +96,8 @@ Die Regeln sind im Renderer verankert, nicht in den Daten. **Kein Baustein hat F
 
 ## Sharepics in Kollektionen
 
+**Themen-Kollektionen** (Sharepics zu einem Thema) tragen `row: 'themen'` und stehen auf der Startseite in der eigenen Reihe „Themen“ unter „Kollektionen“; die Vorschau einer Vorlage mit `spec.thema` verlinkt auf ihre Kollektion (`collectionForThema`). Die Einleitung steht in `description` und darf Begriffe mit `**…**` fett setzen (auf der Karte ohne Hervorhebung).
+
 **Eine Sharepic-Kollektion bleibt kurz:** höchstens eine Einleitung, dann die Vorlagen, dazu höchstens passende Friends. Keine Zahlen, Zitate, Beispiele oder Agent-Zeilen dazwischen — der Fokus sind die Sharepics. Ohne Einträge braucht sie `pinned: []` und `min: 0`; die Seite zeigt eine Kollektion, sobald der Server sie liefert, auch leer.
 
 Grünerator-Sharepics gehören über `vorlagen` in eine Kollektion, nicht als Bilddatei ins Repo: der Katalog liefert sie im richtigen Land, mit aktuellem Vorschaubild, und eine neue Vorlage zum Thema erscheint ohne Codeänderung. Lokal braucht die API dafür `INTERN_CONTENT_DIR` auf einen Checkout von `gruenerator-intern` (sonst ist der Block leer).

@@ -73,6 +73,7 @@ export {
   MARKETPLACE_COLLECTIONS,
   MARKETPLACE_FEATURES,
   collectionById,
+  collectionForThema,
   featureById,
   featureFor,
   isFrontpageView,

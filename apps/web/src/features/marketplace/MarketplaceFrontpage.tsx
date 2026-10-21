@@ -102,6 +102,13 @@ export function MarketplaceFrontpage({
       )}
 
       <CollectionCards
+        row="rest"
+        collections={page.data?.collections ?? []}
+        onOpen={(collection) => onBrowse({ collection })}
+      />
+      <CollectionCards
+        title="Themen"
+        row="themen"
         collections={page.data?.collections ?? []}
         onOpen={(collection) => onBrowse({ collection })}
       />

@@ -10,6 +10,7 @@ import {
   type MarketplaceOrigin,
   type MarketplaceSection,
   type MarketplaceSort,
+  type SharepicThema,
 } from '@gruenerator/contracts';
 
 import { type MarketplaceTarget } from './cache.js';
@@ -125,6 +126,8 @@ export interface MarketplaceCollection {
   min: number;
   /** `false`: reachable only by its link (`?kollektion=<id>`), not in the row of collections. */
   listed?: false;
+  /** `themen`: in its own row „Themen“ above the other collections on the front page. */
+  row?: 'themen';
   /** Entries that exist only as files, shown before everything resolved (see `sampleCollection.ts`). */
   samples?: readonly MarketplaceItem[];
   /** What the page tells between cover and entries; without one, the entries as a grid. */
@@ -248,6 +251,18 @@ export function collectionsFor(locale: string | null): readonly MarketplaceColle
 
 export function collectionById(id: MarketplaceCollectionId | null): MarketplaceCollection | null {
   return MARKETPLACE_COLLECTIONS.find((c) => c.id === id) ?? null;
+}
+
+/** The listed collection that shows the Vorlagen of `thema`, for the way back from a Vorlage. */
+export function collectionForThema(thema: SharepicThema): MarketplaceCollection | null {
+  const collections: readonly MarketplaceCollection[] = MARKETPLACE_COLLECTIONS;
+  return (
+    collections.find(
+      (c) =>
+        c.listed !== false &&
+        c.story?.some((block) => block.type === 'vorlagen' && block.thema === thema)
+    ) ?? null
+  );
 }
 
 /**

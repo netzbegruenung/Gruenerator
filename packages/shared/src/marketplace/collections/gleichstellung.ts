@@ -27,6 +27,6 @@ export const GLEICHSTELLUNG_COLLECTION = {
   fill: [],
   show: 14,
   min: 0,
-  listed: false,
+  row: 'themen',
   story: [{ type: 'vorlagen', thema: 'frauen', heading: 'Sharepics zum Anpassen' }],
 } as const satisfies MarketplaceCollection;
