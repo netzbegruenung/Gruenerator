@@ -11,6 +11,8 @@ describe('parseFilename', () => {
     ['egor-vikhrev--E6jqIGzgOY-unsplash.jpg', 'egor-vikhrev', '-E6jqIGzgOY'],
     ['absolutvision-WYd_PkCa1BY-unsplash.jpg', 'absolutvision', 'WYd_PkCa1BY'],
     ['2y-kang-dFohf_GUZJ0-unsplash.jpg', '2y-kang', 'dFohf_GUZJ0'],
+    ['oladimeji-odunsi-e-TuK4z2LhY-unsplash.jpg', 'oladimeji-odunsi', 'e-TuK4z2LhY'],
+    ['katya-azimova-x-L7HGT9P3M-unsplash.jpg', 'katya-azimova', 'x-L7HGT9P3M'],
   ])('reads %s', (filename, photographerSlug, photoId) => {
     expect(parseFilename(filename)).toEqual({ photographerSlug, photoId });
   });
