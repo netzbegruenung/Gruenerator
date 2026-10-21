@@ -23,9 +23,16 @@ import { evalCandidatePrefix, isEvalEmbedCollection } from './embedCandidates.js
 /** Punkte je Scroll-Seite. Payload-only, deshalb grösser als der Schreibstapel. */
 export const SCROLL_PAGE = 256;
 
-/** Punkte je Upsert. Dieselbe Zahl wie in `scripts/migrate-bm25-sparse.ts`: der
- *  Reverse-Proxy vor Qdrant hat bei mehr schon mit 413 geantwortet. */
+/** Punkte je Upsert bei 1024 Dimensionen. Dieselbe Zahl wie in
+ *  `scripts/migrate-bm25-sparse.ts`: der Reverse-Proxy vor Qdrant hat bei mehr
+ *  schon mit 413 geantwortet. */
 export const UPSERT_BATCH = 16;
+
+/** Der Stapel schrumpft mit der Dimension — 16 Punkte à 4096 Dimensionen
+ *  liefen am 21.10.2026 in denselben 413. */
+export function upsertBatchFor(dims: number): number {
+  return Math.max(1, Math.floor((UPSERT_BATCH * 1024) / dims));
+}
 
 /** Wie lange eine Wegwerf-Sammlung als frisch gilt. Steht als
  *  `eval_expires_at` in jeder Payload, damit ein vergessener Aufbau von aussen
