@@ -1,3 +1,4 @@
+import { type RealtimeVoiceAdapter } from '@assistant-ui/react';
 import { create } from 'zustand';
 
 import type { SharepicVariant } from '../hooks/useChatGraphStream';
@@ -223,6 +224,19 @@ export interface ChatConfig {
    * bleibt vom Hinweis nur die Konsolenzeile.
    */
   notify?: (kind: NotifyKind, message: string, description?: string) => void;
+  /**
+   * Sprachgespräch im Composer. Die Host-App entscheidet, ob es eines gibt und
+   * wer antwortet; weggelassen zeigt der Composer keinen Sprach-Knopf.
+   */
+  voice?: ChatVoice;
+}
+
+export interface ChatVoice {
+  /** Called once per thread runtime. */
+  createAdapter: () => RealtimeVoiceAdapter;
+  /** What the agent is looking up right now, shown on the orb; null otherwise. */
+  getActivity: () => string | null;
+  subscribeActivity: (onChange: () => void) => () => void;
 }
 
 export type NotifyKind = 'error' | 'warning';
@@ -353,6 +367,7 @@ interface ChatConfigStore extends ResolvedChatConfig {
   /** Href des Chunk-Inspektors zu einer Zitation; null/unset blendet ihn aus. */
   chunkInspectorHref?: ChatConfig['chunkInspectorHref'];
   onOpenSourceDocument?: ChatConfig['onOpenSourceDocument'];
+  voice?: ChatConfig['voice'];
   /** threadId → context-getter, populated by host surfaces (e.g. docs editor). */
   contextProviders: Map<string, ChatRequestContextProvider>;
   /** Register a context provider for a thread. Returns the unregister function. */
@@ -494,6 +509,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       wolkeConnectUrl: config?.wolkeConnectUrl,
       chunkInspectorHref: config?.chunkInspectorHref,
       onOpenSourceDocument: config?.onOpenSourceDocument,
+      voice: config?.voice,
     });
   },
 
