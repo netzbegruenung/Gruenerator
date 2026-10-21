@@ -28,10 +28,10 @@ function NotebookResolverPage() {
 
   if (slugConfig) {
     return (
-      <>
-        <NotebookTabs config={slugConfig} active="chat" />
-        <NotebookPageContent config={slugConfig} withTabBar />
-      </>
+      <NotebookPageContent
+        config={slugConfig}
+        tabBar={<NotebookTabs config={slugConfig} active="chat" />}
+      />
     );
   }
 
