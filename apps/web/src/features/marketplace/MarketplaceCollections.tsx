@@ -15,10 +15,12 @@ import {
   ShowcaseMedia,
   cn,
 } from '@gruenerator/ui';
+import { useQuery } from '@tanstack/react-query';
 import { type JSX } from 'react';
 import { PiCheck } from 'react-icons/pi';
 
 import { GalleryEmptyState, GallerySkeleton } from '../../components/common/Gallery/parts';
+import { sharepicVorlagenQuery } from '../vorlagen/hooks/useSharepicVorlagen';
 
 import { CollectionStory } from './CollectionStory';
 import { viewOf } from './kindViews';
@@ -228,6 +230,11 @@ export function MarketplaceCollectionView({
   const page = useMarketplaceFrontpage();
   const locale = useAuthStore((s) => s.locale);
   const def = collectionById(id);
+  // Vorlagen blocks show catalogue entries that are not among `items`; the count names them too.
+  const themen = def?.story?.flatMap((b) => (b.type === 'vorlagen' ? [b.thema] : [])) ?? [];
+  const vorlagen = useQuery({ ...sharepicVorlagenQuery(), enabled: themen.length > 0 });
+  const sharepicCount =
+    vorlagen.data?.filter((v) => v.spec.thema && themen.includes(v.spec.thema)).length ?? 0;
   const collections = page.data?.collections ?? [];
   const items = collections.find((c) => c.collectionId === id)?.items ?? [];
   if (page.isPending) {
@@ -288,7 +295,10 @@ export function MarketplaceCollectionView({
           <p className="m-0 text-base leading-relaxed text-foreground-muted sm:text-lg">
             {def.description}
           </p>
-          <span className="text-sm text-foreground-muted">{countLabel(items.length)}</span>
+          <span className="text-sm text-foreground-muted">
+            {countLabel(items.length)}
+            {sharepicCount > 0 && ` · ${sharepicCount} Sharepics`}
+          </span>
         </div>
         {addable.length > 0 &&
           (missing.length > 0 ? (

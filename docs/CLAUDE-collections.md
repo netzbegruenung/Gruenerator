@@ -32,7 +32,7 @@ Mobile rendert Kollektionen heute nicht.
 
 ## Bausteine
 
-Fünf Bausteine, nicht mehr. Ein neuer kommt erst dazu, wenn eine Kollektion ihn wirklich braucht und keiner der fünf ihn abdeckt.
+Sechs Bausteine, nicht mehr. Ein neuer kommt erst dazu, wenn eine Kollektion ihn wirklich braucht und keiner der sechs ihn abdeckt.
 
 | Baustein | Wofür | Regeln |
 |---|---|---|
@@ -41,7 +41,8 @@ Fünf Bausteine, nicht mehr. Ein neuer kommt erst dazu, wenn eine Kollektion ihn
 | `claim` | Ein Satz oder eine Zahl in Titelgröße, darunter eine Zeile (`note`). | Enthält `text` eine Ziffer, ist `source` Pflicht (Test). Höchstens zwei pro Kollektion, sonst verliert jede an Gewicht. |
 | `quote` | Eine Stimme aus der Praxis. | `by` nennt Funktion und Ort. Echte Zitate nur mit Freigabe der Person. Erfundene Zitate nur, solange die Kollektion `listed: false` ist, und dann mit „Beispiel“ in `by`. |
 | `items` | Einträge an der Stelle, an der der Text von ihnen spricht. | `display: 'rows'` für Agents und Rezepte, `'gallery'` für alles mit Bild. Nur Einträge aus `pinned` oder `samples` (Test). |
-| `example` | Ein Eintrag mit kurzem Austausch: was du schreibst, was er antwortet. | Die Antwort ist echt oder realistisch, nie ein Werbesatz. Höchstens einer pro Kollektion. |
+| `example` | Ein Eintrag mit kurzem Austausch: was du schreibst, was er antwortet. | Die Antwort ist echt oder realistisch, nie ein Werbesatz, höchstens 200 Zeichen (Test). Höchstens einer pro Kollektion. |
+| `vorlagen` | Die Grünerator-Vorlagen eines Themas (`thema: 'queer' \| 'frauen'`) als Galerie, jede öffnet ihre Vorschau auf `/vorlagen`. | Die Seite fragt den Katalog (`/api/sharepic-vorlagen`) selbst, im Land der Person. Die Vorlagen sind Parteiinhalt und liegen im privaten Repo, nie hier. Fehlt der Katalog oder hat er nichts zum Thema, zeigt der Block nichts — der Text davor bleibt dann stehen, also so schreiben, dass er auch allein trägt. |
 
 Was kein Block zeigt, steht am Ende unter „Mehr aus der Kollektion“. Sieht eine Person einen Eintrag nicht, fällt er aus seinem Block. Ein Block ohne Einträge fällt ganz weg und mit ihm ein `text` direkt davor, der sonst ins Leere erklärt (`resolveStory`).
 
@@ -92,9 +93,13 @@ Die Regeln sind im Renderer verankert, nicht in den Daten. **Kein Baustein hat F
 
 `de-AT` ist gleichwertig. Eine Kollektion mit `audience: 'all'` darf länderspezifische Bausteine tragen: ein Block mit `audience: 'de-DE'` und sein Gegenstück mit `audience: 'de-AT'` stehen hintereinander, `resolveStory` zeigt jeder Person ihren. Das gilt für jede Zahl, jedes Gesetz, jede Ansprechstelle und jedes Hilfetelefon. Fehlt das österreichische Gegenstück, lieber den Block weglassen als eine deutsche Zahl in Österreich zeigen.
 
-## Platzhalter
+## Sharepics in Kollektionen
 
-Sharepics, die noch entstehen, kommen als `samples` mit Platzhalterbild. Platzhalter tragen sichtbar „Platzhalter“ und dieselbe Bildwelt wie das Endprodukt (Foto als Grund, Tanne-Balken), damit die Seite schon jetzt so aussieht wie später. Eine Kollektion mit Platzhaltern bleibt `listed: false`.
+Grünerator-Sharepics gehören über `vorlagen` in eine Kollektion, nicht als Bilddatei ins Repo: der Katalog liefert sie im richtigen Land, mit aktuellem Vorschaubild, und eine neue Vorlage zum Thema erscheint ohne Codeänderung. Lokal braucht die API dafür `INTERN_CONTENT_DIR` auf einen Checkout von `gruenerator-intern` (sonst ist der Block leer).
+
+Sharepics, die noch entstehen, können vorübergehend als `samples` mit Platzhalterbild kommen. Platzhalter tragen sichtbar „Platzhalter“ und dieselbe Bildwelt wie das Endprodukt (Foto als Grund, Tanne-Balken). Eine Kollektion mit Platzhaltern bleibt `listed: false`.
+
+Cover dürfen Fotos aus `apps/api/public/sharepic_example_bg/` sein (Unsplash, öffentlich); dann mit `credit`.
 
 ## Offen
 

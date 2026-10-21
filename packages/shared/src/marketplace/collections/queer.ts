@@ -1,74 +1,10 @@
-import { type MarketplaceItem } from '@gruenerator/contracts';
-
 import { type MarketplaceCollection } from '../frontpage.js';
 
 /**
- * „Queer und sichtbar“: six placeholder Sharepics (files under
- * `/images/marketplace/collections/queer/`, not rows) plus the official Agents and
- * Rezepte for the texts. Stays `listed: false` while the Sharepics are placeholders.
- * Written up in docs/CLAUDE-collections.md.
+ * „Queer und sichtbar“: the Grünerator-Vorlagen of the theme `queer` (party
+ * content, loaded from the private catalogue at runtime) plus the official
+ * Agents and Rezepte for the texts. Written up in docs/CLAUDE-collections.md.
  */
-const DIR = '/images/marketplace/collections/queer';
-const CREATED = '2026-10-22T00:00:00.000Z';
-
-const vorlage = (file: string, title: string, description: string): MarketplaceItem => ({
-  ref: `muster-${file}`,
-  key: `template:muster-${file}`,
-  kind: 'template',
-  origin: 'oeffentlich',
-  title,
-  description,
-  iconKey: null,
-  authorName: 'Platzhalter',
-  audience: 'all',
-  likesCount: 0,
-  liked: false,
-  saved: false,
-  isOwn: false,
-  reportKind: null,
-  createdAt: CREATED,
-  thumbnailUrl: `${DIR}/${file}-v1-480.webp`,
-  template: {
-    templateType: 'canva',
-    thumbUrl: null,
-    externalUrl: null,
-    images: [{ url: `${DIR}/${file}-v1-960.webp`, title, thumbUrl: null }],
-    categories: [],
-    tags: [],
-    contentData: {},
-    metadata: {},
-  },
-});
-
-const QUEER_SAMPLES: readonly MarketplaceItem[] = [
-  vorlage('queer-csd', 'CSD schützen', 'Sharepic für den Schutz von CSDs vor Ort.'),
-  vorlage(
-    'queer-idahobit',
-    'Der 17. Mai',
-    'Sharepic zum Tag gegen Homo-, Bi-, Inter- und Transfeindlichkeit.'
-  ),
-  vorlage(
-    'queer-selbstbestimmung',
-    'Selbstbestimmung',
-    'Sharepic für trans*, inter* und nicht-binäre Menschen.'
-  ),
-  vorlage(
-    'queer-gleiche-rechte',
-    'Gleiche Rechte',
-    'Sharepic für gleichen Schutz vor Diskriminierung.'
-  ),
-  vorlage(
-    'queer-coming-out',
-    'Coming-out ohne Angst',
-    'Sharepic für ein Leben ohne Angst vor dem Outing.'
-  ),
-  vorlage(
-    'queer-land',
-    'Queer auf dem Land',
-    'Sharepic für Sichtbarkeit außerhalb der großen Städte.'
-  ),
-];
-
 export const QUEER_COLLECTION = {
   id: 'queer',
   audience: 'all',
@@ -78,9 +14,14 @@ export const QUEER_COLLECTION = {
     'Sharepics, Texte und Agents für alle, die queere Menschen vor Ort sichtbar machen und schützen wollen: vom CSD bis zum Coming-out.',
   tone: 'klee',
   cover: {
-    file: 'queer-v1',
-    alt: 'Drei Sharepics mit Balken-Headlines, leicht gefächert vor einer Blumenwiese im Morgenlicht',
-    credit: null,
+    file: 'queer-v2',
+    alt: 'Hände halten Regenbogenfahnen und Luftballons bei einer Pride-Parade',
+    credit: {
+      author: 'Tristan B',
+      profileUrl: 'https://unsplash.com/@tristan-b?utm_source=gruenerator&utm_medium=referral',
+      photoUrl:
+        'https://unsplash.com/photos/72EYDDwn8dE?utm_source=gruenerator&utm_medium=referral',
+    },
   },
   pinned: [
     { kind: 'agent', ref: 'gruenerator-oeffentlichkeitsarbeit' },
@@ -89,7 +30,6 @@ export const QUEER_COLLECTION = {
     { kind: 'agent', ref: 'gruenerator-rede-schreiber' },
   ],
   fill: [],
-  samples: QUEER_SAMPLES,
   show: 14,
   min: 1,
   listed: false,
@@ -121,12 +61,7 @@ export const QUEER_COLLECTION = {
       },
       audience: 'de-AT',
     },
-    {
-      type: 'items',
-      display: 'gallery',
-      heading: 'Sechs Themen für euren Kanal',
-      items: QUEER_SAMPLES.map((s) => ({ kind: s.kind, ref: s.ref })),
-    },
+    { type: 'vorlagen', thema: 'queer', heading: 'Sharepics für euren Kanal' },
     {
       type: 'quote',
       text: 'Wir haben vor dem CSD bei der Stadt nachgefragt, wer uns schützt. Seitdem steht der Ortsverband jedes Jahr mit einem Stand und einer klaren Aussage da.',
@@ -135,7 +70,7 @@ export const QUEER_COLLECTION = {
     {
       type: 'text',
       paragraphs: [
-        'Tauscht Foto und Ortsnamen aus und setzt euren Termin ein. Einen Kurztext für Instagram, die Pressemitteilung zum CSD oder die Rede am 17. Mai schreibt ihr mit den Agents und Rezepten darunter.',
+        'Öffnet ein Sharepic, tauscht Foto und Ortsnamen aus und setzt euren Termin ein. Einen Kurztext für Instagram, die Pressemitteilung zum CSD oder die Rede am 17. Mai schreibt ihr mit den Agents und Rezepten darunter.',
         'Nennt dabei immer, wen ihr meint, und lasst Betroffene selbst zu Wort kommen.',
       ],
     },

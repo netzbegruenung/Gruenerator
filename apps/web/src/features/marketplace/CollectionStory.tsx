@@ -1,12 +1,21 @@
-import { type MarketplaceItem } from '@gruenerator/contracts';
+import {
+  sharepicVorlageThumbPath,
+  type MarketplaceItem,
+  type SharepicThema,
+} from '@gruenerator/contracts';
 import { isSampleItem, type ResolvedStoryBlock } from '@gruenerator/shared/marketplace';
 import { cn } from '@gruenerator/ui';
-import { type JSX } from 'react';
+import { type JSX, type ReactNode } from 'react';
 import { PiBookmarkSimple, PiBookmarkSimpleFill } from 'react-icons/pi';
+import { Link } from 'react-router-dom';
+
+import { useSharepicVorlagen } from '../vorlagen/hooks/useSharepicVorlagen';
 
 import { viewOf } from './kindViews';
 import { DISPLAY_FONT } from './MarketplaceShowcaseCard';
 import { type MarketplaceActions } from './useMarketplaceActions';
+
+import { resolveApiAssetUrl } from '@/utils/platform';
 
 /**
  * A collection's story (docs/CLAUDE-collections.md): two widths, one surface.
@@ -17,6 +26,8 @@ import { type MarketplaceActions } from './useMarketplaceActions';
 
 const COLUMN = 'w-full max-w-[42rem]';
 const SMALL = 'text-sm leading-[1.45] text-foreground-muted';
+/** Tile height of every gallery: entries and Vorlagen line up on it. */
+const GALLERY_HEIGHT = 'h-[250px] sm:h-[300px]';
 
 interface ItemProps {
   actions: MarketplaceActions;
@@ -124,7 +135,8 @@ function Gallery({ items, actions, onSelect }: { items: readonly MarketplaceItem
               onClick={() => onSelect(item)}
               aria-label={item.title}
               className={cn(
-                'block h-[250px] overflow-hidden transition-transform duration-200 ease-out active:scale-[0.985] sm:h-[300px]',
+                'block overflow-hidden transition-transform duration-200 ease-out active:scale-[0.985]',
+                GALLERY_HEIGHT,
                 cutout ? 'w-[165px] p-[7%] sm:w-[200px]' : 'rounded-[22px] bg-background-alt'
               )}
             >
@@ -151,6 +163,48 @@ function Gallery({ items, actions, onSelect }: { items: readonly MarketplaceItem
         );
       })}
     </ul>
+  );
+}
+
+/**
+ * The themed Grünerator-Vorlagen of the viewer's country, each opening its
+ * preview on /vorlagen. Nothing while the catalogue loads or has none.
+ */
+function VorlagenGallery({ thema, heading }: { thema: SharepicThema; heading: ReactNode }) {
+  const { data } = useSharepicVorlagen();
+  const vorlagen = (data ?? []).filter((v) => v.spec.thema === thema);
+  if (vorlagen.length === 0) return null;
+  return (
+    <div className="flex min-w-0 flex-col gap-4">
+      {heading}
+      <ul
+        className="m-0 flex list-none snap-x snap-mandatory gap-5 overflow-x-auto p-0 pb-2"
+        aria-label="Vorlagen"
+      >
+        {vorlagen.map((v) => (
+          <li key={v.id} className="flex shrink-0 snap-start flex-col gap-2.5">
+            <Link
+              to={`/vorlagen?vorlage=${encodeURIComponent(v.id)}`}
+              aria-label={v.titel}
+              className={cn(
+                'block overflow-hidden rounded-[22px] bg-background-alt transition-transform duration-200 ease-out active:scale-[0.985]',
+                GALLERY_HEIGHT
+              )}
+            >
+              <img
+                src={resolveApiAssetUrl(sharepicVorlageThumbPath(v.id, 1, v.thumbVersion))}
+                alt=""
+                loading="lazy"
+                className="h-full w-auto max-w-none"
+              />
+            </Link>
+            <strong className="max-w-[240px] text-[0.9375rem] leading-[1.3] text-foreground-heading">
+              {v.titel}
+            </strong>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -238,6 +292,7 @@ function Block({ block, ...props }: { block: ResolvedStoryBlock } & ItemProps): 
       {block.heading}
     </h2>
   );
+  if (block.type === 'vorlagen') return <VorlagenGallery thema={block.thema} heading={heading} />;
   return block.display === 'rows' ? (
     <div className={cn(COLUMN, 'flex flex-col gap-4')}>
       {heading}

@@ -1,67 +1,13 @@
-import { type MarketplaceItem } from '@gruenerator/contracts';
-
 import { type MarketplaceCollection } from '../frontpage.js';
 
 /**
- * „Frauen / Gleichstellung“: six placeholder Sharepics (files under
- * `/images/marketplace/collections/gleichstellung/`, not rows) plus the official
- * Agents and Rezepte for the texts. Written up in docs/CLAUDE-collections.md.
+ * „Frauen / Gleichstellung“: the Grünerator-Vorlagen of the theme `frauen`
+ * (party content, loaded from the private catalogue at runtime) plus the
+ * official Agents and Rezepte for the texts. Written up in docs/CLAUDE-collections.md.
  *
  * Numbers to re-check each year: Destatis (Gender Pay Gap, published every
  * December) and Statistik Austria (published every March).
  */
-const DIR = '/images/marketplace/collections/gleichstellung';
-const CREATED = '2026-10-22T00:00:00.000Z';
-
-const sharepic = (file: string, title: string, description: string): MarketplaceItem => {
-  const ref = `muster-gleichstellung-${file}`;
-  return {
-    key: `template:${ref}`,
-    kind: 'template',
-    ref,
-    origin: 'oeffentlich',
-    title,
-    description,
-    iconKey: null,
-    authorName: 'Platzhalter',
-    audience: 'all',
-    likesCount: 0,
-    liked: false,
-    saved: false,
-    isOwn: false,
-    reportKind: null,
-    createdAt: CREATED,
-    thumbnailUrl: `${DIR}/sharepic-${file}-v1-480.webp`,
-    template: {
-      templateType: 'canva',
-      thumbUrl: null,
-      externalUrl: null,
-      images: [{ url: `${DIR}/sharepic-${file}-v1-960.webp`, title, thumbUrl: null }],
-      categories: [],
-      tags: [],
-      contentData: {},
-      metadata: {},
-    },
-  };
-};
-
-const SAMPLES = [
-  sharepic('equal-pay', 'Gleicher Lohn für gleiche Arbeit', 'Sharepic zum Equal Pay Day.'),
-  sharepic(
-    'paritaet',
-    'Die Hälfte der Macht für Frauen',
-    'Sharepic für Parität in Parlamenten und Räten.'
-  ),
-  sharepic('gewalt', 'Schutz vor Gewalt', 'Sharepic, das auf Hilfsangebote hinweist.'),
-  sharepic('sorgearbeit', 'Sorgearbeit fair teilen', 'Sharepic zu Sorgearbeit und Kita-Plätzen.'),
-  sharepic('frauentag', '8. März: Frauentag', 'Sharepic zum Internationalen Frauentag.'),
-  sharepic(
-    'kommunal',
-    'Frauen in die Politik vor Ort',
-    'Sharepic für mehr Frauen in der Kommunalpolitik.'
-  ),
-] as const satisfies readonly MarketplaceItem[];
-
 export const GLEICHSTELLUNG_COLLECTION = {
   id: 'gleichstellung',
   audience: 'all',
@@ -71,9 +17,14 @@ export const GLEICHSTELLUNG_COLLECTION = {
     'Sharepics, Agents und Rezepte für Lohn, Parität, Schutz vor Gewalt, Sorgearbeit und mehr Frauen in der Kommunalpolitik.',
   tone: 'sand',
   cover: {
-    file: 'gleichstellung-v1',
-    alt: 'Drei leicht gefächerte Sharepics mit grünen Balken-Headlines vor einer Blumenwiese',
-    credit: null,
+    file: 'gleichstellung-v2',
+    alt: 'Eine Person mit Megafon und Kopftuch vor einer Menge mit erhobenen Fäusten',
+    credit: {
+      author: 'Colin Lloyd',
+      profileUrl: 'https://unsplash.com/@colin-lloyd?utm_source=gruenerator&utm_medium=referral',
+      photoUrl:
+        'https://unsplash.com/photos/gcfvs__17dw?utm_source=gruenerator&utm_medium=referral',
+    },
   },
   pinned: [
     { kind: 'recipe', ref: 'instagram' },
@@ -82,7 +33,6 @@ export const GLEICHSTELLUNG_COLLECTION = {
     { kind: 'agent', ref: 'gruenerator-rede-schreiber' },
   ],
   fill: [],
-  samples: SAMPLES,
   show: 14,
   min: 1,
   listed: false,
@@ -114,12 +64,7 @@ export const GLEICHSTELLUNG_COLLECTION = {
         url: 'https://www.statistik.at/fileadmin/announcement/2026/03/20260303Genderstatistik2026.pdf',
       },
     },
-    {
-      type: 'items',
-      display: 'gallery',
-      heading: 'Sechs Sharepics zum Anpassen',
-      items: SAMPLES.map((s) => ({ kind: s.kind, ref: s.ref })),
-    },
+    { type: 'vorlagen', thema: 'frauen', heading: 'Sharepics zum Anpassen' },
     {
       type: 'quote',
       text: 'Ein Sharepic zum Equal Pay Day hat bei uns mehr Gespräche am Infostand ausgelöst als jede Pressemitteilung.',

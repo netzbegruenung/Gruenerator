@@ -1,4 +1,4 @@
-import { type MarketplaceItem } from '@gruenerator/contracts';
+import { type MarketplaceItem, type SharepicThema } from '@gruenerator/contracts';
 
 import { type MarketplaceTarget } from './cache.js';
 
@@ -32,11 +32,17 @@ export type CollectionStoryBlock = {
     }
   /** One entry with a short exchange that shows what it does; the answer stays under 200 characters. */
   | { type: 'example'; item: MarketplaceTarget; prompt: string; answer: string }
+  /**
+   * The Grünerator-Vorlagen of one theme from the private catalogue
+   * (`/api/sharepic-vorlagen`), in the viewer's country. The page asks the
+   * catalogue itself: the Vorlagen are party content and never in this repo.
+   */
+  | { type: 'vorlagen'; thema: SharepicThema; heading?: string }
 );
 
 /** A block as the page draws it: entries resolved to what this viewer may see. */
 export type ResolvedStoryBlock =
-  | Extract<CollectionStoryBlock, { type: 'text' | 'claim' | 'quote' }>
+  | Extract<CollectionStoryBlock, { type: 'text' | 'claim' | 'quote' | 'vorlagen' }>
   | {
       type: 'items';
       display: 'rows' | 'gallery';
