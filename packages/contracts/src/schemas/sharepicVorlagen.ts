@@ -24,6 +24,7 @@ import {
   sharepicSlideSchema,
   sharepicSpecSchema,
   sharepicThemaSchema,
+  themaOfColor,
   type SharepicFormat,
 } from './sharepicCreator.js';
 
@@ -146,24 +147,32 @@ export const sharepicBloeckeListResponseSchema = z.object({
 export const sharepicBlockThumbPath = (id: string, version?: string): string =>
   `/api/sharepic-vorlagen/bloecke/${encodeURIComponent(id)}/thumb${version ? `?v=${encodeURIComponent(version)}` : ''}`;
 
-/** The one-slide spec a block is composed (and checked) as: its items alone on a colour ground. */
+/**
+ * The one-slide spec a block is composed (and checked) as: its items alone on
+ * a colour ground. A themed ground brings its thema, so a block set on a lila
+ * page takes the page's ink.
+ */
 export const sharepicBlockSpec = (
   locale: z.infer<typeof sharepicCreatorLocaleSchema>,
   block: Pick<SharepicBlockFileEntry, 'items' | 'color'>,
   format?: SharepicFormat
-) => ({
-  locale,
-  ...(format ? { format } : {}),
-  slides: [
-    {
-      background: { kind: 'farbe' as const, color: block.color },
-      position: 'mitte' as const,
-      align: 'links' as const,
-      items: block.items,
-      logo: false,
-    },
-  ],
-});
+) => {
+  const thema = themaOfColor(block.color);
+  return {
+    locale,
+    ...(format ? { format } : {}),
+    ...(thema ? { thema } : {}),
+    slides: [
+      {
+        background: { kind: 'farbe' as const, color: block.color },
+        position: 'mitte' as const,
+        align: 'links' as const,
+        items: block.items,
+        logo: false,
+      },
+    ],
+  };
+};
 
 /**
  * Every canvas format a document can have — the sharepic ones, the square

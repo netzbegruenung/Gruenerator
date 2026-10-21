@@ -1,8 +1,10 @@
+import { sharepicBlockSpec, sharepicSpecSchema } from '@gruenerator/contracts';
 import { describe, expect, it, vi } from 'vitest';
 
 import { createFreeformFullConfig, type FreeformState } from '../configs/freeform_full.config';
 import { getCanvasFormatOrDefault } from '../formats';
 
+import { SHAREPIC_COLOR_HEX } from './chromeParts';
 import { composeSharepic } from './composeSharepic';
 import {
   blockElementIds,
@@ -210,6 +212,20 @@ describe('blockGround', () => {
   it('sets text light on a photo', () => {
     expect(blockGround('de-DE', { backgroundMode: 'image' }, 'mint')).toBe('tanne');
     expect(blockGround('de-AT', { backgroundMode: 'image' }, 'weiss')).toBe('dunkelgruen');
+  });
+
+  it('composes on a themed ground, which brings its thema', () => {
+    const ground = blockGround(
+      'de-AT',
+      { backgroundMode: 'color', backgroundColor: SHAREPIC_COLOR_HEX.lila },
+      'weiss'
+    );
+    expect(ground).toBe('lila');
+    const spec = sharepicBlockSpec('de-AT', {
+      color: ground,
+      items: [{ type: 'absatz', text: 'Gleicher Lohn.' }],
+    });
+    expect(sharepicSpecSchema.parse(spec).thema).toBe('frauen');
   });
 
   it('keeps the preview ground on a free or a foreign colour', () => {
