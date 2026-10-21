@@ -1434,8 +1434,9 @@ export async function draftSharepic(
     scene: DraftScene | null;
     kept: string | null;
   }>(current, photoRequestTexts(order, brief));
-  // What the last rejected attempt got wrong, for the person's text if every attempt fails.
-  let failure: DraftFailure = { kind: 'content' };
+  // What the last checkable attempt got wrong, for the person's text if every attempt fails.
+  // „Not your request" only while no attempt has delivered a draft to check.
+  let failure: DraftFailure = { kind: 'structure' };
 
   const draftCall: AiObjectCall<{
     spec: SharepicSpec;
@@ -1450,7 +1451,7 @@ export async function draftSharepic(
     toolDescription: 'Gib den fertigen Sharepic-Entwurf ab.',
     schema: locale === 'de-DE' ? SPEC_SCHEMA_DE : SPEC_SCHEMA,
     validate: (input, attempt, attempts) => {
-      failure = lacksStructure(input) ? { kind: 'structure' } : { kind: 'content' };
+      if (!lacksStructure(input)) failure = { kind: 'content' };
       const taken = takeScene(withPaletteColors(input, locale));
       if (!taken.ok) return taken;
       // Contact data already on the draft counts as given.
@@ -1506,8 +1507,9 @@ export async function draftSharepic(
   let draft = await aiObject(draftCall);
   // Repairs on the same model repeat its mistake — three identical `{}` at
   // temperature 0 (21.10.2026). A draft it could not finish gets one round on
-  // another model before the person reads a failure.
-  if (!draft.ok && !photoGuard.fallback(draft.error)) {
+  // another model before the person reads a failure. Not after an outage: the
+  // lane's fallback chain has already tried that model.
+  if (!draft.ok && !draft.cause && !photoGuard.fallback(draft.error)) {
     log.warn(`draft failed on ${PINNED.model}, retrying on ${RESCUE.model}: ${draft.error}`);
     draft = await aiObject({ ...draftCall, pinned: RESCUE, attempts: RESCUE_ATTEMPTS });
   }

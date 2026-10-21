@@ -43,6 +43,11 @@ const GOOD = {
   ],
 };
 
+/** A draft with its structure in place and its content wrong: a headline without lines. */
+const BROKEN = {
+  slides: [{ ...GOOD.slides[0]!, items: [{ type: 'headline', lines: [] }] }],
+};
+
 /** Runs the call's own validator on `input`, as `aiObject` does. */
 const answer = (input: unknown) => (call: DraftCall) => {
   const checked = call.validate(input, call.attempts, call.attempts) as
@@ -155,6 +160,8 @@ describe('a draft that fails for good', () => {
     const err = await failure();
     expect(err.failure).toEqual({ kind: 'provider' });
     expect(draftFailedBody(err).error).toContain('Der KI-Dienst war gerade nicht erreichbar.');
+    // The lane's fallback chain already tried the rescue model.
+    expect(draftCalls()).toHaveLength(1);
   });
 
   it('names the form it could not build', async () => {
@@ -167,10 +174,23 @@ describe('a draft that fails for good', () => {
   });
 
   it('asks for a clearer request when the content broke a rule', async () => {
-    aiObject.mockResolvedValueOnce(needs).mockResolvedValue({ ok: false, error: 'stop' });
+    aiObject.mockResolvedValueOnce(needs).mockImplementation(answer(BROKEN));
     const err = await failure();
     expect(err.failure).toEqual({ kind: 'content' });
     expect(draftFailedBody(err).error).toContain('Formuliere den Auftrag etwas genauer');
+  });
+
+  it('keeps a checked draft’s failure over a later empty answer', async () => {
+    aiObject
+      .mockResolvedValueOnce(needs)
+      .mockImplementationOnce(answer(BROKEN))
+      .mockImplementationOnce(answer(EMPTY));
+    expect((await failure()).failure).toEqual({ kind: 'content' });
+  });
+
+  it('counts an answer without any draft as the model’s failure', async () => {
+    aiObject.mockResolvedValueOnce(needs).mockResolvedValue({ ok: false, error: 'kein JSON' });
+    expect((await failure()).failure).toEqual({ kind: 'structure' });
   });
 });
 
