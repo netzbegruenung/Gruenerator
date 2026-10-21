@@ -1,6 +1,7 @@
 import {
   layoutRichTextBlock,
-  SHAREPIC_LOCALE_COLORS,
+  sharepicColorsFor,
+  themaOfColor,
   type SharepicColor,
   type SharepicCreatorLocale,
 } from '@gruenerator/contracts';
@@ -189,7 +190,7 @@ const PHOTO_GROUND: Record<SharepicCreatorLocale, SharepicColor> = {
 
 /**
  * The ground to compose a block on for a page: its background colour when
- * that is one of the country's brand colours, so text and card contrast with
+ * that is one of the country's brand colours or a themed ground, so text and card contrast with
  * what is really behind them; on a photo the country's dark ground (light
  * text); on any other colour the ground the block's preview shows.
  */
@@ -200,5 +201,5 @@ export function blockGround(
 ): SharepicColor {
   if (page.backgroundMode === 'image') return PHOTO_GROUND[locale];
   const color = colorOf(page.backgroundColor);
-  return color && SHAREPIC_LOCALE_COLORS[locale].includes(color) ? color : fallback;
+  return color && sharepicColorsFor(locale, themaOfColor(color)).includes(color) ? color : fallback;
 }

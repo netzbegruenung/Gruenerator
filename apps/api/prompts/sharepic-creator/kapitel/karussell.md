@@ -10,7 +10,7 @@ Ausgewertet: die 20 neuesten Karussells beider Parteien (10/2026). Kritik, Erkl�
 4. **Lösung / Forderung**: `liste` mit 2–5 Forderungen oder ein Absatz „Darum sagen wir: …“.
 5. **Schluss**: ein `aufruf` (siehe unten) oder eine große These. Ein Logo nur hier – in Deutschland `logo: true`, in Österreich meist ohne.
 
-3–6 Slides für Kritik und Erklärung, bis 8 für eine Geschichte. Der Hook ist kurz. In Deutschland auch der Schluss; in Österreich trägt die letzte Slide oft Begründung, „Darum sagen wir:“ und Forderung zusammen.
+3–6 Slides für Kritik und Erklärung, bis 8 für eine Geschichte; zwei genügen für Frage und Auflösung oder Einstieg und einen Fakt. Der Hook ist kurz. In Deutschland auch der Schluss; in Österreich trägt die letzte Slide oft Begründung, „Darum sagen wir:“ und Forderung zusammen.
 
 ## Was groß gehört
 
