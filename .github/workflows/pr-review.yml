@@ -233,6 +233,18 @@ jobs:
             exit 1
           fi
 
+          # Ein reiner Lösch-PR hat nichts zum Öffnen — sein Risiko sind
+          # verwaiste Verweise, also muss der Lauf danach gesucht haben.
+          if [ "$FILES" -eq 0 ]; then
+            GREPS=$(jq '[.[] | select(.type == "assistant") | .message.content[]?
+                | select(.type == "tool_use" and .name == "Grep")] | length' \
+                "$RUNNER_TEMP/claude-execution-output.json" || echo 0)
+            if [ "$GREPS" -eq 0 ]; then
+              echo "::error::Der PR löscht nur, und der Review hat nicht nach verbliebenen Verweisen gesucht (kein Grep). Label claude-review setzen, um ihn neu zu starten."
+              exit 1
+            fi
+          fi
+
           BLOCKING=$(echo "$RESULT" | jq -r '.confirmed_blocking // 0')
           ADVISORY=$(echo "$RESULT" | jq -r '.advisory // 0')
 
