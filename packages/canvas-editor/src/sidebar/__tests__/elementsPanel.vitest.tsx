@@ -457,8 +457,9 @@ describe('stock photo tiles', () => {
       name: 'A train',
       attribution: { photographer: 'Ana', profileUrl: 'https://u/ana', photoUrl: 'https://u/p' },
     });
-    // German words find English-tagged photos.
-    expect(tile.keywords).toEqual(expect.arrayContaining(['Fahrrad', 'train']));
+    // Labelled with the credit, findable by its German category name and own tags.
+    expect(tile.label).toBe('Ana');
+    expect(tile.keywords).toEqual(expect.arrayContaining(['Mobilität', 'train']));
     // Media, not element: a drop onto a frame fills the frame with the photo.
     expect(dragDataFor(tile.action)?.type).toBe(MEDIA_DRAG_TYPE);
   });
