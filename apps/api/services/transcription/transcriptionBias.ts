@@ -169,3 +169,66 @@ export function normalizeContextBias(terms: readonly string[]): string[] {
 export function buildContextBias(locale: Locale): string[] {
   return normalizeContextBias(locale === 'de-AT' ? AT_TERMS : DE_TERMS);
 }
+
+/**
+ * The voice agent's own, deliberately short list — not the subtitler's above.
+ *
+ * Measured 2026-10-21: without a hint "Grünerator" came out as "Grüne Rator"
+ * and "Notebook" as "Nordburg". And measured the same day: Voxtral Small 3 with
+ * the full DE list bent correct words towards it ("Landrat" → "Landtag",
+ * "Steffen" → "Steffi"). So: product and tool words a spoken request names,
+ * proper nouns the model mishears — and no everyday word that collides with
+ * normal speech (Landtag, Antrag, Projekte, Rezepte, Berlin …).
+ */
+const VOICE_CORE_TERMS: readonly string[] = [
+  'Grünerator',
+  'Grüneratoren',
+  'Notebook',
+  'Notebooks',
+  'Sharepic',
+  'Explainable',
+  'Marktplatz',
+  'Steckbrief',
+  'Infografik',
+  'Faktenbild',
+  'KommunalWiki',
+  'Grünblog',
+];
+
+const VOICE_DE_TERMS: readonly string[] = [
+  'Abgeordnetenwatch',
+  'Drucksache',
+  'Plenarprotokoll',
+  'Bundestagsfraktion',
+  'Böll-Stiftung',
+  'Mecklenburg-Vorpommern',
+  'Sachsen-Anhalt',
+  'Thüringen',
+  'Sonntagsfrage',
+  'Infratest',
+  'Forsa',
+  'INSA',
+];
+
+const VOICE_AT_TERMS: readonly string[] = [
+  'Nationalrat',
+  'Klubobfrau',
+  'Gewessler',
+  'Kogler',
+  'ÖVP',
+  'SPÖ',
+  'FPÖ',
+  'NEOS',
+  'Niederösterreich',
+  'Oberösterreich',
+  'Vorarlberg',
+  'Kärnten',
+  'Steiermark',
+];
+
+export function buildVoiceContextBias(locale: Locale): string[] {
+  return normalizeContextBias([
+    ...VOICE_CORE_TERMS,
+    ...(locale === 'de-AT' ? VOICE_AT_TERMS : VOICE_DE_TERMS),
+  ]);
+}
