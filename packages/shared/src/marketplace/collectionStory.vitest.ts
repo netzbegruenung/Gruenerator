@@ -2,7 +2,10 @@ import { type MarketplaceItem } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { type CollectionStoryBlock, resolveStory } from './collectionStory.js';
-import { MARKETPLACE_COLLECTIONS } from './frontpage.js';
+import { MARKETPLACE_COLLECTIONS, type MarketplaceCollection } from './frontpage.js';
+
+// Widened: the `as const` registry is a tuple of literal types, not all of which name `story`.
+const COLLECTIONS: readonly MarketplaceCollection[] = MARKETPLACE_COLLECTIONS;
 
 const entry = (kind: 'agent' | 'recipe' | 'template', ref: string) =>
   ({ key: `${kind}:${ref}`, kind, ref }) as MarketplaceItem;
@@ -54,7 +57,7 @@ describe('resolveStory', () => {
 
 describe('collection stories in the registry', () => {
   it('give every number a source', () => {
-    for (const c of MARKETPLACE_COLLECTIONS) {
+    for (const c of COLLECTIONS) {
       for (const block of c.story ?? []) {
         if (block.type === 'claim' && /\d/.test(block.text)) {
           expect(block.source, `${c.id}: „${block.text}“`).not.toBeNull();
@@ -64,7 +67,7 @@ describe('collection stories in the registry', () => {
   });
 
   it('only show entries the collection holds', () => {
-    for (const c of MARKETPLACE_COLLECTIONS) {
+    for (const c of COLLECTIONS) {
       const held = new Set([
         ...c.pinned.map((t) => `${t.kind}:${t.ref}`),
         ...(c.samples ?? []).map((i) => i.key),
