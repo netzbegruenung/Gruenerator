@@ -13,7 +13,7 @@
  * leave the EU endpoint, which is why it stays an internal test.
  */
 
-import express, { type Request, type Response, type Router } from 'express';
+import express, { type NextFunction, type Request, type Response, type Router } from 'express';
 import { z } from 'zod';
 
 import { env } from '../../config/env.js';
@@ -25,6 +25,7 @@ import {
   voicePortDeclarations,
 } from '../../services/voice/voicePort.js';
 import { VOXTRAL_DEFAULT_VOICE_ID } from '../../services/voice/voxtralSpeechService.js';
+import { requireInstanceAdmin } from '../../utils/adminAuthz.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { TURN_MODEL } from './voxtralTurnSession.js';
@@ -78,6 +79,17 @@ interface MistralSession {
 }
 
 const router: Router = express.Router();
+
+// The internal boundary lives here, not in the hidden web route: everything
+// below sends audio and tool results to Mistral's global endpoint.
+router.use(async (req: Request, res: Response, next: NextFunction) => {
+  const user = req.user;
+  if (!user?.id || !(await requireInstanceAdmin(user.id, user.email))) {
+    res.status(403).json({ error: 'Nur für Instanz-Admins' });
+    return;
+  }
+  next();
+});
 
 function authHeaders(): Record<string, string> {
   return { Authorization: `Bearer ${env.MISTRAL_API_KEY}`, 'Content-Type': 'application/json' };
