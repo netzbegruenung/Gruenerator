@@ -72,7 +72,7 @@ export function scrimFill({
   canvasWidth,
   canvasHeight,
   level,
-  dark,
+  darkRgb,
 }: {
   side: SharepicTextSide;
   denseTo: number;
@@ -81,7 +81,7 @@ export function scrimFill({
   /** Alpha of the dense band. */
   level: number;
   /** The scrim's colour as `r,g,b`. */
-  dark: string;
+  darkRgb: string;
 }): { x: number; y: number; width: number; height: number; fillGradient: GradientFill } {
   const vertical = side === 'unten' || side === 'oben';
   const full = vertical ? canvasHeight : canvasWidth;
@@ -112,9 +112,9 @@ export function scrimFill({
         // start of the dense band shows a seam.
         ...SCRIM_EASE.map((t) => ({
           offset: fade * t,
-          color: `rgba(${dark},${(level * t * t * (3 - 2 * t)).toFixed(3)})`,
+          color: `rgba(${darkRgb},${(level * t * t * (3 - 2 * t)).toFixed(3)})`,
         })),
-        { offset: 1, color: `rgba(${dark},${edge})` },
+        { offset: 1, color: `rgba(${darkRgb},${edge})` },
       ],
     },
   };

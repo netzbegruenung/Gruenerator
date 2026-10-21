@@ -267,7 +267,7 @@ function composeSlide(
         canvasWidth: canvas.width,
         canvasHeight: canvas.height,
         level: scrimLevel,
-        dark: scrimDark,
+        darkRgb: scrimDark,
       })
     );
   };
