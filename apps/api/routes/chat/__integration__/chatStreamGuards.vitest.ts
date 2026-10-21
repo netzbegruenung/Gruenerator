@@ -76,9 +76,7 @@ vi.mock('../services/responseStreamingService.js', async (orig) => {
 const { useChatApp } = await import('./harness/suite.js');
 const { userTurn } = await import('./harness/testApp.js');
 const { runTurn } = await import('./harness/trace.js');
-const { respond } = await import('./harness/respondScript.js');
 const { sharepicControl } = await import('./harness/mocks.js');
-const { NO_SHAREPIC_TO_EDIT_TEXT } = await import('../services/platformGating.js');
 const { createThread, setLastTurnArtifactsFixture, setLastTurnToolStepsFixture } =
   await import('./harness/fakeThreadStore.js');
 const { TEST_USER } = await import('./harness/fakeUser.js');
@@ -99,17 +97,18 @@ function scriptGenerationKind(kind: string): void {
 }
 
 describe('sharepic licence', () => {
-  it('answers normally instead of minting a surprise sharepic', async () => {
-    // An UNLICENSED sharepic intent can essentially only come from the LLM tier
-    // or a secondaryIntent — a phrasing the heuristics read as "sharepic" names
-    // one, and would therefore be licensed. That is the whole reason this gate
-    // exists, so the prompt is deliberately one measured to reach the LLM tier.
+  it('answers instead of refusing when the resolver misreads an edit (#4788)', async () => {
+    // An UNLICENSED sharepic intent can only come from the generation resolver:
+    // a phrasing the heuristics read as "sharepic" names one and is licensed.
+    // Live 21.10.2026 it read „Kürzer bitte und weniger Emojis" under a post
+    // with a „Bildidee" paragraph as sharepic, and the gate ended the turn with
+    // a fixed „kein Sharepic zum Anpassen". Without the word nothing says
+    // sharepic: the turn continues as `produktion`.
     //
-    // Since the default inversion that measurement moved: a bare "bereite die
-    // Kernaussage optisch auf" now loops. And since the LLM tier was deleted,
-    // the only step left that can say "sharepic" without the user saying it is
-    // the generation resolver — so the prompt carries "Entwirf", one of its
-    // trigger words, and still names no sharepic.
+    // The live message itself cannot reach the gate here: „Kürzer bitte" first
+    // passes the social-post edit branch, whose post lookup the Postgres mock
+    // rejects. „Entwirf" is a resolver trigger word and lands on the same gate
+    // input — unlicensed sharepic, no word, no sharepic in the thread.
     scriptGenerationKind('sharepic');
 
     const { trace } = await runTurn(suite.baseUrl(), {
@@ -117,9 +116,9 @@ describe('sharepic licence', () => {
     });
     suite.pool.assertScriptsConsumed();
 
-    expect(trace.fullText).toContain(NO_SHAREPIC_TO_EDIT_TEXT.slice(0, 40));
+    expect(trace.intent).toBe('produktion');
+    expect(trace.fullText).not.toContain('kein Sharepic');
     expect(trace.sharepicGenerated).toBe(false);
-    expect(respond.agenticCalls).toHaveLength(0);
   });
 
   it('answers normally when the thread does have a sharepic to edit', async () => {
@@ -135,7 +134,6 @@ describe('sharepic licence', () => {
     suite.pool.assertScriptsConsumed();
 
     expect(trace.intent).toBe('produktion');
-    expect(trace.fullText).not.toContain(NO_SHAREPIC_TO_EDIT_TEXT.slice(0, 40));
     expect(trace.sharepicGenerated).toBe(false);
   });
 
@@ -144,7 +142,7 @@ describe('sharepic licence', () => {
       messages: [userTurn('Erstelle ein Sharepic zur Windkraft')],
     });
 
-    expect(trace.fullText).not.toContain(NO_SHAREPIC_TO_EDIT_TEXT.slice(0, 40));
+    expect(trace.intent).toBe('sharepic');
   });
 
   it('reads the licence off the mention-free text, not the raw message', async () => {
@@ -155,7 +153,7 @@ describe('sharepic licence', () => {
       messages: [userTurn('@[Recherche](tool:web_search) Erstelle ein Sharepic zur Windkraft')],
     });
 
-    expect(trace.fullText).not.toContain(NO_SHAREPIC_TO_EDIT_TEXT.slice(0, 40));
+    expect(trace.intent).toBe('sharepic');
   });
 
   it('drops an unlicensed sharepic secondaryIntent', async () => {
