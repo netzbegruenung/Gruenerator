@@ -1,5 +1,8 @@
 import { getContractsClient } from '@gruenerator/shared/api';
+import { shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
 import { resolveStoredImageUrl } from '@gruenerator/shared/media-library/shareUrl';
+
+import { resolveChatUrl } from './chatApiUrl';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';
 
@@ -21,6 +24,18 @@ export interface Template {
  */
 export const getPublicImageUrl = (storedUrl: string | undefined): string | null =>
   resolveStoredImageUrl(storedUrl, { baseUrl: API_BASE_URL, width: 400 });
+
+/**
+ * Ein Marktplatz-Vorlagenbild: die signierte `/api/thumbs`-Kachel, wenn die API
+ * eine mitgibt, sonst die gespeicherte URL wie oben.
+ */
+export const vorlageImageUri = (
+  image: { url: string | null; thumbUrl: string | null },
+  width: 400 | 800 = 400
+): string | null =>
+  image.thumbUrl
+    ? resolveChatUrl(shareThumbnailPreviewUrl(image.thumbUrl, width))
+    : resolveStoredImageUrl(image.url, { baseUrl: API_BASE_URL, width });
 
 /** Which Vorlagen the user liked and bookmarked (catalogue and gallery ids alike). */
 export async function fetchTemplateInteractions(): Promise<{

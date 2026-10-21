@@ -12,7 +12,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useTheme } from '../../hooks/useTheme';
 import { resolveChatUrl } from '../../services/chatApiUrl';
-import { getPublicImageUrl } from '../../services/vorlagen';
+import { vorlageImageUri } from '../../services/vorlagen';
 import { BODY_FONT, borderRadius } from '../../theme';
 import { galleryTilePath } from '../profilbild/galleryModel';
 
@@ -57,9 +57,7 @@ const KIND_VIEWS: { [K in MarketplaceKind]: KindView<MarketplaceItemOf<K>> } = {
     toggle: 'bookmark',
     imageFit: 'cover',
     image: (item) => {
-      const uri = item.template.thumbUrl
-        ? resolveChatUrl(item.template.thumbUrl)
-        : getPublicImageUrl(item.thumbnailUrl ?? undefined);
+      const uri = vorlageImageUri({ url: item.thumbnailUrl, thumbUrl: item.template.thumbUrl });
       return uri ? { uri } : null;
     },
     DetailExtras: TemplatePages,
@@ -75,7 +73,7 @@ const KIND_VIEWS: { [K in MarketplaceKind]: KindView<MarketplaceItemOf<K>> } = {
  */
 function TemplatePages({ item }: { item: MarketplaceItemOf<'template'> }) {
   const theme = useTheme();
-  const pages = templatePageUris(item, (url) => getPublicImageUrl(url));
+  const pages = templatePageUris(item, (image) => vorlageImageUri(image, 800));
   const [width, setWidth] = useState(0);
   const [page, setPage] = useState(0);
   if (pages.length === 0) return null;

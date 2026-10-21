@@ -10,16 +10,13 @@ import { shareTokenFromShareUrl } from '@gruenerator/shared/media-library/shareU
 import sharp from 'sharp';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
-import { safeFetch } from '../../utils/validation/urlSecurity.js';
+import { getRemoteImageSource } from '../media/remoteImageSource.js';
 
 export interface ThumbnailSize {
   url: string;
   width: number;
   height: number;
 }
-
-const MAX_BYTES = 10 * 1024 * 1024;
-const FETCH_TIMEOUT_MS = 8000;
 
 const isSize = (w: unknown, h: unknown): boolean =>
   typeof w === 'number' && typeof h === 'number' && w > 0 && h > 0;
@@ -38,21 +35,14 @@ async function sharedMediaSize(token: string): Promise<{ width: number; height: 
     : null;
 }
 
-/** Externe Bilder (meist Canva-`og:image`) — nutzergeliefert, daher nur über `safeFetch`. */
+/**
+ * Externe Bilder (meist Canva-`og:image`) — über denselben Quell-Cache, aus dem
+ * `/api/thumbs` die Kachel rendert: ein Abruf (per `safeFetch`) für beides.
+ */
 async function remoteImageSize(url: string): Promise<{ width: number; height: number } | null> {
-  const response = await safeFetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
-  if (!response.ok || !response.body) return null;
-  if (Number(response.headers.get('content-length') ?? 0) > MAX_BYTES) return null;
-
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  for await (const chunk of response.body as unknown as AsyncIterable<Uint8Array>) {
-    total += chunk.byteLength;
-    if (total > MAX_BYTES) return null;
-    chunks.push(chunk);
-  }
-
-  const meta = await sharp(Buffer.concat(chunks)).metadata();
+  const source = await getRemoteImageSource(url);
+  if (!source) return null;
+  const meta = await sharp(source.sourcePath).metadata();
   if (!isSize(meta.width, meta.height)) return null;
   // EXIF 5–8 = um 90° gedreht: angezeigt werden Breite und Höhe vertauscht.
   const rotated = (meta.orientation ?? 1) >= 5;

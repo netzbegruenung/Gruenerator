@@ -13,7 +13,10 @@
 
 import { createHash } from 'crypto';
 
-import { shareTokenFromShareUrl } from '@gruenerator/shared/media-library/shareUrl';
+import {
+  shareTokenFromDownloadUrl,
+  shareTokenFromShareUrl,
+} from '@gruenerator/shared/media-library/shareUrl';
 
 import {
   signThumbnail,
@@ -99,6 +102,21 @@ export function buildStoredImageTileUrl(
   return buildThumbnailTileUrl(kind, id, versionFromUrl(storedUrl));
 }
 
+/** `<template id>-<index>`: one page of a Vorlage, by its position in `images`. */
+export function templatePageThumbnailId(templateId: string, index: number): string {
+  return `${templateId}-${index}`;
+}
+
+const TEMPLATE_PAGE_ID_RE =
+  /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})-(\d{1,3})$/i;
+
+export function parseTemplatePageThumbnailId(
+  id: string
+): { templateId: string; index: number } | null {
+  const match = TEMPLATE_PAGE_ID_RE.exec(id);
+  return match ? { templateId: match[1] as string, index: Number(match[2]) } : null;
+}
+
 /**
  * A reel tile URL, or null when the project has no poster yet. The old
  * `/api/subtitler/projects/:id/thumbnail` route sits behind requireAuth, so a
@@ -179,18 +197,6 @@ export function versionFromShareRow(row: {
   const metadata = row.image_metadata as { updatedAt?: unknown } | null | undefined;
   const updatedAt = typeof metadata?.updatedAt === 'string' ? metadata.updatedAt : null;
   return versionFromDate(updatedAt ?? row.created_at ?? null);
-}
-
-/**
- * The shape web writes into `canvas_documents.thumbnail_url`: the canvas
- * thumbnail is uploaded to the media library and stored as its download URL.
- * Kept in one place because both the mint side (for the version token) and the
- * resolver (for the source file) have to read it.
- */
-const SHARE_DOWNLOAD_URL_RE = /^\/api\/share\/([^/?#]+)\/download$/;
-
-export function shareTokenFromDownloadUrl(url: string): string | null {
-  return SHARE_DOWNLOAD_URL_RE.exec(url)?.[1] ?? null;
 }
 
 /**

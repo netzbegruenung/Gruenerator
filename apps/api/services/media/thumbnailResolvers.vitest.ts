@@ -283,3 +283,35 @@ describe('template', () => {
     expect(dbQuery).not.toHaveBeenCalled();
   });
 });
+
+describe('template page', () => {
+  it('reads the page at the position the tile was minted for', async () => {
+    dbQuery.mockResolvedValue([{ url: '/share/pagetok' }]);
+    getShareByToken.mockResolvedValue({
+      status: 'ready',
+      media_type: 'image',
+      file_path: 'pagetok/media.png',
+      mime_type: 'image/png',
+    });
+    const result = await resolveThumbnailSource('template-page', `${TEMPLATE_ID}-2`);
+    expect(dbQuery.mock.calls[0]?.[1]).toEqual([TEMPLATE_ID, 2]);
+    expect(dbQuery.mock.calls[0]?.[0]).toContain('deleted_at IS NULL');
+    expect(result).toMatchObject({
+      ok: true,
+      sourcePath: '/uploads/shared-media/pagetok/media.png',
+    });
+  });
+
+  it.each([
+    ['a bare template id', TEMPLATE_ID],
+    ['a non-numeric page', `${TEMPLATE_ID}-x`],
+    ['an over-long page index', `${TEMPLATE_ID}-1234`],
+    ['a malformed uuid', 'abc-1'],
+  ])('never queries for %s', async (_label, id) => {
+    expect(await resolveThumbnailSource('template-page', id)).toEqual({
+      ok: false,
+      reason: 'not_found',
+    });
+    expect(dbQuery).not.toHaveBeenCalled();
+  });
+});

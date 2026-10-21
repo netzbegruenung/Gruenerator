@@ -98,6 +98,8 @@ export const marketplaceRecipeItemSchema = z.object({
 export const marketplaceTemplateImageSchema = z.object({
   url: z.string(),
   title: z.string().nullable(),
+  /** Signed 400px tile of this page (`/api/thumbs/template-page/…`); null → `url` is the fallback. */
+  thumbUrl: z.string().nullable(),
 });
 
 export const marketplaceTemplateItemSchema = z.object({

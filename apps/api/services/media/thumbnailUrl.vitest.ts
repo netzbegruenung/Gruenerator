@@ -14,12 +14,14 @@ const {
   buildThumbnailBase,
   buildThumbnailTileUrl,
   buildThumbnailUrl,
-  shareTokenFromDownloadUrl,
+  parseTemplatePageThumbnailId,
+  templatePageThumbnailId,
   versionFromDate,
   versionFromShareToken,
   versionFromUrl,
 } = await import('./thumbnailUrl.js');
 const { verifyThumbnail } = await import('./thumbnailSignature.js');
+const { shareTokenFromDownloadUrl } = await import('@gruenerator/shared/media-library/shareUrl');
 
 function parse(url: string): { path: string; params: URLSearchParams } {
   const [path, query] = url.split('?');
@@ -152,6 +154,22 @@ describe('thumbnailUrl', () => {
     it('changes the version when the stored URL does', () => {
       expect(versionFromUrl('/share/a')).not.toBe(versionFromUrl('/share/b'));
       expect(versionFromUrl('/share/a')).toMatch(/^[A-Za-z0-9_-]{10}$/);
+    });
+  });
+
+  describe('template page ids', () => {
+    const TEMPLATE_ID = '33333333-3333-4333-8333-333333333333';
+
+    it('round-trips through the id the route receives', () => {
+      const id = templatePageThumbnailId(TEMPLATE_ID, 7);
+      expect(id).toMatch(/^[A-Za-z0-9_-]{1,64}$/);
+      expect(parseTemplatePageThumbnailId(id)).toEqual({ templateId: TEMPLATE_ID, index: 7 });
+    });
+
+    it('refuses anything else', () => {
+      expect(parseTemplatePageThumbnailId(TEMPLATE_ID)).toBeNull();
+      expect(parseTemplatePageThumbnailId(`${TEMPLATE_ID}-`)).toBeNull();
+      expect(parseTemplatePageThumbnailId('x-1')).toBeNull();
     });
   });
 });

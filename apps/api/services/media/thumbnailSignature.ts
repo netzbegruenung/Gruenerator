@@ -55,7 +55,7 @@ import { env } from '../../config/env.js';
 const SCHEME = 't1';
 
 /** F0: a kind is a URL path segment in cached list responses and client caches. */
-export const THUMBNAIL_KINDS = ['media', 'reel', 'canvas', 'template'] as const;
+export const THUMBNAIL_KINDS = ['media', 'reel', 'canvas', 'template', 'template-page'] as const;
 export type ThumbnailKind = (typeof THUMBNAIL_KINDS)[number];
 
 export function isThumbnailKind(value: string): value is ThumbnailKind {
@@ -64,7 +64,7 @@ export function isThumbnailKind(value: string): value is ThumbnailKind {
 
 export interface ThumbnailDescriptor {
   kind: ThumbnailKind;
-  /** The owning domain's own id: share token, project id, canvas id, template id. */
+  /** The owning domain's own id: share token, project id, canvas id, template id, `<template id>-<page>`. */
   id: string;
   /** Opaque content version — see thumbnailUrl.ts. */
   v: string;

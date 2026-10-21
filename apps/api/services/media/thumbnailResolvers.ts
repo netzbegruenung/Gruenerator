@@ -14,7 +14,10 @@
 
 import path from 'path';
 
-import { shareTokenFromShareUrl } from '@gruenerator/shared/media-library/shareUrl';
+import {
+  shareTokenFromDownloadUrl,
+  shareTokenFromShareUrl,
+} from '@gruenerator/shared/media-library/shareUrl';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { getSharedMediaService } from '../../routes/share/shareServices.js';
@@ -23,7 +26,7 @@ import { getSubtitlerProjectService } from '../subtitler/index.js';
 
 import { getRemoteImageSource } from './remoteImageSource.js';
 import { type ThumbnailKind } from './thumbnailSignature.js';
-import { shareTokenFromDownloadUrl } from './thumbnailUrl.js';
+import { parseTemplatePageThumbnailId } from './thumbnailUrl.js';
 
 const db = getPostgresInstance();
 
@@ -160,6 +163,20 @@ async function resolveTemplate(templateId: string): Promise<ResolvedThumbnail> {
   return url ? resolveStoredImage(url) : { ok: false, reason: 'not_found' };
 }
 
+/** One page of a Vorlage, for its detail view. */
+async function resolveTemplatePage(id: string): Promise<ResolvedThumbnail> {
+  const page = parseTemplatePageThumbnailId(id);
+  if (!page) return { ok: false, reason: 'not_found' };
+  const rows = (await db.query(
+    `SELECT images->($2::int)->>'url' AS url
+       FROM user_templates
+      WHERE id = $1 AND deleted_at IS NULL AND moderation <> 'removed'`,
+    [page.templateId, page.index]
+  )) as Array<{ url: string | null }>;
+  const url = rows[0]?.url;
+  return url ? resolveStoredImage(url) : { ok: false, reason: 'not_found' };
+}
+
 export async function resolveThumbnailSource(
   kind: ThumbnailKind,
   id: string
@@ -174,5 +191,7 @@ export async function resolveThumbnailSource(
       return resolveCanvas(id);
     case 'template':
       return resolveTemplate(id);
+    case 'template-page':
+      return resolveTemplatePage(id);
   }
 }

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveStoredImageUrl, shareTokenFromShareUrl, sharedMediaPreviewUrl } from './shareUrl';
+import {
+  resolveStoredImageUrl,
+  shareTokenFromDownloadUrl,
+  shareTokenFromShareUrl,
+  sharedMediaPreviewUrl,
+} from './shareUrl';
 
 describe('shareTokenFromShareUrl', () => {
   it('liest den Token aus der Seiten-URL, die der Upload zurückgibt', () => {
@@ -62,5 +67,15 @@ describe('resolveStoredImageUrl', () => {
     expect(resolveStoredImageUrl(undefined)).toBeNull();
     expect(resolveStoredImageUrl(null)).toBeNull();
     expect(resolveStoredImageUrl('')).toBeNull();
+  });
+});
+
+describe('shareTokenFromDownloadUrl', () => {
+  it('liest nur die Download-Form', () => {
+    expect(shareTokenFromDownloadUrl('/api/share/abc123/download')).toBe('abc123');
+    expect(shareTokenFromDownloadUrl('/share/abc123')).toBeNull();
+    expect(shareTokenFromDownloadUrl('/api/share/abc123/preview')).toBeNull();
+    expect(shareTokenFromDownloadUrl('https://x.example/api/share/abc123/download')).toBeNull();
+    expect(shareTokenFromDownloadUrl(null)).toBeNull();
   });
 });

@@ -12,6 +12,7 @@
  */
 
 import { type CanvasDocument, type CanvasListItem } from '@gruenerator/contracts';
+import { shareTokenFromDownloadUrl } from '@gruenerator/shared/media-library/shareUrl';
 import { type InferSelectModel } from 'drizzle-orm';
 import { type PoolClient } from 'pg';
 
@@ -491,8 +492,6 @@ export async function updateCanvas(
   return { kind: 'ok' };
 }
 
-const SHARE_DOWNLOAD_URL_RE = /^\/api\/share\/([^/?#]+)\/download$/;
-
 /** What `updateCanvasThumbnail` uploads with; any other share is not a thumbnail of ours. */
 const CANVAS_THUMBNAIL_SOURCES = [
   'canvas-thumbnail',
@@ -512,12 +511,12 @@ const CANVAS_THUMBNAIL_SOURCES = [
  * Papierkorb entry could never be restored.
  */
 export async function deleteReplacedThumbnailShare(url: string): Promise<void> {
-  const match = SHARE_DOWNLOAD_URL_RE.exec(url);
-  if (!match) return;
+  const token = shareTokenFromDownloadUrl(url);
+  if (!token) return;
 
   const { getSharedMediaService } = await import('../../routes/share/shareServices.js');
   const service = await getSharedMediaService();
-  await service.purgeInternalShare(match[1], null, CANVAS_THUMBNAIL_SOURCES);
+  await service.purgeInternalShare(token, null, CANVAS_THUMBNAIL_SOURCES);
 }
 
 /** Moves the canvas to the Papierkorb; the purge removes it for good. */
