@@ -98,6 +98,26 @@ function normalizePatch(input: unknown): unknown {
   return { ...input, patch };
 }
 
+type PatchOp = SharepicReviewResponse['patch'][number];
+
+/**
+ * A removal of an item the same patch rewrites contradicts it: removals run
+ * last, so the new text would go with the item. Live (21.10.2026) the review
+ * took the place line under the text for the invitation, rewrote the
+ * invitation and removed it. The item stays.
+ */
+function removesRewritten(op: PatchOp, patch: readonly PatchOp[]): boolean {
+  return (
+    op.op === 'remove_item' &&
+    patch.some(
+      (other) =>
+        (other.op === 'set_text' || other.op === 'set_headline') &&
+        other.item === op.item &&
+        (other.slide ?? 0) === (op.slide ?? 0)
+    )
+  );
+}
+
 /**
  * A quote that becomes a headline loses its speaker; one that is removed loses
  * the point of the slide; rewording a quote or question falsifies what was
@@ -257,8 +277,10 @@ export function validateReview(
     }
   }
   const removed = new Set<string>();
+  // Only a rewrite that survives the protections can contradict a removal.
+  const kept = parsed.data.patch.filter((op) => !protectsZitat(op, slides, removed));
   const patch = keepsCarouselLook(
-    parsed.data.patch.filter((op) => !protectsZitat(op, slides, removed)),
+    kept.filter((op) => !removesRewritten(op, kept)),
     slides
   );
   return { ok: true, value: { ...parsed.data, issues: parsed.data.issues.slice(0, 3), patch } };
