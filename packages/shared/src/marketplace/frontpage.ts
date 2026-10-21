@@ -111,6 +111,7 @@ export interface MarketplaceCollection {
   audience: 'de-DE' | 'de-AT' | 'all';
   kicker: string;
   title: string;
+  /** May mark a few terms with `**…**`: bold on the collection page, plain on its card. */
   description: string;
   /** Tints the picture area when there is no cover. */
   tone: 'tanne' | 'klee' | 'sand';

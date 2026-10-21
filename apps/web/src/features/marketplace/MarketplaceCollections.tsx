@@ -15,12 +15,10 @@ import {
   ShowcaseMedia,
   cn,
 } from '@gruenerator/ui';
-import { useQuery } from '@tanstack/react-query';
 import { type JSX } from 'react';
 import { PiCheck } from 'react-icons/pi';
 
 import { GalleryEmptyState, GallerySkeleton } from '../../components/common/Gallery/parts';
-import { sharepicVorlagenQuery } from '../vorlagen/hooks/useSharepicVorlagen';
 
 import { CollectionStory } from './CollectionStory';
 import { viewOf } from './kindViews';
@@ -102,6 +100,24 @@ function CollectionMedia({
   );
 }
 
+/** A description without its `**` marks, for the card. */
+const plainText = (text: string) => text.replaceAll('**', '');
+
+/** A description with its `**…**` terms in bold. */
+function Emphasized({ text }: { text: string }) {
+  return text.split('**').map((part, i) =>
+    i % 2 ? (
+      // The parts are a fixed split of a registry string; their order is their identity.
+      // eslint-disable-next-line react/no-array-index-key
+      <strong key={i} className="font-semibold text-foreground">
+        {part}
+      </strong>
+    ) : (
+      part
+    )
+  );
+}
+
 const countLabel = (n: number) => `${n} ${n === 1 ? 'Eintrag' : 'Einträge'}`;
 
 /** The collection row on the front page: one quiet card per collection, App-Store style. */
@@ -147,7 +163,7 @@ export function CollectionCards({
               }
               meta={`${def.kicker} · ${countLabel(items.length)}`}
               title={def.title}
-              description={def.description}
+              description={plainText(def.description)}
               titleFont={DISPLAY_FONT}
             />
           </li>
@@ -230,11 +246,6 @@ export function MarketplaceCollectionView({
   const page = useMarketplaceFrontpage();
   const locale = useAuthStore((s) => s.locale);
   const def = collectionById(id);
-  // Vorlagen blocks show catalogue entries that are not among `items`; the count names them too.
-  const themen = def?.story?.flatMap((b) => (b.type === 'vorlagen' ? [b.thema] : [])) ?? [];
-  const vorlagen = useQuery({ ...sharepicVorlagenQuery(), enabled: themen.length > 0 });
-  const sharepicCount =
-    vorlagen.data?.filter((v) => v.spec.thema && themen.includes(v.spec.thema)).length ?? 0;
   const collections = page.data?.collections ?? [];
   // A collection below its `min` is not in the response; one of only Vorlagen (min 0) is, empty.
   const collection = collections.find((c) => c.collectionId === id);
@@ -284,7 +295,7 @@ export function MarketplaceCollectionView({
         />
       </ShowcaseMedia>
       <header className="flex flex-wrap items-end justify-between gap-lg">
-        <div className="flex max-w-[42rem] min-w-0 flex-[999_1_28rem] flex-col gap-xs">
+        <div className="flex min-w-0 flex-[999_1_28rem] flex-col gap-xs">
           <span className="text-sm font-semibold tracking-[0.06em] text-primary-700 uppercase dark:text-primary-300">
             {def.kicker}
           </span>
@@ -295,16 +306,11 @@ export function MarketplaceCollectionView({
             {def.title}
           </h1>
           <p className="m-0 text-base leading-relaxed text-foreground-muted sm:text-lg">
-            {def.description}
+            <Emphasized text={def.description} />
           </p>
-          <span className="text-sm text-foreground-muted">
-            {[
-              items.length > 0 && countLabel(items.length),
-              sharepicCount > 0 && `${sharepicCount} Sharepics`,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-          </span>
+          {items.length > 0 && (
+            <span className="text-sm text-foreground-muted">{countLabel(items.length)}</span>
+          )}
         </div>
         {addable.length > 0 &&
           (missing.length > 0 ? (

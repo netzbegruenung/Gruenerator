@@ -11,7 +11,7 @@ export const QUEER_COLLECTION = {
   kicker: 'Queer',
   title: 'Queer und sichtbar',
   description:
-    'Sharepics für CSD und Pride: Termine, Protest, Grundrechte. Foto und Ort tauschen, fertig.',
+    'Die Geschichte der queeren Bewegung ist eine Geschichte von **Mut, Widerstand** und dem unermüdlichen Kampf um das Recht, selbstbestimmt zu leben und zu lieben. Ihre Wurzeln reichen weit zurück, doch insbesondere die Proteste rund um das **Stonewall Inn** in New York im Jahr **1969** wurden zu einem Wendepunkt im Kampf gegen Diskriminierung und gesellschaftliche Ausgrenzung. Was einst als Aufbegehren gegen Unterdrückung begann, entwickelte sich zu einer weltweiten Bewegung für **Freiheit, Vielfalt und gleiche Rechte**.',
   tone: 'klee',
   cover: {
     file: 'queer-v2',
@@ -29,12 +29,6 @@ export const QUEER_COLLECTION = {
   min: 0,
   listed: false,
   story: [
-    {
-      type: 'text',
-      paragraphs: [
-        'Die Geschichte der queeren Bewegung ist eine Geschichte von Mut, Widerstand und dem unermüdlichen Kampf um das Recht, selbstbestimmt zu leben und zu lieben. Ihre Wurzeln reichen weit zurück, doch insbesondere die Proteste rund um das Stonewall Inn in New York im Jahr 1969 wurden zu einem Wendepunkt im Kampf gegen Diskriminierung und gesellschaftliche Ausgrenzung. Was einst als Aufbegehren gegen Unterdrückung begann, entwickelte sich zu einer weltweiten Bewegung für Freiheit, Vielfalt und gleiche Rechte.',
-      ],
-    },
     { type: 'vorlagen', thema: 'queer', heading: 'Sharepics für euren Kanal' },
     // Juna and Bunti, the Pride-Edition Friends with the rainbow.
     { type: 'friends', ids: [12, 13], heading: 'Regenbogen fürs Profilbild' },

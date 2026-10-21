@@ -246,7 +246,7 @@ const LARGE = 'text-[clamp(1.5rem,1.15rem+1.3vw,2.15rem)] leading-[1.22] trackin
 function Block({ block, ...props }: { block: ResolvedStoryBlock } & ItemProps): JSX.Element {
   if (block.type === 'text') {
     return (
-      <div className={cn(COLUMN, 'flex flex-col gap-[1.1em] text-[1.1875rem] leading-[1.6]')}>
+      <div className="flex flex-col gap-[1.1em] text-[1.1875rem] leading-[1.6]">
         {block.paragraphs.map((p) => (
           <p key={p} className="m-0">
             {p}
