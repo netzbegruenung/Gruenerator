@@ -17,7 +17,6 @@ import {
   type SharepicColor,
   type SharepicCreatorLocale,
   type SharepicChartKind,
-  type SharepicFormat,
   type SharepicItem,
   type SharepicPhotoAttribution,
   type SharepicNummer,
@@ -29,13 +28,8 @@ import {
 
 import { getBrandTheme, HELLGRUEN_GLOW } from '../brand/theme';
 import { DEFAULT_FORMAT_ID, getCanvasFormatOrDefault, type CanvasFormat } from '../formats';
-import { ASSET_TARGET_SIZE, emojiAssetId, type AssetInstance } from '../utils/canvasAssets';
-import {
-  CHART_PALETTES,
-  createChartInstance,
-  type ChartInstance,
-  type ChartType,
-} from '../utils/chartUtils';
+import { ASSET_TARGET_SIZE, emojiAssetId } from '../utils/canvasAssets';
+import { CHART_PALETTES, createChartInstance, type ChartType } from '../utils/chartUtils';
 import { createCircleBadgeInstance } from '../utils/circleBadgeUtils';
 import { COLORS } from '../utils/dreizeilenLayout';
 import { createPillBadgeInstance } from '../utils/pillBadgeUtils';
@@ -55,10 +49,21 @@ import {
   SHAREPIC_COLOR_HEX,
   type MeasureText,
 } from './chromeParts';
+import {
+  type BildItem,
+  type Column,
+  type ComposeOptions,
+  type ComposedSharepic,
+  type ComposedSlide,
+  type HeadlineItem,
+  type PhotoTone,
+  type Placed,
+  type SteckbriefItem,
+} from './composeTypes';
 import { encodeHandMarks, placeHandMarks, sentinelBlind } from './handMarks';
 import { foldMarkers, stripMarks } from './marks';
 import { SHAREPIC_ICON_FILLED, SHAREPIC_ICON_IDS, VERGLEICH_MARKER_IDS } from './sharepicIcons';
-import { slideProvenance, type SharepicProvenance } from './sharepicProvenance';
+import { slideProvenance } from './sharepicProvenance';
 import {
   placeArrow,
   shapePoint,
@@ -80,13 +85,10 @@ import {
   wrapWords,
 } from './textFit';
 
-import type { IconState } from '../configs/factory/baseTypes';
 import type { AdditionalText } from '../configs/types';
-import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
-import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
-import type { UserImageInstance } from '../utils/userImageUtils';
 
 export { SHAREPIC_COLOR_HEX, type MeasureText };
+export type { ComposedSharepic, ComposedSlide, ComposeOptions, PhotoTone } from './composeTypes';
 export {
   balancedWrap,
   fitStoererText,
@@ -95,60 +97,6 @@ export {
   wrapWords,
 } from './textFit';
 
-/** How bright or busy the photo is where the text sits; decides how dense the scrim gets. */
-export type PhotoTone = 'dunkel' | 'mittel' | 'hell';
-
-export interface ComposeOptions {
-  /** URL the canvas loads a stock photo from. */
-  photoSrc: (filename: string) => string;
-  /** Photo credit per slide, as the draft returned it. */
-  attributions?: (SharepicPhotoAttribution | null)[];
-  measure?: MeasureText;
-  /** AI notice on every slide, the last of a carousel in its long form. Default on. */
-  kiLabel?: boolean;
-  /**
-   * Tone of a stock photo on the side the text sits on, measured by the
-   * client (the composer stays sync and pure). `null` or absent: `mittel`.
-   */
-  photoTone?: (filename: string, side: SharepicTextSide) => PhotoTone | null;
-  /** Also return where each element comes from (`ComposedSharepic.provenance`). */
-  provenance?: true;
-}
-
-/** Props for the `freeform` / `freeform-at` config's `createInitialState` — one page. */
-export type ComposedSlide = {
-  backgroundMode: 'color' | 'image';
-  backgroundColor: string;
-  currentImageSrc?: string;
-  hasBackgroundImage: boolean;
-  /** Where the cover-fitted photo sits; absent: the editor's default, centred on the canvas. */
-  imageOffset?: { x: number; y: number };
-  imageScale?: number;
-  imageAttribution: SharepicPhotoAttribution | null;
-  additionalTexts: AdditionalText[];
-  pillBadgeInstances: PillBadgeInstance[];
-  circleBadgeInstances: CircleBadgeInstance[];
-  shapeInstances: ShapeInstance[];
-  assetInstances: AssetInstance[];
-  chartInstances: ChartInstance[];
-  /** An infographic's painted illustrations. */
-  userImageInstances: UserImageInstance[];
-  selectedIcons: string[];
-  iconStates: Record<string, IconState>;
-  layerOrder: string[];
-};
-
-export interface ComposedSharepic {
-  templateType: 'freeform' | 'freeform-at';
-  /** The canvas format the slides are laid out on. */
-  format: SharepicFormat;
-  /** One page per slide, in order. */
-  slides: ComposedSlide[];
-  /** Per slide, keyed by element id; only with `ComposeOptions.provenance`. */
-  provenance?: Record<string, SharepicProvenance>[];
-}
-
-type BildItem = Extract<SharepicItem, { type: 'bild' }>;
 /** A photo tinted green, as the posts set people: DE in Klee, AT in its light green. */
 const BILD_TINT: Record<SharepicCreatorLocale, string> = { 'de-DE': '#008939', 'de-AT': '#56AF31' };
 /** Air between the text group and a photo in the slide. */
@@ -371,21 +319,6 @@ const AT_CENTRED_MARGIN = 100;
 /** Date circle on a colour or photo slide: free in the bottom-right corner. */
 const DATE_CIRCLE = { radius: 170, right: 40, bottom: 50 } as const;
 
-type HeadlineItem = Extract<SharepicItem, { type: 'headline' }>;
-
-interface Column {
-  x: number;
-  width: number;
-  align: 'left' | 'center';
-}
-
-interface Placed {
-  height: number;
-  /** Space after this item. */
-  after: number;
-  place: (y: number) => void;
-}
-
 export function composeSharepic(spec: SharepicSpec, options: ComposeOptions): ComposedSharepic {
   const count = spec.slides.length;
   const format = spec.format ?? DEFAULT_FORMAT_ID;
@@ -443,7 +376,6 @@ function composeSlide(
   const bild =
     bg.kind === 'farbe' ? (spec.items.find((i): i is BildItem => i.type === 'bild') ?? null) : null;
   const bildIndex = bild ? spec.items.indexOf(bild) : -1;
-  type SteckbriefItem = Extract<SharepicItem, { type: 'steckbrief' }>;
   const steckbrief = spec.items.find((i): i is SteckbriefItem => i.type === 'steckbrief') ?? null;
   /** Where a steckbrief's person stands: the arrows point there. */
   const person = steckbrief ? steckbriefPerson(canvas, bg.kind === 'foto') : null;
