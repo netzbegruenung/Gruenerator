@@ -36,6 +36,7 @@ export default function FocusedLayout() {
       <Stack.Screen name="sticker" options={{ ...toolHeader, title: 'Sticker & Hintergründe' }} />
       <Stack.Screen name="marktplatz" options={{ ...toolHeader, title: 'Marktplatz' }} />
       <Stack.Screen name="sticker-neu" options={{ ...toolHeader, title: 'Sticker erstellen' }} />
+      <Stack.Screen name="sprachgespraech" options={{ ...toolHeader, title: 'Sprachgespräch' }} />
     </Stack>
   );
 }

@@ -1,5 +1,6 @@
 import { type CreateAttachment } from '@assistant-ui/react-native';
 import { useAuth } from '@gruenerator/shared/hooks';
+import { useAuthStore } from '@gruenerator/shared/stores';
 import { useRouter } from 'expo-router';
 import { useCallback } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
@@ -7,6 +8,7 @@ import { GestureDetector } from 'react-native-gesture-handler';
 
 import { useDrawerStore } from '../../hooks/useDrawerStore';
 import { useTabSwipe } from '../../hooks/useTabSwipe';
+import { DEV_AUTH_BYPASS } from '../../services/devAuth';
 import { usePendingAttachmentStore } from '../../stores/pendingAttachmentStore';
 import { routeWithParams } from '../../types/routes';
 import { mobileGreeting } from '../../utils/greeting';
@@ -53,6 +55,11 @@ export function WorkplaceChatPage() {
     [router]
   );
 
+  // Instance admins only, like the API: audio leaves through Mistral's global
+  // endpoint. The emulator's bypass user stands in for one.
+  const canCall = useAuthStore((s) => s.user?.is_admin === true) || DEV_AUTH_BYPASS;
+  const openCall = useCallback(() => router.push('/(focused)/sprachgespraech'), [router]);
+
   const openDrawer = useDrawerStore((s) => s.openDrawer);
   const swipe = useTabSwipe({
     ...(Platform.OS === 'android' && { onSwipeRight: openDrawer }),
@@ -67,6 +74,13 @@ export function WorkplaceChatPage() {
           onSend={handleSend}
           showActionSheet
           onAttach={handleAttach}
+          {...(canCall && {
+            accessory: {
+              icon: 'pulse',
+              onPress: openCall,
+              accessibilityLabel: 'Sprachgespräch starten',
+            },
+          })}
         />
       </View>
     </GestureDetector>
