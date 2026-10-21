@@ -113,7 +113,19 @@ jobs:
               {"name": "mobile native", "pkg": "mobile", "task": "test:native"},
               {"name": "rest"}
             ]
-          APPS: '["web", "api", "docs", "wordpress"]'
+          # Web builds `build:check`, not `build`: its output is a few hundred
+          # MB, most of it copied from public/, and Vercel rejects that upload
+          # with a 400, so the cache never held it and every PR rebuilt (#4824).
+          # `build:check` caches only the log. Cutting public/ out of the
+          # `build` outputs instead would let a cache hit restore a bundle
+          # without Pyodide or illustrations.
+          APPS: >-
+            [
+              {"app": "web", "task": "build:check"},
+              {"app": "api", "task": "build"},
+              {"app": "docs", "task": "build"},
+              {"app": "wordpress", "task": "build"}
+            ]
         run: |
           TURBO="npx --yes turbo@$(grep -m1 -oE '^  turbo@[0-9.]+' pnpm-lock.yaml | cut -d@ -f2)"
 
@@ -164,11 +176,12 @@ jobs:
           done < <(jq -c '.[]' <<< "$SHARDS")
 
           BUILDS='[]'
-          for app in $(jq -r '.[]' <<< "$APPS"); do
-            run=$(needed build "--filter=@gruenerator/$app")
+          while read -r entry; do
+            app=$(jq -r .app <<< "$entry")
+            run=$(needed "$(jq -r .task <<< "$entry")" "--filter=@gruenerator/$app")
             echo "Build $app: needed=$run"
-            [ "$run" = false ] || BUILDS=$(jq -c --arg a "$app" '. + [$a]' <<< "$BUILDS")
-          done
+            [ "$run" = false ] || BUILDS=$(jq -c --argjson e "$entry" '. + [$e]' <<< "$BUILDS")
+          done < <(jq -c '.[]' <<< "$APPS")
 
           echo "Typecheck: needed=$TYPECHECK"
           echo "ESLint: needed=$LINT"
@@ -562,7 +575,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: ${{ fromJSON(needs.plan.outputs.builds) }}
+        include: ${{ fromJSON(needs.plan.outputs.builds) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -580,4 +593,4 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts --filter @gruenerator/${{ matrix.app }}...
 
       - name: Build ${{ matrix.app }}
-        run: pnpm turbo run build --filter=@gruenerator/${{ matrix.app }}
+        run: pnpm turbo run ${{ matrix.task }} --filter=@gruenerator/${{ matrix.app }}

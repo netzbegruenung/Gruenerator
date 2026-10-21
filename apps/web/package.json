@@ -132,6 +132,7 @@
     "start:debug": "cross-env NODE_OPTIONS=\"--inspect --max-old-space-size=4096\" vite",
     "optimize-images": "node scripts/optimize-images.mjs",
     "build": "npm run setup:pyodide && cross-env NODE_OPTIONS=--max-old-space-size=4096 vite build",
+    "build:check": "npm run build",
     "build:low-memory": "cross-env NODE_OPTIONS=\"--max-old-space-size=2048 --gc-interval=100\" vite build",
     "build:profile": "cross-env NODE_OPTIONS=--prof vite build",
     "build:sequential": "cross-env NODE_OPTIONS=--max-old-space-size=4096 npm run build:clean && npm run build:chunks",
