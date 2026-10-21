@@ -1,7 +1,7 @@
 name: release
 
 # Manual only: every run is two paid store builds.
-#   eas workflow:run .eas/workflows/release.yml
+#   eas workflow:run .eas/workflows/release.yml --ref master -F submit_profile=production
 # Needs a native change's version bump in app.json first (runtimeVersion policy
 # is appVersion) — for JS-only changes use ota-update.yml instead.
 # Android submits with the Google Service Account key stored in EAS credentials,
