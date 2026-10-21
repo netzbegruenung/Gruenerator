@@ -2,6 +2,7 @@ import { type MarketplaceCollectionId, type MarketplaceItem } from '@gruenerator
 import {
   collectionById,
   isSampleItem,
+  resolveStory,
   sampleImageOf,
   useMarketplaceFrontpage,
   type MarketplaceCollection,
@@ -19,6 +20,7 @@ import { PiCheck } from 'react-icons/pi';
 
 import { GalleryEmptyState, GallerySkeleton } from '../../components/common/Gallery/parts';
 
+import { CollectionStory } from './CollectionStory';
 import { viewOf } from './kindViews';
 import { MarketplaceCard } from './MarketplaceCard';
 import {
@@ -30,6 +32,8 @@ import {
   showcaseToneAt,
 } from './MarketplaceShowcaseCard';
 import { type MarketplaceActions } from './useMarketplaceActions';
+
+import { useAuthStore } from '@/stores/authStore';
 
 const COVER_DIR = '/images/marketplace/collections';
 
@@ -160,6 +164,48 @@ function openSample(item: MarketplaceItem) {
 /** Agents and Rezepte land in „Meine Grüneratoren"; everything else is only „Merken". */
 const isAddable = (item: MarketplaceItem) => item.kind === 'agent' || item.kind === 'recipe';
 
+function ItemGrid({
+  items,
+  actions,
+  onSelect,
+}: {
+  items: readonly MarketplaceItem[];
+  actions: MarketplaceActions;
+  onSelect: (item: MarketplaceItem) => void;
+}) {
+  return (
+    <div className={SHOWCASE_GRID}>
+      {items.map((item, index) =>
+        isSampleItem(item) ? (
+          <MarketplaceVisualCard
+            key={item.key}
+            item={item}
+            tone={showcaseToneAt(index)}
+            broken={false}
+            actions={null}
+            onSelect={() => openSample(item)}
+          />
+        ) : isAddable(item) ? (
+          <MarketplaceShowcaseCard
+            key={item.key}
+            item={item}
+            tone={showcaseToneAt(index)}
+            actions={actions}
+            onSelect={() => onSelect(item)}
+          />
+        ) : (
+          <MarketplaceCard
+            key={item.key}
+            item={item}
+            actions={actions}
+            onSelect={() => onSelect(item)}
+          />
+        )
+      )}
+    </div>
+  );
+}
+
 /**
  * One collection opened (`?kollektion=<id>`), App-Store-story style: the cover
  * as a wide banner, the title with „Alle hinzufügen", then every item as a
@@ -180,6 +226,7 @@ export function MarketplaceCollectionView({
   onOpen: (id: MarketplaceCollectionId) => void;
 }): JSX.Element {
   const page = useMarketplaceFrontpage();
+  const locale = useAuthStore((s) => s.locale);
   const def = collectionById(id);
   const collections = page.data?.collections ?? [];
   const items = collections.find((c) => c.collectionId === id)?.items ?? [];
@@ -205,6 +252,9 @@ export function MarketplaceCollectionView({
     );
   }
 
+  const story = def.story?.length ? resolveStory(def.story, items, locale) : null;
+  const select = (item: MarketplaceItem) =>
+    isSampleItem(item) ? openSample(item) : onSelect(item);
   const addable = items.filter(isAddable);
   const missing = addable.filter((item) => !item.saved);
 
@@ -258,40 +308,29 @@ export function MarketplaceCollectionView({
             </span>
           ))}
       </header>
-      <section aria-labelledby="kollektion-inhalte" className="flex flex-col gap-md">
-        <h2 id="kollektion-inhalte" className="sr-only">
-          Enthalten
-        </h2>
-        <div className={SHOWCASE_GRID}>
-          {items.map((item, index) =>
-            isSampleItem(item) ? (
-              <MarketplaceVisualCard
-                key={item.key}
-                item={item}
-                tone={showcaseToneAt(index)}
-                broken={false}
-                actions={null}
-                onSelect={() => openSample(item)}
-              />
-            ) : isAddable(item) ? (
-              <MarketplaceShowcaseCard
-                key={item.key}
-                item={item}
-                tone={showcaseToneAt(index)}
-                actions={actions}
-                onSelect={() => onSelect(item)}
-              />
-            ) : (
-              <MarketplaceCard
-                key={item.key}
-                item={item}
-                actions={actions}
-                onSelect={() => onSelect(item)}
-              />
-            )
+      {story ? (
+        <>
+          <CollectionStory blocks={story.blocks} actions={actions} onSelect={select} />
+          {story.rest.length > 0 && (
+            <section aria-labelledby="kollektion-mehr" className="flex flex-col gap-md">
+              <h2
+                id="kollektion-mehr"
+                className="m-0 text-xl font-semibold text-foreground-heading"
+              >
+                Mehr aus der Kollektion
+              </h2>
+              <ItemGrid items={story.rest} actions={actions} onSelect={onSelect} />
+            </section>
           )}
-        </div>
-      </section>
+        </>
+      ) : (
+        <section aria-labelledby="kollektion-inhalte" className="flex flex-col gap-md">
+          <h2 id="kollektion-inhalte" className="sr-only">
+            Enthalten
+          </h2>
+          <ItemGrid items={items} actions={actions} onSelect={onSelect} />
+        </section>
+      )}
       <CollectionCards
         title="Weitere Kollektionen"
         collections={collections.filter((c) => c.collectionId !== id)}

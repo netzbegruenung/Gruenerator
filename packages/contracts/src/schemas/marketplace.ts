@@ -257,6 +257,8 @@ export const marketplaceCollectionIdSchema = z.enum([
   'barrierefreiheit',
   'canva',
   'wahlkampf-moritz',
+  'gleichstellung',
+  'queer',
 ]);
 export type MarketplaceCollectionId = z.infer<typeof marketplaceCollectionIdSchema>;
 

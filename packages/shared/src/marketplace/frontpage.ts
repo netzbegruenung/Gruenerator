@@ -13,6 +13,9 @@ import {
 } from '@gruenerator/contracts';
 
 import { type MarketplaceTarget } from './cache.js';
+import { GLEICHSTELLUNG_COLLECTION } from './collections/gleichstellung.js';
+import { QUEER_COLLECTION } from './collections/queer.js';
+import { type CollectionStoryBlock } from './collectionStory.js';
 import { type MarketplaceFilters } from './filters.js';
 import { DEFAULT_MARKETPLACE_SORT } from './registry.js';
 import { WAHLKAMPF_SAMPLES } from './sampleCollection.js';
@@ -123,6 +126,8 @@ export interface MarketplaceCollection {
   listed?: false;
   /** Entries that exist only as files, shown before everything resolved (see `sampleCollection.ts`). */
   samples?: readonly MarketplaceItem[];
+  /** What the page tells between cover and entries; without one, the entries as a grid. */
+  story?: readonly CollectionStoryBlock[];
 }
 
 /** The collections of the front page, curated by PR, in display order. */
@@ -231,6 +236,8 @@ export const MARKETPLACE_COLLECTIONS = [
     min: 1,
     listed: false,
   },
+  GLEICHSTELLUNG_COLLECTION,
+  QUEER_COLLECTION,
 ] as const satisfies readonly MarketplaceCollection[];
 
 export function collectionsFor(locale: string | null): readonly MarketplaceCollection[] {
