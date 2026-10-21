@@ -101,7 +101,8 @@ in vec2 v_uv;
 out vec4 fragColor;
 
 uniform float u_time;
-uniform float u_speed;
+// Accumulated on the CPU: u_time * speed would jump whenever the speed changes.
+uniform float u_phase;
 uniform float u_amplitude;
 uniform float u_glow;
 uniform float u_brightness;
@@ -161,7 +162,7 @@ float snoise(vec3 v) {
 void main() {
   vec2 uv = v_uv * 2.0 - 1.0;
   float dist = length(uv);
-  float t = u_time * u_speed;
+  float t = u_phase;
 
   // Perfect circle — hard boundary, soft anti-aliased edge
   float radius = 0.44;
@@ -267,7 +268,7 @@ function initWebGL(canvas: HTMLCanvasElement) {
 
   const uniforms = {
     u_time: gl.getUniformLocation(program, 'u_time'),
-    u_speed: gl.getUniformLocation(program, 'u_speed'),
+    u_phase: gl.getUniformLocation(program, 'u_phase'),
     u_amplitude: gl.getUniformLocation(program, 'u_amplitude'),
     u_glow: gl.getUniformLocation(program, 'u_glow'),
     u_brightness: gl.getUniformLocation(program, 'u_brightness'),
@@ -312,6 +313,9 @@ export const VoiceOrb: FC<VoiceOrbProps> = memo(
     const glRef = useRef<ReturnType<typeof initWebGL>>(null);
     const animRef = useRef(0);
     const startTime = useRef(performance.now());
+    const lastFrame = useRef(performance.now());
+    const phase = useRef(0);
+    const smoothVolume = useRef(0);
 
     const currentParams = useRef({ ...STATE_PARAMS.idle });
     const targetParams = useRef({ ...STATE_PARAMS.idle });
@@ -348,7 +352,10 @@ export const VoiceOrb: FC<VoiceOrbProps> = memo(
       p.pulse = lerp(p.pulse, tp.pulse, s);
       p.saturation = lerp(p.saturation, tp.saturation, s);
 
-      const elapsed = (performance.now() - startTime.current) / 1000;
+      const now = performance.now();
+      const elapsed = (now - startTime.current) / 1000;
+      const dt = Math.min((now - lastFrame.current) / 1000, 0.1);
+      lastFrame.current = now;
 
       const dpr = window.devicePixelRatio || 1;
       const rect = canvas.getBoundingClientRect();
@@ -363,10 +370,13 @@ export const VoiceOrb: FC<VoiceOrbProps> = memo(
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
 
-      const vol = volumeRef.current;
+      // Eased, so a jumpy level from any adapter reads as breathing.
+      smoothVolume.current = lerp(smoothVolume.current, volumeRef.current, 0.12);
+      const vol = smoothVolume.current;
+      phase.current += dt * (p.speed + vol * 0.4);
 
       gl.uniform1f(uniforms.u_time, elapsed);
-      gl.uniform1f(uniforms.u_speed, p.speed + vol * 0.4);
+      gl.uniform1f(uniforms.u_phase, phase.current);
       gl.uniform1f(uniforms.u_amplitude, p.amplitude + vol * 0.12);
       gl.uniform1f(uniforms.u_glow, p.glow + vol * 0.2);
       gl.uniform1f(uniforms.u_brightness, p.brightness);
