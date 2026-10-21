@@ -57,13 +57,24 @@ export function slideInk({
       : {};
   // `==word==` runs: AT sets them yellow in Vollkorn Black Italic, DE in lime.
   // Frauen: lila on light ground, flieder on dark (AT keeps its yellow there);
-  // Pride: flag yellow on dark DE ground, matching its marker.
+  // Pride: flag yellow on dark DE ground, matching its marker. Europa: the
+  // stars' yellow on dark ground, the flag's blue on light.
   const lila = SHAREPIC_COLOR_HEX.lila;
   const flieder = SHAREPIC_COLOR_HEX.flieder;
+  const blau = SHAREPIC_COLOR_HEX.europablau;
+  const gelb = THEMA_INK.sternenGelb;
   const frauen = thema === 'frauen';
+  const europa = thema === 'europa';
   const accent: TextAccent = isAt
     ? {
-        fill: frauen && onLight ? lila : onLight ? theme.colors.accentOnLight : theme.colors.accent,
+        fill:
+          (frauen || europa) && onLight
+            ? frauen
+              ? lila
+              : blau
+            : onLight
+              ? theme.colors.accentOnLight
+              : theme.colors.accent,
         fontFamily: theme.fonts.quoteEmphasis,
         fontStyle: AT_EMPHASIS_STYLE,
       }
@@ -72,19 +83,24 @@ export function slideInk({
           ? onLight
             ? lila
             : flieder
-          : onLight
-            ? KLEE
-            : onGrass
-              ? '#FFFFFF'
-              : thema === 'queer'
-                ? THEMA_INK.flaggenGelb
-                : LIME,
+          : europa
+            ? onLight
+              ? blau
+              : gelb
+            : onLight
+              ? KLEE
+              : onGrass
+                ? '#FFFFFF'
+                : thema === 'queer'
+                  ? THEMA_INK.flaggenGelb
+                  : LIME,
       };
   // DE `++passage++`: dark ink in a box. On light ground (white, grey, mint)
   // the posts lay lime under it (Dds8o0TAppl, DdEhd82js3K, Dc3HYlTAnG-);
   // photos and dark colours take white — a dark box disappears into the
   // scrim. AT has none (see `foldMarkers`).
-  // Themes bring their own box: flag yellow for Pride, lila/flieder for Frauen.
+  // Themes bring their own box: flag yellow for Pride, lila/flieder for
+  // Frauen, the flag's blue/yellow for Europa.
   const themedMarker =
     thema === 'queer'
       ? { fill: THEMA_INK.flaggenGelb, color: THEMA_INK.violettDunkel }
@@ -92,7 +108,11 @@ export function slideInk({
         ? onLight
           ? { fill: lila, color: '#FFFFFF' }
           : { fill: flieder, color: THEMA_INK.lilaDunkel }
-        : null;
+        : europa
+          ? onLight
+            ? { fill: blau, color: '#FFFFFF' }
+            : { fill: gelb, color: blau }
+          : null;
   const marker: TextMarker | null = isAt
     ? null
     : {
@@ -109,18 +129,22 @@ export function slideInk({
     ? onLight
       ? { fill: lila, ink: '#FFFFFF' }
       : { fill: flieder, ink: THEMA_INK.lilaDunkel }
-    : isAt
+    : europa
       ? onLight
-        ? { fill: theme.colors.primary, ink: '#FFFFFF' }
-        : { fill: theme.colors.accent, ink: theme.colors.primary }
-      : onLight
-        ? { fill: KLEE, ink: '#FFFFFF' }
-        : onGrass
-          ? { fill: SHAREPIC_COLOR_HEX.tanne, ink: '#FFFFFF' }
-          : { fill: LIME, ink: SHAREPIC_COLOR_HEX.dunkeltanne };
+        ? { fill: blau, ink: '#FFFFFF' }
+        : { fill: gelb, ink: blau }
+      : isAt
+        ? onLight
+          ? { fill: theme.colors.primary, ink: '#FFFFFF' }
+          : { fill: theme.colors.accent, ink: theme.colors.primary }
+        : onLight
+          ? { fill: KLEE, ink: '#FFFFFF' }
+          : onGrass
+            ? { fill: SHAREPIC_COLOR_HEX.tanne, ink: '#FFFFFF' }
+            : { fill: LIME, ink: SHAREPIC_COLOR_HEX.dunkeltanne };
   const cardAccent: TextAccent = isAt
-    ? { ...accent, fill: frauen ? lila : theme.colors.accentOnLight }
-    : { fill: frauen ? lila : KLEE };
+    ? { ...accent, fill: frauen ? lila : europa ? blau : theme.colors.accentOnLight }
+    : { fill: frauen ? lila : europa ? blau : KLEE };
   /** A figure, a numeral or a closing "!" in the slide's accent colour. */
   const accentInk = thema
     ? accent.fill

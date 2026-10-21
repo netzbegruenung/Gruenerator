@@ -45,6 +45,10 @@ export const SHAREPIC_COLOR_HEX: Record<SharepicColor, string> = {
   violett: '#732982',
   // A gradient (`GRADIENTS` in composeSharepic); this is its flat middle.
   pride: '#8A1D86',
+  // The EU flag's Reflex Blue (Commission Regulation 821/2014, annex II) and
+  // a pale sky that carries it as ink.
+  europablau: '#003399',
+  himmelblau: '#DCE6F7',
 };
 
 /** The inks a theme brings besides its grounds. */
@@ -58,10 +62,15 @@ export const THEMA_INK = {
   regenbogen: ['#E40303', '#FF8C00', '#FFED00', '#008026', '#24408E', '#732982'],
   /** Progress Pride's chevron colours, for the stripes beyond the six. */
   progress: ['#000000', '#613915', '#5BCEFA', '#F5A9B8'],
+  /** The EU flag's stars; 7.2:1 on europablau. */
+  sternenGelb: '#FFCC00',
 } as const;
 
 /** The Progress Pride flag sticker a queer slide carries in its footer. */
 export const PRIDE_FLAG_ASSET = 'progress-pride';
+
+/** A europa slide's footer sign: the ring of stars on blue, the flag elsewhere. */
+export const EUROPA_ASSETS = { sterne: 'europa-sterne', flagge: 'eu-flagge' } as const;
 
 /** DE accent: a lime marker box. AT accent: a yellow Vollkorn line. */
 export const LIME = '#BEFF60';
@@ -103,7 +112,14 @@ export function layoutTextLines(
 /** The AT "swipe on" arrow is the posts' brush stroke: white, green on light ground. */
 export const BRUSH_ARROW = { onDark: 'brush-arrow-weiss', onLight: 'brush-arrow-gruen' } as const;
 
-const LIGHT: readonly SharepicColor[] = ['mint', 'hellgrau', 'creme', 'weiss', 'flieder'];
+const LIGHT: readonly SharepicColor[] = [
+  'mint',
+  'hellgrau',
+  'creme',
+  'weiss',
+  'flieder',
+  'himmelblau',
+];
 
 /**
  * How a surface takes ink: light ground (and DE grass green, which the posts

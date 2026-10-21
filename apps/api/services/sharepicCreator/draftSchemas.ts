@@ -152,7 +152,7 @@ export const SPEC_SCHEMA = {
       type: 'string',
       enum: sharepicThemaSchema.options,
       description:
-        'Nur wenn der Auftrag das Thema hat: "queer" für Pride, CSD, IDAHOBIT, Coming-out-Day; "frauen" für 8. März, Equal Pay Day, Safe Abortion Day, Frauenrechte. Erlaubt die Themenflächen (queer: violett, pride; frauen: lila, flieder). Sonst weglassen.',
+        'Nur wenn der Auftrag das Thema hat: "queer" für Pride, CSD, IDAHOBIT, Coming-out-Day; "frauen" für 8. März, Equal Pay Day, Safe Abortion Day, Frauenrechte; "europa" für Europatag, Schengen, EU-Beschlüsse, Europaparlament. Erlaubt die Themenflächen (queer: violett, pride; frauen: lila, flieder; europa: europablau, himmelblau). Sonst weglassen.',
     },
     slides: {
       type: 'array',

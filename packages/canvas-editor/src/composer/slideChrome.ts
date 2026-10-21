@@ -14,6 +14,7 @@ import {
   BRUSH_ARROW,
   DE_WORDMARK,
   pageDots,
+  EUROPA_ASSETS,
   PRIDE_FLAG_ASSET,
   SHAREPIC_COLOR_HEX,
 } from './chromeParts';
@@ -298,23 +299,26 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
     });
     out.layerOrder.push('sc-logo');
   }
-  if (ctx.thema === 'queer') {
-    // The Progress Pride flag on the logo's line, at the right edge (left of
-    // the swipe-on arrow); where a date circle holds that corner, top right.
-    // A sticker the user can move, resize or drop.
-    const flagWidth = 120;
-    const flagHeight = (flagWidth * 300) / 480;
+  if (ctx.thema === 'queer' || ctx.thema === 'europa') {
+    // The theme's sign on the logo's line, at the right edge (left of the
+    // swipe-on arrow); where a date circle holds that corner, top right. A
+    // sticker the user can move, resize or drop. Pride: the Progress Pride
+    // flag. Europa: the ring of stars on its blue, the flag on any other ground.
+    const queer = ctx.thema === 'queer';
+    const ring = !queer && surface === 'europablau';
+    const flagWidth = ring ? 150 : 120;
+    const flagHeight = ring ? flagWidth : (flagWidth * (queer ? 300 : 320)) / 480;
     const arrowSpan = swipeOn ? arrow.size * arrow.glyph + 24 : 0;
     out.assetInstances.push({
-      id: 'sc-pride-flagge',
-      assetId: PRIDE_FLAG_ASSET,
+      id: queer ? 'sc-pride-flagge' : 'sc-europa',
+      assetId: queer ? PRIDE_FLAG_ASSET : ring ? EUROPA_ASSETS.sterne : EUROPA_ASSETS.flagge,
       x: canvas.width - (circle ? MARGIN : arrow.right + arrowSpan) - flagWidth / 2,
       y: circle ? MARGIN + flagHeight / 2 : canvas.height - logo.bottom - logo.height / 2,
       scale: flagWidth / ASSET_TARGET_SIZE,
       rotation: 0,
       opacity: 1,
     });
-    out.layerOrder.push('sc-pride-flagge');
+    out.layerOrder.push(queer ? 'sc-pride-flagge' : 'sc-europa');
   }
   if (swipeOn) {
     // Bottom-right, centred on x/y: AT a long brush stroke, DE a small arrow
