@@ -42,6 +42,14 @@ export interface GrueneratorRealtimeVoiceConfig {
   vadSpeechRms?: number;
   vadSpeechMinMs?: number;
   vadSilenceEndMs?: number;
+  /**
+   * `server`: Voxtral Realtime 3 decides when a turn ends (`?turns=server` on
+   * the socket) and the local VAD only drives the volume meter. One socket
+   * then carries the whole conversation. Default `client` is the v2 path above.
+   */
+  turnDetection?: 'client' | 'server';
+  /** Default `kugel`. `voxtral` speaks with Voxtral TTS 3 instead. */
+  ttsProvider?: 'kugel' | 'voxtral';
 }
 
 interface ChatMessage {
@@ -61,12 +69,21 @@ export class GrueneratorRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
   private vadSpeechRms: number;
   private vadSpeechMinMs: number;
   private vadSilenceEndMs: number;
+  private serverTurns: boolean;
+  private ttsProvider: 'kugel' | 'voxtral';
   private history: ChatMessage[] = [];
 
   constructor(config: GrueneratorRealtimeVoiceConfig = {}) {
-    this.wsUrl = resolveVoiceWsUrl(config.apiBaseUrl, '/api/voice/realtime');
+    this.serverTurns = config.turnDetection === 'server';
+    this.ttsProvider = config.ttsProvider ?? 'kugel';
+    this.wsUrl = resolveVoiceWsUrl(
+      config.apiBaseUrl,
+      this.serverTurns ? '/api/voice/realtime?turns=server' : '/api/voice/realtime'
+    );
     this.apiBaseUrl = config.apiBaseUrl ?? '';
-    this.fetchFn = config.fetchFn ?? fetch;
+    // Bound: called as `this.fetchFn(...)`, an unbound `fetch` throws
+    // "Illegal invocation" in the browser.
+    this.fetchFn = config.fetchFn ?? fetch.bind(globalThis);
     this.ttsVoiceId = config.ttsVoiceId;
     this.onError = config.onError;
     this.getThreadId = config.getThreadId;
@@ -191,9 +208,12 @@ export class GrueneratorRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
       workletNode.port.onmessage = (e: MessageEvent<ArrayBuffer>) => {
         // Drop audio frames while the agent is responding — otherwise the
         // assistant's TTS audio plays through the speaker, leaks into the
-        // mic, and gets re-transcribed as the next user turn.
-        if (inAgentTurn) return;
-        if (ws.readyState === WebSocket.OPEN) ws.send(e.data);
+        // mic, and gets re-transcribed as the next user turn. With server turns
+        // the socket outlives the answer, and Voxtral times the stream out
+        // when audio stops — silence keeps it open.
+        if (ws.readyState !== WebSocket.OPEN) return;
+        if (!inAgentTurn) ws.send(e.data);
+        else if (this.serverTurns) ws.send(new ArrayBuffer(e.data.byteLength));
       };
 
       micSource.connect(workletNode);
@@ -283,7 +303,12 @@ export class GrueneratorRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
         }
       }
 
-      if (!inAgentTurn && currentMode === 'listening' && ws.readyState === WebSocket.OPEN) {
+      if (
+        !this.serverTurns &&
+        !inAgentTurn &&
+        currentMode === 'listening' &&
+        ws.readyState === WebSocket.OPEN
+      ) {
         if (rms >= this.vadSpeechRms) {
           speechAccMs += dt;
           silenceAccMs = 0;
@@ -316,7 +341,12 @@ export class GrueneratorRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
         const response = await this.fetchFn(`${this.apiBaseUrl}/api/voice/tts/stream`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text, voiceId: this.ttsVoiceId, language: 'de' }),
+          body: JSON.stringify({
+            text,
+            voiceId: this.ttsVoiceId,
+            language: 'de',
+            provider: this.ttsProvider,
+          }),
           credentials: 'include',
         });
         if (!response.ok || !response.body) {

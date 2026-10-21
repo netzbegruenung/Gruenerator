@@ -1,10 +1,12 @@
+import { UnsplashLimitError } from '@gruenerator/shared/image-studio';
 import { fireEvent, render, renderHook, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { CanvasEditorProvider } from '../../CanvasEditorProvider';
+import { CanvasEditorProvider, type CanvasEditorServices } from '../../CanvasEditorProvider';
 import { BlockInsertContext, type BlockInsertApi } from '../../components/CanvasEditor/blockInsert';
 import { useTrackUnsplashDownload } from '../../hooks/useTrackUnsplashDownload';
+import { axe } from '../../test-utils';
 import { ELEMENT_DRAG_TYPE, MEDIA_DRAG_TYPE, markDropPlaced } from '../../utils/mediaDrop';
 import { ElementsPanel } from '../sections/assets/ElementsPanel';
 import { ElementTile } from '../sections/assets/ElementTile';
@@ -455,8 +457,9 @@ describe('stock photo tiles', () => {
       name: 'A train',
       attribution: { photographer: 'Ana', profileUrl: 'https://u/ana', photoUrl: 'https://u/p' },
     });
-    // German words find English-tagged photos.
-    expect(tile.keywords).toEqual(expect.arrayContaining(['Fahrrad', 'train']));
+    // Labelled with the credit, findable by its German category name and own tags.
+    expect(tile.label).toBe('Ana');
+    expect(tile.keywords).toEqual(expect.arrayContaining(['Mobilität', 'train']));
     // Media, not element: a drop onto a frame fills the frame with the photo.
     expect(dragDataFor(tile.action)?.type).toBe(MEDIA_DRAG_TYPE);
   });
@@ -485,6 +488,95 @@ describe('stock photo tiles', () => {
       attribution: { photographer: 'Unknown', profileUrl: '', photoUrl: '' },
     });
     expect(tile.action).not.toHaveProperty('attribution');
+  });
+});
+
+describe('ElementsPanel — Fotos mit Unsplash', () => {
+  const unsplashPhoto = {
+    filename: 'annie-1-unsplash.jpg',
+    url: 'https://images.unsplash.com/photo-1?ixid=x',
+    alt_text: 'Wald im Nebel',
+    attribution: {
+      photographer: 'Annie Spratt',
+      profileUrl: 'https://unsplash.com/@annie',
+      photoUrl: 'https://unsplash.com/photos/1',
+      downloadLocation: 'https://api.unsplash.com/photos/1/download',
+    },
+  };
+
+  function renderFotos(searchUnsplashImages: CanvasEditorServices['searchUnsplashImages']) {
+    const onAddImageFromUrl = vi.fn();
+    const trackUnsplashDownloadLive = vi.fn(async () => {});
+    const services: CanvasEditorServices = {
+      fetchStockImages: async () => ({ success: true, images: [], categories: [] }),
+      trackUnsplashDownloadLive,
+      ...(searchUnsplashImages ? { searchUnsplashImages } : {}),
+    };
+    const view = render(
+      <CanvasEditorProvider services={services}>
+        <ElementsPanel onAddImageFromUrl={onAddImageFromUrl} />
+      </CanvasEditorProvider>
+    );
+    return { ...view, onAddImageFromUrl, trackUnsplashDownloadLive };
+  }
+
+  async function openFotosAndSearch(text: string) {
+    await userEvent.click(screen.getByRole('button', { name: /^Fotos/ }));
+    await search(text);
+  }
+
+  it('searches Unsplash after a typing pause and places the hotlinked photo with its credit', async () => {
+    const searchUnsplashImages = vi.fn(async () => ({
+      results: [unsplashPhoto],
+      total: 1,
+      total_pages: 1,
+    }));
+    const { container, onAddImageFromUrl, trackUnsplashDownloadLive } =
+      renderFotos(searchUnsplashImages);
+
+    await openFotosAndSearch('wald');
+    // No local hit hides nothing: the Unsplash section stays.
+    expect(screen.queryByText('Nichts gefunden')).not.toBeInTheDocument();
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Annie Spratt hinzufügen' }, { timeout: 2000 })
+    );
+    // One search for the settled query, not one per keystroke.
+    expect(searchUnsplashImages).toHaveBeenCalledTimes(1);
+    expect(searchUnsplashImages).toHaveBeenCalledWith('wald', 1, 20);
+    expect(onAddImageFromUrl).toHaveBeenCalledWith(unsplashPhoto.url, 'Wald im Nebel', {
+      attribution: unsplashPhoto.attribution,
+    });
+    expect(trackUnsplashDownloadLive).toHaveBeenCalledWith(
+      unsplashPhoto.attribution.downloadLocation
+    );
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('says when the shared hourly quota is used up and stops asking', async () => {
+    const searchUnsplashImages = vi.fn(async () => {
+      throw new UnsplashLimitError(1800);
+    });
+    renderFotos(searchUnsplashImages);
+
+    await openFotosAndSearch('wald');
+
+    expect(
+      await screen.findByText('Unsplash-Suche gerade ausgeschöpft', {}, { timeout: 2000 })
+    ).toBeInTheDocument();
+    expect(screen.getByText(/50 Unsplash-Suchen pro Stunde/)).toBeInTheDocument();
+
+    // Blocked: a new query does not run into the same refusal again.
+    await userEvent.type(screen.getByRole('searchbox'), 'see');
+    await new Promise((resolve) => setTimeout(resolve, 900));
+    expect(searchUnsplashImages).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers no Unsplash search without the service', async () => {
+    renderFotos(undefined);
+    await openFotosAndSearch('wald');
+    expect(screen.queryByText('Mehr von Unsplash')).not.toBeInTheDocument();
+    expect(screen.getByText('Nichts gefunden')).toBeInTheDocument();
   });
 });
 

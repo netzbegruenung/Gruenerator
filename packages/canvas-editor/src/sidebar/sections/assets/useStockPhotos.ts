@@ -9,27 +9,23 @@ import type { StockImage, StockImageAttribution } from '../../../common/imageSou
 const STOCK_PHOTOS_QUERY_KEY = ['canvas', 'stock-photos'] as const;
 
 /**
- * The catalogue tags are English; these let a German query find the photos.
- * Keyed by the catalogue's `category`.
+ * German names for the catalogue's `category`, so "Mobilität" finds the whole
+ * group. Single words only: a word list per category made every photo in it
+ * match "Wind" or "Fahrrad"; the search's own German→English dictionary reaches
+ * the English tags and alt text of the right photos instead.
  */
-const GERMAN_KEYWORDS: Record<string, readonly string[]> = {
-  environment: ['Umwelt', 'Klima', 'Klimaschutz', 'Energie', 'Solar', 'Wind'],
-  transport: ['Mobilität', 'Verkehr', 'Bahn', 'Zug', 'Fahrrad', 'Rad', 'Bus', 'Straße'],
-  social: ['Gesellschaft', 'Menschen', 'Gemeinschaft', 'Familie', 'Demo'],
-  agriculture: ['Landwirtschaft', 'Bauernhof', 'Feld', 'Ernte', 'Acker'],
-  nature: ['Natur', 'Wald', 'Baum', 'Wiese', 'Berge', 'Wasser'],
-  economy: ['Wirtschaft', 'Arbeit', 'Handwerk', 'Industrie'],
-  education: ['Bildung', 'Schule', 'Lernen', 'Kinder'],
-  politics: ['Politik', 'Europa', 'Parlament', 'Wahl', 'Demokratie'],
-  health: ['Gesundheit', 'Pflege', 'Krankenhaus'],
-  housing: ['Wohnen', 'Miete', 'Haus', 'Wohnung'],
-  media: ['Medien', 'Presse', 'Nachrichten'],
-  urban: ['Stadt', 'Kommune', 'Platz'],
+const CATEGORY_NAMES: Record<string, string> = {
+  agriculture: 'Landwirtschaft',
+  economy: 'Wirtschaft',
+  health: 'Gesundheit',
+  housing: 'Wohnen',
+  media: 'Medien',
+  urban: 'Stadt',
 };
 
-function categoryLabel(category: string | undefined): string {
-  if (!category) return 'Foto';
-  return STOCK_CATEGORY_LABELS[category] ?? GERMAN_KEYWORDS[category]?.[0] ?? 'Foto';
+function categoryName(category: string | undefined): string | null {
+  if (!category) return null;
+  return STOCK_CATEGORY_LABELS[category] ?? CATEGORY_NAMES[category] ?? null;
 }
 
 /** Only a real Unsplash credit travels with the image; the "Unknown" stub does not. */
@@ -40,19 +36,19 @@ function creditOf(image: StockImage): StockImageAttribution | null {
 
 export function stockPhotoItem(image: StockImage): ElementItem {
   const url = `/api/image-picker/stock-image/${encodeURIComponent(image.filename)}`;
-  const label = categoryLabel(image.category);
+  const category = categoryName(image.category);
   const credit = creditOf(image);
   const tags = Array.isArray(image.tags)
     ? (image.tags as unknown[]).filter((t) => typeof t === 'string')
     : [];
   return {
     key: `photo:${image.filename}`,
-    label,
+    // Named like a live Unsplash hit: the photographer is the credit, a category says nothing.
+    label: credit ? credit.photographer : 'Foto',
     keywords: [
       'Foto',
-      label,
+      ...(category ? [category] : []),
       ...(credit ? [credit.photographer] : []),
-      ...(image.category ? (GERMAN_KEYWORDS[image.category] ?? []) : []),
       ...(tags as string[]),
       image.alt_text ?? '',
     ],
@@ -63,6 +59,38 @@ export function stockPhotoItem(image: StockImage): ElementItem {
       ...(credit ? { attribution: credit } : {}),
     },
     thumb: { t: 'photo', src: url },
+  };
+}
+
+/** Unsplash serves resized copies of the same hotlinked URL via imgix's `w`. */
+export function unsplashThumbnailUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    u.searchParams.set('w', '400');
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * A live Unsplash search hit as a tile. It is placed by its hotlinked URL —
+ * API Terms §6 forbid re-hosting the unaltered photo — and labelled with the
+ * photographer, which is the credit Unsplash requires next to the photo.
+ */
+export function unsplashPhotoItem(image: StockImage): ElementItem {
+  const credit = creditOf(image);
+  return {
+    key: `unsplash:${image.filename}`,
+    label: credit ? credit.photographer : 'Unsplash',
+    keywords: [],
+    action: {
+      kind: 'media',
+      url: image.url ?? '',
+      name: image.alt_text ?? image.filename,
+      ...(credit ? { attribution: credit } : {}),
+    },
+    thumb: { t: 'photo', src: unsplashThumbnailUrl(image.url ?? '') },
   };
 }
 

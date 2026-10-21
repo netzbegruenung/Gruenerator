@@ -67,6 +67,7 @@ export {
   STOCK_CATEGORY_LABELS,
   fetchStockImages,
   searchUnsplashImages,
+  UnsplashLimitError,
   trackUnsplashDownload,
   trackUnsplashDownloadLive,
 } from './image-source-service.js';

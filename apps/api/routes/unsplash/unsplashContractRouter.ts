@@ -79,8 +79,8 @@ export const unsplashContractRouter = s.router(unsplashContract, {
           status: 429 as const,
           body: {
             error: 'Rate limit exceeded',
-            message: 'Unsplash API rate limit reached. Please try again later.',
-            retryAfter: 3600,
+            message: 'Das Unsplash-Kontingent ist für diese Stunde aufgebraucht.',
+            retryAfter: error.retryAfter,
           },
         };
       }

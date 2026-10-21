@@ -1,3 +1,4 @@
+import { UnsplashLimitError } from '@gruenerator/shared/image-studio';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -100,6 +101,23 @@ describe('UnsplashTool', () => {
     await search('windrad');
     const img = container.querySelector('img');
     expect(img?.getAttribute('src')).toBe('https://images.unsplash.com/photo-1?ixid=x&w=400');
+  });
+
+  it('explains an exhausted hourly quota and shows few remaining searches', async () => {
+    const { searchUnsplashImages } = setup();
+    searchUnsplashImages.mockImplementationOnce(async () => ({
+      results: [photo(1)],
+      total: 1,
+      total_pages: 1,
+      rateLimitRemaining: 3,
+    }));
+    await search('windrad');
+    expect(screen.getByText('Noch 3 Unsplash-Suchen in dieser Stunde')).toBeInTheDocument();
+
+    searchUnsplashImages.mockRejectedValue(new UnsplashLimitError(600));
+    await userEvent.type(screen.getByRole('searchbox'), 's');
+    expect(await screen.findByText('Unsplash-Suche gerade ausgeschöpft')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('has no axe violations with results', async () => {

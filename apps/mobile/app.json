@@ -16,7 +16,7 @@
       "infoPlist": {
         "CFBundleAllowMixedLocalizations": true,
         "ITSAppUsesNonExemptEncryption": false,
-        "NSMicrophoneUsageDescription": "Grünerator braucht das Mikrofon, um deine Spracheingabe in Text umzuwandeln.",
+        "NSMicrophoneUsageDescription": "Grünerator braucht das Mikrofon, um deine Spracheingabe in Text umzuwandeln und Sprachgespräche zu führen.",
         "NSSpeechRecognitionUsageDescription": "Grünerator nutzt die Spracherkennung, um deine gesprochenen Eingaben in Text umzuwandeln.",
         "UISupportedInterfaceOrientations~ipad": [
           "UIInterfaceOrientationPortrait",
@@ -121,6 +121,8 @@
       "expo-sharing",
       "expo-web-browser",
       "expo-audio",
+      "@livekit/react-native-expo-plugin",
+      "@config-plugins/react-native-webrtc",
       [
         "expo-splash-screen",
         {

@@ -12,7 +12,7 @@ import {
   type Mentionable,
 } from '@gruenerator/chat';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { type ComponentType, useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -90,7 +90,8 @@ import type {
 /** Optional toolbar button a host can surface in the composer (e.g. a notebook
  *  filter/mode toggle), so its controls live in the composer instead of a chip bar. */
 export interface ComposerAccessory {
-  icon: IoniconsIconName;
+  /** An Ionicons name, or a component for a glyph Ionicons lacks. */
+  icon: IoniconsIconName | ComponentType<{ size: number; color: string }>;
   onPress: () => void;
   active?: boolean;
   accessibilityLabel?: string;
@@ -98,6 +99,22 @@ export interface ComposerAccessory {
    *  icon button — for a picker whose current value should stay readable
    *  (the notebook answer mode, like web's picker beside Send). */
   label?: string;
+}
+
+function AccessoryGlyph({
+  icon: Icon,
+  size,
+  color,
+}: {
+  icon: ComposerAccessory['icon'];
+  size: number;
+  color: string;
+}) {
+  return typeof Icon === 'string' ? (
+    <Ionicons name={Icon} size={size} color={color} />
+  ) : (
+    <Icon size={size} color={color} />
+  );
 }
 
 export interface ComposerProps {
@@ -137,9 +154,9 @@ export interface ComposerProps {
   onAdd?: () => void;
   /** Second left-aligned button, beside the plus/settings one. */
   accessory?: ComposerAccessory;
-  /** `card` only: the labelled accessory sits on the right, beside Send,
-   *  instead of after the left-hand buttons — for a switch that decides what
-   *  sending does. */
+  /** The accessory sits on the right, beside Send, instead of after the
+   *  left-hand buttons — for a switch that decides what sending does, or a
+   *  second way to talk next to the mic. */
   accessoryBesideAction?: boolean;
   /** Fill of the send/search button, the active accessory and the cursor.
    *  The app green by default; the notebook surfaces pass their magenta. */
@@ -488,6 +505,26 @@ function ComposerBody({
     </Pressable>
   ) : null;
 
+  const accessoryIcon =
+    props.accessory && !props.accessory.label ? (
+      <Pressable
+        onPress={props.accessory.onPress}
+        style={({ pressed }) => [composerIconButtonStyle(variant), pressed && COMPOSER_PRESSED]}
+        hitSlop={6}
+        accessibilityLabel={props.accessory.accessibilityLabel}
+      >
+        <AccessoryGlyph
+          icon={props.accessory.icon}
+          size={iconSize}
+          color={
+            props.accessory.active
+              ? (props.accentColor ?? COMPOSER_ACTION_FILL)
+              : theme.textSecondary
+          }
+        />
+      </Pressable>
+    ) : null;
+
   const leading = props.showActionSheet ? (
     <Pressable
       onPress={() => setActionSheetVisible(true)}
@@ -611,31 +648,17 @@ function ComposerBody({
         }
         leading={leading}
         toolbarExtra={
-          isCard && accessoryPill && !props.accessoryBesideAction ? (
-            accessoryPill
-          ) : props.accessory && !props.accessory.label ? (
-            <Pressable
-              onPress={props.accessory.onPress}
-              style={({ pressed }) => [
-                composerIconButtonStyle(variant),
-                pressed && COMPOSER_PRESSED,
-              ]}
-              hitSlop={6}
-              accessibilityLabel={props.accessory.accessibilityLabel}
-            >
-              <Ionicons
-                name={props.accessory.icon}
-                size={iconSize}
-                color={
-                  props.accessory.active
-                    ? (props.accentColor ?? COMPOSER_ACTION_FILL)
-                    : theme.textSecondary
-                }
-              />
-            </Pressable>
-          ) : null
+          isCard && accessoryPill && !props.accessoryBesideAction
+            ? accessoryPill
+            : props.accessoryBesideAction
+              ? null
+              : accessoryIcon
         }
-        beforeAction={isCard && !props.accessoryBesideAction ? null : accessoryPill}
+        beforeAction={
+          isCard && !props.accessoryBesideAction
+            ? null
+            : (accessoryPill ?? (props.accessoryBesideAction ? accessoryIcon : null))
+        }
         // One merged button: cancel while a request runs, mic while empty, send
         // once there is text.
         action={

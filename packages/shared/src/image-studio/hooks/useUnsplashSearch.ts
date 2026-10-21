@@ -1,4 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+
+import { UnsplashLimitError } from '../image-source-service.js';
 
 import type { StockImage, UnsplashSearchResult } from '../image-source-types.js';
 
@@ -14,6 +16,10 @@ export interface UseUnsplashSearchReturn {
   currentPage: number;
   isLoadingSearch: boolean;
   searchError: string | null;
+  /** Set when the shared hourly Unsplash quota is used up. */
+  limit: { retryAt: Date } | null;
+  /** Searches left this hour, as last reported by Unsplash. */
+  remaining: number | null;
   lastQuery: string;
   searchUnsplash: (query: string) => Promise<void>;
   loadMoreResults: () => Promise<void>;
@@ -27,6 +33,29 @@ export function useUnsplashSearch(searchFn: UnsplashSearchFn): UseUnsplashSearch
   const [isLoadingSearch, setIsLoadingSearch] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [lastQuery, setLastQuery] = useState('');
+  const [limit, setLimit] = useState<{ retryAt: Date } | null>(null);
+  const [remaining, setRemaining] = useState<number | null>(null);
+
+  // The block lifts by itself once the quota window is over.
+  useEffect(() => {
+    if (!limit) return;
+    const id = setTimeout(() => setLimit(null), Math.max(0, limit.retryAt.getTime() - Date.now()));
+    return () => clearTimeout(id);
+  }, [limit]);
+
+  const applyResult = useCallback((result: UnsplashSearchResult) => {
+    setLimit(null);
+    if (result.rateLimitRemaining !== undefined) setRemaining(result.rateLimitRemaining);
+  }, []);
+
+  const applyError = useCallback((error: unknown, fallback: string) => {
+    if (error instanceof UnsplashLimitError) {
+      setLimit({ retryAt: error.retryAt });
+      setRemaining(0);
+      return;
+    }
+    setSearchError(error instanceof Error ? error.message : fallback);
+  }, []);
 
   const searchUnsplash = useCallback(
     async (query: string) => {
@@ -46,19 +75,19 @@ export function useUnsplashSearch(searchFn: UnsplashSearchFn): UseUnsplashSearch
 
       try {
         const result = await searchFn(query, 1, 20);
+        applyResult(result);
         setSearchResults(result.results);
         setTotalResults(result.total);
         setCurrentPage(1);
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Fehler beim Suchen';
-        setSearchError(errorMessage);
+        applyError(error, 'Fehler beim Suchen');
         setSearchResults([]);
         setTotalResults(0);
       } finally {
         setIsLoadingSearch(false);
       }
     },
-    [searchFn]
+    [searchFn, applyResult, applyError]
   );
 
   const loadMoreResults = useCallback(async () => {
@@ -72,15 +101,15 @@ export function useUnsplashSearch(searchFn: UnsplashSearchFn): UseUnsplashSearch
 
     try {
       const result = await searchFn(lastQuery, nextPage, 20);
+      applyResult(result);
       setSearchResults((prev) => [...prev, ...result.results]);
       setCurrentPage(nextPage);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Fehler beim Laden';
-      setSearchError(errorMessage);
+      applyError(error, 'Fehler beim Laden');
     } finally {
       setIsLoadingSearch(false);
     }
-  }, [lastQuery, currentPage, isLoadingSearch, searchFn]);
+  }, [lastQuery, currentPage, isLoadingSearch, searchFn, applyResult, applyError]);
 
   const clearSearch = useCallback(() => {
     setSearchResults([]);
@@ -96,6 +125,8 @@ export function useUnsplashSearch(searchFn: UnsplashSearchFn): UseUnsplashSearch
     currentPage,
     isLoadingSearch,
     searchError,
+    limit,
+    remaining,
     lastQuery,
     searchUnsplash,
     loadMoreResults,

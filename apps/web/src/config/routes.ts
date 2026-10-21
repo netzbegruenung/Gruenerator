@@ -307,6 +307,10 @@ const ChatPage = lazy(() => import('../features/chat/ChatPage'));
 
 // Voice agent (immersive voice conversation)
 const VoiceAgentPage = lazy(() => import('../features/voice-agent/VoiceAgentPage'));
+const VoiceAgentTestPage = lazy(() => import('../features/voice-agent-test/VoiceAgentTestPage'));
+const MobileVoiceAgentPage = lazy(
+  () => import('../features/voice-agent-test/MobileVoiceAgentPage')
+);
 
 const MobileEditorPage = lazy(() => import('../pages/MobileEditorPage'));
 const MobileRenderPage = lazy(() => import('../pages/MobileRenderPage'));
@@ -588,6 +592,13 @@ const standardRoutes: RouteConfig[] = [
   // { path: '/playground', component: PlaygroundPage },
   { path: '/icon-test', component: IconAnimationTestPage, channel: 'internal' },
   { path: '/kugel-test', component: KugelVoiceTestPage, channel: 'internal' },
+  { path: '/voice-agent-test', component: VoiceAgentTestPage, channel: 'internal' },
+  {
+    path: '/voice-agent-test/mobil',
+    component: MobileVoiceAgentPage,
+    layoutMode: 'noChrome',
+    channel: 'internal',
+  },
   { accent: 'studio', path: '/vorlagen', component: GrueneratorenBundle.VorlagenListe },
   { path: '/vorlagen/meine', component: VorlagenMeineRedirect },
   // Link-shared Vorlage. `public` because the öffentlich mode has to open

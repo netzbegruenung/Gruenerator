@@ -151,6 +151,7 @@ import v1ChatCompletionsRouter, {
 import v1CollectionsRouter from './routes/v1/collectionsRouter.js';
 import v1NotebooksRouter from './routes/v1/notebooksRouter.js';
 import { mountVideoContractRouter } from './routes/video/videoContractRouter.js';
+import agentSessionRouter from './routes/voice/agentSessionController.js';
 import { mountSpeechContractRouter } from './routes/voice/speechContractRouter.js';
 import ttsRouter from './routes/voice/ttsController.js';
 import { mountVoiceContractRouter } from './routes/voice/voiceContractRouter.js';
@@ -1003,6 +1004,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountSpeechContractRouter(app);
   app.use('/api/voice', voiceRouter);
   app.use('/api/voice/tts', ttsRouter);
+  app.use('/api/voice/agent-session', agentSessionRouter);
   // Unified "search everything" over the caller's own content. requireAuth runs
   // on the prefix because
   // createExpressEndpoints registers handlers directly on the app.
