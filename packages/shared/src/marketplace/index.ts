@@ -71,6 +71,7 @@ export {
   featureById,
   featureFor,
   isFrontpageView,
+  relatedFromCollections,
   type MarketplaceCollection,
   type MarketplaceCollectionCover,
   type MarketplaceFeature,

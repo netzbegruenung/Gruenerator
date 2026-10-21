@@ -13,8 +13,8 @@ import {
   type MarketplaceFeature,
   type MarketplaceFilters,
 } from '@gruenerator/shared/marketplace';
-import { Button, SectionHeader, ScrollArea, ScrollBar, ShowcasePhotoCard } from '@gruenerator/ui';
-import { useMemo, type JSX, type ReactNode } from 'react';
+import { Button, SectionHeader, ShowcasePhotoCard, cn } from '@gruenerator/ui';
+import { useMemo, type JSX } from 'react';
 import { PiChatCircleText, PiHeart, PiImage, PiPlus, PiSparkle, PiCheck } from 'react-icons/pi';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -28,6 +28,8 @@ import { CollectionCards } from './MarketplaceCollections';
 import {
   DISPLAY_FONT,
   MarketplaceShowcaseCard,
+  ScrollRow,
+  SWIPE_ON_PHONE,
   MarketplaceVisualCard,
   SHOWCASE_GRID,
   showcaseToneAt,
@@ -137,7 +139,7 @@ export function MarketplaceFrontpage({
             title="Neu im Marktplatz"
             actions={<BrowseButton onClick={() => onBrowse({ sort: 'neu' })} />}
           />
-          <div className={SHOWCASE_GRID}>
+          <div className={cn(SHOWCASE_GRID, SWIPE_ON_PHONE)}>
             {newItems.map((item, index) => (
               <MarketplaceShowcaseCard
                 key={item.key}
@@ -227,16 +229,6 @@ function CategoryTiles({ onOpen }: { onOpen: (id: MarketplaceCategoryId) => void
         })}
       </ul>
     </section>
-  );
-}
-
-/** A sideways row with the repo's thin scrollbar, below the cards instead of over them. */
-function ScrollRow({ children }: { children: ReactNode }): JSX.Element {
-  return (
-    <ScrollArea className="-mx-1">
-      <ul className="m-0 flex w-max list-none gap-md px-1 pt-1 pb-4">{children}</ul>
-      <ScrollBar orientation="horizontal" />
-    </ScrollArea>
   );
 }
 

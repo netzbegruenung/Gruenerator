@@ -157,7 +157,7 @@ describe('MarketplaceLandesverbandPage', () => {
       `?item=agent%3A${prAgent}`
     );
 
-    await user.click(screen.getByRole('button', { name: 'Zurück zu Grüne Berlin' }));
+    await user.click(screen.getByRole('button', { name: 'Grüne Berlin' }));
     expect(await screen.findByRole('region', { name: 'Agents' })).toBeInTheDocument();
     expect(screen.getByRole('status', { name: 'Adresse' })).toHaveTextContent('');
   });

@@ -7,10 +7,10 @@ import { useCallback, useMemo, type JSX } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
-import { PageHero, PageShell } from '../../components/common/PageHero';
+import { PageHero, PageHeroSearch, PageShell } from '../../components/common/PageHero';
 
 import { MarketplaceAddButton } from './MarketplaceAddButton';
-import { MarketplaceBrowser, MarketplaceToolbar } from './MarketplaceBrowser';
+import { MarketplaceBrowser } from './MarketplaceBrowser';
 
 /**
  * `/marktplatz` — Agents, Rezepte, Vorlagen, Sticker und Hintergründe in einer
@@ -35,8 +35,8 @@ function MarketplacePage(): JSX.Element {
 
   return (
     <PageShell wide>
-      {/* An opened collection or category brings its own title; the hero's search and filters step aside. */}
-      {filters.collection === null && filters.category === null && (
+      {/* An opened item, collection or category brings its own title; the hero steps aside. */}
+      {filters.item === null && filters.collection === null && filters.category === null && (
         <PageHero
           title="Marktplatz"
           description={
@@ -47,7 +47,12 @@ function MarketplacePage(): JSX.Element {
           }
           toolbar={
             <>
-              <MarketplaceToolbar filters={filters} onChange={setFilters} />
+              {/* Origin and sort live on in the address and the dialog; the page's ways in are its shelves. */}
+              <PageHeroSearch
+                query={filters.q}
+                onQuery={(q) => setFilters({ ...filters, q })}
+                placeholder="Marktplatz durchsuchen…"
+              />
               <MarketplaceAddButton />
             </>
           }

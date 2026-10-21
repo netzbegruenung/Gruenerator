@@ -56,12 +56,14 @@ export function MarketplaceCategoryView({
           {category.kicker}
         </span>
         <h1
-          className="m-0 text-[clamp(2.25rem,4.5vw,3rem)] leading-[1.05] font-bold tracking-[-0.02em] text-balance text-foreground-heading"
+          className="m-0 text-[clamp(2rem,4.5vw,3rem)] leading-[1.05] font-bold tracking-[-0.02em] text-balance text-foreground-heading"
           style={{ fontFamily: DISPLAY_FONT }}
         >
           {category.title}
         </h1>
-        <p className="m-0 text-lg leading-relaxed text-foreground-muted">{category.description}</p>
+        <p className="m-0 text-base leading-relaxed text-foreground-muted sm:text-lg">
+          {category.description}
+        </p>
       </header>
       {category.kinds.map((kind) => (
         <KindAisle

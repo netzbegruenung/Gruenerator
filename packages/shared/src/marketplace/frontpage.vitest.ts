@@ -19,6 +19,7 @@ import {
   landesverbandShelf,
   newestShelf,
   popularShelf,
+  relatedFromCollections,
   visualShelf,
   hasPreview,
 } from './frontpage';
@@ -63,6 +64,39 @@ describe('isFrontpageView', () => {
     expect(
       isFrontpageView({ ...DEFAULT_MARKETPLACE_FILTERS, item: { kind: 'agent', ref: 'a' } })
     ).toBe(false);
+  });
+});
+
+describe('relatedFromCollections', () => {
+  const entry = (kind: 'agent' | 'recipe', ref: string) =>
+    ({ key: `${kind}:${ref}`, kind, ref }) as MarketplaceItem;
+  const self = entry('agent', 'a');
+
+  it('names the collections holding the item, then their other entries once', () => {
+    const related = relatedFromCollections(
+      [
+        { collectionId: 'starter', items: [self, entry('recipe', 'presse'), entry('agent', 'b')] },
+        { collectionId: 'barrierefreiheit', items: [entry('agent', 'b'), self] },
+        { collectionId: 'canva', items: [entry('agent', 'nicht-dabei')] },
+      ],
+      { kind: 'agent', ref: 'a' },
+      8
+    );
+    expect(related.collections.map((c) => c.id)).toEqual(['starter', 'barrierefreiheit']);
+    expect(related.items.map((i) => i.key)).toEqual(['recipe:presse', 'agent:b']);
+  });
+
+  it('leaves out an unlisted collection and keeps to the limit', () => {
+    const related = relatedFromCollections(
+      [
+        { collectionId: 'wahlkampf-moritz', items: [self, entry('recipe', 'x')] },
+        { collectionId: 'starter', items: [self, entry('recipe', 'y'), entry('recipe', 'z')] },
+      ],
+      { kind: 'agent', ref: 'a' },
+      1
+    );
+    expect(related.collections.map((c) => c.id)).toEqual(['starter']);
+    expect(related.items.map((i) => i.key)).toEqual(['recipe:y']);
   });
 });
 

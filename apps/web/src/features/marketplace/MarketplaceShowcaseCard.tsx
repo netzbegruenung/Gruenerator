@@ -4,10 +4,12 @@ import {
   ShowcaseCard,
   ShowcaseCardIcons,
   ShowcaseCardImage,
+  ScrollArea,
+  ScrollBar,
   ShowcaseCardPoster,
   type ShowcaseTone,
 } from '@gruenerator/ui';
-import { useEffect, useState, type JSX } from 'react';
+import { useEffect, useState, type JSX, type ReactNode } from 'react';
 
 import { metaLine, viewOf } from './kindViews';
 import { MarketplaceMenuItems } from './MarketplaceCard';
@@ -25,6 +27,16 @@ export const SHOWCASE_TONES: readonly ShowcaseTone[] = ['tanne', 'klee', 'sand']
  * cards — every card on a page keeps one width.
  */
 export const SHOWCASE_GRID = 'grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4';
+
+/**
+ * A front-page shelf on a phone: one card at a time with the next peeking in,
+ * swiped sideways instead of stacked four screens deep. From `sm` (`md` for
+ * the collections) it is the grid again. Literal per breakpoint for Tailwind.
+ */
+export const SWIPE_ON_PHONE =
+  'max-sm:-mx-4 max-sm:flex max-sm:snap-x max-sm:snap-mandatory max-sm:scroll-px-4 max-sm:overflow-x-auto max-sm:px-4 max-sm:pb-1 max-sm:[scrollbar-width:none] max-sm:[&>*]:w-[82%] max-sm:[&>*]:shrink-0 max-sm:[&>*]:snap-start';
+export const SWIPE_BELOW_MD =
+  'max-md:-mx-4 max-md:flex max-md:snap-x max-md:snap-mandatory max-md:scroll-px-4 max-md:overflow-x-auto max-md:px-4 max-md:pb-1 max-md:[scrollbar-width:none] max-md:[&>*]:w-[82%] max-md:[&>*]:shrink-0 max-md:[&>*]:snap-start sm:max-md:[&>*]:w-[46%]';
 
 export const showcaseToneAt = (index: number): ShowcaseTone =>
   SHOWCASE_TONES[index % SHOWCASE_TONES.length]!;
@@ -136,4 +148,14 @@ export function useBrokenPreviews(items: readonly MarketplaceItem[]): ReadonlySe
     };
   }, [items]);
   return broken;
+}
+
+/** A sideways row with the repo's thin scrollbar, below the cards instead of over them. */
+export function ScrollRow({ children }: { children: ReactNode }): JSX.Element {
+  return (
+    <ScrollArea className="-mx-1">
+      <ul className="m-0 flex w-max list-none gap-md px-1 pt-1 pb-4">{children}</ul>
+      <ScrollBar orientation="horizontal" />
+    </ScrollArea>
+  );
 }
