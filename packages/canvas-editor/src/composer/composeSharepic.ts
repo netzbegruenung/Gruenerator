@@ -14,7 +14,6 @@
  */
 import {
   accentLines,
-  foldMarkerIntoAccent,
   type SharepicColor,
   type SharepicCreatorLocale,
   type SharepicChartKind,
@@ -57,7 +56,7 @@ import {
   type MeasureText,
 } from './chromeParts';
 import { encodeHandMarks, placeHandMarks, sentinelBlind } from './handMarks';
-import { stripMarks } from './marks';
+import { foldMarkers, stripMarks } from './marks';
 import { SHAREPIC_ICON_FILLED, SHAREPIC_ICON_IDS, VERGLEICH_MARKER_IDS } from './sharepicIcons';
 import { slideProvenance, type SharepicProvenance } from './sharepicProvenance';
 import {
@@ -373,16 +372,6 @@ const AT_CENTRED_MARGIN = 100;
 const DATE_CIRCLE = { radius: 170, right: 40, bottom: 50 } as const;
 
 type HeadlineItem = Extract<SharepicItem, { type: 'headline' }>;
-
-/** Every string of a slide with `++marker++` read as `==accent==` (AT has no marker boxes). */
-function foldMarkers<T>(value: T): T {
-  if (typeof value === 'string') return foldMarkerIntoAccent(value) as T;
-  if (Array.isArray(value)) return value.map(foldMarkers) as T;
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, foldMarkers(v)])) as T;
-  }
-  return value;
-}
 
 interface Column {
   x: number;
