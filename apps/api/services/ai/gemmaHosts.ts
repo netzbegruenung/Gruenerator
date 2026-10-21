@@ -309,7 +309,8 @@ export const GEMMA_31B_ON_MELIOUS: GemmaHost = {
  *
  *  Beispiel, 100k Gemma-Tokens Prompt + 2k Ausgabe (≈ 70k bei Mistral): Gemma
  *  ≈ 0,021 €, Large 4 ≈ 0,088 € (mit Cache-Treffer ≈ 0,015 €). Der Aufpreis von
- *  rund 7 Cent je Anfrage kommt vor allem von der Ausgabe (≈ 10× Gemma). */
+ *  rund 7 Cent je Anfrage kommt vor allem von der Eingabe (≈ 6 ct); die Ausgabe
+ *  (≈ 10× Gemma) trägt bei 2k Tokens nur ≈ 0,6 ct bei. */
 export const GEMMA_31B_ON_CORTECS: GemmaHost = {
   provider: 'cortecs',
   model: 'gemma-4-31b-it',
