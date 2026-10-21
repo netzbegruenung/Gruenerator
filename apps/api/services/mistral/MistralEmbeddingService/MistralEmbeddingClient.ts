@@ -1,4 +1,4 @@
-import mistralClient from '../../ai/mistralClient.js';
+import { mistralEmbeddingClient } from '../../ai/mistralClient.js';
 import { recordOperation } from '../../usage/UsageTrackingService.js';
 
 import { scheduleEmbedding } from './embeddingScheduler.js';
@@ -51,7 +51,7 @@ export class MistralEmbeddingClient {
     const safeText = this.truncateIfNeeded(text);
 
     return await this.retryWithBackoff(async () => {
-      const resp = await mistralClient.embeddings.create({
+      const resp = await mistralEmbeddingClient.embeddings.create({
         model: this.model,
         inputs: [safeText],
       });
@@ -163,7 +163,7 @@ export class MistralEmbeddingClient {
     const safeTexts = texts.map((t) => this.truncateIfNeeded(t));
 
     return await this.retryWithBackoff(async () => {
-      const resp = await mistralClient.embeddings.create({
+      const resp = await mistralEmbeddingClient.embeddings.create({
         model: this.model,
         inputs: safeTexts,
       });

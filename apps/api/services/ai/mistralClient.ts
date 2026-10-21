@@ -32,13 +32,24 @@ const connectionMetrics: ConnectionMetrics = {
 
 /**
  * Default client, pinned to the regional endpoint (EU unless `MISTRAL_REGION`
- * says otherwise). Everything that carries user payload goes through here:
- * chat, embeddings, OCR, transcription and TTS speech are all served
- * regionally.
+ * says otherwise). Chat, OCR and transcription are served regionally.
  */
 const mistralClient = new Mistral({
   apiKey: apiKey,
   server: env.MISTRAL_REGION,
+});
+
+/**
+ * Embeddings always go to the global endpoint. On 2026-10-21 the EU endpoint
+ * dropped every embedding model from its catalogue (`/v1/models` lists none,
+ * `/v1/embeddings` answers `400 Invalid model: mistral-embed`), while global
+ * still serves `mistral-embed`. Switching the model instead would orphan every
+ * Qdrant vector. Move back once EU lists `mistral-embed` again — the vectors
+ * are byte-identical across both endpoints (probed 2026-07-31).
+ */
+export const mistralEmbeddingClient = new Mistral({
+  apiKey: apiKey,
+  server: 'global',
 });
 
 console.log(
