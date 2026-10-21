@@ -1,4 +1,4 @@
-import { registerGlobals } from '@livekit/react-native';
+import { AudioSession, registerGlobals } from '@livekit/react-native';
 import { RemoteAudioTrack, Track } from 'livekit-client';
 
 // WebRTC for livekit-client, which Mistral's voice SDK runs on.
@@ -13,3 +13,5 @@ for (const proto of [Track.prototype, RemoteAudioTrack.prototype]) {
   proto.attach = standIn as Track['attach'];
   proto.detach = (() => []) as unknown as Track['detach'];
 }
+
+export { AudioSession };

@@ -11,7 +11,7 @@ import {
 import { TOOL_LABEL, type ToolCall } from '@gruenerator/voice/mistral';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
-import { useEffect, useEffectEvent, useRef, useState } from 'react';
+import { memo, useEffect, useEffectEvent, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
@@ -103,7 +103,13 @@ function Blob({ tool }: { tool: ToolCall | null }) {
 
   return (
     <View style={styles.blob}>
-      <Animated.View style={[StyleSheet.absoluteFill, sphere]}>
+      {/* Rasterized once: the GPU turns a texture instead of redrawing the
+          gradients every frame. */}
+      <Animated.View
+        style={[StyleSheet.absoluteFill, sphere]}
+        renderToHardwareTextureAndroid
+        shouldRasterizeIOS
+      >
         <Svg width={BLOB} height={BLOB}>
           <Defs>
             <LinearGradient id="body" x1="0.15" y1="0" x2="0.85" y2="1">
@@ -125,8 +131,21 @@ function Blob({ tool }: { tool: ToolCall | null }) {
   );
 }
 
-function Transcript({ visible }: { visible: boolean }) {
+/** One line of the transcript; unchanged messages skip rendering while the newest one streams. */
+const TranscriptRow = memo(function TranscriptRow({ message }: { message: ThreadMessage }) {
   const theme = useTheme();
+  const text = textOf(message);
+  if (!text) return null;
+  return message.role === 'user' ? (
+    <View style={[styles.userBubble, { backgroundColor: colors.primary[50] }]}>
+      <Text style={[styles.message, { color: colors.grey[800] }]}>{text}</Text>
+    </View>
+  ) : (
+    <Text style={[styles.message, { color: theme.text }]}>{text}</Text>
+  );
+});
+
+function Transcript({ visible }: { visible: boolean }) {
   const messages = useAuiState((s) => s.thread.messages);
   const scroll = useRef<ScrollView>(null);
 
@@ -138,19 +157,9 @@ function Transcript({ visible }: { visible: boolean }) {
       pointerEvents={visible ? 'auto' : 'none'}
       accessibilityElementsHidden={!visible}
     >
-      {messages.map((m) => {
-        const text = textOf(m);
-        if (!text) return null;
-        return m.role === 'user' ? (
-          <View key={m.id} style={[styles.userBubble, { backgroundColor: colors.primary[50] }]}>
-            <Text style={[styles.message, { color: colors.grey[800] }]}>{text}</Text>
-          </View>
-        ) : (
-          <Text key={m.id} style={[styles.message, { color: theme.text }]}>
-            {text}
-          </Text>
-        );
-      })}
+      {messages.map((m) => (
+        <TranscriptRow key={m.id} message={m} />
+      ))}
     </ScrollView>
   );
 }

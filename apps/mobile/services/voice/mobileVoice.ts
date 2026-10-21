@@ -1,12 +1,9 @@
-import './livekitGlobals';
-
 import { getGlobalApiClient } from '@gruenerator/shared/api';
 import {
   type AgentSessionRequest,
   MistralVoiceAdapter,
   type MistralVoiceAdapterOptions,
 } from '@gruenerator/voice/mistral';
-import { AudioSession } from '@livekit/react-native';
 
 import { DEV_AUTH_BYPASS } from '../devAuth';
 
@@ -31,7 +28,11 @@ export function createMobileVoiceAdapter(
   return new MistralVoiceAdapter({
     ...options,
     request: agentSessionRequest,
+    // LiveKit loads with the first call, not with the screen: a binary without
+    // its native module (an older build that got this JS over the air) then
+    // fails the call with a message instead of crashing on import.
     prepareAudio: async () => {
+      const { AudioSession } = await import('./livekitGlobals');
       await AudioSession.startAudioSession();
       return () => void AudioSession.stopAudioSession();
     },
