@@ -12,7 +12,7 @@ import {
   type Mentionable,
 } from '@gruenerator/chat';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { type ComponentType, useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -90,7 +90,8 @@ import type {
 /** Optional toolbar button a host can surface in the composer (e.g. a notebook
  *  filter/mode toggle), so its controls live in the composer instead of a chip bar. */
 export interface ComposerAccessory {
-  icon: IoniconsIconName;
+  /** An Ionicons name, or a component for a glyph Ionicons lacks. */
+  icon: IoniconsIconName | ComponentType<{ size: number; color: string }>;
   onPress: () => void;
   active?: boolean;
   accessibilityLabel?: string;
@@ -98,6 +99,22 @@ export interface ComposerAccessory {
    *  icon button — for a picker whose current value should stay readable
    *  (the notebook answer mode, like web's picker beside Send). */
   label?: string;
+}
+
+function AccessoryGlyph({
+  icon: Icon,
+  size,
+  color,
+}: {
+  icon: ComposerAccessory['icon'];
+  size: number;
+  color: string;
+}) {
+  return typeof Icon === 'string' ? (
+    <Ionicons name={Icon} size={size} color={color} />
+  ) : (
+    <Icon size={size} color={color} />
+  );
 }
 
 export interface ComposerProps {
@@ -496,8 +513,8 @@ function ComposerBody({
         hitSlop={6}
         accessibilityLabel={props.accessory.accessibilityLabel}
       >
-        <Ionicons
-          name={props.accessory.icon}
+        <AccessoryGlyph
+          icon={props.accessory.icon}
           size={iconSize}
           color={
             props.accessory.active

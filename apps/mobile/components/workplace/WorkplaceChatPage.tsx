@@ -14,6 +14,7 @@ import { routeWithParams } from '../../types/routes';
 import { mobileGreeting } from '../../utils/greeting';
 import { BottomComposerBar } from '../common/BottomComposerBar';
 import { CenteredGreeting } from '../common/CenteredGreeting';
+import { WaveformIcon } from '../voice/WaveformIcon';
 
 /**
  * The Chat page of the workplace pager (`WorkplacePager`): the greeting in the middle and the
@@ -77,7 +78,7 @@ export function WorkplaceChatPage() {
           {...(canCall && {
             accessoryBesideAction: true,
             accessory: {
-              icon: 'pulse',
+              icon: WaveformIcon,
               onPress: openCall,
               accessibilityLabel: 'Sprachgespräch starten',
             },
