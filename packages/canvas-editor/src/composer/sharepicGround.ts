@@ -26,6 +26,9 @@ export const GRADIENTS: Partial<
   // (Dc_L5vriG5z, edge #318338 → centre #56AE32). Ours stops darker, at the
   // brightest stop white keeps 4.68:1 and yellow 3.82:1.
   hellgruen: { type: 'radial', angle: 0, stops: [...HELLGRUEN_GLOW] },
+  // Pride: deep violet at the top, where the text starts, warming to a dark
+  // orange below; every stop keeps white above 4.5:1.
+  pride: { angle: 90, stops: ['#4B1D8C', '#8A1D86', '#B0177A', '#C2402E'] },
 };
 export const evenStops = (stops: string[]) =>
   stops.map((color, i) => ({ offset: i / (stops.length - 1), color }));

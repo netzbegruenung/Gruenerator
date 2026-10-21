@@ -1,12 +1,17 @@
 import { type BrandTheme } from '../brand/theme';
 import { type TextAccent, type TextMarker } from '../utils/textUtils';
 
-import { AT_EMPHASIS_STYLE, inkOn, LIME, SHAREPIC_COLOR_HEX } from './chromeParts';
+import { AT_EMPHASIS_STYLE, inkOn, LIME, SHAREPIC_COLOR_HEX, THEMA_INK } from './chromeParts';
 import { type BildItem } from './composeTypes';
 import { VERGLEICH_MARKER_IDS } from './sharepicIcons';
 import { KLEE, MARKER_MINT, MARKER_PAD_X } from './sharepicLayoutConstants';
 
-import type { SharepicColor, SharepicCreatorLocale, SharepicSlide } from '@gruenerator/contracts';
+import type {
+  SharepicColor,
+  SharepicCreatorLocale,
+  SharepicSlide,
+  SharepicThema,
+} from '@gruenerator/contracts';
 
 /** The inks a slide's text, accents, badges and footer take on its surface. */
 export function slideInk({
@@ -18,6 +23,7 @@ export function slideInk({
   kopfband,
   bg,
   bild,
+  thema,
 }: {
   locale: SharepicCreatorLocale;
   isAt: boolean;
@@ -27,6 +33,8 @@ export function slideInk({
   kopfband: SharepicColor | null;
   bg: SharepicSlide['background'];
   bild: BildItem | null;
+  /** A themed slide recolours accent, marker and badges (see `THEMA_INK`). */
+  thema: SharepicThema | null;
 }) {
   const { onLight, darkInk } = inkOn(surface, locale);
   const onGrass = darkInk && !onLight;
@@ -48,50 +56,83 @@ export function slideInk({
         }
       : {};
   // `==word==` runs: AT sets them yellow in Vollkorn Black Italic, DE in lime.
+  // Frauen: lila on light ground, flieder on dark (AT keeps its yellow there);
+  // Pride: flag yellow on dark DE ground, matching its marker.
+  const lila = SHAREPIC_COLOR_HEX.lila;
+  const flieder = SHAREPIC_COLOR_HEX.flieder;
+  const frauen = thema === 'frauen';
   const accent: TextAccent = isAt
     ? {
-        fill: onLight ? theme.colors.accentOnLight : theme.colors.accent,
+        fill: frauen && onLight ? lila : onLight ? theme.colors.accentOnLight : theme.colors.accent,
         fontFamily: theme.fonts.quoteEmphasis,
         fontStyle: AT_EMPHASIS_STYLE,
       }
-    : { fill: onLight ? KLEE : onGrass ? '#FFFFFF' : LIME };
+    : {
+        fill: frauen
+          ? onLight
+            ? lila
+            : flieder
+          : onLight
+            ? KLEE
+            : onGrass
+              ? '#FFFFFF'
+              : thema === 'queer'
+                ? THEMA_INK.flaggenGelb
+                : LIME,
+      };
   // DE `++passage++`: dark ink in a box. On light ground (white, grey, mint)
   // the posts lay lime under it (Dds8o0TAppl, DdEhd82js3K, Dc3HYlTAnG-);
   // photos and dark colours take white — a dark box disappears into the
   // scrim. AT has none (see `foldMarkers`).
+  // Themes bring their own box: flag yellow for Pride, lila/flieder for Frauen.
+  const themedMarker =
+    thema === 'queer'
+      ? { fill: THEMA_INK.flaggenGelb, color: THEMA_INK.violettDunkel }
+      : frauen
+        ? onLight
+          ? { fill: lila, color: '#FFFFFF' }
+          : { fill: flieder, color: THEMA_INK.lilaDunkel }
+        : null;
   const marker: TextMarker | null = isAt
     ? null
     : {
-        fill: surface === 'creme' ? MARKER_MINT : onLight ? LIME : '#FFFFFF',
-        color: SHAREPIC_COLOR_HEX.dunkeltanne,
+        fill:
+          themedMarker?.fill ?? (surface === 'creme' ? MARKER_MINT : onLight ? LIME : '#FFFFFF'),
+        color: themedMarker?.color ?? SHAREPIC_COLOR_HEX.dunkeltanne,
         // Tighter than the editor's default: the space beside a mid-line box
         // must stay visible, as on the posts.
         padX: MARKER_PAD_X,
       };
   // A topic icon in a circle — DE Klee on light ground, Tanne on grass green,
   // lime on dark ground and photos; AT the yellow accent, its dark green on white.
-  const badgeColors = isAt
+  const badgeColors = frauen
     ? onLight
-      ? { fill: theme.colors.primary, ink: '#FFFFFF' }
-      : { fill: theme.colors.accent, ink: theme.colors.primary }
-    : onLight
-      ? { fill: KLEE, ink: '#FFFFFF' }
-      : onGrass
-        ? { fill: SHAREPIC_COLOR_HEX.tanne, ink: '#FFFFFF' }
-        : { fill: LIME, ink: SHAREPIC_COLOR_HEX.dunkeltanne };
+      ? { fill: lila, ink: '#FFFFFF' }
+      : { fill: flieder, ink: THEMA_INK.lilaDunkel }
+    : isAt
+      ? onLight
+        ? { fill: theme.colors.primary, ink: '#FFFFFF' }
+        : { fill: theme.colors.accent, ink: theme.colors.primary }
+      : onLight
+        ? { fill: KLEE, ink: '#FFFFFF' }
+        : onGrass
+          ? { fill: SHAREPIC_COLOR_HEX.tanne, ink: '#FFFFFF' }
+          : { fill: LIME, ink: SHAREPIC_COLOR_HEX.dunkeltanne };
   const cardAccent: TextAccent = isAt
-    ? { ...accent, fill: theme.colors.accentOnLight }
-    : { fill: KLEE };
+    ? { ...accent, fill: frauen ? lila : theme.colors.accentOnLight }
+    : { fill: frauen ? lila : KLEE };
   /** A figure, a numeral or a closing "!" in the slide's accent colour. */
-  const accentInk = isAt
-    ? onLight
-      ? theme.colors.accentOnLight
-      : theme.colors.accent
-    : onLight
-      ? KLEE
-      : onGrass
-        ? '#FFFFFF'
-        : LIME;
+  const accentInk = thema
+    ? accent.fill
+    : isAt
+      ? onLight
+        ? theme.colors.accentOnLight
+        : theme.colors.accent
+      : onLight
+        ? KLEE
+        : onGrass
+          ? '#FFFFFF'
+          : LIME;
   /**
    * The two sides of a contrast, as the posts set them: theirs (a comparison's
    * left, a fact check's claim) muted with ✗, ours on the accent with ✓.

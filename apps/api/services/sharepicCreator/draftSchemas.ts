@@ -9,6 +9,7 @@ import {
   sharepicItemSchema,
   sharepicSlideSchema,
   sharepicTextSideSchema,
+  sharepicThemaSchema,
 } from '@gruenerator/contracts';
 import { z } from 'zod';
 
@@ -147,9 +148,15 @@ export const SPEC_SCHEMA = {
       description:
         'Nur Karussell: false, wenn der Weiter-Pfeil stört (Satzbrücke mit „…“ zieht schon weiter, Bild läuft über die Kante). Sonst weglassen – dann steht er.',
     },
+    thema: {
+      type: 'string',
+      enum: sharepicThemaSchema.options,
+      description:
+        'Nur wenn der Auftrag das Thema hat: "queer" für Pride, CSD, IDAHOBIT, Coming-out-Day; "frauen" für 8. März, Equal Pay Day, Safe Abortion Day, Frauenrechte. Erlaubt die Themenflächen (queer: violett, pride; frauen: lila, flieder). Sonst weglassen.',
+    },
     slides: {
       type: 'array',
-      description: 'Eine Slide für ein Einzelbild, 3–8 für ein Karussell – in Wischreihenfolge.',
+      description: 'Eine Slide für ein Einzelbild, 2–8 für ein Karussell – in Wischreihenfolge.',
       items: SLIDE_SCHEMA,
     },
   },

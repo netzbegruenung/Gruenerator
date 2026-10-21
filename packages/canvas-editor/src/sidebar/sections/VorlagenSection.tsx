@@ -191,7 +191,7 @@ function seitenFor(
   }
   const entries = [...groups.values()].map((group) => {
     group.sort((a, b) => (a.quelle?.seite ?? 0) - (b.quelle?.seite ?? 0));
-    return { group, spec: { format, slides: group.map((s) => s.slide) } };
+    return { group, spec: { format, thema: group[0]!.thema, slides: group.map((s) => s.slide) } };
   });
   const ranked = empty ? entries : rankVorlagen(entries, pages);
   const closing = ({ group }: (typeof entries)[number]) =>

@@ -57,6 +57,14 @@ export const SYSTEM_STICKERS = [
     tags: ['regenbogen', 'herz', 'vielfalt'],
   },
   {
+    id: 'progress-pride',
+    label: 'Progress-Pride-Flagge',
+    src: '/studio-tools/stickers/progress-pride.svg',
+    defaultScale: 1.2,
+    audience: 'all',
+    tags: ['regenbogen', 'pride', 'csd', 'queer', 'flagge', 'vielfalt'],
+  },
+  {
     id: 'vielfalt',
     label: 'Vielfalt',
     src: '/studio-tools/stickers/vielfalt.svg',

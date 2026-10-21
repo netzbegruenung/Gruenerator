@@ -643,6 +643,99 @@
       "alt_text": "An empty asphalt street between concrete buildings in a city",
       "category": "urban",
       "tags": ["street", "urban", "heat", "sealing", "concrete", "buildings"]
+    },
+    {
+      "filename": "sara-rampazzo-GyPw0jMAI1I-unsplash.jpg",
+      "alt_text": "Rainbow pride flag waving above old city buildings in a black-and-white street scene",
+      "category": "social",
+      "tags": ["pride", "csd", "lgbtq", "queer", "rainbow", "flag", "city"]
+    },
+    {
+      "filename": "danny-burke-L4qSWsQYLRk-unsplash.jpg",
+      "alt_text": "Close-up of Progress Pride flag fabric with rainbow stripes and a chevron in black, brown, light blue, pink and white",
+      "category": "social",
+      "tags": [
+        "pride",
+        "progress-pride",
+        "flag",
+        "lgbtq",
+        "queer",
+        "trans",
+        "rainbow",
+        "background"
+      ]
+    },
+    {
+      "filename": "t-hwang-Fhn5LmoJF_M-unsplash.jpg",
+      "alt_text": "Rainbow-painted pedestrian crossing on a city street",
+      "category": "social",
+      "tags": ["pride", "rainbow", "crosswalk", "lgbtq", "queer", "visibility", "street"]
+    },
+    {
+      "filename": "eric-prouzet-2ipr7qmxB7o-unsplash.jpg",
+      "alt_text": "Street painted in rainbow colours running through a town centre at dusk",
+      "category": "social",
+      "tags": ["pride", "rainbow", "street", "lgbtq", "queer", "visibility", "town"]
+    },
+    {
+      "filename": "katie-rainbow-qr6hKMhI3ag-unsplash.jpg",
+      "alt_text": "Layers of torn paper in rainbow colours from red to purple, a background texture",
+      "category": "social",
+      "tags": ["rainbow", "pride", "lgbtq", "queer", "paper", "texture", "background"]
+    },
+    {
+      "filename": "tristan-b-72EYDDwn8dE-unsplash.jpg",
+      "alt_text": "Hands holding rainbow flags and balloons at a pride parade in front of a building",
+      "category": "social",
+      "tags": ["pride", "csd", "parade", "lgbtq", "queer", "rainbow", "flag", "celebration"]
+    },
+    {
+      "filename": "raphael-renter-Z0qONlc2J_c-unsplash.jpg",
+      "alt_text": "Crowd at a pride parade on a tree-lined street, a large rainbow flag waving above",
+      "category": "social",
+      "tags": ["pride", "csd", "parade", "crowd", "lgbtq", "queer", "rainbow", "demonstration"]
+    },
+    {
+      "filename": "andrew-slifkin-hl_brnPYihg-unsplash.jpg",
+      "alt_text": "Large crowd walking down a tree-lined city street at a pride parade",
+      "category": "social",
+      "tags": ["pride", "csd", "parade", "crowd", "lgbtq", "queer", "demonstration", "street"]
+    },
+    {
+      "filename": "colin-lloyd-gcfvs__17dw-unsplash.jpg",
+      "alt_text": "Protester with a megaphone seen from behind, raised fists in the crowd of a demonstration",
+      "category": "social",
+      "tags": [
+        "protest",
+        "demonstration",
+        "women",
+        "feminism",
+        "megaphone",
+        "activism",
+        "march",
+        "crowd"
+      ]
+    },
+    {
+      "filename": "elena-rabkina-dLIQQxG5QXc-unsplash.jpg",
+      "alt_text": "Feminist march seen from behind, people walking down a city street with protest signs",
+      "category": "social",
+      "tags": [
+        "women",
+        "feminism",
+        "womens-march",
+        "protest",
+        "demonstration",
+        "march",
+        "crowd",
+        "street"
+      ]
+    },
+    {
+      "filename": "laura-paez-ODgOC0vzdl0-unsplash.jpg",
+      "alt_text": "Dense cluster of purple bellflowers, a background texture",
+      "category": "nature",
+      "tags": ["purple", "flowers", "women", "feminism", "spring", "texture", "background"]
     }
   ]
 }

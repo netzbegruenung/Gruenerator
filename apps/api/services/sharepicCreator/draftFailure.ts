@@ -19,11 +19,13 @@ export function headlineLineTooLong(where: string, line: string): string {
   return `${where}: ${HEADLINE_LINE_TOO_LONG} – „${line}“ hat ${stripInlineMarks(line).length} sichtbare Zeichen, erlaubt sind höchstens ${SHAREPIC_LIMITS.headlineLine} (Hervorhebungen wie ==…== zählen nicht). Eine Zeile wird nie länger: verteile den Text auf mehr Zeilen (höchstens ${SHAREPIC_LIMITS.headlineLines}, Umbruch an Sinngrenzen) oder kürze ihn.`;
 }
 
-const CAROUSEL_SLIDES = `${sharepicFormLabel('karussell')}: 3–${SHAREPIC_LIMITS.slides} Slides`;
+/** The fewest slides a carousel has: two carry a question and its answer. */
+export const CAROUSEL_MIN_SLIDES = 2;
 
-/** Live, „ein Karussell mit 2 Folien" was rebuilt with two slides three times over. */
+const CAROUSEL_SLIDES = `${sharepicFormLabel('karussell')}: ${CAROUSEL_MIN_SLIDES}–${SHAREPIC_LIMITS.slides} Slides`;
+
 export function carouselSlideCount(slides: number): string {
-  return `${CAROUSEL_SLIDES}, du hast ${slides}. Wünscht der Auftrag weniger, mach trotzdem 3 – verteile den Inhalt oder schließ mit einer Aufruf-Slide (Kapitel karussell).`;
+  return `${CAROUSEL_SLIDES}, du hast ${slides}. Verteile den Inhalt auf mehr Slides oder schließ mit einer Aufruf-Slide (Kapitel karussell).`;
 }
 
 export function draftFailureReason(error: string): SharepicDraftFailureReason | null {
@@ -59,7 +61,7 @@ export class DraftFailedError extends Error {
 /** What the person reads when the draft failed on the limit. */
 export const DRAFT_LIMIT_TEXTS: Record<SharepicDraftFailureReason, string> = {
   headline_line_too_long: `Eine Headline-Zeile darf höchstens ${SHAREPIC_LIMITS.headlineLine} Zeichen haben – ich kann den Text auf mehrere Zeilen verteilen oder kürzen. Sag mir, was dir lieber ist.`,
-  carousel_slide_count: `Ein Karussell hat 3 bis ${SHAREPIC_LIMITS.slides} Folien – ich kann den Inhalt auf 3 Folien verteilen oder ein einzelnes Sharepic daraus machen. Sag mir, was dir lieber ist.`,
+  carousel_slide_count: `Ein Karussell hat ${CAROUSEL_MIN_SLIDES} bis ${SHAREPIC_LIMITS.slides} Folien – ich kann den Inhalt auf ${CAROUSEL_MIN_SLIDES} Folien verteilen oder ein einzelnes Sharepic daraus machen. Sag mir, was dir lieber ist.`,
 };
 
 const TRY_AGAIN = 'Versuch es in einem Moment noch einmal.';

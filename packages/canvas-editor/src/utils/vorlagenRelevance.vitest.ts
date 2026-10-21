@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { SHAREPIC_COLOR_HEX } from '../composer/chromeParts';
+import { SHAREPIC_SOURCE_KEY } from '@gruenerator/contracts';
+
+import { PRIDE_FLAG_ASSET, SHAREPIC_COLOR_HEX } from '../composer/chromeParts';
 
 import { colorSimilarity, rankVorlagen } from './vorlagenRelevance';
 
-import type { SharepicColor, SharepicFormat } from '@gruenerator/contracts';
+import type { SharepicColor, SharepicFormat, SharepicThema } from '@gruenerator/contracts';
 
 type Background =
   | { kind: 'farbe'; color: SharepicColor }
@@ -124,5 +126,50 @@ describe('rankVorlagen', () => {
       vorlage('c', [farbe('tanne')]),
     ];
     expect(ids(rankVorlagen(list, [colorPage('mint')]))).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('rankVorlagen by theme', () => {
+  const themed = (id: string, thema: SharepicThema, color: SharepicColor) => {
+    const v = vorlage(id, [farbe(color)]);
+    return { ...v, spec: { ...v.spec, thema } };
+  };
+  const list = [
+    vorlage('tanne', [farbe('tanne')]),
+    themed('pride', 'queer', 'violett'),
+    themed('frauen', 'frauen', 'lila'),
+  ];
+  /** A composed page: its source spec names the theme. */
+  const sourced = (color: SharepicColor, thema: SharepicThema) => ({
+    configId: 'freeform',
+    state: {
+      ...colorPage(color).state,
+      [SHAREPIC_SOURCE_KEY]: { v: 1, deck: 'd', slide: { locale: 'de-DE', thema, slides: [] } },
+    },
+  });
+
+  it('lists the own theme first and the other theme last', () => {
+    expect(ids(rankVorlagen(list, [sourced('tanne', 'queer')]))).toEqual([
+      'pride',
+      'tanne',
+      'frauen',
+    ]);
+    expect(ids(rankVorlagen(list, [sourced('tanne', 'frauen')]))).toEqual([
+      'frauen',
+      'tanne',
+      'pride',
+    ]);
+  });
+
+  it('reads a hand-placed Progress Pride flag as Pride', () => {
+    const page = {
+      configId: 'freeform',
+      state: { ...colorPage('mint').state, assetInstances: [{ assetId: PRIDE_FLAG_ASSET }] },
+    };
+    expect(ids(rankVorlagen(list, [page]))[0]).toBe('pride');
+  });
+
+  it('keeps themed Vorlagen behind plain ones on a plain design of their colour', () => {
+    expect(ids(rankVorlagen(list, [colorPage('lila')]))[0]).toBe('tanne');
   });
 });

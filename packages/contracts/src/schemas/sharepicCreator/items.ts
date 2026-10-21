@@ -312,6 +312,10 @@ export const SHAREPIC_COLOR_LABELS: Record<SharepicColor, string> = {
   dunkelgruen: 'Dunkelgrün',
   hellgruen: 'Hellgrün',
   weiss: 'Weiß',
+  lila: 'Lila',
+  flieder: 'Flieder',
+  violett: 'Violett',
+  pride: 'Pride-Verlauf',
 };
 
 /** Items whose words only the request gives: a draft may not reword them. */
