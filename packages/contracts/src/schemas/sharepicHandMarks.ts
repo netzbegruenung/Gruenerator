@@ -1,7 +1,7 @@
 import { parseHandMarks, stripHandMarks } from '../text/handMarks.js';
 import { stripInlineMarks } from '../text/inlineMarks.js';
 
-import { type SharepicItem } from './sharepicCreator.js';
+import { type SharepicItem } from './sharepicCreator/items.js';
 
 /** Hand-drawn marks (`((Wort))`, `__Wort__`) a slide may carry: the posts mark one or two words. */
 export const SHAREPIC_HAND_MARKS = 2;
