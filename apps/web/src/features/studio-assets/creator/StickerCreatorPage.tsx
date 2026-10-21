@@ -1,9 +1,8 @@
 import { type StudioAssetItem } from '@gruenerator/contracts';
-import { Button } from '@gruenerator/ui';
 import { type JSX } from 'react';
-import { PiSquaresFour } from 'react-icons/pi';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
+import { ToolBackLink } from '../../studio-tools/components/ToolUi';
 import { profilbildAssetHref } from '../../studio-tools/utils/galleryAsset';
 
 import { StickerCreator, type StickerCreatorReturn } from './StickerCreator';
@@ -27,12 +26,12 @@ const StickerCreatorPage = (): JSX.Element => {
         </h1>
       }
       description="Foto freistellen, PNG übernehmen oder Text-Badge gestalten"
-      headerEnd={
-        <Button asChild variant="outline" size="icon" aria-label="Zur Galerie" title="Zur Galerie">
-          <Link to={GALLERY_PATH}>
-            <PiSquaresFour aria-hidden="true" className="size-[18px]" />
-          </Link>
-        </Button>
+      headerStart={
+        returnTo === 'profilbild' ? (
+          <ToolBackLink to="/studio/profilbild" label="Zurück zum Profilbild" />
+        ) : (
+          <ToolBackLink to={GALLERY_PATH} label="Zurück zur Galerie" />
+        )
       }
       returnTo={returnTo}
       {...(returnTo === 'profilbild'
