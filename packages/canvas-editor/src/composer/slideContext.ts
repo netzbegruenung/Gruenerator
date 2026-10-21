@@ -29,6 +29,10 @@ export interface SlideCtx {
   column: Column;
   xAlign: Column['align'];
   darkText: string;
+  onLight: SlideInk['onLight'];
+  textColor: SlideInk['textColor'];
+  accent: SlideInk['accent'];
+  accentInk: SlideInk['accentInk'];
   badgeColors: SlideInk['badgeColors'];
   cardAccent: SlideInk['cardAccent'];
   contrastPanel: SlideInk['contrastPanel'];
