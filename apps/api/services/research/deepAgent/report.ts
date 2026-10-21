@@ -1,8 +1,7 @@
 /**
  * Turning the agent's final state into a document.
  *
- * The agent writes `/bericht.md` into its virtual filesystem, which lives in the
- * graph state as `files`. Everything here is defensive: a run that aborts mid-way
+ * The agent writes `/bericht.md` into its workspace (see workspace.ts). Everything here is defensive: a run that aborts mid-way
  * still has to yield the best artifact it can, because the alternative is telling
  * someone their once-a-day research produced nothing.
  */
@@ -11,20 +10,6 @@ import { type SourceRef } from './types.js';
 
 /** Where the lead agent is told to write. Mirrors prompts.ts. */
 export const REPORT_PATH = '/bericht.md';
-
-/** `FileData` is a v1/v2 union in deepagents: lines array or plain string. */
-interface FileLike {
-  content?: string | string[];
-}
-
-export function readFile(files: unknown, path: string): string | null {
-  if (!files || typeof files !== 'object') return null;
-  const entry = (files as Record<string, FileLike | undefined>)[path];
-  const content = entry?.content;
-  if (Array.isArray(content)) return content.join('\n');
-  if (typeof content === 'string') return content;
-  return null;
-}
 
 /** First `# ` heading, else the first non-empty line, else a fallback. */
 export function extractTitle(markdown: string, fallback: string): string {

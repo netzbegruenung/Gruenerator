@@ -1,104 +1,56 @@
-import { AIMessage, HumanMessage } from '@langchain/core/messages';
 import { describe, expect, it } from 'vitest';
 
-import { describeFinalState } from './finalState.js';
-import { NUDGE_LIMIT, NUDGE_TEXT, nudgeMissingReportMiddleware } from './nudgeMissingReport.js';
+import {
+  NUDGE_LIMIT,
+  NUDGE_TEXT,
+  lastAssistantText,
+  nudgeForMissingReport,
+} from './nudgeMissingReport.js';
 
-/**
- * Guards the incident of 11.08.2026: the lead model answered its very first
- * turn directly — no tool call, no `/bericht.md` — and the run ended after
- * three seconds as a regular completion. The middleware must turn that silent
- * ending into another model turn, and must stop pushing once the model has
- * ignored the nudge twice.
- */
+import type { ModelMessage } from 'ai';
 
-interface MiddlewareResult {
-  messages?: unknown[];
-  jumpTo?: string;
-}
+const REPORT = `# Bericht\n\n${'Inhalt. '.repeat(80)}`;
 
-const afterModel = nudgeMissingReportMiddleware.afterModel as {
-  canJumpTo?: string[];
-  hook: (state: { messages?: unknown[]; files?: unknown }) => MiddlewareResult | undefined;
-};
-const hook = afterModel.hook;
+const history: ModelMessage[] = [
+  { role: 'user', content: 'Frage' },
+  { role: 'assistant', content: [{ type: 'text', text: 'Die Antwort ist 42.' }] },
+];
 
-const REPORT = { '/bericht.md': { content: `# Titel\n\n${'Inhalt. '.repeat(80)}` } };
-
-function bareAi(content = ''): AIMessage {
-  return new AIMessage({ content, tool_calls: [] });
-}
-
-function aiWithCall(): AIMessage {
-  return new AIMessage({
-    content: '',
-    tool_calls: [{ name: 'web_suche', args: {}, id: 'c1', type: 'tool_call' }] as never,
-  });
-}
-
-describe('nudgeMissingReportMiddleware', () => {
-  it('nudges and jumps back to the model when a turn ends without tool calls and without a report', () => {
-    const result = hook({ messages: [bareAi('Die AfD im Rhein-Sieg-Kreis ist …')] });
-
-    expect(result?.jumpTo).toBe('model');
-    expect(afterModel.canJumpTo).toContain('model');
-    const nudge = result?.messages?.[0] as HumanMessage;
-    expect(nudge).toBeInstanceOf(HumanMessage);
-    expect(nudge.content).toBe(NUDGE_TEXT);
+describe('nudgeForMissingReport', () => {
+  it('pushes a turn that ended without a report back to work', () => {
+    expect(nudgeForMissingReport(history, {})).toEqual({ role: 'user', content: NUDGE_TEXT });
   });
 
-  it('lets the run end when a usable report exists — that ending is the normal one', () => {
-    expect(hook({ messages: [bareAi()], files: REPORT })).toBeUndefined();
+  it('lets a run with a usable report end', () => {
+    expect(nudgeForMissingReport(history, { '/bericht.md': REPORT })).toBeNull();
   });
 
-  it('ignores turns that are still working (tool calls pending)', () => {
-    expect(hook({ messages: [aiWithCall()] })).toBeUndefined();
+  it('does not count a stub as a report', () => {
+    expect(nudgeForMissingReport(history, { '/bericht.md': '# Titel' })).not.toBeNull();
   });
 
-  it('ignores non-AI last messages and empty histories', () => {
-    expect(hook({ messages: [new HumanMessage('hallo')] })).toBeUndefined();
-    expect(hook({ messages: [] })).toBeUndefined();
-    expect(hook({})).toBeUndefined();
-  });
-
-  it('gives up after the nudge limit, so a refusing model is not pushed forever', () => {
-    const nudged = Array.from({ length: NUDGE_LIMIT }, () => [
-      new HumanMessage(NUDGE_TEXT),
-      bareAi('Ich kann dazu nichts recherchieren.'),
-    ]).flat();
-
-    expect(hook({ messages: [bareAi(), ...nudged] })).toBeUndefined();
-  });
-
-  it('still nudges below the limit, counting only its own marker messages', () => {
-    const messages = [
-      new HumanMessage('die eigentliche Frage'),
-      new HumanMessage(NUDGE_TEXT),
-      bareAi('Trotzdem nur Text.'),
+  it('gives up after the limit — a model that refuses twice is refusing', () => {
+    const nudged: ModelMessage[] = [
+      ...history,
+      ...Array.from({ length: NUDGE_LIMIT }, () => ({
+        role: 'user' as const,
+        content: NUDGE_TEXT,
+      })),
     ];
-
-    expect(hook({ messages })?.jumpTo).toBe('model');
-  });
-
-  it('treats a stub below the usable-report threshold as missing', () => {
-    const stub = { '/bericht.md': { content: '# Titel\n\nZu kurz.' } };
-
-    expect(hook({ messages: [bareAi()], files: stub })?.jumpTo).toBe('model');
+    expect(nudgeForMissingReport(nudged, {})).toBeNull();
   });
 });
 
-describe('describeFinalState', () => {
-  it('quotes the last AI utterance, truncated, with the message count', () => {
-    const line = describeFinalState({
-      messages: [new HumanMessage('Frage'), new AIMessage({ content: 'Kurze Direktantwort.' })],
-    });
-
-    expect(line).toContain('2 Nachricht(en)');
-    expect(line).toContain('Kurze Direktantwort.');
-  });
-
-  it('marks an empty final answer instead of quoting nothing', () => {
-    expect(describeFinalState({ messages: [new AIMessage({ content: '' })] })).toContain('<leer>');
-    expect(describeFinalState(null)).toContain('0 Nachricht(en)');
+describe('lastAssistantText', () => {
+  it('reads the newest assistant text, skipping tool calls', () => {
+    const messages: ModelMessage[] = [
+      ...history,
+      {
+        role: 'assistant',
+        content: [{ type: 'tool-call', toolCallId: 'a', toolName: 'task', input: {} }],
+      },
+    ];
+    expect(lastAssistantText(messages)).toBe('');
+    expect(lastAssistantText(history)).toBe('Die Antwort ist 42.');
   });
 });

@@ -2,11 +2,14 @@
  * Shared shapes for the deep research agent.
  *
  * Kept free of imports from the agent runtime so the turn module and the tests
- * can talk about a run without pulling `deepagents` into their graph.
+ * can talk about a run without pulling the model plumbing into their graph.
  */
 
-// Type-only, so the cycle with notebookScope.ts is erased at compile time.
+import { type ModelMessage } from 'ai';
+
+// Type-only, so the cycles with notebookScope.ts and workspace.ts are erased at compile time.
 import { type NotebookScope } from './notebookScope.js';
+import { type WorkspaceState } from './workspace.js';
 
 /** Locale the run reports in. Austria is a first-class audience, not a toggle. */
 export type ResearchLocale = 'de-DE' | 'de-AT';
@@ -59,6 +62,12 @@ export interface SourceRef {
   origin?: string;
 }
 
+/** What is saved after every lead step and read back by a resume. */
+export interface SavedRunState {
+  messages: ModelMessage[];
+  workspace: WorkspaceState;
+}
+
 /** A step the user sees in the sidebar while the run is in flight. */
 export interface ResearchStep {
   id: string;
@@ -90,8 +99,8 @@ export interface DeepAgentRunParams {
    */
   userId?: string;
   /**
-   * Checkpoint key. Omitted means a fresh one per run — pass an existing id to
-   * continue a research whose process died.
+   * Run key in `deep_research_runs`. Omitted means a fresh one per run — pass an
+   * existing id to continue a research whose process died.
    */
   threadId?: string;
   /** Aborts the run. The caller owns the hard deadline. */
@@ -104,8 +113,8 @@ export interface DeepAgentRunResult {
   /** The report as markdown, `## Quellen` guaranteed present. */
   markdown: string;
   /**
-   * The checkpoint key this run wrote under. Store it and a later run can be
-   * handed it back; without a checkpointer it is a label and nothing more.
+   * The key this run saved its state under. Store it and a later run can be
+   * handed it back; without Postgres it is a label and nothing more.
    */
   threadId: string;
   /** H1 of the report, used as the document title. */
@@ -153,7 +162,10 @@ export interface BudgetLimits {
   softMs: number;
   hardMs: number;
   wrapUpMs: number;
-  recursionLimit: number;
+  /** Model calls the lead may make before the wrap-up leg takes over. */
+  leadSteps: number;
+  /** Model calls one delegated sub-question may make. */
+  workerSteps: number;
 }
 
 export const DEFAULT_BUDGET: BudgetLimits = {
@@ -165,7 +177,8 @@ export const DEFAULT_BUDGET: BudgetLimits = {
   softMs: 11 * 60_000,
   hardMs: 13 * 60_000,
   wrapUpMs: 2 * 60_000,
-  recursionLimit: 160,
+  leadSteps: 40,
+  workerSteps: 14,
 };
 
 /**
@@ -174,18 +187,20 @@ export const DEFAULT_BUDGET: BudgetLimits = {
  * Same code path, a fraction of the spend: no Linkup `deep`, a handful of
  * searches and reads, four minutes instead of fifteen. Good enough to see
  * whether the loop plans, delegates and files a report — not to judge how
- * thorough a full report is.
+ * thorough a full report is. Below six minutes the subagents never finished
+ * (measured 21.10.2026: every delegation cut short at four minutes).
  */
 export const PROBE_BUDGET: BudgetLimits = {
-  searches: 6,
+  searches: 10,
   deepSearches: 0,
-  crawls: 4,
+  crawls: 6,
   crawlRefunds: 2,
-  notebookSearches: 4,
-  softMs: 3 * 60_000,
-  hardMs: 4 * 60_000,
-  wrapUpMs: 90_000,
-  recursionLimit: 80,
+  notebookSearches: 6,
+  softMs: 5 * 60_000,
+  hardMs: 6 * 60_000,
+  wrapUpMs: 2 * 60_000,
+  leadSteps: 24,
+  workerSteps: 10,
 };
 
 export function createBudget(now: number, limits: BudgetLimits = DEFAULT_BUDGET): RunBudget {

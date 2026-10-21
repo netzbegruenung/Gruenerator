@@ -125,7 +125,8 @@ ${locale === 'de-AT' ? LAENDERKONTEXT_AT : ''}
  */
 const RESEARCHER_ANSWER = `## Antwort
 
-Gib dein Ergebnis strukturiert zurück, nicht als freien Text und nicht als Datei:
+Gib dein Ergebnis mit \`antwort_geben\` strukturiert zurück, nicht als freien Text und
+nicht als Datei:
 
 - \`ergebnis\`: der Fließtext, 150 bis 400 Wörter. KEINE Quellenliste darin — die steht
   in \`quellen\`.
