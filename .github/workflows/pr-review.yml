@@ -196,8 +196,13 @@ jobs:
           [ -f "$EXEC" ] || { echo "Keine Ausführungsdatei."; exit 0; }
           jq -r '[.[] | select(.type == "result")] | last
             | "subtype=\(.subtype) is_error=\(.is_error) num_turns=\(.num_turns) cost_usd=\(.total_cost_usd)",
-              "verweigert: \([.permission_denials[]?.tool_name] | group_by(.) | map("\(.[0]) ×\(length)") | join(", "))",
+              "verweigert:", (.permission_denials[]? | "  \(.tool_name) \((.tool_input.command // .tool_input.file_path // "") | .[0:200])"),
               "Ergebnistext: \((.result // "") | .[0:1500])"' "$EXEC"
+          # Was der Lauf getan hat, Aufruf für Aufruf — ohne das bleibt bei
+          # einem flachen Review nur die Zahl, nicht der Grund.
+          echo "Werkzeugaufrufe:"
+          jq -r '.[] | select(.type == "assistant") | .message.content[]? | select(.type == "tool_use")
+            | "  \(.name) \((.input.file_path // .input.path // .input.command // .input.pattern // "") | tostring | .[0:200])"' "$EXEC"
 
       - name: Gate on confirmed findings
         if: steps.scope.outputs.skip != 'true'
@@ -219,11 +224,14 @@ jobs:
 
           # Ein flacher Lauf meldet `review_complete: true`, ohne den Code
           # gesehen zu haben (#4818: 13 Turns, 2600 Zeilen, grün). Darum muss er
-          # mindestens drei der geänderten Dateien wirklich mit Read geöffnet
-          # haben (bei weniger Dateien: alle).
+          # mindestens drei der geänderten Dateien wirklich geöffnet haben (bei
+          # weniger Dateien: alle) — per Read, oder per Grep auf genau diese
+          # Datei, das holt ihren Kontext ebenso.
           NEED=$(( FILES < 3 ? FILES : 3 ))
           OPENED=$(jq -r '.[] | select(.type == "assistant") | .message.content[]?
-              | select(.type == "tool_use" and .name == "Read") | .input.file_path // empty' \
+              | select(.type == "tool_use")
+              | if .name == "Read" then .input.file_path elif .name == "Grep" then .input.path else empty end
+              | strings' \
               "$RUNNER_TEMP/claude-execution-output.json" \
             | sed "s#^$GITHUB_WORKSPACE/##" | sort -u \
             | comm -12 - "$RUNNER_TEMP/review-files.txt" | grep -c . || true)
