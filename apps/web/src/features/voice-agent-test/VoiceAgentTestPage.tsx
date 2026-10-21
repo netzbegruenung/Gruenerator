@@ -1,69 +1,19 @@
 import { Badge, Button } from '@gruenerator/ui';
 import { GrueneratorRealtimeVoiceAdapter } from '@gruenerator/voice';
-import { initSession } from '@mistralai/mistralai/extra/voice-agents/browser';
-import { type AudioSessionCreateResponse } from '@mistralai/mistralai/models/components';
 import { Loader2, Mic, Square } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
-import { platformFetch } from '../../utils/platformFetch';
+import {
+  markLatestUser,
+  type Status,
+  type Turn,
+  upsertTurn,
+  useHostedVoiceAgent,
+  useLvNotebooks,
+  useResponseClock,
+} from './useHostedVoiceAgent';
 
 import type { RealtimeVoiceAdapter } from '@assistant-ui/react';
-
-interface Turn {
-  id: string;
-  /** `tool`: a call the hosted kit made, with its run time. */
-  role: 'user' | 'assistant' | 'tool';
-  text: string;
-  /**
-   * On user turns: seconds from the end of the turn until the agent was
-   * audible. Kept on the user line because the agent's line may not exist yet
-   * when its first sound plays.
-   */
-  responseSec?: number;
-}
-
-type Status = 'idle' | 'starting' | 'running';
-
-/**
- * The response time both panels show: from the moment the user's turn is final
- * until the agent is audible. Same yardstick on both sides, so the numbers are
- * comparable — neither includes the user's own speaking time.
- */
-function useResponseClock() {
-  const userDoneAt = useRef<number | null>(null);
-  return {
-    userDone: () => {
-      userDoneAt.current = performance.now();
-    },
-    agentAudible: (): number | undefined => {
-      if (userDoneAt.current === null) return undefined;
-      const sec = (performance.now() - userDoneAt.current) / 1000;
-      userDoneAt.current = null;
-      return sec;
-    },
-  };
-}
-
-function upsertTurn(turns: Turn[], next: Turn): Turn[] {
-  const idx = turns.findIndex((t) => t.id === next.id);
-  if (idx === -1) return [...turns, next];
-  const copy = turns.slice();
-  copy[idx] = { ...copy[idx], ...next, responseSec: copy[idx]?.responseSec ?? next.responseSec };
-  return copy;
-}
-
-function markLatestUser(turns: Turn[], responseSec: number): Turn[] {
-  for (let i = turns.length - 1; i >= 0; i--) {
-    const turn = turns[i];
-    if (turn?.role === 'user') {
-      if (turn.responseSec !== undefined) return turns;
-      const copy = turns.slice();
-      copy[i] = { ...turn, responseSec };
-      return copy;
-    }
-  }
-  return turns;
-}
 
 const ROLE_LABEL: Record<Turn['role'], string> = {
   user: 'Du',
@@ -271,166 +221,13 @@ function PipelinePanel() {
   );
 }
 
-interface CreatedSession {
-  id: string;
-  participantToken: string;
-  serverUrl: string;
-  createdAt: string;
-  expiresAt: string;
-  toolNames: string[];
-  /** Mistral's view of the declarations, passed through for the SDK's handler check. */
-  functionTools: AudioSessionCreateResponse['functionTools'];
-}
-
-/** The first notebook this voice search is tried on. */
-const DEFAULT_NOTEBOOK_ID = 'berlin-notebook';
-
-interface LvNotebook {
-  id: string;
-  name: string;
-}
-
-function formatSec(ms: number): string {
-  return `${(ms / 1000).toFixed(1).replace('.', ',')} s`;
-}
-
-/**
- * Mistral's hosted kit: Mistral Small answers, Voxtral speaks, LiveKit carries
- * audio. Tool calls arrive here and are forwarded to our API, which runs them
- * with the chat's executors (`tools`) or asks one LV notebook (`notebook`).
- */
+/** Mistral's hosted kit with our tools (`tools`) or one LV notebook (`notebook`). */
 function HostedPanel({ variant }: { variant: 'tools' | 'notebook' }) {
-  const [status, setStatus] = useState<Status>('idle');
-  const [agentState, setAgentState] = useState<string | null>(null);
-  const [turns, setTurns] = useState<Turn[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [toolNames, setToolNames] = useState<string[]>([]);
-  const [notebooks, setNotebooks] = useState<LvNotebook[]>([]);
-  const [notebookId, setNotebookId] = useState('');
+  const agent = useHostedVoiceAgent();
+  const lv = useLvNotebooks(variant === 'notebook');
   const [fastMode, setFastMode] = useState<'fast' | 'normal'>('fast');
-  const closeRef = useRef<(() => Promise<void>) | null>(null);
-  const clock = useResponseClock();
-
-  useEffect(() => () => void closeRef.current?.(), []);
-
-  useEffect(() => {
-    if (variant !== 'notebook') return;
-    let cancelled = false;
-    platformFetch('/api/voice/agent-session/notebooks', { credentials: 'include' })
-      .then((res) => res.json() as Promise<{ notebooks: LvNotebook[] }>)
-      .then(({ notebooks: list }) => {
-        if (cancelled) return;
-        setNotebooks(list);
-        setNotebookId(
-          (current) =>
-            current || list.find((n) => n.id === DEFAULT_NOTEBOOK_ID)?.id || list[0]?.id || ''
-        );
-      })
-      .catch(() => !cancelled && setError('Notebook-Liste nicht ladbar'));
-    return () => {
-      cancelled = true;
-    };
-  }, [variant]);
-
-  const start = async () => {
-    setTurns([]);
-    setError(null);
-    setStatus('starting');
-    try {
-      // Created before initSession: the handlers have to exist up front, and
-      // only our server knows which tools it declared.
-      const res = await platformFetch('/api/voice/agent-session', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mode: variant,
-          notebookId: variant === 'notebook' ? notebookId : null,
-        }),
-      });
-      if (!res.ok) throw new Error(`Sitzung: HTTP ${res.status}`);
-      const created = (await res.json()) as CreatedSession;
-      setToolNames(created.toolNames);
-
-      let toolNo = 0;
-      const handlers = Object.fromEntries(
-        created.toolNames.map((name) => [
-          name,
-          async (args: Record<string, unknown>) => {
-            const id = `tool${toolNo++}`;
-            setTurns((prev) => upsertTurn(prev, { id, role: 'tool', text: `${name} …` }));
-            const call = await platformFetch(
-              `/api/voice/agent-session/tools/${encodeURIComponent(name)}`,
-              {
-                method: 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ args, notebookId, fastMode: fastMode === 'fast' }),
-              }
-            );
-            const body = (await call.json()) as { result?: string; error?: string; ms?: number };
-            const label = `${name}(${JSON.stringify(args).slice(0, 80)})`;
-            setTurns((prev) =>
-              upsertTurn(prev, {
-                id,
-                role: 'tool',
-                text: body.ms !== undefined ? `${label} · ${formatSec(body.ms)}` : label,
-              })
-            );
-            return body.result ?? body.error ?? 'Kein Ergebnis.';
-          },
-        ])
-      );
-
-      const session = await initSession({
-        createSession: async () => ({
-          ...created,
-          createdAt: new Date(created.createdAt),
-          expiresAt: new Date(created.expiresAt),
-        }),
-        deleteSession: async (id) => {
-          await platformFetch(`/api/voice/agent-session/${encodeURIComponent(id)}`, {
-            method: 'DELETE',
-            credentials: 'include',
-          });
-        },
-        functionHandlers: handlers,
-      });
-      closeRef.current = () => session.close();
-
-      session.on('transcript', (e) => {
-        const role = e.role === 'user' ? 'user' : 'assistant';
-        setTurns((prev) => upsertTurn(prev, { id: e.id, role, text: e.content }));
-        if (role === 'user' && e.final) clock.userDone();
-      });
-      session.on('agent_state_changed', (e) => {
-        setAgentState(e.state);
-        if (e.state === 'speaking') {
-          const sec = clock.agentAudible();
-          if (sec !== undefined) setTurns((prev) => markLatestUser(prev, sec));
-        }
-      });
-      session.on('error', (e) => setError(`${e.source}/${e.code}: ${e.message}`));
-      session.on('disconnected', () => {
-        setStatus('idle');
-        setAgentState(null);
-        closeRef.current = null;
-      });
-
-      await session.connect();
-      setStatus('running');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      setStatus('idle');
-    }
-  };
-
-  const stop = () => {
-    void closeRef.current?.();
-    closeRef.current = null;
-    setStatus('idle');
-    setAgentState(null);
-  };
+  const { status } = agent;
+  const error = agent.error ?? lv.error;
 
   return (
     <section className="flex flex-col gap-4 rounded-lg border border-grey-200 p-4 dark:border-grey-700">
@@ -461,11 +258,11 @@ function HostedPanel({ variant }: { variant: 'tools' | 'notebook' }) {
             <span className="w-28 text-muted-foreground">Notebook</span>
             <select
               className="rounded-md border border-grey-200 bg-background px-2 py-1 dark:border-grey-700"
-              value={notebookId}
+              value={lv.notebookId}
               disabled={status !== 'idle'}
-              onChange={(e) => setNotebookId(e.target.value)}
+              onChange={(e) => lv.setNotebookId(e.target.value)}
             >
-              {notebooks.map((n) => (
+              {lv.notebooks.map((n) => (
                 <option key={n.id} value={n.id}>
                   {n.name}
                 </option>
@@ -485,14 +282,24 @@ function HostedPanel({ variant }: { variant: 'tools' | 'notebook' }) {
         </>
       ) : null}
       <div className="flex items-center gap-3">
-        <StartStop status={status} onStart={() => void start()} onStop={stop} />
-        {agentState ? <Badge variant="outline">{agentState}</Badge> : null}
-        {variant === 'tools' && toolNames.length > 0 ? (
-          <span className="text-xs text-muted-foreground">{toolNames.length} Werkzeuge</span>
+        <StartStop
+          status={status}
+          onStart={() =>
+            void agent.start({
+              variant,
+              notebookId: lv.notebookId || null,
+              fastMode: fastMode === 'fast',
+            })
+          }
+          onStop={agent.stop}
+        />
+        {agent.agentState ? <Badge variant="outline">{agent.agentState}</Badge> : null}
+        {variant === 'tools' && agent.toolNames.length > 0 ? (
+          <span className="text-xs text-muted-foreground">{agent.toolNames.length} Werkzeuge</span>
         ) : null}
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      <TranscriptList turns={turns} />
+      <TranscriptList turns={agent.turns} />
     </section>
   );
 }

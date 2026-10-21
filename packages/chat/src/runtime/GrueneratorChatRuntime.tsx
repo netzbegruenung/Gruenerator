@@ -17,7 +17,7 @@ import {
   type ChatModelRunResult,
 } from '@assistant-ui/react';
 import { isApiErrorWithStatus } from '@gruenerator/shared/api';
-import { GrueneratorRealtimeVoiceAdapter, VoxtralDictationAdapter } from '@gruenerator/voice';
+import { VoxtralDictationAdapter } from '@gruenerator/voice';
 import {
   type ReactNode,
   useMemo,
@@ -322,15 +322,10 @@ function useGrueneratorThreadRuntime() {
     []
   );
 
-  const voiceAdapter = useMemo(
-    () =>
-      new GrueneratorRealtimeVoiceAdapter({
-        getThreadId: () => useAgentStore.getState().currentThreadId,
-        getAgentId: () => useAgentStore.getState().selectedAgentId,
-        onError: (reason, err) => console.error(`[RealtimeVoice] ${reason}:`, err),
-      }),
-    []
-  );
+  // Only when the host offers a voice conversation; without the adapter the
+  // composer hides its voice button (capabilities.voice).
+  const createVoiceAdapter = useChatConfigStore((s) => s.voice?.createAdapter);
+  const voiceAdapter = useMemo(() => createVoiceAdapter?.(), [createVoiceAdapter]);
 
   const feedbackAdapter = useFeedbackAdapter();
 
