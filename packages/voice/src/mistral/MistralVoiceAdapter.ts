@@ -25,7 +25,7 @@ export interface MistralVoiceAdapterOptions {
 }
 
 /**
- * Mistral's hosted voice agent (`hostedSession.ts`) as an assistant-ui
+ * Mistral's hosted voice agent (`session.ts`) as an assistant-ui
  * realtime voice session: transcripts land in the thread, and the orb reads
  * mode and volume from the runtime.
  *
@@ -69,7 +69,7 @@ export class MistralVoiceAdapter implements RealtimeVoiceAdapter {
       };
 
       // Loaded on the first call: the SDK and LiveKit stay out of the chat bundle.
-      const { openHostedSession } = await import('./hostedSession');
+      const { openHostedSession } = await import('./session');
       const { session } = await openHostedSession(this.sessionOptions, request, {
         onToolStart: (call) => onToolActivity(call),
         onToolEnd: () => onToolActivity(null),
