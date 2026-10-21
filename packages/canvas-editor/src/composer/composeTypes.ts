@@ -76,8 +76,10 @@ export type HeadlineItem = Extract<SharepicItem, { type: 'headline' }>;
 export type IconlisteItem = Extract<SharepicItem, { type: 'iconliste' }>;
 export type InfografikItem = Extract<SharepicItem, { type: 'infografik' }>;
 export type ListeItem = Extract<SharepicItem, { type: 'liste' }>;
+export type RechnungItem = Extract<SharepicItem, { type: 'rechnung' }>;
 export type SteckbriefItem = Extract<SharepicItem, { type: 'steckbrief' }>;
 export type VergleichItem = Extract<SharepicItem, { type: 'vergleich' }>;
+export type ZahlItem = Extract<SharepicItem, { type: 'zahl' }>;
 
 export interface Column {
   x: number;
