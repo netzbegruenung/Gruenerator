@@ -26,6 +26,7 @@ import {
   type SharepicSlide,
   type SharepicSpec,
   type SharepicTextSide,
+  type SharepicThema,
 } from '@gruenerator/contracts';
 
 import { getBrandTheme, HELLGRUEN_GLOW } from '../brand/theme';
@@ -53,7 +54,9 @@ import {
   layoutTextLines,
   LIME,
   pageDots,
+  PRIDE_FLAG_ASSET,
   SHAREPIC_COLOR_HEX,
+  THEMA_INK,
   type MeasureText,
 } from './chromeParts';
 import { encodeHandMarks, placeHandMarks, sentinelBlind } from './handMarks';
@@ -190,7 +193,38 @@ const GRADIENTS: Partial<
   // (Dc_L5vriG5z, edge #318338 → centre #56AE32). Ours stops darker, at the
   // brightest stop white keeps 4.68:1 and yellow 3.82:1.
   hellgruen: { type: 'radial', angle: 0, stops: [...HELLGRUEN_GLOW] },
+  // Pride: deep violet at the top, where the text starts, warming to a dark
+  // orange below; every stop keeps white above 4.5:1.
+  pride: { angle: 90, stops: ['#4B1D8C', '#8A1D86', '#B0177A', '#C2402E'] },
 };
+
+/**
+ * A theme's chart colours on the white chart card: Pride the flag without its
+ * yellow (too light on white), Frauen lila first, then the locale's dark ink.
+ */
+function themaChartPalette(thema: SharepicThema, dark: string): readonly string[] {
+  return thema === 'queer'
+    ? THEMA_INK.regenbogen.filter((c) => c !== THEMA_INK.flaggenGelb)
+    : [SHAREPIC_COLOR_HEX.lila, dark, '#A57BCF', THEMA_INK.violettDunkel];
+}
+
+/** WCAG relative luminance of `#rrggbb`. */
+function luminance(hex: string): number {
+  const [r, g, b] = [1, 3, 5].map((i) => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  }) as [number, number, number];
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** White or `dark`, whichever reads better on `fill`. */
+function inkFor(fill: string, dark: string): string {
+  const l = luminance(fill);
+  return 1.05 / (l + 0.05) >= (l + 0.05) / (luminance(dark) + 0.05) ? '#FFFFFF' : dark;
+}
+
+/** The Pride rows of a date list: the flag's six stripes, then Progress Pride's. */
+const PRIDE_ROWS = [...THEMA_INK.regenbogen, ...THEMA_INK.progress];
 
 const evenStops = (stops: string[]) =>
   stops.map((color, i) => ({ offset: i / (stops.length - 1), color }));
@@ -507,7 +541,8 @@ export function composeSharepic(spec: SharepicSpec, options: ComposeOptions): Co
       index < count - 1 && spec.pfeil !== false,
       count > 1 && spec.seitenzahl ? { index, count, style: spec.seitenzahl } : null,
       numerals[index] ?? null,
-      count > 1 && index === count - 1
+      count > 1 && index === count - 1,
+      spec.thema ?? null
     )
   );
   return {
@@ -533,7 +568,8 @@ function composeSlide(
   /** This slide's point number, counted over the numbered slides. */
   numeral: { stil: SharepicNummer; k: number } | null,
   /** Last slide of a carousel: the AI label in its long form. */
-  closing: boolean
+  closing: boolean,
+  thema: SharepicThema | null
 ): ComposedSlide {
   const measure = sentinelBlind(options.measure ?? defaultMeasure);
   const theme = getBrandTheme(locale);
@@ -773,50 +809,70 @@ function composeSlide(
         }
       : {};
   // `==word==` runs: AT sets them yellow in Vollkorn Black Italic, DE in lime.
+  // Frauen: lila on light ground, flieder on dark (AT keeps its yellow there).
+  const lila = SHAREPIC_COLOR_HEX.lila;
+  const flieder = SHAREPIC_COLOR_HEX.flieder;
+  const frauen = thema === 'frauen';
   const accent: TextAccent = isAt
     ? {
-        fill: onLight ? theme.colors.accentOnLight : theme.colors.accent,
+        fill: frauen && onLight ? lila : onLight ? theme.colors.accentOnLight : theme.colors.accent,
         fontFamily: theme.fonts.quoteEmphasis,
         fontStyle: AT_EMPHASIS_STYLE,
       }
-    : { fill: onLight ? KLEE : onGrass ? '#FFFFFF' : LIME };
+    : { fill: frauen ? (onLight ? lila : flieder) : onLight ? KLEE : onGrass ? '#FFFFFF' : LIME };
   // DE `++passage++`: dark ink in a box. On light ground (white, grey, mint)
   // the posts lay lime under it (Dds8o0TAppl, DdEhd82js3K, Dc3HYlTAnG-);
   // photos and dark colours take white — a dark box disappears into the
   // scrim. AT has none (see `foldMarkers`).
+  // Themes bring their own box: flag yellow for Pride, lila/flieder for Frauen.
+  const themedMarker =
+    thema === 'queer'
+      ? { fill: THEMA_INK.flaggenGelb, color: THEMA_INK.violettDunkel }
+      : frauen
+        ? onLight
+          ? { fill: lila, color: '#FFFFFF' }
+          : { fill: flieder, color: THEMA_INK.lilaDunkel }
+        : null;
   const marker: TextMarker | null = isAt
     ? null
     : {
-        fill: surface === 'creme' ? MARKER_MINT : onLight ? LIME : '#FFFFFF',
-        color: SHAREPIC_COLOR_HEX.dunkeltanne,
+        fill:
+          themedMarker?.fill ?? (surface === 'creme' ? MARKER_MINT : onLight ? LIME : '#FFFFFF'),
+        color: themedMarker?.color ?? SHAREPIC_COLOR_HEX.dunkeltanne,
         // Tighter than the editor's default: the space beside a mid-line box
         // must stay visible, as on the posts.
         padX: MARKER_PAD_X,
       };
   // A topic icon in a circle — DE Klee on light ground, Tanne on grass green,
   // lime on dark ground and photos; AT the yellow accent, its dark green on white.
-  const badgeColors = isAt
+  const badgeColors = frauen
     ? onLight
-      ? { fill: theme.colors.primary, ink: '#FFFFFF' }
-      : { fill: theme.colors.accent, ink: theme.colors.primary }
-    : onLight
-      ? { fill: KLEE, ink: '#FFFFFF' }
-      : onGrass
-        ? { fill: SHAREPIC_COLOR_HEX.tanne, ink: '#FFFFFF' }
-        : { fill: LIME, ink: SHAREPIC_COLOR_HEX.dunkeltanne };
+      ? { fill: lila, ink: '#FFFFFF' }
+      : { fill: flieder, ink: THEMA_INK.lilaDunkel }
+    : isAt
+      ? onLight
+        ? { fill: theme.colors.primary, ink: '#FFFFFF' }
+        : { fill: theme.colors.accent, ink: theme.colors.primary }
+      : onLight
+        ? { fill: KLEE, ink: '#FFFFFF' }
+        : onGrass
+          ? { fill: SHAREPIC_COLOR_HEX.tanne, ink: '#FFFFFF' }
+          : { fill: LIME, ink: SHAREPIC_COLOR_HEX.dunkeltanne };
   const cardAccent: TextAccent = isAt
-    ? { ...accent, fill: theme.colors.accentOnLight }
-    : { fill: KLEE };
+    ? { ...accent, fill: frauen ? lila : theme.colors.accentOnLight }
+    : { fill: frauen ? lila : KLEE };
   /** A figure, a numeral or a closing "!" in the slide's accent colour. */
-  const accentInk = isAt
-    ? onLight
-      ? theme.colors.accentOnLight
-      : theme.colors.accent
-    : onLight
-      ? KLEE
-      : onGrass
-        ? '#FFFFFF'
-        : LIME;
+  const accentInk = frauen
+    ? accent.fill
+    : isAt
+      ? onLight
+        ? theme.colors.accentOnLight
+        : theme.colors.accent
+      : onLight
+        ? KLEE
+        : onGrass
+          ? '#FFFFFF'
+          : LIME;
   /** The widest size `value` can take on one line of `width`, up to `cap`. */
   const fitLine = (value: string, cap: number, width: number, family: string) =>
     Math.max(
@@ -2346,7 +2402,7 @@ function composeSlide(
           // Shares of a whole: what the values leave to 100 % is drawn too.
           const rest = round && item.einheit === '%' && sum < 99.5;
           if (rest) data.push({ name: 'Rest', value: Math.round((100 - sum) * 10) / 10 });
-          const palette = CHART_PALETTES[locale];
+          const palette = thema ? themaChartPalette(thema, darkText) : CHART_PALETTES[locale];
           // A long bar or line series reads as one colour; a few parts get one each.
           const colors =
             round || data.length <= 3
@@ -3206,6 +3262,21 @@ function composeSlide(
                 fill: accentInk,
                 lineHeight: 1,
                 type: 'header',
+                // Pride: the figure runs through the flag. Bright stops on dark
+                // ground; on light ground the deep ones, yellow left out.
+                ...(thema === 'queer'
+                  ? {
+                      fillGradient: {
+                        type: 'linear' as const,
+                        angle: 0,
+                        stops: evenStops(
+                          onLight
+                            ? THEMA_INK.regenbogen.filter((c) => c !== THEMA_INK.flaggenGelb)
+                            : ['#FF6B6B', '#FFB347', '#FFED00', '#4ADE80', '#60A5FA', '#C084FC']
+                        ),
+                      },
+                    }
+                  : {}),
               });
               if (item.label) {
                 text(
@@ -3324,16 +3395,20 @@ function composeSlide(
           const dateWidth =
             Math.max(...item.eintraege.map((e) => measure(e.datum, dateSize, family, 'bold'))) +
             Math.round(dateSize * 0.5);
-          const restWidth = column.width - dateWidth;
+          // Pride: every row a pill in the next flag colour, its ink chosen for it.
+          const pills = thema === 'queer';
+          const padX = pills ? Math.round(dateSize * 0.4) : 0;
+          const padY = pills ? Math.round(dateSize * 0.24) : 0;
+          const restWidth = column.width - dateWidth - 2 * padX;
           const rows = item.eintraege.map((e) => {
             const t =
               lineCount(e.titel, restWidth, titleSize, theme.fonts.body, 'bold') * titleSize * 1.15;
             const o = e.ort
               ? lineCount(e.ort, restWidth, ortSize, theme.fonts.body, 'normal') * ortSize * 1.2
               : 0;
-            return Math.max(dateSize, t + (o ? Math.round(ortSize * 0.2) + o : 0));
+            return Math.max(dateSize, t + (o ? Math.round(ortSize * 0.2) + o : 0)) + 2 * padY;
           });
-          const rowGap = Math.round(dateSize * 0.55);
+          const rowGap = Math.round(dateSize * (pills ? 0.16 : 0.55));
           const height = rows.reduce((a, b) => a + b, 0) + rowGap * (rows.length - 1);
           placed.push({
             height,
@@ -3342,26 +3417,48 @@ function composeSlide(
               let top = y;
               item.eintraege.forEach((e, k) => {
                 const rowId = `${id}-${k}`;
-                text(`${rowId}-datum`, e.datum, top, dateSize, family, {
-                  x: column.x,
+                const rowFill = PRIDE_ROWS[k % PRIDE_ROWS.length]!;
+                const rowInk = pills ? inkFor(rowFill, THEMA_INK.violettDunkel) : null;
+                if (pills) {
+                  const pill = createShape(
+                    'rounded-rect',
+                    column.x + column.width / 2,
+                    top + rows[k]! / 2,
+                    rowFill,
+                    rowFill
+                  );
+                  Object.assign(pill, {
+                    id: `${rowId}-pill`,
+                    width: column.width,
+                    height: rows[k]!,
+                    cornerRadius: Math.round(rows[k]! / 2),
+                  });
+                  addShape(pill);
+                }
+                const rowTop = top + padY;
+                const inkOverride = rowInk ? { fill: rowInk, shadowOpacity: 0 } : {};
+                text(`${rowId}-datum`, e.datum, rowTop, dateSize, family, {
+                  x: column.x + padX,
                   width: dateWidth,
                   align: 'left',
-                  fill: accentInk,
+                  fill: rowInk ?? accentInk,
                   lineHeight: 1,
                   type: 'header',
+                  ...inkOverride,
                 });
                 text(
                   `${rowId}-titel`,
                   e.titel,
-                  top + (dateSize - titleSize) * 0.4,
+                  rowTop + (dateSize - titleSize) * 0.4,
                   titleSize,
                   theme.fonts.body,
                   {
-                    x: column.x + dateWidth,
+                    x: column.x + padX + dateWidth,
                     width: restWidth,
                     align: 'left',
                     fontStyle: 'bold',
                     lineHeight: 1.15,
+                    ...inkOverride,
                   }
                 );
                 if (e.ort) {
@@ -3372,15 +3469,16 @@ function composeSlide(
                   text(
                     `${rowId}-ort`,
                     e.ort,
-                    top + (dateSize - titleSize) * 0.4 + t + Math.round(ortSize * 0.2),
+                    rowTop + (dateSize - titleSize) * 0.4 + t + Math.round(ortSize * 0.2),
                     ortSize,
                     theme.fonts.body,
                     {
-                      x: column.x + dateWidth,
+                      x: column.x + padX + dateWidth,
                       width: restWidth,
                       align: 'left',
                       opacity: 0.85,
                       lineHeight: 1.2,
+                      ...inkOverride,
                     }
                   );
                 }
@@ -4037,6 +4135,22 @@ function composeSlide(
       opacity: isAt || !logoDarkInk ? 1 : logoOnLight ? 0.5 : 0.8,
     });
     out.layerOrder.push('sc-logo');
+  }
+  if (thema === 'queer') {
+    // The Progress Pride flag on the logo's line, at the right edge (left of
+    // the swipe-on arrow): a sticker the user can move, resize or drop.
+    const flagWidth = 120;
+    const arrowSpan = swipeOn ? arrow.size * arrow.glyph + 24 : 0;
+    out.assetInstances.push({
+      id: 'sc-pride-flagge',
+      assetId: PRIDE_FLAG_ASSET,
+      x: canvas.width - arrow.right - arrowSpan - flagWidth / 2,
+      y: canvas.height - logo.bottom - logo.height / 2,
+      scale: flagWidth / ASSET_TARGET_SIZE,
+      rotation: 0,
+      opacity: 1,
+    });
+    out.layerOrder.push('sc-pride-flagge');
   }
   if (swipeOn) {
     // Bottom-right, centred on x/y: AT a long brush stroke, DE a small arrow

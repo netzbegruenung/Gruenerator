@@ -21,13 +21,47 @@ export const sharepicColorSchema = z.enum([
   'dunkelgruen',
   'hellgruen',
   'weiss',
+  // Themed grounds: valid only on a spec with the matching `thema`.
+  'lila',
+  'flieder',
+  'violett',
+  'pride',
 ]);
 export type SharepicColor = z.infer<typeof sharepicColorSchema>;
 
+/**
+ * A themed sharepic: Pride/CSD (`queer`) or 8 March, Equal Pay, Safe Abortion
+ * Day (`frauen`). The theme recolours accent, marker, badges, charts and
+ * dates and unlocks its grounds; layout and type stay the locale's CD.
+ */
+export const sharepicThemaSchema = z.enum(['queer', 'frauen']);
+export type SharepicThema = z.infer<typeof sharepicThemaSchema>;
+
+/** The grounds a theme brings; a spec without that theme may not use them. */
+export const SHAREPIC_THEMA_COLORS: Record<SharepicThema, readonly SharepicColor[]> = {
+  queer: ['violett', 'pride'],
+  frauen: ['lila', 'flieder'],
+};
+
+/** The theme a themed ground belongs to; undefined for a plain CD colour. */
+export const themaOfColor = (color: SharepicColor): SharepicThema | undefined =>
+  sharepicThemaSchema.options.find((t) => SHAREPIC_THEMA_COLORS[t].includes(color));
+
+/** The plain CD palette per locale; themed grounds come on top via `sharepicColorsFor`. */
 export const SHAREPIC_LOCALE_COLORS: Record<SharepicCreatorLocale, readonly SharepicColor[]> = {
   'de-DE': ['tanne', 'dunkeltanne', 'grasgruen', 'mint', 'hellgrau', 'creme', 'aubergine', 'weiss'],
   'de-AT': ['dunkelgruen', 'hellgruen', 'weiss'],
 };
+
+/** The grounds a spec may use: its locale's CD, plus its theme's own. */
+export function sharepicColorsFor(
+  locale: SharepicCreatorLocale,
+  thema?: SharepicThema | null
+): readonly SharepicColor[] {
+  return thema
+    ? [...SHAREPIC_LOCALE_COLORS[locale], ...SHAREPIC_THEMA_COLORS[thema]]
+    : SHAREPIC_LOCALE_COLORS[locale];
+}
 
 /** The grounds an infographic stands on: its illustrations are painted for a light one. */
 export const SHAREPIC_INFOGRAFIK_COLORS: readonly SharepicColor[] = ['hellgrau', 'weiss'];

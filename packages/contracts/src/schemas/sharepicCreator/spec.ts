@@ -5,10 +5,12 @@ import { handMarkProblems } from '../sharepicHandMarks.js';
 
 import {
   SHAREPIC_INFOGRAFIK_COLORS,
-  SHAREPIC_LOCALE_COLORS,
+  sharepicColorsFor,
   sharepicCreatorLocaleSchema,
   sharepicFormatSchema,
   sharepicSeitenzahlSchema,
+  sharepicThemaSchema,
+  themaOfColor,
 } from './enums.js';
 import { CARD_ITEM_TYPES, KOPFBAND_CARD_TYPES, type SharepicItem } from './items.js';
 import { SHAREPIC_LIMITS } from './limits.js';
@@ -69,11 +71,13 @@ export const sharepicSpecShapeSchema = z.object({
   seitenzahl: sharepicSeitenzahlSchema.optional(),
   /** Carousel only: the "swipe on" arrow on every slide but the last. Absent: on. */
   pfeil: z.boolean().optional(),
+  /** A themed sharepic (Pride, Frauen); absent: the plain CD. */
+  thema: sharepicThemaSchema.optional(),
   slides: z.array(sharepicSlideSchema).min(1).max(SHAREPIC_LIMITS.slides),
 });
 
 export const sharepicSpecSchema = sharepicSpecShapeSchema.superRefine((spec, ctx) => {
-  const allowed = SHAREPIC_LOCALE_COLORS[spec.locale];
+  const allowed = sharepicColorsFor(spec.locale, spec.thema);
   const last = spec.slides.length - 1;
   if (spec.seitenzahl && last === 0) {
     ctx.addIssue({
@@ -97,7 +101,9 @@ export const sharepicSpecSchema = sharepicSpecShapeSchema.superRefine((spec, ctx
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: at('background'),
-        message: `Farbe "${color}" gibt es für ${spec.locale} nicht. Erlaubt: ${allowed.join(', ')}.`,
+        message: themaOfColor(color)
+          ? `Farbe "${color}" gibt es nur mit thema "${themaOfColor(color)}".`
+          : `Farbe "${color}" gibt es für ${spec.locale} nicht. Erlaubt: ${allowed.join(', ')}.`,
       });
     }
     if (bg.kind === 'farbe' && bg.kopfband) {
