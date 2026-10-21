@@ -303,6 +303,10 @@ export class UnsplashApiService {
 
       if (isRateLimitResponse(response, errorBody)) {
         rateLimitedUntil = Date.now() + RATE_LIMIT_WINDOW_MS;
+        // One line per hit, so the logs tell how often the 50/h quota runs out.
+        console.warn(
+          `[UnsplashAPI] Rate limit reached (HTTP ${response.status}), searches blocked until ${new Date(rateLimitedUntil).toISOString()}`
+        );
         throw new UnsplashRateLimitError(errorMessage, secondsUntil(rateLimitedUntil));
       }
 

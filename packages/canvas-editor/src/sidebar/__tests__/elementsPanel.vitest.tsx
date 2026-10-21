@@ -524,7 +524,7 @@ describe('ElementsPanel — Fotos mit Unsplash', () => {
     await search(text);
   }
 
-  it('searches Unsplash only on click, then places the hotlinked photo with its credit', async () => {
+  it('searches Unsplash after a typing pause and places the hotlinked photo with its credit', async () => {
     const searchUnsplashImages = vi.fn(async () => ({
       results: [unsplashPhoto],
       total: 1,
@@ -534,15 +534,15 @@ describe('ElementsPanel — Fotos mit Unsplash', () => {
       renderFotos(searchUnsplashImages);
 
     await openFotosAndSearch('wald');
-    // No local hit hides nothing: the way on to Unsplash stays open.
+    // No local hit hides nothing: the Unsplash section stays.
     expect(screen.queryByText('Nichts gefunden')).not.toBeInTheDocument();
-    expect(searchUnsplashImages).not.toHaveBeenCalled();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Mehr Fotos bei Unsplash suchen' }));
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Annie Spratt hinzufügen' }, { timeout: 2000 })
+    );
+    // One search for the settled query, not one per keystroke.
     expect(searchUnsplashImages).toHaveBeenCalledTimes(1);
     expect(searchUnsplashImages).toHaveBeenCalledWith('wald', 1, 20);
-
-    await userEvent.click(await screen.findByRole('button', { name: 'Annie Spratt hinzufügen' }));
     expect(onAddImageFromUrl).toHaveBeenCalledWith(unsplashPhoto.url, 'Wald im Nebel', {
       attribution: unsplashPhoto.attribution,
     });
@@ -552,29 +552,29 @@ describe('ElementsPanel — Fotos mit Unsplash', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('says when the shared hourly quota is used up instead of failing silently', async () => {
+  it('says when the shared hourly quota is used up and stops asking', async () => {
     const searchUnsplashImages = vi.fn(async () => {
       throw new UnsplashLimitError(1800);
     });
     renderFotos(searchUnsplashImages);
 
     await openFotosAndSearch('wald');
-    await userEvent.click(screen.getByRole('button', { name: 'Mehr Fotos bei Unsplash suchen' }));
 
-    expect(await screen.findByText('Unsplash-Suche gerade ausgeschöpft')).toBeInTheDocument();
-    expect(screen.getByText(/50 Unsplash-Suchen pro Stunde/)).toBeInTheDocument();
-    // Blocked: no button that would only run into the same refusal.
     expect(
-      screen.queryByRole('button', { name: 'Mehr Fotos bei Unsplash suchen' })
-    ).not.toBeInTheDocument();
+      await screen.findByText('Unsplash-Suche gerade ausgeschöpft', {}, { timeout: 2000 })
+    ).toBeInTheDocument();
+    expect(screen.getByText(/50 Unsplash-Suchen pro Stunde/)).toBeInTheDocument();
+
+    // Blocked: a new query does not run into the same refusal again.
+    await userEvent.type(screen.getByRole('searchbox'), 'see');
+    await new Promise((resolve) => setTimeout(resolve, 900));
+    expect(searchUnsplashImages).toHaveBeenCalledTimes(1);
   });
 
-  it('offers no Unsplash search without a query or without the service', async () => {
+  it('offers no Unsplash search without the service', async () => {
     renderFotos(undefined);
     await openFotosAndSearch('wald');
-    expect(
-      screen.queryByRole('button', { name: 'Mehr Fotos bei Unsplash suchen' })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText('Mehr von Unsplash')).not.toBeInTheDocument();
     expect(screen.getByText('Nichts gefunden')).toBeInTheDocument();
   });
 });
