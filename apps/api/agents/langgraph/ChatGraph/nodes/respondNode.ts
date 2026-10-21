@@ -2468,6 +2468,50 @@ export async function buildSystemMessage(
 }
 
 /**
+ * Stored attachments the prompt left out because their text stood in the
+ * history, put back once pruning or compaction took that copy out (#4791).
+ * The prompt is built before the history is cut — pruning budgets against
+ * it — so its dedupe saw messages that never went out.
+ *
+ * Inserted after the base prompt, before a compaction summary appended to it.
+ */
+export function restoreAttachmentsDroppedWithHistory(
+  state: ChatGraphState,
+  baseSystemMessage: string,
+  systemMessage: string,
+  sentMessages: readonly { content: unknown }[]
+): string {
+  if (composerBypass(state) !== null || state.pipelineSourceText) return systemMessage;
+  const textOf = (content: unknown): string =>
+    typeof content === 'string'
+      ? content
+      : Array.isArray(content)
+        ? extractTextContent(content as Parameters<typeof extractTextContent>[0])
+        : '';
+  const fullText = (state.messages ?? []).map((m) => extractTextContent(m.content)).join('\n');
+  const sentText = [systemMessage, ...sentMessages.map((m) => textOf(m.content))].join('\n');
+  const restored = (state.threadAttachments ?? []).filter(
+    (a) =>
+      !a.isImage &&
+      !a.documentId &&
+      alreadyVerbatimInConversation(a.extractedText, fullText) &&
+      !alreadyVerbatimInConversation(a.extractedText, sentText)
+  );
+  if (restored.length === 0) return systemMessage;
+  const block = formatThreadAttachmentsContext(
+    restored,
+    state.contextWindowTokens,
+    sentText,
+    state.attachmentContext ?? '',
+    attachmentQuery(state)
+  );
+  if (!block) return systemMessage;
+  return systemMessage.startsWith(baseSystemMessage)
+    ? baseSystemMessage + block + systemMessage.slice(baseSystemMessage.length)
+    : systemMessage + block;
+}
+
+/**
  * Welche Blöcke bei diesem Zustand Text beitragen, in Prompt-Reihenfolge.
  * Derselbe Weg wie {@link buildSystemMessage} — inklusive seiner Nebenwirkungen.
  */

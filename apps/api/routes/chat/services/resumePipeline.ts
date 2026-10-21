@@ -23,6 +23,7 @@ import {
   searchNode,
   rerankNode,
   buildCitations,
+  restoreAttachmentsDroppedWithHistory,
 } from '../../../agents/langgraph/ChatGraph/index.js';
 import { partitionSearchErrors } from '../../../agents/langgraph/ChatGraph/types.js';
 import { promptCacheKeyForThread } from '../../../services/ai/promptCacheKey.js';
@@ -42,7 +43,7 @@ import { ARTIFACT_CONFIRMATION_TEXTS, buildSharepicConfirmation } from './artifa
 import { injectImageAttachments } from './attachmentProcessingService.js';
 import { persistComputeAssets } from './computeAssetStorage.js';
 import { hasBrokenComputeValues } from './computeResultSanity.js';
-import { pruneMessages } from './contextPruningService.js';
+import { applyCompaction, pruneMessages } from './contextPruningService.js';
 import { imageVisibility } from './imageVisibility.js';
 import { executeIntentPipeline, reportUnavailableSources } from './intentExecutionService.js';
 import { loopClarificationStateStore } from './loopClarificationStateStore.js';
@@ -664,10 +665,27 @@ export async function runChatGraphResume({
     // getContextWindow(modelId) is the 32k default, which cut a resumed turn's
     // history to ~20k tokens on a 128k or 262k lane.
     const resumeWindow = resolution2.contextWindow ?? getContextWindow(modelId);
+    // A resumed turn reads the same summary as the turn it continues — without
+    // it, a thread past its first compaction resumed on the raw history.
+    const { systemMessage: compactedSystemMessage, messages: resumeHistory } =
+      requestContext.actualThreadId
+        ? await applyCompaction(
+            requestContext.actualThreadId,
+            pruneMessages(validMessages, resumeWindow, systemMessage),
+            systemMessage,
+            resumeWindow
+          )
+        : { systemMessage, messages: validMessages };
+    const resumeSystemMessage = restoreAttachmentsDroppedWithHistory(
+      finalState,
+      systemMessage,
+      compactedSystemMessage,
+      resumeHistory
+    );
     const assembleMessages = (contextWindow: number) => {
       const built = buildMessagesForAI(
-        systemMessage,
-        pruneMessages(validMessages, contextWindow, systemMessage)
+        resumeSystemMessage,
+        pruneMessages(resumeHistory, contextWindow, resumeSystemMessage)
       );
       return resumeImagesVisible
         ? injectImageAttachments(
