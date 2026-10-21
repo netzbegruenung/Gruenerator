@@ -17,7 +17,8 @@ import { type TextAccent } from '../utils/textUtils';
 import { type UserImageInstance } from '../utils/userImageUtils';
 
 import { layoutTextLines, type MeasureText } from './chromeParts';
-import { fitStoererText, STOERER_LINE_STEP, type ComposedSlide } from './composeSharepic';
+import { type ComposedSlide } from './composeSharepic';
+import { fitStoererText, STOERER_LINE_STEP } from './textFit';
 
 import type { AdditionalText } from '../configs/types';
 
