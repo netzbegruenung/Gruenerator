@@ -10,7 +10,6 @@ import express, { type Request, type Response, type NextFunction } from 'express
 
 import { createLogger } from '../../utils/logger.js';
 
-import agentGenerationRouter from './agentGeneration.js';
 import interactiveGenerationRouter from './interactiveGeneration.js';
 import simpleGenerationRouter from './simpleGeneration.js';
 
@@ -31,12 +30,6 @@ router.use((req: Request, res: Response, next: NextFunction) => {
  * POST /api/antraege/generate-simple
  */
 router.use('/generate-simple', simpleGenerationRouter);
-
-/**
- * Agent-mode Antrag generation endpoint
- * POST /api/antraege/agent
- */
-router.use('/agent', agentGenerationRouter);
 
 /**
  * Interactive Antrag generation endpoints
