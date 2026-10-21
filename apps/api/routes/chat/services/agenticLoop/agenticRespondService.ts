@@ -21,6 +21,7 @@ import { isModelSlow, recordSlowVerdict } from '../../../../services/ai/modelHea
 import { promptCacheKeyForThread } from '../../../../services/ai/promptCacheKey.js';
 import { looksLikeMemoryRequest } from '../../../../services/memory/memoryRequest.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { deriveImplicitRecipeMention } from '../../agents/implicitRecipe.js';
 import { type McpCatalog } from '../../agents/mcpCatalog.js';
 import { notebookForPrompt } from '../../agents/notebookSourceTools.js';
 import {
@@ -658,6 +659,11 @@ export async function streamAgenticResponse(
             attachedDocsTool: hasAttachedDocuments ? ATTACHED_DOCS_TOOL : null,
             userText: finalState.lastUserTextNoMentions ?? lastUserText,
             threadNotebook: promptNotebook != null,
+            recipeOrder:
+              deriveImplicitRecipeMention(
+                orderText(finalState.lastUserTextNoMentions ?? lastUserText),
+                finalState.userLocale ?? null
+              ) != null,
           })
         : null;
     if (firstToolName) {

@@ -764,11 +764,12 @@ describe('forcedFirstStepTools', () => {
 
   describe('rezept_laden im Zuschnitt (#4785)', () => {
     const withRecipe = [...MOUNTED, 'rezept_laden'];
+    const order = (over: Parameters<typeof tools>[0]) => tools({ recipeOrder: true, ...over });
 
     it('named_intent mit Anhang: der Prompt verlangt das Rezept zuerst, also ist es dabei', () => {
       // Der Live-Fall: Paste + „Mach daraus bitte einen Instagram-Post" mit
       // Standard-Notebooks. Ohne das Werkzeug hing Gemma unter `required`.
-      expect(tools({ reason: 'named_intent', intent: 'search', mounted: withRecipe })).toEqual([
+      expect(order({ reason: 'named_intent', intent: 'search', mounted: withRecipe })).toEqual([
         'gruenerator_search',
         'rezept_laden',
       ]);
@@ -777,25 +778,34 @@ describe('forcedFirstStepTools', () => {
     it.each(['research_order', 'demoted_retrieval', 'contradicted', 'followup'] as const)(
       '%s: dabei, wenn montiert',
       (reason) => {
-        expect(tools({ reason, mounted: withRecipe })).toContain('rezept_laden');
+        expect(order({ reason, mounted: withRecipe })).toContain('rezept_laden');
       }
     );
 
     it('nicht montiert (kein Katalog im Prompt) → bleibt draussen', () => {
-      expect(tools({ reason: 'named_intent', intent: 'search' })).not.toContain('rezept_laden');
+      expect(order({ reason: 'named_intent', intent: 'search' })).not.toContain('rezept_laden');
+    });
+
+    it('ohne Bestellung bleibt es draussen: Recherche griff sonst zum Rezept (#3880)', () => {
+      expect(
+        tools({ reason: 'research_order', mounted: withRecipe, recipeOrder: false })
+      ).not.toContain('rezept_laden');
+      expect(tools({ reason: 'named_intent', intent: 'search', mounted: withRecipe })).toEqual([
+        'gruenerator_search',
+      ]);
     });
 
     it('mcp_scope und Bearbeitungsaufträge schreiben keine Textsorte → bleibt draussen', () => {
-      expect(tools({ reason: 'mcp_scope', mounted: withRecipe })).not.toContain('rezept_laden');
+      expect(order({ reason: 'mcp_scope', mounted: withRecipe })).not.toContain('rezept_laden');
       expect(
-        tools({ reason: 'sharepic_order', mounted: [...withRecipe, 'edit_sharepic'] })
+        order({ reason: 'sharepic_order', mounted: [...withRecipe, 'edit_sharepic'] })
       ).not.toContain('rezept_laden');
     });
 
     it('macht aus einem leeren Zuschnitt keinen Rezept-Zwang', () => {
-      expect(tools({ reason: 'mcp_scope', mcpToolNames: [], mounted: withRecipe })).toBeNull();
+      expect(order({ reason: 'mcp_scope', mcpToolNames: [], mounted: withRecipe })).toBeNull();
       expect(
-        tools({ reason: 'named_intent', intent: 'search', mounted: ['rezept_laden'] })
+        order({ reason: 'named_intent', intent: 'search', mounted: ['rezept_laden'] })
       ).toBeNull();
     });
   });
