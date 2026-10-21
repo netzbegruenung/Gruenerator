@@ -252,6 +252,22 @@ export { ProcessingState, type ProcessingStateProps } from './components/process
 export { PreviewImage, type PreviewImageProps } from './components/preview-image';
 export { FeatureCard, type FeatureCardProps } from './components/feature-card';
 export { InteractiveCard, interactiveCardControl } from './components/interactive-card';
+export {
+  ShowcaseCard,
+  ShowcaseCardIcons,
+  ShowcaseCardImage,
+  ShowcaseCardPoster,
+  ShowcaseMedia,
+  ShowcasePhotoCard,
+  type ShowcaseCardIconsProps,
+  type ShowcaseCardPosterProps,
+  type ShowcaseCardImageProps,
+  type ShowcaseCardProps,
+  type ShowcaseCredit,
+  type ShowcaseMediaProps,
+  type ShowcasePhotoCardProps,
+  type ShowcaseTone,
+} from './components/showcase-card';
 
 export {
   PillGroup,

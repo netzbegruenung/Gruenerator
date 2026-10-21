@@ -67,6 +67,11 @@ export function patchMarketplaceCache<D extends MarketplaceCacheData>(
           ? { ...shelf, items: shelf.items.map((i) => (isTarget(i, target) ? patch(i) : i)) }
           : shelf
       ),
+      collections: data.collections.map((c) =>
+        c.items.some((i) => isTarget(i, target))
+          ? { ...c, items: c.items.map((i) => (isTarget(i, target) ? patch(i) : i)) }
+          : c
+      ),
     };
   }
   if ('pages' in data) {

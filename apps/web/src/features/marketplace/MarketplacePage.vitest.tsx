@@ -5,6 +5,7 @@
  * Details an Ort und Stelle.
  */
 import {
+  type MarketplaceFrontpageCollection,
   type MarketplaceFrontpageResponse,
   type MarketplaceFrontpageShelfId,
   type MarketplaceItem,
@@ -13,6 +14,8 @@ import {
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 import {
   FRONTPAGE_SHELF_QUERIES,
+  collectionById,
+  composeCollection,
   composeFrontpage,
   featureFor,
 } from '@gruenerator/shared/marketplace/frontpage';
@@ -61,6 +64,9 @@ const ALL: MarketplaceItem[] = [
 /** The curated „Im Fokus" item as the server sees it; `null` = gone for this viewer. */
 let curated: MarketplaceItem | null = FEATURED;
 
+/** The collections the server resolved for this viewer. */
+let collections: MarketplaceFrontpageCollection[] = [];
+
 /** Like the server: one list per shelf, then the shared shelf rules. */
 function frontpageResponse(): MarketplaceFrontpageResponse {
   const shelf = (id: MarketplaceFrontpageShelfId) => {
@@ -82,6 +88,7 @@ function frontpageResponse(): MarketplaceFrontpageResponse {
       gestalten: shelf('gestalten'),
     },
     curated: curated ? { feature, item: curated } : null,
+    collections,
   });
 }
 
@@ -136,6 +143,7 @@ beforeEach(() => {
   frontpageRequests = 0;
   itemRequests = 0;
   curated = FEATURED;
+  collections = [];
   savedRefs = new Set();
   serveFrom(ALL);
   server.use(
@@ -174,13 +182,58 @@ describe('MarketplacePage', () => {
     expect(screen.queryByRole('region', { name: 'Beliebt' })).toBeNull();
     expect(screen.queryByRole('region', { name: 'Zum Gestalten' })).toBeNull();
     expect(screen.queryByRole('region', { name: 'Aus deinem Landesverband' })).toBeNull();
-    expect(screen.getByRole('region', { name: 'Nach Art stöbern' })).toBeInTheDocument();
-
-    expect(screen.getByRole('button', { name: 'Start' })).toHaveAttribute('aria-pressed', 'true');
+    // The categories at the end are the way to a kind; there are no tabs above.
+    expect(screen.queryByRole('region', { name: 'Nach Art stöbern' })).toBeNull();
+    expect(screen.queryByRole('group', { name: 'Art' })).toBeNull();
     // One request for the whole page: no list per shelf, no extra one for „Im Fokus".
     expect(frontpageRequests).toBe(1);
     expect(queries).toEqual([]);
     expect(itemRequests).toBe(0);
+  });
+
+  it('opens a collection as a step of its own, and its items in place', async () => {
+    collections = [{ collectionId: 'starter', items: [ALL[0]!, ALL[1]!] }];
+    const { user } = renderPage();
+
+    const row = await screen.findByRole('region', { name: 'Kollektionen' });
+    expect(within(row).getByText(/2 Einträge/)).toBeInTheDocument();
+    await user.click(within(row).getByRole('button', { name: /Starterpaket/ }));
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Starterpaket' })
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('Adresse')).toHaveTextContent('?kollektion=starter');
+    expect(screen.queryByRole('region', { name: 'Neu im Marktplatz' })).toBeNull();
+    // The collection brings its own title; the Marktplatz hero and its search step aside.
+    expect(screen.queryByRole('heading', { level: 1, name: 'Marktplatz' })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Fremdes Rezept' }));
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Fremdes Rezept' })
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('Adresse')).toHaveTextContent('kollektion=starter');
+  });
+
+  it('keeps an unlisted collection out of the row, but opens it by its link', async () => {
+    collections = [
+      { collectionId: 'starter', items: [ALL[0]!, ALL[1]!] },
+      composeCollection(collectionById('wahlkampf-moritz')!, [[]])!,
+    ];
+    renderPage('/marktplatz?kollektion=wahlkampf-moritz');
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Wahlkampf für Moritz' })
+    ).toBeInTheDocument();
+    // A sample entry opens its picture, so it carries no like/save/report menu.
+    const sample = screen.getByRole('button', { name: 'Sonnenblume' }).closest('li, div')!;
+    expect(within(sample as HTMLElement).queryByRole('button', { name: /Aktionen/ })).toBeNull();
+    const others = screen.getByRole('region', { name: 'Weitere Kollektionen' });
+    expect(within(others).queryByText('Wahlkampf für Moritz')).toBeNull();
+  });
+
+  it('says so when a shared collection is not there for this viewer', async () => {
+    renderPage('/marktplatz?kollektion=canva');
+    expect(await screen.findByText('Diese Kollektion ist nicht verfügbar')).toBeInTheDocument();
   });
 
   it('gives way to one section per kind as soon as someone searches', async () => {
@@ -200,7 +253,8 @@ describe('MarketplacePage', () => {
   it('shows „Beliebt" and „Zum Gestalten" once there is enough', async () => {
     serveFrom([
       ...[1, 2, 3, 4, 5].map((n) => item('agent', `Agent ${n}`, { likesCount: n })),
-      item('template', 'Plakat'),
+      item('template', 'Plakat', { thumbnailUrl: '/plakat.webp' }),
+      item('template', 'Ohne Bild'),
       item('sticker', 'Sonne'),
       item('background', 'Wiese'),
     ]);
@@ -210,7 +264,10 @@ describe('MarketplacePage', () => {
     const rows = within(popular).getAllByRole('listitem');
     expect(rows).toHaveLength(5);
     expect(rows[0]).toHaveTextContent('Agent 5');
-    expect(screen.getByRole('region', { name: 'Zum Gestalten' })).toBeInTheDocument();
+    const visual = screen.getByRole('region', { name: 'Zum Gestalten' });
+    // A Vorlage without a picture stays, drawn as a mock sheet.
+    expect(within(visual).getByRole('heading', { name: 'Ohne Bild' })).toBeInTheDocument();
+    expect(within(visual).getByRole('heading', { name: 'Plakat' })).toBeInTheDocument();
   });
 
   it('shows the Landesverband shelf only with a role', async () => {
@@ -231,6 +288,17 @@ describe('MarketplacePage', () => {
       'href',
       '/marktplatz/landesverband/gruene-hessen'
     );
+  });
+
+  it('puts the person’s own Landesverband first in the photo row, and marks it', async () => {
+    lv.ids = ['hessen'];
+    renderPage();
+
+    const row = await screen.findByRole('region', { name: 'Landesverbände' });
+    const cards = within(row).getAllByRole('link');
+    expect(cards[0]).toHaveAccessibleName('Hessen, Dein Landesverband');
+    expect(cards[0]).toHaveAttribute('href', '/marktplatz/landesverband/gruene-hessen');
+    expect(within(row).getByRole('link', { name: 'Berlin' })).toBeInTheDocument();
   });
 
   it('keeps „Alle anzeigen" on the filtered list with several Landesverbände', async () => {
@@ -271,27 +339,49 @@ describe('MarketplacePage', () => {
     expect(within(fresh).queryByRole('heading', { name: 'Pressearbeit' })).toBeNull();
   });
 
-  it('switches to one kind through its tab or „Alle anzeigen", pages it, and keeps it in the address', async () => {
+  it('has no tabs; a shared `?art=` link still pages its one kind', async () => {
     serveFrom(ALL, true);
-    const { user } = renderPage();
-    const kinds = await screen.findByRole('region', { name: 'Nach Art stöbern' });
+    const { user } = renderPage('/marktplatz?art=rezepte');
 
-    await user.click(within(kinds).getByRole('button', { name: /Rezepte/ }));
-
-    expect(screen.getByRole('button', { name: 'Rezepte' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByLabelText('Adresse')).toHaveTextContent('?art=rezepte');
     await waitFor(() => expect(queries.at(-1)?.get('kinds')).toBe('recipe'));
+    expect(screen.queryByRole('group', { name: 'Art' })).toBeNull();
     expect(Object.fromEntries(queries.at(-1)!)).toMatchObject({ offset: '0', limit: '24' });
 
     await user.click(await screen.findByRole('button', { name: 'Mehr laden' }));
     await waitFor(() => expect(queries.at(-1)?.get('offset')).toBe('24'));
   });
 
+  it('opens a category from its tile as a page of its own, one aisle per kind', async () => {
+    serveFrom(ALL);
+    const { user } = renderPage();
+
+    const tiles = await screen.findByRole('region', { name: 'Kategorien' });
+    expect(
+      within(tiles)
+        .getAllByRole('link')
+        .flatMap((a) => a.getAttribute('aria-label') ?? [])
+    ).toEqual(['Grüneratoren', 'Vorlagen', 'Sticker & Hintergründe', 'Notebooks']);
+    await user.click(within(tiles).getByRole('link', { name: 'Grüneratoren' }));
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Grüneratoren' })
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('Adresse')).toHaveTextContent('?kategorie=grueneratoren');
+    // The page brings its own title; the Marktplatz hero and its search step aside.
+    expect(screen.queryByRole('heading', { level: 1, name: 'Marktplatz' })).toBeNull();
+    expect(await screen.findByRole('region', { name: 'Agents' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Rezepte' })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(queries.map((q) => q.get('kinds'))).toEqual(
+        expect.arrayContaining(['agent', 'recipe'])
+      )
+    );
+  });
+
   it('reads tab, search and sort from the address', async () => {
     renderPage('/marktplatz?art=sticker&q=sonne&sort=neu');
 
     expect(await screen.findByRole('heading', { name: 'Sonnenblume' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Sticker' })).toHaveAttribute('aria-pressed', 'true');
     expect(Object.fromEntries(queries.at(-1)!)).toMatchObject({
       kinds: 'sticker',
       q: 'sonne',
@@ -346,10 +436,7 @@ describe('MarketplacePage', () => {
     curated = null;
     renderPage();
 
-    expect(await screen.findByRole('region', { name: 'Nach Art stöbern' })).toBeInTheDocument();
-    expect(
-      screen.getByRole('heading', { name: 'Du hast ein Rezept, das funktioniert?' })
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Kategorien' })).toBeInTheDocument();
     await waitFor(() => expect(frontpageRequests).toBe(1));
     expect(screen.queryByRole('region', { name: 'Neu im Marktplatz' })).toBeNull();
   });
@@ -462,7 +549,9 @@ describe('MarketplacePage', () => {
   });
 
   it('has no axe violations', async () => {
+    collections = [{ collectionId: 'barrierefreiheit', items: [FEATURED, ALL[0]!] }];
     const { container } = renderPage();
+    await screen.findByRole('region', { name: 'Kollektionen' });
     await screen.findByRole('region', { name: 'Leichte Sprache' });
     await screen.findByRole('region', { name: 'Neu im Marktplatz' });
     expect(await axe(container)).toHaveNoViolations();

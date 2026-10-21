@@ -56,6 +56,12 @@ const TOOL_THEME: Record<string, ToolThemePair> = {
     light: { tile: '#F5DEE9', icon: '#993D68', title: '#7A2E52', desc: '#85576E' },
     dark: { tile: '#2B1620', icon: '#D69BB8', title: '#E9BCD2', desc: '#B0829A' },
   },
+  // The notebook and tool tiles on the Wissen screen — mirrors `WISSEN_TILE`
+  // in web's NotebooksIndexPage.
+  notebooks: {
+    light: { tile: '#FCDDE4', icon: '#C80050', title: '#A00044', desc: '#8C5666' },
+    dark: { tile: '#2C121A', icon: '#EE6090', title: '#F2A6C0', desc: '#BA7892' },
+  },
   reel: {
     light: { tile: '#F5DEE6', icon: '#8A3E5C', title: '#6E2E48', desc: '#85576A' },
     dark: { tile: '#2B1620', icon: '#CB8AA6', title: '#E4B0C6', desc: '#AB7E94' },

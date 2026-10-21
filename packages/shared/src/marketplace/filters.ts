@@ -1,13 +1,16 @@
 import {
+  marketplaceCollectionIdSchema,
   marketplaceKindSchema,
   marketplaceOriginSchema,
   marketplaceSortSchema,
+  type MarketplaceCollectionId,
   type MarketplaceKind,
   type MarketplaceOrigin,
   type MarketplaceSort,
 } from '@gruenerator/contracts';
 
 import { type MarketplaceTarget } from './cache.js';
+import { categoryById, type MarketplaceCategoryId } from './categories.js';
 import {
   DEFAULT_MARKETPLACE_SORT,
   DEFAULT_MARKETPLACE_TAB,
@@ -29,6 +32,10 @@ export interface MarketplaceFilters {
   sort: MarketplaceSort;
   /** The item opened in its detail (`item=<kind>:<ref>`), so a link can share it; `null` = the list. */
   item: MarketplaceTarget | null;
+  /** The front page collection opened (`kollektion=<id>`); `null` = none. */
+  collection: MarketplaceCollectionId | null;
+  /** The category page opened (`kategorie=<id>`); `null` = none. */
+  category: MarketplaceCategoryId | null;
 }
 
 export const DEFAULT_MARKETPLACE_FILTERS: MarketplaceFilters = {
@@ -37,6 +44,8 @@ export const DEFAULT_MARKETPLACE_FILTERS: MarketplaceFilters = {
   q: '',
   sort: DEFAULT_MARKETPLACE_SORT,
   item: null,
+  collection: null,
+  category: null,
 };
 
 /** Same bound as the API's `ref` path parameter. */
@@ -82,16 +91,19 @@ export function parseMarketplaceParams(source: MarketplaceParamSource): Marketpl
   const art = readParam(source, 'art');
   const origin = marketplaceOriginSchema.safeParse(readParam(source, 'von'));
   const sort = marketplaceSortSchema.safeParse(readParam(source, 'sort'));
+  const collection = marketplaceCollectionIdSchema.safeParse(readParam(source, 'kollektion'));
   return {
     tab: isTabSlug(art) ? art : DEFAULT_MARKETPLACE_FILTERS.tab,
     origin: origin.success ? origin.data : null,
     q: readParam(source, 'q') ?? '',
     sort: sort.success ? sort.data : DEFAULT_MARKETPLACE_FILTERS.sort,
     item: parseItemParam(readParam(source, 'item')),
+    collection: collection.success ? collection.data : null,
+    category: categoryById(readParam(source, 'kategorie'))?.id ?? null,
   };
 }
 
-/** `art`, `von`, `q`, `sort`, `item` — defaults left out, so the plain page stays `/marktplatz`. */
+/** `art`, `von`, `q`, `sort`, `item`, `kollektion`, `kategorie` — defaults left out, so the plain page stays `/marktplatz`. */
 export function serializeMarketplaceParams(filters: MarketplaceFilters): URLSearchParams {
   const params = new URLSearchParams();
   if (filters.tab !== DEFAULT_MARKETPLACE_FILTERS.tab) params.set('art', filters.tab);
@@ -99,6 +111,8 @@ export function serializeMarketplaceParams(filters: MarketplaceFilters): URLSear
   if (filters.q.trim()) params.set('q', filters.q);
   if (filters.sort !== DEFAULT_MARKETPLACE_FILTERS.sort) params.set('sort', filters.sort);
   if (filters.item) params.set('item', `${filters.item.kind}:${filters.item.ref}`);
+  if (filters.collection) params.set('kollektion', filters.collection);
+  if (filters.category) params.set('kategorie', filters.category);
   return params;
 }
 
