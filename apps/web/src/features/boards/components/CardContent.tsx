@@ -5,6 +5,7 @@ import { FiCheckSquare, FiFileText, FiMessageSquare } from 'react-icons/fi';
 
 import { useCardActivity } from '../context/BoardAwarenessContext';
 import { useBoardReadOnly } from '../context/BoardReadOnlyContext';
+import { useOpenCardMenu } from '../context/CardMenuContext';
 import { useTaskDone } from '../context/TaskDoneContext';
 import { checklistProgress, FIELD_IDS, parseAssignees, parseChecklists } from '../types';
 import { parseLocalDate } from '../utils/recurrence';
@@ -41,6 +42,12 @@ export const CardContent = memo(function CardContent({
       onCardClick(row);
     },
     [onCardClick, row]
+  );
+
+  const openCardMenu = useOpenCardMenu();
+  const handleContextMenu = useCallback(
+    (e: React.MouseEvent<HTMLElement>) => openCardMenu?.(row, e),
+    [openCardMenu, row]
   );
 
   const taskDone = useTaskDone();
@@ -111,6 +118,7 @@ export const CardContent = memo(function CardContent({
       className="relative px-3 py-2.5 cursor-pointer transition-all"
       onClick={handleClick}
       onKeyDown={handleKeyDown}
+      onContextMenu={openCardMenu ? handleContextMenu : undefined}
       role="button"
       tabIndex={0}
       style={{

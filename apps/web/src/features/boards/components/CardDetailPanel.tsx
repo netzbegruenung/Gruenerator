@@ -16,7 +16,6 @@ import {
   Sheet,
   SheetContent,
   SheetTitle,
-  useConfirm,
 } from '@gruenerator/ui';
 import { memo, useState, useEffect, useCallback, useMemo } from 'react';
 import {
@@ -48,6 +47,7 @@ import { AgentRunButton } from '../aiColumns/AgentRunButton';
 import { useBoardReadOnly } from '../context/BoardReadOnlyContext';
 import { useTaskDone } from '../context/TaskDoneContext';
 import { useBoardActivity } from '../hooks/useBoardActivity';
+import { useCardActions } from '../hooks/useCardActions';
 import { useCardSubscription } from '../hooks/useCardSubscription';
 import { FIELD_IDS, parseAssignees, parseChecklists, serializeAssignees } from '../types';
 import { LABEL_COLORS } from '../utils/boardDefaults';
@@ -200,7 +200,6 @@ export const CardDetailPanel = memo(function CardDetailPanel({
   expertMode = false,
 }: CardDetailPanelProps) {
   const navigate = useNavigate();
-  const confirm = useConfirm();
   const readOnly = useBoardReadOnly();
 
   const [title, setTitle] = useState('');
@@ -241,11 +240,15 @@ export const CardDetailPanel = memo(function CardDetailPanel({
 
   // Status column — powers the breadcrumb (current column name) and the
   // "Karte verschieben" submenu (moving = writing the STATUS cell).
-  const statusField = useMemo(() => fields.find((f) => f.id === FIELD_IDS.STATUS), [fields]);
-  const statusOptions = useMemo(
-    () => (statusField?.typeOptions.options ?? []) as SelectOption[],
-    [statusField]
-  );
+  const cardActions = useCardActions({
+    boardId,
+    fields,
+    onUpdateCell,
+    onUpdateRow,
+    onDelete,
+    onDuplicate,
+  });
+  const { statusOptions } = cardActions;
   const currentStatusId = row?.cells[FIELD_IDS.STATUS] as string | undefined;
   const columnName = useMemo(
     () => statusOptions.find((o) => o.id === currentStatusId)?.name,
@@ -438,17 +441,15 @@ export const CardDetailPanel = memo(function CardDetailPanel({
 
   const handleArchive = useCallback(() => {
     if (!row) return;
-    onUpdateRow(row.id, { archivedAt: new Date().toISOString() });
-    recordActivity.mutate({ type: 'card_archived' });
+    cardActions.archive(row);
     onOpenChange(false);
-  }, [row, onUpdateRow, onOpenChange, recordActivity]);
+  }, [row, cardActions, onOpenChange]);
 
   const handleRestore = useCallback(() => {
     if (!row) return;
-    onUpdateRow(row.id, { archivedAt: undefined });
-    recordActivity.mutate({ type: 'card_restored' });
+    cardActions.restore(row);
     onOpenChange(false);
-  }, [row, onUpdateRow, onOpenChange, recordActivity]);
+  }, [row, cardActions, onOpenChange]);
 
   const handleCoverImageChange = useCallback(
     (url: string | null) => {
@@ -459,24 +460,10 @@ export const CardDetailPanel = memo(function CardDetailPanel({
   );
 
   const handleDuplicate = useCallback(() => {
-    if (!row || !onDuplicate) return;
-    onDuplicate(row.id);
+    if (!row || !cardActions.duplicate) return;
+    cardActions.duplicate(row);
     onOpenChange(false);
-  }, [row, onDuplicate, onOpenChange]);
-
-  // "Karte verschieben" — writing the STATUS cell moves the card to that column.
-  const moveToColumn = useCallback(
-    (statusId: string) => {
-      if (!row) return;
-      onUpdateCell(row.id, FIELD_IDS.STATUS, statusId);
-      // Entering/leaving the done column is logged as completed/reopened upstream.
-      const touchesDone =
-        !!taskDone &&
-        (statusId === taskDone.doneStatusId || currentStatusId === taskDone.doneStatusId);
-      if (!touchesDone) recordActivity.mutate({ type: 'card_moved' });
-    },
-    [row, onUpdateCell, recordActivity, taskDone, currentStatusId]
-  );
+  }, [row, cardActions, onOpenChange]);
 
   const handleDiscussInChat = useCallback(() => {
     // Second guard behind the hidden button: leaving the board is exactly what
@@ -659,7 +646,7 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                               <DropdownMenuItem
                                 key={opt.id}
                                 disabled={opt.id === currentStatusId}
-                                onClick={() => moveToColumn(opt.id)}
+                                onClick={() => cardActions.moveTo(row, opt.id)}
                               >
                                 <span
                                   className="mr-2 h-2.5 w-2.5 shrink-0 rounded-full"
@@ -671,7 +658,7 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                           </DropdownMenuSubContent>
                         </DropdownMenuSub>
                       )}
-                      {onDuplicate && (
+                      {cardActions.duplicate && (
                         <DropdownMenuItem onClick={handleDuplicate}>
                           <FiCopy className="mr-2" size={13} />
                           Duplizieren
@@ -692,31 +679,7 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                       <DropdownMenuItem
                         variant="destructive"
                         onClick={async () => {
-                          const docCount = linkedDocs.length;
-                          const ok = await confirm(
-                            docCount > 0
-                              ? {
-                                  title: 'Aufgabe löschen?',
-                                  description: `Diese Aufgabe hat ${docCount} verknüpfte${
-                                    docCount === 1 ? 's' : ''
-                                  } Dokument${
-                                    docCount === 1 ? '' : 'e'
-                                  }. Die Dokumente bleiben erhalten – du findest sie weiterhin unter „Dokumente". Nur die Verknüpfung zur Aufgabe geht verloren.`,
-                                  confirmLabel: 'Trotzdem löschen',
-                                  alternateAction: {
-                                    label: 'Archivieren',
-                                    onSelect: handleArchive,
-                                  },
-                                }
-                              : {
-                                  title: 'Karte löschen?',
-                                  description:
-                                    'Diese Karte und ihr gesamter Inhalt werden unwiderruflich gelöscht.',
-                                }
-                          );
-                          if (!ok) return;
-                          onDelete(row.id);
-                          onOpenChange(false);
+                          if (await cardActions.remove(row)) onOpenChange(false);
                         }}
                       >
                         <FiTrash2 className="mr-2" size={13} />
