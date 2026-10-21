@@ -434,5 +434,17 @@ export function forcedFirstStepTools(input: {
   // Die Lader (`meine_inhalte_laden` u. a.) öffnen nur eine Gruppe, sie holen nichts.
   const loaders = new Set<string>(DEFERRABLE_GROUPS.map((g) => g.loaderTool));
   const scoped = [...new Set(candidates)].filter((t) => mounted.has(t) && !loaders.has(t));
-  return scoped.length > 0 ? scoped : null;
+  if (scoped.length === 0) return null;
+  // Montiert heisst: der Prompt sagt „rufe ZUERST `rezept_laden`" (Katalog und
+  // Werkzeug entstehen zusammen in catalogAssembly). Ein erzwungener Schritt
+  // ohne das Werkzeug widerspricht dem Prompt, und darauf antwortet Gemma unter
+  // `required` gar nicht: „Mach daraus bitte einen Instagram-Post" mit Anhang
+  // hing auf Melious UND Cortecs 3 von 3 Mal über 50 s, mit `rezept_laden`
+  // daneben kamen alle sechs Läufe nach 5 s (#4785).
+  const offersRecipe =
+    input.reason !== 'mcp_scope' &&
+    input.reason !== 'sharepic_order' &&
+    input.reason !== 'artifact_edit_order' &&
+    mounted.has('rezept_laden');
+  return offersRecipe ? [...scoped, 'rezept_laden'] : scoped;
 }

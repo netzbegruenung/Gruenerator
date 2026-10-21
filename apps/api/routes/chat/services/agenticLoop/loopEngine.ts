@@ -117,10 +117,25 @@ function mountedToolCeilingMs(tools: ToolSet): number {
  */
 const TOOL_PHASE_IDLE_DEADLINE_MS = 45_000;
 
+/**
+ * Frist bis zum ERSTEN Lebenszeichen eines Planer-Versuchs, solange danach
+ * noch eine Ausweich-Lane wartet.
+ *
+ * Vor dem ersten Aufruf ist jede Stille ein Ausfall: es läuft kein Werkzeug,
+ * und der Planer antwortet sonst in 1–3 s (Probe 29.09.2026: p90 963 ms; am
+ * 21.10.2026 unter neunfacher Parallellast bis 11 s). Mit den 45 s oben wartete
+ * der Zug aus #4785 58 s auf seine erste Antwort. Die letzte Stufe bekommt die
+ * kurze Frist nicht: ohne Ausweich gibt es nichts, wohin sie umspringen könnte.
+ */
+const PLANNER_FIRST_RESPONSE_DEADLINE_MS = 15_000;
+
+/** Stream-Teile, die das SDK selbst erzeugt, bevor der Anbieter geantwortet hat. */
+const SDK_PREAMBLE_PARTS = new Set(['start', 'start-step']);
+
 /** Die Werkzeugphase — planner (split) oder das eine Modell (unified) — hat die
  *  Anfrage angenommen und dann geschwiegen. */
 export class ToolPhaseStallError extends Error {
-  constructor(idleMs: number) {
+  constructor(readonly idleMs: number) {
     super(`Tool phase stream idle for ${idleMs}ms`);
     this.name = 'TimeoutError';
   }
@@ -492,9 +507,10 @@ export interface LoopEngineParams {
   /** Split mode: sibling lane, tried once when `synthModel` goes silent. Omit
    *  and a stall simply surfaces as the turn's timeout message. */
   synthFallbackModel?: LanguageModel;
-  /** Split mode: tried once when `plannerModel` REJECTS the tool phase before
-   *  any tool call (see `gather`). Omit and the turn degrades to synthesis. */
-  plannerFallbackModel?: LanguageModel;
+  /** Split mode: tried in order when `plannerModel` rejects or stalls the tool
+   *  phase before any tool call (see `gather`). Empty or omitted, the turn
+   *  degrades to synthesis. */
+  plannerFallbackModels?: readonly LanguageModel[];
   /** Already wrapped by wrapToolsForLoop. */
   tools: ToolSet;
   /**
@@ -812,25 +828,30 @@ function providerVerdict(err: unknown): string {
 }
 
 async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<GatherOutcome> {
-  const first = await gatherOn(p, deps, p.plannerModel, true);
-  if (first.error == null || first.sawToolCall) return { failedBeforeAnyTool: false };
-  if (
-    p.plannerFallbackModel &&
-    !first.sawOutput &&
-    !p.abortSignal.aborted &&
-    // A lane that stayed silent has already cost the idle deadline, but the
-    // alternative was an empty "technisch gescheitert" turn. Live 12.10.2026:
-    // Melious gemma went silent on 3 of 14 pinned notebook_quellen calls
-    // (#4480), and the fallback lane answered each one. The turn's own wall
-    // clock (`abortSignal`) still caps the second attempt.
-    (first.error instanceof ToolPhaseStallError ||
-      LANE_SWITCH_CODES.has(providerVerdict(first.error)))
-  ) {
+  const lanes = [p.plannerModel, ...(p.plannerFallbackModels ?? [])];
+  for (const [i, model] of lanes.entries()) {
+    const hasNext = i < lanes.length - 1;
+    const attempt = await gatherOn(p, deps, model, i === 0, hasNext);
+    if (attempt.error == null || attempt.sawToolCall) return { failedBeforeAnyTool: false };
+    if (
+      !hasNext ||
+      attempt.sawOutput ||
+      p.abortSignal.aborted ||
+      // A lane that stayed silent has already cost its deadline, but the
+      // alternative was an empty "technisch gescheitert" turn. Live 12.10.2026:
+      // Melious gemma went silent on 3 of 14 pinned notebook_quellen calls
+      // (#4480), and the fallback lane answered each one. The turn's own wall
+      // clock (`abortSignal`) still caps every further attempt.
+      !(
+        attempt.error instanceof ToolPhaseStallError ||
+        LANE_SWITCH_CODES.has(providerVerdict(attempt.error))
+      )
+    ) {
+      break;
+    }
     log.warn(
-      `[Engine] planner ${modelLabel(p.plannerModel)} ${first.error instanceof ToolPhaseStallError ? 'stalled' : 'rejected the tool phase'} before any call — retrying once on ${modelLabel(p.plannerFallbackModel)}`
+      `[Engine] planner ${modelLabel(model)} ${attempt.error instanceof ToolPhaseStallError ? 'stalled' : 'rejected the tool phase'} before any call — retrying on ${modelLabel(lanes[i + 1])}`
     );
-    const second = await gatherOn(p, deps, p.plannerFallbackModel, false);
-    if (second.error == null || second.sawToolCall) return { failedBeforeAnyTool: false };
   }
   return { failedBeforeAnyTool: true };
 }
@@ -842,9 +863,18 @@ async function gatherOn(
   /** Only the turn's own planner lane is recorded as stalled — `onToolPhaseStall`
    *  marks THAT lane, and blaming it for the fallback's stall would empty the
    *  ladder of a healthy stage. */
-  isPrimaryLane: boolean
+  isPrimaryLane: boolean,
+  /** Another lane waits behind this one: silence before the first response
+   *  then only costs PLANNER_FIRST_RESPONSE_DEADLINE_MS. */
+  hasNextLane: boolean
 ): Promise<GatherAttempt> {
-  const { idle, idleMs } = createToolPhaseIdle(p);
+  const { idle } = createToolPhaseIdle(p);
+  let firstResponse: IdleDeadline | null = hasNextLane
+    ? createIdleDeadline(
+        PLANNER_FIRST_RESPONSE_DEADLINE_MS,
+        () => new ToolPhaseStallError(PLANNER_FIRST_RESPONSE_DEADLINE_MS)
+      )
+    : null;
   let sawToolCall = false;
   let sawOutput = false;
   try {
@@ -859,7 +889,11 @@ async function gatherOn(
       ...(p.maxOutputTokens != null && { maxOutputTokens: p.maxOutputTokens }),
       // Combined so a stalled planner call is torn down, not merely abandoned —
       // same shape as the synth phase below.
-      abortSignal: AbortSignal.any([p.abortSignal, idle.signal]),
+      abortSignal: AbortSignal.any([
+        p.abortSignal,
+        idle.signal,
+        ...(firstResponse ? [firstResponse.signal] : []),
+      ]),
       prepareStep: buildPrepareStep(
         gatherSystem,
         FORCE_FINISH_GATHER_SUFFIX,
@@ -882,12 +916,20 @@ async function gatherOn(
       while (true) {
         // Racing the deadline is what makes the stall observable: awaiting
         // `next()` alone parks here until the PROVIDER gives up.
-        const next = await Promise.race([iterator.next(), idle.deadline]);
+        const next = await Promise.race([
+          iterator.next(),
+          idle.deadline,
+          ...(firstResponse ? [firstResponse.deadline] : []),
+        ]);
         if (next.done) break;
         // Any part counts as liveness — a tool-call/tool-result pair means the
         // loop is working, not hanging.
         idle.touch();
         const part = next.value;
+        if (firstResponse && !SDK_PREAMBLE_PARTS.has(part.type)) {
+          firstResponse.clear();
+          firstResponse = null;
+        }
         if (part.type === 'error') throw part.error;
         if (part.type === 'tool-call') sawToolCall = true;
         if (part.type === 'tool-input-start' || part.type === 'tool-call') {
@@ -924,7 +966,7 @@ async function gatherOn(
       reportBackgroundError(err, {
         job: 'agentic-gather-stall',
         model: modelLabel(model),
-        idleMs,
+        idleMs: err.idleMs,
       });
       // …und in das Register, das sich Lanes merkt. Ohne diese Zeile blieb der
       // Befund eine Einzelmeldung: `modelHealth` sah den Stillstand nie, also
@@ -936,6 +978,7 @@ async function gatherOn(
     return { error: err, sawToolCall, sawOutput };
   } finally {
     idle.clear();
+    firstResponse?.clear();
   }
 }
 
