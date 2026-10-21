@@ -26,6 +26,7 @@ describe('sticker catalog', () => {
       'teamgruen',
       'regenbogen',
       'regenbogen-herz',
+      'progress-pride',
       'vielfalt',
       'at-gruen-waehlen',
       'at-klima-schuetzen',
@@ -41,6 +42,7 @@ describe('sticker catalog', () => {
       'teamgruen',
       'regenbogen',
       'regenbogen-herz',
+      'progress-pride',
       'vielfalt',
     ]);
   });
