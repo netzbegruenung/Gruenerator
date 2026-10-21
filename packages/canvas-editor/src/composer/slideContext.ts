@@ -19,6 +19,7 @@ type SlideInk = ReturnType<typeof slideInk>;
 export interface SlideCtx {
   measure: MeasureText;
   theme: BrandTheme;
+  headFamily: string;
   isAt: boolean;
   locale: SharepicCreatorLocale;
   canvas: CanvasFormat;
@@ -30,6 +31,9 @@ export interface SlideCtx {
   darkText: string;
   badgeColors: SlideInk['badgeColors'];
   cardAccent: SlideInk['cardAccent'];
+  contrastPanel: SlideInk['contrastPanel'];
+  /** The slide's ref, not a copy: `vergleich` columns move the logo by writing it. */
+  logoAt: { current: { x: number } | null };
   addShape: (shape: ShapeInstance) => void;
   addIcon: (
     id: string,

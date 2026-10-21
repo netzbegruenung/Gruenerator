@@ -71,9 +71,11 @@ export interface ComposedSharepic {
 
 export type BildItem = Extract<SharepicItem, { type: 'bild' }>;
 export type DiagrammItem = Extract<SharepicItem, { type: 'diagramm' }>;
+export type FaktencheckItem = Extract<SharepicItem, { type: 'faktencheck' }>;
 export type HeadlineItem = Extract<SharepicItem, { type: 'headline' }>;
 export type InfografikItem = Extract<SharepicItem, { type: 'infografik' }>;
 export type SteckbriefItem = Extract<SharepicItem, { type: 'steckbrief' }>;
+export type VergleichItem = Extract<SharepicItem, { type: 'vergleich' }>;
 
 export interface Column {
   x: number;
