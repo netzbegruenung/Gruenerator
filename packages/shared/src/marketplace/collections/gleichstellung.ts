@@ -28,5 +28,13 @@ export const GLEICHSTELLUNG_COLLECTION = {
   show: 14,
   min: 0,
   listed: false,
-  story: [{ type: 'vorlagen', thema: 'frauen', heading: 'Sharepics zum Anpassen' }],
+  story: [
+    {
+      type: 'text',
+      paragraphs: [
+        'Gleichberechtigung ist keine Selbstverständlichkeit, sondern das Ergebnis jahrzehntelanger Auseinandersetzungen um Rechte, Freiheit und gesellschaftliche Teilhabe. Frauen haben sich das Wahlrecht erkämpft, traditionelle Rollenbilder infrage gestellt und neue Wege zur Selbstbestimmung eröffnet – doch bis heute prägen ungleiche Bezahlung, unbezahlte Sorgearbeit und geschlechtsspezifische Gewalt den Alltag vieler Frauen. Die Frauenbewegung steht deshalb nicht nur für die Errungenschaften vergangener Generationen, sondern auch für den fortdauernden Anspruch auf eine Gesellschaft, in der alle Menschen unabhängig von ihrem Geschlecht frei, sicher und selbstbestimmt leben können.',
+      ],
+    },
+    { type: 'vorlagen', thema: 'frauen', heading: 'Sharepics zum Anpassen' },
+  ],
 } as const satisfies MarketplaceCollection;
