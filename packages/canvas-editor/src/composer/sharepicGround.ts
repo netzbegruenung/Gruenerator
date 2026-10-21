@@ -41,9 +41,9 @@ export const SCRIM_TEXT_ALPHA: Record<PhotoTone, number> = {
 };
 export const SCRIM_MAX = 0.55;
 /** The scrim covers at least this share of the photo from the text edge… */
-export const SCRIM_MIN_DEPTH = 0.42;
+const SCRIM_MIN_DEPTH = 0.42;
 /** …and fades over this share beyond the dense band. */
-export const SCRIM_FADE = 0.15;
+const SCRIM_FADE = 0.15;
 /** DE: a very dark Tanne (#06251A); AT stays neutral-dark. */
 export const SCRIM_DARK: Record<SharepicCreatorLocale, string> = {
   'de-DE': '6,37,26',

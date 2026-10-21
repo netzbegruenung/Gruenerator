@@ -68,7 +68,7 @@ export function largestSizeWordsFit(
 /** Distance between Störer lines, as a share of the font size. */
 export const STOERER_LINE_STEP = 1.1;
 /** The DE design guide keeps 10 % of the Störer free around its text. */
-export const STOERER_TEXT_SHARE = 0.9;
+const STOERER_TEXT_SHARE = 0.9;
 /** Largest Störer type as a share of the radius (88 px at 125). */
 export const STOERER_MAX_SIZE_SHARE = 0.7;
 /** Smallest Störer type that still reads at feed size (on 1080 px). */
