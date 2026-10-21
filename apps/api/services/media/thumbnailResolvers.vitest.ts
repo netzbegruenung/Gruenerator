@@ -22,14 +22,21 @@ vi.mock('../subtitler/index.js', () => ({
   getSubtitlerProjectService: () => ({ getThumbnailPath }),
 }));
 
+const getRemoteImageSource = vi.fn();
+vi.mock('./remoteImageSource.js', () => ({
+  getRemoteImageSource: (...a: unknown[]) => getRemoteImageSource(...a),
+}));
+
 const { isSafeThumbnailId, resolveThumbnailSource } = await import('./thumbnailResolvers.js');
 
 const PROJECT_ID = '11111111-1111-4111-8111-111111111111';
 const CANVAS_ID = '22222222-2222-4222-8222-222222222222';
+const TEMPLATE_ID = '33333333-3333-4333-8333-333333333333';
 
 beforeEach(() => {
   dbQuery.mockReset();
   getShareByToken.mockReset();
+  getRemoteImageSource.mockReset();
 });
 
 describe('id validation', () => {
@@ -203,5 +210,76 @@ describe('canvas', () => {
       reason: 'not_found',
     });
     expect(getShareByToken).not.toHaveBeenCalled();
+  });
+});
+
+describe('template', () => {
+  const readyShare = {
+    status: 'ready',
+    media_type: 'image',
+    file_path: 'tpltok/media.png',
+    mime_type: 'image/png',
+  };
+
+  it.each([
+    ['its upload page URL', '/share/tpltok'],
+    ['the download URL a Grünerator-Vorlage stores', '/api/share/tpltok/download'],
+  ])('delegates %s to the media row', async (_label, url) => {
+    dbQuery.mockResolvedValue([{ url }]);
+    getShareByToken.mockResolvedValue(readyShare);
+    const result = await resolveThumbnailSource('template', TEMPLATE_ID);
+    expect(getShareByToken).toHaveBeenCalledWith('tpltok');
+    expect(result).toMatchObject({
+      ok: true,
+      sourcePath: '/uploads/shared-media/tpltok/media.png',
+    });
+    expect(getRemoteImageSource).not.toHaveBeenCalled();
+  });
+
+  it('serves a crawled og:image through the remote source cache', async () => {
+    dbQuery.mockResolvedValue([{ url: 'https://static.canva.com/og.png' }]);
+    getRemoteImageSource.mockResolvedValue({
+      sourcePath: '/cache/remote/ab/abc/source.png',
+      contentType: 'image/png',
+    });
+    expect(await resolveThumbnailSource('template', TEMPLATE_ID)).toEqual({
+      ok: true,
+      sourcePath: '/cache/remote/ab/abc/source.png',
+      contentType: 'image/png',
+    });
+    expect(getRemoteImageSource).toHaveBeenCalledWith('https://static.canva.com/og.png');
+  });
+
+  it('reads only live, not removed rows', async () => {
+    dbQuery.mockResolvedValue([]);
+    expect(await resolveThumbnailSource('template', TEMPLATE_ID)).toEqual({
+      ok: false,
+      reason: 'not_found',
+    });
+    const sql = dbQuery.mock.calls[0]?.[0] as string;
+    expect(sql).toContain('deleted_at IS NULL');
+    expect(sql).toContain("moderation <> 'removed'");
+  });
+
+  it.each([
+    ['a data URL', 'data:image/png;base64,AAAA'],
+    ['a traversal in the token', '/api/share/..%2f..%2fetc/download'],
+    ['a relative path', '/images/logo.png'],
+  ])('refuses %s', async (_label, url) => {
+    dbQuery.mockResolvedValue([{ url }]);
+    expect(await resolveThumbnailSource('template', TEMPLATE_ID)).toEqual({
+      ok: false,
+      reason: 'not_found',
+    });
+    expect(getShareByToken).not.toHaveBeenCalled();
+    expect(getRemoteImageSource).not.toHaveBeenCalled();
+  });
+
+  it('never queries for an id that is not a uuid', async () => {
+    expect(await resolveThumbnailSource('template', 'not-a-uuid')).toEqual({
+      ok: false,
+      reason: 'not_found',
+    });
+    expect(dbQuery).not.toHaveBeenCalled();
   });
 });

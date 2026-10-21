@@ -77,6 +77,19 @@ export function variantCachePath(req: VariantRequest & { width: ThumbnailWidth }
   return full;
 }
 
+/**
+ * `remote/<hash[0:2]>/<hash>/` — where a fetched remote source lives
+ * (`remoteImageSource.ts`). Under the same root so the same prune covers it.
+ */
+export function remoteSourceDir(urlHash: string): string {
+  const safeHash = path.basename(urlHash);
+  const full = path.join(CACHE_ROOT, 'remote', safeHash.slice(0, 2), safeHash);
+  if (!path.resolve(full).startsWith(CACHE_ROOT_RESOLVED + path.sep)) {
+    throw new Error('Invalid remote source path');
+  }
+  return full;
+}
+
 async function statFile(filePath: string): Promise<fs.Stats | null> {
   try {
     return await fsPromises.stat(filePath);

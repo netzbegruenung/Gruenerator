@@ -8,6 +8,10 @@ describe('shareTokenFromShareUrl', () => {
     expect(shareTokenFromShareUrl('/share/abc123/')).toBe('abc123');
   });
 
+  it('liest den Token aus der Download-URL, die Grünerator-Vorlagen speichern', () => {
+    expect(shareTokenFromShareUrl('/api/share/abc123/download')).toBe('abc123');
+  });
+
   it.each([
     ['eine absolute URL', 'https://canva.com/og.png'],
     ['die Datei-URL selbst', '/api/share/abc123/preview'],
@@ -40,6 +44,12 @@ describe('resolveStoredImageUrl', () => {
   it('übersetzt die gespeicherte Seiten-URL in die Bilddatei', () => {
     expect(resolveStoredImageUrl('/share/tok', { baseUrl: 'https://gruenerator.eu/api' })).toBe(
       'https://gruenerator.eu/api/share/tok/preview?w=400&fmt=webp'
+    );
+  });
+
+  it('macht aus dem Original-Download die Vorschau-Variante', () => {
+    expect(resolveStoredImageUrl('/api/share/tok/download')).toBe(
+      '/api/share/tok/preview?w=400&fmt=webp'
     );
   });
 

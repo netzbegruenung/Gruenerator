@@ -16,8 +16,13 @@
  * waren nur die Vorlagen mit selbst hochgeladenen Bildern (#2845).
  */
 
-/** `/share/<token>` — die Seiten-URL, exakt und ohne Query/Fragment. */
-const SHARE_PAGE_RE = /^\/share\/([^/?#]+)\/?$/;
+/**
+ * `/share/<token>` — die Seiten-URL, exakt und ohne Query/Fragment — oder
+ * `/api/share/<token>/download`, das Grünerator-Vorlagen speichern
+ * (`uploadBlobToMediaLibrary`). Die Download-URL liefert das Original ohne
+ * Cache-Header und hinter Auth; als Kachel lädt sie jede Galerie im Volltext.
+ */
+const SHARE_PAGE_RE = /^(?:\/share\/([^/?#]+)\/?|\/api\/share\/([^/?#]+)\/download)$/;
 
 export interface SharedMediaPreviewOptions {
   /** API-Basis **inklusive** `/api`. Vorgabe `/api` (gleiche Herkunft, Web). */
@@ -27,10 +32,11 @@ export interface SharedMediaPreviewOptions {
   fmt?: 'webp' | 'avif';
 }
 
-/** Der Share-Token aus einer `/share/<token>`-Seiten-URL, sonst `null`. */
+/** Der Share-Token aus einer gespeicherten Share-URL (siehe oben), sonst `null`. */
 export function shareTokenFromShareUrl(url: string | null | undefined): string | null {
   if (!url) return null;
-  return SHARE_PAGE_RE.exec(url)?.[1] ?? null;
+  const match = SHARE_PAGE_RE.exec(url);
+  return match?.[1] ?? match?.[2] ?? null;
 }
 
 /** Die Bild-URL einer Share-Variante: `<base>/share/<token>/preview?w=&fmt=`. */

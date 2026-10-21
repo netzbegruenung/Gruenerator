@@ -15,7 +15,7 @@ import express, { type Request, type Response, type Router } from 'express';
 
 import { getThumbnailVariant, openVariant } from '../../services/media/thumbnailCache.js';
 import { resolveThumbnailSource } from '../../services/media/thumbnailResolvers.js';
-import { verifyThumbnail, type ThumbnailKind } from '../../services/media/thumbnailSignature.js';
+import { isThumbnailKind, verifyThumbnail } from '../../services/media/thumbnailSignature.js';
 import {
   isThumbnailFormat,
   isThumbnailWidth,
@@ -26,8 +26,6 @@ import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('thumbnails');
 const router: Router = express.Router();
-
-const KINDS: readonly ThumbnailKind[] = ['media', 'reel', 'canvas'];
 
 /**
  * Errors are never cached. A `processing` share cached as a permanent 404 is a
@@ -61,7 +59,7 @@ interface ThumbParams {
 router.get('/:kind/:id/:v', async (req: Request<ThumbParams>, res: Response) => {
   const { kind, id, v } = req.params;
 
-  if (!KINDS.includes(kind as ThumbnailKind)) {
+  if (!isThumbnailKind(kind)) {
     return fail(res, 400, 'Unbekannter Vorschautyp');
   }
 
@@ -91,10 +89,7 @@ router.get('/:kind/:id/:v', async (req: Request<ThumbParams>, res: Response) => 
     fmt = rawFmt;
   }
 
-  const verified = verifyThumbnail(
-    { kind: kind as ThumbnailKind, id, v },
-    lastValue(req.query.sig)
-  );
+  const verified = verifyThumbnail({ kind, id, v }, lastValue(req.query.sig));
   if (!verified.ok) {
     if (verified.reason === 'unconfigured') return fail(res, 503, 'Vorschau nicht konfiguriert');
     if (verified.reason === 'malformed') return fail(res, 400, 'Signatur fehlt');
@@ -111,17 +106,14 @@ router.get('/:kind/:id/:v', async (req: Request<ThumbParams>, res: Response) => 
   }
 
   try {
-    const source = await resolveThumbnailSource(kind as ThumbnailKind, id);
+    const source = await resolveThumbnailSource(kind, id);
     if (!source.ok) {
       // An expected state (deleted row, upload still processing): debug only.
       log.debug(`404 ${kind}/${id}: ${source.reason}`);
       return fail(res, 404, 'Vorschau nicht verfügbar');
     }
 
-    const variant = await getThumbnailVariant(
-      { kind: kind as ThumbnailKind, id, v, width, fmt },
-      source
-    );
+    const variant = await getThumbnailVariant({ kind, id, v, width, fmt }, source);
     if (!variant) {
       // The row resolves but no variant comes back. Only a render failure has
       // already logged an error; a missing source file has not, so this line is

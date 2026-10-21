@@ -57,7 +57,9 @@ const KIND_VIEWS: { [K in MarketplaceKind]: KindView<MarketplaceItemOf<K>> } = {
     toggle: 'bookmark',
     imageFit: 'cover',
     image: (item) => {
-      const uri = getPublicImageUrl(item.thumbnailUrl ?? undefined);
+      const uri = item.template.thumbUrl
+        ? resolveChatUrl(item.template.thumbUrl)
+        : getPublicImageUrl(item.thumbnailUrl ?? undefined);
       return uri ? { uri } : null;
     },
     DetailExtras: TemplatePages,

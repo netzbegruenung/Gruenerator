@@ -11,6 +11,10 @@
  * client's job.
  */
 
+import { createHash } from 'crypto';
+
+import { shareTokenFromShareUrl } from '@gruenerator/shared/media-library/shareUrl';
+
 import {
   signThumbnail,
   type ThumbnailDescriptor,
@@ -80,6 +84,22 @@ export function buildThumbnailTileUrl(kind: ThumbnailKind, id: string, v: string
 }
 
 /**
+ * A tile for a row that stores an image as a URL (`resolveStoredImage` serves
+ * it): a media-library upload or a remote `http(s)` image. Null for anything
+ * the resolver cannot serve, so a list never ships a tile that 404s — the
+ * caller keeps the raw URL as its fallback.
+ */
+export function buildStoredImageTileUrl(
+  kind: ThumbnailKind,
+  id: string,
+  storedUrl: string | null | undefined
+): string | null {
+  if (!storedUrl) return null;
+  if (!shareTokenFromShareUrl(storedUrl) && !/^https?:\/\//i.test(storedUrl)) return null;
+  return buildThumbnailTileUrl(kind, id, versionFromUrl(storedUrl));
+}
+
+/**
  * A reel tile URL, or null when the project has no poster yet. The old
  * `/api/subtitler/projects/:id/thumbnail` route sits behind requireAuth, so a
  * header-less native <Image> got a 401 and the tile stayed blank.
@@ -114,6 +134,15 @@ export function versionFromDate(value: Date | string | null | undefined): string
   const ms = value instanceof Date ? value.getTime() : Date.parse(value);
   if (!Number.isFinite(ms)) return '0';
   return Math.floor(ms / 1000).toString(36);
+}
+
+/**
+ * A content version from a stored image URL: the row points at different pixels
+ * exactly when the URL changes (a new upload is a new token, a re-crawl a new
+ * `og:image`).
+ */
+export function versionFromUrl(url: string): string {
+  return createHash('sha256').update(url).digest('base64url').slice(0, 10);
 }
 
 /**

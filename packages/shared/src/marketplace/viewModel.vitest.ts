@@ -70,6 +70,7 @@ const template = (templateType: string | null, externalUrl: string | null): Mark
   reportKind: 'user_template',
   template: {
     templateType,
+    thumbUrl: null,
     externalUrl,
     images: [],
     categories: [],

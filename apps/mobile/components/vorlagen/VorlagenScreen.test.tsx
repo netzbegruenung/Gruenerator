@@ -109,6 +109,7 @@ const plakat = {
   createdAt: null,
   template: {
     templateType: 'canva',
+    thumbUrl: null,
     externalUrl: 'https://canva.com/g1',
     images: [],
     categories: [],

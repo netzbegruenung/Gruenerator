@@ -121,12 +121,13 @@ function RecipeActions({ item }: { item: MarketplaceItemOf<'recipe'> }) {
 // ── Vorlagen ─────────────────────────────────────────────────────────────────
 
 /** Uploaded Vorlagen images are stored as `/share/<token>` page URLs, not files (#2845). */
-export const templateImageSrc = (url: string | null | undefined): string | null =>
-  resolveApiAssetUrl(resolveStoredImageUrl(url) ?? undefined) ?? null;
+export const templateImageSrc = (url: string | null | undefined, width = 400): string | null =>
+  resolveApiAssetUrl(resolveStoredImageUrl(url, { width }) ?? undefined) ?? null;
 
 const templateVisual = (item: MarketplaceItemOf<'template'>): MarketplaceVisual => ({
   type: 'image',
-  src: templateImageSrc(item.thumbnailUrl),
+  src:
+    resolveApiAssetUrl(item.template.thumbUrl ?? undefined) ?? templateImageSrc(item.thumbnailUrl),
   cutout: false,
   icon: <PiLayout />,
 });
@@ -164,7 +165,7 @@ function TemplateActions({ item }: { item: MarketplaceItemOf<'template'> }) {
 function TemplatePages({ item }: { item: MarketplaceItemOf<'template'> }) {
   const pages = item.template.images.flatMap((image) => {
     const src = templateImageSrc(image.url);
-    return src ? [{ src }] : [];
+    return src ? [{ src, large: templateImageSrc(image.url, 800) }] : [];
   });
   const [page, setPage] = useState(0);
   const current = pages[page] ?? pages[0] ?? null;
@@ -174,7 +175,7 @@ function TemplatePages({ item }: { item: MarketplaceItemOf<'template'> }) {
       <VisualImage
         visual={{
           type: 'image',
-          src: current?.src ?? templateImageSrc(item.thumbnailUrl),
+          src: current?.large ?? templateImageSrc(item.thumbnailUrl, 800),
           cutout: false,
           icon: <PiLayout />,
         }}

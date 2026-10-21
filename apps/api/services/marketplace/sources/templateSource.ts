@@ -11,6 +11,7 @@ import {
   getFavoritedEntityIdsForUser,
   unfavoriteEntity,
 } from '../../entityFavorites/EntityFavoritesService.js';
+import { buildStoredImageTileUrl } from '../../media/thumbnailUrl.js';
 import { isUserTemplateId } from '../../templateInteractions/templateTarget.js';
 import { listGalleryTemplates, type GalleryTemplateRow } from '../../templates/galleryTemplates.js';
 import { type MarketplaceContext } from '../context.js';
@@ -31,6 +32,7 @@ function toImages(raw: unknown[]): TemplateItem['template']['images'] {
 
 function toItem(ctx: MarketplaceContext, row: GalleryTemplateRow): TemplateItem {
   const images = toImages(row.images);
+  const thumbnailUrl = row.thumbnailUrl || images[0]?.url || null;
   return {
     kind: 'template',
     key: `template:${row.id}`,
@@ -38,7 +40,7 @@ function toItem(ctx: MarketplaceContext, row: GalleryTemplateRow): TemplateItem 
     origin: 'oeffentlich',
     title: row.title,
     description: row.description || null,
-    thumbnailUrl: row.thumbnailUrl || images[0]?.url || null,
+    thumbnailUrl,
     iconKey: null,
     authorName: row.authorName,
     audience: row.audience,
@@ -50,6 +52,7 @@ function toItem(ctx: MarketplaceContext, row: GalleryTemplateRow): TemplateItem 
     createdAt: row.createdAt.toISOString(),
     template: {
       templateType: row.templateType,
+      thumbUrl: buildStoredImageTileUrl('template', row.id, thumbnailUrl),
       externalUrl: row.externalUrl,
       images,
       categories: row.categories,
