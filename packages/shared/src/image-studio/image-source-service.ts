@@ -1,3 +1,6 @@
+import { unsplashRateLimitErrorSchema } from '@gruenerator/contracts';
+import { isAxiosError } from 'axios';
+
 import type {
   FetchStockImagesResponse,
   StockImage,
@@ -47,15 +50,33 @@ export async function searchUnsplashImages(
     return { results: [], total: 0, total_pages: 0 };
   }
 
-  const response = await client.get<UnsplashSearchResult>('/unsplash/search', {
-    params: {
-      query: query.trim(),
-      page,
-      per_page: perPage,
-    },
-  });
+  try {
+    const response = await client.get<UnsplashSearchResult>('/unsplash/search', {
+      params: {
+        query: query.trim(),
+        page,
+        per_page: perPage,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    if (isAxiosError(error) && error.response?.status === 429) {
+      const body = unsplashRateLimitErrorSchema.safeParse(error.response.data);
+      if (body.success) throw new UnsplashLimitError(body.data.retryAfter);
+    }
+    throw new Error('Die Unsplash-Suche ist fehlgeschlagen.', { cause: error });
+  }
+}
 
-  return response.data;
+/** The shared Unsplash key has used up its hourly searches. */
+export class UnsplashLimitError extends Error {
+  readonly retryAt: Date;
+
+  constructor(retryAfterSeconds: number) {
+    super('Das Unsplash-Kontingent ist für diese Stunde aufgebraucht.');
+    this.name = 'UnsplashLimitError';
+    this.retryAt = new Date(Date.now() + retryAfterSeconds * 1000);
+  }
 }
 
 export async function trackUnsplashDownload(

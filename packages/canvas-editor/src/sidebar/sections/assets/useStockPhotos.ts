@@ -66,6 +66,38 @@ export function stockPhotoItem(image: StockImage): ElementItem {
   };
 }
 
+/** Unsplash serves resized copies of the same hotlinked URL via imgix's `w`. */
+export function unsplashThumbnailUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    u.searchParams.set('w', '400');
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * A live Unsplash search hit as a tile. It is placed by its hotlinked URL —
+ * API Terms §6 forbid re-hosting the unaltered photo — and labelled with the
+ * photographer, which is the credit Unsplash requires next to the photo.
+ */
+export function unsplashPhotoItem(image: StockImage): ElementItem {
+  const credit = creditOf(image);
+  return {
+    key: `unsplash:${image.filename}`,
+    label: credit ? credit.photographer : 'Unsplash',
+    keywords: [],
+    action: {
+      kind: 'media',
+      url: image.url ?? '',
+      name: image.alt_text ?? image.filename,
+      ...(credit ? { attribution: credit } : {}),
+    },
+    thumb: { t: 'photo', src: unsplashThumbnailUrl(image.url ?? '') },
+  };
+}
+
 type FetchStockImages = NonNullable<ReturnType<typeof useCanvasEditorServices>['fetchStockImages']>;
 
 function stockPhotosQuery(fetchStockImages: FetchStockImages) {

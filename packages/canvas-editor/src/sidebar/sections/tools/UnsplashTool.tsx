@@ -4,6 +4,9 @@ import { HiMagnifyingGlass } from 'react-icons/hi2';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { useTrackUnsplashDownload } from '../../../hooks/useTrackUnsplashDownload';
+import { unsplashThumbnailUrl } from '../assets/useStockPhotos';
+
+import { UnsplashLimitNotice, UnsplashRemaining } from './UnsplashLimitNotice';
 
 import type { StockImage } from '../../../common/imageSourceTypes';
 import type { UserImagePlacement } from '../../../utils/userImageUtils';
@@ -14,17 +17,6 @@ export interface UnsplashToolProps {
 
 const SEARCH_DEBOUNCE_MS = 400;
 const UNSPLASH_HOME = 'https://unsplash.com/?utm_source=gruenerator&utm_medium=referral';
-
-/** Unsplash serves resized copies of the same hotlinked URL via imgix's `w`. */
-function thumbnailUrl(url: string): string {
-  try {
-    const u = new URL(url);
-    u.searchParams.set('w', '400');
-    return u.toString();
-  } catch {
-    return url;
-  }
-}
 
 /**
  * Unsplash search as a tool. A picked photo is placed by its hotlinked
@@ -46,6 +38,8 @@ export function UnsplashTool({ onPlaceImageUrl }: UnsplashToolProps) {
     totalResults,
     isLoadingSearch,
     searchError,
+    limit,
+    remaining,
     lastQuery,
     searchUnsplash,
     loadMoreResults,
@@ -92,6 +86,8 @@ export function UnsplashTool({ onPlaceImageUrl }: UnsplashToolProps) {
         />
       </form>
 
+      {limit && <UnsplashLimitNotice retryAt={limit.retryAt} />}
+
       {searchError && (
         <p role="alert" className="m-0 text-xs text-editor-danger-fg">
           {searchError}
@@ -104,7 +100,7 @@ export function UnsplashTool({ onPlaceImageUrl }: UnsplashToolProps) {
         </p>
       )}
 
-      {lastQuery && !isLoadingSearch && searchResults.length === 0 && !searchError && (
+      {lastQuery && !isLoadingSearch && searchResults.length === 0 && !searchError && !limit && (
         <p role="status" className="m-0 text-xs text-[var(--editor-text-muted)]">
           Keine Fotos zu „{lastQuery}“ gefunden.
         </p>
@@ -122,7 +118,7 @@ export function UnsplashTool({ onPlaceImageUrl }: UnsplashToolProps) {
               >
                 {image.url && (
                   <img
-                    src={thumbnailUrl(image.url)}
+                    src={unsplashThumbnailUrl(image.url)}
                     alt=""
                     loading="lazy"
                     decoding="async"
@@ -167,6 +163,8 @@ export function UnsplashTool({ onPlaceImageUrl }: UnsplashToolProps) {
           Mehr laden ({searchResults.length} von {totalResults})
         </button>
       )}
+
+      {!limit && <UnsplashRemaining remaining={remaining} />}
 
       <p className="m-0 text-[11px] text-[var(--editor-text-muted)]">
         Fotos von{' '}

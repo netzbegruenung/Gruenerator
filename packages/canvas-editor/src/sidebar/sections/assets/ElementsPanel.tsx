@@ -26,6 +26,7 @@ import { searchElements } from './elementSearch';
 import { ElementTile } from './ElementTile';
 import { galleryStickerItem, type ElementItem } from './elementTypes';
 import { EmojiTonePicker } from './EmojiTonePicker';
+import { FotosCatalog } from './FotosCatalog';
 import { RecentCarousel } from './RecentCarousel';
 import { StickerCatalog } from './StickerCatalog';
 import { BLOCK_GRUPPEN, canRun, useElementCatalog, type CategoryId } from './useElementCatalog';
@@ -129,7 +130,7 @@ function BlockGroups({
  */
 export function ElementsPanel(props: ExtendedAssetsSectionProps) {
   const isMobile = useIsCanvasMobile();
-  const { userLocale = 'de-DE' } = useCanvasEditorServices();
+  const { userLocale = 'de-DE', searchUnsplashImages } = useCanvasEditorServices();
   // Opened for a selected frame or illustration ("Mehr" on the phone), it starts in that category.
   const [cat, setCat] = useState<CategoryId | null>(() =>
     props.selectedFrameId ? 'rahmen' : props.selectedIllustrationId ? 'illustrationen' : null
@@ -341,6 +342,13 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
         </>
       );
     }
+    if (category.id === 'fotos') {
+      return (
+        <FotosCatalog searchQuery={q} grid={grid}>
+          {body}
+        </FotosCatalog>
+      );
+    }
     if (category.id === 'sticker' && props.onAddAsset) {
       return (
         <StickerCatalog
@@ -356,7 +364,9 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
   }
 
   const showResultsHeader = hasQuery && (category?.searchable ?? true);
-  const showNoResults = showResultsHeader && results.length === 0;
+  // In Fotos an empty local search still leads on to Unsplash, so the body stays.
+  const searchesUnsplash = category?.id === 'fotos' && searchUnsplashImages !== undefined;
+  const showNoResults = showResultsHeader && results.length === 0 && !searchesUnsplash;
 
   return (
     <div

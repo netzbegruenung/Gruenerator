@@ -73,6 +73,8 @@ export interface SearchResult {
   results: StockImage[];
   total: number;
   total_pages: number;
+  /** Unsplash's `X-Ratelimit-Remaining` for this hour; absent on cache hits. */
+  rateLimitRemaining?: number;
 }
 
 interface CacheEntry<T> {
@@ -86,7 +88,9 @@ interface CacheEntry<T> {
 // ============================================================================
 
 const UNSPLASH_API_BASE = 'https://api.unsplash.com';
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+// Matches the hourly quota window: a repeated query costs nothing for an hour.
+const CACHE_TTL_MS = 60 * 60 * 1000;
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 10000; // 10 seconds
 
 // ============================================================================
@@ -129,6 +133,10 @@ class SimpleCache<T> {
 
 const searchCache = new SimpleCache<SearchResult>();
 
+// One key serves every user. Once Unsplash refuses, further searches would only
+// burn requests on the same refusal, so they are answered locally until the window ends.
+let rateLimitedUntil = 0;
+
 // ============================================================================
 // Error Classes
 // ============================================================================
@@ -145,10 +153,30 @@ export class UnsplashApiError extends Error {
 }
 
 export class UnsplashRateLimitError extends UnsplashApiError {
-  constructor(message: string = 'Unsplash API rate limit exceeded') {
+  constructor(
+    message: string = 'Unsplash API rate limit exceeded',
+    /** Seconds until searches are expected to work again. */
+    public retryAfter: number = RATE_LIMIT_WINDOW_MS / 1000
+  ) {
     super(message, 403);
     this.name = 'UnsplashRateLimitError';
   }
+}
+
+function secondsUntil(timestamp: number): number {
+  return Math.max(1, Math.ceil((timestamp - Date.now()) / 1000));
+}
+
+/** Unsplash answers an exhausted quota with 403 "Rate Limit Exceeded" (and remaining 0). */
+function isRateLimitResponse(response: Response, body: string): boolean {
+  if (response.status === 429) return true;
+  if (response.status !== 403) return false;
+  return response.headers.get('x-ratelimit-remaining') === '0' || /rate limit/i.test(body);
+}
+
+function rateLimitRemaining(response: Response): number | null {
+  const value = Number.parseInt(response.headers.get('x-ratelimit-remaining') ?? '', 10);
+  return Number.isNaN(value) ? null : value;
 }
 
 // ============================================================================
@@ -273,8 +301,9 @@ export class UnsplashApiService {
         // If parsing fails, use default message
       }
 
-      if (response.status === 403) {
-        throw new UnsplashRateLimitError(errorMessage);
+      if (isRateLimitResponse(response, errorBody)) {
+        rateLimitedUntil = Date.now() + RATE_LIMIT_WINDOW_MS;
+        throw new UnsplashRateLimitError(errorMessage, secondsUntil(rateLimitedUntil));
       }
 
       throw new UnsplashApiError(errorMessage, response.status, errorBody);
@@ -305,6 +334,10 @@ export class UnsplashApiService {
       return cached;
     }
 
+    if (Date.now() < rateLimitedUntil) {
+      throw new UnsplashRateLimitError(undefined, secondsUntil(rateLimitedUntil));
+    }
+
     // Build URL with query parameters
     const url = new URL(`${UNSPLASH_API_BASE}/search/photos`);
     url.searchParams.set('query', query.trim());
@@ -332,9 +365,11 @@ export class UnsplashApiService {
       // Cache the results
       searchCache.set(cacheKey, result);
 
+      const remaining = rateLimitRemaining(response);
+
       console.log(`[UnsplashAPI] Found ${result.results.length} results (${data.total} total)`);
 
-      return result;
+      return remaining === null ? result : { ...result, rateLimitRemaining: remaining };
     } catch (error) {
       if (error instanceof UnsplashApiError) {
         console.error(`[UnsplashAPI] API Error:`, error.message);
@@ -417,10 +452,11 @@ export class UnsplashApiService {
   }
 
   /**
-   * Clear search cache
+   * Clear search cache and lift a remembered rate-limit block
    */
   clearCache(): void {
     searchCache.clear();
+    rateLimitedUntil = 0;
     console.log('[UnsplashAPI] Cache cleared');
   }
 
