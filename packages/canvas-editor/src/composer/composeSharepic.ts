@@ -26,7 +26,7 @@ import {
   type SharepicTextSide,
 } from '@gruenerator/contracts';
 
-import { getBrandTheme, HELLGRUEN_GLOW } from '../brand/theme';
+import { getBrandTheme } from '../brand/theme';
 import { DEFAULT_FORMAT_ID, getCanvasFormatOrDefault, type CanvasFormat } from '../formats';
 import { ASSET_TARGET_SIZE, emojiAssetId } from '../utils/canvasAssets';
 import { CHART_PALETTES, createChartInstance, type ChartType } from '../utils/chartUtils';
@@ -56,13 +56,52 @@ import {
   type ComposedSharepic,
   type ComposedSlide,
   type HeadlineItem,
-  type PhotoTone,
   type Placed,
   type SteckbriefItem,
 } from './composeTypes';
 import { encodeHandMarks, placeHandMarks, sentinelBlind } from './handMarks';
 import { foldMarkers, stripMarks } from './marks';
 import { SHAREPIC_ICON_FILLED, SHAREPIC_ICON_IDS, VERGLEICH_MARKER_IDS } from './sharepicIcons';
+import {
+  ABSATZ_KLEIN,
+  ARROW,
+  ARROW_ICON,
+  AT_CENTRED_MARGIN,
+  BLUME,
+  BOX_INK,
+  CARD_ITEMS,
+  CARD_MARKER,
+  COVER_SHARE,
+  DATE_CIRCLE,
+  FOOTER,
+  GAP,
+  GRADIENTS,
+  HEADLINE_COVER_MAX,
+  HEADLINE_FILL,
+  HEADLINE_GROSS,
+  HEADLINE_MAX,
+  HEADLINE_RATIO,
+  HEADLINE_WITH_CARD,
+  KI_LABEL,
+  KLEE,
+  LOGO,
+  MARGIN,
+  MARKER_MINT,
+  MARKER_PAD_X,
+  QUOTE_ALONE_MAX,
+  QUOTE_LINE_HEIGHT,
+  QUOTE_LONG,
+  SCRIM_ANGLE,
+  SCRIM_DARK,
+  SCRIM_EASE,
+  SCRIM_FADE,
+  SCRIM_GUTTER,
+  SCRIM_MIN_DEPTH,
+  SCRIM_TEXT_ALPHA,
+  STECKBRIEF,
+  TOP_PAD,
+  evenStops,
+} from './sharepicLayoutConstants';
 import { slideProvenance } from './sharepicProvenance';
 import {
   placeArrow,
@@ -88,6 +127,7 @@ import {
 import type { AdditionalText } from '../configs/types';
 
 export { SHAREPIC_COLOR_HEX, type MeasureText };
+export { SCRIM_MAX } from './sharepicLayoutConstants';
 export type { ComposedSharepic, ComposedSlide, ComposeOptions, PhotoTone } from './composeTypes';
 export {
   balancedWrap,
@@ -106,130 +146,6 @@ const BILD_KARTE = { inset: 40, share: 0.4, pad: 16 } as const;
 const BILD_KREIS = 0.5;
 /** A cut-out person rises from the bottom edge to here. */
 const BILD_FREI_TOP = 0.4;
-
-/** 6.5 % of the width — the margin the posts use. */
-const MARGIN = 70;
-const GAP = 30;
-const FOOTER = 130;
-/**
- * Logo: longer side and gap to the bottom edge, measured on the posts (10/2026).
- * DE: the "BÜNDNIS 90/DIE GRÜNEN" word mark (710 × 379), ~250–300 px, bottom-left
- * at the margin, in a tone of the ground (Dd_BXcKiDy2/03, Ddouf0QiL1w/02).
- * AT: the "G DIE GRÜNEN" logo with claim (1410 × 1239), ~210 px, centred.
- */
-const LOGO = {
-  'de-DE': { size: 260, height: (260 * 379) / 710, bottom: 80 },
-  'de-AT': { size: 210, height: (210 * 1239) / 1410, bottom: 91 },
-} as const;
-
-/**
- * AI label, looking like `imagine_label_canvas.ts` at 1080 px: PT Sans Bold 27,
- * pill bottom-left. Kept in sync by hand, the API cannot import the editor.
- */
-const KI_LABEL = {
-  texts: { slide: 'KI-Generiert', closing: 'Klimaschonend KI-generiert mit dem Grünerator' },
-  fontFamily: 'PT Sans',
-  fontSize: 27,
-  margin: 11,
-  paddingX: 16,
-  paddingY: 9,
-  radius: 8,
-  gap: 8,
-} as const;
-
-/**
- * AT's dark greens get a gradient; the rest stays flat. DE colours are all
- * flat (CD 2024 p. 11, "Farben nur flach, 100 % Deckkraft"): the green
- * glow of the posts is the photo behind them, a Tanne plane runs edge to edge.
- */
-const GRADIENTS: Partial<
-  Record<SharepicColor, { type?: 'radial'; angle: number; stops: string[] }>
-> = {
-  // Measured on @diegruenen carousels (10/2026, median over text-free patches):
-  // a deep, slightly bluish green, darker at the top, only a little lighter
-  // below — no slide into yellow-green.
-  dunkelgruen: { angle: 90, stops: ['#0B6620', '#1D7A35', '#23803B'] },
-  // Hellgrün (#56AF31) carries white at 2.77:1 and yellow at 2.26:1. The posts
-  // never set text on it flat: a dark green with a light glow in the middle
-  // (Dc_L5vriG5z, edge #318338 → centre #56AE32). Ours stops darker, at the
-  // brightest stop white keeps 4.68:1 and yellow 3.82:1.
-  hellgruen: { type: 'radial', angle: 0, stops: [...HELLGRUEN_GLOW] },
-};
-
-const evenStops = (stops: string[]) =>
-  stops.map((color, i) => ({ offset: i / (stops.length - 1), color }));
-
-/**
- * Scrim alpha under the text, per photo tone — capped at `SCRIM_MAX`: the posts
- * keep the photo bright and carry the text with a shadow, not a curtain.
- */
-const SCRIM_TEXT_ALPHA: Record<PhotoTone, number> = { dunkel: 0.4, mittel: 0.48, hell: 0.55 };
-export const SCRIM_MAX = 0.55;
-/** The scrim covers at least this share of the photo from the text edge… */
-const SCRIM_MIN_DEPTH = 0.42;
-/** …and fades over this share beyond the dense band. */
-const SCRIM_FADE = 0.15;
-/** DE: a very dark Tanne (#06251A); AT stays neutral-dark. */
-const SCRIM_DARK: Record<SharepicCreatorLocale, string> = { 'de-DE': '6,37,26', 'de-AT': '3,14,8' };
-/** Dense scrim reaches this far past the text before it fades. */
-const SCRIM_GUTTER = 48;
-/** Stops of the scrim's fade, as fractions of its length. */
-const SCRIM_EASE = [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1];
-
-/** Gradient angle per side: offset 0 on the picture side. */
-const SCRIM_ANGLE: Record<SharepicTextSide, number> = {
-  unten: 90,
-  oben: 270,
-  links: 180,
-  rechts: 0,
-};
-
-/**
- * DE quote leading: the posts' marker boxes stand apart line by line
- * (DdjWsbhCHCI), which 1.2 does not leave room for.
- */
-const QUOTE_LINE_HEIGHT = 1.3;
-/** DE `++marker++` box overhang beside its words, in em. */
-const MARKER_PAD_X = 0.1;
-/** The marker on creme: the soft mint of the candidates' text slides (DdEhd82js3K, DdEv6ZPDs-O). */
-const MARKER_MINT = '#77F6A5';
-/** Line-box ink: near-black, as on the story posts. */
-const BOX_INK = '#0B0F0C';
-/** DE `++marker++` inside a white card: grass green, dark ink. */
-const CARD_MARKER: TextMarker = {
-  fill: SHAREPIC_COLOR_HEX.grasgruen,
-  color: SHAREPIC_COLOR_HEX.dunkeltanne,
-  padX: MARKER_PAD_X,
-};
-/**
- * `steckbrief`: label width and the name's width (shares of the width), where
- * the greeting's middle sits (share of the height), the hand and the
- * sunflower in px, the arrows' length, gap to the person and stroke, how far a
- * photo with its own background fades in from its edges (share of its width),
- * how far the dim reaches down a background photo (share of the height).
- */
-const STECKBRIEF = {
-  column: 0.36,
-  greetAt: { foto: 0.62, frei: 0.55 },
-  nameWidth: 0.21,
-  hand: 100,
-  blume: 96,
-  arrowMin: 190,
-  arrowMax: 370,
-  arrowGap: 22,
-  curlMin: 240,
-  stroke: 11,
-  fade: 0.22,
-  scrimTop: 0.18,
-  scrimMax: 0.3,
-} as const;
-/** `blume`: the faded sunflower's size and strength per ground. */
-const BLUME = { size: 760, onLight: 0.12, onGrass: 0.1, onDark: 0.08 } as const;
-/** `absatz.klein`: the body size of the candidates' long text slides at 1080 px. */
-const ABSATZ_KLEIN = 36;
-/** A DE quote this long is a text page (DdEhd82js3K/02), not a hero: body size, small mark. */
-const QUOTE_LONG = 300;
-
 /** `vergleich` with `stil: "spalten"`, measured on Ddouf0QiL1w/01 at 1080 px. */
 const VERGLEICH_SPALTEN = {
   titleMax: 58,
@@ -240,10 +156,6 @@ const VERGLEICH_SPALTEN = {
   /** Their points: grey, not muted by opacity. */
   theirsInk: '#5F6B66',
 } as const;
-
-/** DE accent words on light ground — lime would vanish there. */
-const KLEE = '#008939';
-
 const CHART_TYPE: Record<SharepicChartKind, ChartType> = {
   balken: 'bar',
   'balken-quer': 'bar-horizontal',
@@ -261,35 +173,6 @@ const CHART_REST = '#C8C8C7';
  */
 const CHART_SCALE = 2;
 const CHART_MIN_HEIGHT = 240;
-
-/** The DE "swipe on" arrow — an icon from the editor's own sets, so it stays swappable. */
-const ARROW_ICON = 'tabler:arrow-narrow-right';
-/**
- * Arrow box and its gap to the right edge, measured on the posts: DE a
- * small arrow ~22 px from the corner, AT a long stroke ~280 px wide, ~40 px in.
- * The drawn arrow is narrower than its box (DE ≈ 0.64, AT ≈ 0.8).
- */
-const ARROW = {
-  'de-DE': { size: 42, right: 22, bottom: 22, glyph: 0.64 },
-  'de-AT': { size: 350, right: 40, bottom: 60, glyph: 0.8 },
-} as const;
-/** Headline: widest line at this share of its column, up to `HEADLINE_MAX` px. */
-const HEADLINE_FILL = 0.95;
-const HEADLINE_MAX = 230;
-const HEADLINE_WITH_CARD = 130;
-const CARD_ITEMS: readonly SharepicItem['type'][] = [
-  'schlagzeile',
-  'bingo',
-  'zahl',
-  'rechnung',
-  'termine',
-  'liste',
-  'diagramm',
-  'iconliste',
-  'vergleich',
-  'faktencheck',
-  'infografik',
-];
 /**
  * The smallest quantity's side, as a share of the largest one's. Area-true
  * below this the object turns into a speck nobody recognises (4 kg against
@@ -304,20 +187,6 @@ const ANTEIL_REST_OPACITY = 0.8;
 /** Air between two quantity illustrations, and the largest one's side at scale 1. */
 const MENGEN_ART_GAP = 32;
 const MENGEN_MAX_ART = 440;
-/** A cover headline alone on a colour: larger, filling up to this share of the height. */
-const HEADLINE_COVER_MAX = 260;
-/** `groesse: 'gross'` — "Schrift größer": the caps rise by this much, where the slide has room. */
-const HEADLINE_GROSS = 1.3;
-const COVER_SHARE = 0.6;
-const QUOTE_ALONE_MAX = 120;
-/** Paragraphs stay at most this share of the headline size. */
-const HEADLINE_RATIO = 1.8;
-/** Top padding of a block that starts at the canvas top, measured on the posts. */
-const TOP_PAD: Record<SharepicCreatorLocale, number> = { 'de-DE': 110, 'de-AT': 120 };
-/** AT centred text: ~100 px side margins on the argument slides. */
-const AT_CENTRED_MARGIN = 100;
-/** Date circle on a colour or photo slide: free in the bottom-right corner. */
-const DATE_CIRCLE = { radius: 170, right: 40, bottom: 50 } as const;
 
 export function composeSharepic(spec: SharepicSpec, options: ComposeOptions): ComposedSharepic {
   const count = spec.slides.length;
