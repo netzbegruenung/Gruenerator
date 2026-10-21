@@ -137,6 +137,19 @@ describe('frauen', () => {
 });
 
 describe('queer', () => {
+  it('sets the DE accent in flag yellow on dark ground, Klee on light', () => {
+    const [dark, light] = compose(
+      spec(
+        'de-DE',
+        'queer',
+        slide({ kind: 'farbe', color: 'violett' }, [headline]),
+        slide({ kind: 'farbe', color: 'weiss' }, [headline])
+      )
+    );
+    expect(dark!.additionalTexts[0]!.accent?.fill).toBe(THEMA_INK.flaggenGelb);
+    expect(light!.additionalTexts[0]!.accent?.fill).toBe('#008939');
+  });
+
   it('sets every date row in a flag pill with ink that holds 4.5:1', () => {
     for (const locale of ['de-DE', 'de-AT'] as const) {
       const [s] = compose(

@@ -819,7 +819,19 @@ function composeSlide(
         fontFamily: theme.fonts.quoteEmphasis,
         fontStyle: AT_EMPHASIS_STYLE,
       }
-    : { fill: frauen ? (onLight ? lila : flieder) : onLight ? KLEE : onGrass ? '#FFFFFF' : LIME };
+    : {
+        fill: frauen
+          ? onLight
+            ? lila
+            : flieder
+          : onLight
+            ? KLEE
+            : onGrass
+              ? '#FFFFFF'
+              : thema === 'queer'
+                ? THEMA_INK.flaggenGelb
+                : LIME,
+      };
   // DE `++passage++`: dark ink in a box. On light ground (white, grey, mint)
   // the posts lay lime under it (Dds8o0TAppl, DdEhd82js3K, Dc3HYlTAnG-);
   // photos and dark colours take white — a dark box disappears into the
@@ -862,17 +874,18 @@ function composeSlide(
     ? { ...accent, fill: frauen ? lila : theme.colors.accentOnLight }
     : { fill: frauen ? lila : KLEE };
   /** A figure, a numeral or a closing "!" in the slide's accent colour. */
-  const accentInk = frauen
-    ? accent.fill
-    : isAt
-      ? onLight
-        ? theme.colors.accentOnLight
-        : theme.colors.accent
-      : onLight
-        ? KLEE
-        : onGrass
-          ? '#FFFFFF'
-          : LIME;
+  const accentInk =
+    frauen || thema === 'queer'
+      ? accent.fill
+      : isAt
+        ? onLight
+          ? theme.colors.accentOnLight
+          : theme.colors.accent
+        : onLight
+          ? KLEE
+          : onGrass
+            ? '#FFFFFF'
+            : LIME;
   /** The widest size `value` can take on one line of `width`, up to `cap`. */
   const fitLine = (value: string, cap: number, width: number, family: string) =>
     Math.max(
