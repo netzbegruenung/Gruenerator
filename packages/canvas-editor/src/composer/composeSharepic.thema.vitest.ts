@@ -186,6 +186,24 @@ describe('queer', () => {
     expect(flag.x).toBeGreaterThan(540);
   });
 
+  it('moves the flag to the top corner when a date circle holds the bottom one', () => {
+    for (const locale of ['de-DE', 'de-AT'] as const) {
+      const [s] = compose(
+        spec(locale, 'queer', {
+          ...slide({ kind: 'foto-oben', filename: 'wind.jpg', panelColor: 'violett' }, [headline]),
+          datum: { weekday: 'Sa', date: '25.7.', time: '12 Uhr' },
+        })
+      );
+      const flag = s!.assetInstances.find((a) => a.assetId === PRIDE_FLAG_ASSET)!;
+      expect(flag.y, locale).toBeLessThan(200);
+      // AT keeps a themed photo in colour: no monochrome tint.
+      expect(
+        s!.shapeInstances.some((p) => p.id === 'sc-tint'),
+        locale
+      ).toBe(false);
+    }
+  });
+
   it('paints the pride ground as a gradient white text holds on', () => {
     const [s] = compose(
       spec('de-DE', 'queer', slide({ kind: 'farbe', color: 'pride' }, [headline]))

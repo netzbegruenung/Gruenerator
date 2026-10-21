@@ -782,7 +782,8 @@ function composeSlide(
   }
   // AT sets a photo strip in green monochrome, as the posts do; a full-bleed
   // photo carries the text and stays as shot.
-  if (isAt && (bg.kind === 'foto-oben' || bg.kind === 'foto-unten')) {
+  // A themed slide keeps its photo's colours: a green Pride flag says nothing.
+  if (isAt && !thema && (bg.kind === 'foto-oben' || bg.kind === 'foto-unten')) {
     const top = bg.kind === 'foto-oben' ? 0 : areaBottom;
     const bottom = bg.kind === 'foto-oben' ? areaTop : canvas.height;
     const tint = rect('sc-tint', 0, top, canvas.width, bottom - top, theme.colors.primary);
@@ -4151,14 +4152,16 @@ function composeSlide(
   }
   if (thema === 'queer') {
     // The Progress Pride flag on the logo's line, at the right edge (left of
-    // the swipe-on arrow): a sticker the user can move, resize or drop.
+    // the swipe-on arrow); where a date circle holds that corner, top right.
+    // A sticker the user can move, resize or drop.
     const flagWidth = 120;
+    const flagHeight = (flagWidth * 300) / 480;
     const arrowSpan = swipeOn ? arrow.size * arrow.glyph + 24 : 0;
     out.assetInstances.push({
       id: 'sc-pride-flagge',
       assetId: PRIDE_FLAG_ASSET,
-      x: canvas.width - arrow.right - arrowSpan - flagWidth / 2,
-      y: canvas.height - logo.bottom - logo.height / 2,
+      x: canvas.width - (circle ? MARGIN : arrow.right + arrowSpan) - flagWidth / 2,
+      y: circle ? MARGIN + flagHeight / 2 : canvas.height - logo.bottom - logo.height / 2,
       scale: flagWidth / ASSET_TARGET_SIZE,
       rotation: 0,
       opacity: 1,
