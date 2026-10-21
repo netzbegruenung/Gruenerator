@@ -1,5 +1,6 @@
 import { createShape } from '../utils/shapes';
 
+import { THEMA_INK } from './chromeParts';
 import {
   type BingoItem,
   type Placed,
@@ -10,13 +11,31 @@ import { GAP } from './sharepicLayoutConstants';
 import { type BuildPass, type SlideCtx } from './slideContext';
 import { largestSizeWordsFit } from './textFit';
 
+/** WCAG relative luminance of `#rrggbb`. */
+function luminance(hex: string): number {
+  const [r, g, b] = [1, 3, 5].map((i) => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  }) as [number, number, number];
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** White or `dark`, whichever reads better on `fill`. */
+function inkFor(fill: string, dark: string): string {
+  const l = luminance(fill);
+  return 1.05 / (l + 0.05) >= (l + 0.05) / (luminance(dark) + 0.05) ? '#FFFFFF' : dark;
+}
+
+/** The Pride rows of a date list: the flag's six stripes, then Progress Pride's. */
+const PRIDE_ROWS = [...THEMA_INK.regenbogen, ...THEMA_INK.progress];
+
 export function layoutTermine(
   ctx: SlideCtx,
   item: TermineItem,
   id: string,
   pass: BuildPass
 ): Placed[] {
-  const { measure, theme, headFamily, column, accentInk, text, lineCount } = ctx;
+  const { measure, theme, headFamily, column, accentInk, text, lineCount, thema, addShape } = ctx;
   const { scale } = pass;
   const placed: Placed[] = [];
   // Date column in the accent, title and place beside it.
@@ -27,15 +46,19 @@ export function layoutTermine(
   const dateWidth =
     Math.max(...item.eintraege.map((e) => measure(e.datum, dateSize, family, 'bold'))) +
     Math.round(dateSize * 0.5);
-  const restWidth = column.width - dateWidth;
+  // Pride: every row a pill in the next flag colour, its ink chosen for it.
+  const pills = thema === 'queer';
+  const padX = pills ? Math.round(dateSize * 0.4) : 0;
+  const padY = pills ? Math.round(dateSize * 0.24) : 0;
+  const restWidth = column.width - dateWidth - 2 * padX;
   const rows = item.eintraege.map((e) => {
     const t = lineCount(e.titel, restWidth, titleSize, theme.fonts.body, 'bold') * titleSize * 1.15;
     const o = e.ort
       ? lineCount(e.ort, restWidth, ortSize, theme.fonts.body, 'normal') * ortSize * 1.2
       : 0;
-    return Math.max(dateSize, t + (o ? Math.round(ortSize * 0.2) + o : 0));
+    return Math.max(dateSize, t + (o ? Math.round(ortSize * 0.2) + o : 0)) + 2 * padY;
   });
-  const rowGap = Math.round(dateSize * 0.55);
+  const rowGap = Math.round(dateSize * (pills ? 0.16 : 0.55));
   const height = rows.reduce((a, b) => a + b, 0) + rowGap * (rows.length - 1);
   placed.push({
     height,
@@ -44,26 +67,48 @@ export function layoutTermine(
       let top = y;
       item.eintraege.forEach((e, k) => {
         const rowId = `${id}-${k}`;
-        text(`${rowId}-datum`, e.datum, top, dateSize, family, {
-          x: column.x,
+        const rowFill = PRIDE_ROWS[k % PRIDE_ROWS.length]!;
+        const rowInk = pills ? inkFor(rowFill, THEMA_INK.violettDunkel) : null;
+        if (pills) {
+          const pill = createShape(
+            'rounded-rect',
+            column.x + column.width / 2,
+            top + rows[k]! / 2,
+            rowFill,
+            rowFill
+          );
+          Object.assign(pill, {
+            id: `${rowId}-pill`,
+            width: column.width,
+            height: rows[k]!,
+            cornerRadius: Math.round(rows[k]! / 2),
+          });
+          addShape(pill);
+        }
+        const rowTop = top + padY;
+        const inkOverride = rowInk ? { fill: rowInk, shadowOpacity: 0 } : {};
+        text(`${rowId}-datum`, e.datum, rowTop, dateSize, family, {
+          x: column.x + padX,
           width: dateWidth,
           align: 'left',
-          fill: accentInk,
+          fill: rowInk ?? accentInk,
           lineHeight: 1,
           type: 'header',
+          ...inkOverride,
         });
         text(
           `${rowId}-titel`,
           e.titel,
-          top + (dateSize - titleSize) * 0.4,
+          rowTop + (dateSize - titleSize) * 0.4,
           titleSize,
           theme.fonts.body,
           {
-            x: column.x + dateWidth,
+            x: column.x + padX + dateWidth,
             width: restWidth,
             align: 'left',
             fontStyle: 'bold',
             lineHeight: 1.15,
+            ...inkOverride,
           }
         );
         if (e.ort) {
@@ -72,15 +117,16 @@ export function layoutTermine(
           text(
             `${rowId}-ort`,
             e.ort,
-            top + (dateSize - titleSize) * 0.4 + t + Math.round(ortSize * 0.2),
+            rowTop + (dateSize - titleSize) * 0.4 + t + Math.round(ortSize * 0.2),
             ortSize,
             theme.fonts.body,
             {
-              x: column.x + dateWidth,
+              x: column.x + padX + dateWidth,
               width: restWidth,
               align: 'left',
               opacity: 0.85,
               lineHeight: 1.2,
+              ...inkOverride,
             }
           );
         }

@@ -10,7 +10,13 @@ import { COLORS } from '../utils/dreizeilenLayout';
 import { createShape } from '../utils/shapes';
 import { VERANSTALTUNG_CONFIG } from '../utils/veranstaltungLayout';
 
-import { BRUSH_ARROW, DE_WORDMARK, pageDots, SHAREPIC_COLOR_HEX } from './chromeParts';
+import {
+  BRUSH_ARROW,
+  DE_WORDMARK,
+  pageDots,
+  PRIDE_FLAG_ASSET,
+  SHAREPIC_COLOR_HEX,
+} from './chromeParts';
 import { placeHandMarks } from './handMarks';
 import {
   type ARROW,
@@ -291,6 +297,24 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
       opacity: isAt || !logoDarkInk ? 1 : logoOnLight ? 0.5 : 0.8,
     });
     out.layerOrder.push('sc-logo');
+  }
+  if (ctx.thema === 'queer') {
+    // The Progress Pride flag on the logo's line, at the right edge (left of
+    // the swipe-on arrow); where a date circle holds that corner, top right.
+    // A sticker the user can move, resize or drop.
+    const flagWidth = 120;
+    const flagHeight = (flagWidth * 300) / 480;
+    const arrowSpan = swipeOn ? arrow.size * arrow.glyph + 24 : 0;
+    out.assetInstances.push({
+      id: 'sc-pride-flagge',
+      assetId: PRIDE_FLAG_ASSET,
+      x: canvas.width - (circle ? MARGIN : arrow.right + arrowSpan) - flagWidth / 2,
+      y: circle ? MARGIN + flagHeight / 2 : canvas.height - logo.bottom - logo.height / 2,
+      scale: flagWidth / ASSET_TARGET_SIZE,
+      rotation: 0,
+      opacity: 1,
+    });
+    out.layerOrder.push('sc-pride-flagge');
   }
   if (swipeOn) {
     // Bottom-right, centred on x/y: AT a long brush stroke, DE a small arrow

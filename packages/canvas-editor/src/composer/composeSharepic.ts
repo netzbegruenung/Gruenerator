@@ -23,6 +23,7 @@ import {
   type SharepicSlide,
   type SharepicSpec,
   type SharepicTextSide,
+  type SharepicThema,
 } from '@gruenerator/contracts';
 
 import { getBrandTheme } from '../brand/theme';
@@ -142,7 +143,8 @@ export function composeSharepic(spec: SharepicSpec, options: ComposeOptions): Co
       index < count - 1 && spec.pfeil !== false,
       count > 1 && spec.seitenzahl ? { index, count, style: spec.seitenzahl } : null,
       numerals[index] ?? null,
-      count > 1 && index === count - 1
+      count > 1 && index === count - 1,
+      spec.thema ?? null
     )
   );
   return {
@@ -168,7 +170,8 @@ function composeSlide(
   /** This slide's point number, counted over the numbered slides. */
   numeral: { stil: SharepicNummer; k: number } | null,
   /** Last slide of a carousel: the AI label in its long form. */
-  closing: boolean
+  closing: boolean,
+  thema: SharepicThema | null
 ): ComposedSlide {
   const measure = sentinelBlind(options.measure ?? defaultMeasure);
   const theme = getBrandTheme(locale);
@@ -361,7 +364,8 @@ function composeSlide(
   }
   // AT sets a photo strip in green monochrome, as the posts do; a full-bleed
   // photo carries the text and stays as shot.
-  if (isAt && (bg.kind === 'foto-oben' || bg.kind === 'foto-unten')) {
+  // A themed slide keeps its photo's colours: a green Pride flag says nothing.
+  if (isAt && !thema && (bg.kind === 'foto-oben' || bg.kind === 'foto-unten')) {
     const top = bg.kind === 'foto-oben' ? 0 : areaBottom;
     const bottom = bg.kind === 'foto-oben' ? areaTop : canvas.height;
     const tint = rect('sc-tint', 0, top, canvas.width, bottom - top, theme.colors.primary);
@@ -382,7 +386,7 @@ function composeSlide(
     cardAccent,
     accentInk,
     contrastPanel,
-  } = slideInk({ locale, isAt, theme, surface, darkText, kopfband, bg, bild });
+  } = slideInk({ locale, isAt, theme, surface, darkText, kopfband, bg, bild, thema });
   /** The widest size `value` can take on one line of `width`, up to `cap`. */
   const fitLine = (value: string, cap: number, width: number, family: string) =>
     Math.max(
@@ -741,6 +745,7 @@ function composeSlide(
     headFamily,
     isAt,
     locale,
+    thema,
     canvas,
     options,
     out,

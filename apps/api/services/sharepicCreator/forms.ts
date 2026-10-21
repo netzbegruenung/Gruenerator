@@ -10,7 +10,7 @@ import {
   type SharepicSpec,
 } from '@gruenerator/contracts';
 
-import { carouselSlideCount } from './draftFailure.js';
+import { CAROUSEL_MIN_SLIDES, carouselSlideCount } from './draftFailure.js';
 import { type ExampleOccasion, type StyleguideChapter } from './styleguide.js';
 
 interface FormRecipe {
@@ -32,7 +32,7 @@ export const FORM_RECIPES: Record<SharepicFormId, FormRecipe> = {
     anlass: ['zitat'],
   },
   karussell: {
-    wann: 'Inhalt, der mehrere Schritte braucht: Erklärung, Kritik oder Geschichte über 3–8 Slides',
+    wann: 'Inhalt, der mehrere Schritte braucht: Erklärung, Kritik oder Geschichte über 2–8 Slides',
     kapitel: ['karussell'],
     anlass: ['karussell-erklaerung'],
   },
@@ -188,7 +188,9 @@ export function formMismatch(
     case 'einzelbild':
       return spec.slides.length === 1 ? null : `${label}: genau eine Slide.`;
     case 'karussell':
-      return spec.slides.length >= 3 ? null : carouselSlideCount(spec.slides.length);
+      return spec.slides.length >= CAROUSEL_MIN_SLIDES
+        ? null
+        : carouselSlideCount(spec.slides.length);
     case 'zitat':
       return has('zitat') ? null : `${label}: setz die Aussage als {"type":"zitat"} mit Namen.`;
     case 'interview':

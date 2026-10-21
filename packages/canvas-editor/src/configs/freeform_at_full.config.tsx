@@ -7,6 +7,7 @@
  */
 
 import { getBrandTheme } from '../brand/theme';
+import { SHAREPIC_COLOR_HEX } from '../composer/chromeParts';
 import { CHART_PALETTES } from '../utils/chartUtils';
 
 import {
@@ -26,6 +27,11 @@ const AT_BACKGROUND_COLORS = [
   { id: 'gelb', label: 'Gelb', color: AT.colors.accent },
   { id: 'weiss', label: 'Weiß', color: '#ffffff' },
   { id: 'schwarz', label: 'Schwarz', color: '#000000' },
+  // Themed grounds (Frauen, Pride); `pride` is the middle of its gradient.
+  { id: 'lila', label: 'Lila', color: SHAREPIC_COLOR_HEX.lila },
+  { id: 'flieder', label: 'Flieder', color: SHAREPIC_COLOR_HEX.flieder },
+  { id: 'violett', label: 'Violett', color: SHAREPIC_COLOR_HEX.violett },
+  { id: 'pride', label: 'Pride', color: SHAREPIC_COLOR_HEX.pride },
 ];
 
 export const createFreeformAtFullConfig = (

@@ -1,4 +1,4 @@
-import { type SharepicCreatorLocale } from '@gruenerator/contracts';
+import { type SharepicCreatorLocale, type SharepicThema } from '@gruenerator/contracts';
 
 import { type BrandTheme } from '../brand/theme';
 import { type AdditionalText } from '../configs/types';
@@ -22,6 +22,8 @@ export interface SlideCtx {
   headFamily: string;
   isAt: boolean;
   locale: SharepicCreatorLocale;
+  /** The spec's theme (Pride, Frauen), null on a plain slide. */
+  thema: SharepicThema | null;
   canvas: CanvasFormat;
   options: ComposeOptions;
   /** Written only from a `place` callback, never while `build` measures. */

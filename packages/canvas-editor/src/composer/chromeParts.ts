@@ -38,7 +38,30 @@ export const SHAREPIC_COLOR_HEX: Record<SharepicColor, string> = {
   dunkelgruen: getBrandTheme('de-AT').colors.primary,
   hellgruen: getBrandTheme('de-AT').colors.secondary,
   weiss: '#FFFFFF',
+  // Themed grounds. Lila is the purple the federal party already sets
+  // (die_gruenen, "Frauen im Bundestag", 10/2026).
+  lila: '#744A9E',
+  flieder: '#E4D7F2',
+  violett: '#732982',
+  // A gradient (`GRADIENTS` in composeSharepic); this is its flat middle.
+  pride: '#8A1D86',
 };
+
+/** The inks a theme brings besides its grounds. */
+export const THEMA_INK = {
+  /** Text in a flieder marker; a purple deep enough for 4.5:1 on flieder. */
+  lilaDunkel: '#4A2A6E',
+  /** The queer marker: flag yellow, with deep violet ink. */
+  flaggenGelb: '#FFED00',
+  violettDunkel: '#2E1240',
+  /** The six stripes of the rainbow flag, red to violet. */
+  regenbogen: ['#E40303', '#FF8C00', '#FFED00', '#008026', '#24408E', '#732982'],
+  /** Progress Pride's chevron colours, for the stripes beyond the six. */
+  progress: ['#000000', '#613915', '#5BCEFA', '#F5A9B8'],
+} as const;
+
+/** The Progress Pride flag sticker a queer slide carries in its footer. */
+export const PRIDE_FLAG_ASSET = 'progress-pride';
 
 /** DE accent: a lime marker box. AT accent: a yellow Vollkorn line. */
 export const LIME = '#BEFF60';
@@ -80,7 +103,7 @@ export function layoutTextLines(
 /** The AT "swipe on" arrow is the posts' brush stroke: white, green on light ground. */
 export const BRUSH_ARROW = { onDark: 'brush-arrow-weiss', onLight: 'brush-arrow-gruen' } as const;
 
-const LIGHT: readonly SharepicColor[] = ['mint', 'hellgrau', 'creme', 'weiss'];
+const LIGHT: readonly SharepicColor[] = ['mint', 'hellgrau', 'creme', 'weiss', 'flieder'];
 
 /**
  * How a surface takes ink: light ground (and DE grass green, which the posts

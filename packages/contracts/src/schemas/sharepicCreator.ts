@@ -16,12 +16,14 @@ export {
   SHAREPIC_EMOJI,
   SHAREPIC_INFOGRAFIK_COLORS,
   SHAREPIC_LOCALE_COLORS,
+  SHAREPIC_THEMA_COLORS,
   sharepicAlignSchema,
   sharepicAufrufStilSchema,
   sharepicBildAusschnittSchema,
   sharepicBildFilterSchema,
   sharepicChartKindSchema,
   sharepicColorSchema,
+  sharepicColorsFor,
   sharepicCreatorLocaleSchema,
   sharepicEmojiCode,
   sharepicEmojiSchema,
@@ -35,6 +37,8 @@ export {
   sharepicRechenzeichenSchema,
   sharepicSeitenzahlSchema,
   sharepicTextSideSchema,
+  sharepicThemaSchema,
+  themaOfColor,
   sharepicVergleichStilSchema,
   sharepicZahlStilSchema,
 } from './sharepicCreator/enums.js';
@@ -54,6 +58,7 @@ export type {
   SharepicPosition,
   SharepicSeitenzahl,
   SharepicTextSide,
+  SharepicThema,
   SharepicVergleichStil,
 } from './sharepicCreator/enums.js';
 export {
