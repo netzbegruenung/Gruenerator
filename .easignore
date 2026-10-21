@@ -12,15 +12,6 @@ apps/docs-expo/ios/
 # lockfile importer's package.json is missing (ERR_PNPM_OUTDATED_LOCKFILE).
 apps/web/*
 !apps/web/package.json
-# Mobile imports the Landesverband card photos straight from web's public dir
-# (apps/mobile/config/landesverbandPhotos.ts); each level needs its own re-include.
-!apps/web/public/
-apps/web/public/*
-!apps/web/public/images/
-apps/web/public/images/*
-!apps/web/public/images/marketplace/
-apps/web/public/images/marketplace/*
-!apps/web/public/images/marketplace/landesverbaende/
 apps/api/*
 !apps/api/package.json
 apps/docs/
