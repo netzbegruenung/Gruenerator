@@ -16,7 +16,7 @@ import {
   type ProfilbildReopen,
 } from '../components/ProfilbildEditor';
 import { RecentProfilbilder } from '../components/RecentProfilbilder';
-import { IMAGE_ACCEPT, ToolProcessing, ToolSpinner } from '../components/ToolUi';
+import { IMAGE_ACCEPT, ToolBackLink, ToolProcessing, ToolSpinner } from '../components/ToolUi';
 import { BACKGROUND_REMOVAL_ERROR, useBackgroundRemoval } from '../hooks/useBackgroundRemoval';
 import { loadShareFileDataUrl } from '../hooks/useProfilbildShare';
 import { mintProfilbildCanvas, type ProfilbildLayout } from '../profilbildCanvas';
@@ -204,7 +204,8 @@ const ProfilbildPage = () => {
   if (reopenToken && (reopened.isPending || reopened.isError))
     return (
       <div className="flex h-dvh min-h-0 flex-col bg-background text-foreground">
-        <header className="flex flex-none items-center pt-1.5 pr-4 pb-2.5 pl-14 md:h-[72px] md:border-b md:border-border md:px-6 md:py-0 lg:px-8">
+        <header className="flex flex-none items-center gap-2 pt-1.5 pr-4 pb-2.5 pl-14 md:h-[72px] md:border-b md:border-border md:px-6 md:py-0 lg:px-8">
+          <ToolBackLink to="/studio" label="Zurück zum Studio" />
           <h1 className="m-0 text-[22px] font-semibold text-foreground-heading md:text-2xl">
             {TITLE}
           </h1>
