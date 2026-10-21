@@ -96,13 +96,14 @@ export async function runDeepAgentResearch(
 ): Promise<DeepAgentRunResult | null> {
   const { question, locale, progress, signal } = params;
   const sources = new Map<string, SourceRef>();
-  const budget = createBudget(Date.now());
+  const limits = params.budget ?? DEFAULT_BUDGET;
+  const budget = createBudget(Date.now(), limits);
 
   // The research clock. It lives HERE and not at the caller because one
   // deadline cannot both stop the research and leave time to write it down —
   // the run of 11.08.2026 died mid-wrap-up with 83 sources in hand. The
   // caller's signal stays the hard kill and is the longer one (hardMs+wrapUpMs).
-  const researchDeadline = AbortSignal.timeout(DEFAULT_BUDGET.hardMs);
+  const researchDeadline = AbortSignal.timeout(limits.hardMs);
   const researchSignal = signal ? AbortSignal.any([signal, researchDeadline]) : researchDeadline;
 
   const stepIds = new Map<string, string>();
@@ -245,7 +246,7 @@ export async function runDeepAgentResearch(
   let input: Record<string, unknown> = {
     messages: [{ role: 'user', content: params.threadId ? RESUMED_RUN_TEXT : question }],
   };
-  let recursionLimit: number = DEFAULT_BUDGET.recursionLimit;
+  let recursionLimit: number = limits.recursionLimit;
   let transientResumes = 0;
   let wrapUpUsed = false;
   // The wrap-up leg must not inherit the deadline that just fired — it would

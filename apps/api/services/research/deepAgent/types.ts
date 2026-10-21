@@ -96,6 +96,8 @@ export interface DeepAgentRunParams {
   threadId?: string;
   /** Aborts the run. The caller owns the hard deadline. */
   signal?: AbortSignal;
+  /** Ceilings for this run. Omitted means `DEFAULT_BUDGET`. */
+  budget?: BudgetLimits;
 }
 
 export interface DeepAgentRunResult {
@@ -142,7 +144,19 @@ export interface DeepAgentRunResult {
  *    what was gathered. Before it, the hard deadline killed the run wherever it
  *    stood, which is how a run with 83 sources in hand ended as a fragment.
  */
-export const DEFAULT_BUDGET = {
+export interface BudgetLimits {
+  searches: number;
+  deepSearches: number;
+  crawls: number;
+  crawlRefunds: number;
+  notebookSearches: number;
+  softMs: number;
+  hardMs: number;
+  wrapUpMs: number;
+  recursionLimit: number;
+}
+
+export const DEFAULT_BUDGET: BudgetLimits = {
   searches: 24,
   deepSearches: 2,
   crawls: 20,
@@ -152,15 +166,35 @@ export const DEFAULT_BUDGET = {
   hardMs: 13 * 60_000,
   wrapUpMs: 2 * 60_000,
   recursionLimit: 160,
-} as const;
+};
 
-export function createBudget(now: number, softMs: number = DEFAULT_BUDGET.softMs): RunBudget {
+/**
+ * A short, cheap run for local testing through the dev auth bypass.
+ *
+ * Same code path, a fraction of the spend: no Linkup `deep`, a handful of
+ * searches and reads, four minutes instead of fifteen. Good enough to see
+ * whether the loop plans, delegates and files a report — not to judge how
+ * thorough a full report is.
+ */
+export const PROBE_BUDGET: BudgetLimits = {
+  searches: 6,
+  deepSearches: 0,
+  crawls: 4,
+  crawlRefunds: 2,
+  notebookSearches: 4,
+  softMs: 3 * 60_000,
+  hardMs: 4 * 60_000,
+  wrapUpMs: 90_000,
+  recursionLimit: 80,
+};
+
+export function createBudget(now: number, limits: BudgetLimits = DEFAULT_BUDGET): RunBudget {
   return {
-    searchesLeft: DEFAULT_BUDGET.searches,
-    deepSearchesLeft: DEFAULT_BUDGET.deepSearches,
-    crawlsLeft: DEFAULT_BUDGET.crawls,
-    crawlRefundsLeft: DEFAULT_BUDGET.crawlRefunds,
-    notebookSearchesLeft: DEFAULT_BUDGET.notebookSearches,
-    softDeadlineAt: now + softMs,
+    searchesLeft: limits.searches,
+    deepSearchesLeft: limits.deepSearches,
+    crawlsLeft: limits.crawls,
+    crawlRefundsLeft: limits.crawlRefunds,
+    notebookSearchesLeft: limits.notebookSearches,
+    softDeadlineAt: now + limits.softMs,
   };
 }
