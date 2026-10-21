@@ -50,8 +50,148 @@ concurrency:
 env:
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+  # turbo hashes it for every `test` task (turbo.json), so the plan job has to
+  # see the same value as the test jobs or its hashes never match theirs.
+  MIGRATIONS_TEST_DATABASE_URL: postgresql://gruenerator@localhost:5433/gruenerator
 
 jobs:
+  # A PR whose turbo tasks would all be cache hits still paid for 16 jobs:
+  # checkout, pnpm install (30-50 s) and a Postgres container each, for 2-3 s
+  # of replayed logs (#4820: 22 job-minutes per push for one YAML file). This
+  # job asks turbo first — `--dry=json` needs no node_modules and reports the
+  # remote-cache status per task — and drops every job whose tasks are all
+  # hits. The hashes are the ones the real jobs compute: on 901c6167 all 106
+  # task hashes of typecheck, lint, every test shard and every build matched
+  # the CI logs.
+  #
+  # Only pull_request skips anything. master, the merge queue and manual runs
+  # get the full set, the test jobs there with --force as before. A hit means
+  # a run with byte-identical inputs passed; a test reading a file outside its
+  # turbo `inputs` is what the post-merge --force run is for.
+  #
+  # Skipping needs an explicit `false`. Any turbo error leaves the value empty
+  # and the job runs.
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    outputs:
+      typecheck: ${{ steps.plan.outputs.typecheck }}
+      lint: ${{ steps.plan.outputs.lint }}
+      tests: ${{ steps.plan.outputs.tests }}
+      builds: ${{ steps.plan.outputs.builds }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # HEAD^1 of the PR merge ref is the base tip, for the manifest diff.
+          fetch-depth: 2
+
+      # One job per package group, the two big suites sharded. All test tasks
+      # in one job ran concurrently on 4 vCPUs: run 37010012025 spent 12:37 in
+      # `turbo run test`, api (632 s) and web (626 s) fighting chat and canvas
+      # for the same cores, and jsdom tests hit the 5 s default (#4010). `rest`
+      # is every package not named here, so a new package lands in it without
+      # an edit. turbo hashes the pass-through `--shard`, so each shard caches
+      # alone.
+      #
+      # `mobile native` is the app's Jest lane (`test:native`, jest-expo): the
+      # screen and hook tests that need the real RN runtime. `test` there is
+      # only Vitest, so without this entry those suites never ran in CI and a
+      # stale one merged green (#4225).
+      - name: Decide which jobs have work
+        id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          SHARDS: >-
+            [
+              {"name": "api 1/3", "pkg": "api", "shard": "1/3"},
+              {"name": "api 2/3", "pkg": "api", "shard": "2/3"},
+              {"name": "api 3/3", "pkg": "api", "shard": "3/3"},
+              {"name": "web 1/2", "pkg": "web", "shard": "1/2"},
+              {"name": "web 2/2", "pkg": "web", "shard": "2/2"},
+              {"name": "chat", "pkg": "chat"},
+              {"name": "mobile native", "pkg": "mobile", "task": "test:native"},
+              {"name": "rest"}
+            ]
+          APPS: '["web", "api", "docs", "wordpress"]'
+        run: |
+          TURBO="npx --yes turbo@$(grep -m1 -oE '^  turbo@[0-9.]+' pnpm-lock.yaml | cut -d@ -f2)"
+
+          # Prints true/false: does any task of this run miss the cache?
+          needed() {
+            local dry
+            dry=$($TURBO run --dry=json "$@")
+            jq '[.tasks[] | select(.command != "<NONEXISTENT>" and .cache.status != "HIT")] | length > 0' <<< "$dry"
+          }
+
+          if [ "$EVENT" != pull_request ]; then
+            {
+              echo "typecheck=true"
+              echo "lint=true"
+              echo "tests=$(jq -c . <<< "$SHARDS")"
+              echo "builds=$(jq -c . <<< "$APPS")"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          TYPECHECK=$(needed typecheck)
+          # The typecheck job also runs the two checks that read node_modules
+          # against the manifests. A manifest change has to reach them even
+          # when every typecheck task is a hit.
+          # A file, not a pipe: under pipefail an early `grep -q` exit kills
+          # git diff with SIGPIPE and the condition reads as false.
+          git diff --name-only HEAD^1 HEAD > "$RUNNER_TEMP/changed.txt"
+          if grep -qE '(^|/)package\.json$|^pnpm-lock\.yaml$|^pnpm-workspace\.yaml$|^\.npmrc$|^scripts/check-(override-ranges|installed-lockfile-drift)\.mjs$' "$RUNNER_TEMP/changed.txt"; then
+            TYPECHECK=true
+          fi
+          LINT=$(needed lint)
+
+          TESTS='[]'
+          while read -r entry; do
+            pkg=$(jq -r '.pkg // empty' <<< "$entry")
+            task=$(jq -r '.task // "test"' <<< "$entry")
+            shard=$(jq -r '.shard // empty' <<< "$entry")
+            if [ -n "$pkg" ]; then
+              filters=("--filter=@gruenerator/$pkg")
+            else
+              filters=(--filter=!@gruenerator/api --filter=!@gruenerator/web --filter=!@gruenerator/chat)
+            fi
+            args=("$task" "${filters[@]}")
+            [ -n "$shard" ] && args+=(-- "--shard=$shard")
+            run=$(needed "${args[@]}")
+            echo "Tests ($(jq -r .name <<< "$entry")): needed=$run"
+            [ "$run" = false ] || TESTS=$(jq -c --argjson e "$entry" '. + [$e]' <<< "$TESTS")
+          done < <(jq -c '.[]' <<< "$SHARDS")
+
+          BUILDS='[]'
+          for app in $(jq -r '.[]' <<< "$APPS"); do
+            run=$(needed build "--filter=@gruenerator/$app")
+            echo "Build $app: needed=$run"
+            [ "$run" = false ] || BUILDS=$(jq -c --arg a "$app" '. + [$a]' <<< "$BUILDS")
+          done
+
+          echo "Typecheck: needed=$TYPECHECK"
+          echo "ESLint: needed=$LINT"
+          {
+            echo "typecheck=$TYPECHECK"
+            echo "lint=$LINT"
+            echo "tests=$TESTS"
+            echo "builds=$BUILDS"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## Plan"
+            echo
+            echo "Jobs whose turbo tasks are all cache hits are skipped."
+            echo
+            echo "| Job | Runs |"
+            echo "|---|---|"
+            echo "| Typecheck | $TYPECHECK |"
+            echo "| ESLint | $LINT |"
+            echo "| Tests | $(jq -r 'map(.name) | join(", ") | if . == "" then "none" else . end' <<< "$TESTS") |"
+            echo "| Build | $(jq -r 'join(", ") | if . == "" then "none" else . end' <<< "$BUILDS") |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   # Bare-node guards: no pnpm store restore (27s), no install (20s). They cost
   # about a second each and are the cheapest possible signal, so they get their
   # own job and nothing waits on them — a failure here shows up red next to the
@@ -164,6 +304,8 @@ jobs:
 
   typecheck:
     name: Typecheck
+    needs: plan
+    if: needs.plan.outputs.typecheck != 'false'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -207,6 +349,8 @@ jobs:
 
   lint:
     name: ESLint
+    needs: plan
+    if: needs.plan.outputs.lint != 'false'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -277,32 +421,17 @@ jobs:
   # tests sat in the queue for 721s and Build web for 1260s, almost all of it
   # waiting for a job whose failure they do not depend on.
   #
-  # One job per package group, the two big suites sharded. All test tasks in
-  # one job ran concurrently on 4 vCPUs: run 37010012025 spent 12:37 in
-  # `turbo run test`, api (632 s) and web (626 s) fighting chat and canvas for
-  # the same cores, and jsdom tests hit the 5 s default (#4010). `rest` is
-  # every package not named here, so a new package lands in it without an
-  # edit. turbo hashes the pass-through `--shard`, so each shard caches alone.
-  #
-  # `mobile native` is the app's Jest lane (`test:native`, jest-expo): the
-  # screen and hook tests that need the real RN runtime. `test` there is only
-  # Vitest, so without this entry those suites never ran in CI and a stale one
-  # merged green (#4225).
+  # The shard list and why it looks like this: `SHARDS` in the plan job, which
+  # hands on only the shards that have work.
   test-shard:
     name: Tests (${{ matrix.name }})
+    needs: plan
+    if: needs.plan.outputs.tests != '[]'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { name: api 1/3, pkg: api, shard: 1/3 }
-          - { name: api 2/3, pkg: api, shard: 2/3 }
-          - { name: api 3/3, pkg: api, shard: 3/3 }
-          - { name: web 1/2, pkg: web, shard: 1/2 }
-          - { name: web 2/2, pkg: web, shard: 2/2 }
-          - { name: chat, pkg: chat }
-          - { name: mobile native, pkg: mobile, task: 'test:native' }
-          - { name: rest }
+        include: ${{ fromJSON(needs.plan.outputs.tests) }}
     # An empty database for `migrations.db.vitest.ts`: builds the schema from
     # zero the way a fresh instance does on first boot (#2895). A grown
     # database never shows a migration that only works on top of another.
@@ -326,8 +455,6 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
-    env:
-      MIGRATIONS_TEST_DATABASE_URL: postgresql://gruenerator@localhost:5433/gruenerator
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -364,15 +491,18 @@ jobs:
           ${{ github.event_name != 'pull_request' && '--force' || '' }}
           ${{ matrix.shard && format('-- --shard={0}', matrix.shard) || '' }}
 
-  # Stable check name for the matrix above (check names are F0).
+  # Stable check name for the matrix above (check names are F0). `skipped`
+  # counts only when the plan itself succeeded and found no shard with work.
   test:
     name: Tests
-    needs: test-shard
+    needs: [plan, test-shard]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: All test shards passed
-        run: test "${{ needs.test-shard.result }}" = success
+        run: >-
+          test "${{ needs.test-shard.result }}" = success ||
+          { test "${{ needs.plan.result }}" = success && test '${{ needs.plan.outputs.tests }}' = '[]'; }
 
   # The NLP service is Python and sits outside the pnpm workspace, so `pnpm
   # test` never sees it. Its scoring, filtering and blocklist logic feeds the
@@ -426,11 +556,13 @@ jobs:
 
   build:
     name: Build ${{ matrix.app }}
+    needs: plan
+    if: needs.plan.outputs.builds != '[]'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        app: [web, api, docs, wordpress]
+        app: ${{ fromJSON(needs.plan.outputs.builds) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
