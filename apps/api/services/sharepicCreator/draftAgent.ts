@@ -34,7 +34,10 @@ import {
   sharepicFormSchema,
   type SharepicFormId,
   sharepicFormatSchema,
+  sharepicBackgroundSchema,
   sharepicIconSchema,
+  sharepicItemSchema,
+  sharepicSlideSchema,
   sharepicSpecSchema,
   sharepicTextSideSchema,
   countMarkerPassages,
@@ -47,13 +50,13 @@ import { z } from 'zod';
 
 import { createLogger } from '../../utils/logger.js';
 import { GEMMA_31B_ON_MELIOUS } from '../ai/gemmaHosts.js';
-import { aiObject } from '../ai/generate.js';
+import { aiObject, type AiObjectCall } from '../ai/generate.js';
 import { getAttribution } from '../image/UnsplashAttributionService.js';
 
 import { carouselLookProblems } from './carouselLook.js';
 import { hasStockPhoto, searchStockPhotos, type StockPhoto } from './catalog.js';
 import { type CutOutPainter } from './cutOut.js';
-import { DraftFailedError, headlineLineTooLong } from './draftFailure.js';
+import { type DraftFailure, DraftFailedError, headlineLineTooLong } from './draftFailure.js';
 import { EMBARRASSING_WORDS } from './embarrassingWords.js';
 import { alsoCarousel, FORM_RECIPES, formCatalog, formMismatch } from './forms.js';
 import { type IllustrationPainter } from './illustrations.js';
@@ -83,12 +86,29 @@ import {
   styleguideChapterSchema,
   systemPrompt,
 } from './styleguide.js';
+import { structureOf } from './toolSchema.js';
 
 import type { StructuredValidation } from '../ai/structuredParsing.js';
 
 const log = createLogger('sharepicCreator:draft');
 
 const PINNED = { provider: GEMMA_31B_ON_MELIOUS.provider, model: GEMMA_31B_ON_MELIOUS.model };
+/** Another model for a draft Gemma could not finish — not just its other host. */
+const RESCUE = { provider: 'mistral', model: 'mistral-large-4' } as const;
+const RESCUE_ATTEMPTS = 2;
+
+/** No slide with a background kind and typed items: nothing the person asked for went wrong. */
+export function lacksStructure(input: unknown): boolean {
+  const slides = (input as { slides?: unknown } | null)?.slides;
+  if (!Array.isArray(slides) || !slides.length) return true;
+  return slides.some((slide: { background?: { kind?: unknown }; items?: unknown } | null) => {
+    if (typeof slide?.background?.kind !== 'string') return true;
+    return (
+      !Array.isArray(slide.items) ||
+      slide.items.some((item: { type?: unknown } | null) => typeof item?.type !== 'string')
+    );
+  });
+}
 
 const needsSchema = z.object({
   land: sharepicCreatorLocaleSchema,
@@ -984,11 +1004,25 @@ const NEEDS_SCHEMA = {
   required: ['land', 'anlass', 'kapitel', 'fotos_suchen', 'form', 'alternativen'],
 };
 
+/** `takeScene` turns it into a painted background before the spec is validated. */
+const SCENE_BACKGROUND = {
+  type: 'object',
+  properties: {
+    kind: { type: 'string', const: 'szene' },
+    motiv: { type: 'string' },
+    textSeite: { type: 'string', enum: sharepicTextSideSchema.options },
+  },
+  required: ['kind', 'motiv', 'textSeite'],
+};
+
+const BACKGROUND_STRUCTURE = structureOf(sharepicBackgroundSchema);
+const slideShape = sharepicSlideSchema.shape;
+
 const SLIDE_SCHEMA = {
   type: 'object',
   properties: {
     background: {
-      type: 'object',
+      anyOf: [...(BACKGROUND_STRUCTURE.anyOf as unknown[]), SCENE_BACKGROUND],
       description:
         '{"kind":"farbe","color"} | {"kind":"foto","filename","textSeite":"unten"|"oben"|"links"|"rechts"} | {"kind":"foto-oben","filename","panelColor"} | {"kind":"foto-unten","filename","panelColor"} | {"kind":"szene","motiv","textSeite"} (filename: Stockfoto-Datei, id eines eigenen Fotos wie "upload:1" oder ein schon gemalter Hintergrund "ki:…", in einer Vorlage auch ihr Foto "vorlage:…"; szene: ein neu gemalter Hintergrund nur für ein Faktenbild, motiv auf Englisch, nur die Szene)',
     },
@@ -997,15 +1031,18 @@ const SLIDE_SCHEMA = {
     items: {
       type: 'array',
       description: `Der Textblock in Lesereihenfolge: {"type":"dachzeile","text"} | {"type":"headline","lines":[…],"akzent"?:Zeilenindex oder [Indizes],"groesse"?:"gross"} (groesse nur, wenn die Person die Headline bzw. Schrift größer haben will – dann groesse setzen und die Zeilen NICHT neu umbrechen oder kürzen; das Programm setzt sie größer) | {"type":"absatz","text","betont"?:true} | {"type":"text","text"} | {"type":"zitat","text","name","funktion"?,"quelle"?,"seite"?:"gegner"} (gegner: die Aussage der anderen Seite, gedämpft mit ✗ – die nächsten Slides antworten mit „Fakt ist:“) | {"type":"schlagzeile","stil":"ausriss"|"karte","medium","titel","datum"?} (nur eine Schlagzeile, die Auftrag oder Quellen wörtlich nennen) | {"type":"bingo","felder":[…9 oder 16 kurze Phrasen]} | {"type":"frage","text","von"?} | {"type":"liste","items":[…],"stil"?:"punkte"|"ziffern"|"pfeile"|"haken"|"emoji","zeichen"?:[…]} (emoji: vor jedem Punkt ein Emoji als Bild, zeichen = genau ein Emoji je Punkt in derselben Reihenfolge, nur bei stil "emoji"; das Emoji nicht in den Punkt-Text schreiben) | {"type":"zahl","stil":"stapel"|"riesenwort"|"countdown","wert","label"?} (eine Zahl als Held der Slide, wert z. B. "−40°", "6,3 Mrd. €") | {"type":"rechnung","glieder":[{"op"?:"+"|"−"|"×"|"÷","wert","label"?}, …2–4],"ergebnis":{"wert","label"?}} (muss aufgehen; auch als Formel in Worten) | {"type":"termine","eintraege":[{"datum","titel","ort"?}, …2–6]} | {"type":"iconliste","zeilen":[{"icon","text"}, …2–4]} | {"type":"vergleich","links":{"titel","punkte":[…2–3]},"rechts":{"titel","punkte":[…2–3]}} (links der Plan der anderen, rechts unserer) | {"type":"faktencheck","paare":[{"mythos","fakt"}, …1–3]} (eine verbreitete Behauptung und ihre Richtigstellung) | {"type":"bild","quelle","ausschnitt":"streifen-unten"|"streifen-oben"|"karte"|"kreis"|"freigestellt","filter":"gruen"|"grau"|"original"} (ein Foto in der Slide neben dem Text, nur auf einer Farbfläche und nur mit dachzeile, headline, absatz, text, zitat, frage, button oder steckbrief, höchstens eins je Slide; quelle wie filename beim Hintergrund; streifen-unten/-oben = Fotostreifen über das untere bzw. obere Drittel, karte = Foto auf weißer Karte unter dem Text, kreis = rundes Foto, freigestellt = die Person ohne Hintergrund, vom unteren Rand aufsteigend – das Freistellen übernimmt der Grünerator; gruen = grün eingefärbt) | {"type":"button","text"} | {"type":"aufruf","stil":"ausruf"|"kernsatz"|"petition","text","adressat"?,"hinweis"?} (nur auf der letzten Slide, allein oder unter einer dachzeile: ausruf = riesiges „!“ über Forderung und adressat; kernsatz = der Satz, der hängen bleibt, mittig über dem Logo; petition = Aufforderung mit hinweis als Pille, z. B. „Link in der Bio“ – hinweis und adressat nur, wenn der Auftrag sie nennt) | {"type":"diagramm","art":"balken"|"balken-quer"|"linie"|"kreis"|"donut","werte":[{"name","wert":Zahl}, …1–8],"einheit"?:"%","titel"?} | {"type":"infografik","form":"raster"|"ablauf"|"mengen"|"anteil"|"zahl","punkte":[{"titel","text"?,"icon","motiv"?,"wert"?:Zahl bei mengen und anteil,"von"?:Ganzes nur bei anteil}, …2–6, anteil 1–3, zahl genau 1]} (motiv auf Englisch: ein Gegenstand, kein Text; anteil ohne motiv) | {"type":"steckbrief","gruss","name","merkmale":[…3–10]} (eine Person stellt sich vor: gruss klein über dem Namen, meist „Hallo, ich bin“, bis 24 Zeichen; name bis 24 Zeichen; merkmale kurze Stichworte bis 32 Zeichen, nur was der Auftrag über die Person sagt. Füllt die Slide allein: ein Foto der Person als background {"kind":"foto","textSeite":"oben"} und sonst kein Element (ein eigenes Foto, upload:N, immer so); oder background {"kind":"farbe"} mit genau steckbrief und einem bild mit ausschnitt "freigestellt" – die Person freigestellt unten in der Mitte (nur Stock- oder gemalte Fotos, die stellt der Grünerator frei). Ohne stoerer, datum, ort, nummer, zeilenboxen, blume, quelle). Einzelne Wörter mit ==…== hervorheben; ein, zwei Schlüsselwörter pro Slide in headline, absatz, text oder zitat dürfen von Hand markiert sein: ((Wort)) kreist ein, __Wort__ unterstreicht; nur Deutschland: bis zu 2 Passagen in zitat, absatz oder headline mit ++…++ (Textmarker-Box). icon ist einer von: ${sharepicIconSchema.options.join(', ')}. zeichen ist eines von: ${SHAREPIC_EMOJI.join(' ')}.`,
-      items: { type: 'object' },
+      items: structureOf(sharepicItemSchema),
     },
-    stoerer: { type: 'object', description: '{"text"} oder weglassen' },
+    stoerer: {
+      ...structureOf(slideShape.stoerer.unwrap()),
+      description: '{"text"} oder weglassen',
+    },
     datum: {
-      type: 'object',
+      ...structureOf(slideShape.datum.unwrap()),
       description:
         '{"weekday"?,"date"?,"time"?} (weekday oder date) oder weglassen; jedes Feld nur, wenn der Auftrag es nennt',
     },
-    ort: { type: 'object', description: '{"lines":[…]} oder weglassen' },
+    ort: { ...structureOf(slideShape.ort.unwrap()), description: '{"lines":[…]} oder weglassen' },
     quelle: { type: 'string', description: 'Quelle einer Zahl, nur wenn sie im Auftrag steht' },
     zeilenboxen: { type: 'boolean', description: 'nur Deutschland: jede Zeile in einer Box' },
     nummer: {
@@ -1316,7 +1353,9 @@ export async function draftSharepic(
     maxOutputTokens: 800,
     label: 'sharepicCreator:needs',
   });
-  if (!needs.ok) throw new DraftFailedError(needs.error);
+  if (!needs.ok) {
+    throw new DraftFailedError(needs.error, { kind: needs.cause ? 'provider' : 'structure' });
+  }
   log.info(`needs ${JSON.stringify(needs.data)}`);
   const locale = fixed ?? needs.data.land;
   const picked = named ?? needs.data.form;
@@ -1395,12 +1434,15 @@ export async function draftSharepic(
     scene: DraftScene | null;
     kept: string | null;
   }>(current, photoRequestTexts(order, brief));
+  // What the last checkable attempt got wrong, for the person's text if every attempt fails.
+  // „Not your request" only while no attempt has delivered a draft to check.
+  let failure: DraftFailure = { kind: 'structure' };
 
-  const draft = await aiObject<{
+  const draftCall: AiObjectCall<{
     spec: SharepicSpec;
     scene: DraftScene | null;
     kept: string | null;
-  }>({
+  }> = {
     lane: 'sharepic_creator',
     pinned: PINNED,
     system: `${systemPrompt(locale)}\n\n${context.join('\n\n')}`,
@@ -1409,6 +1451,7 @@ export async function draftSharepic(
     toolDescription: 'Gib den fertigen Sharepic-Entwurf ab.',
     schema: locale === 'de-DE' ? SPEC_SCHEMA_DE : SPEC_SCHEMA,
     validate: (input, attempt, attempts) => {
+      if (!lacksStructure(input)) failure = { kind: 'content' };
       const taken = takeScene(withPaletteColors(input, locale));
       if (!taken.ok) return taken;
       // Contact data already on the draft counts as given.
@@ -1421,13 +1464,16 @@ export async function draftSharepic(
         order
       );
       if (!checked.ok) return checked;
-      const mismatch =
-        (single &&
-          checked.value.slides.length !== 1 &&
-          `${sharepicFormLabel(form!)}: genau eine Slide – der Auftrag will ein einzelnes Bild.`) ||
-        (checkForm && formMismatch(checkForm, checked.value, taken.scene !== null)) ||
-        (carouselToo && formMismatch('karussell', checked.value, taken.scene !== null));
+      const notSingle =
+        single &&
+        checked.value.slides.length !== 1 &&
+        `${sharepicFormLabel(form!)}: genau eine Slide – der Auftrag will ein einzelnes Bild.`;
+      const formWrong = checkForm && formMismatch(checkForm, checked.value, taken.scene !== null);
+      const carouselWrong =
+        carouselToo && formMismatch('karussell', checked.value, taken.scene !== null);
+      const mismatch = notSingle || formWrong || carouselWrong;
       if (mismatch) {
+        failure = { kind: 'form', form: notSingle || formWrong ? form! : 'karussell' };
         return { ok: false, error: `Der Auftrag ist ein Sharepic der Form ${mismatch}` };
       }
       // A new carousel holds one look; the last attempt passes rather than fail the draft.
@@ -1457,10 +1503,21 @@ export async function draftSharepic(
     // A carousel of up to eight slides.
     maxOutputTokens: 5000,
     label: 'sharepicCreator:draft',
-  });
+  };
+  let draft = await aiObject(draftCall);
+  // Repairs on the same model repeat its mistake — three identical `{}` at
+  // temperature 0 (21.10.2026). A draft it could not finish gets one round on
+  // another model before the person reads a failure. Not after an outage: the
+  // lane's fallback chain has already tried that model.
+  if (!draft.ok && !draft.cause && !photoGuard.fallback(draft.error)) {
+    log.warn(`draft failed on ${PINNED.model}, retrying on ${RESCUE.model}: ${draft.error}`);
+    draft = await aiObject({ ...draftCall, pinned: RESCUE, attempts: RESCUE_ATTEMPTS });
+  }
   // Every attempt dropped the own photo: keep it and say so rather than fail.
   const photoKept = draft.ok ? null : photoGuard.fallback(draft.error);
-  if (!draft.ok && !photoKept) throw new DraftFailedError(draft.error);
+  if (!draft.ok && !photoKept) {
+    throw new DraftFailedError(draft.error, draft.cause ? { kind: 'provider' } : failure);
+  }
   const accepted = draft.ok ? draft.data : photoKept!;
 
   // A revision keeps the draft's format unless the model names one.

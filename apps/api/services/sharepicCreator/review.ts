@@ -11,6 +11,7 @@ import {
   type SharepicReviewResponse,
   type SharepicSlide,
   type SharepicSpec,
+  sharepicPatchOpSchema,
   sharepicReviewResponseSchema,
   countMarkerPassages,
   hasUnpairedAccentMark,
@@ -29,6 +30,7 @@ import { aiObject } from '../ai/generate.js';
 import { paletteHint, paletteSubstitutions, withPaletteColors } from './paletteColors.js';
 import { basicsText } from './styleguide.js';
 import { toJpegBase64 } from './toJpegBase64.js';
+import { structureOf } from './toolSchema.js';
 
 import type { StructuredValidation } from '../ai/structuredParsing.js';
 
@@ -74,7 +76,7 @@ const REVIEW_SCHEMA = {
   properties: {
     ok: { type: 'boolean' },
     issues: { type: 'array', items: { type: 'string' } },
-    patch: { type: 'array', items: { type: 'object' } },
+    patch: { type: 'array', items: structureOf(sharepicPatchOpSchema) },
   },
   required: ['ok', 'issues', 'patch'],
 };

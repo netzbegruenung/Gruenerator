@@ -5,7 +5,7 @@ const aiObject = vi.hoisted(() => vi.fn());
 vi.mock('../ai/generate.js', () => ({ aiObject }));
 
 import { DraftFailedError, draftSharepic, validateDraft } from './draftAgent.js';
-import { DRAFT_LIMIT_TEXTS, draftFailedBody } from './draftFailure.js';
+import { DRAFT_LIMIT_TEXTS, draftFailedBody, headlineLineTooLong } from './draftFailure.js';
 import { formMismatch } from './forms.js';
 import { systemPrompt } from './styleguide.js';
 
@@ -56,7 +56,8 @@ describe('headline line limit', () => {
             alternativen: [],
           },
         })
-        .mockImplementationOnce((call: { validate: (input: unknown) => unknown }) => {
+        // Both rounds, Gemma's and the rescue model's.
+        .mockImplementation((call: { validate: (input: unknown) => unknown }) => {
           const checked = call.validate({ slides: [slide([LONG])] }) as {
             ok: false;
             error: string;
@@ -84,18 +85,20 @@ describe('headline line limit', () => {
 });
 
 describe('draftFailedBody', () => {
+  const tooLong = new DraftFailedError(headlineLineTooLong('Slide 1', LONG));
+
   it('carries the limit as a code and names it in the text', () => {
-    expect(draftFailedBody('headline_line_too_long')).toEqual({
+    expect(draftFailedBody(tooLong)).toEqual({
       error: `Der Entwurf ist nicht gelungen. ${DRAFT_LIMIT_TEXTS.headline_line_too_long}`,
       reason: 'headline_line_too_long',
     });
-    expect(sharepicCreatorErrorSchema.parse(draftFailedBody('headline_line_too_long'))).toEqual(
-      draftFailedBody('headline_line_too_long')
+    expect(sharepicCreatorErrorSchema.parse(draftFailedBody(tooLong))).toEqual(
+      draftFailedBody(tooLong)
     );
   });
 
   it('keeps the old body without a known limit', () => {
-    expect(draftFailedBody(null)).toEqual({
+    expect(draftFailedBody(new DraftFailedError('slides.0.items.0.text: zu lang'))).toEqual({
       error:
         'Der Entwurf ist nicht gelungen. Formuliere den Auftrag etwas genauer und versuch es noch einmal.',
     });
@@ -107,7 +110,7 @@ describe('carousel slide count', () => {
     const two = { locale: 'de-DE' as const, slides: [current.slides[0]!, current.slides[0]!] };
     const error = `Der Auftrag ist ein Sharepic der Form ${formMismatch('karussell', two, false)}`;
     expect(new DraftFailedError(error).reason).toBe('carousel_slide_count');
-    expect(draftFailedBody('carousel_slide_count')).toEqual({
+    expect(draftFailedBody(new DraftFailedError(error))).toEqual({
       error: `Der Entwurf ist nicht gelungen. ${DRAFT_LIMIT_TEXTS.carousel_slide_count}`,
       reason: 'carousel_slide_count',
     });
@@ -184,7 +187,8 @@ describe('a request for one sharepic', () => {
       null,
       true
     ).catch(() => null);
-    expect(aiObject).toHaveBeenCalledTimes(2);
+    // needs, the draft, and the rescue round on another model
+    expect(aiObject).toHaveBeenCalledTimes(3);
   });
 
   it('leaves a carousel alone without the flag', () => {
