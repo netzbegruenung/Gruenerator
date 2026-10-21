@@ -28,6 +28,8 @@ export interface StickerCreatorProps {
   /** The visible title, e.g. the page's h1 or the dialog's title. */
   heading: ReactNode;
   description?: string;
+  /** Header controls before the title, e.g. the page's back link. */
+  headerStart?: ReactNode;
   /** Extra header controls after the save button, e.g. the dialog's close button. */
   headerEnd?: ReactNode;
   className?: string;
@@ -44,6 +46,7 @@ export interface StickerCreatorProps {
 export function StickerCreator({
   heading,
   description,
+  headerStart,
   headerEnd,
   className,
   returnTo = null,
@@ -103,13 +106,16 @@ export function StickerCreator({
   return (
     <div className={cn('flex min-h-0 flex-col bg-background text-foreground', className)}>
       <header className="flex flex-none items-center justify-between gap-sm border-b border-border py-2.5 pr-4 pl-14 md:grid md:h-[72px] md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-md md:px-6 md:py-0 lg:px-8">
-        <div className="flex min-w-0 items-baseline gap-3.5">
-          {heading}
-          {description ? (
-            <span className="hidden truncate text-[15px] text-muted-foreground xl:inline">
-              {description}
-            </span>
-          ) : null}
+        <div className="flex min-w-0 items-center gap-2">
+          {headerStart}
+          <div className="flex min-w-0 items-baseline gap-3.5">
+            {heading}
+            {description ? (
+              <span className="hidden truncate text-[15px] text-muted-foreground xl:inline">
+                {description}
+              </span>
+            ) : null}
+          </div>
         </div>
         {created ? (
           <span aria-hidden="true" />

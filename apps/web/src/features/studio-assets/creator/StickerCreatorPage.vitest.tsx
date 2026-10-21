@@ -172,6 +172,21 @@ describe('StickerCreatorPage', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it('leads back to where the person came from', () => {
+    const { unmount } = renderWithProviders(<StickerCreatorPage />);
+    expect(screen.getByRole('link', { name: 'Zurück zur Galerie' })).toHaveAttribute(
+      'href',
+      '/studio/sticker'
+    );
+    unmount();
+
+    renderWithProviders(<StickerCreatorPage />, { route: '/studio/sticker/neu?return=profilbild' });
+    expect(screen.getByRole('link', { name: 'Zurück zum Profilbild' })).toHaveAttribute(
+      'href',
+      '/studio/profilbild'
+    );
+  });
+
   it('saves an uploaded PNG as a private sticker', async () => {
     const { user } = renderWithProviders(<StickerCreatorPage />);
     await designUpload(user);

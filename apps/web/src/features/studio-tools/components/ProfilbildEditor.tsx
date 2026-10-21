@@ -80,6 +80,7 @@ import {
 
 import { CUSTOM_ID, ProfilbildBackgroundPicker } from './ProfilbildBackgroundPicker';
 import { ProfilbildStickerPicker } from './ProfilbildStickerPicker';
+import { ToolBackLink } from './ToolUi';
 
 import { cn } from '@/utils/cn';
 
@@ -1010,20 +1011,23 @@ export function ProfilbildEditor({
             : 'grid h-[72px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-md border-b border-border px-6 lg:px-8'
         )}
       >
-        <div className="flex min-w-0 items-baseline gap-3.5">
-          <h1
-            className={cn(
-              'm-0 shrink-0 font-semibold text-foreground-heading',
-              isMobile ? 'text-[22px]' : 'text-2xl'
+        <div className="flex min-w-0 items-center gap-2">
+          <ToolBackLink to="/studio" label="Zurück zum Studio" />
+          <div className="flex min-w-0 items-baseline gap-3.5">
+            <h1
+              className={cn(
+                'm-0 shrink-0 font-semibold text-foreground-heading',
+                isMobile ? 'text-[22px]' : 'text-2xl'
+              )}
+            >
+              {title}
+            </h1>
+            {isMobile ? null : (
+              <span className="hidden truncate text-[15px] text-muted-foreground xl:inline">
+                {description}
+              </span>
             )}
-          >
-            {title}
-          </h1>
-          {isMobile ? null : (
-            <span className="hidden truncate text-[15px] text-muted-foreground xl:inline">
-              {description}
-            </span>
-          )}
+          </div>
         </div>
         {/* Gespeichert wird still; die Ansage bleibt für Screenreader. */}
         <p role="status" className="sr-only">
