@@ -56,8 +56,7 @@ vi.mock('../services/sharepicEditService.js', async (orig) => {
   return sharepicEditMock((await orig()) as Record<string, unknown>);
 });
 // Wie in `intentExecutionLoop.vitest.ts`: der Deep-Agent-Pfad kommt in diesen
-// Turns nicht vor, und sein Import-Graph zieht `deepagents` samt LangChain
-// nach — in einem Worktree ohne vollen Install gar nicht vorhanden.
+// Turns nicht vor, und sein Import-Graph zieht die ganze Recherche-Schleife mit.
 vi.mock('../services/deepAgentTurn.js', () => ({
   runDeepAgentTurn: () => Promise.resolve(null),
 }));

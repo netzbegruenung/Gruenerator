@@ -7,24 +7,18 @@
  * one model call with no `/bericht.md` and the user gets the fallback path.
  * Observed 11.08.2026: a run over in three seconds, `abgebrochen=false`.
  *
- * The repair is the same shape as `sanitizeToolCalls`: append a user message
- * telling the model what is missing and jump back to the model node. Two
- * details are load-bearing:
- *
- * - `jumpTo: 'model'` plus `canJumpTo` on the hook. Without the declared jump,
- *   the agent's router ends the run anyway — an appended message alone changes
- *   nothing about the routing.
- * - A nudge limit counted from the message history, not from module state: a
- *   model that answers the nudge with another bare reply twice is refusing, and
- *   pushing it further only spends budget on the same answer.
+ * The repair: the run's outer loop sees the model end its turn, finds no
+ * report, appends a user message saying what is missing and calls the model
+ * again. The nudge limit is counted from the message history, not from module
+ * state: a model that answers the nudge with another bare reply twice is
+ * refusing, and pushing it further only spends budget on the same answer.
  */
 
-import { AIMessage, HumanMessage } from '@langchain/core/messages';
-import { createMiddleware } from 'langchain';
+import { type ModelMessage } from 'ai';
 
 import { createLogger } from '../../../utils/logger.js';
 
-import { REPORT_PATH, isUsableReport, readFile } from './report.js';
+import { REPORT_PATH, isUsableReport } from './report.js';
 
 const log = createLogger('DeepAgentNudge');
 
@@ -37,48 +31,47 @@ export const NUDGE_TEXT =
   'sondern arbeite weiter: plane die Teilfragen mit write_todos, recherchiere sie über task, ' +
   'und schreibe den fertigen Bericht mit write_file nach /bericht.md.';
 
-function contentToString(content: unknown): string {
-  if (typeof content === 'string') return content;
-  try {
-    return JSON.stringify(content) ?? '';
-  } catch {
-    return String(content);
+/** The last thing the model said, as plain text — for the log line. */
+export function lastAssistantText(messages: ModelMessage[]): string {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const msg = messages[i];
+    if (msg?.role !== 'assistant') continue;
+    if (typeof msg.content === 'string') return msg.content;
+    return msg.content
+      .map((part) => (part.type === 'text' ? part.text : ''))
+      .join('')
+      .trim();
   }
+  return '';
 }
 
-function countNudges(messages: unknown[]): number {
-  return messages.filter((m) => m instanceof HumanMessage && m.content === NUDGE_TEXT).length;
+function countNudges(messages: ModelMessage[]): number {
+  return messages.filter((m) => m.role === 'user' && m.content === NUDGE_TEXT).length;
 }
 
-export const nudgeMissingReportMiddleware = createMiddleware({
-  name: 'nudgeMissingReport',
-  afterModel: {
-    canJumpTo: ['model'],
-    hook: (state: { messages?: unknown[]; files?: unknown }) => {
-      const messages = state.messages ?? [];
-      const last = messages[messages.length - 1];
-      if (!(last instanceof AIMessage)) return undefined;
-      if ((last.tool_calls ?? []).length > 0) return undefined;
-      if (isUsableReport(readFile(state.files, REPORT_PATH))) return undefined;
+/**
+ * The nudge to append after a turn that ended without a report, or null when
+ * the run should end as it is — because a report exists, or because the model
+ * has already been pushed `NUDGE_LIMIT` times.
+ */
+export function nudgeForMissingReport(
+  messages: ModelMessage[],
+  files: Record<string, string>
+): ModelMessage | null {
+  if (isUsableReport(files[REPORT_PATH] ?? null)) return null;
 
-      // Truncated but logged: the WHY of a silent ending (refusal? direct
-      // answer? empty content?) is otherwise invisible from the outside.
-      const said = contentToString(last.content).slice(0, 300);
-      const nudges = countNudges(messages);
-      if (nudges >= NUDGE_LIMIT) {
-        log.warn(
-          `[nudge] Lauf endet nach ${nudges} Anstößen weiter ohne Bericht — letzte Antwort: "${said}"`
-        );
-        return undefined;
-      }
-
-      log.warn(
-        `[nudge] Turn ohne Tool-Aufruf und ohne Bericht (Anstoß ${nudges + 1}/${NUDGE_LIMIT}) — letzte Antwort: "${said}"`
-      );
-      return {
-        messages: [new HumanMessage(NUDGE_TEXT)],
-        jumpTo: 'model',
-      } as never;
-    },
-  },
-});
+  // Truncated but logged: the WHY of a silent ending (refusal? direct
+  // answer? empty content?) is otherwise invisible from the outside.
+  const said = lastAssistantText(messages).slice(0, 300);
+  const nudges = countNudges(messages);
+  if (nudges >= NUDGE_LIMIT) {
+    log.warn(
+      `[nudge] Lauf endet nach ${nudges} Anstößen weiter ohne Bericht — letzte Antwort: "${said}"`
+    );
+    return null;
+  }
+  log.warn(
+    `[nudge] Turn ohne Tool-Aufruf und ohne Bericht (Anstoß ${nudges + 1}/${NUDGE_LIMIT}) — letzte Antwort: "${said}"`
+  );
+  return { role: 'user', content: NUDGE_TEXT };
+}

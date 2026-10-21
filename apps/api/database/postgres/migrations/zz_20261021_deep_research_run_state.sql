@@ -1,0 +1,11 @@
+-- The state of a research run, saved after every step of the lead agent.
+--
+-- Until the move to the AI SDK the state lived in the LangGraph checkpointer
+-- (schema `langgraph`). Now it is one JSON document per run: the message
+-- history plus the agent's plan and files — enough for `resume-research` to
+-- continue a run whose process died. Written over in place, so a run costs one
+-- row however long it gets.
+--
+-- The `langgraph` schema is left alone here: its checkpoints are unreadable for
+-- the new runtime, and dropping it is a separate step once the switch is final.
+ALTER TABLE deep_research_runs ADD COLUMN IF NOT EXISTS state JSONB;

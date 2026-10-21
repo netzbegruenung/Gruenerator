@@ -4,10 +4,10 @@ import express, { type Request, type Response, type Router, type NextFunction } 
 import multer from 'multer';
 import { z } from 'zod';
 
-import { runFlyerToSiteGraph } from '../../agents/langgraph/FlyerToSiteGraph/FlyerToSiteGraph.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { requireAiConsent } from '../../middleware/requireAiConsent.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
+import { runFlyerToSite } from '../../services/sites/flyerToSite/flyerToSite.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -53,7 +53,7 @@ router.post(
         userId: req.user?.id,
       });
 
-      const result = await runFlyerToSiteGraph({
+      const result = await runFlyerToSite({
         pdfBuffer: req.file.buffer,
         originalFilename: req.file.originalname,
         email: req.body.email,

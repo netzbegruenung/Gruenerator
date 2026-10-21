@@ -31,9 +31,8 @@ import { createLogger } from '../../../utils/logger.js';
 import {
   AVOID_AS_SYNTH,
   mayWriteAnswer,
-  LOOP_PLANNER_PRIMARY,
-  LOOP_PLANNER_HEALTHY_ALT,
-  LOOP_PLANNER_FALLBACK,
+  LOOP_PLANNER_CHAIN,
+  LOOP_PLANNER_UNCONFIGURED,
   LOOP_SYNTH_PRIMARY,
   LOOP_SYNTH_FALLBACK,
 } from './autoPolicy.js';
@@ -812,22 +811,16 @@ function plannerStageUsable(stage: { provider: Provider; model: string }): boole
 }
 
 function loopPlannerChoice(): { provider: Provider; model: string; contextWindow: number } {
-  // Melious Gemma first, Melious Mistral Small 4 second — see
-  // LOOP_PLANNER_PRIMARY in autoPolicy.ts for why and for the measurements.
-  //
-  // Beide Stufen hängen am selben Gateway: ein Melious-Ausfall vermerkt beide
-  // als zäh. Mistral Medium (andere Familie, anderer Vertragspartner) steht
-  // deshalb VOR dem „lieber zäh als gar keiner"-Zweig — sonst bliebe der Zug
-  // auf dem Gateway, das gerade steht.
-  if (plannerStageUsable(LOOP_PLANNER_PRIMARY)) return LOOP_PLANNER_PRIMARY;
-  if (plannerStageUsable(LOOP_PLANNER_HEALTHY_ALT)) return LOOP_PLANNER_HEALTHY_ALT;
-  if (plannerStageUsable(LOOP_PLANNER_FALLBACK)) return LOOP_PLANNER_FALLBACK;
+  // Melious, Cortecs, GreenPT — see LOOP_PLANNER_PRIMARY in autoPolicy.ts for
+  // why and for the measurements.
+  const usable = LOOP_PLANNER_CHAIN.find(plannerStageUsable);
+  if (usable) return usable;
   // Ab hier zählt nur noch die Konfiguration: ein zäher Planer ist besser als
-  // keiner. Ist gar nichts konfiguriert, bleibt nur die letzte Stufe: den
-  // Primär dort zu liefern, obwohl sein Getter ohne Schlüssel wirft, tötete am
-  // 14.08.2026 jeden agentischen Zug, bevor er den ersten Modellaufruf erreichte.
-  if (isProviderConfigured('melious')) return LOOP_PLANNER_PRIMARY;
-  return LOOP_PLANNER_FALLBACK;
+  // keiner. Ist gar nichts konfiguriert, bleibt nur die schlüssellose Stufe.
+  return (
+    LOOP_PLANNER_CHAIN.find((stage) => isProviderConfigured(stage.provider)) ??
+    LOOP_PLANNER_UNCONFIGURED
+  );
 }
 
 function loopSynthWriterChoice(): { provider: Provider; model: string } {
@@ -884,25 +877,27 @@ export function resolveLoopPlannerLane(): {
 }
 
 /**
- * Ausweich-Lane für den Werkzeugschritt, einmal versucht, wenn die Planer-Lane
- * die Anfrage ABLEHNT, bevor ein Werkzeug lief (400/429/5xx).
+ * Ausweich-Lanes für den Werkzeugschritt, der Reihe nach versucht, wenn die
+ * Planer-Lane ablehnt (400/429/5xx) oder schweigt, bevor ein Werkzeug lief.
  *
- * Immer die letzte Stufe, Mistral Medium: andere Familie, anderer Anbieter,
- * eigenes Gateway. Die beiden Melious-Stufen davor teilen sich das Gateway —
- * eine Ablehnung dort (am 02.10.2026 „malformed" bei 60 Typeform-Werkzeugen,
- * vermutlich das Kontextfenster des `:balanced`-Knotens) träfe die
- * Geschwisterstufe genauso. `null`, wenn der Planer schon diese Stufe ist oder
- * ihr Anbieter nicht konfiguriert ist.
+ * Die Stufen der Kette HINTER der laufenden, jede auf einem eigenen Gateway —
+ * eine Ablehnung des Melious-Knotens (am 02.10.2026 „malformed" bei 60
+ * Typeform-Werkzeugen, sein Fenster von ~45k Tokens) trifft Cortecs nicht.
+ * Ausgelassen wird, was nicht konfiguriert oder gerade als zäh vermerkt ist.
  */
-export function getLoopPlannerFallbackModel(
+export function getLoopPlannerFallbackModels(
+  plannerProvider: Provider,
   plannerName: string
-): { model: LanguageModel; name: string } | null {
-  if (plannerName === LOOP_PLANNER_FALLBACK.model) return null;
-  if (!isProviderConfigured(LOOP_PLANNER_FALLBACK.provider)) return null;
-  return {
-    model: getModel(LOOP_PLANNER_FALLBACK.provider, LOOP_PLANNER_FALLBACK.model),
-    name: LOOP_PLANNER_FALLBACK.model,
-  };
+): LanguageModel[] {
+  const at = LOOP_PLANNER_CHAIN.findIndex(
+    (stage) => stage.provider === plannerProvider && stage.model === plannerName
+  );
+  if (at < 0) return [];
+  return LOOP_PLANNER_CHAIN.slice(at + 1)
+    .filter(
+      (stage) => isProviderConfigured(stage.provider) && !isModelSlow(stage.provider, stage.model)
+    )
+    .map((stage) => getModel(stage.provider, stage.model));
 }
 
 /**

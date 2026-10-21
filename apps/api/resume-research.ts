@@ -1,6 +1,6 @@
 /**
  * Continues a research whose process died — the only thing that ever reads a
- * checkpoint back.
+ * saved run state back.
  *
  * Usage:
  *   pnpm --filter @gruenerator/api resume-research               # was ist offen?
@@ -85,8 +85,8 @@ async function main(): Promise<void> {
   const result = await runDeepAgentResearch({
     question: record.question,
     locale,
-    // THE point of this script: the same thread id, so the checkpointer hands
-    // the agent back what it already found instead of starting over.
+    // THE point of this script: the same thread id, so the run picks up its
+    // saved state instead of starting over.
     threadId,
     ...(record.user_id ? { userId: record.user_id } : {}),
     ...(scope ? { notebookScope: scope } : {}),

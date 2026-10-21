@@ -57,7 +57,7 @@ Der Chat hat die Recherche mit PR #2137 auf die Websuche-Stufen umgestellt; das 
 
 **Beleg dafür, dass der Graph nie lief:** `ChatStateAnnotation` in `ChatGraph.ts` ist gegenüber dem lebenden `ChatGraphState` (`ChatGraph/types.ts:518-868`) um ~25 Felder zurückgeblieben. Liefe der Graph, verlöre er sie bei jedem Übergang.
 
-> Wer „wir sind ein LangGraph-Projekt" annimmt, liegt für den Chat-Pfad falsch. Live ist LangGraph in vier *anderen* Graphen (`FlyerToSiteGraph`, `AntragAgentGraph`, `ImageSelectionGraph`, `WebSearchGraph`). `SocialAgentGraph` stand hier als fünfter und war es bei der Niederschrift (29.07.2026) auch. Er verlor seinen einzigen Aufrufer am 10.08.2026, als `routes/texte/social.ts` den Agent-Mode-Zweig abgab (35181109d0), und ist jetzt entfernt.
+> Wer „wir sind ein LangGraph-Projekt" annimmt, liegt falsch: seit 21.10.2026 ist `@langchain/langgraph` gar nicht mehr installiert. Die letzten Nutzer (`FlyerToSiteGraph`, `AntragAgentGraph`, `ImageSelectionGraph`) waren lineare Pipelines und sind jetzt einfache Funktionen (Flyer unter `services/sites/flyerToSite/`, Bildauswahl in `services/image/selectCatalogImage.ts`), der Antrag-Agent-Modus hatte keinen Aufrufer und ist gelöscht. `agents/langgraph/` heißt nur noch so; die Verzeichnisse darin (`ChatGraph`, `SearchGraph`, `WebSearchGraph`, `PRAgent`) importieren kein LangGraph.
 
 ### 2.4 Drei Unterfragen-Planer, zwei Zitat-Syntaxen
 
@@ -95,6 +95,8 @@ Ein gewähltes Notebook (`notebookIds`) hält den Turn weiterhin im Einzeldurchl
 ---
 
 ## 3. Bewertung: Deep Agents
+
+> **Nachtrag 21.10.2026:** Die Ablehnung galt dem Chat-Loop. Deep Research (`services/research/deepAgent/`) lief ab 08/2026 trotzdem auf `deepagents` — als eigene Runtime mit eigenen Tools, Modellen und Telemetrie. Es läuft jetzt ebenfalls auf dem AI SDK (`generateText`-Schleife mit `task`-Tool für die Subagents, Plan und Dateien als eigene Tools, Zustand als JSONB-Spalte in `deep_research_runs`), und alle LangChain-Pakete sind aus `apps/api` entfernt. Im Vergleich mit gekürztem Budget (je 3 Fragen, 6 min) lieferte die AI-SDK-Fassung 3/3 vollständige Berichte, die Deep-Agents-Fassung 0/3 (2 Teilberichte, 1 ohne Bericht) — ihre Wrap-up-Runde starb jedes Mal am Rekursionslimit 12.
 
 **Ergebnis: nicht übernehmen.**
 
@@ -309,7 +311,7 @@ Zusatzfalle: die Postgres-Tabellen `notebook_collections`/`notebook_collection_d
 
 **Die Parlaments-Abrufe haben nur noch eine Tür (N).** `bundestag`/`abgeordnetenwatch` liefen bis 08/2026 doppelt: das Loop-Werkzeug rief `searchNode` mit gesetztem Intent erneut auf und nahm dessen ganze Vorrede mit — was einen echten Fehler verdeckte (`@bundestag` auf einem Turn mit zwei Dokumentquellen fragte die DIP nie). Seit Phase M/N gibt es einen gemeinsamen Kern und **nur** das Loop-Werkzeug; ein Turn, den ein Notausschalter aus der Schleife hält, weicht über `degradeTo` aus der Registry aus, statt still nichts zu tun. `forcedLane: 'loop'` bedeutet seitdem genau eine Sache: kein Einzeldurchlauf. Ein Wächter erzwingt, dass jeder Intent dieser Achse ein Ausweichziel deklariert (die Ausnahme `mcp` ist seit #4043 stillgelegt; ein Konnektor-Turn ohne Schleife sagt über `reportMcpWithoutLoop` ab).
 
-**Was bewusst offen bleibt:** die kompilierten LangGraph-Graphen haben weiterhin null Aufrufer (§2), die Recherche-Maschinen sind nicht zu einer zusammengelegt (§8 Phase 4), und die Notebook-Befunde aus §9 sind unangetastet. Deep Agents bleibt abgelehnt (§3), das AI SDK v7 weiter der Hebel (§4).
+**Was bewusst offen bleibt:** die Recherche-Maschinen sind nicht zu einer zusammengelegt (§8 Phase 4), und die Notebook-Befunde aus §9 sind unangetastet. Deep Agents bleibt abgelehnt (§3), das AI SDK v7 weiter der Hebel (§4).
 
 **Die Recherche-Konsolidierung ist das benannte Restproblem — und der Grund, warum die Lane-Entscheidung noch NACH der Intent-Feinwahl fällt.** Das Zielbild sieht vier Lanes vor; es gibt eine fünfte, `single-pass`, und sie trägt die Recherche-Familie (`search`/`web`/`research`/`compare`/`examples`) samt der gegatterten Sonderwege (`summary`/`compute`/`chat_history`/`scrape_url`). Solange deren Executoren sich je Intent unterscheiden, MUSS der Intent vor der Lane feststehen. Wer die sechs Recherche-Maschinen zu einem Loop-Suchpfad zusammenlegt, nimmt damit zugleich die letzte Lane und dreht die Reihenfolge um. Zwei Messungen aus Phase K/L, die dabei nicht neu erhoben werden müssen: `summary` wird NICHT zum Rezept (`respondNode` unterdrückt Rezept und gelernte Textform absichtlich — eine Zusammenfassung trägt die Form ihrer Quelle), und `compare` auch nicht (Hochstufung und Degradierung brauchen die Trefferzahl zur Laufzeit).
 

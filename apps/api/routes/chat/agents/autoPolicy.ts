@@ -34,7 +34,11 @@
 import { getSystemAgent } from '@gruenerator/shared/agents';
 import { type ChatIntentId, intentsWithDisposition } from '@gruenerator/shared/chat-intents';
 
-import { GEMMA_31B_PRIMARY, GEMMA_31B_ON_MELIOUS } from '../../../services/ai/gemmaHosts.js';
+import {
+  GEMMA_31B_PRIMARY,
+  GEMMA_31B_ON_MELIOUS,
+  GEMMA_31B_ON_CORTECS,
+} from '../../../services/ai/gemmaHosts.js';
 
 import { getPipelineAgent } from './pipelines/index.js';
 
@@ -460,8 +464,10 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
  * policy instead of two systems overriding each other. `providers.ts` turns
  * these into LanguageModel instances (it owns env + getModel).
  *
- * PLANNER: Gemma 4 31B auf MELIOUS (`:balanced`, ohne Denken), Mistral Small 4
- * auf Melious dahinter, Mistral Medium zuletzt. Der Planer ruft nur Werkzeuge
+ * PLANNER: Gemma 4 31B auf MELIOUS (`:balanced`, ohne Denken), dieselben
+ * Gewichte auf Cortecs dahinter, Gemma 4 auf GreenPT zuletzt (seit 21.10.2026,
+ * #4785; vorher Mistral Small 4 auf Melious und Mistral Large — teuer für eine
+ * Rolle, die nur Werkzeuge wählt). Der Planer ruft nur Werkzeuge
  * und formuliert Suchanfragen (der Synth schreibt die Prosa), er läuft in JEDEM
  * agentischen Zug.
  *
@@ -493,17 +499,21 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
  *    (meliousThinkingFetch.ts). Preis: Narration und Denk-Deltas des Planers
  *    kommen je Schritt erst mit der fertigen Antwort (~0,6 s), nicht Token für
  *    Token.
- * 2. Beide Planer-Stufen hängen am selben Gateway. Ein Melious-Ausfall nimmt
- *    beide; `loopPlannerChoice` fällt dann auf Mistral Medium (andere Familie,
- *    anderer Vertragspartner). Melious sagt kein Routing zu.
+ * 2. Drei Stufen, drei Gateways, aber zweimal DIESELBEN Gewichte. Ein
+ *    Gateway-Ausfall trifft nur eine Stufe; ein Problem des Modells selbst
+ *    trifft Melious und Cortecs gleich. Gemessen am 21.10.2026 (#4785): ein
+ *    erzwungener Schritt, der dem Prompt widerspricht, hing auf beiden 3/3
+ *    Mal über 50 s, GreenPT antwortete in 3–10 s. Gegen diese Klasse hilft
+ *    die Kette nicht, nur der Zuschnitt (`forcedFirstStepTools`).
  *
  * `:balanced` trägt ~45k Tokens; was darüber liegt, schickt `meliousFetch` auf
  * `:speed` (siehe meliousThinkingFetch.ts). `:eco` wurde bewusst NICHT gewählt:
  * gleiche Zuverlässigkeit, aber langsamer.
  *
  * `mistral-small-3.2` auf GreenPT und Gemma auf Cortecs standen bis dahin als
- * Stufen 1 und 2 hier. Cortecs fiel weg, weil es dieselben Gewichte wie der
- * Primär bedient — ein Ausfall des Modells trifft beide.
+ * Stufen 1 und 2 hier. Cortecs fiel am 29.09.2026 weg, weil es dieselben
+ * Gewichte wie der Primär bedient, und kam am 21.10.2026 als zweite Stufe
+ * zurück: die Ausfälle seitdem waren die des Melious-Gateways (siehe Punkt 2).
  */
 export const LOOP_PLANNER_PRIMARY = {
   provider: GEMMA_31B_ON_MELIOUS.provider,
@@ -511,28 +521,45 @@ export const LOOP_PLANNER_PRIMARY = {
   contextWindow: GEMMA_31B_ON_MELIOUS.contextWindow,
 };
 /**
- * Erste Ausweichstufe, wenn der Primär als zäh vermerkt ist: eine andere
- * Modellfamilie, damit ein Gemma-spezifisches Problem nicht beide Stufen trifft.
- * Läuft mit `reasoning_effort: 'none'` (Vorgabe von `meliousFetch`).
+ * Erste Ausweichstufe: dieselben Gewichte über ein anderes Gateway (Cortecs,
+ * Verarbeitung DE). Fängt den Gateway-Ausfall ab, an dem Melious im Oktober
+ * 2026 mehrfach hing (#4480), nicht ein Problem des Modells.
  */
 export const LOOP_PLANNER_HEALTHY_ALT = {
-  provider: 'melious' as const,
-  model: 'mistral-small-4-119b-instruct',
-  /** Ungemessen auf Melious; so klein wie der Primär, damit ein Synth-Ausweich
-   *  auf diese Stufe nicht mehr bekommt als auf jene (#4201). */
-  contextWindow: GEMMA_31B_ON_MELIOUS.contextWindow,
+  provider: GEMMA_31B_ON_CORTECS.provider,
+  model: GEMMA_31B_ON_CORTECS.model,
+  contextWindow: GEMMA_31B_ON_CORTECS.contextWindow,
 };
 /**
- * Die letzte Stufe, bewusst nicht Melious: Mistral Medium bedient die
- * Planer-Rolle über die Mistral-API. Nicht litellm/verdigado-pro (das ist
- * gpt-oss und beantwortet einen Werkzeugaufruf mit Prosa, siehe die
- * Artefakt-Notiz in services/ai/lanes.ts); `isAgenticToolCapable` lässt
- * ohnehin nur Mistral zu.
+ * Die letzte Stufe: Gemma 4 auf GreenPT, eine andere Größe und ein drittes
+ * Gateway. Zwei Eigenheiten, beide am 21.10.2026 gemessen: GreenPTs Gemma
+ * denkt immer (siehe `greenptThinkingFetch`), und es hält sich nicht an
+ * `tool_choice: required` — mit neun Werkzeugen kam Prosa, mit einem ein
+ * Aufruf eines nicht angebotenen Werkzeugs. Als letzte Stufe genügt das: ohne
+ * Aufruf schreibt der Synth aus dem, was da ist.
  */
 export const LOOP_PLANNER_FALLBACK = {
+  provider: 'greenpt' as const,
+  model: 'gemma4',
+  /** `CTX_FULL` wie GEMMA_4_GREENPT in providers.ts — der importiert diese Datei. */
+  contextWindow: 262_144,
+};
+/** Die Ausweichkette in Reihenfolge — ein Zug versucht sie in dieser Folge. */
+export const LOOP_PLANNER_CHAIN = [
+  LOOP_PLANNER_PRIMARY,
+  LOOP_PLANNER_HEALTHY_ALT,
+  LOOP_PLANNER_FALLBACK,
+] as const;
+/**
+ * Nur, wenn KEIN Planer-Anbieter konfiguriert ist (CI, lokale Setups): der
+ * Mistral-Getter wirft ohne Schlüssel nicht, die der drei Stufen schon. Ein
+ * werfender Getter tötete am 14.08.2026 jeden agentischen Zug, bevor er den
+ * ersten Modellaufruf erreichte.
+ */
+export const LOOP_PLANNER_UNCONFIGURED = {
   provider: 'mistral' as const,
   model: 'mistral-large-4',
-  /** `CTX_FULL` der Mistral-Lanes in providers.ts — der importiert diese Datei. */
+  /** `CTX_FULL` der Mistral-Lanes in providers.ts. */
   contextWindow: 262_144,
 };
 

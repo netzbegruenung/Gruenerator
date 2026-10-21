@@ -280,8 +280,8 @@ const MODEL_ENERGY: Readonly<Record<string, EnergyCoefficients>> = {
   'mistral-small-4-119b': {
     ...BOUND_CEILING,
   },
-  // Melious' name for the same weights (loop planner second stage,
-  // LOOP_PLANNER_HEALTHY_ALT); only used when the impact capture came back empty.
+  // Melious' name for the same weights (loop planner second stage until
+  // 21.10.2026); only used when the impact capture came back empty.
   'mistral-small-4-119b-instruct': {
     ...BOUND_CEILING,
   },
