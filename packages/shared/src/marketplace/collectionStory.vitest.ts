@@ -126,5 +126,6 @@ describe('collectionForThema', () => {
   it('leads a themed Vorlage back to its listed collection', () => {
     expect(collectionForThema('queer')?.id).toBe('queer');
     expect(collectionForThema('frauen')?.id).toBe('gleichstellung');
+    expect(collectionForThema('europa')?.id).toBe('europa');
   });
 });

@@ -14,6 +14,7 @@ import {
 } from '@gruenerator/contracts';
 
 import { type MarketplaceTarget } from './cache.js';
+import { EUROPA_COLLECTION } from './collections/europa.js';
 import { GLEICHSTELLUNG_COLLECTION } from './collections/gleichstellung.js';
 import { QUEER_COLLECTION } from './collections/queer.js';
 import { type CollectionStoryBlock } from './collectionStory.js';
@@ -126,7 +127,7 @@ export interface MarketplaceCollection {
   min: number;
   /** `false`: reachable only by its link (`?kollektion=<id>`), not in the row of collections. */
   listed?: false;
-  /** `themen`: in its own row „Themen“ above the other collections on the front page. */
+  /** `themen`: in its own row „Themen“ below the other collections on the front page. */
   row?: 'themen';
   /** Entries that exist only as files, shown before everything resolved (see `sampleCollection.ts`). */
   samples?: readonly MarketplaceItem[];
@@ -242,6 +243,7 @@ export const MARKETPLACE_COLLECTIONS = [
   },
   GLEICHSTELLUNG_COLLECTION,
   QUEER_COLLECTION,
+  EUROPA_COLLECTION,
 ] as const satisfies readonly MarketplaceCollection[];
 
 export function collectionsFor(locale: string | null): readonly MarketplaceCollection[] {
