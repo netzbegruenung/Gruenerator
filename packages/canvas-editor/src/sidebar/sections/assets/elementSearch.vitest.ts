@@ -101,15 +101,14 @@ describe('element search against the real catalogues', () => {
     expect(inCategory('formen', 'rad', 1)).toEqual(['Zahnrad']);
   });
 
-  it('puts the photo that matches the word itself before its category siblings', () => {
-    // Every transport photo carries "Fahrrad" as a category keyword and the same label.
+  it('finds a photo by its own tags, its category only by the category name', () => {
     const train = stockPhotoItem({ filename: 'train.jpg', category: 'transport', tags: ['train'] });
     const bike = stockPhotoItem({ filename: 'bike.jpg', category: 'transport', tags: ['bicycle'] });
     const fotos = { id: 'fotos' as const, searchable: true, items: [train, bike] };
-    expect(searchElements([fotos], 'fahrrad', fotos).map((i) => i.key)).toEqual([
-      'photo:bike.jpg',
-      'photo:train.jpg',
-    ]);
+    const keys = (q: string) => searchElements([fotos], q, fotos).map((i) => i.key);
+    expect(keys('fahrrad')).toEqual(['photo:bike.jpg']);
+    expect(keys('zug')).toEqual(['photo:train.jpg']);
+    expect(keys('mobilität')).toEqual(['photo:train.jpg', 'photo:bike.jpg']);
   });
 
   it('does not match longer English words or two-letter fragments', () => {

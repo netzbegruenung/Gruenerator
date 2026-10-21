@@ -6,7 +6,6 @@
  * Example: benjamin-jopen-2SfssudtyIA-unsplash.jpg
  */
 
-import { env } from '../../config/env.js';
 import { buildUnsplashUrls as buildUrlsWithUTM } from '../../utils/unsplashUtils.js';
 
 import type {
@@ -97,7 +96,7 @@ export class UnsplashAttributionService {
       profileUrl: urls.profileUrl,
       photoUrl: urls.photoUrl,
       license: 'Unsplash License',
-      downloadLocation: `https://api.unsplash.com/photos/${photoId}/download?client_id=${env.UNSPLASH_ACCESS_KEY ?? 'demo'}`,
+      downloadLocation: `https://api.unsplash.com/photos/${photoId}/download`,
     };
   }
 
