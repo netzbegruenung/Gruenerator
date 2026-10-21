@@ -88,11 +88,11 @@ export const SIM_SCENARIOS: readonly SimScenario[] = [
   {
     id: 'sharepic-unlizenziert',
     category: 'sharepic-licence',
-    note: 'Nimmt an, dass der Generierungs-Aufloeser einen Wortkunst-Auftrag als sharepic liest. Ein unlizenziertes sharepic kann praktisch nur von dort kommen — eine Formulierung, die die Heuristik als sharepic liest, benennt eines und waere damit lizenziert. Prompt am 31.07.2026 gegen die Tiers gemessen: "Entwirf" triggert das Generierungs-Gitter, "Slogan" haelt den Turn in sich geschlossen (keine Demotion), und das Wort Sharepic faellt nicht.',
+    note: 'Nimmt an, dass der Generierungs-Aufloeser einen Wortkunst-Auftrag als sharepic liest. Ein unlizenziertes sharepic kann praktisch nur von dort kommen — eine Formulierung, die die Heuristik als sharepic liest, benennt eines und waere damit lizenziert. Prompt am 31.07.2026 gegen die Tiers gemessen: "Entwirf" triggert das Generierungs-Gitter, "Slogan" haelt den Turn in sich geschlossen (keine Demotion), und das Wort Sharepic faellt nicht. Seit #4788 endet der Turn nicht mehr in einer festen Absage, er geht als produktion weiter.',
     prompt: 'Entwirf einen Slogan zur Kernaussage',
     generationKind: 'sharepic',
     mustDecide: [
-      { point: 'router.intent_override', chose: 'sharepic_unlicensed_fixed_text' },
+      { point: 'router.intent_override', chose: 'sharepic_unlicensed_to_direct' },
       { point: 'classifier.tier', chose: 'tier3.8_generation_scope' },
     ],
   },
