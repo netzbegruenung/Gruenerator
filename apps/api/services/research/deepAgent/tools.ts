@@ -2,7 +2,7 @@
  * The agent's retrieval tools: three into the web, plus `notebook_suche` into
  * the Grünerator's own corpora when anything is in reach (see notebookTool.ts).
  *
- * Thin LangChain wrappers over the services the chat already uses — no second
+ * Thin AI SDK wrappers over the services the chat already uses — no second
  * search client, no second crawler, and in particular no second place that pays
  * Linkup. What is new here is the run budget and the failure policy.
  *
@@ -22,7 +22,8 @@
  *    only ever reaches `POST /v1/search`, where `deep` is capped at two calls.
  */
 
-import { tool } from '@langchain/core/tools';
+import { tool, type ToolSet } from 'ai';
+import { z } from 'zod';
 
 import { createLogger } from '../../../utils/logger.js';
 import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
@@ -35,21 +36,6 @@ import { budgetSpent, formatHits, remember, type ToolContext } from './toolConte
 const log = createLogger('DeepAgentTools');
 
 export { type ToolContext } from './toolContext.js';
-
-/**
- * Tool schemas are JSON Schema rather than zod.
- *
- * `apps/api` runs zod 3 while the LangChain 1.x tool surface types its zod path
- * against zod 4 shapes; under `exactOptionalPropertyTypes` the two do not line
- * up (`_def.description` is optional in zod 3, required in the interop type).
- * JSON Schema is a first-class input to `tool()` and avoids pulling a second zod
- * into the app. The argument cast in each handler is the boundary assertion that
- * comes with it — the schema above it is the contract.
- *
- * The literals are written inline at each `schema:` site on purpose: routed
- * through a helper, TypeScript widens `type: 'object'` to `string` and the
- * overload stops matching.
- */
 
 /** How much of a crawled page the distiller keeps. */
 const CRAWL_TARGET_CHARS = 6000;
@@ -128,13 +114,10 @@ export const SUBAGENT_TOOLSETS = {
 
 export type SubagentName = keyof typeof SUBAGENT_TOOLSETS;
 
-/** The named subset, in the order `createResearchTools` built them. */
-export function toolsFor<T extends { name: string }>(
-  tools: readonly T[],
-  subagent: SubagentName
-): T[] {
+/** The named subset of the run's tools. */
+export function toolsFor(tools: ToolSet, subagent: SubagentName): ToolSet {
   const wanted = new Set<string>(SUBAGENT_TOOLSETS[subagent]);
-  return tools.filter((t) => wanted.has(t.name));
+  return Object.fromEntries(Object.entries(tools).filter(([name]) => wanted.has(name)));
 }
 
 /**
@@ -175,15 +158,20 @@ function refundCrawl(ctx: ToolContext): void {
   ctx.budget.crawlsLeft += 1;
 }
 
-export function createResearchTools(ctx: ToolContext) {
+export function createResearchTools(ctx: ToolContext): ToolSet {
   /**
    * The workhorse. Which engine answers is `WEB_SEARCH_CHAIN`'s decision
    * (webSearch.ts); a failed call is retried once as a whole, so a blip on the
    * second engine does not lose the sub-question either.
    */
-  const webSuche = tool(
-    async (input: unknown): Promise<string> => {
-      const { query, maxResults } = input as { query: string; maxResults?: number };
+  const webSuche = tool({
+    description:
+      'Sucht im Web und gibt eine nummerierte Trefferliste mit Titel, URL und Kurztext zurück. Das Standardwerkzeug für jede Teilfrage.',
+    inputSchema: z.object({
+      query: z.string().describe('Die Suchanfrage, als vollständige Frage oder Stichwortkette'),
+      maxResults: z.number().optional().describe('Anzahl Treffer, 1–20 (Standard 8)'),
+    }),
+    execute: async ({ query, maxResults }): Promise<string> => {
       const stop = budgetSpent(ctx);
       if (stop) return stop;
       if (ctx.budget.searchesLeft <= 0) {
@@ -218,32 +206,20 @@ export function createResearchTools(ctx: ToolContext) {
       ctx.onStep(`Suche: ${query}`, 'done');
       return formatHits(hits);
     },
-    {
-      name: 'web_suche',
-      description:
-        'Sucht im Web und gibt eine nummerierte Trefferliste mit Titel, URL und Kurztext zurück. Das Standardwerkzeug für jede Teilfrage.',
-      schema: {
-        type: 'object',
-        properties: {
-          query: {
-            type: 'string',
-            description: 'Die Suchanfrage, als vollständige Frage oder Stichwortkette',
-          },
-          maxResults: { type: 'number', description: 'Anzahl Treffer, 1–20 (Standard 8)' },
-        },
-        required: ['query'],
-      },
-    }
-  );
+  });
 
   /**
    * Linkup's `deep` depth: multi-iteration search-and-scrape. Slow (5–30 s) and
    * the only genuinely expensive call here, hence two per run — enough for the
    * one or two sub-questions that actually need chained retrieval.
    */
-  const tiefenSuche = tool(
-    async (input: unknown): Promise<string> => {
-      const { frage } = input as { frage: string };
+  const tiefenSuche = tool({
+    description:
+      'Gründliche, langsame Recherche für EINE schwierige Teilfrage (mehrstufige Suche mit Seitenauswertung). Höchstens zweimal pro Auftrag — nutze sonst web_suche.',
+    inputSchema: z.object({
+      frage: z.string().describe('Die Teilfrage, ausformuliert'),
+    }),
+    execute: async ({ frage }): Promise<string> => {
       const stop = budgetSpent(ctx);
       if (stop) return stop;
       if (ctx.budget.deepSearchesLeft <= 0) {
@@ -279,28 +255,24 @@ export function createResearchTools(ctx: ToolContext) {
       ctx.onStep(`Tiefensuche: ${frage}`, 'done');
       return formatHits(hits);
     },
-    {
-      name: 'tiefen_suche',
-      description:
-        'Gründliche, langsame Recherche für EINE schwierige Teilfrage (mehrstufige Suche mit Seitenauswertung). Höchstens zweimal pro Auftrag — nutze sonst web_suche.',
-      schema: {
-        type: 'object',
-        properties: {
-          frage: { type: 'string', description: 'Die Teilfrage, ausformuliert' },
-        },
-        required: ['frage'],
-      },
-    }
-  );
+  });
 
   /**
    * Read one page in full. SSRF-validated before the crawler ever sees the URL
    * (CLAUDE.md); an address that fails validation is reported back as prose so
    * the model picks a different source instead of retrying the same one.
    */
-  const seiteLesen = tool(
-    async (input: unknown): Promise<string> => {
-      const { url, fokus } = input as { url: string; fokus?: string };
+  const seiteLesen = tool({
+    description:
+      'Liest eine Webseite im Volltext. Nutze es für die besten zwei bis drei Treffer einer Suche, wenn der Kurztext nicht reicht.',
+    inputSchema: z.object({
+      url: z.string().describe('Vollständige URL inklusive https://'),
+      fokus: z
+        .string()
+        .optional()
+        .describe('Worauf es auf der Seite ankommt — schärft die Auswertung'),
+    }),
+    execute: async ({ url, fokus }): Promise<string> => {
       const stop = budgetSpent(ctx);
       if (stop) return stop;
       if (ctx.budget.crawlsLeft <= 0) {
@@ -356,29 +328,16 @@ export function createResearchTools(ctx: ToolContext) {
       ctx.onStep(`Lese Quelle: ${host}`, 'done');
       return `Inhalt von ${target}:\n\n${text}`;
     },
-    {
-      name: 'seite_lesen',
-      description:
-        'Liest eine Webseite im Volltext. Nutze es für die besten zwei bis drei Treffer einer Suche, wenn der Kurztext nicht reicht.',
-      schema: {
-        type: 'object',
-        properties: {
-          url: { type: 'string', description: 'Vollständige URL inklusive https://' },
-          fokus: {
-            type: 'string',
-            description: 'Worauf es auf der Seite ankommt — schärft die Auswertung',
-          },
-        },
-        required: ['url'],
-      },
-    }
-  );
+  });
 
   // The notebook tool only exists when something is actually in reach — see
   // buildNotebookScope. Offering it otherwise would spend a turn on an empty room.
   const notebookTool = ctx.notebooks ? createNotebookTool(ctx, ctx.notebooks) : null;
 
-  return notebookTool
-    ? [webSuche, tiefenSuche, seiteLesen, notebookTool]
-    : [webSuche, tiefenSuche, seiteLesen];
+  return {
+    web_suche: webSuche,
+    tiefen_suche: tiefenSuche,
+    seite_lesen: seiteLesen,
+    ...(notebookTool ? { notebook_suche: notebookTool } : {}),
+  };
 }

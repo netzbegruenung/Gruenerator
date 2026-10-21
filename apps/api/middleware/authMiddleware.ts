@@ -11,6 +11,7 @@ import { eq } from 'drizzle-orm';
 import { type Request, type Response, type NextFunction } from 'express';
 
 import { auth, SESSION_COOKIE_PREFIX, type BetterAuthUser } from '../config/betterAuth.js';
+import { DEV_BYPASS_USER_ID } from '../config/devAuthBypass.js';
 import { env } from '../config/env.js';
 import { ba_sessions } from '../database/schema/auth.js';
 import { getDrizzleInstance } from '../database/services/DrizzleService.js';
@@ -26,7 +27,7 @@ import { type AuthenticatedRequest } from './types.js';
 const log = createLogger('authMiddleware');
 
 const DEV_BYPASS_USER: Express.User = {
-  id: '00000000-0000-4000-a000-000000000001',
+  id: DEV_BYPASS_USER_ID,
   email: BRAND.devEmail,
   display_name: 'Development User',
   avatar_robot_id: 1,

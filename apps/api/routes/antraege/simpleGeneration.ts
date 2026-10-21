@@ -8,10 +8,6 @@
 import express, { type Request, type Response, type NextFunction } from 'express';
 import { z } from 'zod';
 
-import {
-  processAntragAgentStreaming,
-  processAntragAgentRequest,
-} from '../../agents/langgraph/AntragAgentGraph/agentModeProcessor.js';
 import { processGraphRequest } from '../../agents/langgraph/PromptProcessor.js';
 import { processGraphRequestStreaming } from '../../agents/langgraph/streamingProcessor.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
@@ -27,7 +23,6 @@ interface TrackedRequest extends Request {
 const simpleGenerationSchema = z
   .object({
     useWebSearchTool: z.boolean().optional(),
-    useAgentMode: z.boolean().optional(),
   })
   .passthrough();
 
@@ -101,17 +96,7 @@ router.post(
   async (req: TypedRequest<SimpleGenerationBody>, res: Response): Promise<void> => {
     log.debug('[simpleGeneration] Incoming request body flags:', {
       useWebSearchTool: req.body.useWebSearchTool,
-      useAgentMode: req.body.useAgentMode,
     });
-
-    // Agent mode: delegate to AntragAgentGraph pipeline
-    if (req.body.useAgentMode) {
-      log.debug('[simpleGeneration] Delegating to AntragAgentGraph');
-      if (req.query.stream === 'true' || req.headers.accept === 'text/event-stream') {
-        return processAntragAgentStreaming(req, res);
-      }
-      return processAntragAgentRequest(req, res);
-    }
 
     if (req.query.stream === 'true' || req.headers.accept === 'text/event-stream') {
       return processGraphRequestStreaming('antrag_simple', req, res);

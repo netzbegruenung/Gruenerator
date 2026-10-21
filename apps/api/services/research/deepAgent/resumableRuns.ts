@@ -2,10 +2,9 @@
  * Continues a research whose process died, and clears out the ones nobody
  * will continue.
  *
- * Two things that only make sense together with `checkpointer.ts` and
- * `runRegistry.ts`, kept apart from both because they are the CONSUMER side:
- * the checkpointer writes state, the registry says which state belongs to
- * what, and this is the only thing that ever reads either back.
+ * The CONSUMER side of `runRegistry.ts`, kept apart from it: the run writes its
+ * state into the registry after every step, and this is the only thing that
+ * ever reads it back.
  *
  * ## Why resuming is not automatic
  *

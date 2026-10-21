@@ -10,6 +10,7 @@
  *   npx tsx apps/api/test-deep-agent.ts --query "..." --locale de-AT
  *   npx tsx apps/api/test-deep-agent.ts --query "..." --ohne-notebooks
  *   npx tsx apps/api/test-deep-agent.ts --query "..." --write   # writes a real document
+ *   npx tsx apps/api/test-deep-agent.ts --query "..." --probe   # PROBE_BUDGET: short and cheap
  *
  * The corpora are in reach by default, exactly as in the chat. That matters for
  * more than the search results: `programm-recherche` is only registered when
@@ -26,7 +27,11 @@ import 'dotenv/config';
 
 import { runDeepAgentResearch } from './services/research/deepAgent/index.js';
 import { buildNotebookScope } from './services/research/deepAgent/notebookScope.js';
-import { DEFAULT_BUDGET, type ResearchLocale } from './services/research/deepAgent/types.js';
+import {
+  DEFAULT_BUDGET,
+  PROBE_BUDGET,
+  type ResearchLocale,
+} from './services/research/deepAgent/types.js';
 
 function arg(name: string): string | undefined {
   const argv = process.argv.slice(2);
@@ -41,6 +46,7 @@ async function main(): Promise<void> {
   const question = arg('query') ?? 'Wie ambitioniert ist das Klimaziel der Stadt Wien für 2040?';
   const locale = (arg('locale') ?? 'de-DE') as ResearchLocale;
   const write = flag('write');
+  const budget = flag('probe') ? PROBE_BUDGET : DEFAULT_BUDGET;
   // Same call the chat makes, minus the mentions a real turn may carry: the
   // corpora come from the locale and the instance gate, not from the state.
   const notebookScope = flag('ohne-notebooks')
@@ -49,6 +55,7 @@ async function main(): Promise<void> {
 
   console.log(`Frage:  ${question}`);
   console.log(`Locale: ${locale}`);
+  console.log(`Budget: ${budget === PROBE_BUDGET ? 'Probe' : 'voll'}`);
   console.log(
     `Modus:  ${write ? 'Dokument wird angelegt' : 'Trockenlauf (kein DB-Schreibvorgang)'}`
   );
@@ -66,7 +73,8 @@ async function main(): Promise<void> {
     locale,
     // Same shape as the real caller: the agent owns `hardMs` itself, this is
     // the outer kill that still leaves it `wrapUpMs` to write the report.
-    signal: AbortSignal.timeout(DEFAULT_BUDGET.hardMs + DEFAULT_BUDGET.wrapUpMs),
+    signal: AbortSignal.timeout(budget.hardMs + budget.wrapUpMs),
+    budget,
     ...(notebookScope ? { notebookScope } : {}),
     progress: {
       onPlan: (steps) => {
