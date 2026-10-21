@@ -2,8 +2,6 @@ import { useLocalRuntime, type LocalRuntimeOptions } from '@assistant-ui/react-n
 import {
   createGrueneratorModelAdapter,
   useAgentStore,
-  useChatConfigStore,
-  createChatApiClient,
   toNotebookAnswerMode,
   type GrueneratorAdapterConfig,
   type StreamMetadata,
@@ -85,31 +83,13 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
     useAgentStore.getState().mintThreadFromDraft(newThreadId);
   }, []);
 
-  const fetchFn = useChatConfigStore((s) => s.fetch);
-  const onUnauthorized = useChatConfigStore((s) => s.onUnauthorized);
-  const runtimeApiClient = useMemo(
-    () => createChatApiClient(fetchFn, onUnauthorized),
-    [fetchFn, onUnauthorized]
-  );
-
-  const onComplete = useCallback(
-    (_metadata: StreamMetadata) => {
-      const store = useAgentStore.getState();
-      const tid = store.currentThreadId;
-      if (tid) {
-        // Before the increments, as the old render-time ref saw it: compaction
-        // fires on the turn after the one that crossed the threshold.
-        const { needsCompaction, compactionState } = store;
-        store.incrementMessageCount();
-        store.incrementMessageCount();
-
-        if (needsCompaction && !compactionState.summary) {
-          void store.triggerCompaction(tid, runtimeApiClient);
-        }
-      }
-    },
-    [runtimeApiClient]
-  );
+  const onComplete = useCallback((_metadata: StreamMetadata) => {
+    const store = useAgentStore.getState();
+    if (store.currentThreadId) {
+      store.incrementMessageCount();
+      store.incrementMessageCount();
+    }
+  }, []);
 
   const callbacks = useMemo(() => ({ onThreadCreated, onComplete }), [onThreadCreated, onComplete]);
   // Pinned: every chat screen mounts under the drawer's thread-list runtime
