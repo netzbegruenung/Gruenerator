@@ -5,6 +5,7 @@ import {
   type MarketplaceKind,
 } from '@gruenerator/contracts';
 import { MARKETPLACE_ORIGIN_BADGE } from '@gruenerator/shared/marketplace';
+import { shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
 import { resolveStoredImageUrl } from '@gruenerator/shared/media-library/shareUrl';
 import { Button, cn } from '@gruenerator/ui';
 import { useState, type JSX, type ReactNode } from 'react';
@@ -120,13 +121,29 @@ function RecipeActions({ item }: { item: MarketplaceItemOf<'recipe'> }) {
 
 // ── Vorlagen ─────────────────────────────────────────────────────────────────
 
-/** Uploaded Vorlagen images are stored as `/share/<token>` page URLs, not files (#2845). */
-export const templateImageSrc = (url: string | null | undefined): string | null =>
-  resolveApiAssetUrl(resolveStoredImageUrl(url) ?? undefined) ?? null;
+/**
+ * A Vorlage image: its signed `/api/thumbs` tile when the API minted one, else
+ * the stored URL — uploads are stored as `/share/<token>` page URLs, not files
+ * (#2845).
+ */
+export const templateImageSrc = (
+  image: { url: string | null; thumbUrl: string | null },
+  width: 400 | 800 = 400
+): string | null =>
+  resolveApiAssetUrl(
+    (image.thumbUrl
+      ? shareThumbnailPreviewUrl(image.thumbUrl, width)
+      : resolveStoredImageUrl(image.url, { width })) ?? undefined
+  ) ?? null;
+
+const cardImage = (item: MarketplaceItemOf<'template'>) => ({
+  url: item.thumbnailUrl,
+  thumbUrl: item.template.thumbUrl,
+});
 
 const templateVisual = (item: MarketplaceItemOf<'template'>): MarketplaceVisual => ({
   type: 'image',
-  src: templateImageSrc(item.thumbnailUrl),
+  src: templateImageSrc(cardImage(item)),
   cutout: false,
   icon: <PiLayout />,
 });
@@ -163,8 +180,8 @@ function TemplateActions({ item }: { item: MarketplaceItemOf<'template'> }) {
  */
 function TemplatePages({ item }: { item: MarketplaceItemOf<'template'> }) {
   const pages = item.template.images.flatMap((image) => {
-    const src = templateImageSrc(image.url);
-    return src ? [{ src }] : [];
+    const src = templateImageSrc(image);
+    return src ? [{ src, large: templateImageSrc(image, 800) }] : [];
   });
   const [page, setPage] = useState(0);
   const current = pages[page] ?? pages[0] ?? null;
@@ -174,7 +191,7 @@ function TemplatePages({ item }: { item: MarketplaceItemOf<'template'> }) {
       <VisualImage
         visual={{
           type: 'image',
-          src: current?.src ?? templateImageSrc(item.thumbnailUrl),
+          src: current?.large ?? templateImageSrc(cardImage(item), 800),
           cutout: false,
           icon: <PiLayout />,
         }}

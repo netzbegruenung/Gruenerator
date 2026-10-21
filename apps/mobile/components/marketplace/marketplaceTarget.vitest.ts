@@ -93,11 +93,13 @@ describe('marketplaceShareUrl', () => {
 });
 
 describe('templatePageUris', () => {
-  const resolve = (url: string) => (url.startsWith('bad') ? null : `https://cdn/${url}`);
-  const vorlage = (images: string[], thumbnailUrl: string | null) => ({
+  const resolve = ({ url, thumbUrl }: { url: string | null; thumbUrl: string | null }) =>
+    thumbUrl ?? (url && !url.startsWith('bad') ? `https://cdn/${url}` : null);
+  const vorlage = (images: string[], thumbnailUrl: string | null, tile: string | null = null) => ({
     thumbnailUrl,
     template: {
-      images: images.map((url) => ({ url, title: null })),
+      thumbUrl: tile,
+      images: images.map((url) => ({ url, title: null, thumbUrl: null })),
     } as unknown as MarketplaceItemOf<'template'>['template'],
   });
 
@@ -111,5 +113,11 @@ describe('templatePageUris', () => {
   it('falls back to the thumbnail, then to nothing', () => {
     expect(templatePageUris(vorlage([], 't.png'), resolve)).toEqual(['https://cdn/t.png']);
     expect(templatePageUris(vorlage(['bad.png'], null), resolve)).toEqual([]);
+  });
+
+  it('hands the resolver the signed tile next to the stored URL', () => {
+    expect(templatePageUris(vorlage([], 't.png', '/api/thumbs/t'), resolve)).toEqual([
+      '/api/thumbs/t',
+    ]);
   });
 });

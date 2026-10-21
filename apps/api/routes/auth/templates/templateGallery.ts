@@ -12,6 +12,7 @@ import authMiddlewareModule from '../../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../../middleware/validateBody.js';
 import { getFavoritedEntityIdsForUser } from '../../../services/entityFavorites/EntityFavoritesService.js';
 import { getLikeCountsForEntities } from '../../../services/entityLikes/EntityLikesService.js';
+import { buildStoredImageTileUrl } from '../../../services/media/thumbnailUrl.js';
 import { resolveVorlagenLocale } from '../../../services/sharepicVorlagen/vorlagenLocale.js';
 import { isUserTemplateId } from '../../../services/templateInteractions/templateTarget.js';
 import {
@@ -54,6 +55,7 @@ export async function buildGalleryTemplates(
     description: item.description,
     template_type: item.templateType,
     thumbnail_url: item.thumbnailUrl,
+    thumbnail_tile_url: buildStoredImageTileUrl('template', item.id, item.thumbnailUrl),
     external_url: item.externalUrl,
     images: item.images,
     categories: item.categories,

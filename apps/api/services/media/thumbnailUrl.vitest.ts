@@ -10,14 +10,18 @@ vi.mock('../../config/env.js', () => ({ env: envMock }));
 
 const {
   buildCanvasThumbnailUrl,
+  buildStoredImageTileUrl,
   buildThumbnailBase,
   buildThumbnailTileUrl,
   buildThumbnailUrl,
-  shareTokenFromDownloadUrl,
+  parseTemplatePageThumbnailId,
+  templatePageThumbnailId,
   versionFromDate,
   versionFromShareToken,
+  versionFromUrl,
 } = await import('./thumbnailUrl.js');
 const { verifyThumbnail } = await import('./thumbnailSignature.js');
+const { shareTokenFromDownloadUrl } = await import('@gruenerator/shared/media-library/shareUrl');
 
 function parse(url: string): { path: string; params: URLSearchParams } {
   const [path, query] = url.split('?');
@@ -118,6 +122,54 @@ describe('thumbnailUrl', () => {
         buildCanvasThumbnailUrl('canvas-id', '/api/share/tok/download', {}) as string
       );
       expect(full.params.get('w')).toBeNull();
+    });
+  });
+
+  describe('stored image URLs', () => {
+    it.each([
+      ['an upload page URL', '/share/tok'],
+      ['an upload download URL', '/api/share/tok/download'],
+      ['a remote image', 'https://static.canva.com/og.png'],
+    ])('mints a signed 400px tile for %s', (_label, stored) => {
+      const url = buildStoredImageTileUrl('template', 'tpl-id', stored) as string;
+      const { path, params } = parse(url);
+      expect(path).toBe(`/api/thumbs/template/tpl-id/${versionFromUrl(stored)}`);
+      expect(params.get('w')).toBe('400');
+      expect(
+        verifyThumbnail(
+          { kind: 'template', id: 'tpl-id', v: versionFromUrl(stored) },
+          params.get('sig') ?? undefined
+        ).ok
+      ).toBe(true);
+    });
+
+    it.each([
+      ['nothing', null],
+      ['a data URL', 'data:image/png;base64,AAAA'],
+      ['a stray path', '/images/logo.png'],
+    ])('mints nothing for %s, so the list keeps its raw URL', (_label, stored) => {
+      expect(buildStoredImageTileUrl('template', 'tpl-id', stored)).toBeNull();
+    });
+
+    it('changes the version when the stored URL does', () => {
+      expect(versionFromUrl('/share/a')).not.toBe(versionFromUrl('/share/b'));
+      expect(versionFromUrl('/share/a')).toMatch(/^[A-Za-z0-9_-]{10}$/);
+    });
+  });
+
+  describe('template page ids', () => {
+    const TEMPLATE_ID = '33333333-3333-4333-8333-333333333333';
+
+    it('round-trips through the id the route receives', () => {
+      const id = templatePageThumbnailId(TEMPLATE_ID, 7);
+      expect(id).toMatch(/^[A-Za-z0-9_-]{1,64}$/);
+      expect(parseTemplatePageThumbnailId(id)).toEqual({ templateId: TEMPLATE_ID, index: 7 });
+    });
+
+    it('refuses anything else', () => {
+      expect(parseTemplatePageThumbnailId(TEMPLATE_ID)).toBeNull();
+      expect(parseTemplatePageThumbnailId(`${TEMPLATE_ID}-`)).toBeNull();
+      expect(parseTemplatePageThumbnailId('x-1')).toBeNull();
     });
   });
 });

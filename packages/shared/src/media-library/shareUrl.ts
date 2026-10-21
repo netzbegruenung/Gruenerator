@@ -19,6 +19,20 @@
 /** `/share/<token>` — die Seiten-URL, exakt und ohne Query/Fragment. */
 const SHARE_PAGE_RE = /^\/share\/([^/?#]+)\/?$/;
 
+/**
+ * `/api/share/<token>/download` — was `uploadBlobToMediaLibrary` zurückgibt und
+ * Canvases, Grünerator-Vorlagen und Studio-Assets speichern. Die URL liefert das
+ * Original ohne Cache-Header und hinter Auth; als `<img>` lädt sie bei jedem
+ * Besuch den Volltext.
+ */
+const SHARE_DOWNLOAD_RE = /^\/api\/share\/([^/?#]+)\/download$/;
+
+/** Der Share-Token aus einer `/api/share/<token>/download`-URL, sonst `null`. */
+export function shareTokenFromDownloadUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  return SHARE_DOWNLOAD_RE.exec(url)?.[1] ?? null;
+}
+
 export interface SharedMediaPreviewOptions {
   /** API-Basis **inklusive** `/api`. Vorgabe `/api` (gleiche Herkunft, Web). */
   baseUrl?: string;
@@ -27,10 +41,10 @@ export interface SharedMediaPreviewOptions {
   fmt?: 'webp' | 'avif';
 }
 
-/** Der Share-Token aus einer `/share/<token>`-Seiten-URL, sonst `null`. */
+/** Der Share-Token aus einer gespeicherten Share-URL, gleich in welcher der beiden Formen. */
 export function shareTokenFromShareUrl(url: string | null | undefined): string | null {
   if (!url) return null;
-  return SHARE_PAGE_RE.exec(url)?.[1] ?? null;
+  return SHARE_PAGE_RE.exec(url)?.[1] ?? shareTokenFromDownloadUrl(url);
 }
 
 /** Die Bild-URL einer Share-Variante: `<base>/share/<token>/preview?w=&fmt=`. */

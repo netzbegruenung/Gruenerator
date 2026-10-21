@@ -98,6 +98,8 @@ export const marketplaceRecipeItemSchema = z.object({
 export const marketplaceTemplateImageSchema = z.object({
   url: z.string(),
   title: z.string().nullable(),
+  /** Signed 400px tile of this page (`/api/thumbs/template-page/…`); null → `url` is the fallback. */
+  thumbUrl: z.string().nullable(),
 });
 
 export const marketplaceTemplateItemSchema = z.object({
@@ -105,6 +107,12 @@ export const marketplaceTemplateItemSchema = z.object({
   kind: z.literal('template'),
   template: z.object({
     templateType: z.string().nullable(),
+    /**
+     * Signed 400px tile of the card image (`/api/thumbs/template/…`), like a
+     * sticker's `asset.thumbUrl`; null when it cannot be minted — then
+     * `thumbnailUrl` is the fallback.
+     */
+    thumbUrl: z.string().nullable(),
     externalUrl: z.string().nullable(),
     images: z.array(marketplaceTemplateImageSchema),
     categories: z.array(z.string()),

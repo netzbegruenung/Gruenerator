@@ -64,6 +64,7 @@ export {
 export {
   resolveStoredImageUrl,
   sharedMediaPreviewUrl,
+  shareTokenFromDownloadUrl,
   shareTokenFromShareUrl,
   type SharedMediaPreviewOptions,
 } from './shareUrl.js';

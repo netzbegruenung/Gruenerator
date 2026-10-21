@@ -159,7 +159,9 @@ describe('templateSource.get', () => {
     const item = await templateSource.get(ctx('de-DE'), ID);
     expect(m.listGalleryTemplates).toHaveBeenCalledWith({ audience: 'de-DE', ids: [ID], limit: 1 });
     expect(item).toMatchObject({ kind: 'template', ref: ID, likesCount: 4 });
-    expect(item?.template.images).toEqual([{ url: '/share/abc', title: 'Seite 1' }]);
+    expect(item?.template.images).toEqual([
+      { url: '/share/abc', title: 'Seite 1', thumbUrl: null },
+    ]);
     expect(m.enrichItems).toHaveBeenCalledWith(expect.anything(), templateSource, [item], {
       counts: false,
     });

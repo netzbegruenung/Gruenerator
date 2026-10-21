@@ -85,13 +85,15 @@ export function marketplaceShareUrl(
 /** A Vorlage's pages as image URLs; without any, its thumbnail stands in. */
 export function templatePageUris(
   item: Pick<MarketplaceItemOf<'template'>, 'thumbnailUrl' | 'template'>,
-  resolve: (url: string) => string | null
+  resolve: (image: { url: string | null; thumbUrl: string | null }) => string | null
 ): string[] {
   const pages = item.template.images.flatMap((image) => {
-    const uri = resolve(image.url);
+    const uri = resolve(image);
     return uri ? [uri] : [];
   });
   if (pages.length > 0) return pages;
-  const thumb = item.thumbnailUrl ? resolve(item.thumbnailUrl) : null;
+  const thumb = item.thumbnailUrl
+    ? resolve({ url: item.thumbnailUrl, thumbUrl: item.template.thumbUrl })
+    : null;
   return thumb ? [thumb] : [];
 }
