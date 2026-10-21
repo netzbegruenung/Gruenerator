@@ -119,9 +119,10 @@ function HubView({ hub }: { hub: LvHub }): JSX.Element {
             item={openedItem}
             actions={actions}
             onBack={back}
-            backLabel={`Zurück zu ${hub.name}`}
+            backLabel={hub.name}
             shareHref={marketplaceHref({ item: opened })}
             headingLevel={2}
+            onSelect={select}
           />
         ) : (
           <div className="flex flex-col gap-md">
@@ -186,7 +187,10 @@ function HubHeader({
     <div className="flex flex-col gap-xl">
       {/* Without a breadcrumb the photo opens the page: its top edge sits as far
           from the top as the page edge from the side. */}
-      <ShowcaseMedia tone="tanne" className="aspect-[3/1] w-full rounded-2xl md:-mt-4">
+      <ShowcaseMedia
+        tone="tanne"
+        className="aspect-[2/1] sm:aspect-[3/1] w-full rounded-2xl md:-mt-4"
+      >
         <ShowcaseCardImage
           {...lvBannerImage(cover)}
           alt={cover.alt}
@@ -200,12 +204,12 @@ function HubHeader({
           Landesverband
         </span>
         <h1
-          className="m-0 text-[clamp(2.25rem,4.5vw,3rem)] leading-[1.05] font-bold tracking-[-0.02em] text-balance text-foreground-heading"
+          className="m-0 text-[clamp(2rem,4.5vw,3rem)] leading-[1.05] font-bold tracking-[-0.02em] text-balance text-foreground-heading"
           style={{ fontFamily: DISPLAY_FONT }}
         >
           {hub.name}
         </h1>
-        <p className="m-0 text-lg leading-relaxed text-foreground-muted">
+        <p className="m-0 text-base leading-relaxed text-foreground-muted sm:text-lg">
           {`Agents und Rezepte von ${hub.name} an einem Ort.`}
           {notebookPath && (
             <>

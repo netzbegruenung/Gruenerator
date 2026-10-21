@@ -1,12 +1,14 @@
 import { useUserLandesverbaende } from '@gruenerator/chat';
 import {
   MARKETPLACE_KINDS,
+  type MarketplaceCollectionId,
   type MarketplaceItem,
   type MarketplaceKind,
   type MarketplaceOrigin,
   type MarketplaceSort,
 } from '@gruenerator/contracts';
 import {
+  DEFAULT_MARKETPLACE_FILTERS,
   DEFAULT_MARKETPLACE_SORT,
   MARKETPLACE_ORIGINS,
   MARKETPLACE_SORTS,
@@ -244,6 +246,11 @@ export function MarketplaceBrowser({
             onBack={back}
             shareHref={marketplaceHref({ ...filters, tab: shownTab(filters.tab, kinds) })}
             headingLevel={headingLevel}
+            onSelect={select}
+            {...(frontpage && {
+              onOpenCollection: (collection: MarketplaceCollectionId) =>
+                onChange({ ...DEFAULT_MARKETPLACE_FILTERS, collection }),
+            })}
           />
           {dialogs}
         </>
