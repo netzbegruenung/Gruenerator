@@ -73,6 +73,7 @@ export type BildItem = Extract<SharepicItem, { type: 'bild' }>;
 export type BingoItem = Extract<SharepicItem, { type: 'bingo' }>;
 export type DiagrammItem = Extract<SharepicItem, { type: 'diagramm' }>;
 export type FaktencheckItem = Extract<SharepicItem, { type: 'faktencheck' }>;
+export type FrageItem = Extract<SharepicItem, { type: 'frage' }>;
 export type HeadlineItem = Extract<SharepicItem, { type: 'headline' }>;
 export type IconlisteItem = Extract<SharepicItem, { type: 'iconliste' }>;
 export type InfografikItem = Extract<SharepicItem, { type: 'infografik' }>;
@@ -83,6 +84,7 @@ export type SteckbriefItem = Extract<SharepicItem, { type: 'steckbrief' }>;
 export type TermineItem = Extract<SharepicItem, { type: 'termine' }>;
 export type VergleichItem = Extract<SharepicItem, { type: 'vergleich' }>;
 export type ZahlItem = Extract<SharepicItem, { type: 'zahl' }>;
+export type ZitatItem = Extract<SharepicItem, { type: 'zitat' }>;
 
 export interface Column {
   x: number;

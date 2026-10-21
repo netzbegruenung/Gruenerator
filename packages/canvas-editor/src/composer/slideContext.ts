@@ -69,6 +69,11 @@ export interface SlideCtx {
   ) => number;
   /** The widest size `value` can take on one line of `width`, up to `cap`. */
   fitLine: (value: string, cap: number, width: number, family: string) => number;
+  /** A quote alone on a colour: the slide's hero, sized like a headline. */
+  quoteAlone: boolean;
+  quoteSize: (base: number, scale: number, cap: number) => number;
+  /** A paragraph's size at scale 1, before `paraCap`. */
+  paraBase: number;
 }
 
 /** What changes from one `build` call to the next. */
