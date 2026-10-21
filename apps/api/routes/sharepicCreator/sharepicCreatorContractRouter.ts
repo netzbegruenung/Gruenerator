@@ -50,7 +50,7 @@ export const sharepicCreatorContractRouter = s.router(sharepicCreatorContract, {
     } catch (err) {
       if (!(err instanceof DraftFailedError)) throw err;
       log.warn(`draft failed: ${err.message}`);
-      return { status: 502 as const, body: draftFailedBody(err.reason) };
+      return { status: 502 as const, body: draftFailedBody(err) };
     }
   },
   review: async ({ req, body }) => {

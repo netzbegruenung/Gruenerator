@@ -167,7 +167,7 @@ NUTZE bei JEDER Änderung an einem vorhandenen Sharepic. Ohne variantId ist die 
           log.warn(`Sharepic-Überarbeitung gescheitert: ${error.message}`);
           const message = draftFailedText(
             'Die Überarbeitung ist nicht gelungen.',
-            error.reason,
+            error,
             'Formuliere die Änderung etwas genauer und versuch es noch einmal.'
           );
           return { error: message };
