@@ -61,6 +61,7 @@ export function item(
         kind,
         template: {
           templateType: 'canva',
+          thumbUrl: null,
           externalUrl: `https://canva.com/${ref}`,
           images: [],
           categories: [],

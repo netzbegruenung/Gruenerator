@@ -11,6 +11,7 @@ import {
   getFavoritedEntityIdsForUser,
   unfavoriteEntity,
 } from '../../entityFavorites/EntityFavoritesService.js';
+import { buildStoredImageTileUrl, templatePageThumbnailId } from '../../media/thumbnailUrl.js';
 import { isUserTemplateId } from '../../templateInteractions/templateTarget.js';
 import { listGalleryTemplates, type GalleryTemplateRow } from '../../templates/galleryTemplates.js';
 import { type MarketplaceContext } from '../context.js';
@@ -20,17 +21,30 @@ import type { MarketplaceSource } from './types.js';
 
 type TemplateItem = MarketplaceItemOf<'template'>;
 
-function toImages(raw: unknown[]): TemplateItem['template']['images'] {
-  return raw.flatMap((entry) => {
+// The tile id carries the position in the stored array, not in the filtered
+// one, so the resolver reads the same entry the tile was minted for.
+function toImages(templateId: string, raw: unknown[]): TemplateItem['template']['images'] {
+  return raw.flatMap((entry, index) => {
     if (typeof entry !== 'object' || entry === null) return [];
     const { url, title } = entry as { url?: unknown; title?: unknown };
     if (typeof url !== 'string' || url.length === 0) return [];
-    return [{ url, title: typeof title === 'string' ? title : null }];
+    return [
+      {
+        url,
+        title: typeof title === 'string' ? title : null,
+        thumbUrl: buildStoredImageTileUrl(
+          'template-page',
+          templatePageThumbnailId(templateId, index),
+          url
+        ),
+      },
+    ];
   });
 }
 
 function toItem(ctx: MarketplaceContext, row: GalleryTemplateRow): TemplateItem {
-  const images = toImages(row.images);
+  const images = toImages(row.id, row.images);
+  const thumbnailUrl = row.thumbnailUrl || images[0]?.url || null;
   return {
     kind: 'template',
     key: `template:${row.id}`,
@@ -38,7 +52,7 @@ function toItem(ctx: MarketplaceContext, row: GalleryTemplateRow): TemplateItem 
     origin: 'oeffentlich',
     title: row.title,
     description: row.description || null,
-    thumbnailUrl: row.thumbnailUrl || images[0]?.url || null,
+    thumbnailUrl,
     iconKey: null,
     authorName: row.authorName,
     audience: row.audience,
@@ -50,6 +64,7 @@ function toItem(ctx: MarketplaceContext, row: GalleryTemplateRow): TemplateItem 
     createdAt: row.createdAt.toISOString(),
     template: {
       templateType: row.templateType,
+      thumbUrl: buildStoredImageTileUrl('template', row.id, thumbnailUrl),
       externalUrl: row.externalUrl,
       images,
       categories: row.categories,

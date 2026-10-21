@@ -15,6 +15,8 @@ interface VorlagenCardItem {
   template_type?: string;
   tags?: string[];
   thumbnail_url?: string;
+  /** Signed, resized tile of `thumbnail_url` (`/api/thumbs/template/…`) when the API could mint one. */
+  thumbnail_tile_url?: string | null;
   external_url?: string | null;
   download_url?: string;
   content_data?: { originalUrl?: string } | Record<string, unknown>;
@@ -79,10 +81,13 @@ const VorlagenCard = memo(
     onToggleFavorite,
     favoriteToggling = false,
   }: VorlagenCardProps): JSX.Element => {
-    // Selbst hochgeladene Vorlagenbilder liegen als `/share/<token>` in der
-    // Datenbank — die Seiten-URL, nicht die Datei. Ungefiltert liefert der
-    // SPA-Fallback dafür HTML und die Kachel bleibt leer (#2845).
-    const thumbnailUrl = resolveApiAssetUrl(resolveStoredImageUrl(item.thumbnail_url) ?? undefined);
+    // Die signierte Kachel zuerst; sonst die gespeicherte URL. Selbst
+    // hochgeladene Vorlagenbilder liegen als `/share/<token>` in der Datenbank —
+    // die Seiten-URL, nicht die Datei. Ungefiltert liefert der SPA-Fallback dafür
+    // HTML und die Kachel bleibt leer (#2845).
+    const thumbnailUrl = resolveApiAssetUrl(
+      (item.thumbnail_tile_url || resolveStoredImageUrl(item.thumbnail_url)) ?? undefined
+    );
     const stored = storedRatio(item);
     const [measured, setMeasured] = useState(() =>
       thumbnailUrl ? measuredRatios.get(thumbnailUrl) : undefined

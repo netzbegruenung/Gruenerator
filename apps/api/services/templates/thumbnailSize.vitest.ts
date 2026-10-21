@@ -1,5 +1,12 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
 import sharp from 'sharp';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const cacheDir = path.join(os.tmpdir(), `thumb-size-${process.pid}`);
+vi.mock('../../config/env.js', () => ({ env: { THUMBNAIL_CACHE_DIR: cacheDir } }));
 
 const queryOne = vi.fn();
 const query = vi.fn();
@@ -19,9 +26,14 @@ const png = (width: number, height: number) =>
     .png()
     .toBuffer();
 
+afterAll(async () => {
+  await fs.promises.rm(cacheDir, { recursive: true, force: true });
+});
+
 describe('measureThumbnail', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+    await fs.promises.rm(cacheDir, { recursive: true, force: true });
   });
 
   it('liest hochgeladene Bilder aus shared_media statt sie abzurufen', async () => {
@@ -42,6 +54,13 @@ describe('measureThumbnail', () => {
       width: 40,
       height: 50,
     });
+  });
+
+  it('holt ein externes Bild nur einmal — die Kachel rendert aus derselben Kopie', async () => {
+    safeFetch.mockImplementation(async () => new Response(new Uint8Array(await png(40, 50))));
+    await measureThumbnail('https://media.canva.com/y.png');
+    await measureThumbnail('https://media.canva.com/y.png');
+    expect(safeFetch).toHaveBeenCalledTimes(1);
   });
 
   it('ruft keine relativen oder fremden Schemata ab', async () => {

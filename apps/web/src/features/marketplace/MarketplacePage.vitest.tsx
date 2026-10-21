@@ -476,8 +476,8 @@ describe('MarketplacePage', () => {
     const vorlage = item('template', 'Plakat', { ref: 'tpl-1', authorName: 'Kim' });
     if (vorlage.kind !== 'template') throw new Error('fixture');
     vorlage.template.images = [
-      { url: 'https://example.org/1.png', title: null },
-      { url: 'https://example.org/2.png', title: null },
+      { url: 'https://example.org/1.png', title: null, thumbUrl: null },
+      { url: 'https://example.org/2.png', title: null, thumbUrl: null },
     ];
     const asked = vi.fn();
     server.use(

@@ -34,8 +34,9 @@ const vorlage = (file: string, title: string, description: string): MarketplaceI
   thumbnailUrl: `${DIR}/${file}-v1-480.webp`,
   template: {
     templateType: 'canva',
+    thumbUrl: null,
     externalUrl: null,
-    images: [{ url: `${DIR}/${file}-v1-960.webp`, title }],
+    images: [{ url: `${DIR}/${file}-v1-960.webp`, title, thumbUrl: null }],
     categories: [],
     tags: [],
     contentData: {},

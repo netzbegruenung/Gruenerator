@@ -23,7 +23,7 @@ import { secureStorage } from '../../services/storage';
 import {
   fetchMyTemplates,
   fetchTemplateInteractions,
-  getPublicImageUrl,
+  vorlageImageUri,
   setTemplateBookmark,
   setTemplateLike,
   type Template,
@@ -229,7 +229,10 @@ export function VorlagenScreen() {
         const uri =
           item.kind === 'mine'
             ? item.template.thumbnail_url
-            : getPublicImageUrl(item.item.thumbnailUrl ?? undefined);
+            : vorlageImageUri({
+                url: item.item.thumbnailUrl,
+                thumbUrl: item.item.template.thumbUrl,
+              });
         source = uri ? { uri } : null;
       }
       const isLiked = liked.has(item.id);
