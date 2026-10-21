@@ -13,12 +13,9 @@ import { createLogger } from '../../utils/logger.js';
 
 import {
   getCompactionState,
+  getCompactionTokenThreshold,
   getMessageCount,
-  getThreadMessages,
-  generateCompactionSummary,
-  needsCompaction,
-  COMPACTION_THRESHOLD,
-  KEEP_RECENT,
+  getTailTokenBudget,
 } from './services/compactionService.js';
 import { getUser } from './services/threadPersistenceService.js';
 
@@ -82,11 +79,13 @@ router.get('/', async (req, res) => {
         compactedUpToMessageId: compactionState.compactedUpToMessageId,
         compactionUpdatedAt: compactionState.compactionUpdatedAt,
       },
+      // F0 shape for shipped clients; both are token figures now, and the
+      // chat stream decides on its own — no client needs to ask for it.
       config: {
-        threshold: COMPACTION_THRESHOLD,
-        keepRecent: KEEP_RECENT,
+        threshold: getCompactionTokenThreshold(),
+        keepRecent: getTailTokenBudget(),
       },
-      needsCompaction: needsCompaction(messageCount, compactionState.summary),
+      needsCompaction: false,
     });
   } catch (error) {
     log.error('Error fetching compaction state:', error);
@@ -132,47 +131,23 @@ router.post(
         return res.status(403).json({ error: 'Forbidden' });
       }
 
-      // Check if compaction is needed
+      // Compaction runs inside the chat stream, against the turn's own window.
+      // Shipped clients still call this after 50 messages; they get the state.
       const [existingState, messageCount] = await Promise.all([
         getCompactionState(threadId),
         getMessageCount(threadId),
       ]);
 
-      if (!needsCompaction(messageCount, existingState.summary)) {
-        return res.json({
-          success: true,
-          skipped: true,
-          reason: 'Compaction not needed yet',
-          messageCount,
-          threshold: COMPACTION_THRESHOLD,
-          compactionState: {
-            summary: existingState.summary,
-            compactedUpToMessageId: existingState.compactedUpToMessageId,
-            compactionUpdatedAt: existingState.compactionUpdatedAt,
-          },
-        });
-      }
-
-      log.info(`[Summarize] Starting compaction for thread ${threadId} (${messageCount} messages)`);
-
-      // Get all messages and generate summary
-      const messages = await getThreadMessages(threadId);
-      await generateCompactionSummary(threadId, messages);
-
-      // Get updated state
-      const newState = await getCompactionState(threadId);
-
-      log.info(`[Summarize] Compaction complete for thread ${threadId}`);
-
       res.json({
         success: true,
-        skipped: false,
+        skipped: true,
+        reason: 'Compaction runs with the chat stream',
         messageCount,
-        summarizedCount: messages.length - KEEP_RECENT,
+        threshold: getCompactionTokenThreshold(),
         compactionState: {
-          summary: newState.summary,
-          compactedUpToMessageId: newState.compactedUpToMessageId,
-          compactionUpdatedAt: newState.compactionUpdatedAt,
+          summary: existingState.summary,
+          compactedUpToMessageId: existingState.compactedUpToMessageId,
+          compactionUpdatedAt: existingState.compactionUpdatedAt,
         },
       });
     } catch (error) {

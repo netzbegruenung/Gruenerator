@@ -4,7 +4,12 @@
  */
 import { describe, it, expect } from 'vitest';
 
-import { renderCarryBlock, selectCarriedLongForm } from './compactionCarry.js';
+import {
+  renderCarryBlock,
+  renderMaterialBlock,
+  selectCarriedLongForm,
+  selectCarriedMaterial,
+} from './compactionCarry.js';
 
 const long = (marker: string, chars = 2000): string =>
   `${marker} `.repeat(Math.ceil(chars / (marker.length + 1)));
@@ -90,5 +95,35 @@ describe('renderCarryBlock', () => {
     expect(block).toContain('PRESSEMITTEILUNG-TEXT');
     expect(block).toContain('WÖRTLICH');
     expect(block).toMatch(/nicht ungefragt neu/);
+  });
+});
+
+describe('selectCarriedMaterial', () => {
+  it('trägt jeden eingefügten Text mit, in Reihenfolge', () => {
+    const dropped = [user(long('ERSTER-PASTE')), assistant('ok'), user(long('ZWEITER-PASTE'))];
+    const carried = selectCarriedMaterial(dropped, 100_000);
+    expect(carried).toHaveLength(2);
+    expect(carried[0]).toContain('ERSTER-PASTE');
+    expect(carried[1]).toContain('ZWEITER-PASTE');
+  });
+
+  it('nimmt unter dem Budget die jüngsten zuerst und kürzt den letzten', () => {
+    const dropped = [user(long('ALT', 3000)), user(long('NEU', 3000))];
+    const carried = selectCarriedMaterial(dropped, 5000);
+    expect(carried).toHaveLength(2);
+    expect(carried[1]).toContain('NEU');
+    expect(carried[0]).toContain('gekürzt');
+  });
+
+  it('übergeht Antworten und kurze Nachrichten', () => {
+    expect(selectCarriedMaterial([assistant(long('PM')), user('Danke')], 100_000)).toEqual([]);
+  });
+});
+
+describe('renderMaterialBlock', () => {
+  it('kennzeichnet den Text als eingefügt und wörtlich', () => {
+    const block = renderMaterialBlock(['A', 'B']);
+    expect(block).toContain('EINGEFÜGTES MATERIAL (WÖRTLICH)');
+    expect(block).toContain('A\n\n---\n\nB');
   });
 });

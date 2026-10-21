@@ -27,7 +27,7 @@ Every bug we found by hand is now a permanent, automated check.
 3. **Long threads** (`eval:longthread`) — `padTurns` breadth probes + golden
    15–25-turn scenarios (`"slow": true`, only with `EVAL_SLOW=1`). To make
    compaction fire fast locally, start the backend with
-   `CHAT_COMPACTION_THRESHOLD=8 CHAT_COMPACTION_KEEP_RECENT=4 CHAT_COMPACTION_COOLDOWN_MS=0`
+   `CHAT_COMPACTION_TOKEN_THRESHOLD=3000 CHAT_COMPACTION_TAIL_TOKENS=1000 CHAT_COMPACTION_COOLDOWN_MS=0`
    (dev-only overrides, ignored in production).
 
 ## Run

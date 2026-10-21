@@ -43,8 +43,8 @@ const PINNED: Record<string, string> = {
 
   // Compaction thresholds are read per turn; the defaults differ from the
   // dev-only overrides the eval README recommends.
-  CHAT_COMPACTION_THRESHOLD: '',
-  CHAT_COMPACTION_KEEP_RECENT: '',
+  CHAT_COMPACTION_TOKEN_THRESHOLD: '',
+  CHAT_COMPACTION_TAIL_TOKENS: '',
   CHAT_COMPACTION_COOLDOWN_MS: '',
 
   // Never reached once Postgres/Redis are mocked, but an unmocked path must
