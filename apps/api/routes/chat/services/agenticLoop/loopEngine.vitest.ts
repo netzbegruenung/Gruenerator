@@ -655,7 +655,7 @@ describe('runAgenticLoop — split (planner/executor)', () => {
         id === 'planner' ? [{ type: 'error', error: rejected() }] : []
       );
       await runAgenticLoop(
-        baseParams({ mode: 'split', plannerFallbackModel: fallbackModel }),
+        baseParams({ mode: 'split', plannerFallbackModels: [fallbackModel] }),
         deps
       );
       expect(calls).toEqual(['planner', 'fallback']);
@@ -667,7 +667,7 @@ describe('runAgenticLoop — split (planner/executor)', () => {
         { type: 'error', error: rejected() },
       ]);
       await runAgenticLoop(
-        baseParams({ mode: 'split', plannerFallbackModel: fallbackModel }),
+        baseParams({ mode: 'split', plannerFallbackModels: [fallbackModel] }),
         deps
       );
       expect(calls).toEqual(['planner', 'fallback']);
@@ -681,7 +681,7 @@ describe('runAgenticLoop — split (planner/executor)', () => {
         { type: 'error', error: rejected() },
       ]);
       await runAgenticLoop(
-        baseParams({ mode: 'split', plannerFallbackModel: fallbackModel }),
+        baseParams({ mode: 'split', plannerFallbackModels: [fallbackModel] }),
         deps
       );
       expect(calls).toEqual(['planner']);
@@ -705,7 +705,7 @@ describe('runAgenticLoop — split (planner/executor)', () => {
         id === 'planner' ? [{ type: 'error', error: exhausted }] : []
       );
       await runAgenticLoop(
-        baseParams({ mode: 'split', plannerFallbackModel: fallbackModel }),
+        baseParams({ mode: 'split', plannerFallbackModels: [fallbackModel] }),
         deps
       );
       expect(calls).toEqual(['planner', 'fallback']);
@@ -717,7 +717,7 @@ describe('runAgenticLoop — split (planner/executor)', () => {
         { type: 'error', error: rejected() },
       ]);
       await runAgenticLoop(
-        baseParams({ mode: 'split', plannerFallbackModel: fallbackModel }),
+        baseParams({ mode: 'split', plannerFallbackModels: [fallbackModel] }),
         deps
       );
       expect(calls).toEqual(['planner']);
@@ -728,7 +728,7 @@ describe('runAgenticLoop — split (planner/executor)', () => {
         { type: 'error', error: new Error('planner boom') },
       ]);
       await runAgenticLoop(
-        baseParams({ mode: 'split', plannerFallbackModel: fallbackModel }),
+        baseParams({ mode: 'split', plannerFallbackModels: [fallbackModel] }),
         deps
       );
       expect(calls).toEqual(['planner']);
@@ -806,7 +806,9 @@ describe('runAgenticLoop — split (planner/executor)', () => {
         const pending = runAgenticLoop(
           baseParams({
             mode: 'split',
-            plannerFallbackModel: { id: 'fallback' } as unknown as LoopEngineParams['plannerModel'],
+            plannerFallbackModels: [
+              { id: 'fallback' } as unknown as LoopEngineParams['plannerModel'],
+            ],
             onToolPhaseStall,
             abortSignal: new AbortController().signal,
           }),
@@ -821,6 +823,125 @@ describe('runAgenticLoop — split (planner/executor)', () => {
       } finally {
         vi.useRealTimers();
       }
+    });
+
+    describe('first-response window before a fallback lane (#4785)', () => {
+      const hang = () =>
+        ({
+          stream: (async function* () {
+            await new Promise(() => {});
+          })(),
+        }) as unknown as ReturnType<LoopDeps['streamText']>;
+      const lane = (id: string) => ({ id }) as unknown as LoopEngineParams['plannerModel'];
+
+      function chainDeps(planner: (id: string) => ReturnType<LoopDeps['streamText']> | null) {
+        const calls: string[] = [];
+        const deps: LoopDeps = {
+          generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+          streamText: ((o: StreamOpts) => {
+            if (o.model.id === 'synth') return streamOf([{ type: 'text-delta', text: 'ANSWER' }]);
+            calls.push(o.model.id);
+            return planner(o.model.id) ?? streamOf([]);
+          }) as unknown as LoopDeps['streamText'],
+        };
+        return { deps, calls };
+      }
+
+      it('switches after 15 s, not after the full idle window', async () => {
+        vi.useFakeTimers();
+        try {
+          const { deps, calls } = chainDeps((id) => (id === 'planner' ? hang() : null));
+          const pending = runAgenticLoop(
+            baseParams({
+              mode: 'split',
+              plannerFallbackModels: [lane('fallback')],
+              abortSignal: new AbortController().signal,
+            }),
+            deps
+          );
+          await vi.advanceTimersByTimeAsync(16_000);
+          expect(calls).toEqual(['planner', 'fallback']);
+          expect((await pending).text).toBe('ANSWER');
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+
+      it('the SDK preamble is not a response from the provider', async () => {
+        vi.useFakeTimers();
+        try {
+          const { deps, calls } = chainDeps((id) =>
+            id === 'planner'
+              ? ({
+                  stream: (async function* () {
+                    yield { type: 'start' };
+                    yield { type: 'start-step' };
+                    await new Promise(() => {});
+                  })(),
+                } as unknown as ReturnType<LoopDeps['streamText']>)
+              : null
+          );
+          const pending = runAgenticLoop(
+            baseParams({
+              mode: 'split',
+              plannerFallbackModels: [lane('fallback')],
+              abortSignal: new AbortController().signal,
+            }),
+            deps
+          );
+          await vi.advanceTimersByTimeAsync(16_000);
+          expect(calls).toEqual(['planner', 'fallback']);
+          await pending;
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+
+      it('walks the whole chain: Melious → Cortecs → GreenPT', async () => {
+        vi.useFakeTimers();
+        try {
+          const { deps, calls } = chainDeps((id) => (id === 'greenpt' ? null : hang()));
+          const pending = runAgenticLoop(
+            baseParams({
+              mode: 'split',
+              plannerFallbackModels: [lane('cortecs'), lane('greenpt')],
+              abortSignal: new AbortController().signal,
+            }),
+            deps
+          );
+          await vi.advanceTimersByTimeAsync(31_000);
+          expect(calls).toEqual(['planner', 'cortecs', 'greenpt']);
+          expect((await pending).text).toBe('ANSWER');
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+
+      it('the last lane keeps the full window: there is nowhere left to switch to', async () => {
+        vi.useFakeTimers();
+        try {
+          const { deps, calls } = chainDeps(() => hang());
+          let settled = false;
+          const pending = runAgenticLoop(
+            baseParams({
+              mode: 'split',
+              plannerFallbackModels: [lane('fallback')],
+              abortSignal: new AbortController().signal,
+            }),
+            deps
+          ).finally(() => {
+            settled = true;
+          });
+          // 15 s on the planner, then the fallback runs past its own 15 s.
+          await vi.advanceTimersByTimeAsync(32_000);
+          expect(calls).toEqual(['planner', 'fallback']);
+          expect(settled).toBe(false);
+          await vi.advanceTimersByTimeAsync(40_000);
+          await pending;
+        } finally {
+          vi.useRealTimers();
+        }
+      });
     });
 
     it('waits out a slow tool instead of calling it a stall', async () => {

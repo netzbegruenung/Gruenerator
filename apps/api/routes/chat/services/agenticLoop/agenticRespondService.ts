@@ -22,10 +22,11 @@ import { isModelSlow, recordSlowVerdict } from '../../../../services/ai/modelHea
 import { promptCacheKeyForThread } from '../../../../services/ai/promptCacheKey.js';
 import { looksLikeMemoryRequest } from '../../../../services/memory/memoryRequest.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { deriveImplicitRecipeMention } from '../../agents/implicitRecipe.js';
 import { type McpCatalog } from '../../agents/mcpCatalog.js';
 import { notebookForPrompt } from '../../agents/notebookSourceTools.js';
 import {
-  getLoopPlannerFallbackModel,
+  getLoopPlannerFallbackModels,
   getLoopSynthFallbackModel,
   resolveLoopPlannerLane,
   getLoopSynthModel,
@@ -664,6 +665,11 @@ export async function streamAgenticResponse(
             attachedDocsTool: hasAttachedDocuments ? ATTACHED_DOCS_TOOL : null,
             userText: finalState.lastUserTextNoMentions ?? lastUserText,
             threadNotebook: promptNotebook != null,
+            recipeOrder:
+              deriveImplicitRecipeMention(
+                orderText(finalState.lastUserTextNoMentions ?? lastUserText),
+                finalState.userLocale ?? null
+              ) != null,
           })
         : null;
     if (firstToolName) {
@@ -692,7 +698,9 @@ export async function streamAgenticResponse(
     // EINMAL aufgelöst: derselbe Wert speist das Modell, den Vermerk beim
     // Stillstand und die Turn-Zusammenfassung — siehe `resolveLoopPlannerLane`.
     plannerLane = mode === 'split' ? resolveLoopPlannerLane() : null;
-    const plannerFallback = plannerLane ? getLoopPlannerFallbackModel(plannerLane.model) : null;
+    const plannerFallbacks = plannerLane
+      ? getLoopPlannerFallbackModels(plannerLane.provider, plannerLane.model)
+      : [];
 
     const reasoningEffort = mistralReasoningOption(resolution.reasoningEffort);
     const promptCacheKey = promptCacheKeyForThread(threadId ?? null);
@@ -709,7 +717,7 @@ export async function streamAgenticResponse(
       plannerModel: plannerLane ? plannerLane.languageModel : resolution.model,
       synthModel: synth.model,
       ...(synthFallback && { synthFallbackModel: synthFallback.model }),
-      ...(plannerFallback && { plannerFallbackModel: plannerFallback.model }),
+      plannerFallbackModels: plannerFallbacks,
       // Der Stillstand der WERKZEUG-Phase. Hier gibt es nichts umzuschalten —
       // der Zug antwortet aus dem, was schon gesammelt war —, aber die Lane
       // gehört vermerkt: sonst ist sie im nächsten Zug wieder erste Wahl und
