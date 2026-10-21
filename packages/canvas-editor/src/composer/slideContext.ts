@@ -1,5 +1,8 @@
+import { type SharepicCreatorLocale } from '@gruenerator/contracts';
+
 import { type BrandTheme } from '../brand/theme';
 import { type AdditionalText } from '../configs/types';
+import { type CanvasFormat } from '../formats';
 import { type ShapeInstance } from '../utils/shapes';
 import { type TextAccent } from '../utils/textUtils';
 
@@ -17,11 +20,16 @@ export interface SlideCtx {
   measure: MeasureText;
   theme: BrandTheme;
   isAt: boolean;
+  locale: SharepicCreatorLocale;
+  canvas: CanvasFormat;
   options: ComposeOptions;
   /** Written only from a `place` callback, never while `build` measures. */
   out: ComposedSlide;
   column: Column;
+  xAlign: Column['align'];
+  darkText: string;
   badgeColors: SlideInk['badgeColors'];
+  cardAccent: SlideInk['cardAccent'];
   addShape: (shape: ShapeInstance) => void;
   addIcon: (
     id: string,
@@ -56,4 +64,6 @@ export interface BuildPass {
   scale: number;
   /** Paragraphs never come closer than 1 : 1.8 to the headline. */
   paraCap: number;
+  /** Height a chart gives up before any text shrinks. */
+  chartShrink: number;
 }

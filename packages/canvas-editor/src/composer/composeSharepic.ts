@@ -16,7 +16,6 @@ import {
   accentLines,
   type SharepicColor,
   type SharepicCreatorLocale,
-  type SharepicChartKind,
   type SharepicItem,
   type SharepicPhotoAttribution,
   type SharepicNummer,
@@ -29,7 +28,6 @@ import {
 import { getBrandTheme } from '../brand/theme';
 import { DEFAULT_FORMAT_ID, getCanvasFormatOrDefault, type CanvasFormat } from '../formats';
 import { ASSET_TARGET_SIZE, emojiAssetId } from '../utils/canvasAssets';
-import { CHART_PALETTES, createChartInstance, type ChartType } from '../utils/chartUtils';
 import { createCircleBadgeInstance } from '../utils/circleBadgeUtils';
 import { COLORS } from '../utils/dreizeilenLayout';
 import { createPillBadgeInstance } from '../utils/pillBadgeUtils';
@@ -57,6 +55,7 @@ import {
   type Placed,
   type SteckbriefItem,
 } from './composeTypes';
+import { layoutDiagramm } from './diagrammLayout';
 import { encodeHandMarks, placeHandMarks, sentinelBlind } from './handMarks';
 import { headlineFit } from './headlineFit';
 import { layoutInfografik } from './infografikLayout';
@@ -156,23 +155,6 @@ const VERGLEICH_SPALTEN = {
   /** Their points: grey, not muted by opacity. */
   theirsInk: '#5F6B66',
 } as const;
-const CHART_TYPE: Record<SharepicChartKind, ChartType> = {
-  balken: 'bar',
-  'balken-quer': 'bar-horizontal',
-  linie: 'line',
-  kreis: 'pie',
-  donut: 'donut',
-};
-/** The chart's card. Series too light for it get an outline (`chartSeriesOutlines`). */
-const CHART_CARD = '#FFFFFF';
-/** The share a pie's values leave to 100 %. */
-const CHART_REST = '#C8C8C7';
-/**
- * The chart renders at half size and is scaled up, so its labels (13 px in
- * the editor's chart renderer) read at 26 px on the 1080 px canvas.
- */
-const CHART_SCALE = 2;
-const CHART_MIN_HEIGHT = 240;
 
 export function composeSharepic(spec: SharepicSpec, options: ComposeOptions): ComposedSharepic {
   const count = spec.slides.length;
@@ -1233,10 +1215,15 @@ function composeSlide(
     measure,
     theme,
     isAt,
+    locale,
+    canvas,
     options,
     out,
     column,
+    xAlign,
+    darkText,
     badgeColors,
+    cardAccent,
     addShape,
     addIcon,
     rect,
@@ -1253,7 +1240,7 @@ function composeSlide(
     /** Paragraphs never come closer than 1 : 1.8 to the headline. */
     const paraCap = headSize ? Math.floor(headSize / HEADLINE_RATIO) : Number.POSITIVE_INFINITY;
     const paraBase = isAt ? 70 : 48;
-    const pass: BuildPass = { scale, paraCap };
+    const pass: BuildPass = { scale, paraCap, chartShrink };
     if (numeral?.stil === 'gross') {
       // "2." above the point, in the accent, at about a third of the width.
       const size = Math.round(Math.min(canvas.width * 0.33, 360) * Math.min(1, scale));
@@ -1827,91 +1814,7 @@ function composeSlide(
           break;
         }
         case 'diagramm': {
-          // Always on a white card: the chart renderer's axes and labels are
-          // dark, and the DE explainer posts set their charts the same way.
-          const pad = 40;
-          const inner = column.width - 2 * pad;
-          const titleSize = 36;
-          const titleLines = item.titel
-            ? lineCount(item.titel, inner, titleSize, theme.fonts.body, 'bold', cardAccent)
-            : 0;
-          const titleHeight = titleLines ? titleLines * titleSize * 1.2 + 16 : 0;
-          const chartHeight = Math.max(
-            CHART_MIN_HEIGHT,
-            Math.round(inner * 0.55 * Math.min(scale, 1.2)) - chartShrink
-          );
-          const height = 2 * pad + titleHeight + chartHeight;
-          const round = item.art === 'kreis' || item.art === 'donut';
-          const sum = item.werte.reduce((total, w) => total + w.wert, 0);
-          const data = item.werte.map((w) => ({ name: w.name, value: w.wert }));
-          // Shares of a whole: what the values leave to 100 % is drawn too.
-          const rest = round && item.einheit === '%' && sum < 99.5;
-          if (rest) data.push({ name: 'Rest', value: Math.round((100 - sum) * 10) / 10 });
-          const palette = CHART_PALETTES[locale];
-          // A long bar or line series reads as one colour; a few parts get one each.
-          const colors =
-            round || data.length <= 3
-              ? data.map((_, k) =>
-                  rest && k === data.length - 1 ? CHART_REST : palette[k % palette.length]
-                )
-              : [palette[0]];
-          placed.push({
-            height,
-            after: GAP,
-            place: (y) => {
-              const card = createShape(
-                'rounded-rect',
-                column.x + column.width / 2,
-                y + height / 2,
-                CHART_CARD,
-                CHART_CARD
-              );
-              Object.assign(card, {
-                id: `${id}-card`,
-                width: column.width,
-                height,
-                cornerRadius: 32,
-              });
-              addShape(card);
-              if (item.titel) {
-                const titleId = `${id}-titel`;
-                out.additionalTexts.push({
-                  id: titleId,
-                  text: item.titel,
-                  type: 'body',
-                  x: column.x + pad,
-                  y: y + pad,
-                  width: inner,
-                  fontSize: titleSize,
-                  fontFamily: theme.fonts.body,
-                  fontStyle: 'bold',
-                  fill: darkText,
-                  lineHeight: 1.2,
-                  align: xAlign,
-                  accent: cardAccent,
-                });
-                out.layerOrder.push(titleId);
-              }
-              const chartId = `chart-${id}`;
-              out.chartInstances.push({
-                ...createChartInstance(CHART_TYPE[item.art], canvas.width, canvas.height),
-                id: chartId,
-                x: column.x + pad,
-                y: y + pad + titleHeight,
-                width: inner / CHART_SCALE,
-                height: chartHeight / CHART_SCALE,
-                scale: CHART_SCALE,
-                data,
-                colors,
-                ...(item.einheit ? { unit: item.einheit } : {}),
-                showLegend: round,
-                showGrid: false,
-                showValues: true,
-                background: CHART_CARD,
-              });
-              out.layerOrder.push(chartId);
-            },
-          });
+          placed.push(...layoutDiagramm(ctx, item, id, pass));
           break;
         }
         case 'iconliste': {
