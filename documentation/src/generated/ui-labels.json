@@ -80,6 +80,9 @@
   "canvas.elements": {
     "title": "Elemente"
   },
+  "canvas.flieder": {
+    "title": "Flieder"
+  },
   "canvas.frame-settings": {
     "title": "Rahmen"
   },
@@ -95,8 +98,14 @@
   "canvas.klee": {
     "title": "Klee"
   },
+  "canvas.lila": {
+    "title": "Lila"
+  },
   "canvas.mint": {
     "title": "Mint"
+  },
+  "canvas.pride": {
+    "title": "Pride"
   },
   "canvas.sand": {
     "title": "Sand"
@@ -121,6 +130,9 @@
   },
   "canvas.uploads": {
     "title": "Uploads"
+  },
+  "canvas.violett": {
+    "title": "Violett"
   },
   "canvas.vorlagen": {
     "title": "Vorlagen"
