@@ -75,6 +75,7 @@ export function WorkplaceChatPage() {
           showActionSheet
           onAttach={handleAttach}
           {...(canCall && {
+            accessoryBesideAction: true,
             accessory: {
               icon: 'pulse',
               onPress: openCall,
