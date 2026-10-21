@@ -69,6 +69,7 @@ export interface ComposedSharepic {
   provenance?: Record<string, SharepicProvenance>[];
 }
 
+export type AufrufItem = Extract<SharepicItem, { type: 'aufruf' }>;
 export type BildItem = Extract<SharepicItem, { type: 'bild' }>;
 export type BingoItem = Extract<SharepicItem, { type: 'bingo' }>;
 export type DiagrammItem = Extract<SharepicItem, { type: 'diagramm' }>;
