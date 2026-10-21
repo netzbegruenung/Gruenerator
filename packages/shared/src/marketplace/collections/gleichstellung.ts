@@ -1,19 +1,169 @@
+import { type MarketplaceItem } from '@gruenerator/contracts';
+
 import { type MarketplaceCollection } from '../frontpage.js';
 
-/** Stub — filled in by the collection's own PR (see docs/CLAUDE-collections.md). */
+/**
+ * „Frauen / Gleichstellung“: six placeholder Sharepics (files under
+ * `/images/marketplace/collections/gleichstellung/`, not rows) plus the official
+ * Agents and Rezepte for the texts. Written up in docs/CLAUDE-collections.md.
+ *
+ * Numbers to re-check each year: Destatis (Gender Pay Gap, published every
+ * December) and Statistik Austria (published every March).
+ */
+const DIR = '/images/marketplace/collections/gleichstellung';
+const CREATED = '2026-10-22T00:00:00.000Z';
+
+const sharepic = (file: string, title: string, description: string): MarketplaceItem => {
+  const ref = `muster-gleichstellung-${file}`;
+  return {
+    key: `template:${ref}`,
+    kind: 'template',
+    ref,
+    origin: 'oeffentlich',
+    title,
+    description,
+    iconKey: null,
+    authorName: 'Platzhalter',
+    audience: 'all',
+    likesCount: 0,
+    liked: false,
+    saved: false,
+    isOwn: false,
+    reportKind: null,
+    createdAt: CREATED,
+    thumbnailUrl: `${DIR}/sharepic-${file}-v1-480.webp`,
+    template: {
+      templateType: 'canva',
+      thumbUrl: null,
+      externalUrl: null,
+      images: [{ url: `${DIR}/sharepic-${file}-v1-960.webp`, title, thumbUrl: null }],
+      categories: [],
+      tags: [],
+      contentData: {},
+      metadata: {},
+    },
+  };
+};
+
+const SAMPLES = [
+  sharepic('equal-pay', 'Gleicher Lohn für gleiche Arbeit', 'Sharepic zum Equal Pay Day.'),
+  sharepic(
+    'paritaet',
+    'Die Hälfte der Macht für Frauen',
+    'Sharepic für Parität in Parlamenten und Räten.'
+  ),
+  sharepic('gewalt', 'Schutz vor Gewalt', 'Sharepic, das auf Hilfsangebote hinweist.'),
+  sharepic('sorgearbeit', 'Sorgearbeit fair teilen', 'Sharepic zu Sorgearbeit und Kita-Plätzen.'),
+  sharepic('frauentag', '8. März: Frauentag', 'Sharepic zum Internationalen Frauentag.'),
+  sharepic(
+    'kommunal',
+    'Frauen in die Politik vor Ort',
+    'Sharepic für mehr Frauen in der Kommunalpolitik.'
+  ),
+] as const satisfies readonly MarketplaceItem[];
+
 export const GLEICHSTELLUNG_COLLECTION = {
   id: 'gleichstellung',
   audience: 'all',
-  kicker: 'Gleichstellung',
-  title: 'Gleichstellung',
-  description: '',
-  tone: 'klee',
-  cover: null,
-  pinned: [],
+  kicker: 'Frauen und Gleichstellung',
+  title: 'Gleichstellung sichtbar machen',
+  description:
+    'Sharepics, Agents und Rezepte für Lohn, Parität, Schutz vor Gewalt, Sorgearbeit und mehr Frauen in der Kommunalpolitik.',
+  tone: 'sand',
+  cover: {
+    file: 'gleichstellung-v1',
+    alt: 'Drei leicht gefächerte Sharepics mit grünen Balken-Headlines vor einer Blumenwiese',
+    credit: null,
+  },
+  pinned: [
+    { kind: 'recipe', ref: 'instagram' },
+    { kind: 'recipe', ref: 'presse' },
+    { kind: 'agent', ref: 'gruenerator-oeffentlichkeitsarbeit' },
+    { kind: 'agent', ref: 'gruenerator-rede-schreiber' },
+  ],
   fill: [],
-  show: 12,
+  samples: SAMPLES,
+  show: 14,
   min: 1,
   listed: false,
-  samples: [],
-  story: [],
+  story: [
+    {
+      type: 'text',
+      paragraphs: [
+        'Gleichstellung ist kein Thema für einen Tag im Jahr. Sie zeigt sich im Lohnzettel, in der Besetzung von Gemeinderäten, in der Kita-Platzsuche und in der Frage, wer nachts allein nach Hause gehen kann.',
+        'Wer vor Ort darüber schreibt, braucht keine große Kampagne, sondern regelmäßig ein klares Bild und einen klaren Satz.',
+      ],
+    },
+    {
+      type: 'claim',
+      audience: 'de-DE',
+      text: 'Frauen verdienen in Deutschland pro Stunde 16 % weniger als Männer.',
+      note: 'Unbereinigter Gender Pay Gap 2025: 22,81 Euro gegenüber 27,05 Euro Bruttostundenverdienst.',
+      source: {
+        label: 'Statistisches Bundesamt, Pressemitteilung vom 16.12.2025',
+        url: 'https://www.destatis.de/DE/Presse/Pressemitteilungen/2025/12/PD25_453_621.html',
+      },
+    },
+    {
+      type: 'claim',
+      audience: 'de-AT',
+      text: 'Frauen verdienen in Österreich pro Stunde 17,6 % weniger als Männer.',
+      note: 'Gender Pay Gap in der Privatwirtschaft 2024, Bruttostundenverdienste.',
+      source: {
+        label: 'Statistik Austria, Pressemitteilung vom 03.03.2026',
+        url: 'https://www.statistik.at/fileadmin/announcement/2026/03/20260303Genderstatistik2026.pdf',
+      },
+    },
+    {
+      type: 'items',
+      display: 'gallery',
+      heading: 'Sechs Sharepics zum Anpassen',
+      items: SAMPLES.map((s) => ({ kind: s.kind, ref: s.ref })),
+    },
+    {
+      type: 'quote',
+      text: 'Ein Sharepic zum Equal Pay Day hat bei uns mehr Gespräche am Infostand ausgelöst als jede Pressemitteilung.',
+      by: 'Kreisrätin aus Niedersachsen, Beispiel',
+    },
+    {
+      type: 'text',
+      paragraphs: [
+        'Nimm ein Sharepic als Ausgangspunkt, setze deinen Ort und deine Zahl ein und lass dir den Begleittext schreiben. Eine Zahl aus deiner Gemeinde wirkt stärker als jede Landeszahl.',
+        'Beim Thema Gewalt gehört immer ein Hilfsangebot in den Beitrag.',
+      ],
+    },
+    {
+      type: 'text',
+      audience: 'de-DE',
+      paragraphs: [
+        'Das Hilfetelefon „Gewalt gegen Frauen“ ist rund um die Uhr kostenlos erreichbar: 116 016.',
+      ],
+    },
+    {
+      type: 'text',
+      audience: 'de-AT',
+      paragraphs: [
+        'Die Frauenhelpline gegen Gewalt ist rund um die Uhr kostenlos erreichbar: 0800 222 555.',
+      ],
+    },
+    {
+      type: 'items',
+      display: 'rows',
+      items: [
+        { kind: 'agent', ref: 'gruenerator-oeffentlichkeitsarbeit' },
+        { kind: 'recipe', ref: 'presse' },
+        { kind: 'agent', ref: 'gruenerator-rede-schreiber' },
+      ],
+    },
+    {
+      type: 'example',
+      // Quotes the German gap; in Austria the Rezept stands under „Mehr aus der Kollektion“.
+      audience: 'de-DE',
+      item: { kind: 'recipe', ref: 'instagram' },
+      prompt:
+        'Schreib einen Instagram-Post zum Equal Pay Day für unseren Ortsverband, mit der aktuellen Lohnlücke und einem Hinweis auf unsere Anträge im Gemeinderat.',
+      answer:
+        'Heute ist Equal Pay Day. Frauen verdienen in Deutschland pro Stunde 16 % weniger als Männer, das sind rund 4,24 Euro. Wir wollen, dass Gehälter offengelegt werden und gleiche Arbeit gleich bezahlt wird. In unserer Gemeinde fangen wir bei der Stadtverwaltung an. Komm zu unserem Infostand und sag uns, was du dazu erlebt hast.',
+    },
+  ],
 } as const satisfies MarketplaceCollection;
