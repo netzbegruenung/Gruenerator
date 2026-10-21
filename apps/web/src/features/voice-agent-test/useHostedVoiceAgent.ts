@@ -1,8 +1,10 @@
+import { type HostedVariant } from '@gruenerator/voice/mistral';
+import { openHostedSession } from '@gruenerator/voice/mistral/session';
 import { useEffect, useRef, useState } from 'react';
 
 import { platformFetch } from '../../utils/platformFetch';
 
-import { type HostedVariant, openHostedSession } from './hostedSession';
+import { agentSessionRequest } from './chatVoice';
 
 export interface Turn {
   id: string;
@@ -101,7 +103,7 @@ export function useLvNotebooks(enabled: boolean) {
   return { notebooks, notebookId, setNotebookId, error };
 }
 
-/** The hosted kit (`hostedSession.ts`) with the comparison page's transcript and response clock. */
+/** The hosted kit (`@gruenerator/voice/mistral/session`) with the comparison page's transcript and response clock. */
 export function useHostedVoiceAgent() {
   const [status, setStatus] = useState<Status>('idle');
   const [agentState, setAgentState] = useState<string | null>(null);
@@ -128,7 +130,7 @@ export function useHostedVoiceAgent() {
     setError(null);
     setStatus('starting');
     try {
-      const { session, toolNames: names } = await openHostedSession(opts, {
+      const { session, toolNames: names } = await openHostedSession(opts, agentSessionRequest, {
         onToolStart: (call) =>
           setTurns((prev) =>
             upsertTurn(prev, { id: call.id, role: 'tool', text: `${call.name} …` })

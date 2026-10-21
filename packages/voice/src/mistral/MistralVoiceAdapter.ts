@@ -2,51 +2,32 @@ import {
   createVoiceSession,
   type RealtimeVoiceAdapter,
   type VoiceSessionHelpers,
-} from '@assistant-ui/react';
+} from '@assistant-ui/core';
 import { type Room } from 'livekit-client';
 
-import { type HostedSessionOptions, type ToolCall } from './hostedSession';
+import { type AgentSessionRequest, type HostedSessionOptions, type ToolCall } from './types';
 
-interface MistralVoiceAdapterOptions {
+export interface MistralVoiceAdapterOptions {
+  request: AgentSessionRequest;
   /** A tool started (`call`) or the last one ended (`null`). */
   onToolActivity: (call: ToolCall | null) => void;
   onError: (message: string | null) => void;
-}
-
-/**
- * Loudness of one track, 0–1, sampled per animation frame and eased both
- * ways. Only changes above 2 % are emitted, as in GrueneratorRealtimeVoiceAdapter.
- */
-function meterTrack(track: MediaStreamTrack, emit: (level: number) => void): () => void {
-  const ctx = new AudioContext();
-  const analyser = ctx.createAnalyser();
-  analyser.fftSize = 512;
-  ctx.createMediaStreamSource(new MediaStream([track])).connect(analyser);
-  const samples = new Uint8Array(analyser.fftSize);
-  let level = 0;
-  let emitted = 0;
-  let frame = requestAnimationFrame(function tick() {
-    analyser.getByteTimeDomainData(samples);
-    let sum = 0;
-    for (const s of samples) sum += ((s - 128) / 128) ** 2;
-    const rms = Math.min(1, Math.sqrt(sum / samples.length) * 2);
-    level += (rms - level) * (rms > level ? 0.25 : 0.06);
-    if (Math.abs(level - emitted) > 0.02) {
-      emitted = level;
-      emit(level);
-    }
-    frame = requestAnimationFrame(tick);
-  });
-  return () => {
-    cancelAnimationFrame(frame);
-    void ctx.close();
-  };
+  /**
+   * Loudness of a track, 0–1, for the orb; returns its stop function. Web
+   * measures with an AudioContext; without one the orb follows the mode only.
+   */
+  meterTrack?: (track: MediaStreamTrack, emit: (level: number) => void) => () => void;
+  /**
+   * Runs before the session connects and returns what to run once it ends
+   * (mobile: LiveKit's native audio session).
+   */
+  prepareAudio?: () => Promise<() => void>;
 }
 
 /**
  * Mistral's hosted voice agent (`hostedSession.ts`) as an assistant-ui
- * realtime voice session: transcripts land in the thread, and `VoiceOrb`
- * reads mode and volume from the runtime.
+ * realtime voice session: transcripts land in the thread, and the orb reads
+ * mode and volume from the runtime.
  *
  * Typed text goes in through `sendText` while a call runs, into the same
  * conversation as speech.
@@ -67,35 +48,46 @@ export class MistralVoiceAdapter implements RealtimeVoiceAdapter {
 
   connect(connectOptions: { abortSignal?: AbortSignal }): RealtimeVoiceAdapter.Session {
     return createVoiceSession(connectOptions, async (helpers: VoiceSessionHelpers) => {
-      const { onToolActivity, onError } = this.options;
+      const { request, onToolActivity, onError, meterTrack, prepareAudio } = this.options;
+      // createVoiceSession only ends the session; the reason would be lost.
+      const fail = (err: unknown): never => {
+        onError(err instanceof Error ? err.message : String(err));
+        throw err;
+      };
       onError(null);
+      const releaseAudio = prepareAudio ? await prepareAudio().catch(fail) : null;
+
+      let stopMeter: (() => void) | null = null;
+      let tornDown = false;
+      const tearDown = () => {
+        if (tornDown) return;
+        tornDown = true;
+        stopMeter?.();
+        stopMeter = null;
+        onToolActivity(null);
+        releaseAudio?.();
+      };
+
       // Loaded on the first call: the SDK and LiveKit stay out of the chat bundle.
       const { openHostedSession } = await import('./hostedSession');
-      const { session } = await openHostedSession(this.sessionOptions, {
+      const { session } = await openHostedSession(this.sessionOptions, request, {
         onToolStart: (call) => onToolActivity(call),
         onToolEnd: () => onToolActivity(null),
       }).catch((err: unknown) => {
-        // createVoiceSession only ends the session; the reason would be lost.
-        onError(err instanceof Error ? err.message : String(err));
-        throw err;
+        tearDown();
+        return fail(err);
       });
 
       const tracks: Partial<Record<'local' | 'remote', MediaStreamTrack>> = {};
       let speaking = false;
-      let stopMeter: (() => void) | null = null;
       // The orb follows whoever has the turn: the agent's voice while it
       // speaks, the microphone otherwise.
       const remeter = () => {
         stopMeter?.();
         stopMeter = null;
         const track = speaking ? tracks.remote : tracks.local;
-        if (track)
+        if (track && meterTrack)
           stopMeter = meterTrack(track, (v) => !helpers.isDisposed() && helpers.emitVolume(v));
-      };
-      const tearDown = () => {
-        stopMeter?.();
-        stopMeter = null;
-        onToolActivity(null);
       };
 
       session.on('transcript', (e) =>
@@ -125,8 +117,8 @@ export class MistralVoiceAdapter implements RealtimeVoiceAdapter {
       });
 
       await session.connect().catch((err: unknown) => {
-        onError(err instanceof Error ? err.message : String(err));
-        throw err;
+        tearDown();
+        return fail(err);
       });
       helpers.setStatus({ type: 'running' });
 

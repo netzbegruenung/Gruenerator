@@ -1,22 +1,7 @@
 import { initSession } from '@mistralai/mistralai/extra/voice-agents/browser';
 import { type AudioSessionCreateResponse } from '@mistralai/mistralai/models/components';
 
-import { platformFetch } from '../../utils/platformFetch';
-
-export type HostedVariant = 'tools' | 'notebook';
-
-export interface HostedSessionOptions {
-  variant: HostedVariant;
-  notebookId: string | null;
-  fastMode: boolean;
-}
-
-export interface ToolCall {
-  id: string;
-  name: string;
-  /** Name, arguments and run time, for a debug line. */
-  label: string;
-}
+import { type AgentSessionRequest, type HostedSessionOptions, type ToolCall } from './types';
 
 interface CreatedSession {
   id: string;
@@ -42,21 +27,18 @@ export function formatSec(ms: number): string {
  */
 export async function openHostedSession(
   opts: HostedSessionOptions,
+  request: AgentSessionRequest,
   events: { onToolStart: (call: ToolCall) => void; onToolEnd: (call: ToolCall) => void }
 ) {
   // Created before initSession: the handlers have to exist up front, and
   // only our server knows which tools it declared.
-  const res = await platformFetch('/api/voice/agent-session', {
+  const created = (await request('', {
     method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+    body: {
       mode: opts.variant,
       notebookId: opts.variant === 'notebook' ? opts.notebookId : null,
-    }),
-  });
-  if (!res.ok) throw new Error(`Sitzung: HTTP ${res.status}`);
-  const created = (await res.json()) as CreatedSession;
+    },
+  })) as CreatedSession;
 
   let toolNo = 0;
   const handlers = Object.fromEntries(
@@ -69,16 +51,10 @@ export async function openHostedSession(
         let result = 'Kein Ergebnis.';
         let ms: number | undefined;
         try {
-          const call = await platformFetch(
-            `/api/voice/agent-session/tools/${encodeURIComponent(name)}`,
-            {
-              method: 'POST',
-              credentials: 'include',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ args, notebookId: opts.notebookId, fastMode: opts.fastMode }),
-            }
-          );
-          const body = (await call.json()) as { result?: string; error?: string; ms?: number };
+          const body = (await request(`/tools/${encodeURIComponent(name)}`, {
+            method: 'POST',
+            body: { args, notebookId: opts.notebookId, fastMode: opts.fastMode },
+          })) as { result?: string; error?: string; ms?: number };
           result = body.result ?? body.error ?? result;
           ms = body.ms;
         } finally {
@@ -100,10 +76,7 @@ export async function openHostedSession(
       expiresAt: new Date(created.expiresAt),
     }),
     deleteSession: async (id) => {
-      await platformFetch(`/api/voice/agent-session/${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
+      await request(`/${encodeURIComponent(id)}`, { method: 'DELETE' });
     },
     functionHandlers: handlers,
   });

@@ -9,12 +9,11 @@ import {
   useVoiceState,
 } from '@assistant-ui/react';
 import { GrueneratorHomeIconLoading, VoiceOrb } from '@gruenerator/chat';
+import { type HostedVariant, TOOL_LABEL, type ToolCall } from '@gruenerator/voice/mistral';
 import { Mic, MicOff, Phone, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { TOOL_LABEL } from './chatVoice';
-import { type HostedVariant, type ToolCall } from './hostedSession';
-import { MistralVoiceAdapter } from './MistralVoiceAdapter';
+import { createWebVoiceAdapter } from './chatVoice';
 import { useLvNotebooks } from './useHostedVoiceAgent';
 
 import { cn } from '@/utils/cn';
@@ -287,8 +286,8 @@ const MobileVoiceAgentPage = () => {
   const [error, setError] = useState<string | null>(null);
   const lv = useLvNotebooks(variant === 'notebook');
 
-  const [voice] = useState(
-    () => new MistralVoiceAdapter({ onToolActivity: setTool, onError: setError })
+  const [voice] = useState(() =>
+    createWebVoiceAdapter({ onToolActivity: setTool, onError: setError })
   );
   useEffect(() => {
     voice.setSessionOptions({ variant, notebookId: lv.notebookId || null, fastMode: true });
