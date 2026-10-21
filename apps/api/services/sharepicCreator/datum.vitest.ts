@@ -134,6 +134,12 @@ describe('datum in a draft', () => {
       ['18:30', 'Infostand am Samstag ab 18.30 Uhr.'],
       ['20:30', 'Infostand am Samstag um 20 Uhr 30.'],
       ['10 Uhr', 'Infostand am Samstag um zehn Uhr.'],
+      // Live 21.10.2026: rejected three times, the draft only passed on the rescue model.
+      ['10–13 Uhr', 'Infostand am Samstag von 10 bis 13 Uhr auf dem Altmarkt.'],
+      ['10-13 Uhr', 'Infostand am Samstag von 10 bis 13 Uhr auf dem Altmarkt.'],
+      ['10–13 Uhr', 'Infostand am Samstag 10–13 Uhr.'],
+      ['10 Uhr', 'Infostand am Samstag 10 bis 13 Uhr.'],
+      ['10:30–13 Uhr', 'Infostand am Samstag von 10:30 bis 13 Uhr.'],
     ])('passes %s against "%s"', (time, brief) => {
       expect(run(time, brief)).toBe(true);
     });
@@ -141,8 +147,47 @@ describe('datum in a draft', () => {
     it.each([
       ['14 Uhr', 'Fest am 14.11. auf dem Marktplatz.'],
       ['11 Uhr', 'Infostand am Samstag um 10 Uhr.'],
+      ['9–13 Uhr', 'Infostand am Samstag von 10 bis 13 Uhr.'],
     ])('rejects %s against "%s"', (time, brief) => {
       expect(run(time, brief)).toBe(false);
+    });
+  });
+
+  describe('a circle without the time the request names', () => {
+    // Live 21.10.2026: Gemma closed datum after its first field, three times in three.
+    const timeOf = (datum: object, brief: string, items?: object[]) => {
+      const spec = withDatum(datum);
+      if (items) spec.slides[0]!.items = items as (typeof spec.slides)[0]['items'];
+      const result = validateDraft(spec, 'de-DE', brief);
+      return result.ok ? result.value.slides[0]!.datum?.time : 'rejected';
+    };
+
+    it.each([
+      ['Stammtisch am Donnerstag, 6.11., um 19 Uhr im Gasthaus.', '19 Uhr'],
+      ['Infostand am Samstag, 8.11., von 10 bis 13 Uhr auf dem Altmarkt.', '10–13 Uhr'],
+      ['Infostand am Samstag, 8.11., 10–13 Uhr.', '10–13 Uhr'],
+      ['Lesung am 14.11. ab 18.30 Uhr.', '18:30 Uhr'],
+      ['Lesung am 14.11. um 18:30.', '18:30 Uhr'],
+    ])('gets it from "%s"', (brief, time) => {
+      expect(timeOf({ weekday: 'Do' }, brief)).toBe(time);
+    });
+
+    it('keeps the time the model set', () => {
+      expect(timeOf({ weekday: 'Do', time: '19 Uhr' }, 'Stammtisch am Do um 19 Uhr.')).toBe(
+        '19 Uhr'
+      );
+    });
+
+    it('leaves it out when the request names several times', () => {
+      expect(timeOf({ weekday: 'Do' }, 'Einlass 18 Uhr, Beginn 19 Uhr.')).toBeUndefined();
+    });
+
+    it('leaves it out when the slide text already says it', () => {
+      const items = [
+        { type: 'headline', lines: ['Garten offen'] },
+        { type: 'text', text: 'Komm um 19 Uhr vorbei!' },
+      ];
+      expect(timeOf({ weekday: 'Do' }, 'Treffen am Do um 19 Uhr.', items)).toBeUndefined();
     });
   });
 });

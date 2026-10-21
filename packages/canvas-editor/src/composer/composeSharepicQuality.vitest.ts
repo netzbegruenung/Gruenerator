@@ -103,7 +103,7 @@ describe.each(['de-DE', 'de-AT'] as const)('date circle without a time (%s)', (l
 });
 
 describe.each(['de-DE', 'de-AT'] as const)('date circle under a photo strip (%s)', (locale) => {
-  it('runs the column beside the circle, the place bottom-left', () => {
+  it('runs the column beside the circle, the place right under the text', () => {
     const [s] = compose(locale, [
       slide({
         background: {
@@ -129,6 +129,9 @@ describe.each(['de-DE', 'de-AT'] as const)('date circle under a photo strip (%s)
     const ort = s!.additionalTexts.find((t) => t.id === 'sc-ort')!;
     expect(ort.y).toBeGreaterThan(blockBottom(s!));
     expect(ort.x + ort.width).toBeLessThanOrEqual(c.x - c.radius);
+    // It ends the column, as on the event posters — not in the footer beside the logo.
+    expect(ort.x).toBe(block[0]!.x);
+    expect(ort.y - blockBottom(s!)).toBeLessThan(80);
   });
 });
 
