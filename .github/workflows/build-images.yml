@@ -573,6 +573,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      actions: read
     env:
       GH_TOKEN: ${{ github.token }}
       REPO: ${{ github.repository }}
@@ -608,6 +609,23 @@ jobs:
             sleep 15
           done
           echo "::warning::test-branch did not pick up $GITHUB_SHA within 10 minutes (sync conflict or queued). Its images were not promoted."
+
+      # A test-branch build dispatched by an earlier sync (when test-branch
+      # still carried changes of its own) runs in its own concurrency group.
+      # Finishing after the retag, it would put the older image back on
+      # `:test-branch`. So it goes first.
+      - name: Wait for running test-branch builds
+        if: steps.mirror.outputs.head
+        run: |
+          for _ in $(seq 120); do
+            running=$(gh api "repos/$REPO/actions/workflows/build-images.yml/runs?branch=test-branch&per_page=20" \
+              --jq '[.workflow_runs[] | select(.status != "completed")] | length')
+            [ "$running" -eq 0 ] && exit 0
+            echo "$running test-branch build(s) still running — waiting."
+            sleep 15
+          done
+          echo "::error::test-branch builds still running after 30 minutes — not retagging over them."
+          exit 1
 
       - name: Login to GitHub Container Registry
         if: steps.mirror.outputs.head
