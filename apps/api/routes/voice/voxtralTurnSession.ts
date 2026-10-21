@@ -17,6 +17,13 @@ export const TURN_MODEL = 'voxtral-mini-transcribe-realtime-3';
  */
 const TRAILING_DELTA_MS = 250;
 
+interface UpstreamEvent {
+  type?: string;
+  text?: string;
+  end_reason?: string;
+  error?: { message?: unknown };
+}
+
 /**
  * One Voxtral Realtime 3 connection for the whole conversation, with the
  * server deciding when a turn is over — the job the client's mic-volume VAD
@@ -59,9 +66,10 @@ export function handleTurnSession(clientWs: WsWebSocket, userId: string): void {
   };
 
   upstream.on('message', (raw) => {
-    let event: { type?: string; text?: string; end_reason?: string; error?: { message?: unknown } };
+    let event: UpstreamEvent;
     try {
-      event = JSON.parse(raw.toString());
+      // Boundary cast: Mistral's wire event; every field is read defensively below.
+      event = JSON.parse(raw.toString()) as UpstreamEvent;
     } catch {
       return;
     }
