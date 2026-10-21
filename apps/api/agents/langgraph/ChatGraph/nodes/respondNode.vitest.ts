@@ -9,6 +9,7 @@ import {
   truncateDocument,
   limitAttachmentContext,
   formatThreadAttachmentsContext,
+  restoreAttachmentsDroppedWithHistory,
 } from './respondNode.js';
 import { NO_CAPABILITY_DENIAL_RULE } from './artifactInventory.js';
 
@@ -753,6 +754,47 @@ describe('formatThreadAttachmentsContext — kein doppelter Ausgangstext', () =>
       const out = formatThreadAttachmentsContext([doc(article)], undefined, 'Und weiter?', live);
       expect(out).toBe('');
     });
+  });
+});
+
+describe('restoreAttachmentsDroppedWithHistory (#4791)', () => {
+  const paste = 'Der Gehweg soll mindestens 2,50 Meter breit werden, Telefon 09642 123456. '.repeat(
+    20
+  );
+  const state = {
+    messages: [
+      { role: 'user', content: paste },
+      { role: 'assistant', content: 'Danke' },
+      { role: 'user', content: 'Wie breit soll der Gehweg werden?' },
+    ],
+    threadAttachments: [
+      {
+        id: 'a1',
+        name: 'Eingefügter Text.txt',
+        isImage: false,
+        extractedText: paste,
+        summary: null,
+      },
+    ],
+  } as unknown as ChatGraphState;
+
+  it('puts the stored paste back when the history copy did not go out', () => {
+    const out = restoreAttachmentsDroppedWithHistory(state, 'BASIS', 'BASIS\n\nSUMMARY', [
+      { content: 'Wie breit soll der Gehweg werden?' },
+    ]);
+    expect(out).toContain('FRÜHERE DOKUMENTE');
+    expect(out).toContain('Telefon 09642 123456');
+    expect(out.indexOf('Telefon')).toBeLessThan(out.indexOf('SUMMARY'));
+  });
+
+  it('leaves the prompt alone while the paste is still sent', () => {
+    const sent = state.messages.map((m) => ({ content: m.content }));
+    expect(restoreAttachmentsDroppedWithHistory(state, 'BASIS', 'BASIS', sent)).toBe('BASIS');
+  });
+
+  it('leaves it alone when the compaction carry already holds the text', () => {
+    const withCarry = `BASIS\n\n## EINGEFÜGTES MATERIAL (WÖRTLICH)\n\n${paste}`;
+    expect(restoreAttachmentsDroppedWithHistory(state, 'BASIS', withCarry, [])).toBe(withCarry);
   });
 });
 

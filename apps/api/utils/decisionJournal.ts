@@ -54,7 +54,6 @@ export const DECISION_POINTS = {
   'router.intent_override': {
     branches: [
       'sharepic_unlicensed_to_direct',
-      'sharepic_unlicensed_fixed_text',
       // Sharepic genannt, aber nicht bestellt → `produktion`, das Werkzeug hängt
       // ohne Zwang im Loop, der Planer entscheidet.
       'sharepic_named_to_planner',

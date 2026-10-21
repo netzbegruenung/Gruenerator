@@ -25,6 +25,7 @@ export {
   computeVerifierNode,
   respondNode,
   buildSystemMessage,
+  restoreAttachmentsDroppedWithHistory,
 } from './nodes/index.js';
 export {
   buildCitations,

@@ -62,7 +62,7 @@ import { runResponseStage } from './streamStages/responseStage.js';
 import { runRoutingStage } from './streamStages/routingStage.js';
 import { runSharepicTopicStage } from './streamStages/sharepicTopicStage.js';
 import { suspendForToolApproval } from './streamStages/toolApprovalSuspend.js';
-import { type FixedTextBase, type SuspendTurnBase } from './streamStages/turnEnd.js';
+import { type SuspendTurnBase } from './streamStages/turnEnd.js';
 
 import type { Application, Request } from 'express';
 import type { ReadableStream as WebReadableStream } from 'node:stream/web';
@@ -213,13 +213,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         rawDocumentIds,
         startTime: initialState.startTime,
       };
-      const fixedTextBase: FixedTextBase = {
-        sse,
-        cleanupPending,
-        actualThreadId,
-        classifiedState,
-        startTime: initialState.startTime,
-      };
 
       log.info(
         `[ChatGraph] forcedTools received: ${JSON.stringify(forcedTools)}, classifier intent: ${classifiedState.intent}`
@@ -269,15 +262,13 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       if (early.forcedTool) forcedTool = true;
 
       // === Gates: may this turn make a sharepic / persist an artifact? ===
-      const gate = await runActionGateStage({
+      await runActionGateStage({
         classifiedState,
         initialState,
-        fixedTextBase,
         forcedTool,
         lastUserTextNoMentions,
         actualThreadId,
       });
-      if (gate.handled) return gate.result;
 
       sse.send('progress_step', {
         stepId: classifyStepId,
