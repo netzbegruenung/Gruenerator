@@ -136,14 +136,14 @@ export const GLEICHSTELLUNG_COLLECTION = {
       type: 'text',
       audience: 'de-DE',
       paragraphs: [
-        'Das Hilfetelefon „Gewalt gegen Frauen“ ist rund um die Uhr kostenlos erreichbar: 116 016.',
+        'Das Hilfetelefon „Gewalt gegen Frauen“ ist rund um die Uhr kostenlos erreichbar: 116\u00a0016.',
       ],
     },
     {
       type: 'text',
       audience: 'de-AT',
       paragraphs: [
-        'Die Frauenhelpline gegen Gewalt ist rund um die Uhr kostenlos erreichbar: 0800 222 555.',
+        'Die Frauenhelpline gegen Gewalt ist rund um die Uhr kostenlos erreichbar: 0800\u00a0222\u00a0555.',
       ],
     },
     {
@@ -163,7 +163,7 @@ export const GLEICHSTELLUNG_COLLECTION = {
       prompt:
         'Schreib einen Instagram-Post zum Equal Pay Day für unseren Ortsverband, mit der aktuellen Lohnlücke und einem Hinweis auf unsere Anträge im Gemeinderat.',
       answer:
-        'Heute ist Equal Pay Day. Frauen verdienen in Deutschland pro Stunde 16 % weniger als Männer, das sind rund 4,24 Euro. Wir wollen, dass Gehälter offengelegt werden und gleiche Arbeit gleich bezahlt wird. In unserer Gemeinde fangen wir bei der Stadtverwaltung an. Komm zu unserem Infostand und sag uns, was du dazu erlebt hast.',
+        'Heute ist Equal Pay Day. Frauen verdienen pro Stunde 16 % weniger als Männer. Wir wollen offene Gehälter, auch in unserer Stadtverwaltung. Komm zum Infostand!',
     },
   ],
 } as const satisfies MarketplaceCollection;

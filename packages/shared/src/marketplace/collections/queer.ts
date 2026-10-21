@@ -154,7 +154,7 @@ export const QUEER_COLLECTION = {
       prompt:
         'Schreib einen Instagram-Post zu unserem CSD am 14. Juni: Infostand am Marktplatz, alle sind willkommen.',
       answer:
-        'Am 14. Juni feiern wir den CSD bei uns im Ort. Kommt zum Marktplatz, redet mit uns am Infostand und zeigt, dass hier alle willkommen sind. Wer queer ist, soll sich bei uns sicher fühlen, auf der Straße und im Alltag. #CSD #Vielfalt',
+        'Am 14. Juni ist CSD bei uns im Ort. Kommt zum Infostand am Marktplatz: Hier sind alle willkommen, heute und an jedem anderen Tag. #CSD #Vielfalt',
     },
   ],
 } as const satisfies MarketplaceCollection;

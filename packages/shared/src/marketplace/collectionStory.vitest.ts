@@ -46,6 +46,17 @@ describe('resolveStory', () => {
     expect(gallery?.type === 'items' && gallery.items.map((i) => i.ref)).toEqual(['a']);
   });
 
+  it('joins texts that end up next to each other', () => {
+    const story: CollectionStoryBlock[] = [
+      { type: 'text', paragraphs: ['Eins.'] },
+      { type: 'text', paragraphs: ['DE.'], audience: 'de-DE' },
+      { type: 'text', paragraphs: ['AT.'], audience: 'de-AT' },
+    ];
+    expect(resolveStory(story, [], 'de-AT').blocks).toEqual([
+      { type: 'text', paragraphs: ['Eins.', 'AT.'] },
+    ]);
+  });
+
   it('hands every entry no block shows to the end of the page', () => {
     const story: CollectionStoryBlock[] = [
       { type: 'example', item: { kind: 'agent', ref: 'a' }, prompt: 'p', answer: 'a' },
@@ -61,6 +72,17 @@ describe('collection stories in the registry', () => {
       for (const block of c.story ?? []) {
         if (block.type === 'claim' && /\d/.test(block.text)) {
           expect(block.source, `${c.id}: „${block.text}“`).not.toBeNull();
+        }
+      }
+    }
+  });
+
+  // The answer is set large: a long one turns into a wall of text.
+  it('keep example answers short', () => {
+    for (const c of COLLECTIONS) {
+      for (const block of c.story ?? []) {
+        if (block.type === 'example') {
+          expect(block.answer.length, `${c.id}: ${block.answer}`).toBeLessThanOrEqual(200);
         }
       }
     }

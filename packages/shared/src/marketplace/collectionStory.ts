@@ -30,7 +30,7 @@ export type CollectionStoryBlock = {
       heading?: string;
       items: readonly MarketplaceTarget[];
     }
-  /** One entry with a short exchange that shows what it does. */
+  /** One entry with a short exchange that shows what it does; the answer stays under 200 characters. */
   | { type: 'example'; item: MarketplaceTarget; prompt: string; answer: string }
 );
 
@@ -51,6 +51,7 @@ const keyOf = (t: MarketplaceTarget) => `${t.kind}:${t.ref}`;
  * The blocks for one viewer: the other country's blocks leave, entries the
  * viewer may not see leave their block, a block left without entries leaves
  * too — and so does a text right before it, which would explain nothing.
+ * Texts that end up next to each other become one.
  * `rest` is every entry no block shows, for the end of the page.
  */
 export function resolveStory(
@@ -65,6 +66,7 @@ export function resolveStory(
 
   for (const block of story) {
     if (block.audience && block.audience !== audience) continue;
+    const prev = blocks.at(-1);
     if (block.type === 'items') {
       const found = block.items.flatMap((t) => byKey.get(keyOf(t)) ?? []);
       if (found.length === 0) {
@@ -81,6 +83,12 @@ export function resolveStory(
       }
       shown.add(keyOf(item));
       blocks.push({ ...block, item });
+    } else if (block.type === 'text' && prev?.type === 'text') {
+      // Two texts in a row (one per country, say) read as one: no block gap between them.
+      blocks[blocks.length - 1] = {
+        type: 'text',
+        paragraphs: [...prev.paragraphs, ...block.paragraphs],
+      };
     } else {
       blocks.push(block);
     }

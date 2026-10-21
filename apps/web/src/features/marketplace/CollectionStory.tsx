@@ -49,7 +49,7 @@ function SaveButton({
       type="button"
       aria-pressed={item.saved}
       onClick={() => actions.toggleSave(item)}
-      className="shrink-0 rounded-full bg-primary-50 px-4 py-2 text-[0.9375rem] font-bold text-primary-700 transition-transform duration-150 ease-out active:scale-[0.97] dark:bg-grey-800 dark:text-primary-300"
+      className="shrink-0 rounded-full bg-primary-50 px-4 py-2 max-sm:ml-16 text-[0.9375rem] font-bold text-primary-700 transition-transform duration-150 ease-out active:scale-[0.97] dark:bg-grey-800 dark:text-primary-300"
     >
       {item.saved ? label.added : label.add}
     </button>
@@ -79,12 +79,13 @@ function Rows({ items, actions, onSelect }: { items: readonly MarketplaceItem[] 
       {items.map((item) => (
         <li
           key={item.key}
-          className="flex items-center gap-4 border-t border-grey-200 py-4 last:border-b dark:border-grey-800"
+          className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-grey-200 py-4 last:border-b dark:border-grey-800"
         >
+          {/* Below ~600px the button wraps under the text, indented past the seal. */}
           <button
             type="button"
             onClick={() => onSelect(item)}
-            className="flex min-w-0 flex-1 items-center gap-4 rounded-lg text-left"
+            className="flex min-w-0 flex-[1_1_20rem] items-center gap-4 rounded-lg text-left"
           >
             <Seal item={item} />
             <span className="flex min-w-0 flex-col gap-0.5">
