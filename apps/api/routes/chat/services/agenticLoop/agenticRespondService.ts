@@ -14,6 +14,7 @@
  */
 import { type ModelMessage } from 'ai';
 
+import { NOUN_TRIGGER_MAX_LENGTH } from '../../../../agents/langgraph/ChatGraph/nodes/analyzedMessage.js';
 import { knownArtifactRefs } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 import { isSummaryAsk } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { forbidsNewResearch } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
@@ -623,6 +624,11 @@ export async function streamAgenticResponse(
       priorTurnRetrieved: priorTurnRetrieved(toolHistory),
       classifierContradictedResearch: finalState.classifierContradictedResearch === true,
       materialHeavy,
+      carriesMaterial:
+        carriedMaterialChars > 0 ||
+        messages.some(
+          (m) => m.role === 'user' && extractTextContent(m.content).length > NOUN_TRIGGER_MAX_LENGTH
+        ),
       pinnedTool,
       hasAttachedDocuments,
       summaryAsk,

@@ -22,6 +22,7 @@ import {
   looksLikeSelfContainedTurn,
   rewritesSuppliedText,
   reworksSuppliedText,
+  asksAboutSuppliedMaterial,
   looksLikeUnsourcedWritingOrder,
   looksLikeImageOnlyAsk,
 } from './routing.js';
@@ -1464,6 +1465,29 @@ describe('reworksSuppliedText — der Auftrag, nicht der eingefügte Stoff (#390
     ],
   ])('bleibt bei Schreib-, Recherche- oder ungetrenntem Auftrag aus: %s', (text) => {
     expect(reworksSuppliedText(text)).toBe(false);
+  });
+});
+
+describe('asksAboutSuppliedMaterial (#4789)', () => {
+  it.each([
+    'Welche vier Maßnahmen stehen im Antrag genau?',
+    'Wie hoch waren nochmal die Kosten laut Antrag?',
+    'Was steht im eingefügten Text zur Finanzierung?',
+    'Wer hat laut dem Schreiben unterschrieben?',
+    'Was fordert der Brief? Was steht darin zum Termin?',
+    'Welche Zahl nennt die Pressemitteilung? Steht das in der Pressemitteilung?',
+    'Gibt es in diesem Dokument eine Frist?',
+  ])('reads "%s" as a question about the supplied text', (text) => {
+    expect(asksAboutSuppliedMaterial(text)).toBe(true);
+  });
+
+  it.each([
+    'Wer ist aktuell Bundeskanzler in Österreich?',
+    'Was steht im Wahlprogramm zur Windkraft?',
+    'Was sagen die Grünen zum Heizungsgesetz?',
+    'Welche Anträge gab es im Bundestag zum Tempolimit?',
+  ])('does not read "%s" as one', (text) => {
+    expect(asksAboutSuppliedMaterial(text)).toBe(false);
   });
 });
 
