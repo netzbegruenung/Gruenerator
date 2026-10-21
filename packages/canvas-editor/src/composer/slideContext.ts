@@ -30,6 +30,7 @@ export interface SlideCtx {
   xAlign: Column['align'];
   darkText: string;
   onLight: SlideInk['onLight'];
+  darkInk: SlideInk['darkInk'];
   onGrass: SlideInk['onGrass'];
   textColor: SlideInk['textColor'];
   accent: SlideInk['accent'];
