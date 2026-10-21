@@ -60,6 +60,16 @@ import {
 import { encodeHandMarks, placeHandMarks, sentinelBlind } from './handMarks';
 import { headlineFit } from './headlineFit';
 import { foldMarkers, stripMarks } from './marks';
+import {
+  GRADIENTS,
+  SCRIM_ANGLE,
+  SCRIM_DARK,
+  SCRIM_EASE,
+  SCRIM_GUTTER,
+  SCRIM_TEXT_ALPHA,
+  evenStops,
+  scrimFill,
+} from './sharepicGround';
 import { SHAREPIC_ICON_FILLED, SHAREPIC_ICON_IDS, VERGLEICH_MARKER_IDS } from './sharepicIcons';
 import {
   ABSATZ_KLEIN,
@@ -73,7 +83,6 @@ import {
   DATE_CIRCLE,
   FOOTER,
   GAP,
-  GRADIENTS,
   HEADLINE_COVER_MAX,
   HEADLINE_GROSS,
   HEADLINE_MAX,
@@ -87,16 +96,8 @@ import {
   QUOTE_ALONE_MAX,
   QUOTE_LINE_HEIGHT,
   QUOTE_LONG,
-  SCRIM_ANGLE,
-  SCRIM_DARK,
-  SCRIM_EASE,
-  SCRIM_FADE,
-  SCRIM_GUTTER,
-  SCRIM_MIN_DEPTH,
-  SCRIM_TEXT_ALPHA,
   STECKBRIEF,
   TOP_PAD,
-  evenStops,
 } from './sharepicLayoutConstants';
 import { slideProvenance } from './sharepicProvenance';
 import { slideInk } from './slideInk';
@@ -124,7 +125,7 @@ import {
 import type { AdditionalText } from '../configs/types';
 
 export { SHAREPIC_COLOR_HEX, type MeasureText };
-export { SCRIM_MAX } from './sharepicLayoutConstants';
+export { SCRIM_MAX } from './sharepicGround';
 export type { ComposedSharepic, ComposedSlide, ComposeOptions, PhotoTone } from './composeTypes';
 export {
   balancedWrap,
@@ -321,36 +322,17 @@ function composeSlide(
    */
   const setScrim = (side: SharepicTextSide, denseTo: number) => {
     if (!scrim) return;
-    const vertical = side === 'unten' || side === 'oben';
-    const full = vertical ? canvas.height : canvas.width;
-    // Fade across all the photo left beside the text: a short ramp of near-black
-    // over a bright photo reads as a curtain edge.
-    // Top/bottom: only the text side's share of the photo, the rest stays as
-    // shot. A side column fades across the whole width — a short ramp beside
-    // a tall column reads as a curtain edge.
-    const depth = vertical
-      ? Math.min(full, Math.max(full * SCRIM_MIN_DEPTH, denseTo + full * SCRIM_FADE))
-      : full;
-    const fade = Math.max(0.01, 1 - denseTo / depth);
-    const edge = scrimLevel;
-    const x = side === 'rechts' ? canvas.width - depth : 0;
-    const y = side === 'unten' ? canvas.height - depth : 0;
-    const w = side === 'links' || side === 'rechts' ? depth : canvas.width;
-    const h = side === 'unten' || side === 'oben' ? depth : canvas.height;
-    Object.assign(scrim, { x: x + w / 2, y: y + h / 2, width: w, height: h });
-    scrim.fillGradient = {
-      type: 'linear',
-      angle: SCRIM_ANGLE[side],
-      stops: [
-        // Smoothstep: flat at both ends, so neither the photo side nor the
-        // start of the dense band shows a seam.
-        ...SCRIM_EASE.map((t) => ({
-          offset: fade * t,
-          color: `rgba(${scrimDark},${(scrimLevel * t * t * (3 - 2 * t)).toFixed(3)})`,
-        })),
-        { offset: 1, color: `rgba(${scrimDark},${edge})` },
-      ],
-    };
+    Object.assign(
+      scrim,
+      scrimFill({
+        side,
+        denseTo,
+        canvasWidth: canvas.width,
+        canvasHeight: canvas.height,
+        level: scrimLevel,
+        dark: scrimDark,
+      })
+    );
   };
   /** The colour beside a photo strip: flat, except Hellgrün, which keeps its glow. */
   const panel = (y: number, height: number, color: SharepicColor) => {

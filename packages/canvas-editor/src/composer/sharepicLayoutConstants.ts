@@ -1,15 +1,8 @@
-import { HELLGRUEN_GLOW } from '../brand/theme';
 import { type TextMarker } from '../utils/textUtils';
 
 import { SHAREPIC_COLOR_HEX } from './chromeParts';
-import { type PhotoTone } from './composeTypes';
 
-import type {
-  SharepicColor,
-  SharepicCreatorLocale,
-  SharepicItem,
-  SharepicTextSide,
-} from '@gruenerator/contracts';
+import type { SharepicCreatorLocale, SharepicItem } from '@gruenerator/contracts';
 
 /** 6.5 % of the width — the margin the posts use. */
 export const MARGIN = 70;
@@ -39,58 +32,6 @@ export const KI_LABEL = {
   radius: 8,
   gap: 8,
 } as const;
-/**
- * AT's dark greens get a gradient; the rest stays flat. DE colours are all
- * flat (CD 2024 p. 11, "Farben nur flach, 100 % Deckkraft"): the green
- * glow of the posts is the photo behind them, a Tanne plane runs edge to edge.
- */
-export const GRADIENTS: Partial<
-  Record<SharepicColor, { type?: 'radial'; angle: number; stops: string[] }>
-> = {
-  // Measured on @diegruenen carousels (10/2026, median over text-free patches):
-  // a deep, slightly bluish green, darker at the top, only a little lighter
-  // below — no slide into yellow-green.
-  dunkelgruen: { angle: 90, stops: ['#0B6620', '#1D7A35', '#23803B'] },
-  // Hellgrün (#56AF31) carries white at 2.77:1 and yellow at 2.26:1. The posts
-  // never set text on it flat: a dark green with a light glow in the middle
-  // (Dc_L5vriG5z, edge #318338 → centre #56AE32). Ours stops darker, at the
-  // brightest stop white keeps 4.68:1 and yellow 3.82:1.
-  hellgruen: { type: 'radial', angle: 0, stops: [...HELLGRUEN_GLOW] },
-};
-export const evenStops = (stops: string[]) =>
-  stops.map((color, i) => ({ offset: i / (stops.length - 1), color }));
-
-/**
- * Scrim alpha under the text, per photo tone — capped at `SCRIM_MAX`: the posts
- * keep the photo bright and carry the text with a shadow, not a curtain.
- */
-export const SCRIM_TEXT_ALPHA: Record<PhotoTone, number> = {
-  dunkel: 0.4,
-  mittel: 0.48,
-  hell: 0.55,
-};
-export const SCRIM_MAX = 0.55;
-/** The scrim covers at least this share of the photo from the text edge… */
-export const SCRIM_MIN_DEPTH = 0.42;
-/** …and fades over this share beyond the dense band. */
-export const SCRIM_FADE = 0.15;
-/** DE: a very dark Tanne (#06251A); AT stays neutral-dark. */
-export const SCRIM_DARK: Record<SharepicCreatorLocale, string> = {
-  'de-DE': '6,37,26',
-  'de-AT': '3,14,8',
-};
-/** Dense scrim reaches this far past the text before it fades. */
-export const SCRIM_GUTTER = 48;
-/** Stops of the scrim's fade, as fractions of its length. */
-export const SCRIM_EASE = [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1];
-
-/** Gradient angle per side: offset 0 on the picture side. */
-export const SCRIM_ANGLE: Record<SharepicTextSide, number> = {
-  unten: 90,
-  oben: 270,
-  links: 180,
-  rechts: 0,
-};
 /**
  * DE quote leading: the posts' marker boxes stand apart line by line
  * (DdjWsbhCHCI), which 1.2 does not leave room for.
