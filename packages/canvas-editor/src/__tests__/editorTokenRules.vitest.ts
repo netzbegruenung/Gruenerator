@@ -15,7 +15,8 @@ const HIER = path.dirname(fileURLToPath(import.meta.url));
 const SRC = path.resolve(HIER, '..');
 const REPO = path.resolve(SRC, '../../..');
 
-const DARK_UTILITY = /(^|[\s'"`])(?:[\w-]+:)*!?dark:/;
+// `dark:` gefolgt von einem Nicht-Leerzeichen: ein Parameter `dark: string` ist keine Klasse.
+const DARK_UTILITY = /(^|[\s'"`])(?:[\w-]+:)*!?dark:\S/;
 
 function quelldateien(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((eintrag) => {
@@ -48,6 +49,7 @@ describe('Editor-Token-Regeln', () => {
       expect(DARK_UTILITY.test(probe)).toBe(true);
     }
     expect(DARK_UTILITY.test('darkPreviewClass: x')).toBe(false);
+    expect(DARK_UTILITY.test('function inkFor(fill: string, dark: string)')).toBe(false);
   });
 
   it('keine dark:-Utilities in src/', () => {
