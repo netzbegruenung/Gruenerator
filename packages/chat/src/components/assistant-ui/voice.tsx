@@ -1,6 +1,6 @@
 'use client';
 
-import { AuiIf, useVoiceControls, useVoiceState, useVoiceVolume } from '@assistant-ui/react';
+import { AuiIf, useAui, useVoiceControls, useVoiceState } from '@assistant-ui/react';
 import { Button, cn } from '@gruenerator/ui';
 import { MicIcon, MicOffIcon, PhoneIcon, PhoneOffIcon } from 'lucide-react';
 import { type FC, memo, useCallback, useEffect, useRef, useState } from 'react';
@@ -306,9 +306,9 @@ export const VoiceOrb: FC<VoiceOrbProps> = memo(
   ({ state: stateProp, variant = 'default', className }) => {
     const voiceState = useVoiceState();
     const state = stateProp ?? deriveVoiceOrbState(voiceState);
-    const volume = useVoiceVolume();
-    const volumeRef = useRef(0);
-    volumeRef.current = volume;
+    // Read per frame, not subscribed: the level changes up to 60 times a second
+    // and only the shader needs it, so React has no reason to render for it.
+    const thread = useAui().thread;
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const glRef = useRef<ReturnType<typeof initWebGL>>(null);
     const animRef = useRef(0);
@@ -371,7 +371,7 @@ export const VoiceOrb: FC<VoiceOrbProps> = memo(
       gl.clear(gl.COLOR_BUFFER_BIT);
 
       // Eased, so a jumpy level from any adapter reads as breathing.
-      smoothVolume.current = lerp(smoothVolume.current, volumeRef.current, 0.12);
+      smoothVolume.current = lerp(smoothVolume.current, thread.getVoiceVolume(), 0.12);
       const vol = smoothVolume.current;
       phase.current += dt * (p.speed + vol * 0.4);
 
@@ -390,7 +390,7 @@ export const VoiceOrb: FC<VoiceOrbProps> = memo(
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
       animRef.current = requestAnimationFrame(render);
-    }, [colors]);
+    }, [colors, thread]);
 
     useEffect(() => {
       if (!ready) return;
