@@ -44,7 +44,15 @@ async function composeSpec(
 
 /** A single Seite, composed in the design's format. */
 const composeSeite = (seite: SharepicSeite, format: SharepicFormat) =>
-  composeSpec({ locale: seite.locale, format, slides: [seite.slide] }, [seite.attribution]);
+  composeSpec(
+    {
+      locale: seite.locale,
+      format,
+      ...(seite.thema ? { thema: seite.thema } : {}),
+      slides: [seite.slide],
+    },
+    [seite.attribution]
+  );
 
 /** A block alone on `color`, composed like a Seite; the editor cuts its elements out. */
 async function composeBlock(

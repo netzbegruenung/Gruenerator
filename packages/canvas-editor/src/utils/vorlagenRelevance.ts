@@ -1,18 +1,22 @@
 /**
  * Which Grünerator-Vorlagen fit a design, and in what order the „Vorlagen" tab
  * shows them: only those of the design's format, the ones that look like the
- * design first — the same ground colour, as much photo, as many pages.
+ * design first — the same theme (a Pride design gets the Pride Vorlagen), the
+ * same ground colour, as much photo, as many pages.
  *
  * The catalogue carries no colour analysis, and none is needed: a Vorlage's
  * spec names its grounds, a page's state holds its own.
  */
-import { SHAREPIC_COLOR_HEX } from '../composer/chromeParts';
+import { SHAREPIC_SOURCE_KEY } from '@gruenerator/contracts';
 
-import type { SharepicBackground, SharepicFormat } from '@gruenerator/contracts';
+import { PRIDE_FLAG_ASSET, SHAREPIC_COLOR_HEX } from '../composer/chromeParts';
+
+import type { SharepicBackground, SharepicFormat, SharepicThema } from '@gruenerator/contracts';
 
 export interface VorlageLike {
   spec: {
     format?: SharepicFormat;
+    thema?: SharepicThema | null;
     slides: readonly { background: SharepicBackground; items: readonly { type: string }[] }[];
   };
 }
@@ -27,6 +31,7 @@ interface Profile {
   /** The ground colour most pages share; null when no page has one. */
   color: string | null;
   pages: number;
+  thema: SharepicThema | null;
 }
 
 /** Most frequent entry; the first one seen wins a tie. */
@@ -51,13 +56,31 @@ function vorlageProfile(vorlage: VorlageLike): Profile {
     photo: photos / Math.max(slides.length, 1),
     color: dominant(colors),
     pages: slides.length,
+    thema: vorlage.spec.thema ?? null,
   };
+}
+
+/**
+ * A page's theme: what its composer source names, or — on a page without one —
+ * the Progress Pride flag someone placed by hand.
+ */
+function pageThema(state: Record<string, unknown>): SharepicThema | null {
+  const source = state[SHAREPIC_SOURCE_KEY] as { slide?: { thema?: unknown } } | undefined;
+  const named = source?.slide?.thema;
+  if (named === 'queer' || named === 'frauen') return named;
+  const assets = Array.isArray(state.assetInstances) ? state.assetInstances : [];
+  return assets.some((a) => (a as { assetId?: unknown })?.assetId === PRIDE_FLAG_ASSET)
+    ? 'queer'
+    : null;
 }
 
 function deckProfile(pages: readonly PageLike[]): Profile {
   const colors: string[] = [];
+  const themen: string[] = [];
   let photos = 0;
   for (const { state } of pages) {
+    const thema = pageThema(state);
+    if (thema) themen.push(thema);
     const photoGround = state.backgroundMode !== 'color' && Boolean(state.currentImageSrc);
     const placed = Array.isArray(state.userImageInstances) && state.userImageInstances.length > 0;
     if (photoGround || placed) photos++;
@@ -69,6 +92,7 @@ function deckProfile(pages: readonly PageLike[]): Profile {
     photo: photos / Math.max(pages.length, 1),
     color: dominant(colors),
     pages: pages.length,
+    thema: dominant(themen) as SharepicThema | null,
   };
 }
 
@@ -117,7 +141,18 @@ function score(design: Profile, vorlage: Profile): number {
   const color = design.color && vorlage.color ? colorSimilarity(design.color, vorlage.color) : 0.5;
   const photo = 1 - Math.abs(design.photo - vorlage.photo);
   const pages = 1 / (1 + Math.abs(design.pages - vorlage.pages));
-  return 0.45 * color + 0.45 * photo + 0.1 * pages;
+  return 0.45 * color + 0.45 * photo + 0.1 * pages + themaScore(design.thema, vorlage.thema);
+}
+
+/**
+ * The theme outweighs everything else: a Pride design lists the Pride
+ * Vorlagen first, the other theme last; a plain design puts themed ones
+ * behind its own kind without hiding them.
+ */
+function themaScore(design: SharepicThema | null, vorlage: SharepicThema | null): number {
+  if (!vorlage) return 0;
+  if (!design) return -0.3;
+  return design === vorlage ? 1 : -1;
 }
 
 /** The Vorlagen most like the design first; equal ones keep the catalogue order. */

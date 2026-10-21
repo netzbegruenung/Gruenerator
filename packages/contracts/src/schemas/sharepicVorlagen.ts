@@ -23,6 +23,7 @@ import {
   sharepicPhotoAttributionSchema,
   sharepicSlideSchema,
   sharepicSpecSchema,
+  sharepicThemaSchema,
   type SharepicFormat,
 } from './sharepicCreator.js';
 
@@ -92,6 +93,8 @@ export const sharepicSeiteFileEntrySchema = z.object({
     .min(1)
     .refine((f) => new Set(f).size === f.length, 'formats doppelt'),
   slide: sharepicSlideSchema,
+  /** A themed slide (Pride, Frauen): composed with that theme, offered beside its kind. */
+  thema: sharepicThemaSchema.optional(),
   /** The Vorlage slide this one was taken from — for upkeep only. */
   quelle: z.object({ vorlage: sharepicVorlageIdSchema, seite: z.number().int().min(1) }).optional(),
 });

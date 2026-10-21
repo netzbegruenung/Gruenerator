@@ -209,7 +209,11 @@ function loadSeiten(locale: SharepicCreatorLocale): SharepicSeite[] {
     const parsed = sharepicSeiteFileEntrySchema.safeParse(item);
     // The slide must also hold as a spec of the file's country (colours, markers).
     const asSpec = parsed.success
-      ? sharepicSpecSchema.safeParse({ locale, slides: [parsed.data.slide] })
+      ? sharepicSpecSchema.safeParse({
+          locale,
+          thema: parsed.data.thema,
+          slides: [parsed.data.slide],
+        })
       : null;
     const issue = !parsed.success ? parsed.error.issues[0] : asSpec?.error?.issues[0];
     if (!parsed.success || !asSpec?.success) {
@@ -262,7 +266,8 @@ function seitenFromVorlage(vorlage: SharepicVorlage): { seite: SharepicSeite; th
       log.error(`Vorlage ${vorlage.id} slide ${n} skipped as a Seite: id ${id} too long`);
       return [];
     }
-    const asSpec = sharepicSpecSchema.safeParse({ locale: vorlage.locale, slides: [slide] });
+    const { thema } = vorlage.spec;
+    const asSpec = sharepicSpecSchema.safeParse({ locale: vorlage.locale, thema, slides: [slide] });
     if (!asSpec.success) {
       const issue = asSpec.error.issues[0];
       log.error(
@@ -281,6 +286,7 @@ function seitenFromVorlage(vorlage: SharepicVorlage): { seite: SharepicSeite; th
           // No format on the spec is the default one, as the editor reads it.
           formats: [vorlage.spec.format ?? 'post-portrait'],
           slide,
+          ...(thema ? { thema } : {}),
           quelle: { vorlage: vorlage.id, seite: n },
           locale: vorlage.locale,
           attribution: vorlage.attributions[i] ?? null,
