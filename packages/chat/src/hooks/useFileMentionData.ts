@@ -1,4 +1,5 @@
 import { deriveIndexingState, transformedCollectionSchema } from '@gruenerator/contracts';
+import { ApiError } from '@gruenerator/shared/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 import { z } from 'zod';
@@ -81,7 +82,7 @@ export function useNotebookCollectionsQuery(enabled: boolean) {
           // swallow-ok: Zusatzliste; ältere Backends kennen /shared nicht, die eigene Liste bleibt laut
           .catch(() => []),
       ]);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) throw new ApiError(response.status, `HTTP ${response.status}`);
       // Parsing rather than casting, for the same reason the `!ok` branch above
       // throws: a silently mistyped payload renders exactly like "you have no
       // notebooks", which is the failure mode this file already had once.
@@ -109,7 +110,7 @@ export function useCombinedContentQuery(enabled: boolean) {
       // `documents` branch, so the old path never resolved — and returning an
       // empty result on `!ok` made that 404 look like an empty account.
       const response = await configFetch('/api/documents/combined-content');
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) throw new ApiError(response.status, `HTTP ${response.status}`);
 
       interface RawDocItem {
         id: string;
