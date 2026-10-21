@@ -26,21 +26,24 @@ export const sharepicColorSchema = z.enum([
   'flieder',
   'violett',
   'pride',
+  'europablau',
+  'himmelblau',
 ]);
 export type SharepicColor = z.infer<typeof sharepicColorSchema>;
 
 /**
- * A themed sharepic: Pride/CSD (`queer`) or 8 March, Equal Pay, Safe Abortion
- * Day (`frauen`). The theme recolours accent, marker, badges, charts and
+ * A themed sharepic: Pride/CSD (`queer`), 8 March, Equal Pay, Safe Abortion
+ * Day (`frauen`) or Europe Day, Schengen, EU decisions (`europa`). The theme recolours accent, marker, badges, charts and
  * dates and unlocks its grounds; layout and type stay the locale's CD.
  */
-export const sharepicThemaSchema = z.enum(['queer', 'frauen']);
+export const sharepicThemaSchema = z.enum(['queer', 'frauen', 'europa']);
 export type SharepicThema = z.infer<typeof sharepicThemaSchema>;
 
 /** The grounds a theme brings; a spec without that theme may not use them. */
 export const SHAREPIC_THEMA_COLORS: Record<SharepicThema, readonly SharepicColor[]> = {
   queer: ['violett', 'pride'],
   frauen: ['lila', 'flieder'],
+  europa: ['europablau', 'himmelblau'],
 };
 
 /** The theme a themed ground belongs to; undefined for a plain CD colour. */

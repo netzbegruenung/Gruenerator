@@ -159,11 +159,13 @@ const BACKGROUND_COLORS: BackgroundColorOption[] = [
   { id: 'hellgrau', label: 'Hellgrau', color: SHAREPIC_COLOR_HEX.hellgrau },
   { id: 'creme', label: 'Creme', color: SHAREPIC_COLOR_HEX.creme },
   { id: 'aubergine', label: 'Aubergine', color: SHAREPIC_COLOR_HEX.aubergine },
-  // Themed grounds (Frauen, Pride); `pride` is the middle of its gradient.
+  // Themed grounds (Frauen, Pride, Europa); `pride` is the middle of its gradient.
   { id: 'lila', label: 'Lila', color: SHAREPIC_COLOR_HEX.lila },
   { id: 'flieder', label: 'Flieder', color: SHAREPIC_COLOR_HEX.flieder },
   { id: 'violett', label: 'Violett', color: SHAREPIC_COLOR_HEX.violett },
   { id: 'pride', label: 'Pride', color: SHAREPIC_COLOR_HEX.pride },
+  { id: 'europablau', label: 'Europablau', color: SHAREPIC_COLOR_HEX.europablau },
+  { id: 'himmelblau', label: 'Himmelblau', color: SHAREPIC_COLOR_HEX.himmelblau },
   { id: 'klee', label: 'Klee', color: CANVAS_COLORS.KLEE },
   { id: 'sonne', label: 'Sonne', color: CANVAS_COLORS.SONNE },
   { id: 'himmel', label: 'Himmel', color: CANVAS_COLORS.HIMMEL },

@@ -27,6 +27,8 @@ describe('sticker catalog', () => {
       'regenbogen',
       'regenbogen-herz',
       'progress-pride',
+      'eu-flagge',
+      'europa-sterne',
       'vielfalt',
       'at-gruen-waehlen',
       'at-klima-schuetzen',
@@ -43,6 +45,8 @@ describe('sticker catalog', () => {
       'regenbogen',
       'regenbogen-herz',
       'progress-pride',
+      'eu-flagge',
+      'europa-sterne',
       'vielfalt',
     ]);
   });

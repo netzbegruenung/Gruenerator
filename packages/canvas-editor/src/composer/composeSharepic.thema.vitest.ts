@@ -13,7 +13,7 @@ import {
 } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { PRIDE_FLAG_ASSET, SHAREPIC_COLOR_HEX, THEMA_INK } from './chromeParts';
+import { EUROPA_ASSETS, PRIDE_FLAG_ASSET, SHAREPIC_COLOR_HEX, THEMA_INK } from './chromeParts';
 import { composeSharepic, type ComposedSlide } from './composeSharepic';
 
 const measure = (text: string, fontSize: number) => text.length * fontSize * 0.5;
@@ -226,5 +226,72 @@ describe('queer', () => {
     );
     const wert = s!.additionalTexts.find((t) => t.id.endsWith('-wert'))!;
     expect(wert.fillGradient?.stops.length).toBe(6);
+  });
+});
+
+describe('europa', () => {
+  const blau = SHAREPIC_COLOR_HEX.europablau;
+  const gelb = THEMA_INK.sternenGelb;
+
+  it('sets the accent in star yellow on blue and blue on himmelblau, both above 4.5:1', () => {
+    for (const locale of ['de-DE', 'de-AT'] as const) {
+      const [dark, light] = compose(
+        spec(
+          locale,
+          'europa',
+          slide({ kind: 'farbe', color: 'europablau' }, [headline]),
+          slide({ kind: 'farbe', color: 'himmelblau' }, [headline])
+        )
+      );
+      expect(light!.additionalTexts[0]!.accent?.fill, locale).toBe(blau);
+      if (locale === 'de-DE') expect(dark!.additionalTexts[0]!.accent?.fill).toBe(gelb);
+    }
+    expect(contrast(gelb, blau)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast('#FFFFFF', blau)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(blau, SHAREPIC_COLOR_HEX.himmelblau)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('boxes a DE marker in star yellow with blue ink', () => {
+    const [s] = compose(
+      spec(
+        'de-DE',
+        'europa',
+        slide({ kind: 'farbe', color: 'europablau' }, [
+          { type: 'headline', lines: ['Europa ist ++Zuhause++.'] },
+        ])
+      )
+    );
+    expect(s!.additionalTexts[0]!.marker).toMatchObject({ fill: gelb, color: blau });
+  });
+
+  it('puts the ring of stars on blue and the flag on any other ground', () => {
+    const [ring, flag] = compose(
+      spec(
+        'de-DE',
+        'europa',
+        slide({ kind: 'farbe', color: 'europablau' }, [headline]),
+        slide({ kind: 'farbe', color: 'himmelblau' }, [headline])
+      )
+    );
+    expect(ring!.assetInstances.find((a) => a.id === 'sc-europa')?.assetId).toBe(
+      EUROPA_ASSETS.sterne
+    );
+    expect(flag!.assetInstances.find((a) => a.id === 'sc-europa')?.assetId).toBe(
+      EUROPA_ASSETS.flagge
+    );
+  });
+
+  it('draws a chart europablau first', () => {
+    const [s] = compose(
+      spec(
+        'de-AT',
+        'europa',
+        slide({ kind: 'farbe', color: 'weiss' }, [
+          { type: 'headline', lines: ['Strom aus Erneuerbaren'] },
+          { type: 'diagramm', art: 'donut', einheit: '%', werte: [{ name: 'EU', wert: 47 }] },
+        ])
+      )
+    );
+    expect(s!.chartInstances[0]!.colors?.[0]).toBe(blau);
   });
 });

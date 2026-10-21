@@ -1,6 +1,8 @@
 import atGruenWaehlen from '../../assets/profilbild/at-gruen-waehlen.png';
 import atJetztGruen from '../../assets/profilbild/at-jetzt-gruen.png';
 import atKlimaSchuetzen from '../../assets/profilbild/at-klima-schuetzen.png';
+import euFlagge from '../../assets/profilbild/eu-flagge.png';
+import europaSterne from '../../assets/profilbild/europa-sterne.png';
 import grueneLogoAt from '../../assets/profilbild/gruene-at-logo-weiss.png';
 import grueneLogoDe from '../../assets/profilbild/gruene-de-logo-weiss.png';
 import progressPride from '../../assets/profilbild/progress-pride.png';
@@ -22,6 +24,8 @@ export const PROFILBILD_ASSETS: Record<ProfilbildAssetSrc, number> = {
   '/studio-tools/stickers/regenbogen.svg': regenbogen,
   '/studio-tools/stickers/regenbogen-herz.svg': regenbogenHerz,
   '/studio-tools/stickers/progress-pride.svg': progressPride,
+  '/studio-tools/stickers/eu-flagge.svg': euFlagge,
+  '/studio-tools/stickers/europa-sterne.svg': europaSterne,
   '/studio-tools/stickers/vielfalt.svg': vielfalt,
   '/studio-tools/stickers/at-gruen-waehlen.png': atGruenWaehlen,
   '/studio-tools/stickers/at-klima-schuetzen.png': atKlimaSchuetzen,
