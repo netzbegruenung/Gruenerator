@@ -15,11 +15,12 @@ vi.mock('@gruenerator/shared/api', async (importOriginal) => ({
   getContractsClient: () => ({ boardActivity: { recordActivity } }),
 }));
 
-const fields = [
+const fields: Field[] = [
   {
     id: FIELD_IDS.STATUS,
     name: 'Status',
     type: 'singleSelect',
+    order: 0,
     typeOptions: {
       options: [
         { id: 'status-todo', name: 'Zu erledigen', color: '#8aa' },
@@ -28,7 +29,7 @@ const fields = [
       ],
     },
   },
-] as Field[];
+];
 
 function makeRow(status: string): Row {
   return {
