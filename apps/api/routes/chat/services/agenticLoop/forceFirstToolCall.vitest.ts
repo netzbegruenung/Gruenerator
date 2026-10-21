@@ -22,6 +22,7 @@ const base = {
   loopDemotedFromRetrieval: false,
   classifierContradictedResearch: false,
   materialHeavy: false,
+  carriesMaterial: false,
   pinnedTool: null as string | null,
   priorTurnRetrieved: false,
   hasAttachedDocuments: false,
@@ -293,6 +294,28 @@ describe('shouldForceFirstToolCall', () => {
       [`Kannst du das lektorieren?\n\n${newsletter}`],
     ])('kurzer eingefügter Text mit Überarbeitungs-Auftrag sucht nicht: %s', (lastUserText) => {
       expect(force({ loopDemotedFromRetrieval: true, lastUserText })).toBeNull();
+    });
+
+    // #4789: die Frage zum Paste eines früheren Turns. Zu kurz für
+    // `materialHeavy`, kein Überarbeiten — der Stoff steht trotzdem im Prompt.
+    it.each([
+      ['Welche vier Maßnahmen stehen im Antrag genau?'],
+      ['Wie hoch waren nochmal die Kosten laut Antrag?'],
+      ['Was steht darin zur Finanzierung?'],
+    ])('eine Frage über mitgebrachten Text sucht nicht: %s', (lastUserText) => {
+      expect(
+        force({ loopDemotedFromRetrieval: true, carriesMaterial: true, lastUserText })
+      ).toBeNull();
+    });
+
+    it.each([
+      // Ohne Stoff im Prompt ist „im Antrag" ein Abruf.
+      [{ carriesMaterial: false, lastUserText: 'Welche Maßnahmen stehen im Antrag der Grünen?' }],
+      // Mit Stoff, aber die Frage zeigt nicht auf ihn.
+      [{ carriesMaterial: true, lastUserText: 'Wer ist aktuell Bundeskanzler in Österreich?' }],
+      [{ carriesMaterial: true, lastUserText: 'Was steht im Wahlprogramm zur Windkraft?' }],
+    ])('ohne Bezug auf den Stoff bleibt der Zwang: %o', (input) => {
+      expect(force({ loopDemotedFromRetrieval: true, ...input })).toBe('demoted_retrieval');
     });
 
     // #3912: „die Suche" im Stoff machte aus einem Schreibauftrag eine erzwungene

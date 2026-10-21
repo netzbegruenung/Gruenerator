@@ -7,7 +7,10 @@
  * always yields text, so it returns a plain answer rather than `MaybeHandled`.
  */
 
-import { buildSystemMessage } from '../../../agents/langgraph/ChatGraph/index.js';
+import {
+  buildSystemMessage,
+  restoreAttachmentsDroppedWithHistory,
+} from '../../../agents/langgraph/ChatGraph/index.js';
 import { withLangfuseTrace } from '../../../services/telemetry/langfuseTelemetry.js';
 import { streamAgenticResponse } from '../services/agenticLoop/agenticRespondService.js';
 import { applyCompaction, pruneMessages } from '../services/contextPruningService.js';
@@ -107,9 +110,15 @@ export async function runAgenticAnswer({
     contextWindowTokens,
     systemMessage
   );
-  const { systemMessage: finalSystemMessage, messages: contextMessages } = actualThreadId
+  const { systemMessage: compactedSystemMessage, messages: contextMessages } = actualThreadId
     ? await applyCompaction(actualThreadId, prunedValidMessages, systemMessage, contextWindowTokens)
     : { systemMessage, messages: prunedValidMessages };
+  const finalSystemMessage = restoreAttachmentsDroppedWithHistory(
+    classifiedState,
+    systemMessage,
+    compactedSystemMessage,
+    contextMessages
+  );
 
   // The loop's gather/synth generations nest under this root span — they
   // pass buildAiTelemetry() from inside loopEngine. Until this existed the
