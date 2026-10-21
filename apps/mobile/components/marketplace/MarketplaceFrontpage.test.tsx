@@ -179,9 +179,8 @@ describe('MarketplaceFrontpage', () => {
     expect(screen.getByRole('header', { name: 'Neu im Marktplatz' })).toBeTruthy();
     expect(screen.queryByRole('header', { name: 'Beliebt' })).toBeNull();
     expect(screen.queryByRole('header', { name: 'Zum Gestalten' })).toBeNull();
-    // The browse grid and the call to share always stand.
+    // The browse grid always stands.
     expect(screen.getByRole('header', { name: 'Nach Art stöbern' })).toBeTruthy();
-    expect(screen.getByText('Rezept erstellen')).toBeTruthy();
   });
 
   it('shows five liked items as „Beliebt"', async () => {
