@@ -77,7 +77,7 @@ describe('task', () => {
     expect(emitted[0]?.label).toBe('Web-Recherche: Wie teuer ist das Ticket?');
   });
 
-  it('forces the answer on the last allowed step', async () => {
+  it('leaves only the answer tool on the last allowed step', async () => {
     const worker = scripted([
       [{ type: 'tool-call', toolCallId: 's', toolName: 'unbekannt', input: '{}' }],
       [
@@ -93,7 +93,10 @@ describe('task', () => {
 
     await invoke();
 
-    expect(worker.doGenerateCalls[1]?.toolChoice).toEqual({
+    expect(worker.doGenerateCalls[1]?.tools?.map((t) => t.name)).toEqual(['antwort_geben']);
+    // Not forced — the Gemma lane answers a forced choice with text, and the
+    // SDK throws on it.
+    expect(worker.doGenerateCalls[1]?.toolChoice).not.toEqual({
       type: 'tool',
       toolName: 'antwort_geben',
     });

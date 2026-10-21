@@ -52,10 +52,13 @@ export interface TaskToolOptions {
 /**
  * One researcher run. Returns the tool result the lead sees.
  *
- * The last allowed step forces `antwort_geben`, so a researcher that spends its
- * budget still hands back a structured answer instead of running out mid-search.
- * A researcher that ends on plain text is passed through as text — the lead
- * reads prose too, and dropping a finished answer for its format would be worse.
+ * On the last allowed step `antwort_geben` is the only tool left, so a
+ * researcher that spends its budget hands back its answer instead of running
+ * out mid-search. Offered, not forced: the Gemma lane ignores a forced tool
+ * choice, and the AI SDK then throws `ToolChoiceViolationError`, which cost the
+ * whole sub-question (measured 21.10.2026, two of eight delegations). A
+ * researcher that ends on plain text is passed through as text — the lead reads
+ * prose too, and dropping a finished answer for its format would be worse.
  */
 async function runResearcher(
   spec: SubagentSpec,
@@ -76,11 +79,7 @@ async function runResearcher(
     prepareStep: ({ messages, stepNumber }) => {
       const sanitized = sanitizeStep({ messages });
       if (stepNumber < steps - 1) return sanitized;
-      return {
-        ...sanitized,
-        toolChoice: { type: 'tool', toolName: ANSWER_TOOL_NAME },
-        activeTools: [ANSWER_TOOL_NAME],
-      };
+      return { ...sanitized, activeTools: [ANSWER_TOOL_NAME] };
     },
     ...(abortSignal ? { abortSignal } : {}),
     ...(telemetry ? { experimental_telemetry: telemetry } : {}),
