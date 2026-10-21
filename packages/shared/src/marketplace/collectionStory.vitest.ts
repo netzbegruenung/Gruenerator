@@ -1,6 +1,8 @@
 import { type MarketplaceItem } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
+import { ROBOT_ID_MAX, ROBOT_ID_MIN } from '../avatar/index.js';
+
 import { type CollectionStoryBlock, resolveStory } from './collectionStory.js';
 import { MARKETPLACE_COLLECTIONS, type MarketplaceCollection } from './frontpage.js';
 
@@ -83,6 +85,17 @@ describe('collection stories in the registry', () => {
       for (const block of c.story ?? []) {
         if (block.type === 'example') {
           expect(block.answer.length, `${c.id}: ${block.answer}`).toBeLessThanOrEqual(200);
+        }
+      }
+    }
+  });
+
+  it('only name Friends that exist', () => {
+    for (const c of COLLECTIONS) {
+      for (const block of c.story ?? []) {
+        if (block.type !== 'friends') continue;
+        for (const id of block.ids) {
+          expect(id >= ROBOT_ID_MIN && id <= ROBOT_ID_MAX, `${c.id}: Friend ${id}`).toBe(true);
         }
       }
     }

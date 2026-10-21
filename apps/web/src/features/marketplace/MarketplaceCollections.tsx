@@ -236,7 +236,9 @@ export function MarketplaceCollectionView({
   const sharepicCount =
     vorlagen.data?.filter((v) => v.spec.thema && themen.includes(v.spec.thema)).length ?? 0;
   const collections = page.data?.collections ?? [];
-  const items = collections.find((c) => c.collectionId === id)?.items ?? [];
+  // A collection below its `min` is not in the response; one of only Vorlagen (min 0) is, empty.
+  const collection = collections.find((c) => c.collectionId === id);
+  const items = collection?.items ?? [];
   if (page.isPending) {
     return (
       <GallerySkeleton
@@ -245,7 +247,7 @@ export function MarketplaceCollectionView({
       />
     );
   }
-  if (!def || items.length === 0) {
+  if (!def || !collection) {
     return (
       <GalleryEmptyState
         title="Diese Kollektion ist nicht verfügbar"
@@ -296,8 +298,12 @@ export function MarketplaceCollectionView({
             {def.description}
           </p>
           <span className="text-sm text-foreground-muted">
-            {countLabel(items.length)}
-            {sharepicCount > 0 && ` · ${sharepicCount} Sharepics`}
+            {[
+              items.length > 0 && countLabel(items.length),
+              sharepicCount > 0 && `${sharepicCount} Sharepics`,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
           </span>
         </div>
         {addable.length > 0 &&

@@ -38,11 +38,13 @@ export type CollectionStoryBlock = {
    * catalogue itself: the Vorlagen are party content and never in this repo.
    */
   | { type: 'vorlagen'; thema: SharepicThema; heading?: string }
+  /** Grünerator-Friends (robot ids) to pick as profile picture; they open the Friends settings. */
+  | { type: 'friends'; ids: readonly number[]; heading?: string }
 );
 
 /** A block as the page draws it: entries resolved to what this viewer may see. */
 export type ResolvedStoryBlock =
-  | Extract<CollectionStoryBlock, { type: 'text' | 'claim' | 'quote' | 'vorlagen' }>
+  | Extract<CollectionStoryBlock, { type: 'text' | 'claim' | 'quote' | 'vorlagen' | 'friends' }>
   | {
       type: 'items';
       display: 'rows' | 'gallery';

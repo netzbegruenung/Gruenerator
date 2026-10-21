@@ -3,12 +3,14 @@ import {
   type MarketplaceItem,
   type SharepicThema,
 } from '@gruenerator/contracts';
+import { getFriend, getRobotAvatarPath } from '@gruenerator/shared/avatar';
 import { isSampleItem, type ResolvedStoryBlock } from '@gruenerator/shared/marketplace';
 import { cn } from '@gruenerator/ui';
 import { type JSX, type ReactNode } from 'react';
 import { PiBookmarkSimple, PiBookmarkSimpleFill } from 'react-icons/pi';
 import { Link } from 'react-router-dom';
 
+import { useSettingsDialogStore } from '../settings/settingsDialogStore';
 import { useSharepicVorlagen } from '../vorlagen/hooks/useSharepicVorlagen';
 
 import { viewOf } from './kindViews';
@@ -208,6 +210,37 @@ function VorlagenGallery({ thema, heading }: { thema: SharepicThema; heading: Re
   );
 }
 
+/** Friends to pick as profile picture; each opens the Friends settings, where the pick happens. */
+function Friends({ ids, heading }: { ids: readonly number[]; heading: ReactNode }) {
+  const openSettings = useSettingsDialogStore((s) => s.openSettings);
+  return (
+    <div className={cn(COLUMN, 'flex flex-col gap-4')}>
+      {heading}
+      <ul className="m-0 flex list-none flex-wrap gap-6 p-0">
+        {ids.map((id) => {
+          const friend = getFriend(id);
+          return (
+            <li key={id} className="flex w-[160px] flex-col gap-2.5">
+              <button
+                type="button"
+                onClick={() => openSettings('friends')}
+                aria-label={`${friend.name} als Profilbild wählen`}
+                className="block size-[160px] overflow-hidden rounded-full bg-background-alt transition-transform duration-200 ease-out active:scale-[0.97]"
+              >
+                <img src={getRobotAvatarPath(id)} alt="" className="size-full object-contain" />
+              </button>
+              <strong className="text-[0.9375rem] leading-[1.3] text-foreground-heading">
+                {friend.name}
+              </strong>
+              <span className={SMALL}>{friend.tagline}</span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 const LARGE = 'text-[clamp(1.5rem,1.15rem+1.3vw,2.15rem)] leading-[1.22] tracking-[-0.012em]';
 
 function Block({ block, ...props }: { block: ResolvedStoryBlock } & ItemProps): JSX.Element {
@@ -293,6 +326,7 @@ function Block({ block, ...props }: { block: ResolvedStoryBlock } & ItemProps): 
     </h2>
   );
   if (block.type === 'vorlagen') return <VorlagenGallery thema={block.thema} heading={heading} />;
+  if (block.type === 'friends') return <Friends ids={block.ids} heading={heading} />;
   return block.display === 'rows' ? (
     <div className={cn(COLUMN, 'flex flex-col gap-4')}>
       {heading}

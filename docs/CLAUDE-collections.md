@@ -43,6 +43,7 @@ Sechs Bausteine, nicht mehr. Ein neuer kommt erst dazu, wenn eine Kollektion ihn
 | `items` | Einträge an der Stelle, an der der Text von ihnen spricht. | `display: 'rows'` für Agents und Rezepte, `'gallery'` für alles mit Bild. Nur Einträge aus `pinned` oder `samples` (Test). |
 | `example` | Ein Eintrag mit kurzem Austausch: was du schreibst, was er antwortet. | Die Antwort ist echt oder realistisch, nie ein Werbesatz, höchstens 200 Zeichen (Test). Höchstens einer pro Kollektion. |
 | `vorlagen` | Die Grünerator-Vorlagen eines Themas (`thema: 'queer' \| 'frauen'`) als Galerie, jede öffnet ihre Vorschau auf `/vorlagen`. | Die Seite fragt den Katalog (`/api/sharepic-vorlagen`) selbst, im Land der Person. Die Vorlagen sind Parteiinhalt und liegen im privaten Repo, nie hier. Fehlt der Katalog oder hat er nichts zum Thema, zeigt der Block nichts — der Text davor bleibt dann stehen, also so schreiben, dass er auch allein trägt. |
+| `friends` | Grünerator-Friends (`ids`, Robot-Ids aus `GRUENERATOR_FRIENDS`) als Profilbild-Angebot; ein Klick öffnet die Friends-Einstellungen. | Nur Friends, die zum Thema gehören (Queer: die Pride-Edition mit Regenbogen, Juna und Bunti). Ids müssen existieren (Test). |
 
 Was kein Block zeigt, steht am Ende unter „Mehr aus der Kollektion“. Sieht eine Person einen Eintrag nicht, fällt er aus seinem Block. Ein Block ohne Einträge fällt ganz weg und mit ihm ein `text` direkt davor, der sonst ins Leere erklärt (`resolveStory`).
 
@@ -94,6 +95,8 @@ Die Regeln sind im Renderer verankert, nicht in den Daten. **Kein Baustein hat F
 `de-AT` ist gleichwertig. Eine Kollektion mit `audience: 'all'` darf länderspezifische Bausteine tragen: ein Block mit `audience: 'de-DE'` und sein Gegenstück mit `audience: 'de-AT'` stehen hintereinander, `resolveStory` zeigt jeder Person ihren. Das gilt für jede Zahl, jedes Gesetz, jede Ansprechstelle und jedes Hilfetelefon. Fehlt das österreichische Gegenstück, lieber den Block weglassen als eine deutsche Zahl in Österreich zeigen.
 
 ## Sharepics in Kollektionen
+
+**Eine Sharepic-Kollektion bleibt kurz:** höchstens eine Einleitung, dann die Vorlagen, dazu höchstens passende Friends. Keine Zahlen, Zitate, Beispiele oder Agent-Zeilen dazwischen — der Fokus sind die Sharepics. Ohne Einträge braucht sie `pinned: []` und `min: 0`; die Seite zeigt eine Kollektion, sobald der Server sie liefert, auch leer.
 
 Grünerator-Sharepics gehören über `vorlagen` in eine Kollektion, nicht als Bilddatei ins Repo: der Katalog liefert sie im richtigen Land, mit aktuellem Vorschaubild, und eine neue Vorlage zum Thema erscheint ohne Codeänderung. Lokal braucht die API dafür `INTERN_CONTENT_DIR` auf einen Checkout von `gruenerator-intern` (sonst ist der Block leer).
 
