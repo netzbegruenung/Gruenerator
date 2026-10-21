@@ -1,6 +1,8 @@
 import { InteractiveCard } from '@gruenerator/ui';
 import { memo, useMemo } from 'react';
 
+import { useOpenCardMenu } from '../context/CardMenuContext';
+import { useTaskDone } from '../context/TaskDoneContext';
 import { useScheduledAgentRuns } from '../hooks/useScheduledAgentRuns';
 import { FIELD_IDS } from '../types';
 
@@ -27,6 +29,7 @@ import {
   CalendarBody,
   CalendarItem,
 } from '@/components/kibo-ui/calendar';
+import { cn } from '@/utils/cn';
 
 interface BoardCalendarViewProps {
   fields: Field[];
@@ -45,6 +48,8 @@ export const BoardCalendarView = memo(function BoardCalendarView({
   boardId,
 }: BoardCalendarViewProps) {
   const dateFieldId = activeView?.dateFieldId ?? FIELD_IDS.DUE_DATE;
+  const taskDone = useTaskDone();
+  const openCardMenu = useOpenCardMenu();
   const statusField = useMemo(() => fields.find((f) => f.id === FIELD_IDS.STATUS), [fields]);
   const statusOptions = useMemo(
     () => (statusField?.typeOptions.options ?? []) as SelectOption[],
@@ -134,14 +139,19 @@ export const BoardCalendarView = memo(function BoardCalendarView({
         <CalendarBody features={allFeatures}>
           {({ feature }) => {
             const row = rowById.get(feature.id);
+            const isDone = !!row && row.cells[FIELD_IDS.STATUS] === taskDone?.doneStatusId;
             return (
               <InteractiveCard
                 key={feature.id}
                 label={feature.name}
                 onActivate={() => row && onRowClick(row)}
+                onContextMenu={row && openCardMenu ? (e) => openCardMenu(row, e) : undefined}
                 className="cursor-pointer hover:bg-grey-100 dark:hover:bg-grey-800 rounded px-1 transition-colors"
               >
-                <CalendarItem feature={feature} className="text-[10px]" />
+                <CalendarItem
+                  feature={feature}
+                  className={cn('text-[10px]', isDone && 'text-muted-foreground line-through')}
+                />
               </InteractiveCard>
             );
           }}
