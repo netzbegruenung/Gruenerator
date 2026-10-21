@@ -451,18 +451,41 @@ export function spelledNumbers(text: string): string[] {
   return SPELLED.filter(([word]) => word.test(lower)).map(([, n]) => String(n));
 }
 
-/** Clock times as [hour, minutes]: „10 Uhr“, „18h“, „18.30 Uhr“, „20 Uhr 30“, „18:30“ — not „14.11.“ */
+/**
+ * A clock time: „10 Uhr“, „18h“, „18.30 Uhr“, „20 Uhr 30“, „18:30“, and a
+ * span „10–13 Uhr“ or „10 bis 13 Uhr“ — not „14.11.“. Groups: span start,
+ * hour, minutes (two places), and hour and minutes of the bare „18:30“.
+ */
+const CLOCK_TIME =
+  /(?<![\d.:])(?:(\d{1,2})(?:\s*[–-]\s*|\s+bis\s+))?(\d{1,2})(?:[:.](\d{2}))?\s*(?:Uhr|h)(?!\p{L})(?:\s{1,3}(\d{2})(?![\d:]|\.\d))?|(?<![\d.:])(\d{1,2}):(\d{2})(?![\d:])/giu;
+
+/** Clock times as [hour, minutes], both ends of a span. */
 function clockTimes(text: string): [number, number][] {
   const times: [number, number][] = [];
-  const re =
-    /(?<![\d.:])(?:(\d{1,2})\s*[–-]\s*)?(\d{1,2})(?:[:.](\d{2}))?\s*(?:Uhr|h)(?!\p{L})(?:\s{1,3}(\d{2})(?![\d:]|\.\d))?|(?<![\d.:])(\d{1,2}):(\d{2})(?![\d:])/giu;
-  for (const m of text.matchAll(re)) {
+  for (const m of text.matchAll(CLOCK_TIME)) {
     if (m[1] !== undefined) times.push([Number(m[1]), 0]);
     times.push(
       m[2] !== undefined ? [Number(m[2]), Number(m[3] ?? m[4] ?? 0)] : [Number(m[5]), Number(m[6])]
     );
   }
   return times;
+}
+
+/** `datum.time` in `sharepicSlideSchema`. */
+const TIME_MAX = 12;
+
+/**
+ * The one time a request names, as the circle shows it: „19 Uhr“, „18:30 Uhr“,
+ * „10–13 Uhr“. None when it names several („Einlass 18 Uhr, Beginn 19 Uhr“).
+ */
+function orderedTime(order: string): string | null {
+  const found = [...order.matchAll(CLOCK_TIME)];
+  if (found.length !== 1) return null;
+  const m = found[0]!;
+  const hour = m[2] ?? m[5]!;
+  const minutes = m[3] ?? m[4] ?? m[6];
+  const time = `${m[1] !== undefined ? `${m[1]}–` : ''}${hour}${minutes ? `:${minutes}` : ''} Uhr`;
+  return time.length <= TIME_MAX ? time : null;
 }
 
 /** Own extraction, `digits()` would collapse „18.30“ to „1830“; a time only in words is skipped. */
@@ -539,6 +562,27 @@ function withOrderedDate(spec: SharepicSpec, order: string): SharepicSpec {
     ...spec,
     slides: spec.slides.map((slide, i) =>
       i === at ? { ...slide, datum: { ...slide.datum, date } } : slide
+    ),
+  };
+}
+
+/**
+ * The same for the time. Under a forced tool call Gemma closes `datum` after
+ * its first field: „Donnerstag, 6.11., um 19 Uhr“ came back as `{"weekday":
+ * "Do"}` three times in three (21.10.2026). A circle without the time the
+ * request names gets it, unless the slide's text already says it.
+ */
+function withOrderedTime(spec: SharepicSpec, order: string): SharepicSpec {
+  const time = orderedTime(order);
+  if (!time) return spec;
+  return {
+    ...spec,
+    slides: spec.slides.map((slide) =>
+      slide.datum &&
+      slide.datum.time === undefined &&
+      !textsOf(slide).some((text) => clockTimes(text).length)
+        ? { ...slide, datum: { ...slide.datum, time } }
+        : slide
     ),
   };
 }
@@ -859,7 +903,7 @@ export function validateDraft(
   });
   return errors.length
     ? { ok: false, error: errors.join(' ') }
-    : { ok: true, value: withOrderedDate(base.value, order) };
+    : { ok: true, value: withOrderedTime(withOrderedDate(base.value, order), order) };
 }
 
 const POINTS_TO_ACTION =
@@ -1042,7 +1086,11 @@ const SLIDE_SCHEMA = {
       description:
         '{"weekday"?,"date"?,"time"?} (weekday oder date) oder weglassen; jedes Feld nur, wenn der Auftrag es nennt',
     },
-    ort: { ...structureOf(slideShape.ort.unwrap()), description: '{"lines":[…]} oder weglassen' },
+    ort: {
+      ...structureOf(slideShape.ort.unwrap()),
+      description:
+        '{"lines":[Name des Orts, Adresse?]} als eigene Zeilen – oder weglassen, wenn der Ort schon im Text steht (nie beides) oder der Auftrag keinen nennt',
+    },
     quelle: { type: 'string', description: 'Quelle einer Zahl, nur wenn sie im Auftrag steht' },
     zeilenboxen: { type: 'boolean', description: 'nur Deutschland: jede Zeile in einer Box' },
     nummer: {

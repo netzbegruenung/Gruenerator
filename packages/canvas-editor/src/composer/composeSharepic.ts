@@ -919,11 +919,16 @@ function composeSlide(
 
   // Footer row: logo, arrow, place, source — the text group ends above it.
   const ortBesideCircle = !!spec.ort && !!circle && !columnBesideCircle;
-  const footerUsed = showLogo || swipeOn || !!spec.ort || !!spec.quelle;
+  // Beside the circle under a photo strip the place ends the column, right
+  // under the text as on the event posters (S.23, S.26) — in the footer it
+  // stood beside the logo, away from the date.
+  const ortInColumn = !!spec.ort && columnBesideCircle;
+  const ortInFooter = !!spec.ort && !ortBesideCircle && !ortInColumn;
+  const footerUsed = showLogo || swipeOn || ortInFooter || !!spec.quelle;
   if (footerUsed) {
     areaBottom = Math.min(
       areaBottom,
-      canvas.height - FOOTER - (spec.ort && !ortBesideCircle ? spec.ort.lines.length * 48 : 0)
+      canvas.height - FOOTER - (ortInFooter ? spec.ort!.lines.length * 48 : 0)
     );
   }
   // A large logo reaches above the footer row; the text stays clear of it.
@@ -3721,6 +3726,16 @@ function composeSlide(
         }
       }
     });
+    if (ortInColumn) {
+      const ort = spec.ort!;
+      const size = 38;
+      placed.push({
+        height: ort.lines.length * size * 1.25,
+        after: 0,
+        place: (y) =>
+          text('sc-ort', ort.lines.join('\n'), y, size, theme.fonts.body, { lineHeight: 1.25 }),
+      });
+    }
     return placed;
   };
 
@@ -3976,7 +3991,7 @@ function composeSlide(
     out.layerOrder.push('sc-datum');
   }
 
-  if (spec.ort) {
+  if (spec.ort && !ortInColumn) {
     const size = 38;
     const height = spec.ort.lines.length * size * 1.25;
     // Beside a free date circle the place reads with it: right-aligned to the
