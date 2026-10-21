@@ -156,7 +156,7 @@ export const SPEC_SCHEMA = {
     },
     slides: {
       type: 'array',
-      description: 'Eine Slide für ein Einzelbild, 3–8 für ein Karussell – in Wischreihenfolge.',
+      description: 'Eine Slide für ein Einzelbild, 2–8 für ein Karussell – in Wischreihenfolge.',
       items: SLIDE_SCHEMA,
     },
   },
