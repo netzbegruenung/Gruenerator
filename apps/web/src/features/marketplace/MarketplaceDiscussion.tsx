@@ -77,7 +77,7 @@ function CommentActions({
   );
 }
 
-async function copyLink(href: string) {
+export async function copyLink(href: string): Promise<void> {
   try {
     await copyToClipboard(new URL(href, getPublicAppOrigin()).href);
     toast.success('Link kopiert');
@@ -127,41 +127,50 @@ export function MarketplaceDiscussion({
 
   return (
     <section aria-label="Reaktionen und Kommentare" className="flex flex-col gap-md">
-      <div className="flex flex-wrap items-center gap-sm">
-        {item && (
-          <Button
-            variant="ghost"
-            aria-pressed={item.liked}
-            aria-label={`Gefällt mir (${item.likesCount})`}
-            title="Gefällt mir"
-            onClick={() => actions.toggleLike(item)}
-          >
-            {item.liked ? (
-              <PiHeartFill aria-hidden className="text-primary-600 dark:text-primary-400" />
-            ) : (
-              <PiHeart aria-hidden />
-            )}
-            <span aria-hidden className="tabular-nums">
-              {item.likesCount}
-            </span>
-          </Button>
+      {/* Without like, link and report — the page has them — the reactions sit beside the heading. */}
+      {(item || shareHref) && (
+        <div className="flex flex-wrap items-center gap-sm">
+          {item && (
+            <Button
+              variant="ghost"
+              aria-pressed={item.liked}
+              aria-label={`Gefällt mir (${item.likesCount})`}
+              title="Gefällt mir"
+              onClick={() => actions.toggleLike(item)}
+            >
+              {item.liked ? (
+                <PiHeartFill aria-hidden className="text-primary-600 dark:text-primary-400" />
+              ) : (
+                <PiHeart aria-hidden />
+              )}
+              <span aria-hidden className="tabular-nums">
+                {item.likesCount}
+              </span>
+            </Button>
+          )}
+          {shareHref && (
+            <Button variant="ghost" onClick={() => void copyLink(shareHref)}>
+              <PiLink aria-hidden />
+              Link kopieren
+            </Button>
+          )}
+          {item && canReport(item) && (
+            <Button variant="ghost" onClick={() => actions.report(item)}>
+              <PiFlag aria-hidden />
+              Melden
+            </Button>
+          )}
+          {discussion.data && (
+            <ItemReactions target={target} reactions={discussion.data.reactions} />
+          )}
+        </div>
+      )}
+      <div className="flex flex-wrap items-center justify-between gap-sm">
+        <Heading className="m-0 text-lg font-bold text-foreground-heading">Kommentare</Heading>
+        {!item && !shareHref && discussion.data && (
+          <ItemReactions target={target} reactions={discussion.data.reactions} />
         )}
-        {shareHref && (
-          <Button variant="ghost" onClick={() => void copyLink(shareHref)}>
-            <PiLink aria-hidden />
-            Link kopieren
-          </Button>
-        )}
-        {item && canReport(item) && (
-          <Button variant="ghost" onClick={() => actions.report(item)}>
-            <PiFlag aria-hidden />
-            Melden
-          </Button>
-        )}
-        {discussion.data && <ItemReactions target={target} reactions={discussion.data.reactions} />}
       </div>
-
-      <Heading className="m-0 text-lg font-bold text-foreground-heading">Kommentare</Heading>
       {discussion.isLoading && <p className="m-0 text-sm text-foreground-muted">Lädt …</p>}
       {discussion.isError && (
         <p className="m-0 text-sm text-red-600 dark:text-red-400">{errMessage(discussion.error)}</p>

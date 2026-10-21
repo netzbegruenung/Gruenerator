@@ -243,6 +243,34 @@ export function collectionById(id: MarketplaceCollectionId | null): MarketplaceC
 }
 
 /**
+ * „Passt dazu" under an item: the listed collections it appears in, then the
+ * other entries of those collections in their order, each once, without the
+ * item itself. Empty when the item is in no collection.
+ */
+export function relatedFromCollections(
+  collections: readonly {
+    collectionId: MarketplaceCollectionId;
+    items: readonly MarketplaceItem[];
+  }[],
+  target: MarketplaceTarget,
+  limit: number
+): { collections: readonly MarketplaceCollection[]; items: readonly MarketplaceItem[] } {
+  const isTarget = (i: MarketplaceItem) => i.kind === target.kind && i.ref === target.ref;
+  const containing = collections.filter(
+    (c) => collectionById(c.collectionId)?.listed !== false && c.items.some(isTarget)
+  );
+  const items = new Map<string, MarketplaceItem>();
+  for (const item of containing.flatMap((c) => c.items)) {
+    if (items.size === limit) break;
+    if (!isTarget(item) && !items.has(item.key)) items.set(item.key, item);
+  }
+  return {
+    collections: containing.flatMap((c) => collectionById(c.collectionId) ?? []),
+    items: [...items.values()],
+  };
+}
+
+/**
  * One collection from its resolved parts: samples first, then pinned, then each fill, each
  * item once, cut to `show`; `null` below `min`.
  */

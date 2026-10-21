@@ -391,33 +391,30 @@ describe('MarketplacePage', () => {
     expect(screen.queryByRole('button', { name: /^Herkunft/ })).toBeNull();
   });
 
-  it('filters by origin and shows the filter as a chip', async () => {
-    const { user } = renderPage();
+  it('has no origin or sort menu in its header', async () => {
+    renderPage();
     await screen.findByRole('region', { name: 'Neu im Marktplatz' });
 
-    await user.click(screen.getByRole('button', { name: 'Herkunft' }));
-    await user.click(await screen.findByRole('menuitemradio', { name: 'Offiziell' }));
+    expect(screen.queryByRole('button', { name: /^Herkunft/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Sortierung/ })).toBeNull();
+  });
 
-    expect(screen.getByLabelText('Adresse')).toHaveTextContent('?von=offiziell');
+  it('still filters a shared link by origin and shows it as a chip', async () => {
+    renderPage('/marktplatz?von=offiziell');
+
     await waitFor(() => expect(queries.at(-1)?.get('origin')).toBe('offiziell'));
-    await waitFor(() => expect(screen.queryByRole('region', { name: 'Rezepte' })).toBeNull());
     expect(
-      screen.getByRole('button', { name: 'Filter „Offiziell“ entfernen' })
+      await screen.findByRole('button', { name: 'Filter „Offiziell“ entfernen' })
     ).toBeInTheDocument();
   });
 
-  it('names the Landesverband after the person’s own, and offers it only with a role', async () => {
-    const { user, unmount } = renderPage();
-    await screen.findByRole('region', { name: 'Neu im Marktplatz' });
-    await user.click(screen.getByRole('button', { name: 'Herkunft' }));
-    expect(screen.queryByRole('menuitemradio', { name: /Grüne|Landesverband/ })).toBeNull();
-    unmount();
-
+  it('names a shared Landesverband link after the person’s own', async () => {
     lv.ids = ['hessen'];
-    const second = renderPage();
-    await screen.findByRole('region', { name: 'Neu im Marktplatz' });
-    await second.user.click(screen.getByRole('button', { name: 'Herkunft' }));
-    expect(await screen.findByRole('menuitemradio', { name: 'Grüne Hessen' })).toBeInTheDocument();
+    renderPage('/marktplatz?von=landesverband');
+
+    expect(
+      await screen.findByRole('button', { name: 'Filter „Grüne Hessen“ entfernen' })
+    ).toBeInTheDocument();
   });
 
   it('says so when a kind or a search finds nothing', async () => {
@@ -470,7 +467,7 @@ describe('MarketplacePage', () => {
     );
     await waitFor(() => expect(save).toHaveBeenCalledWith('agent', 'agent-pressearbeit'));
 
-    await user.click(screen.getByRole('button', { name: 'Zurück zum Marktplatz' }));
+    await user.click(screen.getByRole('button', { name: /^Marktplatz$/ }));
     expect(await screen.findByRole('region', { name: 'Neu im Marktplatz' })).toBeInTheDocument();
     expect(screen.getByLabelText('Adresse')).toBeEmptyDOMElement();
   });

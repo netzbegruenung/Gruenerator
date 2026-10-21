@@ -8,16 +8,7 @@ import { MARKETPLACE_ORIGIN_BADGE } from '@gruenerator/shared/marketplace';
 import { resolveStoredImageUrl } from '@gruenerator/shared/media-library/shareUrl';
 import { Button, cn } from '@gruenerator/ui';
 import { useState, type JSX, type ReactNode } from 'react';
-import {
-  PiArrowSquareOut,
-  PiChatCircleText,
-  PiImage,
-  PiLayout,
-  PiNotebook,
-  PiPencilSimple,
-  PiSticker,
-  PiUserCircle,
-} from 'react-icons/pi';
+import { PiImage, PiLayout, PiNotebook, PiSticker } from 'react-icons/pi';
 import { Link } from 'react-router-dom';
 
 import { PhosphorIcon } from '../agents/icons/PhosphorIcon';
@@ -81,20 +72,17 @@ const recipeVisual = (item: MarketplaceItemOf<'recipe'>): MarketplaceVisual => (
   icon: <PhosphorIcon name={item.iconKey ?? 'PiSparkle'} />,
 });
 
+/** The ways on sit as text next to the one filled button, so the detail keeps a single call to action. */
+const TEXT_ACTION = 'h-11 px-0 font-bold';
+
 function ChatAndDetails({ chatPath, detailPath }: { chatPath: string; detailPath: string }) {
   return (
     <>
-      <Button asChild variant="outline">
-        <Link to={chatPath}>
-          <PiChatCircleText aria-hidden />
-          Im Chat ausprobieren
-        </Link>
+      <Button asChild variant="link" className={TEXT_ACTION}>
+        <Link to={chatPath}>Im Chat ausprobieren</Link>
       </Button>
-      <Button asChild variant="ghost">
-        <Link to={detailPath}>
-          <PiArrowSquareOut aria-hidden />
-          Alle Details
-        </Link>
+      <Button asChild variant="link" className={cn(TEXT_ACTION, 'text-foreground-muted')}>
+        <Link to={detailPath}>Alle Details</Link>
       </Button>
     </>
   );
@@ -149,11 +137,11 @@ function TemplateActions({ item }: { item: MarketplaceItemOf<'template'> }) {
     const using = usingId === item.ref;
     return (
       <Button
-        variant="outline"
+        variant="link"
+        className={TEXT_ACTION}
         disabled={using}
         onClick={() => void openVorlage({ id: item.ref, content_data: item.template.contentData })}
       >
-        <PiPencilSimple aria-hidden />
         {using ? 'Wird geöffnet …' : 'Vorlage verwenden'}
       </Button>
     );
@@ -161,9 +149,8 @@ function TemplateActions({ item }: { item: MarketplaceItemOf<'template'> }) {
   const url = item.template.externalUrl;
   if (!url) return null;
   return (
-    <Button asChild variant="outline">
+    <Button asChild variant="link" className={TEXT_ACTION}>
       <a href={url} target="_blank" rel="noopener noreferrer">
-        <PiArrowSquareOut aria-hidden />
         {item.template.templateType === 'canva' ? 'In Canva öffnen' : 'Öffnen'}
       </a>
     </Button>
@@ -230,11 +217,8 @@ const assetVisual = (item: MarketplaceAssetItem): MarketplaceVisual => ({
 
 function AssetActions({ item }: { item: MarketplaceAssetItem }) {
   return (
-    <Button asChild variant="outline">
-      <Link to={profilbildAssetHref(item.asset)}>
-        <PiUserCircle aria-hidden />
-        Im Profilbild verwenden
-      </Link>
+    <Button asChild variant="link" className={TEXT_ACTION}>
+      <Link to={profilbildAssetHref(item.asset)}>Im Profilbild verwenden</Link>
     </Button>
   );
 }
@@ -245,11 +229,8 @@ const notebookVisual = (): MarketplaceVisual => ({ type: 'icon', icon: <PiNotebo
 
 function NotebookActions({ item }: { item: MarketplaceItemOf<'notebook'> }) {
   return (
-    <Button asChild variant="outline">
-      <Link to={`/notebooks/${encodeURIComponent(item.notebook.slug)}`}>
-        <PiNotebook aria-hidden />
-        Notebook öffnen
-      </Link>
+    <Button asChild variant="link" className={TEXT_ACTION}>
+      <Link to={`/notebooks/${encodeURIComponent(item.notebook.slug)}`}>Notebook öffnen</Link>
     </Button>
   );
 }

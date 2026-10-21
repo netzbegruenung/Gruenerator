@@ -12,6 +12,7 @@ import {
   ShowcaseCardIcons,
   ShowcaseCardImage,
   ShowcaseMedia,
+  cn,
 } from '@gruenerator/ui';
 import { type JSX } from 'react';
 import { PiCheck } from 'react-icons/pi';
@@ -25,6 +26,7 @@ import {
   MarketplaceShowcaseCard,
   MarketplaceVisualCard,
   SHOWCASE_GRID,
+  SWIPE_BELOW_MD,
   showcaseToneAt,
 } from './MarketplaceShowcaseCard';
 import { type MarketplaceActions } from './useMarketplaceActions';
@@ -120,7 +122,9 @@ export function CollectionCards({
       >
         {title}
       </h2>
-      <ul className="m-0 grid list-none grid-cols-1 gap-md p-0 md:grid-cols-3">
+      <ul
+        className={cn('m-0 grid list-none grid-cols-1 gap-md p-0 md:grid-cols-3', SWIPE_BELOW_MD)}
+      >
         {cards.map(({ def, items }) => (
           <li key={def.id}>
             <ShowcaseCard
@@ -180,7 +184,12 @@ export function MarketplaceCollectionView({
   const collections = page.data?.collections ?? [];
   const items = collections.find((c) => c.collectionId === id)?.items ?? [];
   if (page.isPending) {
-    return <GallerySkeleton count={1} className="aspect-[3/1] h-auto rounded-2xl md:-mt-4" />;
+    return (
+      <GallerySkeleton
+        count={1}
+        className="aspect-[2/1] sm:aspect-[3/1] h-auto rounded-2xl md:-mt-4"
+      />
+    );
   }
   if (!def || items.length === 0) {
     return (
@@ -203,7 +212,10 @@ export function MarketplaceCollectionView({
     <div className="flex flex-col gap-xl">
       {/* Without a breadcrumb the photo opens the page: its top edge sits as far
           from the top as the page edge from the side. */}
-      <ShowcaseMedia tone={def.tone} className="aspect-[3/1] w-full rounded-2xl md:-mt-4">
+      <ShowcaseMedia
+        tone={def.tone}
+        className="aspect-[2/1] sm:aspect-[3/1] w-full rounded-2xl md:-mt-4"
+      >
         <CollectionMedia
           collection={def}
           items={items}
@@ -218,12 +230,14 @@ export function MarketplaceCollectionView({
             {def.kicker}
           </span>
           <h1
-            className="m-0 text-[clamp(2.25rem,4.5vw,3rem)] leading-[1.05] font-bold tracking-[-0.02em] text-balance text-foreground-heading"
+            className="m-0 text-[clamp(2rem,4.5vw,3rem)] leading-[1.05] font-bold tracking-[-0.02em] text-balance text-foreground-heading"
             style={{ fontFamily: DISPLAY_FONT }}
           >
             {def.title}
           </h1>
-          <p className="m-0 text-lg leading-relaxed text-foreground-muted">{def.description}</p>
+          <p className="m-0 text-base leading-relaxed text-foreground-muted sm:text-lg">
+            {def.description}
+          </p>
           <span className="text-sm text-foreground-muted">{countLabel(items.length)}</span>
         </div>
         {addable.length > 0 &&
