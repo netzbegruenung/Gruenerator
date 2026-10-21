@@ -12,7 +12,7 @@ import {
   type SharepicSlide,
 } from '@gruenerator/contracts';
 
-import { type ComposedSlide } from './composeSharepic';
+import { type ComposedSlide } from './composeTypes';
 import { stripMarks } from './marks';
 
 export type SharepicProvenanceLift =

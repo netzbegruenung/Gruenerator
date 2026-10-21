@@ -1,7 +1,7 @@
 /**
  * Farben des Textmarkers — für die Box hinter `++Passagen++`, die Textmarker-
  * Formen im Formen-Katalog und den Farbwähler im Text. Limette und Mint sind
- * die Kastenfarben der DE-Posts (siehe `composeSharepic.ts`).
+ * die Kastenfarben der DE-Posts (siehe `sharepicLayoutConstants.ts` und `slideInk.ts`).
  */
 import { contrastRatio, luminance } from './colorLuminance';
 import { type TextMarker } from './textUtils';
