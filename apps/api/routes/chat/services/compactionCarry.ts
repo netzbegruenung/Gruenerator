@@ -1,16 +1,15 @@
 /**
- * Was eine Zusammenfassung nicht ersetzen darf: der zuletzt geschriebene Langtext.
+ * Was eine Zusammenfassung nicht ersetzen darf: der zuletzt geschriebene
+ * Langtext und das Material, das die Person eingefügt hat.
  *
- * `prepareMessagesWithCompaction` behält `getKeepRecent()` Nachrichten wörtlich
- * (20 auf den grossen Lanes) und ersetzt alles davor durch ~800 Token Prosa.
- * Für Gesprächsverlauf ist das richtig; für ein ERGEBNIS ist es Totalverlust.
- * Eine Pressemitteilung aus Runde 2, auf die sich Runde 15 bezieht, existiert
- * dann nur noch als „der Assistent hat eine Pressemitteilung zu Solarenergie
- * verfasst" — und das Modell schreibt sie neu statt sie zu ändern.
- *
- * Mehr Budget verschiebt nur, WANN das passiert: die Grenze ist eine
- * Nachrichten-ANZAHL, keine Tokenzahl. Deshalb sitzt die Rettung hier und nicht
- * an einer Schwelle.
+ * `prepareMessagesWithCompaction` behält die Nachrichten nach der Grenze der
+ * Zusammenfassung wörtlich und ersetzt alles davor durch Prosa. Für
+ * Gesprächsverlauf ist das richtig; für ein ERGEBNIS oder eine QUELLE ist es
+ * Totalverlust. Eine Pressemitteilung aus Runde 2, auf die sich Runde 15
+ * bezieht, existiert dann nur noch als „der Assistent hat eine Pressemitteilung
+ * zu Solarenergie verfasst" — und das Modell schreibt sie neu statt sie zu
+ * ändern. Eine eingefügte Pressemitteilung, aus der Runde 15 zitieren soll,
+ * existiert gar nicht mehr (#4790).
  *
  * ZWEI DINGE, DIE DIESE DATEI NICHT IST.
  *
@@ -41,9 +40,8 @@ import { extractTextContent } from './messageHelpers.js';
  *  Grenze trennt „geschriebener Text" von „Rückfrage/Bestätigung". */
 const LONG_FORM_MIN_CHARS = 1200;
 
-/** Deckel für das, was der Block dem Systemprompt hinzufügt (~3.400 Token).
- *  Die Zusammenfassung daneben kostet 800 — das Ergebnis darf mehr, aber nicht
- *  so viel, dass die Rettung selbst das Fenster sprengt. */
+/** Deckel für den Langtext (~3.400 Token), unabhängig vom Budget des Aufrufers:
+ *  ein einzelner Entwurf darf das Material daneben nicht verdrängen. */
 const CARRY_MAX_CHARS = 12_000;
 
 const TRUNCATION_MARK = '\n\n[… hier gekürzt]';
@@ -97,7 +95,8 @@ function longFormText(message: CarryMessage): string | null {
  */
 export function selectCarriedLongForm(
   dropped: readonly CarryMessage[],
-  kept: readonly CarryMessage[]
+  kept: readonly CarryMessage[],
+  maxChars = CARRY_MAX_CHARS
 ): string | null {
   for (const message of kept) {
     if (longFormText(message)) return null;
@@ -106,10 +105,40 @@ export function selectCarriedLongForm(
   for (let i = dropped.length - 1; i >= 0; i--) {
     const text = longFormText(dropped[i]);
     if (!text) continue;
-    return text.length <= CARRY_MAX_CHARS ? text : text.slice(0, CARRY_MAX_CHARS) + TRUNCATION_MARK;
+    return capped(text, Math.min(maxChars, CARRY_MAX_CHARS));
   }
 
   return null;
+}
+
+function capped(text: string, maxChars: number): string {
+  return text.length <= maxChars ? text : text.slice(0, maxChars) + TRUNCATION_MARK;
+}
+
+/**
+ * Eingefügtes Material aus dem weggeschnittenen Teil, in Reihenfolge — oder [].
+ *
+ * Anders als beim Langtext ist hier jeder Text eine eigene Quelle, keine ältere
+ * Fassung desselben: mitgenommen wird deshalb alles, was ins Budget passt, die
+ * jüngsten zuerst. Ein Paste unter 3.000 Zeichen hat keine Anhang-Zeile
+ * (`inlineMaterialAttachment`), ohne diesen Weg wäre er nach der ersten
+ * Zusammenfassung weg.
+ */
+export function selectCarriedMaterial(
+  dropped: readonly CarryMessage[],
+  maxChars: number
+): string[] {
+  const picked: string[] = [];
+  let left = maxChars;
+  for (let i = dropped.length - 1; i >= 0 && left >= LONG_FORM_MIN_CHARS; i--) {
+    if (dropped[i].role !== 'user') continue;
+    const text = textOf(dropped[i].content).trim();
+    if (text.length < LONG_FORM_MIN_CHARS) continue;
+    const kept = capped(text, left);
+    picked.unshift(kept);
+    left -= kept.length;
+  }
+  return picked;
 }
 
 /**
@@ -124,4 +153,12 @@ export function renderCarryBlock(text: string): string {
 Diesen Text hast du in diesem Gespräch bereits verfasst. Er liegt vor den unten stehenden Nachrichten, die Zusammenfassung gibt ihn nur sinngemäß wieder. Bezieht sich die Anfrage darauf, arbeite an DIESER Fassung weiter — schreibe sie nicht ungefragt neu:
 
 ${text}`;
+}
+
+export function renderMaterialBlock(texts: readonly string[]): string {
+  return `## EINGEFÜGTES MATERIAL (WÖRTLICH)
+
+Diese Texte hat die Person früher in diesem Gespräch eingefügt. Die Zusammenfassung gibt sie nur sinngemäß wieder; für Zitate, Zahlen und Formulierungen gilt dieser Wortlaut:
+
+${texts.join('\n\n---\n\n')}`;
 }
