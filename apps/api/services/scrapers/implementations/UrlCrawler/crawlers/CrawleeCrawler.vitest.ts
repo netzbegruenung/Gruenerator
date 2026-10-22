@@ -12,7 +12,9 @@
  * Ladefehler laut wird.
  */
 import { readFileSync } from 'node:fs';
+import { createServer, type RequestListener } from 'node:http';
 import { createRequire } from 'node:module';
+import { type AddressInfo } from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -67,6 +69,87 @@ describe('der Ladepfad von Crawlee', () => {
       expect(manifest.dependencies?.jsdom).toBeUndefined();
     }
   });
+});
+
+/**
+ * Vor dem Crawl wird genau eine URL geprüft. got folgt Redirects von sich aus
+ * (bis zu zehn) und löst Namen selbst auf — ohne die Optionen aus dem
+ * Pre-Navigation-Hook ginge jeder Hop ungeprüft hinaus. Ein 3xx ist hier
+ * deshalb ein Fehlschlag: der fetch-Fallback (safeFetch) folgt und prüft jeden
+ * Hop.
+ */
+describe('Redirects und Adressen', () => {
+  const PAGE = `<html><head><title>Seite</title></head><body><main><p>${'Ein Absatz mit genug Text, damit die Seite nicht als JavaScript-Seite gilt. '.repeat(5)}</p></main></body></html>`;
+
+  async function listen(handler: RequestListener) {
+    let hits = 0;
+    const server = createServer((req, res) => {
+      hits++;
+      handler(req, res);
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address() as AddressInfo;
+    return {
+      port,
+      origin: `http://127.0.0.1:${port}`,
+      hits: () => hits,
+      close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+    };
+  }
+
+  const page: RequestListener = (_req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(PAGE);
+  };
+
+  it('liest eine Seite ohne Redirect weiterhin', { timeout: 30_000 }, async () => {
+    const server = await listen(page);
+    try {
+      const { CrawleeCrawler } = await import('./CrawleeCrawler.js');
+      const result = await new CrawleeCrawler(config).crawlWithCrawlee(`${server.origin}/`);
+      expect(result.html).toContain('Ein Absatz mit genug Text');
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('folgt keinem Redirect', { timeout: 30_000 }, async () => {
+    const elsewhere = await listen(page);
+    const redirecting = await listen((_req, res) => {
+      res
+        .writeHead(302, { Location: `${elsewhere.origin}/`, 'Content-Type': 'text/html' })
+        .end('<html><body>Moved</body></html>');
+    });
+    try {
+      const { CrawleeCrawler } = await import('./CrawleeCrawler.js');
+      await expect(
+        new CrawleeCrawler(config).crawlWithCrawlee(`${redirecting.origin}/`)
+      ).rejects.toThrow(/No content extracted/);
+      expect(redirecting.hits()).toBe(1);
+      expect(elsewhere.hits()).toBe(0);
+    } finally {
+      await redirecting.close();
+      await elsewhere.close();
+    }
+  });
+
+  it(
+    'verbindet nicht, wenn der Name auf eine interne Adresse zeigt',
+    { timeout: 30_000 },
+    async () => {
+      // `localhost` steht für einen Namen, der bei der Prüfung vor dem Crawl
+      // öffentlich war und beim Verbinden intern auflöst (DNS-Rebinding).
+      const server = await listen(page);
+      try {
+        const { CrawleeCrawler } = await import('./CrawleeCrawler.js');
+        await expect(
+          new CrawleeCrawler(config).crawlWithCrawlee(`http://localhost:${server.port}/`)
+        ).rejects.toThrow(/No content extracted/);
+        expect(server.hits()).toBe(0);
+      } finally {
+        await server.close();
+      }
+    }
+  );
 });
 
 describe('ein Ladefehler', () => {

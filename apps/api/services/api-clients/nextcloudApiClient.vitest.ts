@@ -1,4 +1,6 @@
 import { readFileSync } from 'node:fs';
+import { createServer, type RequestListener } from 'node:http';
+import { type AddressInfo } from 'node:net';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -231,6 +233,73 @@ describe('path guard', () => {
     // Der Wächter steht VOR dem try. Stünde er darin, käme er als
     // „Failed to list folder" heraus und jeder Aufrufer müsste raten.
     await expect(client.listFolder('../x')).rejects.toThrow(/nicht aus der Freigabe/);
+  });
+});
+
+/**
+ * Geprüft wird nur der Host aus dem Freigabe-Link, einmal in `create()`. Jede
+ * Anfrage danach muss genau dort bleiben: kein Redirect auf einen anderen Host,
+ * und beim Verbinden keine interne Adresse hinter dem geprüften Namen.
+ *
+ * Die Basis wird nach dem Konstruktor auf einen lokalen http-Server umgebogen.
+ * Der Konstruktor lässt nur https durch, `create()` nur öffentliche Hosts —
+ * beides soll hier nicht nachgestellt werden, es geht um die Anfragen danach.
+ */
+describe('outbound requests stay on the validated host', () => {
+  async function listen(handler: RequestListener) {
+    let hits = 0;
+    const server = createServer((req, res) => {
+      hits++;
+      handler(req, res);
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address() as AddressInfo;
+    return {
+      port,
+      origin: `http://127.0.0.1:${port}`,
+      hits: () => hits,
+      close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+    };
+  }
+
+  function clientAt(origin: string): NextcloudApiClient {
+    const client = new NextcloudApiClient('https://wolke.example/s/AbCdEf');
+    const internals = client as unknown as { baseURL: string; webdavUrl: string };
+    internals.baseURL = origin;
+    internals.webdavUrl = `${origin}/public.php/webdav`;
+    return client;
+  }
+
+  it('does not follow a redirect, neither for PROPFIND nor for GET', async () => {
+    const elsewhere = await listen((_req, res) => res.end('nicht von der Freigabe'));
+    const share = await listen((_req, res) => {
+      res.writeHead(302, { Location: `${elsewhere.origin}/anywhere` }).end();
+    });
+    try {
+      const client = clientAt(share.origin);
+      await expect(client.listFolder()).rejects.toMatchObject({ status: 302 });
+      await expect(client.downloadFile('rede.pdf')).rejects.toMatchObject({ status: 302 });
+      expect(share.hits()).toBe(2);
+      expect(elsewhere.hits()).toBe(0);
+    } finally {
+      await share.close();
+      await elsewhere.close();
+    }
+  });
+
+  it('refuses the socket when the host name resolves to a private address', async () => {
+    // `localhost` steht für einen Namen, der bei `create()` öffentlich war und
+    // beim Verbinden auf eine interne Adresse zeigt (DNS-Rebinding).
+    const share = await listen((_req, res) => {
+      res.writeHead(207).end('<d:multistatus xmlns:d="DAV:"></d:multistatus>');
+    });
+    try {
+      const client = clientAt(`http://localhost:${share.port}`);
+      await expect(client.listFolder()).rejects.toThrow(/Network error/);
+      expect(share.hits()).toBe(0);
+    } finally {
+      await share.close();
+    }
   });
 });
 
