@@ -9,6 +9,7 @@ import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { ReportDialog } from '../../components/common/ReportDialog';
+import { useAuthStore } from '../../stores/authStore';
 import { profilbildAssetHref } from '../studio-tools/utils/galleryAsset';
 import { useTrashUndoToast } from '../trash/trashUndoToast';
 
@@ -37,7 +38,9 @@ export function useStudioAssetActions(): {
   const queryClient = useQueryClient();
   const showTrashUndo = useTrashUndoToast();
   const [dialog, setDialog] = useState<OpenDialog>(null);
-  const { update, remove } = useStudioAssetMutations();
+  const isInstanceAdmin = useAuthStore((s) => s.user?.is_admin === true);
+  const { update, remove, setOfficial } = useStudioAssetMutations();
+  const { mutate: markOfficial } = setOfficial;
   const { mutate: updateAsset } = update;
   const { mutate: removeAsset } = remove;
 
@@ -59,8 +62,22 @@ export function useStudioAssetActions(): {
         removeAsset(item.id, {
           onSuccess: () => showTrashUndo({ kind: 'studio_asset', id: item.id, title: item.title }),
         }),
+      onToggleOfficial: isInstanceAdmin
+        ? (item) =>
+            markOfficial(
+              { id: item.id, official: !item.isOfficial },
+              {
+                onSuccess: (updated) =>
+                  toast.success(
+                    updated.isOfficial
+                      ? `„${item.title}“ steht jetzt im Marktplatz unter „Offiziell“.`
+                      : `„${item.title}“ ist nicht mehr offiziell.`
+                  ),
+              }
+            )
+        : null,
     }),
-    [navigate, updateAsset, removeAsset, showTrashUndo]
+    [navigate, updateAsset, removeAsset, showTrashUndo, isInstanceAdmin, markOfficial]
   );
 
   const dialogs = (

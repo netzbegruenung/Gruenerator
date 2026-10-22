@@ -71,6 +71,7 @@ const asset = (
       visibility: 'public',
       audience: 'all',
       moderation: 'ok',
+      isOfficial: false,
       isOwn: false,
       authorName: 'Muster',
       likesCount: 0,

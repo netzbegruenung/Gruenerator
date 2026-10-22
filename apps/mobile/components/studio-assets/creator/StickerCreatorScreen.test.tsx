@@ -77,6 +77,7 @@ const item: StudioAssetItem = {
   visibility: 'private',
   audience: 'de-DE',
   moderation: 'ok',
+  isOfficial: false,
   isOwn: true,
   authorName: null,
   likesCount: 0,

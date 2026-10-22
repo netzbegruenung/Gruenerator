@@ -39,6 +39,7 @@ const {
   isStudioAssetVisible,
   listStudioAssets,
   removeStudioAsset,
+  setStudioAssetOfficial,
   updateStudioAsset,
 } = await import('./studioAssetsService.js');
 const { purgeStudioAsset } = await import('./studioAssetTrash.js');
@@ -168,6 +169,34 @@ describe.skipIf(!url)('Studio-Shop (studioAssetsService)', () => {
     const res = await listStudioAssets(me, 'de-DE', query());
     expect(res.items.map((i) => i.id).sort()).toEqual([shown, shownDe].sort());
     expect(res.items[0]).toMatchObject({ isOwn: false, authorName: 'Andere Person' });
+  });
+
+  it('marks only public, unmoderated, live items official, and splits the shop by it', async () => {
+    const plain = await insertAsset(other, { title: 'Öffentlich' });
+    const official = await insertAsset(other, { title: 'Offiziell' });
+    const priv = await insertAsset(other, { visibility: 'private' });
+    const hidden = await insertAsset(other, { moderation: 'hidden' });
+    const trashed = await insertAsset(other, { deleted: true });
+
+    const marked = await setStudioAssetOfficial(me, official, true);
+    expect(marked).toMatchObject({ ok: true, value: { id: official, isOfficial: true } });
+    for (const id of [priv, hidden, trashed, randomUUID(), 'kein-uuid']) {
+      expect(await setStudioAssetOfficial(me, id, true)).toMatchObject({ ok: false, status: 404 });
+    }
+
+    const ids = async (official?: boolean) =>
+      (
+        await listStudioAssets(me, 'de-DE', query(), official === undefined ? {} : { official })
+      ).items.map((i) => i.id);
+    expect(await ids(true)).toEqual([official]);
+    expect(await ids(false)).toEqual([plain]);
+    expect((await ids()).sort()).toEqual([plain, official].sort());
+
+    expect(await setStudioAssetOfficial(me, official, false)).toMatchObject({
+      ok: true,
+      value: { isOfficial: false },
+    });
+    expect(await ids(true)).toEqual([]);
   });
 
   it('mine shows the owner’s hidden and removed items too, but not the trashed ones', async () => {

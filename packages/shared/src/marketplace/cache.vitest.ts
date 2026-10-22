@@ -55,6 +55,7 @@ const asset: StudioAssetItem = {
   visibility: 'public',
   audience: 'all',
   moderation: 'ok',
+  isOfficial: false,
   isOwn: false,
   authorName: null,
   likesCount: 2,
