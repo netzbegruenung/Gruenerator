@@ -88,7 +88,7 @@ export function CombinedTextSection({
             <button
               type="button"
               onClick={onAddText}
-              className={cn(MOBILE_ADD_TILE, 'h-10 text-[15px] font-normal')}
+              className={cn(MOBILE_ADD_TILE, 'h-11 text-[15px] font-normal')}
             >
               Fließtext hinzufügen
             </button>

@@ -1,13 +1,19 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+
 import { render, screen } from '@testing-library/react';
 import { PiTextAa } from 'react-icons/pi';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { SidebarHint } from '../../sidebar/components/SidebarHint';
 import { FontSizeStepper } from '../../sidebar/components/TextFieldPrimitives';
+import { CombinedTextSection } from '../../sidebar/sections/CombinedTextSection';
 import { SidebarPanel } from '../../sidebar/SidebarPanel';
 import { SubsectionTabBar } from '../../sidebar/SubsectionTabBar';
 import { ContextControls } from '../TopBar/ContextControls';
 import { FloatingColorPicker } from '../TopBar/modules/FloatingColorPicker';
 import { FloatingFontSizeControl } from '../TopBar/modules/FloatingFontSizeControl';
+import { FloatingLayerControls } from '../TopBar/modules/FloatingLayerControls';
 
 import type { FloatingModuleState } from '../../hooks/useFloatingModuleState';
 
@@ -121,5 +127,47 @@ describe('44pt-Ziele', () => {
       const btn = screen.queryByRole('button', { name }) ?? screen.getByTitle(name);
       expectBigTarget(btn);
     }
+  });
+
+  it('Ebenen-Knöpfe', () => {
+    render(
+      <FloatingLayerControls onMoveUp={() => {}} onMoveDown={() => {}} canMoveUp canMoveDown />
+    );
+    expectBigTarget(screen.getByRole('button', { name: 'Ebene nach oben' }));
+    expectBigTarget(screen.getByRole('button', { name: 'Ebene nach unten' }));
+  });
+
+  it('Hinweis-Knopf', () => {
+    render(<SidebarHint>Tipp</SidebarHint>);
+    expectBigTarget(screen.getByRole('button', { name: 'Hinweis anzeigen' }));
+  });
+
+  it('Text-Kacheln', () => {
+    render(
+      <CombinedTextSection onAddHeader={() => {}} onAddSubheader={() => {}} onAddText={() => {}} />
+    );
+    for (const name of [
+      'Überschrift hinzufügen',
+      'Untertitel hinzufügen',
+      'Fließtext hinzufügen',
+    ]) {
+      const cls = screen.getByRole('button', { name }).className;
+      expect(cls, name).toMatch(/\bh-1[1-9]\b/);
+    }
+  });
+
+  // The add-page button under the page sits inside the scaled pages container
+  // (fit + zoom shrink it to ~145×18 on a phone); it counter-scales back to
+  // its 44 px height. CanvasEditor is too heavy to render here.
+  it('Seite hinzufügen unter der Fläche', () => {
+    const source = readFileSync(
+      path.resolve(import.meta.dirname, '../CanvasEditor/index.tsx'),
+      'utf8'
+    );
+    const wrapper = /<div className="([^"]*canvas-mobile:hidden[^"]*)">\s*<AddPageButton/.exec(
+      source
+    );
+    expect(wrapper?.[1]).toContain('max-canvas-mobile:[scale:calc(1/var(--canvas-total-scale,1))]');
+    expect(wrapper?.[1]).toContain('max-canvas-mobile:origin-top');
   });
 });

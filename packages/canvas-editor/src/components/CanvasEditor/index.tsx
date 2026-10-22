@@ -1496,9 +1496,11 @@ function CanvasEditorInner({
                 untere Leiste den Knopf nicht trägt: unterhalb von 900 px, wo
                 `CanvasEditorLayout` sie per `max-canvas-mobile:hidden`
                 ausblendet. Die Breakpoint-Bedingung steht hier gespiegelt, weil
-                nur CSS sie kennt. */}
+                nur CSS sie kennt. Er liegt im skalierten Seiten-Container und
+                skaliert sich mobil zurück, sonst schrumpfte er mit Fit und Zoom
+                unter 44 pt. */}
               {canAddMore && !showPageStrip && (
-                <div className="w-full max-w-[28rem] pt-sm max-canvas-mobile:pt-xs max-canvas-mobile:px-xs canvas-mobile:hidden">
+                <div className="w-full max-w-[28rem] pt-sm max-canvas-mobile:pt-xs max-canvas-mobile:px-xs max-canvas-mobile:origin-top max-canvas-mobile:[scale:calc(1/var(--canvas-total-scale,1))] canvas-mobile:hidden">
                   <AddPageButton
                     onSelectTemplate={handleAddPage}
                     onDuplicateCurrent={duplicateCurrentPage}
