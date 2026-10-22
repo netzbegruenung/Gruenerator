@@ -72,35 +72,24 @@ function setActivity(next: string | null) {
  * agentSessionController.ts), and the API refuses everyone else.
  */
 export const mistralChatVoice: ChatVoice = {
-  createAdapter: (thread) => {
-    // Cards cannot join a running call's messages (assistant-ui takes text
-    // only); the thread re-reads once the call is over.
-    let created = false;
-    return createWebVoiceAdapter({
+  createAdapter: (thread) =>
+    createWebVoiceAdapter({
       resolveThreadId: thread.resolveThreadId,
       onToolActivity: (call) =>
         setActivity(call ? (TOOL_LABEL[call.name] ?? 'Schlage nach') : null),
+      // The card joins the chat while the call runs; once it is over the
+      // thread is read back as saved.
       onArtifact: (artifact) => {
-        created = true;
-        void import('sonner').then(({ toast }) =>
-          toast.success(`${artifact.title} ist fertig`, {
-            description: 'Erscheint im Chat, sobald das Gespräch endet.',
-          })
-        );
+        if (artifact.messageId) void thread.insert(artifact.messageId);
       },
-      onEnded: () => {
-        if (!created) return;
-        created = false;
-        void thread.reload();
-      },
+      onEnded: () => void thread.reload(),
       onError: (message) => {
         if (message)
           void import('sonner').then(({ toast }) =>
             toast.error('Sprachgespräch', { description: message })
           );
       },
-    });
-  },
+    }),
   getActivity: () => activity,
   subscribeActivity: (onChange) => {
     listeners.add(onChange);

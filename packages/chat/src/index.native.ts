@@ -102,6 +102,11 @@ export {
   type NotebookChatAdapterOptions,
 } from './runtime/useNotebookChatAdapter';
 export { convertNotebookLoadedMessages } from './runtime/threadMessageConversion';
+export {
+  insertSavedMessage,
+  reloadSavedThread,
+  type VoiceSyncThread,
+} from './runtime/voiceThreadSync';
 
 // Types (from useChatGraphStream)
 export {
