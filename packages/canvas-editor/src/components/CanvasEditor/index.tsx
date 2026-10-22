@@ -76,6 +76,11 @@ import {
   type VorlagenSectionHandle,
 } from '../../sidebar/sections/VorlagenSection';
 import { UserUploadsProvider } from '../../sidebar/UserUploadsProvider';
+import {
+  buildSlideLayout,
+  slideLayoutConfigId,
+  type SlideLayoutId,
+} from '../../slides/slideLayouts';
 import { useCanvasStoreSelector } from '../../stores/CanvasStoreProvider';
 import { AutoSaveStoreProvider } from '../../stores/useAutoSaveStore';
 import { cn } from '../../utils/cn';
@@ -373,6 +378,21 @@ function CanvasEditorInner({
       await addPage(sliderConfigId === 'slider-at' ? 'slider-at' : 'slider', true, overrides);
     },
     [addPage, sliderConfigId]
+  );
+
+  // Präsentation: eine Folie aus den CD-Layouts anhängen, im CI des Decks.
+  // Kein Hintergrund von der aktuellen Seite: das Layout bringt seinen eigenen.
+  const layoutLocale = sliderConfigId === 'freeform-at' ? 'de-AT' : 'de-DE';
+  const handleAddSlideLayout = useCallback(
+    async (layoutId: SlideLayoutId) => {
+      const state = buildSlideLayout(layoutId, {
+        locale: layoutLocale,
+        pageNumber: pageCount + 1,
+        date: new Date(),
+      });
+      await addPage(slideLayoutConfigId(layoutLocale), false, state);
+    },
+    [addPage, layoutLocale, pageCount]
   );
 
   // "Vorlage ändern" — convert an existing page to another template.
@@ -1413,6 +1433,7 @@ function CanvasEditorInner({
       onAddSliderVariant={sliderVariantHandler}
       templateFilter={categoryFilter}
       formatId={formatId}
+      onAddSlideLayout={handleAddSlideLayout}
     />
   ) : null;
   const bottomBar = (
@@ -1432,6 +1453,7 @@ function CanvasEditorInner({
                 onAddSliderVariant={sliderVariantHandler}
                 templateFilter={categoryFilter}
                 formatId={formatId}
+                onAddSlideLayout={handleAddSlideLayout}
                 compact
               />
             </div>
@@ -1589,6 +1611,7 @@ function CanvasEditorInner({
                     onAddSliderVariant={sliderVariantHandler}
                     templateFilter={categoryFilter}
                     formatId={formatId}
+                    onAddSlideLayout={handleAddSlideLayout}
                   />
                 </div>
               )}
