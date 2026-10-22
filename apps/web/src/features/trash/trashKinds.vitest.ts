@@ -46,6 +46,13 @@ describe('TRASH_KIND_LABELS', () => {
     for (const subtype of COLLAB_SUBTYPE_VALUES) expect(label(subtype)).toMatch(/\S/);
   });
 
+  it('names a canvas in the slide format a Präsentation', () => {
+    const base = { kind: 'collaborative_document' as const, subtype: 'canvas' };
+    expect(trashItemLabel({ ...base, format: 'slide-16-9' })).toBe('Präsentation');
+    expect(trashItemLabel({ ...base, format: 'post-portrait' })).toBe('Sharepic');
+    expect(trashItemLabel({ ...base, format: null })).toBe('Sharepic');
+  });
+
   it('names shared media by media_type and falls back to the kind', () => {
     const label = (subtype: string | null) => trashItemLabel({ kind: 'shared_media', subtype });
     expect(label('image')).toBe('Bild');
