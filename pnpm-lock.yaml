@@ -1240,9 +1240,6 @@ importers:
       react-webcam:
         specifier: ^7.2.0
         version: 7.2.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      rehype-raw:
-        specifier: ^7.0.0
-        version: 7.0.0
       sonner:
         specifier: ^2.0.8
         version: 2.0.8(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
