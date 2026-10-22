@@ -9,10 +9,10 @@
  * `console.error` alone isn't captured in production (no captureConsole
  * integration in `index.tsx`).
  */
-import { ApiError } from '@gruenerator/shared/api';
+import { ApiError, reportGatewayDown, reportServerBack } from '@gruenerator/shared/api';
 import { toast } from '@gruenerator/ui';
 import * as Sentry from '@sentry/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { toastApiError } from './toastError';
 
@@ -206,5 +206,34 @@ describe('toastApiError — vector store unavailable', () => {
       'Wissensdatenbank nicht erreichbar',
       expect.anything()
     );
+  });
+});
+
+describe('toastApiError during a backend restart', () => {
+  beforeEach(() => {
+    toastErrorMock.mockClear();
+    captureExceptionMock.mockClear();
+    vi.useFakeTimers();
+    reportGatewayDown();
+  });
+
+  afterEach(() => {
+    reportServerBack();
+    vi.advanceTimersByTime(10_001);
+    vi.useRealTimers();
+  });
+
+  it('neither toasts nor reports a failed read — the restart notice covers it', () => {
+    toastApiError(new ApiError(502, 'Agents konnten nicht geladen werden.'), { source: 'query' });
+    toastApiError({ message: 'Network Error' }, { source: 'query' });
+
+    expect(toastErrorMock).not.toHaveBeenCalled();
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it('still tells the user when a save failed', () => {
+    toastApiError(new ApiError(502, 'x'), { source: 'mutation' });
+
+    expect(toastErrorMock).toHaveBeenCalledTimes(1);
   });
 });

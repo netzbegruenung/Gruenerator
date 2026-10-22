@@ -5,4 +5,5 @@ export * from './errors.js';
 export * from './locale.js';
 export * from './researchDocument.js';
 export * from './researchSearch.js';
+export * from './serverRestartSignal.js';
 export * from './unauthorizedInfo.js';
