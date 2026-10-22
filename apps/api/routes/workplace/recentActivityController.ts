@@ -347,7 +347,7 @@ export async function fetchRecentCanvases(
 ): Promise<RecentActivityItem[]> {
   const rows = await db.query(
     `SELECT
-      cd.id, cd.title, cd.updated_at, cd.created_by, cdoc.thumbnail_url,
+      cd.id, cd.title, cd.updated_at, cd.created_by, cdoc.thumbnail_url, cdoc.format,
       p.display_name as creator_name,
       CASE
         WHEN cd.created_by = $2 THEN 'owner'
@@ -376,6 +376,7 @@ export async function fetchRecentCanvases(
       updated_at: string;
       created_by: string;
       thumbnail_url: string | null;
+      format: string | null;
       creator_name: string | null;
       access_type: string | null;
     }>
@@ -385,6 +386,8 @@ export async function fetchRecentCanvases(
     date: row.updated_at,
     type: 'canvas' as const,
     href: `/studio/canvas/${row.id}`,
+    // Das Format lässt den Client Folien von Sharepics unterscheiden.
+    ...(row.format ? { documentType: row.format } : {}),
     // The stored URL points at /api/share/<token>/download, which requires
     // auth — passing it through is why canvas tiles were blank even when a
     // thumbnail existed.

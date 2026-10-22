@@ -2,7 +2,7 @@ import { type Document } from '@gruenerator/docs';
 import { Skeleton } from '@gruenerator/ui';
 import { useQuery } from '@tanstack/react-query';
 import { lazy, Suspense } from 'react';
-import { useParams } from 'react-router-dom';
+import { Navigate, useParams } from 'react-router-dom';
 
 import { isEmbedded } from '../../utils/platform';
 import { platformFetch } from '../../utils/platformFetch';
@@ -57,6 +57,8 @@ export default function CollabDocRoute() {
   if (isLoading) return <EditorSkeleton />;
 
   const subtype = docData?.document_subtype;
+  // Canvas-Folien gehören in den Canvas-Editor; BlockNote würde den Y.Doc leer anzeigen.
+  if (subtype === 'canvas') return <Navigate to={`/studio/canvas/${id}`} replace />;
   const Editor =
     subtype === 'sheets'
       ? SheetsEditorPage

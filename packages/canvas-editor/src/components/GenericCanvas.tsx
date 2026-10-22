@@ -54,6 +54,7 @@ import { buildCanvasItems, buildSortedRenderList } from '../utils/canvasLayerMan
 import {
   captureStageImage,
   captureStageImageAsync,
+  rasterizeStageElement,
   visibleStageTexts,
 } from '../utils/captureStage';
 import { itemBodyRect } from '../utils/deepSelect';
@@ -243,6 +244,8 @@ export interface GenericCanvasRef {
   captureCanvasForAi: () => Promise<string | null>;
   /** The page's visible texts in reading order, for alt texts. */
   getVisibleTexts: () => string[];
+  /** One element alone as PNG plus its box in page px (PPTX raster fallback); null when not on the stage. */
+  rasterizeElement: (elementId: string) => Promise<ReturnType<typeof rasterizeStageElement>>;
   /** Clears this page's element selection — the per-page store lives behind
    *  CanvasStoreProvider, so the parent editor reaches it through this handle. */
   deselect: () => void;
@@ -800,6 +803,10 @@ function GenericCanvasWithRef<
       captureCanvasForAi: async () =>
         captureStageImage(stageRef.current, { format: 'jpeg', pixelRatio: 1, quality: 0.85 }),
       getVisibleTexts: () => visibleStageTexts(stageRef.current?.getStage() ?? null),
+      rasterizeElement: async (elementId) => {
+        await ensureFontsReady();
+        return rasterizeStageElement(stageRef.current?.getStage() ?? null, elementId);
+      },
       deselect: () => setSelectedElement(null),
       beginMarquee,
       dropMedia: (evt, media) => {

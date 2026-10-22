@@ -5,11 +5,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CanvasEditorProvider, type CanvasVorlagenService } from '../../CanvasEditorProvider';
 import { defaultCanvasEditorStore } from '../../stores/createCanvasEditorStore';
+import { axe } from '../../test-utils';
 import { VORLAGE_DRAG_TYPE } from '../../utils/mediaDrop';
 import { VorlagenSection, type VorlagenSectionHandle } from '../sections/VorlagenSection';
 
 import type { HeterogeneousPage } from '../../configs/types';
 import type { CanvasVorlage, PrintVorlage, SharepicSeite } from '@gruenerator/contracts';
+
+// Kein Offscreen-Konva in jsdom: die Folienvorschauen bleiben beim Skeleton.
+vi.mock('../../slides/renderSlideLayoutThumbnail', () => ({
+  preloadSlideLayoutPhoto: () => Promise.resolve(),
+  renderSlideLayoutThumbnail: () => new Promise(() => {}),
+}));
 
 function seite(id: string, titel: string, over: Partial<SharepicSeite> = {}): SharepicSeite {
   return {
@@ -144,7 +151,7 @@ function setup(
   };
   const onShowPage = vi.fn();
   const handle = createRef<VorlagenSectionHandle>();
-  render(
+  const { container } = render(
     <CanvasEditorProvider services={{ vorlagen, userLocale }}>
       <VorlagenSection
         ref={handle}
@@ -153,10 +160,11 @@ function setup(
         deck={deck}
         onShowPage={onShowPage}
         canAddPage={canAddPage}
+        layoutLocale={userLocale}
       />
     </CanvasEditorProvider>
   );
-  return { vorlagen, deck, onShowPage, handle, user: userEvent.setup() };
+  return { vorlagen, deck, onShowPage, handle, container, user: userEvent.setup() };
 }
 
 const card = (titel: string) =>
@@ -591,5 +599,108 @@ describe('VorlagenSection on a print design', () => {
     const dialog = await screen.findByRole('alertdialog');
     expect(within(dialog).queryByRole('button', { name: /neues Design/ })).toBeNull();
     expect(within(dialog).getByRole('button', { name: 'Aktuelles ersetzen' })).toBeInTheDocument();
+  });
+});
+
+describe('VorlagenSection on a slide deck', () => {
+  const slidePage = (id: string, notes = ''): HeterogeneousPage => ({
+    id,
+    configId: 'freeform',
+    state: { notes, additionalTexts: [{ id: 'folie-titel', text: 'Titelfolie' }] },
+  });
+  const DECK = [slidePage('s1'), slidePage('s2')];
+  const DECK_CANVAS = canvasVorlage('deck-agenda', 'Agenda-Folie', 'slide-16-9');
+
+  type Ops = {
+    updates: { pageId: string; state: Record<string, unknown> }[];
+    inserts: { afterPageId: string | null; configId: string; state: Record<string, unknown> }[];
+    removes: string[];
+  };
+  const opsOf = (deck: ReturnType<typeof setup>['deck']) =>
+    (deck.replaceDeck.mock.calls[0] as unknown as [Ops])[0];
+
+  it('shows the slide layouts, dark and light, then the canvas Vorlagen of the format', async () => {
+    const { vorlagen, container } = setup(DECK, {
+      formatId: 'slide-16-9',
+      service: { listCanvas: vi.fn(async () => [...CANVAS_CATALOGUE, DECK_CANVAS]) },
+    });
+    const dark = screen.getByRole('region', { name: 'Folienlayouts Dunkel' });
+    const light = screen.getByRole('region', { name: 'Folienlayouts Hell' });
+    expect(within(dark).getAllByRole('button')).toHaveLength(10);
+    expect(within(light).getAllByRole('button')).toHaveLength(6);
+    const more = await screen.findByRole('region', { name: 'Weitere Vorlagen' });
+    expect(
+      within(more)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent)
+    ).toEqual(['Agenda-Folie']);
+    expect(screen.queryByText(/noch keine Vorlagen/)).toBeNull();
+    expect(vorlagen.listSeiten).not.toHaveBeenCalled();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('shows only the layouts when the host has no Vorlage of the format', async () => {
+    const listCanvas = vi.fn(async () => CANVAS_CATALOGUE);
+    setup(DECK, { formatId: 'slide-16-9', service: { listCanvas } });
+    await waitFor(() => expect(listCanvas).toHaveBeenCalled());
+    expect(screen.getByRole('button', { name: 'Titelfolie, dunkel' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Weitere Vorlagen' })).toBeNull();
+    expect(screen.queryByText(/noch keine Vorlagen/)).toBeNull();
+  });
+
+  it('adds a layout after the open page, numbered for its place', async () => {
+    const { deck, onShowPage, user } = setup(DECK, { formatId: 'slide-16-9' });
+    deck.replaceDeck.mockReturnValue(['neu']);
+    await user.click(screen.getByRole('button', { name: 'Zitat, hell' }));
+    const ops = opsOf(deck);
+    expect(ops.removes).toEqual([]);
+    expect(ops.inserts).toHaveLength(1);
+    expect(ops.inserts[0]).toMatchObject({ afterPageId: 's1', configId: 'freeform' });
+    const texts = ops.inserts[0]!.state.additionalTexts as { id: string; text: string }[];
+    expect(texts.find((t) => t.id === 'folie-seitenzahl')?.text).toBe('2');
+    expect(onShowPage).toHaveBeenCalledWith('neu');
+  });
+
+  it('fills an empty deck instead, keeping the notes written there', async () => {
+    const blank: HeterogeneousPage[] = [
+      { id: 'p1', configId: 'freeform', state: { backgroundColor: '#005538', notes: 'Begrüßung' } },
+    ];
+    const { deck, user } = setup(blank, { formatId: 'slide-16-9' });
+    await user.click(screen.getByRole('button', { name: 'Titelfolie, dunkel' }));
+    const ops = opsOf(deck);
+    expect(ops.inserts).toEqual([]);
+    expect(ops.updates[0]).toMatchObject({ pageId: 'p1', state: { notes: 'Begrüßung' } });
+  });
+
+  it('builds the Austrian layouts for an AT deck', async () => {
+    const at = DECK.map((p) => ({ ...p, configId: 'freeform-at' as const }));
+    const { deck, user } = setup(at, { formatId: 'slide-16-9', userLocale: 'de-AT' });
+    await user.click(screen.getByRole('button', { name: 'Textfolie, dunkel' }));
+    expect(opsOf(deck).inserts[0]).toMatchObject({ afterPageId: 's1', configId: 'freeform-at' });
+  });
+
+  it('adds a layout dragged onto a page after that page', () => {
+    const { deck, handle } = setup(DECK, { formatId: 'slide-16-9' });
+    const data = dragStart(screen.getByRole('button', { name: 'Diagramm, dunkel' }));
+    act(() => handle.current!.drop(data[VORLAGE_DRAG_TYPE]!, 's2'));
+    expect(opsOf(deck).inserts[0]).toMatchObject({ afterPageId: 's2' });
+  });
+
+  it('does not drag on touch layouts', () => {
+    setViewport(true);
+    setup(DECK, { formatId: 'slide-16-9' });
+    expect(screen.getByRole('button', { name: 'Diagramm, dunkel' })).toHaveAttribute(
+      'draggable',
+      'false'
+    );
+  });
+
+  it('adds nothing once the deck is full', async () => {
+    const { deck, user } = setup(DECK, { formatId: 'slide-16-9', canAddPage: false });
+    expect(screen.getByText(/Mehr Folien passen nicht/)).toBeInTheDocument();
+    const tile = screen.getByRole('button', { name: 'Titelfolie, dunkel' });
+    expect(tile).toBeDisabled();
+    await user.click(tile);
+    expect(deck.replaceDeck).not.toHaveBeenCalled();
   });
 });

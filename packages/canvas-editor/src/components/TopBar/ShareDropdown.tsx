@@ -24,6 +24,7 @@ import {
   DownloadSection,
   type CanvasDownloadChoice,
   type PrintExportProps,
+  type SlideDeckExportProps,
 } from './DownloadSection';
 
 export interface ShareDropdownProps {
@@ -48,6 +49,8 @@ export interface ShareDropdownProps {
   exportNotice?: string | null;
   /** Set for print formats: the download section offers the print PDF. */
   printExport?: PrintExportProps | null;
+  /** Set for slide formats: the download section offers PowerPoint and a PDF of all pages. */
+  slideDeck?: SlideDeckExportProps | null;
   /**
    * Optional host-supplied "invite people" action. When provided, the share
    * popover shows a "Personen" icon button that opens the host's collaborator
@@ -84,6 +87,7 @@ export function ShareDropdown({
   exportError,
   exportNotice,
   printExport,
+  slideDeck,
   onInvitePeople,
   onSaveAsTemplate,
   hostControl,
@@ -185,6 +189,7 @@ export function ShareDropdown({
                 exportError={exportError}
                 exportNotice={exportNotice}
                 printExport={printExport}
+                slideDeck={slideDeck}
               />
             </div>
           </>

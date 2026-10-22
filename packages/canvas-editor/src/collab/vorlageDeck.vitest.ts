@@ -53,6 +53,20 @@ describe('vorlageDeckOps', () => {
   })();
   const page = (title: string) => ({ configId: 'freeform', state: { title } });
 
+  it('keeps speaker notes per position, rewritten or replaced', () => {
+    const current = [
+      { id: 'a', configId: 'freeform', state: { notes: 'Begrüßung' } },
+      { id: 'b', configId: 'dreizeilen', state: { notes: 'Drei Gründe' } },
+      { id: 'c', configId: 'freeform', state: { notes: '  ' } },
+    ];
+    const ops = vorlageDeckOps(current, [page('Eins'), page('Zwei'), page('Drei')], ids);
+    expect(ops.updates).toEqual([
+      { pageId: 'a', state: { title: 'Eins', notes: 'Begrüßung' } },
+      { pageId: 'c', state: { title: 'Drei' } },
+    ]);
+    expect(ops.inserts[0]!.state).toEqual({ title: 'Zwei', notes: 'Drei Gründe' });
+  });
+
   it('rewrites a page of the same config in place', () => {
     const ops = vorlageDeckOps([{ id: 'a', configId: 'freeform' }], [page('Eins')], ids);
     expect(ops).toEqual({
@@ -233,6 +247,21 @@ describe('pageSwapOps', () => {
       updates: [],
       inserts: [{ afterPageId: 'b', configId: 'freeform', state: page.state, pageId: 'n' }],
       removes: ['c'],
+    });
+  });
+
+  it('keeps the speaker notes of the page it replaces', () => {
+    const noted = [
+      { id: 'a', configId: 'freeform', state: { notes: 'Begrüßung' } },
+      { id: 'c', configId: 'dreizeilen', state: { notes: 'Schluss' } },
+    ];
+    expect(pageSwapOps(noted, 'a', page, () => 'n').updates[0]!.state).toEqual({
+      title: 'Rückseite',
+      notes: 'Begrüßung',
+    });
+    expect(pageSwapOps(noted, 'c', page, () => 'n').inserts[0]!.state).toEqual({
+      title: 'Rückseite',
+      notes: 'Schluss',
     });
   });
 

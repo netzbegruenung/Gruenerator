@@ -5,6 +5,7 @@ import { useCanvasEditorServices } from '../CanvasEditorProvider';
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { getIllustrationPath, findIllustrationById } from '../utils/illustrations/registry';
 import { getCachedSVG, getSVG } from '../utils/illustrations/svgCache';
+import { ILLUSTRATION_TARGET_SIZE, MOTIF_BASE_SIZE } from '../utils/motifSizes';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type {
@@ -144,8 +145,8 @@ function IllustrationPrimitiveInner({
 
   if (!image) return null;
 
-  const BASE_SIZE = 200;
-  const TARGET_SIZE = 160;
+  const BASE_SIZE = MOTIF_BASE_SIZE;
+  const TARGET_SIZE = ILLUSTRATION_TARGET_SIZE;
   const baseScale = TARGET_SIZE / BASE_SIZE;
 
   return (

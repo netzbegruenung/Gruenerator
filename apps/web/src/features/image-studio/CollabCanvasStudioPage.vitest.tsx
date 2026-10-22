@@ -31,6 +31,8 @@ function setSynced(isSynced: boolean) {
 
 vi.mock('@gruenerator/canvas-editor', () => ({
   commitOpenTextEdit: () => {},
+  getCanvasFormatOrDefault: (id: string) => ({ id }),
+  isSlideFormat: (format: { id: string }) => format.id === 'slide-16-9',
   useCanvasCollaboration: () =>
     useSyncExternalStore(
       (listener) => {
