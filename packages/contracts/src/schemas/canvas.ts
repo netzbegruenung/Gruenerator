@@ -79,7 +79,9 @@ export type CreateCanvasBody = z.infer<typeof createCanvasBodySchema>;
  * sharepic variant. The server seeds the Yjs formState from the FULL
  * `initial_props` (lossless, unlike the old client mint), binds it to the
  * thread/variant (idempotent — a re-open or a later chat edit reuse the same
- * canvas), and returns the canvasId to open at `/studio/canvas/:id`.
+ * canvas), and returns the canvasId to open at `/studio/canvas/:id`. Only a
+ * caller who may write the thread binds, and only a variant the thread holds;
+ * a read-only viewer gets an unbound canvas of their own, no access is a 404.
  */
 export const canvasFromVariantBodySchema = z.object({
   canvasType: canvasTemplateTypeSchema,

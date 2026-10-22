@@ -71,6 +71,7 @@ export const canvasContract = c.router(
         201: canvasFromVariantResponseSchema,
         400: canvasErrorResponseSchema,
         401: canvasErrorResponseSchema,
+        404: canvasErrorResponseSchema,
         500: canvasErrorResponseSchema,
       },
       summary: 'Mint a canvas from an unminted chat sharepic variant',

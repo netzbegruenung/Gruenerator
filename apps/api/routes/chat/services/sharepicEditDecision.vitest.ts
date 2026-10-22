@@ -36,6 +36,10 @@ vi.mock('../../../services/canvas/canvasVersionRepository.js', () => ({
   insertCanvasVersion: mocks.version,
 }));
 vi.mock('./editTurnCompletion.js', () => ({ finishEditTurn: mocks.finish }));
+vi.mock('../../../services/canvas/canvasRepository.js', () => ({
+  createCanvas: vi.fn(),
+  checkCanvasWriteAccess: vi.fn().mockResolvedValue({ kind: 'ok' }),
+}));
 
 import { sharepicCapabilitiesView } from '../../canvas/services/buildCanvasSuggestPrompt.js';
 import { runCanvasEditDecision } from '../../canvas/services/runCanvasSuggest.js';
