@@ -56,6 +56,7 @@ import {
 } from './attachmentProcessingService.js';
 import { countCloudConnections } from './cloudConnectionContext.js';
 import { enrichContext } from './contextEnrichmentService.js';
+import { authorizeDocumentScope } from './documentScopeAccess.js';
 import { priorTurnEditables } from './editAddressee.js';
 import { backfillEmptyUserMessages } from './historyBackfill.js';
 import { turnContextWindow } from './laneContextFloor.js';
@@ -346,8 +347,25 @@ export async function buildStreamContext({
     rawDefaultNotebookId && !defaultNotebookId && isUserNotebookId(rawDefaultNotebookId)
       ? await resolveUserNotebookDocumentIds(userId, [rawDefaultNotebookId])
       : { documentIds: [], documentNotebookIds: {} };
+
+  // Body document ids scope a search that runs without an owner filter, so they
+  // are authorized here, before they reach the graph state.
+  const documentScope = await authorizeDocumentScope(userId, [
+    ...(rawDocumentIds ?? []),
+    ...(rawDocumentChatIds ?? []),
+  ]);
+  const readableDocumentIds = new Set(documentScope.documentIds);
+  const authorizedDocumentIds = (rawDocumentIds ?? []).filter((id) => readableDocumentIds.has(id));
+  const authorizedDocumentChatIds = (rawDocumentChatIds ?? []).filter((id) =>
+    readableDocumentIds.has(id)
+  );
+
   // The mention wins on overlap, as it wins the search scope.
-  const documentNotebookIds = { ...defaultDocumentNotebookIds, ...mentionedDocumentNotebookIds };
+  const documentNotebookIds = {
+    ...documentScope.documentNotebookIds,
+    ...defaultDocumentNotebookIds,
+    ...mentionedDocumentNotebookIds,
+  };
 
   // Tor für `cloud_files`: der Katalog wird synchron gebaut und kann diese Frage
   // nicht selbst stellen. Gecacht (60 s) und fehlertolerant — ein Ausfall macht
@@ -763,7 +781,7 @@ export async function buildStreamContext({
     .filter((a) => a.documentId)
     .map((a) => a.documentId as string);
   const mergedDocumentChatIds = [
-    ...new Set([...(rawDocumentChatIds ?? []), ...embeddedAttachmentDocIds]),
+    ...new Set([...authorizedDocumentChatIds, ...embeddedAttachmentDocIds]),
   ];
 
   // === Memory retrieval (explicit user memory) ===
@@ -882,7 +900,7 @@ export async function buildStreamContext({
       defaultNotebookDocumentIds.length > 0 ? defaultNotebookDocumentIds : undefined,
     documentNotebookIds:
       Object.keys(documentNotebookIds).length > 0 ? documentNotebookIds : undefined,
-    documentIds: rawDocumentIds?.length ? rawDocumentIds : undefined,
+    documentIds: authorizedDocumentIds.length ? authorizedDocumentIds : undefined,
     documentChatIds: mergedDocumentChatIds.length
       ? mergedDocumentChatIds
       : docAttachments.length > 0 || documentChatMode
@@ -1019,7 +1037,7 @@ export async function buildStreamContext({
   await enrichContext({
     initialState,
     userId,
-    ...(rawDocumentIds != null && { rawDocumentIds }),
+    ...(authorizedDocumentIds.length > 0 && { rawDocumentIds: authorizedDocumentIds }),
     ...(rawTextIds != null && { rawTextIds }),
     ...(mergedBoardIds.length > 0 && { rawBoardIds: mergedBoardIds }),
     ...(mergedSheetIds.length > 0 && { rawSheetIds: mergedSheetIds }),
