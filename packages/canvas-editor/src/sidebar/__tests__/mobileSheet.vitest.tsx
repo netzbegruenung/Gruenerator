@@ -241,6 +241,32 @@ describe('mobiles Sheet: Ein- und Ausgleiten', () => {
     expect(screen.getByText('Inhalt')).toBeInTheDocument();
   });
 
+  it('does not replay the exit after a drag close', () => {
+    const onClose = vi.fn();
+    const { rerender } = render(
+      <SidebarPanel isOpen title="Text" onClose={onClose}>
+        <p>Inhalt</p>
+      </SidebarPanel>
+    );
+    const sheet = screen.getByRole('region', { name: 'Text' });
+    endTransition(sheet);
+    const handle = sheet.querySelector('.sidebar-panel__drag-handle') as HTMLElement;
+
+    fireEvent.touchStart(handle, { touches: [{ clientY: 100 }] });
+    fireEvent.touchMove(handle, { touches: [{ clientY: 260 }] });
+    fireEvent.touchEnd(handle, { touches: [] });
+    expect(sheet.style.transform).toBe('translateY(100%)');
+    endTransition(sheet);
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <SidebarPanel isOpen={false} title="Text" onClose={onClose}>
+        <p>Inhalt</p>
+      </SidebarPanel>
+    );
+    expect(sheetEl()).toBeNull();
+  });
+
   it('renders desktop panel immediately', () => {
     setViewport(false);
     render(panel(true));

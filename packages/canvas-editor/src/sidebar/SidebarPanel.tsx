@@ -103,9 +103,11 @@ export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSideb
     return () => window.clearTimeout(t);
   }, [isDesktop, phase, finishEnter, finishClose]);
 
-  const { handleRef, sheetRef } = useMobileSheet({
+  const { handleRef, sheetRef, contentRef } = useMobileSheet({
     isOpen: isOpen && !isDesktop,
     onClose: onClose || (() => {}),
+    // The drag already carried the sheet off-screen: drop it without a second exit.
+    onDragClosed: finishClose,
     threshold: 100,
     velocityThreshold: 0.5,
   });
@@ -136,28 +138,29 @@ export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSideb
         }}
         className="sidebar-panel order-1 flex-none flex flex-col h-[clamp(300px,48dvh,420px)] bg-[var(--editor-surface)] rounded-t-[20px] shadow-[0_-4px_24px_rgba(0,0,0,0.12)] overflow-hidden"
       >
-        <div
-          ref={handleRef}
-          className="sidebar-panel__drag-handle flex-none h-5 -mb-1 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none"
-        >
-          <div className="w-9 h-1 rounded-sm bg-[var(--editor-border-strong)]" />
+        {/* Griff und Titelzeile ziehen das Sheet gemeinsam. */}
+        <div ref={handleRef} className="flex-none touch-none">
+          <div className="sidebar-panel__drag-handle h-5 -mb-1 flex items-center justify-center cursor-grab active:cursor-grabbing">
+            <div className="w-9 h-1 rounded-sm bg-[var(--editor-border-strong)]" />
+          </div>
+          <div className="h-8 px-5 flex items-center justify-between gap-3">
+            <h2 className="m-0 text-[17px] font-bold text-[var(--editor-text)] truncate">
+              {sheetTitle}
+            </h2>
+            {onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label={`${sheetTitle ?? 'Bereich'} schließen`}
+                className="flex-none size-8 max-canvas-mobile:size-11 rounded-full border-none bg-[var(--editor-tile)] text-[var(--editor-text-secondary)] flex items-center justify-center cursor-pointer"
+              >
+                <PiX size={16} />
+              </button>
+            )}
+          </div>
         </div>
-        <div className="flex-none h-8 px-5 flex items-center justify-between gap-3">
-          <h2 className="m-0 text-[17px] font-bold text-[var(--editor-text)] truncate">
-            {sheetTitle}
-          </h2>
-          {onClose && (
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label={`${sheetTitle ?? 'Bereich'} schließen`}
-              className="flex-none size-8 max-canvas-mobile:size-11 rounded-full border-none bg-[var(--editor-tile)] text-[var(--editor-text-secondary)] flex items-center justify-center cursor-pointer"
-            >
-              <PiX size={16} />
-            </button>
-          )}
-        </div>
         <div
+          ref={contentRef}
           className={cn(
             'sidebar-panel__content flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pt-4 pb-5 flex flex-col gap-4',
             hasContent && 'sidebar-panel__content--in'
