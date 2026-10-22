@@ -468,6 +468,47 @@ export async function buildStreamContext({
     sse.send('thread_created', { threadId: actualThreadId });
   }
 
+  // === Thread access — before ANY read keyed on the client's thread id ===
+  // Everything below that reads the thread (history backfill, cloud-file refs,
+  // earlier attachments, tool history) trusts `actualThreadId`; it must only
+  // ever name a thread this user may write to.
+  if (
+    actualThreadId &&
+    !isNewThread &&
+    !(await canWriteThread(ThreadId(actualThreadId), UserId(userId)))
+  ) {
+    if (!lastUserMessage) {
+      // Nothing to persist, so no thread to mint: run the turn thread-less.
+      log.warn('[StreamContext] Dropping unwritable threadId on a turn without a user message');
+      actualThreadId = undefined;
+    } else {
+      // The client-supplied threadId is gone or not writable — most often a
+      // freshly-created empty thread reaped by the sidebar's auto-cleanup race
+      // mid-send, or a stale client id. Recover gracefully by minting a new
+      // thread for this user instead of hard-erroring. Safe: a foreign/deleted
+      // id is never reused, we always create a fresh user-owned thread.
+      //
+      // The recovery is invisible to the user, so leave a breadcrumb: without
+      // it we lose all signal on how often the reap race still fires (e.g. if
+      // the client's 60s protection window proves too short).
+      captureSseError({
+        code: 'thread-reaped-recovered',
+        message: 'Thread not found mid-send; minted a fresh thread to recover',
+        level: 'warning',
+        extras: { staleThreadId: actualThreadId, userId, agentId },
+      });
+      const userText = sanitizeMentionTokens(extractTextContent(lastUserMessage.content), 'label');
+      const thread = await createThread(
+        userId,
+        agentId ?? 'gruenerator-universal',
+        userText.slice(0, 50) + (userText.length > 50 ? '...' : '') || 'Neue Unterhaltung'
+      );
+      actualThreadId = thread.id;
+      isNewThread = true;
+      sse.send('thread_created', { threadId: actualThreadId });
+    }
+  }
+
   // Earlier user messages can arrive with no text at all (see historyBackfill);
   // the persisted rows still have it. Runs before this turn's own message is
   // written, so the persisted list is exactly the prior history. Only pay for the
@@ -495,38 +536,6 @@ export async function buildStreamContext({
   }
 
   if (actualThreadId && lastUserMessage) {
-    if (!isNewThread) {
-      if (!(await canWriteThread(ThreadId(actualThreadId), UserId(userId)))) {
-        // The client-supplied threadId is gone or not writable — most often a
-        // freshly-created empty thread reaped by the sidebar's auto-cleanup race
-        // mid-send, or a stale client id. Recover gracefully by minting a new
-        // thread for this user instead of hard-erroring. Safe: a foreign/deleted
-        // id is never reused, we always create a fresh user-owned thread.
-        //
-        // The recovery is invisible to the user, so leave a breadcrumb: without
-        // it we lose all signal on how often the reap race still fires (e.g. if
-        // the client's 60s protection window proves too short).
-        captureSseError({
-          code: 'thread-reaped-recovered',
-          message: 'Thread not found mid-send; minted a fresh thread to recover',
-          level: 'warning',
-          extras: { staleThreadId: actualThreadId, userId, agentId },
-        });
-        const userText = sanitizeMentionTokens(
-          extractTextContent(lastUserMessage.content),
-          'label'
-        );
-        const thread = await createThread(
-          userId,
-          agentId ?? 'gruenerator-universal',
-          userText.slice(0, 50) + (userText.length > 50 ? '...' : '') || 'Neue Unterhaltung'
-        );
-        actualThreadId = thread.id;
-        isNewThread = true;
-        sse.send('thread_created', { threadId: actualThreadId });
-      }
-    }
-
     // Seed message (Antrag / PM / Social text) — persisted BEFORE the user
     // message so order is seed → user → assistant-reply. New threads only.
     if (
