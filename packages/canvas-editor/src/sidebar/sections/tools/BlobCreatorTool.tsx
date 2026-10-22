@@ -112,7 +112,7 @@ function LabeledRange({
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
         disabled={disabled}
-        className="w-full accent-primary-600 disabled:opacity-50"
+        className="w-full max-canvas-mobile:h-11 accent-primary-600 disabled:opacity-50"
       />
     </label>
   );

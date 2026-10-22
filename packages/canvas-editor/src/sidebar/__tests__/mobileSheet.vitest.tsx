@@ -116,6 +116,49 @@ describe('mobiles Sheet: Ein- und Ausgleiten', () => {
     expect(sheet).toHaveAttribute('data-state', 'entering');
   });
 
+  it('gives focus back to the tab that opened it once the sheet is gone', () => {
+    const withTab = (isOpen: boolean) => (
+      <>
+        <button type="button">Text-Tab</button>
+        {panel(isOpen)}
+      </>
+    );
+    const { rerender } = render(withTab(false));
+    const tab = screen.getByRole('button', { name: 'Text-Tab' });
+    tab.focus();
+    rerender(withTab(true));
+    endTransition(screen.getByRole('region', { name: 'Text' }));
+
+    const close = screen.getByRole('button', { name: 'Text schließen' });
+    close.focus();
+    rerender(withTab(false));
+    // `inert` blurs the close button in a browser; jsdom does not.
+    close.blur();
+    endTransition(sheetEl() as Element);
+
+    expect(sheetEl()).toBeNull();
+    expect(tab).toHaveFocus();
+  });
+
+  it('leaves focus alone when it already moved somewhere else', () => {
+    const withTabs = (isOpen: boolean) => (
+      <>
+        <button type="button">Text-Tab</button>
+        <input aria-label="Woanders" />
+        {panel(isOpen)}
+      </>
+    );
+    const { rerender } = render(withTabs(false));
+    screen.getByRole('button', { name: 'Text-Tab' }).focus();
+    rerender(withTabs(true));
+    endTransition(screen.getByRole('region', { name: 'Text' }));
+    rerender(withTabs(false));
+    const elsewhere = screen.getByRole('textbox', { name: 'Woanders' });
+    elsewhere.focus();
+    endTransition(sheetEl() as Element);
+    expect(elsewhere).toHaveFocus();
+  });
+
   it('keeps the sheet mounted while it slides out', () => {
     const { rerender } = render(panel(true));
     endTransition(screen.getByRole('region', { name: 'Text' }));
