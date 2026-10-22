@@ -339,9 +339,9 @@ function stoerer(b: SlideBuilder, cx: number, cy: number, fill: string) {
   b.text(
     'folie-stoerer-text',
     'Hier steht\nder Störer-\nText.',
-    cx - d * 0.4,
+    cx - d * 0.43,
     cy - (lines * STOERER.size) / 2,
-    d * 0.8,
+    d * 0.86,
     STOERER.size,
     { family: b.ink.headline, fill: SHAREPIC_COLOR_HEX.weiss, align: 'center', lineHeight: 1 }
   );
@@ -367,7 +367,7 @@ function titel(b: SlideBuilder, light: boolean) {
   if (flower && light) b.asset('folie-blume', flower.assetId, 1030, 450, 900, flower.opacity);
   else if (flower) b.asset('folie-blume', flower.assetId, 1440, 340, 1000, flower.opacity);
   b.headline('folie-headline', 'Titelfolie', M, HEAD_TOP, 1500, 240);
-  b.text('folie-text', TITEL_TEXT, M, 350, 1500, 40, { lineHeight: 1.35 });
+  b.text('folie-text', TITEL_TEXT, M, 350, 1640, 40, { lineHeight: 1.35 });
 }
 
 function titelBild(b: SlideBuilder) {
@@ -475,15 +475,15 @@ function diagramm(b: SlideBuilder, locale: BrandLocale) {
 
 function zitat(b: SlideBuilder, withPhoto: boolean) {
   // Die Anführungszeichen als Text mit Kontur: bleibt nativ und färbbar.
-  b.text('folie-anfuehrung', '“', M - 10, 20, 400, 420, {
+  b.text('folie-anfuehrung', '”', M - 10, 20, 400, 420, {
     family: b.ink.headline,
     fill: 'rgba(255,255,255,0)',
     stroke: { color: b.ink.quote, width: 5 },
     lineHeight: 1,
   });
   b.text('folie-intro', ZITAT_INTRO, M, 330, 1400, 34, { type: 'subheader' });
-  const width = withPhoto ? 1300 : 1720;
-  const size = withPhoto ? 96 : 104;
+  const width = withPhoto ? 1350 : 1720;
+  const size = withPhoto ? 84 : 104;
   b.text(
     'folie-zitat',
     withPhoto ? ZITAT_TEXT.replace(/==/g, '') : ZITAT_TEXT,
