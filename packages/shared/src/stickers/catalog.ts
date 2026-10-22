@@ -65,6 +65,22 @@ export const SYSTEM_STICKERS = [
     tags: ['regenbogen', 'pride', 'csd', 'queer', 'flagge', 'vielfalt'],
   },
   {
+    id: 'eu-flagge',
+    label: 'Europaflagge',
+    src: '/studio-tools/stickers/eu-flagge.svg',
+    defaultScale: 1.2,
+    audience: 'all',
+    tags: ['europa', 'eu', 'flagge', 'sterne'],
+  },
+  {
+    id: 'europa-sterne',
+    label: 'Europa-Sternenkranz',
+    src: '/studio-tools/stickers/europa-sterne.svg',
+    defaultScale: 1,
+    audience: 'all',
+    tags: ['europa', 'eu', 'sterne', 'sternenkranz'],
+  },
+  {
     id: 'vielfalt',
     label: 'Vielfalt',
     src: '/studio-tools/stickers/vielfalt.svg',

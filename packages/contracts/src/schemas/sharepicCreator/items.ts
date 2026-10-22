@@ -316,6 +316,8 @@ export const SHAREPIC_COLOR_LABELS: Record<SharepicColor, string> = {
   flieder: 'Flieder',
   violett: 'Violett',
   pride: 'Pride-Verlauf',
+  europablau: 'Europablau',
+  himmelblau: 'Himmelblau',
 };
 
 /** Items whose words only the request gives: a draft may not reword them. */
