@@ -63,6 +63,63 @@ export function getDocUndoFlags(editor: UndoableEditor | null): {
   };
 }
 
+// Our own code that rewrites the stacks directly (the AI fork guard, the
+// recreate carry-over) fires no UndoManager event, so it reports here.
+const stackRewriteListeners = new WeakMap<UndoableEditor, Set<() => void>>();
+
+/** Call after assigning or pushing to the undo/redo stacks of `editor` by hand. */
+export function notifyDocUndoStacksRewritten(editor: UndoableEditor): void {
+  stackRewriteListeners.get(editor)?.forEach((listener) => listener());
+}
+
+const UNDO_MANAGER_EVENTS = ['stack-item-added', 'stack-item-popped', 'stack-cleared'] as const;
+
+interface UndoManagerEvents {
+  on: (event: string, listener: () => void) => void;
+  off: (event: string, listener: () => void) => void;
+}
+
+/**
+ * Report the undo/redo flags whenever they can have changed. onChange alone is
+ * too early: yjs pushes the redo item of an undo only after the transaction
+ * that onChange reports, so the flags lagged one step behind. The manager's own
+ * stack events fire after the push. The manager instance can be swapped (the
+ * AI fork guard rebuilds the yUndo plugin), so every report re-binds.
+ */
+export function subscribeDocUndoFlags(
+  editor: UndoableEditor,
+  onFlags: (flags: { canUndo: boolean; canRedo: boolean }) => void
+): () => void {
+  let boundManager: UndoManagerEvents | null = null;
+
+  const bind = (next: UndoManagerEvents | null) => {
+    if (next === boundManager) return;
+    UNDO_MANAGER_EVENTS.forEach((event) => boundManager?.off(event, update));
+    boundManager = next;
+    UNDO_MANAGER_EVENTS.forEach((event) => boundManager?.on(event, update));
+  };
+
+  function update() {
+    bind(getDocUndoManager(editor) as UndoManagerEvents | null);
+    onFlags(getDocUndoFlags(editor));
+  }
+
+  let rewriteListeners = stackRewriteListeners.get(editor);
+  if (!rewriteListeners) {
+    rewriteListeners = new Set();
+    stackRewriteListeners.set(editor, rewriteListeners);
+  }
+  rewriteListeners.add(update);
+
+  update();
+  const unsubChange = editor.onChange?.(update);
+  return () => {
+    unsubChange?.();
+    rewriteListeners.delete(update);
+    bind(null);
+  };
+}
+
 /**
  * Reactive undo/redo state for a mounted document editor. Reads y-prosemirror's
  * per-user undo stack (the same one `Cmd+Z` drives) so toolbar buttons can
@@ -77,12 +134,7 @@ export function useDocUndoState(editor: UndoableEditor | null): DocUndoState {
       setFlags({ canUndo: false, canRedo: false });
       return;
     }
-    const update = () => setFlags(getDocUndoFlags(editor));
-    update();
-    // onChange fires after each content transaction — exactly when the undo /
-    // redo stacks can change (including after an undo, redo, or AI accept).
-    const unsub = editor.onChange?.(update);
-    return () => unsub?.();
+    return subscribeDocUndoFlags(editor, setFlags);
   }, [editor]);
 
   // Guard the calls: BlockNote's undo()/redo() throw ("No undo plugin found")
