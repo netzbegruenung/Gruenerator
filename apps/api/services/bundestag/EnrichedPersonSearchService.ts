@@ -141,10 +141,10 @@ export class EnrichedPersonSearchService {
         return [];
       }
 
-      const qdrantClient = this.qdrant.client;
-      if (!qdrantClient) {
+      if (!this.qdrant.isContentAvailable()) {
         return [];
       }
+      const qdrantClient = this.qdrant.readClient('bundestag_content');
 
       // Hybrid search in bundestag_content
       const vectorHits = await qdrantClient.query('bundestag_content', {

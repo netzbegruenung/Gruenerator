@@ -93,18 +93,24 @@ export async function enrichTemplate(templateId: string): Promise<void> {
     // Embedding + Qdrant upsert (skipped gracefully if Qdrant is down).
     const qdrant = getQdrantInstance();
     let indexed = false;
-    if (qdrant.isAvailableSync() && qdrant.client) {
+    if (qdrant.isAvailableSync()) {
       try {
         const embedText = `${title}\n\n${description ?? ''}\n\n${tags.join(', ')}`.trim();
         const embedding = await mistralEmbeddingService.generateEmbedding(embedText);
-        await indexUserTemplate(qdrant.client, COLLECTION_NAME, templateId, embedding, {
-          user_id: row.user_id,
-          template_type: row.template_type ?? 'template',
-          status: row.status ?? 'published',
-          is_private: row.is_private ?? false,
-          tags,
-          title,
-        });
+        await indexUserTemplate(
+          qdrant.writeClient(COLLECTION_NAME),
+          COLLECTION_NAME,
+          templateId,
+          embedding,
+          {
+            user_id: row.user_id,
+            template_type: row.template_type ?? 'template',
+            status: row.status ?? 'published',
+            is_private: row.is_private ?? false,
+            tags,
+            title,
+          }
+        );
         indexed = true;
       } catch (error) {
         log.warn(`Embedding/upsert failed for template ${templateId}:`, error);
@@ -148,10 +154,10 @@ export async function searchTemplates(query: string, limit = 15): Promise<Templa
   try {
     const trimmed = query.trim();
     const qdrant = getQdrantInstance();
-    if (!trimmed || !qdrant.isAvailableSync() || !qdrant.client) return [];
+    if (!trimmed || !qdrant.isAvailableSync()) return [];
 
     const queryEmbedding = await mistralEmbeddingService.generateEmbedding(trimmed);
-    const searchResult = await qdrant.client.query(COLLECTION_NAME, {
+    const searchResult = await qdrant.readClient(COLLECTION_NAME).query(COLLECTION_NAME, {
       query: queryEmbedding,
       filter: {
         must: [
@@ -211,7 +217,11 @@ export async function searchTemplates(query: string, limit = 15): Promise<Templa
 /** Remove a purged template's point. Throws — the purge reports it as a side store. */
 export async function deleteTemplateVector(templateId: string): Promise<void> {
   const qdrant = getQdrantInstance();
-  if (qdrant.isAvailableSync() && qdrant.client) {
-    await deleteUserTemplateVectors(qdrant.client, COLLECTION_NAME, templateId);
+  if (qdrant.isAvailableSync()) {
+    await deleteUserTemplateVectors(
+      qdrant.writeClient(COLLECTION_NAME),
+      COLLECTION_NAME,
+      templateId
+    );
   }
 }

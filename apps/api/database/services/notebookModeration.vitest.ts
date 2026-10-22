@@ -14,16 +14,10 @@ const { scrollDocuments, batchUpsert, setPayload } = vi.hoisted(() => ({
 vi.mock('./QdrantService/index.js', () => ({
   getQdrantInstance: () => ({
     init: vi.fn().mockResolvedValue(undefined),
-    client: {},
+    operations: { scrollDocuments, batchUpsert },
+    writeClient: () => ({ setPayload }),
     collections: { notebook_collections: 'notebook_collections' },
   }),
-}));
-vi.mock('./QdrantService/operations/index.js', () => ({
-  QdrantOperations: class {
-    scrollDocuments = scrollDocuments;
-    batchUpsert = batchUpsert;
-    client = { setPayload };
-  },
 }));
 vi.mock('./PostgresService.js', () => ({ getPostgresInstance: () => ({ query: vi.fn() }) }));
 vi.mock('../../config/systemCollectionsConfig.js', () => ({

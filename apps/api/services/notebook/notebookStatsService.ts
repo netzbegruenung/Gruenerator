@@ -1,3 +1,5 @@
+import { type QdrantClient } from '@qdrant/js-client-rest';
+
 import { getSystemCollectionConfig } from '../../config/systemCollectionsConfig.js';
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -65,11 +67,10 @@ function emptyStats(): NotebookStats {
  * in Node — robust regardless of payload index type.
  */
 async function scrollAllForMonthly(
-  client: ReturnType<typeof getQdrantInstance>['client'],
+  client: QdrantClient,
   collection: string,
   filter: Record<string, unknown>
 ): Promise<ScrollPoint[]> {
-  if (!client) return [];
   const hasFilter = Object.keys(filter).length > 0;
   const acc: ScrollPoint[] = [];
   let offset: string | number | null = null;
@@ -206,7 +207,8 @@ async function readOverviewFacets(collectionId: string): Promise<OverviewFacets>
   }
 }
 
-async function fetchStatsForCollection(collectionId: string): Promise<NotebookStats> {
+/** `null`: der Store war nicht erreichbar — das Ergebnis darf nicht in den Cache. */
+async function fetchStatsForCollection(collectionId: string): Promise<NotebookStats | null> {
   const config = getSystemCollectionConfig(collectionId);
   if (!config) {
     log.debug(`Unknown system collection: ${collectionId}`);
@@ -215,9 +217,9 @@ async function fetchStatsForCollection(collectionId: string): Promise<NotebookSt
 
   const qdrant = getQdrantInstance();
   await qdrant.init();
-  if (!qdrant.client) {
+  if (!qdrant.isContentAvailable()) {
     log.warn('Qdrant client unavailable');
-    return emptyStats();
+    return null;
   }
 
   // One point per document (chunk_index=0), and the same exclusions as the
@@ -231,7 +233,8 @@ async function fetchStatsForCollection(collectionId: string): Promise<NotebookSt
 
   const [totalDocuments, categoryDistribution, sourceDistribution, monthlyPoints, facets] =
     await Promise.all([
-      qdrant.client
+      qdrant
+        .readClient(config.qdrantCollection)
         .count(config.qdrantCollection, {
           ...(filterForCount && { filter: filterForCount as Record<string, unknown> }),
           exact: true,
@@ -250,14 +253,16 @@ async function fetchStatsForCollection(collectionId: string): Promise<NotebookSt
           );
           return [];
         }),
-      scrollAllForMonthly(qdrant.client, config.qdrantCollection, filterRecord).catch(
-        (err: unknown) => {
-          log.warn(
-            `monthly scroll failed for ${collectionId}: ${err instanceof Error ? err.message : err}`
-          );
-          return [] as ScrollPoint[];
-        }
-      ),
+      scrollAllForMonthly(
+        qdrant.readClient(config.qdrantCollection),
+        config.qdrantCollection,
+        filterRecord
+      ).catch((err: unknown) => {
+        log.warn(
+          `monthly scroll failed for ${collectionId}: ${err instanceof Error ? err.message : err}`
+        );
+        return [] as ScrollPoint[];
+      }),
       readOverviewFacets(collectionId),
     ]);
 
@@ -409,7 +414,9 @@ export async function getNotebookStats(
 
   log.info(`fetching fresh stats for ${key}`);
   const parts = await Promise.all(collectionIds.map((id) => fetchStatsForCollection(id)));
-  const merged = mergeStats(parts);
-  await writeCache(key, merged);
+  const answered = parts.filter((p): p is NotebookStats => p !== null);
+  const merged = mergeStats(answered);
+  // Ein Content-Ausfall soll nicht 24 h lang als „0 Dokumente" stehen bleiben.
+  if (answered.length === parts.length) await writeCache(key, merged);
   return merged;
 }

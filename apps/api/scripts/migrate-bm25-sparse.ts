@@ -414,8 +414,8 @@ async function main(): Promise<void> {
   const client = createQdrantClient({
     url: env.QDRANT_URL ?? 'http://localhost:6333',
     apiKey: env.QDRANT_API_KEY ?? '',
-    ...(env.QDRANT_BASIC_AUTH_USERNAME && { basicAuthUsername: env.QDRANT_BASIC_AUTH_USERNAME }),
-    ...(env.QDRANT_BASIC_AUTH_PASSWORD && { basicAuthPassword: env.QDRANT_BASIC_AUTH_PASSWORD }),
+    basicAuthUsername: env.QDRANT_BASIC_AUTH_USERNAME ?? null,
+    basicAuthPassword: env.QDRANT_BASIC_AUTH_PASSWORD ?? null,
   });
 
   const targets = args.all

@@ -35,7 +35,7 @@ async function main() {
   useQdrantConnectOnly();
   const qdrant = getQdrantInstance();
   await qdrant.init();
-  const client = qdrant.client!;
+  const client = qdrant.readClient(COLLECTION);
 
   await step('count(filter) [all chunks]', () =>
     client.count(COLLECTION, { filter: FILTER as never, exact: true })

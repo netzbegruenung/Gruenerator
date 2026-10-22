@@ -326,8 +326,7 @@ export function defaultDeps(): DocMetaDeps {
     setPayload: async ({ documentId, userId }, payload) => {
       const qdrant = getQdrantInstance();
       await qdrant.init();
-      if (!qdrant.client) throw new Error('Qdrant nicht verfügbar');
-      await qdrant.client.setPayload('documents', {
+      await qdrant.writeClient('documents').setPayload('documents', {
         payload,
         filter: {
           must: [
@@ -341,8 +340,7 @@ export function defaultDeps(): DocMetaDeps {
     countPoints: async (documentId, userId) => {
       const qdrant = getQdrantInstance();
       await qdrant.init();
-      if (!qdrant.client) throw new Error('Qdrant nicht verfügbar');
-      const result = await qdrant.client.count('documents', {
+      const result = await qdrant.readClient('documents').count('documents', {
         filter: {
           must: [
             { key: 'user_id', match: { value: userId } },

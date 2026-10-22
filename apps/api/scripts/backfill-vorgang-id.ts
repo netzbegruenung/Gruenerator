@@ -34,11 +34,11 @@ async function main(): Promise<void> {
 
   const qdrant = getQdrantInstance();
   await qdrant.init();
-  const client = qdrant.client!;
 
   for (const landtag of landtage) {
     const collection =
       landtag === 'nrw' ? nrw.LANDTAG_NRW_COLLECTION : berlin.LANDTAG_BERLIN_COLLECTION;
+    const client = qdrant.readClient(collection);
     const sourceField = landtag === 'nrw' ? 'record_id' : 'document_number';
     const vorgangIdOf = landtag === 'nrw' ? nrw.vorgangIdOf : berlin.vorgangIdOf;
     const filter = {
@@ -63,7 +63,7 @@ async function main(): Promise<void> {
         if (typeof documentId !== 'string' || typeof source !== 'string') return;
         documents += 1;
         if (dryRun) return;
-        await client.setPayload(collection, {
+        await qdrant.writeClient(collection).setPayload(collection, {
           payload: { vorgang_id: vorgangIdOf(source) },
           filter: { must: [{ key: 'document_id', match: { value: documentId } }] },
           wait: true,

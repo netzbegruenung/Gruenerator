@@ -262,12 +262,12 @@ export async function getCollectionStats(
 
 /**
  * Get statistics for all collections
- * @param client - Qdrant client instance
+ * @param clientFor - Resolves the client of each collection (content and instance may differ)
  * @param collections - Collection name mappings
  * @returns Record of collection stats keyed by collection key
  */
 export async function getAllStats(
-  client: QdrantClient,
+  clientFor: (collectionName: string) => QdrantClient,
   collections: CollectionNames
 ): Promise<Record<CollectionKey, CollectionStats>> {
   const stats: Record<string, CollectionStats> = {};
@@ -277,6 +277,13 @@ export async function getAllStats(
 
     // Fetch stats in parallel for better performance
     const statsPromises = entries.map(async ([key, collectionName]) => {
+      let client: QdrantClient;
+      try {
+        client = clientFor(collectionName);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return { key, stats: { name: collectionName, error: message } };
+      }
       const collectionStats = await getCollectionStats(client, collectionName);
       return { key, stats: collectionStats };
     });
