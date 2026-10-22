@@ -4,7 +4,7 @@
  * Orchestrates all Qdrant operations through modular components.
  */
 
-import { QdrantClient } from '@qdrant/js-client-rest';
+import { type QdrantClient } from '@qdrant/js-client-rest';
 import * as dotenv from 'dotenv';
 
 import { env } from '../../../config/env.js';
@@ -15,6 +15,7 @@ import {
   getCollectionConfig,
   getIndexSchema,
 } from '../../../config/qdrantCollectionsSchema.js';
+import { type QdrantStore, qdrantStoreOf } from '../../../config/qdrantStores.js';
 import { mistralEmbeddingService } from '../../../services/mistral/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -26,6 +27,12 @@ import {
   createSnapshot as createDbSnapshot,
   type SnapshotResult,
 } from './collections.js';
+import {
+  createQdrantClient,
+  readQdrantTargets,
+  testConnection,
+  type QdrantTarget,
+} from './connection.js';
 import {
   deleteDocument as deleteDocs,
   deleteUserVectors as deleteUser,
@@ -104,11 +111,26 @@ export function useQdrantConnectOnly(): void {
 }
 
 /**
+ * Schreibversuch gegen ein schreibgeschütztes Content-Ziel (QDRANT_CONTENT_READ_ONLY)
+ */
+export class ContentStoreReadOnlyError extends Error {
+  constructor(collection: string) {
+    super(`content qdrant is read-only: refusing write to ${collection}`);
+    this.name = 'ContentStoreReadOnlyError';
+  }
+}
+
+/**
  * Qdrant Vector Database Service
  * Handles all vector operations for document embeddings and similarity search
  */
 export class QdrantService {
-  client: QdrantClient | null = null;
+  private instanceClient: QdrantClient | null = null;
+  /** Nur gesetzt, wenn ein eigenes Content-Ziel konfiguriert ist */
+  private contentClient: QdrantClient | null = null;
+  private contentTarget: QdrantTarget | null = null;
+  private contentReadOnly: boolean = false;
+  private contentAvailable: boolean = false;
   operations: QdrantOperations | null = null;
   isConnected: boolean = false;
   isInitializing: boolean = false;
@@ -190,54 +212,14 @@ export class QdrantService {
     this.isInitializing = true;
 
     try {
-      const apiKey = env.QDRANT_API_KEY;
-      const qdrantUrl = env.QDRANT_URL;
+      const targets = readQdrantTargets(env);
+      this.contentTarget = targets.content;
+      this.contentReadOnly = targets.contentReadOnly;
+      this.contentClient = null;
+      this.contentAvailable = false;
 
-      if (!apiKey || apiKey.trim() === '') {
-        throw new Error('QDRANT_API_KEY environment variable is required but not set or empty');
-      }
-
-      if (!qdrantUrl) {
-        throw new Error('QDRANT_URL environment variable is required but not set');
-      }
-
-      log.debug(`Connecting to ${qdrantUrl}`);
-
-      const basicAuthUsername = env.QDRANT_BASIC_AUTH_USERNAME;
-      const basicAuthPassword = env.QDRANT_BASIC_AUTH_PASSWORD;
-      const headers: Record<string, string> = {};
-
-      if (basicAuthUsername && basicAuthPassword) {
-        const basicAuth = Buffer.from(`${basicAuthUsername}:${basicAuthPassword}`).toString(
-          'base64'
-        );
-        headers['Authorization'] = `Basic ${basicAuth}`;
-      }
-
-      if (qdrantUrl?.startsWith('https://')) {
-        const url = new URL(qdrantUrl);
-        const port = url.port ? parseInt(url.port) : 443;
-        const basePath = url.pathname && url.pathname !== '/' ? url.pathname : undefined;
-
-        this.client = new QdrantClient({
-          host: url.hostname,
-          port: port,
-          https: true,
-          apiKey: apiKey,
-          timeout: 60000,
-          checkCompatibility: false,
-          ...(Object.keys(headers).length > 0 ? { headers } : {}),
-          ...(basePath ? { prefix: basePath } : {}),
-        });
-      } else {
-        this.client = new QdrantClient({
-          url: qdrantUrl,
-          apiKey: apiKey,
-          https: false,
-          timeout: 60000,
-          ...(Object.keys(headers).length > 0 ? { headers } : {}),
-        });
-      }
+      log.debug(`Connecting to ${targets.instance.url}`);
+      this.instanceClient = createQdrantClient(targets.instance);
 
       await this.testConnectionWithRetry();
 
@@ -247,27 +229,23 @@ export class QdrantService {
       if (connectOnly) {
         log.info('Connect-only mode: skipping collection and index reconciliation');
       } else {
-        await createCollections(
-          this.client,
-          this.vectorSize,
-          this.collections,
-          COLLECTION_SCHEMAS,
-          getCollectionConfig,
-          getIndexSchema,
-          log
-        );
-
-        await createTextSearchIndexes(
-          this.client,
-          this.collections,
-          TEXT_SEARCH_COLLECTIONS,
-          TEXT_SEARCH_INDEXES,
-          getIndexSchema,
-          log
+        // Ohne eigenes Content-Ziel liegen die Inhalte auf dem Instanz-Server.
+        await this._reconcile(
+          this.instanceClient,
+          this.contentTarget ? ['instance'] : ['instance', 'content']
         );
       }
 
-      this.operations = new QdrantOperations(this.client);
+      if (this.contentTarget) {
+        await this._connectContent(this.contentTarget);
+      }
+
+      if (!this.operations) {
+        this.operations = new QdrantOperations({
+          read: (collection) => this.readClient(collection),
+          write: (collection) => this.writeClient(collection),
+        });
+      }
 
       this.isConnected = true;
       this.isInitializing = false;
@@ -282,9 +260,107 @@ export class QdrantService {
     }
   }
 
+  /**
+   * Legt die Sammlungen und Indizes der genannten Stores auf diesem Client an.
+   */
+  private async _reconcile(client: QdrantClient, stores: QdrantStore[]): Promise<void> {
+    const schemas = Object.fromEntries(
+      Object.entries(COLLECTION_SCHEMAS).filter(([, schema]) => stores.includes(schema.store))
+    );
+    const textSearchCollections = TEXT_SEARCH_COLLECTIONS.filter((key) =>
+      stores.includes(qdrantStoreOf(this.collections[key as CollectionKey] ?? key))
+    );
+
+    await createCollections(
+      client,
+      this.vectorSize,
+      this.collections,
+      schemas,
+      getCollectionConfig,
+      getIndexSchema,
+      log
+    );
+
+    await createTextSearchIndexes(
+      client,
+      this.collections,
+      textSearchCollections,
+      TEXT_SEARCH_INDEXES,
+      getIndexSchema,
+      log
+    );
+  }
+
+  /**
+   * Verbindet das getrennte Content-Ziel. Ein Fehler hier lässt die Instanz
+   * verbunden; Content-Sammlungen melden sich dann als nicht verfügbar.
+   */
+  private async _connectContent(target: QdrantTarget): Promise<void> {
+    try {
+      log.debug(`Connecting to content qdrant ${target.url}`);
+      const client = createQdrantClient(target);
+      await testConnection(client);
+
+      if (connectOnly || this.contentReadOnly) {
+        log.info('Content qdrant: skipping collection and index reconciliation');
+      } else {
+        await this._reconcile(client, ['content']);
+      }
+
+      this.contentClient = client;
+      this.contentAvailable = true;
+      log.info('Content qdrant connected');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      log.error(`Content qdrant unavailable: ${message}`);
+      this.contentClient = null;
+      this.contentAvailable = false;
+    }
+  }
+
+  /**
+   * Client, der die Sammlung lesen darf. Unbekannte Sammlungen gelten als Instanz-Daten.
+   */
+  readClient(collection: string): QdrantClient {
+    const instance = this._requireInstanceClient();
+    if (!this.contentTarget || qdrantStoreOf(collection) === 'instance') {
+      return instance;
+    }
+    if (!this.contentAvailable || !this.contentClient) {
+      throw new Error(`content qdrant unavailable (collection ${collection})`);
+    }
+    return this.contentClient;
+  }
+
+  /**
+   * Client, der in die Sammlung schreiben darf. Wirft bei schreibgeschütztem Content-Ziel.
+   */
+  writeClient(collection: string): QdrantClient {
+    const instance = this._requireInstanceClient();
+    if (!this.contentTarget || qdrantStoreOf(collection) === 'instance') {
+      return instance;
+    }
+    if (this.contentReadOnly) {
+      throw new ContentStoreReadOnlyError(collection);
+    }
+    return this.readClient(collection);
+  }
+
+  isContentAvailable(): boolean {
+    if (!this.isAvailableSync()) return false;
+    return this.contentTarget === null || (this.contentAvailable && this.contentClient !== null);
+  }
+
+  private _requireInstanceClient(): QdrantClient {
+    if (!this.isConnected || !this.instanceClient) {
+      throw new Error('Qdrant is not available. Vector search functionality is disabled.');
+    }
+    return this.instanceClient;
+  }
+
   async testConnection(): Promise<boolean> {
     try {
-      await Promise.resolve(this.client?.getCollections());
+      await Promise.resolve(this.instanceClient?.getCollections());
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -298,7 +374,7 @@ export class QdrantService {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        await Promise.resolve(this.client?.getCollections());
+        await Promise.resolve(this.instanceClient?.getCollections());
         log.debug(`Connection test successful (attempt ${attempt})`);
         return true;
       } catch (error) {
@@ -330,7 +406,7 @@ export class QdrantService {
         return;
       }
 
-      await Promise.resolve(this.client?.getCollections());
+      await Promise.resolve(this.instanceClient?.getCollections());
       this.lastHealthCheck = now;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -338,7 +414,7 @@ export class QdrantService {
 
       if (message.includes('SSL') || message.includes('wrong version')) {
         log.debug('SSL error detected, forcing full reconnection...');
-        this.client = null;
+        this.instanceClient = null;
         this.isConnected = false;
         this.isInitializing = false;
         this.initPromise = null;
@@ -347,17 +423,43 @@ export class QdrantService {
         this.initPromise = null;
       }
 
+      // _performInit() baut auch den Content-Client neu auf.
       await this.init();
+      return;
     }
+
+    await this._ensureContentConnection();
+  }
+
+  /**
+   * Health-Check des getrennten Content-Ziels. Ein Ausfall betrifft nur die
+   * Content-Sammlungen; der Client wird bei jedem Fehler neu aufgebaut (SSL).
+   */
+  private async _ensureContentConnection(): Promise<void> {
+    if (!this.contentTarget) return;
+
+    if (this.contentAvailable && this.contentClient) {
+      try {
+        await this.contentClient.getCollections();
+        return;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        log.debug(`Content health check failed: ${message}`);
+        this.contentClient = null;
+        this.contentAvailable = false;
+      }
+    }
+
+    await this._connectContent(this.contentTarget);
   }
 
   async isAvailable(): Promise<boolean> {
     await this.init();
-    return this.isConnected && this.client !== null;
+    return this.isAvailableSync();
   }
 
   isAvailableSync(): boolean {
-    return this.isConnected && this.client !== null;
+    return this.isConnected && this.instanceClient !== null;
   }
 
   async ensureConnected(): Promise<void> {
@@ -555,13 +657,8 @@ export class QdrantService {
     collectionName: string | null = null
   ): Promise<{ success: boolean; chunks: number }> {
     await this.ensureConnected();
-    return indexDocChunks(
-      this.client!,
-      collectionName || this.collections.documents,
-      documentId,
-      chunks,
-      userId
-    );
+    const collection = collectionName || this.collections.documents;
+    return indexDocChunks(this.writeClient(collection), collection, documentId, chunks, userId);
   }
 
   async indexGrundsatzChunks(
@@ -571,7 +668,7 @@ export class QdrantService {
   ): Promise<{ success: boolean; chunks: number }> {
     await this.ensureConnected();
     return indexGrundsatz(
-      this.client!,
+      this.writeClient(this.collections.grundsatz_documents),
       this.collections.grundsatz_documents,
       documentId,
       chunks,
@@ -585,7 +682,13 @@ export class QdrantService {
     metadata: WebContentMetadata = {}
   ): Promise<{ success: boolean; chunks: number }> {
     await this.ensureConnected();
-    return indexBundestag(this.client!, this.collections.bundestag_content, url, chunks, metadata);
+    return indexBundestag(
+      this.writeClient(this.collections.bundestag_content),
+      this.collections.bundestag_content,
+      url,
+      chunks,
+      metadata
+    );
   }
 
   async indexGrueneDeContent(
@@ -594,7 +697,13 @@ export class QdrantService {
     metadata: WebContentMetadata = {}
   ): Promise<{ success: boolean; chunks: number }> {
     await this.ensureConnected();
-    return indexGrueneDe(this.client!, this.collections.gruene_de_documents, url, chunks, metadata);
+    return indexGrueneDe(
+      this.writeClient(this.collections.gruene_de_documents),
+      this.collections.gruene_de_documents,
+      url,
+      chunks,
+      metadata
+    );
   }
 
   async indexGrueneAtContent(
@@ -603,7 +712,13 @@ export class QdrantService {
     metadata: WebContentMetadata = {}
   ): Promise<{ success: boolean; chunks: number }> {
     await this.ensureConnected();
-    return indexGrueneAt(this.client!, this.collections.gruene_at_documents, url, chunks, metadata);
+    return indexGrueneAt(
+      this.writeClient(this.collections.gruene_at_documents),
+      this.collections.gruene_at_documents,
+      url,
+      chunks,
+      metadata
+    );
   }
 
   async indexContentExample(
@@ -613,7 +728,7 @@ export class QdrantService {
   ): Promise<{ success: boolean }> {
     await this.ensureConnected();
     return indexContent(
-      this.client!,
+      this.writeClient(this.collections.content_examples),
       this.collections.content_examples,
       exampleId,
       embedding,
@@ -630,7 +745,7 @@ export class QdrantService {
   ): Promise<{ success: boolean }> {
     await this.ensureConnected();
     return indexSocial(
-      this.client!,
+      this.writeClient(this.collections.social_media_examples),
       this.collections.social_media_examples,
       exampleId,
       embedding,
@@ -797,15 +912,17 @@ export class QdrantService {
     collection?: string
   ): Promise<{ success: boolean; collection: string }> {
     await this.ensureConnected();
-    return deleteDocs(this.client!, collection || this.collections.documents, documentId);
+    const target = collection || this.collections.documents;
+    return deleteDocs(this.writeClient(target), target, documentId);
   }
 
   async deleteUserVectors(
     userId: string
   ): Promise<{ success: boolean; collections: string[]; results: unknown[] }> {
     await this.ensureConnected();
+    // documents und user_knowledge liegen beide im Instanz-Store
     return deleteUser(
-      this.client!,
+      this.writeClient(this.collections.documents),
       [this.collections.documents, this.collections.user_knowledge],
       userId
     );
@@ -815,22 +932,38 @@ export class QdrantService {
     url: string
   ): Promise<{ success: boolean; collection: string }> {
     await this.ensureConnected();
-    return deleteBundestag(this.client!, this.collections.bundestag_content, url);
+    return deleteBundestag(
+      this.writeClient(this.collections.bundestag_content),
+      this.collections.bundestag_content,
+      url
+    );
   }
 
   async deleteGrueneDeContentByUrl(url: string): Promise<{ success: boolean; collection: string }> {
     await this.ensureConnected();
-    return deleteGrueneDe(this.client!, this.collections.gruene_de_documents, url);
+    return deleteGrueneDe(
+      this.writeClient(this.collections.gruene_de_documents),
+      this.collections.gruene_de_documents,
+      url
+    );
   }
 
   async deleteGrueneAtContentByUrl(url: string): Promise<{ success: boolean; collection: string }> {
     await this.ensureConnected();
-    return deleteGrueneAt(this.client!, this.collections.gruene_at_documents, url);
+    return deleteGrueneAt(
+      this.writeClient(this.collections.gruene_at_documents),
+      this.collections.gruene_at_documents,
+      url
+    );
   }
 
   async deleteContentExample(exampleId: string): Promise<{ success: boolean; collection: string }> {
     await this.ensureConnected();
-    return deleteContent(this.client!, this.collections.content_examples, exampleId);
+    return deleteContent(
+      this.writeClient(this.collections.content_examples),
+      this.collections.content_examples,
+      exampleId
+    );
   }
 
   // ============ Random Sampling Methods ============
@@ -840,7 +973,7 @@ export class QdrantService {
   ): Promise<ContentExampleResult[]> {
     await this.ensureConnected();
     return getRandomContent(
-      this.client!,
+      this.readClient(this.collections.content_examples),
       this.collections.content_examples,
       options,
       buildContentExampleFilter
@@ -851,9 +984,10 @@ export class QdrantService {
     options: RandomSocialMediaOptions = {}
   ): Promise<SocialMediaResult[]> {
     await this.ensureConnected();
+    const collection = options.collection ?? this.collections.social_media_examples;
     return getRandomSocial(
-      this.client!,
-      options.collection ?? this.collections.social_media_examples,
+      this.readClient(collection),
+      collection,
       options,
       buildSocialMediaFilter
     );
@@ -867,7 +1001,7 @@ export class QdrantService {
     maxValues: number = 50
   ): Promise<string[]> {
     await this.ensureConnected();
-    return getUnique(this.client!, collectionName, fieldName, maxValues);
+    return getUnique(this.readClient(collectionName), collectionName, fieldName, maxValues);
   }
 
   async getFieldValueCounts(
@@ -877,7 +1011,13 @@ export class QdrantService {
     baseFilter: Record<string, unknown> | null = null
   ): Promise<FieldValueCount[]> {
     await this.ensureConnected();
-    return getFieldCounts(this.client!, collectionName, fieldName, maxValues, baseFilter);
+    return getFieldCounts(
+      this.readClient(collectionName),
+      collectionName,
+      fieldName,
+      maxValues,
+      baseFilter
+    );
   }
 
   async getDateRange(
@@ -886,41 +1026,51 @@ export class QdrantService {
     baseFilter: Record<string, unknown> | null = null
   ): Promise<DateRange> {
     await this.ensureConnected();
-    return getRange(this.client!, collectionName, fieldName, baseFilter);
+    return getRange(this.readClient(collectionName), collectionName, fieldName, baseFilter);
   }
 
   async getAllBundestagUrls(): Promise<Array<{ source_url: string; content_hash: string | null }>> {
     await this.ensureConnected();
-    return getAllUrls(this.client!, this.collections.bundestag_content);
+    return getAllUrls(
+      this.readClient(this.collections.bundestag_content),
+      this.collections.bundestag_content
+    );
   }
 
   async getAllGrueneDeUrls(): Promise<Array<{ source_url: string; content_hash: string | null }>> {
     await this.ensureConnected();
-    return getAllUrls(this.client!, this.collections.gruene_de_documents);
+    return getAllUrls(
+      this.readClient(this.collections.gruene_de_documents),
+      this.collections.gruene_de_documents
+    );
   }
 
   async getAllGrueneAtUrls(): Promise<Array<{ source_url: string; content_hash: string | null }>> {
     await this.ensureConnected();
-    return getAllUrls(this.client!, this.collections.gruene_at_documents);
+    return getAllUrls(
+      this.readClient(this.collections.gruene_at_documents),
+      this.collections.gruene_at_documents
+    );
   }
 
   // ============ Collection Statistics ============
 
   async getCollectionStats(collection?: string): Promise<CollectionStats> {
     await this.ensureConnected();
-    return getStats(this.client!, collection || this.collections.documents);
+    const target = collection || this.collections.documents;
+    return getStats(this.readClient(target), target);
   }
 
   async getAllStats(): Promise<Record<CollectionKey, CollectionStats>> {
     await this.ensureConnected();
-    return getAllCollectionStats(this.client!, this.collections);
+    return getAllCollectionStats((collection) => this.readClient(collection), this.collections);
   }
 
   async createSnapshot(collectionName?: string): Promise<SnapshotResult> {
     await this.ensureConnected();
     // Default to the documents collection if none specified
     const collection = collectionName || this.collections.documents;
-    return createDbSnapshot(this.client!, collection);
+    return createDbSnapshot(this.writeClient(collection), collection);
   }
 }
 

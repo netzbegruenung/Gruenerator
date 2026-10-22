@@ -6,13 +6,55 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../../../config/env.js', () => ({
-  env: { QDRANT_API_KEY: 'test-key', QDRANT_URL: 'http://localhost:6333' },
+import { COLLECTION_SCHEMAS } from '../../../config/qdrantCollectionsSchema.js';
+
+const { envMock, created, failingUrls } = vi.hoisted(() => ({
+  envMock: {} as Record<string, unknown>,
+  created: [] as FakeQdrantClient[],
+  failingUrls: new Set<string>(),
 }));
+
+interface FakeQdrantClient {
+  url: string;
+  getCollections: ReturnType<typeof vi.fn>;
+  getCollection: ReturnType<typeof vi.fn>;
+  createCollection: ReturnType<typeof vi.fn>;
+  createPayloadIndex: ReturnType<typeof vi.fn>;
+  deletePayloadIndex: ReturnType<typeof vi.fn>;
+  query: ReturnType<typeof vi.fn>;
+}
+
+const BASE_ENV = {
+  QDRANT_API_KEY: 'test-key',
+  QDRANT_URL: 'http://localhost:6333',
+  QDRANT_CONTENT_READ_ONLY: false,
+};
+const CONTENT_URL = 'http://content:6333';
+
+function resetEnv(extra: Record<string, unknown> = {}): void {
+  for (const key of Object.keys(envMock)) delete envMock[key];
+  Object.assign(envMock, BASE_ENV, extra);
+}
+resetEnv();
+
+vi.mock('../../../config/env.js', () => ({ env: envMock }));
 
 vi.mock('@qdrant/js-client-rest', () => ({
   QdrantClient: class {
+    url: string;
     getCollections = vi.fn().mockResolvedValue({ collections: [] });
+    getCollection = vi.fn().mockResolvedValue({ payload_schema: {} });
+    createCollection = vi.fn().mockResolvedValue(true);
+    createPayloadIndex = vi.fn().mockResolvedValue({});
+    deletePayloadIndex = vi.fn().mockResolvedValue({});
+    query = vi.fn().mockResolvedValue({ points: [] });
+    constructor(options: { url?: string; host?: string }) {
+      this.url = options.url ?? options.host ?? '';
+      if (failingUrls.has(this.url)) {
+        this.getCollections.mockRejectedValue(new Error('connect ECONNREFUSED'));
+      }
+      created.push(this as unknown as FakeQdrantClient);
+    }
   },
 }));
 
@@ -23,17 +65,167 @@ vi.mock('../../../services/mistral/index.js', () => ({
   },
 }));
 
-const createCollections = vi.fn().mockResolvedValue(undefined);
-const createTextSearchIndexes = vi.fn().mockResolvedValue(undefined);
-vi.mock('./collections.js', () => ({
-  createCollections: (...args: unknown[]) => createCollections(...args),
-  createTextSearchIndexes: (...args: unknown[]) => createTextSearchIndexes(...args),
-  getCollectionStats: vi.fn(),
-  getAllStats: vi.fn(),
-  createSnapshot: vi.fn(),
-}));
+// Echte Implementierung hinter Spies: die Store-Tests prüfen die Schreibaufrufe
+// an den Client-Mocks selbst, nicht nur die Argumente.
+vi.mock('./collections.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./collections.js')>();
+  return {
+    ...actual,
+    createCollections: vi.fn(actual.createCollections),
+    createTextSearchIndexes: vi.fn(actual.createTextSearchIndexes),
+  };
+});
 
-const { QdrantService, useQdrantConnectOnly } = await import('./QdrantService.js');
+const collectionsModule = await import('./collections.js');
+const createCollections = vi.mocked(collectionsModule.createCollections);
+const createTextSearchIndexes = vi.mocked(collectionsModule.createTextSearchIndexes);
+
+const { QdrantService, useQdrantConnectOnly, ContentStoreReadOnlyError } =
+  await import('./QdrantService.js');
+
+const namesOfStore = (store: 'content' | 'instance'): string[] =>
+  Object.values(COLLECTION_SCHEMAS)
+    .filter((schema) => schema.store === store)
+    .map((schema) => schema.name);
+
+const namesCalled = (fn: ReturnType<typeof vi.fn>): string[] =>
+  fn.mock.calls.map((call: unknown[]) => call[0] as string);
+
+const clientAt = (url: string): FakeQdrantClient => {
+  const client = created.find((c) => c.url === url);
+  if (!client) throw new Error(`no client for ${url}`);
+  return client;
+};
+
+// Steht vor den Reconciliation-Tests: useQdrantConnectOnly() ist modulweit und
+// lässt sich nicht zurücksetzen.
+describe('QdrantService content and instance stores', () => {
+  beforeEach(() => {
+    resetEnv();
+    created.length = 0;
+    failingUrls.clear();
+    createCollections.mockClear();
+    createTextSearchIndexes.mockClear();
+  });
+
+  it('without content target read and write return the same instance client for every store', async () => {
+    const service = new QdrantService();
+    await service.init();
+
+    expect(created).toHaveLength(1);
+    const instance = created[0];
+    expect(service.readClient('documents')).toBe(instance);
+    expect(service.readClient('landtag_nrw_documents')).toBe(instance);
+    expect(service.writeClient('documents')).toBe(instance);
+    expect(service.writeClient('bundestag_content')).toBe(instance);
+    expect(service.isContentAvailable()).toBe(true);
+  });
+
+  it('content collections read from the content client, instance collections from the instance client', async () => {
+    resetEnv({
+      QDRANT_CONTENT_URL: CONTENT_URL,
+      QDRANT_CONTENT_API_KEY: 'content-key',
+      QDRANT_CONTENT_READ_ONLY: true,
+    });
+    const service = new QdrantService();
+    await service.init();
+
+    expect(service.readClient('landtag_nrw_documents')).toBe(clientAt(CONTENT_URL));
+    expect(service.readClient('documents')).toBe(clientAt(BASE_ENV.QDRANT_URL));
+    expect(service.readClient('some_unknown_collection')).toBe(clientAt(BASE_ENV.QDRANT_URL));
+  });
+
+  it('read-only content target: writeClient on a content collection throws ContentStoreReadOnlyError', async () => {
+    resetEnv({
+      QDRANT_CONTENT_URL: CONTENT_URL,
+      QDRANT_CONTENT_API_KEY: 'content-key',
+      QDRANT_CONTENT_READ_ONLY: true,
+    });
+    const service = new QdrantService();
+    await service.init();
+
+    expect(() => service.writeClient('landtag_nrw_documents')).toThrow(ContentStoreReadOnlyError);
+    expect(service.writeClient('documents')).toBe(clientAt(BASE_ENV.QDRANT_URL));
+  });
+
+  it('read-only content target skips reconciliation', async () => {
+    resetEnv({
+      QDRANT_CONTENT_URL: CONTENT_URL,
+      QDRANT_CONTENT_API_KEY: 'content-key',
+      QDRANT_CONTENT_READ_ONLY: true,
+    });
+    const service = new QdrantService();
+    await service.init();
+
+    const content = clientAt(CONTENT_URL);
+    expect(content.createCollection).not.toHaveBeenCalled();
+    expect(content.createPayloadIndex).not.toHaveBeenCalled();
+    expect(content.deletePayloadIndex).not.toHaveBeenCalled();
+
+    const instance = clientAt(BASE_ENV.QDRANT_URL);
+    const instanceNames = new Set(namesOfStore('instance'));
+    expect(namesCalled(instance.createCollection).length).toBeGreaterThan(0);
+    for (const name of namesCalled(instance.createCollection)) {
+      expect(instanceNames.has(name)).toBe(true);
+    }
+    for (const name of namesCalled(instance.createPayloadIndex)) {
+      expect(instanceNames.has(name)).toBe(true);
+    }
+
+    expect(createTextSearchIndexes).toHaveBeenCalledTimes(1);
+    expect(createTextSearchIndexes.mock.calls[0][2]).toEqual(['documents', 'user_knowledge']);
+  });
+
+  it('writable separate content target reconciles content schemas on the content client', async () => {
+    resetEnv({
+      QDRANT_CONTENT_URL: CONTENT_URL,
+      QDRANT_CONTENT_API_KEY: 'content-key',
+      QDRANT_CONTENT_READ_ONLY: false,
+    });
+    const service = new QdrantService();
+    await service.init();
+
+    const content = clientAt(CONTENT_URL);
+    const instance = clientAt(BASE_ENV.QDRANT_URL);
+    expect(namesCalled(content.createCollection).sort()).toEqual(namesOfStore('content').sort());
+    expect(namesCalled(instance.createCollection).sort()).toEqual(namesOfStore('instance').sort());
+    expect(namesCalled(content.createPayloadIndex)).toContain('grundsatz_documents');
+    expect(service.writeClient('landtag_nrw_documents')).toBe(content);
+  });
+
+  it('content init failure keeps instance usable', async () => {
+    resetEnv({
+      QDRANT_CONTENT_URL: CONTENT_URL,
+      QDRANT_CONTENT_API_KEY: 'content-key',
+      QDRANT_CONTENT_READ_ONLY: true,
+    });
+    failingUrls.add(CONTENT_URL);
+    const service = new QdrantService();
+    await service.init();
+
+    expect(service.isConnected).toBe(true);
+    expect(service.isContentAvailable()).toBe(false);
+    expect(service.readClient('documents')).toBe(clientAt(BASE_ENV.QDRANT_URL));
+    expect(() => service.readClient('landtag_nrw_documents')).toThrow(/content qdrant unavailable/);
+  });
+
+  it('operations resolve the current client per call', async () => {
+    const service = new QdrantService();
+    await service.init();
+    const operations = service.operations!;
+    const first = created[0];
+
+    first.getCollections.mockRejectedValue(new Error('SSL routines: wrong version number'));
+    service.lastHealthCheck = 0;
+    await service.ensureConnection();
+
+    expect(created).toHaveLength(2);
+    const second = created[1];
+    await operations.vectorSearch('documents', [0.1, 0.2], {}, { limit: 1 });
+    expect(second.query).toHaveBeenCalled();
+    expect(first.query).not.toHaveBeenCalled();
+  });
+});
 
 describe('QdrantService._performInit reconciliation', () => {
   it('runs collection and index reconciliation by default', async () => {

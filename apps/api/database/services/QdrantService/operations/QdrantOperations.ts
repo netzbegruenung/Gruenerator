@@ -42,6 +42,9 @@ import type {
 
 const _logger = createLogger('QdrantOperations');
 
+/** Kein Sammlungsname: landet über qdrantStoreOf immer beim Instanz-Client */
+const INSTANCE_HEALTH_PROBE = '__health__';
+
 interface QdrantPoint {
   id: number;
   vector: number[];
@@ -52,12 +55,21 @@ interface QdrantPoint {
  * QdrantOperations class
  * Provides high-level search algorithms and operations on top of QdrantService
  */
+/**
+ * Löst je Aufruf den Client einer Sammlung auf. Nie zwischenspeichern: nach
+ * einem Neuaufbau (SSL) liefert der Resolver das neue Objekt.
+ */
+export interface QdrantClientResolver {
+  read(collection: string): QdrantClient;
+  write(collection: string): QdrantClient;
+}
+
 class QdrantOperations {
-  public client: QdrantClient;
+  private clients: QdrantClientResolver;
   private hybridConfig: HybridConfig;
 
-  constructor(qdrantClient: QdrantClient) {
-    this.client = qdrantClient;
+  constructor(clients: QdrantClientResolver) {
+    this.clients = clients;
     this.hybridConfig = vectorConfig.get('hybrid') as HybridConfig;
   }
 
@@ -70,7 +82,13 @@ class QdrantOperations {
     filter: QdrantFilter = {},
     options: VectorSearchOptions = {}
   ): Promise<VectorSearchResult[]> {
-    return searchWithQuality(this.client, collection, queryVector, filter, options);
+    return searchWithQuality(
+      this.clients.read(collection),
+      collection,
+      queryVector,
+      filter,
+      options
+    );
   }
 
   /**
@@ -83,7 +101,14 @@ class QdrantOperations {
     baseFilter: QdrantFilter = {},
     options: VectorSearchOptions = {}
   ): Promise<VectorSearchResult[]> {
-    return searchWithIntent(this.client, collection, queryVector, intent, baseFilter, options);
+    return searchWithIntent(
+      this.clients.read(collection),
+      collection,
+      queryVector,
+      intent,
+      baseFilter,
+      options
+    );
   }
 
   /**
@@ -94,7 +119,7 @@ class QdrantOperations {
     pointOrId: string | number | { id: string | number; payload: Record<string, unknown> },
     options: ContextOptions = {}
   ): Promise<ChunkWithContext> {
-    return getChunkWithContext(this.client, collection, pointOrId, options);
+    return getChunkWithContext(this.clients.read(collection), collection, pointOrId, options);
   }
 
   /**
@@ -113,7 +138,7 @@ class QdrantOperations {
     filter: QdrantFilter = {},
     options: VectorSearchOptions = {}
   ): Promise<VectorSearchResult[]> {
-    return vectorSearch(this.client, collection, queryVector, filter, options);
+    return vectorSearch(this.clients.read(collection), collection, queryVector, filter, options);
   }
 
   /**
@@ -126,7 +151,14 @@ class QdrantOperations {
     filter: QdrantFilter = {},
     options: HybridSearchOptions = {}
   ): Promise<HybridSearchResponse> {
-    return hybridSearch(this.client, collection, queryVector, query, filter, options);
+    return hybridSearch(
+      this.clients.read(collection),
+      collection,
+      queryVector,
+      query,
+      filter,
+      options
+    );
   }
 
   /**
@@ -138,7 +170,13 @@ class QdrantOperations {
     baseFilter: QdrantFilter = {},
     limit: number = 10
   ): Promise<TextSearchResult[]> {
-    return performTextSearch(this.client, collection, searchTerm, baseFilter, limit);
+    return performTextSearch(
+      this.clients.read(collection),
+      collection,
+      searchTerm,
+      baseFilter,
+      limit
+    );
   }
 
   /**
@@ -149,14 +187,14 @@ class QdrantOperations {
     points: QdrantPoint[],
     options: BatchUpsertOptions = {}
   ): Promise<BatchUpsertResult> {
-    return batchUpsert(this.client, collection, points, options);
+    return batchUpsert(this.clients.write(collection), collection, points, options);
   }
 
   /**
    * Batch delete points by filter
    */
   async batchDelete(collection: string, filter: QdrantFilter): Promise<BatchDeleteResult> {
-    return batchDelete(this.client, collection, filter);
+    return batchDelete(this.clients.write(collection), collection, filter);
   }
 
   /**
@@ -167,21 +205,22 @@ class QdrantOperations {
     filter: QdrantFilter = {},
     options: ScrollOptions = {}
   ): Promise<ScrollPoint[]> {
-    return scrollDocuments(this.client, collection, filter, options);
+    return scrollDocuments(this.clients.read(collection), collection, filter, options);
   }
 
   /**
    * Health check for Qdrant connection
    */
   async healthCheck(): Promise<boolean> {
-    return healthCheck(this.client);
+    // Prüft den Instanz-Server: unbekannte Namen löst der Resolver dorthin auf.
+    return healthCheck(this.clients.read(INSTANCE_HEALTH_PROBE));
   }
 
   /**
    * Get collection statistics
    */
   async getCollectionStats(collection: string): Promise<CollectionStats> {
-    return getCollectionStats(this.client, collection);
+    return getCollectionStats(this.clients.read(collection), collection);
   }
 }
 
