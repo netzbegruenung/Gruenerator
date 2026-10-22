@@ -119,6 +119,10 @@ export interface CanvasEditorExportApi {
     pixelRatio?: number;
     transparent?: boolean;
   }) => Promise<string | null>;
+  /** Every page as a PNG data URL, in page order; throws when a page cannot be rendered. */
+  capturePages: (options?: { pixelRatio?: number }) => Promise<string[]>;
+  /** The deck as an editable .pptx; throws when a page cannot be rendered. */
+  exportPptx: () => Promise<Blob>;
   /** The deck as a Vorlage stores it: config and state per page. */
   getPages: () => { configId: string; state: Record<string, unknown> }[];
   /** The menu bar's undo/redo, for a host that draws the bar itself. */

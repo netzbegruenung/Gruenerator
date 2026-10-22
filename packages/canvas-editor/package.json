@@ -31,6 +31,11 @@
       "types": "./src/composer/index.ts"
     },
     "./configs/*": "./src/configs/*",
+    "./slides": {
+      "import": "./src/slides/slideLayouts.ts",
+      "require": "./src/slides/slideLayouts.ts",
+      "types": "./src/slides/slideLayouts.ts"
+    },
     "./zip": {
       "import": "./src/utils/zipPageImages.ts",
       "require": "./src/utils/zipPageImages.ts",
@@ -102,6 +107,7 @@
     "konva": "^10.7.1",
     "lucide-react": "^1.57.0",
     "pdf-lib": "^1.17.1",
+    "pptxgenjs": "~4.0.1",
     "qrcode.react": "^4.2.0",
     "radix-ui": "^1.7.0",
     "react-icons": "^5.7.0",

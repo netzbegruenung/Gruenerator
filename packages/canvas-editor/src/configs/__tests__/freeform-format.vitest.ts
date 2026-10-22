@@ -21,6 +21,7 @@ describe('Freeform im Leinwandformat', () => {
       ['post-portrait', 1080, 1350],
       ['post-portrait-tall', 1080, 1440],
       ['profile-square', 1080, 1080],
+      ['slide-16-9', 1920, 1080],
     ]);
   });
 

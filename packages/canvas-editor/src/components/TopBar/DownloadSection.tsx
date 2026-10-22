@@ -28,7 +28,7 @@ import { DownloadNotice } from '../DownloadNotice';
 
 export type CanvasDownloadChoice = 'png' | 'jpeg' | 'webp';
 
-type DownloadChoice = CanvasDownloadChoice | 'pdf';
+type DownloadChoice = CanvasDownloadChoice | 'pdf' | 'pptx';
 
 /** Print formats: PDF with bleed and crop marks is the default download. */
 export interface PrintExportProps {
@@ -38,6 +38,25 @@ export interface PrintExportProps {
   /** Posters only: warns (without blocking) while this is missing or a placeholder. */
   impressum?: PrintImpressumGate | null;
 }
+
+/**
+ * Digitale Folien-Decks: „PowerPoint (.pptx)“ ist die Vorgabe, „PDF“ ein PDF
+ * mit allen Seiten, ohne Druckmarken.
+ */
+export interface SlideDeckExportProps {
+  onDownloadPdf: () => Promise<void>;
+  /** Meldet nach jeder geschriebenen Folie den Fortschritt. */
+  onDownloadPptx: (onProgress: (done: number, total: number) => void) => Promise<void>;
+  /** Welche Hausschriften das Deck trägt: deutsche oder österreichische Marke. */
+  locale: ImpressumLocale;
+}
+
+const PPTX_FONT_HINT: Record<ImpressumLocale, string> = {
+  'de-DE':
+    'Damit die Folien wie im Grünerator aussehen, installiere die Schriften GrueneType Neue und PT Sans – sonst ersetzt PowerPoint sie.',
+  'de-AT':
+    'Damit die Folien wie im Grünerator aussehen, installiere die Schriften Gotham Narrow Book, Bold und Ultra – sonst ersetzt PowerPoint sie.',
+};
 
 export interface PrintImpressumGate {
   /** False until every poster page has reported its state; no warning until then. */
@@ -123,6 +142,20 @@ function ImpressumForm({ gate }: { gate: PrintImpressumGate }) {
   );
 }
 
+function ProgressBar({ progress }: { progress: { current: number; total: number } }) {
+  return (
+    <div className="relative w-full h-5 bg-editor-tile rounded-full overflow-hidden">
+      <div
+        className="absolute inset-y-0 left-0 bg-primary-600 rounded-full transition-[width] duration-300"
+        style={{ width: `${(progress.current / progress.total) * 100}%` }}
+      />
+      <span className="absolute inset-0 flex items-center justify-center text-[10px] font-medium">
+        {progress.current}/{progress.total}
+      </span>
+    </div>
+  );
+}
+
 export interface DownloadSectionProps {
   onDownload: (
     format: CanvasDownloadChoice,
@@ -136,6 +169,7 @@ export interface DownloadSectionProps {
   exportError?: string | null;
   exportNotice?: string | null;
   printExport?: PrintExportProps | null;
+  slideDeck?: SlideDeckExportProps | null;
 }
 
 const DEFAULT_RASTER_PIXEL_RATIO = 1;
@@ -150,8 +184,12 @@ export function DownloadSection({
   exportError,
   exportNotice,
   printExport = null,
+  slideDeck = null,
 }: DownloadSectionProps) {
-  const [choice, setChoice] = useState<DownloadChoice>(printExport ? 'pdf' : 'png');
+  const [choice, setChoice] = useState<DownloadChoice>(
+    printExport ? 'pdf' : slideDeck ? 'pptx' : 'png'
+  );
+  const [pptxProgress, setPptxProgress] = useState<{ current: number; total: number } | null>(null);
   const [printWarnings] = useState<string[]>(() => printExport?.getWarnings() ?? []);
   const [scale, setScale] = useState<number>(DEFAULT_RASTER_PIXEL_RATIO);
   const [transparent, setTransparent] = useState(false);
@@ -165,7 +203,9 @@ export function DownloadSection({
   const impressumMissing =
     impressumGate?.ready === true &&
     !isImpressumComplete(parseImpressumLine(impressumGate.locale, impressumGate.text ?? ''));
-  const isMultiPage = pageCount > 1 && onDownloadAllZip && !isPdf;
+  const isSlidesPdf = choice === 'pdf' && slideDeck !== null;
+  const isPptx = choice === 'pptx' && slideDeck !== null;
+  const isMultiPage = pageCount > 1 && onDownloadAllZip && !isPdf && !isSlidesPdf && !isPptx;
   // JPEG has no alpha channel — the transparency toggle is only meaningful for
   // PNG/WebP.
   const supportsTransparency = choice !== 'jpeg';
@@ -178,12 +218,21 @@ export function DownloadSection({
         await printExport.onDownloadPdf();
         return;
       }
+      if (isSlidesPdf && slideDeck) {
+        await slideDeck.onDownloadPdf();
+        return;
+      }
+      if (isPptx && slideDeck) {
+        setPptxProgress({ current: 0, total: pageCount });
+        await slideDeck.onDownloadPptx((current, total) => setPptxProgress({ current, total }));
+        return;
+      }
       if (pageSelection === 'all' && onDownloadAllZip) {
         await onDownloadAllZip();
         return;
       }
       await onDownload(
-        choice === 'pdf' ? 'png' : choice,
+        choice === 'pdf' || choice === 'pptx' ? 'png' : choice,
         scale,
         supportsTransparency && transparent
       );
@@ -192,6 +241,7 @@ export function DownloadSection({
       setDownloadError(downloadErrorMessage(err));
     } finally {
       setIsDownloading(false);
+      setPptxProgress(null);
     }
   };
 
@@ -207,6 +257,8 @@ export function DownloadSection({
           </SelectTrigger>
           <SelectContent position="popper" className="z-[10001]">
             {printExport && <SelectItem value="pdf">PDF (Druck)</SelectItem>}
+            {slideDeck && <SelectItem value="pptx">PowerPoint (.pptx)</SelectItem>}
+            {slideDeck && <SelectItem value="pdf">PDF</SelectItem>}
             <SelectItem value="png">PNG</SelectItem>
             {!printExport && <SelectItem value="jpeg">JPG</SelectItem>}
             {!printExport && <SelectItem value="webp">WebP</SelectItem>}
@@ -216,7 +268,7 @@ export function DownloadSection({
 
       {/* Resolution + transparency only apply to single-page export; the
           multi-page ZIP path renders at fixed settings. */}
-      {!isPdf && pageSelection === 'current' && (
+      {!isPdf && !isSlidesPdf && !isPptx && pageSelection === 'current' && (
         <>
           <div className="flex flex-col gap-1.5">
             <Label
@@ -278,16 +330,9 @@ export function DownloadSection({
       )}
 
       {isMultiExporting && exportProgress && exportProgress.total > 0 && (
-        <div className="relative w-full h-5 bg-editor-tile rounded-full overflow-hidden">
-          <div
-            className="absolute inset-y-0 left-0 bg-primary-600 rounded-full transition-[width] duration-300"
-            style={{ width: `${(exportProgress.current / exportProgress.total) * 100}%` }}
-          />
-          <span className="absolute inset-0 flex items-center justify-center text-[10px] font-medium">
-            {exportProgress.current}/{exportProgress.total}
-          </span>
-        </div>
+        <ProgressBar progress={exportProgress} />
       )}
+      {pptxProgress && pptxProgress.total > 0 && <ProgressBar progress={pptxProgress} />}
 
       {impressumMissing && impressumGate && (
         <>
@@ -299,6 +344,9 @@ export function DownloadSection({
       )}
 
       {isPdf && <DownloadNotice tone="info">{PRINT_UNGETESTET_HINWEIS}</DownloadNotice>}
+      {isPptx && slideDeck && (
+        <DownloadNotice tone="info">{PPTX_FONT_HINT[slideDeck.locale]}</DownloadNotice>
+      )}
       {isPdf &&
         printWarnings.map((warning) => (
           <DownloadNotice key={warning} tone="info">

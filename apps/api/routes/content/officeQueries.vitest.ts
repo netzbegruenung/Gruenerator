@@ -46,7 +46,23 @@ describe('Office library', () => {
     expect(sql).toContain('lg.deleted_at IS NULL');
     expect(sql).toContain("(gcs.permissions->>'read')::boolean IS NOT FALSE");
     expect(sql).toContain('cd.is_deleted = false');
-    expect(params[1]).not.toContain('canvas');
+  });
+
+  it('lists slide canvases as presentations but keeps sharepics out', async () => {
+    query.mockResolvedValue([row('deck', 'canvas')]);
+    const pres = await listOffice('user-1', { typ: 'pres' });
+    expect(pres.items[0].document_subtype).toBe('canvas');
+    const [presSql, presParams] = query.mock.calls[0];
+    expect(presSql).toContain("cd.document_subtype = 'presentations' OR");
+    expect(presSql).toContain("sc.format = 'slide-16-9'");
+    // Papierkorb-Zeilen bleiben draussen: derselbe Zugriffs-Filter wie für alle Typen.
+    expect(presSql).toContain('cd.is_deleted = false');
+    expect(presParams[1]).toContain('canvas');
+
+    await listOffice('user-1', { typ: 'all' });
+    expect(query.mock.calls[1][0]).toContain("cd.document_subtype <> 'canvas' OR");
+    await listOffice('user-1', { typ: 'doc' });
+    expect(query.mock.calls[2][0]).toContain("'presentations', 'canvas')");
   });
 
   it('preserves the total on an empty page and stops loading', async () => {

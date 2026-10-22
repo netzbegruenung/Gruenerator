@@ -46,7 +46,9 @@ import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { PAGE_PERSISTED_STATE_KEYS } from '../../collab/pageElementStateKeys';
 import { serializeDeck } from '../../collab/pagesDoc';
 import { createPageSyncedCallbacks } from '../../collab/wrapCallbacksWithPageSync';
+import { impressumLocaleOf } from '../../composer/printImpressum';
 import { type CanvasConfigId } from '../../configs/types';
+import { exportPptxDeck } from '../../export/pptx/exportPptxDeck';
 import {
   exportPrintPdf,
   lowResolutionWarnings,
@@ -54,7 +56,13 @@ import {
   printPdfFilename,
   type PrintExportPage,
 } from '../../export/printExport';
-import { DEFAULT_FORMAT_ID, getCanvasFormatOrDefault, isPrintFormat } from '../../formats';
+import { exportSlidesPdf } from '../../export/slidesPdf';
+import {
+  DEFAULT_FORMAT_ID,
+  getCanvasFormatOrDefault,
+  isPrintFormat,
+  isSlideFormat,
+} from '../../formats';
 import { usePageManager, useMultiPageExport, usePageThumbnails } from '../../hooks';
 import { useDeckAutoSave } from '../../hooks/useDeckAutoSave';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
@@ -68,6 +76,11 @@ import {
   type VorlagenSectionHandle,
 } from '../../sidebar/sections/VorlagenSection';
 import { UserUploadsProvider } from '../../sidebar/UserUploadsProvider';
+import {
+  buildSlideLayout,
+  slideLayoutConfigId,
+  type SlideLayoutId,
+} from '../../slides/slideLayouts';
 import { useCanvasStoreSelector } from '../../stores/CanvasStoreProvider';
 import { AutoSaveStoreProvider } from '../../stores/useAutoSaveStore';
 import { cn } from '../../utils/cn';
@@ -80,6 +93,7 @@ import { CanvasMetaBar, CanvasZoomIndicator } from '../CanvasMetaBar';
 import { CanvasTextEditorProvider } from '../CanvasTextOverlay';
 import { MobileSelectionPill } from '../MobileSelectionPill';
 import { PageThumbnailStrip } from '../PageThumbnailStrip';
+import { SlideNotesPanel } from '../SlideNotesPanel';
 import { AddPageButton, TemplatePickerFlyout } from '../TemplatePickerFlyout';
 import { Toolbar } from '../Toolbar';
 import { ContextToolbar } from '../TopBar/ContextToolbar';
@@ -132,6 +146,9 @@ const sidebarLoadingFallback = (
     <Skeleton className="h-4 w-2/3 rounded" />
   </div>
 );
+
+/** Folien-PDF: 2× der 1920 × 1080-Folie, scharf auch im Vollbild. */
+const SLIDES_PDF_PIXEL_RATIO = 2;
 
 export function CanvasEditor(props: CanvasEditorProps) {
   return (
@@ -363,6 +380,21 @@ function CanvasEditorInner({
     [addPage, sliderConfigId]
   );
 
+  // Präsentation: eine Folie aus den CD-Layouts anhängen, im CI des Decks.
+  // Kein Hintergrund von der aktuellen Seite: das Layout bringt seinen eigenen.
+  const layoutLocale = sliderConfigId === 'freeform-at' ? 'de-AT' : 'de-DE';
+  const handleAddSlideLayout = useCallback(
+    async (layoutId: SlideLayoutId) => {
+      const state = buildSlideLayout(layoutId, {
+        locale: layoutLocale,
+        pageNumber: pageCount + 1,
+        date: new Date(),
+      });
+      await addPage(slideLayoutConfigId(layoutLocale), false, state);
+    },
+    [addPage, layoutLocale, pageCount]
+  );
+
   // "Vorlage ändern" — convert an existing page to another template.
   const [templateChangePageId, setTemplateChangePageId] = useState<string | null>(null);
   const handleOpenTemplateChange = useCallback((pageId: string) => {
@@ -570,6 +602,26 @@ function CanvasEditorInner({
     [currentPageIndex, canvasRefsRef]
   );
 
+  // Wie capturePages: jede Seite braucht ihr gemountetes Stage, sonst bricht der Export ab.
+  const buildPptx = useCallback(
+    async (onProgress?: (done: number, total: number) => void) => {
+      await ensureFontsReady();
+      const deck = serializeDeck(pagesDoc);
+      const refs = canvasRefsRef.current;
+      if (deck.some((_, i) => !refs[i]?.current)) {
+        throw new Error('Nicht alle Folien konnten exportiert werden');
+      }
+      return exportPptxDeck({
+        pages: deck.map((page) => page.state),
+        format: getCanvasFormatOrDefault(formatId),
+        rasterizeElement: async (slideIndex, elementId) =>
+          (await refs[slideIndex]?.current?.rasterizeElement(elementId)) ?? null,
+        ...(documentTitle ? { title: documentTitle } : {}),
+        ...(onProgress ? { onProgress } : {}),
+      });
+    },
+    [pagesDoc, canvasRefsRef, formatId, documentTitle]
+  );
   useImperativeHandle(
     exportApiRef,
     () => ({
@@ -577,11 +629,16 @@ function CanvasEditorInner({
         await ensureFontsReady();
         return handleCaptureCanvas({ format: 'png', pixelRatio, includeBackground: !transparent });
       },
+      capturePages: async ({ pixelRatio = 1 } = {}) => {
+        await ensureFontsReady();
+        return exportAllPages({ pixelRatio });
+      },
+      exportPptx: () => buildPptx(),
       getPages: () => serializeDeck(pagesDoc).map(({ configId, state }) => ({ configId, state })),
       undo: toolbarHandlers.undo,
       redo: toolbarHandlers.redo,
     }),
-    [handleCaptureCanvas, pagesDoc, toolbarHandlers]
+    [handleCaptureCanvas, exportAllPages, buildPptx, pagesDoc, toolbarHandlers]
   );
 
   const handleCaptureCanvasForAi = useCallback(async () => {
@@ -831,6 +888,24 @@ function CanvasEditorInner({
     await downloadBlob(blob, printPdfFilename(documentTitle ?? null));
   }, [printFormat, printPages, canvasRefsRef, documentTitle]);
 
+  const isSlideDeck = useMemo(() => isSlideFormat(getCanvasFormatOrDefault(formatId)), [formatId]);
+  const handleDownloadPptx = useCallback(
+    async (onProgress: (done: number, total: number) => void) => {
+      const blob = await buildPptx(onProgress);
+      const filename = printPdfFilename(documentTitle ?? 'Präsentation').replace(/\.pdf$/, '.pptx');
+      await downloadBlob(blob, filename);
+    },
+    [buildPptx, documentTitle]
+  );
+
+  const handleDownloadSlidesPdf = useCallback(async () => {
+    await ensureFontsReady();
+    const images = await exportAllPages({ pixelRatio: SLIDES_PDF_PIXEL_RATIO });
+    const pdf = await exportSlidesPdf(images);
+    const blob = new Blob([pdf as BlobPart], { type: 'application/pdf' });
+    await downloadBlob(blob, printPdfFilename(documentTitle ?? 'Präsentation'));
+  }, [exportAllPages, documentTitle]);
+
   // Every poster page should carry a filled-in V.i.S.d.P. / Impressum, whichever
   // page is active; the download warns (never blocks) once every page has reported.
   const impressumGate = usePrintImpressumGate(printFormat, pages, observedPages);
@@ -1036,6 +1111,7 @@ function CanvasEditorInner({
           deck={specEdit}
           onShowPage={showPage}
           canAddPage={canAddMore}
+          layoutLocale={layoutLocale}
         />
       ) : null;
     }
@@ -1072,6 +1148,7 @@ function CanvasEditorInner({
     pages,
     showPage,
     canAddMore,
+    layoutLocale,
   ]);
 
   // Collab vor dem ersten Sync (noch keine Seiten) und der eine Render, in dem
@@ -1101,6 +1178,8 @@ function CanvasEditorInner({
   const canvasWidth = activeConfig?.canvas.width ?? 1080;
   const canvasHeight = activeConfig?.canvas.height ?? 1080;
 
+  // Als String, damit Notiz-Tippen (neues `pages`) die Leiste nicht neu baut
+  const deckLocale = impressumLocaleOf(pages[0] ?? null);
   const noop = useCallback(() => {}, []);
   const toolbarShareProps = useMemo(
     () => ({
@@ -1128,8 +1207,19 @@ function CanvasEditorInner({
             impressum: impressumGate,
           }
         : null,
+      slideDeck: isSlideDeck
+        ? {
+            onDownloadPdf: handleDownloadSlidesPdf,
+            onDownloadPptx: handleDownloadPptx,
+            locale: deckLocale,
+          }
+        : null,
     }),
     [
+      isSlideDeck,
+      handleDownloadSlidesPdf,
+      handleDownloadPptx,
+      deckLocale,
       printFormat,
       impressumGate,
       handleDownloadPdf,
@@ -1345,6 +1435,7 @@ function CanvasEditorInner({
       onAddSliderVariant={sliderVariantHandler}
       templateFilter={categoryFilter}
       formatId={formatId}
+      onAddSlideLayout={handleAddSlideLayout}
     />
   ) : null;
   const bottomBar = (
@@ -1364,6 +1455,7 @@ function CanvasEditorInner({
                 onAddSliderVariant={sliderVariantHandler}
                 templateFilter={categoryFilter}
                 formatId={formatId}
+                onAddSlideLayout={handleAddSlideLayout}
                 compact
               />
             </div>
@@ -1492,6 +1584,16 @@ function CanvasEditorInner({
                 />
               )}
 
+              {isSlideFormat(format) && !isPreview && pages[currentPageIndex] && (
+                <SlideNotesPanel
+                  value={
+                    typeof pages[currentPageIndex].state.notes === 'string'
+                      ? pages[currentPageIndex].state.notes
+                      : ''
+                  }
+                  onChange={(notes) => updatePageState(pages[currentPageIndex].id, { notes })}
+                />
+              )}
               {/* Seite hinzufügen unter der Fläche — für den Fall, in dem die
                 untere Leiste den Knopf nicht trägt: unterhalb von 900 px, wo
                 `CanvasEditorLayout` sie per `max-canvas-mobile:hidden`
@@ -1509,6 +1611,7 @@ function CanvasEditorInner({
                     onAddSliderVariant={sliderVariantHandler}
                     templateFilter={categoryFilter}
                     formatId={formatId}
+                    onAddSlideLayout={handleAddSlideLayout}
                   />
                 </div>
               )}

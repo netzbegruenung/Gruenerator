@@ -24,6 +24,7 @@ import {
   CardGrid,
   DismissableBanner,
 } from '@gruenerator/ui';
+import { useQueryClient } from '@tanstack/react-query';
 import { lazy, Suspense, useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { FiChevronDown, FiChevronUp, FiFile, FiPlus, FiUsers } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
@@ -33,8 +34,10 @@ import { SHOW_SHAREPIC_STUDIO } from '../../config/featureFlags';
 import { OFFICE_SUITE_TOOLS, filterWorkplaceTools } from '../../config/workplaceToolsConfig';
 import { useBoardsTyped } from '../../hooks/useBoardsTyped';
 import { useFirstName } from '../../hooks/useFirstName';
+import { useAuthStore } from '../../stores/authStore';
 import { boardTemplates, getBoardTemplate } from '../boards/boardTemplates';
 import { useFeatureIndex } from '../global-search/useFeatureIndex';
+import { seedCanvasQuery } from '../image-studio/canvasQuery';
 import { openSharepicCreator } from '../image-studio/freitext/openSharepicCreator';
 import {
   getPresentationTemplate,
@@ -47,6 +50,13 @@ import { OFFICE_PILL_ROW, OfficeActionPill } from '../workplace/components/Tools
 import { WorkplaceHero } from '../workplace/components/WorkplaceHero';
 
 import { BoardCard, type BoardCardBoard } from './BoardCard';
+import {
+  deleteCanvasDeck,
+  isCanvasDeck,
+  officeItemTarget,
+  renameCanvasDeck,
+} from './canvasDeckActions';
+import { createSlideDeck } from './createSlideDeck';
 import { webAppDocsAdapter } from './docsAdapter';
 import {
   DocsComposer,
@@ -57,11 +67,9 @@ import {
 import { subtypeToKind, type DocKind } from './docTypeMeta';
 import { DocumentCard } from './DocumentCard';
 import { OfficeLibrary } from './OfficeLibrary';
+import { OfficeShareDialog, type OfficeShareTarget } from './OfficeShareDialog';
 import { useOfficeLibrary } from './useOfficeLibrary';
 
-const LazyShareModal = lazy(() =>
-  import('@gruenerator/docs').then((m) => ({ default: m.ShareModal }))
-);
 const LazyShareBoardDialog = lazy(() =>
   import('../boards/components/ShareBoardDialog').then((m) => ({ default: m.ShareBoardDialog }))
 );
@@ -154,6 +162,8 @@ export function DocumentsContent({
 }) {
   const adapter = useDocsAdapter();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const locale = useAuthStore((s) => s.locale);
   const firstName = useFirstName();
   const featureIndex = useFeatureIndex();
   // A sharepic request goes to the creator, which speaks both corporate designs.
@@ -201,7 +211,7 @@ export function DocumentsContent({
   const [showWolkeImport, setShowWolkeImport] = useState(false);
   const [creating, setCreating] = useState(false);
   const creatingRef = useRef(false);
-  const [shareDoc, setShareDoc] = useState<{ id: string; title: string } | null>(null);
+  const [shareDoc, setShareDoc] = useState<OfficeShareTarget | null>(null);
   const [shareBoard, setShareBoard] = useState<{ id: string; title: string } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string;
@@ -324,17 +334,30 @@ export function DocumentsContent({
       const newTitle = window.prompt('Neuer Titel:', doc.title);
       if (newTitle?.trim() && newTitle.trim() !== doc.title) {
         try {
-          await updateDocumentMutation.mutateAsync({
-            id: doc.id,
-            updates: { title: newTitle.trim() },
-          });
+          if (isCanvasDeck(documents.find((d) => d.id === doc.id)?.document_subtype)) {
+            await renameCanvasDeck(doc.id, newTitle.trim());
+          } else {
+            await updateDocumentMutation.mutateAsync({
+              id: doc.id,
+              updates: { title: newTitle.trim() },
+            });
+          }
           refreshOffice();
         } catch (err) {
           console.error('Failed to rename document:', err);
         }
       }
     },
-    [updateDocumentMutation, refreshOffice]
+    [updateDocumentMutation, refreshOffice, documents]
+  );
+
+  const handleShareDoc = useCallback(
+    (doc: { id: string; title: string }) =>
+      setShareDoc({
+        ...doc,
+        documentSubtype: documents.find((d) => d.id === doc.id)?.document_subtype ?? null,
+      }),
+    [documents]
   );
 
   const handleDeleteBoard = useCallback(
@@ -347,7 +370,12 @@ export function DocumentsContent({
     const { id, kind, title } = deleteTarget;
     setDeleteTarget(null);
     try {
-      if (kind === 'document') {
+      if (
+        kind === 'document' &&
+        isCanvasDeck(documents.find((d) => d.id === id)?.document_subtype)
+      ) {
+        await deleteCanvasDeck(id);
+      } else if (kind === 'document') {
         await deleteDocumentMutation.mutateAsync(id);
       } else {
         await deleteBoard.mutateAsync(id);
@@ -357,7 +385,7 @@ export function DocumentsContent({
     } catch (err) {
       console.error(`Failed to delete ${kind}:`, err);
     }
-  }, [deleteTarget, deleteDocumentMutation, deleteBoard, showTrashUndo, refreshOffice]);
+  }, [deleteTarget, deleteDocumentMutation, deleteBoard, showTrashUndo, refreshOffice, documents]);
 
   const handleRenameBoard = useCallback(
     async (board: { id: string; title: string }, e: React.MouseEvent) => {
@@ -417,15 +445,13 @@ export function DocumentsContent({
 
   const handleCreatePresentation = useCallback(async () => {
     try {
-      const newDoc = await createDocumentMutation.mutateAsync({
-        title: 'Neue Präsentation',
-        documentSubtype: 'presentations',
-      });
-      adapter.navigateToDocument(newDoc.id);
+      const deck = await createSlideDeck(locale);
+      seedCanvasQuery(queryClient, deck);
+      void navigate(`/studio/canvas/${deck.id}`);
     } catch (err) {
       console.error('Failed to create presentation:', err);
     }
-  }, [createDocumentMutation, adapter]);
+  }, [locale, queryClient, navigate]);
 
   const handleCreatePresentationFromTemplate = useCallback(
     async (templateId: string) => {
@@ -567,8 +593,7 @@ export function DocumentsContent({
     const docItems = documents.map((d) => ({
       id: d.id,
       title: d.title,
-      kind: subtypeToKind(d.document_subtype),
-      openPath: `/office/${d.id}`,
+      ...officeItemTarget(d.id, d.document_subtype),
       sortKey: new Date(d.updated_at).getTime(),
     }));
     const boardItems = boards.map((b) => ({
@@ -702,7 +727,7 @@ export function DocumentsContent({
           adapter={adapter}
           onDeleteDoc={handleDeleteDoc}
           onRenameDoc={handleRenameDoc}
-          onShareDoc={setShareDoc}
+          onShareDoc={handleShareDoc}
           onDeleteBoard={handleDeleteBoard}
           onRenameBoard={handleRenameBoard}
           onShareBoard={handleShareBoard}
@@ -764,7 +789,7 @@ export function DocumentsContent({
                             adapter={adapter}
                             onDelete={handleDeleteDoc}
                             onRename={handleRenameDoc}
-                            onShare={setShareDoc}
+                            onShare={handleShareDoc}
                           />
                         );
                       return (
@@ -814,7 +839,7 @@ export function DocumentsContent({
                           adapter={adapter}
                           onDelete={handleDeleteDoc}
                           onRename={handleRenameDoc}
-                          onShare={setShareDoc}
+                          onShare={handleShareDoc}
                         />
                       );
                     })}
@@ -849,15 +874,7 @@ export function DocumentsContent({
         </Suspense>
       )}
 
-      {shareDoc && (
-        <Suspense fallback={null}>
-          <LazyShareModal
-            documentId={shareDoc.id}
-            documentTitle={shareDoc.title}
-            onClose={() => setShareDoc(null)}
-          />
-        </Suspense>
-      )}
+      {shareDoc && <OfficeShareDialog target={shareDoc} onClose={() => setShareDoc(null)} />}
 
       {shareBoard && (
         <Suspense fallback={null}>

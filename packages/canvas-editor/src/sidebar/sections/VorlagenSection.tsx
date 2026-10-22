@@ -6,6 +6,11 @@
  * replaced or asked. A Vorlage's slides come as Seiten of their own and stay
  * together in their order; the ones most like the design come first.
  *
+ * A slide deck shows the built-in slide layouts first (`slides/`), dark and
+ * light, and adds them like Seiten: a click puts one after the open page, a
+ * tile dragged onto a page after that page, an empty deck is filled instead.
+ * The host's canvas Vorlagen of the format follow, if there are any.
+ *
  * Every other format shows the Vorlagen of exactly its size, both from the
  * host: the print Vorlagen (`listPrint`), whose specs compose here
  * (`composePrint`), and the canvas Vorlagen — finished pages such as the
@@ -58,8 +63,20 @@ import {
   vorlageDeckOps,
 } from '../../collab/vorlageDeck';
 import { composePrint } from '../../composer/composePrint';
-import { getCanvasFormat, isPrintFormat, type PrintCanvasFormat } from '../../formats';
+import {
+  getCanvasFormat,
+  isPrintFormat,
+  isSlideFormat,
+  type PrintCanvasFormat,
+} from '../../formats';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
+import { SlideLayoutPicker } from '../../slides/SlideLayoutPicker';
+import {
+  buildSlideLayout,
+  SLIDE_LAYOUTS,
+  slideLayoutConfigId,
+  type SlideLayoutId,
+} from '../../slides/slideLayouts';
 import { useCanvasStoreSelector } from '../../stores/CanvasStoreProvider';
 import { cn } from '../../utils/cn';
 import { ensureFontsReady } from '../../utils/ensureFontsReady';
@@ -68,6 +85,7 @@ import { rankVorlagen } from '../../utils/vorlagenRelevance';
 
 import { GalleryTabs } from './StudioGallery';
 
+import type { BrandLocale } from '../../brand/theme';
 import type {
   CanvasSpecEditBridge,
   CanvasVorlagenService,
@@ -92,6 +110,8 @@ export interface VorlagenSectionProps {
   onShowPage?: (pageId: string) => void;
   /** False once the design holds as many pages as it may. */
   canAddPage: boolean;
+  /** The country whose slide layouts a deck gets. */
+  layoutLocale: BrandLocale;
 }
 
 /** A Vorlage tile, print or canvas: the whole Vorlage, or one page of a print Vorlage. */
@@ -211,6 +231,15 @@ function startDrag(e: DragEvent<HTMLElement>, id: string) {
     e.dataTransfer.setDragImage(preview, preview.offsetWidth / 2, preview.offsetHeight / 2);
   }
 }
+
+/** Drag payload of a slide layout tile, apart from the host's Vorlage ids. */
+const LAYOUT_DRAG_PREFIX = 'folienlayout:';
+
+const layoutFromDrag = (id: string): SlideLayoutId | null => {
+  if (!id.startsWith(LAYOUT_DRAG_PREFIX)) return null;
+  const layoutId = id.slice(LAYOUT_DRAG_PREFIX.length);
+  return SLIDE_LAYOUTS.find((l) => l.id === layoutId)?.id ?? null;
+};
 
 const HINT = 'm-0 py-4 text-center text-[13px] text-[var(--editor-text-muted)]';
 
@@ -339,6 +368,7 @@ export function VorlagenSection({
   deck,
   onShowPage,
   canAddPage,
+  layoutLocale,
 }: VorlagenSectionProps) {
   const { vorlagen: service } = useCanvasEditorServices();
   const canDrag = !useIsCanvasMobile();
@@ -357,6 +387,7 @@ export function VorlagenSection({
 
   const format = getCanvasFormat(formatId);
   const printFormat = format && isPrintFormat(format) ? format : null;
+  const slideDeck = !!format && isSlideFormat(format);
   const sharepicFormat = sharepicFormatSchema.safeParse(formatId);
   const seitenFormat = sharepicFormat.success ? sharepicFormat.data : null;
   const listSeiten = service?.listSeiten;
@@ -471,6 +502,26 @@ export function VorlagenSection({
     }
   };
 
+  const addLayout = (id: SlideLayoutId, afterPageId: string | null) => {
+    if (busyId !== null || full) return;
+    setApplyError(null);
+    try {
+      const current = deck.getPages();
+      const at = current.findIndex((p) => p.id === afterPageId);
+      // Die Nummer, die die Folie im Deck bekommt.
+      const pageNumber = isDeckEmpty(current) ? 1 : (at === -1 ? current.length : at + 1) + 1;
+      const state = buildSlideLayout(id, { locale: layoutLocale, pageNumber, date: new Date() });
+      const page = { configId: slideLayoutConfigId(layoutLocale), state };
+      const ops = seiteDeckOps(current, afterPageId, page, uuid);
+      const [inserted] = deck.replaceDeck(ops);
+      const shownId = inserted ?? ops.updates[0]?.pageId;
+      if (shownId) onShowPage?.(shownId);
+    } catch (err) {
+      console.warn('[VorlagenSection] adding the slide layout failed', err);
+      setApplyError(ADD_ERROR);
+    }
+  };
+
   const choose = (vorlage: VorlageCard, pageId: string | null) => {
     if (busyId !== null) return;
     const current = deck.getPages();
@@ -482,6 +533,11 @@ export function VorlagenSection({
 
   useImperativeHandle(ref, () => ({
     drop: (id, pageId) => {
+      const layoutId = layoutFromDrag(id);
+      if (layoutId) {
+        addLayout(layoutId, pageId);
+        return;
+      }
       const vorlage = wholeCards.find((v) => v.id === id);
       if (vorlage) {
         choose(vorlage, pageId);
@@ -524,6 +580,32 @@ export function VorlagenSection({
     </p>
   );
 
+  const wholeList = (
+    <>
+      {wholeCards.some((v) => v.seite) && (
+        <p className="m-0 text-[12px] text-[var(--editor-text-muted)]">
+          {canDrag
+            ? 'Eine Seite ersetzt die aktuelle Seite. Auf eine Seite gezogen, ersetzt sie diese.'
+            : 'Eine Seite ersetzt die aktuelle Seite.'}
+        </p>
+      )}
+      <ul className="m-0 grid w-full list-none grid-cols-2 gap-2 p-0">
+        {wholeCards.map((vorlage) => (
+          <VorlageTile
+            key={vorlage.id}
+            vorlage={vorlage}
+            aspect={aspect}
+            aspectStyle={aspectStyle}
+            busy={busyId === vorlage.id}
+            disabled={busyId !== null}
+            canDrag={canDrag}
+            onPick={() => choose(vorlage, deck.getActivePageId())}
+          />
+        ))}
+      </ul>
+    </>
+  );
+
   const wholeView =
     wholeLoad.status === 'error' ? (
       <LoadError
@@ -538,30 +620,46 @@ export function VorlagenSection({
     ) : wholeCards.length === 0 ? (
       <p className={HINT}>Für dieses Format gibt es noch keine Vorlagen.</p>
     ) : (
-      <>
-        {wholeCards.some((v) => v.seite) && (
-          <p className="m-0 text-[12px] text-[var(--editor-text-muted)]">
-            {canDrag
-              ? 'Eine Seite ersetzt die aktuelle Seite. Auf eine Seite gezogen, ersetzt sie diese.'
-              : 'Eine Seite ersetzt die aktuelle Seite.'}
-          </p>
-        )}
-        <ul className="m-0 grid w-full list-none grid-cols-2 gap-2 p-0">
-          {wholeCards.map((vorlage) => (
-            <VorlageTile
-              key={vorlage.id}
-              vorlage={vorlage}
-              aspect={aspect}
-              aspectStyle={aspectStyle}
-              busy={busyId === vorlage.id}
-              disabled={busyId !== null}
-              canDrag={canDrag}
-              onPick={() => choose(vorlage, deck.getActivePageId())}
-            />
-          ))}
-        </ul>
-      </>
+      wholeList
     );
+
+  // Die Folienlayouts sind sofort da; die Vorlagen des Hosts folgen, wenn es welche gibt.
+  const slidesView = (
+    <>
+      <p className="m-0 text-[12px] text-[var(--editor-text-muted)]">
+        {full
+          ? 'Mehr Folien passen nicht in diese Präsentation. Lösche eine, um eine neue einzufügen.'
+          : canDrag
+            ? 'Ein Klick fügt die Folie hinter der aktuellen ein. Auf eine Seite gezogen, landet sie dahinter.'
+            : 'Ein Klick fügt die Folie hinter der aktuellen ein.'}
+      </p>
+      <SlideLayoutPicker
+        narrow
+        locale={layoutLocale}
+        disabled={busyId !== null || full}
+        onSelect={(id) => addLayout(id, deck.getActivePageId())}
+        onDragStart={canDrag ? (e, id) => startDrag(e, `${LAYOUT_DRAG_PREFIX}${id}`) : null}
+      />
+      {wholeLoad.status === 'error' ? (
+        <LoadError
+          text="Weitere Vorlagen konnten nicht geladen werden."
+          onRetry={() => {
+            setWholeLoad({ status: 'loading' });
+            setWholeAttempt((n) => n + 1);
+          }}
+        />
+      ) : (
+        wholeCards.length > 0 && (
+          <section aria-label="Weitere Vorlagen" className="flex flex-col gap-1.5">
+            <h4 className="m-0 text-xs font-semibold text-[var(--editor-text-secondary)]">
+              Weitere Vorlagen
+            </h4>
+            {wholeList}
+          </section>
+        )
+      )}
+    </>
+  );
 
   const seitenView = (() => {
     if (!seitenFormat) return null;
@@ -652,7 +750,7 @@ export function VorlagenSection({
   return (
     <div className="flex w-full flex-col gap-2.5">
       {errorLine}
-      {seitenFormat ? seitenView : wholeView}
+      {slideDeck ? slidesView : seitenFormat ? seitenView : wholeView}
 
       <AlertDialog open={asking !== null} onOpenChange={(open) => !open && setAsking(null)}>
         <AlertDialogContent>

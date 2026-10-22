@@ -106,19 +106,31 @@ const STUDIO_ASSET_SUBTYPES: Record<string, SubtypeDisplay> = {
   background: { label: 'Hintergrund', icon: PiImage },
 };
 
-function subtypeDisplay(item: Pick<TrashItem, 'kind' | 'subtype'>): SubtypeDisplay | null {
+/** Canvas-Zeilen im Folienformat sind Präsentationen, alle anderen Sharepics. */
+const SLIDE_CANVAS_FORMAT = 'slide-16-9';
+
+type TrashDisplayItem = Pick<TrashItem, 'kind' | 'subtype'> & Partial<Pick<TrashItem, 'format'>>;
+
+function subtypeDisplay(item: TrashDisplayItem): SubtypeDisplay | null {
   if (!item.subtype) return null;
+  if (
+    item.kind === 'collaborative_document' &&
+    item.subtype === 'canvas' &&
+    item.format === SLIDE_CANVAS_FORMAT
+  ) {
+    return COLLAB_SUBTYPES.presentations;
+  }
   if (item.kind === 'studio_asset') return STUDIO_ASSET_SUBTYPES[item.subtype] ?? null;
   if (item.kind === 'collaborative_document') return COLLAB_SUBTYPES[item.subtype] ?? null;
   if (item.kind === 'shared_media') return MEDIA_SUBTYPES[item.subtype] ?? null;
   return null;
 }
 
-export function trashItemLabel(item: Pick<TrashItem, 'kind' | 'subtype'>): string {
+export function trashItemLabel(item: TrashDisplayItem): string {
   return subtypeDisplay(item)?.label ?? TRASH_KIND_LABELS[item.kind];
 }
 
-export function trashItemIcon(item: Pick<TrashItem, 'kind' | 'subtype'>): IconType {
+export function trashItemIcon(item: TrashDisplayItem): IconType {
   return subtypeDisplay(item)?.icon ?? TRASH_KIND_ICONS[item.kind];
 }
 

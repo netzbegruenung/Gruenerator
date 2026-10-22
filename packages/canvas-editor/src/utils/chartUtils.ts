@@ -76,6 +76,14 @@ export interface ChartDataPoint {
   value: number;
 }
 
+/** One series of a cartesian chart: a value per category (`data[i].name`). */
+export interface ChartSeries {
+  name: string;
+  values: number[];
+}
+
+export type ChartLegendPosition = 'right' | 'bottom';
+
 export interface ChartInstance {
   id: string;
   x: number;
@@ -87,16 +95,122 @@ export interface ChartInstance {
   opacity: number;
   chartType: ChartType;
   data: ChartDataPoint[];
-  /** Series / slice colors, cycled over the data points. */
+  /**
+   * Two or more series of a bar, line or area chart; absent or empty on a
+   * single-series chart. `data[i].value` always equals `series[0].values[i]`, so a reader
+   * that predates series still draws the first one. Pies ignore it.
+   */
+  series?: ChartSeries[];
+  /** Single series: cycled over the data points. Several series: one per series. */
   colors: string[];
   title?: string;
   /** Appended to value labels ("%", "€"); absent on charts made before it existed. */
   unit?: string;
   showLegend: boolean;
+  /** Absent: right of a pie, below a cartesian chart. */
+  legendPosition?: ChartLegendPosition;
   showGrid: boolean;
   showValues: boolean;
   /** The colour the chart is set on, where it is known; series too light for it get an outline. */
   background?: string;
+}
+
+/** The series a cartesian chart draws when it has several, else null. */
+export function chartSeries(
+  chart: Pick<ChartInstance, 'chartType' | 'series'>
+): ChartSeries[] | null {
+  if (isRoundChartType(chart.chartType)) return null;
+  return chart.series && chart.series.length > 1 ? chart.series : null;
+}
+
+export function chartLegendPosition(
+  chart: Pick<ChartInstance, 'chartType' | 'legendPosition'>
+): ChartLegendPosition {
+  return chart.legendPosition ?? (isRoundChartType(chart.chartType) ? 'right' : 'bottom');
+}
+
+/** The series the table edits: the stored ones, or the data as the only series. */
+function seriesOf(chart: Pick<ChartInstance, 'data' | 'series'>): ChartSeries[] {
+  return chart.series && chart.series.length > 1
+    ? chart.series
+    : [{ name: 'Reihe 1', values: chart.data.map((d) => d.value) }];
+}
+
+/** Stores the series and keeps `data[i].value` on the first one; one series is stored as none. */
+function withSeries(
+  names: string[],
+  series: ChartSeries[]
+): Pick<ChartInstance, 'data' | 'series'> {
+  return {
+    data: names.map((name, i) => ({ name, value: series[0]?.values[i] ?? 0 })),
+    series: series.length > 1 ? series : [],
+  };
+}
+
+export function setChartValue(
+  chart: Pick<ChartInstance, 'data' | 'series'>,
+  row: number,
+  seriesIndex: number,
+  value: number
+): Pick<ChartInstance, 'data' | 'series'> {
+  const series = seriesOf(chart).map((s, si) =>
+    si === seriesIndex ? { ...s, values: s.values.map((v, i) => (i === row ? value : v)) } : s
+  );
+  return withSeries(
+    chart.data.map((d) => d.name),
+    series
+  );
+}
+
+export function addChartRow(
+  chart: Pick<ChartInstance, 'data' | 'series'>,
+  name: string
+): Pick<ChartInstance, 'data' | 'series'> {
+  return withSeries(
+    [...chart.data.map((d) => d.name), name],
+    seriesOf(chart).map((s) => ({ ...s, values: [...s.values, 0] }))
+  );
+}
+
+export function removeChartRow(
+  chart: Pick<ChartInstance, 'data' | 'series'>,
+  row: number
+): Pick<ChartInstance, 'data' | 'series'> {
+  return withSeries(
+    chart.data.map((d) => d.name).filter((_, i) => i !== row),
+    seriesOf(chart).map((s) => ({ ...s, values: s.values.filter((_, i) => i !== row) }))
+  );
+}
+
+export function addChartSeries(
+  chart: Pick<ChartInstance, 'data' | 'series'>
+): Pick<ChartInstance, 'data' | 'series'> {
+  const series = seriesOf(chart);
+  return withSeries(
+    chart.data.map((d) => d.name),
+    [...series, { name: `Reihe ${series.length + 1}`, values: chart.data.map(() => 0) }]
+  );
+}
+
+export function removeChartSeries(
+  chart: Pick<ChartInstance, 'data' | 'series'>,
+  seriesIndex: number
+): Pick<ChartInstance, 'data' | 'series'> {
+  return withSeries(
+    chart.data.map((d) => d.name),
+    seriesOf(chart).filter((_, si) => si !== seriesIndex)
+  );
+}
+
+export function renameChartSeries(
+  chart: Pick<ChartInstance, 'data' | 'series'>,
+  seriesIndex: number,
+  name: string
+): Pick<ChartInstance, 'data' | 'series'> {
+  return withSeries(
+    chart.data.map((d) => d.name),
+    seriesOf(chart).map((s, si) => (si === seriesIndex ? { ...s, name } : s))
+  );
 }
 
 /** WCAG 1.4.11: a graphical object against its adjacent colour. */
@@ -125,6 +239,19 @@ export function chartSeriesOutlines(
     }
   });
   return ratios.map((ratio) => (ratio !== null && ratio < MIN_GRAPHIC_CONTRAST ? outline : null));
+}
+
+/** Labels, ticks and legend on a light or unknown ground. */
+export const CHART_INK_DARK = '#40403f';
+
+/**
+ * The colour of a chart's own text: white where the chart sits on a dark
+ * colour (`background`), else dark grey — the default when the ground is unknown.
+ */
+export function chartInk(chart: Pick<ChartInstance, 'background'>): string {
+  const ground = chart.background ? luminance(chart.background) : null;
+  if (ground === null) return CHART_INK_DARK;
+  return contrastRatio(1, ground) > contrastRatio(0, ground) ? '#FFFFFF' : CHART_INK_DARK;
 }
 
 export const CHART_DEFAULT_WIDTH = 480;

@@ -26,7 +26,7 @@ export interface ExportProgress {
 }
 
 export interface UseMultiPageExportReturn {
-  exportAllPages: () => Promise<string[]>;
+  exportAllPages: (options?: { pixelRatio?: number }) => Promise<string[]>;
   downloadAllAsZip: () => Promise<void>;
   isExporting: boolean;
   exportProgress: ExportProgress;
@@ -49,37 +49,42 @@ export function useMultiPageExport({
   // A page whose stage is not mounted or whose capture fails must surface as
   // an error, not silently shrink the export — a ZIP with fewer images than
   // pages reads as data loss.
-  const exportAllPages = useCallback(async (): Promise<string[]> => {
-    const total = canvasRefs.length;
-    const images: string[] = [];
-    const failedPages: number[] = [];
+  const exportAllPages = useCallback(
+    async (options?: { pixelRatio?: number }): Promise<string[]> => {
+      const total = canvasRefs.length;
+      const images: string[] = [];
+      const failedPages: number[] = [];
 
-    setExportProgress({ current: 0, total });
+      setExportProgress({ current: 0, total });
 
-    for (let i = 0; i < canvasRefs.length; i++) {
-      const ref = canvasRefs[i];
-      let dataUrl: string | null = null;
-      if (ref.current) {
-        try {
-          dataUrl = await ref.current.captureCanvas();
-        } catch {
-          dataUrl = null;
+      for (let i = 0; i < canvasRefs.length; i++) {
+        const ref = canvasRefs[i];
+        let dataUrl: string | null = null;
+        if (ref.current) {
+          try {
+            dataUrl = await ref.current.captureCanvas(
+              options?.pixelRatio ? { format: 'png', pixelRatio: options.pixelRatio } : undefined
+            );
+          } catch {
+            dataUrl = null;
+          }
         }
+        if (dataUrl) {
+          images.push(dataUrl);
+        } else {
+          failedPages.push(i + 1);
+        }
+        setExportProgress({ current: i + 1, total });
       }
-      if (dataUrl) {
-        images.push(dataUrl);
-      } else {
-        failedPages.push(i + 1);
+
+      if (failedPages.length > 0) {
+        throw new Error(`Seite(n) ${failedPages.join(', ')} konnten nicht exportiert werden`);
       }
-      setExportProgress({ current: i + 1, total });
-    }
 
-    if (failedPages.length > 0) {
-      throw new Error(`Seite(n) ${failedPages.join(', ')} konnten nicht exportiert werden`);
-    }
-
-    return images;
-  }, [canvasRefs]);
+      return images;
+    },
+    [canvasRefs]
+  );
 
   const downloadAllAsZip = useCallback(async (): Promise<void> => {
     if (canvasRefs.length === 0) {

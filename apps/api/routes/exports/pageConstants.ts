@@ -60,6 +60,7 @@ export const SERVER_FORMATS: Readonly<Record<string, CanvasFormatLite>> = {
   'post-portrait': digital('post-portrait', 1080, 1350),
   'post-portrait-tall': digital('post-portrait-tall', 1080, 1440),
   'profile-square': digital('profile-square', 1080, 1080),
+  'slide-16-9': digital('slide-16-9', 1920, 1080),
   'print-visitenkarte-quer': print('print-visitenkarte-quer', 2000, 1341, { w: 85, h: 55 }, 3, 2),
   'print-visitenkarte-hoch': print('print-visitenkarte-hoch', 1341, 2000, { w: 55, h: 85 }, 3, 2),
   'print-a3-hoch': print('print-a3-hoch', 1423, 2000, { w: 297, h: 420 }, 4, 1),

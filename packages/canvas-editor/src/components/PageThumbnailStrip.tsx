@@ -6,6 +6,7 @@ import { cn } from '../utils/cn';
 import { TemplatePickerFlyout } from './TemplatePickerFlyout';
 
 import type { CanvasConfigId, FullCanvasConfig, HeterogeneousPage } from '../configs/types';
+import type { SlideLayoutId } from '../slides/slideLayouts';
 import type { TemplateCategory } from '../utils/templateRegistry';
 
 interface PageThumbnailStripProps {
@@ -21,6 +22,7 @@ interface PageThumbnailStripProps {
   onAddSliderVariant?: (variant: 'cover' | 'content' | 'last') => void;
   templateFilter?: TemplateCategory;
   formatId?: string;
+  onAddSlideLayout?: (layoutId: SlideLayoutId) => void;
 }
 
 export const PageThumbnailStrip = memo(function PageThumbnailStrip({
@@ -36,6 +38,7 @@ export const PageThumbnailStrip = memo(function PageThumbnailStrip({
   onAddSliderVariant,
   templateFilter,
   formatId,
+  onAddSlideLayout,
 }: PageThumbnailStripProps) {
   const [isFlyoutOpen, setIsFlyoutOpen] = useState(false);
   const chevronRef = useRef<HTMLButtonElement>(null);
@@ -140,6 +143,7 @@ export const PageThumbnailStrip = memo(function PageThumbnailStrip({
             onAddSliderVariant={onAddSliderVariant}
             templateFilter={templateFilter}
             formatId={formatId}
+            onAddSlideLayout={onAddSlideLayout}
           />
         </div>
       )}

@@ -7,6 +7,7 @@ import {
   getCanvasFormat,
   getCanvasFormatOrDefault,
   isPrintFormat,
+  isSlideFormat,
   isUnsupportedFormatId,
   mmToPx,
   printGeometry,
@@ -42,6 +43,7 @@ describe('Format-Ids', () => {
       ['post-portrait', 'digital'],
       ['post-portrait-tall', 'digital'],
       ['profile-square', 'digital'],
+      ['slide-16-9', 'digital'],
       ['print-visitenkarte-quer', 'print'],
       ['print-visitenkarte-hoch', 'print'],
       ['print-a3-hoch', 'print'],
@@ -62,13 +64,41 @@ describe('Format-Ids', () => {
   it('digitale Formate tragen kein Druckprofil', () => {
     for (const f of CANVAS_FORMATS.filter((f) => f.category === 'digital')) {
       expect(f.print, f.id).toBeNull();
+    }
+    for (const f of CANVAS_FORMATS.filter((f) => f.category === 'digital' && !isSlideFormat(f))) {
       expect(f.exportable).toEqual(['png', 'jpeg']);
       expect(f.defaultExport).toBe('png');
     }
   });
 
+  it('Folienformat: 16:9, Gruppe Präsentation, PPTX als Standard', () => {
+    const f = getCanvasFormat('slide-16-9');
+    expect(f).toMatchObject({
+      label: 'Präsentation',
+      description: '1920 × 1080 · 16:9 · Folien',
+      group: 'praesentation',
+      category: 'digital',
+      width: 1920,
+      height: 1080,
+      dpi: 72,
+      iconKey: 'landscape',
+      defaultExport: 'pptx',
+      exportable: ['pptx', 'pdf', 'png'],
+      print: null,
+    });
+  });
+
+  it('isSlideFormat trifft nur das Folienformat', () => {
+    expect(CANVAS_FORMATS.filter(isSlideFormat).map((f) => f.id)).toEqual(['slide-16-9']);
+  });
+
   it('Print steht nicht in den Studio-Gruppen', () => {
-    expect(CANVAS_FORMAT_GROUP_ORDER).toEqual(['sharepic', 'sharepic-tall', 'profilbild']);
+    expect(CANVAS_FORMAT_GROUP_ORDER).toEqual([
+      'sharepic',
+      'sharepic-tall',
+      'profilbild',
+      'praesentation',
+    ]);
   });
 });
 

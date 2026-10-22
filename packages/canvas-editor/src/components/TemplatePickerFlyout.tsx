@@ -7,6 +7,9 @@ import { createPortal } from 'react-dom';
 import { HiOutlineDuplicate, HiX, HiPlus, HiTemplate, HiBookOpen, HiStop } from 'react-icons/hi';
 
 import { type BrandLocale } from '../brand/theme';
+import { getCanvasFormatOrDefault, isSlideFormat } from '../formats';
+import { SlideLayoutPicker } from '../slides/SlideLayoutPicker';
+import { type SlideLayoutId } from '../slides/slideLayouts';
 import { cn } from '../utils/cn';
 import {
   getTemplatesForLocale,
@@ -35,6 +38,8 @@ interface TemplatePickerFlyoutProps {
    * different title, no duplicate entry, no slider variants.
    */
   mode?: 'add' | 'replace';
+  /** Präsentationen: eine Seite mit diesem Folienlayout anhängen. Nur bei Folienformaten gezeigt. */
+  onAddSlideLayout?: (layoutId: SlideLayoutId) => void;
 }
 
 interface TemplateCardProps {
@@ -94,8 +99,14 @@ export function TemplatePickerFlyout({
   templateFilter,
   formatId,
   mode = 'add',
+  onAddSlideLayout,
 }: TemplatePickerFlyoutProps) {
   const isReplace = mode === 'replace';
+  const showSlideLayouts =
+    !!onAddSlideLayout &&
+    !isReplace &&
+    !!formatId &&
+    isSlideFormat(getCanvasFormatOrDefault(formatId));
   const flyoutRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{ top: number; left: number; maxHeight?: number }>({
     top: 0,
@@ -196,6 +207,14 @@ export function TemplatePickerFlyout({
     [onSelectTemplate, onClose]
   );
 
+  const handleSlideLayout = useCallback(
+    (layoutId: SlideLayoutId) => {
+      onAddSlideLayout?.(layoutId);
+      onClose();
+    },
+    [onAddSlideLayout, onClose]
+  );
+
   const handleDuplicate = useCallback(() => {
     onDuplicateCurrent?.();
     onClose();
@@ -247,6 +266,8 @@ export function TemplatePickerFlyout({
           <HiX />
         </button>
       </div>
+
+      {showSlideLayouts && <SlideLayoutPicker locale={locale} onSelect={handleSlideLayout} />}
 
       {templates.length === 0 && !(onAddSliderVariant && !isReplace) && (
         <p className="m-0 mb-3 text-[13px] text-foreground-muted">
@@ -329,6 +350,7 @@ interface AddPageButtonProps {
   formatId?: string;
   /** Flache Bauform für die untere Leiste; sonst der breite Knopf unter der Fläche. */
   compact?: boolean;
+  onAddSlideLayout?: (layoutId: SlideLayoutId) => void;
 }
 
 export function AddPageButton({
@@ -340,6 +362,7 @@ export function AddPageButton({
   templateFilter,
   formatId,
   compact = false,
+  onAddSlideLayout,
 }: AddPageButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -371,6 +394,7 @@ export function AddPageButton({
         onAddSliderVariant={onAddSliderVariant}
         templateFilter={templateFilter}
         formatId={formatId}
+        onAddSlideLayout={onAddSlideLayout}
       />
     </>
   );
