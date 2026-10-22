@@ -1,5 +1,5 @@
 import { render, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 const captured: { maxPages: number | null } = { maxPages: null };
 
@@ -11,6 +11,7 @@ vi.mock('./components/CanvasEditor', () => ({
 }));
 
 import { ControllableCanvasWrapper } from './CanvasEditorRouter';
+import { loadCanvasConfig } from './configs/configLoader';
 
 const renderWith = (type: 'freeform' | 'freeform-at', formatId: string) =>
   render(
@@ -24,6 +25,11 @@ const renderWith = (type: 'freeform' | 'freeform-at', formatId: string) =>
   );
 
 describe('ControllableCanvasWrapper Seitendeckel', () => {
+  // Der kalte Import der Freeform-Configs dauert unter Last länger als waitFor
+  beforeAll(async () => {
+    await Promise.all([loadCanvasConfig('freeform'), loadCanvasConfig('freeform-at')]);
+  }, 120_000);
+
   it.each(['freeform', 'freeform-at'] as const)(
     'gibt %s-Präsentationen 60 Seiten',
     async (type) => {
