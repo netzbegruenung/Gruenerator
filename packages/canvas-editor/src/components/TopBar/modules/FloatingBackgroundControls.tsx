@@ -12,6 +12,7 @@ import {
   HiOutlineTrash,
 } from 'react-icons/hi2';
 
+import { MOBILE_INPUT_TEXT } from '../../../sidebar/sidebarStyles';
 import { useUserUploads } from '../../../sidebar/UserUploadsProvider';
 import { cn } from '../../../utils/cn';
 import { buildPlacementUrl, fetchShareImageFile } from '../../../utils/mediaPlacement';
@@ -118,11 +119,12 @@ export function BackgroundImagePicker({
           />
           <input
             type="search"
+            enterKeyHint="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Eigene Bilder durchsuchen"
             aria-label="Eigene Bilder durchsuchen"
-            className="flex-1 min-w-0 border-none outline-none bg-transparent text-sm text-[var(--editor-text)] placeholder:text-[var(--editor-text-muted)]"
+            className={`flex-1 min-w-0 border-none outline-none bg-transparent text-sm ${MOBILE_INPUT_TEXT} text-[var(--editor-text)] placeholder:text-[var(--editor-text-muted)]`}
           />
         </div>
 

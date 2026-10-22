@@ -1,6 +1,8 @@
 import { useCallback, useRef, useEffect } from 'react';
 import { FaMinus, FaPlus } from 'react-icons/fa';
 
+import { MOBILE_INPUT_TEXT } from '../sidebarStyles';
+
 import type { TextFieldConfig } from '../../configs/unifiedTabs';
 
 // ============================================================================
@@ -43,7 +45,7 @@ export function FontSizeStepper({ value, onChange, min = 12, max = 200 }: FontSi
       </button>
       <input
         type="number"
-        className="w-9 h-6 border-none bg-transparent text-center text-[0.8125rem] font-semibold text-foreground tabular-nums p-0 [appearance:textfield] [-moz-appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none max-canvas-mobile:w-8 max-canvas-mobile:h-5 max-canvas-mobile:text-xs"
+        className={`w-9 h-6 border-none bg-transparent text-center text-[0.8125rem] font-semibold text-foreground tabular-nums p-0 [appearance:textfield] [-moz-appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none max-canvas-mobile:w-8 max-canvas-mobile:h-6 ${MOBILE_INPUT_TEXT}`}
         value={Math.round(value)}
         onChange={handleInputChange}
         min={min}
@@ -109,7 +111,7 @@ export function AutoExpandTextarea({
       <textarea
         ref={textareaRef}
         id={id}
-        className="w-full py-[var(--spacing-small)] px-[var(--spacing-medium)] text-[0.9375rem] font-[inherit] text-foreground bg-background border border-editor-border-strong rounded-lg outline-none resize-none overflow-hidden leading-relaxed transition-[border-color,box-shadow] duration-200 focus:border-primary-600 focus:shadow-[0_0_0_3px_var(--primary-100)] placeholder:text-foreground-muted"
+        className={`w-full py-[var(--spacing-small)] px-[var(--spacing-medium)] ${MOBILE_INPUT_TEXT} text-[0.9375rem] font-[inherit] text-foreground bg-background border border-editor-border-strong rounded-lg outline-none resize-none overflow-hidden leading-relaxed transition-[border-color,box-shadow] duration-200 focus:border-primary-600 focus:shadow-[0_0_0_3px_var(--primary-100)] placeholder:text-foreground-muted`}
         value={value}
         onChange={handleChange}
         placeholder={placeholder}
@@ -165,7 +167,7 @@ export function TextField({ config, value, onChange, fontSize, onFontSizeChange 
         <input
           id={fieldId}
           type="text"
-          className="w-full py-[var(--spacing-small)] px-[var(--spacing-medium)] text-[0.9375rem] font-[inherit] text-foreground bg-background border border-editor-border-strong rounded-lg outline-none transition-[border-color,box-shadow] duration-200 focus:border-primary-600 focus:shadow-[0_0_0_3px_var(--primary-100)] placeholder:text-foreground-muted"
+          className={`w-full py-[var(--spacing-small)] px-[var(--spacing-medium)] ${MOBILE_INPUT_TEXT} text-[0.9375rem] font-[inherit] text-foreground bg-background border border-editor-border-strong rounded-lg outline-none transition-[border-color,box-shadow] duration-200 focus:border-primary-600 focus:shadow-[0_0_0_3px_var(--primary-100)] placeholder:text-foreground-muted`}
           value={value}
           onChange={(e) => {
             const newValue = e.target.value;

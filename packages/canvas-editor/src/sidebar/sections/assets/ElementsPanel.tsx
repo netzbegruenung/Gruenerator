@@ -16,6 +16,7 @@ import { useIsCanvasMobile } from '../../../hooks/useIsCanvasMobile';
 import { useTrackUnsplashDownload } from '../../../hooks/useTrackUnsplashDownload';
 import { cn } from '../../../utils/cn';
 import { MAX_ICON_SELECTIONS } from '../../../utils/iconInstances';
+import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
 import { IllustrationSettings } from '../IllustrationSettings';
 import { FramePreviewDefs } from '../RahmenSection';
 
@@ -64,6 +65,7 @@ function SearchField({
       <PiMagnifyingGlass size={18} aria-hidden />
       <input
         type="search"
+        enterKeyHint="search"
         value={value}
         placeholder={placeholder}
         aria-label={placeholder}
@@ -76,6 +78,7 @@ function SearchField({
         }}
         className={cn(
           'flex-1 min-w-0 border-none outline-none bg-transparent p-0 text-[15px] text-[var(--editor-text)]',
+          MOBILE_INPUT_TEXT,
           'placeholder:text-[var(--editor-text-muted)] [&::-webkit-search-cancel-button]:appearance-none'
         )}
       />

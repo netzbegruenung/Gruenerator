@@ -22,6 +22,7 @@ import {
   type ImpressumLocale,
   type ImpressumParts,
 } from '../../composer/printImpressum';
+import { MOBILE_INPUT_TEXT } from '../../sidebar/sidebarStyles';
 import { downloadErrorMessage } from '../../utils/downloadError';
 import { DownloadNotice } from '../DownloadNotice';
 
@@ -76,6 +77,7 @@ function ImpressumForm({ gate }: { gate: PrintImpressumGate }) {
         </Label>
         <Input
           id={`${fieldId}-name`}
+          className={MOBILE_INPUT_TEXT}
           value={name}
           placeholder={labels.namePlaceholder}
           onChange={(e) => setName(e.target.value)}
@@ -97,6 +99,7 @@ function ImpressumForm({ gate }: { gate: PrintImpressumGate }) {
         </Label>
         <Input
           id={`${fieldId}-anschrift`}
+          className={MOBILE_INPUT_TEXT}
           value={anschrift}
           placeholder="Straße Nr., PLZ Ort"
           onChange={(e) => setAnschrift(e.target.value)}

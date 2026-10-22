@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { HiPencilSquare } from 'react-icons/hi2';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
+import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
 import { useUserUploads } from '../../UserUploadsProvider';
 
 import { ImageInputPicker } from './ImageInputPicker';
@@ -69,7 +70,7 @@ export function AiEditTool({ onJumpToUploads }: AiEditToolProps) {
             rows={3}
             maxLength={MAX_INSTRUCTION_LENGTH}
             disabled={isBusy || isUploading}
-            className="w-full p-3 bg-background border border-[var(--font-color)] rounded-lg text-foreground text-sm outline-none resize-none focus:border-primary-600 disabled:opacity-50"
+            className={`w-full p-3 bg-background border border-[var(--font-color)] rounded-lg text-foreground text-sm ${MOBILE_INPUT_TEXT} outline-none resize-none focus:border-primary-600 disabled:opacity-50`}
           />
           <p className="m-0 text-[10px] text-foreground-muted">
             Mindestens {MIN_INSTRUCTION_LENGTH} Zeichen — je präziser die Anweisung, desto besser

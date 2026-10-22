@@ -2,14 +2,13 @@ import { FaTrash } from 'react-icons/fa';
 import { PiPlusBold, PiTextAa, PiTextHBold } from 'react-icons/pi';
 
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
+import { cn } from '../../utils/cn';
 import { SidebarHint } from '../components/SidebarHint';
 import { TextField } from '../components/TextFieldPrimitives';
-import { SIDEBAR_SECTION } from '../sidebarStyles';
+import { MOBILE_INPUT_TEXT, SIDEBAR_SECTION } from '../sidebarStyles';
 
 import type { AdditionalText } from '../../configs/types';
 import type { TextFieldConfig } from '../../configs/unifiedTabs';
-
-import { cn } from '../../utils/cn';
 
 export interface CombinedTextSectionProps {
   onAddHeader?: () => void;
@@ -191,7 +190,7 @@ export function CombinedTextSection({
                 type="text"
                 value={text.text}
                 onChange={(e) => onUpdateText(text.id, { text: e.target.value })}
-                className="flex-1 min-w-0 bg-transparent border-none outline-none text-sm text-foreground placeholder:text-foreground-muted max-canvas-mobile:text-[15px] max-canvas-mobile:text-[var(--editor-text)]"
+                className={`flex-1 min-w-0 bg-transparent border-none outline-none text-sm text-foreground placeholder:text-foreground-muted max-canvas-mobile:text-[var(--editor-text)] ${MOBILE_INPUT_TEXT}`}
                 placeholder={getTextTypePlaceholder(text.type)}
               />
               <button

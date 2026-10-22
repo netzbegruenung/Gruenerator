@@ -16,6 +16,7 @@ import {
   type ChartInstance,
   type ChartType,
 } from '../../utils/chartUtils';
+import { MOBILE_INPUT_TEXT } from '../sidebarStyles';
 
 import type { IconType } from 'react-icons';
 
@@ -122,7 +123,7 @@ export function ChartSettingsSection({
           value={chart.title ?? ''}
           onChange={(e) => update({ title: e.target.value })}
           placeholder="Optional…"
-          className="rounded-md border border-editor-border-strong bg-background px-sm py-xs text-sm text-foreground outline-none focus:border-primary-500"
+          className={`rounded-md border border-editor-border-strong bg-background px-sm py-xs text-sm ${MOBILE_INPUT_TEXT} text-foreground outline-none focus:border-primary-500`}
         />
       </label>
 
@@ -138,13 +139,13 @@ export function ChartSettingsSection({
                 type="text"
                 value={point.name}
                 onChange={(e) => setDataPoint(i, 'name', e.target.value)}
-                className="min-w-0 flex-1 rounded-md border border-editor-border-strong bg-background px-2 py-1 text-sm text-foreground outline-none focus:border-primary-500"
+                className={`min-w-0 flex-1 rounded-md border border-editor-border-strong bg-background px-2 py-1 text-sm ${MOBILE_INPUT_TEXT} text-foreground outline-none focus:border-primary-500`}
               />
               <input
                 type="number"
                 value={point.value}
                 onChange={(e) => setDataPoint(i, 'value', e.target.value)}
-                className="w-16 rounded-md border border-editor-border-strong bg-background px-2 py-1 text-sm text-foreground outline-none focus:border-primary-500"
+                className={`w-16 rounded-md border border-editor-border-strong bg-background px-2 py-1 text-sm ${MOBILE_INPUT_TEXT} text-foreground outline-none focus:border-primary-500`}
               />
               <button
                 type="button"

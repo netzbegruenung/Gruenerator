@@ -4,6 +4,7 @@ import { HiChatBubbleBottomCenterText } from 'react-icons/hi2';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { cn } from '../../../utils/cn';
+import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
 
 import { ToolPanel } from './ToolPanel';
 
@@ -190,7 +191,7 @@ function AltTextResultField({
         value={result.text}
         onChange={(e) => onChange(e.target.value)}
         rows={6}
-        className="w-full resize-y rounded-lg border border-[var(--editor-border)] bg-[var(--editor-surface)] p-2 text-sm text-[var(--editor-text)] leading-snug"
+        className={`w-full resize-y rounded-lg border border-[var(--editor-border)] bg-[var(--editor-surface)] p-2 text-sm ${MOBILE_INPUT_TEXT} text-[var(--editor-text)] leading-snug`}
       />
       <span
         className={cn(

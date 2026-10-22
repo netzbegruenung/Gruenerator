@@ -3,6 +3,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { HiQrCode } from 'react-icons/hi2';
 
+import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
+
 import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
 import { useToolImagePlacement } from './useToolImagePlacement';
 
@@ -75,7 +77,7 @@ export function QRCodeTool({ onJumpToUploads, onPlaceImageUrl }: QRCodeToolProps
               onChange={(e) => setValue(e.target.value)}
               placeholder="https://..."
               disabled={isBusy || isUploading}
-              className="rounded-md border border-editor-border-strong bg-background px-sm py-xs text-sm text-foreground outline-none focus:border-primary-500 disabled:opacity-50"
+              className={`rounded-md border border-editor-border-strong bg-background px-sm py-xs text-sm ${MOBILE_INPUT_TEXT} text-foreground outline-none focus:border-primary-500 disabled:opacity-50`}
             />
           </label>
           <div
