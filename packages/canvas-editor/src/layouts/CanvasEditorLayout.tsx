@@ -70,7 +70,7 @@ export function CanvasEditorLayout({
   });
 
   return (
-    <div className="canvas-editor-layout flex flex-col h-dvh min-h-[500px] bg-[var(--editor-bg)]">
+    <div className="canvas-editor-layout flex flex-col h-dvh min-h-[500px] bg-[var(--editor-bg)] max-canvas-mobile:relative">
       {toolbar}
       {hasSidebar && (
         <div

@@ -39,6 +39,8 @@ vi.mock('@gruenerator/canvas-editor', () => ({
     useImperativeHandle(exportApiRef, () => ({
       captureActivePage: capture,
       getPages: () => [{ configId: 'sticker', state: { additionalTexts: [] } }],
+      undo: () => {},
+      redo: () => {},
     }));
     return <div>{chromeRight}</div>;
   },

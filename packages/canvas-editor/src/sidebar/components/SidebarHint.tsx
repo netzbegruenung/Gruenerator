@@ -1,9 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { FaQuestionCircle, FaTimes } from 'react-icons/fa';
 
-import { SIDEBAR_HINT } from '../sidebarStyles';
-
 import { cn } from '../../utils/cn';
+import { SIDEBAR_HINT } from '../sidebarStyles';
 
 interface SidebarHintProps {
   children: React.ReactNode;
@@ -57,7 +56,7 @@ export function SidebarHint({ children, className, style }: SidebarHintProps) {
         <button
           ref={buttonRef}
           type="button"
-          className="flex items-center justify-center size-7 p-0 bg-[var(--card-background)] border border-[var(--border-subtle)] rounded-full text-foreground-muted cursor-pointer transition-[color,border-color] duration-150 hover:text-[var(--interactive-accent-color)] hover:border-[var(--interactive-accent-color)] focus:text-[var(--interactive-accent-color)] focus:border-[var(--interactive-accent-color)] focus:outline-none"
+          className="touch-target flex items-center justify-center size-7 p-0 bg-[var(--card-background)] border border-[var(--border-subtle)] rounded-full text-foreground-muted cursor-pointer transition-[color,border-color] duration-150 hover:text-[var(--interactive-accent-color)] hover:border-[var(--interactive-accent-color)] focus:text-[var(--interactive-accent-color)] focus:border-[var(--interactive-accent-color)] focus:outline-none"
           onClick={() => setIsOpen(!isOpen)}
           aria-label="Hinweis anzeigen"
           aria-expanded={isOpen}

@@ -34,6 +34,7 @@ import { ExportCanvasVorlageButton } from '../vorlagen/components/ExportCanvasVo
 import { CanvasChatDocContext } from './CanvasChatDocContext';
 import { canvasQueryOptions } from './canvasQuery';
 import { updateCanvasThumbnail } from './services/canvasThumbnailService';
+import { useNativeEditorChrome } from './useNativeEditorChrome';
 import { waitForCollabSync } from './waitForCollabSync';
 import { WebCanvasEditorProvider } from './WebCanvasEditorProvider';
 
@@ -139,6 +140,13 @@ function CollabCanvasStudioContent() {
   );
 
   useDocumentTitle(canvas?.title);
+
+  const hostChrome = useNativeEditorChrome({
+    title: canvas?.title ?? null,
+    canEdit,
+    exportApi,
+    onRename: handleTitleChange,
+  });
 
   const collaborationUser = useMemo(
     () =>
@@ -327,9 +335,11 @@ function CollabCanvasStudioContent() {
       <div className="relative flex flex-col h-dvh bg-background">
         <DottedBackground />
         {/* The back button is styled for the editor's green bar. */}
-        <div className="z-10 h-[var(--editor-topbar-height)] shrink-0 bg-[image:var(--editor-menubar-gradient)] px-4 flex items-center max-canvas-mobile:h-[52px] max-canvas-mobile:px-2.5">
-          {chromeLeft}
-        </div>
+        {!hostChrome && (
+          <div className="z-10 h-[var(--editor-topbar-height)] shrink-0 bg-[image:var(--editor-menubar-gradient)] px-4 flex items-center max-canvas-mobile:h-[52px] max-canvas-mobile:px-2.5">
+            {chromeLeft}
+          </div>
+        )}
         <p className="z-10 p-md text-sm text-foreground" role="alert">
           {accessError ?? 'Der Canvas konnte nicht geladen werden.'}
         </p>
@@ -338,7 +348,7 @@ function CollabCanvasStudioContent() {
   }
 
   if (isLoading || !canvas) {
-    return <CanvasEditorSkeleton chromeLeft={chromeLeft} />;
+    return <CanvasEditorSkeleton chromeLeft={chromeLeft} topBar={!hostChrome} />;
   }
 
   return (
@@ -368,9 +378,7 @@ function CollabCanvasStudioContent() {
                     }
                   : undefined
               }
-              chromeLeft={chromeLeft}
-              chromeCenter={chromeCenter}
-              chromeRight={chromeRight}
+              {...(hostChrome ? { hostChrome } : { chromeLeft, chromeCenter, chromeRight })}
               exportApiRef={exportApi}
               {...(isOwner
                 ? {

@@ -4,6 +4,7 @@ import { PiPath } from 'react-icons/pi';
 
 import { CustomColorSwatch } from '../../../components/CustomColorSwatch';
 import { BRAND_COLORS } from '../../../utils/shapes';
+import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
 
 import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
 import { useToolImagePlacement } from './useToolImagePlacement';
@@ -151,7 +152,7 @@ export function TextPathCreatorTool({
               onChange={(e) => setValue(e.target.value)}
               placeholder="Dein Text…"
               disabled={disabled}
-              className="rounded-md border border-editor-border-strong bg-background px-sm py-xs text-sm text-foreground outline-none focus:border-primary-500 disabled:opacity-50"
+              className={`rounded-md border border-editor-border-strong bg-background px-sm py-xs text-sm ${MOBILE_INPUT_TEXT} text-foreground outline-none focus:border-primary-500 disabled:opacity-50`}
             />
           </label>
 

@@ -25,7 +25,8 @@ export const SELF_CHROMED_PATH_PREFIXES: readonly string[] = [
   // The office dispatcher's three editors (text, sheet, presentation), all
   // through the shared `EditorTopBar` with `onBack`.
   '/office/',
-  // `CollabCanvasStudioPage` — the canvas editor's green menu bar.
+  // `CollabCanvasStudioPage` — the canvas editor's menu bar (native in the app,
+  // see `hostDrawsEditorBar`).
   '/studio/canvas/',
   // `SharepicVorlageInstantiatePage` — shows the canvas editor's skeleton while
   // it copies the Vorlage, then replaces itself with `/studio/canvas/:id`.
@@ -45,36 +46,17 @@ export function hostDrawsHeader(path: string): boolean {
 }
 
 /**
- * The canvas editor's menu bar is a horizontal gradient, not a flat colour, so
- * the status-bar band above it has to be one too — a single colour would seam
- * against it on the right, where the bar has already run to its light end.
- *
- * The canvas editor runs under the studio accent, so these are the stops of
- * `--editor-menubar-gradient` in `apps/web/src/assets/styles/common/accent.css`
- * (primary 700 / 600 / 400 mixed from `--accent`), written out as hex.
- * `hostChrome.vitest.ts` recomputes them from the CSS and fails if the two drift
- * apart, so this is checked duplication rather than the kind that quietly rots.
+ * Surfaces whose top bar the host draws natively — close, title, undo/redo,
+ * share — in system colours, with the page reporting state over the bridge
+ * (`HOST_CAPABILITY_EDITOR_CHROME`). A subset of the self-chromed list: the
+ * page keeps its own bar, and its way out, for app binaries that predate this.
  */
-export const CANVAS_MENUBAR_GRADIENT = ['#4B4175', '#5B4F8F', '#9992BA'] as const;
+const NATIVE_EDITOR_BAR_PATH_PREFIXES: readonly string[] = ['/studio/canvas/', '/studio/vorlage/'];
 
-/** Where the three stops sit — `55%` in the CSS. */
-export const CANVAS_MENUBAR_GRADIENT_STOPS = [0, 0.55, 1] as const;
-
-/**
- * The colours the host paints behind the status bar, or `null` for "the plain
- * theme background".
- *
- * Only the canvas editor needs a tint: board and office draw their headers on
- * the ordinary page background, which is what the host already uses. The status
- * bar itself stays visible on every self-chromed surface — on a device with a
- * cutout that band is reserved anyway (34.33 dp on a Galaxy S24, against a
- * 24 dp status bar), so hiding it buys nothing and costs the clock.
- */
-export function statusBarTint(path: string): readonly string[] | null {
+/** Does the host draw the native editor bar for this path? Takes the raw `path` param. */
+export function hostDrawsEditorBar(path: string): boolean {
   const pathname = path.split('?')[0] ?? '';
-  return pathname.startsWith('/studio/canvas/') || pathname.startsWith('/studio/vorlage/')
-    ? CANVAS_MENUBAR_GRADIENT
-    : null;
+  return NATIVE_EDITOR_BAR_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
 /**

@@ -28,7 +28,7 @@ Ein neues Token muss an **allen** Stellen nachgezogen werden:
 | 3 | `apps/web/src/assets/styles/index.css` (`@theme`) | `--color-editor-*` → `var(--editor-*)` |
 | 4 | `packages/canvas-editor/src/styles/tailwind-input.css` (`@theme`) | dasselbe Mapping fürs Paket-Bundle |
 
-Dazu kommt eine Kopie außerhalb von CSS: `CANVAS_MENUBAR_GRADIENT` in `apps/mobile/services/webview/hostChrome.ts` spiegelt `--editor-menubar-gradient` für die native Kopfzeile um die WebView. `hostChrome.vitest.ts` bewacht diese Kopie.
+In der App zeichnet der Host die Kopfzeile nativ in Systemfarben (`HOST_CAPABILITY_EDITOR_CHROME`, `hostDrawsEditorBar` in `apps/mobile/services/webview/hostChrome.ts`); eine Kopie von `--editor-menubar-gradient` außerhalb von CSS gibt es nicht mehr.
 
 Ob Datei 1 und 2 auseinandergelaufen sind, zeigt ein Vergleich der Tokennamen:
 

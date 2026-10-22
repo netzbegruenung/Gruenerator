@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { PiX } from 'react-icons/pi';
 
 import { useIsCanvasMobile } from '../hooks/useIsCanvasMobile';
@@ -22,6 +22,20 @@ interface ExtendedSidebarPanelProps extends SidebarPanelProps {
  */
 const SIDEBAR_PANEL_DESKTOP_WIDTH_PX = 348;
 
+/**
+ * Mobile sheet lifecycle. `entering` slides in (CSS, `@starting-style`) with
+ * an empty body; `open` mounts the content; `closing` slides out and keeps
+ * the sheet mounted; `closed` renders nothing.
+ */
+type SheetPhase = 'closed' | 'entering' | 'open' | 'closing';
+
+/**
+ * Upper bound for one slide (enter 280 ms, exit 200 ms). `transitionend`
+ * never comes under reduced motion without a transform transition, while
+ * hidden, or in jsdom — the timer moves the phase on regardless.
+ */
+const SHEET_TRANSITION_FALLBACK_MS = 350;
+
 export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSidebarPanelProps) {
   const isDesktop = !useIsCanvasMobile();
 
@@ -42,50 +56,150 @@ export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSideb
     };
   }, [isOpen, isDesktop]);
 
-  const { handleRef, sheetRef } = useMobileSheet({
+  const [phase, setPhase] = useState<SheetPhase>(isOpen ? 'entering' : 'closed');
+  // Content stays mounted from the first `open` until the sheet is gone, so a
+  // reopen while it slides out does not blank it.
+  const [hasContent, setHasContent] = useState(false);
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
+    if (!isDesktop) {
+      if (isOpen) setPhase('entering');
+      else if (phase !== 'closed') setPhase('closing');
+    }
+  }
+  // Desktop has no slide: the phase mirrors `isOpen`, so crossing the
+  // breakpoint later never puts a half-finished sheet in the flow.
+  if (isDesktop && (phase !== (isOpen ? 'open' : 'closed') || hasContent !== isOpen)) {
+    setPhase(isOpen ? 'open' : 'closed');
+    setHasContent(isOpen);
+  }
+
+  // The editor clears the section (and title) in the same render that closes
+  // the panel; the sheet slides out with what it showed while open.
+  const [shown, setShown] = useState({ children, title });
+  if (isOpen && (shown.children !== children || shown.title !== title)) {
+    setShown({ children, title });
+  }
+  const sheetChildren = isOpen ? children : shown.children;
+  const sheetTitle = isOpen ? title : shown.title;
+
+  const finishEnter = useCallback(() => {
+    setPhase((p) => (p === 'entering' ? 'open' : p));
+    setHasContent(true);
+  }, []);
+  // Also the hook-in for a drag that already carried the sheet off-screen.
+  const finishClose = useCallback(() => {
+    setPhase('closed');
+    setHasContent(false);
+  }, []);
+
+  useEffect(() => {
+    if (isDesktop || (phase !== 'entering' && phase !== 'closing')) return;
+    const t = window.setTimeout(
+      phase === 'entering' ? finishEnter : finishClose,
+      SHEET_TRANSITION_FALLBACK_MS
+    );
+    return () => window.clearTimeout(t);
+  }, [isDesktop, phase, finishEnter, finishClose]);
+
+  const { handleRef, sheetRef, contentRef } = useMobileSheet({
     isOpen: isOpen && !isDesktop,
     onClose: onClose || (() => {}),
+    // The drag already carried the sheet off-screen: drop it without a second exit.
+    onDragClosed: finishClose,
+    // A tab switch during the drag's slide-out must not close the new tab.
+    closeKey: title ?? null,
     threshold: 100,
     velocityThreshold: 0.5,
   });
 
-  if (!isOpen) return null;
+  // A snap-back leaves the drag hook's inline transition on the section; it
+  // would override the phase transition from canvas-editor.css.
+  useLayoutEffect(() => {
+    const sheet = sheetRef.current;
+    if (sheet && (phase === 'entering' || phase === 'closing')) sheet.style.transition = '';
+  }, [phase, sheetRef]);
+
+  // Where the sheet rests in the flow, as a distance from the layout's bottom
+  // edge. A closing sheet leaves the flow there (absolute), so the canvas
+  // above grows and refits at once while the sheet slides out over it.
+  // Measured from offset boxes, which ignore the slide/drag transform, and
+  // already while entering: a close before the slide-in ends needs it too.
+  useLayoutEffect(() => {
+    const sheet = sheetRef.current;
+    if (isDesktop || (phase !== 'open' && phase !== 'entering') || !sheet) return;
+    const measure = () => {
+      const layout = sheet.closest<HTMLElement>('.canvas-editor-layout');
+      // The layout root is the containing block on mobile (max-canvas-mobile:relative).
+      if (!layout || sheet.offsetParent !== layout) return;
+      const rest = layout.clientHeight - (sheet.offsetTop + sheet.offsetHeight);
+      sheet.style.setProperty('--sheet-rest-bottom', `${Math.max(0, rest)}px`);
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [isDesktop, phase, sheetRef]);
 
   if (!isDesktop) {
+    if (phase === 'closed') return null;
     // Mobiles Sheet: liegt im Fluss zwischen Canvas und Leiste (order-1), der
-    // Canvas darüber schrumpft und bleibt sichtbar. Jedes Sheet hat denselben
-    // Aufbau: Griff, Titel mit Schließen, dann der Inhalt des Bereichs.
+    // Canvas darüber schrumpft und bleibt sichtbar. Beim Schließen verlässt es
+    // den Fluss (absolute, an seinem Ruheplatz), damit der Canvas sofort wächst.
+    // Jedes Sheet hat denselben Aufbau: Griff, Titel mit Schließen, dann der
+    // Inhalt des Bereichs.
     return (
       <section
         ref={sheetRef}
-        aria-label={title}
-        className="sidebar-panel order-1 flex-none flex flex-col h-[clamp(300px,48dvh,420px)] bg-[var(--editor-surface)] rounded-t-[20px] shadow-[0_-4px_24px_rgba(0,0,0,0.12)] overflow-hidden"
+        aria-label={sheetTitle}
+        data-state={phase}
+        inert={phase === 'closing'}
+        onTransitionEnd={(e) => {
+          if (e.target !== e.currentTarget) return;
+          if (e.propertyName !== 'transform' && e.propertyName !== 'opacity') return;
+          if (phase === 'entering') finishEnter();
+          else if (phase === 'closing') finishClose();
+        }}
+        className={cn(
+          'sidebar-panel order-1 flex-none flex flex-col h-[clamp(300px,48dvh,420px)] bg-[var(--editor-surface)] rounded-t-[20px] shadow-[0_-4px_24px_rgba(0,0,0,0.12)] overflow-hidden',
+          phase === 'closing' && 'absolute inset-x-0 bottom-[var(--sheet-rest-bottom,0px)] z-[100]'
+        )}
       >
+        {/* Griff und Titelzeile ziehen das Sheet gemeinsam. */}
+        <div ref={handleRef} className="flex-none touch-none">
+          <div className="sidebar-panel__drag-handle h-5 -mb-1 flex items-center justify-center cursor-grab active:cursor-grabbing">
+            <div className="w-9 h-1 rounded-sm bg-[var(--editor-border-strong)]" />
+          </div>
+          <div className="h-8 max-canvas-mobile:h-11 px-5 flex items-center justify-between gap-3">
+            <h2 className="m-0 text-[17px] font-bold text-[var(--editor-text)] truncate">
+              {sheetTitle}
+            </h2>
+            {onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label={`${sheetTitle ?? 'Bereich'} schließen`}
+                className="flex-none size-8 max-canvas-mobile:size-11 rounded-full border-none bg-[var(--editor-tile)] text-[var(--editor-text-secondary)] flex items-center justify-center cursor-pointer"
+              >
+                <PiX size={16} />
+              </button>
+            )}
+          </div>
+        </div>
         <div
-          ref={handleRef}
-          className="sidebar-panel__drag-handle flex-none h-5 -mb-1 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none"
-        >
-          <div className="w-9 h-1 rounded-sm bg-[var(--editor-border-strong)]" />
-        </div>
-        <div className="flex-none h-8 px-5 flex items-center justify-between gap-3">
-          <h2 className="m-0 text-[17px] font-bold text-[var(--editor-text)] truncate">{title}</h2>
-          {onClose && (
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label={`${title ?? 'Bereich'} schließen`}
-              className="flex-none size-8 rounded-full border-none bg-[var(--editor-tile)] text-[var(--editor-text-secondary)] flex items-center justify-center cursor-pointer"
-            >
-              <PiX size={16} />
-            </button>
+          ref={contentRef}
+          className={cn(
+            'sidebar-panel__content flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pt-4 pb-5 flex flex-col gap-4',
+            hasContent && 'sidebar-panel__content--in'
           )}
-        </div>
-        <div className="sidebar-panel__content flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pt-4 pb-5 flex flex-col gap-4">
-          {children}
+        >
+          {hasContent && sheetChildren}
         </div>
       </section>
     );
   }
+
+  if (!isOpen) return null;
 
   return (
     <div
