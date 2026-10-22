@@ -95,6 +95,21 @@ export interface CanvasEditorProps {
   showShare?: boolean;
   /** Lets the host render the active page itself, e.g. to save it somewhere else. */
   exportApiRef?: React.Ref<CanvasEditorExportApi>;
+  /**
+   * The host draws the menu bar itself (the mobile app's native header). The
+   * editor then renders no bar of its own: undo/redo run through
+   * `exportApiRef`, and the share menu opens on the host's request.
+   */
+  hostChrome?: CanvasEditorHostChrome;
+}
+
+/** See `CanvasEditorProps.hostChrome`. */
+export interface CanvasEditorHostChrome {
+  /** Fired whenever undo or redo becomes (un)available; both false while an AI suggestion waits. */
+  onHistoryChange: (history: { canUndo: boolean; canRedo: boolean }) => void;
+  /** The share menu, opened from the host's bar and anchored at the top right. */
+  shareOpen: boolean;
+  onShareOpenChange: (open: boolean) => void;
 }
 
 /** What `exportApiRef` exposes to the host. */
@@ -106,6 +121,9 @@ export interface CanvasEditorExportApi {
   }) => Promise<string | null>;
   /** The deck as a Vorlage stores it: config and state per page. */
   getPages: () => { configId: string; state: Record<string, unknown> }[];
+  /** The menu bar's undo/redo, for a host that draws the bar itself. */
+  undo: () => void;
+  redo: () => void;
 }
 
 export interface PageWrapperProps {

@@ -1,7 +1,10 @@
 export { MasterCanvasEditor } from './MasterCanvasEditor';
 export { ControllableCanvasWrapper } from './CanvasEditorRouter';
 export type { ControllableCanvasWrapperProps, CanvasInitialPropsMap } from './CanvasEditorRouter';
-export type { CanvasEditorExportApi } from './components/CanvasEditor/types';
+export type {
+  CanvasEditorExportApi,
+  CanvasEditorHostChrome,
+} from './components/CanvasEditor/types';
 export { templateFitsFormat } from './utils/templateRegistry';
 export { CanvasEditorProvider, useCanvasEditorServices } from './CanvasEditorProvider';
 export type {

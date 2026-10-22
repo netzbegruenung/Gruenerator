@@ -2,6 +2,7 @@ import { pickShareRoute, shareDataUrlViaNativeHost } from '@gruenerator/shared';
 import { shareApi } from '@gruenerator/shared/share';
 import {
   Popover,
+  PopoverAnchor,
   PopoverContent,
   PopoverTrigger,
   Button,
@@ -60,6 +61,11 @@ export interface ShareDropdownProps {
    * built from, so it also owns the dialog. Hidden when absent.
    */
   onSaveAsTemplate?: () => void;
+  /**
+   * Opened by a host-drawn bar instead of the "Teilen" button: the menu is
+   * controlled from outside and hangs from the top right of the editor.
+   */
+  hostControl?: { open: boolean; onOpenChange: (open: boolean) => void };
 }
 
 export function ShareDropdown({
@@ -80,9 +86,12 @@ export function ShareDropdown({
   printExport,
   onInvitePeople,
   onSaveAsTemplate,
+  hostControl,
 }: ShareDropdownProps) {
   const isMobile = useIsCanvasMobile();
-  const [open, setOpen] = useState(false);
+  const [ownOpen, setOwnOpen] = useState(false);
+  const open = hostControl ? hostControl.open : ownOpen;
+  const setOpen = hostControl ? hostControl.onOpenChange : setOwnOpen;
   const [view, setView] = useState<'main' | 'download'>('main');
   const [isSharing, setIsSharing] = useState(false);
   const [shareSuccess, setShareSuccess] = useState(false);
@@ -139,15 +148,19 @@ export function ShareDropdown({
         if (!v) setView('main');
       }}
     >
-      <PopoverTrigger asChild>
-        <Button
-          size="sm"
-          className="ml-auto h-9 rounded-full bg-white px-4 font-extrabold text-[var(--editor-green-deep)] hover:bg-white/90 max-canvas-mobile:h-8 max-canvas-mobile:px-3"
-        >
-          <IoShareOutline className="size-4" />
-          <span>Teilen</span>
-        </Button>
-      </PopoverTrigger>
+      {hostControl ? (
+        <PopoverAnchor className="absolute right-3 top-0 size-0" />
+      ) : (
+        <PopoverTrigger asChild>
+          <Button
+            size="sm"
+            className="ml-auto h-9 rounded-full bg-white px-4 font-extrabold text-[var(--editor-green-deep)] hover:bg-white/90 max-canvas-mobile:h-8 max-canvas-mobile:px-3"
+          >
+            <IoShareOutline className="size-4" />
+            <span>Teilen</span>
+          </Button>
+        </PopoverTrigger>
+      )}
       <PopoverContent align="end" sideOffset={8} className="w-80 p-0 overflow-hidden">
         {view === 'download' ? (
           <>

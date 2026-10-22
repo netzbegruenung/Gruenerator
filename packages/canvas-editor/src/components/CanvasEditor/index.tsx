@@ -165,6 +165,7 @@ function CanvasEditorInner({
   galleryAutoSave = true,
   showShare = true,
   exportApiRef,
+  hostChrome,
 }: CanvasEditorProps) {
   // Note: onAutoSaveShareToken is threaded down to useCanvasAutoSave (via
   // PageWrapper → GenericCanvas) instead of a store subscription here — a
@@ -577,8 +578,10 @@ function CanvasEditorInner({
         return handleCaptureCanvas({ format: 'png', pixelRatio, includeBackground: !transparent });
       },
       getPages: () => serializeDeck(pagesDoc).map(({ configId, state }) => ({ configId, state })),
+      undo: toolbarHandlers.undo,
+      redo: toolbarHandlers.redo,
     }),
-    [handleCaptureCanvas, pagesDoc]
+    [handleCaptureCanvas, pagesDoc, toolbarHandlers]
   );
 
   const handleCaptureCanvasForAi = useCallback(async () => {
@@ -606,6 +609,18 @@ function CanvasEditorInner({
   // While a suggestion is open the pages are locked: keep or discard it first.
   // A selection from before would still answer Delete and arrow keys.
   const hasPendingSuggestion = useCanvasStoreSelector((s) => s.pendingAiSuggestion !== null);
+
+  const canUndo = (toolbarState?.canUndo ?? false) || canUndoPageOp;
+  const canRedo = (toolbarState?.canRedo ?? false) || canRedoPageOp;
+  // A waiting suggestion is kept or discarded, not undone: the bar hides the
+  // buttons then, and a host-drawn bar must do the same.
+  const onHistoryChange = hostChrome?.onHistoryChange;
+  useEffect(() => {
+    onHistoryChange?.({
+      canUndo: canUndo && !hasPendingSuggestion,
+      canRedo: canRedo && !hasPendingSuggestion,
+    });
+  }, [onHistoryChange, canUndo, canRedo, hasPendingSuggestion]);
   useEffect(() => {
     if (hasPendingSuggestion) handleDeselectAll();
   }, [hasPendingSuggestion, handleDeselectAll]);
@@ -1161,14 +1176,19 @@ function CanvasEditorInner({
   const showToolbar = toolbarState !== null || chromeLeft || chromeCenter || chromeRight;
   const toolbarElement = showToolbar ? (
     <Toolbar
-      canUndo={(toolbarState?.canUndo ?? false) || canUndoPageOp}
-      canRedo={(toolbarState?.canRedo ?? false) || canRedoPageOp}
+      canUndo={canUndo}
+      canRedo={canRedo}
       handlers={toolbarHandlers}
       shareProps={toolbarState && showShare ? toolbarShareProps : undefined}
       chromeLeft={chromeLeft}
       chromeCenter={chromeCenter}
       chromeRight={chromeRight}
       suggestionInBar={isMobileWeb}
+      hostShare={
+        hostChrome
+          ? { open: hostChrome.shareOpen, onOpenChange: hostChrome.onShareOpenChange }
+          : undefined
+      }
     />
   ) : null;
 
