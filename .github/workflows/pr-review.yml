@@ -81,12 +81,11 @@ jobs:
 
           LINES=$(awk -F'\t' '{s += $1} END {print s + 0}' "$RUNNER_TEMP/review-scope.tsv")
           awk -F'\t' '$2 != "removed" {print $3}' "$RUNNER_TEMP/review-scope.tsv" | sort -u > "$RUNNER_TEMP/review-files.txt"
-          # Pure additions: the PR diff carries every changed line of these.
-          # Their added lines, in order, are what a complete diff output must show.
+          # Die Patches braucht das Gate: aus ihren Hunks entsteht, was ein Lauf
+          # gesehen haben muss (.github/scripts/review-read-gate.mjs).
           gh api --paginate "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" \
-            --jq '.[] | select(.status != "removed" and .deletions == 0 and .patch != null)
-              | {file: .filename, added: (.patch | split("\n") | map(select(startswith("+"))))}' \
-            | jq -s --arg skip "$SKIP_RE" 'map(select(.file | test($skip) | not))' > "$RUNNER_TEMP/review-additions.json"
+            --jq '.[] | select(.status != "removed") | {file: .filename, patch, deletions}' \
+            | jq -s --arg skip "$SKIP_RE" 'map(select(.file | test($skip) | not))' > "$RUNNER_TEMP/review-patches.json"
           FILES=$(grep -c . "$RUNNER_TEMP/review-files.txt" || true)
 
           if [ "$LINES" -lt "$SMALL_LINES" ]; then
@@ -152,8 +151,9 @@ jobs:
             2. Jede geänderte Quelldatei mit Read öffnen und den umliegenden
                Code lesen; Aufrufer und Gegenstellen per Grep suchen. Kein
                Befund ohne gelesenen Kontext. Dateien nie per Bash lesen
-               (`cat`, `sed`, `head`, `rg` …) — das ist gesperrt, und der
-               Check zählt nur Read und Grep.
+               (`cat`, `sed`, `head`, `rg` …) — das ist gesperrt. Der Check
+               verlangt jeden geänderten Bereich samt einigen Zeilen
+               Umgebung; ein Read daneben zählt nicht.
             3. Jeden Kandidaten am Code verifizieren. CONFIRMED nur mit einem
                konkreten Fehlerszenario (Eingabe oder Zustand → falsches
                Ergebnis); sonst PLAUSIBLE oder verwerfen.
@@ -183,9 +183,11 @@ jobs:
             Inline-Kommentare und Übersicht erledigt sind — sonst `false`.
           # Read-only-Befehle wie `cat`, `sed -n` oder `rg` gibt Claude Code
           # ohne Nachfrage frei, an `--allowedTools` vorbei — und auch in
-          # `cd … &&`-Ketten. Liest der Lauf eine Datei so, sieht das Gate unten
-          # sie nicht und meldet sie als ungeöffnet (#4854). Eine Sperrregel
-          # geht jeder Freigabe vor; so bleibt für Dateiinhalte nur Read/Grep.
+          # `cd … &&`-Ketten (#4854). Eine Sperrregel geht jeder Freigabe vor.
+          # Das Gate unten zählt Inhalte statt Werkzeugnamen und braucht die
+          # Sperre nicht; sie hält den Lauf bei Read, dessen Zeilennummern es
+          # sicher erkennt. Formen wie `git --no-pager show` rutschen durch —
+          # auch die zählt das Gate, wenn sie den Bereich zeigen.
           claude_args: |
             --model ${{ steps.scope.outputs.model }}
             --max-turns ${{ steps.scope.outputs.max_turns }}
@@ -239,42 +241,17 @@ jobs:
 
           # Ein flacher Lauf meldet `review_complete: true`, ohne den Code
           # gesehen zu haben (#4818: 13 Turns, 2600 Zeilen, grün). Darum muss er
-          # mindestens drei der geänderten Dateien wirklich geöffnet haben (bei
-          # weniger Dateien: alle) — per Read, oder per Grep auf genau diese
-          # Datei mit `output_mode: content`. Grep ohne den Modus liefert nur
-          # Dateinamen, keine Zeile Code.
-          # Eine Datei mit reinen Ergänzungen zählt auch, wenn ein
-          # Werkzeugergebnis ihren Diff vollständig zeigte: ihr eigener
-          # Abschnitt, von `+++ b/<datei>` bis zum nächsten `diff --git`, trägt
-          # genau die hinzugefügten Zeilen ihres Patches, in derselben
-          # Reihenfolge (#4839, ein angehängter Testblock galt dreimal als
-          # ungelesen). Ein gekürzter Diff (`| head`) verliert Zeilen, auch wenn
-          # er auf einer gleich lautenden Zeile endet. Verglichen werden nur
-          # die `+`-Zeilen, weil `gh pr diff` die Hunks anders schneiden kann.
-          # Mit Löschungen bleibt Lesen Pflicht — der Diff zeigt dann nicht,
-          # was stehen bleibt.
+          # mindestens drei der geänderten Dateien wirklich gesehen haben (bei
+          # weniger Dateien: alle). Gezählt wird, was in den Werkzeugergebnissen
+          # steht, nicht welches Werkzeug lief: jeder geänderte Bereich samt
+          # etwas Umgebung, ob per Read, `cat` oder `git log -p` (#4854).
+          # Die Regeln stehen im Kopf von review-read-gate.mjs.
           NEED=$(( FILES < 3 ? FILES : 3 ))
-          OPENED=$({
-              jq -r '.[] | select(.type == "assistant") | .message.content[]?
-                | select(.type == "tool_use")
-                | if .name == "Read" then .input.file_path
-                  elif .name == "Grep" and .input.output_mode == "content" then .input.path
-                  else empty end
-                | strings' \
-                "$RUNNER_TEMP/claude-execution-output.json" | sed "s#^$GITHUB_WORKSPACE/##"
-              jq -r --slurpfile adds "$RUNNER_TEMP/review-additions.json" '
-                [.[] | select(.type == "user") | .message.content[]?
-                  | select(.type == "tool_result") | .content
-                  | if type == "string" then . else (map(.text? // "") | join("\n")) end] as $out
-                | $adds[0][] | . as $a
-                | select(any($out[];
-                    split("+++ b/" + $a.file + "\n")[1:][]
-                    | split("\ndiff --git ")[0]
-                    | split("\n") | map(select(startswith("+"))) == $a.added))
-                | .file' \
-                "$RUNNER_TEMP/claude-execution-output.json"
-            } | sort -u \
-            | comm -12 - "$RUNNER_TEMP/review-files.txt" | grep -c . || true)
+          OPENED=$(node .github/scripts/review-read-gate.mjs \
+              "$RUNNER_TEMP/claude-execution-output.json" \
+              "$RUNNER_TEMP/review-patches.json" \
+              "${{ github.event.pull_request.head.sha }}" \
+              "$GITHUB_WORKSPACE" | grep -c . || true)
           echo "Geöffnete geänderte Dateien: $OPENED von $FILES (nötig: $NEED)"
           if [ "$OPENED" -lt "$NEED" ]; then
             echo "::error::Der Review hat nur $OPENED der geänderten Dateien gelesen (nötig: $NEED) — das ist kein Review, egal was die Ausgabe meldet. Label claude-review setzen, um ihn neu zu starten."
