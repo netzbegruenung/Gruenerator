@@ -914,8 +914,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Dauerhafte Werkzeug-Freigaben im Chat („immer erlauben").
   app.use('/api/chat/tool-approvals', requireAuth);
   mountToolApprovalsContractRouter(app);
-  // OAuth callback is public (identity comes from the one-time Redis state, not
-  // a cookie — the cross-site provider redirect can't carry our session).
+  // OAuth callback without requireAuth: it answers with a popup page, never a
+  // 401. The router still resolves the session (optionalAuth) and stores tokens
+  // only for the user the one-time Redis state was issued to.
   mountMcpOAuthCallbackRouter(app);
   // Inbound MCP server (mcp.gruenerator.eu/v2) — auth resolved in the router.
   if (env.MCP_SERVER_ENABLED) {

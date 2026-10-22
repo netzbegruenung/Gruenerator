@@ -2,15 +2,19 @@
  * OAuth redirect target for user-managed MCP servers: GET /api/mcp/auth/callback,
  * plus our Client ID Metadata Document at GET /api/mcp/auth/client-metadata.json.
  *
- * Public (no cookie): identity comes from the one-time Redis state, so the
- * cross-site redirect works even when the session cookie is dropped. Exchanges
- * the code for tokens, then returns an auto-closing popup page that postMessages
- * the result to the opener (origin-locked) — the Canva-style pattern.
+ * No requireAuth: a missing session has to end on the popup page, not in a 401.
+ * `optionalAuth` still resolves it — the session cookie is SameSite=Lax, so it
+ * rides along on the provider's top-level redirect back to us — and the tokens
+ * are stored only when that session is the user the one-time Redis state was
+ * issued to. Exchanges the code for tokens, then returns an auto-closing popup
+ * page that postMessages the result to the opener (origin-locked) — the
+ * Canva-style pattern.
  */
 
 import { Router, type Request, type Response, type Application } from 'express';
 
 import { env } from '../../config/env.js';
+import { optionalAuth } from '../../middleware/authMiddleware.js';
 import { McpOAuthService } from '../../services/mcp/McpOAuthService.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -61,7 +65,7 @@ async function handleCallback(req: Request, res: Response): Promise<void> {
   const state = typeof req.query.state === 'string' ? req.query.state : '';
   const oauthError = typeof req.query.error === 'string' ? req.query.error : '';
   // RFC 9207 authorization-response issuer; validated in handleCallback.
-  const iss = typeof req.query.iss === 'string' ? req.query.iss : undefined;
+  const iss = typeof req.query.iss === 'string' ? req.query.iss : null;
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   // The authorization code rides in the query string — RFC 6749 §4.1.2 has no
@@ -80,7 +84,12 @@ async function handleCallback(req: Request, res: Response): Promise<void> {
     return;
   }
   try {
-    const { serverId } = await McpOAuthService.handleCallback(code, state, iss);
+    const { serverId } = await McpOAuthService.handleCallback({
+      code,
+      state,
+      iss,
+      sessionUserId: req.user?.id ?? null,
+    });
     res.send(renderResultPage({ success: true, serverId }));
   } catch (error) {
     log.warn('MCP OAuth callback failed', {
@@ -94,7 +103,7 @@ async function handleCallback(req: Request, res: Response): Promise<void> {
 
 export function mountMcpOAuthCallbackRouter(app: Application): void {
   const router: Router = Router();
-  router.get('/callback', (req, res) => {
+  router.get('/callback', optionalAuth, (req, res) => {
     void handleCallback(req, res);
   });
   // SEP-991 Client ID Metadata Document: authorization servers fetch it to

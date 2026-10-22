@@ -183,7 +183,7 @@ async function getServer(userId: string, serverId: string): Promise<McpServer | 
  * A single trailing slash is normalised away; issuer identifiers are otherwise
  * compared exactly, as the RFC requires.
  */
-function assertIssuerMatches(st: McpOAuthState, iss?: string): void {
+function assertIssuerMatches(st: McpOAuthState, iss: string | null): void {
   // In-flight states written before these fields existed can't be validated.
   if (!st.expectedIssuer) return;
   // AS predates RFC 9207 and never claimed to send `iss`.
@@ -492,17 +492,39 @@ export class McpOAuthService {
    *
    * `iss` is the RFC 9207 authorization-response parameter; validating it is
    * what stops an AS mix-up from steering our code to the wrong token endpoint.
+   *
+   * `sessionUserId` is the Grünerator session of the browser that completed
+   * the redirect (null without one). The state alone only says who *started*
+   * the flow; the tokens are stored only when the same person finishes it.
    */
-  static async handleCallback(
-    code: string,
-    state: string,
-    iss?: string
-  ): Promise<{ serverId: string }> {
+  static async handleCallback({
+    code,
+    state,
+    iss,
+    sessionUserId,
+  }: {
+    code: string;
+    state: string;
+    iss: string | null;
+    sessionUserId: string | null;
+  }): Promise<{ serverId: string }> {
+    // Consumed before any check, so a refused callback also burns the state.
     const st = await consumeOAuthState(state);
     if (!st)
       throw Object.assign(new Error('Ungültiger oder abgelaufener OAuth-State'), {
         statusCode: 400,
       });
+
+    if (sessionUserId !== st.userId) {
+      log.warn('MCP OAuth callback without the initiating session — not storing tokens', {
+        serverId: st.serverId,
+        hasSession: sessionUserId !== null,
+      });
+      throw oauthError(
+        'Die Verbindung wurde nicht in dieser Anmeldung gestartet. Melde dich im Grünerator an und starte die Verbindung dort erneut.',
+        403
+      );
+    }
 
     // MUST run before the code is redeemed below — afterwards it has already
     // left for whichever token endpoint we were steered to.

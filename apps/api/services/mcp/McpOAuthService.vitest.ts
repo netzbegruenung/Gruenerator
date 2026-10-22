@@ -102,6 +102,16 @@ beforeEach(() => {
   vi.mocked(exchangeAuthorization).mockResolvedValue({ access_token: 'at' } as never);
 });
 
+/** The callback as the router hands it over, from the browser of the user who started it. */
+function callback(iss: string | null = null) {
+  return McpOAuthService.handleCallback({
+    code: 'code',
+    state: 'state-token',
+    iss,
+    sessionUserId: 'user-1',
+  });
+}
+
 /**
  * RFC 9207 / SEP-2468. The security property under test is not "it throws" but
  * "the code is never redeemed" — so every rejection case asserts that
@@ -111,36 +121,30 @@ describe('handleCallback — iss validation', () => {
   it('refuses to redeem the code when iss belongs to another AS', async () => {
     vi.mocked(consumeOAuthState).mockResolvedValue(state() as never);
 
-    await expect(
-      McpOAuthService.handleCallback('code', 'state-token', 'https://evil.example.com')
-    ).rejects.toThrow(/anderen Authorization-Server/);
+    await expect(callback('https://evil.example.com')).rejects.toThrow(
+      /anderen Authorization-Server/
+    );
     expect(exchangeAuthorization).not.toHaveBeenCalled();
   });
 
   it('refuses when iss is missing but the AS advertised it', async () => {
     vi.mocked(consumeOAuthState).mockResolvedValue(state({ issRequired: true }) as never);
 
-    await expect(McpOAuthService.handleCallback('code', 'state-token')).rejects.toThrow(
-      /iss fehlt/
-    );
+    await expect(callback()).rejects.toThrow(/iss fehlt/);
     expect(exchangeAuthorization).not.toHaveBeenCalled();
   });
 
   it('allows a missing iss when the AS never advertised support (pre-RFC-9207)', async () => {
     vi.mocked(consumeOAuthState).mockResolvedValue(state({ issRequired: false }) as never);
 
-    await expect(McpOAuthService.handleCallback('code', 'state-token')).resolves.toEqual({
-      serverId: 'srv-1',
-    });
+    await expect(callback()).resolves.toEqual({ serverId: 'srv-1' });
     expect(exchangeAuthorization).toHaveBeenCalledOnce();
   });
 
   it('accepts a matching iss and ignores a trailing-slash difference', async () => {
     vi.mocked(consumeOAuthState).mockResolvedValue(state() as never);
 
-    await expect(McpOAuthService.handleCallback('code', 'state-token', `${AS}/`)).resolves.toEqual({
-      serverId: 'srv-1',
-    });
+    await expect(callback(`${AS}/`)).resolves.toEqual({ serverId: 'srv-1' });
     expect(exchangeAuthorization).toHaveBeenCalledOnce();
   });
 
@@ -149,9 +153,7 @@ describe('handleCallback — iss validation', () => {
       state({ expectedIssuer: undefined, issRequired: undefined }) as never
     );
 
-    await expect(McpOAuthService.handleCallback('code', 'state-token')).resolves.toEqual({
-      serverId: 'srv-1',
-    });
+    await expect(callback()).resolves.toEqual({ serverId: 'srv-1' });
   });
 });
 
@@ -622,5 +624,52 @@ describe('startAuthorization — reusing and replacing clients', () => {
       },
       oauth_client_secret_encrypted: null,
     });
+  });
+});
+
+/**
+ * The state names who started the flow; the tokens belong to whoever finishes
+ * it only if that is the same person. Asserted as "nothing redeemed, nothing
+ * stored", with the state used up either way.
+ */
+describe('handleCallback — bound to the session that started it', () => {
+  function captureUpdate() {
+    const update = vi.fn(() => ({ set: () => ({ where: async () => undefined }) }));
+    vi.mocked(getDrizzleInstance).mockReturnValue({
+      ...dbStub(
+        serverRow({ clientId: 'cid', redirectUri: 'https://gruenerator.eu/api/mcp/auth/callback' })
+      ),
+      update,
+    } as never);
+    return update;
+  }
+
+  it.each([
+    ['a session of another user', 'user-2'],
+    ['no session at all', null],
+  ])('stores no tokens for %s', async (_label, sessionUserId) => {
+    vi.mocked(consumeOAuthState).mockResolvedValue(state() as never);
+    const update = captureUpdate();
+
+    await expect(
+      McpOAuthService.handleCallback({
+        code: 'code',
+        state: 'state-token',
+        iss: null,
+        sessionUserId,
+      })
+    ).rejects.toMatchObject({ statusCode: 403 });
+
+    expect(consumeOAuthState).toHaveBeenCalledWith('state-token');
+    expect(exchangeAuthorization).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('stores the tokens for the user who started the flow', async () => {
+    vi.mocked(consumeOAuthState).mockResolvedValue(state() as never);
+    const update = captureUpdate();
+
+    await expect(callback()).resolves.toEqual({ serverId: 'srv-1' });
+    expect(update).toHaveBeenCalledOnce();
   });
 });
