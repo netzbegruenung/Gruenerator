@@ -26,6 +26,7 @@ import {
   exchangeAuthorization,
   refreshAuthorization,
 } from '@modelcontextprotocol/sdk/client/auth.js';
+import { OAuthError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
 import { and, eq } from 'drizzle-orm';
 
 import { env } from '../../config/env.js';
@@ -38,7 +39,7 @@ import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { createLogger } from '../../utils/logger.js';
 import { ensureConnected, redisClient } from '../../utils/redis/client.js';
 import { decryptCredential, encryptCredential } from '../../utils/validation/encryption.js';
-import { validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
+import { safeFetch, validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
 
 import {
   consumeOAuthState,
@@ -108,25 +109,28 @@ function oauthError(message: string, statusCode: number, code?: McpOAuthErrorCod
 }
 
 /**
- * Pull the human-readable detail out of an SDK registration/authorization error.
- * Providers with non-RFC error bodies (e.g. Typeform's `{code, description}`)
- * make the SDK throw "Invalid OAuth error response: <zod>. Raw body: {...}" —
- * parse that raw body instead of surfacing the Zod dump.
+ * Every request the SDK makes for us goes to an address a user-supplied server
+ * named: its resource metadata, the AS metadata it points at, and the
+ * registration and token endpoints listed there. The SDK itself only refuses
+ * javascript:/data:/vbscript: URLs, so each call gets this fetch, which refuses
+ * private and internal targets — at connect time and on every redirect hop.
+ */
+const guardedFetch = (url: string | URL, init?: RequestInit): Promise<Response> =>
+  safeFetch(String(url), init);
+
+/**
+ * The part of a provider error that may reach the user. A well-formed OAuth
+ * error response (RFC 6749 §5.2) yields its `error_description` (or the error
+ * code); anything else only its HTTP status. Never the body: for a body that
+ * is not an OAuth error the SDK puts it verbatim into the message ("… Raw body:
+ * …", or "HTTP <status>: Redirect …"), and it came from an endpoint that a
+ * user-supplied server chose.
  */
 function providerErrorDetail(err: unknown): string {
-  const msg = err instanceof Error ? err.message : String(err);
-  const marker = 'Raw body: ';
-  const idx = msg.indexOf(marker);
-  if (idx !== -1) {
-    try {
-      const body = JSON.parse(msg.slice(idx + marker.length)) as Record<string, unknown>;
-      const detail = body.error_description ?? body.description ?? body.error ?? body.code;
-      if (typeof detail === 'string' && detail) return detail;
-    } catch {
-      // not JSON — fall through to the raw message
-    }
-  }
-  return msg;
+  const status = /^HTTP (\d{3})\b/.exec(err instanceof Error ? err.message : '')?.[1];
+  if (status) return `HTTP ${status}`;
+  if (err instanceof OAuthError) return err.message || err.errorCode;
+  return 'keine gültige Antwort';
 }
 
 /**
@@ -183,7 +187,7 @@ async function getServer(userId: string, serverId: string): Promise<McpServer | 
  * A single trailing slash is normalised away; issuer identifiers are otherwise
  * compared exactly, as the RFC requires.
  */
-function assertIssuerMatches(st: McpOAuthState, iss?: string): void {
+function assertIssuerMatches(st: McpOAuthState, iss: string | null): void {
   // In-flight states written before these fields existed can't be validated.
   if (!st.expectedIssuer) return;
   // AS predates RFC 9207 and never claimed to send `iss`.
@@ -267,7 +271,7 @@ export class McpOAuthService {
 
     let info: Awaited<ReturnType<typeof discoverOAuthServerInfo>> | null = null;
     try {
-      info = await discoverOAuthServerInfo(server.url);
+      info = await discoverOAuthServerInfo(server.url, { fetchFn: guardedFetch });
     } catch (err) {
       log.info('MCP OAuth discovery failed; probing unauthenticated access', {
         serverId,
@@ -376,6 +380,7 @@ export class McpOAuthService {
             ...(scopes?.length ? { scope: scopes.join(' ') } : {}),
           } as Parameters<typeof registerClient>[1]['clientMetadata'],
           ...(scopes?.length ? { scope: scopes.join(' ') } : {}),
+          fetchFn: guardedFetch,
         });
       } catch (err) {
         // Typical case: the provider allowlists redirect domains (Typeform,
@@ -492,17 +497,39 @@ export class McpOAuthService {
    *
    * `iss` is the RFC 9207 authorization-response parameter; validating it is
    * what stops an AS mix-up from steering our code to the wrong token endpoint.
+   *
+   * `sessionUserId` is the Grünerator session of the browser that completed
+   * the redirect (null without one). The state alone only says who *started*
+   * the flow; the tokens are stored only when the same person finishes it.
    */
-  static async handleCallback(
-    code: string,
-    state: string,
-    iss?: string
-  ): Promise<{ serverId: string }> {
+  static async handleCallback({
+    code,
+    state,
+    iss,
+    sessionUserId,
+  }: {
+    code: string;
+    state: string;
+    iss: string | null;
+    sessionUserId: string | null;
+  }): Promise<{ serverId: string }> {
+    // Consumed before any check, so a refused callback also burns the state.
     const st = await consumeOAuthState(state);
     if (!st)
       throw Object.assign(new Error('Ungültiger oder abgelaufener OAuth-State'), {
         statusCode: 400,
       });
+
+    if (sessionUserId !== st.userId) {
+      log.warn('MCP OAuth callback without the initiating session — not storing tokens', {
+        serverId: st.serverId,
+        hasSession: sessionUserId !== null,
+      });
+      throw oauthError(
+        'Die Verbindung wurde nicht in dieser Anmeldung gestartet. Melde dich im Grünerator an und starte die Verbindung dort erneut.',
+        403
+      );
+    }
 
     // MUST run before the code is redeemed below — afterwards it has already
     // left for whichever token endpoint we were steered to.
@@ -518,20 +545,34 @@ export class McpOAuthService {
       ? decryptCredential(server.oauth_client_secret_encrypted)
       : undefined;
 
-    const metadata = (await discoverAuthorizationServerMetadata(st.authorizationServerUrl)) as
-      AsMetadata | undefined;
+    let tokens: Awaited<ReturnType<typeof exchangeAuthorization>>;
+    try {
+      const metadata = (await discoverAuthorizationServerMetadata(st.authorizationServerUrl, {
+        fetchFn: guardedFetch,
+      })) as AsMetadata | undefined;
 
-    const tokens = await exchangeAuthorization(st.authorizationServerUrl, {
-      metadata: metadata as never,
-      clientInformation: {
-        client_id: oidc.clientId,
-        ...(clientSecret && { client_secret: clientSecret }),
-      },
-      authorizationCode: code,
-      codeVerifier: st.codeVerifier,
-      redirectUri,
-      ...(oidc.resource ? { resource: new URL(oidc.resource) } : {}),
-    });
+      tokens = await exchangeAuthorization(st.authorizationServerUrl, {
+        metadata: metadata as never,
+        clientInformation: {
+          client_id: oidc.clientId,
+          ...(clientSecret && { client_secret: clientSecret }),
+        },
+        authorizationCode: code,
+        codeVerifier: st.codeVerifier,
+        redirectUri,
+        ...(oidc.resource ? { resource: new URL(oidc.resource) } : {}),
+        fetchFn: guardedFetch,
+      });
+    } catch (err) {
+      log.warn('MCP OAuth token exchange failed', {
+        serverId: st.serverId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      throw oauthError(
+        `Der Anbieter hat die Anmeldung nicht abgeschlossen (${providerErrorDetail(err)}).`,
+        502
+      );
+    }
 
     await this.persistTokens(st.userId, st.serverId, tokens);
     log.info('MCP OAuth connected', { userId: st.userId, serverId: st.serverId });
@@ -578,8 +619,9 @@ export class McpOAuthService {
       const clientSecret = server.oauth_client_secret_encrypted
         ? decryptCredential(server.oauth_client_secret_encrypted)
         : undefined;
-      const metadata = (await discoverAuthorizationServerMetadata(oidc.issuer)) as
-        AsMetadata | undefined;
+      const metadata = (await discoverAuthorizationServerMetadata(oidc.issuer, {
+        fetchFn: guardedFetch,
+      })) as AsMetadata | undefined;
       const tokens = await refreshAuthorization(oidc.issuer, {
         metadata: metadata as never,
         clientInformation: {
@@ -588,6 +630,7 @@ export class McpOAuthService {
         },
         refreshToken: decryptCredential(server.refresh_token_encrypted),
         ...(oidc.resource ? { resource: new URL(oidc.resource) } : {}),
+        fetchFn: guardedFetch,
       });
       await this.persistTokens(userId, serverId, tokens, server.refresh_token_encrypted);
       return tokens.access_token;
@@ -641,8 +684,9 @@ export class McpOAuthService {
         // gate as every other fetch it steers.
         const issuerCheck = await validateUrlForFetch(issuer);
         if (!issuerCheck.isValid) return;
-        const metadata = (await discoverAuthorizationServerMetadata(issuer)) as
-          AsMetadata | undefined;
+        const metadata = (await discoverAuthorizationServerMetadata(issuer, {
+          fetchFn: guardedFetch,
+        })) as AsMetadata | undefined;
         const endpointCheck = metadata?.revocation_endpoint
           ? await validateUrlForFetch(metadata.revocation_endpoint)
           : null;
@@ -670,7 +714,7 @@ export class McpOAuthService {
               if (method === 'client_secret_post' && clientSecret)
                 body.set('client_secret', clientSecret);
             }
-            const res = await fetch(endpoint, {
+            const res = await guardedFetch(endpoint, {
               method: 'POST',
               headers,
               body,
