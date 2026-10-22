@@ -31,6 +31,7 @@ const base = {
   variantId: 'v1',
   messageId: null,
   existingCanvasId: null,
+  bindToThread: true,
 };
 
 beforeEach(() => {

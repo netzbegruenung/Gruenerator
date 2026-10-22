@@ -137,6 +137,26 @@ async function hideTrashedDocuments(response: SearchResponse): Promise<SearchRes
   return { ...response, results: response.results.filter((r) => !trashed.has(r.document_id)) };
 }
 
+/**
+ * Keep the owner pin on a `documentIds`-scoped search of `documents`.
+ *
+ * `searchOperations` drops its `user_id` pin once `documentIds` scope a
+ * search, because notebook callers pass ids they authorized for other owners.
+ * `textSearch`/`hybridSearch` have no such caller — they serve only the
+ * "my documents" search (`POST /api/documents/search`) — so an id that slipped
+ * past the route check must still find nothing the caller does not own.
+ */
+function ownerPinnedFilter(userId: string, options: DocumentSearchOptions): QdrantFilter | null {
+  const scoped = Array.isArray(options.documentIds) && options.documentIds.length > 0;
+  const collection = (options.searchCollection as string | undefined) ?? 'documents';
+  if (!scoped || collection !== 'documents') return null;
+  const existing = options.additionalFilter as QdrantFilter | undefined;
+  return {
+    ...existing,
+    must: [...(existing?.must ?? []), { key: 'user_id', match: { value: userId } }],
+  };
+}
+
 export class DocumentSearchService extends BaseSearchService {
   private qdrant: QdrantService;
   private qdrantOps: QdrantOperations | null;
@@ -465,12 +485,13 @@ export class DocumentSearchService extends BaseSearchService {
         throw new Error('Qdrant not available');
       }
 
+      const additionalFilter = ownerPinnedFilter(userId, options);
       return await hideTrashedDocuments(
         await searchOps.performTextSearch(
           this.qdrantOps,
           query,
           userId,
-          options,
+          additionalFilter ? { ...options, additionalFilter } : options,
           this.chunkMultiplier,
           this.groupAndRankHybridResults.bind(this)
         )
@@ -504,6 +525,7 @@ export class DocumentSearchService extends BaseSearchService {
         );
       }
 
+      const additionalFilter = ownerPinnedFilter(userId, options);
       const response = await this.performHybridSearch({
         query,
         userId,
@@ -511,6 +533,7 @@ export class DocumentSearchService extends BaseSearchService {
           documentIds: options.documentIds,
           sourceType: options.sourceType,
           searchCollection: options.searchCollection,
+          ...(additionalFilter && { additionalFilter }),
         },
         options: {
           limit: options.limit || this.defaultLimit,

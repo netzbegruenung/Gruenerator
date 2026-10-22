@@ -26,7 +26,7 @@ import sharp from 'sharp';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { escapeRegExp } from '../../../services/BaseSearchService/textUtils.js';
-import { createCanvas } from '../../../services/canvas/canvasRepository.js';
+import { checkCanvasWriteAccess, createCanvas } from '../../../services/canvas/canvasRepository.js';
 import {
   applyCanvasStatePatch,
   getCurrentCanvasState,
@@ -368,44 +368,33 @@ async function bindThreadCanvas(
   );
 }
 
-export interface MintVariantResult {
-  canvasId: string;
-  /** true only when this call created the canvas (SSE / logging cue). */
-  minted: boolean;
+/** Point the (thread, variant) binding at another canvas (re-mint in the edit flow). */
+async function rebindThreadCanvas(
+  threadId: string,
+  variantId: string,
+  canvasId: string,
+  canvasType: string
+): Promise<void> {
+  const pg = getPostgresInstance();
+  await pg.query(
+    `INSERT INTO chat_thread_canvases (thread_id, variant_id, canvas_id, canvas_type, is_active)
+     VALUES ($1, $2, $3, $4, TRUE)
+     ON CONFLICT (thread_id, variant_id) DO UPDATE
+       SET canvas_id = EXCLUDED.canvas_id, canvas_type = EXCLUDED.canvas_type,
+           updated_at = CURRENT_TIMESTAMP`,
+    [threadId, variantId, canvasId, canvasType]
+  );
 }
 
-/**
- * The single mint path shared by the chat-edit flow (`ensureMintedCanvas`) and
- * the studio-open endpoint (`POST /api/canvas/from-variant`). Idempotent on the
- * `chat_thread_canvases (thread_id, variant_id)` binding, so both entry points
- * converge on ONE canvas per variant and can never diverge. A newly created
- * canvas is authoritatively Yjs-seeded from `{...defaultState, ...initialProps}`
- * (lossless, race-free) BEFORE any studio tab opens.
- */
-export async function mintCanvasForVariant(args: {
+/** Create a canvas for `userId`, Yjs-seeded from `{...defaultState, ...initialProps}`. */
+async function createSeededCanvas(args: {
   userId: string;
-  threadId: string;
-  variantId: string;
   canvasType: string;
   initialProps: Record<string, unknown>;
-  /** Message holding the variant, for canvasId stamping; null in the endpoint. */
-  messageId: string | null;
-  /** Pre-resolved canvasId (decks minted at generation); null to look it up. */
-  existingCanvasId: string | null;
-  /** Composed freeform pages carry their format; null keeps the repository default. */
   format: string | null;
-  /** Client-derived title (creator headline); null derives it from the props. */
   title: string | null;
-}): Promise<MintVariantResult> {
-  const { userId, threadId, variantId, canvasType, initialProps, messageId } = args;
-
-  const existing = args.existingCanvasId ?? (await findBoundCanvas(threadId, variantId));
-  if (existing) {
-    await bindThreadCanvas(threadId, variantId, existing, canvasType);
-    await setActiveThreadCanvas(threadId, variantId);
-    return { canvasId: existing, minted: false };
-  }
-
+}): Promise<string> {
+  const { userId, canvasType, initialProps } = args;
   const descriptor = getSharepicTemplateDescriptor(canvasType);
   const initialState = { ...(descriptor?.defaultState ?? {}), ...initialProps };
   const canvas = await createCanvas(userId, {
@@ -421,7 +410,6 @@ export async function mintCanvasForVariant(args: {
   });
   // Authoritative server-side Yjs seed (full state + pagesSeeded watermark).
   await seedCanvasPages(canvas.id, canvasType, initialState);
-  await bindThreadCanvas(threadId, variantId, canvas.id, canvasType);
   await insertCanvasVersion({
     canvasId: canvas.id,
     state: initialState,
@@ -429,12 +417,78 @@ export async function mintCanvasForVariant(args: {
     origin: 'mint',
     userId,
   });
+  return canvas.id;
+}
+
+export interface MintVariantResult {
+  canvasId: string;
+  /** true only when this call created the canvas (SSE / logging cue). */
+  minted: boolean;
+}
+
+/**
+ * The single mint path shared by the chat-edit flow (`ensureMintedCanvas`) and
+ * the studio-open endpoint (`POST /api/canvas/from-variant`). Idempotent on the
+ * `chat_thread_canvases (thread_id, variant_id)` binding, so both entry points
+ * converge on ONE canvas per variant and can never diverge. A newly created
+ * canvas is authoritatively Yjs-seeded from `{...defaultState, ...initialProps}`
+ * (lossless, race-free) BEFORE any studio tab opens.
+ *
+ * Only a variant the thread actually holds is bound. A made-up id would
+ * otherwise become the thread's active canvas and catch the next chat edit;
+ * such a call (and every `bindToThread: false` call) still gets a canvas of
+ * its own, it just leaves the thread alone.
+ */
+export async function mintCanvasForVariant(args: {
+  userId: string;
+  threadId: string;
+  variantId: string;
+  canvasType: string;
+  initialProps: Record<string, unknown>;
+  /** Message holding the variant, for canvasId stamping; null in the endpoint. */
+  messageId: string | null;
+  /** Pre-resolved canvasId (decks minted at generation); null to look it up. */
+  existingCanvasId: string | null;
+  /** Composed freeform pages carry their format; null keeps the repository default. */
+  format: string | null;
+  /** Client-derived title (creator headline); null derives it from the props. */
+  title: string | null;
+  /**
+   * false when the caller may only read the thread: a canvas of their own,
+   * without reusing the thread's canvas, binding or switching the active one.
+   */
+  bindToThread: boolean;
+}): Promise<MintVariantResult> {
+  const { userId, threadId, variantId, canvasType, initialProps, messageId } = args;
+
+  if (args.bindToThread) {
+    const existing = args.existingCanvasId ?? (await findBoundCanvas(threadId, variantId));
+    if (existing) {
+      await bindThreadCanvas(threadId, variantId, existing, canvasType);
+      await setActiveThreadCanvas(threadId, variantId);
+      return { canvasId: existing, minted: false };
+    }
+  }
+
+  const bind = args.bindToThread && (await findVariants(threadId, variantId)).hits.length > 0;
+  const canvasId = await createSeededCanvas({
+    userId,
+    canvasType,
+    initialProps,
+    format: args.format,
+    title: args.title,
+  });
+  if (!bind) {
+    log.info(`[SharepicMint] Minted unbound canvas ${canvasId} for variant ${variantId}`);
+    return { canvasId, minted: true };
+  }
+  await bindThreadCanvas(threadId, variantId, canvasId, canvasType);
   if (messageId) {
-    await attachCanvasIdToMessage(messageId, variantId, canvas.id);
+    await attachCanvasIdToMessage(messageId, variantId, canvasId);
   }
   await setActiveThreadCanvas(threadId, variantId);
-  log.info(`[SharepicMint] Minted canvas ${canvas.id} for variant ${variantId}`);
-  return { canvasId: canvas.id, minted: true };
+  log.info(`[SharepicMint] Minted canvas ${canvasId} for variant ${variantId}`);
+  return { canvasId, minted: true };
 }
 
 /**
@@ -459,11 +513,38 @@ export async function ensureMintedCanvas(args: {
     existingCanvasId: target.canvasId,
     format: null,
     title: null,
+    bindToThread: true,
   });
   if (minted) {
     sse.send('sharepic_minted', { variantId: target.variantId, canvasId });
+    return canvasId;
   }
-  return canvasId;
+  // The thread's canvas need not be this user's: another writer of the thread
+  // may have opened the variant in the studio, and bindings written before
+  // from-variant checked thread access can point at anyone's canvas. The edit
+  // reads and patches through the internal Yjs API, past the canvas ACL — so
+  // a canvas the user may not write is never used; they get their own.
+  if ((await checkCanvasWriteAccess(canvasId, userId)).kind === 'ok') return canvasId;
+
+  const hit = (await findVariants(threadId, target.variantId)).hits[0];
+  if (!hit) {
+    throw new Error(`Sharepic variant ${target.variantId} not found for re-mint`);
+  }
+  const reminted = await createSeededCanvas({
+    userId,
+    canvasType: target.canvasType,
+    initialProps: hit.variant.initialProps ?? {},
+    format: null,
+    title: null,
+  });
+  await rebindThreadCanvas(threadId, target.variantId, reminted, target.canvasType);
+  await attachCanvasIdToMessage(hit.messageId, target.variantId, reminted);
+  await setActiveThreadCanvas(threadId, target.variantId);
+  log.warn(
+    `[SharepicMint] Canvas ${canvasId} not writable by the editing user — re-minted ${reminted} for variant ${target.variantId}`
+  );
+  sse.send('sharepic_minted', { variantId: target.variantId, canvasId: reminted });
+  return reminted;
 }
 
 export type ApplySharepicOpsOutcome =

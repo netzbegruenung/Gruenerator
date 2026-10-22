@@ -53,7 +53,9 @@ import {
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
+import { ThreadId, UserId } from '../../utils/types/branded.js';
 import { mintCanvasForVariant } from '../chat/services/sharepicEditService.js';
+import { getThreadAccessLevel } from '../chat/services/threadAccessService.js';
 import { redactDocumentForReader } from '../docs/documentAccess.js';
 import { formatCategory, getServerFormat } from '../exports/pageConstants.js';
 
@@ -181,6 +183,14 @@ export const canvasContractRouter = s.router(canvasContract, {
           body: { error: `Kein Sharepic-Template für Typ '${canvasType}'` },
         };
       }
+      // Binding the canvas to the thread writes into it: only someone who may
+      // write the thread binds. A read-only viewer (a read-only group share
+      // opens in the live chat on mobile) still gets the variant into the
+      // studio, as a canvas of their own that leaves the thread untouched.
+      const access = await getThreadAccessLevel(ThreadId(threadId), UserId(userId));
+      if (access === 'none') {
+        return { status: 404 as const, body: { error: 'Chat nicht gefunden' } };
+      }
       const { canvasId } = await mintCanvasForVariant({
         userId,
         threadId,
@@ -191,6 +201,7 @@ export const canvasContractRouter = s.router(canvasContract, {
         existingCanvasId: null,
         format: args.body.format ?? null,
         title: args.body.title ?? null,
+        bindToThread: access === 'write' || access === 'owner',
       });
       return { status: 201 as const, body: { canvasId } };
     } catch (error) {

@@ -116,7 +116,7 @@ export const boardSchedulesContractRouter = s.router(boardSchedulesContract, {
       const { canEdit } = await checkBoardAccess(boardId, userId);
       if (!canEdit) return { status: 403 as const, body: { error: 'Kein Schreibzugriff' } };
 
-      const updated = await updateSchedule(boardId, scheduleId, args.body);
+      const updated = await updateSchedule(boardId, scheduleId, args.body, userId);
       if (!updated) return { status: 404 as const, body: { error: 'Zeitplan nicht gefunden' } };
       return { status: 200 as const, body: updated };
     } catch (error) {
@@ -148,7 +148,7 @@ export const boardSchedulesContractRouter = s.router(boardSchedulesContract, {
       const { canEdit } = await checkBoardAccess(boardId, userId);
       if (!canEdit) return { status: 403 as const, body: { error: 'Kein Schreibzugriff' } };
 
-      const taskId = await enqueueScheduleRun(boardId, scheduleId);
+      const taskId = await enqueueScheduleRun(boardId, scheduleId, userId);
       if (!taskId) return { status: 404 as const, body: { error: 'Zeitplan nicht gefunden' } };
       return { status: 202 as const, body: { taskId } };
     } catch (error) {
@@ -180,7 +180,7 @@ export const boardSchedulesContractRouter = s.router(boardSchedulesContract, {
       const { canEdit } = await checkBoardAccess(boardId, userId);
       if (!canEdit) return { status: 403 as const, body: { error: 'Kein Schreibzugriff' } };
 
-      const newTaskId = await redoRun(boardId, taskId, args.body.instruction);
+      const newTaskId = await redoRun(boardId, taskId, userId, args.body.instruction);
       if (!newTaskId) return { status: 404 as const, body: { error: 'Lauf nicht gefunden' } };
       return { status: 202 as const, body: { taskId: newTaskId } };
     } catch (error) {
