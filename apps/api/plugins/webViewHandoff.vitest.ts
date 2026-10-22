@@ -117,11 +117,14 @@ async function mint(): Promise<string> {
   return res.token;
 }
 
-async function redeem(query: Record<string, string>): Promise<unknown> {
+async function redeem(
+  query: Record<string, string>,
+  headers: Record<string, string> = { authorization: 'Bearer mobile-token-1' }
+): Promise<unknown> {
   try {
     return await (webHandoff as unknown as Invoke)({
       query: { redirect: '/studio/canvas/doc-1', ...query },
-      headers: new Headers({ authorization: 'Bearer mobile-token-1' }),
+      headers: new Headers(headers),
       context: { internalAdapter },
     });
   } catch (err) {
@@ -197,6 +200,35 @@ describe('webViewHandoff session bookkeeping', () => {
     expect(isRedirect(result)).toBe(true);
     expect(setSessionCookie).toHaveBeenCalledTimes(1);
     expect(redis.sets.size).toBe(0);
+  });
+});
+
+describe('webViewHandoff navigation gate', () => {
+  // The app opens the URL itself (`source={{ uri }}`), which browsers mark as
+  // `Sec-Fetch-Site: none`; anything a page starts is marked otherwise.
+  it.each(['cross-site', 'same-site', 'same-origin'])(
+    'refuses a token redemption arriving as %s without touching the token',
+    async (site) => {
+      const ott = await mint();
+      const result = await redeem({ ott }, { 'sec-fetch-site': site });
+
+      expect(isRedirect(result)).toBe(false);
+      expect((result as { statusCode?: number }).statusCode).toBe(403);
+      expect(internalAdapter.createSession).not.toHaveBeenCalled();
+      expect(setSessionCookie).not.toHaveBeenCalled();
+      expect(redis.client.getDel).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([
+    ['none', { 'sec-fetch-site': 'none' }],
+    ['absent', {}],
+  ])('redeems a token opened directly (Sec-Fetch-Site %s)', async (_label, headers) => {
+    const ott = await mint();
+    const result = await redeem({ ott }, headers);
+
+    expect(isRedirect(result)).toBe(true);
+    expect(setSessionCookie).toHaveBeenCalledTimes(1);
   });
 });
 

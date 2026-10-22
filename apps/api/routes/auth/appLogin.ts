@@ -33,6 +33,11 @@ import { SignJWT } from 'jose';
 
 import { auth } from '../../config/betterAuth.js';
 import { env } from '../../config/env.js';
+import {
+  APP_LOGIN_CODE_REDIS_PREFIX,
+  APP_LOGIN_CODE_TTL_SECONDS,
+} from '../../plugins/mobileTokenExchange.js';
+import { getAuthTokenSecret } from '../../utils/authTokenSecret.js';
 import { forwardBetterAuthCookies } from '../../utils/betterAuthBridge.js';
 import { createLogger } from '../../utils/logger.js';
 import { captureAuthIssue } from '../../utils/observability/captureAuthIssue.js';
@@ -77,8 +82,6 @@ const loginLimiter = env.DISABLE_RATE_LIMITS
       legacyHeaders: false,
       message: { error: 'Too many login attempts, please try again later.' },
     });
-
-const JWT_SECRET = new TextEncoder().encode(env.SESSION_SECRET ?? 'fallback-secret-please-change');
 
 const SOURCE_TO_PROVIDER: Record<string, string> = {
   'gruenerator-login': 'keycloak-gruenerator',
@@ -241,10 +244,17 @@ router.get('/app-callback', async (req: AuthRequest, res: Response): Promise<voi
     })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
-      .setExpirationTime('60s')
+      .setExpirationTime(`${APP_LOGIN_CODE_TTL_SECONDS}s`)
       .setIssuer('gruenerator-auth')
       .setAudience('gruenerator-app-login-code')
-      .sign(JWT_SECRET);
+      .sign(getAuthTokenSecret());
+
+    // Makes the code single-use: `/token-exchange-code` consumes this entry.
+    await redisClient.setEx(
+      `${APP_LOGIN_CODE_REDIS_PREFIX}${jti}`,
+      APP_LOGIN_CODE_TTL_SECONDS,
+      session.user.id
+    );
 
     log.info('[AppCallback] Login code generated, redirecting to app', {
       userId: session.user.id,
