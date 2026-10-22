@@ -56,6 +56,12 @@ export const recordedSourcePersists: Array<{
   researchQuery?: string;
 }> = [];
 
+/**
+ * Thread ids the thread-keyed reads were called with, in call order. Lets a
+ * test prove a read never ran for a thread the user may not write to.
+ */
+export const threadReads: Array<{ read: string; threadId: string }> = [];
+
 const threadToolContextFixtures = new Map<string, ThreadToolContext | null>();
 const threadArtifactFixtures = new Map<string, ThreadToolContext[]>();
 const lastTurnArtifactFixtures = new Map<string, ThreadToolContext[]>();
@@ -71,6 +77,7 @@ export function resetThreadStore(): void {
   threads.clear();
   messages.clear();
   recordedSourcePersists.length = 0;
+  threadReads.length = 0;
   threadToolContextFixtures.clear();
   threadArtifactFixtures.clear();
   lastTurnArtifactFixtures.clear();
@@ -343,7 +350,16 @@ export async function setThreadLastMcpServer(threadId: string, serverId: string)
   if (row) row.lastMcpServerId = serverId;
 }
 
+export async function getUserMessageTexts(threadId: string, limit = 20): Promise<string[]> {
+  threadReads.push({ read: 'getUserMessageTexts', threadId });
+  return messagesOf(threadId)
+    .filter((m) => m.role === 'user' && m.content !== null)
+    .map((m) => m.content as string)
+    .slice(-limit);
+}
+
 export async function getThreadToolContext(threadId: string): Promise<ThreadToolContext | null> {
+  threadReads.push({ read: 'getThreadToolContext', threadId });
   return threadToolContextFixtures.get(threadId) ?? null;
 }
 
@@ -384,6 +400,7 @@ function toolRowsOf(threadId: string): { rows: ToolStepRow[]; newestIsLastTurn: 
  * from the persisted assistant metadata through the real projections.
  */
 export async function readThreadToolHistory(threadId: string): Promise<ThreadToolHistory> {
+  threadReads.push({ read: 'readThreadToolHistory', threadId });
   const artifacts = await listThreadArtifacts(threadId, Number.MAX_SAFE_INTEGER);
   const { rows, newestIsLastTurn } = toolRowsOf(threadId);
   return {
@@ -423,6 +440,7 @@ export async function getThreadCloudFiles(
   threadId: string,
   userId: string
 ): Promise<ThreadCloudFiles> {
+  threadReads.push({ read: 'getThreadCloudFiles', threadId });
   if (cloudFilesReadFault.failNext) {
     cloudFilesReadFault.failNext = false;
     throw new Error('simulated cloud_file_refs read failure');
