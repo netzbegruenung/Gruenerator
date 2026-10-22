@@ -21,6 +21,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useStepBack } from '../../../hooks/useStepBack';
 import { useTheme } from '../../../hooks/useTheme';
 import { borderRadius, colors, spacing, typography } from '../../../theme';
 import { Button } from '../../common/Button';
@@ -175,6 +176,13 @@ export function StickerCreatorScreen({
     setError(null);
     setStep('mode');
   };
+
+  // The way back steps back like „Zurück", so the design is not thrown away.
+  useStepBack(step === 'design' || step === 'save', () => {
+    if (busy) return;
+    if (step === 'design') startOver();
+    else setStep('design');
+  });
 
   const canSave = !!draft && !!mode && isAssetFormComplete(form) && !busy;
 

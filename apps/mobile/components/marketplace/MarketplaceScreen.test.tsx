@@ -24,6 +24,7 @@ import { MarketplaceScreen } from './MarketplaceScreen';
 import { MarketplaceSheet } from './MarketplaceSheet';
 
 const mockSave = jest.fn();
+const mockSetQueryData = jest.fn();
 jest.mock('@gruenerator/shared/marketplace', () => ({
   ...jest.requireActual<Record<string, unknown>>('@gruenerator/shared/marketplace'),
   useMarketplaceSections: jest.fn(),
@@ -36,7 +37,7 @@ jest.mock('@gruenerator/shared/marketplace', () => ({
 }));
 jest.mock('@tanstack/react-query', () => ({
   ...jest.requireActual<Record<string, unknown>>('@tanstack/react-query'),
-  useQueryClient: () => ({ invalidateQueries: jest.fn() }),
+  useQueryClient: () => ({ invalidateQueries: jest.fn(), setQueryData: mockSetQueryData }),
 }));
 jest.mock('@gruenerator/shared/comments', () => ({
   ...jest.requireActual<Record<string, unknown>>('@gruenerator/shared/comments'),
@@ -225,26 +226,50 @@ describe('MarketplaceScreen', () => {
     expect(screen.getByText('Hier gibt es noch keine Sticker.')).toBeTruthy();
   });
 
-  it('opens a short view that adds to the Grüneratoren and leads to the detail page', async () => {
+  it('opens an item as a page of its own, seeded with the listed item', async () => {
     setup({ items: [publicAgent] });
     await renderScreen('agents');
 
     fireEvent.press(screen.getByRole('button', { name: 'Kommunal-Helfer' }));
+    expect(mockSetQueryData).toHaveBeenCalledWith(expect.anything(), publicAgent);
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/(focused)/marktplatz',
+      params: { item: 'agent:u1' },
+    });
+  });
+});
+
+async function renderItemPage(item: MarketplaceItem) {
+  setup({ items: [item] });
+  mockItem.mockReturnValue({ data: item, isError: false });
+  render(
+    <MarketplaceScreen
+      initialFilters={{
+        ...DEFAULT_MARKETPLACE_FILTERS,
+        item: { kind: item.kind, ref: item.ref },
+      }}
+    />
+  );
+  await act(async () => {});
+}
+
+describe('MarketplaceScreen item page', () => {
+  it('adds to the Grüneratoren and leads on, with no second back link', async () => {
+    await renderItemPage(publicAgent);
     expect(screen.getByRole('header', { name: 'Kommunal-Helfer' })).toBeTruthy();
+    // The navigation bar leads back; the page has no link of its own.
+    expect(screen.queryByRole('button', { name: 'Zurück: Marktplatz' })).toBeNull();
 
     fireEvent.press(screen.getByText('Zu meinen Grüneratoren'));
     expect(mockSave).toHaveBeenCalledWith(publicAgent, expect.anything());
     // Someone else's public agent can be reported.
-    expect(screen.getByText('Melden')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Melden' })).toBeTruthy();
 
     fireEvent.press(screen.getByText('Alle Details'));
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/(focused)/grueneratoren/agent/[slug]',
       params: { slug: 'u1' },
     });
-
-    fireEvent.press(screen.getByRole('button', { name: 'Zurück: Marktplatz' }));
-    expect(screen.getByRole('header', { name: 'Agents' })).toBeTruthy();
   });
 });
 
@@ -283,20 +308,13 @@ describe('MarketplaceScreen detail', () => {
   });
 
   it('shares the web Marktplatz with the item open', async () => {
-    setup({ items: [publicAgent] });
     const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' });
-    await renderScreen('agents');
+    await renderItemPage(publicAgent);
 
-    fireEvent.press(screen.getByRole('button', { name: 'Kommunal-Helfer' }));
-    // A listed item needs no request of its own.
-    expect(mockItem).toHaveBeenLastCalledWith(
-      { kind: 'agent', ref: 'u1' },
-      { platform: 'mobile', enabled: false }
-    );
-    fireEvent.press(screen.getByText('Teilen'));
+    fireEvent.press(screen.getByRole('button', { name: 'Teilen' }));
     expect(share).toHaveBeenCalledWith(
       expect.objectContaining({
-        url: 'https://gruenerator.eu/marktplatz?art=agents&item=agent%3Au1',
+        url: 'https://gruenerator.eu/marktplatz?item=agent%3Au1',
       })
     );
   });
@@ -322,13 +340,7 @@ describe('MarketplaceScreen detail', () => {
         metadata: {},
       },
     } as unknown as MarketplaceItemOf<'template'>;
-    setup({ items: [vorlage] });
-    render(
-      <MarketplaceScreen initialFilters={{ ...DEFAULT_MARKETPLACE_FILTERS, tab: 'vorlagen' }} />
-    );
-    await act(async () => {});
-
-    fireEvent.press(screen.getByRole('button', { name: 'Plakat' }));
+    await renderItemPage(vorlage);
     expect(screen.getByText('Seite 1 von 2')).toBeTruthy();
   });
 });
@@ -341,8 +353,10 @@ describe('MarketplaceSheet', () => {
 
     fireEvent.press(screen.getByRole('button', { name: 'Kommunal-Helfer' }));
     expect(screen.getByRole('header', { name: 'Kommunal-Helfer' })).toBeTruthy();
-    expect(screen.getByText('Teilen')).toBeTruthy();
-    expect(screen.queryByText('Melden')).toBeNull();
+    // In place of the list, with a way back to it.
+    expect(screen.getByRole('button', { name: 'Zurück: Marktplatz' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Teilen' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Melden' })).toBeNull();
   });
 
   it('as a picker hands the tapped item back and closes', async () => {

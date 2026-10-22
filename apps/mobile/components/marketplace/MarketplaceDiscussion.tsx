@@ -401,31 +401,36 @@ export function MarketplaceDiscussion({
 
   return (
     <DetailSection title={`Kommentare${threads.length ? ` · ${threads.length}` : ''}`}>
-      <View style={styles.bar}>
-        {item ? (
-          <Button
-            variant="ghost"
-            onPress={() =>
-              like.mutate(item, { onError: (error) => Alert.alert('Fehler', error.message) })
-            }
-          >
-            {item.liked ? `Gefällt dir (${item.likesCount})` : `Gefällt mir (${item.likesCount})`}
-          </Button>
-        ) : null}
-        {shareUrl ? (
-          <Button variant="ghost" onPress={() => shareLink(shareUrl, item?.title ?? 'Marktplatz')}>
-            Teilen
-          </Button>
-        ) : null}
-        {allowReport && item && canReport(item) ? (
-          <Button
-            variant="ghost"
-            onPress={() => setReporting({ kind: item.reportKind, targetId: item.ref })}
-          >
-            Melden
-          </Button>
-        ) : null}
-      </View>
+      {item || shareUrl ? (
+        <View style={styles.bar}>
+          {item ? (
+            <Button
+              variant="ghost"
+              onPress={() =>
+                like.mutate(item, { onError: (error) => Alert.alert('Fehler', error.message) })
+              }
+            >
+              {item.liked ? `Gefällt dir (${item.likesCount})` : `Gefällt mir (${item.likesCount})`}
+            </Button>
+          ) : null}
+          {shareUrl ? (
+            <Button
+              variant="ghost"
+              onPress={() => shareLink(shareUrl, item?.title ?? 'Marktplatz')}
+            >
+              Teilen
+            </Button>
+          ) : null}
+          {allowReport && item && canReport(item) ? (
+            <Button
+              variant="ghost"
+              onPress={() => setReporting({ kind: item.reportKind, targetId: item.ref })}
+            >
+              Melden
+            </Button>
+          ) : null}
+        </View>
+      ) : null}
 
       {discussion.isPending ? (
         <SkeletonRows count={2} leading={32} />

@@ -99,8 +99,8 @@ interface Aisle {
  * aisles of cards — one per kind under „Alle", the paged aisle of one kind,
  * which loads more as it scrolls. In the sheet the kind tabs, origins and sort
  * sit under the search; on the screen the front page leads instead, and the
- * active filters show as chips. A card opens a short view in place; in picker
- * mode it is handed back instead.
+ * active filters show as chips. A card opens the item's page (`?item=`), in the
+ * sheet a short view in place; in picker mode it is handed back instead.
  */
 export function MarketplaceBrowser({
   initialFilters,
@@ -185,8 +185,14 @@ export function MarketplaceBrowser({
     setOrigin(null);
     setSort(DEFAULT_MARKETPLACE_SORT);
   };
+  // On the screen an item is a page of its own, so the system back leads to
+  // where it was tapped; the sheet has no stack and opens it in place.
   const select = (item: MarketplaceItem) =>
-    onPick ? onPick(item) : setOpened({ kind: item.kind, ref: item.ref });
+    onPick
+      ? onPick(item)
+      : frontpage
+        ? actions.show(item)
+        : setOpened({ kind: item.kind, ref: item.ref });
   // Collections, categories and Landesverbände are pages of their own, so the
   // system back leads out of them again (web: a history entry).
   const browse = (patch: Partial<MarketplaceFilters>) => {
@@ -239,7 +245,7 @@ export function MarketplaceBrowser({
             item={current}
             token={token}
             actions={actions}
-            onBack={() => setOpened(null)}
+            onBack={frontpage ? undefined : () => setOpened(null)}
             shareUrl={marketplaceShareUrl({ tab, origin: shownOrigin, q, sort, item: opened })}
             allowReport={!inSheet}
             onSelect={select}
@@ -250,17 +256,19 @@ export function MarketplaceBrowser({
     }
     return (
       <View style={styles.root}>
-        <Pressable
-          onPress={() => setOpened(null)}
-          hitSlop={8}
-          accessibilityRole="button"
-          style={styles.back}
-        >
-          <Ionicons name="arrow-back" size={16} color={theme.textSecondary} />
-          <Text style={[styles.backText, { color: theme.textSecondary }]}>
-            Zurück zum Marktplatz
-          </Text>
-        </Pressable>
+        {frontpage ? null : (
+          <Pressable
+            onPress={() => setOpened(null)}
+            hitSlop={8}
+            accessibilityRole="button"
+            style={styles.back}
+          >
+            <Ionicons name="arrow-back" size={16} color={theme.textSecondary} />
+            <Text style={[styles.backText, { color: theme.textSecondary }]}>
+              Zurück zum Marktplatz
+            </Text>
+          </Pressable>
+        )}
         {single.isError ? (
           note(
             'Dieser Eintrag ist nicht verfügbar',

@@ -5,14 +5,11 @@ import {
   LANDESVERBAND_COVERS,
   landesverbandBannerPath,
   sortByHubOrder,
-  useMarketplaceItem,
   useMarketplaceKind,
-  type MarketplaceTarget,
 } from '@gruenerator/shared/marketplace';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { getLandesverbandPhotoByFile } from '../../config/landesverbandPhotos';
@@ -25,8 +22,7 @@ import { Button } from '../common/Button';
 import { SkeletonRows } from '../common/Skeleton';
 import { useShareToken } from '../studio-assets/useShareToken';
 
-import { MarketplaceItemDetail } from './MarketplaceItemDetail';
-import { marketplaceRoute, marketplaceShareUrl } from './marketplaceTarget';
+import { marketplaceRoute } from './marketplaceTarget';
 import {
   DISPLAY_FONT,
   ItemShowcaseCard,
@@ -96,33 +92,8 @@ function HubView({ hub }: { hub: LvHub }) {
   const recipes = useHubKind('recipe', hub);
   const agentItems = sortByHubOrder(hub, agents.items);
   const recipeItems = recipes.items;
-  const [opened, setOpened] = useState<MarketplaceTarget | null>(null);
-
-  const listed = opened
-    ? ([...agentItems, ...recipeItems].find(
-        (i) => i.kind === opened.kind && i.ref === opened.ref
-      ) ?? null)
-    : null;
-  const single = useMarketplaceItem(opened, { platform: 'mobile', enabled: listed === null });
-  const current = listed ?? single.data ?? null;
-  const select = (item: MarketplaceItem) => setOpened({ kind: item.kind, ref: item.ref });
-
-  if (opened) {
-    return current ? (
-      <MarketplaceItemDetail
-        item={current}
-        token={token}
-        actions={actions}
-        onBack={() => setOpened(null)}
-        backLabel={hub.name}
-        shareUrl={marketplaceShareUrl({ item: opened })}
-        allowReport
-        onSelect={select}
-      />
-    ) : (
-      <SkeletonRows count={3} leading={40} on="card" style={styles.loading} />
-    );
-  }
+  // An item is a Marktplatz page of its own; the back arrow returns here.
+  const select = actions.show;
 
   const cover = LANDESVERBAND_COVERS[hub.lvId];
   const notebook = MOBILE_SYSTEM_NOTEBOOKS.find((nb) => nb.id === hub.notebookId) ?? null;
@@ -253,7 +224,6 @@ const styles = StyleSheet.create({
   },
   content: { gap: spacing.xlarge, paddingTop: spacing.small, paddingBottom: spacing.xxlarge },
   stack: { gap: spacing.small },
-  loading: { paddingTop: spacing.medium },
   banner: {
     width: '100%',
     aspectRatio: 2,
