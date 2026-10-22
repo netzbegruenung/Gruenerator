@@ -1584,8 +1584,6 @@ function CanvasEditorInner({
 
               {isSlideFormat(format) && !isPreview && pages[currentPageIndex] && (
                 <SlideNotesPanel
-                  key={pages[currentPageIndex].id}
-                  collapsible={isMobileWeb}
                   value={
                     typeof pages[currentPageIndex].state.notes === 'string'
                       ? pages[currentPageIndex].state.notes
