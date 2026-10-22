@@ -301,6 +301,12 @@ jobs:
       - name: No orphaned test files
         run: node scripts/check-orphan-tests.mjs
 
+      # The Claude Review gate decides from tool output whether a changed file
+      # was really read. Its rules are easy to loosen by accident; these cases
+      # pin both directions (#4854).
+      - name: Claude Review read gate
+        run: node --test .github/scripts/review-read-gate.test.mjs
+
       # A file copied by a Dockerfile but missing from that image's
       # paths-filter means a change to it builds nothing: the workflow runs,
       # every job is skipped, and the merged change never ships. Nothing turns
