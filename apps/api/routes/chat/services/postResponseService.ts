@@ -339,6 +339,8 @@ function deriveToolContext(p: {
 export interface PersistOutcome {
   ok: boolean;
   discarded?: boolean;
+  /** The assistant row the turn was saved as. */
+  messageId?: string;
 }
 
 /**
@@ -538,6 +540,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
       toolCalls,
     };
 
+    let messageId: string;
     if (pendingMessageId) {
       // Finalize the placeholder row minted before streaming. A miss means the
       // row is gone (e.g. a regenerate from another tab deleted it) — do NOT
@@ -554,8 +557,9 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
         );
         return { ok: true, discarded: true };
       }
+      messageId = pendingMessageId;
     } else {
-      await withMessageWriteRetry(
+      messageId = await withMessageWriteRetry(
         () => createMessage(threadId, 'assistant', persistedText || null, metadata),
         'createMessage'
       );
@@ -604,7 +608,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
       userMessageId ?? null
     );
 
-    return { ok: attachmentsOk };
+    return { ok: attachmentsOk, messageId };
   } catch (error) {
     // The turn is NOT in the database. Report it so the caller can tell the
     // user before the stream closes — a silently lost turn looks perfect live
