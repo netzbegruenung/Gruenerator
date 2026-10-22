@@ -59,6 +59,10 @@ vi.mock('../services/threadPersistenceService.js', async () => {
     }),
   };
 });
+vi.mock('../services/documentScopeAccess.js', async () => {
+  const { ownedDocumentScopeMock } = await import('./harness/mocks.js');
+  return ownedDocumentScopeMock();
+});
 vi.mock('../services/threadAccessService.js', async () => {
   const { threadAccessMock } = await import('./harness/mocks.js');
   return threadAccessMock();
