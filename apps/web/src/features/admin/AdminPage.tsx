@@ -12,6 +12,7 @@ import ReportsTabLabel from './components/ReportsTabLabel';
 import RequireAdmin from './components/RequireAdmin';
 import LandesverbandAssignmentTab from './landesverband-assignment/LandesverbandAssignmentTab';
 import AgentsTab from './tabs/AgentsTab';
+import AppUpdatesTab from './tabs/AppUpdatesTab';
 import GlossarTab from './tabs/GlossarTab';
 import ReportsTab from './tabs/ReportsTab';
 import RolesTab from './tabs/RolesTab';
@@ -72,6 +73,14 @@ function buildTabs(instanceId: typeof CURRENT_INSTANCE): AdminTab[] {
       title: 'Rollenübersicht',
       description: 'Welche Rolle sich die Nutzenden selbst gegeben haben.',
       render: () => <RolesTab />,
+    },
+    {
+      value: 'app-updates',
+      label: 'App-Updates',
+      title: 'App-Updates',
+      description:
+        'Welche Stände der Handy-App in den letzten 30 Tagen liefen: der Store-Build oder ein Update aus der Luft, mit der Zahl der angemeldeten Personen (geschätzt).',
+      render: () => <AppUpdatesTab />,
     },
     {
       value: 'glossar',
