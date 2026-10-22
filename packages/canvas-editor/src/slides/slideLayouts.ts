@@ -8,8 +8,11 @@
  * bearbeitbar. Texte, Formen, Diagramme und Fotos gehen nativ ins PPTX; nur
  * Sonnenblume und Logo (Grafiken) werden gerastert.
  *
- * Österreich nimmt dieselbe Geometrie mit dem AT-CI (Farben, Gotham, Logo
- * statt Sonnenblume). Die Layout-Ids sind F1: sie können persistiert werden.
+ * Österreich nimmt dieselbe Geometrie mit dem AT-CI 2026 (The Odd): Gotham
+ * mit einem gelben Vollkorn-Wort in der Headline, Störer nur in Magenta, das
+ * Logo statt der Sonnenblume, Zitate zentriert in einer einzigen Schrift mit
+ * gelbem Namen. Helle Folien gibt es dort nicht — Dunkelgrün trägt jedes
+ * Sujet. Die Layout-Ids sind F1: sie können persistiert werden.
  */
 
 import { getBrandTheme, type BrandLocale } from '../brand/theme';
@@ -45,6 +48,15 @@ export type SlideLayoutId = (typeof SLIDE_LAYOUTS)[number]['id'];
 export type SlideLayoutTheme = (typeof SLIDE_LAYOUTS)[number]['theme'];
 export type SlideLayoutInfo = (typeof SLIDE_LAYOUTS)[number];
 
+/**
+ * Die Layouts, die ein Land anbietet. Österreich nur die grünen: das CI kennt
+ * keine weißen Flächen. Gebaut werden alle — eine schon eingefügte helle
+ * Folie bleibt lesbar.
+ */
+export function slideLayoutsFor(locale: BrandLocale): readonly SlideLayoutInfo[] {
+  return locale === 'de-AT' ? SLIDE_LAYOUTS.filter((l) => l.theme === 'dunkel') : SLIDE_LAYOUTS;
+}
+
 /** Die Folie, mit der eine leere Präsentation beginnt. */
 export const DEFAULT_SLIDE_LAYOUT: SlideLayoutId = 'titel';
 
@@ -79,7 +91,9 @@ const PANEL_PAD = 80;
 const HEAD_TOP = 60;
 const FOOTER = { y: 1028, size: 20 } as const;
 const STOERER = { diameter: 300, size: 46 } as const;
-const MARK = { x: 1852, y: 62, diameter: 60, flower: 44, atLogo: 96 } as const;
+const MARK = { x: 1852, y: 62, diameter: 60, flower: 44 } as const;
+/** Das AT-Logo (1410 × 1239) oben rechts, freistehend in der Formatecke. */
+const AT_LOGO = { width: 130, aspect: 1239 / 1410, top: 48 } as const;
 
 /** Stockfotos des Creators; über die normale Bildauswahl ersetzbar. */
 const PHOTO = {
@@ -95,6 +109,8 @@ const brand = (id: string): string => BRAND_COLORS.find((c) => c.id === id)!.val
 
 const DE = getBrandTheme('de-DE');
 const AT = getBrandTheme('de-AT');
+/** Vollkorn Black Italic: das Betonungswort der AT-Headline und das lange AT-Zitat. */
+const AT_EMPHASIS = { fontFamily: AT.fonts.quoteEmphasis, fontStyle: 'bold italic' as const };
 
 /**
  * Magenta hat nur das AT-CI als Token; der Präsentations-CD setzt denselben
@@ -105,6 +121,7 @@ const STOERER_FILL = { magenta: AT.colors.stoerer, blau: brand('himmel') } as co
 type Grund = 'dunkel' | 'hell' | 'foto';
 
 interface Ink {
+  at: boolean;
   /** Farbe der Seite; beim Foto die Farbe dahinter. */
   ground: string;
   text: string;
@@ -118,6 +135,8 @@ interface Ink {
   mark: { circle: string | null; assetId: string; size: number };
   logoAssetId: string;
   headline: string;
+  /** CI-Zeilenabstand der Headline: Gotham 0,9 (AT-CI), GrueneType 1,05. */
+  headlineLineHeight: number;
   body: string;
 }
 
@@ -125,34 +144,30 @@ function inkFor(locale: BrandLocale, grund: Grund): Ink {
   const theme = locale === 'de-AT' ? AT : DE;
   const fonts = { headline: theme.fonts.headline, body: theme.fonts.body };
   if (locale === 'de-AT') {
-    // AT-Betonung: Vollkorn Black Italic, auf Dunkelgrün in Gelb.
-    const emphasis = { fontFamily: AT.fonts.quoteEmphasis, fontStyle: 'bold italic' as const };
+    // AT-Betonung: Vollkorn Black Italic, auf Dunkelgrün und auf dem Foto in Gelb.
     const light = grund === 'hell';
     return {
+      at: true,
       ground: light ? SHAREPIC_COLOR_HEX.weiss : AT.colors.primary,
       text: light ? AT.colors.textOnLight : AT.colors.textOnDark,
-      accent:
-        grund === 'foto'
-          ? null
-          : { ...emphasis, fill: light ? AT.colors.textOnLight : AT.colors.accent },
-      quote: light
-        ? AT.colors.secondary
-        : grund === 'foto'
-          ? AT.colors.textOnDark
-          : AT.colors.accent,
+      accent: { ...AT_EMPHASIS, fill: light ? AT.colors.textOnLight : AT.colors.accent },
+      // Das kleine Anführungszeichen über dem Zitat (CI S. 77): weiße Kontur.
+      quote: light ? AT.colors.textOnLight : AT.colors.textOnDark,
       watermark: null,
       mark: {
         circle: null,
         assetId: light ? 'gruene-at-logo-gruen' : 'gruene-at-logo-weiss',
-        size: MARK.atLogo,
+        size: AT_LOGO.width,
       },
       logoAssetId: light ? 'gruene-at-logo-gruen' : 'gruene-at-logo-weiss',
+      headlineLineHeight: AT.lineHeightFactor,
       ...fonts,
     };
   }
   const sand = DE.backgroundColors.find((c) => c.id === 'sand')!.color;
   if (grund === 'hell') {
     return {
+      at: false,
       ground: sand,
       text: DE.colors.textOnLight,
       // Klee statt Grashalm: Grashalm hielte auf Sand nur 2:1.
@@ -161,10 +176,12 @@ function inkFor(locale: BrandLocale, grund: Grund): Ink {
       watermark: { assetId: 'sunflower-weiss', opacity: 0.9 },
       mark: { circle: DE.colors.primary, assetId: 'sunflower-weiss', size: MARK.flower },
       logoAssetId: 'gruene-de-logo-schwarz',
+      headlineLineHeight: 1.05,
       ...fonts,
     };
   }
   return {
+    at: false,
     ground: DE.colors.primary,
     text: DE.colors.textOnDark,
     accent: grund === 'foto' ? null : { fill: brand('grashalm') },
@@ -173,6 +190,7 @@ function inkFor(locale: BrandLocale, grund: Grund): Ink {
     mark: { circle: SHAREPIC_COLOR_HEX.weiss, assetId: 'sunflower-green', size: MARK.flower },
     // Die Farbfassung (sandfarbene Schrift, gelbe Blume) ist für dunkle Gründe.
     logoAssetId: 'gruene-de-logo',
+    headlineLineHeight: 1.05,
     ...fonts,
   };
 }
@@ -184,6 +202,7 @@ function inkFor(locale: BrandLocale, grund: Grund): Ink {
 interface TextOptions {
   type?: AdditionalText['type'];
   family?: string;
+  style?: AdditionalText['fontStyle'];
   fill?: string;
   align?: AdditionalText['align'];
   lineHeight?: number;
@@ -240,7 +259,7 @@ class SlideBuilder {
       width,
       fontSize: size,
       fontFamily: o.family ?? this.ink.body,
-      fontStyle: 'normal',
+      fontStyle: o.style ?? 'normal',
       fill: o.fill ?? this.ink.text,
       ...(o.align && o.align !== 'left' ? { align: o.align } : {}),
       ...(o.lineHeight ? { lineHeight: o.lineHeight } : {}),
@@ -251,11 +270,13 @@ class SlideBuilder {
     this.state.layerOrder.push(id);
   }
 
+  /** `==Wort==` betont: in Österreich gelb in Vollkorn, in Deutschland bleibt es ungenutzt. */
   headline(id: string, value: string, x: number, y: number, width: number, size: number) {
     this.text(id, value, x, y, width, size, {
       type: 'header',
       family: this.ink.headline,
-      lineHeight: 1.05,
+      lineHeight: this.ink.headlineLineHeight,
+      ...(value.includes('==') ? { accent: this.ink.accent } : {}),
     });
   }
 
@@ -327,6 +348,11 @@ function footer(b: SlideBuilder, o: SlideLayoutOptions) {
 
 function mark(b: SlideBuilder) {
   const { circle, assetId, size } = b.ink.mark;
+  if (b.ink.at) {
+    const cx = W - M - size / 2;
+    b.asset('folie-zeichen', assetId, cx, AT_LOGO.top + (size * AT_LOGO.aspect) / 2, size);
+    return;
+  }
   if (circle)
     b.shape('folie-zeichen-kreis', 'circle', MARK.x, MARK.y, MARK.diameter, MARK.diameter, circle);
   b.asset('folie-zeichen', assetId, MARK.x, MARK.y, size);
@@ -334,7 +360,8 @@ function mark(b: SlideBuilder) {
 
 function stoerer(b: SlideBuilder, cx: number, cy: number, fill: string) {
   const d = STOERER.diameter;
-  b.shape('folie-stoerer', 'circle', cx, cy, d, d, fill);
+  // Das AT-CI kennt nur den magentafarbenen Störer.
+  b.shape('folie-stoerer', 'circle', cx, cy, d, d, b.ink.at ? STOERER_FILL.magenta : fill);
   const lines = 3;
   b.text(
     'folie-stoerer-text',
@@ -357,6 +384,9 @@ const ZITAT_INTRO = 'Zusammenbringen, was zusammen gehört:';
 /** Auf dem Foto ohne Betonung, umbrochen wie im CD. */
 const ZITAT_TEXT_FOTO =
   'Wir schützen Klima & Wirtschaft,\nsorgen für Gerechtigkeit,\nverteidigen Demokratie & Freiheit\nund schaffen Frieden & Sicherheit.';
+/** Das lange AT-Zitat, ohne Betonung: das CI setzt ein Zitat in einer einzigen Schrift. */
+const ZITAT_TEXT_LANG =
+  'Wir schützen Klima & Wirtschaft, sorgen für Gerechtigkeit, verteidigen Demokratie & Freiheit und schaffen Frieden & Sicherheit.';
 const ZITAT_TEXT =
   'Wir schützen ==Klima & Wirtschaft==, sorgen für ==Gerechtigkeit==, verteidigen ==Demokratie & Freiheit== und schaffen ==Frieden & Sicherheit==.';
 
@@ -369,13 +399,23 @@ function titel(b: SlideBuilder, light: boolean) {
   // Dunkel liegt die Blume oben rechts angeschnitten, hell mittig unter dem Text.
   if (flower && light) b.asset('folie-blume', flower.assetId, 1500, 520, 1050, flower.opacity);
   else if (flower) b.asset('folie-blume', flower.assetId, 1440, 340, 1000, flower.opacity);
-  b.headline('folie-headline', 'Titelfolie', M, 30, 1700, 320);
+  // Österreich: zwei Zeilen mit Betonungswort, wie die Headlines des CI.
+  if (b.ink.at)
+    b.headline('folie-headline', 'Das ist eine\n==starke== Titelfolie.', M, 60, 1500, 190);
+  else b.headline('folie-headline', 'Titelfolie', M, 30, 1700, 320);
   // Schmal wie im CD: gut 60 % der Breite.
-  b.text('folie-text', TITEL_TEXT, M, 410, 1150, 38, { lineHeight: 1.3 });
+  b.text('folie-text', TITEL_TEXT, M, b.ink.at ? 470 : 410, 1150, 38, { lineHeight: 1.3 });
 }
 
 function titelBild(b: SlideBuilder) {
-  b.headline('folie-headline', 'Titelfolie\nmit Bild', M, 20, 1300, 280);
+  b.headline(
+    'folie-headline',
+    b.ink.at ? 'Titelfolie\n==mit Bild==' : 'Titelfolie\nmit Bild',
+    M,
+    20,
+    1300,
+    280
+  );
   b.text('folie-text', 'Unterüberschrift', M, 660, 1000, 36, { type: 'subheader' });
 }
 
@@ -385,7 +425,13 @@ function textBild(b: SlideBuilder, photoLeft: boolean) {
   b.lock('folie-flaeche');
   const x = panelX + PANEL_PAD;
   const width = PANEL - PANEL_PAD * 2;
-  b.headline('folie-headline', 'Beispiel mit\nText & Bild', x, 50, width, 128);
+  // In Österreich kurz: das Logo steht oben rechts in derselben Zeile.
+  const head = b.ink.at
+    ? photoLeft
+      ? 'Bild\n& ==Text=='
+      : 'Text\n& ==Bild=='
+    : 'Beispiel mit\nText & Bild';
+  b.headline('folie-headline', head, x, 50, width, 128);
   b.text('folie-text', TEXT_BILD_TEXT, x, 400, width, 40, { lineHeight: 1.4 });
   if (photoLeft) stoerer(b, 275, 205, STOERER_FILL.magenta);
   else stoerer(b, 1033, 230, STOERER_FILL.magenta);
@@ -422,7 +468,14 @@ function chartColors(locale: BrandLocale, ground: string): string[] {
 }
 
 function diagramm(b: SlideBuilder, locale: BrandLocale) {
-  b.headline('folie-headline', 'Diagramm Vorlage', M, 50, 1500, 128);
+  b.headline(
+    'folie-headline',
+    b.ink.at ? 'Diagramm ==Vorlage==' : 'Diagramm Vorlage',
+    M,
+    50,
+    1500,
+    128
+  );
   const colors = chartColors(locale, b.ink.ground);
   const base = {
     rotation: 0,
@@ -477,9 +530,49 @@ function diagramm(b: SlideBuilder, locale: BrandLocale) {
   });
 }
 
+/**
+ * Das AT-Zitat (CI S. 77): zentriert, ein kleines weißes Anführungszeichen
+ * darüber, das Zitat in genau einer Schrift — kurz in Gotham, lang in Vollkorn
+ * —, darunter der Name in Gelb. Auf Grün das lange, auf dem Foto das kurze.
+ */
+function zitatAt(b: SlideBuilder, withPhoto: boolean) {
+  // Gotham läuft breiter als Vollkorn: das kurze Zitat bekommt die längere Zeile.
+  const width = withPhoto ? 1600 : 1320;
+  const x = (W - width) / 2;
+  const top = withPhoto ? 230 : 190;
+  b.text('folie-anfuehrung', '”', W / 2 - 110, top, 220, 220, {
+    family: b.ink.headline,
+    fill: 'rgba(255,255,255,0)',
+    stroke: { color: b.ink.quote, width: 5 },
+    align: 'center',
+    lineHeight: 1,
+  });
+  if (withPhoto) {
+    b.text('folie-zitat', ZITAT_TEXT_FOTO, x, top + 200, width, 80, {
+      type: 'header',
+      family: b.ink.headline,
+      align: 'center',
+      lineHeight: AT.lineHeightFactor,
+    });
+  } else {
+    b.text('folie-zitat', ZITAT_TEXT_LANG, x, top + 200, width, 68, {
+      type: 'header',
+      family: AT_EMPHASIS.fontFamily,
+      style: AT_EMPHASIS.fontStyle,
+      align: 'center',
+      lineHeight: 1.2,
+    });
+  }
+  b.text('folie-name', 'Vorname Nachname', x, top + (withPhoto ? 530 : 560), width, 44, {
+    fill: AT.colors.accent,
+    align: 'center',
+  });
+}
+
 function zitat(b: SlideBuilder, withPhoto: boolean, locale: BrandLocale) {
   // Gotham Ultra läuft breiter und zeichnet eckige Anführungen: kleiner in Österreich.
   const at = locale === 'de-AT';
+  if (at && b.ink.ground !== SHAREPIC_COLOR_HEX.weiss) return zitatAt(b, withPhoto);
   // Die Anführungszeichen als Text mit Kontur: bleibt nativ und färbbar.
   const quote = at ? 640 : 1000;
   b.text('folie-anfuehrung', '”', M - quote * 0.06, at ? 20 : -30, quote, quote, {
@@ -512,7 +605,14 @@ function danke(b: SlideBuilder, locale: BrandLocale) {
     ? 'Vorname Nachname\nTitel\n\n**DIE GRÜNEN**\nBezirksorganisation Musterstadt\nMusterstraße 1\n1010 Wien\n\nT +43 1 2345678\nF +43 1 2345678\nmail@website.at'
     : 'Vorname Nachname\nTitel\n\n**BÜNDNIS 90/DIE GRÜNEN**\nKV Musterstadt\nMusterstraße 1\n12345 Musterstadt\n\nT +49 12 3456789\nF +49 12 3456789\nmail@website.de';
   b.text('folie-kontakt', contact, M, 480, 600, 28, { lineHeight: 1.3 });
-  b.headline('folie-headline', 'Vielen Dank', 640, at ? 365 : 330, W - M - 640, at ? 190 : 250);
+  b.headline(
+    'folie-headline',
+    at ? 'Vielen ==Dank==' : 'Vielen Dank',
+    640,
+    at ? 365 : 330,
+    W - M - 640,
+    at ? 190 : 250
+  );
   b.text('folie-text', 'für eure Aufmerksamkeit!', 720, 600, 1100, at ? 72 : 100, {
     type: 'subheader',
     family: b.ink.headline,
@@ -578,7 +678,8 @@ export function buildSlideLayout(id: SlideLayoutId, options: SlideLayoutOptions)
       danke(b, options.locale);
       break;
   }
-  mark(b);
+  // Die Dankesfolie trägt das große Logo; in Österreich steht es nur einmal.
+  if (!(b.ink.at && id === 'danke')) mark(b);
   footer(b, options);
   return b.state;
 }
