@@ -165,6 +165,72 @@ describe('useMobileSheet', () => {
   });
 });
 
+describe('useMobileSheet: robustness', () => {
+  beforeEach(setMobileViewport);
+  afterEach(() => vi.useRealTimers());
+
+  it('keeps the drag with the first finger when a second one comes and goes', () => {
+    const onClose = vi.fn();
+    const { sheet, handle } = renderSheet(onClose);
+    const now = vi.spyOn(Date, 'now').mockReturnValue(0);
+
+    fireEvent.touchStart(handle, { touches: [{ identifier: 0, clientY: 100 }] });
+    fireEvent.touchMove(handle, { touches: [{ identifier: 0, clientY: 180 }] });
+    expect(sheet.style.transform).toBe('translateY(80px)');
+
+    fireEvent.touchStart(handle, {
+      touches: [
+        { identifier: 0, clientY: 180 },
+        { identifier: 1, clientY: 300 },
+      ],
+    });
+    fireEvent.touchEnd(handle, {
+      touches: [{ identifier: 0, clientY: 180 }],
+      changedTouches: [{ identifier: 1, clientY: 300 }],
+    });
+    fireEvent.touchMove(handle, { touches: [{ identifier: 0, clientY: 190 }] });
+    expect(sheet.style.transform).toBe('translateY(90px)');
+
+    now.mockReturnValue(1000);
+    fireEvent.touchEnd(handle, {
+      touches: [],
+      changedTouches: [{ identifier: 0, clientY: 190 }],
+    });
+    expect(sheet.style.transform).toBe('');
+    expect(sheet.style.willChange).toBe('');
+    expect(onClose).not.toHaveBeenCalled();
+    now.mockRestore();
+  });
+
+  it('snaps back on touchcancel even past the threshold', () => {
+    vi.useFakeTimers();
+    const onClose = vi.fn();
+    const { sheet, handle } = renderSheet(onClose);
+
+    fireEvent.touchStart(handle, { touches: [{ clientY: 100 }] });
+    fireEvent.touchMove(handle, { touches: [{ clientY: 300 }] });
+    fireEvent.touchCancel(handle, { touches: [] });
+    expect(sheet.style.transform).toBe('');
+    endTransition(sheet);
+    act(() => {
+      vi.advanceTimersByTime(350);
+    });
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('does not take over from content that was scrolled at touchstart', () => {
+    const { sheet } = renderSheet(vi.fn());
+    const content = contentOf(sheet);
+    Object.defineProperty(content, 'scrollTop', { value: 3, configurable: true });
+    fireEvent.touchStart(content, { touches: [{ clientY: 100 }] });
+
+    Object.defineProperty(content, 'scrollTop', { value: 0, configurable: true });
+    const move = fireEvent.touchMove(content, { touches: [{ clientY: 220 }] });
+    expect(move).toBe(true);
+    expect(sheet.style.transform).toBe('');
+  });
+});
+
 describe('useMobileSheet: drag close', () => {
   beforeEach(setMobileViewport);
   afterEach(() => vi.useRealTimers());

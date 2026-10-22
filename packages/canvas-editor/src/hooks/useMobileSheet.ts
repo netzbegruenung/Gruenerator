@@ -83,6 +83,9 @@ export function useMobileSheet({
     // (content only) the browser scrolls for the rest of the gesture.
     let mode: 'idle' | 'pending' | 'drag' | 'scroll' = 'idle';
     let fromContent = false;
+    // The finger that owns the gesture; other fingers are ignored.
+    let activeId = 0;
+    let startScrollTop = 0;
     let startX = 0;
     let startY = 0;
     let deltaY = 0;
@@ -133,11 +136,17 @@ export function useMobileSheet({
       onCloseRef.current();
     };
 
+    const activeTouch = (list: TouchList) =>
+      Array.from(list).find((t) => t.identifier === activeId) ?? null;
+
     const start = (e: TouchEvent, isContent: boolean) => {
-      if (closing) return;
+      // A second finger neither restarts nor ends the running gesture.
+      if (closing || mode !== 'idle' || e.touches.length > 1) return;
       const touch = e.touches[0];
       mode = 'pending';
+      activeId = touch.identifier;
       fromContent = isContent;
+      startScrollTop = isContent ? (content?.scrollTop ?? 0) : 0;
       startX = touch.clientX || 0;
       startY = touch.clientY;
       deltaY = 0;
@@ -147,14 +156,16 @@ export function useMobileSheet({
 
     const move = (e: TouchEvent) => {
       if (mode === 'idle' || mode === 'scroll') return;
-      const touch = e.touches[0];
+      const touch = activeTouch(e.touches);
+      if (!touch) return;
       const dy = touch.clientY - startY;
       record(touch.clientY);
 
       if (mode === 'pending') {
         const dx = (touch.clientX || 0) - startX;
         if (Math.max(Math.abs(dx), Math.abs(dy)) < DRAG_SLOP_PX) return;
-        if (fromContent && (dy <= Math.abs(dx) || (content?.scrollTop ?? 0) > 0)) {
+        const scrolled = startScrollTop > 0 || (content?.scrollTop ?? 0) > 0;
+        if (fromContent && (dy <= Math.abs(dx) || scrolled)) {
           mode = 'scroll';
           return;
         }
@@ -170,12 +181,33 @@ export function useMobileSheet({
       sheet.style.transform = `translateY(${deltaY}px)`;
     };
 
-    const end = () => {
+    /** True if this touchend/cancel lifts the owning finger. */
+    const endsGesture = (e: TouchEvent) =>
+      mode !== 'idle' && (e.touches.length === 0 || activeTouch(e.changedTouches) !== null);
+
+    /** Leaves drag mode; true if the sheet was being dragged. */
+    const release = () => {
       const wasDragging = mode === 'drag';
       mode = 'idle';
-      if (!wasDragging) return;
-      setIsDragging(false);
-      sheet.style.willChange = '';
+      if (wasDragging) {
+        setIsDragging(false);
+        sheet.style.willChange = '';
+      }
+      return wasDragging;
+    };
+
+    const snapBack = () => {
+      sheet.style.transition = reducedMotion() ? 'none' : SHEET_TRANSITION;
+      sheet.style.transform = '';
+    };
+
+    // The system took the touch away (call, gesture, …): never a close.
+    const cancel = (e: TouchEvent) => {
+      if (endsGesture(e) && release()) snapBack();
+    };
+
+    const end = (e: TouchEvent) => {
+      if (!endsGesture(e) || !release()) return;
 
       // A flick decides by itself; a long drag closes unless flicked back up.
       const velocity = releaseVelocity();
@@ -183,8 +215,7 @@ export function useMobileSheet({
         velocity > velocityThreshold || (deltaY > threshold && velocity >= -velocityThreshold);
 
       if (!shouldClose) {
-        sheet.style.transition = reducedMotion() ? 'none' : SHEET_TRANSITION;
-        sheet.style.transform = '';
+        snapBack();
         return;
       }
 
@@ -207,11 +238,11 @@ export function useMobileSheet({
     handle.addEventListener('touchstart', onHandleStart, { passive: true });
     handle.addEventListener('touchmove', move, { passive: true });
     handle.addEventListener('touchend', end);
-    handle.addEventListener('touchcancel', end);
+    handle.addEventListener('touchcancel', cancel);
     content?.addEventListener('touchstart', onContentStart, { passive: true });
     content?.addEventListener('touchmove', move, { passive: false });
     content?.addEventListener('touchend', end);
-    content?.addEventListener('touchcancel', end);
+    content?.addEventListener('touchcancel', cancel);
 
     return () => {
       window.clearTimeout(fallbackTimer);
@@ -219,11 +250,11 @@ export function useMobileSheet({
       handle.removeEventListener('touchstart', onHandleStart);
       handle.removeEventListener('touchmove', move);
       handle.removeEventListener('touchend', end);
-      handle.removeEventListener('touchcancel', end);
+      handle.removeEventListener('touchcancel', cancel);
       content?.removeEventListener('touchstart', onContentStart);
       content?.removeEventListener('touchmove', move);
       content?.removeEventListener('touchend', end);
-      content?.removeEventListener('touchcancel', end);
+      content?.removeEventListener('touchcancel', cancel);
     };
   }, [isOpen, threshold, velocityThreshold]);
 
