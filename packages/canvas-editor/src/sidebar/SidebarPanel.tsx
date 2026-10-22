@@ -143,7 +143,7 @@ export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSideb
           <div className="sidebar-panel__drag-handle h-5 -mb-1 flex items-center justify-center cursor-grab active:cursor-grabbing">
             <div className="w-9 h-1 rounded-sm bg-[var(--editor-border-strong)]" />
           </div>
-          <div className="h-8 px-5 flex items-center justify-between gap-3">
+          <div className="h-8 max-canvas-mobile:h-11 px-5 flex items-center justify-between gap-3">
             <h2 className="m-0 text-[17px] font-bold text-[var(--editor-text)] truncate">
               {sheetTitle}
             </h2>

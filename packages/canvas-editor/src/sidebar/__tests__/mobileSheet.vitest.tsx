@@ -267,6 +267,12 @@ describe('mobiles Sheet: Ein- und Ausgleiten', () => {
     expect(sheetEl()).toBeNull();
   });
 
+  it('keeps the close button inside a 44 px title row', () => {
+    render(panel(true));
+    const row = screen.getByRole('button', { name: 'Text schließen' }).parentElement;
+    expect(row?.className).toContain('max-canvas-mobile:h-11');
+  });
+
   it('renders desktop panel immediately', () => {
     setViewport(false);
     render(panel(true));
