@@ -46,7 +46,17 @@ const MIME_MAP: Record<string, string> = {
   '.jpeg': 'image/jpeg',
   '.gif': 'image/gif',
   '.webp': 'image/webp',
-  '.svg': 'image/svg+xml',
+};
+
+// Uploads are user-controlled and served from the app origin, so none may open
+// as an active document (an SVG or HTML file carries script). `nosniff` holds
+// the browser to the declared type, and the sandbox CSP strips script and the
+// origin from anything opened directly. <video>/<img> embeds and the Remotion
+// container are unaffected. Passed to writeHead, these override helmet's
+// global CSP for this response.
+const SERVE_HEADERS = {
+  'X-Content-Type-Options': 'nosniff',
+  'Content-Security-Policy': "default-src 'none'; media-src 'self'; img-src 'self'; sandbox",
 };
 
 function lookupMime(filename: string): string {
@@ -224,6 +234,7 @@ router.get(
         const chunkSize = end - start + 1;
 
         res.writeHead(206, {
+          ...SERVE_HEADERS,
           'Content-Range': `bytes ${start}-${end}/${stats.size}`,
           'Accept-Ranges': 'bytes',
           'Content-Length': chunkSize,
@@ -233,6 +244,7 @@ router.get(
         fs.createReadStream(filePath, { start, end }).pipe(res);
       } else {
         res.writeHead(200, {
+          ...SERVE_HEADERS,
           'Content-Length': stats.size,
           'Content-Type': contentType,
           'Accept-Ranges': 'bytes',
