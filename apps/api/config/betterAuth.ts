@@ -228,6 +228,10 @@ export const auth = betterAuth({
   }),
   ...(env.BETTER_AUTH_URL != null && { baseURL: env.BETTER_AUTH_URL }),
   basePath: '/api/auth/v2',
+  // Kein Client nutzt Better Auths eigene Profil-Route; Profiländerungen laufen
+  // über `userProfileContract`. Abgeschaltet, damit Kernfelder wie `name` und
+  // `image` nicht an dessen Feldliste vorbei schreibbar sind.
+  disabledPaths: ['/update-user'],
 
   // Pipe Better Auth's internal logs to stdout. Level is gated to LOG_LEVEL
   // so production gets only warn+error (sign-in failures, anomalies) while
