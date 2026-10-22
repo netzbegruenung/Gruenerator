@@ -52,10 +52,6 @@ interface QdrantPoint {
 }
 
 /**
- * QdrantOperations class
- * Provides high-level search algorithms and operations on top of QdrantService
- */
-/**
  * Löst je Aufruf den Client einer Sammlung auf. Nie zwischenspeichern: nach
  * einem Neuaufbau (SSL) liefert der Resolver das neue Objekt.
  */
@@ -64,6 +60,10 @@ export interface QdrantClientResolver {
   write(collection: string): QdrantClient;
 }
 
+/**
+ * QdrantOperations class
+ * Provides high-level search algorithms and operations on top of QdrantService
+ */
 class QdrantOperations {
   private clients: QdrantClientResolver;
   private hybridConfig: HybridConfig;

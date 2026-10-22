@@ -130,7 +130,6 @@ export class QdrantService {
   private contentClient: QdrantClient | null = null;
   private contentTarget: QdrantTarget | null = null;
   private contentReadOnly: boolean = false;
-  private contentAvailable: boolean = false;
   operations: QdrantOperations | null = null;
   isConnected: boolean = false;
   isInitializing: boolean = false;
@@ -215,13 +214,13 @@ export class QdrantService {
       const targets = readQdrantTargets(env);
       this.contentTarget = targets.content;
       this.contentReadOnly = targets.contentReadOnly;
-      this.contentClient = null;
-      this.contentAvailable = false;
 
+      // Der neue Client ersetzt den alten erst am Ende: solange die Neuverbindung
+      // läuft, bedienen die Resolver weiter den bisherigen Client.
       log.debug(`Connecting to ${targets.instance.url}`);
-      this.instanceClient = createQdrantClient(targets.instance);
+      const instanceClient = createQdrantClient(targets.instance);
 
-      await this.testConnectionWithRetry();
+      await this.testConnectionWithRetry(instanceClient);
 
       await mistralEmbeddingService.init();
       this.vectorSize = mistralEmbeddingService.getDimensions();
@@ -231,7 +230,7 @@ export class QdrantService {
       } else {
         // Ohne eigenes Content-Ziel liegen die Inhalte auf dem Instanz-Server.
         await this._reconcile(
-          this.instanceClient,
+          instanceClient,
           this.contentTarget ? ['instance'] : ['instance', 'content']
         );
       }
@@ -239,6 +238,8 @@ export class QdrantService {
       if (this.contentTarget) {
         await this._connectContent(this.contentTarget);
       }
+
+      this.instanceClient = instanceClient;
 
       if (!this.operations) {
         this.operations = new QdrantOperations({
@@ -308,13 +309,11 @@ export class QdrantService {
       }
 
       this.contentClient = client;
-      this.contentAvailable = true;
       log.info('Content qdrant connected');
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       log.error(`Content qdrant unavailable: ${message}`);
       this.contentClient = null;
-      this.contentAvailable = false;
     }
   }
 
@@ -326,7 +325,7 @@ export class QdrantService {
     if (!this.contentTarget || qdrantStoreOf(collection) === 'instance') {
       return instance;
     }
-    if (!this.contentAvailable || !this.contentClient) {
+    if (!this.contentClient) {
       throw new Error(`content qdrant unavailable (collection ${collection})`);
     }
     return this.contentClient;
@@ -348,11 +347,11 @@ export class QdrantService {
 
   isContentAvailable(): boolean {
     if (!this.isAvailableSync()) return false;
-    return this.contentTarget === null || (this.contentAvailable && this.contentClient !== null);
+    return this.contentTarget === null || this.contentClient !== null;
   }
 
   private _requireInstanceClient(): QdrantClient {
-    if (!this.isConnected || !this.instanceClient) {
+    if (!this.instanceClient) {
       throw new Error('Qdrant is not available. Vector search functionality is disabled.');
     }
     return this.instanceClient;
@@ -368,13 +367,15 @@ export class QdrantService {
     }
   }
 
-  async testConnectionWithRetry(): Promise<boolean> {
+  async testConnectionWithRetry(
+    client: QdrantClient | null = this.instanceClient
+  ): Promise<boolean> {
     const maxRetries = 3;
     let lastError: Error | null = null;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        await Promise.resolve(this.instanceClient?.getCollections());
+        await Promise.resolve(client?.getCollections());
         log.debug(`Connection test successful (attempt ${attempt})`);
         return true;
       } catch (error) {
@@ -438,7 +439,7 @@ export class QdrantService {
   private async _ensureContentConnection(): Promise<void> {
     if (!this.contentTarget) return;
 
-    if (this.contentAvailable && this.contentClient) {
+    if (this.contentClient) {
       try {
         await this.contentClient.getCollections();
         return;
@@ -446,7 +447,6 @@ export class QdrantService {
         const message = error instanceof Error ? error.message : String(error);
         log.debug(`Content health check failed: ${message}`);
         this.contentClient = null;
-        this.contentAvailable = false;
       }
     }
 

@@ -225,6 +225,76 @@ describe('QdrantService content and instance stores', () => {
     expect(second.query).toHaveBeenCalled();
     expect(first.query).not.toHaveBeenCalled();
   });
+
+  it('operations keep the old instance client while a non-SSL re-init is in flight', async () => {
+    const { mistralEmbeddingService } = await import('../../../services/mistral/index.js');
+    const service = new QdrantService();
+    await service.init();
+    const operations = service.operations!;
+    const first = created[0];
+
+    let releaseInit: () => void = () => {};
+    vi.mocked(mistralEmbeddingService.init).mockImplementationOnce(
+      () => new Promise<void>((resolve) => (releaseInit = resolve))
+    );
+    first.getCollections.mockRejectedValueOnce(new Error('timeout'));
+    service.lastHealthCheck = 0;
+    const reconnecting = service.ensureConnection();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(service.isConnected).toBe(false);
+    expect(created).toHaveLength(2);
+    await operations.vectorSearch('documents', [0.1, 0.2], {}, { limit: 1 });
+    expect(first.query).toHaveBeenCalled();
+    expect(created[1].query).not.toHaveBeenCalled();
+
+    releaseInit();
+    await reconnecting;
+    expect(service.isConnected).toBe(true);
+    expect(service.readClient('documents')).toBe(created[1]);
+  });
+
+  it('instance SSL reconnect also rebuilds the content client', async () => {
+    resetEnv({
+      QDRANT_CONTENT_URL: CONTENT_URL,
+      QDRANT_CONTENT_API_KEY: 'content-key',
+      QDRANT_CONTENT_READ_ONLY: true,
+    });
+    const service = new QdrantService();
+    await service.init();
+    const oldContent = clientAt(CONTENT_URL);
+
+    clientAt(BASE_ENV.QDRANT_URL).getCollections.mockRejectedValue(
+      new Error('SSL routines: wrong version number')
+    );
+    service.lastHealthCheck = 0;
+    await service.ensureConnection();
+
+    const contentClients = created.filter((c) => c.url === CONTENT_URL);
+    expect(contentClients).toHaveLength(2);
+    expect(service.readClient('landtag_nrw_documents')).toBe(contentClients[1]);
+    expect(service.readClient('landtag_nrw_documents')).not.toBe(oldContent);
+  });
+
+  it('content unavailable at init comes back on a later ensureConnection', async () => {
+    resetEnv({
+      QDRANT_CONTENT_URL: CONTENT_URL,
+      QDRANT_CONTENT_API_KEY: 'content-key',
+      QDRANT_CONTENT_READ_ONLY: true,
+    });
+    failingUrls.add(CONTENT_URL);
+    const service = new QdrantService();
+    await service.init();
+    expect(service.isContentAvailable()).toBe(false);
+
+    failingUrls.clear();
+    service.lastHealthCheck = 0;
+    await service.ensureConnection();
+
+    const contentClients = created.filter((c) => c.url === CONTENT_URL);
+    expect(service.isContentAvailable()).toBe(true);
+    expect(service.readClient('landtag_nrw_documents')).toBe(contentClients.at(-1));
+  });
 });
 
 describe('QdrantService._performInit reconciliation', () => {
