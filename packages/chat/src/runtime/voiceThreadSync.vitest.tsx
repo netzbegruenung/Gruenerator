@@ -109,8 +109,12 @@ describe('insertSavedMessage during a voice call', () => {
     await call.say('assistant', 'Hier ist', false);
 
     await act(async () => {
-      await insertSavedMessage(call.thread, serverWith([CARD]), '/messages', 'card-1', (rows) =>
-        convertToThreadMessageLike(rows)
+      await insertSavedMessage(
+        call.thread,
+        serverWith([CARD]),
+        '/messages',
+        'card-1',
+        convertToThreadMessageLike
       );
     });
     await call.say('assistant', 'Hier ist dein Sharepic.');
@@ -127,8 +131,12 @@ describe('insertSavedMessage during a voice call', () => {
     await call.connect();
     await call.say('user', 'Mach ein Sharepic');
     const insert = () =>
-      insertSavedMessage(call.thread, serverWith([CARD]), '/messages', 'card-1', (rows) =>
-        convertToThreadMessageLike(rows)
+      insertSavedMessage(
+        call.thread,
+        serverWith([CARD]),
+        '/messages',
+        'card-1',
+        convertToThreadMessageLike
       );
 
     await act(async () => {
@@ -145,8 +153,12 @@ describe('insertSavedMessage during a voice call', () => {
     await call.say('user', 'Mach ein Sharepic');
 
     await act(async () => {
-      await insertSavedMessage(call.thread, serverWith([]), '/messages', 'card-1', (rows) =>
-        convertToThreadMessageLike(rows)
+      await insertSavedMessage(
+        call.thread,
+        serverWith([]),
+        '/messages',
+        'card-1',
+        convertToThreadMessageLike
       );
     });
 
@@ -166,8 +178,11 @@ describe('reloadSavedThread', () => {
     ];
 
     await act(async () => {
-      await reloadSavedThread(call.thread, serverWith(saved), '/messages', (rows) =>
-        convertToThreadMessageLike(rows)
+      await reloadSavedThread(
+        call.thread,
+        serverWith(saved),
+        '/messages',
+        convertToThreadMessageLike
       );
     });
 
