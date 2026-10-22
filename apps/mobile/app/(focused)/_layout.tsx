@@ -35,6 +35,10 @@ export default function FocusedLayout() {
       <Stack.Screen name="profilbild" options={{ ...toolHeader, title: 'Profilbild' }} />
       <Stack.Screen name="sticker" options={{ ...toolHeader, title: 'Sticker & Hintergründe' }} />
       <Stack.Screen name="marktplatz" options={{ ...toolHeader, title: 'Marktplatz' }} />
+      <Stack.Screen
+        name="marktplatz/landesverband/[slug]"
+        options={{ ...toolHeader, title: 'Marktplatz' }}
+      />
       <Stack.Screen name="sticker-neu" options={{ ...toolHeader, title: 'Sticker erstellen' }} />
     </Stack>
   );

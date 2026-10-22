@@ -29,6 +29,8 @@ jest.mock('@gruenerator/shared/marketplace', () => ({
   useMarketplaceSections: jest.fn(),
   useMarketplaceKind: jest.fn(),
   useMarketplaceItem: jest.fn(),
+  // „Passt dazu" under a detail reads the collections; none here.
+  useMarketplaceFrontpage: () => ({ data: undefined, isPending: false, isError: false }),
   useMarketplaceLike: () => ({ mutate: jest.fn() }),
   useMarketplaceSave: () => ({ mutate: mockSave }),
 }));
@@ -192,13 +194,25 @@ describe('MarketplaceScreen', () => {
     );
   });
 
-  it('groups one kind into Offiziell and Öffentlich', async () => {
+  it('shows one kind as one aisle, as on the web', async () => {
     setup({ items: [agent, publicAgent] });
     await renderScreen('agents');
 
-    expect(screen.getByRole('header', { name: 'Offiziell' })).toBeTruthy();
-    expect(screen.getByRole('header', { name: 'Öffentlich' })).toBeTruthy();
+    expect(screen.getByRole('header', { name: 'Agents' })).toBeTruthy();
+    expect(screen.queryByRole('header', { name: 'Öffentlich' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Pressestelle' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Kommunal-Helfer' })).toBeTruthy();
+  });
+
+  it('offers the Landesverband origin only to people with one, and origins only for Agents and Rezepte', async () => {
+    setup({ items: [sticker] });
+    render(<MarketplaceSheet visible onClose={jest.fn()} />);
+    await act(async () => {});
+    expect(screen.getByRole('button', { name: 'Offiziell' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Landesverband/ })).toBeNull();
+
+    fireEvent.press(screen.getByRole('button', { name: 'Sticker' }));
+    expect(screen.queryByRole('button', { name: 'Offiziell' })).toBeNull();
   });
 
   it('says so when a kind is empty', async () => {
@@ -225,8 +239,8 @@ describe('MarketplaceScreen', () => {
       params: { slug: 'u1' },
     });
 
-    fireEvent.press(screen.getByRole('button', { name: 'Zurück zum Marktplatz' }));
-    expect(screen.getByRole('header', { name: 'Öffentlich' })).toBeTruthy();
+    fireEvent.press(screen.getByRole('button', { name: 'Zurück: Marktplatz' }));
+    expect(screen.getByRole('header', { name: 'Agents' })).toBeTruthy();
   });
 });
 
