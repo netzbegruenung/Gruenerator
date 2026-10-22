@@ -207,7 +207,8 @@ async function readOverviewFacets(collectionId: string): Promise<OverviewFacets>
   }
 }
 
-async function fetchStatsForCollection(collectionId: string): Promise<NotebookStats> {
+/** `null`: der Store war nicht erreichbar — das Ergebnis darf nicht in den Cache. */
+async function fetchStatsForCollection(collectionId: string): Promise<NotebookStats | null> {
   const config = getSystemCollectionConfig(collectionId);
   if (!config) {
     log.debug(`Unknown system collection: ${collectionId}`);
@@ -218,7 +219,7 @@ async function fetchStatsForCollection(collectionId: string): Promise<NotebookSt
   await qdrant.init();
   if (!qdrant.isContentAvailable()) {
     log.warn('Qdrant client unavailable');
-    return emptyStats();
+    return null;
   }
 
   // One point per document (chunk_index=0), and the same exclusions as the
@@ -413,7 +414,9 @@ export async function getNotebookStats(
 
   log.info(`fetching fresh stats for ${key}`);
   const parts = await Promise.all(collectionIds.map((id) => fetchStatsForCollection(id)));
-  const merged = mergeStats(parts);
-  await writeCache(key, merged);
+  const answered = parts.filter((p): p is NotebookStats => p !== null);
+  const merged = mergeStats(answered);
+  // Ein Content-Ausfall soll nicht 24 h lang als „0 Dokumente" stehen bleiben.
+  if (answered.length === parts.length) await writeCache(key, merged);
   return merged;
 }
