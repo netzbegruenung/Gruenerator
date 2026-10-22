@@ -1,5 +1,5 @@
 import {
-  LANDESVERBAND_COVER_DIR as DIR,
+  landesverbandBannerPath,
   landesverbandCardPaths,
   type MarketplaceCollectionCover,
 } from '@gruenerator/shared/marketplace';
@@ -15,7 +15,9 @@ export const lvCardImage = (cover: MarketplaceCollectionCover) => {
 };
 
 export const lvBannerImage = (cover: MarketplaceCollectionCover) => ({
-  src: `${DIR}/${cover.file}-640.webp`,
-  srcSet: [640, 1200, 1920, 2400].map((w) => `${DIR}/${cover.file}-${w}.webp ${w}w`).join(', '),
+  src: landesverbandBannerPath(cover, 640),
+  srcSet: ([640, 1200, 1920, 2400] as const)
+    .map((w) => `${landesverbandBannerPath(cover, w)} ${w}w`)
+    .join(', '),
   sizes: '(min-width: 1280px) 1200px, 100vw',
 });

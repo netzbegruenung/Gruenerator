@@ -4,6 +4,7 @@ import {
   getSystemAgent,
   isAgentVisibleForPlatform,
   localizeAgent,
+  resolveAgentSlug,
   type Agent,
 } from '@gruenerator/shared/agents';
 import { usePublicUserAgents, useUserAgents } from '@gruenerator/shared/grueneratoren';
@@ -84,10 +85,13 @@ function ChatConversation({
   // must name the agent the chat actually runs, not the one the link asked for.
   const resolvedAgentId = useMemo(() => {
     if (!agentId) return null;
-    const linked = getSystemAgent(agentId);
+    // The Marktplatz and web links name an agent by its URL slug (`presse`);
+    // the registry, the header and the request need its identifier.
+    const canonical = resolveAgentSlug(agentId);
+    const linked = getSystemAgent(canonical);
     return linked && !isAgentVisibleForPlatform(linked, 'mobile')
       ? 'gruenerator-universal'
-      : agentId;
+      : canonical;
   }, [agentId]);
 
   // Only user agents need these lists; a system agent resolves from the bundled

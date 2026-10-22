@@ -71,6 +71,11 @@ export function marketplaceRoute(filters: Partial<MarketplaceFilters> = {}): Hre
   return { pathname: '/(focused)/marktplatz', params: Object.fromEntries(params) };
 }
 
+/** A Landesverband's page in the Marktplatz — the app's `landesverbandHubHref`. */
+export function marketplaceHubRoute(slug: string): Href {
+  return { pathname: '/(focused)/marktplatz/landesverband/[slug]', params: { slug } };
+}
+
 /**
  * The web Marktplatz with this item open (`…/marktplatz?art=…&item=<kind>:<ref>`),
  * for „Teilen" — the link is for someone else, so always the web page; the app

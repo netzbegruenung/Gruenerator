@@ -1,13 +1,14 @@
 import { useUserLandesverbaende } from '@gruenerator/chat';
 import { type MarketplaceFrontpageShelfId, type MarketplaceItem } from '@gruenerator/contracts';
-import { getLandesverbandHubs, getLandesverbandHubsByIds } from '@gruenerator/shared/agents';
 import {
   LANDESVERBAND_COVERS,
   MARKETPLACE_CATEGORIES,
   featureById,
   landesverbandHubHref,
+  landesverbandHubsOwnFirst,
   marketplaceHref,
   marketplaceOriginLabel,
+  singleLandesverbandHub,
   useMarketplaceFrontpage,
   type MarketplaceCategoryId,
   type MarketplaceFeature,
@@ -60,8 +61,7 @@ export function MarketplaceFrontpage({
   const { lvIds } = useUserLandesverbaende();
   const hasLv = (lvIds?.length ?? 0) > 0;
   // Exactly one Landesverband: „Alle anzeigen" opens its page instead of the filtered list.
-  const lvHubs = getLandesverbandHubsByIds(lvIds ?? [], CURRENT_INSTANCE);
-  const lvHub = lvIds?.length === 1 && lvHubs.length === 1 ? lvHubs[0] : null;
+  const lvHub = singleLandesverbandHub(lvIds, CURRENT_INSTANCE);
 
   const page = useMarketplaceFrontpage();
   const shelf = (id: MarketplaceFrontpageShelfId): MarketplaceItem[] =>
@@ -247,10 +247,7 @@ function LandesverbandRow(): JSX.Element | null {
   const navigate = useNavigate();
   const { lvIds } = useUserLandesverbaende();
   const locale = useAuthStore((s) => s.locale) === 'de-AT' ? 'de-AT' : 'de-DE';
-  const own = new Set(lvIds ?? []);
-  const hubs = [...getLandesverbandHubs(locale, CURRENT_INSTANCE)].sort(
-    (a, b) => Number(own.has(b.lvId)) - Number(own.has(a.lvId))
-  );
+  const hubs = landesverbandHubsOwnFirst(locale, lvIds, CURRENT_INSTANCE);
   if (hubs.length === 0) return null;
   return (
     <section aria-labelledby="marktplatz-landesverbaende" className="flex flex-col gap-md">
@@ -261,13 +258,13 @@ function LandesverbandRow(): JSX.Element | null {
         Landesverbände
       </h2>
       <ScrollRow>
-        {hubs.map((hub) => {
+        {hubs.map(({ hub, own }) => {
           const href = landesverbandHubHref(hub.slug);
           return (
             <li key={hub.lvId} className="w-52 shrink-0">
               <ShowcasePhotoCard
                 title={hub.title}
-                badge={own.has(hub.lvId) ? 'Dein Landesverband' : null}
+                badge={own ? 'Dein Landesverband' : null}
                 href={href}
                 onActivate={(event) => {
                   event.preventDefault();

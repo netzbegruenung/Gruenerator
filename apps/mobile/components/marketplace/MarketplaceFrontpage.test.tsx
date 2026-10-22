@@ -3,6 +3,7 @@
    (see components/chat/ConfirmActionCard.test.tsx). */
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import {
+  type MarketplaceFrontpageCollection,
   type MarketplaceItem,
   type MarketplaceItemOf,
   type MarketplaceSection,
@@ -87,6 +88,7 @@ interface Shelves {
   neu?: MarketplaceItem[];
   beliebt?: MarketplaceItem[];
   landesverband?: MarketplaceItem[];
+  collections?: MarketplaceFrontpageCollection[];
 }
 
 function setup(shelves: Shelves, featured: MarketplaceItem | null = leichteSprache) {
@@ -122,7 +124,7 @@ function setup(shelves: Shelves, featured: MarketplaceItem | null = leichteSprac
         gestalten: [],
       },
       curated: featured ? { feature: MARKETPLACE_FEATURES[0], item: featured } : null,
-      collections: [],
+      collections: shelves.collections ?? [],
     }),
     isPending: false,
     isError: false,
@@ -134,8 +136,8 @@ function setup(shelves: Shelves, featured: MarketplaceItem | null = leichteSprac
   );
 }
 
-async function renderStart() {
-  render(<MarketplaceScreen initialFilters={DEFAULT_MARKETPLACE_FILTERS} />);
+async function renderStart(filters: Partial<typeof DEFAULT_MARKETPLACE_FILTERS> = {}) {
+  render(<MarketplaceScreen initialFilters={{ ...DEFAULT_MARKETPLACE_FILTERS, ...filters }} />);
   await act(async () => {});
 }
 
@@ -153,7 +155,9 @@ describe('MarketplaceFrontpage', () => {
     setup({ neu: [agent('neu1')] });
     await renderStart();
 
-    expect(screen.getByRole('button', { name: 'Start' })).toBeTruthy();
+    // As on the web, the front page's ways in are its shelves: no kind tabs, origins or sort.
+    expect(screen.queryByRole('button', { name: 'Agents' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Offiziell' })).toBeNull();
     expect(screen.getByRole('header', { name: 'Leichte Sprache' })).toBeTruthy();
     expect(screen.getByText(/Übersetzt Beschlüsse/)).toBeTruthy();
     // The example is decoration for screen readers, as on the web (aria-hidden).
@@ -179,8 +183,68 @@ describe('MarketplaceFrontpage', () => {
     expect(screen.getByRole('header', { name: 'Neu im Marktplatz' })).toBeTruthy();
     expect(screen.queryByRole('header', { name: 'Beliebt' })).toBeNull();
     expect(screen.queryByRole('header', { name: 'Zum Gestalten' })).toBeNull();
-    // The browse grid always stands.
-    expect(screen.getByRole('header', { name: 'Nach Art stöbern' })).toBeTruthy();
+    // The categories always stand.
+    expect(screen.getByRole('header', { name: 'Kategorien' })).toBeTruthy();
+  });
+
+  it('lists the collections and themes, each opening its own page', async () => {
+    setup({
+      collections: [
+        { collectionId: 'starter', items: [agent('a1'), agent('a2')] },
+        { collectionId: 'queer', items: [] },
+        // Unlisted: reachable by its link only.
+        { collectionId: 'wahlkampf-moritz', items: [] },
+      ],
+    });
+    await renderStart();
+
+    expect(screen.getByRole('header', { name: 'Kollektionen' })).toBeTruthy();
+    expect(screen.getByRole('header', { name: 'Themen' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Wahlkampf für Moritz' })).toBeNull();
+
+    fireEvent.press(screen.getByRole('button', { name: 'Queer und sichtbar' }));
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/(focused)/marktplatz',
+      params: { kollektion: 'queer' },
+    });
+  });
+
+  it('opens a category from its photo tile', async () => {
+    setup({});
+    await renderStart();
+    fireEvent.press(screen.getByRole('button', { name: /^Zum Gestalten, Vorlagen/ }));
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/(focused)/marktplatz',
+      params: { kategorie: 'vorlagen' },
+    });
+  });
+
+  it('marks the own Landesverband in the row and opens its page', async () => {
+    useUserProfileStore.setState({
+      roles: [
+        { ebene: 'land', rolle: 'Mitarbeiter*in Landesgeschäftsstelle', bundesland: 'Hessen' },
+      ] as never,
+      locale: 'de-DE',
+      isHydrated: true,
+    });
+    setup({});
+    await renderStart();
+
+    const own = screen.getByRole('button', { name: /Dein Landesverband/ });
+    expect(own.props.accessibilityLabel).toBe('Hessen, Dein Landesverband');
+    fireEvent.press(own);
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/(focused)/marktplatz/landesverband/[slug]',
+      params: { slug: expect.stringContaining('hessen') },
+    });
+  });
+
+  it('opens a collection page with its story and „Alle hinzufügen"', async () => {
+    setup({ collections: [{ collectionId: 'starter', items: [agent('a1'), agent('a2')] }] });
+    await renderStart({ collection: 'starter' });
+
+    expect(screen.getByRole('header', { name: 'Starterpaket' })).toBeTruthy();
+    expect(screen.getByText('Alle 2 hinzufügen')).toBeTruthy();
   });
 
   it('shows five liked items as „Beliebt"', async () => {
@@ -226,5 +290,9 @@ describe('MarketplaceFrontpage', () => {
     expect(mockSections).toHaveBeenLastCalledWith(
       expect.objectContaining({ sort: 'neu', enabled: true })
     );
+    // The filter shows as a chip, and „Zurücksetzen" leads back to the front page.
+    expect(screen.getByRole('button', { name: 'Filter entfernen: Neu' })).toBeTruthy();
+    fireEvent.press(screen.getByText('Zurücksetzen'));
+    expect(screen.getByRole('header', { name: 'Leichte Sprache' })).toBeTruthy();
   });
 });

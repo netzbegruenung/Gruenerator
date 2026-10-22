@@ -1,6 +1,7 @@
 import { type MarketplaceCollectionId, type MarketplaceItem } from '@gruenerator/contracts';
 import {
   canReport,
+  collectionCoverPath,
   relatedFromCollections,
   useMarketplaceFrontpage,
   type MarketplaceCollection,
@@ -231,7 +232,7 @@ function Related({
                 media={
                   collection.cover ? (
                     <img
-                      src={`/images/marketplace/collections/${collection.cover.file}-640.webp`}
+                      src={collectionCoverPath(collection.cover, 640)}
                       alt=""
                       loading="lazy"
                       className="h-full w-full object-cover"

@@ -3,7 +3,7 @@ import { MARKETPLACE_QUERY_KEY, useMarketplaceKind } from '@gruenerator/shared/m
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useQueryClient } from '@tanstack/react-query';
 import { Image, type ImageSource } from 'expo-image';
-import { Stack, useFocusEffect, useRouter } from 'expo-router';
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
@@ -97,6 +97,15 @@ export function VorlagenScreen() {
   const [openVorlage, setOpenVorlage] = useState<SharepicVorlage | null>(null);
   const catalogQuery = useSharepicVorlagen();
   const router = useRouter();
+  // `?vorlage=<id>` (a collection's Vorlagen, web: `/vorlagen?vorlage=`) opens that preview once.
+  const { vorlage: linkedId } = useLocalSearchParams<{ vorlage?: string }>();
+  const [linkHandled, setLinkHandled] = useState(false);
+  const linked =
+    !linkHandled && linkedId ? catalogQuery.data?.find((v) => v.id === linkedId) : undefined;
+  if (linked) {
+    setLinkHandled(true);
+    setOpenVorlage(linked);
+  }
   const queryClient = useQueryClient();
   const { open: openPublic } = useMarketplaceActions();
 

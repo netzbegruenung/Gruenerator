@@ -33,8 +33,13 @@ const PHOTOS: Record<string, number> = {
   'thueringen-v1': photoThueringen,
 };
 
+/** The bundled photo of a Marktplatz cover (`cover.file`), `null` when none is bundled. */
+export function getLandesverbandPhotoByFile(file: string): number | null {
+  return PHOTOS[file] ?? null;
+}
+
 /** The bundled photo of a Landesverband notebook, `null` for any other notebook. */
 export function getLandesverbandPhoto(notebookId: string): number | null {
   const cover = landesverbandCoverForNotebook(notebookId);
-  return cover ? (PHOTOS[cover.file] ?? null) : null;
+  return cover ? getLandesverbandPhotoByFile(cover.file) : null;
 }

@@ -9,9 +9,10 @@
  * crashes a tile — it just renders grey until it gets a hue here.
  *
  * Hues are taken over 1:1 from web wherever the tool exists on both platforms
- * (office, wissen, agents, projekte, vorlagen, ki-bild, reel). `scanner` and
- * `suche` have no web tile, so they borrow the palette's remaining free hues
- * (boards olive, "weitere" grey-green) rather than inventing new ones.
+ * (office, wissen, agents, projekte, vorlagen, ki-bild, reel, marktplatz,
+ * weitere). `scanner` and `uebersetzer` have no web tile, so they borrow the
+ * palette's remaining free hues (boards olive, presentations amber) rather
+ * than inventing new ones.
  */
 
 export interface ToolTheme {
@@ -35,6 +36,21 @@ const TOOL_THEME: Record<string, ToolThemePair> = {
   agents: {
     light: { tile: '#F5EFC9', icon: '#7C6A1E', title: '#5F5212', desc: '#786A37' },
     dark: { tile: '#26220F', icon: '#CDBB72', title: '#E1D296', desc: '#AC9C68' },
+  },
+  // Web's terracotta, so it no longer reads as a second Grüneratoren tile.
+  marktplatz: {
+    light: { tile: '#F4E2D8', icon: '#8A4A2B', title: '#6A3418', desc: '#7F5643' },
+    dark: { tile: '#2A1B14', icon: '#D9A285', title: '#EBC4AF', desc: '#B48D7A' },
+  },
+  // Web's presentations amber; no mobile tile wears it.
+  uebersetzer: {
+    light: { tile: '#F6E5D4', icon: '#7A4A1F', title: '#5E3915', desc: '#81613B' },
+    dark: { tile: '#2B1D12', icon: '#CB9A6A', title: '#E4C0A0', desc: '#AB8864' },
+  },
+  // The „Weitere" tile: web's grey-green.
+  weitere: {
+    light: { tile: '#E7EAE6', icon: '#4A554C', title: '#313A34', desc: '#5F6A61' },
+    dark: { tile: '#1C211D', icon: '#9CA99F', title: '#C0CCC3', desc: '#8A968C' },
   },
   projekte: {
     light: { tile: '#DCE6F2', icon: '#2E4E7A', title: '#1E3A5E', desc: '#4F6784' },

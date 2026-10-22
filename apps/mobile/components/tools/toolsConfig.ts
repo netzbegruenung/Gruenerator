@@ -35,16 +35,12 @@ const GRUENERATOREN: ToolDef = {
   route: '/(focused)/agents',
 };
 
-/**
- * Agents, Rezepte, Vorlagen, Sticker und Hintergründe zum Holen (web: the
- * Agentura tool, `tool-agentura`, now titled „Marktplatz"). It wears the
- * Agentura's glyph, so `agents` is the key here.
- */
+/** Agents, Rezepte, Vorlagen, Sticker und Hintergründe zum Holen (web: `tool-marktplatz`). */
 const MARKTPLATZ: ToolDef = {
   id: 'marktplatz',
   title: 'Marktplatz',
   description: 'Agents, Rezepte, Vorlagen & Sticker',
-  icon: toolIconKey('agents'),
+  icon: toolIconKey('marktplatz'),
   route: '/(focused)/marktplatz',
 };
 
@@ -122,11 +118,11 @@ export const STUDIO_TOOL_GLYPHS: Record<string, IoniconsIconName> = {
 };
 
 /**
- * The tools on top of Arbeiten, in web's order (Grüneratoren, Wissen, Projekte);
- * the dock shows the first three, favourites first, and the rest open from
- * „Weitere" — web's Weitere menu: Übersetzer, then the Doku and the newsletter
- * as links. Scanner has no web tile but is the one mobile-only tool; Vorlagen
- * sits next to it instead of in the create menu, the Marktplatz after it.
+ * The tools on top of Arbeiten, two rows of four: Grüneratoren, Wissen,
+ * Projekte (web's order) and the Marktplatz, then Vorlagen, Übersetzer, Scanner
+ * and „Weitere" — favourites first, the dock sorts. „Weitere" holds the rest,
+ * the Doku and the newsletter as links, like web's Weitere menu. Scanner has no
+ * web tile; it is the one mobile-only tool.
  *
  * Ids are F1 frozen: the favourites store persists them, so they keep their
  * spelling even where the title changed (`agents` is titled "Grüneratoren" now).
@@ -141,9 +137,8 @@ export const WORKPLACE_TILES: WorkplaceTool[] = [
     route: '/(focused)/wissen',
   },
   PROJEKTE,
-  SCANNER,
-  VORLAGEN,
   MARKTPLATZ,
+  VORLAGEN,
   {
     id: 'uebersetzer',
     title: 'Übersetzer',
@@ -151,6 +146,7 @@ export const WORKPLACE_TILES: WorkplaceTool[] = [
     icon: toolIconKey('uebersetzer'),
     route: '/(focused)/uebersetzer',
   },
+  SCANNER,
   {
     id: 'doku',
     title: 'Doku',

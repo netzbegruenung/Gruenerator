@@ -1,7 +1,15 @@
 import { type MarketplaceCollectionId, type MarketplaceItem } from '@gruenerator/contracts';
 import {
+  collectionAddState,
   collectionById,
+  collectionCardsFor,
+  collectionCoverPath,
+  collectionMetaLine,
+  emphasisParts,
+  isLibraryKind,
   isSampleItem,
+  marketplaceCountLabel,
+  plainEmphasis,
   resolveStory,
   sampleImageOf,
   useMarketplaceFrontpage,
@@ -35,8 +43,6 @@ import { type MarketplaceActions } from './useMarketplaceActions';
 
 import { useAuthStore } from '@/stores/authStore';
 
-const COVER_DIR = '/images/marketplace/collections';
-
 /**
  * A cover in the cut its slot shows: 16:9 for a card (640 / 1200), a 3:1 strip
  * for the page banner, up to 2400 so a wide Retina screen stays sharp. The
@@ -57,12 +63,11 @@ function CollectionCover({
 }) {
   const cover = collection.cover;
   if (!cover) return null;
-  const stem = `${COVER_DIR}/${cover.file}${banner ? '-banner' : ''}`;
-  const widths = banner ? [640, 1200, 1920, 2400] : [640, 1200];
+  const widths = banner ? ([640, 1200, 1920, 2400] as const) : ([640, 1200] as const);
   return (
     <ShowcaseCardImage
-      src={`${stem}-640.webp`}
-      srcSet={widths.map((w) => `${stem}-${w}.webp ${w}w`).join(', ')}
+      src={collectionCoverPath(cover, 640, banner)}
+      srcSet={widths.map((w) => `${collectionCoverPath(cover, w, banner)} ${w}w`).join(', ')}
       sizes={sizes}
       alt={decorative ? '' : cover.alt}
       credit={cover.credit && { ...cover.credit, source: 'Unsplash' }}
@@ -100,25 +105,20 @@ function CollectionMedia({
   );
 }
 
-/** A description without its `**` marks, for the card. */
-const plainText = (text: string) => text.replaceAll('**', '');
-
 /** A description with its `**…**` terms in bold. */
 function Emphasized({ text }: { text: string }) {
-  return text.split('**').map((part, i) =>
-    i % 2 ? (
+  return emphasisParts(text).map((part, i) =>
+    part.strong ? (
       // The parts are a fixed split of a registry string; their order is their identity.
       // eslint-disable-next-line react/no-array-index-key
       <strong key={i} className="font-semibold text-foreground">
-        {part}
+        {part.text}
       </strong>
     ) : (
-      part
+      part.text
     )
   );
 }
-
-const countLabel = (n: number) => `${n} ${n === 1 ? 'Eintrag' : 'Einträge'}`;
 
 /** The collection row on the front page: one quiet card per collection, App-Store style. */
 export function CollectionCards({
@@ -134,13 +134,7 @@ export function CollectionCards({
   row?: NonNullable<MarketplaceCollection['row']> | 'rest';
 }): JSX.Element | null {
   const headingId = useId();
-  const cards = collections.flatMap((c) => {
-    const def = collectionById(c.collectionId);
-    // An unlisted collection is shared by its link only.
-    if (!def || def.listed === false) return [];
-    if (row && (def.row ?? 'rest') !== row) return [];
-    return [{ def, items: c.items }];
-  });
+  const cards = collectionCardsFor(collections, row);
   if (cards.length === 0) return null;
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-md">
@@ -169,9 +163,9 @@ export function CollectionCards({
                   decorative
                 />
               }
-              meta={items.length > 0 ? `${def.kicker} · ${countLabel(items.length)}` : def.kicker}
+              meta={collectionMetaLine(def, items.length)}
               title={def.title}
-              description={plainText(def.description)}
+              description={plainEmphasis(def.description)}
               titleFont={DISPLAY_FONT}
             />
           </li>
@@ -187,8 +181,7 @@ function openSample(item: MarketplaceItem) {
   if (src) window.open(src, '_blank', 'noopener');
 }
 
-/** Agents and Rezepte land in „Meine Grüneratoren"; everything else is only „Merken". */
-const isAddable = (item: MarketplaceItem) => item.kind === 'agent' || item.kind === 'recipe';
+const isAddable = (item: MarketplaceItem) => isLibraryKind(item.kind);
 
 function ItemGrid({
   items,
@@ -283,8 +276,7 @@ export function MarketplaceCollectionView({
   const story = def.story?.length ? resolveStory(def.story, items, locale) : null;
   const select = (item: MarketplaceItem) =>
     isSampleItem(item) ? openSample(item) : onSelect(item);
-  const addable = items.filter(isAddable);
-  const missing = addable.filter((item) => !item.saved);
+  const { addable, missing, label: addLabel } = collectionAddState(items);
 
   return (
     <div className="flex flex-col gap-xl">
@@ -317,19 +309,19 @@ export function MarketplaceCollectionView({
             <Emphasized text={def.description} />
           </p>
           {items.length > 0 && (
-            <span className="text-sm text-foreground-muted">{countLabel(items.length)}</span>
+            <span className="text-sm text-foreground-muted">
+              {marketplaceCountLabel(items.length)}
+            </span>
           )}
         </div>
         {addable.length > 0 &&
-          (missing.length > 0 ? (
+          (addLabel ? (
             <Button
               size="lg"
               className="rounded-full dark:bg-primary-700 dark:hover:bg-primary-800"
               onClick={() => missing.forEach((item) => actions.toggleSave(item))}
             >
-              {missing.length === addable.length
-                ? `Alle ${addable.length} hinzufügen`
-                : `${missing.length} weitere hinzufügen`}
+              {addLabel}
             </Button>
           ) : (
             <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground-muted">
