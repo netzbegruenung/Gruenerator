@@ -260,6 +260,8 @@ export const exportRequestSchema = z.object({
   locale: localeSchema.optional(),
   maxResolution: z.number().nullable().optional(),
   projectId: z.string().nullable().optional(),
+  // F0: shipped mobile builds send it. The server ignores it — the owner is
+  // always the session user.
   userId: z.string().nullable().optional(),
   // textOverlays uses `unknown` because the ASS-renderer's internal
   // TextOverlay shape (xPosition/yPosition) diverges from any wire shape
@@ -330,6 +332,7 @@ export const autoProcessRequestSchema = z.object({
   uploadId: z.string(),
   locale: localeSchema.optional(),
   maxResolution: z.number().nullable().optional(),
+  // F0, ignored server-side like `exportRequestSchema.userId`.
   userId: z.string().nullable().optional(),
 });
 
