@@ -86,6 +86,7 @@ const {
 } = await import('./responseStreamingService.js');
 
 const { TRUNCATION_NOTE } = await import('./turnAbortOutcome.js');
+const { prefillAllowanceMs } = await import('./prefillAllowance.js');
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -632,6 +633,36 @@ describe('streamWithFallback', () => {
     const fallback = sse.events.find((e) => e.event === 'fallback');
     expect(fallback).toBeDefined();
     expect((fallback!.data as { reason: string }).reason).toBe('first_token_timeout');
+  });
+
+  it('waits out the read-in of a long Mistral prompt before calling the lane dead', async () => {
+    // Gemessen 22.10.2026: Ultra brauchte für 191k Tokens 45,7 s bis zum ersten
+    // Delta und schwieg die ganze Zeit — die nackte 20-s-Frist schickte jeden
+    // solchen Zug an die 128k-Ausweich-Lane (prefillAllowance.ts).
+    vi.useFakeTimers();
+    const long = [{ role: 'user', content: 'x'.repeat(400_000 * 3.5) }];
+    mockStreamText
+      .mockReturnValueOnce(hungStream())
+      .mockReturnValueOnce(streamOf([{ type: 'text-delta', text: 'vom Sibling' }]));
+    const sse = makeSse();
+    const resultPromise = streamWithFallback({
+      primary: makeResolution({ sibling: { provider: 'mistral', model: 'mistral-medium-2604' } }),
+      messages: { primary: long, window: null, rebuild: () => long },
+      buildStream: (r, messages) =>
+        streamForResolution({
+          resolution: r,
+          messages,
+          maxTokens: 1000,
+          temperature: 0.7,
+          sse: sse as never,
+        }),
+      sse: sse as never,
+    });
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(sse.events.find((e) => e.event === 'fallback')).toBeUndefined();
+    // Still nach Grundfrist PLUS Einlesen: dann ist es ein Hänger.
+    await vi.advanceTimersByTimeAsync(prefillAllowanceMs('mistral', long[0]!.content.length));
+    expect(await resultPromise).toBe('vom Sibling');
   });
 
   it('lets a model that thinks past the deadline finish — reasoning is proof of life', async () => {

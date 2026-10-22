@@ -110,6 +110,24 @@ export type ModelConfig = ModelConfigSingle;
  */
 const CTX_FULL = 262_144;
 /**
+ * Ultra: Mistral Large 4. Gemessen 22.10.2026 wie oben — `GET /v1/models`
+ * meldet `max_context_length: 1048576`, 1,35M Tokens kommen als sauberer 400
+ * zurück („Prompt 1350024 > 1048576 maximum context length"), und ein
+ * Nadeltest mit 861.094 Eingabe-Tokens fand die Nadel (erstes Token nach
+ * 111 s). Nutzbar ist das nur, weil die Stream-Fristen das Einlesen
+ * mitrechnen (routes/chat/services/prefillAllowance.ts) — ohne das riss die
+ * 20-s-Frist schon ab ~100k Tokens.
+ */
+const CTX_ULTRA = 1_048_576;
+/**
+ * Panda: DeepSeek v4.1 Flash auf Melious. Die API lehnt erst über 1.000.000
+ * Tokens ab (gemessen 22.10.2026), eingetragen ist aber der grösste GEMESSENE
+ * Zug: 884.661 Eingabe-Tokens, Nadel gefunden, erstes Token nach 52,9 s. Der
+ * Abstand ist gewollt — Melious' Gateway trennte bei früheren Messungen nach
+ * 60 s Schweigen, und das Einlesen von 1M läge genau dort.
+ */
+const CTX_PANDA = 880_000;
+/**
  * „Klein" — die kleine Antwort-Lane.
  *
  * Sie war bis zum 29.08.2026 eine ÜBERLAUF-Lane: `litellm/verdigado-pro` als
@@ -440,15 +458,15 @@ AVAILABLE_MODELS['gruenerator-small'] = SMALL_ANSWER_LANE;
 AVAILABLE_MODELS['gruenerator-medium'] = GEMMA_ANSWER_LANE;
 // Seit 06.10.2026 Mistral Large 4 (Public Preview). `reasoning_effort` sendet
 // @ai-sdk/mistral für diese ID seit 4.0.59 selbst.
-// `CTX_FULL` liegt unter den 524.288, die `GET /v1/models` am 06.10.2026
-// meldete. Der Ausweich bleibt Gemma bei Cortecs wie vorher: der Stream-Sibling
+// Fenster: `CTX_ULTRA`, gemessen am 22.10.2026 (am 06.10.2026 meldete die API
+// noch 524.288). Der Ausweich bleibt Gemma bei Cortecs wie vorher: der Stream-Sibling
 // ist einstufig, und nur ein anderer Anbieter fängt auch einen Mistral-weiten
-// Ausfall ab.
+// Ausfall ab. Er trägt 128k — `messagesForLane` kürzt für ihn neu.
 AVAILABLE_MODELS['gruenerator-ultra'] = {
   kind: 'single',
   provider: 'mistral',
   model: 'mistral-large-4',
-  contextWindow: CTX_FULL,
+  contextWindow: CTX_ULTRA,
   fallback: 'gemma-4',
 };
 
@@ -457,10 +475,12 @@ AVAILABLE_MODELS['gruenerator-ultra'] = {
  * China-Sperre ausnimmt (`PANDA_LANE_MODEL` in services/ai/textModelPolicy.ts),
  * erreichbar nur über die Freischaltung in services/user/pandaEntitlement.ts.
  *
- * `CTX_FULL`, nicht mehr: gemessen 01.10.2026 nahm Melious 359k Eingabetokens
- * an (FI, kein stilles Kürzen) und lehnte ~1,07M mit `context_length_exceeded`
- * ab; GreenPT nahm 359k ebenso. Über 262k hinaus zu gehen hiesse, dem Split-Loop
- * mehr Material zu erlauben als jeder anderen Lane.
+ * Fenster `CTX_PANDA` (gemessen 22.10.2026, siehe dort). Bis dahin stand hier
+ * `CTX_FULL` mit der Begründung, mehr hiesse dem Split-Loop mehr Material zu
+ * erlauben als jeder anderen Lane — seit Ultra 1M trägt, gilt das nicht mehr,
+ * und der Ausweich Ultra ist damit grösser als Panda selbst. Wer
+ * `GREENPT_DEEPSEEK_CLEARED` umlegt, misst GreenPT vorher über 359k
+ * (01.10.2026 das Grösste, was dort gemessen ist).
  *
  * Fallback Ultra: der Stream-Sibling greift, wenn DeepSeek vor dem ersten Token
  * scheitert. Die Zwischenstufe GreenPT hängt NICHT hier, sondern an
@@ -471,7 +491,7 @@ AVAILABLE_MODELS['gruenerator-panda'] = {
   kind: 'single',
   provider: 'melious',
   model: PANDA_LANE_MODEL,
-  contextWindow: CTX_FULL,
+  contextWindow: CTX_PANDA,
   fallback: 'gruenerator-ultra',
 };
 
