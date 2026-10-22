@@ -8,16 +8,25 @@
  * Usage: npx tsx apps/api/generate-content-stats.ts
  *
  * Requires: QDRANT_URL, QDRANT_API_KEY, QDRANT_BASIC_AUTH_USERNAME, QDRANT_BASIC_AUTH_PASSWORD
+ * (und optional QDRANT_CONTENT_*, wenn die Inhalte in einer eigenen Instanz liegen)
  */
 
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { env } from './config/env.js';
+import {
+  getQdrantInstance,
+  useQdrantConnectOnly,
+} from './database/services/QdrantService/index.js';
 import { getContentStatsMarkdown } from './services/scrapers/contentStats.js';
 
 async function main() {
   console.log('Querying Qdrant for content statistics...');
+
+  // Nur lesen: verbinden, aber keine Schema-Abgleiche als Nebeneffekt
+  useQdrantConnectOnly();
+  await getQdrantInstance().init();
 
   const { markdown, totalPoints } = await getContentStatsMarkdown();
 
