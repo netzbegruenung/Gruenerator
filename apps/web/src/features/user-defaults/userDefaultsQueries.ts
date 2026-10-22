@@ -52,7 +52,8 @@ export function useUserDefault<G extends UserDefaultsGenerator, K extends UserDe
   const value = bucket?.[key] as UserDefaultsValue<G, K> | undefined;
   return {
     value,
-    isPending: query.isPending,
+    /** Daten liegen vor — auch dann noch, wenn ein späteres Nachladen scheitert. */
+    isLoaded: query.data !== undefined,
     isError: query.isError,
     isFetching: query.isFetching,
   };

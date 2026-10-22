@@ -5,10 +5,15 @@
  * Rolle, Friend und Hintergrund ein und ist danach erledigt. Zurückholen lässt
  * er sich über die Zeile „Einrichtung erneut starten" in Allgemein.
  *
- * Solange die User-Defaults noch laden, gilt der Bereich als nicht aktiv. Der
- * umgekehrte Default würde jedem Bestandskonto den Bereich für einen Wimpernschlag
- * einblenden und dann wieder wegnehmen — ein Reiter, der aufblitzt und
- * verschwindet, liest sich als Fehler.
+ * Solange die User-Defaults nicht geladen sind — noch nicht, oder weil der Abruf
+ * scheiterte —, gilt der Bereich als nicht aktiv. Der umgekehrte Default würde
+ * jedem Bestandskonto den Bereich einblenden und dann wieder wegnehmen — ein
+ * Reiter, der aufblitzt und verschwindet, liest sich als Fehler.
+ *
+ * Am Fehlerfall hängt mehr als die Optik: Jeder neue Abruf einer gescheiterten
+ * Abfrage ohne Daten setzt sie auf `pending` zurück. Hing `isActive` daran,
+ * kippte es mit jedem Abruf — und der Vorabruf der Einstellungen, der an
+ * `isActive` hängt und selbst die User-Defaults abruft, lief im Kreis (#4846).
  */
 import { toast } from '@gruenerator/ui';
 
@@ -24,7 +29,7 @@ interface OnboardingState {
 }
 
 export function useOnboarding(): OnboardingState {
-  const { value, isPending } = useUserDefault('profile', 'onboardingCompleted');
+  const { value, isLoaded } = useUserDefault('profile', 'onboardingCompleted');
   const setOnboarding = useSetUserDefault<'profile', 'onboardingCompleted'>();
 
   // Ohne eigenes onError bliebe ein Fehlschlag unsichtbar: useSetUserDefault
@@ -46,7 +51,7 @@ export function useOnboarding(): OnboardingState {
   };
 
   return {
-    isActive: !isPending && value !== true,
+    isActive: isLoaded && value !== true,
     complete: () => set(true),
     restart: () => set(false),
   };
