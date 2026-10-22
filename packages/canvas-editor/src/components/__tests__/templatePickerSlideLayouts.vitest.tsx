@@ -2,12 +2,18 @@
  * „Seite hinzufügen" bietet auf einer Präsentation die 16 CD-Folien an,
  * gruppiert nach Dunkel und Hell — auf allen anderen Formaten nicht.
  */
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { axe } from '../../test-utils';
 import { TemplatePickerFlyout } from '../TemplatePickerFlyout';
+
+const render$ = vi.hoisted(() => vi.fn((..._args: unknown[]) => Promise.resolve(null)));
+vi.mock('../../slides/renderSlideLayoutThumbnail', () => ({
+  preloadSlideLayoutPhoto: () => Promise.resolve(),
+  renderSlideLayoutThumbnail: render$,
+}));
 
 const picker = (formatId: string, onAddSlideLayout = vi.fn(), currentTemplateId = 'freeform') => {
   const onClose = vi.fn();
@@ -54,12 +60,9 @@ describe('slide layouts in the page picker', () => {
     }
   );
 
-  it('draws the Austrian layouts for an AT deck', () => {
+  it('renders the Austrian layouts for an AT deck', async () => {
     picker('slide-16-9', vi.fn(), 'freeform-at');
-    const fills = [...document.body.querySelectorAll('svg > rect:first-child')].map((r) =>
-      r.getAttribute('fill')
-    );
-    expect(fills).toContain('#257639');
+    await waitFor(() => expect(render$).toHaveBeenCalledWith('titel', 'de-AT', expect.any(Number)));
   });
 
   it('has no axe violations', async () => {

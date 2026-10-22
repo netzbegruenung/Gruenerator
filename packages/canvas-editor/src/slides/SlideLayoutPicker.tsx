@@ -1,14 +1,14 @@
 /**
  * Die Folienlayouts einer Präsentation, nach Grund gruppiert — im „Seite
- * hinzufügen"-Picker und im Vorlagen-Tab. Jede Kachel zeigt die Folie selbst
- * (`SlideLayoutThumbnail`).
+ * hinzufügen"-Picker und im Vorlagen-Tab. Jede Kachel zeigt die Folie selbst,
+ * gerendert vom echten Canvas (`useSlideLayoutThumbnail`).
  */
-import { memo, useMemo, type DragEvent } from 'react';
+import { memo, type DragEvent } from 'react';
 
 import { cn } from '../utils/cn';
 
-import { buildSlideLayout, SLIDE_LAYOUTS, type SlideLayoutId } from './slideLayouts';
-import { SlideLayoutThumbnail } from './SlideLayoutThumbnail';
+import { SLIDE_LAYOUTS, type SlideLayoutId } from './slideLayouts';
+import { useSlideLayoutThumbnail } from './slideLayoutThumbnails';
 
 import type { BrandLocale } from '../brand/theme';
 
@@ -16,6 +16,28 @@ const GROUPS = [
   { theme: 'dunkel', title: 'Dunkel' },
   { theme: 'hell', title: 'Hell' },
 ] as const;
+
+function LayoutThumbnail({ id, locale }: { id: SlideLayoutId; locale: BrandLocale }) {
+  const { ref, src, status } = useSlideLayoutThumbnail(id, locale);
+  return (
+    <span
+      ref={ref}
+      data-thumbnail-status={status}
+      className="block w-full aspect-video overflow-hidden rounded-sm"
+    >
+      {src ? (
+        <img src={src} alt="" draggable={false} className="block h-full w-full" />
+      ) : (
+        <span
+          className={cn(
+            'block h-full w-full bg-[var(--editor-surface-hover)]',
+            status === 'loading' && 'motion-safe:animate-pulse'
+          )}
+        />
+      )}
+    </span>
+  );
+}
 
 interface SlideLayoutPickerProps {
   locale: BrandLocale;
@@ -34,16 +56,6 @@ export const SlideLayoutPicker = memo(function SlideLayoutPicker({
   disabled = false,
   onDragStart,
 }: SlideLayoutPickerProps) {
-  const states = useMemo(() => {
-    const date = new Date();
-    return new Map(
-      SLIDE_LAYOUTS.map(({ id }, i) => [
-        id,
-        buildSlideLayout(id, { locale, pageNumber: i + 1, date }),
-      ])
-    );
-  }, [locale]);
-
   const draggable = !!onDragStart && !disabled;
 
   return (
@@ -72,9 +84,7 @@ export const SlideLayoutPicker = memo(function SlideLayoutPicker({
                   draggable && 'active:cursor-grabbing'
                 )}
               >
-                <span className="block w-full overflow-hidden rounded-sm">
-                  <SlideLayoutThumbnail state={states.get(layout.id)!} />
-                </span>
+                <LayoutThumbnail key={locale} id={layout.id} locale={locale} />
                 <span className="text-[10px] font-medium leading-tight text-center line-clamp-1">
                   {layout.label}
                   <span className="sr-only">, {group.title.toLowerCase()}</span>

@@ -12,6 +12,12 @@ import { VorlagenSection, type VorlagenSectionHandle } from '../sections/Vorlage
 import type { HeterogeneousPage } from '../../configs/types';
 import type { CanvasVorlage, PrintVorlage, SharepicSeite } from '@gruenerator/contracts';
 
+// Kein Offscreen-Konva in jsdom: die Folienvorschauen bleiben beim Skeleton.
+vi.mock('../../slides/renderSlideLayoutThumbnail', () => ({
+  preloadSlideLayoutPhoto: () => Promise.resolve(),
+  renderSlideLayoutThumbnail: () => new Promise(() => {}),
+}));
+
 function seite(id: string, titel: string, over: Partial<SharepicSeite> = {}): SharepicSeite {
   return {
     id,
