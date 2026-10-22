@@ -205,6 +205,63 @@ describe('AuthService — authenticated session (bearer)', () => {
   });
 });
 
+/**
+ * Who gets a read-write connection. The REST write check
+ * (apps/api/routes/docs/documentAccess.ts `canWriteDocument`) pins the same
+ * cases and must answer alike (#4887).
+ */
+describe('AuthService — write rule shared with the REST layer', () => {
+  const realFetch = global.fetch;
+  beforeEach(() => {
+    global.fetch = vi.fn(
+      async () => new Response(JSON.stringify({ user: { id: 'user-9' } }), { status: 200 })
+    ) as unknown as typeof fetch;
+  });
+  afterEach(() => {
+    global.fetch = realFetch;
+  });
+
+  const privateDoc = (overrides: Record<string, unknown> = {}) =>
+    publicDoc({ is_public: false, share_mode: 'private', share_permission: null, ...overrides });
+  const viewerEntry = { 'user-9': { level: 'viewer' } };
+
+  const cases: [string, Rows, boolean][] = [
+    [
+      'an explicit viewer on an editor link',
+      {
+        doc: privateDoc({
+          permissions: viewerEntry,
+          share_mode: 'authenticated',
+          share_permission: 'editor',
+        }),
+      },
+      true,
+    ],
+    [
+      'a viewer link, even with a project write share',
+      {
+        doc: privateDoc({ share_mode: 'authenticated', share_permission: 'viewer' }),
+        group: { read: true, write: true },
+      },
+      true,
+    ],
+    ['a project write share', { doc: privateDoc(), group: { read: true, write: true } }, false],
+    ['a project read share', { doc: privateDoc(), group: { read: true, write: false } }, true],
+    [
+      'an entry without a level, even with a project write share',
+      { doc: privateDoc({ permissions: { 'user-9': {} } }), group: { read: true, write: true } },
+      true,
+    ],
+  ];
+
+  it.each(cases)('%s', async (_name, rows, readOnly) => {
+    const { db } = makeDb(rows);
+    const res = await new AuthService({ db, redis }).authenticateConnection(withToken('doc-1'));
+    expect(res.authenticated).toBe(true);
+    expect(res.readOnly).toBe(readOnly);
+  });
+});
+
 describe('AuthService — group membership requires is_active (finding #5)', () => {
   const realFetch = global.fetch;
   beforeEach(() => {

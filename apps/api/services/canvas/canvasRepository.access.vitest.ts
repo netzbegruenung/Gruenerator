@@ -6,11 +6,14 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { query, checkDocumentAccess, autoGrantSharePermission } = vi.hoisted(() => ({
-  query: vi.fn(),
-  checkDocumentAccess: vi.fn(),
-  autoGrantSharePermission: vi.fn(),
-}));
+const { query, checkDocumentAccess, autoGrantSharePermission, canWriteDocument } = vi.hoisted(
+  () => ({
+    query: vi.fn(),
+    checkDocumentAccess: vi.fn(),
+    autoGrantSharePermission: vi.fn(),
+    canWriteDocument: vi.fn(),
+  })
+);
 
 vi.mock('../../database/services/PostgresService/PostgresService.js', () => ({
   getPostgresInstance: () => ({ query }),
@@ -18,9 +21,10 @@ vi.mock('../../database/services/PostgresService/PostgresService.js', () => ({
 vi.mock('../../routes/docs/documentAccess.js', () => ({
   checkDocumentAccess,
   autoGrantSharePermission,
+  canWriteDocument,
 }));
 
-const { getCanvas } = await import('./canvasRepository.js');
+const { getCanvas, checkCanvasWriteAccess } = await import('./canvasRepository.js');
 
 const row = {
   id: 'canvas-1',
@@ -62,6 +66,7 @@ beforeEach(() => {
   primeDb();
   checkDocumentAccess.mockReset().mockResolvedValue({ hasAccess: true });
   autoGrantSharePermission.mockReset().mockReturnValue(grant);
+  canWriteDocument.mockReset().mockResolvedValue(false);
 });
 
 describe('getCanvas joinViaLink', () => {
@@ -110,5 +115,35 @@ describe('getCanvas joinViaLink', () => {
     const res = await getCanvas('canvas-1', 'visitor-2', { joinViaLink: true });
     expect(res.kind).toBe('forbidden');
     expect(autoGrantSharePermission).not.toHaveBeenCalled();
+  });
+});
+
+describe('canvas write access (#4887)', () => {
+  it('reports can_edit from the collab write rule, enrolled entry included', async () => {
+    canWriteDocument.mockResolvedValue(true);
+    const res = await getCanvas('canvas-1', 'visitor-2', { joinViaLink: true });
+    expect(res.kind === 'ok' && res.canvas.can_edit).toBe(true);
+    expect(canWriteDocument).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'canvas-1',
+        share_mode: 'authenticated',
+        share_permission: 'viewer',
+        permissions: { 'visitor-2': grant },
+      }),
+      'visitor-2'
+    );
+  });
+
+  it('gates REST writes on the same rule', async () => {
+    canWriteDocument.mockResolvedValue(true);
+    expect(await checkCanvasWriteAccess('canvas-1', 'member-3')).toEqual({ kind: 'ok' });
+    canWriteDocument.mockResolvedValue(false);
+    expect(await checkCanvasWriteAccess('canvas-1', 'member-3')).toEqual({ kind: 'forbidden' });
+  });
+
+  it('still reports a missing canvas as not found', async () => {
+    query.mockReset().mockResolvedValue([]);
+    expect(await checkCanvasWriteAccess('canvas-1', 'member-3')).toEqual({ kind: 'not_found' });
+    expect(canWriteDocument).not.toHaveBeenCalled();
   });
 });

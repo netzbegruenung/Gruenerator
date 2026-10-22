@@ -33,8 +33,13 @@ export function checkDirectAccess(document: DocumentAccessSubject, userId: strin
   return { hasAccess: false, accessMethod: 'none' };
 }
 
-export async function checkGroupAccess(userId: string, documentId: string): Promise<AccessResult> {
-  const groupAccess = (await db.query(
+type GroupShare = {
+  content_type: string;
+  permissions: { read?: boolean; write?: boolean } | null;
+};
+
+async function loadGroupShare(userId: string, documentId: string): Promise<GroupShare | null> {
+  const rows = (await db.query(
     `SELECT gcs.content_type, gcs.permissions FROM group_content_shares gcs
      INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
      INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
@@ -42,11 +47,15 @@ export async function checkGroupAccess(userId: string, documentId: string): Prom
        AND gcs.content_id = $2
      LIMIT 1`,
     [userId, documentId]
-  )) as { content_type: string; permissions: { read: boolean; write: boolean } | null }[];
+  )) as GroupShare[];
+  return rows[0] ?? null;
+}
 
-  if (groupAccess.length > 0 && groupAccess[0].permissions?.read !== false) {
-    const method =
-      groupAccess[0].content_type === 'canvas_template' ? 'group:template' : 'group:read';
+export async function checkGroupAccess(userId: string, documentId: string): Promise<AccessResult> {
+  const share = await loadGroupShare(userId, documentId);
+
+  if (share && share.permissions?.read !== false) {
+    const method = share.content_type === 'canvas_template' ? 'group:template' : 'group:read';
     return { hasAccess: true, accessMethod: method };
   }
 
@@ -63,51 +72,52 @@ export async function checkDocumentAccess(
   return checkGroupAccess(userId, document.id);
 }
 
+export interface DocumentWriteSubject {
+  id: string;
+  created_by: string | null;
+  permissions: Record<string, { level?: string } | undefined> | null;
+  is_public: boolean | null;
+  share_mode: string | null;
+  share_permission: string | null;
+}
+
 /**
- * Write-access mirror of the Hocuspocus connection check
- * (services/hocuspocus/src/auth.ts `canEditDocument`): owner → direct
- * owner/editor permission → editor share link → group share with write.
+ * The write rule the Hocuspocus connection enforces (`readOnly` in
+ * services/hocuspocus/src/auth.ts `checkDocumentPermissions`), which has no
+ * cross-package deps and keeps its own copy. The first rule that applies
+ * decides: owner, own permission entry, share link, project share.
  */
+export async function canWriteDocument(
+  doc: DocumentWriteSubject,
+  userId: string
+): Promise<boolean> {
+  if (doc.created_by === userId) return true;
+
+  const entry = doc.permissions?.[userId];
+  if (entry?.level) return entry.level !== 'viewer';
+
+  if (doc.share_mode === 'authenticated' || doc.is_public) {
+    return (doc.share_permission || 'editor') !== 'viewer';
+  }
+  if (entry) return false;
+
+  const share = await loadGroupShare(userId, doc.id);
+  return share !== null && share.permissions?.read !== false && share.permissions?.write === true;
+}
+
 export async function checkDocumentWriteAccess(
   documentId: string,
   userId: string
 ): Promise<boolean> {
   const rows = (await db.query(
-    `SELECT created_by, permissions, is_public, share_mode, share_permission
+    `SELECT id, created_by, permissions, is_public, share_mode, share_permission
      FROM collaborative_documents
      WHERE id = $1 AND is_deleted = false`,
     [documentId]
-  )) as {
-    created_by: string;
-    permissions: Record<string, { level?: string } | undefined> | null;
-    is_public: boolean;
-    share_mode: string | null;
-    share_permission: string | null;
-  }[];
+  )) as DocumentWriteSubject[];
 
-  if (rows.length === 0) return false;
   const doc = rows[0];
-
-  if (doc.created_by === userId) return true;
-
-  const level = doc.permissions?.[userId]?.level;
-  if (level === 'owner' || level === 'editor') return true;
-
-  const sharePermission = doc.share_permission || 'editor';
-  if ((doc.share_mode === 'authenticated' || doc.is_public) && sharePermission === 'editor') {
-    return true;
-  }
-
-  const groupAccess = (await db.query(
-    `SELECT gcs.permissions FROM group_content_shares gcs
-     INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
-     INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
-     WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $2
-     LIMIT 1`,
-    [userId, documentId]
-  )) as { permissions: { read?: boolean; write?: boolean } | null }[];
-
-  return groupAccess.length > 0 && groupAccess[0].permissions?.write === true;
+  return doc ? canWriteDocument(doc, userId) : false;
 }
 
 export function autoGrantSharePermission(
