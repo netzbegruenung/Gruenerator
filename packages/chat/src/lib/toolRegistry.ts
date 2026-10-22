@@ -357,14 +357,13 @@ function parseRecipeVM(args: unknown, result: unknown): ToolResultVM {
 
 // The doc family already renders a rich DocumentCreatedCard off the `done`
 // metadata, so this card stays deliberately slim — two cards for one artifact
-// would double-represent it.
-function parseArtifactCreatedVM(args: unknown, result: unknown): ToolResultVM {
+// would double-represent it. A creating tool's `note` is an instruction to the
+// model ("Rufe das Tool NICHT erneut auf"), never a line for the reader.
+function parseArtifactCreatedVM(_args: unknown, result: unknown): ToolResultVM {
   const error = getString(result, 'error');
   if (error) return { kind: 'text-note', text: error };
   const title = getString(getObject(result, 'document'), 'title');
-  if (title) return { kind: 'text-note', text: `„${title}" erstellt.` };
-  const note = getString(result, 'note');
-  return note ? { kind: 'text-note', text: note } : parseGenericFallback(args, result);
+  return { kind: 'text-note', text: title ? `„${title}" erstellt.` : 'Erstellt.' };
 }
 
 // create_pdf carries a self-check the user can see NOWHERE else: `probleme` is
@@ -387,21 +386,17 @@ function parsePdfCreatedVM(args: unknown, result: unknown): ToolResultVM {
 
 // Boards emit no document_created event — this card is the ONLY place a created
 // board is ever named, which is why it carries the title rather than staying slim.
-function parseBoardCreatedVM(args: unknown, result: unknown): ToolResultVM {
+function parseBoardCreatedVM(_args: unknown, result: unknown): ToolResultVM {
   const error = getString(result, 'error');
   if (error) return { kind: 'text-note', text: error };
   const title = getString(getObject(result, 'board'), 'title');
-  if (title) return { kind: 'text-note', text: `Board „${title}" erstellt.` };
-  const note = getString(result, 'note');
-  return note ? { kind: 'text-note', text: note } : parseGenericFallback(args, result);
+  return { kind: 'text-note', text: title ? `Board „${title}" erstellt.` : 'Board erstellt.' };
 }
 
 // The variants themselves render in SharepicVariantStack; the card only reports.
-function parseSharepicVM(args: unknown, result: unknown): ToolResultVM {
+function parseSharepicVM(_args: unknown, result: unknown): ToolResultVM {
   const error = getString(result, 'error');
-  if (error) return { kind: 'text-note', text: error };
-  const note = getString(result, 'note');
-  return note ? { kind: 'text-note', text: note } : parseGenericFallback(args, result);
+  return { kind: 'text-note', text: error ?? 'Sharepic erstellt.' };
 }
 
 // The edited picture re-renders via `sharepic_updated`; the card names the
