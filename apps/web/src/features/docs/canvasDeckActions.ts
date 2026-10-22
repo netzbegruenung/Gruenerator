@@ -1,8 +1,18 @@
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
+import { subtypeToKind, type DocKind } from '@gruenerator/shared/docs';
 
 /** Canvas-Folien (Bibliothek liefert `canvas` nur dafür) laufen nicht über /api/docs, sondern über /api/canvas. */
 export const isCanvasDeck = (documentSubtype: string | null | undefined): boolean =>
   documentSubtype === 'canvas';
+
+/** Wohin ein Bibliothekseintrag öffnet: Canvas-Folien in den Canvas-Editor, nie nach /office (BlockNote). */
+export function officeItemTarget(
+  id: string,
+  documentSubtype: string | null | undefined
+): { kind: DocKind; openPath: string } {
+  if (isCanvasDeck(documentSubtype)) return { kind: 'pres', openPath: `/studio/canvas/${id}` };
+  return { kind: subtypeToKind(documentSubtype), openPath: `/office/${id}` };
+}
 
 export async function renameCanvasDeck(id: string, title: string): Promise<void> {
   const res = await getContractsClient().canvas.update({ params: { id }, body: { title } });

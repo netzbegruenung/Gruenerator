@@ -14,7 +14,8 @@ vi.mock('@gruenerator/shared/api', () => ({
   getContractsClient: () => ({ canvas: { update, remove } }),
 }));
 
-const { deleteCanvasDeck, isCanvasDeck, renameCanvasDeck } = await import('./canvasDeckActions');
+const { deleteCanvasDeck, isCanvasDeck, officeItemTarget, renameCanvasDeck } =
+  await import('./canvasDeckActions');
 
 beforeEach(() => {
   update.mockReset();
@@ -27,6 +28,18 @@ describe('canvas deck card actions', () => {
     for (const s of ['blank', 'presentations', 'sheets', null, undefined]) {
       expect(isCanvasDeck(s)).toBe(false);
     }
+  });
+
+  it('opens canvas decks in the canvas editor, everything else in /office', () => {
+    expect(officeItemTarget('deck-1', 'canvas')).toEqual({
+      kind: 'pres',
+      openPath: '/studio/canvas/deck-1',
+    });
+    expect(officeItemTarget('doc-1', 'blank')).toEqual({ kind: 'doc', openPath: '/office/doc-1' });
+    expect(officeItemTarget('p-1', 'presentations')).toEqual({
+      kind: 'pres',
+      openPath: '/office/p-1',
+    });
   });
 
   it('renames through the canvas endpoint', async () => {

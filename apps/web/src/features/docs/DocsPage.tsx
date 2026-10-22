@@ -50,7 +50,12 @@ import { OFFICE_PILL_ROW, OfficeActionPill } from '../workplace/components/Tools
 import { WorkplaceHero } from '../workplace/components/WorkplaceHero';
 
 import { BoardCard, type BoardCardBoard } from './BoardCard';
-import { deleteCanvasDeck, isCanvasDeck, renameCanvasDeck } from './canvasDeckActions';
+import {
+  deleteCanvasDeck,
+  isCanvasDeck,
+  officeItemTarget,
+  renameCanvasDeck,
+} from './canvasDeckActions';
 import { createSlideDeck } from './createSlideDeck';
 import { webAppDocsAdapter } from './docsAdapter';
 import {
@@ -62,11 +67,9 @@ import {
 import { subtypeToKind, type DocKind } from './docTypeMeta';
 import { DocumentCard } from './DocumentCard';
 import { OfficeLibrary } from './OfficeLibrary';
+import { OfficeShareDialog, type OfficeShareTarget } from './OfficeShareDialog';
 import { useOfficeLibrary } from './useOfficeLibrary';
 
-const LazyShareModal = lazy(() =>
-  import('@gruenerator/docs').then((m) => ({ default: m.ShareModal }))
-);
 const LazyShareBoardDialog = lazy(() =>
   import('../boards/components/ShareBoardDialog').then((m) => ({ default: m.ShareBoardDialog }))
 );
@@ -208,7 +211,7 @@ export function DocumentsContent({
   const [showWolkeImport, setShowWolkeImport] = useState(false);
   const [creating, setCreating] = useState(false);
   const creatingRef = useRef(false);
-  const [shareDoc, setShareDoc] = useState<{ id: string; title: string } | null>(null);
+  const [shareDoc, setShareDoc] = useState<OfficeShareTarget | null>(null);
   const [shareBoard, setShareBoard] = useState<{ id: string; title: string } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string;
@@ -346,6 +349,15 @@ export function DocumentsContent({
       }
     },
     [updateDocumentMutation, refreshOffice, documents]
+  );
+
+  const handleShareDoc = useCallback(
+    (doc: { id: string; title: string }) =>
+      setShareDoc({
+        ...doc,
+        documentSubtype: documents.find((d) => d.id === doc.id)?.document_subtype ?? null,
+      }),
+    [documents]
   );
 
   const handleDeleteBoard = useCallback(
@@ -581,8 +593,7 @@ export function DocumentsContent({
     const docItems = documents.map((d) => ({
       id: d.id,
       title: d.title,
-      kind: subtypeToKind(d.document_subtype),
-      openPath: `/office/${d.id}`,
+      ...officeItemTarget(d.id, d.document_subtype),
       sortKey: new Date(d.updated_at).getTime(),
     }));
     const boardItems = boards.map((b) => ({
@@ -716,7 +727,7 @@ export function DocumentsContent({
           adapter={adapter}
           onDeleteDoc={handleDeleteDoc}
           onRenameDoc={handleRenameDoc}
-          onShareDoc={setShareDoc}
+          onShareDoc={handleShareDoc}
           onDeleteBoard={handleDeleteBoard}
           onRenameBoard={handleRenameBoard}
           onShareBoard={handleShareBoard}
@@ -778,7 +789,7 @@ export function DocumentsContent({
                             adapter={adapter}
                             onDelete={handleDeleteDoc}
                             onRename={handleRenameDoc}
-                            onShare={setShareDoc}
+                            onShare={handleShareDoc}
                           />
                         );
                       return (
@@ -828,7 +839,7 @@ export function DocumentsContent({
                           adapter={adapter}
                           onDelete={handleDeleteDoc}
                           onRename={handleRenameDoc}
-                          onShare={setShareDoc}
+                          onShare={handleShareDoc}
                         />
                       );
                     })}
@@ -863,15 +874,7 @@ export function DocumentsContent({
         </Suspense>
       )}
 
-      {shareDoc && (
-        <Suspense fallback={null}>
-          <LazyShareModal
-            documentId={shareDoc.id}
-            documentTitle={shareDoc.title}
-            onClose={() => setShareDoc(null)}
-          />
-        </Suspense>
-      )}
+      {shareDoc && <OfficeShareDialog target={shareDoc} onClose={() => setShareDoc(null)} />}
 
       {shareBoard && (
         <Suspense fallback={null}>
