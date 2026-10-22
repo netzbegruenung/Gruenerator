@@ -15,7 +15,7 @@
  */
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
 
-import { type NotebookDepth } from '@gruenerator/contracts';
+import { type NotebookSearchDepth } from '@gruenerator/contracts';
 
 const getSearchContext = vi.fn();
 const rerankNotebookResults = vi.fn();
@@ -115,7 +115,7 @@ function searchContextWith(n: number) {
 // (see the `rerank option` describe block below), so the tests in this file
 // that pin per-tier reranking behaviour opt back into the reranker
 // explicitly, exactly as `mode: 'sort'` lets a caller do in production.
-async function run(mode?: NotebookDepth, messages?: unknown[]) {
+async function run(mode?: NotebookSearchDepth, messages?: unknown[]) {
   const { req, res, sse, sent } = makeReqRes();
   await handleNotebookStream({
     req,
@@ -159,7 +159,7 @@ function modelMessages(): Array<{ role: string; content: string }> {
 }
 
 /** The rerank window a tier asked for, from a clean slate each time. */
-async function windowFor(mode?: NotebookDepth) {
+async function windowFor(mode?: NotebookSearchDepth) {
   vi.clearAllMocks();
   setupMocks();
   await run(mode);

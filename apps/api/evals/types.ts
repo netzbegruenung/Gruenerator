@@ -119,8 +119,10 @@ export interface ChatTrace {
 export const evalSurfaceSchema = z.enum(['chat', 'notebook']);
 export type EvalSurface = z.infer<typeof evalSurfaceSchema>;
 
-/** Notebook retrieval depth — the wire enum itself, not a second copy of it. */
-export const evalNotebookModeSchema = notebookDepthSchema;
+/** Notebook retrieval depth — the wire enum itself, not a second copy of it.
+ *  Minus `panda`: that tier only swaps the model at the stream door, so a
+ *  scenario names the model it wants instead. */
+export const evalNotebookModeSchema = notebookDepthSchema.exclude(['panda']);
 
 /**
  * The LLM-judge rubrics a turn may request. An enum, not a free string: a
