@@ -18,6 +18,54 @@ function setup(
 }
 
 describe('CanvasPresentMode', () => {
+  it('keeps fullscreen across a parent re-render with a new onClose', async () => {
+    const exitFullscreen = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(document, 'exitFullscreen', {
+      value: exitFullscreen,
+      configurable: true,
+    });
+    Object.defineProperty(document, 'fullscreenElement', {
+      value: document.body,
+      configurable: true,
+    });
+    try {
+      const { rerender, capturePages } = setup();
+      await waitFor(() => expect(capturePages).toHaveBeenCalled());
+      const exportApi = {
+        current: { capturePages },
+      } as unknown as RefObject<CanvasEditorExportApi | null>;
+      rerender(<CanvasPresentMode exportApi={exportApi} onClose={() => {}} />);
+      expect(exitFullscreen).not.toHaveBeenCalled();
+    } finally {
+      Reflect.deleteProperty(document, 'exitFullscreen');
+      Reflect.deleteProperty(document, 'fullscreenElement');
+    }
+  });
+
+  it('keeps editor key handlers from seeing keys while open', async () => {
+    const user = userEvent.setup();
+    const editorHandler = vi.fn();
+    window.addEventListener('keydown', editorHandler);
+    try {
+      setup();
+      await screen.findByAltText('Folie 1 von 3');
+      await user.keyboard('{Delete}{Backspace}{ArrowRight}');
+      expect(editorHandler).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener('keydown', editorHandler);
+    }
+  });
+
+  it('keeps focus on the close button and leaves Space to a focused button', async () => {
+    const user = userEvent.setup();
+    setup();
+    await screen.findByAltText('Folie 1 von 3');
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Präsentation beenden' })).toHaveFocus();
+    await user.keyboard(' ');
+    expect(screen.getByText('1 / 3')).toBeInTheDocument();
+  });
+
   it('shows a loading state, then the first slide and the counter', async () => {
     setup();
     expect(screen.getByRole('status')).toHaveTextContent(/gerendert/);

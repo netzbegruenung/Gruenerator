@@ -17,12 +17,16 @@ function dataUrlToBytes(dataUrl: string, index: number): Uint8Array {
 /** 1920 × 1080 px bei 72 dpi: eine Folie ist so viele Punkte groß wie Pixel breit. */
 export const SLIDE_PDF_PAGE_PT = { width: 1920, height: 1080 } as const;
 
-export async function buildSlidesPdf({ pngs }: { pngs: Uint8Array[] }): Promise<Uint8Array> {
+export async function buildSlidesPdf({
+  pngs,
+}: {
+  pngs: (Uint8Array | (() => Uint8Array))[];
+}): Promise<Uint8Array> {
   const { PDFDocument } = await import('pdf-lib');
   const doc = await PDFDocument.create();
   const { width, height } = SLIDE_PDF_PAGE_PT;
   for (const png of pngs) {
-    const image = await doc.embedPng(png);
+    const image = await doc.embedPng(typeof png === 'function' ? png() : png);
     const page = doc.addPage([width, height]);
     page.drawImage(image, { x: 0, y: 0, width, height });
   }
@@ -30,5 +34,5 @@ export async function buildSlidesPdf({ pngs }: { pngs: Uint8Array[] }): Promise<
 }
 
 export async function exportSlidesPdf(pageDataUrls: string[]): Promise<Uint8Array> {
-  return buildSlidesPdf({ pngs: pageDataUrls.map(dataUrlToBytes) });
+  return buildSlidesPdf({ pngs: pageDataUrls.map((url, i) => () => dataUrlToBytes(url, i)) });
 }

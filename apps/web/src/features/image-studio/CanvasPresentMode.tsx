@@ -39,6 +39,7 @@ export function CanvasPresentMode({
   onClose,
 }: CanvasPresentModeProps): JSX.Element {
   const rootRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
   const touchStartX = useRef<number | null>(null);
   const [images, setImages] = useState<string[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -74,30 +75,43 @@ export function CanvasPresentMode({
     };
   }, [exportApi]);
 
+  // onClose im Ref: ein neues Inline-Callback des Elternteils darf weder das
+  // Vollbild verlassen noch die Tasten-Listener neu binden.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
   // Vollbild anfragen; schlägt es fehl, bleibt das feste Overlay das Fallback.
   useEffect(() => {
     const root = rootRef.current;
     root?.focus();
+    let unmounted = false;
     let enteredFullscreen = false;
     if (root?.requestFullscreen) {
       root
         .requestFullscreen()
         .then(() => {
           enteredFullscreen = true;
+          // Spät aufgelöst, nachdem wir schon weg sind: Vollbild wieder verlassen.
+          if (unmounted && document.fullscreenElement) {
+            void document.exitFullscreen?.().catch(() => {});
+          }
         })
         .catch(() => {});
     }
     // Esc im Vollbild verarbeitet der Browser selbst — dann schließen wir mit.
     const onFullscreenChange = () => {
-      if (enteredFullscreen && !document.fullscreenElement) onClose();
+      if (enteredFullscreen && !document.fullscreenElement) onCloseRef.current();
     };
     document.addEventListener('fullscreenchange', onFullscreenChange);
     return () => {
+      unmounted = true;
       document.removeEventListener('fullscreenchange', onFullscreenChange);
       enteredFullscreen = false;
       if (document.fullscreenElement) void document.exitFullscreen?.().catch(() => {});
     };
-  }, [onClose]);
+  }, []);
 
   const total = images?.length ?? 0;
   const go = useCallback(
@@ -105,28 +119,47 @@ export function CanvasPresentMode({
     [total]
   );
 
+  // Capture-Phase auf window: der Editor hört dort in der Bubble-Phase (Pfeile
+  // schieben Elemente, Entf löscht). Solange die Präsentation offen ist, kommt
+  // keine Taste ohne Strg/Cmd bis dorthin.
+  const goRef = useRef(go);
+  useEffect(() => {
+    goRef.current = go;
+  });
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      e.stopPropagation();
+      const onButton = e.target instanceof HTMLElement && e.target.tagName === 'BUTTON';
       switch (e.key) {
+        case ' ':
+          if (onButton) return;
+          e.preventDefault();
+          goRef.current(1);
+          break;
         case 'ArrowRight':
         case 'PageDown':
-        case ' ':
           e.preventDefault();
-          go(1);
+          goRef.current(1);
           break;
         case 'ArrowLeft':
         case 'PageUp':
           e.preventDefault();
-          go(-1);
+          goRef.current(-1);
           break;
         case 'Escape':
-          onClose();
+          onCloseRef.current();
+          break;
+        case 'Tab':
+          // Fokus bleibt im Dialog: der Schließen-Knopf ist das einzige Ziel.
+          e.preventDefault();
+          closeRef.current?.focus();
           break;
       }
     };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [go, onClose]);
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
+  }, []);
 
   const onTouchStart = (e: TouchEvent) => {
     touchStartX.current = e.touches[0]?.clientX ?? null;
@@ -166,6 +199,7 @@ export function CanvasPresentMode({
         </p>
       )}
       <button
+        ref={closeRef}
         type="button"
         onClick={onClose}
         aria-label="Präsentation beenden"
