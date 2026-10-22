@@ -21,6 +21,7 @@ import {
   useColorScheme,
 } from 'react-native';
 
+import { getLandesverbandPhotoByFile } from '../../config/landesverbandPhotos';
 import { useTheme } from '../../hooks/useTheme';
 import { BODY_FONT, colors, spacing } from '../../theme';
 import { AgentGlyph } from '../agentura/AgentGlyph';
@@ -251,6 +252,12 @@ export function MarketplaceFrontpage({
   );
 }
 
+/** The photo the app bundles for its notebooks; the web's card cut where none is bundled. */
+const landesverbandCardSource = (lvId: keyof typeof LANDESVERBAND_COVERS) => {
+  const cover = LANDESVERBAND_COVERS[lvId];
+  return getLandesverbandPhotoByFile(cover.file) ?? webImage(landesverbandCardPaths(cover).w480);
+};
+
 /**
  * „Landesverbände": one photo card per Landesverband of the viewer's country,
  * their own first. Each opens the Landesverband's page in the Marktplatz.
@@ -272,7 +279,7 @@ function LandesverbandRow({
         {hubs.map(({ hub, own }) => (
           <PhotoCard
             key={hub.lvId}
-            source={webImage(landesverbandCardPaths(LANDESVERBAND_COVERS[hub.lvId]).w480)}
+            source={landesverbandCardSource(hub.lvId)}
             title={hub.title}
             badge={own ? 'Dein Landesverband' : null}
             aspectRatio={3 / 4}

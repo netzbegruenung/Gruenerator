@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { getLandesverbandPhotoByFile } from '../../config/landesverbandPhotos';
 import { MOBILE_SYSTEM_NOTEBOOKS } from '../../config/notebooksConfig';
 import { useTheme } from '../../hooks/useTheme';
 import { BODY_FONT, spacing } from '../../theme';
@@ -131,6 +132,9 @@ function HubView({ hub }: { hub: LvHub }) {
       <View style={styles.banner}>
         <Image
           source={webImage(landesverbandBannerPath(cover, 1200))}
+          // The bundled photo stands in until the banner cut has loaded.
+          placeholder={getLandesverbandPhotoByFile(cover.file)}
+          placeholderContentFit="cover"
           contentFit="cover"
           style={StyleSheet.absoluteFill}
           accessibilityLabel={cover.alt}

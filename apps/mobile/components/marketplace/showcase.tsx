@@ -310,7 +310,8 @@ export function PhotoCard({
   width,
   onPress,
 }: {
-  source: ImageSource;
+  /** A remote picture, or one bundled into the app (`require`). */
+  source: ImageSource | number;
   title: string;
   kicker?: string;
   description?: string;
