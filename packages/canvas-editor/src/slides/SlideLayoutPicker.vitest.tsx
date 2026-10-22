@@ -57,4 +57,11 @@ describe('SlideLayoutPicker thumbnails', () => {
     expect(status('Titelfolie, dunkel')?.getAttribute('data-thumbnail-status')).toBe('ready');
     expect(render$.mock.calls.filter(([id]) => id === 'titel')).toHaveLength(1);
   });
+
+  it('shows Austria the ten green layouts without a light group', () => {
+    render(<SlideLayoutPicker locale="de-AT" onSelect={vi.fn()} />);
+    expect(screen.getAllByRole('button')).toHaveLength(10);
+    expect(screen.queryByRole('heading', { name: 'Hell' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Titelfolie' })).toBeTruthy();
+  });
 });

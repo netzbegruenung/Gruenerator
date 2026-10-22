@@ -7,7 +7,7 @@ import { memo, type DragEvent } from 'react';
 
 import { cn } from '../utils/cn';
 
-import { SLIDE_LAYOUTS, type SlideLayoutId } from './slideLayouts';
+import { slideLayoutsFor, type SlideLayoutId } from './slideLayouts';
 import { useSlideLayoutThumbnail } from './slideLayoutThumbnails';
 
 import type { BrandLocale } from '../brand/theme';
@@ -57,40 +57,52 @@ export const SlideLayoutPicker = memo(function SlideLayoutPicker({
   onDragStart,
 }: SlideLayoutPickerProps) {
   const draggable = !!onDragStart && !disabled;
+  const layouts = slideLayoutsFor(locale);
+  // Österreich hat nur grüne Folien: eine Gruppe braucht keine Überschrift.
+  const groups = GROUPS.filter((g) => layouts.some((l) => l.theme === g.theme));
 
   return (
     <div className="mb-3 flex flex-col gap-3">
-      {GROUPS.map((group) => (
-        <section key={group.theme} aria-label={`Folienlayouts ${group.title}`}>
-          <h4 className="m-0 mb-1.5 text-xs font-semibold text-[var(--editor-text-secondary)]">
-            {group.title}
-          </h4>
+      {groups.map((group) => (
+        <section
+          key={group.theme}
+          aria-label={groups.length > 1 ? `Folienlayouts ${group.title}` : 'Folienlayouts'}
+        >
+          {groups.length > 1 ? (
+            <h4 className="m-0 mb-1.5 text-xs font-semibold text-[var(--editor-text-secondary)]">
+              {group.title}
+            </h4>
+          ) : null}
           <div
             className={cn(
               'grid gap-1.5',
               narrow ? 'grid-cols-2' : 'grid-cols-4 max-[480px]:grid-cols-3'
             )}
           >
-            {SLIDE_LAYOUTS.filter((l) => l.theme === group.theme).map((layout) => (
-              <button
-                key={layout.id}
-                type="button"
-                disabled={disabled}
-                onClick={() => onSelect(layout.id)}
-                draggable={draggable}
-                onDragStart={(e) => onDragStart?.(e, layout.id)}
-                className={cn(
-                  'flex flex-col gap-1 p-1 rounded-md border border-[var(--editor-border)] bg-[var(--editor-tile)] text-[var(--editor-text)] cursor-pointer transition-[border-color,transform] duration-150 hover:border-[var(--editor-accent)] hover:-translate-y-0.5 focus-visible:border-[var(--editor-accent)] disabled:cursor-not-allowed disabled:opacity-60',
-                  draggable && 'active:cursor-grabbing'
-                )}
-              >
-                <LayoutThumbnail key={locale} id={layout.id} locale={locale} />
-                <span className="text-[10px] font-medium leading-tight text-center line-clamp-1">
-                  {layout.label}
-                  <span className="sr-only">, {group.title.toLowerCase()}</span>
-                </span>
-              </button>
-            ))}
+            {layouts
+              .filter((l) => l.theme === group.theme)
+              .map((layout) => (
+                <button
+                  key={layout.id}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => onSelect(layout.id)}
+                  draggable={draggable}
+                  onDragStart={(e) => onDragStart?.(e, layout.id)}
+                  className={cn(
+                    'flex flex-col gap-1 p-1 rounded-md border border-[var(--editor-border)] bg-[var(--editor-tile)] text-[var(--editor-text)] cursor-pointer transition-[border-color,transform] duration-150 hover:border-[var(--editor-accent)] hover:-translate-y-0.5 focus-visible:border-[var(--editor-accent)] disabled:cursor-not-allowed disabled:opacity-60',
+                    draggable && 'active:cursor-grabbing'
+                  )}
+                >
+                  <LayoutThumbnail key={locale} id={layout.id} locale={locale} />
+                  <span className="text-[10px] font-medium leading-tight text-center line-clamp-1">
+                    {layout.label}
+                    {groups.length > 1 ? (
+                      <span className="sr-only">, {group.title.toLowerCase()}</span>
+                    ) : null}
+                  </span>
+                </button>
+              ))}
           </div>
         </section>
       ))}

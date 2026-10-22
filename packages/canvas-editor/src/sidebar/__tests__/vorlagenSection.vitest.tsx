@@ -675,7 +675,7 @@ describe('VorlagenSection on a slide deck', () => {
   it('builds the Austrian layouts for an AT deck', async () => {
     const at = DECK.map((p) => ({ ...p, configId: 'freeform-at' as const }));
     const { deck, user } = setup(at, { formatId: 'slide-16-9', userLocale: 'de-AT' });
-    await user.click(screen.getByRole('button', { name: 'Textfolie, dunkel' }));
+    await user.click(screen.getByRole('button', { name: 'Textfolie' }));
     expect(opsOf(deck).inserts[0]).toMatchObject({ afterPageId: 's1', configId: 'freeform-at' });
   });
 
