@@ -140,6 +140,16 @@ RUN rm -rf /usr/share/nginx/html/* /etc/nginx/conf.d/default.conf
 
 # Copy custom nginx config for SPA
 COPY <<'EOF' /etc/nginx/conf.d/default.conf
+# Stock mime.types has no .mjs entry, so /pyodide/pyodide.asm.mjs went out as
+# application/octet-stream and browsers refused to import it as a module — the
+# in-browser Python interpreter never started (#4884). This file is included in
+# nginx.conf's http block after mime.types, and a types block at that level
+# adds to the stock map. Inside `server` or a `location` it would replace the
+# whole map instead.
+types {
+    application/javascript mjs;
+}
+
 server {
     listen 80;
     server_name _;
