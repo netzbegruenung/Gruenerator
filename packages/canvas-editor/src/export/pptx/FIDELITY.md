@@ -9,7 +9,7 @@ cd packages/canvas-editor
 PPTX_FIXTURE_DIR=/tmp/pptx pnpm exec vitest run src/export/pptx/presentationFixtureDeck.vitest.ts
 ```
 
-Das erzeugt `praesentation-de-DE.pptx` und `praesentation-de-AT.pptx`. Ohne `PPTX_FIXTURE_DIR` landen die Dateien in `$TMPDIR/gruenerator-pptx-fixture/`. Jedes Deck hat vier Folien mit allen Elementarten (`presentationFixtureDeck.ts`). Raster und Bilder sind dabei beschriftete Platzhalter, weil es in Node kein Stage gibt. Ob Raster vom echten Canvas richtig ankommen, prüft man im Editor: eine Präsentation anlegen, dann „Teilen“ → Format „PowerPoint (.pptx)“.
+Das erzeugt `praesentation-de-DE.pptx` und `praesentation-de-AT.pptx`. Ohne `PPTX_FIXTURE_DIR` prüft der Test nur Modell und Writer und schreibt keine Datei (so auch in der CI). Jedes Deck hat vier Folien mit allen Elementarten (`presentationFixtureDeck.ts`). Raster und Bilder sind dabei beschriftete Platzhalter, weil es in Node kein Stage gibt. Ob Raster vom echten Canvas richtig ankommen, prüft man im Editor: eine Präsentation anlegen, dann „Teilen“ → Format „PowerPoint (.pptx)“.
 
 ## Programme
 
@@ -73,5 +73,23 @@ Je Programm prüfen: Ist das Element bearbeitbar? Stimmt die Lage? Stimmt die Sc
 - Aufzählungszeichen sind schwarz und stehen links außerhalb der Box.
 - Fehlende Schriften ersetzt QuickLook durch Times.
 - QuickLook taugt nur zum schnellen Blick auf Lage und Farben, nicht als Maßstab.
+
+## Schriftnamen
+
+Der Canvas nennt Schriften über die Aliase aus `styles/typography.css`, zum Beispiel `GrueneTypeNeue` oder `GothamNarrow-Ultra`. PowerPoint sucht dagegen den Familiennamen der installierten Datei. `pptxFonts.ts` übersetzt deshalb jeden Alias. Die Zielnamen sind die Name-ID 1 aus den Dateien unter `packages/canvas-editor/fonts/`, mit fontkit ausgelesen:
+
+| Canvas-Alias           | Name in der PPTX                           |
+| ---------------------- | ------------------------------------------ |
+| `GrueneTypeNeue`       | GrueneType Neue                            |
+| `GrueneType`           | GrueneType Black Cond Italic               |
+| `GothamNarrow-Book`    | Gotham Narrow Book                         |
+| `GothamNarrow-Bold`    | Gotham Narrow Bold                         |
+| `GothamNarrow-Ultra`   | Gotham Narrow Ultra                        |
+| `PT Sans`              | PT Sans (fett und kursiv über die Familie) |
+| `Vollkorn` kursiv      | Vollkorn, fett kursiv                      |
+| `Vollkorn` fett kursiv | Vollkorn Black, kursiv                     |
+| `Raleway`              | Raleway                                    |
+
+**Ungeprüft:** Ob PowerPoint die Schriften unter diesen Namen findet, wenn sie installiert sind. Auf dem Prüfrechner waren sie nicht installiert. Bei der nächsten Prüfung die Schriften installieren, ein Deck öffnen und in „Format → Schriftart ersetzen“ nachsehen, ob noch eine Schrift als fehlend gemeldet wird.
 
 **Nicht geprüft:** Keynote, Google Slides, und ein Export aus dem laufenden Editor mit echten Rastern (Dev-Stack).

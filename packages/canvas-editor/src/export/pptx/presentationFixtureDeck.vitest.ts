@@ -1,5 +1,4 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { createCanvas } from '@napi-rs/canvas';
@@ -13,8 +12,8 @@ import { PRESENTATION_FIXTURE_DECKS } from './presentationFixtureDeck';
 import { writePptx, type WritePptxDeps } from './writePptx';
 
 /**
- * Schreibt das Prüf-Deck als .pptx (Pfad steht im Log) für die Handprüfung in
- * `FIDELITY.md`. Ziel: `PPTX_FIXTURE_DIR`, sonst ein Ordner im Temp-Verzeichnis.
+ * Prüft Modell und Writer am Prüf-Deck; mit `PPTX_FIXTURE_DIR` schreibt er die
+ * .pptx-Dateien für die Handprüfung in `FIDELITY.md` dorthin.
  * Raster sind beschriftete Platzhalter — das Stage gibt es hier nicht.
  */
 
@@ -68,7 +67,9 @@ describe('presentation fixture deck', () => {
       );
       expect(strFromU8(files['ppt/notesSlides/notesSlide1.xml']!)).toContain('Begrüßung');
 
-      const dir = process.env.PPTX_FIXTURE_DIR ?? join(tmpdir(), 'gruenerator-pptx-fixture');
+      // Geschrieben wird nur auf Wunsch, CI legt nichts ab.
+      const dir = process.env.PPTX_FIXTURE_DIR;
+      if (!dir) return;
       mkdirSync(dir, { recursive: true });
       const path = join(dir, `praesentation-${locale}.pptx`);
       writeFileSync(path, bytes);
