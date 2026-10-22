@@ -8,13 +8,14 @@
  *
  * The OAuth popup is opened same-origin (`/api/canva/auth/start`), so the
  * session cookie rides along and `requireAuth` can identify the user. The
- * callback derives the user from the one-time PKCE state in Redis instead of
- * the cookie, so it works even if the cross-site redirect drops the cookie.
+ * callback takes the user from the one-time PKCE state in Redis and saves the
+ * connection only when the browser's own session is that user — the session
+ * cookie is SameSite=Lax, so it comes along on Canva's top-level redirect back.
  */
 
 import { Router, type Request, type Response } from 'express';
 
-import { requireAuth } from '../../middleware/authMiddleware.js';
+import { optionalAuth, requireAuth } from '../../middleware/authMiddleware.js';
 import {
   buildAuthorizeUrl,
   exchangeCodeForTokens,
@@ -131,8 +132,9 @@ router.get('/auth/start', requireAuth, async (req: Request, res: Response): Prom
   }
 });
 
-// No requireAuth: the user is resolved from the one-time PKCE state in Redis.
-router.get('/auth/callback', async (req: Request, res: Response): Promise<void> => {
+// optionalAuth, not requireAuth: a missing session has to end on the popup
+// page below, not in a 401.
+router.get('/auth/callback', optionalAuth, async (req: Request, res: Response): Promise<void> => {
   // The authorization code rides in the query string — RFC 6749 §4.1.2 has no
   // other channel for it. What we can stop is it travelling on from here: no
   // Referer to anything this page touches, and no copy in any cache
@@ -157,6 +159,23 @@ router.get('/auth/callback', async (req: Request, res: Response): Promise<void> 
     const pkce = await consumePkceState(state);
     if (!pkce) {
       res.status(400).send(popupResultHtml(false, 'Sitzung abgelaufen. Bitte erneut verbinden.'));
+      return;
+    }
+
+    // The state says who started the flow; only that user's browser may finish
+    // it. The state is already consumed, so a refused callback cannot be retried.
+    if (req.user?.id !== pkce.userId) {
+      log.warn('Canva OAuth callback without the initiating session — not saving', {
+        hasSession: Boolean(req.user),
+      });
+      res
+        .status(403)
+        .send(
+          popupResultHtml(
+            false,
+            'Die Verbindung wurde nicht in dieser Anmeldung gestartet. Bitte im Grünerator anmelden und erneut verbinden.'
+          )
+        );
       return;
     }
 

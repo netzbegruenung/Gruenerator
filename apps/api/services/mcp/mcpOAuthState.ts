@@ -4,8 +4,9 @@
  * Mirrors the Canva OAuth state store. The `startAuthorization` step returns a
  * PKCE `codeVerifier` that the callback needs; we park it (plus which user/server
  * and the resolved authorization server) under an opaque single-use `state` key
- * with a short TTL. `getDel` guarantees single-use so replay is impossible, and
- * identity comes from the state (not a cookie) so the cross-site callback works.
+ * with a short TTL. `getDel` guarantees single-use so replay is impossible. The
+ * state says who started the flow; the callback stores tokens only when the
+ * session of the browser completing it is that same user (see handleCallback).
  */
 
 import crypto from 'node:crypto';
