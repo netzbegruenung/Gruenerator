@@ -73,6 +73,7 @@ function item(overrides: Partial<StudioAssetItem> = {}): StudioAssetItem {
     visibility: 'public',
     audience: 'all',
     moderation: 'ok',
+    isOfficial: false,
     isOwn: false,
     authorName: null,
     likesCount: 0,

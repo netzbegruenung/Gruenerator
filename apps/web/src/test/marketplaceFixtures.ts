@@ -88,6 +88,7 @@ export function item(
           visibility: 'public',
           audience: 'all',
           moderation: 'ok',
+          isOfficial: false,
           isOwn: false,
           authorName: base.authorName,
           likesCount: base.likesCount,

@@ -12,6 +12,8 @@ const m = vi.hoisted(() => ({
   createStudioAsset: vi.fn(),
   updateStudioAsset: vi.fn(),
   removeStudioAsset: vi.fn(),
+  setStudioAssetOfficial: vi.fn(),
+  requireInstanceAdmin: vi.fn(),
   likeEntity: vi.fn(),
   unlikeEntity: vi.fn(),
   favoriteEntity: vi.fn(),
@@ -24,7 +26,9 @@ vi.mock('../../services/studioAssets/studioAssetsService.js', () => ({
   createStudioAsset: m.createStudioAsset,
   updateStudioAsset: m.updateStudioAsset,
   removeStudioAsset: m.removeStudioAsset,
+  setStudioAssetOfficial: m.setStudioAssetOfficial,
 }));
+vi.mock('../../utils/adminAuthz.js', () => ({ requireInstanceAdmin: m.requireInstanceAdmin }));
 vi.mock('../../services/entityLikes/EntityLikesService.js', () => ({
   likeEntity: m.likeEntity,
   unlikeEntity: m.unlikeEntity,
@@ -116,5 +120,33 @@ it('remove answers 404 when nothing was trashed', async () => {
   expect(await call('remove', { params: { id: ID } })).toEqual({
     status: 200,
     body: { trashed: true },
+  });
+});
+
+describe('official', () => {
+  it('403 for anyone but an instance admin, nothing written', async () => {
+    m.requireInstanceAdmin.mockResolvedValue(false);
+    const res = await call('official', { params: { id: ID }, body: { official: true } });
+    expect(res.status).toBe(403);
+    expect(m.setStudioAssetOfficial).not.toHaveBeenCalled();
+  });
+
+  it('an admin marks the asset and gets it back', async () => {
+    m.requireInstanceAdmin.mockResolvedValue(true);
+    m.setStudioAssetOfficial.mockResolvedValue({ ok: true, value: { id: ID, isOfficial: true } });
+    const res = await call('official', { params: { id: ID }, body: { official: true } });
+    expect(res).toEqual({ status: 200, body: { id: ID, isOfficial: true } });
+    expect(m.setStudioAssetOfficial).toHaveBeenCalledWith('viewer', ID, true);
+  });
+
+  it('passes the service’s 404 through', async () => {
+    m.requireInstanceAdmin.mockResolvedValue(true);
+    m.setStudioAssetOfficial.mockResolvedValue({
+      ok: false,
+      status: 404,
+      message: 'Element nicht gefunden.',
+    });
+    const res = await call('official', { params: { id: ID }, body: { official: false } });
+    expect(res.status).toBe(404);
   });
 });

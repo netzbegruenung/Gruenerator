@@ -1492,6 +1492,8 @@ CREATE TABLE IF NOT EXISTS studio_assets (
     was_public  BOOLEAN NOT NULL DEFAULT FALSE,
     audience    TEXT NOT NULL DEFAULT 'all' CHECK (audience IN ('de-DE', 'de-AT', 'all')),
     moderation  TEXT NOT NULL DEFAULT 'ok' CHECK (moderation IN ('ok', 'hidden', 'removed')),
+    -- zz_20261022_studio_assets_official.sql
+    is_official BOOLEAN NOT NULL DEFAULT FALSE,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at  TIMESTAMPTZ NULL
