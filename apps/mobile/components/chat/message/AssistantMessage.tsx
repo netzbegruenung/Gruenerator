@@ -139,6 +139,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
                   sourceUrl: url,
                   query: '',
                   title,
+                  fromChat: '1',
                 })
               );
             } else if (readerDocument) {
@@ -148,6 +149,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
                   ...(readerDocument.notebookId ? { notebookId: readerDocument.notebookId } : {}),
                   query: '',
                   title,
+                  fromChat: '1',
                 })
               );
             } else {

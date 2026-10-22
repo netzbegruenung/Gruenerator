@@ -2,6 +2,7 @@ import { ThreadPrimitive, useAui, useAuiState, useVoiceState } from '@assistant-
 import {
   buildThreadPath,
   GrueneratorComposer,
+  hasPendingHandoff,
   useAgentStore,
   useChatRuntimeReady,
 } from '@gruenerator/chat';
@@ -83,9 +84,7 @@ const ChatInnerReady: React.FC = () => {
   // hoisted to the app root, so without switchToNewThread the composer stays
   // bound to the persisted currentThreadId (mirrors the /chat overview).
   useEffect(() => {
-    const { pendingMessage, pendingDraft, pendingInitialAssistantMessage } =
-      useAgentStore.getState();
-    const hasPending = !!(pendingMessage || pendingDraft || pendingInitialAssistantMessage);
+    const hasPending = hasPendingHandoff(useAgentStore.getState());
     // On /chat the URL owns which thread is active — bare /chat means "draft",
     // and ChatThreadRouting establishes it. Switching from this mount effect too
     // cancelled whatever switch was in flight (assistant-ui's switches are
