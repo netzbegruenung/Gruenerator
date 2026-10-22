@@ -71,7 +71,7 @@ const headline: PptxTextItem = {
           fontFace: null,
         },
         {
-          text: '\n',
+          text: '\n\n',
           bold: false,
           italic: false,
           underline: false,
@@ -270,14 +270,15 @@ describe('writePptx', () => {
     ]);
     // 96 px auf 1920 px Breite = 48 pt
     expect(slide).toMatch(
-      /<a:rPr lang="en-US" sz="4800" b="1"[^>]*>.*?<a:latin typeface="GrueneTypeNeue"/
+      /<a:rPr lang="en-US" sz="4800" b="1"[^>]*>.*?<a:latin typeface="GrueneType Neue"/
     );
     expect(slide).toMatch(
       /sz="4800" i="1" u="sng"[^>]*><a:solidFill><a:srgbClr val="005538"\/><\/a:solidFill><a:highlight><a:srgbClr val="FFF17A"\/><\/a:highlight><a:latin typeface="PT Sans"/
     );
     // fester Zeilenabstand 48 pt × 1,2; der hardBreak bleibt im Absatz
     expect(slide).toContain('<a:lnSpc><a:spcPts val="5760"/></a:lnSpc>');
-    expect(slide).toContain('<a:br/>');
+    // zwei Umbrüche: die Leerzeile bleibt
+    expect(slide).toContain('<a:t>Zeile eins</a:t></a:r><a:br/><a:br/><a:r>');
     expect(count(slide, '<a:buChar')).toBe(2);
     // ein `<a:pPr>` je Absatz, auch bei mehreren Läufen
     for (const paragraph of slide.match(/<a:p>[\s\S]*?<\/a:p>/g)!) {
@@ -317,6 +318,18 @@ describe('writePptx', () => {
     expect(slide1).toContain('rot="900000"');
     expect(slide1).toContain('<a:srgbClr val="8ABD24"><a:alpha val="50000"/>');
     expect(slide1).toContain('prst="roundRect"');
+  });
+
+  it('skips a raster that throws and keeps exporting', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { skipped } = await writePptx(
+      model,
+      deps({
+        rasterize: () => Promise.reject(new DOMException('tainted', 'SecurityError')),
+      })
+    );
+    warn.mockRestore();
+    expect(skipped).toEqual(['1:pi-leaf', '2:stale-id', '2:user-image-1']);
   });
 
   it('rasters a rotated chart instead of dropping its rotation', async () => {

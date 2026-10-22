@@ -10,6 +10,7 @@
  * - Aufzählungszeichen gelten je Absatz und stehen am ersten Lauf.
  */
 
+import { pptxFont } from './pptxFonts';
 import { parseColor, pptxRotation, transparencyOf, type PptxUnits } from './pptxUnits';
 
 import type { PptxShadow, PptxTextItem, PptxTextRun } from './types';
@@ -42,9 +43,7 @@ function runOptions(
   const alpha = (color?.alpha ?? 1) * item.opacity;
   const outline = item.outline ? parseColor(item.outline.color) : null;
   return {
-    fontFace: run.fontFace ?? item.fontFace,
-    bold: run.bold,
-    italic: run.italic,
+    ...pptxFont(run.fontFace ?? item.fontFace, run.bold, run.italic),
     ...(run.underline ? { underline: { style: 'sng' as const } } : {}),
     ...(color ? { color: color.hex } : {}),
     ...(alpha < 1 ? { transparency: transparencyOf(alpha) } : {}),
@@ -62,25 +61,24 @@ export function textRuns(item: PptxTextItem, units: PptxUnits): PptxGenJS.TextPr
   item.paragraphs.forEach((paragraph, index) => {
     const isLast = index === item.paragraphs.length - 1;
     const runs: PptxGenJS.TextProps[] = [];
-    let softBreak = false;
+    const empty = () => ({
+      text: '',
+      options: { fontFace: pptxFont(item.fontFace, false, false).fontFace },
+    });
     for (const run of paragraph.runs) {
-      // Ein `hardBreak` (`\n`) und Umbrüche im Lauftext werden weiche Umbrüche.
-      const lines = run.text.split('\n');
-      lines.forEach((line, lineIndex) => {
-        if (lineIndex > 0) softBreak = true;
-        if (!line) return;
-        runs.push({
-          text: line,
-          options: {
-            ...runOptions(run, item, units),
-            ...(softBreak && runs.length > 0 ? { softBreakBefore: true } : {}),
-          },
-        });
-        softBreak = false;
+      // Ein `hardBreak` (`\n`) und Umbrüche im Lauftext werden weiche Umbrüche:
+      // je `\n` ein leerer Lauf mit `<a:br/>` davor, so bleiben Leerzeilen stehen.
+      // pptxgenjs setzt den Umbruch nur vor einen Lauf, der nicht der erste ist.
+      run.text.split('\n').forEach((line, lineIndex) => {
+        if (lineIndex > 0) {
+          if (runs.length === 0) runs.push(empty());
+          runs.push({ ...empty(), options: { ...empty().options, softBreakBefore: true } });
+        }
+        if (line) runs.push({ text: line, options: runOptions(run, item, units) });
       });
     }
     // Ein leerer Absatz braucht einen Lauf, sonst verschwindet die Leerzeile.
-    if (runs.length === 0) runs.push({ text: '', options: { fontFace: item.fontFace } });
+    if (runs.length === 0) runs.push(empty());
 
     const first = runs[0]!;
     if (paragraph.bullet) {
