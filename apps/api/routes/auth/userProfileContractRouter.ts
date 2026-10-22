@@ -14,8 +14,11 @@
 import { userProfileContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 import { fromNodeHeaders } from 'better-auth/node';
+import { and, eq, like } from 'drizzle-orm';
 
 import { auth } from '../../config/betterAuth.js';
+import { ba_accounts } from '../../database/schema/auth.js';
+import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getQdrantDocumentService } from '../../services/document-services/DocumentSearchService/index.js';
 import { setUserLocale } from '../../services/localization/localeCache.js';
 import { assignInstanceRole } from '../../services/roles/instanceRoleAssignment.js';
@@ -38,6 +41,28 @@ function getUserId(req: Request): string {
 
 function getUser(req: Request): UserProfile {
   return req.user as UserProfile;
+}
+
+const KEYCLOAK_SUBJECT_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Keycloak user ids to delete with the account: the subjects Better Auth
+ * recorded for the user's own Keycloak logins (`ba_accounts.account_id` of the
+ * `keycloak-*` rows). Not the `keycloak_id` profile column — a profile field
+ * says nothing reliable about which Keycloak user the person owns, and this id
+ * ends up in a Keycloak admin DELETE. Anything that is not a UUID is skipped.
+ */
+async function findKeycloakSubjects(userId: string): Promise<string[]> {
+  const rows = await getDrizzleInstance()
+    .select({ accountId: ba_accounts.account_id })
+    .from(ba_accounts)
+    .where(and(eq(ba_accounts.user_id, userId), like(ba_accounts.provider_id, 'keycloak-%')));
+  const subjects = new Set<string>();
+  for (const { accountId } of rows) {
+    if (KEYCLOAK_SUBJECT_RE.test(accountId)) subjects.add(accountId);
+    else log.warn(`[User Delete] Skipping Keycloak account with a non-UUID subject`);
+  }
+  return [...subjects];
 }
 
 /**
@@ -523,7 +548,6 @@ export const userProfileContractRouter = s.router(userProfileContract, {
     try {
       const user = getUser(args.req);
       const userId = user.id;
-      const keycloakId = user.keycloak_id;
 
       const { confirm, confirmation, password } = args.body;
       const qsConfirm = args.req.query?.confirm as string | undefined;
@@ -552,6 +576,10 @@ export const userProfileContractRouter = s.router(userProfileContract, {
 
       log.debug(`[User Delete] Starting account deletion process for user ${userId}`);
 
+      // Read before anything is deleted: the profile delete cascades to
+      // `ba_accounts`, and a failed lookup should leave the account intact.
+      const keycloakIds = await findKeycloakSubjects(userId);
+
       // Step 1: Delete vectors in Qdrant (best-effort)
       log.debug(`[User Delete] Step 1: Deleting Qdrant vectors for user ${userId}`);
       try {
@@ -563,8 +591,11 @@ export const userProfileContractRouter = s.router(userProfileContract, {
         log.warn(`[User Delete] Warning deleting Qdrant vectors for user ${userId}:`, err.message);
       }
 
-      // Step 2: Delete from Keycloak (if keycloak_id exists)
-      if (keycloakId) {
+      // Step 2: Delete from Keycloak (the subjects of the user's Keycloak logins)
+      if (keycloakIds.length === 0) {
+        log.warn(`[User Delete] No Keycloak account found for user ${userId}, skipping Keycloak`);
+      }
+      for (const keycloakId of keycloakIds) {
         log.debug(`[User Delete] Step 2: Deleting user from Keycloak with ID ${keycloakId}`);
         try {
           const keycloakClient = new KeycloakApiClient();
