@@ -120,7 +120,7 @@ export async function scrapeLvInstagram(
 
   const qdrant = getQdrantInstance();
   await qdrant.init();
-  if (!qdrant.isAvailableSync()) {
+  if (!qdrant.hasClientFor(COLLECTION)) {
     fail('Qdrant not available — cannot index LV Instagram posts');
     return result;
   }

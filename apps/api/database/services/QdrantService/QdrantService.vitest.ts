@@ -8,10 +8,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { COLLECTION_SCHEMAS } from '../../../config/qdrantCollectionsSchema.js';
 
-const { envMock, created, failingUrls } = vi.hoisted(() => ({
+const { envMock, created, failingUrls, hangingUrls } = vi.hoisted(() => ({
   envMock: {} as Record<string, unknown>,
   created: [] as FakeQdrantClient[],
   failingUrls: new Set<string>(),
+  hangingUrls: new Set<string>(),
 }));
 
 interface FakeQdrantClient {
@@ -52,6 +53,9 @@ vi.mock('@qdrant/js-client-rest', () => ({
       this.url = options.url ?? options.host ?? '';
       if (failingUrls.has(this.url)) {
         this.getCollections.mockRejectedValue(new Error('connect ECONNREFUSED'));
+      }
+      if (hangingUrls.has(this.url)) {
+        this.getCollections.mockReturnValue(new Promise(() => {}));
       }
       created.push(this as unknown as FakeQdrantClient);
     }
@@ -104,6 +108,7 @@ describe('QdrantService content and instance stores', () => {
     resetEnv();
     created.length = 0;
     failingUrls.clear();
+    hangingUrls.clear();
     createCollections.mockClear();
     createTextSearchIndexes.mockClear();
   });
@@ -276,7 +281,75 @@ describe('QdrantService content and instance stores', () => {
     expect(service.readClient('landtag_nrw_documents')).not.toBe(oldContent);
   });
 
-  it('content unavailable at init comes back on a later ensureConnection', async () => {
+  it('a content host that never answers does not hold up the instance init', async () => {
+    resetEnv({
+      QDRANT_CONTENT_URL: CONTENT_URL,
+      QDRANT_CONTENT_API_KEY: 'content-key',
+      QDRANT_CONTENT_READ_ONLY: true,
+    });
+    hangingUrls.add(CONTENT_URL);
+    const service = new QdrantService();
+    service.contentConnectWaitMs = 20;
+
+    const started = Date.now();
+    await service.init();
+
+    expect(Date.now() - started).toBeLessThan(1000);
+    expect(service.isConnected).toBe(true);
+    expect(service.readClient('documents')).toBe(clientAt(BASE_ENV.QDRANT_URL));
+    expect(() => service.readClient('landtag_nrw_documents')).toThrow(/content qdrant unavailable/);
+  });
+
+  it('marks the instance connected before the content host answers', async () => {
+    resetEnv({
+      QDRANT_CONTENT_URL: CONTENT_URL,
+      QDRANT_CONTENT_API_KEY: 'content-key',
+      QDRANT_CONTENT_READ_ONLY: true,
+    });
+    hangingUrls.add(CONTENT_URL);
+    const service = new QdrantService();
+    service.contentConnectWaitMs = 10_000;
+
+    const connecting = service.init();
+    await vi.waitFor(() => expect(created.some((c) => c.url === CONTENT_URL)).toBe(true));
+
+    expect(service.isAvailableSync()).toBe(true);
+    expect(service.readClient('documents')).toBe(clientAt(BASE_ENV.QDRANT_URL));
+    expect(() => service.readClient('landtag_nrw_documents')).toThrow(/content qdrant unavailable/);
+    service.contentConnectWaitMs = 0;
+    void connecting;
+  });
+
+  it('client-presence gates stay true while a re-init is in flight', async () => {
+    resetEnv({
+      QDRANT_CONTENT_URL: CONTENT_URL,
+      QDRANT_CONTENT_API_KEY: 'content-key',
+      QDRANT_CONTENT_READ_ONLY: true,
+    });
+    const { mistralEmbeddingService } = await import('../../../services/mistral/index.js');
+    const service = new QdrantService();
+    await service.init();
+
+    let releaseInit: () => void = () => {};
+    vi.mocked(mistralEmbeddingService.init).mockImplementationOnce(
+      () => new Promise<void>((resolve) => (releaseInit = resolve))
+    );
+    clientAt(BASE_ENV.QDRANT_URL).getCollections.mockRejectedValueOnce(new Error('timeout'));
+    service.lastHealthCheck = 0;
+    const reconnecting = service.ensureConnection();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(service.isConnected).toBe(false);
+    expect(service.isAvailableSync()).toBe(false);
+    expect(service.isContentAvailable()).toBe(true);
+    expect(service.hasClientFor('documents')).toBe(true);
+    expect(service.hasClientFor('landtag_nrw_documents')).toBe(true);
+
+    releaseInit();
+    await reconnecting;
+  });
+
+  it('hasClientFor reports a missing content client only for content collections', async () => {
     resetEnv({
       QDRANT_CONTENT_URL: CONTENT_URL,
       QDRANT_CONTENT_API_KEY: 'content-key',
@@ -284,16 +357,88 @@ describe('QdrantService content and instance stores', () => {
     });
     failingUrls.add(CONTENT_URL);
     const service = new QdrantService();
+    expect(service.hasClientFor('documents')).toBe(false);
+    await service.init();
+
+    expect(service.hasClientFor('documents')).toBe(true);
+    expect(service.hasClientFor('landtag_nrw_documents')).toBe(false);
+  });
+});
+
+describe('QdrantService content reconnect', () => {
+  // Only Date is faked: the constructor's setTimeout must still fire normally.
+  beforeEach(async () => {
+    // Konstruktor-Timer früherer Tests abarbeiten, bevor Date vorgestellt wird.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    vi.useFakeTimers({ toFake: ['Date'] });
+    resetEnv({
+      QDRANT_CONTENT_URL: CONTENT_URL,
+      QDRANT_CONTENT_API_KEY: 'content-key',
+      QDRANT_CONTENT_READ_ONLY: true,
+    });
+    created.length = 0;
+    failingUrls.clear();
+    hangingUrls.clear();
+  });
+  afterEach(() => vi.useRealTimers());
+
+  const contentClients = (): FakeQdrantClient[] => created.filter((c) => c.url === CONTENT_URL);
+
+  it('a content read after the retry interval reconnects a content host that was down at boot', async () => {
+    failingUrls.add(CONTENT_URL);
+    const service = new QdrantService();
     await service.init();
     expect(service.isContentAvailable()).toBe(false);
 
     failingUrls.clear();
-    service.lastHealthCheck = 0;
-    await service.ensureConnection();
+    vi.advanceTimersByTime(30_000);
+    const bootClient = contentClients().at(-1);
+    expect(() => service.readClient('landtag_nrw_documents')).toThrow(/content qdrant unavailable/);
 
-    const contentClients = created.filter((c) => c.url === CONTENT_URL);
-    expect(service.isContentAvailable()).toBe(true);
-    expect(service.readClient('landtag_nrw_documents')).toBe(contentClients.at(-1));
+    await vi.waitFor(() => expect(service.isContentAvailable()).toBe(true));
+    const reconnected = service.readClient('landtag_nrw_documents') as unknown as FakeQdrantClient;
+    expect(reconnected.url).toBe(CONTENT_URL);
+    expect(reconnected).not.toBe(bootClient);
+  });
+
+  it('init() on a connected service reconnects the content host after the retry interval', async () => {
+    failingUrls.add(CONTENT_URL);
+    const service = new QdrantService();
+    await service.init();
+
+    failingUrls.clear();
+    vi.advanceTimersByTime(30_000);
+    await service.ensureConnected();
+
+    await vi.waitFor(() => expect(service.isContentAvailable()).toBe(true));
+    const reconnected = service.readClient('landtag_nrw_documents') as unknown as FakeQdrantClient;
+    expect(reconnected.url).toBe(CONTENT_URL);
+  });
+
+  it('retries the content host at most once per interval', async () => {
+    failingUrls.add(CONTENT_URL);
+    const service = new QdrantService();
+    await service.init();
+    const attempts = contentClients().length;
+
+    for (let i = 0; i < 5; i++) {
+      await service.isAvailable();
+      expect(() => service.readClient('landtag_nrw_documents')).toThrow();
+    }
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(contentClients()).toHaveLength(attempts);
+  });
+
+  it('without a content target never builds a second client', async () => {
+    resetEnv();
+    const service = new QdrantService();
+    await service.init();
+    vi.advanceTimersByTime(30_000);
+    await service.isAvailable();
+    service.readClient('landtag_nrw_documents');
+
+    expect(created).toHaveLength(1);
   });
 });
 

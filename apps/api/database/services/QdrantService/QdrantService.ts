@@ -138,6 +138,11 @@ export class QdrantService {
   lastHealthCheck: number = 0;
   healthCheckInterval: number = 30000;
   lastFailedInitAt: number = 0;
+  /** Laufender Verbindungsversuch zum Content-Ziel; höchstens einer gleichzeitig */
+  private contentConnecting: Promise<void> | null = null;
+  private lastContentAttemptAt: number = 0;
+  /** So lange wartet init() auf das Content-Ziel, danach verbindet es im Hintergrund weiter */
+  contentConnectWaitMs: number = 5000;
 
   collections: CollectionNames = {
     documents: 'documents',
@@ -175,6 +180,10 @@ export class QdrantService {
   }
 
   async init(): Promise<void> {
+    if (this.isConnected) {
+      this._reconnectContentIfDue();
+    }
+
     if (this.initPromise) {
       return this.initPromise;
     }
@@ -235,10 +244,6 @@ export class QdrantService {
         );
       }
 
-      if (this.contentTarget) {
-        await this._connectContent(this.contentTarget);
-      }
-
       this.instanceClient = instanceClient;
 
       if (!this.operations) {
@@ -252,6 +257,12 @@ export class QdrantService {
       this.isInitializing = false;
       this.lastHealthCheck = Date.now();
       log.info('Connected');
+
+      // Die Instanz ist schon verbunden; ein stummes Content-Ziel hält init()
+      // höchstens contentConnectWaitMs auf und verbindet danach im Hintergrund.
+      if (this.contentTarget) {
+        await this._waitForContent(this._connectContentInBackground());
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       log.error(`Init failed: ${message}`);
@@ -292,6 +303,38 @@ export class QdrantService {
     );
   }
 
+  private async _waitForContent(connecting: Promise<void>): Promise<void> {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const timedOut = new Promise<boolean>((resolve) => {
+      timer = setTimeout(() => resolve(true), this.contentConnectWaitMs);
+    });
+    const late = await Promise.race([connecting.then(() => false), timedOut]);
+    if (timer) clearTimeout(timer);
+    if (late) {
+      log.warn('Content qdrant still connecting; content collections unavailable until it answers');
+    }
+  }
+
+  private _connectContentInBackground(): Promise<void> {
+    if (this.contentConnecting) return this.contentConnecting;
+    if (!this.contentTarget) return Promise.resolve();
+    this.lastContentAttemptAt = Date.now();
+    this.contentConnecting = this._connectContent(this.contentTarget).finally(() => {
+      this.contentConnecting = null;
+    });
+    return this.contentConnecting;
+  }
+
+  /**
+   * Neuer Verbindungsversuch zum Content-Ziel, wenn kein Client da ist —
+   * höchstens einmal je healthCheckInterval, ohne den Aufrufer warten zu lassen.
+   */
+  private _reconnectContentIfDue(): void {
+    if (!this.contentTarget || this.contentClient || this.contentConnecting) return;
+    if (Date.now() - this.lastContentAttemptAt < this.healthCheckInterval) return;
+    void this._connectContentInBackground();
+  }
+
   /**
    * Verbindet das getrennte Content-Ziel. Ein Fehler hier lässt die Instanz
    * verbunden; Content-Sammlungen melden sich dann als nicht verfügbar.
@@ -326,6 +369,7 @@ export class QdrantService {
       return instance;
     }
     if (!this.contentClient) {
+      this._reconnectContentIfDue();
       throw new Error(`content qdrant unavailable (collection ${collection})`);
     }
     return this.contentClient;
@@ -345,9 +389,24 @@ export class QdrantService {
     return this.readClient(collection);
   }
 
+  /**
+   * Ob ein Client-Objekt für die Content-Sammlungen vorliegt — wie früher die
+   * Prüfung auf `qdrant.client`, also auch während einer Neuverbindung wahr.
+   */
   isContentAvailable(): boolean {
-    if (!this.isAvailableSync()) return false;
+    if (!this.instanceClient) return false;
     return this.contentTarget === null || this.contentClient !== null;
+  }
+
+  /**
+   * Ob readClient(collection) einen Client liefert — die Entsprechung der
+   * früheren Prüfung auf `qdrant.client`, unabhängig von isConnected.
+   */
+  hasClientFor(collection: string): boolean {
+    if (!this.contentTarget || qdrantStoreOf(collection) === 'instance') {
+      return this.instanceClient !== null;
+    }
+    return this.isContentAvailable();
   }
 
   private _requireInstanceClient(): QdrantClient {
@@ -426,31 +485,7 @@ export class QdrantService {
 
       // _performInit() baut auch den Content-Client neu auf.
       await this.init();
-      return;
     }
-
-    await this._ensureContentConnection();
-  }
-
-  /**
-   * Health-Check des getrennten Content-Ziels. Ein Ausfall betrifft nur die
-   * Content-Sammlungen; der Client wird bei jedem Fehler neu aufgebaut (SSL).
-   */
-  private async _ensureContentConnection(): Promise<void> {
-    if (!this.contentTarget) return;
-
-    if (this.contentClient) {
-      try {
-        await this.contentClient.getCollections();
-        return;
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        log.debug(`Content health check failed: ${message}`);
-        this.contentClient = null;
-      }
-    }
-
-    await this._connectContent(this.contentTarget);
   }
 
   async isAvailable(): Promise<boolean> {

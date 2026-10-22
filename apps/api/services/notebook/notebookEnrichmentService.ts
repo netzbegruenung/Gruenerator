@@ -256,7 +256,7 @@ export async function enrichCollection(
 
   const qdrant = getQdrantInstance();
   await qdrant.init();
-  if (!qdrant.isAvailableSync()) {
+  if (!qdrant.hasClientFor(collection)) {
     log.warn(`[${collection}] Qdrant client unavailable`);
     stats.error = 'Qdrant client unavailable';
     return stats;

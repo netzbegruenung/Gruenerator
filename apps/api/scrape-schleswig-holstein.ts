@@ -110,7 +110,7 @@ async function main() {
   // Step 6: Store in Qdrant
   console.log('6. Storing in Qdrant...');
   const qdrant = getQdrantInstance();
-  if (!qdrant.isAvailableSync()) {
+  if (!qdrant.hasClientFor(COLLECTION_NAME)) {
     throw new Error('Qdrant client not initialized');
   }
   for (let i = 0; i < points.length; i += BATCH_SIZE) {

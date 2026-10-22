@@ -108,7 +108,7 @@ describe('loadTermFrequencies', () => {
     });
 
     const result = await loadTermFrequencies(
-      { init, isAvailableSync: () => false, readClient: () => client },
+      { init, hasClientFor: () => false, readClient: () => client },
       'lv',
       undefined,
       ['a1x', 'b2y']
@@ -123,7 +123,7 @@ describe('loadTermFrequencies', () => {
     const client = { count } as unknown as QdrantClient;
 
     const result = await loadTermFrequencies(
-      { init: async () => {}, isAvailableSync: () => true, readClient: () => client },
+      { init: async () => {}, hasClientFor: () => true, readClient: () => client },
       'lv_slow',
       undefined,
       ['langsam', 'zaeh'],
@@ -138,7 +138,7 @@ describe('loadTermFrequencies', () => {
     const init = vi.fn(async () => {});
     expect(
       await loadTermFrequencies(
-        { init, isAvailableSync: () => false, readClient: () => client },
+        { init, hasClientFor: () => false, readClient: () => client },
         'lv',
         undefined,
         ['wolf']

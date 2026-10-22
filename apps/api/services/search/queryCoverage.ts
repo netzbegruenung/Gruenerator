@@ -111,7 +111,7 @@ export async function fetchTermFrequencies(
 /** What `loadTermFrequencies` needs of the Qdrant service: lazy init, then the collection's client. */
 interface QdrantAccess {
   init(): Promise<void>;
-  isAvailableSync(): boolean;
+  hasClientFor(collection: string): boolean;
   readClient(collection: string): QdrantClient;
 }
 
@@ -137,7 +137,7 @@ export async function loadTermFrequencies(
   let timer: ReturnType<typeof setTimeout> | null = null;
   try {
     await qdrant.init();
-    if (!qdrant.isAvailableSync()) return null;
+    if (!qdrant.hasClientFor(collection)) return null;
     const client = qdrant.readClient(collection);
     const deadline = new Promise<null>((resolve) => {
       timer = setTimeout(() => {

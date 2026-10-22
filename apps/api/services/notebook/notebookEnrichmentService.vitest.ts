@@ -25,7 +25,7 @@ const { client, nlp } = vi.hoisted(() => ({
 vi.mock('../../database/services/QdrantService/index.js', () => ({
   getQdrantInstance: () => ({
     init: () => Promise.resolve(),
-    isAvailableSync: () => true,
+    hasClientFor: () => true,
     readClient: () => client,
     writeClient: () => client,
   }),
