@@ -472,7 +472,18 @@ export async function buildStreamContext({
   // Checked before the user row is written, so the chip it keeps for a reload
   // carries the title the check resolved. The thread's earlier refs are merged
   // and checked further down, next to the cloud files.
-  const pickedNotebookSources: NotebookSourceRef[] = rawNotebookSourceRefs ?? [];
+  // @datei picks (`documentIds`) stay in the thread the same way (#4861): each
+  // authorized id rides along as a user-document ref, so it is stored, checked
+  // again every turn and comes back as a chip after a reload. On the turn of the
+  // pick it still goes through `documentIds` (inline text for short documents) —
+  // see the `notebookSources` handed to the graph below.
+  const pickedNotebookSources: NotebookSourceRef[] = [
+    ...(rawNotebookSourceRefs ?? []),
+    ...authorizedDocumentIds.map((documentId) => ({
+      documentId,
+      notebookId: documentScope.documentNotebookIds[documentId] ?? null,
+    })),
+  ];
   // `null`: the check itself failed — not the same as "no access".
   let pickedNotebookChecks: NotebookSourceCheck[] | null = [];
   if (pickedNotebookSources.length > 0) {
@@ -1037,7 +1048,11 @@ export async function buildStreamContext({
     wolkeFiles,
     cloudConnectionCount,
     connectFiles,
-    notebookSources,
+    // This turn's @datei picks already travel as `documentIds`; listed twice
+    // they would be summarised twice.
+    notebookSources: notebookSources.filter(
+      (s) => s.kind !== 'user' || !authorizedDocumentIds.includes(s.documentId)
+    ),
     attachedWebpageUrls: rawWebpageUrls?.length ? rawWebpageUrls : undefined,
     // When the docs editor sends a currentDocument, also surface its id as a
     // doc-mention so the existing modify_doc / summary intent paths activate
