@@ -74,7 +74,7 @@ export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSideb
               type="button"
               onClick={onClose}
               aria-label={`${title ?? 'Bereich'} schließen`}
-              className="flex-none size-8 rounded-full border-none bg-[var(--editor-tile)] text-[var(--editor-text-secondary)] flex items-center justify-center cursor-pointer"
+              className="flex-none size-8 max-canvas-mobile:size-11 rounded-full border-none bg-[var(--editor-tile)] text-[var(--editor-text-secondary)] flex items-center justify-center cursor-pointer"
             >
               <PiX size={16} />
             </button>

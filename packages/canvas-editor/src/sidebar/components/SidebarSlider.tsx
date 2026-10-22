@@ -40,7 +40,7 @@ export function SidebarSlider({
         </div>
       )}
       <Slider.Root
-        className="relative flex items-center select-none touch-none w-full h-4"
+        className="relative flex items-center select-none touch-none w-full h-4 max-canvas-mobile:h-11"
         value={[value]}
         onValueChange={handleValueChange}
         min={min}
@@ -51,7 +51,7 @@ export function SidebarSlider({
           <Slider.Range className="absolute rounded-full h-full bg-primary-500" />
         </Slider.Track>
         <Slider.Thumb
-          className="block size-3 bg-editor-surface rounded-[10px] shadow-[0_1px_4px_rgba(0,0,0,0.2)] cursor-pointer border-[1.5px] border-primary-500 transition-[transform,background-color] duration-100 hover:scale-110 hover:bg-editor-active-soft focus:outline-none focus:shadow-[0_0_0_3px_rgba(70,150,43,0.2)]"
+          className="block size-3 max-canvas-mobile:size-5 bg-editor-surface rounded-[10px] shadow-[0_1px_4px_rgba(0,0,0,0.2)] cursor-pointer border-[1.5px] border-primary-500 transition-[transform,background-color] duration-100 hover:scale-110 hover:bg-editor-active-soft focus:outline-none focus:shadow-[0_0_0_3px_rgba(70,150,43,0.2)]"
           aria-label={label || 'Slider'}
         />
       </Slider.Root>

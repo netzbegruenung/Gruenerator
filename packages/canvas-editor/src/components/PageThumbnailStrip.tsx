@@ -110,7 +110,7 @@ export const PageThumbnailStrip = memo(function PageThumbnailStrip({
       {canAddMore && (
         <div className="flex items-center shrink-0 ml-0.5 rounded-md bg-[var(--editor-inset)] border border-[var(--editor-border)] overflow-hidden">
           <button
-            className="h-8 px-2.5 flex items-center justify-center text-[var(--editor-text-secondary)] hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="h-8 max-canvas-mobile:h-11 max-canvas-mobile:min-w-11 px-2.5 flex items-center justify-center text-[var(--editor-text-secondary)] hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             onClick={handleQuickAdd}
             disabled={!currentTemplateId}
             title="Seite hinzufügen"
@@ -121,7 +121,7 @@ export const PageThumbnailStrip = memo(function PageThumbnailStrip({
           <div className="w-px h-4 bg-[var(--editor-border)]" />
           <button
             ref={chevronRef}
-            className="h-8 px-1.5 flex items-center justify-center text-[var(--editor-text-secondary)] hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] transition-colors"
+            className="h-8 max-canvas-mobile:h-11 max-canvas-mobile:min-w-11 px-1.5 flex items-center justify-center text-[var(--editor-text-secondary)] hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] transition-colors"
             onClick={handleToggleFlyout}
             title="Vorlage auswählen"
             type="button"

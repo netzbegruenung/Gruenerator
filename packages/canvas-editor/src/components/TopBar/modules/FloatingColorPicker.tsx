@@ -16,8 +16,11 @@ interface FloatingColorPickerProps {
   allowCustom?: boolean;
 }
 
-const colorBtn =
-  'size-8 max-canvas-mobile:size-[26px] rounded-full border border-black/10 cursor-pointer p-0 relative transition-transform duration-150 shrink-0 hover:-translate-y-0.5 active:scale-90';
+/* ::after gehört schon dem Auswahlring, darum ein ::before als 44px-Trefferfläche. */
+const HIT_44 =
+  "max-canvas-mobile:before:content-[''] max-canvas-mobile:before:absolute max-canvas-mobile:before:inset-[-9px]";
+
+const colorBtn = `size-8 max-canvas-mobile:size-[26px] rounded-full border border-black/10 cursor-pointer p-0 relative transition-transform duration-150 shrink-0 hover:-translate-y-0.5 active:scale-90 ${HIT_44}`;
 
 export function FloatingColorPicker({
   currentColor,
@@ -62,7 +65,7 @@ export function FloatingColorPicker({
       <div className="flex items-center shrink-0" ref={containerRef}>
         {variant === 'font' ? (
           <button
-            className="inline-flex flex-col items-center justify-center size-8 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)]"
+            className="inline-flex flex-col items-center justify-center size-8 max-canvas-mobile:size-11 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)]"
             onClick={(e) => {
               e.stopPropagation();
               setIsExpanded(true);
@@ -80,7 +83,7 @@ export function FloatingColorPicker({
           </button>
         ) : (
           <button
-            className="size-8 max-canvas-mobile:size-[26px] shrink-0 rounded-md border border-[var(--editor-border-strong)] cursor-pointer p-0 transition-transform duration-150 hover:-translate-y-0.5 active:scale-90"
+            className={`size-8 max-canvas-mobile:size-[26px] shrink-0 rounded-md border border-[var(--editor-border-strong)] cursor-pointer p-0 transition-transform duration-150 hover:-translate-y-0.5 active:scale-90 relative ${HIT_44}`}
             style={{ backgroundColor: currentColor }}
             onClick={(e) => {
               e.stopPropagation();
@@ -123,7 +126,7 @@ export function FloatingColorPicker({
           value={currentColor}
           presets={colorOptions.map((color) => color.value)}
           onPick={onColorSelect}
-          className="size-8 max-canvas-mobile:size-[26px]"
+          className={`size-8 max-canvas-mobile:size-[26px] ${HIT_44}`}
           outlineOffset={3}
         />
       )}

@@ -24,6 +24,27 @@
 /* Scan canvas-editor source for Tailwind class usage */
 @source "../**/*.{ts,tsx}";
 
+/* Trefferfläche auf die 44px aus WCAG 2.2 „Target Size" bringen, ohne die
+   Optik anzufassen — ein unsichtbares Pseudo-Element deckt die fehlenden
+   Pixel ab, statt das Element selbst wachsen zu lassen. Nur auf
+   Zeigergeräten, wo die Größe überhaupt ein Problem ist.
+   Voraussetzung: kein Vorfahre mit `overflow: hidden`, und das Element
+   benutzt `::after` nicht schon selbst. */
+@utility touch-target {
+  @media (pointer: coarse) {
+    position: relative;
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 50%;
+      min-width: 44px;
+      min-height: 44px;
+      translate: -50% -50%;
+    }
+  }
+}
+
 /**
  * Theme Configuration
  * Maps CSS variables to Tailwind's theme system.

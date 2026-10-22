@@ -196,7 +196,7 @@ export function CombinedTextSection({
               <button
                 type="button"
                 onClick={() => onRemoveText(text.id)}
-                className="shrink-0 size-7 flex items-center justify-center bg-transparent border-none rounded-md cursor-pointer text-foreground-muted transition-colors duration-150 hover:bg-red-50 hover:text-red-600"
+                className="touch-target shrink-0 size-7 flex items-center justify-center bg-transparent border-none rounded-md cursor-pointer text-foreground-muted transition-colors duration-150 hover:bg-red-50 hover:text-red-600"
                 aria-label="Text entfernen"
               >
                 <FaTrash size={11} />

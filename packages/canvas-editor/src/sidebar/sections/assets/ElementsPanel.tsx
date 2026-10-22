@@ -87,7 +87,7 @@ function SearchField({
           type="button"
           aria-label="Suche leeren"
           onClick={() => onChange('')}
-          className="size-7 rounded-lg grid place-items-center border-none bg-transparent cursor-pointer text-[var(--editor-text-muted)] hover:bg-[var(--editor-tile)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)]"
+          className="touch-target size-7 rounded-lg grid place-items-center border-none bg-transparent cursor-pointer text-[var(--editor-text-muted)] hover:bg-[var(--editor-tile)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)]"
         >
           <PiX size={16} />
         </button>
@@ -470,7 +470,7 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
                 <button
                   type="button"
                   onClick={() => openCategory('marke')}
-                  className="p-0 border-none bg-transparent cursor-pointer text-[13px] font-semibold text-[var(--editor-active-fg)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)] rounded"
+                  className="touch-target p-0 border-none bg-transparent cursor-pointer text-[13px] font-semibold text-[var(--editor-active-fg)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)] rounded"
                 >
                   Alle anzeigen
                 </button>

@@ -2,7 +2,7 @@ import React from 'react';
 import { FaPlus, FaMinus } from 'react-icons/fa';
 
 const fontBtn =
-  'size-7 rounded-md border-none bg-transparent cursor-pointer flex items-center justify-center text-[var(--editor-text-secondary)] transition-colors duration-150 hover:enabled:bg-[var(--editor-surface-hover)] hover:enabled:text-[var(--editor-active-fg)] disabled:opacity-30 disabled:cursor-not-allowed';
+  'touch-target size-7 rounded-md border-none bg-transparent cursor-pointer flex items-center justify-center text-[var(--editor-text-secondary)] transition-colors duration-150 hover:enabled:bg-[var(--editor-surface-hover)] hover:enabled:text-[var(--editor-active-fg)] disabled:opacity-30 disabled:cursor-not-allowed';
 
 interface FloatingFontSizeControlProps {
   fontSize: number;
