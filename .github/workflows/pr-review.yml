@@ -151,7 +151,9 @@ jobs:
                Dateien, Snapshots und reine Doku überspringen.
             2. Jede geänderte Quelldatei mit Read öffnen und den umliegenden
                Code lesen; Aufrufer und Gegenstellen per Grep suchen. Kein
-               Befund ohne gelesenen Kontext.
+               Befund ohne gelesenen Kontext. Dateien nie per Bash lesen
+               (`cat`, `sed`, `head`, `rg` …) — das ist gesperrt, und der
+               Check zählt nur Read und Grep.
             3. Jeden Kandidaten am Code verifizieren. CONFIRMED nur mit einem
                konkreten Fehlerszenario (Eingabe oder Zustand → falsches
                Ergebnis); sonst PLAUSIBLE oder verwerfen.
@@ -179,10 +181,16 @@ jobs:
             `advisory` und blockiert nicht. `review_complete` ist nur dann
             `true`, wenn jeder Teil des Reviews zurück ist und Verifikation,
             Inline-Kommentare und Übersicht erledigt sind — sonst `false`.
+          # Read-only-Befehle wie `cat`, `sed -n` oder `rg` gibt Claude Code
+          # ohne Nachfrage frei, an `--allowedTools` vorbei — und auch in
+          # `cd … &&`-Ketten. Liest der Lauf eine Datei so, sieht das Gate unten
+          # sie nicht und meldet sie als ungeöffnet (#4854). Eine Sperrregel
+          # geht jeder Freigabe vor; so bleibt für Dateiinhalte nur Read/Grep.
           claude_args: |
             --model ${{ steps.scope.outputs.model }}
             --max-turns ${{ steps.scope.outputs.max_turns }}
             --allowedTools "mcp__github_inline_comment__create_inline_comment,Read,Grep,Glob,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(git diff:*),Bash(git log:*)"
+            --disallowedTools "Bash(cat:*),Bash(head:*),Bash(tail:*),Bash(sed:*),Bash(awk:*),Bash(grep:*),Bash(rg:*),Bash(less:*),Bash(more:*),Bash(nl:*),Bash(git show:*),Bash(git grep:*)"
             --json-schema '{"type":"object","properties":{"overview":{"type":"string"},"confirmed_blocking":{"type":"integer"},"advisory":{"type":"integer"},"blocking_titles":{"type":"array","items":{"type":"string"}},"review_complete":{"type":"boolean"}},"required":["overview","confirmed_blocking","advisory","blocking_titles","review_complete"]}'
 
       # Der Check wird rot, sobald ein bestätigter Korrektheits- oder
