@@ -185,6 +185,8 @@ export interface ControllableCanvasWrapperProps {
   exportApiRef?: React.Ref<CanvasEditorExportApi>;
   /** See CanvasEditorProps.hostChrome. */
   hostChrome?: CanvasEditorHostChrome;
+  /** See CanvasEditorProps.readOnly. */
+  readOnly?: boolean;
 }
 
 /**
@@ -235,6 +237,7 @@ function ControllableCanvasEditor({
   showShare,
   exportApiRef,
   hostChrome,
+  readOnly,
 }: ControllableCanvasWrapperProps) {
   const isCollab = !!collaborative;
   const [internalState, setInternalState] = useState<CanvasState>(initialState);
@@ -516,6 +519,7 @@ function ControllableCanvasEditor({
             showShare={showShare}
             exportApiRef={exportApiRef}
             hostChrome={hostChrome}
+            readOnly={readOnly}
           />
         );
 

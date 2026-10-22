@@ -408,6 +408,8 @@ function CollabCanvasStudioContent() {
               }}
               initialTab={initialTab}
               onActiveTabChange={handleActiveTabChange}
+              // The connection's scope, not canEdit: project shares and editor links grant writes `permissions` lacks.
+              readOnly={collab.isReadOnly}
             />
           </div>
           {/* Lazy und erst beim ersten Öffnen gemountet: der Share-Dialog zieht
