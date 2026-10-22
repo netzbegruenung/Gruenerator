@@ -51,14 +51,13 @@ import { EditorDictationButton } from './EditorDictationButton';
 import { SuggestionPopover } from './SuggestionPopover';
 import { isDocAIForked } from '../../lib/aiExtension';
 import { disableGcOnAIFork } from '../../lib/forkedDocGc';
-import { guardDocUndoAcrossAIFork, type UndoGuardEditor } from '../../lib/undoAcrossAIFork';
+import { guardDocUndoAcrossAIFork } from '../../lib/undoAcrossAIFork';
 import { carryUndoAcrossEditorRecreate } from '../../lib/undoAcrossRecreate';
 import { type UndoableEditor } from '../../hooks/useDocUndoState';
 import { SuggestChangesExtension } from '../../lib/suggestChangesExtension';
 import { withStructuralUpdateFallback } from '../../lib/structuralUpdateFallback';
 import { HoldTableFixesExtension } from '../../lib/holdTableFixes';
 import { isDocAIInvocationInFlight } from '../../lib/invokeDocumentAI';
-import { YSyncBindingConsistencyExtension } from '../../lib/ySyncBindingConsistency';
 import { useSuggestionMode } from '../../hooks/useSuggestionMode';
 import './BlockNoteEditor.css';
 
@@ -246,12 +245,6 @@ const BlockNoteEditorInner = ({
       HoldTableFixesExtension({ isAIWriting: () => isDocAIInvocationInFlight(documentId) }),
     ];
 
-    // The AI fork/merge plugin swap briefly tears the ySync state; a
-    // collaborator's cursor then crashes accept/reject (GlitchTip #659).
-    if (collaborationOptions) {
-      exts.push(YSyncBindingConsistencyExtension);
-    }
-
     if (showComments && threadStore) {
       exts.push(
         CommentsExtension({
@@ -379,12 +372,9 @@ const BlockNoteEditorInner = ({
       isCollaborative: Boolean(collaborationOptions),
     });
 
-    // The same fork/merge cycle destroys the yUndo UndoManager while ProseMirror
-    // carries it over in the plugin state — without this guard, undo/redo is
-    // dead for the rest of the session after the first AI invocation. With the
-    // fragment it additionally captures the accepted AI merge as an undo step
-    // (#3261). See guardDocUndoAcrossAIFork.
-    const stopUndoGuard = guardDocUndoAcrossAIFork(editor as unknown as UndoGuardEditor, {
+    // BlockNote does not record the accepted AI merge on the undo stack; the
+    // guard makes it one undo step (#3261). See guardDocUndoAcrossAIFork.
+    const stopUndoGuard = guardDocUndoAcrossAIFork(editor as unknown as UndoableEditor, {
       isCollaborative: Boolean(collaborationOptions),
       fragment: fragment ?? null,
     });
