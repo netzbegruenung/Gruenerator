@@ -47,6 +47,7 @@ import { PAGE_PERSISTED_STATE_KEYS } from '../../collab/pageElementStateKeys';
 import { serializeDeck } from '../../collab/pagesDoc';
 import { createPageSyncedCallbacks } from '../../collab/wrapCallbacksWithPageSync';
 import { type CanvasConfigId } from '../../configs/types';
+import { exportPptxDeck } from '../../export/pptx/exportPptxDeck';
 import {
   exportPrintPdf,
   lowResolutionWarnings,
@@ -580,6 +581,26 @@ function CanvasEditorInner({
     [currentPageIndex, canvasRefsRef]
   );
 
+  // Wie capturePages: jede Seite braucht ihr gemountetes Stage, sonst bricht der Export ab.
+  const buildPptx = useCallback(
+    async (onProgress?: (done: number, total: number) => void) => {
+      await ensureFontsReady();
+      const deck = serializeDeck(pagesDoc);
+      const refs = canvasRefsRef.current;
+      if (deck.some((_, i) => !refs[i]?.current)) {
+        throw new Error('Nicht alle Folien konnten exportiert werden');
+      }
+      return exportPptxDeck({
+        pages: deck.map((page) => page.state),
+        format: getCanvasFormatOrDefault(formatId),
+        rasterizeElement: async (slideIndex, elementId) =>
+          (await refs[slideIndex]?.current?.rasterizeElement(elementId)) ?? null,
+        ...(documentTitle ? { title: documentTitle } : {}),
+        ...(onProgress ? { onProgress } : {}),
+      });
+    },
+    [pagesDoc, canvasRefsRef, formatId, documentTitle]
+  );
   useImperativeHandle(
     exportApiRef,
     () => ({
@@ -591,11 +612,12 @@ function CanvasEditorInner({
         await ensureFontsReady();
         return exportAllPages({ pixelRatio });
       },
+      exportPptx: () => buildPptx(),
       getPages: () => serializeDeck(pagesDoc).map(({ configId, state }) => ({ configId, state })),
       undo: toolbarHandlers.undo,
       redo: toolbarHandlers.redo,
     }),
-    [handleCaptureCanvas, exportAllPages, pagesDoc, toolbarHandlers]
+    [handleCaptureCanvas, exportAllPages, buildPptx, pagesDoc, toolbarHandlers]
   );
 
   const handleCaptureCanvasForAi = useCallback(async () => {
@@ -846,6 +868,15 @@ function CanvasEditorInner({
   }, [printFormat, printPages, canvasRefsRef, documentTitle]);
 
   const isSlideDeck = useMemo(() => isSlideFormat(getCanvasFormatOrDefault(formatId)), [formatId]);
+  const handleDownloadPptx = useCallback(
+    async (onProgress: (done: number, total: number) => void) => {
+      const blob = await buildPptx(onProgress);
+      const filename = printPdfFilename(documentTitle ?? 'Präsentation').replace(/\.pdf$/, '.pptx');
+      await downloadBlob(blob, filename);
+    },
+    [buildPptx, documentTitle]
+  );
+
   const handleDownloadSlidesPdf = useCallback(async () => {
     await ensureFontsReady();
     const images = await exportAllPages({ pixelRatio: SLIDES_PDF_PIXEL_RATIO });
@@ -1151,11 +1182,14 @@ function CanvasEditorInner({
             impressum: impressumGate,
           }
         : null,
-      slidesPdf: isSlideDeck ? { onDownloadPdf: handleDownloadSlidesPdf } : null,
+      slideDeck: isSlideDeck
+        ? { onDownloadPdf: handleDownloadSlidesPdf, onDownloadPptx: handleDownloadPptx }
+        : null,
     }),
     [
       isSlideDeck,
       handleDownloadSlidesPdf,
+      handleDownloadPptx,
       printFormat,
       impressumGate,
       handleDownloadPdf,

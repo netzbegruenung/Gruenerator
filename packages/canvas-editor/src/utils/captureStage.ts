@@ -1,3 +1,5 @@
+import { CANVAS_ITEM_NAME } from './deepSelect';
+
 import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
 import type Konva from 'konva';
@@ -62,6 +64,39 @@ export async function captureStageImageAsync(
   } catch {
     return null;
   }
+}
+
+/**
+ * One element alone as PNG, for the PPTX export: the `canvas-item` group
+ * `CanvasRenderLayer` wraps around it, rendered over its axis-aligned box.
+ * Rotation, opacity and shadow are in the picture; the box comes back in
+ * page px (the stage is shown scaled). Null when no group carries the id.
+ */
+export function rasterizeStageElement(
+  stage: Konva.Stage | null,
+  elementId: string,
+  pixelRatio = 2
+): { dataUrl: string; box: { x: number; y: number; width: number; height: number } } | null {
+  if (!stage) return null;
+  const node = stage
+    .find(`.${CANVAS_ITEM_NAME}`)
+    .find((candidate) => candidate.getAttr('canvasItemId') === elementId);
+  if (!node || !node.isVisible()) return null;
+  const rect = node.getClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return null;
+  const scale = stage.scaleX() || 1;
+  const dataUrl = withSelectionChromeHidden(stage, () =>
+    node.toDataURL({ ...rect, pixelRatio: pixelRatio / scale, mimeType: 'image/png' })
+  );
+  return {
+    dataUrl,
+    box: {
+      x: rect.x / scale,
+      y: rect.y / scale,
+      width: rect.width / scale,
+      height: rect.height / scale,
+    },
+  };
 }
 
 /** A bullet or arrow glyph alone carries nothing a reader needs. */
