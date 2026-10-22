@@ -1,12 +1,17 @@
 import { type MarketplaceItem } from '@gruenerator/contracts';
-import { toGalleryAsset, useMarketplaceSave } from '@gruenerator/shared/marketplace';
+import {
+  marketplaceKeys,
+  toGalleryAsset,
+  useMarketplaceSave,
+} from '@gruenerator/shared/marketplace';
 import { profilbildAssetParams } from '@gruenerator/shared/stickers';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { Alert, Linking } from 'react-native';
 
 import { routeWithParams } from '../../types/routes';
 
-import { marketplaceOpenTarget } from './marketplaceTarget';
+import { marketplaceOpenTarget, marketplaceRoute } from './marketplaceTarget';
 
 /** Runs a navigation; a sheet closes itself first and navigates once it is gone. */
 export type Navigate = (run: () => void) => void;
@@ -16,6 +21,11 @@ const navigateNow: Navigate = (run) => run();
 const showError = (error: Error) => Alert.alert('Fehler', error.message);
 
 export interface MarketplaceActions {
+  /**
+   * The item's own Marktplatz page (`/marktplatz?item=`), pushed onto the
+   * stack so the system back returns to where the tap came from.
+   */
+  show: (item: MarketplaceItem) => void;
   /** Detail page, web viewer or an external Vorlage's own URL. */
   open: (item: MarketplaceItem) => void;
   /** A new chat with the Agent, or with the Rezept's mention typed. */
@@ -32,7 +42,15 @@ export interface MarketplaceActions {
  */
 export function useMarketplaceActions(navigate: Navigate = navigateNow): MarketplaceActions {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const save = useMarketplaceSave();
+
+  const show = (item: MarketplaceItem) => {
+    const target = { kind: item.kind, ref: item.ref };
+    // The page reads the item query; seeded, it opens without a loading pass.
+    queryClient.setQueryData(marketplaceKeys.item(target, 'mobile'), item);
+    navigate(() => router.push(marketplaceRoute({ item: target })));
+  };
 
   const open = (item: MarketplaceItem) => {
     const target = marketplaceOpenTarget(item);
@@ -74,6 +92,7 @@ export function useMarketplaceActions(navigate: Navigate = navigateNow): Marketp
   };
 
   return {
+    show,
     open,
     startChat,
     toProfilbild,
