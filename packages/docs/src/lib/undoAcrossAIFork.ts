@@ -2,7 +2,11 @@ import { YUndoExtension } from '@blocknote/core/yjs';
 import * as Y from 'yjs';
 
 import { getDocForkStore } from './aiExtension';
-import { getDocUndoManager, type UndoableEditor } from '../hooks/useDocUndoState';
+import {
+  getDocUndoManager,
+  notifyDocUndoStacksRewritten,
+  type UndoableEditor,
+} from '../hooks/useDocUndoState';
 
 /**
  * Keep undo/redo alive across BlockNote's AI fork/merge cycle.
@@ -199,6 +203,8 @@ export function guardDocUndoAcrossAIFork(
     } else {
       onMergeEnd();
     }
+    // Both handlers assign the stacks by hand, which no UndoManager event reports.
+    notifyDocUndoStacksRewritten(editor);
   });
 
   return () => {
