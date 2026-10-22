@@ -13,14 +13,12 @@ import express from 'express';
 import chatMessageRouter from './chatMessageExport.js';
 import docxRouter from './docxController.js';
 import pdfRouter from './pdfController.js';
-import zipRouter from './zipController.js';
 
 const router = express.Router();
 
 // Mount sub-routers
 router.use('/pdf', pdfRouter);
 router.use('/docx', docxRouter);
-router.use('/zip', zipRouter);
 router.use('/chat-message', chatMessageRouter);
 
 export default router;
@@ -28,7 +26,6 @@ export default router;
 // Named exports for individual controllers
 export { default as pdfController } from './pdfController.js';
 export { default as docxController } from './docxController.js';
-export { default as zipController } from './zipController.js';
 export { default as chatMessageExport } from './chatMessageExport.js';
 
 // Utility exports
