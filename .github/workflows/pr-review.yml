@@ -76,11 +76,13 @@ jobs:
           LARGE_MODEL: ${{ vars.PR_REVIEW_MODEL || 'claude-sonnet-5' }}
         run: |
           gh api --paginate "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" \
-            --jq '.[] | "\(.additions + .deletions)\t\(.status)\t\(.filename)"' \
+            --jq '.[] | "\(.additions + .deletions)\t\(.status)\t\(.filename)\t\(.deletions)"' \
             | awk -F'\t' '$3 !~ ENVIRON["SKIP_RE"]' > "$RUNNER_TEMP/review-scope.tsv"
 
           LINES=$(awk -F'\t' '{s += $1} END {print s + 0}' "$RUNNER_TEMP/review-scope.tsv")
           awk -F'\t' '$2 != "removed" {print $3}' "$RUNNER_TEMP/review-scope.tsv" | sort -u > "$RUNNER_TEMP/review-files.txt"
+          # Pure additions: the PR diff carries every changed line of these.
+          awk -F'\t' '$2 != "removed" && $4 == 0 {print $3}' "$RUNNER_TEMP/review-scope.tsv" | sort -u > "$RUNNER_TEMP/review-additions.txt"
           FILES=$(grep -c . "$RUNNER_TEMP/review-files.txt" || true)
 
           if [ "$LINES" -lt "$SMALL_LINES" ]; then
@@ -228,15 +230,25 @@ jobs:
           # weniger Dateien: alle) — per Read, oder per Grep auf genau diese
           # Datei mit `output_mode: content`. Grep ohne den Modus liefert nur
           # Dateinamen, keine Zeile Code.
+          # Hat der Lauf den PR-Diff abgerufen, zählen Dateien mit reinen
+          # Ergänzungen mit: der Diff enthält jede geänderte Zeile (#4839, ein
+          # angehängter Testblock galt dreimal als ungelesen). Mit Löschungen
+          # bleibt Lesen Pflicht — der Diff zeigt dann nicht, was stehen bleibt.
           NEED=$(( FILES < 3 ? FILES : 3 ))
-          OPENED=$(jq -r '.[] | select(.type == "assistant") | .message.content[]?
-              | select(.type == "tool_use")
-              | if .name == "Read" then .input.file_path
-                elif .name == "Grep" and .input.output_mode == "content" then .input.path
-                else empty end
-              | strings' \
-              "$RUNNER_TEMP/claude-execution-output.json" \
-            | sed "s#^$GITHUB_WORKSPACE/##" | sort -u \
+          DIFF_SEEN=$(jq -r '[.[] | select(.type == "assistant") | .message.content[]?
+              | select(.type == "tool_use" and .name == "Bash")
+              | .input.command // "" | select(test("gh pr diff"))] | length' \
+              "$RUNNER_TEMP/claude-execution-output.json")
+          OPENED=$({
+              jq -r '.[] | select(.type == "assistant") | .message.content[]?
+                | select(.type == "tool_use")
+                | if .name == "Read" then .input.file_path
+                  elif .name == "Grep" and .input.output_mode == "content" then .input.path
+                  else empty end
+                | strings' \
+                "$RUNNER_TEMP/claude-execution-output.json" | sed "s#^$GITHUB_WORKSPACE/##"
+              if [ "$DIFF_SEEN" -gt 0 ]; then cat "$RUNNER_TEMP/review-additions.txt"; fi
+            } | sort -u \
             | comm -12 - "$RUNNER_TEMP/review-files.txt" | grep -c . || true)
           echo "Geöffnete geänderte Dateien: $OPENED von $FILES (nötig: $NEED)"
           if [ "$OPENED" -lt "$NEED" ]; then
