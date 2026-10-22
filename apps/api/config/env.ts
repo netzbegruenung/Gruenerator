@@ -58,6 +58,11 @@ const envSchema = z.object({
   WORKER_COUNT: numStr(2),
 
   // ── Session / Auth core ────────────────────────────────────────────────
+  /**
+   * Required in production: it signs the app login code and the WebView
+   * handoff token, and without it both fail on first use
+   * (`utils/authTokenSecret.ts`). Optional here so the rest of the API boots.
+   */
   SESSION_SECRET: z.string().optional(),
   /**
    * Signing key for search-image proxy handles. Optional: falls back to

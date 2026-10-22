@@ -2,18 +2,20 @@ import { createAuthEndpoint } from 'better-auth/api';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 
 import { env } from '../config/env.js';
+import { getAuthTokenSecret } from '../utils/authTokenSecret.js';
 import { createLogger } from '../utils/logger.js';
 import { captureAuthIssue } from '../utils/observability/captureAuthIssue.js';
+import redisClient from '../utils/redis/client.js';
 
 import type { BetterAuthPlugin } from 'better-auth';
 
-// Matches the signing key used by `appLogin.ts` when it mints the short-lived
-// login-code after a successful OAuth callback. The code is passed through
-// the custom scheme (`gruenerator://auth/callback?code=…`) and exchanged
-// here for a Better Auth session token.
-const LOGIN_CODE_SECRET = new TextEncoder().encode(
-  env.SESSION_SECRET ?? 'fallback-secret-please-change'
-);
+// `appLogin.ts` mints the short-lived login code after a successful OAuth
+// callback (signed with `getAuthTokenSecret`) and stores its `jti` under this
+// prefix. The code is passed through the custom scheme
+// (`gruenerator://auth/callback?code=…`) and exchanged here, once, for a
+// Better Auth session token.
+export const APP_LOGIN_CODE_REDIS_PREFIX = 'app-login:code:';
+export const APP_LOGIN_CODE_TTL_SECONDS = 60;
 
 const log = createLogger('mobileTokenExchange');
 
@@ -174,11 +176,13 @@ export const mobileTokenExchange = () => {
             throw new Error('code is required');
           }
 
-          let payload: { sub?: string; token_use?: string };
+          // Outside the try: a missing secret is a server fault, not a bad code.
+          const secret = getAuthTokenSecret();
+          let payload: { sub?: string; token_use?: string; jti?: string };
           try {
-            const verified = await jwtVerify<{ sub?: string; token_use?: string }>(
+            const verified = await jwtVerify<{ sub?: string; token_use?: string; jti?: string }>(
               code,
-              LOGIN_CODE_SECRET,
+              secret,
               {
                 issuer: 'gruenerator-auth',
                 audience: 'gruenerator-app-login-code',
@@ -202,12 +206,33 @@ export const mobileTokenExchange = () => {
             throw new Error('Login code is invalid or expired');
           }
 
-          if (payload.token_use !== 'app_login_code' || !payload.sub) {
+          if (payload.token_use !== 'app_login_code' || !payload.sub || !payload.jti) {
             log.warn('[TokenExchangeCode] Invalid token payload', {
               token_use: payload.token_use,
               hasSub: Boolean(payload.sub),
+              hasJti: Boolean(payload.jti),
             });
             throw new Error('Invalid token payload');
+          }
+
+          // `getDel` is the single-use gate. The signature alone would let the
+          // same code be redeemed repeatedly for its full lifetime.
+          const storedUserId = await redisClient.getDel(
+            `${APP_LOGIN_CODE_REDIS_PREFIX}${payload.jti}`
+          );
+          if (storedUserId == null) {
+            log.warn('[TokenExchangeCode] Login code already used or expired (jti consumed)');
+            throw new Error('Login code is invalid or expired');
+          }
+          if (storedUserId !== payload.sub) {
+            // Signature and store disagree — treat as tampering, not as a stale entry.
+            log.error('[TokenExchangeCode] Login code subject mismatch');
+            captureAuthIssue({
+              stage: 'token-exchange',
+              cause: new Error('login code subject mismatch'),
+              extras: { path: 'login-code' },
+            });
+            throw new Error('Login code is invalid or expired');
           }
 
           const userId = payload.sub;
