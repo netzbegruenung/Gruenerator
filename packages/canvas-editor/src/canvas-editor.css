@@ -394,24 +394,33 @@ input[type='number'].hide-spinner {
 
 /* ── Touch baseline (mobile feel) ──
    Scoped to the editor: the legacy global `button { transition: ... 0.5s }`
-   (apps/web global.css) must stay untouched for the rest of the app. */
-html:has(.canvas-editor-layout),
-html:has(.canvas-editor-layout) body {
-  overscroll-behavior: none;
-}
+   (apps/web global.css) must stay untouched for the rest of the app.
+   Layered on purpose: apps/web imports global.css as `layer(legacy)` and
+   declares `base, legacy, components, utilities`, so `components` beats the
+   legacy fade while utilities (duration-*, touch-none, select-text) still
+   beat the baseline. Unlayered it would override every utility as well. */
+@layer components {
+  /* Mobile only: desktop keeps trackpad swipe-back. */
+  @media (max-width: 899px) {
+    html:has(.canvas-editor-layout),
+    html:has(.canvas-editor-layout) body {
+      overscroll-behavior: none;
+    }
+  }
 
-.canvas-editor-layout button {
-  transition-duration: 100ms;
-  transition-timing-function: var(--editor-ease-out);
-}
+  .canvas-editor-layout button {
+    transition-duration: 100ms;
+    transition-timing-function: var(--editor-ease-out);
+  }
 
-.canvas-editor-layout :is(button, [role='button'], [role='tab']) {
-  touch-action: manipulation;
-  -webkit-user-select: none;
-  user-select: none;
-  -webkit-touch-callout: none;
-}
+  .canvas-editor-layout :is(button, [role='button'], [role='tab']) {
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
 
-.canvas-editor-layout img {
-  -webkit-touch-callout: none;
+  .canvas-editor-layout img {
+    -webkit-touch-callout: none;
+  }
 }

@@ -13,10 +13,25 @@ const webVars = read('apps/web/src/assets/styles/common/variables.css');
 const editorVars = read('packages/canvas-editor/src/styles/variables.css');
 
 describe('canvas editor mobile baseline', () => {
-  it('scopes instant press feedback and touch rules to the editor', () => {
+  // apps/web loads global.css in `@layer legacy` (order: base, legacy,
+  // components, utilities). Unlayered, the baseline also beat every utility
+  // (duration-*, touch-none, select-text); in `components` it beats only the
+  // legacy `button { transition: … 0.5s }`.
+  it('puts the touch baseline in the components layer', () => {
+    const layer = /@layer components\s*\{([\s\S]*?)\n\}/.exec(css)?.[1] ?? '';
+    expect(layer).toMatch(/\.canvas-editor-layout button[^{]*\{[^}]*transition-duration:\s*100ms/);
+    expect(layer).toMatch(/touch-action:\s*manipulation/);
+    expect(layer).toMatch(/html:has\(\.canvas-editor-layout\)/);
+  });
+
+  it('stops page overscroll only in the mobile layout', () => {
+    // Desktop keeps trackpad swipe-back.
     expect(css).toMatch(
-      /html:has\(\.canvas-editor-layout\)[^{]*\{[^}]*overscroll-behavior:\s*none/
+      /@media \(max-width: 899px\)\s*\{\s*html:has\(\.canvas-editor-layout\)[^{]*\{[^}]*overscroll-behavior:\s*none/
     );
+  });
+
+  it('scopes instant press feedback and touch rules to the editor', () => {
     expect(css).toMatch(/\.canvas-editor-layout button[^{]*\{[^}]*transition-duration:\s*100ms/);
     expect(css).toMatch(/touch-action:\s*manipulation/);
     expect(css).toMatch(/-webkit-touch-callout:\s*none/);
