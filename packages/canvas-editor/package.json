@@ -31,6 +31,11 @@
       "types": "./src/composer/index.ts"
     },
     "./configs/*": "./src/configs/*",
+    "./slides": {
+      "import": "./src/slides/slideLayouts.ts",
+      "require": "./src/slides/slideLayouts.ts",
+      "types": "./src/slides/slideLayouts.ts"
+    },
     "./zip": {
       "import": "./src/utils/zipPageImages.ts",
       "require": "./src/utils/zipPageImages.ts",
