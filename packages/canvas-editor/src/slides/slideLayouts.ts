@@ -443,24 +443,31 @@ function diagramm(b: SlideBuilder, locale: BrandLocale) {
     height: 340,
     scale,
     chartType: 'bar',
+    // Die Beispielwerte der CD-Vorlage: drei Reihen über vier Kategorien.
     data: [
       { name: 'Kategorie 1', value: 4.3 },
       { name: 'Kategorie 2', value: 2.5 },
       { name: 'Kategorie 3', value: 3.5 },
       { name: 'Kategorie 4', value: 4.5 },
     ],
+    series: [
+      { name: 'Datenreihe 1', values: [4.3, 2.5, 3.5, 4.5] },
+      { name: 'Datenreihe 2', values: [2.4, 4.4, 1.8, 2.8] },
+      { name: 'Datenreihe 3', values: [2, 2, 3, 5] },
+    ],
     colors: colors.slice(0, 3),
     title: '',
-    showLegend: false,
+    showLegend: true,
+    legendPosition: 'bottom',
     showGrid: true,
   });
-  b.text('folie-diagramm-2-titel', 'Torte', 1060, 260, 760, 30, { align: 'center' });
+  b.text('folie-diagramm-2-titel', 'Torte', 1030, 260, 800, 30, { align: 'center' });
   b.chart({
     ...base,
     id: 'folie-diagramm-2',
-    x: 1060,
+    x: 1030,
     y: 310,
-    width: 380,
+    width: 400,
     height: 340,
     scale,
     chartType: 'pie',
@@ -473,6 +480,7 @@ function diagramm(b: SlideBuilder, locale: BrandLocale) {
     colors: colors.slice(0, 4),
     title: '',
     showLegend: true,
+    legendPosition: 'bottom',
     showGrid: false,
   });
 }
