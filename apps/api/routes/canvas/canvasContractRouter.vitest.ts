@@ -12,9 +12,11 @@ const createCanvas = vi.fn();
 const seedCanvasPages = vi.fn();
 const getCanvas = vi.fn();
 const listCanvases = vi.fn();
+const getThreadAccessLevel = vi.fn();
 
 vi.mock('./services/canvasAiCheck.js', () => ({ checkCanvasEdit }));
 vi.mock('../chat/services/sharepicEditService.js', () => ({ mintCanvasForVariant }));
+vi.mock('../chat/services/threadAccessService.js', () => ({ getThreadAccessLevel }));
 vi.mock('../../services/canvas/canvasRepository.js', () => ({
   createCanvas,
   checkCanvasWriteAccess,
@@ -64,6 +66,7 @@ async function fromVariant(body: Record<string, unknown>) {
 
 beforeEach(() => {
   mintCanvasForVariant.mockReset().mockResolvedValue({ canvasId: 'c1', minted: true });
+  getThreadAccessLevel.mockReset().mockResolvedValue('owner');
 });
 
 describe('canvas.fromVariant', () => {
@@ -124,6 +127,42 @@ describe('canvas.fromVariant', () => {
   it('mints without a title when the client sends none', async () => {
     await fromVariant({ ...base, canvasType: 'dreizeilen', initialProps: { line1: 'a' } });
     expect(mintCanvasForVariant).toHaveBeenCalledWith(expect.objectContaining({ title: null }));
+  });
+
+  it('answers 404 without minting when the caller cannot access the thread', async () => {
+    getThreadAccessLevel.mockResolvedValue('none');
+    const res = await fromVariant({
+      ...base,
+      canvasType: 'dreizeilen',
+      initialProps: { line1: 'a' },
+    });
+    expect(res.status).toBe(404);
+    expect(getThreadAccessLevel).toHaveBeenCalledWith('t1', 'user-1');
+    expect(mintCanvasForVariant).not.toHaveBeenCalled();
+  });
+
+  it('mints an unbound canvas for a read-only viewer of the thread', async () => {
+    getThreadAccessLevel.mockResolvedValue('read');
+    const res = await fromVariant({
+      ...base,
+      canvasType: 'dreizeilen',
+      initialProps: { line1: 'a' },
+    });
+    expect(res.status).toBe(201);
+    expect(mintCanvasForVariant).toHaveBeenCalledWith(
+      expect.objectContaining({ bindToThread: false })
+    );
+  });
+
+  it('binds the canvas to the thread for someone who may write it', async () => {
+    for (const level of ['write', 'owner']) {
+      mintCanvasForVariant.mockClear();
+      getThreadAccessLevel.mockResolvedValue(level);
+      await fromVariant({ ...base, canvasType: 'dreizeilen', initialProps: { line1: 'a' } });
+      expect(mintCanvasForVariant).toHaveBeenCalledWith(
+        expect.objectContaining({ bindToThread: true })
+      );
+    }
   });
 });
 
