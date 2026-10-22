@@ -5,6 +5,7 @@ export type {
   CanvasEditorExportApi,
   CanvasEditorHostChrome,
 } from './components/CanvasEditor/types';
+export { EDITOR_KEY_SHIELD_ATTRIBUTE } from './components/CanvasEditor/hooks/usePageUndoRedoShortcuts';
 export { templateFitsFormat } from './utils/templateRegistry';
 export { CanvasEditorProvider, useCanvasEditorServices } from './CanvasEditorProvider';
 export type {

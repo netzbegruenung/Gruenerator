@@ -1,4 +1,7 @@
-import { type CanvasEditorExportApi } from '@gruenerator/canvas-editor';
+import {
+  EDITOR_KEY_SHIELD_ATTRIBUTE,
+  type CanvasEditorExportApi,
+} from '@gruenerator/canvas-editor';
 import {
   useCallback,
   useEffect,
@@ -120,16 +123,18 @@ export function CanvasPresentMode({
   );
 
   // Capture-Phase auf window: der Editor hört dort in der Bubble-Phase (Pfeile
-  // schieben Elemente, Entf löscht). Solange die Präsentation offen ist, kommt
-  // keine Taste ohne Strg/Cmd bis dorthin.
+  // schieben Elemente, Entf löscht, Strg/Cmd+Z macht rückgängig). Solange die
+  // Präsentation offen ist, kommt keine Taste bis dorthin; das früher
+  // registrierte Seiten-Undo (Capture) hält EDITOR_KEY_SHIELD_ATTRIBUTE fern.
+  // Browser-Kürzel bleiben, weil nur die Weitergabe gestoppt wird.
   const goRef = useRef(go);
   useEffect(() => {
     goRef.current = go;
   });
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      e.stopImmediatePropagation();
       if (e.ctrlKey || e.metaKey || e.altKey) return;
-      e.stopPropagation();
       const onButton = e.target instanceof HTMLElement && e.target.tagName === 'BUTTON';
       switch (e.key) {
         case ' ':
@@ -181,6 +186,7 @@ export function CanvasPresentMode({
       role="dialog"
       aria-modal="true"
       aria-label="Präsentation"
+      {...{ [EDITOR_KEY_SHIELD_ATTRIBUTE]: '' }}
       tabIndex={-1}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}

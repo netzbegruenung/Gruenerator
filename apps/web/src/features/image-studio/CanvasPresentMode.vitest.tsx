@@ -1,4 +1,7 @@
-import { type CanvasEditorExportApi } from '@gruenerator/canvas-editor';
+import {
+  EDITOR_KEY_SHIELD_ATTRIBUTE,
+  type CanvasEditorExportApi,
+} from '@gruenerator/canvas-editor';
 import { createRef, type RefObject } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -51,6 +54,27 @@ describe('CanvasPresentMode', () => {
       await screen.findByAltText('Folie 1 von 3');
       await user.keyboard('{Delete}{Backspace}{ArrowRight}');
       expect(editorHandler).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener('keydown', editorHandler);
+    }
+  });
+
+  it('keeps undo/redo and modifier deletes away from the editor while open', async () => {
+    const user = userEvent.setup();
+    const editorHandler = vi.fn();
+    window.addEventListener('keydown', editorHandler);
+    try {
+      setup();
+      const dialog = await screen.findByRole('dialog', { name: 'Präsentation' });
+      await screen.findByAltText('Folie 1 von 3');
+      // Das früher registrierte Seiten-Undo (Capture) erkennt das Overlay am Attribut.
+      expect(dialog.hasAttribute(EDITOR_KEY_SHIELD_ATTRIBUTE)).toBe(true);
+      await user.keyboard(
+        '{Control>}z{/Control}{Control>}{Shift>}z{/Shift}{/Control}{Control>}y{/Control}' +
+          '{Meta>}z{/Meta}{Meta>}{Backspace}{/Meta}{Control>}{Delete}{/Control}'
+      );
+      expect(editorHandler).not.toHaveBeenCalled();
+      expect(screen.getByAltText('Folie 1 von 3')).toBeTruthy();
     } finally {
       window.removeEventListener('keydown', editorHandler);
     }
