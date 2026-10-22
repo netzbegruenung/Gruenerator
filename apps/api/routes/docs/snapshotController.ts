@@ -5,6 +5,7 @@ import { Router, type Request, type Response } from 'express';
 import * as Y from 'yjs';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import { fragmentToSafeXml } from '../../services/docs/fragmentToSafeXml.js';
 
 import { DOCS_SUBTYPES } from './constants.js';
 
@@ -257,9 +258,10 @@ router.get(
       const ydoc = new Y.Doc();
       Y.applyUpdate(ydoc, decompressed);
 
+      // Rendered via dangerouslySetInnerHTML in VersionHistory — never pass
+      // the raw fragment.toString(), it escapes nothing.
       const fragment = ydoc.getXmlFragment('document-store');
-      const xml = fragment.toString();
-      const html = blockNoteXmlToHtml(xml);
+      const html = blockNoteXmlToHtml(fragmentToSafeXml(fragment));
 
       return res.json({
         version,
