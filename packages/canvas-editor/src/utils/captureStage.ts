@@ -83,9 +83,12 @@ export function rasterizeStageElement(
     .find(`.${CANVAS_ITEM_NAME}`)
     .find((candidate) => candidate.getAttr('canvasItemId') === elementId);
   if (!node || !node.isVisible()) return null;
+  // Absolut (inkl. Zoom und Verschiebung des Stage) für toDataURL, das in
+  // diesen Koordinaten schneidet; relativ zum Stage = Seiten-px für die Box.
   const rect = node.getClientRect();
-  if (rect.width <= 0 || rect.height <= 0) return null;
-  const scale = stage.scaleX() || 1;
+  const box = node.getClientRect({ relativeTo: stage });
+  if (rect.width <= 0 || rect.height <= 0 || box.width <= 0) return null;
+  const scale = rect.width / box.width;
   let dataUrl: string;
   try {
     dataUrl = withSelectionChromeHidden(stage, () =>
@@ -99,12 +102,7 @@ export function rasterizeStageElement(
   }
   return {
     dataUrl,
-    box: {
-      x: rect.x / scale,
-      y: rect.y / scale,
-      width: rect.width / scale,
-      height: rect.height / scale,
-    },
+    box: { x: box.x, y: box.y, width: box.width, height: box.height },
   };
 }
 
