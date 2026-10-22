@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { FaCheck, FaExclamationTriangle } from 'react-icons/fa';
 
 import { useAutoSaveStore } from '../../stores/useAutoSaveStore';
-
 import { cn } from '../../utils/cn';
 
 /**
@@ -61,7 +60,7 @@ export function AutoSaveIndicator({ onDark = false }: { onDark?: boolean }) {
       )}
       {autoSaveStatus === 'error' && (
         <button
-          className="bg-transparent border-none p-0 cursor-pointer flex items-center justify-center"
+          className="touch-target bg-transparent border-none p-0 cursor-pointer flex items-center justify-center"
           onClick={() => retryAutoSave?.()}
           aria-label="Speichern erneut versuchen"
           type="button"

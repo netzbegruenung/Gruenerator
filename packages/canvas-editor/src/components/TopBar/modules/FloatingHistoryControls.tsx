@@ -6,7 +6,7 @@ const iconBtnLight =
 
 // On the green menu bar: white glyphs, translucent-white hover.
 const iconBtnDark =
-  'size-[34px] max-canvas-mobile:size-8 rounded-[10px] border-none bg-transparent cursor-pointer flex items-center justify-center text-white/90 transition-[background-color,color] duration-200 hover:enabled:bg-white/15 hover:enabled:text-white active:enabled:bg-white/25 disabled:opacity-40 disabled:cursor-not-allowed';
+  'size-[34px] max-canvas-mobile:size-11 rounded-[10px] border-none bg-transparent cursor-pointer flex items-center justify-center text-white/90 transition-[background-color,color] duration-200 hover:enabled:bg-white/15 hover:enabled:text-white active:enabled:bg-white/25 disabled:opacity-40 disabled:cursor-not-allowed';
 
 interface FloatingHistoryControlsProps {
   onUndo: () => void;

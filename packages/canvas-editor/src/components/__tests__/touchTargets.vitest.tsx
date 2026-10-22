@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { render, screen } from '@testing-library/react';
+import { useLayoutEffect } from 'react';
 import { PiTextAa } from 'react-icons/pi';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -10,9 +11,12 @@ import { FontSizeStepper } from '../../sidebar/components/TextFieldPrimitives';
 import { CombinedTextSection } from '../../sidebar/sections/CombinedTextSection';
 import { SidebarPanel } from '../../sidebar/SidebarPanel';
 import { SubsectionTabBar } from '../../sidebar/SubsectionTabBar';
+import { AutoSaveStoreProvider, useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
+import { AutoSaveIndicator } from '../TopBar/AutoSaveIndicator';
 import { ContextControls } from '../TopBar/ContextControls';
 import { FloatingColorPicker } from '../TopBar/modules/FloatingColorPicker';
 import { FloatingFontSizeControl } from '../TopBar/modules/FloatingFontSizeControl';
+import { FloatingHistoryControls } from '../TopBar/modules/FloatingHistoryControls';
 import { FloatingLayerControls } from '../TopBar/modules/FloatingLayerControls';
 
 import type { FloatingModuleState } from '../../hooks/useFloatingModuleState';
@@ -169,5 +173,38 @@ describe('44pt-Ziele', () => {
     );
     expect(wrapper?.[1]).toContain('max-canvas-mobile:[scale:calc(1/var(--canvas-total-scale,1))]');
     expect(wrapper?.[1]).toContain('max-canvas-mobile:origin-top');
+  });
+
+  // Web top bar (browser only on phones; the app draws a native header).
+  it('Rückgängig/Wiederholen in der Menüleiste', () => {
+    for (const onDark of [false, true]) {
+      const { unmount } = render(
+        <FloatingHistoryControls
+          onUndo={() => {}}
+          onRedo={() => {}}
+          canUndo
+          canRedo
+          onDark={onDark}
+        />
+      );
+      expectBigTarget(screen.getByTitle(/^Rückgängig/));
+      expectBigTarget(screen.getByTitle(/^Wiederholen/));
+      unmount();
+    }
+  });
+
+  it('Speichern erneut versuchen', () => {
+    function SaveFailed() {
+      const api = useAutoSaveStoreApi();
+      useLayoutEffect(() => api.setState({ autoSaveStatus: 'error' }), [api]);
+      return null;
+    }
+    render(
+      <AutoSaveStoreProvider>
+        <SaveFailed />
+        <AutoSaveIndicator onDark />
+      </AutoSaveStoreProvider>
+    );
+    expectBigTarget(screen.getByRole('button', { name: 'Speichern erneut versuchen' }));
   });
 });
