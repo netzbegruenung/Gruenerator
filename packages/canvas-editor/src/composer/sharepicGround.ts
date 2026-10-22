@@ -30,7 +30,7 @@ export const GRADIENTS: Partial<
   // orange below; every stop keeps white above 4.5:1.
   pride: { angle: 90, stops: ['#4B1D8C', '#8A1D86', '#B0177A', '#C2402E'] },
 };
-export const evenStops = (stops: string[]) =>
+export const evenStops = (stops: readonly string[]) =>
   stops.map((color, i) => ({ offset: i / (stops.length - 1), color }));
 
 /**

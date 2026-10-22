@@ -9,7 +9,8 @@
  */
 import { SHAREPIC_SOURCE_KEY, sharepicThemaSchema } from '@gruenerator/contracts';
 
-import { EUROPA_ASSETS, PRIDE_FLAG_ASSET, SHAREPIC_COLOR_HEX } from '../composer/chromeParts';
+import { SHAREPIC_COLOR_HEX } from '../composer/chromeParts';
+import { SHAREPIC_THEMES } from '../composer/sharepicThemes';
 
 import type { SharepicBackground, SharepicFormat, SharepicThema } from '@gruenerator/contracts';
 
@@ -71,11 +72,10 @@ function pageThema(state: Record<string, unknown>): SharepicThema | null {
   if (parsed.success) return parsed.data;
   const assets = Array.isArray(state.assetInstances) ? state.assetInstances : [];
   const placed = (id: string) => assets.some((a) => (a as { assetId?: unknown })?.assetId === id);
-  return placed(PRIDE_FLAG_ASSET)
-    ? 'queer'
-    : placed(EUROPA_ASSETS.sterne) || placed(EUROPA_ASSETS.flagge)
-      ? 'europa'
-      : null;
+  return (
+    sharepicThemaSchema.options.find((t) => (SHAREPIC_THEMES[t].sign?.assets ?? []).some(placed)) ??
+    null
+  );
 }
 
 function deckProfile(pages: readonly PageLike[]): Profile {

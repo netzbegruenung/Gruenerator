@@ -92,6 +92,7 @@ import {
   TOP_PAD,
 } from './sharepicLayoutConstants';
 import { slideProvenance } from './sharepicProvenance';
+import { sharepicTheme } from './sharepicThemes';
 import { drawSlideChrome } from './slideChrome';
 import { type BuildPass, type SlideCtx } from './slideContext';
 import { slideInk } from './slideInk';
@@ -365,7 +366,11 @@ function composeSlide(
   // AT sets a photo strip in green monochrome, as the posts do; a full-bleed
   // photo carries the text and stays as shot.
   // A themed slide keeps its photo's colours: a green Pride flag says nothing.
-  if (isAt && !thema && (bg.kind === 'foto-oben' || bg.kind === 'foto-unten')) {
+  if (
+    isAt &&
+    !sharepicTheme(thema)?.keepsPhotoColours &&
+    (bg.kind === 'foto-oben' || bg.kind === 'foto-unten')
+  ) {
     const top = bg.kind === 'foto-oben' ? 0 : areaBottom;
     const bottom = bg.kind === 'foto-oben' ? areaTop : canvas.height;
     const tint = rect('sc-tint', 0, top, canvas.width, bottom - top, theme.colors.primary);

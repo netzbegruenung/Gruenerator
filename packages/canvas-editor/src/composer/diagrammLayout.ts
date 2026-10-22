@@ -1,11 +1,11 @@
-import { type SharepicChartKind, type SharepicThema } from '@gruenerator/contracts';
+import { type SharepicChartKind } from '@gruenerator/contracts';
 
 import { CHART_PALETTES, createChartInstance, type ChartType } from '../utils/chartUtils';
 import { createShape } from '../utils/shapes';
 
-import { SHAREPIC_COLOR_HEX, THEMA_INK } from './chromeParts';
 import { type DiagrammItem, type Placed } from './composeTypes';
 import { GAP } from './sharepicLayoutConstants';
+import { sharepicTheme } from './sharepicThemes';
 import { type BuildPass, type SlideCtx } from './slideContext';
 
 const CHART_TYPE: Record<SharepicChartKind, ChartType> = {
@@ -25,19 +25,6 @@ const CHART_REST = '#C8C8C7';
  */
 const CHART_SCALE = 2;
 const CHART_MIN_HEIGHT = 240;
-
-/**
- * A theme's chart colours on the white chart card: Pride the flag without its
- * yellow (too light on white), Frauen lila first, Europa the flag's blue (its
- * yellow is too light on white), then the locale's dark ink.
- */
-function themaChartPalette(thema: SharepicThema, dark: string): readonly string[] {
-  return thema === 'queer'
-    ? THEMA_INK.regenbogen.filter((c) => c !== THEMA_INK.flaggenGelb)
-    : thema === 'frauen'
-      ? [SHAREPIC_COLOR_HEX.lila, dark, '#A57BCF', THEMA_INK.violettDunkel]
-      : [SHAREPIC_COLOR_HEX.europablau, dark, '#5B83D6', '#9DB5E6'];
-}
 
 export function layoutDiagramm(
   ctx: SlideCtx,
@@ -80,7 +67,7 @@ export function layoutDiagramm(
   // Shares of a whole: what the values leave to 100 % is drawn too.
   const rest = round && item.einheit === '%' && sum < 99.5;
   if (rest) data.push({ name: 'Rest', value: Math.round((100 - sum) * 10) / 10 });
-  const palette = thema ? themaChartPalette(thema, darkText) : CHART_PALETTES[locale];
+  const palette = sharepicTheme(thema)?.chartPalette(darkText) ?? CHART_PALETTES[locale];
   // A long bar or line series reads as one colour; a few parts get one each.
   const colors =
     round || data.length <= 3
