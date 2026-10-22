@@ -37,8 +37,11 @@ import type { ExtendedAssetsSectionProps } from './AssetsSection';
 import type { SharepicBlock } from '@gruenerator/contracts';
 import type { StickerRef } from '@gruenerator/shared/stickers';
 
-/** Entrance: 8 staggered steps of 30 ms plus the 250 ms rise of the last one, with slack. */
-const ENTRANCE_MS = 8 * 30 + 300;
+/**
+ * Entrance (element-enter in both CSS twins): tiles 0–7 start 30 ms apart, the
+ * last one at 7 × 30 ms, and its 250 ms rise ends the entrance; 50 ms slack.
+ */
+const ENTRANCE_MS = 7 * 30 + 250 + 50;
 const BRAND_COUNT = 4;
 
 function countLabel(n: number): string {

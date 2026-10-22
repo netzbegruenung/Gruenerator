@@ -35,7 +35,7 @@ export const CategoryCard = memo(function CategoryCard({
         enterIndex !== null && 'element-enter [--enter-from:translateY(18px)]'
       )}
       {...(enterIndex !== null
-        ? { style: { '--i': Math.min(enterIndex, 8) } as CSSProperties }
+        ? { style: { '--i': Math.min(enterIndex, 7) } as CSSProperties }
         : {})}
     >
       <span className="relative block w-full aspect-square">

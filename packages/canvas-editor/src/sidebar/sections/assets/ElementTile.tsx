@@ -86,7 +86,7 @@ export const ElementTile = memo(function ElementTile({
         enterIndex !== null && 'element-enter'
       )}
       {...(enterIndex !== null
-        ? { style: { '--i': Math.min(enterIndex, 8) } as CSSProperties }
+        ? { style: { '--i': Math.min(enterIndex, 7) } as CSSProperties }
         : {})}
     >
       <button

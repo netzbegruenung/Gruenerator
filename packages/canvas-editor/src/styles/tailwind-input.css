@@ -233,12 +233,12 @@
   to { opacity: 1; transform: scale(1); }
 }
 
-/* Elemente-Katalog: Einblenden beim Öffnen, je Kachel um 30 ms versetzt (max. 8) */
+/* Elemente-Katalog: Einblenden beim Öffnen, je Kachel um 30 ms versetzt (max. 8 Kacheln, Index 0–7) */
 @utility element-enter {
   animation:
     elementFade 0.2s var(--editor-ease-out) both,
     elementRise 0.25s var(--editor-ease-out) both;
-  animation-delay: calc(min(var(--i, 0), 8) * 30ms);
+  animation-delay: calc(min(var(--i, 0), 7) * 30ms);
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
