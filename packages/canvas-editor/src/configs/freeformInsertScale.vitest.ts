@@ -35,7 +35,8 @@ function harness(formatId: string) {
           : { ...state, ...partial };
     },
     vi.fn(),
-    vi.fn()
+    vi.fn(),
+    {}
   ) as InsertActions;
   return { actions, current: () => state, format };
 }
