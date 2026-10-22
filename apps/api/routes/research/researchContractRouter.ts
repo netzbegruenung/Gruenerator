@@ -343,8 +343,10 @@ export const researchContractRouter = s.router(researchContract, {
           source_url: payload.source_url
             ? resolveWolkeDisplayUrl(payload.source_url as string)
             : null,
-          relevant_content: truncateSnippet(
-            String(payload.relevant_content || payload.content || payload.text || '')
+          // No query to highlight — still the escaped format the search returns.
+          relevant_content: highlightSnippet(
+            String(payload.relevant_content || payload.content || payload.text || ''),
+            ''
           ),
           similarity_score: item.score,
           chunk_count: 1,
