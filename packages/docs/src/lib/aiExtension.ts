@@ -54,11 +54,36 @@ export function getDocForkStore(editor: unknown): DocForkStore | null {
   return fork?.store ?? null;
 }
 
+/**
+ * BlockNote's version history forks the doc too: it shows a stored version
+ * read-only in the fork and throws the fork away on close. That fork is not an
+ * AI review — offering "Übernehmen" on it would merge a version preview into
+ * the live document. `open()` forks and then switches the store to `versions`
+ * in the same synchronous call, so reading both stores never sees half of it.
+ */
+export type DocVersioningStore = {
+  state?: { mode?: string };
+  subscribe?: (listener: () => void) => () => void;
+};
+
+export function getDocVersioningStore(editor: unknown): DocVersioningStore | null {
+  if (!editor) return null;
+  const versioning = (editor as EditorWithExtensions).getExtension?.('versioning') as
+    { store?: DocVersioningStore } | undefined;
+  return versioning?.store ?? null;
+}
+
+/** Forked for an AI review, as opposed to a version preview. */
+export function isAIReviewFork(editor: unknown): boolean {
+  if (!(getDocForkStore(editor)?.state?.isForked ?? false)) return false;
+  return getDocVersioningStore(editor)?.state?.mode !== 'versions';
+}
+
 /** Whether AI suggestions are pending review (forked) for a document. */
 export function isDocAIForked(documentId: string): boolean {
   const editor = useEditorStore.getState().getEditor(documentId);
   if (!editor) return false;
-  return getDocForkStore(editor)?.state?.isForked ?? false;
+  return isAIReviewFork(editor);
 }
 
 /**

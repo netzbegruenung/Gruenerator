@@ -63,6 +63,7 @@ export {
   letterheadsContract,
   notebookSharingContract,
   docsContract,
+  docSnapshotsContract,
   documentsContract,
   subtitlerContract,
   voiceContract,
@@ -175,6 +176,7 @@ export * from './schemas/userWebsite.js';
 export * from './schemas/letterhead.js';
 export * from './schemas/notebookSharing.js';
 export * from './schemas/docs.js';
+export * from './schemas/docSnapshots.js';
 export * from './schemas/documents.js';
 export * from './schemas/subtitler.js';
 export * from './schemas/voice.js';

@@ -86,6 +86,7 @@ import {
   userTextFormsContract,
   recurringTasksContract,
   docsContract,
+  docSnapshotsContract,
   documentsContract,
   groupsContract,
   userProfileContract,
@@ -352,6 +353,7 @@ const _landesverbandAdminClient = () => initClient(landesverbandAdminContract, C
 const _userTextFormsClient = () => initClient(userTextFormsContract, CLIENT_OPTS);
 const _recurringTasksClient = () => initClient(recurringTasksContract, CLIENT_OPTS);
 const _docsClient = () => initClient(docsContract, CLIENT_OPTS);
+const _docSnapshotsClient = () => initClient(docSnapshotsContract, CLIENT_OPTS);
 const _documentsClient = () => initClient(documentsContract, CLIENT_OPTS);
 const _groupsClient = () => initClient(groupsContract, CLIENT_OPTS);
 const _userProfileClient = () => initClient(userProfileContract, CLIENT_OPTS);
@@ -441,6 +443,7 @@ export interface ContractsClient {
   userTextForms: ReturnType<typeof _userTextFormsClient>;
   recurringTasks: ReturnType<typeof _recurringTasksClient>;
   docs: ReturnType<typeof _docsClient>;
+  docSnapshots: ReturnType<typeof _docSnapshotsClient>;
   documents: ReturnType<typeof _documentsClient>;
   groups: ReturnType<typeof _groupsClient>;
   userProfile: ReturnType<typeof _userProfileClient>;
@@ -543,6 +546,7 @@ export function getContractsClient(): ContractsClient {
     userTextForms: _userTextFormsClient(),
     recurringTasks: _recurringTasksClient(),
     docs: _docsClient(),
+    docSnapshots: _docSnapshotsClient(),
     documents: _documentsClient(),
     groups: _groupsClient(),
     userProfile: _userProfileClient(),

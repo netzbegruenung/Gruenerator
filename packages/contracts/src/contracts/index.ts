@@ -46,6 +46,7 @@ export { userWebsitesContract } from './userWebsitesContract.js';
 export { letterheadsContract } from './letterheadsContract.js';
 export { notebookSharingContract } from './notebookSharingContract.js';
 export { docsContract } from './docsContract.js';
+export { docSnapshotsContract } from './docSnapshotsContract.js';
 export { documentsContract } from './documentsContract.js';
 export { subtitlerContract } from './subtitlerContract.js';
 export { voiceContract } from './voiceContract.js';
