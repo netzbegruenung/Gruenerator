@@ -3,9 +3,10 @@
 // data; we read it with a real DOM (same approach as parseDocPreview) and clamp
 // to a preview-sized window. Returns [] when there's no usable table, letting
 // the caller fall back to an empty-grid schematic.
+import { parseInertHtml } from './parseInertHtml';
+
 export const parseTablePreview = (html: string, maxRows = 5, maxCols = 4): string[][] => {
-  const tmp = document.createElement('div');
-  tmp.innerHTML = html;
+  const tmp = parseInertHtml(html);
 
   const table = tmp.querySelector('table');
   if (!table) return [];

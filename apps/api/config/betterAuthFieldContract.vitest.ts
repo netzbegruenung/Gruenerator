@@ -22,6 +22,8 @@
  */
 
 import { userProfileSchema } from '@gruenerator/contracts';
+import { type BetterAuthOptions } from 'better-auth';
+import { parseUserInput } from 'better-auth/db';
 import { describe, it, expect } from 'vitest';
 import { type z } from 'zod';
 
@@ -131,6 +133,21 @@ describe('Better Auth additionalFields ↔ userProfileSchema', () => {
       'Eintrag steht inzwischen im Schema oder gar nicht mehr in additionalFields — entfernen.'
     ).toEqual([]);
   });
+
+  it.each(Object.entries(USER_ADDITIONAL_FIELDS))(
+    '%s: Better Auth nimmt das Feld nicht aus Client-Eingaben an',
+    (name, config) => {
+      // Gegen die echte Bibliothek statt gegen das Flag: `parseUserInput` ist
+      // der Schritt, den Better Auths Nutzer-Routen auf den Request-Body
+      // anwenden. Ein Wert, der hier durchkommt, landet in `profiles`.
+      const options = { user: { additionalFields: USER_ADDITIONAL_FIELDS } } as BetterAuthOptions;
+      const value = SAMPLE_FOR_TYPE[config.type as keyof typeof SAMPLE_FOR_TYPE];
+      expect(
+        () => parseUserInput(options, { [name]: value }, 'update'),
+        `additionalFields.${name} ist über Better Auths eigene Routen schreibbar — \`input: false\` setzen.`
+      ).toThrow(/not allowed/);
+    }
+  );
 
   it('deckt ai_consent_at ab (der Fall, der 503 auslöste)', () => {
     // Explizit gepinnt, damit der Regressionsfall auch dann sichtbar bleibt,
