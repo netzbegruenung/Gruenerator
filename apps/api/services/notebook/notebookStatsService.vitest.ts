@@ -14,13 +14,15 @@ vi.mock('../../utils/redis/client.js', () => ({
   default: { get: vi.fn(async () => null), set: vi.fn(async () => 'OK') },
 }));
 const count = vi.fn(async () => ({ count: 3 }));
+const qdrantClient = {
+  count,
+  scroll: vi.fn(async () => ({ points: [], next_page_offset: null })),
+};
 vi.mock('../../database/services/QdrantService/index.js', () => ({
   getQdrantInstance: () => ({
     init: vi.fn(async () => undefined),
-    client: {
-      count,
-      scroll: vi.fn(async () => ({ points: [], next_page_offset: null })),
-    },
+    isContentAvailable: () => true,
+    readClient: () => qdrantClient,
     getFieldValueCounts: vi.fn(async () => []),
   }),
 }));

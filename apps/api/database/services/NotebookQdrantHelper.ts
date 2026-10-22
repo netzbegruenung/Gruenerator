@@ -17,7 +17,7 @@ import { reportBackgroundError } from '../../utils/reportBackgroundError.js';
 
 import { getPostgresInstance } from './PostgresService.js';
 import { type QdrantService, getQdrantInstance } from './QdrantService/index.js';
-import { QdrantOperations } from './QdrantService/operations/index.js';
+import { type QdrantOperations } from './QdrantService/operations/index.js';
 
 import type { QdrantFilter } from './QdrantService/types.js';
 
@@ -219,7 +219,7 @@ class NotebookQdrantHelper {
   async ensureInitialized(): Promise<void> {
     if (!this.initialized) {
       await this.qdrant.init();
-      this.qdrantOps = new QdrantOperations(this.qdrant.client!);
+      this.qdrantOps = this.qdrant.operations;
       this.initialized = true;
     }
   }
@@ -368,10 +368,12 @@ class NotebookQdrantHelper {
       // the existing semantic embedding intact. A batchUpsert here would
       // require re-supplying the vector and silently overwrite each
       // notebook's embedding with zeros.
-      await this.qdrantOps!.client.setPayload(this.qdrant.collections.notebook_collections, {
-        payload: { slug_suffix: fresh },
-        points: [point.id],
-      });
+      await this.qdrant
+        .writeClient(this.qdrant.collections.notebook_collections)
+        .setPayload(this.qdrant.collections.notebook_collections, {
+          payload: { slug_suffix: fresh },
+          points: [point.id],
+        });
       updated++;
 
       if (updated > 0 && updated % 50 === 0) {
@@ -430,10 +432,12 @@ class NotebookQdrantHelper {
       if (typeof collectionId !== 'string' || !sharedIds.has(collectionId)) continue;
       if (normalizeShareMode(point.payload.share_mode) !== 'private') continue;
 
-      await this.qdrantOps!.client.setPayload(this.qdrant.collections.notebook_collections, {
-        payload: { share_mode: 'groups' },
-        points: [point.id],
-      });
+      await this.qdrant
+        .writeClient(this.qdrant.collections.notebook_collections)
+        .setPayload(this.qdrant.collections.notebook_collections, {
+          payload: { share_mode: 'groups' },
+          points: [point.id],
+        });
       updated++;
     }
 
@@ -489,10 +493,12 @@ class NotebookQdrantHelper {
 
     for (const target of targets) {
       const newAudience: NotebookAudience = localeByUser.get(target.userId) ?? 'de-DE';
-      await this.qdrantOps!.client.setPayload(this.qdrant.collections.notebook_collections, {
-        payload: { audience: newAudience },
-        points: [target.id],
-      });
+      await this.qdrant
+        .writeClient(this.qdrant.collections.notebook_collections)
+        .setPayload(this.qdrant.collections.notebook_collections, {
+          payload: { audience: newAudience },
+          points: [target.id],
+        });
       updated++;
       if (updated > 0 && updated % 50 === 0) {
         logger.info(`[backfillAudience] Progress: ${updated} rows updated`);
@@ -789,10 +795,12 @@ class NotebookQdrantHelper {
     if (!collection) return 'not_found';
     if (collection.user_id === 'SYSTEM') return 'forbidden';
 
-    await this.qdrantOps!.client.setPayload(this.qdrant.collections.notebook_collections, {
-      payload: { deleted_at: new Date().toISOString() },
-      filter: { must: [{ key: 'collection_id', match: { value: collectionId } }] },
-    });
+    await this.qdrant
+      .writeClient(this.qdrant.collections.notebook_collections)
+      .setPayload(this.qdrant.collections.notebook_collections, {
+        payload: { deleted_at: new Date().toISOString() },
+        filter: { must: [{ key: 'collection_id', match: { value: collectionId } }] },
+      });
     logger.info(`Moved Notebook collection to the Papierkorb: ${collectionId}`);
     return 'ok';
   }
@@ -811,20 +819,24 @@ class NotebookQdrantHelper {
     const current = await this.getNotebookCollection(collectionId, { includeTrashed: true });
     if (!current) return null;
     if (onlyFrom !== undefined && current.moderation !== onlyFrom) return current.moderation;
-    await this.qdrantOps!.client.setPayload(this.qdrant.collections.notebook_collections, {
-      payload: { moderation: state },
-      filter: { must: [{ key: 'collection_id', match: { value: collectionId } }] },
-    });
+    await this.qdrant
+      .writeClient(this.qdrant.collections.notebook_collections)
+      .setPayload(this.qdrant.collections.notebook_collections, {
+        payload: { moderation: state },
+        filter: { must: [{ key: 'collection_id', match: { value: collectionId } }] },
+      });
     return state;
   }
 
   /** Undo {@link trashNotebookCollection}: drop the `deleted_at` payload key. */
   async restoreNotebookCollection(collectionId: string): Promise<void> {
     await this.ensureInitialized();
-    await this.qdrantOps!.client.deletePayload(this.qdrant.collections.notebook_collections, {
-      keys: ['deleted_at'],
-      filter: { must: [{ key: 'collection_id', match: { value: collectionId } }] },
-    });
+    await this.qdrant
+      .writeClient(this.qdrant.collections.notebook_collections)
+      .deletePayload(this.qdrant.collections.notebook_collections, {
+        keys: ['deleted_at'],
+        filter: { must: [{ key: 'collection_id', match: { value: collectionId } }] },
+      });
   }
 
   /** Every notebook of `userId`, trashed ones included — for account deletion. */

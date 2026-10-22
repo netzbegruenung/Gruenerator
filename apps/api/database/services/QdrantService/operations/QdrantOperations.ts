@@ -73,6 +73,16 @@ class QdrantOperations {
     this.hybridConfig = vectorConfig.get('hybrid') as HybridConfig;
   }
 
+  /** Client für Lesezugriffe auf die Sammlung — je Aufruf frisch, nie zwischenspeichern. */
+  readClient(collection: string): QdrantClient {
+    return this.clients.read(collection);
+  }
+
+  /** Client für Schreibzugriffe auf die Sammlung; wirft bei schreibgeschütztem Content-Ziel. */
+  writeClient(collection: string): QdrantClient {
+    return this.clients.write(collection);
+  }
+
   /**
    * Vector search with quality-aware filtering and boosting
    */

@@ -1,3 +1,5 @@
+import { type QdrantClient } from '@qdrant/js-client-rest';
+
 import { getSystemCollectionConfig } from '../../config/systemCollectionsConfig.js';
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -65,11 +67,10 @@ function emptyStats(): NotebookStats {
  * in Node — robust regardless of payload index type.
  */
 async function scrollAllForMonthly(
-  client: ReturnType<typeof getQdrantInstance>['client'],
+  client: QdrantClient,
   collection: string,
   filter: Record<string, unknown>
 ): Promise<ScrollPoint[]> {
-  if (!client) return [];
   const hasFilter = Object.keys(filter).length > 0;
   const acc: ScrollPoint[] = [];
   let offset: string | number | null = null;
@@ -215,7 +216,7 @@ async function fetchStatsForCollection(collectionId: string): Promise<NotebookSt
 
   const qdrant = getQdrantInstance();
   await qdrant.init();
-  if (!qdrant.client) {
+  if (!qdrant.isContentAvailable()) {
     log.warn('Qdrant client unavailable');
     return emptyStats();
   }
@@ -231,7 +232,8 @@ async function fetchStatsForCollection(collectionId: string): Promise<NotebookSt
 
   const [totalDocuments, categoryDistribution, sourceDistribution, monthlyPoints, facets] =
     await Promise.all([
-      qdrant.client
+      qdrant
+        .readClient(config.qdrantCollection)
         .count(config.qdrantCollection, {
           ...(filterForCount && { filter: filterForCount as Record<string, unknown> }),
           exact: true,
@@ -250,14 +252,16 @@ async function fetchStatsForCollection(collectionId: string): Promise<NotebookSt
           );
           return [];
         }),
-      scrollAllForMonthly(qdrant.client, config.qdrantCollection, filterRecord).catch(
-        (err: unknown) => {
-          log.warn(
-            `monthly scroll failed for ${collectionId}: ${err instanceof Error ? err.message : err}`
-          );
-          return [] as ScrollPoint[];
-        }
-      ),
+      scrollAllForMonthly(
+        qdrant.readClient(config.qdrantCollection),
+        config.qdrantCollection,
+        filterRecord
+      ).catch((err: unknown) => {
+        log.warn(
+          `monthly scroll failed for ${collectionId}: ${err instanceof Error ? err.message : err}`
+        );
+        return [] as ScrollPoint[];
+      }),
       readOverviewFacets(collectionId),
     ]);
 

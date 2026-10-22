@@ -17,7 +17,7 @@ import {
   isSystemQdrantCollection,
 } from '../../../config/systemCollectionsConfig.js';
 import { vectorConfig } from '../../../config/vectorConfig.js';
-import { QdrantOperations } from '../../../database/services/QdrantOperations.js';
+import { type QdrantOperations } from '../../../database/services/QdrantOperations.js';
 import { getQdrantInstance } from '../../../database/services/QdrantService.js';
 import { InputValidator } from '../../../utils/validation/index.js';
 import { BaseSearchService } from '../../BaseSearchService/index.js';
@@ -167,10 +167,10 @@ export class DocumentSearchService extends BaseSearchService {
     if (this.qdrantOps) return;
 
     await this.qdrant.init();
-    this.qdrantAvailable = !!this.qdrant?.client && !!this.qdrant?.isConnected;
+    this.qdrantAvailable = !!this.qdrant?.operations && !!this.qdrant?.isConnected;
 
-    if (this.qdrantAvailable && this.qdrant.client) {
-      this.qdrantOps = new QdrantOperations(this.qdrant.client);
+    if (this.qdrantAvailable) {
+      this.qdrantOps = this.qdrant.operations;
     }
   }
 

@@ -102,14 +102,17 @@ describe('fetchTermFrequencies', () => {
 
 describe('loadTermFrequencies', () => {
   it('initialises Qdrant before counting and stays quiet when it fails', async () => {
+    const client = {} as unknown as QdrantClient;
     const init = vi.fn(async () => {
       throw new Error('Qdrant down');
     });
 
-    const result = await loadTermFrequencies({ init, client: null }, 'lv', undefined, [
-      'a1x',
-      'b2y',
-    ]);
+    const result = await loadTermFrequencies(
+      { init, isAvailableSync: () => false, readClient: () => client },
+      'lv',
+      undefined,
+      ['a1x', 'b2y']
+    );
 
     expect(init).toHaveBeenCalled();
     expect(result).toBeNull();
@@ -120,7 +123,7 @@ describe('loadTermFrequencies', () => {
     const client = { count } as unknown as QdrantClient;
 
     const result = await loadTermFrequencies(
-      { init: async () => {}, client },
+      { init: async () => {}, isAvailableSync: () => true, readClient: () => client },
       'lv_slow',
       undefined,
       ['langsam', 'zaeh'],
@@ -131,8 +134,16 @@ describe('loadTermFrequencies', () => {
   });
 
   it('skips single-word queries', async () => {
+    const client = {} as unknown as QdrantClient;
     const init = vi.fn(async () => {});
-    expect(await loadTermFrequencies({ init, client: null }, 'lv', undefined, ['wolf'])).toBeNull();
+    expect(
+      await loadTermFrequencies(
+        { init, isAvailableSync: () => false, readClient: () => client },
+        'lv',
+        undefined,
+        ['wolf']
+      )
+    ).toBeNull();
     expect(init).not.toHaveBeenCalled();
   });
 });

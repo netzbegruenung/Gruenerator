@@ -256,8 +256,7 @@ export function normalizeArgs<
 const qdrantChunkTextIndex = cachedChunkTextIndex(async (qdrantCollection) => {
   const qdrant = getQdrantInstance();
   await qdrant.init();
-  if (!qdrant.client) throw new Error('Qdrant not available');
-  const info = await qdrant.client.getCollection(qdrantCollection);
+  const info = await qdrant.readClient(qdrantCollection).getCollection(qdrantCollection);
   return (info.payload_schema ?? {}) as Record<string, unknown>;
 });
 
@@ -272,8 +271,7 @@ async function qdrantScrollPage(
 }> {
   const qdrant = getQdrantInstance();
   await qdrant.init();
-  if (!qdrant.client) throw new Error('Qdrant not available');
-  const result = await qdrant.client.scroll(qdrantCollection, {
+  const result = await qdrant.readClient(qdrantCollection).scroll(qdrantCollection, {
     filter: filter as Record<string, unknown>,
     limit: opts.limit,
     with_payload: [...opts.payload],

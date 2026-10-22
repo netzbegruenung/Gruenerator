@@ -272,7 +272,7 @@ export class ProgramPdfScraper extends BaseScraper {
   async #existingPayload(documentId: string): Promise<Record<string, unknown> | null> {
     try {
       const points = await scrollDocuments(
-        this.qdrant.client!,
+        this.qdrant.readClient(this.config.collectionName),
         this.config.collectionName,
         { must: [{ key: 'document_id', match: { value: documentId } }] },
         { limit: 1, withPayload: true, withVector: false }
@@ -298,9 +298,14 @@ export class ProgramPdfScraper extends BaseScraper {
     );
     if (Object.keys(patch).length === 0) return;
 
-    await setPayload(this.qdrant.client!, this.config.collectionName, patch, {
-      must: [{ key: 'document_id', match: { value: documentId } }],
-    });
+    await setPayload(
+      this.qdrant.writeClient(this.config.collectionName),
+      this.config.collectionName,
+      patch,
+      {
+        must: [{ key: 'document_id', match: { value: documentId } }],
+      }
+    );
   }
 
   async #processDocument(
@@ -347,9 +352,13 @@ export class ProgramPdfScraper extends BaseScraper {
 
       const existing = existingPayload !== null;
       if (existing) {
-        await batchDelete(this.qdrant.client!, this.config.collectionName, {
-          must: [{ key: 'document_id', match: { value: doc.documentId } }],
-        });
+        await batchDelete(
+          this.qdrant.writeClient(this.config.collectionName),
+          this.config.collectionName,
+          {
+            must: [{ key: 'document_id', match: { value: doc.documentId } }],
+          }
+        );
       }
 
       const chunks = await smartChunkDocument(extraction.text, {
@@ -408,7 +417,11 @@ export class ProgramPdfScraper extends BaseScraper {
       }));
 
       for (let i = 0; i < points.length; i += 10) {
-        await batchUpsert(this.qdrant.client!, this.config.collectionName, points.slice(i, i + 10));
+        await batchUpsert(
+          this.qdrant.writeClient(this.config.collectionName),
+          this.config.collectionName,
+          points.slice(i, i + 10)
+        );
       }
 
       recordSyncEvent({

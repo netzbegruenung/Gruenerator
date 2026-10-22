@@ -135,9 +135,9 @@ async function extractTextFromPdf(pdfBuffer: ArrayBuffer, useDocling: boolean): 
 async function isAlreadyIndexed(url: string): Promise<boolean> {
   try {
     const qdrant = getQdrantInstance();
-    if (!qdrant.client) return false;
+    if (!qdrant.isAvailableSync()) return false;
 
-    const result = await qdrant.client.scroll(COLLECTION_NAME, {
+    const result = await qdrant.readClient(COLLECTION_NAME).scroll(COLLECTION_NAME, {
       filter: {
         must: [{ key: 'source_url', match: { value: url } }],
       },
@@ -253,11 +253,11 @@ async function ingestPdf(
   // Store in Qdrant
   console.log(`   Storing ${points.length} vectors...`);
   const qdrant = getQdrantInstance();
-  if (!qdrant.client) throw new Error('Qdrant client not initialized');
+  if (!qdrant.isAvailableSync()) throw new Error('Qdrant client not initialized');
 
   for (let i = 0; i < points.length; i += BATCH_SIZE) {
     const batch = points.slice(i, i + BATCH_SIZE);
-    await batchUpsert(qdrant.client, COLLECTION_NAME, batch);
+    await batchUpsert(qdrant.writeClient(COLLECTION_NAME), COLLECTION_NAME, batch);
   }
 
   console.log(`   DONE: ${points.length} vectors stored`);

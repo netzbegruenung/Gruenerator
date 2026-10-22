@@ -354,7 +354,7 @@ export class GruenblogScraper extends BaseScraper {
   async #articleExists(url: string): Promise<ExistingArticle | null> {
     try {
       const points = await scrollDocuments(
-        this.qdrant.client!,
+        this.qdrant.readClient(this.config.collectionName),
         this.config.collectionName,
         {
           must: [{ key: 'source_url', match: { value: url } }],
@@ -384,9 +384,13 @@ export class GruenblogScraper extends BaseScraper {
    * Delete article from Qdrant
    */
   async #deleteArticle(url: string): Promise<void> {
-    await batchDelete(this.qdrant.client!, this.config.collectionName, {
-      must: [{ key: 'source_url', match: { value: url } }],
-    });
+    await batchDelete(
+      this.qdrant.writeClient(this.config.collectionName),
+      this.config.collectionName,
+      {
+        must: [{ key: 'source_url', match: { value: url } }],
+      }
+    );
   }
 
   /**
@@ -453,7 +457,11 @@ export class GruenblogScraper extends BaseScraper {
 
     for (let i = 0; i < points.length; i += 10) {
       const batch = points.slice(i, i + 10);
-      await batchUpsert(this.qdrant.client!, this.config.collectionName, batch);
+      await batchUpsert(
+        this.qdrant.writeClient(this.config.collectionName),
+        this.config.collectionName,
+        batch
+      );
     }
 
     recordSyncEvent({
@@ -515,7 +523,10 @@ export class GruenblogScraper extends BaseScraper {
         concurrency: 5,
         delayMs: this.crawlDelay,
       });
-      const gone = new GoneTracker(this.qdrant.client!, this.config.collectionName);
+      const gone = new GoneTracker(
+        this.qdrant.writeClient(this.config.collectionName),
+        this.config.collectionName
+      );
 
       for (let i = 0; i < fetched.length; i++) {
         const entry = fetched[i];
@@ -642,7 +653,10 @@ export class GruenblogScraper extends BaseScraper {
     error?: string;
   }> {
     try {
-      const stats = await getCollectionStats(this.qdrant.client!, this.config.collectionName);
+      const stats = await getCollectionStats(
+        this.qdrant.readClient(this.config.collectionName),
+        this.config.collectionName
+      );
       return {
         collection: this.config.collectionName,
         ...(stats.vectors_count !== undefined && { vectors_count: stats.vectors_count }),

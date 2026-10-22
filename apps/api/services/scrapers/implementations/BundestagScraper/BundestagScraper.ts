@@ -82,13 +82,11 @@ export class BundestagScraper {
     }
 
     log.info(`Fetching existing URLs from Qdrant collection "${COLLECTION_NAME}"...`);
-    const existingUrlRecords = await getAllUrls(this.qdrant.client!, COLLECTION_NAME, [
-      'source_url',
-      'content_hash',
-      'chunk_index',
-      'published_at',
-      'title',
-    ]);
+    const existingUrlRecords = await getAllUrls(
+      this.qdrant.readClient(COLLECTION_NAME),
+      COLLECTION_NAME,
+      ['source_url', 'content_hash', 'chunk_index', 'published_at', 'title']
+    );
     const existingUrls = new Map(existingUrlRecords.map((r) => [r.source_url, r.content_hash]));
     const existingDates = new Map(
       existingUrlRecords.map((r) => [r.source_url, r.published_at ?? null])
@@ -142,7 +140,7 @@ export class BundestagScraper {
               // too; rewrite the payload, the vectors stay valid.
               if (page.title && page.title !== existingTitles.get(page.source_url)) {
                 await setPayload(
-                  this.qdrant.client!,
+                  this.qdrant.writeClient(COLLECTION_NAME),
                   COLLECTION_NAME,
                   { title: page.title },
                   {
@@ -199,14 +197,14 @@ export class BundestagScraper {
 
             if (existingHash) {
               await deleteBundestagContentByUrl(
-                this.qdrant.client!,
+                this.qdrant.writeClient(COLLECTION_NAME),
                 COLLECTION_NAME,
                 page.source_url
               );
             }
 
             await indexBundestagContent(
-              this.qdrant.client!,
+              this.qdrant.writeClient(COLLECTION_NAME),
               COLLECTION_NAME,
               page.source_url,
               chunks,

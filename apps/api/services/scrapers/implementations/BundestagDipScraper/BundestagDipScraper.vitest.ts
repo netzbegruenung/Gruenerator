@@ -11,7 +11,11 @@ const forEachPage = vi.fn();
 
 vi.mock('../../../../config/env.js', () => ({ env: { DIP_API_KEY: 'test-key' } }));
 vi.mock('../../../../database/services/QdrantService/index.js', () => ({
-  getQdrantInstance: () => ({ init: async () => {}, client: { scroll: clientScroll } }),
+  getQdrantInstance: () => ({
+    init: async () => {},
+    readClient: () => ({ scroll: clientScroll }),
+    writeClient: () => ({ scroll: clientScroll }),
+  }),
 }));
 vi.mock('../../../../database/services/QdrantService/operations/batchOperations.js', () => ({
   scrollDocuments: (...args: unknown[]) => scrollDocuments(...args),
