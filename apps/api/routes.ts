@@ -159,6 +159,7 @@ import voiceRouter from './routes/voice/voiceController.js';
 import { mountSharedTemplateContractRouter } from './routes/vorlagen/sharedTemplateContractRouter.js';
 import { mountRecentActivityContractRouter } from './routes/workplace/recentActivityContractRouter.js';
 import recentActivityRouter from './routes/workplace/recentActivityController.js';
+import { parseAppBundle, recordAppBundleUse } from './services/appBundles/appBundleUsage.js';
 import * as tusServiceModule from './services/subtitler/tusService.js';
 import { decisionLogMiddleware } from './utils/decisionLog.js';
 import { toUserFacingMessage } from './utils/errors/index.js';
@@ -304,6 +305,18 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/*splat', (req: Request, _res: Response, next: NextFunction) => {
     const path = req.originalUrl.split('?')[0] ?? req.originalUrl;
     runWithUsageContext({ req, feature: featureFromPath(path) }, next);
+  });
+
+  // Mobile bundle reach for the admin tab „App-Updates". Read on finish, when
+  // requireAuth (mounted per prefix below) has resolved the account.
+  app.use('/api/*splat', (req: Request, res: Response, next: NextFunction) => {
+    const bundle = parseAppBundle(req.headers);
+    if (bundle) {
+      res.on('finish', () => {
+        if (req.user?.id) recordAppBundleUse(bundle, req.user.id);
+      });
+    }
+    next();
   });
 
   // Dynamic imports for ES modules

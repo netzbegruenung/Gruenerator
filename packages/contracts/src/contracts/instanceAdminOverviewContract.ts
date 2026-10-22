@@ -9,6 +9,7 @@ import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
 
 import {
+  instanceAdminAppBundlesResponseSchema,
   instanceAdminSetPandaBodySchema,
   instanceAdminSetPandaResponseSchema,
   instanceAdminUsersResponseSchema,
@@ -69,6 +70,23 @@ export const instanceAdminOverviewContract = c.router(
         500: instanceAdminOverviewErrorResponseSchema,
       },
       summary: 'Read-only overview of self-reported roles on this deployment (admin)',
+    },
+
+    /**
+     * GET /api/auth/admin/bgst/app-bundles
+     * Which mobile app bundles (store build or OTA update) were in use over the
+     * last 30 days, with distinct accounts per bundle.
+     */
+    listAppBundles: {
+      method: 'GET',
+      path: '/api/auth/admin/bgst/app-bundles',
+      responses: {
+        200: instanceAdminAppBundlesResponseSchema,
+        401: instanceAdminOverviewErrorResponseSchema,
+        403: instanceAdminOverviewErrorResponseSchema,
+        500: instanceAdminOverviewErrorResponseSchema,
+      },
+      summary: 'Mobile app bundles in use and their reach (admin)',
     },
   },
   { pathPrefix: '' }
