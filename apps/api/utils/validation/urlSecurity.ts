@@ -208,8 +208,13 @@ const CREDENTIAL_HEADERS = ['authorization', 'cookie', 'proxy-authorization'];
  * the address checked is the address connected to — a name that resolved
  * public for `validateUrlForFetch` and private a moment later (DNS rebinding)
  * never reaches a socket.
+ *
+ * Exported for HTTP clients that resolve names themselves (axios `lookup`, got
+ * `dnsLookup`). Node skips `lookup` for IP literals, so a client that follows
+ * redirects can still be walked to `http://169.254.169.254/` — this guard only
+ * holds for clients that do not follow redirects, or validate every hop.
  */
-const guardedLookup: LookupFunction = (hostname, options, callback) => {
+export const guardedLookup: LookupFunction = (hostname, options, callback) => {
   dns.lookup(hostname, { ...options, all: true }, (err, records) => {
     if (err) {
       callback(err, '', 0);
