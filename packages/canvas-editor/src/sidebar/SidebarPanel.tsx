@@ -121,16 +121,19 @@ export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSideb
     if (sheet && (phase === 'entering' || phase === 'closing')) sheet.style.transition = '';
   }, [phase, sheetRef]);
 
-  // Where the open sheet rests, as a distance from the layout's bottom edge.
-  // A closing sheet leaves the flow there (absolute), so the canvas above
-  // grows and refits at once while the sheet slides out over it.
+  // Where the sheet rests in the flow, as a distance from the layout's bottom
+  // edge. A closing sheet leaves the flow there (absolute), so the canvas
+  // above grows and refits at once while the sheet slides out over it.
+  // Measured from offset boxes, which ignore the slide/drag transform, and
+  // already while entering: a close before the slide-in ends needs it too.
   useLayoutEffect(() => {
     const sheet = sheetRef.current;
-    if (isDesktop || phase !== 'open' || !sheet) return;
+    if (isDesktop || (phase !== 'open' && phase !== 'entering') || !sheet) return;
     const measure = () => {
-      const layout = sheet.closest('.canvas-editor-layout');
-      if (!layout) return;
-      const rest = layout.getBoundingClientRect().bottom - sheet.getBoundingClientRect().bottom;
+      const layout = sheet.closest<HTMLElement>('.canvas-editor-layout');
+      // The layout root is the containing block on mobile (max-canvas-mobile:relative).
+      if (!layout || sheet.offsetParent !== layout) return;
+      const rest = layout.clientHeight - (sheet.offsetTop + sheet.offsetHeight);
       sheet.style.setProperty('--sheet-rest-bottom', `${Math.max(0, rest)}px`);
     };
     measure();

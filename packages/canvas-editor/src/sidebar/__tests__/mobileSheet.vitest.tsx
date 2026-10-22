@@ -273,12 +273,39 @@ describe('mobiles Sheet: Ein- und Ausgleiten', () => {
     expect(row?.className).toContain('max-canvas-mobile:h-11');
   });
 
+  /** Layout box 800 high; the sheet (420 high) rests 64 px above its bottom. Transforms do not count. */
+  function stubSheetGeometry() {
+    const isSheet = (el: HTMLElement) => el.matches('section.sidebar-panel');
+    const isLayout = (el: HTMLElement) => el.classList.contains('canvas-editor-layout');
+    const spies = [
+      vi.spyOn(HTMLElement.prototype, 'offsetParent', 'get').mockImplementation(function (
+        this: HTMLElement
+      ) {
+        return isSheet(this) ? this.closest('.canvas-editor-layout') : null;
+      }),
+      vi.spyOn(HTMLElement.prototype, 'offsetTop', 'get').mockImplementation(function (
+        this: HTMLElement
+      ) {
+        return isSheet(this) ? 316 : 0;
+      }),
+      vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
+        this: HTMLElement
+      ) {
+        return isSheet(this) ? 420 : 0;
+      }),
+      vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (
+        this: HTMLElement
+      ) {
+        return isLayout(this) ? 800 : 0;
+      }),
+    ];
+    return () => spies.forEach((spy) => spy.mockRestore());
+  }
+
   it('takes the closing sheet out of the flow at its resting place', () => {
+    const restore = stubSheetGeometry();
     const { rerender } = render(<div className="canvas-editor-layout">{panel(true)}</div>);
     const sheet = screen.getByRole('region', { name: 'Text' });
-    const layout = sheet.parentElement as HTMLElement;
-    layout.getBoundingClientRect = () => ({ bottom: 800 }) as DOMRect;
-    sheet.getBoundingClientRect = () => ({ bottom: 736 }) as DOMRect;
     endTransition(sheet);
     expect(sheet.className).not.toMatch(/\babsolute\b/);
     expect(sheet.style.getPropertyValue('--sheet-rest-bottom')).toBe('64px');
@@ -287,6 +314,19 @@ describe('mobiles Sheet: Ein- und Ausgleiten', () => {
     expect(sheet).toHaveAttribute('data-state', 'closing');
     expect(sheet.className).toMatch(/\babsolute\b/);
     expect(sheet.className).toContain('bottom-[var(--sheet-rest-bottom,0px)]');
+    restore();
+  });
+
+  it('knows its resting place when closed before the slide-in ends', () => {
+    const restore = stubSheetGeometry();
+    const { rerender } = render(<div className="canvas-editor-layout">{panel(true)}</div>);
+    const sheet = screen.getByRole('region', { name: 'Text' });
+    expect(sheet).toHaveAttribute('data-state', 'entering');
+
+    rerender(<div className="canvas-editor-layout">{panel(false)}</div>);
+    expect(sheet).toHaveAttribute('data-state', 'closing');
+    expect(sheet.style.getPropertyValue('--sheet-rest-bottom')).toBe('64px');
+    restore();
   });
 
   it('does not close the next tab when the tab changes during a drag close', () => {
