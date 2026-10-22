@@ -20,9 +20,11 @@ import {
   isStudioAssetVisible,
   listStudioAssets,
   removeStudioAsset,
+  setStudioAssetOfficial,
   updateStudioAsset,
   type StudioAssetFailure,
 } from '../../services/studioAssets/studioAssetsService.js';
+import { requireInstanceAdmin } from '../../utils/adminAuthz.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
@@ -79,6 +81,24 @@ export const studioAssetsContractRouter = s.router(studioAssetsContract, {
       return { status: 200 as const, body: result.value };
     } catch (error) {
       log.error('[studioAssetsContract.update] Error:', error);
+      return serverError('Speichern fehlgeschlagen.');
+    }
+  },
+
+  official: async ({ req, params, body }) => {
+    try {
+      const user = getAuthedUser(req);
+      if (!(await requireInstanceAdmin(user.id, user.email))) {
+        return {
+          status: 403 as const,
+          body: { success: false as const, message: 'Keine Admin-Berechtigung.' },
+        };
+      }
+      const result = await setStudioAssetOfficial(user.id, params.id, body.official);
+      if (!result.ok) return failure(result);
+      return { status: 200 as const, body: result.value };
+    } catch (error) {
+      log.error('[studioAssetsContract.official] Error:', error);
       return serverError('Speichern fehlgeschlagen.');
     }
   },

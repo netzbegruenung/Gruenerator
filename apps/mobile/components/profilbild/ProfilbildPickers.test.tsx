@@ -74,6 +74,7 @@ const asset = (over: Partial<StudioAssetItem>): StudioAssetItem => ({
   visibility: 'private',
   audience: 'all',
   moderation: 'ok',
+  isOfficial: false,
   isOwn: true,
   authorName: null,
   likesCount: 0,

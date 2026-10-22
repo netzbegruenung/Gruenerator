@@ -7,8 +7,8 @@ import {
   type MarketplaceTabSlug,
 } from './registry.js';
 
-/** Origins only tell Agents and Rezepte apart; Vorlagen, Sticker and Hintergründe are always public. */
-const ORIGIN_KINDS: readonly MarketplaceKind[] = ['agent', 'recipe'];
+/** Origins tell Agents, Rezepte, Sticker and Hintergründe apart; Vorlagen are always public. */
+const ORIGIN_KINDS: readonly MarketplaceKind[] = ['agent', 'recipe', 'sticker', 'background'];
 
 /**
  * The tabs a view offers: „Alle" (= every allowed kind) when there is more than

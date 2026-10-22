@@ -130,6 +130,7 @@ const sticker = {
     visibility: 'public',
     audience: 'all',
     moderation: 'ok',
+    isOfficial: false,
     isOwn: false,
     authorName: 'Kim',
     likesCount: 0,
@@ -204,14 +205,17 @@ describe('MarketplaceScreen', () => {
     expect(screen.getByRole('button', { name: 'Kommunal-Helfer' })).toBeTruthy();
   });
 
-  it('offers the Landesverband origin only to people with one, and origins only for Agents and Rezepte', async () => {
+  it('offers the Landesverband origin only to people with one, and no origins for Vorlagen', async () => {
     setup({ items: [sticker] });
     render(<MarketplaceSheet visible onClose={jest.fn()} />);
     await act(async () => {});
     expect(screen.getByRole('button', { name: 'Offiziell' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Landesverband/ })).toBeNull();
 
+    // Sticker and Hintergründe can be official too.
     fireEvent.press(screen.getByRole('button', { name: 'Sticker' }));
+    expect(screen.getByRole('button', { name: 'Offiziell' })).toBeTruthy();
+    fireEvent.press(screen.getByRole('button', { name: 'Vorlagen' }));
     expect(screen.queryByRole('button', { name: 'Offiziell' })).toBeNull();
   });
 

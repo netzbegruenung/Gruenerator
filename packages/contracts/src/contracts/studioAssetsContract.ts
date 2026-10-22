@@ -16,6 +16,7 @@ import {
   studioAssetLikeResponseSchema,
   studioAssetListQuerySchema,
   studioAssetListResponseSchema,
+  studioAssetOfficialBodySchema,
   studioAssetRemoveResponseSchema,
   studioAssetUpdateBodySchema,
 } from '../schemas/studioAssets.js';
@@ -71,6 +72,22 @@ export const studioAssetsContract = c.router(
         500: studioAssetErrorSchema,
       },
       summary: 'Update an own Sticker/Hintergrund',
+    },
+
+    official: {
+      method: 'PUT',
+      path: '/api/studio-assets/:id/official',
+      pathParams: idParams,
+      body: studioAssetOfficialBodySchema,
+      responses: {
+        200: studioAssetItemSchema,
+        401: studioAssetErrorSchema,
+        403: studioAssetErrorSchema,
+        // Not found, or not public and unmoderated.
+        404: studioAssetErrorSchema,
+        500: studioAssetErrorSchema,
+      },
+      summary: 'Instance admins: mark a public Sticker/Hintergrund as official, or unmark it',
     },
 
     remove: {

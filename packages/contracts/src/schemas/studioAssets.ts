@@ -41,6 +41,8 @@ export const studioAssetItemSchema = z.object({
   visibility: studioAssetVisibilitySchema,
   audience: groupAudienceSchema,
   moderation: studioAssetModerationSchema,
+  /** Marked by an instance admin; the Marktplatz lists it under „Offiziell“. */
+  isOfficial: z.boolean(),
   isOwn: z.boolean(),
   authorName: z.string().nullable(),
   likesCount: z.number().int(),
@@ -77,6 +79,9 @@ export const studioAssetCreateBodySchema = z.object({
   rightsConfirmed: z.boolean(),
 });
 export type StudioAssetCreateBody = z.infer<typeof studioAssetCreateBodySchema>;
+
+export const studioAssetOfficialBodySchema = z.object({ official: z.boolean() });
+export type StudioAssetOfficialBody = z.infer<typeof studioAssetOfficialBodySchema>;
 
 export const studioAssetUpdateBodySchema = z
   .object({
