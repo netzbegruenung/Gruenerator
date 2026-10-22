@@ -28,12 +28,15 @@ const CHART_MIN_HEIGHT = 240;
 
 /**
  * A theme's chart colours on the white chart card: Pride the flag without its
- * yellow (too light on white), Frauen lila first, then the locale's dark ink.
+ * yellow (too light on white), Frauen lila first, Europa the flag's blue (its
+ * yellow is too light on white), then the locale's dark ink.
  */
 function themaChartPalette(thema: SharepicThema, dark: string): readonly string[] {
   return thema === 'queer'
     ? THEMA_INK.regenbogen.filter((c) => c !== THEMA_INK.flaggenGelb)
-    : [SHAREPIC_COLOR_HEX.lila, dark, '#A57BCF', THEMA_INK.violettDunkel];
+    : thema === 'frauen'
+      ? [SHAREPIC_COLOR_HEX.lila, dark, '#A57BCF', THEMA_INK.violettDunkel]
+      : [SHAREPIC_COLOR_HEX.europablau, dark, '#5B83D6', '#9DB5E6'];
 }
 
 export function layoutDiagramm(

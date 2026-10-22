@@ -80,6 +80,9 @@
   "canvas.elements": {
     "title": "Elemente"
   },
+  "canvas.europablau": {
+    "title": "Europablau"
+  },
   "canvas.flieder": {
     "title": "Flieder"
   },
@@ -94,6 +97,9 @@
   },
   "canvas.himmel": {
     "title": "Himmel"
+  },
+  "canvas.himmelblau": {
+    "title": "Himmelblau"
   },
   "canvas.klee": {
     "title": "Klee"

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { SHAREPIC_SOURCE_KEY } from '@gruenerator/contracts';
 
-import { PRIDE_FLAG_ASSET, SHAREPIC_COLOR_HEX } from '../composer/chromeParts';
+import { EUROPA_ASSETS, PRIDE_FLAG_ASSET, SHAREPIC_COLOR_HEX } from '../composer/chromeParts';
 
 import { colorSimilarity, rankVorlagen } from './vorlagenRelevance';
 
@@ -138,6 +138,7 @@ describe('rankVorlagen by theme', () => {
     vorlage('tanne', [farbe('tanne')]),
     themed('pride', 'queer', 'violett'),
     themed('frauen', 'frauen', 'lila'),
+    themed('europa', 'europa', 'europablau'),
   ];
   /** A composed page: its source spec names the theme. */
   const sourced = (color: SharepicColor, thema: SharepicThema) => ({
@@ -149,15 +150,17 @@ describe('rankVorlagen by theme', () => {
   });
 
   it('lists the own theme first and the other theme last', () => {
-    expect(ids(rankVorlagen(list, [sourced('tanne', 'queer')]))).toEqual([
+    expect(ids(rankVorlagen(list, [sourced('tanne', 'queer')])).slice(0, 2)).toEqual([
       'pride',
       'tanne',
-      'frauen',
     ]);
-    expect(ids(rankVorlagen(list, [sourced('tanne', 'frauen')]))).toEqual([
+    expect(ids(rankVorlagen(list, [sourced('tanne', 'frauen')])).slice(0, 2)).toEqual([
       'frauen',
       'tanne',
-      'pride',
+    ]);
+    expect(ids(rankVorlagen(list, [sourced('tanne', 'europa')])).slice(0, 2)).toEqual([
+      'europa',
+      'tanne',
     ]);
   });
 
@@ -167,6 +170,14 @@ describe('rankVorlagen by theme', () => {
       state: { ...colorPage('mint').state, assetInstances: [{ assetId: PRIDE_FLAG_ASSET }] },
     };
     expect(ids(rankVorlagen(list, [page]))[0]).toBe('pride');
+  });
+
+  it('reads a hand-placed EU flag as Europa', () => {
+    const page = {
+      configId: 'freeform',
+      state: { ...colorPage('mint').state, assetInstances: [{ assetId: EUROPA_ASSETS.flagge }] },
+    };
+    expect(ids(rankVorlagen(list, [page]))[0]).toBe('europa');
   });
 
   it('keeps themed Vorlagen behind plain ones on a plain design of their colour', () => {
