@@ -1114,8 +1114,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/connections', standardMutationLimiter, requireAuth);
   mountConnectionsContractRouter(app);
   app.use('/api/connections', connectionsRouter);
-  // Direct Canva Connect API (OAuth2 + PKCE). requireAuth is applied per-route
-  // inside the router — the OAuth callback must stay public (cookie-less redirect).
+  // Direct Canva Connect API (OAuth2 + PKCE). Auth is applied per-route inside
+  // the router — the OAuth callback answers with a popup page, never a 401.
   app.use('/api/canva', standardMutationLimiter, canvaApiRouter);
   // Link-shared Vorlagen. optionalAuth, NOT requireAuth: a Vorlage shared with
   // share_mode='public' has to open without an account, and the handler
