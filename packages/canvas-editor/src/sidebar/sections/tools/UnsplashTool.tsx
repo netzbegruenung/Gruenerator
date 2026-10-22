@@ -4,6 +4,7 @@ import { HiMagnifyingGlass } from 'react-icons/hi2';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { useTrackUnsplashDownload } from '../../../hooks/useTrackUnsplashDownload';
+import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
 import { unsplashThumbnailUrl } from '../assets/useStockPhotos';
 
 import { UnsplashLimitNotice, UnsplashRemaining } from './UnsplashLimitNotice';
@@ -78,11 +79,12 @@ export function UnsplashTool({ onPlaceImageUrl }: UnsplashToolProps) {
         />
         <input
           type="search"
+          enterKeyHint="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="z. B. Windrad, Fahrrad, Wald"
           aria-label="Fotos auf Unsplash suchen"
-          className="w-full h-9 pl-8 pr-2 rounded-md border border-[var(--editor-border-strong)] bg-[var(--editor-surface)] text-sm text-[var(--editor-text)] placeholder:text-[var(--editor-text-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)]"
+          className={`w-full h-9 pl-8 pr-2 rounded-md border border-[var(--editor-border-strong)] bg-[var(--editor-surface)] text-sm ${MOBILE_INPUT_TEXT} text-[var(--editor-text)] placeholder:text-[var(--editor-text-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)]`}
         />
       </form>
 

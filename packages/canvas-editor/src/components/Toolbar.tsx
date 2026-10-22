@@ -38,6 +38,11 @@ interface ToolbarProps {
   chromeRight?: React.ReactNode;
   /** Mobile: the pending-suggestion banner lives here. Desktop shows it as a card in the context-bar slot. */
   suggestionInBar: boolean;
+  /**
+   * The host draws the bar (see `CanvasEditorProps.hostChrome`): no bar here
+   * except the suggestion banner, and the share menu opens on the host's request.
+   */
+  hostShare?: { open: boolean; onOpenChange: (open: boolean) => void };
 }
 
 export const Toolbar = memo(
@@ -50,8 +55,26 @@ export const Toolbar = memo(
     chromeCenter,
     chromeRight,
     suggestionInBar,
+    hostShare,
   }: ToolbarProps) => {
     const hasPendingAiSuggestion = useCanvasStoreSelector((s) => s.pendingAiSuggestion !== null);
+
+    if (hostShare) {
+      return (
+        <>
+          {hasPendingAiSuggestion && suggestionInBar && (
+            <TopBar visible={true}>
+              <FloatingAiSuggestionBanner onUndo={handlers.undo} onUndoPages={handlers.undoPages} />
+            </TopBar>
+          )}
+          {shareProps && (
+            <div className="relative h-0">
+              <ShareDropdown {...shareProps} hostControl={hostShare} />
+            </div>
+          )}
+        </>
+      );
+    }
 
     const rightCluster =
       chromeRight || shareProps ? (

@@ -71,7 +71,7 @@ function OfficeBody() {
   );
 }
 
-/** Menu bar, a stage in the middle, the tool row along the bottom. */
+/** A stage in the middle, the tool row along the bottom. */
 function CanvasBody() {
   return (
     <View style={styles.stageArea}>
@@ -94,7 +94,8 @@ export function WebViewSkeleton({ shape }: { shape: EmbeddedSurfaceShape }) {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]} pointerEvents="none">
       <SkeletonGroup style={styles.container}>
-        <BarRow leading={shape === 'canvas' ? 20 : 24} trailing={shape === 'office' ? 1 : 2} />
+        {/* The canvas bar is the host's own native header, already on screen. */}
+        {shape !== 'canvas' && <BarRow leading={24} trailing={shape === 'office' ? 1 : 2} />}
         {shape === 'board' ? <BoardBody /> : shape === 'office' ? <OfficeBody /> : <CanvasBody />}
       </SkeletonGroup>
     </View>

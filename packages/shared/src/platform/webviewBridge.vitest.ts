@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
+  EDITOR_TITLE_MAX_LENGTH,
   HOST_CAPABILITIES_GLOBAL,
   HOST_CAPABILITY_SHARE,
   hostCapabilitiesScript,
@@ -305,6 +306,51 @@ describe('hardware back round-trip (#4403)', () => {
   it('keeps the two directions apart', () => {
     expect(parseWebViewMessage({ type: 'REQUEST_CLOSE' })).toBeNull();
     expect(parseHostMessage({ type: 'CLOSE_HANDLER', active: true })).toBeNull();
+  });
+});
+
+describe('native editor bar', () => {
+  const state = {
+    type: 'EDITOR_STATE',
+    title: 'Plakat',
+    canEdit: true,
+    canUndo: true,
+    canRedo: false,
+  };
+
+  it('accepts EDITOR_STATE and drops extra fields', () => {
+    expect(parseWebViewMessage(JSON.stringify({ ...state, evil: 1 }))).toEqual(state);
+  });
+
+  it('rejects EDITOR_STATE with a field of the wrong type', () => {
+    expect(parseWebViewMessage({ ...state, canUndo: 'yes' })).toBeNull();
+    expect(parseWebViewMessage({ ...state, title: null })).toBeNull();
+  });
+
+  it('accepts the known commands only', () => {
+    for (const command of ['undo', 'redo', 'share']) {
+      expect(parseHostMessage({ type: 'EDITOR_COMMAND', command, evil: 1 })).toEqual({
+        type: 'EDITOR_COMMAND',
+        command,
+      });
+    }
+    expect(parseHostMessage({ type: 'EDITOR_COMMAND', command: 'delete' })).toBeNull();
+  });
+
+  it('trims a rename and rejects an empty or over-long title', () => {
+    expect(parseHostMessage({ type: 'EDITOR_RENAME', title: '  Neu  ' })).toEqual({
+      type: 'EDITOR_RENAME',
+      title: 'Neu',
+    });
+    expect(parseHostMessage({ type: 'EDITOR_RENAME', title: '   ' })).toBeNull();
+    expect(
+      parseHostMessage({ type: 'EDITOR_RENAME', title: 'x'.repeat(EDITOR_TITLE_MAX_LENGTH + 1) })
+    ).toBeNull();
+  });
+
+  it('keeps the two directions apart', () => {
+    expect(parseHostMessage(state)).toBeNull();
+    expect(parseWebViewMessage({ type: 'EDITOR_COMMAND', command: 'undo' })).toBeNull();
   });
 });
 

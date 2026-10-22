@@ -16,7 +16,7 @@ export function FloatingOpacityControl({ opacity, onOpacityChange }: FloatingOpa
     <div className="flex items-center gap-2 h-full shrink-0 text-[var(--editor-text)] px-1">
       <PiDrop size={15} className="text-[var(--editor-text-muted)]" />
       <Slider.Root
-        className="relative flex items-center select-none touch-none w-20 h-5 max-canvas-mobile:w-16"
+        className="relative flex items-center select-none touch-none w-20 h-5 max-canvas-mobile:h-11 max-canvas-mobile:w-16"
         value={[opacity]}
         onValueChange={handleValueChange}
         min={0}
@@ -27,7 +27,7 @@ export function FloatingOpacityControl({ opacity, onOpacityChange }: FloatingOpa
           <Slider.Range className="absolute rounded-full h-full bg-[var(--editor-accent)]" />
         </Slider.Track>
         <Slider.Thumb
-          className="block size-3.5 bg-white rounded-full border-2 border-[var(--editor-accent)] shadow-[0_1px_3px_rgba(0,0,0,0.2)] cursor-grab focus:outline-none focus:shadow-[0_0_0_3px_rgba(82,144,122,0.35)]"
+          className="block size-3.5 max-canvas-mobile:size-5 bg-white rounded-full border-2 border-[var(--editor-accent)] shadow-[0_1px_3px_rgba(0,0,0,0.2)] cursor-grab focus:outline-none focus:shadow-[0_0_0_3px_rgba(82,144,122,0.35)]"
           aria-label="Opacity"
         />
       </Slider.Root>

@@ -88,6 +88,20 @@ export const HOST_CAPABILITY_SHARE = 'share';
  */
 export const HOST_CAPABILITY_REQUEST_CLOSE = 'requestClose';
 
+/**
+ * The host draws the editor's top bar natively (close, title, undo/redo,
+ * share), so the page hides its own and reports `EDITOR_STATE` instead. The
+ * host answers with `EDITOR_COMMAND`.
+ */
+export const HOST_CAPABILITY_EDITOR_CHROME = 'editorChrome';
+
+/** What the host's native editor bar can ask the page to do. */
+export type EditorCommand = 'undo' | 'redo' | 'share';
+const EDITOR_COMMANDS: readonly EditorCommand[] = ['undo', 'redo', 'share'];
+
+/** Longest title the host may send in `EDITOR_RENAME`; matches the rename sheet. */
+export const EDITOR_TITLE_MAX_LENGTH = 120;
+
 /** The script a host injects to announce `capabilities`; ends in `true` as WebView injection expects. */
 export function hostCapabilitiesScript(capabilities: readonly string[]): string {
   return `window.${HOST_CAPABILITIES_GLOBAL} = ${JSON.stringify(capabilities)}; true;`;
@@ -189,6 +203,18 @@ export type WebViewOutboundMessage =
     }
   | {
       /**
+       * What the host's native editor bar shows. Sent whenever any field
+       * changes; only when the host announced `HOST_CAPABILITY_EDITOR_CHROME`.
+       */
+      type: 'EDITOR_STATE';
+      title: string;
+      /** False for a read-only viewer: no rename, no undo/redo. */
+      canEdit: boolean;
+      canUndo: boolean;
+      canRedo: boolean;
+    }
+  | {
+      /**
        * The render page has mounted and its fonts are loaded. Until this
        * arrives the host holds requests back — a canvas rendered before
        * `document.fonts` settles comes out in fallback type, and a wrong
@@ -280,6 +306,16 @@ export type WebViewInboundMessage =
        * `CLOSE_HANDLER` and answers with `CLOSE`.
        */
       type: 'REQUEST_CLOSE';
+    }
+  | {
+      /** A button in the host's native editor bar; see `HOST_CAPABILITY_EDITOR_CHROME`. */
+      type: 'EDITOR_COMMAND';
+      command: EditorCommand;
+    }
+  | {
+      /** The user renamed the document in the host's native editor bar. */
+      type: 'EDITOR_RENAME';
+      title: string;
     };
 
 type WebViewRenderRequest = {
@@ -436,6 +472,16 @@ export function parseWebViewMessage(raw: unknown): WebViewOutboundMessage | null
     if (typeof active !== 'boolean') return null;
     return { type, active };
   }
+  if (type === 'EDITOR_STATE') {
+    const title = (candidate as { title?: unknown }).title;
+    const canEdit = (candidate as { canEdit?: unknown }).canEdit;
+    const canUndo = (candidate as { canUndo?: unknown }).canUndo;
+    const canRedo = (candidate as { canRedo?: unknown }).canRedo;
+    if (typeof title !== 'string') return null;
+    if (typeof canEdit !== 'boolean' || typeof canUndo !== 'boolean') return null;
+    if (typeof canRedo !== 'boolean') return null;
+    return { type: 'EDITOR_STATE', title, canEdit, canUndo, canRedo };
+  }
   if (type === 'RENDER_HOST_READY') {
     const protocolVersion = (candidate as { protocolVersion?: unknown }).protocolVersion;
     if (typeof protocolVersion !== 'number' || !Number.isFinite(protocolVersion)) return null;
@@ -530,6 +576,18 @@ export function parseHostMessage(raw: unknown): WebViewInboundMessage | null {
   if (typeof candidate !== 'object' || candidate === null) return null;
   const type = (candidate as { type?: unknown }).type;
   if (type === 'REQUEST_CLOSE') return { type: 'REQUEST_CLOSE' };
+  if (type === 'EDITOR_COMMAND') {
+    const command = (candidate as { command?: unknown }).command;
+    const known = EDITOR_COMMANDS.find((c) => c === command);
+    return known ? { type: 'EDITOR_COMMAND', command: known } : null;
+  }
+  if (type === 'EDITOR_RENAME') {
+    const title = (candidate as { title?: unknown }).title;
+    if (typeof title !== 'string') return null;
+    const trimmed = title.trim();
+    if (trimmed.length === 0 || trimmed.length > EDITOR_TITLE_MAX_LENGTH) return null;
+    return { type: 'EDITOR_RENAME', title: trimmed };
+  }
   if (type === 'CREATOR_RENDER_REQUEST') {
     const requestId = (candidate as { requestId?: unknown }).requestId;
     const sheet = (candidate as { sheet?: unknown }).sheet;

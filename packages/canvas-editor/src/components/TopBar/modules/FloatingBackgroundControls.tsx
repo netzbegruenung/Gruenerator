@@ -12,6 +12,7 @@ import {
   HiOutlineTrash,
 } from 'react-icons/hi2';
 
+import { MOBILE_INPUT_TEXT } from '../../../sidebar/sidebarStyles';
 import { useUserUploads } from '../../../sidebar/UserUploadsProvider';
 import { cn } from '../../../utils/cn';
 import { buildPlacementUrl, fetchShareImageFile } from '../../../utils/mediaPlacement';
@@ -118,11 +119,12 @@ export function BackgroundImagePicker({
           />
           <input
             type="search"
+            enterKeyHint="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Eigene Bilder durchsuchen"
             aria-label="Eigene Bilder durchsuchen"
-            className="flex-1 min-w-0 border-none outline-none bg-transparent text-sm text-[var(--editor-text)] placeholder:text-[var(--editor-text-muted)]"
+            className={`flex-1 min-w-0 border-none outline-none bg-transparent text-sm ${MOBILE_INPUT_TEXT} text-[var(--editor-text)] placeholder:text-[var(--editor-text-muted)]`}
           />
         </div>
 
@@ -212,7 +214,7 @@ export function BackgroundZoomControl({
         <span className="text-[11px] w-10 text-[var(--editor-text-muted)]">Zoom</span>
         {/* Bounds match `backgroundPhotoElement()` in the sharepic descriptor. */}
         <Slider.Root
-          className="relative flex items-center select-none touch-none grow h-4"
+          className="relative flex items-center select-none touch-none grow h-4 max-canvas-mobile:h-11"
           value={[scale]}
           onValueChange={(v) => onScaleChange(v[0])}
           min={1}
@@ -223,7 +225,7 @@ export function BackgroundZoomControl({
             <Slider.Range className="absolute rounded-full h-full bg-[var(--editor-accent)]" />
           </Slider.Track>
           <Slider.Thumb
-            className="block size-3 bg-white rounded-full border-2 border-[var(--editor-accent)] shadow-[0_1px_3px_rgba(0,0,0,0.2)] cursor-grab focus:outline-none"
+            className="block size-3 max-canvas-mobile:size-5 bg-white rounded-full border-2 border-[var(--editor-accent)] shadow-[0_1px_3px_rgba(0,0,0,0.2)] cursor-grab focus:outline-none"
             aria-label="Zoom"
           />
         </Slider.Root>

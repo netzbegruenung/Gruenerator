@@ -1,11 +1,11 @@
 import { useState, type ReactNode } from 'react';
 
-import type { IconType } from 'react-icons';
-
 import { useIsCanvasMobile } from '../hooks/useIsCanvasMobile';
+import { cn } from '../utils/cn';
 
 import { HIDDEN_SCROLLBAR } from './sidebarStyles';
-import { cn } from '../utils/cn';
+
+import type { IconType } from 'react-icons';
 
 export interface Subsection {
   id: string;
@@ -47,7 +47,7 @@ export function SubsectionTabBar({ subsections, defaultSubsection }: SubsectionT
         <div
           role="tablist"
           aria-label="Ansicht"
-          className={cn('flex gap-2 overflow-x-auto -mx-5 px-5', HIDDEN_SCROLLBAR)}
+          className={cn('flex gap-2 overflow-x-auto -mx-5 px-5 py-1.5 -my-1.5', HIDDEN_SCROLLBAR)}
         >
           {subsections.map((sub) => {
             const isActive = activeId === sub.id;
@@ -58,7 +58,7 @@ export function SubsectionTabBar({ subsections, defaultSubsection }: SubsectionT
                 role="tab"
                 aria-selected={isActive}
                 className={cn(
-                  'flex-none h-8 px-3.5 rounded-2xl border-none cursor-pointer text-sm whitespace-nowrap transition-colors duration-150',
+                  'touch-target flex-none h-8 px-3.5 rounded-2xl border-none cursor-pointer text-sm whitespace-nowrap transition-colors duration-150',
                   isActive
                     ? 'bg-[var(--editor-active-bg)] text-[var(--editor-active-fg)] font-bold'
                     : 'bg-[var(--editor-tile)] text-[var(--editor-text-secondary)] font-semibold'

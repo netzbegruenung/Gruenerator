@@ -10,7 +10,7 @@ import { MEDIA_DRAG_TYPE, type MediaDragPayload } from '../../utils/mediaDrop';
 import { buildPlacementUrl } from '../../utils/mediaPlacement';
 import { downscaleImageForUpload } from '../../utils/userImageUtils';
 import { SidebarHint } from '../components/SidebarHint';
-import { SIDEBAR_SECTION } from '../sidebarStyles';
+import { MOBILE_INPUT_TEXT, SIDEBAR_SECTION } from '../sidebarStyles';
 import { useUserUploads } from '../UserUploadsProvider';
 
 import type { MediaItem } from '@gruenerator/shared/media-library';
@@ -167,10 +167,11 @@ export function UploadsSection({
           />
           <input
             type="search"
+            enterKeyHint="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Eigene Bilder durchsuchen"
-            className="w-full h-11 pl-10 pr-3 rounded-xl border-none bg-[var(--editor-tile)] text-sm text-[var(--editor-text)] placeholder:text-[var(--editor-text-muted)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)]"
+            className={`w-full h-11 pl-10 pr-3 rounded-xl border-none bg-[var(--editor-tile)] text-sm ${MOBILE_INPUT_TEXT} text-[var(--editor-text)] placeholder:text-[var(--editor-text-muted)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)]`}
           />
         </div>
 
@@ -222,9 +223,11 @@ export function UploadsSection({
                 type="button"
                 onClick={() => void deleteFromLibrary(item.id)}
                 aria-label="Bild aus Bibliothek entfernen"
-                className="absolute top-1 right-1 size-6 flex items-center justify-center bg-black/60 text-white border-none rounded-md cursor-pointer opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus:opacity-100"
+                className="absolute top-1 right-1 size-6 flex items-center justify-center bg-black/60 text-white border-none rounded-md cursor-pointer opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus:opacity-100 max-canvas-mobile:top-0 max-canvas-mobile:right-0 max-canvas-mobile:size-11 max-canvas-mobile:bg-transparent max-canvas-mobile:opacity-100"
               >
-                <FaTrash size={10} />
+                <span className="flex items-center justify-center max-canvas-mobile:size-6 max-canvas-mobile:rounded-md max-canvas-mobile:bg-black/60">
+                  <FaTrash size={10} />
+                </span>
               </button>
             </div>
           ))}
@@ -271,10 +274,11 @@ export function UploadsSection({
         />
         <input
           type="search"
+          enterKeyHint="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Bilder durchsuchen"
-          className="w-full pl-9 pr-3 py-2 rounded-lg bg-[var(--card-background)] border border-[var(--card-border)] text-sm focus:outline-none focus:border-primary-500"
+          className={`w-full pl-9 pr-3 py-2 rounded-lg bg-[var(--card-background)] border border-[var(--card-border)] text-sm ${MOBILE_INPUT_TEXT} focus:outline-none focus:border-primary-500`}
         />
       </div>
 
@@ -340,9 +344,11 @@ export function UploadsSection({
                 type="button"
                 onClick={() => void deleteFromLibrary(item.id)}
                 aria-label="Bild aus Bibliothek entfernen"
-                className="absolute top-1 right-1 size-6 flex items-center justify-center bg-black/60 text-white border-none rounded-md cursor-pointer opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus:opacity-100"
+                className="absolute top-1 right-1 size-6 flex items-center justify-center bg-black/60 text-white border-none rounded-md cursor-pointer opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus:opacity-100 max-canvas-mobile:top-0 max-canvas-mobile:right-0 max-canvas-mobile:size-11 max-canvas-mobile:bg-transparent max-canvas-mobile:opacity-100"
               >
-                <FaTrash size={10} />
+                <span className="flex items-center justify-center max-canvas-mobile:size-6 max-canvas-mobile:rounded-md max-canvas-mobile:bg-black/60">
+                  <FaTrash size={10} />
+                </span>
               </button>
             </MasonryItem>
           ))}

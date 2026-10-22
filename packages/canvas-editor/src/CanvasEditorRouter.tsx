@@ -8,7 +8,10 @@ import { getCanvasFormatOrDefault, isUnsupportedFormatId } from './formats';
 import { HOST_CALLBACK_KEYS } from './hostCallbackKeys';
 
 import type { StockImageAttribution } from './common/imageSourceTypes';
-import type { CanvasEditorExportApi } from './components/CanvasEditor/types';
+import type {
+  CanvasEditorExportApi,
+  CanvasEditorHostChrome,
+} from './components/CanvasEditor/types';
 import type { FullCanvasConfig, CanvasConfigId } from './configs/types';
 import type { InitialPageDef } from './hooks/usePageManager';
 import type { SidebarTabId } from './sidebar/types';
@@ -180,6 +183,8 @@ export interface ControllableCanvasWrapperProps {
   showShare?: boolean;
   /** See CanvasEditorProps.exportApiRef. */
   exportApiRef?: React.Ref<CanvasEditorExportApi>;
+  /** See CanvasEditorProps.hostChrome. */
+  hostChrome?: CanvasEditorHostChrome;
 }
 
 /**
@@ -229,6 +234,7 @@ function ControllableCanvasEditor({
   galleryAutoSave,
   showShare,
   exportApiRef,
+  hostChrome,
 }: ControllableCanvasWrapperProps) {
   const isCollab = !!collaborative;
   const [internalState, setInternalState] = useState<CanvasState>(initialState);
@@ -319,7 +325,13 @@ function ControllableCanvasEditor({
 
   const renderCanvas = () => {
     if (configLoading) {
-      return <CanvasEditorSkeleton chromeLeft={chromeLeft} aspectRatio={skeletonAspectRatio} />;
+      return (
+        <CanvasEditorSkeleton
+          chromeLeft={chromeLeft}
+          aspectRatio={skeletonAspectRatio}
+          topBar={!hostChrome}
+        />
+      );
     }
 
     // Build initial props based on canvas type.
@@ -467,7 +479,13 @@ function ControllableCanvasEditor({
       case 'freeform-at':
       case 'slider-at':
         if (!config)
-          return <CanvasEditorSkeleton chromeLeft={chromeLeft} aspectRatio={skeletonAspectRatio} />;
+          return (
+            <CanvasEditorSkeleton
+              chromeLeft={chromeLeft}
+              aspectRatio={skeletonAspectRatio}
+              topBar={!hostChrome}
+            />
+          );
 
         return (
           <CanvasEditor
@@ -496,6 +514,7 @@ function ControllableCanvasEditor({
             galleryAutoSave={galleryAutoSave}
             showShare={showShare}
             exportApiRef={exportApiRef}
+            hostChrome={hostChrome}
           />
         );
 

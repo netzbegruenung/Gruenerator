@@ -16,6 +16,7 @@ import { useIsCanvasMobile } from '../../../hooks/useIsCanvasMobile';
 import { useTrackUnsplashDownload } from '../../../hooks/useTrackUnsplashDownload';
 import { cn } from '../../../utils/cn';
 import { MAX_ICON_SELECTIONS } from '../../../utils/iconInstances';
+import { MOBILE_INPUT_TEXT } from '../../sidebarStyles';
 import { IllustrationSettings } from '../IllustrationSettings';
 import { FramePreviewDefs } from '../RahmenSection';
 
@@ -36,8 +37,11 @@ import type { ExtendedAssetsSectionProps } from './AssetsSection';
 import type { SharepicBlock } from '@gruenerator/contracts';
 import type { StickerRef } from '@gruenerator/shared/stickers';
 
-/** Entrance: 12 staggered steps of 45 ms plus the 550 ms rise of the last one. */
-const ENTRANCE_MS = 12 * 45 + 600;
+/**
+ * Entrance (element-enter in both CSS twins): tiles 0–7 start 30 ms apart, the
+ * last one at 7 × 30 ms, and its 250 ms rise ends the entrance; 50 ms slack.
+ */
+const ENTRANCE_MS = 7 * 30 + 250 + 50;
 const BRAND_COUNT = 4;
 
 function countLabel(n: number): string {
@@ -64,6 +68,7 @@ function SearchField({
       <PiMagnifyingGlass size={18} aria-hidden />
       <input
         type="search"
+        enterKeyHint="search"
         value={value}
         placeholder={placeholder}
         aria-label={placeholder}
@@ -76,6 +81,7 @@ function SearchField({
         }}
         className={cn(
           'flex-1 min-w-0 border-none outline-none bg-transparent p-0 text-[15px] text-[var(--editor-text)]',
+          MOBILE_INPUT_TEXT,
           'placeholder:text-[var(--editor-text-muted)] [&::-webkit-search-cancel-button]:appearance-none'
         )}
       />
@@ -84,7 +90,7 @@ function SearchField({
           type="button"
           aria-label="Suche leeren"
           onClick={() => onChange('')}
-          className="size-7 rounded-lg grid place-items-center border-none bg-transparent cursor-pointer text-[var(--editor-text-muted)] hover:bg-[var(--editor-tile)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)]"
+          className="touch-target size-7 rounded-lg grid place-items-center border-none bg-transparent cursor-pointer text-[var(--editor-text-muted)] hover:bg-[var(--editor-tile)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)]"
         >
           <PiX size={16} />
         </button>
@@ -467,7 +473,7 @@ export function ElementsPanel(props: ExtendedAssetsSectionProps) {
                 <button
                   type="button"
                   onClick={() => openCategory('marke')}
-                  className="p-0 border-none bg-transparent cursor-pointer text-[13px] font-semibold text-[var(--editor-active-fg)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)] rounded"
+                  className="touch-target p-0 border-none bg-transparent cursor-pointer text-[13px] font-semibold text-[var(--editor-active-fg)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)] rounded"
                 >
                   Alle anzeigen
                 </button>
