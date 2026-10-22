@@ -50,7 +50,11 @@ export function useChatVoiceAdapter(runtime: RefObject<AssistantRuntime | null>)
           messagesUrl(callThreadId),
           messageId,
           convertToThreadMessageLike
-        ).catch((error: unknown) => console.warn('[voice] card not inserted:', error));
+        )
+          .then((shown) => {
+            if (shown) useVoiceCallStore.setState((s) => ({ cardsShown: s.cardsShown + 1 }));
+          })
+          .catch((error: unknown) => console.warn('[voice] card not inserted:', error));
       },
       onEnded: () => {
         if (!callThreadId) return;

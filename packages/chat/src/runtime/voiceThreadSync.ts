@@ -24,6 +24,9 @@ type ConvertRows<TRow> = (rows: TRow[]) => readonly ThreadMessageLike[];
  * arrive as a tool result. Export, append and import happen in one
  * synchronous step: a transcript the call commits meanwhile lands before or
  * after the card, never on a branch the import throws away.
+ *
+ * Resolves true once the card is in the thread (also when it already was),
+ * false when the server did not list it or no thread was there.
  */
 export async function insertSavedMessage<TRow extends SavedRow>(
   getThread: () => VoiceSyncThread | null,
@@ -31,20 +34,21 @@ export async function insertSavedMessage<TRow extends SavedRow>(
   messagesUrl: string,
   messageId: string,
   convert: ConvertRows<TRow>
-): Promise<void> {
+): Promise<boolean> {
   const rows = await apiClient.get<TRow[]>(messagesUrl);
   const row = rows.find((r) => r.id === messageId);
   const thread = getThread();
-  if (!row || !thread) return;
+  if (!row || !thread) return false;
   const repository = thread.export();
-  if (repository.messages.some((item) => item.message.id === messageId)) return;
+  if (repository.messages.some((item) => item.message.id === messageId)) return true;
   const [item] = ExportedMessageRepository.fromArray(convert([row])).messages;
-  if (!item) return;
+  if (!item) return false;
   thread.import({
     ...repository,
     headId: item.message.id,
     messages: [...repository.messages, { ...item, parentId: repository.headId ?? null }],
   });
+  return true;
 }
 
 /**

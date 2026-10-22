@@ -50,18 +50,3 @@ export const TOOL_LABEL: Record<string, string> = {
   create_board: 'Lege das Board an',
   create_explainable: 'Schreibe das Explainable',
 };
-
-/**
- * The tools that put a card into the chat — the API's artifact kinds
- * (`loopToolName` in `artifactKindRegistry.ts`). The call steps aside for them
- * so the card can be seen arriving.
- */
-export const CREATING_TOOLS: ReadonlySet<string> = new Set([
-  'sharepic',
-  'create_presentation',
-  'create_sheet',
-  'create_document',
-  'create_pdf',
-  'create_board',
-  'create_explainable',
-]);
