@@ -236,11 +236,13 @@ jobs:
           # Datei mit `output_mode: content`. Grep ohne den Modus liefert nur
           # Dateinamen, keine Zeile Code.
           # Eine Datei mit reinen Ergänzungen zählt auch, wenn ein
-          # Werkzeugergebnis ihren Diff vollständig zeigte: Kopf `+++ b/<datei>`
-          # und die letzte Zeile ihres Patches im selben Ergebnis (#4839, ein
-          # angehängter Testblock galt dreimal als ungelesen). Ein gekürzter
-          # Diff (`| head`) reicht nicht bis dorthin. Mit Löschungen bleibt
-          # Lesen Pflicht — der Diff zeigt dann nicht, was stehen bleibt.
+          # Werkzeugergebnis ihren Diff vollständig zeigte: ihr eigener
+          # Abschnitt, von `+++ b/<datei>` bis zum nächsten `diff --git`, endet
+          # mit der letzten Zeile ihres Patches (#4839, ein angehängter Testblock galt
+          # dreimal als ungelesen). Ein gekürzter Diff (`| head`) reicht nicht
+          # bis dorthin, eine gleiche Zeile einer anderen Datei zählt nicht.
+          # Mit Löschungen bleibt Lesen Pflicht — der Diff zeigt dann nicht,
+          # was stehen bleibt.
           NEED=$(( FILES < 3 ? FILES : 3 ))
           OPENED=$({
               jq -r '.[] | select(.type == "assistant") | .message.content[]?
@@ -255,7 +257,10 @@ jobs:
                   | select(.type == "tool_result") | .content
                   | if type == "string" then . else (map(.text? // "") | join("\n")) end] as $out
                 | $adds[0][] | . as $a
-                | select(any($out[]; contains("+++ b/" + $a.file) and contains($a.last)))
+                | select(any($out[];
+                    split("+++ b/" + $a.file + "\n")[1:][]
+                    | split("\ndiff --git ")[0]
+                    | split("\n") | map(select(length > 0)) | last == $a.last))
                 | .file' \
                 "$RUNNER_TEMP/claude-execution-output.json"
             } | sort -u \
