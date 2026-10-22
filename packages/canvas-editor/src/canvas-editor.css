@@ -155,6 +155,59 @@
   }
 }
 
+/* ── Mobile sheet: slides in from the bottom, its content fades in once the
+      slide is done, and it slides back out before it unmounts. The phase
+      lives in data-state (SidebarPanel); transitionend or a 350 ms fallback
+      moves it on. Only the mobile <section> carries data-state. ── */
+.sidebar-panel[data-state] {
+  transition: transform 280ms var(--editor-ease-drawer);
+}
+
+@starting-style {
+  .sidebar-panel[data-state='entering'] {
+    transform: translateY(100%);
+  }
+}
+
+.sidebar-panel[data-state='closing'] {
+  transform: translateY(100%);
+  transition: transform 200ms var(--editor-ease-out);
+}
+
+.sidebar-panel__content--in {
+  animation: sheet-content-in 150ms var(--editor-ease-out) both;
+}
+
+@keyframes sheet-content-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Reduced motion: the sheet fades instead of sliding; the content fade stays. */
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-panel[data-state] {
+    transition: opacity 150ms var(--editor-ease-out);
+  }
+
+  @starting-style {
+    .sidebar-panel[data-state='entering'] {
+      transform: none;
+      opacity: 0;
+    }
+  }
+
+  .sidebar-panel[data-state='closing'] {
+    transform: none;
+    opacity: 0;
+    transition: opacity 150ms var(--editor-ease-out);
+  }
+
+  .heterogeneous-multipage__pages-container {
+    transition: none;
+  }
+}
+
 /* ── Number input spinner hiding ── */
 input[type='number'].hide-spinner::-webkit-outer-spin-button,
 input[type='number'].hide-spinner::-webkit-inner-spin-button {

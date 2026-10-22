@@ -233,12 +233,12 @@
   to { opacity: 1; transform: scale(1); }
 }
 
-/* Elemente-Katalog: Einblenden beim Öffnen, je Kachel um 45 ms versetzt (max. 12) */
+/* Elemente-Katalog: Einblenden beim Öffnen, je Kachel um 30 ms versetzt (max. 8) */
 @utility element-enter {
   animation:
-    elementFade 0.4s ease both,
-    elementRise 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-  animation-delay: calc(min(var(--i, 0), 12) * 45ms);
+    elementFade 0.2s var(--editor-ease-out) both,
+    elementRise 0.25s var(--editor-ease-out) both;
+  animation-delay: calc(min(var(--i, 0), 8) * 30ms);
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
@@ -267,4 +267,22 @@
 @keyframes flyout-enter {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* Reduced motion: these entrances keep their fade and drop the movement. */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes subsectionFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slideDownFade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes flyout-enter {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
 }

@@ -1,7 +1,7 @@
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PiImage, PiTextAa } from 'react-icons/pi';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SidebarPanel } from '../SidebarPanel';
 import { SidebarTabBar } from '../SidebarTabBar';
@@ -21,6 +21,17 @@ function setViewport(mobile: boolean) {
     addEventListener: () => {},
     removeEventListener: () => {},
   }));
+}
+
+/** jsdom has no TransitionEvent; the sheet only reads `propertyName`. */
+function endTransition(el: Element, propertyName = 'transform') {
+  const event = new Event('transitionend', { bubbles: true });
+  Object.defineProperty(event, 'propertyName', { value: propertyName });
+  fireEvent(el, event);
+}
+
+function sheetEl() {
+  return document.querySelector('section.sidebar-panel');
 }
 
 const TABS: SidebarTab[] = [
@@ -72,6 +83,108 @@ describe('mobiles Sheet', () => {
       </SidebarPanel>
     );
     expect(screen.queryByText('Inhalt')).not.toBeInTheDocument();
+  });
+});
+
+describe('mobiles Sheet: Ein- und Ausgleiten', () => {
+  beforeEach(() => setViewport(true));
+  afterEach(() => vi.useRealTimers());
+
+  function panel(isOpen: boolean, title = 'Text') {
+    return (
+      <SidebarPanel isOpen={isOpen} title={title} onClose={() => {}}>
+        <p>Inhalt</p>
+      </SidebarPanel>
+    );
+  }
+
+  it('slides in and mounts content after the enter transition', () => {
+    render(panel(true));
+    const sheet = screen.getByRole('region', { name: 'Text' });
+    expect(sheet).toHaveAttribute('data-state', 'entering');
+    expect(screen.queryByText('Inhalt')).toBeNull();
+
+    endTransition(sheet);
+    expect(sheet).toHaveAttribute('data-state', 'open');
+    expect(screen.getByText('Inhalt')).toBeInTheDocument();
+  });
+
+  it('ignores transitions bubbling up from the content', () => {
+    render(panel(true));
+    const sheet = screen.getByRole('region', { name: 'Text' });
+    endTransition(sheet.querySelector('.sidebar-panel__content') as Element);
+    expect(sheet).toHaveAttribute('data-state', 'entering');
+  });
+
+  it('keeps the sheet mounted while it slides out', () => {
+    const { rerender } = render(panel(true));
+    endTransition(screen.getByRole('region', { name: 'Text' }));
+
+    rerender(panel(false));
+    const sheet = sheetEl();
+    expect(sheet).toBeInTheDocument();
+    expect(sheet).toHaveAttribute('data-state', 'closing');
+    expect(screen.getByText('Inhalt')).toBeInTheDocument();
+
+    endTransition(sheet as Element);
+    expect(sheetEl()).toBeNull();
+  });
+
+  it('falls back when transitionend never fires', () => {
+    vi.useFakeTimers();
+    const { rerender } = render(panel(true));
+    act(() => {
+      vi.advanceTimersByTime(350);
+    });
+    expect(sheetEl()).toHaveAttribute('data-state', 'open');
+    expect(screen.getByText('Inhalt')).toBeInTheDocument();
+
+    rerender(panel(false));
+    expect(sheetEl()).toHaveAttribute('data-state', 'closing');
+    act(() => {
+      vi.advanceTimersByTime(350);
+    });
+    expect(sheetEl()).toBeNull();
+  });
+
+  it('does not replay the enter animation when the title changes', () => {
+    const { rerender } = render(panel(true));
+    endTransition(screen.getByRole('region', { name: 'Text' }));
+
+    rerender(panel(true, 'Bilder'));
+    const sheet = screen.getByRole('region', { name: 'Bilder' });
+    expect(sheet).toHaveAttribute('data-state', 'open');
+    expect(screen.getByText('Inhalt')).toBeInTheDocument();
+  });
+
+  it('closes cleanly when closed mid-enter', () => {
+    const { rerender } = render(panel(true));
+    rerender(panel(false));
+    const sheet = sheetEl();
+    expect(sheet).toHaveAttribute('data-state', 'closing');
+    expect(screen.queryByText('Inhalt')).toBeNull();
+
+    endTransition(sheet as Element);
+    expect(sheetEl()).toBeNull();
+  });
+
+  it('opens again after a full close', () => {
+    const { rerender } = render(panel(true));
+    endTransition(screen.getByRole('region', { name: 'Text' }));
+    rerender(panel(false));
+    endTransition(sheetEl() as Element);
+
+    rerender(panel(true));
+    const sheet = screen.getByRole('region', { name: 'Text' });
+    expect(sheet).toHaveAttribute('data-state', 'entering');
+    expect(screen.queryByText('Inhalt')).toBeNull();
+  });
+
+  it('renders desktop panel immediately', () => {
+    setViewport(false);
+    render(panel(true));
+    expect(screen.getByText('Inhalt')).toBeInTheDocument();
+    expect(document.querySelector('[data-state]')).toBeNull();
   });
 });
 

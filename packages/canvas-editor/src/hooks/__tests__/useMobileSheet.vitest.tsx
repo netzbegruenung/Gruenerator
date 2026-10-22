@@ -59,6 +59,10 @@ describe('useMobileSheet', () => {
   it('ignoriert Berührungen außerhalb des Griffs', () => {
     const onClose = vi.fn();
     const { sheet } = renderSheet(onClose);
+    // Content mounts once the slide-in ends (jsdom has no TransitionEvent).
+    const ended = new Event('transitionend', { bubbles: true });
+    Object.defineProperty(ended, 'propertyName', { value: 'transform' });
+    fireEvent(sheet, ended);
     const content = screen.getByText('Inhalt');
 
     fireEvent.touchStart(content, { touches: [{ clientY: 100 }] });

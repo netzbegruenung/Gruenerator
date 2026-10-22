@@ -34,7 +34,9 @@ export const CategoryCard = memo(function CategoryCard({
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)] focus-visible:ring-offset-4 focus-visible:ring-offset-[var(--editor-surface)]',
         enterIndex !== null && 'element-enter [--enter-from:translateY(18px)]'
       )}
-      {...(enterIndex !== null ? { style: { '--i': enterIndex } as CSSProperties } : {})}
+      {...(enterIndex !== null
+        ? { style: { '--i': Math.min(enterIndex, 8) } as CSSProperties }
+        : {})}
     >
       <span className="relative block w-full aspect-square">
         <span

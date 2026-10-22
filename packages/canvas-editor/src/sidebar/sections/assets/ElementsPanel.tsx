@@ -37,8 +37,8 @@ import type { ExtendedAssetsSectionProps } from './AssetsSection';
 import type { SharepicBlock } from '@gruenerator/contracts';
 import type { StickerRef } from '@gruenerator/shared/stickers';
 
-/** Entrance: 12 staggered steps of 45 ms plus the 550 ms rise of the last one. */
-const ENTRANCE_MS = 12 * 45 + 600;
+/** Entrance: 8 staggered steps of 30 ms plus the 250 ms rise of the last one, with slack. */
+const ENTRANCE_MS = 8 * 30 + 300;
 const BRAND_COUNT = 4;
 
 function countLabel(n: number): string {

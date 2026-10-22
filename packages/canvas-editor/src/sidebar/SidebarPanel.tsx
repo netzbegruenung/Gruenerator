@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { PiX } from 'react-icons/pi';
 
 import { useIsCanvasMobile } from '../hooks/useIsCanvasMobile';
@@ -22,6 +22,20 @@ interface ExtendedSidebarPanelProps extends SidebarPanelProps {
  */
 const SIDEBAR_PANEL_DESKTOP_WIDTH_PX = 348;
 
+/**
+ * Mobile sheet lifecycle. `entering` slides in (CSS, `@starting-style`) with
+ * an empty body; `open` mounts the content; `closing` slides out and keeps
+ * the sheet mounted; `closed` renders nothing.
+ */
+type SheetPhase = 'closed' | 'entering' | 'open' | 'closing';
+
+/**
+ * Upper bound for one slide (enter 280 ms, exit 200 ms). `transitionend`
+ * never comes under reduced motion without a transform transition, while
+ * hidden, or in jsdom — the timer moves the phase on regardless.
+ */
+const SHEET_TRANSITION_FALLBACK_MS = 350;
+
 export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSidebarPanelProps) {
   const isDesktop = !useIsCanvasMobile();
 
@@ -42,6 +56,36 @@ export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSideb
     };
   }, [isOpen, isDesktop]);
 
+  const [phase, setPhase] = useState<SheetPhase>(isOpen ? 'entering' : 'closed');
+  // Content stays mounted from the first `open` until the sheet is gone, so a
+  // reopen while it slides out does not blank it.
+  const [hasContent, setHasContent] = useState(false);
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
+    if (isOpen) setPhase('entering');
+    else if (phase !== 'closed') setPhase('closing');
+  }
+
+  const finishEnter = useCallback(() => {
+    setPhase((p) => (p === 'entering' ? 'open' : p));
+    setHasContent(true);
+  }, []);
+  // Also the hook-in for a drag that already carried the sheet off-screen.
+  const finishClose = useCallback(() => {
+    setPhase('closed');
+    setHasContent(false);
+  }, []);
+
+  useEffect(() => {
+    if (isDesktop || (phase !== 'entering' && phase !== 'closing')) return;
+    const t = window.setTimeout(
+      phase === 'entering' ? finishEnter : finishClose,
+      SHEET_TRANSITION_FALLBACK_MS
+    );
+    return () => window.clearTimeout(t);
+  }, [isDesktop, phase, finishEnter, finishClose]);
+
   const { handleRef, sheetRef } = useMobileSheet({
     isOpen: isOpen && !isDesktop,
     onClose: onClose || (() => {}),
@@ -49,9 +93,15 @@ export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSideb
     velocityThreshold: 0.5,
   });
 
-  if (!isOpen) return null;
+  // A snap-back leaves the drag hook's inline transition on the section; it
+  // would override the phase transition from canvas-editor.css.
+  useLayoutEffect(() => {
+    const sheet = sheetRef.current;
+    if (sheet && (phase === 'entering' || phase === 'closing')) sheet.style.transition = '';
+  }, [phase, sheetRef]);
 
   if (!isDesktop) {
+    if (phase === 'closed') return null;
     // Mobiles Sheet: liegt im Fluss zwischen Canvas und Leiste (order-1), der
     // Canvas darüber schrumpft und bleibt sichtbar. Jedes Sheet hat denselben
     // Aufbau: Griff, Titel mit Schließen, dann der Inhalt des Bereichs.
@@ -59,6 +109,14 @@ export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSideb
       <section
         ref={sheetRef}
         aria-label={title}
+        data-state={phase}
+        inert={phase === 'closing'}
+        onTransitionEnd={(e) => {
+          if (e.target !== e.currentTarget) return;
+          if (e.propertyName !== 'transform' && e.propertyName !== 'opacity') return;
+          if (phase === 'entering') finishEnter();
+          else if (phase === 'closing') finishClose();
+        }}
         className="sidebar-panel order-1 flex-none flex flex-col h-[clamp(300px,48dvh,420px)] bg-[var(--editor-surface)] rounded-t-[20px] shadow-[0_-4px_24px_rgba(0,0,0,0.12)] overflow-hidden"
       >
         <div
@@ -80,12 +138,19 @@ export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSideb
             </button>
           )}
         </div>
-        <div className="sidebar-panel__content flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pt-4 pb-5 flex flex-col gap-4">
-          {children}
+        <div
+          className={cn(
+            'sidebar-panel__content flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pt-4 pb-5 flex flex-col gap-4',
+            hasContent && 'sidebar-panel__content--in'
+          )}
+        >
+          {hasContent && children}
         </div>
       </section>
     );
   }
+
+  if (!isOpen) return null;
 
   return (
     <div
