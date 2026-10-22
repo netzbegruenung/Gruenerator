@@ -66,9 +66,15 @@ export function resultLines(execution) {
   return lines;
 }
 
-/** Kommen die nicht-leeren `wanted`-Zeilen in `lines` in dieser Reihenfolge vor? */
+/**
+ * Kommen die nicht-leeren `wanted`-Zeilen in `lines` in dieser Reihenfolge vor?
+ * Ohne eine einzige nicht-leere Zeile gibt es nichts, was ein Ergebnis gezeigt
+ * haben könnte — das ist kein Beleg, also nein (sonst zählte ein Patch aus
+ * Leerzeilen ohne einen Werkzeugaufruf).
+ */
 export function shown(wanted, lines) {
   const need = wanted.map((l) => l.trim()).filter(Boolean);
+  if (need.length === 0) return false;
   let i = 0;
   for (const r of lines) {
     if (i === need.length) break;

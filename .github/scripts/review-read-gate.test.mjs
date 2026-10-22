@@ -116,6 +116,14 @@ test('pure additions count from a complete diff, not from a truncated one (#4839
   );
 });
 
+test('blank-only additions need the surrounding code, not nothing', () => {
+  const patch = '@@ -20,0 +21,2 @@\n+\n+';
+  const patches = [{ file: FILE, patch, deletions: 0 }];
+  assert.deepEqual(openedFiles([], patches, headText, WS), []);
+  const read = [{ type: 'user', message: { content: [{ type: 'tool_result', content: HEAD }] } }];
+  assert.deepEqual(openedFiles(read, patches, headText, WS), [FILE]);
+});
+
 test('without a patch only a Read on that exact file counts', () => {
   const patches = [{ file: 'img.png', patch: null, deletions: 0 }];
   const execution = [
