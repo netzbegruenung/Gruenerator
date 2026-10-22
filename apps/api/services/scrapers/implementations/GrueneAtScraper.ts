@@ -559,10 +559,7 @@ export class GrueneAtScraper extends BaseScraper {
         concurrency: 5,
         delayMs: this.crawlDelay,
       });
-      const gone = new GoneTracker(
-        this.qdrant.writeClient(this.config.collectionName),
-        this.config.collectionName
-      );
+      const gone = new GoneTracker(this.qdrant, this.config.collectionName);
 
       for (let i = 0; i < fetched.length; i++) {
         const entry = fetched[i];
