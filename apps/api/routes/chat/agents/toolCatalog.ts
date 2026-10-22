@@ -1243,82 +1243,21 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     // follow-up edits); presentation/sheet/document persist via createdDocument;
     // board renders from the `done` event.
     if (state.compoundGeneration === true && loop.req && !editorSurface) {
-      // Einmal festgehalten statt sechsmal gecastet: die Verengung aus der
-      // Bedingung oben gilt in den Closures unten nicht mehr.
       const req = loop.req;
       const kind = state.compoundGenerationKind;
-      // The generation tools stay mounted under a research ban — only their
-      // opening line flips from "Recherchiere ZUERST" to "arbeite mit dem, was
-      // im Gespräch steht". Telling the model to search with no search tool
-      // mounted is how a turn stalls or invents one.
-      //
-      // One factory per kind, keyed by the registry's union instead of a chain
-      // of `else if`. The factories genuinely differ — the PDF tool carries the
-      // letterhead/sender/edit inputs, the board tool has no card path — so what
-      // is unified is the LOOKUP, not the construction. The `Record<
-      // ArtifactKindId, …>` is what buys the check: a new kind in the registry
-      // stops compiling here until it has a factory, where the chain would just
-      // have fallen through and mounted nothing at all. A turn like that still
-      // promised the artifact — `forceCompoundGeneration` then looks for a tool
-      // that was never there.
-      const mount: Readonly<Record<ArtifactKindId, () => Tool>> = {
-        sharepic: () =>
-          makeCreateSharepicTool({
-            sse,
-            state,
-            threadId: loop.threadId ?? null,
-            researchBanned,
-          }),
-        presentation: () =>
-          makeCreateDocTool({
-            kind: 'presentation',
-            sse,
-            state,
-            req,
-            sourceRegistry,
-            researchBanned,
-          }),
-        sheet: () =>
-          makeCreateDocTool({
-            kind: 'sheet',
-            sse,
-            state,
-            req,
-            sourceRegistry,
-            researchBanned,
-          }),
-        document: () =>
-          makeCreateDocTool({
-            kind: 'document',
-            sse,
-            state,
-            req,
-            sourceRegistry,
-            researchBanned,
-          }),
-        board: () => makeCreateBoardTool({ state, req, researchBanned }),
-        pdf: () =>
-          makeCreatePdfTool({
-            sse,
-            state,
-            req,
-            sourceRegistry,
-            researchBanned,
-          }),
-        explainable: () =>
-          makeCreateExplainableTool({
-            sse,
-            state,
-            sourceRegistry,
-            researchBanned,
-          }),
-      };
       // The catalog key IS the registry's `loopToolName` — the same string
       // `forceCompoundGeneration` looks the tool up by, so the two cannot drift.
       if (kind != null) {
         const { loopToolName } = artifactKind(kind);
         if (state.enabledTools?.[loopToolName] !== false) {
-          tools[loopToolName] = mount[kind]();
+          tools[loopToolName] = artifactTool(kind, {
+            sse,
+            state,
+            req,
+            threadId: loop.threadId ?? null,
+            sourceRegistry,
+            researchBanned,
+          });
         }
       }
     }
@@ -1332,4 +1271,89 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
   }
 
   return { tools, toolNames: Object.keys(tools) };
+}
+
+/**
+ * The creating tool for one artifact kind — what the chat loop mounts for a
+ * compound turn and the voice port (voicePort.ts) for a spoken order.
+ */
+export function artifactTool(
+  kind: ArtifactKindId,
+  ctx: {
+    sse: SSEWriter;
+    state: ChatGraphState;
+    req: Request;
+    threadId: string | null;
+    sourceRegistry: SourceRegistry;
+    researchBanned: boolean;
+  }
+): Tool {
+  const { sse, state, req, threadId, sourceRegistry, researchBanned } = ctx;
+  // The generation tools stay mounted under a research ban — only their
+  // opening line flips from "Recherchiere ZUERST" to "arbeite mit dem, was
+  // im Gespräch steht". Telling the model to search with no search tool
+  // mounted is how a turn stalls or invents one.
+  //
+  // One factory per kind, keyed by the registry's union instead of a chain
+  // of `else if`. The factories genuinely differ — the PDF tool carries the
+  // letterhead/sender/edit inputs, the board tool has no card path — so what
+  // is unified is the LOOKUP, not the construction. The `Record<
+  // ArtifactKindId, …>` is what buys the check: a new kind in the registry
+  // stops compiling here until it has a factory, where the chain would just
+  // have fallen through and mounted nothing at all. A turn like that still
+  // promised the artifact — `forceCompoundGeneration` then looks for a tool
+  // that was never there.
+  const mount: Readonly<Record<ArtifactKindId, () => Tool>> = {
+    sharepic: () =>
+      makeCreateSharepicTool({
+        sse,
+        state,
+        threadId,
+        researchBanned,
+      }),
+    presentation: () =>
+      makeCreateDocTool({
+        kind: 'presentation',
+        sse,
+        state,
+        req,
+        sourceRegistry,
+        researchBanned,
+      }),
+    sheet: () =>
+      makeCreateDocTool({
+        kind: 'sheet',
+        sse,
+        state,
+        req,
+        sourceRegistry,
+        researchBanned,
+      }),
+    document: () =>
+      makeCreateDocTool({
+        kind: 'document',
+        sse,
+        state,
+        req,
+        sourceRegistry,
+        researchBanned,
+      }),
+    board: () => makeCreateBoardTool({ state, req, researchBanned }),
+    pdf: () =>
+      makeCreatePdfTool({
+        sse,
+        state,
+        req,
+        sourceRegistry,
+        researchBanned,
+      }),
+    explainable: () =>
+      makeCreateExplainableTool({
+        sse,
+        state,
+        sourceRegistry,
+        researchBanned,
+      }),
+  };
+  return mount[kind]();
 }
