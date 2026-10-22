@@ -11,6 +11,7 @@ import { extractSlugSuffix } from '@gruenerator/shared/utils';
 
 import { PRIMARY_URL } from '../../../../config/domains.js';
 import { getPostgresInstance } from '../../../../database/services/PostgresService.js';
+import { closeGroupCollabRooms } from '../../../../services/collab/collabRooms.js';
 import { sendGroupInviteEmail } from '../../../../services/email/index.js';
 import {
   createGroupForUser,
@@ -589,6 +590,7 @@ export const coreRoutes = {
         [groupId, userId]
       );
       if (result.changes === 0) throw new Error('Mitgliedschaft konnte nicht entfernt werden.');
+      void closeGroupCollabRooms(groupId, userId);
 
       const leaverName = (args.req.user as UserProfile | undefined)?.display_name || 'Jemand';
       void notifyGroupMembers({
