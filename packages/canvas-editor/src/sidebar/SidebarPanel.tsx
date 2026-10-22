@@ -119,11 +119,30 @@ export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSideb
     if (sheet && (phase === 'entering' || phase === 'closing')) sheet.style.transition = '';
   }, [phase, sheetRef]);
 
+  // Where the open sheet rests, as a distance from the layout's bottom edge.
+  // A closing sheet leaves the flow there (absolute), so the canvas above
+  // grows and refits at once while the sheet slides out over it.
+  useLayoutEffect(() => {
+    const sheet = sheetRef.current;
+    if (isDesktop || phase !== 'open' || !sheet) return;
+    const measure = () => {
+      const layout = sheet.closest('.canvas-editor-layout');
+      if (!layout) return;
+      const rest = layout.getBoundingClientRect().bottom - sheet.getBoundingClientRect().bottom;
+      sheet.style.setProperty('--sheet-rest-bottom', `${Math.max(0, rest)}px`);
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [isDesktop, phase, sheetRef]);
+
   if (!isDesktop) {
     if (phase === 'closed') return null;
     // Mobiles Sheet: liegt im Fluss zwischen Canvas und Leiste (order-1), der
-    // Canvas darüber schrumpft und bleibt sichtbar. Jedes Sheet hat denselben
-    // Aufbau: Griff, Titel mit Schließen, dann der Inhalt des Bereichs.
+    // Canvas darüber schrumpft und bleibt sichtbar. Beim Schließen verlässt es
+    // den Fluss (absolute, an seinem Ruheplatz), damit der Canvas sofort wächst.
+    // Jedes Sheet hat denselben Aufbau: Griff, Titel mit Schließen, dann der
+    // Inhalt des Bereichs.
     return (
       <section
         ref={sheetRef}
@@ -136,7 +155,10 @@ export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSideb
           if (phase === 'entering') finishEnter();
           else if (phase === 'closing') finishClose();
         }}
-        className="sidebar-panel order-1 flex-none flex flex-col h-[clamp(300px,48dvh,420px)] bg-[var(--editor-surface)] rounded-t-[20px] shadow-[0_-4px_24px_rgba(0,0,0,0.12)] overflow-hidden"
+        className={cn(
+          'sidebar-panel order-1 flex-none flex flex-col h-[clamp(300px,48dvh,420px)] bg-[var(--editor-surface)] rounded-t-[20px] shadow-[0_-4px_24px_rgba(0,0,0,0.12)] overflow-hidden',
+          phase === 'closing' && 'absolute inset-x-0 bottom-[var(--sheet-rest-bottom,0px)] z-[100]'
+        )}
       >
         {/* Griff und Titelzeile ziehen das Sheet gemeinsam. */}
         <div ref={handleRef} className="flex-none touch-none">

@@ -273,6 +273,22 @@ describe('mobiles Sheet: Ein- und Ausgleiten', () => {
     expect(row?.className).toContain('max-canvas-mobile:h-11');
   });
 
+  it('takes the closing sheet out of the flow at its resting place', () => {
+    const { rerender } = render(<div className="canvas-editor-layout">{panel(true)}</div>);
+    const sheet = screen.getByRole('region', { name: 'Text' });
+    const layout = sheet.parentElement as HTMLElement;
+    layout.getBoundingClientRect = () => ({ bottom: 800 }) as DOMRect;
+    sheet.getBoundingClientRect = () => ({ bottom: 736 }) as DOMRect;
+    endTransition(sheet);
+    expect(sheet.className).not.toMatch(/\babsolute\b/);
+    expect(sheet.style.getPropertyValue('--sheet-rest-bottom')).toBe('64px');
+
+    rerender(<div className="canvas-editor-layout">{panel(false)}</div>);
+    expect(sheet).toHaveAttribute('data-state', 'closing');
+    expect(sheet.className).toMatch(/\babsolute\b/);
+    expect(sheet.className).toContain('bottom-[var(--sheet-rest-bottom,0px)]');
+  });
+
   it('renders desktop panel immediately', () => {
     setViewport(false);
     render(panel(true));
