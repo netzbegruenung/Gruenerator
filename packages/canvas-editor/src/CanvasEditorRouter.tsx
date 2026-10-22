@@ -257,7 +257,8 @@ function ControllableCanvasEditor({
     // Every valid canvas type is config-driven (incl. the de-AT variants).
     if (isValidCanvasType(type)) {
       setConfigLoading(true);
-      loadCanvasConfig(type)
+      // formatId bestimmt bei Freeform Maße und Seitendeckel (Folien: 60)
+      loadCanvasConfig(type, formatId)
         .then(setConfig)
         .catch((error) => {
           console.error(`Failed to load canvas config for type "${type}":`, error);
@@ -268,7 +269,7 @@ function ControllableCanvasEditor({
       setConfig(null);
       setConfigLoading(false);
     }
-  }, [type]);
+  }, [type, formatId]);
 
   // Fire onReady when config is loaded
   useEffect(() => {
