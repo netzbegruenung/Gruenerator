@@ -17,6 +17,8 @@ import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLoc
 import {
   CHART_INK_DARK,
   chartInk,
+  chartLegendPosition,
+  chartSeries,
   chartSeriesOutlines,
   type ChartInstance,
 } from '../utils/chartUtils';
@@ -60,6 +62,70 @@ function tickTextWidth(text: string): number {
   return measureContext.measureText(text).width;
 }
 
+const LEGEND_ROW = 24;
+/** Swatch 14 px, the text 22 px in. */
+const LEGEND_TEXT_X = 22;
+/** Between two entries of a legend row below the chart. */
+const LEGEND_GAP = 18;
+
+interface LegendEntry {
+  name: string;
+  index: number;
+}
+
+/**
+ * Where each legend entry sits. Recharts' <Legend> is HTML beside the <svg>
+ * and never reaches the image, so the legend is drawn as SVG: a column right
+ * of the chart, or centred rows below it that wrap at the chart's width.
+ */
+function layoutLegend(
+  entries: LegendEntry[],
+  position: 'right' | 'bottom',
+  width: number,
+  height: number
+): { width: number; height: number; at: (top: number) => { x: number; y: number }[] } {
+  const widths = entries.map((e) => LEGEND_TEXT_X + Math.ceil(tickTextWidth(e.name)));
+  if (position === 'right') {
+    // 8 px gap to the chart, 4 px slack at the edge.
+    const column = Math.max(...widths) + 12;
+    const top = height / 2 - (entries.length * LEGEND_ROW) / 2;
+    return {
+      width: column,
+      height: 0,
+      at: () => entries.map((_, i) => ({ x: width - column + 8, y: top + i * LEGEND_ROW })),
+    };
+  }
+  const rows: number[][] = [[]];
+  let used = 0;
+  widths.forEach((w, i) => {
+    const row = rows[rows.length - 1]!;
+    if (row.length > 0 && used + LEGEND_GAP + w > width) {
+      rows.push([i]);
+      used = w;
+    } else {
+      used += (row.length > 0 ? LEGEND_GAP : 0) + w;
+      row.push(i);
+    }
+  });
+  return {
+    width: 0,
+    height: rows.length * LEGEND_ROW,
+    at: (top) => {
+      const out: { x: number; y: number }[] = [];
+      rows.forEach((row, r) => {
+        const rowWidth =
+          row.reduce((sum, i) => sum + widths[i]!, 0) + LEGEND_GAP * (row.length - 1);
+        let x = (width - rowWidth) / 2;
+        for (const i of row) {
+          out[i] = { x, y: top + r * LEGEND_ROW };
+          x += widths[i]! + LEGEND_GAP;
+        }
+      });
+      return out;
+    },
+  };
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function buildChartElement(recharts: any, chart: ChartInstance) {
   const {
@@ -90,22 +156,60 @@ export function buildChartElement(recharts: any, chart: ChartInstance) {
   };
   const unit = chart.unit ? ` ${chart.unit}` : '';
   const formatValue = (value: unknown) => `${String(value)}${unit}`;
+  const round = chartType === 'pie' || chartType === 'donut';
+  const series = chartSeries(chart);
+  // A single cartesian series needs no legend: its name is the chart's title.
+  const entries: LegendEntry[] = !showLegend
+    ? []
+    : round
+      ? data.map((d, index) => ({ name: d.name, index }))
+      : (series ?? []).map((s, index) => ({ name: s.name, index }));
+  const legendPosition = chartLegendPosition(chart);
+  const legend = entries.length > 0 ? layoutLegend(entries, legendPosition, width, height) : null;
+  const legendTop = height - (legend?.height ?? 0);
+  const legendSvg = legend ? (
+    <g>
+      {legend.at(legendTop).map((pos, i) => (
+        <g key={i} transform={`translate(${pos.x}, ${pos.y})`}>
+          <rect
+            width={14}
+            height={14}
+            y={3}
+            rx={3}
+            fill={color(entries[i]!.index)}
+            {...outline(entries[i]!.index)}
+          />
+          <text x={LEGEND_TEXT_X} y={10} dominantBaseline="central" {...tick}>
+            {entries[i]!.name}
+          </text>
+        </g>
+      ))}
+    </g>
+  ) : null;
+  // Several series: one row per category, one key per series.
+  const rows = series
+    ? data.map((d, i) => ({
+        name: d.name,
+        ...Object.fromEntries(series.map((s, si) => [`s${si}`, s.values[i] ?? 0])),
+      }))
+    : data;
+  const keys = series ? series.map((_, si) => `s${si}`) : ['value'];
+  const allValues = series ? series.flatMap((s) => s.values) : data.map((d) => d.value);
   const common = {
     width,
     height,
-    data,
-    margin: { top: 16, right: 20, bottom: 8, left: 0 },
+    data: rows,
+    margin: {
+      top: 16,
+      right: 20 + (legend?.width ?? 0),
+      bottom: 8 + (legend?.height ? legend.height + 8 : 0),
+      left: 0,
+    },
   };
 
-  if (chartType === 'pie' || chartType === 'donut') {
-    // Recharts' <Legend> is HTML beside the <svg> and never reaches the image,
-    // so the legend is drawn here as SVG: a column right of the pie.
-    const legendRow = 24;
-    // Swatch column: 8 px gap to the pie, the text 22 px in, 4 px slack at the edge.
-    const legendWidth = showLegend
-      ? Math.ceil(Math.max(...data.map((d) => tickTextWidth(d.name)))) + 34
-      : 0;
-    const pieWidth = width - legendWidth;
+  if (round) {
+    const pieWidth = width - (legend?.width ?? 0);
+    const pieHeight = height - (legend?.height ? legend.height + 8 : 0);
     // Outside labels sit 20 px past the slice: room for them above, below and,
     // as wide as the longest one (~8 px a bold character), to the sides.
     const labelWidth = showValues
@@ -115,8 +219,7 @@ export function buildChartElement(recharts: any, chart: ChartInstance) {
           )
         ) * 8
       : 0;
-    const radius = Math.max(20, Math.min(pieWidth / 2 - 24 - labelWidth, height / 2 - 30));
-    const legendTop = height / 2 - (data.length * legendRow) / 2;
+    const radius = Math.max(20, Math.min(pieWidth / 2 - 24 - labelWidth, pieHeight / 2 - 30));
     return (
       <PieChart width={width} height={height}>
         <Pie
@@ -124,7 +227,7 @@ export function buildChartElement(recharts: any, chart: ChartInstance) {
           dataKey="value"
           nameKey="name"
           cx={pieWidth / 2}
-          cy="50%"
+          cy={pieHeight / 2}
           outerRadius={radius}
           innerRadius={chartType === 'donut' ? radius * 0.55 : 0}
           isAnimationActive={false}
@@ -154,53 +257,44 @@ export function buildChartElement(recharts: any, chart: ChartInstance) {
             <Cell key={i} fill={color(i)} {...outline(i)} />
           ))}
         </Pie>
-        {showLegend ? (
-          <g>
-            {data.map((d, i) => (
-              <g key={i} transform={`translate(${pieWidth + 8}, ${legendTop + i * legendRow})`}>
-                <rect width={14} height={14} y={3} rx={3} fill={color(i)} {...outline(i)} />
-                <text x={22} y={10} dominantBaseline="central" {...tick}>
-                  {d.name}
-                </text>
-              </g>
-            ))}
-          </g>
-        ) : null}
+        {legendSvg}
       </PieChart>
     );
   }
 
   if (chartType === 'line' || chartType === 'area') {
-    const series =
-      chartType === 'area' ? (
+    const lines = keys.map((key, si) => {
+      const labels = showValues ? (
+        <LabelList dataKey={key} formatter={formatValue} {...valueLabel} position="top" />
+      ) : null;
+      return chartType === 'area' ? (
         <Area
-          dataKey="value"
+          key={key}
+          dataKey={key}
           type="monotone"
-          stroke={color(0)}
+          stroke={color(si)}
           strokeWidth={3}
-          fill={color(0)}
+          fill={color(si)}
           fillOpacity={0.25}
-          dot={{ r: 4, fill: color(0) }}
+          dot={{ r: 4, fill: color(si) }}
           isAnimationActive={false}
         >
-          {showValues ? (
-            <LabelList dataKey="value" formatter={formatValue} {...valueLabel} position="top" />
-          ) : null}
+          {labels}
         </Area>
       ) : (
         <Line
-          dataKey="value"
+          key={key}
+          dataKey={key}
           type="monotone"
-          stroke={color(0)}
+          stroke={color(si)}
           strokeWidth={3}
-          dot={{ r: 4, fill: color(0) }}
+          dot={{ r: 4, fill: color(si) }}
           isAnimationActive={false}
         >
-          {showValues ? (
-            <LabelList dataKey="value" formatter={formatValue} {...valueLabel} position="top" />
-          ) : null}
+          {labels}
         </Line>
       );
+    });
     const Wrapper = chartType === 'area' ? AreaChart : LineChart;
     return (
       <Wrapper {...common}>
@@ -214,7 +308,8 @@ export function buildChartElement(recharts: any, chart: ChartInstance) {
           padding={{ left: 28, right: 28 }}
         />
         <YAxis tick={tick} tickLine={false} axisLine={{ stroke: '#c8c8c7' }} width={40} />
-        {series}
+        {lines}
+        {legendSvg}
       </Wrapper>
     );
   }
@@ -228,12 +323,14 @@ export function buildChartElement(recharts: any, chart: ChartInstance) {
     Math.max(64, Math.ceil(Math.max(...data.map((d) => tickTextWidth(d.name)))) + 12)
   );
   const valueRoom = showValues
-    ? Math.max(...data.map((d) => formatValue(d.value).length)) * 8.5 + 12
+    ? Math.max(...allValues.map((v) => formatValue(v).length)) * 8.5 + 12
     : 0;
   return (
     <BarChart
       {...common}
-      {...(horizontal && { margin: { ...common.margin, right: Math.max(20, valueRoom) } })}
+      {...(horizontal && {
+        margin: { ...common.margin, right: Math.max(common.margin.right, valueRoom) },
+      })}
       layout={horizontal ? 'vertical' : 'horizontal'}
     >
       {showGrid ? (
@@ -264,23 +361,27 @@ export function buildChartElement(recharts: any, chart: ChartInstance) {
           <YAxis tick={tick} tickLine={false} axisLine={{ stroke: '#c8c8c7' }} width={40} />
         </>
       )}
-      <Bar
-        dataKey="value"
-        isAnimationActive={false}
-        radius={horizontal ? [0, 4, 4, 0] : [4, 4, 0, 0]}
-      >
-        {data.map((_, i) => (
-          <Cell key={i} fill={color(i)} {...outline(i)} />
-        ))}
-        {showValues ? (
-          <LabelList
-            dataKey="value"
-            formatter={formatValue}
-            {...valueLabel}
-            position={horizontal ? 'right' : 'top'}
-          />
-        ) : null}
-      </Bar>
+      {keys.map((key, si) => (
+        <Bar
+          key={key}
+          dataKey={key}
+          isAnimationActive={false}
+          radius={horizontal ? [0, 4, 4, 0] : [4, 4, 0, 0]}
+          // A single series colours each bar, several series each series.
+          {...(series ? { fill: color(si), ...outline(si) } : {})}
+        >
+          {series ? null : data.map((_, i) => <Cell key={i} fill={color(i)} {...outline(i)} />)}
+          {showValues ? (
+            <LabelList
+              dataKey={key}
+              formatter={formatValue}
+              {...valueLabel}
+              position={horizontal ? 'right' : 'top'}
+            />
+          ) : null}
+        </Bar>
+      ))}
+      {legendSvg}
     </BarChart>
   );
 }
@@ -340,10 +441,12 @@ function ChartPrimitiveInner({
   const visualKey = JSON.stringify([
     chart.chartType,
     chart.data,
+    chart.series ?? [],
     chart.colors,
     chart.width,
     chart.height,
     chart.showLegend,
+    chart.legendPosition ?? '',
     chart.showGrid,
     chart.showValues,
     chart.unit ?? '',
@@ -468,8 +571,10 @@ export const ChartPrimitive = memo(ChartPrimitiveInner, (prev, next) => {
     a.opacity === b.opacity &&
     a.chartType === b.chartType &&
     a.data === b.data &&
+    a.series === b.series &&
     a.colors === b.colors &&
     a.showLegend === b.showLegend &&
+    a.legendPosition === b.legendPosition &&
     a.showGrid === b.showGrid &&
     a.showValues === b.showValues &&
     a.unit === b.unit &&

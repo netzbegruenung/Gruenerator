@@ -11,7 +11,14 @@
 
 import { carryInstanceState } from '../../configs/factory/carryInstanceState';
 import { ASSET_TARGET_SIZE } from '../../utils/canvasAssets';
-import { chartInk, type ChartInstance, type ChartType } from '../../utils/chartUtils';
+import {
+  chartInk,
+  chartLegendPosition,
+  chartSeries,
+  isRoundChartType,
+  type ChartInstance,
+  type ChartType,
+} from '../../utils/chartUtils';
 import { ICON_TARGET_SIZE, ILLUSTRATION_TARGET_SIZE } from '../../utils/motifSizes';
 import { photoStripBeside, type ShapeInstance } from '../../utils/shapes';
 
@@ -446,6 +453,7 @@ function mapChart(chart: ChartInstance): PptxItem {
   // Ein Diagrammtyp aus einem neueren Dokument steht nicht in der Tabelle.
   const native = (NATIVE_CHARTS as Partial<Record<string, NativeChart>>)[chart.chartType];
   if (!native) return raster(chart.id, placement, 'chart-unmapped');
+  const series = chartSeries(chart);
   return {
     kind: 'chart',
     id: chart.id,
@@ -454,11 +462,13 @@ function mapChart(chart: ChartInstance): PptxItem {
     chartType: native.chartType,
     barDir: native.barDir,
     labels: chart.data.map((point) => point.name),
-    values: chart.data.map((point) => point.value),
+    series: series ?? [{ name: chart.title || 'Werte', values: chart.data.map((p) => p.value) }],
     colors: chart.colors,
     title: chart.title || null,
     unit: chart.unit || null,
-    showLegend: chart.showLegend,
+    // Wie auf der Folie: eine einzelne Reihe eines Säulen- oder Liniendiagramms hat keine Legende.
+    showLegend: chart.showLegend && (series !== null || isRoundChartType(chart.chartType)),
+    legendPosition: chartLegendPosition(chart) === 'right' ? 'r' : 'b',
     showGrid: chart.showGrid,
     showValues: chart.showValues,
     textColor: chartInk(chart),

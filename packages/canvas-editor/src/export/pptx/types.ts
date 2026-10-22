@@ -101,11 +101,13 @@ export interface PptxChartItem extends PptxPlaced {
   /** Nur bei `bar`: Säulen (`col`) oder Balken (`bar`). */
   barDir: 'col' | 'bar' | null;
   labels: string[];
-  values: number[];
+  /** Eine Reihe je Datenreihe des Diagramms, mindestens eine. */
+  series: { name: string; values: number[] }[];
   colors: string[];
   title: string | null;
   unit: string | null;
   showLegend: boolean;
+  legendPosition: 'r' | 'b';
   showGrid: boolean;
   showValues: boolean;
   /** Achsen, Legende, Werte und Titel (`chartInk`): weiß auf dunklem Grund. */

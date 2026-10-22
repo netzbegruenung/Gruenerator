@@ -138,7 +138,7 @@ function addChart(slide: Slide, item: PptxChartItem, units: PptxUnits) {
   const isRound = item.chartType === 'pie' || item.chartType === 'doughnut';
   slide.addChart(
     CHART_TYPES[item.chartType],
-    [{ name: item.title ?? 'Werte', labels: item.labels, values: item.values }],
+    item.series.map((s) => ({ name: s.name, labels: item.labels, values: s.values })),
     {
       x: units.inch(item.box.x),
       y: units.inch(item.box.y),
@@ -149,7 +149,7 @@ function addChart(slide: Slide, item: PptxChartItem, units: PptxUnits) {
       ...(item.barDir ? { barDir: item.barDir } : {}),
       ...(item.title ? { showTitle: true, title: item.title } : {}),
       showLegend: item.showLegend,
-      legendPos: 'b',
+      legendPos: item.legendPosition,
       showValue: item.showValues,
       ...(item.showValues && item.unit ? { dataLabelFormatCode: unitFormat(item.unit) } : {}),
       ...(item.chartType === 'doughnut' ? { holeSize: 55 } : {}),

@@ -536,7 +536,28 @@ describe('buildPptxModel — images and charts', () => {
       ['pie', null],
       ['doughnut', null],
     ]);
-    expect(types[0]).toMatchObject({ labels: ['Wind', 'Sonne'], values: [40, 25], unit: '%' });
+    expect(types[0]).toMatchObject({
+      labels: ['Wind', 'Sonne'],
+      series: [{ name: 'Strommix', values: [40, 25] }],
+      unit: '%',
+    });
+  });
+
+  it('maps several series with a legend where the canvas draws one', () => {
+    const series = [
+      { name: '2024', values: [40, 25] },
+      { name: '2025', values: [45, 30] },
+    ];
+    const multi = itemsOf({ chartInstances: [chart({ series })] })[0] as PptxChartItem;
+    expect(multi).toMatchObject({ series, showLegend: true, legendPosition: 'b' });
+    // Eine einzelne Säulenreihe zeichnet keine Legende, eine Torte rechts daneben.
+    const single = itemsOf({ chartInstances: [chart()] })[0] as PptxChartItem;
+    expect(single.showLegend).toBe(false);
+    const pie = itemsOf({
+      chartInstances: [chart({ chartType: 'pie', series })],
+    })[0] as PptxChartItem;
+    expect(pie).toMatchObject({ showLegend: true, legendPosition: 'r' });
+    expect(pie.series).toHaveLength(1);
   });
 
   it('rasters a chart type it does not know', () => {

@@ -175,11 +175,15 @@ const model: PptxDeckModel = {
           chartType: 'bar',
           barDir: 'col',
           labels: ['Wind', 'Sonne'],
-          values: [40, 25],
+          series: [
+            { name: '2024', values: [40, 25] },
+            { name: '2025', values: [45, 30] },
+          ],
           colors: ['#005538', '#8ABD24'],
           title: 'Strommix',
           unit: '%',
           showLegend: true,
+          legendPosition: 'b',
           showGrid: false,
           showValues: true,
           textColor: '#40403f',
@@ -319,6 +323,19 @@ describe('writePptx', () => {
     expect(slide1).toContain('rot="900000"');
     expect(slide1).toContain('<a:srgbClr val="8ABD24"><a:alpha val="50000"/>');
     expect(slide1).toContain('prst="roundRect"');
+  });
+
+  it('writes one chart series per data series with the legend below', async () => {
+    const files = unzipSync(
+      new Uint8Array(await (await writePptx(model, deps())).blob.arrayBuffer())
+    );
+    // pptxgenjs zählt die Diagrammdateien über alle Exporte des Prozesses hoch.
+    const path = Object.keys(files).find((f) => /^ppt\/charts\/chart\d+\.xml$/.test(f))!;
+    const chartXml = strFromU8(files[path]!);
+    expect(count(chartXml, '<c:ser>')).toBe(2);
+    expect(chartXml).toContain('<c:v>2024</c:v>');
+    expect(chartXml).toContain('<c:v>2025</c:v>');
+    expect(chartXml).toContain('<c:legendPos val="b"/>');
   });
 
   it('skips a raster that throws and keeps exporting', async () => {
