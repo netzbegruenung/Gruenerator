@@ -207,4 +207,26 @@ describe('44pt-Ziele', () => {
     );
     expectBigTarget(screen.getByRole('button', { name: 'Speichern erneut versuchen' }));
   });
+
+  // Native <input type="range">: the input itself is the hit area.
+  it.each([
+    'sidebar/sections/FrameSettingsSection.tsx',
+    'sidebar/sections/tools/TextPathCreatorTool.tsx',
+    'sidebar/sections/tools/GradientTextTool.tsx',
+    'sidebar/sections/tools/BlobCreatorTool.tsx',
+  ])('Range-Regler %s ist auf dem Handy 44 px hoch', (file) => {
+    const source = readFileSync(path.resolve(import.meta.dirname, '../..', file), 'utf8');
+    const ranges = [...source.matchAll(/type="range"[\s\S]*?className="([^"]*)"/g)];
+    expect(ranges.length).toBeGreaterThan(0);
+    for (const [, cls] of ranges) expect(cls).toContain('max-canvas-mobile:h-11');
+  });
+
+  // touch-target keys on pointer: coarse — the input must sit above the
+  // buttons' hit areas under the same condition, also on a touch iPad.
+  it('Schriftgrößen-Feld liegt über den Trefferflächen der Knöpfe', () => {
+    render(<FontSizeStepper value={40} onChange={() => {}} />);
+    const input = screen.getByRole('spinbutton');
+    expect(input.className).toContain('pointer-coarse:relative');
+    expect(input.className).toContain('pointer-coarse:z-[1]');
+  });
 });

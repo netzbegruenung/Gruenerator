@@ -44,7 +44,7 @@ export function MobileSelectionControls(props: ContextControlsProps) {
       </span>
       <div
         className={cn(
-          'flex items-center gap-1.5 overflow-x-auto -mx-5 px-5 py-1',
+          'canvas-scroll-fade-x flex items-center gap-1.5 overflow-x-auto -mx-5 px-5 py-1',
           HIDDEN_SCROLLBAR
         )}
       >

@@ -45,7 +45,7 @@ export function FontSizeStepper({ value, onChange, min = 12, max = 200 }: FontSi
       </button>
       <input
         type="number"
-        className={`max-canvas-mobile:relative max-canvas-mobile:z-[1] w-9 h-6 border-none bg-transparent text-center text-[0.8125rem] font-semibold text-foreground tabular-nums p-0 [appearance:textfield] [-moz-appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none max-canvas-mobile:w-8 max-canvas-mobile:h-6 ${MOBILE_INPUT_TEXT}`}
+        className={`pointer-coarse:relative pointer-coarse:z-[1] w-9 h-6 border-none bg-transparent text-center text-[0.8125rem] font-semibold text-foreground tabular-nums p-0 [appearance:textfield] [-moz-appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none max-canvas-mobile:w-8 max-canvas-mobile:h-6 ${MOBILE_INPUT_TEXT}`}
         value={Math.round(value)}
         onChange={handleInputChange}
         min={min}
