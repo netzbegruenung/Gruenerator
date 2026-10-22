@@ -169,6 +169,24 @@ server {
         return 404;
     }
 
+    # The Pyodide worker runs model-written Python. A dedicated worker enforces
+    # the Content-Security-Policy of its OWN script response, so this header is
+    # the interpreter's sandbox: network only to /pyodide/ (runtime + wheels),
+    # WebAssembly but no eval, no nested workers — the session cookie never
+    # leaves with a request to /api, and nothing reaches a third party.
+    # connect-src names the host because CSP cannot path-scope 'self'; ":*"
+    # keeps local setups behind a non-default port working. The root nginx.conf
+    # proxies / to this server and passes the header through unchanged.
+    # Regex locations win over the /assets/ prefix block below, so its caching
+    # is repeated here (add_header is not inherited).
+    # Pinned to the worker's file name by
+    # src/services/pythonInterpreterCsp.vitest.ts.
+    location ~ ^/assets/pythonInterpreter\.worker-[A-Za-z0-9_-]+\.js$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        add_header Content-Security-Policy "default-src 'none'; script-src $host:*/pyodide/ 'wasm-unsafe-eval'; connect-src $host:*/pyodide/" always;
+    }
+
     # Hashed assets under /assets/ — cache forever
     # Vite outputs all content-hashed files here (js, css, images, fonts)
     location /assets/ {
