@@ -178,6 +178,11 @@ export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActio
    */
   isActivePage?: boolean;
   /**
+   * Shown to a viewer: rendered and exportable, but no hit graph, no
+   * selection, marquee or context press, and no keyboard shortcuts.
+   */
+  readOnly?: boolean;
+  /**
    * Pushes this page's live state/actions/selection to the host on every
    * change — the multi-page editor's shared sidebar renders from it.
    */
@@ -306,8 +311,10 @@ function GenericCanvasWithRef<
     onAutoSaveShareToken,
     preview = false,
     isActivePage = true,
+    readOnly = false,
   } = props;
-  const shortcutsEnabled = !preview && isActivePage;
+  const interactive = !preview && !readOnly;
+  const shortcutsEnabled = interactive && isActivePage;
 
   const stageRef = useRef<CanvasStageRef>(null);
   const [pendingImages] = useState(() => new Set<string>());
@@ -522,13 +529,13 @@ function GenericCanvasWithRef<
     handleStageClick,
     handleSnapChange,
     getSnapTargets,
-  } = useCanvasInteractions({ stageRef, marqueeEnabled: !preview });
+  } = useCanvasInteractions({ stageRef, marqueeEnabled: interactive });
 
   const store = useCanvasStore();
   const { setSnapLines, updateElementPosition } = store.getState();
   // Before the deep select: a ⌃-click on a Mac is a right-click, not a pick.
-  useContextPress(stageRef, !preview);
-  useDeepSelect(stageRef, !preview);
+  useContextPress(stageRef, interactive);
+  useDeepSelect(stageRef, interactive);
 
   // One selection across all pages: leaving the active page drops its own.
   useEffect(() => {
@@ -1017,7 +1024,7 @@ function GenericCanvasWithRef<
         responsive
         maxContainerWidth={maxWidth}
         onStageClick={handleStageClick}
-        listening={!preview}
+        listening={interactive}
         className={`${config.id}-stage`}
       >
         <CanvasRenderLayer

@@ -15,7 +15,8 @@ vi.mock('../../ZoomableViewport', () => ({
 function setup(
   onDropVorlage?: (id: string, pageId: string) => void,
   placed = true,
-  blocks: BlockInsertApi | null = null
+  blocks: BlockInsertApi | null = null,
+  readOnly = false
 ) {
   const onSelect = vi.fn();
   const dropElement = vi.fn(() => placed);
@@ -39,6 +40,7 @@ function setup(
           onCancel: vi.fn(),
           callbacks: {},
           onStateChange: vi.fn(),
+          readOnly,
         } as unknown as React.ComponentProps<typeof PageWrapper>)}
       />
     </BlockInsertContext.Provider>
@@ -119,5 +121,16 @@ describe('PageWrapper block drop', () => {
     const { page } = setup();
     fire(page, 'drop', blockTransfer);
     expect(takeDropPlaced()).toBe(false);
+  });
+});
+
+describe('PageWrapper drop for a viewer', () => {
+  it('accepts neither a Vorlage nor an element', () => {
+    const { page, dropElement } = setup(vi.fn(), true, null, true);
+    expect(fire(page, 'dragOver')).toBe(false);
+    expect(fire(page, 'drop')).toBe(false);
+    expect(fire(page, 'dragOver', iconTransfer)).toBe(false);
+    expect(fire(page, 'drop', iconTransfer)).toBe(false);
+    expect(dropElement).not.toHaveBeenCalled();
   });
 });

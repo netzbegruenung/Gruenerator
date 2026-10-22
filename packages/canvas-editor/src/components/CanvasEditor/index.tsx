@@ -183,6 +183,7 @@ function CanvasEditorInner({
   showShare = true,
   exportApiRef,
   hostChrome,
+  readOnly = false,
 }: CanvasEditorProps) {
   // Note: onAutoSaveShareToken is threaded down to useCanvasAutoSave (via
   // PageWrapper → GenericCanvas) instead of a store subscription here — a
@@ -694,7 +695,7 @@ function CanvasEditorInner({
     pageIds,
     currentPageIndex,
     canAddPage: canAddMore,
-    enabled: !isMobileWeb && !isPreview && !hasPendingSuggestion,
+    enabled: !isMobileWeb && !isPreview && !readOnly && !hasPendingSuggestion,
     duplicatePage,
     removePage,
     openImageAdjust,
@@ -1405,6 +1406,8 @@ function CanvasEditorInner({
   // fiel damit auch der Zoom weg und war nur noch per Pinch bzw. Strg/Cmd+Rad
   // erreichbar.
   const showPageStrip = pages.length > 1;
+  // Ein Viewer blättert, fügt aber nichts an: ohne Knöpfe bleibt der Streifen Navigation.
+  const canAddPages = canAddMore && !readOnly;
   const currentTemplateId = pages[currentPageIndex]?.configId;
   const sliderVariantHandler =
     sliderConfigId === 'slider' || sliderConfigId === 'slider-at'
@@ -1428,7 +1431,7 @@ function CanvasEditorInner({
       thumbnails={pageThumbnails}
       loadedConfigs={loadedConfigs}
       currentTemplateId={currentTemplateId}
-      canAddMore={canAddMore}
+      canAddMore={canAddPages}
       onSelect={handleThumbnailSelect}
       onAddPage={handleAddPage}
       onDuplicateCurrent={duplicateCurrentPage}
@@ -1446,7 +1449,7 @@ function CanvasEditorInner({
         </div>
       ) : (
         <div className="min-w-0 flex-1">
-          {canAddMore && (
+          {canAddPages && (
             <div className={cn('w-fit px-1.5 py-1', bottomBarGroup)}>
               <AddPageButton
                 onSelectTemplate={handleAddPage}
@@ -1491,8 +1494,9 @@ function CanvasEditorInner({
           <CanvasEditorLayout
             // Vorschau vor dem Sync: zeigen, aber nichts anbieten, was schreibt —
             // die Seiten hängen noch an keinem Y.Map, jede Änderung ginge verloren.
+            // Ein Viewer ebenso: der Server verwirft seine Schreibzugriffe.
             sidebar={
-              isPreview ? null : hasPendingSuggestion ? (
+              isPreview || readOnly ? null : hasPendingSuggestion ? (
                 <div inert className="contents">
                   {panel}
                 </div>
@@ -1500,10 +1504,10 @@ function CanvasEditorInner({
                 panel
               )
             }
-            tabBar={isPreview ? null : tabBar}
+            tabBar={isPreview || readOnly ? null : tabBar}
             actions={null}
             toolbar={toolbarElement}
-            contextBar={isPreview ? null : contextBarElement}
+            contextBar={isPreview || readOnly ? null : contextBarElement}
             // Die Desktop-Leiste ist auf dem Handy per CSS ausgeblendet; gar
             // nicht erst mitgeben, sonst hinge der Streifen zweimal im Baum.
             bottomBar={isMobileWeb || isPreview ? null : bottomBar}
@@ -1552,7 +1556,7 @@ function CanvasEditorInner({
                     onMovePage={movePage}
                     onDuplicatePage={duplicatePage}
                     onChangeTemplate={handleOpenTemplateChange}
-                    onDropVorlage={showVorlagen ? handleDropVorlage : undefined}
+                    onDropVorlage={showVorlagen && !readOnly ? handleDropVorlage : undefined}
                     onExport={handleExport}
                     onCancel={onCancel}
                     callbacks={getCallbacksForPage(page.id, page.configId)}
@@ -1565,6 +1569,7 @@ function CanvasEditorInner({
                     onAutoSaveShareToken={onAutoSaveShareToken}
                     autoSave={false}
                     pageBinding={pageBindingAt(index, page.id, isActive)}
+                    readOnly={readOnly}
                   />
                 );
               })}
@@ -1592,6 +1597,7 @@ function CanvasEditorInner({
                       : ''
                   }
                   onChange={(notes) => updatePageState(pages[currentPageIndex].id, { notes })}
+                  readOnly={readOnly}
                 />
               )}
               {/* Seite hinzufügen unter der Fläche — für den Fall, in dem die
@@ -1601,7 +1607,7 @@ function CanvasEditorInner({
                 nur CSS sie kennt. Er liegt im skalierten Seiten-Container und
                 skaliert sich mobil zurück, sonst schrumpfte er mit Fit und Zoom
                 unter 44 pt. */}
-              {canAddMore && !showPageStrip && (
+              {canAddPages && !showPageStrip && (
                 <div className="w-full max-w-[28rem] pt-sm max-canvas-mobile:pt-xs max-canvas-mobile:px-xs max-canvas-mobile:origin-top max-canvas-mobile:[scale:calc(1/var(--canvas-total-scale,1))] canvas-mobile:hidden">
                   <AddPageButton
                     onSelectTemplate={handleAddPage}
@@ -1618,7 +1624,7 @@ function CanvasEditorInner({
             </div>
           </CanvasEditorLayout>
           {selectionPill}
-          {!isMobileWeb && !isPreview && (
+          {!isMobileWeb && !isPreview && !readOnly && (
             <CanvasContextMenu handleRef={contextMenuRef} closeKey={zoom} />
           )}
         </CanvasTextEditorProvider>
