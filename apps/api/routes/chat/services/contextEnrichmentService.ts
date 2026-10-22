@@ -8,6 +8,7 @@
 
 import { lastUserText } from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { truncateDocument } from '../../../agents/langgraph/ChatGraph/nodes/respondNode.js';
+import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { fetchDocumentContext, fetchTextContext } from './documentContextService.js';
@@ -22,11 +23,34 @@ import type {
 
 const log = createLogger('ChatGraphController');
 
+/**
+ * The collaborative documents behind @doc mentions that this user may read —
+ * the one access gate for doc-mention content and for the chips a reload
+ * restores. `content` is only the store hook's preview; see enrichContext.
+ */
+export async function readMentionedDocs(
+  ids: readonly string[],
+  userId: string
+): Promise<Array<{ id: string; title: string; content: string | null }>> {
+  return getPostgresInstance().query(
+    `SELECT id, title, content FROM collaborative_documents
+     WHERE id = ANY($1::uuid[]) AND is_deleted = false AND document_subtype NOT IN ('boards', 'sheets', 'presentations')
+     AND (created_by = $2::uuid OR permissions ? $2::text OR is_public = true
+          OR id IN (SELECT gcs.content_id::uuid FROM group_content_shares gcs
+                    INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $2::uuid AND gm.is_active = TRUE
+                    INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
+                    WHERE gcs.content_type = 'collaborative_documents'))`,
+    [ids, userId]
+  );
+}
+
 export async function enrichContext(opts: {
   initialState: ChatGraphState;
   userId: string;
   rawDocumentIds?: string[];
   rawTextIds?: string[];
+  /** Saved texts picked in earlier turns of the thread (#4861). */
+  carriedTextIds?: string[];
   rawBoardIds?: string[];
   rawSheetIds?: string[];
   rawDocMentionIds?: string[];
@@ -40,6 +64,7 @@ export async function enrichContext(opts: {
     userId,
     rawDocumentIds,
     rawTextIds,
+    carriedTextIds,
     rawBoardIds,
     rawSheetIds,
     rawDocMentionIds,
@@ -173,20 +198,7 @@ export async function enrichContext(opts: {
       `[ChatGraph] Resolving ${rawDocMentionIds.length} doc mention(s): ${rawDocMentionIds.join(', ')} for user ${userId}`
     );
     try {
-      const { getPostgresInstance } =
-        await import('../../../database/services/PostgresService/PostgresService.js');
-      const dbInst = getPostgresInstance();
-
-      const docResults = await dbInst.query(
-        `SELECT id, title, content FROM collaborative_documents
-         WHERE id = ANY($1::uuid[]) AND is_deleted = false AND document_subtype NOT IN ('boards', 'sheets', 'presentations')
-         AND (created_by = $2::uuid OR permissions ? $2::text OR is_public = true
-              OR id IN (SELECT gcs.content_id::uuid FROM group_content_shares gcs
-                        INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $2::uuid AND gm.is_active = TRUE
-                        INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
-                        WHERE gcs.content_type = 'collaborative_documents'))`,
-        [rawDocMentionIds, userId]
-      );
+      const docResults = await readMentionedDocs(rawDocMentionIds, userId);
 
       log.info(
         `[ChatGraph] Doc-mention SQL returned ${docResults.length} row(s) for ${rawDocMentionIds.length} requested ID(s)`
@@ -202,51 +214,49 @@ export async function enrichContext(opts: {
         const { getDocumentHtml } = await import('../../../services/docs/docContentService.js');
         const docParts = (
           await Promise.all(
-            (docResults as Array<{ id: string; title: string; content: string | null }>).map(
-              async (d) => {
-                // The SQL above is the access gate; the CONTENT comes from Yjs.
-                // `content` is a 2000-char preview the Hocuspocus store hook
-                // derives — reading it as the document silently truncated every
-                // doc the editor had ever touched, and a modify_doc turn then
-                // rewrote the whole document from that stump. It stays as the
-                // fallback for the one case it is complete: a document created
-                // server-side and never opened.
-                const fromYjs = await getDocumentHtml(d.id).catch((err: unknown) => {
-                  log.warn(`[ChatGraph] Yjs read for doc ${d.id} failed: ${String(err)}`);
-                  return null;
-                });
-                const raw = fromYjs?.html?.trim() ? fromYjs.html : (d.content ?? '');
-                if (!raw.trim()) return null;
+            docResults.map(async (d) => {
+              // The SQL above is the access gate; the CONTENT comes from Yjs.
+              // `content` is a 2000-char preview the Hocuspocus store hook
+              // derives — reading it as the document silently truncated every
+              // doc the editor had ever touched, and a modify_doc turn then
+              // rewrote the whole document from that stump. It stays as the
+              // fallback for the one case it is complete: a document created
+              // server-side and never opened.
+              const fromYjs = await getDocumentHtml(d.id).catch((err: unknown) => {
+                log.warn(`[ChatGraph] Yjs read for doc ${d.id} failed: ${String(err)}`);
+                return null;
+              });
+              const raw = fromYjs?.html?.trim() ? fromYjs.html : (d.content ?? '');
+              if (!raw.trim()) return null;
 
-                let plainText = raw;
-                let prevText: string;
-                do {
-                  prevText = plainText;
-                  plainText = plainText.replace(/<[^>]+>/g, '');
-                } while (plainText !== prevText);
-                plainText = plainText
-                  .replace(/&[a-zA-Z]+;/g, ' ')
-                  .replace(/&#x?[0-9a-fA-F]+;/g, ' ')
-                  .replace(/\s+/g, ' ')
-                  .trim();
-                if (!plainText) return null;
+              let plainText = raw;
+              let prevText: string;
+              do {
+                prevText = plainText;
+                plainText = plainText.replace(/<[^>]+>/g, '');
+              } while (plainText !== prevText);
+              plainText = plainText
+                .replace(/&[a-zA-Z]+;/g, ' ')
+                .replace(/&#x?[0-9a-fA-F]+;/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+              if (!plainText) return null;
 
-                const truncated = truncateDocument(plainText, perDocBudget, mentionQuery);
-                const origin = fromYjs?.html?.trim()
-                  ? `yjs${fromYjs.live ? '/live' : ''}`
-                  : 'preview';
-                if (truncated.length < plainText.length) {
-                  log.info(
-                    `[ChatGraph] Doc context truncated: "${d.title}" (${plainText.length} → ${truncated.length} chars, budget: ${perDocBudget}, ${origin})`
-                  );
-                } else {
-                  log.info(
-                    `[ChatGraph] Doc context loaded: "${d.title}" (${plainText.length} chars, ${origin})`
-                  );
-                }
-                return `### ${d.title}\n\n${truncated}`;
+              const truncated = truncateDocument(plainText, perDocBudget, mentionQuery);
+              const origin = fromYjs?.html?.trim()
+                ? `yjs${fromYjs.live ? '/live' : ''}`
+                : 'preview';
+              if (truncated.length < plainText.length) {
+                log.info(
+                  `[ChatGraph] Doc context truncated: "${d.title}" (${plainText.length} → ${truncated.length} chars, budget: ${perDocBudget}, ${origin})`
+                );
+              } else {
+                log.info(
+                  `[ChatGraph] Doc context loaded: "${d.title}" (${plainText.length} chars, ${origin})`
+                );
               }
-            )
+              return `### ${d.title}\n\n${truncated}`;
+            })
           )
         ).filter((part): part is string => part !== null);
 
@@ -270,6 +280,25 @@ export async function enrichContext(opts: {
         `[ChatGraph] Doc mention context failed: ${err instanceof Error ? err.message : String(err)}`
       );
       failedMentions.push('Dokument');
+    }
+  }
+
+  // Saved texts carried from earlier turns join the referenced documents, not
+  // `attachmentContext`: an attachment makes the classifier treat the turn as
+  // work on it (`produktion`), and a text picked three turns ago must not claim
+  // every later turn (#4861).
+  if (carriedTextIds?.length) {
+    try {
+      const textResult = await fetchTextContext(userId, carriedTextIds);
+      if (textResult.text) {
+        initialState.documentMentionContext = initialState.documentMentionContext
+          ? `${initialState.documentMentionContext}\n\n---\n\n${textResult.text}`
+          : textResult.text;
+      }
+    } catch (err) {
+      log.warn(
+        `[ChatGraph] Carried text context retrieval failed: ${err instanceof Error ? err.message : String(err)}`
+      );
     }
   }
 

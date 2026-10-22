@@ -604,6 +604,12 @@ export interface ChatGraphInput {
   connectFiles?: ConnectFileRef[] | undefined;
   /** Notebook documents handed over from the reader, authorized this turn. */
   notebookSources?: ResolvedNotebookSource[];
+  /** None of `notebookSources` was picked this turn — all carried from earlier
+   *  turns. Carried material is available but does not force a route (#4861). */
+  notebookSourcesCarriedOnly?: boolean;
+  /** @link pages picked in earlier turns of the thread (#4861). Unlike
+   *  `attachedWebpageUrls` they are only crawled when the turn retrieves anyway. */
+  carriedWebpageUrls?: string[];
   /**
    * URLs explicitly attached in the composer via the @link mention. Merged with
    * the classifier's auto-detected URLs and crawled through the scrape_url path.
@@ -881,6 +887,12 @@ export interface ChatGraphState {
   // system), re-authorized every turn in streamContext and carried per thread
   // (`chat_threads.notebook_source_refs`). Retrieved like attached documents.
   notebookSources: ResolvedNotebookSource[];
+  // True when every notebook source was carried from an earlier turn: then they
+  // are material the turn may use, not a reason to force the search route.
+  notebookSourcesCarriedOnly: boolean;
+
+  // @link pages from earlier turns — crawled only when the turn retrieves anyway.
+  carriedWebpageUrls: string[];
 
   // URLs attached via the @link mentionable. The classifier unions these into
   // `detectedUrls` so the existing scrape_url path crawls them.
