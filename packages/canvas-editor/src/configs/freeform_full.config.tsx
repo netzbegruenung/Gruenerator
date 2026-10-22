@@ -17,7 +17,7 @@ import { buildIllustrationCapability } from '../ai/illustrationCapability';
 import { withCardFollowingText } from '../composer/cardFollowsText';
 import { SHAREPIC_COLOR_HEX } from '../composer/composeSharepic';
 import { type LiftedBlock } from '../composer/liftBlock';
-import { isSlideFormat, type CanvasFormat } from '../formats';
+import { insertScaleFor, isSlideFormat, type CanvasFormat } from '../formats';
 import { AssetsSection } from '../sidebar';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
@@ -251,7 +251,8 @@ export const createFreeformFullConfig = (
     format.height,
     fontColor,
     chartColors,
-    isSlideFormat(format) ? SLIDE_MAX_PAGES : SHEET_MAX_PAGES
+    isSlideFormat(format) ? SLIDE_MAX_PAGES : SHEET_MAX_PAGES,
+    insertScaleFor(format)
   );
 
 const withFreeformAi = (
@@ -260,7 +261,8 @@ const withFreeformAi = (
   height: number,
   fontColor: string,
   chartColors: readonly string[],
-  maxPages: number
+  maxPages: number,
+  insertScale: number
 ): FullCanvasConfig<FreeformState, FreeformActions> => ({
   id: 'freeform',
 
@@ -460,7 +462,8 @@ const withFreeformAi = (
       width,
       height,
       fontColor,
-      chartColors
+      chartColors,
+      insertScale
     );
 
     return {

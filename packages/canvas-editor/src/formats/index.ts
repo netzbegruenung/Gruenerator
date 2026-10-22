@@ -242,6 +242,15 @@ export function isSlideFormat(format: CanvasFormat): boolean {
   return format.group === 'praesentation';
 }
 
+/**
+ * Startgröße neu eingefügter Elemente (Text, Formen, Icons, Grafiken,
+ * Diagramme): die Voreinstellungen sind für 1080 px breite Sharepics gemacht,
+ * auf einer Folie wachsen sie mit der Breite. Alle anderen Formate: 1.
+ */
+export function insertScaleFor(format: CanvasFormat): number {
+  return isSlideFormat(format) ? format.width / 1080 : 1;
+}
+
 export function isPrintFormat(format: CanvasFormat): format is PrintCanvasFormat {
   return format.category === 'print' && format.print !== null;
 }
