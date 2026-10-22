@@ -1028,3 +1028,24 @@ describe('bild_ansehen', () => {
     expect(entry.kind).toBe(resolveToolEntry('expand_attachment').kind);
   });
 });
+
+describe('creating tools never show the note meant for the model', () => {
+  const note = 'Sharepic erstellt und dem*der Nutzer*in angezeigt. Rufe das Tool NICHT erneut auf.';
+
+  it.each([
+    ['sharepic', { variants: [], note }, 'Sharepic erstellt.'],
+    ['sharepic', { ok: true, note }, 'Sharepic erstellt.'],
+    ['create_presentation', { document: { title: 'Klima' }, note }, '„Klima" erstellt.'],
+    ['create_explainable', { ok: true, note }, 'Erstellt.'],
+    ['create_board', { ok: true, note }, 'Board erstellt.'],
+  ])('%s', (name, result, text) => {
+    expect(resolveToolEntry(name).parse({}, result)).toEqual({ kind: 'text-note', text });
+  });
+
+  it('still shows a failure', () => {
+    expect(resolveToolEntry('sharepic').parse({}, { error: 'Kein Text.' })).toEqual({
+      kind: 'text-note',
+      text: 'Kein Text.',
+    });
+  });
+});

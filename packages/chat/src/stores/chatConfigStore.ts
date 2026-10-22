@@ -235,7 +235,9 @@ export interface ChatConfig {
 export interface ChatVoiceThread {
   /** The thread's server id; a draft is created on the server first. */
   resolveThreadId: () => Promise<string>;
-  /** Re-reads the thread from the server, e.g. after a call created something. */
+  /** Brings a message the call saved (a created card) into the thread now. */
+  insert: (messageId: string) => Promise<void>;
+  /** Re-reads the thread from the server once the call is over. */
   reload: () => Promise<void>;
 }
 

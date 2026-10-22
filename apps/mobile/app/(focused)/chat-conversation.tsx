@@ -1,4 +1,4 @@
-import { useAui } from '@assistant-ui/react-native';
+import { useAui, useAuiState } from '@assistant-ui/react-native';
 import { findRegistryAgent, getUserAgentMentionables } from '@gruenerator/chat';
 import {
   getSystemAgent,
@@ -10,17 +10,21 @@ import {
 import { usePublicUserAgents, useUserAgents } from '@gruenerator/shared/grueneratoren';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { Redirect, useLocalSearchParams } from 'expo-router';
-import { useEffect, useEffectEvent, useMemo } from 'react';
+import { useCallback, useEffect, useEffectEvent, useMemo, useState } from 'react';
 import { useColorScheme } from 'react-native';
 
 import { AssistantThread, type ThreadWelcome } from '../../components/chat';
 import { ChatBackdrop } from '../../components/chat/ChatBackdrop';
 import { InitialTurnSender } from '../../components/chat/InitialTurnSender';
 import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
+import { VOICE_DOCK_INSET, VoiceCallBar, VoiceCallOverlay } from '../../components/voice/VoiceCall';
+import { WaveformIcon } from '../../components/voice/WaveformIcon';
 import { useChatAgentSelection } from '../../hooks/useChatAgentSelection';
 import { MobileChatProvider } from '../../providers/MobileChatProvider';
 import { lightTheme, darkTheme } from '../../theme';
 import { routeWithParams } from '../../types/routes';
+
+import type { Theme } from '../../theme/colors';
 
 // Pre-fills the composer without sending (e.g. a `/skill ` or `@tool ` mention
 // dropped in from the drawer), so the user can keep typing before submitting.
@@ -38,6 +42,48 @@ function ComposerPrefiller({ text }: { text: string }) {
   return null;
 }
 
+/**
+ * The chat with its voice call: the call button sits beside Send whenever the
+ * runtime offers a call, and a running call lays its blob over this very chat
+ * and takes the composer's place — there is no second screen to come back from.
+ */
+function ConversationThread({
+  theme,
+  welcome,
+  startInCall,
+}: {
+  theme: Theme;
+  welcome: ThreadWelcome | undefined;
+  startInCall: boolean;
+}) {
+  const canCall = useAuiState((s) => s.thread.capabilities.voice);
+  const [inCall, setInCall] = useState(startInCall);
+  const startCall = useCallback(() => setInCall(true), []);
+  const endCall = useCallback(() => setInCall(false), []);
+  const callAccessory = useMemo(
+    () => ({
+      icon: WaveformIcon,
+      onPress: startCall,
+      accessibilityLabel: 'Sprachgespräch starten',
+    }),
+    [startCall]
+  );
+  const calling = canCall && inCall;
+
+  return (
+    <AssistantThread
+      theme={theme}
+      welcome={welcome}
+      transparent
+      {...(canCall && { composerAccessory: callAccessory, composerAccessoryBesideAction: true })}
+      listOverlay={calling ? <VoiceCallOverlay /> : null}
+      dock={calling ? <VoiceCallBar onEnd={endCall} /> : null}
+      listBottomInset={calling ? VOICE_DOCK_INSET : 0}
+      followLatest={calling}
+    />
+  );
+}
+
 type ChatConversationParams = {
   threadId: string;
   initialMessage?: string;
@@ -46,6 +92,8 @@ type ChatConversationParams = {
   notebookId?: string;
   agentId?: string;
   initialComposerText?: string;
+  /** `1` opens the chat in a voice call (the start page's call button). */
+  voice?: string;
 };
 
 export default function ChatConversationScreen() {
@@ -70,6 +118,7 @@ function ChatConversation({
   initialMessage,
   agentId,
   initialComposerText,
+  voice,
 }: ChatConversationParams) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
@@ -152,7 +201,7 @@ function ChatConversation({
       headerRight={null}
     >
       <MobileChatProvider threadId={isNewChat ? null : threadId}>
-        <AssistantThread theme={theme} welcome={welcome} transparent />
+        <ConversationThread theme={theme} welcome={welcome} startInCall={voice === '1'} />
         {isNewChat && <InitialTurnSender message={initialMessage ?? ''} />}
         {isNewChat && initialComposerText && <ComposerPrefiller text={initialComposerText} />}
       </MobileChatProvider>

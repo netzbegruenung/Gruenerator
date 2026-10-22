@@ -63,6 +63,7 @@ import { ThreadDataSyncEffect } from './ThreadDataSyncEffect';
 import { ThreadListReloadListener } from './ThreadListReloadListener';
 import { convertToThreadMessageLike, type LoadedMessage } from './threadMessageConversion';
 import { useFeedbackAdapter } from './useFeedbackAdapter';
+import { insertSavedMessage, reloadSavedThread } from './voiceThreadSync';
 
 import type { StreamMetadata } from '../hooks/useChatGraphStream';
 
@@ -324,29 +325,36 @@ function useGrueneratorThreadRuntime() {
 
   // Only when the host offers a voice conversation; without the adapter the
   // composer hides its voice button (capabilities.voice). A call runs in this
-  // thread: a draft is created first, and what the call saved — its lines and
-  // the cards of what it created — is read back once it ends.
+  // thread: a draft is created first, a card the call creates joins it live,
+  // and the thread is read back as saved once the call ends.
   const aui = useAui();
   const messagesEndpoint = useChatConfigStore((s) => s.endpoints.messages);
   const runtimeRef = useRef<ReturnType<typeof useLocalRuntime> | null>(null);
-  const voiceThread = useMemo(
-    () => ({
+  const voiceThread = useMemo(() => {
+    const thread = () => runtimeRef.current?.thread ?? null;
+    const messagesUrl = () => {
+      const remoteId = aui.threadListItem.getState().remoteId;
+      return remoteId ? `${messagesEndpoint}?threadId=${remoteId}` : null;
+    };
+    return {
       resolveThreadId: async () => (await aui.threadListItem.initialize()).remoteId,
-      reload: async () => {
-        const remoteId = aui.threadListItem.getState().remoteId;
-        if (!remoteId || !runtimeRef.current) return;
-        const loaded = await runtimeApiClient.get<LoadedMessage[]>(
-          `${messagesEndpoint}?threadId=${remoteId}`
-        );
-        runtimeRef.current.thread.import(
-          ExportedMessageRepository.fromArray(
-            convertToThreadMessageLike(splitLiveTurn(loaded).rows)
-          )
-        );
+      insert: async (messageId: string) => {
+        const url = messagesUrl();
+        if (url)
+          await insertSavedMessage(
+            thread,
+            runtimeApiClient,
+            url,
+            messageId,
+            convertToThreadMessageLike
+          );
       },
-    }),
-    [aui, messagesEndpoint, runtimeApiClient]
-  );
+      reload: async () => {
+        const url = messagesUrl();
+        if (url) await reloadSavedThread(thread, runtimeApiClient, url, convertToThreadMessageLike);
+      },
+    };
+  }, [aui, messagesEndpoint, runtimeApiClient]);
   const createVoiceAdapter = useChatConfigStore((s) => s.voice?.createAdapter);
   const voiceAdapter = useMemo(
     () => createVoiceAdapter?.(voiceThread),

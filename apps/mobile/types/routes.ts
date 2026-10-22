@@ -30,7 +30,6 @@ export type AppRoute =
   | '/auth/callback'
   // Focused routes
   | '/(focused)/chat-conversation'
-  | '/(focused)/sprachgespraech'
   // Notebook routes — push with `{ withAnchor: true }` (see `app/notebook/[id]/_layout.tsx`)
   | '/notebook/[id]'
   | '/notebook/[id]/chat'
@@ -60,6 +59,8 @@ export interface ModalRouteParams {
     notebookId?: string;
     agentId?: string;
     initialComposerText?: string;
+    /** `1` opens the chat in a voice call. */
+    voice?: string;
   };
   '/notebook/[id]/chat': {
     /** Registry id of a system notebook, or the UUID of a user notebook. */

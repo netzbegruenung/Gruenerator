@@ -6,8 +6,9 @@ import {
   transformMessageLike,
   resumeChatTurn,
 } from '@gruenerator/chat';
-import { type ReactNode, useEffect, useMemo } from 'react';
+import { type ReactNode, useEffect, useMemo, useRef } from 'react';
 
+import { useChatVoiceAdapter } from '../hooks/useChatVoiceAdapter';
 import { useMobileChatRuntime } from '../hooks/useMobileChatRuntime';
 import { getMobileChatApiClient } from '../services/chatConfig';
 
@@ -45,9 +46,25 @@ export function MobileChatProvider({ children, threadId }: MobileChatProviderPro
     );
   }, [threadId]);
 
-  const runtime = useMobileChatRuntime(
-    historyAdapter ? { adapters: { history: historyAdapter } } : undefined
+  // The voice call writes into this runtime: it needs it, and the runtime needs
+  // the adapter, so the adapter reads it through a ref set once both exist.
+  const runtimeRef = useRef<ReturnType<typeof useMobileChatRuntime> | null>(null);
+  const voiceAdapter = useChatVoiceAdapter(runtimeRef);
+  const adapters = useMemo(
+    () => ({
+      ...(historyAdapter && { history: historyAdapter }),
+      ...(voiceAdapter && { voice: voiceAdapter }),
+    }),
+    [historyAdapter, voiceAdapter]
   );
+
+  const runtime = useMobileChatRuntime({ adapters });
+  useEffect(() => {
+    runtimeRef.current = runtime;
+    return () => {
+      runtimeRef.current = null;
+    };
+  }, [runtime]);
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>

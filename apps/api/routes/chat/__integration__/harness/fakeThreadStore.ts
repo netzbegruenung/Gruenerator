@@ -192,9 +192,10 @@ export async function createMessage(
   content: string | null,
   metadata?: Record<string, unknown>,
   _userId?: string
-): Promise<void> {
+): Promise<string> {
   const id = crypto.randomUUID();
   messages.set(id, { id, threadId, role, content, metadata, createdAt: new Date() });
+  return id;
 }
 
 export async function createPendingAssistantMessage(

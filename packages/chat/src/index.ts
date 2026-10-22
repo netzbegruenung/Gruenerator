@@ -128,6 +128,11 @@ export {
   convertToThreadMessageLike,
   type LoadedMessage,
 } from './runtime/threadMessageConversion';
+export {
+  insertSavedMessage,
+  reloadSavedThread,
+  type VoiceSyncThread,
+} from './runtime/voiceThreadSync';
 export { GrueneratorAttachmentAdapter } from './runtime/GrueneratorAttachmentAdapter';
 export {
   createGrueneratorModelAdapter,
