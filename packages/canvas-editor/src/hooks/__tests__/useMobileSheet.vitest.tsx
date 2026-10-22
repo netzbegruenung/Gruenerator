@@ -295,6 +295,48 @@ describe('useMobileSheet: content pull-down on iOS', () => {
     expect(sheet.style.transform).toBe('');
   });
 
+  it('never claims a touch that starts in a horizontal scroller', () => {
+    const { sheet } = renderWith(
+      <div data-testid="chips" style={{ overflowX: 'auto' }}>
+        <button type="button">Chip</button>
+      </div>
+    );
+    const chips = screen.getByTestId('chips');
+    Object.defineProperty(chips, 'scrollWidth', { value: 600, configurable: true });
+    Object.defineProperty(chips, 'clientWidth', { value: 300, configurable: true });
+    const chip = screen.getByRole('button', { name: 'Chip' });
+    fireEvent.touchStart(chip, { touches: [{ clientX: 50, clientY: 100 }] });
+    // Diagonal first sample, then the swipe turns horizontal.
+    expect(fireEvent.touchMove(chip, { touches: [{ clientX: 52, clientY: 104 }] })).toBe(true);
+    expect(fireEvent.touchMove(chip, { touches: [{ clientX: 120, clientY: 108 }] })).toBe(true);
+    expect(sheet.style.transform).toBe('');
+  });
+
+  it('never claims a touch on a slider', () => {
+    const { sheet } = renderWith(<input type="range" aria-label="Deckkraft" />);
+    const slider = screen.getByRole('slider', { name: 'Deckkraft' });
+    fireEvent.touchStart(slider, { touches: [{ clientX: 50, clientY: 100 }] });
+    expect(fireEvent.touchMove(slider, { touches: [{ clientX: 50, clientY: 104 }] })).toBe(true);
+    expect(fireEvent.touchMove(slider, { touches: [{ clientX: 50, clientY: 200 }] })).toBe(true);
+    expect(sheet.style.transform).toBe('');
+  });
+
+  it('leaves a diagonal first move on plain content to the browser', () => {
+    const { sheet, content } = renderWith(<p>Inhalt</p>);
+    fireEvent.touchStart(content, { touches: [{ clientX: 50, clientY: 100 }] });
+    expect(fireEvent.touchMove(content, { touches: [{ clientX: 53, clientY: 104 }] })).toBe(true);
+    expect(fireEvent.touchMove(content, { touches: [{ clientX: 53, clientY: 200 }] })).toBe(true);
+    expect(sheet.style.transform).toBe('');
+  });
+
+  it('still claims a steep first move on plain content', () => {
+    const { sheet, content } = renderWith(<p>Inhalt</p>);
+    fireEvent.touchStart(content, { touches: [{ clientX: 50, clientY: 100 }] });
+    expect(fireEvent.touchMove(content, { touches: [{ clientX: 52, clientY: 104 }] })).toBe(false);
+    fireEvent.touchMove(content, { touches: [{ clientX: 52, clientY: 160 }] });
+    expect(sheet.style.transform).toBe('translateY(60px)');
+  });
+
   it('decides at touchstart that a scrolled list keeps scrolling', () => {
     const { sheet, content } = renderWith(<p>Inhalt</p>);
     Object.defineProperty(content, 'scrollTop', { value: 12, configurable: true });

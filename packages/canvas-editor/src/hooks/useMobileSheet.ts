@@ -55,10 +55,10 @@ interface Sample {
  *
  * WebKit commits an unprevented first touchmove to native scrolling (the list
  * rubber-bands at its top) and later moves are no longer cancelable, so the
- * content claims the gesture on its FIRST move if that goes down and mostly
- * vertical; the slop then only decides between drag and nothing. Whether the
+ * content claims the gesture on its FIRST move if that goes down steeply
+ * (dy >= 2·|dx|); the slop then only decides between drag and nothing. Whether the
  * content may take over at all is settled at touchstart (list at its top, not
- * inside a textarea or a scrolled nested scroller): every other gesture
+ * inside a textarea, slider, horizontal or scrolled nested scroller): every other gesture
  * returns from the non-passive touchmove at its first line. Passivity is fixed
  * at registration and a listener added mid-gesture does not make that
  * gesture's moves cancelable, so the one listener stays.
@@ -168,10 +168,25 @@ export function useMobileSheet({
     const activeTouch = (list: TouchList) =>
       Array.from(list).find((t) => t.identifier === activeId) ?? null;
 
-    /** A textarea or a scrolled scroller between the touch and the content keeps the touch. */
+    /** A horizontal scroller (chip/swatch row) pans sideways; claiming it would freeze it. */
+    const scrollsSideways = (el: Element) =>
+      el.scrollWidth > el.clientWidth && /auto|scroll/.test(getComputedStyle(el).overflowX);
+
+    /**
+     * Touches the content must never claim: a textarea, a slider, a scrolled
+     * nested scroller, or a horizontal scroller between the touch and the content.
+     */
     const startsInNestedScroll = (target: EventTarget | null) => {
       for (let el = target instanceof Element ? target : null; el && el !== content;) {
-        if (el instanceof HTMLTextAreaElement || el.scrollTop > 0) return true;
+        if (
+          el instanceof HTMLTextAreaElement ||
+          (el instanceof HTMLInputElement && el.type === 'range') ||
+          el.getAttribute('role') === 'slider' ||
+          el.scrollTop > 0 ||
+          scrollsSideways(el)
+        ) {
+          return true;
+        }
         el = el.parentElement;
       }
       return false;
@@ -206,8 +221,9 @@ export function useMobileSheet({
         const dx = (touch.clientX || 0) - startX;
         if (fromContent && !claimed) {
           if (dx === 0 && dy === 0) return;
-          // First move: down and mostly vertical claims it, anything else scrolls.
-          if (dy <= Math.abs(dx) || (content?.scrollTop ?? 0) > 0) {
+          // First move: only a steep downward one claims it (a diagonal one may
+          // still turn into a sideways swipe); anything else scrolls.
+          if (dy < 2 * Math.abs(dx) || dy <= 0 || (content?.scrollTop ?? 0) > 0) {
             mode = 'scroll';
             return;
           }
