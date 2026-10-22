@@ -180,6 +180,67 @@ describe('mobiles Sheet: Ein- und Ausgleiten', () => {
     expect(screen.queryByText('Inhalt')).toBeNull();
   });
 
+  it('slides out with the content it had while open', () => {
+    const { rerender } = render(panel(true));
+    endTransition(screen.getByRole('region', { name: 'Text' }));
+
+    // The editor drops the active section in the same render that closes.
+    rerender(
+      <SidebarPanel isOpen={false} onClose={() => {}}>
+        {null}
+      </SidebarPanel>
+    );
+    const sheet = sheetEl();
+    expect(sheet).toHaveAttribute('data-state', 'closing');
+    expect(sheet).toHaveAttribute('aria-label', 'Text');
+    expect(screen.getByText('Inhalt')).toBeInTheDocument();
+
+    endTransition(sheet as Element);
+    expect(sheetEl()).toBeNull();
+    expect(screen.queryByText('Inhalt')).toBeNull();
+  });
+
+  it('reopens cleanly while it slides out', () => {
+    vi.useFakeTimers();
+    const { rerender } = render(panel(true));
+    endTransition(screen.getByRole('region', { name: 'Text' }));
+
+    rerender(panel(false));
+    expect(sheetEl()).toHaveAttribute('data-state', 'closing');
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+    rerender(panel(true));
+    expect(sheetEl()).toHaveAttribute('data-state', 'entering');
+
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+    const sheet = sheetEl();
+    expect(sheet).toHaveAttribute('data-state', 'open');
+    expect(sheet).not.toHaveAttribute('inert');
+    expect(screen.getByText('Inhalt')).toBeInTheDocument();
+  });
+
+  it('keeps the phase machine idle on desktop', () => {
+    setViewport(false);
+    const { rerender } = render(panel(true));
+    rerender(panel(false));
+    // Crossing the breakpoint after a desktop close must not slide a sheet out.
+    setViewport(true);
+    rerender(panel(false));
+    expect(sheetEl()).toBeNull();
+  });
+
+  it('shows a panel opened on desktop as an open sheet after crossing to mobile', () => {
+    setViewport(false);
+    const { rerender } = render(panel(true));
+    setViewport(true);
+    rerender(panel(true));
+    expect(sheetEl()).toHaveAttribute('data-state', 'open');
+    expect(screen.getByText('Inhalt')).toBeInTheDocument();
+  });
+
   it('renders desktop panel immediately', () => {
     setViewport(false);
     render(panel(true));

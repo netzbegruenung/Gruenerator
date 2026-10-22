@@ -63,9 +63,26 @@ export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSideb
   const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
   if (isOpen !== prevIsOpen) {
     setPrevIsOpen(isOpen);
-    if (isOpen) setPhase('entering');
-    else if (phase !== 'closed') setPhase('closing');
+    if (!isDesktop) {
+      if (isOpen) setPhase('entering');
+      else if (phase !== 'closed') setPhase('closing');
+    }
   }
+  // Desktop has no slide: the phase mirrors `isOpen`, so crossing the
+  // breakpoint later never puts a half-finished sheet in the flow.
+  if (isDesktop && (phase !== (isOpen ? 'open' : 'closed') || hasContent !== isOpen)) {
+    setPhase(isOpen ? 'open' : 'closed');
+    setHasContent(isOpen);
+  }
+
+  // The editor clears the section (and title) in the same render that closes
+  // the panel; the sheet slides out with what it showed while open.
+  const [shown, setShown] = useState({ children, title });
+  if (isOpen && (shown.children !== children || shown.title !== title)) {
+    setShown({ children, title });
+  }
+  const sheetChildren = isOpen ? children : shown.children;
+  const sheetTitle = isOpen ? title : shown.title;
 
   const finishEnter = useCallback(() => {
     setPhase((p) => (p === 'entering' ? 'open' : p));
@@ -108,7 +125,7 @@ export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSideb
     return (
       <section
         ref={sheetRef}
-        aria-label={title}
+        aria-label={sheetTitle}
         data-state={phase}
         inert={phase === 'closing'}
         onTransitionEnd={(e) => {
@@ -126,12 +143,14 @@ export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSideb
           <div className="w-9 h-1 rounded-sm bg-[var(--editor-border-strong)]" />
         </div>
         <div className="flex-none h-8 px-5 flex items-center justify-between gap-3">
-          <h2 className="m-0 text-[17px] font-bold text-[var(--editor-text)] truncate">{title}</h2>
+          <h2 className="m-0 text-[17px] font-bold text-[var(--editor-text)] truncate">
+            {sheetTitle}
+          </h2>
           {onClose && (
             <button
               type="button"
               onClick={onClose}
-              aria-label={`${title ?? 'Bereich'} schließen`}
+              aria-label={`${sheetTitle ?? 'Bereich'} schließen`}
               className="flex-none size-8 max-canvas-mobile:size-11 rounded-full border-none bg-[var(--editor-tile)] text-[var(--editor-text-secondary)] flex items-center justify-center cursor-pointer"
             >
               <PiX size={16} />
@@ -144,7 +163,7 @@ export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSideb
             hasContent && 'sidebar-panel__content--in'
           )}
         >
-          {hasContent && children}
+          {hasContent && sheetChildren}
         </div>
       </section>
     );
