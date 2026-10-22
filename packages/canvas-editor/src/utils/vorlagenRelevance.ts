@@ -7,9 +7,9 @@
  * The catalogue carries no colour analysis, and none is needed: a Vorlage's
  * spec names its grounds, a page's state holds its own.
  */
-import { SHAREPIC_SOURCE_KEY } from '@gruenerator/contracts';
+import { SHAREPIC_SOURCE_KEY, sharepicThemaSchema } from '@gruenerator/contracts';
 
-import { PRIDE_FLAG_ASSET, SHAREPIC_COLOR_HEX } from '../composer/chromeParts';
+import { EUROPA_ASSETS, PRIDE_FLAG_ASSET, SHAREPIC_COLOR_HEX } from '../composer/chromeParts';
 
 import type { SharepicBackground, SharepicFormat, SharepicThema } from '@gruenerator/contracts';
 
@@ -62,16 +62,20 @@ function vorlageProfile(vorlage: VorlageLike): Profile {
 
 /**
  * A page's theme: what its composer source names, or — on a page without one —
- * the Progress Pride flag someone placed by hand.
+ * the theme sign someone placed by hand (Progress Pride flag, EU stars).
  */
 function pageThema(state: Record<string, unknown>): SharepicThema | null {
   const source = state[SHAREPIC_SOURCE_KEY] as { slide?: { thema?: unknown } } | undefined;
   const named = source?.slide?.thema;
-  if (named === 'queer' || named === 'frauen') return named;
+  const parsed = sharepicThemaSchema.safeParse(named);
+  if (parsed.success) return parsed.data;
   const assets = Array.isArray(state.assetInstances) ? state.assetInstances : [];
-  return assets.some((a) => (a as { assetId?: unknown })?.assetId === PRIDE_FLAG_ASSET)
+  const placed = (id: string) => assets.some((a) => (a as { assetId?: unknown })?.assetId === id);
+  return placed(PRIDE_FLAG_ASSET)
     ? 'queer'
-    : null;
+    : placed(EUROPA_ASSETS.sterne) || placed(EUROPA_ASSETS.flagge)
+      ? 'europa'
+      : null;
 }
 
 function deckProfile(pages: readonly PageLike[]): Profile {
