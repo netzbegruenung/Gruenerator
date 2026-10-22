@@ -328,8 +328,9 @@ export function buildChartElement(recharts: any, chart: ChartInstance) {
   return (
     <BarChart
       {...common}
+      // The value labels sit past the bar's end, left of a legend column.
       {...(horizontal && {
-        margin: { ...common.margin, right: Math.max(common.margin.right, valueRoom) },
+        margin: { ...common.margin, right: (legend?.width ?? 0) + Math.max(20, valueRoom) },
       })}
       layout={horizontal ? 'vertical' : 'horizontal'}
     >

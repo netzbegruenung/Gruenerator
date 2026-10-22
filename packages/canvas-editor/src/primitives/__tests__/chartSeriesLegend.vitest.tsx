@@ -65,6 +65,30 @@ describe('ChartPrimitive — several series (#4870)', () => {
     expect(new Set(legend.map((l) => l.transform.split(', ')[1]))).toEqual(new Set(['296)']));
   });
 
+  it('keeps value labels of horizontal bars clear of a legend on the right', () => {
+    const chart: ChartInstance = {
+      ...multi(),
+      chartType: 'bar-horizontal',
+      legendPosition: 'right',
+      showValues: true,
+      series: [
+        { name: 'Reihe 1', values: [1234567890123, 2] },
+        { name: 'Reihe 2', values: [1, 3] },
+      ],
+    };
+    const { container } = render(buildChartElement(recharts, chart));
+    const barRight = Math.max(
+      ...[...container.querySelectorAll('.recharts-bar-rectangle path')].map(
+        (b) => Number(b.getAttribute('x')) + Number(b.getAttribute('width'))
+      )
+    );
+    const legendX = Math.min(
+      ...legendOf(container).map((l) => Number(/translate\(([\d.]+)/.exec(l.transform)![1]))
+    );
+    // A label wider than the legend column (~8.5 px a bold character) fits between bar and legend.
+    expect(legendX - barRight).toBeGreaterThanOrEqual('1234567890123'.length * 8.5);
+  });
+
   it('draws no legend for a single cartesian series', () => {
     const single = { ...multi(), series: [] };
     const { container } = render(buildChartElement(recharts, single));
