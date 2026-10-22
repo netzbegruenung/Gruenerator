@@ -46,6 +46,7 @@ import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { PAGE_PERSISTED_STATE_KEYS } from '../../collab/pageElementStateKeys';
 import { serializeDeck } from '../../collab/pagesDoc';
 import { createPageSyncedCallbacks } from '../../collab/wrapCallbacksWithPageSync';
+import { impressumLocaleOf } from '../../composer/printImpressum';
 import { type CanvasConfigId } from '../../configs/types';
 import { exportPptxDeck } from '../../export/pptx/exportPptxDeck';
 import {
@@ -1183,13 +1184,18 @@ function CanvasEditorInner({
           }
         : null,
       slideDeck: isSlideDeck
-        ? { onDownloadPdf: handleDownloadSlidesPdf, onDownloadPptx: handleDownloadPptx }
+        ? {
+            onDownloadPdf: handleDownloadSlidesPdf,
+            onDownloadPptx: handleDownloadPptx,
+            locale: impressumLocaleOf(pages[0] ?? null),
+          }
         : null,
     }),
     [
       isSlideDeck,
       handleDownloadSlidesPdf,
       handleDownloadPptx,
+      pages,
       printFormat,
       impressumGate,
       handleDownloadPdf,

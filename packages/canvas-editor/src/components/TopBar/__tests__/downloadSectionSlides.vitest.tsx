@@ -18,7 +18,7 @@ describe('DownloadSection slide decks', () => {
       <DownloadSection
         onDownload={onDownload}
         pageCount={3}
-        slideDeck={{ onDownloadPdf: vi.fn(), onDownloadPptx }}
+        slideDeck={{ onDownloadPdf: vi.fn(), onDownloadPptx, locale: 'de-DE' }}
       />
     );
     expect(screen.getByText(/PowerPoint \(\.pptx\)/)).toBeTruthy();
@@ -29,5 +29,17 @@ describe('DownloadSection slide decks', () => {
     await waitFor(() => expect(screen.queryByText('1/3')).toBeNull());
     expect(onDownloadPptx).toHaveBeenCalledTimes(1);
     expect(onDownload).not.toHaveBeenCalled();
+  });
+
+  it('names the Austrian fonts for an AT deck', () => {
+    render(
+      <DownloadSection
+        onDownload={vi.fn()}
+        pageCount={1}
+        slideDeck={{ onDownloadPdf: vi.fn(), onDownloadPptx: vi.fn(), locale: 'de-AT' }}
+      />
+    );
+    expect(screen.getByText(/Gotham Narrow Book, Bold und Ultra/)).toBeTruthy();
+    expect(screen.queryByText(/GrueneType/)).toBeNull();
   });
 });

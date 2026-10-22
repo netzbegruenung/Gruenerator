@@ -47,10 +47,16 @@ export interface SlideDeckExportProps {
   onDownloadPdf: () => Promise<void>;
   /** Meldet nach jeder geschriebenen Folie den Fortschritt. */
   onDownloadPptx: (onProgress: (done: number, total: number) => void) => Promise<void>;
+  /** Welche Hausschriften das Deck trägt: deutsche oder österreichische Marke. */
+  locale: ImpressumLocale;
 }
 
-const PPTX_FONT_HINT =
-  'Damit die Folien wie im Grünerator aussehen, installiere die Schriften GrueneType Neue und PT Sans (Österreich: Gotham Narrow) — sonst ersetzt PowerPoint sie.';
+const PPTX_FONT_HINT: Record<ImpressumLocale, string> = {
+  'de-DE':
+    'Damit die Folien wie im Grünerator aussehen, installiere die Schriften GrueneType Neue und PT Sans – sonst ersetzt PowerPoint sie.',
+  'de-AT':
+    'Damit die Folien wie im Grünerator aussehen, installiere die Schriften Gotham Narrow Book, Bold und Ultra – sonst ersetzt PowerPoint sie.',
+};
 
 export interface PrintImpressumGate {
   /** False until every poster page has reported its state; no warning until then. */
@@ -338,7 +344,9 @@ export function DownloadSection({
       )}
 
       {isPdf && <DownloadNotice tone="info">{PRINT_UNGETESTET_HINWEIS}</DownloadNotice>}
-      {isPptx && <DownloadNotice tone="info">{PPTX_FONT_HINT}</DownloadNotice>}
+      {isPptx && slideDeck && (
+        <DownloadNotice tone="info">{PPTX_FONT_HINT[slideDeck.locale]}</DownloadNotice>
+      )}
       {isPdf &&
         printWarnings.map((warning) => (
           <DownloadNotice key={warning} tone="info">
