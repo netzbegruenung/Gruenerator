@@ -10,20 +10,21 @@ import {
 import {
   DEFAULT_MARKETPLACE_FILTERS,
   DEFAULT_MARKETPLACE_SORT,
-  MARKETPLACE_ORIGINS,
   MARKETPLACE_SORTS,
-  MARKETPLACE_TABS,
   marketplaceEmptyText,
   isFrontpageView,
+  kindsOfMarketplaceTab as kindsOfTab,
   marketplaceHref,
   marketplaceOriginLabel,
+  marketplaceOriginsFor,
+  marketplaceTabsFor as tabsFor,
+  showsMarketplaceOrigins as showsOrigins,
+  shownMarketplaceTab as shownTab,
   tabForKind,
   useMarketplaceItem,
   useMarketplaceKind,
   useMarketplaceSections,
   type MarketplaceFilters,
-  type MarketplaceTab,
-  type MarketplaceTabSlug,
 } from '@gruenerator/shared/marketplace';
 import { useDebouncedSearch } from '@gruenerator/shared/studio-assets';
 import { Button, cn } from '@gruenerator/ui';
@@ -51,38 +52,7 @@ import { MarketplaceFrontpage } from './MarketplaceFrontpage';
 import { MarketplaceItemDetail } from './MarketplaceItemDetail';
 import { useMarketplaceActions } from './useMarketplaceActions';
 
-/** Origins only tell Agents and Rezepte apart; Vorlagen, Sticker and Hintergründe are always public. */
-const ORIGIN_KINDS: readonly MarketplaceKind[] = ['agent', 'recipe'];
 const ALL_ORIGINS = 'alle';
-
-/**
- * The tabs a view offers: „Alle" (= every allowed kind) when there is more than
- * one kind, then each single-kind tab whose kind is allowed.
- */
-export function tabsFor(kinds: readonly MarketplaceKind[]): MarketplaceTab[] {
-  const single = MARKETPLACE_TABS.filter(
-    (t) => t.slug !== 'alle' && t.kinds.every((k) => kinds.includes(k))
-  );
-  return single.length > 1 ? [MARKETPLACE_TABS[0], ...single] : single;
-}
-
-/** The tab actually shown — a link to a tab the view does not offer falls back to the first. */
-export function shownTab(
-  tab: MarketplaceTabSlug,
-  kinds: readonly MarketplaceKind[]
-): MarketplaceTabSlug {
-  const tabs = tabsFor(kinds);
-  return tabs.some((t) => t.slug === tab) ? tab : (tabs[0]?.slug ?? 'alle');
-}
-
-/** The kinds a tab shows within what the view allows. */
-function kindsOfTab(tab: MarketplaceTabSlug, kinds: readonly MarketplaceKind[]) {
-  if (tab === 'alle') return kinds;
-  return MARKETPLACE_TABS.find((t) => t.slug === tab)?.kinds ?? kinds;
-}
-
-const showsOrigins = (kinds: readonly MarketplaceKind[]) =>
-  kinds.some((k) => ORIGIN_KINDS.includes(k));
 
 /**
  * Search, origin and sort — the page puts them in its hero, the dialog in its
@@ -99,11 +69,7 @@ export function MarketplaceToolbar({
 }): JSX.Element {
   const { lvIds } = useUserLandesverbaende();
   const tabKinds = kindsOfTab(shownTab(filters.tab, kinds), kinds);
-  // The Landesverband aisle only for people with a Landesverband — the assignment is the access.
-  const origins = MARKETPLACE_ORIGINS.filter(
-    (o) =>
-      o.value !== 'landesverband' || (lvIds?.length ?? 0) > 0 || filters.origin === 'landesverband'
-  );
+  const origins = marketplaceOriginsFor(lvIds, filters.origin);
   const originLabel = filters.origin ? marketplaceOriginLabel(filters.origin, lvIds) : null;
   const sortLabel = MARKETPLACE_SORTS.find((s) => s.value === filters.sort)?.label ?? '';
 

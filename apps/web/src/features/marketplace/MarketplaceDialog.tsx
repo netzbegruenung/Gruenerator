@@ -2,6 +2,7 @@ import { MARKETPLACE_KINDS, type MarketplaceKind } from '@gruenerator/contracts'
 import {
   DEFAULT_MARKETPLACE_FILTERS,
   marketplaceHref,
+  shownMarketplaceTab as shownTab,
   type MarketplaceFilters,
   type MarketplaceTabSlug,
 } from '@gruenerator/shared/marketplace';
@@ -18,7 +19,7 @@ import { PiArrowSquareOut, PiX } from 'react-icons/pi';
 import { Link } from 'react-router-dom';
 
 import { type MarketplaceAssetItem } from './kindViews';
-import { MarketplaceBrowser, MarketplaceToolbar, shownTab } from './MarketplaceBrowser';
+import { MarketplaceBrowser, MarketplaceToolbar } from './MarketplaceBrowser';
 
 export interface MarketplaceDialogProps {
   open: boolean;
