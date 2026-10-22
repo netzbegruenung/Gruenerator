@@ -460,7 +460,11 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
 
   if (
     !threadId ||
-    (!fullText && !generatedImage && sharepicVariants.length === 0 && !createdDocument)
+    (!fullText &&
+      !generatedImage &&
+      sharepicVariants.length === 0 &&
+      !createdDocument &&
+      !finalState.createdBoard)
   )
     return { ok: true };
 

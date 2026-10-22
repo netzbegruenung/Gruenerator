@@ -20,10 +20,18 @@ import { env } from '../../config/env.js';
 import { buildVoiceContextBias } from '../../services/transcription/transcriptionBias.js';
 import {
   NOTEBOOK_TOOL,
+  isVoiceFiller,
   runVoicePortTool,
   voiceNotebooks,
   voicePortDeclarations,
+  type VoiceThread,
 } from '../../services/voice/voicePort.js';
+import {
+  historyForInstructions,
+  loadVoiceHistory,
+  openVoiceThread,
+  saveVoiceLine,
+} from '../../services/voice/voiceThread.js';
 import { VOXTRAL_DEFAULT_VOICE_ID } from '../../services/voice/voxtralSpeechService.js';
 import { requireInstanceAdmin } from '../../utils/adminAuthz.js';
 import { createLogger } from '../../utils/logger.js';
@@ -43,6 +51,7 @@ const TOOLS_INSTRUCTIONS = [
   SPOKEN_STYLE,
   'Für alles, was Programme, Beschlüsse, Notebooks, eigene Inhalte, Bundestag, Umfragen oder aktuelle Fakten betrifft, nutze zuerst die passenden Werkzeuge und antworte aus deren Ergebnis — nicht aus dem Gedächtnis.',
   `Fragen an den Inhalt eines Notebooks — eigenes, geteiltes oder das eines Landesverbands wie Berlin — beantwortest du mit ${NOTEBOOK_TOOL}; gib ihm den Namen, den die Person nennt.`,
+  'Will die Person etwas erstellt haben — ein Sharepic, eine Präsentation, eine Tabelle, ein Dokument, ein PDF, ein Board oder ein Explainable —, nimm das passende Erstell-Werkzeug und gib ihm den Inhalt vollständig mit. Das Ergebnis erscheint auf dem Bildschirm der Person: lies es nicht vor, sag kurz, dass es fertig ist, und biete Änderungen an.',
 ].join(' ');
 
 function notebookInstructions(name: string): string {
@@ -60,12 +69,21 @@ function notebookInstructions(name: string): string {
 const createBodySchema = z.object({
   mode: z.enum(['tools', 'notebook']).default('tools'),
   notebookId: z.string().nullish(),
+  /** The thread the call continues; none starts a new one. */
+  threadId: z.string().uuid().nullish(),
 });
 
 const toolCallBodySchema = z.object({
   args: z.record(z.unknown()).default({}),
   notebookId: z.string().nullish(),
   fastMode: z.boolean().default(true),
+  threadId: z.string().uuid().nullish(),
+});
+
+const lineBodySchema = z.object({
+  threadId: z.string().uuid(),
+  role: z.enum(['user', 'assistant']),
+  text: z.string().trim().min(1).max(20_000),
 });
 
 interface MistralSession {
@@ -121,6 +139,7 @@ router.post('/', async (req: Request, res: Response) => {
   let instructions: string;
   let tools: unknown[];
   let welcome: string;
+  let threadId: string | null = null;
   if (parsed.data.mode === 'notebook') {
     const notebook = lvNotebook(req, parsed.data.notebookId);
     if (!notebook) return res.status(400).json({ error: 'Unbekanntes Notebook' });
@@ -132,9 +151,17 @@ router.post('/', async (req: Request, res: Response) => {
       fixedNotebook: notebook.id,
     });
   } else {
-    instructions = TOOLS_INSTRUCTIONS;
-    welcome = 'Hallo, hier ist der Grünerator. Worüber möchtest du sprechen?';
-    tools = await voicePortDeclarations(userId, userLocale(req));
+    threadId = await openVoiceThread(userId, parsed.data.threadId ?? null);
+    if (!threadId) return res.status(403).json({ error: 'Kein Zugriff auf diese Unterhaltung' });
+    const history = await loadVoiceHistory(threadId);
+    instructions = TOOLS_INSTRUCTIONS + historyForInstructions(history);
+    welcome =
+      history.length > 0
+        ? 'Hallo, hier ist der Grünerator. Wie geht es weiter?'
+        : 'Hallo, hier ist der Grünerator. Worüber möchtest du sprechen?';
+    tools = await voicePortDeclarations(userId, userLocale(req), {
+      thread: { id: threadId, req, history },
+    });
   }
 
   try {
@@ -170,6 +197,7 @@ router.post('/', async (req: Request, res: Response) => {
       expiresAt: session.expires_at,
       functionTools: session.function_tools ?? [],
       toolNames: tools.map((t) => (t as { function: { name: string } }).function.name),
+      threadId,
     });
   } catch (error) {
     log.error('[AgentSession] Create error:', error);
@@ -187,14 +215,40 @@ router.post('/tools/:name', async (req: Request<{ name: string }>, res: Response
 
   // A notebook session's tool stays on its notebook, whatever the model names.
   const fixedNotebook = lvNotebook(req, parsed.data.notebookId)?.id ?? null;
-  const { text } = await runVoicePortTool(
+  let thread: VoiceThread | null = null;
+  if (parsed.data.threadId) {
+    const id = await openVoiceThread(userId, parsed.data.threadId);
+    if (!id) return res.status(403).json({ error: 'Kein Zugriff auf diese Unterhaltung' });
+    thread = { id, req, history: await loadVoiceHistory(id) };
+  }
+  const { text, artifact } = await runVoicePortTool(
     userId,
     userLocale(req),
     req.params.name,
     parsed.data.args,
-    { fixedNotebook, fastMode: parsed.data.fastMode }
+    { fixedNotebook, fastMode: parsed.data.fastMode, thread }
   );
-  return res.json({ result: text, ms: Date.now() - started });
+  return res.json({ result: text, artifact, ms: Date.now() - started });
+});
+
+/** A final line of the call — spoken or typed — into the call's thread. */
+router.post('/messages', async (req: Request, res: Response) => {
+  const parsed = lineBodySchema.safeParse(req.body ?? {});
+  if (!parsed.success) return res.status(400).json({ error: 'Ungültige Anfrage' });
+  const userId = req.user?.id;
+  if (!userId) return res.status(401).json({ error: 'Nicht angemeldet' });
+  const { threadId, role, text } = parsed.data;
+  if (!(await openVoiceThread(userId, threadId))) {
+    return res.status(403).json({ error: 'Kein Zugriff auf diese Unterhaltung' });
+  }
+  if (role === 'assistant' && isVoiceFiller(text)) return res.status(204).end();
+  try {
+    await saveVoiceLine(threadId, userId, role, text);
+    return res.status(204).end();
+  } catch (error) {
+    log.error('[AgentSession] Saving a line failed:', error);
+    return res.status(500).json({ error: 'Nicht gespeichert' });
+  }
 });
 
 router.delete('/:id', async (req: Request<{ id: string }>, res: Response) => {

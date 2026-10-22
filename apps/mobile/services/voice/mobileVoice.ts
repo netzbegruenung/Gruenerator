@@ -23,7 +23,7 @@ const agentSessionRequest: AgentSessionRequest = async (path, { method, body }) 
 
 /** The adapter as the app runs it: bearer auth and LiveKit's native audio session. */
 export function createMobileVoiceAdapter(
-  options: Pick<MistralVoiceAdapterOptions, 'onToolActivity' | 'onError'>
+  options: Omit<MistralVoiceAdapterOptions, 'request' | 'meterTrack' | 'prepareAudio'>
 ): MistralVoiceAdapter {
   return new MistralVoiceAdapter({
     ...options,
