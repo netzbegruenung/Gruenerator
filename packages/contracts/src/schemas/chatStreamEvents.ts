@@ -75,6 +75,8 @@ export const chatWarningCodeSchema = z.enum([
   'search_degraded',
   'wolke_refs_dropped',
   'wolke_check_failed',
+  'notebook_sources_dropped',
+  'notebook_sources_check_failed',
   'doc_creation_failed',
   // Persistence
   'persist_failed',

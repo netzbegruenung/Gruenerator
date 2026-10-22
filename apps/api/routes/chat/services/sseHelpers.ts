@@ -807,6 +807,16 @@ export const CHAT_WARNINGS = {
     severity: 'warning',
     attribution: 'user',
   },
+  notebook_sources_dropped: {
+    message: 'Ein angehängtes Notebook-Dokument ist nicht mehr verfügbar.',
+    severity: 'warning',
+    attribution: 'user',
+  },
+  notebook_sources_check_failed: {
+    message: 'Angehängte Notebook-Dokumente konnten gerade nicht geprüft werden.',
+    severity: 'warning',
+    attribution: 'provider',
+  },
   // Rug pull: a connected MCP server changed its tool DEFINITIONS since the
   // user approved them, so its tools were withheld from the model. `error`,
   // not `warning` — the user connected that server expecting it to work, and

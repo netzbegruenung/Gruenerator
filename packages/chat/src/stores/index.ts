@@ -10,7 +10,7 @@
 // the primitives stay in lazy chunks. Keep this file free of any component or
 // assistant-ui import.
 export { useUserProfileStore, type UserRole } from './userProfileStore';
-export { useAgentStore } from './chatStore';
+export { hasPendingHandoff, useAgentStore } from './chatStore';
 export { setThreadListSlot, useThreadListSlot } from './threadListSlotStore';
 export {
   useChatConfigStore,

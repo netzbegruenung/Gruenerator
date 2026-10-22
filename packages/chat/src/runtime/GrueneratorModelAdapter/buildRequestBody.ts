@@ -12,6 +12,7 @@ import type {
   CurrentBoard,
   CurrentCanvas,
   NotebookResolvedAnswerMode,
+  NotebookSourceRef,
 } from '@gruenerator/contracts';
 
 export type FormattedMessagePart =
@@ -64,6 +65,8 @@ export interface BuildRequestBodyParams {
   connectFiles: ReturnType<typeof parseAllMentions>['connectFiles'];
   /** URLs attached via the @link mention (crawled through the scrape_url path). */
   webpageUrls: string[];
+  /** Documents handed over from the notebook reader. */
+  notebookSourceRefs: NotebookSourceRef[];
   /** Regenerate the last assistant turn (backend replaces instead of appends). */
   regenerate: boolean;
   /** DB id of the user message an edit-resubmit starts from, if any. */
@@ -197,6 +200,7 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     wolkeFiles,
     connectFiles,
     webpageUrls,
+    notebookSourceRefs,
     regenerate,
     replaceFromMessageId,
     mergedDocChatIds,
@@ -273,6 +277,7 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     wolkeFiles: wolkeFiles.length > 0 ? wolkeFiles : undefined,
     connectFiles: connectFiles.length > 0 ? connectFiles : undefined,
     webpageUrls: webpageUrls.length > 0 ? webpageUrls : undefined,
+    notebookSourceRefs: notebookSourceRefs.length > 0 ? notebookSourceRefs : undefined,
     regenerate: regenerate || undefined,
     replaceFromMessageId: replaceFromMessageId || undefined,
     documentChatIds: mergedDocChatIds.length > 0 ? mergedDocChatIds : undefined,

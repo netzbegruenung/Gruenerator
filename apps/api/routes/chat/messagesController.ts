@@ -6,11 +6,13 @@
 import {
   notebookAnswerModeReasonSchema,
   notebookResolvedAnswerModeSchema,
+  notebookSourceRefSchema,
   notebookSourceTierSchema,
   type NotebookAnswerModeReason,
   type NotebookResolvedAnswerMode,
   type NotebookSourceTier,
 } from '@gruenerator/contracts';
+import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { resumableStreams } from '../../services/chat/resumableStreams.js';
@@ -27,6 +29,30 @@ import type { WebImageResult } from '../../agents/langgraph/ChatGraph/types.js';
 
 const log = createLogger('MessagesController');
 const router = createAuthenticatedRouter();
+
+/** F0: persisted chip type of a notebook document handed over from the reader. */
+const NOTEBOOK_SOURCE_CONTENT_TYPE = 'application/x-gruenerator-notebook-source';
+
+const persistedNotebookSourcesSchema = z.array(
+  z.object({ ref: notebookSourceRefSchema, title: z.string().nullable() })
+);
+
+/**
+ * The reader chips of a user message (`notebookSources` in its metadata,
+ * written by streamContext) as display attachments — the same shape the
+ * uploaded-file attachments take, so the client restores them as chips.
+ */
+function notebookSourceAttachments(meta: Record<string, unknown>) {
+  const parsed = persistedNotebookSourcesSchema.safeParse(meta.notebookSources);
+  if (!parsed.success) return [];
+  return parsed.data.map(({ ref, title }) => ({
+    id: `notebook-source-${'documentId' in ref ? ref.documentId : `${ref.collectionId}:${ref.sourceUrl}`}`,
+    name: title ?? 'Notebook-Dokument',
+    contentType: NOTEBOOK_SOURCE_CONTENT_TYPE,
+    preview: '',
+    truncated: false,
+  }));
+}
 
 /**
  * Persisted image hits → render-ready payloads with a fresh proxy handle.
@@ -158,7 +184,7 @@ router.get('/', async (req, res) => {
       const parsedToolCalls = parseJsonField(msg.tool_calls, 'tool_calls', msg.id);
       const content = (msg.content as string) || '';
       const parsedAttachments = parseJsonField(msg.attachments, 'attachments', msg.id);
-      const attachments = Array.isArray(parsedAttachments)
+      const fileAttachments = Array.isArray(parsedAttachments)
         ? parsedAttachments.flatMap((attachment) => {
             if (!attachment || typeof attachment !== 'object') return [];
             const record = attachment as Record<string, unknown>;
@@ -209,6 +235,7 @@ router.get('/', async (req, res) => {
           }
         | undefined;
       let resultsMap = new Map<string, unknown>();
+      let sourceAttachments: ReturnType<typeof notebookSourceAttachments> = [];
       // ChatGraph/SearchGraph persist toolCalls inline inside the metadata object
       // (with result already attached per entry). When present, this takes precedence
       // over the legacy tool_calls column + result-map reconstruction path.
@@ -227,6 +254,7 @@ router.get('/', async (req, res) => {
         } else {
           // It's search metadata or user message metadata (e.g. roleName)
           const meta = parsedToolResults as Record<string, unknown>;
+          sourceAttachments = notebookSourceAttachments(meta);
           const answerMode = notebookResolvedAnswerModeSchema.safeParse(meta.answerMode);
           const answerModeReason = notebookAnswerModeReasonSchema.safeParse(meta.answerModeReason);
           const sourceTier = notebookSourceTierSchema.safeParse(meta.sourceTier);
@@ -292,6 +320,8 @@ router.get('/', async (req, res) => {
           }
         }
       }
+
+      const attachments = [...fileAttachments, ...sourceAttachments];
 
       // Build tool invocations array. Prefer embedded toolCalls from the metadata
       // object (inline {toolCallId, toolName, args, result}); fall back to the

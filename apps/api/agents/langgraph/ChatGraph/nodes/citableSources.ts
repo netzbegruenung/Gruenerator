@@ -94,6 +94,7 @@ export function docKindToCitableKind(kind: DocumentSourceKind): CitableSourceKin
     case 'wolke':
       return 'wolke';
     case 'notebook':
+    case 'system_document':
       return 'notebook';
     case 'document':
       return 'document';
