@@ -204,24 +204,22 @@ export type NotebookTrashResult = 'ok' | 'not_found' | 'forbidden';
 
 class NotebookQdrantHelper {
   private qdrant: QdrantService;
-  private qdrantOps: QdrantOperations | null;
-  private initialized: boolean;
 
   constructor() {
     this.qdrant = getQdrantInstance();
-    this.qdrantOps = null;
-    this.initialized = false;
+  }
+
+  /** Je Zugriff gelesen: nach einem gescheiterten init() ist `operations` noch null. */
+  private get qdrantOps(): QdrantOperations | null {
+    return this.qdrant.operations;
   }
 
   /**
-   * Ensure service is initialized
+   * Ensure service is initialized. init() kehrt sofort zurück, sobald Qdrant
+   * verbunden ist, und versucht es nach einem Fehlschlag gedrosselt erneut.
    */
   async ensureInitialized(): Promise<void> {
-    if (!this.initialized) {
-      await this.qdrant.init();
-      this.qdrantOps = this.qdrant.operations;
-      this.initialized = true;
-    }
+    await this.qdrant.init();
   }
 
   /**
