@@ -1,10 +1,10 @@
 import {
   DEFAULT_NOTEBOOK_DEPTH,
-  NOTEBOOK_DEPTHS,
   composerModeRunsLiveSearch,
   composerSubmitAction,
   notebookDepthDef,
   useFetchFullText,
+  visibleNotebookDepths,
 } from '@gruenerator/chat';
 import { type ResearchResult } from '@gruenerator/contracts';
 import {
@@ -37,6 +37,7 @@ import { useShallow } from 'zustand/shallow';
 
 import { collectionLabel, getResearchCollectionIds } from '../../config/notebooksConfig';
 import { useNotebookFilters } from '../../hooks/notebook/useNotebookFilters';
+import { useEnabledModelIds } from '../../hooks/useEnabledModelIds';
 import { DEV_AUTH_BYPASS } from '../../services/devAuth';
 import { devResearchFixture } from '../../services/devResearchFixture';
 import { useNotebookFilterStore } from '../../stores/notebookFilterStore';
@@ -166,7 +167,10 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
   const toggleCollection = useNotebookFilterStore((st) => st.toggleCollection);
   const resetStoreFilters = useNotebookFilterStore((st) => st.reset);
   // The depth is a persisted preference, not a per-notebook filter.
-  const depth = usePreferencesStore((st) => st.notebookDepth);
+  // A stored Panda choice without the unlock reads as Ultra (see notebookDepthDef).
+  const storedDepth = usePreferencesStore((st) => st.notebookDepth);
+  const enabledModelIds = useEnabledModelIds();
+  const depth = notebookDepthDef(storedDepth, enabledModelIds).depth;
   const setDepth = usePreferencesStore((st) => st.setNotebookDepth);
   const answerMode = usePreferencesStore((st) => st.notebookAnswerMode);
   const openAnswerModeSheet = useCallback(() => setAnswerModeSheetVisible(true), []);
@@ -471,7 +475,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
             <View style={styles.filterSection}>
               <Text style={[styles.filterSectionTitle, { color: theme.text }]}>Suchtiefe</Text>
               <View style={styles.filterValues}>
-                {NOTEBOOK_DEPTHS.map((d) => (
+                {visibleNotebookDepths(enabledModelIds).map((d) => (
                   <OptionChip
                     key={d.depth}
                     label={d.label}
@@ -485,7 +489,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
               </View>
               {/* "Ultra" says nothing on its own — the chips are one word each. */}
               <Text style={[styles.filterSectionHint, { color: theme.textSecondary }]}>
-                {notebookDepthDef(depth).description}
+                {notebookDepthDef(depth, enabledModelIds).description}
               </Text>
             </View>
           )}

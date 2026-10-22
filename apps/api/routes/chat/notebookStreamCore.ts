@@ -4,7 +4,7 @@
  * notebook controller and the public Gruen-O-Mat controller.
  */
 
-import { type NotebookDepth, type NotebookSourceTier } from '@gruenerator/contracts';
+import { type NotebookSearchDepth, type NotebookSourceTier } from '@gruenerator/contracts';
 import { type ModelMessage } from 'ai';
 
 import {
@@ -75,7 +75,7 @@ export interface NotebookStreamOptions {
   collectionIds?: string[];
   filters?: Record<string, unknown>;
   model?: string;
-  mode?: NotebookDepth;
+  mode?: NotebookSearchDepth;
   sourceTier?: NotebookSourceTier;
   userId?: string;
   allowUserCollections?: boolean;
@@ -178,7 +178,7 @@ export async function handleNotebookStream(
   // An omitted mode has always meant the thorough tier here (`isFast` was
   // `mode === 'fast'`), so it keeps meaning that. The UI's default is a
   // separate question and belongs to the UI.
-  const depth: NotebookDepth = mode ?? 'deep';
+  const depth: NotebookSearchDepth = mode ?? 'deep';
   const profile = getNotebookDepthProfile(depth);
 
   // SSE headers (skip if already flushed by controller for thread_created)

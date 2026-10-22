@@ -8,9 +8,18 @@
  * `NOTEBOOK_DEPTHS` is an array of the union, not a map over it.
  */
 import { notebookDepthSchema, type NotebookDepth } from '@gruenerator/contracts';
+import { type TextModelId } from '@gruenerator/shared/models';
 import { describe, expect, it } from 'vitest';
 
-import { DEFAULT_NOTEBOOK_DEPTH, NOTEBOOK_DEPTHS, notebookDepthDef } from './notebookDepth';
+import {
+  DEFAULT_NOTEBOOK_DEPTH,
+  NOTEBOOK_DEPTHS,
+  notebookDepthDef,
+  visibleNotebookDepths,
+} from './notebookDepth';
+
+const UNLOCKED: ReadonlySet<TextModelId> = new Set(['gruenerator-ultra', 'gruenerator-panda']);
+const LOCKED: ReadonlySet<TextModelId> = new Set(['gruenerator-ultra']);
 
 describe('NOTEBOOK_DEPTHS', () => {
   it('covers the wire enum exactly, in retrieval order', () => {
@@ -37,13 +46,35 @@ describe('NOTEBOOK_DEPTHS', () => {
 
 describe('notebookDepthDef', () => {
   it.each(notebookDepthSchema.options)('resolves %s to its own entry', (depth) => {
-    expect(notebookDepthDef(depth).depth).toBe(depth);
+    expect(notebookDepthDef(depth, UNLOCKED).depth).toBe(depth);
   });
 
   it('falls back to the default for a tier this build does not know', () => {
     // The choice is persisted, so storage can hand back an id a later release
     // dropped. Putting that on the wire would fail the whole request.
-    expect(notebookDepthDef('gigantisch' as NotebookDepth).depth).toBe(DEFAULT_NOTEBOOK_DEPTH);
-    expect(notebookDepthDef(undefined).depth).toBe(DEFAULT_NOTEBOOK_DEPTH);
+    expect(notebookDepthDef('gigantisch' as NotebookDepth, UNLOCKED).depth).toBe(
+      DEFAULT_NOTEBOOK_DEPTH
+    );
+    expect(notebookDepthDef(undefined, UNLOCKED).depth).toBe(DEFAULT_NOTEBOOK_DEPTH);
+  });
+
+  it('reads a stored Panda choice as Ultra without the unlock', () => {
+    // Revoked by an admin, or preferences not loaded yet: the same search, the
+    // default model — never a tier the person cannot see as selected.
+    expect(notebookDepthDef('panda', LOCKED).depth).toBe('ultra');
+    expect(notebookDepthDef('panda', null).depth).toBe('ultra');
+  });
+});
+
+describe('visibleNotebookDepths', () => {
+  it('offers Panda after Ultra only to unlocked accounts', () => {
+    expect(visibleNotebookDepths(UNLOCKED).map((d) => d.depth)).toEqual([
+      'fast',
+      'deep',
+      'ultra',
+      'panda',
+    ]);
+    expect(visibleNotebookDepths(LOCKED).map((d) => d.depth)).toEqual(['fast', 'deep', 'ultra']);
+    expect(visibleNotebookDepths(null).map((d) => d.depth)).toEqual(['fast', 'deep', 'ultra']);
   });
 });
