@@ -35,15 +35,22 @@ So sind Pride (`queer`) und Frauen (`frauen`) entstanden (#4825, gruenerator-int
 - Labels in `items.ts` (`SHAREPIC_COLOR_LABELS`) ergänzen.
 
 **Composer** (`packages/canvas-editor/src/composer/`):
-- `chromeParts.ts`: Hexwerte in `SHAREPIC_COLOR_HEX`, Zusatztinten in `THEMA_INK`, helle Flächen in `LIGHT`.
-- `slideInk.ts`: Akzent, Marker, Badges, Kartenakzent.
+- **Ein Eintrag in `sharepicThemes.ts` (`SHAREPIC_THEMES`).** Das Register ist `satisfies Record<SharepicThema, SharepicThemeDef>`: ein neuer Enum-Wert ohne Eintrag kompiliert nicht. Der Composer fragt nur nach Rollen, nie nach einem Themennamen; ein `=== 'europa'` gehört nirgends sonst hin.
+- Rollen je Grundseite (`light`/`dark`; DE-Grasgrün zählt als `dark`, außer `accent.grass` sagt etwas anderes), `null` heißt „CD des Landes":
+  - `accent`: `==Wort==`, Zahlen, Ziffern in DE.
+  - `atAccentOnLight`: AT-Akzent auf hellem Grund. Auf dunklem Grund behält AT sein CD-Gelb.
+  - `marker` `{fill, ink}`: der DE-`++`-Kasten **und** die Akzentzeile der Headline (`akzent`).
+  - `badge` `{fill, ink}`: Icon-Scheiben und Datumskreis (DE und AT). Pride hat keinen, dort bleibt beides CD.
+  - `cardAccent`: Titel auf der weißen Karte.
+  - `chartPalette(dark)`: Diagrammfarben auf der weißen Karte.
+  - `terminePills` `{colors, darkInk}`: Terminzeilen als Pillen (Pride).
+  - `kennzahlGradient`: Verlauf der großen Zahl (Pride).
+  - `sign` `{id, assets, on(ground)}`: das Zeichen in der Fußzeile. `on` bekommt den Grund, auf dem es steht (Fußzeile bzw. obere Ecke, wenn ein Datumskreis unten sitzt), nicht die Textfläche — unter `foto-unten` ist das das Foto. `assets` erkennt auch ein von Hand gesetztes Zeichen (`pageThema` in `utils/vorlagenRelevance.ts`). Asset- und Layer-Ids sind F0.
+  - `keepsPhotoColours`: die AT-Grüntönung des Fotostreifens entfällt.
+- Jedes Textpaar im Eintrag braucht ≥ 4,5:1; `sharepicThemes.vitest.ts` prüft das für jedes Thema automatisch.
+- Rohwerte bleiben in `chromeParts.ts`: Hexwerte in `SHAREPIC_COLOR_HEX`, Zusatztinten in `THEMA_INK`, Asset-Ids (`PRIDE_FLAG_ASSET`, `EUROPA_ASSETS`), helle Flächen in `LIGHT`.
 - `sharepicGround.ts`: `GRADIENTS` für Verlaufsflächen.
-- `kartenLayout.ts`: Terminzeilen.
-- `kennzahlLayout.ts`: große Zahl.
-- `diagrammLayout.ts`: `themaChartPalette`.
-- `slideChrome.ts`: Themen-Zeichen in der Fußzeile; weicht nach oben aus, wenn ein Datumskreis unten sitzt.
-- `composeSharepic.ts`: Die AT-Tönung entfällt bei Themen-Fotos.
-- `freeform_full.config.tsx` / `freeform_at_full.config.tsx`: Freeform-Paletten.
+- `freeform_full.config.tsx` / `freeform_at_full.config.tsx`: Freeform-Paletten (mit Label, deshalb nicht aus dem Register).
 
 **Vorlagen-Tab:**
 - `utils/vorlagenRelevance.ts`: `pageThema` erkennt das Thema am Quell-Slide oder am Sticker, `themaScore` wertet gleiches Thema auf, fremdes ab.
@@ -65,7 +72,7 @@ So sind Pride (`queer`) und Frauen (`frauen`) entstanden (#4825, gruenerator-int
 
 ## 7. Prüfen
 
-- **Tests:** `composeSharepic.thema.vitest.ts` um das neue Thema erweitern. Darin prüfen: Grundfarbe gehört nur zum Thema, Akzent und Marker mit Kontrast ≥ 4,5:1, Diagrammpalette, Termine und Zeichen in der Fußzeile. Theme-Fälle kommen auch nach `vorlagenRelevance.vitest.ts` und `liftBlock.vitest.ts`.
+- **Tests:** `sharepicThemes.vitest.ts` läuft über jedes Thema im Register (hell/dunkel, DE/AT): Kontrast der Paare, Akzentzeile, Marker, Badges, Datumskreis. `composeSharepic.thema.vitest.ts` um das Besondere des neuen Themas erweitern. Darin prüfen: Grundfarbe gehört nur zum Thema, Akzent und Marker mit Kontrast ≥ 4,5:1, Diagrammpalette, Termine und Zeichen in der Fußzeile. Theme-Fälle kommen auch nach `vorlagenRelevance.vitest.ts` und `liftBlock.vitest.ts`.
 - **Typecheck:** `tsc` einzeln je Paket, in dieser Reihenfolge: contracts, canvas-editor, api. ESLint über viele Dateien sprengt den Speicher; den vollen Lint macht die CI.
 - **Live:** Mit eigener API (eigener Port, `INTERN_CONTENT_DIR`, `ALLOW_DEV_AUTH_BYPASS`) und Vite im Dev-Bypass jede Vorlage öffnen. Prüfen: Ist jedes Element ein Canvas-Item, das sich auswählen, ziehen, per Doppelklick bearbeiten und rückgängig machen lässt?
 - **Hinweise:**

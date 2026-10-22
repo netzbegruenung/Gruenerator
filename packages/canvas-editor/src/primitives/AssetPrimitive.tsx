@@ -10,6 +10,7 @@ import {
   resolveAssetInstanceSrc,
 } from '../utils/canvasAssets';
 import { isGroupDrag } from '../utils/multiSelect';
+import { useTrackPendingImage } from '../utils/pendingImages';
 import { applyPixelHitArea } from '../utils/pixelHitArea';
 import { calculateCenteredSnapPosition } from '../utils/snapping';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
@@ -59,6 +60,8 @@ function AssetPrimitiveInner({
   const src = resolveAssetInstanceSrc(asset);
   const stickerLike = isStickerLikeInstance(asset);
 
+  const [settled, setSettled] = useState<{ src: string; ok: boolean } | null>(null);
+
   useEffect(() => {
     if (!src) return;
 
@@ -68,8 +71,22 @@ function AssetPrimitiveInner({
     img.onload = () => {
       setImage(img);
       setImageSize({ width: img.naturalWidth, height: img.naturalHeight });
+      setSettled({ src, ok: true });
+    };
+    img.onerror = () => setSettled({ src, ok: false });
+
+    return () => {
+      img.onload = null;
+      img.onerror = null;
     };
   }, [src]);
+  // Logos and stickers are assets too: the chat preview must not capture
+  // before they have arrived (#4834).
+  useTrackPendingImage(
+    asset.id,
+    src ?? '',
+    settled?.src !== src ? 'loading' : settled.ok ? 'loaded' : 'failed'
+  );
 
   // Attach transformer when selected
   useEffect(() => {

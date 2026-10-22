@@ -130,3 +130,66 @@ describe('GenericCanvasRef.imagesSettled', () => {
     expect(ref.current!.imagesSettled()).toBe(true);
   });
 });
+
+/**
+ * Logo und Sticker sind Asset-Instanzen und laden ihr Bild selbst
+ * (`AssetPrimitive`), nicht über `use-image`. Ohne Anmeldung ging die
+ * Vorschau raus, bevor sie da waren: ein Sharepic ohne Logo und ohne
+ * Themen-Zeichen (#4834).
+ */
+describe('GenericCanvasRef.imagesSettled with assets', () => {
+  // jsdom lädt keine Bilder; hier entscheidet der Test, wann eines ankommt.
+  const created: { src: string; onload: (() => void) | null; onerror: (() => void) | null }[] = [];
+  class FakeImage {
+    crossOrigin = '';
+    naturalWidth = 4;
+    naturalHeight = 4;
+    onload: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    #src = '';
+    get src() {
+      return this.#src;
+    }
+    set src(value: string) {
+      this.#src = value;
+      created.push(this);
+    }
+  }
+
+  const STICKER = {
+    id: 'sticker-1',
+    assetId: 'regenbogen',
+    x: 10,
+    y: 10,
+    scale: 1,
+    rotation: 0,
+    opacity: 1,
+  };
+
+  beforeEach(() => {
+    created.length = 0;
+    imageStatus.set('loaded');
+    vi.stubGlobal('Image', FakeImage);
+    return () => vi.unstubAllGlobals();
+  });
+
+  it('waits for a sticker image, then settles', async () => {
+    const { ref } = await mount({ ...SLOGAN, assetInstances: [STICKER] });
+    const sticker = created.find((img) => img.src.includes('regenbogen'));
+    expect(sticker).toBeDefined();
+    expect(ref.current!.imagesSettled()).toBe(false);
+
+    await act(async () => {
+      sticker!.onload?.();
+    });
+    expect(ref.current!.imagesSettled()).toBe(true);
+  });
+
+  it('does not wait on a sticker that fails to load', async () => {
+    const { ref } = await mount({ ...SLOGAN, assetInstances: [STICKER] });
+    await act(async () => {
+      created.find((img) => img.src.includes('regenbogen'))!.onerror?.();
+    });
+    expect(ref.current!.imagesSettled()).toBe(true);
+  });
+});

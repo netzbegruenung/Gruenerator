@@ -121,12 +121,19 @@ describe('getMarketplaceFrontpage', () => {
       'background',
     ]);
     // The sample collection travels along: its link must open it, only the front page hides it.
+    // The themed collections (min 0) come empty: their sharepics are loaded by the page itself.
     expect(page.collections.map((c) => c.collectionId)).toEqual([
       'starter',
       'barrierefreiheit',
       'canva',
       'wahlkampf-moritz',
+      'gleichstellung',
+      'queer',
+      'europa',
     ]);
+    expect(page.collections.filter((c) => c.items.length === 0).map((c) => c.collectionId)).toEqual(
+      ['gleichstellung', 'queer', 'europa']
+    );
   });
 
   it('leaves out a collection below its minimum', async () => {

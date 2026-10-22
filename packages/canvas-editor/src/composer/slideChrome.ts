@@ -10,14 +10,7 @@ import { COLORS } from '../utils/dreizeilenLayout';
 import { createShape } from '../utils/shapes';
 import { VERANSTALTUNG_CONFIG } from '../utils/veranstaltungLayout';
 
-import {
-  BRUSH_ARROW,
-  DE_WORDMARK,
-  pageDots,
-  EUROPA_ASSETS,
-  PRIDE_FLAG_ASSET,
-  SHAREPIC_COLOR_HEX,
-} from './chromeParts';
+import { BRUSH_ARROW, DE_WORDMARK, pageDots, SHAREPIC_COLOR_HEX } from './chromeParts';
 import { placeHandMarks } from './handMarks';
 import {
   type ARROW,
@@ -28,6 +21,7 @@ import {
   type LOGO,
   MARGIN,
 } from './sharepicLayoutConstants';
+import { sharepicTheme } from './sharepicThemes';
 import { type SlideCtx } from './slideContext';
 import { type slideInk } from './slideInk';
 import {
@@ -60,6 +54,8 @@ export interface ChromeInputs {
   shadow: SlideInk['shadow'];
   footerOnLight: SlideInk['footerOnLight'];
   footerDarkInk: SlideInk['footerDarkInk'];
+  footerGround: SlideInk['footerGround'];
+  topGround: SlideInk['topGround'];
   showLogo: boolean;
   logoCentred: boolean;
   logo: (typeof LOGO)[keyof typeof LOGO];
@@ -92,9 +88,11 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
     onGrass,
     textColor,
     darkInk,
+    onLight,
     logoAt,
     addShape,
   } = ctx;
+  const themeDef = sharepicTheme(ctx.thema);
   const {
     spec,
     position,
@@ -110,6 +108,8 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
     shadow,
     footerOnLight,
     footerDarkInk,
+    footerGround,
+    topGround,
     showLogo,
     logoCentred,
     logo,
@@ -205,12 +205,16 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
 
   if (spec.datum && circle) {
     // DE: Tanne on light and grass-green ground, grass green on dark ground
-    // and photos — never a third colour. AT keeps its magenta.
-    const circleColors = isAt
-      ? { background: theme.colors.stoerer, text: VERANSTALTUNG_CONFIG.circle.textColor }
-      : surface === 'foto' || surface === 'tanne' || surface === 'dunkeltanne'
-        ? { background: SHAREPIC_COLOR_HEX.grasgruen, text: COLORS.TANNE }
-        : { background: COLORS.TANNE, text: '#ffffff' };
+    // and photos — never a third colour. AT keeps its magenta. A theme with
+    // badge colours sets the circle like its badges.
+    const themed = themeDef?.badge?.[onLight ? 'light' : 'dark'] ?? null;
+    const circleColors = themed
+      ? { background: themed.fill, text: themed.ink }
+      : isAt
+        ? { background: theme.colors.stoerer, text: VERANSTALTUNG_CONFIG.circle.textColor }
+        : surface === 'foto' || surface === 'tanne' || surface === 'dunkeltanne'
+          ? { background: SHAREPIC_COLOR_HEX.grasgruen, text: COLORS.TANNE }
+          : { background: COLORS.TANNE, text: '#ffffff' };
     const c = VERANSTALTUNG_CONFIG.circle;
     const t = VERANSTALTUNG_CONFIG.circleText;
     // The template's type is set for its radius; a smaller circle scales it.
@@ -299,26 +303,24 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
     });
     out.layerOrder.push('sc-logo');
   }
-  if (ctx.thema === 'queer' || ctx.thema === 'europa') {
+  const sign = themeDef?.sign ?? null;
+  if (sign) {
     // The theme's sign on the logo's line, at the right edge (left of the
     // swipe-on arrow); where a date circle holds that corner, top right. A
-    // sticker the user can move, resize or drop. Pride: the Progress Pride
-    // flag. Europa: the ring of stars on its blue, the flag on any other ground.
-    const queer = ctx.thema === 'queer';
-    const ring = !queer && surface === 'europablau';
-    const flagWidth = ring ? 150 : 120;
-    const flagHeight = ring ? flagWidth : (flagWidth * (queer ? 300 : 320)) / 480;
+    // sticker the user can move, resize or drop. It takes the ground it
+    // stands on, which under a photo strip is not the text's surface.
+    const { assetId, width, height } = sign.on(circle ? topGround : footerGround);
     const arrowSpan = swipeOn ? arrow.size * arrow.glyph + 24 : 0;
     out.assetInstances.push({
-      id: queer ? 'sc-pride-flagge' : 'sc-europa',
-      assetId: queer ? PRIDE_FLAG_ASSET : ring ? EUROPA_ASSETS.sterne : EUROPA_ASSETS.flagge,
-      x: canvas.width - (circle ? MARGIN : arrow.right + arrowSpan) - flagWidth / 2,
-      y: circle ? MARGIN + flagHeight / 2 : canvas.height - logo.bottom - logo.height / 2,
-      scale: flagWidth / ASSET_TARGET_SIZE,
+      id: sign.id,
+      assetId,
+      x: canvas.width - (circle ? MARGIN : arrow.right + arrowSpan) - width / 2,
+      y: circle ? MARGIN + height / 2 : canvas.height - logo.bottom - logo.height / 2,
+      scale: width / ASSET_TARGET_SIZE,
       rotation: 0,
       opacity: 1,
     });
-    out.layerOrder.push(queer ? 'sc-pride-flagge' : 'sc-europa');
+    out.layerOrder.push(sign.id);
   }
   if (swipeOn) {
     // Bottom-right, centred on x/y: AT a long brush stroke, DE a small arrow

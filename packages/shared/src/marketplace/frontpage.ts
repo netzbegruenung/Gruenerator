@@ -10,9 +10,14 @@ import {
   type MarketplaceOrigin,
   type MarketplaceSection,
   type MarketplaceSort,
+  type SharepicThema,
 } from '@gruenerator/contracts';
 
 import { type MarketplaceTarget } from './cache.js';
+import { EUROPA_COLLECTION } from './collections/europa.js';
+import { GLEICHSTELLUNG_COLLECTION } from './collections/gleichstellung.js';
+import { QUEER_COLLECTION } from './collections/queer.js';
+import { type CollectionStoryBlock } from './collectionStory.js';
 import { type MarketplaceFilters } from './filters.js';
 import { DEFAULT_MARKETPLACE_SORT } from './registry.js';
 import { WAHLKAMPF_SAMPLES } from './sampleCollection.js';
@@ -108,6 +113,7 @@ export interface MarketplaceCollection {
   audience: 'de-DE' | 'de-AT' | 'all';
   kicker: string;
   title: string;
+  /** May mark a few terms with `**…**`: bold on the collection page, plain on its card. */
   description: string;
   /** Tints the picture area when there is no cover. */
   tone: 'tanne' | 'klee' | 'sand';
@@ -121,8 +127,12 @@ export interface MarketplaceCollection {
   min: number;
   /** `false`: reachable only by its link (`?kollektion=<id>`), not in the row of collections. */
   listed?: false;
+  /** `themen`: in its own row „Themen“ below the other collections on the front page. */
+  row?: 'themen';
   /** Entries that exist only as files, shown before everything resolved (see `sampleCollection.ts`). */
   samples?: readonly MarketplaceItem[];
+  /** What the page tells between cover and entries; without one, the entries as a grid. */
+  story?: readonly CollectionStoryBlock[];
 }
 
 /** The collections of the front page, curated by PR, in display order. */
@@ -231,6 +241,9 @@ export const MARKETPLACE_COLLECTIONS = [
     min: 1,
     listed: false,
   },
+  GLEICHSTELLUNG_COLLECTION,
+  QUEER_COLLECTION,
+  EUROPA_COLLECTION,
 ] as const satisfies readonly MarketplaceCollection[];
 
 export function collectionsFor(locale: string | null): readonly MarketplaceCollection[] {
@@ -240,6 +253,18 @@ export function collectionsFor(locale: string | null): readonly MarketplaceColle
 
 export function collectionById(id: MarketplaceCollectionId | null): MarketplaceCollection | null {
   return MARKETPLACE_COLLECTIONS.find((c) => c.id === id) ?? null;
+}
+
+/** The listed collection that shows the Vorlagen of `thema`, for the way back from a Vorlage. */
+export function collectionForThema(thema: SharepicThema): MarketplaceCollection | null {
+  const collections: readonly MarketplaceCollection[] = MARKETPLACE_COLLECTIONS;
+  return (
+    collections.find(
+      (c) =>
+        c.listed !== false &&
+        c.story?.some((block) => block.type === 'vorlagen' && block.thema === thema)
+    ) ?? null
+  );
 }
 
 /**
