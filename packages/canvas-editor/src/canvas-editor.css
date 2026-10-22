@@ -31,19 +31,23 @@
   transition: border-color 0.15s ease;
 }
 
-.heterogeneous-multipage__page-wrapper:hover:not(.heterogeneous-multipage__page-wrapper--active)
-  .canvas-stage-container::after {
-  border-color: var(--border-color-hover, rgba(0, 0, 0, 0.15));
+@media (hover: hover) and (pointer: fine) {
+  .heterogeneous-multipage__page-wrapper:hover:not(.heterogeneous-multipage__page-wrapper--active)
+    .canvas-stage-container::after {
+    border-color: var(--border-color-hover, rgba(0, 0, 0, 0.15));
+  }
 }
 
 .heterogeneous-multipage__page-wrapper--active .canvas-stage-container::after {
   border-color: var(--tanne, #0a2b1e);
 }
 
-[data-theme='dark']
-  .heterogeneous-multipage__page-wrapper:hover:not(.heterogeneous-multipage__page-wrapper--active)
-  .canvas-stage-container::after {
-  border-color: rgba(255, 255, 255, 0.2);
+@media (hover: hover) and (pointer: fine) {
+  [data-theme='dark']
+    .heterogeneous-multipage__page-wrapper:hover:not(.heterogeneous-multipage__page-wrapper--active)
+    .canvas-stage-container::after {
+    border-color: rgba(255, 255, 255, 0.2);
+  }
 }
 
 [data-theme='dark'] .heterogeneous-multipage__page-wrapper--active .canvas-stage-container::after {
@@ -333,4 +337,28 @@ input[type='number'].hide-spinner {
   background-position:
     0 0,
     12px 12px;
+}
+
+/* ── Touch baseline (mobile feel) ──
+   Scoped to the editor: the legacy global `button { transition: ... 0.5s }`
+   (apps/web global.css) must stay untouched for the rest of the app. */
+html:has(.canvas-editor-layout),
+html:has(.canvas-editor-layout) body {
+  overscroll-behavior: none;
+}
+
+.canvas-editor-layout button {
+  transition-duration: 100ms;
+  transition-timing-function: var(--editor-ease-out);
+}
+
+.canvas-editor-layout :is(button, [role='button'], [role='tab']) {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.canvas-editor-layout img {
+  -webkit-touch-callout: none;
 }
