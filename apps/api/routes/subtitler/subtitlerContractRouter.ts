@@ -221,8 +221,12 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
   postExport: async (args) => {
     // Mobile schickt beim Export kein Land; ohne Rückfall wurde jeder
     // österreichische Export im deutschen Untertitel-Stil gerendert.
+    // SECURITY: the owner is the session user, never `body.userId` — the
+    // export reads, overwrites and creates projects under that id. Shipped
+    // mobile builds still send the field; the schema keeps it, we ignore it.
     const result = await startSubtitledVideoExport({
       ...args.body,
+      userId: getUserId(args.req) ?? null,
       locale: args.body.locale ?? extractLocaleFromRequest(args.req),
     });
     if (result.ok) {
@@ -316,7 +320,7 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
 
   postProcessAuto: async (args) => {
     const { uploadId, maxResolution = null } = args.body;
-    const userId = getUserId(args.req) ?? args.body.userId ?? null;
+    const userId = getUserId(args.req) ?? null;
     // requireAuth runs on this prefix (see routes.ts), so req.user exists and
     // tryResolveUser has already overlaid req.user.locale with the fresh,
     // Redis-cached DB locale (services/localization/localeCache). That makes
