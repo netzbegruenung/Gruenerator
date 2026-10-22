@@ -26,6 +26,7 @@ import {
   exchangeAuthorization,
   refreshAuthorization,
 } from '@modelcontextprotocol/sdk/client/auth.js';
+import { OAuthError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
 import { and, eq } from 'drizzle-orm';
 
 import { env } from '../../config/env.js';
@@ -118,25 +119,18 @@ const guardedFetch = (url: string | URL, init?: RequestInit): Promise<Response> 
   safeFetch(String(url), init);
 
 /**
- * Pull the human-readable detail out of an SDK registration/authorization error.
- * Providers with non-RFC error bodies (e.g. Typeform's `{code, description}`)
- * make the SDK throw "Invalid OAuth error response: <zod>. Raw body: {...}" —
- * parse that raw body instead of surfacing the Zod dump.
+ * The part of a provider error that may reach the user. A well-formed OAuth
+ * error response (RFC 6749 §5.2) yields its `error_description` (or the error
+ * code); anything else only its HTTP status. Never the body: for a body that
+ * is not an OAuth error the SDK puts it verbatim into the message ("… Raw body:
+ * …", or "HTTP <status>: Redirect …"), and it came from an endpoint that a
+ * user-supplied server chose.
  */
 function providerErrorDetail(err: unknown): string {
-  const msg = err instanceof Error ? err.message : String(err);
-  const marker = 'Raw body: ';
-  const idx = msg.indexOf(marker);
-  if (idx !== -1) {
-    try {
-      const body = JSON.parse(msg.slice(idx + marker.length)) as Record<string, unknown>;
-      const detail = body.error_description ?? body.description ?? body.error ?? body.code;
-      if (typeof detail === 'string' && detail) return detail;
-    } catch {
-      // not JSON — fall through to the raw message
-    }
-  }
-  return msg;
+  const status = /^HTTP (\d{3})\b/.exec(err instanceof Error ? err.message : '')?.[1];
+  if (status) return `HTTP ${status}`;
+  if (err instanceof OAuthError) return err.message || err.errorCode;
+  return 'keine gültige Antwort';
 }
 
 /**
@@ -551,22 +545,34 @@ export class McpOAuthService {
       ? decryptCredential(server.oauth_client_secret_encrypted)
       : undefined;
 
-    const metadata = (await discoverAuthorizationServerMetadata(st.authorizationServerUrl, {
-      fetchFn: guardedFetch,
-    })) as AsMetadata | undefined;
+    let tokens: Awaited<ReturnType<typeof exchangeAuthorization>>;
+    try {
+      const metadata = (await discoverAuthorizationServerMetadata(st.authorizationServerUrl, {
+        fetchFn: guardedFetch,
+      })) as AsMetadata | undefined;
 
-    const tokens = await exchangeAuthorization(st.authorizationServerUrl, {
-      metadata: metadata as never,
-      clientInformation: {
-        client_id: oidc.clientId,
-        ...(clientSecret && { client_secret: clientSecret }),
-      },
-      authorizationCode: code,
-      codeVerifier: st.codeVerifier,
-      redirectUri,
-      ...(oidc.resource ? { resource: new URL(oidc.resource) } : {}),
-      fetchFn: guardedFetch,
-    });
+      tokens = await exchangeAuthorization(st.authorizationServerUrl, {
+        metadata: metadata as never,
+        clientInformation: {
+          client_id: oidc.clientId,
+          ...(clientSecret && { client_secret: clientSecret }),
+        },
+        authorizationCode: code,
+        codeVerifier: st.codeVerifier,
+        redirectUri,
+        ...(oidc.resource ? { resource: new URL(oidc.resource) } : {}),
+        fetchFn: guardedFetch,
+      });
+    } catch (err) {
+      log.warn('MCP OAuth token exchange failed', {
+        serverId: st.serverId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      throw oauthError(
+        `Der Anbieter hat die Anmeldung nicht abgeschlossen (${providerErrorDetail(err)}).`,
+        502
+      );
+    }
 
     await this.persistTokens(st.userId, st.serverId, tokens);
     log.info('MCP OAuth connected', { userId: st.userId, serverId: st.serverId });

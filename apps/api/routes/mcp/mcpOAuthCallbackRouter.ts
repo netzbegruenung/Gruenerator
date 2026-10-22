@@ -95,8 +95,14 @@ async function handleCallback(req: Request, res: Response): Promise<void> {
     log.warn('MCP OAuth callback failed', {
       error: error instanceof Error ? error.message : String(error),
     });
+    // Only our own, worded errors carry a statusCode. Anything else stays in
+    // the log — its message may hold whatever a remote endpoint answered.
+    const worded = typeof (error as { statusCode?: unknown }).statusCode === 'number';
     res.send(
-      renderResultPage({ success: false, error: error instanceof Error ? error.message : 'error' })
+      renderResultPage({
+        success: false,
+        error: worded ? (error as Error).message : 'Verbindung fehlgeschlagen',
+      })
     );
   }
 }

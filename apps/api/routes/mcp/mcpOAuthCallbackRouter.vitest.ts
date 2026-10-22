@@ -1,7 +1,8 @@
 /**
  * The MCP OAuth redirect target. Two things leave it: whose session completed
  * the redirect (the service stores tokens only for the user who started the
- * flow), and the page shown in the popup.
+ * flow), and the page shown in the popup — which must not carry what a remote
+ * endpoint answered.
  */
 import { type AddressInfo } from 'node:net';
 
@@ -79,5 +80,14 @@ describe('GET /api/mcp/auth/callback', () => {
     const html = await (await get()).text();
 
     expect(html).toContain('nicht in dieser Anmeldung gestartet');
+  });
+
+  it('keeps any other error message out of the popup', async () => {
+    handleCallback.mockRejectedValue(new Error('HTTP 400: Raw body: internal-admin-console-7f3a'));
+
+    const html = await (await get()).text();
+
+    expect(html).not.toContain('internal-admin-console-7f3a');
+    expect(html).toContain('Verbindung fehlgeschlagen');
   });
 });

@@ -793,3 +793,70 @@ describe('outbound OAuth requests go through the SSRF guard', () => {
     await expectGuarded(vi.mocked(discoverAuthorizationServerMetadata).mock.calls[0]?.[1]?.fetchFn);
   });
 });
+
+/**
+ * What a provider endpoint answered reaches the user only as a well-formed
+ * OAuth error or as its HTTP status — never as the body itself.
+ */
+describe('provider error bodies are not reflected', () => {
+  const SECRET = 'internal-admin-console-7f3a';
+  const answer = vi.fn<() => Response>();
+
+  beforeEach(() => {
+    answer.mockReset();
+    // Whichever fetch the SDK ends up using gets the same answer.
+    vi.mocked(safeFetch).mockImplementation(async () => answer());
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => answer())
+    );
+    vi.mocked(registerClient).mockImplementation(realSdk.registerClient);
+    vi.mocked(exchangeAuthorization).mockImplementation(realSdk.exchangeAuthorization);
+    vi.mocked(discoverOAuthServerInfo).mockResolvedValue({
+      authorizationServerUrl: AS,
+      authorizationServerMetadata: { issuer: AS, registration_endpoint: `${AS}/register` },
+    } as never);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('reports only the status of a registration refused with a non-OAuth body', async () => {
+    answer.mockImplementation(() => new Response(`<html>${SECRET}</html>`, { status: 400 }));
+    vi.mocked(getDrizzleInstance).mockReturnValue(dbStub(serverRow({})) as never);
+
+    const err = await McpOAuthService.startAuthorization('user-1', 'srv-1').catch(
+      (e: unknown) => e as Error
+    );
+
+    expect(err).toMatchObject({ code: 'dcr_rejected' });
+    expect((err as Error).message).toContain('HTTP 400');
+    expect((err as Error).message).not.toContain(SECRET);
+  });
+
+  it('keeps the error_description of a well-formed OAuth error', async () => {
+    answer.mockImplementation(() =>
+      Response.json(
+        { error: 'invalid_redirect_uri', error_description: 'Redirect URI not allowed' },
+        { status: 400 }
+      )
+    );
+    vi.mocked(getDrizzleInstance).mockReturnValue(dbStub(serverRow({})) as never);
+
+    await expect(McpOAuthService.startAuthorization('user-1', 'srv-1')).rejects.toThrow(
+      /Redirect URI not allowed/
+    );
+  });
+
+  it('reports only the status of a failed code exchange', async () => {
+    answer.mockImplementation(() => new Response(`<html>${SECRET}</html>`, { status: 400 }));
+    vi.mocked(consumeOAuthState).mockResolvedValue(state() as never);
+
+    const err = await callback().catch((e: unknown) => e as Error);
+
+    expect(err).toBeInstanceOf(Error);
+    expect((err as Error).message).toContain('HTTP 400');
+    expect((err as Error).message).not.toContain(SECRET);
+  });
+});
