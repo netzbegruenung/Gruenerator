@@ -33,6 +33,19 @@ export function postgresMock(): Record<string, unknown> {
 }
 
 /**
+ * Every requested document counts as the test user's own. The routing suites
+ * send bare fixture ids (`doc-1`) that are no `documents` row; their subject is
+ * what a turn does WITH a document, not whether it may read it — that is
+ * `documentScope.vitest.ts`, which runs the real check.
+ */
+export function ownedDocumentScopeMock(): Record<string, unknown> {
+  return {
+    authorizeDocumentScope: (_userId: string, ids: readonly string[]) =>
+      Promise.resolve({ documentIds: [...new Set(ids)], documentNotebookIds: {} }),
+  };
+}
+
+/**
  * Das Bäume-Kontingent — der echte `TreeBudget`, aber mit unbegrenzter
  * Zuteilung, sodass er Redis nie anfasst. Ohne Doppelgänger hängt das Ergebnis
  * an der Maschine: ohne `REDIS_URL` wählt der Client `localhost:6379`, und
