@@ -519,7 +519,13 @@ export default function WebViewerScreen() {
             source={{ uri: targetUrl }}
             sharedCookiesEnabled
             thirdPartyCookiesEnabled
-            onLoadStart={() => {
+            onLoadStart={(event) => {
+              // Android also reports every history.replaceState/pushState as a
+              // load start (`doUpdateVisitedHistory`), with no load end after
+              // it — the studio dropping `fresh=1` covered the editor with the
+              // skeleton for good. A real load is still in progress here; a
+              // same-document update arrives on a finished page.
+              if (!event.nativeEvent.loading) return;
               setLoading(true);
               // A reload unmounts present mode, the close handler and the
               // editor bar's state without any of them saying so.
