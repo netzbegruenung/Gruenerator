@@ -19,6 +19,8 @@ import {
   DEFAULT_SLIDE_LAYOUT,
   SLIDE_LAYOUTS,
   slideLayoutConfigId,
+  slideLayoutsFor,
+  type SlideLayoutId,
   type SlideLayoutState,
 } from './slideLayouts';
 
@@ -147,5 +149,65 @@ describe('slide layout registry', () => {
     const b = buildSlideLayout('titel', { locale: 'de-DE', pageNumber: 1, date: DATE });
     expect(a).toEqual(b);
     expect(a.additionalTexts).not.toBe(b.additionalTexts);
+  });
+});
+
+describe('AT slides follow the CI 2026', () => {
+  const at = (id: SlideLayoutId) =>
+    buildSlideLayout(id, { locale: 'de-AT', pageNumber: 1, date: DATE });
+  const text = (state: SlideLayoutState, id: string) =>
+    state.additionalTexts.find((t) => t.id === id);
+  const MAGENTA = '#E4007C';
+  const GELB = '#FCEC00';
+
+  it('offers the green slides only, Germany all 16', () => {
+    expect(slideLayoutsFor('de-AT').map((l) => l.theme)).toEqual(Array(10).fill('dunkel'));
+    expect(slideLayoutsFor('de-DE')).toHaveLength(16);
+  });
+
+  it('sets the quote in one typeface with the name in yellow below', () => {
+    for (const id of ['zitat', 'zitat-bild'] as const) {
+      const state = at(id);
+      const quote = text(state, 'folie-zitat')!;
+      expect(quote.accent, id).toBeUndefined();
+      expect(quote.text, id).not.toContain('==');
+      expect(quote.align, id).toBe('center');
+      expect(text(state, 'folie-intro'), id).toBeUndefined();
+      const name = text(state, 'folie-name')!;
+      expect(name.fill, id).toBe(GELB);
+      expect(name.y, id).toBeGreaterThan(quote.y);
+      expect(text(state, 'folie-anfuehrung')!.stroke, id).toBe('#ffffff');
+    }
+    // Lang in Vollkorn, kurz in Gotham.
+    expect(text(at('zitat'), 'folie-zitat')!.fontFamily).toBe('Vollkorn');
+    expect(text(at('zitat-bild'), 'folie-zitat')!.fontFamily).toBe('GothamNarrow-Ultra');
+  });
+
+  it('uses the magenta Störer only', () => {
+    for (const id of ['text-bild', 'bild-text', 'textfolie'] as const) {
+      expect(at(id).shapeInstances.find((s) => s.id === 'folie-stoerer')!.fill, id).toBe(MAGENTA);
+    }
+    const de = buildSlideLayout('textfolie', { locale: 'de-DE', pageNumber: 1, date: DATE });
+    expect(de.shapeInstances.find((s) => s.id === 'folie-stoerer')!.fill).not.toBe(MAGENTA);
+  });
+
+  it('emphasises one headline word in yellow Vollkorn at line height 0.9', () => {
+    const headline = text(at('titel'), 'folie-headline')!;
+    expect(headline.text).toContain('==starke==');
+    expect(headline.accent).toMatchObject({ fontFamily: 'Vollkorn', fill: GELB });
+    expect(headline.lineHeight).toBe(0.9);
+    const de = text(
+      buildSlideLayout('titel', { locale: 'de-DE', pageNumber: 1, date: DATE }),
+      'folie-headline'
+    )!;
+    expect(de.text).toBe('Titelfolie');
+    expect(de.accent).toBeUndefined();
+  });
+
+  it('places the logo once, freestanding in the top right corner', () => {
+    const logo = at('titel').assetInstances.find((a) => a.id === 'folie-zeichen')!;
+    expect(logo.assetId).toBe('gruene-at-logo-weiss');
+    expect(logo.x + 65).toBe(1830);
+    expect(at('danke').assetInstances.map((a) => a.id)).toEqual(['folie-logo']);
   });
 });
