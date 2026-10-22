@@ -7,4 +7,5 @@ export {
   type HostedSessionOptions,
   type HostedVariant,
   type ToolCall,
+  type VoiceArtifact,
 } from './types';

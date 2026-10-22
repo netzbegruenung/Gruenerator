@@ -6,6 +6,14 @@ export interface HostedSessionOptions {
   fastMode: boolean;
 }
 
+/** What a creating tool made; the full card arrives with the thread (`/messages`). */
+export interface VoiceArtifact {
+  kind: string;
+  /** Its own title, else the kind's name ("Sharepic"). */
+  title: string;
+  url: string | null;
+}
+
 export interface ToolCall {
   id: string;
   name: string;
@@ -32,4 +40,11 @@ export const TOOL_LABEL: Record<string, string> = {
   bundestag: 'Frage beim Bundestag nach',
   abgeordnetenwatch: 'Schaue bei Abgeordnetenwatch',
   umfragen: 'Schaue mir die Umfragen an',
+  sharepic: 'Gestalte das Sharepic',
+  create_presentation: 'Baue die Präsentation',
+  create_sheet: 'Lege die Tabelle an',
+  create_document: 'Schreibe das Dokument',
+  create_pdf: 'Setze das PDF',
+  create_board: 'Lege das Board an',
+  create_explainable: 'Schreibe das Explainable',
 };

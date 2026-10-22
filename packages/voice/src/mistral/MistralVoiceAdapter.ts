@@ -5,7 +5,12 @@ import {
 } from '@assistant-ui/core';
 import { type Room } from 'livekit-client';
 
-import { type AgentSessionRequest, type HostedSessionOptions, type ToolCall } from './types';
+import {
+  type AgentSessionRequest,
+  type HostedSessionOptions,
+  type ToolCall,
+  type VoiceArtifact,
+} from './types';
 
 export interface MistralVoiceAdapterOptions {
   request: AgentSessionRequest;
@@ -22,12 +27,26 @@ export interface MistralVoiceAdapterOptions {
    * (mobile: LiveKit's native audio session).
    */
   prepareAudio?: () => Promise<() => void>;
+  /**
+   * The chat thread the call continues, read when it connects; null lets the
+   * server open a new one. Every final line is saved there.
+   */
+  resolveThreadId?: () => Promise<string | null> | string | null;
+  /** The call's thread, once the server has opened or confirmed it. */
+  onThread?: (threadId: string) => void;
+  /** A tool created something; it is already saved in the thread. */
+  onArtifact?: (artifact: VoiceArtifact) => void;
+  /** The call is over, its lines saved (or given up on). */
+  onEnded?: () => void;
 }
 
 /**
  * Mistral's hosted voice agent (`session.ts`) as an assistant-ui
  * realtime voice session: transcripts land in the thread, and the orb reads
  * mode and volume from the runtime.
+ *
+ * The thread is a real chat thread: the server only sees the tool calls, so
+ * the adapter saves every final line itself, one after the other.
  *
  * Typed text goes in through `sendText` while a call runs, into the same
  * conversation as speech.
@@ -48,7 +67,8 @@ export class MistralVoiceAdapter implements RealtimeVoiceAdapter {
 
   connect(connectOptions: { abortSignal?: AbortSignal }): RealtimeVoiceAdapter.Session {
     return createVoiceSession(connectOptions, async (helpers: VoiceSessionHelpers) => {
-      const { request, onToolActivity, onError, meterTrack, prepareAudio } = this.options;
+      const { request, onToolActivity, onError, meterTrack, prepareAudio, resolveThreadId } =
+        this.options;
       // createVoiceSession only ends the session; the reason would be lost.
       const fail = (err: unknown): never => {
         onError(err instanceof Error ? err.message : String(err));
@@ -59,6 +79,8 @@ export class MistralVoiceAdapter implements RealtimeVoiceAdapter {
 
       let stopMeter: (() => void) | null = null;
       let tornDown = false;
+      // In order: a line saved before the one spoken first would swap them on reload.
+      let saving = Promise.resolve();
       const tearDown = () => {
         if (tornDown) return;
         tornDown = true;
@@ -66,17 +88,44 @@ export class MistralVoiceAdapter implements RealtimeVoiceAdapter {
         stopMeter = null;
         onToolActivity(null);
         releaseAudio?.();
+        void saving.then(() => this.options.onEnded?.());
       };
 
       // Loaded on the first call: the SDK and LiveKit stay out of the chat bundle.
       const { openHostedSession } = await import('./session');
-      const { session } = await openHostedSession(this.sessionOptions, request, {
-        onToolStart: (call) => onToolActivity(call),
-        onToolEnd: () => onToolActivity(null),
-      }).catch((err: unknown) => {
-        tearDown();
-        return fail(err);
-      });
+      const { session, threadId } = await Promise.resolve(resolveThreadId?.() ?? null)
+        .then((requested) =>
+          openHostedSession(
+            this.sessionOptions,
+            request,
+            {
+              onToolStart: (call) => onToolActivity(call),
+              onToolEnd: () => onToolActivity(null),
+              onArtifact: (artifact) => this.options.onArtifact?.(artifact),
+            },
+            requested
+          )
+        )
+        .catch((err: unknown) => {
+          tearDown();
+          return fail(err);
+        });
+      if (threadId) this.options.onThread?.(threadId);
+
+      let saveFailed = false;
+      const save = (role: 'user' | 'assistant', text: string) => {
+        if (!threadId || !text.trim()) return;
+        saving = saving
+          .then(() => request('/messages', { method: 'POST', body: { threadId, role, text } }))
+          .then(
+            () => undefined,
+            () => {
+              if (saveFailed) return;
+              saveFailed = true;
+              onError('Das Gespräch wird gerade nicht gespeichert.');
+            }
+          );
+      };
 
       const tracks: Partial<Record<'local' | 'remote', MediaStreamTrack>> = {};
       let speaking = false;
@@ -90,13 +139,11 @@ export class MistralVoiceAdapter implements RealtimeVoiceAdapter {
           stopMeter = meterTrack(track, (v) => !helpers.isDisposed() && helpers.emitVolume(v));
       };
 
-      session.on('transcript', (e) =>
-        helpers.emitTranscript({
-          role: e.role === 'user' ? 'user' : 'assistant',
-          text: e.content,
-          isFinal: e.final,
-        })
-      );
+      session.on('transcript', (e) => {
+        const role = e.role === 'user' ? 'user' : 'assistant';
+        helpers.emitTranscript({ role, text: e.content, isFinal: e.final });
+        if (e.final) save(role, e.content);
+      });
       session.on('agent_state_changed', (e) => {
         const nowSpeaking = e.state === 'speaking';
         helpers.emitMode(nowSpeaking ? 'speaking' : 'listening');
@@ -137,6 +184,7 @@ export class MistralVoiceAdapter implements RealtimeVoiceAdapter {
             ?._room;
           if (!room) throw new Error('Sprachsitzung ist nicht verbunden');
           await room.localParticipant.sendText(text, { topic: 'lk.chat' });
+          save('user', text);
         },
       };
     });
