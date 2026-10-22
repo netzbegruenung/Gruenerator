@@ -46,6 +46,13 @@ export function slideInk({
   const footerOnPhoto = bg.kind === 'foto-unten' || bild?.ausschnitt === 'streifen-unten';
   const footerOnLight = footerInk ? footerInk.onLight : !footerOnPhoto && onLight;
   const footerDarkInk = footerInk ? footerInk.darkInk : !footerOnPhoto && darkInk;
+  // The ground under the footer and under the top corner, where a theme's
+  // sign stands: a photo strip or the card under a header band, not always
+  // the text's surface.
+  const footerGround: SharepicColor | 'foto' =
+    kopfband && bg.kind === 'farbe' ? bg.color : footerOnPhoto ? 'foto' : surface;
+  const topGround: SharepicColor | 'foto' =
+    bg.kind === 'foto-oben' || bild?.ausschnitt === 'streifen-oben' ? 'foto' : surface;
   const shadow =
     surface === 'foto'
       ? {
@@ -88,6 +95,13 @@ export function slideInk({
         // must stay visible, as on the posts.
         padX: MARKER_PAD_X,
       };
+  // A DE headline's accent line (`akzent`): dark text on a box. Lime glows on
+  // dark ground; on mint it washes out — grass green there; on grass green
+  // itself a white box. A theme sets its marker box.
+  const accentLineBox = def?.marker[side] ?? {
+    fill: onGrass ? '#FFFFFF' : onLight ? SHAREPIC_COLOR_HEX.grasgruen : LIME,
+    ink: SHAREPIC_COLOR_HEX.dunkeltanne,
+  };
   // A topic icon in a circle — DE Klee on light ground, Tanne on grass green,
   // lime on dark ground and photos; AT the yellow accent, its dark green on white.
   const badgeColors =
@@ -154,9 +168,12 @@ export function slideInk({
     textColor,
     footerOnLight,
     footerDarkInk,
+    footerGround,
+    topGround,
     shadow,
     accent,
     marker,
+    accentLineBox,
     badgeColors,
     cardAccent,
     accentInk,

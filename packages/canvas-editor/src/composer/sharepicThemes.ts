@@ -55,7 +55,8 @@ export interface SharepicThemeDef {
     id: string;
     /** Every asset it can take — also how a hand-placed sign names its theme. */
     assets: readonly string[];
-    on: (surface: SharepicColor | 'foto') => { assetId: string; width: number; height: number };
+    /** The asset and its size on the ground the sign stands on. */
+    on: (ground: SharepicColor | 'foto') => { assetId: string; width: number; height: number };
   } | null;
   /** AT sets a photo strip in green monochrome; a theme keeps its photo's colours. */
   keepsPhotoColours: boolean;
@@ -140,8 +141,8 @@ export const SHAREPIC_THEMES = {
     sign: {
       id: 'sc-europa',
       assets: [EUROPA_ASSETS.sterne, EUROPA_ASSETS.flagge],
-      on: (surface) =>
-        surface === 'europablau'
+      on: (ground) =>
+        ground === 'europablau'
           ? { assetId: EUROPA_ASSETS.sterne, width: 150, height: 150 }
           : { assetId: EUROPA_ASSETS.flagge, width: 120, height: (120 * 320) / 480 },
     },
