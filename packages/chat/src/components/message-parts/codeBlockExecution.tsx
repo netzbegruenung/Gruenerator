@@ -1,5 +1,5 @@
 import { FileDown } from 'lucide-react';
-import { type ReactNode, isValidElement, useCallback, useEffect, useState } from 'react';
+import { type ReactNode, isValidElement, useCallback, useState } from 'react';
 
 import { parseComputeResult } from '../../lib/computeResult';
 import { downloadBase64, mimeFromFilename } from '../../lib/downloadBlob';
@@ -7,24 +7,19 @@ import { useChatConfigStore, type CodeExecutionResult } from '../../stores/chatC
 import { useLastComputeStore } from '../../stores/lastComputeStore';
 import { usePythonFileStore } from '../../stores/pythonFileStore';
 
-import { useIsMessageStreaming } from './messageStreamingContext';
-
 /**
- * Renderer-independent pieces of a chat code block: the Pyodide run/auto-run
- * logic and the result card. ChatCodeBlock (legacy
+ * Renderer-independent pieces of a chat code block: the Pyodide run logic and
+ * the result card. ChatCodeBlock (legacy
  * react-markdown chrome) and StreamdownCodeBlock (Streamdown chrome) differ
  * only in how they draw the block around these.
  */
 
 /** Heuristic: does this code operate on the pre-loaded pandas `df`? Used to (a)
  *  treat a mis-tagged fence (``` instead of ```python) as runnable when a table
- *  is loaded, and (b) decide whether to auto-run it. */
+ *  is loaded, and (b) collapse it and remember its result as a computation. */
 function looksLikePandas(code: string): boolean {
   return /(^|[^.\w])df[^\w]/.test(code) || /\bimport\s+pandas\b/.test(code) || /\bpd\./.test(code);
 }
-
-/** Code blocks auto-run at most once per unique source across re-mounts. */
-const autoRunSeen = new Set<string>();
 
 /** Recursively collect the text content of a markdown renderer's nested children. */
 export function toText(node: ReactNode): string {
@@ -41,13 +36,17 @@ export function toText(node: ReactNode): string {
  * In-browser execution state for one code block. Runnable when the host
  * injected runPython (web) AND it's Python — either tagged ```python, OR a
  * mis-tagged fence that clearly operates on the pre-loaded `df` (models
- * sometimes drop the language tag). The latter also gates auto-run.
+ * sometimes drop the language tag).
+ *
+ * Never runs on its own: the block is model output, and a spreadsheet's text
+ * reaches the model verbatim, so the person clicks "Ausführen" first. The
+ * run_python tool stays automatic; what bounds both is the worker's sandbox
+ * CSP (apps/web/src/services/pythonInterpreter.worker.ts).
  */
 export function useCodeExecution(code: string, language: string) {
   const runPython = useChatConfigStore((s) => s.runPython);
   const pythonFiles = usePythonFileStore((s) => s.files);
   const setLastCompute = useLastComputeStore((s) => s.setResult);
-  const isStreaming = useIsMessageStreaming();
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState('');
   const [output, setOutput] = useState<CodeExecutionResult | null>(null);
@@ -84,17 +83,6 @@ export function useCodeExecution(code: string, language: string) {
       setRunning(false);
     }
   }, [code, runPython, pythonFiles, isTabularCompute, setLastCompute]);
-
-  // Auto-run a spreadsheet-compute block exactly once, after it has finished
-  // streaming — so the answer appears without the user hunting for a Run button.
-  // Non-tabular code and half-streamed blocks are never auto-run.
-  useEffect(() => {
-    if (isStreaming || !canRun || !isTabularCompute) return;
-    if (output || running || autoRunSeen.has(code)) return;
-    autoRunSeen.add(code);
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- guarded one-shot auto-run after streaming finishes; runCode's setState fires inside an async task, not synchronously
-    void runCode();
-  }, [isStreaming, canRun, isTabularCompute, code, output, running, runCode]);
 
   return { canRun, isTabularCompute, effectiveLanguage, running, progress, output, runCode };
 }
