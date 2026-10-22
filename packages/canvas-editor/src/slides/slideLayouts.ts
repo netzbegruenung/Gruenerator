@@ -490,11 +490,11 @@ function zitat(b: SlideBuilder, withPhoto: boolean, locale: BrandLocale) {
   });
   b.text('folie-intro', ZITAT_INTRO, M, 262, 1400, 50, { type: 'subheader' });
   const width = withPhoto ? 1500 : 1720;
-  const size = (withPhoto ? 100 : 118) * (at ? 0.8 : 1);
+  const size = (withPhoto ? 108 : 126) * (at ? 0.8 : 1);
   b.text('folie-zitat', withPhoto ? ZITAT_TEXT_FOTO : ZITAT_TEXT, M, 340, width, size, {
     type: 'header',
     family: b.ink.headline,
-    lineHeight: 1.15,
+    lineHeight: 1.07,
     accent: withPhoto ? null : b.ink.accent,
   });
 }
