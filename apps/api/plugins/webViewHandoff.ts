@@ -38,7 +38,7 @@ import { setSessionCookie } from 'better-auth/cookies';
 import { SignJWT, jwtVerify } from 'jose';
 import { z } from 'zod';
 
-import { env } from '../config/env.js';
+import { getAuthTokenSecret } from '../utils/authTokenSecret.js';
 import { createLogger } from '../utils/logger.js';
 import { captureAuthIssue } from '../utils/observability/captureAuthIssue.js';
 import redisClient from '../utils/redis/client.js';
@@ -49,13 +49,10 @@ import type { BetterAuthPlugin } from 'better-auth';
 
 const log = createLogger('webViewHandoff');
 
-// Same signing key as the app-login code (`routes/auth/appLogin.ts`), but a
+// Signed with the same key as the app-login code (`getAuthTokenSecret`), but a
 // DIFFERENT audience — reusing that audience would make the two token kinds
 // interchangeable, so a captured login code could be redeemed here and vice
 // versa.
-const HANDOFF_SECRET = new TextEncoder().encode(
-  env.SESSION_SECRET ?? 'fallback-secret-please-change'
-);
 const HANDOFF_ISSUER = 'gruenerator-auth';
 const HANDOFF_AUDIENCE = 'gruenerator-webview-handoff';
 const HANDOFF_TOKEN_USE = 'webview_handoff';
@@ -197,9 +194,11 @@ function isEmbedderNavigation(secFetchSite: string | null): boolean {
  * invalid — the caller must not distinguish the failure modes to the client.
  */
 async function consumeHandoffToken(token: string): Promise<HandoffGrant | null> {
+  // Outside the try: a missing secret is a server fault, not a bad token.
+  const secret = getAuthTokenSecret();
   let claims: z.infer<typeof handoffClaimsSchema>;
   try {
-    const verified = await jwtVerify(token, HANDOFF_SECRET, {
+    const verified = await jwtVerify(token, secret, {
       issuer: HANDOFF_ISSUER,
       audience: HANDOFF_AUDIENCE,
     });
@@ -266,7 +265,7 @@ export const webViewHandoff = () => {
             .setExpirationTime(`${HANDOFF_TTL_SECONDS}s`)
             .setIssuer(HANDOFF_ISSUER)
             .setAudience(HANDOFF_AUDIENCE)
-            .sign(HANDOFF_SECRET);
+            .sign(getAuthTokenSecret());
 
           // Never log the token itself — only that one was issued.
           log.info('[WebViewHandoff] Handoff token minted: user_id=%s', session.user.id);
