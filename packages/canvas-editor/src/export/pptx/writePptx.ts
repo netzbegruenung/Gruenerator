@@ -38,7 +38,7 @@ export interface PptxLoadedImage {
 }
 
 export interface WritePptxDeps {
-  /** `null`: Knoten nicht gefunden (veraltete Id) — das Element fehlt dann. */
+  /** `null` oder Fehler: Knoten nicht gefunden oder nicht lesbar — das Element fehlt dann. */
   rasterize: (request: PptxRasterRequest, slideIndex: number) => Promise<PptxRasterImage | null>;
   /** `null`: Quelle nicht ladbar — das Bild wird dann gerastert. */
   loadImage: (src: string) => Promise<PptxLoadedImage | null>;
@@ -48,7 +48,7 @@ export interface WritePptxDeps {
 
 export interface WritePptxResult {
   blob: Blob;
-  /** Raster-Anfragen ohne Knoten, als `<folie>:<elementId>`. */
+  /** Raster-Anfragen ohne Bild (kein Knoten, nicht lesbar), als `<folie>:<elementId>`. */
   skipped: string[];
 }
 
@@ -204,7 +204,8 @@ export async function writePptx(
   const skipped: string[] = [];
 
   const rasterInto = async (slide: Slide, request: PptxRasterRequest, slideIndex: number) => {
-    const image = await deps.rasterize(request, slideIndex);
+    // Ein Raster, das wirft, kostet nur dieses Element, nicht den ganzen Export.
+    const image = await deps.rasterize(request, slideIndex).catch(() => null);
     if (image) addRaster(slide, image, request.elementId, units);
     else skipped.push(`${slideIndex + 1}:${request.elementId}`);
   };

@@ -70,7 +70,8 @@ export async function captureStageImageAsync(
  * One element alone as PNG, for the PPTX export: the `canvas-item` group
  * `CanvasRenderLayer` wraps around it, rendered over its axis-aligned box.
  * Rotation, opacity and shadow are in the picture; the box comes back in
- * page px (the stage is shown scaled). Null when no group carries the id.
+ * page px (the stage is shown scaled). Null when no group carries the id
+ * or the canvas cannot be read (cross-origin image).
  */
 export function rasterizeStageElement(
   stage: Konva.Stage | null,
@@ -85,9 +86,17 @@ export function rasterizeStageElement(
   const rect = node.getClientRect();
   if (rect.width <= 0 || rect.height <= 0) return null;
   const scale = stage.scaleX() || 1;
-  const dataUrl = withSelectionChromeHidden(stage, () =>
-    node.toDataURL({ ...rect, pixelRatio: pixelRatio / scale, mimeType: 'image/png' })
-  );
+  let dataUrl: string;
+  try {
+    dataUrl = withSelectionChromeHidden(stage, () =>
+      node.toDataURL({ ...rect, pixelRatio: pixelRatio / scale, mimeType: 'image/png' })
+    );
+  } catch {
+    // Ein fremdes Bild ohne CORS macht die Leinwand „tainted“: toDataURL wirft
+    // SecurityError. Das Element fehlt dann im Export (der Writer meldet es),
+    // statt ihn abzubrechen.
+    return null;
+  }
   return {
     dataUrl,
     box: {
