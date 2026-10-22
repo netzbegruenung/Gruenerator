@@ -10,6 +10,8 @@
 import { type SharepicSpec } from '@gruenerator/contracts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { reportFailure } from './errorReporting';
+
 import {
   __resetSharepicRenderForTests,
   __sharepicRenderState,
@@ -23,6 +25,8 @@ import {
   renderSharepic,
   unregisterRenderHost,
 } from './sharepicRender';
+
+vi.mock('./errorReporting', () => ({ reportFailure: vi.fn() }));
 
 const PROTOCOL_VERSION = 1;
 
@@ -53,6 +57,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   posted = [];
   __resetSharepicRenderForTests();
+  vi.mocked(reportFailure).mockClear();
   vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 });
 
@@ -125,6 +130,12 @@ describe('renderSharepic', () => {
     // start, and a third try would only make the spinner longer.
     expect(posted).toHaveLength(2);
     await expect(pending).resolves.toBeNull();
+    // Only the final failure is reported, with the page's last reason.
+    expect(reportFailure).toHaveBeenCalledOnce();
+    expect(reportFailure).toHaveBeenCalledWith('sharepic render gave up', {
+      reason: 'again',
+      request: 'RENDER_REQUEST',
+    });
   });
 
   it('treats a stalled render as a failure', async () => {
