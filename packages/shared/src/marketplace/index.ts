@@ -65,9 +65,15 @@ export {
   type MarketplaceCardModel,
 } from './viewModel.js';
 export {
+  resolveStory,
+  type CollectionStoryBlock,
+  type ResolvedStoryBlock,
+} from './collectionStory.js';
+export {
   MARKETPLACE_COLLECTIONS,
   MARKETPLACE_FEATURES,
   collectionById,
+  collectionForThema,
   featureById,
   featureFor,
   isFrontpageView,

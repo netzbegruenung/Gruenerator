@@ -4,11 +4,12 @@ import {
   sharepicVorlageThumbPath,
   type SharepicVorlage,
 } from '@gruenerator/contracts';
+import { collectionForThema, marketplaceHref } from '@gruenerator/shared/marketplace';
 import { buildMentionToken } from '@gruenerator/shared/utils';
 import { Button } from '@gruenerator/ui';
 import { MessageSquare, Pencil } from 'lucide-react';
 import { useState, type JSX } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { VorlageDetailDialog, type VorlageInteractionProps } from './VorlageDetailDialog';
 
@@ -38,6 +39,7 @@ export function SharepicVorlageDialog({
   const [copied, setCopied] = useState<string | null>(null);
   const credits = vorlage.attributions.filter((a) => a !== null);
   const slides = vorlage.spec.slides.length;
+  const collection = vorlage.spec.thema ? collectionForThema(vorlage.spec.thema) : null;
 
   const copyPrompt = (prompt: string) => {
     void copyToClipboard(prompt).then(() => {
@@ -117,6 +119,17 @@ export function SharepicVorlageDialog({
         url: `${window.location.origin}/vorlagen?vorlage=${encodeURIComponent(vorlage.id)}`,
       }}
     >
+      {collection && (
+        <p className="m-0 text-[15px] text-grey-600 dark:text-grey-400">
+          Teil der Kollektion{' '}
+          <Link
+            to={marketplaceHref({ collection: collection.id })}
+            className="font-semibold text-foreground underline underline-offset-2"
+          >
+            {collection.title}
+          </Link>
+        </p>
+      )}
       <section aria-labelledby="vorlage-chat-heading" className="flex flex-col gap-4">
         <h3 id="vorlage-chat-heading" className="m-0 text-[17px] font-bold text-foreground-heading">
           Beispiel-Anfragen

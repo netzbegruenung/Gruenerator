@@ -2,6 +2,7 @@ import { type MarketplaceCollectionId, type MarketplaceItem } from '@gruenerator
 import {
   collectionById,
   isSampleItem,
+  resolveStory,
   sampleImageOf,
   useMarketplaceFrontpage,
   type MarketplaceCollection,
@@ -14,11 +15,12 @@ import {
   ShowcaseMedia,
   cn,
 } from '@gruenerator/ui';
-import { type JSX } from 'react';
+import { type JSX, useId } from 'react';
 import { PiCheck } from 'react-icons/pi';
 
 import { GalleryEmptyState, GallerySkeleton } from '../../components/common/Gallery/parts';
 
+import { CollectionStory } from './CollectionStory';
 import { viewOf } from './kindViews';
 import { MarketplaceCard } from './MarketplaceCard';
 import {
@@ -30,6 +32,8 @@ import {
   showcaseToneAt,
 } from './MarketplaceShowcaseCard';
 import { type MarketplaceActions } from './useMarketplaceActions';
+
+import { useAuthStore } from '@/stores/authStore';
 
 const COVER_DIR = '/images/marketplace/collections';
 
@@ -96,6 +100,24 @@ function CollectionMedia({
   );
 }
 
+/** A description without its `**` marks, for the card. */
+const plainText = (text: string) => text.replaceAll('**', '');
+
+/** A description with its `**…**` terms in bold. */
+function Emphasized({ text }: { text: string }) {
+  return text.split('**').map((part, i) =>
+    i % 2 ? (
+      // The parts are a fixed split of a registry string; their order is their identity.
+      // eslint-disable-next-line react/no-array-index-key
+      <strong key={i} className="font-semibold text-foreground">
+        {part}
+      </strong>
+    ) : (
+      part
+    )
+  );
+}
+
 const countLabel = (n: number) => `${n} ${n === 1 ? 'Eintrag' : 'Einträge'}`;
 
 /** The collection row on the front page: one quiet card per collection, App-Store style. */
@@ -103,27 +125,35 @@ export function CollectionCards({
   collections,
   onOpen,
   title = 'Kollektionen',
+  row,
 }: {
   collections: { collectionId: MarketplaceCollectionId; items: MarketplaceItem[] }[];
   onOpen: (id: MarketplaceCollectionId) => void;
   title?: string;
+  /** Only the collections of this front page row (`rest`: those without one); all when left out. */
+  row?: NonNullable<MarketplaceCollection['row']> | 'rest';
 }): JSX.Element | null {
+  const headingId = useId();
   const cards = collections.flatMap((c) => {
     const def = collectionById(c.collectionId);
     // An unlisted collection is shared by its link only.
-    return def && def.listed !== false ? [{ def, items: c.items }] : [];
+    if (!def || def.listed === false) return [];
+    if (row && (def.row ?? 'rest') !== row) return [];
+    return [{ def, items: c.items }];
   });
   if (cards.length === 0) return null;
   return (
-    <section aria-labelledby="marktplatz-kollektionen" className="flex flex-col gap-md">
-      <h2
-        id="marktplatz-kollektionen"
-        className="m-0 text-xl font-semibold text-foreground-heading"
-      >
+    <section aria-labelledby={headingId} className="flex flex-col gap-md">
+      <h2 id={headingId} className="m-0 text-xl font-semibold text-foreground-heading">
         {title}
       </h2>
       <ul
-        className={cn('m-0 grid list-none grid-cols-1 gap-md p-0 md:grid-cols-3', SWIPE_BELOW_MD)}
+        className={cn(
+          'm-0 grid list-none grid-cols-1 gap-md p-0',
+          // Two or four cards stand in pairs; three columns would leave one or two alone.
+          cards.length % 2 === 0 && cards.length < 6 ? 'md:grid-cols-2' : 'md:grid-cols-3',
+          SWIPE_BELOW_MD
+        )}
       >
         {cards.map(({ def, items }) => (
           <li key={def.id}>
@@ -139,9 +169,9 @@ export function CollectionCards({
                   decorative
                 />
               }
-              meta={`${def.kicker} · ${countLabel(items.length)}`}
+              meta={items.length > 0 ? `${def.kicker} · ${countLabel(items.length)}` : def.kicker}
               title={def.title}
-              description={def.description}
+              description={plainText(def.description)}
               titleFont={DISPLAY_FONT}
             />
           </li>
@@ -159,6 +189,48 @@ function openSample(item: MarketplaceItem) {
 
 /** Agents and Rezepte land in „Meine Grüneratoren"; everything else is only „Merken". */
 const isAddable = (item: MarketplaceItem) => item.kind === 'agent' || item.kind === 'recipe';
+
+function ItemGrid({
+  items,
+  actions,
+  onSelect,
+}: {
+  items: readonly MarketplaceItem[];
+  actions: MarketplaceActions;
+  onSelect: (item: MarketplaceItem) => void;
+}) {
+  return (
+    <div className={SHOWCASE_GRID}>
+      {items.map((item, index) =>
+        isSampleItem(item) ? (
+          <MarketplaceVisualCard
+            key={item.key}
+            item={item}
+            tone={showcaseToneAt(index)}
+            broken={false}
+            actions={null}
+            onSelect={() => openSample(item)}
+          />
+        ) : isAddable(item) ? (
+          <MarketplaceShowcaseCard
+            key={item.key}
+            item={item}
+            tone={showcaseToneAt(index)}
+            actions={actions}
+            onSelect={() => onSelect(item)}
+          />
+        ) : (
+          <MarketplaceCard
+            key={item.key}
+            item={item}
+            actions={actions}
+            onSelect={() => onSelect(item)}
+          />
+        )
+      )}
+    </div>
+  );
+}
 
 /**
  * One collection opened (`?kollektion=<id>`), App-Store-story style: the cover
@@ -180,9 +252,12 @@ export function MarketplaceCollectionView({
   onOpen: (id: MarketplaceCollectionId) => void;
 }): JSX.Element {
   const page = useMarketplaceFrontpage();
+  const locale = useAuthStore((s) => s.locale);
   const def = collectionById(id);
   const collections = page.data?.collections ?? [];
-  const items = collections.find((c) => c.collectionId === id)?.items ?? [];
+  // A collection below its `min` is not in the response; one of only Vorlagen (min 0) is, empty.
+  const collection = collections.find((c) => c.collectionId === id);
+  const items = collection?.items ?? [];
   if (page.isPending) {
     return (
       <GallerySkeleton
@@ -191,7 +266,7 @@ export function MarketplaceCollectionView({
       />
     );
   }
-  if (!def || items.length === 0) {
+  if (!def || !collection) {
     return (
       <GalleryEmptyState
         title="Diese Kollektion ist nicht verfügbar"
@@ -205,6 +280,9 @@ export function MarketplaceCollectionView({
     );
   }
 
+  const story = def.story?.length ? resolveStory(def.story, items, locale) : null;
+  const select = (item: MarketplaceItem) =>
+    isSampleItem(item) ? openSample(item) : onSelect(item);
   const addable = items.filter(isAddable);
   const missing = addable.filter((item) => !item.saved);
 
@@ -225,7 +303,7 @@ export function MarketplaceCollectionView({
         />
       </ShowcaseMedia>
       <header className="flex flex-wrap items-end justify-between gap-lg">
-        <div className="flex max-w-[42rem] min-w-0 flex-[999_1_28rem] flex-col gap-xs">
+        <div className="flex min-w-0 flex-[999_1_28rem] flex-col gap-xs">
           <span className="text-sm font-semibold tracking-[0.06em] text-primary-700 uppercase dark:text-primary-300">
             {def.kicker}
           </span>
@@ -236,9 +314,11 @@ export function MarketplaceCollectionView({
             {def.title}
           </h1>
           <p className="m-0 text-base leading-relaxed text-foreground-muted sm:text-lg">
-            {def.description}
+            <Emphasized text={def.description} />
           </p>
-          <span className="text-sm text-foreground-muted">{countLabel(items.length)}</span>
+          {items.length > 0 && (
+            <span className="text-sm text-foreground-muted">{countLabel(items.length)}</span>
+          )}
         </div>
         {addable.length > 0 &&
           (missing.length > 0 ? (
@@ -258,40 +338,29 @@ export function MarketplaceCollectionView({
             </span>
           ))}
       </header>
-      <section aria-labelledby="kollektion-inhalte" className="flex flex-col gap-md">
-        <h2 id="kollektion-inhalte" className="sr-only">
-          Enthalten
-        </h2>
-        <div className={SHOWCASE_GRID}>
-          {items.map((item, index) =>
-            isSampleItem(item) ? (
-              <MarketplaceVisualCard
-                key={item.key}
-                item={item}
-                tone={showcaseToneAt(index)}
-                broken={false}
-                actions={null}
-                onSelect={() => openSample(item)}
-              />
-            ) : isAddable(item) ? (
-              <MarketplaceShowcaseCard
-                key={item.key}
-                item={item}
-                tone={showcaseToneAt(index)}
-                actions={actions}
-                onSelect={() => onSelect(item)}
-              />
-            ) : (
-              <MarketplaceCard
-                key={item.key}
-                item={item}
-                actions={actions}
-                onSelect={() => onSelect(item)}
-              />
-            )
+      {story ? (
+        <>
+          <CollectionStory blocks={story.blocks} actions={actions} onSelect={select} />
+          {story.rest.length > 0 && (
+            <section aria-labelledby="kollektion-mehr" className="flex flex-col gap-md">
+              <h2
+                id="kollektion-mehr"
+                className="m-0 text-xl font-semibold text-foreground-heading"
+              >
+                Mehr aus der Kollektion
+              </h2>
+              <ItemGrid items={story.rest} actions={actions} onSelect={onSelect} />
+            </section>
           )}
-        </div>
-      </section>
+        </>
+      ) : (
+        <section aria-labelledby="kollektion-inhalte" className="flex flex-col gap-md">
+          <h2 id="kollektion-inhalte" className="sr-only">
+            Enthalten
+          </h2>
+          <ItemGrid items={items} actions={actions} onSelect={onSelect} />
+        </section>
+      )}
       <CollectionCards
         title="Weitere Kollektionen"
         collections={collections.filter((c) => c.collectionId !== id)}
