@@ -92,6 +92,7 @@ import {
   TOP_PAD,
 } from './sharepicLayoutConstants';
 import { slideProvenance } from './sharepicProvenance';
+import { sharepicTheme } from './sharepicThemes';
 import { drawSlideChrome } from './slideChrome';
 import { type BuildPass, type SlideCtx } from './slideContext';
 import { slideInk } from './slideInk';
@@ -365,7 +366,11 @@ function composeSlide(
   // AT sets a photo strip in green monochrome, as the posts do; a full-bleed
   // photo carries the text and stays as shot.
   // A themed slide keeps its photo's colours: a green Pride flag says nothing.
-  if (isAt && !thema && (bg.kind === 'foto-oben' || bg.kind === 'foto-unten')) {
+  if (
+    isAt &&
+    !sharepicTheme(thema)?.keepsPhotoColours &&
+    (bg.kind === 'foto-oben' || bg.kind === 'foto-unten')
+  ) {
     const top = bg.kind === 'foto-oben' ? 0 : areaBottom;
     const bottom = bg.kind === 'foto-oben' ? areaTop : canvas.height;
     const tint = rect('sc-tint', 0, top, canvas.width, bottom - top, theme.colors.primary);
@@ -382,10 +387,13 @@ function composeSlide(
     shadow,
     accent,
     marker,
+    accentLineBox,
     badgeColors,
     cardAccent,
     accentInk,
     contrastPanel,
+    footerGround,
+    topGround,
   } = slideInk({ locale, isAt, theme, surface, darkText, kopfband, bg, bild, thema });
   /** The widest size `value` can take on one line of `width`, up to `cap`. */
   const fitLine = (value: string, cap: number, width: number, family: string) =>
@@ -896,7 +904,7 @@ function composeSlide(
                   text(segId, plain, cursor, Math.round(size * 0.95), theme.fonts.quoteEmphasis, {
                     ...at,
                     fontStyle: AT_EMPHASIS_STYLE,
-                    fill: onLight ? theme.colors.accentOnLight : theme.colors.accent,
+                    fill: accent.fill,
                     lineHeight,
                     type: 'header',
                   });
@@ -906,19 +914,19 @@ function composeSlide(
                   // side photo narrows it).
                   const w = measure(plain, size, family, 'normal') + size * 0.4;
                   const x = xAlign === 'center' ? centre - w / 2 : col.x - size * 0.15;
-                  // Lime glows on dark ground; on mint it washes out — grass
-                  // green there; on grass green itself a white box.
-                  const markerColor = onGrass
-                    ? '#FFFFFF'
-                    : onLight
-                      ? SHAREPIC_COLOR_HEX.grasgruen
-                      : LIME;
-                  const box = rect(`${segId}-box`, x, cursor + size * 0.04, w, step, markerColor);
+                  const box = rect(
+                    `${segId}-box`,
+                    x,
+                    cursor + size * 0.04,
+                    w,
+                    step,
+                    accentLineBox.fill
+                  );
                   box.rotation = -2;
                   addShape(box);
                   text(segId, plain, cursor, size, family, {
                     ...at,
-                    fill: SHAREPIC_COLOR_HEX.dunkeltanne,
+                    fill: accentLineBox.ink,
                     lineHeight,
                     type: 'header',
                     shadowOpacity: 0,
@@ -1300,6 +1308,8 @@ function composeSlide(
     shadow,
     footerOnLight,
     footerDarkInk,
+    footerGround,
+    topGround,
     showLogo,
     logoCentred,
     logo,

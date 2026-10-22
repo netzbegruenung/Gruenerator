@@ -1,9 +1,10 @@
 import { createShape } from '../utils/shapes';
 
-import { SHAREPIC_COLOR_HEX, THEMA_INK } from './chromeParts';
+import { SHAREPIC_COLOR_HEX } from './chromeParts';
 import { type Placed, type RechnungItem, type ZahlItem } from './composeTypes';
 import { evenStops } from './sharepicGround';
 import { GAP } from './sharepicLayoutConstants';
+import { sharepicTheme } from './sharepicThemes';
 import { type BuildPass, type SlideCtx } from './slideContext';
 
 export function layoutZahl(ctx: SlideCtx, item: ZahlItem, id: string, pass: BuildPass): Placed[] {
@@ -70,6 +71,7 @@ export function layoutZahl(ctx: SlideCtx, item: ZahlItem, id: string, pass: Buil
     });
     return placed;
   }
+  const gradient = sharepicTheme(thema)?.kennzahlGradient ?? null;
   const size = fitLine(
     item.wert,
     cap,
@@ -86,18 +88,13 @@ export function layoutZahl(ctx: SlideCtx, item: ZahlItem, id: string, pass: Buil
         fill: accentInk,
         lineHeight: 1,
         type: 'header',
-        // Pride: the figure runs through the flag. Bright stops on dark
-        // ground; on light ground the deep ones, yellow left out.
-        ...(thema === 'queer'
+        // A theme with a gradient (Pride: the flag) runs the figure through it.
+        ...(gradient
           ? {
               fillGradient: {
                 type: 'linear' as const,
                 angle: 0,
-                stops: evenStops(
-                  onLight
-                    ? THEMA_INK.regenbogen.filter((c) => c !== THEMA_INK.flaggenGelb)
-                    : ['#FF6B6B', '#FFB347', '#FFED00', '#4ADE80', '#60A5FA', '#C084FC']
-                ),
+                stops: evenStops(onLight ? gradient.light : gradient.dark),
               },
             }
           : {}),

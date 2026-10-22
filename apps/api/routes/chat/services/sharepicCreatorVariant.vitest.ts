@@ -228,4 +228,32 @@ describe('createCreatorSharepic with a Vorlage', () => {
     ]);
     expect([focus, brief, oneSlide]).toEqual([undefined, undefined, undefined]);
   });
+
+  const fill = async (vorlage: SharepicSpec, drafted: SharepicSpec) => {
+    draftSharepic.mockResolvedValue({ spec: drafted, chapters: [], attributions: [] });
+    const v = await createCreatorSharepic({
+      brief: 'Gedenken',
+      background: null,
+      avoid: null,
+      locale: drafted.locale,
+      userId: null,
+      form: null,
+      oneSlide: false,
+      vorlage: { form: 'einzelbild', spec: vorlage } as never,
+    });
+    return (v.initialProps as { creatorSpec: SharepicSpec }).creatorSpec;
+  };
+
+  it("keeps a themed Vorlage's theme when the draft drops it", async () => {
+    for (const drafted of [SPEC_DE, SPEC_AT]) {
+      const spec = await fill({ ...drafted, thema: 'europa' }, drafted);
+      expect(spec.thema, drafted.locale).toBe('europa');
+    }
+  });
+
+  it('leaves the theme alone when the Vorlage has none or the draft chose one', async () => {
+    expect((await fill(SPEC_DE, SPEC_DE)).thema).toBeUndefined();
+    const own = await fill({ ...SPEC_DE, thema: 'europa' }, { ...SPEC_DE, thema: 'frauen' });
+    expect(own.thema).toBe('frauen');
+  });
 });

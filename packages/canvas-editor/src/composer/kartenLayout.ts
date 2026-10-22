@@ -1,6 +1,5 @@
 import { createShape } from '../utils/shapes';
 
-import { THEMA_INK } from './chromeParts';
 import {
   type BingoItem,
   type Placed,
@@ -8,6 +7,7 @@ import {
   type TermineItem,
 } from './composeTypes';
 import { GAP } from './sharepicLayoutConstants';
+import { sharepicTheme } from './sharepicThemes';
 import { type BuildPass, type SlideCtx } from './slideContext';
 import { largestSizeWordsFit } from './textFit';
 
@@ -26,9 +26,6 @@ function inkFor(fill: string, dark: string): string {
   return 1.05 / (l + 0.05) >= (l + 0.05) / (luminance(dark) + 0.05) ? '#FFFFFF' : dark;
 }
 
-/** The Pride rows of a date list: the flag's six stripes, then Progress Pride's. */
-const PRIDE_ROWS = [...THEMA_INK.regenbogen, ...THEMA_INK.progress];
-
 export function layoutTermine(
   ctx: SlideCtx,
   item: TermineItem,
@@ -46,8 +43,10 @@ export function layoutTermine(
   const dateWidth =
     Math.max(...item.eintraege.map((e) => measure(e.datum, dateSize, family, 'bold'))) +
     Math.round(dateSize * 0.5);
-  // Pride: every row a pill in the next flag colour, its ink chosen for it.
-  const pills = thema === 'queer';
+  // A theme with pill colours (Pride: the flag's) sets every row on a pill
+  // in the next colour, its ink chosen for it.
+  const pillRows = sharepicTheme(thema)?.terminePills ?? null;
+  const pills = pillRows !== null;
   const padX = pills ? Math.round(dateSize * 0.4) : 0;
   const padY = pills ? Math.round(dateSize * 0.24) : 0;
   const restWidth = column.width - dateWidth - 2 * padX;
@@ -67,9 +66,9 @@ export function layoutTermine(
       let top = y;
       item.eintraege.forEach((e, k) => {
         const rowId = `${id}-${k}`;
-        const rowFill = PRIDE_ROWS[k % PRIDE_ROWS.length]!;
-        const rowInk = pills ? inkFor(rowFill, THEMA_INK.violettDunkel) : null;
-        if (pills) {
+        const rowFill = pillRows ? pillRows.colors[k % pillRows.colors.length]! : null;
+        const rowInk = rowFill && pillRows ? inkFor(rowFill, pillRows.darkInk) : null;
+        if (rowFill) {
           const pill = createShape(
             'rounded-rect',
             column.x + column.width / 2,
