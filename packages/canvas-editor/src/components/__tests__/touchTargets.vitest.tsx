@@ -88,6 +88,18 @@ describe('44pt-Ziele', () => {
     for (const s of swatches) expectBigTarget(s);
   });
 
+  it('swatch hit areas do not overlap neighbours', () => {
+    const { container } = render(
+      <FloatingColorPicker currentColor="#005538" onColorSelect={() => {}} isExpanded />
+    );
+    const row = container.firstElementChild as HTMLElement;
+    // 26px swatch + 9px hit area per side = 44px, so the gap must be >= 2 x 9px
+    expect(row).toHaveClass('max-canvas-mobile:gap-[18px]');
+    for (const s of screen.getAllByRole('button')) {
+      expect(s.className).toContain('max-canvas-mobile:before:inset-[-9px]');
+    }
+  });
+
   it('Farb-Knopf eingeklappt', () => {
     render(<FloatingColorPicker currentColor="#005538" onColorSelect={() => {}} />);
     expectBigTarget(screen.getByRole('button', { name: 'Farbpalette öffnen' }));

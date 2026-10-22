@@ -16,7 +16,9 @@ interface FloatingColorPickerProps {
   allowCustom?: boolean;
 }
 
-/* ::after gehört schon dem Auswahlring, darum ein ::before als 44px-Trefferfläche. */
+/* ::after gehört schon dem Auswahlring, darum ein ::before als 44px-Trefferfläche.
+   26px + 2 x 9px = 44px: die Reihe braucht mobil gap >= 18px, sonst liegt die Fläche
+   über dem Nachbarn und fängt dessen Tipper ab. */
 const HIT_44 =
   "max-canvas-mobile:before:content-[''] max-canvas-mobile:before:absolute max-canvas-mobile:before:inset-[-9px]";
 
@@ -101,7 +103,7 @@ export function FloatingColorPicker({
 
   return (
     <div
-      className="flex items-center gap-2 px-1 animate-canvas-expand-width max-canvas-mobile:gap-1 max-canvas-mobile:px-0.5"
+      className="flex items-center gap-2 px-1 animate-canvas-expand-width max-canvas-mobile:gap-[18px] max-canvas-mobile:px-[9px]"
       ref={containerRef}
     >
       {colorOptions.map((color) => (

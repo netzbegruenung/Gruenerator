@@ -40,6 +40,19 @@ describe('Löschen ohne verstecktes Ziel', () => {
     expect(del).toHaveClass('max-canvas-mobile:size-11');
   });
 
+  it('Upload-Löschen in der Masonry-Ansicht (breit) trägt dieselben Mobilklassen', () => {
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+    render(<UploadsSection />);
+    const del = screen.getByRole('button', { name: 'Bild aus Bibliothek entfernen' });
+    expect(del).toHaveClass('max-canvas-mobile:opacity-100');
+    expect(del).toHaveClass('max-canvas-mobile:size-11');
+  });
+
   function toolbar(isActive: boolean) {
     const { container } = render(
       <PageToolbar
