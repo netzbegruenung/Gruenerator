@@ -124,52 +124,78 @@ for _n in os.listdir('.'):
     except OSError:
         pass
 
-# Block browser-bridge modules for USER code only (OpenWebUI pattern): 'js'
-# gives generated code DOM/network access. The guard checks the importer's
-# __name__ — our exec namespace has none — so library internals (micropip,
-# pyodide itself) keep working. Patched once per runtime.
-import builtins
-if not getattr(builtins, '_gruen_import_guarded', False):
-    _gruen_real_import = builtins.__import__
-    def _gruen_guarded_import(name, globals=None, locals=None, fromlist=(), level=0):
-        if name.split('.')[0] in ('js', 'pyodide_js', 'pyodide'):
-            _imp = globals.get('__name__') if globals else None
-            if _imp in (None, '__main__'):
+# Keep the code we run in _ns away from the browser-bridge modules: 'js' and
+# its relatives hand out JS objects, and from there fetch() and eval.
+#
+# Defence in depth, NOT the security boundary. Code inside the same Pyodide
+# instance can always find its way back to a JS object (gc, closures, event
+# loop internals). What actually keeps generated code off the network and away
+# from the session is the worker's Content-Security-Policy (apps/web/Dockerfile,
+# guarded by pythonInterpreterCsp.vitest.ts).
+#
+# A finder at the front of sys.meta_path refuses the bridge modules while it is
+# armed — only around the exec calls below, so micropip and pyodide's own
+# imports outside that window keep working. Being a finder, it catches
+# \`import\`, __import__ and importlib.import_module alike and does not care
+# what __name__ the caller claims. A finder only sees modules that are not in
+# sys.modules yet, so the loaded bridge modules leave sys.modules for the same
+# window and come back afterwards.
+import sys
+_GRUEN_BRIDGE = ('js', 'pyodide_js', 'pyodide', '_pyodide', '_pyodide_core')
+_gruen_blocker = next((_f for _f in sys.meta_path if getattr(_f, '_gruen_bridge_blocker', False)), None)
+if _gruen_blocker is None:
+    class _GruenBridgeBlocker:
+        _gruen_bridge_blocker = True
+        armed = False
+
+        @classmethod
+        def find_spec(cls, name, path=None, target=None):
+            if cls.armed and name.split('.')[0] in _GRUEN_BRIDGE:
                 raise ImportError(f"Das Modul '{name}' ist im Interpreter nicht erlaubt.")
-        return _gruen_real_import(name, globals, locals, fromlist, level)
-    builtins.__import__ = _gruen_guarded_import
-    builtins._gruen_import_guarded = True
+            return None
 
-# The pandas pre-load is a precondition only for code that USES it. Form-fill
-# code opens the workbook itself with openpyxl and never touches df or sheets,
-# so a read_excel that chokes on a form layout must not kill that run. Code that
-# does reference them still gets the original error raised — swallowing it there
-# would replace a precise "Unsupported format" with a baffling NameError.
-if __setup_code:
-    try:
-        exec(__setup_code, _ns)
-    except Exception as _gruen_setup_err:
-        import re as _gruen_re
-        # Doubled backslashes: this harness lives in a JS template literal, where
-        # a lone \\b is the backspace escape and would never reach Python.
-        if _gruen_re.search(r'\\b(df|sheets)\\b', __user_code):
-            raise
-        print("Hinweis: Die Tabelle konnte nicht als DataFrame vorgeladen werden: " + str(_gruen_setup_err))
+    _gruen_blocker = _GruenBridgeBlocker
+    sys.meta_path.insert(0, _gruen_blocker)
 
-# Jupyter semantics for the last statement: a bare trailing expression
-# (df.describe(), 1 + 1) prints its repr instead of vanishing — models on the
-# legacy path routinely omit the print().
-import ast
-_tree = ast.parse(__user_code)
-if _tree.body and isinstance(_tree.body[-1], ast.Expr):
-    _last = ast.Expression(_tree.body[-1].value)
-    _tree.body = _tree.body[:-1]
-    exec(compile(_tree, '<gruenerator>', 'exec'), _ns)
-    _val = eval(compile(_last, '<gruenerator>', 'eval'), _ns)
-    if _val is not None:
-        print(repr(_val))
-else:
-    exec(compile(_tree, '<gruenerator>', 'exec'), _ns)
+_gruen_hidden = {
+    _k: sys.modules.pop(_k) for _k in list(sys.modules) if _k.split('.')[0] in _GRUEN_BRIDGE
+}
+_gruen_blocker.armed = True
+try:
+    # The pandas pre-load is a precondition only for code that USES it.
+    # Form-fill code opens the workbook itself with openpyxl and never touches
+    # df or sheets, so a read_excel that chokes on a form layout must not kill
+    # that run. Code that does reference them still gets the original error
+    # raised — swallowing it there would replace a precise "Unsupported format"
+    # with a baffling NameError.
+    if __setup_code:
+        try:
+            exec(__setup_code, _ns)
+        except Exception as _gruen_setup_err:
+            import re as _gruen_re
+            # Doubled backslashes: this harness lives in a JS template literal,
+            # where a lone \\b is the backspace escape and would never reach Python.
+            if _gruen_re.search(r'\\b(df|sheets)\\b', __user_code):
+                raise
+            print("Hinweis: Die Tabelle konnte nicht als DataFrame vorgeladen werden: " + str(_gruen_setup_err))
+
+    # Jupyter semantics for the last statement: a bare trailing expression
+    # (df.describe(), 1 + 1) prints its repr instead of vanishing — models on
+    # the legacy path routinely omit the print().
+    import ast
+    _tree = ast.parse(__user_code)
+    if _tree.body and isinstance(_tree.body[-1], ast.Expr):
+        _last = ast.Expression(_tree.body[-1].value)
+        _tree.body = _tree.body[:-1]
+        exec(compile(_tree, '<gruenerator>', 'exec'), _ns)
+        _val = eval(compile(_last, '<gruenerator>', 'eval'), _ns)
+        if _val is not None:
+            print(repr(_val))
+    else:
+        exec(compile(_tree, '<gruenerator>', 'exec'), _ns)
+finally:
+    _gruen_blocker.armed = False
+    sys.modules.update(_gruen_hidden)
 
 _figures = []
 try:
