@@ -59,7 +59,12 @@ export function WorkplaceChatPage() {
   // Instance admins only, like the API: audio leaves through Mistral's global
   // endpoint. The emulator's bypass user stands in for one.
   const canCall = useAuthStore((s) => s.user?.is_admin === true) || DEV_AUTH_BYPASS;
-  const openCall = useCallback(() => router.push('/(focused)/sprachgespraech'), [router]);
+  // A call is a chat like any other: it opens a new one, already talking.
+  const openCall = useCallback(
+    () =>
+      router.push(routeWithParams('/(focused)/chat-conversation', { threadId: 'new', voice: '1' })),
+    [router]
+  );
 
   const openDrawer = useDrawerStore((s) => s.openDrawer);
   const swipe = useTabSwipe({
