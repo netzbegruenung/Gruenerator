@@ -55,6 +55,7 @@ import {
   README_FOLDER,
   SCOPE_FOLDERS,
   TOURS_FOLDER,
+  unpublishedDocMatcher,
 } from './docsFreshnessAreas.js';
 import { neutralizeGithubMentions } from './utils/githubMentions.js';
 import { parallelLimit } from './utils/parallelLimit.js';
@@ -63,6 +64,7 @@ import { parallelLimit } from './utils/parallelLimit.js';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, '../..');
 const DOCS_ROOT = path.join(REPO_ROOT, 'documentation', 'docs');
+const DOCUSAURUS_CONFIG_PATH = path.join(REPO_ROOT, 'documentation', 'docusaurus.config.ts');
 // TOURS_FOLDER / README_FOLDER (the virtual folders these two pseudo-doc
 // sources are audited under) live in docsFreshnessAreas.ts — they are keys of
 // AREA_HINTS.
@@ -204,7 +206,9 @@ function docsInFolders(folders: readonly string[]): string[] {
     }
     collectMarkdown(path.join(DOCS_ROOT, folder), abs);
   }
-  return [...abs.map((f) => path.relative(DOCS_ROOT, f)), ...rel].sort();
+  const isUnpublished = unpublishedDocMatcher(readFileSync(DOCUSAURUS_CONFIG_PATH, 'utf-8'));
+  const published = abs.map((f) => path.relative(DOCS_ROOT, f)).filter((f) => !isUnpublished(f));
+  return [...published, ...rel].sort();
 }
 
 function discoverDocs(single?: string): string[] {

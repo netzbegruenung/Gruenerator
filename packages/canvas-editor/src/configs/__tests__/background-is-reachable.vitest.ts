@@ -5,27 +5,18 @@ import { loadCanvasConfig } from '../configLoader';
 /**
  * Guard for the "background you cannot reach" class.
  *
- * Three places decide whether a user ever sees the background controls: the
- * `tabs` array registers the entry, `getVisibleTabs` decides whether it is
- * drawn in the strip, and `getAutoSwitchTab` can open a hidden one when an
- * element is selected. Seven templates registered a `background` tab, wrote a
- * full section for it, kept it OUT of `getVisibleTabs`, and relied on the
- * auto-switch — which could never fire, because the only element it named is
- * the colour plane, and `primitives/CanvasBackground.tsx` renders that with a
- * hardcoded `listening={false}`. No error, no log, just a panel no route
- * reaches: zitat-pure, info, zitat-pure-at, info-at, slider, freeform,
- * freeform-at.
+ * The background has no sidebar tab: a click on it selects it, and the context
+ * bar shows what `config.background` offers (colours, photo, zoom, lock). So
+ * the background is reachable exactly when (a) the config declares those
+ * controls, (b) there is a clickable element for each half — the colour plane
+ * (`type: 'background'`, which `GenericCanvasElement` makes selectable) and the
+ * photo (`background-image`) — and (c) nothing still routes to a tab that is
+ * gone.
  *
- * This replaces the older `backgroundAutoSwitch.vitest.ts`, which pinned the
- * auto-switch target for three configs but never asked the question that
- * actually mattered: is the tab reachable at all?
- *
- * Historical note: `configs/unifiedTabs.ts` described the intended end state —
- * one `background` tab per template whose content adapts between image and
- * colour. It was never wired to anything, and its narrative is what justified
- * the "registered but hidden" comments that hid these panels. The tab ids stay
- * template-specific (`image` / `image-background` / `background`); this guard
- * accepts any of them and only insists that the user can get there.
+ * History: seven templates once registered a background tab, kept it out of
+ * `getVisibleTabs` and relied on an auto-switch that could never fire, because
+ * the colour plane was drawn `listening={false}`. Clicking the background did
+ * nothing at all.
  */
 
 type CanvasConfigType = Parameters<typeof loadCanvasConfig>[0];
@@ -48,8 +39,8 @@ const TEMPLATES: CanvasConfigType[] = [
   'slider-at',
 ];
 
-/** Tab ids that carry background controls, newest naming first. */
-const BACKGROUND_TAB_IDS = ['background', 'image', 'image-background'];
+/** The removed background tabs; no config may register them again. */
+const REMOVED_TAB_IDS = ['background', 'image', 'image-background'];
 
 /**
  * Element ids that a `getAutoSwitchTab` implementation might plausibly name.
@@ -92,15 +83,6 @@ interface PlaneLike extends ElementLike {
   colorKey?: string;
 }
 
-/**
- * A selection can only land on an element Konva is listening to, and the
- * `background` primitive is never listening — so an auto-switch branch naming
- * one is dead code, not a route.
- */
-function isClickable(el: ElementLike): boolean {
-  return el.listening !== false && el.type !== 'background';
-}
-
 describe.each(TEMPLATES)('%s: the background is reachable', (type) => {
   // Loaded once with its own budget: the first `loadCanvasConfig` pulls the
   // whole Konva chain through a dynamic import (~2.2s, see at-configs.vitest.ts),
@@ -122,55 +104,43 @@ describe.each(TEMPLATES)('%s: the background is reachable', (type) => {
     expect(surfaces.map((el) => el.id)).not.toEqual([]);
   });
 
-  it('offers its background tab in the tab strip', () => {
-    const tabId = BACKGROUND_TAB_IDS.find((id) => id in config.sections);
-    expect(tabId, `${type} has no background section at all`).toBeDefined();
-    expect(visibleIds(), `${type}: section '${tabId}' exists but no route reaches it`).toContain(
-      tabId
+  it('offers its background controls through a click on the background', () => {
+    expect(config.background, `${type} declares no background controls`).toBeDefined();
+    const initial: unknown = config.createInitialState({});
+    const actions = config.createActions(
+      () => initial as never,
+      () => {},
+      () => {},
+      () => {},
+      {}
     );
-  });
-
-  it('only auto-switches on elements that can actually be clicked', () => {
-    if (!config.getAutoSwitchTab) return;
+    const controls = config.background!(initial as never, actions);
     const elements = config.elements as ElementLike[];
 
-    const dead = BACKGROUND_ELEMENT_PROBES.filter((probe) => {
-      if (!config.getAutoSwitchTab?.(probe)) return false;
-      return !elements.some((el) => el.id === probe && isClickable(el));
-    });
-
-    expect(dead, `${type}: auto-switch names unclickable/absent ${dead.join(', ')}`).toEqual([]);
+    if (controls.colors?.length) {
+      expect(controls.onColorChange, `${type}: colours without a setter`).toBeTypeOf('function');
+      expect(
+        elements.some((el) => el.type === 'background'),
+        `${type}: colours offered, but no colour plane to click`
+      ).toBe(true);
+    }
+    if (controls.onImageChange) {
+      const photo = elements.find((el) => el.id === 'background-image');
+      expect(photo, `${type}: a photo is offered, but there is no photo element`).toBeDefined();
+      expect(photo!.listening, `${type}: the photo cannot be clicked`).not.toBe(false);
+    }
+    expect(
+      controls.colors?.length || controls.onImageChange,
+      `${type}: background controls offer nothing`
+    ).toBeTruthy();
   });
 
-  /**
-   * The deleted `backgroundAutoSwitch.vitest.ts` pinned the literal target id
-   * per template (`background-image` -> `image` for simple, -> `image-background`
-   * for dreizeilen). Pinning the id is brittle and says nothing useful; the
-   * property that actually matters is that clicking a background element lands
-   * on a background panel that exists. A redirect to a different but registered
-   * tab would otherwise slip through every other assertion here.
-   */
-  it('auto-switches background elements onto a real background tab', () => {
-    if (!config.getAutoSwitchTab) return;
+  it('no longer routes to a background tab', () => {
     const registered: string[] = config.tabs.map((t) => t.id);
-
-    const wrong = BACKGROUND_ELEMENT_PROBES.map((probe) => ({
-      probe,
-      target: config.getAutoSwitchTab?.(probe) as string | null | undefined,
-    }))
-      .filter((hit): hit is { probe: string; target: string } => Boolean(hit.target))
-      .filter(
-        (hit) =>
-          !BACKGROUND_TAB_IDS.includes(hit.target) ||
-          !registered.includes(hit.target) ||
-          !(hit.target in config.sections)
-      )
-      .map((hit) => `${hit.probe} -> ${hit.target}`);
-
-    expect(
-      wrong,
-      `${type}: auto-switch lands off the background panel: ${wrong.join(', ')}`
-    ).toEqual([]);
+    expect(registered.filter((id) => REMOVED_TAB_IDS.includes(id))).toEqual([]);
+    expect(Object.keys(config.sections).filter((id) => REMOVED_TAB_IDS.includes(id))).toEqual([]);
+    const targets = BACKGROUND_ELEMENT_PROBES.map((probe) => config.getAutoSwitchTab?.(probe));
+    expect(targets.filter(Boolean), `${type}: a background click still opens a tab`).toEqual([]);
   });
 
   /**

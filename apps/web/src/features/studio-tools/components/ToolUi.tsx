@@ -1,5 +1,7 @@
-import { Alert, AlertDescription, UploadZone } from '@gruenerator/ui';
+import { Alert, AlertDescription, Button, UploadZone } from '@gruenerator/ui';
 import { type ReactNode } from 'react';
+import { PiArrowLeft } from 'react-icons/pi';
+import { Link } from 'react-router-dom';
 
 import { cn } from '@/utils/cn';
 
@@ -20,6 +22,24 @@ export const TOOL_PANEL =
 
 export const TOOL_ACTIONS =
   'flex flex-wrap items-center gap-sm border-t border-grey-200 pt-md dark:border-grey-700';
+
+/** The way out of a studio tool, at the start of its header. */
+export function ToolBackLink({ to, label }: { to: string; label: string }) {
+  return (
+    <Button
+      asChild
+      variant="ghost"
+      size="icon"
+      aria-label={label}
+      title={label}
+      className="shrink-0"
+    >
+      <Link to={to}>
+        <PiArrowLeft aria-hidden="true" className="size-5" />
+      </Link>
+    </Button>
+  );
+}
 
 export function ToolUpload({
   icon,

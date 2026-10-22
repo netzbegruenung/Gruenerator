@@ -12,6 +12,7 @@
  */
 
 import { type CanvasDocument, type CanvasListItem } from '@gruenerator/contracts';
+import { shareTokenFromDownloadUrl } from '@gruenerator/shared/media-library/shareUrl';
 import { type InferSelectModel } from 'drizzle-orm';
 import { type PoolClient } from 'pg';
 
@@ -19,10 +20,12 @@ import { type canvasDocuments } from '../../database/schema/canvas.js';
 import { type collaborative_documents } from '../../database/schema/collaborative.js';
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import {
+  autoGrantSharePermission,
   checkDocumentAccess,
   type DocumentAccessSubject,
 } from '../../routes/docs/documentAccess.js';
 import { type DocumentPermissions } from '../../routes/docs/types.js';
+import { crossesFormatCategory } from '../../routes/exports/pageConstants.js';
 import { likeContainsPattern } from '../../utils/sqlLike.js';
 import {
   trashCollaborativeDocument,
@@ -225,26 +228,77 @@ export async function searchCanvases(
   return rows.map(rowToCanvasListItem);
 }
 
+/**
+ * Whether this canvas is the frozen snapshot behind a Grünerator-Vorlage.
+ * Plain sharepics are shared with people only behind a login, never by public
+ * link; a Vorlage's owner may still publish its snapshot (ShareVorlageDialog).
+ */
+export async function isVorlageSnapshotCanvas(id: string): Promise<boolean> {
+  const rows = (await db.query(
+    `SELECT 1 FROM user_templates ut
+     WHERE ut.type = 'template'
+       AND ut.template_type = 'gruenerator'
+       AND ut.content_data->>'canvasId' = $1
+     LIMIT 1`,
+    [id]
+  )) as unknown[];
+  return rows.length > 0;
+}
+
 type GetResult =
   { kind: 'ok'; canvas: CanvasDocument } | { kind: 'not_found' } | { kind: 'forbidden' };
 
-export async function getCanvas(id: string, userId: string): Promise<GetResult> {
+/**
+ * `joinViaLink`: opening the canvas from a shared link ("Mit Anmeldung")
+ * enrolls the visitor as a collaborator, exactly like opening a document does,
+ * so they show up in the owner's share dialog and in their own canvas list.
+ * Only the studio's open read passes it — the many internal access checks
+ * through this function must not enroll anyone. The returned canvas already
+ * carries the new entry, so an editor link is editable on the very first load.
+ * A Vorlage's snapshot is never enrolled into: every logged-in user may read
+ * a gallery Vorlage, and its ACL would otherwise collect each one of them.
+ */
+export async function getCanvas(
+  id: string,
+  userId: string,
+  options: { joinViaLink?: boolean } = {}
+): Promise<GetResult> {
   const rows = (await db.query(
-    `SELECT ${CANVAS_SELECT_COLUMNS}
+    `SELECT ${CANVAS_SELECT_COLUMNS}, cd.share_permission
      FROM collaborative_documents cd
      INNER JOIN canvas_documents cdoc ON cdoc.document_id = cd.id
      LEFT JOIN profiles p ON cd.created_by = p.id
      WHERE cd.id = $1 AND cd.document_subtype = $2 AND cd.is_deleted = false`,
     [id, CANVAS_SUBTYPE]
-  )) as CanvasJoinedRow[];
+  )) as (CanvasJoinedRow & Pick<CollabRow, 'share_permission'>)[];
 
   const row = rows[0];
   if (!row) return { kind: 'not_found' };
 
-  const access = await checkDocumentAccess(toAccessSubject(row), userId);
+  const subject = toAccessSubject(row);
+  const access = await checkDocumentAccess(subject, userId);
   if (!access.hasAccess) return { kind: 'forbidden' };
 
-  return { kind: 'ok', canvas: rowToCanvasDocument(row) };
+  const canvas = rowToCanvasDocument(row);
+  const wouldJoin =
+    options.joinViaLink &&
+    (row.share_mode === 'authenticated' || row.share_mode === 'public') &&
+    row.created_by !== userId &&
+    !subject.permissions?.[userId];
+  if (wouldJoin && !(await isVorlageSnapshotCanvas(id))) {
+    const entry = autoGrantSharePermission(
+      {
+        ...subject,
+        ...(row.share_permission === 'viewer' || row.share_permission === 'editor'
+          ? { share_permission: row.share_permission }
+          : {}),
+      },
+      userId
+    );
+    if (entry) canvas.permissions = { ...(canvas.permissions ?? {}), [userId]: entry };
+  }
+
+  return { kind: 'ok', canvas };
 }
 
 // ── Create ───────────────────────────────────────────────────────────────────
@@ -362,15 +416,30 @@ export async function checkCanvasWriteAccess(id: string, userId: string): Promis
   return { kind: 'ok' };
 }
 
+/**
+ * Would setting `format` move this canvas between digital and print? The
+ * same invariant as resize. Caller must have checked write access.
+ */
+export async function formatChangeCrossesCategory(id: string, format: string): Promise<boolean> {
+  const rows = (await db.query('SELECT format FROM canvas_documents WHERE document_id = $1', [
+    id,
+  ])) as Array<{ format: string | null }>;
+  return crossesFormatCategory(rows[0]?.format ?? null, format);
+}
+
 export async function updateCanvas(
   id: string,
   userId: string,
   patch: UpdateCanvasInput
-): Promise<MutationResult> {
+): Promise<MutationResult | { kind: 'category_mismatch' }> {
   const access = await checkCanvasWriteAccess(id, userId);
   if (access.kind !== 'ok') return access;
 
   const { title, thumbnail_url, page_count, format } = patch;
+
+  if (format !== undefined && (await formatChangeCrossesCategory(id, format))) {
+    return { kind: 'category_mismatch' };
+  }
 
   let replacedThumbnailUrl: string | null = null;
   if (thumbnail_url !== undefined) {
@@ -423,8 +492,6 @@ export async function updateCanvas(
   return { kind: 'ok' };
 }
 
-const SHARE_DOWNLOAD_URL_RE = /^\/api\/share\/([^/?#]+)\/download$/;
-
 /** What `updateCanvasThumbnail` uploads with; any other share is not a thumbnail of ours. */
 const CANVAS_THUMBNAIL_SOURCES = [
   'canvas-thumbnail',
@@ -444,12 +511,12 @@ const CANVAS_THUMBNAIL_SOURCES = [
  * Papierkorb entry could never be restored.
  */
 export async function deleteReplacedThumbnailShare(url: string): Promise<void> {
-  const match = SHARE_DOWNLOAD_URL_RE.exec(url);
-  if (!match) return;
+  const token = shareTokenFromDownloadUrl(url);
+  if (!token) return;
 
   const { getSharedMediaService } = await import('../../routes/share/shareServices.js');
   const service = await getSharedMediaService();
-  await service.purgeInternalShare(match[1], null, CANVAS_THUMBNAIL_SOURCES);
+  await service.purgeInternalShare(token, null, CANVAS_THUMBNAIL_SOURCES);
 }
 
 /** Moves the canvas to the Papierkorb; the purge removes it for good. */
@@ -461,10 +528,16 @@ export async function deleteCanvas(id: string, userId: string): Promise<Mutation
 // ── Resize (duplicate-with-format) ───────────────────────────────────────────
 
 type ResizeResult =
-  { kind: 'ok'; newCanvasId: string } | { kind: 'not_found' } | { kind: 'forbidden' };
+  | { kind: 'ok'; newCanvasId: string }
+  | { kind: 'not_found' }
+  | { kind: 'forbidden' }
+  | { kind: 'category_mismatch' };
 
 type CanvasResizeSourceRow = Pick<CollabRow, 'id' | 'title' | 'created_by'> &
-  Pick<SidecarRow, 'template_type' | 'base_template_id' | 'page_count' | 'initial_state'>;
+  Pick<
+    SidecarRow,
+    'template_type' | 'base_template_id' | 'page_count' | 'initial_state' | 'format'
+  >;
 
 /** Caller must validate `formatId` (e.g. `getServerFormat`) before calling. */
 export async function resizeCanvas(
@@ -475,7 +548,8 @@ export async function resizeCanvas(
 ): Promise<ResizeResult> {
   const sourceRows = (await db.query(
     `SELECT cd.id, cd.title, cd.created_by,
-            cdoc.template_type, cdoc.base_template_id, cdoc.page_count, cdoc.initial_state
+            cdoc.template_type, cdoc.base_template_id, cdoc.page_count, cdoc.initial_state,
+            cdoc.format
      FROM collaborative_documents cd
      INNER JOIN canvas_documents cdoc ON cdoc.document_id = cd.id
      WHERE cd.id = $1 AND cd.document_subtype = $2 AND cd.is_deleted = false`,
@@ -494,6 +568,11 @@ export async function resizeCanvas(
     [id, CANVAS_SUBTYPE, userId]
   )) as Array<unknown>;
   if (accessRows.length === 0) return { kind: 'forbidden' };
+
+  // A print sheet is measured in mm with bleed; a digital one is not.
+  if (crossesFormatCategory(source.format, formatId)) {
+    return { kind: 'category_mismatch' };
+  }
 
   const newTitle = titleOverride ?? `${source.title} (${formatId})`;
 

@@ -33,6 +33,8 @@ export interface NotebookSearchInput {
   collectionId: string;
   query: string;
   userId: string;
+  /** The page's fast route; the voice port asks with it, chat and MCP do not. */
+  fastMode?: boolean;
 }
 
 export type NotebookSearchOutcome =
@@ -71,6 +73,7 @@ export async function runNotebookSearch(
       getCollectionFn: async () => collection,
       getDocumentIdsFn: async (cid) =>
         (await deps.helper.getCollectionDocuments(cid)).map((d) => d.document_id),
+      ...(input.fastMode ? { fastMode: true } : {}),
     });
     return { ok: true, notebookName: collection.name, result };
   } catch (err) {

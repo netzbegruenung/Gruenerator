@@ -1,5 +1,5 @@
-import { type StudioAssetItem } from '@gruenerator/contracts';
 import { type ProfilbildSticker, stickersForLocale } from '@gruenerator/shared/profilbild';
+import { type GalleryAsset } from '@gruenerator/shared/stickers';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -16,7 +16,7 @@ const TILE = PICKER_TILE;
 
 /**
  * One list without tabs, like web: the Grüne stickers, then the own and saved
- * ones, then Erstellen and Entdecken as tiles.
+ * ones, then Erstellen and the Marktplatz as tiles.
  */
 export function StickerPicker({
   isAustria,
@@ -25,7 +25,7 @@ export function StickerPicker({
 }: {
   isAustria: boolean;
   onAdd(sticker: ProfilbildSticker): void;
-  onAddGallery(item: StudioAssetItem): void;
+  onAddGallery(item: GalleryAsset): void;
 }) {
   const theme = useTheme();
   const router = useRouter();
@@ -50,7 +50,6 @@ export function StickerPicker({
       <View accessibilityLabel="Deine Sticker">
         <GalleryTiles
           kind="sticker"
-          source="own"
           onPick={onAddGallery}
           trailing={
             <>

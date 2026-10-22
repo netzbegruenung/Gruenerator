@@ -41,7 +41,7 @@ function backgroundNode(backgroundColor: string) {
           onSnapLinesChange={noop}
           stageWidth={1080}
           stageHeight={1350}
-          snapTargets={[]}
+          getSnapTargets={() => []}
         />
       </CanvasStage>
     </CanvasStoreProvider>

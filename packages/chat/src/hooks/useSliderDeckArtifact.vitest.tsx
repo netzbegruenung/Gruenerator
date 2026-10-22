@@ -3,11 +3,15 @@
  * "Im Editor öffnen" only works when the handler can mint — which needs the
  * thread the deck belongs to.
  */
-import { renderHook } from '@testing-library/react';
+import { act, render, renderHook, screen, fireEvent, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import { SliderDeckCard } from '../components/message-parts/SliderDeckCard';
+import { axe } from '../test-utils';
 
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import { useAgentStore } from '../stores/chatStore';
+import { useSharepicLiveStore } from '../stores/sharepicLiveStore';
 
 import { useSliderDeckArtifact } from './useSliderDeckArtifact';
 
@@ -27,6 +31,7 @@ const deck = {
 afterEach(() => {
   useChatConfigStore.setState({ onEditSharepic: undefined, renderSharepic: undefined });
   useAgentStore.setState({ currentThreadId: null });
+  useSharepicLiveStore.setState({ entries: {}, activeVariant: null });
 });
 
 describe('useSliderDeckArtifact.openInStudio', () => {
@@ -43,5 +48,78 @@ describe('useSliderDeckArtifact.openInStudio', () => {
       { threadId: 'thread-7' }
     );
     expect(onEditSharepic.mock.calls[0]?.[0]).not.toHaveProperty('canvasId');
+  });
+});
+
+describe('carousel preview descriptions', () => {
+  it('exposes slide content on the image and editor button after paging', async () => {
+    useChatConfigStore.setState({
+      renderSharepic: vi.fn().mockResolvedValue('data:image/png;base64,preview'),
+    });
+    const { container } = render(
+      <SliderDeckCard
+        variant={{
+          ...deck,
+          pages: [
+            { additionalTexts: [{ text: 'Sichere Radwege' }] },
+            { additionalTexts: [{ text: 'Für alle' }] },
+          ],
+        }}
+      />
+    );
+    expect(
+      await screen.findByRole('img', { name: 'Karussell-Folie 1 von 2: Sichere Radwege' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: 'Karussell-Folie 1 von 2: Sichere Radwege. Im Editor öffnen',
+      })
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Nächste Folie' }));
+    expect(
+      await screen.findByRole('img', { name: 'Karussell-Folie 2 von 2: Für alle' })
+    ).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('pairs alt text with each completed render and follows live editor state', async () => {
+    const pages = [
+      { additionalTexts: [{ text: '==Sichere Radwege==' }] },
+      { additionalTexts: [{ text: 'Mehr Platz für alle' }] },
+    ];
+    const render = vi.fn().mockResolvedValue('data:image/png;base64,first');
+    useChatConfigStore.setState({ renderSharepic: render });
+    const { result } = renderHook(() => useSliderDeckArtifact({ ...deck, pages }));
+    await waitFor(() =>
+      expect(result.current.imageAltText).toBe('Karussell-Folie 1 von 2: Sichere Radwege')
+    );
+
+    let finish: (value: string) => void = () => {};
+    render.mockImplementationOnce(
+      () =>
+        new Promise<string>((resolve) => {
+          finish = resolve;
+        })
+    );
+    act(() => result.current.selectSlide(1));
+    // The previous image stays visible while rendering, so its description stays too.
+    expect(result.current.imageAltText).toBe('Karussell-Folie 1 von 2: Sichere Radwege');
+    await act(async () => {
+      finish('data:image/png;base64,second');
+    });
+    expect(result.current.imageAltText).toBe('Karussell-Folie 2 von 2: Mehr Platz für alle');
+
+    act(() =>
+      useSharepicLiveStore.getState().upsertEntry(deck.id, {
+        canvasId: 'canvas-1',
+        canvasType: 'freeform',
+        version: 2,
+        state: null,
+        pages: [pages[0]!, { additionalTexts: [{ text: 'Im Editor geändert' }] }],
+      })
+    );
+    await waitFor(() =>
+      expect(result.current.imageAltText).toBe('Karussell-Folie 2 von 2: Im Editor geändert')
+    );
   });
 });

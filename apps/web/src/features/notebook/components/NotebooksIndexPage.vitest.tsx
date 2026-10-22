@@ -1,22 +1,35 @@
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 import { screen, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { useAuthStore } from '../../../stores/authStore';
+import { item, sectionsResponse } from '../../../test/marketplaceFixtures';
 import { server } from '../../../test/msw-server';
 import { renderWithProviders } from '../../../test-utils';
 
 import { NotebooksIndexFooter } from './NotebooksIndexPage';
 
-const PUBLIC_ENDPOINT = 'http://localhost/api/auth/notebook-collections/public';
+const MARKETPLACE_ENDPOINT = 'http://localhost/api/marketplace';
 const SHARED_ENDPOINT = 'http://localhost/api/auth/notebook-collections/shared';
 const LIKES_ENDPOINT = 'http://localhost/api/auth/notebook-collections/likes';
 const MONITOR_LATEST = 'http://localhost/api/monitor/latest';
 const MONITOR_POLLS = 'http://localhost/api/monitor/polls';
 const MONITOR_FEED = 'http://localhost/api/monitor/what-happened';
 
-// Minimal wire shape of a public collection — only the fields the gallery reads.
+vi.mock('@gruenerator/chat', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  useUserLandesverbaende: () => ({
+    lvIds: null,
+    headings: { agents: '', skills: '' },
+    shelfLabel: '',
+    isHydrated: true,
+  }),
+}));
+
+let marketplaceQueries: URLSearchParams[] = [];
+
+// Minimal wire shape of a collection — only the fields the gallery reads.
 const publicCollection = (over: Record<string, unknown> = {}) => ({
   id: 'basis-1',
   user_id: 'someone-else',
@@ -35,8 +48,15 @@ const publicCollection = (over: Record<string, unknown> = {}) => ({
 
 const EMPTY_FEED = { days: [], totalCount: 0, sourceGroups: [], landesverbaende: [] };
 
+const SAVED = item('notebook', 'Kommunalpolitik Nord', {
+  ref: 'basis-1',
+  authorName: 'Jamie Grün',
+  saved: true,
+});
+
 function serveCollections(
-  collections: ReturnType<typeof publicCollection>[],
+  /** Notebooks bookmarked in the Marktplatz — what „Gemerkt" lists. */
+  saved: ReturnType<typeof item>[],
   // The tool tiles fetch live subtexts; empty payloads keep them on their
   // static descriptions instead of failing the unhandled-request guard.
   monitor: Record<string, unknown> = { topics: [] },
@@ -44,7 +64,12 @@ function serveCollections(
   shared: ReturnType<typeof publicCollection>[] = []
 ) {
   server.use(
-    http.get(PUBLIC_ENDPOINT, () => HttpResponse.json({ success: true, collections })),
+    http.get(MARKETPLACE_ENDPOINT, ({ request }) => {
+      const params = new URL(request.url).searchParams;
+      marketplaceQueries.push(params);
+      const items = params.get('scope') === 'saved' ? saved : [];
+      return HttpResponse.json(sectionsResponse([{ kind: 'notebook', items, hasMore: false }]));
+    }),
     http.get(SHARED_ENDPOINT, () => HttpResponse.json({ success: true, collections: shared })),
     http.get(LIKES_ENDPOINT, () => HttpResponse.json({ success: true, liked_ids: [] })),
     http.get(MONITOR_LATEST, () => HttpResponse.json(monitor, { status: 200 })),
@@ -59,50 +84,55 @@ beforeAll(() => {
 
 afterEach(() => {
   server.resetHandlers();
+  marketplaceQueries = [];
 });
 
-describe('NotebooksIndexFooter — „Öffentlich"', () => {
-  it('shows the category tile with the public notebook count', async () => {
-    serveCollections([publicCollection(), publicCollection({ id: 'basis-2', name: 'Zweites' })]);
+describe('NotebooksIndexFooter — „Gemerkt" and Landesverbände', () => {
+  it('has no „Öffentlich" tile — public notebooks live in the Marktplatz', async () => {
+    serveCollections([]);
 
     renderWithProviders(<NotebooksIndexFooter />);
-
-    expect(await screen.findByRole('button', { name: /Öffentlich/ })).toBeInTheDocument();
-    expect(screen.getByText('2 öffentliche Notebooks')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /Landesverbände/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Öffentlich/ })).not.toBeInTheDocument();
   });
 
-  it('uses the singular label for exactly one public notebook', async () => {
-    serveCollections([publicCollection()]);
-
-    renderWithProviders(<NotebooksIndexFooter />);
-
-    expect(await screen.findByText('1 öffentliches Notebook')).toBeInTheDocument();
-  });
-
-  it('expands into the community notebooks with author attribution', async () => {
-    serveCollections([publicCollection()]);
+  it('shows the Landesverband notebooks with their Marktplatz photos', async () => {
+    serveCollections([]);
 
     const { user } = renderWithProviders(<NotebooksIndexFooter />);
-    await user.click(await screen.findByRole('button', { name: /Öffentlich/ }));
+    await user.click(await screen.findByRole('button', { name: /Landesverbände/ }));
+
+    const section = screen
+      .getByRole('heading', { level: 2, name: 'Landesverbände' })
+      .closest('section');
+    const photos = [...section!.querySelectorAll('img')].map((img) => img.getAttribute('src'));
+    expect(photos.length).toBeGreaterThan(0);
+    expect(photos.every((src) => src?.startsWith('/images/marketplace/landesverbaende/'))).toBe(
+      true
+    );
+  });
+
+  it('lists the notebooks bookmarked in the Marktplatz under „Gemerkt", with their author', async () => {
+    serveCollections([SAVED]);
+
+    const { user } = renderWithProviders(<NotebooksIndexFooter />);
+    expect(await screen.findByText('1 gemerktes Notebook')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Gemerkt/ }));
 
     // The card title is an h3, the section header an h2 — level pins the latter.
-    const section = screen
-      .getByRole('heading', { level: 2, name: 'Öffentlich' })
-      .closest('section');
+    const section = screen.getByRole('heading', { level: 2, name: 'Gemerkt' }).closest('section');
     expect(section).not.toBeNull();
     expect(within(section!).getByText('Kommunalpolitik Nord')).toBeInTheDocument();
     expect(within(section!).getByText('von Jamie Grün')).toBeInTheDocument();
   });
 
-  it('hides the tile when no notebook is publicly listed', async () => {
+  it('shows no „Gemerkt" tile while nothing is bookmarked', async () => {
     serveCollections([]);
 
     renderWithProviders(<NotebooksIndexFooter />);
 
-    // The Tools row renders unconditionally — wait for it so the absence below
-    // is measured after the public query settled, not before it resolved.
-    expect(await screen.findByText('Neues Notebook erstellen')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Öffentlich/ })).not.toBeInTheDocument();
+    expect(await screen.findByText('Neues erstellen')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Gemerkt/ })).not.toBeInTheDocument();
   });
 });
 
@@ -122,12 +152,11 @@ describe('NotebooksIndexFooter — „Parlamente"', () => {
       .getByRole('heading', { level: 2, name: 'Parlamente' })
       .closest('section');
     expect(section).not.toBeNull();
-    // Every tile is a cover now (designed webp or NotebookCoverArt), so the
-    // title is the stretched button's label, not a footer heading.
+    // A tile's name is its title plus description; the title is its first line.
     const titles = within(section!)
       .getAllByRole('button')
-      .map((b) => b.getAttribute('aria-label'))
-      .filter((label) => label && !/favorit/i.test(label));
+      .filter((b) => !/favorit/i.test(b.getAttribute('aria-label') ?? ''))
+      .map((b) => b.querySelector('.min-w-0 > span')?.textContent);
     expect(titles).toEqual([
       'Bundestagsfraktion',
       'Bundestag: Reden & Drucksachen',
@@ -145,7 +174,7 @@ describe('NotebooksIndexFooter — „Parlamente"', () => {
 
     renderWithProviders(<NotebooksIndexFooter />);
 
-    expect(await screen.findByText('Neues Notebook erstellen')).toBeInTheDocument();
+    expect(await screen.findByText('Neues erstellen')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Parlamente/ })).not.toBeInTheDocument();
   });
 });
@@ -176,26 +205,12 @@ describe('NotebooksIndexFooter — „Mit dir geteilt"', () => {
     expect(within(section!).getByText('via KV Nord')).toBeInTheDocument();
   });
 
-  it('lists a notebook that is both shared and public only under „Mit dir geteilt"', async () => {
-    serveCollections(
-      [publicCollection({ id: 'both' }), publicCollection({ id: 'basis-2', name: 'Zweites' })],
-      undefined,
-      undefined,
-      [sharedCollection({ id: 'both' })]
-    );
-
-    renderWithProviders(<NotebooksIndexFooter />);
-
-    expect(await screen.findByText('1 geteiltes Notebook')).toBeInTheDocument();
-    expect(await screen.findByText('1 öffentliches Notebook')).toBeInTheDocument();
-  });
-
   it('hides the tile when nothing is shared with the user', async () => {
     serveCollections([]);
 
     renderWithProviders(<NotebooksIndexFooter />);
 
-    expect(await screen.findByText('Neues Notebook erstellen')).toBeInTheDocument();
+    expect(await screen.findByText('Neues erstellen')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Mit dir geteilt/ })).not.toBeInTheDocument();
   });
 });
@@ -290,7 +305,7 @@ describe('NotebooksIndexFooter — Wissensdatenbank offline', () => {
 
     renderWithProviders(<NotebooksIndexFooter />);
 
-    expect(await screen.findByText('Neues Notebook erstellen')).toBeInTheDocument();
+    expect(await screen.findByText('Neues erstellen')).toBeInTheDocument();
     await new Promise((r) => setTimeout(r, 1500));
     expect(screen.queryByText(NOTICE)).not.toBeInTheDocument();
   });

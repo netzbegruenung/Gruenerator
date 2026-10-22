@@ -119,9 +119,9 @@ describe('board_comment', () => {
 
 describe('Registry', () => {
   it('Gruppen-Typen tragen keinen onChanged-Hook', async () => {
-    const result = await reactionTargets.group_share('u1', 'keine-uuid');
+    const result = await reactionTargets.group_share('u1', 'keine-uuid', null);
     expect(result).toEqual({ access: 'not_found' });
-    expect(await reactionTargets.group_comment('u1', 'keine-uuid')).toEqual({
+    expect(await reactionTargets.group_comment('u1', 'keine-uuid', null)).toEqual({
       access: 'not_found',
     });
   });

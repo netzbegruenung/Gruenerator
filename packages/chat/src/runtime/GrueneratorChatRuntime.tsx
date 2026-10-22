@@ -17,7 +17,7 @@ import {
   type ChatModelRunResult,
 } from '@assistant-ui/react';
 import { isApiErrorWithStatus } from '@gruenerator/shared/api';
-import { GrueneratorRealtimeVoiceAdapter, VoxtralDictationAdapter } from '@gruenerator/voice';
+import { VoxtralDictationAdapter } from '@gruenerator/voice';
 import {
   type ReactNode,
   useMemo,
@@ -224,9 +224,6 @@ function useGrueneratorThreadRuntime() {
     }))
   );
   const incrementMessageCount = useAgentStore((s) => s.incrementMessageCount);
-  const needsCompaction = useAgentStore((s) => s.needsCompaction);
-  const compactionState = useAgentStore((s) => s.compactionState);
-  const triggerCompaction = useAgentStore((s) => s.triggerCompaction);
 
   const getConfig = useCallback((): GrueneratorAdapterConfig => {
     // `auto` is sent through as-is: the server resolves it AFTER the classifier
@@ -299,24 +296,14 @@ function useGrueneratorThreadRuntime() {
     useAgentStore.setState({ roleRefSource: 'load' });
   }, [currentThreadId, roleRefSource]);
 
-  const needsCompactionRef = useRef(needsCompaction);
-  needsCompactionRef.current = needsCompaction;
-  const compactionSummaryRef = useRef(compactionState.summary);
-  compactionSummaryRef.current = compactionState.summary;
-
   const onComplete = useCallback(
     (_metadata: StreamMetadata) => {
-      const tid = useAgentStore.getState().currentThreadId;
-      if (tid) {
+      if (useAgentStore.getState().currentThreadId) {
         incrementMessageCount();
         incrementMessageCount();
-
-        if (needsCompactionRef.current && !compactionSummaryRef.current) {
-          void triggerCompaction(tid, runtimeApiClient);
-        }
       }
     },
-    [incrementMessageCount, triggerCompaction, runtimeApiClient]
+    [incrementMessageCount]
   );
 
   const interruptSignal = useInterruptSignal();
@@ -335,15 +322,10 @@ function useGrueneratorThreadRuntime() {
     []
   );
 
-  const voiceAdapter = useMemo(
-    () =>
-      new GrueneratorRealtimeVoiceAdapter({
-        getThreadId: () => useAgentStore.getState().currentThreadId,
-        getAgentId: () => useAgentStore.getState().selectedAgentId,
-        onError: (reason, err) => console.error(`[RealtimeVoice] ${reason}:`, err),
-      }),
-    []
-  );
+  // Only when the host offers a voice conversation; without the adapter the
+  // composer hides its voice button (capabilities.voice).
+  const createVoiceAdapter = useChatConfigStore((s) => s.voice?.createAdapter);
+  const voiceAdapter = useMemo(() => createVoiceAdapter?.(), [createVoiceAdapter]);
 
   const feedbackAdapter = useFeedbackAdapter();
 

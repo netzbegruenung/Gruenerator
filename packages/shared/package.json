@@ -238,11 +238,29 @@
       "import": "./dist/studio-assets/index.js",
       "default": "./dist/studio-assets/index.js"
     },
+    "./marketplace": {
+      "development": "./src/marketplace/index.ts",
+      "types": "./src/marketplace/index.ts",
+      "import": "./dist/marketplace/index.js",
+      "default": "./dist/marketplace/index.js"
+    },
+    "./marketplace/frontpage": {
+      "development": "./src/marketplace/frontpage.ts",
+      "types": "./src/marketplace/frontpage.ts",
+      "import": "./dist/marketplace/frontpage.js",
+      "default": "./dist/marketplace/frontpage.js"
+    },
     "./reactions": {
       "development": "./src/reactions/index.ts",
       "types": "./src/reactions/index.ts",
       "import": "./dist/reactions/index.js",
       "default": "./dist/reactions/index.js"
+    },
+    "./comments": {
+      "development": "./src/comments/index.ts",
+      "types": "./src/comments/index.ts",
+      "import": "./dist/comments/index.js",
+      "default": "./dist/comments/index.js"
     },
     "./grueneratoren": {
       "development": "./src/grueneratoren/index.ts",
@@ -329,7 +347,7 @@
   "devDependencies": {
     "@gruenerator/eslint-config": "workspace:*",
     "@gruenerator/ui": "workspace:*",
-    "@tanstack/react-query": "^5.104.1",
+    "@tanstack/react-query": "^5.104.3",
     "@types/react": "19.3.0",
     "chokidar": "^5.0.0",
     "cross-env": "^10.1.0",
@@ -337,7 +355,7 @@
     "gray-matter": "^4.0.3",
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.5"
   },
   "peerDependencies": {
     "@gruenerator/ui": "workspace:*",

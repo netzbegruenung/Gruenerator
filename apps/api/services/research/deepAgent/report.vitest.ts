@@ -5,27 +5,9 @@ import {
   extractTitle,
   isUsableReport,
   markPartial,
-  readFile,
   stripInternalReferences,
   summaryFromReport,
 } from './report.js';
-
-describe('readFile', () => {
-  it('reads the v1 line-array shape', () => {
-    const files = { '/bericht.md': { content: ['# Titel', '', 'Text'] } };
-    expect(readFile(files, '/bericht.md')).toBe('# Titel\n\nText');
-  });
-
-  it('reads the v2 plain-string shape', () => {
-    expect(readFile({ '/bericht.md': { content: '# Titel' } }, '/bericht.md')).toBe('# Titel');
-  });
-
-  it('returns null for a missing file or a non-object state', () => {
-    expect(readFile({}, '/bericht.md')).toBeNull();
-    expect(readFile(null, '/bericht.md')).toBeNull();
-    expect(readFile(undefined, '/bericht.md')).toBeNull();
-  });
-});
 
 describe('extractTitle', () => {
   it('prefers the H1', () => {

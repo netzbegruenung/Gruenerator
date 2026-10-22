@@ -9,7 +9,10 @@
 
 import { isGroundableProse } from '@gruenerator/shared/chat-intents';
 
-import { buildSystemMessage } from '../../../agents/langgraph/ChatGraph/index.js';
+import {
+  buildSystemMessage,
+  restoreAttachmentsDroppedWithHistory,
+} from '../../../agents/langgraph/ChatGraph/index.js';
 import { knownArtifactRefs } from '../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 import { promptCacheKeyForThread } from '../../../services/ai/promptCacheKey.js';
 import { looksLikeMemoryRequest } from '../../../services/memory/memoryRequest.js';
@@ -224,7 +227,7 @@ export async function runSinglePassAnswer({
       resolvedContextWindow,
       systemMessage
     );
-    const { systemMessage: finalSystemMessage, messages: contextMessages } = actualThreadId
+    const { systemMessage: compactedSystemMessage, messages: contextMessages } = actualThreadId
       ? await applyCompaction(
           actualThreadId,
           prunedValidMessages,
@@ -232,6 +235,12 @@ export async function runSinglePassAnswer({
           resolvedContextWindow
         )
       : { systemMessage, messages: prunedValidMessages };
+    const finalSystemMessage = restoreAttachmentsDroppedWithHistory(
+      finalState,
+      systemMessage,
+      compactedSystemMessage,
+      contextMessages
+    );
 
     const assembleMessages = (history: typeof contextMessages) => {
       const built = buildMessagesForAI(

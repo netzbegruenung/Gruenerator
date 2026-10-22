@@ -112,7 +112,7 @@ export interface EditSuggestionResult {
  * @gruenerator/contracts (`websiteContentSchema`) — dort prüft der
  * Vertrags-Router die Modellantwort tatsächlich gegen sie, und der
  * Seitenbauer leitet denselben Typ ab. Hier nur noch weitergereicht, damit
- * die bestehenden Importpfade im FlyerToSiteGraph unverändert bleiben.
+ * die bestehenden Importpfade der Flyer-Pipeline unverändert bleiben.
  */
 export type { WebsiteContent, WebsiteTheme, WebsiteAction } from '@gruenerator/contracts';
 

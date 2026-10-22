@@ -1,3 +1,5 @@
+import { type DriveStep } from 'driver.js';
+
 import { openChatThenNext } from './editorTourHelpers';
 import { runTour } from './runTour';
 
@@ -9,7 +11,32 @@ const SEL = {
   topbar: '[data-tour="canvas-topbar"]',
 } as const;
 
+/** Mirrors the canvas editor's mobile breakpoint, where the chat tab is hidden. */
+const CANVAS_MOBILE_QUERY = '(max-width: 899px)';
+
+const CHAT_STEPS: DriveStep[] = [
+  {
+    element: SEL.chatTab,
+    popover: {
+      title: 'KI-Chat',
+      description: 'Hier öffnest du den Assistenten für dieses Sharepic.',
+      side: 'right',
+      onNextClick: openChatThenNext(SEL.chatTab, SEL.chat),
+    },
+  },
+  {
+    element: SEL.chat,
+    popover: {
+      title: 'Mit dem Sharepic arbeiten',
+      description:
+        'Beschreib eine Änderung („Mach das Zitat schlagkräftiger") — die KI wendet sie direkt auf dem Canvas an.',
+      side: 'right',
+    },
+  },
+];
+
 export function startCanvasTour(): void {
+  const withChat = !window.matchMedia(CANVAS_MOBILE_QUERY).matches;
   runTour('canvas', [
     {
       element: SEL.stage,
@@ -24,28 +51,11 @@ export function startCanvasTour(): void {
       popover: {
         title: 'Die Werkzeugleiste',
         description:
-          'Hintergrund, Text, Elemente, Tools und Uploads — hier erreichst du alle Bearbeitungsoptionen für dein Sharepic.',
+          'Vorlagen, Text, Elemente, Tools und Uploads — hier erreichst du alle Bearbeitungsoptionen für dein Sharepic. Den Hintergrund änderst du per Klick auf ihn.',
         side: 'right',
       },
     },
-    {
-      element: SEL.chatTab,
-      popover: {
-        title: 'KI-Chat',
-        description: 'Hier öffnest du den Assistenten für dieses Sharepic.',
-        side: 'right',
-        onNextClick: openChatThenNext(SEL.chatTab, SEL.chat),
-      },
-    },
-    {
-      element: SEL.chat,
-      popover: {
-        title: 'Mit dem Sharepic arbeiten',
-        description:
-          'Beschreib eine Änderung („Mach das Zitat schlagkräftiger") — die KI wendet sie direkt auf dem Canvas an.',
-        side: 'right',
-      },
-    },
+    ...(withChat ? CHAT_STEPS : []),
     {
       element: SEL.topbar,
       popover: {

@@ -128,6 +128,8 @@
   --color-editor-active-fg: var(--editor-active-fg);
   --color-editor-active-bg: var(--editor-active-bg);
   --color-editor-active-soft: var(--editor-active-soft);
+  --color-editor-stack-back: var(--editor-stack-back);
+  --color-editor-stack-mid: var(--editor-stack-mid);
   --color-editor-secondary-fg: var(--editor-secondary-fg);
   --color-editor-danger-fg: var(--editor-danger-fg);
   --color-editor-danger-bg: var(--editor-danger-bg);
@@ -208,6 +210,27 @@
 @keyframes auto-save-check-in {
   from { opacity: 0; transform: scale(0.5); }
   to { opacity: 1; transform: scale(1); }
+}
+
+/* Elemente-Katalog: Einblenden beim Öffnen, je Kachel um 45 ms versetzt (max. 12) */
+@utility element-enter {
+  animation:
+    elementFade 0.4s ease both,
+    elementRise 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(min(var(--i, 0), 12) * 45ms);
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+/* Elemente-Katalog: gestaffeltes Einblenden (Opazität und Lage getrennt getaktet) */
+@keyframes elementFade {
+  from { opacity: 0; }
+}
+
+@keyframes elementRise {
+  from { transform: var(--enter-from, none); }
 }
 
 @keyframes subsectionFadeIn {

@@ -26,12 +26,15 @@ import { layoutRichTextBlock } from '@gruenerator/contracts';
 import { useRef, useEffect, useCallback, useMemo, useState, Fragment } from 'react';
 import { Group, Rect, Text as KonvaText, Transformer } from 'react-konva';
 
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { overlayBoxForNode, useCanvasTextEditor } from '../components/CanvasTextOverlay';
 import { useFontGeneration } from '../hooks/useFontGeneration';
 import { useGeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
+import { gradientFillProps } from '../utils/gradientFill';
 import { markerBoxes } from '../utils/markerBoxes';
 import { DEFAULT_TEXT_MARKER, markerInkOn } from '../utils/markerColors';
+import { isGroupDrag } from '../utils/multiSelect';
 import { calculateElementSnapPosition } from '../utils/snapping';
 import { runFont, runMeasurer } from '../utils/textUtils';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
@@ -62,6 +65,7 @@ export function CanvasRichText({
   shadowOffsetX,
   shadowOffsetY,
   shadowOpacity,
+  fillGradient,
   align = 'left',
   accent = null,
   marker: templateMarker = null,
@@ -80,11 +84,12 @@ export function CanvasRichText({
   stageWidth,
   stageHeight,
   onSnapChange,
-  snapTargets,
+  getSnapTargets,
   onPositionChange,
   onGeometryChange,
   onSnapLinesChange,
 }: CanvasTextProps) {
+  const locked = useIsItemLocked();
   const groupRef = useRef<Konva.Group>(null);
   const trRef = useRef<Konva.Transformer>(null);
   const { open, isEditing } = useCanvasTextEditor(id, editable);
@@ -178,14 +183,16 @@ export function CanvasRichText({
   const handleDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
       const node = e.target;
+      if (isGroupDrag(node)) return;
       if (!stageWidth || !stageHeight) return;
-      if ((snapTargets && snapTargets.length > 0) || snapToCenter) {
+      const snapTargets = getSnapTargets?.(id ?? '') ?? [];
+      if (snapTargets.length > 0 || snapToCenter) {
         const result = calculateElementSnapPosition(
           node.x(),
           node.y(),
           blockWidth * node.scaleX(),
           blockHeight * node.scaleY(),
-          snapTargets || [],
+          snapTargets,
           stageWidth,
           stageHeight,
           snap.hysteresis
@@ -194,7 +201,7 @@ export function CanvasRichText({
         snap.scheduleSnap(result.snapH, result.snapV, result.snapLines);
       }
     },
-    [snapToCenter, stageWidth, stageHeight, snapTargets, snap, blockWidth, blockHeight]
+    [id, snapToCenter, stageWidth, stageHeight, getSnapTargets, snap, blockWidth, blockHeight]
   );
 
   const handleDragEnd = useCallback(
@@ -295,6 +302,18 @@ export function CanvasRichText({
 
   const enabledAnchors = transformConfig?.enabledAnchors ?? DEFAULT_TEXT_ANCHORS;
 
+  // One gradient across the whole block: each run node paints it in its own
+  // coordinates, so the block box is shifted by the node's position.
+  const gradientAt = (nodeX: number, nodeY: number) =>
+    fillGradient
+      ? gradientFillProps(fillGradient, {
+          x: -nodeX,
+          y: -nodeY,
+          width: blockWidth,
+          height: blockHeight,
+        })
+      : null;
+
   return (
     <>
       <Group
@@ -306,7 +325,7 @@ export function CanvasRichText({
         height={blockHeight}
         rotation={rotation}
         opacity={opacity}
-        draggable={draggable && !isEditing}
+        draggable={draggable && !isEditing && !locked}
         visible={!isEditing}
         onMouseDown={onSelect}
         onTouchStart={onSelect}
@@ -363,6 +382,7 @@ export function CanvasRichText({
                   fontFamily={fontFamily}
                   fontStyle={fontStyle}
                   fill={fill}
+                  {...gradientAt(padding + offset, top)}
                   lineHeight={lineHeight}
                   wrap="none"
                   listening={false}
@@ -387,6 +407,10 @@ export function CanvasRichText({
                       }
                     : {
                         fill: run.accentColor ?? (run.accent && accent ? accent.fill : fill),
+                        // An accent keeps its own colour; only base-coloured runs carry the gradient.
+                        ...(!run.accentColor &&
+                          !(run.accent && accent) &&
+                          gradientAt(padding + offset + line.indent + run.x, top)),
                         stroke,
                         strokeWidth,
                         fillAfterStrokeEnabled: !!stroke && (strokeWidth ?? 0) > 0,
@@ -423,6 +447,7 @@ export function CanvasRichText({
             if (newBox.width > maxWidth) return oldBox;
             return newBox;
           }}
+          {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}
     </>

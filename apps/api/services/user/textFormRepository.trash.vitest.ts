@@ -50,6 +50,10 @@ vi.mock('../../database/services/DrizzleService.js', () => ({
     },
   }),
 }));
+const deleteLikesForEntity = vi.fn(async (_type: string, _id: string) => {});
+vi.mock('../entityLikes/EntityLikesService.js', () => ({ deleteLikesForEntity }));
+const deleteCommentsForEntity = vi.fn(async (_type: string, _id: string) => {});
+vi.mock('../entityComments/entityCommentsCleanup.js', () => ({ deleteCommentsForEntity }));
 vi.mock('../../database/services/PostgresService.js', () => ({
   getPostgresInstance: () => ({
     query: async (sql: string, params: unknown[] = []) => {
@@ -86,7 +90,7 @@ describe('Rezept Papierkorb', () => {
   it('own, shared and mentionable readers hide trashed recipes', async () => {
     await listTextForms('u1');
     expect(whereSql(0)).toContain('"deleted_at" is null');
-    await listMentionableTextForms('u1');
+    await listMentionableTextForms('u1', undefined, { viewerLocale: 'de-DE' });
     for (const sql of rawSql.filter((s) => s.includes('FROM user_text_forms tf'))) {
       expect(sql).toContain('tf.deleted_at IS NULL');
     }
@@ -113,8 +117,12 @@ describe('Rezept Papierkorb', () => {
     expect(rawSql[0]).toContain('DELETE FROM user_text_forms');
     expect(rawSql[0]).toContain('deleted_at IS NOT NULL');
     expect(rawParams[0]).toEqual([ID, cutoff]);
+    expect(deleteLikesForEntity).toHaveBeenCalledWith('recipe', ID);
+    expect(deleteCommentsForEntity).toHaveBeenCalledWith('recipe', ID);
 
+    deleteLikesForEntity.mockClear();
     rawRows = [];
     await expect(purgeTextForm(ID, null)).resolves.toBe(false);
+    expect(deleteLikesForEntity).not.toHaveBeenCalled();
   });
 });

@@ -29,7 +29,8 @@ export function removeStudioAssetFromPages(data: StudioAssetPages, id: string): 
   };
 }
 
-export const toggledLike = (item: StudioAssetItem): StudioAssetItem => ({
+/** Flips `liked` and moves the count with it — for any item that carries both (studio assets, Marktplatz items). */
+export const toggledLike = <T extends { liked: boolean; likesCount: number }>(item: T): T => ({
   ...item,
   liked: !item.liked,
   likesCount: Math.max(0, item.likesCount + (item.liked ? -1 : 1)),

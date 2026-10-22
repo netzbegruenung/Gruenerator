@@ -2,6 +2,7 @@ import type * as SharedModule from '@gruenerator/shared';
 
 import { NativeDownloadTooLargeError } from '@gruenerator/shared';
 import { act, renderHook, waitFor } from '@testing-library/react';
+import { unzipSync } from 'fflate';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const downloadBlob = vi.fn();
@@ -15,9 +16,6 @@ vi.mock('@gruenerator/shared', async (importOriginal) => {
     downloadDataUrl: (...a: unknown[]): unknown => downloadDataUrl(...a),
   };
 });
-vi.mock('../../CanvasEditorProvider', () => ({
-  useCanvasEditorServices: () => ({ apiBaseUrl: '' }),
-}));
 
 import { useMultiPageExport } from '../useMultiPageExport';
 
@@ -29,10 +27,7 @@ describe('useMultiPageExport too-large ZIP', () => {
   beforeEach(() => {
     downloadBlob.mockReset();
     downloadDataUrl.mockReset();
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({ ok: true, blob: async () => new Blob(['zip']) })
-    );
+    vi.stubGlobal('fetch', vi.fn());
     vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
@@ -86,5 +81,21 @@ describe('useMultiPageExport too-large ZIP', () => {
 
     expect(downloadDataUrl).not.toHaveBeenCalled();
     expect(result.current.error).toBe('kaputt');
+  });
+});
+
+describe('useMultiPageExport client-side ZIP', () => {
+  it('packs the pages in the browser without a network call', async () => {
+    downloadBlob.mockReset().mockResolvedValue(undefined);
+    vi.stubGlobal('fetch', vi.fn());
+    const { result } = renderHook(() => useMultiPageExport({ canvasRefs: refs, canvasType: 'x' }));
+    await act(() => result.current.downloadAllAsZip());
+
+    expect(fetch).not.toHaveBeenCalled();
+    const [blob, name] = downloadBlob.mock.calls[0] as [Blob, string];
+    expect(name).toMatch(/^gruenerator-x-.*\.zip$/);
+    const entries = unzipSync(new Uint8Array(await blob.arrayBuffer()));
+    expect(Object.keys(entries)).toEqual(['seite-1.png', 'seite-2.png']);
+    expect(result.current.error).toBeNull();
   });
 });

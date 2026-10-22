@@ -29,7 +29,7 @@ function renderBar(props: { onOpenArea?: () => void; onDone?: () => void } = {})
         canMoveDown={false}
         canDuplicate
         handlers={HANDLERS}
-        onDelete={() => {}}
+        onDeletePage={() => {}}
         onDeselect={() => {}}
         onDone={props.onDone ?? (() => {})}
         onOpenArea={props.onOpenArea}

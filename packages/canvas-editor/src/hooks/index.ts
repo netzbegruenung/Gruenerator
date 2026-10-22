@@ -35,12 +35,6 @@ export type {
 export { useCanvasKeyboardHandlers } from './useCanvasKeyboardHandlers';
 export type { UseCanvasKeyboardHandlersOptions } from './useCanvasKeyboardHandlers';
 
-export { useCanvasLayerControls } from './useCanvasLayerControls';
-export type {
-  UseCanvasLayerControlsOptions,
-  UseCanvasLayerControlsResult,
-} from './useCanvasLayerControls';
-
 export { useFontGeneration } from './useFontGeneration';
 export { useFontLoader } from './useFontLoader';
 export type { UseFontLoaderOptions, UseFontLoaderResult } from './useFontLoader';

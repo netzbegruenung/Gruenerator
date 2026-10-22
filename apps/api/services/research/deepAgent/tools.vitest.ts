@@ -1,3 +1,4 @@
+import { type ToolSet } from 'ai';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
@@ -46,8 +47,18 @@ const { env } = await import('../../../config/env.js');
 const { createBudget } = await import('./types.js');
 
 interface RunnableTool {
-  name: string;
   invoke: (input: unknown) => Promise<string>;
+}
+
+/** The AI SDK tool as the tests drive it: input in, string out. */
+function runnable(tools: ToolSet, name: string): RunnableTool {
+  const found = tools[name];
+  if (!found?.execute) throw new Error(`tool ${name} missing`);
+  const execute = found.execute;
+  return {
+    invoke: async (input) =>
+      (await execute(input as never, { toolCallId: 't', messages: [] } as never)) as string,
+  };
 }
 
 function setup(overrides: { softDeadlineAt?: number } = {}) {
@@ -57,17 +68,12 @@ function setup(overrides: { softDeadlineAt?: number } = {}) {
     sources: new Map<string, { url: string; title: string }>(),
     onStep: vi.fn(),
   };
-  const tools = createResearchTools(ctx) as unknown as RunnableTool[];
-  const byName = (name: string): RunnableTool => {
-    const found = tools.find((t) => t.name === name);
-    if (!found) throw new Error(`tool ${name} missing`);
-    return found;
-  };
+  const tools = createResearchTools(ctx);
   return {
     ctx,
-    webSuche: byName('web_suche'),
-    tiefenSuche: byName('tiefen_suche'),
-    seiteLesen: byName('seite_lesen'),
+    webSuche: runnable(tools, 'web_suche'),
+    tiefenSuche: runnable(tools, 'tiefen_suche'),
+    seiteLesen: runnable(tools, 'seite_lesen'),
   };
 }
 
@@ -526,11 +532,11 @@ describe('subagent toolsets', () => {
       documentIds: [],
       userId: 'u1',
     },
-  } as never) as unknown as RunnableTool[];
-  const leadNames = leadTools.map((t) => t.name);
+  } as never);
+  const leadNames = Object.keys(leadTools);
 
   it('gives the web researcher no way into the corpora', () => {
-    const names = toolsFor(leadTools, 'web-recherche').map((t) => t.name);
+    const names = Object.keys(toolsFor(leadTools, 'web-recherche'));
 
     expect(names).toEqual(['web_suche', 'seite_lesen']);
   });
@@ -538,7 +544,7 @@ describe('subagent toolsets', () => {
   it('gives the programme researcher no way into the open web', () => {
     // The point of the split: a question about the party's own resolutions
     // cannot be answered out of a newspaper by accident.
-    const names = toolsFor(leadTools, 'programm-recherche').map((t) => t.name);
+    const names = Object.keys(toolsFor(leadTools, 'programm-recherche'));
 
     expect(names).toContain('notebook_suche');
     expect(names).not.toContain('web_suche');
@@ -549,7 +555,7 @@ describe('subagent toolsets', () => {
     // concurrent, several workers would race for them — the cap holds either
     // way, but which sub-question gets them should be a decision, not a race.
     for (const subagent of Object.keys(SUBAGENT_TOOLSETS) as (keyof typeof SUBAGENT_TOOLSETS)[]) {
-      expect(toolsFor(leadTools, subagent).map((t) => t.name)).not.toContain('tiefen_suche');
+      expect(Object.keys(toolsFor(leadTools, subagent))).not.toContain('tiefen_suche');
     }
     expect(leadNames).toContain('tiefen_suche');
   });

@@ -51,22 +51,6 @@ export async function trackUnsplashDownloadLive(downloadLocation: string): Promi
   return trackUnsplashDownloadLiveShared(apiClient, downloadLocation);
 }
 
-export async function fetchUnsplashImageAsFile(image: StockImage): Promise<File> {
-  if (!image.url) {
-    throw new Error('Image URL is required');
-  }
-
-  const response = await fetch(image.url);
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch Unsplash image');
-  }
-
-  const blob = await response.blob();
-  const filename = image.filename || 'unsplash-image.jpg';
-  return new File([blob], filename, { type: blob.type || 'image/jpeg' });
-}
-
 interface ImaginePureResponse {
   image: { base64: string; filename?: string };
   usage?: TreeBudgetStatus;

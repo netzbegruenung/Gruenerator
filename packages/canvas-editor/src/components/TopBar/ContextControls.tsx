@@ -1,13 +1,24 @@
 import React, { useState } from 'react';
-import { PiCopy } from 'react-icons/pi';
+import { PiCopy, PiLockSimple, PiLockSimpleOpen, PiTrash } from 'react-icons/pi';
 
+import { type BackgroundControls } from '../../configs/types';
 import { type ShadowPatch } from '../../hooks/useFloatingModuleHandlers';
 import { type FloatingModuleState } from '../../hooks/useFloatingModuleState';
+import { formatShortcut, isMacPlatform, shortcutOf } from '../../utils/canvasCommandRegistry';
 import { type GradientFill } from '../../utils/gradientFill';
-import { FONT_COLORS, STROKE_ONLY_SHAPES } from '../../utils/shapes';
+import { type LockState } from '../../utils/layerLock';
+import { BRAND_COLORS, FONT_COLORS, STROKE_ONLY_SHAPES } from '../../utils/shapes';
 import { useCanvasTextFormatting } from '../CanvasTextOverlay';
 import { type AlignmentDirection } from '../Toolbar';
 
+import {
+  BackgroundImagePicker,
+  BackgroundLockToggle,
+  BackgroundRemoveImageButton,
+  BackgroundRestoreImageButton,
+  BackgroundZoomControl,
+  SetAsBackgroundButton,
+} from './modules/FloatingBackgroundControls';
 import { FloatingColorPicker } from './modules/FloatingColorPicker';
 import { FloatingFontSizeControl } from './modules/FloatingFontSizeControl';
 import { FloatingGradientControl } from './modules/FloatingGradientControl';
@@ -24,6 +35,13 @@ export interface ContextControlsProps {
   /** Vorlagen-Elemente und Icons lassen sich nicht duplizieren — der Knopf
    *  bleibt sichtbar und ausgegraut, statt zu verschwinden. */
   canDuplicate: boolean;
+  /** The selected framed photo is in Ausschnitt mode. */
+  isCropping?: boolean;
+  /** Gesperrt: nicht ziehen, skalieren, ausrichten, löschen — gestalten geht weiter. */
+  lockState?: LockState;
+  canLock?: boolean;
+  /** Zählt hoch, wenn das Kontextmenü „Bild ersetzen …“ wählt: die Bildauswahl öffnet sich. */
+  backgroundPickerRequest?: number;
   handlers: {
     handleMoveLayer: (direction: 'up' | 'down') => void;
     handleDuplicate: () => void;
@@ -34,11 +52,23 @@ export interface ContextControlsProps {
     handleShadowChange?: (id: string, patch: ShadowPatch, type: string) => void;
     handleOutlineChange?: (id: string, patch: { stroke?: string; strokeWidth?: number }) => void;
     handleBlurChange?: (id: string, blur: number) => void;
+    /** Ausschnitt mode for a framed photo: the photo moves inside its frame. */
+    handleCropImage?: () => void;
     handleGradientSelect?: (gradient: GradientFill | null) => void;
+    handleToggleLock?: () => void;
     /** Opens the image-adjust ("Bearbeiten") panel for the selected image. */
     onEditImage?: () => void;
   };
-  onDelete?: () => void;
+  /** The page's background controls (colour plane and photo), if the template has them. */
+  background?: BackgroundControls | null;
+  /** Removes one own image by id — not "the selection", which can change meanwhile. */
+  onRemoveUserImage?: (id: string) => void;
+  /** Löscht die Auswahl — nur die Desktop-Leiste gibt es mit; mobil liegt Löschen in der Pille. */
+  onDeleteElement?: () => void;
+  /** Vorlagen-Elemente und gesperrte lassen sich nicht löschen. */
+  canDelete?: boolean;
+  /** Mobil, im „Auswahl“-Block des Sheets: die Seite löschen. */
+  onDeletePage?: () => void;
   /** Clears the element selection. Escape does the same, but is invisible. */
   onDeselect?: () => void;
   /** Mobil: Duplizieren, Löschen und Abwählen liegen in Pille und ✓, nicht hier. */
@@ -48,11 +78,17 @@ export interface ContextControlsProps {
 const ICON_BTN =
   'inline-flex items-center justify-center size-8 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] disabled:opacity-30 disabled:cursor-not-allowed';
 
+const DANGER_BTN =
+  'inline-flex items-center justify-center size-8 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-danger-bg)] hover:text-[var(--editor-danger-fg)] disabled:opacity-30 disabled:cursor-not-allowed';
+
+const UNSPLASH_HOME = 'https://unsplash.com/?utm_source=gruenerator&utm_medium=referral';
+
 const SEP = 'w-px h-[22px] bg-[var(--editor-border-soft)] mx-1 shrink-0';
 
 /**
  * ContextControls — the selection-driven formatting controls (color, font size,
- * alignment, opacity, layer order, delete page). Shared between the desktop
+ * alignment, opacity, layer order, duplicate, lock, delete; delete page in the
+ * mobile sheet). Shared between the desktop
  * floating ContextToolbar and the mobile bottom context row; owns its own
  * color-picker expansion state. Renders nothing when there is no active module.
  */
@@ -62,8 +98,16 @@ export function ContextControls({
   canMoveUp,
   canMoveDown,
   canDuplicate,
+  isCropping = false,
+  lockState = 'none',
+  canLock = false,
+  backgroundPickerRequest = 0,
   handlers,
-  onDelete,
+  background,
+  onRemoveUserImage,
+  onDeleteElement,
+  canDelete = false,
+  onDeletePage,
   onDeselect,
   hideObjectActions = false,
 }: ContextControlsProps) {
@@ -76,7 +120,9 @@ export function ContextControls({
     if (type === 'text') {
       return { color: activeFloatingModule?.data.fill || '#000000', variant: 'font' as const };
     }
-    if (type === 'image' || type === 'background') {
+    // The colour plane takes the template's palette, below.
+    if (type === 'background') return null;
+    if (type === 'image') {
       return activeFloatingModule?.data.fill !== undefined
         ? { color: activeFloatingModule?.data.fill || '#FFFFFF', variant: 'swatch' as const }
         : null;
@@ -93,9 +139,14 @@ export function ContextControls({
   };
 
   const colorConfig = activeFloatingModule ? showColorFor(activeFloatingModule.type) : null;
+  const isPlane = activeFloatingModule?.type === 'background';
+  const isPhoto = activeFloatingModule?.type === 'image' && !!activeFloatingModule.data.isPhoto;
+  // The background is not an object on the page: no opacity, layer order or copy.
   // Frame elements expose no formatting controls (matches prior Toolbar behavior).
-  const showOpacity = activeFloatingModule && activeFloatingModule.type !== 'frame';
+  const showOpacity = activeFloatingModule && activeFloatingModule.type !== 'frame' && !isPlane;
+  const showObjectActions = !isPlane && !isPhoto;
   const isText = activeFloatingModule?.type === 'text';
+  const isLocked = lockState === 'all';
 
   // Build the present control groups, then interleave separators — this keeps
   // dividers strictly between groups (no dangling leading/trailing divider
@@ -112,6 +163,131 @@ export function ContextControls({
         onExpandChange={setIsColorPickerExpanded}
         variant={colorConfig.variant}
         {...(isText ? { colors: FONT_COLORS } : {})}
+      />
+    );
+  }
+
+  // On the photo too: the photo covers the plane, so this is the only way to a colour.
+  if ((isPlane || isPhoto) && background?.colors?.length && background.onColorChange) {
+    const { onColorChange, onImageChange, colorReplacesImage, paletteOnly } = background;
+    const own = background.colors.map((c) => ({ id: c.id, name: c.label, value: c.color }));
+    const known = new Set(own.map((c) => c.value.toLowerCase()));
+    const palette = paletteOnly
+      ? own
+      : [...own, ...BRAND_COLORS.filter((c) => !known.has(c.value.toLowerCase()))];
+    const pickColor =
+      isPhoto && !colorReplacesImage && onImageChange
+        ? (color: string) => {
+            onImageChange(null, undefined, null);
+            onColorChange(color);
+            onDeselect?.();
+          }
+        : isPhoto
+          ? (color: string) => {
+              onColorChange(color);
+              onDeselect?.();
+            }
+          : onColorChange;
+    groups.push(
+      <FloatingColorPicker
+        key="background-color"
+        currentColor={(isPhoto ? '' : background.currentColor) || '#FFFFFF'}
+        onColorSelect={pickColor}
+        isExpanded={isColorPickerExpanded}
+        onExpandChange={setIsColorPickerExpanded}
+        colors={palette}
+        allowCustom={!paletteOnly}
+      />
+    );
+  }
+
+  if ((isPlane || isPhoto) && background?.onImageChange) {
+    const onImageChange = background.onImageChange;
+    groups.push(
+      <BackgroundImagePicker
+        key="background-image"
+        label={background.currentImageSrc ? 'Ersetzen' : 'Bild'}
+        currentImageSrc={background.currentImageSrc}
+        onImageChange={onImageChange}
+        openRequest={backgroundPickerRequest}
+      />
+    );
+  }
+
+  if (isPlane && background?.onRestoreImage) {
+    groups.push(
+      <BackgroundRestoreImageButton key="restore-image" onRestore={background.onRestoreImage} />
+    );
+  }
+
+  if (isPhoto && background) {
+    const photoControls: React.ReactNode[] = [];
+    if (background.scale !== undefined && background.onScaleChange) {
+      photoControls.push(
+        <BackgroundZoomControl
+          key="zoom"
+          scale={background.scale}
+          onScaleChange={background.onScaleChange}
+        />
+      );
+    }
+    if (background.onToggleLock) {
+      photoControls.push(
+        <BackgroundLockToggle
+          key="lock"
+          isLocked={!!background.isLocked}
+          onToggle={background.onToggleLock}
+        />
+      );
+    }
+    if (background.onImageChange) {
+      const onImageChange = background.onImageChange;
+      photoControls.push(
+        <BackgroundRemoveImageButton
+          key="remove"
+          onRemove={() => {
+            onImageChange(null, undefined, null);
+            // The photo element is gone; a selection on it would keep these controls up.
+            onDeselect?.();
+          }}
+        />
+      );
+    }
+    if (background.currentImageSrc && handlers.onEditImage) {
+      groups.push(<EditImageButton key="edit-image" onClick={handlers.onEditImage} />);
+    }
+    if (photoControls.length) {
+      groups.push(
+        <div key="photo" className="flex items-center gap-0.5">
+          {photoControls}
+        </div>
+      );
+    }
+  }
+
+  const userImageSrc =
+    activeFloatingModule?.type === 'user-image' ? activeFloatingModule.data.src : undefined;
+  if (
+    typeof userImageSrc === 'string' &&
+    !userImageSrc.startsWith('blob:') &&
+    background?.onImageChange &&
+    onRemoveUserImage &&
+    activeFloatingModule
+  ) {
+    const fileName = activeFloatingModule.data.fileName;
+    // Captured now: the fetch is async and the selection may move before it lands.
+    const imageId = activeFloatingModule.data.id;
+    groups.push(
+      <SetAsBackgroundButton
+        key="as-background"
+        src={userImageSrc}
+        fileName={typeof fileName === 'string' && fileName ? fileName : 'hintergrund'}
+        attribution={activeFloatingModule.data.attribution}
+        onImageChange={background.onImageChange}
+        onRemoveElement={() => {
+          onRemoveUserImage(imageId);
+          onDeselect?.();
+        }}
       />
     );
   }
@@ -148,6 +324,7 @@ export function ContextControls({
       <div key="align" className="flex items-center gap-0.5">
         <button
           className={ICON_BTN}
+          disabled={isLocked}
           onClick={() => handlers.handleAlign!('left')}
           title="Links ausrichten"
         >
@@ -167,6 +344,7 @@ export function ContextControls({
         </button>
         <button
           className={ICON_BTN}
+          disabled={isLocked}
           onClick={() => handlers.handleAlign!('center-h')}
           title="Horizontal zentrieren"
         >
@@ -186,6 +364,7 @@ export function ContextControls({
         </button>
         <button
           className={ICON_BTN}
+          disabled={isLocked}
           onClick={() => handlers.handleAlign!('center-v')}
           title="Vertikal zentrieren"
         >
@@ -260,12 +439,18 @@ export function ContextControls({
   }
 
   if (type === 'user-image' && handlers.onEditImage) {
+    groups.push(<EditImageButton key="edit-image" onClick={handlers.onEditImage} />);
+  }
+
+  if (type === 'user-image' && handlers.handleCropImage) {
     groups.push(
       <button
-        key="edit-image"
-        className="inline-flex items-center gap-1.5 h-8 shrink-0 rounded-md border-none bg-transparent px-2 cursor-pointer text-[13px] font-medium text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)]"
-        onClick={() => handlers.onEditImage!()}
-        title="Bild anpassen (Filter, Helligkeit, Kontrast…)"
+        key="crop-image"
+        disabled={isLocked}
+        className="inline-flex items-center gap-1.5 h-8 shrink-0 rounded-md border-none bg-transparent px-2 cursor-pointer text-[13px] font-medium text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] aria-pressed:bg-[var(--editor-active-bg)] aria-pressed:text-[var(--editor-active-fg)]"
+        onClick={() => handlers.handleCropImage!()}
+        title="Zuschneiden (oder Doppelklick aufs Bild; Enter zum Beenden)"
+        aria-pressed={isCropping}
         type="button"
       >
         <svg
@@ -277,12 +462,47 @@ export function ContextControls({
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
+          aria-hidden="true"
         >
-          <circle cx="12" cy="12" r="3" />
-          <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4" />
+          <path d="M6 2v14a2 2 0 0 0 2 2h14" />
+          <path d="M18 22V8a2 2 0 0 0-2-2H2" />
         </svg>
-        Bearbeiten
+        {isCropping ? 'Fertig' : 'Zuschneiden'}
       </button>
+    );
+  }
+
+  const credit =
+    type === 'user-image'
+      ? activeFloatingModule?.data.attribution
+      : isPhoto
+        ? background?.imageAttribution
+        : undefined;
+  if (credit) {
+    groups.push(
+      <span
+        key="credit"
+        className="inline-flex items-center gap-1 h-8 shrink-0 px-1 text-[12px] text-[var(--editor-text-muted)] whitespace-nowrap"
+      >
+        Foto von
+        <a
+          href={credit.profileUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[var(--editor-text)] underline"
+        >
+          {credit.photographer}
+        </a>
+        auf
+        <a
+          href={UNSPLASH_HOME}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[var(--editor-text)] underline"
+        >
+          Unsplash
+        </a>
+      </span>
     );
   }
 
@@ -298,7 +518,7 @@ export function ContextControls({
     );
   }
 
-  if (selectedElement) {
+  if (selectedElement && showObjectActions) {
     groups.push(
       <FloatingLayerControls
         key="layer"
@@ -314,7 +534,7 @@ export function ContextControls({
   // nicht sein Aussehen. Der Knopf bleibt bei Vorlagen-Elementen und Icons
   // sichtbar, aber deaktiviert — verschwände er, wäre unklar, ob die Aktion
   // fehlt oder nur hier nicht geht.
-  if (selectedElement && !hideObjectActions) {
+  if (selectedElement && showObjectActions && !hideObjectActions) {
     groups.push(
       <button
         key="duplicate"
@@ -334,17 +554,69 @@ export function ContextControls({
     );
   }
 
-  if (onDelete && !hideObjectActions) {
+  if (
+    selectedElement &&
+    showObjectActions &&
+    !hideObjectActions &&
+    canLock &&
+    handlers.handleToggleLock
+  ) {
+    const label = isLocked ? 'Entsperren' : 'Sperren';
+    groups.push(
+      <button
+        key="lock"
+        className={`${ICON_BTN} aria-pressed:bg-[var(--editor-active-bg)] aria-pressed:text-[var(--editor-active-fg)]`}
+        onClick={handlers.handleToggleLock}
+        aria-pressed={isLocked}
+        title={
+          isLocked
+            ? 'Entsperren — wieder bewegen und löschen'
+            : 'Sperren — Lage und Größe festhalten'
+        }
+        aria-label={label}
+        type="button"
+      >
+        {isLocked ? <PiLockSimple size={18} /> : <PiLockSimpleOpen size={18} />}
+      </button>
+    );
+  }
+
+  if (selectedElement && showObjectActions && !hideObjectActions && onDeleteElement) {
+    const label = `Löschen (${formatShortcut(shortcutOf('delete')!, isMacPlatform())})`;
+    groups.push(
+      <button
+        key="delete-element"
+        className={DANGER_BTN}
+        onClick={onDeleteElement}
+        disabled={!canDelete}
+        title={
+          canDelete
+            ? label
+            : isLocked
+              ? 'Gesperrt — zum Löschen erst entsperren'
+              : 'Dieses Element gehört zur Vorlage und lässt sich nicht löschen'
+        }
+        aria-label={label}
+        type="button"
+      >
+        <PiTrash size={18} />
+      </button>
+    );
+  }
+
+  if (onDeletePage && !hideObjectActions) {
     groups.push(
       <button
         key="delete"
-        className="inline-flex items-center justify-center size-8 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text-secondary)] transition-colors duration-150 hover:text-red-600 hover:bg-red-500/10"
+        className="inline-flex items-center justify-center size-8 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text-secondary)] transition-colors duration-150 hover:text-[var(--editor-danger-fg)] hover:bg-[var(--editor-danger-bg)]"
         onClick={() => {
           if (window.confirm('Seite wirklich löschen?')) {
-            onDelete();
+            onDeletePage();
           }
         }}
         title="Seite löschen"
+        aria-label="Seite löschen"
+        type="button"
       >
         <svg
           width="18"
@@ -365,8 +637,8 @@ export function ContextControls({
 
   // Last group: the only visible way out of a selection. Escape is bound in
   // useCanvasKeyboardHandlers but nothing in the UI ever said so, and the
-  // artboard is fully covered by elements — clicking "somewhere empty" just
-  // selects the background image instead of deselecting.
+  // artboard is fully covered — clicking "somewhere empty" selects the
+  // background instead of deselecting.
   if (onDeselect && selectedElement && !hideObjectActions) {
     groups.push(
       <button
@@ -402,5 +674,32 @@ export function ContextControls({
         </React.Fragment>
       ))}
     </>
+  );
+}
+
+/** Opens the "Bearbeiten" panel: filters, presets, flip — for a free image or the background photo. */
+function EditImageButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      className="inline-flex items-center gap-1.5 h-8 shrink-0 rounded-md border-none bg-transparent px-2 cursor-pointer text-[13px] font-medium text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)]"
+      onClick={onClick}
+      title="Bild anpassen (Filter, Helligkeit, Kontrast…)"
+      type="button"
+    >
+      <svg
+        width="15"
+        height="15"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="12" cy="12" r="3" />
+        <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4" />
+      </svg>
+      Bearbeiten
+    </button>
   );
 }

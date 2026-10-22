@@ -13,10 +13,8 @@ import { PiPlus, PiX } from 'react-icons/pi';
 import { StickerCreator } from '../../studio-assets/creator/StickerCreator';
 import { type GalleryAsset } from '../utils/galleryAsset';
 
-import { ProfilbildDiscoverButton } from './ProfilbildDiscoverDialog';
 import { ProfilbildGalleryGrid } from './ProfilbildGalleryGrid';
-
-import { cn } from '@/utils/cn';
+import { ProfilbildMarketplaceButton } from './ProfilbildMarketplaceButton';
 
 // Inspektor-Raster: vier Spalten, 52 px hohe Kacheln auf ruhigem Grund.
 const STICKER_TILE_CLASS =
@@ -25,8 +23,6 @@ const STICKER_TILE_CLASS =
 const SHOP_TILE_CLASS =
   `${STICKER_TILE_CLASS} bg-[repeating-conic-gradient(#ececec_0%_25%,#ffffff_0%_50%)] bg-[length:12px_12px] ` +
   'dark:bg-[repeating-conic-gradient(#2a2a2a_0%_25%,#1f1f1f_0%_50%)]';
-/** Feste Kachelgröße im Entdecken-Dialog, der kein Raster hat. */
-const SHOP_DIALOG_TILE_CLASS = cn(SHOP_TILE_CLASS, 'size-14 shrink-0');
 const STICKER_ACTION_CLASS =
   'flex h-[52px] min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-[10px] border-[1.5px] border-dashed border-border text-sm font-bold text-foreground outline-none transition-colors hover:border-primary-500 focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50';
 const GRID_CLASS = 'grid grid-cols-4 gap-2 p-0.5';
@@ -53,7 +49,6 @@ export function ProfilbildStickerPicker({
     <>
       <ProfilbildGalleryGrid
         kind="sticker"
-        source="own"
         gridClassName={GRID_CLASS}
         tileClassName={SHOP_TILE_CLASS}
         disabled={disabled}
@@ -73,11 +68,10 @@ export function ProfilbildStickerPicker({
         ))}
         trailing={
           <>
-            <ProfilbildDiscoverButton
+            <ProfilbildMarketplaceButton
               kind="sticker"
               label="Shop"
-              buttonClassName={STICKER_ACTION_CLASS}
-              tileClassName={SHOP_DIALOG_TILE_CLASS}
+              className={STICKER_ACTION_CLASS}
               disabled={disabled}
               onPick={onAddAsset}
             />
@@ -98,26 +92,26 @@ export function ProfilbildStickerPicker({
       <Dialog open={creating} onOpenChange={setCreating}>
         <DialogContent
           showCloseButton={false}
-          className="flex max-h-[min(90dvh,860px)] w-full flex-col gap-md overflow-y-auto rounded-[20px] p-lg sm:max-w-[min(900px,calc(100%-3rem))]"
+          className="flex h-[min(90dvh,860px)] w-full flex-col gap-0 overflow-hidden rounded-[20px] p-0 sm:max-w-[min(1180px,calc(100%-3rem))]"
         >
-          <div className="flex items-start justify-between gap-md">
-            <div className="flex flex-col gap-1">
-              <DialogTitle className="m-0 text-xl leading-tight font-bold text-foreground-heading">
-                Sticker erstellen
-              </DialogTitle>
-              <DialogDescription className="m-0 text-sm text-muted-foreground">
-                Aus einem Bild, einem Foto oder als Text-Badge – fertig liegt er auf deinem
-                Profilbild.
-              </DialogDescription>
-            </div>
-            <DialogClose asChild>
-              <Button variant="ghost" size="icon" aria-label="Schließen" title="Schließen">
-                <PiX aria-hidden className="size-[18px]" />
-              </Button>
-            </DialogClose>
-          </div>
+          <DialogDescription className="sr-only">
+            Aus einem Bild, einem Foto oder als Text-Badge – fertig liegt er auf deinem Profilbild.
+          </DialogDescription>
           {creating ? (
             <StickerCreator
+              className="min-h-0 flex-1"
+              heading={
+                <DialogTitle className="m-0 text-xl leading-tight font-bold text-foreground-heading">
+                  Sticker erstellen
+                </DialogTitle>
+              }
+              headerEnd={
+                <DialogClose asChild>
+                  <Button variant="ghost" size="icon" aria-label="Schließen" title="Schließen">
+                    <PiX aria-hidden className="size-[18px]" />
+                  </Button>
+                </DialogClose>
+              }
               returnTo="profilbild"
               onCreated={(item) => {
                 setCreating(false);

@@ -28,8 +28,8 @@ import type {
 } from '../../../services/userAgents/userAgentsRepository.js';
 import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import type { SSEWriter } from '../services/sseHelpers.js';
-import type { Agent } from '@gruenerator/shared/agents';
 import type { DraftedAgentSpec } from '@gruenerator/contracts';
+import type { Agent } from '@gruenerator/shared/agents';
 
 type ToolResult = Record<string, unknown>;
 
@@ -159,6 +159,7 @@ function makeCtx(opts: CtxOptions = {}) {
             audience: 'de-DE' as const,
             is_public: false,
             public_ownership: null,
+            moderation: 'ok' as const,
           }
         : (opts.sharing ?? undefined)
     ),

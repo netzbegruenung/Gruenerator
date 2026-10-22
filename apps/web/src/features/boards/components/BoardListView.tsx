@@ -2,6 +2,7 @@ import { Badge } from '@gruenerator/ui';
 import { memo, useCallback, useMemo } from 'react';
 import { FiCalendar } from 'react-icons/fi';
 
+import { useOpenCardMenu } from '../context/CardMenuContext';
 import { useTaskDone } from '../context/TaskDoneContext';
 import { FIELD_IDS } from '../types';
 import { parseLocalDate } from '../utils/recurrence';
@@ -32,6 +33,7 @@ export const BoardListView = memo(function BoardListView({
   onCellUpdate,
 }: BoardListViewProps) {
   const taskDone = useTaskDone();
+  const openCardMenu = useOpenCardMenu();
   const labelsField = useMemo(() => fields.find((f) => f.id === FIELD_IDS.LABELS), [fields]);
   const labelOptions = useMemo(
     () => (labelsField?.typeOptions.options ?? []) as SelectOption[],
@@ -82,6 +84,7 @@ export const BoardListView = memo(function BoardListView({
                     <div
                       className="flex-1 cursor-pointer min-w-0"
                       onClick={() => onRowClick(row)}
+                      onContextMenu={openCardMenu ? (e) => openCardMenu(row, e) : undefined}
                       onKeyDown={(e) => {
                         // Enter UND Leertaste, wie ein echter Button (WCAG
                         // 4.1.2); preventDefault, weil die Leertaste sonst

@@ -24,6 +24,7 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { aiObject } from '../../services/ai/generate.js';
 import { viaLaxParser, withContent } from '../../services/ai/structuredParsing.js';
+import { CANVAS_SUBTYPE, isVorlageSnapshotCanvas } from '../../services/canvas/canvasRepository.js';
 import {
   trashCollaborativeDocument,
   updateCollaborativeDocument,
@@ -806,6 +807,9 @@ export const docsContractRouter = s.router(docsContract, {
       const userId = getUserId(args.req);
       const doc = await getOwnedShareRow(args.params.id, userId);
       if (doc.kind !== 'ok') return doc.response;
+      if (await publicLinkForbidden(doc.row)) {
+        return { status: 400 as const, body: { error: LOGIN_ONLY_ERROR } };
+      }
 
       // Same safe default as setShareMode('public'): a freshly-public link is
       // view-only, otherwise 'public' + 'editor' (the column default) grants any
@@ -890,6 +894,9 @@ export const docsContractRouter = s.router(docsContract, {
       if (doc.kind !== 'ok') return doc.response;
 
       const { mode } = args.body;
+      if (mode === 'public' && (await publicLinkForbidden(doc.row))) {
+        return { status: 400 as const, body: { error: LOGIN_ONLY_ERROR } };
+      }
       const isPublic = mode === 'public';
       const currentPermission = doc.row.share_permission ?? 'editor';
 
@@ -951,6 +958,7 @@ interface OwnedShareRow {
   is_public: boolean;
   share_permission?: 'editor' | 'viewer' | null;
   share_mode?: 'private' | 'authenticated' | 'public' | null;
+  document_subtype?: string | null;
 }
 
 type ShareLookupResult =
@@ -966,7 +974,8 @@ type ShareLookupResult =
  */
 async function getOwnedShareRow(id: string, userId: string): Promise<ShareLookupResult> {
   const result = (await db.query(
-    `SELECT id, created_by, permissions, is_public, share_permission, share_mode, is_deleted
+    `SELECT id, created_by, permissions, is_public, share_permission, share_mode, is_deleted,
+            document_subtype
      FROM collaborative_documents
      WHERE id = $1 AND document_subtype = ANY($2::text[]) AND is_deleted = false`,
     [id, DOCS_SUBTYPES]
@@ -987,6 +996,14 @@ async function getOwnedShareRow(id: string, userId: string): Promise<ShareLookup
   }
 
   return { kind: 'ok', row };
+}
+
+const LOGIN_ONLY_ERROR =
+  'Sharepics lassen sich nur mit Anmeldung teilen, nicht öffentlich.' as const;
+
+/** A plain sharepic never gets a public link — see {@link isVorlageSnapshotCanvas}. */
+async function publicLinkForbidden(row: OwnedShareRow): Promise<boolean> {
+  return row.document_subtype === CANVAS_SUBTYPE && !(await isVorlageSnapshotCanvas(row.id));
 }
 
 /**

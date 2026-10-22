@@ -73,6 +73,18 @@ describe('planNotebookVisibility', () => {
     });
   });
 
+  it('refuses to list again what a report removed, but still lets the owner unlist it', () => {
+    const removed = collection({ share_mode: 'authenticated', moderation: 'removed' });
+    expect(planNotebookVisibility(removed, { is_public: true, public_ownership: 'owner' })).toEqual(
+      {
+        ok: false,
+        status: 403,
+        error: 'Dieses Notebook wurde entfernt und kann nicht mehr gelistet werden.',
+      }
+    );
+    expect(planNotebookVisibility(removed, { is_public: false }).ok).toBe(true);
+  });
+
   it('unlisting drops the ownership statement with it', () => {
     const plan = planNotebookVisibility(
       collection({ share_mode: 'authenticated', is_public: true, public_ownership: 'owner' }),

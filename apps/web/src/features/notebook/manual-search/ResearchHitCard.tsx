@@ -57,7 +57,10 @@ export function snippetMarkdown(text: string): string {
 
 const CARD =
   'relative flex flex-col rounded-xl border border-grey-200 bg-background transition-[box-shadow,border-color] hover:border-[#F2A9CE] hover:shadow-md focus-within:border-[#F2A9CE] dark:border-grey-700 dark:hover:border-[#7A3A5A]';
-const TITLE = 'm-0 font-[Raleway,sans-serif] font-bold leading-snug text-foreground-heading';
+/** `anywhere`: an uploaded file's name (`WP-02_Ein_Land_der_…pdf`) has no space
+ *  to wrap at — without it the title runs out of the card instead of clamping. */
+const TITLE =
+  'm-0 font-[Raleway,sans-serif] font-bold leading-snug text-foreground-heading [overflow-wrap:anywhere]';
 const SNIPPET = cn(
   'm-0 text-sm leading-relaxed text-grey-600 dark:text-grey-300',
   NOTEBOOK_SNIPPET_MARKS
@@ -150,8 +153,8 @@ export function ResearchHitCard({
   );
 
   const kindBadge = kind ? (
-    <Badge variant="outline" className="font-medium">
-      {kind}
+    <Badge variant="outline" className="min-w-0 shrink font-medium" title={kind}>
+      <span className="truncate">{kind}</span>
     </Badge>
   ) : null;
 
@@ -174,7 +177,7 @@ export function ResearchHitCard({
     <article className={cn(CARD, 'h-full gap-3 p-4 sm:p-5', wide && 'md:p-6')}>
       <div className="flex items-center justify-between gap-2">
         {kindBadge ?? <span />}
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {date && <span className={META}>{date}</span>}
           {scoreBadge}
         </div>

@@ -13,6 +13,7 @@ import { memo, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { chartSeriesOutlines, type ChartInstance } from '../utils/chartUtils';
 import { useTrackPendingImage } from '../utils/pendingImages';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
@@ -36,12 +37,12 @@ const OUTLINE_PX = 2;
 
 let measureContext: CanvasRenderingContext2D | null | undefined;
 /**
- * A legend label's width as the rasterised SVG draws it (`font-family:
+ * A label's width at tick size as the rasterised SVG draws it (`font-family:
  * sans-serif`). A per-character estimate clipped wide labels: „Wünschen mehr"
  * needs 95 px where 13 × 7.5 − 8 left 89.5. The estimate stays only where no
  * canvas can measure.
  */
-function legendTextWidth(text: string): number {
+function tickTextWidth(text: string): number {
   if (measureContext === undefined) {
     try {
       measureContext = document.createElement('canvas').getContext('2d');
@@ -93,7 +94,7 @@ export function buildChartElement(recharts: any, chart: ChartInstance) {
     const legendRow = 24;
     // Swatch column: 8 px gap to the pie, the text 22 px in, 4 px slack at the edge.
     const legendWidth = showLegend
-      ? Math.ceil(Math.max(...data.map((d) => legendTextWidth(d.name)))) + 34
+      ? Math.ceil(Math.max(...data.map((d) => tickTextWidth(d.name)))) + 34
       : 0;
     const pieWidth = width - legendWidth;
     // Outside labels sit 20 px past the slice: room for them above, below and,
@@ -212,10 +213,10 @@ export function buildChartElement(recharts: any, chart: ChartInstance) {
   // bar / bar-horizontal
   const horizontal = chartType === 'bar-horizontal';
   // Room for the longest category name on the left and the longest value label
-  // past the bar's end (~7.5 px a tick character, ~8.5 px a bold one).
+  // past the bar's end (~8.5 px a bold character).
   const nameWidth = Math.min(
     width * 0.4,
-    Math.max(64, Math.max(...data.map((d) => d.name.length)) * 7.5 + 12)
+    Math.max(64, Math.ceil(Math.max(...data.map((d) => tickTextWidth(d.name)))) + 12)
   );
   const valueRoom = showValues
     ? Math.max(...data.map((d) => formatValue(d.value).length)) * 8.5 + 12
@@ -244,6 +245,8 @@ export function buildChartElement(recharts: any, chart: ChartInstance) {
             tickLine={false}
             axisLine={{ stroke: '#c8c8c7' }}
             width={nameWidth}
+            // Recharts' default `preserveEnd` drops names it measures as colliding.
+            interval={0}
           />
         </>
       ) : (
@@ -325,6 +328,7 @@ function ChartPrimitiveInner({
   onTransformEnd,
   draggable = true,
 }: ChartPrimitiveProps) {
+  const locked = useIsItemLocked();
   const groupRef = useRef<Konva.Group>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
   // The image with the visual state it was drawn from: while they differ, a
@@ -386,7 +390,7 @@ function ChartPrimitiveInner({
         scaleY={chart.scale}
         rotation={chart.rotation}
         opacity={chart.opacity}
-        draggable={draggable}
+        draggable={draggable && !locked}
         onMouseDown={(e) => {
           e.cancelBubble = true;
           onSelect(chart.id);
@@ -437,6 +441,7 @@ function ChartPrimitiveInner({
           borderStroke="#005437"
           anchorStroke="#005437"
           anchorFill="#ffffff"
+          {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}
     </>

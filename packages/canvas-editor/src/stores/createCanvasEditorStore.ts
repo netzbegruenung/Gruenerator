@@ -29,12 +29,16 @@ import type { CanvasEditorConfig, CanvasHistoryEntry } from '@gruenerator/shared
 export interface PendingAiSuggestion {
   title: string;
   undo?: 'pages';
+  /** A Vorlage replaced the design — no AI was involved, the banner says so. */
+  source?: 'vorlage';
 }
 
 export interface CanvasEditorState<
   TComponentState extends Record<string, unknown> = Record<string, unknown>,
 > {
+  /** Die ausgewählten Elemente. Bei genau einem steht es auch in `selectedElement`. */
   selectedLayerIds: string[];
+  /** Das einzeln ausgewählte Element; `null` bei keiner oder mehrfacher Auswahl. */
   selectedElement: string | null;
 
   config: CanvasEditorConfig & {
@@ -74,6 +78,8 @@ export interface CanvasEditorState<
    * was replaced in one Yjs step) reverts through the page-level undo instead.
    */
   pendingAiSuggestion: PendingAiSuggestion | null;
+  /** The framed photo in Ausschnitt mode (its photo moves inside the frame); null otherwise. */
+  croppingElement: string | null;
 }
 
 export interface CanvasEditorActions<
@@ -84,6 +90,7 @@ export interface CanvasEditorActions<
   setContainerSize: (size: { width: number; height: number }) => void;
 
   selectLayer: (id: string, addToSelection?: boolean) => void;
+  setSelectedLayers: (ids: string[]) => void;
   deselectAll: () => void;
 
   saveToHistory: (componentState?: TComponentState) => void;
@@ -102,6 +109,7 @@ export interface CanvasEditorActions<
   resetTemplateScopedState: () => void;
 
   setPendingAiSuggestion: (pending: PendingAiSuggestion | null) => void;
+  setCroppingElement: (id: string | null) => void;
 }
 
 export interface CanvasEditorGetters {
@@ -115,6 +123,28 @@ export interface CanvasEditorGetters {
 export type CanvasEditorStoreState<
   TComponentState extends Record<string, unknown> = Record<string, unknown>,
 > = CanvasEditorState<TComponentState> & CanvasEditorActions<TComponentState> & CanvasEditorGetters;
+
+// Einzige Stelle, die die Auswahl schreibt: `selectedElement` ist genau dann
+// gesetzt, wenn ein einziges Element ausgewählt ist. Alle Einzel-Oberflächen
+// (Element-Transformer, Pille, Sheets) lesen nur `selectedElement` und treten
+// bei Mehrfachauswahl so von selbst zurück.
+function applySelection(
+  state: {
+    selectedLayerIds: string[];
+    selectedElement: string | null;
+    croppingElement: string | null;
+  },
+  ids: readonly string[]
+): void {
+  const unique = [...new Set(ids)];
+  // Unverändert → nichts schreiben: Immer gibt dann denselben State zurück und
+  // kein Abonnent wird benachrichtigt (jeder Druck auf leere Fläche wählt ab).
+  const current = state.selectedLayerIds;
+  if (current.length === unique.length && current.every((id, i) => id === unique[i])) return;
+  state.selectedLayerIds = unique;
+  state.selectedElement = unique.length === 1 ? unique[0] : null;
+  if (state.croppingElement !== state.selectedElement) state.croppingElement = null;
+}
 
 // =============================================================================
 // INITIAL STATE
@@ -144,6 +174,7 @@ function createInitialState<
     renderVersion: 0,
     stateRestorationCallback: null,
     pendingAiSuggestion: null,
+    croppingElement: null,
   };
 }
 
@@ -192,20 +223,24 @@ export function createCanvasEditorStore<
       // Selection
       selectLayer: (id, addToSelection = false) =>
         set((state) => {
-          if (addToSelection) {
-            if (state.selectedLayerIds.includes(id)) {
-              state.selectedLayerIds = state.selectedLayerIds.filter((i) => i !== id);
-            } else {
-              state.selectedLayerIds.push(id);
-            }
-          } else {
-            state.selectedLayerIds = [id];
-          }
+          const current = state.selectedLayerIds;
+          if (!addToSelection) applySelection(state, [id]);
+          else if (current.includes(id))
+            applySelection(
+              state,
+              current.filter((i) => i !== id)
+            );
+          else applySelection(state, [...current, id]);
+        }),
+
+      setSelectedLayers: (ids) =>
+        set((state) => {
+          applySelection(state, ids);
         }),
 
       deselectAll: () =>
         set((state) => {
-          state.selectedLayerIds = [];
+          applySelection(state, []);
         }),
 
       // History (Undo/Redo)
@@ -255,7 +290,6 @@ export function createCanvasEditorStore<
           const entry = state.history[newIndex];
           set((s) => {
             s.historyIndex = newIndex;
-            s.selectedLayerIds = [...entry.selectedLayerIds];
             s.renderVersion++;
           });
           if (entry.componentState && state.stateRestorationCallback) {
@@ -271,7 +305,6 @@ export function createCanvasEditorStore<
           const entry = state.history[newIndex];
           set((s) => {
             s.historyIndex = newIndex;
-            s.selectedLayerIds = [...entry.selectedLayerIds];
             s.renderVersion++;
           });
           if (entry.componentState && state.stateRestorationCallback) {
@@ -288,12 +321,13 @@ export function createCanvasEditorStore<
       // Element selection (canvas interaction level)
       setSelectedElement: (id) =>
         set((state) => {
-          state.selectedElement = id;
+          applySelection(state, id ? [id] : []);
         }),
 
       // Snapping
       setSnapGuides: (h, v) =>
         set((state) => {
+          if (state.snapGuides.h === h && state.snapGuides.v === v) return;
           state.snapGuides = { h, v };
         }),
 
@@ -344,6 +378,11 @@ export function createCanvasEditorStore<
       setPendingAiSuggestion: (pending) =>
         set((state) => {
           state.pendingAiSuggestion = pending;
+        }),
+
+      setCroppingElement: (id) =>
+        set((state) => {
+          state.croppingElement = id !== null && id === state.selectedElement ? id : null;
         }),
     }))
   );

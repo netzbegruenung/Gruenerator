@@ -47,7 +47,7 @@ RUN pnpm exec tsc --project tsconfig.json
 
 # Compile contracts (shared depends on it)
 WORKDIR /app/packages/contracts
-RUN pnpm exec tsc --project tsconfig.json
+RUN pnpm exec tsc --project tsconfig.build.json
 
 # Compile core (shared re-exports @gruenerator/core; must build first)
 WORKDIR /app/packages/core

@@ -461,7 +461,7 @@
     "id": "de-karussell-energie",
     "land": "de-DE",
     "anlass": "karussell-kritik",
-    "vorbild": "@die_gruenen, Spritpreis: Plan der Regierung gegen unseren Plan, Lime-Wort, Schluss-These auf Grasgrün. Teaser neben dem Pfeil, Schluss als kernsatz-aufruf.",
+    "vorbild": "@die_gruenen, Spritpreis: Plan der Regierung gegen unseren Plan, Lime-Wort, alles auf derselben Farbe bis zur Schluss-These. Teaser neben dem Pfeil, Schluss als kernsatz-aufruf.",
     "spec": {
       "slides": [
         {
@@ -511,7 +511,7 @@
         {
           "background": {
             "kind": "farbe",
-            "color": "grasgruen"
+            "color": "dunkeltanne"
           },
           "position": "oben",
           "align": "links",
@@ -539,7 +539,7 @@
         {
           "background": {
             "kind": "farbe",
-            "color": "grasgruen"
+            "color": "dunkeltanne"
           },
           "position": "mitte",
           "align": "zentriert",
@@ -548,6 +548,115 @@
               "type": "aufruf",
               "stil": "kernsatz",
               "text": "Unsere Antwort steht auf Dächern und ==dreht sich im Wind.=="
+            }
+          ],
+          "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "de-karussell-erklaerung",
+    "land": "de-DE",
+    "anlass": "karussell-erklaerung",
+    "vorbild": "Aufbau wie die @die_gruenen-Karussells: Hook mit Motiv, dann dieselbe Farbe und Ausrichtung bis zum Schluss – auch Forderungen und Kernsatz bleiben auf ihr. Fragen als Brücke.",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "foto-unten",
+            "filename": "<foto>",
+            "panelColor": "dunkeltanne"
+          },
+          "position": "oben",
+          "align": "links",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Warum ist", "Strom so", "==teuer?=="]
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "dunkeltanne"
+          },
+          "position": "oben",
+          "align": "links",
+          "items": [
+            {
+              "type": "dachzeile",
+              "text": "Was ist los?"
+            },
+            {
+              "type": "absatz",
+              "text": "Strom aus Gas ist teuer. Und weil das teuerste Kraftwerk den Preis bestimmt, zahlen alle den ==Gaspreis== mit."
+            }
+          ],
+          "logo": false,
+          "weiter": "Und dann?"
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "dunkeltanne"
+          },
+          "position": "oben",
+          "align": "links",
+          "items": [
+            {
+              "type": "dachzeile",
+              "text": "Was läuft falsch?"
+            },
+            {
+              "type": "headline",
+              "lines": ["Der Ausbau", "==stockt.=="]
+            },
+            {
+              "type": "absatz",
+              "text": "Jedes Windrad, das nicht gebaut wird, hält den Gaspreis im Netz."
+            }
+          ],
+          "logo": false,
+          "weiter": "Die Lösung?"
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "dunkeltanne"
+          },
+          "position": "oben",
+          "align": "links",
+          "items": [
+            {
+              "type": "headline",
+              "lines": ["Unsere", "Forderungen:"]
+            },
+            {
+              "type": "liste",
+              "items": [
+                "Wind und Sonne schneller ausbauen",
+                "Strom vom eigenen Dach leichter machen",
+                "Netzentgelte senken"
+              ]
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "farbe",
+            "color": "dunkeltanne"
+          },
+          "position": "mitte",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "aufruf",
+              "stil": "kernsatz",
+              "text": "Günstiger Strom kommt vom ==Dach und aus dem Wind.=="
             }
           ],
           "logo": true
@@ -662,7 +771,7 @@
     "id": "at-karussell-ernte",
     "land": "de-AT",
     "anlass": "karussell-erklaerung",
-    "vorbild": "@diegruenen, Dürre und Lebensmittel: Hook auf Foto, Erklärung mit Liste, Zahl mit Quelle, Wendung, Forderung mit Petition. Punktreihe als Seitenzahl, Teaser neben dem Pfeil, Schluss als petition-aufruf.",
+    "vorbild": "@diegruenen, Dürre und Lebensmittel: Hook auf Foto, Erklärung mit Liste, Zahl mit Quelle, Wendung, Forderung mit Petition. Teaser neben dem Pfeil, Schluss als petition-aufruf, ohne Logo und ohne Seitenzahl.",
     "spec": {
       "slides": [
         {
@@ -778,10 +887,9 @@
               "hinweis": "Link in der Bio"
             }
           ],
-          "logo": true
+          "logo": false
         }
-      ],
-      "seitenzahl": "punkte"
+      ]
     }
   },
   {
@@ -851,7 +959,7 @@
         {
           "background": {
             "kind": "farbe",
-            "color": "tanne"
+            "color": "mint"
           },
           "position": "mitte",
           "align": "zentriert",
@@ -862,6 +970,80 @@
             }
           ],
           "logo": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "at-karussell-fotokette",
+    "land": "de-AT",
+    "anlass": "karussell-geschichte",
+    "vorbild": "@diegruenen, Foto-Satzkette: jede Slide ein vollflächiges Foto, ein einziger Satz läuft mit „…“ über alle Slides, gelbe Wort-Akzente, kein Logo.",
+    "spec": {
+      "slides": [
+        {
+          "background": {
+            "kind": "foto",
+            "filename": "<foto>",
+            "textSeite": "unten"
+          },
+          "position": "unten",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "absatz",
+              "text": "Letzten Sommer stand das Wasser in unserem ==Ortskern== einen halben Meter hoch …"
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "foto",
+            "filename": "<foto>",
+            "textSeite": "unten"
+          },
+          "position": "unten",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "absatz",
+              "text": "… und viele Familien haben dabei ==alles verloren==, was sie sich aufgebaut haben …"
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "foto",
+            "filename": "<foto>",
+            "textSeite": "unten"
+          },
+          "position": "unten",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "absatz",
+              "text": "… weil jedes Jahr mehr Boden unter ==Beton== verschwindet und der Regen nicht mehr versickern kann …"
+            }
+          ],
+          "logo": false
+        },
+        {
+          "background": {
+            "kind": "foto",
+            "filename": "<foto>",
+            "textSeite": "unten"
+          },
+          "position": "unten",
+          "align": "zentriert",
+          "items": [
+            {
+              "type": "absatz",
+              "text": "… darum sagen wir: Schützen wir unsere Böden – ==bevor das nächste Hochwasser kommt.=="
+            }
+          ],
+          "logo": false
         }
       ]
     }
@@ -1636,7 +1818,7 @@
         {
           "background": {
             "kind": "farbe",
-            "color": "grasgruen"
+            "color": "dunkeltanne"
           },
           "position": "mitte",
           "align": "zentriert",

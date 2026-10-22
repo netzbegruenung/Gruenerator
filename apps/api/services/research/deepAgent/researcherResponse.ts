@@ -2,9 +2,8 @@
  * What a researcher subagent hands back — a schema instead of prose.
  *
  * Until now the answer was free text with a `## Quellen` block the prompt ASKED
- * for, and the lead had to read both back out of it. The docs put it plainly:
- * "When set, the parent receives the subagent's result as JSON instead of
- * free-form text." Three things change with that:
+ * for, and the lead had to read both back out of it. Three things change with
+ * a schema:
  *
  *  - the source block stops being a request and becomes a guarantee,
  *  - `luecken` lets the lead hand an open point straight back out as the next
@@ -17,69 +16,61 @@
  * fetched, which is the only account that cannot be invented. The gain here is
  * the mapping from statements to sources, not the list.
  *
- * JSON Schema rather than zod, for the same reason as the tools: `apps/api`
- * runs zod 3 while the LangChain 1.x typings expect zod 4 shapes.
- * `ToolStrategy.fromSchema` takes a plain schema object and is the strategy
- * that asks the MODEL for a tool call — deliberately not `ProviderStrategy`,
- * which would need `response_format: json_schema` support on the lead's lane
- * that nobody has measured.
+ * The answer travels as a tool call, `antwort_geben`, the same strategy
+ * LangChain's `ToolStrategy` used here: asking the MODEL for a tool call rather
+ * than `response_format: json_schema`, which nobody has measured on the Gemma
+ * worker lane. The worker's loop stops on the call (`hasToolCall`); the
+ * `execute` only acknowledges it.
  */
 
-import { ToolStrategy } from 'langchain';
+import { tool } from 'ai';
+import { z } from 'zod';
 
 /** How sure the worker is — the one field the report may quote as a hedge. */
 export const CONFIDENCE_LEVELS = ['hoch', 'mittel', 'gering'] as const;
 
-export const RESEARCHER_RESPONSE_SCHEMA = {
-  type: 'object',
-  properties: {
-    ergebnis: {
-      type: 'string',
-      description:
-        'Das Rechercheergebnis als Fließtext, 150 bis 400 Wörter. Keine Quellenliste hier — die gehört in `quellen`.',
-    },
-    quellen: {
-      type: 'array',
-      description: 'Nur tatsächlich genutzte Quellen. Keine erfundenen Adressen.',
-      items: {
-        type: 'object',
-        properties: {
-          titel: { type: 'string' },
-          url: {
-            type: 'string',
-            description: 'Vollständige URL. Weglassen, wenn die Quelle keine hat.',
-          },
-          notebook: {
-            type: 'string',
-            description: 'Name des Notebooks, wenn die Quelle aus einem Korpus stammt.',
-          },
-        },
-        required: ['titel'],
-      },
-    },
-    luecken: {
-      type: 'array',
-      description:
-        'Was offen blieb — je Eintrag ein Satz, ausformuliert genug, um daraus eine eigene Teilfrage zu machen. Leer, wenn nichts offen ist.',
-      items: { type: 'string' },
-    },
-    belastbarkeit: {
-      type: 'string',
-      enum: [...CONFIDENCE_LEVELS],
-      description:
-        'hoch = mehrere unabhängige Quellen; mittel = eine belastbare Quelle; gering = nur Indizien oder widersprüchliche Angaben.',
-    },
-  },
-  required: ['ergebnis', 'quellen', 'luecken', 'belastbarkeit'],
-} as const;
+export const ANSWER_TOOL_NAME = 'antwort_geben';
 
-/**
- * `handleError` stays at its default (`true`): a schema miss retries the tool
- * call instead of throwing. That is the difference between a sub-question
- * costing one extra step and a sub-question failing outright — and on the Gemma
- * worker lane, where structured output over this path is unmeasured, it is the
- * whole safety margin.
- */
-export function researcherResponseFormat(): ToolStrategy<Record<string, unknown>> {
-  return ToolStrategy.fromSchema({ ...RESEARCHER_RESPONSE_SCHEMA });
+export const researcherResponseSchema = z.object({
+  ergebnis: z
+    .string()
+    .describe(
+      'Das Rechercheergebnis als Fließtext, 150 bis 400 Wörter. Keine Quellenliste hier — die gehört in `quellen`.'
+    ),
+  quellen: z
+    .array(
+      z.object({
+        titel: z.string(),
+        url: z
+          .string()
+          .optional()
+          .describe('Vollständige URL. Weglassen, wenn die Quelle keine hat.'),
+        notebook: z
+          .string()
+          .optional()
+          .describe('Name des Notebooks, wenn die Quelle aus einem Korpus stammt.'),
+      })
+    )
+    .describe('Nur tatsächlich genutzte Quellen. Keine erfundenen Adressen.'),
+  luecken: z
+    .array(z.string())
+    .describe(
+      'Was offen blieb — je Eintrag ein Satz, ausformuliert genug, um daraus eine eigene Teilfrage zu machen. Leer, wenn nichts offen ist.'
+    ),
+  belastbarkeit: z
+    .enum(CONFIDENCE_LEVELS)
+    .describe(
+      'hoch = mehrere unabhängige Quellen; mittel = eine belastbare Quelle; gering = nur Indizien oder widersprüchliche Angaben.'
+    ),
+});
+
+export type ResearcherResponse = z.infer<typeof researcherResponseSchema>;
+
+export function researcherAnswerTool() {
+  return tool({
+    description:
+      'Gibt dein Ergebnis an den Hauptagenten zurück. Rufe es genau einmal auf, wenn du fertig bist — danach endet deine Teilrecherche.',
+    inputSchema: researcherResponseSchema,
+    execute: async (): Promise<string> => 'Ergebnis übergeben.',
+  });
 }

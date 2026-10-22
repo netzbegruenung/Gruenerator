@@ -176,7 +176,7 @@ function formatExamplesSection(examples: ExamplePost[]): string {
  * Formats enrichment sources as a bibliography-style list
  * Shows all documents, texts, and web sources used
  */
-export function formatSourcesBibliography(metadata: EnrichmentMetadata): string {
+function formatSourcesBibliography(metadata: EnrichmentMetadata): string {
   if (!metadata) return '';
 
   const sections: string[] = [];

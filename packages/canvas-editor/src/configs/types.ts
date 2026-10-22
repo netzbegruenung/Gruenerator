@@ -1,8 +1,9 @@
 import type { BackgroundType, TextFieldConfig } from './unifiedTabs';
 import type { TemplateAiCapabilities } from '../ai/types';
-import type { CanvasSpecEditBridge } from '../CanvasEditorProvider';
+import type { AltTextPage, AltTextScope, CanvasSpecEditBridge } from '../CanvasEditorProvider';
+import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { CanvasStageRef } from '../primitives/CanvasStage';
-import type { SidebarTabId, SidebarTab } from '../sidebar/types';
+import type { BackgroundColorOption, SidebarTabId, SidebarTab } from '../sidebar/types';
 import type { GradientFill } from '../utils/gradientFill';
 import type { TextAccent, TextMarker } from '../utils/textUtils';
 
@@ -178,6 +179,14 @@ export interface ImageElementConfig<
    * about the centre with no drift into a corner and no re-centring needed.
    */
   centerZoom?: boolean;
+  /**
+   * The part of the element's box a cover-fitted photo fills; the rest stays
+   * free. Null: the whole box. The composer's photo strips use it.
+   */
+  frame?: (
+    state: TState,
+    layout: LayoutResult
+  ) => { x: number; y: number; width: number; height: number } | null;
 }
 
 /** Rectangle element configuration */
@@ -298,8 +307,16 @@ export interface SectionContext {
   captureCanvasImage?: () => Promise<string | null>;
   /** Higher-fidelity capture variant used to feed canvas images to the AI. */
   captureCanvasImageForAi?: () => Promise<string | null>;
+  /** Pages as image plus their texts, for the alt-text tool (multi-page editor only). */
+  collectAltTextPages?: (scope: AltTextScope) => Promise<AltTextPage[]>;
+  /** Number of pages in the editor. */
+  pageCount?: number;
   /** Spec-path bridge for the chat section (multi-page editor only). */
   specEdit?: CanvasSpecEditBridge;
+  /** The page's background controls, for sections that set the background. */
+  background?: BackgroundControls | null;
+  /** The page's chart palette (`FullCanvasConfig.chartColors`). */
+  chartColors?: readonly string[];
   onDownload?: () => void;
   onNavigateToGallery?: () => void;
   /** Opens the host's "als Vorlage speichern" flow; the entry hides without it. */
@@ -347,6 +364,7 @@ export type CanvasConfigId =
   | 'slider'
   | 'freeform'
   | 'profilbild'
+  | 'sticker'
   // Österreich (de-AT) variants
   | 'zitat-at'
   | 'zitat-pure-at'
@@ -375,6 +393,45 @@ export interface MultiPageConfig<TState> {
   defaultNewPageState?: Partial<TState>;
   /** Enable heterogeneous mode - allows different templates per page */
   heterogeneous?: boolean;
+}
+
+// ============================================================================
+// BACKGROUND CONTROLS
+// ============================================================================
+
+/**
+ * What the context bar offers for a template's background — its colour plane
+ * and, where the template has one, the photo over it. Each field is optional:
+ * a control is shown only when its value and its setter are both present.
+ */
+export interface BackgroundControls {
+  /** Swatches for the colour plane, shown first; the brand colours and a free
+   *  pick follow unless `paletteOnly`. */
+  colors?: readonly BackgroundColorOption[];
+  /** The colour is derived from a fixed set (slider schemes): offer only `colors`. */
+  paletteOnly?: boolean;
+  /** The colour now shown; empty while a photo replaces it (freeform). */
+  currentColor?: string;
+  onColorChange?: (color: string) => void;
+  /** True when a colour pick itself hides the photo (freeform keeps it to restore).
+   *  Otherwise the colour lies under the photo, and a pick from the photo removes it. */
+  colorReplacesImage?: boolean;
+  /** The photo now shown; undefined when there is none. */
+  currentImageSrc?: string;
+  /** Stock credit of the photo now shown, if it is a hotlinked stock photo. */
+  imageAttribution?: StockImageAttribution | null;
+  /** Sets the photo (`url` must be durable) or, with `null`, removes it. */
+  onImageChange?: (
+    file: File | null,
+    url?: string,
+    attribution?: StockImageAttribution | null
+  ) => void;
+  /** Brings back a photo that a colour pick hid but kept (freeform). */
+  onRestoreImage?: () => void;
+  scale?: number;
+  onScaleChange?: (scale: number) => void;
+  isLocked?: boolean;
+  onToggleLock?: () => void;
 }
 
 // ============================================================================
@@ -416,6 +473,10 @@ export interface FullCanvasConfig<
     debouncedSaveToHistory: (state?: TState) => void,
     callbacks: Record<string, ((val: unknown) => void) | undefined>
   ) => TActions;
+  /** The background's colour and photo controls for the context bar. */
+  background?: (state: TState, actions: TActions) => BackgroundControls;
+  /** Series colours for charts on this page, its country's palette; absent: `CHART_COLORS`. */
+  chartColors?: readonly string[];
   /** Optional function to determine disabled tabs */
   getDisabledTabs?: (state: TState) => SidebarTabId[];
   /** Optional function to determine visible tabs.
@@ -446,12 +507,7 @@ export interface FullCanvasConfig<
   // UNIFIED TAB SYSTEM (for heterogeneous multi-page mode)
   // ============================================================================
 
-  /**
-   * Background type determines which section renders in the Background tab.
-   * - 'image': ImageBackgroundSection (Unsplash, scale/offset)
-   * - 'color': BackgroundSection (color picker)
-   * If not specified, defaults to 'image' for backwards compatibility.
-   */
+  /** Whether the background is a photo or a colour plane; defaults to 'image'. */
   backgroundType?: BackgroundType;
 
   /**

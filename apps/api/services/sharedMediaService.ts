@@ -107,6 +107,11 @@ export type UploadSource = (typeof UPLOAD_SOURCES)[number];
 
 const PROFILBILD_BACKGROUND_SOURCE = 'profilbild-background' satisfies UploadSource;
 const STUDIO_ASSET_UPLOAD_SOURCE = 'studio-asset' satisfies UploadSource;
+/** Sources a model painted: their rows carry `content_origin = 'ki'`. */
+const KI_UPLOAD_SOURCES: readonly string[] = [
+  'ai_generated',
+  'sharepic-illustration',
+] satisfies UploadSource[];
 
 /**
  * `expires_at` for a freshly created share, as a SQL expression.
@@ -1408,10 +1413,9 @@ class SharedMediaService {
       }
 
       // Everything arriving here is a source image, not a finished creation —
-      // including the canvas editor's background/asset uploads. `ai_generated` is
-      // the one source that would say otherwise; no caller assigns it today, but
-      // handling it means a future one gets the right bucket for free.
-      const contentOrigin = uploadSource === 'ai_generated' ? 'ki' : 'upload';
+      // including the canvas editor's background/asset uploads. Only the
+      // model-painted sources say otherwise.
+      const contentOrigin = KI_UPLOAD_SOURCES.includes(uploadSource) ? 'ki' : 'upload';
 
       const query = `
                 INSERT INTO shared_media

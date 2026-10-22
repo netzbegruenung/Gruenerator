@@ -22,12 +22,13 @@
  *    `deepResearchQuota.ts`.
  */
 
+import { DEV_BYPASS_USER_ID } from '../../../config/devAuthBypass.js';
 import { env } from '../../../config/env.js';
 import { createDocumentWithContent } from '../../../services/docs/DocGenerationService.js';
 import { runDeepAgentResearch } from '../../../services/research/deepAgent/index.js';
 import { buildNotebookScope } from '../../../services/research/deepAgent/notebookScope.js';
 import { recordRunDocument } from '../../../services/research/deepAgent/runRegistry.js';
-import { DEFAULT_BUDGET } from '../../../services/research/deepAgent/types.js';
+import { DEFAULT_BUDGET, PROBE_BUDGET } from '../../../services/research/deepAgent/types.js';
 import { canWebSearch } from '../../../services/search/webSearch.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -90,6 +91,11 @@ export async function runDeepAgentTurn(params: {
     return null;
   }
 
+  // Local runs through the dev auth bypass get the probe budget: the bypass is
+  // refused outright in production, so this cannot shorten a real research.
+  const budget =
+    env.NODE_ENV === 'development' && userId === DEV_BYPASS_USER_ID ? PROBE_BUDGET : DEFAULT_BUDGET;
+
   const logId = `research-${Date.now()}`;
   const locale = state.userLocale === 'de-AT' ? 'de-AT' : 'de-DE';
   const started = Date.now();
@@ -126,7 +132,8 @@ export async function runDeepAgentTurn(params: {
       // itself and needs `wrapUpMs` on top of it to still write the report.
       // Cutting at `hardMs` here is what turned a finished body of research
       // into a fragment on 11.08.2026.
-      signal: AbortSignal.timeout(DEFAULT_BUDGET.hardMs + DEFAULT_BUDGET.wrapUpMs),
+      signal: AbortSignal.timeout(budget.hardMs + budget.wrapUpMs),
+      budget,
       ...(notebookScope ? { notebookScope } : {}),
       userId,
       progress: {

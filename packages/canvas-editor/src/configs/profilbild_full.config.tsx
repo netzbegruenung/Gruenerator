@@ -17,10 +17,9 @@ import {
   DEFAULT_CANVAS_SIZE,
   INITIAL_SCALE,
 } from '@gruenerator/shared/canvas-editor';
-import { HiPaintBrush } from 'react-icons/hi2';
 import { PiSquaresFourFill } from 'react-icons/pi';
 
-import { AssetsSection, BackgroundSection } from '../sidebar/sections';
+import { AssetsSection } from '../sidebar/sections';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/actionFactories';
@@ -30,10 +29,10 @@ import { injectFeatureProps } from './featureInjector';
 
 import type { BaseCanvasState } from './factory/baseTypes';
 import type {
+  BackgroundElementConfig,
   FullCanvasConfig,
   ImageElementConfig,
   LayoutResult,
-  RectElementConfig,
 } from './types';
 import type { TemplateAiCapabilities } from '../ai/types';
 import type { BackgroundColorOption } from '../sidebar/types';
@@ -127,16 +126,18 @@ const calculateLayout = (_state: ProfilbildFullState): LayoutResult => ({});
 // ELEMENTS
 // ============================================================================
 
-const backgroundElement: RectElementConfig<ProfilbildFullState> = {
+// A colour plane like the other templates', so a click on it selects it and
+// the context bar shows the swatches.
+const backgroundElement: BackgroundElementConfig<ProfilbildFullState> = {
   id: 'background',
-  type: 'rect',
+  type: 'background',
   x: 0,
   y: 0,
   order: 0,
   width: CANVAS_SIZE,
   height: CANVAS_SIZE,
-  fill: (state) => state.backgroundColor || DEFAULT_BACKGROUND_COLOR,
-  listening: false,
+  colorKey: 'backgroundColor',
+  color: DEFAULT_BACKGROUND_COLOR,
 };
 
 const avatarElement: ImageElementConfig<ProfilbildFullState> = {
@@ -213,7 +214,6 @@ export const profilbildFullConfig: FullCanvasConfig<ProfilbildFullState, Profilb
   ai: profilbildAiCapabilities,
 
   tabs: [
-    { id: 'background', icon: HiPaintBrush, label: 'Farbe', ariaLabel: 'Hintergrundfarbe' },
     {
       id: 'elements',
       icon: PiSquaresFourFill,
@@ -225,17 +225,15 @@ export const profilbildFullConfig: FullCanvasConfig<ProfilbildFullState, Profilb
     chatTab,
   ],
 
-  getVisibleTabs: () => ['background', 'elements', 'tools', 'uploads', 'chat'],
+  getVisibleTabs: () => ['elements', 'tools', 'uploads', 'chat'],
+
+  background: (state, actions) => ({
+    colors: BACKGROUND_COLORS,
+    currentColor: state.backgroundColor,
+    onColorChange: actions.setBackgroundColor,
+  }),
 
   sections: {
-    background: section({
-      component: BackgroundSection,
-      propsFactory: (state, actions) => ({
-        colors: BACKGROUND_COLORS,
-        currentColor: state.backgroundColor,
-        onColorChange: actions.setBackgroundColor,
-      }),
-    }),
     elements: section({
       component: AssetsSection,
       propsFactory: (state, actions, context) => ({

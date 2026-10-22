@@ -17,7 +17,9 @@ import { CanvasText, CanvasImage, CanvasBackground } from '../primitives';
 import { useIsElementSelected } from '../stores/CanvasStoreProvider';
 import { canvasImageSourceUrl } from '../utils/canvasImageSource';
 import { imageRenderInputsAreEqual } from '../utils/imageElementComparison';
+import { backgroundAdjustments } from '../utils/imageFilters';
 import { useTrackPendingImage } from '../utils/pendingImages';
+import { BACKGROUND_IMAGE_NODE_ID } from '../utils/printImageInfo';
 // Die Aufloesung von x/y/width/height/opacity steht seit #3403 ausserhalb:
 // `templateElementToEntry` braucht dieselbe Rechnung, und zwei Fassungen
 // derselben Arithmetik driften auseinander.
@@ -63,7 +65,7 @@ interface MemoizedTextProps<TState extends Record<string, unknown> = Record<stri
   onSnapLinesChange: (lines: SnapLine[]) => void;
   stageWidth: number;
   stageHeight: number;
-  snapTargets: SnapTarget[];
+  getSnapTargets: (excludeId: string) => SnapTarget[];
 }
 
 const MemoizedTextElement = memo(
@@ -81,7 +83,7 @@ const MemoizedTextElement = memo(
     onSnapLinesChange,
     stageWidth,
     stageHeight,
-    snapTargets,
+    getSnapTargets,
   }: MemoizedTextProps<TState>) {
     const text = assertAsString(state[config.textKey]);
     const customFontSize = getOptionalStateValue<number>(state, config.fontSizeStateKey);
@@ -147,7 +149,7 @@ const MemoizedTextElement = memo(
         stageWidth={stageWidth}
         stageHeight={stageHeight}
         onSnapChange={onSnapChange}
-        snapTargets={snapTargets}
+        getSnapTargets={getSnapTargets}
         onPositionChange={onPositionChange}
         onGeometryChange={onGeometryChange}
         onSnapLinesChange={onSnapLinesChange}
@@ -218,7 +220,7 @@ interface MemoizedImageProps<TState extends Record<string, unknown> = Record<str
   stageHeight: number;
   onSnapChange: (snapH: boolean, snapV: boolean) => void;
   onSnapLinesChange: (lines: SnapLine[]) => void;
-  snapTargets: SnapTarget[];
+  getSnapTargets: (excludeId: string) => SnapTarget[];
 }
 
 const MemoizedImageElement = memo(function MemoizedImageElement<
@@ -237,7 +239,7 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
   stageHeight,
   onSnapChange,
   onSnapLinesChange,
-  snapTargets,
+  getSnapTargets,
 }: MemoizedImageProps<TState>) {
   // Resolve image source
   let imageSrc: string | undefined;
@@ -278,6 +280,16 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
 
   if (!image) return null;
 
+  // The slot the photo fills: the element's own box before zoom and pan.
+  const frame = config.coverFit
+    ? (config.frame?.(state, layout) ?? {
+        x: resolveValue(config.x, state, layout),
+        y: resolveValue(config.y, state, layout),
+        width: resolveValue(config.width, state, layout),
+        height: resolveValue(config.height, state, layout),
+      })
+    : null;
+
   return (
     <CanvasImage
       id={config.id}
@@ -288,7 +300,9 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
       height={height}
       opacity={opacity}
       color={typeof fill === 'string' ? fill : undefined}
+      adjustments={config.id === BACKGROUND_IMAGE_NODE_ID ? backgroundAdjustments(state) : null}
       coverFit={config.coverFit}
+      frame={frame}
       draggable={config.draggable && !isLocked}
       touchDragNeedsSelection={config.id === 'background-image'}
       selected={selected}
@@ -298,7 +312,7 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
       stageWidth={stageWidth}
       stageHeight={stageHeight}
       onSnapChange={onSnapChange}
-      snapTargets={snapTargets}
+      getSnapTargets={getSnapTargets}
       onPositionChange={onPositionChange}
       onGeometryChange={onGeometryChange}
       onSnapLinesChange={onSnapLinesChange}
@@ -405,11 +419,15 @@ interface MemoizedBackgroundProps<
 > {
   config: BackgroundElementConfig<TState>;
   state: TState;
+  onSelect: (id: string) => void;
 }
 
 const MemoizedBackgroundElement = memo(function MemoizedBackgroundElement<
   TState extends Record<string, unknown> = Record<string, unknown>,
->({ config, state }: MemoizedBackgroundProps<TState>) {
+>({ config, state, onSelect }: MemoizedBackgroundProps<TState>) {
+  // Selecting the plane opens its colour and photo controls in the context bar.
+  const handleSelect = useCallback(() => onSelect(config.id), [onSelect, config.id]);
+
   // Der Typ bietet zwei Schlüssel an: `colorKey` (slider) und `fillStateKey`
   // (freeform). Gelesen wurde nur der erste, deshalb blieb der
   // Freeform-Hintergrund unabhängig von der Farbwahl immer weiß.
@@ -426,6 +444,7 @@ const MemoizedBackgroundElement = memo(function MemoizedBackgroundElement<
       width={config.width}
       height={config.height}
       color={color}
+      onSelect={handleSelect}
       {...(glow
         ? {
             gradient: {
@@ -460,7 +479,7 @@ export interface GenericCanvasElementProps<
   onSnapLinesChange: (lines: SnapLine[]) => void;
   stageWidth: number;
   stageHeight: number;
-  snapTargets: SnapTarget[];
+  getSnapTargets: (excludeId: string) => SnapTarget[];
 }
 
 export const GenericCanvasElement = memo(function GenericCanvasElement<
@@ -480,7 +499,7 @@ export const GenericCanvasElement = memo(function GenericCanvasElement<
   onSnapLinesChange,
   stageWidth,
   stageHeight,
-  snapTargets,
+  getSnapTargets,
 }: GenericCanvasElementProps<TState>) {
   const selected = useIsElementSelected(config.id);
 
@@ -506,7 +525,7 @@ export const GenericCanvasElement = memo(function GenericCanvasElement<
           onSnapLinesChange={onSnapLinesChange}
           stageWidth={stageWidth}
           stageHeight={stageHeight}
-          snapTargets={snapTargets}
+          getSnapTargets={getSnapTargets}
         />
       );
 
@@ -526,7 +545,7 @@ export const GenericCanvasElement = memo(function GenericCanvasElement<
           stageHeight={stageHeight}
           onSnapChange={onSnapChange}
           onSnapLinesChange={onSnapLinesChange}
-          snapTargets={snapTargets}
+          getSnapTargets={getSnapTargets}
         />
       );
 
@@ -553,6 +572,7 @@ export const GenericCanvasElement = memo(function GenericCanvasElement<
         <MemoizedBackgroundElement
           config={config as BackgroundElementConfig<Record<string, unknown>>}
           state={state as Record<string, unknown>}
+          onSelect={onSelect}
         />
       );
 
@@ -588,7 +608,7 @@ export const GenericCanvasElement = memo(function GenericCanvasElement<
               onSnapLinesChange={onSnapLinesChange}
               stageWidth={stageWidth}
               stageHeight={stageHeight}
-              snapTargets={snapTargets}
+              getSnapTargets={getSnapTargets}
             />
           ))}
         </Group>

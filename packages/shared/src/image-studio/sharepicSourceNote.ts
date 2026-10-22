@@ -1,6 +1,7 @@
 import {
   isSharepicSceneRef,
   isSharepicUploadId,
+  isSharepicVorlageRef,
   type SharepicPhotoAttribution,
   type SharepicSpec,
 } from '@gruenerator/contracts';
@@ -10,7 +11,8 @@ type PictureSource =
   | { kind: 'farbe' }
   | { kind: 'unsplash'; photographer: string | null }
   | { kind: 'eigenes-foto' }
-  | { kind: 'ki-bild' };
+  | { kind: 'ki-bild' }
+  | { kind: 'vorlage-foto' };
 
 const sourceOf = (
   slide: SharepicSpec['slides'][number],
@@ -27,6 +29,7 @@ const sourceOf = (
       // The user's own photos stand under an `upload:N` id instead of a stock file name.
       if (isSharepicUploadId(bg.filename)) return { kind: 'eigenes-foto' };
       if (isSharepicSceneRef(bg.filename)) return { kind: 'ki-bild' };
+      if (isSharepicVorlageRef(bg.filename)) return { kind: 'vorlage-foto' };
       return { kind: 'unsplash', photographer: attribution?.photographer ?? null };
     default: {
       const unmapped: never = bg;
@@ -43,6 +46,8 @@ const describe = (source: PictureSource): string => {
       return 'KI-generiertes Bild';
     case 'eigenes-foto':
       return 'Eigenes Foto';
+    case 'vorlage-foto':
+      return 'Foto aus der Grünerator-Vorlage';
     case 'unsplash':
       return source.photographer
         ? `Stockfoto von ${source.photographer} auf Unsplash`

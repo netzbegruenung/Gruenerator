@@ -10,7 +10,7 @@ import {
   type SharepicSpec,
 } from '@gruenerator/contracts';
 
-import { carouselSlideCount } from './draftFailure.js';
+import { CAROUSEL_MIN_SLIDES, carouselSlideCount } from './draftFailure.js';
 import { type ExampleOccasion, type StyleguideChapter } from './styleguide.js';
 
 interface FormRecipe {
@@ -32,7 +32,7 @@ export const FORM_RECIPES: Record<SharepicFormId, FormRecipe> = {
     anlass: ['zitat'],
   },
   karussell: {
-    wann: 'Inhalt, der mehrere Schritte braucht: Erklärung, Kritik oder Geschichte über 3–8 Slides',
+    wann: 'Inhalt, der mehrere Schritte braucht: Erklärung, Kritik oder Geschichte über 2–8 Slides',
     kapitel: ['karussell'],
     anlass: ['karussell-erklaerung'],
   },
@@ -96,6 +96,11 @@ export const FORM_RECIPES: Record<SharepicFormId, FormRecipe> = {
     kapitel: ['veranstaltung'],
     anlass: ['veranstaltung'],
   },
+  vorstellung: {
+    wann: 'eine Person stellt sich vor: Name, Foto, ein paar Stichworte über sie',
+    kapitel: ['vorstellung', 'fotos'],
+    anlass: ['vorstellung'],
+  },
 };
 
 export function formCatalog(): string {
@@ -118,6 +123,10 @@ const NAMED: [SharepicFormId, RegExp][] = [
     /vergleichs-?(?:grafik|bild|sharepic|kachel)\p{L}*|gegen(?:ü|ue)berstellung\p{L}*|als\s+vergleich|vergleich\s*:/giu,
   ],
   ['interview', /interview\p{L}*/giu],
+  [
+    'vorstellung',
+    /steckbrief\p{L}*|vorstellungs-?(?:post|bild|kachel|sharepic)\p{L}*|stell\p{L}*\s+mich\s+vor/giu,
+  ],
   ['rechnung', /rechenweg\p{L}*|als\s+rechnung|rechnung\s*:/giu],
   ['termine', /termin(?:en?|übersicht|kalender|liste|plan)(?!\p{L})|save\s+the\s+dates?/giu],
   ['zahl', /gro(?:ß|ss)e[nr]?\s+zahl|countdown|noch\s+\d+\s+tage/giu],
@@ -179,7 +188,9 @@ export function formMismatch(
     case 'einzelbild':
       return spec.slides.length === 1 ? null : `${label}: genau eine Slide.`;
     case 'karussell':
-      return spec.slides.length >= 3 ? null : carouselSlideCount(spec.slides.length);
+      return spec.slides.length >= CAROUSEL_MIN_SLIDES
+        ? null
+        : carouselSlideCount(spec.slides.length);
     case 'zitat':
       return has('zitat') ? null : `${label}: setz die Aussage als {"type":"zitat"} mit Namen.`;
     case 'interview':
@@ -228,5 +239,9 @@ export function formMismatch(
       return spec.slides.some((slide) => slide.datum)
         ? null
         : `${label}: Datum (und Ort) gehören in "datum" der Slide (Kapitel veranstaltung).`;
+    case 'vorstellung':
+      return has('steckbrief')
+        ? null
+        : `${label}: setz die Person als {"type":"steckbrief","gruss","name","merkmale":[…3–10]} – Name und Merkmale nur aus dem Auftrag (Kapitel vorstellung).`;
   }
 }

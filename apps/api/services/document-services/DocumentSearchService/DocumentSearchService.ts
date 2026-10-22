@@ -140,7 +140,6 @@ async function hideTrashedDocuments(response: SearchResponse): Promise<SearchRes
 export class DocumentSearchService extends BaseSearchService {
   private qdrant: QdrantService;
   private qdrantOps: QdrantOperations | null;
-  private initialized: boolean;
   private qdrantAvailable: boolean;
   private hybridConfig: HybridConfig;
 
@@ -153,7 +152,6 @@ export class DocumentSearchService extends BaseSearchService {
 
     this.qdrant = getQdrantInstance();
     this.qdrantOps = null;
-    this.initialized = false;
     this.qdrantAvailable = false;
     this.hybridConfig = vectorConfig.get('hybrid');
   }
@@ -165,19 +163,14 @@ export class DocumentSearchService extends BaseSearchService {
    * Called automatically before search operations.
    */
   async ensureInitialized(): Promise<void> {
-    if (!this.initialized) {
-      await this.qdrant.init();
-      this.qdrantAvailable = !!this.qdrant?.client && !!this.qdrant?.isConnected;
+    // QdrantService throttles reconnects, so asking again on every call is cheap.
+    if (this.qdrantOps) return;
 
-      if (this.qdrantAvailable && this.qdrant.client) {
-        this.qdrantOps = new QdrantOperations(this.qdrant.client);
-      } else {
-        console.warn(
-          '[DocumentSearchService] Qdrant not available; vector searches will be skipped'
-        );
-        this.qdrantOps = null;
-      }
-      this.initialized = true;
+    await this.qdrant.init();
+    this.qdrantAvailable = !!this.qdrant?.client && !!this.qdrant?.isConnected;
+
+    if (this.qdrantAvailable && this.qdrant.client) {
+      this.qdrantOps = new QdrantOperations(this.qdrant.client);
     }
   }
 
@@ -676,7 +669,8 @@ export class DocumentSearchService extends BaseSearchService {
   async getDocumentFirstChunks(userId: string, documentIds: string[]): Promise<FirstChunksResult> {
     await this.ensureInitialized();
     if (!this.qdrantOps) {
-      throw new Error('Qdrant not available');
+      // Only list previews depend on this; the lists themselves come from Postgres.
+      return { success: false, chunks: {}, foundCount: 0, error: 'Qdrant not available' };
     }
     return await docRetrieval.getDocumentFirstChunks(this.qdrantOps, userId, documentIds);
   }

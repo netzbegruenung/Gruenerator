@@ -1,3 +1,5 @@
+import { type StockImageAttribution } from '../common/imageSourceTypes';
+
 export interface UserImageInstance {
   id: string;
   src: string;
@@ -35,10 +37,22 @@ export interface UserImageInstance {
   tint?: string;
   /** How far the tint replaces the photo's own colours: 0..1. */
   tintStrength?: number;
-  /** `cover`: the source is cropped (Konva `crop`) to fill width × height, centred. */
+  /** Darkened edges: 0..1. */
+  vignette?: number;
+  /** Mirrored left–right / top–bottom; flips the pixels, not the node. */
+  flipX?: boolean;
+  flipY?: boolean;
+  /** `cover`: the source is cropped (Konva `crop`) to fill width × height. */
   fit?: 'cover';
+  /** Magnification inside the crop frame; 1 just covers it. */
+  cropZoom?: number;
+  /** `cover` only: where the photo sits in its frame, a share of its overhang (-1 … 1, 0 centred). */
+  panX?: number;
+  panY?: number;
   /** `kreis`: clipped to the circle inside width × height. */
   mask?: 'kreis';
+  /** Stock credit (Unsplash): the photo is hotlinked, so the credit travels with it. */
+  attribution?: StockImageAttribution;
 }
 
 /** The adjustment fields, for reset / preset helpers. */
@@ -55,6 +69,9 @@ export type ImageAdjustments = Pick<
   | 'invert'
   | 'tint'
   | 'tintStrength'
+  | 'vignette'
+  | 'flipX'
+  | 'flipY'
 >;
 
 export interface ImageCrop {
@@ -62,17 +79,6 @@ export interface ImageCrop {
   y: number;
   width: number;
   height: number;
-}
-
-/** The centred part of a `natural` source that fills a `frame` without distortion (Konva `crop`). */
-export function coverCrop(
-  natural: { width: number; height: number },
-  frame: { width: number; height: number }
-): ImageCrop {
-  const scale = Math.max(frame.width / natural.width, frame.height / natural.height);
-  const width = frame.width / scale;
-  const height = frame.height / scale;
-  return { x: (natural.width - width) / 2, y: (natural.height - height) / 2, width, height };
 }
 
 export interface CropPreset {
@@ -102,10 +108,14 @@ export function cropPresetUpdate(
     height,
     fit: preset.ratio ? 'cover' : undefined,
     mask: preset.mask,
+    cropZoom: 1,
+    panX: 0,
+    panY: 0,
   };
 }
 
-const TARGET_MAX_DIMENSION = 300;
+/** A new image fits this share of the canvas on both axes; it is never upscaled past its own size. */
+const CANVAS_FIT_SHARE = 0.6;
 const FALLBACK_WIDTH = 300;
 const FALLBACK_HEIGHT = 200;
 
@@ -113,9 +123,17 @@ function makeId(): string {
   return `user-image-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
-function scaleToTarget(naturalW: number, naturalH: number): { width: number; height: number } {
-  const maxDim = Math.max(naturalW, naturalH);
-  const scaleFactor = maxDim > TARGET_MAX_DIMENSION ? TARGET_MAX_DIMENSION / maxDim : 1;
+export function fitToCanvas(
+  naturalW: number,
+  naturalH: number,
+  canvasWidth: number,
+  canvasHeight: number
+): { width: number; height: number } {
+  const scaleFactor = Math.min(
+    1,
+    (canvasWidth * CANVAS_FIT_SHARE) / naturalW,
+    (canvasHeight * CANVAS_FIT_SHARE) / naturalH
+  );
   return { width: naturalW * scaleFactor, height: naturalH * scaleFactor };
 }
 
@@ -125,19 +143,22 @@ function makeInstance(
   width: number,
   height: number,
   canvasWidth: number,
-  canvasHeight: number
+  canvasHeight: number,
+  options: UserImagePlacement = {}
 ): UserImageInstance {
+  const center = options.center ?? { x: canvasWidth / 2, y: canvasHeight / 2 };
   return {
     id: makeId(),
     src,
     fileName,
-    x: canvasWidth / 2 - width / 2,
-    y: canvasHeight / 2 - height / 2,
+    x: center.x - width / 2,
+    y: center.y - height / 2,
     width,
     height,
     rotation: 0,
     scale: 1,
     opacity: 1,
+    ...(options.attribution && { attribution: options.attribution }),
   };
 }
 
@@ -205,24 +226,52 @@ export async function downscaleImageForUpload(file: File): Promise<File> {
   }
 }
 
+/** Where a new element goes; without `center` it lands in the canvas centre. */
+export interface ElementPlacement {
+  /** Centre of the new element (a drop point), in the template's reference space. */
+  center?: { x: number; y: number };
+}
+
+export interface UserImagePlacement extends ElementPlacement {
+  /** Stock credit of a hotlinked photo, kept on the instance. */
+  attribution?: StockImageAttribution;
+}
+
 export function createUserImageInstanceFromUrl(
   url: string,
   fileName: string,
   canvasWidth: number,
-  canvasHeight: number
+  canvasHeight: number,
+  options?: UserImagePlacement
 ): Promise<UserImageInstance> {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
-      const { width, height } = scaleToTarget(img.naturalWidth, img.naturalHeight);
-      resolve(makeInstance(url, fileName, width, height, canvasWidth, canvasHeight));
+      const { width, height } = fitToCanvas(
+        img.naturalWidth,
+        img.naturalHeight,
+        canvasWidth,
+        canvasHeight
+      );
+      resolve(makeInstance(url, fileName, width, height, canvasWidth, canvasHeight, options));
     };
     img.onerror = () => {
       resolve(
-        makeInstance(url, fileName, FALLBACK_WIDTH, FALLBACK_HEIGHT, canvasWidth, canvasHeight)
+        makeInstance(
+          url,
+          fileName,
+          FALLBACK_WIDTH,
+          FALLBACK_HEIGHT,
+          canvasWidth,
+          canvasHeight,
+          options
+        )
       );
     };
     img.src = url;
   });
 }
+
+/** Konva node name of a user photo's Image; the print export finds photos by it. */
+export const USER_PHOTO_NODE_NAME = 'user-photo';

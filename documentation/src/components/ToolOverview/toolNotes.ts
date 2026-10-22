@@ -90,7 +90,7 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
     platform: ['web'],
   },
   sticker: {
-    note: 'Sticker und Hintergründe für dein Profilbild: unter „Entdecken“ findest du, was andere geteilt haben, und kannst es liken, dir merken oder melden. Eigene Sticker bleiben privat, bis du sie mit Bestätigung der Bildrechte öffentlich machst.',
+    note: 'Sticker und Hintergründe für dein Profilbild: unter „Entdecken“ öffnet sich der Marktplatz mit dem, was andere geteilt haben: liken, merken oder melden. Eigene Sticker bleiben privat, bis du sie mit Bestätigung der Bildrechte öffentlich machst.',
     platform: ['web'],
   },
   'bild-erweitern': {
@@ -105,12 +105,16 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
     note: 'Alle deine Bilder, Sharepics, KI-Bilder, Videos und Audios an einem Ort: hochladen (auch per Drag & Drop), nach Art filtern, durchsuchen, Titel und Alt-Text pflegen, herunterladen, teilen oder in den Papierkorb legen — ohne Obergrenze.',
     platform: ['web'],
   },
+  'bildgenerator-at': {
+    note: 'Nur für Österreich: ein Link zum Sharepic-Bildgenerator der Grünen Österreich auf bildgenerator.gruene.at. Er läuft außerhalb des Grünerators — was du dort erstellst, landet nicht in deiner Mediathek.',
+    platform: ['web'],
+  },
 
   // ── Organisieren ──────────────────────────────────────────────────────────
-  agents: {
-    note: 'Deine Agents, Rezepte und wiederkehrenden Aufgaben an einem Ort: eigene anlegen und aus der Agentura offizielle und öffentliche dazuholen.',
+  marktplatz: {
+    note: 'Offizielle, Landesverbands- und öffentliche Agents, Rezepte, Vorlagen, Sticker und Hintergründe: stöbern, ausprobieren, zu deinen Grüneratoren holen und Eigenes teilen.',
     platform: ['web', 'desktop', 'mobile'],
-    readMore: { label: 'Grüneratoren und Agentura', href: '/docs/features/agentura' },
+    readMore: { label: 'Grüneratoren und Marktplatz', href: '/docs/features/marktplatz' },
   },
   projekte: {
     note: 'Projekte bündeln Chats, Dokumente und Mitglieder zu einem Arbeitszusammenhang — etwa für eine Kampagne oder einen Ortsverband.',

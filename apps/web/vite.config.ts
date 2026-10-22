@@ -430,6 +430,13 @@ export default defineConfig(({ command }) => ({
                 proxyReq.setHeader('origin', 'http://localhost:3000');
               }
             });
+            // `/api/voice/realtime` is an upgrade, which `resolveUpgradeAuth`
+            // authenticates by query parameter only — the header above never
+            // reaches it.
+            proxy.on('proxyReqWs', (proxyReq) => {
+              const token = encodeURIComponent(process.env.VITE_DEV_AUTH_BYPASS_TOKEN || '');
+              proxyReq.path += `${proxyReq.path.includes('?') ? '&' : '?'}dev_auth_token=${token}`;
+            });
           },
         }),
       },

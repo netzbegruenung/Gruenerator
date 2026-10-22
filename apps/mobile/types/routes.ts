@@ -20,6 +20,7 @@ export type AppRoute =
   | '/(focused)/profilbild'
   | '/(focused)/sticker'
   | '/(focused)/sticker-neu'
+  | '/(focused)/marktplatz'
   | '/(focused)/uebersetzer'
   // Wissen
   | '/(focused)/wissen'
@@ -29,6 +30,7 @@ export type AppRoute =
   | '/auth/callback'
   // Focused routes
   | '/(focused)/chat-conversation'
+  | '/(focused)/sprachgespraech'
   // Notebook routes — push with `{ withAnchor: true }` (see `app/notebook/[id]/_layout.tsx`)
   | '/notebook/[id]'
   | '/notebook/[id]/chat'

@@ -58,6 +58,19 @@ describe('parseVisualBlock', () => {
     );
     expect(parsed?.kind).toBe('chart');
   });
+
+  it('reads the singular "yKey" the model sometimes writes', () => {
+    const parsed = parseVisualBlock(
+      'chart',
+      '{"type":"bar","data":[{"name":"2023","wert":139}],"xKey":"name","yKey":["wert"]}'
+    );
+    expect(parsed?.kind === 'chart' && parsed.block.yKeys).toEqual(['wert']);
+    const single = parseVisualBlock(
+      'chart',
+      '{"type":"bar","data":[{"name":"2023","wert":139}],"xKey":"name","yKey":"wert"}'
+    );
+    expect(single?.kind === 'chart' && single.block.yKeys).toEqual(['wert']);
+  });
 });
 
 describe('replaceVisualBlocksWithText', () => {

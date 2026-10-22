@@ -95,6 +95,29 @@ describe('duplicateElementInState', () => {
     expect(copy.x).toBe(10);
   });
 
+  // „Hier einfügen“ verschiebt je Achse anders.
+  it.each(CASES.filter((c) => c.type !== 'balken'))(
+    'versetzt $type um einen Vektor',
+    ({ field, id }) => {
+      const result = duplicateElementInState(stateWithOneOfEach(), id, {
+        offset: { x: 5, y: -15 },
+      });
+      const copy = listOf(result!.state, field)[1];
+      expect([copy.x, copy.y]).toEqual([15, 5]);
+    }
+  );
+
+  it('versetzt Balken und Icon um einen Vektor', () => {
+    const offset = { x: 5, y: -15 };
+    const balken = duplicateElementInState(stateWithOneOfEach(), 'balken-1', { offset })!;
+    expect((listOf(balken.state, 'balkenInstances')[1] as { offset?: unknown }).offset).toEqual({
+      x: 15,
+      y: 5,
+    });
+    const icon = duplicateElementInState(stateWithOneOfEach(), 'tabler-sun', { offset })!;
+    expect(icon.state.iconStates?.[icon.newId]).toMatchObject({ x: 15, y: 5 });
+  });
+
   it('gibt null für eine unbekannte ID zurück', () => {
     expect(duplicateElementInState(stateWithOneOfEach(), 'quote-text')).toBeNull();
     expect(duplicateElementInState(stateWithOneOfEach(), 'sunflower')).toBeNull();

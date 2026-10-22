@@ -22,6 +22,7 @@ const base = {
   loopDemotedFromRetrieval: false,
   classifierContradictedResearch: false,
   materialHeavy: false,
+  carriesMaterial: false,
   pinnedTool: null as string | null,
   priorTurnRetrieved: false,
   hasAttachedDocuments: false,
@@ -293,6 +294,28 @@ describe('shouldForceFirstToolCall', () => {
       [`Kannst du das lektorieren?\n\n${newsletter}`],
     ])('kurzer eingefügter Text mit Überarbeitungs-Auftrag sucht nicht: %s', (lastUserText) => {
       expect(force({ loopDemotedFromRetrieval: true, lastUserText })).toBeNull();
+    });
+
+    // #4789: die Frage zum Paste eines früheren Turns. Zu kurz für
+    // `materialHeavy`, kein Überarbeiten — der Stoff steht trotzdem im Prompt.
+    it.each([
+      ['Welche vier Maßnahmen stehen im Antrag genau?'],
+      ['Wie hoch waren nochmal die Kosten laut Antrag?'],
+      ['Was steht darin zur Finanzierung?'],
+    ])('eine Frage über mitgebrachten Text sucht nicht: %s', (lastUserText) => {
+      expect(
+        force({ loopDemotedFromRetrieval: true, carriesMaterial: true, lastUserText })
+      ).toBeNull();
+    });
+
+    it.each([
+      // Ohne Stoff im Prompt ist „im Antrag" ein Abruf.
+      [{ carriesMaterial: false, lastUserText: 'Welche Maßnahmen stehen im Antrag der Grünen?' }],
+      // Mit Stoff, aber die Frage zeigt nicht auf ihn.
+      [{ carriesMaterial: true, lastUserText: 'Wer ist aktuell Bundeskanzler in Österreich?' }],
+      [{ carriesMaterial: true, lastUserText: 'Was steht im Wahlprogramm zur Windkraft?' }],
+    ])('ohne Bezug auf den Stoff bleibt der Zwang: %o', (input) => {
+      expect(force({ loopDemotedFromRetrieval: true, ...input })).toBe('demoted_retrieval');
     });
 
     // #3912: „die Suche" im Stoff machte aus einem Schreibauftrag eine erzwungene
@@ -727,7 +750,8 @@ describe('forcedFirstStepTools', () => {
     'summarize',
     'dokumente_lesen',
     'text_uebersetzen',
-    'rezept_laden',
+    // `rezept_laden` fehlt absichtlich: montiert hängt es an jeden Zuschnitt
+    // an (eigener Block unten), die Fälle hier prüfen den Zuschnitt selbst.
     'ask_human',
     'edit_document',
     'm1__list',
@@ -760,6 +784,54 @@ describe('forcedFirstStepTools', () => {
       userText: '',
       ...over,
     });
+
+  describe('rezept_laden im Zuschnitt (#4785)', () => {
+    const withRecipe = [...MOUNTED, 'rezept_laden'];
+    const order = (over: Parameters<typeof tools>[0]) => tools({ recipeOrder: true, ...over });
+
+    it('named_intent mit Anhang: der Prompt verlangt das Rezept zuerst, also ist es dabei', () => {
+      // Der Live-Fall: Paste + „Mach daraus bitte einen Instagram-Post" mit
+      // Standard-Notebooks. Ohne das Werkzeug hing Gemma unter `required`.
+      expect(order({ reason: 'named_intent', intent: 'search', mounted: withRecipe })).toEqual([
+        'gruenerator_search',
+        'rezept_laden',
+      ]);
+    });
+
+    it.each(['research_order', 'demoted_retrieval', 'contradicted', 'followup'] as const)(
+      '%s: dabei, wenn montiert',
+      (reason) => {
+        expect(order({ reason, mounted: withRecipe })).toContain('rezept_laden');
+      }
+    );
+
+    it('nicht montiert (kein Katalog im Prompt) → bleibt draussen', () => {
+      expect(order({ reason: 'named_intent', intent: 'search' })).not.toContain('rezept_laden');
+    });
+
+    it('ohne Bestellung bleibt es draussen: Recherche griff sonst zum Rezept (#3880)', () => {
+      expect(
+        tools({ reason: 'research_order', mounted: withRecipe, recipeOrder: false })
+      ).not.toContain('rezept_laden');
+      expect(tools({ reason: 'named_intent', intent: 'search', mounted: withRecipe })).toEqual([
+        'gruenerator_search',
+      ]);
+    });
+
+    it('mcp_scope und Bearbeitungsaufträge schreiben keine Textsorte → bleibt draussen', () => {
+      expect(order({ reason: 'mcp_scope', mounted: withRecipe })).not.toContain('rezept_laden');
+      expect(
+        order({ reason: 'sharepic_order', mounted: [...withRecipe, 'edit_sharepic'] })
+      ).not.toContain('rezept_laden');
+    });
+
+    it('macht aus einem leeren Zuschnitt keinen Rezept-Zwang', () => {
+      expect(order({ reason: 'mcp_scope', mcpToolNames: [], mounted: withRecipe })).toBeNull();
+      expect(
+        order({ reason: 'named_intent', intent: 'search', mounted: ['rezept_laden'] })
+      ).toBeNull();
+    });
+  });
 
   it('named_intent: search → gruenerator_search', () => {
     expect(tools({ reason: 'named_intent', intent: 'search' })).toEqual(['gruenerator_search']);

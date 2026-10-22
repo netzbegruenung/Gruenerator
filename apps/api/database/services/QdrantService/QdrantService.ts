@@ -116,6 +116,7 @@ export class QdrantService {
   vectorSize: number = 0;
   lastHealthCheck: number = 0;
   healthCheckInterval: number = 30000;
+  lastFailedInitAt: number = 0;
 
   collections: CollectionNames = {
     documents: 'documents',
@@ -161,13 +162,23 @@ export class QdrantService {
       return Promise.resolve();
     }
 
+    // A failed connect costs seconds of backoff; every caller shares this
+    // singleton, so retry at most once per interval while Qdrant is down.
+    if (Date.now() - this.lastFailedInitAt < this.healthCheckInterval) {
+      return;
+    }
+
     this.initPromise = this._performInit();
 
     try {
       await this.initPromise;
-    } catch (error) {
-      this.initPromise = null;
-      throw error;
+    } finally {
+      // _performInit() resolves on failure too; keeping that promise would make
+      // every later init() a no-op and leave this process without Qdrant.
+      if (!this.isConnected) {
+        this.initPromise = null;
+        this.lastFailedInitAt = Date.now();
+      }
     }
   }
 
@@ -341,35 +352,8 @@ export class QdrantService {
   }
 
   async isAvailable(): Promise<boolean> {
-    if (this.isConnected && this.client !== null) {
-      return true;
-    }
-
-    if (this.initPromise) {
-      try {
-        await this.initPromise;
-        return this.isConnected && this.client !== null;
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        log.warn(`Initialization failed: ${message}`);
-        return false;
-      }
-    }
-
-    if (!this.isInitializing) {
-      log.debug('Starting deferred initialization...');
-      this.initPromise = this._performInit();
-      try {
-        await this.initPromise;
-        return this.isConnected && this.client !== null;
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        log.warn(`Initialization failed: ${message}`);
-        return false;
-      }
-    }
-
-    return false;
+    await this.init();
+    return this.isConnected && this.client !== null;
   }
 
   isAvailableSync(): boolean {

@@ -3,11 +3,18 @@ import { createContext, useContext } from 'react';
 import type { ApplyResult } from './ai/applyOperation';
 import type { ReplaceDeckOps } from './collab/pagesDoc';
 import type { StockImage, StockImageAttribution } from './common/imageSourceTypes';
+import type { ComposedSlide } from './composer/composeSharepic';
 import type { HeterogeneousPage } from './configs/types';
 import type {
   CanvasAiCapabilities,
   CanvasAiOperation,
   CanvasAiSnapshot,
+  SharepicFormat,
+  CanvasVorlage,
+  PrintVorlage,
+  SharepicBlock,
+  SharepicColor,
+  SharepicSeite,
 } from '@gruenerator/contracts';
 import type { ComponentType, ReactNode } from 'react';
 
@@ -53,6 +60,49 @@ export interface ChatSectionContentProps {
   aiEdit?: CanvasAiEditBridge;
   /** Present in the multi-page editor once its pages doc is synced. */
   specEdit?: CanvasSpecEditBridge;
+}
+
+/** A page a Vorlage composes to, ready for `replaceDeck`. */
+export interface VorlagePage {
+  configId: string;
+  state: Record<string, unknown>;
+}
+
+/**
+ * The Grünerator-Seiten behind the „Vorlagen" tab of a sharepic, each Vorlage
+ * slide among them. `composeSeite` turns one into a page (needs the browser:
+ * fonts, photo tones) and keeps its spec on it, so the chat can go on editing it.
+ */
+export interface CanvasVorlagenService {
+  listSeiten: () => Promise<SharepicSeite[]>;
+  composeSeite: (seite: SharepicSeite, format: SharepicFormat) => Promise<VorlagePage[]>;
+  /** Vorlagen saved as finished pages, for every format; the tab shows the document's. */
+  listCanvas?: () => Promise<CanvasVorlage[]>;
+  /** The print Vorlagen of the viewer's country; their specs compose here (`composePrint`). */
+  listPrint?: () => Promise<PrintVorlage[]>;
+  /**
+   * Copies a print Vorlage into a new design of the viewer's own and opens it;
+   * without this the tab only replaces the design.
+   */
+  openPrintAsNew?: (vorlage: PrintVorlage) => void;
+  /** The Grünerator-Blöcke of the viewer's country, for the Elemente panel. */
+  listBloecke?: () => Promise<SharepicBlock[]>;
+  /** Composes a block on `color` in `format` (needs the browser: fonts); the slide holds it alone. */
+  composeBlock?: (
+    block: SharepicBlock,
+    options: { format: SharepicFormat; color: SharepicColor }
+  ) => Promise<ComposedSlide>;
+}
+
+/** Which pages the alt-text tool describes. */
+export type AltTextScope = 'all' | 'active';
+
+/** One page for the alt-text tool: its image and the texts the editor knows it shows. */
+export interface AltTextPage {
+  /** 1-based, as the page strip numbers it. */
+  pageNumber: number;
+  image: string;
+  texts: string[];
 }
 
 export interface CanvasEditorServices {
@@ -127,6 +177,14 @@ export interface CanvasEditorServices {
    */
   editAiImage?: (image: File, instruction: string) => Promise<{ file: File; objectUrl: string }>;
 
+  /**
+   * One alt text per page, in the given order; `null` where a page failed.
+   * When omitted, the alt-text tool is hidden.
+   */
+  generateSlideAltTexts?: (
+    pages: ReadonlyArray<Pick<AltTextPage, 'image' | 'texts'>>
+  ) => Promise<Array<string | null>>;
+
   /** API base URL for multi-page export */
   apiBaseUrl?: string;
 
@@ -145,6 +203,9 @@ export interface CanvasEditorServices {
    * section shows a "not configured" hint.
    */
   ChatSectionContent?: ComponentType<ChatSectionContentProps>;
+
+  /** Grünerator-Vorlagen for the „Vorlagen" tab; when omitted, the tab is hidden. */
+  vorlagen?: CanvasVorlagenService;
 }
 
 const CanvasEditorContext = createContext<CanvasEditorServices>({});

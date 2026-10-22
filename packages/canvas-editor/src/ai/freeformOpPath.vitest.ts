@@ -147,8 +147,8 @@ const SEED = {
 
 const config = createFreeformFullConfig(getCanvasFormatOrDefault(null));
 
-function freeform() {
-  let state = config.createInitialState(SEED);
+function freeform(seed: Record<string, unknown> = SEED) {
+  let state = config.createInitialState(seed);
   const getState = () => state;
   const setState = (u: Partial<FreeformState> | ((prev: FreeformState) => FreeformState)) => {
     state = typeof u === 'function' ? u(state) : { ...state, ...u };
@@ -224,6 +224,32 @@ describe('freeform op path', () => {
     });
   });
 
+  it('update-element recolouring a gradient text drops the gradient', () => {
+    const gradient = {
+      type: 'linear',
+      angle: 90,
+      stops: [
+        { offset: 0, color: '#8ABD24' },
+        { offset: 1, color: '#0BA1DD' },
+      ],
+    };
+    const { ai, actions, getState } = freeform({
+      ...SEED,
+      additionalTexts: [{ ...SEED.additionalTexts[0], fillGradient: gradient }],
+    });
+    expect(getState().additionalTexts[0]).toMatchObject({ fillGradient: gradient });
+
+    const result = applyOperation(
+      { kind: 'update-element', elementId: 'txt-1', patch: { color: '#E6007E' } },
+      actions,
+      getState,
+      ai
+    );
+
+    expect(result).toEqual({ ok: true });
+    expect(getState().additionalTexts[0]).toMatchObject({ fill: '#E6007E', fillGradient: null });
+  });
+
   it('remove-element reaches every listed kind and says when the id is unknown', () => {
     const { ai, actions, getState } = freeform();
     for (const id of ['txt-1', 'chart-1', 'icon-1', 'pill-1']) {
@@ -279,6 +305,30 @@ describe('freeform op path', () => {
     const { result, state } = update('chart-1', { color: '#E6007E' });
     expect(result.ok).toBe(false);
     expect(state.chartInstances[0]).not.toHaveProperty('color');
+  });
+
+  it('update-element leaves a locked element in place but still recolours it', () => {
+    const env = freeform({ ...SEED, lockedLayerIds: ['shape-1'] });
+    for (const patch of [{ x: 10 }, { scale: 2 }, { rotation: 15 }, { y: 5, color: '#FFD320' }]) {
+      expect(
+        applyOperation(
+          { kind: 'update-element', elementId: 'shape-1', patch },
+          env.actions,
+          env.getState,
+          env.ai
+        )
+      ).toEqual({ ok: false, reason: 'element "shape-1" is locked' });
+    }
+    expect(env.getState().shapeInstances.find((x) => x.id === 'shape-1')).toMatchObject({
+      x: 0,
+      y: 1100,
+      scaleX: 1,
+      rotation: 0,
+      fill: '#8ABD24',
+    });
+
+    expect(update('shape-1', { color: '#FFD320' }, env).result).toEqual({ ok: true });
+    expect(env.getState().shapeInstances.find((x) => x.id === 'shape-1')!.fill).toBe('#FFD320');
   });
 
   it('edits composer background planes like any shape', () => {

@@ -6,7 +6,6 @@
  * Example: benjamin-jopen-2SfssudtyIA-unsplash.jpg
  */
 
-import { env } from '../../config/env.js';
 import { buildUnsplashUrls as buildUrlsWithUTM } from '../../utils/unsplashUtils.js';
 
 import type {
@@ -19,6 +18,7 @@ import type {
 export class UnsplashAttributionService {
   private readonly UNSPLASH_SUFFIX = '-unsplash.jpg';
   private readonly DEFAULT_PHOTOGRAPHER_SEGMENTS = 2;
+  private readonly PHOTO_ID_LENGTH = 11;
 
   /**
    * Parse an Unsplash filename to extract photographer slug and photo ID
@@ -34,6 +34,17 @@ export class UnsplashAttributionService {
     }
 
     const baseName = filename.slice(0, -this.UNSPLASH_SUFFIX.length);
+
+    // Length first: segments cannot tell an id head ("katya-azimova-x-L7HGT9P3M")
+    // from a one-letter name part ("zion-c-p07RGfScf3c").
+    const separatorIndex = baseName.length - this.PHOTO_ID_LENGTH - 1;
+    if (separatorIndex > 0 && baseName[separatorIndex] === '-') {
+      return {
+        photographerSlug: baseName.slice(0, separatorIndex),
+        photoId: baseName.slice(separatorIndex + 1),
+      };
+    }
+
     const parts = baseName.split('-');
 
     if (parts.length < 2) {
@@ -97,7 +108,7 @@ export class UnsplashAttributionService {
       profileUrl: urls.profileUrl,
       photoUrl: urls.photoUrl,
       license: 'Unsplash License',
-      downloadLocation: `https://api.unsplash.com/photos/${photoId}/download?client_id=${env.UNSPLASH_ACCESS_KEY ?? 'demo'}`,
+      downloadLocation: `https://api.unsplash.com/photos/${photoId}/download`,
     };
   }
 

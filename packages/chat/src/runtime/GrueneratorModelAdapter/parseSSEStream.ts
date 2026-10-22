@@ -1364,6 +1364,7 @@ async function* parseStream(
           // sharepic/reel via the one-panel rule with nothing replacing it.
           if (
             !muted() &&
+            created.background !== true &&
             useArtifactLiveStore.getState().panelMounted &&
             canAutoOpenArtifactPanel() &&
             subtypeToArtifactKind(created.subtype) !== 'pdf' &&

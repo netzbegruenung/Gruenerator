@@ -18,7 +18,6 @@ import React, {
   useImperativeHandle,
   useLayoutEffect,
 } from 'react';
-import { Layer } from 'react-konva';
 
 import { HOST_EMITTED_STATE_KEYS } from '../collab/pageElementStateKeys';
 import { useEmitHostStateChanges } from '../collab/useEmitHostStateChanges';
@@ -26,6 +25,7 @@ import { useSelectionAwareness } from '../collab/useSelectionAwareness';
 import { useYjsCanvasBinding } from '../collab/useYjsCanvasBinding';
 import { useYjsPageStateSync } from '../collab/useYjsPageStateSync';
 import { stateKeyOfCallback } from '../collab/wrapCallbacksWithPageSync';
+import { blockElementIds, placeBlock, type LiftedBlock } from '../composer/liftBlock';
 import { getCanvasFormatOrDefault } from '../formats';
 import {
   useCanvasInteractions,
@@ -37,8 +37,10 @@ import {
 import { useCanvasAutoSave } from '../hooks/useCanvasAutoSave';
 import { useCanvasElementHandlers } from '../hooks/useCanvasElementHandlers';
 import { useCanvasKeyboardHandlers } from '../hooks/useCanvasKeyboardHandlers';
+import { useContextPress } from '../hooks/useContextPress';
 import { useDeepSelect } from '../hooks/useDeepSelect';
-import { CanvasStage, SnapGuidelines, AttributionOverlay } from '../primitives';
+import { floatingModuleFor } from '../hooks/useFloatingModuleState';
+import { CanvasStage, SnapGuidelines } from '../primitives';
 import {
   CanvasStoreProvider,
   useCanvasStore,
@@ -46,18 +48,30 @@ import {
 } from '../stores/CanvasStoreProvider';
 import { useAutoSaveStore } from '../stores/useAutoSaveStore';
 import { alignElementX, alignElementY } from '../utils/alignment';
-import { calculateAttributionOverlay, isCreditedPhotoVisible } from '../utils/attributionOverlay';
+import { createCanvasCommands, type ClientPoint } from '../utils/canvasCommands';
 import { canvasFontFamilies } from '../utils/canvasFontFamilies';
 import { buildCanvasItems, buildSortedRenderList } from '../utils/canvasLayerManager';
-import { captureStageImage, captureStageImageAsync } from '../utils/captureStage';
+import {
+  captureStageImage,
+  captureStageImageAsync,
+  visibleStageTexts,
+} from '../utils/captureStage';
+import { itemBodyRect } from '../utils/deepSelect';
 import { ensureFontsReady } from '../utils/ensureFontsReady';
+import { MAX_ICON_SELECTIONS, selectedCatalogIconIds } from '../utils/iconInstances';
+import { isLayerLocked } from '../utils/layerLock';
+import { locateDrop, type ElementDragPayload, type MediaDragPayload } from '../utils/mediaDrop';
+import { selectableItemIds } from '../utils/multiSelect';
 import { PendingImagesContext } from '../utils/pendingImages';
 import { stageCssScale } from '../utils/stageCssScale';
+import { findTemplateEntry } from '../utils/templateElementInstance';
 import { getOptimalContainerWidth } from '../utils/viewport';
 
 import { CanvasRenderLayer } from './CanvasRenderLayer';
+import { PrintGuides } from './PrintGuides';
 import { ToolbarStateBridge } from './ToolbarStateBridge';
 
+import type { CanvasMenuSnapshot } from './CanvasContextMenu/canvasMenuModel';
 import type { RemoteSelector } from './RemoteSelectionOverlay';
 import type { ToolbarBridgeState } from './ToolbarStateBridge';
 
@@ -72,7 +86,9 @@ import type { ShadowPatch } from '../hooks/useFloatingModuleHandlers';
 import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
 import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
+import type { PageCommandId } from '../utils/canvasCommandRegistry';
 import type { GradientFill } from '../utils/gradientFill';
+import type { LockState } from '../utils/layerLock';
 import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 import type * as Y from 'yjs';
@@ -90,6 +106,15 @@ export interface ToolbarStateReport {
   /** Ist die Auswahl löschbar? Dieselbe Frage wie die Entf-Taste — siehe
    *  `utils/removeElement.ts`. */
   canDelete: boolean;
+  /** The selected framed photo is in Ausschnitt mode. */
+  isCropping: boolean;
+  /** Wie viele Elemente ausgewählt sind; bei mehr als einem ist `selectedElement` null. */
+  selectionCount: number;
+  /** Lässt sich mindestens ein ausgewähltes Element kopieren? */
+  canCopy: boolean;
+  /** Wie viel der sperrbaren Auswahl gesperrt ist — siehe `utils/layerLock.ts`. */
+  lockState: LockState;
+  canLock: boolean;
 }
 
 export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActions> {
@@ -186,6 +211,15 @@ export interface SelectionBox {
   height: number;
 }
 
+/** Canvas px between blocks clicked in one after another. */
+const BLOCK_CASCADE = 40;
+
+/** What a block is composed against: the page's background. */
+export interface BlockPageSurface {
+  backgroundMode?: unknown;
+  backgroundColor?: unknown;
+}
+
 export interface GenericCanvasRef {
   toDataURL: (options?: {
     format?: 'png' | 'jpeg' | 'webp';
@@ -194,20 +228,50 @@ export interface GenericCanvasRef {
     includeBackground?: boolean;
   }) => string | undefined;
   captureCanvas: (options?: Partial<ExportOptions>) => Promise<string | null>;
+  /** One print tile as JPEG bytes (format px rect, whole-pixel output size). */
+  capturePrintTile: (
+    tile: { x: number; y: number; outWidth: number; outHeight: number },
+    pixelRatio: number,
+    quality: number
+  ) => Promise<Uint8Array | null>;
+  /** User photos with source and displayed width, for the print resolution check. */
+  getPrintImages: () => Array<{ naturalWidthPx: number; displayedWidthPx: number }>;
   /** False while an image element's source is still loading — a capture
    *  taken then is missing that image. */
   imagesSettled: () => boolean;
   /** Lightweight JPEG capture for sending the canvas to vision models. */
   captureCanvasForAi: () => Promise<string | null>;
+  /** The page's visible texts in reading order, for alt texts. */
+  getVisibleTexts: () => string[];
   /** Clears this page's element selection — the per-page store lives behind
    *  CanvasStoreProvider, so the parent editor reaches it through this handle. */
   deselect: () => void;
+  /** Starts a marquee selection from a press outside the stage (the work area). */
+  beginMarquee: (evt: MouseEvent) => void;
+  /** Places a dragged upload where it was dropped: into the frame under the
+   *  pointer, else as a new image centred there. False when nothing was placed. */
+  dropMedia: (evt: { clientX: number; clientY: number }, media: MediaDragPayload) => boolean;
+  /** Adds a dragged Elemente tile centred where it was dropped. False when nothing was placed. */
+  dropElement: (evt: { clientX: number; clientY: number }, payload: ElementDragPayload) => boolean;
+  /**
+   * Composes a block for this page (`make` gets its background) and adds it,
+   * centred where it was dropped or on the canvas, as one undo step; its parts
+   * are selected together after. False when the page holds no blocks.
+   */
+  insertBlock: (
+    make: (page: BlockPageSurface) => Promise<LiftedBlock | null>,
+    at?: { clientX: number; clientY: number }
+  ) => Promise<boolean>;
   /** Toolbar handlers — called by parent when toolbar is rendered at layout level */
   undo?: () => void;
   redo?: () => void;
   handleMoveLayer?: (direction: 'up' | 'down') => void;
   handleDuplicate?: () => void;
   handleDeleteElement?: () => void;
+  /** Führt einen Seiten-Befehl aus; `at` ist der Punkt eines Rechtsklicks. */
+  runCommand?: (id: PageCommandId, at: ClientPoint | null) => void;
+  /** Was das Kontextmenü beim Öffnen über diese Seite wissen muss. */
+  getMenuSnapshot?: () => CanvasMenuSnapshot;
   /** Box der Auswahl in Fensterkoordinaten, für Bedienelemente am Objekt. */
   getSelectionBox?: () => SelectionBox | null;
   /** Meldet Beginn (`true`) und Ende (`false`) von Ziehen und Transformieren;
@@ -220,6 +284,7 @@ export interface GenericCanvasRef {
   handleShadowChange?: (id: string, patch: ShadowPatch, type: string) => void;
   handleOutlineChange?: (id: string, patch: { stroke?: string; strokeWidth?: number }) => void;
   handleBlurChange?: (id: string, blur: number) => void;
+  handleCropImage?: () => void;
   handleGradientSelect?: (gradient: GradientFill | null) => void;
 }
 
@@ -247,7 +312,6 @@ function GenericCanvasWithRef<
   // Export state (used by auto-save and attribution overlay)
   const [exportedImage, setExportedImage] = useState<string | null>(null);
   const exportedImageRef = useRef<string | null>(null);
-  const [isExporting, setIsExporting] = useState(false);
 
   useCanvasStoreReset(preview ? null : config.id);
 
@@ -343,16 +407,16 @@ function GenericCanvasWithRef<
   });
 
   const collectState = useCallback(() => state, [state]);
-  const restoreBaseRef = useRef(state);
+  const committedStateRef = useRef(state);
   useLayoutEffect(() => {
-    restoreBaseRef.current = state;
+    committedStateRef.current = state;
   }, [state]);
   // Text fields reach the page document only through their `on<Key>Change`
   // callback, so a restore reports each one it changed (#4247). The emitted
   // keys are left to useEmitHostStateChanges, which already reports them.
   const handleRestore = useCallback(
     (restoredState: Record<string, unknown>) => {
-      const prev = restoreBaseRef.current as Record<string, unknown>;
+      const prev = committedStateRef.current as Record<string, unknown>;
       setStateRaw((p) => ({ ...p, ...restoredState }) as TState);
       for (const [name, callback] of Object.entries(callbacks)) {
         const key = stateKeyOfCallback(name);
@@ -367,7 +431,9 @@ function GenericCanvasWithRef<
   const { saveToHistory, debouncedSaveToHistory, runHistoryBatch, undo, redo, canUndo, canRedo } =
     useCanvasHistorySetup(collectState, handleRestore, 500, shortcutsEnabled);
 
-  const getState = useCallback(() => state, [state]);
+  // Read through the ref so `actions` keeps its identity across edits; every
+  // action calls getState() when it runs, so it still sees the latest state.
+  const getState = useCallback(() => committedStateRef.current, []);
 
   // `runHistoryBatch` rides on the actions so the AI bridge (built from the
   // page's live actions) coalesces one op batch into one undo step.
@@ -446,11 +512,19 @@ function GenericCanvasWithRef<
     // eslint-disable-next-line react-hooks/exhaustive-deps -- layoutKey is a stable string derived from layout-relevant state fields
   }, [config, layoutKey, isFontAvailable, fontGeneration]);
 
-  const { setSelectedElement, handleStageClick, handleSnapChange, getSnapTargets } =
-    useCanvasInteractions({ stageRef });
+  const {
+    setSelectedElement,
+    selectElement,
+    beginMarquee,
+    handleStageClick,
+    handleSnapChange,
+    getSnapTargets,
+  } = useCanvasInteractions({ stageRef, marqueeEnabled: !preview });
 
   const store = useCanvasStore();
   const { setSnapLines, updateElementPosition } = store.getState();
+  // Before the deep select: a ⌃-click on a Mac is a right-click, not a pick.
+  useContextPress(stageRef, !preview);
   useDeepSelect(stageRef, !preview);
 
   // One selection across all pages: leaving the active page drops its own.
@@ -495,7 +569,7 @@ function GenericCanvasWithRef<
   const lastAutoSaveHistoryIndexRef = useRef(-1);
 
   useEffect(() => {
-    if (historyIndex < 0 || isExporting) return;
+    if (historyIndex < 0) return;
     // historyIndex 0 is the initial mount snapshot — an untouched canvas is not dirty
     if (
       autoSaveEnabled &&
@@ -524,12 +598,13 @@ function GenericCanvasWithRef<
     }, 1500);
 
     return () => clearTimeout(timer);
-  }, [historyIndex, isExporting, autoSaveEnabled, setAutoSaveDirty]);
+  }, [historyIndex, autoSaveEnabled, setAutoSaveDirty]);
 
   // Push live state/actions/selection up to the shared sidebar. Replaces the
   // old 200ms poll in PageWrapper: updates land synchronously with edits.
   const onLiveState = props.onLiveState;
   const liveStateRef = useRef({ state, actions });
+  const clickedBlocksRef = useRef(0);
   liveStateRef.current = { state, actions };
   useEffect(() => {
     if (!onLiveState) return;
@@ -581,22 +656,10 @@ function GenericCanvasWithRef<
     actions,
     layout,
     callbacks,
-    setSelectedElement,
+    selectElement,
     updateElementPosition,
     saveToHistory,
     debouncedSaveToHistory,
-  });
-
-  useCanvasKeyboardHandlers({
-    store,
-    state,
-    actions,
-    setState: setStateWrapper,
-    setSelectedElement,
-    elements: config.elements,
-    layout,
-    saveToHistory,
-    enabled: shortcutsEnabled,
   });
 
   const canvasItems = useMemo(() => buildCanvasItems(config, state), [config, state]);
@@ -606,25 +669,50 @@ function GenericCanvasWithRef<
     [canvasItems, state.layerOrder]
   );
 
+  // The doors read the page at call time, not from a render closure: a menu
+  // or key acts on what is on screen now.
+  const commandInputsRef = useRef({ layout, sortedRenderList, actions });
+  useLayoutEffect(() => {
+    commandInputsRef.current = { layout, sortedRenderList, actions };
+  }, [layout, sortedRenderList, actions]);
+  const logicalScale = stageWidth / referenceWidth;
+  const commands = useMemo(
+    () =>
+      createCanvasCommands<TState>({
+        store,
+        getState: () => committedStateRef.current,
+        setState: setStateWrapper,
+        saveToHistory,
+        runHistoryBatch,
+        getActions: () => commandInputsRef.current.actions,
+        template: (id) =>
+          findTemplateEntry(
+            config.elements,
+            committedStateRef.current,
+            commandInputsRef.current.layout,
+            id
+          ),
+        getRenderList: () => commandInputsRef.current.sortedRenderList,
+        getStage: () => stageRef.current?.getStage() ?? null,
+        logicalScale: () => logicalScale,
+      }),
+    [store, setStateWrapper, saveToHistory, runHistoryBatch, config.elements, logicalScale]
+  );
+
+  useCanvasKeyboardHandlers({
+    store,
+    state,
+    actions,
+    setState: setStateWrapper,
+    setSelectedElement,
+    commands,
+    elements: config.elements,
+    saveToHistory,
+    enabled: shortcutsEnabled,
+  });
+
   // Bridge ref for ToolbarStateBridge → useImperativeHandle communication
   const bridgeRef = useRef<ToolbarBridgeState | null>(null);
-
-  // Calculate attribution overlay data for export (only when exporting)
-  const attributionOverlayData = useMemo(() => {
-    if (!isExporting) return null;
-
-    const imageAttribution = state.imageAttribution;
-    if (!imageAttribution) return null;
-    if (!isCreditedPhotoVisible(config.elements, state)) return null;
-
-    return calculateAttributionOverlay(
-      imageAttribution,
-      config.canvas.width,
-      config.canvas.height,
-      'bottom-right',
-      10
-    );
-  }, [isExporting, state, config.elements, config.canvas.width, config.canvas.height]);
 
   /**
    * Konva berechnet den Zeilenumbruch eines Text-Knotens EINMAL, beim Setzen
@@ -664,7 +752,7 @@ function GenericCanvasWithRef<
   const handleAlign = useCallback(
     (direction: AlignmentDirection) => {
       const selectedElement = store.getState().selectedElement;
-      if (!selectedElement) return;
+      if (!selectedElement || isLayerLocked(committedStateRef.current, selectedElement)) return;
       const stage = stageRef.current?.getStage();
       if (!stage) return;
 
@@ -703,29 +791,147 @@ function GenericCanvasWithRef<
         await ensureFontsReady();
         return captureStageImageAsync(stageRef.current, options);
       },
+      capturePrintTile: async (tile, pixelRatio, quality) => {
+        await ensureFontsReady();
+        return stageRef.current?.toTileJpeg({ ...tile, pixelRatio, quality }) ?? null;
+      },
+      getPrintImages: () => stageRef.current?.getPrintImages() ?? [],
       imagesSettled: () => pendingImages.size === 0,
       captureCanvasForAi: async () =>
         captureStageImage(stageRef.current, { format: 'jpeg', pixelRatio: 1, quality: 0.85 }),
+      getVisibleTexts: () => visibleStageTexts(stageRef.current?.getStage() ?? null),
       deselect: () => setSelectedElement(null),
+      beginMarquee,
+      dropMedia: (evt, media) => {
+        const stage = stageRef.current?.getStage();
+        if (!stage) return false;
+        const drop = locateDrop(stage, evt, stageWidth / referenceWidth);
+        if (!drop) return false;
+        if (drop.frameId && actions.setFrameImage) {
+          // The file argument is unused there; the durable URL is the image.
+          actions.setFrameImage(drop.frameId, new File([], media.name), media.url);
+          setSelectedElement(drop.frameId);
+          return true;
+        }
+        if (!actions.addUserImageFromUrl) return false;
+        actions.addUserImageFromUrl(media.url, media.name, {
+          center: drop.point,
+          ...(media.attribution && { attribution: media.attribution }),
+        });
+        return true;
+      },
+      insertBlock: async (make, at) => {
+        if (!actions.insertBlock) return false;
+        // The drop point before the await: the pointer is only known now.
+        const stage = stageRef.current?.getStage();
+        const drop = at && stage ? locateDrop(stage, at, stageWidth / referenceWidth) : null;
+        const { backgroundMode, backgroundColor } = liveStateRef.current.state as BlockPageSurface;
+        const block = await make({ backgroundMode, backgroundColor });
+        if (!block) return false;
+        const canvas = { width: referenceWidth, height: referenceHeight };
+        // Clicked in again and again, each lands a step down-right, not on the last.
+        const step = drop ? 0 : (clickedBlocksRef.current++ % 5) * BLOCK_CASCADE;
+        const placed = placeBlock(
+          block,
+          drop?.point ?? { x: canvas.width / 2 + step, y: canvas.height / 2 + step },
+          canvas
+        );
+        const { insertBlock } = liveStateRef.current.actions;
+        if (!insertBlock) return false;
+        insertBlock(placed);
+        store.getState().setSelectedLayers(blockElementIds(placed));
+        return true;
+      },
+      dropElement: (evt, payload) => {
+        const stage = stageRef.current?.getStage();
+        if (!stage) return false;
+        const drop = locateDrop(stage, evt, stageWidth / referenceWidth);
+        if (!drop) return false;
+        const placement = { center: drop.point };
+        switch (payload.kind) {
+          case 'asset':
+            if (!actions.addAsset) return false;
+            actions.addAsset(payload.assetId, placement);
+            return true;
+          case 'sticker':
+            if (!actions.addStickerAsset) return false;
+            actions.addStickerAsset(payload.ref, placement);
+            return true;
+          case 'shape':
+            if (!actions.addShape) return false;
+            actions.addShape(payload.shapeType, payload.color, placement);
+            return true;
+          case 'illustration':
+            if (!actions.addIllustration) return false;
+            actions.addIllustration(payload.id, placement);
+            return true;
+          case 'chart':
+            if (!actions.addChart) return false;
+            actions.addChart(payload.chartType, placement);
+            return true;
+          case 'frame':
+            if (!actions.addFrame) return false;
+            actions.addFrame(payload.clipType, placement);
+            return true;
+          case 'balken':
+            if (!actions.addBalken) return false;
+            actions.addBalken(payload.mode, placement);
+            return true;
+          case 'icon': {
+            if (!actions.toggleIcon) return false;
+            // This page's icons; the sidebar's limit counts the active page's.
+            const { selectedIcons, iconStates } = liveStateRef.current.state as Partial<
+              Pick<BaseCanvasState, 'selectedIcons' | 'iconStates'>
+            >;
+            const onPage = selectedCatalogIconIds(selectedIcons, iconStates);
+            if (onPage.includes(payload.iconId) || onPage.length >= MAX_ICON_SELECTIONS)
+              return false;
+            actions.toggleIcon(payload.iconId, true, placement);
+            return true;
+          }
+          // Composed asynchronously: the page wrapper hands it to `insertBlock`.
+          case 'block':
+            return false;
+        }
+      },
       undo,
       redo,
-      handleMoveLayer: (dir) => bridgeRef.current?.handleMoveLayer(dir),
-      handleDuplicate: () => bridgeRef.current?.handleDuplicate(),
-      handleDeleteElement: () => bridgeRef.current?.handleDelete(),
+      handleMoveLayer: (dir) => commands.moveLayer(dir === 'up' ? 'forward' : 'backward'),
+      handleDuplicate: commands.duplicate,
+      handleDeleteElement: commands.remove,
+      runCommand: commands.run,
+      getMenuSnapshot: () => {
+        const { selectedLayerIds, selectedElement, croppingElement } = store.getState();
+        const committed = committedStateRef.current;
+        const layer = stageRef.current?.getStage()?.getLayers()[0];
+        return {
+          selection: selectedLayerIds,
+          module: floatingModuleFor(
+            selectedElement,
+            config,
+            committed,
+            commandInputsRef.current.layout
+          ),
+          caps: commands.capabilities(),
+          canSelectAll: layer ? selectableItemIds(layer).length > 0 : false,
+          isCropping: croppingElement !== null,
+          background: config.background?.(committed, actions) ?? null,
+        };
+      },
       getSelectionBox: () => {
-        const selectedElement = store.getState().selectedElement;
+        const ids = store.getState().selectedLayerIds;
         const stage = stageRef.current?.getStage();
-        if (!selectedElement || !stage) return null;
-        // Instanz-Primitive (Formen, Balken, Illustrationen, Rahmen, …) tragen
-        // keine Konva-Id; ausgewählt hängt aber jedes an seinem Transformer.
-        const node =
-          stage.findOne(`#${selectedElement}`) ??
-          stage
-            .find<Konva.Transformer>('Transformer')
-            .map((tr) => tr.nodes()[0])
-            .find((n) => n !== undefined);
-        if (!node) return null;
-        const rect = node.getClientRect();
+        if (ids.length === 0 || !stage) return null;
+        const rects = ids.map((id) => itemBodyRect(stage, id)).filter((r) => r !== null);
+        if (rects.length === 0) return null;
+        const left = Math.min(...rects.map((r) => r.x));
+        const top = Math.min(...rects.map((r) => r.y));
+        const rect = {
+          x: left,
+          y: top,
+          width: Math.max(...rects.map((r) => r.x + r.width)) - left,
+          height: Math.max(...rects.map((r) => r.y + r.height)) - top,
+        };
         const container = stage.container().getBoundingClientRect();
         const cssScale = stageCssScale(stage, container);
         return {
@@ -772,6 +978,7 @@ function GenericCanvasWithRef<
         bridgeRef.current?.handleShadowChange(id, patch, type),
       handleOutlineChange: (id, patch) => bridgeRef.current?.handleOutlineChange(id, patch),
       handleBlurChange: (id, blur) => bridgeRef.current?.handleBlurChange(id, blur),
+      handleCropImage: () => bridgeRef.current?.handleCropImage(),
       handleGradientSelect: (gradient) => bridgeRef.current?.handleGradientSelect(gradient),
     }),
     [
@@ -780,8 +987,15 @@ function GenericCanvasWithRef<
       elementHandlers.handleFontSizeChange,
       handleAlign,
       setSelectedElement,
+      beginMarquee,
       pendingImages,
       store,
+      actions,
+      stageWidth,
+      referenceWidth,
+      referenceHeight,
+      commands,
+      config,
     ]
   );
 
@@ -815,12 +1029,7 @@ function GenericCanvasWithRef<
           remoteSelections={remoteSelections}
         />
 
-        {/* Attribution overlay - only visible during export */}
-        {attributionOverlayData && (
-          <Layer listening={false}>
-            <AttributionOverlay data={attributionOverlayData} />
-          </Layer>
-        )}
+        <PrintGuides format={format} />
 
         <SnapGuidelines stageWidth={config.canvas.width} stageHeight={config.canvas.height} />
       </CanvasStage>
@@ -836,7 +1045,6 @@ function GenericCanvasWithRef<
         actions={actions}
         sortedRenderList={sortedRenderList}
         setState={setStateWrapper}
-        saveToHistory={saveToHistory}
         debouncedSaveToHistory={debouncedSaveToHistory}
         canUndo={canUndo}
         canRedo={canRedo}

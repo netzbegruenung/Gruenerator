@@ -10,7 +10,8 @@ vi.mock('./UsageTrackingService.js', () => ({ recordOperation, recordTokenUsage:
 const embeddingsCreate = vi.fn();
 const ocrProcess = vi.fn();
 vi.mock('../ai/mistralClient.js', () => ({
-  default: { embeddings: { create: embeddingsCreate }, ocr: { process: ocrProcess } },
+  default: { ocr: { process: ocrProcess } },
+  mistralEmbeddingClient: { embeddings: { create: embeddingsCreate } },
 }));
 
 vi.mock('../../config/env.js', () => ({

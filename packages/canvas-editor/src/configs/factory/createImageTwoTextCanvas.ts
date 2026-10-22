@@ -9,15 +9,10 @@
  * Used by: Zitat, Simple
  */
 
-import { HiPhotograph } from 'react-icons/hi';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
-import {
-  AssetsSection,
-  CombinedTextSection,
-  FrameSettingsSection,
-  ImageBackgroundSection,
-} from '../../sidebar/sections';
+import { AssetsSection, CombinedTextSection, FrameSettingsSection } from '../../sidebar/sections';
+import { zoomBackground } from '../../utils/coverFit';
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from '../commonSections';
 import { injectFeatureProps } from '../featureInjector';
 import { getPlaceholder } from '../placeholders';
@@ -38,7 +33,7 @@ import type { FrameClipType, FrameInstance } from '../../utils/frameUtils';
 import type { IllustrationInstance } from '../../utils/illustrations/types';
 import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '../../utils/shapes';
-import type { UserImageInstance } from '../../utils/userImageUtils';
+import type { ElementPlacement, UserImageInstance } from '../../utils/userImageUtils';
 import type { FullCanvasConfig, LayoutResult, CanvasElementConfig, AdditionalText } from '../types';
 import type { StickerRef } from '@gruenerator/shared/stickers';
 
@@ -140,16 +135,16 @@ export interface ImageTwoTextActions {
   setBackgroundColor: (color: string) => void;
 
   // Base actions
-  addAsset: (assetId: string) => void;
-  addStickerAsset: (ref: StickerRef) => void;
+  addAsset: (assetId: string, options?: ElementPlacement) => void;
+  addStickerAsset: (ref: StickerRef, options?: ElementPlacement) => void;
   updateAsset: (id: string, partial: Partial<AssetInstance>) => void;
   removeAsset: (id: string) => void;
-  toggleIcon: (id: string, selected: boolean) => void;
+  toggleIcon: (id: string, selected: boolean, options?: ElementPlacement) => void;
   updateIcon: (id: string, partial: Partial<IconState>) => void;
-  addShape: (type: ShapeType) => void;
+  addShape: (type: ShapeType, color?: string, options?: ElementPlacement) => void;
   updateShape: (id: string, partial: Partial<ShapeInstance>) => void;
   removeShape: (id: string) => void;
-  addIllustration: (id: string) => void;
+  addIllustration: (id: string, options?: ElementPlacement) => void;
   updateIllustration: (id: string, partial: Partial<IllustrationInstance>) => void;
   removeIllustration: (id: string) => void;
   addHeader: () => void;
@@ -162,10 +157,10 @@ export interface ImageTwoTextActions {
   addCircleBadge: (preset?: string) => void;
   updateCircleBadge: (id: string, partial: Partial<CircleBadgeInstance>) => void;
   removeCircleBadge: (id: string) => void;
-  addBalken: (mode: BalkenMode) => void;
+  addBalken: (mode: BalkenMode, options?: ElementPlacement) => void;
   updateBalken: (id: string, partial: Partial<BalkenInstance>) => void;
   removeBalken: (id: string) => void;
-  addFrame: (clipType: FrameClipType) => void;
+  addFrame: (clipType: FrameClipType, options?: ElementPlacement) => void;
   updateFrame: (id: string, partial: Partial<FrameInstance>) => void;
   removeFrame: (id: string) => void;
   setFrameImage: (id: string, file: File, objectUrl: string) => void;
@@ -401,15 +396,6 @@ export function createImageTwoTextCanvas<
 
     tabs: [
       {
-        id: 'image',
-        // Tab id stays `image` — it is persisted nowhere, but 14 configs, the
-        // mobile bridge and four test files name it, and renaming buys the user
-        // nothing. The LABEL is what they read, and it now covers both halves.
-        icon: HiPhotograph,
-        label: hasColorPlane ? 'Hintergrund' : 'Bild',
-        ariaLabel: hasColorPlane ? 'Hintergrund wählen' : 'Bild anpassen',
-      },
-      {
         id: 'text',
         icon: PiTextAa,
         label: 'Text',
@@ -433,48 +419,38 @@ export function createImageTwoTextCanvas<
     ],
 
     // 'share' is not in `tabs`, so listing it here filtered to nothing.
-    getVisibleTabs: () => ['image', 'text', 'assets', 'tools', 'uploads', 'chat'],
+    getVisibleTabs: () => ['text', 'assets', 'tools', 'uploads', 'chat'],
 
-    // Clicking the background image opens the tab that replaces it. The
-    // element id is `background-image`; `background` is the (unclickable) colour
-    // plane, so matching on that would never fire.
     getAutoSwitchTab: (selectedElement) =>
-      selectedElement === 'background-image'
-        ? 'image'
-        : selectedElement?.startsWith('chart-')
-          ? 'chart-settings'
-          : selectedElement?.startsWith('frame-')
-            ? 'frame-settings'
-            : selectedElement?.startsWith('balken-')
-              ? 'settings'
-              : null,
+      selectedElement?.startsWith('chart-')
+        ? 'chart-settings'
+        : selectedElement?.startsWith('frame-')
+          ? 'frame-settings'
+          : selectedElement?.startsWith('balken-')
+            ? 'settings'
+            : null,
+
+    background: (state, actions) => ({
+      currentImageSrc: state.currentImageSrc || undefined,
+      imageAttribution: state.imageAttribution ?? null,
+      onImageChange: (file, url, attribution) => {
+        actions.setCurrentImageSrc(file, url);
+        if (attribution !== undefined) actions.setImageAttribution?.(attribution);
+      },
+      scale: state.imageScale,
+      onScaleChange: actions.setImageScale,
+      isLocked: state.isBackgroundLocked,
+      onToggleLock: actions.toggleBackgroundLock,
+      ...(hasColorPlane
+        ? {
+            colors: backgroundColors,
+            currentColor: state.backgroundColor,
+            onColorChange: actions.setBackgroundColor,
+          }
+        : {}),
+    }),
 
     sections: {
-      image: section({
-        component: ImageBackgroundSection,
-        propsFactory: (state, actions) => ({
-          currentImageSrc: state.currentImageSrc,
-          onImageChange: (
-            file: File | null,
-            objectUrl?: string,
-            attribution?: StockImageAttribution | null
-          ) => {
-            actions.setCurrentImageSrc(file, objectUrl);
-            if (attribution !== undefined) actions.setImageAttribution?.(attribution);
-          },
-          scale: state.imageScale,
-          onScaleChange: actions.setImageScale,
-          isLocked: state.isBackgroundLocked,
-          onToggleLock: actions.toggleBackgroundLock,
-          ...(hasColorPlane
-            ? {
-                backgroundColor: state.backgroundColor,
-                backgroundColors,
-                onBackgroundColorChange: actions.setBackgroundColor,
-              }
-            : {}),
-        }),
-      }),
       text: section({
         component: CombinedTextSection,
         propsFactory: (state, actions) => ({
@@ -629,7 +605,7 @@ export function createImageTwoTextCanvas<
           saveToHistory(getState());
         },
         setImageScale: (scale: number) => {
-          setState({ imageScale: scale } as Partial<State>);
+          setState(zoomBackground(getState(), scale, canvas) as Partial<State>);
         },
         toggleBackgroundLock: () => {
           setState((prev) => ({ ...prev, isBackgroundLocked: !prev.isBackgroundLocked }));

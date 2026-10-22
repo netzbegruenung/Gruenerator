@@ -19,6 +19,11 @@ const CACHE_NAME = `gruenerator-illustrations-${CACHE_VERSION}`;
 // an updated cover still lands on the next load. Bump the version to bust.
 const NOTEBOOK_COVERS_CACHE = `gruenerator-notebook-covers-${CACHE_VERSION}`;
 
+// Stock photos stay out of Cache Storage: caching them here coincided with Chrome
+// killing the canvas tab (RESULT_CODE_KILLED_BAD_MESSAGE, CacheStorageCache.Batch).
+// The HTTP cache keeps them for a week; activate deletes the old caches.
+const LEGACY_STOCK_IMAGES_PREFIX = 'gruenerator-stock-images-';
+
 // Pyodide runtime cache (in-browser Python). The ~12 MB wasm core + Python
 // wheels under /pyodide/ are NOT content-hashed and nginx serves them
 // `no-cache` (revalidated every load). We cache-first them here under a cache
@@ -173,7 +178,9 @@ self.addEventListener('activate', (event) => {
             .filter(
               (name) =>
                 (name.startsWith('gruenerator-illustrations-') && name !== CACHE_NAME) ||
-                (name.startsWith('gruenerator-notebook-covers-') && name !== NOTEBOOK_COVERS_CACHE)
+                (name.startsWith('gruenerator-notebook-covers-') &&
+                  name !== NOTEBOOK_COVERS_CACHE) ||
+                name.startsWith(LEGACY_STOCK_IMAGES_PREFIX)
             )
             .map((name) => {
               console.log('[SW] Deleting old cache:', name);
@@ -210,7 +217,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Only intercept illustration requests
+  // Only intercept illustration requests (includes /illustrations/thumbs/)
   if (!url.pathname.startsWith('/illustrations/')) {
     return;
   }

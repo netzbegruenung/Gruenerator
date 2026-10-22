@@ -175,6 +175,10 @@ async function resolveEmbeddingModel(candidate: EmbedCandidate): Promise<Resolve
       upstreamHeader: CORTECS_UPSTREAM_HEADER,
     };
   }
+  if (candidate.provider === 'melious') {
+    const { getMeliousProvider } = await import('../../services/ai/providerInstances.js');
+    return { model: getMeliousProvider().embeddingModel(candidate.model), upstreamHeader: null };
+  }
   const { getGreenPTProvider } = await import('../../services/ai/providerInstances.js');
   const provider = getGreenPTProvider();
   return { model: provider.embeddingModel(candidate.model), upstreamHeader: null };
@@ -236,7 +240,13 @@ export function createProviderBatchEmbedder(candidate: EmbedCandidate): BatchEmb
     if (resolved === null) resolved = resolveEmbeddingModel(candidate);
     const { model, upstreamHeader } = await resolved;
 
-    const result = await embedMany({ model, values });
+    const result = await embedMany({
+      model,
+      values,
+      ...(candidate.requestDimensions !== undefined && {
+        providerOptions: { openai: { dimensions: candidate.requestDimensions } },
+      }),
+    });
     const upstreams =
       upstreamHeader === null
         ? []

@@ -14,11 +14,11 @@ import { createLogger } from '../../../utils/logger.js';
 import { reportBackgroundError } from '../../../utils/reportBackgroundError.js';
 
 import {
+  countMessagesAfter,
   getCompactionState,
   prepareMessagesWithCompaction,
   needsCompaction,
   generateCompactionSummary,
-  getMessageCount,
   getThreadMessages,
 } from './compactionService.js';
 import { toTokenCounterMessage, getPruningBudget } from './messageHelpers.js';
@@ -96,51 +96,58 @@ export async function applyCompaction<T extends { role: string; content: string 
   contextWindowTokens?: number
 ): Promise<{ systemMessage: string; messages: T[] }> {
   try {
-    const messageCount = await getMessageCount(threadId);
     const compactionState = await getCompactionState(threadId);
+    const keptCount =
+      compactionState.summary && compactionState.compactedUpToMessageId
+        ? await countMessagesAfter(threadId, compactionState.compactedUpToMessageId)
+        : null;
 
-    const messagesForEstimate = (prunedValidMessages as ModelMessage[]).map(toTokenCounterMessage);
-    const estimatedTokens = getTokenStats(messagesForEstimate).totalTokens;
+    // Slices the ORIGINAL messages, not the flattened TokenCounter copies —
+    // those drop images and tool parts and must never reach the model.
+    const compacted = prepareMessagesWithCompaction(
+      prunedValidMessages,
+      compactionState,
+      systemMessage,
+      keptCount,
+      contextWindowTokens
+    );
+    // Only the verbatim part grows towards the next summary; measuring the
+    // whole thread re-summarised every turn once it had passed the threshold.
+    const tailTokens = getTokenStats(
+      (compacted.messages as ModelMessage[]).map(toTokenCounterMessage)
+    ).totalTokens;
 
     const now = Date.now();
     const cooldownActive = now - (lastCompactionTime.get(threadId) ?? 0) < COMPACTION_COOLDOWN_MS;
 
     if (
-      needsCompaction(
-        messageCount,
-        compactionState.summary,
-        estimatedTokens,
-        contextWindowTokens
-      ) &&
+      needsCompaction(tailTokens, contextWindowTokens) &&
       !compactionInProgress.has(threadId) &&
       !cooldownActive
     ) {
       compactionInProgress.add(threadId);
       log.info(
-        `[Context] Thread ${threadId}: ${messageCount} messages, ~${estimatedTokens} tokens, triggering background compaction`
+        `[Context] Thread ${threadId}: ~${tailTokens} verbatim tokens, triggering background compaction`
       );
       const threadMessages = await getThreadMessages(threadId);
-      generateCompactionSummary(threadId, threadMessages, contextWindowTokens)
+      generateCompactionSummary(
+        threadId,
+        threadMessages,
+        contextWindowTokens,
+        keptCount === null ? null : compactionState
+      )
         .then(() => lastCompactionTime.set(threadId, Date.now()))
         .catch((err) => reportBackgroundError(err, { job: 'context-compaction', threadId }))
         .finally(() => compactionInProgress.delete(threadId));
     }
 
-    if (compactionState.summary) {
-      // Slice the ORIGINAL messages, not the flattened TokenCounter copies —
-      // those drop images and tool parts and must never reach the model.
-      const compacted = prepareMessagesWithCompaction(
-        prunedValidMessages,
-        compactionState,
-        systemMessage,
-        contextWindowTokens
-      );
+    if (compactionState.summary && keptCount !== null) {
       log.info(
         `[Context] Applied compaction summary (${compactionState.summary.length} chars); ` +
           `${prunedValidMessages.length} → ${compacted.messages.length} messages`
       );
-      return { systemMessage: compacted.systemMessage, messages: compacted.messages };
     }
+    return compacted;
   } catch (compactionError) {
     log.warn('[Context] Failed to apply compaction, using pruned messages:', compactionError);
   }

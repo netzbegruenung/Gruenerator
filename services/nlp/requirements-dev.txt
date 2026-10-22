@@ -18,7 +18,7 @@ catalogue==2.0.10
     #   spacy
     #   srsly
     #   thinc
-certifi==2026.7.22
+certifi==2026.10.19
     # via
     #   httpcore
     #   httpx
@@ -41,7 +41,7 @@ cymem==2.0.13
     #   preshed
     #   spacy
     #   thinc
-fastapi==0.143.0
+fastapi==0.143.2
     # via gruenerator-nlp (pyproject.toml)
 h11==0.16.0
     # via
@@ -90,20 +90,20 @@ packaging==26.3
     #   spacy
     #   thinc
     #   weasel
-pluggy==1.6.0
+pluggy==1.7.0
     # via pytest
 preshed==3.0.13
     # via
     #   spacy
     #   thinc
-pydantic==2.14.0
+pydantic==2.14.1
     # via
     #   gruenerator-nlp (pyproject.toml)
     #   fastapi
     #   spacy
     #   thinc
     #   weasel
-pydantic-core==2.50.0
+pydantic-core==2.50.1
     # via pydantic
 pygments==2.21.0
     # via
@@ -125,7 +125,7 @@ setuptools==84.0.0
     #   thinc
 shellingham==1.5.4
     # via typer
-smart-open==8.0.2
+smart-open==8.0.3
     # via weasel
 spacy==3.8.16
     # via gruenerator-nlp (pyproject.toml)
@@ -138,7 +138,7 @@ srsly==2.5.4
     #   spacy
     #   thinc
     #   weasel
-starlette==1.7.0
+starlette==1.8.0
     # via fastapi
 thinc==8.3.13
     # via spacy
@@ -177,5 +177,5 @@ weasel==1.0.0
     # via spacy
 websockets==17.2
     # via uvicorn
-wrapt==2.5.0
+wrapt==2.5.1
     # via smart-open

@@ -5,6 +5,7 @@ import {
   getVisibleSystemAgentsForLocale,
   type Agent,
 } from '@gruenerator/shared/agents';
+import { useMarketplaceItem } from '@gruenerator/shared/marketplace';
 import { Button, CardGrid } from '@gruenerator/ui';
 import { useMemo, useState } from 'react';
 import {
@@ -21,9 +22,9 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { CURRENT_INSTANCE } from '../../config/instance';
 import { useUserAgents } from '../agents/api';
 import { PhosphorIcon } from '../agents/icons/PhosphorIcon';
+import { MarketplaceDiscussion } from '../marketplace/MarketplaceDiscussion';
 
 import { AddToLibraryButton } from './components/AddToLibraryButton';
-import { AgentDiscussion } from './components/AgentDiscussion';
 import { AgentCard } from './components/cards';
 import { ExamplePreview } from './components/ExamplePreview';
 import { ShareAgentModal } from './components/ShareAgentModal';
@@ -47,6 +48,9 @@ function AgentDetailPage() {
   const userLocale = useAuthStore((s) => s.locale) ?? 'de-DE';
   const { data: userAgents = [] } = useUserAgents();
   const { agent, isUserAgent, isOwn: isOwnAgent, isLoading } = useAgentBySlug(slug);
+  // The Marktplatz names a user agent by its row, an official one by its identifier.
+  const itemRef = agent ? (isUserAgent ? (agent.id ?? null) : agent.identifier) : null;
+  const marketItem = useMarketplaceItem(itemRef ? { kind: 'agent', ref: itemRef } : null);
 
   const agentFavorites = useAgentFavoritesStore((s) => s.favoriteIdentifiers);
   const toggleAgentFavorite = useAgentFavoritesStore((s) => s.toggle);
@@ -78,7 +82,7 @@ function AgentDetailPage() {
       <PageContainer maxWidth="sm" title="Grünerator-Agent nicht gefunden">
         <div className="text-center">
           <Button asChild variant="brand">
-            <Link to="/agentura">Zurück zur Agentura</Link>
+            <Link to="/marktplatz">Zurück zum Marktplatz</Link>
           </Button>
         </div>
       </PageContainer>
@@ -122,11 +126,11 @@ function AgentDetailPage() {
   return (
     <PageContainer maxWidth="sm">
       <Link
-        to="/agentura"
+        to="/marktplatz"
         className="mb-xl inline-flex items-center gap-xs text-sm font-semibold text-foreground-muted transition-colors hover:text-primary-700 dark:hover:text-primary-300"
       >
         <PiArrowLeft className="h-4 w-4" />
-        Agentura
+        Marktplatz
       </Link>
 
       <header className="mb-md flex items-center gap-md">
@@ -294,7 +298,15 @@ function AgentDetailPage() {
         </CardGrid>
       )}
 
-      {isUserAgent && agent.id && <AgentDiscussion agentId={agent.id} isOwner={isOwnAgent} />}
+      {itemRef && (
+        <div className="mt-xl">
+          <MarketplaceDiscussion
+            target={{ kind: 'agent', ref: itemRef }}
+            item={marketItem.data ?? null}
+            canModerate={isOwnAgent}
+          />
+        </div>
+      )}
     </PageContainer>
   );
 }

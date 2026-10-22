@@ -6,6 +6,8 @@ import { BalkenSettingsSection } from '../sidebar/sections/BalkenSettingsSection
 import { ChartSettingsSection } from '../sidebar/sections/ChartSettingsSection';
 import { ImageAdjustSection } from '../sidebar/sections/ImageAdjustSection';
 import { COLOR_SCHEMES } from '../utils/dreizeilenLayout';
+import { backgroundAdjustments } from '../utils/imageFilters';
+import { BACKGROUND_IMAGE_NODE_ID } from '../utils/printImageInfo';
 
 import { buildSharepicText } from './buildSharepicText';
 import { makeSectionDefiner } from './factory/defineSection';
@@ -16,12 +18,16 @@ import type { BalkenInstance } from '../primitives/BalkenGroup';
 import type { ChatSectionProps, ToolsSectionProps, UploadsSectionProps } from '../sidebar/sections';
 import type { SidebarTab } from '../sidebar/types';
 import type { ChartInstance } from '../utils/chartUtils';
-import type { UserImageInstance } from '../utils/userImageUtils';
+import type {
+  ImageAdjustments,
+  UserImageInstance,
+  UserImagePlacement,
+} from '../utils/userImageUtils';
 
 interface ActionsWithChart {
   updateChart?: (id: string, partial: Partial<ChartInstance>) => void;
   removeChart?: (id: string) => void;
-  addUserImageFromUrl?: (url: string, fileName: string) => void;
+  addUserImageFromUrl?: (url: string, fileName: string, options?: UserImagePlacement) => void;
 }
 
 interface ActionsWithBalken {
@@ -32,6 +38,7 @@ interface ActionsWithBalken {
 
 interface ActionsWithUserImage {
   updateUserImage?: (id: string, partial: Partial<UserImageInstance>) => void;
+  updateBackgroundImageAdjustments?: (partial: Partial<ImageAdjustments>) => void;
 }
 
 export const uploadsTab: SidebarTab = {
@@ -83,11 +90,17 @@ export const toolsTab: SidebarTab = {
 
 export const toolsSectionEntry = defineCommonSection({
   component: ToolsSection,
-  propsFactory: (_state, actions): ToolsSectionProps => {
+  propsFactory: (_state, actions, context): ToolsSectionProps => {
     const a = actions as ActionsWithChart;
     const props: ToolsSectionProps = {};
     // Tools place their generated image straight onto the canvas (durable URL).
     if (a.addUserImageFromUrl) props.onPlaceImageUrl = a.addUserImageFromUrl;
+    if (context?.collectAltTextPages) {
+      props.altTextPages = {
+        collect: context.collectAltTextPages,
+        pageCount: context.pageCount ?? 1,
+      };
+    }
     return props;
   },
 });
@@ -103,13 +116,15 @@ export const chartSettingsSectionEntry = defineCommonSection({
   propsFactory: (state, actions, context) => {
     const s = state as { chartInstances?: ChartInstance[] };
     const a = actions as ActionsWithChart;
-    const selectedId = (context as { selectedElement?: string | null } | undefined)
-      ?.selectedElement;
+    const ctx = context as
+      { selectedElement?: string | null; chartColors?: readonly string[] } | undefined;
+    const selectedId = ctx?.selectedElement;
     const selectedChart = selectedId
       ? (s.chartInstances?.find((c) => c.id === selectedId) ?? null)
       : null;
     return {
       selectedChart,
+      ...(ctx?.chartColors && { palette: ctx.chartColors }),
       onUpdateChart: a.updateChart ?? (() => {}),
       onRemoveChart: a.removeChart ?? (() => {}),
     };
@@ -144,8 +159,9 @@ export const balkenSettingsSectionEntry = defineCommonSection({
 });
 
 /**
- * Shared image-adjust ("Bearbeiten") panel. Opened explicitly from the context
- * bar's Bearbeiten button (setActiveTab('image-adjust')), not on selection.
+ * Shared image-adjust ("Bearbeiten") panel for a free image or the template's
+ * background photo. Opened explicitly from the context bar's Bearbeiten button
+ * (setActiveTab('image-adjust')), not on selection.
  */
 export const imageAdjustSectionEntry = defineCommonSection({
   component: ImageAdjustSection,
@@ -157,9 +173,20 @@ export const imageAdjustSectionEntry = defineCommonSection({
     const selectedImage = selectedId
       ? (s.userImageInstances?.find((u) => u.id === selectedId) ?? null)
       : null;
+    const page = state as Record<string, unknown>;
+    const backgroundPhoto =
+      selectedId === BACKGROUND_IMAGE_NODE_ID &&
+      page.currentImageSrc &&
+      a.updateBackgroundImageAdjustments
+        ? {
+            adjustments: backgroundAdjustments(page) ?? {},
+            onUpdate: a.updateBackgroundImageAdjustments,
+          }
+        : null;
     return {
       selectedImage,
       onUpdateImage: a.updateUserImage ?? (() => {}),
+      backgroundPhoto,
     };
   },
 });

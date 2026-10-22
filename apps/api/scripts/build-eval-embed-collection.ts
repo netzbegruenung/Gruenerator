@@ -62,7 +62,7 @@ const {
   resolveSourceCollections,
   SCROLL_PAGE,
   toEvalPoint,
-  UPSERT_BATCH,
+  upsertBatchFor,
 } = await import('../evals/retrieval/evalEmbedCollection.js');
 
 import type { EmbedCandidate } from '../evals/retrieval/embedCandidates.js';
@@ -249,11 +249,12 @@ async function buildOne(
     if (usable.length > 0) {
       const vectors = await embedder.embedDocuments(texts);
       const points = usable.map((point, i) => toEvalPoint(point, vectors[i], expiresAt));
-      for (let i = 0; i < points.length; i += UPSERT_BATCH) {
+      const batch = upsertBatchFor(candidate.dims);
+      for (let i = 0; i < points.length; i += batch) {
         await client.upsert(target, {
           wait: true,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          points: points.slice(i, i + UPSERT_BATCH) as any,
+          points: points.slice(i, i + batch) as any,
         });
       }
       copied += points.length;

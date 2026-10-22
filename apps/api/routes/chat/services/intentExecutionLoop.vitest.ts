@@ -44,8 +44,8 @@ vi.mock('../../../agents/langgraph/ChatGraph/index.js', () => ({
   buildCitations: vi.fn(() => []),
 }));
 
-// Not under test in the intent cases, and importing it pulls in the `deepagents`
-// package (plus a LangChain graph build) for no benefit there.
+// Not under test in the intent cases, and importing it pulls in the whole deep
+// research loop for no benefit there.
 const runDeepAgentTurn = vi.fn(async () => null);
 vi.mock('./deepAgentTurn.js', () => ({ runDeepAgentTurn: () => runDeepAgentTurn() }));
 

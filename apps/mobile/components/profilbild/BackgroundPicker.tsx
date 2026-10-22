@@ -1,4 +1,3 @@
-import { type StudioAssetItem } from '@gruenerator/contracts';
 import {
   colorSwatches,
   FREE_BACKGROUND_ID,
@@ -9,7 +8,7 @@ import {
   type ProfilbildAssetSrc,
   type Swatch,
 } from '@gruenerator/shared/profilbild';
-import { isShareSrc } from '@gruenerator/shared/stickers';
+import { isShareSrc, type GalleryAsset } from '@gruenerator/shared/stickers';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Skia, type SkImage } from '@shopify/react-native-skia';
 import { Image } from 'expo-image';
@@ -61,7 +60,7 @@ interface BackgroundPickerProps {
   freeBackground: FreeBackground | null;
   onSelect(id: string, background: MobileBackground): void;
   onCustom(custom: CustomBackground): void;
-  onPickGallery(item: StudioAssetItem): void;
+  onPickGallery(item: GalleryAsset): void;
 }
 
 async function loadCustom(): Promise<CustomBackground | null> {
@@ -75,7 +74,7 @@ async function loadCustom(): Promise<CustomBackground | null> {
 /**
  * Three tabs, like web: Farben (plain colours and gradients, each with a free
  * tile), Vorlagen, and Deine — the own photo, own and saved gallery
- * backgrounds, then upload and Entdecken.
+ * backgrounds, then upload and the Marktplatz.
  */
 export function BackgroundPicker({
   isAustria,
@@ -191,7 +190,6 @@ export function BackgroundPicker({
       {tab === 'deine' ? (
         <GalleryTiles
           kind="background"
-          source="own"
           selectedSrc={selected === CUSTOM_ID ? (custom?.galleryUrl ?? '') : ''}
           onPick={onPickGallery}
           leadingSrc={custom?.galleryUrl ?? null}

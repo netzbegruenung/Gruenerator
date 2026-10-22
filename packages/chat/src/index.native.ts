@@ -46,6 +46,7 @@ export {
   useChatFetch,
   useChatEndpoints,
   type ChatConfig,
+  type ChatVoice,
   type ResolvedEndpoints,
   type ChatRequestContext,
   type ChatRequestContextProvider,

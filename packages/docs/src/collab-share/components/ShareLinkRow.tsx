@@ -1,4 +1,5 @@
 import { CopyLinkRow } from '@gruenerator/ui';
+import { useId } from 'react';
 
 interface ShareLinkRowProps {
   shareUrl: string;
@@ -11,11 +12,15 @@ export const ShareLinkRow = ({
   linkPermission,
   onLinkPermissionChange,
 }: ShareLinkRowProps) => {
+  const selectId = useId();
   return (
     <div>
       <div className="mb-1 flex items-center justify-between">
-        <label className="text-xs font-medium text-grey-500">Link-Berechtigung</label>
+        <label htmlFor={selectId} className="text-xs font-medium text-grey-500">
+          Link-Berechtigung
+        </label>
         <select
+          id={selectId}
           value={linkPermission}
           onChange={(e) => onLinkPermissionChange(e.target.value as 'viewer' | 'editor')}
           className="rounded-md border border-grey-200 bg-background px-2 py-1 text-xs outline-none focus:border-primary-500 dark:border-grey-700"

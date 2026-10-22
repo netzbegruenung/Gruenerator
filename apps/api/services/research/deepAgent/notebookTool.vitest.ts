@@ -30,8 +30,27 @@ const { createNotebookTool } = await import('./notebookTool.js');
 const { createBudget, DEFAULT_BUDGET } = await import('./types.js');
 
 interface RunnableTool {
-  name: string;
   invoke: (input: unknown) => Promise<string>;
+}
+
+/**
+ * Drives the tool the way the AI SDK does: the input is checked against the
+ * schema first, and only a valid one reaches `execute`.
+ */
+function runnable(built: ReturnType<typeof createNotebookTool>): RunnableTool {
+  const schema = built.inputSchema as { parse: (input: unknown) => unknown };
+  const execute = built.execute;
+  if (!execute) throw new Error('notebook tool has no execute');
+  return {
+    invoke: async (input) =>
+      (await execute(
+        schema.parse(input) as never,
+        {
+          toolCallId: 't',
+          messages: [],
+        } as never
+      )) as string,
+  };
 }
 
 const CORPORA = [
@@ -83,7 +102,7 @@ function setup(
     userId: 'user-1',
     ...scopeOverrides,
   };
-  const tool = createNotebookTool(ctx, scope) as unknown as RunnableTool;
+  const tool = runnable(createNotebookTool(ctx, scope));
   return { ctx, tool };
 }
 

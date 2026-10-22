@@ -329,6 +329,7 @@ export const docsContract = c.router(
       body: c.noBody(),
       responses: {
         200: shareSettingsSchema,
+        400: docsErrorSchema,
         401: docsErrorSchema,
         403: docsErrorSchema,
         404: docsErrorSchema,
@@ -370,6 +371,7 @@ export const docsContract = c.router(
       body: shareModeBodySchema,
       responses: {
         200: shareSettingsSchema,
+        400: docsErrorSchema,
         401: docsErrorSchema,
         403: docsErrorSchema,
         404: docsErrorSchema,

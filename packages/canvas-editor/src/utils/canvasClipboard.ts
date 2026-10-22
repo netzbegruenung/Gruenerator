@@ -20,32 +20,42 @@ export type ClipboardItemType = DuplicableType;
 export type ClipboardDataMap = DuplicableDataMap;
 export type ClipboardEntry = DuplicableEntry;
 
-export class CanvasClipboard {
-  private static instance: ClipboardEntry | null = null;
+/**
+ * Eine kopierte Auswahl. `bounds` ist ihre Box in Vorlagen-Koordinaten, beim
+ * Kopieren gemessen — „Hier einfügen“ legt deren linke obere Ecke an den
+ * Zeiger. `null`, wenn sich nichts messen ließ; dann gilt der feste Versatz.
+ */
+export interface ClipboardContent {
+  readonly entries: readonly ClipboardEntry[];
+  readonly bounds: { x: number; y: number; width: number; height: number } | null;
+}
 
-  static copy<T extends ClipboardItemType>(type: T, data: ClipboardDataMap[T]): void {
-    CanvasClipboard.instance = { type, data } as ClipboardEntry;
+export class CanvasClipboard {
+  private static content: ClipboardContent | null = null;
+
+  static copy(content: ClipboardContent): void {
+    CanvasClipboard.content = content.entries.length > 0 ? content : null;
   }
 
   /**
    * Paste the clipboard contents (returns null if empty).
-   * Callers should narrow on `result.type` to access `result.data` safely.
+   * Callers should narrow on `entry.type` to access `entry.data` safely.
    */
-  static paste(): ClipboardEntry | null {
-    return CanvasClipboard.instance;
+  static paste(): ClipboardContent | null {
+    return CanvasClipboard.content;
   }
 
   /**
    * Clear the clipboard
    */
   static clear(): void {
-    CanvasClipboard.instance = null;
+    CanvasClipboard.content = null;
   }
 
   /**
    * Check if clipboard has content
    */
   static hasContent(): boolean {
-    return CanvasClipboard.instance !== null;
+    return CanvasClipboard.content !== null;
   }
 }

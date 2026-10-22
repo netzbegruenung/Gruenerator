@@ -30,10 +30,6 @@
 
 import { catalogIconId } from './iconInstances';
 
-import type { BaseCanvasState, IconState } from '../configs/factory/baseTypes';
-import type { AdditionalText } from '../configs/types';
-import type { BalkenInstance } from '../primitives/BalkenGroup';
-import type { CircleBadgeInstance } from '../primitives/CircleBadge';
 import type { AssetInstance } from './canvasAssets';
 import type { ChartInstance } from './chartUtils';
 import type { FrameInstance } from './frameUtils';
@@ -42,9 +38,22 @@ import type { IllustrationInstance } from './illustrations/types';
 import type { PillBadgeInstance } from './pillBadgeUtils';
 import type { ShapeInstance } from './shapes';
 import type { UserImageInstance } from './userImageUtils';
+import type { BaseCanvasState, IconState } from '../configs/factory/baseTypes';
+import type { AdditionalText } from '../configs/types';
+import type { BalkenInstance } from '../primitives/BalkenGroup';
+import type { CircleBadgeInstance } from '../primitives/CircleBadge';
 
 /** Standardversatz einer Kopie gegenüber dem Original, in Canvas-Pixeln. */
 export const DUPLICATE_OFFSET = 20;
+
+/** Versatz einer Kopie; eine Zahl gilt für beide Achsen. */
+export interface InsertOffset {
+  x: number;
+  y: number;
+}
+
+const toOffset = (offset: number | InsertOffset): InsertOffset =>
+  typeof offset === 'number' ? { x: offset, y: offset } : offset;
 
 export type DuplicableType =
   | 'shape'
@@ -108,13 +117,13 @@ interface DuplicableSpec<T> {
   /** Die Nutzlast dieser Art zu `id`, oder `null`, wenn die ID keine ist. */
   find: (state: object, id: string) => T | null;
   /** Der Teilzustand, den die Kopie ergänzt — er wird über den Zustand gelegt. */
-  insert: (state: object, data: T, newId: string, offset: number) => Record<string, unknown>;
+  insert: (state: object, data: T, newId: string, offset: InsertOffset) => Record<string, unknown>;
 }
 
 /** Der Normalfall: eine Art, die als Liste von `{ id, … }` im Zustand liegt. */
 function listSpec<T extends { id: string }>(
   field: string,
-  clone: (data: T, id: string, offset: number) => T
+  clone: (data: T, id: string, offset: InsertOffset) => T
 ): DuplicableSpec<T> {
   return {
     find: (state, id) => (readList(state, field).find((i) => i.id === id) as T | undefined) ?? null,
@@ -133,61 +142,61 @@ const DUPLICABLE: { [K in DuplicableType]: DuplicableSpec<DuplicableDataMap[K]> 
   shape: listSpec('shapeInstances', (d, id, o) => ({
     ...d,
     id,
-    x: d.x + o,
-    y: d.y + o,
+    x: d.x + o.x,
+    y: d.y + o.y,
     ...(d.dash ? { dash: [...d.dash] } : {}),
     ...(d.fillGradient !== undefined ? { fillGradient: cloneGradient(d.fillGradient) } : {}),
   })),
   'additional-text': listSpec('additionalTexts', (d, id, o) => ({
     ...d,
     id,
-    x: d.x + o,
-    y: d.y + o,
+    x: d.x + o.x,
+    y: d.y + o.y,
     ...(d.fillGradient !== undefined ? { fillGradient: cloneGradient(d.fillGradient) } : {}),
   })),
   // Balken kennt kein x/y — seine Lage ist ein Versatz zur Layout-Basis.
   balken: listSpec('balkenInstances', (d, id, o) => ({
     ...d,
     id,
-    offset: { x: (d.offset?.x ?? 0) + o, y: (d.offset?.y ?? 0) + o },
+    offset: { x: (d.offset?.x ?? 0) + o.x, y: (d.offset?.y ?? 0) + o.y },
     texts: [...d.texts],
     ...(d.barOffsets ? { barOffsets: [...d.barOffsets] as [number, number, number] } : {}),
   })),
   illustration: listSpec('illustrationInstances', (d, id, o) => ({
     ...d,
     id,
-    x: d.x + o,
-    y: d.y + o,
+    x: d.x + o.x,
+    y: d.y + o.y,
   })),
-  asset: listSpec('assetInstances', (d, id, o) => ({ ...d, id, x: d.x + o, y: d.y + o })),
+  asset: listSpec('assetInstances', (d, id, o) => ({ ...d, id, x: d.x + o.x, y: d.y + o.y })),
   'pill-badge': listSpec('pillBadgeInstances', (d, id, o) => ({
     ...d,
     id,
-    x: d.x + o,
-    y: d.y + o,
+    x: d.x + o.x,
+    y: d.y + o.y,
   })),
   'circle-badge': listSpec('circleBadgeInstances', (d, id, o) => ({
     ...d,
     id,
-    x: d.x + o,
-    y: d.y + o,
+    x: d.x + o.x,
+    y: d.y + o.y,
     textLines: d.textLines.map((l) => ({ ...l })),
   })),
   // `imageSrc` wird bewusst mitgenommen: ein Rahmen ohne sein Bild ist keine
   // Kopie. Dass das Löschen des Originals die geteilte Blob-URL freigibt,
   // verhindern die Zählungen in `removeFrame`/`removeUserImage`.
-  frame: listSpec('frameInstances', (d, id, o) => ({ ...d, id, x: d.x + o, y: d.y + o })),
+  frame: listSpec('frameInstances', (d, id, o) => ({ ...d, id, x: d.x + o.x, y: d.y + o.y })),
   'user-image': listSpec('userImageInstances', (d, id, o) => ({
     ...d,
     id,
-    x: d.x + o,
-    y: d.y + o,
+    x: d.x + o.x,
+    y: d.y + o.y,
   })),
   chart: listSpec('chartInstances', (d, id, o) => ({
     ...d,
     id,
-    x: d.x + o,
-    y: d.y + o,
+    x: d.x + o.x,
+    y: d.y + o.y,
     data: d.data.map((p) => ({ ...p })),
     colors: [...d.colors],
   })),
@@ -212,7 +221,7 @@ const DUPLICABLE: { [K in DuplicableType]: DuplicableSpec<DuplicableDataMap[K]> 
         selectedIcons: [...(s.selectedIcons ?? []), newId],
         iconStates: {
           ...s.iconStates,
-          [newId]: { ...data, x: data.x + offset, y: data.y + offset },
+          [newId]: { ...data, x: data.x + offset.x, y: data.y + offset.y },
         },
       };
     },
@@ -253,7 +262,7 @@ export interface InsertResult<TState> {
 export function insertInstance<TState extends Partial<BaseCanvasState>>(
   state: TState,
   entry: DuplicableEntry,
-  options: { afterId?: string | null; offset?: number } = {}
+  options: { afterId?: string | null; offset?: number | InsertOffset } = {}
 ): InsertResult<TState> {
   const { afterId = null, offset = DUPLICATE_OFFSET } = options;
   const newId = createInstanceId(entry.type);
@@ -264,7 +273,7 @@ export function insertInstance<TState extends Partial<BaseCanvasState>>(
   const spec = DUPLICABLE[entry.type] as DuplicableSpec<unknown>;
   const nextState = {
     ...state,
-    ...spec.insert(state, entry.data, newId, offset),
+    ...spec.insert(state, entry.data, newId, toOffset(offset)),
   } as TState;
 
   const nextOrder = withDuplicateInLayerOrder(state.layerOrder, afterId, newId);
@@ -286,7 +295,7 @@ export function insertInstance<TState extends Partial<BaseCanvasState>>(
 export type TemplateEntryLookup = (elementId: string) => DuplicableEntry | null;
 
 export interface DuplicateOptions {
-  offset?: number;
+  offset?: number | InsertOffset;
   template?: TemplateEntryLookup;
 }
 

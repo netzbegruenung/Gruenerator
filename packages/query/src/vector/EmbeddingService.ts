@@ -7,10 +7,10 @@ import { EMBEDDING_DEFAULTS } from './constants.js';
 
 import type { BatchEmbeddingOptions } from './types.js';
 
-// Regional (EU) endpoint: embeddings are served regionally and return
-// byte-identical vectors to the global endpoint for the same model, so
-// switching needs no Qdrant re-index.
-const MISTRAL_API_URL = 'https://api.eu.mistral.ai/v1/embeddings';
+// Global endpoint: since 2026-10-21 the EU endpoint serves no embedding model
+// (`400 Invalid model: mistral-embed`). Vectors are byte-identical across both
+// endpoints, so moving back to api.eu.mistral.ai needs no Qdrant re-index.
+const MISTRAL_API_URL = 'https://api.mistral.ai/v1/embeddings';
 
 export interface MistralClient {
   embeddings: {

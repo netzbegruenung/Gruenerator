@@ -1,14 +1,20 @@
 import { useCallback, useMemo } from 'react';
 
+import { type LiftedBlock } from '../composer/liftBlock';
 import { resolveValue } from '../utils/canvasValueResolver';
 
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from '../configs/types';
-import type { CircleBadgeInstance } from '../primitives';
-import type { ChartInstance } from '../utils/chartUtils';
-import type { FrameInstance } from '../utils/frameUtils';
+import type { BalkenMode, CircleBadgeInstance } from '../primitives';
+import type { ChartInstance, ChartType } from '../utils/chartUtils';
+import type { FrameClipType, FrameInstance } from '../utils/frameUtils';
 import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
-import type { ShapeInstance } from '../utils/shapes';
-import type { UserImageInstance } from '../utils/userImageUtils';
+import type { ShapeInstance, ShapeType } from '../utils/shapes';
+import type {
+  ElementPlacement,
+  UserImageInstance,
+  UserImagePlacement,
+} from '../utils/userImageUtils';
+import type { StickerRef } from '@gruenerator/shared/stickers';
 
 /**
  * Canvas Element Handlers - Handlers for all element interactions
@@ -63,13 +69,25 @@ export interface OptionalCanvasActions {
   updatePillBadge?: (id: string, attrs: Partial<PillBadgeInstance>) => void;
   updateFrame?: (id: string, attrs: Partial<FrameInstance>) => void;
   setFrameImage?: (id: string, file: File, objectUrl: string) => void;
+  addUserImageFromUrl?: (url: string, fileName: string, options?: UserImagePlacement) => void;
   updateUserImage?: (id: string, attrs: Partial<UserImageInstance>) => void;
   updateChart?: (id: string, attrs: Partial<ChartInstance>) => void;
+
+  // Add actions a dragged Elemente tile is dropped with (GenericCanvas `dropElement`).
+  addAsset?: (assetId: string, options?: ElementPlacement) => void;
+  /** Adds a composed block (`liftBlock`) as one history entry (freeform pages). */
+  insertBlock?: (block: LiftedBlock) => void;
+  addStickerAsset?: (ref: StickerRef, options?: ElementPlacement) => void;
+  addShape?: (type: ShapeType, color?: string, options?: ElementPlacement) => void;
+  addIllustration?: (id: string, options?: ElementPlacement) => void;
+  addChart?: (chartType: ChartType, options?: ElementPlacement) => void;
+  addFrame?: (clipType: FrameClipType, options?: ElementPlacement) => void;
+  addBalken?: (mode: BalkenMode, options?: ElementPlacement) => void;
 
   // Removal / toggle actions (consumed by useCanvasKeyboardHandlers for
   // delete-key shortcuts; same factory-provided implementations).
   removeBalken?: (id: string) => void;
-  toggleIcon?: (id: string, enabled: boolean) => void;
+  toggleIcon?: (id: string, enabled: boolean, options?: ElementPlacement) => void;
   removeShape?: (id: string) => void;
   removeAdditionalText?: (id: string) => void;
   removeIllustration?: (id: string) => void;
@@ -91,7 +109,7 @@ export interface UseCanvasElementHandlersOptions<
   actions: TActions;
   layout: LayoutResult;
   callbacks: Record<string, ((val: unknown) => void) | undefined>;
-  setSelectedElement: (id: string | null) => void;
+  selectElement: (id: string) => void;
   updateElementPosition: (id: string, x: number, y: number, w: number, h: number) => void;
   saveToHistory: (state: TState) => void;
   debouncedSaveToHistory: (state: TState) => void;
@@ -163,6 +181,7 @@ export interface UseCanvasElementHandlersResult {
   handleFrameChange: (id: string, newAttrs: Partial<FrameInstance>) => void;
   handleFrameImageUpload: (id: string, file: File, objectUrl: string) => void;
   handleUserImageDragEnd: (id: string, x: number, y: number) => void;
+  handleUserImageCropEnd: (id: string, patch: Partial<UserImageInstance>) => void;
   handleUserImageTransformEnd: (
     id: string,
     x: number,
@@ -204,7 +223,7 @@ export function useCanvasElementHandlers<
     actions,
     layout,
     callbacks,
-    setSelectedElement,
+    selectElement,
     updateElementPosition,
     saveToHistory,
     debouncedSaveToHistory,
@@ -212,9 +231,9 @@ export function useCanvasElementHandlers<
 
   const handleElementSelect = useCallback(
     (id: string) => {
-      setSelectedElement(id);
+      selectElement(id);
     },
-    [setSelectedElement]
+    [selectElement]
   );
 
   const handleTextChange = useCallback(
@@ -338,9 +357,9 @@ export function useCanvasElementHandlers<
 
   const handleBalkenSelect = useCallback(
     (id: string) => {
-      setSelectedElement(id);
+      selectElement(id);
     },
-    [setSelectedElement]
+    [selectElement]
   );
 
   const handleBalkenDragEnd = useCallback(
@@ -408,9 +427,9 @@ export function useCanvasElementHandlers<
 
   const handleCircleBadgeSelect = useCallback(
     (id: string) => {
-      setSelectedElement(id);
+      selectElement(id);
     },
-    [setSelectedElement]
+    [selectElement]
   );
 
   const handleCircleBadgeDragEnd = useCallback(
@@ -458,9 +477,9 @@ export function useCanvasElementHandlers<
 
   const handlePillBadgeSelect = useCallback(
     (id: string) => {
-      setSelectedElement(id);
+      selectElement(id);
     },
-    [setSelectedElement]
+    [selectElement]
   );
 
   const handlePillBadgeTextChange = useCallback(
@@ -552,6 +571,13 @@ export function useCanvasElementHandlers<
     [actions]
   );
 
+  const handleUserImageCropEnd = useCallback(
+    (id: string, patch: Partial<UserImageInstance>) => {
+      actions.updateUserImage?.(id, patch);
+    },
+    [actions]
+  );
+
   const handleUserImageTransformEnd = useCallback(
     (id: string, x: number, y: number, width: number, height: number, rotation: number) => {
       actions.updateUserImage?.(id, { x, y, width, height, rotation });
@@ -604,6 +630,7 @@ export function useCanvasElementHandlers<
       handleFrameChange,
       handleFrameImageUpload,
       handleUserImageDragEnd,
+      handleUserImageCropEnd,
       handleUserImageTransformEnd,
       handleChartDragEnd,
       handleChartTransformEnd,
@@ -638,6 +665,7 @@ export function useCanvasElementHandlers<
       handleFrameChange,
       handleFrameImageUpload,
       handleUserImageDragEnd,
+      handleUserImageCropEnd,
       handleUserImageTransformEnd,
       handleChartDragEnd,
       handleChartTransformEnd,

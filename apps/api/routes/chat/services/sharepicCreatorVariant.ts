@@ -155,7 +155,11 @@ export async function createCreatorSharepic(args: {
         null,
         args.oneSlide
       );
-  return toCreatorVariant(draft, { revisionOf: null, editorChangesDropped: false });
+  // A themed Vorlage's theme is part of the look the person picked: the model
+  // drops it now and then (a remembrance on plain green), so it is kept here.
+  const thema = vorlage?.spec.thema;
+  const spec = thema && !draft.spec.thema ? { ...draft.spec, thema } : draft.spec;
+  return toCreatorVariant({ ...draft, spec }, { revisionOf: null, editorChangesDropped: false });
 }
 
 export async function reviseCreatorSharepic(args: {

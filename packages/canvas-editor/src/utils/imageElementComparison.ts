@@ -10,6 +10,8 @@
  * erzwingt.
  */
 
+import { backgroundAdjustments } from './imageFilters';
+import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo';
 import { assertAsPosition, assertAsSize } from './stateTypeAssertions';
 
 import type { ImageElementConfig, LayoutElementResult, LayoutResult } from '../configs/types';
@@ -86,6 +88,35 @@ export function imageRenderInputsAreEqual<TState extends Record<string, unknown>
 
   const fillKey = prev.config.fillStateKey;
   if (fillKey && prev.state[fillKey] !== next.state[fillKey]) return false;
+
+  if (
+    prev.config.id === BACKGROUND_IMAGE_NODE_ID &&
+    backgroundAdjustments(prev.state) !== backgroundAdjustments(next.state)
+  ) {
+    return false;
+  }
+
+  const { frame: frameOf } = prev.config;
+  if (frameOf) {
+    const a = frameOf(prev.state, prev.layout);
+    const b = frameOf(next.state, next.layout);
+    if (
+      a !== b &&
+      (!a || !b || a.x !== b.x || a.y !== b.y || a.width !== b.width || a.height !== b.height)
+    ) {
+      return false;
+    }
+  }
+
+  // Derived source and tint (e.g. a mark that follows the background colour).
+  const { src, fill } = prev.config;
+  if (typeof src === 'function' && src(prev.state) !== src(next.state)) return false;
+  if (
+    typeof fill === 'function' &&
+    fill(prev.state, prev.layout) !== fill(next.state, next.layout)
+  ) {
+    return false;
+  }
 
   const prevGeometry = geometryOf(prev.layout, prev.config.id);
   const nextGeometry = geometryOf(next.layout, next.config.id);

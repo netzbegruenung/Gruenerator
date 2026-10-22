@@ -14,7 +14,7 @@
  * This eliminates 60+ lines of manual prop passing per config (83% code reduction).
  */
 
-import { selectedCatalogIconIds } from '../utils/iconInstances';
+import { MAX_ICON_SELECTIONS, selectedCatalogIconIds } from '../utils/iconInstances';
 
 import type { IconState } from './factory/baseTypes';
 import type { SectionContext } from './types';
@@ -26,6 +26,7 @@ import type { FrameInstance } from '../utils/frameUtils';
 import type { IllustrationInstance } from '../utils/illustrations/types';
 import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance } from '../utils/shapes';
+import type { UserImagePlacement } from '../utils/userImageUtils';
 
 interface FeatureStateWithIcons {
   selectedIcons?: string[];
@@ -107,7 +108,7 @@ export function injectFeatureProps<S extends object, A extends object>(
       stateWithIcons.iconStates
     );
     injected.onIconToggle = actions.toggleIcon as (id: string, selected: boolean) => void;
-    injected.maxIconSelections = 3; // Standard max
+    injected.maxIconSelections = MAX_ICON_SELECTIONS;
 
     // Optional: icon update handler
     if ('updateIcon' in actions) {
@@ -252,6 +253,24 @@ export function injectFeatureProps<S extends object, A extends object>(
         objectUrl: string
       ) => void;
     }
+  }
+
+  // === PHOTOS ===
+  // Convention: actions.addUserImageFromUrl (stock photos placed as user images)
+  if ('addUserImageFromUrl' in actions) {
+    injected.onAddImageFromUrl = actions.addUserImageFromUrl as (
+      url: string,
+      name: string,
+      options?: UserImagePlacement
+    ) => void;
+  }
+
+  // === BACKGROUND GALLERY ===
+  // Comes from the config's background controls, not from a state convention.
+  const background = context?.background;
+  if (background?.onImageChange) {
+    injected.onSetBackgroundImage = background.onImageChange;
+    injected.currentBackgroundSrc = background.currentImageSrc;
   }
 
   return injected;

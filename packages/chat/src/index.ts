@@ -109,6 +109,7 @@ export {
   useChatFetch,
   useChatEndpoints,
   type ChatConfig,
+  type ChatVoice,
   type ResolvedEndpoints,
   type ChatRequestContext,
   type ChatRequestContextProvider,
@@ -209,6 +210,7 @@ export { type CategoryFilterField } from './components/notebook/NotebookSettings
 
 // Thread Components
 export { GrueneratorThread } from './components/thread/GrueneratorThread';
+export { VoiceOrb } from './components/assistant-ui/voice';
 // Read-only transcript view (shared thread archive)
 export {
   ReadonlyThreadProvider,

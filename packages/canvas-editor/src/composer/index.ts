@@ -29,6 +29,16 @@ export {
   type SharepicPageCollection,
   type SharepicStyleProps,
 } from './liftSharepicPage';
+export { COMPOSER_PLANE_IDS } from '../utils/shapes';
+export {
+  BLOCK_COLLECTIONS,
+  blockElementIds,
+  blockGround,
+  liftBlock,
+  placeBlock,
+  translateBlock,
+  type LiftedBlock,
+} from './liftBlock';
 // Measure after the brand faces load, or text wraps by the fallback font's widths.
 export { ensureFontsReady } from '../utils/ensureFontsReady';
 export {
@@ -39,3 +49,9 @@ export {
   type SharepicTweakId,
   type SharepicTweakOption,
 } from './sharepicTweaks';
+export {
+  composePrint,
+  PRINT_IMPRESSUM_ID,
+  type ComposedPrint,
+  type ComposePrintOptions,
+} from './composePrint';

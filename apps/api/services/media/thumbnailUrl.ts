@@ -11,6 +11,13 @@
  * client's job.
  */
 
+import { createHash } from 'crypto';
+
+import {
+  shareTokenFromDownloadUrl,
+  shareTokenFromShareUrl,
+} from '@gruenerator/shared/media-library/shareUrl';
+
 import {
   signThumbnail,
   type ThumbnailDescriptor,
@@ -80,6 +87,37 @@ export function buildThumbnailTileUrl(kind: ThumbnailKind, id: string, v: string
 }
 
 /**
+ * A tile for a row that stores an image as a URL (`resolveStoredImage` serves
+ * it): a media-library upload or a remote `http(s)` image. Null for anything
+ * the resolver cannot serve, so a list never ships a tile that 404s — the
+ * caller keeps the raw URL as its fallback.
+ */
+export function buildStoredImageTileUrl(
+  kind: ThumbnailKind,
+  id: string,
+  storedUrl: string | null | undefined
+): string | null {
+  if (!storedUrl) return null;
+  if (!shareTokenFromShareUrl(storedUrl) && !/^https?:\/\//i.test(storedUrl)) return null;
+  return buildThumbnailTileUrl(kind, id, versionFromUrl(storedUrl));
+}
+
+/** `<template id>-<index>`: one page of a Vorlage, by its position in `images`. */
+export function templatePageThumbnailId(templateId: string, index: number): string {
+  return `${templateId}-${index}`;
+}
+
+const TEMPLATE_PAGE_ID_RE =
+  /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})-(\d{1,3})$/i;
+
+export function parseTemplatePageThumbnailId(
+  id: string
+): { templateId: string; index: number } | null {
+  const match = TEMPLATE_PAGE_ID_RE.exec(id);
+  return match ? { templateId: match[1] as string, index: Number(match[2]) } : null;
+}
+
+/**
  * A reel tile URL, or null when the project has no poster yet. The old
  * `/api/subtitler/projects/:id/thumbnail` route sits behind requireAuth, so a
  * header-less native <Image> got a 401 and the tile stayed blank.
@@ -117,6 +155,15 @@ export function versionFromDate(value: Date | string | null | undefined): string
 }
 
 /**
+ * A content version from a stored image URL: the row points at different pixels
+ * exactly when the URL changes (a new upload is a new token, a re-crawl a new
+ * `og:image`).
+ */
+export function versionFromUrl(url: string): string {
+  return createHash('sha256').update(url).digest('base64url').slice(0, 10);
+}
+
+/**
  * A content version from a share token.
  *
  * Used for canvases, where it is exact rather than approximate: re-rendering a
@@ -150,18 +197,6 @@ export function versionFromShareRow(row: {
   const metadata = row.image_metadata as { updatedAt?: unknown } | null | undefined;
   const updatedAt = typeof metadata?.updatedAt === 'string' ? metadata.updatedAt : null;
   return versionFromDate(updatedAt ?? row.created_at ?? null);
-}
-
-/**
- * The shape web writes into `canvas_documents.thumbnail_url`: the canvas
- * thumbnail is uploaded to the media library and stored as its download URL.
- * Kept in one place because both the mint side (for the version token) and the
- * resolver (for the source file) have to read it.
- */
-const SHARE_DOWNLOAD_URL_RE = /^\/api\/share\/([^/?#]+)\/download$/;
-
-export function shareTokenFromDownloadUrl(url: string): string | null {
-  return SHARE_DOWNLOAD_URL_RE.exec(url)?.[1] ?? null;
 }
 
 /**

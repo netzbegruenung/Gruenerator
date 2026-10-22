@@ -6,14 +6,17 @@
  * at the boundary so the rest of the stack handles a single canonical type.
  */
 
+import { type ModerationState } from '@gruenerator/contracts';
 import { type Agent, type AgentProvider } from '@gruenerator/shared/agents';
-import { and, asc, desc, eq, inArray, ne, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, ne, or, sql } from 'drizzle-orm';
 
 import { userAgents, type UserAgentRow } from '../../database/schema/userAgents.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { notTrashed } from '../../database/trash.js';
-import { deleteTrashedRow, type OwnedTrashTable } from '../trash/ownedRowTrash.js';
+import { deleteCommentsForEntity } from '../entityComments/entityCommentsCleanup.js';
+import { deleteLikesForEntity } from '../entityLikes/EntityLikesService.js';
+import { deleteTrashedRow, purgeSideStore, type OwnedTrashTable } from '../trash/ownedRowTrash.js';
 
 import { isUserAgentId } from './userAgentHandle.js';
 
@@ -149,13 +152,19 @@ function ownedByHandle(userId: string, handle: string) {
   );
 }
 
-export async function listUserAgents(userId: string): Promise<UserAgentRecord[]> {
+/** The owner's own agents, with their share mode (the list is the only reader that needs it). */
+export async function listUserAgents(
+  userId: string
+): Promise<(UserAgentRecord & { shareMode: UserAgentShareMode })[]> {
   const db = getDrizzleInstance();
   const agentRows = await db
     .select()
     .from(userAgents)
     .where(and(eq(userAgents.user_id, userId), notTrashed(userAgents)));
-  return agentRows.map(rowToAgent);
+  return agentRows.map((row) => ({
+    ...rowToAgent(row),
+    shareMode: row.share_mode as UserAgentShareMode,
+  }));
 }
 
 export async function getUserAgent(
@@ -225,9 +234,15 @@ export async function deleteUserAgent(userId: string, handle: string): Promise<b
  */
 export const USER_AGENT_TRASH: OwnedTrashTable = { table: 'user_agents', columns: 'id, title' };
 
-/** Hard-delete a trashed agent. Its `group_content_shares` rows were never removed on delete either. */
+/** Hard-delete a trashed agent and its likes. Its `group_content_shares` rows were never removed on delete either. */
 export async function purgeUserAgent(id: string, cutoff: Date | null): Promise<boolean> {
-  return (await deleteTrashedRow(USER_AGENT_TRASH, id, cutoff)) !== null;
+  if ((await deleteTrashedRow(USER_AGENT_TRASH, id, cutoff)) === null) return false;
+  // Keyed like `user_library_items`: a user agent's ref is its row uuid.
+  await purgeSideStore('user_agent', id, 'entity_likes', () => deleteLikesForEntity('agent', id));
+  await purgeSideStore('user_agent', id, 'entity_comments', () =>
+    deleteCommentsForEntity('agent', id)
+  );
+  return true;
 }
 
 // ── Sharing ────────────────────────────────────────────────────────────────
@@ -255,6 +270,7 @@ export interface UserAgentSharing {
   audience: UserAgentAudience;
   is_public: boolean;
   public_ownership: UserAgentPublicOwnership | null;
+  moderation: ModerationState;
 }
 
 export interface UserAgentSharingPatch {
@@ -281,6 +297,7 @@ export async function getAgentSharing(
       locale: userAgents.locale,
       is_public: userAgents.is_public,
       public_ownership: userAgents.public_ownership,
+      moderation: userAgents.moderation,
     })
     .from(userAgents)
     .where(and(ownedByHandle(userId, handle), notTrashed(userAgents)))
@@ -293,6 +310,7 @@ export async function getAgentSharing(
     audience: normalizeAudience(row.locale),
     is_public: row.is_public,
     public_ownership: (row.public_ownership as UserAgentPublicOwnership | null) ?? null,
+    moderation: row.moderation,
   };
 }
 
@@ -334,7 +352,12 @@ export async function listUserAgentsByIds(
     .select()
     .from(userAgents)
     .where(
-      and(inArray(userAgents.id, ids), ne(userAgents.share_mode, 'private'), notTrashed(userAgents))
+      and(
+        inArray(userAgents.id, ids),
+        ne(userAgents.share_mode, 'private'),
+        ne(userAgents.moderation, 'removed'),
+        notTrashed(userAgents)
+      )
     );
   return rows.map((row) => {
     const { systemRole: _systemRole, ...agent } = rowToAgent(row);
@@ -371,6 +394,7 @@ export async function getGroupSharedUserAgent(
        FROM user_agents ua
       WHERE ua.identifier = $1
         AND ua.share_mode <> 'private'
+        AND ua.moderation <> 'removed'
         AND ua.deleted_at IS NULL
         AND EXISTS (
           SELECT 1
@@ -401,7 +425,9 @@ export async function getGroupSharedUserAgent(
  * It also does not filter on locale. Locale narrows DISCOVERY
  * (`listPublicUserAgents`); someone opening one specific agent has already
  * found it, and filtering here would hide a German agent from an Austrian
- * account that was handed the link.
+ * account that was handed the link. Moderation likewise: a hidden agent only
+ * leaves the listing, a removed one is gone for everyone but its owner — the
+ * project-share paths above check it too (#4700).
  *
  * `identifier` is unique per OWNER, not globally, so the `LIMIT 1` has to pick
  * one — same `created_at, id` order as `getGroupSharedUserAgent`, so the choice
@@ -416,6 +442,7 @@ export async function getPublicUserAgent(identifier: string): Promise<UserAgentR
       and(
         eq(userAgents.identifier, identifier),
         eq(userAgents.share_mode, 'authenticated'),
+        ne(userAgents.moderation, 'removed'),
         notTrashed(userAgents)
       )
     )
@@ -443,9 +470,10 @@ export async function getAccessibleUserAgentById(
         AND ua.deleted_at IS NULL
         AND (
           ua.user_id = $2::uuid
-          OR ua.share_mode = 'authenticated'
+          OR (ua.share_mode = 'authenticated' AND ua.moderation <> 'removed')
           OR (
             ua.share_mode <> 'private'
+            AND ua.moderation <> 'removed'
             AND EXISTS (
               SELECT 1
                 FROM group_content_shares gcs
@@ -558,6 +586,7 @@ export async function listMentionableUserAgents(
                ON gm.group_id = gcs.group_id AND gm.user_id = $1::uuid AND gm.is_active = true
       WHERE ua.user_id <> $1::uuid
         AND ua.share_mode <> 'private'
+        AND ua.moderation <> 'removed'
         AND ua.deleted_at IS NULL
         AND g.deleted_at IS NULL
       ORDER BY ua.created_at, ua.id, g.name`,
@@ -595,7 +624,7 @@ export function mergeMentionableAgents(
 
 /**
  * Public Agentura discovery feed: agents listed publicly (is_public=true atop
- * share_mode='authenticated'), filtered to the viewer's locale.
+ * share_mode='authenticated') and unmoderated, filtered to the viewer's locale.
  *
  * One entry per identifier. `identifier` is only unique per owner, so several
  * people publishing the same slug put duplicates into the feed — and every
@@ -607,6 +636,29 @@ export async function listPublicUserAgents(
   viewerId: string,
   viewerLocale: string
 ): Promise<UserAgentRecord[]> {
+  return (await listPublicUserAgentListings(viewerId, viewerLocale)).map((l) => l.agent);
+}
+
+/** A public listing with what the Marktplatz shows around the agent: owner and age. */
+export interface PublicUserAgentListing {
+  agent: UserAgentRecord;
+  userId: string;
+  createdAt: Date;
+}
+
+/**
+ * {@link listPublicUserAgents}, keeping the owner and creation time of each row.
+ *
+ * `excludeGroupSharedFor` (the Marktplatz list, #4699) drops foreign agents the
+ * viewer already receives through one of their projects — those live under
+ * „Grüneratoren", not „Öffentlich". Opt-in: liking and saving resolve against
+ * the unfiltered list, so a shared public agent stays likeable.
+ */
+export async function listPublicUserAgentListings(
+  viewerId: string,
+  viewerLocale: string,
+  excludeGroupSharedFor: string | null = null
+): Promise<PublicUserAgentListing[]> {
   const db = getDrizzleInstance();
   const rows = await db
     .select()
@@ -616,7 +668,23 @@ export async function listPublicUserAgents(
         eq(userAgents.is_public, true),
         eq(userAgents.share_mode, 'authenticated'),
         eq(userAgents.locale, normalizeAudience(viewerLocale)),
-        notTrashed(userAgents)
+        eq(userAgents.moderation, 'ok'),
+        notTrashed(userAgents),
+        excludeGroupSharedFor
+          ? or(
+              eq(userAgents.user_id, excludeGroupSharedFor),
+              sql`NOT EXISTS (
+                SELECT 1
+                  FROM group_content_shares gcs
+                  JOIN group_memberships gm ON gm.group_id = gcs.group_id
+                  INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
+                 WHERE gcs.content_type = 'user_agents'
+                   AND gcs.content_id = ${userAgents.id}::text
+                   AND gm.user_id = ${excludeGroupSharedFor}::uuid
+                   AND gm.is_active = true
+              )`
+            )
+          : sql`TRUE`
       )
     )
     .orderBy(
@@ -627,5 +695,5 @@ export async function listPublicUserAgents(
   const seen = new Set<string>();
   return rows
     .filter((row) => !seen.has(row.identifier) && seen.add(row.identifier))
-    .map(rowToAgent);
+    .map((row) => ({ agent: rowToAgent(row), userId: row.user_id, createdAt: row.created_at }));
 }

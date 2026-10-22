@@ -1,20 +1,30 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { HiSparkles } from 'react-icons/hi';
-import { HiPencilSquare, HiQrCode, HiScissors } from 'react-icons/hi2';
-import { PiArrowLeft, PiCaretRightBold, PiTextT, PiDropSimpleFill, PiPath } from 'react-icons/pi';
+import {
+  HiChatBubbleBottomCenterText,
+  HiPencilSquare,
+  HiPhoto,
+  HiQrCode,
+  HiScissors,
+} from 'react-icons/hi2';
+import { PiArrowLeft, PiCaretRightBold, PiDropSimpleFill, PiPath } from 'react-icons/pi';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { useIsCanvasMobile } from '../../../hooks/useIsCanvasMobile';
 import { cn } from '../../../utils/cn';
+import { BRAND_COLORS } from '../../../utils/shapes';
 
 import { AiCreateTool } from './AiCreateTool';
 import { AiEditTool } from './AiEditTool';
+import { AltTextTool, type AltTextPagesSource } from './AltTextTool';
 import { BlobCreatorTool } from './BlobCreatorTool';
 import { GradientTextTool } from './GradientTextTool';
 import { QRCodeTool } from './QRCodeTool';
 import { RemoveBackgroundTool } from './RemoveBackgroundTool';
 import { TextPathCreatorTool } from './TextPathCreatorTool';
+import { UnsplashTool } from './UnsplashTool';
 
+import type { UserImagePlacement } from '../../../utils/userImageUtils';
 import type { ComponentType } from 'react';
 import type { IconType } from 'react-icons';
 
@@ -22,7 +32,9 @@ export interface ToolsSectionProps {
   /** Optional callback the tools call after a successful upload to nudge the user toward the Uploads tab. */
   onJumpToUploads?: () => void;
   /** Places a generated image (by durable URL) straight onto the canvas. */
-  onPlaceImageUrl?: (url: string, fileName: string) => void;
+  onPlaceImageUrl?: (url: string, fileName: string, options?: UserImagePlacement) => void;
+  /** The editor's pages for the alt-text tool; only the multi-page editor provides them. */
+  altTextPages?: AltTextPagesSource;
 }
 
 type ToolView =
@@ -33,7 +45,9 @@ type ToolView =
   | 'qr-code'
   | 'gradient-text'
   | 'blob'
-  | 'text-path';
+  | 'text-path'
+  | 'unsplash'
+  | 'alt-text';
 
 interface ToolCard {
   id: Exclude<ToolView, 'browse'>;
@@ -43,17 +57,42 @@ interface ToolCard {
   /** Generative tools, grouped under "Mit KI" on mobile. */
   ai: boolean;
   icon: IconType | ComponentType<{ size?: number; className?: string }>;
-  iconColor: string;
-  hoverShadow: string;
-  ring: string;
   available: boolean;
+}
+
+const brandColor = (id: string) => BRAND_COLORS.find((c) => c.id === id)?.value;
+
+// The letters carry the gradient themselves, so the tile shows what the tool makes.
+function GradientTextIcon({ size = 24, className }: { size?: number; className?: string }) {
+  const gradientId = useId();
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <defs>
+        <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor={brandColor('grashalm')} />
+          <stop offset="1" stopColor={brandColor('himmel')} />
+        </linearGradient>
+      </defs>
+      <text
+        x="12"
+        y="18"
+        textAnchor="middle"
+        fontSize="17"
+        fontWeight="900"
+        fontFamily="GrueneTypeNeue, ArvoGruen, sans-serif"
+        fill={`url(#${gradientId})`}
+      >
+        Aa
+      </text>
+    </svg>
+  );
 }
 
 function ToolCardButton({
   card,
   onClick,
 }: {
-  card: Pick<ToolCard, 'label' | 'icon' | 'iconColor' | 'hoverShadow' | 'ring'>;
+  card: Pick<ToolCard, 'label' | 'icon'>;
   onClick: () => void;
 }) {
   const Icon = card.icon;
@@ -63,23 +102,17 @@ function ToolCardButton({
       onClick={onClick}
       className={cn(
         'group flex flex-col items-center gap-sm cursor-pointer bg-transparent border-none p-0 rounded-lg',
-        'focus-visible:outline-none focus-visible:ring-2',
-        card.ring
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600'
       )}
     >
       <div
         className={cn(
           'flex items-center justify-center size-20 rounded-full bg-transparent',
           'transition-[box-shadow] duration-200 ease-out',
-          card.hoverShadow
+          'group-hover:shadow-sm group-hover:shadow-editor-active-fg/15'
         )}
       >
-        <span
-          className={cn(
-            'inline-flex items-center justify-center transition-transform duration-200 ease-out group-hover:scale-[1.04] text-3xl',
-            card.iconColor
-          )}
-        >
+        <span className="inline-flex items-center justify-center transition-transform duration-200 ease-out group-hover:scale-[1.04] text-3xl text-editor-active-fg">
           <Icon size={48} />
         </span>
       </div>
@@ -154,8 +187,18 @@ function DrillDownHeader({ label, onBack }: { label: string; onBack: () => void 
   );
 }
 
-export function ToolsSection({ onJumpToUploads, onPlaceImageUrl }: ToolsSectionProps) {
-  const { removeBackgroundFromImage, generateAiImage, editAiImage } = useCanvasEditorServices();
+export function ToolsSection({
+  onJumpToUploads,
+  onPlaceImageUrl,
+  altTextPages,
+}: ToolsSectionProps) {
+  const {
+    removeBackgroundFromImage,
+    generateAiImage,
+    editAiImage,
+    searchUnsplashImages,
+    generateSlideAltTexts,
+  } = useCanvasEditorServices();
   const [activeView, setActiveView] = useState<ToolView>('browse');
   const isMobile = useIsCanvasMobile();
 
@@ -166,9 +209,6 @@ export function ToolsSection({ onJumpToUploads, onPlaceImageUrl }: ToolsSectionP
       ai: false,
       label: 'Hintergrund entfernen',
       icon: HiScissors,
-      iconColor: 'text-editor-secondary-fg',
-      hoverShadow: 'group-hover:shadow-sm group-hover:shadow-editor-secondary-fg/15',
-      ring: 'focus-visible:ring-primary-600',
       available: !!removeBackgroundFromImage,
     },
     {
@@ -177,9 +217,6 @@ export function ToolsSection({ onJumpToUploads, onPlaceImageUrl }: ToolsSectionP
       ai: true,
       label: 'KI-Bild erstellen',
       icon: HiSparkles,
-      iconColor: 'text-editor-active-fg',
-      hoverShadow: 'group-hover:shadow-sm group-hover:shadow-editor-active-fg/15',
-      ring: 'focus-visible:ring-primary-600',
       available: !!generateAiImage,
     },
     {
@@ -188,10 +225,23 @@ export function ToolsSection({ onJumpToUploads, onPlaceImageUrl }: ToolsSectionP
       ai: true,
       label: 'Mit KI bearbeiten',
       icon: HiPencilSquare,
-      iconColor: 'text-editor-text',
-      hoverShadow: 'group-hover:shadow-sm',
-      ring: 'focus-visible:ring-primary-600',
       available: !!editAiImage,
+    },
+    {
+      id: 'alt-text',
+      description: 'Bildbeschreibung für Screenreader',
+      ai: true,
+      label: 'Alt-Texte',
+      icon: HiChatBubbleBottomCenterText,
+      available: !!generateSlideAltTexts && !!altTextPages,
+    },
+    {
+      id: 'unsplash',
+      description: 'Freie Fotos suchen und einfügen',
+      ai: false,
+      label: 'Unsplash-Fotos',
+      icon: HiPhoto,
+      available: !!searchUnsplashImages && !!onPlaceImageUrl,
     },
     {
       id: 'qr-code',
@@ -199,20 +249,14 @@ export function ToolsSection({ onJumpToUploads, onPlaceImageUrl }: ToolsSectionP
       ai: false,
       label: 'QR-Code erstellen',
       icon: HiQrCode,
-      iconColor: 'text-editor-text',
-      hoverShadow: 'group-hover:shadow-sm group-hover:shadow-editor-text/15',
-      ring: 'focus-visible:ring-primary-600',
       available: true,
     },
     {
       id: 'gradient-text',
       description: 'Schriftzug mit Farbverlauf gestalten',
       ai: false,
-      label: 'Verlaufstext erstellen',
-      icon: PiTextT,
-      iconColor: 'text-editor-active-fg',
-      hoverShadow: 'group-hover:shadow-sm group-hover:shadow-editor-active-fg/15',
-      ring: 'focus-visible:ring-primary-600',
+      label: 'Text mit Farbverlauf',
+      icon: GradientTextIcon,
       available: true,
     },
     {
@@ -221,9 +265,6 @@ export function ToolsSection({ onJumpToUploads, onPlaceImageUrl }: ToolsSectionP
       ai: false,
       label: 'Blob erstellen',
       icon: PiDropSimpleFill,
-      iconColor: 'text-editor-secondary-fg',
-      hoverShadow: 'group-hover:shadow-sm group-hover:shadow-editor-secondary-fg/15',
-      ring: 'focus-visible:ring-primary-600',
       available: true,
     },
     {
@@ -232,9 +273,6 @@ export function ToolsSection({ onJumpToUploads, onPlaceImageUrl }: ToolsSectionP
       ai: false,
       label: 'Pfadtext erstellen',
       icon: PiPath,
-      iconColor: 'text-editor-text',
-      hoverShadow: 'group-hover:shadow-sm',
-      ring: 'focus-visible:ring-primary-600',
       available: true,
     },
   ];
@@ -285,6 +323,8 @@ export function ToolsSection({ onJumpToUploads, onPlaceImageUrl }: ToolsSectionP
       {activeView === 'remove-bg' && <RemoveBackgroundTool onJumpToUploads={onJumpToUploads} />}
       {activeView === 'ai-create' && <AiCreateTool onJumpToUploads={onJumpToUploads} />}
       {activeView === 'ai-edit' && <AiEditTool onJumpToUploads={onJumpToUploads} />}
+      {activeView === 'unsplash' && <UnsplashTool onPlaceImageUrl={onPlaceImageUrl} />}
+      {activeView === 'alt-text' && altTextPages && <AltTextTool pages={altTextPages} />}
       {activeView === 'qr-code' && (
         <QRCodeTool onJumpToUploads={onJumpToUploads} onPlaceImageUrl={onPlaceImageUrl} />
       )}

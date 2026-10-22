@@ -90,6 +90,12 @@ const HAND_PREVIEW_HEIGHT: Partial<Record<HandShapeType, number>> = {
   'hand-ausruf': 100,
   'hand-marker': 26,
   'hand-marker-box': 28,
+  'hand-pfeil-bogen': 28,
+  'hand-pfeil-haken': 34,
+  'hand-pfeil-welle': 28,
+  'hand-pfeil-schlaufe': 30,
+  'hand-pfeil-herz': 30,
+  'hand-pfeil-spirale': 28,
 };
 
 /** A hand-drawn shape at preview size, drawn by the same outline the canvas uses. */
@@ -335,6 +341,41 @@ const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
     id: 'hand-marker-box',
     title: 'Textmarker-Box hinzufügen',
     renderPreview: () => <HandShapePreview type="hand-marker-box" />,
+  },
+  'hand-pfeil-schlaufe': {
+    id: 'hand-pfeil-schlaufe',
+    title: 'Schlaufenpfeil hinzufügen',
+    renderPreview: () => <HandShapePreview type="hand-pfeil-schlaufe" />,
+  },
+  'hand-pfeil-welle': {
+    id: 'hand-pfeil-welle',
+    title: 'Wellenpfeil hinzufügen',
+    renderPreview: () => <HandShapePreview type="hand-pfeil-welle" />,
+  },
+  'hand-pfeil-bogen': {
+    id: 'hand-pfeil-bogen',
+    title: 'Bogenpfeil hinzufügen',
+    renderPreview: () => <HandShapePreview type="hand-pfeil-bogen" />,
+  },
+  'hand-pfeil-haken': {
+    id: 'hand-pfeil-haken',
+    title: 'Hakenpfeil hinzufügen',
+    renderPreview: () => <HandShapePreview type="hand-pfeil-haken" />,
+  },
+  'hand-pfeil-herz': {
+    id: 'hand-pfeil-herz',
+    title: 'Herzpfeil hinzufügen',
+    renderPreview: () => <HandShapePreview type="hand-pfeil-herz" />,
+  },
+  'hand-pfeil-spirale': {
+    id: 'hand-pfeil-spirale',
+    title: 'Kringelpfeil hinzufügen',
+    renderPreview: () => <HandShapePreview type="hand-pfeil-spirale" />,
+  },
+  'hand-winken': {
+    id: 'hand-winken',
+    title: 'Winkende Hand hinzufügen',
+    renderPreview: () => <HandShapePreview type="hand-winken" />,
   },
   star: {
     id: 'star',

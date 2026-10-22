@@ -56,6 +56,9 @@ export const GREENPT_BASE_URL = 'https://api.greenpt.ai/v1';
  *   /v1/audio/voices no longer matters: the speech synthesis moved to
  *   KugelAudio (`services/voice/ttsService.ts`) and the global client it was
  *   the sole reason for is gone.
+ *   2026-10-21: EU dropped every embedding model (`Invalid model:
+ *   mistral-embed`); embeddings now use the global endpoint, see
+ *   `mistralEmbeddingClient` in `mistralClient.ts`.
  */
 export const MISTRAL_GLOBAL_API_URL = 'https://api.mistral.ai/v1';
 export const MISTRAL_EU_API_URL = 'https://api.eu.mistral.ai/v1';

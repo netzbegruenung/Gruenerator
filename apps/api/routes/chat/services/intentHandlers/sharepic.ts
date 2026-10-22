@@ -240,12 +240,12 @@ export async function runSharepicGeneration(opts: {
       const hint = opts.sharepicRefinement
         ? draftFailedText(
             'Die Überarbeitung ist nicht gelungen.',
-            error.reason,
+            error,
             'Formuliere die Änderung etwas genauer und versuch es noch einmal.'
           )
         : draftFailedText(
             'Der Entwurf ist nicht gelungen.',
-            error.reason,
+            error,
             'Formuliere den Auftrag etwas genauer und versuch es noch einmal.'
           );
       sse.send('sharepic_complete', {

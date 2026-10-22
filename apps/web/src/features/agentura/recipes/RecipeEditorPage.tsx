@@ -73,10 +73,10 @@ function RecipeEditorPage() {
           Dieses Rezept ist deinem Landesverband nicht zugeteilt.
         </p>
         <Link
-          to="/agentura"
+          to="/marktplatz"
           className="text-sm text-primary-600 hover:underline dark:text-primary-300"
         >
-          Zurück zur Agentura
+          Zurück zum Marktplatz
         </Link>
       </PageContainer>
     );

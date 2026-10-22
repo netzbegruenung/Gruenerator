@@ -4,16 +4,17 @@ import {
   MasterCanvasEditor,
   parseInitialPages,
   preloadCanvasTemplate,
+  type CanvasEditorExportApi,
   type InitialPageDef,
   type SidebarTabId,
 } from '@gruenerator/canvas-editor';
 import { CanvasEditorSkeleton } from '@gruenerator/canvas-editor/skeleton';
 import { getAuthErrorMessage, PresenceAvatars, useCollaborators } from '@gruenerator/collab';
-import { type CanvasDocument } from '@gruenerator/contracts';
+import { sharepicFormatSchema, type CanvasDocument } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { EditableTitle } from '@gruenerator/shared/components/EditableTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PiArrowLeft, PiCheck } from 'react-icons/pi';
 import { useParams, useSearchParams } from 'react-router-dom';
 
@@ -28,6 +29,7 @@ import { useAuthStore } from '../../stores/authStore';
 import useCanvasUiStore from '../../stores/canvasUiStore';
 import { isEmbedded } from '../../utils/platform';
 import { useTourAutostart } from '../tours/useTourAutostart';
+import { ExportCanvasVorlageButton } from '../vorlagen/components/ExportCanvasVorlageButton';
 
 import { CanvasChatDocContext } from './CanvasChatDocContext';
 import { canvasQueryOptions } from './canvasQuery';
@@ -59,6 +61,7 @@ function CollabCanvasStudioContent() {
   const user = useAuthStore((s) => s.user);
   const config = useCollaborationConfig();
   const [shareOpen, setShareOpen] = useState(false);
+  const exportApi = useRef<CanvasEditorExportApi>(null);
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
   // Einmal geöffnet bleiben die Dialoge gemountet, damit ihre Schließ-Animation läuft.
   const [shareMounted, setShareMounted] = useState(false);
@@ -101,6 +104,14 @@ function CollabCanvasStudioContent() {
     if (canvas.created_by === uid) return true;
     const perm = canvas.permissions?.[uid];
     return perm ? ['owner', 'editor'].includes(perm.level) : false;
+  }, [canvas, user]);
+
+  // Only owners may manage who has access; everyone else would get a share
+  // dialog stuck loading on the owner-only share-settings endpoint (403).
+  const isOwner = useMemo(() => {
+    if (!canvas || !user) return false;
+    const uid = String(user.id);
+    return canvas.created_by === uid || canvas.permissions?.[uid]?.level === 'owner';
   }, [canvas, user]);
 
   const handleTitleChange = useCallback(
@@ -287,7 +298,15 @@ function CollabCanvasStudioContent() {
     </div>
   ) : null;
 
-  const chromeRight = <PresenceAvatars collaborators={collaborators} compact />;
+  const chromeRight = (
+    <div className="flex items-center gap-2">
+      {/* Sharepic formats are built from Seiten; a whole Vorlage there would never be offered. */}
+      {canvas && canEdit && !sharepicFormatSchema.safeParse(canvas.format).success ? (
+        <ExportCanvasVorlageButton exportApi={exportApi} formatId={canvas.format} />
+      ) : null}
+      <PresenceAvatars collaborators={collaborators} compact />
+    </div>
+  );
 
   // Immersive layout hides the global app sidebar, so this back button is the
   // way out of the editor — mirrors the docs EditorTopBar back button.
@@ -323,7 +342,7 @@ function CollabCanvasStudioContent() {
   }
 
   return (
-    <WebCanvasEditorProvider>
+    <WebCanvasEditorProvider allowVorlagen={canEdit}>
       <CanvasChatDocContext.Provider value={chatDoc}>
         <div className="relative flex flex-col h-dvh bg-[var(--editor-bg)]">
           <div className="flex-1 min-h-0">
@@ -331,6 +350,7 @@ function CollabCanvasStudioContent() {
               key={canvas.id}
               type={canvas.template_type}
               formatId={canvas.format}
+              documentTitle={canvas.title}
               initialState={canvas.initial_state}
               initialPages={initialPages}
               onExport={handleExport}
@@ -351,10 +371,15 @@ function CollabCanvasStudioContent() {
               chromeLeft={chromeLeft}
               chromeCenter={chromeCenter}
               chromeRight={chromeRight}
-              onInvitePeople={() => {
-                setShareMounted(true);
-                setShareOpen(true);
-              }}
+              exportApiRef={exportApi}
+              {...(isOwner
+                ? {
+                    onInvitePeople: () => {
+                      setShareMounted(true);
+                      setShareOpen(true);
+                    },
+                  }
+                : {})}
               onSaveAsTemplate={() => {
                 setSaveTemplateMounted(true);
                 setSaveTemplateOpen(true);

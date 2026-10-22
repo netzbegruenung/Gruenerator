@@ -3,12 +3,12 @@
  * Event sharepic with photo, green section, and date circle
  */
 
-import { HiPhotograph } from 'react-icons/hi';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
-import { AssetsSection, FrameSettingsSection, ImageBackgroundSection } from '../sidebar/sections';
+import { AssetsSection, FrameSettingsSection } from '../sidebar/sections';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { CANVAS_RECOMMENDED_ASSETS, type AssetInstance } from '../utils/canvasAssets';
+import { zoomBackground } from '../utils/coverFit';
 import { VERANSTALTUNG_CONFIG, calculateVeranstaltungLayout } from '../utils/veranstaltungLayout';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
@@ -40,7 +40,7 @@ import type { FrameClipType, FrameInstance } from '../utils/frameUtils';
 import type { IllustrationInstance } from '../utils/illustrations/types';
 import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '../utils/shapes';
-import type { UserImageInstance } from '../utils/userImageUtils';
+import type { ElementPlacement, UserImageInstance } from '../utils/userImageUtils';
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 import type { StickerRef } from '@gruenerator/shared/stickers';
 
@@ -132,12 +132,12 @@ export interface VeranstaltungFullActions {
   setCurrentImageSrc: (file: File | null, objectUrl?: string) => void;
   setImageScale: (scale: number) => void;
   toggleBackgroundLock: () => void;
-  addAsset: (assetId: string) => void;
-  addStickerAsset: (ref: StickerRef) => void;
+  addAsset: (assetId: string, options?: ElementPlacement) => void;
+  addStickerAsset: (ref: StickerRef, options?: ElementPlacement) => void;
   updateAsset: (id: string, partial: Partial<AssetInstance>) => void;
   removeAsset: (id: string) => void;
   // Icons & Shapes
-  toggleIcon: (id: string, selected: boolean) => void;
+  toggleIcon: (id: string, selected: boolean, options?: ElementPlacement) => void;
   updateIcon: (
     id: string,
     partial: {
@@ -149,11 +149,11 @@ export interface VeranstaltungFullActions {
       opacity?: number;
     }
   ) => void;
-  addShape: (type: ShapeType) => void;
+  addShape: (type: ShapeType, color?: string, options?: ElementPlacement) => void;
   updateShape: (id: string, partial: Partial<ShapeInstance>) => void;
   removeShape: (id: string) => void;
   // Illustration actions
-  addIllustration: (id: string) => void;
+  addIllustration: (id: string, options?: ElementPlacement) => void;
   updateIllustration: (id: string, partial: Partial<IllustrationInstance>) => void;
   removeIllustration: (id: string) => void;
   // Additional Text actions
@@ -173,11 +173,11 @@ export interface VeranstaltungFullActions {
   updatePillBadge: (id: string, partial: Partial<PillBadgeInstance>) => void;
   removePillBadge: (id: string) => void;
   // Balken actions
-  addBalken: (mode: BalkenMode) => void;
+  addBalken: (mode: BalkenMode, options?: ElementPlacement) => void;
   updateBalken: (id: string, partial: Partial<BalkenInstance>) => void;
   removeBalken: (id: string) => void;
   // Frame actions
-  addFrame: (clipType: FrameClipType) => void;
+  addFrame: (clipType: FrameClipType, options?: ElementPlacement) => void;
   updateFrame: (id: string, partial: Partial<FrameInstance>) => void;
   removeFrame: (id: string) => void;
   setFrameImage: (id: string, file: File, objectUrl: string) => void;
@@ -399,7 +399,6 @@ export const veranstaltungFullConfig: FullCanvasConfig<
   ai: veranstaltungAiCapabilities,
 
   tabs: [
-    { id: 'image', icon: HiPhotograph, label: 'Bild', ariaLabel: 'Bild anpassen' },
     { id: 'text', icon: PiTextAa, label: 'Text', ariaLabel: 'Texte hinzufügen' },
     { id: 'assets', icon: PiSquaresFourFill, label: 'Elemente', ariaLabel: 'Dekorative Elemente' },
     {
@@ -413,38 +412,31 @@ export const veranstaltungFullConfig: FullCanvasConfig<
     chatTab,
   ],
 
-  getVisibleTabs: () => ['image', 'text', 'assets', 'tools', 'uploads', 'chat'],
+  getVisibleTabs: () => ['text', 'assets', 'tools', 'uploads', 'chat'],
 
   getAutoSwitchTab: (selectedElement) =>
     selectedElement?.startsWith('chart-')
       ? 'chart-settings'
       : selectedElement?.startsWith('frame-')
         ? 'frame-settings'
-        : selectedElement === 'background-image'
-          ? 'image'
-          : selectedElement?.startsWith('balken-')
-            ? 'settings'
-            : null,
+        : selectedElement?.startsWith('balken-')
+          ? 'settings'
+          : null,
+
+  background: (state, actions) => ({
+    currentImageSrc: state.currentImageSrc || undefined,
+    imageAttribution: state.imageAttribution ?? null,
+    onImageChange: (file, url, attribution) => {
+      actions.setCurrentImageSrc(file, url);
+      if (attribution !== undefined) actions.setImageAttribution?.(attribution);
+    },
+    scale: state.imageScale,
+    onScaleChange: actions.setImageScale,
+    isLocked: state.isBackgroundLocked,
+    onToggleLock: actions.toggleBackgroundLock,
+  }),
 
   sections: {
-    image: section({
-      component: ImageBackgroundSection,
-      propsFactory: (state, actions) => ({
-        currentImageSrc: state.currentImageSrc,
-        onImageChange: (
-          file: File | null,
-          objectUrl?: string,
-          attribution?: StockImageAttribution | null
-        ) => {
-          actions.setCurrentImageSrc(file, objectUrl);
-          if (attribution !== undefined) actions.setImageAttribution?.(attribution);
-        },
-        scale: state.imageScale,
-        onScaleChange: actions.setImageScale,
-        isLocked: state.isBackgroundLocked,
-        onToggleLock: actions.toggleBackgroundLock,
-      }),
-    }),
     text: section({
       component: CombinedTextSection,
       propsFactory: (state, actions) => ({
@@ -511,7 +503,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<
     },
     // Photo band at the top (40% of the canvas). coverFit center-crops to 2:1 to
     // match the backend reference (veranstaltung_canvas.ts). Fixed slot, not
-    // draggable, and centerZoom so the shared 0.5–3 zoom magnifies about the slot
+    // draggable, and centerZoom so the shared 1–3 zoom magnifies about the slot
     // centre: zoom-in is a centred crop (no top-left bias, no re-centre needed)
     // and zoom-out shrinks toward the centre over the green plane behind it
     // instead of leaving a corner gap. order 0 keeps it behind the green section.
@@ -799,8 +791,14 @@ export const veranstaltungFullConfig: FullCanvasConfig<
         saveToHistory({ ...getState(), currentImageSrc: src ?? '', backgroundImageFile: file });
       },
       setImageScale: (scale: number) => {
-        setState((prev) => ({ ...prev, imageScale: scale }));
-        debouncedSaveToHistory({ ...getState(), imageScale: scale });
+        const zoom = zoomBackground(
+          getState(),
+          scale,
+          { width: VERANSTALTUNG_CONFIG.canvas.width, height: VERANSTALTUNG_CONFIG.photo.height },
+          true
+        );
+        setState((prev) => ({ ...prev, ...zoom }));
+        debouncedSaveToHistory({ ...getState(), ...zoom });
       },
       toggleBackgroundLock: () => {
         setState((prev) => ({ ...prev, isBackgroundLocked: !prev.isBackgroundLocked }));

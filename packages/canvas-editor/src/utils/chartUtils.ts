@@ -7,6 +7,10 @@
  * ChartSettingsSection) while still exporting/collab-syncing like any element.
  */
 
+import { type SharepicCreatorLocale } from '@gruenerator/contracts';
+
+import { getBrandTheme } from '../brand/theme';
+
 import { contrastRatio, luminance } from './colorLuminance';
 
 export type ChartType = 'bar' | 'bar-horizontal' | 'line' | 'area' | 'pie' | 'donut';
@@ -126,8 +130,24 @@ export function chartSeriesOutlines(
 export const CHART_DEFAULT_WIDTH = 480;
 export const CHART_DEFAULT_HEIGHT = 320;
 
-/** Grüne brand palette for chart series. */
-export const CHART_COLORS = ['#005538', '#8ABD24', '#4A9FD4', '#F5A623', '#E6007E', '#46962b'];
+/**
+ * Chart series per country, strongest first, one colour per part of a pie.
+ * Light ones (DE grass green and lime, AT yellow) never open the list: on
+ * white they only read next to a dark green.
+ */
+export const CHART_PALETTES: Record<SharepicCreatorLocale, readonly string[]> = {
+  'de-DE': ['#00261A', '#008939', '#00CC4F', '#005538', '#BEFF60'],
+  'de-AT': [
+    getBrandTheme('de-AT').colors.primary,
+    getBrandTheme('de-AT').colors.secondary,
+    getBrandTheme('de-AT').colors.accent,
+    '#0B6620',
+    '#7CC650',
+  ],
+};
+
+/** The palette of a page that names no country. */
+export const CHART_COLORS = CHART_PALETTES['de-DE'];
 
 const DEFAULT_DATA: ChartDataPoint[] = [
   { name: 'A', value: 40 },
@@ -147,7 +167,8 @@ export const isRoundChartType = (chartType: ChartType): boolean =>
 export function createChartInstance(
   chartType: ChartType,
   canvasWidth: number,
-  canvasHeight: number
+  canvasHeight: number,
+  colors: readonly string[] = CHART_COLORS
 ): ChartInstance {
   const isRound = isRoundChartType(chartType);
   return {
@@ -161,7 +182,7 @@ export function createChartInstance(
     opacity: 1,
     chartType,
     data: DEFAULT_DATA.map((d) => ({ ...d })),
-    colors: [...CHART_COLORS],
+    colors: [...colors],
     title: '',
     showLegend: isRound,
     showGrid: !isRound,

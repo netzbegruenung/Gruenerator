@@ -18,29 +18,16 @@ import type { KawaiiIllustrationType } from '../../../utils/illustrations/types'
 export type AssetView =
   | 'browse'
   | 'marke'
+  | 'bloecke'
   | 'sticker'
+  | 'fotos'
+  | 'hintergruende'
   | 'formen'
   | 'diagramme'
   | 'rahmen'
   | 'illustrationen'
   | 'icons'
   | 'emoji';
-
-export interface CategoryCardDef {
-  id: AssetView;
-  label: string;
-}
-
-export const CATEGORY_CARDS: CategoryCardDef[] = [
-  { id: 'marke', label: 'Marke' },
-  { id: 'sticker', label: 'Sticker' },
-  { id: 'formen', label: 'Formen' },
-  { id: 'diagramme', label: 'Diagramme' },
-  { id: 'rahmen', label: 'Rahmen' },
-  { id: 'illustrationen', label: 'Illustrationen' },
-  { id: 'icons', label: 'Icons' },
-  { id: 'emoji', label: 'Emoji' },
-];
 
 export const PREVIEW_COMPONENTS: Record<
   KawaiiIllustrationType,

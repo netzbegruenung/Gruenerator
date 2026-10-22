@@ -142,11 +142,14 @@ describe('StudioAssetsScreen', () => {
     expect(screen.queryByRole('header', { name: 'Hintergründe' })).toBeNull();
   });
 
-  it('points an empty collection at the creator and Entdecken', async () => {
+  it('points an empty collection at the creator and the Marktplatz', async () => {
     await renderScreen([]);
     expect(screen.getByText('Noch keine Sticker oder Hintergründe')).toBeTruthy();
-    fireEvent.press(screen.getByRole('button', { name: 'Entdecken' }));
-    expect(router.push).toHaveBeenCalledWith('/(focused)/sticker-entdecken');
+    fireEvent.press(screen.getByRole('button', { name: 'Zum Marktplatz' }));
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/(focused)/marktplatz',
+      params: { art: 'sticker' },
+    });
     fireEvent.press(screen.getByRole('button', { name: 'Sticker erstellen' }));
     expect(router.push).toHaveBeenCalledWith('/(focused)/sticker-neu');
   });

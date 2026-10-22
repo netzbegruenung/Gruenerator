@@ -673,7 +673,7 @@ describe('dreizeilen live snapshot parity', () => {
   const LIVE_ID: Record<string, string> = { balken: 'dreizeilen-balken' };
   /** Template elements only the server path moves; live they are not in a collection. */
   const SERVER_ONLY_ELEMENTS = ['sunflower', 'hintergrundbild'];
-  /** Resolved by the server (stock search); the studio sends people to the background tab. */
+  /** Resolved by the server (stock search); the studio sends people to the background itself. */
   const SERVER_ONLY_OPS = ['set-background-image'];
 
   const descriptor = getSharepicTemplateDescriptor('dreizeilen')!;
