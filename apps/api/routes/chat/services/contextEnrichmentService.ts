@@ -61,9 +61,10 @@ export async function enrichContext(opts: {
         initialState.attachmentContext = initialState.attachmentContext
           ? `${initialState.attachmentContext}\n\n---\n\n## REFERENZIERTE DOKUMENTE\n\n${docResult.text}`
           : `## REFERENZIERTE DOKUMENTE\n\n${docResult.text}`;
-      } else if (docResult.documents.length > 0) {
-        initialState.documentIds = docResult.documents.map((d) => d.id);
       }
+      // Too large to inline: the scoped search keeps `initialState.documentIds`
+      // as authorized in buildStreamContext. Narrowing it to the owned subset
+      // here would drop the shared-notebook documents that passed that check.
     } catch (err) {
       log.warn(
         `[ChatGraph] Document context retrieval failed: ${err instanceof Error ? err.message : String(err)}`

@@ -21,6 +21,8 @@ const DOCS = vi.hoisted(() => ({
   sharedNotebook: 'd0000000-0000-4000-8000-0000000000d1',
 }));
 const searchedScopes = vi.hoisted(() => [] as string[][]);
+// Above SMALL_DOC_THRESHOLD the owned text is not inlined — the "large" branch.
+const fullText = vi.hoisted(() => ({ value: 'Kurzer Beschluss zum Radverkehr.' }));
 
 // Only the queries the document paths ask; anything else still fails by name.
 // The owner of `own` is the harness user (TEST_USER.id).
@@ -95,8 +97,8 @@ vi.mock('../../../services/document-services/DocumentSearchService/index.js', as
       Promise.resolve({
         documents: ids.map((id) => ({
           id,
-          fullText: 'Kurzer Beschluss zum Radverkehr.',
-          totalCharsReconstructed: 32,
+          fullText: fullText.value,
+          totalCharsReconstructed: fullText.value.length,
         })),
         errors: [],
       }),
@@ -178,6 +180,19 @@ describe('document ids from the request body', () => {
     // The reader of a shared source needs the notebook that grants it.
     expect(state.documentNotebookIds?.[DOCS.shared]).toBe(DOCS.sharedNotebook);
     for (const scope of searchedScopes) expect(scope).not.toContain(DOCS.foreign);
+  });
+
+  it('keeps a shared-notebook document beside a large own one', async () => {
+    fullText.value = 'Langer Beschluss zum Radverkehr. '.repeat(200);
+    try {
+      await runTurn(suite.baseUrl(), {
+        messages: [userTurn(FACTUAL)],
+        documentIds: [DOCS.own, DOCS.shared],
+      });
+      expect(answeredState().documentIds).toEqual([DOCS.own, DOCS.shared]);
+    } finally {
+      fullText.value = 'Kurzer Beschluss zum Radverkehr.';
+    }
   });
 
   it('never lets a foreign id reach the state — document chat', async () => {
