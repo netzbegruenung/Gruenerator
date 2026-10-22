@@ -468,13 +468,23 @@ async function persistCreated(
   };
 }
 
+/**
+ * The chat tool's `note` is written for a chat turn ("dem*der Nutzer*in
+ * angezeigt … biete Anpassungen an"). In a call the card only reaches the
+ * device afterwards and still has to be drawn there, and the call has no edit
+ * tools — so a created artifact gets its own note; the chat's note goes along
+ * only when nothing was created, where it carries the reason.
+ */
 function createdForModel(raw: unknown, artifact: VoiceArtifact | null): Record<string, unknown> {
   const result = (raw ?? {}) as { note?: unknown; error?: unknown };
   return {
     ok: artifact != null,
-    ...(artifact && { erstellt: artifact.title, angezeigt: 'auf dem Bildschirm der Person' }),
+    ...(artifact && {
+      erstellt: artifact.title,
+      note: 'Erscheint gleich als Karte im Chat der Person. Sag nicht, es sei schon zu sehen. Rufe das Werkzeug NICHT erneut auf.',
+    }),
     ...(result.error != null && { error: result.error }),
-    ...(result.note != null && { note: result.note }),
+    ...(!artifact && result.note != null && { note: result.note }),
   };
 }
 
