@@ -147,7 +147,8 @@ export type PptxItem =
   PptxShapeItem | PptxTextItem | PptxImageItem | PptxChartItem | PptxRasterRequest;
 
 export interface PptxSlideModel {
-  background: { color: string };
+  /** `null`: keine Füllung (Fotomodus) — PowerPoints Vorgabe. */
+  background: { color: string | null };
   /** Von hinten nach vorn. */
   items: PptxItem[];
   /** Sprechernotizen (`notes` im Seitenzustand). */

@@ -5,6 +5,7 @@ import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLoc
 import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { generateIconDataUrl } from '../utils/canvasIcons';
+import { ICON_TARGET_SIZE, MOTIF_BASE_SIZE } from '../utils/motifSizes';
 import { isGroupDrag } from '../utils/multiSelect';
 import { calculateCenteredSnapPosition } from '../utils/snapping';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
@@ -12,8 +13,8 @@ import { touchAnchorStyleFunc } from '../utils/touchInput';
 import type { SnapLine, SnapTarget } from '../utils/snapping';
 import type Konva from 'konva';
 
-const BASE_SIZE = 200;
-const TARGET_SIZE = 120;
+const BASE_SIZE = MOTIF_BASE_SIZE;
+const TARGET_SIZE = ICON_TARGET_SIZE;
 
 export interface IconPrimitiveProps {
   id: string;

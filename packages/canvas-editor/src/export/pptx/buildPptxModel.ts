@@ -11,6 +11,7 @@
 
 import { carryInstanceState } from '../../configs/factory/carryInstanceState';
 import { ASSET_TARGET_SIZE } from '../../utils/canvasAssets';
+import { ICON_TARGET_SIZE, ILLUSTRATION_TARGET_SIZE } from '../../utils/motifSizes';
 import { photoStripBeside, type ShapeInstance } from '../../utils/shapes';
 
 import {
@@ -110,9 +111,6 @@ const NATIVE_CHARTS: Record<ChartType, NativeChart> = {
   pie: { chartType: 'pie', barDir: null },
   donut: { chartType: 'doughnut', barDir: null },
 };
-
-/** Kantenlänge, auf die Icon- und Illustrationsprimitive ihr Motiv normieren. */
-const MOTIF_BASE_SIZE = 200;
 
 // ============================================================================
 // GEOMETRY
@@ -499,6 +497,10 @@ function isIdList(value: unknown): value is { id: string }[] {
   );
 }
 
+/** Ids der Hintergrund-Elemente der Freeform-Config (`freeform_full.config.tsx`). */
+const BACKGROUND_COLOR_ID = 'background-color';
+const BACKGROUND_IMAGE_ID = 'background-image';
+
 /** Das Hintergrundfoto: nativ nur unbearbeitet, mittig, ganzflächig — sonst gerastert. */
 function mapBackgroundPhoto(state: PptxPageState, page: PptxBox): PptxItem | null {
   const src = state.currentImageSrc;
@@ -518,11 +520,10 @@ function mapBackgroundPhoto(state: PptxPageState, page: PptxBox): PptxItem | nul
     opacity === 1 &&
     !strip &&
     !(adjustments && isAdjusted(adjustments));
-  // Die Id des Hintergrundbild-Elements der Freeform-Config.
-  if (!plain) return raster('background-image', { box: page, rotation: 0 }, 'background-adjusted');
+  if (!plain) return raster(BACKGROUND_IMAGE_ID, { box: page, rotation: 0 }, 'background-adjusted');
   return {
     kind: 'image',
-    id: 'background-image',
+    id: BACKGROUND_IMAGE_ID,
     box: page,
     rotation: 0,
     opacity: 1,
@@ -553,7 +554,7 @@ function buildSlide(
   for (const iconId of carried.selectedIcons) {
     const icon = carried.iconStates[iconId];
     const at = icon ?? { x: format.width / 2, y: format.height / 2, scale: 1, rotation: 0 };
-    add(iconId, () => raster(iconId, centeredSquare(at, MOTIF_BASE_SIZE), 'icon'));
+    add(iconId, () => raster(iconId, centeredSquare(at, ICON_TARGET_SIZE), 'icon'));
   }
   for (const shape of carried.shapeInstances) add(shape.id, () => mapShape(shape));
   for (const frame of carried.frameInstances) {
@@ -573,7 +574,11 @@ function buildSlide(
   for (const text of carried.additionalTexts) add(text.id, () => mapText(text, measure));
   for (const illustration of carried.illustrationInstances) {
     add(illustration.id, () =>
-      raster(illustration.id, centeredSquare(illustration, MOTIF_BASE_SIZE), 'illustration')
+      raster(
+        illustration.id,
+        centeredSquare(illustration, ILLUSTRATION_TARGET_SIZE),
+        'illustration'
+      )
     );
   }
   for (const asset of carried.assetInstances) {
@@ -603,10 +608,19 @@ function buildSlide(
   }
   for (const [id] of entries) if (!ordered.includes(id)) ordered.push(id);
 
-  const items: PptxItem[] = [];
+  // Die Hintergrund-Ebenen der Freeform-Config. Stehen sie nicht in
+  // `layerOrder`, liegen sie zuunterst (`buildSortedRenderList`); `moveLayerTo`
+  // schreibt sie aber mit hinein, dann gilt ihre Stelle dort.
   const background = mapBackgroundPhoto(state, page);
-  if (background) items.push(background);
+  const items: PptxItem[] = [];
+  if (background && !ordered.includes(BACKGROUND_IMAGE_ID)) items.push(background);
   for (const id of ordered) {
+    // Die Farbfläche trägt der Folienhintergrund.
+    if (id === BACKGROUND_COLOR_ID) continue;
+    if (id === BACKGROUND_IMAGE_ID) {
+      if (background) items.push(background);
+      continue;
+    }
     const map = byId.get(id);
     // Eine Id in `layerOrder` ohne bekannte Sammlung: eine Elementart, die
     // dieses Modul nicht kennt. Der Writer findet den Knoten trotzdem.
@@ -615,7 +629,12 @@ function buildSlide(
 
   return {
     background: {
-      color: typeof state.backgroundColor === 'string' ? state.backgroundColor : '#FFFFFF',
+      // Konva zeichnet die Farbfläche nur im Farbmodus; im Fotomodus liegt
+      // unter dem Foto nichts — auch nicht hinter einem halbtransparenten.
+      color:
+        state.backgroundMode !== 'image' && typeof state.backgroundColor === 'string'
+          ? state.backgroundColor
+          : null,
     },
     items,
     notes: typeof state.notes === 'string' && state.notes.trim() ? state.notes : null,

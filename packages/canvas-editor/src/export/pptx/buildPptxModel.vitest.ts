@@ -310,6 +310,40 @@ describe('buildPptxModel — background', () => {
     }
   });
 
+  it('photo mode has no background fill, as Konva hides the colour plane there', () => {
+    const photo = { backgroundMode: 'image', backgroundColor: '#005538', hasBackgroundImage: true };
+    expect(slideOf({ ...photo, currentImageSrc: '/f.jpg' }).background).toEqual({ color: null });
+    expect(
+      slideOf({ ...photo, backgroundImageOpacity: 0.5, currentImageSrc: '/f.jpg' }).background
+    ).toEqual({ color: null });
+    expect(slideOf({ ...photo, hasBackgroundImage: false }).background).toEqual({ color: null });
+  });
+
+  it('places the background planes where layerOrder puts them', () => {
+    const page = {
+      backgroundMode: 'image',
+      backgroundColor: '#005538',
+      hasBackgroundImage: true,
+      currentImageSrc: '/f.jpg',
+      shapeInstances: [shape({ id: 'a' }), shape({ id: 'b' })],
+    };
+    const ids = (state: PptxPageState) =>
+      itemsOf(state).map((i) => (i.kind === 'raster' ? i.elementId : i.id));
+    // moveLayerTo schreibt die ganze Zeichenfolge, Config-Ebenen inklusive.
+    expect(
+      ids({ ...page, layerOrder: ['background-color', 'background-image', 'a', 'b'] })
+    ).toEqual(['background-image', 'a', 'b']);
+    expect(ids({ ...page, layerOrder: ['a', 'background-image', 'b'] })).toEqual([
+      'a',
+      'background-image',
+      'b',
+    ]);
+    // Ohne Foto bleibt keine Spur der beiden Ebenen.
+    expect(
+      ids({ backgroundMode: 'color', layerOrder: ['background-color', 'background-image'] })
+    ).toEqual([]);
+  });
+
   it('a hidden photo (colour mode) draws nothing', () => {
     const items = itemsOf({
       backgroundMode: 'color',
@@ -545,7 +579,14 @@ describe('buildPptxModel — badges, motifs, order, notes', () => {
       ['asset-1', 'asset', false],
       ['user-image-grau', 'image-adjusted', true],
     ]);
-    expect(byId(rasters, 'pi-leaf')!.box).toEqual({ x: 1150, y: 850, width: 100, height: 100 });
+    // Icons zeichnet IconPrimitive auf 120 px, Illustrationen auf 160 px (je × scale).
+    expect(byId(rasters, 'pi-leaf')!.box).toEqual({ x: 1170, y: 870, width: 60, height: 60 });
+    expect(byId(rasters, 'illustration-1')!.box).toEqual({
+      x: 220,
+      y: 520,
+      width: 160,
+      height: 160,
+    });
   });
 
   it('draws in layerOrder first, then the rest in the default order', () => {

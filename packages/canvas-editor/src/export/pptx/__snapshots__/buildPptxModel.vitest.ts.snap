@@ -27,10 +27,10 @@ exports[`buildPptxModel — fixtures > maps a 16:9 slide with every element kind
         },
         {
           "box": {
-            "height": 100,
-            "width": 100,
-            "x": 1150,
-            "y": 850,
+            "height": 60,
+            "width": 60,
+            "x": 1170,
+            "y": 870,
           },
           "boxExact": true,
           "elementId": "pi-leaf",
@@ -283,10 +283,10 @@ exports[`buildPptxModel — fixtures > maps a 16:9 slide with every element kind
         },
         {
           "box": {
-            "height": 200,
-            "width": 200,
-            "x": 200,
-            "y": 500,
+            "height": 160,
+            "width": 160,
+            "x": 220,
+            "y": 520,
           },
           "boxExact": true,
           "elementId": "illustration-1",
@@ -529,7 +529,7 @@ exports[`buildPptxModel — fixtures > maps composer carousels on their own form
   "slides": [
     {
       "background": {
-        "color": "#00261A",
+        "color": null,
       },
       "items": [
         {
@@ -1065,7 +1065,7 @@ exports[`buildPptxModel — fixtures > maps composer carousels on their own form
   "slides": [
     {
       "background": {
-        "color": "#00261A",
+        "color": null,
       },
       "items": [
         {
@@ -1454,10 +1454,10 @@ exports[`buildPptxModel — fixtures > maps composer carousels on their own form
         },
         {
           "box": {
-            "height": 70,
-            "width": 70,
-            "x": 1009.56,
-            "y": 1289.64,
+            "height": 42,
+            "width": 42,
+            "x": 1023.56,
+            "y": 1303.64,
           },
           "boxExact": true,
           "elementId": "sc-pfeil",
@@ -1825,10 +1825,10 @@ exports[`buildPptxModel — fixtures > maps composer carousels on their own form
         },
         {
           "box": {
-            "height": 70,
-            "width": 70,
-            "x": 1009.56,
-            "y": 1289.64,
+            "height": 42,
+            "width": 42,
+            "x": 1023.56,
+            "y": 1303.64,
           },
           "boxExact": true,
           "elementId": "sc-pfeil",
