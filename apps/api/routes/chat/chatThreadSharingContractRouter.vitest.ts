@@ -16,6 +16,7 @@ import type { Request } from 'express';
 const queryMock = vi.fn();
 const accessLevelMock = vi.fn();
 const canShareMock = vi.fn();
+const closeShareRoomMock = vi.fn();
 
 vi.mock('../../database/services/PostgresService.js', () => ({
   getPostgresInstance: () => ({ query: queryMock }),
@@ -28,6 +29,10 @@ vi.mock('../../services/groups/groupMembership.js', () => ({
 
 vi.mock('./services/threadAccessService.js', () => ({
   getThreadAccessLevel: accessLevelMock,
+}));
+
+vi.mock('../../services/collab/collabRooms.js', () => ({
+  closeShareRoom: closeShareRoomMock,
 }));
 
 const { chatThreadSharingContractRouter } = await import('./chatThreadSharingContractRouter.js');
@@ -43,6 +48,7 @@ beforeEach(() => {
   queryMock.mockReset();
   accessLevelMock.mockReset();
   canShareMock.mockReset().mockResolvedValue({});
+  closeShareRoomMock.mockReset().mockResolvedValue(undefined);
 });
 
 describe('resolveShared', () => {
@@ -213,6 +219,38 @@ describe('listGroupShares', () => {
     const body = res.body as Array<{ mode: string }>;
     expect(body[0]?.mode).toBe('read');
     expect(body[1]?.mode).toBe('write');
+  });
+});
+
+describe('unshareGroup', () => {
+  it("closes the thread's chat room after removing the group share", async () => {
+    queryMock
+      .mockResolvedValueOnce([{ user_id: OWNER }]) // ownership
+      .mockResolvedValueOnce([]); // DELETE
+
+    const res = await chatThreadSharingContractRouter.unshareGroup({
+      req: reqAs(OWNER),
+      params: { threadId: THREAD_ID, groupId: GROUP_ID },
+    } as never);
+
+    expect(res.status).toBe(200);
+    expect(String(queryMock.mock.calls[1]?.[0])).toContain('DELETE FROM group_content_shares');
+    expect(closeShareRoomMock).toHaveBeenCalledWith('chat_threads', THREAD_ID);
+    expect(closeShareRoomMock.mock.invocationCallOrder[0]).toBeGreaterThan(
+      queryMock.mock.invocationCallOrder[1] ?? Infinity
+    );
+  });
+
+  it('closes nothing for a non-owner', async () => {
+    queryMock.mockResolvedValueOnce([{ user_id: OWNER }]);
+
+    const res = await chatThreadSharingContractRouter.unshareGroup({
+      req: reqAs(VIEWER),
+      params: { threadId: THREAD_ID, groupId: GROUP_ID },
+    } as never);
+
+    expect(res.status).toBe(403);
+    expect(closeShareRoomMock).not.toHaveBeenCalled();
   });
 });
 
