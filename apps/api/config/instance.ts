@@ -9,7 +9,7 @@
  * What filters on it is the notebook gate in `./notebookCollectionMap.ts`,
  * reading the same shared registry the frontend does. That gate is what makes
  * hiding a notebook mean something: Qdrant is *not* partitioned per instance
- * (one `QDRANT_URL`), so a frontend-only policy would leave the chat citing
+ * (one content store), so a frontend-only policy would leave the chat citing
  * sources from a notebook the user cannot see.
  *
  * First live policy: production, beta and local `hide` the Bundesverband

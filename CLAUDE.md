@@ -80,7 +80,7 @@ Team-Projekte haben Feed und „Alle“, eigene Beiträge mit Dateien, angehefte
 
 - **PostgreSQL**: Schema at `apps/api/database/postgres/schema.sql`. Migrations in `database/postgres/migrations/`, auto-run on startup via `PostgresService.init()`. No `BEGIN`/`COMMIT` in migrations (runner wraps in transaction). **Fresh instance:** on a database without `profiles` the runner loads `schema.sql` first, then retries failed migrations until a pass makes no progress (files run lexicographically, not in dependency order). Provisioning only needs the app role to own the database — `uuid-ossp`/`pg_trgm` are trusted extensions (PG ≥ 13), schema.sql creates them itself. `migrations.db.vitest.ts` builds from zero against the Postgres service in the CI `Tests` job; a migration that fails there fails on every new instance.
 - **Redis**: Sessions, caching, rate limiting.
-- **Qdrant**: Vector embeddings for semantic search.
+- **Qdrant**: Vector embeddings for semantic search. Zwei Stores: jeder Eintrag in `config/qdrantCollectionsSchema.ts` trägt `store: 'content' | 'instance'` (gescrapte Systemsammlungen vs. Nutzerdaten; Wächter `config/qdrantStores.vitest.ts`), Zugriff nur über `getQdrantInstance().readClient(collection)`/`.writeClient(collection)`/`.operations` — nie einen Client cachen. Ohne `QDRANT_CONTENT_URL` bedienen beide Stores `QDRANT_URL` (prod/beta); bgst hält sein eigenes Qdrant für Nutzerdaten und liest `content` mit `QDRANT_CONTENT_READ_ONLY=true` nur lesend aus dem Prod-Qdrant (kein Schema-Abgleich, Schreibversuch wirft `ContentStoreReadOnlyError`).
 
 ### Papierkorb (Soft-Delete)
 

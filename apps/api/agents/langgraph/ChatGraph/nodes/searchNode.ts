@@ -477,7 +477,7 @@ export async function retrieveAbgeordnetenwatch(
 /**
  * Last stop before Qdrant for the collection lists nobody asked for.
  *
- * Qdrant is shared across instances — there is one `QDRANT_URL` — so hiding a
+ * Qdrant is shared across instances — there is one content store — so hiding a
  * notebook in the frontend registry alone would leave the chat happily citing
  * its sources. This is where that is prevented for the *implicit* branches of
  * the selection chain below.
