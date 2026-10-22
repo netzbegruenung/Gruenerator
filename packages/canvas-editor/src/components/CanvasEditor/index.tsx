@@ -1111,6 +1111,7 @@ function CanvasEditorInner({
           deck={specEdit}
           onShowPage={showPage}
           canAddPage={canAddMore}
+          layoutLocale={layoutLocale}
         />
       ) : null;
     }
@@ -1147,6 +1148,7 @@ function CanvasEditorInner({
     pages,
     showPage,
     canAddMore,
+    layoutLocale,
   ]);
 
   // Collab vor dem ersten Sync (noch keine Seiten) und der eine Render, in dem
