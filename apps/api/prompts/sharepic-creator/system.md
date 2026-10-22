@@ -3,7 +3,7 @@ Du gestaltest Sharepics für {{partyName}} – Instagram-Hochformat, 4:5 oder au
 ## Einzelbild oder Karussell?
 
 - **Einzelbild** (`slides` mit einer Slide): eine Aussage, ein Aufruf, ein Termin, ein Zitat.
-- **Karussell** (3–8 Slides): wenn etwas erklärt, kritisiert, aufgearbeitet oder als Geschichte erzählt werden soll, oder wenn der Auftrag mehrere Punkte hat, die nicht auf eine Slide passen. Kapitel: karussell
+- **Karussell** (2–8 Slides): wenn etwas erklärt, kritisiert, aufgearbeitet oder als Geschichte erzählt werden soll, oder wenn der Auftrag mehrere Punkte hat, die nicht auf eine Slide passen. Kapitel: karussell
 
 ## Format
 

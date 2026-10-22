@@ -1,6 +1,7 @@
 import { useCanvasEditorServices } from '@gruenerator/canvas-editor';
-import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+
+import { renderWithProviders, screen } from '../../test-utils';
 
 import { useCanvasChatDraftId } from './CanvasChatDocContext';
 import { WebCanvasEditorProvider } from './WebCanvasEditorProvider';
@@ -9,14 +10,39 @@ function DraftId() {
   return <span data-testid="draft">{useCanvasChatDraftId()}</span>;
 }
 
+function Vorlagen() {
+  const { vorlagen } = useCanvasEditorServices();
+  return <span data-testid="vorlagen">{vorlagen ? 'ja' : 'nein'}</span>;
+}
+
 function StickerCreator() {
   const { openStickerCreator } = useCanvasEditorServices();
   return <span data-testid="creator">{openStickerCreator ? 'ja' : 'nein'}</span>;
 }
 
+function PrintVorlagen() {
+  const { vorlagen } = useCanvasEditorServices();
+  return <span data-testid="print">{vorlagen?.openPrintAsNew ? 'ja' : 'nein'}</span>;
+}
+
 describe('WebCanvasEditorProvider', () => {
+  it('öffnet Print-Vorlagen als neues Design, außer wo Vorlagen gesperrt sind', () => {
+    const { rerender } = renderWithProviders(
+      <WebCanvasEditorProvider>
+        <PrintVorlagen />
+      </WebCanvasEditorProvider>
+    );
+    expect(screen.getByTestId('print').textContent).toBe('ja');
+    rerender(
+      <WebCanvasEditorProvider allowVorlagen={false}>
+        <PrintVorlagen />
+      </WebCanvasEditorProvider>
+    );
+    expect(screen.getByTestId('print').textContent).toBe('nein');
+  });
+
   it('bietet den Sticker-Ersteller an, außer im WebView-Host /mobile-editor', () => {
-    const { rerender } = render(
+    const { rerender } = renderWithProviders(
       <WebCanvasEditorProvider>
         <StickerCreator />
       </WebCanvasEditorProvider>
@@ -30,8 +56,23 @@ describe('WebCanvasEditorProvider', () => {
     expect(screen.getByTestId('creator').textContent).toBe('nein');
   });
 
+  it('bietet die Vorlagen an, außer wo das Design nicht verändert werden darf', () => {
+    const { rerender } = renderWithProviders(
+      <WebCanvasEditorProvider>
+        <Vorlagen />
+      </WebCanvasEditorProvider>
+    );
+    expect(screen.getByTestId('vorlagen').textContent).toBe('ja');
+    rerender(
+      <WebCanvasEditorProvider allowVorlagen={false}>
+        <Vorlagen />
+      </WebCanvasEditorProvider>
+    );
+    expect(screen.getByTestId('vorlagen').textContent).toBe('nein');
+  });
+
   it('hält den Entwurfsschlüssel des Chats über Remounts des Abschnitts (#4273)', () => {
-    const { rerender } = render(
+    const { rerender } = renderWithProviders(
       <WebCanvasEditorProvider>
         <DraftId key="a" />
       </WebCanvasEditorProvider>

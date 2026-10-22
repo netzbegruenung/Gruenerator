@@ -1,9 +1,5 @@
 import { type StudioAssetKind } from '@gruenerator/contracts';
-import {
-  STUDIO_ASSET_PLURAL,
-  useDiscoverStudioAssets,
-  useOwnStudioAssets,
-} from '@gruenerator/shared/studio-assets';
+import { STUDIO_ASSET_PLURAL, useOwnStudioAssets } from '@gruenerator/shared/studio-assets';
 import { Button } from '@gruenerator/ui';
 import { type ReactNode } from 'react';
 
@@ -15,8 +11,6 @@ import { cn } from '@/utils/cn';
 
 export interface ProfilbildGalleryGridProps {
   kind: StudioAssetKind;
-  /** `own`: selbst erstellt und gemerkt; `shop`: was andere teilen (Entdecken). */
-  source: 'own' | 'shop';
   q?: string;
   tileClassName: string;
   disabled?: boolean;
@@ -34,18 +28,9 @@ export interface ProfilbildGalleryGridProps {
   gridClassName?: string;
 }
 
-/** Galerie-Einträge als Auswahlkacheln. */
+/** Die eigenen und gemerkten Galerie-Einträge als Auswahlkacheln. */
 export function ProfilbildGalleryGrid(props: ProfilbildGalleryGridProps) {
-  return props.source === 'own' ? <OwnGrid {...props} /> : <ShopGrid {...props} />;
-}
-
-function OwnGrid(props: ProfilbildGalleryGridProps) {
   const { data, error } = useOwnStudioAssets(props.kind, props.q ?? '');
-  return <Tiles {...props} data={data} error={error} />;
-}
-
-function ShopGrid(props: ProfilbildGalleryGridProps) {
-  const { data, error } = useDiscoverStudioAssets(props.kind, props.q ?? '', 'new');
   return <Tiles {...props} data={data} error={error} />;
 }
 

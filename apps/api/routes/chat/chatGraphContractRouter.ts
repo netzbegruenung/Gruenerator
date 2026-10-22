@@ -30,7 +30,6 @@ import { sanitizeMentionTokens } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { resumableStreams, startStreamRecorder } from '../../services/chat/resumableStreams.js';
-import { gatePandaModelId } from '../../services/user/pandaEntitlement.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 import { ThreadId, UserId } from '../../utils/types/branded.js';
@@ -63,7 +62,7 @@ import { runResponseStage } from './streamStages/responseStage.js';
 import { runRoutingStage } from './streamStages/routingStage.js';
 import { runSharepicTopicStage } from './streamStages/sharepicTopicStage.js';
 import { suspendForToolApproval } from './streamStages/toolApprovalSuspend.js';
-import { type FixedTextBase, type SuspendTurnBase } from './streamStages/turnEnd.js';
+import { type SuspendTurnBase } from './streamStages/turnEnd.js';
 
 import type { Application, Request } from 'express';
 import type { ReadableStream as WebReadableStream } from 'node:stream/web';
@@ -124,6 +123,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         memoryContext,
         memoryRetrieveTimeMs,
         memoryEnabled,
+        modelId,
         contextWindowTokens,
         mentionTokenFields,
         lastUserTextRaw,
@@ -161,7 +161,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       const {
         agentId,
         forcedTools: bodyForcedTools,
-        modelId: requestedModelId,
         documentIds: rawDocumentIds,
         documentChatIds: rawDocumentChatIds,
         docMentionIds: rawDocMentionIds,
@@ -174,7 +173,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         currentReel: rawCurrentReel,
         reelUpload: rawReelUpload,
       } = args.body;
-      const modelId = await gatePandaModelId(requestedModelId, userId);
 
       // Durable mention tokens (parsed in streamContext) are the source of
       // truth; legacy body forcedTools (older clients) union in. Regex edit
@@ -213,13 +211,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         memoryRetrieveTimeMs,
         validMessages,
         rawDocumentIds,
-        startTime: initialState.startTime,
-      };
-      const fixedTextBase: FixedTextBase = {
-        sse,
-        cleanupPending,
-        actualThreadId,
-        classifiedState,
         startTime: initialState.startTime,
       };
 
@@ -271,15 +262,13 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       if (early.forcedTool) forcedTool = true;
 
       // === Gates: may this turn make a sharepic / persist an artifact? ===
-      const gate = await runActionGateStage({
+      await runActionGateStage({
         classifiedState,
         initialState,
-        fixedTextBase,
         forcedTool,
         lastUserTextNoMentions,
         actualThreadId,
       });
-      if (gate.handled) return gate.result;
 
       sse.send('progress_step', {
         stepId: classifyStepId,

@@ -181,61 +181,52 @@ export function buildSortedRenderList(items: CanvasItem[], layerOrder: string[])
   return [...behind, ...result, ...onTop];
 }
 
+export type LayerStep = 'front' | 'forward' | 'backward' | 'back';
+
 /**
- * Move element up/down in layer order
- *
- * Returns new layer order array with element moved in specified direction.
- * "up" = later in array (drawn on top), "down" = earlier in array (drawn behind)
+ * Wohin `id` mit diesem Schritt in der Zeichenfolge rückt (hinten → vorn).
+ * Unter die Hintergrund-Ebenen am Anfang der Liste geht es nicht: dort
+ * verschwand ein Element bisher hinter der vollflächigen Farbe.
  */
-export function moveLayer(
-  currentOrder: string[],
-  selectedId: string,
-  direction: 'up' | 'down'
-): string[] {
-  const currentIndex = currentOrder.indexOf(selectedId);
-
-  if (currentIndex === -1) {
-    return currentOrder;
-  }
-
-  const newOrder = [...currentOrder];
-
-  if (direction === 'up') {
-    if (currentIndex < newOrder.length - 1) {
-      [newOrder[currentIndex], newOrder[currentIndex + 1]] = [
-        newOrder[currentIndex + 1],
-        newOrder[currentIndex],
-      ];
-    }
-  } else {
-    if (currentIndex > 0) {
-      [newOrder[currentIndex], newOrder[currentIndex - 1]] = [
-        newOrder[currentIndex - 1],
-        newOrder[currentIndex],
-      ];
-    }
-  }
-
-  return newOrder;
+function layerTarget(ids: readonly string[], id: string, step: LayerStep, floor: number) {
+  const from = ids.indexOf(id);
+  if (from === -1) return null;
+  const min = Math.min(floor, from);
+  const max = ids.length - 1;
+  const to =
+    step === 'front'
+      ? max
+      : step === 'back'
+        ? min
+        : step === 'forward'
+          ? Math.min(from + 1, max)
+          : Math.max(from - 1, min);
+  return { from, to };
 }
 
-/**
- * Check if element can move in direction
- */
-export function canMoveInDirection(
-  items: CanvasItem[],
-  selectedId: string,
-  direction: 'up' | 'down'
-): boolean {
-  const idx = items.findIndex((i) => i.id === selectedId);
+/** Wie viele Hintergrund-Ebenen zuunterst liegen. */
+export function backgroundFloor(items: readonly CanvasItem[]): number {
+  let floor = 0;
+  while (floor < items.length && isBackgroundPlane(items[floor]!)) floor++;
+  return floor;
+}
 
-  if (idx === -1) {
-    return false;
-  }
+/** Die Zeichenfolge nach dem Schritt; unverändert, wenn er nichts bewegt. */
+export function moveLayerTo(items: readonly CanvasItem[], id: string, step: LayerStep): string[] {
+  const ids = items.map((item) => item.id);
+  const target = layerTarget(ids, id, step, backgroundFloor(items));
+  if (!target || target.from === target.to) return ids;
+  ids.splice(target.from, 1);
+  ids.splice(target.to, 0, id);
+  return ids;
+}
 
-  if (direction === 'up') {
-    return idx < items.length - 1;
-  } else {
-    return idx > 0;
-  }
+export function canMoveLayer(items: readonly CanvasItem[], id: string, step: LayerStep): boolean {
+  const target = layerTarget(
+    items.map((item) => item.id),
+    id,
+    step,
+    backgroundFloor(items)
+  );
+  return target !== null && target.from !== target.to;
 }

@@ -14,12 +14,15 @@ import { IllustrationPrimitive } from '../primitives/IllustrationPrimitive';
 import { PillBadge } from '../primitives/PillBadge';
 import { ShapePrimitive } from '../primitives/ShapePrimitive';
 import { UserImagePrimitive } from '../primitives/UserImagePrimitive';
-import { useIsElementSelected } from '../stores/CanvasStoreProvider';
+import { useCanvasStoreSelector, useIsElementSelected } from '../stores/CanvasStoreProvider';
 import { getIconMapSync } from '../utils/canvasIcons';
 import { CANVAS_ITEM_NAME } from '../utils/deepSelect';
 import { resolveIconDef } from '../utils/iconInstances';
+import { lockedIdsOf } from '../utils/layerLock';
 
+import { CanvasItemLockContext } from './canvasItemLock';
 import { GenericCanvasElement } from './GenericCanvasElement';
+import { MultiSelectionTransformer } from './MultiSelectionTransformer';
 import { RemoteSelectionOverlay, type RemoteSelector } from './RemoteSelectionOverlay';
 
 import type { CanvasElementConfig, FullCanvasConfig, LayoutResult } from '../configs/types';
@@ -142,6 +145,7 @@ interface CanvasRenderLayerProps<
     handleFrameChange: (id: string, newAttrs: Partial<FrameInstance>) => void;
     handleFrameImageUpload: (id: string, file: File, objectUrl: string) => void;
     handleUserImageDragEnd: (id: string, x: number, y: number) => void;
+    handleUserImageCropEnd: (id: string, patch: Partial<UserImageInstance>) => void;
     handleUserImageTransformEnd: (
       id: string,
       x: number,
@@ -218,6 +222,8 @@ function CanvasRenderLayerInner<
   isFontAvailable,
   remoteSelections,
 }: CanvasRenderLayerProps<TState, TActions>) {
+  const croppingElement = useCanvasStoreSelector((s) => s.croppingElement);
+  const setCroppingElement = useCanvasStoreSelector((s) => s.setCroppingElement);
   const iconCarrier = state as TState & Partial<OptionalCanvasStateProperties>;
   useIconSetsFor(iconCarrier.selectedIcons, iconCarrier.iconStates);
 
@@ -242,7 +248,7 @@ function CanvasRenderLayerInner<
           onSnapLinesChange={setSnapLines}
           stageWidth={stageWidth}
           stageHeight={stageHeight}
-          snapTargets={getSnapTargets(elementConfig.id)}
+          getSnapTargets={getSnapTargets}
         />
       );
     }
@@ -484,6 +490,11 @@ function CanvasRenderLayerInner<
           onTransformEnd={(x: number, y: number, w: number, h: number, r: number) =>
             handlers.handleUserImageTransformEnd(userImage.id, x, y, w, h, r)
           }
+          onCropEnd={(patch: Partial<UserImageInstance>) =>
+            handlers.handleUserImageCropEnd(userImage.id, patch)
+          }
+          isCropping={croppingElement === userImage.id}
+          onCroppingChange={(on: boolean) => setCroppingElement(on ? userImage.id : null)}
         />
       );
     }
@@ -554,7 +565,7 @@ function CanvasRenderLayerInner<
           editable={true}
           onSnapChange={handleSnapChange}
           onSnapLinesChange={setSnapLines}
-          snapTargets={getSnapTargets(textItem.id)}
+          getSnapTargets={getSnapTargets}
           onGeometryChange={registerGeometry}
           stageWidth={stageWidth}
           stageHeight={stageHeight}
@@ -565,6 +576,8 @@ function CanvasRenderLayerInner<
     return null;
   };
 
+  const lockedIds = new Set(lockedIdsOf(state));
+
   return (
     <>
       {sortedRenderList.map((item) => {
@@ -574,14 +587,17 @@ function CanvasRenderLayerInner<
         // Names the item for a ctrl/⌘-click that picks what lies beneath (useDeepSelect).
         return (
           <Group key={item.id} name={CANVAS_ITEM_NAME} canvasItemId={item.id}>
-            {remote ? (
-              <RemoteSelectionOverlay selector={remote}>{rendered}</RemoteSelectionOverlay>
-            ) : (
-              rendered
-            )}
+            <CanvasItemLockContext.Provider value={lockedIds.has(item.id)}>
+              {remote ? (
+                <RemoteSelectionOverlay selector={remote}>{rendered}</RemoteSelectionOverlay>
+              ) : (
+                rendered
+              )}
+            </CanvasItemLockContext.Provider>
           </Group>
         );
       })}
+      <MultiSelectionTransformer renderKey={sortedRenderList} />
     </>
   );
 }

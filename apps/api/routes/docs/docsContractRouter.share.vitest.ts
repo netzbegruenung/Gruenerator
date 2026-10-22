@@ -7,16 +7,26 @@
  *    'editor' keep write access after the downgrade.
  *  - Turning a document 'public' must default the link to view-only, so a public
  *    link is not silently anonymously-writable (the column default is 'editor').
+ *  - A plain sharepic (subtype 'canvas') is shared behind a login only; just a
+ *    Vorlage's snapshot canvas may still get a public link.
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Request } from 'express';
 
-const { query } = vi.hoisted(() => ({ query: vi.fn() }));
+const { query, isVorlageSnapshotCanvas } = vi.hoisted(() => ({
+  query: vi.fn(),
+  isVorlageSnapshotCanvas: vi.fn(),
+}));
 
 vi.mock('../../database/services/PostgresService.js', () => ({
   getPostgresInstance: () => ({ query }),
+}));
+
+vi.mock('../../services/canvas/canvasRepository.js', () => ({
+  CANVAS_SUBTYPE: 'canvas',
+  isVorlageSnapshotCanvas,
 }));
 
 const { docsContractRouter } = await import('./docsContractRouter.js');
@@ -77,7 +87,10 @@ const lastUpdate = () =>
   query.mock.calls.find(([sql]) => /UPDATE collaborative_documents/i.test(sql as string)) as
     [string, unknown[]] | undefined;
 
-beforeEach(() => primeDb(ownedRow()));
+beforeEach(() => {
+  primeDb(ownedRow());
+  isVorlageSnapshotCanvas.mockReset().mockResolvedValue(false);
+});
 
 describe('setSharePermission', () => {
   it('strips auto-granted link permissions when downgrading to viewer', async () => {
@@ -152,5 +165,45 @@ describe('enableSharing', () => {
     const res = await enableSharing('stranger-2');
     expect(res.status).toBe(403);
     expect(lastUpdate()).toBeUndefined();
+  });
+});
+
+describe('sharepics are login-only', () => {
+  const sharepic = () => ownedRow({ document_subtype: 'canvas' });
+
+  it('rejects a public share mode for a plain sharepic', async () => {
+    primeDb(sharepic());
+    const res = await setShareMode('public');
+    expect(res.status).toBe(400);
+    expect(lastUpdate()).toBeUndefined();
+  });
+
+  it('rejects enableSharing for a plain sharepic', async () => {
+    primeDb(sharepic());
+    const res = await enableSharing();
+    expect(res.status).toBe(400);
+    expect(lastUpdate()).toBeUndefined();
+  });
+
+  it('allows the login-gated mode for a plain sharepic', async () => {
+    primeDb(sharepic());
+    const res = await setShareMode('authenticated');
+    expect(res.status).toBe(200);
+    expect(res.body.share_mode).toBe('authenticated');
+  });
+
+  it("still lets a Vorlage's snapshot canvas go public", async () => {
+    primeDb(sharepic());
+    isVorlageSnapshotCanvas.mockResolvedValue(true);
+    const res = await setShareMode('public');
+    expect(res.status).toBe(200);
+    expect(res.body.share_mode).toBe('public');
+  });
+
+  it('leaves documents untouched by the rule', async () => {
+    primeDb(ownedRow({ document_subtype: 'docs' }));
+    const res = await setShareMode('public');
+    expect(res.status).toBe(200);
+    expect(isVorlageSnapshotCanvas).not.toHaveBeenCalled();
   });
 });

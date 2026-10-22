@@ -1,12 +1,16 @@
 export { MasterCanvasEditor } from './MasterCanvasEditor';
 export { ControllableCanvasWrapper } from './CanvasEditorRouter';
 export type { ControllableCanvasWrapperProps, CanvasInitialPropsMap } from './CanvasEditorRouter';
+export type { CanvasEditorExportApi } from './components/CanvasEditor/types';
+export { templateFitsFormat } from './utils/templateRegistry';
 export { CanvasEditorProvider, useCanvasEditorServices } from './CanvasEditorProvider';
 export type {
   CanvasEditorServices,
   ChatSectionContentProps,
   CanvasAiEditBridge,
   CanvasSpecEditBridge,
+  CanvasVorlagenService,
+  VorlagePage,
 } from './CanvasEditorProvider';
 
 export { StandaloneCanvas } from './components/StandaloneCanvas';
@@ -53,6 +57,11 @@ export {
   DEFAULT_FORMAT_ID,
   getCanvasFormat,
   getCanvasFormatOrDefault,
+  isPrintFormat,
+  isUnsupportedFormatId,
+  mmToPx,
+  printGeometry,
+  UnsupportedCanvasFormatError,
 } from './formats';
 export type {
   CanvasFormat,
@@ -60,6 +69,9 @@ export type {
   CanvasFormatGroup,
   CanvasFormatIconKey,
   CanvasExportType,
+  CanvasPrintSpec,
+  PrintCanvasFormat,
+  PrintRect,
 } from './formats';
 
 export {

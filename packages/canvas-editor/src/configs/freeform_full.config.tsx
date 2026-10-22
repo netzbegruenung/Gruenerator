@@ -9,7 +9,6 @@
  */
 
 import { CANVAS_COLORS } from '@gruenerator/shared/canvas-editor';
-import { HiPhotograph } from 'react-icons/hi';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { buildAssetCapability } from '../ai/assetCapability';
@@ -17,11 +16,14 @@ import { describeCanvasElements } from '../ai/describeCanvasElements';
 import { buildIllustrationCapability } from '../ai/illustrationCapability';
 import { withCardFollowingText } from '../composer/cardFollowsText';
 import { SHAREPIC_COLOR_HEX } from '../composer/composeSharepic';
-import { AssetsSection, ImageBackgroundSection } from '../sidebar';
+import { type LiftedBlock } from '../composer/liftBlock';
+import { AssetsSection } from '../sidebar';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
 import { CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
-import { COMPOSER_PLANE_IDS } from '../utils/shapes';
+import { CHART_PALETTES } from '../utils/chartUtils';
+import { zoomBackground } from '../utils/coverFit';
+import { COMPOSER_PLANE_IDS, photoStripBeside } from '../utils/shapes';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/actionFactories';
@@ -39,7 +41,6 @@ import type {
 } from './factory/baseTypes';
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from './types';
 import type { StockImageAttribution } from '../common/imageSourceTypes';
-import type { ImageBackgroundSectionProps } from '../sidebar/sections/ImageBackgroundSection';
 import type { BackgroundColorOption } from '../sidebar/types';
 import type { ShapeInstance } from '../utils/shapes';
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
@@ -158,6 +159,13 @@ const BACKGROUND_COLORS: BackgroundColorOption[] = [
   { id: 'hellgrau', label: 'Hellgrau', color: SHAREPIC_COLOR_HEX.hellgrau },
   { id: 'creme', label: 'Creme', color: SHAREPIC_COLOR_HEX.creme },
   { id: 'aubergine', label: 'Aubergine', color: SHAREPIC_COLOR_HEX.aubergine },
+  // Themed grounds (Frauen, Pride, Europa); `pride` is the middle of its gradient.
+  { id: 'lila', label: 'Lila', color: SHAREPIC_COLOR_HEX.lila },
+  { id: 'flieder', label: 'Flieder', color: SHAREPIC_COLOR_HEX.flieder },
+  { id: 'violett', label: 'Violett', color: SHAREPIC_COLOR_HEX.violett },
+  { id: 'pride', label: 'Pride', color: SHAREPIC_COLOR_HEX.pride },
+  { id: 'europablau', label: 'Europablau', color: SHAREPIC_COLOR_HEX.europablau },
+  { id: 'himmelblau', label: 'Himmelblau', color: SHAREPIC_COLOR_HEX.himmelblau },
   { id: 'klee', label: 'Klee', color: CANVAS_COLORS.KLEE },
   { id: 'sonne', label: 'Sonne', color: CANVAS_COLORS.SONNE },
   { id: 'himmel', label: 'Himmel', color: CANVAS_COLORS.HIMMEL },
@@ -223,18 +231,33 @@ function composerPlanesFor(
 
 // Freeform hat kein Layout, das an einem Seitenverhältnis hängt: es nimmt das
 // Format der Leinwand (4:5 oder 3:4) als eigenes Blatt, statt es zu strecken.
-export const createFreeformFullConfig = ({
-  width,
-  height,
-}: CanvasFormat): FullCanvasConfig<FreeformState, FreeformActions> =>
-  withFreeformAi(createFreeformAiCapabilities(width, height), width, height);
+export const createFreeformFullConfig = (
+  { width, height }: CanvasFormat,
+  {
+    /** Colour of newly added text; white suits the default Tanne sheet. */
+    fontColor = '#FFFFFF',
+    /** Series colours of a new chart, the country's palette. */
+    chartColors = CHART_PALETTES['de-DE'],
+  }: { fontColor?: string; chartColors?: readonly string[] } = {}
+): FullCanvasConfig<FreeformState, FreeformActions> =>
+  withFreeformAi(
+    createFreeformAiCapabilities(width, height),
+    width,
+    height,
+    fontColor,
+    chartColors
+  );
 
 const withFreeformAi = (
   ai: TemplateAiCapabilities<FreeformState, FreeformActions>,
   width: number,
-  height: number
+  height: number,
+  fontColor: string,
+  chartColors: readonly string[]
 ): FullCanvasConfig<FreeformState, FreeformActions> => ({
   id: 'freeform',
+
+  chartColors,
 
   canvas: { width, height },
 
@@ -260,12 +283,6 @@ const withFreeformAi = (
 
   tabs: [
     {
-      id: 'background',
-      icon: HiPhotograph,
-      label: 'Hintergrund',
-      ariaLabel: 'Hintergrund anpassen',
-    },
-    {
       id: 'text',
       icon: PiTextAa,
       label: 'Text',
@@ -288,55 +305,39 @@ const withFreeformAi = (
     chatTab,
   ],
 
-  // 'background' used to be hidden too, on the theory that clicking the photo
-  // opens it. But `background-image` only renders in image mode with a picture
-  // already set, and a fresh freeform starts on the colour plane — so the one
-  // template that can do both had no way in until it was already in image mode.
-  getVisibleTabs: () => ['background', 'text', 'elements', 'tools', 'uploads', 'chat'],
+  getVisibleTabs: () => ['text', 'elements', 'tools', 'uploads', 'chat'],
 
   getAutoSwitchTab: (selectedElement) => {
-    // Only `background-image` is clickable; it is draggable and transformable.
-    // The colour plane is id `background-color` and drawn `listening={false}`,
-    // so the `background` branch that used to sit here was doubly dead.
-    if (selectedElement === 'background-image') return 'background';
     if (selectedElement?.startsWith('balken-')) return 'settings';
     if (selectedElement?.startsWith('chart-')) return 'chart-settings';
     if (selectedElement?.startsWith('frame-')) return 'frame-settings';
     return null;
   },
 
-  sections: {
-    // ImageBackgroundSection like the photo templates: own uploads + Unsplash,
-    // the colour swatches as its "Farbe" tab, zoom under "Anpassung". Freeform
-    // shows EITHER the photo or the colour plane, so each pick also sets the
-    // mode — and only the visible one is reported as selected. A colour pick
-    // keeps the photo in state; it stays pinned (unselected) and one tap
-    // brings it back with its offset, zoom and attribution.
-    background: section({
-      component: ImageBackgroundSection,
-      propsFactory: (state, anyActions) => {
-        // FreeformActions ist Record<string, any>; hier die Signaturen aus createActions unten.
-        const actions = anyActions as FreeformBackgroundActions;
-        const isImage = state.backgroundMode === 'image';
-        return {
-          backgroundColors: BACKGROUND_COLORS,
-          backgroundColor: isImage ? '' : state.backgroundColor,
-          onBackgroundColorChange: actions.setBackgroundColor,
-          colorReplacesImage: true,
-          currentImageSrc: state.hasBackgroundImage ? state.currentImageSrc : undefined,
-          onActivateImage:
-            !isImage && state.hasBackgroundImage
-              ? () => actions.setBackgroundMode('image')
-              : undefined,
-          onImageChange: actions.setCurrentImageSrc,
-          // Zoom only means something while the photo is shown.
-          scale: isImage ? state.imageScale : undefined,
-          onScaleChange: isImage ? actions.setImageScale : undefined,
-          initialSubsection: isImage ? 'image-search' : 'background-color',
-        } satisfies ImageBackgroundSectionProps;
-      },
-    }),
+  // Freeform shows EITHER the photo or the colour plane, so each pick also sets
+  // the mode. A colour pick keeps the photo in state, hidden.
+  background: (state, anyActions) => {
+    // FreeformActions ist Record<string, any>; hier die Signaturen aus createActions unten.
+    const actions = anyActions as FreeformBackgroundActions;
+    const isImage = state.backgroundMode === 'image';
+    return {
+      colors: BACKGROUND_COLORS,
+      currentColor: isImage ? '' : state.backgroundColor,
+      onColorChange: actions.setBackgroundColor,
+      colorReplacesImage: true,
+      currentImageSrc: isImage && state.hasBackgroundImage ? state.currentImageSrc : undefined,
+      imageAttribution: isImage ? state.imageAttribution : null,
+      onImageChange: actions.setCurrentImageSrc,
+      // Brings it back with its offset, zoom and credit.
+      onRestoreImage:
+        !isImage && state.hasBackgroundImage ? () => actions.setBackgroundMode('image') : undefined,
+      // Zoom only means something while the photo is shown.
+      scale: isImage ? state.imageScale : undefined,
+      onScaleChange: isImage ? actions.setImageScale : undefined,
+    };
+  },
 
+  sections: {
     text: section({
       component: CombinedTextSection,
       propsFactory: (state, actions) => ({
@@ -408,6 +409,7 @@ const withFreeformAi = (
       draggable: true,
       transformable: true,
       coverFit: true,
+      frame: (state: FreeformState) => photoStripBeside(state.shapeInstances, { width, height }),
       visible: (state: FreeformState) =>
         state.backgroundMode === 'image' && state.hasBackgroundImage,
       opacity: (state: FreeformState) => state.backgroundImageOpacity,
@@ -450,7 +452,8 @@ const withFreeformAi = (
       debouncedSaveToHistory,
       width,
       height,
-      '#FFFFFF'
+      fontColor,
+      chartColors
     );
 
     return {
@@ -468,6 +471,39 @@ const withFreeformAi = (
         };
         setState(change);
         debouncedSaveToHistory(change(getState()));
+      },
+
+      /** Adds a finished text element (the poster's re-added impressum) as one history entry. */
+      addAdditionalTextElement: (text: AdditionalText) => {
+        const change = (s: FreeformState): FreeformState => ({
+          ...s,
+          additionalTexts: [...s.additionalTexts, text],
+          layerOrder: s.layerOrder.includes(text.id) ? s.layerOrder : [...s.layerOrder, text.id],
+        });
+        setState(change);
+        saveToHistory(change(getState()));
+      },
+
+      /**
+       * Adds a composed block (`liftBlock`) on top of the page as one history
+       * entry: every element in its collection, icons with their states.
+       */
+      insertBlock: (block: LiftedBlock) => {
+        const change = (s: FreeformState): FreeformState => ({
+          ...s,
+          additionalTexts: [...s.additionalTexts, ...block.additionalTexts],
+          shapeInstances: [...s.shapeInstances, ...block.shapeInstances],
+          assetInstances: [...s.assetInstances, ...block.assetInstances],
+          chartInstances: [...s.chartInstances, ...block.chartInstances],
+          userImageInstances: [...s.userImageInstances, ...block.userImageInstances],
+          pillBadgeInstances: [...s.pillBadgeInstances, ...block.pillBadgeInstances],
+          circleBadgeInstances: [...s.circleBadgeInstances, ...block.circleBadgeInstances],
+          selectedIcons: [...s.selectedIcons, ...block.selectedIcons],
+          iconStates: { ...s.iconStates, ...block.iconStates },
+          layerOrder: [...s.layerOrder, ...block.layerOrder],
+        });
+        setState(change);
+        saveToHistory(change(getState()));
       },
 
       // === Background Actions ===
@@ -525,8 +561,16 @@ const withFreeformAi = (
       },
 
       setImageScale: (scale: number) => {
-        setState((prev) => ({ ...prev, imageScale: scale }));
-        debouncedSaveToHistory({ ...getState(), imageScale: scale });
+        const state = getState();
+        const zoom = zoomBackground(
+          state,
+          scale,
+          { width, height },
+          false,
+          photoStripBeside(state.shapeInstances, { width, height })
+        );
+        setState((prev) => ({ ...prev, ...zoom }));
+        debouncedSaveToHistory({ ...getState(), ...zoom });
       },
 
       handleBackgroundImageDragEnd: (x: number, y: number) => {

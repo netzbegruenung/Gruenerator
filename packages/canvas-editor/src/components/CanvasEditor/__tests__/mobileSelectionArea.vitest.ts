@@ -5,9 +5,8 @@ import { getMobileSelectionArea } from '../mobileSelectionArea';
 import type { FloatingModuleState } from '../../../hooks/useFloatingModuleState';
 import type { SidebarTabId } from '../../../sidebar/types';
 
-const UNIFIED: SidebarTabId[] = ['background', 'text', 'elements', 'tools', 'uploads', 'chat'];
-const LEGACY: SidebarTabId[] = ['image-background', 'text', 'assets', 'tools', 'uploads', 'chat'];
-const FACTORY: SidebarTabId[] = ['image', 'text', 'assets', 'tools', 'uploads', 'chat'];
+const UNIFIED: SidebarTabId[] = ['text', 'elements', 'tools', 'uploads', 'chat'];
+const LEGACY: SidebarTabId[] = ['text', 'assets', 'tools', 'uploads', 'chat'];
 
 const mod = (
   type: FloatingModuleState['type'],
@@ -16,10 +15,6 @@ const mod = (
 
 describe('getMobileSelectionArea', () => {
   it.each([
-    ['photo', mod('image', { isPhoto: true }), UNIFIED, 'background'],
-    ['photo', mod('image', { isPhoto: true }), LEGACY, 'image-background'],
-    ['photo', mod('image', { isPhoto: true }), FACTORY, 'image'],
-    ['background', mod('background'), UNIFIED, 'background'],
     ['illustration', mod('illustration'), UNIFIED, 'elements'],
     ['illustration', mod('illustration'), LEGACY, 'assets'],
     ['frame', mod('frame'), LEGACY, 'assets'],
@@ -27,8 +22,11 @@ describe('getMobileSelectionArea', () => {
     expect(getMobileSelectionArea('x', module, tabs, null)).toBe(expected);
   });
 
-  // Their tabs are add catalogs that don't know the selection.
+  // Their tabs are add catalogs that don't know the selection; the background
+  // and its photo carry all their controls in the selection bar.
   it.each([
+    ['background', mod('background')],
+    ['photo', mod('image', { isPhoto: true })],
     ['decoration image', mod('image', { isPhoto: false })],
     ['text', mod('text')],
     ['shape', mod('shape')],

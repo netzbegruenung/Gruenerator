@@ -73,7 +73,6 @@ export {
 export {
   agenturaMetaLine,
   matchesAgenturaType,
-  showsSystemRecipes,
   type AgenturaFilterable,
 } from './agenturaFilter.js';
 
@@ -88,6 +87,7 @@ export {
   landesverbandLabel,
   landesverbandRegion,
   type LandesverbandEntry,
+  type LandesverbandId,
 } from './landesverbaende.js';
 
 export {
@@ -108,12 +108,20 @@ export {
   LV_HUBS,
   type LvHub,
   getLandesverbandHubBySlug,
+  getLandesverbandHubById,
+  getLandesverbandHubsByIds,
   getLandesverbandHubs,
   getHubMemberAgentIds,
   hasLandesverbandContentIn,
 } from './landesverbandHubs.js';
 
 export { isSkillOfferedIn, skillPolicyOffers, type SkillInstanceView } from './skillInstances.js';
+
+export {
+  selectOfficialCatalog,
+  type OfficialCatalog,
+  type OfficialCatalogInput,
+} from './officialCatalog.js';
 
 export {
   AGENT_ICON_KEYS,

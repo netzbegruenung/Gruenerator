@@ -12,6 +12,7 @@ import {
   Transformer,
 } from 'react-konva';
 
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { gradientFillProps } from '../utils/gradientFill';
 import { translucentHitFunc } from '../utils/gradientHitArea';
 import { handDrawnPath } from '../utils/handDrawn';
@@ -448,6 +449,9 @@ function renderShape(
           strokeWidth={shape.strokeWidth ?? 6}
           dash={shape.dash}
           lineCap={shape.type === 'line-dotted' ? 'round' : 'butt'}
+          // An open line paints no fill, so Konva's fill+stroke offscreen buffer
+          // (taken at opacity < 1) would cost a canvas per draw for nothing.
+          perfectDrawEnabled={false}
         />
       );
     case 'line-double':
@@ -458,6 +462,7 @@ function renderShape(
           data={`M -${shape.width / 2},-6 L ${shape.width / 2},-6 M -${shape.width / 2},6 L ${shape.width / 2},6`}
           stroke={shape.fill}
           strokeWidth={shape.strokeWidth ?? 6}
+          perfectDrawEnabled={false}
         />
       );
     case 'line-arrow': {
@@ -480,6 +485,13 @@ function renderShape(
     case 'hand-ausruf':
     case 'hand-marker':
     case 'hand-marker-box':
+    case 'hand-winken':
+    case 'hand-pfeil-schlaufe':
+    case 'hand-pfeil-welle':
+    case 'hand-pfeil-bogen':
+    case 'hand-pfeil-haken':
+    case 'hand-pfeil-herz':
+    case 'hand-pfeil-spirale':
       return (
         <Path
           ref={shapeRef as React.RefObject<Konva.Path>}
@@ -489,6 +501,8 @@ function renderShape(
           stroke="rgba(0,0,0,0)"
           strokeWidth={1}
           hitStrokeWidth={24}
+          // The stroke is invisible, so the fill+stroke buffer changes nothing visible.
+          perfectDrawEnabled={false}
         />
       );
     default:
@@ -501,8 +515,10 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
   isSelected,
   onSelect,
   onChange,
-  draggable = true,
+  draggable: draggableProp = true,
 }) => {
+  const locked = useIsItemLocked();
+  const draggable = draggableProp && !locked;
   const shapeRef = useRef<Konva.Shape>(null);
   const trRef = useRef<Konva.Transformer>(null);
 
@@ -628,6 +644,7 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
           borderStroke={transformerStroke}
           anchorStroke={transformerStroke}
           anchorFill="#ffffff"
+          {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}
     </>

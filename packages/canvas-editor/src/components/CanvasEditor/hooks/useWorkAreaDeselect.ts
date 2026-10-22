@@ -2,7 +2,15 @@ import { useCallback, useEffect, useRef } from 'react';
 
 import { TOUCH_TAP_SLOP } from '../../../utils/touchInput';
 
-export function useWorkAreaDeselect(onDeselect: () => void) {
+/**
+ * Ein Druck auf die Arbeitsfläche neben den Seiten. Maus: ohne Shift wird
+ * abgewählt, und `onMousePress` darf daraus einen Auswahlrahmen machen.
+ * Touch: abgewählt wird nur beim Tippen, die Ränder sind dort Scrollflächen.
+ */
+export function useWorkAreaDeselect(
+  onDeselect: () => void,
+  onMousePress?: (evt: PointerEvent) => void
+) {
   const cleanupRef = useRef<(() => void) | null>(null);
   useEffect(() => () => cleanupRef.current?.(), []);
 
@@ -10,7 +18,8 @@ export function useWorkAreaDeselect(onDeselect: () => void) {
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (e.target !== e.currentTarget) return;
       if (e.pointerType !== 'touch') {
-        onDeselect();
+        if (!e.shiftKey) onDeselect();
+        onMousePress?.(e.nativeEvent);
         return;
       }
       if (!e.isPrimary) return;
@@ -45,6 +54,6 @@ export function useWorkAreaDeselect(onDeselect: () => void) {
       window.addEventListener('pointercancel', stop, true);
       cleanupRef.current = stop;
     },
-    [onDeselect]
+    [onDeselect, onMousePress]
   );
 }

@@ -5,6 +5,7 @@
  * Uses createColorTwoTextCanvas factory + Phase A/B helpers.
  */
 
+import { SYSTEM_ASSETS } from '../utils/canvasAssets';
 import { ZITAT_PURE_CONFIG, calculateZitatPureLayout } from '../utils/zitatPureLayout';
 
 import {
@@ -101,7 +102,15 @@ const quoteMarkElement: ImageElementConfig<ZitatPureState> = {
   order: 2,
   width: ZITAT_PURE_CONFIG.quotationMark.size,
   height: ZITAT_PURE_CONFIG.quotationMark.size,
-  src: ZITAT_PURE_CONFIG.quotationMark.src,
+  // The drawn mark is Tanne. On a freely picked background it would vanish on
+  // dark tones, so it follows the font colour there; the RGB filter scales by
+  // the source's brightness, hence the white mark as the base.
+  src: (state) =>
+    FONT_COLORS[state.backgroundColor]
+      ? ZITAT_PURE_CONFIG.quotationMark.src
+      : SYSTEM_ASSETS.quote.white.src,
+  fill: (state, layout) =>
+    FONT_COLORS[state.backgroundColor] ? '' : (metaFontColor(state, layout) ?? ''),
   listening: true,
   draggable: true,
   offsetKey: 'quoteMarkOffset',

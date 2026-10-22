@@ -105,3 +105,96 @@ describe('draftSharepic — freigestellt', () => {
     expect(attributions[0]?.photographer).toBeTruthy();
   });
 });
+
+const BRIEF = 'Steckbrief: Hallo, ich bin Lena – Imkerin, fährt Rad, sitzt im Stadtrat';
+const steckbrief = (merkmale: string[], bild: Partial<Bild> = {}): SharepicSpec => ({
+  locale: 'de-DE',
+  slides: [
+    {
+      background: { kind: 'farbe', color: 'tanne' },
+      position: 'mitte',
+      align: 'zentriert',
+      items: [
+        { type: 'steckbrief', gruss: 'Hallo, ich bin', name: 'Lena', merkmale },
+        {
+          type: 'bild',
+          quelle: 'vorlage:lena.jpg',
+          ausschnitt: 'freigestellt',
+          filter: 'original',
+          ...bild,
+        },
+      ],
+      logo: false,
+    },
+  ],
+});
+const VORLAGE = ['vorlage:lena.jpg', 'vorlage:lena-frei.png'];
+
+describe('validateDraft — steckbrief', () => {
+  const traits = ['Imkerin', 'Fährt Rad', 'Im Stadtrat'];
+
+  it('takes name and traits from the request', () => {
+    expect(validateDraft(withoutLocale(steckbrief(traits)), 'de-DE', BRIEF, [], VORLAGE).ok).toBe(
+      true
+    );
+  });
+
+  it('rejects a trait the request does not give', () => {
+    const checked = validateDraft(
+      withoutLocale(steckbrief([...traits, 'Liebt Schokolade'])),
+      'de-DE',
+      BRIEF,
+      [],
+      VORLAGE
+    );
+    expect(checked.ok).toBe(false);
+    expect(!checked.ok && checked.error).toContain('Liebt Schokolade');
+  });
+
+  it('rejects a name the request does not give', () => {
+    const checked = validateDraft(
+      withoutLocale(steckbrief(traits)),
+      'de-DE',
+      BRIEF.replace('Lena', 'Mara'),
+      [],
+      VORLAGE
+    );
+    expect(checked.ok).toBe(false);
+    expect(!checked.ok && checked.error).toContain('"Lena"');
+  });
+
+  it('takes a Vorlage photo only when the Vorlage brought it', () => {
+    expect(validateDraft(withoutLocale(steckbrief(traits)), 'de-DE', BRIEF).ok).toBe(false);
+  });
+
+  it('takes an own photo as the whole background', () => {
+    const own: SharepicSpec = {
+      locale: 'de-DE',
+      slides: [
+        {
+          background: { kind: 'foto', filename: 'upload:1', textSeite: 'oben' },
+          position: 'mitte',
+          align: 'links',
+          items: [{ type: 'steckbrief', gruss: 'Hallo, ich bin', name: 'Lena', merkmale: traits }],
+          logo: false,
+        },
+      ],
+    };
+    expect(validateDraft(withoutLocale(own), 'de-DE', BRIEF, ['upload:1']).ok).toBe(true);
+  });
+});
+
+describe('draftSharepic — a Vorlage cut-out', () => {
+  it('keeps the shipped cut-out instead of cutting the photo again', async () => {
+    const traits = ['Imkerin', 'Fährt Rad', 'Im Stadtrat'];
+    const current = steckbrief(['Gärtnerin', 'Liest gern', 'Kocht'], {
+      freisteller: 'vorlage:lena-frei.png',
+    });
+    answer(steckbrief(traits));
+    const cutOut = vi.fn(async () => null);
+    const { spec, hinweis } = await draftSharepic(BRIEF, 'de-DE', current, [], { cutOut });
+    expect(cutOut).not.toHaveBeenCalled();
+    expect(bildOf(spec)).toMatchObject({ freisteller: 'vorlage:lena-frei.png' });
+    expect(hinweis ?? '').not.toContain('freistellen');
+  });
+});

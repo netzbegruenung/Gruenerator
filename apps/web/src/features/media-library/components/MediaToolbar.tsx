@@ -16,6 +16,10 @@ import type { SortOrder } from '@gruenerator/shared/media-library';
 
 export const TYPE_OPTIONS: { id: MediaTypeFilter; label: string }[] = [
   { id: 'all', label: 'Alle Medien' },
+  { id: 'sharepic', label: 'Sharepics' },
+  { id: 'ki', label: 'KI-Bilder' },
+  { id: 'reel', label: 'Reels' },
+  { id: 'upload', label: 'Uploads' },
   { id: 'image', label: 'Bilder' },
   { id: 'video', label: 'Videos' },
   { id: 'audio', label: 'Audio' },

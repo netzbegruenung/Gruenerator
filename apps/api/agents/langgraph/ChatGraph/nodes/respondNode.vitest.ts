@@ -9,6 +9,7 @@ import {
   truncateDocument,
   limitAttachmentContext,
   formatThreadAttachmentsContext,
+  restoreAttachmentsDroppedWithHistory,
 } from './respondNode.js';
 import { NO_CAPABILITY_DENIAL_RULE } from './artifactInventory.js';
 
@@ -483,6 +484,7 @@ Regeln:
 - xKey: Name des Feldes für die X-Achse (z.B. "name", "monat", "jahr")
 - yKeys: Array der Feldnamen für die Werte (z.B. ["wert", "wert2"])
 - Zahlen NUR aus der Nachricht, dem Gesprächsverlauf, angehängten Dokumenten oder den Quellen im Prompt übernehmen — niemals schätzen oder erfinden
+- Nur Datenpunkte mit belegtem Wert aufnehmen — keine null-Werte oder Platzhalter für fehlende Jahre
 - Fehlen belastbare Zahlen: KEINEN chart-Block ausgeben, sondern kurz sagen, dass dir die Zahlen fehlen, und danach fragen oder eine Recherche anbieten
 - Nur wenn ausdrücklich ein Beispieldiagramm gewünscht ist, sind fiktive Werte erlaubt — dann im title als „Beispieldaten" kennzeichnen
 - Optional bei bar/area mit mehreren yKeys: "stacked": true stapelt die Reihen, "percent": true normiert jede Kategorie auf 100 % (Anteile, Zusammensetzungen)
@@ -752,6 +754,47 @@ describe('formatThreadAttachmentsContext — kein doppelter Ausgangstext', () =>
       const out = formatThreadAttachmentsContext([doc(article)], undefined, 'Und weiter?', live);
       expect(out).toBe('');
     });
+  });
+});
+
+describe('restoreAttachmentsDroppedWithHistory (#4791)', () => {
+  const paste = 'Der Gehweg soll mindestens 2,50 Meter breit werden, Telefon 09642 123456. '.repeat(
+    20
+  );
+  const state = {
+    messages: [
+      { role: 'user', content: paste },
+      { role: 'assistant', content: 'Danke' },
+      { role: 'user', content: 'Wie breit soll der Gehweg werden?' },
+    ],
+    threadAttachments: [
+      {
+        id: 'a1',
+        name: 'Eingefügter Text.txt',
+        isImage: false,
+        extractedText: paste,
+        summary: null,
+      },
+    ],
+  } as unknown as ChatGraphState;
+
+  it('puts the stored paste back when the history copy did not go out', () => {
+    const out = restoreAttachmentsDroppedWithHistory(state, 'BASIS', 'BASIS\n\nSUMMARY', [
+      { content: 'Wie breit soll der Gehweg werden?' },
+    ]);
+    expect(out).toContain('FRÜHERE DOKUMENTE');
+    expect(out).toContain('Telefon 09642 123456');
+    expect(out.indexOf('Telefon')).toBeLessThan(out.indexOf('SUMMARY'));
+  });
+
+  it('leaves the prompt alone while the paste is still sent', () => {
+    const sent = state.messages.map((m) => ({ content: m.content }));
+    expect(restoreAttachmentsDroppedWithHistory(state, 'BASIS', 'BASIS', sent)).toBe('BASIS');
+  });
+
+  it('leaves it alone when the compaction carry already holds the text', () => {
+    const withCarry = `BASIS\n\n## EINGEFÜGTES MATERIAL (WÖRTLICH)\n\n${paste}`;
+    expect(restoreAttachmentsDroppedWithHistory(state, 'BASIS', withCarry, [])).toBe(withCarry);
   });
 });
 

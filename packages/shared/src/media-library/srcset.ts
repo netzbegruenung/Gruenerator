@@ -10,7 +10,7 @@
  * so desktop builds get an absolute origin) and `baseUrl` to suit the consumer.
  */
 
-import { sharedMediaPreviewUrl } from './shareUrl.js';
+import { sharedMediaPreviewUrl, shareTokenFromDownloadUrl } from './shareUrl.js';
 
 export const DEFAULT_THUMBNAIL_WIDTHS = [200, 400, 800] as const;
 
@@ -63,7 +63,6 @@ export function buildSharedMediaSrcSet(
   };
 }
 
-const SHARE_DOWNLOAD_RE = /^\/api\/share\/([^/?#]+)\/download$/;
 const THUMBS_RE = /^\/api\/thumbs\//;
 
 // The `/api/share/<token>/download` → `/preview` rewrite shared by
@@ -71,8 +70,8 @@ const THUMBS_RE = /^\/api\/thumbs\//;
 // default differs).
 function shareDownloadPreviewUrl(url: string | undefined, width: number): string | undefined {
   if (!url) return url;
-  const match = SHARE_DOWNLOAD_RE.exec(url);
-  return match ? `/api/share/${match[1]}/preview?w=${width}&fmt=webp` : url;
+  const token = shareTokenFromDownloadUrl(url);
+  return token ? `/api/share/${token}/preview?w=${width}&fmt=webp` : url;
 }
 
 /**

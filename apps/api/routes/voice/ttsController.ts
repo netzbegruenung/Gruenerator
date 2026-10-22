@@ -2,6 +2,7 @@ import { SPEECH_MAX_CHUNK_CHARS } from '@gruenerator/contracts';
 import express, { type Request, type Response, type Router } from 'express';
 
 import ttsService from '../../services/voice/ttsService.js';
+import { streamVoxtralSpeech } from '../../services/voice/voxtralSpeechService.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { buildContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
@@ -19,6 +20,8 @@ interface GenerateRequest extends Request {
     modelId?: string;
     voiceId?: string;
     language?: string;
+    /** Only `/stream` reads it; anything but `voxtral` means KugelAudio. */
+    provider?: string;
   };
 }
 
@@ -101,24 +104,38 @@ router.post('/stream', async (req: GenerateRequest, res: Response) => {
   const abort = new AbortController();
   res.on('close', () => abort.abort());
 
+  const callbacks = {
+    onChunk: (chunk: { audio: string; index: number; sampleRate: number }) => {
+      res.write(
+        `event: audio_chunk\ndata: ${JSON.stringify({
+          audio: chunk.audio,
+          index: chunk.index,
+          sampleRate: chunk.sampleRate,
+        })}\n\n`
+      );
+    },
+    onDone: (stats: { chunks: number; durationMs: number }) => {
+      res.write(`event: done\ndata: ${JSON.stringify(stats)}\n\n`);
+      res.end();
+    },
+  };
+
   try {
+    if (req.body.provider === 'voxtral') {
+      // The person's saved voice is a KugelAudio number, so only an explicit
+      // request voice reaches Voxtral.
+      await streamVoxtralSpeech(
+        text,
+        { voiceId: req.body.voiceId, signal: abort.signal },
+        callbacks
+      );
+      return;
+    }
     await ttsService.streamSpeech(
       text,
       { modelId, voiceId, language, signal: abort.signal },
       {
-        onChunk: (chunk) => {
-          res.write(
-            `event: audio_chunk\ndata: ${JSON.stringify({
-              audio: chunk.audio,
-              index: chunk.index,
-              sampleRate: chunk.sampleRate,
-            })}\n\n`
-          );
-        },
-        onDone: (stats) => {
-          res.write(`event: done\ndata: ${JSON.stringify(stats)}\n\n`);
-          res.end();
-        },
+        ...callbacks,
         onError: (error) => {
           res.write(
             `event: error\ndata: ${JSON.stringify({ error: toUserFacingMessage(error) })}\n\n`

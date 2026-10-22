@@ -28,6 +28,8 @@ export interface TemplateInfo {
    * template has one fixed 4:5 sheet and belongs only in 4:5 documents.
    */
   followsFormat?: true;
+  /** Opened by its own host only (the sticker creator), never offered in a picker. */
+  hiddenFromPicker?: true;
 }
 
 /**
@@ -97,6 +99,15 @@ export const TEMPLATE_REGISTRY: Record<CanvasConfigId, TemplateInfo> = {
     description: 'Profilbild mit transparentem Vordergrund auf farbigem Hintergrund',
     previewImage: '/imagine/previews/profilbild-preview.webp',
     category: 'profilbild',
+  },
+  sticker: {
+    id: 'sticker',
+    label: 'Sticker',
+    description: 'Transparente Fläche für einen Sticker',
+    previewImage: '/imagine/previews/freeform-preview.webp',
+    category: 'profilbild',
+    audience: 'all',
+    hiddenFromPicker: true,
   },
 
   // Österreich (de-AT) variants — kein Info-Sujet, das gibt es nur für de-DE
@@ -177,6 +188,7 @@ function templateAudience(t: TemplateInfo): TemplateAudience {
  */
 export function getTemplatesForLocale(locale: BrandLocale): TemplateInfo[] {
   return getAllTemplates().filter((t) => {
+    if (t.hiddenFromPicker) return false;
     const a = templateAudience(t);
     return a === 'all' || a === locale;
   });
@@ -186,11 +198,15 @@ export function getTemplatesForLocale(locale: BrandLocale): TemplateInfo[] {
  * Can a page of this template sit in a document of this format? A template
  * with a pinned sheet fits only that format; every other template fits the
  * default format, and any other only if it follows it — a fixed sheet would
- * be stretched to the document's stage.
+ * be stretched to the document's stage. A print format takes only the blank
+ * freeform page.
  */
 export function templateFitsFormat(configId: CanvasConfigId, formatId?: string): boolean {
   // Resolve first: legacy rows carry removed format ids that render 4:5.
-  const resolved = getCanvasFormatOrDefault(formatId).id;
+  const format = getCanvasFormatOrDefault(formatId);
+  // On print only the blank freeform page fits: its sheet is built from the format.
+  if (format.category === 'print') return configId === 'freeform' || configId === 'freeform-at';
+  const resolved = format.id;
   const pinned = pinnedFormatId(configId);
   if (pinned) return resolved === pinned;
   return resolved === DEFAULT_FORMAT_ID || !!TEMPLATE_REGISTRY[configId]?.followsFormat;

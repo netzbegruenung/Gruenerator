@@ -1,27 +1,41 @@
 import {
   GRUENERATOR_TEMPLATE_TYPE,
   sharepicCreatorLocaleSchema,
+  type MarketplaceItemOf,
+  type PrintVorlage,
   type SharepicCreatorLocale,
 } from '@gruenerator/contracts';
+import { useMarketplaceKind } from '@gruenerator/shared/marketplace';
 import { Button } from '@gruenerator/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bookmark, Globe } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useState, type JSX } from 'react';
 import { HiFilter, HiOutlineFilter, HiPlus } from 'react-icons/hi';
+import { PiStorefront } from 'react-icons/pi';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
+import { MarketplaceDialog } from '../../../features/marketplace/MarketplaceDialog';
 import { MeineVorlagenPanel } from '../../../features/vorlagen/components/MeineVorlagenPanel';
+import {
+  PRINT_TEMPLATE_TYPE,
+  PrintVorlageCard,
+  PrintVorlageDialog,
+  printMatches,
+} from '../../../features/vorlagen/components/PrintVorlagenSection';
 import {
   catalogMatches,
   useSharepicVorlageCards,
 } from '../../../features/vorlagen/components/SharepicVorlagenSection';
 import { useGrueneratorVorlage } from '../../../features/vorlagen/hooks/useGrueneratorVorlage';
-import { useSharepicVorlagen } from '../../../features/vorlagen/hooks/useSharepicVorlagen';
+import { usePrintVorlage } from '../../../features/vorlagen/hooks/usePrintVorlage';
+import {
+  printVorlagenQuery,
+  useSharepicVorlagen,
+} from '../../../features/vorlagen/hooks/useSharepicVorlagen';
 import { useVorlageInteractions } from '../../../features/vorlagen/hooks/useVorlageInteractions';
 import { useAuthStore } from '../../../stores/authStore';
 import ErrorBoundary from '../../ErrorBoundary';
-import apiClient from '../../utils/apiClient';
 import AddTemplateModal from '../AddTemplateModal/AddTemplateModal';
 import { PageHero, PageHeroSearch, PageShell } from '../PageHero';
 import TemplatePreviewModal from '../TemplatePreviewModal';
@@ -48,19 +62,36 @@ interface CategoryItem {
 }
 
 interface VorlageItem {
-  id: string | number;
+  id: string;
   title?: string;
   description?: string;
   template_type?: string;
   tags?: string[];
   thumbnail_url?: string;
   external_url?: string;
-  download_url?: string;
-  content_data?: { originalUrl?: string };
-  metadata?: { author_name?: string; contact_email?: string };
+  images?: Array<{ url: string; title?: string }>;
+  content_data?: { originalUrl?: string; [key: string]: unknown };
+  metadata?: { author_name?: string; contact_email?: string; [key: string]: unknown };
+  created_at?: string;
   likes_count?: number;
   [key: string]: unknown;
 }
+
+/** A bookmarked public Vorlage, in the shape the card and the preview read. */
+const fromMarketplace = (item: MarketplaceItemOf<'template'>): VorlageItem => ({
+  id: item.ref,
+  title: item.title,
+  description: item.description ?? undefined,
+  template_type: item.template.templateType ?? undefined,
+  tags: item.template.tags,
+  thumbnail_url: item.thumbnailUrl ?? undefined,
+  external_url: item.template.externalUrl ?? undefined,
+  images: item.template.images.map((img) => ({ url: img.url, title: img.title ?? undefined })),
+  content_data: item.template.contentData,
+  metadata: item.template.metadata,
+  created_at: item.createdAt ?? undefined,
+  likes_count: item.likesCount,
+});
 
 const parseSearchQuery = (query: string): { textQuery: string; tags: string[] } => {
   const tags: string[] = [];
@@ -100,61 +131,11 @@ const EMPTY_TEXT: Record<EmptyCause, { title: string; hint?: string }> = {
   none: { title: 'Noch keine Vorlagen' },
 };
 
-interface VorlagenResponse {
-  vorlagen: VorlageItem[];
-}
-interface CategoriesResponse {
-  categories: CategoryItem[];
-}
-
-const fetchVorlagen = async ({
-  searchTerm,
-  searchMode,
-  selectedCategory,
-  tags,
-  onlyFavorites,
-  land,
-  signal,
-}: {
-  searchTerm: string;
-  searchMode: string;
-  selectedCategory: string;
-  tags: string[];
-  onlyFavorites: boolean;
-  land: SharepicCreatorLocale | null;
-  signal?: AbortSignal;
-}): Promise<VorlageItem[]> => {
-  const params: Record<string, unknown> = {};
-  if (onlyFavorites) params.favorites = '1';
-  if (land) params.land = land;
-  if (searchTerm) {
-    params.searchTerm = searchTerm;
-    if (searchMode) params.searchMode = searchMode;
-  }
-  if (selectedCategory && selectedCategory !== 'all') {
-    params.templateType = selectedCategory;
-  }
-  if (tags.length > 0) {
-    params.tags = JSON.stringify(tags);
-  }
-
-  const response = await apiClient.get<VorlagenResponse>('/auth/vorlagen', { params, signal });
-  const data = response.data;
-  return Array.isArray(data?.vorlagen) ? data.vorlagen : [];
-};
-
 /** Pretty labels for known template_type categories; server sends raw ids. */
 const CATEGORY_LABELS: Record<string, string> = {
   canva: 'Canva',
   [GRUENERATOR_TEMPLATE_TYPE]: 'Grünerator',
-};
-
-const fetchCategories = async (): Promise<CategoryItem[]> => {
-  const response = await apiClient.get<CategoriesResponse>('/auth/vorlagen-categories');
-  const data = response.data;
-  const categories: CategoryItem[] = Array.isArray(data?.categories) ? data.categories : [];
-  const labeled = categories.map((c) => ({ ...c, label: CATEGORY_LABELS[c.id] ?? c.label }));
-  return labeled;
+  [PRINT_TEMPLATE_TYPE]: 'Print',
 };
 
 const LAND_LABEL: Record<SharepicCreatorLocale, string> = {
@@ -165,15 +146,25 @@ const LAND_LABEL: Record<SharepicCreatorLocale, string> = {
 const ALL_FILTER = 'all';
 const MEINE_FILTER = 'meine';
 
+const FILTERS: CategoryItem[] = [
+  { id: ALL_FILTER, label: 'Alle Vorlagen' },
+  { id: GRUENERATOR_TEMPLATE_TYPE, label: CATEGORY_LABELS[GRUENERATOR_TEMPLATE_TYPE] },
+  { id: PRINT_TEMPLATE_TYPE, label: CATEGORY_LABELS[PRINT_TEMPLATE_TYPE] },
+  { id: MEINE_FILTER, label: 'Meine Vorlagen' },
+];
+
+const MARKET_KINDS = ['template'] as const;
+
 const VorlagenGallery = memo((): JSX.Element => {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [inputValue, setInputValue] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchMode, setSearchMode] = useState('title');
   const [previewTemplate, setPreviewTemplate] = useState<VorlageItem | null>(null);
+  const [previewPrint, setPreviewPrint] = useState<PrintVorlage | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [onlyFavorites, setOnlyFavorites] = useState(false);
+  const [showMarket, setShowMarket] = useState(false);
   const [gridSize, toggleGridSize] = useGridSize('vorlagen-grid-size');
 
   useEffect(() => {
@@ -183,29 +174,13 @@ const VorlagenGallery = memo((): JSX.Element => {
 
   const { textQuery, tags } = useMemo(() => parseSearchQuery(searchTerm), [searchTerm]);
 
-  const categoriesQuery = useQuery({
-    queryKey: ['vorlagenCategories'],
-    queryFn: fetchCategories,
-  });
-
-  const filters = useMemo<CategoryItem[]>(
-    () => [
-      { id: ALL_FILTER, label: 'Alle Vorlagen' },
-      { id: GRUENERATOR_TEMPLATE_TYPE, label: CATEGORY_LABELS[GRUENERATOR_TEMPLATE_TYPE] },
-      ...(categoriesQuery.data ?? []).filter(
-        (c) => c.id !== GRUENERATOR_TEMPLATE_TYPE && c.id !== ALL_FILTER && c.id !== MEINE_FILTER
-      ),
-      { id: MEINE_FILTER, label: 'Meine Vorlagen' },
-    ],
-    [categoriesQuery.data]
-  );
   const catParam = searchParams.get('cat');
-  // Until the categories arrive a server category in the link is taken on trust.
+  // An old link to a community category (`?cat=canva`) shows everything: those live in the Marktplatz now.
   const selectedCategory =
-    catParam && (categoriesQuery.isPending || filters.some((f) => f.id === catParam))
-      ? catParam
-      : ALL_FILTER;
+    catParam && FILTERS.some((f) => f.id === catParam) ? catParam : ALL_FILTER;
   const isMeine = selectedCategory === MEINE_FILTER;
+  // The print Vorlagen live in the client; the server has nothing for this filter.
+  const isPrint = selectedCategory === PRINT_TEMPLATE_TYPE;
   const selectFilter = useCallback(
     (key: string) =>
       setSearchParams(
@@ -241,38 +216,35 @@ const VorlagenGallery = memo((): JSX.Element => {
     [setSearchParams, ownLand]
   );
 
-  const dataQuery = useQuery({
-    queryKey: [
-      'vorlagen-gallery',
-      textQuery,
-      searchMode,
-      selectedCategory,
-      tags,
-      onlyFavorites,
-      land,
-    ],
-    enabled: !isMeine,
-    staleTime: 30_000,
-    gcTime: 60_000,
-    refetchOnMount: 'always' as const,
-    queryFn: ({ signal }) =>
-      fetchVorlagen({
-        searchTerm: textQuery,
-        searchMode,
-        selectedCategory,
-        tags,
-        onlyFavorites,
-        land,
-        signal,
-      }),
-    placeholderData: (prev) => prev,
+  // Public Vorlagen live in the Marktplatz; here only the ones the person bookmarked.
+  const showSaved = onlyFavorites && !isMeine && !isPrint;
+  const savedQuery = useMarketplaceKind({
+    kind: 'template',
+    scope: 'saved',
+    origin: null,
+    q: textQuery,
+    sort: 'neu',
+    platform: 'web',
+    enabled: showSaved,
   });
 
   const showCatalog =
     !isMeine &&
     (selectedCategory === ALL_FILTER || selectedCategory === GRUENERATOR_TEMPLATE_TYPE) &&
     tags.length === 0;
-  const loadedItems = useMemo(() => dataQuery.data ?? [], [dataQuery.data]);
+  const loadedItems = useMemo(
+    () =>
+      showSaved
+        ? savedQuery.items
+            .flatMap((item) => (item.kind === 'template' ? [fromMarketplace(item)] : []))
+            .filter(
+              (item) =>
+                (selectedCategory === ALL_FILTER || item.template_type === selectedCategory) &&
+                tags.every((tag) => item.tags?.some((t) => t.toLowerCase() === tag.toLowerCase()))
+            )
+        : [],
+    [showSaved, savedQuery.items, selectedCategory, tags]
+  );
   const catalogQuery = useSharepicVorlagen(land);
   const itemIds = useMemo(
     () => [
@@ -284,11 +256,10 @@ const VorlagenGallery = memo((): JSX.Element => {
   const interactions = useVorlageInteractions(itemIds);
   const { cardProps, likesCount, favoritedIds } = interactions;
   // The server already returns only bookmarks; this drops one unbookmarked meanwhile.
-  const items = onlyFavorites
-    ? loadedItems.filter((item) => favoritedIds.has(String(item.id)))
-    : loadedItems;
+  const items = loadedItems.filter((item) => favoritedIds.has(item.id));
 
   const { openVorlage, usingId } = useGrueneratorVorlage();
+  const { openPrintVorlage, openingId } = usePrintVorlage();
 
   const handleTagClick = useCallback((tag: string) => {
     setInputValue((prev) => addTagToSearch(prev, tag));
@@ -307,10 +278,7 @@ const VorlagenGallery = memo((): JSX.Element => {
   // Active filters shown as removable chips below the search bar. Derived from
   // the live input (not the debounced term) so chips track typing immediately.
   const activeTags = useMemo(() => parseSearchQuery(inputValue).tags, [inputValue]);
-  const activeFilter = filters.find((f) => f.id === selectedCategory) ?? {
-    id: selectedCategory,
-    label: CATEGORY_LABELS[selectedCategory] ?? selectedCategory,
-  };
+  const activeFilter = FILTERS.find((f) => f.id === selectedCategory) ?? FILTERS[0];
   const isFiltered = selectedCategory !== ALL_FILTER;
   const hasActiveFilters = activeTags.length > 0 || (isFiltered && !isMeine) || onlyFavorites;
   const hasSearch = inputValue.trim().length > 0;
@@ -324,20 +292,35 @@ const VorlagenGallery = memo((): JSX.Element => {
         : [],
     [showCatalog, catalogQuery.data, textQuery, onlyFavorites, favoritedIds]
   );
-  const total = items.length + catalog.length;
+  // Print Vorlagen have no likes or bookmarks yet, so „nur gemerkte" hides them.
+  const showPrint =
+    !isMeine && (selectedCategory === ALL_FILTER || isPrint) && tags.length === 0 && !onlyFavorites;
+  const printQuery = useQuery({ ...printVorlagenQuery(land), enabled: showPrint });
+  const printVorlagen = useMemo(
+    () => (showPrint ? (printQuery.data ?? []).filter((v) => printMatches(v, textQuery)) : []),
+    [showPrint, printQuery.data, textQuery]
+  );
+  const total = items.length + catalog.length + printVorlagen.length;
 
   // Most liked first, like the studio's „Beliebte Vorlagen"; the sort is
   // stable, so ties keep catalogue before community, newest community first.
   const sorted = useMemo(() => {
     const entries = [
-      ...catalog.map((vorlage) => ({ id: vorlage.id, vorlage, item: undefined })),
-      ...items.map((item) => ({ id: String(item.id), item, vorlage: undefined })),
+      ...catalog.map((vorlage) => ({ id: vorlage.id, vorlage, item: undefined, print: undefined })),
+      ...printVorlagen.map((print) => ({
+        id: print.id,
+        print,
+        vorlage: undefined,
+        item: undefined,
+      })),
+      ...items.map((item) => ({ id: String(item.id), item, vorlage: undefined, print: undefined })),
     ];
-    const likes = (e: (typeof entries)[number]) => likesCount(e.id, e.item?.likes_count);
+    const likes = (e: (typeof entries)[number]) =>
+      e.print ? 0 : likesCount(e.id, e.item?.likes_count);
     return entries.sort((a, b) => likes(b) - likes(a));
-  }, [catalog, items, likesCount]);
+  }, [catalog, printVorlagen, items, likesCount]);
   const { renderCard, dialog: catalogDialog } = useSharepicVorlageCards(catalog, interactions);
-  const settled = !dataQuery.isLoading && (!showCatalog || !catalogQuery.isLoading);
+  const settled = !(showSaved && savedQuery.isPending) && (!showCatalog || !catalogQuery.isLoading);
   const emptyCause: EmptyCause =
     hasSearch || activeTags.length > 0
       ? 'search'
@@ -348,10 +331,9 @@ const VorlagenGallery = memo((): JSX.Element => {
           : 'none';
 
   const handleAddSuccess = useCallback(() => {
-    void dataQuery.refetch();
     void queryClient.invalidateQueries({ queryKey: ['userTemplates'] });
     if (isMeine) toast.success('Vorlage wurde hinzugefügt.');
-  }, [dataQuery, queryClient, isMeine]);
+  }, [queryClient, isMeine]);
 
   return (
     <PageShell wide>
@@ -359,7 +341,8 @@ const VorlagenGallery = memo((): JSX.Element => {
         title="Vorlagen-Datenbank"
         description={
           <p className="m-0 text-sm leading-relaxed text-pretty text-grey-500 dark:text-grey-400">
-            Sharepic-Vorlagen vom Grünerator und Design-Vorlagen für Canva, InDesign und mehr.
+            Sharepic- und Print-Vorlagen vom Grünerator. Was andere teilen, findest du unter
+            „Öffentliche Vorlagen“.
           </p>
         }
         toolbar={
@@ -401,7 +384,7 @@ const VorlagenGallery = memo((): JSX.Element => {
               label={isFiltered ? `Filter: ${activeFilter.label}` : 'Filter'}
               menuLabel="Anzeigen"
               value={selectedCategory}
-              options={filters}
+              options={FILTERS}
               onChange={selectFilter}
               active={isFiltered}
               icon={
@@ -428,8 +411,18 @@ const VorlagenGallery = memo((): JSX.Element => {
               />
             )}
             {!isMeine && <GridSizeToggle gridSize={gridSize} onToggle={toggleGridSize} />}
+            <Button variant="ghost" size="sm" onClick={() => setShowMarket(true)}>
+              <PiStorefront aria-hidden className="size-[18px]" />
+              Öffentliche Vorlagen
+            </Button>
           </>
         }
+      />
+      <MarketplaceDialog
+        open={showMarket}
+        onOpenChange={setShowMarket}
+        kinds={MARKET_KINDS}
+        title="Öffentliche Vorlagen"
       />
       <AddTemplateModal
         isOpen={showAddModal}
@@ -447,7 +440,7 @@ const VorlagenGallery = memo((): JSX.Element => {
       ) : (
         <>
           <h2 className="sr-only">{activeFilter.label}</h2>
-          {settled && !dataQuery.error && (
+          {settled && !savedQuery.error && (
             <GalleryCountRow
               count={`${total} ${total === 1 ? 'Vorlage' : 'Vorlagen'}`}
               onReset={hasActiveFilters ? resetFilters : undefined}
@@ -461,9 +454,9 @@ const VorlagenGallery = memo((): JSX.Element => {
             </GalleryCountRow>
           )}
 
-          {dataQuery.error ? (
+          {showSaved && savedQuery.error ? (
             <p className="text-center text-error">
-              {dataQuery.error.message || 'Fehler beim Laden'}
+              {savedQuery.error.message || 'Fehler beim Laden'}
             </p>
           ) : (
             <>
@@ -475,6 +468,12 @@ const VorlagenGallery = memo((): JSX.Element => {
                     {sorted.map((entry) =>
                       entry.vorlage ? (
                         renderCard(entry.vorlage)
+                      ) : entry.print ? (
+                        <PrintVorlageCard
+                          key={entry.id}
+                          vorlage={entry.print}
+                          onOpen={setPreviewPrint}
+                        />
                       ) : (
                         <VorlagenCard
                           key={entry.id}
@@ -507,6 +506,15 @@ const VorlagenGallery = memo((): JSX.Element => {
             </>
           )}
         </>
+      )}
+
+      {previewPrint && (
+        <PrintVorlageDialog
+          vorlage={previewPrint}
+          opening={openingId === previewPrint.id}
+          onEdit={(v) => void openPrintVorlage(v)}
+          onClose={() => setPreviewPrint(null)}
+        />
       )}
 
       {previewTemplate && (

@@ -66,7 +66,7 @@ RUN pnpm exec tsc --project tsconfig.server.json
 
 # Compile contracts package (API imports @gruenerator/contracts at runtime)
 WORKDIR /app/packages/contracts
-RUN pnpm exec tsc --project tsconfig.json
+RUN pnpm exec tsc --project tsconfig.build.json
 
 # Compile hocuspocus (API imports @gruenerator/hocuspocus at runtime)
 WORKDIR /app/services/hocuspocus

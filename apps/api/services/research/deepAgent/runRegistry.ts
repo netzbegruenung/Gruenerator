@@ -1,30 +1,23 @@
 /**
- * What makes a checkpoint findable, and what makes it disposable.
+ * Where a research run is recorded, and where its state is kept.
  *
- * The checkpointer writes a run's state under a `thread_id` and nothing else —
- * not whose run it was, not what it was about, not whether it ever produced a
- * report. On its own that is write-only storage: a run that dies in a deploy
- * leaves rows nobody can identify, and nothing says when they may go.
- *
- * This module is the other half. One row per run, opened at the start and
- * closed at the end, so two questions can be answered:
+ * One row per run, opened at the start and closed at the end, plus the run's
+ * state (message history, plan, files) saved after every step of the lead, so
+ * two questions can be answered:
  *
  *  - **Which runs are still open?** Rows left `running` past a restart — the
- *    ones a resume would target.
- *  - **What may be deleted?** Rows past the retention age, together with the
- *    checkpoint state behind them.
+ *    ones `resume-research` can continue from their saved state.
+ *  - **What may be deleted?** Rows past the retention age, state included.
  *
  * Every function fails soft. A research run must not die because its
  * bookkeeping did — the registry is an aid to operations, not part of the
- * result. That mirrors `checkpointer.ts`, which returns null rather than
- * throwing for the same reason.
+ * result.
  */
 
 import { getPostgresInstance } from '../../../database/services/PostgresService/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
-import { getCheckpointer } from './checkpointer.js';
-
+import type { SavedRunState } from './types.js';
 import type { DeepResearchRun, DeepResearchRunStatus } from '../../../database/schema/index.js';
 
 const log = createLogger('DeepResearchRegistry');
@@ -32,14 +25,14 @@ const log = createLogger('DeepResearchRegistry');
 /**
  * How long a run's state is kept.
  *
- * Measured on 12.08.2026: ~536 kB of checkpoint per run (60 steps, a state
- * growing to ~576 kB). At 100 runs a day that is ~52 MB/day, so an unbounded
- * schema reaches double-digit gigabytes within a year.
+ * One row per run, overwritten after each step, so the state costs about one
+ * history's worth — a few hundred kilobytes for a long run. Under the
+ * LangGraph checkpointer it was every step's snapshot (~536 kB per run,
+ * measured 12.08.2026), which is what the retention was first sized for.
  *
  * Seven days rather than one: the point of keeping state is surviving a deploy
  * or a crash, and nobody looks at a failed research the same hour. A week
- * survives a weekend and still bounds the schema at roughly a third of a
- * gigabyte in the worst case above.
+ * survives a weekend.
  */
 export const RETENTION_DAYS = 7;
 
@@ -140,40 +133,29 @@ export async function getRun(threadId: string): Promise<DeepResearchRun | null> 
 }
 
 /**
- * Drops registry rows and the checkpoint state behind them.
- *
- * The order matters and it is the safe one: `deleteThread` first, the row
- * second. A crash in between leaves a row whose state is gone — harmless, the
- * next pass deletes it — whereas the reverse would leave orphaned checkpoint
- * blobs that nothing knows about any more, which is precisely the unbounded
- * growth this exists to prevent.
- *
- * `deleteThread` is the saver's own API rather than a DELETE against its
- * tables: the four tables are its to migrate, and reaching into them from here
- * would break the next time it changes them.
+ * Saves the run's state after a step. Overwrites the previous one — only the
+ * latest state is ever resumed from.
  */
+export async function recordRunState(threadId: string, state: SavedRunState): Promise<void> {
+  await run('Zustand sichern', async () => {
+    await getPostgresInstance().query(
+      `UPDATE deep_research_runs SET state = $2::jsonb WHERE thread_id = $1`,
+      [threadId, JSON.stringify(state)]
+    );
+  });
+}
+
+/** Drops registry rows past the retention age, and with them their state. */
 export async function purgeExpiredRuns(retentionDays = RETENTION_DAYS): Promise<number> {
-  const expired = await run('Abgelaufene Läufe lesen', async () =>
+  const rows = await run('Abgelaufene Läufe löschen', async () =>
     getPostgresInstance().query<{ thread_id: string }>(
-      `SELECT thread_id FROM deep_research_runs
-        WHERE started_at < NOW() - ($1 || ' days')::interval`,
+      `DELETE FROM deep_research_runs
+        WHERE started_at < NOW() - ($1 || ' days')::interval
+        RETURNING thread_id`,
       [String(retentionDays)]
     )
   );
-  if (!expired || expired.length === 0) return 0;
-
-  const checkpointer = await getCheckpointer();
-  let purged = 0;
-  for (const { thread_id: threadId } of expired) {
-    const done = await run(`Checkpoints von ${threadId} löschen`, async () => {
-      if (checkpointer) await checkpointer.deleteThread(threadId);
-      await getPostgresInstance().query(`DELETE FROM deep_research_runs WHERE thread_id = $1`, [
-        threadId,
-      ]);
-      return true;
-    });
-    if (done) purged += 1;
-  }
+  const purged = rows?.length ?? 0;
   if (purged > 0)
     log.info(`[Registry] ${purged} abgelaufene Läufe entfernt (> ${retentionDays} d)`);
   return purged;

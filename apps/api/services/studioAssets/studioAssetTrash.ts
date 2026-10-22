@@ -4,8 +4,11 @@
  * favorites and — unless the asset was ever public and not removed by
  * moderation — the image file.
  */
+import { shareTokenFromDownloadUrl } from '@gruenerator/shared/media-library/shareUrl';
+
 import { type StudioAssetRow } from '../../database/schema/studioAssets.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { deleteCommentsForEntity } from '../entityComments/entityCommentsCleanup.js';
 import { deleteFavoritesForEntity } from '../entityFavorites/EntityFavoritesService.js';
 import { deleteLikesForEntity } from '../entityLikes/EntityLikesService.js';
 import { getSharedMediaService } from '../sharedMediaService.js';
@@ -20,8 +23,6 @@ export const STUDIO_ASSET_TRASH: OwnedTrashTable = {
   table: 'studio_assets',
   columns: 'id, title, kind',
 };
-
-const SHARE_TOKEN_RE = /^\/api\/share\/([^/]+)\/download$/;
 
 /** Move the caller's own Sticker/Hintergründe to the Papierkorb; returns the ids actually moved. */
 export async function trashStudioAssets(userId: string, ids: string[]): Promise<string[]> {
@@ -51,12 +52,15 @@ export async function purgeStudioAsset(id: string, cutoff: Date | null): Promise
   await purgeSideStore('studio_asset', id, 'entity_likes', () =>
     deleteLikesForEntity('studio_asset', id)
   );
+  await purgeSideStore('studio_asset', id, 'entity_comments', () =>
+    deleteCommentsForEntity('studio_asset', id)
+  );
   await purgeSideStore('studio_asset', id, 'entity_favorites', () =>
     deleteFavoritesForEntity('studio_asset', id)
   );
   if (!row.was_public || row.moderation === 'removed') {
     await purgeSideStore('studio_asset', id, 'media', async () => {
-      const token = SHARE_TOKEN_RE.exec(row.src)?.[1];
+      const token = shareTokenFromDownloadUrl(row.src);
       if (token) await getSharedMediaService().purgeInternalShare(token, row.user_id);
     });
   }

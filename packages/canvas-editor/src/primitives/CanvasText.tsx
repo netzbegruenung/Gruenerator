@@ -11,10 +11,12 @@ import { hasInlineMarks, hasListMarkers } from '@gruenerator/contracts';
 import { useRef, useEffect, useState, useCallback, memo } from 'react';
 import { Text as KonvaText, Transformer } from 'react-konva';
 
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { overlayBoxForNode, useCanvasTextEditor } from '../components/CanvasTextOverlay';
 import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { gradientFillProps, type GradientFill } from '../utils/gradientFill';
+import { isGroupDrag } from '../utils/multiSelect';
 import { calculateSnapPosition, calculateElementSnapPosition } from '../utils/snapping';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
 
@@ -75,7 +77,7 @@ export interface CanvasTextProps {
   stageWidth?: number;
   stageHeight?: number;
   onSnapChange?: (snapH: boolean, snapV: boolean) => void;
-  snapTargets?: SnapTarget[];
+  getSnapTargets?: (excludeId: string) => SnapTarget[];
   onPositionChange?: (id: string, x: number, y: number, width: number, height: number) => void;
   /** Meldet die gerenderte Geometrie als Snap-Ziel — unabhaengig davon, ob je gezogen wurde. */
   onGeometryChange?: GeometryReporter;
@@ -130,11 +132,12 @@ function CanvasTextInner({
   stageWidth,
   stageHeight,
   onSnapChange,
-  snapTargets,
+  getSnapTargets,
   onPositionChange,
   onGeometryChange,
   onSnapLinesChange,
 }: CanvasTextProps) {
+  const locked = useIsItemLocked();
   const textRef = useRef<Konva.Text>(null);
   const trRef = useRef<Konva.Transformer>(null);
   const { open, isEditing } = useCanvasTextEditor(id, editable);
@@ -215,18 +218,20 @@ function CanvasTextInner({
   const handleDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
       const node = e.target as Konva.Text;
+      if (isGroupDrag(node)) return;
       const nodeWidth = node.width() * node.scaleX();
       const nodeHeight = node.height() * node.scaleY();
 
       if (!stageWidth || !stageHeight) return;
 
-      if ((snapTargets && snapTargets.length > 0) || snapToCenter) {
+      const snapTargets = getSnapTargets?.(id ?? '') ?? [];
+      if (snapTargets.length > 0 || snapToCenter) {
         const result = calculateElementSnapPosition(
           node.x(),
           node.y(),
           nodeWidth,
           nodeHeight,
-          snapTargets || [],
+          snapTargets,
           stageWidth,
           stageHeight,
           snap.hysteresis
@@ -236,7 +241,7 @@ function CanvasTextInner({
         snap.scheduleSnap(result.snapH, result.snapV, result.snapLines);
       }
     },
-    [snapToCenter, stageWidth, stageHeight, snapTargets, snap]
+    [id, snapToCenter, stageWidth, stageHeight, getSnapTargets, snap]
   );
 
   // A side handle only changes the width: turn that scale into width right
@@ -357,7 +362,7 @@ function CanvasTextInner({
         lineHeight={lineHeight}
         wrap={wrap}
         padding={padding}
-        draggable={draggable && !isEditing}
+        draggable={draggable && !isEditing && !locked}
         visible={!isEditing}
         onMouseDown={onSelect}
         onTouchStart={onSelect}
@@ -386,6 +391,7 @@ function CanvasTextInner({
             if (newBox.width > maxWidth) return oldBox;
             return newBox;
           }}
+          {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}
     </>
@@ -411,7 +417,6 @@ function CanvasTextSwitch(props: CanvasTextProps) {
 // Memoize to prevent re-renders when parent (ZitatPureCanvas) updates due to snap state changes
 export const CanvasText = memo(CanvasTextSwitch, (prevProps, nextProps) => {
   // Custom comparison: only re-render if these specific props changed
-  // Ignore snapTargets array reference changes (we use the values inside)
   const keysToCompare: (keyof CanvasTextProps)[] = [
     'id',
     'text',

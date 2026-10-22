@@ -393,3 +393,37 @@ describe('parseSSEStream research_log handling', () => {
     expect(useArtifactLiveStore.getState().activeArtifact).toBeNull();
   });
 });
+
+describe('document_created — Panel', () => {
+  function sse(data: Record<string, unknown>): Response {
+    return new Response(`event: document_created\ndata: ${JSON.stringify(data)}\n\n`);
+  }
+
+  async function drain(response: Response): Promise<void> {
+    const outcome = { interrupted: false, indexedDocumentIds: [] as string[] };
+    for await (const _ of parseSSEStream(response, {}, outcome)) {
+      // nur der Store zählt
+    }
+  }
+
+  const DOC = { documentId: 'd1', title: 'Prüfprotokoll: X', subtype: 'blank', url: '/office/d1' };
+
+  beforeEach(() => {
+    useArtifactLiveStore.setState({
+      activeArtifact: null,
+      panelMounted: true,
+      panelDockable: true,
+    });
+  });
+
+  it('dockt ein neues Dokument an', async () => {
+    await drain(sse(DOC));
+    expect(useArtifactLiveStore.getState().activeArtifact).not.toBeNull();
+  });
+
+  it('lässt ein Begleitdokument im Hintergrund', async () => {
+    // Das Prüfprotokoll einer Übertragung: die Antwort ist der Text im Chat.
+    await drain(sse({ ...DOC, background: true }));
+    expect(useArtifactLiveStore.getState().activeArtifact).toBeNull();
+  });
+});

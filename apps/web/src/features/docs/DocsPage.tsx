@@ -46,7 +46,7 @@ import { useSharepicVorlagen } from '../vorlagen/hooks/useSharepicVorlagen';
 import { OFFICE_PILL_ROW, OfficeActionPill } from '../workplace/components/ToolsSection';
 import { WorkplaceHero } from '../workplace/components/WorkplaceHero';
 
-import { BoardCard } from './BoardCard';
+import { BoardCard, type BoardCardBoard } from './BoardCard';
 import { webAppDocsAdapter } from './docsAdapter';
 import {
   DocsComposer,
@@ -56,8 +56,8 @@ import {
 } from './DocsComposer';
 import { subtypeToKind, type DocKind } from './docTypeMeta';
 import { DocumentCard } from './DocumentCard';
-
-import type { Board } from '../boards/types';
+import { OfficeLibrary } from './OfficeLibrary';
+import { useOfficeLibrary } from './useOfficeLibrary';
 
 const LazyShareModal = lazy(() =>
   import('@gruenerator/docs').then((m) => ({ default: m.ShareModal }))
@@ -85,7 +85,7 @@ type UnifiedItem =
       };
       sortKey: number;
     }
-  | { kind: 'board'; data: Board; sortKey: number };
+  | { kind: 'board'; data: BoardCardBoard; sortKey: number };
 
 // A single office content type. Retained for the scoped-filter machinery below;
 // current callers (Arbeiten DocsHome + the /office hub) are all unscoped.
@@ -160,20 +160,40 @@ export function DocumentsContent({
   const sharepicEnabled = SHOW_SHAREPIC_STUDIO;
   const { data: sharepicVorlagen } = useSharepicVorlagen();
 
-  const { data: documents = [], isLoading: docsLoading, error: docsError } = useDocuments();
+  const office = useOfficeLibrary(officeToolStrip);
+  const refreshOffice = office.refresh;
+  const {
+    data: legacyDocuments = [],
+    isLoading: docsLoading,
+    error: docsError,
+  } = useDocuments({ enabled: !officeToolStrip });
+  const documents = useMemo(
+    () =>
+      officeToolStrip
+        ? office.items.filter((item) => item.document_subtype !== 'boards')
+        : legacyDocuments,
+    [officeToolStrip, office.items, legacyDocuments]
+  );
   const createDocumentMutation = useCreateDocument();
   const deleteDocumentMutation = useDeleteDocument();
   const updateDocumentMutation = useUpdateDocument();
   const generateDocumentMutation = useGenerateDocument();
 
   const {
-    boards,
+    boards: legacyBoards,
     isLoading: boardsLoading,
     createBoard,
     deleteBoard,
     updateBoard,
     generateBoard,
-  } = useBoardsTyped();
+  } = useBoardsTyped({ enabled: !officeToolStrip });
+  const boards = useMemo(
+    () =>
+      officeToolStrip
+        ? office.items.filter((item) => item.document_subtype === 'boards')
+        : legacyBoards,
+    [officeToolStrip, office.items, legacyBoards]
+  );
 
   const [showGallery, setShowGallery] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
@@ -308,12 +328,13 @@ export function DocumentsContent({
             id: doc.id,
             updates: { title: newTitle.trim() },
           });
+          refreshOffice();
         } catch (err) {
           console.error('Failed to rename document:', err);
         }
       }
     },
-    [updateDocumentMutation]
+    [updateDocumentMutation, refreshOffice]
   );
 
   const handleDeleteBoard = useCallback(
@@ -331,11 +352,12 @@ export function DocumentsContent({
       } else {
         await deleteBoard.mutateAsync(id);
       }
+      refreshOffice();
       showTrashUndo({ kind: 'collaborative_document', id, title });
     } catch (err) {
       console.error(`Failed to delete ${kind}:`, err);
     }
-  }, [deleteTarget, deleteDocumentMutation, deleteBoard, showTrashUndo]);
+  }, [deleteTarget, deleteDocumentMutation, deleteBoard, showTrashUndo, refreshOffice]);
 
   const handleRenameBoard = useCallback(
     async (board: { id: string; title: string }, e: React.MouseEvent) => {
@@ -344,12 +366,13 @@ export function DocumentsContent({
       if (newTitle?.trim() && newTitle.trim() !== board.title) {
         try {
           await updateBoard.mutateAsync({ id: board.id, title: newTitle.trim() });
+          refreshOffice();
         } catch (err) {
           console.error('Failed to rename board:', err);
         }
       }
     },
-    [updateBoard]
+    [updateBoard, refreshOffice]
   );
 
   const handleShareBoard = useCallback(
@@ -673,58 +696,120 @@ export function DocumentsContent({
       {/* Without `showRecents` this is the Arbeiten tab, where the workplace
           "Zuletzt" feed is THE recents section — the personal grid and the group
           shares both live on /office instead, below its own recents. */}
-      <section>
-        {!showRecents ? null : isLoading || isUnauthorizedError(docsError) ? (
-          // On a 401 the session teardown+redirect is already in flight — show
-          // the skeleton, never a partial/stale grid or an error flash.
-          <CardGrid columns="auto" gap="md">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className="h-[240px] animate-pulse rounded-xl border border-grey-200 bg-grey-100 dark:border-grey-700 dark:bg-grey-800"
-              />
-            ))}
-          </CardGrid>
-        ) : docsError ? (
-          <p className="py-12 text-center text-red-600 dark:text-red-400">{docsError.message}</p>
-        ) : !hasAnyItems ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-16 text-grey-500 dark:text-grey-400">
-            <FiFile size={40} className="text-grey-300 dark:text-grey-600" />
-            <p className="text-[0.9375rem]">Noch keine Inhalte vorhanden.</p>
-            <Button
-              onClick={() => {
-                if (scope === 'board') handleCreateBoard('kanban');
-                else if (scope === 'sheet') void handleCreateSheet();
-                else if (scope === 'pres') void handleCreatePresentation();
-                else void handleTemplateSelect('blank');
-              }}
-            >
-              <FiPlus size={16} />
-              {scope === 'board'
-                ? 'Erstes Board erstellen'
-                : scope === 'sheet'
-                  ? 'Erste Tabelle erstellen'
-                  : scope === 'pres'
-                    ? 'Erste Präsentation erstellen'
-                    : 'Erstes Dokument erstellen'}
-            </Button>
-          </div>
-        ) : (
-          <>
-            {personalItems.length > 0 && (
-              <>
-                <div className="mb-sm mt-xl flex items-baseline gap-3">
-                  <h2 className="text-base font-extrabold text-foreground">Zuletzt bearbeitet</h2>
-                </div>
+      {officeToolStrip ? (
+        <OfficeLibrary
+          office={office}
+          adapter={adapter}
+          onDeleteDoc={handleDeleteDoc}
+          onRenameDoc={handleRenameDoc}
+          onShareDoc={setShareDoc}
+          onDeleteBoard={handleDeleteBoard}
+          onRenameBoard={handleRenameBoard}
+          onShareBoard={handleShareBoard}
+        />
+      ) : (
+        <section>
+          {!showRecents ? null : isLoading || isUnauthorizedError(docsError) ? (
+            // On a 401 the session teardown+redirect is already in flight — show
+            // the skeleton, never a partial/stale grid or an error flash.
+            <CardGrid columns="auto" gap="md">
+              {Array.from({ length: 6 }).map((_, i) => (
                 <div
-                  ref={personalGridRef}
-                  className="grid grid-cols-[repeat(auto-fill,minmax(232px,1fr))] gap-md max-md:grid-cols-[repeat(auto-fill,minmax(170px,1fr))]"
-                >
-                  {visiblePersonalItems.map((item) => {
-                    if (item.kind === 'document')
+                  key={i}
+                  className="h-[240px] animate-pulse rounded-xl border border-grey-200 bg-grey-100 dark:border-grey-700 dark:bg-grey-800"
+                />
+              ))}
+            </CardGrid>
+          ) : docsError ? (
+            <p className="py-12 text-center text-red-600 dark:text-red-400">{docsError.message}</p>
+          ) : !hasAnyItems ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-grey-500 dark:text-grey-400">
+              <FiFile size={40} className="text-grey-300 dark:text-grey-600" />
+              <p className="text-[0.9375rem]">Noch keine Inhalte vorhanden.</p>
+              <Button
+                onClick={() => {
+                  if (scope === 'board') handleCreateBoard('kanban');
+                  else if (scope === 'sheet') void handleCreateSheet();
+                  else if (scope === 'pres') void handleCreatePresentation();
+                  else void handleTemplateSelect('blank');
+                }}
+              >
+                <FiPlus size={16} />
+                {scope === 'board'
+                  ? 'Erstes Board erstellen'
+                  : scope === 'sheet'
+                    ? 'Erste Tabelle erstellen'
+                    : scope === 'pres'
+                      ? 'Erste Präsentation erstellen'
+                      : 'Erstes Dokument erstellen'}
+              </Button>
+            </div>
+          ) : (
+            <>
+              {personalItems.length > 0 && (
+                <>
+                  <div className="mb-sm mt-xl flex items-baseline gap-3">
+                    <h2 className="text-base font-extrabold text-foreground">Zuletzt bearbeitet</h2>
+                  </div>
+                  <div
+                    ref={personalGridRef}
+                    className="grid grid-cols-[repeat(auto-fill,minmax(232px,1fr))] gap-md max-md:grid-cols-[repeat(auto-fill,minmax(170px,1fr))]"
+                  >
+                    {visiblePersonalItems.map((item) => {
+                      if (item.kind === 'document')
+                        return (
+                          <DocumentCard
+                            key={`doc-${item.data.id}`}
+                            doc={item.data}
+                            adapter={adapter}
+                            onDelete={handleDeleteDoc}
+                            onRename={handleRenameDoc}
+                            onShare={setShareDoc}
+                          />
+                        );
+                      return (
+                        <BoardCard
+                          key={`board-${item.data.id}`}
+                          board={item.data}
+                          onDelete={handleDeleteBoard}
+                          onRename={handleRenameBoard}
+                          onShare={handleShareBoard}
+                        />
+                      );
+                    })}
+                  </div>
+                  {(hiddenPersonalCount > 0 || showAllPersonal) && (
+                    <div className="mt-md flex justify-center">
+                      <Button variant="ghost" onClick={() => setShowAllPersonal((prev) => !prev)}>
+                        {showAllPersonal ? (
+                          <>
+                            <FiChevronUp size={16} />
+                            Weniger anzeigen
+                          </>
+                        ) : (
+                          <>
+                            <FiChevronDown size={16} />
+                            Alle anzeigen ({hiddenPersonalCount})
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {groupDocsByGroup.map(([groupId, { groupName, docs }]) => (
+                <div key={groupId} className="mt-xl">
+                  <h2 className="mb-sm flex items-center gap-xs text-sm font-medium text-grey-500 dark:text-grey-400">
+                    <FiUsers size={14} />
+                    {groupName}
+                  </h2>
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(232px,1fr))] gap-md max-md:grid-cols-[repeat(auto-fill,minmax(170px,1fr))]">
+                    {docs.map((item) => {
+                      if (item.kind !== 'document') return null;
                       return (
                         <DocumentCard
-                          key={`doc-${item.data.id}`}
+                          key={`doc-${item.data.id}-${groupId}`}
                           doc={item.data}
                           adapter={adapter}
                           onDelete={handleDeleteDoc}
@@ -732,63 +817,14 @@ export function DocumentsContent({
                           onShare={setShareDoc}
                         />
                       );
-                    return (
-                      <BoardCard
-                        key={`board-${item.data.id}`}
-                        board={item.data}
-                        onDelete={handleDeleteBoard}
-                        onRename={handleRenameBoard}
-                        onShare={handleShareBoard}
-                      />
-                    );
-                  })}
-                </div>
-                {(hiddenPersonalCount > 0 || showAllPersonal) && (
-                  <div className="mt-md flex justify-center">
-                    <Button variant="ghost" onClick={() => setShowAllPersonal((prev) => !prev)}>
-                      {showAllPersonal ? (
-                        <>
-                          <FiChevronUp size={16} />
-                          Weniger anzeigen
-                        </>
-                      ) : (
-                        <>
-                          <FiChevronDown size={16} />
-                          Alle anzeigen ({hiddenPersonalCount})
-                        </>
-                      )}
-                    </Button>
+                    })}
                   </div>
-                )}
-              </>
-            )}
-
-            {groupDocsByGroup.map(([groupId, { groupName, docs }]) => (
-              <div key={groupId} className="mt-xl">
-                <h2 className="mb-sm flex items-center gap-xs text-sm font-medium text-grey-500 dark:text-grey-400">
-                  <FiUsers size={14} />
-                  {groupName}
-                </h2>
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(232px,1fr))] gap-md max-md:grid-cols-[repeat(auto-fill,minmax(170px,1fr))]">
-                  {docs.map((item) => {
-                    if (item.kind !== 'document') return null;
-                    return (
-                      <DocumentCard
-                        key={`doc-${item.data.id}-${groupId}`}
-                        doc={item.data}
-                        adapter={adapter}
-                        onDelete={handleDeleteDoc}
-                        onRename={handleRenameDoc}
-                        onShare={setShareDoc}
-                      />
-                    );
-                  })}
                 </div>
-              </div>
-            ))}
-          </>
-        )}
-      </section>
+              ))}
+            </>
+          )}
+        </section>
+      )}
 
       {showGallery && (
         <Suspense fallback={null}>

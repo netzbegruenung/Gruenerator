@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, memo } from 'react';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
 import { useCanvasEditorServices } from '../CanvasEditorProvider';
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { getIllustrationPath, findIllustrationById } from '../utils/illustrations/registry';
 import { getCachedSVG, getSVG } from '../utils/illustrations/svgCache';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
@@ -65,6 +66,7 @@ function IllustrationPrimitiveInner({
   onTransformEnd,
   draggable = true,
 }: IllustrationPrimitiveProps) {
+  const locked = useIsItemLocked();
   const { assetBaseUrl = '' } = useCanvasEditorServices();
   const groupRef = useRef<Konva.Group>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
@@ -156,7 +158,7 @@ function IllustrationPrimitiveInner({
         scaleY={illustration.scale * baseScale}
         rotation={illustration.rotation}
         opacity={illustration.opacity}
-        draggable={draggable}
+        draggable={draggable && !locked}
         onMouseDown={(e) => {
           e.cancelBubble = true;
           onSelect(illustration.id);
@@ -220,6 +222,7 @@ function IllustrationPrimitiveInner({
           borderStroke="#005437"
           anchorStroke="#005437"
           anchorFill="#ffffff"
+          {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}
     </>

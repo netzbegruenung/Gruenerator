@@ -25,6 +25,8 @@ export interface UnsplashSearchResult {
   results: StockImage[];
   total: number;
   total_pages: number;
+  /** Searches left on the shared Unsplash key this hour; absent on cached answers. */
+  rateLimitRemaining?: number;
 }
 
 export type ImageSourceTab = 'device' | 'stock' | 'unsplash' | 'mediathek';

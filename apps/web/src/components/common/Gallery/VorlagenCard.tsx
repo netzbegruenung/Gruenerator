@@ -15,6 +15,8 @@ interface VorlagenCardItem {
   template_type?: string;
   tags?: string[];
   thumbnail_url?: string;
+  /** Signed, resized tile of `thumbnail_url` (`/api/thumbs/template/…`) when the API could mint one. */
+  thumbnail_tile_url?: string | null;
   external_url?: string | null;
   download_url?: string;
   content_data?: { originalUrl?: string } | Record<string, unknown>;
@@ -29,6 +31,8 @@ export interface VorlagenCardProps {
   /** Top-right overlay actions menu (e.g. the 3-dot dropdown on "Meine Vorlagen"). */
   menu?: ReactNode;
   onOpen: () => void;
+  /** Every page's preview in order, for a multi-page Vorlage: moving the pointer across the stage shows them. */
+  pages?: string[];
   /** Opens the external/source URL directly (overlay action). Omitted when none exists. */
   onOpenExternal?: () => void;
   /** Whether the current user has liked this template. */
@@ -68,6 +72,7 @@ const VorlagenCard = memo(
     badge,
     menu,
     onOpen,
+    pages,
     onOpenExternal,
     liked = false,
     onToggleLike,
@@ -76,14 +81,24 @@ const VorlagenCard = memo(
     onToggleFavorite,
     favoriteToggling = false,
   }: VorlagenCardProps): JSX.Element => {
-    // Selbst hochgeladene Vorlagenbilder liegen als `/share/<token>` in der
-    // Datenbank — die Seiten-URL, nicht die Datei. Ungefiltert liefert der
-    // SPA-Fallback dafür HTML und die Kachel bleibt leer (#2845).
-    const thumbnailUrl = resolveApiAssetUrl(resolveStoredImageUrl(item.thumbnail_url) ?? undefined);
+    // Die signierte Kachel zuerst; sonst die gespeicherte URL. Selbst
+    // hochgeladene Vorlagenbilder liegen als `/share/<token>` in der Datenbank —
+    // die Seiten-URL, nicht die Datei. Ungefiltert liefert der SPA-Fallback dafür
+    // HTML und die Kachel bleibt leer (#2845).
+    const thumbnailUrl = resolveApiAssetUrl(
+      (item.thumbnail_tile_url || resolveStoredImageUrl(item.thumbnail_url)) ?? undefined
+    );
     const stored = storedRatio(item);
     const [measured, setMeasured] = useState(() =>
       thumbnailUrl ? measuredRatios.get(thumbnailUrl) : undefined
     );
+    // A thumbnail that fails to load shows the neutral placeholder, not a broken image.
+    const [failedUrl, setFailedUrl] = useState<string | null>(null);
+    const showThumbnail = Boolean(thumbnailUrl) && failedUrl !== thumbnailUrl;
+    // Shown page, chosen with the dots.
+    const [page, setPage] = useState(0);
+    const pageCount = pages && pages.length > 1 ? pages.length : 0;
+    const shownUrl = (page > 0 && resolveApiAssetUrl(pages?.[page])) || thumbnailUrl;
     const format = getTemplateFormat(item, stored ?? measured);
     const title = item.title || 'Unbenannte Vorlage';
     const likesCount = typeof item.likes_count === 'number' ? item.likes_count : 0;
@@ -95,13 +110,14 @@ const VorlagenCard = memo(
       <InteractiveCard label={title} onActivate={onOpen} className={galleryCard}>
         {/* Square neutral stage — the thumbnail is contained, never cropped. */}
         <div className="relative flex aspect-square w-full items-center justify-center overflow-hidden bg-background-alt">
-          {thumbnailUrl ? (
+          {thumbnailUrl && shownUrl && showThumbnail ? (
             // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- onLoad misst nur die Bildmaße, keine Bedienung
             <img
-              src={thumbnailUrl}
+              src={shownUrl}
               alt={title}
               loading="lazy"
               onLoad={(e) => {
+                if (shownUrl !== thumbnailUrl) return;
                 if (stored || measuredRatios.has(thumbnailUrl)) return;
                 const { naturalWidth, naturalHeight } = e.currentTarget;
                 const label = ratioLabelFromSize(naturalWidth, naturalHeight);
@@ -109,10 +125,40 @@ const VorlagenCard = memo(
                 measuredRatios.set(thumbnailUrl, label);
                 setMeasured(label);
               }}
+              onError={() => setFailedUrl(thumbnailUrl)}
               className="max-h-[88%] max-w-[88%] rounded-sm object-contain"
             />
           ) : (
             <ImageIcon className="size-8 text-grey-400" aria-hidden="true" />
+          )}
+
+          {/* Always there, so the card says it has pages before anyone points at it. */}
+          {pageCount > 0 && (
+            <div className="absolute inset-x-0 bottom-1 z-[2] flex justify-center">
+              {pages?.map((_, i) => (
+                <button
+                  // eslint-disable-next-line react/no-array-index-key -- pages have no id; order is the identity
+                  key={i}
+                  type="button"
+                  aria-label={`Seite ${i + 1} von ${pageCount} zeigen`}
+                  aria-current={i === page}
+                  onClick={(e) => {
+                    stop(e);
+                    setPage(i);
+                  }}
+                  className="group/dot flex size-6 items-center justify-center"
+                >
+                  <span
+                    className={cn(
+                      'size-2 rounded-full transition-colors',
+                      i === page
+                        ? 'bg-grey-700 dark:bg-grey-200'
+                        : 'bg-grey-300 group-hover/dot:bg-grey-500 dark:bg-grey-600'
+                    )}
+                  />
+                </button>
+              ))}
+            </div>
           )}
 
           {hasOverlay && (

@@ -30,7 +30,11 @@ describe('EMBED_CANDIDATES', () => {
 
   it('carries the query instruction only where the model card asks for one', () => {
     const withInstruction = EMBED_CANDIDATES.filter((c) => c.queryInstruction !== null);
-    expect(withInstruction.map((c) => c.slug)).toEqual(['qwen3-8b-greenpt']);
+    expect(withInstruction.map((c) => c.slug)).toEqual([
+      'qwen3-8b-greenpt',
+      'qwen3-8b-melious',
+      'qwen3-8b-melious-1024',
+    ]);
   });
 
   it('resolves known slugs and refuses unknown ones', () => {

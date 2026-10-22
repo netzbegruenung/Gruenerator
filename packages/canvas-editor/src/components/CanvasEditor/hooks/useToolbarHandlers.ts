@@ -14,6 +14,7 @@ interface UseToolbarHandlersParams {
   canRedoPageOp: boolean;
   undoPageOp: () => void;
   redoPageOp: () => void;
+  discardReplaceDeck: () => void;
 }
 
 /**
@@ -37,6 +38,7 @@ export function useToolbarHandlers({
   canRedoPageOp,
   undoPageOp,
   redoPageOp,
+  discardReplaceDeck,
 }: UseToolbarHandlersParams) {
   return useMemo(() => {
     const page = () => canvasRefsRef.current[currentPageIndex]?.current ?? null;
@@ -48,8 +50,9 @@ export function useToolbarHandlers({
           undoPageOp();
         }
       },
-      // The spec path replaced the whole deck in one page-level step.
-      undoPages: undoPageOp,
+      // The spec path replaced the whole deck in one page-level step; Verwerfen
+      // takes it back for good, so Redo cannot re-apply it.
+      undoPages: discardReplaceDeck,
       redo: () => {
         if (toolbarState?.canRedo) {
           page()?.redo?.();
@@ -60,6 +63,8 @@ export function useToolbarHandlers({
       handleMoveLayer: (direction: 'up' | 'down') => page()?.handleMoveLayer?.(direction),
       handleDuplicate: () => page()?.handleDuplicate?.(),
       handleDeleteElement: () => page()?.handleDeleteElement?.(),
+      handleCopy: () => page()?.runCommand?.('copy', null),
+      handleToggleLock: () => page()?.runCommand?.('toggleLock', null),
       handleColorSelect: (color: string) => page()?.handleColorSelect?.(color),
       handleOpacityChange: (id: string, opacity: number, type: string) =>
         page()?.handleOpacityChange?.(id, opacity, type),
@@ -70,6 +75,7 @@ export function useToolbarHandlers({
       handleOutlineChange: (id: string, patch: { stroke?: string; strokeWidth?: number }) =>
         page()?.handleOutlineChange?.(id, patch),
       handleBlurChange: (id: string, blur: number) => page()?.handleBlurChange?.(id, blur),
+      handleCropImage: () => page()?.handleCropImage?.(),
       handleGradientSelect: (gradient: GradientFill | null) =>
         page()?.handleGradientSelect?.(gradient),
     };
@@ -82,5 +88,6 @@ export function useToolbarHandlers({
     canRedoPageOp,
     undoPageOp,
     redoPageOp,
+    discardReplaceDeck,
   ]);
 }

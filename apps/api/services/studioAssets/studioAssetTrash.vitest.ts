@@ -12,6 +12,9 @@ const reportBackgroundError = vi.fn();
 const deleteLikesForEntity = vi.fn(async (type: string, id: string) => {
   effects.push(`likes ${type} ${id}`);
 });
+const deleteCommentsForEntity = vi.fn(async (type: string, id: string) => {
+  effects.push(`comments ${type} ${id}`);
+});
 const deleteFavoritesForEntity = vi.fn(async (type: string, id: string) => {
   effects.push(`favorites ${type} ${id}`);
 });
@@ -31,6 +34,7 @@ vi.mock('../../database/services/PostgresService.js', () => ({
 }));
 vi.mock('../../utils/reportBackgroundError.js', () => ({ reportBackgroundError }));
 vi.mock('../entityLikes/EntityLikesService.js', () => ({ deleteLikesForEntity }));
+vi.mock('../entityComments/entityCommentsCleanup.js', () => ({ deleteCommentsForEntity }));
 vi.mock('../entityFavorites/EntityFavoritesService.js', () => ({ deleteFavoritesForEntity }));
 vi.mock('../sharedMediaService.js', () => ({
   getSharedMediaService: () => ({ purgeInternalShare }),
@@ -65,6 +69,7 @@ describe('studio asset Papierkorb', () => {
     expect(effects).toEqual([
       'DELETE FROM studio_assets',
       `likes studio_asset ${ID}`,
+      `comments studio_asset ${ID}`,
       `favorites studio_asset ${ID}`,
       `media tok123 ${USER}`,
     ]);
@@ -77,6 +82,7 @@ describe('studio asset Papierkorb', () => {
     expect(effects).toEqual([
       'DELETE FROM studio_assets',
       `likes studio_asset ${ID}`,
+      `comments studio_asset ${ID}`,
       `favorites studio_asset ${ID}`,
     ]);
     expect(purgeInternalShare).not.toHaveBeenCalled();
@@ -88,6 +94,7 @@ describe('studio asset Papierkorb', () => {
     expect(effects).toEqual([
       'DELETE FROM studio_assets',
       `likes studio_asset ${ID}`,
+      `comments studio_asset ${ID}`,
       `favorites studio_asset ${ID}`,
       `media tok123 ${USER}`,
     ]);

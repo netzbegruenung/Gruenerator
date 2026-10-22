@@ -504,6 +504,9 @@ CREATE TABLE IF NOT EXISTS user_templates (
     is_example BOOLEAN DEFAULT FALSE,
     status TEXT DEFAULT 'published',
     audience TEXT NOT NULL DEFAULT 'all',
+    -- zz_20261019_marketplace_moderation.sql; user_agents and user_text_forms
+    -- get the column (and user_text_forms its audience) there.
+    moderation TEXT NOT NULL DEFAULT 'ok' CHECK (moderation IN ('ok', 'hidden', 'removed')),
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     vector_indexed_at TIMESTAMPTZ,
@@ -1299,18 +1302,48 @@ CREATE INDEX IF NOT EXISTS idx_board_comments_user ON board_comments(user_id);
 CREATE INDEX IF NOT EXISTS idx_board_comments_mentioned ON board_comments USING gin(mentioned_user_ids) WHERE mentioned_user_ids != '{}';
 CREATE INDEX IF NOT EXISTS idx_board_comment_reactions_comment ON board_comment_reactions(comment_id);
 
--- Emoji reactions: one nullable FK column per reactable entity, exactly one set.
+-- Comments on marketplace items (zz_20261020_entity_comments.sql, notebooks since
+-- zz_20261020b_entity_comments_notebook.sql), keyed like
+-- likes: `(entity_type, entity_id)` with the item's marketplace ref, no FK.
+CREATE TABLE IF NOT EXISTS entity_comments (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    entity_type TEXT NOT NULL
+        CHECK (entity_type IN ('agent', 'recipe', 'template', 'studio_asset', 'notebook')),
+    entity_id   TEXT NOT NULL,
+    user_id     UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    body        TEXT NOT NULL,
+    parent_id   UUID REFERENCES entity_comments(id) ON DELETE SET NULL,
+    moderation  TEXT NOT NULL DEFAULT 'ok' CHECK (moderation IN ('ok', 'hidden', 'removed')),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_entity_comments_entity
+    ON entity_comments (entity_type, entity_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_entity_comments_parent
+    ON entity_comments (parent_id) WHERE parent_id IS NOT NULL;
+
+-- Emoji reactions: one nullable FK column per reactable entity, exactly one set;
+-- reactions on a marketplace item carry the item pair instead (counts as one).
 -- ON DELETE CASCADE removes reactions together with their target.
+-- The deprecated columns agent_id, agent_comment_id and template_comment_id
+-- (zz_20261013b/d, always NULL since zz_20261020) exist only in migrations:
+-- their FK targets user_agents/agent_comments/template_comments are created there.
 CREATE TABLE IF NOT EXISTS entity_reactions (
-    id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id          UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-    emoji            TEXT NOT NULL,
-    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
-    group_share_id   UUID REFERENCES group_content_shares(id) ON DELETE CASCADE,
-    group_comment_id UUID REFERENCES group_share_comments(id) ON DELETE CASCADE,
-    board_comment_id UUID REFERENCES board_comments(id) ON DELETE CASCADE,
+    id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id           UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    emoji             TEXT NOT NULL,
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    group_share_id    UUID REFERENCES group_content_shares(id) ON DELETE CASCADE,
+    group_comment_id  UUID REFERENCES group_share_comments(id) ON DELETE CASCADE,
+    board_comment_id  UUID REFERENCES board_comments(id) ON DELETE CASCADE,
+    entity_comment_id UUID REFERENCES entity_comments(id) ON DELETE CASCADE,
+    item_type         TEXT,
+    item_id           TEXT,
+    CONSTRAINT entity_reactions_item_type
+        CHECK (item_type IN ('agent', 'recipe', 'template', 'studio_asset', 'notebook')),
+    CONSTRAINT entity_reactions_item_pair CHECK ((item_type IS NULL) = (item_id IS NULL)),
     CONSTRAINT entity_reactions_one_target
-        CHECK (num_nonnulls(group_share_id, group_comment_id, board_comment_id) = 1)
+        CHECK (num_nonnulls(group_share_id, group_comment_id, board_comment_id,
+                            entity_comment_id, item_id) = 1)
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_entity_reactions_group_share
@@ -1319,6 +1352,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_entity_reactions_group_comment
     ON entity_reactions (group_comment_id, user_id, emoji) WHERE group_comment_id IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS uq_entity_reactions_board_comment
     ON entity_reactions (board_comment_id, user_id, emoji) WHERE board_comment_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_entity_reactions_entity_comment
+    ON entity_reactions (entity_comment_id, user_id, emoji) WHERE entity_comment_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_entity_reactions_item
+    ON entity_reactions (item_type, item_id, user_id, emoji) WHERE item_id IS NOT NULL;
 
 -- Papierkorb (zz_20260929_trash_deleted_at.sql). user_agents, user_text_forms,
 -- recurring_tasks und user_letterheads entstehen erst in Migrationen; dort legt

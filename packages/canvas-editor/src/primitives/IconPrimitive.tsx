@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { generateIconDataUrl } from '../utils/canvasIcons';
+import { isGroupDrag } from '../utils/multiSelect';
 import { calculateCenteredSnapPosition } from '../utils/snapping';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
 
@@ -54,6 +56,7 @@ function IconPrimitiveInner({
   onSnapLinesChange,
   onGeometryChange,
 }: IconPrimitiveProps) {
+  const locked = useIsItemLocked();
   const groupRef = useRef<Konva.Group>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
   const [image, setImage] = useState<HTMLImageElement | null>(null);
@@ -101,6 +104,7 @@ function IconPrimitiveInner({
     (e: Konva.KonvaEventObject<DragEvent>) => {
       if (!stageWidth || !stageHeight) return;
       const node = e.currentTarget as Konva.Group;
+      if (isGroupDrag(node)) return;
       const size = TARGET_SIZE * scale;
 
       const result = calculateCenteredSnapPosition(
@@ -142,7 +146,7 @@ function IconPrimitiveInner({
         scaleY={scale * baseScale}
         rotation={rotation}
         opacity={opacity}
-        draggable
+        draggable={!locked}
         onMouseDown={onSelect}
         onTouchStart={onSelect}
         onDragStart={snap.onDragStart}
@@ -193,6 +197,7 @@ function IconPrimitiveInner({
           ref={transformerRef}
           keepRatio={true}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
+          {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}
     </>

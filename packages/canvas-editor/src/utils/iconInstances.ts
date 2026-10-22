@@ -47,6 +47,9 @@ export function catalogIconId(
   return LEGACY_CATALOG_IDS[id] ?? id;
 }
 
+/** Wie viele verschiedene Icons eine Seite höchstens trägt (Seitenleiste und Drop). */
+export const MAX_ICON_SELECTIONS = 3;
+
 /**
  * Die Katalog-IDs, die gerade auf der Fläche liegen — je einmal, in der
  * Reihenfolge ihres ersten Auftretens. Das ist, was die Seitenleiste als

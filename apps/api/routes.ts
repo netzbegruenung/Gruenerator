@@ -21,6 +21,7 @@ import { mountLvAdminAssignmentContractRouter } from './routes/admin/lvAdminAssi
 import { mountAgentVisibilityContractRouter } from './routes/agents/agentVisibilityContractRouter.js';
 import antraegeRouter from './routes/antraege/index.js';
 import { mountAgentCommentsContractRouter } from './routes/auth/agentComments/agentCommentsContractRouter.js';
+import { mountEntityCommentsContractRouter } from './routes/auth/entityComments/entityCommentsContractRouter.js';
 import { mountGroupsContractRouter } from './routes/auth/groups/groupsContract/index.js';
 import { mountImageModelPreferenceContractRouter } from './routes/auth/imageModelPreferenceContractRouter.js';
 import authInitRouter from './routes/auth/initController.js';
@@ -76,6 +77,7 @@ import {
   wolkeWatchRouter,
 } from './routes/internal/index.js';
 import { markdownController as markdownRouter } from './routes/markdown/index.js';
+import { mountMarketplaceContractRouter } from './routes/marketplace/marketplaceContractRouter.js';
 import { mountMcpOAuthCallbackRouter } from './routes/mcp/mcpOAuthCallbackRouter.js';
 import { mountMcpServersContractRouter } from './routes/mcp/mcpServersContractRouter.js';
 import { createMcpAppsRouter } from './routes/mcp-apps/mcpAppsRouter.js';
@@ -150,6 +152,7 @@ import v1ChatCompletionsRouter, {
 import v1CollectionsRouter from './routes/v1/collectionsRouter.js';
 import v1NotebooksRouter from './routes/v1/notebooksRouter.js';
 import { mountVideoContractRouter } from './routes/video/videoContractRouter.js';
+import agentSessionRouter from './routes/voice/agentSessionController.js';
 import { mountSpeechContractRouter } from './routes/voice/speechContractRouter.js';
 import ttsRouter from './routes/voice/ttsController.js';
 import { mountVoiceContractRouter } from './routes/voice/voiceContractRouter.js';
@@ -412,6 +415,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountAgentCommentsContractRouter(app);
   app.use('/api/auth/template-comments', requireAuth);
   mountTemplateCommentsContractRouter(app);
+  // Comments on every marketplace item; the two above are its legacy surfaces.
+  app.use('/api/comments', requireAuth);
+  mountEntityCommentsContractRouter(app);
   // ts-rest contract router for user prompts (custom_prompts + saved_prompts
   // CRUD) — mounts BEFORE authRouter so contract routes match first; the
   // legacy userCustomPrompts router keeps the semantic-search / discovery
@@ -509,6 +515,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Studio shop: user Sticker and Hintergründe.
   app.use('/api/studio-assets', requireAuth, authenticatedReadLimiter, studioAssetWriteLimiter);
   mountStudioAssetsContractRouter(app);
+  // Marktplatz: Agents, Rezepte, Vorlagen, Sticker und Hintergründe in einer Liste.
+  // Likes and saves are PUT/DELETE, which the studio-asset write cap skips, so
+  // they take the general write ceiling.
+  app.use('/api/marketplace', requireAuth, authenticatedReadLimiter, standardMutationLimiter);
+  mountMarketplaceContractRouter(app);
   // Explainables. The shared routes come first and terminate before the
   // requireAuth gate on the prefix below; `/shared/:token` would otherwise be
   // read as the owner's `/:ref`.
@@ -998,6 +1009,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountSpeechContractRouter(app);
   app.use('/api/voice', voiceRouter);
   app.use('/api/voice/tts', ttsRouter);
+  app.use('/api/voice/agent-session', agentSessionRouter);
   // Unified "search everything" over the caller's own content. requireAuth runs
   // on the prefix because
   // createExpressEndpoints registers handlers directly on the app.

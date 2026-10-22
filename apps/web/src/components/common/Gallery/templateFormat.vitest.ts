@@ -41,6 +41,14 @@ describe('getTemplateFormat', () => {
     expect(vorlage('story')).toBe('Sharepic · 4:5');
   });
 
+  it('nennt bei Print-Vorlagen das Endformat in mm', () => {
+    const format = getTemplateFormat({
+      template_type: 'print',
+      content_data: { format: 'print-visitenkarte-hoch' },
+    });
+    expect(format).toEqual({ formatLabel: 'Print · 55 × 85 mm', tool: 'Grünerator' });
+  });
+
   it('lässt Tags das Seitenverhältnis überschreiben', () => {
     const format = getTemplateFormat({ template_type: 'sharepic', tags: ['Hochformat'] });
     expect(format.formatLabel).toBe('Sharepic · 4:5');

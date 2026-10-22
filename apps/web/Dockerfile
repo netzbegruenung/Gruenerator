@@ -195,6 +195,16 @@ server {
         add_header Cache-Control "public, immutable";
     }
 
+    # Vendored Noto emoji (packages/canvas-editor/scripts/vendorNotoEmoji.ts):
+    # one file per codepoint, ~3,500 of them behind the emoji picker. A file
+    # only changes when the pinned Noto commit is bumped, and a redrawn glyph
+    # under its old name is acceptable for a year — 304 round-trips per tile
+    # are not.
+    location /emoji/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
     # Everything else (index.html, config.js, manifest.json, SW)
     # no-cache = store but revalidate via ETag → efficient 304 responses
     location / {

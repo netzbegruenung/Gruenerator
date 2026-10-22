@@ -1157,6 +1157,7 @@ function buildChartGuidance(computed: boolean): string {
         '- xKey: Name des Feldes für die X-Achse (z.B. "name", "monat", "jahr")',
         '- yKeys: Array der Feldnamen für die Werte (z.B. ["wert", "wert2"])',
         '- Zahlen NUR aus der Nachricht, dem Gesprächsverlauf, angehängten Dokumenten oder den Quellen im Prompt übernehmen — niemals schätzen oder erfinden',
+        '- Nur Datenpunkte mit belegtem Wert aufnehmen — keine null-Werte oder Platzhalter für fehlende Jahre',
         '- Fehlen belastbare Zahlen: KEINEN chart-Block ausgeben, sondern kurz sagen, dass dir die Zahlen fehlen, und danach fragen oder eine Recherche anbieten',
         '- Nur wenn ausdrücklich ein Beispieldiagramm gewünscht ist, sind fiktive Werte erlaubt — dann im title als „Beispieldaten" kennzeichnen',
       ];
@@ -1708,6 +1709,12 @@ function resolveAnswerFormatOwner(
   state: ChatGraphState,
   activeTextForm: string | null
 ): string | null {
+  // Eine Übertragung (Einfache/Leichte Sprache) hat Form UND Umfang schon
+  // festgelegt: das Regelwerk der Persona und „vollständig, ohne Kürzung" im
+  // angehefteten Ausgangstext. Ohne diesen Eintrag bekam sie zuletzt im Prompt
+  // „bis zu 6 Absätze" bzw. „1-2 Absätze" und den Visual-Block-Katalog — am
+  // 19.10.2026 wurden aus 12567 Zeichen Original so 2102 Zeichen Fassung.
+  if (state.pipelineSourceText) return 'transfer';
   if (state.synthesisMode) return `synthesis:${state.synthesisMode}`;
   if (INTENTS_WITH_OWN_FORMAT.has(state.intent)) return `intent:${String(state.intent)}`;
   if (state.taskShape != null) return `task_shape:${state.taskShape}`;
@@ -1795,6 +1802,10 @@ function buildAnswerFormatRule(
   // an empty string: the numbered list would show a bare "2." and the citation
   // block below counts on rules 1–4 existing.
   const formatOwner = resolveAnswerFormatOwner(state, activeTextForm);
+  if (formatOwner === 'transfer') {
+    note('own_format', { formatOwner });
+    return 'Form und Umfang gibt das Regelwerk der Übertragung oben vor. Übertrage den Text unter ZU ÜBERTRAGENDER TEXT vollständig, Abschnitt für Abschnitt, ohne Längengrenze. Titel und Zwischenüberschriften als Markdown (`# Titel`, `## Zwischenüberschrift`). Gib nur die Fassung aus — keine Einleitung, keine Rückfrage und kein Angebot am Schluss.';
+  }
   if (formatOwner?.startsWith('synthesis:') || formatOwner?.startsWith('intent:')) {
     note('own_format', { formatOwner });
     return 'Form und Umfang dieser Antwort sind oben bereits vorgegeben — halte dich genau daran.';
@@ -2454,6 +2465,50 @@ export async function buildSystemMessage(
   return renderPromptBlocks(branch, ctx)
     .map((b) => b.text)
     .join('');
+}
+
+/**
+ * Stored attachments the prompt left out because their text stood in the
+ * history, put back once pruning or compaction took that copy out (#4791).
+ * The prompt is built before the history is cut — pruning budgets against
+ * it — so its dedupe saw messages that never went out.
+ *
+ * Inserted after the base prompt, before a compaction summary appended to it.
+ */
+export function restoreAttachmentsDroppedWithHistory(
+  state: ChatGraphState,
+  baseSystemMessage: string,
+  systemMessage: string,
+  sentMessages: readonly { content: unknown }[]
+): string {
+  if (composerBypass(state) !== null || state.pipelineSourceText) return systemMessage;
+  const textOf = (content: unknown): string =>
+    typeof content === 'string'
+      ? content
+      : Array.isArray(content)
+        ? extractTextContent(content as Parameters<typeof extractTextContent>[0])
+        : '';
+  const fullText = (state.messages ?? []).map((m) => extractTextContent(m.content)).join('\n');
+  const sentText = [systemMessage, ...sentMessages.map((m) => textOf(m.content))].join('\n');
+  const restored = (state.threadAttachments ?? []).filter(
+    (a) =>
+      !a.isImage &&
+      !a.documentId &&
+      alreadyVerbatimInConversation(a.extractedText, fullText) &&
+      !alreadyVerbatimInConversation(a.extractedText, sentText)
+  );
+  if (restored.length === 0) return systemMessage;
+  const block = formatThreadAttachmentsContext(
+    restored,
+    state.contextWindowTokens,
+    sentText,
+    state.attachmentContext ?? '',
+    attachmentQuery(state)
+  );
+  if (!block) return systemMessage;
+  return systemMessage.startsWith(baseSystemMessage)
+    ? baseSystemMessage + block + systemMessage.slice(baseSystemMessage.length)
+    : systemMessage + block;
 }
 
 /**

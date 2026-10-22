@@ -1,0 +1,50 @@
+---
+laender: [de, at]
+sidebar_position: 5.6
+tags: [kommunikation, bild]
+description: 'Texte und Gestaltung eines Sharepics im Studio-Editor ändern, Karussell-Seiten ordnen und als Bild oder ZIP herunterladen.'
+---
+
+import UiLabel from '@site/src/components/UiLabel';
+
+# Wie bearbeite ich Sharepics im Editor?
+
+In etwa fünf bis zehn Minuten passt du Texte, Farben und Anordnung eines vorhandenen Sharepics an und lädst das Ergebnis herunter. Dieser Guide zeigt den Editor im Browser; die Screenshots stammen aus einem österreichischen Beispiel-Karussell.
+
+## So geht's
+
+1. **Sharepic öffnen.** Öffne dein vorhandenes Sharepic im **<UiLabel id="workplace.canvas" link />**. Du siehst die bearbeitbaren Seiten und unten ihre Miniaturen. Klicke auf die gewünschte Seite. Wenn du noch keinen Entwurf hast, beginne mit [Sharepic erstellen](./sharepic-erstellen.mdx).
+
+2. **Text ändern.** Doppelklicke auf einen Text auf der Leinwand und schreibe deine Korrektur. Mit einem Klick außerhalb beendest du die Eingabe. Alternativ öffnest du links **<UiLabel id="canvas.text" />** und bearbeitest die vorhandenen Textfelder. Dort kannst du auch neue Texte hinzufügen.
+
+![Geöffneter Bereich Text mit den vorhandenen Textfeldern und der ersten Karussell-Seite](/img/guides/sharepic-editor/texte.jpg)
+
+3. **Gestaltung anpassen.** Klicke ein Element an: Oben erscheint die dazu passende Werkzeugleiste, etwa für Textfarbe, Schriftgröße, Ausrichtung und Deckkraft. Ziehe das Element an seine neue Position oder nutze die Griffe am Auswahlrahmen zum Vergrößern und Verkleinern. Während der direkten Texteingabe kannst du Textstellen markieren und die angebotene Textformatierung verwenden.
+
+![Direkte Texteingabe auf der Leinwand mit geöffneter Formatierungsleiste](/img/guides/sharepic-editor/text-formatieren.jpg)
+
+4. **Bilder oder Elemente ergänzen.** Unter **<UiLabel id="canvas.elements" />** findest du unter anderem Formen, Icons und Fotos. Eigene Bilder fügst du über **<UiLabel id="canvas.uploads" />** hinzu. Anschließend wählst du das eingefügte Objekt auf der Leinwand aus und passt Größe und Position an.
+
+5. **Karussell ordnen.** Wechsle über die Miniaturen zwischen den Seiten. Die Pfeile oberhalb einer Seite verschieben sie nach oben oder unten. **<UiLabel id="canvas-command.duplicatePage" />** übernimmt ihren Aufbau in eine weitere Seite. Mit dem Plus unten ergänzt du eine Seite; **<UiLabel id="canvas-command.deletePage" />** entfernt eine Seite.
+
+6. **Ergebnis herunterladen.** Öffne oben rechts **<UiLabel id="canvas.share" />**, dann **<UiLabel id="canvas.download" />**. Für eine einzelne Seite wählst du PNG, JPG oder WebP und einfache oder doppelte Auflösung. Für das gesamte Karussell wählst du im Seitenmenü alle Seiten als ZIP und startest den Download. Das ZIP enthält PNG-Dateien mit festen Einstellungen; Formatwahl, Auflösung und Transparenz gelten dafür nicht.
+
+![Downloadmenü mit ausgewähltem Export aller fünf Karussell-Seiten als ZIP](/img/guides/sharepic-editor/karussell-download.jpg)
+
+## Damit die Bearbeitung gelingt
+
+- **Kurze Texte bleiben lesbar.** Prüfe nach jeder Änderung Zeilenumbrüche und Abstände auf jeder Seite.
+- **Gezielt stapeln.** Über das Rechtsklick-Menü kannst du ein Objekt beispielsweise **<UiLabel id="canvas-command.bringToFront" />** holen oder **<UiLabel id="canvas-command.sendToBack" />** legen.
+- **KI gezielt einsetzen.** Unter **<UiLabel id="canvas.chat" />** kannst du Änderungen beschreiben. Prüfe anschließend das Ergebnis auf allen betroffenen Seiten.
+
+## Wenn etwas nicht klappt
+
+- **Ein Objekt lässt sich nicht bewegen?** Prüfe das Schloss in der Auswahlleiste und entsperre es bei Bedarf. Eine versehentliche Änderung machst du über den Rückwärtspfeil oben rückgängig.
+- **Die Verbindung ist getrennt?** Änderungen werden automatisch synchronisiert. Stelle die Verbindung wieder her, bevor du den Editor verlässt.
+- **Vor dem Veröffentlichen:** Prüfe Namen, Zahlen und Zitate, Bildrechte und Fotonachweise. Erhalte die erforderliche KI-Kennzeichnung.
+
+## Weiterlesen
+
+- [Sharepics: alle Varianten auf einen Blick](../../features/sharepics.mdx)
+- [Kennzeichnungs-Guide](../../basics/Kennzeichnungs-Guide.md)
+- [Bildnachweise & Lizenzen](../../bildnachweise.md)

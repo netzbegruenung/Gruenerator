@@ -15,6 +15,8 @@ function collection(over: Partial<NotebookCollection>): NotebookCollection {
     name: 'Notebook',
     description: null,
     is_public: true,
+    share_mode: 'authenticated',
+    moderation: 'ok',
     audience: 'de-DE',
     ...over,
   } as NotebookCollection;
@@ -45,5 +47,20 @@ describe('listPublicNotebooksForViewer', () => {
     // erscheinen. Die Listung ist Entdeckung, und im Zweifel zeigt sie weniger.
     const rows = [collection({ id: 'ohne', audience: undefined as unknown as 'de-DE' })];
     expect(await listPublicNotebooksForViewer('de-DE', deps(rows))).toEqual([]);
+  });
+
+  it('lists only what others may open, what no report took down, and no system notebook', async () => {
+    const rows = [
+      collection({ id: 'ok' }),
+      // is_public set past the visibility rules (updateCollection) — listed, then 403 on open.
+      collection({ id: 'privat', share_mode: 'private' }),
+      collection({ id: 'gruppen', share_mode: 'groups' }),
+      collection({ id: 'ausgeblendet', moderation: 'hidden' }),
+      collection({ id: 'entfernt', moderation: 'removed' }),
+      collection({ id: 'system', user_id: 'SYSTEM' }),
+    ];
+    expect((await listPublicNotebooksForViewer('de-DE', deps(rows))).map((c) => c.id)).toEqual([
+      'ok',
+    ]);
   });
 });

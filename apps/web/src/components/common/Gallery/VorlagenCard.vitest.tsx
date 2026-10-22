@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -73,5 +73,47 @@ describe('VorlagenCard', () => {
       />
     );
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('shows the neutral placeholder when the thumbnail does not load', () => {
+    const { container } = render(
+      <VorlagenCard
+        item={{ ...item, thumbnail_url: '/vorlagen/print/fehlt.webp' }}
+        onOpen={vi.fn()}
+      />
+    );
+    const img = screen.getByRole('img', { name: 'Dreizeiler' });
+    fireEvent.error(img);
+    expect(screen.queryByRole('img', { name: 'Dreizeiler' })).not.toBeInTheDocument();
+    expect(container.querySelector('svg.lucide-image')).not.toBeNull();
+  });
+});
+
+describe('VorlagenCard pages', () => {
+  const pages = ['/p1.webp', '/p2.webp', '/p3.webp'];
+
+  it('shows a page from its dot without opening the card, and not on hover', async () => {
+    const user = userEvent.setup();
+    const onOpen = vi.fn();
+    const { container } = render(
+      <VorlagenCard item={{ ...item, thumbnail_url: '/p1.webp' }} pages={pages} onOpen={onOpen} />
+    );
+    const img = screen.getByRole('img', { name: 'Dreizeiler' });
+    await user.hover(screen.getByRole('button', { name: 'Dreizeiler' }));
+    expect(img).toHaveAttribute('src', '/p1.webp');
+
+    await user.click(screen.getByRole('button', { name: 'Seite 3 von 3 zeigen' }));
+    expect(img).toHaveAttribute('src', '/p3.webp');
+    expect(screen.getByRole('button', { name: 'Seite 3 von 3 zeigen' })).toHaveAttribute(
+      'aria-current',
+      'true'
+    );
+    expect(onOpen).not.toHaveBeenCalled();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('has no dots without further pages', () => {
+    render(<VorlagenCard item={{ ...item, thumbnail_url: '/p1.webp' }} onOpen={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: /Seite 1 von/ })).not.toBeInTheDocument();
   });
 });

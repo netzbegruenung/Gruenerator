@@ -9,7 +9,6 @@
 
 import { type DraftedAgentSpec } from '@gruenerator/contracts';
 import {
-  SKILLS,
   USER_SELECTABLE_TOOLS,
   DEFAULT_USER_AGENT_TOOLS,
   SUGGESTED_AGENT_ICONS,
@@ -19,6 +18,7 @@ import {
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 
+import { type RecipeCatalogEntry } from '../../routes/chat/agents/recipeCatalog.js';
 import { createLogger } from '../../utils/logger.js';
 import { aiObject } from '../ai/generate.js';
 import { type StructuredValidation } from '../ai/structuredParsing.js';
@@ -26,14 +26,12 @@ import { type StructuredValidation } from '../ai/structuredParsing.js';
 const log = createLogger('AgentDraftService');
 
 const TOOL_KEYS = new Set<string>(USER_SELECTABLE_TOOLS.map((t) => t.key));
-const SKILL_MENTIONS = new Set<string>(SKILLS.map((s) => s.mention));
 const HEX_RE = /^#[0-9A-Fa-f]{6}$/;
 const DEFAULT_COLOR = '#316049';
 
 const TOOL_CATALOG = USER_SELECTABLE_TOOLS.map(
   (t) => `- ${t.key}: ${t.label} — ${t.description}`
 ).join('\n');
-const SKILL_CATALOG = SKILLS.map((s) => `- ${s.mention}: ${s.title}`).join('\n');
 const ICON_CATALOG = SUGGESTED_AGENT_ICONS.join(', ');
 
 // LLM output schema. `enabledTools` is a free array and `defaultRecipeMention`
@@ -82,18 +80,24 @@ function validateDraft(input: unknown): StructuredValidation<Draft> {
   return { ok: false, error: `Ungültige Agent-Konfiguration: ${issues}` };
 }
 
-const SYSTEM_PROMPT = `Du bist der Spezifikations-Generator des Grünerator Agent-Creators. Aus der folgenden Beschreibung der Nutzer*in (eine kurze Vorgabe oder ein Gespräch) erstellst du die finale Konfiguration für eine*n neue*n KI-Agent*in.
+function buildSystemPrompt(recipes: readonly RecipeCatalogEntry[]): string {
+  const recipeRule =
+    recipes.length > 0
+      ? `- defaultRecipeMention: Das eine Kern-Rezept dieses Agenten, NUR aus diesem Katalog (null, wenn nichts passt):
+${recipes.map((r) => `- ${r.mention}: ${r.title}`).join('\n')}`
+      : '- defaultRecipeMention: immer null.';
+  return `Du bist der Spezifikations-Generator des Grünerator Agent-Creators. Aus der folgenden Beschreibung der Nutzer*in (eine kurze Vorgabe oder ein Gespräch) erstellst du die finale Konfiguration für eine*n neue*n KI-Agent*in.
 
 Regeln:
 - Schreibe alle nutzersichtbaren Texte auf Deutsch, in Du-Form und mit Genderstern (*innen).
 - Der systemRole ist der wichtigste Teil: formuliere eine klare Rolle, Aufgabe, Tonalität und Arbeitsweise, passend zum besprochenen Zweck. Schreibe ihn so, als würdest du den*die Agent*in direkt instruieren ("Du bist ...").
 - enabledTools: Wähle NUR Schlüssel aus diesem Katalog, passend zum Zweck:
 ${TOOL_CATALOG}
-- defaultRecipeMention: Das eine Kern-Rezept dieses Agenten, NUR aus diesem Katalog (null, wenn nichts passt):
-${SKILL_CATALOG}
+${recipeRule}
 - iconKey: Wähle GENAU EINEN passenden Icon-Schlüssel aus dieser Liste: ${ICON_CATALOG}
 - locale: 'de-AT' nur, wenn explizit Österreich besprochen wurde, sonst 'de-DE'.
 - Erfinde keine Werte außerhalb der Kataloge.`;
+}
 
 function buildTranscript(messages: ReadonlyArray<{ role: string; content: string }>): string {
   return messages
@@ -101,13 +105,21 @@ function buildTranscript(messages: ReadonlyArray<{ role: string; content: string
     .join('\n\n');
 }
 
-/** Synthesize a validated agent spec from the creator conversation. */
+/**
+ * Synthesize a validated agent spec from the creator conversation.
+ *
+ * `recipes` must be the caller's own catalogue (`buildRecipeCatalog`) — the
+ * same set the create route validates `defaultRecipeMention` against. Offering
+ * the static `SKILLS` list let the draft pick e.g. an AT or LV recipe the
+ * person can't bind, and the save then failed with 400. Empty = no recipe.
+ */
 export async function draftAgentSpec(
-  messages: ReadonlyArray<{ role: string; content: string }>
+  messages: ReadonlyArray<{ role: string; content: string }>,
+  recipes: readonly RecipeCatalogEntry[] = []
 ): Promise<DraftedAgentSpec> {
   const generated = await aiObject<Draft>({
     lane: 'creator_draft',
-    system: SYSTEM_PROMPT,
+    system: buildSystemPrompt(recipes),
     prompt: `## Gespräch\n\n${buildTranscript(messages)}\n\nErstelle daraus die Agent*innen-Konfiguration.`,
     toolName: 'create_agent_spec',
     toolDescription: 'Gibt die fertige Konfiguration des neuen Agents zurück.',
@@ -125,7 +137,7 @@ export async function draftAgentSpec(
 
   const enabledTools = draft.enabledTools.filter((t) => TOOL_KEYS.has(t));
   const defaultRecipeMention =
-    draft.defaultRecipeMention && SKILL_MENTIONS.has(draft.defaultRecipeMention)
+    draft.defaultRecipeMention && recipes.some((r) => r.mention === draft.defaultRecipeMention)
       ? draft.defaultRecipeMention
       : null;
   // Clamp to the curated set so the synthesized name always resolves to an icon.

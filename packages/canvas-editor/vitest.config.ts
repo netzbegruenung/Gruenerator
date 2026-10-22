@@ -52,8 +52,19 @@ export default defineConfig({
         // `*.vitest.tsx`, damit die schnelle Node-Lane unberührt bleibt. Der
         // React-Compiler-Preset ist derselbe, den `vite build` fährt.
         plugins: [babel({ presets: [reactCompilerPreset()] })],
+        // @tanstack/react-query ships a nested older react; without one copy a
+        // hook under QueryClientProvider dies at "reading 'useEffect'". Same
+        // fix as apps/web/vitest.config.ts.
+        resolve: {
+          dedupe: ['react', 'react-dom'],
+          alias: {
+            react: path.resolve(import.meta.dirname, '../../node_modules/react'),
+            'react-dom': path.resolve(import.meta.dirname, '../../node_modules/react-dom'),
+          },
+        },
         test: {
           name: 'dom',
+          server: { deps: { inline: ['@tanstack/react-query'] } },
           include: ['**/*.vitest.tsx'],
           environment: 'jsdom',
           setupFiles: ['./vitest.setup.ts'],

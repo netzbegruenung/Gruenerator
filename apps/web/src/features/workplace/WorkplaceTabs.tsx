@@ -8,8 +8,8 @@ import { startTabPath } from '@/utils/startpage';
 export type WorkplaceTab = StartPage;
 
 const TABS: ReadonlyArray<Omit<GlassTab<WorkplaceTab>, 'path'>> = [
-  { id: 'chat', label: 'Chat', tone: 'neutral' },
-  { id: 'arbeiten', label: 'Arbeiten', tone: 'green' },
+  { id: 'chat', label: 'Chat' },
+  { id: 'arbeiten', label: 'Arbeiten' },
 ];
 
 const WorkplaceTabs = memo(({ active, home }: { active: WorkplaceTab; home: WorkplaceTab }) => {

@@ -37,6 +37,15 @@ const group = {
     ownerName: 'Eva',
     trashed: false,
   },
+  preview: {
+    title: 'Herz',
+    thumbUrl: 'https://example.org/herz.png',
+    href: null,
+    ownerId: 'u-2',
+    ownerName: 'Eva',
+    moderation: 'hidden',
+    trashed: false,
+  },
 };
 
 beforeAll(() => {
@@ -73,7 +82,9 @@ describe('ReportsTab', () => {
   it('still offers every action on an asset the owner moved to the Papierkorb', async () => {
     server.use(
       http.get(LIST, () =>
-        HttpResponse.json({ reports: [{ ...group, target: { ...group.target, trashed: true } }] })
+        HttpResponse.json({
+          reports: [{ ...group, preview: { ...group.preview, trashed: true } }],
+        })
       )
     );
     renderWithProviders(<ReportsTab />);
@@ -84,19 +95,38 @@ describe('ReportsTab', () => {
     }
   });
 
-  it('shows a removed asset from its file, not from the blocked thumbnail', async () => {
-    const thumbUrl = 'http://localhost/api/thumbs/media/t/v/w200.webp';
+  it('renders any moderatable kind from its preview and offers restore', async () => {
     server.use(
       http.get(LIST, () =>
         HttpResponse.json({
-          reports: [{ ...group, target: { ...group.target, moderation: 'removed', thumbUrl } }],
+          reports: [
+            {
+              ...group,
+              kind: 'user_agent',
+              target: null,
+              preview: {
+                ...group.preview,
+                title: 'Pressebot',
+                thumbUrl: null,
+                href: '/agentura/agent/pressebot',
+                moderation: 'removed',
+              },
+            },
+          ],
         })
       )
     );
     const { container } = renderWithProviders(<ReportsTab />);
 
-    expect(await screen.findByText('Entfernt')).toBeInTheDocument();
-    expect(container.querySelector('img')?.getAttribute('src')).toBe(group.target.src);
+    expect(await screen.findByRole('link', { name: 'Pressebot' })).toHaveAttribute(
+      'href',
+      '/agentura/agent/pressebot'
+    );
+    expect(screen.getByText('Entfernt')).toBeInTheDocument();
+    expect(screen.getByText(/Agent · von Eva/)).toBeInTheDocument();
+    expect(container.querySelector('img')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Wiederherstellen' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Entfernen' })).toBeNull();
   });
 
   it('asks for confirmation before removing', async () => {

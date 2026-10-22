@@ -31,6 +31,9 @@ const envMock = {
 };
 vi.mock('../../config/env.js', () => ({ env: envMock }));
 
+const log = { debug: vi.fn(), warn: vi.fn(), error: vi.fn(), info: vi.fn() };
+vi.mock('../../utils/logger.js', () => ({ createLogger: () => log }));
+
 const resolveThumbnailSource = vi.fn();
 vi.mock('../../services/media/thumbnailResolvers.js', () => ({
   resolveThumbnailSource: (...args: unknown[]) => resolveThumbnailSource(...args),
@@ -243,6 +246,30 @@ describe('GET /api/thumbs/:kind/:id/:v', () => {
       expect(res.headers.get('cache-control')).toBe('no-store');
     });
 
+    // #4732: both 404 branches answered the same body, so a missing file looked
+    // exactly like a deleted row. The log tells them apart; the client must not.
+    it('logs which branch 404ed, and where it looked, without telling the client', async () => {
+      log.debug.mockClear();
+      log.warn.mockClear();
+      const missing = path.join(tmpDir, 'missing-on-this-machine.png');
+      resolveThumbnailSource.mockResolvedValue({
+        ok: true,
+        sourcePath: missing,
+        contentType: 'image/png',
+      });
+      const url = buildThumbnailUrl({ ...D, v: 'gone-log' }, { w: 400, fmt: 'webp' }) as string;
+      const res = await get(url);
+      expect(res.status).toBe(404);
+      expect(await res.text()).not.toContain(tmpDir);
+      expect(log.warn).toHaveBeenCalledTimes(1);
+      expect(log.warn.mock.calls[0]?.[0]).toContain(missing);
+
+      resolveThumbnailSource.mockResolvedValue({ ok: false, reason: 'processing' });
+      await get(signed());
+      expect(log.debug).toHaveBeenCalledWith('404 media/abc123: processing');
+      expect(log.warn).toHaveBeenCalledTimes(1);
+    });
+
     it('does not leak an internal failure as a broken 200', async () => {
       resolveThumbnailSource.mockRejectedValue(new Error('db down'));
       const res = await get(signed());
@@ -270,10 +297,13 @@ describe('GET /api/thumbs/:kind/:id/:v', () => {
   it('serves a rendered variant from disk on the second request', async () => {
     const url = buildThumbnailUrl({ ...D, v: 'warm' }, { w: 400, fmt: 'webp' }) as string;
     const first = Buffer.from(await (await get(url)).arrayBuffer());
-    // The write is fire-and-forget, so the second request is what proves it landed.
-    await new Promise((r) => setTimeout(r, 50));
-    const cached = await fs.readFile(path.join(cacheDir, 'media', 'ab', D.id, 'warm', 'w400.webp'));
-    expect(cached).toEqual(first);
+    // Wait for the fire-and-forget write to land before exercising the disk-cache hit.
+    await vi.waitFor(async () => {
+      const cached = await fs.readFile(
+        path.join(cacheDir, 'media', 'ab', D.id, 'warm', 'w400.webp')
+      );
+      expect(cached).toEqual(first);
+    });
     expect(Buffer.from(await (await get(url)).arrayBuffer())).toEqual(first);
   });
 });

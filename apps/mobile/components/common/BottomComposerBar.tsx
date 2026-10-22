@@ -29,6 +29,7 @@ export function BottomComposerBar({
   submitAs,
   showMentions,
   accessory,
+  accessoryBesideAction,
   accentColor,
   header,
   variant = 'bar',
@@ -50,6 +51,7 @@ export function BottomComposerBar({
   submitAs?: ComposerProps['submitAs'];
   showMentions?: ComposerProps['showMentions'];
   accessory?: ComposerProps['accessory'];
+  accessoryBesideAction?: ComposerProps['accessoryBesideAction'];
   accentColor?: ComposerProps['accentColor'];
   /** `card` stacks the input above its toolbar (two rows); `bar` is one pill. */
   variant?: ComposerProps['variant'];
@@ -112,6 +114,7 @@ export function BottomComposerBar({
           submitAs={submitAs}
           showMentions={showMentions}
           accessory={accessory}
+          accessoryBesideAction={accessoryBesideAction}
           accentColor={accentColor}
         />
       </View>

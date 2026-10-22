@@ -6,6 +6,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useAuthStore } from '../../../stores/authStore';
+import { item as marketplaceItem } from '../../../test/marketplaceFixtures';
 import { axe } from '../../../test-utils';
 import { downloadDataUrl } from '../../../utils/downloadFile';
 import { removeImageBackground } from '../../image-studio/services/imageEditingService';
@@ -67,6 +68,7 @@ const share = vi.hoisted(() => ({
   upload: vi.fn(),
   uploadShare: vi.fn(),
   listAssets: vi.fn(),
+  listMarketplace: vi.fn(),
   createAsset: vi.fn(),
   prepare: vi.fn(),
 }));
@@ -78,6 +80,7 @@ vi.mock('@gruenerator/shared/api', async (importOriginal) => ({
   getContractsClient: () => ({
     sharesRead: { getMyShare: share.getMyShare, recentShares: share.recentShares },
     studioAssets: { list: share.listAssets, create: share.createAsset },
+    marketplace: { list: share.listMarketplace },
   }),
 }));
 vi.mock('../../../components/utils/apiClient', () => ({ default: { get: share.apiGet } }));
@@ -1010,18 +1013,22 @@ describe('ProfilbildPage', () => {
 
     it('adds a sticker from „Entdecken“ and saves it with its share path', async () => {
       listOnly(galleryItem());
+      share.listMarketplace.mockResolvedValue({
+        status: 200,
+        body: {
+          sections: [
+            { kind: 'sticker', items: [marketplaceItem('sticker', 'Sonnenblume')], hasMore: false },
+          ],
+        },
+      });
       renderHandoff();
       await screen.findByTestId('konva-stage');
       fireEvent.click(screen.getByRole('button', { name: 'Sticker entdecken' }));
       const popup = await screen.findByRole('dialog', { name: 'Sticker entdecken' });
-      const queried = () =>
-        share.listAssets.mock.calls.map(
-          ([arg]) => (arg as { query: { kind: string; scope: string } }).query
-        );
       await waitFor(() =>
-        expect(queried()).toContainEqual(
-          expect.objectContaining({ kind: 'sticker', scope: 'shop' }) as unknown
-        )
+        expect(share.listMarketplace).toHaveBeenCalledWith({
+          query: expect.objectContaining({ kinds: 'sticker', scope: 'shop' }) as unknown,
+        })
       );
       fireEvent.click(await within(popup).findByRole('button', { name: 'Sonnenblume' }));
       await stickersOnStage(1);
@@ -1163,7 +1170,7 @@ describe('ProfilbildPage', () => {
       await screen.findByTestId('konva-stage');
       fireEvent.click(screen.getByRole('button', { name: 'Sticker erstellen' }));
       const dialog = await screen.findByRole('dialog', { name: 'Sticker erstellen' });
-      expect(within(dialog).getByText('Wie soll dein Sticker entstehen?')).toBeTruthy();
+      expect(within(dialog).getByRole('radio', { name: 'Text-Badge' })).toBeTruthy();
       fireEvent.click(within(dialog).getByRole('button', { name: 'Schließen' }));
       await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
       expect(screen.getByTestId('konva-stage')).toBeTruthy();

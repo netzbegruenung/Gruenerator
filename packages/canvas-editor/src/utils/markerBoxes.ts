@@ -6,6 +6,9 @@
  * eine Passage um, bekommt jede Zeile ihr eigenes Stück, wie beim Textmarker.
  * Das Leerzeichen hinter dem letzten markierten Wort gehört nicht in den
  * Kasten (der Lauf trägt es, weil ein Wort den Stil seines Leerzeichens erbt).
+ * Steht daneben ein unmarkiertes Wort in derselben Zeile, ragt der Kasten nur
+ * knapp ins Leerzeichen: sonst stößt er an das Nachbarwort, dessen kursive
+ * Glyphen ohnehin schon hineinlehnen.
  */
 import { markerInkOn } from './markerColors';
 
@@ -38,6 +41,8 @@ const DEFAULT_PAD_X = 0.18;
 const DEFAULT_PAD_Y = 0.02;
 /** Die Glyphen füllen etwa diesen Teil der Schriftgröße; der Kasten umfasst sie knapp. */
 const GLYPH_BODY = 1.0;
+/** So viel des Leerzeichens zu einem Nachbarwort darf der Kasten höchstens belegen. */
+const NEIGHBOUR_SPACE_SHARE = 0.3;
 
 export function markerBoxes(
   lines: RichLayoutedLine[],
@@ -56,13 +61,18 @@ export function markerBoxes(
     let start: number | null = null;
     let end = 0;
     let color: string | undefined;
-    const close = () => {
+    let padLeft = padX;
+    let last: RichLayoutedLine['runs'][number] | undefined;
+    const beside = (run: RichLayoutedLine['runs'][number]) =>
+      Math.min(padX, NEIGHBOUR_SPACE_SHARE * measure(' ', run));
+    const close = (neighbour: boolean) => {
       if (start === null) return;
+      const padRight = neighbour && last ? beside(last) : padX;
       boxes.push({
         line: index,
-        x: base + start - padX,
+        x: base + start - padLeft,
         y: lineTop,
-        width: end - start + 2 * padX,
+        width: end - start + padLeft + padRight,
         height,
         fill: color ?? marker.fill,
         ink: color ? markerInkOn(color) : marker.color,
@@ -71,21 +81,24 @@ export function markerBoxes(
     };
     line.runs.forEach((run, i) => {
       if (!run.marker) {
-        close();
+        close(true);
         return;
       }
       // Eine andersfarbige Passage direkt daneben bekommt ihren eigenen Kasten.
-      if (start !== null && run.markerColor !== color) close();
+      if (start !== null && run.markerColor !== color) close(false);
       if (start === null) {
         start = run.x;
         color = run.markerColor;
+        const prev = line.runs[i - 1];
+        padLeft = prev && !prev.marker ? beside(prev) : padX;
       }
+      last = run;
       const next = line.runs[i + 1];
       // Das Leerzeichen am Ende der Strecke bleibt draußen.
       const visible = next?.marker && next.markerColor === color ? run.text : run.text.trimEnd();
       end = run.x + measure(visible, run);
     });
-    close();
+    close(false);
   });
   return boxes;
 }

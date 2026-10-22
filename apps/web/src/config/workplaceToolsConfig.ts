@@ -13,7 +13,6 @@ import {
   isToolOfferedIn,
   type InstanceChannel,
 } from '@gruenerator/shared/instances';
-import { RiSpyLine } from 'react-icons/ri';
 
 import { getIcon } from './icons';
 import { CURRENT_INSTANCE } from './instance';
@@ -43,6 +42,8 @@ export interface WorkplaceToolItem {
   audience?: ToolAudience;
   icon: IconType;
   channel?: InstanceChannel;
+  /** Small label top-right on the tile, e.g. „Neu". */
+  badge?: string;
 }
 
 /** A single entry inside a dropdown tool card. Rendered as a tool-card row. */
@@ -232,11 +233,12 @@ export const STUDIO_WERKZEUGE: WorkplaceToolItem[] = [
 // covers KI-Bilder, Sharepics and Reels now.)
 export const WORKPLACE_TOOLS: WorkplaceToolItem[] = [
   {
-    id: 'agents',
-    title: 'Grüneratoren',
-    description: 'Agents, Rezepte & Aufgaben',
-    path: '/grueneratoren',
-    icon: RiSpyLine,
+    id: 'marktplatz',
+    title: 'Marktplatz',
+    description: 'Agents, Rezepte & Vorlagen entdecken',
+    path: '/marktplatz',
+    icon: getIcon('navigation', 'marktplatz')!,
+    badge: 'Neu',
   },
   {
     id: 'projekte',

@@ -19,7 +19,11 @@ import { PiArrowLeft, PiMegaphone } from 'react-icons/pi';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
 import { useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
 
-import { DownloadSection, type CanvasDownloadChoice } from './DownloadSection';
+import {
+  DownloadSection,
+  type CanvasDownloadChoice,
+  type PrintExportProps,
+} from './DownloadSection';
 
 export interface ShareDropdownProps {
   onCaptureCanvas: () => Promise<string | null>;
@@ -41,6 +45,8 @@ export interface ShareDropdownProps {
   exportProgress?: { current: number; total: number };
   exportError?: string | null;
   exportNotice?: string | null;
+  /** Set for print formats: the download section offers the print PDF. */
+  printExport?: PrintExportProps | null;
   /**
    * Optional host-supplied "invite people" action. When provided, the share
    * popover shows a "Personen" icon button that opens the host's collaborator
@@ -71,6 +77,7 @@ export function ShareDropdown({
   exportProgress,
   exportError,
   exportNotice,
+  printExport,
   onInvitePeople,
   onSaveAsTemplate,
 }: ShareDropdownProps) {
@@ -164,6 +171,7 @@ export function ShareDropdown({
                 exportProgress={exportProgress}
                 exportError={exportError}
                 exportNotice={exportNotice}
+                printExport={printExport}
               />
             </div>
           </>

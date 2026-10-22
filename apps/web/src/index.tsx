@@ -12,6 +12,7 @@ import {
 import './assets/styles/index.css';
 import App from './App';
 import { trackFocusModality } from './components/utils/focusModality';
+import { reportKilledTab } from './lib/observability/reportKilledTab';
 import { isDesktopApp } from './utils/platform';
 import { registerServiceWorker } from './utils/registerServiceWorker';
 
@@ -120,6 +121,8 @@ if (sentryDsn) {
 } else {
   console.info('Error tracking DSN not configured. Error tracking disabled.');
 }
+
+reportKilledTab();
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

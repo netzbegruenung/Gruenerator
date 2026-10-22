@@ -10,6 +10,8 @@ export interface CanvasEditorProps {
   initialConfigId: CanvasConfigId;
   /** The canvas document's format id. Absent: the default format. */
   formatId?: string;
+  /** Document title; names the print PDF (`<title>.pdf`). */
+  documentTitle?: string;
   initialProps: Record<string, unknown>;
   onExport: (base64: string) => void;
   onCancel: () => void;
@@ -83,6 +85,27 @@ export interface CanvasEditorProps {
   initialTab?: SidebarTabId | null;
   /** Fired whenever the open sidebar tab changes, including on mount. Desktop only. */
   onActiveTabChange?: (tab: SidebarTabId | null) => void;
+  /**
+   * Local mode only: false keeps the editor out of the gallery — a host that
+   * saves the result itself (the sticker creator) would otherwise leave a
+   * draft behind for every attempt. Default true.
+   */
+  galleryAutoSave?: boolean;
+  /** False hides the toolbar's share/download menu, for a host with its own way out. Default true. */
+  showShare?: boolean;
+  /** Lets the host render the active page itself, e.g. to save it somewhere else. */
+  exportApiRef?: React.Ref<CanvasEditorExportApi>;
+}
+
+/** What `exportApiRef` exposes to the host. */
+export interface CanvasEditorExportApi {
+  /** The active page as a PNG data URL; null when it is not mounted. */
+  captureActivePage: (options?: {
+    pixelRatio?: number;
+    transparent?: boolean;
+  }) => Promise<string | null>;
+  /** The deck as a Vorlage stores it: config and state per page. */
+  getPages: () => { configId: string; state: Record<string, unknown> }[];
 }
 
 export interface PageWrapperProps {
@@ -100,6 +123,8 @@ export interface PageWrapperProps {
   onDuplicatePage: (id: string) => void;
   /** Opens the template picker in replace mode for this page ("Vorlage ändern"). */
   onChangeTemplate?: (id: string) => void;
+  /** A Vorlagen tile dropped on this page; unset where the design has no Vorlagen tab. */
+  onDropVorlage?: (id: string, pageId: string) => void;
   onExport: (base64: string) => void;
   onCancel: () => void;
   callbacks: Record<string, (val: unknown) => void>;
@@ -114,6 +139,12 @@ export interface PageWrapperProps {
     state: Record<string, unknown>,
     actions: Record<string, unknown>,
     selectedElement: string | null
+  ) => void;
+  /** Reports this page's live state even while it is not the active page (print impressum gate). */
+  onObservedState?: (
+    pageId: string,
+    state: Record<string, unknown>,
+    actions: Record<string, unknown>
   ) => void;
   onToolbarStateChange?: (state: ToolbarStateReport) => void;
   /** See CanvasEditorProps.onAutoSaveShareToken. */

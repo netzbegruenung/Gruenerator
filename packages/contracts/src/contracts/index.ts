@@ -25,6 +25,7 @@ export { boardCommentsContract } from './boardCommentsContract.js';
 export { entityReactionsContract } from './entityReactionsContract.js';
 export { agentCommentsContract } from './agentCommentsContract.js';
 export { templateCommentsContract } from './templateCommentsContract.js';
+export { entityCommentsContract } from './entityCommentsContract.js';
 export { boardAgentContract } from './boardAgentContract.js';
 export { boardActivityContract } from './boardActivityContract.js';
 export { boardSubscriptionsContract } from './boardSubscriptionsContract.js';
@@ -95,3 +96,4 @@ export { instanceAdminOverviewContract } from './instanceAdminOverviewContract.j
 export { translationContract } from './translationContract.js';
 export { lvAdminAssignmentContract } from './lvAdminAssignmentContract.js';
 export { landesverbandAdminContract } from './landesverbandAdminContract.js';
+export { marketplaceContract } from './marketplaceContract.js';

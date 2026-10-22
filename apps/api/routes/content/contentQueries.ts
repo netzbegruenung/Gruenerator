@@ -1,8 +1,10 @@
 import {
   type BoardContent,
   type BoardPreview,
+  type CanvasContentItem,
   type ContentItem,
   type ContentKind,
+  type VideoContentItem,
 } from '@gruenerator/contracts';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
@@ -288,16 +290,26 @@ export async function fetchImages(
   }));
 }
 
+const VIDEO_SORT = 'COALESCE(last_edited_at, updated_at, created_at)';
+const VIDEO_COLUMNS = `id, title, thumbnail_path, video_metadata, ${VIDEO_SORT} AS sort_date`;
+
+interface VideoRow {
+  id: string;
+  title: string | null;
+  thumbnail_path: string | null;
+  video_metadata: string | { duration?: number | string } | null;
+  sort_date: Date | string;
+}
+
 export async function fetchVideos(
   userId: string,
   limit: number,
   cursor: ContentCursor | null
 ): Promise<ContentItem[]> {
-  const sortExpr = 'COALESCE(last_edited_at, updated_at, created_at)';
   const params: unknown[] = [userId];
   const where = withCursor(
     `user_id = $1 AND subtitled_video_path IS NOT NULL`,
-    sortExpr,
+    VIDEO_SORT,
     'id',
     'video',
     cursor,
@@ -306,48 +318,55 @@ export async function fetchVideos(
   params.push(limit);
 
   const rows = (await db.query(
-    `SELECT id, title, thumbnail_path, video_metadata,
-            ${sortExpr} AS sort_date
+    `SELECT ${VIDEO_COLUMNS}
      FROM subtitler_projects
      WHERE deleted_at IS NULL AND ${where}
-     ORDER BY ${sortExpr} DESC, id DESC
+     ORDER BY ${VIDEO_SORT} DESC, id DESC
      LIMIT $${params.length}`,
     params
-  )) as Array<{
-    id: string;
-    title: string | null;
-    thumbnail_path: string | null;
-    video_metadata: string | { duration?: number | string } | null;
-    sort_date: Date | string;
-  }>;
+  )) as VideoRow[];
 
-  return rows.map((row) => {
-    let duration: number | null = null;
-    try {
-      const metadata = (
-        typeof row.video_metadata === 'string' ? JSON.parse(row.video_metadata) : row.video_metadata
-      ) as { duration?: number | string } | null;
-      if (metadata?.duration != null) {
-        const seconds = Math.round(Number(metadata.duration));
-        duration = Number.isFinite(seconds) ? seconds : null;
-      }
-    } catch {
-      // Metadata that will not parse costs the badge, not the tile.
+  return rows.map(toVideoItem);
+}
+
+/** The reels among `ids` the user owns, for the Mediathek's second pass. */
+export async function fetchVideosByIds(userId: string, ids: string[]): Promise<VideoContentItem[]> {
+  if (ids.length === 0) return [];
+  const rows = (await db.query(
+    `SELECT ${VIDEO_COLUMNS}
+     FROM subtitler_projects
+     WHERE deleted_at IS NULL AND user_id = $1 AND id::text = ANY($2::text[])`,
+    [userId, ids]
+  )) as VideoRow[];
+  return rows.map(toVideoItem);
+}
+
+function toVideoItem(row: VideoRow): VideoContentItem {
+  let duration: number | null = null;
+  try {
+    const metadata = (
+      typeof row.video_metadata === 'string' ? JSON.parse(row.video_metadata) : row.video_metadata
+    ) as { duration?: number | string } | null;
+    if (metadata?.duration != null) {
+      const seconds = Math.round(Number(metadata.duration));
+      duration = Number.isFinite(seconds) ? seconds : null;
     }
+  } catch {
+    // Metadata that will not parse costs the badge, not the tile.
+  }
 
-    return {
-      kind: 'video' as const,
-      id: row.id,
-      title: row.title || 'Ohne Titel',
-      date: toIso(row.sort_date),
-      href: `/studio/video?project=${row.id}`,
-      deleteEndpoint: `/api/subtitler/projects/${row.id}`,
-      creatorName: null,
-      accessType: 'owner' as const,
-      thumbnailUrl: row.thumbnail_path ? `/api/subtitler/projects/${row.id}/thumbnail` : null,
-      duration,
-    };
-  });
+  return {
+    kind: 'video' as const,
+    id: row.id,
+    title: row.title || 'Ohne Titel',
+    date: toIso(row.sort_date),
+    href: `/studio/video?project=${row.id}`,
+    deleteEndpoint: `/api/subtitler/projects/${row.id}`,
+    creatorName: null,
+    accessType: 'owner' as const,
+    thumbnailUrl: row.thumbnail_path ? `/api/subtitler/projects/${row.id}/thumbnail` : null,
+    duration,
+  };
 }
 
 export async function fetchCanvases(
@@ -369,9 +388,7 @@ export async function fetchCanvases(
   params.push(limit);
 
   const rows = (await db.query(
-    `SELECT cd.id, cd.title, cd.updated_at, cdoc.thumbnail_url,
-            p.display_name AS creator_name,
-            ${collabAccessType(1)} AS access_type
+    `SELECT ${canvasColumns(1)}
      FROM collaborative_documents cd
      INNER JOIN canvas_documents cdoc ON cdoc.document_id = cd.id
      LEFT JOIN profiles p ON cd.created_by = p.id
@@ -379,16 +396,48 @@ export async function fetchCanvases(
      ORDER BY cd.updated_at DESC, cd.id DESC
      LIMIT $${params.length}`,
     params
-  )) as Array<{
-    id: string;
-    title: string | null;
-    updated_at: Date | string;
-    thumbnail_url: string | null;
-    creator_name: string | null;
-    access_type: string | null;
-  }>;
+  )) as CanvasRow[];
 
-  return rows.map((row) => ({
+  return rows.map(toCanvasItem);
+}
+
+/** The canvases among `ids` the user can read, for the Mediathek's second pass. */
+export async function fetchCanvasesByIds(
+  userId: string,
+  ids: string[]
+): Promise<CanvasContentItem[]> {
+  if (ids.length === 0) return [];
+  const rows = (await db.query(
+    `SELECT ${canvasColumns(1)}
+     FROM collaborative_documents cd
+     INNER JOIN canvas_documents cdoc ON cdoc.document_id = cd.id
+     LEFT JOIN profiles p ON cd.created_by = p.id
+     WHERE cd.is_deleted = false
+       AND cd.document_subtype = $3
+       AND cd.id::text = ANY($2::text[])
+       AND ${collabAccessWhere(1)}`,
+    [userId, ids, CANVAS_SUBTYPE]
+  )) as CanvasRow[];
+  return rows.map(toCanvasItem);
+}
+
+function canvasColumns(user: number): string {
+  return `cd.id, cd.title, cd.updated_at, cdoc.thumbnail_url,
+          p.display_name AS creator_name,
+          ${collabAccessType(user)} AS access_type`;
+}
+
+interface CanvasRow {
+  id: string;
+  title: string | null;
+  updated_at: Date | string;
+  thumbnail_url: string | null;
+  creator_name: string | null;
+  access_type: string | null;
+}
+
+function toCanvasItem(row: CanvasRow): CanvasContentItem {
+  return {
     kind: 'canvas' as const,
     id: row.id,
     title: row.title || 'Neuer Canvas',
@@ -398,7 +447,7 @@ export async function fetchCanvases(
     creatorName: row.creator_name,
     accessType: toAccessType(row.access_type),
     thumbnailUrl: row.thumbnail_url,
-  }));
+  };
 }
 
 export const FETCHERS: Record<

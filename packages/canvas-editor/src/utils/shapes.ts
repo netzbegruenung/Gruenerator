@@ -81,7 +81,14 @@ export type ShapeType =
   | 'hand-pfeil'
   | 'hand-ausruf'
   | 'hand-marker'
-  | 'hand-marker-box';
+  | 'hand-marker-box'
+  | 'hand-winken'
+  | 'hand-pfeil-schlaufe'
+  | 'hand-pfeil-welle'
+  | 'hand-pfeil-bogen'
+  | 'hand-pfeil-haken'
+  | 'hand-pfeil-herz'
+  | 'hand-pfeil-spirale';
 
 /**
  * Display category for the Formen palette. Each shape belongs to exactly one
@@ -273,6 +280,48 @@ const SHAPE_DEFS: { readonly [K in ShapeType]: ShapeDef<K> } = {
     id: 'hand-marker-box',
     name: 'Textmarker-Box',
     tags: ['textmarker', 'marker', 'highlight', 'markieren', 'hervorheben', 'kasten', 'box'],
+    category: 'hand',
+  },
+  'hand-pfeil-schlaufe': {
+    id: 'hand-pfeil-schlaufe',
+    name: 'Schlaufenpfeil',
+    tags: ['pfeil', 'arrow', 'handgezeichnet', 'hand', 'schlaufe', 'kringel', 'loop'],
+    category: 'hand',
+  },
+  'hand-pfeil-welle': {
+    id: 'hand-pfeil-welle',
+    name: 'Wellenpfeil',
+    tags: ['pfeil', 'arrow', 'handgezeichnet', 'hand', 'welle', 'wellig', 'wave'],
+    category: 'hand',
+  },
+  'hand-pfeil-bogen': {
+    id: 'hand-pfeil-bogen',
+    name: 'Bogenpfeil',
+    tags: ['pfeil', 'arrow', 'handgezeichnet', 'hand', 'bogen', 'kurve', 'curve'],
+    category: 'hand',
+  },
+  'hand-pfeil-haken': {
+    id: 'hand-pfeil-haken',
+    name: 'Hakenpfeil',
+    tags: ['pfeil', 'arrow', 'handgezeichnet', 'hand', 'haken', 'kurve', 'hook'],
+    category: 'hand',
+  },
+  'hand-pfeil-herz': {
+    id: 'hand-pfeil-herz',
+    name: 'Herzpfeil',
+    tags: ['pfeil', 'arrow', 'handgezeichnet', 'hand', 'herz', 'liebe', 'heart'],
+    category: 'hand',
+  },
+  'hand-pfeil-spirale': {
+    id: 'hand-pfeil-spirale',
+    name: 'Kringelpfeil',
+    tags: ['pfeil', 'arrow', 'handgezeichnet', 'hand', 'kringel', 'spirale', 'curl'],
+    category: 'hand',
+  },
+  'hand-winken': {
+    id: 'hand-winken',
+    name: 'Winkende Hand',
+    tags: ['winken', 'hand', 'hallo', 'gruss', 'handgezeichnet', 'wave'],
     category: 'hand',
   },
   star: {
@@ -606,6 +655,32 @@ export interface ShapeInstance {
  */
 export const COMPOSER_PLANE_IDS: readonly string[] = ['sc-bg', 'sc-panel', 'sc-scrim', 'sc-tint'];
 
+/**
+ * The photo strip beside the composer's colour panel (`foto-oben` /
+ * `foto-unten`): the full-width part of the page the panel leaves free. The
+ * background photo is cover-fitted into it, so it pans inside the strip
+ * instead of sliding under the panel. Null when there is no such panel, or it
+ * no longer spans the page's width from one edge.
+ */
+export function photoStripBeside(
+  shapes: readonly ShapeInstance[] | null | undefined,
+  page: { width: number; height: number }
+): { x: number; y: number; width: number; height: number } | null {
+  const panel = shapes?.find((s) => s.id === 'sc-panel');
+  if (!panel || panel.type !== 'rect' || panel.rotation) return null;
+  const width = panel.width * (panel.scaleX ?? 1);
+  const height = panel.height * (panel.scaleY ?? 1);
+  const near = (a: number, b: number) => Math.abs(a - b) < 1;
+  if (!near(panel.x - width / 2, 0) || !near(width, page.width)) return null;
+  const top = panel.y - height / 2;
+  const bottom = panel.y + height / 2;
+  if (near(top, 0) && bottom < page.height - 1) {
+    return { x: 0, y: bottom, width: page.width, height: page.height - bottom };
+  }
+  if (near(bottom, page.height) && top > 1) return { x: 0, y: 0, width: page.width, height: top };
+  return null;
+}
+
 /** Any colour plane the composer lays under the text, the header band and comparison columns included. */
 export function isComposerPlane(id: string): boolean {
   return COMPOSER_PLANE_IDS.includes(id) || id === 'sc-kopfband' || id.endsWith('-flaeche');
@@ -676,6 +751,13 @@ const DEFAULT_DIMENSIONS: Partial<Record<ShapeType, { width: number; height: num
   'hand-ausruf': { width: 110, height: 110 },
   'hand-marker': { width: 420, height: 80 },
   'hand-marker-box': { width: 420, height: 90 },
+  'hand-winken': { width: 160, height: 160 },
+  'hand-pfeil-schlaufe': { width: 300, height: 80 },
+  'hand-pfeil-welle': { width: 300, height: 64 },
+  'hand-pfeil-bogen': { width: 300, height: 64 },
+  'hand-pfeil-haken': { width: 260, height: 82 },
+  'hand-pfeil-herz': { width: 340, height: 95 },
+  'hand-pfeil-spirale': { width: 320, height: 72 },
 };
 
 const DEFAULT_CORNER_RADIUS: Partial<Record<ShapeType, number>> = {
@@ -693,6 +775,13 @@ const DEFAULT_STROKE_WIDTH: Partial<Record<ShapeType, number>> = {
   'hand-unterstrich': 12,
   'hand-pfeil': 12,
   'hand-ausruf': 10,
+  'hand-winken': 9,
+  'hand-pfeil-schlaufe': 9,
+  'hand-pfeil-welle': 9,
+  'hand-pfeil-bogen': 11,
+  'hand-pfeil-haken': 11,
+  'hand-pfeil-herz': 9,
+  'hand-pfeil-spirale': 9,
 };
 
 const DEFAULT_DASH: Partial<Record<ShapeType, number[]>> = {

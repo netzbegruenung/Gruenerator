@@ -13,15 +13,15 @@ describe('canvasImageSourceUrl', () => {
     );
   });
 
-  it('loads the stored original once the box exceeds the budget', () => {
+  it('loads the stored original through the cacheable /preview once the box exceeds the budget', () => {
     expect(canvasImageSourceUrl('/api/share/abc123/download', 1081)).toBe(
-      '/api/share/abc123/download'
+      '/api/share/abc123/preview'
     );
   });
 
   it('loads the stored original for a 3x-zoomed full-width background', () => {
     expect(canvasImageSourceUrl('/api/share/abc123/download', 3240)).toBe(
-      '/api/share/abc123/download'
+      '/api/share/abc123/preview'
     );
   });
 

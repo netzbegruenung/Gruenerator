@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseFilename } from './UnsplashAttributionService.js';
+import { getAttribution, parseFilename } from './UnsplashAttributionService.js';
 
 describe('parseFilename', () => {
   it.each([
@@ -11,11 +11,22 @@ describe('parseFilename', () => {
     ['egor-vikhrev--E6jqIGzgOY-unsplash.jpg', 'egor-vikhrev', '-E6jqIGzgOY'],
     ['absolutvision-WYd_PkCa1BY-unsplash.jpg', 'absolutvision', 'WYd_PkCa1BY'],
     ['2y-kang-dFohf_GUZJ0-unsplash.jpg', '2y-kang', 'dFohf_GUZJ0'],
+    ['oladimeji-odunsi-e-TuK4z2LhY-unsplash.jpg', 'oladimeji-odunsi', 'e-TuK4z2LhY'],
+    ['katya-azimova-x-L7HGT9P3M-unsplash.jpg', 'katya-azimova', 'x-L7HGT9P3M'],
   ])('reads %s', (filename, photographerSlug, photoId) => {
     expect(parseFilename(filename)).toEqual({ photographerSlug, photoId });
   });
 
   it('rejects files that are not from Unsplash', () => {
     expect(parseFilename('wind.jpg')).toBeNull();
+  });
+});
+
+describe('getAttribution', () => {
+  // The catalogue goes to the browser; the key belongs in the tracking request header only.
+  it('builds a download location without the API key', () => {
+    expect(getAttribution('benjamin-jopen-2SfssudtyIA-unsplash.jpg')?.downloadLocation).toBe(
+      'https://api.unsplash.com/photos/2SfssudtyIA/download'
+    );
   });
 });

@@ -137,10 +137,10 @@
       "title": "Organisieren",
       "tools": [
         {
-          "id": "agents",
-          "title": "Grüneratoren",
-          "description": "Agents, Rezepte & Aufgaben",
-          "path": "/grueneratoren"
+          "id": "marktplatz",
+          "title": "Marktplatz",
+          "description": "Agents, Rezepte & Vorlagen entdecken",
+          "path": "/marktplatz"
         },
         {
           "id": "projekte",
@@ -228,6 +228,11 @@
       "title": "KI-Bild erstellen",
       "path": "/studio",
       "subtitle": "Bilder mit KI erstellen & bearbeiten"
+    },
+    "tool-marktplatz": {
+      "title": "Marktplatz",
+      "path": "/marktplatz",
+      "subtitle": "Agents, Rezepte, Vorlagen und Sticker entdecken"
     },
     "tool-mediathek": {
       "title": "Mediathek",

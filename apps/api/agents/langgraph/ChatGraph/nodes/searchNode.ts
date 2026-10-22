@@ -25,6 +25,7 @@ import {
 } from '../../../../routes/chat/agents/lvScope.js';
 import { relevanceLabelToScore } from '../../../../routes/chat/agents/searchFormatting.js';
 import { agentAllowsWebSearch } from '../../../../routes/chat/agents/searchTools.js';
+import { extractCompoundTopic } from '../../../../routes/chat/services/compoundTopicExtractor.js';
 import { fairShare } from '../../../../routes/chat/services/messageHelpers.js';
 import { resolveReferentialQuery } from '../../../../routes/chat/services/referentialTopic.js';
 import { getEnrichedPoliticianService } from '../../../../services/abgeordnetenwatch/index.js';
@@ -44,6 +45,7 @@ import {
   type CrawlableResult,
 } from '../../../../services/search/CrawlingService.js';
 import { LOW_VALUE_DOMAINS } from '../../../../services/search/domainFilters.js';
+import { type DistillMode } from '../../../../services/search/PassageDistiller.js';
 import { expandQuery } from '../../../../services/search/QueryExpansionService.js';
 import { DEFAULT_RELEVANCE } from '../../../../services/search/rerankPipeline.js';
 import {
@@ -667,6 +669,8 @@ export interface ExecuteWebSearchOptions {
   /** Crawl this many top results for full page content. 0 / omitted = no crawl. */
   crawlTopUrls?: number;
   crawlTimeoutMs?: number;
+  /** How crawled pages are cut down. Default: query-focused at WEB_CRAWL_TARGET_CHARS. */
+  crawlDistill?: { mode: DistillMode; targetChars: number };
   /**
    * Site scope the user named this turn ("such auf zeit.de"). One turn only, never
    * sticky — a scope that silently keeps applying to later questions is worse than
@@ -752,8 +756,8 @@ export async function executeWebSearch(
         {
           maxUrls: options.crawlTopUrls,
           timeout: options.crawlTimeoutMs ?? 3000,
-          mode: 'query-focused',
-          targetChars: WEB_CRAWL_TARGET_CHARS,
+          mode: options.crawlDistill?.mode ?? 'query-focused',
+          targetChars: options.crawlDistill?.targetChars ?? WEB_CRAWL_TARGET_CHARS,
         }
       );
       // `crawlAndDistill` setzt `content` selbst — das ist der Unterschied zum
@@ -1726,6 +1730,40 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         break;
       }
 
+      // Reached only when the turn brings no numbers of its own — the pipeline
+      // skips the search for a chart over supplied data (`chartDataOnTable`).
+      // Without it the chart prompt could only answer „mir fehlen die Zahlen".
+      case 'chart': {
+        // The order („Erstelle ein Liniendiagramm zur …") is noise to a search
+        // engine — only the topic and a hint that numbers are wanted go out.
+        const topic = extractCompoundTopic(
+          searchQuery.replace(
+            /(?<!\S)@\p{L}+|(?<!\p{L})\p{L}*(?:diagramm|chart|grafik)\p{L}*/giu,
+            ''
+          ),
+          []
+        );
+        const web = await executeWebSearch(truncateQuery(`${topic} Zahlen Statistik`), {
+          tier: webTier,
+          ...webScope,
+          // Four, not the usual two: a series sits in a table on SOME page and
+          // a search snippet never carries one. Measured 16.10.2026 over five
+          // topics: 6,0 → 8,0 years with a value reach the prompt, at no extra
+          // latency (the crawls run in parallel).
+          crawlTopUrls: 4,
+          // Tables before prose, and small enough that four pages fit the answer
+          // prompt's source budget (~17k chars on the default window) — a longer
+          // digest is cut a second time there, and that cut drops the table
+          // again. Same pages, six topics: longest series in the prompt
+          // 6,8 → 10,2 years (page maximum 10,8); Windkraft 3 → 23.
+          crawlDistill: { mode: 'figures', targetChars: 3_500 },
+        });
+        results = web.results;
+        singleSourceErrors.push(...web.errors);
+        citations = buildCitations(results);
+        break;
+      }
+
       case 'scrape_url': {
         // User pasted URL(s) into their message. The classifier detected them
         // deterministically (state.detectedUrls); crawl the pages and inject the
@@ -1911,7 +1949,6 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       case 'image_edit':
       case 'sharepic':
       case 'summary':
-      case 'chart':
       case 'compute':
       case 'artifact':
       case 'produktion':

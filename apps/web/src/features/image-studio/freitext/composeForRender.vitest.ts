@@ -102,3 +102,12 @@ describe('canvasSeed slide-count mismatch', () => {
     warn.mockRestore();
   });
 });
+
+describe('creatorPhotoSrc', () => {
+  it('serves a Vorlage photo from the catalogue, a stock name from the picker', () => {
+    expect(creatorPhotoSrc('vorlage:person-frei.webp')).toBe(
+      '/api/sharepic-vorlagen/assets/person-frei.webp'
+    );
+    expect(creatorPhotoSrc('wind.jpg')).toBe('/api/image-picker/stock-image/wind.jpg');
+  });
+});

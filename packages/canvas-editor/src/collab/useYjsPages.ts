@@ -165,6 +165,12 @@ export interface YjsPagesApi {
   undoPageOp: () => void;
   /** Redo the most recently undone page operation. */
   redoPageOp: () => void;
+  /**
+   * Verwerfen of the newest `replaceDeck`: undoes back to before it (page ops
+   * made since go with it) and drops the redo stack, so Redo cannot bring the
+   * discarded deck back.
+   */
+  discardReplaceDeck: () => void;
   canUndoPageOp: boolean;
   canRedoPageOp: boolean;
 }
@@ -367,6 +373,16 @@ export function useYjsPages(
       return ids;
     };
 
+    const discardReplaceDeck = () => {
+      const manager = undoManagerRef.current;
+      if (!manager) return;
+      let at = manager.undoStack.length - 1;
+      while (at >= 0 && !manager.undoStack[at]!.meta.has(DECK_STATES)) at--;
+      if (at < 0) return;
+      while (manager.undoStack.length > at) manager.undo();
+      manager.clear(false, true);
+    };
+
     const undoManager = undoManagerRef.current;
     return {
       pages,
@@ -382,6 +398,7 @@ export function useYjsPages(
       replaceDeck: replaceDeckOp,
       undoPageOp: () => undoManager?.undo(),
       redoPageOp: () => undoManager?.redo(),
+      discardReplaceDeck,
       canUndoPageOp: (undoManager?.undoStack.length ?? 0) > 0,
       canRedoPageOp: (undoManager?.redoStack.length ?? 0) > 0,
     };

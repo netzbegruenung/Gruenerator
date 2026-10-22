@@ -2,7 +2,7 @@ import Konva from 'konva';
 import { useEffect, useRef } from 'react';
 
 import { useCanvasStore } from '../stores/CanvasStoreProvider';
-import { CANVAS_ITEM_ID_ATTR, itemsUnderPointer, nextDeepTarget } from '../utils/deepSelect';
+import { itemBodyRect, itemsUnderPointer, nextDeepTarget } from '../utils/deepSelect';
 
 import type { CanvasStageRef } from '../primitives/CanvasStage';
 
@@ -53,17 +53,9 @@ export function useDeepSelect(
     layer.add(outline);
 
     const drawOutline = () => {
-      const item =
-        deepRef.current === null
-          ? undefined
-          : stage.findOne(
-              (node: Konva.Node) => node.getAttr(CANVAS_ITEM_ID_ATTR) === deepRef.current
-            );
-      const body = (item as Konva.Group | undefined)
-        ?.getChildren()
-        .find((child) => !(child instanceof Konva.Transformer));
+      const body = deepRef.current === null ? null : itemBodyRect(stage, deepRef.current, layer);
       if (body) {
-        outline.setAttrs({ ...body.getClientRect({ relativeTo: layer }), visible: true });
+        outline.setAttrs({ ...body, visible: true });
         outline.moveToTop();
       } else {
         outline.visible(false);

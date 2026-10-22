@@ -10,6 +10,7 @@ import { orderText } from '../orderText.js';
 import { NAMED_RETRIEVAL_INTENTS } from './intents.js';
 import {
   asksAboutOwnPastAction,
+  asksAboutSuppliedMaterial,
   isReferentialFollowup,
   looksLikeExplicitResearchOrder,
   looksLikeFactCheckOrder,
@@ -57,6 +58,10 @@ export function shouldForceFirstToolCall(input: {
   /** Der Turn bringt seinen Stoff selbst mit — dieselbe Zahl, die dem SCHREIBER
    *  den Werkzeugkatalog entzieht (`materialDominatesTurn`). */
   materialHeavy: boolean;
+  /** Im Prompt dieses Turns steht mitgebrachter Text — ein Anhang, ein
+   *  weitergetragener Paste-Chip oder eine lange Nachricht im Verlauf. Anders als
+   *  `materialHeavy` fragt das nicht, ob er den Prompt dominiert, nur ob er da ist. */
+  carriesMaterial?: boolean;
   /** Eine @-Erwähnung hat ein Werkzeug benannt (`mentionPinnedTool`). */
   pinnedTool: string | null;
   /** Der Thread hat in Reichweite der Werkzeug-Wiedergabe schon INFORMATION
@@ -164,7 +169,22 @@ export function shouldForceFirstToolCall(input: {
   // Dasselbe gilt für einen Auftrag, der nur an mitgebrachtem Text arbeitet
   // („rechtschreibung korrigieren" unter einem eingefügten Newsletter), auch wenn
   // der Stoff zu kurz ist, um `materialHeavy` zu setzen (#3903).
-  if (input.loopDemotedFromRetrieval && !input.materialHeavy && !reworksOwnText)
+  //
+  // Und für eine Frage ÜBER den mitgebrachten Text („Welche vier Maßnahmen stehen
+  // im Antrag?"), auch wenn er in einem früheren Turn kam (#4789). Die Heuristik
+  // liest „im Antrag" als Parteiposition, und der Zwang holte 10–20 fremde
+  // Web-Treffer, die als Quellen unter der Antwort standen und in die
+  // Folge-Turns weitergetragen wurden. `materialHeavy` sieht das nicht: es misst,
+  // ob der Stoff den Prompt DOMINIERT, und ein Antrag von 1.300 Zeichen neben dem
+  // Systemprompt tut das nie.
+  const asksAboutOwnMaterial =
+    input.carriesMaterial === true && asksAboutSuppliedMaterial(input.lastUserText);
+  if (
+    input.loopDemotedFromRetrieval &&
+    !input.materialHeavy &&
+    !reworksOwnText &&
+    !asksAboutOwnMaterial
+  )
     return 'demoted_retrieval';
 
   // Dritter Weg: die LLM-Stufe sagte „braucht Recherche" und schrieb im selben
@@ -352,6 +372,8 @@ export function forcedFirstStepTools(input: {
   userText: string;
   /** Der Thread arbeitet mit einem Notebook (`notebookForPrompt`). */
   threadNotebook?: boolean;
+  /** Der Auftrag bestellt eine Textsorte mit Rezept (`deriveImplicitRecipeMention`). */
+  recipeOrder?: boolean;
 }): readonly string[] | null {
   // Der Klassifikator schiebt jeden Dokument-Turn nach `search`. Hat der
   // Vorab-Abruf nichts geliefert, müsste Schritt 0 sonst die Parteiprogramme
@@ -434,5 +456,20 @@ export function forcedFirstStepTools(input: {
   // Die Lader (`meine_inhalte_laden` u. a.) öffnen nur eine Gruppe, sie holen nichts.
   const loaders = new Set<string>(DEFERRABLE_GROUPS.map((g) => g.loaderTool));
   const scoped = [...new Set(candidates)].filter((t) => mounted.has(t) && !loaders.has(t));
-  return scoped.length > 0 ? scoped : null;
+  if (scoped.length === 0) return null;
+  // Bestellt der Auftrag eine Textsorte, sagt der Prompt „rufe ZUERST
+  // `rezept_laden`" (Katalog und Werkzeug entstehen zusammen in
+  // catalogAssembly). Ein erzwungener Schritt ohne das Werkzeug widerspricht
+  // ihm, und darauf antwortet Gemma unter `required` gar nicht: „Mach daraus
+  // bitte einen Instagram-Post" mit Anhang hing auf Melious UND Cortecs 3 von 3
+  // Mal über 50 s, mit `rezept_laden` daneben kamen alle sechs Läufe nach 5 s
+  // (#4785). Nur bei einer Bestellung: auf Recherche-Aufträge griff der Planer
+  // unter `required` zum Rezept statt zur Suche (#3880).
+  const offersRecipe =
+    input.recipeOrder === true &&
+    input.reason !== 'mcp_scope' &&
+    input.reason !== 'sharepic_order' &&
+    input.reason !== 'artifact_edit_order' &&
+    mounted.has('rezept_laden');
+  return offersRecipe ? [...scoped, 'rezept_laden'] : scoped;
 }

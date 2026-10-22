@@ -88,4 +88,39 @@ describe('draftAgentSpec', () => {
     expect(spec.description.length).toBe(500);
     expect(spec.openingQuestions).toEqual(['1', '2', '3', '4']);
   });
+
+  describe('defaultRecipeMention', () => {
+    const catalog = [
+      {
+        mention: 'pressemitteilung',
+        title: 'Pressemitteilung',
+        description: '',
+        source: 'system' as const,
+        id: null,
+      },
+    ];
+
+    it('keeps a recipe from the caller catalogue', async () => {
+      modelReturns({ ...oversizedDraft(), defaultRecipeMention: 'pressemitteilung' });
+      const spec = await draftAgentSpec([{ role: 'user', content: 'Presse' }], catalog);
+      expect(spec.defaultRecipeMention).toBe('pressemitteilung');
+    });
+
+    // GlitchTip #690/#691: the draft offered every SKILLS entry, the save then
+    // rejected `@buerger-at` / `@sprechzettel` with 400.
+    it('drops a recipe outside the caller catalogue and does not offer it', async () => {
+      modelReturns({ ...oversizedDraft(), defaultRecipeMention: 'buerger-at' });
+      const spec = await draftAgentSpec([{ role: 'user', content: 'Presse' }], catalog);
+      expect(spec.defaultRecipeMention).toBeNull();
+      const call = mockAiObject.mock.calls[0][0] as AiObjectCall<unknown>;
+      expect(call.system).toContain('- pressemitteilung: Pressemitteilung');
+      expect(call.system).not.toContain('buerger-at');
+    });
+
+    it('binds no recipe without a catalogue', async () => {
+      modelReturns({ ...oversizedDraft(), defaultRecipeMention: 'pressemitteilung' });
+      const spec = await draftAgentSpec([{ role: 'user', content: 'Presse' }]);
+      expect(spec.defaultRecipeMention).toBeNull();
+    });
+  });
 });

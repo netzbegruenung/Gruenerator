@@ -540,7 +540,7 @@ export async function hydrateGroupContent(
     fetchPromises.push(
       postgres
         .query(
-          "SELECT id, title, description, external_url, thumbnail_url, metadata, created_at, updated_at, user_id FROM user_templates WHERE id = ANY($1) AND type = 'template' AND deleted_at IS NULL",
+          "SELECT id, title, description, external_url, thumbnail_url, metadata, created_at, updated_at, user_id FROM user_templates WHERE id = ANY($1) AND type = 'template' AND moderation <> 'removed' AND deleted_at IS NULL",
           [ids],
           { table: 'user_templates' }
         )

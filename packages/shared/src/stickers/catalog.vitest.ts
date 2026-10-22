@@ -26,6 +26,9 @@ describe('sticker catalog', () => {
       'teamgruen',
       'regenbogen',
       'regenbogen-herz',
+      'progress-pride',
+      'eu-flagge',
+      'europa-sterne',
       'vielfalt',
       'at-gruen-waehlen',
       'at-klima-schuetzen',
@@ -41,6 +44,9 @@ describe('sticker catalog', () => {
       'teamgruen',
       'regenbogen',
       'regenbogen-herz',
+      'progress-pride',
+      'eu-flagge',
+      'europa-sterne',
       'vielfalt',
     ]);
   });

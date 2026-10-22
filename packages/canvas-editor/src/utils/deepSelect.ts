@@ -22,6 +22,30 @@ function itemIdOf(shape: Konva.Shape): string | null {
 }
 
 /**
+ * The box of an item's drawn body — its children other than the Transformer —
+ * relative to `relativeTo`, else in absolute stage pixels. Null when the item
+ * is not on the stage.
+ */
+export function itemBodyRect(
+  root: Konva.Container,
+  id: string,
+  relativeTo?: Konva.Container
+): { x: number; y: number; width: number; height: number } | null {
+  const item = root.findOne<Konva.Group>(
+    (node: Konva.Node) => node.getAttr(CANVAS_ITEM_ID_ATTR) === id
+  );
+  const rects = (item?.getChildren() ?? [])
+    .filter((child) => !(child instanceof Konva.Transformer))
+    .map((child) => child.getClientRect({ relativeTo }));
+  if (rects.length === 0) return null;
+  const x = Math.min(...rects.map((r) => r.x));
+  const y = Math.min(...rects.map((r) => r.y));
+  const right = Math.max(...rects.map((r) => r.x + r.width));
+  const bottom = Math.max(...rects.map((r) => r.y + r.height));
+  return { x, y, width: right - x, height: bottom - y };
+}
+
+/**
  * The canvas items under a stage point, topmost first, one entry per item.
  * Hit testing is Konva's own, so non-listening nodes and the clear part of a
  * scrim (its `hitFunc`) are left out as they are for a click.
@@ -53,4 +77,18 @@ export function nextDeepTarget<T extends { id: string }>(
   if (stack.length === 0) return null;
   const at = stack.findIndex((item) => item.id === selectedId);
   return stack[(Math.max(at, 0) + 1) % stack.length]!;
+}
+
+/**
+ * What a right-press selects, given the items under the pointer (topmost
+ * first): null keeps the selection — the press hit something already
+ * selected, a member of a multi-selection or a deep-picked item under its
+ * cover. Otherwise the topmost item alone, or nothing on empty stage.
+ */
+export function contextPressSelection(
+  stackIds: readonly string[],
+  selectedIds: readonly string[]
+): string[] | null {
+  if (stackIds.some((id) => selectedIds.includes(id))) return null;
+  return stackIds.length > 0 ? [stackIds[0]!] : [];
 }

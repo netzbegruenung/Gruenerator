@@ -38,7 +38,7 @@ export function PublishDialog({
         <DialogHeader>
           <DialogTitle>Öffentlich machen</DialogTitle>
           <DialogDescription>
-            „{item.title}“ erscheint dann unter „Entdecken“ und alle können es in ihren Bildern
+            „{item.title}“ erscheint dann im Marktplatz und alle können es in ihren Bildern
             verwenden.
           </DialogDescription>
         </DialogHeader>

@@ -21,7 +21,10 @@
  *    `hidden_size: 3584` und `max_position_embeddings: 8192`.
  *  - `qwen3-embedding-8b`: `config.json` nennt `hidden_size: 4096`
  *    (`max_position_embeddings: 40960`), die Modellkarte "Context Length: 32k" —
- *    hier gilt die konservativere Angabe der Karte.
+ *    hier gilt die konservativere Angabe der Karte. Melious nimmt
+ *    `dimensions` an und kürzt nach Matryoshka (21.10.2026 gemessen: Kosinus
+ *    0,9999 zum gekürzten und normierten 4096er-Vektor) — daher der zweite,
+ *    1024er Kandidat, der in die heutige Vektorgrösse passt.
  *
  * Die Anleitung steht nur auf der Query-Seite und nur bei Qwen3: seine
  * Modellkarte sagt ausdrücklich "Each query must come with a one-sentence
@@ -30,7 +33,7 @@
  * beidseitig anwendet, misst ein anderes Modell als das empfohlene.
  */
 
-export type EmbedProvider = 'cortecs' | 'greenpt';
+export type EmbedProvider = 'cortecs' | 'greenpt' | 'melious';
 
 export interface EmbedCandidate {
   /** Kennung auf der Kommandozeile und im Sammlungsnamen. Modell + Host. */
@@ -42,6 +45,8 @@ export interface EmbedCandidate {
   readonly maxTokens: number;
   /** Nur auf der Anfrage-Seite, nie an Dokumenten. `null` = symmetrisch. */
   readonly queryInstruction: string | null;
+  /** Wird als `dimensions` mitgeschickt — nur bei Anbietern, die kürzen. */
+  readonly requestDimensions?: number;
 }
 
 /** Qwen3-Embedding erwartet eine Aufgabenbeschreibung je Anfrage. */
@@ -72,6 +77,23 @@ export const EMBED_CANDIDATES = [
     dims: 4096,
     maxTokens: 32768,
     queryInstruction: QWEN3_QUERY_INSTRUCTION,
+  },
+  {
+    slug: 'qwen3-8b-melious',
+    provider: 'melious',
+    model: 'qwen3-embedding-8b',
+    dims: 4096,
+    maxTokens: 32768,
+    queryInstruction: QWEN3_QUERY_INSTRUCTION,
+  },
+  {
+    slug: 'qwen3-8b-melious-1024',
+    provider: 'melious',
+    model: 'qwen3-embedding-8b',
+    dims: 1024,
+    maxTokens: 32768,
+    queryInstruction: QWEN3_QUERY_INSTRUCTION,
+    requestDimensions: 1024,
   },
 ] as const satisfies readonly EmbedCandidate[];
 

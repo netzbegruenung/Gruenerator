@@ -1,6 +1,6 @@
 import { NotebooksIndexContent } from './components/NotebooksIndexPage';
-import { NOTEBOOK_MAGENTA_BG } from './notebookTheme';
 
+import { getToolGradient } from '@/config/toolTheme';
 import { cn } from '@/utils/cn';
 
 // "/wissen" — the notebook hub (chat surface + notebook gallery), formerly the
@@ -8,8 +8,9 @@ import { cn } from '@/utils/cn';
 // strip. The notebook chat surface sizes itself against a bounded parent, so the
 // full-height flex chain here matters (sidebarOnly layout provides h-dvh).
 // Route-level RequireAuth gates access, so no auth wrapper is needed.
+// Neutral page like /office: the colour lives in the tiles, not the backdrop.
 const WissenPage = () => (
-  <div className={cn('flex h-full min-h-0 flex-col', NOTEBOOK_MAGENTA_BG)}>
+  <div className={cn('flex h-full min-h-0 flex-col', getToolGradient('weitere'))}>
     <NotebooksIndexContent />
   </div>
 );

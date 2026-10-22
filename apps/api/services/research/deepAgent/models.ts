@@ -1,13 +1,10 @@
 /**
- * LangChain chat models for the deep research agent.
+ * The two model lanes of the deep research agent.
  *
- * A second model surface next to `services/ai/providerInstances.ts` on purpose:
- * `deepagents` runs on LangChain, the rest of the app on the AI SDK, and there
- * is no bridge between the two tool protocols. Only the plumbing is shared —
- * base URL, key and the model ids — so ein Host-Wechsel weiterhin an einer
- * Stelle passiert (`cortecsEndpoint.ts` bzw. `MISTRAL_API_URL`).
- *
- * Both lanes are OpenAI-compatible, so `ChatOpenAI` serves both.
+ * Built from the app's own provider instances (`services/ai/providerInstances.ts`),
+ * so host, key, the Mistral reasoning pin and the Cortecs sovereignty policy
+ * are the ones every other call gets. What is specific to this agent is the
+ * choice of model per role and the tool-call batching, both below.
  *
  * ── No environment switches here, deliberately ────────────────────────────
  *
@@ -20,12 +17,17 @@
  * keys), so nothing breaks on the way out.
  */
 
-import { ChatOpenAI } from '@langchain/openai';
+import { type LanguageModel } from 'ai';
 
 import { env } from '../../../config/env.js';
-import { cortecsBaseUrl } from '../../ai/cortecsEndpoint.js';
-import { cortecsFetchWithPolicy, SOVEREIGN_ZDR_PROVIDERS } from '../../ai/cortecsRequestPolicy.js';
-import { MISTRAL_API_URL } from '../../ai/providerInstances.js';
+import { getCortecsProvider, getMistralChatModel } from '../../ai/providerInstances.js';
+
+/** A model plus the provider options its calls need. */
+export interface ResearchModel {
+  model: LanguageModel;
+  providerOptions: Record<string, Record<string, boolean>>;
+  temperature: number;
+}
 
 /** Mistral Large 4 — seit 12.10.2026 anstelle von Medium 3.5 (`mistral-medium-2604`). */
 const MISTRAL_LARGE = 'mistral-large-4';
@@ -52,8 +54,8 @@ const MISTRAL_LARGE = 'mistral-large-4';
  * Dass dieses Modell von sich aus nicht denkt, ist gemessen (21.08.2026: 420
  * Zeichen Inhalt, 0 Zeichen Denken, ohne jeden Parameter) — es braucht den
  * Reasoning-Pin also gar nicht, und es bekäme ihn hier auch nicht: infercom
- * weist `reasoning_effort` mit HTTP 400 ab, siehe den Kommentar an
- * `modelKwargs` in `workerModel`.
+ * weist `reasoning_effort` mit HTTP 400 ab — deshalb führt die Whitelist in
+ * cortecsRequestPolicy.ts dieses Modell nicht.
  *
  * ── UNGEPRÜFT: die Werkzeug-Treue dieser Rolle ──
  *
@@ -82,7 +84,7 @@ const CORTECS_GEMMA = 'gemma-4-31b-it';
  * repairs the history afterwards, but a lane with nothing to gain from batching
  * should not pay for the repair at all.
  */
-const SERIAL_TOOL_CALLS = { parallel_tool_calls: false } as const;
+const SERIAL_TOOL_CALLS = { parallelToolCalls: false } as const;
 
 /**
  * Batched tool calls — the whole point of the lead's turn.
@@ -96,45 +98,15 @@ const SERIAL_TOOL_CALLS = { parallel_tool_calls: false } as const;
  *
  * The malformed-batch risk above is real and is why this is a considered choice
  * rather than a default: it is now ABSORBED rather than avoided. The sanitizer
- * cleans all three fields a bad call rides in (`tool_calls`,
- * `invalid_tool_calls`, `additional_kwargs.tool_calls` — the last of which was
- * the hole that let the 400 back onto the wire until 11.08.2026), nudges the
- * model back to serial calls, and bounds itself at `RETRY_LIMIT`. So a bad batch
- * costs a step; serial delegation costs the report.
+ * drops the bad call from the history before the next request, nudges the
+ * model to repeat it, and bounds itself at `RETRY_LIMIT`. So a bad batch costs
+ * a step; serial delegation costs the report.
  *
  * The prompt already assumes concurrency, incidentally: subagents answer in
  * their message instead of writing files precisely because parallel `task` calls
  * share one `files` state (see prompts.ts).
  */
-const PARALLEL_TOOL_CALLS = { parallel_tool_calls: true } as const;
-
-/**
- * Die Souveränitäts-Weisung, von Hand.
- *
- * Dieses Modul baut sein eigenes `ChatOpenAI` und bekommt deshalb
- * `cortecsRequestPolicy` NICHT, das dieselben Felder für die AI-SDK-Seite der
- * App am Transport setzt. Ohne sie liefe ausgerechnet der Lauf mit den meisten
- * Modellaufrufen ohne Einschränkung durch den Router — und nach Ziffer 2.11
- * der DPA gilt eine unbeschränkte Konfiguration als Zustimmung zu jedem künftig
- * aufgenommenen Unterauftragnehmer.
- *
- * Die Liste steht bewusst dort und wird hier importiert: zwei Kopien würden
- * driften, und die abweichende wäre die, die niemand prüft. Was diese Felder
- * NICHT leisten, steht ebenfalls dort: der Filter ist fail-open, ein Tippfehler
- * oder ein umbenannter Anbieter schaltet ihn lautlos ab.
- *
- * Genau deshalb hängt der Worker zusätzlich `cortecsFetchWithPolicy` ein. Hier
- * stand, die Nachprüfung am Antwort-Header sei auf diesem Pfad „mangels
- * `fetch`-Haken" nicht zu haben — das stimmte nicht: `ChatOpenAI` reicht
- * `configuration.fetch` an den OpenAI-Client durch. Ohne sie liefe ausgerechnet
- * der Lauf mit den MEISTEN Modellaufrufen als einziger ungeprüft, also dort, wo
- * ein unwirksamer Filter am teuersten ist.
- */
-const SOVEREIGN_ROUTING = {
-  eu_native: true,
-  allow_zero_data_retention: true,
-  allowed_providers: SOVEREIGN_ZDR_PROVIDERS,
-} as const;
+const PARALLEL_TOOL_CALLS = { parallelToolCalls: true } as const;
 
 /**
  * The lead agent: plans, delegates, and writes the final report.
@@ -142,19 +114,17 @@ const SOVEREIGN_ROUTING = {
  * Mistral Large 4 because the run lives or dies on tool-calling discipline —
  * a lead that fumbles `task` or `write_file` produces no document at all.
  *
- * The Mistral API is OpenAI-compatible on this endpoint — `ChatOpenAI` needs no
- * adapter.
+ * Large 4 denkt ohne `reasoning_effort` von selbst (#4553); `getMistralChatModel`
+ * schreibt für dieses Modell `none` auf den Draht. Der Lead lief bis 12.10.2026
+ * auf Medium 3.5 ohne Denken.
  */
-export function leadModel(): ChatOpenAI {
-  return new ChatOpenAI({
-    model: MISTRAL_LARGE,
-    apiKey: requireMistralKey(),
+export function leadModel(): ResearchModel {
+  requireMistralKey();
+  return {
+    model: getMistralChatModel(MISTRAL_LARGE),
+    providerOptions: { mistral: PARALLEL_TOOL_CALLS },
     temperature: 0.3,
-    configuration: { baseURL: MISTRAL_API_URL },
-    // Large 4 denkt ohne `reasoning_effort` von selbst (#4553); der Lead lief
-    // bis 12.10.2026 auf Medium 3.5 ohne Denken.
-    modelKwargs: { ...PARALLEL_TOOL_CALLS, reasoning_effort: 'none' },
-  });
+  };
 }
 
 /**
@@ -181,40 +151,28 @@ export function leadModel(): ChatOpenAI {
  *
  * Serial tool calls: a worker never delegates, so it has nothing to batch.
  */
-export function workerModel(): ChatOpenAI {
-  return new ChatOpenAI({
-    model: CORTECS_GEMMA,
-    apiKey: requireCortecsKey(),
+export function workerModel(): ResearchModel {
+  // Die Souveränitäts-Weisung (nur Unterauftragnehmer mit Zero Data Retention
+  // in der EU/im EWR) samt Nachprüfung am Antwort-Header setzt der `fetch` des
+  // Cortecs-Providers — derselbe Weg wie für jeden anderen Cortecs-Aufruf der
+  // App. Bis zur AI-SDK-Fassung stand sie hier von Hand, weil `ChatOpenAI`
+  // daran vorbeiging.
+  return {
+    model: getCortecsProvider().chat(CORTECS_GEMMA),
+    providerOptions: { openai: SERIAL_TOOL_CALLS },
     temperature: 0.3,
-    // Der `fetch` trägt die Nachprüfung am Antwort-Header (siehe
-    // SOVEREIGN_ROUTING oben). Er setzt die Weisungsfelder auch selbst und
-    // deckungsgleich; `modelKwargs` bleibt trotzdem stehen, damit die Weisung
-    // im Anfrage-Body steht, wo sie hingehört, und nicht erst am Transport
-    // entsteht — wer den Haken je entfernt, verliert dann nur die Nachprüfung.
-    configuration: { baseURL: cortecsBaseUrl(), fetch: cortecsFetchWithPolicy },
-    // KEIN REASONING_OFF mehr: `gemma-4-31b-it` liegt bei infercom, und das
-    // weist `reasoning_effort` mit HTTP 400 ab ("value must be one of 'low',
-    // 'medium', 'high'"). Der Wert wäre hier ohnehin unnötig — dieses Modell
-    // denkt von sich aus nicht (gemessen 21.08.2026: 420 Zeichen Inhalt, 0
-    // Zeichen Denken, ohne jeden Parameter). Genau deshalb führt die Whitelist
-    // in cortecsRequestPolicy.ts es nicht.
-    modelKwargs: { ...SERIAL_TOOL_CALLS, ...SOVEREIGN_ROUTING },
-  });
+  };
 }
 
-/** A missing key is a configuration fault and is the one thing a run may throw on.
- *  Cortecs ist vorausbezahlt: ein leeres Guthaben sieht auf der Leitung aus wie ein falscher Schlüssel (HTTP 401) und ist von
- *  hier aus nicht unterscheidbar — der Lauf bricht dann mit dem Anbieterfehler
- *  ab, nicht mit dieser Meldung. */
-function requireCortecsKey(): string {
-  const apiKey = env.CORTECS_API_KEY;
-  if (!apiKey) throw new Error('CORTECS_API_KEY is required for the deep research agent');
-  return apiKey;
-}
-
-/** Same rule for the lead's host. */
-function requireMistralKey(): string {
-  const apiKey = env.MISTRAL_API_KEY;
-  if (!apiKey) throw new Error('MISTRAL_API_KEY is required for the deep research lead agent');
-  return apiKey;
+/**
+ * A missing key is a configuration fault and is the one thing a run may throw
+ * on. The Mistral provider itself would only fail at request time; the Cortecs
+ * provider throws on a missing key already. Cortecs ist vorausbezahlt: ein
+ * leeres Guthaben sieht auf der Leitung aus wie ein falscher Schlüssel (HTTP
+ * 401) und ist von hier aus nicht unterscheidbar.
+ */
+function requireMistralKey(): void {
+  if (!env.MISTRAL_API_KEY) {
+    throw new Error('MISTRAL_API_KEY is required for the deep research lead agent');
+  }
 }

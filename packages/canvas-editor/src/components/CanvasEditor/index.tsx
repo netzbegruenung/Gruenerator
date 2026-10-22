@@ -23,11 +23,17 @@
  * - useToolbarHandlers     — bundled toolbar actions for the active page
  */
 
-import { downloadDataUrl, pickShareRoute, shareDataUrlViaNativeHost } from '@gruenerator/shared';
+import {
+  downloadBlob,
+  downloadDataUrl,
+  pickShareRoute,
+  shareDataUrlViaNativeHost,
+} from '@gruenerator/shared';
 import { Skeleton } from '@gruenerator/ui';
 import Konva from 'konva';
 import React, {
   useCallback,
+  useImperativeHandle,
   useRef,
   useMemo,
   useEffect,
@@ -36,9 +42,19 @@ import React, {
   startTransition,
 } from 'react';
 
+import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { PAGE_PERSISTED_STATE_KEYS } from '../../collab/pageElementStateKeys';
+import { serializeDeck } from '../../collab/pagesDoc';
 import { createPageSyncedCallbacks } from '../../collab/wrapCallbacksWithPageSync';
-import { getCanvasFormatOrDefault } from '../../formats';
+import { type CanvasConfigId } from '../../configs/types';
+import {
+  exportPrintPdf,
+  lowResolutionWarnings,
+  PRINT_JPEG_QUALITY,
+  printPdfFilename,
+  type PrintExportPage,
+} from '../../export/printExport';
+import { DEFAULT_FORMAT_ID, getCanvasFormatOrDefault, isPrintFormat } from '../../formats';
 import { usePageManager, useMultiPageExport, usePageThumbnails } from '../../hooks';
 import { useDeckAutoSave } from '../../hooks/useDeckAutoSave';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
@@ -46,11 +62,19 @@ import { useZoomGestures } from '../../hooks/useZoomGestures';
 import { HOST_CALLBACK_KEYS } from '../../hostCallbackKeys';
 import { CanvasEditorLayout } from '../../layouts';
 import { SidebarTabBar, SidebarPanel } from '../../sidebar';
+import { usePreloadElements } from '../../sidebar/sections/preloadElements';
+import {
+  VorlagenSection,
+  type VorlagenSectionHandle,
+} from '../../sidebar/sections/VorlagenSection';
 import { UserUploadsProvider } from '../../sidebar/UserUploadsProvider';
+import { useCanvasStoreSelector } from '../../stores/CanvasStoreProvider';
 import { AutoSaveStoreProvider } from '../../stores/useAutoSaveStore';
 import { cn } from '../../utils/cn';
+import { collectAltTextPages as collectCapturedAltTextPages } from '../../utils/collectAltTextPages';
 import { ensureFontsReady } from '../../utils/ensureFontsReady';
 import { getCategoryForTemplate } from '../../utils/templateRegistry';
+import { CanvasContextMenu } from '../CanvasContextMenu/CanvasContextMenu';
 import { CanvasPageSkeleton, CanvasTabRailSkeleton } from '../CanvasEditorSkeleton';
 import { CanvasMetaBar, CanvasZoomIndicator } from '../CanvasMetaBar';
 import { CanvasTextEditorProvider } from '../CanvasTextOverlay';
@@ -61,21 +85,30 @@ import { Toolbar } from '../Toolbar';
 import { ContextToolbar } from '../TopBar/ContextToolbar';
 import { MobileSelectionBar } from '../TopBar/MobileSelectionBar';
 import { MobileSelectionControls } from '../TopBar/MobileSelectionControls';
+import { FloatingAiSuggestionBanner } from '../TopBar/modules/FloatingAiSuggestionBanner';
+import { MultiSelectionToolbar } from '../TopBar/MultiSelectionToolbar';
 
 import { autoSwitchTab } from './autoSwitchTab';
+import { BlockInsertProvider } from './blockInsert';
+import { useCanvasContextMenu } from './hooks/useCanvasContextMenu';
 import { useLoadedConfigs } from './hooks/useLoadedConfigs';
 import { useMobileSheetFit } from './hooks/useMobileSheetFit';
 import { usePageRefs } from './hooks/usePageRefs';
 import { usePageUndoRedoShortcuts } from './hooks/usePageUndoRedoShortcuts';
+import {
+  needsImpressum,
+  usePrintImpressumGate,
+  type ObservedPages,
+} from './hooks/usePrintImpressumGate';
 import { useScrollToAddedPage } from './hooks/useScrollToAddedPage';
 import { useToolbarHandlers } from './hooks/useToolbarHandlers';
 import { useWorkAreaDeselect } from './hooks/useWorkAreaDeselect';
 import { getMobileSelectionArea } from './mobileSelectionArea';
 import { PageWrapper } from './PageWrapper';
+import { formatHasVorlagen, vorlagenTab, withVorlagenTab } from './vorlagenTab';
 
 import type { CanvasEditorProps, PageWrapperProps } from './types';
-import type { CanvasSpecEditBridge } from '../../CanvasEditorProvider';
-import type { CanvasConfigId } from '../../configs/types';
+import type { AltTextPage, AltTextScope, CanvasSpecEditBridge } from '../../CanvasEditorProvider';
 import type { SidebarTabId } from '../../sidebar/types';
 import type { ToolbarStateReport } from '../GenericCanvas';
 import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
@@ -111,6 +144,7 @@ export function CanvasEditor(props: CanvasEditorProps) {
 function CanvasEditorInner({
   initialConfigId,
   formatId,
+  documentTitle,
   initialProps,
   onExport,
   onCancel,
@@ -128,6 +162,9 @@ function CanvasEditorInner({
   onAutoSaveShareToken,
   initialTab = null,
   onActiveTabChange,
+  galleryAutoSave = true,
+  showShare = true,
+  exportApiRef,
 }: CanvasEditorProps) {
   // Note: onAutoSaveShareToken is threaded down to useCanvasAutoSave (via
   // PageWrapper → GenericCanvas) instead of a store subscription here — a
@@ -152,6 +189,7 @@ function CanvasEditorInner({
     pagesDoc,
     undoPageOp,
     redoPageOp,
+    discardReplaceDeck,
     replaceDeck,
     canUndoPageOp,
     canRedoPageOp,
@@ -444,7 +482,12 @@ function CanvasEditorInner({
           prev.canMoveUp === report.canMoveUp &&
           prev.canMoveDown === report.canMoveDown &&
           prev.canDuplicate === report.canDuplicate &&
-          prev.canDelete === report.canDelete
+          prev.canDelete === report.canDelete &&
+          prev.isCropping === report.isCropping &&
+          prev.selectionCount === report.selectionCount &&
+          prev.canCopy === report.canCopy &&
+          prev.lockState === report.lockState &&
+          prev.canLock === report.canLock
         ) {
           return prev;
         }
@@ -463,6 +506,24 @@ function CanvasEditorInner({
   });
   // eslint-disable-next-line react-hooks/refs -- latest-ref write, read only by the bridge's handlers
   specEditRef.current = { pages, activePageId: pages[currentPageIndex]?.id ?? null, replaceDeck };
+  // A page the Vorlagen tab just added: shown as soon as the deck has it.
+  const pageToShowRef = useRef<string | null>(null);
+  const showPage = useCallback(
+    (pageId: string) => {
+      const index = specEditRef.current.pages.findIndex((p) => p.id === pageId);
+      if (index >= 0) handleThumbnailSelect(index);
+      else pageToShowRef.current = pageId;
+    },
+    [handleThumbnailSelect]
+  );
+  useEffect(() => {
+    const pageId = pageToShowRef.current;
+    if (!pageId) return;
+    const index = pages.findIndex((p) => p.id === pageId);
+    if (index < 0) return;
+    pageToShowRef.current = null;
+    handleThumbnailSelect(index);
+  }, [pages, handleThumbnailSelect]);
   const hasReplaceDeck = replaceDeck !== null;
   const specEdit = useMemo<CanvasSpecEditBridge | null>(
     () =>
@@ -476,6 +537,18 @@ function CanvasEditorInner({
     [hasReplaceDeck]
   );
 
+  // The Vorlagen tab changes the deck, so it needs the synced pages doc.
+  const { vorlagen: vorlagenService } = useCanvasEditorServices();
+  const showVorlagen =
+    vorlagenService !== undefined && hasReplaceDeck && formatHasVorlagen(formatId);
+  // A tile dropped on a page goes to the open Vorlagen tab: a Seite lands
+  // after that page, a print Vorlage asks first on a design with content.
+  const vorlagenRef = useRef<VorlagenSectionHandle>(null);
+  const handleDropVorlage = useCallback(
+    (id: string, pageId: string) => vorlagenRef.current?.drop(id, pageId),
+    []
+  );
+
   const toolbarHandlers = useToolbarHandlers({
     canvasRefsRef,
     currentPageIndex,
@@ -484,6 +557,7 @@ function CanvasEditorInner({
     canRedoPageOp,
     undoPageOp,
     redoPageOp,
+    discardReplaceDeck,
   });
 
   const handleCaptureCanvas = useCallback(
@@ -495,17 +569,66 @@ function CanvasEditorInner({
     [currentPageIndex, canvasRefsRef]
   );
 
+  useImperativeHandle(
+    exportApiRef,
+    () => ({
+      captureActivePage: async ({ pixelRatio = 1, transparent = false } = {}) => {
+        await ensureFontsReady();
+        return handleCaptureCanvas({ format: 'png', pixelRatio, includeBackground: !transparent });
+      },
+      getPages: () => serializeDeck(pagesDoc).map(({ configId, state }) => ({ configId, state })),
+    }),
+    [handleCaptureCanvas, pagesDoc]
+  );
+
   const handleCaptureCanvasForAi = useCallback(async () => {
     const ref = canvasRefsRef.current[currentPageIndex];
     if (!ref?.current) return null;
     return await ref.current.captureCanvasForAi();
   }, [currentPageIndex, canvasRefsRef]);
 
+  const collectAltTextPages = useCallback(
+    async (scope: AltTextScope): Promise<AltTextPage[]> => {
+      await ensureFontsReady();
+      const refs = canvasRefsRef.current;
+      const indices = scope === 'active' ? [currentPageIndex] : refs.map((_, i) => i);
+      return collectCapturedAltTextPages(refs, indices);
+    },
+    [currentPageIndex, canvasRefsRef]
+  );
+
   // Every page, not just the active one: a selection left behind on page 2
   // keeps its context bar alive after the user scrolls away.
   const handleDeselectAll = useCallback(() => {
     canvasRefsRef.current.forEach((ref) => ref.current?.deselect());
   }, [canvasRefsRef]);
+
+  // While a suggestion is open the pages are locked: keep or discard it first.
+  // A selection from before would still answer Delete and arrow keys.
+  const hasPendingSuggestion = useCanvasStoreSelector((s) => s.pendingAiSuggestion !== null);
+  useEffect(() => {
+    if (hasPendingSuggestion) handleDeselectAll();
+  }, [hasPendingSuggestion, handleDeselectAll]);
+
+  // Desktop right-click menu; "Bild ersetzen …" opens the bar's picker.
+  const [backgroundPickerRequest, setBackgroundPickerRequest] = useState(0);
+  const requestBackgroundPicker = useCallback(() => setBackgroundPickerRequest((n) => n + 1), []);
+  const openImageAdjust = useCallback(() => setActiveTab('image-adjust'), []);
+  const pageIds = useMemo(() => pages.map((page) => page.id), [pages]);
+  const contextMenuRef = useCanvasContextMenu({
+    containerRef: pagesContainerRef,
+    canvasRefsRef,
+    pageDomRefsRef,
+    pageIds,
+    currentPageIndex,
+    canAddPage: canAddMore,
+    enabled: !isMobileWeb && !isPreview && !hasPendingSuggestion,
+    duplicatePage,
+    removePage,
+    openImageAdjust,
+    deselectAll: handleDeselectAll,
+    requestBackgroundPicker,
+  });
 
   // Mobile selection pill: reads the active page's selection geometry.
   const getSelectionBox = useCallback(
@@ -525,7 +648,16 @@ function CanvasEditorInner({
   // background image, so the stage's own deselect (useCanvasInteractions) never
   // fires. The guard keeps clicks that bubble up from a page from deselecting.
   // Touch deselects only on a tap: the gutters are the scroll surfaces on mobile.
-  const handleWorkAreaPointerDown = useWorkAreaDeselect(handleDeselectAll);
+  // A mouse press there also starts a marquee on the active page, so a
+  // selection can be drawn from outside the artboard.
+  const handleWorkAreaMousePress = useCallback(
+    (evt: PointerEvent) => canvasRefsRef.current[currentPageIndex]?.current?.beginMarquee(evt),
+    [canvasRefsRef, currentPageIndex]
+  );
+  const handleWorkAreaPointerDown = useWorkAreaDeselect(
+    handleDeselectAll,
+    handleWorkAreaMousePress
+  );
 
   // The ONLY gallery autosave in this editor, for any page count — a
   // single-page doc is a one-page deck. Per-page useCanvasAutoSave is
@@ -537,7 +669,7 @@ function CanvasEditorInner({
   }, [canvasRefsRef]);
   useDeckAutoSave({
     ydoc: pagesDoc,
-    enabled: !collaborative,
+    enabled: !collaborative && galleryAutoSave,
     deckType: pages[0]?.configId ?? initialConfigId,
     captureImage: captureFirstPage,
     onShareToken: onAutoSaveShareToken,
@@ -643,6 +775,56 @@ function CanvasEditorInner({
     [currentPageIndex, canvasRefsRef, onDownload]
   );
 
+  // Each poster page's live state for the impressum warning. The ref dedupes
+  // reports without a stale closure, the state re-renders the gate.
+  const [observedPages, setObservedPages] = useState<ObservedPages>({});
+  const observedPagesRef = useRef<ObservedPages>({});
+  const handleObservedState = useCallback(
+    (pageId: string, state: Record<string, unknown>, actions: Record<string, unknown>) => {
+      const prev = observedPagesRef.current[pageId];
+      if (prev?.state === state && prev.actions === actions) return;
+      const next = { ...observedPagesRef.current, [pageId]: { pageId, state, actions } };
+      observedPagesRef.current = next;
+      startTransition(() => setObservedPages(next));
+    },
+    []
+  );
+
+  // Print: one PDF page per editor page, in page order.
+  const printPages = useCallback((): PrintExportPage[] => {
+    const refs = canvasRefsRef.current;
+    return refs.map((ref) => ({
+      captureTile: async (tile, pixelRatio) =>
+        (await ref.current?.capturePrintTile(tile, pixelRatio, PRINT_JPEG_QUALITY)) ?? null,
+      getImages: () => ref.current?.getPrintImages() ?? [],
+    }));
+  }, [canvasRefsRef]);
+
+  const printFormat = useMemo(() => {
+    const f = getCanvasFormatOrDefault(formatId);
+    return isPrintFormat(f) ? f : null;
+  }, [formatId]);
+
+  const handleDownloadPdf = useCallback(async () => {
+    if (!printFormat) return;
+    const pages = printPages();
+    if (pages.some((_, i) => !canvasRefsRef.current[i]?.current)) {
+      throw new Error('Nicht alle Seiten konnten exportiert werden');
+    }
+    const pdf = await exportPrintPdf({ format: printFormat, pages });
+    const blob = new Blob([pdf as BlobPart], { type: 'application/pdf' });
+    await downloadBlob(blob, printPdfFilename(documentTitle ?? null));
+  }, [printFormat, printPages, canvasRefsRef, documentTitle]);
+
+  // Every poster page should carry a filled-in V.i.S.d.P. / Impressum, whichever
+  // page is active; the download warns (never blocks) once every page has reported.
+  const impressumGate = usePrintImpressumGate(printFormat, pages, observedPages);
+
+  const getPrintWarnings = useCallback(
+    () => (printFormat ? lowResolutionWarnings(printFormat, printPages()) : []),
+    [printFormat, printPages]
+  );
+
   // Get active page data for shared sidebar
   const currentPage = pages[currentPageIndex];
   const activeConfig = currentPage ? loadedConfigs.get(currentPage.configId) : undefined;
@@ -665,14 +847,21 @@ function CanvasEditorInner({
   // `frame-settings` for `getAutoSwitchTab` to target).
   const visibleTabs = useMemo(() => {
     if (!activeConfig) return [];
+    let tabs = activeConfig.tabs;
     if (activeConfig.getVisibleTabs) {
       const visibleIds = activeConfig.getVisibleTabs(activeState, {
         selectedElement: activeSelectedElement,
       });
-      return activeConfig.tabs.filter((tab) => visibleIds.includes(tab.id));
+      tabs = activeConfig.tabs.filter((tab) => visibleIds.includes(tab.id));
     }
-    return activeConfig.tabs;
-  }, [activeConfig, activeState, activeSelectedElement]);
+    // Mobile has room for six areas; the chat gives way to the Vorlagen there for now.
+    if (isMobileWeb) tabs = tabs.filter((tab) => tab.id !== 'chat');
+    return showVorlagen ? withVorlagenTab(tabs) : tabs;
+  }, [activeConfig, activeState, activeSelectedElement, showVorlagen, isMobileWeb]);
+
+  usePreloadElements(
+    activeConfig?.tabs.some((tab) => tab.id === 'elements' || tab.id === 'assets') ?? false
+  );
 
   // Compute disabled tabs for active config
   const disabledTabs = useMemo(() => {
@@ -707,7 +896,9 @@ function CanvasEditorInner({
   const isPanelOpen = activeTab !== null;
   const isMobileSheetOpen = isMobileWeb && isPanelOpen;
   const panelTitle =
-    (activeTab && activeConfig?.tabs.find((tab) => tab.id === activeTab)?.label) || 'Auswahl';
+    activeTab === 'vorlagen'
+      ? vorlagenTab.label
+      : (activeTab && activeConfig?.tabs.find((tab) => tab.id === activeTab)?.label) || 'Auswahl';
   useMobileSheetFit({
     enabled: isMobileSheetOpen,
     zoom,
@@ -760,6 +951,7 @@ function CanvasEditorInner({
       onCaptureCanvas: () => {},
       captureCanvasImage: handleCaptureCanvas,
       captureCanvasImageForAi: handleCaptureCanvasForAi,
+      collectAltTextPages,
       onDownload: async () => {
         const ref = canvasRefsRef.current[currentPageIndex];
         if (ref?.current) {
@@ -792,13 +984,16 @@ function CanvasEditorInner({
       multiExportNotice,
       handleCaptureCanvas,
       handleCaptureCanvasForAi,
+      collectAltTextPages,
       onSaveAsTemplate,
     ]
   );
 
   // After a page switch or a deck replace there is one render before the new
   // page reports its state. The chat would unmount there and lose its running
-  // turn (#4273), so it keeps rendering against the last reported page.
+  // turn (#4273), so it keeps rendering against the last reported page. So does
+  // any tab while the new page shares the last one's config: a tile dropped on
+  // another page would otherwise lose its panel (open category, its dragend).
   const sectionSource = useMemo(
     () =>
       activeConfig && activeState && activeActions
@@ -817,7 +1012,21 @@ function CanvasEditorInner({
   // Render the active section based on configuration
   const renderActiveSection = useCallback(() => {
     if (!activeTab) return null;
-    const source = sectionSource ?? (activeTab === 'chat' ? lastSectionSourceRef.current : null);
+    if (activeTab === 'vorlagen') {
+      return showVorlagen && specEdit ? (
+        <VorlagenSection
+          ref={vorlagenRef}
+          formatId={formatId ?? DEFAULT_FORMAT_ID}
+          pages={pages}
+          deck={specEdit}
+          onShowPage={showPage}
+          canAddPage={canAddMore}
+        />
+      ) : null;
+    }
+    const last = lastSectionSourceRef.current;
+    const source =
+      sectionSource ?? (activeTab === 'chat' || last?.config === activeConfig ? last : null);
     if (!source) return null;
 
     const sectionConfig = source.config.sections[activeTab];
@@ -828,6 +1037,8 @@ function CanvasEditorInner({
       selectedElement: source.selectedElement,
       ...shareProps,
       ...(specEdit && { specEdit }),
+      background: source.config.background?.(source.state, source.actions) ?? null,
+      chartColors: source.config.chartColors,
     });
 
     return (
@@ -835,7 +1046,18 @@ function CanvasEditorInner({
         <SectionComponent {...sectionProps} />
       </Suspense>
     );
-  }, [activeTab, sectionSource, shareProps, specEdit]);
+  }, [
+    activeTab,
+    sectionSource,
+    activeConfig,
+    shareProps,
+    specEdit,
+    showVorlagen,
+    formatId,
+    pages,
+    showPage,
+    canAddMore,
+  ]);
 
   // Collab vor dem ersten Sync (noch keine Seiten) und der eine Render, in dem
   // die Seiten-Configs nachladen: das Layout bleibt stehen, nur die Fläche
@@ -884,8 +1106,19 @@ function CanvasEditorInner({
       exportNotice: multiExportNotice,
       onInvitePeople,
       onSaveAsTemplate,
+      printExport: printFormat
+        ? {
+            onDownloadPdf: handleDownloadPdf,
+            getWarnings: getPrintWarnings,
+            impressum: impressumGate,
+          }
+        : null,
     }),
     [
+      printFormat,
+      impressumGate,
+      handleDownloadPdf,
+      getPrintWarnings,
       handleCaptureCanvas,
       handleDownload,
       noop,
@@ -931,10 +1164,11 @@ function CanvasEditorInner({
       canUndo={(toolbarState?.canUndo ?? false) || canUndoPageOp}
       canRedo={(toolbarState?.canRedo ?? false) || canRedoPageOp}
       handlers={toolbarHandlers}
-      shareProps={toolbarState ? toolbarShareProps : undefined}
+      shareProps={toolbarState && showShare ? toolbarShareProps : undefined}
       chromeLeft={chromeLeft}
       chromeCenter={chromeCenter}
       chromeRight={chromeRight}
+      suggestionInBar={isMobileWeb}
     />
   ) : null;
 
@@ -945,10 +1179,14 @@ function CanvasEditorInner({
   // Render only when the canvas has reported an actual element selection (not
   // merely because delete-page is available on a multi-page doc — page ops live
   // in the page toolbar / thumbnail strip). While an element is selected, the
-  // delete-page action rides along in the desktop card and the mobile sheet's
-  // "Auswahl" block, not in the mobile bottom bar (`hideObjectActions`). Only
-  // one of the two bars is mounted per viewport to avoid a hidden duplicate
-  // React tree.
+  // delete-page action rides along only in the mobile sheet's "Auswahl" block;
+  // in the desktop card it sat next to the element actions and deleted the
+  // page instead of the element. Only one of the two bars is mounted per
+  // viewport to avoid a hidden duplicate React tree.
+  const backgroundControls =
+    activeConfig?.background && activeState && activeActions
+      ? activeConfig.background(activeState, activeActions)
+      : null;
   const contextControlsProps = toolbarState
     ? {
         selectedElement: toolbarState.selectedElement ?? null,
@@ -956,11 +1194,20 @@ function CanvasEditorInner({
         canMoveUp: toolbarState.canMoveUp ?? false,
         canMoveDown: toolbarState.canMoveDown ?? false,
         canDuplicate: toolbarState.canDuplicate ?? false,
+        isCropping: toolbarState.isCropping ?? false,
+        lockState: toolbarState.lockState,
+        canLock: toolbarState.canLock,
+        backgroundPickerRequest,
         handlers: {
           ...toolbarHandlers,
           onEditImage: () => setActiveTab('image-adjust'),
         },
-        onDelete: toolbarOnDelete,
+        background: backgroundControls,
+        // Boundary: page actions arrive as Record<string, unknown>.
+        onRemoveUserImage:
+          typeof activeActions?.removeUserImage === 'function'
+            ? (activeActions.removeUserImage as (id: string) => void)
+            : undefined,
         onDeselect: handleDeselectAll,
       }
     : null;
@@ -968,13 +1215,38 @@ function CanvasEditorInner({
     contextControlsProps !== null &&
     (contextControlsProps.selectedElement !== null ||
       contextControlsProps.activeFloatingModule !== null);
-  const contextBarElement =
-    contextControlsProps && hasContextControls && !isMobileWeb ? (
-      <ContextToolbar {...contextControlsProps} />
-    ) : null;
+  // An open suggestion locks the pages (see the container below); the card
+  // takes the selection bar's place so the lock never looks like a dead click.
+  const contextBarElement = isMobileWeb ? null : hasPendingSuggestion ? (
+    <FloatingAiSuggestionBanner
+      variant="card"
+      onUndo={toolbarHandlers.undo}
+      onUndoPages={toolbarHandlers.undoPages}
+    />
+  ) : contextControlsProps && hasContextControls ? (
+    <ContextToolbar
+      {...contextControlsProps}
+      canDelete={toolbarState?.canDelete ?? false}
+      onDeleteElement={toolbarHandlers.handleDeleteElement}
+    />
+  ) : toolbarState && toolbarState.selectionCount > 1 ? (
+    // Not part of `hasContextControls`: mobile would show its selection bar.
+    <MultiSelectionToolbar
+      count={toolbarState.selectionCount}
+      canCopy={toolbarState.canCopy}
+      canDelete={toolbarState.canDelete}
+      lockState={toolbarState.lockState}
+      canLock={toolbarState.canLock}
+      onCopy={toolbarHandlers.handleCopy}
+      onDuplicate={toolbarHandlers.handleDuplicate}
+      onToggleLock={toolbarHandlers.handleToggleLock}
+      onDelete={toolbarHandlers.handleDeleteElement}
+      onDeselect={handleDeselectAll}
+    />
+  ) : null;
   const mobileSelectionElement =
     contextControlsProps && hasContextControls && isMobileWeb && isPanelOpen ? (
-      <MobileSelectionControls {...contextControlsProps} />
+      <MobileSelectionControls {...contextControlsProps} onDeletePage={toolbarOnDelete} />
     ) : null;
   const openSelectionArea = mobileSelectionArea
     ? () => setActiveTab(mobileSelectionArea)
@@ -1002,6 +1274,8 @@ function CanvasEditorInner({
         onDuplicate={toolbarHandlers.handleDuplicate}
         onDelete={toolbarHandlers.handleDeleteElement}
         onMore={openSelectionArea}
+        isLocked={toolbarState.lockState === 'all'}
+        onUnlock={toolbarHandlers.handleToggleLock}
       />
     ) : null;
 
@@ -1088,120 +1362,143 @@ function CanvasEditorInner({
   );
 
   return (
-    <UserUploadsProvider>
-      {/* Die Text-Bearbeitung sitzt an der Wurzel des Editors, nicht je Seite:
+    <BlockInsertProvider
+      pages={pages}
+      currentPageIndex={currentPageIndex}
+      formatId={formatId}
+      canvasRefsRef={canvasRefsRef}
+    >
+      <UserUploadsProvider>
+        {/* Die Text-Bearbeitung sitzt an der Wurzel des Editors, nicht je Seite:
           nur so liegt sie über der Kontextleiste, die ihre Formatierungsknöpfe
           zeigt. Der Provider in `CanvasStage` merkt, dass er einen über sich
           hat, und reicht durch. Ob die Leiste die Knöpfe wirklich übernimmt,
           meldet sie selbst an — wo wir sie nicht rendern, zeigt das Overlay
           wieder seine eigene Karte. */}
-      <CanvasTextEditorProvider>
-        <CanvasEditorLayout
-          // Vorschau vor dem Sync: zeigen, aber nichts anbieten, was schreibt —
-          // die Seiten hängen noch an keinem Y.Map, jede Änderung ginge verloren.
-          sidebar={isPreview ? null : panel}
-          tabBar={isPreview ? null : tabBar}
-          actions={null}
-          toolbar={toolbarElement}
-          contextBar={isPreview ? null : contextBarElement}
-          // Die Desktop-Leiste ist auf dem Handy per CSS ausgeblendet; gar
-          // nicht erst mitgeben, sonst hinge der Streifen zweimal im Baum.
-          bottomBar={isMobileWeb || isPreview ? null : bottomBar}
-          // Auf dem Handy scrollt ein Finger auf dem Sharepic nicht (wie in
-          // Canva) — die Seiten wechselt dort dieser Streifen.
-          mobilePageStrip={isMobileWeb && !isMobileSheetOpen && !isPreview ? pageStrip : null}
-          mobileZoomControl={
-            isMobileWeb && !isMobileSheetOpen && !isPreview ? (
-              <CanvasZoomIndicator zoom={zoom} onZoomChange={setZoom} />
-            ) : null
-          }
-          mobileSheetOpen={isMobileSheetOpen}
-          onCanvasBackdropPointerDown={isMobileSheetOpen ? handlePanelClose : undefined}
-        >
-          <div
-            inert={isPreview}
-            aria-busy={isPreview}
-            ref={pagesContainerCallbackRef}
-            onPointerDown={handleWorkAreaPointerDown}
-            className="heterogeneous-multipage__pages-container has-bottom-bar flex flex-col items-center gap-md p-sm pb-lg w-full max-canvas-mobile:gap-sm max-canvas-mobile:p-xs"
+        <CanvasTextEditorProvider>
+          <CanvasEditorLayout
+            // Vorschau vor dem Sync: zeigen, aber nichts anbieten, was schreibt —
+            // die Seiten hängen noch an keinem Y.Map, jede Änderung ginge verloren.
+            sidebar={
+              isPreview ? null : hasPendingSuggestion ? (
+                <div inert className="contents">
+                  {panel}
+                </div>
+              ) : (
+                panel
+              )
+            }
+            tabBar={isPreview ? null : tabBar}
+            actions={null}
+            toolbar={toolbarElement}
+            contextBar={isPreview ? null : contextBarElement}
+            // Die Desktop-Leiste ist auf dem Handy per CSS ausgeblendet; gar
+            // nicht erst mitgeben, sonst hinge der Streifen zweimal im Baum.
+            bottomBar={isMobileWeb || isPreview ? null : bottomBar}
+            // Auf dem Handy scrollt ein Finger auf dem Sharepic nicht (wie in
+            // Canva) — die Seiten wechselt dort dieser Streifen.
+            mobilePageStrip={isMobileWeb && !isMobileSheetOpen && !isPreview ? pageStrip : null}
+            mobileZoomControl={
+              isMobileWeb && !isMobileSheetOpen && !isPreview ? (
+                <CanvasZoomIndicator zoom={zoom} onZoomChange={setZoom} />
+              ) : null
+            }
+            mobileSheetOpen={isMobileSheetOpen}
+            onCanvasBackdropPointerDown={isMobileSheetOpen ? handlePanelClose : undefined}
           >
-            {pages.map((page, index) => {
-              const config = loadedConfigs.get(page.configId);
-              if (!config) return null;
+            <div
+              inert={isPreview || hasPendingSuggestion}
+              aria-busy={isPreview}
+              ref={pagesContainerCallbackRef}
+              onPointerDown={handleWorkAreaPointerDown}
+              className={cn(
+                'heterogeneous-multipage__pages-container has-bottom-bar flex flex-col items-center gap-md p-sm pb-lg w-full max-canvas-mobile:gap-sm max-canvas-mobile:p-xs',
+                hasPendingSuggestion && 'opacity-60 transition-opacity duration-200'
+              )}
+            >
+              {pages.map((page, index) => {
+                const config = loadedConfigs.get(page.configId);
+                if (!config) return null;
 
-              const isActive = index === currentPageIndex;
-              const canDelete = pageCount > 1;
+                const isActive = index === currentPageIndex;
+                const canDelete = pageCount > 1;
 
-              return (
-                <PageWrapper
-                  key={page.id}
-                  page={page}
-                  index={index}
-                  pageCount={pageCount}
-                  config={config}
+                return (
+                  <PageWrapper
+                    key={page.id}
+                    page={page}
+                    index={index}
+                    pageCount={pageCount}
+                    config={config}
+                    formatId={formatId}
+                    isActive={isActive}
+                    canDelete={canDelete}
+                    canvasRef={canvasRefsRef.current[index]}
+                    pageRef={pageDomRefsRef.current[index]}
+                    onSelect={handlePageSelect}
+                    onDelete={removePage}
+                    onMovePage={movePage}
+                    onDuplicatePage={duplicatePage}
+                    onChangeTemplate={handleOpenTemplateChange}
+                    onDropVorlage={showVorlagen ? handleDropVorlage : undefined}
+                    onExport={handleExport}
+                    onCancel={onCancel}
+                    callbacks={getCallbacksForPage(page.id, page.configId)}
+                    multiPageExport={index === 0 ? multiPageExportProps : undefined}
+                    onStateChange={handlePageStateChange}
+                    onObservedState={needsImpressum(printFormat) ? handleObservedState : undefined}
+                    onToolbarStateChange={
+                      isActive && !isPreview ? handleToolbarStateChange : undefined
+                    }
+                    onAutoSaveShareToken={onAutoSaveShareToken}
+                    autoSave={false}
+                    pageBinding={pageBindingAt(index, page.id, isActive)}
+                  />
+                );
+              })}
+
+              {noPageRenderable && <CanvasPageSkeleton aspectRatio={pageAspectRatio} />}
+
+              {templateChangePage && (
+                <TemplatePickerFlyout
+                  isOpen
+                  mode="replace"
+                  anchorRef={pageDomRefsRef.current[templateChangePage.index]}
+                  onSelectTemplate={handleSelectTemplateChange}
+                  onClose={handleCloseTemplateChange}
+                  currentTemplateId={templateChangePage.configId}
+                  templateFilter={categoryFilter}
                   formatId={formatId}
-                  isActive={isActive}
-                  canDelete={canDelete}
-                  canvasRef={canvasRefsRef.current[index]}
-                  pageRef={pageDomRefsRef.current[index]}
-                  onSelect={handlePageSelect}
-                  onDelete={removePage}
-                  onMovePage={movePage}
-                  onDuplicatePage={duplicatePage}
-                  onChangeTemplate={handleOpenTemplateChange}
-                  onExport={handleExport}
-                  onCancel={onCancel}
-                  callbacks={getCallbacksForPage(page.id, page.configId)}
-                  multiPageExport={index === 0 ? multiPageExportProps : undefined}
-                  onStateChange={handlePageStateChange}
-                  onToolbarStateChange={
-                    isActive && !isPreview ? handleToolbarStateChange : undefined
-                  }
-                  onAutoSaveShareToken={onAutoSaveShareToken}
-                  autoSave={false}
-                  pageBinding={pageBindingAt(index, page.id, isActive)}
                 />
-              );
-            })}
+              )}
 
-            {noPageRenderable && <CanvasPageSkeleton aspectRatio={pageAspectRatio} />}
-
-            {templateChangePage && (
-              <TemplatePickerFlyout
-                isOpen
-                mode="replace"
-                anchorRef={pageDomRefsRef.current[templateChangePage.index]}
-                onSelectTemplate={handleSelectTemplateChange}
-                onClose={handleCloseTemplateChange}
-                currentTemplateId={templateChangePage.configId}
-                templateFilter={categoryFilter}
-                formatId={formatId}
-              />
-            )}
-
-            {/* Seite hinzufügen unter der Fläche — für den Fall, in dem die
+              {/* Seite hinzufügen unter der Fläche — für den Fall, in dem die
                 untere Leiste den Knopf nicht trägt: unterhalb von 900 px, wo
                 `CanvasEditorLayout` sie per `max-canvas-mobile:hidden`
                 ausblendet. Die Breakpoint-Bedingung steht hier gespiegelt, weil
                 nur CSS sie kennt. */}
-            {canAddMore && !showPageStrip && (
-              <div className="w-full max-w-[28rem] pt-sm max-canvas-mobile:pt-xs max-canvas-mobile:px-xs canvas-mobile:hidden">
-                <AddPageButton
-                  onSelectTemplate={handleAddPage}
-                  onDuplicateCurrent={duplicateCurrentPage}
-                  currentTemplateId={currentTemplateId}
-                  disabled={!canAddMore}
-                  onAddSliderVariant={sliderVariantHandler}
-                  templateFilter={categoryFilter}
-                  formatId={formatId}
-                />
-              </div>
-            )}
-          </div>
-        </CanvasEditorLayout>
-        {selectionPill}
-      </CanvasTextEditorProvider>
-    </UserUploadsProvider>
+              {canAddMore && !showPageStrip && (
+                <div className="w-full max-w-[28rem] pt-sm max-canvas-mobile:pt-xs max-canvas-mobile:px-xs canvas-mobile:hidden">
+                  <AddPageButton
+                    onSelectTemplate={handleAddPage}
+                    onDuplicateCurrent={duplicateCurrentPage}
+                    currentTemplateId={currentTemplateId}
+                    disabled={!canAddMore}
+                    onAddSliderVariant={sliderVariantHandler}
+                    templateFilter={categoryFilter}
+                    formatId={formatId}
+                  />
+                </div>
+              )}
+            </div>
+          </CanvasEditorLayout>
+          {selectionPill}
+          {!isMobileWeb && !isPreview && (
+            <CanvasContextMenu handleRef={contextMenuRef} closeKey={zoom} />
+          )}
+        </CanvasTextEditorProvider>
+      </UserUploadsProvider>
+    </BlockInsertProvider>
   );
 }
 

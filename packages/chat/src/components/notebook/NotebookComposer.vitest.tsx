@@ -21,6 +21,15 @@ import { NotebookComposer } from './NotebookComposer';
 
 import type { NotebookDepth } from '@gruenerator/contracts';
 
+/** The trigger's on-screen text — its `sr-only` parts belong to the name only. */
+function visibleText(el: HTMLElement): string {
+  return [...el.childNodes]
+    .filter((n) => !(n instanceof HTMLElement && n.classList.contains('sr-only')))
+    .map((n) => n.textContent)
+    .join('')
+    .trim();
+}
+
 // The composer itself is assistant-ui's; only the leading slot is under test.
 const composerProps: {
   showModelPicker?: boolean;
@@ -282,9 +291,9 @@ describe('NotebookComposer — answer mode picker', () => {
       />
     );
     const trigger = within(screen.getByTestId('send-adornment')).getByRole('button', {
-      name: /Antwortmodus wählen – Magic Search/,
+      name: /Antwortmodus wählen: Magic \(Magic Search/,
     });
-    expect(trigger).toHaveTextContent(/^Magic$/);
+    expect(visibleText(trigger)).toBe('Magic');
   });
 
   it('offers every registry mode with the recommended badge and reports the wire id', async () => {
@@ -427,7 +436,7 @@ describe('NotebookComposer — Manuell', () => {
     composerProps.length = 0;
     render(<NotebookComposer answerMode="manuell" onAnswerModeChange={vi.fn()} />);
     expect(
-      screen.getByRole('button', { name: /Antwortmodus wählen – Magic Search/ })
+      screen.getByRole('button', { name: /Antwortmodus wählen: Magic \(Magic Search/ })
     ).toBeVisible();
     expect(composerProps.at(-1)?.onSearchSubmit).toBeUndefined();
   });
@@ -509,10 +518,10 @@ describe('NotebookComposer — Magic Search', () => {
   ] as const)('names what it recognised to screen readers only (%s)', (intent, label) => {
     renderMagic(intent);
     const trigger = within(screen.getByTestId('send-adornment')).getByRole('button', {
-      name: `Antwortmodus wählen – Magic Search · ${label}`,
+      name: `Antwortmodus wählen: Magic (Magic Search · ${label})`,
     });
     // The send button shows the intent; the label stays short on every width.
-    expect(trigger).toHaveTextContent(/^Magic$/);
+    expect(visibleText(trigger)).toBe('Magic');
   });
 
   it('keeps the suffix off the option list', async () => {
@@ -527,7 +536,7 @@ describe('NotebookComposer — Magic Search', () => {
     renderMagic(null);
     expect(composerProps.at(-1)?.onSearchSubmit).toBeUndefined();
     expect(
-      screen.getByRole('button', { name: 'Antwortmodus wählen – Magic Search' })
+      screen.getByRole('button', { name: 'Antwortmodus wählen: Magic (Magic Search)' })
     ).toBeVisible();
   });
 
@@ -536,7 +545,7 @@ describe('NotebookComposer — Magic Search', () => {
     render(<NotebookComposer answerMode="auto" onAnswerModeChange={vi.fn()} magicIntent="suche" />);
     expect(composerProps.at(-1)?.onSearchSubmit).toBeUndefined();
     expect(
-      screen.getByRole('button', { name: 'Antwortmodus wählen – Magic Search' })
+      screen.getByRole('button', { name: 'Antwortmodus wählen: Magic (Magic Search)' })
     ).toBeVisible();
   });
 
@@ -551,7 +560,7 @@ describe('NotebookComposer — Magic Search', () => {
       />
     );
     expect(composerProps.at(-1)?.onSearchSubmit).toBeUndefined();
-    expect(screen.getByRole('button', { name: 'Antwortmodus wählen – Präzision' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Antwortmodus wählen: Präzision' })).toBeVisible();
   });
 
   it('has no axe violations with the suffix', async () => {

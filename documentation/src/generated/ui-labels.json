@@ -1,4 +1,151 @@
 {
+  "canvas-command.bringForward": {
+    "title": "Nach vorne"
+  },
+  "canvas-command.bringToFront": {
+    "title": "Ganz nach vorne"
+  },
+  "canvas-command.copy": {
+    "title": "Kopieren"
+  },
+  "canvas-command.cut": {
+    "title": "Ausschneiden"
+  },
+  "canvas-command.delete": {
+    "title": "Löschen"
+  },
+  "canvas-command.deletePage": {
+    "title": "Seite löschen"
+  },
+  "canvas-command.duplicate": {
+    "title": "Duplizieren"
+  },
+  "canvas-command.duplicatePage": {
+    "title": "Seite duplizieren"
+  },
+  "canvas-command.editImage": {
+    "title": "Bild bearbeiten"
+  },
+  "canvas-command.editText": {
+    "title": "Text bearbeiten"
+  },
+  "canvas-command.insertFrameImage": {
+    "title": "Bild einsetzen"
+  },
+  "canvas-command.paste": {
+    "title": "Einfügen"
+  },
+  "canvas-command.pasteHere": {
+    "title": "Hier einfügen"
+  },
+  "canvas-command.removeBackground": {
+    "title": "Hintergrundbild entfernen"
+  },
+  "canvas-command.replaceBackground": {
+    "title": "Bild ersetzen …"
+  },
+  "canvas-command.selectAll": {
+    "title": "Alles auswählen"
+  },
+  "canvas-command.sendBackward": {
+    "title": "Nach hinten"
+  },
+  "canvas-command.sendToBack": {
+    "title": "Ganz nach hinten"
+  },
+  "canvas-command.setAsBackground": {
+    "title": "Als Hintergrund"
+  },
+  "canvas-command.toggleBackgroundFixed": {
+    "title": "Hintergrund fixieren"
+  },
+  "canvas-command.toggleLock": {
+    "title": "Sperren"
+  },
+  "canvas.aubergine": {
+    "title": "Aubergine"
+  },
+  "canvas.chat": {
+    "title": "Chat"
+  },
+  "canvas.creme": {
+    "title": "Creme"
+  },
+  "canvas.download": {
+    "title": "Download"
+  },
+  "canvas.dunkeltanne": {
+    "title": "Dunkeltanne"
+  },
+  "canvas.elements": {
+    "title": "Elemente"
+  },
+  "canvas.europablau": {
+    "title": "Europablau"
+  },
+  "canvas.flieder": {
+    "title": "Flieder"
+  },
+  "canvas.frame-settings": {
+    "title": "Rahmen"
+  },
+  "canvas.grasgruen": {
+    "title": "Grasgrün"
+  },
+  "canvas.hellgrau": {
+    "title": "Hellgrau"
+  },
+  "canvas.himmel": {
+    "title": "Himmel"
+  },
+  "canvas.himmelblau": {
+    "title": "Himmelblau"
+  },
+  "canvas.klee": {
+    "title": "Klee"
+  },
+  "canvas.lila": {
+    "title": "Lila"
+  },
+  "canvas.mint": {
+    "title": "Mint"
+  },
+  "canvas.pride": {
+    "title": "Pride"
+  },
+  "canvas.sand": {
+    "title": "Sand"
+  },
+  "canvas.schwarz": {
+    "title": "Schwarz"
+  },
+  "canvas.share": {
+    "title": "Teilen"
+  },
+  "canvas.sonne": {
+    "title": "Sonne"
+  },
+  "canvas.tanne": {
+    "title": "Tanne"
+  },
+  "canvas.text": {
+    "title": "Text"
+  },
+  "canvas.tools": {
+    "title": "Tools"
+  },
+  "canvas.uploads": {
+    "title": "Uploads"
+  },
+  "canvas.violett": {
+    "title": "Violett"
+  },
+  "canvas.vorlagen": {
+    "title": "Vorlagen"
+  },
+  "canvas.weiss": {
+    "title": "Weiß"
+  },
   "catalog.office": {
     "title": "Office",
     "subtitle": "Dokumente, Boards, Tabellen & Präsentationen",
@@ -28,6 +175,11 @@
     "title": "KI-Bild erstellen",
     "subtitle": "Bilder mit KI erstellen & bearbeiten",
     "path": "/studio"
+  },
+  "catalog.tool-marktplatz": {
+    "title": "Marktplatz",
+    "subtitle": "Agents, Rezepte, Vorlagen und Sticker entdecken",
+    "path": "/marktplatz"
   },
   "catalog.tool-mediathek": {
     "title": "Mediathek",
@@ -184,11 +336,6 @@
     "title": "Support",
     "path": "/support"
   },
-  "workplace.agents": {
-    "title": "Grüneratoren",
-    "subtitle": "Agents, Rezepte & Aufgaben",
-    "path": "/grueneratoren"
-  },
   "workplace.bild-erweitern": {
     "title": "Bild erweitern",
     "subtitle": "Auf ein neues Format ergänzen",
@@ -225,6 +372,11 @@
     "title": "Hintergrund entfernen",
     "subtitle": "Person oder Motiv freistellen",
     "path": "/studio/freistellen"
+  },
+  "workplace.marktplatz": {
+    "title": "Marktplatz",
+    "subtitle": "Agents, Rezepte & Vorlagen entdecken",
+    "path": "/marktplatz"
   },
   "workplace.mcp": {
     "title": "Apps & MCP",

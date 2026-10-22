@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import {
@@ -8,6 +9,8 @@ import {
   isStickerLikeInstance,
   resolveAssetInstanceSrc,
 } from '../utils/canvasAssets';
+import { isGroupDrag } from '../utils/multiSelect';
+import { useTrackPendingImage } from '../utils/pendingImages';
 import { applyPixelHitArea } from '../utils/pixelHitArea';
 import { calculateCenteredSnapPosition } from '../utils/snapping';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
@@ -47,6 +50,7 @@ function AssetPrimitiveInner({
   onSnapLinesChange,
   onGeometryChange,
 }: AssetPrimitiveProps) {
+  const locked = useIsItemLocked();
   const groupRef = useRef<Konva.Group>(null);
   const imageRef = useRef<Konva.Image>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
@@ -55,6 +59,8 @@ function AssetPrimitiveInner({
 
   const src = resolveAssetInstanceSrc(asset);
   const stickerLike = isStickerLikeInstance(asset);
+
+  const [settled, setSettled] = useState<{ src: string; ok: boolean } | null>(null);
 
   useEffect(() => {
     if (!src) return;
@@ -65,8 +71,22 @@ function AssetPrimitiveInner({
     img.onload = () => {
       setImage(img);
       setImageSize({ width: img.naturalWidth, height: img.naturalHeight });
+      setSettled({ src, ok: true });
+    };
+    img.onerror = () => setSettled({ src, ok: false });
+
+    return () => {
+      img.onload = null;
+      img.onerror = null;
     };
   }, [src]);
+  // Logos and stickers are assets too: the chat preview must not capture
+  // before they have arrived (#4834).
+  useTrackPendingImage(
+    asset.id,
+    src ?? '',
+    settled?.src !== src ? 'loading' : settled.ok ? 'loaded' : 'failed'
+  );
 
   // Attach transformer when selected
   useEffect(() => {
@@ -108,6 +128,7 @@ function AssetPrimitiveInner({
     (e: Konva.KonvaEventObject<DragEvent>) => {
       if (!stageWidth || !stageHeight) return;
       const node = e.currentTarget as Konva.Group;
+      if (isGroupDrag(node)) return;
 
       const result = calculateCenteredSnapPosition(
         node.x(),
@@ -138,7 +159,7 @@ function AssetPrimitiveInner({
         scaleY={asset.scale}
         rotation={asset.rotation}
         opacity={asset.opacity}
-        draggable={draggable}
+        draggable={draggable && !locked}
         onMouseDown={(e) => {
           e.cancelBubble = true;
           onSelect(asset.id);
@@ -205,6 +226,7 @@ function AssetPrimitiveInner({
           borderStroke="#005437"
           anchorStroke="#005437"
           anchorFill="#ffffff"
+          {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}
     </>

@@ -1,7 +1,11 @@
 import * as Y from 'yjs';
 
 import { getDocForkStore } from './aiExtension';
-import { getDocUndoManager, type UndoableEditor } from '../hooks/useDocUndoState';
+import {
+  getDocUndoManager,
+  notifyDocUndoStacksRewritten,
+  type UndoableEditor,
+} from '../hooks/useDocUndoState';
 
 /**
  * Make an accepted AI merge one undo step (#3261).
@@ -110,6 +114,8 @@ export function guardDocUndoAcrossAIFork(
     } else {
       onMergeEnd();
     }
+    // Both handlers assign the stacks by hand, which no UndoManager event reports.
+    notifyDocUndoStacksRewritten(editor);
   });
 
   return () => {

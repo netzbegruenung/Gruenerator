@@ -16,12 +16,18 @@ import Konva from 'konva';
 import { useRef, useEffect, useCallback, memo } from 'react';
 import { Image as KonvaImage, Transformer } from 'react-konva';
 
+import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
+import { panWindowPhoto, zoomWindow, type Rect } from '../utils/coverFit';
+import { getActiveImageFilters, imageFilterAttrs } from '../utils/imageFilters';
+import { isGroupDrag } from '../utils/multiSelect';
+import { recacheNextFrame } from '../utils/recacheNextFrame';
 import { calculateElementSnapPosition } from '../utils/snapping';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type { SnapTarget, SnapLine } from '../utils/snapping';
+import type { ImageAdjustments } from '../utils/userImageUtils';
 import type { TransformConfig, TransformAnchor } from '@gruenerator/shared/canvas-editor';
 
 export interface CanvasImageProps {
@@ -45,7 +51,7 @@ export interface CanvasImageProps {
   stageWidth?: number;
   stageHeight?: number;
   onSnapChange?: (snapH: boolean, snapV: boolean) => void;
-  snapTargets?: SnapTarget[];
+  getSnapTargets?: (excludeId: string) => SnapTarget[];
   onPositionChange?: (id: string, x: number, y: number, width: number, height: number) => void;
   /** Meldet die gerenderte Geometrie als Snap-Ziel — unabhaengig davon, ob je gezogen wurde. */
   onGeometryChange?: GeometryReporter;
@@ -53,17 +59,17 @@ export interface CanvasImageProps {
   listening?: boolean;
   color?: string;
   constrainToBounds?: boolean;
-  /** Brightness adjustment (-1 to 1, default 0) */
-  brightness?: number;
-  /** Apply grayscale filter */
-  grayscale?: boolean;
+  /** The "Bearbeiten" look (filters, vignette, flip); same fields as a free image. */
+  adjustments?: ImageAdjustments | null;
   /**
-   * When true, the source image is center-cropped to match the displayed
-   * width/height aspect ratio (CSS object-fit: cover behavior). Used for
-   * background images to preserve their natural aspect ratio inside a
-   * fixed-aspect canvas.
+   * Cover-fitted background: x/y/width/height is a window of the frame's
+   * aspect onto the photo's centre; the whole photo extends around it, and
+   * only the part inside `frame` is drawn. Dragging pans the photo inside the
+   * frame without ever opening a gap.
    */
   coverFit?: boolean;
+  /** The slot a cover-fitted photo fills (the element's unzoomed box); defaults to the stage. */
+  frame?: Rect | null;
 }
 
 const DEFAULT_IMAGE_ANCHORS: TransformAnchor[] = [
@@ -93,24 +99,45 @@ function CanvasImageInner({
   stageWidth,
   stageHeight,
   onSnapChange,
-  snapTargets,
+  getSnapTargets,
   onPositionChange,
   onGeometryChange,
   onSnapLinesChange,
   listening,
   color,
   constrainToBounds = true,
-  brightness = 0,
-  grayscale = false,
+  adjustments,
   coverFit = false,
+  frame,
 }: CanvasImageProps) {
+  const locked = useIsItemLocked();
   const imageRef = useRef<Konva.Image>(null);
+  // Drag of a cover-fitted photo: the node under the pointer at drag start, and the pan so far.
+  const panStartRef = useRef<{ part: Rect; dx: number; dy: number } | null>(null);
+  const adjustmentFilters = adjustments ? getActiveImageFilters(adjustments) : [];
   const trRef = useRef<Konva.Transformer>(null);
 
   const snap = useSnapScheduler({
     onSnapChange: onSnapChange ?? (() => {}),
     onSnapLinesChange: onSnapLinesChange ?? (() => {}),
   });
+
+  const natural =
+    coverFit && image && image.naturalWidth > 0 && image.naturalHeight > 0
+      ? { width: image.naturalWidth, height: image.naturalHeight }
+      : null;
+  const slot: Rect | null =
+    natural && width > 0 && height > 0
+      ? (frame ?? { x: 0, y: 0, width: stageWidth ?? width, height: stageHeight ?? height })
+      : null;
+  const mirror =
+    adjustments?.flipX || adjustments?.flipY
+      ? { x: !!adjustments.flipX, y: !!adjustments.flipY }
+      : null;
+  const part =
+    natural && slot
+      ? panWindowPhoto(natural, { x, y, width, height }, slot, 0, 0, mirror).part
+      : null;
 
   useEffect(() => {
     if (selected && trRef.current && imageRef.current) {
@@ -121,11 +148,27 @@ function CanvasImageInner({
     }
   }, [selected]);
 
+  // Konva filters require the node to be cached first; without filters the
+  // cache is only an extra offscreen canvas redrawn on every change.
   useEffect(() => {
-    if (imageRef.current && image) {
-      imageRef.current.cache();
+    const node = imageRef.current;
+    if (!node || !image) return;
+    if (color || adjustmentFilters.length > 0) {
+      node.cache();
+    } else {
+      node.clearCache();
     }
-  }, [image, width, height, color, brightness, grayscale]);
+    node.getLayer()?.batchDraw();
+  }, [
+    image,
+    width,
+    height,
+    part?.crop.x,
+    part?.crop.y,
+    color,
+    adjustments,
+    adjustmentFilters.length,
+  ]);
 
   const handleTouchStart = useCallback(
     (e: Konva.KonvaEventObject<TouchEvent>) => {
@@ -148,9 +191,10 @@ function CanvasImageInner({
 
   const reportGeometry = useGeometryReporter(id, onGeometryChange);
 
+  const drawn = part?.box ?? { x, y, width, height };
   useEffect(() => {
-    reportGeometry(x, y, width, height);
-  }, [reportGeometry, x, y, width, height]);
+    reportGeometry(drawn.x, drawn.y, drawn.width, drawn.height);
+  }, [reportGeometry, drawn.x, drawn.y, drawn.width, drawn.height]);
 
   const handleDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -159,13 +203,25 @@ function CanvasImageInner({
       const nodeHeight = node.height() * node.scaleY();
 
       snap.onDragEnd();
+      const pan = panStartRef.current;
+      if (pan) {
+        // The window moves with the photo; the store keeps the window.
+        panStartRef.current = null;
+        onDragEnd?.(x + pan.dx, y + pan.dy);
+        return;
+      }
+      if (part) {
+        // Moved along in a group drag: the window travels as far as the node.
+        onDragEnd?.(x + node.x() - part.box.x, y + node.y() - part.box.y);
+        return;
+      }
       onDragEnd?.(node.x(), node.y());
 
       if (id && onPositionChange) {
         onPositionChange(id, node.x(), node.y(), nodeWidth, nodeHeight);
       }
     },
-    [id, onDragEnd, onPositionChange, snap]
+    [id, x, y, part, onDragEnd, onPositionChange, snap]
   );
 
   const clampToBounds = useCallback(
@@ -208,6 +264,27 @@ function CanvasImageInner({
   const handleDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
       const node = e.target as Konva.Image;
+      if (isGroupDrag(node)) return;
+      const pan = panStartRef.current;
+      if (pan && natural && slot) {
+        // The node stays the visible part; the photo moves under it.
+        const next = panWindowPhoto(
+          natural,
+          { x, y, width, height },
+          slot,
+          node.x() - pan.part.x,
+          node.y() - pan.part.y,
+          mirror
+        );
+        if (!next.part) return;
+        node.position(next.part.box);
+        node.size(next.part.box);
+        node.crop(next.part.crop);
+        pan.dx = next.dx;
+        pan.dy = next.dy;
+        recacheNextFrame(node);
+        return;
+      }
       const nodeWidth = node.width() * node.scaleX();
       const nodeHeight = node.height() * node.scaleY();
 
@@ -220,13 +297,14 @@ function CanvasImageInner({
       let snapLines: SnapLine[] = [];
 
       // Apply snapping if enabled
-      if ((snapTargets && snapTargets.length > 0) || snapToCenter) {
+      const snapTargets = getSnapTargets?.(id ?? '') ?? [];
+      if (snapTargets.length > 0 || snapToCenter) {
         const result = calculateElementSnapPosition(
           node.x(),
           node.y(),
           nodeWidth,
           nodeHeight,
-          snapTargets || [],
+          snapTargets,
           stageWidth,
           stageHeight,
           snap.hysteresis
@@ -247,7 +325,32 @@ function CanvasImageInner({
       // Schedule snap state updates via RAF (throttled, batched)
       snap.scheduleSnap(snapH, snapV, snapLines);
     },
-    [snapToCenter, stageWidth, stageHeight, snapTargets, clampToBounds, snap]
+    [
+      id,
+      snapToCenter,
+      stageWidth,
+      stageHeight,
+      getSnapTargets,
+      clampToBounds,
+      snap,
+      natural,
+      slot,
+      mirror,
+      x,
+      y,
+      width,
+      height,
+    ]
+  );
+
+  const handleDragStart = useCallback(
+    (e: Konva.KonvaEventObject<DragEvent>) => {
+      // In a group drag the photo moves with the others, as any element does.
+      panStartRef.current =
+        part && !isGroupDrag(e.target) ? { part: part.box, dx: 0, dy: 0 } : null;
+      snap.onDragStart();
+    },
+    [part, snap]
   );
 
   const handleTransform = useCallback(() => {
@@ -260,6 +363,13 @@ function CanvasImageInner({
 
     const scaleX = node.scaleX();
     const scaleY = node.scaleY();
+    if (slot && part) {
+      // The handles sit on the visible part; they zoom the photo about its middle.
+      node.scale({ x: 1, y: 1 });
+      const zoomed = zoomWindow({ x, y, width, height }, scaleX, slot);
+      onTransformEnd?.(zoomed.x, zoomed.y, zoomed.width, zoomed.height);
+      return;
+    }
     const currentWidth = node.width();
     const currentHeight = node.height();
 
@@ -280,7 +390,7 @@ function CanvasImageInner({
       node.scale({ x: 1, y: 1 });
       onTransformEnd?.(node.x(), node.y(), currentWidth, currentHeight);
     }
-  }, [onTransformEnd]);
+  }, [onTransformEnd, slot, part, x, y, width, height]);
 
   // Performance: dragBoundFunc now just returns position - actual clamping happens in handleDragMove
   // This avoids double calculation of bounds on every mouse move
@@ -294,62 +404,33 @@ function CanvasImageInner({
 
   const enabledAnchors = transformConfig?.enabledAnchors ?? DEFAULT_IMAGE_ANCHORS;
 
-  let crop: { x: number; y: number; width: number; height: number } | undefined;
-  if (coverFit && image.naturalWidth > 0 && image.naturalHeight > 0 && width > 0 && height > 0) {
-    const imgAspect = image.naturalWidth / image.naturalHeight;
-    const containerAspect = width / height;
-    if (imgAspect > containerAspect) {
-      const cropWidth = image.naturalHeight * containerAspect;
-      crop = {
-        x: (image.naturalWidth - cropWidth) / 2,
-        y: 0,
-        width: cropWidth,
-        height: image.naturalHeight,
-      };
-    } else {
-      const cropHeight = image.naturalWidth / containerAspect;
-      crop = {
-        x: 0,
-        y: (image.naturalHeight - cropHeight) / 2,
-        width: image.naturalWidth,
-        height: cropHeight,
-      };
-    }
-  }
-
   return (
     <>
       <KonvaImage
         ref={imageRef}
         id={id}
         image={image}
-        x={x}
-        y={y}
-        width={width}
-        height={height}
-        crop={crop}
+        x={part?.box.x ?? x}
+        y={part?.box.y ?? y}
+        width={part?.box.width ?? width}
+        height={part?.box.height ?? height}
+        crop={part?.crop}
         opacity={opacity}
-        draggable={draggable}
+        draggable={draggable && !locked}
         dragBoundFunc={dragBoundFunc}
         onMouseDown={onSelect}
         onTouchStart={handleTouchStart}
-        onDragStart={snap.onDragStart}
+        onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         onDragMove={handleDragMove}
         onTransform={handleTransform}
         onTransformEnd={handleTransformEnd}
         listening={listening}
-        filters={(() => {
-          const f: Array<((this: Konva.Node, imageData: ImageData) => void) | string> = [];
-          if (color) f.push(Konva.Filters.RGB);
-          if (brightness !== 0) f.push(Konva.Filters.Brighten);
-          if (grayscale) f.push(Konva.Filters.Grayscale);
-          return f;
-        })()}
+        filters={color ? [Konva.Filters.RGB, ...adjustmentFilters] : adjustmentFilters}
         red={color ? parseInt(color.slice(1, 3), 16) : undefined}
         green={color ? parseInt(color.slice(3, 5), 16) : undefined}
         blue={color ? parseInt(color.slice(5, 7), 16) : undefined}
-        brightness={brightness !== 0 ? brightness : undefined}
+        {...(adjustments ? imageFilterAttrs(adjustments) : {})}
       />
       {selected && (
         <Transformer
@@ -368,6 +449,7 @@ function CanvasImageInner({
             if (newBox.width > maxWidth) return oldBox;
             return newBox;
           }}
+          {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}
     </>
@@ -392,8 +474,7 @@ export const CanvasImage = memo(CanvasImageInner, (prevProps, nextProps) => {
     'listening',
     'constrainToBounds',
     'color',
-    'brightness',
-    'grayscale',
+    'adjustments',
     'coverFit',
   ];
 
@@ -408,13 +489,19 @@ export const CanvasImage = memo(CanvasImageInner, (prevProps, nextProps) => {
     return false;
   }
 
+  const a = prevProps.frame;
+  const b = nextProps.frame;
+  if (
+    a !== b &&
+    (!a || !b || a.x !== b.x || a.y !== b.y || a.width !== b.width || a.height !== b.height)
+  ) {
+    return false;
+  }
+
   // Note: We intentionally DO NOT compare callback functions (onSnapChange, onSnapLinesChange, etc.)
   // These are expected to be stable references from useCallback in parent components.
   // Comparing them would cause unnecessary re-renders since callback identity can change
   // even when the actual function behavior is the same.
-
-  // We also don't compare snapTargets array - it changes during drag but doesn't affect
-  // the visual rendering of this component (only used in event handlers)
 
   return true;
 });

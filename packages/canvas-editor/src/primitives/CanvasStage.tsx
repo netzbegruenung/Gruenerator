@@ -22,7 +22,9 @@ import { CanvasTextEditorProvider } from '../components/CanvasTextOverlay';
 import { useHoverOutline } from '../hooks/useHoverOutline';
 import { withSelectionChromeHidden } from '../utils/captureStage';
 import { cn } from '../utils/cn';
+import { BACKGROUND_IMAGE_NODE_ID, printImageInfo } from '../utils/printImageInfo';
 import { MOUSE_DRAG_DISTANCE, TOUCH_DRAG_DISTANCE } from '../utils/touchInput';
+import { USER_PHOTO_NODE_NAME } from '../utils/userImageUtils';
 
 import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
 
@@ -131,10 +133,32 @@ function cancelTransforms(before: Map<Konva.Node, Konva.NodeConfig>) {
 const exportMimeType = (options: Partial<ExportOptions>) =>
   `image/${options.format || 'png'}` as 'image/png' | 'image/jpeg' | 'image/webp';
 
+export interface PrintTileRequest {
+  /** Format px, as planned by planTiles. */
+  x: number;
+  y: number;
+  /** Authoritative output size in whole pixels. */
+  outWidth: number;
+  outHeight: number;
+  pixelRatio: number;
+  quality: number;
+}
+
+export interface PrintImageInfo {
+  /** Pixels of the source that are actually shown (after the cover crop). */
+  naturalWidthPx: number;
+  /** Width the photo covers on the canvas, in format px. */
+  displayedWidthPx: number;
+}
+
 export interface CanvasStageRef {
   getStage: () => Konva.Stage | null;
   toDataURL: (options?: Partial<ExportOptions>) => string | undefined;
   toDataURLAsync: (options?: Partial<ExportOptions>) => Promise<string | null>;
+  /** One print tile (format px) as JPEG bytes, selection chrome hidden. */
+  toTileJpeg: (tile: PrintTileRequest) => Promise<Uint8Array | null>;
+  /** User photos on the stage with natural and displayed width (format px). */
+  getPrintImages: () => PrintImageInfo[];
   getContainerSize: () => { width: number; height: number };
   getDisplayScale: () => number;
 }
@@ -290,6 +314,45 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
       [withExportView]
     );
 
+    const toTileJpeg = useCallback(
+      async (tile: PrintTileRequest): Promise<Uint8Array | null> => {
+        const stage = displayStageRef.current;
+        if (!stage) return null;
+        // Same region maths as stageExportRegion: the stage is shown at
+        // displayScale, the half pixel keeps float error from flooring short.
+        const ratio = tile.pixelRatio / displayScale;
+        const canvas = withSelectionChromeHidden(stage, () =>
+          stage.toCanvas({
+            x: tile.x * displayScale,
+            y: tile.y * displayScale,
+            width: (tile.outWidth + 0.5) / ratio,
+            height: (tile.outHeight + 0.5) / ratio,
+            pixelRatio: ratio,
+          })
+        );
+        const blob = await new Promise<Blob | null>((resolve) =>
+          canvas.toBlob(resolve, 'image/jpeg', tile.quality)
+        );
+        canvas.width = 0;
+        canvas.height = 0;
+        return blob ? new Uint8Array(await blob.arrayBuffer()) : null;
+      },
+      [displayScale]
+    );
+
+    const getPrintImages = useCallback((): PrintImageInfo[] => {
+      const stage = displayStageRef.current;
+      if (!stage) return [];
+      const nodes = [
+        ...stage.find<Konva.Image>(`.${USER_PHOTO_NODE_NAME}`),
+        ...stage.find<Konva.Image>(`#${BACKGROUND_IMAGE_NODE_ID}`),
+      ];
+      return nodes.flatMap((node) => {
+        const info = printImageInfo(node, displayScale);
+        return info ? [info] : [];
+      });
+    }, [displayScale]);
+
     useHoverOutline(displayStageRef, listening);
 
     // Konva only has a global drag threshold, read on every move. Capture
@@ -337,10 +400,12 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
         getStage: () => displayStageRef.current,
         toDataURL,
         toDataURLAsync,
+        toTileJpeg,
+        getPrintImages,
         getContainerSize: () => containerSize,
         getDisplayScale: () => displayScale,
       }),
-      [toDataURL, toDataURLAsync, containerSize, displayScale]
+      [toDataURL, toDataURLAsync, toTileJpeg, getPrintImages, containerSize, displayScale]
     );
 
     return (

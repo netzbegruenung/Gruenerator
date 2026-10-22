@@ -232,6 +232,9 @@ export const imagePickerContractRouter = s.router(imagePickerContract, {
 
       const categories = [...new Set(catalog.images.map((img) => img.category))].sort();
 
+      // `private`: the prefix sits behind requireAuth with a cookie session, and a
+      // shared cache would hand the response to callers that never passed it.
+      args.res.setHeader('Cache-Control', 'private, max-age=3600, stale-while-revalidate=86400');
       return {
         status: 200 as const,
         body: {

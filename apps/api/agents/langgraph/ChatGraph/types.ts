@@ -147,6 +147,8 @@ export interface CreatedDocument {
   title: string;
   subtype: string;
   url: string;
+  /** Begleitdokument: Karte ja, Panel nicht von selbst — siehe `documentCreatedEventSchema`. */
+  background?: boolean;
 }
 
 /**

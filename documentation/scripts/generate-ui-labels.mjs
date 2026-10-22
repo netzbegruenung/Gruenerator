@@ -21,6 +21,8 @@ import { fileURLToPath } from 'node:url';
 
 import ts from 'typescript';
 
+import { findDeclaration, objectEntries, parse, unwrap, walk } from './lib/ast.mjs';
+
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, '../..'); // documentation/scripts → repo root
 const OUT_FILE = path.join(REPO_ROOT, 'documentation/src/generated/ui-labels.json');
@@ -33,18 +35,17 @@ const SOURCES = [
   { group: 'menu', file: 'apps/web/src/components/layout/Header/menuData.tsx' },
   { group: 'lv', file: 'packages/shared/src/agents/landesverbaende.ts' },
   { group: 'composer', file: 'apps/web/src/features/docs/composerLabels.ts' },
+  { group: 'canvas', file: 'packages/canvas-editor/src/configs/freeform_full.config.tsx' },
+  { group: 'canvas', file: 'packages/canvas-editor/src/configs/commonSections.ts' },
+  { group: 'canvas', file: 'packages/canvas-editor/src/components/CanvasEditor/vorlagenTab.ts' },
+  { group: 'canvas', file: 'packages/canvas-editor/src/configs/shareSection.ts' },
 ];
 
 function stringProp(obj, name) {
   for (const p of obj.properties) {
-    if (
-      ts.isPropertyAssignment(p) &&
-      p.name &&
-      ts.isIdentifier(p.name) &&
-      p.name.text === name &&
-      (ts.isStringLiteral(p.initializer) || ts.isNoSubstitutionTemplateLiteral(p.initializer))
-    ) {
-      return p.initializer.text;
+    if (ts.isPropertyAssignment(p) && p.name && ts.isIdentifier(p.name) && p.name.text === name) {
+      const value = unwrap(p.initializer);
+      if (ts.isStringLiteral(value) || ts.isNoSubstitutionTemplateLiteral(value)) return value.text;
     }
   }
   return undefined;
@@ -105,6 +106,38 @@ function generate() {
   for (const { group, file } of SOURCES) {
     extractFile(group, path.join(REPO_ROOT, file), out, warnings);
   }
+  // Command ids are object keys rather than `id` properties. Keep the docs
+  // tied to the same registry as keyboard shortcuts and the context menu.
+  const commands = findDeclaration(
+    parse('packages/canvas-editor/src/utils/canvasCommandRegistry.ts'),
+    'CANVAS_COMMANDS'
+  );
+  if (!commands || !ts.isObjectLiteralExpression(commands)) {
+    throw new Error('Cannot read CANVAS_COMMANDS for UI labels');
+  }
+  for (const [id, spec] of objectEntries(commands)) {
+    const title = ts.isObjectLiteralExpression(spec) && stringProp(spec, 'label');
+    if (!title) throw new Error(`Cannot read canvas command label: ${id}`);
+    out[`canvas-command.${id}`] = { title };
+  }
+  // Download has no catalog id. Identify its actual JSX button by its icon,
+  // so changing the label flows through, while removing the button fails here.
+  const downloads = [];
+  walk(parse('packages/canvas-editor/src/components/TopBar/ShareDropdown.tsx'), (node) => {
+    if (!ts.isJsxSelfClosingElement(node) || node.tagName.getText() !== 'IconButton') return;
+    const attrs = node.attributes.properties.filter(ts.isJsxAttribute);
+    const icon = attrs.find((attr) => attr.name.getText() === 'icon')?.initializer;
+    if (!icon || !ts.isJsxExpression(icon) || !icon.expression) return;
+    if (
+      !ts.isJsxSelfClosingElement(icon.expression) ||
+      icon.expression.tagName.getText() !== 'FaDownload'
+    )
+      return;
+    const label = attrs.find((attr) => attr.name.getText() === 'label')?.initializer;
+    if (label && ts.isStringLiteral(label)) downloads.push(label.text);
+  });
+  if (downloads.length !== 1) throw new Error('Expected one Download IconButton in ShareDropdown');
+  out['canvas.download'] = { title: downloads[0] };
   // Sort keys for stable, diff-friendly output.
   const sorted = {};
   for (const key of Object.keys(out).sort()) sorted[key] = out[key];

@@ -292,7 +292,7 @@ const CanvasLandingContent = () => {
                   onChange={changeMode}
                   sheetTitle="Was möchtest du machen?"
                   sectionTitle="Modus"
-                  ariaLabel="Modus wählen"
+                  label="Modus wählen"
                   triggerLabel={
                     picked.id === 'auto' && query
                       ? `Auto · ${labelOf(resolveMode(query))}`

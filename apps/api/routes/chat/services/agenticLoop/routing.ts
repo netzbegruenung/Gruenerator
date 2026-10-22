@@ -241,6 +241,22 @@ export function reworksSuppliedText(raw: string): boolean {
 }
 
 /**
+ * Die Frage benennt einen mitgebrachten Text als ihren Gegenstand — „Welche vier
+ * Maßnahmen stehen im Antrag?", „Wie hoch sind die Kosten laut Antrag?", „Was
+ * steht darin zur Finanzierung?". Ob es diesen Text im Thread gibt, weiss der
+ * Aufrufer; hier steht nur, ob die Frage auf ihn zeigt (#4789).
+ *
+ * „Programm" fehlt bewusst: „im Wahlprogramm" meint die Beschlusslage, nach der
+ * gesucht werden soll, nicht den eingefügten Text.
+ */
+const SUPPLIED_MATERIAL_REF_RE =
+  /(?<!\p{L})(?:(?:im|(?:laut|gem[äa](?:ß|ss))(?:\s+(?:de[rms]|diese[rms]))?|(?:in|aus|nach)\s+(?:de[rm]|diese[rm]))\s+(?:\p{L}+en\s+)?(?:antrag|text|dokument|entwurf|artikel|beitrag|newsletter|brief|schreiben|papier|beschluss|pressemitteilung|anfrage|stellungnahme|vorlage|e-?mail)\p{L}*|darin|drin)(?!\p{L})/iu;
+
+export function asksAboutSuppliedMaterial(raw: string): boolean {
+  return SUPPLIED_MATERIAL_REF_RE.test(orderText((raw ?? '').trim()));
+}
+
+/**
  * Eine Frage über die eigene VERGANGENE Handlung des Assistenten — „hast du
  * vorhin in meinen Dokumenten nachgesehen?", „wo hast du das gefunden?". Sie ist
  * kurz und rückbezüglich, steht hinter einem Abruf-Turn und würde vom siebten

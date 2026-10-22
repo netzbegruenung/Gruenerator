@@ -350,6 +350,9 @@ router.post(
 );
 
 const STOCK_DIR = join(__dirname, '../../public/sharepic_example_bg');
+// The URLs carry no content version, so not `immutable`: a replaced file
+// reaches clients within a week, and SWR hides the revalidation.
+const STOCK_CACHE_CONTROL = 'public, max-age=604800, stale-while-revalidate=86400';
 
 /**
  * GET /stock-image/:filename
@@ -371,7 +374,7 @@ router.get(
     const sanitizedFilename = basename(filename);
 
     const sendStockFile = (imagePath: string) => {
-      res.set('Cache-Control', 'public, max-age=86400');
+      res.set('Cache-Control', STOCK_CACHE_CONTROL);
       res.sendFile(imagePath, (err) => {
         if (err) {
           log.error('[ImagePicker API] Stock image serve error:', err);
@@ -418,7 +421,7 @@ router.get(
 
       res.setHeader('Content-Type', variant.contentType);
       res.setHeader('Content-Length', variant.size);
-      res.setHeader('Cache-Control', 'public, max-age=86400');
+      res.setHeader('Cache-Control', STOCK_CACHE_CONTROL);
       if (variant.buffer) {
         res.send(variant.buffer);
         return;
