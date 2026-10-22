@@ -2,11 +2,11 @@
  * The Streamdown renderer draws fenced code in Streamdown's own chrome
  * (CodeBlock: container, language header, actions bar) with our Pyodide
  * actions added to that bar. These tests pin the dispatch (chart / mermaid /
- * code), the `controls.code` switch and the spreadsheet collapse + auto-run,
+ * code), the `controls.code` switch and the spreadsheet collapse + click-to-run,
  * rendering the block directly — Streamdown's context defaults stand in for
  * the primitive.
  */
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { StreamdownContext, type StreamdownContextType } from 'streamdown';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -82,7 +82,7 @@ describe('StreamdownCodeBlock', () => {
     expect(container).toHaveTextContent('42');
   });
 
-  it('collapses a spreadsheet script by default, auto-runs it once and shows the result', async () => {
+  it('collapses a spreadsheet script by default and runs it only on click', async () => {
     const runPython = vi.fn<RunPython>().mockResolvedValue({
       ok: true,
       stdout: 'Summe: 7',
@@ -106,6 +106,12 @@ describe('StreamdownCodeBlock', () => {
       'python'
     );
     expect(container.querySelector('[data-streamdown="code-block-body"]')).toHaveClass('hidden');
+    // Model-written code: nothing runs until the person asks for it. Flush the
+    // effects first — the old auto-run fired from one after mount.
+    await act(async () => {});
+    expect(runPython).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Code ausführen' }));
     expect(await screen.findByText('Summe: 7')).toBeInTheDocument();
     expect(runPython).toHaveBeenCalledTimes(1);
 

@@ -2,7 +2,7 @@ import { type ComputePayload } from '@gruenerator/contracts';
 import { create } from 'zustand';
 
 /**
- * The most recent client-side spreadsheet computation (auto-run pandas result),
+ * The most recent client-side spreadsheet computation (pandas result),
  * so the NEXT chat request can forward it to the backend as `computedResult`.
  * The backend injects it via formatComputedResultContext ("übernimm die Werte
  * EXAKT"), letting the model reference the number in a follow-up ("und pro

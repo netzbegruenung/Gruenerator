@@ -52,20 +52,23 @@ function escapeHtml(text: string): string {
 /**
  * Extract the best snippet from text based on query terms, with <mark> highlighting.
  * Falls back to plain truncation if no query terms match.
+ *
+ * Every path returns HTML-escaped text: `<mark>` around the hits is the only
+ * markup the result carries, the stored text never reaches the client as HTML.
  */
 export function highlightSnippet(
   text: string,
   query: string,
   limit: number = SNIPPET_MAX_CHARS
 ): string {
-  if (!text || !query) return truncateSnippet(text, limit);
+  if (!text || !query) return escapeHtml(truncateSnippet(text, limit));
 
   const terms = query
     .toLowerCase()
     .split(/\s+/)
     .filter((t) => t.length >= 2);
 
-  if (terms.length === 0) return truncateSnippet(text, limit);
+  if (terms.length === 0) return escapeHtml(truncateSnippet(text, limit));
 
   const textLower = text.toLowerCase();
 
@@ -91,7 +94,7 @@ export function highlightSnippet(
     }
   }
 
-  if (bestScore === 0) return truncateSnippet(text, limit);
+  if (bestScore === 0) return escapeHtml(truncateSnippet(text, limit));
 
   // Extract window, align to word boundaries
   let start = bestStart;

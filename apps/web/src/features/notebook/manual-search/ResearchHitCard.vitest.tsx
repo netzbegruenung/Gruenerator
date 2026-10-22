@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { axe, renderWithProviders, screen } from '../../../test-utils';
+import { axe, renderWithProviders, screen, waitFor } from '../../../test-utils';
 
 import { ResearchHitCard, snippetMarkdown, type ResearchView } from './ResearchHitCard';
 import { type ResearchResult } from './useResearch';
@@ -37,6 +37,47 @@ describe('ResearchHitCard — relevance', () => {
     renderWithProviders(<ResearchHitCard result={hit({ similarity_score: 1.17 })} view="grid" />);
 
     expect(screen.getByText('100 %', { exact: false })).toHaveTextContent('Relevanz 100 %');
+  });
+});
+
+describe('ResearchHitCard — snippet', () => {
+  /** react-markdown loads lazily; until then the fallback shows plain text. */
+  async function renderSnippet(relevant_content: string) {
+    const { container } = renderWithProviders(
+      <ResearchHitCard result={hit({ relevant_content })} view="wide" />
+    );
+    await waitFor(() => expect(container.querySelector('mark')).not.toBeNull());
+    return container;
+  }
+
+  it('renders stored markup as text, keeping only the highlights', async () => {
+    const container = await renderSnippet(
+      'Der Senat hat keinen <mark>Hitzeschutz</mark>plan. <iframe srcdoc="<p>x</p>"></iframe> ' +
+        '<img src="x" onerror="void 0"> <form><input name="q"></form>'
+    );
+
+    expect(container.querySelector('iframe, img, form, input')).toBeNull();
+    expect(container.querySelector('mark')).toHaveTextContent('Hitzeschutz');
+    expect(container).toHaveTextContent('<iframe srcdoc="<p>x</p>"></iframe>');
+  });
+
+  it('shows the escaped server snippet as the stored text', async () => {
+    const container = await renderSnippet(
+      'Senat &amp; Bezirke: &lt;b&gt;kein&lt;/b&gt; <mark>Hitze</mark>schutzplan'
+    );
+
+    expect(container.querySelector('b')).toBeNull();
+    expect(container).toHaveTextContent('Senat & Bezirke: <b>kein</b> Hitzeschutzplan');
+    expect(container.querySelector('mark')).toHaveTextContent('Hitze');
+  });
+
+  it('keeps highlights inside headings and list items', async () => {
+    const container = await renderSnippet(
+      '## <mark>Hitze</mark>schutz\n\n- Plan für <mark>Hitze</mark>tage'
+    );
+
+    expect(container.querySelectorAll('mark')).toHaveLength(2);
+    expect(container.querySelector('h2, ul, li')).toBeNull();
   });
 });
 

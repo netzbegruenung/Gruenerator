@@ -61,7 +61,7 @@ const CLIENT_TOOLS: Record<string, ClientToolEntry> = {
         // instead of depending on the server asset round-trip.
         if (result.files.length > 0) useComputeExportStore.getState().stash(result.files);
         // Also remember it locally so follow-up turns forward it as
-        // `computedResult` (same path as the legacy auto-run code block).
+        // `computedResult` (same path as the legacy code block's Run button).
         useLastComputeStore.getState().setResult(compute);
         return compute;
       } catch (error) {

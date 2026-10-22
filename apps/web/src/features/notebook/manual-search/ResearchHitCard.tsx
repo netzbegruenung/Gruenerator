@@ -1,7 +1,6 @@
 import { formatResearchHitCount, formatResearchScore } from '@gruenerator/shared/utils';
 import { Badge } from '@gruenerator/ui';
 import { type JSX, type MouseEvent } from 'react';
-import rehypeRaw from 'rehype-raw';
 
 import { Markdown } from '../../../components/common/Markdown/Markdown';
 import { NOTEBOOK_ACCENT_TEXT, NOTEBOOK_PASSAGE, NOTEBOOK_SNIPPET_MARKS } from '../notebookTheme';
@@ -45,7 +44,48 @@ const SNIPPET_MARKDOWN_COMPONENTS: Partial<Components> = {
   li: ({ children }): JSX.Element => <span className="before:content-['·_']"> {children}</span>,
 };
 
-const SNIPPET_REHYPE_PLUGINS = [rehypeRaw];
+/** The slice of the hast tree `rehypeSnippetMarks` touches. */
+interface SnippetNode {
+  type: string;
+  value?: string;
+  tagName?: string;
+  properties?: Record<string, never>;
+  children?: SnippetNode[];
+}
+
+/** Wraps the siblings between a `<mark>` and its `</mark>` in a `mark`
+ *  element; an unclosed one runs to the end of its parent, as in HTML. */
+function liftMarks(parent: SnippetNode): void {
+  if (!parent.children) return;
+  const children: SnippetNode[] = [];
+  let mark: SnippetNode | null = null;
+  for (const child of parent.children) {
+    if (child.type === 'raw' && child.value === '<mark>') {
+      if (!mark) {
+        mark = { type: 'element', tagName: 'mark', properties: {}, children: [] };
+        children.push(mark);
+      }
+      continue;
+    }
+    if (child.type === 'raw' && child.value === '</mark>') {
+      mark = null;
+      continue;
+    }
+    liftMarks(child);
+    (mark?.children ?? children).push(child);
+  }
+  parent.children = children;
+}
+
+/** The snippet is stored source text: the server escapes it and wraps the
+ *  query hits in `<mark>`. No HTML parser runs over it — each inline tag
+ *  reaches hast as a `raw` node, which react-markdown renders as text; only
+ *  the `<mark>` pairs become elements. */
+function rehypeSnippetMarks() {
+  return (tree: SnippetNode) => liftMarks(tree);
+}
+
+const SNIPPET_REHYPE_PLUGINS = [rehypeSnippetMarks];
 
 /** Teaser text, not prose: the server's `<mark>` splits a source's `**bold**`
  *  so its stars would show literally, and two gender stars (`Bürger*innen …
