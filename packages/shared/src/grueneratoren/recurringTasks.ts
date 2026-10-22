@@ -11,7 +11,7 @@ import {
 } from '@gruenerator/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { ApiError, getContractsClient } from '../api/index.js';
+import { ApiError, apiErrorFromResponse, getContractsClient } from '../api/index.js';
 
 export type RecurringTaskInput = CreateRecurringTaskBody;
 export type RecurringTaskPatch = UpdateRecurringTaskBody;
@@ -25,12 +25,7 @@ export const recurringRunsKey = (taskId: string) => [...KEY, taskId, 'runs'] as 
 export async function fetchRecurringTaskRuns(taskId: string): Promise<RecurringTaskRun[]> {
   const res = await getContractsClient().recurringTasks.listRuns({ params: { id: taskId } });
   if (res.status === 200) return res.body.runs;
-  throw new Error('Verlauf konnte nicht geladen werden.');
-}
-
-function readError(body: unknown): string {
-  const obj = (body ?? {}) as { message?: unknown };
-  return typeof obj.message === 'string' ? obj.message : 'Aktion fehlgeschlagen.';
+  throw apiErrorFromResponse(res, 'Verlauf konnte nicht geladen werden.');
 }
 
 /** `enabled` is the caller's auth gate (see `useUserAgents`). */
@@ -41,7 +36,7 @@ export function useRecurringTasks(enabled = true) {
     queryFn: async (): Promise<RecurringTask[]> => {
       const res = await getContractsClient().recurringTasks.list();
       if (res.status === 200) return res.body.tasks;
-      throw new Error('Wiederkehrende Aufgaben konnten nicht geladen werden.');
+      throw apiErrorFromResponse(res, 'Wiederkehrende Aufgaben konnten nicht geladen werden.');
     },
   });
 }
@@ -64,7 +59,7 @@ export function useCreateRecurringTask() {
     mutationFn: async (input: RecurringTaskInput): Promise<RecurringTask> => {
       const res = await getContractsClient().recurringTasks.create({ body: input });
       if (res.status === 201) return res.body.task;
-      throw new Error(readError(res.body));
+      throw apiErrorFromResponse(res);
     },
     onSuccess: () => void qc.invalidateQueries({ queryKey: KEY }),
   });
@@ -82,7 +77,7 @@ export function useUpdateRecurringTask() {
     }): Promise<RecurringTask> => {
       const res = await getContractsClient().recurringTasks.update({ params: { id }, body: patch });
       if (res.status === 200) return res.body.task;
-      throw new Error(readError(res.body));
+      throw apiErrorFromResponse(res);
     },
     onSuccess: () => void qc.invalidateQueries({ queryKey: KEY }),
   });

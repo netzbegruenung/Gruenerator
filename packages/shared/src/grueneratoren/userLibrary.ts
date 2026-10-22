@@ -2,7 +2,7 @@ import { type UserLibraryItem, type UserLibraryItemKind } from '@gruenerator/con
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 
-import { getContractsClient } from '../api/index.js';
+import { ApiError, apiErrorFromResponse, getContractsClient } from '../api/index.js';
 
 export const USER_LIBRARY_QUERY_KEY = ['user-library'] as const;
 const QUERY_KEY = USER_LIBRARY_QUERY_KEY;
@@ -38,7 +38,8 @@ export function useUserLibrary({ onError }: { onError: (message: string) => void
     queryKey: QUERY_KEY,
     queryFn: async (): Promise<UserLibraryItem[]> => {
       const res = await getContractsClient().userLibrary.list();
-      if (res.status !== 200) throw new Error('Deine Grüneratoren konnten nicht geladen werden.');
+      if (res.status !== 200)
+        throw apiErrorFromResponse(res, 'Deine Grüneratoren konnten nicht geladen werden.');
       return res.body.items;
     },
   });
@@ -51,11 +52,12 @@ export function useUserLibrary({ onError }: { onError: (message: string) => void
       const params = { kind, ref };
       if (added) {
         const res = await client.add({ params });
-        if (res.status === 409 || res.status === 500) throw new Error(res.body.error);
+        if (res.status === 409 || res.status === 500)
+          throw new ApiError(res.status, res.body.error);
         if (res.status === 200) return;
       } else {
         const res = await client.remove({ params });
-        if (res.status === 500) throw new Error(res.body.error);
+        if (res.status === 500) throw new ApiError(res.status, res.body.error);
         if (res.status === 200) return;
       }
       throw new Error('Deine Grüneratoren konnten gerade nicht gespeichert werden.');
