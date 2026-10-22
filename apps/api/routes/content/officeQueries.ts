@@ -2,15 +2,18 @@ import { type OfficeFilter, type OfficeQuery, type OfficeResponse } from '@gruen
 
 import { type CollaborativeDocument } from '../../database/schema/collaborative.js';
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import { slideCanvasExists } from '../../services/canvas/canvasRepository.js';
 import { likeContainsPattern } from '../../utils/sqlLike.js';
 import { DOC_EXCERPT_CHARS, OFFICE_SUBTYPES, docsAccessWhere } from '../docs/constants.js';
 
 const db = getPostgresInstance();
+// Canvas-Folien (`slide-16-9`) gehören in die Bibliothek; Sharepics (andere Formate) nicht.
+const SLIDE_CANVAS = `(cd.document_subtype = 'canvas' AND ${slideCanvasExists('cd')})`;
 const TYPE_WHERE: Record<OfficeFilter, string> = {
-  all: 'TRUE',
-  doc: `cd.document_subtype NOT IN ('boards', 'sheets', 'tabelle', 'presentations')`,
+  all: `(cd.document_subtype <> 'canvas' OR ${SLIDE_CANVAS})`,
+  doc: `cd.document_subtype NOT IN ('boards', 'sheets', 'tabelle', 'presentations', 'canvas')`,
   sheet: `cd.document_subtype IN ('sheets', 'tabelle')`,
-  pres: `cd.document_subtype = 'presentations'`,
+  pres: `(cd.document_subtype = 'presentations' OR ${SLIDE_CANVAS})`,
   board: `cd.document_subtype = 'boards'`,
 };
 
@@ -19,7 +22,7 @@ export async function listOffice(userId: string, query: OfficeQuery): Promise<Of
   const limit = Math.min(Number(query.limit) || 50, 100);
   const offset = Math.min(Number(query.offset) || 0, Number.MAX_SAFE_INTEGER);
   const direction = query.sort === 'oldest' ? 'ASC' : 'DESC';
-  const params: unknown[] = [userId, OFFICE_SUBTYPES];
+  const params: unknown[] = [userId, [...OFFICE_SUBTYPES, 'canvas']];
   const search = query.search?.trim();
   let searchWhere = 'TRUE';
   if (search) {

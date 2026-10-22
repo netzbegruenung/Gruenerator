@@ -35,6 +35,10 @@ import { buildCanvasThumbnailUrl } from '../media/thumbnailUrl.js';
 import { type UploadSource } from '../sharedMediaService.js';
 
 export const CANVAS_SUBTYPE = 'canvas';
+
+/** Folienformat (`slide-16-9`): Canvas-Zeilen darin sind Präsentationen, keine Sharepics. */
+export const slideCanvasExists = (alias: string): string =>
+  `EXISTS (SELECT 1 FROM canvas_documents sc WHERE sc.document_id = ${alias}.id AND sc.format = 'slide-16-9')`;
 const DEFAULT_CANVAS_FORMAT = 'post-portrait';
 
 const db = getPostgresInstance();

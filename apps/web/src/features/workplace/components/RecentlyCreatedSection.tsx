@@ -89,10 +89,14 @@ const isTablePreview = (item: RecentItem): boolean =>
 const isSlidesPreview = (item: RecentItem): boolean =>
   item.type === 'doc' && item.documentType === 'presentations';
 
+// Canvas-Folien (Format slide-16-9) kommen als `canvas` mit dem Format in `documentType`.
+const isSlideCanvas = (item: RecentItem): boolean =>
+  item.type === 'canvas' && item.documentType === 'slide-16-9';
+
 const getTypeLabel = (item: RecentItem): string => {
   if (item.type === 'board' && item.boardType === 'whiteboard') return 'Whiteboard';
   if (isTablePreview(item)) return 'Tabelle';
-  if (isSlidesPreview(item)) return 'Präsentation';
+  if (isSlidesPreview(item) || isSlideCanvas(item)) return 'Präsentation';
   if (item.editor === 'profilbild') return 'Profilbild';
   return TYPE_LABELS[item.type];
 };
