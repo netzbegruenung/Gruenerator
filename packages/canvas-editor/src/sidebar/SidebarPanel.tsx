@@ -108,6 +108,8 @@ export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSideb
     onClose: onClose || (() => {}),
     // The drag already carried the sheet off-screen: drop it without a second exit.
     onDragClosed: finishClose,
+    // A tab switch during the drag's slide-out must not close the new tab.
+    closeKey: title ?? null,
     threshold: 100,
     velocityThreshold: 0.5,
   });

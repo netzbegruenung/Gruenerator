@@ -9,6 +9,11 @@ interface UseMobileSheetOptions {
    * instead of playing its own exit from the top.
    */
   onDragClosed?: () => void;
+  /**
+   * What the sheet shows (e.g. its title). A change while a drag-close slides
+   * out aborts it — the close belonged to the previous content.
+   */
+  closeKey?: string | null;
   threshold?: number; // Swipe threshold to trigger close (in pixels)
   velocityThreshold?: number; // Release velocity threshold (px/ms)
 }
@@ -52,6 +57,7 @@ export function useMobileSheet({
   isOpen,
   onClose,
   onDragClosed,
+  closeKey = null,
   threshold = 100,
   velocityThreshold = 0.5,
 }: UseMobileSheetOptions): UseMobileSheetReturn {
@@ -59,6 +65,8 @@ export function useMobileSheet({
   const sheetRef = useRef<HTMLElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  // Set while a drag-close slides out; aborts it and brings the sheet back.
+  const abortCloseRef = useRef<(() => void) | null>(null);
 
   const onCloseRef = useRef(onClose);
   const onDragClosedRef = useRef(onDragClosed);
@@ -134,6 +142,15 @@ export function useMobileSheet({
       sheet.removeEventListener('transitionend', onTransitionEnd);
       onDragClosedRef.current?.();
       onCloseRef.current();
+    };
+
+    abortCloseRef.current = () => {
+      if (!closing) return;
+      closing = false;
+      window.clearTimeout(fallbackTimer);
+      sheet.removeEventListener('transitionend', onTransitionEnd);
+      sheet.style.opacity = '';
+      snapBack();
     };
 
     const activeTouch = (list: TouchList) =>
@@ -245,6 +262,7 @@ export function useMobileSheet({
     content?.addEventListener('touchcancel', cancel);
 
     return () => {
+      abortCloseRef.current = null;
       window.clearTimeout(fallbackTimer);
       sheet.removeEventListener('transitionend', onTransitionEnd);
       handle.removeEventListener('touchstart', onHandleStart);
@@ -257,6 +275,11 @@ export function useMobileSheet({
       content?.removeEventListener('touchcancel', cancel);
     };
   }, [isOpen, threshold, velocityThreshold]);
+
+  // Another tab while the drag-close slides out: keep the sheet for it.
+  useEffect(() => {
+    abortCloseRef.current?.();
+  }, [closeKey]);
 
   return {
     handleRef,

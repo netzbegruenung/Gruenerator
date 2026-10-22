@@ -289,6 +289,30 @@ describe('mobiles Sheet: Ein- und Ausgleiten', () => {
     expect(sheet.className).toContain('bottom-[var(--sheet-rest-bottom,0px)]');
   });
 
+  it('does not close the next tab when the tab changes during a drag close', () => {
+    const onClose = vi.fn();
+    const view = (title: string) => (
+      <SidebarPanel isOpen title={title} onClose={onClose}>
+        <p>{title}-Inhalt</p>
+      </SidebarPanel>
+    );
+    const { rerender } = render(view('Text'));
+    const sheet = screen.getByRole('region', { name: 'Text' });
+    endTransition(sheet);
+    const handle = sheet.querySelector('.sidebar-panel__drag-handle') as HTMLElement;
+
+    fireEvent.touchStart(handle, { touches: [{ clientY: 100 }] });
+    fireEvent.touchMove(handle, { touches: [{ clientY: 260 }] });
+    fireEvent.touchEnd(handle, { touches: [] });
+    expect(sheet.style.transform).toBe('translateY(100%)');
+
+    rerender(view('Uploads'));
+    endTransition(sheet);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(sheet.style.transform).toBe('');
+    expect(screen.getByRole('region', { name: 'Uploads' })).toHaveAttribute('data-state', 'open');
+  });
+
   it('renders desktop panel immediately', () => {
     setViewport(false);
     render(panel(true));
