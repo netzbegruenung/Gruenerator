@@ -15,7 +15,7 @@ import {
   getThreadType,
   resolveThreadBySlugSuffix,
 } from '../runtime/GrueneratorThreadListAdapter';
-import { useAgentStore } from '../stores/chatStore';
+import { hasPendingHandoff, useAgentStore } from '../stores/chatStore';
 
 import { reconcileThreadUrl } from './threadUrlReconciler';
 
@@ -92,9 +92,7 @@ export function ChatThreadRouting({
       // call here would cancel the switch a deep link is about to make.
       // Content queued by another surface: AutoMessageSender owns that hand-off
       // and starts its own thread for it. A second switch here would race it.
-      const { pendingMessage, pendingDraft, pendingInitialAssistantMessage } =
-        useAgentStore.getState();
-      if (pendingMessage || pendingDraft || pendingInitialAssistantMessage) return;
+      if (hasPendingHandoff(useAgentStore.getState())) return;
 
       const state = aui.threads.getState();
       const mainRemoteId =

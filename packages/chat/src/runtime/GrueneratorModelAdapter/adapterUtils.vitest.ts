@@ -126,6 +126,7 @@ describe('buildRequestBody', () => {
     currentReel: null,
     reelUpload: null,
     webpageUrls: [],
+    notebookSourceRefs: [],
     regenerate: false,
     replaceFromMessageId: undefined,
     ...overrides,

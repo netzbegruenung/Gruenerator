@@ -138,7 +138,12 @@ type Props = ResearchDocumentParams & {
   title: string;
   theme: Theme;
   onClose: () => void;
+  /** Starts a new chat with the document attached; `message` is sent right
+   *  away. Omitted where the reader already sits over a chat (its sources). */
+  onOpenInChat?: (docTitle: string, message: string | null) => void;
 };
+
+const SUMMARY_REQUEST = 'Fasse dieses Dokument zusammen.';
 
 /**
  * A search hit read inside the notebook: the full text with the passages that
@@ -146,7 +151,7 @@ type Props = ResearchDocumentParams & {
  * stepping lives in a bar at the bottom within thumb reach — the web reader's
  * phone layout.
  */
-export function ResearchDocumentReader({ title, theme, onClose, ...params }: Props) {
+export function ResearchDocumentReader({ title, theme, onClose, onOpenInChat, ...params }: Props) {
   const dark = useColorScheme() === 'dark';
   const accent = getSurfaceFab('wissen', dark).icon;
   const insets = useSafeAreaInsets();
@@ -231,6 +236,23 @@ export function ResearchDocumentReader({ title, theme, onClose, ...params }: Pro
     </Pressable>
   );
 
+  const chatButton = (
+    label: string,
+    icon: 'sparkles-outline' | 'chatbubble-outline',
+    message: string | null
+  ) =>
+    data &&
+    onOpenInChat && (
+      <Pressable
+        onPress={() => onOpenInChat(data.title, message)}
+        accessibilityRole="button"
+        style={[styles.webButton, { borderColor: accent }]}
+      >
+        <Ionicons name={icon} size={18} color={accent} />
+        <Text style={[styles.webButtonText, { color: accent }]}>{label}</Text>
+      </Pressable>
+    );
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View
@@ -276,7 +298,13 @@ export function ResearchDocumentReader({ title, theme, onClose, ...params }: Pro
               onJump={jump}
             />
           }
-          ListFooterComponent={<View style={styles.footer}>{webButton}</View>}
+          ListFooterComponent={
+            <View style={styles.footer}>
+              {webButton}
+              {chatButton('Mit KI zusammenfassen', 'sparkles-outline', SUMMARY_REQUEST)}
+              {chatButton('Im Chat besprechen', 'chatbubble-outline', null)}
+            </View>
+          }
           contentContainerStyle={styles.content}
           ItemSeparatorComponent={() => <View style={styles.gap} />}
           // Blocks vary in height, so a far jump may land before it is laid out:
@@ -427,7 +455,7 @@ const styles = StyleSheet.create({
   paragraph: { fontFamily: BODY_FONT, fontSize: 17, lineHeight: 28 },
   term: { fontWeight: '700' },
   gap: { height: spacing.medium },
-  footer: { marginTop: spacing.xlarge, alignItems: 'flex-start' },
+  footer: { marginTop: spacing.xlarge, alignItems: 'flex-start', gap: spacing.small },
   webButton: {
     flexDirection: 'row',
     alignItems: 'center',

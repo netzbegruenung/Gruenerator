@@ -434,6 +434,24 @@ export const LOOP_SCENARIOS: readonly LoopScenario[] = [
     synthSystemIncludes: 'ERGEBNISSE EIGENER WERKZEUGE IN DIESEM TURN',
   },
   {
+    id: 'notebook-dokument-zusammenfassung-loop',
+    category: 'mention-lane',
+    note: 'Keine Modellannahme: dasselbe Gitter wie `anhang-zusammenfassung-loop`, nur kommt das Dokument aus dem Notebook-Reader („Mit KI zusammenfassen") als `notebookSourceRefs`-Verweis auf ein System-Dokument. streamContext prueft den Verweis mit der Regel des Readers (Sammlung + Standardfilter, Qdrant-Scroll gestubbt) und reicht ihn als `system_document`-Quelle weiter; `retrievableAttachedSources` zaehlt ihn, also wird `summarize` montiert und als erster Aufruf erzwungen. Das Skript gibt dem Planer NUR den `summarize`-Aufruf.',
+    prompt: 'Fasse dieses Dokument zusammen.',
+    body: {
+      notebookSourceRefs: [
+        {
+          collectionId: 'grundsatz-system',
+          sourceUrl: 'https://www.gruene.de/grundsatzprogramm',
+        },
+      ],
+    },
+    streams: [{ calls: [{ tool: 'summarize', args: {} }] }, { text: GERMAN_ANSWER }],
+    mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
+    firstToolChoice: 'summarize',
+    synthSystemIncludes: 'ERGEBNISSE EIGENER WERKZEUGE IN DIESEM TURN',
+  },
+  {
     id: 'recherche-auftrag-zuschnitt',
     category: 'forced-scope',
     note: 'Keine Modellannahme: ein ausdruecklicher Rechercheauftrag zwingt den ersten Aufruf (`research_order` in `shouldForceFirstToolCall`), und `forcedFirstStepTools` schneidet den Schritt auf die Recherche-Familie zu. Beides entscheidet ohne Modell. Gemessener Ausfall (#3880): `required` ueber den vollen Katalog, und der Planer griff zu `media`, `read_pdf_form` oder `summarize`. Das Skript ruft `web_search`; die Websuche ist gestubbt. `read_pdf_form` montiert diese Harness nicht (kein ausfuellbares PDF am Turn) — die Negativ-Zusicherung tragen `media` und `summarize`, die hier montiert sind.',

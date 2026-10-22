@@ -5,15 +5,40 @@
  */
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 import { http, HttpResponse } from 'msw';
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { server } from '../../../test/msw-server';
 import { axe, renderWithProviders, screen, waitFor } from '../../../test-utils';
 
+import { ResearchDocumentReader } from './ResearchDocumentReader';
 import { ResearchResultsList } from './ResearchResultsList';
 import { type ResearchResult } from './useResearch';
 
 import type { ResearchDocumentResponse } from '@gruenerator/contracts';
+
+// Recorded, not replaced: the reader itself opens on a history entry.
+const navigate = vi.fn();
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<
+    Record<string, unknown> & { useNavigate: () => (...args: unknown[]) => unknown }
+  >();
+  return {
+    ...actual,
+    useNavigate: () => {
+      const real = actual.useNavigate();
+      return (...args: unknown[]) => {
+        navigate(...args);
+        return real(...args);
+      };
+    },
+  };
+});
+
+const setPendingAttachments = vi.fn();
+const setPendingMessage = vi.fn();
+vi.mock('@gruenerator/chat/stores', () => ({
+  useAgentStore: { getState: () => ({ setPendingAttachments, setPendingMessage }) },
+}));
 
 const DOCUMENT = 'http://localhost/api/research/document';
 const USER_DOCUMENT = 'http://localhost/api/documents/:id/reader';
@@ -77,6 +102,7 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
+  vi.clearAllMocks();
   requested = [];
   server.use(
     http.get(DOCUMENT, ({ request }) => {
@@ -201,5 +227,71 @@ describe('research document reader', () => {
     await user.click(screen.getByRole('link', { name: 'Hitzeschutz für alle' }));
     const dialog = await screen.findByRole('dialog', { name: doc.title });
     expect(await axe(dialog)).toHaveNoViolations();
+  });
+});
+
+describe('research document reader — into the chat', () => {
+  const chipRef = () => {
+    const [chips] = setPendingAttachments.mock.calls[0] as [
+      Array<{ name: string; content: [{ data: { ref: unknown } }] }>,
+    ];
+    return { name: chips[0].name, ref: chips[0].content[0].data.ref };
+  };
+
+  it('summarises: attaches the system document by its stored URL and sends the request', async () => {
+    const { user } = renderList([hit()]);
+    await user.click(screen.getByRole('link', { name: 'Hitzeschutz für alle' }));
+    await screen.findByRole('dialog', { name: doc.title });
+
+    await user.click(screen.getAllByRole('button', { name: /Mit KI zusammenfassen/ })[0]);
+
+    expect(chipRef()).toEqual({
+      name: doc.title,
+      ref: { collectionId: 'berlin-system', sourceUrl: hit().source_url },
+    });
+    expect(setPendingMessage).toHaveBeenCalledWith('Fasse dieses Dokument zusammen.');
+    expect(navigate).toHaveBeenCalledWith('/chat');
+  });
+
+  it('discusses: attaches a shared-notebook document with its notebook and sends nothing', async () => {
+    server.use(
+      http.get(USER_DOCUMENT, () =>
+        HttpResponse.json({ ...doc, sourceUrl: null, sourceName: null })
+      )
+    );
+    const { user } = renderList(
+      [hit({ document_id: 'doc-uuid', source_url: null, collection_id: 'nb-uuid' })],
+      'nb-uuid'
+    );
+    await user.click(screen.getByRole('button', { name: 'Hitzeschutz für alle' }));
+    await screen.findByRole('dialog', { name: doc.title });
+
+    // An uploaded file has no web original, but still goes into the chat.
+    expect(screen.queryByRole('link', { name: /Im Web öffnen/ })).not.toBeInTheDocument();
+    await user.click(screen.getAllByRole('button', { name: /Im Chat besprechen/ })[0]);
+
+    expect(chipRef().ref).toEqual({ documentId: 'doc-uuid', notebookId: 'nb-uuid' });
+    expect(setPendingMessage).not.toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledWith('/chat');
+  });
+
+  it('offers no way into the chat over a chat', async () => {
+    renderWithProviders(
+      <ResearchDocumentReader
+        target={{
+          collectionId: 'berlin-system',
+          sourceUrl: doc.sourceUrl ?? '',
+          query: '',
+          title: 'Hitzeschutz',
+        }}
+        onClose={vi.fn()}
+        chatActions={false}
+      />
+    );
+    await screen.findByRole('dialog', { name: doc.title });
+
+    expect(screen.getAllByRole('link', { name: /Im Web öffnen/ }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: /Mit KI zusammenfassen/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Im Chat besprechen/ })).not.toBeInTheDocument();
   });
 });

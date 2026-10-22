@@ -20,6 +20,7 @@ import type { AgentConfig } from '../../../routes/chat/agents/types.js';
 import type { ArtifactKindId } from '../../../routes/chat/services/artifactKindRegistry.js';
 import type { EditableArtifact } from '../../../routes/chat/services/editAddressee.js';
 import type { RenderedMemory } from '../../../services/memory/memoryPrompt.js';
+import type { SystemCollection } from '../../../services/notebook/systemNotebookSources.js';
 import type { UserAgentInput } from '../../../services/userAgents/userAgentsRepository.js';
 import type {
   WolkeFileRef,
@@ -372,7 +373,24 @@ export type DocumentSourceKind =
   | 'attachment' // threadAttachments (uploaded file context)
   | 'current_doc' // currentDocument (open in docs editor)
   | 'wolke' // wolkeFiles (@wolke mentionable — Nextcloud file picker)
-  | 'connect'; // connectFiles (@connect mentionable — Nango-connected provider file picker)
+  | 'connect' // connectFiles (@connect mentionable — Nango-connected provider file picker)
+  | 'system_document'; // notebookSources (system-collection document handed over from the reader)
+
+/**
+ * A notebook document handed from the document reader to the chat, already
+ * authorized for this turn (`resolveNotebookSources`, the reader's own access
+ * rules). `user`: own, or a collaborator's read through `notebookId`.
+ * `system`: one URL of a system collection, checked under its default filter.
+ */
+export type ResolvedNotebookSource =
+  | {
+      kind: 'user';
+      documentId: string;
+      notebookId: string | null;
+      ownerUserId: string;
+      title: string;
+    }
+  | { kind: 'system'; collection: SystemCollection; sourceUrl: string; title: string };
 
 /**
  * Normalized reference to a single document the user is working with this turn.
@@ -393,6 +411,13 @@ export interface DocumentSource {
   // For `connect` kind: the provider + fileId so searchNode can fetch the file
   // content via the matching Nango provider API client at retrieval time.
   connect?: ConnectFileRef | undefined;
+  // For a `document` handed over from the notebook reader: whose `user_id` its
+  // chunks carry (read with it, not the viewer's) and the notebook it was read
+  // through (null = the viewer's own). Authorized upstream in streamContext.
+  ownerUserId?: string;
+  notebookId?: string | null;
+  // For `system_document` kind: the system collection and the STORED source_url.
+  systemDocument?: { collection: SystemCollection; sourceUrl: string };
 }
 
 /**
@@ -577,6 +602,8 @@ export interface ChatGraphInput {
   docMentionIds?: string[] | undefined;
   wolkeFiles?: WolkeFileRef[] | undefined;
   connectFiles?: ConnectFileRef[] | undefined;
+  /** Notebook documents handed over from the reader, authorized this turn. */
+  notebookSources?: ResolvedNotebookSource[];
   /**
    * URLs explicitly attached in the composer via the @link mention. Merged with
    * the classifier's auto-detected URLs and crawled through the scrape_url path.
@@ -849,6 +876,11 @@ export interface ChatGraphState {
   // Connected-account (Nango) file refs selected via @connect mentionable.
   // Downloaded + parsed inline at searchNode time; never persisted.
   connectFiles: ConnectFileRef[];
+
+  // Notebook documents handed over from the document reader (own, shared or
+  // system), re-authorized every turn in streamContext and carried per thread
+  // (`chat_threads.notebook_source_refs`). Retrieved like attached documents.
+  notebookSources: ResolvedNotebookSource[];
 
   // URLs attached via the @link mentionable. The classifier unions these into
   // `detectedUrls` so the existing scrape_url path crawls them.

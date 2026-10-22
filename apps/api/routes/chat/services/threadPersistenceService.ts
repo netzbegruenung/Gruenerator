@@ -5,7 +5,7 @@
  * Wraps PostgreSQL queries for thread CRUD and message storage.
  */
 
-import { type RoleRef } from '@gruenerator/contracts';
+import { type NotebookSourceRef, type RoleRef } from '@gruenerator/contracts';
 import { generateSlugSuffix } from '@gruenerator/shared/utils';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
@@ -15,6 +15,7 @@ import { type ArtifactKindId } from './artifactKindRegistry.js';
 import { parseRecordedOffer } from './artifactOffer.js';
 import { sharepicVariantCall } from './sharepicToolCalls.js';
 import { type ThreadCloudFiles, parseThreadCloudFiles } from './threadCloudFiles.js';
+import { parseThreadNotebookSources } from './threadNotebookSources.js';
 import { ROW_WINDOW, toSources, toToolSteps } from './threadToolProjections.js';
 
 import type { SearchResult, ThreadToolContext } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -517,6 +518,34 @@ export async function setThreadCloudFiles(
   await postgres.query(
     `UPDATE chat_threads SET cloud_file_refs = $1 WHERE id = $2 AND user_id = $3`,
     [empty ? null : JSON.stringify(files), threadId, userId]
+  );
+}
+
+/**
+ * Notebook documents handed to this thread from the reader — refs only, see
+ * threadNotebookSources.ts. Owner-scoped like the cloud files.
+ */
+export async function getThreadNotebookSources(
+  threadId: string,
+  userId: string
+): Promise<NotebookSourceRef[]> {
+  const postgres = getPostgresInstance();
+  const result = await postgres.query(
+    `SELECT notebook_source_refs FROM chat_threads WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`,
+    [threadId, userId]
+  );
+  return parseThreadNotebookSources(result[0]?.notebook_source_refs);
+}
+
+export async function setThreadNotebookSources(
+  threadId: string,
+  userId: string,
+  refs: NotebookSourceRef[]
+): Promise<void> {
+  const postgres = getPostgresInstance();
+  await postgres.query(
+    `UPDATE chat_threads SET notebook_source_refs = $1 WHERE id = $2 AND user_id = $3`,
+    [refs.length === 0 ? null : JSON.stringify(refs), threadId, userId]
   );
 }
 

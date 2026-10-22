@@ -16,6 +16,7 @@ import {
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
+import { type MentionAttachment } from '../lib/documentMentionables';
 import { DEFAULT_NOTEBOOK_ANSWER_MODE, type NotebookComposerMode } from '../lib/notebookAnswerMode';
 import { DEFAULT_NOTEBOOK_DEPTH } from '../lib/notebookDepth';
 import { notifyError, notifyWarning } from '../lib/notify';
@@ -118,6 +119,9 @@ interface AgentState {
   messageCount: number;
   pendingMessage: string | null;
   pendingDraft: string | null;
+  /** Reference chips another surface hands to the next new chat (the notebook
+   *  reader). AutoMessageSender attaches them along with the pending text. */
+  pendingAttachments: MentionAttachment[];
   pendingInitialAssistantMessage: string | null;
   chatViewMode: 'overview' | 'thread';
   threadMode: ThreadMode;
@@ -185,6 +189,7 @@ interface AgentState {
   setSelectedNotebook: (notebookId: string) => void;
   setPendingMessage: (message: string | null) => void;
   setPendingDraft: (draft: string | null) => void;
+  setPendingAttachments: (attachments: MentionAttachment[]) => void;
   setPendingInitialAssistantMessage: (message: string | null) => void;
   setChatViewMode: (mode: 'overview' | 'thread') => void;
   setThreadMode: (mode: ThreadMode) => void;
@@ -235,6 +240,23 @@ const DEFAULT_COMPACTION_STATE: CompactionState = {
   compactionUpdatedAt: null,
 };
 
+/**
+ * Whether another surface queued content for the next new chat. AutoMessageSender
+ * owns that hand-off; the views that would otherwise switch threads on mount
+ * step aside while it is pending.
+ */
+export function hasPendingHandoff(
+  s: Pick<
+    AgentState,
+    'pendingMessage' | 'pendingDraft' | 'pendingAttachments' | 'pendingInitialAssistantMessage'
+  >
+): boolean {
+  return (
+    !!(s.pendingMessage || s.pendingDraft || s.pendingInitialAssistantMessage) ||
+    s.pendingAttachments.length > 0
+  );
+}
+
 export const useAgentStore = create<AgentState>()(
   persist(
     (set) => ({
@@ -250,6 +272,7 @@ export const useAgentStore = create<AgentState>()(
       messageCount: 0,
       pendingMessage: null,
       pendingDraft: null,
+      pendingAttachments: [],
       pendingInitialAssistantMessage: null,
       chatViewMode: 'overview' as const,
       threadMode: 'chat' as ThreadMode,
@@ -364,6 +387,8 @@ export const useAgentStore = create<AgentState>()(
       setPendingMessage: (message) => set({ pendingMessage: message }),
 
       setPendingDraft: (draft) => set({ pendingDraft: draft }),
+
+      setPendingAttachments: (attachments) => set({ pendingAttachments: attachments }),
 
       setPendingInitialAssistantMessage: (message) =>
         set({ pendingInitialAssistantMessage: message }),

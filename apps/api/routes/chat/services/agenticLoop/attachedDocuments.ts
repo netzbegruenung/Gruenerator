@@ -94,11 +94,17 @@ export const ATTACHED_DOC_SNIPPET_CHARS = 6_000;
  * `notebook`, `wolke` und `connect` dazu, weil der Einzelpfad sie über denselben
  * Fan-out bedient. Im Loop haben die drei ihre eigenen Werkzeuge — sie hier
  * mitzunehmen hieße, jeden Notebook-Turn ungefragt eine zweite Suche zahlen zu
- * lassen.
+ * lassen. Ein aus dem Notebook-Reader übergebenes Dokument (`system_document`
+ * bzw. `document` mit `ownerUserId`) ist dagegen ein angehängtes Dokument: die
+ * Person hat genau dieses eine gewählt.
  */
 export function retrievableAttachedSources(state: ChatGraphState): DocumentSource[] {
   return (state.documentSources ?? []).filter(
-    (s) => s.kind === 'document' || s.kind === 'document_chat' || s.kind === 'doc_mention'
+    (s) =>
+      s.kind === 'document' ||
+      s.kind === 'document_chat' ||
+      s.kind === 'doc_mention' ||
+      s.kind === 'system_document'
   );
 }
 

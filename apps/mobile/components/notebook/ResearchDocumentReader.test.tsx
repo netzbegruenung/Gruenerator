@@ -67,7 +67,7 @@ const DOC = {
 
 const onClose = jest.fn();
 
-function renderReader() {
+function renderReader(onOpenInChat?: (docTitle: string, message: string | null) => void) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: Infinity } },
   });
@@ -80,6 +80,7 @@ function renderReader() {
         title="Hitzeschutz für alle"
         theme={lightTheme}
         onClose={onClose}
+        {...(onOpenInChat ? { onOpenInChat } : {})}
       />
     </QueryClientProvider>
   );
@@ -167,6 +168,26 @@ describe('ResearchDocumentReader (mobile)', () => {
 
     fireEvent.press(await screen.findByText('Im Web öffnen'));
     expect(WebBrowser.openBrowserAsync).toHaveBeenCalledWith(DOC.sourceUrl);
+  });
+
+  it('hands the loaded document to the chat: summary sends, discussion does not', async () => {
+    mockFetch.mockResolvedValue(DOC);
+    const onOpenInChat = jest.fn();
+    renderReader(onOpenInChat);
+
+    fireEvent.press(await screen.findByText('Mit KI zusammenfassen'));
+    expect(onOpenInChat).toHaveBeenLastCalledWith(DOC.title, 'Fasse dieses Dokument zusammen.');
+    fireEvent.press(screen.getByText('Im Chat besprechen'));
+    expect(onOpenInChat).toHaveBeenLastCalledWith(DOC.title, null);
+  });
+
+  it('offers no way into the chat without a hand-off (opened from a chat)', async () => {
+    mockFetch.mockResolvedValue(DOC);
+    renderReader();
+
+    expect(await screen.findByText('Im Web öffnen')).toBeTruthy();
+    expect(screen.queryByText('Mit KI zusammenfassen')).toBeNull();
+    expect(screen.queryByText('Im Chat besprechen')).toBeNull();
   });
 
   it('goes back to the results', async () => {
