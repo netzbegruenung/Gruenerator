@@ -1156,6 +1156,8 @@ function CanvasEditorInner({
   const canvasWidth = activeConfig?.canvas.width ?? 1080;
   const canvasHeight = activeConfig?.canvas.height ?? 1080;
 
+  // Als String, damit Notiz-Tippen (neues `pages`) die Leiste nicht neu baut
+  const deckLocale = impressumLocaleOf(pages[0] ?? null);
   const noop = useCallback(() => {}, []);
   const toolbarShareProps = useMemo(
     () => ({
@@ -1187,7 +1189,7 @@ function CanvasEditorInner({
         ? {
             onDownloadPdf: handleDownloadSlidesPdf,
             onDownloadPptx: handleDownloadPptx,
-            locale: impressumLocaleOf(pages[0] ?? null),
+            locale: deckLocale,
           }
         : null,
     }),
@@ -1195,7 +1197,7 @@ function CanvasEditorInner({
       isSlideDeck,
       handleDownloadSlidesPdf,
       handleDownloadPptx,
-      pages,
+      deckLocale,
       printFormat,
       impressumGate,
       handleDownloadPdf,
