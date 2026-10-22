@@ -62,6 +62,13 @@ export const chatThreads = pgTable(
     // Notebook documents handed from the reader to the chat — refs only, access
     // re-checked every turn. See routes/chat/services/threadNotebookSources.ts.
     notebook_source_refs: jsonb('notebook_source_refs').$type<unknown[]>(),
+    // @doc, saved-text and @link picks — refs only, read again every turn (#4861).
+    // See routes/chat/services/threadMentionRefs.ts.
+    mention_refs: jsonb('mention_refs').$type<{
+      texts: unknown[];
+      docs: unknown[];
+      links: unknown[];
+    }>(),
     // Home "Space" (a group) this thread is filed in. NULL = unfiled. FK →
     // groups(id) ON DELETE SET NULL. A thread has one home space (personal or
     // team); it can additionally be shared to more spaces via group_content_shares.

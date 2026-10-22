@@ -86,6 +86,18 @@ export interface TextContextResult {
   count: number;
 }
 
+/** Titles of the saved texts this user owns — the chips a reload restores. */
+export async function readSavedTextTitles(
+  userId: string,
+  textIds: readonly string[]
+): Promise<Array<{ id: string; title: string }>> {
+  if (!textIds.length) return [];
+  return getPostgresInstance().query(
+    'SELECT id, title FROM user_documents WHERE user_id = $1 AND id = ANY($2) AND is_active = true AND deleted_at IS NULL',
+    [userId, textIds]
+  );
+}
+
 /**
  * Fetch saved text context for referenced user_documents.
  * These are always small enough to inject directly (social posts, press releases, etc.).

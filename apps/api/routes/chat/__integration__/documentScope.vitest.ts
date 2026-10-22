@@ -237,10 +237,33 @@ describe('document ids from the request body', () => {
       threadId,
     });
 
-    expect(answeredState().notebookSources).toEqual([
+    const followUp = answeredState();
+    expect(followUp.notebookSources).toEqual([
       expect.objectContaining({ kind: 'user', documentId: DOCS.own }),
       expect.objectContaining({ kind: 'user', documentId: DOCS.shared }),
     ]);
+    // Carried, not picked: material for the turn, not a forced route.
+    expect(followUp.notebookSourcesCarriedOnly).toBe(true);
+  });
+
+  it('lets a carried @datei pick yield to a later order (#4861)', async () => {
+    const first = await runTurn(suite.baseUrl(), {
+      messages: [userTurn(FACTUAL)],
+      documentIds: [DOCS.own],
+    });
+    const threadId = first.trace.threadId!;
+
+    const sharepic = await runTurn(suite.baseUrl(), {
+      messages: [userTurn('Erstelle ein Sharepic zum Radverkehr', 'm2')],
+      threadId,
+    });
+    expect(sharepic.trace.intent).toBe('sharepic');
+
+    const smallTalk = await runTurn(suite.baseUrl(), {
+      messages: [userTurn('Danke dir!', 'm3')],
+      threadId,
+    });
+    expect(smallTalk.trace.intent).not.toBe('search');
   });
 
   it('drops a list of only foreign ids entirely', async () => {

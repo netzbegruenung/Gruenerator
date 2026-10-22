@@ -12,6 +12,11 @@ import { type NotebookSourceRef } from '@gruenerator/contracts';
 import { type PersistedStep } from '../../services/agenticLoop/types.js';
 import { parseRecordedOffer } from '../../services/artifactOffer.js';
 import { type ThreadCloudFiles, NO_CLOUD_FILES } from '../../services/threadCloudFiles.js';
+import {
+  type ThreadMentionRefs,
+  NO_MENTION_REFS,
+  isEmptyThreadMentionRefs,
+} from '../../services/threadMentionRefs.js';
 import { type ThreadToolHistory } from '../../services/threadPersistenceService.js';
 import { toSources, toToolSteps, type ToolStepRow } from '../../services/threadToolProjections.js';
 
@@ -34,6 +39,7 @@ export interface FakeThread {
   lastToolContext: ThreadToolContext | null;
   cloudFiles: ThreadCloudFiles | null;
   notebookSources: NotebookSourceRef[] | null;
+  mentionRefs: ThreadMentionRefs | null;
   customSystemPrompt: string | null;
   customEnabledTools: Record<string, boolean> | null;
 }
@@ -150,6 +156,7 @@ export async function createThread(
     lastToolContext: null,
     cloudFiles: null,
     notebookSources: null,
+    mentionRefs: null,
     customSystemPrompt: null,
     customEnabledTools: null,
   });
@@ -180,6 +187,7 @@ export async function ensureDocChatThread(
     lastToolContext: null,
     cloudFiles: null,
     notebookSources: null,
+    mentionRefs: null,
     customSystemPrompt: null,
     customEnabledTools: null,
   });
@@ -478,6 +486,23 @@ export async function setThreadNotebookSources(
 ): Promise<void> {
   const row = threads.get(threadId);
   if (row?.userId === userId) row.notebookSources = refs.length > 0 ? refs : null;
+}
+
+export async function getThreadMentionRefs(
+  threadId: string,
+  userId: string
+): Promise<ThreadMentionRefs> {
+  const row = threads.get(threadId);
+  return row?.userId === userId && row.mentionRefs ? row.mentionRefs : NO_MENTION_REFS;
+}
+
+export async function setThreadMentionRefs(
+  threadId: string,
+  userId: string,
+  refs: ThreadMentionRefs
+): Promise<void> {
+  const row = threads.get(threadId);
+  if (row?.userId === userId) row.mentionRefs = isEmptyThreadMentionRefs(refs) ? null : refs;
 }
 
 export async function getLastGeneratedImageUrl(_threadId: string): Promise<string | null> {
