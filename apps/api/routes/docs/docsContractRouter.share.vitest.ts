@@ -9,15 +9,18 @@
  *    link is not silently anonymously-writable (the column default is 'editor').
  *  - A plain sharepic (subtype 'canvas') is shared behind a login only; just a
  *    Vorlage's snapshot canvas may still get a public link.
+ *  - Every share-settings change closes the document's open Hocuspocus
+ *    connections after the write, so the new rights apply to open sessions too.
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Request } from 'express';
 
-const { query, isVorlageSnapshotCanvas } = vi.hoisted(() => ({
+const { query, isVorlageSnapshotCanvas, closeCollabRooms } = vi.hoisted(() => ({
   query: vi.fn(),
   isVorlageSnapshotCanvas: vi.fn(),
+  closeCollabRooms: vi.fn(),
 }));
 
 vi.mock('../../database/services/PostgresService.js', () => ({
@@ -28,6 +31,8 @@ vi.mock('../../services/canvas/canvasRepository.js', () => ({
   CANVAS_SUBTYPE: 'canvas',
   isVorlageSnapshotCanvas,
 }));
+
+vi.mock('../../services/collab/hocuspocusInternal.js', () => ({ closeCollabRooms }));
 
 const { docsContractRouter } = await import('./docsContractRouter.js');
 
@@ -73,10 +78,11 @@ const setShareMode = (mode: 'private' | 'authenticated' | 'public', userId = 'ow
     }) => Promise<ShareResult>
   )({ req: req(userId), params: { id: 'doc-1' }, body: { mode } });
 
-/** Route SELECT → provided row, UPDATE → []. */
+/** Route SELECT → provided row, UPDATE → [], group-share writes → one matched row. */
 function primeDb(row: Record<string, unknown> | null) {
   query.mockReset();
   query.mockImplementation(async (sql: string) => {
+    if (/group_content_shares/i.test(sql)) return [{ id: 'share-1' }];
     if (/UPDATE collaborative_documents/i.test(sql)) return [];
     if (/FROM collaborative_documents/i.test(sql)) return row ? [row] : [];
     return [];
@@ -90,6 +96,7 @@ const lastUpdate = () =>
 beforeEach(() => {
   primeDb(ownedRow());
   isVorlageSnapshotCanvas.mockReset().mockResolvedValue(false);
+  closeCollabRooms.mockReset().mockResolvedValue(undefined);
 });
 
 describe('setSharePermission', () => {
@@ -205,5 +212,58 @@ describe('sharepics are login-only', () => {
     const res = await setShareMode('public');
     expect(res.status).toBe(200);
     expect(isVorlageSnapshotCanvas).not.toHaveBeenCalled();
+  });
+});
+
+describe('open collaboration connections', () => {
+  const call = (name: string, extra: Record<string, unknown> = {}, userId = 'owner-1') =>
+    (
+      docsContractRouter[name as keyof typeof docsContractRouter] as unknown as (
+        a: Record<string, unknown>
+      ) => Promise<ShareResult>
+    )({ req: req(userId), params: { id: 'doc-1', groupId: 'group-1' }, ...extra });
+
+  /** Index (in call order) of the last write the handler issued. */
+  const lastWriteOrder = () => {
+    const writes = query.mock.calls.flatMap((args: unknown[], i) =>
+      /^\s*(UPDATE|DELETE)\b/i.test(String(args[0])) ? [query.mock.invocationCallOrder[i] ?? 0] : []
+    );
+    return writes.length === 0 ? Infinity : Math.max(...writes);
+  };
+
+  it.each([
+    ['setSharePermission', { body: { permission: 'viewer' } }],
+    ['setShareMode', { body: { mode: 'private' } }],
+    ['setShareMode', { body: { mode: 'authenticated' } }],
+    ['setShareMode', { body: { mode: 'public' } }],
+    ['enableSharing', {}],
+    ['disableSharing', {}],
+    ['removeGroupShare', {}],
+    ['updateGroupShare', { body: { permission_level: 'viewer' } }],
+  ])('%s %j closes the room after the write', async (name, extra) => {
+    const res = await call(name, extra);
+
+    expect(res.status).toBe(200);
+    expect(closeCollabRooms).toHaveBeenCalledTimes(1);
+    expect(closeCollabRooms).toHaveBeenCalledWith(['doc-1']);
+    expect(closeCollabRooms.mock.invocationCallOrder[0]).toBeGreaterThan(lastWriteOrder());
+  });
+
+  it.each([
+    ['setSharePermission', { body: { permission: 'viewer' } }],
+    ['setShareMode', { body: { mode: 'private' } }],
+    ['disableSharing', {}],
+    ['removeGroupShare', {}],
+    ['updateGroupShare', { body: { permission_level: 'viewer' } }],
+  ])('%s by a non-owner closes nothing', async (name, extra) => {
+    const res = await call(name, extra, 'stranger-2');
+    expect(res.status).toBe(403);
+    expect(closeCollabRooms).not.toHaveBeenCalled();
+  });
+
+  it('does not hold the response for the close', async () => {
+    closeCollabRooms.mockReturnValue(new Promise(() => {}));
+    const res = await call('setSharePermission', { body: { permission: 'viewer' } });
+    expect(res.status).toBe(200);
   });
 });

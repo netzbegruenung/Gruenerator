@@ -15,6 +15,7 @@
 
 import { deleteStoredFile } from '../../routes/boards/boardAttachmentStorage.js';
 import { reportBackgroundError } from '../../utils/reportBackgroundError.js';
+import { closeCollabRooms } from '../collab/hocuspocusInternal.js';
 import { type TrashCursor, trashKeysetWhere, trashOrderBy } from '../trash/trashCursor.js';
 
 export type QueryRunner = <T = Record<string, unknown>>(
@@ -175,6 +176,9 @@ export async function trashCollaborativeDocument(
      WHERE id = $1 AND is_deleted = false`,
     [id]
   );
+  // Open editors would otherwise keep editing a trashed document; on reconnect
+  // Hocuspocus refuses it.
+  void closeCollabRooms([id]);
   return { status: 'ok' };
 }
 

@@ -20,6 +20,7 @@ import { type GroupPostFileRow, type GroupRow } from '../../database/schema/grou
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { createLogger } from '../../utils/logger.js';
+import { closeGroupCollabRooms } from '../collab/collabRooms.js';
 import { notifyGroupMembers } from '../notifications/index.js';
 import {
   isRowId,
@@ -90,6 +91,9 @@ export async function trashGroup(userId: string, groupId: string): Promise<Group
     [groupId]
   );
   if (rows.length === 0) return 'not_found';
+  // Offene Sitzungen auf geteilten Inhalten und im Präsenzraum hätten ihren
+  // Zugriff sonst behalten, bis sie von selbst neu verbinden.
+  void closeGroupCollabRooms(groupId, null);
 
   // Der Beleg, dass es dieses Projekt gab und wer es wann gelöscht hat: die
   // Benachrichtigung oben erreicht per `excludeUserId` gerade die löschende

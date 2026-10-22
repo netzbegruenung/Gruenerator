@@ -25,6 +25,7 @@ import { getPostgresInstance } from '../../database/services/PostgresService.js'
 import { aiObject } from '../../services/ai/generate.js';
 import { viaLaxParser, withContent } from '../../services/ai/structuredParsing.js';
 import { CANVAS_SUBTYPE, isVorlageSnapshotCanvas } from '../../services/canvas/canvasRepository.js';
+import { closeCollabRooms } from '../../services/collab/hocuspocusInternal.js';
 import {
   trashCollaborativeDocument,
   updateCollaborativeDocument,
@@ -278,6 +279,7 @@ export const docsContractRouter = s.router(docsContract, {
       )) as unknown[];
       if (result.length === 0)
         return { status: 404 as const, body: { error: 'Group share not found' } };
+      void closeCollabRooms([id]);
 
       return {
         status: 200 as const,
@@ -440,6 +442,7 @@ export const docsContractRouter = s.router(docsContract, {
          WHERE id = $1`,
         [id, GRANTED_BY_SHARE_LINK]
       );
+      void closeCollabRooms([id]);
 
       return {
         status: 200 as const,
@@ -580,6 +583,7 @@ export const docsContractRouter = s.router(docsContract, {
       if (!result || (result as unknown[]).length === 0) {
         return { status: 404 as const, body: { error: 'Group share not found' } };
       }
+      void closeCollabRooms([id]);
 
       return { status: 200 as const, body: { message: 'Group permission updated successfully' } };
     } catch (error) {
@@ -834,6 +838,7 @@ export const docsContractRouter = s.router(docsContract, {
          WHERE id = $1`,
         [args.params.id, nextPermission, GRANTED_BY_SHARE_LINK]
       );
+      void closeCollabRooms([args.params.id]);
 
       return {
         status: 200 as const,
@@ -857,9 +862,10 @@ export const docsContractRouter = s.router(docsContract, {
 
       const { permission } = args.body;
       // Strip auto-granted link permissions so the new link level takes effect
-      // for everyone on reconnect. Without this, users who opened the link while
-      // it was 'editor' keep their persisted editor entry after a downgrade to
+      // for everyone. Without this, users who opened the link while it was
+      // 'editor' keep their persisted editor entry after a downgrade to
       // 'viewer' — the column change alone would not revoke their write access.
+      // Open sessions are closed below and reconnect with the new level.
       await db.query(
         `UPDATE collaborative_documents
          SET share_permission = $1,
@@ -872,6 +878,7 @@ export const docsContractRouter = s.router(docsContract, {
          WHERE id = $2`,
         [permission, args.params.id, GRANTED_BY_SHARE_LINK]
       );
+      void closeCollabRooms([args.params.id]);
 
       return {
         status: 200 as const,
@@ -917,7 +924,8 @@ export const docsContractRouter = s.router(docsContract, {
         );
       } else {
         // Revoke auto-granted link permissions when changing away from / into a
-        // link mode, so the effective link level is re-derived on reconnect.
+        // link mode, so the effective link level is re-derived when the open
+        // sessions reconnect (closed below).
         await db.query(
           `UPDATE collaborative_documents
            SET share_mode = $1,
@@ -933,6 +941,9 @@ export const docsContractRouter = s.router(docsContract, {
           [mode, isPublic, args.params.id, GRANTED_BY_SHARE_LINK, nextPermission]
         );
       }
+      // Any mode change can narrow access (e.g. public → authenticated drops
+      // guests), and an open session keeps the rights it connected with.
+      void closeCollabRooms([args.params.id]);
 
       return {
         status: 200 as const,

@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
+import { closeShareRoom } from '../../services/collab/collabRooms.js';
 import { notifyContentShared } from '../../services/groups/groupContent.js';
 import {
   assertCanShareToGroup,
@@ -131,6 +132,7 @@ router.delete(
         `DELETE FROM group_content_shares WHERE content_type = 'chat_threads' AND content_id = $1 AND group_id = $2`,
         [id, groupId]
       );
+      void closeShareRoom('chat_threads', id);
 
       return res.json({ message: 'Share removed' });
     } catch (error: unknown) {

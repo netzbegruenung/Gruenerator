@@ -6,6 +6,7 @@
 
 import { groupsContract, type GroupContentResponse } from '@gruenerator/contracts';
 
+import { closeShareRoom } from '../../../../services/collab/collabRooms.js';
 import {
   hydrateGroupContent,
   shareContentToGroup,
@@ -104,6 +105,7 @@ export const contentRoutes = {
         [contentType, contentId, groupId]
       );
       if (result.changes === 0) throw new Error('Share record not found or already deleted');
+      void closeShareRoom(contentType, contentId);
 
       return {
         status: 200 as const,
@@ -178,6 +180,7 @@ export const contentRoutes = {
         [JSON.stringify(permissions), contentType, contentId, groupId]
       );
       if (result.changes === 0) throw new Error('Share record not found or no changes made');
+      void closeShareRoom(contentType, contentId);
 
       return {
         status: 200 as const,
@@ -226,6 +229,7 @@ export const contentRoutes = {
         [contentType, contentId, groupId]
       );
       if (result.changes === 0) throw new Error('Share record not found or already deleted');
+      void closeShareRoom(contentType, contentId);
 
       return {
         status: 200 as const,
