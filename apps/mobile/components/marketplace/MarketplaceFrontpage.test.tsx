@@ -34,6 +34,10 @@ jest.mock('@gruenerator/shared/marketplace', () => ({
   useMarketplaceSave: () => ({ mutate: jest.fn() }),
 }));
 // The short view (with its discussion and sheets) is MarketplaceScreen.test.tsx's.
+jest.mock('@tanstack/react-query', () => ({
+  ...jest.requireActual<Record<string, unknown>>('@tanstack/react-query'),
+  useQueryClient: () => ({ setQueryData: jest.fn() }),
+}));
 jest.mock('./MarketplaceItemDetail', () => ({ MarketplaceItemDetail: () => null }));
 jest.mock('../../services/storage', () => ({ secureStorage: { getToken: jest.fn() } }));
 // Reanimated has no native module under jest; the placeholder is not under test.
