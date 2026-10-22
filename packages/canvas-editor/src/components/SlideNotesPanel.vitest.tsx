@@ -55,6 +55,21 @@ describe('SlideNotesPanel', () => {
     expect(screen.getByRole('button', { name: 'Notizen (1)' })).toBeTruthy();
   });
 
+  it('lets a viewer read notes but not change them', async () => {
+    const onChange = vi.fn();
+    render(<SlideNotesPanel value="Text" onChange={onChange} readOnly />);
+    await userEvent.click(screen.getByRole('button', { name: 'Notizen (1)' }));
+    const field = screen.getByRole('textbox', { name: 'Sprechernotizen' });
+    expect(field).toHaveProperty('readOnly', true);
+    await userEvent.type(field, 'x');
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('offers a viewer nothing when the slide has no notes', () => {
+    const { container } = render(<SlideNotesPanel value="" onChange={() => {}} readOnly />);
+    expect(container.firstChild).toBeNull();
+  });
+
   it('has no axe violations, collapsed and expanded', async () => {
     const { container } = render(<SlideNotesPanel value="x" onChange={() => {}} />);
     expect(await axe(container)).toHaveNoViolations();

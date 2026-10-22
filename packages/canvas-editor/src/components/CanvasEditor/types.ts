@@ -101,6 +101,8 @@ export interface CanvasEditorProps {
    * `exportApiRef`, and the share menu opens on the host's request.
    */
   hostChrome?: CanvasEditorHostChrome;
+  /** A viewer's session: view, page, download and present, but nothing offers a write the server would drop. */
+  readOnly?: boolean;
 }
 
 /** See `CanvasEditorProps.hostChrome`. */
@@ -192,4 +194,6 @@ export interface PageWrapperProps {
   };
   /** Forwarded ref to the wrapper div — used for scroll-into-view */
   pageRef?: React.Ref<HTMLDivElement>;
+  /** See CanvasEditorProps.readOnly. */
+  readOnly?: boolean;
 }

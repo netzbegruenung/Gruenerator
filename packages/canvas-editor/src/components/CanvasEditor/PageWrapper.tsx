@@ -49,6 +49,7 @@ export const PageWrapper = memo(function PageWrapper({
   autoSave,
   pageBinding,
   pageRef,
+  readOnly = false,
 }: PageWrapperProps) {
   // Active page pushes its live state/actions/selection up so the shared
   // sidebar renders synchronously with edits (replaces the old 200ms poll).
@@ -173,9 +174,9 @@ export const PageWrapper = memo(function PageWrapper({
         isDropTarget && 'outline-2 outline-dashed outline-offset-4 outline-[var(--editor-accent)]'
       )}
       onPointerDownCapture={handlePointerDown}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
+      onDragOver={readOnly ? undefined : handleDragOver}
+      onDragLeave={readOnly ? undefined : handleDragLeave}
+      onDrop={readOnly ? undefined : handleDrop}
       onClick={handleClick}
       role="button"
       tabIndex={0}
@@ -183,16 +184,18 @@ export const PageWrapper = memo(function PageWrapper({
       aria-label={`Seite ${index + 1}${isActive ? ' (ausgewählt)' : ''}`}
       aria-pressed={isActive}
     >
-      <PageToolbar
-        pageIndex={index}
-        pageCount={pageCount}
-        isActive={isActive}
-        onMoveUp={() => onMovePage(page.id, 'up')}
-        onMoveDown={() => onMovePage(page.id, 'down')}
-        onDuplicate={() => onDuplicatePage(page.id)}
-        onChangeTemplate={onChangeTemplate ? () => onChangeTemplate(page.id) : undefined}
-        onDelete={canDelete ? () => onDelete(page.id) : undefined}
-      />
+      {!readOnly && (
+        <PageToolbar
+          pageIndex={index}
+          pageCount={pageCount}
+          isActive={isActive}
+          onMoveUp={() => onMovePage(page.id, 'up')}
+          onMoveDown={() => onMovePage(page.id, 'down')}
+          onDuplicate={() => onDuplicatePage(page.id)}
+          onChangeTemplate={onChangeTemplate ? () => onChangeTemplate(page.id) : undefined}
+          onDelete={canDelete ? () => onDelete(page.id) : undefined}
+        />
+      )}
 
       <ZoomableViewport
         canvasWidth={config.canvas.width}
@@ -214,6 +217,7 @@ export const PageWrapper = memo(function PageWrapper({
           isActivePage={isActive}
           autoSave={autoSave}
           pageBinding={pageBinding}
+          readOnly={readOnly}
         />
       </ZoomableViewport>
     </div>

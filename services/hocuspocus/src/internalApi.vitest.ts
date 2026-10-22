@@ -1,10 +1,15 @@
-import { describe, it, expect } from 'vitest';
+import { Connection, Document } from '@hocuspocus/server';
+import express from 'express';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import * as Y from 'yjs';
 
 import { detectPreviewKind } from './contentPreviews.js';
 import {
   BOARD_FIELD_IDS,
   appendRowsToBoardDoc,
+  closeRoomConnections,
+  parseRoomCloseInput,
+  registerInternalApi,
   appendSheetOps,
   claimSheetOps,
   applyDeckChangesToDoc,
@@ -351,5 +356,156 @@ describe('sheet ops queue', () => {
     [null, false],
   ])('validates %j → %s', (input, ok) => {
     expect(isSheetOpsBatchInput(input)).toBe(ok);
+  });
+});
+
+/**
+ * Access changes: an open connection was authenticated once, at setup. The
+ * room close takes it off the document (no further broadcasts, next frame
+ * needs a fresh Auth) and closes its socket so the provider reconnects and
+ * runs through `onAuthenticate` again. Uses the framework's own Document and
+ * Connection classes, so the "taken off the document" part is the real one.
+ */
+describe('closing rooms after an access change', () => {
+  const fakeSocket = () => ({ readyState: 1, send: vi.fn(), close: vi.fn() });
+
+  function connect(document: Document, userId: string) {
+    const socket = fakeSocket();
+    const connection = new Connection(socket, {} as Request, document, `socket-${userId}`, {
+      user: { id: userId, name: userId },
+      context: { readOnly: false },
+    });
+    return { socket, connection };
+  }
+
+  function rooms(...documents: Document[]) {
+    return { documents: new Map(documents.map((d) => [d.name, d])) };
+  }
+
+  it('closes every connection of the room and its socket', () => {
+    const doc = new Document('doc-1');
+    const a = connect(doc, 'user-a');
+    const b = connect(doc, 'user-b');
+
+    expect(closeRoomConnections(rooms(doc), ['doc-1'], null)).toBe(2);
+
+    expect(doc.getConnectionsCount()).toBe(0);
+    for (const { socket } of [a, b]) {
+      expect(socket.close).toHaveBeenCalledWith(4205, 'Reset Connection');
+      // The framework's close message went out before the socket closed.
+      expect(socket.send).toHaveBeenCalled();
+    }
+  });
+
+  it("with a userId closes only that user's connections", () => {
+    const doc = new Document('doc-1');
+    const revoked = connect(doc, 'user-a');
+    const kept = connect(doc, 'user-b');
+
+    expect(closeRoomConnections(rooms(doc), ['doc-1'], 'user-a')).toBe(1);
+
+    expect(doc.getConnections()).toEqual([kept.connection]);
+    expect(revoked.socket.close).toHaveBeenCalled();
+    expect(kept.socket.close).not.toHaveBeenCalled();
+  });
+
+  it('leaves other rooms alone and skips rooms nobody has open', () => {
+    const doc = new Document('doc-1');
+    const other = new Document('doc-2');
+    connect(doc, 'user-a');
+    const bystander = connect(other, 'user-a');
+
+    expect(closeRoomConnections(rooms(doc, other), ['doc-1', 'not-loaded'], null)).toBe(1);
+
+    expect(other.getConnections()).toEqual([bystander.connection]);
+    expect(bystander.socket.close).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [{ rooms: ['doc-1'] }, { rooms: ['doc-1'], userId: null }],
+    [
+      { rooms: ['doc-1'], userId: null },
+      { rooms: ['doc-1'], userId: null },
+    ],
+    [
+      { rooms: ['a', 'chat-b'], userId: 'u' },
+      { rooms: ['a', 'chat-b'], userId: 'u' },
+    ],
+    [{ rooms: [] }, null],
+    [{ rooms: [''] }, null],
+    [{ rooms: [1] }, null],
+    [{ rooms: ['a'], userId: '' }, null],
+    [{ rooms: ['a'], userId: 7 }, null],
+    [null, null],
+  ])('parses %j → %j', (input, expected) => {
+    expect(parseRoomCloseInput(input)).toEqual(expected);
+  });
+
+  describe('POST /internal/rooms/close', () => {
+    let close: (() => Promise<void>) | null = null;
+
+    afterEach(async () => {
+      await close?.();
+      close = null;
+      vi.unstubAllEnvs();
+    });
+
+    async function start(documents: Map<string, Document>): Promise<string> {
+      vi.stubEnv('HOCUSPOCUS_INTERNAL_TOKEN', 'secret');
+      const app = express();
+      registerInternalApi(app, {
+        server: { hocuspocus: { documents } } as unknown as Parameters<
+          typeof registerInternalApi
+        >[1]['server'],
+        persistence: {} as Parameters<typeof registerInternalApi>[1]['persistence'],
+      });
+      const server = app.listen(0, '127.0.0.1');
+      await new Promise<void>((resolve) => server.once('listening', resolve));
+      close = () => new Promise<void>((resolve) => server.close(() => resolve()));
+      const address = server.address();
+      if (!address || typeof address === 'string') throw new Error('no port');
+      return `http://127.0.0.1:${address.port}/internal/rooms/close`;
+    }
+
+    const post = (url: string, body: unknown, token: string | null) =>
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          ...(token ? { 'x-internal-token': token } : {}),
+        },
+        body: JSON.stringify(body),
+      });
+
+    it('closes the room for a caller with the internal token', async () => {
+      const doc = new Document('doc-1');
+      const { socket } = connect(doc, 'user-a');
+      const url = await start(new Map([['doc-1', doc]]));
+
+      const res = await post(url, { rooms: ['doc-1'] }, 'secret');
+
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ ok: true, closed: 1 });
+      expect(doc.getConnectionsCount()).toBe(0);
+      expect(socket.close).toHaveBeenCalledWith(4205, 'Reset Connection');
+    });
+
+    it.each([null, 'wrong'])('refuses token %j and closes nothing', async (token) => {
+      const doc = new Document('doc-1');
+      const { socket } = connect(doc, 'user-a');
+      const url = await start(new Map([['doc-1', doc]]));
+
+      const res = await post(url, { rooms: ['doc-1'] }, token);
+
+      expect(res.status).toBe(401);
+      expect(doc.getConnectionsCount()).toBe(1);
+      expect(socket.close).not.toHaveBeenCalled();
+    });
+
+    it('rejects a malformed body', async () => {
+      const url = await start(new Map());
+      const res = await post(url, { rooms: 'doc-1' }, 'secret');
+      expect(res.status).toBe(400);
+    });
   });
 });

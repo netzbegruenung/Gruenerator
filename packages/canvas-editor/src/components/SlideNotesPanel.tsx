@@ -4,6 +4,8 @@ import { PiNote } from 'react-icons/pi';
 interface SlideNotesPanelProps {
   value: string;
   onChange: (notes: string) => void;
+  /** Viewer: notes can be read, not written; without notes there is nothing to open. */
+  readOnly?: boolean;
 }
 
 const MAX_HEIGHT_PX = 160;
@@ -13,7 +15,7 @@ const MAX_HEIGHT_PX = 160;
  * Zu Beginn zu, leise unter der Folie — der Zustand gilt für die Editor-Sitzung
  * (die Komponente bleibt beim Seitenwechsel gemountet), nicht fürs Neuladen.
  */
-export function SlideNotesPanel({ value, onChange }: SlideNotesPanelProps) {
+export function SlideNotesPanel({ value, onChange, readOnly = false }: SlideNotesPanelProps) {
   const [open, setOpen] = useState(false);
   const fieldId = useId();
   const fieldRef = useRef<HTMLTextAreaElement>(null);
@@ -25,6 +27,8 @@ export function SlideNotesPanel({ value, onChange }: SlideNotesPanelProps) {
     el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight, MAX_HEIGHT_PX)}px`;
   }, [open, value]);
+
+  if (readOnly && !hasNotes) return null;
 
   return (
     <section aria-label="Sprechernotizen" className="w-full max-w-[56rem]">
@@ -45,6 +49,7 @@ export function SlideNotesPanel({ value, onChange }: SlideNotesPanelProps) {
           aria-label="Sprechernotizen"
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          readOnly={readOnly}
           rows={3}
           placeholder="Notizen für den Vortrag …"
           className="mt-xs w-full resize-none rounded-md border border-[var(--editor-border)] bg-transparent p-xs text-xs text-[var(--editor-text-secondary)] placeholder:text-[var(--editor-placeholder)]"

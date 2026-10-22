@@ -7,7 +7,7 @@ import { detectPreviewKind } from './contentPreviews.js';
 import { createLogger } from './logger.js';
 
 import type { PostgresPersistence } from './persistence.js';
-import type { Server } from '@hocuspocus/server';
+import type { Connection, Hocuspocus, Server } from '@hocuspocus/server';
 
 const log = createLogger('InternalApi');
 
@@ -144,6 +144,69 @@ export function claimSheetOps(doc: Y.Doc): PendingSheetOps[] {
 interface InternalApiDeps {
   server: Server;
   persistence: PostgresPersistence;
+}
+
+// ---------------------------------------------------------------------------
+// Access changes. `onAuthenticate` runs once, when a connection is set up, and
+// `readOnly` is fixed at that moment — an open connection never notices that
+// its access was removed or narrowed. The API calls /internal/rooms/close
+// after such a change; clients that still have access reconnect and get their
+// current rights, the others are refused.
+// ---------------------------------------------------------------------------
+
+// Same code/reason the framework uses for its own resets (`ResetConnection` in
+// @hocuspocus/common, which this service does not depend on directly).
+const RESET_CONNECTION = { code: 4205, reason: 'Reset Connection' };
+
+/** The user id `onAuthenticate` (server.ts) puts into the connection context. */
+function connectionUserId(connection: Connection): string | null {
+  const id = (connection.context as { user?: { id?: unknown } } | null)?.user?.id;
+  return typeof id === 'string' ? id : null;
+}
+
+/**
+ * Close the open connections of `rooms` — all of them, or only `userId`'s.
+ *
+ * `Connection.close()` takes the connection off the document at once: no
+ * further update or awareness reaches it, and the next frame for the room
+ * needs a fresh Auth, which re-runs `onAuthenticate`. The socket is closed as
+ * well because the provider only re-authenticates on a new socket — left open,
+ * it would sit unsynced until its message timeout. A socket that also carries
+ * other rooms reconnects those too, which costs one re-auth each.
+ */
+export function closeRoomConnections(
+  hocuspocus: Pick<Hocuspocus, 'documents'>,
+  rooms: string[],
+  userId: string | null
+): number {
+  let closed = 0;
+  for (const room of rooms) {
+    const document = hocuspocus.documents.get(room);
+    if (!document) continue;
+    for (const connection of document.getConnections()) {
+      if (userId !== null && connectionUserId(connection) !== userId) continue;
+      connection.close(RESET_CONNECTION);
+      connection.webSocket.close(RESET_CONNECTION.code, RESET_CONNECTION.reason);
+      closed += 1;
+    }
+  }
+  return closed;
+}
+
+/** `{ rooms: string[], userId?: string | null }` → normalized, or null if invalid. */
+export function parseRoomCloseInput(v: unknown): { rooms: string[]; userId: string | null } | null {
+  if (!v || typeof v !== 'object') return null;
+  const r = v as Record<string, unknown>;
+  if (
+    !Array.isArray(r.rooms) ||
+    r.rooms.length === 0 ||
+    !r.rooms.every((room) => typeof room === 'string' && room.length > 0)
+  ) {
+    return null;
+  }
+  if (r.userId === undefined || r.userId === null) return { rooms: r.rooms, userId: null };
+  if (typeof r.userId !== 'string' || !r.userId) return null;
+  return { rooms: r.rooms, userId: r.userId };
 }
 
 // ---------------------------------------------------------------------------
@@ -865,8 +928,25 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
     }
   });
 
+  // Called by the API after an access change (permission removed or changed,
+  // share settings changed, document trashed, project left or trashed).
+  router.post('/rooms/close', (req, res) => {
+    const input = parseRoomCloseInput(req.body as unknown);
+    if (!input) {
+      res.status(400).json({
+        error: 'rooms must be a non-empty array of room names, userId a string or null',
+      });
+      return;
+    }
+    const closed = closeRoomConnections(deps.server.hocuspocus, input.rooms, input.userId);
+    log.info(
+      `Closed ${closed} connection(s) in ${input.rooms.length} room(s)${input.userId ? ` for user ${input.userId}` : ''}`
+    );
+    res.json({ ok: true, closed });
+  });
+
   app.use('/internal', router);
   log.info(
-    'Internal API registered at /internal/canvas/*, /internal/doc/*/html, /internal/doc/*/yjs, /internal/board/*/comment-bump, /internal/board/*/rows and /internal/sheet/*/ops'
+    'Internal API registered at /internal/canvas/*, /internal/doc/*/html, /internal/doc/*/yjs, /internal/board/*/comment-bump, /internal/board/*/rows, /internal/sheet/*/ops and /internal/rooms/close'
   );
 }
