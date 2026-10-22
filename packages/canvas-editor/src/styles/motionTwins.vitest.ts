@@ -20,13 +20,26 @@ function elementEnter(css: string): string {
   return match[1].replace(/\s+/g, ' ').trim();
 }
 
-function reducedMotionKeyframes(css: string): string[] {
-  const names: string[] = [];
+/** Formatting differs between the twins (one-line vs. prettier), so compare without whitespace. */
+const squash = (text: string) => text.replace(/\s+/g, '');
+
+/** `@keyframes name { … }` bodies (two brace levels) found in `css`, keyed by name. */
+function keyframes(css: string): Map<string, string> {
+  const found = new Map<string, string>();
+  for (const k of css.matchAll(/@keyframes ([\w-]+)\s*\{((?:[^{}]*\{[^{}]*\})*\s*)\}/g)) {
+    found.set(k[1], squash(k[2]));
+  }
+  return found;
+}
+
+/** Keyframes redefined inside top-level `@media (prefers-reduced-motion: reduce)` blocks. */
+function reducedMotionKeyframes(css: string): Map<string, string> {
+  const found = new Map<string, string>();
   const re = /@media \(prefers-reduced-motion: reduce\)\s*\{([\s\S]*?)\n\}/g;
   for (let m = re.exec(css); m; m = re.exec(css)) {
-    for (const k of m[1].matchAll(/@keyframes ([\w-]+)/g)) names.push(k[1]);
+    for (const [name, body] of keyframes(m[1])) found.set(name, body);
   }
-  return names.sort();
+  return found;
 }
 
 describe('editor motion twins', () => {
@@ -41,8 +54,24 @@ describe('editor motion twins', () => {
   });
 
   it('ships the same reduced-motion keyframe variants in both files', () => {
-    const expected = ['flyout-enter', 'slideDownFade', 'subsectionFadeIn'];
-    expect(reducedMotionKeyframes(twins.editor)).toEqual(expected);
-    expect(reducedMotionKeyframes(twins.web)).toEqual(expected);
+    const editor = reducedMotionKeyframes(twins.editor);
+    const web = reducedMotionKeyframes(twins.web);
+    expect([...editor.keys()].sort()).toEqual([
+      'flyout-enter',
+      'slideDownFade',
+      'subsectionFadeIn',
+    ]);
+    expect(Object.fromEntries(web)).toEqual(Object.fromEntries(editor));
+    // Reduced motion keeps the fade and drops the movement.
+    for (const body of editor.values()) expect(body).not.toContain('transform');
+  });
+
+  it('keeps the tile entrance keyframes identical', () => {
+    const editor = keyframes(twins.editor);
+    const web = keyframes(twins.web);
+    for (const name of ['elementFade', 'elementRise']) {
+      expect(editor.get(name), name).toBeTruthy();
+      expect(web.get(name), name).toBe(editor.get(name));
+    }
   });
 });
