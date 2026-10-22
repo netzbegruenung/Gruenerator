@@ -50,6 +50,7 @@ import { OFFICE_PILL_ROW, OfficeActionPill } from '../workplace/components/Tools
 import { WorkplaceHero } from '../workplace/components/WorkplaceHero';
 
 import { BoardCard, type BoardCardBoard } from './BoardCard';
+import { deleteCanvasDeck, isCanvasDeck, renameCanvasDeck } from './canvasDeckActions';
 import { createSlideDeck } from './createSlideDeck';
 import { webAppDocsAdapter } from './docsAdapter';
 import {
@@ -330,17 +331,21 @@ export function DocumentsContent({
       const newTitle = window.prompt('Neuer Titel:', doc.title);
       if (newTitle?.trim() && newTitle.trim() !== doc.title) {
         try {
-          await updateDocumentMutation.mutateAsync({
-            id: doc.id,
-            updates: { title: newTitle.trim() },
-          });
+          if (isCanvasDeck(documents.find((d) => d.id === doc.id)?.document_subtype)) {
+            await renameCanvasDeck(doc.id, newTitle.trim());
+          } else {
+            await updateDocumentMutation.mutateAsync({
+              id: doc.id,
+              updates: { title: newTitle.trim() },
+            });
+          }
           refreshOffice();
         } catch (err) {
           console.error('Failed to rename document:', err);
         }
       }
     },
-    [updateDocumentMutation, refreshOffice]
+    [updateDocumentMutation, refreshOffice, documents]
   );
 
   const handleDeleteBoard = useCallback(
@@ -353,7 +358,12 @@ export function DocumentsContent({
     const { id, kind, title } = deleteTarget;
     setDeleteTarget(null);
     try {
-      if (kind === 'document') {
+      if (
+        kind === 'document' &&
+        isCanvasDeck(documents.find((d) => d.id === id)?.document_subtype)
+      ) {
+        await deleteCanvasDeck(id);
+      } else if (kind === 'document') {
         await deleteDocumentMutation.mutateAsync(id);
       } else {
         await deleteBoard.mutateAsync(id);
@@ -363,7 +373,7 @@ export function DocumentsContent({
     } catch (err) {
       console.error(`Failed to delete ${kind}:`, err);
     }
-  }, [deleteTarget, deleteDocumentMutation, deleteBoard, showTrashUndo, refreshOffice]);
+  }, [deleteTarget, deleteDocumentMutation, deleteBoard, showTrashUndo, refreshOffice, documents]);
 
   const handleRenameBoard = useCallback(
     async (board: { id: string; title: string }, e: React.MouseEvent) => {
