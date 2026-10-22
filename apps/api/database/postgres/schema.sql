@@ -1069,6 +1069,8 @@ ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS role_ref JSONB DEFAULT NULL;
 ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS cloud_file_refs JSONB;
 -- Notebook documents handed from the reader (refs only, re-authorized every turn)
 ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS notebook_source_refs JSONB;
+-- @doc / saved-text / @link picks (refs only, re-read every turn)
+ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS mention_refs JSONB;
 ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS notebook_collection_id VARCHAR(255);
 ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS notebook_collection_ids JSONB;
 CREATE INDEX IF NOT EXISTS idx_chat_threads_type ON chat_threads(user_id, thread_type, updated_at DESC);

@@ -442,9 +442,17 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   const attachedUrls = scrapeEnabled
     ? (state.attachedWebpageUrls ?? []).filter((url) => !isCloudShareUrl(url))
     : [];
-  const detectedUrls = scrapeEnabled
+  let detectedUrls = scrapeEnabled
     ? [...new Set([...attachedUrls, ...crawlableUrls(userText)])]
     : [];
+  // @link pages from earlier turns (#4861) join only where this turn reads
+  // anyway — a summary or a search intent. They never turn a no-retrieval or a
+  // creation verdict into a crawl: „Danke" must not fetch the page again, and
+  // „Erstelle ein Sharepic zur Windkraft" must not draw on an unrelated page.
+  const carriedUrls =
+    scrapeEnabled && detectedUrls.length === 0
+      ? (state.carriedWebpageUrls ?? []).filter((url) => !isCloudShareUrl(url))
+      : [];
 
   // `summary` is not a wording, it is a STATE: material is already here, so skip
   // the search node (ChatGraph routes it straight to respond), drop the product
@@ -477,6 +485,7 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     (state.pdfFormAttachments?.length ?? 0) > 0 ||
     carriesPastedBody(userText);
   if (intent === 'summary' && !hasMaterialToSummarise && !CURRENT_THREAD_REFERENCE.test(userText)) {
+    if (detectedUrls.length === 0 && carriedUrls.length > 0) detectedUrls = carriedUrls;
     if (detectedUrls.length > 0) {
       // The page IS the material. Not `summary` (that intent skips the search
       // node, so the link would never be fetched) and not `web` (searching for
@@ -545,6 +554,14 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   // the scrape_url slot directly; otherwise it rides as the secondary intent so
   // "schreib einen Tweet zu <url>" both crawls the page AND drafts the tweet.
   let secondaryIntent = result.secondaryIntent ?? null;
+  if (
+    detectedUrls.length === 0 &&
+    intent &&
+    intent !== 'agentic' &&
+    !NON_SEARCH_INTENTS.has(intent as ChatIntentId)
+  ) {
+    detectedUrls = carriedUrls;
+  }
   if (detectedUrls.length > 0) {
     if (!intent || NO_RETRIEVAL_VERDICTS.has(intent)) {
       intent = 'scrape_url';
@@ -1059,7 +1076,11 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
 
     // Notebook documents handed over from the reader — same reason as @wolke:
     // their content only reaches respondNode through the search path's fan-out.
-    if (hasNotebookSources && userContent.length > 0) {
+    // Only on the turn they were picked: carried from earlier turns they stay
+    // material (summary, loop seed, search fan-out) but must not claim every
+    // later turn — „Erstelle ein Sharepic …" after a pick would never build
+    // one, and small talk would run a search (#4861).
+    if (hasNotebookSources && !state.notebookSourcesCarriedOnly && userContent.length > 0) {
       return classifyWithForcedSearch({
         reason: 'NotebookSource',
         docCount: state.notebookSources.length,

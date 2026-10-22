@@ -192,6 +192,8 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
 
     // Notebook documents from the reader (authorized by streamContext)
     notebookSources: input.notebookSources ?? [],
+    notebookSourcesCarriedOnly: input.notebookSourcesCarriedOnly ?? false,
+    carriedWebpageUrls: input.carriedWebpageUrls ?? [],
 
     // URLs attached via @link mentionable (unioned into detectedUrls by classifier)
     attachedWebpageUrls: input.attachedWebpageUrls || [],

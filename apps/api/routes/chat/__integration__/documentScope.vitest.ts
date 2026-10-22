@@ -157,6 +157,7 @@ const { useChatApp } = await import('./harness/suite.js');
 const { userTurn } = await import('./harness/testApp.js');
 const { runTurn } = await import('./harness/trace.js');
 const { respond } = await import('./harness/respondScript.js');
+const { threads, messagesOf } = await import('./harness/fakeThreadStore.js');
 
 const suite = useChatApp();
 
@@ -205,6 +206,64 @@ describe('document ids from the request body', () => {
     const state = answeredState();
     expect(state.documentChatIds).toEqual([DOCS.own]);
     for (const scope of searchedScopes) expect(scope).not.toContain(DOCS.foreign);
+  });
+
+  it('carries @datei picks into a follow-up that sends none (#4861)', async () => {
+    const first = await runTurn(suite.baseUrl(), {
+      messages: [userTurn(FACTUAL)],
+      documentIds: [DOCS.foreign, DOCS.own, DOCS.shared],
+    });
+    const threadId = first.trace.threadId!;
+    // The pick turn reads them as `documentIds` only, not a second time.
+    expect(answeredState().notebookSources).toEqual([]);
+    expect(threads.get(threadId)?.notebookSources).toEqual([
+      { documentId: DOCS.own, notebookId: null },
+      { documentId: DOCS.shared, notebookId: DOCS.sharedNotebook },
+    ]);
+    // The chip a reload restores.
+    expect(messagesOf(threadId).find((m) => m.role === 'user')?.metadata).toEqual({
+      notebookSources: [
+        { ref: { documentId: DOCS.own, notebookId: null }, title: `Dok ${DOCS.own.slice(0, 4)}` },
+        {
+          ref: { documentId: DOCS.shared, notebookId: DOCS.sharedNotebook },
+          title: `Dok ${DOCS.shared.slice(0, 4)}`,
+        },
+      ],
+    });
+
+    respond.agenticCalls.length = 0;
+    await runTurn(suite.baseUrl(), {
+      messages: [userTurn('Und was steht darin zum Radverkehr?', 'm2')],
+      threadId,
+    });
+
+    const followUp = answeredState();
+    expect(followUp.notebookSources).toEqual([
+      expect.objectContaining({ kind: 'user', documentId: DOCS.own }),
+      expect.objectContaining({ kind: 'user', documentId: DOCS.shared }),
+    ]);
+    // Carried, not picked: material for the turn, not a forced route.
+    expect(followUp.notebookSourcesCarriedOnly).toBe(true);
+  });
+
+  it('lets a carried @datei pick yield to a later order (#4861)', async () => {
+    const first = await runTurn(suite.baseUrl(), {
+      messages: [userTurn(FACTUAL)],
+      documentIds: [DOCS.own],
+    });
+    const threadId = first.trace.threadId!;
+
+    const sharepic = await runTurn(suite.baseUrl(), {
+      messages: [userTurn('Erstelle ein Sharepic zum Radverkehr', 'm2')],
+      threadId,
+    });
+    expect(sharepic.trace.intent).toBe('sharepic');
+
+    const smallTalk = await runTurn(suite.baseUrl(), {
+      messages: [userTurn('Danke dir!', 'm3')],
+      threadId,
+    });
+    expect(smallTalk.trace.intent).not.toBe('search');
   });
 
   it('drops a list of only foreign ids entirely', async () => {

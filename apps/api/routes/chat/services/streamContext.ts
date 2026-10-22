@@ -80,6 +80,14 @@ import {
   sameThreadCloudFiles,
 } from './threadCloudFiles.js';
 import {
+  type MentionChip,
+  NO_MENTION_REFS,
+  isEmptyThreadMentionRefs,
+  mentionChipsFor,
+  mergeThreadMentionRefs,
+  sameThreadMentionRefs,
+} from './threadMentionRefs.js';
+import {
   NO_NOTEBOOK_SOURCES,
   mergeThreadNotebookSources,
   notebookSourceKey,
@@ -95,10 +103,12 @@ import {
   deleteMessagesFrom,
   deleteTrailingAssistant,
   getThreadCloudFiles,
+  getThreadMentionRefs,
   getThreadNotebookSources,
   getThreadToolContext,
   readThreadToolHistory,
   setThreadCloudFiles,
+  setThreadMentionRefs,
   setThreadNotebookSources,
   type ThreadToolHistory,
 } from './threadPersistenceService.js';
@@ -472,7 +482,18 @@ export async function buildStreamContext({
   // Checked before the user row is written, so the chip it keeps for a reload
   // carries the title the check resolved. The thread's earlier refs are merged
   // and checked further down, next to the cloud files.
-  const pickedNotebookSources: NotebookSourceRef[] = rawNotebookSourceRefs ?? [];
+  // @datei picks (`documentIds`) stay in the thread the same way (#4861): each
+  // authorized id rides along as a user-document ref, so it is stored, checked
+  // again every turn and comes back as a chip after a reload. On the turn of the
+  // pick it still goes through `documentIds` (inline text for short documents) —
+  // see the `notebookSources` handed to the graph below.
+  const pickedNotebookSources: NotebookSourceRef[] = [
+    ...(rawNotebookSourceRefs ?? []),
+    ...authorizedDocumentIds.map((documentId) => ({
+      documentId,
+      notebookId: documentScope.documentNotebookIds[documentId] ?? null,
+    })),
+  ];
   // `null`: the check itself failed — not the same as "no access".
   let pickedNotebookChecks: NotebookSourceCheck[] | null = [];
   if (pickedNotebookSources.length > 0) {
@@ -485,6 +506,27 @@ export async function buildStreamContext({
     } catch (err) {
       log.warn('[StreamContext] Notebook source check failed (continuing):', err);
       pickedNotebookChecks = null;
+    }
+  }
+
+  // === @doc / saved-text / @link picks: this turn's refs and chips ===
+  // Carried per thread further down (threadMentionRefs.ts). The chips are
+  // resolved here, before the user row is written; a typed @doc token already
+  // shows inline after a reload, so only picker-attached docs get a chip.
+  const pickedMentionRefs = mergeThreadMentionRefs(NO_MENTION_REFS, {
+    texts: rawTextIds ?? [],
+    docs: mergedDocMentionIds,
+    links: rawWebpageUrls ?? [],
+  });
+  let mentionChips: MentionChip[] = [];
+  if (!isEmptyThreadMentionRefs(pickedMentionRefs) && !rawRegenerate) {
+    try {
+      mentionChips = await mentionChipsFor(userId, {
+        ...pickedMentionRefs,
+        docs: pickedMentionRefs.docs.filter((id) => !mentionTokenFields.docMentionIds.includes(id)),
+      });
+    } catch (err) {
+      log.warn('[StreamContext] Could not resolve mention chips (continuing):', err);
     }
   }
 
@@ -644,6 +686,7 @@ export async function buildStreamContext({
       const userMeta = {
         ...(rawRoleName ? { roleName: rawRoleName } : {}),
         ...(notebookSourceChips.length > 0 ? { notebookSources: notebookSourceChips } : {}),
+        ...(mentionChips.length > 0 ? { mentionChips } : {}),
       };
       userMessageId = await createMessage(
         actualThreadId,
@@ -823,6 +866,41 @@ export async function buildStreamContext({
       log.warn('[StreamContext] Could not store thread notebook sources:', err)
     );
   }
+
+  // === @doc / saved-text / @link picks: carried per thread ===
+  // Read again every turn through their own access checks (saved texts and
+  // @doc content in enrichContext, links by the crawler), so a stored ref
+  // grants nothing by itself. A carried @doc only adds its CONTENT: routing
+  // (`docMentionIds` → modify_doc, share_doc) stays with this turn's mentions.
+  let storedMentionRefs = NO_MENTION_REFS;
+  let storedMentionRefsUnknown = false;
+  if (actualThreadId && !isNewThread) {
+    try {
+      storedMentionRefs = await getThreadMentionRefs(actualThreadId, userId);
+    } catch (err) {
+      storedMentionRefsUnknown = true;
+      log.warn('[StreamContext] Could not read thread mention refs (continuing):', err);
+    }
+  }
+  const threadMentionRefs = mergeThreadMentionRefs(storedMentionRefs, pickedMentionRefs);
+  if (
+    actualThreadId &&
+    !storedMentionRefsUnknown &&
+    !sameThreadMentionRefs(storedMentionRefs, threadMentionRefs)
+  ) {
+    // Fire-and-forget, owner-scoped: a lost write costs the next turn its carried refs.
+    setThreadMentionRefs(actualThreadId, userId, threadMentionRefs).catch((err: unknown) =>
+      log.warn('[StreamContext] Could not store thread mention refs:', err)
+    );
+  }
+  // Carried refs are material, never a route: only this turn's picks steer the
+  // classifier. Carried texts and docs land in the referenced-documents
+  // section, carried links are crawled only when the turn searches anyway.
+  const carriedTextIds = threadMentionRefs.texts.filter((id) => !rawTextIds?.includes(id));
+  const turnDocContextIds = unionIds(mergedDocMentionIds, threadMentionRefs.docs);
+  const carriedWebpageUrls = threadMentionRefs.links.filter(
+    (url) => !rawWebpageUrls?.includes(url)
+  );
 
   // Raw (token-bearing) text is persisted above; everything downstream —
   // classifier, heuristics, memory query, LLM prompts — sees the readable
@@ -1037,8 +1115,15 @@ export async function buildStreamContext({
     wolkeFiles,
     cloudConnectionCount,
     connectFiles,
-    notebookSources,
+    // This turn's @datei picks already travel as `documentIds`; listed twice
+    // they would be summarised twice.
+    notebookSources: notebookSources.filter(
+      (s) => s.kind !== 'user' || !authorizedDocumentIds.includes(s.documentId)
+    ),
+    // Picked this turn they force the search route; carried, they are material.
+    notebookSourcesCarriedOnly: (rawNotebookSourceRefs?.length ?? 0) === 0,
     attachedWebpageUrls: rawWebpageUrls?.length ? rawWebpageUrls : undefined,
+    carriedWebpageUrls,
     // When the docs editor sends a currentDocument, also surface its id as a
     // doc-mention so the existing modify_doc / summary intent paths activate
     // (they key off `hasDocMentions`). Explicit @doc mentions always take
@@ -1166,9 +1251,10 @@ export async function buildStreamContext({
     userId,
     ...(authorizedDocumentIds.length > 0 && { rawDocumentIds: authorizedDocumentIds }),
     ...(rawTextIds != null && { rawTextIds }),
+    ...(carriedTextIds.length > 0 && { carriedTextIds }),
     ...(mergedBoardIds.length > 0 && { rawBoardIds: mergedBoardIds }),
     ...(mergedSheetIds.length > 0 && { rawSheetIds: mergedSheetIds }),
-    ...(mergedDocMentionIds.length > 0 && { rawDocMentionIds: mergedDocMentionIds }),
+    ...(turnDocContextIds.length > 0 && { rawDocMentionIds: turnDocContextIds }),
     docAttachments,
     processedMeta,
     contextWindowTokens,
