@@ -6,7 +6,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { SYSTEM_AGENTS, agentKey, type Agent } from '../agents/index.js';
-import { ApiError, getContractsClient } from '../api/index.js';
+import { ApiError, apiErrorFromResponse, getContractsClient } from '../api/index.js';
 import { type GroupSummary } from '../groups/index.js';
 
 // Derived from the ts-rest contract schemas — the single source of truth for
@@ -15,21 +15,6 @@ export type UserAgentInput = CreateUserAgentBody;
 export type UserAgentPatch = UpdateUserAgentBody;
 
 const KEY = ['user-agents'] as const;
-
-/**
- * Read an error response body defensively. ts-rest's client response union
- * includes an `{ status: number; body: unknown }` fallback for undeclared
- * statuses, so in an error branch `res.body` collapses to `unknown`. One
- * boundary cast extracts the known error shape (message + optional conflict
- * agent).
- */
-function readError(body: unknown): { message: string; agent: Agent | null } {
-  const obj = (body ?? {}) as { message?: unknown; agent?: Agent };
-  return {
-    message: typeof obj.message === 'string' ? obj.message : 'Aktion fehlgeschlagen.',
-    agent: obj.agent ?? null,
-  };
-}
 
 /**
  * `enabled` is the caller's auth gate: the web sidebar mounts before the auth
@@ -42,7 +27,7 @@ export function useUserAgents(enabled = true) {
     queryFn: async (): Promise<Agent[]> => {
       const res = await getContractsClient().userAgents.list();
       if (res.status === 200) return res.body.agents;
-      throw new Error('Agents konnten nicht geladen werden.');
+      throw apiErrorFromResponse(res, 'Agents konnten nicht geladen werden.');
     },
   });
 }
@@ -56,7 +41,7 @@ export function useUserAgent(identifier: string | undefined) {
       const res = await getContractsClient().userAgents.get({ params: { identifier } });
       if (res.status === 200) return res.body.agent;
       if (res.status === 404) return null;
-      throw new Error('Agent konnte nicht geladen werden.');
+      throw apiErrorFromResponse(res, 'Agent konnte nicht geladen werden.');
     },
   });
 }
@@ -67,7 +52,7 @@ export function useCreateUserAgent() {
     mutationFn: async (input: UserAgentInput): Promise<Agent> => {
       const res = await getContractsClient().userAgents.create({ body: input });
       if (res.status === 201) return res.body.agent;
-      throw new Error(readError(res.body).message);
+      throw apiErrorFromResponse(res);
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: KEY });
@@ -85,7 +70,7 @@ export function useDraftAgent() {
     mutationFn: async (input: { description: string }): Promise<DraftedAgentSpec> => {
       const res = await getContractsClient().userAgents.draft({ body: input });
       if (res.status === 200) return res.body.spec;
-      throw new Error(readError(res.body).message);
+      throw apiErrorFromResponse(res);
     },
   });
 }
@@ -99,7 +84,7 @@ export function useUpdateUserAgent(identifier: string) {
         body: patch,
       });
       if (res.status === 200) return res.body.agent;
-      throw new Error(readError(res.body).message);
+      throw apiErrorFromResponse(res);
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: KEY });
@@ -232,7 +217,7 @@ export function usePublicUserAgents(enabled = true) {
     queryFn: async (): Promise<Agent[]> => {
       const res = await getContractsClient().userAgentsSharing.listPublic();
       if (res.status === 200) return res.body.agents;
-      throw new Error('Öffentliche Agents konnten nicht geladen werden.');
+      throw apiErrorFromResponse(res, 'Öffentliche Agents konnten nicht geladen werden.');
     },
   });
 }
