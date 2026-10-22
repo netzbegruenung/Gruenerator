@@ -3,8 +3,10 @@ import { postToNativeHost } from '@gruenerator/shared';
 import {
   createApiClient,
   getApiLocale,
+  isGatewayDownResponse,
   notifyAiConsentRequired,
   rejectAbortedResponse,
+  reportGatewayDown,
   sendFormDataAsMultipart,
   SERVER_TASK_TIMEOUT_MS,
   setApiLocale,
@@ -709,6 +711,12 @@ apiClient.interceptors.response.use(
   (response: AxiosResponse) => rejectAbortedResponse(response),
   async (error: AxiosError) => {
     const config = error.config;
+    if (
+      error.response &&
+      isGatewayDownResponse(error.response.status, error.response.headers['content-type'])
+    ) {
+      reportGatewayDown();
+    }
     if (config?.skipAuthRedirect) {
       return Promise.reject(error);
     }

@@ -1,3 +1,4 @@
+import { isServerRestarting } from '@gruenerator/shared/api';
 import { toast } from '@gruenerator/ui';
 import * as Sentry from '@sentry/react';
 
@@ -141,6 +142,13 @@ export function toastApiError(error: unknown, options: ToastApiErrorOptions = {}
   // Toasting "Authentifizierungsfehler" on every logged-out page load is noise.
   // 404 typically reflects a stale or wrong URL — callers show inline empty states.
   if (status === 401 || status === 404) return;
+
+  // Backend restart: the restart notice is already up and refetches everything
+  // once the API is back, so a failed read is neither news nor a bug report.
+  // Mutations still toast — a save that silently failed would read as success.
+  if (source === 'query' && isServerRestarting() && (status === undefined || status >= 500)) {
+    return;
+  }
 
   const body = resolveBody(error);
 

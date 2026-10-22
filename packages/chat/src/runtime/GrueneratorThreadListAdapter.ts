@@ -1,6 +1,6 @@
 'use client';
 
-import { isUnauthorizedError } from '@gruenerator/shared/api';
+import { isServerRestarting, isUnauthorizedError } from '@gruenerator/shared/api';
 import { clampThreadTitle, sanitizeMentionTokens } from '@gruenerator/shared/utils';
 import { createAssistantStream } from 'assistant-stream';
 
@@ -329,11 +329,13 @@ export function createGrueneratorThreadListAdapter(
         if (isUnauthorizedError(error)) throw error;
         console.warn('[ThreadList] Failed to fetch threads:', error);
         // An empty sidebar is indistinguishable from "you have no chats", so
-        // say which one it is before falling back.
-        notifyWarning(
-          'Chatliste konnte nicht geladen werden',
-          'Deine Chats sind nicht verloren — lade die Seite neu.'
-        );
+        // say which one it is before falling back. During a backend restart
+        // the restart notice already says so, and reloads the list afterwards.
+        if (!isServerRestarting())
+          notifyWarning(
+            'Chatliste konnte nicht geladen werden',
+            'Deine Chats sind nicht verloren — lade die Seite neu.'
+          );
         return { threads: [] };
       }
     },

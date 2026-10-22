@@ -8,6 +8,8 @@
 
 import {
   ApiError,
+  isGatewayDownResponse,
+  reportGatewayDown,
   UnauthorizedError,
   unauthorizedInfoFromResponse,
   type UnauthorizedInfo,
@@ -56,6 +58,9 @@ export function createChatApiClient(
     }
 
     if (!response.ok) {
+      if (isGatewayDownResponse(response.status, response.headers.get('content-type'))) {
+        reportGatewayDown();
+      }
       let errorData: { message?: unknown; error?: unknown };
       try {
         errorData = (await response.json()) as { message?: unknown; error?: unknown };
