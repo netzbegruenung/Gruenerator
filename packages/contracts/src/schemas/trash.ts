@@ -37,6 +37,8 @@ export const trashItemSchema = z.object({
   title: z.string(),
   /** document_subtype / media_type / … — display only. */
   subtype: z.string().nullable(),
+  /** Canvas-Format der Zeile (z. B. `slide-16-9`) — nur Anzeige, additiv. */
+  format: z.string().nullable().optional(),
   deletedAt: z.string(),
   /**
    * Deleted before the Papierkorb existed: `deletedAt` is when it was moved

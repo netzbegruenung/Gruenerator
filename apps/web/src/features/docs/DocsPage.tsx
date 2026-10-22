@@ -24,6 +24,7 @@ import {
   CardGrid,
   DismissableBanner,
 } from '@gruenerator/ui';
+import { useQueryClient } from '@tanstack/react-query';
 import { lazy, Suspense, useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { FiChevronDown, FiChevronUp, FiFile, FiPlus, FiUsers } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
@@ -33,8 +34,10 @@ import { SHOW_SHAREPIC_STUDIO } from '../../config/featureFlags';
 import { OFFICE_SUITE_TOOLS, filterWorkplaceTools } from '../../config/workplaceToolsConfig';
 import { useBoardsTyped } from '../../hooks/useBoardsTyped';
 import { useFirstName } from '../../hooks/useFirstName';
+import { useAuthStore } from '../../stores/authStore';
 import { boardTemplates, getBoardTemplate } from '../boards/boardTemplates';
 import { useFeatureIndex } from '../global-search/useFeatureIndex';
+import { seedCanvasQuery } from '../image-studio/canvasQuery';
 import { openSharepicCreator } from '../image-studio/freitext/openSharepicCreator';
 import {
   getPresentationTemplate,
@@ -47,6 +50,8 @@ import { OFFICE_PILL_ROW, OfficeActionPill } from '../workplace/components/Tools
 import { WorkplaceHero } from '../workplace/components/WorkplaceHero';
 
 import { BoardCard, type BoardCardBoard } from './BoardCard';
+import { deleteCanvasDeck, isCanvasDeck, renameCanvasDeck } from './canvasDeckActions';
+import { createSlideDeck } from './createSlideDeck';
 import { webAppDocsAdapter } from './docsAdapter';
 import {
   DocsComposer,
@@ -154,6 +159,8 @@ export function DocumentsContent({
 }) {
   const adapter = useDocsAdapter();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const locale = useAuthStore((s) => s.locale);
   const firstName = useFirstName();
   const featureIndex = useFeatureIndex();
   // A sharepic request goes to the creator, which speaks both corporate designs.
@@ -324,17 +331,21 @@ export function DocumentsContent({
       const newTitle = window.prompt('Neuer Titel:', doc.title);
       if (newTitle?.trim() && newTitle.trim() !== doc.title) {
         try {
-          await updateDocumentMutation.mutateAsync({
-            id: doc.id,
-            updates: { title: newTitle.trim() },
-          });
+          if (isCanvasDeck(documents.find((d) => d.id === doc.id)?.document_subtype)) {
+            await renameCanvasDeck(doc.id, newTitle.trim());
+          } else {
+            await updateDocumentMutation.mutateAsync({
+              id: doc.id,
+              updates: { title: newTitle.trim() },
+            });
+          }
           refreshOffice();
         } catch (err) {
           console.error('Failed to rename document:', err);
         }
       }
     },
-    [updateDocumentMutation, refreshOffice]
+    [updateDocumentMutation, refreshOffice, documents]
   );
 
   const handleDeleteBoard = useCallback(
@@ -347,7 +358,12 @@ export function DocumentsContent({
     const { id, kind, title } = deleteTarget;
     setDeleteTarget(null);
     try {
-      if (kind === 'document') {
+      if (
+        kind === 'document' &&
+        isCanvasDeck(documents.find((d) => d.id === id)?.document_subtype)
+      ) {
+        await deleteCanvasDeck(id);
+      } else if (kind === 'document') {
         await deleteDocumentMutation.mutateAsync(id);
       } else {
         await deleteBoard.mutateAsync(id);
@@ -357,7 +373,7 @@ export function DocumentsContent({
     } catch (err) {
       console.error(`Failed to delete ${kind}:`, err);
     }
-  }, [deleteTarget, deleteDocumentMutation, deleteBoard, showTrashUndo, refreshOffice]);
+  }, [deleteTarget, deleteDocumentMutation, deleteBoard, showTrashUndo, refreshOffice, documents]);
 
   const handleRenameBoard = useCallback(
     async (board: { id: string; title: string }, e: React.MouseEvent) => {
@@ -417,15 +433,13 @@ export function DocumentsContent({
 
   const handleCreatePresentation = useCallback(async () => {
     try {
-      const newDoc = await createDocumentMutation.mutateAsync({
-        title: 'Neue Präsentation',
-        documentSubtype: 'presentations',
-      });
-      adapter.navigateToDocument(newDoc.id);
+      const deck = await createSlideDeck(locale);
+      seedCanvasQuery(queryClient, deck);
+      void navigate(`/studio/canvas/${deck.id}`);
     } catch (err) {
       console.error('Failed to create presentation:', err);
     }
-  }, [createDocumentMutation, adapter]);
+  }, [locale, queryClient, navigate]);
 
   const handleCreatePresentationFromTemplate = useCallback(
     async (templateId: string) => {
