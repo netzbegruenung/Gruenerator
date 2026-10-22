@@ -53,7 +53,7 @@ export function meterTrack(track: MediaStreamTrack, emit: (level: number) => voi
 
 /** The adapter as web runs it: cookie auth and an AudioContext level meter. */
 export function createWebVoiceAdapter(
-  options: Pick<MistralVoiceAdapterOptions, 'onToolActivity' | 'onError'>
+  options: Omit<MistralVoiceAdapterOptions, 'request' | 'meterTrack' | 'prepareAudio'>
 ): MistralVoiceAdapter {
   return new MistralVoiceAdapter({ ...options, request: agentSessionRequest, meterTrack });
 }
@@ -72,17 +72,35 @@ function setActivity(next: string | null) {
  * agentSessionController.ts), and the API refuses everyone else.
  */
 export const mistralChatVoice: ChatVoice = {
-  createAdapter: () =>
-    createWebVoiceAdapter({
+  createAdapter: (thread) => {
+    // Cards cannot join a running call's messages (assistant-ui takes text
+    // only); the thread re-reads once the call is over.
+    let created = false;
+    return createWebVoiceAdapter({
+      resolveThreadId: thread.resolveThreadId,
       onToolActivity: (call) =>
         setActivity(call ? (TOOL_LABEL[call.name] ?? 'Schlage nach') : null),
+      onArtifact: (artifact) => {
+        created = true;
+        void import('sonner').then(({ toast }) =>
+          toast.success(`${artifact.title} ist fertig`, {
+            description: 'Erscheint im Chat, sobald das Gespräch endet.',
+          })
+        );
+      },
+      onEnded: () => {
+        if (!created) return;
+        created = false;
+        void thread.reload();
+      },
       onError: (message) => {
         if (message)
           void import('sonner').then(({ toast }) =>
             toast.error('Sprachgespräch', { description: message })
           );
       },
-    }),
+    });
+  },
   getActivity: () => activity,
   subscribeActivity: (onChange) => {
     listeners.add(onChange);

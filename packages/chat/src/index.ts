@@ -110,6 +110,7 @@ export {
   useChatEndpoints,
   type ChatConfig,
   type ChatVoice,
+  type ChatVoiceThread,
   type ResolvedEndpoints,
   type ChatRequestContext,
   type ChatRequestContextProvider,
