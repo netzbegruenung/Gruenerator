@@ -179,6 +179,7 @@ export {
   NOTEBOOK_DEPTHS,
   DEFAULT_NOTEBOOK_DEPTH,
   notebookDepthDef,
+  visibleNotebookDepths,
   type NotebookDepthDef,
   type NotebookDepthIconKey,
 } from './lib/notebookDepth';

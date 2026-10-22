@@ -19,7 +19,7 @@ import { startStreamRecorder } from '../../services/chat/resumableStreams.js';
 import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import { memoryService } from '../../services/memory/index.js';
 import { withRetry } from '../../services/search/searchRetryStrategy.js';
-import { gatePandaModelId } from '../../services/user/pandaEntitlement.js';
+import { resolveNotebookTier } from '../../services/user/pandaEntitlement.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { ThreadId, UserId } from '../../utils/types/branded.js';
@@ -132,14 +132,14 @@ router.post(
       collectionIds,
       filters,
       model: requestedModel,
-      mode,
+      mode: requestedMode,
       sourceTier,
       answerMode,
       documentIds,
       threadId: existingThreadId,
     } = req.body;
     const messages = rawMessages as ModelMessage[] | undefined;
-    const model = await gatePandaModelId(requestedModel, user.id);
+    const { mode, model } = await resolveNotebookTier(requestedMode, requestedModel, user.id);
 
     const lastUserMessage = Array.isArray(messages)
       ? messages.filter((m: { role: string }) => m.role === 'user').pop()

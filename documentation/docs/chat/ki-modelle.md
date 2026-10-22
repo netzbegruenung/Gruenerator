@@ -24,7 +24,7 @@ Du wählst eine Größe, kein Herstellermodell – dieselben drei Stufen findest
 
 **Ultra** – Die beste Qualität, für Recherche und lange Aufgaben. Läuft auf EU-Servern (Mistral AI, Frankreich).
 
-**Panda** – Für sehr anspruchsvolle Aufgaben, mit sichtbarem Nachdenken vor der Antwort. Dahinter steht DeepSeek, ein offenes Modell (Open Weights) aus China, das bei einem europäischen Anbieter läuft (Melious, Finnland) – deine Eingaben gehen nicht nach China. Panda ist nicht für alle sichtbar: Eine Administratorin oder ein Administrator deiner Instanz schaltet die Stufe nach einer Schulung für dein Konto frei. Fällt das Modell aus, antwortet Ultra.
+**Panda** – Für sehr anspruchsvolle Aufgaben, mit sichtbarem Nachdenken vor der Antwort. Dahinter steht DeepSeek, ein offenes Modell (Open Weights) aus China, das bei einem europäischen Anbieter läuft (Melious, Finnland) – deine Eingaben gehen nicht nach China. Panda ist nicht für alle sichtbar: Eine Administratorin oder ein Administrator deiner Instanz schaltet die Stufe nach einer Schulung für dein Konto frei. Fällt das Modell aus, antwortet Ultra. Im Notebook findest du Panda als vierte Suchtiefe nach Ultra: Gesucht wird wie bei Ultra, die Antwort schreibt Panda.
 
 Welches Modell hinter einer Stufe steckt, kann sich ändern, wenn ein besseres verfügbar wird – die Stufe bleibt. Welche Anbieter aktuell dahinterstehen, steht jederzeit in der [Datenschutzerklärung](https://gruenerator.de/datenschutz).
 

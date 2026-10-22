@@ -28,6 +28,7 @@ import PageContainer from '../../../components/common/PageContainer';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useAuthStore } from '../../../stores/authStore';
 import { whenIdle } from '../../../utils/whenIdle';
+import { useModelPreferences } from '../../models/hooks/useModelPreferences';
 import { buildChatHandoffUrl, createRepeatGuard, readChatHandoff } from '../chatHandoff';
 import { getNotebookConfig } from '../config/notebookPagesConfig';
 import { getNotebookById } from '../config/notebooksConfig';
@@ -150,7 +151,9 @@ export const NotebookPageContent = ({
   // mount — including a plain page reload mid-conversation.
   const storedDepth = useAgentStore((s) => s.notebookDepth);
   const setMode = useAgentStore((s) => s.setNotebookDepth);
-  const mode = notebookDepthDef(storedDepth).depth;
+  // A stored Panda choice without the unlock goes out as Ultra (see notebookDepthDef).
+  const { enabledModelIds } = useModelPreferences();
+  const mode = notebookDepthDef(storedDepth, enabledModelIds).depth;
   // Quellen-Ampel: per notebook, remembered in the browser, offered only where the
   // collection knows demoted sources (parliament notebooks).
   const offersSourceTier = supportsSourceTier(config.collections.map((c) => c.id));
