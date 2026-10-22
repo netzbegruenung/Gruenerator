@@ -330,12 +330,14 @@ interface PortOptions {
   thread?: VoiceThread | null;
 }
 
-/** What a creating call made, for the device to show before the thread reloads. */
+/** What a creating call made; the device brings its card into the chat live. */
 export interface VoiceArtifact {
   kind: ArtifactKindId;
   /** The artifact's own title, else the kind's name ("Sharepic"). */
   title: string;
   url: string | null;
+  /** The thread message carrying the card, null when saving it failed. */
+  messageId: string | null;
 }
 
 async function buildPort(
@@ -462,6 +464,7 @@ async function persistCreated(
     kind,
     title: createdDocument?.title ?? createdBoard?.title ?? artifactKind(kind).label,
     url: createdDocument?.url ?? null,
+    messageId: outcome.messageId ?? null,
   };
 }
 

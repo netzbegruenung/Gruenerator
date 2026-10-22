@@ -6,12 +6,14 @@ export interface HostedSessionOptions {
   fastMode: boolean;
 }
 
-/** What a creating tool made; the full card arrives with the thread (`/messages`). */
+/** What a creating tool made; its card is a message the server saved in the thread. */
 export interface VoiceArtifact {
   kind: string;
   /** Its own title, else the kind's name ("Sharepic"). */
   title: string;
   url: string | null;
+  /** That message (as `/messages` lists it), null when saving it failed. */
+  messageId: string | null;
 }
 
 export interface ToolCall {

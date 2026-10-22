@@ -20,3 +20,9 @@ declare module '*.ttf' {
   const asset: number;
   export default asset;
 }
+
+/** The voice call's ready tone, played by `expo-audio`. */
+declare module '*.wav' {
+  const asset: number;
+  export default asset;
+}

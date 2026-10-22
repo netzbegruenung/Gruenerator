@@ -65,6 +65,16 @@ interface Props {
   /** The thread's accent — send button, cursor and the user's bubble; the app
    *  green by default. */
   composerAccent?: string;
+  /** The composer's accessory sits beside Send rather than on the left. */
+  composerAccessoryBesideAction?: boolean;
+  /** Laid over the message list, exactly its size (the voice call's blob). */
+  listOverlay?: ReactNode;
+  /** Takes the composer's place (the voice call's bar). */
+  dock?: ReactNode;
+  /** Extra room below the last message, for what `listOverlay` docks there. */
+  listBottomInset?: number;
+  /** Keep the newest message in view as rows arrive (a call's transcript). */
+  followLatest?: boolean;
 }
 
 const EmptyState = memo(function EmptyState({
@@ -168,6 +178,11 @@ export const AssistantThread = memo(function AssistantThread({
   bareComposer = false,
   composerHeader,
   composerAccent,
+  composerAccessoryBesideAction,
+  listOverlay,
+  dock,
+  listBottomInset = 0,
+  followLatest = false,
 }: Props) {
   const resolvedTheme = useTheme();
   const theme: Theme = themeProp ?? resolvedTheme;
@@ -182,7 +197,10 @@ export const AssistantThread = memo(function AssistantThread({
   // identity changes; it used to be a module constant for exactly that reason,
   // and now has to depend on the window instead.
   const column = useContentColumn('reading');
-  const messagesContentStyle = useMemo(() => [column, messagesPadding], [column]);
+  const messagesContentStyle = useMemo(
+    () => [column, messagesPadding, listBottomInset > 0 && { paddingBottom: listBottomInset }],
+    [column, listBottomInset]
+  );
   const composerEdge = useComposerEdge();
 
   return (
@@ -209,31 +227,37 @@ export const AssistantThread = memo(function AssistantThread({
             the list along (autoScroll off), so the answer can be read from its
             start. Our own top anchor (useTurnAnchor) lost its place whenever rows
             re-measured after a run and left the list scrolled into empty space. */}
-          <ThreadPrimitive.MessagesFlatList
-            windowSize={LIST_WINDOW_SIZE}
-            autoScroll={false}
-            contentContainerStyle={messagesContentStyle}
-            keyboardDismissMode="interactive"
-          >
-            {renderMessage}
-          </ThreadPrimitive.MessagesFlatList>
+          <View style={styles.container}>
+            <ThreadPrimitive.MessagesFlatList
+              windowSize={LIST_WINDOW_SIZE}
+              autoScroll={followLatest}
+              contentContainerStyle={messagesContentStyle}
+              keyboardDismissMode="interactive"
+            >
+              {renderMessage}
+            </ThreadPrimitive.MessagesFlatList>
+            {listOverlay}
+          </View>
           <Animated.View style={composerPadding}>
             {composerHeader ? <View style={column}>{composerHeader}</View> : null}
-            <Composer
-              binding="runtime"
-              variant="bar"
-              showActionSheet={!bareComposer}
-              showMentions={!bareComposer}
-              theme={theme}
-              style={[
-                composerEdge,
-                { backgroundColor: transparent ? 'transparent' : theme.background },
-              ]}
-              testIDPrefix="chat-composer"
-              inputRef={composerInputRef}
-              accessory={composerAccessory}
-              accentColor={composerAccent}
-            />
+            {dock ?? (
+              <Composer
+                binding="runtime"
+                variant="bar"
+                showActionSheet={!bareComposer}
+                showMentions={!bareComposer}
+                theme={theme}
+                style={[
+                  composerEdge,
+                  { backgroundColor: transparent ? 'transparent' : theme.background },
+                ]}
+                testIDPrefix="chat-composer"
+                inputRef={composerInputRef}
+                accessory={composerAccessory}
+                accessoryBesideAction={composerAccessoryBesideAction}
+                accentColor={composerAccent}
+              />
+            )}
           </Animated.View>
         </ThreadPrimitive.Root>
       </KeyboardAvoidingView>
