@@ -52,6 +52,16 @@ interface Sample {
  * down; anything else is left to native scrolling. Once the content has
  * handed the gesture to the sheet, its touchmove calls `preventDefault` —
  * the one non-passive listener — so the list does not scroll along.
+ *
+ * WebKit commits an unprevented first touchmove to native scrolling (the list
+ * rubber-bands at its top) and later moves are no longer cancelable, so the
+ * content claims the gesture on its FIRST move if that goes down and mostly
+ * vertical; the slop then only decides between drag and nothing. Whether the
+ * content may take over at all is settled at touchstart (list at its top, not
+ * inside a textarea or a scrolled nested scroller): every other gesture
+ * returns from the non-passive touchmove at its first line. Passivity is fixed
+ * at registration and a listener added mid-gesture does not make that
+ * gesture's moves cancelable, so the one listener stays.
  */
 export function useMobileSheet({
   isOpen,
@@ -91,6 +101,8 @@ export function useMobileSheet({
     // (content only) the browser scrolls for the rest of the gesture.
     let mode: 'idle' | 'pending' | 'drag' | 'scroll' = 'idle';
     let fromContent = false;
+    // Content only: the first move went down, so the browser must not scroll.
+    let claimed = false;
     // The finger that owns the gesture; other fingers are ignored.
     let activeId = 0;
     let startScrollTop = 0;
@@ -156,14 +168,26 @@ export function useMobileSheet({
     const activeTouch = (list: TouchList) =>
       Array.from(list).find((t) => t.identifier === activeId) ?? null;
 
+    /** A textarea or a scrolled scroller between the touch and the content keeps the touch. */
+    const startsInNestedScroll = (target: EventTarget | null) => {
+      for (let el = target instanceof Element ? target : null; el && el !== content;) {
+        if (el instanceof HTMLTextAreaElement || el.scrollTop > 0) return true;
+        el = el.parentElement;
+      }
+      return false;
+    };
+
     const start = (e: TouchEvent, isContent: boolean) => {
       // A second finger neither restarts nor ends the running gesture.
       if (closing || mode !== 'idle' || e.touches.length > 1) return;
       const touch = e.touches[0];
-      mode = 'pending';
       activeId = touch.identifier;
       fromContent = isContent;
+      claimed = false;
       startScrollTop = isContent ? (content?.scrollTop ?? 0) : 0;
+      // Decided here, so a scrolling list's moves skip the handler at once.
+      mode =
+        isContent && (startScrollTop > 0 || startsInNestedScroll(e.target)) ? 'scroll' : 'pending';
       startX = touch.clientX || 0;
       startY = touch.clientY;
       deltaY = 0;
@@ -180,8 +204,18 @@ export function useMobileSheet({
 
       if (mode === 'pending') {
         const dx = (touch.clientX || 0) - startX;
+        if (fromContent && !claimed) {
+          if (dx === 0 && dy === 0) return;
+          // First move: down and mostly vertical claims it, anything else scrolls.
+          if (dy <= Math.abs(dx) || (content?.scrollTop ?? 0) > 0) {
+            mode = 'scroll';
+            return;
+          }
+          claimed = true;
+        }
+        if (claimed && e.cancelable) e.preventDefault();
         if (Math.max(Math.abs(dx), Math.abs(dy)) < DRAG_SLOP_PX) return;
-        const scrolled = startScrollTop > 0 || (content?.scrollTop ?? 0) > 0;
+        const scrolled = (content?.scrollTop ?? 0) > 0;
         if (fromContent && (dy <= Math.abs(dx) || scrolled)) {
           mode = 'scroll';
           return;

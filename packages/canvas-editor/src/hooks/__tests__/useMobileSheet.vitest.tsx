@@ -231,6 +231,79 @@ describe('useMobileSheet: robustness', () => {
   });
 });
 
+describe('useMobileSheet: content pull-down on iOS', () => {
+  beforeEach(setMobileViewport);
+
+  function renderWith(children: React.ReactNode) {
+    render(
+      <SidebarPanel isOpen title="Text" onClose={vi.fn()}>
+        {children}
+      </SidebarPanel>
+    );
+    const sheet = screen.getByRole('region', { name: 'Text' });
+    endTransition(sheet);
+    const content = contentOf(sheet);
+    Object.defineProperty(content, 'scrollTop', { value: 0, configurable: true });
+    return { sheet, content };
+  }
+
+  // WebKit commits an unprevented first touchmove to native scrolling (the
+  // list rubber-bands at its top) and later moves are no longer cancelable.
+  it('claims the first downward move at the top before the slop', () => {
+    const { sheet, content } = renderWith(<p>Inhalt</p>);
+    fireEvent.touchStart(content, { touches: [{ clientX: 50, clientY: 100 }] });
+    const first = fireEvent.touchMove(content, { touches: [{ clientX: 50, clientY: 102 }] });
+    expect(first).toBe(false);
+    expect(sheet.style.transform).toBe('');
+
+    const next = fireEvent.touchMove(content, { touches: [{ clientX: 50, clientY: 160 }] });
+    expect(next).toBe(false);
+    expect(sheet.style.transform).toBe('translateY(60px)');
+  });
+
+  it('leaves a mostly horizontal first move to the browser', () => {
+    const { sheet, content } = renderWith(<p>Inhalt</p>);
+    fireEvent.touchStart(content, { touches: [{ clientX: 50, clientY: 100 }] });
+    expect(fireEvent.touchMove(content, { touches: [{ clientX: 54, clientY: 102 }] })).toBe(true);
+    expect(fireEvent.touchMove(content, { touches: [{ clientX: 56, clientY: 200 }] })).toBe(true);
+    expect(sheet.style.transform).toBe('');
+  });
+
+  it('does not take over a touch that starts in a textarea', () => {
+    const { sheet } = renderWith(<textarea aria-label="Alternativtext" />);
+    const textarea = screen.getByRole('textbox', { name: 'Alternativtext' });
+    fireEvent.touchStart(textarea, { touches: [{ clientX: 50, clientY: 100 }] });
+    expect(fireEvent.touchMove(textarea, { touches: [{ clientX: 50, clientY: 102 }] })).toBe(true);
+    expect(fireEvent.touchMove(textarea, { touches: [{ clientX: 50, clientY: 200 }] })).toBe(true);
+    expect(sheet.style.transform).toBe('');
+  });
+
+  it('does not take over a touch inside a scrolled nested scroller', () => {
+    const { sheet } = renderWith(
+      <div data-testid="inner">
+        <p data-testid="row">Zeile</p>
+      </div>
+    );
+    Object.defineProperty(screen.getByTestId('inner'), 'scrollTop', {
+      value: 30,
+      configurable: true,
+    });
+    const row = screen.getByTestId('row');
+    fireEvent.touchStart(row, { touches: [{ clientX: 50, clientY: 100 }] });
+    expect(fireEvent.touchMove(row, { touches: [{ clientX: 50, clientY: 102 }] })).toBe(true);
+    expect(fireEvent.touchMove(row, { touches: [{ clientX: 50, clientY: 200 }] })).toBe(true);
+    expect(sheet.style.transform).toBe('');
+  });
+
+  it('decides at touchstart that a scrolled list keeps scrolling', () => {
+    const { sheet, content } = renderWith(<p>Inhalt</p>);
+    Object.defineProperty(content, 'scrollTop', { value: 12, configurable: true });
+    fireEvent.touchStart(content, { touches: [{ clientX: 50, clientY: 100 }] });
+    expect(fireEvent.touchMove(content, { touches: [{ clientX: 50, clientY: 102 }] })).toBe(true);
+    expect(sheet.style.transform).toBe('');
+  });
+});
+
 describe('useMobileSheet: drag close', () => {
   beforeEach(setMobileViewport);
   afterEach(() => vi.useRealTimers());
