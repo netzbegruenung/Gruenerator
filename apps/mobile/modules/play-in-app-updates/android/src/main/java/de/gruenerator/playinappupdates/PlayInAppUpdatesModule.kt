@@ -1,5 +1,6 @@
 package de.gruenerator.playinappupdates
 
+import android.content.pm.ApplicationInfo
 import com.google.android.play.core.appupdate.AppUpdateManager
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory
 import com.google.android.play.core.appupdate.AppUpdateOptions
@@ -104,6 +105,11 @@ class PlayInAppUpdatesModule : Module() {
     // Play release. The fake cannot install, so completeUpdate does nothing.
     AsyncFunction("simulateUpdateForTesting") { versionCode: Int ->
       val context = appContext.reactContext ?: throw Exceptions.ReactContextLost()
+      // Refused natively too, not only behind __DEV__ in JS: a release build must
+      // never be talked into a fake update state.
+      if ((context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) == 0) {
+        throw IllegalStateException("simulateUpdateForTesting is only available in debug builds")
+      }
       manager?.unregisterListener(listener)
       manager = FakeAppUpdateManager(context).also {
         it.setUpdateAvailable(versionCode, AppUpdateType.FLEXIBLE)
