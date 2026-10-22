@@ -54,6 +54,7 @@ import {
   printPdfFilename,
   type PrintExportPage,
 } from '../../export/printExport';
+import { exportSlidesPdf } from '../../export/slidesPdf';
 import {
   DEFAULT_FORMAT_ID,
   getCanvasFormatOrDefault,
@@ -138,6 +139,9 @@ const sidebarLoadingFallback = (
     <Skeleton className="h-4 w-2/3 rounded" />
   </div>
 );
+
+/** Folien-PDF: 2× der 1920 × 1080-Folie, scharf auch im Vollbild. */
+const SLIDES_PDF_PIXEL_RATIO = 2;
 
 export function CanvasEditor(props: CanvasEditorProps) {
   return (
@@ -583,11 +587,15 @@ function CanvasEditorInner({
         await ensureFontsReady();
         return handleCaptureCanvas({ format: 'png', pixelRatio, includeBackground: !transparent });
       },
+      capturePages: async ({ pixelRatio = 1 } = {}) => {
+        await ensureFontsReady();
+        return exportAllPages({ pixelRatio });
+      },
       getPages: () => serializeDeck(pagesDoc).map(({ configId, state }) => ({ configId, state })),
       undo: toolbarHandlers.undo,
       redo: toolbarHandlers.redo,
     }),
-    [handleCaptureCanvas, pagesDoc, toolbarHandlers]
+    [handleCaptureCanvas, exportAllPages, pagesDoc, toolbarHandlers]
   );
 
   const handleCaptureCanvasForAi = useCallback(async () => {
@@ -836,6 +844,15 @@ function CanvasEditorInner({
     const blob = new Blob([pdf as BlobPart], { type: 'application/pdf' });
     await downloadBlob(blob, printPdfFilename(documentTitle ?? null));
   }, [printFormat, printPages, canvasRefsRef, documentTitle]);
+
+  const isSlideDeck = useMemo(() => isSlideFormat(getCanvasFormatOrDefault(formatId)), [formatId]);
+  const handleDownloadSlidesPdf = useCallback(async () => {
+    await ensureFontsReady();
+    const images = await exportAllPages({ pixelRatio: SLIDES_PDF_PIXEL_RATIO });
+    const pdf = await exportSlidesPdf(images);
+    const blob = new Blob([pdf as BlobPart], { type: 'application/pdf' });
+    await downloadBlob(blob, printPdfFilename(documentTitle ?? 'Präsentation'));
+  }, [exportAllPages, documentTitle]);
 
   // Every poster page should carry a filled-in V.i.S.d.P. / Impressum, whichever
   // page is active; the download warns (never blocks) once every page has reported.
@@ -1134,8 +1151,11 @@ function CanvasEditorInner({
             impressum: impressumGate,
           }
         : null,
+      slidesPdf: isSlideDeck ? { onDownloadPdf: handleDownloadSlidesPdf } : null,
     }),
     [
+      isSlideDeck,
+      handleDownloadSlidesPdf,
       printFormat,
       impressumGate,
       handleDownloadPdf,

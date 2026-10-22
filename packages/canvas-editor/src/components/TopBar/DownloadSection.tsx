@@ -39,6 +39,11 @@ export interface PrintExportProps {
   impressum?: PrintImpressumGate | null;
 }
 
+/** Digitale Folien-Decks: „PDF“ ist ein PDF mit allen Seiten, ohne Druckmarken. */
+export interface SlidesPdfProps {
+  onDownloadPdf: () => Promise<void>;
+}
+
 export interface PrintImpressumGate {
   /** False until every poster page has reported its state; no warning until then. */
   ready: boolean;
@@ -136,6 +141,7 @@ export interface DownloadSectionProps {
   exportError?: string | null;
   exportNotice?: string | null;
   printExport?: PrintExportProps | null;
+  slidesPdf?: SlidesPdfProps | null;
 }
 
 const DEFAULT_RASTER_PIXEL_RATIO = 1;
@@ -150,6 +156,7 @@ export function DownloadSection({
   exportError,
   exportNotice,
   printExport = null,
+  slidesPdf = null,
 }: DownloadSectionProps) {
   const [choice, setChoice] = useState<DownloadChoice>(printExport ? 'pdf' : 'png');
   const [printWarnings] = useState<string[]>(() => printExport?.getWarnings() ?? []);
@@ -165,7 +172,8 @@ export function DownloadSection({
   const impressumMissing =
     impressumGate?.ready === true &&
     !isImpressumComplete(parseImpressumLine(impressumGate.locale, impressumGate.text ?? ''));
-  const isMultiPage = pageCount > 1 && onDownloadAllZip && !isPdf;
+  const isSlidesPdf = choice === 'pdf' && slidesPdf !== null;
+  const isMultiPage = pageCount > 1 && onDownloadAllZip && !isPdf && !isSlidesPdf;
   // JPEG has no alpha channel — the transparency toggle is only meaningful for
   // PNG/WebP.
   const supportsTransparency = choice !== 'jpeg';
@@ -176,6 +184,10 @@ export function DownloadSection({
     try {
       if (choice === 'pdf' && printExport) {
         await printExport.onDownloadPdf();
+        return;
+      }
+      if (isSlidesPdf && slidesPdf) {
+        await slidesPdf.onDownloadPdf();
         return;
       }
       if (pageSelection === 'all' && onDownloadAllZip) {
@@ -207,6 +219,7 @@ export function DownloadSection({
           </SelectTrigger>
           <SelectContent position="popper" className="z-[10001]">
             {printExport && <SelectItem value="pdf">PDF (Druck)</SelectItem>}
+            {slidesPdf && <SelectItem value="pdf">PDF</SelectItem>}
             <SelectItem value="png">PNG</SelectItem>
             {!printExport && <SelectItem value="jpeg">JPG</SelectItem>}
             {!printExport && <SelectItem value="webp">WebP</SelectItem>}
@@ -216,7 +229,7 @@ export function DownloadSection({
 
       {/* Resolution + transparency only apply to single-page export; the
           multi-page ZIP path renders at fixed settings. */}
-      {!isPdf && pageSelection === 'current' && (
+      {!isPdf && !isSlidesPdf && pageSelection === 'current' && (
         <>
           <div className="flex flex-col gap-1.5">
             <Label
