@@ -168,7 +168,7 @@ function inkFor(locale: BrandLocale, grund: Grund): Ink {
     ground: DE.colors.primary,
     text: DE.colors.textOnDark,
     accent: grund === 'foto' ? null : { fill: brand('grashalm') },
-    quote: grund === 'foto' ? DE.colors.textOnDark : brand('grashalm'),
+    quote: brand('grashalm'),
     watermark: { assetId: 'sunflower-weiss', opacity: 0.12 },
     mark: { circle: SHAREPIC_COLOR_HEX.weiss, assetId: 'sunflower-green', size: MARK.flower },
     // Die Farbfassung (sandfarbene Schrift, gelbe Blume) ist für dunkle Gründe.
@@ -354,6 +354,9 @@ const TEXT_BILD_TEXT =
   '• Hier könnten ein paar deiner Gedanken stehen. Teile Punkte lieber auf mehrere Slides auf und verwende Fotos, um deine Punkte zu illustrieren.';
 
 const ZITAT_INTRO = 'Zusammenbringen, was zusammen gehört:';
+/** Auf dem Foto ohne Betonung, umbrochen wie im CD. */
+const ZITAT_TEXT_FOTO =
+  'Wir schützen Klima & Wirtschaft,\nsorgen für Gerechtigkeit,\nverteidigen Demokratie & Freiheit\nund schaffen Frieden & Sicherheit.';
 const ZITAT_TEXT =
   'Wir schützen ==Klima & Wirtschaft==, sorgen für ==Gerechtigkeit==, verteidigen ==Demokratie & Freiheit== und schaffen ==Frieden & Sicherheit==.';
 
@@ -364,15 +367,16 @@ const ZITAT_TEXT =
 function titel(b: SlideBuilder, light: boolean) {
   const flower = b.ink.watermark;
   // Dunkel liegt die Blume oben rechts angeschnitten, hell mittig unter dem Text.
-  if (flower && light) b.asset('folie-blume', flower.assetId, 1030, 450, 900, flower.opacity);
+  if (flower && light) b.asset('folie-blume', flower.assetId, 1500, 520, 1050, flower.opacity);
   else if (flower) b.asset('folie-blume', flower.assetId, 1440, 340, 1000, flower.opacity);
-  b.headline('folie-headline', 'Titelfolie', M, HEAD_TOP, 1500, 240);
-  b.text('folie-text', TITEL_TEXT, M, 350, 1640, 40, { lineHeight: 1.35 });
+  b.headline('folie-headline', 'Titelfolie', M, 30, 1700, 320);
+  // Schmal wie im CD: gut 60 % der Breite.
+  b.text('folie-text', TITEL_TEXT, M, 410, 1150, 38, { lineHeight: 1.3 });
 }
 
 function titelBild(b: SlideBuilder) {
-  b.headline('folie-headline', 'Titelfolie\nmit Bild', M, HEAD_TOP, 1100, 210);
-  b.text('folie-text', 'Unterüberschrift', M, 560, 1000, 36, { type: 'subheader' });
+  b.headline('folie-headline', 'Titelfolie\nmit Bild', M, 20, 1300, 280);
+  b.text('folie-text', 'Unterüberschrift', M, 660, 1000, 36, { type: 'subheader' });
 }
 
 function textBild(b: SlideBuilder, photoLeft: boolean) {
@@ -381,14 +385,14 @@ function textBild(b: SlideBuilder, photoLeft: boolean) {
   b.lock('folie-flaeche');
   const x = panelX + PANEL_PAD;
   const width = PANEL - PANEL_PAD * 2;
-  b.headline('folie-headline', 'Beispiel mit\nText & Bild', x, HEAD_TOP, width, 110);
+  b.headline('folie-headline', 'Beispiel mit\nText & Bild', x, 50, width, 128);
   b.text('folie-text', TEXT_BILD_TEXT, x, 400, width, 40, { lineHeight: 1.4 });
   if (photoLeft) stoerer(b, 275, 205, STOERER_FILL.magenta);
   else stoerer(b, 1033, 230, STOERER_FILL.magenta);
 }
 
 function textfolie(b: SlideBuilder) {
-  b.headline('folie-headline', 'Textfolie', M, 70, 1200, 100);
+  b.headline('folie-headline', 'Textfolie', M, 50, 1200, 128);
   const col = 820;
   b.text(
     'folie-spalte-1',
@@ -418,7 +422,7 @@ function chartColors(locale: BrandLocale, ground: string): string[] {
 }
 
 function diagramm(b: SlideBuilder, locale: BrandLocale) {
-  b.headline('folie-headline', 'Diagramm Vorlage', M, 70, 1400, 100);
+  b.headline('folie-headline', 'Diagramm Vorlage', M, 50, 1500, 128);
   const colors = chartColors(locale, b.ink.ground);
   const base = {
     rotation: 0,
@@ -473,35 +477,30 @@ function diagramm(b: SlideBuilder, locale: BrandLocale) {
   });
 }
 
-function zitat(b: SlideBuilder, withPhoto: boolean) {
+function zitat(b: SlideBuilder, withPhoto: boolean, locale: BrandLocale) {
+  // Gotham Ultra läuft breiter und zeichnet eckige Anführungen: kleiner in Österreich.
+  const at = locale === 'de-AT';
   // Die Anführungszeichen als Text mit Kontur: bleibt nativ und färbbar.
-  b.text('folie-anfuehrung', '”', M - 10, 20, 400, 420, {
+  const quote = at ? 640 : 1000;
+  b.text('folie-anfuehrung', '”', M - quote * 0.06, at ? 20 : -30, quote, quote, {
     family: b.ink.headline,
     fill: 'rgba(255,255,255,0)',
-    stroke: { color: b.ink.quote, width: 5 },
+    stroke: { color: b.ink.quote, width: 6 },
     lineHeight: 1,
   });
-  b.text('folie-intro', ZITAT_INTRO, M, 330, 1400, 34, { type: 'subheader' });
-  const width = withPhoto ? 1350 : 1720;
-  const size = withPhoto ? 84 : 104;
-  b.text(
-    'folie-zitat',
-    withPhoto ? ZITAT_TEXT.replace(/==/g, '') : ZITAT_TEXT,
-    M,
-    400,
-    width,
-    size,
-    {
-      type: 'header',
-      family: b.ink.headline,
-      lineHeight: 1.15,
-      accent: withPhoto ? null : b.ink.accent,
-    }
-  );
+  b.text('folie-intro', ZITAT_INTRO, M, 262, 1400, 50, { type: 'subheader' });
+  const width = withPhoto ? 1500 : 1720;
+  const size = (withPhoto ? 100 : 118) * (at ? 0.8 : 1);
+  b.text('folie-zitat', withPhoto ? ZITAT_TEXT_FOTO : ZITAT_TEXT, M, 340, width, size, {
+    type: 'header',
+    family: b.ink.headline,
+    lineHeight: 1.15,
+    accent: withPhoto ? null : b.ink.accent,
+  });
 }
 
 function bildfolie(b: SlideBuilder) {
-  b.headline('folie-headline', 'Bildfolie', M, HEAD_TOP, 1200, 100);
+  b.headline('folie-headline', 'Bildfolie', M, 50, 1200, 128);
 }
 
 function danke(b: SlideBuilder, locale: BrandLocale) {
@@ -512,9 +511,9 @@ function danke(b: SlideBuilder, locale: BrandLocale) {
   const contact = at
     ? 'Vorname Nachname\nTitel\n\n**DIE GRÜNEN**\nBezirksorganisation Musterstadt\nMusterstraße 1\n1010 Wien\n\nT +43 1 2345678\nF +43 1 2345678\nmail@website.at'
     : 'Vorname Nachname\nTitel\n\n**BÜNDNIS 90/DIE GRÜNEN**\nKV Musterstadt\nMusterstraße 1\n12345 Musterstadt\n\nT +49 12 3456789\nF +49 12 3456789\nmail@website.de';
-  b.text('folie-kontakt', contact, M, 640, 600, 20, { lineHeight: 1.25 });
-  b.headline('folie-headline', 'Vielen Dank', 618, 365, 1200, 200);
-  b.text('folie-text', 'für eure Aufmerksamkeit!', 772, 600, 1000, 70, {
+  b.text('folie-kontakt', contact, M, 480, 600, 28, { lineHeight: 1.3 });
+  b.headline('folie-headline', 'Vielen Dank', 640, at ? 365 : 330, W - M - 640, at ? 190 : 250);
+  b.text('folie-text', 'für eure Aufmerksamkeit!', 720, 600, 1100, at ? 72 : 100, {
     type: 'subheader',
     family: b.ink.headline,
     align: 'right',
@@ -567,10 +566,10 @@ export function buildSlideLayout(id: SlideLayoutId, options: SlideLayoutOptions)
       break;
     case 'zitat':
     case 'zitat-hell':
-      zitat(b, false);
+      zitat(b, false, options.locale);
       break;
     case 'zitat-bild':
-      zitat(b, true);
+      zitat(b, true, options.locale);
       break;
     case 'bildfolie':
       bildfolie(b);
