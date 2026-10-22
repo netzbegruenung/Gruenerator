@@ -82,6 +82,7 @@ export {
   imageModelPreferenceContract,
   mcpServersContract,
   chatToolApprovalsContract,
+  appReleaseContract,
   imageEditContract,
   sharepicCreatorContract,
   sharepicVorlagenContract,
@@ -196,6 +197,7 @@ export * from './schemas/modelPreferences.js';
 export * from './schemas/imageModelPreference.js';
 export * from './schemas/mcpServers.js';
 export * from './schemas/chatToolApprovals.js';
+export * from './schemas/appRelease.js';
 export * from './schemas/flux3Boxes.js';
 export * from './schemas/imageEdit.js';
 export * from './schemas/sharepicCreator.js';

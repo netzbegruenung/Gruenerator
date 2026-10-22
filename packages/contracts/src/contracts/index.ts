@@ -65,6 +65,7 @@ export { modelPreferencesContract } from './modelPreferencesContract.js';
 export { imageModelPreferenceContract } from './imageModelPreferenceContract.js';
 export { mcpServersContract } from './mcpServersContract.js';
 export { chatToolApprovalsContract } from './chatToolApprovalsContract.js';
+export { appReleaseContract } from './appReleaseContract.js';
 export { imageEditContract } from './imageEditContract.js';
 export { sharepicCreatorContract } from './sharepicCreatorContract.js';
 export { sharepicVorlagenContract } from './sharepicVorlagenContract.js';

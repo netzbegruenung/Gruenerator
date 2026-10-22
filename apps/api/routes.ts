@@ -20,6 +20,7 @@ import { mountLandesverbandAdminContractRouter } from './routes/admin/landesverb
 import { mountLvAdminAssignmentContractRouter } from './routes/admin/lvAdminAssignmentContractRouter.js';
 import { mountAgentVisibilityContractRouter } from './routes/agents/agentVisibilityContractRouter.js';
 import antraegeRouter from './routes/antraege/index.js';
+import { mountAppReleaseContractRouter } from './routes/app/appReleaseContractRouter.js';
 import { mountAgentCommentsContractRouter } from './routes/auth/agentComments/agentCommentsContractRouter.js';
 import { mountEntityCommentsContractRouter } from './routes/auth/entityComments/entityCommentsContractRouter.js';
 import { mountGroupsContractRouter } from './routes/auth/groups/groupsContract/index.js';
@@ -396,6 +397,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   // per-handler requireInstanceAdmin check.
   app.use('/api/auth/admin/bgst', requireAuth);
   mountInstanceAdminOverviewContractRouter(app);
+  // Store version of the mobile app — public, the answer is the same for all.
+  mountAppReleaseContractRouter(app);
   // Hauptgrünerator-Super-Admin: Landesverband master data + who
   // administers which Landesverband, plus the assignment user picker.
   app.use('/api/auth/admin/landesverbaende', requireAuth);
