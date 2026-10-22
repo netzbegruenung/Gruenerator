@@ -1,14 +1,16 @@
 import { type MarketplaceItem } from '@gruenerator/contracts';
 import {
-  MARKETPLACE_TABS,
+  LANDESVERBAND_COVERS,
+  MARKETPLACE_CATEGORIES,
+  categoryCoverPath,
+  landesverbandCardPaths,
+  landesverbandHubsOwnFirst,
   marketplaceOriginLabel,
+  singleLandesverbandHub,
   type MarketplaceFeature,
   type MarketplaceFilters,
-  type MarketplaceTabSlug,
 } from '@gruenerator/shared/marketplace';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { useFonts } from 'expo-font';
-import { type ComponentProps, type ReactNode } from 'react';
 import {
   Platform,
   Pressable,
@@ -19,27 +21,28 @@ import {
   useColorScheme,
 } from 'react-native';
 
-import gothamUltra from '../../assets/fonts/GothamNarrow-Ultra.ttf';
-import grueneType from '../../assets/fonts/GrueneType.ttf';
+import { getLandesverbandPhotoByFile } from '../../config/landesverbandPhotos';
 import { useTheme } from '../../hooks/useTheme';
-import { BODY_FONT, HEADING_FONT_BOLD, HEADING_FONT_SEMIBOLD, colors, spacing } from '../../theme';
+import { BODY_FONT, colors, spacing } from '../../theme';
 import { AgentGlyph } from '../agentura/AgentGlyph';
 import { SkeletonRows } from '../common/Skeleton';
 
 import { kindView, marketplaceCardProps } from './kindViews';
 import { MarketCard } from './MarketCard';
+import {
+  CollectionCards,
+  DISPLAY_FONT,
+  ItemShowcaseCard,
+  PhotoCard,
+  Shelf,
+  SwipeRow,
+  creditLine,
+  showcaseToneAt,
+  useRowCardWidth,
+  webImage,
+} from './showcase';
 import { useFrontpageShelves } from './useFrontpageShelves';
 import { type MarketplaceActions } from './useMarketplaceActions';
-
-/**
- * Headline face of the brand per country, as on the web front page. Loaded at
- * runtime (like `NotebookCoverArt`), so it reaches installed binaries by OTA;
- * until then the bold heading face stands in.
- */
-const DISPLAY_FONT = {
-  'de-DE': { family: 'GrueneType', asset: grueneType },
-  'de-AT': { family: 'GothamNarrow-Ultra', asset: gothamUltra },
-} as const;
 
 /**
  * The focus slot's colours — the web's, which are the design rather than a
@@ -82,33 +85,24 @@ const FOCUS = {
   },
 } as const;
 
-type IoniconName = ComponentProps<typeof Ionicons>['name'];
-
-const KIND_TILES: { slug: MarketplaceTabSlug; hint: string; icon: IoniconName }[] = [
-  { slug: 'agents', hint: 'Mit eigener Rolle und eigenem Wissen', icon: 'sparkles-outline' },
-  { slug: 'rezepte', hint: 'Fertige Anleitungen für eine Textsorte', icon: 'book-outline' },
-  { slug: 'vorlagen', hint: 'Sharepics und Layouts zum Anpassen', icon: 'albums-outline' },
-  { slug: 'sticker', hint: 'Freigestellte Motive für deine Bilder', icon: 'happy-outline' },
-  { slug: 'hintergruende', hint: 'Flächen und Fotos für Sharepics', icon: 'image-outline' },
-];
-
-const tabLabel = (slug: MarketplaceTabSlug) =>
-  MARKETPLACE_TABS.find((t) => t.slug === slug)?.label ?? slug;
-
 export interface MarketplaceFrontpageProps {
   locale: 'de-DE' | 'de-AT';
   lvIds: readonly string[] | null;
   token: string | null;
   actions: MarketplaceActions;
   onSelect: (item: MarketplaceItem) => void;
-  /** „Alle anzeigen" lands on the list with that filter. */
-  onBrowse: (patch: Partial<Pick<MarketplaceFilters, 'tab' | 'origin' | 'sort'>>) => void;
+  /** „Alle anzeigen", a collection or a category: the Marktplatz with that filter. */
+  onBrowse: (patch: Partial<MarketplaceFilters>) => void;
+  /** A Landesverband's page (`/marktplatz/landesverband/<slug>`). */
+  onOpenHub: (slug: string) => void;
 }
 
 /**
- * „Start" of the Marktplatz (web: `MarketplaceFrontpage`): one featured item,
- * then shelves that each hide below their minimum — the server applies the
- * rules from shared (`composeFrontpage`), this file only draws them.
+ * „Start" of the Marktplatz (web: `MarketplaceFrontpage`), in the web's order:
+ * one featured item, the collections and themes, then shelves that each hide
+ * below their minimum — the server applies the rules from shared
+ * (`composeFrontpage`), this file only draws them — and the categories, which
+ * replace the kind tabs here as on the web.
  */
 export function MarketplaceFrontpage({
   locale,
@@ -117,12 +111,14 @@ export function MarketplaceFrontpage({
   actions,
   onSelect,
   onBrowse,
+  onOpenHub,
 }: MarketplaceFrontpageProps) {
   const theme = useTheme();
   const hasLandesverband = (lvIds?.length ?? 0) > 0;
   const view = useFrontpageShelves(hasLandesverband);
-  const display = DISPLAY_FONT[locale];
-  const [fontLoaded] = useFonts({ [display.family]: display.asset });
+  // Exactly one Landesverband: „Alle anzeigen" opens its page instead of the filtered list.
+  const lvHub = singleLandesverbandHub(lvIds);
+  const rowWidth = useRowCardWidth();
 
   const card = (item: MarketplaceItem) => (
     <MarketCard
@@ -146,30 +142,54 @@ export function MarketplaceFrontpage({
         <FocusSlot
           item={view.focus}
           feature={view.focusFeature}
-          fontFamily={fontLoaded ? display.family : HEADING_FONT_BOLD}
           actions={actions}
           onSelect={onSelect}
         />
       ) : null}
 
+      <CollectionCards
+        row="rest"
+        collections={view.collections}
+        onOpen={(collection) => onBrowse({ collection })}
+      />
+      <CollectionCards
+        title="Themen"
+        row="themen"
+        collections={view.collections}
+        onOpen={(collection) => onBrowse({ collection })}
+      />
+
       {view.landesverband.length > 0 ? (
         <Shelf
           title={`Aus deinem Landesverband · ${marketplaceOriginLabel('landesverband', lvIds)}`}
-          onMore={() => onBrowse({ origin: 'landesverband' })}
+          onMore={() => (lvHub ? onOpenHub(lvHub.slug) : onBrowse({ origin: 'landesverband' }))}
         >
-          {view.landesverband.map((item) => (
-            <View key={item.key}>{card(item)}</View>
-          ))}
+          <View style={styles.stack}>
+            {view.landesverband.map((item) => (
+              <View key={item.key}>{card(item)}</View>
+            ))}
+          </View>
         </Shelf>
       ) : null}
 
       {view.neu.length > 0 ? (
         <Shelf title="Neu im Marktplatz" onMore={() => onBrowse({ sort: 'neu' })}>
-          {view.neu.map((item) => (
-            <View key={item.key}>{card(item)}</View>
-          ))}
+          <SwipeRow label="Neu im Marktplatz">
+            {view.neu.map((item, index) => (
+              <ItemShowcaseCard
+                key={item.key}
+                item={item}
+                tone={showcaseToneAt(index)}
+                token={token}
+                onPress={() => onSelect(item)}
+                width={rowWidth}
+              />
+            ))}
+          </SwipeRow>
         </Shelf>
       ) : null}
+
+      <LandesverbandRow locale={locale} lvIds={lvIds} onOpenHub={onOpenHub} />
 
       {view.beliebt.length > 0 ? (
         <Shelf title="Beliebt" onMore={() => onBrowse({ sort: 'beliebt' })}>
@@ -194,49 +214,37 @@ export function MarketplaceFrontpage({
         <Shelf
           title="Zum Gestalten"
           moreLabel="Alle Vorlagen"
-          onMore={() => onBrowse({ tab: 'vorlagen' })}
+          onMore={() => onBrowse({ category: 'vorlagen' })}
         >
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.visualRow}
-            accessibilityLabel="Zum Gestalten"
-          >
-            {view.gestalten.map((item) => (
-              <View key={item.key} style={styles.visualTile}>
-                {card(item)}
-              </View>
+          <SwipeRow label="Zum Gestalten">
+            {view.gestalten.map((item, index) => (
+              <ItemShowcaseCard
+                key={item.key}
+                item={item}
+                tone={showcaseToneAt(index)}
+                token={token}
+                onPress={() => onSelect(item)}
+                width={240}
+                visual
+              />
             ))}
-          </ScrollView>
+          </SwipeRow>
         </Shelf>
       ) : null}
 
-      <Shelf title="Nach Art stöbern">
-        <View style={styles.kindGrid}>
-          {KIND_TILES.map((tile) => (
-            <Pressable
-              key={tile.slug}
-              onPress={() => onBrowse({ tab: tile.slug })}
-              accessibilityRole="button"
-              accessibilityLabel={tabLabel(tile.slug)}
-              accessibilityHint={tile.hint}
-              style={({ pressed }) => [
-                styles.kindTile,
-                {
-                  backgroundColor: theme.card,
-                  borderColor: theme.cardBorder,
-                  opacity: pressed ? 0.7 : 1,
-                },
-              ]}
-            >
-              <View style={[styles.kindIcon, { backgroundColor: theme.backgroundAlt }]}>
-                <Ionicons name={tile.icon} size={20} color={theme.textGreen} />
-              </View>
-              <Text style={[styles.kindLabel, { color: theme.text }]}>{tabLabel(tile.slug)}</Text>
-              <Text style={[styles.kindHint, { color: theme.textSecondary }]} numberOfLines={2}>
-                {tile.hint}
-              </Text>
-            </Pressable>
+      <Shelf title="Kategorien" large>
+        <View style={styles.stack}>
+          {MARKETPLACE_CATEGORIES.map((category) => (
+            <PhotoCard
+              key={category.id}
+              source={webImage(categoryCoverPath(category, 1200))}
+              kicker={category.kicker}
+              title={category.title}
+              description={category.description}
+              credit={creditLine(category.cover.credit)}
+              aspectRatio={16 / 9}
+              onPress={() => onBrowse({ category: category.id })}
+            />
           ))}
         </View>
       </Shelf>
@@ -244,51 +252,55 @@ export function MarketplaceFrontpage({
   );
 }
 
-function Shelf({
-  title,
-  onMore,
-  moreLabel = 'Alle anzeigen',
-  children,
+/** The photo the app bundles for its notebooks; the web's card cut where none is bundled. */
+const landesverbandCardSource = (lvId: keyof typeof LANDESVERBAND_COVERS) => {
+  const cover = LANDESVERBAND_COVERS[lvId];
+  return getLandesverbandPhotoByFile(cover.file) ?? webImage(landesverbandCardPaths(cover).w480);
+};
+
+/**
+ * „Landesverbände": one photo card per Landesverband of the viewer's country,
+ * their own first. Each opens the Landesverband's page in the Marktplatz.
+ */
+function LandesverbandRow({
+  locale,
+  lvIds,
+  onOpenHub,
 }: {
-  title: string;
-  onMore?: () => void;
-  moreLabel?: string;
-  children: ReactNode;
+  locale: 'de-DE' | 'de-AT';
+  lvIds: readonly string[] | null;
+  onOpenHub: (slug: string) => void;
 }) {
-  const theme = useTheme();
+  const hubs = landesverbandHubsOwnFirst(locale, lvIds);
+  if (hubs.length === 0) return null;
   return (
-    <View style={styles.shelf}>
-      <View style={styles.shelfHeader}>
-        <Text style={[styles.shelfTitle, { color: theme.text }]} accessibilityRole="header">
-          {title}
-        </Text>
-        {onMore ? (
-          <Pressable
-            onPress={onMore}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={`${moreLabel}: ${title}`}
-          >
-            <Text style={[styles.more, { color: theme.textGreen }]}>{moreLabel}</Text>
-          </Pressable>
-        ) : null}
-      </View>
-      <View style={styles.shelfBody}>{children}</View>
-    </View>
+    <Shelf title="Landesverbände" large>
+      <SwipeRow label="Landesverbände">
+        {hubs.map(({ hub, own }) => (
+          <PhotoCard
+            key={hub.lvId}
+            source={landesverbandCardSource(hub.lvId)}
+            title={hub.title}
+            badge={own ? 'Dein Landesverband' : null}
+            aspectRatio={3 / 4}
+            width={208}
+            onPress={() => onOpenHub(hub.slug)}
+          />
+        ))}
+      </SwipeRow>
+    </Shelf>
   );
 }
 
 function FocusSlot({
   item,
   feature,
-  fontFamily,
   actions,
   onSelect,
 }: {
   item: MarketplaceItem;
   /** `null` = the fallback item, which has no pitch or example of its own. */
   feature: MarketplaceFeature | null;
-  fontFamily: string;
   actions: MarketplaceActions;
   onSelect: (item: MarketplaceItem) => void;
 }) {
@@ -312,7 +324,7 @@ function FocusSlot({
           {(feature?.kicker ?? 'Neu im Marktplatz').toUpperCase()}
         </Text>
         <Text
-          style={[styles.focusTitle, { color: c.title, fontFamily }]}
+          style={[styles.focusTitle, { color: c.title, fontFamily: DISPLAY_FONT }]}
           accessibilityRole="header"
         >
           {item.title}
@@ -427,7 +439,8 @@ const radius = Platform.select({ ios: 16, default: 12 });
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  content: { gap: spacing.large, paddingTop: spacing.small, paddingBottom: spacing.xlarge },
+  content: { gap: spacing.xlarge, paddingTop: spacing.small, paddingBottom: spacing.xlarge },
+  stack: { gap: spacing.small },
   focusSkeleton: { paddingTop: spacing.small },
   focus: {
     borderRadius: radius + 4,
@@ -482,16 +495,6 @@ const styles = StyleSheet.create({
   answerHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.xxsmall },
   answerTitle: { fontFamily: BODY_FONT, fontSize: 14, fontWeight: '700' },
   answerText: { fontFamily: BODY_FONT, fontSize: 14, lineHeight: 21 },
-  shelf: { gap: spacing.small },
-  shelfHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.small,
-  },
-  shelfTitle: { flex: 1, fontFamily: HEADING_FONT_SEMIBOLD, fontSize: 17 },
-  more: { fontFamily: BODY_FONT, fontSize: 14, fontWeight: '600' },
-  shelfBody: { gap: spacing.small },
   popular: {
     borderRadius: radius,
     borderCurve: 'continuous',
@@ -524,26 +527,4 @@ const styles = StyleSheet.create({
   popularMeta: { fontFamily: BODY_FONT, fontSize: 13 },
   likes: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   likesText: { fontFamily: BODY_FONT, fontSize: 13, fontVariant: ['tabular-nums'] },
-  visualRow: { gap: spacing.small },
-  visualTile: { width: 260 },
-  kindGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small },
-  kindTile: {
-    flexBasis: '47%',
-    flexGrow: 1,
-    gap: spacing.xxsmall,
-    padding: spacing.medium,
-    borderRadius: radius,
-    borderCurve: 'continuous',
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  kindIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.xxsmall,
-  },
-  kindLabel: { fontFamily: BODY_FONT, fontSize: 15, fontWeight: '600' },
-  kindHint: { fontFamily: BODY_FONT, fontSize: 13, lineHeight: 18 },
 });

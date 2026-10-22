@@ -2,6 +2,7 @@ import { type MarketplaceItem, type MarketplaceKind } from '@gruenerator/contrac
 import {
   DEFAULT_MARKETPLACE_SORT,
   categoryById,
+  categoryCoverPath,
   getMarketplaceTab,
   tabForKind,
   useMarketplaceKind,
@@ -24,12 +25,10 @@ import {
 } from './MarketplaceShowcaseCard';
 import { type MarketplaceActions } from './useMarketplaceActions';
 
-const DIR = '/images/marketplace/kategorien';
-
 /** The front page tile: 16:9, about half the content width. */
 export const categoryTileImage = (category: MarketplaceCategory) => ({
-  src: `${DIR}/${category.cover.file}-640.webp`,
-  srcSet: `${DIR}/${category.cover.file}-640.webp 640w, ${DIR}/${category.cover.file}-1200.webp 1200w`,
+  src: categoryCoverPath(category, 640),
+  srcSet: `${categoryCoverPath(category, 640)} 640w, ${categoryCoverPath(category, 1200)} 1200w`,
   sizes: '(min-width: 768px) 50vw, 100vw',
 });
 

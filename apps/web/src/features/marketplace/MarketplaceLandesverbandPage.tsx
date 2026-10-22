@@ -7,6 +7,7 @@ import {
   marketplaceHref,
   parseMarketplaceParams,
   serializeMarketplaceParams,
+  sortByHubOrder,
   useMarketplaceItem,
   useMarketplaceKind,
 } from '@gruenerator/shared/marketplace';
@@ -90,7 +91,7 @@ function HubView({ hub }: { hub: LvHub }): JSX.Element {
   const recipes = useHubKind('recipe', hub);
 
   // Agents in hub order (Öffentlichkeitsarbeit, Bürger*innen, Wahlprüfsteine, …).
-  const agentItems = [...agents.items].sort((a, b) => hubRank(hub, a.ref) - hubRank(hub, b.ref));
+  const agentItems = sortByHubOrder(hub, agents.items);
   const recipeItems = recipes.items;
 
   const opened = parseMarketplaceParams(params).item;
@@ -169,11 +170,6 @@ function HubView({ hub }: { hub: LvHub }): JSX.Element {
     </div>
   );
 }
-
-const hubRank = (hub: LvHub, ref: string): number => {
-  const index = (hub.agentIds as readonly string[]).indexOf(ref);
-  return index === -1 ? hub.agentIds.length : index;
-};
 
 function HubHeader({
   hub,

@@ -1,4 +1,8 @@
-import { type MarketplaceFrontpageShelfId, type MarketplaceItem } from '@gruenerator/contracts';
+import {
+  type MarketplaceCollectionId,
+  type MarketplaceFrontpageShelfId,
+  type MarketplaceItem,
+} from '@gruenerator/contracts';
 import {
   featureById,
   useMarketplaceFrontpage,
@@ -14,6 +18,7 @@ export interface FrontpageView {
   neu: MarketplaceItem[];
   beliebt: MarketplaceItem[];
   gestalten: MarketplaceItem[];
+  collections: { collectionId: MarketplaceCollectionId; items: MarketplaceItem[] }[];
 }
 
 /**
@@ -33,5 +38,6 @@ export function useFrontpageShelves(hasLandesverband: boolean): FrontpageView {
     neu: shelf('neu'),
     beliebt: shelf('beliebt'),
     gestalten: shelf('gestalten'),
+    collections: page.data?.collections ?? [],
   };
 }
