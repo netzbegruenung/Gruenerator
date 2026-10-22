@@ -28,6 +28,11 @@ export interface MistralVoiceAdapterOptions {
    */
   prepareAudio?: () => Promise<() => void>;
   /**
+   * Played once, when the agent has joined the call. The call has no spoken
+   * welcome: this is the person's sign to start talking.
+   */
+  readyCue?: () => void;
+  /**
    * The chat thread the call continues, read when it connects; null lets the
    * server open a new one. Every final line is saved there.
    */
@@ -79,6 +84,7 @@ export class MistralVoiceAdapter implements RealtimeVoiceAdapter {
 
       let stopMeter: (() => void) | null = null;
       let tornDown = false;
+      let cued = false;
       // In order: a line saved before the one spoken first would swap them on reload.
       let saving = Promise.resolve();
       const tearDown = () => {
@@ -155,6 +161,13 @@ export class MistralVoiceAdapter implements RealtimeVoiceAdapter {
       session.on('audio_track', (e) => {
         tracks[e.source] = e.track;
         remeter();
+        // The agent's voice arriving is the one sign it is in the room and
+        // hears: `connect()` resolves before it joins, and the hosted agent
+        // reports no `listening` state.
+        if (e.source === 'remote' && !cued) {
+          cued = true;
+          this.options.readyCue?.();
+        }
       });
       session.on('error', (e) => onError(`${e.source}/${e.code}: ${e.message}`));
       session.on('disconnected', (e) => {

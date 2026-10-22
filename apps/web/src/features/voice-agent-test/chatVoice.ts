@@ -51,11 +51,39 @@ export function meterTrack(track: MediaStreamTrack, emit: (level: number) => voi
   };
 }
 
-/** The adapter as web runs it: cookie auth and an AudioContext level meter. */
+/**
+ * Two soft rising notes once the agent has joined: the call has no spoken
+ * welcome, this tells the person to start talking. Drawn by the AudioContext,
+ * so there is no file to fetch; the app plays the same two notes.
+ */
+function playReadyCue(): void {
+  const ctx = new AudioContext();
+  const start = ctx.currentTime + 0.02;
+  [659.25, 880].forEach((frequency, i) => {
+    const at = start + i * 0.13;
+    const tone = ctx.createOscillator();
+    const gain = ctx.createGain();
+    tone.frequency.value = frequency;
+    gain.gain.setValueAtTime(0, at);
+    gain.gain.linearRampToValueAtTime(0.18, at + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.001, at + 0.25);
+    tone.connect(gain).connect(ctx.destination);
+    tone.start(at);
+    tone.stop(at + 0.26);
+  });
+  setTimeout(() => void ctx.close(), 800);
+}
+
+/** The adapter as web runs it: cookie auth, an AudioContext level meter and the ready tone. */
 export function createWebVoiceAdapter(
-  options: Omit<MistralVoiceAdapterOptions, 'request' | 'meterTrack' | 'prepareAudio'>
+  options: Omit<MistralVoiceAdapterOptions, 'request' | 'meterTrack' | 'prepareAudio' | 'readyCue'>
 ): MistralVoiceAdapter {
-  return new MistralVoiceAdapter({ ...options, request: agentSessionRequest, meterTrack });
+  return new MistralVoiceAdapter({
+    ...options,
+    request: agentSessionRequest,
+    meterTrack,
+    readyCue: playReadyCue,
+  });
 }
 
 let activity: string | null = null;

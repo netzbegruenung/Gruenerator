@@ -138,13 +138,11 @@ router.post('/', async (req: Request, res: Response) => {
 
   let instructions: string;
   let tools: unknown[];
-  let welcome: string;
   let threadId: string | null = null;
   if (parsed.data.mode === 'notebook') {
     const notebook = lvNotebook(req, parsed.data.notebookId);
     if (!notebook) return res.status(400).json({ error: 'Unbekanntes Notebook' });
     instructions = notebookInstructions(notebook.title);
-    welcome = `Hallo, hier ist die Sprachsuche für ${notebook.title}. Was möchtest du wissen?`;
     // The port with one tool, pinned to this notebook (see voicePort.ts).
     tools = await voicePortDeclarations(userId, userLocale(req), {
       only: [NOTEBOOK_TOOL],
@@ -155,10 +153,6 @@ router.post('/', async (req: Request, res: Response) => {
     if (!threadId) return res.status(403).json({ error: 'Kein Zugriff auf diese Unterhaltung' });
     const history = await loadVoiceHistory(threadId);
     instructions = TOOLS_INSTRUCTIONS + historyForInstructions(history);
-    welcome =
-      history.length > 0
-        ? 'Hallo, hier ist der Grünerator. Wie geht es weiter?'
-        : 'Hallo, hier ist der Grünerator. Worüber möchtest du sprechen?';
     tools = await voicePortDeclarations(userId, userLocale(req), {
       thread: { id: threadId, req, history },
     });
@@ -177,9 +171,10 @@ router.post('/', async (req: Request, res: Response) => {
           turn_detection: {},
         },
         tts: { model: 'voxtral-mini-tts-3', voice_id: VOXTRAL_DEFAULT_VOICE_ID },
+        // No welcome message: the person starts talking, cued by a tone on
+        // the device once the agent has joined.
         instructions,
         tools,
-        welcome_message: welcome,
       }),
     });
     if (!response.ok) {
