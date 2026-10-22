@@ -83,6 +83,7 @@ export function chartDataOnTable(state: ChatGraphState): boolean {
     state.docMentionIds,
     state.wolkeFiles,
     state.notebookIds,
+    state.notebookSources,
   ];
   if (referenced.some((ids) => (ids?.length ?? 0) > 0)) return true;
 
@@ -266,7 +267,9 @@ export async function executeIntentPipeline(opts: {
       }));
     } else if (currentIntent === 'summary') {
       const docCount =
-        (finalState.documentChatIds?.length || 0) + (finalState.documentIds?.length || 0);
+        (finalState.documentChatIds?.length || 0) +
+        (finalState.documentIds?.length || 0) +
+        (finalState.notebookSources?.length || 0);
       sse.send('summary_start', {
         message: PROGRESS_MESSAGES.summaryStart,
         documentCount: docCount,

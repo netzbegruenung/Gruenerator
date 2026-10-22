@@ -16,7 +16,7 @@
  * they do over MCP (chatToolBridge.ts).
  */
 import { NOTEBOOK_REGISTRY, getNotebookQueryAliases } from '@gruenerator/shared/notebooks';
-import { asSchema, tool, type Tool, type ToolSet } from 'ai';
+import { asSchema, tool, type ModelMessage, type Tool, type ToolSet } from 'ai';
 import { z } from 'zod';
 
 import { initializeChatState } from '../../agents/langgraph/ChatGraph/index.js';
@@ -28,17 +28,26 @@ import {
 } from '../../config/notebookCollectionMap.js';
 import { SYSTEM_COLLECTIONS } from '../../config/systemCollectionsConfig.js';
 import { collectionsForLocale } from '../../routes/chat/agents/searchTools.js';
-import { buildChatToolCatalog } from '../../routes/chat/agents/toolCatalog.js';
+import { artifactTool, buildChatToolCatalog } from '../../routes/chat/agents/toolCatalog.js';
 import { createSourceRegistry } from '../../routes/chat/services/agenticLoop/sourceRegistry.js';
 import { truncateResultForModel } from '../../routes/chat/services/agenticLoop/truncate.js';
+import {
+  ARTIFACT_KINDS,
+  artifactKind,
+  type ArtifactKindId,
+} from '../../routes/chat/services/artifactKindRegistry.js';
 import { resolveNotebookScopeFromText } from '../../routes/chat/services/notebookScopeFromText.js';
+import { persistAssistantResponse } from '../../routes/chat/services/postResponseService.js';
 import { createNullSSE } from '../../routes/chat/services/sseHelpers.js';
 import { formatToolResult } from '../../routes/mcp-server/chatToolBridge.js';
 import { createLogger } from '../../utils/logger.js';
 import { notebookQAService } from '../notebook/NotebookQAService.js';
 import { runNotebookSearch } from '../notebook/notebookToolSearch.js';
 
+import type { ChatGraphState } from '../../agents/langgraph/ChatGraph/types.js';
+import type { PersistedStep } from '../../routes/chat/services/agenticLoop/types.js';
 import type { QAResponse } from '../notebook/types.js';
+import type { Request } from 'express';
 
 const log = createLogger('voicePort');
 
@@ -56,10 +65,22 @@ interface PortEntry {
 
 const LOOKUP: PortEntry = { filler: 'Einen Moment, ich schaue nach.', timeoutMs: 20_000 };
 
+/** Creating takes as long as in the chat: a presentation is a minute and more. */
+const CREATE: PortEntry = {
+  filler: 'Ich mache mich an die Arbeit, das dauert einen Moment.',
+  timeoutMs: 120_000,
+};
+
+/** One creating tool per artifact kind, under the chat's own tool names. */
+const CREATING: ReadonlyMap<string, ArtifactKindId> = new Map(
+  ARTIFACT_KINDS.map((k) => [k.loopToolName, k.id])
+);
+
 /**
- * Left out on purpose: creating and editing (sharepics, documents, sheets …)
- * needs a screen; `scrape_url`, the example corpora and `read_artifact` feed
- * writing, not a conversation; `memory` writes; deep research takes minutes.
+ * Left out on purpose: editing what a call created (the chat's edit tools need
+ * the thread's artifacts in their state); `scrape_url`, the example corpora and
+ * `read_artifact` feed writing, not a conversation; `memory` writes; deep
+ * research takes minutes.
  */
 const VOICE_PORT: Record<string, PortEntry> = {
   [NOTEBOOK_TOOL]: { filler: 'Ich schau kurz im Notebook nach.', timeoutMs: 60_000 },
@@ -80,7 +101,20 @@ const VOICE_PORT: Record<string, PortEntry> = {
   groups: LOOKUP,
   search_threads: LOOKUP,
   product_knowledge: LOOKUP,
+  ...Object.fromEntries([...CREATING.keys()].map((name) => [name, CREATE])),
 };
+
+const wordsOf = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim();
+const FILLERS = new Set(Object.values(VOICE_PORT).map((e) => wordsOf(e.filler)));
+
+/** A filler arrives as an agent transcript like any answer, but it is no part of the conversation. */
+export function isVoiceFiller(text: string): boolean {
+  return FILLERS.has(wordsOf(text));
+}
 
 /** Results are read aloud, not pasted into a document. */
 const MAX_RESULT_CHARS = 4000;
@@ -274,26 +308,55 @@ function notebookTool(
 
 // ── The port ────────────────────────────────────────────────────────────────
 
+/**
+ * The thread a call writes to. Creating needs it: the result is persisted there
+ * as a chat turn, which is what shows its card on every device and lets the
+ * chat's edit tools find it later.
+ */
+export interface VoiceThread {
+  id: string;
+  req: Request;
+  /** The thread so far — the material a generator works from, as in the chat. */
+  history: ModelMessage[];
+}
+
 interface PortOptions {
   /** Only these port tools (the notebook voice search mounts one). */
   only?: readonly string[];
   /** Pins `notebook_fragen` to one notebook, whatever the model asks for. */
   fixedNotebook?: string | null;
   fastMode?: boolean;
+  /** Without a thread nothing can be created. */
+  thread?: VoiceThread | null;
+}
+
+/** What a creating call made, for the device to show before the thread reloads. */
+export interface VoiceArtifact {
+  kind: ArtifactKindId;
+  /** The artifact's own title, else the kind's name ("Sharepic"). */
+  title: string;
+  url: string | null;
 }
 
 async function buildPort(
   userId: string,
   locale: UserLocale,
   options: PortOptions
-): Promise<ToolSet> {
-  const wanted = (options.only ?? Object.keys(VOICE_PORT)).filter((n) => n in VOICE_PORT);
-  const chatTools = wanted.filter((n) => n !== NOTEBOOK_TOOL);
+): Promise<{ tools: ToolSet; state: ChatGraphState | null }> {
+  const thread = options.thread ?? null;
+  const wanted = (options.only ?? Object.keys(VOICE_PORT)).filter(
+    (n) => n in VOICE_PORT && (thread || !CREATING.has(n))
+  );
+  const chatTools = wanted.filter((n) => n !== NOTEBOOK_TOOL && !CREATING.has(n));
+  const creating = wanted.filter((n) => CREATING.has(n));
   const tools: ToolSet = {};
+  let state: ChatGraphState | null = null;
 
-  if (chatTools.length > 0) {
-    const state = await initializeChatState({
-      messages: [{ role: 'user', content: 'Sprachgespräch' }],
+  if (chatTools.length > 0 || creating.length > 0) {
+    const initial = await initializeChatState({
+      messages: thread?.history.length
+        ? thread.history
+        : [{ role: 'user', content: 'Sprachgespräch' }],
       agentId: '',
       userId,
       enabledTools: { search: true, web: true, person: true, examples: true, research: true },
@@ -301,18 +364,33 @@ async function buildPort(
     });
     // The universal agent resolves without an owner; the personal-data tools
     // read the person from `agentConfig.userId` (as over MCP, chatToolBridge.ts).
-    const agentConfig = { ...state.agentConfig, userId };
-    const catalog = buildChatToolCatalog({
-      agentConfig,
-      sourceRegistry: createSourceRegistry(),
-      loop: {
-        sse: createNullSSE(),
-        state: { ...state, agentConfig, intent: 'agentic' },
-        threadId: null,
-      },
-      toolAllowlist: chatTools,
-    });
-    Object.assign(tools, catalog.tools);
+    const agentConfig = { ...initial.agentConfig, userId };
+    state = { ...initial, agentConfig, intent: 'agentic' };
+    const sse = createNullSSE();
+    const sourceRegistry = createSourceRegistry();
+    if (chatTools.length > 0) {
+      const catalog = buildChatToolCatalog({
+        agentConfig,
+        sourceRegistry,
+        // No thread for the lookups: the confirm-gated personal-data writes
+        // keep failing safe, as over MCP.
+        loop: { sse, state, threadId: null },
+        toolAllowlist: chatTools,
+      });
+      Object.assign(tools, catalog.tools);
+    }
+    if (thread) {
+      for (const name of creating) {
+        tools[name] = artifactTool(CREATING.get(name)!, {
+          sse,
+          state,
+          req: thread.req,
+          threadId: thread.id,
+          sourceRegistry,
+          researchBanned: false,
+        });
+      }
+    }
   }
   if (wanted.includes(NOTEBOOK_TOOL)) {
     tools[NOTEBOOK_TOOL] = notebookTool(userId, locale, {
@@ -320,7 +398,7 @@ async function buildPort(
       fastMode: options.fastMode ?? true,
     });
   }
-  return tools;
+  return { tools, state };
 }
 
 /** Function declarations in Mistral's wire format (`/v1/audio/sessions`). */
@@ -329,7 +407,7 @@ export async function voicePortDeclarations(
   locale: UserLocale,
   options: PortOptions = {}
 ) {
-  const tools = await buildPort(userId, locale, options);
+  const { tools } = await buildPort(userId, locale, options);
   return Object.entries(tools).map(([name, def]) => {
     const entry = VOICE_PORT[name] ?? LOOKUP;
     const description =
@@ -347,32 +425,108 @@ export async function voicePortDeclarations(
   });
 }
 
+/**
+ * The created artifact as an assistant turn in the call's thread — the same
+ * write a chat turn makes, so the card rehydrates and the thread's tool
+ * context points the next "ändere die Überschrift" at it.
+ */
+async function persistCreated(
+  userId: string,
+  thread: VoiceThread,
+  kind: ArtifactKindId,
+  step: PersistedStep,
+  state: ChatGraphState
+): Promise<VoiceArtifact | null> {
+  const sharepicVariants = state.sharepicVariants ?? [];
+  const createdDocument = state.createdDocument ?? null;
+  const createdBoard = state.createdBoard ?? null;
+  if (sharepicVariants.length === 0 && !createdDocument && !createdBoard) return null;
+  const lastUser = [...thread.history].reverse().find((m) => m.role === 'user');
+  const outcome = await persistAssistantResponse({
+    threadId: thread.id,
+    userId,
+    fullText: '',
+    finalState: state,
+    classifiedState: state,
+    generatedImage: null,
+    sharepicVariants,
+    createdDocument,
+    isNewThread: false,
+    lastUserMessage: lastUser ?? { role: 'user', content: JSON.stringify(step.args) },
+    processedMeta: [],
+    requestId: step.toolCallId,
+    agenticSteps: [step],
+  });
+  if (!outcome.ok) log.error(`[VoicePort] ${step.toolName} created but not persisted`);
+  return {
+    kind,
+    title: createdDocument?.title ?? createdBoard?.title ?? artifactKind(kind).label,
+    url: createdDocument?.url ?? null,
+  };
+}
+
+function createdForModel(raw: unknown, artifact: VoiceArtifact | null): Record<string, unknown> {
+  const result = (raw ?? {}) as { note?: unknown; error?: unknown };
+  return {
+    ok: artifact != null,
+    ...(artifact && { erstellt: artifact.title, angezeigt: 'auf dem Bildschirm der Person' }),
+    ...(result.error != null && { error: result.error }),
+    ...(result.note != null && { note: result.note }),
+  };
+}
+
 export async function runVoicePortTool(
   userId: string,
   locale: UserLocale,
   name: string,
   args: Record<string, unknown>,
   options: PortOptions = {}
-): Promise<{ text: string; isError: boolean }> {
-  const tools = await buildPort(userId, locale, { ...options, only: [name] });
+): Promise<{ text: string; isError: boolean; artifact: VoiceArtifact | null }> {
+  const { tools, state } = await buildPort(userId, locale, { ...options, only: [name] });
   const portTool = tools[name];
-  if (!portTool?.execute) return { text: `Unbekanntes Werkzeug: ${name}`, isError: true };
+  if (!portTool?.execute) {
+    return { text: `Unbekanntes Werkzeug: ${name}`, isError: true, artifact: null };
+  }
   try {
     // Schema defaults are part of the tool: `gruenerator_search` gets its
     // `collection` only here, raw args answer "Sammlung nicht verfügbar".
     const { validate } = asSchema(portTool.inputSchema);
     const parsed = validate ? await validate(args) : { success: true as const, value: args };
     if (!parsed.success) {
-      return { text: `Ungültige Argumente: ${parsed.error.message}`, isError: true };
+      return {
+        text: `Ungültige Argumente: ${parsed.error.message}`,
+        isError: true,
+        artifact: null,
+      };
     }
+    const toolCallId = `voice-${name}-${Date.now()}`;
     const raw: unknown = await portTool.execute(parsed.value, {
-      toolCallId: `voice-${name}`,
+      toolCallId,
       messages: [],
       context: undefined,
     });
-    return formatToolResult(truncateResultForModel(raw, MAX_RESULT_CHARS));
+    const kind = CREATING.get(name);
+    const artifact =
+      kind && options.thread && state
+        ? await persistCreated(
+            userId,
+            options.thread,
+            kind,
+            {
+              toolCallId,
+              toolName: name,
+              args: parsed.value as Record<string, unknown>,
+              result: (raw ?? {}) as Record<string, unknown>,
+            },
+            state
+          )
+        : null;
+    // What was created is on the screen; the model only needs to know that it
+    // worked (or why not) — the spec behind a sharepic is no answer to speak.
+    const forModel = kind ? createdForModel(raw, artifact) : raw;
+    return { ...formatToolResult(truncateResultForModel(forModel, MAX_RESULT_CHARS)), artifact };
   } catch (err) {
     log.error(`[VoicePort] ${name} failed:`, err);
-    return { text: 'Das Werkzeug ist fehlgeschlagen.', isError: true };
+    return { text: 'Das Werkzeug ist fehlgeschlagen.', isError: true, artifact: null };
   }
 }

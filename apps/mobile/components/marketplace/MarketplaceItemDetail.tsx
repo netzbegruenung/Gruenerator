@@ -1,18 +1,24 @@
 import { type MarketplaceCollectionId, type MarketplaceItem } from '@gruenerator/contracts';
 import {
+  MARKETPLACE_QUERY_KEY,
+  canReport,
   collectionCoverPath,
   relatedFromCollections,
   useMarketplaceFrontpage,
+  useMarketplaceLike,
 } from '@gruenerator/shared/marketplace';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
+import { useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
-import { type ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState, type ComponentProps, type ReactNode } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useTheme } from '../../hooks/useTheme';
 import { BODY_FONT, borderRadius, spacing } from '../../theme';
 import { AgentGlyph } from '../agentura/AgentGlyph';
+import { shareLink } from '../agentura/detail/DetailParts';
 import { Button } from '../common/Button';
+import { ReportSheet, type ReportTarget } from '../common/ReportSheet';
 
 import { kindView, marketplaceCardProps } from './kindViews';
 import { MarketplaceDiscussion } from './MarketplaceDiscussion';
@@ -31,19 +37,18 @@ import { type MarketplaceActions } from './useMarketplaceActions';
 const RELATED_LIMIT = 8;
 
 /**
- * One Marktplatz item up close, in place of the list (web:
- * `MarketplaceItemDetail`, calm after the App Store's product page): the icon,
- * what it is, the ways on — keep it, try it, open it — then a Vorlage's pages
- * or the picture, the interaction block every kind shares (like, share,
- * report, reactions, comments), and „Passt dazu": the collections holding the
- * item, then their other entries, as one row.
+ * One Marktplatz item up close (web: `MarketplaceItemDetail`, calm after the
+ * App Store's product page): the icon, what it is, then one action row —
+ * keep it, beside like, share and report as round buttons — and the ways on
+ * (try it, open it) as text below. Then a Vorlage's pages or the picture, the
+ * reactions and comments, and „Passt dazu": the collections holding the item,
+ * then their other entries, as one row.
  */
 export function MarketplaceItemDetail({
   item,
   token,
   actions,
   onBack,
-  backLabel = 'Marktplatz',
   shareUrl,
   allowReport,
   onSelect,
@@ -52,9 +57,11 @@ export function MarketplaceItemDetail({
   item: MarketplaceItem;
   token: string | null;
   actions: MarketplaceActions;
-  onBack: () => void;
-  /** The back link's text: where it leads. */
-  backLabel?: string;
+  /**
+   * In place of a list (the sheet): a link back to it. Left out on the item's
+   * own page, where the navigation bar already leads back.
+   */
+  onBack?: () => void;
   /** Where „Teilen" points: the web Marktplatz with this item open. */
   shareUrl: string;
   /** Off inside a sheet: the report form would be a modal over the modal. */
@@ -65,11 +72,25 @@ export function MarketplaceItemDetail({
   onOpenCollection?: (id: MarketplaceCollectionId) => void;
 }) {
   const theme = useTheme();
+  const queryClient = useQueryClient();
+  const like = useMarketplaceLike();
+  const [reporting, setReporting] = useState<ReportTarget | null>(null);
   const card = marketplaceCardProps(item, token);
   const view = kindView(item.kind);
   const library = view.toggle === 'library';
   const { DetailExtras } = view;
   const large = item.kind === 'template' || item.kind === 'background' || item.kind === 'sticker';
+  const ways =
+    item.kind === 'agent' || item.kind === 'recipe'
+      ? [
+          { label: 'Im Chat ausprobieren', run: () => actions.startChat(item) },
+          { label: 'Alle Details', run: () => actions.open(item) },
+        ]
+      : item.kind === 'template'
+        ? [{ label: 'Vorlage öffnen', run: () => actions.open(item) }]
+        : item.kind === 'notebook'
+          ? [{ label: 'Notebook öffnen', run: () => actions.open(item) }]
+          : [{ label: 'Im Profilbild verwenden', run: () => actions.toProfilbild(item) }];
 
   return (
     <ScrollView
@@ -78,21 +99,24 @@ export function MarketplaceItemDetail({
       automaticallyAdjustKeyboardInsets
       keyboardShouldPersistTaps="handled"
     >
-      <Pressable
-        onPress={onBack}
-        hitSlop={8}
-        accessibilityRole="button"
-        accessibilityLabel={`Zurück: ${backLabel}`}
-        style={styles.back}
-      >
-        <Ionicons name="chevron-back" size={18} color={theme.textGreen} />
-        <Text style={[styles.backText, { color: theme.textGreen }]}>{backLabel}</Text>
-      </Pressable>
+      {onBack ? (
+        <Pressable
+          onPress={onBack}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Zurück: Marktplatz"
+          style={styles.back}
+        >
+          <Ionicons name="chevron-back" size={18} color={theme.textGreen} />
+          <Text style={[styles.backText, { color: theme.textGreen }]}>Marktplatz</Text>
+        </Pressable>
+      ) : null}
 
+      {/* Stacked, so a long German compound gets the full width instead of breaking mid-word. */}
       <View style={styles.header}>
         {large ? null : (
           <View style={[styles.icon, { backgroundColor: theme.backgroundAlt }]}>
-            <AgentGlyph iconKey={card.iconKey} size={44} color={theme.textGreen} />
+            <AgentGlyph iconKey={card.iconKey} size={34} color={theme.textGreen} />
           </View>
         )}
         <View style={styles.titles}>
@@ -101,48 +125,59 @@ export function MarketplaceItemDetail({
             {card.title}
           </Text>
         </View>
+        {card.description ? (
+          <Text style={[styles.body, { color: theme.textSecondary }]}>{card.description}</Text>
+        ) : null}
       </View>
-      {card.description ? (
-        <Text style={[styles.body, { color: theme.textSecondary }]}>{card.description}</Text>
-      ) : null}
 
       <View style={styles.actions}>
-        {card.added !== null ? (
-          <Button
-            variant={card.added ? 'outline' : 'primary'}
-            onPress={() => actions.toggleSave(item)}
-          >
-            {library
-              ? card.added
-                ? 'In meinen Grüneratoren'
-                : 'Zu meinen Grüneratoren'
-              : card.added
-                ? 'Gemerkt'
-                : 'Merken'}
-          </Button>
-        ) : null}
-        {item.kind === 'agent' || item.kind === 'recipe' ? (
-          <>
-            <Button variant="ghost" onPress={() => actions.startChat(item)}>
-              Im Chat ausprobieren
+        <View style={styles.actionRow}>
+          {card.added !== null ? (
+            <Button
+              variant={card.added ? 'outline' : 'primary'}
+              onPress={() => actions.toggleSave(item)}
+              style={styles.save}
+            >
+              {library
+                ? card.added
+                  ? 'In meinen Grüneratoren'
+                  : 'Zu meinen Grüneratoren'
+                : card.added
+                  ? 'Gemerkt'
+                  : 'Merken'}
             </Button>
-            <Button variant="ghost" onPress={() => actions.open(item)}>
-              Alle Details
+          ) : (
+            <View style={styles.save} />
+          )}
+          <RoundButton
+            icon={item.liked ? 'heart' : 'heart-outline'}
+            label={`Gefällt mir (${item.likesCount})`}
+            pressed={item.liked}
+            count={item.likesCount}
+            onPress={() =>
+              like.mutate(item, { onError: (error) => Alert.alert('Fehler', error.message) })
+            }
+          />
+          <RoundButton
+            icon={process.env.EXPO_OS === 'ios' ? 'share-outline' : 'share-social-outline'}
+            label="Teilen"
+            onPress={() => shareLink(shareUrl, item.title)}
+          />
+          {allowReport && canReport(item) ? (
+            <RoundButton
+              icon="flag-outline"
+              label="Melden"
+              onPress={() => setReporting({ kind: item.reportKind, targetId: item.ref })}
+            />
+          ) : null}
+        </View>
+        <View style={styles.ways}>
+          {ways.map((way) => (
+            <Button key={way.label} variant="ghost" onPress={way.run} style={styles.way}>
+              {way.label}
             </Button>
-          </>
-        ) : item.kind === 'template' ? (
-          <Button variant="ghost" onPress={() => actions.open(item)}>
-            Vorlage öffnen
-          </Button>
-        ) : item.kind === 'notebook' ? (
-          <Button variant="ghost" onPress={() => actions.open(item)}>
-            Notebook öffnen
-          </Button>
-        ) : (
-          <Button variant="ghost" onPress={() => actions.toProfilbild(item)}>
-            Im Profilbild verwenden
-          </Button>
-        )}
+          ))}
+        </View>
       </View>
 
       {DetailExtras ? (
@@ -160,11 +195,11 @@ export function MarketplaceItemDetail({
 
       <View style={[styles.rule, { backgroundColor: theme.cardBorder }]} />
 
+      {/* Like, share and report sit in the action row above; this block is the conversation. */}
       <MarketplaceDiscussion
         target={{ kind: item.kind, ref: item.ref }}
-        item={item}
+        item={null}
         canModerate={item.isOwn}
-        shareUrl={shareUrl}
         allowReport={allowReport}
       />
 
@@ -176,7 +211,50 @@ export function MarketplaceItemDetail({
           onOpenCollection={onOpenCollection}
         />
       ) : null}
+
+      {allowReport ? (
+        <ReportSheet
+          target={reporting}
+          onClose={() => setReporting(null)}
+          // Enough reports hide the item at once; the lists should stop showing it.
+          onReported={() => void queryClient.invalidateQueries({ queryKey: MARKETPLACE_QUERY_KEY })}
+        />
+      ) : null}
     </ScrollView>
+  );
+}
+
+function RoundButton({
+  icon,
+  label,
+  pressed,
+  count,
+  onPress,
+}: {
+  icon: ComponentProps<typeof Ionicons>['name'];
+  label: string;
+  pressed?: boolean;
+  count?: number;
+  onPress: () => void;
+}) {
+  const theme = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={pressed === undefined ? undefined : { selected: pressed }}
+      hitSlop={4}
+      style={({ pressed: down }) => [
+        styles.round,
+        { backgroundColor: theme.backgroundAlt, transform: [{ scale: down ? 0.95 : 1 }] },
+      ]}
+    >
+      <Ionicons name={icon} size={20} color={theme.textGreen} />
+      {count !== undefined ? (
+        <Text style={[styles.roundCount, { color: theme.textGreen }]}>{count}</Text>
+      ) : null}
+    </Pressable>
   );
 }
 
@@ -320,21 +398,41 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   previewContain: { width: '80%', height: '80%' },
-  header: { flexDirection: 'row', alignItems: 'center', gap: spacing.medium },
+  header: { gap: spacing.small },
   icon: {
-    width: 96,
-    height: 96,
-    borderRadius: 24,
+    width: 64,
+    height: 64,
+    borderRadius: 18,
     borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
     boxShadow: 'inset 0 0 0 1px rgba(0, 0, 0, 0.04)',
   },
-  titles: { flex: 1, minWidth: 0, gap: 4 },
-  title: { fontFamily: DISPLAY_FONT, fontSize: 26, lineHeight: 29, letterSpacing: -0.4 },
+  titles: { gap: 2, marginTop: spacing.xsmall },
+  title: { fontFamily: DISPLAY_FONT, fontSize: 26, lineHeight: 30, letterSpacing: -0.4 },
   meta: { fontFamily: BODY_FONT, fontSize: 14, lineHeight: 20 },
-  actions: { gap: spacing.small },
-  body: { fontFamily: BODY_FONT, fontSize: 16, lineHeight: 24 },
+  actions: { gap: spacing.xsmall },
+  actionRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xsmall },
+  save: { flex: 1 },
+  round: {
+    minWidth: 48,
+    height: 48,
+    paddingHorizontal: 14,
+    borderRadius: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  roundCount: {
+    fontFamily: BODY_FONT,
+    fontSize: 14,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  ways: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' },
+  way: { paddingHorizontal: spacing.small },
+  body: { fontFamily: BODY_FONT, fontSize: 16, lineHeight: 24, marginTop: spacing.xxsmall },
   rule: { height: StyleSheet.hairlineWidth },
   tile: { width: 150, gap: 6 },
   tileMedia: {

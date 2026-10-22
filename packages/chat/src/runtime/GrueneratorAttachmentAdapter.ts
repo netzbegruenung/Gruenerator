@@ -3,6 +3,7 @@ import {
   getPdfPageCount,
   type AttachmentMetaData,
 } from '../lib/attachmentMeta';
+import { NOTEBOOK_SOURCE_CONTENT_TYPE } from '../lib/documentMentionables';
 import {
   validateFile,
   isImageMimeType,
@@ -34,6 +35,7 @@ const SYNTHETIC_MENTION_TYPES = [
   'application/x-gruenerator-wolke',
   'application/x-gruenerator-connect',
   'application/x-gruenerator-webpage',
+  NOTEBOOK_SOURCE_CONTENT_TYPE,
 ];
 
 /** Name of the data content part carrying a chat video's TUS upload result. */

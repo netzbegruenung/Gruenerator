@@ -7,7 +7,7 @@ vi.mock('./ProfileService.js', () => ({
   getProfileService: () => ({ getProfileById: getProfileByIdMock }),
 }));
 
-import { gatePandaModelId, isPandaEntitled } from './pandaEntitlement.js';
+import { gatePandaModelId, isPandaEntitled, resolveNotebookTier } from './pandaEntitlement.js';
 
 beforeEach(() => {
   getProfileByIdMock.mockReset();
@@ -48,6 +48,36 @@ describe('gatePandaModelId', () => {
 });
 
 /** Only an instance admin unlocks Panda — the self-service profile update must drop it. */
+describe('resolveNotebookTier', () => {
+  it('turns the Panda tier into the Ultra search with the Panda lane', async () => {
+    getProfileByIdMock.mockResolvedValue({ id: 'user-1', panda_enabled: true });
+    await expect(resolveNotebookTier('panda', 'gruenerator-medium', 'user-1')).resolves.toEqual({
+      mode: 'ultra',
+      model: 'gruenerator-panda',
+    });
+  });
+
+  it('keeps the Ultra search but serves Ultra without an unlock', async () => {
+    getProfileByIdMock.mockResolvedValue({ id: 'user-1', panda_enabled: false });
+    await expect(resolveNotebookTier('panda', 'gruenerator-medium', 'user-1')).resolves.toEqual({
+      mode: 'ultra',
+      model: 'gruenerator-ultra',
+    });
+  });
+
+  it('leaves the other tiers and their model alone', async () => {
+    await expect(resolveNotebookTier('ultra', 'gruenerator-medium', 'user-1')).resolves.toEqual({
+      mode: 'ultra',
+      model: 'gruenerator-medium',
+    });
+    await expect(resolveNotebookTier(undefined, undefined, 'user-1')).resolves.toEqual({
+      mode: undefined,
+      model: undefined,
+    });
+    expect(getProfileByIdMock).not.toHaveBeenCalled();
+  });
+});
+
 describe('profile update body', () => {
   it('never carries panda_enabled', () => {
     const parsed = profileUpdateBodySchema.parse({ display_name: 'x', panda_enabled: true });

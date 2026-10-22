@@ -382,6 +382,7 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     notebookIds: state.notebookIds ?? [],
     wolkeFiles: state.wolkeFiles ?? [],
     connectFiles: state.connectFiles ?? [],
+    notebookSources: state.notebookSources ?? [],
     threadAttachments: state.threadAttachments ?? [],
     currentDocument: state.currentDocument ?? null,
     documentChatLabels: state.documentChatLabels ?? {},
@@ -725,6 +726,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     const hasDocumentChat = state.documentChatIds && state.documentChatIds.length > 0;
     const hasWolkeFiles = state.wolkeFiles && state.wolkeFiles.length > 0;
     const hasConnectFiles = state.connectFiles && state.connectFiles.length > 0;
+    const hasNotebookSources = (state.notebookSources?.length ?? 0) > 0;
     const hasBoards = state.boardIds && state.boardIds.length > 0;
     // Live board open in the boards-editor surface. Primary context, NOT a
     // retrieval mention — its id is deliberately NOT injected into boardIds, so
@@ -747,7 +749,11 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     const hasAttachmentContext = !!state.attachmentContext;
     const hasImageAttachments = state.imageAttachments && state.imageAttachments.length > 0;
     const hasAnyDocuments =
-      hasDocumentChat || hasDocuments || hasAttachmentContext || hasCurrentDocument;
+      hasDocumentChat ||
+      hasDocuments ||
+      hasNotebookSources ||
+      hasAttachmentContext ||
+      hasCurrentDocument;
     // @sheet mentions. currentDocument is shared with docs/presentations, so a
     // sheet open in its own editor is already covered by hasCurrentDocument.
     const hasSheetMentions = state.sheetIds && state.sheetIds.length > 0;
@@ -1042,6 +1048,21 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       return classifyWithForcedSearch({
         reason: 'Connect',
         docCount: state.connectFiles.length,
+        userContent,
+        conversationContext,
+        topicalContext,
+        temporal,
+        complexity,
+        startTime,
+      });
+    }
+
+    // Notebook documents handed over from the reader — same reason as @wolke:
+    // their content only reaches respondNode through the search path's fan-out.
+    if (hasNotebookSources && userContent.length > 0) {
+      return classifyWithForcedSearch({
+        reason: 'NotebookSource',
+        docCount: state.notebookSources.length,
         userContent,
         conversationContext,
         topicalContext,

@@ -35,6 +35,8 @@ jest.mock('./stickerRender', () => ({
   measureBadgeLine: jest.fn(),
   writeStickerPng: jest.fn(async () => 'file:///cache/sticker.png'),
 }));
+// The stack is not under test; the way back is the footer's „Zurück" here.
+jest.mock('../../../hooks/useStepBack', () => ({ useStepBack: jest.fn() }));
 jest.mock('./uploadSticker', () => ({ uploadStickerPng: jest.fn() }));
 jest.mock('expo-image-picker', () => ({
   launchImageLibraryAsync: jest.fn(async () => ({

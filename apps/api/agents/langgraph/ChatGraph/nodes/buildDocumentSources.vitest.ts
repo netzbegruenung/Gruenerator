@@ -116,3 +116,68 @@ describe('buildDocumentSources — Beschriftungen', () => {
     ]);
   });
 });
+
+describe('buildDocumentSources — aus dem Notebook-Reader übergebene Dokumente', () => {
+  it('macht ein Nutzerdokument zur Dokumentquelle mit Eigentümer*in und Notebook', () => {
+    const sources = buildDocumentSources({
+      ...EMPTY,
+      notebookSources: [
+        {
+          kind: 'user',
+          documentId: 'doc-1',
+          notebookId: 'nb-1',
+          ownerUserId: 'owner-1',
+          title: 'Antrag Radweg',
+        },
+      ],
+    });
+    expect(sources).toEqual([
+      {
+        kind: 'document',
+        id: 'doc-1',
+        label: 'Antrag Radweg',
+        ownerUserId: 'owner-1',
+        notebookId: 'nb-1',
+      },
+    ]);
+  });
+
+  it('führt ein zugleich per @datei erwähntes Dokument nur einmal, als übergebenes', () => {
+    const sources = buildDocumentSources({
+      ...EMPTY,
+      documentIds: ['doc-1'],
+      notebookSources: [
+        {
+          kind: 'user',
+          documentId: 'doc-1',
+          notebookId: 'nb-1',
+          ownerUserId: 'owner-1',
+          title: 'Antrag Radweg',
+        },
+      ],
+    });
+    expect(sources).toHaveLength(1);
+    expect(sources[0]).toMatchObject({ id: 'doc-1', ownerUserId: 'owner-1' });
+  });
+
+  it('macht ein System-Dokument zur eigenen Art mit Sammlung und gespeicherter URL', () => {
+    const collection = {
+      key: 'hamburg',
+      systemId: 'hamburg-system',
+      name: 'Hamburg',
+      qdrantCollection: 'landesverbaende_documents',
+    };
+    const [source] = buildDocumentSources({
+      ...EMPTY,
+      notebookSources: [
+        { kind: 'system', collection, sourceUrl: 'wolke://share/a.pdf', title: 'Hafen' },
+      ],
+    });
+    expect(source).toEqual({
+      kind: 'system_document',
+      id: 'system:hamburg:wolke://share/a.pdf',
+      label: 'Hafen',
+      systemDocument: { collection, sourceUrl: 'wolke://share/a.pdf' },
+    });
+  });
+});

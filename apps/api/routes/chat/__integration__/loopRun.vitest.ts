@@ -32,6 +32,10 @@ vi.mock('../../../database/services/PostgresService.js', async () => {
 vi.mock('../services/threadPersistenceService.js', async () => {
   return await import('./harness/fakeThreadStore.js');
 });
+vi.mock('../services/documentScopeAccess.js', async () => {
+  const { ownedDocumentScopeMock } = await import('./harness/mocks.js');
+  return ownedDocumentScopeMock();
+});
 vi.mock('../services/threadAccessService.js', async () => {
   const { threadAccessMock } = await import('./harness/mocks.js');
   return threadAccessMock();
@@ -125,6 +129,14 @@ vi.mock('../../../services/document-services/DocumentSearchService/index.js', as
     ...((await orig()) as Record<string, unknown>),
     getQdrantDocumentService: fakeQdrantDocumentService,
   };
+});
+
+// Die Qdrant-Seite der Reader-Verweis-Prüfung (`resolveNotebookSources`). Nur
+// der Export wird ersetzt — `notebook_quellen` selbst ruft seine eigene,
+// modulinterne Bindung und bleibt unberührt.
+vi.mock('../agents/notebookSourceTools.js', async (orig) => {
+  const { fakeScrollPage } = await import('./harness/searchBackendStub.js');
+  return { ...((await orig()) as Record<string, unknown>), qdrantScrollPage: fakeScrollPage };
 });
 
 vi.mock('ai', async (orig) => {

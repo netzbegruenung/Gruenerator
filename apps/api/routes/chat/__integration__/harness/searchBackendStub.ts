@@ -168,13 +168,42 @@ export function fakeLookupUmfragen(
  * geht, wäre unbeobachtet. Nur das BACKEND wird ersetzt; Fan-out,
  * Quellen-Registry, Werkzeugmontage und der Werkzeug-Pin bleiben echt.
  */
+/** The one system-collection document the harness knows (Grundsatzprogramm). */
+export const SYSTEM_DOC = {
+  collectionId: 'grundsatz-system',
+  sourceUrl: 'https://www.gruene.de/grundsatzprogramm',
+  title: 'Grundsatzprogramm 2020',
+  text: 'Wir wollen die Klimakrise entschlossen bekämpfen. Der Radverkehr wird ausgebaut.',
+};
+
 export function fakeQdrantDocumentService(): {
-  search: (args: { query: string; filters?: { documentIds?: string[] } }) => Promise<unknown>;
+  search: (args: {
+    query: string;
+    filters?: { documentIds?: string[] };
+    options?: { searchCollection?: string };
+  }) => Promise<unknown>;
   getMultipleDocumentsFullText: (userId: string, ids: string[]) => Promise<unknown>;
+  getSystemDocumentFullTextByUrl: (collection: string, url: string) => Promise<unknown>;
+  getDocumentChunks: (userId: string, id: string) => Promise<unknown>;
 } {
   return {
-    search: ({ query, filters }) => {
+    search: ({ query, filters, options }) => {
       record('documentSearch', query);
+      // A system-collection search (`searchSystemDocuments`) names its collection.
+      if (options?.searchCollection) {
+        return Promise.resolve({
+          success: true,
+          results: [
+            {
+              document_id: SYSTEM_DOC.sourceUrl,
+              source_url: SYSTEM_DOC.sourceUrl,
+              title: SYSTEM_DOC.title,
+              similarity_score: 0.8,
+              top_chunks: [{ chunk_index: 0, text: SYSTEM_DOC.text, preview: SYSTEM_DOC.text }],
+            },
+          ],
+        });
+      }
       return Promise.resolve({
         results: (filters?.documentIds ?? ['doc-1']).map((id) => ({
           document_id: id,
@@ -194,5 +223,39 @@ export function fakeQdrantDocumentService(): {
         })),
       });
     },
+    getSystemDocumentFullTextByUrl: (_collection, url) => {
+      record('systemFullText', url);
+      return Promise.resolve(
+        url === SYSTEM_DOC.sourceUrl
+          ? { success: true, fullText: SYSTEM_DOC.text, chunkCount: 1, title: SYSTEM_DOC.title }
+          : { success: false, fullText: '', chunkCount: 0, error: 'Document not found' }
+      );
+    },
+    getDocumentChunks: (_userId, id) =>
+      Promise.resolve(
+        id === SYSTEM_DOC.sourceUrl
+          ? {
+              success: true,
+              chunks: [{ index: 0, text: SYSTEM_DOC.text, tokens: 1 }],
+              chunkCount: 1,
+            }
+          : { success: false, chunks: [], chunkCount: 0, error: 'No chunks found' }
+      ),
   };
+}
+
+/**
+ * The Qdrant scroll behind the reader-ref check (`resolveNotebookSources`):
+ * knows exactly `SYSTEM_DOC`, so a ref to it is authorized and any other URL
+ * is not.
+ */
+export function fakeScrollPage(
+  _collection: string,
+  filter: unknown
+): Promise<{ points: Array<{ payload: Record<string, unknown> }>; nextOffset: null }> {
+  const hit = JSON.stringify(filter).includes(JSON.stringify(SYSTEM_DOC.sourceUrl));
+  return Promise.resolve({
+    points: hit ? [{ payload: { source_url: SYSTEM_DOC.sourceUrl, title: SYSTEM_DOC.title } }] : [],
+    nextOffset: null,
+  });
 }

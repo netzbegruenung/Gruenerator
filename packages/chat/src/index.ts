@@ -67,6 +67,7 @@ export {
   NOTEBOOK_DEPTHS,
   DEFAULT_NOTEBOOK_DEPTH,
   notebookDepthDef,
+  visibleNotebookDepths,
   type NotebookDepthDef,
   type NotebookDepthIconKey,
 } from './lib/notebookDepth';
@@ -110,6 +111,7 @@ export {
   useChatEndpoints,
   type ChatConfig,
   type ChatVoice,
+  type ChatVoiceThread,
   type ResolvedEndpoints,
   type ChatRequestContext,
   type ChatRequestContextProvider,
@@ -343,6 +345,7 @@ export {
 
 // Stores
 export {
+  hasPendingHandoff,
   useAgentStore,
   MODEL_OPTIONS,
   PROVIDER_OPTIONS,
@@ -627,6 +630,8 @@ export {
   registerDocumentSlug,
   buildDocumentMentionAttachment,
   buildCollabDocAttachment,
+  buildNotebookSourceAttachment,
+  NOTEBOOK_SOURCE_CONTENT_TYPE,
   resolveDocumentSlug,
   clearDocumentSlugs,
   documentToSlug,

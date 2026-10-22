@@ -86,6 +86,9 @@ export interface ModalRouteParams {
     query: string;
     /** Shown while the document loads. */
     title: string;
+    /** '1' when opened from a chat's source link: no "into the chat" buttons
+     *  over a chat that is already open. */
+    fromChat?: string;
   };
   '/(fullscreen)/subtitle-editor': {
     projectId: string;

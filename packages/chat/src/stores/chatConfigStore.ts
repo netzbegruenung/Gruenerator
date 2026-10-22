@@ -231,9 +231,17 @@ export interface ChatConfig {
   voice?: ChatVoice;
 }
 
+/** What a call needs from the thread it runs in. */
+export interface ChatVoiceThread {
+  /** The thread's server id; a draft is created on the server first. */
+  resolveThreadId: () => Promise<string>;
+  /** Re-reads the thread from the server, e.g. after a call created something. */
+  reload: () => Promise<void>;
+}
+
 export interface ChatVoice {
   /** Called once per thread runtime. */
-  createAdapter: () => RealtimeVoiceAdapter;
+  createAdapter: (thread: ChatVoiceThread) => RealtimeVoiceAdapter;
   /** What the agent is looking up right now, shown on the orb; null otherwise. */
   getActivity: () => string | null;
   subscribeActivity: (onChange: () => void) => () => void;

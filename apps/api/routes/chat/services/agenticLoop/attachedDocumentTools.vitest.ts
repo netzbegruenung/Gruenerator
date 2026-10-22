@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  fakeDoc,
+  makeSystemDeps,
+} from '../../../../services/notebook/__fixtures__/fakeSystemCollection.js';
+import {
   SLICE_DEFAULT_CHARS,
   SLICE_MAX_CHARS,
   SLICE_REGISTER_CHARS,
@@ -429,5 +433,82 @@ describe('dokumente_lesen zitat — weitere Befunde', () => {
     ]);
     expect(out.note).toMatch(/mehreren Dateien/);
     expect(sourceRegistry.getResults()).toHaveLength(2);
+  });
+});
+
+describe('dokumente_lesen — aus dem Notebook-Reader übergebene Dokumente', () => {
+  const OTHER = '22222222-2222-4222-8222-222222222222';
+
+  it('liest das Dokument einer Kolleg*in mit deren user_id, nicht mit der fragenden', async () => {
+    const deps = depsFor({ [FOREIGN]: { owner: OTHER, text: MARKED } });
+    const shared: DocumentSource = {
+      kind: 'document',
+      id: FOREIGN,
+      label: 'Fremd.pdf',
+      ownerUserId: OTHER,
+      notebookId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+    };
+    const { sourceRegistry, run } = ctx([shared], deps);
+
+    const out = await runAttachedDocumentMode({ seite: 2 }, run);
+
+    expect(out.error).toBeUndefined();
+    expect(deps.getDocumentChunks).toHaveBeenCalledWith(OTHER, FOREIGN);
+    // Kein Besitz-Check über `documents.user_id` — geprüft hat streamContext.
+    expect(deps.query.mock.calls.some(([sql]) => String(sql).includes('ANY($1::uuid[])'))).toBe(
+      false
+    );
+    const [r] = sourceRegistry.getResults();
+    expect(r?.collectionId).toBe('dddddddd-dddd-4ddd-8ddd-dddddddddddd');
+    expect(r?.documentId).toBe(FOREIGN);
+  });
+
+  it('bleibt bei einem fremden Dokument ohne Übergabe beim „nicht lesbar"', async () => {
+    const deps = depsFor({ [FOREIGN]: { owner: OTHER, text: MARKED } });
+    const out = await runAttachedDocumentMode(
+      { seite: 1 },
+      ctx([{ kind: 'document', id: FOREIGN, label: 'Fremd.pdf' }], deps).run
+    );
+    expect(out.error).toBe('Das angehängte Dokument ist nicht lesbar.');
+  });
+
+  it('liest ein System-Dokument über den Standardfilter seiner Sammlung', async () => {
+    const LV = 'landesverbaende_documents';
+    const URL = 'https://gruene-hamburg.de/a';
+    const system = makeSystemDeps(
+      fakeDoc(LV, URL, ['Erster Teil.', 'Der Hafen wird klimaneutral.'], {
+        landesverband: 'HH',
+        title: 'Hafen',
+      })
+    );
+    const deps = {
+      db: { query: vi.fn() } as unknown as AttachedDocDeps['db'],
+      documentService: system.deps.documentService as unknown as AttachedDocDeps['documentService'],
+    };
+    const doc: DocumentSource = {
+      kind: 'system_document',
+      id: `system:hamburg:${URL}`,
+      label: 'Hafen',
+      systemDocument: {
+        collection: {
+          key: 'hamburg',
+          systemId: 'hamburg-system',
+          name: 'Hamburg',
+          qdrantCollection: LV,
+        },
+        sourceUrl: URL,
+      },
+    };
+    const { sourceRegistry, run } = ctx([doc], deps);
+
+    const out = await runAttachedDocumentMode({ wortsuche: { phrase: 'Hafen' } }, run);
+
+    expect(out.totalHits).toBe(1);
+    expect(system.getSystemDocumentFullTextByUrl.mock.calls[0]![2]).toEqual({
+      must: [{ key: 'landesverband', match: { value: 'HH' } }],
+    });
+    const [r] = sourceRegistry.getResults();
+    expect(r?.url).toBe(URL);
+    expect(r?.collectionId).toBe('hamburg');
   });
 });

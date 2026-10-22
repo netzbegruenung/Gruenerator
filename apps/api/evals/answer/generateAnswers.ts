@@ -40,7 +40,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { type NotebookDepth } from '@gruenerator/contracts';
+import { type NotebookSearchDepth } from '@gruenerator/contracts';
 import dotenv from 'dotenv';
 
 // Load .env BEFORE any app module: those import config/env.js at module scope,
@@ -74,7 +74,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 /** The tier the whole answer-eval measures — matches the brief. */
 /** Der Antwortgeber aller Varianten: das Modell, das im Produkt die meisten Antworten schreibt. */
 const ANSWER_MODEL = 'gruenerator-medium';
-const DEPTH: NotebookDepth = 'deep';
+const DEPTH: NotebookSearchDepth = 'deep';
 const CONCURRENCY = 2;
 
 type Messages = NotebookStreamOptions['messages'];
@@ -130,7 +130,10 @@ function toAnswerCitations(raw: readonly unknown[]): AnswerCitation[] {
  * either changes. Only called for the two, never for user-stub cases (see
  * header).
  */
-async function computeEvidenceTop(c: AnswerCase, depth: NotebookDepth): Promise<number | null> {
+async function computeEvidenceTop(
+  c: AnswerCase,
+  depth: NotebookSearchDepth
+): Promise<number | null> {
   const meta = c.notebook;
   const profile = getNotebookDepthProfile(depth);
   const incomingHistory = normalizeNotebookHistory(meta.history ?? []);

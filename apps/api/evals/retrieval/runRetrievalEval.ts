@@ -222,7 +222,7 @@ import type { Bm25Candidate } from './bm25Candidates.js';
 import type { CandidateEmbedder } from './candidateEmbedder.js';
 import type { DocumentResult } from '../../services/BaseSearchService/types.js';
 import type { SparseVector } from '../../services/text/index.js';
-import type { NotebookDepth } from '@gruenerator/contracts';
+import type { NotebookSearchDepth } from '@gruenerator/contracts';
 import type { ModelMessage } from 'ai';
 
 type DocumentSearchService = InstanceType<typeof DocumentSearchService>;
@@ -385,7 +385,7 @@ function firstMatchRank(results: ScoredResult[], evalCase: RetrievalCase): numbe
 async function runCase(
   searchService: DocumentSearchService,
   evalCase: RetrievalCase,
-  depth: NotebookDepth,
+  depth: NotebookSearchDepth,
   withRerank: boolean,
   excerptMode: ExcerptArm,
   loopShaped: boolean,
@@ -609,7 +609,7 @@ async function runManualCase(
  */
 async function runNotebookCase(
   evalCase: RetrievalCase,
-  depth: NotebookDepth,
+  depth: NotebookSearchDepth,
   withRerank: boolean,
   instructText: string | null,
   rerankMode: RerankMode,
@@ -905,7 +905,9 @@ async function main() {
       ? pipelineEnv
       : 'qa';
   const depth = (process.env.EVAL_DEPTH ||
-    (pipeline === 'notebook' || pipeline === 'chat-notebook' ? 'deep' : 'fast')) as NotebookDepth;
+    (pipeline === 'notebook' || pipeline === 'chat-notebook'
+      ? 'deep'
+      : 'fast')) as NotebookSearchDepth;
   const withRerank = process.env.EVAL_RERANK === '1';
   const withChatExpand = process.env.EVAL_CHAT_EXPAND === '1';
   // Three-valued: unset keeps today's run byte-identical to the historical

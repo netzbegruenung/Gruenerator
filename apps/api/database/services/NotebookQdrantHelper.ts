@@ -1174,6 +1174,36 @@ class NotebookQdrantHelper {
   }
 
   /**
+   * The notebooks each given document is linked to — the reverse of
+   * `getCollectionDocuments`. Documents without a link are absent from the map.
+   *
+   * Errors are rethrown: callers use this to grant access, and a Qdrant hiccup
+   * answered as "linked nowhere" must stay distinguishable from a real absence.
+   */
+  async getCollectionIdsForDocuments(documentIds: string[]): Promise<Map<string, string[]>> {
+    const byDocument = new Map<string, string[]>();
+    if (documentIds.length === 0) return byDocument;
+    await this.ensureInitialized();
+
+    const filter: QdrantFilter = {
+      must: [{ key: 'document_id', match: { any: documentIds } }],
+    };
+    const results: ScrollPoint[] = await this.qdrantOps!.scrollDocuments(
+      this.qdrant.collections.notebook_collection_documents,
+      filter,
+      { limit: 10000, withPayload: true }
+    );
+    for (const result of results) {
+      const documentId = String(result.payload.document_id);
+      const collectionId = String(result.payload.collection_id);
+      const entry = byDocument.get(documentId);
+      if (!entry) byDocument.set(documentId, [collectionId]);
+      else if (!entry.includes(collectionId)) entry.push(collectionId);
+    }
+    return byDocument;
+  }
+
+  /**
    * The same join for MANY notebooks in one filtered scroll.
    *
    * The public „Öffentlich" listing enriches up to 200 notebooks per

@@ -40,6 +40,7 @@ export function ChatSourceReaderHost() {
       key={researchDocumentQueryKey(reader.target).join('|')}
       target={reader.target}
       onClose={reader.close}
+      chatActions={false}
     />
   );
 }

@@ -9,7 +9,7 @@
  * `fast` is deliberately byte-identical to the pre-tier behaviour — the Grün-O-Mat surface runs on it (`mode: 'fast'` in
  * gruenOMatController) and is not part of this change.
  */
-import { type NotebookDepth } from '@gruenerator/contracts';
+import { type NotebookSearchDepth } from '@gruenerator/contracts';
 
 import { type SearchParams } from './systemCollectionsConfig.js';
 
@@ -65,7 +65,7 @@ export interface NotebookDepthProfile {
   queryRewrite: boolean;
 }
 
-const PROFILES: Record<NotebookDepth, NotebookDepthProfile> = {
+const PROFILES: Record<NotebookSearchDepth, NotebookDepthProfile> = {
   fast: {
     searchLimit: 30,
     recallLimitFloor: 50,
@@ -111,7 +111,7 @@ const PROFILES: Record<NotebookDepth, NotebookDepthProfile> = {
   },
 };
 
-export function getNotebookDepthProfile(depth: NotebookDepth): NotebookDepthProfile {
+export function getNotebookDepthProfile(depth: NotebookSearchDepth): NotebookDepthProfile {
   return PROFILES[depth];
 }
 

@@ -98,8 +98,29 @@ export function buildStoredImageTileUrl(
   storedUrl: string | null | undefined
 ): string | null {
   if (!storedUrl) return null;
-  if (!shareTokenFromShareUrl(storedUrl) && !/^https?:\/\//i.test(storedUrl)) return null;
+  if (!shareTokenFromShareUrl(storedUrl)) {
+    if (!/^https?:\/\//i.test(storedUrl) || isServerBlockedHost(storedUrl)) return null;
+  }
   return buildThumbnailTileUrl(kind, id, versionFromUrl(storedUrl));
+}
+
+/**
+ * Remote hosts that answer a server-side fetch with a bot challenge, so
+ * `remoteImageSource` can never cache their images. Canva's `/design/…/screen`
+ * previews sit behind Cloudflare (`403`, `cf-mitigated: challenge`, measured
+ * 22.10.2026) — a browser passes, our server does not. Every client prefers the
+ * tile and falls back to the raw URL only when it is null, so a tile minted here
+ * blanks the preview for everyone, shipped binaries included.
+ */
+const SERVER_BLOCKED_HOSTS = ['canva.com'];
+
+function isServerBlockedHost(url: string): boolean {
+  try {
+    const { hostname } = new URL(url);
+    return SERVER_BLOCKED_HOSTS.some((host) => hostname === host || hostname.endsWith(`.${host}`));
+  } catch {
+    return false;
+  }
 }
 
 /** `<template id>-<index>`: one page of a Vorlage, by its position in `images`. */

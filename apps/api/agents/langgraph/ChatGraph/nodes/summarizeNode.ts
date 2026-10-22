@@ -13,7 +13,7 @@
 import { aiText } from '../../../../services/ai/generate.js';
 import { createLogger } from '../../../../utils/logger.js';
 
-import type { ChatGraphState } from '../types.js';
+import type { ChatGraphState, ResolvedNotebookSource } from '../types.js';
 
 const log = createLogger('ChatGraph:Summarize');
 
@@ -21,6 +21,10 @@ const SINGLE_PASS_THRESHOLD = 4000;
 const MAP_REDUCE_THRESHOLD = 12000;
 const SEGMENT_SIZE = 6000;
 const SEGMENT_OVERLAP = 200;
+// Every segment is one parallel `heavy` call. A Plenarprotokoll runs 200k+
+// characters (35+ segments); past this many the rest is cut, and the summary
+// says so.
+const MAX_MAP_SEGMENTS = 20;
 // Below this many characters in the last user message, summary intent will
 // fall through to the conversation summary; above it the message body is
 // treated as the document to summarize (paste-to-summarize).
@@ -96,9 +100,19 @@ function splitIntoSegments(text: string): string[] {
  * Splits into segments, summarizes each in parallel, then combines.
  */
 async function mapReduceSummarize(title: string, text: string): Promise<string> {
-  const segments = splitIntoSegments(text);
-  log.info(`[Summarize] Map-reduce: ${segments.length} segments from ${text.length} chars`);
+  const allSegments = splitIntoSegments(text);
+  const segments = allSegments.slice(0, MAX_MAP_SEGMENTS);
+  log.info(
+    `[Summarize] Map-reduce: ${segments.length}/${allSegments.length} segments from ${text.length} chars`
+  );
+  const summary = await mapReduceSegments(title, segments);
+  if (segments.length === allSegments.length) return summary;
+  const coveredChars =
+    segments.reduce((n, seg) => n + seg.length, 0) - SEGMENT_OVERLAP * (segments.length - 1);
+  return `${summary}\n\nHinweis: Nur die ersten ${coveredChars.toLocaleString('de-DE')} von ${text.length.toLocaleString('de-DE')} Zeichen des Dokuments wurden zusammengefasst.`;
+}
 
+async function mapReduceSegments(title: string, segments: string[]): Promise<string> {
   // Map phase: summarize each segment in parallel
   const mapResults = await Promise.all(
     segments.map(async (segment, i) => {
@@ -180,12 +194,69 @@ async function summarizeConversation(state: ChatGraphState): Promise<string> {
   });
 }
 
+async function summarizeText(title: string, text: string): Promise<string> {
+  return text.length <= MAP_REDUCE_THRESHOLD
+    ? singlePassSummarize(title, text)
+    : mapReduceSummarize(title, text);
+}
+
+/**
+ * Full text of a notebook document handed over from the reader. Authorized in
+ * streamContext this turn; a collaborator's document is read with its owner's
+ * id (its chunks carry that `user_id`), a system document under its default filter.
+ */
+async function readNotebookSourceText(src: ResolvedNotebookSource): Promise<string> {
+  const { getQdrantDocumentService } =
+    await import('../../../../services/document-services/DocumentSearchService/index.js');
+  const documentService = getQdrantDocumentService();
+  if (src.kind === 'system') {
+    const { readSystemSourceText } =
+      await import('../../../../services/notebook/systemNotebookSources.js');
+    const read = await readSystemSourceText(
+      { collection: src.collection, sourceUrl: src.sourceUrl },
+      { documentService }
+    );
+    return 'error' in read ? '' : read.text;
+  }
+  const [{ readSourceText }, { getPostgresInstance }] = await Promise.all([
+    import('../../../../services/notebook/notebookSources.js'),
+    import('../../../../database/services/PostgresService.js'),
+  ]);
+  const read = await readSourceText(
+    { sourceId: src.documentId, ownerUserId: src.ownerUserId },
+    { db: getPostgresInstance(), documentService }
+  );
+  return read.text;
+}
+
+/**
+ * Some of the documents were summarised, others could not be read: the answer
+ * must say so instead of passing the partial summary off as complete.
+ */
+function partialNote(
+  state: ChatGraphState,
+  failed: boolean
+): Pick<Partial<ChatGraphState>, 'degradationNotes'> {
+  if (!failed) return {};
+  return {
+    degradationNotes: [
+      ...(state.degradationNotes ?? []),
+      {
+        code: 'summary_partial',
+        modelHint:
+          'Nicht alle angehängten Dokumente konnten geladen werden. Die Zusammenfassung deckt nur die Dokumente ab, deren Überschriften sie nennt. Weise am Anfang deiner Antwort darauf hin.',
+      },
+    ],
+  };
+}
+
 /**
  * Summarize node entry point.
  *
  * Document source priority:
  * 1. documentChatIds (uploaded in current message, vectorized)
  * 2. documentIds (from @datei mentions)
+ *    + notebookSources (handed over from the notebook reader), alongside 1–2
  * 3. attachmentContext (raw text, if vectorization failed)
  * 4. Conversation history (fallback)
  */
@@ -201,6 +272,24 @@ export async function summarizeNode(state: ChatGraphState): Promise<Partial<Chat
   try {
     const userId = state.agentConfig.userId;
     const docIds = [...(state.documentChatIds || []), ...(state.documentIds || [])];
+    const notebookSources = state.notebookSources ?? [];
+    const notebookSummaries: string[] = [];
+    for (const src of notebookSources) {
+      try {
+        const text = await readNotebookSourceText(src);
+        if (!text.trim()) {
+          docRetrievalFailed = true;
+          continue;
+        }
+        log.info(`[Summarize] Notebook source "${src.title}" (${src.kind}): ${text.length} chars`);
+        notebookSummaries.push(`## ${src.title}\n\n${await summarizeText(src.title, text)}`);
+      } catch (error: unknown) {
+        docRetrievalFailed = true;
+        log.warn(
+          `[Summarize] Notebook source read failed: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
 
     // Try retrieving full text from Qdrant
     if (docIds.length > 0 && userId) {
@@ -246,13 +335,13 @@ export async function summarizeNode(state: ChatGraphState): Promise<Partial<Chat
             summaries.push(`## ${title}\n\n${summary}`);
           }
 
-          const summaryContext = summaries.join('\n\n---\n\n');
+          const summaryContext = [...notebookSummaries, ...summaries].join('\n\n---\n\n');
           const summaryTimeMs = Date.now() - startTime;
           log.info(
-            `[Summarize] Complete: ${successfulDocs.length} doc(s), ${summaryContext.length} chars in ${summaryTimeMs}ms`
+            `[Summarize] Complete: ${successfulDocs.length + notebookSummaries.length} doc(s), ${summaryContext.length} chars in ${summaryTimeMs}ms`
           );
 
-          return { summaryContext, summaryTimeMs };
+          return { summaryContext, summaryTimeMs, ...partialNote(state, docRetrievalFailed) };
         }
 
         if (bulkResult.errors.length > 0) {
@@ -267,6 +356,15 @@ export async function summarizeNode(state: ChatGraphState): Promise<Partial<Chat
           `[Summarize] Document retrieval failed: ${error instanceof Error ? error.message : String(error)}`
         );
       }
+    }
+
+    if (notebookSummaries.length > 0) {
+      const summaryContext = notebookSummaries.join('\n\n---\n\n');
+      const summaryTimeMs = Date.now() - startTime;
+      log.info(
+        `[Summarize] Complete: ${notebookSummaries.length} notebook source(s), ${summaryContext.length} chars in ${summaryTimeMs}ms`
+      );
+      return { summaryContext, summaryTimeMs, ...partialNote(state, docRetrievalFailed) };
     }
 
     // Fallback: use raw attachment text if available

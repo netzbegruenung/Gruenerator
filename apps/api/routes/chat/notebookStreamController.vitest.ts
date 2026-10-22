@@ -61,6 +61,11 @@ vi.mock('./services/pendingAssistantWriter.js', () => ({
 
 const recorder = { record: vi.fn(), finish: vi.fn(async () => {}) };
 const startStreamRecorder = vi.fn(async (..._args: unknown[]): Promise<unknown> => null);
+const getProfileById = vi.fn(async (_id: string) => ({ panda_enabled: true as boolean | null }));
+vi.mock('../../services/user/ProfileService.js', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  getProfileService: () => ({ getProfileById }),
+}));
 vi.mock('../../services/chat/resumableStreams.js', () => ({
   startStreamRecorder: (...args: unknown[]) => startStreamRecorder(...args),
 }));
@@ -272,6 +277,23 @@ describe('POST /api/chat-service/notebook/stream — answer mode', () => {
     };
     validate(req, res, () => {});
     expect(status).toBe(400);
+  });
+});
+
+describe('POST /api/chat-service/notebook/stream — Panda tier', () => {
+  it('runs the Ultra search with the Panda lane — retrieval never sees `panda`', async () => {
+    await post({ mode: 'panda', model: 'gruenerator-medium' });
+    const options = handleNotebookStream.mock.calls[0]![0] as Record<string, unknown>;
+    expect(options.mode).toBe('ultra');
+    expect(options.model).toBe('gruenerator-panda');
+  });
+
+  it('keeps the Ultra search but serves Ultra without the unlock', async () => {
+    getProfileById.mockResolvedValueOnce({ panda_enabled: false });
+    await post({ mode: 'panda', model: 'gruenerator-medium' });
+    const options = handleNotebookStream.mock.calls[0]![0] as Record<string, unknown>;
+    expect(options.mode).toBe('ultra');
+    expect(options.model).toBe('gruenerator-ultra');
   });
 });
 

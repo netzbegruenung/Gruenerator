@@ -54,6 +54,16 @@ describe('thresholds follow the window', () => {
     expect(getCompactionTokenThreshold(262_144)).toBe(126_349);
   });
 
+  it('stops growing at the 262k window — a 1M lane summarises a long thread as early as before', () => {
+    // Ultra trägt 1.048.576, Panda 880.000: dieselben Schwellen wie bei 262k,
+    // sonst schickte ein Thread bis ~490k Tokens unzusammengefasst in jeden Zug.
+    for (const window of [880_000, 1_048_576]) {
+      expect(getCompactionTokenThreshold(window)).toBe(getCompactionTokenThreshold(262_144));
+      expect(getTailTokenBudget(window)).toBe(getTailTokenBudget(262_144));
+      expect(getCarryCharBudget(window)).toBe(getCarryCharBudget(262_144));
+    }
+  });
+
   it('fires on the verbatim tail only', () => {
     expect(needsCompaction(60_619, 128_000)).toBe(true);
     expect(needsCompaction(60_618, 128_000)).toBe(false);

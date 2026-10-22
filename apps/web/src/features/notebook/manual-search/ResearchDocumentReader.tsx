@@ -1,3 +1,5 @@
+import { buildNotebookSourceAttachment } from '@gruenerator/chat';
+import { useAgentStore } from '@gruenerator/chat/stores';
 import {
   fetchResearchDocument,
   researchDocumentQueryKey,
@@ -12,14 +14,26 @@ import {
   DialogTitle,
 } from '@gruenerator/ui';
 import { useQuery } from '@tanstack/react-query';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { LuArrowLeft, LuChevronDown, LuChevronUp, LuExternalLink } from 'react-icons/lu';
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import {
+  LuArrowLeft,
+  LuChevronDown,
+  LuChevronUp,
+  LuExternalLink,
+  LuMessageCircle,
+  LuSparkles,
+} from 'react-icons/lu';
+import { useNavigate } from 'react-router-dom';
 
 import { NOTEBOOK_PASSAGE, NOTEBOOK_PASSAGE_ACTIVE } from '../notebookTheme';
 
 import { formatPublishedDate } from './ResearchHitCard';
 
-import type { ResearchDocumentPart, ResearchDocumentResponse } from '@gruenerator/contracts';
+import type {
+  NotebookSourceRef,
+  ResearchDocumentPart,
+  ResearchDocumentResponse,
+} from '@gruenerator/contracts';
 
 import { cn } from '@/utils/cn';
 
@@ -101,16 +115,75 @@ function WebLink({ href, className }: { href: string | null; className?: string 
   );
 }
 
+const SUMMARY_REQUEST = 'Fasse dieses Dokument zusammen.';
+
+/** The reader's own document params, minus the search that marked it. */
+function sourceRefOf(target: ReaderTarget): NotebookSourceRef {
+  return 'documentId' in target
+    ? { documentId: target.documentId, notebookId: target.notebookId }
+    : { collectionId: target.collectionId, sourceUrl: target.sourceUrl };
+}
+
+/**
+ * "Im Web öffnen" plus the two ways into the chat. Both start a new chat with
+ * the document attached by reference; the summary also sends its request.
+ */
+function ReaderActions({
+  doc,
+  target,
+  chatActions,
+  className,
+}: {
+  doc: ResearchDocumentResponse;
+  target: ReaderTarget;
+  chatActions: boolean;
+  className?: string;
+}) {
+  const navigate = useNavigate();
+  if (!chatActions && !doc.sourceUrl) return null;
+
+  const openInChat = (message: string | null) => {
+    const store = useAgentStore.getState();
+    store.setPendingAttachments([buildNotebookSourceAttachment(sourceRefOf(target), doc.title)]);
+    if (message) store.setPendingMessage(message);
+    void navigate('/chat');
+  };
+
+  return (
+    <div className={cn('flex flex-col items-start gap-2', className)}>
+      <WebLink href={doc.sourceUrl} />
+      {chatActions && (
+        <>
+          <Button
+            variant="brand-outline"
+            size="brand-sm"
+            onClick={() => openInChat(SUMMARY_REQUEST)}
+          >
+            <LuSparkles aria-hidden />
+            Mit KI zusammenfassen
+          </Button>
+          <Button variant="brand-outline" size="brand-sm" onClick={() => openInChat(null)}>
+            <LuMessageCircle aria-hidden />
+            Im Chat besprechen
+          </Button>
+        </>
+      )}
+    </div>
+  );
+}
+
 function ReaderBody({
   doc,
   active,
   onJump,
   registerPassage,
+  actions,
 }: {
   doc: ResearchDocumentResponse;
   active: number;
   onJump: (index: number) => void;
   registerPassage: (index: number, el: HTMLElement | null) => void;
+  actions: (className: string) => ReactNode;
 }) {
   const hasPassages = doc.passages.length > 0;
   const date = doc.publishedAt ? formatPublishedDate(doc.publishedAt) : null;
@@ -189,7 +262,7 @@ function ReaderBody({
           )}
         </div>
 
-        <WebLink href={doc.sourceUrl} className="mt-6 self-start md:hidden" />
+        {actions('mt-6 md:hidden')}
       </article>
 
       <aside className="hidden md:block">
@@ -246,7 +319,7 @@ function ReaderBody({
               Keine einzelnen Textstellen markiert – das Dokument passt insgesamt zur Suche.
             </p>
           )}
-          <WebLink href={doc.sourceUrl} className="mt-2 self-start" />
+          {actions('mt-2')}
         </div>
       </aside>
     </div>
@@ -263,10 +336,13 @@ export function ResearchDocumentReader({
   target,
   onClose,
   backLabel = 'Ergebnisse',
+  chatActions = true,
 }: {
   target: ReaderTarget;
   onClose: () => void;
   backLabel?: string;
+  /** Off where the reader already sits over a chat (its source links). */
+  chatActions?: boolean;
 }) {
   const { data, isPending, isError } = useQuery({
     queryKey: researchDocumentQueryKey(target),
@@ -328,6 +404,14 @@ export function ResearchDocumentReader({
               active={active}
               onJump={jump}
               registerPassage={registerPassage}
+              actions={(className) => (
+                <ReaderActions
+                  doc={data}
+                  target={target}
+                  chatActions={chatActions}
+                  className={className}
+                />
+              )}
             />
           ) : (
             <div className="mx-auto flex max-w-[680px] flex-col gap-4 px-4 pt-6 sm:px-8 sm:pt-12">

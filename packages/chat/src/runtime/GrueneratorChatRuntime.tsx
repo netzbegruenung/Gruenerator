@@ -323,9 +323,35 @@ function useGrueneratorThreadRuntime() {
   );
 
   // Only when the host offers a voice conversation; without the adapter the
-  // composer hides its voice button (capabilities.voice).
+  // composer hides its voice button (capabilities.voice). A call runs in this
+  // thread: a draft is created first, and what the call saved — its lines and
+  // the cards of what it created — is read back once it ends.
+  const aui = useAui();
+  const messagesEndpoint = useChatConfigStore((s) => s.endpoints.messages);
+  const runtimeRef = useRef<ReturnType<typeof useLocalRuntime> | null>(null);
+  const voiceThread = useMemo(
+    () => ({
+      resolveThreadId: async () => (await aui.threadListItem.initialize()).remoteId,
+      reload: async () => {
+        const remoteId = aui.threadListItem.getState().remoteId;
+        if (!remoteId || !runtimeRef.current) return;
+        const loaded = await runtimeApiClient.get<LoadedMessage[]>(
+          `${messagesEndpoint}?threadId=${remoteId}`
+        );
+        runtimeRef.current.thread.import(
+          ExportedMessageRepository.fromArray(
+            convertToThreadMessageLike(splitLiveTurn(loaded).rows)
+          )
+        );
+      },
+    }),
+    [aui, messagesEndpoint, runtimeApiClient]
+  );
   const createVoiceAdapter = useChatConfigStore((s) => s.voice?.createAdapter);
-  const voiceAdapter = useMemo(() => createVoiceAdapter?.(), [createVoiceAdapter]);
+  const voiceAdapter = useMemo(
+    () => createVoiceAdapter?.(voiceThread),
+    [createVoiceAdapter, voiceThread]
+  );
 
   const feedbackAdapter = useFeedbackAdapter();
 
@@ -334,6 +360,9 @@ function useGrueneratorThreadRuntime() {
     unstable_enableMessageQueue: MESSAGE_QUEUE_ENABLED,
     adapters: { dictation: dictationAdapter, voice: voiceAdapter, feedback: feedbackAdapter },
   });
+  useEffect(() => {
+    runtimeRef.current = runtime;
+  }, [runtime]);
 
   // Per thread, not around the thread list: this hook runs once per thread
   // runtime, so `modelAdapter`, `runtime` and the queue being emptied all belong
