@@ -43,6 +43,7 @@ import {
   type DegenerationGuard,
 } from './agenticLoop/degeneration.js';
 import { sanitizeContentPartsForModel, stripEmptyAssistantMessages } from './messageHelpers.js';
+import { prefillAllowanceMs, promptChars } from './prefillAllowance.js';
 import { PROGRESS_MESSAGES, type FallbackReason, type SSEWriter } from './sseHelpers.js';
 import { createIdleDeadline, type IdleDeadline } from './streamIdleDeadline.js';
 import { resolveAbortOutcome } from './turnAbortOutcome.js';
@@ -1279,11 +1280,12 @@ export async function streamForResolution(params: {
     resolution.modelName,
     resolution.reasoningEffort
   );
-  const firstTokenDeadlineMs = getFirstTokenDeadlineMs(
-    resolution.provider,
-    resolution.modelName,
-    thinking
-  );
+  // Jede Uhr unten misst Arbeit des Modells — und das Einlesen eines langen
+  // Prompts ist Arbeit, die schweigt. Ohne den Zuschlag riss die Frist bei Ultra
+  // ab ~100k Tokens, siehe prefillAllowance.ts.
+  const prefillMs = prefillAllowanceMs(resolution.provider, promptChars(null, messages));
+  const firstTokenDeadlineMs =
+    getFirstTokenDeadlineMs(resolution.provider, resolution.modelName, thinking) + prefillMs;
 
   // Die Ausgabedecke des AUFGELÖSTEN Modells — hier und nicht beim Aufrufer,
   // weil erst an dieser Stelle feststeht, welches Modell die Anfrage bekommt:
@@ -1317,8 +1319,10 @@ export async function streamForResolution(params: {
       sse,
       firstTokenDeadlineMs,
       // Denken UND Schreiben müssen in diese Uhr passen — siehe die Messung an
-      // THINKING_WALL_CLOCK_MS.
-      wallClockMs: THINKING_WALL_CLOCK_MS,
+      // THINKING_WALL_CLOCK_MS. Das Einlesen kommt obendrauf, es ist weder das eine
+      // noch das andere.
+      wallClockMs: THINKING_WALL_CLOCK_MS + prefillMs,
+      reasoningBudgetMs: REASONING_PHASE_BUDGET_MS + prefillMs,
     };
     if (signal) args.signal = signal;
     if (turnSignal) args.turnSignal = turnSignal;
@@ -1359,6 +1363,7 @@ export async function streamForResolution(params: {
     temperature,
     sse,
     firstTokenDeadlineMs,
+    wallClockMs: SINGLE_PASS_WALL_CLOCK_MS + prefillMs,
   };
   if (signal) args.signal = signal;
   if (turnSignal) args.turnSignal = turnSignal;
@@ -1378,8 +1383,8 @@ export async function streamForResolution(params: {
       // Nur wo wirklich gedacht wird: auf einer stummen Lane bindet die
       // Leerlauf-Frist bereits, ein zweites Budget wäre eine zweite Uhr auf
       // dieselbe Frage.
-      args.reasoningBudgetMs = REASONING_PHASE_BUDGET_MS;
-      args.wallClockMs = THINKING_WALL_CLOCK_MS;
+      args.reasoningBudgetMs = REASONING_PHASE_BUDGET_MS + prefillMs;
+      args.wallClockMs = THINKING_WALL_CLOCK_MS + prefillMs;
     }
   }
   try {
@@ -1396,7 +1401,7 @@ export async function streamForResolution(params: {
     delete args.reasoningBudgetMs;
     // Ohne Denken gilt wieder die gewöhnliche Uhr: der zweite Lauf schreibt
     // nur noch.
-    args.wallClockMs = SINGLE_PASS_WALL_CLOCK_MS;
+    args.wallClockMs = SINGLE_PASS_WALL_CLOCK_MS + prefillMs;
     return await streamAndAccumulateOrThrow(args);
   }
 }

@@ -28,6 +28,27 @@ export const SUMMARY_MAX_TOKENS = 2000;
  *  a longer delta — a thread that predates these thresholds — is folded in chunks. */
 export const SUMMARY_INPUT_MAX_TOKENS = 80_000;
 
+/**
+ * Grösstes Fenster, an dem sich die Zusammenfassung misst.
+ *
+ * Ultra und Panda tragen seit dem 22.10.2026 fast 1M Tokens. Das Fenster ist
+ * für grosses Material da — ein Dokument, eine lange Einfügung —, nicht dafür,
+ * dass ein Thread unzusammengefasst auf 500k wächst: jeder Zug schickt den
+ * ganzen Rest neu, bei Ultra ein Euro und zwei Minuten Einlesen pro Antwort
+ * (gemessen: 861k Tokens, 111 s bis zum ersten Token). Gedeckelt auf das
+ * Fenster, an dem die Schwellen bisher standen, fasst ein langer Thread also
+ * genau so früh zusammen wie vorher.
+ */
+const COMPACTION_WINDOW_CAP = 262_144;
+
+function compactionBudget(contextWindowTokens?: number): number {
+  return getPruningBudget(
+    contextWindowTokens == null
+      ? contextWindowTokens
+      : Math.min(contextWindowTokens, COMPACTION_WINDOW_CAP)
+  );
+}
+
 function devOverride(name: string): number | null {
   if (process.env.NODE_ENV === 'production') return null;
   const n = Number.parseInt(process.env[name] ?? '', 10);
@@ -37,20 +58,20 @@ function devOverride(name: string): number | null {
 export function getCompactionTokenThreshold(contextWindowTokens?: number): number {
   return (
     devOverride('CHAT_COMPACTION_TOKEN_THRESHOLD') ??
-    Math.floor(getPruningBudget(contextWindowTokens) * COMPACT_AT_SHARE)
+    Math.floor(compactionBudget(contextWindowTokens) * COMPACT_AT_SHARE)
   );
 }
 
 export function getTailTokenBudget(contextWindowTokens?: number): number {
   return (
     devOverride('CHAT_COMPACTION_TAIL_TOKENS') ??
-    Math.floor(getPruningBudget(contextWindowTokens) * TAIL_SHARE)
+    Math.floor(compactionBudget(contextWindowTokens) * TAIL_SHARE)
   );
 }
 
 export function getCarryCharBudget(contextWindowTokens?: number): number {
   return (
-    Math.floor(getPruningBudget(contextWindowTokens) * CARRY_SHARE) * CHARS_PER_ESTIMATED_TOKEN
+    Math.floor(compactionBudget(contextWindowTokens) * CARRY_SHARE) * CHARS_PER_ESTIMATED_TOKEN
   );
 }
 

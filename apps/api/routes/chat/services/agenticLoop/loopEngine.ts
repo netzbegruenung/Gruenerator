@@ -32,6 +32,7 @@ import { recordDecision } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { reportBackgroundError } from '../../../../utils/reportBackgroundError.js';
 import { createControlTokenFilter, stripToolControlTokens } from '../outputSanity.js';
+import { prefillAllowanceForModel } from '../prefillAllowance.js';
 import { isWholesaleRefusal, refusalLanguage } from '../refusalDetection.js';
 import { createIdleDeadline, type IdleDeadline } from '../streamIdleDeadline.js';
 
@@ -141,9 +142,16 @@ export class ToolPhaseStallError extends Error {
   }
 }
 
-/** Die Uhr der Werkzeugphase, für beide Modi identisch gestellt. */
-function createToolPhaseIdle(p: LoopEngineParams): { idle: IdleDeadline; idleMs: number } {
-  const idleMs = p.toolActivity ? TOOL_PHASE_IDLE_DEADLINE_MS : mountedToolCeilingMs(p.tools);
+/** Die Uhr der Werkzeugphase, für beide Modi identisch gestellt. `prefillMs`
+ *  liegt auf dem ganzen Fenster, nicht nur dem ersten: jeder Schritt ist eine
+ *  neue Anfrage mit dem ganzen Verlauf, und ihr Einlesen schweigt jedes Mal
+ *  (prefillAllowance.ts). */
+function createToolPhaseIdle(
+  p: LoopEngineParams,
+  prefillMs: number
+): { idle: IdleDeadline; idleMs: number } {
+  const idleMs =
+    (p.toolActivity ? TOOL_PHASE_IDLE_DEADLINE_MS : mountedToolCeilingMs(p.tools)) + prefillMs;
   return {
     idle: createIdleDeadline(
       idleMs,
@@ -718,7 +726,10 @@ async function streamWithTools(
   model: LanguageModel,
   deps: LoopDeps
 ): Promise<LoopResult> {
-  const { idle, idleMs } = createToolPhaseIdle(p);
+  const { idle, idleMs } = createToolPhaseIdle(
+    p,
+    prefillAllowanceForModel(model, p.toolSystem, p.messages)
+  );
   const result = deps.streamText({
     model,
     system: p.toolSystem,
@@ -868,17 +879,16 @@ async function gatherOn(
    *  then only costs PLANNER_FIRST_RESPONSE_DEADLINE_MS. */
   hasNextLane: boolean
 ): Promise<GatherAttempt> {
-  const { idle } = createToolPhaseIdle(p);
+  const gatherSystem = `${p.toolSystem}${GATHER_SUFFIX}`;
+  const prefillMs = prefillAllowanceForModel(model, gatherSystem, p.messages);
+  const { idle } = createToolPhaseIdle(p, prefillMs);
+  const firstResponseMs = PLANNER_FIRST_RESPONSE_DEADLINE_MS + prefillMs;
   let firstResponse: IdleDeadline | null = hasNextLane
-    ? createIdleDeadline(
-        PLANNER_FIRST_RESPONSE_DEADLINE_MS,
-        () => new ToolPhaseStallError(PLANNER_FIRST_RESPONSE_DEADLINE_MS)
-      )
+    ? createIdleDeadline(firstResponseMs, () => new ToolPhaseStallError(firstResponseMs))
     : null;
   let sawToolCall = false;
   let sawOutput = false;
   try {
-    const gatherSystem = `${p.toolSystem}${GATHER_SUFFIX}`;
     const result: Drainable = deps.streamText({
       model,
       system: gatherSystem,
@@ -1171,10 +1181,10 @@ async function synthesize(
     silent = false
   ): Promise<SynthPass> => {
     const gate = createGatedEmitter(silent ? () => {} : p.onText, SHORT_ANSWER_MAX_CHARS);
-    const idle = createIdleDeadline(
-      SYNTH_IDLE_DEADLINE_MS,
-      () => new SynthStallError(SYNTH_IDLE_DEADLINE_MS)
-    );
+    // Plus das Einlesen: Synthese schweigt sonst nur beim Denken oder Sterben,
+    // aber vor dem ersten Delta liest der Anbieter den ganzen Verlauf ein.
+    const idleMs = SYNTH_IDLE_DEADLINE_MS + prefillAllowanceForModel(model, system, passMessages);
+    const idle = createIdleDeadline(idleMs, () => new SynthStallError(idleMs));
     const result = deps.streamText({
       model,
       system,
@@ -1220,7 +1230,7 @@ async function synthesize(
     } catch (err) {
       if (!isSynthStall(err) || !p.synthFallbackModel) throw err;
       log.warn(
-        `[Engine] synth lane silent for ${SYNTH_IDLE_DEADLINE_MS}ms — retrying once on the fallback lane`
+        `[Engine] synth lane silent past its window (${err.message}) — retrying once on the fallback lane`
       );
       p.onSynthFallback?.();
       return runPass(
