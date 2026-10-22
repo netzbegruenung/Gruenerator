@@ -170,6 +170,26 @@ export async function revokeHandoffSessions(
 }
 
 /**
+ * Only a navigation the embedder started itself may redeem a handoff token.
+ *
+ * The token travels in the URL, and any signed-in account can mint one for
+ * itself. Without this gate a page elsewhere could send a browser to the
+ * redemption URL with a token of its own, and the cookie set below would
+ * replace that browser's session with a session of the token's account.
+ *
+ * The app loads the URL with `source={{ uri }}` (`WKWebView.load`, Android
+ * `loadUrl`). A load the embedder starts carries `Sec-Fetch-Site: none`, and
+ * keeps it across redirects; a navigation a page starts never does — links,
+ * scripts, forms and redirect chains arrive as `same-origin`, `same-site` or
+ * `cross-site`. `same-site` is refused too: every `*.gruenerator.eu` host is
+ * same-site. A missing header passes, because WebViews before iOS 16.4 send
+ * none at all.
+ */
+function isEmbedderNavigation(secFetchSite: string | null): boolean {
+  return secFetchSite == null || secFetchSite === 'none';
+}
+
+/**
  * Redeems a one-time token: verifies the signature, then atomically consumes
  * the Redis entry so a replay of the same JWT finds nothing.
  *
@@ -276,6 +296,12 @@ export const webViewHandoff = () => {
 
           let grant: HandoffGrant | null;
           if (ctx.query.ott != null) {
+            // Checked before the token is consumed: a refused request has no
+            // side effects at all.
+            if (!isEmbedderNavigation(ctx.getHeader('sec-fetch-site'))) {
+              log.warn('[WebViewHandoff] Refused handoff not started by the embedder');
+              throw new APIError('FORBIDDEN', { message: 'Handoff must be opened directly' });
+            }
             grant = await consumeHandoffToken(ctx.query.ott);
           } else {
             // Legacy single-step path for already-shipped mobile binaries.
