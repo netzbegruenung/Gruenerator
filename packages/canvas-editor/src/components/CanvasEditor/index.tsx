@@ -54,7 +54,12 @@ import {
   printPdfFilename,
   type PrintExportPage,
 } from '../../export/printExport';
-import { DEFAULT_FORMAT_ID, getCanvasFormatOrDefault, isPrintFormat } from '../../formats';
+import {
+  DEFAULT_FORMAT_ID,
+  getCanvasFormatOrDefault,
+  isPrintFormat,
+  isSlideFormat,
+} from '../../formats';
 import { usePageManager, useMultiPageExport, usePageThumbnails } from '../../hooks';
 import { useDeckAutoSave } from '../../hooks/useDeckAutoSave';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
@@ -80,6 +85,7 @@ import { CanvasMetaBar, CanvasZoomIndicator } from '../CanvasMetaBar';
 import { CanvasTextEditorProvider } from '../CanvasTextOverlay';
 import { MobileSelectionPill } from '../MobileSelectionPill';
 import { PageThumbnailStrip } from '../PageThumbnailStrip';
+import { SlideNotesPanel } from '../SlideNotesPanel';
 import { AddPageButton, TemplatePickerFlyout } from '../TemplatePickerFlyout';
 import { Toolbar } from '../Toolbar';
 import { ContextToolbar } from '../TopBar/ContextToolbar';
@@ -1492,6 +1498,18 @@ function CanvasEditorInner({
                 />
               )}
 
+              {isSlideFormat(format) && !isPreview && pages[currentPageIndex] && (
+                <SlideNotesPanel
+                  key={pages[currentPageIndex].id}
+                  collapsible={isMobileWeb}
+                  value={
+                    typeof pages[currentPageIndex].state.notes === 'string'
+                      ? pages[currentPageIndex].state.notes
+                      : ''
+                  }
+                  onChange={(notes) => updatePageState(pages[currentPageIndex].id, { notes })}
+                />
+              )}
               {/* Seite hinzufügen unter der Fläche — für den Fall, in dem die
                 untere Leiste den Knopf nicht trägt: unterhalb von 900 px, wo
                 `CanvasEditorLayout` sie per `max-canvas-mobile:hidden`
