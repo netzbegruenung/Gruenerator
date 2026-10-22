@@ -3,11 +3,10 @@
 // mobile DocPreview so all surfaces show the same legible excerpt instead of a
 // shrunken raw render. We have a real DOM here, so removing the heading node
 // before reading textContent keeps the body from repeating the title.
-// DOMParser, not innerHTML on a live-document element: `content` can carry raw
-// HTML (Markdown import), and only a parsed document stays inert — no image
-// loads, no `onerror` handlers.
+import { parseInertHtml } from './parseInertHtml';
+
 export const parseDocPreview = (html: string): { heading: string | null; body: string } => {
-  const tmp = new DOMParser().parseFromString(html, 'text/html').body;
+  const tmp = parseInertHtml(html);
   const norm = (s: string | null | undefined) => (s ?? '').replace(/\s+/g, ' ').trim();
 
   // Prefer a semantic heading (h1–h6). Many docs — notably AI-generated press
