@@ -18,7 +18,8 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 
-// See migrations/zz_20261014_studio_assets.sql (CHECK constraints live there).
+// See migrations/zz_20261014_studio_assets.sql (CHECK constraints live there)
+// and zz_20261022_studio_assets_official.sql.
 export const studioAssets = pgTable(
   'studio_assets',
   {
@@ -36,6 +37,8 @@ export const studioAssets = pgTable(
     was_public: boolean('was_public').notNull().default(false),
     audience: text('audience').$type<GroupAudience>().notNull().default('all'),
     moderation: text('moderation').$type<StudioAssetModeration>().notNull().default('ok'),
+    // Set by an instance admin: the Marktplatz lists it under „Offiziell“.
+    is_official: boolean('is_official').notNull().default(false),
     created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     deleted_at: timestamp('deleted_at', { withTimezone: true }),

@@ -185,6 +185,7 @@ describe('studioAssetSource', () => {
     visibility: 'public',
     audience: 'all',
     moderation: 'ok',
+    isOfficial: false,
     isOwn: false,
     authorName: 'Kim',
     likesCount: 2,
@@ -199,14 +200,19 @@ describe('studioAssetSource', () => {
       ctx(),
       query({ sort: 'neu', q: 'wiese', scope: 'saved' })
     );
-    expect(m.listStudioAssets).toHaveBeenCalledWith('viewer', 'de-AT', {
-      kind: 'background',
-      scope: 'saved',
-      q: 'wiese',
-      sort: 'new',
-      offset: 0,
-      limit: 2,
-    });
+    expect(m.listStudioAssets).toHaveBeenCalledWith(
+      'viewer',
+      'de-AT',
+      {
+        kind: 'background',
+        scope: 'saved',
+        q: 'wiese',
+        sort: 'new',
+        offset: 0,
+        limit: 2,
+      },
+      {}
+    );
     expect(page).toEqual({
       hasMore: true,
       items: [
@@ -251,7 +257,43 @@ describe('studioAssetSource', () => {
     expect(m.listStudioAssets).toHaveBeenCalledWith(
       'viewer',
       'de-AT',
-      expect.objectContaining({ kind: 'sticker', scope: 'shop', sort: 'popular' })
+      expect.objectContaining({ kind: 'sticker', scope: 'shop', sort: 'popular' }),
+      {}
     );
+  });
+
+  it('lists an official asset under „Offiziell“, without author and not reportable', async () => {
+    m.listStudioAssets.mockResolvedValue({
+      items: [{ ...asset, isOfficial: true }],
+      hasMore: false,
+    });
+    const page = await studioAssetSource('background').list(ctx(), query({}));
+    expect(page.items[0]).toMatchObject({
+      origin: 'offiziell',
+      authorName: null,
+      reportKind: null,
+    });
+  });
+
+  it('splits the shop by origin: offiziell, öffentlich, and nothing for Landesverband', async () => {
+    m.listStudioAssets.mockResolvedValue({ items: [], hasMore: false });
+    const source = studioAssetSource('sticker');
+
+    await source.list(ctx(), query({ origin: 'offiziell' }));
+    expect(m.listStudioAssets).toHaveBeenLastCalledWith('viewer', 'de-AT', expect.anything(), {
+      official: true,
+    });
+
+    await source.list(ctx(), query({ origin: 'oeffentlich' }));
+    expect(m.listStudioAssets).toHaveBeenLastCalledWith('viewer', 'de-AT', expect.anything(), {
+      official: false,
+    });
+
+    m.listStudioAssets.mockClear();
+    expect(await source.list(ctx(), query({ origin: 'landesverband' }))).toEqual({
+      items: [],
+      hasMore: false,
+    });
+    expect(m.listStudioAssets).not.toHaveBeenCalled();
   });
 });

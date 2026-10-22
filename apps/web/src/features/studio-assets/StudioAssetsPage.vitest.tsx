@@ -41,6 +41,7 @@ const asset = (over: Partial<StudioAssetItem>): StudioAssetItem => ({
   visibility: 'public',
   audience: 'all',
   moderation: 'ok',
+  isOfficial: false,
   isOwn: false,
   authorName: 'Kim',
   likesCount: 2,
@@ -392,6 +393,7 @@ describe('StudioAssetCard', () => {
           onReport={noop}
           onPublish={noop}
           onMakePrivate={noop}
+          onToggleOfficial={null}
           onRename={noop}
           onDelete={noop}
         />

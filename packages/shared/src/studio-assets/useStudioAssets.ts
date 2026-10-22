@@ -17,6 +17,7 @@ import {
 import { useMemo } from 'react';
 
 import { apiErrorFromResponse, getContractsClient } from '../api/index.js';
+import { MARKETPLACE_QUERY_KEY } from '../marketplace/useMarketplace.js';
 
 import {
   patchStudioAssetPages,
@@ -132,7 +133,27 @@ export function useStudioAssetMutations() {
     onSettled: invalidate,
   });
 
-  return { create, update, remove };
+  /** Instance admins: list a public asset under „Offiziell“ in the Marktplatz, or stop. */
+  const setOfficial = useMutation({
+    mutationFn: async ({ id, official }: { id: string; official: boolean }) => {
+      const res = await getContractsClient().studioAssets.official({
+        params: { id },
+        body: { official },
+      });
+      if (res.status !== 200)
+        throw apiErrorFromResponse(res, 'Änderung konnte nicht gespeichert werden.');
+      return res.body;
+    },
+    onSuccess: (updated) => {
+      qc.setQueriesData<StudioAssetPages>({ queryKey: STUDIO_ASSETS_QUERY_KEY }, (data) =>
+        data ? patchStudioAssetPages(data, updated.id, () => updated) : data
+      );
+      void qc.invalidateQueries({ queryKey: MARKETPLACE_QUERY_KEY });
+    },
+    onSettled: invalidate,
+  });
+
+  return { create, update, remove, setOfficial };
 }
 
 /**

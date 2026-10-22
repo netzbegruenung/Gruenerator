@@ -13,6 +13,7 @@ import {
 } from '@gruenerator/ui';
 import {
   Bookmark,
+  BadgeCheck,
   Flag,
   Globe,
   Heart,
@@ -43,6 +44,8 @@ export interface StudioAssetCardProps {
   onMakePrivate: (item: StudioAssetItem) => void;
   onRename: (item: StudioAssetItem) => void;
   onDelete: (item: StudioAssetItem) => void;
+  /** Instance admins only; `null` hides the action. */
+  onToggleOfficial: ((item: StudioAssetItem) => void) | null;
 }
 
 export const StudioAssetCard = memo(function StudioAssetCard({
@@ -55,6 +58,7 @@ export const StudioAssetCard = memo(function StudioAssetCard({
   onMakePrivate,
   onRename,
   onDelete,
+  onToggleOfficial,
 }: StudioAssetCardProps): JSX.Element {
   const isSticker = item.kind === 'sticker';
   const moderation =
@@ -127,6 +131,12 @@ export const StudioAssetCard = memo(function StudioAssetCard({
               <DropdownMenuItem onSelect={() => onUseInProfilbild(item)}>
                 <UserCircle aria-hidden /> Im Profilbild verwenden
               </DropdownMenuItem>
+              {onToggleOfficial && item.visibility === 'public' && item.moderation === 'ok' && (
+                <DropdownMenuItem onSelect={() => onToggleOfficial(item)}>
+                  <BadgeCheck aria-hidden />{' '}
+                  {item.isOfficial ? 'Nicht mehr offiziell' : 'Als offiziell markieren'}
+                </DropdownMenuItem>
+              )}
               {item.isOwn ? (
                 <>
                   {item.visibility === 'public' ? (
@@ -169,9 +179,9 @@ export const StudioAssetCard = memo(function StudioAssetCard({
           >
             {item.title}
           </h3>
-          {!item.isOwn && (
+          {(!item.isOwn || item.isOfficial) && (
             <p className="m-0 truncate text-sm text-grey-600 dark:text-grey-400">
-              {item.authorName ?? 'Unbekannt'}
+              {item.isOfficial ? 'Offiziell' : (item.authorName ?? 'Unbekannt')}
             </p>
           )}
         </div>

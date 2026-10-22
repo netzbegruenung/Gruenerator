@@ -23,18 +23,19 @@ function toItem<K extends AssetKind>(kind: K, asset: StudioAssetItem): Marketpla
     kind,
     key: `${kind}:${asset.id}`,
     ref: asset.id,
-    origin: 'oeffentlich',
+    origin: asset.isOfficial ? 'offiziell' : 'oeffentlich',
     title: asset.title,
     description: null,
     thumbnailUrl: asset.thumbUrl,
     iconKey: null,
-    authorName: asset.authorName,
+    // Official content speaks for the party, not for whoever uploaded it.
+    authorName: asset.isOfficial ? null : asset.authorName,
     audience: asset.audience,
     likesCount: asset.likesCount,
     liked: asset.liked,
     saved: asset.favorited,
     isOwn: asset.isOwn,
-    reportKind: 'studio_asset',
+    reportKind: asset.isOfficial ? null : 'studio_asset',
     createdAt: asset.createdAt,
     asset,
   } as MarketplaceItemOf<K>;
@@ -46,17 +47,21 @@ export function studioAssetSource<K extends AssetKind>(kind: K): MarketplaceSour
     likeType: 'studio_asset',
     reportKind: 'studio_asset',
     async list(ctx, query) {
-      if (query.origin !== null && query.origin !== 'oeffentlich') {
-        return { items: [], hasMore: false };
-      }
-      const page = await listStudioAssets(ctx.userId, ctx.audience, {
-        kind,
-        scope: query.scope === 'saved' ? 'saved' : 'shop',
-        ...(query.q && { q: query.q }),
-        sort: query.sort === 'neu' ? 'new' : 'popular',
-        offset: query.offset,
-        limit: query.limit,
-      });
+      if (query.origin === 'landesverband') return { items: [], hasMore: false };
+      const official = query.origin === null ? undefined : query.origin === 'offiziell';
+      const page = await listStudioAssets(
+        ctx.userId,
+        ctx.audience,
+        {
+          kind,
+          scope: query.scope === 'saved' ? 'saved' : 'shop',
+          ...(query.q && { q: query.q }),
+          sort: query.sort === 'neu' ? 'new' : 'popular',
+          offset: query.offset,
+          limit: query.limit,
+        },
+        official === undefined ? {} : { official }
+      );
       return { items: page.items.map((a) => toItem(kind, a)), hasMore: page.hasMore };
     },
     isVisible: (ctx, ref) => isStudioAssetVisible(ctx.userId, ref, { kind, locale: ctx.audience }),

@@ -128,6 +128,7 @@ const sticker = {
     visibility: 'public',
     audience: 'all',
     moderation: 'ok',
+    isOfficial: false,
     isOwn: false,
     authorName: 'Kim',
     likesCount: 0,

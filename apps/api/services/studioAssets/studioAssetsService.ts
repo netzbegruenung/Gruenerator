@@ -136,6 +136,7 @@ function toItem(
     visibility: a.visibility,
     audience: a.audience,
     moderation: a.moderation,
+    isOfficial: a.is_official,
     isOwn: a.user_id === userId,
     authorName: r.authorName?.trim() || null,
     likesCount: Number(r.likesCount) || 0,
@@ -159,9 +160,12 @@ export const getStudioAsset = getItem;
 export async function listStudioAssets(
   userId: string,
   locale: Exclude<GroupAudience, 'all'>,
-  query: StudioAssetListQuery
+  query: StudioAssetListQuery,
+  /** The Marktplatz splits the shop by origin: official assets or the rest. */
+  opts: { official?: boolean } = {}
 ): Promise<StudioAssetListResponse> {
   const conditions: SQL[] = [eq(studioAssets.kind, query.kind)];
+  if (opts.official !== undefined) conditions.push(eq(studioAssets.is_official, opts.official));
 
   if (query.scope === 'shop') {
     conditions.push(isPublicOk(), inArray(studioAssets.audience, [locale, 'all']));
@@ -318,6 +322,8 @@ export async function updateStudioAsset(
   if (body.tags !== undefined) patch.tags = normalizeTags(body.tags);
   if (body.audience !== undefined) patch.audience = body.audience;
   if (body.visibility !== undefined) patch.visibility = body.visibility;
+  // Going private ends the official listing; republishing does not bring it back.
+  if (body.visibility === 'private') patch.is_official = false;
   if (goesPublic) patch.was_public = true;
 
   const db = getDrizzleInstance();
@@ -329,6 +335,28 @@ export async function updateStudioAsset(
     );
 
   const item = await getItem(userId, id);
+  return item ? { ok: true, value: item } : NOT_FOUND;
+}
+
+/**
+ * An instance admin marks a public asset as official, or takes the mark away.
+ * Only public, unmoderated assets can carry it; the caller checks the admin right.
+ */
+export async function setStudioAssetOfficial(
+  adminId: string,
+  id: string,
+  official: boolean
+): Promise<StudioAssetResult<StudioAssetItem, 404>> {
+  if (!isRowId(id)) return NOT_FOUND;
+  const db = getDrizzleInstance();
+  const updated = await db
+    .update(studioAssets)
+    .set({ is_official: official, updated_at: new Date() })
+    .where(and(eq(studioAssets.id, id), isPublicOk(), notTrashed(studioAssets)))
+    .returning({ id: studioAssets.id });
+  if (updated.length === 0) return NOT_FOUND;
+
+  const item = await getItem(adminId, id);
   return item ? { ok: true, value: item } : NOT_FOUND;
 }
 
