@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@modelcontextprotocol/sdk/client/auth.js', async (importOriginal) => ({
   // Pure policy, no I/O — the real one, so revocation picks what the SDK would.
@@ -31,8 +31,13 @@ vi.mock('../../utils/redis/client.js', () => ({
     exists: vi.fn(async () => 0),
   },
 }));
-vi.mock('../../utils/validation/urlSecurity.js', () => ({
+vi.mock('../../utils/validation/urlSecurity.js', async (importOriginal) => ({
   validateUrlForFetch: vi.fn(async (u: string) => ({ isValid: true, url: new URL(u) })),
+  // The real one by default (reset in beforeEach): the SSRF refusals under test
+  // happen inside it, before any socket is opened.
+  safeFetch: vi.fn(
+    (await importOriginal<typeof import('../../utils/validation/urlSecurity.js')>()).safeFetch
+  ),
 }));
 
 import {
@@ -46,11 +51,19 @@ import {
 
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { redisClient } from '../../utils/redis/client.js';
+import { safeFetch } from '../../utils/validation/urlSecurity.js';
 
 import { McpOAuthService, selectScopes, selectTokenEndpointAuthMethod } from './McpOAuthService.js';
 import { consumeOAuthState, saveOAuthState } from './mcpOAuthState.js';
 
 const AS = 'https://as.example.com';
+
+const realSdk = await vi.importActual<typeof import('@modelcontextprotocol/sdk/client/auth.js')>(
+  '@modelcontextprotocol/sdk/client/auth.js'
+);
+const { safeFetch: realSafeFetch } = await vi.importActual<
+  typeof import('../../utils/validation/urlSecurity.js')
+>('../../utils/validation/urlSecurity.js');
 
 /** Minimal chainable stand-in for the drizzle query builder. */
 function dbStub(row: Record<string, unknown> | null) {
@@ -100,6 +113,7 @@ beforeEach(() => {
   );
   vi.mocked(discoverAuthorizationServerMetadata).mockResolvedValue({ issuer: AS } as never);
   vi.mocked(exchangeAuthorization).mockResolvedValue({ access_token: 'at' } as never);
+  vi.mocked(safeFetch).mockImplementation(realSafeFetch);
 });
 
 /** The callback as the router hands it over, from the browser of the user who started it. */
@@ -471,7 +485,7 @@ describe('tokenRevocation', () => {
 
   beforeEach(() => {
     fetchMock.mockReset().mockResolvedValue({ ok: true, status: 200 });
-    vi.stubGlobal('fetch', fetchMock);
+    vi.mocked(safeFetch).mockImplementation(fetchMock);
   });
 
   it('revokes refresh and access token with basic auth for a confidential client', async () => {
@@ -671,5 +685,111 @@ describe('handleCallback — bound to the session that started it', () => {
 
     await expect(callback()).resolves.toEqual({ serverId: 'srv-1' });
     expect(update).toHaveBeenCalledOnce();
+  });
+});
+
+/**
+ * Every address below comes from a user-supplied server, so every request the
+ * SDK makes has to go through the SSRF guard. A fetchFn is guarded when it
+ * refuses an internal address without anything reaching the network.
+ */
+describe('outbound OAuth requests go through the SSRF guard', () => {
+  const globalFetch = vi.fn();
+
+  beforeEach(() => {
+    globalFetch
+      .mockReset()
+      .mockImplementation(async () =>
+        Response.json({ client_id: 'internal-cid', access_token: 'at' }, { status: 201 })
+      );
+    vi.stubGlobal('fetch', globalFetch);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  async function expectGuarded(fetchFn: unknown): Promise<void> {
+    expect(fetchFn).toBeTypeOf('function');
+    await expect(
+      (fetchFn as (url: string) => Promise<Response>)('http://169.254.169.254/latest/meta-data/')
+    ).rejects.toThrow(/URL validation failed/);
+    expect(globalFetch).not.toHaveBeenCalled();
+  }
+
+  function discoverWith(metadata: Record<string, unknown>) {
+    vi.mocked(discoverOAuthServerInfo).mockResolvedValue({
+      authorizationServerUrl: AS,
+      authorizationServerMetadata: { issuer: AS, ...metadata },
+    } as never);
+    vi.mocked(startAuthorization).mockResolvedValue({
+      authorizationUrl: new URL(`${AS}/authorize?x=1`),
+      codeVerifier: 'verifier',
+    } as never);
+    vi.mocked(getDrizzleInstance).mockReturnValue(dbStub(serverRow({})) as never);
+  }
+
+  it('hands discovery and registration a guarded fetch', async () => {
+    discoverWith({ registration_endpoint: `${AS}/register` });
+    vi.mocked(registerClient).mockResolvedValue({ client_id: 'fresh-cid' } as never);
+
+    await McpOAuthService.startAuthorization('user-1', 'srv-1');
+
+    await expectGuarded(vi.mocked(discoverOAuthServerInfo).mock.calls[0]?.[1]?.fetchFn);
+    await expectGuarded(vi.mocked(registerClient).mock.calls[0]?.[1].fetchFn);
+  });
+
+  it('refuses a registration endpoint on a private address', async () => {
+    discoverWith({ registration_endpoint: 'http://10.0.0.7/register' });
+    vi.mocked(registerClient).mockImplementation(realSdk.registerClient);
+
+    await expect(McpOAuthService.startAuthorization('user-1', 'srv-1')).rejects.toMatchObject({
+      code: 'dcr_rejected',
+    });
+    expect(globalFetch).not.toHaveBeenCalled();
+    expect(startAuthorization).not.toHaveBeenCalled();
+  });
+
+  it('hands metadata discovery and the code exchange a guarded fetch', async () => {
+    vi.mocked(consumeOAuthState).mockResolvedValue(state() as never);
+
+    await callback();
+
+    await expectGuarded(vi.mocked(discoverAuthorizationServerMetadata).mock.calls[0]?.[1]?.fetchFn);
+    await expectGuarded(vi.mocked(exchangeAuthorization).mock.calls[0]?.[1].fetchFn);
+  });
+
+  it('hands the token refresh a guarded fetch', async () => {
+    vi.mocked(getDrizzleInstance).mockReturnValue(
+      dbStub({
+        ...serverRow({ clientId: 'cid', issuer: AS }),
+        token_encrypted: 'enc:old-at',
+        refresh_token_encrypted: 'enc:rt',
+        token_expires_at: new Date(Date.now() - 1000),
+      }) as never
+    );
+    vi.mocked(refreshAuthorization).mockResolvedValue({ access_token: 'new-at' } as never);
+
+    await McpOAuthService.getValidAccessToken('user-1', 'srv-1');
+
+    await expectGuarded(vi.mocked(discoverAuthorizationServerMetadata).mock.calls[0]?.[1]?.fetchFn);
+    await expectGuarded(vi.mocked(refreshAuthorization).mock.calls[0]?.[1].fetchFn);
+  });
+
+  it('discovers the revocation endpoint through a guarded fetch', async () => {
+    vi.mocked(getDrizzleInstance).mockReturnValue(
+      dbStub({
+        ...serverRow({ clientId: 'cid', issuer: AS }),
+        auth_type: 'oauth',
+        token_encrypted: 'enc:at',
+        refresh_token_encrypted: null,
+      }) as never
+    );
+
+    await (
+      await McpOAuthService.tokenRevocation('user-1', 'srv-1')
+    )?.();
+
+    await expectGuarded(vi.mocked(discoverAuthorizationServerMetadata).mock.calls[0]?.[1]?.fetchFn);
   });
 });

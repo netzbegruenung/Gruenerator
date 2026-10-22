@@ -38,7 +38,7 @@ import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { createLogger } from '../../utils/logger.js';
 import { ensureConnected, redisClient } from '../../utils/redis/client.js';
 import { decryptCredential, encryptCredential } from '../../utils/validation/encryption.js';
-import { validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
+import { safeFetch, validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
 
 import {
   consumeOAuthState,
@@ -106,6 +106,16 @@ type McpOAuthErrorCode = 'dcr_rejected' | 'no_oauth_support';
 function oauthError(message: string, statusCode: number, code?: McpOAuthErrorCode): Error {
   return Object.assign(new Error(message), { statusCode, ...(code && { code }) });
 }
+
+/**
+ * Every request the SDK makes for us goes to an address a user-supplied server
+ * named: its resource metadata, the AS metadata it points at, and the
+ * registration and token endpoints listed there. The SDK itself only refuses
+ * javascript:/data:/vbscript: URLs, so each call gets this fetch, which refuses
+ * private and internal targets — at connect time and on every redirect hop.
+ */
+const guardedFetch = (url: string | URL, init?: RequestInit): Promise<Response> =>
+  safeFetch(String(url), init);
 
 /**
  * Pull the human-readable detail out of an SDK registration/authorization error.
@@ -267,7 +277,7 @@ export class McpOAuthService {
 
     let info: Awaited<ReturnType<typeof discoverOAuthServerInfo>> | null = null;
     try {
-      info = await discoverOAuthServerInfo(server.url);
+      info = await discoverOAuthServerInfo(server.url, { fetchFn: guardedFetch });
     } catch (err) {
       log.info('MCP OAuth discovery failed; probing unauthenticated access', {
         serverId,
@@ -376,6 +386,7 @@ export class McpOAuthService {
             ...(scopes?.length ? { scope: scopes.join(' ') } : {}),
           } as Parameters<typeof registerClient>[1]['clientMetadata'],
           ...(scopes?.length ? { scope: scopes.join(' ') } : {}),
+          fetchFn: guardedFetch,
         });
       } catch (err) {
         // Typical case: the provider allowlists redirect domains (Typeform,
@@ -540,8 +551,9 @@ export class McpOAuthService {
       ? decryptCredential(server.oauth_client_secret_encrypted)
       : undefined;
 
-    const metadata = (await discoverAuthorizationServerMetadata(st.authorizationServerUrl)) as
-      AsMetadata | undefined;
+    const metadata = (await discoverAuthorizationServerMetadata(st.authorizationServerUrl, {
+      fetchFn: guardedFetch,
+    })) as AsMetadata | undefined;
 
     const tokens = await exchangeAuthorization(st.authorizationServerUrl, {
       metadata: metadata as never,
@@ -553,6 +565,7 @@ export class McpOAuthService {
       codeVerifier: st.codeVerifier,
       redirectUri,
       ...(oidc.resource ? { resource: new URL(oidc.resource) } : {}),
+      fetchFn: guardedFetch,
     });
 
     await this.persistTokens(st.userId, st.serverId, tokens);
@@ -600,8 +613,9 @@ export class McpOAuthService {
       const clientSecret = server.oauth_client_secret_encrypted
         ? decryptCredential(server.oauth_client_secret_encrypted)
         : undefined;
-      const metadata = (await discoverAuthorizationServerMetadata(oidc.issuer)) as
-        AsMetadata | undefined;
+      const metadata = (await discoverAuthorizationServerMetadata(oidc.issuer, {
+        fetchFn: guardedFetch,
+      })) as AsMetadata | undefined;
       const tokens = await refreshAuthorization(oidc.issuer, {
         metadata: metadata as never,
         clientInformation: {
@@ -610,6 +624,7 @@ export class McpOAuthService {
         },
         refreshToken: decryptCredential(server.refresh_token_encrypted),
         ...(oidc.resource ? { resource: new URL(oidc.resource) } : {}),
+        fetchFn: guardedFetch,
       });
       await this.persistTokens(userId, serverId, tokens, server.refresh_token_encrypted);
       return tokens.access_token;
@@ -663,8 +678,9 @@ export class McpOAuthService {
         // gate as every other fetch it steers.
         const issuerCheck = await validateUrlForFetch(issuer);
         if (!issuerCheck.isValid) return;
-        const metadata = (await discoverAuthorizationServerMetadata(issuer)) as
-          AsMetadata | undefined;
+        const metadata = (await discoverAuthorizationServerMetadata(issuer, {
+          fetchFn: guardedFetch,
+        })) as AsMetadata | undefined;
         const endpointCheck = metadata?.revocation_endpoint
           ? await validateUrlForFetch(metadata.revocation_endpoint)
           : null;
@@ -692,7 +708,7 @@ export class McpOAuthService {
               if (method === 'client_secret_post' && clientSecret)
                 body.set('client_secret', clientSecret);
             }
-            const res = await fetch(endpoint, {
+            const res = await guardedFetch(endpoint, {
               method: 'POST',
               headers,
               body,
