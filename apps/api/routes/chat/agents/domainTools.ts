@@ -70,7 +70,10 @@ export function makeSummaryTool(ctx: { sse: SSEWriter; state: ChatGraphState }):
 NUTZE WENN der*die Nutzer*in um eine Zusammenfassung bittet ("fasse zusammen", "worum geht es in dem Dokument"). Rufe das Tool einmal auf und formuliere die Antwort auf Basis des zurückgegebenen Digests.`,
     inputSchema: z.object({}),
     execute: async () => {
-      const documentCount = (state.documentChatIds?.length ?? 0) + (state.documentIds?.length ?? 0);
+      const documentCount =
+        (state.documentChatIds?.length ?? 0) +
+        (state.documentIds?.length ?? 0) +
+        (state.notebookSources?.length ?? 0);
       sse.send('summary_start', { message: PROGRESS_MESSAGES.summaryStart, documentCount });
       const result = await summarizeNode(state);
       const summary = result.summaryContext ?? '';

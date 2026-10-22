@@ -49,6 +49,22 @@ export const connectFileRefSchema = z.object({
 export type ConnectFileRef = z.infer<typeof connectFileRefSchema>;
 
 /**
+ * A notebook source handed from the document reader to the chat ("Mit KI
+ * zusammenfassen" / "Im Chat besprechen"). Exactly the two shapes the reader
+ * loads by: a user document — own, or read through a shared notebook, which is
+ * why `notebookId` travels — or a system-collection document named by its
+ * STORED `source_url` (a `wolke://` key, not the display URL). The server
+ * re-authorizes every ref each turn with the reader's own access rules and
+ * keeps it per thread (`chat_threads.notebook_source_refs`).
+ */
+export const notebookSourceRefSchema = z.union([
+  z.object({ documentId: z.string().uuid(), notebookId: z.string().max(128).nullable() }),
+  z.object({ collectionId: z.string().min(1).max(128), sourceUrl: z.string().min(1).max(2048) }),
+]);
+export type NotebookSourceRef = z.infer<typeof notebookSourceRefSchema>;
+export const NOTEBOOK_SOURCE_REFS_MAX = 5;
+
+/**
  * A single chat message on the wire. Two client formats reach the stream
  * endpoint: the chat UI sends AI-SDK UIMessages (`parts` array), the voice
  * surfaces send plain `{ role, content }` ModelMessages. Both pass through
@@ -205,6 +221,7 @@ export const chatStreamBodySchema = z.object({
   docMentionIds: z.array(z.string()).nullish(),
   wolkeFiles: z.array(wolkeFileRefSchema).nullish(),
   connectFiles: z.array(connectFileRefSchema).nullish(),
+  notebookSourceRefs: z.array(notebookSourceRefSchema).max(NOTEBOOK_SOURCE_REFS_MAX).nullish(),
   currentDocument: z
     .object({
       id: z.string(),

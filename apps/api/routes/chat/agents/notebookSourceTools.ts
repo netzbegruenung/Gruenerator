@@ -262,7 +262,7 @@ const qdrantChunkTextIndex = cachedChunkTextIndex(async (qdrantCollection) => {
 });
 
 /** Eine Scroll-Seite samt Folge-Offset — `scrollDocuments` liefert den Offset nicht. */
-async function qdrantScrollPage(
+export async function qdrantScrollPage(
   qdrantCollection: string,
   filter: QdrantFilter,
   opts: { limit: number; offset: string | number | null; payload: readonly string[] }

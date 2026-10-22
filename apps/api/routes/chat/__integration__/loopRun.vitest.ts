@@ -127,6 +127,14 @@ vi.mock('../../../services/document-services/DocumentSearchService/index.js', as
   };
 });
 
+// Die Qdrant-Seite der Reader-Verweis-Prüfung (`resolveNotebookSources`). Nur
+// der Export wird ersetzt — `notebook_quellen` selbst ruft seine eigene,
+// modulinterne Bindung und bleibt unberührt.
+vi.mock('../agents/notebookSourceTools.js', async (orig) => {
+  const { fakeScrollPage } = await import('./harness/searchBackendStub.js');
+  return { ...((await orig()) as Record<string, unknown>), qdrantScrollPage: fakeScrollPage };
+});
+
 vi.mock('ai', async (orig) => {
   const { fakeLoopStreamText, fakeLoopGenerateText } = await import('./harness/loopScript.js');
   return {

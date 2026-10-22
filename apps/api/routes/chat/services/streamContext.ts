@@ -12,7 +12,11 @@
  * pipeline consumes.
  */
 
-import { type chatGraphContract, isVisualBlockKind } from '@gruenerator/contracts';
+import {
+  type chatGraphContract,
+  isVisualBlockKind,
+  type NotebookSourceRef,
+} from '@gruenerator/contracts';
 import { type UserRole, stripRoleBlock } from '@gruenerator/shared/roles';
 import {
   hasMentionTokens,
@@ -65,6 +69,7 @@ import {
   sanitizeUIFileParts,
 } from './messageHelpers.js';
 import { notebookIdsForTurn } from './notebookScopeFromText.js';
+import { type NotebookSourceCheck, resolveNotebookSources } from './resolveNotebookSources.js';
 import { type createSSEStream, PROGRESS_MESSAGES } from './sseHelpers.js';
 import { canWriteThread } from './threadAccessService.js';
 import {
@@ -73,6 +78,12 @@ import {
   mergeThreadCloudFiles,
   sameThreadCloudFiles,
 } from './threadCloudFiles.js';
+import {
+  NO_NOTEBOOK_SOURCES,
+  mergeThreadNotebookSources,
+  notebookSourceKey,
+  sameThreadNotebookSources,
+} from './threadNotebookSources.js';
 import {
   getUser,
   getUserMessageTexts,
@@ -83,15 +94,18 @@ import {
   deleteMessagesFrom,
   deleteTrailingAssistant,
   getThreadCloudFiles,
+  getThreadNotebookSources,
   getThreadToolContext,
   readThreadToolHistory,
   setThreadCloudFiles,
+  setThreadNotebookSources,
   type ThreadToolHistory,
 } from './threadPersistenceService.js';
 
 import type {
   ChatGraphInput,
   ProcessedAttachment,
+  ResolvedNotebookSource,
   WolkeFileRef,
 } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { ServerInferRequest } from '@ts-rest/core';
@@ -246,6 +260,7 @@ export async function buildStreamContext({
     docMentionIds: rawDocMentionIds,
     wolkeFiles: rawWolkeFiles,
     connectFiles: rawConnectFiles,
+    notebookSourceRefs: rawNotebookSourceRefs,
     currentDocument: rawCurrentDocument,
     currentBoard: rawCurrentBoard,
     currentCanvas: rawCurrentCanvas,
@@ -435,6 +450,26 @@ export async function buildStreamContext({
     }
   }
 
+  // === Notebook sources handed over from the reader: this turn's refs ===
+  // Checked before the user row is written, so the chip it keeps for a reload
+  // carries the title the check resolved. The thread's earlier refs are merged
+  // and checked further down, next to the cloud files.
+  const pickedNotebookSources: NotebookSourceRef[] = rawNotebookSourceRefs ?? [];
+  // `null`: the check itself failed — not the same as "no access".
+  let pickedNotebookChecks: NotebookSourceCheck[] | null = [];
+  if (pickedNotebookSources.length > 0) {
+    try {
+      pickedNotebookChecks = await withTimeout(
+        resolveNotebookSources(pickedNotebookSources, userId),
+        EXTERNAL_CONTEXT_TIMEOUT_MS,
+        'notebook source check'
+      );
+    } catch (err) {
+      log.warn('[StreamContext] Notebook source check failed (continuing):', err);
+      pickedNotebookChecks = null;
+    }
+  }
+
   // === Create thread if needed ===
   // Normalize null → undefined: contract schema uses .nullish() to accept
   // both, but downstream code is typed for string | undefined.
@@ -571,11 +606,23 @@ export async function buildStreamContext({
     // would duplicate the row. Edit-resubmit removed it above, so write it fresh.
     if (!rawRegenerate) {
       const userText = extractTextContent(lastUserMessage.content);
+      // The reader chip, restored as an attachment by messagesController.
+      // Refs that failed the check get no chip; if the check could not run,
+      // the chip keeps the ref without a title.
+      const notebookSourceChips = pickedNotebookChecks
+        ? pickedNotebookChecks.flatMap((c) =>
+            c.source ? [{ ref: c.ref, title: c.source.title }] : []
+          )
+        : pickedNotebookSources.map((ref) => ({ ref, title: null }));
+      const userMeta = {
+        ...(rawRoleName ? { roleName: rawRoleName } : {}),
+        ...(notebookSourceChips.length > 0 ? { notebookSources: notebookSourceChips } : {}),
+      };
       userMessageId = await createMessage(
         actualThreadId,
         'user',
         userText,
-        rawRoleName ? { roleName: rawRoleName } : undefined,
+        Object.keys(userMeta).length > 0 ? userMeta : undefined,
         userId
       );
     }
@@ -677,6 +724,76 @@ export async function buildStreamContext({
     // Fire-and-forget: a lost write costs the next turn its carried files, not this turn.
     setThreadCloudFiles(actualThreadId, userId, keptCloudFiles).catch((err: unknown) =>
       log.warn('[StreamContext] Could not store thread cloud files:', err)
+    );
+  }
+
+  // === Notebook sources (reader hand-over) ===
+  // Carried per thread like the cloud files (threadNotebookSources.ts), and
+  // EVERY ref — stored or new — is authorized again with the reader's own
+  // rules: a stored ref grants nothing by itself. Dropped refs leave the
+  // thread with one warning; a failed check proves nothing, so they stay.
+  let storedNotebookSources = NO_NOTEBOOK_SOURCES;
+  let storedNotebookSourcesUnknown = false;
+  if (actualThreadId && !isNewThread) {
+    try {
+      storedNotebookSources = await getThreadNotebookSources(actualThreadId, userId);
+    } catch (err) {
+      storedNotebookSourcesUnknown = true;
+      log.warn('[StreamContext] Could not read thread notebook sources (continuing):', err);
+    }
+  }
+  const threadNotebookSources = mergeThreadNotebookSources(
+    storedNotebookSources,
+    pickedNotebookSources
+  );
+  let notebookSources: ResolvedNotebookSource[] = [];
+  let keptNotebookSources = threadNotebookSources;
+  if (threadNotebookSources.length > 0) {
+    let checks: NotebookSourceCheck[] | null = null;
+    if (pickedNotebookChecks) {
+      try {
+        const byKey = new Map(pickedNotebookChecks.map((c) => [notebookSourceKey(c.ref), c]));
+        const unchecked = threadNotebookSources.filter((r) => !byKey.has(notebookSourceKey(r)));
+        const more = await withTimeout(
+          resolveNotebookSources(unchecked, userId),
+          EXTERNAL_CONTEXT_TIMEOUT_MS,
+          'notebook source check'
+        );
+        for (const c of more) byKey.set(notebookSourceKey(c.ref), c);
+        checks = threadNotebookSources.flatMap((r) => {
+          const c = byKey.get(notebookSourceKey(r));
+          return c ? [c] : [];
+        });
+      } catch (err) {
+        log.warn('[StreamContext] Notebook source check failed (continuing):', err);
+      }
+    }
+    if (checks) {
+      notebookSources = checks.flatMap((c) => (c.source ? [c.source] : []));
+      keptNotebookSources = checks.filter((c) => c.source).map((c) => c.ref);
+      const dropped = threadNotebookSources.length - keptNotebookSources.length;
+      if (dropped > 0) {
+        log.warn(`[StreamContext] Dropped ${dropped} notebook source ref(s) for user ${userId}`);
+        sse.send('warning', {
+          code: 'notebook_sources_dropped',
+          message: `${dropped} Notebook-Dokument(e) nicht mehr verfügbar — Antwort ohne diese Dokumente.`,
+        });
+      }
+    } else {
+      sse.send('warning', {
+        code: 'notebook_sources_check_failed',
+        message: 'Notebook-Dokumente konnten nicht geprüft werden — Antwort ohne diese Dokumente.',
+      });
+    }
+  }
+  if (
+    actualThreadId &&
+    !storedNotebookSourcesUnknown &&
+    !sameThreadNotebookSources(storedNotebookSources, keptNotebookSources)
+  ) {
+    // Fire-and-forget, owner-scoped: a lost write costs the next turn its carried refs.
+    setThreadNotebookSources(actualThreadId, userId, keptNotebookSources).catch((err: unknown) =>
+      log.warn('[StreamContext] Could not store thread notebook sources:', err)
     );
   }
 
@@ -893,6 +1010,7 @@ export async function buildStreamContext({
     wolkeFiles,
     cloudConnectionCount,
     connectFiles,
+    notebookSources,
     attachedWebpageUrls: rawWebpageUrls?.length ? rawWebpageUrls : undefined,
     // When the docs editor sends a currentDocument, also surface its id as a
     // doc-mention so the existing modify_doc / summary intent paths activate

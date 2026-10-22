@@ -7,7 +7,11 @@
  * DIE Zugriffsregel: gelesen wird nur, was an diesem Turn hängt (`sources`
  * kommt aus `retrievableAttachedSources`, also derselben Auswahl wie Seed und
  * Passagensuche) UND der Person gehört (`documents.user_id`; ohne Zeile filtert
- * Qdrant nach der user_id). Das Modell nennt höchstens einen Dateinamen, nie eine ID.
+ * Qdrant nach der user_id). Ausnahme: aus dem Notebook-Reader übergebene
+ * Dokumente hat `streamContext` in diesem Turn mit den Regeln des Readers
+ * geprüft — ein fremdes wird mit der `ownerUserId` der Quelle gelesen, ein
+ * System-Dokument über `readSystemSourceText` (Standardfilter). Das Modell
+ * nennt höchstens einen Dateinamen, nie eine ID.
  */
 import { getPostgresInstance } from '../../../../database/services/PostgresService.js';
 import {
@@ -26,13 +30,21 @@ import {
   shownGrepSources,
   type ScanLoad,
 } from '../../../../services/notebook/sourceGrep.js';
+import {
+  readSystemSourceText,
+  type SystemNotebookSourcesDeps,
+} from '../../../../services/notebook/systemNotebookSources.js';
+import { resolveWolkeDisplayUrl } from '../../../../services/scrapers/utils/wolkeShareSecrets.js';
 import { pickRange } from '../../agents/notebookSourceRange.js';
 import { notExhaustiveGrep } from '../../agents/notebookSourceReadActions.js';
 
 import type { SourceRegistry } from './sourceRegistry.js';
 import type { DocumentSource, SearchResult } from '../../../../agents/langgraph/ChatGraph/types.js';
 
-export type AttachedDocDeps = Pick<NotebookSourcesDeps, 'db' | 'documentService'>;
+export type AttachedDocDeps = Pick<NotebookSourcesDeps, 'db'> & {
+  documentService: NotebookSourcesDeps['documentService'] &
+    SystemNotebookSourcesDeps['documentService'];
+};
 
 export interface AttachedDocModeArgs {
   seite?: number | undefined;
@@ -65,9 +77,14 @@ async function resolveDeps(
   return { db: partial?.db ?? getPostgresInstance(), documentService };
 }
 
+/** Aus dem Notebook-Reader übergeben und in diesem Turn schon geprüft. */
+const isHandedOver = (s: DocumentSource): boolean =>
+  s.kind === 'system_document' || s.ownerUserId !== undefined;
+
 /**
  * Die IDs unter `sources`, die gelesen werden dürfen. Mit `documents`-Zeile nur,
- * wenn sie der Person gehört. Ohne Zeile (Anhänge aus dem Fallback
+ * wenn sie der Person gehört. Übergebene Dokumente prüft diese Stelle nicht —
+ * `readAttached` liest sie auf ihrem eigenen Weg. Ohne Zeile (Anhänge aus dem Fallback
  * `embedThreadAttachmentForRag`, die nur in Qdrant liegen) liest
  * `readSourceText` bloß die Chunks — und `getDocumentChunks` filtert dort selbst
  * nach der user_id.
@@ -77,7 +94,10 @@ async function readableIds(
   sources: readonly DocumentSource[],
   db: AttachedDocDeps['db']
 ): Promise<Set<string>> {
-  const ids = sources.map((s) => s.id).filter((id) => UUID_RE.test(id));
+  const ids = sources
+    .filter((s) => !isHandedOver(s))
+    .map((s) => s.id)
+    .filter((id) => UUID_RE.test(id));
   if (ids.length === 0) return new Set();
   const rows = await db.query<{ id: string; user_id: string | null; trashed: boolean }>(
     'SELECT id, user_id, (deleted_at IS NOT NULL) AS trashed FROM documents WHERE id = ANY($1::uuid[])',
@@ -91,14 +111,25 @@ async function readableIds(
   return new Set(ids.filter((id) => !foreign.has(id)));
 }
 
+type AttachedText = Pick<SourceText, 'text' | 'chunkMap' | 'chunks'>;
+
 async function readAttached(
-  sourceId: string,
-  ownerUserId: string,
+  src: DocumentSource,
+  userId: string,
   readable: ReadonlySet<string>,
   deps: AttachedDocDeps
-): Promise<SourceText | { error: string }> {
-  if (!readable.has(sourceId)) return { error: NOT_READABLE };
-  const source = await readSourceText({ sourceId, ownerUserId }, deps);
+): Promise<AttachedText | { error: string }> {
+  if (src.kind === 'system_document') {
+    if (!src.systemDocument) return { error: NOT_READABLE };
+    const system = await readSystemSourceText(src.systemDocument, deps);
+    if ('error' in system) return { error: NOT_READABLE };
+    return system.text.trim() ? system : { error: NOT_READABLE };
+  }
+  if (src.ownerUserId === undefined && !readable.has(src.id)) return { error: NOT_READABLE };
+  const source = await readSourceText(
+    { sourceId: src.id, ownerUserId: src.ownerUserId ?? userId },
+    deps
+  );
   return source.text.trim() ? source : { error: NOT_READABLE };
 }
 
@@ -114,14 +145,16 @@ export async function loadAttachedTexts(
   const { userId, sources } = input;
   if (!userId || sources.length === 0) return { error: NONE_READABLE };
   const readable = await readableIds(userId, sources, deps.db);
-  const labelById = new Map(sources.map((s) => [s.id, s.label] as const));
+  const byId = new Map(sources.map((s) => [s.id, s] as const));
   const read = await readScanSources(
     sources.map((s) => s.id),
     async (sourceId) => {
-      const source = await readAttached(sourceId, userId, readable, deps);
+      const doc = byId.get(sourceId);
+      if (!doc) return { error: NOT_READABLE };
+      const source = await readAttached(doc, userId, readable, deps);
       if ('error' in source) return source;
       return {
-        title: labelById.get(sourceId) ?? 'Dokument',
+        title: doc.label,
         text: source.text,
         chunkMap: source.chunkMap,
       };
@@ -134,9 +167,38 @@ export async function loadAttachedTexts(
   return { sources: read.sources, exhaustive: reason === null, incompleteReason: reason };
 }
 
-function located(id: string, title: string, content: string): SearchResult {
-  return { source: `documentchat:${id}`, title, content, relevance: 1, documentSourceId: id };
+/**
+ * Was ein Beleg braucht, damit er den Reader öffnet — nur für übergebene
+ * Dokumente; alle anderen Belege bleiben, wie sie waren.
+ */
+function readerFields(doc: DocumentSource | undefined): Partial<SearchResult> {
+  if (doc?.kind === 'system_document' && doc.systemDocument) {
+    const { collection, sourceUrl } = doc.systemDocument;
+    return {
+      url: resolveWolkeDisplayUrl(sourceUrl),
+      documentId: sourceUrl,
+      collectionId: collection.key,
+    };
+  }
+  if (doc?.ownerUserId !== undefined) {
+    return { documentId: doc.id, ...(doc.notebookId ? { collectionId: doc.notebookId } : {}) };
+  }
+  return {};
 }
+
+function located(id: string, title: string, content: string, doc?: DocumentSource): SearchResult {
+  return {
+    source: `documentchat:${id}`,
+    title,
+    content,
+    relevance: 1,
+    documentSourceId: id,
+    ...readerFields(doc),
+  };
+}
+
+const sourceById = (sources: readonly DocumentSource[], id: string): DocumentSource | undefined =>
+  sources.find((s) => s.id === id);
 
 /**
  * Volltext in Scheiben (`abschnitt`), statt Ähnlichkeitssuche.
@@ -168,7 +230,7 @@ export async function readAttachedSlice(
   const readable = await readableIds(userId, sources, deps.db);
   const results: SearchResult[] = [];
   for (const doc of sources) {
-    const source = await readAttached(doc.id, userId, readable, deps);
+    const source = await readAttached(doc, userId, readable, deps);
     if ('error' in source) continue;
     const s = sliceSource(source.text, { von: input.from, zeichen: input.chars }, source.chunkMap);
     if (!s.slice) continue;
@@ -180,7 +242,7 @@ export async function readAttachedSlice(
         ? `[Zeichen ${s.from}–${s.to} von ${s.total} — weiter mit abschnitt.von=${s.to}]`
         : `[Zeichen ${s.from}–${s.to} von ${s.total} — Ende des Dokuments]`;
     results.push({
-      ...located(doc.id, doc.label, `${marker}\n\n${s.slice}`),
+      ...located(doc.id, doc.label, `${marker}\n\n${s.slice}`, doc),
       ...(s.pageRange ? { pageNumber: s.pageRange.from, pageTo: s.pageRange.to } : {}),
     });
   }
@@ -212,7 +274,7 @@ async function readPage(
   }
   if (!ctx.userId) return { error: NOT_READABLE };
   const readable = await readableIds(ctx.userId, [doc], deps.db);
-  const source = await readAttached(doc.id, ctx.userId, readable, deps);
+  const source = await readAttached(doc, ctx.userId, readable, deps);
   if ('error' in source) return source;
 
   const range = pickRange({ seite }, source.chunkMap, source.chunks, source.text);
@@ -232,7 +294,7 @@ async function readPage(
   const sources = ctx.sourceRegistry.register(
     [
       {
-        ...located(doc.id, doc.label, `${marker}\n\n${s.slice}`),
+        ...located(doc.id, doc.label, `${marker}\n\n${s.slice}`, doc),
         pageNumber: s.pageRange?.from ?? seite,
         pageTo: s.pageRange?.to ?? seite,
         charStart: s.from,
@@ -297,7 +359,12 @@ async function grepAttached(
               (c) => `${c.pageNumber !== null ? `S. ${c.pageNumber}: ` : ''}${c.text}`
             );
             return {
-              ...located(s.sourceId, s.title, `${s.count}× „${phrase}"\n${lines.join('\n…\n')}`),
+              ...located(
+                s.sourceId,
+                s.title,
+                `${s.count}× „${phrase}"\n${lines.join('\n…\n')}`,
+                sourceById(ctx.sources, s.sourceId)
+              ),
               ...(first
                 ? {
                     charStart: first.charStart,
@@ -341,7 +408,7 @@ async function citeAttached(
     const befund = out.method === 'fuzzy' ? 'ungefähr' : 'gefunden';
     const sources = reg.register([
       {
-        ...located(out.sourceId, out.title, out.context),
+        ...located(out.sourceId, out.title, out.context, sourceById(ctx.sources, out.sourceId)),
         pageNumber: out.pageNumber,
         charStart: out.charStart,
         charEnd: out.charEnd,
@@ -367,7 +434,7 @@ async function citeAttached(
   if (out.candidates.length > 0) {
     const sources = reg.register(
       out.candidates.map((c) => ({
-        ...located(c.sourceId, c.title, c.sentence),
+        ...located(c.sourceId, c.title, c.sentence, sourceById(ctx.sources, c.sourceId)),
         pageNumber: c.pageNumber,
         charStart: c.charStart,
         charEnd: c.charEnd,

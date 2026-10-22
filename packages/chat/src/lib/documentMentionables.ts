@@ -1,4 +1,4 @@
-import type { NotebookIndexingState } from '@gruenerator/contracts';
+import type { NotebookIndexingState, NotebookSourceRef } from '@gruenerator/contracts';
 
 export type DocumentSourceType = 'notebook' | 'document' | 'text';
 
@@ -109,6 +109,33 @@ export function buildDocumentMentionAttachment(doc: DocumentMention): MentionAtt
           slug: doc.slug,
           sourceType: doc.sourceType,
         },
+      },
+    ],
+  };
+}
+
+export const NOTEBOOK_SOURCE_CONTENT_TYPE = 'application/x-gruenerator-notebook-source';
+
+/**
+ * A document opened in the notebook reader, handed to the chat. Routed into
+ * `notebookSourceRefs`; the server authorizes the ref with the reader's rules
+ * and keeps it for the whole thread, so the chip only has to travel once.
+ */
+export function buildNotebookSourceAttachment(
+  ref: NotebookSourceRef,
+  title: string
+): MentionAttachment {
+  const key = 'documentId' in ref ? ref.documentId : `${ref.collectionId}:${ref.sourceUrl}`;
+  return {
+    id: `gruenerator-notebook-source-${key}`,
+    type: 'document',
+    name: title,
+    contentType: NOTEBOOK_SOURCE_CONTENT_TYPE,
+    content: [
+      {
+        type: 'data',
+        name: 'gruenerator-mention',
+        data: { kind: 'notebook-source', ref, title },
       },
     ],
   };

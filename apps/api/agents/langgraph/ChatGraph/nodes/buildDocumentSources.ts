@@ -16,6 +16,7 @@ import {
 import type {
   ChatGraphState,
   DocumentSource,
+  ResolvedNotebookSource,
   SearchIntent,
   SynthesisMode,
   WolkeFileRef,
@@ -57,6 +58,8 @@ interface BuildOpts {
   notebookIds: string[];
   wolkeFiles: WolkeFileRef[];
   connectFiles: ConnectFileRef[];
+  /** Notebook documents handed over from the reader, authorized in streamContext. */
+  notebookSources?: ResolvedNotebookSource[];
   threadAttachments: ChatGraphState['threadAttachments'];
   currentDocument: ChatGraphState['currentDocument'];
   /** documentId → Dateiname für Anhänge, die in DIESEM Turn hochgeladen wurden
@@ -153,6 +156,29 @@ export function buildDocumentSources(opts: BuildOpts): DocumentSource[] {
       label: ref.name,
       connect: ref,
     });
+  }
+
+  for (const src of opts.notebookSources ?? []) {
+    if (src.kind === 'user') {
+      // Also @-mentioned this turn: one source, the handed-over one, so the
+      // fan-out does not search the same document twice.
+      const mentioned = sources.findIndex((s) => s.kind === 'document' && s.id === src.documentId);
+      if (mentioned >= 0) sources.splice(mentioned, 1);
+      sources.push({
+        kind: 'document',
+        id: src.documentId,
+        label: src.title,
+        ownerUserId: src.ownerUserId,
+        notebookId: src.notebookId,
+      });
+    } else {
+      sources.push({
+        kind: 'system_document',
+        id: `system:${src.collection.key}:${src.sourceUrl}`,
+        label: src.title,
+        systemDocument: { collection: src.collection, sourceUrl: src.sourceUrl },
+      });
+    }
   }
 
   for (const att of opts.threadAttachments ?? []) {

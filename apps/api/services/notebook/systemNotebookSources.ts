@@ -542,13 +542,14 @@ export async function readSystemSourceText(
 
 /**
  * Die Zugehörigkeitsprüfung ohne Lesen — ein Chunk-0-Punkt mit der URL UNTER
- * dem Standardfilter der Sammlung. Für `find`/`cite claim` mit sourceId, die
- * den Text nicht brauchen; dieselbe Regel wie Schritt 1 von `readSystemSourceText`.
+ * dem Standardfilter der Sammlung, samt Titel. Für `find`/`cite claim` mit
+ * sourceId und für Chat-Verweise aus dem Reader, die den Text nicht brauchen;
+ * dieselbe Regel wie Schritt 1 von `readSystemSourceText`.
  */
-export async function checkSystemSource(
+export async function lookupSystemSource(
   input: { collection: SystemCollection; sourceUrl: string },
   deps: Pick<SystemNotebookSourcesDeps, 'scrollPage'>
-): Promise<{ error: string } | null> {
+): Promise<{ title: string } | { error: string }> {
   if (!isUrl(input.sourceUrl)) return { error: NOT_A_URL };
   const filter = applyDefaultFilter(input.collection.systemId, {
     must: [
@@ -559,9 +560,20 @@ export async function checkSystemSource(
   const page = await deps.scrollPage(input.collection.qdrantCollection, filter, {
     limit: 1,
     offset: null,
-    payload: ['source_url'],
+    payload: ['source_url', 'title'],
   });
-  return page.points.length ? null : { error: SOURCE_NOT_FOUND };
+  const point = page.points[0];
+  if (!point) return { error: SOURCE_NOT_FOUND };
+  const title = point.payload.title;
+  return { title: typeof title === 'string' && title ? title : '(ohne Titel)' };
+}
+
+export async function checkSystemSource(
+  input: { collection: SystemCollection; sourceUrl: string },
+  deps: Pick<SystemNotebookSourcesDeps, 'scrollPage'>
+): Promise<{ error: string } | null> {
+  const found = await lookupSystemSource(input, deps);
+  return 'error' in found ? found : null;
 }
 
 /**

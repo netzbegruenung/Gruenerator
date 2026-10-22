@@ -40,6 +40,7 @@ import {
   searchExamples,
   type ExampleKind,
 } from '../../../../services/examples/exampleSearchService.js';
+import { resolveWolkeDisplayUrl } from '../../../../services/scrapers/utils/wolkeShareSecrets.js';
 import {
   crawlAndDistill,
   type CrawlableResult,
@@ -932,6 +933,37 @@ export async function executeMultiDocFanout(
           // mitgeführten und frischen Treffer nur am Inhaltsanfang — und der
           // wechselt mit jeder Anfrage.
           documentId: r.document_id || src.id,
+          // Handed over from a shared notebook: the reader opens a
+          // collaborator's document only through that notebook.
+          ...(src.notebookId ? { collectionId: src.notebookId } : {}),
+          documentSourceId: src.id,
+        }));
+        return [src.id, results];
+      }
+
+      if (src.kind === 'system_document' && src.systemDocument) {
+        const { collection, sourceUrl } = src.systemDocument;
+        collections.add(collection.key);
+        const [{ findSystemPassages }, { rerankNotebookResults }] = await Promise.all([
+          import('../../../../services/notebook/systemNotebookSources.js'),
+          import('../../../../services/notebook/rerankNotebookResults.js'),
+        ]);
+        // Scoped to the URL AND the collection's default filter — the same
+        // membership rule the reader applied when the ref was authorized.
+        const { passages } = await findSystemPassages(
+          { collection, query, sourceUrl, mode: 'hybrid', limit: perSourceLimit, rerank: false },
+          { documentService: documentSearchService, rerank: rerankNotebookResults }
+        );
+        const results: SearchResult[] = passages.map((p) => ({
+          source: 'notebook',
+          title: p.title || src.label,
+          content: p.text,
+          url: resolveWolkeDisplayUrl(sourceUrl),
+          relevance: p.score,
+          documentId: sourceUrl,
+          chunkIndex: p.chunkIndex,
+          pageNumber: p.pageNumber,
+          collectionId: collection.key,
           documentSourceId: src.id,
         }));
         return [src.id, results];
@@ -1143,10 +1175,16 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         s.kind === 'doc_mention' ||
         s.kind === 'notebook' ||
         s.kind === 'wolke' ||
-        s.kind === 'connect'
+        s.kind === 'connect' ||
+        s.kind === 'system_document'
     );
     const hasWolke = retrievableDocSources.some((s) => s.kind === 'wolke');
     const hasConnect = retrievableDocSources.some((s) => s.kind === 'connect');
+    // Reader hand-overs are not in `documentIds`, so the single-source path
+    // below would never retrieve them — they always fan out, like @wolke.
+    const hasNotebookSource = retrievableDocSources.some(
+      (s) => s.kind === 'system_document' || s.ownerUserId !== undefined
+    );
 
     // Multi-document fan-out: when the user references ≥2 retrievable doc sources,
     // run a doc-scoped retrieval per source so each gets its own evidence budget.
@@ -1154,7 +1192,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
     // Wolke sources always fan out (single or multiple) because they have no single-source
     // retrieval path in the `case 'search'` block — they're only fetched via retrieveWolkeFile.
     // Connect (Nango) sources behave identically — fetched only via retrieveConnectFile.
-    if (retrievableDocSources.length >= 2 || hasWolke || hasConnect) {
+    if (retrievableDocSources.length >= 2 || hasWolke || hasConnect || hasNotebookSource) {
       const query = truncateQuery(searchQuery || '');
       log.info(
         `[Search] Multi-doc fan-out across ${retrievableDocSources.length} sources: ${retrievableDocSources.map((s) => `${s.kind}:${s.id.slice(0, 8)}`).join(', ')}`
