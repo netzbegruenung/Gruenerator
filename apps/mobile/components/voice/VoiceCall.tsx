@@ -1,5 +1,5 @@
 import { useAui, useVoiceControls, useVoiceState } from '@assistant-ui/react-native';
-import { TOOL_LABEL, type ToolCall } from '@gruenerator/voice/mistral';
+import { CREATING_TOOLS, TOOL_LABEL, type ToolCall } from '@gruenerator/voice/mistral';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useEffect, useEffectEvent, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -150,11 +150,26 @@ export function VoiceCallOverlay() {
         runOnJS(setShowChat)(target === 1);
       });
 
-  const toggle = () => {
-    const next = !showChat;
-    progress.value = withSpring(next ? 1 : 0, SNAP);
-    setShowChat(next);
+  const show = (chat: boolean) => {
+    progress.value = withSpring(chat ? 1 : 0, SNAP);
+    setShowChat(chat);
   };
+  const toggle = () => show(!showChat);
+
+  // Something is being created: step aside so its card is seen arriving in the
+  // chat. Only this way — the person swipes back to the big blob themselves.
+  const stepAside = useEffectEvent(() => {
+    if (!showChat) show(true);
+  });
+  useEffect(
+    () =>
+      useVoiceCallStore.subscribe((state, prev) => {
+        if (state.tool !== prev.tool && state.tool && CREATING_TOOLS.has(state.tool.name)) {
+          stepAside();
+        }
+      }),
+    []
+  );
 
   const coverStyle = useAnimatedStyle(() => ({ opacity: 1 - progress.value }));
   const blobStyle = useAnimatedStyle(() => {
