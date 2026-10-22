@@ -24,6 +24,7 @@ import {
   CardGrid,
   DismissableBanner,
 } from '@gruenerator/ui';
+import { useQueryClient } from '@tanstack/react-query';
 import { lazy, Suspense, useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { FiChevronDown, FiChevronUp, FiFile, FiPlus, FiUsers } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
@@ -33,8 +34,10 @@ import { SHOW_SHAREPIC_STUDIO } from '../../config/featureFlags';
 import { OFFICE_SUITE_TOOLS, filterWorkplaceTools } from '../../config/workplaceToolsConfig';
 import { useBoardsTyped } from '../../hooks/useBoardsTyped';
 import { useFirstName } from '../../hooks/useFirstName';
+import { useAuthStore } from '../../stores/authStore';
 import { boardTemplates, getBoardTemplate } from '../boards/boardTemplates';
 import { useFeatureIndex } from '../global-search/useFeatureIndex';
+import { seedCanvasQuery } from '../image-studio/canvasQuery';
 import { openSharepicCreator } from '../image-studio/freitext/openSharepicCreator';
 import {
   getPresentationTemplate,
@@ -47,6 +50,7 @@ import { OFFICE_PILL_ROW, OfficeActionPill } from '../workplace/components/Tools
 import { WorkplaceHero } from '../workplace/components/WorkplaceHero';
 
 import { BoardCard, type BoardCardBoard } from './BoardCard';
+import { createSlideDeck } from './createSlideDeck';
 import { webAppDocsAdapter } from './docsAdapter';
 import {
   DocsComposer,
@@ -154,6 +158,8 @@ export function DocumentsContent({
 }) {
   const adapter = useDocsAdapter();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const locale = useAuthStore((s) => s.locale);
   const firstName = useFirstName();
   const featureIndex = useFeatureIndex();
   // A sharepic request goes to the creator, which speaks both corporate designs.
@@ -417,15 +423,13 @@ export function DocumentsContent({
 
   const handleCreatePresentation = useCallback(async () => {
     try {
-      const newDoc = await createDocumentMutation.mutateAsync({
-        title: 'Neue Präsentation',
-        documentSubtype: 'presentations',
-      });
-      adapter.navigateToDocument(newDoc.id);
+      const deck = await createSlideDeck(locale);
+      seedCanvasQuery(queryClient, deck);
+      void navigate(`/studio/canvas/${deck.id}`);
     } catch (err) {
       console.error('Failed to create presentation:', err);
     }
-  }, [createDocumentMutation, adapter]);
+  }, [locale, queryClient, navigate]);
 
   const handleCreatePresentationFromTemplate = useCallback(
     async (templateId: string) => {
