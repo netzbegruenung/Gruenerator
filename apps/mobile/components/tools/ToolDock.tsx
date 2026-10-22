@@ -1,3 +1,4 @@
+import { toolIconKey } from '@gruenerator/shared/icons';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import * as Haptics from 'expo-haptics';
 import { useRouter, type Href } from 'expo-router';
@@ -24,8 +25,10 @@ import { MenuIcon } from '../icons/WebMirrorIcons';
 
 import { isLinkTool, type WorkplaceTool } from './toolsConfig';
 
-/** Tools in the dock itself; the rest sit behind „Weitere". */
-const DOCKED = 3;
+/** Tools in the dock's first row. */
+const COLUMNS = 4;
+/** Tools in the second row, before „Weitere"; the rest sit behind it. */
+const SECOND_ROW = COLUMNS - 1;
 // The dock grows with the screen within a range: a phone gets tiles worth
 // tapping, a tablet does not get dinner plates.
 const BOX_SHARE = 0.78;
@@ -35,8 +38,8 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), h
 const FAVORITE_ACTION = 'favorite';
 
 /**
- * The Arbeiten tab's tools as one row of icons: the first three (favourites
- * first, the caller sorts), then „Weitere" for the rest in a sheet. A
+ * The Arbeiten tab's tools as two rows of icons: four on top (favourites
+ * first, the caller sorts), three below and „Weitere" for the rest in a sheet. A
  * horizontal strip of large tiles hid three of five tools off screen and fought
  * the workplace pager for every drag; a row that fits needs neither.
  *
@@ -52,13 +55,20 @@ export function ToolDock({ tools }: { tools: WorkplaceTool[] }) {
   const toggleFavorite = useToolFavoritesStore((s) => s.toggleFavorite);
   const [moreOpen, setMoreOpen] = useState(false);
   const { contentWidth } = useLayout();
-  const box = Math.round(clamp((contentWidth / (DOCKED + 1)) * BOX_SHARE, BOX_MIN, BOX_MAX));
+  const box = Math.round(clamp((contentWidth / COLUMNS) * BOX_SHARE, BOX_MIN, BOX_MAX));
   const glyph = Math.round(box * 0.48);
   const boxStyle = { width: box, height: box, borderRadius: Math.round(box * 0.3) };
   const labelStyle = { fontSize: clamp(box / 5, 12, 14), maxWidth: box + spacing.medium };
 
-  const docked = tools.slice(0, DOCKED);
-  const more = tools.slice(DOCKED);
+  const first = tools.slice(0, COLUMNS);
+  const second = tools.slice(COLUMNS, COLUMNS + SECOND_ROW);
+  const more = tools.slice(COLUMNS + SECOND_ROW);
+  const moreTone = getToolTheme('weitere', isDark);
+  // Empty slots keep both rows on one grid when a row is short.
+  const filler = (count: number) =>
+    Array.from({ length: Math.max(count, 0) }, (_, i) => (
+      <View key={`gap-${i}`} style={styles.slot} />
+    ));
 
   // A link is a public page, not a tool of one's own: it opens in the in-app
   // browser and cannot be starred into the dock.
@@ -75,23 +85,70 @@ export function ToolDock({ tools }: { tools: WorkplaceTool[] }) {
     toggleFavorite(tool.id);
   };
 
+  const renderTile = (tool: WorkplaceTool) => {
+    const tone = getToolTheme(tool.id, isDark);
+    return (
+      <Pressable
+        key={tool.id}
+        onPress={() => open(tool)}
+        onLongPress={() => toggle(tool)}
+        accessibilityRole="button"
+        accessibilityLabel={tool.title}
+        accessibilityHint={tool.description}
+        accessibilityActions={[{ name: FAVORITE_ACTION, label: favoriteLabel(tool) }]}
+        onAccessibilityAction={(e) => {
+          if (e.nativeEvent.actionName === FAVORITE_ACTION) toggle(tool);
+        }}
+        style={styles.slot}
+      >
+        {({ pressed }) => (
+          <>
+            <View
+              style={[
+                styles.iconBox,
+                boxStyle,
+                { backgroundColor: tone.tile, transform: [{ scale: pressed ? 0.94 : 1 }] },
+              ]}
+            >
+              <MenuIcon name={tool.icon} size={glyph} color={tone.icon} />
+              {favorites.includes(tool.id) ? (
+                <Ionicons
+                  name="star"
+                  size={12}
+                  color={colors.secondary[500]}
+                  style={styles.badge}
+                />
+              ) : null}
+            </View>
+            <Text
+              style={[styles.label, labelStyle, { color: theme.text }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
+            >
+              {tool.title}
+            </Text>
+          </>
+        )}
+      </Pressable>
+    );
+  };
+
   return (
     <>
       <View style={styles.dock}>
-        {docked.map((tool) => {
-          const tone = getToolTheme(tool.id, isDark);
-          return (
+        {first.map(renderTile)}
+        {filler(COLUMNS - first.length)}
+      </View>
+      {second.length > 0 ? (
+        <View style={[styles.dock, styles.secondRow]}>
+          {second.map(renderTile)}
+          {more.length > 0 ? (
             <Pressable
-              key={tool.id}
-              onPress={() => open(tool)}
-              onLongPress={() => toggle(tool)}
+              onPress={() => setMoreOpen(true)}
               accessibilityRole="button"
-              accessibilityLabel={tool.title}
-              accessibilityHint={tool.description}
-              accessibilityActions={[{ name: FAVORITE_ACTION, label: favoriteLabel(tool) }]}
-              onAccessibilityAction={(e) => {
-                if (e.nativeEvent.actionName === FAVORITE_ACTION) toggle(tool);
-              }}
+              accessibilityLabel="Weitere Werkzeuge"
+              accessibilityHint={more.map((t) => t.title).join(', ')}
               style={styles.slot}
             >
               {({ pressed }) => (
@@ -100,18 +157,13 @@ export function ToolDock({ tools }: { tools: WorkplaceTool[] }) {
                     style={[
                       styles.iconBox,
                       boxStyle,
-                      { backgroundColor: tone.tile, transform: [{ scale: pressed ? 0.94 : 1 }] },
+                      {
+                        backgroundColor: moreTone.tile,
+                        transform: [{ scale: pressed ? 0.94 : 1 }],
+                      },
                     ]}
                   >
-                    <MenuIcon name={tool.icon} size={glyph} color={tone.icon} />
-                    {favorites.includes(tool.id) ? (
-                      <Ionicons
-                        name="star"
-                        size={12}
-                        color={colors.secondary[500]}
-                        style={styles.badge}
-                      />
-                    ) : null}
+                    <MenuIcon name={toolIconKey('weitere')} size={glyph} color={moreTone.icon} />
                   </View>
                   <Text
                     style={[styles.label, labelStyle, { color: theme.text }]}
@@ -119,52 +171,16 @@ export function ToolDock({ tools }: { tools: WorkplaceTool[] }) {
                     adjustsFontSizeToFit
                     minimumFontScale={0.8}
                   >
-                    {tool.title}
+                    Weitere
                   </Text>
                 </>
               )}
             </Pressable>
-          );
-        })}
-        {more.length > 0 ? (
-          <Pressable
-            onPress={() => setMoreOpen(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Weitere Werkzeuge"
-            accessibilityHint={more.map((t) => t.title).join(', ')}
-            style={styles.slot}
-          >
-            {({ pressed }) => (
-              <>
-                <View
-                  style={[
-                    styles.iconBox,
-                    boxStyle,
-                    {
-                      backgroundColor: isDark ? colors.grey[800] : colors.grey[100],
-                      transform: [{ scale: pressed ? 0.94 : 1 }],
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name="grid-outline"
-                    size={Math.round(glyph * 0.92)}
-                    color={theme.text}
-                  />
-                </View>
-                <Text
-                  style={[styles.label, labelStyle, { color: theme.text }]}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.8}
-                >
-                  Weitere
-                </Text>
-              </>
-            )}
-          </Pressable>
-        ) : null}
-      </View>
+          ) : (
+            filler(COLUMNS - second.length)
+          )}
+        </View>
+      ) : null}
 
       <BottomSheet visible={moreOpen} onClose={() => setMoreOpen(false)} padded>
         <Text accessibilityRole="header" style={[styles.sheetTitle, { color: theme.text }]}>
@@ -231,6 +247,7 @@ export function ToolDock({ tools }: { tools: WorkplaceTool[] }) {
 
 const styles = StyleSheet.create({
   dock: { flexDirection: 'row', justifyContent: 'space-between' },
+  secondRow: { marginTop: spacing.medium },
   slot: { flex: 1, alignItems: 'center', gap: spacing.xsmall },
   iconBox: { alignItems: 'center', justifyContent: 'center' },
   badge: { position: 'absolute', top: 5, right: 5 },

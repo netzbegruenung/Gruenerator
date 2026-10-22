@@ -1,16 +1,16 @@
 import { landesverbandCoverForNotebook } from '@gruenerator/shared/marketplace';
 
-import photoBayern from '../assets/landesverbaende/bayern-v1-card-480.webp';
-import photoBerlin from '../assets/landesverbaende/berlin-v1-card-480.webp';
-import photoBrandenburg from '../assets/landesverbaende/brandenburg-v1-card-480.webp';
-import photoHamburg from '../assets/landesverbaende/hamburg-v1-card-480.webp';
-import photoHessen from '../assets/landesverbaende/hessen-v1-card-480.webp';
-import photoMecklenburgVorpommern from '../assets/landesverbaende/mecklenburg-vorpommern-v1-card-480.webp';
-import photoOesterreich from '../assets/landesverbaende/oesterreich-v1-card-480.webp';
-import photoSaarland from '../assets/landesverbaende/saarland-v1-card-480.webp';
-import photoSachsenAnhalt from '../assets/landesverbaende/sachsen-anhalt-v1-card-480.webp';
-import photoSchleswigHolstein from '../assets/landesverbaende/schleswig-holstein-v1-card-480.webp';
-import photoThueringen from '../assets/landesverbaende/thueringen-v1-card-480.webp';
+import photoBayern from '../../web/public/images/marketplace/landesverbaende/bayern-v1-card-480.webp';
+import photoBerlin from '../../web/public/images/marketplace/landesverbaende/berlin-v1-card-480.webp';
+import photoBrandenburg from '../../web/public/images/marketplace/landesverbaende/brandenburg-v1-card-480.webp';
+import photoHamburg from '../../web/public/images/marketplace/landesverbaende/hamburg-v1-card-480.webp';
+import photoHessen from '../../web/public/images/marketplace/landesverbaende/hessen-v1-card-480.webp';
+import photoMecklenburgVorpommern from '../../web/public/images/marketplace/landesverbaende/mecklenburg-vorpommern-v1-card-480.webp';
+import photoOesterreich from '../../web/public/images/marketplace/landesverbaende/oesterreich-v1-card-480.webp';
+import photoSaarland from '../../web/public/images/marketplace/landesverbaende/saarland-v1-card-480.webp';
+import photoSachsenAnhalt from '../../web/public/images/marketplace/landesverbaende/sachsen-anhalt-v1-card-480.webp';
+import photoSchleswigHolstein from '../../web/public/images/marketplace/landesverbaende/schleswig-holstein-v1-card-480.webp';
+import photoThueringen from '../../web/public/images/marketplace/landesverbaende/thueringen-v1-card-480.webp';
 
 /**
  * The Marktplatz card photo of each Landesverband, bundled rather than loaded
@@ -33,8 +33,13 @@ const PHOTOS: Record<string, number> = {
   'thueringen-v1': photoThueringen,
 };
 
+/** The bundled photo of a Marktplatz cover (`cover.file`), `null` when none is bundled. */
+export function getLandesverbandPhotoByFile(file: string): number | null {
+  return PHOTOS[file] ?? null;
+}
+
 /** The bundled photo of a Landesverband notebook, `null` for any other notebook. */
 export function getLandesverbandPhoto(notebookId: string): number | null {
   const cover = landesverbandCoverForNotebook(notebookId);
-  return cover ? (PHOTOS[cover.file] ?? null) : null;
+  return cover ? getLandesverbandPhotoByFile(cover.file) : null;
 }
