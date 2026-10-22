@@ -6,11 +6,12 @@ export type CanvasFormatCategory = 'digital' | 'print';
  * The square belongs to the profile picture alone. `print` is not one of the
  * studio groups (see CANVAS_FORMAT_GROUP_ORDER).
  */
-export type CanvasFormatGroup = 'sharepic' | 'sharepic-tall' | 'profilbild' | 'print';
+export type CanvasFormatGroup =
+  'sharepic' | 'sharepic-tall' | 'profilbild' | 'praesentation' | 'print';
 
 export type CanvasFormatIconKey = 'portrait' | 'square' | 'landscape';
 
-export type CanvasExportType = 'png' | 'jpeg' | 'pdf';
+export type CanvasExportType = 'png' | 'jpeg' | 'pdf' | 'pptx';
 
 /** Print profile of a format. The canvas covers trim + bleed on every side. */
 export interface CanvasPrintSpec {
@@ -51,6 +52,7 @@ export const CANVAS_FORMAT_GROUP_LABEL: Record<CanvasFormatGroup, string> = {
   sharepic: 'Sharepics',
   'sharepic-tall': 'Sharepics 3:4',
   profilbild: 'Profilbild',
+  praesentation: 'Präsentationen',
   print: 'Print',
 };
 
@@ -59,6 +61,7 @@ export const CANVAS_FORMAT_GROUP_ORDER: ReadonlyArray<CanvasFormatGroup> = [
   'sharepic',
   'sharepic-tall',
   'profilbild',
+  'praesentation',
 ];
 
 const PRINT_BLEED_MM = 3;
@@ -139,6 +142,21 @@ export const CANVAS_FORMATS: ReadonlyArray<CanvasFormat> = [
     exportable: ['png', 'jpeg'],
     print: null,
   },
+  // ── Präsentation ─────────────────────────────────────────────────────────
+  {
+    id: 'slide-16-9',
+    label: 'Präsentation',
+    description: '1920 × 1080 · 16:9 · Folien',
+    group: 'praesentation',
+    category: 'digital',
+    width: 1920,
+    height: 1080,
+    dpi: 72,
+    iconKey: 'landscape',
+    defaultExport: 'pptx',
+    exportable: ['pptx', 'pdf', 'png'],
+    print: null,
+  },
   // ── Print ────────────────────────────────────────────────────────────────
   printFormat('print-visitenkarte-quer', 'Visitenkarte quer', { w: 85, h: 55 }, 3, 2),
   printFormat('print-visitenkarte-hoch', 'Visitenkarte hoch', { w: 55, h: 85 }, 3, 2),
@@ -217,6 +235,11 @@ export function pinnedFormatId(templateId: string): string | null {
 
 export function getCanvasFormat(id: string): CanvasFormat | null {
   return CANVAS_FORMATS.find((f) => f.id === id) ?? null;
+}
+
+/** Die eine Stelle, die beantwortet: ist das eine Präsentation? */
+export function isSlideFormat(format: CanvasFormat): boolean {
+  return format.group === 'praesentation';
 }
 
 export function isPrintFormat(format: CanvasFormat): format is PrintCanvasFormat {

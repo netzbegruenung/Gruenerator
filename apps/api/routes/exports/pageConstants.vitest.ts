@@ -5,6 +5,15 @@ import { CANVAS_FORMATS } from '../../../../packages/canvas-editor/src/formats/i
 import { crossesFormatCategory, formatCategory, SERVER_FORMATS } from './pageConstants.js';
 
 describe('SERVER_FORMATS', () => {
+  it('knows the slide format as digital 1920 × 1080', () => {
+    expect(SERVER_FORMATS['slide-16-9']).toMatchObject({
+      category: 'digital',
+      width: 1920,
+      height: 1080,
+      print: null,
+    });
+  });
+
   it('mirrors the canvas-editor format registry', () => {
     expect(SERVER_FORMATS).toEqual(
       Object.fromEntries(
@@ -42,6 +51,7 @@ describe('SERVER_FORMATS', () => {
 
 describe('formatCategory', () => {
   it.each([
+    ['slide-16-9', 'digital'],
     ['post-portrait', 'digital'],
     ['print-a3-hoch', 'print'],
     // An unknown print id from a newer client is still print; legacy ids are digital.

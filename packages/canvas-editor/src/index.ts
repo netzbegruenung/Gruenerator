@@ -61,6 +61,7 @@ export {
   getCanvasFormat,
   getCanvasFormatOrDefault,
   isPrintFormat,
+  isSlideFormat,
   isUnsupportedFormatId,
   mmToPx,
   printGeometry,

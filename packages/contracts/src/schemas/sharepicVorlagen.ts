@@ -182,6 +182,7 @@ export const sharepicBlockSpec = (
 export const canvasFormatIdSchema = z.enum([
   ...sharepicFormatSchema.options,
   'profile-square',
+  'slide-16-9',
   ...printFormatIdSchema.options,
 ]);
 export type CanvasFormatId = z.infer<typeof canvasFormatIdSchema>;
