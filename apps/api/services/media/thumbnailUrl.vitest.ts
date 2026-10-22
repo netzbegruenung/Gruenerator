@@ -129,7 +129,7 @@ describe('thumbnailUrl', () => {
     it.each([
       ['an upload page URL', '/share/tok'],
       ['an upload download URL', '/api/share/tok/download'],
-      ['a remote image', 'https://static.canva.com/og.png'],
+      ['a remote image', 'https://example.org/og.png'],
     ])('mints a signed 400px tile for %s', (_label, stored) => {
       const url = buildStoredImageTileUrl('template', 'tpl-id', stored) as string;
       const { path, params } = parse(url);
@@ -147,6 +147,8 @@ describe('thumbnailUrl', () => {
       ['nothing', null],
       ['a data URL', 'data:image/png;base64,AAAA'],
       ['a stray path', '/images/logo.png'],
+      // Cloudflare challenges our server; the browser loads it fine.
+      ['a Canva preview', 'https://www.canva.com/design/DAGxpyxRHwI/tq9NidZ_LANOvdCfUGcI8g/screen'],
     ])('mints nothing for %s, so the list keeps its raw URL', (_label, stored) => {
       expect(buildStoredImageTileUrl('template', 'tpl-id', stored)).toBeNull();
     });
