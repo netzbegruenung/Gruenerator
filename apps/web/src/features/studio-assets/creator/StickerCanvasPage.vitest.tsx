@@ -38,6 +38,7 @@ vi.mock('@gruenerator/canvas-editor', () => ({
   }) => {
     useImperativeHandle(exportApiRef, () => ({
       captureActivePage: capture,
+      capturePages: () => Promise.resolve([]),
       getPages: () => [{ configId: 'sticker', state: { additionalTexts: [] } }],
       undo: () => {},
       redo: () => {},

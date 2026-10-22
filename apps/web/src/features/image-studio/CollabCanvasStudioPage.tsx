@@ -1,5 +1,7 @@
 import {
   commitOpenTextEdit,
+  getCanvasFormatOrDefault,
+  isSlideFormat,
   useCanvasCollaboration,
   MasterCanvasEditor,
   parseInitialPages,
@@ -15,7 +17,7 @@ import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { EditableTitle } from '@gruenerator/shared/components/EditableTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { PiArrowLeft, PiCheck } from 'react-icons/pi';
+import { PiArrowLeft, PiCheck, PiPresentationChart } from 'react-icons/pi';
 import { useParams, useSearchParams } from 'react-router-dom';
 
 import { DottedBackground } from '../../components/common/DottedBackground';
@@ -32,6 +34,7 @@ import { useTourAutostart } from '../tours/useTourAutostart';
 import { ExportCanvasVorlageButton } from '../vorlagen/components/ExportCanvasVorlageButton';
 
 import { CanvasChatDocContext } from './CanvasChatDocContext';
+import { CanvasPresentMode } from './CanvasPresentMode';
 import { canvasQueryOptions } from './canvasQuery';
 import { updateCanvasThumbnail } from './services/canvasThumbnailService';
 import { useNativeEditorChrome } from './useNativeEditorChrome';
@@ -63,6 +66,7 @@ function CollabCanvasStudioContent() {
   const config = useCollaborationConfig();
   const [shareOpen, setShareOpen] = useState(false);
   const exportApi = useRef<CanvasEditorExportApi>(null);
+  const [presenting, setPresenting] = useState(false);
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
   // Einmal geöffnet bleiben die Dialoge gemountet, damit ihre Schließ-Animation läuft.
   const [shareMounted, setShareMounted] = useState(false);
@@ -312,6 +316,16 @@ function CollabCanvasStudioContent() {
       {canvas && canEdit && !sharepicFormatSchema.safeParse(canvas.format).success ? (
         <ExportCanvasVorlageButton exportApi={exportApi} formatId={canvas.format} />
       ) : null}
+      {canvas && isSlideFormat(getCanvasFormatOrDefault(canvas.format)) ? (
+        <button
+          type="button"
+          onClick={() => setPresenting(true)}
+          className="flex items-center gap-1.5 rounded-[10px] border-none bg-white/15 px-3 h-[34px] text-sm font-medium text-white cursor-pointer hover:bg-white/25"
+        >
+          <PiPresentationChart size={16} aria-hidden="true" />
+          Präsentieren
+        </button>
+      ) : null}
       <PresenceAvatars collaborators={collaborators} compact />
     </div>
   );
@@ -398,6 +412,9 @@ function CollabCanvasStudioContent() {
           </div>
           {/* Lazy und erst beim ersten Öffnen gemountet: der Share-Dialog zieht
               den Docs-Editor (BlockNote) nach, den der Canvas sonst nie braucht. */}
+          {presenting && (
+            <CanvasPresentMode exportApi={exportApi} onClose={() => setPresenting(false)} />
+          )}
           <Suspense fallback={null}>
             {shareMounted && (
               <ShareCanvasDialog
