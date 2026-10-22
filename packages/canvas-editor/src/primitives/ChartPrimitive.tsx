@@ -14,7 +14,12 @@ import { createRoot } from 'react-dom/client';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
-import { chartSeriesOutlines, type ChartInstance } from '../utils/chartUtils';
+import {
+  CHART_INK_DARK,
+  chartInk,
+  chartSeriesOutlines,
+  type ChartInstance,
+} from '../utils/chartUtils';
 import { useTrackPendingImage } from '../utils/pendingImages';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
 
@@ -29,7 +34,7 @@ export interface ChartPrimitiveProps {
   draggable?: boolean;
 }
 
-const AXIS_TICK = { fontSize: 13, fill: '#40403f' };
+const AXIS_TICK = { fontSize: 13, fill: CHART_INK_DARK };
 /** Value labels stay dark, because in a light series colour they would vanish on white. */
 const VALUE_LABEL = { fill: AXIS_TICK.fill, fontSize: 14, fontWeight: 700 };
 /** A light series' outline, in px on the canvas whatever the chart's scale. */
@@ -74,6 +79,10 @@ export function buildChartElement(recharts: any, chart: ChartInstance) {
   } = recharts;
   const { width, height, data, colors, chartType, showGrid, showLegend, showValues } = chart;
   const color = (i: number) => colors[i % colors.length];
+  // Auf dunklem Grund (Folie in Tanne) stehen Achsen, Legende und Werte weiß.
+  const ink = chartInk(chart);
+  const tick = { ...AXIS_TICK, fill: ink };
+  const valueLabel = { ...VALUE_LABEL, fill: ink };
   const outlines = chartSeriesOutlines(chart);
   const outline = (i: number) => {
     const stroke = outlines[i % colors.length];
@@ -133,7 +142,7 @@ export function buildChartElement(recharts: any, chart: ChartInstance) {
                     y={p.y}
                     textAnchor={p.textAnchor}
                     dominantBaseline="central"
-                    {...VALUE_LABEL}
+                    {...valueLabel}
                   >
                     {showLegend ? formatValue(p.value) : `${p.name} ${formatValue(p.value)}`}
                   </text>
@@ -150,7 +159,7 @@ export function buildChartElement(recharts: any, chart: ChartInstance) {
             {data.map((d, i) => (
               <g key={i} transform={`translate(${pieWidth + 8}, ${legendTop + i * legendRow})`}>
                 <rect width={14} height={14} y={3} rx={3} fill={color(i)} {...outline(i)} />
-                <text x={22} y={10} dominantBaseline="central" {...AXIS_TICK}>
+                <text x={22} y={10} dominantBaseline="central" {...tick}>
                   {d.name}
                 </text>
               </g>
@@ -175,7 +184,7 @@ export function buildChartElement(recharts: any, chart: ChartInstance) {
           isAnimationActive={false}
         >
           {showValues ? (
-            <LabelList dataKey="value" formatter={formatValue} {...VALUE_LABEL} position="top" />
+            <LabelList dataKey="value" formatter={formatValue} {...valueLabel} position="top" />
           ) : null}
         </Area>
       ) : (
@@ -188,7 +197,7 @@ export function buildChartElement(recharts: any, chart: ChartInstance) {
           isAnimationActive={false}
         >
           {showValues ? (
-            <LabelList dataKey="value" formatter={formatValue} {...VALUE_LABEL} position="top" />
+            <LabelList dataKey="value" formatter={formatValue} {...valueLabel} position="top" />
           ) : null}
         </Line>
       );
@@ -199,12 +208,12 @@ export function buildChartElement(recharts: any, chart: ChartInstance) {
         {/* Inset the first and last point: their value labels otherwise sit on the y-axis ticks. */}
         <XAxis
           dataKey="name"
-          tick={AXIS_TICK}
+          tick={tick}
           tickLine={false}
           axisLine={{ stroke: '#c8c8c7' }}
           padding={{ left: 28, right: 28 }}
         />
-        <YAxis tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: '#c8c8c7' }} width={40} />
+        <YAxis tick={tick} tickLine={false} axisLine={{ stroke: '#c8c8c7' }} width={40} />
         {series}
       </Wrapper>
     );
@@ -237,11 +246,11 @@ export function buildChartElement(recharts: any, chart: ChartInstance) {
       ) : null}
       {horizontal ? (
         <>
-          <XAxis type="number" tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: '#c8c8c7' }} />
+          <XAxis type="number" tick={tick} tickLine={false} axisLine={{ stroke: '#c8c8c7' }} />
           <YAxis
             type="category"
             dataKey="name"
-            tick={AXIS_TICK}
+            tick={tick}
             tickLine={false}
             axisLine={{ stroke: '#c8c8c7' }}
             width={nameWidth}
@@ -251,13 +260,8 @@ export function buildChartElement(recharts: any, chart: ChartInstance) {
         </>
       ) : (
         <>
-          <XAxis
-            dataKey="name"
-            tick={AXIS_TICK}
-            tickLine={false}
-            axisLine={{ stroke: '#c8c8c7' }}
-          />
-          <YAxis tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: '#c8c8c7' }} width={40} />
+          <XAxis dataKey="name" tick={tick} tickLine={false} axisLine={{ stroke: '#c8c8c7' }} />
+          <YAxis tick={tick} tickLine={false} axisLine={{ stroke: '#c8c8c7' }} width={40} />
         </>
       )}
       <Bar
@@ -272,7 +276,7 @@ export function buildChartElement(recharts: any, chart: ChartInstance) {
           <LabelList
             dataKey="value"
             formatter={formatValue}
-            {...VALUE_LABEL}
+            {...valueLabel}
             position={horizontal ? 'right' : 'top'}
           />
         ) : null}

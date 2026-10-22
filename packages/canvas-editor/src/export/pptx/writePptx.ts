@@ -125,6 +125,16 @@ const unitFormat = (unit: string) => `General" ${unit.replace(/["\\]/g, '')}"`;
 
 function addChart(slide: Slide, item: PptxChartItem, units: PptxUnits) {
   const colors = item.colors.flatMap((c) => parseColor(c)?.hex ?? []);
+  const ink = parseColor(item.textColor)?.hex;
+  const inkOpts = ink
+    ? {
+        catAxisLabelColor: ink,
+        valAxisLabelColor: ink,
+        legendColor: ink,
+        dataLabelColor: ink,
+        titleColor: ink,
+      }
+    : {};
   const isRound = item.chartType === 'pie' || item.chartType === 'doughnut';
   slide.addChart(
     CHART_TYPES[item.chartType],
@@ -135,6 +145,7 @@ function addChart(slide: Slide, item: PptxChartItem, units: PptxUnits) {
       w: units.inch(item.box.width),
       h: units.inch(item.box.height),
       ...(colors.length > 0 ? { chartColors: colors } : {}),
+      ...inkOpts,
       ...(item.barDir ? { barDir: item.barDir } : {}),
       ...(item.title ? { showTitle: true, title: item.title } : {}),
       showLegend: item.showLegend,

@@ -505,6 +505,7 @@ exports[`buildPptxModel — fixtures > maps a 16:9 slide with every element kind
           "showGrid": false,
           "showLegend": true,
           "showValues": true,
+          "textColor": "#40403f",
           "title": "Strommix",
           "unit": "%",
           "values": [

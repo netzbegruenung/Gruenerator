@@ -182,6 +182,7 @@ const model: PptxDeckModel = {
           showLegend: true,
           showGrid: false,
           showValues: true,
+          textColor: '#40403f',
         },
       ],
       notes: 'Begrüßung, dann zu den drei Gründen.',

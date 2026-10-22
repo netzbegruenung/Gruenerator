@@ -127,6 +127,19 @@ export function chartSeriesOutlines(
   return ratios.map((ratio) => (ratio !== null && ratio < MIN_GRAPHIC_CONTRAST ? outline : null));
 }
 
+/** Labels, ticks and legend on a light or unknown ground. */
+export const CHART_INK_DARK = '#40403f';
+
+/**
+ * The colour of a chart's own text: white where the chart sits on a dark
+ * colour (`background`), else dark grey — the default when the ground is unknown.
+ */
+export function chartInk(chart: Pick<ChartInstance, 'background'>): string {
+  const ground = chart.background ? luminance(chart.background) : null;
+  if (ground === null) return CHART_INK_DARK;
+  return contrastRatio(1, ground) > contrastRatio(0, ground) ? '#FFFFFF' : CHART_INK_DARK;
+}
+
 export const CHART_DEFAULT_WIDTH = 480;
 export const CHART_DEFAULT_HEIGHT = 320;
 

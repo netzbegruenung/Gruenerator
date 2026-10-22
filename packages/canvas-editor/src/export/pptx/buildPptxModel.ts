@@ -11,6 +11,7 @@
 
 import { carryInstanceState } from '../../configs/factory/carryInstanceState';
 import { ASSET_TARGET_SIZE } from '../../utils/canvasAssets';
+import { chartInk, type ChartInstance, type ChartType } from '../../utils/chartUtils';
 import { ICON_TARGET_SIZE, ILLUSTRATION_TARGET_SIZE } from '../../utils/motifSizes';
 import { photoStripBeside, type ShapeInstance } from '../../utils/shapes';
 
@@ -34,7 +35,6 @@ import type {
 } from './types';
 import type { AdditionalText } from '../../configs/types';
 import type { CanvasFormat } from '../../formats';
-import type { ChartInstance, ChartType } from '../../utils/chartUtils';
 import type { CircleBadgeInstance } from '../../utils/circleBadgeUtils';
 import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
 import type { ImageAdjustments, UserImageInstance } from '../../utils/userImageUtils';
@@ -461,6 +461,7 @@ function mapChart(chart: ChartInstance): PptxItem {
     showLegend: chart.showLegend,
     showGrid: chart.showGrid,
     showValues: chart.showValues,
+    textColor: chartInk(chart),
   };
 }
 

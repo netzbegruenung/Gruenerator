@@ -108,6 +108,8 @@ export interface PptxChartItem extends PptxPlaced {
   showLegend: boolean;
   showGrid: boolean;
   showValues: boolean;
+  /** Achsen, Legende, Werte und Titel (`chartInk`): weiß auf dunklem Grund. */
+  textColor: string;
 }
 
 /** Warum ein Element als Bild statt nativ in die Folie geht. */
