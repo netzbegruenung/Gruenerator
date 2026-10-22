@@ -82,10 +82,10 @@ jobs:
           LINES=$(awk -F'\t' '{s += $1} END {print s + 0}' "$RUNNER_TEMP/review-scope.tsv")
           awk -F'\t' '$2 != "removed" {print $3}' "$RUNNER_TEMP/review-scope.tsv" | sort -u > "$RUNNER_TEMP/review-files.txt"
           # Pure additions: the PR diff carries every changed line of these.
-          # The patch's last line proves a diff output reached the file's end.
+          # Their added lines, in order, are what a complete diff output must show.
           gh api --paginate "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" \
             --jq '.[] | select(.status != "removed" and .deletions == 0 and .patch != null)
-              | {file: .filename, last: (.patch | split("\n") | map(select(length > 0)) | last)}' \
+              | {file: .filename, added: (.patch | split("\n") | map(select(startswith("+"))))}' \
             | jq -s --arg skip "$SKIP_RE" 'map(select(.file | test($skip) | not))' > "$RUNNER_TEMP/review-additions.json"
           FILES=$(grep -c . "$RUNNER_TEMP/review-files.txt" || true)
 
@@ -237,10 +237,12 @@ jobs:
           # Dateinamen, keine Zeile Code.
           # Eine Datei mit reinen Ergänzungen zählt auch, wenn ein
           # Werkzeugergebnis ihren Diff vollständig zeigte: ihr eigener
-          # Abschnitt, von `+++ b/<datei>` bis zum nächsten `diff --git`, endet
-          # mit der letzten Zeile ihres Patches (#4839, ein angehängter Testblock galt
-          # dreimal als ungelesen). Ein gekürzter Diff (`| head`) reicht nicht
-          # bis dorthin, eine gleiche Zeile einer anderen Datei zählt nicht.
+          # Abschnitt, von `+++ b/<datei>` bis zum nächsten `diff --git`, trägt
+          # genau die hinzugefügten Zeilen ihres Patches, in derselben
+          # Reihenfolge (#4839, ein angehängter Testblock galt dreimal als
+          # ungelesen). Ein gekürzter Diff (`| head`) verliert Zeilen, auch wenn
+          # er auf einer gleich lautenden Zeile endet. Verglichen werden nur
+          # die `+`-Zeilen, weil `gh pr diff` die Hunks anders schneiden kann.
           # Mit Löschungen bleibt Lesen Pflicht — der Diff zeigt dann nicht,
           # was stehen bleibt.
           NEED=$(( FILES < 3 ? FILES : 3 ))
@@ -260,7 +262,7 @@ jobs:
                 | select(any($out[];
                     split("+++ b/" + $a.file + "\n")[1:][]
                     | split("\ndiff --git ")[0]
-                    | split("\n") | map(select(length > 0)) | last == $a.last))
+                    | split("\n") | map(select(startswith("+"))) == $a.added))
                 | .file' \
                 "$RUNNER_TEMP/claude-execution-output.json"
             } | sort -u \
