@@ -1,3 +1,5 @@
+import { useMediaLibrary, useMediaUpload } from '@gruenerator/shared/media-library';
+import { toast } from '@gruenerator/ui';
 import {
   createContext,
   useContext,
@@ -8,12 +10,14 @@ import {
   useState,
 } from 'react';
 
-import { useMediaLibrary, useMediaUpload } from '@gruenerator/shared/media-library';
-
-import type { ReactNode } from 'react';
 import type { MediaItem, UploadSource } from '@gruenerator/shared/media-library';
+import type { ReactNode } from 'react';
 
 const SEARCH_DEBOUNCE_MS = 300;
+// Auf dem Handy ist das Löschen eine dauerhafte 44-px-Ecke jeder Kachel, die
+// selbst Antippen-zum-Platzieren ist. Gelöscht wird deshalb erst nach diesem
+// Fenster; bis dahin ist das Bild nur ausgeblendet und „Rückgängig“ kostenlos.
+const UNDO_WINDOW_MS = 5000;
 
 interface UserUploadsContextValue {
   items: MediaItem[];
@@ -27,7 +31,8 @@ interface UserUploadsContextValue {
    * placed straight onto the canvas and must stay out of the library.
    */
   upload: (file: File, uploadSource?: UploadSource) => Promise<MediaItem | null>;
-  deleteFromLibrary: (id: string) => Promise<boolean>;
+  /** Hides the item at once and deletes it after an undo window (toast). */
+  deleteFromLibrary: (id: string) => void;
   isUploading: boolean;
   uploadProgress: number;
   uploadError: string | null;
@@ -79,14 +84,78 @@ export function UserUploadsProvider({ children }: { children: ReactNode }) {
     [uploader]
   );
 
+  const [pendingDeletes, setPendingDeletes] = useState<ReadonlySet<string>>(() => new Set());
+  const pendingTimersRef = useRef(new Map<string, number>());
+  const deleteItemRef = useRef(library.deleteItem);
+  useEffect(() => {
+    deleteItemRef.current = library.deleteItem;
+  }, [library.deleteItem]);
+
+  const unhide = useCallback((id: string) => {
+    setPendingDeletes((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }, []);
+
+  const commitDelete = useCallback(
+    (id: string) => {
+      pendingTimersRef.current.delete(id);
+      // Schlägt das Löschen fehl, taucht das Bild wieder auf.
+      void deleteItemRef.current(id).finally(() => unhide(id));
+    },
+    [unhide]
+  );
+
   const deleteFromLibrary = useCallback(
-    async (id: string): Promise<boolean> => library.deleteItem(id),
-    [library]
+    (id: string) => {
+      if (pendingTimersRef.current.has(id)) return;
+      setPendingDeletes((prev) => new Set(prev).add(id));
+      pendingTimersRef.current.set(
+        id,
+        window.setTimeout(() => commitDelete(id), UNDO_WINDOW_MS)
+      );
+      toast('Bild gelöscht', {
+        duration: UNDO_WINDOW_MS,
+        action: {
+          label: 'Rückgängig',
+          onClick: () => {
+            const timer = pendingTimersRef.current.get(id);
+            if (timer === undefined) return;
+            window.clearTimeout(timer);
+            pendingTimersRef.current.delete(id);
+            unhide(id);
+          },
+        },
+      });
+    },
+    [commitDelete, unhide]
+  );
+
+  // Editor zu, bevor das Fenster abläuft: das Löschen trotzdem ausführen.
+  useEffect(() => {
+    const timers = pendingTimersRef.current;
+    return () => {
+      for (const [id, timer] of timers) {
+        window.clearTimeout(timer);
+        void deleteItemRef.current(id);
+      }
+      timers.clear();
+    };
+  }, []);
+
+  const visibleItems = useMemo(
+    () =>
+      pendingDeletes.size === 0
+        ? library.items
+        : library.items.filter((item) => !pendingDeletes.has(item.id)),
+    [library.items, pendingDeletes]
   );
 
   const value = useMemo<UserUploadsContextValue>(
     () => ({
-      items: library.items,
+      items: visibleItems,
       isLoading: library.isLoading,
       error: library.error,
       search,
@@ -100,7 +169,7 @@ export function UserUploadsProvider({ children }: { children: ReactNode }) {
       loadMore: library.loadMore,
     }),
     [
-      library.items,
+      visibleItems,
       library.isLoading,
       library.error,
       library.pagination.hasMore,

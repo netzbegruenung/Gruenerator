@@ -424,3 +424,47 @@ input[type='number'].hide-spinner {
     -webkit-touch-callout: none;
   }
 }
+
+/* ── Horizontal scroller on mobile: fade the edge that has more content, so a
+   row without a scrollbar still says "there is more". Driven by the scroller's
+   own scroll timeline; with no overflow the timeline is inactive and nothing
+   fades. Browsers without scroll timelines simply show no fade. ── */
+@property --canvas-fade-start {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+@property --canvas-fade-end {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+@supports (animation-timeline: scroll()) {
+  .canvas-scroll-fade-x {
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 var(--canvas-fade-start),
+      #000 calc(100% - var(--canvas-fade-end)),
+      transparent
+    );
+    animation: canvas-scroll-fade-x linear both;
+    animation-timeline: scroll(self inline);
+  }
+}
+@keyframes canvas-scroll-fade-x {
+  0% {
+    --canvas-fade-start: 0px;
+    --canvas-fade-end: 24px;
+  }
+  10% {
+    --canvas-fade-start: 24px;
+  }
+  90% {
+    --canvas-fade-end: 24px;
+  }
+  100% {
+    --canvas-fade-start: 24px;
+    --canvas-fade-end: 0px;
+  }
+}

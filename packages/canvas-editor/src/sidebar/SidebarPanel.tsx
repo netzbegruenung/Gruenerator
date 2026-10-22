@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { PiX } from 'react-icons/pi';
 
 import { useIsCanvasMobile } from '../hooks/useIsCanvasMobile';
@@ -140,6 +140,32 @@ export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSideb
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
   }, [isDesktop, phase, sheetRef]);
+
+  // Like a dialog: focus goes back to what opened the sheet (its tab) once the
+  // sheet is gone — `inert` during the slide-out blurs whatever had focus inside
+  // it, which would otherwise drop focus to <body>. The opener follows tab
+  // switches: the last element focused outside the sheet while it is up.
+  const openerRef = useRef<HTMLElement | null>(null);
+  const isUp = !isDesktop && phase !== 'closed';
+  useEffect(() => {
+    if (!isUp) return;
+    const remember = (el: EventTarget | null) => {
+      if (el instanceof HTMLElement && el !== document.body && !sheetRef.current?.contains(el)) {
+        openerRef.current = el;
+      }
+    };
+    remember(document.activeElement);
+    const onFocusIn = (e: FocusEvent) => remember(e.target);
+    document.addEventListener('focusin', onFocusIn);
+    return () => document.removeEventListener('focusin', onFocusIn);
+  }, [isUp, sheetRef]);
+  useEffect(() => {
+    if (isDesktop || phase !== 'closed') return;
+    const opener = openerRef.current;
+    openerRef.current = null;
+    const active = document.activeElement;
+    if (opener?.isConnected && (!active || active === document.body)) opener.focus();
+  }, [isDesktop, phase]);
 
   if (!isDesktop) {
     if (phase === 'closed') return null;

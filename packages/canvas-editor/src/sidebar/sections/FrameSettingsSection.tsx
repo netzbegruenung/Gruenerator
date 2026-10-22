@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { FaTrash } from 'react-icons/fa';
 
 import { ACTION_BTN_DANGER, SECTION_HEADER, SECTION_TITLE } from '../sidebarStyles';
+
 import { ImageInputPicker } from './tools/ImageInputPicker';
 
 import type { FrameInstance } from '../../utils/frameUtils';
@@ -86,7 +87,7 @@ export function FrameSettingsSection({
             onChange={(e) =>
               onUpdateFrame(selectedFrame.id, { imageScale: parseFloat(e.target.value) })
             }
-            className="w-full h-[4px] appearance-none bg-editor-border-strong rounded-[2px] cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-[14px] [&::-webkit-slider-thumb]:h-[14px] [&::-webkit-slider-thumb]:bg-primary-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-[14px] [&::-moz-range-thumb]:h-[14px] [&::-moz-range-thumb]:bg-primary-600 [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:cursor-pointer"
+            className="w-full h-[4px] max-canvas-mobile:h-11 max-canvas-mobile:py-5 bg-clip-content appearance-none bg-editor-border-strong rounded-[2px] cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-[14px] [&::-webkit-slider-thumb]:h-[14px] [&::-webkit-slider-thumb]:bg-primary-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-[14px] [&::-moz-range-thumb]:h-[14px] [&::-moz-range-thumb]:bg-primary-600 [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:cursor-pointer"
           />
         </div>
       )}

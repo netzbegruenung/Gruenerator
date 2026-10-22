@@ -190,7 +190,7 @@ export function GradientTextTool({ onJumpToUploads, onPlaceImageUrl }: GradientT
               value={angle}
               onChange={(e) => setAngle(Number(e.target.value))}
               disabled={disabled}
-              className="w-full accent-primary-600 disabled:opacity-50"
+              className="w-full max-canvas-mobile:h-11 accent-primary-600 disabled:opacity-50"
             />
           </label>
         </div>

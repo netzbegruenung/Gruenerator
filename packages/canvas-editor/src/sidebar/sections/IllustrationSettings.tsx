@@ -1,9 +1,9 @@
-import { Slider } from 'radix-ui';
 import { FaTrash, FaCopy } from 'react-icons/fa';
 
 import { CustomColorSwatch } from '../../components/CustomColorSwatch';
 import { cn } from '../../utils/cn';
 import { ILLUSTRATION_COLORS } from '../../utils/illustrations/types';
+import { SidebarSlider } from '../components/SidebarSlider';
 import { ACTION_BTN, ACTION_BTN_DANGER, SECTION_HEADER, SECTION_TITLE } from '../sidebarStyles';
 
 import type {
@@ -121,24 +121,15 @@ export function IllustrationSettings({
 
       {/* Opacity slider (Both) */}
       <div className="flex flex-col gap-xs">
-        <span className="text-[length:var(--font-size-sm)] text-foreground-muted mb-xs">
-          Transparenz: {Math.round(selectedIllustration.opacity * 100)}%
-        </span>
-        <Slider.Root
-          className="slider-root"
-          value={[selectedIllustration.opacity * 100]}
-          onValueChange={([val]) =>
-            onUpdateIllustration(selectedIllustration.id, { opacity: val / 100 })
-          }
-          min={10}
-          max={100}
-          step={5}
-        >
-          <Slider.Track className="slider-track">
-            <Slider.Range className="slider-range" />
-          </Slider.Track>
-          <Slider.Thumb className="slider-thumb" />
-        </Slider.Root>
+        <SidebarSlider
+          value={selectedIllustration.opacity}
+          onValueChange={(opacity) => onUpdateIllustration(selectedIllustration.id, { opacity })}
+          min={0.1}
+          max={1}
+          step={0.05}
+          label="Transparenz"
+          unit="%"
+        />
       </div>
     </div>
   );

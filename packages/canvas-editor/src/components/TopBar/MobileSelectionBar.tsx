@@ -30,7 +30,10 @@ export function MobileSelectionBar({ onOpenArea, onDone, ...controls }: MobileSe
       className="order-2 flex-none flex items-center gap-1 h-[calc(64px+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] pl-3 pr-2 bg-[var(--editor-surface)] border-t border-[var(--editor-border)]"
     >
       <div
-        className={cn('flex flex-1 min-w-0 items-center gap-1.5 overflow-x-auto', HIDDEN_SCROLLBAR)}
+        className={cn(
+          'canvas-scroll-fade-x flex flex-1 min-w-0 items-center gap-1.5 overflow-x-auto',
+          HIDDEN_SCROLLBAR
+        )}
       >
         {!hasPendingAiSuggestion && <ContextControls {...controls} hideObjectActions />}
       </div>
