@@ -17,6 +17,7 @@ import { buildIllustrationCapability } from '../ai/illustrationCapability';
 import { withCardFollowingText } from '../composer/cardFollowsText';
 import { SHAREPIC_COLOR_HEX } from '../composer/composeSharepic';
 import { type LiftedBlock } from '../composer/liftBlock';
+import { isSlideFormat, type CanvasFormat } from '../formats';
 import { AssetsSection } from '../sidebar';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
@@ -33,7 +34,6 @@ import { injectFeatureProps } from './featureInjector';
 import { createShareSection } from './shareSection';
 
 import type { TemplateAiCapabilities } from '../ai/types';
-import type { CanvasFormat } from '../formats';
 import type {
   BaseCanvasState,
   ImageBackgroundState,
@@ -64,6 +64,8 @@ export interface FreeformState extends BaseCanvasState, ColorBackgroundState {
   stashedComposerPlanes: StashedPlane[];
   // Layer ordering
   layerOrder: string[];
+  // Sprechernotizen der Folie (nur Präsentationen); Schlüssel ist F0 (PPTX-Export liest ihn).
+  notes?: string;
 }
 
 interface StashedPlane {
@@ -229,10 +231,13 @@ function composerPlanesFor(
 // FULL CONFIG
 // ============================================================================
 
+export const SHEET_MAX_PAGES = 10;
+export const SLIDE_MAX_PAGES = 60;
+
 // Freeform hat kein Layout, das an einem Seitenverhältnis hängt: es nimmt das
 // Format der Leinwand (4:5 oder 3:4) als eigenes Blatt, statt es zu strecken.
 export const createFreeformFullConfig = (
-  { width, height }: CanvasFormat,
+  format: CanvasFormat,
   {
     /** Colour of newly added text; white suits the default Tanne sheet. */
     fontColor = '#FFFFFF',
@@ -241,11 +246,12 @@ export const createFreeformFullConfig = (
   }: { fontColor?: string; chartColors?: readonly string[] } = {}
 ): FullCanvasConfig<FreeformState, FreeformActions> =>
   withFreeformAi(
-    createFreeformAiCapabilities(width, height),
-    width,
-    height,
+    createFreeformAiCapabilities(format.width, format.height),
+    format.width,
+    format.height,
     fontColor,
-    chartColors
+    chartColors,
+    isSlideFormat(format) ? SLIDE_MAX_PAGES : SHEET_MAX_PAGES
   );
 
 const withFreeformAi = (
@@ -253,7 +259,8 @@ const withFreeformAi = (
   width: number,
   height: number,
   fontColor: string,
-  chartColors: readonly string[]
+  chartColors: readonly string[],
+  maxPages: number
 ): FullCanvasConfig<FreeformState, FreeformActions> => ({
   id: 'freeform',
 
@@ -269,7 +276,7 @@ const withFreeformAi = (
 
   multiPage: {
     enabled: true,
-    maxPages: 10,
+    maxPages,
     heterogeneous: true,
   },
 
