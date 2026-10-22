@@ -1,17 +1,16 @@
 import {
   AssistantRuntimeProvider,
-  type ChatModelAdapter,
   type ThreadMessage,
   useAui,
   useAuiState,
-  useLocalRuntime,
   useVoiceControls,
   useVoiceState,
 } from '@assistant-ui/react-native';
-import { TOOL_LABEL, type ToolCall } from '@gruenerator/voice/mistral';
+import { useAgentStore } from '@gruenerator/chat';
+import { TOOL_LABEL, type ToolCall, type VoiceArtifact } from '@gruenerator/voice/mistral';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
-import { memo, useEffect, useEffectEvent, useRef, useState } from 'react';
+import { memo, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
@@ -30,15 +29,12 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, LinearGradient, RadialGradient, Stop } from 'react-native-svg';
 
+import { useMobileChatRuntime } from '../../hooks/useMobileChatRuntime';
 import { useTheme } from '../../hooks/useTheme';
 import { createMobileVoiceAdapter } from '../../services/voice/mobileVoice';
 import { BODY_FONT, colors, spacing } from '../../theme';
+import { routeWithParams } from '../../types/routes';
 import { GrueneratorLoadingIcon } from '../chat/GrueneratorLoadingIcon';
-
-/** The hosted agent takes audio and `sendText` only; nothing runs a model here. */
-const VOICE_ONLY: ChatModelAdapter = {
-  run: () => Promise.reject(new Error('Hier wird nur gesprochen.')),
-};
 
 const BLOB = 240;
 const BLOB_SMALL = 96;
@@ -145,7 +141,22 @@ const TranscriptRow = memo(function TranscriptRow({ message }: { message: Thread
   );
 });
 
-function Transcript({ visible }: { visible: boolean }) {
+/** Something the call created; its card is in the thread the call opens on hang-up. */
+function ArtifactRow({ artifact }: { artifact: VoiceArtifact }) {
+  const theme = useTheme();
+  return (
+    <View style={styles.artifact}>
+      <Ionicons name="checkmark-circle" size={22} color={colors.primary[600]} />
+      <Text style={[styles.message, { color: theme.text, flexShrink: 1 }]}>
+        {artifact.title} ist fertig – im Chat nach dem Gespräch
+      </Text>
+    </View>
+  );
+}
+
+type CreatedRow = VoiceArtifact & { id: number };
+
+function Transcript({ visible, artifacts }: { visible: boolean; artifacts: CreatedRow[] }) {
   const messages = useAuiState((s) => s.thread.messages);
   const scroll = useRef<ScrollView>(null);
 
@@ -160,11 +171,15 @@ function Transcript({ visible }: { visible: boolean }) {
       {messages.map((m) => (
         <TranscriptRow key={m.id} message={m} />
       ))}
+      {artifacts.map((a) => (
+        <ArtifactRow key={a.id} artifact={a} />
+      ))}
     </ScrollView>
   );
 }
 
-function CallBar() {
+/** Hang-up opens the call's thread, where everything it created has its card. */
+function CallBar({ threadId }: { threadId: string | null }) {
   const theme = useTheme();
   const router = useRouter();
   const aui = useAui();
@@ -215,7 +230,11 @@ function CallBar() {
       <Pressable
         onPress={() => {
           disconnect();
-          router.back();
+          if (threadId) {
+            router.replace(routeWithParams('/(focused)/chat-conversation', { threadId }));
+          } else {
+            router.back();
+          }
         }}
         accessibilityRole="button"
         accessibilityLabel="Gespräch beenden"
@@ -237,7 +256,17 @@ function CallBar() {
  * typed text go into the same call; the blob carries the loading gear while
  * the agent looks something up.
  */
-function VoiceCall({ tool, error }: { tool: ToolCall | null; error: string | null }) {
+function VoiceCall({
+  tool,
+  error,
+  threadId,
+  artifacts,
+}: {
+  tool: ToolCall | null;
+  error: string | null;
+  threadId: string | null;
+  artifacts: CreatedRow[];
+}) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const voice = useVoiceState();
@@ -307,7 +336,7 @@ function VoiceCall({ tool, error }: { tool: ToolCall | null; error: string | nul
               transcriptStyle,
             ]}
           >
-            <Transcript visible={showTranscript} />
+            <Transcript visible={showTranscript} artifacts={artifacts} />
           </Animated.View>
           {height > 0 ? (
             <>
@@ -339,7 +368,7 @@ function VoiceCall({ tool, error }: { tool: ToolCall | null; error: string | nul
         </View>
       </GestureDetector>
       <View style={{ paddingBottom: insets.bottom + spacing.small }}>
-        <CallBar />
+        <CallBar threadId={threadId} />
         {/* Kennzeichnung als KI-Dialog (Art. 50 Abs. 1 KI-VO). */}
         <Text style={[styles.notice, { color: theme.textSecondary }]}>
           Du sprichst mit einer KI · Audio über Mistrals globalen Endpunkt
@@ -349,19 +378,34 @@ function VoiceCall({ tool, error }: { tool: ToolCall | null; error: string | nul
   );
 }
 
-/** A voice conversation with Mistral's hosted agent, opened from the start page's composer. */
+/**
+ * A voice conversation with Mistral's hosted agent, opened from the start
+ * page's composer. It is a new chat thread: the server opens it with the call,
+ * every final line and everything the call creates is saved there.
+ */
 export function VoiceCallScreen() {
   const [tool, setTool] = useState<ToolCall | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [artifacts, setArtifacts] = useState<CreatedRow[]>([]);
   const [voice] = useState(() =>
-    createMobileVoiceAdapter({ onToolActivity: setTool, onError: setError })
+    createMobileVoiceAdapter({
+      onToolActivity: setTool,
+      onError: setError,
+      onThread: (id) => {
+        setThreadId(id);
+        useAgentStore.getState().mintThreadFromDraft(id);
+      },
+      onArtifact: (artifact) => setArtifacts((prev) => [...prev, { ...artifact, id: prev.length }]),
+    })
   );
-  const runtime = useLocalRuntime(VOICE_ONLY, { adapters: { voice } });
+  const adapters = useMemo(() => ({ voice }), [voice]);
+  const runtime = useMobileChatRuntime({ adapters });
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <CallLifecycle />
-      <VoiceCall tool={tool} error={error} />
+      <VoiceCall tool={tool} error={error} threadId={threadId} artifacts={artifacts} />
     </AssistantRuntimeProvider>
   );
 }
@@ -384,6 +428,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.large,
     paddingTop: spacing.large,
     paddingBottom: spacing.medium,
+  },
+  artifact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.small,
   },
   userBubble: {
     alignSelf: 'flex-end',
