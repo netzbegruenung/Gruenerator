@@ -125,7 +125,8 @@ const studioAssetTarget: ModerationTarget = {
   async hideIf(db, id, when) {
     const rows = await db
       .update(studioAssets)
-      .set({ moderation: 'hidden', updated_at: new Date() })
+      // A hidden asset loses its official mark; listing it again is a new decision.
+      .set({ moderation: 'hidden', is_official: false, updated_at: new Date() })
       .where(and(eq(studioAssets.id, id), studioAssetReportable, when))
       .returning({ id: studioAssets.id });
     return rows.length > 0;
@@ -133,7 +134,11 @@ const studioAssetTarget: ModerationTarget = {
   async setModeration(db, id, state, onlyFrom) {
     await db
       .update(studioAssets)
-      .set({ moderation: state, updated_at: new Date() })
+      .set({
+        moderation: state,
+        ...(state !== 'ok' && { is_official: false }),
+        updated_at: new Date(),
+      })
       .where(
         and(eq(studioAssets.id, id), onlyFrom ? eq(studioAssets.moderation, onlyFrom) : undefined)
       );

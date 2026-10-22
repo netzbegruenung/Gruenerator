@@ -373,6 +373,31 @@ describe.skipIf(!url)('Meldungen (contentReportsService)', () => {
     expect(await listReportGroups({ status: 'resolved' })).toHaveLength(1);
   });
 
+  it('hiding or removing an official asset drops the official mark, and restore keeps it off', async () => {
+    const officialOf = async (id: string) =>
+      (
+        await pool.query<{ is_official: boolean }>(
+          'SELECT is_official FROM studio_assets WHERE id = $1',
+          [id]
+        )
+      ).rows[0]!.is_official;
+
+    const hidden = await insertAsset();
+    await pool.query('UPDATE studio_assets SET is_official = TRUE WHERE id = $1', [hidden]);
+    await reportBy(3, hidden);
+    expect(await moderationOf(hidden)).toBe('hidden');
+    expect(await officialOf(hidden)).toBe(false);
+    await resolveReports(admin, { kind: 'studio_asset', targetId: hidden, action: 'restore' });
+    expect(await officialOf(hidden)).toBe(false);
+
+    const removed = await insertAsset();
+    await pool.query('UPDATE studio_assets SET is_official = TRUE WHERE id = $1', [removed]);
+    await reportBy(1, removed);
+    await resolveReports(admin, { kind: 'studio_asset', targetId: removed, action: 'remove' });
+    expect(await moderationOf(removed)).toBe('removed');
+    expect(await officialOf(removed)).toBe(false);
+  });
+
   it('restore brings a hidden or removed asset back', async () => {
     const asset = await insertAsset();
     await reportBy(3, asset);

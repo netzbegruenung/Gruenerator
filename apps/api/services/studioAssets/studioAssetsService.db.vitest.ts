@@ -192,6 +192,16 @@ describe.skipIf(!url)('Studio-Shop (studioAssetsService)', () => {
     expect(await ids(false)).toEqual([plain]);
     expect((await ids()).sort()).toEqual([plain, official].sort());
 
+    // Going private ends the listing; publishing again does not bring the mark back.
+    const owned = await insertAsset(me);
+    await setStudioAssetOfficial(me, owned, true);
+    await updateStudioAsset(me, owned, { visibility: 'private' });
+    const republished = await updateStudioAsset(me, owned, {
+      visibility: 'public',
+      rightsConfirmed: true,
+    });
+    expect(republished).toMatchObject({ ok: true, value: { isOfficial: false } });
+
     expect(await setStudioAssetOfficial(me, official, false)).toMatchObject({
       ok: true,
       value: { isOfficial: false },

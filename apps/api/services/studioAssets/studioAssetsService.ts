@@ -322,6 +322,8 @@ export async function updateStudioAsset(
   if (body.tags !== undefined) patch.tags = normalizeTags(body.tags);
   if (body.audience !== undefined) patch.audience = body.audience;
   if (body.visibility !== undefined) patch.visibility = body.visibility;
+  // Going private ends the official listing; republishing does not bring it back.
+  if (body.visibility === 'private') patch.is_official = false;
   if (goesPublic) patch.was_public = true;
 
   const db = getDrizzleInstance();
