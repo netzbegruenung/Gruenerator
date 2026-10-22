@@ -7,8 +7,11 @@
 import { createRequire } from 'module';
 import { URL } from 'url';
 
-import { env } from '../../../../../config/env.js';
-import { safeFetch } from '../../../../../utils/validation/urlSecurity.js';
+import {
+  isUrlValidationError,
+  safeFetch,
+  validateUrlForFetch,
+} from '../../../../../utils/validation/urlSecurity.js';
 
 const require = createRequire(import.meta.url);
 const robotsParser = require('robots-parser') as (
@@ -27,14 +30,25 @@ const BOT_USER_AGENT = 'Gruenerator/1.0';
 type RobotsChecker = { isAllowed(url: string, ua?: string): boolean | undefined };
 const robotsCache = new Map<string, { checker: RobotsChecker | null; expiry: number }>();
 
-async function isAllowedByRobotsTxt(url: string): Promise<boolean> {
+/**
+ * `refused` is safeFetch refusing the robots.txt request itself — a redirect
+ * hop or a resolved address it will not go to. That is not "there is no
+ * robots.txt" and must not read as permission to crawl the host.
+ */
+type RobotsVerdict = 'allowed' | 'disallowed' | 'refused';
+
+function verdictOf(checker: RobotsChecker | null, url: string): RobotsVerdict {
+  return !checker || (checker.isAllowed(url, BOT_USER_AGENT) ?? true) ? 'allowed' : 'disallowed';
+}
+
+async function checkRobotsTxt(url: string): Promise<RobotsVerdict> {
   try {
     const parsed = new URL(url);
     const origin = parsed.origin;
 
     const cached = robotsCache.get(origin);
     if (cached && cached.expiry > Date.now()) {
-      return cached.checker ? (cached.checker.isAllowed(url, BOT_USER_AGENT) ?? true) : true;
+      return verdictOf(cached.checker, url);
     }
 
     const robotsUrl = `${origin}/robots.txt`;
@@ -59,9 +73,10 @@ async function isAllowedByRobotsTxt(url: string): Promise<boolean> {
       }
     }
 
-    return checker ? (checker.isAllowed(url, BOT_USER_AGENT) ?? true) : true;
-  } catch {
-    return true;
+    return verdictOf(checker, url);
+  } catch (error) {
+    // Missing, unreachable or slow robots.txt: allowed, as it always was.
+    return isUrlValidationError(error) ? 'refused' : 'allowed';
   }
 }
 
@@ -100,25 +115,21 @@ export class UrlValidator {
         };
       }
 
-      if (env.NODE_ENV === 'production') {
-        const hostname = urlObj.hostname.toLowerCase();
-        if (
-          hostname === 'localhost' ||
-          hostname.startsWith('127.') ||
-          hostname.startsWith('10.') ||
-          hostname.startsWith('192.168.') ||
-          hostname.startsWith('172.')
-        ) {
-          return {
-            isValid: false,
-            error: 'Local and private network URLs are not allowed',
-          };
-        }
+      // The shared SSRF check, in every environment: blocked host names, the
+      // full private/link-local range list, and every DNS record of the host.
+      // It is the early, readable rejection — the crawlers check the address
+      // again when they connect, and do not follow redirects unchecked.
+      const urlCheck = await validateUrlForFetch(url);
+      if (!urlCheck.isValid) {
+        return { isValid: false, error: urlCheck.error ?? 'URL is not allowed' };
       }
 
       if (options.checkRobots !== false) {
-        const allowed = await isAllowedByRobotsTxt(url);
-        if (!allowed) {
+        const verdict = await checkRobotsTxt(url);
+        if (verdict === 'refused') {
+          return { isValid: false, error: 'URL leads to an address that is not allowed' };
+        }
+        if (verdict === 'disallowed') {
           return {
             isValid: false,
             error: 'Diese URL erlaubt kein automatisches Lesen (robots.txt).',

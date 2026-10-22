@@ -237,6 +237,18 @@ export const guardedLookup: LookupFunction = (hostname, options, callback) => {
 const guardedDispatcher = new Agent({ connect: { lookup: guardedLookup } });
 
 /**
+ * True when `error` is a refusal of this module — a URL or redirect hop that
+ * failed validation, or an address `guardedLookup` would not connect to —
+ * rather than an ordinary network failure. undici wraps the connect-time
+ * refusal in `TypeError('fetch failed')`, so the cause is checked as well.
+ */
+export function isUrlValidationError(error: unknown): boolean {
+  const refused = (value: unknown): boolean =>
+    value instanceof Error && value.message.startsWith('URL validation failed');
+  return refused(error) || (error instanceof Error && refused(error.cause));
+}
+
+/**
  * Fetch a user-influenced URL with SSRF protection that also covers redirects.
  *
  * Redirects are followed by hand with `redirect: 'manual'` and every hop is

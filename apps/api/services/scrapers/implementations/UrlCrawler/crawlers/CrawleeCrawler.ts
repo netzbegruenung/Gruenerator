@@ -13,6 +13,7 @@ import {
   type PlaywrightCrawlingContext,
 } from '@crawlee/playwright';
 
+import { guardedLookup } from '../../../../../utils/validation/urlSecurity.js';
 import { type CrawlerConfig, type RawCrawlResult, type CrawlOptions } from '../types.js';
 
 interface CrawleeModule {
@@ -168,6 +169,13 @@ export class CrawleeCrawler {
 
         requestHandler: async ({ request, response, $ }: CheerioCrawlingContext) => {
           try {
+            // Redirects are not followed here (see preNavigationHooks). Failing
+            // hands the URL to the fetch fallback, which validates every hop.
+            if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400) {
+              request.noRetry = true;
+              throw new Error(`HTTP ${response.statusCode}: redirect not followed`);
+            }
+
             // Validate response
             if (response.statusCode && response.statusCode >= 400) {
               throw new Error(
@@ -217,7 +225,14 @@ export class CrawleeCrawler {
 
         // Custom headers
         preNavigationHooks: [
-          async ({ request }: CheerioCrawlingContext) => {
+          async ({ request }: CheerioCrawlingContext, gotOptions) => {
+            // got follows up to 10 redirects by default and resolves names on
+            // its own — the URL validated before the crawl would be the only
+            // one checked. No redirects, and every connect goes through the
+            // same address check as safeFetch.
+            gotOptions.followRedirect = false;
+            gotOptions.dnsLookup = guardedLookup;
+
             request.headers = {
               ...request.headers,
               ...(options.userAgent != null && { 'User-Agent': options.userAgent }),
