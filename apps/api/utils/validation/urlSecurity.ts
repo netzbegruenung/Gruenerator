@@ -208,8 +208,13 @@ const CREDENTIAL_HEADERS = ['authorization', 'cookie', 'proxy-authorization'];
  * the address checked is the address connected to — a name that resolved
  * public for `validateUrlForFetch` and private a moment later (DNS rebinding)
  * never reaches a socket.
+ *
+ * Exported for HTTP clients that resolve names themselves (axios `lookup`, got
+ * `dnsLookup`). Node skips `lookup` for IP literals, so a client that follows
+ * redirects can still be walked to `http://169.254.169.254/` — this guard only
+ * holds for clients that do not follow redirects, or validate every hop.
  */
-const guardedLookup: LookupFunction = (hostname, options, callback) => {
+export const guardedLookup: LookupFunction = (hostname, options, callback) => {
   dns.lookup(hostname, { ...options, all: true }, (err, records) => {
     if (err) {
       callback(err, '', 0);
@@ -230,6 +235,18 @@ const guardedLookup: LookupFunction = (hostname, options, callback) => {
 };
 
 const guardedDispatcher = new Agent({ connect: { lookup: guardedLookup } });
+
+/**
+ * True when `error` is a refusal of this module — a URL or redirect hop that
+ * failed validation, or an address `guardedLookup` would not connect to —
+ * rather than an ordinary network failure. undici wraps the connect-time
+ * refusal in `TypeError('fetch failed')`, so the cause is checked as well.
+ */
+export function isUrlValidationError(error: unknown): boolean {
+  const refused = (value: unknown): boolean =>
+    value instanceof Error && value.message.startsWith('URL validation failed');
+  return refused(error) || (error instanceof Error && refused(error.cause));
+}
 
 /**
  * Fetch a user-influenced URL with SSRF protection that also covers redirects.
