@@ -10,7 +10,10 @@
 
 import express, { type Router, type Response } from 'express';
 
-import { getDocumentContentService } from '../../services/document-services/DocumentContentService/index.js';
+import {
+  getAccessibleDocuments,
+  getDocumentContentService,
+} from '../../services/document-services/DocumentContentService/index.js';
 import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -30,6 +33,24 @@ const router: Router = express.Router();
 const documentSearchService = new DocumentSearchService();
 const documentContentService = getDocumentContentService();
 const postgresDocumentService = getPostgresDocumentService();
+
+/**
+ * The ids from the body scope the search, and a scoped search runs without the
+ * `user_id` pin (`searchOperations.ts`) — notebook callers pass ids they have
+ * authorized for other owners. This is the "my documents" search, so only ids
+ * the caller owns pass: the same check `/content` applies. Fails closed — a
+ * lookup error drops every id.
+ */
+async function ownedDocumentIds(userId: string, requested: readonly unknown[]): Promise<string[]> {
+  const ids = [...new Set(requested.filter((id): id is string => typeof id === 'string'))];
+  if (ids.length === 0) return [];
+  try {
+    const docs = await getAccessibleDocuments(postgresDocumentService, userId, ids);
+    return docs.map((doc) => doc.id);
+  } catch {
+    return [];
+  }
+}
 
 /**
  * POST / - Search documents (Qdrant vector search only)
@@ -59,6 +80,24 @@ router.post('/', async (req: DocumentRequest, res: Response): Promise<void> => {
 
     log.debug(`[POST /] Search request: "${query}" (user: ${userId}, mode: ${searchMode})`);
 
+    // No ids → the caller's whole library (owner-pinned in searchOperations).
+    // Ids requested but none owned → nothing; never widen to the whole library.
+    let scopedIds: string[] | null = null;
+    if (Array.isArray(documentIds) && documentIds.length > 0) {
+      scopedIds = await ownedDocumentIds(userId, documentIds);
+      if (scopedIds.length === 0) {
+        res.json({
+          success: true,
+          data: [],
+          message: 'No accessible documents found',
+          searchType: searchMode === 'text' ? 'text' : 'hybrid',
+          query: query.trim(),
+        });
+        return;
+      }
+    }
+    const scope = scopedIds ? { documentIds: scopedIds } : {};
+
     let searchResult;
 
     // Choose search method based on mode
@@ -68,13 +107,13 @@ router.post('/', async (req: DocumentRequest, res: Response): Promise<void> => {
         limit: Math.min(Math.max(1, limit), 20),
         vectorWeight: 0.7,
         textWeight: 0.3,
-        documentIds: Array.isArray(documentIds) && documentIds.length ? documentIds : undefined,
+        ...scope,
       });
     } else if (searchMode === 'text') {
       // Full-text only search
       searchResult = await documentSearchService.textSearch(query.trim(), userId, {
         limit: Math.min(Math.max(1, limit), 20),
-        documentIds: Array.isArray(documentIds) && documentIds.length ? documentIds : undefined,
+        ...scope,
       });
     } else {
       // Fallback to hybrid for unknown modes
@@ -82,7 +121,7 @@ router.post('/', async (req: DocumentRequest, res: Response): Promise<void> => {
         limit: Math.min(Math.max(1, limit), 20),
         vectorWeight: 0.7,
         textWeight: 0.3,
-        documentIds: Array.isArray(documentIds) && documentIds.length ? documentIds : undefined,
+        ...scope,
       });
     }
 
