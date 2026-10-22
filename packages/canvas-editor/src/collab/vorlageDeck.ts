@@ -39,6 +39,19 @@ export function isDeckEmpty(pages: readonly DeckPage[]): boolean {
   return !ELEMENT_KEYS.some((key) => hasEntries(state[key]));
 }
 
+type CurrentPage = { id: string; configId: string; state?: Record<string, unknown> };
+
+const hasNotes = (state: Record<string, unknown> | undefined): state is Record<string, unknown> =>
+  typeof state?.notes === 'string' && state.notes.trim() !== '';
+
+/**
+ * Speaker notes belong to the slide position, not to the design: a Vorlage
+ * that replaces a page keeps the notes written there.
+ */
+function keepNotes(existing: CurrentPage | undefined, state: Record<string, unknown>) {
+  return hasNotes(existing?.state) ? { ...state, notes: existing.state.notes } : state;
+}
+
 /**
  * The deck change that turns `current` into the Vorlage's pages, page by
  * page: a page of the same config is rewritten in place (it keeps its id),
@@ -46,7 +59,7 @@ export function isDeckEmpty(pages: readonly DeckPage[]): boolean {
  * Vorlage's count go. Applied with `replaceDeck`, that is one undo step.
  */
 export function vorlageDeckOps(
-  current: readonly { id: string; configId: string }[],
+  current: readonly CurrentPage[],
   next: readonly DeckPage[],
   newPageId: () => string
 ): ReplaceDeckOps {
@@ -55,13 +68,14 @@ export function vorlageDeckOps(
   let anchor: string | null = null;
   next.forEach((page, i) => {
     const existing = current[i];
+    const state = keepNotes(existing, page.state);
     if (existing && existing.configId === page.configId) {
-      ops.updates.push({ pageId: existing.id, state: page.state });
+      ops.updates.push({ pageId: existing.id, state });
       kept.add(existing.id);
       anchor = existing.id;
     } else {
       const pageId = newPageId();
-      ops.inserts.push({ afterPageId: anchor, configId: page.configId, state: page.state, pageId });
+      ops.inserts.push({ afterPageId: anchor, configId: page.configId, state, pageId });
       anchor = pageId;
     }
   });
@@ -75,7 +89,7 @@ export function vorlageDeckOps(
  * place under the same config, else replaced at its position.
  */
 export function pageSwapOps(
-  current: readonly { id: string; configId: string }[],
+  current: readonly CurrentPage[],
   pageId: string | null,
   page: DeckPage,
   newPageId: () => string
@@ -83,8 +97,9 @@ export function pageSwapOps(
   const found = current.findIndex((p) => p.id === pageId);
   const at = found === -1 ? current.length - 1 : found;
   const target = current[at];
+  const state = keepNotes(target, page.state);
   if (target?.configId === page.configId) {
-    return { updates: [{ pageId: target.id, state: page.state }], inserts: [], removes: [] };
+    return { updates: [{ pageId: target.id, state }], inserts: [], removes: [] };
   }
   return {
     updates: [],
@@ -92,7 +107,7 @@ export function pageSwapOps(
       {
         afterPageId: current[at - 1]?.id ?? null,
         configId: page.configId,
-        state: page.state,
+        state,
         pageId: newPageId(),
       },
     ],
