@@ -468,23 +468,34 @@ async function persistCreated(
   };
 }
 
+/** What the call says about a created card; it outranks the chat note's wording. */
+export const VOICE_CREATED_NOTE =
+  'Erscheint gleich als Karte im Chat der Person: sag nicht, es sei schon zu sehen, und biete keine Änderungen im Gespräch an (die gehen im Chat oder im Studio). Rufe das Werkzeug NICHT erneut auf.';
+
 /**
  * The chat tool's `note` is written for a chat turn ("dem*der Nutzer*in
  * angezeigt … biete Anpassungen an"). In a call the card only reaches the
  * device afterwards and still has to be drawn there, and the call has no edit
- * tools — so a created artifact gets its own note; the chat's note goes along
- * only when nothing was created, where it carries the reason.
+ * tools — so a created artifact leads with the call's own note. The chat's note
+ * still goes along after it: it can carry what the person must hear (a PDF
+ * created afresh instead of revised, problems its self-check found).
  */
-function createdForModel(raw: unknown, artifact: VoiceArtifact | null): Record<string, unknown> {
+export function createdForModel(
+  raw: unknown,
+  artifact: VoiceArtifact | null
+): Record<string, unknown> {
   const result = (raw ?? {}) as { note?: unknown; error?: unknown };
+  const toolNote = typeof result.note === 'string' && result.note ? result.note : null;
   return {
     ok: artifact != null,
     ...(artifact && {
       erstellt: artifact.title,
-      note: 'Erscheint gleich als Karte im Chat der Person. Sag nicht, es sei schon zu sehen. Rufe das Werkzeug NICHT erneut auf.',
+      note: toolNote
+        ? `${VOICE_CREATED_NOTE} Hinweis des Werkzeugs: ${toolNote}`
+        : VOICE_CREATED_NOTE,
     }),
     ...(result.error != null && { error: result.error }),
-    ...(!artifact && result.note != null && { note: result.note }),
+    ...(!artifact && toolNote && { note: toolNote }),
   };
 }
 
