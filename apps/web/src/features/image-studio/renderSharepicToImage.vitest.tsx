@@ -13,12 +13,21 @@ const handle = vi.hoisted(() => ({
 
 const mounts = vi.hoisted(() => ({ props: [] as Array<Record<string, unknown>> }));
 const compose = vi.hoisted(() => ({ fn: vi.fn() }));
+const failing = vi.hoisted(() => ({ prepare: 'no' as 'no' | 'reject' | 'stall' }));
+const sentry = vi.hoisted(() => ({ captureException: vi.fn() }));
+
+vi.mock('@sentry/react', () => ({ captureException: sentry.captureException }));
 
 vi.mock('./freitext/composeForRender', () => ({ composeCreatorSharepic: compose.fn }));
 
 vi.mock('@gruenerator/canvas-editor', () => ({
   ensureFontsReady: () => Promise.resolve(),
-  loadIconSetsFor: () => Promise.resolve(),
+  loadIconSetsFor: () =>
+    failing.prepare === 'reject'
+      ? Promise.reject(new Error('icon sets unavailable'))
+      : failing.prepare === 'stall'
+        ? new Promise<void>(() => undefined)
+        : Promise.resolve(),
   catalogIconId: (id: string) => id,
   StandaloneCanvas: (props: { canvasRef: (ref: unknown) => void }) => {
     const { canvasRef } = props;
@@ -43,6 +52,8 @@ describe('renderSharepicToImage', () => {
     handle.toDataURL.mockClear();
     mounts.props.length = 0;
     compose.fn.mockReset();
+    failing.prepare = 'no';
+    sentry.captureException.mockClear();
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -57,6 +68,43 @@ describe('renderSharepicToImage', () => {
     await vi.advanceTimersByTimeAsync(200);
     await expect(result).resolves.toMatch(/^data:image\/png/);
     expect(handle.toDataURL).toHaveBeenCalledTimes(1);
+  });
+
+  // A failure before the canvas mounts used to leave the promise open for
+  // good, and an identical retry joined it. Now the render ends with no image,
+  // reports the cause, and the next render goes through.
+  it.each(['reject', 'stall'] as const)(
+    'gives up when the steps before the canvas %s, and keeps the queue moving',
+    async (mode) => {
+      failing.prepare = mode;
+      const broken = renderSharepicToImage('dreizeilen', {
+        line1: `x${seq++}`,
+        iconStates: { a: { iconId: 'x' } },
+      });
+      await vi.advanceTimersByTimeAsync(mode === 'stall' ? 10_000 : 0);
+      await expect(broken).resolves.toBeNull();
+      expect(sentry.captureException).toHaveBeenCalledOnce();
+
+      failing.prepare = 'no';
+      handle.settled = true;
+      const next = render();
+      await vi.advanceTimersByTimeAsync(700);
+      await expect(next).resolves.toMatch(/^data:image\/png/);
+    }
+  );
+
+  // The hidden Android WebView loses the photo from a capture above 1x, so the
+  // app's render page must not inherit the export default of 2x.
+  it.each([
+    ['preview', 0.7],
+    ['app', 1],
+    ['full', 2],
+  ] as const)('captures %s quality at pixelRatio %s', async (quality, pixelRatio) => {
+    handle.settled = true;
+    const result = renderSharepicToImage('dreizeilen', { line1: `x${seq++}` }, { quality });
+    await vi.advanceTimersByTimeAsync(700);
+    await expect(result).resolves.toMatch(/^data:image\/png/);
+    expect(handle.toDataURL).toHaveBeenLastCalledWith({ pixelRatio });
   });
 
   it('captures what it has at the deadline rather than giving up', async () => {

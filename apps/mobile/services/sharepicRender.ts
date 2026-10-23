@@ -44,6 +44,13 @@ import { reportFailure } from './errorReporting';
  */
 const REQUEST_TIMEOUT_MS = 20_000;
 
+/**
+ * Drawing a preview gets longer than the other requests: the page waits up to
+ * ten seconds for the photo alone, and a cold first render measured 25 s (dev
+ * bundle, Android emulator) — past the old 20 s, which the retry then inherited.
+ */
+const RENDER_TIMEOUT_MS = 30_000;
+
 /** A creator turn renders every slide of a carousel, and maybe a contact sheet. */
 const CREATOR_TIMEOUT_MS = 60_000;
 
@@ -191,7 +198,7 @@ function armIdleUnmount(): void {
     // page we were talking to goes away with it. Forgetting that here is the
     // whole point: a stale `hostReady` would let the next render be posted into
     // a dead ref, where it is neither delivered nor refused — it would sit
-    // until the 20s timeout while the fresh page waits, already announced, with
+    // until its timeout while the fresh page waits, already announced, with
     // nothing to do.
     hostReady = false;
     postToPage = null;
@@ -265,7 +272,11 @@ function pump(): void {
   requestCounter += 1;
   const requestId = `r${requestCounter}`;
   const timeout =
-    job.request.type === 'CREATOR_RENDER_REQUEST' ? CREATOR_TIMEOUT_MS : REQUEST_TIMEOUT_MS;
+    job.request.type === 'CREATOR_RENDER_REQUEST'
+      ? CREATOR_TIMEOUT_MS
+      : job.request.type === 'RENDER_REQUEST'
+        ? RENDER_TIMEOUT_MS
+        : REQUEST_TIMEOUT_MS;
   const timer = setTimeout(() => failInFlight('timeout'), timeout);
   inFlight = { job, requestId, timer };
 
