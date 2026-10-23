@@ -51,7 +51,7 @@ const TOOLS_INSTRUCTIONS = [
   SPOKEN_STYLE,
   'Für alles, was Programme, Beschlüsse, Notebooks, eigene Inhalte, Bundestag, Umfragen oder aktuelle Fakten betrifft, nutze zuerst die passenden Werkzeuge und antworte aus deren Ergebnis — nicht aus dem Gedächtnis.',
   `Fragen an den Inhalt eines Notebooks — eigenes, geteiltes oder das eines Landesverbands wie Berlin — beantwortest du mit ${NOTEBOOK_TOOL}; gib ihm den Namen, den die Person nennt.`,
-  'Will die Person etwas erstellt haben — ein Sharepic, eine Präsentation, eine Tabelle, ein Dokument, ein PDF, ein Board oder ein Explainable —, nimm das passende Erstell-Werkzeug und gib ihm den Inhalt vollständig mit. Das Ergebnis erscheint auf dem Bildschirm der Person: lies es nicht vor, sag kurz, dass es fertig ist, und biete Änderungen an.',
+  'Will die Person etwas erstellt haben — ein Sharepic, eine Präsentation, eine Tabelle, ein Dokument, ein PDF, ein Board oder ein Explainable —, nimm das passende Erstell-Werkzeug und gib ihm den Inhalt vollständig mit. Das Ergebnis erscheint gleich als Karte im Chat der Person und braucht dort noch einen Moment: lies es nicht vor und sag nicht, es sei schon zu sehen — sag kurz, dass es gleich im Chat auftaucht. Ändern lässt es sich im Chat oder im Studio, nicht im Gespräch.',
 ].join(' ');
 
 function notebookInstructions(name: string): string {

@@ -33,15 +33,26 @@ export function ImageGenerationDots() {
  * Placeholder frame rendered while the backend is still generating the image —
  * before any pixels exist. Swapped for GeneratedImageDisplay (same frame
  * language, image resolves out of a blur) once the payload arrives.
+ *
+ * `label` and `aspect` let another picture in the making use the frame: a
+ * sharepic is drafted in its card's 4:5 shape.
  */
-export function ImageGenerationFrame() {
+export function ImageGenerationFrame({
+  label = 'Bild wird generiert …',
+  aspect = 'aspect-square',
+}: {
+  label?: string;
+  aspect?: 'aspect-square' | 'aspect-[4/5]';
+}) {
   return (
     <div className="mb-3 flex w-56 flex-col gap-2.5" role="status">
-      <div className="relative aspect-square w-full overflow-hidden rounded-2xl border border-border bg-background-secondary">
+      <div
+        className={`relative ${aspect} w-full overflow-hidden rounded-2xl border border-border bg-background-secondary`}
+      >
         <ImageGenerationDots />
       </div>
       <p className="min-w-0 truncate text-xs text-foreground-muted">
-        <ShimmerText>Bild wird generiert …</ShimmerText>
+        <ShimmerText>{label}</ShimmerText>
       </p>
     </div>
   );

@@ -1,5 +1,4 @@
 import {
-  Loader2,
   Pencil,
   Download,
   ExternalLink,
@@ -12,6 +11,9 @@ import { useCallback } from 'react';
 
 import { useSharepicArtifact } from '../../hooks/useSharepicArtifact';
 import { cn } from '../../lib/utils';
+
+import { ImageGenerationDots } from './ImageGenerationFrame';
+import { ShimmerText } from './ShimmerText';
 
 import type { SharepicVariant } from '../../hooks/useChatGraphStream';
 
@@ -72,11 +74,11 @@ export function SharepicVariantCard({ variant }: SharepicVariantCardProps) {
       >
         <div className="relative">
           {isRendering && !imageBase64 && (
-            <div className="flex h-64 items-center justify-center">
-              <div className="flex flex-col items-center gap-2">
-                <Loader2 className="h-8 w-8 animate-spin text-foreground-muted" />
-                <span className="text-xs text-foreground-muted">Rendere {label}...</span>
-              </div>
+            <div className="relative mx-auto aspect-[4/5] max-h-[420px] w-full" role="status">
+              <ImageGenerationDots />
+              <p className="absolute inset-x-0 bottom-3 text-center text-xs text-foreground-muted">
+                <ShimmerText>{label} wird gezeichnet …</ShimmerText>
+              </p>
             </div>
           )}
           {imageBase64 && (
