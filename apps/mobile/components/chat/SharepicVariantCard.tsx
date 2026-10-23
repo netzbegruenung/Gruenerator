@@ -170,9 +170,10 @@ function SharepicHero({ variant, theme }: { variant: SharepicVariant; theme: The
   // says what is happening. A sharepic that already has a canvas (redrawn after
   // a chat edit) can be opened meanwhile; once drawing failed, the studio is
   // the way to it. Share and save wait for the picture either way.
+  const canOpenStudio = status !== 'rendering' || canvasId !== null;
   const menuActions = buildSharepicMenuActions({
     hasImage: image !== null,
-    canOpenStudio: status !== 'rendering' || canvasId !== null,
+    canOpenStudio,
     saving,
     opening,
   });
@@ -203,8 +204,8 @@ function SharepicHero({ variant, theme }: { variant: SharepicVariant; theme: The
   // the placeholder points: the studio.
   const handlePress = useCallback(() => {
     if (ready) setZoomed(true);
-    else if (status !== 'rendering') void handleOpenStudio();
-  }, [handleOpenStudio, ready, status]);
+    else if (canOpenStudio) void handleOpenStudio();
+  }, [canOpenStudio, handleOpenStudio, ready]);
 
   const handleLongPress = useCallback(() => {
     if (menuActions.length === 0) return;
@@ -217,7 +218,7 @@ function SharepicHero({ variant, theme }: { variant: SharepicVariant; theme: The
   const enabledActions = menuActions.filter((action) => action.attributes?.disabled !== true);
   const hint = ready
     ? 'Öffnet das Sharepic im Vollbild. Lang drücken für Teilen, Speichern und Studio.'
-    : status !== 'rendering'
+    : canOpenStudio
       ? 'Öffnet das Sharepic im Studio.'
       : null;
 
@@ -233,7 +234,7 @@ function SharepicHero({ variant, theme }: { variant: SharepicVariant; theme: The
           pressed && styles.framePressed,
         ]}
         testID="chat-sharepic"
-        accessibilityRole={ready || status !== 'rendering' ? 'button' : 'image'}
+        accessibilityRole={ready || canOpenStudio ? 'button' : 'image'}
         accessibilityLabel={variant.altText ?? 'Sharepic'}
         {...(hint !== null && { accessibilityHint: hint })}
         accessibilityActions={enabledActions.map((action) => ({

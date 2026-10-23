@@ -4,7 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { type ReactNode } from 'react';
 
-import { useSharepicPreview } from '../../hooks/useSharepicPreview';
+import { type SharepicPreviewStatus, useSharepicPreview } from '../../hooks/useSharepicPreview';
 import { saveImageToGallery } from '../../services/imageStudio';
 import { shareBase64Image } from '../../services/share';
 import { lightTheme } from '../../theme/colors';
@@ -58,7 +58,7 @@ function data(canvasId: string | null = 'canvas-1'): SharepicData {
   } as unknown as SharepicData;
 }
 
-function preview(status: 'ready' | 'rendering' | 'failed') {
+function preview(status: SharepicPreviewStatus) {
   mockPreview.mockReturnValue({
     image: status === 'ready' ? IMAGE : null,
     status,
@@ -116,8 +116,16 @@ describe('SharepicVariantCard', () => {
   });
 
   it('goes straight to the studio on a tap when there is no picture', async () => {
-    preview('failed');
+    preview('unavailable');
     render(<SharepicVariantCard data={data()} theme={lightTheme} />);
+    fireEvent.press(sharepic());
+    await settle();
+    expect(router.push).toHaveBeenCalledTimes(1);
+  });
+
+  it('still opens the studio on a tap while a sharepic with a canvas is redrawn', async () => {
+    preview('rendering');
+    render(<SharepicVariantCard data={data('canvas-1')} theme={lightTheme} />);
     fireEvent.press(sharepic());
     await settle();
     expect(router.push).toHaveBeenCalledTimes(1);
