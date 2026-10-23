@@ -97,7 +97,11 @@ export default function MobileRenderPage() {
           });
           return;
         }
-        const image = await renderSharepicToImage(request.canvasType, request.initialProps);
+        // `'app'`, not the export default: see APP_PIXEL_RATIO — above 1x the
+        // Android WebView drops the photo from the capture.
+        const image = await renderSharepicToImage(request.canvasType, request.initialProps, {
+          quality: 'app',
+        });
         if (cancelled) return;
         if (image === null) {
           // `renderSharepicToImage` resolves null on its own 5s timeout — a
