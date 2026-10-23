@@ -186,56 +186,60 @@ function SharepicHero({ variant, theme }: { variant: SharepicVariant; theme: The
         )}
       </View>
 
-      <View style={styles.actions}>
-        <Pressable
-          onPress={() => void handleOpenStudio()}
-          disabled={opening}
-          style={styles.action}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityState={{ disabled: opening }}
-        >
-          <Ionicons
-            name={opening ? 'hourglass-outline' : 'create-outline'}
-            size={14}
-            color={theme.textSecondary}
-          />
-          <Text style={[styles.actionText, { color: theme.textSecondary }]}>
-            {opening ? 'Öffnen…' : 'Im Studio öffnen'}
-          </Text>
-        </Pressable>
+      {/* Nothing to act on while the picture is drawn — the frame says what is
+          happening. Once it failed, opening the studio is the way to it. */}
+      {status !== 'rendering' && (
+        <View style={styles.actions}>
+          <Pressable
+            onPress={() => void handleOpenStudio()}
+            disabled={opening}
+            style={styles.action}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: opening }}
+          >
+            <Ionicons
+              name={opening ? 'hourglass-outline' : 'create-outline'}
+              size={14}
+              color={theme.textSecondary}
+            />
+            <Text style={[styles.actionText, { color: theme.textSecondary }]}>
+              {opening ? 'Öffnen…' : 'Im Studio öffnen'}
+            </Text>
+          </Pressable>
 
-        {image !== null && (
-          <>
-            <Pressable
-              onPress={() => void shareBase64Image(image, 'Sharepic teilen')}
-              style={styles.action}
-              hitSlop={8}
-              accessibilityRole="button"
-            >
-              <Ionicons name="share-outline" size={14} color={theme.textSecondary} />
-              <Text style={[styles.actionText, { color: theme.textSecondary }]}>Teilen</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => void handleSave()}
-              disabled={saving}
-              style={styles.action}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityState={{ disabled: saving }}
-            >
-              <Ionicons
-                name={saving ? 'hourglass-outline' : 'download-outline'}
-                size={14}
-                color={theme.textSecondary}
-              />
-              <Text style={[styles.actionText, { color: theme.textSecondary }]}>
-                {saving ? 'Speichern…' : 'Speichern'}
-              </Text>
-            </Pressable>
-          </>
-        )}
-      </View>
+          {image !== null && (
+            <>
+              <Pressable
+                onPress={() => void shareBase64Image(image, 'Sharepic teilen')}
+                style={styles.action}
+                hitSlop={8}
+                accessibilityRole="button"
+              >
+                <Ionicons name="share-outline" size={14} color={theme.textSecondary} />
+                <Text style={[styles.actionText, { color: theme.textSecondary }]}>Teilen</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => void handleSave()}
+                disabled={saving}
+                style={styles.action}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: saving }}
+              >
+                <Ionicons
+                  name={saving ? 'hourglass-outline' : 'download-outline'}
+                  size={14}
+                  color={theme.textSecondary}
+                />
+                <Text style={[styles.actionText, { color: theme.textSecondary }]}>
+                  {saving ? 'Speichern…' : 'Speichern'}
+                </Text>
+              </Pressable>
+            </>
+          )}
+        </View>
+      )}
     </View>
   );
 }
