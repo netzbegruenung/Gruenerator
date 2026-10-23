@@ -225,11 +225,10 @@ export const INSTANCES = [
       // category, not by id, so a new Landesverband inherits the rule — and the
       // three agents per Landesverband, their hubs and their recipes fall with
       // it (`agents/landesverbandHubs.ts`, `agents/skillInstances.ts`).
-      notebookCategories: ['landesebene', 'oesterreich'],
-      // Temporary: bgst's own Qdrant has no Landtag collections, so these two
-      // showed "0 Dokumente". Remove once bgst reads content from the shared
-      // Qdrant (#4875 plus the Salt rollout).
-      notebookIds: ['landtag-nrw-notebook', 'landtag-berlin-notebook'],
+      // `parlamente` is temporary: bgst's own Qdrant has no parliament
+      // collections, so these notebooks showed "0 Dokumente". Drop it once bgst
+      // reads content from the shared Qdrant (#4875 plus the Salt rollout).
+      notebookCategories: ['landesebene', 'oesterreich', 'parlamente'],
       // The Reel tools are hidden above; leaving the recipe would offer a text
       // form for a tool this instance does not have.
       skillMentions: ['reel'],

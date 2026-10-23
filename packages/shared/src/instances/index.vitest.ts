@@ -161,7 +161,7 @@ describe('current instances', () => {
       expect(getInstance(id).hide?.notebookIds).toEqual(['gruene-notebook']);
       expect(getInstance(id).hide?.notebookCategories).toBeUndefined();
     }
-    expect(getInstance('bgst').hide?.notebookIds).not.toContain('gruene-notebook');
+    expect(getInstance('bgst').hide?.notebookIds).toBeUndefined();
   });
 
   it('blocks nothing anywhere — every direct notebook link keeps resolving', () => {
@@ -189,27 +189,24 @@ describe('current instances', () => {
   // By category, not by id: the Bundesgeschäftsstelle works federally, and a
   // thirteenth Landesverband must inherit the rule without anyone remembering
   // to add it here.
-  it('bgst hides the Landesverband and Austrian notebook categories', () => {
-    expect(getInstance('bgst').hide?.notebookCategories).toEqual(['landesebene', 'oesterreich']);
+  // `parlamente` nur vorübergehend, bis #4875 samt Salt-Rollout: bgsts eigenes
+  // Qdrant hat keine Parlaments-Sammlungen.
+  it('bgst hides the Landesverband, Austrian and (for now) Parlamente notebook categories', () => {
+    expect(getInstance('bgst').hide?.notebookCategories).toEqual([
+      'landesebene',
+      'oesterreich',
+      'parlamente',
+    ]);
     for (const id of ['production', 'beta', 'local'] as const) {
       expect(getInstance(id).hide?.notebookCategories).toBeUndefined();
     }
   });
 
-  // Parlamente — Bundestag wie Landtage — sind auch auf Bundesebene Arbeitsstoff.
-  // Ausnahme bis #4875 samt Salt-Rollout: bgsts eigenes Qdrant hat keine Landtage.
-  const BGST_HIDDEN_LANDTAGE = ['landtag-nrw-notebook', 'landtag-berlin-notebook'];
-  it('bgst hides the Landtage until it reads the shared content Qdrant', () => {
-    expect(getInstance('bgst').hide?.notebookIds).toEqual(BGST_HIDDEN_LANDTAGE);
-  });
-
-  it('bgst keeps the Parlamente notebooks', () => {
-    const parlamente = NOTEBOOK_REGISTRY.filter(
-      (nb) => nb.category === 'parlamente' && !BGST_HIDDEN_LANDTAGE.includes(nb.id)
-    );
+  it('bgst hides every Parlamente notebook', () => {
+    const parlamente = NOTEBOOK_REGISTRY.filter((nb) => nb.category === 'parlamente');
     expect(parlamente.length).toBeGreaterThan(0);
     for (const nb of parlamente) {
-      expect(policyCoversNotebook(getInstance('bgst').hide, nb), nb.id).toBe(false);
+      expect(policyCoversNotebook(getInstance('bgst').hide, nb), nb.id).toBe(true);
     }
   });
 
