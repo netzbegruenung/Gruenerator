@@ -67,6 +67,13 @@ const PIXEL_RATIO: Record<RenderQuality, number> = {
   full: FULL_PIXEL_RATIO,
 };
 
+/**
+ * Longest wait for the editor module and the icon sets before a render gives
+ * up. With the fonts and the capture's own ten seconds it stays inside the
+ * app's 30 s per attempt.
+ */
+const PREPARE_TIMEOUT_MS = 10_000;
+
 interface CanvasHandle {
   toDataURL: (options?: { pixelRatio?: number }) => string | undefined;
   imagesSettled?: () => boolean;
@@ -101,13 +108,23 @@ function runRender(
   return new Promise<string | null>((resolve) => {
     void (async () => {
       // A throw here used to vanish into the `void` with `resolve` never
-      // called: the render stayed open for good and every later one queued
-      // behind it — on the app's hidden render page that read as two
-      // timeouts and no preview. The cause goes to GlitchTip, the render ends.
-      const editor = await prepare().catch((error: unknown) => {
-        Sentry.captureException(error, { tags: { sharepicRender: 'prepare' } });
-        return null;
+      // called: the render stayed open for good, an identical retry joined it,
+      // and the app's render page (one request at a time) waited behind it —
+      // two timeouts and no preview. A load that never settles does the same,
+      // hence the deadline. The cause goes to GlitchTip, the render ends.
+      let deadline: ReturnType<typeof setTimeout> | undefined;
+      const stalled = new Promise<never>((_, reject) => {
+        deadline = setTimeout(
+          () => reject(new Error(`canvas editor not ready after ${PREPARE_TIMEOUT_MS} ms`)),
+          PREPARE_TIMEOUT_MS
+        );
       });
+      const editor = await Promise.race([prepare(), stalled])
+        .catch((error: unknown) => {
+          Sentry.captureException(error, { tags: { sharepicRender: 'prepare' } });
+          return null;
+        })
+        .finally(() => clearTimeout(deadline));
       if (!editor) {
         resolve(null);
         return;
