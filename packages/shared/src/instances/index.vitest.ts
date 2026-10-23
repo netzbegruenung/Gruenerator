@@ -161,7 +161,7 @@ describe('current instances', () => {
       expect(getInstance(id).hide?.notebookIds).toEqual(['gruene-notebook']);
       expect(getInstance(id).hide?.notebookCategories).toBeUndefined();
     }
-    expect(getInstance('bgst').hide?.notebookIds).toBeUndefined();
+    expect(getInstance('bgst').hide?.notebookIds).not.toContain('gruene-notebook');
   });
 
   it('blocks nothing anywhere — every direct notebook link keeps resolving', () => {
@@ -197,8 +197,16 @@ describe('current instances', () => {
   });
 
   // Parlamente — Bundestag wie Landtage — sind auch auf Bundesebene Arbeitsstoff.
+  // Ausnahme bis #4875 samt Salt-Rollout: bgsts eigenes Qdrant hat keine Landtage.
+  const BGST_HIDDEN_LANDTAGE = ['landtag-nrw-notebook', 'landtag-berlin-notebook'];
+  it('bgst hides the Landtage until it reads the shared content Qdrant', () => {
+    expect(getInstance('bgst').hide?.notebookIds).toEqual(BGST_HIDDEN_LANDTAGE);
+  });
+
   it('bgst keeps the Parlamente notebooks', () => {
-    const parlamente = NOTEBOOK_REGISTRY.filter((nb) => nb.category === 'parlamente');
+    const parlamente = NOTEBOOK_REGISTRY.filter(
+      (nb) => nb.category === 'parlamente' && !BGST_HIDDEN_LANDTAGE.includes(nb.id)
+    );
     expect(parlamente.length).toBeGreaterThan(0);
     for (const nb of parlamente) {
       expect(policyCoversNotebook(getInstance('bgst').hide, nb), nb.id).toBe(false);
