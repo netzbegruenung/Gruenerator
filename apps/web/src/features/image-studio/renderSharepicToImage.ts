@@ -18,6 +18,7 @@
  */
 
 import { parseSharepicChatProps, type SharepicChatProps } from '@gruenerator/contracts';
+import * as Sentry from '@sentry/react';
 import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 
@@ -67,16 +68,32 @@ function runRender(
   pixelRatio: number,
   formatId: string | null
 ): Promise<string | null> {
+  const prepare = async () => {
+    const editor = await import('@gruenerator/canvas-editor');
+    // The page's icons resolve from their sets; load them before the first
+    // paint, or the capture can beat the re-render that adds them.
+    const iconStates = initialProps.iconStates as Record<string, { iconId?: string }> | undefined;
+    await editor.loadIconSetsFor(
+      Object.keys(iconStates ?? {}).map((id) => editor.catalogIconId(id, iconStates))
+    );
+    return editor;
+  };
+
   return new Promise<string | null>((resolve) => {
     void (async () => {
-      const { StandaloneCanvas, ensureFontsReady, loadIconSetsFor, catalogIconId } =
-        await import('@gruenerator/canvas-editor');
-      // The page's icons resolve from their sets; load them before the first
-      // paint, or the capture can beat the re-render that adds them.
-      const iconStates = initialProps.iconStates as Record<string, { iconId?: string }> | undefined;
-      await loadIconSetsFor(
-        Object.keys(iconStates ?? {}).map((id) => catalogIconId(id, iconStates))
-      );
+      // A throw here used to vanish into the `void` with `resolve` never
+      // called: the render stayed open for good and every later one queued
+      // behind it — on the app's hidden render page that read as two
+      // timeouts and no preview. The cause goes to GlitchTip, the render ends.
+      const editor = await prepare().catch((error: unknown) => {
+        Sentry.captureException(error, { tags: { sharepicRender: 'prepare' } });
+        return null;
+      });
+      if (!editor) {
+        resolve(null);
+        return;
+      }
+      const { StandaloneCanvas, ensureFontsReady } = editor;
 
       const container = document.createElement('div');
       container.style.cssText =

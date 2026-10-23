@@ -13,13 +13,20 @@ const handle = vi.hoisted(() => ({
 
 const mounts = vi.hoisted(() => ({ props: [] as Array<Record<string, unknown>> }));
 const compose = vi.hoisted(() => ({ fn: vi.fn() }));
+const failing = vi.hoisted(() => ({ before: false }));
+const sentry = vi.hoisted(() => ({ captureException: vi.fn() }));
+
+vi.mock('@sentry/react', () => ({ captureException: sentry.captureException }));
 
 vi.mock('./freitext/composeForRender', () => ({ composeCreatorSharepic: compose.fn }));
 
 vi.mock('@gruenerator/canvas-editor', () => ({
   ensureFontsReady: () => Promise.resolve(),
   loadIconSetsFor: () => Promise.resolve(),
-  catalogIconId: (id: string) => id,
+  catalogIconId: (id: string) => {
+    if (failing.before) throw new Error('icon set unavailable');
+    return id;
+  },
   StandaloneCanvas: (props: { canvasRef: (ref: unknown) => void }) => {
     const { canvasRef } = props;
     mounts.props.push(props as unknown as Record<string, unknown>);
@@ -43,6 +50,8 @@ describe('renderSharepicToImage', () => {
     handle.toDataURL.mockClear();
     mounts.props.length = 0;
     compose.fn.mockReset();
+    failing.before = false;
+    sentry.captureException.mockClear();
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -57,6 +66,26 @@ describe('renderSharepicToImage', () => {
     await vi.advanceTimersByTimeAsync(200);
     await expect(result).resolves.toMatch(/^data:image\/png/);
     expect(handle.toDataURL).toHaveBeenCalledTimes(1);
+  });
+
+  // What a phone showed as "timeout" twice: a throw before the canvas mounts
+  // (module or icons) left the promise open for good, and every later render
+  // in the page queued behind it.
+  it('gives up at once when the steps before the canvas fail, and keeps the queue moving', async () => {
+    failing.before = true;
+    const broken = renderSharepicToImage('dreizeilen', {
+      line1: `x${seq++}`,
+      iconStates: { a: { iconId: 'x' } },
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    await expect(broken).resolves.toBeNull();
+    expect(sentry.captureException).toHaveBeenCalledOnce();
+
+    failing.before = false;
+    handle.settled = true;
+    const next = render();
+    await vi.advanceTimersByTimeAsync(700);
+    await expect(next).resolves.toMatch(/^data:image\/png/);
   });
 
   it('captures what it has at the deadline rather than giving up', async () => {
