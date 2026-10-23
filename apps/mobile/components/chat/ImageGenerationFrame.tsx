@@ -16,7 +16,7 @@ import { ShimmerText } from './ShimmerText';
 import type { Theme } from '../../theme/colors';
 
 const COLUMNS = 8;
-const DOTS = Array.from({ length: COLUMNS * COLUMNS }, (_, i) => i);
+const LINES = Array.from({ length: COLUMNS }, (_, i) => i);
 const PULSE_MS = 900;
 /** Diagonal stagger: `row + col` makes the pulse sweep out of the top-left corner. */
 const STAGGER_MS = 90;
@@ -53,24 +53,53 @@ const Dot = memo(function Dot({ index, color }: { index: number; color: string }
   );
 });
 
+/**
+ * The pulsing grid alone, filling its parent: a frame that has one of its own
+ * uses it. Eight equal rows of eight equal cells, so the grid spans any shape
+ * evenly — square for a picture, 4:5 for a sharepic — like CSS grid does on web.
+ * (Square cells from a percentage width and `aspectRatio` in a wrapping row
+ * came out squashed on Android and left the bottom of a 4:5 frame empty.)
+ */
+export const ImageGenerationDots = memo(function ImageGenerationDots({ color }: { color: string }) {
+  return (
+    <View style={styles.grid} aria-hidden>
+      {LINES.map((row) => (
+        <View key={row} style={styles.row}>
+          {LINES.map((col) => (
+            <Dot key={col} index={row * COLUMNS + col} color={color} />
+          ))}
+        </View>
+      ))}
+    </View>
+  );
+});
+
+/**
+ * `label` and `aspectRatio` let another picture in the making use the frame: a
+ * sharepic is drafted in its card's 4:5 shape, so the card lands where the
+ * placeholder stood.
+ */
 export const ImageGenerationFrame = memo(function ImageGenerationFrame({
   theme,
+  label = 'Bild wird generiert …',
+  aspectRatio = 1,
 }: {
   theme: Theme;
+  label?: string;
+  aspectRatio?: number;
 }) {
   return (
-    <View
-      style={styles.wrap}
-      accessibilityRole="progressbar"
-      accessibilityLabel="Bild wird generiert"
-    >
-      <View style={[styles.frame, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        {DOTS.map((dot) => (
-          <Dot key={dot} index={dot} color={theme.textSecondary} />
-        ))}
+    <View style={styles.wrap} accessibilityRole="progressbar" accessibilityLabel={label}>
+      <View
+        style={[
+          styles.frame,
+          { aspectRatio, backgroundColor: theme.surface, borderColor: theme.border },
+        ]}
+      >
+        <ImageGenerationDots color={theme.textSecondary} />
       </View>
       <ShimmerText mutedColor={theme.textSecondary} brightColor={theme.text} fontSize={12}>
-        Bild wird generiert …
+        {label}
       </ShimmerText>
     </View>
   );
@@ -87,20 +116,18 @@ const styles = StyleSheet.create({
   },
   frame: {
     width: '100%',
-    aspectRatio: 1,
     borderWidth: 1,
     borderRadius: borderRadius.medium,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    justifyContent: 'center',
+  },
+  grid: {
+    flex: 1,
     padding: spacing.medium,
   },
+  row: { flex: 1, flexDirection: 'row' },
   // The cell carries the grid geometry, the dot only its own size — a
-  // percentage-sized dot would stretch with the frame instead of staying a dot.
+  // flex-sized dot would stretch with the frame instead of staying a dot.
   cell: {
-    width: `${100 / COLUMNS}%`,
-    aspectRatio: 1,
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
