@@ -141,7 +141,10 @@ describe('renderSharepic', () => {
     connectHost();
     const pending = renderSharepic('a:v0', 'zitat', {});
 
+    // A cold first render can run past 20 s; drawing gets 30 before the retry.
     await vi.advanceTimersByTimeAsync(20_000);
+    expect(posted).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(10_000);
     expect(posted).toHaveLength(2);
 
     reply(posted[1]!.requestId, 'late but fine');
@@ -153,7 +156,7 @@ describe('renderSharepic', () => {
     const pending = renderSharepic('a:v0', 'zitat', {});
     const firstId = posted[0]!.requestId;
 
-    await vi.advanceTimersByTimeAsync(20_000);
+    await vi.advanceTimersByTimeAsync(30_000);
     // The page finally answers the FIRST request while the retry is in flight.
     // Settling the job on it would hand back an image keyed to a request whose
     // props may already be stale.
