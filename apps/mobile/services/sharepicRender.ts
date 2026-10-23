@@ -401,7 +401,9 @@ export function unregisterRenderHost(): void {
  */
 export function hostUnavailable(reason: string): void {
   console.warn(`[sharepicRender] host unavailable: ${reason}`);
-  reportFailure('sharepic render host unavailable', { reason });
+  // Only when it cost someone a picture: the host also gives up while idle
+  // (a WebView error between renders), and a burst of those is noise.
+  if (pending()) reportFailure('sharepic render host unavailable', { reason });
   if (bootTimer !== null) {
     clearTimeout(bootTimer);
     bootTimer = null;

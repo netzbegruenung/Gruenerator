@@ -11,7 +11,6 @@ import { type SharepicSpec } from '@gruenerator/contracts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { reportFailure } from './errorReporting';
-
 import {
   __resetSharepicRenderForTests,
   __sharepicRenderState,
@@ -203,6 +202,15 @@ describe('renderSharepic', () => {
     hostUnavailable('handoff failed');
     await expect(pending).resolves.toBeNull();
     expect(__sharepicRenderState().demanded).toBe(false);
+    expect(reportFailure).toHaveBeenCalledWith('sharepic render host unavailable', {
+      reason: 'handoff failed',
+    });
+  });
+
+  it('reports a lost host only when it cost someone a picture', () => {
+    hostUnavailable('webview error');
+    hostUnavailable('webview error');
+    expect(reportFailure).not.toHaveBeenCalled();
   });
 
   it('gives up when the host never comes up at all', async () => {
