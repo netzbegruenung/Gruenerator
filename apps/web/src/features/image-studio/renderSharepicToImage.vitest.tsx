@@ -88,6 +88,20 @@ describe('renderSharepicToImage', () => {
     await expect(next).resolves.toMatch(/^data:image\/png/);
   });
 
+  // The hidden Android WebView loses the photo from a capture above 1x, so the
+  // app's render page must not inherit the export default of 2x.
+  it.each([
+    ['preview', 0.7],
+    ['app', 1],
+    ['full', 2],
+  ] as const)('captures %s quality at pixelRatio %s', async (quality, pixelRatio) => {
+    handle.settled = true;
+    const result = renderSharepicToImage('dreizeilen', { line1: `x${seq++}` }, { quality });
+    await vi.advanceTimersByTimeAsync(700);
+    await expect(result).resolves.toMatch(/^data:image\/png/);
+    expect(handle.toDataURL).toHaveBeenLastCalledWith({ pixelRatio });
+  });
+
   it('captures what it has at the deadline rather than giving up', async () => {
     const result = render();
     await vi.advanceTimersByTimeAsync(10_500);

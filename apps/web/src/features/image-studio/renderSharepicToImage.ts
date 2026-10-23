@@ -48,6 +48,25 @@ const PREVIEW_PIXEL_RATIO = 0.7;
  */
 const FULL_PIXEL_RATIO = 2;
 
+/**
+ * The app's scale: its card shows, shares and saves this picture, so 1080px
+ * wide — Instagram's own size. Not `'full'`: the app renders in a hidden
+ * Android WebView, and there a capture at 1.5x or more comes back without the
+ * photo (measured 23.10.2026 on the emulator: 1x and below keep it, 1.5x and
+ * 2x are transparent where the photo was; Chrome on the same device keeps it
+ * at 2x). A quarter of the pixels also means a quarter to encode and to carry
+ * over the bridge.
+ */
+const APP_PIXEL_RATIO = 1;
+
+type RenderQuality = 'preview' | 'app' | 'full';
+
+const PIXEL_RATIO: Record<RenderQuality, number> = {
+  preview: PREVIEW_PIXEL_RATIO,
+  app: APP_PIXEL_RATIO,
+  full: FULL_PIXEL_RATIO,
+};
+
 interface CanvasHandle {
   toDataURL: (options?: { pixelRatio?: number }) => string | undefined;
   imagesSettled?: () => boolean;
@@ -195,11 +214,11 @@ function keyFor(
  * `quality` defaults to `'full'` because most callers persist or hand out what
  * they get back, and a silent downscale there is invisible until someone opens
  * the file. Only the chat cards ask for `'preview'`, and they display it at
- * 420px and throw it away.
+ * 420px and throw it away; the app's render page asks for `'app'`.
  */
 async function renderCreatorSlide(
   props: SharepicChatProps,
-  quality: 'preview' | 'full'
+  quality: RenderQuality
 ): Promise<string | null> {
   try {
     const composed = await composeCreatorSharepic(props.creatorSpec, props.attributions);
@@ -217,7 +236,7 @@ async function renderCreatorSlide(
 export function renderSharepicToImage(
   canvasType: string,
   initialProps: Record<string, unknown>,
-  options?: { quality?: 'preview' | 'full'; formatId?: string }
+  options?: { quality?: RenderQuality; formatId?: string }
 ): Promise<string | null> {
   const quality = options?.quality ?? 'full';
   if ('creatorSpec' in initialProps) {
@@ -225,7 +244,7 @@ export function renderSharepicToImage(
     return creator ? renderCreatorSlide(creator, quality) : Promise.resolve(null);
   }
   const formatId = options?.formatId ?? null;
-  const pixelRatio = quality === 'full' ? FULL_PIXEL_RATIO : PREVIEW_PIXEL_RATIO;
+  const pixelRatio = PIXEL_RATIO[quality];
   return queue.run(keyFor(canvasType, initialProps, quality, formatId), () =>
     runRender(canvasType, initialProps, pixelRatio, formatId)
   );
