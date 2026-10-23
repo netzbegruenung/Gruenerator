@@ -65,3 +65,12 @@ export function initErrorReporting(): void {
 export function reportError(error: Error, componentStack?: string | null): void {
   Sentry.captureException(error, componentStack ? { contexts: { react: { componentStack } } } : {});
 }
+
+/**
+ * A failure that throws nothing — a sharepic preview that gave up — as one
+ * grouped warning. `reason` and `tags` are protocol words (timeout, capture
+ * returned no image), never content.
+ */
+export function reportFailure(message: string, tags: Record<string, string>): void {
+  Sentry.captureMessage(message, { level: 'warning', tags });
+}

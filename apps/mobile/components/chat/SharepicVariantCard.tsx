@@ -10,13 +10,16 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useSharepicPreview } from '../../hooks/useSharepicPreview';
 import { saveImageToGallery } from '../../services/imageStudio';
 import { shareBase64Image } from '../../services/share';
 import { composeForMint } from '../../services/sharepicRender';
 import { BODY_FONT, borderRadius, chatType, colors, spacing } from '../../theme';
+
+import { ImageGenerationDots } from './ImageGenerationFrame';
+import { ShimmerText } from './ShimmerText';
 
 import type { Theme } from '../../theme/colors';
 
@@ -162,11 +165,13 @@ function SharepicHero({ variant, theme }: { variant: SharepicVariant; theme: The
         {status === 'ready' && image !== null ? (
           <Image source={{ uri: image }} style={styles.image} contentFit="contain" />
         ) : status === 'rendering' ? (
-          <View style={styles.placeholder}>
-            <ActivityIndicator color={colors.primary[600]} />
-            <Text style={[styles.placeholderText, { color: theme.textSecondary }]}>
-              Sharepic wird gezeichnet …
-            </Text>
+          <View style={styles.generating}>
+            <ImageGenerationDots color={theme.textSecondary} />
+            <View style={styles.generatingLabel}>
+              <ShimmerText mutedColor={theme.textSecondary} brightColor={theme.text} fontSize={12}>
+                Sharepic wird gezeichnet …
+              </ShimmerText>
+            </View>
           </View>
         ) : (
           <View style={styles.placeholder}>
@@ -247,6 +252,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   image: { width: '100%', height: '100%' },
+  generating: { flex: 1 },
+  generatingLabel: { alignItems: 'center', paddingBottom: spacing.medium },
   placeholder: {
     flex: 1,
     alignItems: 'center',

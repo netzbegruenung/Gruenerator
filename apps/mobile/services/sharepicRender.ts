@@ -32,6 +32,8 @@ import {
 } from '@gruenerator/shared';
 import { useSyncExternalStore } from 'react';
 
+import { reportFailure } from './errorReporting';
+
 /**
  * How long one render may take, measured from the moment it is posted.
  *
@@ -232,6 +234,8 @@ function failInFlight(reason: string): void {
     queue.unshift(job);
   } else {
     console.warn(`[sharepicRender] giving up on ${job.key}: ${reason}`);
+    // Without this a preview that never appears leaves no trace anywhere.
+    reportFailure('sharepic render gave up', { reason, request: job.request.type });
     settle(job, null);
   }
   if (!pending()) armIdleUnmount();
@@ -397,6 +401,9 @@ export function unregisterRenderHost(): void {
  */
 export function hostUnavailable(reason: string): void {
   console.warn(`[sharepicRender] host unavailable: ${reason}`);
+  // Only when it cost someone a picture: the host also gives up while idle
+  // (a WebView error between renders), and a burst of those is noise.
+  if (pending()) reportFailure('sharepic render host unavailable', { reason });
   if (bootTimer !== null) {
     clearTimeout(bootTimer);
     bootTimer = null;

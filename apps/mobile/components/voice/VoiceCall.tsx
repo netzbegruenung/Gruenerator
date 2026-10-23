@@ -1,5 +1,5 @@
 import { useAui, useVoiceControls, useVoiceState } from '@assistant-ui/react-native';
-import { TOOL_LABEL, type ToolCall } from '@gruenerator/voice/mistral';
+import { TOOL_LABEL } from '@gruenerator/voice/mistral';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useEffect, useEffectEvent, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -21,7 +21,6 @@ import Svg, { Circle, Defs, LinearGradient, RadialGradient, Stop } from 'react-n
 import { useTheme } from '../../hooks/useTheme';
 import { useVoiceCallStore } from '../../stores/voiceCallStore';
 import { BODY_FONT, colors, spacing } from '../../theme';
-import { GrueneratorLoadingIcon } from '../chat/GrueneratorLoadingIcon';
 
 const BLOB = 240;
 const BLOB_SMALL = 96;
@@ -45,8 +44,11 @@ function CallLifecycle() {
   return null;
 }
 
-/** Soft green sphere, slowly turning; breathes quicker while the agent speaks. */
-function Blob({ tool }: { tool: ToolCall | null }) {
+/**
+ * Soft green sphere, slowly turning. It breathes: gently while listening,
+ * quickly while the agent speaks, and slow and deep while a tool works.
+ */
+function Blob({ working }: { working: boolean }) {
   const voice = useVoiceState();
   const status = voice?.status.type;
   const live = status === 'running' || status === 'starting';
@@ -65,8 +67,8 @@ function Blob({ tool }: { tool: ToolCall | null }) {
       breath.value = withTiming(0.94, { duration: 400 });
       return;
     }
-    const duration = speaking ? 380 : 1800;
-    const peak = speaking ? 1.06 : 1.025;
+    const duration = speaking ? 380 : working ? 900 : 1800;
+    const peak = speaking ? 1.06 : working ? 1.1 : 1.025;
     breath.value = withRepeat(
       withSequence(
         withTiming(peak, { duration, easing: Easing.inOut(Easing.sin) }),
@@ -74,7 +76,7 @@ function Blob({ tool }: { tool: ToolCall | null }) {
       ),
       -1
     );
-  }, [live, speaking, breath]);
+  }, [live, speaking, working, breath]);
 
   const sphere = useAnimatedStyle(() => ({
     transform: [{ scale: breath.value }, { rotate: `${turn.value}deg` }],
@@ -105,7 +107,6 @@ function Blob({ tool }: { tool: ToolCall | null }) {
           <Circle cx={BLOB / 2} cy={BLOB / 2} r={BLOB / 2} fill="url(#haze)" />
         </Svg>
       </Animated.View>
-      {tool ? <GrueneratorLoadingIcon size={72} color={colors.white} /> : null}
     </View>
   );
 }
@@ -115,7 +116,7 @@ function Blob({ tool }: { tool: ToolCall | null }) {
  * the chat itself one swipe away (up for the chat, down for the blob again).
  * Swiped up, the blob docks small below the last message and the chat is the
  * real one — every line the call speaks and every card it creates is a message
- * of it. The blob carries the loading gear while the agent looks something up.
+ * of it. The blob breathes deeper while the agent works with a tool.
  */
 export function VoiceCallOverlay() {
   const theme = useTheme();
@@ -150,11 +151,24 @@ export function VoiceCallOverlay() {
         runOnJS(setShowChat)(target === 1);
       });
 
-  const toggle = () => {
-    const next = !showChat;
-    progress.value = withSpring(next ? 1 : 0, SNAP);
-    setShowChat(next);
+  const show = (chat: boolean) => {
+    progress.value = withSpring(chat ? 1 : 0, SNAP);
+    setShowChat(chat);
   };
+  const toggle = () => show(!showChat);
+
+  // A created card has arrived in the chat: step aside so it is seen. Only
+  // this way — the person swipes back to the big blob themselves.
+  const stepAside = useEffectEvent(() => {
+    if (!showChat) show(true);
+  });
+  useEffect(
+    () =>
+      useVoiceCallStore.subscribe((state, prev) => {
+        if (state.cardsShown !== prev.cardsShown) stepAside();
+      }),
+    []
+  );
 
   const coverStyle = useAnimatedStyle(() => ({ opacity: 1 - progress.value }));
   const blobStyle = useAnimatedStyle(() => {
@@ -206,7 +220,7 @@ export function VoiceCallOverlay() {
                   !live ? 'Neu verbinden' : showChat ? 'Gespräch groß anzeigen' : 'Chat anzeigen'
                 }
               >
-                <Blob tool={tool} />
+                <Blob working={tool !== null} />
               </Pressable>
             </GestureDetector>
           </Animated.View>

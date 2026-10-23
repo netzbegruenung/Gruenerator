@@ -31,7 +31,7 @@ import { ConfirmActionCard } from '../ConfirmActionCard';
 import { DocumentCreatedCard } from '../DocumentCreatedCard';
 import { GeneratedImageDisplay } from '../GeneratedImageDisplay';
 import { ImageGenerationFrame } from '../ImageGenerationFrame';
-import { showsImageGenerationFrame } from '../imageGenerationView';
+import { generationFrameFor } from '../imageGenerationView';
 import { MemoryIndicator } from '../MemoryIndicator';
 import { ResearchLogCard } from '../ResearchLogCard';
 import { SearchImagesSection } from '../SearchImagesSection';
@@ -115,6 +115,12 @@ export const AssistantMessage = memo(function AssistantMessage() {
   const reasoningText = selectReasoningText(statusParts);
   const statusSources = useMemo(() => selectSearchSources(statusParts), [statusParts]);
   const progress = metadata.progress;
+  const generationFrame = generationFrameFor({
+    isStreaming,
+    generatedImage,
+    sharepicData,
+    progress,
+  });
 
   const fetchFullText = useFetchFullText();
   const router = useRouter();
@@ -232,11 +238,15 @@ export const AssistantMessage = memo(function AssistantMessage() {
             mobile has always shown generated images below it, and a placeholder
             somewhere else would make the image jump when it lands.
 
-            The intent half of the gate is load-bearing: sharepics and combined
-            social posts pass through the same `generating_image` stage and draw
-            their own cards. */}
-          {showsImageGenerationFrame({ isStreaming, generatedImage, progress }) && (
-            <ImageGenerationFrame theme={theme} />
+            A sharepic holds its card's 4:5 place while it is drafted, until the
+            card arrives and shows the drawing itself; see `generationFrameFor`. */}
+          {generationFrame === 'image' && <ImageGenerationFrame theme={theme} />}
+          {generationFrame === 'sharepic' && (
+            <ImageGenerationFrame
+              theme={theme}
+              label="Sharepic wird entworfen …"
+              aspectRatio={4 / 5}
+            />
           )}
           {generatedImage && <GeneratedImageDisplay image={generatedImage} theme={theme} />}
           {confirmAction && <ConfirmActionCard action={confirmAction} theme={theme} />}

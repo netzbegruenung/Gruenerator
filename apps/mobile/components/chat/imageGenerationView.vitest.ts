@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { showsImageGenerationFrame } from './imageGenerationView';
+import { generationFrameFor } from './imageGenerationView';
 
 import type { ChatMessageMetadata } from '@gruenerator/chat';
 
@@ -10,56 +10,71 @@ function progress(overrides: Partial<NonNullable<Progress>> = {}): Progress {
   return { stage: 'generating_image', intent: 'image', ...overrides } as NonNullable<Progress>;
 }
 
-const base = { isStreaming: true, generatedImage: undefined, progress: progress() };
+const base = {
+  isStreaming: true,
+  generatedImage: undefined,
+  sharepicData: undefined,
+  progress: progress(),
+};
 
-describe('showsImageGenerationFrame', () => {
+describe('generationFrameFor', () => {
   it('shows the frame while an image is being generated', () => {
-    expect(showsImageGenerationFrame(base)).toBe(true);
+    expect(generationFrameFor(base)).toBe('image');
   });
 
   it('shows it for an image edit too', () => {
-    expect(
-      showsImageGenerationFrame({ ...base, progress: progress({ intent: 'image_edit' }) })
-    ).toBe(true);
-  });
-
-  // The check this component exists to get right: a sharepic run passes through
-  // the same stage and draws its own card, so a frame here would be a second,
-  // empty one above it.
-  it('stays away from a sharepic run, which shares the stage', () => {
-    expect(showsImageGenerationFrame({ ...base, progress: progress({ intent: 'sharepic' }) })).toBe(
-      false
+    expect(generationFrameFor({ ...base, progress: progress({ intent: 'image_edit' }) })).toBe(
+      'image'
     );
   });
 
-  it('stays away from a combined social post, for the same reason', () => {
+  it('holds a sharepic frame while the sharepic is still being drafted', () => {
+    expect(generationFrameFor({ ...base, progress: progress({ intent: 'sharepic' }) })).toBe(
+      'sharepic'
+    );
+  });
+
+  // The check this component exists to get right: once the sharepic's card is
+  // there it shows the drawing itself, and a frame above it would be a second,
+  // empty one.
+  it('makes way for the sharepic card as soon as it arrives', () => {
     expect(
-      showsImageGenerationFrame({ ...base, progress: progress({ intent: 'social_post' }) })
-    ).toBe(false);
+      generationFrameFor({
+        ...base,
+        progress: progress({ intent: 'sharepic' }),
+        sharepicData: { variants: [] } as unknown as NonNullable<
+          ChatMessageMetadata['sharepicData']
+        >,
+      })
+    ).toBeNull();
+  });
+
+  it('stays away from a combined social post, which draws its own card', () => {
+    expect(
+      generationFrameFor({ ...base, progress: progress({ intent: 'social_post' }) })
+    ).toBeNull();
   });
 
   it('retires as soon as the picture itself arrives', () => {
     expect(
-      showsImageGenerationFrame({
+      generationFrameFor({
         ...base,
         generatedImage: { base64: 'x', style: 'illustration' } as NonNullable<
           ChatMessageMetadata['generatedImage']
         >,
       })
-    ).toBe(false);
+    ).toBeNull();
   });
 
   it('never appears on a finished turn', () => {
-    expect(showsImageGenerationFrame({ ...base, isStreaming: false })).toBe(false);
+    expect(generationFrameFor({ ...base, isStreaming: false })).toBeNull();
   });
 
   it('ignores every other stage', () => {
-    expect(showsImageGenerationFrame({ ...base, progress: progress({ stage: 'searching' }) })).toBe(
-      false
-    );
+    expect(generationFrameFor({ ...base, progress: progress({ stage: 'searching' }) })).toBeNull();
   });
 
   it('tolerates a turn that carries no progress at all', () => {
-    expect(showsImageGenerationFrame({ ...base, progress: undefined })).toBe(false);
+    expect(generationFrameFor({ ...base, progress: undefined })).toBeNull();
   });
 });

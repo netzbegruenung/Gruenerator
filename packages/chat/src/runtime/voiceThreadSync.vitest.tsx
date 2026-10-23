@@ -108,8 +108,9 @@ describe('insertSavedMessage during a voice call', () => {
     await call.say('user', 'Mach ein Sharepic zu Klimaschutz');
     await call.say('assistant', 'Hier ist', false);
 
+    let inserted = false;
     await act(async () => {
-      await insertSavedMessage(
+      inserted = await insertSavedMessage(
         call.thread,
         serverWith([CARD]),
         '/messages',
@@ -118,6 +119,8 @@ describe('insertSavedMessage during a voice call', () => {
       );
     });
     await call.say('assistant', 'Hier ist dein Sharepic.');
+
+    expect(inserted).toBe(true);
 
     expect(shape(call.runtime)).toEqual([
       { role: 'user', text: 'Mach ein Sharepic zu Klimaschutz', tools: [] },
@@ -152,8 +155,9 @@ describe('insertSavedMessage during a voice call', () => {
     await call.connect();
     await call.say('user', 'Mach ein Sharepic');
 
+    let inserted = true;
     await act(async () => {
-      await insertSavedMessage(
+      inserted = await insertSavedMessage(
         call.thread,
         serverWith([]),
         '/messages',
@@ -162,6 +166,7 @@ describe('insertSavedMessage during a voice call', () => {
       );
     });
 
+    expect(inserted).toBe(false);
     expect(shape(call.runtime)).toEqual([{ role: 'user', text: 'Mach ein Sharepic', tools: [] }]);
   });
 });
