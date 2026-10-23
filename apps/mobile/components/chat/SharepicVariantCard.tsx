@@ -186,9 +186,12 @@ function SharepicHero({ variant, theme }: { variant: SharepicVariant; theme: The
         )}
       </View>
 
-      {/* Nothing to act on while the picture is drawn — the frame says what is
-          happening. Once it failed, opening the studio is the way to it. */}
-      {status !== 'rendering' && (
+      {/* While a new sharepic is first drawn there is nothing to act on — the
+          frame says what is happening. A sharepic that already has a canvas
+          (redrawn after a chat edit) can be opened meanwhile; once drawing
+          failed, the studio is the way to it. Share and save wait for the
+          picture either way. */}
+      {(status !== 'rendering' || canvasId !== null) && (
         <View style={styles.actions}>
           <Pressable
             onPress={() => void handleOpenStudio()}
