@@ -58,7 +58,7 @@ const TRIGGER_BTN =
   'inline-flex items-center justify-center size-8 max-canvas-mobile:size-11 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)]';
 
 const GRID_BTN =
-  'inline-flex items-center gap-1.5 h-8 max-canvas-mobile:h-11 rounded-md border-none bg-transparent px-2 cursor-pointer text-[12px] text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] disabled:opacity-30 disabled:cursor-not-allowed';
+  'inline-flex items-center gap-1.5 h-8 max-canvas-mobile:h-11 rounded-md border-none bg-transparent px-2 cursor-pointer whitespace-nowrap text-[12px] text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] disabled:opacity-30 disabled:cursor-not-allowed';
 
 const show = (n: number) => String(Math.round(n));
 
@@ -146,7 +146,7 @@ export function FloatingPositionControl({
         </button>
       </PopoverTrigger>
       <PopoverContent
-        className="z-[10001] w-72 flex flex-col gap-2.5 p-3"
+        className="z-[10001] w-80 max-w-[calc(100vw-32px)] flex flex-col gap-2.5 p-3"
         align="center"
         aria-labelledby={titleId}
       >
