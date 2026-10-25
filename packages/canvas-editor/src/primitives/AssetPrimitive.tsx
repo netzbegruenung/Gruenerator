@@ -14,7 +14,6 @@ import { ELEMENT_TRANSFORMER, signedScale } from '../utils/orientation';
 import { useTrackPendingImage } from '../utils/pendingImages';
 import { applyPixelHitArea } from '../utils/pixelHitArea';
 import { boxFrame, createBoxFrame, frameBounds, snapByBounds } from '../utils/snapping';
-import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type { AssetInstance } from '../utils/canvasAssets';
 import type { SnapLine, SnapTarget } from '../utils/snapping';
@@ -225,7 +224,6 @@ function AssetPrimitiveInner({
 
       {isSelected && (
         <Transformer
-          anchorStyleFunc={touchAnchorStyleFunc}
           ref={transformerRef}
           keepRatio={true}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}

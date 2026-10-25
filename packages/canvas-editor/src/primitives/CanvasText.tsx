@@ -25,7 +25,6 @@ import {
   frameBounds,
   snapByBounds,
 } from '../utils/snapping';
-import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import { CanvasRichText } from './CanvasRichText';
 
@@ -428,7 +427,6 @@ function CanvasTextInner({
       />
       {selected && !isEditing && (
         <Transformer
-          anchorStyleFunc={touchAnchorStyleFunc}
           ref={trRef}
           rotateEnabled={transformConfig?.rotateEnabled ?? false}
           keepRatio={transformConfig?.keepRatio ?? true}

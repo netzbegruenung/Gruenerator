@@ -1,3 +1,5 @@
+import { COARSE_POINTER, touchAnchorStyleFunc } from './touchInput';
+
 import type Konva from 'konva';
 
 /**
@@ -8,13 +10,83 @@ import type Konva from 'konva';
 export const ROTATION_SNAPS: readonly number[] = [0, 45, 90, 135, 180, 225, 270, 315];
 export const ROTATION_SNAP_TOLERANCE = 5;
 
+/** Wo der Drehgriff zuerst hin soll. */
+export type RotaterPreference = 'above' | 'below';
+
+/**
+ * Maus: über dem Element. Finger: darunter, denn darüber steht die
+ * `MobileSelectionPill` — und der Griff soll nicht unter dem Daumen-Ziel liegen.
+ */
+const ROTATER_PREFERENCE: RotaterPreference = COARSE_POINTER ? 'below' : 'above';
+
+/** Mitte des Drehgriffs für `rotateAnchorAngle = angle`, in Bühnen-px (wie Konvas `getRotaterLine`). */
+function rotaterPoint(tr: Konva.Transformer, angle: number): { x: number; y: number } {
+  const width = tr.width();
+  const height = tr.height();
+  const rad = (angle * Math.PI) / 180;
+  const dx = Math.sin(rad);
+  const dy = -Math.cos(rad);
+  const edge = height / 2;
+  const reach = edge + tr.rotateAnchorOffset() + tr.padding();
+  return tr.getAbsoluteTransform().point({ x: width / 2 + dx * reach, y: height / 2 + dy * reach });
+}
+
+/**
+ * Seite des Drehgriffs: die bevorzugte, sichtbar oben bzw. unten. „Oben" wird
+ * auf der Bühne gemessen, nicht in der Box: Konva dreht die Box eines
+ * horizontal gespiegelten Knotens um 180°.
+ */
+export function chooseRotaterAngle(tr: Konva.Transformer, prefer: RotaterPreference): number {
+  const [upper, lower] =
+    rotaterPoint(tr, 0).y <= rotaterPoint(tr, 180).y + 0.5 ? [0, 180] : [180, 0];
+  return prefer === 'above' ? upper : lower;
+}
+
+/**
+ * Konva ruft das bei jedem Neuaufbau des Transformers für jeden Griff. Während
+ * eines Zuges wird nichts gewählt: der Griff bleibt, wo er gepackt wurde.
+ * Kein React-Zustand.
+ */
+export function elementAnchorStyleFunc(anchor: Konva.Shape): void {
+  touchAnchorStyleFunc?.(anchor as Konva.Rect);
+  if (!anchor.hasName('rotater')) return;
+  const tr = anchor.getParent() as Konva.Transformer | null;
+  if (!tr || !tr.rotateEnabled() || tr.isTransforming()) return;
+  const angle = chooseRotaterAngle(tr, ROTATER_PREFERENCE);
+  // Löst ein zweites update() aus, das hier mit gleichem Winkel endet.
+  if (angle !== tr.rotateAnchorAngle()) tr.rotateAnchorAngle(angle);
+}
+
 /** Auf jeden Element-Transformer spreaden; `rotateEnabled` bleibt je Primitive. */
 export const ELEMENT_TRANSFORMER = {
   // Veränderbare Kopie: Konvas Typ verlangt number[]; `as const` würde ein readonly-Tupel daraus machen.
   rotationSnaps: [...ROTATION_SNAPS] as number[],
   rotationSnapTolerance: ROTATION_SNAP_TOLERANCE,
   flipEnabled: false,
+  anchorStyleFunc: elementAnchorStyleFunc,
 } as const;
+
+/**
+ * Die sichtbaren Drehgriffe auf der Bühne, in Bühnen-px samt Treffer-Rand —
+ * die `MobileSelectionPill` rechnet sie zur Auswahl und liegt so nie darüber.
+ */
+export function rotaterRects(stage: Konva.Stage): Box[] {
+  const rects: Box[] = [];
+  for (const tr of stage.find<Konva.Transformer>('Transformer')) {
+    const rotater = tr.findOne<Konva.Rect>('.rotater');
+    if (tr.nodes().length === 0 || !rotater?.isVisible()) continue;
+    const r = rotater.getClientRect();
+    const hit = rotater.hitStrokeWidth();
+    const pad = typeof hit === 'number' ? hit / 2 : 0;
+    rects.push({
+      x: r.x - pad,
+      y: r.y - pad,
+      width: r.width + 2 * pad,
+      height: r.height + 2 * pad,
+    });
+  }
+  return rects;
+}
 
 export interface Box {
   x: number;

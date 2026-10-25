@@ -38,7 +38,6 @@ import { isGroupDrag } from '../utils/multiSelect';
 import { ELEMENT_TRANSFORMER, normalizeRotation } from '../utils/orientation';
 import { boxFrame, createBoxFrame, frameBounds, snapByBounds } from '../utils/snapping';
 import { runFont, runMeasurer } from '../utils/textUtils';
-import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import { type CanvasTextProps, isWidthOnlyScale } from './CanvasText';
 
@@ -476,7 +475,6 @@ export function CanvasRichText({
       </Group>
       {selected && !isEditing && (
         <Transformer
-          anchorStyleFunc={touchAnchorStyleFunc}
           ref={trRef}
           rotateEnabled={transformConfig?.rotateEnabled ?? false}
           keepRatio={transformConfig?.keepRatio ?? true}

@@ -356,7 +356,6 @@ function UserImagePrimitiveInner({
 
       {isSelected && !isCropping && (
         <Transformer
-          anchorStyleFunc={touchAnchorStyleFunc}
           ref={transformerRef}
           keepRatio={true}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}

@@ -22,7 +22,6 @@ import { isGroupDrag } from '../utils/multiSelect';
 import { ELEMENT_TRANSFORMER } from '../utils/orientation';
 import { boxFrame, createBoxFrame, snapByBounds } from '../utils/snapping';
 import { stageCssScale } from '../utils/stageCssScale';
-import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type { SnapTarget } from '../utils/snapping';
 import type Konva from 'konva';
@@ -477,7 +476,6 @@ function BalkenGroupInner({
 
       {selected && editingIndex === null && (
         <Transformer
-          anchorStyleFunc={touchAnchorStyleFunc}
           ref={transformerRef}
           keepRatio={true}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}

@@ -7,7 +7,6 @@ import { getIllustrationPath, findIllustrationById } from '../utils/illustration
 import { getCachedSVG, getSVG } from '../utils/illustrations/svgCache';
 import { ILLUSTRATION_TARGET_SIZE, MOTIF_BASE_SIZE } from '../utils/motifSizes';
 import { ELEMENT_TRANSFORMER, signedScale } from '../utils/orientation';
-import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type {
   IllustrationInstance,
@@ -219,7 +218,6 @@ function IllustrationPrimitiveInner({
 
       {isSelected && (
         <Transformer
-          anchorStyleFunc={touchAnchorStyleFunc}
           ref={transformerRef}
           keepRatio={true}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}

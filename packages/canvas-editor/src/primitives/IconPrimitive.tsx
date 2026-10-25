@@ -9,7 +9,6 @@ import { ICON_TARGET_SIZE, MOTIF_BASE_SIZE } from '../utils/motifSizes';
 import { isGroupDrag } from '../utils/multiSelect';
 import { ELEMENT_TRANSFORMER, signedScale } from '../utils/orientation';
 import { boxFrame, createBoxFrame, frameBounds, snapByBounds } from '../utils/snapping';
-import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type { SnapLine, SnapTarget } from '../utils/snapping';
 import type Konva from 'konva';
@@ -206,7 +205,6 @@ function IconPrimitiveInner({
 
       {selected && (
         <Transformer
-          anchorStyleFunc={touchAnchorStyleFunc}
           ref={transformerRef}
           keepRatio={true}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}

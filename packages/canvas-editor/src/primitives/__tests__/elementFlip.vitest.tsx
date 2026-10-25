@@ -431,3 +431,19 @@ describe('rotating a flipped element by its handle', () => {
     expect(linear(node)).toEqual(again);
   });
 });
+
+describe('rotate handle placement on real primitives', () => {
+  const rotaterY = (tr: Konva.Transformer) => tr.findOne('.rotater')!.getAbsolutePosition().y;
+
+  it('a flipped shape shows its handle above, not below (D1)', async () => {
+    const { tr, node } = await mountSelected((selected) => (
+      <ShapePrimitive
+        shape={{ ...createShape('leaf', 300, 300, '#005538', '#005538'), id: 'fh', flipX: true }}
+        isSelected={selected}
+        onSelect={noop}
+        onChange={noop}
+      />
+    ));
+    expect(rotaterY(tr)).toBeLessThan(node.getClientRect().y);
+  });
+});

@@ -5,7 +5,6 @@ import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLoc
 import { coverPhotoRect } from '../utils/coverFit';
 import { ELEMENT_TRANSFORMER } from '../utils/orientation';
 import { assertNever } from '../utils/shapes';
-import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type { FrameClipType, FrameInstance } from '../utils/frameUtils';
 import type Konva from 'konva';
@@ -466,7 +465,6 @@ function FramePrimitiveInner({
 
       {isSelected && (
         <Transformer
-          anchorStyleFunc={touchAnchorStyleFunc}
           ref={trRef}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
           keepRatio={true}
