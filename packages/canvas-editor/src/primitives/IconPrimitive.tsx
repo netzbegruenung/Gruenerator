@@ -151,8 +151,8 @@ function IconPrimitiveInner({
         ref={groupRef}
         x={x}
         y={y}
-        scaleX={signedScale(scale * baseScale, flipX)}
-        scaleY={signedScale(scale * baseScale, flipY)}
+        scaleX={scale * baseScale}
+        scaleY={scale * baseScale}
         rotation={rotation}
         opacity={opacity}
         draggable={!locked}
@@ -170,19 +170,23 @@ function IconPrimitiveInner({
           const newScale = Math.max(scaleX, scaleY) / baseScale;
           const newRotation = node.rotation();
 
-          node.scaleX(signedScale(scale * baseScale, flipX));
-          node.scaleY(signedScale(scale * baseScale, flipY));
+          node.scaleX(scale * baseScale);
+          node.scaleY(scale * baseScale);
           node.rotation(rotation);
 
           onTransformEnd(node.x(), node.y(), newScale, newRotation);
         }}
       >
+        {/* Gespiegelt wird das Bild, nicht die Gruppe: am Transformer hängt so nie
+            eine negative Skala, die Konva als Drehung + 180° zerlegen würde. */}
         <Image
           image={image}
           width={BASE_SIZE}
           height={BASE_SIZE}
           offsetX={BASE_SIZE / 2}
           offsetY={BASE_SIZE / 2}
+          scaleX={signedScale(1, flipX)}
+          scaleY={signedScale(1, flipY)}
         />
 
         {selected && (

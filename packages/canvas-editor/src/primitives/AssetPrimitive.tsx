@@ -159,8 +159,8 @@ function AssetPrimitiveInner({
         ref={groupRef}
         x={asset.x}
         y={asset.y}
-        scaleX={signedScale(asset.scale, asset.flipX === true)}
-        scaleY={signedScale(asset.scale, asset.flipY === true)}
+        scaleX={asset.scale}
+        scaleY={asset.scale}
         rotation={asset.rotation}
         opacity={asset.opacity}
         draggable={draggable && !locked}
@@ -188,8 +188,8 @@ function AssetPrimitiveInner({
           const newRotation = node.rotation();
 
           // Reset node transform to prevent accumulation
-          node.scaleX(signedScale(asset.scale, asset.flipX === true));
-          node.scaleY(signedScale(asset.scale, asset.flipY === true));
+          node.scaleX(asset.scale);
+          node.scaleY(asset.scale);
           node.rotation(asset.rotation);
 
           onTransformEnd(node.x(), node.y(), newScale, newRotation);
@@ -202,6 +202,10 @@ function AssetPrimitiveInner({
           height={scaledHeight}
           offsetX={scaledWidth / 2}
           offsetY={scaledHeight / 2}
+          // Gespiegelt wird das Bild, nicht die Gruppe: am Transformer hängt so nie
+          // eine negative Skala, die Konva als Drehung + 180° zerlegen würde.
+          scaleX={signedScale(1, asset.flipX === true)}
+          scaleY={signedScale(1, asset.flipY === true)}
         />
 
         {isSelected && (

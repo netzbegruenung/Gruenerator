@@ -1,6 +1,6 @@
 import { act, render } from '@testing-library/react';
 import Konva from 'konva';
-import { createRef } from 'react';
+import { createRef, useState } from 'react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { createShape, type ShapeInstance } from '../../utils/shapes';
@@ -64,6 +64,15 @@ async function mount(ui: React.ReactElement, name: string) {
 
 const noop = () => {};
 
+/**
+ * Icon, Illustration und Asset spiegeln ihr Bild, nicht die Gruppe am
+ * Transformer: die Gruppe bleibt positiv skaliert, das Kind trägt das Vorzeichen.
+ */
+const mirrorOf = (group: Konva.Node) => {
+  const image = (group as Konva.Group).findOne('Image')!;
+  return { x: image.scaleX(), y: image.scaleY() };
+};
+
 describe('icon flip', () => {
   const icon = (flipX?: boolean, flipY?: boolean, onTransformEnd = vi.fn()) => (
     <IconPrimitive
@@ -85,8 +94,8 @@ describe('icon flip', () => {
   it('draws a mirrored node with the same magnitude', async () => {
     const plain = await mount(icon(), 'Group');
     const flipped = await mount(icon(true), 'Group');
-    expect(flipped.scaleX()).toBeLessThan(0);
-    expect(Math.abs(flipped.scaleX())).toBeCloseTo(plain.scaleX());
+    expect(mirrorOf(flipped)).toEqual({ x: -1, y: 1 });
+    expect(flipped.scaleX()).toBeCloseTo(plain.scaleX());
     expect(flipped.scaleY()).toBeCloseTo(plain.scaleY());
   });
 
@@ -95,19 +104,21 @@ describe('icon flip', () => {
     expect(node.scaleX()).toBeGreaterThan(0);
     expect(node.scaleY()).toBeGreaterThan(0);
     expect(node.scaleX()).toBeCloseTo(node.scaleY());
+    expect(mirrorOf(node)).toEqual({ x: 1, y: 1 });
   });
 
   it('reports a positive scale after a resize and keeps the mirror', async () => {
     const onTransformEnd = vi.fn();
     const node = await mount(icon(true, false, onTransformEnd), 'Group');
-    const base = Math.abs(node.scaleX()) / 2;
-    node.scaleX(-4 * base);
+    const base = node.scaleX() / 2;
+    node.scaleX(4 * base);
     node.scaleY(4 * base);
     node.fire('transformend');
     expect(onTransformEnd).toHaveBeenCalledTimes(1);
     expect(onTransformEnd.mock.calls[0][2]).toBeCloseTo(4);
-    expect(node.scaleX()).toBeCloseTo(-2 * base);
+    expect(node.scaleX()).toBeCloseTo(2 * base);
     expect(node.scaleY()).toBeCloseTo(2 * base);
+    expect(mirrorOf(node)).toEqual({ x: -1, y: 1 });
   });
 });
 
@@ -135,14 +146,15 @@ describe('illustration flip', () => {
   it('mirrors and keeps the sign through a resize', async () => {
     const onTransformEnd = vi.fn();
     const node = await mount(ill(true, onTransformEnd), 'Group');
-    expect(node.scaleY()).toBeLessThan(0);
-    const base = Math.abs(node.scaleY()) / 2;
+    expect(mirrorOf(node)).toEqual({ x: 1, y: -1 });
+    const base = node.scaleY() / 2;
     node.scaleX(3 * base);
-    node.scaleY(-3 * base);
+    node.scaleY(3 * base);
     node.fire('transformend');
     expect(onTransformEnd.mock.calls[0][2]).toBeCloseTo(3);
-    expect(node.scaleY()).toBeCloseTo(-2 * base);
+    expect(node.scaleY()).toBeCloseTo(2 * base);
     expect(node.scaleX()).toBeCloseTo(2 * base);
+    expect(mirrorOf(node)).toEqual({ x: 1, y: -1 });
   });
 });
 
@@ -168,13 +180,15 @@ describe('asset flip', () => {
       />,
       'Group'
     );
-    expect(node.scaleX()).toBe(-2);
-    node.scaleX(-3);
+    expect(node.scaleX()).toBe(2);
+    expect(mirrorOf(node)).toEqual({ x: -1, y: 1 });
+    node.scaleX(3);
     node.scaleY(3);
     node.fire('transformend');
     expect(onTransformEnd.mock.calls[0][2]).toBe(3);
-    expect(node.scaleX()).toBe(-2);
+    expect(node.scaleX()).toBe(2);
     expect(node.scaleY()).toBe(2);
+    expect(mirrorOf(node)).toEqual({ x: -1, y: 1 });
   });
 });
 
@@ -219,5 +233,201 @@ describe('shape flip', () => {
     const node = await shapeNode(shape);
     expect(node.scaleX()).toBe(1);
     expect(node.scaleY()).toBe(1);
+  });
+});
+
+/**
+ * Dreht über den Transformer, genau wie Konvas Rotations-Griff: die Box um ihre
+ * Mitte (`rotateAroundCenter`), `_fitNodesInto`, dann Konvas eigenes Ende. Gibt
+ * die Matrix des Elements kurz vor dem Loslassen zurück.
+ */
+function rotateByHandle(tr: Konva.Transformer, deg: number): number[] {
+  const internal = tr as unknown as {
+    _getNodeRect: () => { x: number; y: number; width: number; height: number; rotation: number };
+    _fitNodesInto: (attrs: object, evt: object) => void;
+    _transforming: boolean;
+    _removeEvents: (e: unknown) => void;
+  };
+  const box = internal._getNodeRect();
+  const r = box.rotation;
+  const cx = box.x + (box.width / 2) * Math.cos(r) - (box.height / 2) * Math.sin(r);
+  const cy = box.y + (box.height / 2) * Math.cos(r) + (box.width / 2) * Math.sin(r);
+  const a = (deg * Math.PI) / 180;
+  const x = cx + (box.x - cx) * Math.cos(a) - (box.y - cy) * Math.sin(a);
+  const y = cy + (box.x - cx) * Math.sin(a) + (box.y - cy) * Math.cos(a);
+  let during: number[] = [];
+  act(() => {
+    internal._transforming = true;
+    internal._fitNodesInto({ ...box, x, y, rotation: r + a }, {});
+    during = linear(tr.nodes()[0]!);
+    internal._removeEvents({});
+  });
+  return during;
+}
+
+/** Linearer Teil der sichtbaren Matrix — was man sieht, unabhängig von der Zerlegung. */
+const linear = (node: Konva.Node) =>
+  node
+    .getAbsoluteTransform()
+    .getMatrix()
+    .slice(0, 4)
+    .map((v) => Math.round(v * 1e4) / 1e4 + 0);
+
+function Stateful<T>({
+  initial,
+  children,
+}: {
+  initial: T;
+  children: (state: T, merge: (patch: Partial<T>) => void) => React.ReactElement;
+}) {
+  const [state, setState] = useState(initial);
+  return children(state, (patch) => setState((prev) => ({ ...prev, ...patch })));
+}
+
+/** Erst laden, dann auswählen — wie in der App; der Transformer hängt sich bei der Auswahl an. */
+async function mountSelected(ui: (selected: boolean) => React.ReactElement) {
+  const stageRef = createRef<CanvasStageRef>();
+  const tree = (selected: boolean) => (
+    <CanvasStage ref={stageRef} width={600} height={600}>
+      {ui(selected)}
+    </CanvasStage>
+  );
+  let rerender: (ui: React.ReactElement) => void = () => {};
+  await act(async () => {
+    rerender = render(tree(false)).rerender;
+    await new Promise((r) => setTimeout(r, 0));
+  });
+  await act(async () => {
+    rerender(tree(true));
+    await new Promise((r) => setTimeout(r, 0));
+  });
+  const stage = stageRef.current!.getStage()!;
+  const tr = stage.findOne('Transformer') as Konva.Transformer;
+  return { stage, tr, node: tr.nodes()[0]! };
+}
+
+describe('rotating a flipped element by its handle', () => {
+  const persisted = { rotation: 0 };
+
+  const cases: Array<[string, (selected: boolean) => React.ReactElement]> = [
+    [
+      'icon (flipX)',
+      (selected) => (
+        <Stateful initial={{ rotation: 0 }}>
+          {(s, merge) => (
+            <IconPrimitive
+              id="i"
+              icon="x"
+              x={300}
+              y={300}
+              scale={2}
+              rotation={s.rotation}
+              flipX
+              selected={selected}
+              onSelect={noop}
+              onDragEnd={noop}
+              onTransformEnd={(_x, _y, _s, rotation) => {
+                persisted.rotation = rotation;
+                merge({ rotation });
+              }}
+            />
+          )}
+        </Stateful>
+      ),
+    ],
+    [
+      'illustration (flipX + flipY)',
+      (selected) => (
+        <Stateful initial={{ rotation: 0 }}>
+          {(s, merge) => (
+            <IllustrationPrimitive
+              illustration={{
+                id: 'il',
+                illustrationId: 'ill',
+                source: 'undraw',
+                x: 300,
+                y: 300,
+                scale: 2,
+                rotation: s.rotation,
+                opacity: 1,
+                flipX: true,
+                flipY: true,
+              }}
+              isSelected={selected}
+              onSelect={noop}
+              onDragEnd={noop}
+              onTransformEnd={(_x, _y, _s, rotation) => {
+                persisted.rotation = rotation;
+                merge({ rotation });
+              }}
+            />
+          )}
+        </Stateful>
+      ),
+    ],
+    [
+      'asset (flipX)',
+      (selected) => (
+        <Stateful initial={{ rotation: 0 }}>
+          {(s, merge) => (
+            <AssetPrimitive
+              asset={{
+                id: 'a',
+                assetId: 'gruene-de-logo',
+                x: 300,
+                y: 300,
+                scale: 2,
+                rotation: s.rotation,
+                opacity: 1,
+                flipX: true,
+              }}
+              isSelected={selected}
+              onSelect={noop}
+              onDragEnd={noop}
+              onTransformEnd={(_x, _y, _s, rotation) => {
+                persisted.rotation = rotation;
+                merge({ rotation });
+              }}
+            />
+          )}
+        </Stateful>
+      ),
+    ],
+    [
+      'shape (flipX)',
+      (selected) => (
+        <Stateful
+          initial={{
+            ...createShape('leaf', 300, 300, '#005538', '#005538'),
+            id: 'sf',
+            flipX: true,
+          }}
+        >
+          {(s, merge) => (
+            <ShapePrimitive
+              shape={s}
+              isSelected={selected}
+              onSelect={noop}
+              onChange={(attrs) => {
+                persisted.rotation = attrs.rotation ?? persisted.rotation;
+                merge(attrs);
+              }}
+            />
+          )}
+        </Stateful>
+      ),
+    ],
+  ];
+
+  it.each(cases)('%s keeps the angle it showed at release', async (_name, ui) => {
+    persisted.rotation = 0;
+    const { tr, node } = await mountSelected(ui);
+    const during = rotateByHandle(tr, 30);
+    expect(persisted.rotation).toBeCloseTo(30);
+    expect(linear(node)).toEqual(during);
+    // Der Griff dreht wieder von dieser Lage aus weiter, ohne Sprung.
+    const again = rotateByHandle(tr, 15);
+    expect(persisted.rotation).toBeCloseTo(45);
+    expect(linear(node)).toEqual(again);
   });
 });

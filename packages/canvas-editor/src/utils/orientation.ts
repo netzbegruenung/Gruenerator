@@ -44,14 +44,37 @@ export function normalizeRotation(deg: number): number {
   return clean(wrapped);
 }
 
+/**
+ * Attribut eines Knotens, dessen Spiegelung in der eigenen Skala steckt (Formen;
+ * Icon, Illustration und Asset spiegeln ihr Bild als Kind). Wert: gespeichertes `flipX`.
+ *
+ * Konvas Transformer zerlegt jede gespiegelte Matrix mit scaleX > 0
+ * (`Transform.decompose`): aus Drehung θ mit scaleX < 0 wird θ + 180° mit
+ * scaleY < 0 — dieselbe Matrix, aber `rotation()` liegt 180° daneben.
+ */
+export const MIRROR_X_ATTR = 'mirrorX';
+
+/** Liegt der Knoten in Konvas Zerlegung statt in unserer (Vorzeichen von scaleX ≠ flipX)? */
+function inKonvaForm(node: Konva.Node): boolean {
+  const mirrorX: unknown = node.getAttr(MIRROR_X_ATTR);
+  return typeof mirrorX === 'boolean' && node.scaleX() < 0 !== mirrorX;
+}
+
+/** Drehung in der Form, in der sie gespeichert wird — auch mitten im Transformer-Zug. */
+export function nodeRotation(node: Konva.Node): number {
+  return inKonvaForm(node) ? normalizeRotation(node.rotation() + 180) : node.rotation();
+}
+
 export function readNodeFrame(node: Konva.Node): NodeFrame {
   const local = node.getClientRect({ skipTransform: true, skipShadow: true, skipStroke: true });
+  // R(θ + 180°) · diag(−sx, −sy) = R(θ) · diag(sx, sy): dieselbe Matrix in unserer Form.
+  const sign = inKonvaForm(node) ? -1 : 1;
   return {
     x: node.x(),
     y: node.y(),
-    rotation: node.rotation(),
-    scaleX: node.scaleX(),
-    scaleY: node.scaleY(),
+    rotation: nodeRotation(node),
+    scaleX: sign * node.scaleX(),
+    scaleY: sign * node.scaleY(),
     offsetX: node.offsetX(),
     offsetY: node.offsetY(),
     local: { x: local.x, y: local.y, width: local.width, height: local.height },
