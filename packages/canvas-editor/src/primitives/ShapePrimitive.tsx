@@ -16,7 +16,7 @@ import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLoc
 import { gradientFillProps } from '../utils/gradientFill';
 import { translucentHitFunc } from '../utils/gradientHitArea';
 import { handDrawnPath } from '../utils/handDrawn';
-import { ELEMENT_TRANSFORMER } from '../utils/orientation';
+import { ELEMENT_TRANSFORMER, signedScale } from '../utils/orientation';
 import {
   assertNever,
   isComposerPlane,
@@ -432,8 +432,8 @@ function renderShape(
           data={SHAPE_PATHS[shape.type]}
           offsetX={offset.x}
           offsetY={offset.y}
-          scaleX={(shape.width / PATH_VIEWBOX) * shape.scaleX}
-          scaleY={(shape.height / PATH_VIEWBOX) * shape.scaleY}
+          scaleX={signedScale((shape.width / PATH_VIEWBOX) * shape.scaleX, shape.flipX === true)}
+          scaleY={signedScale((shape.height / PATH_VIEWBOX) * shape.scaleY, shape.flipY === true)}
         />
       );
     }
@@ -558,8 +558,8 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
     const size = resizedShapeSize(pathShape, shape, node.scaleX(), node.scaleY());
     const nodeScale = shapeNodeScale(pathShape, size);
 
-    node.scaleX(nodeScale.width);
-    node.scaleY(nodeScale.height);
+    node.scaleX(signedScale(nodeScale.width, shape.flipX === true));
+    node.scaleY(signedScale(nodeScale.height, shape.flipY === true));
 
     onChange({
       x: node.x(),
@@ -584,8 +584,8 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
     fill: shape.fill,
     opacity: shape.opacity ?? 1,
     rotation: shape.rotation,
-    scaleX: shape.scaleX,
-    scaleY: shape.scaleY,
+    scaleX: signedScale(shape.scaleX, shape.flipX === true),
+    scaleY: signedScale(shape.scaleY, shape.flipY === true),
     draggable,
     hitFunc: fillsArea ? translucentHitFunc(shape.fillGradient) : undefined,
     onMouseDown: (e) => {
@@ -676,6 +676,8 @@ export const ShapePrimitive = memo(ShapePrimitiveInner, (prevProps, nextProps) =
   if (prevShape.shadowOpacity !== nextShape.shadowOpacity) return false;
   if (prevShape.fillGradient !== nextShape.fillGradient) return false;
   if (prevShape.blendMode !== nextShape.blendMode) return false;
+  if (prevShape.flipX !== nextShape.flipX) return false;
+  if (prevShape.flipY !== nextShape.flipY) return false;
 
   if (prevProps.isSelected !== nextProps.isSelected) return false;
   if (prevProps.draggable !== nextProps.draggable) return false;

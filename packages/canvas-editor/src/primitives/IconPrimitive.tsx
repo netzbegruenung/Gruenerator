@@ -7,7 +7,7 @@ import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { generateIconDataUrl } from '../utils/canvasIcons';
 import { ICON_TARGET_SIZE, MOTIF_BASE_SIZE } from '../utils/motifSizes';
 import { isGroupDrag } from '../utils/multiSelect';
-import { ELEMENT_TRANSFORMER } from '../utils/orientation';
+import { ELEMENT_TRANSFORMER, signedScale } from '../utils/orientation';
 import { calculateCenteredSnapPosition } from '../utils/snapping';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
 
@@ -24,6 +24,8 @@ export interface IconPrimitiveProps {
   y: number;
   scale: number;
   rotation: number;
+  flipX?: boolean;
+  flipY?: boolean;
   selected: boolean;
   onSelect: () => void;
   onDragEnd: (x: number, y: number) => void;
@@ -45,6 +47,8 @@ function IconPrimitiveInner({
   y,
   scale,
   rotation,
+  flipX = false,
+  flipY = false,
   selected,
   onSelect,
   onDragEnd,
@@ -144,8 +148,8 @@ function IconPrimitiveInner({
         ref={groupRef}
         x={x}
         y={y}
-        scaleX={scale * baseScale}
-        scaleY={scale * baseScale}
+        scaleX={signedScale(scale * baseScale, flipX)}
+        scaleY={signedScale(scale * baseScale, flipY)}
         rotation={rotation}
         opacity={opacity}
         draggable={!locked}
@@ -158,13 +162,13 @@ function IconPrimitiveInner({
           const node = groupRef.current;
           if (!node) return;
 
-          const scaleX = node.scaleX();
-          const scaleY = node.scaleY();
+          const scaleX = Math.abs(node.scaleX());
+          const scaleY = Math.abs(node.scaleY());
           const newScale = Math.max(scaleX, scaleY) / baseScale;
           const newRotation = node.rotation();
 
-          node.scaleX(scale * baseScale);
-          node.scaleY(scale * baseScale);
+          node.scaleX(signedScale(scale * baseScale, flipX));
+          node.scaleY(signedScale(scale * baseScale, flipY));
           node.rotation(rotation);
 
           onTransformEnd(node.x(), node.y(), newScale, newRotation);
@@ -215,6 +219,8 @@ export const IconPrimitive = memo(IconPrimitiveInner, (prevProps, nextProps) => 
   if (prevProps.y !== nextProps.y) return false;
   if (prevProps.scale !== nextProps.scale) return false;
   if (prevProps.rotation !== nextProps.rotation) return false;
+  if (prevProps.flipX !== nextProps.flipX) return false;
+  if (prevProps.flipY !== nextProps.flipY) return false;
   if (prevProps.selected !== nextProps.selected) return false;
   if (prevProps.color !== nextProps.color) return false;
   if (prevProps.opacity !== nextProps.opacity) return false;

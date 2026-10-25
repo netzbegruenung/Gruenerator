@@ -10,7 +10,7 @@ import {
   resolveAssetInstanceSrc,
 } from '../utils/canvasAssets';
 import { isGroupDrag } from '../utils/multiSelect';
-import { ELEMENT_TRANSFORMER } from '../utils/orientation';
+import { ELEMENT_TRANSFORMER, signedScale } from '../utils/orientation';
 import { useTrackPendingImage } from '../utils/pendingImages';
 import { applyPixelHitArea } from '../utils/pixelHitArea';
 import { calculateCenteredSnapPosition } from '../utils/snapping';
@@ -156,8 +156,8 @@ function AssetPrimitiveInner({
         ref={groupRef}
         x={asset.x}
         y={asset.y}
-        scaleX={asset.scale}
-        scaleY={asset.scale}
+        scaleX={signedScale(asset.scale, asset.flipX === true)}
+        scaleY={signedScale(asset.scale, asset.flipY === true)}
         rotation={asset.rotation}
         opacity={asset.opacity}
         draggable={draggable && !locked}
@@ -179,14 +179,14 @@ function AssetPrimitiveInner({
           const node = groupRef.current;
           if (!node) return;
 
-          const scaleX = node.scaleX();
-          const scaleY = node.scaleY();
+          const scaleX = Math.abs(node.scaleX());
+          const scaleY = Math.abs(node.scaleY());
           const newScale = Math.max(scaleX, scaleY);
           const newRotation = node.rotation();
 
           // Reset node transform to prevent accumulation
-          node.scaleX(asset.scale);
-          node.scaleY(asset.scale);
+          node.scaleX(signedScale(asset.scale, asset.flipX === true));
+          node.scaleY(signedScale(asset.scale, asset.flipY === true));
           node.rotation(asset.rotation);
 
           onTransformEnd(node.x(), node.y(), newScale, newRotation);
@@ -251,6 +251,8 @@ export const AssetPrimitive = memo(AssetPrimitiveInner, (prevProps, nextProps) =
   if (prev.y !== next.y) return false;
   if (prev.scale !== next.scale) return false;
   if (prev.rotation !== next.rotation) return false;
+  if (prev.flipX !== next.flipX) return false;
+  if (prev.flipY !== next.flipY) return false;
   if (prev.opacity !== next.opacity) return false;
 
   // Compare other props
