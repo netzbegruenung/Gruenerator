@@ -25,7 +25,6 @@ import { isGroupDrag } from '../utils/multiSelect';
 import { ELEMENT_TRANSFORMER, axisAlignedBounds, normalizeRotation } from '../utils/orientation';
 import { recacheNextFrame } from '../utils/recacheNextFrame';
 import { boxFrame, createBoxFrame, frameBounds, snapByBounds } from '../utils/snapping';
-import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type { SnapTarget, SnapLine } from '../utils/snapping';
 import type { ImageAdjustments } from '../utils/userImageUtils';
@@ -484,7 +483,6 @@ function CanvasImageInner({
       />
       {selected && (
         <Transformer
-          anchorStyleFunc={touchAnchorStyleFunc}
           ref={trRef}
           rotateEnabled={transformConfig?.rotateEnabled ?? false}
           keepRatio={transformConfig?.keepRatio ?? true}

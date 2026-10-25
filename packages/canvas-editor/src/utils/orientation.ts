@@ -1,3 +1,5 @@
+import { COARSE_POINTER, touchAnchorStyleFunc } from './touchInput';
+
 import type Konva from 'konva';
 
 /**
@@ -8,13 +10,100 @@ import type Konva from 'konva';
 export const ROTATION_SNAPS: readonly number[] = [0, 45, 90, 135, 180, 225, 270, 315];
 export const ROTATION_SNAP_TOLERANCE = 5;
 
+/** Wo der Drehgriff zuerst hin soll. */
+export type RotaterPreference = 'above' | 'below';
+
+/**
+ * Maus: über dem Element. Finger: darunter, denn darüber steht die
+ * `MobileSelectionPill` — und der Griff soll nicht unter dem Daumen-Ziel liegen.
+ */
+const ROTATER_PREFERENCE: RotaterPreference = COARSE_POINTER ? 'below' : 'above';
+
+/** Mitte des Drehgriffs für `rotateAnchorAngle = angle`, in Bühnen-px (wie Konvas `getRotaterLine`). */
+function rotaterPoint(tr: Konva.Transformer, angle: number): { x: number; y: number } {
+  const width = tr.width();
+  const height = tr.height();
+  const rad = (angle * Math.PI) / 180;
+  const dx = Math.sin(rad);
+  const dy = -Math.cos(rad);
+  // Nur 0/90/180/270 kommen vor: der Rand liegt eine halbe Höhe bzw. Breite entfernt.
+  const edge = (Math.abs(dy) > 0.5 ? height : width) / 2;
+  const reach = edge + tr.rotateAnchorOffset() + tr.padding();
+  return tr.getAbsoluteTransform().point({ x: width / 2 + dx * reach, y: height / 2 + dy * reach });
+}
+
+/**
+ * Seite des Drehgriffs: die bevorzugte (sichtbar oben bzw. unten), sonst die
+ * andere, sonst eine Seite — die erste, deren Griff ganz auf der Bühne liegt.
+ * Die Bühne ist die Seite; was darüber hinausragt, ist nicht greifbar.
+ * „Oben" wird auf der Bühne gemessen, nicht in der Box: Konva dreht die Box
+ * eines horizontal gespiegelten Knotens um 180°.
+ */
+export function chooseRotaterAngle(tr: Konva.Transformer, prefer: RotaterPreference): number {
+  const stage = tr.getStage();
+  if (!stage) return tr.rotateAnchorAngle();
+  const margin = tr.anchorSize();
+  const fits = (angle: number) => {
+    const p = rotaterPoint(tr, angle);
+    return (
+      p.x >= margin &&
+      p.y >= margin &&
+      p.x <= stage.width() - margin &&
+      p.y <= stage.height() - margin
+    );
+  };
+  const [upper, lower] =
+    rotaterPoint(tr, 0).y <= rotaterPoint(tr, 180).y + 0.5 ? [0, 180] : [180, 0];
+  const order = prefer === 'above' ? [upper, lower, 90, 270] : [lower, upper, 90, 270];
+  return order.find(fits) ?? order[0]!;
+}
+
+/**
+ * Konva ruft das bei jedem Neuaufbau des Transformers für jeden Griff — beim
+ * Anhängen, nach einem Zug und beim Verschieben (Konvas eigenes `update()` auf
+ * `dragmove`; dann nur diese Rechnung, kein React-Zustand). Während eines
+ * Drehens oder Skalierens wird nichts gewählt: der Griff bleibt, wo er gepackt wurde.
+ */
+export function elementAnchorStyleFunc(anchor: Konva.Shape): void {
+  touchAnchorStyleFunc?.(anchor as Konva.Rect);
+  if (!anchor.hasName('rotater')) return;
+  const tr = anchor.getParent() as Konva.Transformer | null;
+  if (!tr || !tr.rotateEnabled() || tr.isTransforming()) return;
+  const angle = chooseRotaterAngle(tr, ROTATER_PREFERENCE);
+  // Löst ein zweites update() aus, das hier mit gleichem Winkel endet.
+  if (angle !== tr.rotateAnchorAngle()) tr.rotateAnchorAngle(angle);
+}
+
 /** Auf jeden Element-Transformer spreaden; `rotateEnabled` bleibt je Primitive. */
 export const ELEMENT_TRANSFORMER = {
   // Veränderbare Kopie: Konvas Typ verlangt number[]; `as const` würde ein readonly-Tupel daraus machen.
   rotationSnaps: [...ROTATION_SNAPS] as number[],
   rotationSnapTolerance: ROTATION_SNAP_TOLERANCE,
   flipEnabled: false,
+  anchorStyleFunc: elementAnchorStyleFunc,
 } as const;
+
+/**
+ * Die sichtbaren Drehgriffe auf der Bühne, in Bühnen-px samt Treffer-Rand —
+ * die `MobileSelectionPill` rechnet sie zur Auswahl und liegt so nie darüber.
+ */
+export function rotaterRects(stage: Konva.Stage): Box[] {
+  const rects: Box[] = [];
+  for (const tr of stage.find<Konva.Transformer>('Transformer')) {
+    const rotater = tr.findOne<Konva.Rect>('.rotater');
+    if (tr.nodes().length === 0 || !rotater?.isVisible()) continue;
+    const r = rotater.getClientRect();
+    const hit = rotater.hitStrokeWidth();
+    const pad = typeof hit === 'number' ? hit / 2 : 0;
+    rects.push({
+      x: r.x - pad,
+      y: r.y - pad,
+      width: r.width + 2 * pad,
+      height: r.height + 2 * pad,
+    });
+  }
+  return rects;
+}
 
 export interface Box {
   x: number;
@@ -44,14 +133,37 @@ export function normalizeRotation(deg: number): number {
   return clean(wrapped);
 }
 
+/**
+ * Attribut eines Knotens, dessen Spiegelung in der eigenen Skala steckt (Formen;
+ * Icon, Illustration und Asset spiegeln ihr Bild als Kind). Wert: gespeichertes `flipX`.
+ *
+ * Konvas Transformer zerlegt jede gespiegelte Matrix mit scaleX > 0
+ * (`Transform.decompose`): aus Drehung θ mit scaleX < 0 wird θ + 180° mit
+ * scaleY < 0 — dieselbe Matrix, aber `rotation()` liegt 180° daneben.
+ */
+export const MIRROR_X_ATTR = 'mirrorX';
+
+/** Liegt der Knoten in Konvas Zerlegung statt in unserer (Vorzeichen von scaleX ≠ flipX)? */
+function inKonvaForm(node: Konva.Node): boolean {
+  const mirrorX: unknown = node.getAttr(MIRROR_X_ATTR);
+  return typeof mirrorX === 'boolean' && node.scaleX() < 0 !== mirrorX;
+}
+
+/** Drehung in der Form, in der sie gespeichert wird — auch mitten im Transformer-Zug. */
+export function nodeRotation(node: Konva.Node): number {
+  return inKonvaForm(node) ? normalizeRotation(node.rotation() + 180) : node.rotation();
+}
+
 export function readNodeFrame(node: Konva.Node): NodeFrame {
   const local = node.getClientRect({ skipTransform: true, skipShadow: true, skipStroke: true });
+  // R(θ + 180°) · diag(−sx, −sy) = R(θ) · diag(sx, sy): dieselbe Matrix in unserer Form.
+  const sign = inKonvaForm(node) ? -1 : 1;
   return {
     x: node.x(),
     y: node.y(),
-    rotation: node.rotation(),
-    scaleX: node.scaleX(),
-    scaleY: node.scaleY(),
+    rotation: nodeRotation(node),
+    scaleX: sign * node.scaleX(),
+    scaleY: sign * node.scaleY(),
     offsetX: node.offsetX(),
     offsetY: node.offsetY(),
     local: { x: local.x, y: local.y, width: local.width, height: local.height },
