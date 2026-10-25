@@ -5,6 +5,7 @@ import { type BackgroundControls } from '../../configs/types';
 import { type ShadowPatch } from '../../hooks/useFloatingModuleHandlers';
 import { type FloatingModuleState } from '../../hooks/useFloatingModuleState';
 import { formatShortcut, isMacPlatform, shortcutOf } from '../../utils/canvasCommandRegistry';
+import { type SelectionGeometry } from '../../utils/canvasCommands';
 import { type GradientFill } from '../../utils/gradientFill';
 import { type LockState } from '../../utils/layerLock';
 import { BRAND_COLORS, FONT_COLORS, STROKE_ONLY_SHAPES } from '../../utils/shapes';
@@ -24,6 +25,7 @@ import { FloatingGradientControl } from './modules/FloatingGradientControl';
 import { FloatingLayerControls } from './modules/FloatingLayerControls';
 import { FloatingOpacityControl } from './modules/FloatingOpacityControl';
 import { FloatingOutlineControl } from './modules/FloatingOutlineControl';
+import { FloatingPositionControl, type PositionCommandId } from './modules/FloatingPositionControl';
 import { FloatingShadowControl } from './modules/FloatingShadowControl';
 
 export interface ContextControlsProps {
@@ -39,6 +41,8 @@ export interface ContextControlsProps {
   /** Gesperrt: nicht ziehen, skalieren, ausrichten, löschen — gestalten geht weiter. */
   lockState?: LockState;
   canLock?: boolean;
+  /** Lässt sich die Auswahl verschieben — Ausrichten und Position (`selectionCapabilities`). */
+  canAlign?: boolean;
   /** Zählt hoch, wenn das Kontextmenü „Bild ersetzen …“ wählt: die Bildauswahl öffnet sich. */
   backgroundPickerRequest?: number;
   handlers: {
@@ -47,6 +51,11 @@ export interface ContextControlsProps {
     handleColorSelect: (color: string) => void;
     handleOpacityChange: (id: string, opacity: number, type: string) => void;
     handleFontSizeChange: (id: string, size: number) => void;
+    /** Ausrichten und Position laufen über die Befehls-Türen der Seite. */
+    runCommand?: (id: PositionCommandId) => void;
+    getGeometry?: () => SelectionGeometry | null;
+    handlePositionChange?: (patch: { x?: number; y?: number }) => void;
+    handleSizeChange?: (patch: { width?: number; height?: number }) => void;
     handleShadowChange?: (id: string, patch: ShadowPatch, type: string) => void;
     handleOutlineChange?: (id: string, patch: { stroke?: string; strokeWidth?: number }) => void;
     handleBlurChange?: (id: string, blur: number) => void;
@@ -99,6 +108,7 @@ export function ContextControls({
   isCropping = false,
   lockState = 'none',
   canLock = false,
+  canAlign = false,
   backgroundPickerRequest = 0,
   handlers,
   background,
@@ -445,6 +455,20 @@ export function ContextControls({
         onOpacityChange={(val) =>
           handlers.handleOpacityChange(activeFloatingModule.data.id, val, activeFloatingModule.type)
         }
+      />
+    );
+  }
+
+  if (selectedElement && showObjectActions && canAlign && handlers.runCommand) {
+    groups.push(
+      <FloatingPositionControl
+        // Neu je Element: offene Felder zeigen nie die Lage des vorigen.
+        key={`position-${selectedElement}`}
+        canDistribute={false}
+        onCommand={handlers.runCommand}
+        getGeometry={handlers.getGeometry ?? (() => null)}
+        onPositionChange={handlers.handlePositionChange}
+        onSizeChange={handlers.handleSizeChange}
       />
     );
   }

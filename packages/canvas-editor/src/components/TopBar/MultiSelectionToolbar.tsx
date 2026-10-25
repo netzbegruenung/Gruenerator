@@ -11,6 +11,7 @@ import {
 import { type LockState } from '../../utils/layerLock';
 
 import { ContextCard } from './ContextToolbar';
+import { FloatingPositionControl, type PositionCommandId } from './modules/FloatingPositionControl';
 
 export interface MultiSelectionToolbarProps {
   count: number;
@@ -18,11 +19,15 @@ export interface MultiSelectionToolbarProps {
   canDelete: boolean;
   lockState: LockState;
   canLock: boolean;
+  /** Mindestens ein Element lässt sich verschieben; gesperrte bleiben beim Ausrichten stehen. */
+  canAlign: boolean;
+  canDistribute: boolean;
   onCopy: () => void;
   onDuplicate: () => void;
   onToggleLock: () => void;
   onDelete: () => void;
   onDeselect: () => void;
+  onCommand: (id: PositionCommandId) => void;
 }
 
 const ICON_BTN =
@@ -52,11 +57,14 @@ export function MultiSelectionToolbar({
   canDelete,
   lockState,
   canLock,
+  canAlign,
+  canDistribute,
   onCopy,
   onDuplicate,
   onToggleLock,
   onDelete,
   onDeselect,
+  onCommand,
 }: MultiSelectionToolbarProps) {
   const locked = lockState === 'all';
   const lockLabel = locked ? 'Entsperren' : 'Sperren';
@@ -98,6 +106,9 @@ export function MultiSelectionToolbar({
           >
             {locked ? <PiLockSimple size={18} /> : <PiLockSimpleOpen size={18} />}
           </button>
+        )}
+        {canAlign && (
+          <FloatingPositionControl canDistribute={canDistribute} onCommand={onCommand} />
         )}
         <button
           type="button"

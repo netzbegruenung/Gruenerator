@@ -102,6 +102,31 @@ export function buildCanvasMenu(snapshot: CanvasMenuSnapshot, env: CanvasMenuEnv
       ? [item('toggleLock', { label: caps.lock === 'all' ? 'Entsperren' : 'Sperren' })]
       : [];
   const selectAll = () => item('selectAll', { disabled: !snapshot.canSelectAll });
+  /** Einzeln an der Seite, mehrere an der Auswahl; Verteilen braucht drei. */
+  const align = (multi: boolean): CanvasMenuEntry[] =>
+    caps.canAlign
+      ? [
+          {
+            kind: 'sub',
+            label: 'Ausrichten',
+            entries: [
+              item('alignLeft'),
+              item('alignCenterH'),
+              item('alignRight'),
+              item('alignTop'),
+              item('alignMiddle'),
+              item('alignBottom'),
+              ...(multi
+                ? [
+                    separator,
+                    item('distributeHorizontal', { disabled: !caps.canDistribute }),
+                    item('distributeVertical', { disabled: !caps.canDistribute }),
+                  ]
+                : []),
+            ],
+          },
+        ]
+      : [];
   const page = (): CanvasMenuEntry[] => [
     item('duplicatePage', { disabled: !env.canAddPage }),
     ...(env.pageCount > 1 ? [item('deletePage', { destructive: true })] : []),
@@ -121,6 +146,7 @@ export function buildCanvasMenu(snapshot: CanvasMenuSnapshot, env: CanvasMenuEnv
         item('duplicate', { disabled: !caps.canCopy }),
         item('delete', { disabled: !caps.canDelete, destructive: true }),
         separator,
+        ...align(true),
         ...lock(),
         separator,
         ...paste(),
@@ -200,6 +226,7 @@ export function buildCanvasMenu(snapshot: CanvasMenuSnapshot, env: CanvasMenuEnv
           item('sendToBack', { disabled: !caps.canSendBackward }),
         ],
       },
+      ...align(false),
       ...lock(),
       separator,
       selectAll(),

@@ -69,9 +69,49 @@ describe('buildCanvasMenu', () => {
       'Nach vorne',
       'Nach hinten',
       'Ganz nach hinten',
+      'Ausrichten',
+      'Links',
+      'Zentriert',
+      'Rechts',
+      'Oben',
+      'Mitte',
+      'Unten',
       'Sperren',
       'Alles auswählen',
     ]);
+  });
+
+  it('bietet Ausrichten im Element- und Mehrfachmenü, Verteilen nur bei mehreren', () => {
+    const sub = (entries: CanvasMenuEntry[]) => {
+      const entry = find(entries, 'Ausrichten');
+      return entry?.kind === 'sub' ? entry.entries : null;
+    };
+    const element = sub(buildCanvasMenu(snapshot(), ENV).entries)!;
+    expect(element.map((e) => (e.kind === 'item' ? e.id : e.kind))).toEqual([
+      'alignLeft',
+      'alignCenterH',
+      'alignRight',
+      'alignTop',
+      'alignMiddle',
+      'alignBottom',
+    ]);
+
+    const multi = (caps: Partial<typeof CAPS>) =>
+      sub(
+        buildCanvasMenu(
+          snapshot({ selection: ['a', 'b'], module: null, caps: { ...CAPS, count: 2, ...caps } }),
+          ENV
+        ).entries
+      );
+    expect(labels(multi({})!).slice(-2)).toEqual(['Horizontal verteilen', 'Vertikal verteilen']);
+    expect(find(multi({})!, 'Horizontal verteilen')).toMatchObject({ disabled: true });
+    expect(find(multi({ canDistribute: true })!, 'Vertikal verteilen')).toMatchObject({
+      disabled: false,
+    });
+    expect(multi({ canAlign: false })).toBeNull();
+    expect(
+      sub(buildCanvasMenu(snapshot({ caps: { ...CAPS, canAlign: false } }), ENV).entries)
+    ).toBeNull();
   });
 
   it('beginnt bei Text, Bild und Rahmen mit dem, was nur sie können', () => {
