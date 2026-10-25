@@ -51,6 +51,21 @@ describe('Drehgriff: Seite je Lage', () => {
     expect(chooseRotaterAngle(tr, 'below')).toBe(180);
   });
 
+  it('nahe der Oberkante wandert er nach unten (D3)', () => {
+    const { tr } = setup({ x: 300, y: 70 });
+    expect(chooseRotaterAngle(tr, 'above')).toBe(180);
+  });
+
+  it('nahe der Unterkante bleibt er auch am Touch-Gerät oben', () => {
+    const { tr } = setup({ x: 300, y: 530 });
+    expect(chooseRotaterAngle(tr, 'below')).toBe(0);
+  });
+
+  it('passt weder oben noch unten, steht er an der Seite', () => {
+    const { tr } = setup({ x: 300, y: 300, height: 560, offsetY: 280 });
+    expect([90, 270]).toContain(chooseRotaterAngle(tr, 'above'));
+  });
+
   it('ein horizontal gespiegelter Knoten hat ihn trotzdem sichtbar oben', () => {
     // Konva zerlegt scaleX < 0 als Drehung 180°: die Box-Oberkante liegt unten.
     const { node, tr } = setup({ x: 300, y: 300, scaleX: -1 });
@@ -62,11 +77,36 @@ describe('Drehgriff: Seite je Lage', () => {
 });
 
 describe('elementAnchorStyleFunc', () => {
-  it('setzt die Seite beim Anhängen an den Knoten', () => {
+  it('wählt beim Anhängen sichtbar oben, auch gespiegelt', () => {
     const { node, tr } = setup({ x: 300, y: 300, scaleX: -1 });
-    expect(ELEMENT_TRANSFORMER.anchorStyleFunc).toBe(elementAnchorStyleFunc);
     expect(tr.rotateAnchorAngle()).toBe(180);
     expect(rotater(tr).y).toBeLessThan(node.getClientRect().y);
+  });
+
+  it('setzt die Seite beim Anhängen an den Knoten', () => {
+    const { tr } = setup({ x: 300, y: 70 });
+    expect(ELEMENT_TRANSFORMER.anchorStyleFunc).toBe(elementAnchorStyleFunc);
+    expect(tr.rotateAnchorAngle()).toBe(180);
+    expect(rotater(tr).y).toBeLessThanOrEqual(600);
+  });
+
+  it('wechselt sie nicht mitten im Zug, aber danach', () => {
+    const { node, tr } = setup({ x: 300, y: 300 });
+    expect(tr.rotateAnchorAngle()).toBe(0);
+    (tr as unknown as { _transforming: boolean })._transforming = true;
+    node.y(70);
+    tr.update();
+    expect(tr.rotateAnchorAngle()).toBe(0);
+    (tr as unknown as { _transforming: boolean })._transforming = false;
+    tr.update();
+    expect(tr.rotateAnchorAngle()).toBe(180);
+  });
+
+  it('folgt beim Verschieben (Konvas update auf dragmove)', () => {
+    const { node, tr } = setup({ x: 300, y: 300 });
+    node.y(70);
+    tr.fire('dragmove');
+    expect(tr.rotateAnchorAngle()).toBe(180);
   });
 });
 

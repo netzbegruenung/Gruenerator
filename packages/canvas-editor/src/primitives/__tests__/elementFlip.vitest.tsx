@@ -435,6 +435,26 @@ describe('rotating a flipped element by its handle', () => {
 describe('rotate handle placement on real primitives', () => {
   const rotaterY = (tr: Konva.Transformer) => tr.findOne('.rotater')!.getAbsolutePosition().y;
 
+  it('an icon near the page top gets its handle below, on the page (D3)', async () => {
+    const { tr, node } = await mountSelected((selected) => (
+      <IconPrimitive
+        id="top"
+        icon="x"
+        x={300}
+        y={40}
+        scale={1}
+        rotation={0}
+        selected={selected}
+        onSelect={noop}
+        onDragEnd={noop}
+        onTransformEnd={noop}
+      />
+    ));
+    expect(tr.rotateAnchorAngle()).toBe(180);
+    expect(rotaterY(tr)).toBeGreaterThan(node.getClientRect().y);
+    expect(rotaterY(tr)).toBeLessThan(600);
+  });
+
   it('a flipped shape shows its handle above, not below (D1)', async () => {
     const { tr, node } = await mountSelected((selected) => (
       <ShapePrimitive

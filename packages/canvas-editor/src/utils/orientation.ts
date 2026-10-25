@@ -26,26 +26,43 @@ function rotaterPoint(tr: Konva.Transformer, angle: number): { x: number; y: num
   const rad = (angle * Math.PI) / 180;
   const dx = Math.sin(rad);
   const dy = -Math.cos(rad);
-  const edge = height / 2;
+  // Nur 0/90/180/270 kommen vor: der Rand liegt eine halbe Höhe bzw. Breite entfernt.
+  const edge = (Math.abs(dy) > 0.5 ? height : width) / 2;
   const reach = edge + tr.rotateAnchorOffset() + tr.padding();
   return tr.getAbsoluteTransform().point({ x: width / 2 + dx * reach, y: height / 2 + dy * reach });
 }
 
 /**
- * Seite des Drehgriffs: die bevorzugte, sichtbar oben bzw. unten. „Oben" wird
- * auf der Bühne gemessen, nicht in der Box: Konva dreht die Box eines
- * horizontal gespiegelten Knotens um 180°.
+ * Seite des Drehgriffs: die bevorzugte (sichtbar oben bzw. unten), sonst die
+ * andere, sonst eine Seite — die erste, deren Griff ganz auf der Bühne liegt.
+ * Die Bühne ist die Seite; was darüber hinausragt, ist nicht greifbar.
+ * „Oben" wird auf der Bühne gemessen, nicht in der Box: Konva dreht die Box
+ * eines horizontal gespiegelten Knotens um 180°.
  */
 export function chooseRotaterAngle(tr: Konva.Transformer, prefer: RotaterPreference): number {
+  const stage = tr.getStage();
+  if (!stage) return tr.rotateAnchorAngle();
+  const margin = tr.anchorSize();
+  const fits = (angle: number) => {
+    const p = rotaterPoint(tr, angle);
+    return (
+      p.x >= margin &&
+      p.y >= margin &&
+      p.x <= stage.width() - margin &&
+      p.y <= stage.height() - margin
+    );
+  };
   const [upper, lower] =
     rotaterPoint(tr, 0).y <= rotaterPoint(tr, 180).y + 0.5 ? [0, 180] : [180, 0];
-  return prefer === 'above' ? upper : lower;
+  const order = prefer === 'above' ? [upper, lower, 90, 270] : [lower, upper, 90, 270];
+  return order.find(fits) ?? order[0]!;
 }
 
 /**
- * Konva ruft das bei jedem Neuaufbau des Transformers für jeden Griff. Während
- * eines Zuges wird nichts gewählt: der Griff bleibt, wo er gepackt wurde.
- * Kein React-Zustand.
+ * Konva ruft das bei jedem Neuaufbau des Transformers für jeden Griff — beim
+ * Anhängen, nach einem Zug und beim Verschieben (Konvas eigenes `update()` auf
+ * `dragmove`; dann nur diese Rechnung, kein React-Zustand). Während eines
+ * Drehens oder Skalierens wird nichts gewählt: der Griff bleibt, wo er gepackt wurde.
  */
 export function elementAnchorStyleFunc(anchor: Konva.Shape): void {
   touchAnchorStyleFunc?.(anchor as Konva.Rect);
