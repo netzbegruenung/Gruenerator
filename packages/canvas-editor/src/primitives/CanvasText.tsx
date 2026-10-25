@@ -18,7 +18,13 @@ import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { gradientFillProps, type GradientFill } from '../utils/gradientFill';
 import { isGroupDrag } from '../utils/multiSelect';
 import { ELEMENT_TRANSFORMER, normalizeRotation } from '../utils/orientation';
-import { calculateSnapPosition, calculateElementSnapPosition } from '../utils/snapping';
+import {
+  boxFrame,
+  calculateSnapPosition,
+  createBoxFrame,
+  frameBounds,
+  snapByBounds,
+} from '../utils/snapping';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import { CanvasRichText } from './CanvasRichText';
@@ -27,6 +33,9 @@ import type { SnapTarget, SnapLine } from '../utils/snapping';
 import type { TextAccent, TextMarker } from '../utils/textUtils';
 import type { TransformConfig, TransformAnchor } from '@gruenerator/shared/canvas-editor';
 import type Konva from 'konva';
+
+// Rahmen für Snap und Geometrie-Meldung, pro Aufruf neu beschrieben (synchron, ohne Allokation).
+const dragFrame = createBoxFrame();
 
 export interface CanvasTextProps {
   id?: string;
@@ -191,12 +200,24 @@ function CanvasTextInner({
   useEffect(() => {
     const node = textRef.current;
     if (!node) return;
-    reportGeometry(node.x(), node.y(), node.width() * node.scaleX(), node.height() * node.scaleY());
+    const box = frameBounds(
+      boxFrame(
+        dragFrame,
+        node.x(),
+        node.y(),
+        node.width() * node.scaleX(),
+        node.height() * node.scaleY(),
+        node.rotation(),
+        'top-left'
+      )
+    );
+    reportGeometry(box.x, box.y, box.width, box.height);
   }, [
     reportGeometry,
     text,
     x,
     y,
+    rotation,
     width,
     fontSize,
     fontFamily,
@@ -234,11 +255,17 @@ function CanvasTextInner({
 
       const snapTargets = getSnapTargets?.(id ?? '') ?? [];
       if (snapTargets.length > 0 || snapToCenter) {
-        const result = calculateElementSnapPosition(
-          node.x(),
-          node.y(),
-          nodeWidth,
-          nodeHeight,
+        // Die Höhe ist die aktuelle des Knotens (nach dem Umbruch) — ein Property-Read.
+        const result = snapByBounds(
+          boxFrame(
+            dragFrame,
+            node.x(),
+            node.y(),
+            nodeWidth,
+            nodeHeight,
+            node.rotation(),
+            'top-left'
+          ),
           snapTargets,
           stageWidth,
           stageHeight,

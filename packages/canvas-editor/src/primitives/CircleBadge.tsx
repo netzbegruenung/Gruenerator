@@ -17,12 +17,15 @@ import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLoc
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { isGroupDrag } from '../utils/multiSelect';
 import { ELEMENT_TRANSFORMER, normalizeRotation } from '../utils/orientation';
-import { calculateElementSnapPosition } from '../utils/snapping';
+import { boxFrame, createBoxFrame, snapByBounds } from '../utils/snapping';
 import { stageCssScale } from '../utils/stageCssScale';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type { SnapTarget } from '../utils/snapping';
 import type Konva from 'konva';
+
+// Rahmen für Snap und Geometrie-Meldung, pro Aufruf neu beschrieben (synchron, ohne Allokation).
+const dragFrame = createBoxFrame();
 
 export interface CircleBadgeTextLine {
   text: string;
@@ -123,21 +126,24 @@ function CircleBadgeInner({
 
       const contentWidth = radius * 2 * scaleX;
       const contentHeight = radius * 2 * scaleY;
-      const currentAbsX = node.x() - contentWidth / 2;
-      const currentAbsY = node.y() - contentHeight / 2;
 
-      const result = calculateElementSnapPosition(
-        currentAbsX,
-        currentAbsY,
-        contentWidth,
-        contentHeight,
+      const result = snapByBounds(
+        boxFrame(
+          dragFrame,
+          node.x(),
+          node.y(),
+          contentWidth,
+          contentHeight,
+          node.rotation(),
+          'centre'
+        ),
         getSnapTargets(id),
         stageWidth,
         stageHeight,
         snap.hysteresis
       );
 
-      node.position({ x: result.x + contentWidth / 2, y: result.y + contentHeight / 2 });
+      node.position({ x: result.x, y: result.y });
       snap.scheduleSnap(result.snapH, result.snapV, result.snapLines);
     },
     [id, radius, getSnapTargets, stageWidth, stageHeight, snap]

@@ -8,11 +8,14 @@ import { generateIconDataUrl } from '../utils/canvasIcons';
 import { ICON_TARGET_SIZE, MOTIF_BASE_SIZE } from '../utils/motifSizes';
 import { isGroupDrag } from '../utils/multiSelect';
 import { ELEMENT_TRANSFORMER, signedScale } from '../utils/orientation';
-import { calculateCenteredSnapPosition } from '../utils/snapping';
+import { boxFrame, createBoxFrame, frameBounds, snapByBounds } from '../utils/snapping';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type { SnapLine, SnapTarget } from '../utils/snapping';
 import type Konva from 'konva';
+
+// Rahmen für Snap und Geometrie-Meldung, pro Aufruf neu beschrieben (synchron, ohne Allokation).
+const dragFrame = createBoxFrame();
 
 const BASE_SIZE = MOTIF_BASE_SIZE;
 const TARGET_SIZE = ICON_TARGET_SIZE;
@@ -103,8 +106,11 @@ function IconPrimitiveInner({
 
   const reportGeometry = useGeometryReporter(id, onGeometryChange);
   useEffect(() => {
-    reportGeometry(x - renderedSize / 2, y - renderedSize / 2, renderedSize, renderedSize);
-  }, [reportGeometry, x, y, renderedSize]);
+    const box = frameBounds(
+      boxFrame(dragFrame, x, y, renderedSize, renderedSize, rotation, 'centre')
+    );
+    reportGeometry(box.x, box.y, box.width, box.height);
+  }, [reportGeometry, x, y, renderedSize, rotation]);
 
   const handleDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -113,11 +119,8 @@ function IconPrimitiveInner({
       if (isGroupDrag(node)) return;
       const size = TARGET_SIZE * scale;
 
-      const result = calculateCenteredSnapPosition(
-        node.x(),
-        node.y(),
-        size,
-        size,
+      const result = snapByBounds(
+        boxFrame(dragFrame, node.x(), node.y(), size, size, node.rotation(), 'centre'),
         getSnapTargets?.(id) ?? [],
         stageWidth,
         stageHeight,

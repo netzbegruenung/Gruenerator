@@ -13,12 +13,15 @@ import { isGroupDrag } from '../utils/multiSelect';
 import { ELEMENT_TRANSFORMER, signedScale } from '../utils/orientation';
 import { useTrackPendingImage } from '../utils/pendingImages';
 import { applyPixelHitArea } from '../utils/pixelHitArea';
-import { calculateCenteredSnapPosition } from '../utils/snapping';
+import { boxFrame, createBoxFrame, frameBounds, snapByBounds } from '../utils/snapping';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type { AssetInstance } from '../utils/canvasAssets';
 import type { SnapLine, SnapTarget } from '../utils/snapping';
 import type Konva from 'konva';
+
+// Rahmen für Snap und Geometrie-Meldung, pro Aufruf neu beschrieben (synchron, ohne Allokation).
+const dragFrame = createBoxFrame();
 
 const EXPORT_PIXEL_RATIO = 2;
 
@@ -122,8 +125,11 @@ function AssetPrimitiveInner({
 
   const reportGeometry = useGeometryReporter(asset.id, onGeometryChange);
   useEffect(() => {
-    reportGeometry(asset.x - boxWidth / 2, asset.y - boxHeight / 2, boxWidth, boxHeight);
-  }, [reportGeometry, asset.x, asset.y, boxWidth, boxHeight]);
+    const box = frameBounds(
+      boxFrame(dragFrame, asset.x, asset.y, boxWidth, boxHeight, asset.rotation, 'centre')
+    );
+    reportGeometry(box.x, box.y, box.width, box.height);
+  }, [reportGeometry, asset.x, asset.y, boxWidth, boxHeight, asset.rotation]);
 
   const handleDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -131,11 +137,8 @@ function AssetPrimitiveInner({
       const node = e.currentTarget as Konva.Group;
       if (isGroupDrag(node)) return;
 
-      const result = calculateCenteredSnapPosition(
-        node.x(),
-        node.y(),
-        boxWidth,
-        boxHeight,
+      const result = snapByBounds(
+        boxFrame(dragFrame, node.x(), node.y(), boxWidth, boxHeight, node.rotation(), 'centre'),
         getSnapTargets?.(asset.id) ?? [],
         stageWidth,
         stageHeight,
