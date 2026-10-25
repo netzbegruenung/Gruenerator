@@ -1,4 +1,5 @@
 import { type MenuAction } from '@expo/ui/community/menu';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { memo } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 
@@ -52,6 +53,7 @@ export const MenuActionSheet = memo(function MenuActionSheet({
         .map((action) => {
           const destructive = action.attributes?.destructive === true;
           const disabled = action.attributes?.disabled === true;
+          const checked = action.state === 'on';
           return (
             <Pressable
               key={action.id ?? action.title}
@@ -62,7 +64,7 @@ export const MenuActionSheet = memo(function MenuActionSheet({
               }}
               accessibilityRole="button"
               accessibilityLabel={action.title}
-              accessibilityState={{ disabled }}
+              accessibilityState={{ disabled, ...(checked && { checked }) }}
               style={({ pressed }) => [
                 styles.row,
                 { backgroundColor: pressed ? theme.surface : 'transparent' },
@@ -77,6 +79,7 @@ export const MenuActionSheet = memo(function MenuActionSheet({
               >
                 {action.title}
               </Text>
+              {checked && <Ionicons name="checkmark" size={18} color={colors.primary[600]} />}
             </Pressable>
           );
         })}
@@ -92,6 +95,9 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xsmall,
   },
   row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: spacing.small,
     paddingHorizontal: spacing.small,
     borderRadius: borderRadius.medium,

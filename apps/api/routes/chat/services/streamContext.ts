@@ -1115,6 +1115,8 @@ export async function buildStreamContext({
     wolkeFiles,
     cloudConnectionCount,
     connectFiles,
+    // Picked this turn they force the search route; carried, they are material.
+    cloudFilesCarriedOnly: pickedCloudFiles.wolke.length + pickedCloudFiles.connect.length === 0,
     // This turn's @datei picks already travel as `documentIds`; listed twice
     // they would be summarised twice.
     notebookSources: notebookSources.filter(

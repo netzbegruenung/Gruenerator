@@ -330,6 +330,19 @@ const ANAPHORIC_CUE =
   /(?<![\p{L}])(?:davon|daraus|darin|dazu|dort|diese[rnms]?|dieselben?|n(?:ä|ae)chste[nrs]?|vorletzte[nrs]?|davor|danach|weitere[nrs]?|nochmal|noch\s+mal|erneut|stimmt\s+nicht)(?![\p{L}])/iu;
 const SHORT_FOLLOWUP_WORDS = 4;
 
+/** Does the heuristic table confidently place this turn on a route that
+ *  retrieves nothing (an artifact order, a greeting)? */
+function claimsNonRetrievalTurn(userContent: string, state: ChatGraphState): boolean {
+  const verdict = heuristicClassify(userContent, {
+    hasTabularAttachment: state.hasTabularAttachment ?? false,
+  });
+  return (
+    verdict.confidence >= HEURISTIC_CONFIDENCE_THRESHOLD &&
+    verdict.intent !== 'summary' &&
+    NON_SEARCH_INTENTS.has(verdict.intent)
+  );
+}
+
 function continuesToolTurn(text: string, messages: ChatGraphState['messages']): boolean {
   // „suche im web danach" nennt eine andere Quelle — kein Anschluss ans Notebook.
   if (EXPLICIT_WEB_SEARCH_PATTERN.test(text)) return false;
@@ -1046,7 +1059,14 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
 
     // @wolke selections force search intent — the wolke file content must reach
     // respondNode via perSourceResults, and that only happens inside the search path.
-    if (hasWolkeFiles && userContent.length > 0) {
+    // Carried from earlier turns (#4112) they still force it — only the search
+    // path reads a picked file, so a question about it needs this route — except
+    // where the heuristic table confidently claims a turn that reads nothing:
+    // „Erstelle ein Sharepic …" or „Danke!" after a pick (#4897). A summary
+    // keeps the route: cloud files are not material for the summary path.
+    const cloudFilesForceSearch =
+      !state.cloudFilesCarriedOnly || !claimsNonRetrievalTurn(userContent, state);
+    if (hasWolkeFiles && cloudFilesForceSearch && userContent.length > 0) {
       return classifyWithForcedSearch({
         reason: 'Wolke',
         docCount: state.wolkeFiles.length,
@@ -1062,7 +1082,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // @connect selections force search intent — the connected-account file content
     // must reach respondNode via perSourceResults, and that only happens inside the
     // search path. Mirrors the @wolke forced-search branch above.
-    if (hasConnectFiles && userContent.length > 0) {
+    if (hasConnectFiles && cloudFilesForceSearch && userContent.length > 0) {
       return classifyWithForcedSearch({
         reason: 'Connect',
         docCount: state.connectFiles.length,

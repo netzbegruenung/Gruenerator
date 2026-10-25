@@ -39,6 +39,7 @@ import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import { useAuth } from '../../hooks/useAuth';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 import { useHostAwareBack } from '../../hooks/useHostAwareBack';
+import { useNativeEditorBar } from '../../hooks/useNativeEditorBar';
 import { isEmbedded } from '../../utils/platform';
 import { platformFetch } from '../../utils/platformFetch';
 import { useDocAiEditEnabled } from '../docs/DocAiEditToggle';
@@ -48,7 +49,7 @@ import { getOrCreateGuestIdentity } from '../docs/guestIdentity';
 import { useTourAutostart } from '../tours/useTourAutostart';
 
 import { drainPendingSheetOps } from './pendingSheetOps';
-import { SheetFormatMenu } from './SheetFormatMenu';
+import { SheetFormatMenu, useSheetFormatActions } from './SheetFormatMenu';
 import { SheetsChatPanel } from './SheetsChatPanel';
 
 const ShareModal = lazyWithRetry(() =>
@@ -177,6 +178,32 @@ function SheetsEditorContent() {
   }, [authError]);
 
   const isEditable = canEdit && !authError;
+
+  // The app's native bar: the same actions as the bar below, as menu entries.
+  // Univer reports no undo state to the facade, so both stay enabled once it is
+  // live, as its own ribbon does.
+  const formatActions = useSheetFormatActions(isEditable ? univerAPI : null, docData?.title);
+  const nativeBar = useNativeEditorBar({
+    title: docData?.title ?? null,
+    canEdit: isEditable,
+    onRename: (title) => void handleTitleChange(title),
+    history: {
+      canUndo: !!univerAPI,
+      canRedo: !!univerAPI,
+      undo: () => void univerAPI?.undo(),
+      redo: () => void univerAPI?.redo(),
+    },
+    onShare: isGuest ? undefined : () => setShowShareModal(true),
+    actions: [
+      ...(isGuest ? [] : [{ id: 'chat', label: 'Chat', run: () => setChatOpen((v) => !v) }]),
+      ...(formatActions
+        ? [
+            { id: 'crosshair', label: 'Fadenkreuz', run: formatActions.toggleCrosshair },
+            { id: 'export-xlsx', label: 'Als Excel herunterladen', run: formatActions.exportXlsx },
+          ]
+        : []),
+    ],
+  });
   const { enabled: aiEditEnabled } = useDocAiEditEnabled(id || '');
 
   // Embedded (docked-in-chat) mode has no chat sidebar of its own — the loop's
@@ -278,13 +305,15 @@ function SheetsEditorContent() {
   if (docIsLoading || !isAuthResolved) {
     return (
       <div className="flex flex-col h-full">
-        <div className="flex items-center gap-sm px-md py-xs border-b border-grey-200 dark:border-grey-700">
-          <Skeleton className="h-5 w-48" />
-          <div className="ml-auto flex gap-xs">
-            <Skeleton className="h-8 w-8 rounded-md" />
-            <Skeleton className="h-8 w-8 rounded-md" />
+        {!nativeBar && (
+          <div className="flex items-center gap-sm px-md py-xs border-b border-grey-200 dark:border-grey-700">
+            <Skeleton className="h-5 w-48" />
+            <div className="ml-auto flex gap-xs">
+              <Skeleton className="h-8 w-8 rounded-md" />
+              <Skeleton className="h-8 w-8 rounded-md" />
+            </div>
           </div>
-        </div>
+        )}
         <div className="flex-1" />
       </div>
     );
@@ -337,7 +366,7 @@ function SheetsEditorContent() {
 
   return (
     <div className="h-full flex flex-col relative">
-      {!isInlineEmbed && (
+      {!isInlineEmbed && !nativeBar && (
         <EditorTopBar
           dataTour="sheets-topbar"
           title={docData.title}
