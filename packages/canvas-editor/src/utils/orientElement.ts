@@ -60,7 +60,7 @@ export interface OrientationDoorInput<TState extends Partial<BaseCanvasState>> {
   saveToHistory: (s: TState) => void;
 }
 
-type Oriented = { id: string; rotation?: number; flipX?: boolean; flipY?: boolean };
+type Oriented = { id?: string; rotation?: number; flipX?: boolean; flipY?: boolean };
 
 /**
  * Drehen & Spiegeln eines Canvas-Elements — eine Tür für Werkzeugleiste,
