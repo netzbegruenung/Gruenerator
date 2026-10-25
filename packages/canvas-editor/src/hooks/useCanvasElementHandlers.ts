@@ -51,6 +51,8 @@ export interface OptionalCanvasActions {
       rotation?: number;
       color?: string;
       opacity?: number;
+      flipX?: boolean;
+      flipY?: boolean;
     }>
   ) => void;
   updateShape?: (id: string, attrs: Partial<ShapeInstance>) => void;
@@ -63,11 +65,21 @@ export interface OptionalCanvasActions {
       rotation?: number;
       color?: string;
       opacity?: number;
+      flipX?: boolean;
+      flipY?: boolean;
     }>
   ) => void;
   updateAsset?: (
     id: string,
-    attrs: Partial<{ x: number; y: number; scale?: number; rotation?: number; opacity?: number }>
+    attrs: Partial<{
+      x: number;
+      y: number;
+      scale?: number;
+      rotation?: number;
+      opacity?: number;
+      flipX?: boolean;
+      flipY?: boolean;
+    }>
   ) => void;
   updateAdditionalText?: (id: string, attrs: Partial<AdditionalText>) => void;
   updateCircleBadge?: (id: string, attrs: Partial<CircleBadgeInstance>) => void;

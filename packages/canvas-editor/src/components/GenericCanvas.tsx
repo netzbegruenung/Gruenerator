@@ -81,7 +81,7 @@ const HOST_EMITTED_KEY_SET: ReadonlySet<string> = new Set(HOST_EMITTED_STATE_KEY
 
 import type { AlignmentDirection } from './Toolbar';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
-import type { FullCanvasConfig, LayoutResult } from '../configs/types';
+import type { CanvasElementConfig, FullCanvasConfig, LayoutResult } from '../configs/types';
 import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
 import type { ShadowPatch } from '../hooks/useFloatingModuleHandlers';
 import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
@@ -116,6 +116,11 @@ export interface ToolbarStateReport {
   /** Wie viel der sperrbaren Auswahl gesperrt ist — siehe `utils/layerLock.ts`. */
   lockState: LockState;
   canLock: boolean;
+  /** Drehen & Spiegeln — dieselben Fragen wie die Befehle (`utils/selectionCapabilities.ts`). */
+  canRotate: boolean;
+  canFlip: boolean;
+  /** Drehung der Einzelauswahl, sonst `null`. */
+  rotation: number | null;
 }
 
 export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActions> {
@@ -278,6 +283,10 @@ export interface GenericCanvasRef {
   handleDeleteElement?: () => void;
   /** Führt einen Seiten-Befehl aus; `at` ist der Punkt eines Rechtsklicks. */
   runCommand?: (id: PageCommandId, at: ClientPoint | null) => void;
+  /** Dreht die Einzelauswahl um ihre Mitte; ein Schritt im Verlauf. */
+  setRotation?: (deg: number) => void;
+  /** Dreht nur die Anzeige der Einzelauswahl (Regler ziehen) — ohne Zustand, ohne Verlauf. */
+  previewRotation?: (deg: number) => void;
   /** Was das Kontextmenü beim Öffnen über diese Seite wissen muss. */
   getMenuSnapshot?: () => CanvasMenuSnapshot;
   /** Box der Auswahl in Fensterkoordinaten, für Bedienelemente am Objekt. */
@@ -713,8 +722,20 @@ function GenericCanvasWithRef<
         getRenderList: () => commandInputsRef.current.sortedRenderList,
         getStage: () => stageRef.current?.getStage() ?? null,
         logicalScale: () => logicalScale,
+        // Die Tür liest nur id, Typ und Positionsschlüssel; der Zustandstyp der Config spielt dort keine Rolle.
+        getElements: () => config.elements as readonly CanvasElementConfig[],
+        getLayout: () => commandInputsRef.current.layout,
+        isReadOnly: () => !interactive,
       }),
-    [store, setStateWrapper, saveToHistory, runHistoryBatch, config.elements, logicalScale]
+    [
+      store,
+      setStateWrapper,
+      saveToHistory,
+      runHistoryBatch,
+      config.elements,
+      logicalScale,
+      interactive,
+    ]
   );
 
   useCanvasKeyboardHandlers({
@@ -922,6 +943,8 @@ function GenericCanvasWithRef<
       handleDuplicate: commands.duplicate,
       handleDeleteElement: commands.remove,
       runCommand: commands.run,
+      setRotation: commands.setRotation,
+      previewRotation: commands.previewRotation,
       getMenuSnapshot: () => {
         const { selectedLayerIds, selectedElement, croppingElement } = store.getState();
         const committed = committedStateRef.current;
@@ -1070,6 +1093,8 @@ function GenericCanvasWithRef<
         debouncedSaveToHistory={debouncedSaveToHistory}
         canUndo={canUndo}
         canRedo={canRedo}
+        readOnly={!interactive}
+        saveToHistory={saveToHistory}
         onToolbarStateChange={onToolbarStateChange}
       />
     </PendingImagesContext.Provider>

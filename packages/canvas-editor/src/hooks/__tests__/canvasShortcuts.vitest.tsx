@@ -15,6 +15,7 @@ import { CANVAS_ITEM_ID_ATTR, CANVAS_ITEM_NAME } from '../../utils/deepSelect';
 import { useCanvasKeyboardHandlers } from '../useCanvasKeyboardHandlers';
 
 import type { BaseCanvasState } from '../../configs/factory/baseTypes';
+import type { LayoutResult } from '../../configs/types';
 
 /**
  * Die Kürzel im Menü und die, auf die die Tastatur hört, kommen aus derselben
@@ -32,6 +33,8 @@ const DOOR: Partial<Record<CanvasCommandId, keyof CanvasCommands>> = {
   delete: 'remove',
   selectAll: 'selectAll',
   insertFrameImage: 'insertFrameImage',
+  flipHorizontal: 'flip',
+  flipVertical: 'flip',
 };
 
 function mockCommands(): CanvasCommands {
@@ -47,6 +50,9 @@ function mockCommands(): CanvasCommands {
     toggleLock: vi.fn(),
     insertFrameImage: vi.fn(() => true),
     editText: vi.fn(),
+    setRotation: vi.fn(),
+    previewRotation: vi.fn(),
+    flip: vi.fn(),
     run: vi.fn(),
   } as unknown as CanvasCommands;
 }
@@ -84,7 +90,7 @@ describe('Kürzel aus dem Befehlsregister', () => {
     const shortcut = shortcutOf(id)!;
     for (const key of [shortcut.key, ...shortcut.alsoKeys]) {
       const { commands } = mountKeys();
-      keydown({ key, ctrlKey: shortcut.mod });
+      keydown({ key, ctrlKey: shortcut.mod, shiftKey: shortcut.shift });
       expect(commands[DOOR[id]!]).toHaveBeenCalledTimes(1);
     }
   });
@@ -105,6 +111,33 @@ describe('Kürzel aus dem Befehlsregister', () => {
     expect(commands.remove).not.toHaveBeenCalled();
     expect(store.getState().selectedLayerIds).toEqual(['shape-1']);
     menu.remove();
+  });
+
+  it('spiegelt mit ⇧H horizontal und mit ⇧V vertikal', () => {
+    const { commands } = mountKeys();
+    keydown({ key: 'H', shiftKey: true });
+    keydown({ key: 'V', shiftKey: true });
+    expect(commands.flip).toHaveBeenNthCalledWith(1, 'x');
+    expect(commands.flip).toHaveBeenNthCalledWith(2, 'y');
+  });
+
+  it('lässt ⇧H im Textfeld dem Text — es wird ein „H“, kein Spiegeln', () => {
+    const { commands } = mountKeys();
+    const textarea = document.createElement('textarea');
+    document.body.appendChild(textarea);
+    keydown({ key: 'H', shiftKey: true }, textarea);
+    expect(commands.flip).not.toHaveBeenCalled();
+    textarea.remove();
+  });
+
+  it('macht aus ⇧C, ⇧D und ⇧Entf nichts', () => {
+    const { commands } = mountKeys();
+    keydown({ key: 'C', shiftKey: true });
+    keydown({ key: 'D', shiftKey: true });
+    keydown({ key: 'Delete', shiftKey: true });
+    expect(commands.copy).not.toHaveBeenCalled();
+    expect(commands.duplicate).not.toHaveBeenCalled();
+    expect(commands.remove).not.toHaveBeenCalled();
   });
 
   it('dupliziert ohne Auswahl nicht, damit Strg+D dem Browser bleibt', () => {
@@ -138,7 +171,7 @@ describe('Türen mit Mehrfachauswahl', () => {
       store,
       getState: () => state,
       setState: (next) => {
-        state = next;
+        state = typeof next === 'function' ? next(state) : { ...state, ...next };
       },
       saveToHistory,
       runHistoryBatch,
@@ -147,6 +180,9 @@ describe('Türen mit Mehrfachauswahl', () => {
       getRenderList: () => [],
       getStage: () => null,
       logicalScale: () => 1,
+      getElements: () => [],
+      getLayout: () => ({}) as LayoutResult,
+      isReadOnly: () => false,
     });
     store.getState().setSelectedLayers(['a', 'b']);
     return { store, commands, state: () => state, removeShape, runHistoryBatch, saveToHistory };
@@ -221,6 +257,9 @@ describe('Alles auswählen', () => {
       getRenderList: () => [],
       getStage: () => stage,
       logicalScale: () => 1,
+      getElements: () => [],
+      getLayout: () => ({}) as LayoutResult,
+      isReadOnly: () => false,
     });
     commands.selectAll();
     expect(store.getState().selectedLayerIds).toEqual(['a', 'b']);

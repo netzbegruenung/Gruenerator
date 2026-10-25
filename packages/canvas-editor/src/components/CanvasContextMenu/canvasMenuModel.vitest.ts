@@ -19,6 +19,9 @@ const CAPS: SelectionCapabilities = {
   canSendBackward: true,
   lock: 'none',
   canLock: true,
+  canRotate: true,
+  canFlip: true,
+  rotation: 0,
 };
 
 const snapshot = (over: Partial<CanvasMenuSnapshot> = {}): CanvasMenuSnapshot => ({
