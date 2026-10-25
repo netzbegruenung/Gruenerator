@@ -19,13 +19,16 @@ import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { isGroupDrag } from '../utils/multiSelect';
 import { ELEMENT_TRANSFORMER, normalizeRotation } from '../utils/orientation';
 import { calculatePillBadgeDimensions } from '../utils/pillBadgeUtils';
-import { calculateElementSnapPosition } from '../utils/snapping';
+import { boxFrame, createBoxFrame, snapByBounds } from '../utils/snapping';
 import { stageCssScale } from '../utils/stageCssScale';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type { PillBadgeFontStyle } from '../utils/pillBadgeUtils';
 import type { SnapTarget, SnapLine } from '../utils/snapping';
 import type Konva from 'konva';
+
+// Rahmen für Snap und Geometrie-Meldung, pro Aufruf neu beschrieben (synchron, ohne Allokation).
+const dragFrame = createBoxFrame();
 
 export interface PillBadgeProps {
   id: string;
@@ -116,14 +119,17 @@ function PillBadgeInner({
 
       const contentWidth = dimensions.width * scaleX;
       const contentHeight = dimensions.height * scaleY;
-      const currentAbsX = node.x();
-      const currentAbsY = node.y();
 
-      const result = calculateElementSnapPosition(
-        currentAbsX,
-        currentAbsY,
-        contentWidth,
-        contentHeight,
+      const result = snapByBounds(
+        boxFrame(
+          dragFrame,
+          node.x(),
+          node.y(),
+          contentWidth,
+          contentHeight,
+          node.rotation(),
+          'top-left'
+        ),
         getSnapTargets(id),
         stageWidth,
         stageHeight,

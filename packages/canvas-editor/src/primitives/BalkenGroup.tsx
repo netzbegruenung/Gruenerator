@@ -20,12 +20,15 @@ import {
 } from '../utils/dreizeilenLayout';
 import { isGroupDrag } from '../utils/multiSelect';
 import { ELEMENT_TRANSFORMER } from '../utils/orientation';
-import { calculateElementSnapPosition } from '../utils/snapping';
+import { boxFrame, createBoxFrame, snapByBounds } from '../utils/snapping';
 import { stageCssScale } from '../utils/stageCssScale';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type { SnapTarget } from '../utils/snapping';
 import type Konva from 'konva';
+
+// Rahmen für Snap und Geometrie-Meldung, pro Aufruf neu beschrieben (synchron, ohne Allokation).
+const dragFrame = createBoxFrame();
 
 export type BalkenMode = 'single' | 'triple';
 
@@ -232,21 +235,24 @@ function BalkenGroupInner({
 
       const contentWidth = bounds.width * scaleX;
       const contentHeight = bounds.height * scaleY;
-      const currentAbsX = node.x() - contentWidth / 2;
-      const currentAbsY = node.y() - contentHeight / 2;
 
-      const result = calculateElementSnapPosition(
-        currentAbsX,
-        currentAbsY,
-        contentWidth,
-        contentHeight,
+      const result = snapByBounds(
+        boxFrame(
+          dragFrame,
+          node.x(),
+          node.y(),
+          contentWidth,
+          contentHeight,
+          node.rotation(),
+          'centre'
+        ),
         getSnapTargets('balken-group'),
         stageWidth,
         stageHeight,
         snap.hysteresis
       );
 
-      node.position({ x: result.x + contentWidth / 2, y: result.y + contentHeight / 2 });
+      node.position({ x: result.x, y: result.y });
 
       snap.scheduleSnap(result.snapH, result.snapV, result.snapLines);
     },

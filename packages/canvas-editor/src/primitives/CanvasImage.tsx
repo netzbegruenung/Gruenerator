@@ -24,12 +24,15 @@ import { getActiveImageFilters, imageFilterAttrs } from '../utils/imageFilters';
 import { isGroupDrag } from '../utils/multiSelect';
 import { ELEMENT_TRANSFORMER, axisAlignedBounds, normalizeRotation } from '../utils/orientation';
 import { recacheNextFrame } from '../utils/recacheNextFrame';
-import { calculateElementSnapPosition } from '../utils/snapping';
+import { boxFrame, createBoxFrame, frameBounds, snapByBounds } from '../utils/snapping';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type { SnapTarget, SnapLine } from '../utils/snapping';
 import type { ImageAdjustments } from '../utils/userImageUtils';
 import type { TransformConfig, TransformAnchor } from '@gruenerator/shared/canvas-editor';
+
+// Rahmen für Snap und Geometrie-Meldung, pro Aufruf neu beschrieben (synchron, ohne Allokation).
+const dragFrame = createBoxFrame();
 
 export interface CanvasImageProps {
   id?: string;
@@ -196,9 +199,13 @@ function CanvasImageInner({
   const reportGeometry = useGeometryReporter(id, onGeometryChange);
 
   const drawn = part?.box ?? { x, y, width, height };
+  const drawnRotation = coverFit ? 0 : rotation;
   useEffect(() => {
-    reportGeometry(drawn.x, drawn.y, drawn.width, drawn.height);
-  }, [reportGeometry, drawn.x, drawn.y, drawn.width, drawn.height]);
+    const box = frameBounds(
+      boxFrame(dragFrame, drawn.x, drawn.y, drawn.width, drawn.height, drawnRotation, 'top-left')
+    );
+    reportGeometry(box.x, box.y, box.width, box.height);
+  }, [reportGeometry, drawn.x, drawn.y, drawn.width, drawn.height, drawnRotation]);
 
   const handleDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -223,9 +230,26 @@ function CanvasImageInner({
 
       if (id && onPositionChange) {
         onPositionChange(id, node.x(), node.y(), nodeWidth, nodeHeight);
+        // onPositionChange schreibt die ungedrehte Box in dieselben Snap-Ziele;
+        // gedreht muss danach die sichtbare Box dort stehen (der Reporter
+        // meldet nur bei Prop-Änderung, ein Drag zurück an den Start ändert keine).
+        if (node.rotation() !== 0 && onGeometryChange) {
+          const box = frameBounds(
+            boxFrame(
+              dragFrame,
+              node.x(),
+              node.y(),
+              nodeWidth,
+              nodeHeight,
+              node.rotation(),
+              'top-left'
+            )
+          );
+          onGeometryChange(id, box.x, box.y, box.width, box.height);
+        }
       }
     },
-    [id, x, y, part, onDragEnd, onPositionChange, snap]
+    [id, x, y, part, onDragEnd, onPositionChange, onGeometryChange, snap]
   );
 
   const clampToBounds = useCallback(
@@ -318,11 +342,16 @@ function CanvasImageInner({
       // Apply snapping if enabled
       const snapTargets = getSnapTargets?.(id ?? '') ?? [];
       if (snapTargets.length > 0 || snapToCenter) {
-        const result = calculateElementSnapPosition(
-          node.x(),
-          node.y(),
-          nodeWidth,
-          nodeHeight,
+        const result = snapByBounds(
+          boxFrame(
+            dragFrame,
+            node.x(),
+            node.y(),
+            nodeWidth,
+            nodeHeight,
+            node.rotation(),
+            'top-left'
+          ),
           snapTargets,
           stageWidth,
           stageHeight,

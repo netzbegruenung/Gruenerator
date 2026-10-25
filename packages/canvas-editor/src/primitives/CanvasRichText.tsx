@@ -36,7 +36,7 @@ import { markerBoxes } from '../utils/markerBoxes';
 import { DEFAULT_TEXT_MARKER, markerInkOn } from '../utils/markerColors';
 import { isGroupDrag } from '../utils/multiSelect';
 import { ELEMENT_TRANSFORMER, normalizeRotation } from '../utils/orientation';
-import { calculateElementSnapPosition } from '../utils/snapping';
+import { boxFrame, createBoxFrame, frameBounds, snapByBounds } from '../utils/snapping';
 import { runFont, runMeasurer } from '../utils/textUtils';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
 
@@ -44,6 +44,9 @@ import { type CanvasTextProps, isWidthOnlyScale } from './CanvasText';
 
 import type { TransformAnchor } from '@gruenerator/shared/canvas-editor';
 import type Konva from 'konva';
+
+// Rahmen für Snap und Geometrie-Meldung, pro Aufruf neu beschrieben (synchron, ohne Allokation).
+const dragFrame = createBoxFrame();
 
 const DEFAULT_TEXT_ANCHORS: TransformAnchor[] = ['middle-left', 'middle-right'];
 
@@ -173,8 +176,19 @@ export function CanvasRichText({
   useEffect(() => {
     const node = groupRef.current;
     if (!node) return;
-    reportGeometry(node.x(), node.y(), blockWidth * node.scaleX(), blockHeight * node.scaleY());
-  }, [reportGeometry, x, y, blockWidth, blockHeight]);
+    const box = frameBounds(
+      boxFrame(
+        dragFrame,
+        node.x(),
+        node.y(),
+        blockWidth * node.scaleX(),
+        blockHeight * node.scaleY(),
+        node.rotation(),
+        'top-left'
+      )
+    );
+    reportGeometry(box.x, box.y, box.width, box.height);
+  }, [reportGeometry, x, y, blockWidth, blockHeight, rotation]);
 
   const snap = useSnapScheduler({
     onSnapChange: onSnapChange ?? (() => {}),
@@ -188,11 +202,16 @@ export function CanvasRichText({
       if (!stageWidth || !stageHeight) return;
       const snapTargets = getSnapTargets?.(id ?? '') ?? [];
       if (snapTargets.length > 0 || snapToCenter) {
-        const result = calculateElementSnapPosition(
-          node.x(),
-          node.y(),
-          blockWidth * node.scaleX(),
-          blockHeight * node.scaleY(),
+        const result = snapByBounds(
+          boxFrame(
+            dragFrame,
+            node.x(),
+            node.y(),
+            blockWidth * node.scaleX(),
+            blockHeight * node.scaleY(),
+            node.rotation(),
+            'top-left'
+          ),
           snapTargets,
           stageWidth,
           stageHeight,
@@ -212,9 +231,26 @@ export function CanvasRichText({
       onDragEnd?.(node.x(), node.y());
       if (id && onPositionChange) {
         onPositionChange(id, node.x(), node.y(), blockWidth, blockHeight);
+        // onPositionChange schreibt die ungedrehte Box in dieselben Snap-Ziele;
+        // gedreht muss danach die sichtbare Box dort stehen (der Reporter
+        // meldet nur bei Prop-Änderung, ein Drag zurück an den Start ändert keine).
+        if (node.rotation() !== 0 && onGeometryChange) {
+          const box = frameBounds(
+            boxFrame(
+              dragFrame,
+              node.x(),
+              node.y(),
+              blockWidth * node.scaleX(),
+              blockHeight * node.scaleY(),
+              node.rotation(),
+              'top-left'
+            )
+          );
+          onGeometryChange(id, box.x, box.y, box.width, box.height);
+        }
       }
     },
-    [id, onDragEnd, onPositionChange, snap, blockWidth, blockHeight]
+    [id, onDragEnd, onPositionChange, onGeometryChange, snap, blockWidth, blockHeight]
   );
 
   // A ref, not the rendered width: two transform events can arrive before
