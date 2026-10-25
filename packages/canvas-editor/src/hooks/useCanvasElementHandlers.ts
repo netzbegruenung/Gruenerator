@@ -2,8 +2,11 @@ import { useCallback, useMemo } from 'react';
 
 import { type LiftedBlock } from '../composer/liftBlock';
 import { resolveValue } from '../utils/canvasValueResolver';
-import { normalizeRotation } from '../utils/orientation';
-import { isTemplateElementRotatable } from '../utils/templateRotation';
+import {
+  isTemplateElementRotatable,
+  templatePositionUpdates,
+  withTemplateRotation,
+} from '../utils/templateRotation';
 
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from '../configs/types';
 import type { BalkenMode, CircleBadgeInstance } from '../primitives';
@@ -220,20 +223,6 @@ function getStateArray<T>(state: unknown, key: string): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
 }
 
-/** `templateRotations` with this element's turn, normalised. */
-function withTemplateRotation(
-  prev: Record<string, unknown>,
-  id: string,
-  rotation: number
-): Record<string, number> {
-  const current = prev.templateRotations;
-  const record =
-    current && typeof current === 'object' && !Array.isArray(current)
-      ? (current as Record<string, number>)
-      : {};
-  return { ...record, [id]: normalizeRotation(rotation) };
-}
-
 /**
  * Hook to handle all canvas element interactions
  */
@@ -343,19 +332,8 @@ export function useCanvasElementHandlers<
     (id: string, x: number, y: number, w: number, h: number, rotation: number) => {
       const elementConfig = config.elements.find((e) => e.id === id);
       if (elementConfig && elementConfig.type === 'image') {
-        const updates = {} as Record<string, unknown>;
-
-        // Handle offset-based position (relative to the layout base, as the drag writes it)
-        if (elementConfig.offsetKey) {
-          const baseX = resolveValue<number, TState>(elementConfig.x, state, layout);
-          const baseY = resolveValue<number, TState>(elementConfig.y, state, layout);
-          updates[elementConfig.offsetKey] = { x: x - baseX, y: y - baseY };
-        }
-
-        // Handle absolute position
-        if (elementConfig.positionStateKey) {
-          updates[elementConfig.positionStateKey] = { x, y };
-        }
+        // Offset (relative to the layout base, as the drag writes it) and absolute position
+        const updates = templatePositionUpdates(elementConfig, x, y, state, layout);
 
         // Handle scale-based sizing
         if (elementConfig.scaleKey) {
