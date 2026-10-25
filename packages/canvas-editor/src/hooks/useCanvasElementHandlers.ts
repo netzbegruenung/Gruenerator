@@ -2,6 +2,8 @@ import { useCallback, useMemo } from 'react';
 
 import { type LiftedBlock } from '../composer/liftBlock';
 import { resolveValue } from '../utils/canvasValueResolver';
+import { normalizeRotation } from '../utils/orientation';
+import { isTemplateElementRotatable } from '../utils/templateRotation';
 
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from '../configs/types';
 import type { BalkenMode, CircleBadgeInstance } from '../primitives';
@@ -121,7 +123,16 @@ export interface UseCanvasElementHandlersResult {
   handleFontSizeChange: (id: string, size: number) => void;
   handleElementPositionChange: (id: string, x: number, y: number, w: number, h: number) => void;
   handleImageDragEnd: (id: string, x: number, y: number) => void;
-  handleImageTransformEnd: (id: string, x: number, y: number, w: number, h: number) => void;
+  handleImageTransformEnd: (
+    id: string,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    rotation: number
+  ) => void;
+  /** Vorlagen-Text nach dem Transformer: Position und Drehung als ein Schritt. */
+  handleTemplateTransformEnd: (id: string, x: number, y: number, rotation: number) => void;
   handleBalkenSelect: (id: string) => void;
   handleBalkenDragEnd: (id: string, x: number, y: number) => void;
   handleBalkenTransformEnd: (
@@ -207,6 +218,20 @@ function getStateArray<T>(state: unknown, key: string): T[] {
   const stateObj = state as Record<string, unknown>;
   const value = stateObj[key];
   return Array.isArray(value) ? (value as T[]) : [];
+}
+
+/** `templateRotations` with this element's turn, normalised. */
+function withTemplateRotation(
+  prev: Record<string, unknown>,
+  id: string,
+  rotation: number
+): Record<string, number> {
+  const current = prev.templateRotations;
+  const record =
+    current && typeof current === 'object' && !Array.isArray(current)
+      ? (current as Record<string, number>)
+      : {};
+  return { ...record, [id]: normalizeRotation(rotation) };
 }
 
 /**
@@ -315,15 +340,15 @@ export function useCanvasElementHandlers<
   );
 
   const handleImageTransformEnd = useCallback(
-    (id: string, x: number, y: number, w: number, h: number) => {
+    (id: string, x: number, y: number, w: number, h: number, rotation: number) => {
       const elementConfig = config.elements.find((e) => e.id === id);
       if (elementConfig && elementConfig.type === 'image') {
         const updates = {} as Record<string, unknown>;
 
-        // Handle offset-based position (relative to base)
+        // Handle offset-based position (relative to the layout base, as the drag writes it)
         if (elementConfig.offsetKey) {
-          const baseX = typeof elementConfig.x === 'number' ? elementConfig.x : 0;
-          const baseY = typeof elementConfig.y === 'number' ? elementConfig.y : 0;
+          const baseX = resolveValue<number, TState>(elementConfig.x, state, layout);
+          const baseY = resolveValue<number, TState>(elementConfig.y, state, layout);
           updates[elementConfig.offsetKey] = { x: x - baseX, y: y - baseY };
         }
 
@@ -345,12 +370,43 @@ export function useCanvasElementHandlers<
           updates[elementConfig.sizeStateKey] = { w, h };
         }
 
+        // Rotation rides in the same update and the same history entry as the
+        // position it shifted: one undo restores both.
+        const rotatable = isTemplateElementRotatable(elementConfig);
         if (Object.keys(updates).length > 0) {
-          const nextState = { ...state, ...updates } as TState;
-          setState((prev) => ({ ...prev, ...updates }));
-          saveToHistory(nextState);
+          setState(
+            (prev) =>
+              ({
+                ...prev,
+                ...updates,
+                ...(rotatable
+                  ? { templateRotations: withTemplateRotation(prev, id, rotation) }
+                  : {}),
+              }) as TState
+          );
+          saveToHistory({ ...state, ...updates } as TState);
         }
       }
+    },
+    [config.elements, setState, saveToHistory, state, layout]
+  );
+
+  const handleTemplateTransformEnd = useCallback(
+    (id: string, x: number, y: number, rotation: number) => {
+      const elementConfig = config.elements.find((e) => e.id === id);
+      if (elementConfig?.type !== 'text' || !isTemplateElementRotatable(elementConfig)) return;
+      const positionStateKey = elementConfig.positionStateKey as string | undefined;
+      if (!positionStateKey) return;
+      setState(
+        (prev) =>
+          ({
+            ...prev,
+            [positionStateKey]: { x, y },
+            templateRotations: withTemplateRotation(prev, id, rotation),
+          }) as TState
+      );
+      // The argument is ignored: the entry snapshots the committed state.
+      saveToHistory(state);
     },
     [config.elements, setState, saveToHistory, state]
   );
@@ -607,6 +663,7 @@ export function useCanvasElementHandlers<
       handleElementPositionChange,
       handleImageDragEnd,
       handleImageTransformEnd,
+      handleTemplateTransformEnd,
       handleBalkenSelect,
       handleBalkenDragEnd,
       handleBalkenTransformEnd,
@@ -642,6 +699,7 @@ export function useCanvasElementHandlers<
       handleElementPositionChange,
       handleImageDragEnd,
       handleImageTransformEnd,
+      handleTemplateTransformEnd,
       handleBalkenSelect,
       handleBalkenDragEnd,
       handleBalkenTransformEnd,

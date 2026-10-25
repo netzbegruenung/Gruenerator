@@ -88,7 +88,15 @@ interface CanvasRenderLayerProps<
     handleFontSizeChange: (id: string, size: number) => void;
     handleElementPositionChange: (id: string, x: number, y: number, w: number, h: number) => void;
     handleImageDragEnd: (id: string, x: number, y: number) => void;
-    handleImageTransformEnd: (id: string, x: number, y: number, w: number, h: number) => void;
+    handleImageTransformEnd: (
+      id: string,
+      x: number,
+      y: number,
+      w: number,
+      h: number,
+      rotation: number
+    ) => void;
+    handleTemplateTransformEnd: (id: string, x: number, y: number, rotation: number) => void;
     handleBalkenSelect: (id: string) => void;
     handleBalkenDragEnd: (id: string, x: number, y: number) => void;
     handleBalkenTransformEnd: (
@@ -247,6 +255,7 @@ function CanvasRenderLayerInner<
           onGeometryChange={registerGeometry}
           onImageDragEnd={handlers.handleImageDragEnd}
           onImageTransformEnd={handlers.handleImageTransformEnd}
+          onTemplateTransformEnd={handlers.handleTemplateTransformEnd}
           onSnapChange={handleSnapChange}
           onSnapLinesChange={setSnapLines}
           stageWidth={stageWidth}

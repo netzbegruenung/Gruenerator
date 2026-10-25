@@ -427,7 +427,15 @@ function GenericCanvasWithRef<
   const handleRestore = useCallback(
     (restoredState: Record<string, unknown>) => {
       const prev = committedStateRef.current as Record<string, unknown>;
-      setStateRaw((p) => ({ ...p, ...restoredState }) as TState);
+      // Every entry snapshots the whole state, so a key it lacks did not exist
+      // yet — the position a first drag or turn of a template text wrote.
+      // Merging alone kept that key: one undo turned the text back but left
+      // it shifted.
+      setStateRaw((p) => {
+        const next: Record<string, unknown> = { ...p, ...restoredState };
+        for (const key of Object.keys(p)) if (!(key in restoredState)) delete next[key];
+        return next as TState;
+      });
       for (const [name, callback] of Object.entries(callbacks)) {
         const key = stateKeyOfCallback(name);
         if (!key || !(key in restoredState) || HOST_EMITTED_KEY_SET.has(key)) continue;

@@ -22,7 +22,7 @@ import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { panWindowPhoto, zoomWindow, type Rect } from '../utils/coverFit';
 import { getActiveImageFilters, imageFilterAttrs } from '../utils/imageFilters';
 import { isGroupDrag } from '../utils/multiSelect';
-import { ELEMENT_TRANSFORMER } from '../utils/orientation';
+import { ELEMENT_TRANSFORMER, axisAlignedBounds, normalizeRotation } from '../utils/orientation';
 import { recacheNextFrame } from '../utils/recacheNextFrame';
 import { calculateElementSnapPosition } from '../utils/snapping';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
@@ -38,6 +38,8 @@ export interface CanvasImageProps {
   y: number;
   width: number;
   height: number;
+  /** Degrees about the top-left origin; a cover-fitted photo never turns. */
+  rotation?: number;
   opacity?: number;
   draggable?: boolean;
   /** Touch moves the image only if it was already selected when the finger went down. */
@@ -47,7 +49,7 @@ export interface CanvasImageProps {
   onSelect?: () => void;
   onDeselect?: () => void;
   onDragEnd?: (x: number, y: number) => void;
-  onTransformEnd?: (x: number, y: number, width: number, height: number) => void;
+  onTransformEnd?: (x: number, y: number, width: number, height: number, rotation: number) => void;
   snapToCenter?: boolean;
   stageWidth?: number;
   stageHeight?: number;
@@ -87,6 +89,7 @@ function CanvasImageInner({
   y,
   width,
   height,
+  rotation = 0,
   opacity = 1,
   draggable = true,
   touchDragNeedsSelection = false,
@@ -226,37 +229,52 @@ function CanvasImageInner({
   );
 
   const clampToBounds = useCallback(
-    (posX: number, posY: number, nodeWidth: number, nodeHeight: number) => {
+    (posX: number, posY: number, nodeWidth: number, nodeHeight: number, nodeRotation: number) => {
       if (!constrainToBounds || !stageWidth || !stageHeight) {
         return { x: posX, y: posY };
       }
 
+      // A turned image is kept in by its axis-aligned bounds; the shift of
+      // that box is the shift of the node.
+      const box = nodeRotation
+        ? axisAlignedBounds({
+            x: posX,
+            y: posY,
+            rotation: nodeRotation,
+            scaleX: 1,
+            scaleY: 1,
+            offsetX: 0,
+            offsetY: 0,
+            local: { x: 0, y: 0, width: nodeWidth, height: nodeHeight },
+          })
+        : { x: posX, y: posY, width: nodeWidth, height: nodeHeight };
+
       let minX: number, maxX: number, minY: number, maxY: number;
 
-      if (nodeWidth >= stageWidth) {
+      if (box.width >= stageWidth) {
         // Image is wider or equal: must cover canvas horizontally
         // Can pan within overflow, right edge must always reach canvas right edge
-        minX = stageWidth - nodeWidth; // Negative or zero
+        minX = stageWidth - box.width; // Negative or zero
         maxX = 0;
       } else {
         // Image is narrower: keep within canvas bounds
         minX = 0;
-        maxX = stageWidth - nodeWidth;
+        maxX = stageWidth - box.width;
       }
 
-      if (nodeHeight >= stageHeight) {
+      if (box.height >= stageHeight) {
         // Image is taller or equal: must cover canvas vertically
-        minY = stageHeight - nodeHeight; // Negative or zero
+        minY = stageHeight - box.height; // Negative or zero
         maxY = 0;
       } else {
         // Image is shorter: keep within canvas bounds
         minY = 0;
-        maxY = stageHeight - nodeHeight;
+        maxY = stageHeight - box.height;
       }
 
       return {
-        x: Math.max(minX, Math.min(posX, maxX)),
-        y: Math.max(minY, Math.min(posY, maxY)),
+        x: posX + Math.max(minX, Math.min(box.x, maxX)) - box.x,
+        y: posY + Math.max(minY, Math.min(box.y, maxY)) - box.y,
       };
     },
     [constrainToBounds, stageWidth, stageHeight]
@@ -318,7 +336,7 @@ function CanvasImageInner({
       }
 
       // Apply bounds constraint AFTER snapping
-      const bounded = clampToBounds(finalX, finalY, nodeWidth, nodeHeight);
+      const bounded = clampToBounds(finalX, finalY, nodeWidth, nodeHeight, node.rotation());
 
       // Update Konva node position directly (no React state)
       node.position({ x: bounded.x, y: bounded.y });
@@ -368,11 +386,12 @@ function CanvasImageInner({
       // The handles sit on the visible part; they zoom the photo about its middle.
       node.scale({ x: 1, y: 1 });
       const zoomed = zoomWindow({ x, y, width, height }, scaleX, slot);
-      onTransformEnd?.(zoomed.x, zoomed.y, zoomed.width, zoomed.height);
+      onTransformEnd?.(zoomed.x, zoomed.y, zoomed.width, zoomed.height, 0);
       return;
     }
     const currentWidth = node.width();
     const currentHeight = node.height();
+    const nodeRotation = normalizeRotation(node.rotation());
 
     const SCALE_THRESHOLD = 0.03;
     const scaleChanged =
@@ -386,10 +405,10 @@ function CanvasImageInner({
       node.width(newWidth);
       node.height(newHeight);
 
-      onTransformEnd?.(node.x(), node.y(), newWidth, newHeight);
+      onTransformEnd?.(node.x(), node.y(), newWidth, newHeight, nodeRotation);
     } else {
       node.scale({ x: 1, y: 1 });
-      onTransformEnd?.(node.x(), node.y(), currentWidth, currentHeight);
+      onTransformEnd?.(node.x(), node.y(), currentWidth, currentHeight, nodeRotation);
     }
   }, [onTransformEnd, slot, part, x, y, width, height]);
 
@@ -415,6 +434,7 @@ function CanvasImageInner({
         y={part?.box.y ?? y}
         width={part?.box.width ?? width}
         height={part?.box.height ?? height}
+        rotation={coverFit ? 0 : rotation}
         crop={part?.crop}
         opacity={opacity}
         draggable={draggable && !locked}
@@ -463,6 +483,7 @@ export const CanvasImage = memo(CanvasImageInner, (prevProps, nextProps) => {
     'y',
     'width',
     'height',
+    'rotation',
     'opacity',
     'draggable',
     'touchDragNeedsSelection',

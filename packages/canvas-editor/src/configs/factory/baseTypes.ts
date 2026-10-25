@@ -40,6 +40,8 @@ export interface BaseCanvasState {
   layerOrder?: string[];
   /** Gesperrte Elemente: nicht ziehen, skalieren, drehen oder löschen. */
   lockedLayerIds?: string[];
+  /** Drehung der Vorlagen-Elemente (Text, Grafiken), je Element-ID in Grad. */
+  templateRotations?: Record<string, number>;
   imageAttribution?: StockImageAttribution | null;
   [key: string]: unknown;
 }
