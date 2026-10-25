@@ -5,6 +5,7 @@ import { FiArrowLeft } from 'react-icons/fi';
 import { PiStar, PiStarFill } from 'react-icons/pi';
 
 import { useHostAwareBack } from '../../../hooks/useHostAwareBack';
+import { hasNativeEditorBar } from '../../../hooks/useNativeEditorBar';
 import useSidebarFavouritesStore, { useIsFavourite } from '../../../stores/sidebarFavouritesStore';
 
 import { BoardDropdown } from './BoardDropdown';
@@ -60,6 +61,30 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
   const isFavourite = useIsFavourite(boardId);
   const toggleFavourite = useSidebarFavouritesStore((s) => s.toggleFavourite);
 
+  const menu = (
+    <BoardDropdown
+      boardId={boardId}
+      title={title}
+      isArchived={isArchived}
+      readOnly={readOnly}
+      expertMode={expertMode}
+      onDelete={onDelete}
+      onArchiveToggle={onArchiveToggle}
+      onExpertModeToggle={onExpertModeToggle}
+      onRename={onRename}
+      onOpenSettings={onOpenSettings}
+      onOpenActivity={onOpenActivity}
+      onDuplicate={onDuplicate}
+      onOpenFullSettings={onOpenFullSettings}
+      isFavourite={isFavourite}
+      onToggleFavourite={() => toggleFavourite(boardId)}
+    />
+  );
+
+  // The app draws the bar natively; the menu stays mounted for its dialogs and
+  // its half of the bridge, see `BoardDropdown`.
+  if (hasNativeEditorBar()) return menu;
+
   const showStatusDot = !isConnected || !isSynced;
   const statusClass = !isConnected ? 'bg-red-500' : 'bg-yellow-500';
 
@@ -111,23 +136,7 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
             <PiStar size={16} className="text-grey-400" />
           )}
         </button>
-        <BoardDropdown
-          boardId={boardId}
-          title={title}
-          isArchived={isArchived}
-          readOnly={readOnly}
-          expertMode={expertMode}
-          onDelete={onDelete}
-          onArchiveToggle={onArchiveToggle}
-          onExpertModeToggle={onExpertModeToggle}
-          onRename={onRename}
-          onOpenSettings={onOpenSettings}
-          onOpenActivity={onOpenActivity}
-          onDuplicate={onDuplicate}
-          onOpenFullSettings={onOpenFullSettings}
-          isFavourite={isFavourite}
-          onToggleFavourite={() => toggleFavourite(boardId)}
-        />
+        {menu}
       </div>
     </div>
   );
