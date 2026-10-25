@@ -80,7 +80,7 @@
     "uuid": "^14.0.3",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "yjs": "^13.6.33",
-    "zod": "^3.25.76",
+    "zod": "^4.6.6",
     "zustand": "5.0.15"
   },
   "devDependencies": {
