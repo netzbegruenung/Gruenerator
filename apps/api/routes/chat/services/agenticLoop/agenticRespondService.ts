@@ -65,6 +65,7 @@ import {
   createLoopGuards,
   rehydrateCarriedSources,
   seedAttachedDocuments,
+  seedAttachedPages,
   wrapAssembledTools,
 } from './catalogAssembly.js';
 import { createClientToolGate, type ClientToolGate } from './clientToolGate.js';
@@ -375,6 +376,16 @@ export async function streamAgenticResponse(
       onError: (m) => log.warn(m),
     });
     toolReplayMessages = [...toolReplayMessages, ...seeded.replay];
+    // Die @link-Seiten des Turns genauso — ohne den Seed sah der Planer die
+    // Adresse nie, sie steht nicht im Text (#4896).
+    const seededPages = await seedAttachedPages({
+      state: finalState,
+      sourceRegistry,
+      isMounted: 'scrape_url' in tools,
+      onInfo: (m) => log.info(m),
+      onError: (m) => log.warn(m),
+    });
+    toolReplayMessages = [...toolReplayMessages, ...seededPages.replay];
 
     // Gemeinsam für Umschlag und Motor: der Umschlag zählt laufende Aufrufe,
     // die Stillstands-Uhr der Werkzeugphase liest sie. Ohne diese eine Instanz

@@ -24,6 +24,7 @@ import {
 } from '../../agents/lvRecipePreference.js';
 import { loadManagedMcpCatalog as loadManagedMcpCatalogReal } from '../../agents/managedMcpCatalog.js';
 import { loadMcpCatalog as loadMcpCatalogReal, type McpCatalog } from '../../agents/mcpCatalog.js';
+import { attachedPageUrls, CRAWL_SNIPPET_CHARS, readNamedPages } from '../../agents/namedPages.js';
 import {
   buildRecipeCatalog as buildRecipeCatalogReal,
   recommendedToolsFor,
@@ -744,6 +745,76 @@ export async function seedAttachedDocuments(params: {
   } catch (err) {
     params.onError(
       `[Agentic] Vorab-Abruf der Anhänge übersprungen: ${err instanceof Error ? err.message : err}`
+    );
+    return NOTHING_SEEDED;
+  }
+}
+
+/**
+ * Up-front-Seed für die @link-Seiten des Turns — dieselbe Bauform wie
+ * `seedAttachedDocuments`, aus demselben Grund (#4896).
+ *
+ * Ein @link-Chip schickt seine Adresse in `webpageUrls`, nie im Text. Der
+ * Einzeldurchlauf liest sie über den Intent `scrape_url`; ein Loop-Turn hält
+ * `secondaryIntent` absichtlich leer (er hat das Werkzeug selbst) — aber der
+ * Planer sah die Adresse nirgends und hatte damit ein Lesewerkzeug ohne Ziel.
+ *
+ * Gelesen wird nur, wenn `scrape_url` montiert ist: fehlt es, hat der Agent
+ * kein Web oder der Satz verbietet neue Recherche, und dann darf auch der Seed
+ * nicht ins Netz. Eingetragen über `seedAttached` — die Person hat die Seite
+ * benannt, der Planer hat nicht recherchiert.
+ */
+export async function seedAttachedPages(params: {
+  state: ChatGraphState;
+  sourceRegistry: SourceRegistry;
+  isMounted: boolean;
+  onInfo: (message: string) => void;
+  onError: (message: string) => void;
+}): Promise<SeededAttachedDocuments> {
+  if (!params.isMounted) return NOTHING_SEEDED;
+  const urls = attachedPageUrls(params.state);
+  if (urls.length === 0) return NOTHING_SEEDED;
+  try {
+    const { results } = await readNamedPages(urls);
+    if (results.length === 0) {
+      params.onInfo(
+        `[Agentic] Vorab-Abruf über ${urls.length} @link-Seite(n) ohne lesbaren Inhalt`
+      );
+      return NOTHING_SEEDED;
+    }
+    const block = params.sourceRegistry.seedAttached(results, CRAWL_SNIPPET_CHARS);
+    params.onInfo(`[Agentic] ${results.length} von ${urls.length} @link-Seite(n) vorab gelesen`);
+    const toolCallId = `seed-pages-${params.state.agentConfig.userId ?? 'anon'}`;
+    return {
+      delivered: true,
+      replay: [
+        {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool-call' as const,
+              toolCallId,
+              toolName: 'scrape_url',
+              input: { urls },
+            },
+          ],
+        },
+        {
+          role: 'tool',
+          content: [
+            {
+              type: 'tool-result' as const,
+              toolCallId,
+              toolName: 'scrape_url',
+              output: { type: 'text' as const, value: block },
+            },
+          ],
+        },
+      ],
+    };
+  } catch (err) {
+    params.onError(
+      `[Agentic] Vorab-Abruf der @link-Seiten übersprungen: ${err instanceof Error ? err.message : err}`
     );
     return NOTHING_SEEDED;
   }
