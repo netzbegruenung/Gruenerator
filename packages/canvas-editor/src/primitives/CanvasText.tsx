@@ -17,7 +17,7 @@ import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometry
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { gradientFillProps, type GradientFill } from '../utils/gradientFill';
 import { isGroupDrag } from '../utils/multiSelect';
-import { ELEMENT_TRANSFORMER } from '../utils/orientation';
+import { ELEMENT_TRANSFORMER, normalizeRotation } from '../utils/orientation';
 import { calculateSnapPosition, calculateElementSnapPosition } from '../utils/snapping';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
 
@@ -72,7 +72,14 @@ export interface CanvasTextProps {
   onDeselect?: () => void;
   onTextChange?: (text: string) => void;
   onDragEnd?: (x: number, y: number) => void;
-  onTransformEnd?: (x: number, y: number, width: number, scaleX: number, scaleY: number) => void;
+  onTransformEnd?: (
+    x: number,
+    y: number,
+    width: number,
+    scaleX: number,
+    scaleY: number,
+    rotation: number
+  ) => void;
   onFontSizeChange?: (fontSize: number) => void;
   snapToCenter?: boolean;
   stageWidth?: number;
@@ -282,11 +289,11 @@ function CanvasTextInner({
 
       // Commit to React state
       onFontSizeChange?.(newFontSize);
-      onTransformEnd?.(node.x(), node.y(), newWidth, 1, 1);
+      onTransformEnd?.(node.x(), node.y(), newWidth, 1, 1, normalizeRotation(node.rotation()));
     } else {
       // Just reset scale without changing dimensions
       node.scale({ x: 1, y: 1 });
-      onTransformEnd?.(node.x(), node.y(), currentWidth, 1, 1);
+      onTransformEnd?.(node.x(), node.y(), currentWidth, 1, 1, normalizeRotation(node.rotation()));
     }
   }, [onFontSizeChange, onTransformEnd]);
 
@@ -421,6 +428,7 @@ export const CanvasText = memo(CanvasTextSwitch, (prevProps, nextProps) => {
     'text',
     'x',
     'y',
+    'rotation',
     'width',
     'fontSize',
     'fontFamily',

@@ -35,7 +35,7 @@ import { gradientFillProps } from '../utils/gradientFill';
 import { markerBoxes } from '../utils/markerBoxes';
 import { DEFAULT_TEXT_MARKER, markerInkOn } from '../utils/markerColors';
 import { isGroupDrag } from '../utils/multiSelect';
-import { ELEMENT_TRANSFORMER } from '../utils/orientation';
+import { ELEMENT_TRANSFORMER, normalizeRotation } from '../utils/orientation';
 import { calculateElementSnapPosition } from '../utils/snapping';
 import { runFont, runMeasurer } from '../utils/textUtils';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
@@ -238,7 +238,14 @@ export function CanvasRichText({
       setLiveWidth(null);
       if (Math.abs(node.scaleY() - 1) < 1e-3) {
         node.scale({ x: 1, y: 1 });
-        onTransformEnd?.(node.x(), node.y(), Math.round(committedWidth), 1, 1);
+        onTransformEnd?.(
+          node.x(),
+          node.y(),
+          Math.round(committedWidth),
+          1,
+          1,
+          normalizeRotation(node.rotation())
+        );
         return;
       }
     }
@@ -256,9 +263,9 @@ export function CanvasRichText({
       const newFontSize = Math.max(8, Math.round(fontSize * scaleY));
       const newWidth = Math.round(blockWidth * scaleX);
       onFontSizeChange?.(newFontSize);
-      onTransformEnd?.(node.x(), node.y(), newWidth, 1, 1);
+      onTransformEnd?.(node.x(), node.y(), newWidth, 1, 1, normalizeRotation(node.rotation()));
     } else {
-      onTransformEnd?.(node.x(), node.y(), blockWidth, 1, 1);
+      onTransformEnd?.(node.x(), node.y(), blockWidth, 1, 1, normalizeRotation(node.rotation()));
     }
   }, [fontSize, blockWidth, onFontSizeChange, onTransformEnd]);
 

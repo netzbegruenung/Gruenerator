@@ -69,6 +69,7 @@ interface AdditionalTextAttrs {
   y?: number;
   width?: number;
   scale?: number;
+  rotation?: number;
 }
 
 interface CanvasRenderLayerProps<
@@ -554,12 +555,14 @@ function CanvasRenderLayerInner<
           onDragEnd={(x, y) => {
             handlers.handleAdditionalTextChange(textItem.id, { x, y });
           }}
-          onTransformEnd={(x, y, width, scaleX) => {
+          transformConfig={{ rotateEnabled: true }}
+          onTransformEnd={(x, y, width, scaleX, _scaleY, rotation) => {
             handlers.handleAdditionalTextChange(textItem.id, {
               x,
               y,
               width,
               scale: scaleX,
+              rotation,
             });
           }}
           editable={true}

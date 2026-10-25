@@ -17,7 +17,7 @@ import { Group, Rect, Text, Transformer } from 'react-konva';
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { isGroupDrag } from '../utils/multiSelect';
-import { ELEMENT_TRANSFORMER } from '../utils/orientation';
+import { ELEMENT_TRANSFORMER, normalizeRotation } from '../utils/orientation';
 import { calculatePillBadgeDimensions } from '../utils/pillBadgeUtils';
 import { calculateElementSnapPosition } from '../utils/snapping';
 import { stageCssScale } from '../utils/stageCssScale';
@@ -210,7 +210,9 @@ function PillBadgeInner({
     textarea.style.resize = 'none';
     textarea.style.overflow = 'hidden';
     textarea.style.zIndex = '10000';
-    textarea.style.transformOrigin = 'left top';
+    // Gedreht um den Ursprung der Pille, nicht um die Textecke: der Text sitzt um das Polster versetzt.
+    textarea.style.transformOrigin = `${-scaledPaddingX}px ${-scaledPaddingY}px`;
+    textarea.style.transform = `rotate(${normalizeRotation(group.getAbsoluteRotation())}deg)`;
 
     textarea.focus();
     textarea.select();

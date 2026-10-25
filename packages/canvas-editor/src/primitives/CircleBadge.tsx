@@ -16,7 +16,7 @@ import { Group, Circle, Text, Rect, Transformer } from 'react-konva';
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { isGroupDrag } from '../utils/multiSelect';
-import { ELEMENT_TRANSFORMER } from '../utils/orientation';
+import { ELEMENT_TRANSFORMER, normalizeRotation } from '../utils/orientation';
 import { calculateElementSnapPosition } from '../utils/snapping';
 import { stageCssScale } from '../utils/stageCssScale';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
@@ -218,6 +218,8 @@ function CircleBadgeInner({
       input.style.outlineOffset = '2px';
       input.style.zIndex = '10000';
       input.style.transformOrigin = 'left top';
+      // Der Textknoten trägt die Drehung der Gruppe; seine linke obere Ecke ist sein Ursprung.
+      input.style.transform = `rotate(${normalizeRotation(textNode.getAbsoluteRotation())}deg)`;
 
       input.focus();
       input.select();
