@@ -738,6 +738,10 @@ function GenericCanvasWithRef<
     ]
   );
 
+  // The multi-selection transformer asks this when the selection changes, so a
+  // selection change never re-renders the canvas.
+  const canRotateSelection = useCallback(() => commands.capabilities().canRotate, [commands]);
+
   useCanvasKeyboardHandlers({
     store,
     state,
@@ -1060,6 +1064,7 @@ function GenericCanvasWithRef<
       >
         <CanvasRenderLayer
           sortedRenderList={sortedRenderList}
+          canRotateSelection={canRotateSelection}
           config={config}
           state={state}
           layout={layout}
