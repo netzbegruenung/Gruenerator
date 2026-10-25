@@ -6,6 +6,7 @@ import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLoc
 import { getIllustrationPath, findIllustrationById } from '../utils/illustrations/registry';
 import { getCachedSVG, getSVG } from '../utils/illustrations/svgCache';
 import { ILLUSTRATION_TARGET_SIZE, MOTIF_BASE_SIZE } from '../utils/motifSizes';
+import { ELEMENT_TRANSFORMER } from '../utils/orientation';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type {
@@ -223,6 +224,8 @@ function IllustrationPrimitiveInner({
           borderStroke="#005437"
           anchorStroke="#005437"
           anchorFill="#ffffff"
+          rotateEnabled={true}
+          {...ELEMENT_TRANSFORMER}
           {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}

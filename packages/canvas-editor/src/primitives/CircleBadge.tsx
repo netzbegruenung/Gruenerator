@@ -16,6 +16,7 @@ import { Group, Circle, Text, Rect, Transformer } from 'react-konva';
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { isGroupDrag } from '../utils/multiSelect';
+import { ELEMENT_TRANSFORMER } from '../utils/orientation';
 import { calculateElementSnapPosition } from '../utils/snapping';
 import { stageCssScale } from '../utils/stageCssScale';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
@@ -325,6 +326,8 @@ function CircleBadgeInner({
             if (newBox.width > maxSize || newBox.height > maxSize) return oldBox;
             return newBox;
           }}
+          rotateEnabled={true}
+          {...ELEMENT_TRANSFORMER}
           {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}

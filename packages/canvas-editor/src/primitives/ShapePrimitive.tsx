@@ -16,6 +16,7 @@ import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLoc
 import { gradientFillProps } from '../utils/gradientFill';
 import { translucentHitFunc } from '../utils/gradientHitArea';
 import { handDrawnPath } from '../utils/handDrawn';
+import { ELEMENT_TRANSFORMER } from '../utils/orientation';
 import {
   assertNever,
   isComposerPlane,
@@ -639,11 +640,10 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
           anchorSize={10}
           anchorCornerRadius={5}
           rotateEnabled={true}
-          rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}
-          rotationSnapTolerance={7}
           borderStroke={transformerStroke}
           anchorStroke={transformerStroke}
           anchorFill="#ffffff"
+          {...ELEMENT_TRANSFORMER}
           {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}

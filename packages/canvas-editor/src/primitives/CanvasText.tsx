@@ -17,6 +17,7 @@ import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometry
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { gradientFillProps, type GradientFill } from '../utils/gradientFill';
 import { isGroupDrag } from '../utils/multiSelect';
+import { ELEMENT_TRANSFORMER } from '../utils/orientation';
 import { calculateSnapPosition, calculateElementSnapPosition } from '../utils/snapping';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
 
@@ -379,9 +380,6 @@ function CanvasTextInner({
           anchorStyleFunc={touchAnchorStyleFunc}
           ref={trRef}
           rotateEnabled={transformConfig?.rotateEnabled ?? false}
-          rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}
-          rotationSnapTolerance={7}
-          flipEnabled={transformConfig?.flipEnabled ?? false}
           keepRatio={transformConfig?.keepRatio ?? true}
           enabledAnchors={enabledAnchors}
           boundBoxFunc={(oldBox, newBox) => {
@@ -391,6 +389,7 @@ function CanvasTextInner({
             if (newBox.width > maxWidth) return oldBox;
             return newBox;
           }}
+          {...ELEMENT_TRANSFORMER}
           {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}

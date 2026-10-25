@@ -22,6 +22,7 @@ import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { panWindowPhoto, zoomWindow, type Rect } from '../utils/coverFit';
 import { getActiveImageFilters, imageFilterAttrs } from '../utils/imageFilters';
 import { isGroupDrag } from '../utils/multiSelect';
+import { ELEMENT_TRANSFORMER } from '../utils/orientation';
 import { recacheNextFrame } from '../utils/recacheNextFrame';
 import { calculateElementSnapPosition } from '../utils/snapping';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
@@ -437,9 +438,6 @@ function CanvasImageInner({
           anchorStyleFunc={touchAnchorStyleFunc}
           ref={trRef}
           rotateEnabled={transformConfig?.rotateEnabled ?? false}
-          rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}
-          rotationSnapTolerance={7}
-          flipEnabled={transformConfig?.flipEnabled ?? false}
           keepRatio={transformConfig?.keepRatio ?? true}
           enabledAnchors={enabledAnchors}
           boundBoxFunc={(oldBox, newBox) => {
@@ -449,6 +447,7 @@ function CanvasImageInner({
             if (newBox.width > maxWidth) return oldBox;
             return newBox;
           }}
+          {...ELEMENT_TRANSFORMER}
           {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}

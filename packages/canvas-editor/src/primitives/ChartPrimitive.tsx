@@ -22,6 +22,7 @@ import {
   chartSeriesOutlines,
   type ChartInstance,
 } from '../utils/chartUtils';
+import { ELEMENT_TRANSFORMER } from '../utils/orientation';
 import { useTrackPendingImage } from '../utils/pendingImages';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
 
@@ -542,13 +543,12 @@ function ChartPrimitiveInner({
           keepRatio={true}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
           rotateEnabled={true}
-          rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}
-          rotationSnapTolerance={7}
           anchorSize={10}
           anchorCornerRadius={5}
           borderStroke="#005437"
           anchorStroke="#005437"
           anchorFill="#ffffff"
+          {...ELEMENT_TRANSFORMER}
           {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}

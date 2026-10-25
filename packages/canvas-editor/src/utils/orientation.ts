@@ -10,7 +10,8 @@ export const ROTATION_SNAP_TOLERANCE = 5;
 
 /** Auf jeden Element-Transformer spreaden; `rotateEnabled` bleibt je Primitive. */
 export const ELEMENT_TRANSFORMER = {
-  rotationSnaps: ROTATION_SNAPS,
+  // Veränderbare Kopie: Konvas Typ verlangt number[]; `as const` würde ein readonly-Tupel daraus machen.
+  rotationSnaps: [...ROTATION_SNAPS] as number[],
   rotationSnapTolerance: ROTATION_SNAP_TOLERANCE,
   flipEnabled: false,
 } as const;

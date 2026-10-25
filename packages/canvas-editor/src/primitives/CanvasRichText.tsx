@@ -35,6 +35,7 @@ import { gradientFillProps } from '../utils/gradientFill';
 import { markerBoxes } from '../utils/markerBoxes';
 import { DEFAULT_TEXT_MARKER, markerInkOn } from '../utils/markerColors';
 import { isGroupDrag } from '../utils/multiSelect';
+import { ELEMENT_TRANSFORMER } from '../utils/orientation';
 import { calculateElementSnapPosition } from '../utils/snapping';
 import { runFont, runMeasurer } from '../utils/textUtils';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
@@ -435,9 +436,6 @@ export function CanvasRichText({
           anchorStyleFunc={touchAnchorStyleFunc}
           ref={trRef}
           rotateEnabled={transformConfig?.rotateEnabled ?? false}
-          rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}
-          rotationSnapTolerance={7}
-          flipEnabled={transformConfig?.flipEnabled ?? false}
           keepRatio={transformConfig?.keepRatio ?? true}
           enabledAnchors={enabledAnchors}
           boundBoxFunc={(oldBox, newBox) => {
@@ -447,6 +445,7 @@ export function CanvasRichText({
             if (newBox.width > maxWidth) return oldBox;
             return newBox;
           }}
+          {...ELEMENT_TRANSFORMER}
           {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}

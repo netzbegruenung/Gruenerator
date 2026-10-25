@@ -17,6 +17,7 @@ import { Group, Rect, Text, Transformer } from 'react-konva';
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { isGroupDrag } from '../utils/multiSelect';
+import { ELEMENT_TRANSFORMER } from '../utils/orientation';
 import { calculatePillBadgeDimensions } from '../utils/pillBadgeUtils';
 import { calculateElementSnapPosition } from '../utils/snapping';
 import { stageCssScale } from '../utils/stageCssScale';
@@ -319,6 +320,8 @@ function PillBadgeInner({
             if (newBox.width > maxSize || newBox.height > maxSize) return oldBox;
             return newBox;
           }}
+          rotateEnabled={true}
+          {...ELEMENT_TRANSFORMER}
           {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}

@@ -7,6 +7,7 @@ import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { generateIconDataUrl } from '../utils/canvasIcons';
 import { ICON_TARGET_SIZE, MOTIF_BASE_SIZE } from '../utils/motifSizes';
 import { isGroupDrag } from '../utils/multiSelect';
+import { ELEMENT_TRANSFORMER } from '../utils/orientation';
 import { calculateCenteredSnapPosition } from '../utils/snapping';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
 
@@ -198,6 +199,8 @@ function IconPrimitiveInner({
           ref={transformerRef}
           keepRatio={true}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
+          rotateEnabled={true}
+          {...ELEMENT_TRANSFORMER}
           {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}

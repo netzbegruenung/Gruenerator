@@ -10,6 +10,7 @@ import {
   resolveAssetInstanceSrc,
 } from '../utils/canvasAssets';
 import { isGroupDrag } from '../utils/multiSelect';
+import { ELEMENT_TRANSFORMER } from '../utils/orientation';
 import { useTrackPendingImage } from '../utils/pendingImages';
 import { applyPixelHitArea } from '../utils/pixelHitArea';
 import { calculateCenteredSnapPosition } from '../utils/snapping';
@@ -226,6 +227,8 @@ function AssetPrimitiveInner({
           borderStroke="#005437"
           anchorStroke="#005437"
           anchorFill="#ffffff"
+          rotateEnabled={true}
+          {...ELEMENT_TRANSFORMER}
           {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}
