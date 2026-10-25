@@ -61,11 +61,32 @@ export interface SnapLine {
   position: number;
   start: number;
   end: number;
+  /** `gap`: Abstandsmarke beim Gleich-verteilen (`snapSpacing`), sonst eine Hilfslinie. */
+  kind?: 'gap';
 }
 
 export interface ElementSnapResult extends SnapResult {
   snapToElementId?: string;
   snapLines: SnapLine[];
+}
+
+/** Dieselben Linien in derselben Reihenfolge? Ohne Anlegen, für den Drag-Pfad. */
+export function sameSnapLines(a: readonly SnapLine[], b: readonly SnapLine[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const p = a[i]!;
+    const q = b[i]!;
+    if (
+      p.orientation !== q.orientation ||
+      p.position !== q.position ||
+      p.start !== q.start ||
+      p.end !== q.end ||
+      p.kind !== q.kind
+    ) {
+      return false;
+    }
+  }
+  return true;
 }
 
 /**

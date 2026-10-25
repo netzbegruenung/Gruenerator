@@ -1084,7 +1084,7 @@ function GenericCanvasWithRef<
 
         <PrintGuides format={format} />
 
-        <SnapGuidelines stageWidth={config.canvas.width} stageHeight={config.canvas.height} />
+        <SnapGuidelines />
       </CanvasStage>
 
       {/* Renderless bridge: owns all selectedElement-derived computation.
