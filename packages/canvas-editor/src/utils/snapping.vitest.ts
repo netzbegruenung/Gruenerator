@@ -8,6 +8,7 @@ import {
   createSnapHysteresis,
   frameBounds,
   snapByBounds,
+  snapEdgesByBounds,
   type SnapTarget,
 } from './snapping';
 
@@ -42,7 +43,7 @@ describe('snapByBounds — Golden bei 0°', () => {
       const nextH = createSnapHysteresis();
       for (const [x, y] of GRID) {
         const legacy = calculateElementSnapPosition(x, y, w, h, TARGETS, STAGE_W, STAGE_H, legacyH);
-        const next = snapByBounds(
+        const next = snapEdgesByBounds(
           boxFrame(frame, x, y, w, h, 0, 'top-left'),
           TARGETS,
           STAGE_W,
@@ -71,7 +72,7 @@ describe('snapByBounds — Golden bei 0°', () => {
           STAGE_H,
           legacyH
         );
-        const next = snapByBounds(
+        const next = snapEdgesByBounds(
           boxFrame(frame, x, y, w, h, 0, 'centre'),
           TARGETS,
           STAGE_W,
@@ -82,6 +83,39 @@ describe('snapByBounds — Golden bei 0°', () => {
         expect(nextH).toEqual(legacyH);
       }
     }
+  });
+
+  it('snapByBounds weicht nur ab, wo ein gleicher Abstand einrastet', () => {
+    const frame = createBoxFrame();
+    let spaced = 0;
+    for (const pivot of ['top-left', 'centre'] as const) {
+      for (const [w, h] of SIZES) {
+        const edgesH = createSnapHysteresis();
+        const nextH = createSnapHysteresis();
+        for (const [x, y] of GRID) {
+          const edges = snapEdgesByBounds(
+            boxFrame(frame, x, y, w, h, 0, pivot),
+            TARGETS,
+            STAGE_W,
+            STAGE_H,
+            edgesH
+          );
+          const next = snapByBounds(
+            boxFrame(frame, x, y, w, h, 0, pivot),
+            TARGETS,
+            STAGE_W,
+            STAGE_H,
+            nextH
+          );
+          if (next.snapLines.some((l) => l.kind === 'gap')) spaced++;
+          else expect(next).toEqual(edges);
+          expect(nextH).toEqual(edgesH);
+        }
+      }
+    }
+    // Das Raster trifft gleiche Abstände, aber selten.
+    expect(spaced).toBeGreaterThan(0);
+    expect(spaced).toBeLessThan(GRID.length);
   });
 
   it('meldet bei 0° die alte Box', () => {

@@ -438,11 +438,134 @@ export function frameBounds(frame: NodeFrame): Box {
   };
 }
 
+export interface SpacingSnap {
+  /** Verschiebung entlang der Achse. */
+  delta: number;
+  /** Abstandsmarken: der neue Abstand und der, dem er gleicht. */
+  lines: SnapLine[];
+}
+
+/**
+ * Gleiche Abstände (Canvas „Abstand"-Anzeige): Liegt der Abstand zum Nachbarn
+ * in der Reihe nahe an einem Abstand, den es zwischen zwei anderen Elementen
+ * schon gibt — oder steht die Box fast mittig zwischen zwei Nachbarn —, rastet
+ * sie dort ein. Die Reihe sind die Ziele, die die Box quer zur Achse
+ * überdecken. Pro Bild O(n log n): filtern, dann nur die Reihe sortieren.
+ */
+export function snapSpacing(
+  box: Box,
+  targets: readonly SnapTarget[],
+  axis: 'x' | 'y'
+): SpacingSnap | null {
+  const horizontal = axis === 'x';
+  const start = (b: Box) => (horizontal ? b.x : b.y);
+  const size = (b: Box) => (horizontal ? b.width : b.height);
+  const crossStart = (b: Box) => (horizontal ? b.y : b.x);
+  const crossSize = (b: Box) => (horizontal ? b.height : b.width);
+
+  const boxStart = start(box);
+  const boxSize = size(box);
+  const boxMid = boxStart + boxSize / 2;
+  const left: SnapTarget[] = [];
+  const right: SnapTarget[] = [];
+  for (const target of targets) {
+    const overlaps =
+      crossStart(target) < crossStart(box) + crossSize(box) &&
+      crossStart(target) + crossSize(target) > crossStart(box);
+    if (!overlaps) continue;
+    if (start(target) + size(target) <= boxMid) left.push(target);
+    else if (start(target) >= boxMid) right.push(target);
+  }
+  if (left.length === 0 && right.length === 0) return null;
+  left.sort((a, b) => start(a) - start(b));
+  right.sort((a, b) => start(a) - start(b));
+
+  let near: SnapTarget | null = null; // Nachbar links: größtes Ende
+  for (const target of left) {
+    if (!near || start(target) + size(target) > start(near) + size(near)) near = target;
+  }
+  const far = right[0] ?? null; // Nachbar rechts: kleinster Anfang
+
+  // Querposition einer Marke: die Mitte der Überdeckung beider Kästen.
+  const crossMid = (a: Box, b: Box) =>
+    (Math.max(crossStart(a), crossStart(b)) +
+      Math.min(crossStart(a) + crossSize(a), crossStart(b) + crossSize(b))) /
+    2;
+  const mark = (from: number, to: number, at: number): SnapLine => ({
+    orientation: horizontal ? 'horizontal' : 'vertical',
+    position: at,
+    start: from,
+    end: to,
+    kind: 'gap',
+  });
+
+  let best: { pos: number; lines: () => SnapLine[] } | null = null;
+  let bestDistance = SNAP_THRESHOLD;
+  const offer = (pos: number, lines: () => SnapLine[]) => {
+    const distance = Math.abs(pos - boxStart);
+    if (distance <= bestDistance && (best === null || distance < bestDistance)) {
+      best = { pos, lines };
+      bestDistance = distance;
+    }
+  };
+  const at = (pos: number): Box => (horizontal ? { ...box, x: pos } : { ...box, y: pos });
+
+  if (near && far) {
+    const nearEnd = start(near) + size(near);
+    const pos = (nearEnd + start(far) - boxSize) / 2;
+    if (pos >= nearEnd) {
+      offer(pos, () => [
+        mark(nearEnd, pos, crossMid(at(pos), near)),
+        mark(pos + boxSize, start(far), crossMid(at(pos), far)),
+      ]);
+    }
+  }
+
+  // Vorhandene Abstände: aufeinanderfolgende Kästen derselben Seite.
+  for (const side of [left, right]) {
+    for (let i = 1; i < side.length; i++) {
+      const a = side[i - 1]!;
+      const b = side[i]!;
+      const gapStart = start(a) + size(a);
+      const gap = start(b) - gapStart;
+      if (gap <= 0) continue;
+      const pair = () => mark(gapStart, start(b), crossMid(a, b));
+      if (near) {
+        const nearEnd = start(near) + size(near);
+        const pos = nearEnd + gap;
+        offer(pos, () => [mark(nearEnd, pos, crossMid(at(pos), near)), pair()]);
+      }
+      if (far) {
+        const pos = start(far) - gap - boxSize;
+        offer(pos, () => [mark(pos + boxSize, start(far), crossMid(at(pos), far)), pair()]);
+      }
+    }
+  }
+
+  if (!best) return null;
+  const chosen: { pos: number; lines: () => SnapLine[] } = best;
+  return { delta: chosen.pos - boxStart, lines: chosen.lines() };
+}
+
 /**
  * Snap über die sichtbare (gedrehte) Box: sie rastet wie eine oben links
  * verankerte Box ein, und der Knoten wandert um dieselbe Strecke. Bei 0° gleicht
  * das Ergebnis exakt `calculateElementSnapPosition` (oben links) bzw.
  * `calculateCenteredSnapPosition` (mittig).
+ */
+export function snapEdgesByBounds(
+  frame: NodeFrame,
+  targets: SnapTarget[],
+  stageWidth: number,
+  stageHeight: number,
+  hysteresis?: SnapHysteresis
+): ElementSnapResult {
+  return snapBox(frame, targets, stageWidth, stageHeight, hysteresis, false);
+}
+
+/**
+ * Die Snap-Tür jedes Elements: Kanten und Mitten wie `snapEdgesByBounds`, und
+ * auf einer Achse ohne Kanten-Snap danach gleiche Abstände (`snapSpacing`).
  */
 export function snapByBounds(
   frame: NodeFrame,
@@ -450,6 +573,17 @@ export function snapByBounds(
   stageWidth: number,
   stageHeight: number,
   hysteresis?: SnapHysteresis
+): ElementSnapResult {
+  return snapBox(frame, targets, stageWidth, stageHeight, hysteresis, true);
+}
+
+function snapBox(
+  frame: NodeFrame,
+  targets: SnapTarget[],
+  stageWidth: number,
+  stageHeight: number,
+  hysteresis: SnapHysteresis | undefined,
+  withSpacing: boolean
 ): ElementSnapResult {
   measureFrame(frame);
   const { minX, minY, width, height } = measured;
@@ -463,6 +597,13 @@ export function snapByBounds(
     stageHeight,
     hysteresis
   );
+  for (const axis of ['x', 'y'] as const) {
+    if (!withSpacing || (axis === 'x' ? result.snapH : result.snapV)) continue;
+    const spacing = snapSpacing({ x: result.x, y: result.y, width, height }, targets, axis);
+    if (!spacing) continue;
+    result[axis] += spacing.delta;
+    result.snapLines.push(...spacing.lines);
+  }
   result.x -= minX;
   result.y -= minY;
   return result;

@@ -50,6 +50,20 @@ describe('SnapGuidelines', () => {
     });
     expect(lines().map((l) => l.points())).toEqual([[300, 0, 300, 100]]);
   });
+
+  it('zeichnet eine Abstandsmarke durchgezogen mit Endstrichen', () => {
+    const { store, lines } = mountGuides();
+    act(() => {
+      store
+        .getState()
+        .setSnapLines([
+          { orientation: 'horizontal', position: 50, start: 100, end: 150, kind: 'gap' },
+        ]);
+    });
+    const [gap] = lines();
+    expect(gap!.dash()).toBeUndefined();
+    expect(gap!.points()).toEqual([100, 44, 100, 56, 100, 50, 150, 50, 150, 44, 150, 56]);
+  });
 });
 
 describe('useSnapScheduler', () => {

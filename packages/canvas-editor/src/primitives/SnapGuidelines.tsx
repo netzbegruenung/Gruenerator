@@ -19,29 +19,52 @@ import type { SnapLine } from '../utils/snapping';
 
 export interface SnapGuidelinesProps {
   color?: string;
+  /** Abstandsmarken beim Gleich-verteilen. */
+  gapColor?: string;
 }
 
-function SnapGuidelinesInner({ color = '#0066ff' }: SnapGuidelinesProps) {
+/** Halbe Höhe der Endstriche einer Abstandsmarke. */
+const GAP_TICK = 6;
+
+/** Eine Abstandsmarke |—| als ein Linienzug: Strich, Strecke, Strich. */
+function gapPoints(line: SnapLine): number[] {
+  const { start: s, end: e, position: p } = line;
+  return line.orientation === 'horizontal'
+    ? [s, p - GAP_TICK, s, p + GAP_TICK, s, p, e, p, e, p - GAP_TICK, e, p + GAP_TICK]
+    : [p - GAP_TICK, s, p + GAP_TICK, s, p, s, p, e, p - GAP_TICK, e, p + GAP_TICK, e];
+}
+
+function SnapGuidelinesInner({ color = '#0066ff', gapColor = '#e6007e' }: SnapGuidelinesProps) {
   const snapLines = useCanvasStoreShallow((s) => s.snapLines);
 
   if (snapLines.length === 0) return null;
 
   return (
     <>
-      {snapLines.map((line: SnapLine, index: number) => (
-        <Line
-          key={`snap-line-${index}`}
-          points={
-            line.orientation === 'vertical'
-              ? [line.position, line.start, line.position, line.end]
-              : [line.start, line.position, line.end, line.position]
-          }
-          stroke={color}
-          strokeWidth={1}
-          dash={[4, 4]}
-          listening={false}
-        />
-      ))}
+      {snapLines.map((line: SnapLine, index: number) =>
+        line.kind === 'gap' ? (
+          <Line
+            key={`snap-line-${index}`}
+            points={gapPoints(line)}
+            stroke={gapColor}
+            strokeWidth={1.5}
+            listening={false}
+          />
+        ) : (
+          <Line
+            key={`snap-line-${index}`}
+            points={
+              line.orientation === 'vertical'
+                ? [line.position, line.start, line.position, line.end]
+                : [line.start, line.position, line.end, line.position]
+            }
+            stroke={color}
+            strokeWidth={1}
+            dash={[4, 4]}
+            listening={false}
+          />
+        )
+      )}
     </>
   );
 }
