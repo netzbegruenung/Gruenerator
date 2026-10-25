@@ -1,3 +1,4 @@
+import { type MenuAction } from '@expo/ui/community/menu';
 import {
   useAgentStore,
   useSharepicLiveStore,
@@ -7,10 +8,12 @@ import {
 import { type CanvasTemplateType, type SharepicFormat } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
+import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useSharepicPreview } from '../../hooks/useSharepicPreview';
 import { saveImageToGallery } from '../../services/imageStudio';
@@ -19,6 +22,8 @@ import { composeForMint } from '../../services/sharepicRender';
 import { BODY_FONT, borderRadius, chatType, colors, spacing } from '../../theme';
 
 import { ImageGenerationDots } from './ImageGenerationFrame';
+import { asSharepicMenuId, buildSharepicMenuActions, type SharepicMenuId } from './menuActions';
+import { MenuActionSheet } from './MenuActionSheet';
 import { ShimmerText } from './ShimmerText';
 
 import type { Theme } from '../../theme/colors';
@@ -30,6 +35,9 @@ import type { Theme } from '../../theme/colors';
  * WebView (`useSharepicPreview`). That takes seconds on a cold start and can
  * fail, so the card has three states and says which one it is in — a silent
  * empty frame was the failure mode this whole path exists to avoid.
+ *
+ * No buttons under the picture: tap opens it full screen, holding it opens the
+ * actions (share, save, studio) as a sheet.
  *
  * Deck variants (`pages`) are shown as a single first-slide preview for now;
  * the carousel is web-only until the renderer handles multi-page.
@@ -133,8 +141,11 @@ function SharepicHero({ variant, theme }: { variant: SharepicVariant; theme: The
   const { image, status } = useSharepicPreview(variant);
   const [saving, setSaving] = useState(false);
   const [opening, setOpening] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [zoomed, setZoomed] = useState(false);
   const liveCanvasId = useSharepicLiveStore((state) => state.entries[variant.id]?.canvasId);
   const canvasId = liveCanvasId ?? variant.canvasId ?? null;
+  const ready = status === 'ready' && image !== null;
 
   const handleSave = useCallback(async () => {
     if (image === null || saving) return;
@@ -155,14 +166,84 @@ function SharepicHero({ variant, theme }: { variant: SharepicVariant; theme: The
       .finally(() => setOpening(false));
   }, [canvasId, opening, router, variant]);
 
+  // While a new sharepic is first drawn there is nothing to act on — the frame
+  // says what is happening. A sharepic that already has a canvas (redrawn after
+  // a chat edit) can be opened meanwhile; once drawing failed, the studio is
+  // the way to it. Share and save wait for the picture either way.
+  const canOpenStudio = status !== 'rendering' || canvasId !== null;
+  const menuActions = buildSharepicMenuActions({
+    hasImage: image !== null,
+    canOpenStudio,
+    saving,
+    opening,
+  });
+
+  const runAction = useCallback(
+    (id: string) => {
+      switch (asSharepicMenuId(id)) {
+        case 'share':
+          if (image !== null) void shareBase64Image(image, 'Sharepic teilen');
+          return;
+        case 'save':
+          void handleSave();
+          return;
+        case 'open-studio':
+          setZoomed(false);
+          void handleOpenStudio();
+          return;
+        case null:
+          return;
+      }
+    },
+    [handleOpenStudio, handleSave, image]
+  );
+
+  // Tap looks, hold acts — the gesture photos have in every messenger. A
+  // picture opens full screen (with the same actions in its toolbar, so they
+  // are never only behind a hidden gesture); without one, the tap goes where
+  // the placeholder points: the studio.
+  const handlePress = useCallback(() => {
+    if (ready) setZoomed(true);
+    else if (canOpenStudio) void handleOpenStudio();
+  }, [canOpenStudio, handleOpenStudio, ready]);
+
+  const handleLongPress = useCallback(() => {
+    if (menuActions.length === 0) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setMenuOpen(true);
+  }, [menuActions.length]);
+
+  // A long press is not reachable from VoiceOver or TalkBack in practice; the
+  // same entries are offered as the element's own actions.
+  const enabledActions = menuActions.filter((action) => action.attributes?.disabled !== true);
+  const hint = ready
+    ? 'Öffnet das Sharepic im Vollbild. Lang drücken für Teilen, Speichern und Studio.'
+    : canOpenStudio
+      ? 'Öffnet das Sharepic im Studio.'
+      : null;
+
   return (
     <View style={styles.hero}>
-      <View
-        style={[styles.frame, { backgroundColor: theme.surface, borderColor: theme.border }]}
-        accessible
+      <Pressable
+        onPress={handlePress}
+        onLongPress={handleLongPress}
+        delayLongPress={350}
+        style={({ pressed }) => [
+          styles.frame,
+          { backgroundColor: theme.surface, borderColor: theme.border },
+          pressed && styles.framePressed,
+        ]}
+        testID="chat-sharepic"
+        accessibilityRole={ready || canOpenStudio ? 'button' : 'image'}
         accessibilityLabel={variant.altText ?? 'Sharepic'}
+        {...(hint !== null && { accessibilityHint: hint })}
+        accessibilityActions={enabledActions.map((action) => ({
+          name: action.id ?? action.title,
+          label: action.title,
+        }))}
+        onAccessibilityAction={(event) => runAction(event.nativeEvent.actionName)}
       >
-        {status === 'ready' && image !== null ? (
+        {ready ? (
           <Image source={{ uri: image }} style={styles.image} contentFit="contain" />
         ) : status === 'rendering' ? (
           <View style={styles.generating}>
@@ -180,70 +261,116 @@ function SharepicHero({ variant, theme }: { variant: SharepicVariant; theme: The
               Keine Vorschau verfügbar
             </Text>
             <Text style={[styles.placeholderHint, { color: theme.textSecondary }]}>
-              Im Studio öffnen, um es zu sehen und zu bearbeiten.
+              {opening ? 'Wird geöffnet …' : 'Tippen, um es im Studio zu sehen und zu bearbeiten.'}
             </Text>
           </View>
         )}
-      </View>
+      </Pressable>
 
-      {/* While a new sharepic is first drawn there is nothing to act on — the
-          frame says what is happening. A sharepic that already has a canvas
-          (redrawn after a chat edit) can be opened meanwhile; once drawing
-          failed, the studio is the way to it. Share and save wait for the
-          picture either way. */}
-      {(status !== 'rendering' || canvasId !== null) && (
-        <View style={styles.actions}>
-          <Pressable
-            onPress={() => void handleOpenStudio()}
-            disabled={opening}
-            style={styles.action}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: opening }}
-          >
-            <Ionicons
-              name={opening ? 'hourglass-outline' : 'create-outline'}
-              size={14}
-              color={theme.textSecondary}
-            />
-            <Text style={[styles.actionText, { color: theme.textSecondary }]}>
-              {opening ? 'Öffnen…' : 'Im Studio öffnen'}
-            </Text>
-          </Pressable>
+      <MenuActionSheet
+        visible={menuOpen}
+        theme={theme}
+        heading={variant.label ?? 'Sharepic'}
+        actions={menuActions}
+        onSelect={runAction}
+        onClose={() => setMenuOpen(false)}
+      />
 
-          {image !== null && (
-            <>
-              <Pressable
-                onPress={() => void shareBase64Image(image, 'Sharepic teilen')}
-                style={styles.action}
-                hitSlop={8}
-                accessibilityRole="button"
-              >
-                <Ionicons name="share-outline" size={14} color={theme.textSecondary} />
-                <Text style={[styles.actionText, { color: theme.textSecondary }]}>Teilen</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => void handleSave()}
-                disabled={saving}
-                style={styles.action}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: saving }}
-              >
-                <Ionicons
-                  name={saving ? 'hourglass-outline' : 'download-outline'}
-                  size={14}
-                  color={theme.textSecondary}
-                />
-                <Text style={[styles.actionText, { color: theme.textSecondary }]}>
-                  {saving ? 'Speichern…' : 'Speichern'}
-                </Text>
-              </Pressable>
-            </>
-          )}
-        </View>
+      {image !== null && (
+        <SharepicLightbox
+          visible={zoomed}
+          image={image}
+          altText={variant.altText ?? 'Sharepic'}
+          actions={menuActions}
+          onSelect={runAction}
+          onClose={() => setZoomed(false)}
+        />
       )}
     </View>
+  );
+}
+
+const LIGHTBOX_ICONS: Record<
+  SharepicMenuId,
+  'share-outline' | 'download-outline' | 'create-outline'
+> = {
+  share: 'share-outline',
+  save: 'download-outline',
+  'open-studio': 'create-outline',
+};
+
+function SharepicLightbox({
+  visible,
+  image,
+  altText,
+  actions,
+  onSelect,
+  onClose,
+}: {
+  visible: boolean;
+  image: string;
+  altText: string;
+  actions: MenuAction[];
+  onSelect: (id: string) => void;
+  onClose: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      onRequestClose={onClose}
+    >
+      <View style={[styles.lightbox, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+        <Pressable
+          style={styles.lightboxImageWrap}
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel="Vollbildansicht schließen"
+        >
+          <Image
+            source={{ uri: image }}
+            style={styles.lightboxImage}
+            contentFit="contain"
+            accessibilityLabel={altText}
+          />
+        </Pressable>
+        <Pressable
+          onPress={onClose}
+          style={[styles.closeButton, { top: insets.top + spacing.small }]}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Schließen"
+        >
+          <Ionicons name="close" size={24} color={colors.white} />
+        </Pressable>
+        <View style={styles.lightboxBar}>
+          {actions.map((action) => {
+            const id = asSharepicMenuId(action.id ?? '');
+            if (id === null) return null;
+            const disabled = action.attributes?.disabled === true;
+            return (
+              <Pressable
+                key={id}
+                onPress={() => onSelect(id)}
+                disabled={disabled}
+                style={({ pressed }) => [
+                  styles.lightboxAction,
+                  (pressed || disabled) && styles.lightboxActionDimmed,
+                ]}
+                accessibilityRole="button"
+                accessibilityState={{ disabled }}
+              >
+                <Ionicons name={LIGHTBOX_ICONS[id]} size={22} color={colors.white} />
+                <Text style={styles.lightboxActionText}>{action.title}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -258,6 +385,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     overflow: 'hidden',
   },
+  framePressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
   image: { width: '100%', height: '100%' },
   generating: { flex: 1 },
   generatingLabel: { alignItems: 'center', paddingBottom: spacing.medium },
@@ -275,19 +403,28 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     opacity: 0.8,
   },
-  actions: {
-    flexDirection: 'row',
+  lightbox: { flex: 1, backgroundColor: 'rgba(0,0,0,0.94)' },
+  lightboxImageWrap: { flex: 1, padding: spacing.medium, justifyContent: 'center' },
+  lightboxImage: { width: '100%', height: '100%' },
+  closeButton: {
+    position: 'absolute',
+    right: spacing.medium,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
-    gap: spacing.small,
-    flexWrap: 'wrap',
+    justifyContent: 'center',
   },
-  action: {
+  lightboxBar: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xxsmall,
-    paddingVertical: 2,
+    justifyContent: 'space-around',
+    paddingVertical: spacing.small,
+    paddingHorizontal: spacing.medium,
   },
-  actionText: { ...chatType.chatMicro, fontWeight: '600' },
+  lightboxAction: { alignItems: 'center', gap: spacing.xxsmall, minWidth: 72, padding: 4 },
+  lightboxActionDimmed: { opacity: 0.5 },
+  lightboxActionText: { ...chatType.chatMicro, fontWeight: '600', color: colors.white },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xxsmall },
   chip: {
     paddingHorizontal: spacing.small,

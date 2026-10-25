@@ -442,10 +442,14 @@ function GenericCanvasWithRef<
       // Every entry snapshots the whole state, so a key it lacks did not exist
       // yet — the position a first drag or turn of a template text wrote.
       // Merging alone kept that key: one undo turned the text back but left
-      // it shifted.
+      // it shifted. Only host-emitted keys are dropped: useEmitHostStateChanges
+      // reports their removal to the page document, whereas any other deleted
+      // key would never reach it and canvas and document would diverge.
       setStateRaw((p) => {
         const next: Record<string, unknown> = { ...p, ...restoredState };
-        for (const key of Object.keys(p)) if (!(key in restoredState)) delete next[key];
+        for (const key of Object.keys(p)) {
+          if (!(key in restoredState) && HOST_EMITTED_KEY_SET.has(key)) delete next[key];
+        }
         return next as TState;
       });
       for (const [name, callback] of Object.entries(callbacks)) {

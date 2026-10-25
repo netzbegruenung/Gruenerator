@@ -18,6 +18,9 @@ import { type MenuAction } from '@expo/ui/community/menu';
 /** Menu entries of an assistant message. Identifiers, not labels — see `onPressAction`. */
 export type MessageMenuId = 'export-docx' | 'open-in-docs' | 'report';
 
+/** Menu entries of a sharepic in the chat. */
+export type SharepicMenuId = 'share' | 'save' | 'open-studio';
+
 /** Menu entries of one conversation. */
 export type ThreadMenuId = 'rename' | 'share' | 'archive' | 'unarchive' | 'delete';
 
@@ -33,6 +36,39 @@ export function buildMessageMenuActions(exporting: boolean, reportable = true): 
     // Hidden while the message has no server id yet (still streaming).
     { id: 'report', title: 'Antwort melden', attributes: { hidden: !reportable } },
   ];
+}
+
+/**
+ * What holding a sharepic offers. Share and save need the picture; the studio
+ * needs either a finished drawing or an existing canvas — a sharepic that is
+ * still being drawn for the first time has nothing to open yet. An empty list
+ * means the long press does nothing.
+ */
+export function buildSharepicMenuActions(state: {
+  hasImage: boolean;
+  canOpenStudio: boolean;
+  saving: boolean;
+  opening: boolean;
+}): MenuAction[] {
+  const actions: MenuAction[] = [];
+  if (state.hasImage) {
+    actions.push(
+      { id: 'share', title: 'Teilen' },
+      {
+        id: 'save',
+        title: state.saving ? 'Wird gespeichert …' : 'In Galerie speichern',
+        attributes: { disabled: state.saving },
+      }
+    );
+  }
+  if (state.canOpenStudio) {
+    actions.push({
+      id: 'open-studio',
+      title: state.opening ? 'Wird geöffnet …' : 'Im Studio bearbeiten',
+      attributes: { disabled: state.opening },
+    });
+  }
+  return actions;
 }
 
 export function buildThreadMenuActions(archived: boolean): MenuAction[] {
@@ -69,4 +105,8 @@ export function asThreadMenuId(event: string): ThreadMenuId | null {
 
 export function asMessageMenuId(event: string): MessageMenuId | null {
   return event === 'export-docx' || event === 'open-in-docs' || event === 'report' ? event : null;
+}
+
+export function asSharepicMenuId(event: string): SharepicMenuId | null {
+  return event === 'share' || event === 'save' || event === 'open-studio' ? event : null;
 }

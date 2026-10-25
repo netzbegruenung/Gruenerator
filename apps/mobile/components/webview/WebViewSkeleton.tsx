@@ -8,11 +8,10 @@ import type { EmbeddedSurfaceShape } from '../../services/webview/hostChrome';
 /**
  * What the embedded surfaces look like before they have loaded.
  *
- * These three pages draw their own header (see `SELF_CHROMED_PATH_PREFIXES`),
- * so while the WebView is blank the host is showing nothing at all above the
- * status-bar band — a spinner in the middle of an empty screen said only "wait",
- * not "a board is coming". Each drawing below claims the frame its page will
- * fill: the bar across the top, and the body's coarse arrangement.
+ * While the WebView is blank the host shows nothing but its native bar — a
+ * spinner in the middle of an empty screen said only "wait", not "a board is
+ * coming". Each drawing below claims the body's coarse arrangement of the page
+ * it stands in for (see `SELF_CHROMED_PATH_PREFIXES`).
  *
  * Only the frame, deliberately. None of these skeletons pretends to know how
  * many columns a board has or how long a document is; they draw a plausible
@@ -26,19 +25,6 @@ const CARD_HEIGHTS = [
   [40, 62, 50],
 ] as const;
 const DOC_LINES = ['100%', '92%', '97%', '61%', '100%', '88%'] as const;
-
-/** Back arrow — title — a couple of trailing controls. Every one of them has it. */
-function BarRow({ leading, trailing }: { leading: number; trailing: number }) {
-  return (
-    <View style={styles.bar}>
-      <SkeletonCircle size={leading} />
-      <SkeletonBar width="42%" height={14} radius={4} style={styles.barTitle} />
-      {Array.from({ length: trailing }).map((_, i) => (
-        <SkeletonCircle key={i} size={leading} style={styles.barTrailing} />
-      ))}
-    </View>
-  );
-}
 
 /**
  * Column widths as the web kanban sets them (`kibo-ui/kanban`): 300px from the
@@ -94,8 +80,6 @@ export function WebViewSkeleton({ shape }: { shape: EmbeddedSurfaceShape }) {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]} pointerEvents="none">
       <SkeletonGroup style={styles.container}>
-        {/* The canvas bar is the host's own native header, already on screen. */}
-        {shape !== 'canvas' && <BarRow leading={24} trailing={shape === 'office' ? 1 : 2} />}
         {shape === 'board' ? <BoardBody /> : shape === 'office' ? <OfficeBody /> : <CanvasBody />}
       </SkeletonGroup>
     </View>
@@ -104,15 +88,6 @@ export function WebViewSkeleton({ shape }: { shape: EmbeddedSurfaceShape }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  bar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.small,
-    paddingHorizontal: spacing.medium,
-    paddingVertical: spacing.small,
-  },
-  barTitle: { flexShrink: 1 },
-  barTrailing: { marginLeft: 'auto' },
   columns: {
     flex: 1,
     flexDirection: 'row',

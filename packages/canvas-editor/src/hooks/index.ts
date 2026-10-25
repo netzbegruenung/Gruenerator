@@ -39,10 +39,6 @@ export { useFontGeneration } from './useFontGeneration';
 export { useFontLoader } from './useFontLoader';
 export type { UseFontLoaderOptions, UseFontLoaderResult } from './useFontLoader';
 
-export { useLayerOrdering } from './useLayerOrdering';
-// CanvasItem is already exported from utils/canvasLayerManager
-export type { UseLayerOrderingResult } from './useLayerOrdering';
-
 export { usePaginatedIcons } from './usePaginatedIcons';
 
 export { useMultiPageExport } from './useMultiPageExport';

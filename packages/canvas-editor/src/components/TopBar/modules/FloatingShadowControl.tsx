@@ -1,6 +1,6 @@
 import { Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
 import { Slider } from 'radix-ui';
-import React from 'react';
+import React, { useId } from 'react';
 import { PiDropHalfBottom } from 'react-icons/pi';
 
 import { CustomColorSwatch } from '../../CustomColorSwatch';
@@ -91,6 +91,8 @@ export function FloatingShadowControl({
     }
   };
 
+  const titleId = useId();
+
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -106,9 +108,15 @@ export function FloatingShadowControl({
           />
         </button>
       </PopoverTrigger>
-      <PopoverContent className="z-[10001] w-64 flex flex-col gap-2.5 p-3" align="center">
+      <PopoverContent
+        className="z-[10001] w-64 flex flex-col gap-2.5 p-3"
+        align="center"
+        aria-labelledby={titleId}
+      >
         <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-[var(--editor-text)]">Schatten</span>
+          <span id={titleId} className="text-xs font-medium text-[var(--editor-text)]">
+            Schatten
+          </span>
           <button
             className="text-[11px] font-medium text-[var(--editor-accent)] hover:underline"
             onClick={toggle}

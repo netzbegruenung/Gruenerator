@@ -1,6 +1,6 @@
 import { Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
 import { Slider } from 'radix-ui';
-import React from 'react';
+import React, { useId } from 'react';
 import { PiPaintBucket } from 'react-icons/pi';
 
 import { createDefaultGradient, type GradientFill } from '../../../utils/gradientFill';
@@ -65,6 +65,8 @@ export function FloatingGradientControl({
     onChange({ ...g, stops });
   };
 
+  const titleId = useId();
+
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -80,9 +82,15 @@ export function FloatingGradientControl({
           />
         </button>
       </PopoverTrigger>
-      <PopoverContent className="z-[10001] w-64 flex flex-col gap-3 p-3" align="center">
+      <PopoverContent
+        className="z-[10001] w-64 flex flex-col gap-3 p-3"
+        align="center"
+        aria-labelledby={titleId}
+      >
         <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-[var(--editor-text)]">Farbverlauf</span>
+          <span id={titleId} className="text-xs font-medium text-[var(--editor-text)]">
+            Farbverlauf
+          </span>
           {active ? (
             <button
               className="text-[11px] font-medium text-[var(--editor-accent)] hover:underline"
