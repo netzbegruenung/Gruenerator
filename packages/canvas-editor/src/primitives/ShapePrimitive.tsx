@@ -13,10 +13,12 @@ import {
 } from 'react-konva';
 
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
+import { useBoxSnap, type SnapProps } from '../hooks/useBoxSnap';
 import { gradientFillProps } from '../utils/gradientFill';
 import { translucentHitFunc } from '../utils/gradientHitArea';
 import { handDrawnPath } from '../utils/handDrawn';
 import { ELEMENT_TRANSFORMER, signedScale } from '../utils/orientation';
+import { shapeBox } from '../utils/renderedBoxes';
 import {
   assertNever,
   isComposerPlane,
@@ -28,7 +30,7 @@ import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type Konva from 'konva';
 
-interface ShapePrimitiveProps {
+interface ShapePrimitiveProps extends SnapProps {
   shape: ShapeInstance;
   isSelected: boolean;
   onSelect: (id: string) => void;
@@ -176,6 +178,8 @@ interface CommonShapeProps {
   hitFunc?: (context: Konva.Context, shape: Konva.Shape) => void;
   onMouseDown: (e: Konva.KonvaEventObject<MouseEvent>) => void;
   onTouchStart: (e: Konva.KonvaEventObject<TouchEvent>) => void;
+  onDragStart: () => void;
+  onDragMove: (e: Konva.KonvaEventObject<DragEvent>) => void;
   onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => void;
   onTransformEnd: () => void;
   name: string;
@@ -517,8 +521,10 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
   onSelect,
   onChange,
   draggable: draggableProp = true,
+  ...snapProps
 }) => {
   const locked = useIsItemLocked();
+  const snap = useBoxSnap({ id: shape.id, ...snapProps }, shapeBox(shape));
   const draggable = draggableProp && !locked;
   const shapeRef = useRef<Konva.Shape>(null);
   const trRef = useRef<Konva.Transformer>(null);
@@ -544,6 +550,7 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
   }, [shape.fillGradient, shape.type, shape.width, shape.height]);
 
   const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
+    snap.onDragEnd();
     onChange({
       x: e.target.x(),
       y: e.target.y(),
@@ -608,6 +615,8 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
       }
       onSelect(shape.id);
     },
+    onDragStart: snap.onDragStart,
+    onDragMove: snap.onDragMove,
     onDragEnd: handleDragEnd,
     onTransformEnd: handleTransformEnd,
     name: `shape-${shape.id}`,
@@ -681,6 +690,8 @@ export const ShapePrimitive = memo(ShapePrimitiveInner, (prevProps, nextProps) =
 
   if (prevProps.isSelected !== nextProps.isSelected) return false;
   if (prevProps.draggable !== nextProps.draggable) return false;
+  if (prevProps.stageWidth !== nextProps.stageWidth) return false;
+  if (prevProps.stageHeight !== nextProps.stageHeight) return false;
 
   return true;
 });

@@ -2,8 +2,10 @@ import React, { useRef, useEffect, useState, useCallback, memo } from 'react';
 import { Circle, Group, Image as KonvaImage, Line, Rect, Shape, Transformer } from 'react-konva';
 
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
+import { useBoxSnap, type SnapProps } from '../hooks/useBoxSnap';
 import { coverPhotoRect } from '../utils/coverFit';
 import { ELEMENT_TRANSFORMER } from '../utils/orientation';
+import { frameBox } from '../utils/renderedBoxes';
 import { assertNever } from '../utils/shapes';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
 
@@ -237,7 +239,7 @@ function starPath(
   ctx.closePath();
 }
 
-export interface FramePrimitiveProps {
+export interface FramePrimitiveProps extends SnapProps {
   frame: FrameInstance;
   isSelected: boolean;
   onSelect: (id: string) => void;
@@ -252,8 +254,10 @@ function FramePrimitiveInner({
   onSelect,
   onChange,
   draggable = true,
+  ...snapProps
 }: FramePrimitiveProps) {
   const locked = useIsItemLocked();
+  const snap = useBoxSnap({ id: frame.id, ...snapProps }, frameBox(frame));
   const groupRef = useRef<Konva.Group>(null);
   const trRef = useRef<Konva.Transformer>(null);
   const [image, setImage] = useState<HTMLImageElement | null>(null);
@@ -286,9 +290,10 @@ function FramePrimitiveInner({
 
   const handleDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
+      snap.onDragEnd();
       onChange({ x: e.target.x(), y: e.target.y() });
     },
-    [onChange]
+    [onChange, snap]
   );
 
   const handleTransformEnd = useCallback(() => {
@@ -383,6 +388,8 @@ function FramePrimitiveInner({
         draggable={draggable && !locked}
         onMouseDown={handleSelect}
         onTouchStart={handleSelect}
+        onDragStart={snap.onDragStart}
+        onDragMove={snap.onDragMove}
         onDragEnd={handleDragEnd}
         onTransformEnd={handleTransformEnd}
         name={`frame-${frame.id}`}
@@ -528,6 +535,8 @@ export const FramePrimitive = memo(FramePrimitiveInner, (prevProps, nextProps) =
 
   if (prevProps.isSelected !== nextProps.isSelected) return false;
   if (prevProps.draggable !== nextProps.draggable) return false;
+  if (prevProps.stageWidth !== nextProps.stageWidth) return false;
+  if (prevProps.stageHeight !== nextProps.stageHeight) return false;
 
   return true;
 });
