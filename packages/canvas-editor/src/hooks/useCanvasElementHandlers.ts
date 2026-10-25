@@ -111,8 +111,9 @@ export interface UseCanvasElementHandlersOptions<
   callbacks: Record<string, ((val: unknown) => void) | undefined>;
   selectElement: (id: string) => void;
   updateElementPosition: (id: string, x: number, y: number, w: number, h: number) => void;
-  saveToHistory: (state: TState) => void;
-  debouncedSaveToHistory: (state: TState) => void;
+  /** Snapshots the committed state; the argument is ignored (`useCanvasHistorySetup`). */
+  saveToHistory: (state?: TState) => void;
+  debouncedSaveToHistory: (state?: TState) => void;
 }
 
 export interface UseCanvasElementHandlersResult {
@@ -256,9 +257,9 @@ export function useCanvasElementHandlers<
     (id: string, size: number) => {
       const elementConfig = config.elements.find((e) => e.id === id);
       if (elementConfig && elementConfig.type === 'text' && elementConfig.fontSizeStateKey) {
-        const next = { ...state, [elementConfig.fontSizeStateKey]: size };
-        setState(() => next);
-        debouncedSaveToHistory(next);
+        const key = elementConfig.fontSizeStateKey;
+        setState((prev) => ({ ...prev, [key]: size }));
+        debouncedSaveToHistory();
         return;
       }
 
@@ -297,9 +298,8 @@ export function useCanvasElementHandlers<
       // verschiebt. Ohne einen der beiden Schluessel bleibt der Zug fluechtig.
       if (elementConfig.positionStateKey) {
         const key = elementConfig.positionStateKey;
-        const next = { ...state, [key]: { x, y } };
-        setState(() => next);
-        saveToHistory(next);
+        setState((prev) => ({ ...prev, [key]: { x, y } }));
+        saveToHistory();
         return;
       }
 
