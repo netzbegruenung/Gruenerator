@@ -7,7 +7,6 @@ import { getIllustrationPath, findIllustrationById } from '../utils/illustration
 import { getCachedSVG, getSVG } from '../utils/illustrations/svgCache';
 import { ILLUSTRATION_TARGET_SIZE, MOTIF_BASE_SIZE } from '../utils/motifSizes';
 import { ELEMENT_TRANSFORMER, signedScale } from '../utils/orientation';
-import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type {
   IllustrationInstance,
@@ -156,8 +155,8 @@ function IllustrationPrimitiveInner({
         ref={groupRef}
         x={illustration.x}
         y={illustration.y}
-        scaleX={signedScale(illustration.scale * baseScale, illustration.flipX === true)}
-        scaleY={signedScale(illustration.scale * baseScale, illustration.flipY === true)}
+        scaleX={illustration.scale * baseScale}
+        scaleY={illustration.scale * baseScale}
         rotation={illustration.rotation}
         opacity={illustration.opacity}
         draggable={draggable && !locked}
@@ -182,19 +181,23 @@ function IllustrationPrimitiveInner({
           const newRotation = node.rotation();
 
           // Reset node transform
-          node.scaleX(signedScale(illustration.scale * baseScale, illustration.flipX === true));
-          node.scaleY(signedScale(illustration.scale * baseScale, illustration.flipY === true));
+          node.scaleX(illustration.scale * baseScale);
+          node.scaleY(illustration.scale * baseScale);
           node.rotation(illustration.rotation);
 
           onTransformEnd(node.x(), node.y(), newScale, newRotation);
         }}
       >
+        {/* Gespiegelt wird das Bild, nicht die Gruppe: am Transformer hängt so nie
+            eine negative Skala, die Konva als Drehung + 180° zerlegen würde. */}
         <Image
           image={image}
           width={BASE_SIZE}
           height={BASE_SIZE}
           offsetX={BASE_SIZE / 2}
           offsetY={BASE_SIZE / 2}
+          scaleX={signedScale(1, illustration.flipX === true)}
+          scaleY={signedScale(1, illustration.flipY === true)}
         />
 
         {/* Selection border */}
@@ -215,7 +218,6 @@ function IllustrationPrimitiveInner({
 
       {isSelected && (
         <Transformer
-          anchorStyleFunc={touchAnchorStyleFunc}
           ref={transformerRef}
           keepRatio={true}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}

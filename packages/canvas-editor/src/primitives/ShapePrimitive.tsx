@@ -16,7 +16,12 @@ import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLoc
 import { gradientFillProps } from '../utils/gradientFill';
 import { translucentHitFunc } from '../utils/gradientHitArea';
 import { handDrawnPath } from '../utils/handDrawn';
-import { ELEMENT_TRANSFORMER, signedScale } from '../utils/orientation';
+import {
+  ELEMENT_TRANSFORMER,
+  MIRROR_X_ATTR,
+  nodeRotation,
+  signedScale,
+} from '../utils/orientation';
 import {
   assertNever,
   isComposerPlane,
@@ -24,7 +29,6 @@ import {
   type ShapeInstance,
 } from '../utils/shapes';
 import { PATH_VIEWBOX, resizedShapeSize, shapeNodeScale } from '../utils/shapeTransform';
-import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type Konva from 'konva';
 
@@ -172,6 +176,8 @@ interface CommonShapeProps {
   rotation: number;
   scaleX: number;
   scaleY: number;
+  /** `MIRROR_X_ATTR`: die Spiegelung steckt in der Knoten-Skala. */
+  [MIRROR_X_ATTR]: boolean;
   draggable: boolean;
   hitFunc?: (context: Konva.Context, shape: Konva.Shape) => void;
   onMouseDown: (e: Konva.KonvaEventObject<MouseEvent>) => void;
@@ -557,14 +563,17 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
     const pathShape = isPathShape(shape.type);
     const size = resizedShapeSize(pathShape, shape, node.scaleX(), node.scaleY());
     const nodeScale = shapeNodeScale(pathShape, size);
+    // Vor dem Zurücksetzen der Vorzeichen lesen: nur dann erkennt es Konvas Zerlegung.
+    const rotation = nodeRotation(node);
 
     node.scaleX(signedScale(nodeScale.width, shape.flipX === true));
     node.scaleY(signedScale(nodeScale.height, shape.flipY === true));
+    node.rotation(rotation);
 
     onChange({
       x: node.x(),
       y: node.y(),
-      rotation: node.rotation(),
+      rotation,
       width: size.width,
       height: size.height,
       scaleX: 1,
@@ -586,6 +595,7 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
     rotation: shape.rotation,
     scaleX: signedScale(shape.scaleX, shape.flipX === true),
     scaleY: signedScale(shape.scaleY, shape.flipY === true),
+    [MIRROR_X_ATTR]: shape.flipX === true,
     draggable,
     hitFunc: fillsArea ? translucentHitFunc(shape.fillGradient) : undefined,
     onMouseDown: (e) => {
@@ -629,7 +639,6 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
 
       {isSelected && (
         <Transformer
-          anchorStyleFunc={touchAnchorStyleFunc}
           ref={trRef}
           boundBoxFunc={(oldBox, newBox) => {
             if (newBox.width < 5 || newBox.height < 5) {

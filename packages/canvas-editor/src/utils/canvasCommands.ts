@@ -396,8 +396,9 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
 
   /**
    * Spiegeln: Drehung wird −θ, spiegelbare Kinds kippen `flipX`/`flipY`, die
-   * Mitte bleibt. Die Knoten-Skala wechselt dabei das Vorzeichen — außer beim
-   * Nutzerbild, das per Pixelfilter spiegelt. Mehrere Elemente spiegeln ihre
+   * Mitte bleibt. Der Rahmen spiegelt mit: bei Formen wechselt die Knoten-Skala
+   * das Vorzeichen, Icon, Illustration und Asset spiegeln ihr Bild-Kind um den
+   * Drehpunkt, das Nutzerbild per Pixelfilter. Mehrere Elemente spiegeln ihre
    * Mitten zusätzlich an der Mitte der Auswahl; Text wandert, bleibt aber lesbar.
    */
   const flip = (axis: 'x' | 'y') => {

@@ -65,6 +65,7 @@ import { ensureFontsReady } from '../utils/ensureFontsReady';
 import { MAX_ICON_SELECTIONS, selectedCatalogIconIds } from '../utils/iconInstances';
 import { locateDrop, type ElementDragPayload, type MediaDragPayload } from '../utils/mediaDrop';
 import { selectableItemIds } from '../utils/multiSelect';
+import { rotaterRects } from '../utils/orientation';
 import { PendingImagesContext } from '../utils/pendingImages';
 import { stageCssScale } from '../utils/stageCssScale';
 import { findTemplateEntry } from '../utils/templateElementInstance';
@@ -963,6 +964,8 @@ function GenericCanvasWithRef<
         if (ids.length === 0 || !stage) return null;
         const rects = ids.map((id) => itemBodyRect(stage, id)).filter((r) => r !== null);
         if (rects.length === 0) return null;
+        // Der Drehgriff zählt mit: die Pille weicht ihm aus, statt ihn zu verdecken.
+        rects.push(...rotaterRects(stage));
         const left = Math.min(...rects.map((r) => r.x));
         const top = Math.min(...rects.map((r) => r.y));
         const rect = {

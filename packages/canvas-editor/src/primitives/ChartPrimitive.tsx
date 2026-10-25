@@ -24,7 +24,6 @@ import {
 } from '../utils/chartUtils';
 import { ELEMENT_TRANSFORMER } from '../utils/orientation';
 import { useTrackPendingImage } from '../utils/pendingImages';
-import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type Konva from 'konva';
 
@@ -538,7 +537,6 @@ function ChartPrimitiveInner({
 
       {isSelected && (
         <Transformer
-          anchorStyleFunc={touchAnchorStyleFunc}
           ref={transformerRef}
           keepRatio={true}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
