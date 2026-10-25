@@ -602,6 +602,9 @@ export interface ChatGraphInput {
   docMentionIds?: string[] | undefined;
   wolkeFiles?: WolkeFileRef[] | undefined;
   connectFiles?: ConnectFileRef[] | undefined;
+  /** None of `wolkeFiles`/`connectFiles` was picked this turn — all carried
+   *  from earlier turns (#4112). Material, not a forced route (#4897). */
+  cloudFilesCarriedOnly?: boolean;
   /** Notebook documents handed over from the reader, authorized this turn. */
   notebookSources?: ResolvedNotebookSource[];
   /** None of `notebookSources` was picked this turn — all carried from earlier
@@ -882,6 +885,9 @@ export interface ChatGraphState {
   // Connected-account (Nango) file refs selected via @connect mentionable.
   // Downloaded + parsed inline at searchNode time; never persisted.
   connectFiles: ConnectFileRef[];
+  // True when every cloud file was carried from an earlier turn — same rule
+  // as `notebookSourcesCarriedOnly`.
+  cloudFilesCarriedOnly: boolean;
 
   // Notebook documents handed over from the document reader (own, shared or
   // system), re-authorized every turn in streamContext and carried per thread
