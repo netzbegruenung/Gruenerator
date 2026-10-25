@@ -287,6 +287,8 @@ export interface GenericCanvasRef {
   setRotation?: (deg: number) => void;
   /** Dreht nur die Anzeige der Einzelauswahl (Regler ziehen) — ohne Zustand, ohne Verlauf. */
   previewRotation?: (deg: number) => void;
+  /** Schreibt eine abgebrochene Vorschau dem Element zu, das sie zeigt. */
+  commitRotationPreview?: () => void;
   /** Was das Kontextmenü beim Öffnen über diese Seite wissen muss. */
   getMenuSnapshot?: () => CanvasMenuSnapshot;
   /** Box der Auswahl in Fensterkoordinaten, für Bedienelemente am Objekt. */
@@ -949,6 +951,7 @@ function GenericCanvasWithRef<
       runCommand: commands.run,
       setRotation: commands.setRotation,
       previewRotation: commands.previewRotation,
+      commitRotationPreview: commands.commitRotationPreview,
       getMenuSnapshot: () => {
         const { selectedLayerIds, selectedElement, croppingElement } = store.getState();
         const committed = committedStateRef.current;

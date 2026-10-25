@@ -96,6 +96,11 @@ export interface CanvasCommands {
   setRotation: (deg: number) => void;
   /** Nur die Anzeige: dreht den Knoten der Einzelauswahl, ohne Zustand und Verlauf. */
   previewRotation: (deg: number) => void;
+  /**
+   * Schreibt eine offene Vorschau fest — dem Element, das sie zeigt, auch wenn
+   * die Auswahl inzwischen eine andere ist. Ohne Vorschau: nichts.
+   */
+  commitRotationPreview: () => void;
   /** Spiegelt die Auswahl; mehrere Elemente auch an der Mitte der Auswahl. */
   flip: (axis: 'x' | 'y') => void;
   run: (id: PageCommandId, at: ClientPoint | null) => void;
@@ -278,11 +283,13 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
    * Ziel der laufenden Vorschau, beim ersten Bild gemerkt: die weiteren Bilder
    * suchen weder Tür noch Knoten neu und messen nicht nochmal. Gilt für genau
    * diese Auswahl (Array-Identität aus dem Store) und endet mit dem Abschluss.
+   * `deg` ist das zuletzt gezeigte Bild.
    */
   let preview: {
     ids: readonly string[];
     target: OrientTarget;
     layer: Konva.Layer;
+    deg: number;
   } | null = null;
 
   const setRotation = (deg: number) => {
@@ -298,16 +305,38 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
       const layer = ctx.getStage()?.getLayers()[0];
       const [target] = ids.length === 1 && layer ? orientTargets(ids) : [];
       if (!target || !layer) return;
-      preview = { ids, target, layer };
+      preview = { ids, target, layer, deg: target.frame.rotation };
     }
     const { target, layer } = preview;
     const rotation = normalizeRotation(deg);
+    preview.deg = rotation;
     // Der Balken dreht um seinen Offset; seine Tür nimmt x/y nicht an.
     if (target.door.kind !== 'balken') {
       target.node.position(placeKeepingCentre(target.frame, { rotation }));
     }
     target.node.rotation(rotation);
     layer.batchDraw();
+  };
+
+  /**
+   * Abgebrochener Zug (Popover zu, Leiste weg): die Vorschau gehört zu ihren
+   * Ids, nicht zur Auswahl von jetzt. Lässt sich das Element nicht mehr drehen
+   * (entfernt, inzwischen gesperrt), springt ein noch vorhandener Knoten auf
+   * den Zustand zurück, statt gedreht stehen zu bleiben.
+   */
+  const commitRotationPreview = () => {
+    const pending = preview;
+    preview = null;
+    if (!pending) return;
+    if (orientTargets(pending.ids).length > 0) {
+      rotateTo(pending.ids, pending.deg);
+      return;
+    }
+    const { node, frame } = pending.target;
+    if (!node.getParent()) return;
+    node.position({ x: frame.x, y: frame.y });
+    node.rotation(frame.rotation);
+    pending.layer.batchDraw();
   };
 
   /**
@@ -377,6 +406,7 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
     editText,
     setRotation,
     previewRotation,
+    commitRotationPreview,
     flip,
   };
 

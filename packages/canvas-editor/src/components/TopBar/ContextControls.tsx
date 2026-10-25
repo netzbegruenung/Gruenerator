@@ -65,6 +65,7 @@ export interface ContextControlsProps {
     /** Drehen & Spiegeln über die Befehls-Türen der Seite (`utils/canvasCommands.ts`). */
     handleSetRotation?: (deg: number) => void;
     handlePreviewRotation?: (deg: number) => void;
+    handleCommitRotationPreview?: () => void;
     handleFlip?: (axis: 'x' | 'y') => void;
     /** Opens the image-adjust ("Bearbeiten") panel for the selected image. */
     onEditImage?: () => void;
@@ -520,13 +521,14 @@ export function ContextControls({
   }
 
   // Nur für eine drehbare Einzelauswahl (nicht gesperrt, kein Lesemodus). Der
-  // Schlüssel hängt an der Auswahl: wechselt sie, schreibt der alte Regler eine
-  // offene Vorschau fest, statt sie aufs neue Element zu tragen.
+  // Schlüssel hängt an der Auswahl: wechselt sie, wird der alte Regler
+  // abgebaut und schreibt eine offene Vorschau dem Element zu, das sie zeigt.
   if (
     selectedElement &&
     canRotate &&
     handlers.handleSetRotation &&
     handlers.handlePreviewRotation &&
+    handlers.handleCommitRotationPreview &&
     handlers.handleFlip
   ) {
     groups.push(
@@ -536,6 +538,7 @@ export function ContextControls({
         canFlip={canFlip}
         onRotationCommit={handlers.handleSetRotation}
         onRotationPreview={handlers.handlePreviewRotation}
+        onPreviewAbandon={handlers.handleCommitRotationPreview}
         onFlip={handlers.handleFlip}
       />
     );

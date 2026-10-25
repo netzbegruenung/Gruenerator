@@ -21,6 +21,7 @@ function renderControl(
     canFlip: true,
     onRotationCommit: vi.fn(),
     onRotationPreview: vi.fn(),
+    onPreviewAbandon: vi.fn(),
     onFlip: vi.fn(),
     ...overrides,
   };
@@ -139,6 +140,9 @@ describe('Drehen & Spiegeln', () => {
       expect(props.onRotationPreview).toHaveBeenLastCalledWith(90);
       expect(props.onRotationCommit).toHaveBeenCalledTimes(1);
       expect(props.onRotationCommit).toHaveBeenCalledWith(90);
+      // Abgeschlossen: Schließen danach hat nichts mehr festzuschreiben.
+      await userEvent.keyboard('{Escape}');
+      expect(props.onPreviewAbandon).not.toHaveBeenCalled();
     });
 
     it('schreibt eine abgebrochene Vorschau fest, wenn das Popover schließt', async () => {
@@ -149,8 +153,9 @@ describe('Drehen & Spiegeln', () => {
       fireEvent.pointerMove(slider, { ...pointer, clientX: 225 });
       expect(props.onRotationCommit).not.toHaveBeenCalled();
       await userEvent.keyboard('{Escape}');
-      expect(props.onRotationCommit).toHaveBeenCalledTimes(1);
-      expect(props.onRotationCommit).toHaveBeenCalledWith(45);
+      // Die Seite schreibt die Vorschau ihrem eigenen Element zu, nicht der Auswahl.
+      expect(props.onPreviewAbandon).toHaveBeenCalledTimes(1);
+      expect(props.onRotationCommit).not.toHaveBeenCalled();
     });
 
     it('schreibt eine abgebrochene Vorschau fest, wenn die Leiste verschwindet', async () => {
@@ -160,7 +165,8 @@ describe('Drehen & Spiegeln', () => {
       fireEvent.pointerDown(slider, { ...pointer, clientX: 180 });
       fireEvent.pointerMove(slider, { ...pointer, clientX: 135 });
       act(() => unmount());
-      expect(props.onRotationCommit).toHaveBeenCalledWith(-45);
+      expect(props.onPreviewAbandon).toHaveBeenCalledTimes(1);
+      expect(props.onRotationCommit).not.toHaveBeenCalled();
     });
   });
 });
@@ -173,6 +179,7 @@ const HANDLERS = {
   handleFontSizeChange: () => {},
   handleSetRotation: () => {},
   handlePreviewRotation: () => {},
+  handleCommitRotationPreview: () => {},
   handleFlip: () => {},
 };
 

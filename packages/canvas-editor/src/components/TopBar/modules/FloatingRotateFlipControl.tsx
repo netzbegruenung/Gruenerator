@@ -26,6 +26,11 @@ interface FloatingRotateFlipControlProps {
   onRotationCommit: (deg: number) => void;
   /** Nur die Anzeige, während der Regler gezogen wird. */
   onRotationPreview: (deg: number) => void;
+  /**
+   * Ein Zug endet ohne Abschluss: die Seite schreibt die Vorschau dem Element
+   * zu, das sie zeigt (nicht der Auswahl von jetzt — die kann eine andere sein).
+   */
+  onPreviewAbandon: () => void;
   onFlip: (axis: 'x' | 'y') => void;
 }
 
@@ -51,14 +56,16 @@ function flipLabel(id: 'flipHorizontal' | 'flipVertical') {
  * Drehen & Spiegeln der Einzelauswahl. Der Regler zeigt beim Ziehen nur eine
  * Vorschau am Knoten und schreibt einmal am Ende (`onValueCommit`) — ein Zug,
  * ein Verlaufsschritt. Endet ein Zug ohne Abschluss (Popover zu, Leiste weg),
- * wird die letzte Vorschau festgeschrieben: sonst stünde der Knoten gedreht da,
- * während der Zustand etwas anderes sagt.
+ * schreibt die Seite die letzte Vorschau dem Element zu, das sie zeigt
+ * (`commitRotationPreview`): sonst stünde der Knoten gedreht da, während der
+ * Zustand etwas anderes sagt.
  */
 export function FloatingRotateFlipControl({
   rotation,
   canFlip,
   onRotationCommit,
   onRotationPreview,
+  onPreviewAbandon,
   onFlip,
 }: FloatingRotateFlipControlProps) {
   const inputId = useId();
@@ -69,10 +76,11 @@ export function FloatingRotateFlipControl({
   // Getippter Text; null = das Feld zeigt den Reglerwert.
   const [text, setText] = useState<string | null>(null);
   const textRef = useRef<string | null>(null);
-  const pendingPreview = useRef<number | null>(null);
-  const commitRef = useRef(onRotationCommit);
+  // Eine Vorschau läuft, und noch kein Abschluss ist gefolgt.
+  const previewPending = useRef(false);
+  const abandonRef = useRef(onPreviewAbandon);
   useEffect(() => {
-    commitRef.current = onRotationCommit;
+    abandonRef.current = onPreviewAbandon;
   });
 
   if (shownRotation !== rotation) {
@@ -86,23 +94,22 @@ export function FloatingRotateFlipControl({
   };
 
   const commit = (deg: number) => {
-    pendingPreview.current = null;
+    previewPending.current = false;
     onRotationCommit(deg);
   };
 
   const flushPreview = () => {
-    const pending = pendingPreview.current;
-    if (pending === null) return;
-    pendingPreview.current = null;
-    commitRef.current(pending);
+    if (!previewPending.current) return;
+    previewPending.current = false;
+    abandonRef.current();
   };
 
   // Leiste weg (Auswahl gewechselt, Element entfernt) mitten im Zug.
   useEffect(
     () => () => {
-      const pending = pendingPreview.current;
-      pendingPreview.current = null;
-      if (pending !== null) commitRef.current(pending);
+      if (!previewPending.current) return;
+      previewPending.current = false;
+      abandonRef.current();
     },
     []
   );
@@ -172,7 +179,7 @@ export function FloatingRotateFlipControl({
             onValueChange={([v]) => {
               setDraft(v);
               setTyped(null);
-              pendingPreview.current = v;
+              previewPending.current = true;
               onRotationPreview(v);
             }}
             onValueCommit={([v]) => commit(v)}
