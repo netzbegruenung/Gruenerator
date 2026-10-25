@@ -30,14 +30,31 @@ interface SheetFormatMenuProps {
  * the footer menu (which we hide), and the .xlsx export is ours (Univer Pro's
  * exchange client is not licensed).
  */
-export function SheetFormatMenu({ univerAPI, documentTitle }: SheetFormatMenuProps) {
-  const actions = useMemo(() => createSheetMenuActions(univerAPI), [univerAPI]);
+/**
+ * The menu's two actions, shared with the app's native "…" menu so both run
+ * the same code. `null` until the Univer instance is live.
+ */
+export function useSheetFormatActions(
+  univerAPI: FUniver | null,
+  documentTitle?: string
+): { toggleCrosshair: () => void; exportXlsx: () => void } | null {
+  return useMemo(() => {
+    if (!univerAPI) return null;
+    const actions = createSheetMenuActions(univerAPI);
+    return {
+      toggleCrosshair: actions.toggleCrosshair,
+      exportXlsx: () => {
+        downloadActiveWorkbookAsXlsx(univerAPI, documentTitle ?? 'Tabelle').catch(() =>
+          toast.error('Export fehlgeschlagen.')
+        );
+      },
+    };
+  }, [univerAPI, documentTitle]);
+}
 
-  const handleExport = () => {
-    downloadActiveWorkbookAsXlsx(univerAPI, documentTitle ?? 'Tabelle').catch(() =>
-      toast.error('Export fehlgeschlagen.')
-    );
-  };
+export function SheetFormatMenu({ univerAPI, documentTitle }: SheetFormatMenuProps) {
+  const actions = useSheetFormatActions(univerAPI, documentTitle);
+  if (!actions) return null;
 
   return (
     <DropdownMenu>
@@ -55,7 +72,7 @@ export function SheetFormatMenu({ univerAPI, documentTitle }: SheetFormatMenuPro
 
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Datei</DropdownMenuLabel>
-        <DropdownMenuItem onClick={handleExport}>
+        <DropdownMenuItem onClick={actions.exportXlsx}>
           <FiDownload className="mr-2 h-4 w-4" />
           Als Excel (.xlsx) herunterladen
         </DropdownMenuItem>

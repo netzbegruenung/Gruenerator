@@ -36,6 +36,7 @@ import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import { useAuth } from '../../hooks/useAuth';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 import { useHostAwareBack } from '../../hooks/useHostAwareBack';
+import { useNativeEditorBar } from '../../hooks/useNativeEditorBar';
 import { useAuthStore } from '../../stores/authStore';
 import { isEmbedded } from '../../utils/platform';
 import { platformFetch } from '../../utils/platformFetch';
@@ -44,7 +45,7 @@ import { GuestBadge, GUEST_ANIMALS } from '../docs/GuestBadge';
 import { getOrCreateGuestIdentity } from '../docs/guestIdentity';
 import { useTourAutostart } from '../tours/useTourAutostart';
 
-import { PresentationExportMenu } from './PresentationExportMenu';
+import { PresentationExportMenu, usePresentationExport } from './PresentationExportMenu';
 import { PresentationsChatPanel } from './PresentationsChatPanel';
 
 const ShareModal = lazyWithRetry(() =>
@@ -188,16 +189,60 @@ function PresentationsEditorContent() {
 
   const isEditable = canEdit && !authError;
 
+  const { exportPptx } = usePresentationExport({
+    documentId: id ?? '',
+    title: docData?.title,
+    isGuest,
+  });
+  // The app's native bar: the same actions as the bar below, as menu entries.
+  const nativeBar = useNativeEditorBar({
+    title: docData?.title ?? null,
+    canEdit: isEditable,
+    onRename: (title) => void handleTitleChange(title),
+    history: {
+      canUndo: !!editorApi,
+      canRedo: !!editorApi,
+      undo: () => editorApi?.undo(),
+      redo: () => editorApi?.redo(),
+    },
+    onShare: isGuest ? undefined : () => setShowShareModal(true),
+    actions: [
+      {
+        id: 'present',
+        label: 'Präsentieren',
+        run: () => {
+          setScrollView(false);
+          setPresenting(true);
+        },
+      },
+      {
+        id: 'read',
+        label: 'Lesemodus',
+        run: () => {
+          setScrollView(true);
+          setPresenting(true);
+        },
+      },
+      ...(isEditable
+        ? [{ id: 'design', label: 'Folie gestalten', run: () => setDesignPanelOpen((v) => !v) }]
+        : []),
+      ...(isGuest ? [] : [{ id: 'chat', label: 'Chat', run: () => setChatOpen((v) => !v) }]),
+      ...(exportPptx ? [{ id: 'export-pptx', label: 'Als PowerPoint', run: exportPptx }] : []),
+    ],
+  });
+
   if (docIsLoading || !isAuthResolved) {
     return (
       <div className="flex flex-col h-full">
-        <div className="flex items-center gap-sm px-md py-xs border-b border-grey-200 dark:border-grey-700">
-          <Skeleton className="h-5 w-48" />
-          <div className="ml-auto flex gap-xs">
-            <Skeleton className="h-8 w-8 rounded-md" />
-            <Skeleton className="h-8 w-8 rounded-md" />
+        {!nativeBar && (
+          <div className="flex items-center gap-sm px-md py-xs border-b border-grey-200 dark:border-grey-700">
+            <Skeleton className="h-5 w-48" />
+            <div className="ml-auto flex gap-xs">
+              <Skeleton className="h-8 w-8 rounded-md" />
+              <Skeleton className="h-8 w-8 rounded-md" />
+            </div>
           </div>
-        </div>
+        )}
         <div className="flex-1" />
       </div>
     );
@@ -254,7 +299,7 @@ function PresentationsEditorContent() {
 
   return (
     <div className="h-full flex flex-col relative">
-      {!isInlineEmbed && (
+      {!isInlineEmbed && !nativeBar && (
         <EditorTopBar
           title={docData.title}
           connectionStatus={connectionStatus}
