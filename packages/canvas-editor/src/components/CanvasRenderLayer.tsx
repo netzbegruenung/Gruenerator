@@ -79,6 +79,8 @@ interface CanvasRenderLayerProps<
   TActions = Record<string, unknown>,
 > {
   sortedRenderList: CanvasItem[];
+  /** Lässt sich die ganze Auswahl drehen? Siehe `MultiSelectionTransformer`. */
+  canRotateSelection: () => boolean;
   config: FullCanvasConfig<TState, TActions>;
   state: TState;
   layout: LayoutResult;
@@ -220,6 +222,7 @@ function CanvasRenderLayerInner<
   TActions = Record<string, unknown>,
 >({
   sortedRenderList,
+  canRotateSelection,
   config: _config,
   state,
   layout,
@@ -613,7 +616,7 @@ function CanvasRenderLayerInner<
           </Group>
         );
       })}
-      <MultiSelectionTransformer renderKey={sortedRenderList} />
+      <MultiSelectionTransformer renderKey={sortedRenderList} canRotate={canRotateSelection} />
     </>
   );
 }

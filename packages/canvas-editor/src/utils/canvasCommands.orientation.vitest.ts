@@ -137,6 +137,52 @@ describe('previewRotation', () => {
   });
 });
 
+describe('commitRotationPreview', () => {
+  it('schreibt die Vorschau dem Element zu, das sie zeigt — nicht der neuen Auswahl', () => {
+    const p = page({ shapeInstances: [{ id: 'a' }, { id: 'b' }] });
+    p.add('a', centred(50, 50, 20, 20));
+    p.add('b', centred(150, 50, 20, 20));
+    p.select(['a']);
+    p.commands.previewRotation(45);
+    p.select(['b']);
+    p.commands.commitRotationPreview();
+    expect(p.actions.updateShape).toHaveBeenCalledTimes(1);
+    expect(p.actions.updateShape).toHaveBeenCalledWith('a', { x: 50, y: 50, rotation: 45 });
+  });
+
+  it('tut ohne offene Vorschau nichts, auch nicht nach einem Abschluss', () => {
+    const p = page({ shapeInstances: [{ id: 'a' }] });
+    p.add('a', centred(50, 50, 20, 20));
+    p.select(['a']);
+    p.commands.commitRotationPreview();
+    p.commands.previewRotation(30);
+    p.commands.setRotation(30);
+    p.commands.commitRotationPreview();
+    expect(p.actions.updateShape).toHaveBeenCalledTimes(1);
+  });
+
+  it('verwirft die Vorschau eines entfernten Elements', () => {
+    const p = page({ shapeInstances: [{ id: 'a' }] });
+    const node = p.add('a', centred(50, 50, 20, 20));
+    p.select(['a']);
+    p.commands.previewRotation(45);
+    node.getParent()!.destroy();
+    p.commands.commitRotationPreview();
+    expect(p.actions.updateShape).not.toHaveBeenCalled();
+  });
+
+  it('stellt den Knoten zurück, wenn das Element inzwischen gesperrt ist', () => {
+    const p = page({ chartInstances: [{ id: 'c', x: 10, y: 20 }] });
+    const node = p.add('c', topLeft(10, 20, 100, 50));
+    p.select(['c']);
+    p.commands.previewRotation(90);
+    (p.state as State).lockedLayerIds = ['c'];
+    p.commands.commitRotationPreview();
+    expect(p.actions.updateChart).not.toHaveBeenCalled();
+    expect([node.x(), node.y(), node.rotation()]).toEqual([10, 20, 0]);
+  });
+});
+
 describe('flip', () => {
   it('spiegelt eine gedrehte Form: Drehung wird −θ, die Mitte bleibt', () => {
     const p = page({ shapeInstances: [{ id: 's', rotation: 30 }] });

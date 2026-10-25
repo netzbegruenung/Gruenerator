@@ -1309,6 +1309,9 @@ function CanvasEditorInner({
         lockState: toolbarState.lockState,
         canLock: toolbarState.canLock,
         canAlign: toolbarState.canAlign,
+        canRotate: toolbarState.canRotate,
+        canFlip: toolbarState.canFlip,
+        rotation: toolbarState.rotation,
         backgroundPickerRequest,
         handlers: {
           ...toolbarHandlers,
@@ -1352,6 +1355,8 @@ function CanvasEditorInner({
       canAlign={toolbarState.canAlign}
       canDistribute={toolbarState.canDistribute}
       onCommand={toolbarHandlers.runCommand}
+      canFlip={toolbarState.canFlip}
+      onFlip={toolbarHandlers.handleFlip}
       onCopy={toolbarHandlers.handleCopy}
       onDuplicate={toolbarHandlers.handleDuplicate}
       onToggleLock={toolbarHandlers.handleToggleLock}

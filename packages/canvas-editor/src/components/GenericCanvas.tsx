@@ -297,6 +297,8 @@ export interface GenericCanvasRef {
   setPosition?: (patch: { x?: number; y?: number }) => void;
   /** B/H der Einzelauswahl; ein Schritt im Verlauf. */
   setSize?: (patch: { width?: number; height?: number }) => void;
+  /** Schreibt eine abgebrochene Vorschau dem Element zu, das sie zeigt. */
+  commitRotationPreview?: () => void;
   /** Was das Kontextmenü beim Öffnen über diese Seite wissen muss. */
   getMenuSnapshot?: () => CanvasMenuSnapshot;
   /** Box der Auswahl in Fensterkoordinaten, für Bedienelemente am Objekt. */
@@ -750,6 +752,10 @@ function GenericCanvasWithRef<
     ]
   );
 
+  // The multi-selection transformer asks this when the selection changes, so a
+  // selection change never re-renders the canvas.
+  const canRotateSelection = useCallback(() => commands.capabilities().canRotate, [commands]);
+
   useCanvasKeyboardHandlers({
     store,
     state,
@@ -932,6 +938,7 @@ function GenericCanvasWithRef<
       getGeometry: commands.geometry,
       setPosition: commands.setPosition,
       setSize: commands.setSize,
+      commitRotationPreview: commands.commitRotationPreview,
       getMenuSnapshot: () => {
         const { selectedLayerIds, selectedElement, croppingElement } = store.getState();
         const committed = committedStateRef.current;
@@ -1045,6 +1052,7 @@ function GenericCanvasWithRef<
       >
         <CanvasRenderLayer
           sortedRenderList={sortedRenderList}
+          canRotateSelection={canRotateSelection}
           config={config}
           state={state}
           layout={layout}
