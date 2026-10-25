@@ -24,7 +24,7 @@ vi.mock('../../routes/docs/documentAccess.js', () => ({
   canWriteDocument,
 }));
 
-const { getCanvas, checkCanvasWriteAccess } = await import('./canvasRepository.js');
+const { getCanvas, checkCanvasWriteAccess, createCanvas } = await import('./canvasRepository.js');
 
 const row = {
   id: 'canvas-1',
@@ -145,5 +145,11 @@ describe('canvas write access (#4887)', () => {
     query.mockReset().mockResolvedValue([]);
     expect(await checkCanvasWriteAccess('canvas-1', 'member-3')).toEqual({ kind: 'not_found' });
     expect(canWriteDocument).not.toHaveBeenCalled();
+  });
+
+  it('lets the creator edit the canvas the create response seeds into the cache', async () => {
+    query.mockReset().mockResolvedValue([row]);
+    const canvas = await createCanvas('owner-1', { template_type: 'freeform' });
+    expect(canvas.can_edit).toBe(true);
   });
 });

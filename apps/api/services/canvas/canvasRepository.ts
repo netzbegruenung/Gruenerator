@@ -378,7 +378,12 @@ export async function createCanvas(
     >
   >;
 
-  return rowToCanvasDocument({ ...doc, ...sidecarRows[0], creator_name: null });
+  // The creator is the owner. Callers seed the studio's ['canvas', id] cache
+  // from this response, so without can_edit the owner would open read-only.
+  return {
+    ...rowToCanvasDocument({ ...doc, ...sidecarRows[0], creator_name: null }),
+    can_edit: true,
+  };
 }
 
 // ── Update / delete (permission-gated) ───────────────────────────────────────
