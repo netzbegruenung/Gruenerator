@@ -40,6 +40,11 @@ export interface OrientationPatch {
   rotation?: number;
   flipX?: boolean;
   flipY?: boolean;
+  /**
+   * Verschiebung um (dx, dy) — für Kinds, deren Lage nicht in x/y steht. Nur der
+   * Balken liest sie (als Zuwachs auf `offset`); alle anderen nehmen x/y.
+   */
+  translate?: { x: number; y: number };
 }
 
 export interface OrientationDoor {
@@ -82,7 +87,8 @@ export function findOrientationDoor<TState extends Partial<BaseCanvasState>>(
     kind: OrientableKind,
     item: Oriented | null,
     update: ((id: string, patch: P) => void) | undefined,
-    shape: (patch: OrientationPatch) => OrientationPatch = (patch) => patch
+    shape: (patch: OrientationPatch) => Record<string, unknown> = ({ translate: _, ...rest }) =>
+      rest
   ): OrientationDoor | null => {
     if (!update) return null;
     return {
@@ -96,10 +102,19 @@ export function findOrientationDoor<TState extends Partial<BaseCanvasState>>(
   };
 
   if (has(state.balkenInstances)) {
-    // Dreht um die Mitte und speichert einen `offset`: x/y gehören nicht in den Patch.
-    return free('balken', read(state.balkenInstances), actions.updateBalken, (patch) =>
-      patch.rotation != null ? { rotation: patch.rotation } : {}
-    );
+    // Dreht um die Mitte und speichert einen `offset`: x/y gehören nicht in den Patch,
+    // eine Verschiebung (Spiegeln in der Mehrfachauswahl) wandert in den `offset`.
+    const balken = state.balkenInstances?.find((b) => b.id === id);
+    return free('balken', balken ?? null, actions.updateBalken, (patch) => ({
+      ...(patch.rotation != null && { rotation: patch.rotation }),
+      ...(patch.translate &&
+        balken && {
+          offset: {
+            x: balken.offset.x + patch.translate.x,
+            y: balken.offset.y + patch.translate.y,
+          },
+        }),
+    }));
   }
   if (state.selectedIcons?.includes(id)) {
     return free('icon', state.iconStates?.[id] ?? null, actions.updateIcon);

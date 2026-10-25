@@ -265,6 +265,7 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
   };
 
   const rotateTo = (ids: readonly string[], deg: number) => {
+    preview = null;
     const rotation = normalizeRotation(deg);
     writeAll(
       orientTargets(ids).map(({ door, frame }) => () => {
@@ -273,17 +274,33 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
     );
   };
 
+  /**
+   * Ziel der laufenden Vorschau, beim ersten Bild gemerkt: die weiteren Bilder
+   * suchen weder Tür noch Knoten neu und messen nicht nochmal. Gilt für genau
+   * diese Auswahl (Array-Identität aus dem Store) und endet mit dem Abschluss.
+   */
+  let preview: {
+    ids: readonly string[];
+    target: OrientTarget;
+    layer: Konva.Layer;
+  } | null = null;
+
   const setRotation = (deg: number) => {
+    preview = null;
     const ids = selection();
     if (ids.length === 1) rotateTo(ids, deg);
   };
 
   const previewRotation = (deg: number) => {
     const ids = selection();
-    const layer = ctx.getStage()?.getLayers()[0];
-    if (ids.length !== 1 || !layer) return;
-    const [target] = orientTargets(ids);
-    if (!target) return;
+    if (preview?.ids !== ids) {
+      preview = null;
+      const layer = ctx.getStage()?.getLayers()[0];
+      const [target] = ids.length === 1 && layer ? orientTargets(ids) : [];
+      if (!target || !layer) return;
+      preview = { ids, target, layer };
+    }
+    const { target, layer } = preview;
     const rotation = normalizeRotation(deg);
     // Der Balken dreht um seinen Offset; seine Tür nimmt x/y nicht an.
     if (target.door.kind !== 'balken') {
@@ -300,6 +317,7 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
    * Mitten zusätzlich an der Mitte der Auswahl; Text wandert, bleibt aber lesbar.
    */
   const flip = (axis: 'x' | 'y') => {
+    preview = null;
     const targets = orientTargets(selection());
     if (targets.length === 0 || (targets.length === 1 && !targets[0]!.door.canFlip)) return;
     let mid: number | null = null;
@@ -323,7 +341,9 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
           if (axis === 'x') pos.x += 2 * (mid - centre.x);
           else pos.y += 2 * (mid - centre.y);
         }
-        const patch: OrientationPatch = { ...pos, rotation };
+        // Kinds ohne x/y (Balken) verschieben um dieselbe Strecke.
+        const translate = { x: pos.x - frame.x, y: pos.y - frame.y };
+        const patch: OrientationPatch = { ...pos, rotation, translate };
         if (door.canFlip && axis === 'x') patch.flipX = !door.flipX;
         if (door.canFlip && axis === 'y') patch.flipY = !door.flipY;
         return () => door.apply(patch);
