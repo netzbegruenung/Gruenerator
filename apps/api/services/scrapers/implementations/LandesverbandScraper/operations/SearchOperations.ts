@@ -47,13 +47,15 @@ export class SearchOperations {
     if (contentType) filter.must.push({ key: 'content_type', match: { value: contentType } });
 
     // Search Qdrant
-    const searchResult = await this.qdrant.client!.query(this.collectionName, {
-      query: queryVector,
-      ...(filter.must.length > 0 && { filter }),
-      limit: limit * 3, // Get more results for deduplication
-      score_threshold: threshold,
-      with_payload: true,
-    });
+    const searchResult = await this.qdrant
+      .readClient(this.collectionName)
+      .query(this.collectionName, {
+        query: queryVector,
+        ...(filter.must.length > 0 && { filter }),
+        limit: limit * 3, // Get more results for deduplication
+        score_threshold: threshold,
+        with_payload: true,
+      });
 
     // Deduplicate by document_id (one result per document)
     const documentsMap = new Map<string, LandesverbandSearchResult>();
@@ -93,17 +95,21 @@ export class SearchOperations {
    */
   async getStats(): Promise<unknown> {
     try {
-      const info = await this.qdrant.client!.getCollection(this.collectionName);
+      const info = await this.qdrant
+        .readClient(this.collectionName)
+        .getCollection(this.collectionName);
 
       // Collect per-source statistics
       const sourceStats: Record<string, unknown> = {};
       for (const source of LANDESVERBAENDE_CONFIG.sources) {
         try {
-          const result = await this.qdrant.client!.count(this.collectionName, {
-            filter: {
-              must: [{ key: 'source_id', match: { value: source.id } }],
-            },
-          });
+          const result = await this.qdrant
+            .readClient(this.collectionName)
+            .count(this.collectionName, {
+              filter: {
+                must: [{ key: 'source_id', match: { value: source.id } }],
+              },
+            });
           sourceStats[source.id] = {
             name: source.name,
             type: source.type,
