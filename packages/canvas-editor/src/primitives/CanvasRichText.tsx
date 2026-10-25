@@ -231,9 +231,26 @@ export function CanvasRichText({
       onDragEnd?.(node.x(), node.y());
       if (id && onPositionChange) {
         onPositionChange(id, node.x(), node.y(), blockWidth, blockHeight);
+        // onPositionChange schreibt die ungedrehte Box in dieselben Snap-Ziele;
+        // gedreht muss danach die sichtbare Box dort stehen (der Reporter
+        // meldet nur bei Prop-Änderung, ein Drag zurück an den Start ändert keine).
+        if (node.rotation() !== 0 && onGeometryChange) {
+          const box = frameBounds(
+            boxFrame(
+              dragFrame,
+              node.x(),
+              node.y(),
+              blockWidth * node.scaleX(),
+              blockHeight * node.scaleY(),
+              node.rotation(),
+              'top-left'
+            )
+          );
+          onGeometryChange(id, box.x, box.y, box.width, box.height);
+        }
       }
     },
-    [id, onDragEnd, onPositionChange, snap, blockWidth, blockHeight]
+    [id, onDragEnd, onPositionChange, onGeometryChange, snap, blockWidth, blockHeight]
   );
 
   // A ref, not the rendered width: two transform events can arrive before

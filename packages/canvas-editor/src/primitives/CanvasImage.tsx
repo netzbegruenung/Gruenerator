@@ -230,9 +230,26 @@ function CanvasImageInner({
 
       if (id && onPositionChange) {
         onPositionChange(id, node.x(), node.y(), nodeWidth, nodeHeight);
+        // onPositionChange schreibt die ungedrehte Box in dieselben Snap-Ziele;
+        // gedreht muss danach die sichtbare Box dort stehen (der Reporter
+        // meldet nur bei Prop-Änderung, ein Drag zurück an den Start ändert keine).
+        if (node.rotation() !== 0 && onGeometryChange) {
+          const box = frameBounds(
+            boxFrame(
+              dragFrame,
+              node.x(),
+              node.y(),
+              nodeWidth,
+              nodeHeight,
+              node.rotation(),
+              'top-left'
+            )
+          );
+          onGeometryChange(id, box.x, box.y, box.width, box.height);
+        }
       }
     },
-    [id, x, y, part, onDragEnd, onPositionChange, snap]
+    [id, x, y, part, onDragEnd, onPositionChange, onGeometryChange, snap]
   );
 
   const clampToBounds = useCallback(

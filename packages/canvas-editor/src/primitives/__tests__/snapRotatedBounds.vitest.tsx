@@ -14,7 +14,8 @@ import type Konva from 'konva';
 
 function renderRotatedText(
   targets: SnapTarget[],
-  onGeometryChange?: (id: string, x: number, y: number, w: number, h: number) => void
+  onGeometryChange?: (id: string, x: number, y: number, w: number, h: number) => void,
+  onPositionChange?: (id: string, x: number, y: number, w: number, h: number) => void
 ): Konva.Node {
   const stageRef = createRef<CanvasStageRef>();
   render(
@@ -33,6 +34,7 @@ function renderRotatedText(
         stageHeight={1000}
         getSnapTargets={(excludeId) => targets.filter((t) => t.id !== excludeId)}
         onGeometryChange={onGeometryChange}
+        onPositionChange={onPositionChange}
       />
     </CanvasStage>
   );
@@ -63,6 +65,28 @@ describe('Snap mit gedrehter Box', () => {
 
     expect(report).toHaveBeenCalled();
     const [, x, y, w, h] = report.mock.lastCall as [string, number, number, number, number];
+    expect(x).toBeCloseTo(20 - lineHeight, 6);
+    expect(y).toBeCloseTo(300, 6);
+    expect(w).toBeCloseTo(lineHeight, 6);
+    expect(h).toBeCloseTo(200, 6);
+  });
+
+  it('nach einem Drag zurück an den Start steht die gedrehte Box in den Snap-Zielen', () => {
+    // Beide Wege schreiben in dieselbe Map — wie registerGeometry und
+    // updateElementPosition in elementPositions.
+    const store = new Map<string, [number, number, number, number]>();
+    const write = (id: string, x: number, y: number, w: number, h: number) => {
+      store.set(id, [x, y, w, h]);
+    };
+    const node = renderRotatedText([], write, write);
+    const lineHeight = node.height();
+
+    act(() => {
+      node.fire('dragstart', { target: node, evt: new MouseEvent('mousedown') });
+      node.fire('dragend', { target: node, evt: new MouseEvent('mouseup') });
+    });
+
+    const [x, y, w, h] = store.get('text-1') ?? [NaN, NaN, NaN, NaN];
     expect(x).toBeCloseTo(20 - lineHeight, 6);
     expect(y).toBeCloseTo(300, 6);
     expect(w).toBeCloseTo(lineHeight, 6);
