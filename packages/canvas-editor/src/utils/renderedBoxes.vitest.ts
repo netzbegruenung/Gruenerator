@@ -3,12 +3,12 @@ import { describe, expect, it } from 'vitest';
 import { chartBox, frameBox, illustrationBox, shapeBox, userImageBox } from './renderedBoxes';
 import { boxFrame, createBoxFrame, frameBounds, snapByBounds, type SnapTarget } from './snapping';
 
-import type { RenderedBox } from '../hooks/useBoxSnap';
 import type { ChartInstance } from './chartUtils';
 import type { FrameInstance } from './frameUtils';
 import type { IllustrationInstance } from './illustrations/types';
 import type { ShapeInstance } from './shapes';
 import type { UserImageInstance } from './userImageUtils';
+import type { RenderedBox } from '../hooks/useBoxSnap';
 
 // Ziel mit linker Kante bei x = 600, weit weg von der Seitenmitte (540).
 const EDGE: SnapTarget[] = [{ id: 'edge', x: 600, y: 900, width: 200, height: 200 }];

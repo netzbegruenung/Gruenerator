@@ -8,7 +8,7 @@
  * React-Zustand — die Hilfslinien schreibt `useSnapScheduler` einmal je Bild.
  */
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect } from 'react';
 
 import { isGroupDrag } from '../utils/multiSelect';
 import { boxFrame, createBoxFrame, frameBounds, snapByBounds } from '../utils/snapping';
@@ -52,6 +52,7 @@ export function useBoxSnap(options: BoxSnapOptions, box: RenderedBox) {
     onSnapChange: options.onSnapChange ?? NOOP,
     onSnapLinesChange: options.onSnapLinesChange ?? NOOP,
   });
+  const { hysteresis, scheduleSnap } = snap;
 
   const reportGeometry = useGeometryReporter(id, onGeometryChange);
   const { x, y, width, height, rotation, pivot } = box;
@@ -60,35 +61,23 @@ export function useBoxSnap(options: BoxSnapOptions, box: RenderedBox) {
     reportGeometry(bounds.x, bounds.y, bounds.width, bounds.height);
   }, [reportGeometry, x, y, width, height, rotation, pivot]);
 
-  // Die Masse ändern sich während eines Zugs nicht; der Ref hält den Zug-Handler stabil.
-  const sizeRef = useRef(box);
-  sizeRef.current = box;
-
   const onDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
       if (!stageWidth || !stageHeight) return;
       const node = e.target;
       if (node !== e.currentTarget || isGroupDrag(node)) return;
-      const size = sizeRef.current;
       const result = snapByBounds(
-        boxFrame(
-          dragFrame,
-          node.x(),
-          node.y(),
-          size.width,
-          size.height,
-          node.rotation(),
-          size.pivot
-        ),
+        boxFrame(dragFrame, node.x(), node.y(), width, height, node.rotation(), pivot),
         getSnapTargets?.(id) ?? [],
         stageWidth,
         stageHeight,
-        snap.hysteresis
+        hysteresis
       );
       node.position({ x: result.x, y: result.y });
-      snap.scheduleSnap(result.snapH, result.snapV, result.snapLines);
+      scheduleSnap(result.snapH, result.snapV, result.snapLines);
     },
-    [id, getSnapTargets, stageWidth, stageHeight, snap]
+    // Die Masse ändern sich nur bei einer Grössenänderung, nie während des Zugs.
+    [id, getSnapTargets, stageWidth, stageHeight, width, height, pivot, hysteresis, scheduleSnap]
   );
 
   return { onDragStart: snap.onDragStart, onDragMove, onDragEnd: snap.onDragEnd };

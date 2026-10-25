@@ -22,7 +22,7 @@
  * (`isGroupDrag`).
  */
 
-import { memo, useEffect, useRef } from 'react';
+import { memo, useCallback, useEffect, useRef } from 'react';
 import { Transformer } from 'react-konva';
 
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
@@ -41,6 +41,7 @@ import {
 } from '../utils/multiSelect';
 import { ELEMENT_TRANSFORMER } from '../utils/orientation';
 
+import type { SnapLine } from '../utils/snapping';
 import type Konva from 'konva';
 
 interface MultiSelectionTransformerProps {
@@ -65,13 +66,20 @@ function MultiSelectionTransformerInner({
 }: MultiSelectionTransformerProps) {
   const trRef = useRef<Konva.Transformer>(null);
   const store = useCanvasStore();
-  const snap = useSnapScheduler({
-    onSnapChange: (h, v) => store.getState().setSnapGuides(h, v),
-    onSnapLinesChange: (lines) => store.getState().setSnapLines(lines),
+  const onSnapChange = useCallback(
+    (h: boolean, v: boolean) => store.getState().setSnapGuides(h, v),
+    [store]
+  );
+  const onSnapLinesChange = useCallback(
+    (lines: SnapLine[]) => store.getState().setSnapLines(lines),
+    [store]
+  );
+  // Mit stabilen Rückrufen sind auch die Funktionen des Planers stabil: die
+  // Zug-Handler werden nicht bei jedem Render neu angemeldet.
+  const { scheduleSnap, onDragStart, onDragEnd, hysteresis } = useSnapScheduler({
+    onSnapChange,
+    onSnapLinesChange,
   });
-  // Neu je Render; die Zug-Handler lesen ihn beim Aufruf, statt neu angemeldet zu werden.
-  const snapRef = useRef(snap);
-  snapRef.current = snap;
   const outlinesRef = useRef<Konva.Rect[]>([]);
   const ids = useCanvasStoreShallow((s) => s.selectedLayerIds);
   const renderVersion = useCanvasStoreSelector((s) => s.renderVersion);
@@ -94,19 +102,18 @@ function MultiSelectionTransformerInner({
       tr.on('dragstart.groupSnap', () => {
         const targets = Object.values(store.getState().elementPositions);
         group = measureGroupSnap(tr.nodes(), targets, ids);
-        snapRef.current.onDragStart();
+        onDragStart();
       });
       // Vor den Umrissen angemeldet: sie folgen schon der eingerasteten Lage.
       tr.on('dragmove.groupSnap', () => {
         if (!group) return;
-        const scheduler = snapRef.current;
-        const { result, moved } = snapGroup(group, stageWidth, stageHeight, scheduler.hysteresis);
+        const { result, moved } = snapGroup(group, stageWidth, stageHeight, hysteresis);
         if (moved) tr.update();
-        scheduler.scheduleSnap(result.snapH, result.snapV, result.snapLines);
+        scheduleSnap(result.snapH, result.snapV, result.snapLines);
       });
       tr.on('dragend.groupSnap', () => {
         group = null;
-        snapRef.current.onDragEnd();
+        onDragEnd();
       });
     }
     tr.on('dragmove.outlines dragend.outlines', follow);
@@ -115,7 +122,19 @@ function MultiSelectionTransformerInner({
       tr.off('.outlines');
       tr.off('.groupSnap');
     };
-  }, [ids, renderVersion, renderKey, canRotate, stageWidth, stageHeight, store]);
+  }, [
+    ids,
+    renderVersion,
+    renderKey,
+    canRotate,
+    stageWidth,
+    stageHeight,
+    store,
+    scheduleSnap,
+    onDragStart,
+    onDragEnd,
+    hysteresis,
+  ]);
 
   useEffect(
     () => () => {
