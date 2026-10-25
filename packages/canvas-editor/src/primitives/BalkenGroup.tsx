@@ -19,7 +19,7 @@ import {
   flattenPoints,
 } from '../utils/dreizeilenLayout';
 import { isGroupDrag } from '../utils/multiSelect';
-import { ELEMENT_TRANSFORMER } from '../utils/orientation';
+import { ELEMENT_TRANSFORMER, normalizeRotation } from '../utils/orientation';
 import { boxFrame, createBoxFrame, snapByBounds } from '../utils/snapping';
 import { stageCssScale } from '../utils/stageCssScale';
 
@@ -197,8 +197,6 @@ function BalkenGroupInner({
     const localX = balken.x + skewOffset / 2;
     const localY = balken.y;
 
-    const pos = transform.point({ x: localX, y: localY });
-
     const stageBox = stage.container().getBoundingClientRect();
     const scrollX = window.scrollX || window.pageXOffset;
     const scrollY = window.scrollY || window.pageYOffset;
@@ -216,8 +214,11 @@ function BalkenGroupInner({
     const textHeight = fontSize * lineHeight;
     const verticalOffset = (balken.height - textHeight) / 2;
 
-    input.style.top = `${stageBox.top + scrollY + pos.y * cssScale + verticalOffset * scaleY}px`;
+    // Die Ecke des Felds liegt auf der gedrehten Zeile; um sie dreht das Feld.
+    const pos = transform.point({ x: localX, y: localY + verticalOffset });
+    input.style.top = `${stageBox.top + scrollY + pos.y * cssScale}px`;
     input.style.left = `${stageBox.left + scrollX + pos.x * cssScale}px`;
+    input.style.transform = `rotate(${normalizeRotation(groupNode.getAbsoluteRotation())}deg)`;
     input.style.width = `${balken.width * scaleX}px`;
     input.style.height = `${textHeight * scaleY}px`;
     input.style.lineHeight = String(lineHeight);
@@ -299,7 +300,6 @@ function BalkenGroupInner({
 
       const stageBox = stage.container().getBoundingClientRect();
       const cssScale = stageCssScale(stage, stageBox);
-      const textPosition = textNode.getAbsolutePosition();
 
       const absScale = textNode.getAbsoluteScale();
       const scaleX = absScale.x * cssScale;
@@ -321,11 +321,14 @@ function BalkenGroupInner({
       const textH = fontSz * lineHeight;
       const nodeH = textNode.height(); // Full bar height
       const verticalOffset = (nodeH - textH) / 2;
+      // Die Ecke des Felds liegt auf der gedrehten Zeile (Textknoten-Ursprung,
+      // um die Leerhöhe eingerückt); um sie dreht das Feld mit.
+      const corner = textNode.getAbsoluteTransform().point({ x: 0, y: verticalOffset });
 
       input.value = textNode.text();
       input.style.position = 'absolute';
-      input.style.top = `${stageBox.top + scrollY + textPosition.y * cssScale + verticalOffset * scaleY}px`;
-      input.style.left = `${stageBox.left + scrollX + textPosition.x * cssScale}px`;
+      input.style.top = `${stageBox.top + scrollY + corner.y * cssScale}px`;
+      input.style.left = `${stageBox.left + scrollX + corner.x * cssScale}px`;
       input.style.width = `${textNode.width() * scaleX}px`;
       input.style.height = `${textH * scaleY}px`; // Match text height
 
@@ -342,6 +345,7 @@ function BalkenGroupInner({
       input.style.outline = '2px solid #0088cc';
       input.style.zIndex = '10000';
       input.style.transformOrigin = 'left top';
+      input.style.transform = `rotate(${normalizeRotation(textNode.getAbsoluteRotation())}deg)`;
 
       input.focus();
       input.select();
