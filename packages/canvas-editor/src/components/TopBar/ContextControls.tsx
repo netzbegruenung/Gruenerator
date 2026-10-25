@@ -9,7 +9,6 @@ import { type GradientFill } from '../../utils/gradientFill';
 import { type LockState } from '../../utils/layerLock';
 import { BRAND_COLORS, FONT_COLORS, STROKE_ONLY_SHAPES } from '../../utils/shapes';
 import { useCanvasTextFormatting } from '../CanvasTextOverlay';
-import { type AlignmentDirection } from '../Toolbar';
 
 import {
   BackgroundImagePicker,
@@ -48,7 +47,6 @@ export interface ContextControlsProps {
     handleColorSelect: (color: string) => void;
     handleOpacityChange: (id: string, opacity: number, type: string) => void;
     handleFontSizeChange: (id: string, size: number) => void;
-    handleAlign?: (direction: AlignmentDirection) => void;
     handleShadowChange?: (id: string, patch: ShadowPatch, type: string) => void;
     handleOutlineChange?: (id: string, patch: { stroke?: string; strokeWidth?: number }) => void;
     handleBlurChange?: (id: string, blur: number) => void;
@@ -316,73 +314,6 @@ export function ContextControls({
         marks={formatting.marks}
         variant="contextBar"
       />
-    );
-  }
-
-  if (isText && handlers.handleAlign) {
-    groups.push(
-      <div key="align" className="flex items-center gap-0.5">
-        <button
-          className={ICON_BTN}
-          disabled={isLocked}
-          onClick={() => handlers.handleAlign!('left')}
-          title="Links ausrichten"
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-          >
-            <line x1="4" y1="4" x2="4" y2="20" />
-            <rect x="8" y="6" width="12" height="4" rx="1" />
-            <rect x="8" y="14" width="8" height="4" rx="1" />
-          </svg>
-        </button>
-        <button
-          className={ICON_BTN}
-          disabled={isLocked}
-          onClick={() => handlers.handleAlign!('center-h')}
-          title="Horizontal zentrieren"
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-          >
-            <line x1="12" y1="2" x2="12" y2="22" />
-            <rect x="4" y="6" width="16" height="4" rx="1" />
-            <rect x="6" y="14" width="12" height="4" rx="1" />
-          </svg>
-        </button>
-        <button
-          className={ICON_BTN}
-          disabled={isLocked}
-          onClick={() => handlers.handleAlign!('center-v')}
-          title="Vertikal zentrieren"
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-          >
-            <line x1="2" y1="12" x2="22" y2="12" />
-            <rect x="6" y="4" width="4" height="16" rx="1" />
-            <rect x="14" y="6" width="4" height="12" rx="1" />
-          </svg>
-        </button>
-      </div>
     );
   }
 

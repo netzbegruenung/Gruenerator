@@ -58,6 +58,7 @@ function page(state: State, opts: { readOnly?: boolean } = {}) {
     getElements: () => [],
     getLayout: () => ({}) as LayoutResult,
     isReadOnly: () => opts.readOnly === true,
+    getPageSize: () => ({ width: 1000, height: 1000 }),
   });
 
   const add = (id: string, node: Konva.Shape) => {

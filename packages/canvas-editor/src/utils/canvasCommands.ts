@@ -8,6 +8,13 @@
  * Eine Mehrfach-Aktion ist ein Schritt im Verlauf.
  */
 
+import {
+  alignDelta,
+  distributeDeltas,
+  unionBox,
+  type AlignDirection,
+  type Delta,
+} from './alignment';
 import { CanvasClipboard } from './canvasClipboard';
 import { moveLayerTo, type CanvasItem, type LayerStep } from './canvasLayerManager';
 import { itemBodyRect } from './deepSelect';
@@ -29,10 +36,12 @@ import {
   normalizeRotation,
   placeKeepingCentre,
   readNodeFrame,
+  type Box,
   type NodeFrame,
 } from './orientation';
 import {
   findOrientationDoor,
+  type OrientableKind,
   type OrientationDoor,
   type OrientationDoorInput,
   type OrientationPatch,
@@ -73,9 +82,47 @@ export interface CanvasCommandContext<TState extends Partial<BaseCanvasState>> {
   /** Config-Elemente der Vorlage — für Drehen & Spiegeln von Vorlagen-Elementen. */
   getElements: () => readonly CanvasElementConfig[];
   getLayout: () => LayoutResult;
-  /** Lesemodus: Drehen & Spiegeln tun nichts. */
+  /** Lesemodus: Drehen & Spiegeln, Ausrichten und Position tun nichts. */
   isReadOnly: () => boolean;
+  /** Die Seite in logischen px (Vorlagengröße) — Ziel beim Ausrichten eines einzelnen Elements. */
+  getPageSize: () => { width: number; height: number };
 }
+
+/**
+ * Wie „B“/„H“ ein Element ändern: `width` nur die Breite (Text — die Höhe
+ * folgt dem Umbruch), `free` beide (Formen), `uniform` beide im Seitenverhältnis.
+ */
+export type ResizeMode = 'width' | 'free' | 'uniform';
+
+/** Lage und Größe der Einzelauswahl für das Positionsfeld, in logischen px. */
+export interface SelectionGeometry {
+  /** Linke obere Ecke des gedrehten Umrisses — dieselbe Kante, an der „Links“ ausrichtet. */
+  x: number;
+  y: number;
+  /** Die eigene, ungedrehte Größe. */
+  width: number;
+  height: number;
+  resize: ResizeMode | null;
+}
+
+/**
+ * Die Größe schreibt der Abschluss des Primitivs selbst (`transformend`), wie
+ * nach einem Zug am Griff — hier steht nur, wie der Zug auf dem Knoten aussieht.
+ * Ohne Eintrag kein „B“/„H“: Balken rechnet beim Abschluss seine Mitte neu,
+ * Rahmen und Vorlagen-Bilder zoomen ihr Foto bzw. verwerfen Änderungen unter 3 %.
+ */
+const RESIZE_MODES: Partial<Record<OrientableKind, ResizeMode>> = {
+  text: 'width',
+  'template-text': 'width',
+  shape: 'free',
+  icon: 'uniform',
+  illustration: 'uniform',
+  asset: 'uniform',
+  'user-image': 'uniform',
+  chart: 'uniform',
+  'pill-badge': 'uniform',
+  'circle-badge': 'uniform',
+};
 
 export interface CanvasCommands {
   capabilities: () => SelectionCapabilities;
@@ -98,6 +145,14 @@ export interface CanvasCommands {
   previewRotation: (deg: number) => void;
   /** Spiegelt die Auswahl; mehrere Elemente auch an der Mitte der Auswahl. */
   flip: (axis: 'x' | 'y') => void;
+  /** Einzeln an der Seite, mehrere am Umriss der Auswahl; gesperrte bleiben stehen. */
+  align: (dir: AlignDirection) => void;
+  /** Gleiche Abstände zwischen mindestens drei beweglichen Elementen. */
+  distribute: (axis: 'x' | 'y') => void;
+  /** `null` ohne bewegliche Einzelauswahl. */
+  geometry: () => SelectionGeometry | null;
+  setPosition: (patch: { x?: number; y?: number }) => void;
+  setSize: (patch: { width?: number; height?: number }) => void;
   run: (id: PageCommandId, at: ClientPoint | null) => void;
 }
 
@@ -351,6 +406,103 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
     );
   };
 
+  const boundsOf = (target: OrientTarget): Box => axisAlignedBounds(target.frame);
+
+  /** Kinds ohne x/y (Balken) lesen `translate`, alle anderen x/y. */
+  const moveBy =
+    ({ door, frame }: OrientTarget, d: Delta) =>
+    () =>
+      door.apply({ x: frame.x + d.x, y: frame.y + d.y, translate: d });
+
+  const moves = (d: Delta) => Math.abs(d.x) > 1e-9 || Math.abs(d.y) > 1e-9;
+
+  /** Der Umriss aller ausgewählten Elemente — gesperrte eingeschlossen, sie bleiben nur stehen. */
+  const selectionBounds = (ids: readonly string[]): Box | null => {
+    const layer = ctx.getStage()?.getLayers()[0];
+    if (!layer) return null;
+    const boxes = ids.flatMap((id) => {
+      const node = findDragNodes(layer, [id])[0];
+      return node ? [axisAlignedBounds(readNodeFrame(node))] : [];
+    });
+    return boxes.length > 0 ? unionBox(boxes) : null;
+  };
+
+  const align = (dir: AlignDirection) => {
+    const ids = selection();
+    const targets = orientTargets(ids);
+    if (targets.length === 0) return;
+    const reference =
+      ids.length === 1 ? { x: 0, y: 0, ...ctx.getPageSize() } : selectionBounds(ids);
+    if (!reference) return;
+    writeAll(
+      targets.flatMap((t) => {
+        const d = alignDelta(boundsOf(t), reference, dir);
+        return moves(d) ? [moveBy(t, d)] : [];
+      })
+    );
+  };
+
+  const distribute = (axis: 'x' | 'y') => {
+    const targets = orientTargets(selection());
+    const deltas = distributeDeltas(targets.map(boundsOf), axis);
+    writeAll(targets.flatMap((t, i) => (moves(deltas[i]!) ? [moveBy(t, deltas[i]!)] : [])));
+  };
+
+  const singleTarget = (): OrientTarget | null => {
+    const ids = selection();
+    return ids.length === 1 ? (orientTargets(ids)[0] ?? null) : null;
+  };
+
+  const ownSize = ({ frame }: OrientTarget) => ({
+    width: frame.local.width * Math.abs(frame.scaleX),
+    height: frame.local.height * Math.abs(frame.scaleY),
+  });
+
+  const geometry = (): SelectionGeometry | null => {
+    const target = singleTarget();
+    if (!target) return null;
+    const box = boundsOf(target);
+    return {
+      x: box.x,
+      y: box.y,
+      ...ownSize(target),
+      resize: RESIZE_MODES[target.door.kind] ?? null,
+    };
+  };
+
+  const setPosition = (patch: { x?: number; y?: number }) => {
+    const target = singleTarget();
+    if (!target) return;
+    const box = boundsOf(target);
+    const d = {
+      x: patch.x != null ? patch.x - box.x : 0,
+      y: patch.y != null ? patch.y - box.y : 0,
+    };
+    if (moves(d)) moveBy(target, d)();
+  };
+
+  const setSize = (patch: { width?: number; height?: number }) => {
+    const target = singleTarget();
+    const mode = target ? RESIZE_MODES[target.door.kind] : undefined;
+    if (!target || !mode) return;
+    const valid = (n: number | undefined): n is number => n != null && Number.isFinite(n) && n >= 1;
+    const size = ownSize(target);
+    const { node, frame } = target;
+    if (mode === 'width') {
+      if (!valid(patch.width)) return;
+      node.width(patch.width / Math.abs(frame.scaleX));
+    } else {
+      const kx = valid(patch.width) ? patch.width / size.width : null;
+      const ky = valid(patch.height) ? patch.height / size.height : null;
+      if (kx === null && ky === null) return;
+      const uniform = kx ?? ky!;
+      const k = mode === 'uniform' ? { x: uniform, y: uniform } : { x: kx ?? 1, y: ky ?? 1 };
+      node.scale({ x: frame.scaleX * k.x, y: frame.scaleY * k.y });
+    }
+    // Derselbe Abschluss wie nach einem Zug am Griff: das Primitiv schreibt Größe und Verlauf.
+    node.fire('transformend');
+  };
+
   const commands: Omit<CanvasCommands, 'run'> = {
     capabilities: () =>
       selectionCapabilities({
@@ -378,6 +530,11 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
     setRotation,
     previewRotation,
     flip,
+    align,
+    distribute,
+    geometry,
+    setPosition,
+    setSize,
   };
 
   const run = (id: PageCommandId, at: ClientPoint | null) => {
@@ -417,6 +574,22 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
         return flip('y');
       case 'resetRotation':
         return rotateTo(selection(), 0);
+      case 'alignLeft':
+        return align('left');
+      case 'alignCenterH':
+        return align('center-h');
+      case 'alignRight':
+        return align('right');
+      case 'alignTop':
+        return align('top');
+      case 'alignMiddle':
+        return align('center-v');
+      case 'alignBottom':
+        return align('bottom');
+      case 'distributeHorizontal':
+        return distribute('x');
+      case 'distributeVertical':
+        return distribute('y');
     }
   };
 

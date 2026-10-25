@@ -47,8 +47,11 @@ import {
   useCanvasStoreSelector,
 } from '../stores/CanvasStoreProvider';
 import { useAutoSaveStore } from '../stores/useAutoSaveStore';
-import { alignElementX, alignElementY } from '../utils/alignment';
-import { createCanvasCommands, type ClientPoint } from '../utils/canvasCommands';
+import {
+  createCanvasCommands,
+  type ClientPoint,
+  type SelectionGeometry,
+} from '../utils/canvasCommands';
 import { canvasFontFamilies } from '../utils/canvasFontFamilies';
 import { buildCanvasItems, buildSortedRenderList } from '../utils/canvasLayerManager';
 import {
@@ -60,7 +63,6 @@ import {
 import { itemBodyRect } from '../utils/deepSelect';
 import { ensureFontsReady } from '../utils/ensureFontsReady';
 import { MAX_ICON_SELECTIONS, selectedCatalogIconIds } from '../utils/iconInstances';
-import { isLayerLocked } from '../utils/layerLock';
 import { locateDrop, type ElementDragPayload, type MediaDragPayload } from '../utils/mediaDrop';
 import { selectableItemIds } from '../utils/multiSelect';
 import { PendingImagesContext } from '../utils/pendingImages';
@@ -79,7 +81,6 @@ import type { ToolbarBridgeState } from './ToolbarStateBridge';
 const EMPTY_CALLBACKS: Record<string, ((val: unknown) => void) | undefined> = {};
 const HOST_EMITTED_KEY_SET: ReadonlySet<string> = new Set(HOST_EMITTED_STATE_KEYS);
 
-import type { AlignmentDirection } from './Toolbar';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
 import type { CanvasElementConfig, FullCanvasConfig, LayoutResult } from '../configs/types';
 import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
@@ -121,6 +122,9 @@ export interface ToolbarStateReport {
   canFlip: boolean;
   /** Drehung der Einzelauswahl, sonst `null`. */
   rotation: number | null;
+  /** Ausrichten, Verteilen und Position — siehe `utils/selectionCapabilities.ts`. */
+  canAlign: boolean;
+  canDistribute: boolean;
 }
 
 export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActions> {
@@ -287,6 +291,12 @@ export interface GenericCanvasRef {
   setRotation?: (deg: number) => void;
   /** Dreht nur die Anzeige der Einzelauswahl (Regler ziehen) — ohne Zustand, ohne Verlauf. */
   previewRotation?: (deg: number) => void;
+  /** Lage und Größe der Einzelauswahl für das Positionsfeld; `null`, wenn sie sich nicht bewegen lässt. */
+  getGeometry?: () => SelectionGeometry | null;
+  /** X/Y der Einzelauswahl (linke obere Ecke ihres gedrehten Umrisses); ein Schritt im Verlauf. */
+  setPosition?: (patch: { x?: number; y?: number }) => void;
+  /** B/H der Einzelauswahl; ein Schritt im Verlauf. */
+  setSize?: (patch: { width?: number; height?: number }) => void;
   /** Was das Kontextmenü beim Öffnen über diese Seite wissen muss. */
   getMenuSnapshot?: () => CanvasMenuSnapshot;
   /** Box der Auswahl in Fensterkoordinaten, für Bedienelemente am Objekt. */
@@ -297,7 +307,6 @@ export interface GenericCanvasRef {
   handleColorSelect?: (color: string) => void;
   handleOpacityChange?: (id: string, opacity: number, type: string) => void;
   handleFontSizeChange?: (id: string, size: number) => void;
-  handleAlign?: (direction: AlignmentDirection) => void;
   handleShadowChange?: (id: string, patch: ShadowPatch, type: string) => void;
   handleOutlineChange?: (id: string, patch: { stroke?: string; strokeWidth?: number }) => void;
   handleBlurChange?: (id: string, blur: number) => void;
@@ -726,6 +735,7 @@ function GenericCanvasWithRef<
         getElements: () => config.elements as readonly CanvasElementConfig[],
         getLayout: () => commandInputsRef.current.layout,
         isReadOnly: () => !interactive,
+        getPageSize: () => ({ width: referenceWidth, height: referenceHeight }),
       }),
     [
       store,
@@ -735,6 +745,8 @@ function GenericCanvasWithRef<
       config.elements,
       logicalScale,
       interactive,
+      referenceWidth,
+      referenceHeight,
     ]
   );
 
@@ -787,34 +799,6 @@ function GenericCanvasWithRef<
     }
     stage.batchDraw();
   }, [isFontAvailable]);
-
-  const handleAlign = useCallback(
-    (direction: AlignmentDirection) => {
-      const selectedElement = store.getState().selectedElement;
-      if (!selectedElement || isLayerLocked(committedStateRef.current, selectedElement)) return;
-      const stage = stageRef.current?.getStage();
-      if (!stage) return;
-
-      const node = stage.findOne(`#${selectedElement}`);
-      if (!node) return;
-
-      const w = node.width() * node.scaleX();
-      const h = node.height() * node.scaleY();
-      const bounds = { id: selectedElement, x: node.x(), y: node.y(), width: w, height: h };
-
-      let newX = bounds.x;
-      let newY = bounds.y;
-
-      if (direction === 'left' || direction === 'center-h' || direction === 'right') {
-        newX = alignElementX(bounds, config.canvas.width, direction);
-      } else {
-        newY = alignElementY(bounds, config.canvas.height, direction);
-      }
-
-      elementHandlers.handleElementPositionChange(selectedElement, newX, newY, w, h);
-    },
-    [store, config.canvas.width, config.canvas.height, elementHandlers]
-  );
 
   // Expose ref methods for parent access (multi-page export, shared sidebar, and toolbar handlers)
   // Bridge handlers are read from bridgeRef.current at call time (set by ToolbarStateBridge)
@@ -945,6 +929,9 @@ function GenericCanvasWithRef<
       runCommand: commands.run,
       setRotation: commands.setRotation,
       previewRotation: commands.previewRotation,
+      getGeometry: commands.geometry,
+      setPosition: commands.setPosition,
+      setSize: commands.setSize,
       getMenuSnapshot: () => {
         const { selectedLayerIds, selectedElement, croppingElement } = store.getState();
         const committed = committedStateRef.current;
@@ -1018,7 +1005,6 @@ function GenericCanvasWithRef<
       handleColorSelect: (color) => bridgeRef.current?.handleColorSelect(color),
       handleOpacityChange: (id, op, type) => bridgeRef.current?.handleOpacityChange(id, op, type),
       handleFontSizeChange: elementHandlers.handleFontSizeChange,
-      handleAlign,
       handleShadowChange: (id, patch, type) =>
         bridgeRef.current?.handleShadowChange(id, patch, type),
       handleOutlineChange: (id, patch) => bridgeRef.current?.handleOutlineChange(id, patch),
@@ -1030,7 +1016,6 @@ function GenericCanvasWithRef<
       undo,
       redo,
       elementHandlers.handleFontSizeChange,
-      handleAlign,
       setSelectedElement,
       beginMarquee,
       pendingImages,

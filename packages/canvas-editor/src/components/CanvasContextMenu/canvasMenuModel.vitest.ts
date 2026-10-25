@@ -22,6 +22,8 @@ const CAPS: SelectionCapabilities = {
   canRotate: true,
   canFlip: true,
   rotation: 0,
+  canAlign: true,
+  canDistribute: false,
 };
 
 const snapshot = (over: Partial<CanvasMenuSnapshot> = {}): CanvasMenuSnapshot => ({

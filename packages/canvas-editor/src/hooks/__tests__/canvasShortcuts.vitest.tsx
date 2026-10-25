@@ -183,6 +183,7 @@ describe('Türen mit Mehrfachauswahl', () => {
       getElements: () => [],
       getLayout: () => ({}) as LayoutResult,
       isReadOnly: () => false,
+      getPageSize: () => ({ width: 1000, height: 1000 }),
     });
     store.getState().setSelectedLayers(['a', 'b']);
     return { store, commands, state: () => state, removeShape, runHistoryBatch, saveToHistory };
@@ -260,6 +261,7 @@ describe('Alles auswählen', () => {
       getElements: () => [],
       getLayout: () => ({}) as LayoutResult,
       isReadOnly: () => false,
+      getPageSize: () => ({ width: 1000, height: 1000 }),
     });
     commands.selectAll();
     expect(store.getState().selectedLayerIds).toEqual(['a', 'b']);
