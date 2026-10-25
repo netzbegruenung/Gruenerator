@@ -58,6 +58,8 @@ interface OptionalCanvasStateProperties {
       color?: string;
       opacity?: number;
       iconId?: string;
+      flipX?: boolean;
+      flipY?: boolean;
     }
   >;
 }
@@ -314,6 +316,8 @@ function CanvasRenderLayerInner<
           y={y}
           scale={scale}
           rotation={rotation}
+          flipX={iconState?.flipX}
+          flipY={iconState?.flipY}
           color={color}
           opacity={iconState?.opacity ?? 1}
           onSelect={() => handlers.handleElementSelect(iconId)}

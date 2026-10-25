@@ -27,15 +27,12 @@ export function resizedShapeSize(
   nodeScaleX: number,
   nodeScaleY: number
 ): ResizedShapeSize {
+  // A flipped node carries a negative scale; the size is its magnitude.
+  const scaleX = Math.abs(nodeScaleX);
+  const scaleY = Math.abs(nodeScaleY);
   return {
-    width: Math.max(
-      MIN_SHAPE_SIZE,
-      isPathShape ? PATH_VIEWBOX * nodeScaleX : shape.width * nodeScaleX
-    ),
-    height: Math.max(
-      MIN_SHAPE_SIZE,
-      isPathShape ? PATH_VIEWBOX * nodeScaleY : shape.height * nodeScaleY
-    ),
+    width: Math.max(MIN_SHAPE_SIZE, isPathShape ? PATH_VIEWBOX * scaleX : shape.width * scaleX),
+    height: Math.max(MIN_SHAPE_SIZE, isPathShape ? PATH_VIEWBOX * scaleY : shape.height * scaleY),
   };
 }
 

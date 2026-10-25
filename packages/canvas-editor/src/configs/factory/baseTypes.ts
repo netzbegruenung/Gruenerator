@@ -59,6 +59,9 @@ export interface IconState {
    * wird immer über `catalogIconId` in `utils/iconInstances.ts`.
    */
   iconId?: string;
+  /** Mirrored about the centre (negative node scale); omit for upright. */
+  flipX?: boolean;
+  flipY?: boolean;
 }
 
 /** State for templates with image backgrounds */

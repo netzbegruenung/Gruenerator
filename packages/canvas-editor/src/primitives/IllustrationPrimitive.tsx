@@ -6,7 +6,7 @@ import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLoc
 import { getIllustrationPath, findIllustrationById } from '../utils/illustrations/registry';
 import { getCachedSVG, getSVG } from '../utils/illustrations/svgCache';
 import { ILLUSTRATION_TARGET_SIZE, MOTIF_BASE_SIZE } from '../utils/motifSizes';
-import { ELEMENT_TRANSFORMER } from '../utils/orientation';
+import { ELEMENT_TRANSFORMER, signedScale } from '../utils/orientation';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type {
@@ -156,8 +156,8 @@ function IllustrationPrimitiveInner({
         ref={groupRef}
         x={illustration.x}
         y={illustration.y}
-        scaleX={illustration.scale * baseScale}
-        scaleY={illustration.scale * baseScale}
+        scaleX={signedScale(illustration.scale * baseScale, illustration.flipX === true)}
+        scaleY={signedScale(illustration.scale * baseScale, illustration.flipY === true)}
         rotation={illustration.rotation}
         opacity={illustration.opacity}
         draggable={draggable && !locked}
@@ -176,14 +176,14 @@ function IllustrationPrimitiveInner({
           const node = groupRef.current;
           if (!node) return;
 
-          const scaleX = node.scaleX();
-          const scaleY = node.scaleY();
+          const scaleX = Math.abs(node.scaleX());
+          const scaleY = Math.abs(node.scaleY());
           const newScale = Math.max(scaleX, scaleY) / baseScale;
           const newRotation = node.rotation();
 
           // Reset node transform
-          node.scaleX(illustration.scale * baseScale);
-          node.scaleY(illustration.scale * baseScale);
+          node.scaleX(signedScale(illustration.scale * baseScale, illustration.flipX === true));
+          node.scaleY(signedScale(illustration.scale * baseScale, illustration.flipY === true));
           node.rotation(illustration.rotation);
 
           onTransformEnd(node.x(), node.y(), newScale, newRotation);
@@ -248,6 +248,8 @@ export const IllustrationPrimitive = memo(IllustrationPrimitiveInner, (prevProps
   if (prev.y !== next.y) return false;
   if (prev.scale !== next.scale) return false;
   if (prev.rotation !== next.rotation) return false;
+  if (prev.flipX !== next.flipX) return false;
+  if (prev.flipY !== next.flipY) return false;
   if (prev.opacity !== next.opacity) return false;
   if (prev.color !== next.color) return false;
 

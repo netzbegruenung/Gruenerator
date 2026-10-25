@@ -218,6 +218,8 @@ function mapShape(shape: ShapeInstance): PptxItem {
   );
   const native = NATIVE_SHAPES[shape.type];
   if (!native) return raster(shape.id, placement, 'shape-path');
+  // A native pptx shape can't carry the mirror the stage draws; the raster does.
+  if (shape.flipX || shape.flipY) return raster(shape.id, placement, 'shape-flipped');
   if (shape.fillGradient || shape.blendMode) {
     return raster(shape.id, placement, 'shape-styled');
   }
