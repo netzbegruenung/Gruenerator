@@ -197,11 +197,7 @@ export const PageWrapper = memo(function PageWrapper({
         />
       )}
 
-      <ZoomableViewport
-        canvasWidth={config.canvas.width}
-        canvasHeight={config.canvas.height}
-        defaultZoom="fit"
-      >
+      <ZoomableViewport>
         <GenericCanvas
           forwardedRef={canvasRef}
           config={config}

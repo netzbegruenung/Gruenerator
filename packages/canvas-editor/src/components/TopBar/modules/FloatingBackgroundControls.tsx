@@ -1,7 +1,7 @@
 import { MediaThumb } from '@gruenerator/shared/media-library/ui';
 import { Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
 import { Slider } from 'radix-ui';
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react';
 import {
   HiArrowUpTray,
   HiLockClosed,
@@ -110,7 +110,11 @@ export function BackgroundImagePicker({
           {label}
         </button>
       </PopoverTrigger>
-      <PopoverContent className="z-[10001] w-80 flex flex-col gap-3 p-3" align="start">
+      <PopoverContent
+        className="z-[10001] w-80 flex flex-col gap-3 p-3"
+        align="start"
+        aria-label="Hintergrundbild wählen"
+      >
         <div className="flex items-center gap-2 h-9 px-2.5 rounded-lg bg-[var(--editor-tile)]">
           <HiMagnifyingGlass
             size={16}
@@ -203,6 +207,8 @@ export function BackgroundZoomControl({
   scale: number;
   onScaleChange: (scale: number) => void;
 }) {
+  const titleId = useId();
+
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -210,8 +216,14 @@ export function BackgroundZoomControl({
           <HiMagnifyingGlassPlus size={17} aria-hidden="true" />
         </button>
       </PopoverTrigger>
-      <PopoverContent className="z-[10001] w-60 flex items-center gap-2 p-3" align="center">
-        <span className="text-[11px] w-10 text-[var(--editor-text-muted)]">Zoom</span>
+      <PopoverContent
+        className="z-[10001] w-60 flex items-center gap-2 p-3"
+        align="center"
+        aria-labelledby={titleId}
+      >
+        <span id={titleId} className="text-[11px] w-10 text-[var(--editor-text-muted)]">
+          Zoom
+        </span>
         {/* Bounds match `backgroundPhotoElement()` in the sharepic descriptor. */}
         <Slider.Root
           className="relative flex items-center select-none touch-none grow h-4 max-canvas-mobile:h-11"

@@ -1,10 +1,7 @@
 import type { ReactNode } from 'react';
 
 interface ZoomableViewportProps {
-  canvasWidth: number;
-  canvasHeight: number;
   children: ReactNode;
-  defaultZoom?: 'fit' | number;
 }
 
 export function ZoomableViewport({ children }: ZoomableViewportProps) {
