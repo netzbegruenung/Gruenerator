@@ -12,6 +12,8 @@ function renderBar(overrides: Partial<React.ComponentProps<typeof MultiSelection
     canDelete: true,
     lockState: 'none' as const,
     canLock: true,
+    canFlip: true,
+    onFlip: vi.fn(),
     onCopy: vi.fn(),
     onDuplicate: vi.fn(),
     onToggleLock: vi.fn(),

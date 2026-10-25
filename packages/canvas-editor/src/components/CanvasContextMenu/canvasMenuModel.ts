@@ -102,6 +102,19 @@ export function buildCanvasMenu(snapshot: CanvasMenuSnapshot, env: CanvasMenuEnv
       ? [item('toggleLock', { label: caps.lock === 'all' ? 'Entsperren' : 'Sperren' })]
       : [];
   const selectAll = () => item('selectAll', { disabled: !snapshot.canSelectAll });
+  /**
+   * Drehen & Spiegeln. Zurücksetzen nur, wenn es etwas zurückzusetzen gibt;
+   * bei mehreren kennen die Fähigkeiten keine Drehung (`rotation: null`) —
+   * dort steht es immer, sobald sich die Auswahl drehen lässt.
+   */
+  const orient = (): CanvasMenuEntry[] => {
+    if (!caps.canRotate) return [];
+    const entries = [
+      ...(caps.canFlip ? [item('flipHorizontal'), item('flipVertical')] : []),
+      ...(caps.rotation !== 0 ? [item('resetRotation')] : []),
+    ];
+    return entries.length ? [{ kind: 'sub', label: 'Drehen & Spiegeln', entries }] : [];
+  };
   const page = (): CanvasMenuEntry[] => [
     item('duplicatePage', { disabled: !env.canAddPage }),
     ...(env.pageCount > 1 ? [item('deletePage', { destructive: true })] : []),
@@ -121,6 +134,7 @@ export function buildCanvasMenu(snapshot: CanvasMenuSnapshot, env: CanvasMenuEnv
         item('duplicate', { disabled: !caps.canCopy }),
         item('delete', { disabled: !caps.canDelete, destructive: true }),
         separator,
+        ...orient(),
         ...lock(),
         separator,
         ...paste(),
@@ -200,6 +214,7 @@ export function buildCanvasMenu(snapshot: CanvasMenuSnapshot, env: CanvasMenuEnv
           item('sendToBack', { disabled: !caps.canSendBackward }),
         ],
       },
+      ...orient(),
       ...lock(),
       separator,
       selectAll(),
