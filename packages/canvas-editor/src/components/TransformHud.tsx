@@ -99,6 +99,7 @@ export function TransformHud({
     // with the selection, so (re)attach to all of them on each press, which
     // always precedes a transform.
     const attach = () => {
+      for (const tr of attached) if (!tr.getStage()) attached.delete(tr);
       for (const tr of stage.find<Konva.Transformer>('Transformer')) {
         if (attached.has(tr)) continue;
         attached.add(tr);

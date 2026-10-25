@@ -18,13 +18,7 @@ import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { gradientFillProps, type GradientFill } from '../utils/gradientFill';
 import { isGroupDrag } from '../utils/multiSelect';
 import { ELEMENT_TRANSFORMER, normalizeRotation } from '../utils/orientation';
-import {
-  boxFrame,
-  calculateSnapPosition,
-  createBoxFrame,
-  frameBounds,
-  snapByBounds,
-} from '../utils/snapping';
+import { boxFrame, createBoxFrame, frameBounds, snapByBounds } from '../utils/snapping';
 
 import { CanvasRichText } from './CanvasRichText';
 
