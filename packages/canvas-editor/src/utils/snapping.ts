@@ -7,6 +7,7 @@
  * - Precomputed edge arrays to reduce allocations
  */
 
+import { activeAxisLock } from './axisLock';
 import { type Box, type NodeFrame } from './orientation';
 
 export const SNAP_THRESHOLD = 20; // pixels - ~2% of 1000px canvas
@@ -597,8 +598,24 @@ function snapBox(
     stageHeight,
     hysteresis
   );
+  // Umschalt hält eine Achse fest (`axisLock.ts`): dort rastet nichts ein, und
+  // ihre Hilfslinie erscheint nicht.
+  const lock = activeAxisLock();
+  if (lock === 'x' && result.snapV) {
+    result.y = frame.y + minY;
+    result.snapV = false;
+    result.snapLines = result.snapLines.filter((l) => l.orientation !== 'horizontal');
+    if (hysteresis) hysteresis.lastGuidePosV = null;
+  } else if (lock === 'y' && result.snapH) {
+    result.x = frame.x + minX;
+    result.snapH = false;
+    result.snapLines = result.snapLines.filter((l) => l.orientation !== 'vertical');
+    if (hysteresis) hysteresis.lastGuidePosH = null;
+  }
   for (const axis of ['x', 'y'] as const) {
     if (!withSpacing || (axis === 'x' ? result.snapH : result.snapV)) continue;
+    // Gesperrt: 'x' heisst „läuft waagrecht", y steht.
+    if ((lock === 'x' && axis === 'y') || (lock === 'y' && axis === 'x')) continue;
     const spacing = snapSpacing({ x: result.x, y: result.y, width, height }, targets, axis);
     if (!spacing) continue;
     result[axis] += spacing.delta;

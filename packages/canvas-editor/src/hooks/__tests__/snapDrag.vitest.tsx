@@ -24,9 +24,10 @@ import type { SnapTarget } from '../../utils/snapping';
 // Die jsdom-Leinwand misst 300×150; größer liest Konva keine Pixel für den Treffertest.
 const STAGE_W = 300;
 const STAGE_H = 150;
-// Eine Wand rechts: Kanten x = 260 / 270 / 280. Die Züge bleiben rechts der
-// Seitenmitte (150); kämen sie an ihr vorbei, hielte die Hysterese sie dort fest.
-const WALL: SnapTarget = { id: 'wall', x: 260, y: 10, width: 20, height: 130 };
+// Eine Wand unten rechts: Kanten x = 260 / 270 / 280, y = 120 / 132,5 / 145. Die
+// Züge bleiben rechts der Seitenmitte (150); kämen sie an ihr vorbei, hielte die
+// Hysterese sie dort fest.
+const WALL: SnapTarget = { id: 'wall', x: 260, y: 120, width: 20, height: 25 };
 
 const rect = (id: string, x: number, y: number, w: number, h: number, rotation = 0) => ({
   ...createShape('rect', x, y, '#888888', '#888888'),
@@ -167,5 +168,35 @@ describe('Snap im Zug', () => {
     // Senkrecht zieht die Seitenmitte beide gleich weit.
     expect(last('a')!.y! - 40).toBeCloseTo(last('b')!.y! - 100, 6);
     expect(state().snapLines).toEqual([]);
+  });
+});
+
+describe('Umschalt sperrt den Zug auf eine Achse', () => {
+  it('hält eine Form auf der Waagrechten', () => {
+    const { drag, last } = mount([rect('a', 180, 40, 40, 20)]);
+    drag(180, 40, 30, 12, true);
+    expect(last('a')).toMatchObject({ x: 210, y: 40 });
+  });
+
+  it('zieht ohne Umschalt an die Wand (Gegenprobe)', () => {
+    const { drag, last } = mount([rect('a', 232, 20, 40, 20)]);
+    drag(232, 20, 4, 10);
+    expect(last('a')?.x).toBe(240);
+  });
+
+  it('lässt auf der gesperrten Achse nichts einrasten', () => {
+    // Rechte Kante 252 liegt 8 px vor der Wand (260): ohne Umschalt zöge sie hin.
+    const { drag, last } = mount([rect('a', 232, 20, 40, 20)]);
+    drag(232, 20, 4, 10, true);
+    expect(last('a')).toMatchObject({ x: 232, y: 30 });
+  });
+
+  it('sperrt auch den Gruppenzug, für alle Elemente gleich', () => {
+    const { click, drag, last } = mount([rect('a', 180, 40, 40, 20), rect('b', 180, 100, 30, 20)]);
+    click(180, 40);
+    click(180, 100, true);
+    drag(180, 40, 20, 6, true);
+    expect(last('a')).toMatchObject({ x: 200, y: 40 });
+    expect(last('b')).toMatchObject({ x: 200, y: 100 });
   });
 });
