@@ -6,48 +6,54 @@ import { describe, expect, it } from 'vitest';
 
 import {
   embeddedSurfaceShape,
-  hostDrawsEditorBar,
-  hostDrawsHeader,
+  fallbackTitle,
+  headerKind,
   SELF_CHROMED_PATH_PREFIXES,
 } from './hostChrome';
 
-describe('hostDrawsHeader', () => {
-  it('stands back where the page brings its own bar', () => {
-    expect(hostDrawsHeader('/studio/canvas/abc-123')).toBe(false);
-    expect(hostDrawsHeader('/boards/abc-123')).toBe(false);
-    expect(hostDrawsHeader('/office/abc-123')).toBe(false);
+describe('headerKind', () => {
+  it('draws the editor bar for the editors', () => {
+    expect(headerKind('/studio/canvas/abc-123')).toBe('editor');
+    expect(headerKind('/studio/vorlage/abc?mitBeitrag=1')).toBe('editor');
+    expect(headerKind('/boards/abc-123')).toBe('editor');
+    expect(headerKind('/office/abc-123')).toBe('editor');
   });
 
-  it('keeps its header where nothing else leaves the screen', () => {
-    // These four have no back button of their own in embedded mode. Without the
-    // host header the WebView would be a room without a door.
-    expect(hostDrawsHeader('/notebooks/abc-123')).toBe(true);
-    expect(hostDrawsHeader('/texte/abc-123')).toBe(true);
-    expect(hostDrawsHeader('/gruenerator/mein-agent')).toBe(true);
-    expect(hostDrawsHeader('/documents/abc-123')).toBe(true);
+  it('draws the plain bar everywhere else', () => {
+    expect(headerKind('/notebooks/abc-123')).toBe('plain');
+    expect(headerKind('/texte/abc-123')).toBe('plain');
+    expect(headerKind('/gruenerator/mein-agent')).toBe('plain');
+    expect(headerKind('/documents/abc-123')).toBe('plain');
+    expect(headerKind('')).toBe('plain');
+    expect(headerKind('/')).toBe('plain');
   });
 
   it('judges by the pathname, not by the query string', () => {
-    expect(hostDrawsHeader('/datenbank/vorlagen?selected=abc')).toBe(true);
-    expect(hostDrawsHeader('/boards/abc?tab=archiv')).toBe(false);
+    expect(headerKind('/datenbank/vorlagen?selected=abc')).toBe('plain');
+    expect(headerKind('/boards/abc?tab=archiv')).toBe('editor');
   });
 
   it('does not let a neighbouring path borrow the prefix', () => {
     // The trailing slash is what separates `/boards/` from `/boards-admin`.
-    expect(hostDrawsHeader('/boards-admin/abc')).toBe(true);
-    expect(hostDrawsHeader('/office-intern/abc')).toBe(true);
+    expect(headerKind('/boards-admin/abc')).toBe('plain');
+    expect(headerKind('/office-intern/abc')).toBe('plain');
+    expect(headerKind('/studio/canvas-archiv/abc')).toBe('plain');
   });
+});
 
-  it('falls back to drawing the header for an empty or unknown path', () => {
-    expect(hostDrawsHeader('')).toBe(true);
-    expect(hostDrawsHeader('/')).toBe(true);
+describe('fallbackTitle', () => {
+  it('names the editor until the page reports a title', () => {
+    expect(fallbackTitle('/studio/vorlage/abc')).toBe('Sharepic');
+    expect(fallbackTitle('/office/abc')).toBe('Dokument');
+    expect(fallbackTitle('/boards/abc')).toBe('Board');
+    expect(fallbackTitle('/notebooks/abc')).toBe('Web');
   });
 });
 
 /**
- * The dangerous half of the decision. Hiding the host header for a surface that
- * has no way out of its own leaves the user pinned on a page with nothing but
- * Android's hardware back — and on iOS, nothing at all.
+ * App binaries from before the native editor bar draw no header on these
+ * surfaces, so the page's own bar is their only way out — on iOS the only one at
+ * all.
  *
  * So each entry is tied to the web file that draws its bar, and the file must
  * still call `useHostAwareBack` (the hook whose embedded branch posts `CLOSE`).
@@ -80,25 +86,6 @@ describe('every self-chromed surface has a way out', () => {
       expect(fs.readFileSync(absolute, 'utf8')).toContain('useHostAwareBack(');
     }
   );
-});
-
-describe('hostDrawsEditorBar', () => {
-  it('draws the native bar for the canvas editor and the Vorlage hand-off only', () => {
-    expect(hostDrawsEditorBar('/studio/canvas/abc')).toBe(true);
-    expect(hostDrawsEditorBar('/studio/vorlage/abc?mitBeitrag=1')).toBe(true);
-    expect(hostDrawsEditorBar('/boards/abc')).toBe(false);
-    expect(hostDrawsEditorBar('/notebooks/abc')).toBe(false);
-  });
-
-  it('does not let a neighbouring path borrow the prefix', () => {
-    expect(hostDrawsEditorBar('/studio/canvas-archiv/abc')).toBe(false);
-  });
-
-  it('only for surfaces that also keep a bar of their own for older binaries', () => {
-    for (const path of ['/studio/canvas/abc', '/studio/vorlage/abc']) {
-      expect(hostDrawsHeader(path)).toBe(false);
-    }
-  });
 });
 
 /**

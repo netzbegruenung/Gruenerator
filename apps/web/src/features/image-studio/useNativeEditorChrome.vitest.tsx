@@ -54,6 +54,9 @@ describe('useNativeEditorChrome', () => {
       canEdit: true,
       canUndo: false,
       canRedo: false,
+      history: true,
+      canShare: true,
+      actions: [],
     });
     act(() => hook.result.current?.onHistoryChange({ canUndo: true, canRedo: false }));
     expect(posted.at(-1)).toMatchObject({ canUndo: true, canRedo: false });

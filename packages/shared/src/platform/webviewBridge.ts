@@ -90,8 +90,10 @@ export const HOST_CAPABILITY_REQUEST_CLOSE = 'requestClose';
 
 /**
  * The host draws the editor's top bar natively (close, title, undo/redo,
- * share), so the page hides its own and reports `EDITOR_STATE` instead. The
- * host answers with `EDITOR_COMMAND`.
+ * share, and a "…" menu of the page's other actions), so the page hides its own
+ * and reports `EDITOR_STATE` instead. The host answers with `EDITOR_COMMAND`,
+ * `EDITOR_RENAME` and `EDITOR_ACTION`. One page-side implementation:
+ * `useNativeEditorBar` in `apps/web/src/hooks`.
  */
 export const HOST_CAPABILITY_EDITOR_CHROME = 'editorChrome';
 
@@ -101,6 +103,46 @@ const EDITOR_COMMANDS: readonly EditorCommand[] = ['undo', 'redo', 'share'];
 
 /** Longest title the host may send in `EDITOR_RENAME`; matches the rename sheet. */
 export const EDITOR_TITLE_MAX_LENGTH = 120;
+
+/**
+ * One entry of the host's "…" menu, listed in `EDITOR_STATE.actions`. The host
+ * answers a tap with `EDITOR_ACTION` and the id; what the entry does stays in
+ * the page.
+ */
+export interface EditorMenuAction {
+  id: string;
+  label: string;
+  /** Red on iOS, and the entry that needs a second thought; the page still confirms. */
+  destructive?: boolean;
+  /** A switch that is on: shown with a checkmark. */
+  checked?: boolean;
+}
+
+/** More entries than this do not fit a phone's menu; the rest are dropped. */
+export const EDITOR_MENU_MAX_ACTIONS = 16;
+const EDITOR_ACTION_ID_MAX_LENGTH = 64;
+const EDITOR_ACTION_LABEL_MAX_LENGTH = 80;
+
+/** Keeps the well-formed entries and drops the rest, as for unknown fields. */
+function parseEditorMenuActions(raw: unknown): EditorMenuAction[] | null {
+  if (!Array.isArray(raw)) return null;
+  const actions: EditorMenuAction[] = [];
+  for (const entry of raw as unknown[]) {
+    if (typeof entry !== 'object' || entry === null) continue;
+    const id = (entry as { id?: unknown }).id;
+    const label = (entry as { label?: unknown }).label;
+    if (typeof id !== 'string' || id.length === 0 || id.length > EDITOR_ACTION_ID_MAX_LENGTH) {
+      continue;
+    }
+    if (typeof label !== 'string' || label.length === 0) continue;
+    if (label.length > EDITOR_ACTION_LABEL_MAX_LENGTH) continue;
+    const destructive = (entry as { destructive?: unknown }).destructive === true;
+    const checked = (entry as { checked?: unknown }).checked === true;
+    actions.push({ id, label, ...(destructive && { destructive }), ...(checked && { checked }) });
+    if (actions.length === EDITOR_MENU_MAX_ACTIONS) break;
+  }
+  return actions;
+}
 
 /** The script a host injects to announce `capabilities`; ends in `true` as WebView injection expects. */
 export function hostCapabilitiesScript(capabilities: readonly string[]): string {
@@ -212,6 +254,16 @@ export type WebViewOutboundMessage =
       canEdit: boolean;
       canUndo: boolean;
       canRedo: boolean;
+      /**
+       * False when the page has no undo/redo at all (a board), so the host
+       * leaves the buttons out instead of greying them. Absent means true: the
+       * canvas editor, which sent no such field, has both.
+       */
+      history?: boolean;
+      /** Whether the share button works here. Absent means true, for the same reason. */
+      canShare?: boolean;
+      /** The page's further actions, for the host's "…" menu. Absent or empty: no menu. */
+      actions?: EditorMenuAction[];
     }
   | {
       /**
@@ -316,6 +368,11 @@ export type WebViewInboundMessage =
       /** The user renamed the document in the host's native editor bar. */
       type: 'EDITOR_RENAME';
       title: string;
+    }
+  | {
+      /** The user picked an entry of the host's "…" menu; `id` is one from `EDITOR_STATE.actions`. */
+      type: 'EDITOR_ACTION';
+      id: string;
     };
 
 type WebViewRenderRequest = {
@@ -480,7 +537,19 @@ export function parseWebViewMessage(raw: unknown): WebViewOutboundMessage | null
     if (typeof title !== 'string') return null;
     if (typeof canEdit !== 'boolean' || typeof canUndo !== 'boolean') return null;
     if (typeof canRedo !== 'boolean') return null;
-    return { type: 'EDITOR_STATE', title, canEdit, canUndo, canRedo };
+    const history = (candidate as { history?: unknown }).history;
+    const canShare = (candidate as { canShare?: unknown }).canShare;
+    const actions = parseEditorMenuActions((candidate as { actions?: unknown }).actions);
+    return {
+      type: 'EDITOR_STATE',
+      title,
+      canEdit,
+      canUndo,
+      canRedo,
+      ...(typeof history === 'boolean' && { history }),
+      ...(typeof canShare === 'boolean' && { canShare }),
+      ...(actions !== null && { actions }),
+    };
   }
   if (type === 'RENDER_HOST_READY') {
     const protocolVersion = (candidate as { protocolVersion?: unknown }).protocolVersion;
@@ -587,6 +656,13 @@ export function parseHostMessage(raw: unknown): WebViewInboundMessage | null {
     const trimmed = title.trim();
     if (trimmed.length === 0 || trimmed.length > EDITOR_TITLE_MAX_LENGTH) return null;
     return { type: 'EDITOR_RENAME', title: trimmed };
+  }
+  if (type === 'EDITOR_ACTION') {
+    const id = (candidate as { id?: unknown }).id;
+    if (typeof id !== 'string' || id.length === 0 || id.length > EDITOR_ACTION_ID_MAX_LENGTH) {
+      return null;
+    }
+    return { type: 'EDITOR_ACTION', id };
   }
   if (type === 'CREATOR_RENDER_REQUEST') {
     const requestId = (candidate as { requestId?: unknown }).requestId;

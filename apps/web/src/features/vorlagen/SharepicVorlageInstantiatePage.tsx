@@ -8,10 +8,10 @@ import { useEffect, useRef, useState, type JSX } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { useHostAwareBack } from '../../hooks/useHostAwareBack';
+import { hasNativeEditorBar } from '../../hooks/useNativeEditorBar';
 import { seedCanvasQuery } from '../image-studio/canvasQuery';
 import { composeCreatorSharepic, creatorPhotoSrc } from '../image-studio/freitext/composeForRender';
 import { mintCreatorCanvas } from '../image-studio/freitext/useSharepicCreator';
-import { hasNativeEditorChrome } from '../image-studio/useNativeEditorChrome';
 
 /**
  * `/studio/vorlage/:id` — copies a Grünerator-Vorlage into a new canvas of the
@@ -77,7 +77,7 @@ export default function SharepicVorlageInstantiatePage(): JSX.Element {
     })();
   }, [id, navigate, queryClient, withBeitrag]);
 
-  if (!error) return <CanvasEditorSkeleton topBar={!hasNativeEditorChrome()} />;
+  if (!error) return <CanvasEditorSkeleton topBar={!hasNativeEditorBar()} />;
 
   return (
     <div className="mx-auto flex max-w-[28rem] flex-col items-center gap-4 px-md py-16 text-center">

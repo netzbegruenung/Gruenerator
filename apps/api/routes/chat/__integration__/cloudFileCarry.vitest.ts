@@ -119,6 +119,28 @@ describe('cloud files stay in the thread (#4112)', () => {
     expect(threads.get(threadId!)?.cloudFiles).toEqual({ wolke: [], connect: [FILE] });
   });
 
+  it('lets a carried file yield to a later order (#4897)', async () => {
+    const first = await runTurn(suite.baseUrl(), {
+      messages: [userTurn('Fasse die Datei zusammen')],
+      connectFiles: [FILE],
+    });
+    const threadId = first.trace.threadId;
+
+    const sharepic = await runTurn(suite.baseUrl(), {
+      messages: [userTurn('Erstelle ein Sharepic zum Radverkehr', 'm2')],
+      threadId,
+    });
+    expect(sharepic.trace.intent).toBe('sharepic');
+
+    const smallTalk = await runTurn(suite.baseUrl(), {
+      messages: [userTurn('Danke dir!', 'm3')],
+      threadId,
+    });
+    expect(smallTalk.trace.intent).not.toBe('search');
+    // Still carried: the next question about the file finds it.
+    expect(threads.get(threadId!)?.cloudFiles).toEqual({ wolke: [], connect: [FILE] });
+  });
+
   it('does not hand the files to a different thread', async () => {
     await runTurn(suite.baseUrl(), {
       messages: [userTurn('Fasse die Datei zusammen')],
