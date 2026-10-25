@@ -3,6 +3,8 @@
  * Centralizes all collection definitions for the Qdrant vector database
  */
 
+import { type QdrantStore } from './qdrantStores.js';
+
 // =============================================================================
 // Type Definitions
 // =============================================================================
@@ -50,6 +52,8 @@ export interface CollectionSchemaIndex {
 
 export interface CollectionSchema {
   name: string;
+  /** Welcher Qdrant-Speicher die Sammlung hält: gescrapte Systeminhalte oder Nutzerdaten der Instanz. */
+  store: QdrantStore;
   optimizer: OptimizerPresetKey | null;
   hnsw: HnswPresetKey | null;
   indexes: CollectionSchemaIndex[];
@@ -235,6 +239,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
   // the payload of all ~33k points per query, 125 ms instead of ~4 ms.
   documents: {
     name: 'documents',
+    store: 'instance',
     optimizer: 'large',
     hnsw: 'standard',
     indexes: [
@@ -244,6 +249,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
   },
   grundsatz_documents: {
     name: 'grundsatz_documents',
+    store: 'content',
     optimizer: 'medium',
     hnsw: 'standard',
     indexes: [
@@ -256,6 +262,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
   },
   oesterreich_gruene_documents: {
     name: 'oesterreich_gruene_documents',
+    store: 'content',
     optimizer: 'medium',
     hnsw: 'standard',
     indexes: [
@@ -268,12 +275,14 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
   },
   user_knowledge: {
     name: 'user_knowledge',
+    store: 'instance',
     optimizer: 'small',
     hnsw: null,
     indexes: [],
   },
   custom_prompts: {
     name: 'custom_prompts',
+    store: 'instance',
     optimizer: 'small',
     hnsw: 'standard',
     indexes: [
@@ -285,6 +294,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
   },
   content_examples: {
     name: 'content_examples',
+    store: 'content',
     optimizer: 'tiny',
     hnsw: 'minimal',
     indexes: [],
@@ -294,6 +304,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
   // filtered semantic search (published & public templates, by type/tags/owner).
   user_templates: {
     name: 'user_templates',
+    store: 'instance',
     optimizer: 'small',
     hnsw: 'standard',
     indexes: [
@@ -307,6 +318,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
   },
   social_media_examples: {
     name: 'social_media_examples',
+    store: 'content',
     optimizer: 'large',
     hnsw: 'enhanced',
     indexes: [
@@ -320,6 +332,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
   // in its own collection so the agent-only `ricarda-lang-notebook` stays isolated.
   ricarda_lang_tweets: {
     name: 'ricarda_lang_tweets',
+    store: 'content',
     optimizer: 'large',
     hnsw: 'enhanced',
     indexes: [
@@ -331,6 +344,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
   },
   user_texts: {
     name: 'user_texts',
+    store: 'instance',
     optimizer: 'large',
     hnsw: 'enhanced',
     indexes: [
@@ -341,6 +355,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
   },
   notebook_collections: {
     name: 'notebook_collections',
+    store: 'instance',
     optimizer: 'tiny',
     hnsw: null,
     indexes: [
@@ -354,6 +369,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
   },
   notebook_collection_documents: {
     name: 'notebook_collection_documents',
+    store: 'instance',
     optimizer: 'tiny',
     hnsw: null,
     indexes: [
@@ -363,6 +379,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
   },
   notebook_public_access: {
     name: 'notebook_public_access',
+    store: 'instance',
     optimizer: 'minimal',
     hnsw: null,
     indexes: [
@@ -372,6 +389,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
   },
   oparl_papers: {
     name: 'oparl_papers',
+    store: 'content',
     optimizer: 'large',
     hnsw: 'standard',
     indexes: [
@@ -384,6 +402,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
   },
   kommunalwiki_documents: {
     name: 'kommunalwiki_documents',
+    store: 'content',
     optimizer: 'medium',
     hnsw: 'standard',
     indexes: [
@@ -399,6 +418,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
   },
   bundestag_content: {
     name: 'bundestag_content',
+    store: 'content',
     optimizer: 'large',
     hnsw: 'standard',
     indexes: [
@@ -413,6 +433,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
   },
   gruene_de_documents: {
     name: 'gruene_de_documents',
+    store: 'content',
     optimizer: 'large',
     hnsw: 'standard',
     indexes: [
@@ -427,6 +448,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
   },
   gruene_at_documents: {
     name: 'gruene_at_documents',
+    store: 'content',
     optimizer: 'large',
     hnsw: 'standard',
     indexes: [
@@ -441,6 +463,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
   },
   boell_stiftung_documents: {
     name: 'boell_stiftung_documents',
+    store: 'content',
     optimizer: 'large',
     hnsw: 'standard',
     indexes: [
@@ -457,6 +480,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
   },
   landtag_nrw_documents: {
     name: 'landtag_nrw_documents',
+    store: 'content',
     optimizer: 'large',
     hnsw: 'standard',
     datatype: 'float16',
@@ -488,6 +512,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
   },
   landtag_berlin_documents: {
     name: 'landtag_berlin_documents',
+    store: 'content',
     optimizer: 'large',
     hnsw: 'standard',
     indexes: [
@@ -514,6 +539,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
   },
   landtag_bayern_documents: {
     name: 'landtag_bayern_documents',
+    store: 'content',
     optimizer: 'large',
     hnsw: 'standard',
     datatype: 'float16',
@@ -539,6 +565,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
   },
   gruenblog_documents: {
     name: 'gruenblog_documents',
+    store: 'content',
     optimizer: 'small',
     hnsw: 'standard',
     indexes: [
@@ -554,6 +581,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
   },
   satzungen_documents: {
     name: 'satzungen_documents',
+    store: 'content',
     optimizer: 'medium',
     hnsw: 'standard',
     indexes: [
@@ -567,6 +595,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
   },
   landesverbaende_documents: {
     name: 'landesverbaende_documents',
+    store: 'content',
     optimizer: 'medium',
     hnsw: 'standard',
     indexes: [
@@ -591,6 +620,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
   // archive view is just a filter, not a separate physical collection.
   landesverbaende_archive: {
     name: 'landesverbaende_archive',
+    store: 'content',
     optimizer: 'small',
     hnsw: 'standard',
     indexes: [
@@ -611,6 +641,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
   // and Grünen-Votum filters.
   abgeordnetenwatch_documents: {
     name: 'abgeordnetenwatch_documents',
+    store: 'content',
     optimizer: 'medium',
     hnsw: 'standard',
     datatype: 'float16',
@@ -637,6 +668,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
   // Abschnittsart — `chunk_type` bleibt das Strukturfeld des Chunkers.
   bundestag_dip_documents: {
     name: 'bundestag_dip_documents',
+    store: 'content',
     optimizer: 'medium',
     hnsw: 'standard',
     datatype: 'float16',
@@ -664,6 +696,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
   // Beschlüsse). Stammen aus demselben Import wie bundestag_dip_documents.
   bundesrat_documents: {
     name: 'bundesrat_documents',
+    store: 'content',
     optimizer: 'medium',
     hnsw: 'standard',
     datatype: 'float16',
@@ -688,6 +721,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
   // Same collection mem0 used; its old points lack `kind` and are filtered out.
   user_memories: {
     name: 'user_memories',
+    store: 'instance',
     optimizer: 'small',
     hnsw: 'standard',
     indexes: [
@@ -700,6 +734,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
   // summary) for semantic recall of the user's own past conversations.
   chat_thread_recall: {
     name: 'chat_thread_recall',
+    store: 'instance',
     optimizer: 'small',
     hnsw: 'standard',
     indexes: [

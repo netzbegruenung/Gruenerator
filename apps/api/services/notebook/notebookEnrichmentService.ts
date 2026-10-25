@@ -13,6 +13,8 @@
  * Decoupled from content-sync: run as a one-time backfill (`mode: 'all'`) and a
  * nightly job (`mode: 'missing'`) against NLP_SERVICE_URL. Never re-embeds.
  */
+import { type QdrantClient } from '@qdrant/js-client-rest';
+
 import { NLP_FACET_INDEXES } from '../../config/qdrantCollectionsSchema.js';
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -161,10 +163,7 @@ interface HeadDoc {
 }
 
 /** Keyword payload indexes so theme/person facets + filters stay fast. */
-async function ensureNlpIndexes(
-  client: NonNullable<ReturnType<typeof getQdrantInstance>['client']>,
-  collection: string
-): Promise<void> {
+async function ensureNlpIndexes(client: QdrantClient, collection: string): Promise<void> {
   for (const { field } of NLP_FACET_INDEXES) {
     try {
       await client.createPayloadIndex(collection, { field_name: field, field_schema: 'keyword' });
@@ -257,21 +256,20 @@ export async function enrichCollection(
 
   const qdrant = getQdrantInstance();
   await qdrant.init();
-  const client = qdrant.client;
-  if (!client) {
+  if (!qdrant.hasClientFor(collection)) {
     log.warn(`[${collection}] Qdrant client unavailable`);
     stats.error = 'Qdrant client unavailable';
     return stats;
   }
 
   try {
-    await client.getCollection(collection);
+    await qdrant.readClient(collection).getCollection(collection);
   } catch {
     log.warn(`[${collection}] does not exist, skipping`);
     return stats;
   }
 
-  await ensureNlpIndexes(client, collection);
+  await ensureNlpIndexes(qdrant.writeClient(collection), collection);
 
   let personsVersion: number | null;
   try {
@@ -304,7 +302,7 @@ export async function enrichCollection(
     };
     if (offset !== null) scrollParams.offset = offset;
 
-    const result = await client.scroll(collection, scrollParams);
+    const result = await qdrant.readClient(collection).scroll(collection, scrollParams);
     const points = result.points ?? [];
     if (points.length === 0) break;
 
@@ -380,7 +378,7 @@ export async function enrichCollection(
           continue;
         }
 
-        await client.setPayload(collection, {
+        await qdrant.writeClient(collection).setPayload(collection, {
           payload: {
             themes,
             primary_topic: classification.primaryTopic ?? null,

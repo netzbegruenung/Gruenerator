@@ -272,13 +272,15 @@ export async function setDocumentVectorsDeletedAt(
     ],
   };
   if (deletedAt) {
-    await qdrantOps.client.setPayload('documents', {
+    await qdrantOps.writeClient('documents').setPayload('documents', {
       payload: { deleted_at: deletedAt },
       filter,
       wait: true,
     });
   } else {
-    await qdrantOps.client.deletePayload('documents', { keys: ['deleted_at'], filter, wait: true });
+    await qdrantOps
+      .writeClient('documents')
+      .deletePayload('documents', { keys: ['deleted_at'], filter, wait: true });
   }
 }
 
@@ -342,7 +344,7 @@ export async function countVectorsByDocument(
     const probed = await Promise.all(
       batch.map(async (documentId) => {
         try {
-          const result = await qdrantOps.client.count('documents', {
+          const result = await qdrantOps.readClient('documents').count('documents', {
             filter: { must: [{ key: 'document_id', match: { value: documentId } }] },
             exact: true,
           });

@@ -182,7 +182,7 @@ class PromptVectorService {
         },
       };
 
-      await this.qdrant!.client!.upsert(COLLECTION_NAME, { points: [point] });
+      await this.qdrant!.writeClient(COLLECTION_NAME).upsert(COLLECTION_NAME, { points: [point] });
 
       const embeddingId = `prompt_${promptId}_${Date.now()}`;
       await this.postgres!.update(
@@ -215,7 +215,7 @@ class PromptVectorService {
     }
 
     try {
-      await this.qdrant!.client!.delete(COLLECTION_NAME, {
+      await this.qdrant!.writeClient(COLLECTION_NAME).delete(COLLECTION_NAME, {
         filter: {
           must: [{ key: 'prompt_id', match: { value: promptId } }],
         },
@@ -260,7 +260,7 @@ class PromptVectorService {
       try {
         const queryEmbedding = await mistralEmbeddingService.generateEmbedding(query);
 
-        const searchResult = await this.qdrant!.client!.query(COLLECTION_NAME, {
+        const searchResult = await this.qdrant!.readClient(COLLECTION_NAME).query(COLLECTION_NAME, {
           query: queryEmbedding,
           filter: {
             must: [{ key: 'user_id', match: { value: userId } }],
@@ -308,7 +308,7 @@ class PromptVectorService {
       try {
         const queryEmbedding = await mistralEmbeddingService.generateEmbedding(query);
 
-        const searchResult = await this.qdrant!.client!.query(COLLECTION_NAME, {
+        const searchResult = await this.qdrant!.readClient(COLLECTION_NAME).query(COLLECTION_NAME, {
           query: queryEmbedding,
           filter: {
             must: [{ key: 'is_public', match: { value: true } }],

@@ -9,7 +9,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const qdrant = vi.hoisted(() => ({
-  client: null as unknown,
+  operations: null as unknown,
   isConnected: false,
   init: vi.fn(async () => {}),
 }));
@@ -26,16 +26,10 @@ vi.mock('../trashedDocuments.js', () => ({
 const scrollDocuments = vi.fn(async () => [
   { id: 'p1', payload: { document_id: 'doc-1', chunk_text: 'Erster Absatz' } },
 ]);
-vi.mock('../../../database/services/QdrantOperations.js', () => ({
-  QdrantOperations: class {
-    scrollDocuments = scrollDocuments;
-  },
-}));
-
 const { DocumentSearchService } = await import('./DocumentSearchService.js');
 
 afterEach(() => {
-  qdrant.client = null;
+  qdrant.operations = null;
   qdrant.isConnected = false;
   qdrant.init.mockClear();
 });
@@ -53,7 +47,7 @@ describe('DocumentSearchService without Qdrant', () => {
     const service = new DocumentSearchService();
     await service.getDocumentFirstChunks('user-1', ['doc-1']);
 
-    qdrant.client = {};
+    qdrant.operations = { scrollDocuments };
     qdrant.isConnected = true;
 
     const result = await service.getDocumentFirstChunks('user-1', ['doc-1']);

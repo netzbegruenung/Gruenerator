@@ -10,6 +10,7 @@ export {
   QdrantService,
   getQdrantInstance,
   useQdrantConnectOnly,
+  ContentStoreReadOnlyError,
   default,
 } from './QdrantService.js';
 
@@ -110,7 +111,7 @@ export {
 } from './random.js';
 
 // Operations (high-level search algorithms)
-export { QdrantOperations } from './operations/index.js';
+export { QdrantOperations, type QdrantClientResolver } from './operations/index.js';
 
 // Utility functions
 export { stringToNumericId, chunkToNumericId } from './utils.js';

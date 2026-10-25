@@ -43,6 +43,7 @@ function fakeClient(liveTypes: Record<string, string>) {
 const schemas: Record<string, CollectionSchema> = {
   gruene_de_documents: {
     name: 'gruene_de_documents',
+    store: 'content',
     optimizer: null,
     hnsw: null,
     indexes: [
