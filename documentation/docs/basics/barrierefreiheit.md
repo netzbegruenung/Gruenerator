@@ -65,6 +65,7 @@ Der Editor zeichnet seine Fläche auf eine Leinwand. Damit er trotzdem ohne Maus
 - **Sprunglink „Zu den Ebenen":** Er ist früh in der Tab-Reihenfolge und öffnet die Ebenen-Liste.
 - **Ebenen-Liste:** Sie führt alle Elemente der Seite, vorn zuerst. Pfeiltasten, Pos1 und Ende wählen, Leertaste schaltet die Auswahl um, Umschalt erweitert sie. **Enter** oder **F2** bearbeitet den Text beziehungsweise tauscht das Bild eines Rahmens.
 - **Textbearbeitung:** Der Texteditor trägt einen Namen, **Escape** schließt ihn, und der Fokus kehrt an die Stelle zurück, an der die Bearbeitung begann.
+- **Balken (zum Beispiel im Dreizeiler):** **Enter** oder **F2** auf dem Eintrag öffnet die erste Zeile („Zeile 1 bearbeiten"), **Tab** springt zur nächsten Zeile, **Umschalt+Tab** zur vorigen; hinter der letzten Zeile geht der Fokus an den Eintrag zurück. Störer und Badges öffnen ihren Text genauso.
 - **Verschieben:** **Alt+Pfeiltaste** schiebt das ausgewählte Element um 1 Einheit, mit zusätzlich Umschalt um 10. Zahlenfelder für Position und Größe sowie Knöpfe zum Drehen und Spiegeln in der Kontextleiste ersetzen das freie Ziehen mit der Maus.
 - **Foto zuschneiden:** Ausschnitt mit den Pfeiltasten verschieben und zoomen, Enter beendet.
 - **Löschen, Rückgängig, Kopieren, Duplizieren, Alles auswählen** laufen über die üblichen Tastenkürzel und über die Leiste. Ist eine Aktion ohne sichtbare Rückmeldung geschehen, sagt eine Statusmeldung sie an („Gelöscht: …", „Rückgängig gemacht").
@@ -75,7 +76,7 @@ Der Editor zeichnet seine Fläche auf eine Leinwand. Damit er trotzdem ohne Maus
 
 - Die gezeichnete Fläche beschreibt sich nur mit einer Kurzfassung („Seite 1: Text: …, Balken: …, Hintergrund"), nicht mit ihrem Aussehen.
 - Freies Ziehen, Drehen und Skalieren mit der Maus hat Ersatzwege (Alt+Pfeiltasten, Zahlenfelder, Dreh- und Spiegelknöpfe), aber keine gleichwertig flüssige Tastaturgeste.
-- Bei Vorlagen mit festen Elementen (zum Beispiel dem Balken im Dreizeiler) ändert Enter in der Ebenen-Liste nichts; deren Text steht im Bereich der Vorlage.
+- Feste Elemente einer Vorlage (zum Beispiel der Balken im Dreizeiler) lassen sich nicht löschen; Entf sagt dann an, dass sie zur Vorlage gehören.
 - Alternativtext je Seite gibt es noch nicht.
 - Ein Durchlauf mit Screenreadern (NVDA, VoiceOver, TalkBack) steht aus; geprüft sind Bedienbaum, Tastaturwege und axe-Regeln.
 

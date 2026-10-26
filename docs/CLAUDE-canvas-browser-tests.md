@@ -41,17 +41,19 @@ Die Breite entscheidet vor dem Laden über das Layout: unter 900 px gilt die mob
 | Seite | `getByRole('group', { name: 'Seite 1' })` | |
 | Seiten-Knopf | `[data-page-focus-target]`, Name „Seite 1 bearbeiten" | Nur für Tastaturnutzer sichtbar (Fokus lässt ihn erscheinen); mit `.focus()` ansteuern, nicht klicken. Hierhin kehrt der Fokus zurück, wenn kein Ebenen-Eintrag da ist. |
 | Bühne als Inhaltsprüfung | `getByRole('img', { name: /^Seite 1:/ })` | `aria-label` ist die Kurzfassung der Seite: `Seite 1: Text: Neue Überschrift, Balken: …, Sonnenblume, Hintergrund`. Prüfe damit, **dass** ein Element da ist oder fehlt. |
-| Text-Editor | `getByRole('textbox', { name: 'Text bearbeiten' })` | Ist beim Öffnen fokussiert. |
+| Text-Editor | `getByRole('textbox', { name: 'Text bearbeiten' })` | Ist beim Öffnen fokussiert. Auch Störer und Badge. |
+| Balken-Zeile | `getByRole('textbox', { name: 'Zeile 1 bearbeiten' })` | Je Zeile ein Feld; immer nur eins offen. Ist beim Öffnen fokussiert. |
 | Ansagen | `locator('[role="status"][aria-live="polite"]')` | Eine Live-Region für Aktionen. Gesehen: `Gelöscht: Text: …`, `Rückgängig gemacht`, `Auswahl aufgehoben`. Der Text erscheint rund 50 ms nach der Aktion; mit `expect(...).toHaveCount` / `toHaveText` warten, nicht mit fester Pause. |
 
-Die Vorlage „dreizeilen" hat **keinen** Text, nur einen Balken (Enter und Entf wirken auf ihn nicht). Für einen bearbeitbaren Text: `getByRole('button', { name: 'Text hinzufügen' })` und dann `getByRole('button', { name: 'Titel', exact: true })` – das legt „Text: Neue Überschrift" an. Dieser Aufbau darf mit der Maus geschehen; das Szenario danach läuft nur mit Tastatur.
+Die Vorlage „dreizeilen" hat **keinen** Text-Eintrag, nur einen Balken. Enter/F2 öffnet dessen Zeilen (siehe Tasten); Entf löscht ihn nicht, sondern sagt `Gehört zur Vorlage und lässt sich nicht löschen: Balken: …` an. Für einen Text-Eintrag: `getByRole('button', { name: 'Text hinzufügen' })` und dann `getByRole('button', { name: 'Titel', exact: true })` – das legt „Text: Neue Überschrift" an. Dieser Aufbau darf mit der Maus geschehen; das Szenario danach läuft nur mit Tastatur.
 
 ## Tasten
 
 | Aktion | Taste | Beobachtung |
 | --- | --- | --- |
 | Ebene wählen | Pfeil rauf/runter in der Liste | Pfeil wählt, Fokus wandert mit. Runter und wieder hoch zurück wählt den Ausgangseintrag. |
-| Text bearbeiten | Enter oder F2 auf dem Eintrag | Fokus liegt danach im `textbox` „Text bearbeiten". |
+| Text bearbeiten | Enter oder F2 auf dem Eintrag | Fokus liegt danach im `textbox` „Text bearbeiten" (Balken: „Zeile 1 bearbeiten"). |
+| Balken-Zeile wechseln | Tab / Umschalt+Tab im Zeilenfeld | Übernimmt die Zeile und öffnet die nächste bzw. vorige („Zeile 2 bearbeiten"); der Fokus geht direkt hinüber. Tab hinter der letzten (Umschalt+Tab vor der ersten) übernimmt und gibt den Fokus an den Eintrag zurück. |
 | Text ersetzen | `ControlOrMeta+a`, dann tippen | `Control+a` allein wirkt auf macOS nicht. |
 | Bearbeiten beenden | Escape | Übernimmt, Fokus geht an den Ebenen-Eintrag zurück (Name zeigt den neuen Text). |
 | Löschen | Entf | Ansage `Gelöscht: …`, Fokus geht an den Nachbarn. Globales Kürzel, wirkt auch mit Fokus in der Liste. |
@@ -68,5 +70,5 @@ Der Bedienbaum sagt, **was** da ist, nicht **wo** und wie groß. Für genaue Geo
 - **`chrome-devtools`-MCP:** Das Browserprofil kann eine andere Sitzung halten. Dann das Playwright-Modul des Worktrees aus einem Skript fahren (`node_modules/playwright/index.mjs`), nicht auf den MCP warten.
 - **`react-scan`** hängt im Dev-Server ein Werkzeugfeld (`#react-scan-root`) ein, dessen Knopf axe als `button-name` meldet und das Klicks abfängt. Bei axe-Läufen `.exclude('#react-scan-root')`.
 - **Auswahl-Ansage fehlt scheinbar:** `useSelectionAnnouncement` wartet 400 ms und schweigt, solange der Fokus in der Ebenen-Liste liegt (dort liest der Screenreader den Eintrag selbst). Ansagen für Aktionen (Löschen, Rückgängig) sind davon nicht betroffen.
-- **Bedienen ohne Aufbau-Maus** geht nicht für das Anlegen von Text in „dreizeilen" (siehe oben); alles danach schon.
+- **Bedienen ohne Aufbau-Maus** geht nicht für das Anlegen eines Text-Eintrags in „dreizeilen" (siehe oben); die Balken-Zeilen und alles danach schon.
 - Eigene Probeskripte gehören in den Scratchpad, nicht ins Repo.
