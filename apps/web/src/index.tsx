@@ -11,6 +11,7 @@ import {
 
 import './assets/styles/index.css';
 import App from './App';
+import { installBrandFonts } from './assets/styles/common/brandFonts';
 import { trackFocusModality } from './components/utils/focusModality';
 import { reportKilledTab } from './lib/observability/reportKilledTab';
 import { isDesktopApp } from './utils/platform';
@@ -19,6 +20,8 @@ import { registerServiceWorker } from './utils/registerServiceWorker';
 // Before React renders: the composer autofocuses itself, so the attribute has
 // to be on <html> ahead of the first paint.
 trackFocusModality();
+
+installBrandFonts();
 
 // Tauri's webview ignores `<a download>`; route every shared export through the
 // native save dialog. Lazy, so the plugins never reach the web bundle's hot path.

@@ -76,9 +76,11 @@ After a deploy, check the log for both counts:
 
 Nothing user-facing breaks if the rollout is missed, which is exactly why it needs looking at.
 
+**Brand fonts** (GrueneType, GrueneTypeNeue, Gotham Narrow) come from the same checkout, `<INTERN_CONTENT_DIR>/fonts/`: the server renderers (sharepics, PDF, DOCX, slide metrics, subtitles) read them directly, and `GET /api/fonts/:file` serves them to web, desktop and app. If `fonts/` is missing the API still runs; sharepics and exports render in the fallback face and the log carries one error line per missing cut. **Roll the intern repo out before the API that expects it.**
+
 The LV agents (`lvPrAgents.ts` / `lvBuergerAgents.ts`) keep their systemRole in code — one template fans out to N agents, and its content is generic craft guidance plus a regional topic list.
 
-Guards against putting the prompts back: `build-skills.ts` and `build-agents.ts` refuse to emit a body, and `scripts/check-internal-content.mjs` (CI, `pnpm check:internal`) fails on a body in a public skill or agent file, a `skillSystemPrompt` or non-empty `systemRole` in a generated file, or anything tracked under `.external/` or `documentation/docs/intern/`.
+Guards against putting the prompts back: `build-skills.ts` and `build-agents.ts` refuse to emit a body, and `scripts/check-internal-content.mjs` (CI, `pnpm check:internal`) fails on a body in a public skill or agent file, a `skillSystemPrompt` or non-empty `systemRole` in a generated file, anything tracked under `.external/` or `documentation/docs/intern/`, or a tracked brand font file.
 
 ### System MCP sources (bahn/reise/wetter/news chat intents)
 

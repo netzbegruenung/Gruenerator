@@ -12,9 +12,12 @@ import { canvasVorlageFileEntrySchema } from '@gruenerator/contracts';
 import { renderSharepicToImage } from '../../../src/features/image-studio/renderSharepicToImage';
 import '../../../src/assets/styles/common/typography.css';
 
+import { installHarnessBrandFonts } from './brandFonts';
 import './canvasHarness';
 
 import type { CanvasConfigId } from '@gruenerator/canvas-editor';
+
+installHarnessBrandFonts();
 
 async function toWebp(dataUrl: string, width: number): Promise<string> {
   const img = new Image();

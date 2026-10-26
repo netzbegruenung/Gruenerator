@@ -33,13 +33,13 @@ interface FontConfig {
 
 export async function checkFiles(): Promise<void> {
   const files: FileConfig[] = [
-    { path: FONT_PATH, name: 'GrueneTypeNeue Schriftartdatei' },
     { path: PTSANS_REGULAR_PATH, name: 'PTSans Regular Schriftartdatei' },
     { path: PTSANS_BOLD_PATH, name: 'PTSans Bold Schriftartdatei' },
-    // PTSans-Italic steht bewusst NICHT hier: `checkFiles` wirft, und diese
-    // Liste läuft bei jeder Anfrage. Fehlt der Kursivschnitt, meldet ihn
-    // `registerFonts` im Log und der Text wird synthetisch geneigt gesetzt —
-    // ein kosmetischer Mangel, der keine 500er-Antwort wert ist.
+    // PTSans-Italic und die Hausschriften stehen bewusst NICHT hier:
+    // `checkFiles` wirft, und diese Liste läuft bei jeder Anfrage. Fehlt ein
+    // Schnitt (die Hausschriften kommen aus INTERN_CONTENT_DIR), meldet ihn
+    // `registerFonts` im Log und der Text steht in der Ersatzschrift — ein
+    // Mangel, der keine 500er-Antwort wert ist.
     { path: SUNFLOWER_PATH, name: 'Sonnenblumen-Bild' },
   ];
 
