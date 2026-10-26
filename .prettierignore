@@ -68,3 +68,4 @@ packages/canvas-editor/src/composer/__golden__/
 # nicht ins Repo gehört.
 apps/api/evals/last-run.json
 apps/api/evals/judge-verdicts.json
+packages/canvas-editor/src/utils/__golden__/
