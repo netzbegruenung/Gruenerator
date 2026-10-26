@@ -74,7 +74,7 @@ export function FloatingColorPicker({
             }}
             title="Textfarbe ändern"
             type="button"
-            aria-expanded="false"
+            aria-expanded={isExpanded}
             aria-label="Farbpalette öffnen"
           >
             <span className="text-[15px] font-bold leading-none">A</span>
@@ -93,7 +93,7 @@ export function FloatingColorPicker({
             }}
             title="Farbe ändern"
             type="button"
-            aria-expanded="false"
+            aria-expanded={isExpanded}
             aria-label="Farbpalette öffnen"
           />
         )}
@@ -105,6 +105,8 @@ export function FloatingColorPicker({
     <div
       className="flex items-center gap-2 px-1 animate-canvas-expand-width max-canvas-mobile:gap-[18px] max-canvas-mobile:px-[9px]"
       ref={containerRef}
+      role="group"
+      aria-label="Farbpalette"
     >
       {colorOptions.map((color) => (
         <button
@@ -120,6 +122,8 @@ export function FloatingColorPicker({
             onColorSelect(color.value);
           }}
           title={color.name}
+          aria-label={color.name}
+          aria-pressed={currentColor === color.value}
           type="button"
         />
       ))}

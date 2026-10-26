@@ -54,6 +54,7 @@ export const CanvasMetaBar = memo(function CanvasMetaBar({
         className={zoomBtn}
         onClick={() => onZoomChange(Math.max(minZoom, zoom - 0.1))}
         title="Verkleinern"
+        aria-label="Verkleinern"
         type="button"
       >
         <PiMagnifyingGlassMinus size={14} />
@@ -72,6 +73,7 @@ export const CanvasMetaBar = memo(function CanvasMetaBar({
         className={zoomBtn}
         onClick={() => onZoomChange(Math.min(maxZoom, zoom + 0.1))}
         title="Vergrößern"
+        aria-label="Vergrößern"
         type="button"
       >
         <PiMagnifyingGlassPlus size={14} />
@@ -92,6 +94,8 @@ export const CanvasMetaBar = memo(function CanvasMetaBar({
         className={zoomBtn}
         onClick={handleFullscreen}
         title={isFullscreen ? 'Vollbild beenden' : 'Vollbild'}
+        aria-label="Vollbild"
+        aria-pressed={isFullscreen}
         type="button"
       >
         <PiArrowsOut size={14} />

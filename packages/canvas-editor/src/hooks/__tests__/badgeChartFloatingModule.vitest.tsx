@@ -117,7 +117,7 @@ describe('veranstaltung date circle', () => {
     );
 
     expect(screen.getByLabelText('Farbpalette öffnen')).toBeInTheDocument();
-    expect(screen.getByLabelText('Opacity')).toBeInTheDocument();
+    expect(screen.getByLabelText('Deckkraft')).toBeInTheDocument();
   });
 });
 

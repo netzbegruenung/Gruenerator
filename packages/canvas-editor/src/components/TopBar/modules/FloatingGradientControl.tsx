@@ -28,7 +28,7 @@ function StopSwatches({
       {BRAND_COLORS.map((c) => (
         <button
           key={c.id}
-          className="size-5 rounded-full border border-black/10 hover:scale-110 transition-transform"
+          className="size-6 rounded-full border border-black/10 hover:scale-110 transition-transform"
           style={{
             backgroundColor: c.value,
             outline: selected === c.value ? '2px solid var(--editor-accent)' : 'none',
@@ -36,6 +36,8 @@ function StopSwatches({
           }}
           onClick={() => onSelect(c.value)}
           title={c.name}
+          aria-label={c.name}
+          aria-pressed={selected === c.value}
           type="button"
         />
       ))}

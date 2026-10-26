@@ -29,6 +29,7 @@ export function FloatingFontSizeControl({
         className={fontBtn}
         onClick={handleDecrease}
         title="Schrift verkleinern"
+        aria-label="Schrift verkleinern"
         type="button"
       >
         <FaMinus size={10} />
@@ -36,7 +37,13 @@ export function FloatingFontSizeControl({
       <span className="text-[13px] font-semibold text-[var(--editor-text)] min-w-8 text-center tabular-nums">
         {Math.round(fontSize)}
       </span>
-      <button className={fontBtn} onClick={handleIncrease} title="Schrift vergrößern" type="button">
+      <button
+        className={fontBtn}
+        onClick={handleIncrease}
+        title="Schrift vergrößern"
+        aria-label="Schrift vergrößern"
+        type="button"
+      >
         <FaPlus size={10} />
       </button>
     </div>
