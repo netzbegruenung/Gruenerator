@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef } from 'react';
 
 import { useCanvasStoreSelector } from '../stores/CanvasStoreProvider';
-import { paintCropGhosts } from '../utils/cropGhost';
+import { paintCropGhosts, visibleContainerRect } from '../utils/cropGhost';
 
 import type Konva from 'konva';
 
@@ -10,7 +10,9 @@ import type Konva from 'konva';
  * groß wie die Seite und schneidet alles darüber hinaus ab; diese DOM-Fläche
  * liegt im Bühnen-Container, zeichnet nach jedem Konva-Frame die Restbild-
  * Knoten (`CROP_GHOST_NAME`) nach und folgt damit Ziehen und Zoomen ohne
- * React-Zustand. Exporte rendern nur die Bühne und sehen sie nie.
+ * React-Zustand. Gezeichnet wird nur der sichtbare Ausschnitt, damit die
+ * Fläche bei starkem Zoom nicht über die Canvas-Grenze von iOS wächst.
+ * Exporte rendern nur die Bühne und sehen sie nie.
  */
 export function CropGhostOverlay({ getStage }: { getStage: () => Konva.Stage | null }) {
   const active = useCanvasStoreSelector((s) => s.croppingElement !== null);
@@ -20,11 +22,33 @@ export function CropGhostOverlay({ getStage }: { getStage: () => Konva.Stage | n
     const stage = getStage();
     const canvas = canvasRef.current;
     if (!active || !stage || !canvas) return;
-    const paint = () => paintCropGhosts(stage, canvas);
+    const host = canvas.parentElement;
+    const paint = () => paintCropGhosts(stage, canvas, host ? visibleContainerRect(host) : null);
     const layers = stage.getLayers();
     layers.forEach((layer) => layer.on('draw.cropGhost', paint));
+    // Scrollen und Zoomen verschieben den sichtbaren Ausschnitt ohne Konva-Frame.
+    const viewKey = () => {
+      const box = host?.getBoundingClientRect();
+      return box
+        ? `${box.left},${box.top},${box.width},${window.innerWidth},${window.innerHeight}`
+        : '';
+    };
+    let lastView = viewKey();
+    let frame = 0;
+    const watch = () => {
+      const view = viewKey();
+      if (view !== lastView) {
+        lastView = view;
+        paint();
+      }
+      frame = requestAnimationFrame(watch);
+    };
     paint();
-    return () => layers.forEach((layer) => layer.off('draw.cropGhost'));
+    frame = requestAnimationFrame(watch);
+    return () => {
+      cancelAnimationFrame(frame);
+      layers.forEach((layer) => layer.off('draw.cropGhost'));
+    };
   }, [active, getStage]);
 
   if (!active) return null;

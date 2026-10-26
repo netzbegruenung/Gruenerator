@@ -104,12 +104,13 @@ export interface CanvasEditorActions<
   /**
    * Schließt die Sitzung ab: `discard` verwirft jeden Eintrag, der in ihr
    * entstand, `squash` legt sie zu einem Eintrag zusammen. Ein Verlauf, der
-   * hinter den Beginn zurückgenommen oder neu aufgebaut wurde, bleibt unberührt.
+   * hinter den Beginn zurückgenommen oder neu aufgebaut wurde, bleibt unberührt;
+   * dann liefert sie `false`.
    */
   endHistorySession: (
     mark: HistorySessionMark<TComponentState>,
     outcome: 'discard' | 'squash'
-  ) => void;
+  ) => boolean;
   setStateRestorationCallback: (callback: ((state: TComponentState) => void) | null) => void;
 
   setSelectedElement: (id: string | null) => void;
@@ -353,9 +354,9 @@ export function createCanvasEditorStore<
       endHistorySession: ({ start, next }, outcome) => {
         const { history, historyIndex } = get();
         const startIndex = history.indexOf(start);
-        if (startIndex < 0 || historyIndex < startIndex) return;
+        if (startIndex < 0 || historyIndex < startIndex) return false;
         // Jede Speicherung kappt den Redo-Rest: ist er noch da, kam nichts dazu.
-        if ((history[startIndex + 1] ?? null) === next) return;
+        if ((history[startIndex + 1] ?? null) === next) return true;
         const kept = history.slice(0, startIndex + 1);
         const current = history[historyIndex];
         const unchanged =
@@ -372,6 +373,7 @@ export function createCanvasEditorStore<
             s.historyIndex = startIndex + 1;
           });
         }
+        return true;
       },
 
       setStateRestorationCallback: (callback) =>

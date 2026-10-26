@@ -120,8 +120,11 @@ export function useCanvasHistorySetup<T extends Record<string, unknown>>(
   );
 
   const checkpoint = useCallback(() => {
-    if (batchDepthRef.current === 0) saveNow(collectStateRef.current());
-  }, [saveNow]);
+    if (batchDepthRef.current !== 0) return;
+    // Wie vor einem Batch: ein gerade angestoßener Sofort-Save bleibt ein eigener Schritt.
+    commitPendingSave();
+    saveNow(collectStateRef.current());
+  }, [saveNow, commitPendingSave]);
 
   // Save initial state to history on mount (deferred to avoid render loop)
   useEffect(() => {

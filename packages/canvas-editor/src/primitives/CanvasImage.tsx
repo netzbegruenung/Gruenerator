@@ -13,7 +13,7 @@
  */
 
 import Konva from 'konva';
-import { useRef, useEffect, useCallback, memo } from 'react';
+import { useRef, useEffect, useCallback, useMemo, memo } from 'react';
 import { Image as KonvaImage, Transformer } from 'react-konva';
 
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
@@ -31,6 +31,7 @@ import {
   CROP_GHOST_NAME,
   CROP_GHOST_OPACITY,
   cropGhostAttrs,
+  cropGhostSource,
   placeCropGhost,
 } from '../utils/cropGhost';
 import { getActiveImageFilters, imageFilterAttrs } from '../utils/imageFilters';
@@ -200,7 +201,17 @@ function CanvasImageInner({
     cropping && natural && part
       ? (straight ?? photoRectAround(natural, { x, y, width, height }))
       : null;
+  // Begradigt dreht sich das Restbild samt gefilterter Kopie über `rotation` mit.
   const ghostAttrs = ghost ? cropGhostAttrs(ghost, mirror, turnDeg) : null;
+  // Außerhalb des Rahmens dieselbe Bearbeitung wie innen (Weichzeichner, S/W …).
+  const ghostWidth = ghost ? Math.round(ghost.width) : 0;
+  const ghostImage = useMemo(
+    () =>
+      image && ghostWidth
+        ? cropGhostSource(image, adjustments ?? null, ghostWidth, color ?? null)
+        : null,
+    [image, adjustments, color, ghostWidth]
+  );
 
   useEffect(() => {
     if (selected && trRef.current && imageRef.current) {
@@ -576,11 +587,11 @@ function CanvasImageInner({
 
   return (
     <>
-      {ghostAttrs && (
+      {ghostAttrs && ghostImage && (
         <KonvaImage
           ref={ghostRef}
           name={`selection-chrome ${CROP_GHOST_NAME}`}
-          image={image}
+          image={ghostImage}
           opacity={CROP_GHOST_OPACITY}
           listening={false}
           {...ghostAttrs}
