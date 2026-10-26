@@ -71,6 +71,25 @@ const GOLDEN_ONLY: Record<string, SharepicSpec> = {
       )
     ),
   },
+  // A button and a petition's hint on a light, a grass-green and a dark ground.
+  knopfGruende: {
+    locale: 'de-DE',
+    slides: (['weiss', 'grasgruen', 'tanne'] as const).map((color) => ({
+      background: { kind: 'farbe' as const, color },
+      position: 'mitte' as const,
+      align: 'links' as const,
+      items: [
+        {
+          type: 'aufruf' as const,
+          stil: 'petition' as const,
+          text: 'Unterschreib jetzt!',
+          hinweis: 'example.org/petition',
+        },
+        { type: 'button' as const, text: 'Jetzt mitmachen' },
+      ],
+      logo: false,
+    })),
+  },
 };
 // Ground sweep: every slide with an ink that depends on its ground (topic
 // badges, the ghost numeral, countdown digits, hand marks), set again on a
