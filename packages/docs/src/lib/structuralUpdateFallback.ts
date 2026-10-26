@@ -34,20 +34,24 @@ function joinTableRows(blocks: unknown[]): unknown[] {
 }
 
 /**
- * Makes `add` insert each table whole.
+ * Makes `add` insert each block whole.
  *
  * xl-ai streams an `add` by inserting the first parse of a block and then
- * updating it with every later prefix. A table passes through states that are
- * no table at all (`| A | B |` alone is a paragraph), and the update from
- * paragraph to table throws ("Cannot join paragraph onto table", #4237). So a
- * table that is still the last streamed block is held back and inserted once
- * it is complete — when the stream ends or the next block starts.
+ * updating it with every later prefix. Most block types pass through states
+ * of another type: `-` and `##` are paragraphs before they become a list item
+ * or a heading, `| A | B |` alone is no table. xl-ai's update diff cannot
+ * change a block's type and its content in one go and throws ("Slice has
+ * openStart or openEnd > 0, but structure=false", GlitchTip #706; "Cannot
+ * join paragraph onto table", #4237). So the block that is still being
+ * streamed — the last one of a partial chunk — is held back and inserted once
+ * it is complete, when the next block starts or the stream ends. Inserting
+ * still types it in character by character.
  *
  * The add tool resets its list of inserted blocks only on a chunk that starts
  * an operation; if that chunk was held back, the next one passed on must start
  * it instead, or it would update the blocks of the previous operation.
  */
-function addTablesWhole(tool: StreamToolInstance): StreamToolInstance {
+function addBlocksWhole(tool: StreamToolInstance): StreamToolInstance {
   return {
     ...tool,
     executor: () => {
@@ -58,8 +62,16 @@ function addTablesWhole(tool: StreamToolInstance): StreamToolInstance {
           const op = chunk.operation as AddOp;
           if (op.type !== 'add') return inner.execute(chunk, signal);
 
-          const blocks = joinTableRows(op.blocks);
-          if (chunk.isPossiblyPartial && isTableText(blocks[blocks.length - 1])) {
+          let blocks = joinTableRows(op.blocks);
+          if (chunk.isPossiblyPartial) {
+            blocks = blocks.slice(0, -1);
+            // A string that has only just opened may still be the next row of
+            // the table before it.
+            const streaming = op.blocks[op.blocks.length - 1];
+            if (typeof streaming === 'string' && !streaming.trim() && isTableText(blocks.at(-1)))
+              blocks = blocks.slice(0, -1);
+          }
+          if (blocks.length === 0) {
             if (!chunk.isUpdateToPreviousOperation) startHeldBack = true;
             return true;
           }
@@ -154,7 +166,7 @@ export function withStructuralUpdateFallback(): StreamToolsProvider<string> {
             }
       ) as StreamTools;
       return withUpdateFallback.map((tool) =>
-        tool.name === 'add' ? addTablesWhole(tool) : tool
+        tool.name === 'add' ? addBlocksWhole(tool) : tool
       ) as StreamTools;
     },
   };
