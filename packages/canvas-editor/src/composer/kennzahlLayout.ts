@@ -1,6 +1,6 @@
+import { onGround } from '../brand/composerBrand';
 import { createShape } from '../utils/shapes';
 
-import { SHAREPIC_COLOR_HEX } from './chromeParts';
 import { type Placed, type RechnungItem, type ZahlItem } from './composeTypes';
 import { evenStops } from './sharepicGround';
 import { GAP } from './sharepicLayoutConstants';
@@ -10,8 +10,8 @@ import { type BuildPass, type SlideCtx } from './slideContext';
 export function layoutZahl(ctx: SlideCtx, item: ZahlItem, id: string, pass: BuildPass): Placed[] {
   const {
     theme,
+    brand,
     headFamily,
-    isAt,
     canvas,
     column,
     xAlign,
@@ -51,12 +51,7 @@ export function layoutZahl(ctx: SlideCtx, item: ZahlItem, id: string, pass: Buil
           x: cx - d / 2,
           width: d,
           align: 'center',
-          fill:
-            onGrass || (!isAt && !onLight)
-              ? SHAREPIC_COLOR_HEX.dunkeltanne
-              : isAt && !onLight
-                ? theme.colors.primary
-                : '#FFFFFF',
+          fill: onGround(brand.countdownInk, { onLight, onGrass }),
           lineHeight: 1,
           type: 'header',
           shadowOpacity: 0,

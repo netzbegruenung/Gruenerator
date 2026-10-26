@@ -21,6 +21,8 @@ import { type BrandPack } from '@ggraphic/core';
 
 import { SYSTEM_ASSETS } from '../utils/canvasAssets';
 
+import { type ComposerBrand } from './composerBrand';
+
 import type { BackgroundColorOption } from '../sidebar/types';
 
 export type BrandLocale = 'de-DE' | 'de-AT';
@@ -74,8 +76,30 @@ export interface BrandTheme {
  */
 export const HELLGRUEN_GLOW = ['#318437', '#287A35', '#1B6630'] as const;
 
-/** Both packs set a quote mark, which every BrandTheme carries. */
-type GruenePack = BrandPack & { quoteMark: { src: string } };
+/**
+ * Both packs set a quote mark, which every BrandTheme carries, and the
+ * composer's per-brand values (see composerBrand.ts).
+ */
+type GruenePack = BrandPack & {
+  id: GrueneBrandId;
+  quoteMark: { src: string };
+  composer: ComposerBrand;
+};
+
+/** The Grünerator's packs; per-brand data elsewhere (themes) is keyed by them. */
+export type GrueneBrandId = 'gruene-de' | 'gruene-at';
+
+// DE composer inks. Literal on purpose: the composer's SHAREPIC_COLOR_HEX,
+// KLEE and LIME import this module, so importing them back would be a cycle.
+const DE_TANNE = '#005538';
+const DE_DUNKELTANNE = '#00261A';
+const DE_GRASGRUEN = '#00CC4F';
+const DE_KLEE = '#008939';
+const DE_LIME = '#BEFF60';
+// AT colours that both `colors` and `composer` name.
+const AT_DUNKELGRUEN = '#257639';
+const AT_GELB = '#FCEC00';
+const AT_MAGENTA = '#E4007C';
 
 export const GRUENE_DE: GruenePack = {
   id: 'gruene-de',
@@ -104,17 +128,81 @@ export const GRUENE_DE: GruenePack = {
   lineHeightFactor: 1.2,
   logo: null,
   quoteMark: { src: SYSTEM_ASSETS.quote.white.src },
+  composer: {
+    lineHeight: { headline: 0.96, absatz: 1.22, aufruf: 1 },
+    fontSize: {
+      weiter: 30,
+      absatz: 48,
+      steckbriefGruss: 52,
+      steckbriefName: 180,
+      steckbriefTrait: 64,
+    },
+    absatzGap: 0.6,
+    headlineFace: { absatz: false, infografikTitel: false, datum: false },
+    features: {
+      markerBox: true,
+      zeilenboxen: true,
+      kopfband: true,
+      widowGuard: true,
+      vergleichSpalten: true,
+      hinweisPill: true,
+    },
+    darkText: DE_DUNKELTANNE,
+    // Klee on light ground, white on grass green, lime on dark ground and photos.
+    accent: { fill: { light: DE_KLEE, grass: '#FFFFFF', dark: DE_LIME }, emphasis: false },
+    // Klee on light ground, Tanne on grass green, lime on dark ground and photos.
+    badge: {
+      light: { fill: DE_KLEE, ink: '#FFFFFF' },
+      grass: { fill: DE_TANNE, ink: '#FFFFFF' },
+      dark: { fill: DE_LIME, ink: DE_DUNKELTANNE },
+    },
+    // Tanne on light ground, lime everywhere else, grass green included.
+    button: {
+      light: { fill: DE_TANNE, ink: '#FFFFFF' },
+      dark: { fill: DE_LIME, ink: DE_DUNKELTANNE },
+    },
+    cardAccent: DE_KLEE,
+    ghostNumeral: { fill: { light: DE_GRASGRUEN, dark: DE_LIME }, opacity: 0.2 },
+    countdownInk: { light: '#FFFFFF', dark: DE_DUNKELTANNE },
+    handMarks: { white: '#FFFFFF', green: DE_KLEE, greenOnGrass: DE_TANNE },
+    quoteStyle: 'card',
+    // The "BÜNDNIS 90/DIE GRÜNEN" word mark (710 × 379), measured on the posts
+    // (10/2026, Dd_BXcKiDy2/03, Ddouf0QiL1w/02): ~250–300 px, black in a tone
+    // of the ground (muted on light, deep on grass green), white on dark.
+    logo: {
+      asset: {
+        light: { assetId: 'gruene-de-logo-schwarz', opacity: 0.5 },
+        grass: { assetId: 'gruene-de-logo-schwarz', opacity: 0.8 },
+        dark: { assetId: 'gruene-de-logo-weiss', opacity: 1 },
+      },
+      size: 260,
+      height: (260 * 379) / 710,
+      bottom: 80,
+    },
+    // As on the current posts: Grasgrün with Dunkeltanne text, Tanne with
+    // white on a grass-green surface, 7° ascending, as large as the text
+    // block lets it grow.
+    stoerer: {
+      rotation: -7,
+      colors: {
+        light: { fill: DE_GRASGRUEN, ink: DE_DUNKELTANNE },
+        grass: { fill: DE_TANNE, ink: '#FFFFFF' },
+        dark: { fill: DE_GRASGRUEN, ink: DE_DUNKELTANNE },
+      },
+      size: 'fit',
+    },
+  },
 };
 
 export const GRUENE_AT: GruenePack = {
   id: 'gruene-at',
   name: 'Die Grünen Österreich',
   colors: {
-    primary: '#257639', // Dunkelgrün — Hauptfarbe
+    primary: AT_DUNKELGRUEN, // Hauptfarbe
     secondary: '#56af31', // Hellgrün
-    accent: '#FCEC00', // Gelb — Headline-Hervorhebung
-    accentOnLight: '#257639', // Dunkelgrün, 5.63:1 on white (Hellgrün: 2.77:1)
-    attention: '#E4007C', // Magenta — Störer
+    accent: AT_GELB, // Headline-Hervorhebung
+    accentOnLight: AT_DUNKELGRUEN, // 5.63:1 on white (Hellgrün: 2.77:1)
+    attention: AT_MAGENTA, // Störer
     textOnDark: '#ffffff',
     textOnLight: '#257639',
   },
@@ -139,6 +227,70 @@ export const GRUENE_AT: GruenePack = {
   },
   // Weiß in Konturform wie in Deutschland (CI 2026 S. 77, Gewessler-Posts).
   quoteMark: { src: SYSTEM_ASSETS.quote.white.src },
+  composer: {
+    lineHeight: { headline: 0.95, absatz: 1.08, aufruf: 0.98 },
+    fontSize: {
+      weiter: 34,
+      absatz: 70,
+      steckbriefGruss: 46,
+      steckbriefName: 150,
+      steckbriefTrait: 58,
+    },
+    // AT stacks its paragraphs ~80 px apart on the posts.
+    absatzGap: 0.9,
+    // Gotham Book has no bold cut; AT sets the whole date circle in the
+    // poster face (Dc_L5vriG5z), where a synthetic bold would only smear it.
+    headlineFace: { absatz: true, infografikTitel: true, datum: true },
+    // AT highlights with its yellow Vollkorn accent only and has no pills,
+    // boxes or bands; a hint stays a line of text.
+    features: {
+      markerBox: false,
+      zeilenboxen: false,
+      kopfband: false,
+      widowGuard: false,
+      vergleichSpalten: false,
+      hinweisPill: false,
+    },
+    darkText: AT_DUNKELGRUEN,
+    // Yellow in Vollkorn Black Italic, its dark green on light ground.
+    accent: { fill: { light: AT_DUNKELGRUEN, dark: AT_GELB }, emphasis: true },
+    // The yellow accent on dark ground, its dark green on white.
+    badge: {
+      light: { fill: AT_DUNKELGRUEN, ink: '#FFFFFF' },
+      dark: { fill: AT_GELB, ink: AT_DUNKELGRUEN },
+    },
+    button: {
+      light: { fill: AT_DUNKELGRUEN, ink: '#FFFFFF' },
+      dark: { fill: AT_GELB, ink: AT_DUNKELGRUEN },
+    },
+    cardAccent: AT_DUNKELGRUEN,
+    // A third light green beside #56af31 and BILD_TINT's #56AF31, kept as found.
+    ghostNumeral: { fill: { light: '#56AE33', dark: '#56AE33' }, opacity: 0.55 },
+    countdownInk: { light: '#FFFFFF', dark: AT_DUNKELGRUEN },
+    handMarks: { white: AT_GELB, green: AT_DUNKELGRUEN },
+    // As on the Gewessler posts.
+    quoteStyle: 'poster',
+    // The "G DIE GRÜNEN" logo with claim (1410 × 1239), ~210 px: green on
+    // light ground, white elsewhere.
+    logo: {
+      asset: {
+        light: { assetId: 'gruene-at-logo-gruen', opacity: 1 },
+        dark: { assetId: 'gruene-at-logo-weiss', opacity: 1 },
+      },
+      size: 210,
+      height: (210 * 1239) / 1410,
+      bottom: 91,
+    },
+    // Magenta with white text on every ground, one size for every text.
+    stoerer: {
+      rotation: -8,
+      colors: {
+        light: { fill: AT_MAGENTA, ink: '#FFFFFF' },
+        dark: { fill: AT_MAGENTA, ink: '#FFFFFF' },
+      },
+      size: { radius: 125, fontSize: 38 },
+    },
+  },
 };
 
 /** The BrandTheme a pack stands for — the shape getBrandTheme() has always returned. */
@@ -185,6 +337,11 @@ const SURFACE_GLOWS: Record<string, readonly string[]> = Object.fromEntries(
  */
 export function surfaceGlow(color: string): readonly string[] | null {
   return SURFACE_GLOWS[color.toLowerCase()] ?? null;
+}
+
+/** Resolve a brand pack, falling back to de-DE for unknown/undefined locales. */
+export function getBrandPack(locale?: BrandLocale | string | null): GruenePack {
+  return locale === 'de-AT' ? GRUENE_AT : GRUENE_DE;
 }
 
 /** Resolve a brand theme, falling back to de-DE for unknown/undefined locales. */

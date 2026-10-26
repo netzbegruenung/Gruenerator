@@ -1,0 +1,1426 @@
+{
+ "templateType": "freeform",
+ "format": "post-portrait",
+ "slides": [
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#FFFFFF",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-infografik-0-titel",
+     "text": "Rad",
+     "type": "body",
+     "x": 70,
+     "y": 776.275,
+     "width": 454,
+     "fontSize": 53,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15
+    },
+    {
+     "id": "sc-0-infografik-0-text",
+     "text": "Kurze Wege.",
+     "type": "body",
+     "x": 199.5,
+     "y": 849.225,
+     "width": 195,
+     "fontSize": 35,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.3
+    },
+    {
+     "id": "sc-0-infografik-1-titel",
+     "text": "Bus",
+     "type": "body",
+     "x": 556,
+     "y": 776.275,
+     "width": 454,
+     "fontSize": 53,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-0-infografik-1-bild-badge",
+     "type": "circle",
+     "x": 783,
+     "y": 560.275,
+     "width": 304.2,
+     "height": 304.2,
+     "fill": "#008939",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-seite-0",
+     "type": "circle",
+     "x": 488,
+     "y": 51,
+     "width": 14,
+     "height": 14,
+     "fill": "#00261A",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-seite-1",
+     "type": "circle",
+     "x": 514,
+     "y": 51,
+     "width": 14,
+     "height": 14,
+     "fill": "#00261A",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.35
+    },
+    {
+     "id": "sc-seite-2",
+     "type": "circle",
+     "x": 540,
+     "y": 51,
+     "width": 14,
+     "height": 14,
+     "fill": "#00261A",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.35
+    },
+    {
+     "id": "sc-seite-3",
+     "type": "circle",
+     "x": 566,
+     "y": 51,
+     "width": 14,
+     "height": 14,
+     "fill": "#00261A",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.35
+    },
+    {
+     "id": "sc-seite-4",
+     "type": "circle",
+     "x": 592,
+     "y": 51,
+     "width": 14,
+     "height": 14,
+     "fill": "#00261A",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.35
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [
+    {
+     "id": "sc-0-infografik-0-bild",
+     "src": "/media/ki:scene-ref-0000000002",
+     "fileName": "Rad",
+     "x": 102,
+     "y": 365.275,
+     "width": 390,
+     "height": 390,
+     "rotation": 0,
+     "scale": 1,
+     "opacity": 1
+    }
+   ],
+   "selectedIcons": [
+    "sc-0-infografik-1-bild-icon",
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-0-infografik-1-bild-icon": {
+     "iconId": "tabler:bus",
+     "x": 783,
+     "y": 560.275,
+     "scale": 1.39425,
+     "rotation": 0,
+     "color": "#FFFFFF",
+     "opacity": 1
+    },
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-0-infografik-0-bild",
+    "sc-0-infografik-0-titel",
+    "sc-0-infografik-0-text",
+    "sc-0-infografik-1-bild-badge",
+    "sc-0-infografik-1-bild-icon",
+    "sc-0-infografik-1-titel",
+    "sc-pfeil",
+    "sc-seite-0",
+    "sc-seite-1",
+    "sc-seite-2",
+    "sc-seite-3",
+    "sc-seite-4",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#FFFFFF",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-infografik-0-titel",
+     "text": "Rad",
+     "type": "body",
+     "x": 476,
+     "y": 416.3,
+     "width": 534,
+     "fontSize": 48,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15
+    },
+    {
+     "id": "sc-0-infografik-0-text",
+     "text": "Kurze Wege.",
+     "type": "body",
+     "x": 476,
+     "y": 483.5,
+     "width": 189,
+     "fontSize": 34,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.3
+    },
+    {
+     "id": "sc-0-infografik-1-titel",
+     "text": "Bus",
+     "type": "body",
+     "x": 476,
+     "y": 760.4,
+     "width": 534,
+     "fontSize": 48,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15
+    },
+    {
+     "id": "sc-0-infografik-0-nummer",
+     "text": "1",
+     "type": "body",
+     "x": 70,
+     "y": 448,
+     "width": 72,
+     "fontSize": 40,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.2
+    },
+    {
+     "id": "sc-0-infografik-1-nummer",
+     "text": "2",
+     "type": "body",
+     "x": 70,
+     "y": 764,
+     "width": 72,
+     "fontSize": 40,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.2
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-0-infografik-1-bild-badge",
+     "type": "circle",
+     "x": 307,
+     "y": 788,
+     "width": 219.96,
+     "height": 219.96,
+     "fill": "#008939",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-0-infografik-linie",
+     "type": "rect",
+     "x": 106,
+     "y": 630,
+     "width": 6,
+     "height": 316,
+     "fill": "#008939",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-0-infografik-0-nummer-kreis",
+     "type": "circle",
+     "x": 106,
+     "y": 472,
+     "width": 72,
+     "height": 72,
+     "fill": "#008939",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-0-infografik-1-nummer-kreis",
+     "type": "circle",
+     "x": 106,
+     "y": 788,
+     "width": 72,
+     "height": 72,
+     "fill": "#008939",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-seite-0",
+     "type": "circle",
+     "x": 488,
+     "y": 51,
+     "width": 14,
+     "height": 14,
+     "fill": "#00261A",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.35
+    },
+    {
+     "id": "sc-seite-1",
+     "type": "circle",
+     "x": 514,
+     "y": 51,
+     "width": 14,
+     "height": 14,
+     "fill": "#00261A",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-seite-2",
+     "type": "circle",
+     "x": 540,
+     "y": 51,
+     "width": 14,
+     "height": 14,
+     "fill": "#00261A",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.35
+    },
+    {
+     "id": "sc-seite-3",
+     "type": "circle",
+     "x": 566,
+     "y": 51,
+     "width": 14,
+     "height": 14,
+     "fill": "#00261A",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.35
+    },
+    {
+     "id": "sc-seite-4",
+     "type": "circle",
+     "x": 592,
+     "y": 51,
+     "width": 14,
+     "height": 14,
+     "fill": "#00261A",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.35
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [
+    {
+     "id": "sc-0-infografik-0-bild",
+     "src": "/media/ki:scene-ref-0000000002",
+     "fileName": "Rad",
+     "x": 166,
+     "y": 331,
+     "width": 282,
+     "height": 282,
+     "rotation": 0,
+     "scale": 1,
+     "opacity": 1
+    }
+   ],
+   "selectedIcons": [
+    "sc-0-infografik-1-bild-icon",
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-0-infografik-1-bild-icon": {
+     "iconId": "tabler:bus",
+     "x": 307,
+     "y": 788,
+     "scale": 1.00815,
+     "rotation": 0,
+     "color": "#FFFFFF",
+     "opacity": 1
+    },
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-0-infografik-0-bild",
+    "sc-0-infografik-0-titel",
+    "sc-0-infografik-0-text",
+    "sc-0-infografik-1-bild-badge",
+    "sc-0-infografik-1-bild-icon",
+    "sc-0-infografik-1-titel",
+    "sc-0-infografik-linie",
+    "sc-0-infografik-0-nummer-kreis",
+    "sc-0-infografik-0-nummer",
+    "sc-0-infografik-1-nummer-kreis",
+    "sc-0-infografik-1-nummer",
+    "sc-pfeil",
+    "sc-seite-0",
+    "sc-seite-1",
+    "sc-seite-2",
+    "sc-seite-3",
+    "sc-seite-4",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#FFFFFF",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-infografik-0-titel",
+     "text": "300 Becher",
+     "type": "body",
+     "x": 70,
+     "y": 710.5,
+     "width": 940,
+     "fontSize": 188,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15
+    },
+    {
+     "id": "sc-0-infografik-0-text",
+     "text": "pro Tag",
+     "type": "body",
+     "x": 441,
+     "y": 946.7,
+     "width": 198,
+     "fontSize": 56,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.3
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-seite-0",
+     "type": "circle",
+     "x": 488,
+     "y": 51,
+     "width": 14,
+     "height": 14,
+     "fill": "#00261A",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.35
+    },
+    {
+     "id": "sc-seite-1",
+     "type": "circle",
+     "x": 514,
+     "y": 51,
+     "width": 14,
+     "height": 14,
+     "fill": "#00261A",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.35
+    },
+    {
+     "id": "sc-seite-2",
+     "type": "circle",
+     "x": 540,
+     "y": 51,
+     "width": 14,
+     "height": 14,
+     "fill": "#00261A",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-seite-3",
+     "type": "circle",
+     "x": 566,
+     "y": 51,
+     "width": 14,
+     "height": 14,
+     "fill": "#00261A",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.35
+    },
+    {
+     "id": "sc-seite-4",
+     "type": "circle",
+     "x": 592,
+     "y": 51,
+     "width": 14,
+     "height": 14,
+     "fill": "#00261A",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.35
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [
+    {
+     "id": "sc-0-infografik-0-bild",
+     "src": "/media/ki:scene-ref-0000000001",
+     "fileName": "300 Becher",
+     "x": 324,
+     "y": 240.5,
+     "width": 432,
+     "height": 432,
+     "rotation": 0,
+     "scale": 1,
+     "opacity": 1
+    }
+   ],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-0-infografik-0-bild",
+    "sc-0-infografik-0-titel",
+    "sc-0-infografik-0-text",
+    "sc-pfeil",
+    "sc-seite-0",
+    "sc-seite-1",
+    "sc-seite-2",
+    "sc-seite-3",
+    "sc-seite-4",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#FFFFFF",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-infografik-0-titel",
+     "text": "Rad",
+     "type": "body",
+     "x": 70,
+     "y": 139.10000000000002,
+     "width": 940,
+     "fontSize": 112,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15
+    },
+    {
+     "id": "sc-0-infografik-0-text",
+     "text": "Kurze Wege.",
+     "type": "body",
+     "x": 429,
+     "y": 281.9,
+     "width": 222,
+     "fontSize": 40,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.3
+    },
+    {
+     "id": "sc-0-infografik-1-titel",
+     "text": "Bus",
+     "type": "body",
+     "x": 70,
+     "y": 685.5,
+     "width": 940,
+     "fontSize": 112,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-seite-0",
+     "type": "circle",
+     "x": 488,
+     "y": 51,
+     "width": 14,
+     "height": 14,
+     "fill": "#00261A",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.35
+    },
+    {
+     "id": "sc-seite-1",
+     "type": "circle",
+     "x": 514,
+     "y": 51,
+     "width": 14,
+     "height": 14,
+     "fill": "#00261A",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.35
+    },
+    {
+     "id": "sc-seite-2",
+     "type": "circle",
+     "x": 540,
+     "y": 51,
+     "width": 14,
+     "height": 14,
+     "fill": "#00261A",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.35
+    },
+    {
+     "id": "sc-seite-3",
+     "type": "circle",
+     "x": 566,
+     "y": 51,
+     "width": 14,
+     "height": 14,
+     "fill": "#00261A",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-seite-4",
+     "type": "circle",
+     "x": 592,
+     "y": 51,
+     "width": 14,
+     "height": 14,
+     "fill": "#00261A",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.35
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-0-infografik-0-einheit-0",
+    "sc-0-infografik-0-einheit-1",
+    "sc-0-infografik-0-einheit-2",
+    "sc-0-infografik-0-einheit-3",
+    "sc-0-infografik-0-einheit-4",
+    "sc-0-infografik-0-einheit-5",
+    "sc-0-infografik-0-einheit-6",
+    "sc-0-infografik-0-einheit-7",
+    "sc-0-infografik-0-einheit-8",
+    "sc-0-infografik-0-einheit-9",
+    "sc-0-infografik-1-einheit-0",
+    "sc-0-infografik-1-einheit-1",
+    "sc-0-infografik-1-einheit-2",
+    "sc-0-infografik-1-einheit-3",
+    "sc-0-infografik-1-einheit-4",
+    "sc-0-infografik-1-einheit-5",
+    "sc-0-infografik-1-einheit-6",
+    "sc-0-infografik-1-einheit-7",
+    "sc-0-infografik-1-einheit-8",
+    "sc-0-infografik-1-einheit-9",
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-0-infografik-0-einheit-0": {
+     "iconId": "tabler:bike-filled",
+     "x": 256.8,
+     "y": 438.9,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 1
+    },
+    "sc-0-infografik-0-einheit-1": {
+     "iconId": "tabler:bike-filled",
+     "x": 398.4,
+     "y": 438.9,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 1
+    },
+    "sc-0-infografik-0-einheit-2": {
+     "iconId": "tabler:bike-filled",
+     "x": 540,
+     "y": 438.9,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 1
+    },
+    "sc-0-infografik-0-einheit-3": {
+     "iconId": "tabler:bike",
+     "x": 681.5999999999999,
+     "y": 438.9,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 0.8
+    },
+    "sc-0-infografik-0-einheit-4": {
+     "iconId": "tabler:bike",
+     "x": 823.2,
+     "y": 438.9,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 0.8
+    },
+    "sc-0-infografik-0-einheit-5": {
+     "iconId": "tabler:bike",
+     "x": 256.8,
+     "y": 580.5,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 0.8
+    },
+    "sc-0-infografik-0-einheit-6": {
+     "iconId": "tabler:bike",
+     "x": 398.4,
+     "y": 580.5,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 0.8
+    },
+    "sc-0-infografik-0-einheit-7": {
+     "iconId": "tabler:bike",
+     "x": 540,
+     "y": 580.5,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 0.8
+    },
+    "sc-0-infografik-0-einheit-8": {
+     "iconId": "tabler:bike",
+     "x": 681.5999999999999,
+     "y": 580.5,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 0.8
+    },
+    "sc-0-infografik-0-einheit-9": {
+     "iconId": "tabler:bike",
+     "x": 823.2,
+     "y": 580.5,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 0.8
+    },
+    "sc-0-infografik-1-einheit-0": {
+     "iconId": "tabler:bus-filled",
+     "x": 256.8,
+     "y": 919.3,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 1
+    },
+    "sc-0-infografik-1-einheit-1": {
+     "iconId": "tabler:bus-filled",
+     "x": 398.4,
+     "y": 919.3,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 1
+    },
+    "sc-0-infografik-1-einheit-2": {
+     "iconId": "tabler:bus-filled",
+     "x": 540,
+     "y": 919.3,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 1
+    },
+    "sc-0-infografik-1-einheit-3": {
+     "iconId": "tabler:bus-filled",
+     "x": 681.5999999999999,
+     "y": 919.3,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 1
+    },
+    "sc-0-infografik-1-einheit-4": {
+     "iconId": "tabler:bus-filled",
+     "x": 823.2,
+     "y": 919.3,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 1
+    },
+    "sc-0-infografik-1-einheit-5": {
+     "iconId": "tabler:bus-filled",
+     "x": 256.8,
+     "y": 1060.9,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 1
+    },
+    "sc-0-infografik-1-einheit-6": {
+     "iconId": "tabler:bus-filled",
+     "x": 398.4,
+     "y": 1060.9,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 1
+    },
+    "sc-0-infografik-1-einheit-7": {
+     "iconId": "tabler:bus-filled",
+     "x": 540,
+     "y": 1060.9,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 1
+    },
+    "sc-0-infografik-1-einheit-8": {
+     "iconId": "tabler:bus-filled",
+     "x": 681.5999999999999,
+     "y": 1060.9,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 1
+    },
+    "sc-0-infografik-1-einheit-9": {
+     "iconId": "tabler:bus",
+     "x": 823.2,
+     "y": 1060.9,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 0.8
+    },
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-0-infografik-0-titel",
+    "sc-0-infografik-0-text",
+    "sc-0-infografik-0-einheit-0",
+    "sc-0-infografik-0-einheit-1",
+    "sc-0-infografik-0-einheit-2",
+    "sc-0-infografik-0-einheit-3",
+    "sc-0-infografik-0-einheit-4",
+    "sc-0-infografik-0-einheit-5",
+    "sc-0-infografik-0-einheit-6",
+    "sc-0-infografik-0-einheit-7",
+    "sc-0-infografik-0-einheit-8",
+    "sc-0-infografik-0-einheit-9",
+    "sc-0-infografik-1-titel",
+    "sc-0-infografik-1-einheit-0",
+    "sc-0-infografik-1-einheit-1",
+    "sc-0-infografik-1-einheit-2",
+    "sc-0-infografik-1-einheit-3",
+    "sc-0-infografik-1-einheit-4",
+    "sc-0-infografik-1-einheit-5",
+    "sc-0-infografik-1-einheit-6",
+    "sc-0-infografik-1-einheit-7",
+    "sc-0-infografik-1-einheit-8",
+    "sc-0-infografik-1-einheit-9",
+    "sc-pfeil",
+    "sc-seite-0",
+    "sc-seite-1",
+    "sc-seite-2",
+    "sc-seite-3",
+    "sc-seite-4",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#FFFFFF",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-infografik-0-titel",
+     "text": "Rad",
+     "type": "body",
+     "x": 94,
+     "y": 898.8,
+     "width": 305.3486742963367,
+     "fontSize": 96,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15
+    },
+    {
+     "id": "sc-0-infografik-0-text",
+     "text": "Kurze Wege.",
+     "type": "body",
+     "x": 135.67433714816835,
+     "y": 1023.1999999999999,
+     "width": 222,
+     "fontSize": 40,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.3
+    },
+    {
+     "id": "sc-0-infografik-1-titel",
+     "text": "Bus",
+     "type": "body",
+     "x": 447.3486742963367,
+     "y": 898.8,
+     "width": 538.6513257036634,
+     "fontSize": 96,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "Klimaschonend KI-generiert mit dem Grünerator",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 611.5,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-0-infografik-boden",
+     "type": "rect",
+     "x": 540,
+     "y": 856.8,
+     "width": 940,
+     "height": 8,
+     "fill": "#008939",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-0-infografik-1-bild-badge",
+     "type": "circle",
+     "x": 716.6743371481684,
+     "y": 576.8,
+     "width": 430.56,
+     "height": 430.56,
+     "fill": "#008939",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-seite-0",
+     "type": "circle",
+     "x": 488,
+     "y": 51,
+     "width": 14,
+     "height": 14,
+     "fill": "#00261A",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.35
+    },
+    {
+     "id": "sc-seite-1",
+     "type": "circle",
+     "x": 514,
+     "y": 51,
+     "width": 14,
+     "height": 14,
+     "fill": "#00261A",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.35
+    },
+    {
+     "id": "sc-seite-2",
+     "type": "circle",
+     "x": 540,
+     "y": 51,
+     "width": 14,
+     "height": 14,
+     "fill": "#00261A",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.35
+    },
+    {
+     "id": "sc-seite-3",
+     "type": "circle",
+     "x": 566,
+     "y": 51,
+     "width": 14,
+     "height": 14,
+     "fill": "#00261A",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.35
+    },
+    {
+     "id": "sc-seite-4",
+     "type": "circle",
+     "x": 592,
+     "y": 51,
+     "width": 14,
+     "height": 14,
+     "fill": "#00261A",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 330.75,
+     "y": 1316.5,
+     "width": 639.5,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [
+    {
+     "id": "sc-0-infografik-0-bild",
+     "src": "/media/ki:scene-ref-0000000002",
+     "fileName": "Rad",
+     "x": 87.17433714816835,
+     "y": 533.8,
+     "width": 319,
+     "height": 319,
+     "rotation": 0,
+     "scale": 1,
+     "opacity": 1
+    }
+   ],
+   "selectedIcons": [
+    "sc-0-infografik-1-bild-icon"
+   ],
+   "iconStates": {
+    "sc-0-infografik-1-bild-icon": {
+     "iconId": "tabler:bus",
+     "x": 716.6743371481684,
+     "y": 576.8,
+     "scale": 1.9734000000000003,
+     "rotation": 0,
+     "color": "#FFFFFF",
+     "opacity": 1
+    }
+   },
+   "layerOrder": [
+    "sc-0-infografik-boden",
+    "sc-0-infografik-0-bild",
+    "sc-0-infografik-0-titel",
+    "sc-0-infografik-0-text",
+    "sc-0-infografik-1-bild-badge",
+    "sc-0-infografik-1-bild-icon",
+    "sc-0-infografik-1-titel",
+    "sc-seite-0",
+    "sc-seite-1",
+    "sc-seite-2",
+    "sc-seite-3",
+    "sc-seite-4",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  }
+ ]
+}

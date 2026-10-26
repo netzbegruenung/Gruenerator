@@ -1,0 +1,150 @@
+{
+ "templateType": "freeform-at",
+ "format": "post-portrait",
+ "slides": [
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#257639",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-zitat-mark",
+     "text": "”",
+     "type": "body",
+     "x": 100,
+     "y": 352.34,
+     "width": 880,
+     "fontSize": 220,
+     "fontFamily": "GothamNarrow-Ultra",
+     "fontStyle": "normal",
+     "fill": "transparent",
+     "align": "center",
+     "accent": {
+      "fill": "#FCEC00",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "stroke": "#FFFFFF",
+     "strokeWidth": 3,
+     "lineHeight": 1,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-0-zitat",
+     "text": "Wir bauen ==Wohnungen für alle== und lassen niemanden zurück.",
+     "type": "body",
+     "x": 100,
+     "y": 505.34,
+     "width": 880,
+     "fontSize": 101,
+     "fontFamily": "GothamNarrow-Ultra",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "center",
+     "accent": {
+      "fill": "#FCEC00",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "lineHeight": 1.08
+    },
+    {
+     "id": "sc-0-zitat-name",
+     "text": "A B",
+     "type": "body",
+     "x": 100,
+     "y": 971.6600000000001,
+     "width": 880,
+     "fontSize": 30,
+     "fontFamily": "GothamNarrow-Book",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "center",
+     "accent": {
+      "fill": "#FCEC00",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "lineHeight": 1.2
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-bg",
+     "type": "rect",
+     "x": 540,
+     "y": 675,
+     "width": 1080,
+     "height": 1350,
+     "fill": "#1D7A35",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "fillGradient": {
+      "type": "linear",
+      "angle": 90,
+      "stops": [
+       {
+        "offset": 0,
+        "color": "#0B6620"
+       },
+       {
+        "offset": 0.5,
+        "color": "#1D7A35"
+       },
+       {
+        "offset": 1,
+        "color": "#23803B"
+       }
+      ]
+     }
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [],
+   "iconStates": {},
+   "layerOrder": [
+    "sc-bg",
+    "sc-0-zitat-mark",
+    "sc-0-zitat",
+    "sc-0-zitat-name",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  }
+ ]
+}

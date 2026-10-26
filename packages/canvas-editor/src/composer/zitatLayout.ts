@@ -71,7 +71,7 @@ function zitatCard(ctx: SlideCtx, item: ZitatItem, id: string, pass: BuildPass):
     measure,
     theme,
     headFamily,
-    isAt,
+    brand,
     out,
     column,
     xAlign,
@@ -82,8 +82,8 @@ function zitatCard(ctx: SlideCtx, item: ZitatItem, id: string, pass: BuildPass):
   } = ctx;
   const { scale } = pass;
   const placed: Placed[] = [];
-  if (isAt) {
-    // AT quote card (Gewessler posts): white poster sans, centred, a thin
+  if (brand.quoteStyle === 'poster') {
+    // Poster quote (AT, Gewessler posts): white poster sans, centred, a thin
     // outlined quote mark above, the name alone below — small, plain white.
     const family = headFamily;
     const size = largestSizeWordsFit(

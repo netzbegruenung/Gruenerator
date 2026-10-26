@@ -1,0 +1,396 @@
+{
+ "templateType": "freeform-at",
+ "format": "post-portrait",
+ "slides": [
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#005538",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-zitat-mark",
+     "text": "”",
+     "type": "body",
+     "x": 100,
+     "y": 305.14,
+     "width": 880,
+     "fontSize": 220,
+     "fontFamily": "GothamNarrow-Ultra",
+     "fontStyle": "normal",
+     "fill": "transparent",
+     "align": "center",
+     "accent": {
+      "fill": "#FCEC00",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "stroke": "#FFFFFF",
+     "strokeWidth": 3,
+     "lineHeight": 1,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-0-zitat",
+     "text": "Wir bauen ==Wohnungen für alle== und lassen niemanden zurück.",
+     "type": "body",
+     "x": 100,
+     "y": 458.14,
+     "width": 880,
+     "fontSize": 96,
+     "fontFamily": "GothamNarrow-Ultra",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "center",
+     "accent": {
+      "fill": "#FCEC00",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "lineHeight": 1.08
+    },
+    {
+     "id": "sc-0-zitat-name",
+     "text": "A B",
+     "type": "body",
+     "x": 100,
+     "y": 902.86,
+     "width": 880,
+     "fontSize": 30,
+     "fontFamily": "GothamNarrow-Book",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "center",
+     "accent": {
+      "fill": "#FCEC00",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "lineHeight": 1.2
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [
+    {
+     "id": "sc-pfeil",
+     "assetId": "brush-arrow-weiss",
+     "x": 900,
+     "y": 1262,
+     "scale": 1.8666666666666667,
+     "rotation": 0,
+     "opacity": 1
+    }
+   ],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [],
+   "iconStates": {},
+   "layerOrder": [
+    "sc-0-zitat-mark",
+    "sc-0-zitat",
+    "sc-0-zitat-name",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "image",
+   "backgroundColor": "#00261A",
+   "hasBackgroundImage": true,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-zitat-mark",
+     "text": "”",
+     "type": "body",
+     "x": 70,
+     "y": 639.4,
+     "width": 940,
+     "fontSize": 220,
+     "fontFamily": "GothamNarrow-Ultra",
+     "fontStyle": "normal",
+     "fill": "transparent",
+     "align": "center",
+     "accent": {
+      "fill": "#FCEC00",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "shadowColor": "#000000",
+     "shadowBlur": 18,
+     "shadowOffsetX": 0,
+     "shadowOffsetY": 2,
+     "shadowOpacity": 0,
+     "stroke": "#FFFFFF",
+     "strokeWidth": 3,
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-0-zitat",
+     "text": "Wir bauen ==Wohnungen für alle== und lassen niemanden zurück.",
+     "type": "body",
+     "x": 70,
+     "y": 792.4,
+     "width": 940,
+     "fontSize": 90,
+     "fontFamily": "GothamNarrow-Ultra",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "center",
+     "accent": {
+      "fill": "#FCEC00",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "shadowColor": "#000000",
+     "shadowBlur": 18,
+     "shadowOffsetX": 0,
+     "shadowOffsetY": 2,
+     "shadowOpacity": 0.45,
+     "lineHeight": 1.08
+    },
+    {
+     "id": "sc-0-zitat-name",
+     "text": "A B",
+     "type": "body",
+     "x": 70,
+     "y": 1114,
+     "width": 940,
+     "fontSize": 30,
+     "fontFamily": "GothamNarrow-Book",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "center",
+     "accent": {
+      "fill": "#FCEC00",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "shadowColor": "#000000",
+     "shadowBlur": 18,
+     "shadowOffsetX": 0,
+     "shadowOffsetY": 2,
+     "shadowOpacity": 0.45,
+     "lineHeight": 1.2
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-scrim",
+     "type": "rect",
+     "x": 540,
+     "y": 882.45,
+     "width": 1080,
+     "height": 935.1,
+     "fill": "transparent",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "fillGradient": {
+      "type": "linear",
+      "angle": 90,
+      "stops": [
+       {
+        "offset": 0,
+        "color": "rgba(3,14,8,0.000)"
+       },
+       {
+        "offset": 0.027069297401347447,
+        "color": "rgba(3,14,8,0.021)"
+       },
+       {
+        "offset": 0.054138594802694895,
+        "color": "rgba(3,14,8,0.075)"
+       },
+       {
+        "offset": 0.08120789220404234,
+        "color": "rgba(3,14,8,0.152)"
+       },
+       {
+        "offset": 0.10827718960538979,
+        "color": "rgba(3,14,8,0.240)"
+       },
+       {
+        "offset": 0.13534648700673724,
+        "color": "rgba(3,14,8,0.328)"
+       },
+       {
+        "offset": 0.16241578440808468,
+        "color": "rgba(3,14,8,0.405)"
+       },
+       {
+        "offset": 0.18948508180943213,
+        "color": "rgba(3,14,8,0.459)"
+       },
+       {
+        "offset": 0.21655437921077958,
+        "color": "rgba(3,14,8,0.480)"
+       },
+       {
+        "offset": 1,
+        "color": "rgba(3,14,8,0.48)"
+       }
+      ]
+     }
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [
+    {
+     "id": "sc-pfeil",
+     "assetId": "brush-arrow-weiss",
+     "x": 900,
+     "y": 1262,
+     "scale": 1.8666666666666667,
+     "rotation": 0,
+     "opacity": 1
+    }
+   ],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [],
+   "iconStates": {},
+   "layerOrder": [
+    "sc-scrim",
+    "sc-0-zitat-mark",
+    "sc-0-zitat",
+    "sc-0-zitat-name",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ],
+   "currentImageSrc": "/media/wind.jpg"
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#FFFFFF",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Reiche\nvernichten\n==186.600==\nJobs",
+     "type": "header",
+     "x": 70,
+     "y": 120,
+     "width": 940,
+     "fontSize": 179,
+     "fontFamily": "GothamNarrow-Ultra",
+     "fontStyle": "normal",
+     "fill": "#257639",
+     "align": "left",
+     "accent": {
+      "fill": "#257639",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "lineHeight": 0.95
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "Klimaschonend KI-generiert mit dem Grünerator",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 611.5,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 330.75,
+     "y": 1316.5,
+     "width": 639.5,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [],
+   "iconStates": {},
+   "layerOrder": [
+    "sc-0-headline-0",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  }
+ ]
+}

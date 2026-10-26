@@ -1,0 +1,2631 @@
+{
+ "templateType": "freeform",
+ "format": "post-portrait",
+ "slides": [
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#FFFFFF",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Klimaschutz\njetzt",
+     "type": "header",
+     "x": 70,
+     "y": 429.105,
+     "width": 940,
+     "fontSize": 162,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-1-text",
+     "text": "Komm vorbei.",
+     "type": "body",
+     "x": 70,
+     "y": 797.145,
+     "width": 940,
+     "fontSize": 59,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [
+    {
+     "id": "sc-stoerer",
+     "x": 875,
+     "y": 1055,
+     "radius": 165,
+     "backgroundColor": "#00CC4F",
+     "textColor": "#00261A",
+     "rotation": -7,
+     "scale": 1,
+     "opacity": 1,
+     "textLines": [
+      {
+       "text": "Neu",
+       "yOffset": -44.550000000000004,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 81,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "dabei!",
+       "yOffset": 44.550000000000004,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 81,
+       "fontWeight": "bold"
+      }
+     ]
+    }
+   ],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-0-headline-0",
+    "sc-1-text",
+    "sc-stoerer",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#FFFFFF",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Klimaschutz\njetzt",
+     "type": "header",
+     "x": 70,
+     "y": 429.105,
+     "width": 940,
+     "fontSize": 162,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-1-text",
+     "text": "Komm vorbei.",
+     "type": "body",
+     "x": 70,
+     "y": 797.145,
+     "width": 940,
+     "fontSize": 59,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [
+    {
+     "id": "sc-stoerer",
+     "x": 875,
+     "y": 1055,
+     "radius": 165,
+     "backgroundColor": "#00CC4F",
+     "textColor": "#00261A",
+     "rotation": -7,
+     "scale": 1,
+     "opacity": 1,
+     "textLines": [
+      {
+       "text": "Jetzt",
+       "yOffset": -88,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 40,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "mitmachen und",
+       "yOffset": -44,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 40,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "gemeinsam die",
+       "yOffset": 0,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 40,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "Zukunft",
+       "yOffset": 44,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 40,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "gestalten",
+       "yOffset": 88,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 40,
+       "fontWeight": "bold"
+      }
+     ]
+    }
+   ],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-0-headline-0",
+    "sc-1-text",
+    "sc-stoerer",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#00CC4F",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Klimaschutz\njetzt",
+     "type": "header",
+     "x": 70,
+     "y": 429.105,
+     "width": 940,
+     "fontSize": 162,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#FFFFFF"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-1-text",
+     "text": "Komm vorbei.",
+     "type": "body",
+     "x": 70,
+     "y": 797.145,
+     "width": 940,
+     "fontSize": 59,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#FFFFFF"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [
+    {
+     "id": "sc-stoerer",
+     "x": 875,
+     "y": 1055,
+     "radius": 165,
+     "backgroundColor": "#005538",
+     "textColor": "#FFFFFF",
+     "rotation": -7,
+     "scale": 1,
+     "opacity": 1,
+     "textLines": [
+      {
+       "text": "Neu",
+       "yOffset": -44.550000000000004,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 81,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "dabei!",
+       "yOffset": 44.550000000000004,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 81,
+       "fontWeight": "bold"
+      }
+     ]
+    }
+   ],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-0-headline-0",
+    "sc-1-text",
+    "sc-stoerer",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#00CC4F",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Klimaschutz\njetzt",
+     "type": "header",
+     "x": 70,
+     "y": 429.105,
+     "width": 940,
+     "fontSize": 162,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#FFFFFF"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-1-text",
+     "text": "Komm vorbei.",
+     "type": "body",
+     "x": 70,
+     "y": 797.145,
+     "width": 940,
+     "fontSize": 59,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#FFFFFF"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [
+    {
+     "id": "sc-stoerer",
+     "x": 875,
+     "y": 1055,
+     "radius": 165,
+     "backgroundColor": "#005538",
+     "textColor": "#FFFFFF",
+     "rotation": -7,
+     "scale": 1,
+     "opacity": 1,
+     "textLines": [
+      {
+       "text": "Jetzt",
+       "yOffset": -88,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 40,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "mitmachen und",
+       "yOffset": -44,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 40,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "gemeinsam die",
+       "yOffset": 0,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 40,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "Zukunft",
+       "yOffset": 44,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 40,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "gestalten",
+       "yOffset": 88,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 40,
+       "fontWeight": "bold"
+      }
+     ]
+    }
+   ],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-0-headline-0",
+    "sc-1-text",
+    "sc-stoerer",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#005538",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Klimaschutz\njetzt",
+     "type": "header",
+     "x": 70,
+     "y": 429.105,
+     "width": 940,
+     "fontSize": 162,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-1-text",
+     "text": "Komm vorbei.",
+     "type": "body",
+     "x": 70,
+     "y": 797.145,
+     "width": 940,
+     "fontSize": 59,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [
+    {
+     "id": "sc-stoerer",
+     "x": 875,
+     "y": 1055,
+     "radius": 165,
+     "backgroundColor": "#00CC4F",
+     "textColor": "#00261A",
+     "rotation": -7,
+     "scale": 1,
+     "opacity": 1,
+     "textLines": [
+      {
+       "text": "Neu",
+       "yOffset": -44.550000000000004,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 81,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "dabei!",
+       "yOffset": 44.550000000000004,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 81,
+       "fontWeight": "bold"
+      }
+     ]
+    }
+   ],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#FFFFFF"
+    }
+   },
+   "layerOrder": [
+    "sc-0-headline-0",
+    "sc-1-text",
+    "sc-stoerer",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#005538",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Klimaschutz\njetzt",
+     "type": "header",
+     "x": 70,
+     "y": 429.105,
+     "width": 940,
+     "fontSize": 162,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-1-text",
+     "text": "Komm vorbei.",
+     "type": "body",
+     "x": 70,
+     "y": 797.145,
+     "width": 940,
+     "fontSize": 59,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [
+    {
+     "id": "sc-stoerer",
+     "x": 875,
+     "y": 1055,
+     "radius": 165,
+     "backgroundColor": "#00CC4F",
+     "textColor": "#00261A",
+     "rotation": -7,
+     "scale": 1,
+     "opacity": 1,
+     "textLines": [
+      {
+       "text": "Jetzt",
+       "yOffset": -88,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 40,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "mitmachen und",
+       "yOffset": -44,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 40,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "gemeinsam die",
+       "yOffset": 0,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 40,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "Zukunft",
+       "yOffset": 44,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 40,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "gestalten",
+       "yOffset": 88,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 40,
+       "fontWeight": "bold"
+      }
+     ]
+    }
+   ],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#FFFFFF"
+    }
+   },
+   "layerOrder": [
+    "sc-0-headline-0",
+    "sc-1-text",
+    "sc-stoerer",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#FFFFFF",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Klimaschutz\njetzt",
+     "type": "header",
+     "x": 70,
+     "y": 484.105,
+     "width": 940,
+     "fontSize": 162,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-1-text",
+     "text": "Komm vorbei.",
+     "type": "body",
+     "x": 70,
+     "y": 852.145,
+     "width": 940,
+     "fontSize": 59,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [
+    {
+     "id": "sc-stoerer",
+     "x": 865,
+     "y": 215,
+     "radius": 175,
+     "backgroundColor": "#00CC4F",
+     "textColor": "#00261A",
+     "rotation": -7,
+     "scale": 1,
+     "opacity": 1,
+     "textLines": [
+      {
+       "text": "Neu",
+       "yOffset": -47.300000000000004,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 86,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "dabei!",
+       "yOffset": 47.300000000000004,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 86,
+       "fontWeight": "bold"
+      }
+     ]
+    }
+   ],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-0-headline-0",
+    "sc-1-text",
+    "sc-stoerer",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#FFFFFF",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Klimaschutz\njetzt",
+     "type": "header",
+     "x": 70,
+     "y": 484.105,
+     "width": 940,
+     "fontSize": 162,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-1-text",
+     "text": "Komm vorbei.",
+     "type": "body",
+     "x": 70,
+     "y": 852.145,
+     "width": 940,
+     "fontSize": 59,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [
+    {
+     "id": "sc-stoerer",
+     "x": 865,
+     "y": 215,
+     "radius": 175,
+     "backgroundColor": "#00CC4F",
+     "textColor": "#00261A",
+     "rotation": -7,
+     "scale": 1,
+     "opacity": 1,
+     "textLines": [
+      {
+       "text": "Jetzt",
+       "yOffset": -94.60000000000001,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 43,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "mitmachen und",
+       "yOffset": -47.300000000000004,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 43,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "gemeinsam die",
+       "yOffset": 0,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 43,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "Zukunft",
+       "yOffset": 47.300000000000004,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 43,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "gestalten",
+       "yOffset": 94.60000000000001,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 43,
+       "fontWeight": "bold"
+      }
+     ]
+    }
+   ],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-0-headline-0",
+    "sc-1-text",
+    "sc-stoerer",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#00CC4F",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Klimaschutz\njetzt",
+     "type": "header",
+     "x": 70,
+     "y": 484.105,
+     "width": 940,
+     "fontSize": 162,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#FFFFFF"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-1-text",
+     "text": "Komm vorbei.",
+     "type": "body",
+     "x": 70,
+     "y": 852.145,
+     "width": 940,
+     "fontSize": 59,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#FFFFFF"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [
+    {
+     "id": "sc-stoerer",
+     "x": 865,
+     "y": 215,
+     "radius": 175,
+     "backgroundColor": "#005538",
+     "textColor": "#FFFFFF",
+     "rotation": -7,
+     "scale": 1,
+     "opacity": 1,
+     "textLines": [
+      {
+       "text": "Neu",
+       "yOffset": -47.300000000000004,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 86,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "dabei!",
+       "yOffset": 47.300000000000004,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 86,
+       "fontWeight": "bold"
+      }
+     ]
+    }
+   ],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-0-headline-0",
+    "sc-1-text",
+    "sc-stoerer",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#00CC4F",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Klimaschutz\njetzt",
+     "type": "header",
+     "x": 70,
+     "y": 484.105,
+     "width": 940,
+     "fontSize": 162,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#FFFFFF"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-1-text",
+     "text": "Komm vorbei.",
+     "type": "body",
+     "x": 70,
+     "y": 852.145,
+     "width": 940,
+     "fontSize": 59,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#FFFFFF"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [
+    {
+     "id": "sc-stoerer",
+     "x": 865,
+     "y": 215,
+     "radius": 175,
+     "backgroundColor": "#005538",
+     "textColor": "#FFFFFF",
+     "rotation": -7,
+     "scale": 1,
+     "opacity": 1,
+     "textLines": [
+      {
+       "text": "Jetzt",
+       "yOffset": -94.60000000000001,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 43,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "mitmachen und",
+       "yOffset": -47.300000000000004,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 43,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "gemeinsam die",
+       "yOffset": 0,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 43,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "Zukunft",
+       "yOffset": 47.300000000000004,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 43,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "gestalten",
+       "yOffset": 94.60000000000001,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 43,
+       "fontWeight": "bold"
+      }
+     ]
+    }
+   ],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-0-headline-0",
+    "sc-1-text",
+    "sc-stoerer",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#005538",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Klimaschutz\njetzt",
+     "type": "header",
+     "x": 70,
+     "y": 484.105,
+     "width": 940,
+     "fontSize": 162,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-1-text",
+     "text": "Komm vorbei.",
+     "type": "body",
+     "x": 70,
+     "y": 852.145,
+     "width": 940,
+     "fontSize": 59,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [
+    {
+     "id": "sc-stoerer",
+     "x": 865,
+     "y": 215,
+     "radius": 175,
+     "backgroundColor": "#00CC4F",
+     "textColor": "#00261A",
+     "rotation": -7,
+     "scale": 1,
+     "opacity": 1,
+     "textLines": [
+      {
+       "text": "Neu",
+       "yOffset": -47.300000000000004,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 86,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "dabei!",
+       "yOffset": 47.300000000000004,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 86,
+       "fontWeight": "bold"
+      }
+     ]
+    }
+   ],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#FFFFFF"
+    }
+   },
+   "layerOrder": [
+    "sc-0-headline-0",
+    "sc-1-text",
+    "sc-stoerer",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#005538",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Klimaschutz\njetzt",
+     "type": "header",
+     "x": 70,
+     "y": 484.105,
+     "width": 940,
+     "fontSize": 162,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-1-text",
+     "text": "Komm vorbei.",
+     "type": "body",
+     "x": 70,
+     "y": 852.145,
+     "width": 940,
+     "fontSize": 59,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [
+    {
+     "id": "sc-stoerer",
+     "x": 865,
+     "y": 215,
+     "radius": 175,
+     "backgroundColor": "#00CC4F",
+     "textColor": "#00261A",
+     "rotation": -7,
+     "scale": 1,
+     "opacity": 1,
+     "textLines": [
+      {
+       "text": "Jetzt",
+       "yOffset": -94.60000000000001,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 43,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "mitmachen und",
+       "yOffset": -47.300000000000004,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 43,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "gemeinsam die",
+       "yOffset": 0,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 43,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "Zukunft",
+       "yOffset": 47.300000000000004,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 43,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "gestalten",
+       "yOffset": 94.60000000000001,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 43,
+       "fontWeight": "bold"
+      }
+     ]
+    }
+   ],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#FFFFFF"
+    }
+   },
+   "layerOrder": [
+    "sc-0-headline-0",
+    "sc-1-text",
+    "sc-stoerer",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#FFFFFF",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Klimaschutz\njetzt",
+     "type": "header",
+     "x": 70,
+     "y": 708.21,
+     "width": 940,
+     "fontSize": 162,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-1-text",
+     "text": "Komm vorbei.",
+     "type": "body",
+     "x": 70,
+     "y": 1076.25,
+     "width": 940,
+     "fontSize": 59,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [
+    {
+     "id": "sc-stoerer",
+     "x": 865,
+     "y": 215,
+     "radius": 175,
+     "backgroundColor": "#00CC4F",
+     "textColor": "#00261A",
+     "rotation": -7,
+     "scale": 1,
+     "opacity": 1,
+     "textLines": [
+      {
+       "text": "Neu",
+       "yOffset": -47.300000000000004,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 86,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "dabei!",
+       "yOffset": 47.300000000000004,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 86,
+       "fontWeight": "bold"
+      }
+     ]
+    }
+   ],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-0-headline-0",
+    "sc-1-text",
+    "sc-stoerer",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#FFFFFF",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Klimaschutz\njetzt",
+     "type": "header",
+     "x": 70,
+     "y": 708.21,
+     "width": 940,
+     "fontSize": 162,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-1-text",
+     "text": "Komm vorbei.",
+     "type": "body",
+     "x": 70,
+     "y": 1076.25,
+     "width": 940,
+     "fontSize": 59,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [
+    {
+     "id": "sc-stoerer",
+     "x": 865,
+     "y": 215,
+     "radius": 175,
+     "backgroundColor": "#00CC4F",
+     "textColor": "#00261A",
+     "rotation": -7,
+     "scale": 1,
+     "opacity": 1,
+     "textLines": [
+      {
+       "text": "Jetzt",
+       "yOffset": -94.60000000000001,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 43,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "mitmachen und",
+       "yOffset": -47.300000000000004,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 43,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "gemeinsam die",
+       "yOffset": 0,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 43,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "Zukunft",
+       "yOffset": 47.300000000000004,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 43,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "gestalten",
+       "yOffset": 94.60000000000001,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 43,
+       "fontWeight": "bold"
+      }
+     ]
+    }
+   ],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-0-headline-0",
+    "sc-1-text",
+    "sc-stoerer",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#00CC4F",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Klimaschutz\njetzt",
+     "type": "header",
+     "x": 70,
+     "y": 708.21,
+     "width": 940,
+     "fontSize": 162,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#FFFFFF"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-1-text",
+     "text": "Komm vorbei.",
+     "type": "body",
+     "x": 70,
+     "y": 1076.25,
+     "width": 940,
+     "fontSize": 59,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#FFFFFF"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [
+    {
+     "id": "sc-stoerer",
+     "x": 865,
+     "y": 215,
+     "radius": 175,
+     "backgroundColor": "#005538",
+     "textColor": "#FFFFFF",
+     "rotation": -7,
+     "scale": 1,
+     "opacity": 1,
+     "textLines": [
+      {
+       "text": "Neu",
+       "yOffset": -47.300000000000004,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 86,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "dabei!",
+       "yOffset": 47.300000000000004,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 86,
+       "fontWeight": "bold"
+      }
+     ]
+    }
+   ],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-0-headline-0",
+    "sc-1-text",
+    "sc-stoerer",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#00CC4F",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Klimaschutz\njetzt",
+     "type": "header",
+     "x": 70,
+     "y": 708.21,
+     "width": 940,
+     "fontSize": 162,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#FFFFFF"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-1-text",
+     "text": "Komm vorbei.",
+     "type": "body",
+     "x": 70,
+     "y": 1076.25,
+     "width": 940,
+     "fontSize": 59,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#FFFFFF"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [
+    {
+     "id": "sc-stoerer",
+     "x": 865,
+     "y": 215,
+     "radius": 175,
+     "backgroundColor": "#005538",
+     "textColor": "#FFFFFF",
+     "rotation": -7,
+     "scale": 1,
+     "opacity": 1,
+     "textLines": [
+      {
+       "text": "Jetzt",
+       "yOffset": -94.60000000000001,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 43,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "mitmachen und",
+       "yOffset": -47.300000000000004,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 43,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "gemeinsam die",
+       "yOffset": 0,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 43,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "Zukunft",
+       "yOffset": 47.300000000000004,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 43,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "gestalten",
+       "yOffset": 94.60000000000001,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 43,
+       "fontWeight": "bold"
+      }
+     ]
+    }
+   ],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-0-headline-0",
+    "sc-1-text",
+    "sc-stoerer",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#005538",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Klimaschutz\njetzt",
+     "type": "header",
+     "x": 70,
+     "y": 708.21,
+     "width": 940,
+     "fontSize": 162,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-1-text",
+     "text": "Komm vorbei.",
+     "type": "body",
+     "x": 70,
+     "y": 1076.25,
+     "width": 940,
+     "fontSize": 59,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [
+    {
+     "id": "sc-stoerer",
+     "x": 865,
+     "y": 215,
+     "radius": 175,
+     "backgroundColor": "#00CC4F",
+     "textColor": "#00261A",
+     "rotation": -7,
+     "scale": 1,
+     "opacity": 1,
+     "textLines": [
+      {
+       "text": "Neu",
+       "yOffset": -47.300000000000004,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 86,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "dabei!",
+       "yOffset": 47.300000000000004,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 86,
+       "fontWeight": "bold"
+      }
+     ]
+    }
+   ],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#FFFFFF"
+    }
+   },
+   "layerOrder": [
+    "sc-0-headline-0",
+    "sc-1-text",
+    "sc-stoerer",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#005538",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Klimaschutz\njetzt",
+     "type": "header",
+     "x": 70,
+     "y": 824.21,
+     "width": 940,
+     "fontSize": 162,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-1-text",
+     "text": "Komm vorbei.",
+     "type": "body",
+     "x": 70,
+     "y": 1192.25,
+     "width": 940,
+     "fontSize": 59,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "Klimaschonend KI-generiert mit dem Grünerator",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 611.5,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [
+    {
+     "id": "sc-stoerer",
+     "x": 865,
+     "y": 215,
+     "radius": 175,
+     "backgroundColor": "#00CC4F",
+     "textColor": "#00261A",
+     "rotation": -7,
+     "scale": 1,
+     "opacity": 1,
+     "textLines": [
+      {
+       "text": "Jetzt",
+       "yOffset": -94.60000000000001,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 43,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "mitmachen und",
+       "yOffset": -47.300000000000004,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 43,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "gemeinsam die",
+       "yOffset": 0,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 43,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "Zukunft",
+       "yOffset": 47.300000000000004,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 43,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "gestalten",
+       "yOffset": 94.60000000000001,
+       "fontFamily": "GrueneTypeNeue",
+       "fontSize": 43,
+       "fontWeight": "bold"
+      }
+     ]
+    }
+   ],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 330.75,
+     "y": 1316.5,
+     "width": 639.5,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [],
+   "iconStates": {},
+   "layerOrder": [
+    "sc-0-headline-0",
+    "sc-1-text",
+    "sc-stoerer",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  }
+ ]
+}

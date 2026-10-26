@@ -1,0 +1,277 @@
+{
+ "templateType": "freeform",
+ "format": "post-portrait",
+ "slides": [
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#257639",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Mach mit!",
+     "type": "header",
+     "x": 70,
+     "y": 110,
+     "width": 940,
+     "fontSize": 130,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-1-liste-0",
+     "text": "Geh **wählen**, denn jede Stimme zählt",
+     "type": "body",
+     "x": 292,
+     "y": 341.925,
+     "width": 672,
+     "fontSize": 55,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#00CC4F",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-1-liste-1",
+     "text": "Bleib **informiert** und lies nach",
+     "type": "body",
+     "x": 292,
+     "y": 544.55,
+     "width": 672,
+     "fontSize": 55,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#00CC4F",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-1-liste-2",
+     "text": "Komm zur **Demo** in deiner Stadt",
+     "type": "body",
+     "x": 292,
+     "y": 747.175,
+     "width": 672,
+     "fontSize": 55,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#00CC4F",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-1-liste-3",
+     "text": "Sag es **weiter**",
+     "type": "body",
+     "x": 292,
+     "y": 949.8,
+     "width": 672,
+     "fontSize": 55,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#00CC4F",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-bg",
+     "type": "rect",
+     "x": 540,
+     "y": 675,
+     "width": 1080,
+     "height": 1350,
+     "fill": "#1D7A35",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "fillGradient": {
+      "type": "linear",
+      "angle": 90,
+      "stops": [
+       {
+        "offset": 0,
+        "color": "#0B6620"
+       },
+       {
+        "offset": 0.5,
+        "color": "#1D7A35"
+       },
+       {
+        "offset": 1,
+        "color": "#23803B"
+       }
+      ]
+     }
+    },
+    {
+     "id": "sc-0-headline-0-box",
+     "type": "rect",
+     "x": 540,
+     "y": 177.6,
+     "width": 637,
+     "height": 124.8,
+     "fill": "#BEFF60",
+     "rotation": -2,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-1-liste-card",
+     "type": "rounded-rect",
+     "x": 540,
+     "y": 680.2375,
+     "width": 940,
+     "height": 798.875,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 32
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [
+    {
+     "id": "sc-1-liste-0-zeichen",
+     "assetId": "emoji-1f5f3",
+     "x": 165.5,
+     "y": 376.3,
+     "scale": 0.66,
+     "rotation": 0,
+     "opacity": 1
+    },
+    {
+     "id": "sc-1-liste-1-zeichen",
+     "assetId": "emoji-1f4f0",
+     "x": 165.5,
+     "y": 578.925,
+     "scale": 0.66,
+     "rotation": 0,
+     "opacity": 1
+    },
+    {
+     "id": "sc-1-liste-2-zeichen",
+     "assetId": "emoji-1faa7",
+     "x": 165.5,
+     "y": 781.55,
+     "scale": 0.66,
+     "rotation": 0,
+     "opacity": 1
+    },
+    {
+     "id": "sc-1-liste-3-zeichen",
+     "assetId": "emoji-1f4e3",
+     "x": 165.5,
+     "y": 984.175,
+     "scale": 0.66,
+     "rotation": 0,
+     "opacity": 1
+    }
+   ],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [],
+   "iconStates": {},
+   "layerOrder": [
+    "sc-bg",
+    "sc-0-headline-0-box",
+    "sc-0-headline-0",
+    "sc-1-liste-card",
+    "sc-1-liste-0-zeichen",
+    "sc-1-liste-0",
+    "sc-1-liste-1-zeichen",
+    "sc-1-liste-1",
+    "sc-1-liste-2-zeichen",
+    "sc-1-liste-2",
+    "sc-1-liste-3-zeichen",
+    "sc-1-liste-3",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  }
+ ]
+}
