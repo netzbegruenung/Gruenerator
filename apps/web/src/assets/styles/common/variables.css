@@ -202,7 +202,7 @@
     /* Warmgrau, um 5 % abgedunkelt (war #84827A). Auf --editor-surface (weiß)
        erreichte es 3,85:1; der Farbton bleibt, der Wert ist jetzt 4,55:1.
        Die dunkle Fassung steht auf #1e1e1e schon bei 5,78:1. */
-    --editor-text-muted: #78766E;
+    --editor-text-muted: #6B6962;
     --editor-placeholder: #9A988F;
     /* Eukalyptus-Akzent (Links, Rahmen-Icons) und Fehlerkasten. */
     --editor-secondary-fg: var(--secondary-600);
@@ -436,7 +436,7 @@
     --editor-border-soft: rgba(255, 255, 255, 0.10);
     --editor-border-strong: var(--grey-600);
     --editor-text-secondary: var(--grey-300);
-    --editor-text-muted: var(--grey-400);
+    --editor-text-muted: #B5B5B5;
     --editor-placeholder: var(--grey-500);
     --editor-secondary-fg: var(--secondary-300);
     --editor-danger-fg: #F87171;
@@ -615,7 +615,7 @@
         --editor-border-soft: rgba(255, 255, 255, 0.10);
         --editor-border-strong: var(--grey-600);
         --editor-text-secondary: var(--grey-300);
-        --editor-text-muted: var(--grey-400);
+        --editor-text-muted: #B5B5B5;
         --editor-placeholder: var(--grey-500);
         --editor-secondary-fg: var(--secondary-300);
         --editor-danger-fg: #F87171;
