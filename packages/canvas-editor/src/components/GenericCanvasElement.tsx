@@ -28,7 +28,12 @@ import { BACKGROUND_IMAGE_NODE_ID } from '../utils/printImageInfo';
 // Die Aufloesung von x/y/width/height/opacity steht seit #3403 ausserhalb:
 // `templateElementToEntry` braucht dieselbe Rechnung, und zwei Fassungen
 // derselben Arithmetik driften auseinander.
-import { resolveColor, resolveImageElementBox, resolveValue } from '../utils/resolveElementValue';
+import {
+  coverFitSlot,
+  resolveColor,
+  resolveImageElementBox,
+  resolveValue,
+} from '../utils/resolveElementValue';
 import {
   assertAsString,
   assertAsNumber,
@@ -37,6 +42,7 @@ import {
   getStateValue,
   getOptionalStateValue,
 } from '../utils/stateTypeAssertions';
+import { backgroundStraighten } from '../utils/straighten';
 import { isTemplateElementRotatable, templateRotationOf } from '../utils/templateRotation';
 import { templateTextAlignOf } from '../utils/textAlign';
 
@@ -339,14 +345,7 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
   if (!image) return null;
 
   // The slot the photo fills: the element's own box before zoom and pan.
-  const frame = config.coverFit
-    ? (config.frame?.(state, layout) ?? {
-        x: resolveValue(config.x, state, layout),
-        y: resolveValue(config.y, state, layout),
-        width: resolveValue(config.width, state, layout),
-        height: resolveValue(config.height, state, layout),
-      })
-    : null;
+  const frame = config.coverFit ? coverFitSlot(config, state, layout) : null;
 
   return (
     <CanvasImage
@@ -362,6 +361,7 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
       adjustments={config.id === BACKGROUND_IMAGE_NODE_ID ? backgroundAdjustments(state) : null}
       coverFit={config.coverFit}
       frame={frame}
+      straighten={isBackgroundPhoto ? backgroundStraighten(state) : null}
       draggable={interaction.draggable}
       touchDragNeedsSelection={isBackgroundPhoto}
       onToggleCrop={canCropBackgroundPhoto(config) ? handleToggleCrop : null}

@@ -49,6 +49,12 @@ export interface UserImageInstance {
   /** `cover` only: where the photo sits in its frame, a share of its overhang (-1 … 1, 0 centred). */
   panX?: number;
   panY?: number;
+  /**
+   * `cover` only: Begradigen, Grad (−45 … 45), das Foto dreht sich im Rahmen.
+   * Fehlt es, gilt 0. Mit Winkel ist `panX`/`panY` der Anteil in den Achsen des
+   * gedrehten Fotos (`straightFramedPhoto`).
+   */
+  cropRotation?: number;
   /** `kreis`: clipped to the circle inside width × height. */
   mask?: 'kreis';
   /** Stock credit (Unsplash): the photo is hotlinked, so the credit travels with it. */

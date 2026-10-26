@@ -115,6 +115,7 @@
     "react-kawaii": "^1.6.0",
     "react-konva": "^19.3.2",
     "recharts": "3.10.1",
+    "smartcrop": "2.0.5",
     "tailwind-merge": "^3.7.0",
     "use-image": "^1.1.4",
     "uuid": "^14.0.3",

@@ -15,8 +15,8 @@ import type * as MediaPlacement from '../../../utils/mediaPlacement';
  * wie sie `config.background` liefert.
  */
 
-vi.mock('../../../sidebar/UserUploadsProvider', () => ({
-  useUserUploads: () => ({
+vi.mock('../../../sidebar/UserUploadsProvider', () => {
+  const uploads = {
     items: [],
     isLoading: false,
     error: null,
@@ -25,8 +25,9 @@ vi.mock('../../../sidebar/UserUploadsProvider', () => ({
     upload: async () => null,
     hasMore: false,
     loadMore: async () => {},
-  }),
-}));
+  };
+  return { useUserUploads: () => uploads, useOptionalUserUploads: () => uploads };
+});
 
 const HANDLERS = {
   handleMoveLayer: () => {},

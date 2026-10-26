@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SubsectionTabBar } from '../../sidebar/SubsectionTabBar';
 import { axe } from '../../test-utils';
-import { useRovingToolbar } from '../useRovingToolbar';
+import { TOOLBAR_ITEMS_WITH_INPUTS, useRovingToolbar } from '../useRovingToolbar';
 
 function Bar() {
   const roving = useRovingToolbar<HTMLDivElement>();
@@ -85,5 +85,45 @@ describe('SubsectionTabBar (mobile)', () => {
     expect(screen.getByRole('tabpanel', { name: 'Breite' })).toHaveTextContent('Inhalt B');
 
     expect(await axe(container)).toHaveNoViolations();
+  });
+});
+
+function BarWithInputs() {
+  const roving = useRovingToolbar<HTMLDivElement>(TOOLBAR_ITEMS_WITH_INPUTS);
+  return (
+    <div {...roving} role="toolbar" aria-label="Test">
+      <button type="button">Eins</button>
+      <input type="range" aria-label="Regler" min={-45} max={45} defaultValue={0} />
+      <input type="text" aria-label="Feld" defaultValue="12" />
+      <button type="button">Drei</button>
+    </div>
+  );
+}
+
+describe('useRovingToolbar with inputs', () => {
+  it('reaches inputs with the arrows, leaves their own arrows alone and moves on with Tab', async () => {
+    render(<BarWithInputs />);
+    const eins = screen.getByRole('button', { name: 'Eins' });
+    const slider = screen.getByRole('slider', { name: 'Regler' });
+    const field = screen.getByRole('textbox', { name: 'Feld' });
+    const drei = screen.getByRole('button', { name: 'Drei' });
+    expect(slider).toHaveAttribute('tabindex', '-1');
+
+    eins.focus();
+    await userEvent.keyboard('{ArrowRight}');
+    expect(slider).toHaveFocus();
+    // Der Regler behält seine Pfeile: der Fokus bleibt.
+    await userEvent.keyboard('{ArrowRight}');
+    expect(slider).toHaveFocus();
+    await userEvent.keyboard('{Tab}');
+    expect(field).toHaveFocus();
+    await userEvent.keyboard('{ArrowLeft}{Home}');
+    expect(field).toHaveFocus();
+    await userEvent.keyboard('{Tab}');
+    expect(drei).toHaveFocus();
+    await userEvent.keyboard('{ArrowLeft}');
+    expect(field).toHaveFocus();
+    await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
+    expect(slider).toHaveFocus();
   });
 });
