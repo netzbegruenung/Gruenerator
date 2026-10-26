@@ -4,23 +4,16 @@ import {
   type SharepicSlide,
 } from '@gruenerator/contracts';
 
+import { type ComposerBrand, onGround } from '../brand/composerBrand';
 import { ASSET_TARGET_SIZE } from '../utils/canvasAssets';
 import { createCircleBadgeInstance } from '../utils/circleBadgeUtils';
 import { COLORS } from '../utils/dreizeilenLayout';
 import { createShape } from '../utils/shapes';
 import { VERANSTALTUNG_CONFIG } from '../utils/veranstaltungLayout';
 
-import { BRUSH_ARROW, DE_WORDMARK, pageDots, SHAREPIC_COLOR_HEX } from './chromeParts';
+import { BRUSH_ARROW, pageDots, SHAREPIC_COLOR_HEX } from './chromeParts';
 import { placeHandMarks } from './handMarks';
-import {
-  type ARROW,
-  ARROW_ICON,
-  FOOTER,
-  KI_LABEL,
-  KLEE,
-  type LOGO,
-  MARGIN,
-} from './sharepicLayoutConstants';
+import { type ARROW, ARROW_ICON, FOOTER, KI_LABEL, MARGIN } from './sharepicLayoutConstants';
 import { sharepicTheme } from './sharepicThemes';
 import { type SlideCtx } from './slideContext';
 import { type slideInk } from './slideInk';
@@ -58,7 +51,7 @@ export interface ChromeInputs {
   topGround: SlideInk['topGround'];
   showLogo: boolean;
   logoCentred: boolean;
-  logo: (typeof LOGO)[keyof typeof LOGO];
+  logo: ComposerBrand['logo'];
   swipeOn: boolean;
   arrow: (typeof ARROW)[keyof typeof ARROW];
   weiter: string | null;
@@ -136,9 +129,11 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
       x: canvas.width - MARGIN - r + 30,
       y: atBottom ? canvas.height - FOOTER - r : areaTop + MARGIN + r - 30,
     });
-    // DE grows towards the posts' Störer (about 40 % of the width) as far as
-    // the text block leaves room, and shrinks below 125 rather than cover a
-    // block that reaches its corner; the block counts as full width.
+    // A fitted Störer grows towards the posts' one (about 40 % of the width,
+    // text within 90 %) as far as the text block leaves room, and shrinks
+    // below 125 rather than cover a block that reaches its corner; the block
+    // counts as full width.
+    const { stoerer } = ctx.brand;
     const clearsBlock = (r: number) =>
       atBottom ? centreAt(r).y - r >= blockTop + total : centreAt(r).y + r <= blockTop;
     const stoererText = spec.stoerer.text;
@@ -162,23 +157,19 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
     // A long text gets smaller type before its circle covers the block; only
     // a text that fits no circle beside the block (one long word) takes the
     // largest circle that holds it.
-    const radius = isAt
-      ? 125
+    const fixed = stoerer.size === 'fit' ? null : stoerer.size;
+    const radius = fixed
+      ? fixed.radius
       : (STOERER_RADII.find((r) => clearsBlock(r) && fitAt(r)) ??
         STOERER_RADII.find((r) => clearsBlock(r) && fitAt(r, 20)) ??
         STOERER_RADII[0]!);
-    // AT keeps its own Störer. DE follows the current posts: Grasgrün with
-    // Dunkeltanne text (Tanne with white on a grass-green surface), 7°
-    // ascending (Konva turns clockwise, so negative), text within 90 %.
-    const deColors = onGrass
-      ? { background: COLORS.TANNE, text: '#FFFFFF' }
-      : { background: theme.colors.stoerer, text: SHAREPIC_COLOR_HEX.dunkeltanne };
-    const { lines, size } = isAt
+    const colors = onGround(stoerer.colors, { onLight, onGrass });
+    const { lines, size } = fixed
       ? {
           lines: wrapWords(spec.stoerer.text, radius * 1.45, (l) =>
-            measure(l, 38, theme.fonts.headline, 'normal')
+            measure(l, fixed.fontSize, theme.fonts.headline, 'normal')
           ).slice(0, 3),
-          size: 38,
+          size: fixed.fontSize,
         }
       : (fitAt(radius) ??
         fitAt(radius, 20) ??
@@ -188,9 +179,9 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
         id: 'sc-stoerer',
         ...centreAt(radius),
         radius,
-        rotation: isAt ? -8 : -7,
-        backgroundColor: isAt ? theme.colors.stoerer : deColors.background,
-        textColor: isAt ? '#FFFFFF' : deColors.text,
+        rotation: stoerer.rotation,
+        backgroundColor: colors.fill,
+        textColor: colors.ink,
         textLines: lines.map((value, i) => ({
           text: value,
           yOffset: (i - (lines.length - 1) / 2) * size * STOERER_LINE_STEP,
@@ -235,11 +226,9 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
       yOffset: Math.round(
         (present.length === 3 ? line.spec.yOffset : present.length === 2 ? pairOffsets[i]! : 0) * k
       ),
-      // AT sets the whole circle in the poster face (Dc_L5vriG5z), which is
-      // its own weight — a synthetic bold on top would only smear it.
-      fontFamily: isAt ? theme.fonts.headline : theme.fonts.body,
+      fontFamily: ctx.brand.headlineFace.datum ? theme.fonts.headline : theme.fonts.body,
       fontSize: Math.round(line.spec.fontSize * k),
-      fontWeight: isAt ? ('normal' as const) : line.fontWeight,
+      fontWeight: ctx.brand.headlineFace.datum ? ('normal' as const) : line.fontWeight,
     }));
     out.circleBadgeInstances.push(
       createCircleBadgeInstance('default', {
@@ -284,22 +273,19 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
   const logoOnLight = logoAt.current ? false : footerOnLight;
   const logoDarkInk = logoAt.current ? true : footerDarkInk;
   if (showLogo) {
+    const mark = onGround(logo.asset, {
+      onLight: logoOnLight,
+      onGrass: logoDarkInk && !logoOnLight,
+    });
     out.assetInstances.push({
       id: 'sc-logo',
-      assetId: isAt
-        ? footerOnLight
-          ? 'gruene-at-logo-gruen'
-          : 'gruene-at-logo-weiss'
-        : logoDarkInk
-          ? DE_WORDMARK.black
-          : DE_WORDMARK.white,
+      assetId: mark.assetId,
       x: logoAt.current?.x ?? (logoCentred ? canvas.width / 2 : MARGIN + logo.size / 2),
       // x/y is the centre.
       y: canvas.height - logo.bottom - logo.height / 2,
       scale: logo.size / ASSET_TARGET_SIZE,
       rotation: 0,
-      // DE: the dark mark in a tone of the ground — muted on light, deep on grass green.
-      opacity: isAt || !logoDarkInk ? 1 : logoOnLight ? 0.5 : 0.8,
+      opacity: mark.opacity,
     });
     out.layerOrder.push('sc-logo');
   }
@@ -460,16 +446,13 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
     out.layerOrder.push('sc-ki-label');
   }
 
-  // Hand marks: the AT yellow on dark ground and photos, white in DE; green on light.
+  // Hand marks: a white one takes the brand's mark colour, a green one its green.
+  const { handMarks } = ctx.brand;
   placeHandMarks(out, measure, (fill) =>
     fill.toUpperCase() === '#FFFFFF'
-      ? isAt
-        ? theme.colors.accent
-        : '#FFFFFF'
-      : isAt
-        ? theme.colors.accentOnLight
-        : onGrass
-          ? SHAREPIC_COLOR_HEX.tanne
-          : KLEE
+      ? handMarks.white
+      : onGrass
+        ? (handMarks.greenOnGrass ?? handMarks.green)
+        : handMarks.green
   );
 }

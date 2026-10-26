@@ -1,4 +1,5 @@
-import { type BrandTheme } from '../brand/theme';
+import { type ComposerBrand, onGround } from '../brand/composerBrand';
+import { type BrandTheme, type GrueneBrandId } from '../brand/theme';
 import { type TextAccent, type TextMarker } from '../utils/textUtils';
 
 import { AT_EMPHASIS_STYLE, inkOn, LIME, SHAREPIC_COLOR_HEX } from './chromeParts';
@@ -19,6 +20,8 @@ export function slideInk({
   locale,
   isAt,
   theme,
+  brand,
+  brandId,
   surface,
   darkText,
   kopfband,
@@ -29,6 +32,9 @@ export function slideInk({
   locale: SharepicCreatorLocale;
   isAt: boolean;
   theme: BrandTheme;
+  brand: ComposerBrand;
+  /** Which of a theme's per-brand accents applies. */
+  brandId: GrueneBrandId;
   surface: SharepicColor | 'foto';
   darkText: string;
   kopfband: SharepicColor | null;
@@ -63,38 +69,35 @@ export function slideInk({
           shadowOpacity: 0.45,
         }
       : {};
-  // `==word==` runs: AT sets them yellow in Vollkorn Black Italic, DE in lime.
-  // A theme brings its own per side (`SHAREPIC_THEMES`); AT keeps its yellow
-  // on dark ground.
+  // `==word==` runs in the brand's accent; a theme brings its own per brand
+  // and side (`SHAREPIC_THEMES`), `null` where the brand's stays.
   const def = sharepicTheme(thema);
   const side = onLight ? 'light' : 'dark';
-  const deAccent = def
-    ? onGrass && 'grass' in def.accent
-      ? def.accent.grass
-      : def.accent[side]
-    : null;
-  const accent: TextAccent = isAt
-    ? {
-        fill: onLight ? (def?.atAccentOnLight ?? theme.colors.accentOnLight) : theme.colors.accent,
-        fontFamily: theme.fonts.quoteEmphasis,
-        fontStyle: AT_EMPHASIS_STYLE,
-      }
-    : { fill: deAccent ?? (onLight ? KLEE : onGrass ? '#FFFFFF' : LIME) };
+  const ground = { onLight, onGrass };
+  const emphasis = brand.accent.emphasis
+    ? { fontFamily: theme.fonts.quoteEmphasis, fontStyle: AT_EMPHASIS_STYLE }
+    : {};
+  const accent: TextAccent = {
+    fill:
+      (def ? onGround(def.accent[brandId], ground) : null) ?? onGround(brand.accent.fill, ground),
+    ...emphasis,
+  };
   // DE `++passage++`: dark ink in a box. On light ground (white, grey, mint)
   // the posts lay lime under it (Dds8o0TAppl, DdEhd82js3K, Dc3HYlTAnG-);
   // photos and dark colours take white — a dark box disappears into the
-  // scrim. AT has none (see `foldMarkers`). Themes bring their own box.
+  // scrim. A brand without the box has none (see `foldMarkers`). Themes
+  // bring their own box.
   const themedMarker = def?.marker[side] ?? null;
-  const marker: TextMarker | null = isAt
-    ? null
-    : {
+  const marker: TextMarker | null = brand.features.markerBox
+    ? {
         fill:
           themedMarker?.fill ?? (surface === 'creme' ? MARKER_MINT : onLight ? LIME : '#FFFFFF'),
         color: themedMarker?.ink ?? SHAREPIC_COLOR_HEX.dunkeltanne,
         // Tighter than the editor's default: the space beside a mid-line box
         // must stay visible, as on the posts.
         padX: MARKER_PAD_X,
-      };
+      }
+    : null;
   // A DE headline's accent line (`akzent`): dark text on a box. Lime glows on
   // dark ground; on mint it washes out — grass green there; on grass green
   // itself a white box. A theme sets its marker box.
@@ -102,23 +105,10 @@ export function slideInk({
     fill: onGrass ? '#FFFFFF' : onLight ? SHAREPIC_COLOR_HEX.grasgruen : LIME,
     ink: SHAREPIC_COLOR_HEX.dunkeltanne,
   };
-  // A topic icon in a circle — DE Klee on light ground, Tanne on grass green,
-  // lime on dark ground and photos; AT the yellow accent, its dark green on white.
-  const badgeColors =
-    def?.badge?.[side] ??
-    (isAt
-      ? onLight
-        ? { fill: theme.colors.primary, ink: '#FFFFFF' }
-        : { fill: theme.colors.accent, ink: theme.colors.primary }
-      : onLight
-        ? { fill: KLEE, ink: '#FFFFFF' }
-        : onGrass
-          ? { fill: SHAREPIC_COLOR_HEX.tanne, ink: '#FFFFFF' }
-          : { fill: LIME, ink: SHAREPIC_COLOR_HEX.dunkeltanne });
-  const cardAccentFill = def?.cardAccent ?? (isAt ? theme.colors.accentOnLight : KLEE);
-  const cardAccent: TextAccent = isAt
-    ? { ...accent, fill: cardAccentFill }
-    : { fill: cardAccentFill };
+  // A topic icon in a circle, unless the theme recolours it.
+  const badgeColors = def?.badge?.[side] ?? { ...onGround(brand.badge, { onLight, onGrass }) };
+  const cardAccentFill = def?.cardAccent ?? brand.cardAccent;
+  const cardAccent: TextAccent = { fill: cardAccentFill, ...emphasis };
   /** A figure, a numeral or a closing "!" in the slide's accent colour. */
   const accentInk = accent.fill;
   /**

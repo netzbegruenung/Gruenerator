@@ -1,0 +1,364 @@
+{
+ "SYSTEM_ASSETS": {
+  "sunflower": {
+   "yellow": {
+    "src": "/Sonnenblume.png",
+    "label": "Sonnenblume (Gelb)"
+   },
+   "green": {
+    "src": "/sonnenblume_dunkelgruen.svg",
+    "label": "Sonnenblume (Grün)"
+   },
+   "greenLight": {
+    "src": "/sonnenblume_gruen.png",
+    "label": "Sonnenblume (Hellgrün)"
+   },
+   "white": {
+    "src": "/sonnenblume_weiss.svg",
+    "label": "Sonnenblume (Weiß)"
+   },
+   "black": {
+    "src": "/sonnenblume_schwarz.svg",
+    "label": "Sonnenblume (Schwarz)"
+   }
+  },
+  "quote": {
+   "white": {
+    "src": "/quote-white.svg",
+    "label": "Anführungszeichen (Weiß)"
+   },
+   "default": {
+    "src": "/quote.svg",
+    "label": "Anführungszeichen"
+   },
+   "gelb": {
+    "src": "/quote-gelb.svg",
+    "label": "Anführungszeichen (Gelb)"
+   }
+  },
+  "logoDe": {
+   "farbe": {
+    "src": "/gruene-de-logo.png",
+    "label": "Logo Bündnis 90/Die Grünen"
+   },
+   "weiss": {
+    "src": "/gruene-de-logo-weiss.png",
+    "label": "Logo weiß"
+   },
+   "schwarz": {
+    "src": "/gruene-de-logo-schwarz.png",
+    "label": "Logo schwarz"
+   }
+  },
+  "logoAt": {
+   "weiss": {
+    "src": "/gruene-at-logo-weiss.png",
+    "label": "Die Grünen (weiß)"
+   },
+   "gruen": {
+    "src": "/gruene-at-logo-gruen.png",
+    "label": "Die Grünen (grün)"
+   }
+  },
+  "arrow": {
+   "src": "/arrow_right.svg",
+   "label": "Pfeil rechts"
+  },
+  "brushArrow": {
+   "weiss": {
+    "src": "/brush-arrow-weiss.svg",
+    "label": "Pinselpfeil (Weiß)"
+   },
+   "gruen": {
+    "src": "/brush-arrow-gruen.svg",
+    "label": "Pinselpfeil (Grün)"
+   }
+  },
+  "backgrounds": {
+   "info": {
+    "tanne": "/Info_bg_tanne.png",
+    "sand": "/Info_bg_sand.png"
+   }
+  }
+ },
+ "ALL_ASSETS": [
+  {
+   "id": "gruene-de-logo",
+   "src": "/gruene-de-logo.png",
+   "label": "Logo Bündnis 90/Die Grünen",
+   "category": "decoration",
+   "tags": [
+    "logo",
+    "bündnis 90",
+    "buendnis",
+    "grüne",
+    "gruene",
+    "deutschland",
+    "marke",
+    "farbe"
+   ],
+   "audience": "de-DE",
+   "darkPreview": true
+  },
+  {
+   "id": "gruene-de-logo-weiss",
+   "src": "/gruene-de-logo-weiss.png",
+   "label": "Logo weiß",
+   "category": "decoration",
+   "tags": [
+    "logo",
+    "bündnis 90",
+    "buendnis",
+    "grüne",
+    "gruene",
+    "deutschland",
+    "marke",
+    "weiß",
+    "weiss"
+   ],
+   "audience": "de-DE"
+  },
+  {
+   "id": "gruene-de-logo-schwarz",
+   "src": "/gruene-de-logo-schwarz.png",
+   "label": "Logo schwarz",
+   "category": "decoration",
+   "tags": [
+    "logo",
+    "bündnis 90",
+    "buendnis",
+    "grüne",
+    "gruene",
+    "deutschland",
+    "marke",
+    "schwarz"
+   ],
+   "audience": "de-DE"
+  },
+  {
+   "id": "sunflower",
+   "src": "/Sonnenblume.png",
+   "label": "Sonnenblume (Gelb)",
+   "category": "decoration",
+   "tags": [
+    "blume",
+    "flower",
+    "gelb",
+    "yellow",
+    "natur",
+    "pflanze",
+    "sommer"
+   ],
+   "audience": "de-DE"
+  },
+  {
+   "id": "sunflower-green",
+   "src": "/sonnenblume_dunkelgruen.svg",
+   "label": "Sonnenblume (Grün)",
+   "category": "decoration",
+   "tags": [
+    "blume",
+    "flower",
+    "grün",
+    "green",
+    "natur",
+    "pflanze"
+   ],
+   "audience": "de-DE"
+  },
+  {
+   "id": "sunflower-weiss",
+   "src": "/sonnenblume_weiss.svg",
+   "label": "Sonnenblume (Weiß)",
+   "category": "decoration",
+   "tags": [
+    "blume",
+    "flower",
+    "weiß",
+    "weiss",
+    "white",
+    "natur",
+    "pflanze"
+   ],
+   "audience": "de-DE"
+  },
+  {
+   "id": "sunflower-schwarz",
+   "src": "/sonnenblume_schwarz.svg",
+   "label": "Sonnenblume (Schwarz)",
+   "category": "decoration",
+   "tags": [
+    "blume",
+    "flower",
+    "schwarz",
+    "black",
+    "natur",
+    "pflanze"
+   ],
+   "audience": "de-DE"
+  },
+  {
+   "id": "gruene-at-logo-weiss",
+   "src": "/gruene-at-logo-weiss.png",
+   "label": "Die Grünen (weiß)",
+   "category": "decoration",
+   "tags": [
+    "logo",
+    "grüne",
+    "gruene",
+    "österreich",
+    "at",
+    "weiß",
+    "weiss",
+    "marke"
+   ],
+   "audience": "de-AT"
+  },
+  {
+   "id": "gruene-at-logo-gruen",
+   "src": "/gruene-at-logo-gruen.png",
+   "label": "Die Grünen (grün)",
+   "category": "decoration",
+   "tags": [
+    "logo",
+    "grüne",
+    "gruene",
+    "österreich",
+    "at",
+    "grün",
+    "gruen",
+    "marke"
+   ],
+   "audience": "de-AT"
+  },
+  {
+   "id": "quote-mark",
+   "src": "/quote.svg",
+   "label": "Anführungszeichen",
+   "category": "mark",
+   "tags": [
+    "zitat",
+    "quote",
+    "text",
+    "spruch",
+    "rede"
+   ],
+   "audience": "all"
+  },
+  {
+   "id": "arrow",
+   "src": "/arrow_right.svg",
+   "label": "Pfeil rechts",
+   "category": "mark",
+   "tags": [
+    "pfeil",
+    "arrow",
+    "richtung",
+    "zeiger",
+    "hinweis"
+   ],
+   "audience": "all"
+  },
+  {
+   "id": "brush-arrow-gruen",
+   "src": "/brush-arrow-gruen.svg",
+   "label": "Pinselpfeil (Grün)",
+   "category": "mark",
+   "tags": [
+    "pfeil",
+    "arrow",
+    "pinsel",
+    "brush",
+    "wischen",
+    "grün",
+    "gruen"
+   ],
+   "audience": "de-AT"
+  }
+ ],
+ "TEMPLATE_ASSETS": [
+  {
+   "id": "quote-mark-weiss",
+   "src": "/quote-white.svg",
+   "label": "Anführungszeichen (Weiß)",
+   "category": "mark",
+   "tags": [
+    "zitat",
+    "quote",
+    "weiß",
+    "weiss"
+   ],
+   "audience": "all"
+  },
+  {
+   "id": "quote-mark-gelb",
+   "src": "/quote-gelb.svg",
+   "label": "Anführungszeichen (Gelb)",
+   "category": "mark",
+   "tags": [
+    "zitat",
+    "quote",
+    "gelb"
+   ],
+   "audience": "de-AT"
+  },
+  {
+   "id": "sunflower-green-light",
+   "src": "/sonnenblume_gruen.png",
+   "label": "Sonnenblume (Hellgrün)",
+   "category": "decoration",
+   "tags": [
+    "blume",
+    "flower",
+    "grün",
+    "green",
+    "hell"
+   ],
+   "audience": "de-DE"
+  },
+  {
+   "id": "brush-arrow-weiss",
+   "src": "/brush-arrow-weiss.svg",
+   "label": "Pinselpfeil (Weiß)",
+   "category": "mark",
+   "tags": [
+    "pfeil",
+    "arrow",
+    "pinsel",
+    "brush",
+    "wischen",
+    "weiß",
+    "weiss"
+   ],
+   "audience": "de-AT"
+  }
+ ],
+ "LOGO_ASSETS": [
+  "gruene-de-logo",
+  "gruene-de-logo-weiss",
+  "gruene-de-logo-schwarz",
+  "sunflower",
+  "sunflower-green",
+  "sunflower-weiss",
+  "sunflower-schwarz",
+  "gruene-at-logo-weiss",
+  "gruene-at-logo-gruen"
+ ],
+ "CANVAS_RECOMMENDED_ASSETS": {
+  "zitat": [
+   "quote-mark"
+  ],
+  "zitat-pure": [
+   "sunflower-green",
+   "quote-mark"
+  ],
+  "simple": [],
+  "info": [
+   "arrow"
+  ],
+  "dreizeilen": [
+   "sunflower"
+  ],
+  "veranstaltung": []
+ }
+}
