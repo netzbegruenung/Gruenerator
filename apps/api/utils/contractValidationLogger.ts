@@ -2,6 +2,8 @@ import { type RequestValidationError } from '@ts-rest/express';
 import { type Request, type Response, type NextFunction } from 'express';
 import { type Logger } from 'winston';
 
+import { MAX_REPORTED_ISSUES } from './errors/agentFacing.js';
+
 /**
  * Shared validation-error handler for ts-rest contract routers.
  *
@@ -44,6 +46,11 @@ const MAX_LOGGED_URL = 200;
 
 const VALIDATION_MESSAGE = 'Die Anfrage war ungültig.';
 
+function reported<T>(issues: T[] | undefined): T[] | { first: T[]; count: number } | undefined {
+  if (!issues || issues.length <= MAX_REPORTED_ISSUES) return issues;
+  return { first: issues.slice(0, MAX_REPORTED_ISSUES), count: issues.length };
+}
+
 export function logContractValidationError(log: Logger, scope: string) {
   return (
     err: RequestValidationError,
@@ -64,9 +71,9 @@ export function logContractValidationError(log: Logger, scope: string) {
         scope,
         req.method,
         url,
-        err.body?.issues,
-        err.query?.issues,
-        err.pathParams?.issues
+        reported(err.body?.issues),
+        reported(err.query?.issues),
+        reported(err.pathParams?.issues)
       );
     }
 
@@ -83,7 +90,9 @@ export function logContractValidationError(log: Logger, scope: string) {
       success: false,
       error: VALIDATION_MESSAGE,
       message: VALIDATION_MESSAGE,
-      issues: zodError?.issues ?? [],
+      issues: zodError?.issues.slice(0, MAX_REPORTED_ISSUES) ?? [],
+      ...(zodError &&
+        zodError.issues.length > MAX_REPORTED_ISSUES && { issueCount: zodError.issues.length }),
     });
   };
 }

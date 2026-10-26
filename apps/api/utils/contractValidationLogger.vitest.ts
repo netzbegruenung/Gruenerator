@@ -3,6 +3,7 @@ import { type NextFunction, type Response } from 'express';
 import { describe, expect, it, vi } from 'vitest';
 
 import { logContractValidationError } from './contractValidationLogger.js';
+import { MAX_REPORTED_ISSUES } from './errors/agentFacing.js';
 
 import type { Logger } from 'winston';
 
@@ -105,5 +106,27 @@ describe('logContractValidationError', () => {
 
     expect(next).toHaveBeenCalledWith(err);
     expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it('reports the first issues and their count, not every one of them', () => {
+    const res = makeRes();
+    const log = makeLog();
+    const issues = Array.from({ length: 1000 }, (_, i) => ({
+      code: 'invalid_type',
+      path: ['tags', i],
+    }));
+
+    logContractValidationError(log, 'scope')(
+      makeError({ query: null, body: { issues } as unknown as RequestValidationError['body'] }),
+      { ...req },
+      res,
+      vi.fn() as unknown as NextFunction
+    );
+
+    const body = (res.json as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(body.issues).toHaveLength(MAX_REPORTED_ISSUES);
+    expect(body.issueCount).toBe(1000);
+    const logged = (log.warn as ReturnType<typeof vi.fn>).mock.calls[0][4];
+    expect(logged).toEqual({ first: issues.slice(0, MAX_REPORTED_ISSUES), count: 1000 });
   });
 });

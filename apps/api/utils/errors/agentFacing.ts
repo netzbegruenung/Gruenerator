@@ -59,17 +59,25 @@ export function makeInvalidShapeHint(expectedShape: string, detail?: string): st
 }
 
 /**
+ * How many zod issues a validation error reports. zod collects one issue per
+ * failing element, so a request of tiny values can produce tens of thousands;
+ * echoing all of them turned a 270 KB request into an 11 MB response and an
+ * 11 MB log line.
+ */
+export const MAX_REPORTED_ISSUES = 20;
+
+/**
  * Flatten Zod issues into a model-readable list.
  * Mirrors `formatZodError` from middleware/validateBody.ts, which now imports
  * this so request validation and model repair share one formatter.
  */
 export function formatZodIssuesForModel(error: ZodError): string {
-  return error.issues
-    .map((issue) => {
-      const path = issue.path.join('.');
-      return path ? `${path}: ${issue.message}` : issue.message;
-    })
-    .join('; ');
+  const shown = error.issues.slice(0, MAX_REPORTED_ISSUES).map((issue) => {
+    const path = issue.path.join('.');
+    return path ? `${path}: ${issue.message}` : issue.message;
+  });
+  const rest = error.issues.length - shown.length;
+  return rest > 0 ? `${shown.join('; ')}; … ${rest} more` : shown.join('; ');
 }
 
 /**
