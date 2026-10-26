@@ -1,0 +1,100 @@
+import { cleanup, render, waitFor } from '@testing-library/react';
+import Konva from 'konva';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+
+import { composeSharepic } from '../composer/composeSharepic';
+import { MORE_SPECS, SPECS } from '../composer/sharepicSpecFixtures';
+
+import { StandaloneCanvas } from './StandaloneCanvas';
+
+import type { CanvasConfigId } from '../configs/types';
+
+/**
+ * What the editor draws for every composer fixture, as a Konva scene graph:
+ * each node's class, its plain attributes and its children. Moving rendering
+ * onto the element-kind registry must leave these files unchanged; the
+ * composer golden only proves the page object, this proves the canvas made
+ * from it. Images load asynchronously in the browser and are not part of the
+ * scene here, so an image's own attributes need the pixel lane.
+ */
+const measure = (text: string, fontSize: number) => text.length * fontSize * 0.5;
+const options = { photoSrc: (file: string) => `/media/${file}`, measure };
+
+const plain = (value: unknown): boolean =>
+  value === null ||
+  ['string', 'number', 'boolean'].includes(typeof value) ||
+  (Array.isArray(value) && value.every(plain));
+
+interface SceneNode {
+  className: string;
+  attrs: Record<string, unknown>;
+  children?: SceneNode[];
+}
+
+function dump(node: Konva.Node): SceneNode {
+  const attrs = Object.fromEntries(Object.entries(node.getAttrs()).filter(([, v]) => plain(v)));
+  if (!(node instanceof Konva.Container)) return { className: node.getClassName(), attrs };
+  return {
+    className: node.getClassName(),
+    attrs,
+    children: (node.getChildren() as Konva.Node[]).map(dump),
+  };
+}
+
+beforeAll(() => {
+  // jsdom has no FontFaceSet; the editor waits on it before it draws text.
+  Object.defineProperty(document, 'fonts', {
+    configurable: true,
+    value: {
+      check: () => true,
+      load: async () => [],
+      ready: Promise.resolve(),
+      status: 'loaded',
+      addEventListener() {},
+      removeEventListener() {},
+    },
+  });
+});
+
+afterEach(() => {
+  cleanup();
+  for (const stage of [...Konva.stages]) stage.destroy();
+});
+
+async function sceneOf(configId: string, slide: Record<string, unknown>): Promise<SceneNode> {
+  render(<StandaloneCanvas configId={configId as CanvasConfigId} initialProps={slide} preview />);
+  // The canvas settles in steps (the config loads, the format sizes the
+  // stage, async elements mount): take the scene once it holds still for
+  // three samples in a row.
+  let last = '';
+  let still = 0;
+  await waitFor(
+    () => {
+      const stage = Konva.stages[0];
+      const now = stage ? JSON.stringify(dump(stage)) : '';
+      still = now !== '' && now === last ? still + 1 : 0;
+      last = now;
+      if (still < 3) throw new Error('still settling');
+    },
+    { timeout: 10_000, interval: 100 }
+  );
+  const scene = JSON.parse(last) as SceneNode;
+  cleanup();
+  for (const stage of [...Konva.stages]) stage.destroy();
+  return scene;
+}
+
+describe('editor scene golden', () => {
+  for (const [name, spec] of Object.entries({ ...SPECS, ...MORE_SPECS })) {
+    it(`${name} as ${spec.locale}`, async () => {
+      const page = composeSharepic(spec, options);
+      const scenes: SceneNode[] = [];
+      for (const slide of page.slides) {
+        scenes.push(await sceneOf(page.templateType, slide as unknown as Record<string, unknown>));
+      }
+      await expect(`${JSON.stringify(scenes, null, 1)}\n`).toMatchFileSnapshot(
+        `__golden__/scene/${name}.json`
+      );
+    }, 60_000);
+  }
+});
