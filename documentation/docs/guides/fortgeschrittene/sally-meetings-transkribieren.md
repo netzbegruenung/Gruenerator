@@ -73,6 +73,10 @@ Bewahre den Schlüssel wie ein Passwort auf und füge ihn ausschließlich in das
 
 > Suche mit @sally nach dem Meeting „Planung Sommerfest“ vom 20. Oktober 2026. Zeige mir zunächst nur die passenden Termine mit Datum und Titel. Rufe noch keine vollständigen Transkripte ab.
 
+![Sally-Mention im Grünerator-Eingabefeld mit einer fiktiven Meeting-Suche als ungesendetem Entwurf](/img/guides/sally/sally-chat-auswahl.jpg)
+
+_Dieser Screenshot zeigt die Auswahl und einen Anfrageentwurf. Die Suche wurde für das Bild nicht abgeschickt; es wurden keine echten Meetings abgerufen._
+
 Alle Beispiele in diesem Guide sind fiktiv. Ersetze Titel, Datum und Thema durch deine Angaben. Bei mehreren Treffern legst du zuerst fest, welches Gespräch gemeint ist.
 
 > Verwende den zweiten Treffer. Hole die Zusammenfassung und das Transkript dieser Aufzeichnung. Erstelle ein Ergebnisprotokoll mit den Abschnitten Beschlüsse, offene Fragen und nächste Schritte. Trenne beschlossene Punkte von bloßen Vorschlägen. Ergänze zu wichtigen Aussagen Zeitstempel, soweit die Quelle sie enthält. Erfinde keine Angaben.
@@ -97,6 +101,22 @@ Gib dem Grünerator ein klares Ausgabeformat und Regeln für fehlende Angaben. D
 
 Kontrolliere vor der Weitergabe besonders Beschlüsse, Zuständigkeiten und Fristen anhand des Transkripts. Ein gut formulierter Text ist noch kein freigegebenes Protokoll. Wörtliche Zitate solltest du zusätzlich mit der Aufnahme abgleichen.
 
+## Beispiel: Vom Transkript zum Ergebnisprotokoll
+
+So kann das Ergebnis im Grünerator-Chat aussehen:
+
+![Echtes Chat-Ergebnis aus einem fiktiven Transkript: getrennte Beschlüsse, Aufgaben und offene Fragen mit Zeitstempeln](/img/guides/sally/sally-chat-protokoll.jpg)
+
+_Für dieses Beispiel wurde der folgende erfundene Text direkt im Chat eingegeben. Es zeigt die Weiterverarbeitung, keinen Abruf eines echten Sally-Meetings._
+
+```text
+00:10 Person A: Wir beschließen, das Sommerfest am 12. Juni im Stadtpark zu veranstalten.
+00:25 Person B: Ich frage bis Freitag die Verfügbarkeit des Platzes an.
+00:40 Person A: Ein Infostand wäre eine Idee, dazu entscheiden wir beim nächsten Termin.
+```
+
+Der Auftrag dazu lautete: „Erstelle daraus ein kurzes Ergebnisprotokoll mit Beschlüssen, Aufgaben und offenen Fragen. Erfinde keine Fristen oder Beschlüsse.“ Im Ergebnis bleibt der Infostand eine offene Frage; der Chat macht aus der Idee keinen Beschluss.
+
 ## Wenn etwas nicht klappt
 
 | Problem                                                  | Nächster Schritt                                                                                                                 |
@@ -114,4 +134,4 @@ Kontrolliere vor der Weitergabe besonders Beschlüsse, Zuständigkeiten und Fris
 - **[Sally: Allgemeines MCP-Setup](https://help.sally.io/de/guides/integrationen/allgemeines-setup/)** beschreibt die Einrichtung auf Sally-Seite.
 - **[Grünerator mit ChatGPT & Co. verbinden](./gruenerator-mit-ki-chat-verbinden.md)** beschreibt den umgekehrten Weg: Grünerator-Funktionen in einem anderen KI-Chat verwenden.
 
-_Oberflächen und Sally-Verbindung am 26. Oktober 2026 geprüft. Die Screenshots zeigen ausschließlich Einrichtung und Konnektorstatus; persönliche Kontodaten, Meetinginhalte und vorhandene Schlüssel sind nicht abgebildet._
+_Oberflächen und Sally-Verbindung am 26. Oktober 2026 geprüft. Die Screenshots zeigen Einrichtung, Konnektorstatus und gekennzeichnete fiktive Chat-Beispiele; persönliche Kontodaten, echte Meetinginhalte und vorhandene Schlüssel sind nicht abgebildet._
