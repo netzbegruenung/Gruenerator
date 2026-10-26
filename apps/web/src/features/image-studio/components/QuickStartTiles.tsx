@@ -1,5 +1,12 @@
 import { InteractiveCard } from '@gruenerator/ui';
-import { ArrowRight, Image as ImageIcon, Sparkles, Video, type LucideIcon } from 'lucide-react';
+import {
+  ArrowRight,
+  Clapperboard,
+  Image as ImageIcon,
+  Sparkles,
+  Video,
+  type LucideIcon,
+} from 'lucide-react';
 
 import { SHOW_SHAREPIC_STUDIO } from '../../../config/featureFlags';
 import { cn } from '../../../utils/cn';
@@ -21,12 +28,14 @@ export type StudioQuickStartHandlers = {
   onSharepic: () => void;
   onKiBild: () => void;
   onReel: () => void;
+  onVideoEditor: () => void;
 };
 
 const SHAREPIC_DESCRIPTION = 'Zitate, Headlines & Infos aus Vorlagen.';
 
 /**
- * Builds the standard Studio quick-start tiles (Sharepic / KI-Bild / Reel) with
+ * Builds the standard Studio quick-start tiles (Sharepic / KI-Bild / Simple Reel /
+ * Video Editor) with
  * consistent audience and feature-flag handling so every empty state stays in
  * sync. AT is a first-class audience: Austrian users get the external Sharepic
  * generator. For DE the Sharepic tile is omitted when the canvas creator is
@@ -37,6 +46,7 @@ export function buildStudioQuickStarts({
   onSharepic,
   onKiBild,
   onReel,
+  onVideoEditor,
 }: StudioQuickStartHandlers): QuickStart[] {
   // AT and DE both use the internal canvas studio now (AT gets the de-AT
   // template set via audience filtering); no external bildgenerator redirect.
@@ -62,9 +72,16 @@ export function buildStudioQuickStarts({
     {
       key: 'reel',
       icon: Video,
-      title: 'Reel',
+      title: 'Simple Reel',
       description: 'Kurze Videos für Social Media.',
       onClick: onReel,
+    },
+    {
+      key: 'videoeditor',
+      icon: Clapperboard,
+      title: 'Video Editor',
+      description: 'Clips schneiden, Text & Musik.',
+      onClick: onVideoEditor,
     },
   ];
 }
@@ -72,7 +89,7 @@ export function buildStudioQuickStarts({
 /**
  * Presentational grid of quick-start tiles. Shared by the Studio landing empty
  * state and the "Meine Bilder" gallery empty state. The grid widens to a third
- * column only when a third tile is present. Keyboard-accessible and
+ * column only for three tiles; four stay a 2×2 grid. Keyboard-accessible and
  * reduced-motion aware.
  */
 export function QuickStartTiles({ items, className }: { items: QuickStart[]; className?: string }) {
@@ -80,7 +97,7 @@ export function QuickStartTiles({ items, className }: { items: QuickStart[]; cla
     <div
       className={cn(
         'grid gap-4 text-left sm:grid-cols-2',
-        items.length > 2 && 'md:grid-cols-3',
+        items.length === 3 && 'md:grid-cols-3',
         className
       )}
     >

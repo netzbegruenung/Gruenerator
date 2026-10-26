@@ -306,6 +306,7 @@ const StudioGallerySections = () => {
     onSharepic: () => void navigate('/vorlagen'),
     onKiBild: startKiBild,
     onReel: () => void navigate('/studio/video'),
+    onVideoEditor: () => void navigate('/studio/videoeditor'),
   });
 
   return (
