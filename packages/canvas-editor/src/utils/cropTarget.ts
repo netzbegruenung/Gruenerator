@@ -1,5 +1,6 @@
 // Worauf die Zuschneide-Werkzeuge (Begradigen, Automatisch, Erweitern) wirken: eine Tür für alle drei.
 
+import { canCropBackgroundPhoto } from './backgroundPhotoCrop';
 import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo';
 
 import type { UserImageInstance } from './userImageUtils';
@@ -41,4 +42,15 @@ export function cropTargetOf(
   if (id === BACKGROUND_IMAGE_NODE_ID) return null;
   const image = userImageOf(state, id);
   return image ? { kind: 'user-image', image } : null;
+}
+
+/** Ob ein Zuschneide-Modus für das Element beginnen darf: dieselbe Regel wie Fläche, Leiste und Menü. */
+export function canEnterCrop(
+  state: Record<string, unknown>,
+  elements: readonly CanvasElementConfig[],
+  id: string
+): boolean {
+  const target = cropTargetOf(state, elements, id);
+  if (!target) return false;
+  return target.kind === 'user-image' || canCropBackgroundPhoto(target.config);
 }

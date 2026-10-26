@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { cropTargetOf } from './cropTarget';
+import { canCropBackgroundPhoto } from './backgroundPhotoCrop';
+import { canEnterCrop, cropTargetOf } from './cropTarget';
 import { expandedFileName, expandTarget } from './expandImage';
 import { smartCropView } from './smartCrop';
 import { userFacingError, userFacingMessage } from './userFacingError';
@@ -62,6 +63,19 @@ describe('Ziel der Zuschneide-Werkzeuge', () => {
       image: photo,
     });
     expect(cropTargetOf(state, background(true), 'missing')).toBeNull();
+  });
+});
+
+describe('Zuschneide-Modus betreten', () => {
+  it('nur für ein cover-gefittetes Hintergrundfoto oder ein eigenes Bild', () => {
+    const state = { currentImageSrc: '/bg.jpg', userImageInstances: [photo] };
+    const draggable = (coverFit: boolean) =>
+      background(coverFit).map((e) => ({ ...e, draggable: true }));
+    expect(canEnterCrop(state, draggable(true), 'background-image')).toBe(true);
+    expect(canEnterCrop(state, draggable(false), 'background-image')).toBe(false);
+    expect(canCropBackgroundPhoto({ id: 'background-image', draggable: true })).toBe(false);
+    expect(canEnterCrop(state, draggable(true), 'photo')).toBe(true);
+    expect(canEnterCrop(state, draggable(true), 'headline')).toBe(false);
   });
 });
 

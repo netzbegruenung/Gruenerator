@@ -318,6 +318,22 @@ describe('Zuschneide-Modus: jedes andere Ende ist Fertig', () => {
   }, 90_000);
 });
 
+describe('Zuschneide-Modus: Knopf „Zuschneiden"', () => {
+  it('beginnt nur für ein zuschneidbares Element', async () => {
+    const canvas = await mount();
+    await canvas.fire(canvas.stage.findOne('#sunflower')!, 'touchstart');
+    expect(canvas.store.getState().selectedElement).toBe('sunflower');
+    await canvas.run(() => canvas.ref.current!.handleCropImage!());
+    expect(canvas.store.getState().croppingElement).toBeNull();
+
+    await canvas.fire(canvas.background(), 'touchstart');
+    await canvas.run(() => canvas.ref.current!.handleCropImage!());
+    expect(canvas.store.getState().croppingElement).toBe('background-image');
+    await canvas.run(() => canvas.ref.current!.handleCropImage!());
+    expect(canvas.store.getState().croppingElement).toBeNull();
+  }, 90_000);
+});
+
 describe('Zuschneide-Modus: Seitenverhältnis (eigenes Bild)', () => {
   const cropTransformer = (canvas: Canvas) =>
     canvas.stage

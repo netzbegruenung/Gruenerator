@@ -40,7 +40,8 @@ function StraightenField({ value, onCommit }: { value: number; onCommit: (deg: n
   return (
     <input
       type="text"
-      inputMode="numeric"
+      // Nicht `numeric`: die iOS-Zifferntastatur hat kein Minus.
+      inputMode="text"
       role="spinbutton"
       aria-label="Begradigen in Grad"
       aria-valuemin={STRAIGHTEN_MIN}

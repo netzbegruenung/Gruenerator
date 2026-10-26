@@ -23,6 +23,7 @@ import {
   useCanvasStoreShallow,
 } from '../stores/CanvasStoreProvider';
 import { cropRotationOf, cropRotationUpdate } from '../utils/cropSession';
+import { canEnterCrop, type CropUpdate } from '../utils/cropTarget';
 import {
   cropImageSrc,
   expandedFileName,
@@ -51,7 +52,6 @@ import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
 import type { CanvasItem } from '../utils/canvasLayerManager';
 import type { Rect } from '../utils/coverFit';
 import type { CropAspectId } from '../utils/cropAspect';
-import type { CropUpdate } from '../utils/cropTarget';
 import type { GradientFill } from '../utils/gradientFill';
 import type { TextAlign } from '../utils/textAlign';
 import type Konva from 'konva';
@@ -235,7 +235,12 @@ export function ToolbarStateBridge<
       handleBlurChange: floatingHandlers.handleBlurChange,
       handleGradientSelect: floatingHandlers.handleGradientSelect,
       handleTextAlignChange: floatingHandlers.handleTextAlignChange,
-      handleCropImage: () => setCroppingElement(isCropping ? null : selectedElement),
+      handleCropImage: () => {
+        if (isCropping) setCroppingElement(null);
+        else if (selectedElement && canEnterCrop(state, elements, selectedElement)) {
+          setCroppingElement(selectedElement);
+        }
+      },
       handleCropAspect: setCropAspect,
       handleCropRotation: (deg) => {
         if (!cropTarget) return;
