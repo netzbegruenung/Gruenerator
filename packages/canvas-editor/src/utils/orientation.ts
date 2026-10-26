@@ -34,11 +34,40 @@ function rotaterPoint(tr: Konva.Transformer, angle: number): { x: number; y: num
   return tr.getAbsoluteTransform().point({ x: width / 2 + dx * reach, y: height / 2 + dy * reach });
 }
 
+/** Rechteck in Fenster-px. */
+export interface ViewportRect {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
 /**
- * Der sichtbare Teil der Bühne, in Bühnen-px: Fenster und jeder abschneidende
- * Vorfahr kappen, was darüber hinausragt. Gezoomt reicht die Seite am Handy
- * unter die Werkzeugleiste — dort endet die scrollende Seitenfläche, und ein
- * Griff darunter ist nicht greifbar. Ohne Layout (Test-DOM) die ganze Bühne.
+ * Was vom Fenster um `el` herum sichtbar ist: das Fenster, gekappt von jedem
+ * abschneidenden Vorfahren (ohne `el` selbst). Gezoomt reicht die Seite am
+ * Handy unter die Werkzeugleiste — dort endet die scrollende Seitenfläche, und
+ * was darunter liegt, ist nicht greifbar.
+ */
+export function visibleArea(el: HTMLElement): ViewportRect {
+  let left = 0;
+  let top = 0;
+  let right = window.innerWidth;
+  let bottom = window.innerHeight;
+  for (let p = el.parentElement; p; p = p.parentElement) {
+    const style = getComputedStyle(p);
+    if (style.overflowX === 'visible' && style.overflowY === 'visible') continue;
+    const r = p.getBoundingClientRect();
+    left = Math.max(left, r.left);
+    top = Math.max(top, r.top);
+    right = Math.min(right, r.right);
+    bottom = Math.min(bottom, r.bottom);
+  }
+  return { left, top, right, bottom };
+}
+
+/**
+ * Der sichtbare Teil der Bühne, in Bühnen-px (`visibleArea`, geschnitten mit
+ * der Bühne selbst). Ohne Layout (Test-DOM) die ganze Bühne.
  */
 function visibleStageBox(stage: Konva.Stage): Box {
   const container = stage.container();
@@ -46,19 +75,11 @@ function visibleStageBox(stage: Konva.Stage): Box {
   if (c.width === 0 || c.height === 0) {
     return { x: 0, y: 0, width: stage.width(), height: stage.height() };
   }
-  let left = Math.max(c.left, 0);
-  let top = Math.max(c.top, 0);
-  let right = Math.min(c.right, window.innerWidth);
-  let bottom = Math.min(c.bottom, window.innerHeight);
-  for (let el = container.parentElement; el; el = el.parentElement) {
-    const style = getComputedStyle(el);
-    if (style.overflowX === 'visible' && style.overflowY === 'visible') continue;
-    const r = el.getBoundingClientRect();
-    left = Math.max(left, r.left);
-    top = Math.max(top, r.top);
-    right = Math.min(right, r.right);
-    bottom = Math.min(bottom, r.bottom);
-  }
+  const v = visibleArea(container);
+  const left = Math.max(c.left, v.left);
+  const top = Math.max(c.top, v.top);
+  const right = Math.min(c.right, v.right);
+  const bottom = Math.min(c.bottom, v.bottom);
   // Die Bühne kann per CSS skaliert sein (Zoom, Sheet).
   const k = c.width / stage.width();
   return {
