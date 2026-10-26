@@ -81,10 +81,11 @@ export function useCropSession({
     sessionRef.current = null;
     const { readState, restore, checkpoint } = inputsRef.current;
     checkpoint();
+    // Hinter den Beginn zurückgenommen: der Stand passt schon zum Verlauf, ein Wiederherstellen risse ihn davon los.
+    const live = session.mark ? store.getState().endHistorySession(session.mark, 'discard') : true;
     const state = readState();
     const restored = session.snapshot ? restoreCropSnapshot(state, session.snapshot) : null;
-    if (restored) restore({ ...state, ...restored });
-    if (session.mark) store.getState().endHistorySession(session.mark, 'discard');
+    if (live && restored) restore({ ...state, ...restored });
     finish();
   }, [store, finish]);
 

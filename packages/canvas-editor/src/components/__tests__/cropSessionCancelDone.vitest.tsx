@@ -206,6 +206,37 @@ describe('Zuschneide-Modus: Abbrechen', () => {
   }, 90_000);
 });
 
+describe('Zuschneide-Modus: Abbrechen nach Rückgängig', () => {
+  it('lässt den Stand beim Verlauf, wenn hinter den Beginn zurückgenommen wurde', async () => {
+    const canvas = await mount();
+    const initial = canvas.live.state.imageScale;
+    await enterBackgroundCrop(canvas);
+    await canvas.zoomBackground(2);
+    await canvas.run(() => canvas.ref.current!.handleFinishCrop!());
+    const zoomed = canvas.live.state.imageScale;
+    expect(zoomed).not.toBe(initial);
+
+    await enterBackgroundCrop(canvas);
+    await canvas.zoomBackground(1.5);
+    await canvas.run(() => canvas.ref.current!.undo!());
+    await canvas.run(() => canvas.ref.current!.undo!());
+    const s = canvas.store.getState();
+    const atIndex = (s.history[s.historyIndex]!.componentState as Record<string, unknown>)
+      .imageScale;
+    expect(canvas.live.state.imageScale).toBe(atIndex);
+
+    await canvas.run(() => canvas.ref.current!.handleCancelCrop!());
+
+    expect(canvas.store.getState().croppingElement).toBeNull();
+    // Ohne die Prüfung käme hier der Schnappschuss (`zoomed`) zurück, fern vom Verlauf.
+    const after = canvas.store.getState();
+    expect(canvas.live.state.imageScale).toBe(
+      (after.history[after.historyIndex]!.componentState as Record<string, unknown>).imageScale
+    );
+    expect(canvas.live.state.imageScale).toBe(initial);
+  }, 90_000);
+});
+
 describe('Zuschneide-Modus: jedes andere Ende ist Fertig', () => {
   it('Fertig behält den Zuschnitt als einen Schritt, Rückgängig nimmt ihn ganz zurück', async () => {
     const canvas = await mount();

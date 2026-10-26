@@ -1393,8 +1393,10 @@ function CanvasEditorInner({
   // A multi-selection has no selection bar on phones; the pill is its only
   // door to the selection's commands.
   const isMultiSelection = (toolbarState?.selectionCount ?? 0) > 1;
+  // Im Zuschneide-Modus gelten nur Abbrechen und Fertig; die Pille würde das Restbild verdecken.
   const selectionPill =
     toolbarState &&
+    !toolbarState.isCropping &&
     ((showMobileSelection && toolbarState.selectedElement) ||
       (isMultiSelection && isMobileWeb && !isPanelOpen)) ? (
       <MobileSelectionPill

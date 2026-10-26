@@ -6,7 +6,7 @@
  * width/height directly (already scaled during creation).
  */
 
-import { useState, useEffect, useRef, memo } from 'react';
+import { useState, useEffect, useRef, useMemo, memo } from 'react';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
@@ -18,7 +18,7 @@ import {
   visiblePart,
   type Rect as Box,
 } from '../utils/coverFit';
-import { CROP_GHOST_NAME, CROP_GHOST_OPACITY } from '../utils/cropGhost';
+import { CROP_GHOST_NAME, CROP_GHOST_OPACITY, cropGhostSource } from '../utils/cropGhost';
 import {
   getActiveImageFilters,
   hasActiveImageFilters,
@@ -141,6 +141,15 @@ function UserImagePrimitiveInner({
     userImage.mask,
   ]);
 
+  // Das Restbild trägt dieselbe Bearbeitung wie das Bild im Rahmen.
+  const ghostImage = useMemo(
+    () =>
+      cropping && image
+        ? cropGhostSource(image, userImage, userImage.width * (userImage.cropZoom ?? 1))
+        : null,
+    [cropping, image, userImage]
+  );
+
   if (!image) return null;
 
   const { width, height } = userImage;
@@ -230,7 +239,7 @@ function UserImagePrimitiveInner({
           // The whole photo, dimmed: what lies outside the frame shows where it can go.
           <Image
             name={`selection-chrome ${CROP_GHOST_NAME}`}
-            image={image}
+            image={ghostImage ?? image}
             x={photo.x + ghostShift.x}
             y={photo.y + ghostShift.y}
             width={photo.width}

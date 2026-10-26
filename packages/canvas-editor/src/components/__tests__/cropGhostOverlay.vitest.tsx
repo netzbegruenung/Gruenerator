@@ -13,7 +13,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { loadCanvasConfig } from '../../configs/configLoader';
 import { AutoSaveStoreProvider } from '../../stores/AutoSaveStoreProvider';
 import { withSelectionChromeHidden } from '../../utils/captureStage';
-import { CROP_GHOST_NAME } from '../../utils/cropGhost';
+import { CROP_GHOST_NAME, paintCropGhosts } from '../../utils/cropGhost';
 import { GenericCanvas, type GenericCanvasRef } from '../GenericCanvas';
 
 import type * as StoreModule from '../../stores/createCanvasEditorStore';
@@ -41,6 +41,23 @@ vi.mock('use-image', async () => {
 });
 
 vi.spyOn(Konva.Node.prototype, 'cache').mockReturnThis();
+
+// Die Testumgebung gibt jedem jsdom-Canvas einen @napi-rs-Kontext; als Quelle
+// von drawImage versteht napi aber nur seine eigenen Canvas. Die gefilterte
+// Restbild-Kopie ist ein jsdom-Canvas, also zeichnet napi dessen Hintergrund.
+{
+  const napiContext = Object.getPrototypeOf(createCanvas(1, 1).getContext('2d')) as {
+    drawImage: (source: unknown, ...rest: unknown[]) => void;
+  };
+  const drawImage = napiContext.drawImage;
+  napiContext.drawImage = function (source: unknown, ...rest: unknown[]) {
+    const backing =
+      source instanceof HTMLCanvasElement
+        ? (source.getContext('2d') as unknown as { canvas: unknown }).canvas
+        : source;
+    drawImage.call(this, backing, ...rest);
+  };
+}
 
 Object.defineProperty(document, 'fonts', {
   configurable: true,
@@ -82,7 +99,7 @@ const PHOTO: UserImageInstance = {
   opacity: 1,
 };
 
-async function mount() {
+async function mount(extraProps: Record<string, unknown> = {}) {
   const ref = createRef<GenericCanvasRef>();
   const live = { state: {} as Record<string, unknown> };
   stores.length = 0;
@@ -97,6 +114,7 @@ async function mount() {
             line1: 'Klima',
             currentImageSrc: 'https://example.org/foto.png',
             userImageInstances: [PHOTO],
+            ...extraProps,
           }}
           onExport={() => {}}
           onCancel={() => {}}
@@ -222,6 +240,59 @@ describe('Restbild beim Hintergrund-Ausschnitt', () => {
     expect(canvas.ghosts()).toHaveLength(0);
     await canvas.fire(canvas.background(), 'dbltap');
     expect(screenBox(canvas.ghosts()[0]!)).toEqual(start);
+  }, 90_000);
+});
+
+describe('Restbild: Fläche und Look', () => {
+  it('zeichnet nur den sichtbaren Ausschnitt und legt den Puffer nur bei neuer Größe neu an', async () => {
+    const canvas = await mount();
+    await canvas.fire(canvas.background(), 'dbltap');
+    const el = canvas.overlay()!;
+    await overlayMatches(canvas, canvas.ghosts()[0]!);
+
+    const proto = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, 'width')!;
+    let resized = 0;
+    Object.defineProperty(el, 'width', {
+      configurable: true,
+      get: () => proto.get!.call(el) as number,
+      set: (v: number) => {
+        resized++;
+        proto.set!.call(el, v);
+      },
+    });
+    const visible = { x: -30, y: 10, width: 60, height: 40 };
+    paintCropGhosts(canvas.stage, el, visible);
+    expect(el.style.left).toBe('-30px');
+    expect(el.style.top).toBe('10px');
+    expect(el.style.width).toBe('60px');
+    expect(el.style.height).toBe('40px');
+    expect(resized).toBe(1);
+    paintCropGhosts(canvas.stage, el, visible);
+    expect(resized).toBe(1);
+
+    // Liegt nichts vom Restbild im Ausschnitt, verschwindet die Fläche.
+    paintCropGhosts(canvas.stage, el, { x: 100_000, y: 0, width: 10, height: 10 });
+    expect(el.style.display).toBe('none');
+  }, 90_000);
+
+  it('trägt die Bearbeitung des Hintergrundfotos', async () => {
+    const grayscale = vi.spyOn(
+      // Konvas `Filter` umfasst auch CSS-Strings; Grayscale ist eine Funktion.
+      Konva.Filters as unknown as Record<'Grayscale', (data: ImageData) => void>,
+      'Grayscale'
+    );
+    const canvas = await mount({ backgroundImageAdjustments: { grayscale: true } });
+    await canvas.fire(canvas.background(), 'dbltap');
+    const [ghost] = canvas.ghosts();
+    // Eine gefilterte, verkleinerte Kopie statt der Originalquelle.
+    expect(ghost!.image()).not.toBe(canvas.background().image());
+    const source = ghost!.image() as HTMLCanvasElement;
+    expect(source).toBeInstanceOf(HTMLCanvasElement);
+    const sourceCall = grayscale.mock.calls.find(
+      ([data]) => data.width === source.width && data.height === source.height
+    );
+    expect(sourceCall).toBeTruthy();
+    grayscale.mockRestore();
   }, 90_000);
 });
 

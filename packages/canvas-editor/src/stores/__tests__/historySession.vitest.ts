@@ -17,7 +17,7 @@ describe('Verlaufs-Sitzung', () => {
     const mark = store.getState().beginHistorySession()!;
     store.getState().saveToHistory({ v: 2 });
     store.getState().saveToHistory({ v: 3 });
-    store.getState().endHistorySession(mark, 'squash');
+    expect(store.getState().endHistorySession(mark, 'squash')).toBe(true);
     expect(entries(store)).toEqual([0, 1, 3]);
     expect(store.getState().historyIndex).toBe(2);
   });
@@ -69,7 +69,7 @@ describe('Verlaufs-Sitzung', () => {
     store.getState().saveToHistory({ v: 2 });
     store.getState().undo();
     store.getState().undo();
-    store.getState().endHistorySession(mark, 'discard');
+    expect(store.getState().endHistorySession(mark, 'discard')).toBe(false);
     expect(entries(store)).toEqual([0, 1, 2]);
     expect(store.getState().historyIndex).toBe(0);
   });
