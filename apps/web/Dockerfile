@@ -33,6 +33,7 @@ COPY packages/voice/package.json ./packages/voice/
 COPY packages/canvas-editor/package.json ./packages/canvas-editor/
 COPY packages/ui/package.json ./packages/ui/
 COPY packages/collab/package.json ./packages/collab/
+COPY packages/ggraphic-core/package.json ./packages/ggraphic-core/
 COPY packages/sheets/package.json ./packages/sheets/
 COPY packages/wolke/package.json ./packages/wolke/
 COPY packages/sites/package.json ./packages/sites/
@@ -63,6 +64,7 @@ COPY packages/voice ./packages/voice
 COPY packages/canvas-editor ./packages/canvas-editor
 COPY packages/ui ./packages/ui
 COPY packages/collab ./packages/collab
+COPY packages/ggraphic-core ./packages/ggraphic-core
 COPY packages/sheets ./packages/sheets
 COPY packages/wolke ./packages/wolke
 COPY packages/sites ./packages/sites

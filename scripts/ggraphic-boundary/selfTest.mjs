@@ -28,12 +28,13 @@ const svgAsset = (path, body) => ({
 });
 const listedFont = (path, bytes) => ({ files: [binary(path, bytes)], assets: [entry(path)] });
 
-function pkg({ files = [], assets = [] } = {}) {
+function pkg({ files = [], assets = [], manifest = null } = {}) {
   const ofl = buildSfnt(OFL_FONT);
   const fonts = [
     ['fonts/Probe.ttf', ofl],
     ['fonts/Probe.woff', toWoff(ofl)],
     ['fonts/Probe.woff2', toWoff2(ofl)],
+    ['fonts/ProbeGlyf.woff2', toWoff2(ofl, { transformedGlyf: true })],
   ];
   const peep = svgAsset(
     'img/peep.svg',
@@ -57,9 +58,10 @@ function pkg({ files = [], assets = [] } = {}) {
     ),
     text(
       'assets.json',
-      JSON.stringify({
-        assets: [...fonts.map(([path]) => entry(path)), ...peep.assets, ...assets],
-      })
+      manifest ??
+        JSON.stringify({
+          assets: [...fonts.map(([path]) => entry(path)), ...peep.assets, ...assets],
+        })
     ),
     ...fonts.map(([path, bytes]) => binary(path, bytes)),
     ...peep.files,
@@ -67,7 +69,8 @@ function pkg({ files = [], assets = [] } = {}) {
   ];
 }
 
-// [rules, label, leak] — a string leak is the body of src/probe.ts.
+// [rules, label, leak, message?] — a string leak is the body of src/probe.ts;
+// with a message, one failure must also contain it.
 const PROBES = [
   ['a', 'party name', `export const s = 'Bündnis 90/Die Grünen';`],
   ['a', 'escaped umlaut', `export const s = 'KI-generiert mit dem Gr\\u00fcnerator';`],
@@ -156,6 +159,21 @@ const PROBES = [
   ],
   [
     'd',
+    'font owned by Baianat behind transformed glyf/loca tables',
+    listedFont(
+      'fonts/OtherGlyf.woff2',
+      toWoff2(
+        buildSfnt([
+          [0, 'Copyright 2023 by Baianat. All rights reserved.'],
+          [13, OFL_NOTICE],
+        ]),
+        { transformedGlyf: true }
+      )
+    ),
+    'brand-font owner',
+  ],
+  [
+    'd',
     'font without license name',
     listedFont('fonts/Bare.woff2', toWoff2(buildSfnt([[0, 'Copyright 2020 Probe']]))),
   ],
@@ -202,6 +220,29 @@ const PROBES = [
     },
   ],
   ['d', 'manifest entry without file', { assets: [entry('img/missing.svg', 'CC0-1.0')] }],
+  ['d', 'manifest without an assets array', { manifest: '{"assets":{}}' }, '{"assets": [...]}'],
+  ['d', 'manifest entry that is not an object', { assets: [null] }, 'has no path'],
+  [
+    'd',
+    'manifest path out of the package',
+    { assets: [entry('../ggraphic-other/x.svg', 'CC0-1.0')] },
+    'inside the package',
+  ],
+  ['d', 'manifest entry listed twice', { assets: [entry('fonts/Probe.ttf')] }, 'listed twice'],
+  [
+    'a',
+    'symlink',
+    {
+      files: [
+        {
+          path: `${PKG}/fonts/Linked.woff2`,
+          bytes: Buffer.alloc(0),
+          link: '../../../apps/web/public/fonts/x.woff2',
+        },
+      ],
+    },
+    'symlink',
+  ],
   ['d', 'inline base64 asset', `export const i = 'data:image/svg+xml;base64,PHN2Zz4=';`],
   [
     'd',
@@ -241,7 +282,8 @@ const PROBES = [
   ['f', 'missing SPDX header', { files: [text('src/probe.ts', 'export const s = 1;\n')] }],
 ];
 
-export const PROBE_COUNT = PROBES.length + 1;
+// + the clean package, the ambiguous word and the empty file list below
+export const PROBE_COUNT = PROBES.length + 3;
 
 export function runSelfTest() {
   const problems = [];
@@ -251,9 +293,10 @@ export function runSelfTest() {
       `clean package not clean: ${JSON.stringify([...clean.failures, ...clean.warnings])}`
     );
   }
-  for (const [rules, label, leak] of PROBES) {
+  for (const [rules, label, leak, message] of PROBES) {
     const probe = typeof leak === 'string' ? { files: [source(leak)] } : leak;
-    const tripped = new Set(checkFiles(pkg(probe)).failures.map((f) => f.rule));
+    const { failures } = checkFiles(pkg(probe));
+    const tripped = new Set(failures.map((f) => f.rule));
     for (const rule of [rules].flat()) {
       if (!tripped.has(rule)) {
         problems.push(
@@ -261,10 +304,16 @@ export function runSelfTest() {
         );
       }
     }
+    if (message && !failures.some((f) => f.message.includes(message))) {
+      problems.push(`probe "${label}" tripped without "${message}"`);
+    }
   }
   const ambiguous = checkFiles(pkg({ files: [source(`export const s = 'Tanne';`)] }));
   if (ambiguous.failures.length > 0 || ambiguous.warnings.length === 0) {
     problems.push('probe "ambiguous word" must warn without failing');
+  }
+  if (!checkFiles([]).failures.some((f) => f.message.includes('no files'))) {
+    problems.push('probe "empty file list" must fail — a moved package would pass silently');
   }
   return problems;
 }
