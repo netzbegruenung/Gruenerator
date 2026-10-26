@@ -443,7 +443,7 @@ overrides:
   axios: '>=1.19.0'
   postcss: '>=8.5.29'
   uuid: '>=14.0.2'
-  qs: '>=6.16.0'
+  qs: '>=6.16.1'
   proxy-addr: '>=2.0.8'
   compression: '>=1.8.2'
   source-map-js: '>=1.2.2'
