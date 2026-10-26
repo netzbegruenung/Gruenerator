@@ -3,13 +3,13 @@
  * Central routing setup for all API endpoints
  */
 
-import express from 'express';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 
 import { env } from './config/env.js';
 import { requireAdminToken } from './middleware/adminTokenMiddleware.js';
 import authMiddleware from './middleware/authMiddleware.js';
 import { deprecatedRoute } from './middleware/deprecatedRoute.js';
+import { jsonBody } from './middleware/jsonBody.js';
 import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
 import { requireAiConsent } from './middleware/requireAiConsent.js';
 import { mountAdminReportsContractRouter } from './routes/admin/adminReportsContractRouter.js';
@@ -627,7 +627,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   // so the global 10mb body parser is skipped. Install a 50mb parser scoped
   // to /api/chat-graph here so the contract router receives a parsed body
   // (large payloads: base64 image attachments).
-  app.use('/api/chat-graph', express.json({ limit: '50mb' }));
+  app.use('/api/chat-graph', jsonBody('50mb'));
   app.use('/api/chat-graph', aiGenerationLimiter);
   // Dev-only: bind a decision journal per turn and dump it to CHAT_DECISION_LOG_DIR
   // so the live eval lane can render a decision map. Returns null — and mounts
