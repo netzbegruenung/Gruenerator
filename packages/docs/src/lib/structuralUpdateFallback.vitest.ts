@@ -34,7 +34,7 @@ async function runUpdate(from: string, to: string) {
   return editor.blocksToMarkdownLossy(editor.document).trim();
 }
 
-const normalize = (md: string) => md.replace(/[\s|:-]+/g, ' ').trim();
+const normalize = (md: string) => md.replace(/[\s|:*-]+/g, ' ').trim();
 
 describe('withStructuralUpdateFallback', () => {
   it.each([
@@ -110,6 +110,21 @@ describe('withStructuralUpdateFallback — streamed add', () => {
     ['a table followed by text', [table, 'Danach'], ['paragraph', 'table', 'paragraph']],
     ['text then a table', ['Intro', table], ['paragraph', 'paragraph', 'table']],
     ['plain paragraphs', ['Eins', 'Zwei'], ['paragraph', 'paragraph', 'paragraph']],
+    // Blocks that stream in as a paragraph first (`-`, `##`, `1.`, ```` `` ````)
+    // and change type mid-stream threw in xl-ai's diff (GlitchTip #706).
+    ['a bullet list', ['- eins', '- zwei'], ['paragraph', 'bulletListItem', 'bulletListItem']],
+    [
+      'a numbered list',
+      ['1. eins', '2. zwei'],
+      ['paragraph', 'numberedListItem', 'numberedListItem'],
+    ],
+    ['a heading', ['## Titel mit Text'], ['paragraph', 'heading']],
+    ['a code block', ['```js\nconst a = 1;\n```'], ['paragraph', 'codeBlock']],
+    [
+      'a checklist',
+      ['- [ ] offen', '- [x] fertig'],
+      ['paragraph', 'checkListItem', 'checkListItem'],
+    ],
     // Models often send one string per table row; they must still form one table.
     [
       'a table sent row by row',
