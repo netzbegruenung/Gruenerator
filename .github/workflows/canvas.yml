@@ -55,7 +55,10 @@ jobs:
 
       # Die Sharepic-Lane rendert in den Hausschriften; die liegen im privaten
       # Inhalte-Repo. Der Harness liest sie aus .external/gruenerator-intern/fonts.
+      # Ohne Secret faellt nur die Sharepic-Lane (der Harness bricht ab), die
+      # Resize-Lane braucht keine Schriften.
       - name: Hausschriften
+        continue-on-error: true
         uses: actions/checkout@v7
         with:
           repository: netzbegruenung/gruenerator-intern
