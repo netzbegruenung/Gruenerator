@@ -1,7 +1,8 @@
 /**
- * Fokus beim Öffnen und Schließen des Bereichs: ein Tab, der den Bereich
- * öffnet, schickt den Fokus hinein; geschlossen kehrt er zum Tab zurück.
- * Desktop-Panel und mobiles Sheet folgen derselben Regel.
+ * Fokus beim Öffnen und Schließen des Bereichs: ein Tab, der den Bereich per
+ * Tastatur öffnet, schickt den Fokus hinein; nach einem Klick bleibt er auf
+ * dem Tab. Geschlossen kehrt er zum Tab zurück. Desktop-Panel und mobiles
+ * Sheet folgen derselben Regel.
  */
 import { fireEvent, render, screen } from '@testing-library/react';
 import { PiImage, PiTextAa } from 'react-icons/pi';
@@ -56,7 +57,16 @@ function endTransition(el: Element) {
   fireEvent(el, event);
 }
 
-afterEach(() => vi.useRealTimers());
+/** Was `focusModality.ts` der App an `<html>` schreibt. */
+function setModality(modality: 'keyboard' | 'pointer') {
+  document.documentElement.dataset.focusModality = modality;
+}
+
+beforeEach(() => setModality('keyboard'));
+afterEach(() => {
+  vi.useRealTimers();
+  delete document.documentElement.dataset.focusModality;
+});
 
 describe('Desktop-Panel', () => {
   beforeEach(() => setViewport(false));
@@ -74,6 +84,15 @@ describe('Desktop-Panel', () => {
     rerender(<Editor activeTab="text" content={<p>Lädt …</p>} />);
     expect(screen.getByRole('region', { name: 'Text' })).toHaveFocus();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('lässt den Fokus nach einem Klick auf dem Tab', () => {
+    setModality('pointer');
+    const { rerender } = render(<Editor activeTab={null} />);
+    const tab = screen.getByRole('button', { name: 'Text' });
+    tab.focus();
+    rerender(<Editor activeTab="text" />);
+    expect(tab).toHaveFocus();
   });
 
   it('folgt einem Tab-Wechsel bei offenem Panel', () => {
@@ -107,6 +126,15 @@ describe('mobiles Sheet', () => {
     screen.getByRole('button', { name: 'Text' }).focus();
     rerender(<Editor activeTab="text" />);
     expect(screen.getByRole('heading', { name: 'Text' })).toHaveFocus();
+  });
+
+  it('lässt den Fokus nach einem Tipp auf dem Tab', () => {
+    setModality('pointer');
+    const { rerender } = render(<Editor activeTab={null} />);
+    const tab = screen.getByRole('button', { name: 'Text' });
+    tab.focus();
+    rerender(<Editor activeTab="text" />);
+    expect(tab).toHaveFocus();
   });
 
   it('gibt den Fokus nach dem Schließen an den Tab zurück', () => {

@@ -4,7 +4,7 @@ import { PiX } from 'react-icons/pi';
 import { useIsCanvasMobile } from '../hooks/useIsCanvasMobile';
 import { useMobileSheet } from '../hooks/useMobileSheet';
 import { cn } from '../utils/cn';
-import { isFocusLost } from '../utils/editorFocus';
+import { isFocusLost, isKeyboardModality } from '../utils/editorFocus';
 
 import { SIDEBAR_PANEL_ID } from './sidebarStyles';
 
@@ -177,10 +177,12 @@ export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSideb
     if (opener?.isConnected && (!active || active === document.body)) opener.focus();
   }, [isDesktop, phase]);
 
-  // Öffnet ein Tab den Bereich (oder wechselt ihn), geht der Fokus hinein:
-  // mobil auf die Überschrift, auf dem Desktop auf das erste Bedienelement,
-  // solange keines da ist auf den Bereich selbst. Öffnet ihn die Auswahl auf
-  // der Fläche, bleibt der Fokus, wo er ist.
+  // Öffnet ein Tab per Tastatur den Bereich (oder wechselt ihn), geht der
+  // Fokus hinein: mobil auf die Überschrift, auf dem Desktop auf das erste
+  // Bedienelement, solange keines da ist auf den Bereich selbst. Nach einem
+  // Klick bleibt er auf dem Tab — sonst schluckte etwa das Suchfeld der
+  // Elemente Entf und die Strg-Kürzel, die dem ausgewählten Element gelten.
+  // Öffnet ihn die Auswahl auf der Fläche, bleibt der Fokus ohnehin, wo er ist.
   const headingRef = useRef<HTMLHeadingElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const panelTabRef = useRef<HTMLElement | null>(null);
@@ -188,6 +190,7 @@ export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSideb
     if (!isOpen) return;
     const active = document.activeElement;
     if (!(active instanceof Element) || !active.closest(PANEL_TAB)) return;
+    if (!isKeyboardModality()) return;
     if (!isDesktop) {
       headingRef.current?.focus();
       return;
