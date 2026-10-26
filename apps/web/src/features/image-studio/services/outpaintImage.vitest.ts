@@ -82,6 +82,16 @@ describe('expandCanvasImage', () => {
     expect(form.has('kiLabel')).toBe(false);
     expect(result).toBeInstanceOf(File);
     expect(result.type).toBe('image/jpeg');
+    expect(result.name).toBe('erweitert.jpg');
+  });
+
+  it('names a PNG result .png', async () => {
+    post.mockResolvedValue({
+      data: { success: true, image: { base64: 'data:image/png;base64,AAAA' } },
+    });
+    const result = await expandCanvasImage(file, 1);
+    expect(result.type).toBe('image/png');
+    expect(result.name).toBe('erweitert.png');
   });
 
   it('rejects with the user-facing message', async () => {
@@ -89,6 +99,11 @@ describe('expandCanvasImage', () => {
       Object.assign(new Error('Request failed'), { response: { status: 429, data: {} } })
     );
     const caught = await expandCanvasImage(file, 1).catch((e: unknown) => e);
-    expect(caught).toEqual(new Error('Dein Bild-Budget für heute ist aufgebraucht.'));
+    expect(caught).toBeInstanceOf(Error);
+    // Nur so markierte Meldungen zeigt der Editor (Vertrag von `expandImage`).
+    expect(caught).toMatchObject({
+      message: 'Dein Bild-Budget für heute ist aufgebraucht.',
+      userFacing: true,
+    });
   });
 });
