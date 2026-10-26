@@ -65,7 +65,7 @@ import { ensureFontsReady } from '../utils/ensureFontsReady';
 import { MAX_ICON_SELECTIONS, selectedCatalogIconIds } from '../utils/iconInstances';
 import { locateDrop, type ElementDragPayload, type MediaDragPayload } from '../utils/mediaDrop';
 import { selectableItemIds } from '../utils/multiSelect';
-import { rotaterRects } from '../utils/orientation';
+import { type ViewportRect, rotaterRects, visibleArea } from '../utils/orientation';
 import { PendingImagesContext } from '../utils/pendingImages';
 import { stageCssScale } from '../utils/stageCssScale';
 import { findTemplateEntry } from '../utils/templateElementInstance';
@@ -222,6 +222,8 @@ export interface SelectionBox {
   top: number;
   width: number;
   height: number;
+  /** Sichtbarer Teil der Seitenfläche in Fenster-px — was darüber hinausragt, verdeckt eine Leiste. */
+  visible: ViewportRect;
 }
 
 /** Canvas px between blocks clicked in one after another. */
@@ -976,6 +978,7 @@ function GenericCanvasWithRef<
           top: container.top + rect.y * cssScale,
           width: rect.width * cssScale,
           height: rect.height * cssScale,
+          visible: visibleArea(stage.container()),
         };
       },
       subscribeManipulation: (listener) => {
