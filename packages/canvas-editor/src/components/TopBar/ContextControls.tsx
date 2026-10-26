@@ -9,6 +9,7 @@ import { type SelectionGeometry } from '../../utils/canvasCommands';
 import { type GradientFill } from '../../utils/gradientFill';
 import { type LockState } from '../../utils/layerLock';
 import { BRAND_COLORS, FONT_COLORS, STROKE_ONLY_SHAPES } from '../../utils/shapes';
+import { type TextAlign } from '../../utils/textAlign';
 import { useCanvasTextFormatting } from '../CanvasTextOverlay';
 
 import {
@@ -27,6 +28,7 @@ import { FloatingOpacityControl } from './modules/FloatingOpacityControl';
 import { FloatingOutlineControl } from './modules/FloatingOutlineControl';
 import { FloatingPositionControl, type PositionCommandId } from './modules/FloatingPositionControl';
 import { FloatingShadowControl } from './modules/FloatingShadowControl';
+import { FloatingTextAlignControl } from './modules/FloatingTextAlignControl';
 
 export interface ContextControlsProps {
   selectedElement: string | null;
@@ -62,6 +64,8 @@ export interface ContextControlsProps {
     /** Ausschnitt mode for a framed photo: the photo moves inside its frame. */
     handleCropImage?: () => void;
     handleGradientSelect?: (gradient: GradientFill | null) => void;
+    /** Ausrichtung des Textes in seiner Box — freie und Vorlagen-Texte. */
+    handleTextAlignChange?: (id: string, align: TextAlign) => void;
     handleToggleLock?: () => void;
     /** Opens the image-adjust ("Bearbeiten") panel for the selected image. */
     onEditImage?: () => void;
@@ -323,6 +327,17 @@ export function ContextControls({
         editor={formatting.editor}
         marks={formatting.marks}
         variant="contextBar"
+      />
+    );
+  }
+
+  if (isText && activeFloatingModule && handlers.handleTextAlignChange) {
+    const { handleTextAlignChange } = handlers;
+    groups.push(
+      <FloatingTextAlignControl
+        key="text-align"
+        align={activeFloatingModule.data.align ?? 'left'}
+        onAlignChange={(align) => handleTextAlignChange(activeFloatingModule.data.id, align)}
       />
     );
   }
