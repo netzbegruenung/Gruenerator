@@ -286,3 +286,7 @@
     to { opacity: 1; }
   }
 }
+
+/* `kbd:` — nur, solange die letzte Eingabe eine Taste war; dieselbe Variante
+   wie in apps/web (index.css), damit Fokusringe im Paket-Bundle gleich greifen. */
+@custom-variant kbd (&:where([data-focus-modality="keyboard"] *));

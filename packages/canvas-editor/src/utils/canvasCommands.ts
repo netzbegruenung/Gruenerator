@@ -27,6 +27,7 @@ import {
   type InsertOffset,
   type TemplateEntryLookup,
 } from './duplicateElement';
+import { layerLabel } from './layerLabels';
 import { lockedIdsOf, toggledLocks } from './layerLock';
 import { locateDrop } from './mediaDrop';
 import { findDragNodes, selectableItemIds } from './multiSelect';
@@ -46,12 +47,13 @@ import {
   type OrientationDoorInput,
   type OrientationPatch,
 } from './orientElement';
-import { findElementRemover } from './removeElement';
+import { findElementRemover, isTemplateBound } from './removeElement';
 import {
   lockableIds,
   selectionCapabilities,
   type SelectionCapabilities,
 } from './selectionCapabilities';
+import { openTextEditor } from './textEditorOpeners';
 
 import type { PageCommandId } from './canvasCommandRegistry';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
@@ -86,6 +88,8 @@ export interface CanvasCommandContext<TState extends Partial<BaseCanvasState>> {
   isReadOnly: () => boolean;
   /** Die Seite in logischen px (Vorlagengröße) — Ziel beim Ausrichten eines einzelnen Elements. */
   getPageSize: () => { width: number; height: number };
+  /** Sagt Screenreadern einen Satz an (`useAnnounce`); ohne Angabe bleiben die Befehle stumm. */
+  announce?: (text: string) => void;
 }
 
 /**
@@ -122,6 +126,13 @@ const RESIZE_MODES: Partial<Record<OrientableKind, ResizeMode>> = {
   chart: 'uniform',
   'pill-badge': 'uniform',
   'circle-badge': 'uniform',
+};
+
+const LAYER_STEP_MESSAGES: Readonly<Record<LayerStep, string>> = {
+  front: 'Ganz nach vorn',
+  forward: 'Eine Ebene nach vorn',
+  backward: 'Eine Ebene nach hinten',
+  back: 'Ganz nach hinten',
 };
 
 export interface CanvasCommands {
@@ -168,6 +179,20 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
 ): CanvasCommands {
   const selection = () => ctx.store.getState().selectedLayerIds;
 
+  /** „Text: Klimaschutz“ bei einem Element, „3 Elemente“ bei mehreren; null ohne Treffer. */
+  const describe = (ids: readonly string[]): string | null => {
+    if (ids.length === 0) return null;
+    if (ids.length > 1) return `${ids.length} Elemente`;
+    const item = ctx.getRenderList().find((entry) => entry.id === ids[0]);
+    return item ? layerLabel(item, ctx.getState()) : 'Element';
+  };
+  /** `verb` steht hinter mehreren Elementen, `lead` vor einem einzelnen: „Gelöscht: Text“ / „3 Elemente gelöscht“. */
+  const say = (ids: readonly string[], lead: string, verb: string) => {
+    const what = describe(ids);
+    if (!what) return;
+    ctx.announce?.(ids.length === 1 ? `${lead}: ${what}` : `${what} ${verb}`);
+  };
+
   const commit = (next: TState, selectIds: readonly string[]) => {
     ctx.setState(next);
     // `setState` allein schreibt keinen Verlauf; ohne den Eintrag ließe sich
@@ -189,26 +214,59 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
     return { x: x / scale, y: y / scale, width: (right - x) / scale, height: (bottom - y) / scale };
   };
 
-  const copy = () => {
+  const copyQuietly = (): boolean => {
     const ids = selection();
     const state = ctx.getState();
     const entries = ids
       .map((id) => findDuplicableEntry(state, id, ctx.template))
       .filter((entry): entry is DuplicableEntry => entry !== null);
-    if (entries.length === 0) return;
+    if (entries.length === 0) return false;
     CanvasClipboard.copy({ entries, bounds: measure(ids) });
+    return true;
   };
 
-  const remove = () => {
+  const copy = () => {
+    if (copyQuietly()) say(selection(), 'Kopiert', 'kopiert');
+  };
+
+  /** Löscht die Auswahl; false, wenn nichts davon entfernbar war. `lead`/`verb` wählen die Ansage. */
+  const removeSelection = (lead: string, verb: string): boolean => {
     const state = ctx.getState();
     const actions = ctx.getActions();
-    const removers = selection()
-      .map((id) => findElementRemover(state, actions, id))
-      .filter((remove) => remove !== null);
-    if (removers.length === 0) return;
-    if (removers.length === 1) removers[0]!();
-    else ctx.runHistoryBatch(() => removers.forEach((remove) => remove()));
+    const removable = selection().flatMap((id) => {
+      const remove = findElementRemover(state, actions, id);
+      return remove ? [{ id, remove }] : [];
+    });
+    if (removable.length === 0) return false;
+    // Nur was wirklich geht, wird angesagt: ein Vorlagen-Balken in der
+    // Auswahl bleibt stehen und zählt nicht mit. Vor dem Löschen benannt,
+    // danach fehlt der Eintrag in der Render-Liste.
+    const removedIds = removable.map((entry) => entry.id);
+    const label = describe(removedIds);
+    if (removable.length === 1) removable[0]!.remove();
+    else ctx.runHistoryBatch(() => removable.forEach((entry) => entry.remove()));
     ctx.store.getState().setSelectedElement(null);
+    if (label) ctx.announce?.(removedIds.length === 1 ? `${lead}: ${label}` : `${label} ${verb}`);
+    return true;
+  };
+
+  /**
+   * Entf ohne Wirkung, weil die Auswahl zur Vorlage gehört, sagt das einmal an.
+   * Gesperrtes bleibt still stehen — das Schloss sagt schon, warum.
+   */
+  const remove = () => {
+    if (removeSelection('Gelöscht', 'gelöscht')) return;
+    const state = ctx.getState();
+    const actions = ctx.getActions();
+    const renderList = ctx.getRenderList();
+    const bound = selection().filter((id) => isTemplateBound(state, actions, renderList, id));
+    const what = describe(bound);
+    if (!what) return;
+    ctx.announce?.(
+      bound.length === 1
+        ? `Gehört zur Vorlage und lässt sich nicht löschen: ${what}`
+        : `${what} gehören zur Vorlage und lassen sich nicht löschen`
+    );
   };
 
   const paste = (at: ClientPoint | null) => {
@@ -228,18 +286,29 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
       newIds.push(result.newId);
     }
     commit(next, newIds);
+    ctx.announce?.(
+      newIds.length === 1 ? 'Element eingefügt' : `${newIds.length} Elemente eingefügt`
+    );
   };
 
   const duplicate = () => {
     let next = ctx.getState();
     const newIds: string[] = [];
-    for (const id of selection()) {
+    const sourceIds = selection();
+    const label = describe(sourceIds);
+    for (const id of sourceIds) {
       const result = duplicateElementInState(next, id, { template: ctx.template });
       if (!result) continue;
       next = result.state;
       newIds.push(result.newId);
     }
-    if (newIds.length > 0) commit(next, newIds);
+    if (newIds.length === 0) return;
+    commit(next, newIds);
+    if (label) {
+      ctx.announce?.(
+        newIds.length === 1 ? `Dupliziert: ${label}` : `${newIds.length} Elemente dupliziert`
+      );
+    }
   };
 
   const moveLayer = (step: LayerStep) => {
@@ -251,6 +320,7 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
     const next = { ...ctx.getState(), layerOrder };
     ctx.setState(next);
     ctx.saveToHistory(next);
+    ctx.announce?.(LAYER_STEP_MESSAGES[step]);
   };
 
   const toggleLock = () => {
@@ -258,8 +328,20 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
     if (ids.length === 0) return;
     const state = ctx.getState();
     const next = { ...state, lockedLayerIds: toggledLocks(lockedIdsOf(state), ids) };
+    const label = describe(ids);
     ctx.setState(next);
     ctx.saveToHistory(next);
+    if (!label) return;
+    const locked = lockedIdsOf(next);
+    const nowLocked = ids.every((id) => locked.includes(id));
+    if (ids.length === 1) {
+      // Der Name trägt „, gesperrt“ schon, wenn er vor dem Umschalten gelesen wurde.
+      ctx.announce?.(
+        `${nowLocked ? 'Gesperrt' : 'Entsperrt'}: ${label.replace(/, gesperrt$/, '')}`
+      );
+    } else {
+      ctx.announce?.(`${label} ${nowLocked ? 'gesperrt' : 'entsperrt'}`);
+    }
   };
 
   const insertFrameImage = () => {
@@ -280,10 +362,14 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
     return true;
   };
 
-  /** Derselbe Weg wie ein Doppelklick: der Text-Knoten öffnet seinen Editor selbst. */
+  /**
+   * Balken, Pille und Störer melden ihren Editor (`textEditorOpeners`); ein
+   * Text-Knoten öffnet ihn selbst auf den Doppelklick, den die Tür auslöst.
+   */
   const editText = () => {
     const id = ctx.store.getState().selectedElement;
-    if (id) ctx.getStage()?.findOne(`#${id}`)?.fire('dblclick', {}, false);
+    if (!id || openTextEditor(ctx.store, id)) return;
+    ctx.getStage()?.findOne(`#${id}`)?.fire('dblclick', {}, false);
   };
 
   const selectAll = () => {
@@ -483,8 +569,8 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
       }),
     copy,
     cut: () => {
-      copy();
-      remove();
+      copyQuietly();
+      removeSelection('Ausgeschnitten', 'ausgeschnitten');
     },
     paste,
     duplicate,

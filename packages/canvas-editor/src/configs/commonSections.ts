@@ -45,7 +45,7 @@ export const uploadsTab: SidebarTab = {
   id: 'uploads',
   icon: HiArrowUpTray,
   label: 'Uploads',
-  ariaLabel: 'Eigene Bilder hochladen',
+  ariaLabel: 'Uploads: eigene Bilder hochladen',
 };
 
 interface ActionsWithUploads {
@@ -85,7 +85,7 @@ export const toolsTab: SidebarTab = {
   id: 'tools',
   icon: HiWrenchScrewdriver,
   label: 'Tools',
-  ariaLabel: 'KI-Bildwerkzeuge',
+  ariaLabel: 'Tools: KI-Bildwerkzeuge',
 };
 
 export const toolsSectionEntry = defineCommonSection({
@@ -195,7 +195,7 @@ export const chatTab: SidebarTab = {
   id: 'chat',
   icon: HiChatBubbleLeftRight,
   label: 'Chat',
-  ariaLabel: 'KI-Chat zum aktuellen Sharepic öffnen',
+  ariaLabel: 'Chat: KI-Chat zum aktuellen Sharepic öffnen',
 };
 
 /**

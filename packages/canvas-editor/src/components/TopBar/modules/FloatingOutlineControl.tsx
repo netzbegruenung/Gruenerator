@@ -3,6 +3,7 @@ import { Slider } from 'radix-ui';
 import React, { useId } from 'react';
 import { PiTextAa } from 'react-icons/pi';
 
+import { colorName } from '../../../utils/colorNames';
 import { CustomColorSwatch } from '../../CustomColorSwatch';
 
 interface FloatingOutlineControlProps {
@@ -80,7 +81,9 @@ export function FloatingOutlineControl({
                     outlineOffset: '2px',
                   }}
                   onClick={() => onChange({ stroke: c })}
-                  title={c}
+                  title={colorName(c)}
+                  aria-label={colorName(c)}
+                  aria-pressed={stroke === c}
                   type="button"
                 />
               ))}

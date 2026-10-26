@@ -4,6 +4,9 @@ import { PiX } from 'react-icons/pi';
 import { useIsCanvasMobile } from '../hooks/useIsCanvasMobile';
 import { useMobileSheet } from '../hooks/useMobileSheet';
 import { cn } from '../utils/cn';
+import { isFocusLost, isKeyboardModality } from '../utils/editorFocus';
+
+import { SIDEBAR_PANEL_ID } from './sidebarStyles';
 
 import type { SidebarPanelProps } from './types';
 
@@ -35,6 +38,13 @@ type SheetPhase = 'closed' | 'entering' | 'open' | 'closing';
  * hidden, or in jsdom — the timer moves the phase on regardless.
  */
 const SHEET_TRANSITION_FALLBACK_MS = 350;
+
+/** Die Tabs, die diesen Bereich öffnen (`SidebarTabBar`). */
+const PANEL_TAB = `[aria-controls="${SIDEBAR_PANEL_ID}"]`;
+const TABBABLE =
+  'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
+const FOCUS_RING =
+  'outline-none kbd:focus-visible:outline-2 kbd:focus-visible:outline-solid kbd:focus-visible:-outline-offset-2 kbd:focus-visible:outline-[var(--editor-accent)]';
 
 export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSidebarPanelProps) {
   const isDesktop = !useIsCanvasMobile();
@@ -167,6 +177,45 @@ export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSideb
     if (opener?.isConnected && (!active || active === document.body)) opener.focus();
   }, [isDesktop, phase]);
 
+  // Öffnet ein Tab per Tastatur den Bereich (oder wechselt ihn), geht der
+  // Fokus hinein: mobil auf die Überschrift, auf dem Desktop auf das erste
+  // Bedienelement, solange keines da ist auf den Bereich selbst. Nach einem
+  // Klick bleibt er auf dem Tab — sonst schluckte etwa das Suchfeld der
+  // Elemente Entf und die Strg-Kürzel, die dem ausgewählten Element gelten.
+  // Öffnet ihn die Auswahl auf der Fläche, bleibt der Fokus ohnehin, wo er ist.
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const panelTabRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!isOpen) return;
+    const active = document.activeElement;
+    if (!(active instanceof Element) || !active.closest(PANEL_TAB)) return;
+    if (!isKeyboardModality()) return;
+    if (!isDesktop) {
+      headingRef.current?.focus();
+      return;
+    }
+    const panel = panelRef.current;
+    if (!panel) return;
+    const first = panel.querySelector<HTMLElement>(`.sidebar-panel__content :is(${TABBABLE})`);
+    (first ?? panel).focus();
+  }, [isOpen, title, isDesktop]);
+
+  // Desktop: zu wird der Bereich über seinen Tab, „Panel einklappen" oder von
+  // aussen. Ging der Fokus dabei mit dem Bereich verloren, bekommt ihn der Tab,
+  // der ihn zuletzt offen zeigte. Mobil erledigt das der Rückweg zum Öffner oben.
+  useEffect(() => {
+    if (!isDesktop) return;
+    if (isOpen) {
+      const scope: ParentNode = panelRef.current?.closest('.canvas-editor-layout') ?? document;
+      panelTabRef.current = scope.querySelector<HTMLElement>(`${PANEL_TAB}[aria-expanded="true"]`);
+      return;
+    }
+    const tab = panelTabRef.current;
+    panelTabRef.current = null;
+    if (tab?.isConnected && isFocusLost()) tab.focus();
+  }, [isOpen, title, isDesktop]);
+
   if (!isDesktop) {
     if (phase === 'closed') return null;
     // Mobiles Sheet: liegt im Fluss zwischen Canvas und Leiste (order-1), der
@@ -177,6 +226,7 @@ export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSideb
     return (
       <section
         ref={sheetRef}
+        id={SIDEBAR_PANEL_ID}
         aria-label={sheetTitle}
         data-state={phase}
         inert={phase === 'closing'}
@@ -197,7 +247,14 @@ export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSideb
             <div className="w-9 h-1 rounded-sm bg-[var(--editor-border-strong)]" />
           </div>
           <div className="h-8 max-canvas-mobile:h-11 px-5 flex items-center justify-between gap-3">
-            <h2 className="m-0 text-[17px] font-bold text-[var(--editor-text)] truncate">
+            <h2
+              ref={headingRef}
+              tabIndex={-1}
+              className={cn(
+                'm-0 text-[17px] font-bold text-[var(--editor-text)] truncate',
+                FOCUS_RING
+              )}
+            >
               {sheetTitle}
             </h2>
             {onClose && (
@@ -229,7 +286,13 @@ export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSideb
 
   return (
     <div
+      ref={panelRef}
+      id={SIDEBAR_PANEL_ID}
+      role="region"
+      aria-label={title}
+      tabIndex={-1}
       className={cn(
+        FOCUS_RING,
         'sidebar-panel fixed bg-[var(--editor-surface)] flex flex-col z-[101]',
         'top-[var(--editor-topbar-height)] bottom-0 right-auto w-[348px] max-w-[348px] min-w-0 overflow-visible border-r border-[var(--editor-border)]',
         'left-[calc(var(--canvas-host-inset-left,0px)_+_var(--image-studio-tab-bar-width,76px))]'

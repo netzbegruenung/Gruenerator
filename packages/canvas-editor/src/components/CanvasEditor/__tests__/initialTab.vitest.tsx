@@ -77,13 +77,13 @@ describe('CanvasEditor initialTab', () => {
 
   it('öffnet den mitgegebenen Reiter beim ersten Render', async () => {
     const chatTab = await renderEditor({ initialTab: 'chat' });
-    expect(chatTab).toHaveAttribute('aria-pressed', 'true');
+    expect(chatTab).toHaveAttribute('aria-expanded', 'true');
     expect(await screen.findByText('Chat ist in dieser Umgebung nicht verfügbar.')).toBeTruthy();
   });
 
   it('startet ohne initialTab geschlossen', async () => {
     const chatTab = await renderEditor({});
-    expect(chatTab).toHaveAttribute('aria-pressed', 'false');
+    expect(chatTab).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('meldet Reiterwechsel an den Host', async () => {
@@ -121,11 +121,11 @@ describe('CanvasEditor initialTab', () => {
       expect(el).not.toBeNull();
       return el!;
     });
-    expect(textTab).toHaveAttribute('aria-pressed', 'false');
+    expect(textTab).toHaveAttribute('aria-expanded', 'false');
     await act(async () => {
       textTab.click();
     });
-    expect(textTab).toHaveAttribute('aria-pressed', 'true');
+    expect(textTab).toHaveAttribute('aria-expanded', 'true');
     expect(onActiveTabChange).not.toHaveBeenCalled();
   });
 
@@ -194,7 +194,7 @@ describe('CanvasEditor Chat über Seitenwechsel (#4273)', () => {
       document.querySelector<HTMLElement>('[data-page-index="1"]')!.click();
     });
     await settle();
-    expect(document.querySelector('[data-page-index="1"]')).toHaveAttribute('aria-pressed', 'true');
+    expect(document.querySelector('[data-page-index="1"]')).toHaveAttribute('aria-current', 'page');
     expect(screen.getByText('spy-chat')).toBeTruthy();
     expect(mounts).toBe(1);
   });

@@ -24,6 +24,7 @@ const CAPS: SelectionCapabilities = {
   rotation: 0,
   canAlign: true,
   canDistribute: false,
+  canEditText: false,
 };
 
 const snapshot = (over: Partial<CanvasMenuSnapshot> = {}): CanvasMenuSnapshot => ({
@@ -166,11 +167,25 @@ describe('buildCanvasMenu', () => {
   });
 
   it('beginnt bei Text, Bild und Rahmen mit dem, was nur sie können', () => {
-    const first = (type: 'text' | 'user-image' | 'frame') =>
-      labels(buildCanvasMenu(snapshot({ module: { type, data: { id: 'x' } } }), ENV).entries)[0];
-    expect(first('text')).toBe('Text bearbeiten');
+    const first = (type: 'text' | 'user-image' | 'frame', canEditText = false) =>
+      labels(
+        buildCanvasMenu(
+          snapshot({ module: { type, data: { id: 'x' } }, caps: { ...CAPS, canEditText } }),
+          ENV
+        ).entries
+      )[0];
+    expect(first('text', true)).toBe('Text bearbeiten');
     expect(first('user-image')).toBe('Bild bearbeiten');
     expect(first('frame')).toBe('Bild einsetzen');
+  });
+
+  it('bietet „Text bearbeiten“ an, wo die Auswahl es erlaubt — auch beim Balken, nicht beim festen Text', () => {
+    const has = (module: CanvasMenuSnapshot['module'], canEditText: boolean) =>
+      labels(
+        buildCanvasMenu(snapshot({ module, caps: { ...CAPS, canEditText } }), ENV).entries
+      ).includes('Text bearbeiten');
+    expect(has({ type: 'balken', data: { id: 'b', opacity: 1 } }, true)).toBe(true);
+    expect(has({ type: 'text', data: { id: 'claim' } }, false)).toBe(false);
   });
 
   it('sagt bei gesperrter Auswahl Entsperren und schaltet Löschen und Ausschneiden ab', () => {

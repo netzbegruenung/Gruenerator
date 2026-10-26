@@ -2,11 +2,14 @@
  * Die Werkzeugleiste des Sharepic-Text-Editors: was sie je Schrift anbietet
  * und was ihre Knöpfe in den flachen Feldtext schreiben.
  */
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
+import { axe } from '../../test-utils';
 import { fontMarkSupport } from '../../utils/fontMarkSupport';
 import { RichTextField } from '../RichTextField';
+import { TextFormatControls } from '../TextFormatControls';
 
 import type { Editor } from '@tiptap/react';
 
@@ -306,5 +309,124 @@ describe('RichTextField: Fokus beim Öffnen', () => {
     act(() => screen.getByRole('button', { name: 'Textmarker' }).click());
     act(() => screen.getByRole('button', { name: 'Textmarker entfernen' }).click());
     expect(onChange).toHaveBeenLastCalledWith('Hallo');
+  });
+});
+
+describe('RichTextField: die Werkzeugleiste per Tastatur', () => {
+  function content(container: HTMLElement) {
+    return container.querySelector<HTMLElement>('.canvas-rte__content')!;
+  }
+
+  it('Tab im Text geht in die Leiste, ohne den Editor zu schliessen', async () => {
+    const onBlur = vi.fn();
+    const { container } = render(
+      <RichTextField
+        value="Hallo"
+        onChange={() => {}}
+        marks={fontMarkSupport(PT_SANS)}
+        onBlur={onBlur}
+      />
+    );
+    const field = content(container);
+    field.focus();
+    fireEvent.keyDown(field, { key: 'Tab' });
+    const toolbar = screen.getByRole('toolbar', { name: 'Textformatierung' });
+    expect(toolbar).toContainElement(document.activeElement as HTMLElement);
+    expect(screen.getByRole('button', { name: /Fett/ })).toHaveFocus();
+    expect(onBlur).not.toHaveBeenCalled();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('Tab erreicht auch die Leiste eines Wirts (Kontextleiste)', () => {
+    function Host() {
+      const [editor, setEditor] = useState<Editor | null>(null);
+      return (
+        <>
+          <div data-testid="kontextleiste">
+            {editor && (
+              <TextFormatControls
+                editor={editor}
+                marks={fontMarkSupport(PT_SANS)}
+                variant="contextBar"
+              />
+            )}
+          </div>
+          <RichTextField
+            value="Hallo"
+            onChange={() => {}}
+            marks={fontMarkSupport(PT_SANS)}
+            showToolbar={false}
+            onEditorReady={setEditor}
+          />
+        </>
+      );
+    }
+    const { container } = render(<Host />);
+    const field = content(container);
+    field.focus();
+    fireEvent.keyDown(field, { key: 'Tab' });
+    expect(screen.getByRole('button', { name: /Fett/ })).toHaveFocus();
+    expect(screen.getByTestId('kontextleiste')).toContainElement(
+      document.activeElement as HTMLElement
+    );
+  });
+
+  it('Escape in der Leiste schliesst ab und erreicht die Tastatur der Seite nicht', () => {
+    const onEscape = vi.fn();
+    const onWindowKey = vi.fn();
+    const { container } = render(
+      <RichTextField
+        value="Hallo"
+        onChange={() => {}}
+        marks={fontMarkSupport(PT_SANS)}
+        onEscape={onEscape}
+      />
+    );
+    const field = content(container);
+    field.focus();
+    fireEvent.keyDown(field, { key: 'Tab' });
+    window.addEventListener('keydown', onWindowKey);
+    fireEvent.keyDown(screen.getByRole('button', { name: /Fett/ }), { key: 'Escape' });
+    window.removeEventListener('keydown', onWindowKey);
+    expect(onEscape).toHaveBeenCalledTimes(1);
+    expect(onWindowKey).not.toHaveBeenCalled();
+  });
+
+  it('verlässt der Fokus die Leiste, schliesst der Editor ab', () => {
+    const onBlur = vi.fn();
+    const { container } = render(
+      <>
+        <RichTextField
+          value="Hallo"
+          onChange={() => {}}
+          marks={fontMarkSupport(PT_SANS)}
+          onBlur={onBlur}
+        />
+        <button type="button">Woanders</button>
+      </>
+    );
+    const field = content(container);
+    field.focus();
+    fireEvent.keyDown(field, { key: 'Tab' });
+    expect(onBlur).not.toHaveBeenCalled();
+    screen.getByRole('button', { name: 'Woanders' }).focus();
+    expect(onBlur).toHaveBeenCalled();
+  });
+
+  it('zurück in den Text bleibt der Editor offen', () => {
+    const onBlur = vi.fn();
+    const { container } = render(
+      <RichTextField
+        value="Hallo"
+        onChange={() => {}}
+        marks={fontMarkSupport(PT_SANS)}
+        onBlur={onBlur}
+      />
+    );
+    const field = content(container);
+    field.focus();
+    fireEvent.keyDown(field, { key: 'Tab' });
+    field.focus();
+    expect(onBlur).not.toHaveBeenCalled();
   });
 });

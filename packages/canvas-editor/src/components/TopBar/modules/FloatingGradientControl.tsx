@@ -28,7 +28,7 @@ function StopSwatches({
       {BRAND_COLORS.map((c) => (
         <button
           key={c.id}
-          className="size-5 rounded-full border border-black/10 hover:scale-110 transition-transform"
+          className="size-6 rounded-full border border-black/10 hover:scale-110 transition-transform"
           style={{
             backgroundColor: c.value,
             outline: selected === c.value ? '2px solid var(--editor-accent)' : 'none',
@@ -36,6 +36,8 @@ function StopSwatches({
           }}
           onClick={() => onSelect(c.value)}
           title={c.name}
+          aria-label={c.name}
+          aria-pressed={selected === c.value}
           type="button"
         />
       ))}
@@ -144,7 +146,7 @@ export function FloatingGradientControl({
                     <Slider.Range className="absolute rounded-full h-full bg-[var(--editor-accent)]" />
                   </Slider.Track>
                   <Slider.Thumb
-                    className="block size-3 max-canvas-mobile:size-5 bg-white rounded-full border-2 border-[var(--editor-accent)] shadow-[0_1px_3px_rgba(0,0,0,0.2)] cursor-grab focus:outline-none"
+                    className="block size-3 max-canvas-mobile:size-5 bg-white rounded-full border-2 border-[var(--editor-accent)] shadow-[0_1px_3px_rgba(0,0,0,0.2)] cursor-grab outline-none kbd:focus-visible:outline-2 kbd:focus-visible:outline-solid kbd:focus-visible:outline-offset-2 kbd:focus-visible:outline-[var(--editor-accent)]"
                     aria-label="Winkel"
                   />
                 </Slider.Root>

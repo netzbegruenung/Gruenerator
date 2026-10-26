@@ -10,11 +10,12 @@
  * exposes bridge handlers via a mutable ref for GenericCanvasInner's useImperativeHandle.
  */
 
-import { useCallback, useEffect, type MutableRefObject } from 'react';
+import { useCallback, useEffect, useMemo, type MutableRefObject } from 'react';
 
 import { useFloatingModuleHandlers } from '../hooks/useFloatingModuleHandlers';
 import { useFloatingModuleState } from '../hooks/useFloatingModuleState';
 import { useCanvasStoreSelector, useCanvasStoreShallow } from '../stores/CanvasStoreProvider';
+import { pageLayerLabels } from '../utils/layerLabels';
 import { findOrientationDoor } from '../utils/orientElement';
 import { selectionCapabilities } from '../utils/selectionCapabilities';
 import { findTemplateEntry } from '../utils/templateElementInstance';
@@ -90,6 +91,8 @@ export function ToolbarStateBridge<
   });
 
   const selectedLayerIds = useCanvasStoreShallow((s) => s.selectedLayerIds);
+  // Die Ebenen-Liste der Seitenleiste liest die Seite nur über diesen Bericht.
+  const layers = useMemo(() => pageLayerLabels(sortedRenderList, state), [sortedRenderList, state]);
   const setCroppingElement = useCanvasStoreSelector((s) => s.setCroppingElement);
   const isCropping = useCanvasStoreSelector(
     (s) => s.croppingElement !== null && s.croppingElement === s.selectedElement
@@ -172,6 +175,8 @@ export function ToolbarStateBridge<
       canFlip: capabilities.canFlip,
       canAlign: capabilities.canAlign,
       canDistribute: capabilities.canDistribute,
+      layers,
+      selectedLayerIds,
     });
   }, [
     isCropping,
@@ -189,6 +194,8 @@ export function ToolbarStateBridge<
     capabilities.canFlip,
     capabilities.canAlign,
     capabilities.canDistribute,
+    layers,
+    selectedLayerIds,
     onToolbarStateChange,
   ]);
 

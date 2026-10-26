@@ -9,6 +9,12 @@ import { IoCheckmarkOutline, IoShareOutline } from 'react-icons/io5';
 import { DownloadNotice } from '../../components/DownloadNotice';
 import { useAutoSaveStore, useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
 import { downloadErrorMessage } from '../../utils/downloadError';
+import {
+  AltTextField,
+  useCaptionAltText,
+  useShareAltText,
+  withAltText,
+} from '../components/AltTextField';
 import { SubsectionTabBar } from '../SubsectionTabBar';
 
 export interface GenericShareSectionProps {
@@ -18,6 +24,8 @@ export interface GenericShareSectionProps {
   onDownload: () => void | Promise<void>;
   onNavigateToGallery: () => void;
   canvasText: string;
+  /** Der Text der Leinwand allein (ohne Bildnachweis) — Grundlage des Alt-Text-Vorschlags. */
+  imageText?: string;
   canvasType: string;
   pageCount?: number;
   onDownloadAllZip?: () => Promise<void>;
@@ -103,6 +111,7 @@ function DownloadShareSubsection({
   onDownload,
   onNavigateToGallery,
   canvasText,
+  imageText = '',
   pageCount = 1,
   onDownloadAllZip,
   onShareAllPages,
@@ -111,6 +120,8 @@ function DownloadShareSubsection({
   exportError,
   exportNotice,
 }: Omit<GenericShareSectionProps, 'canvasType'>) {
+  const [altText, setAltText] = useShareAltText(imageText);
+  const captionAltText = useCaptionAltText(altText);
   const [downloadState, setDownloadState] = useState<'idle' | 'capturing' | 'success'>('idle');
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
@@ -188,7 +199,7 @@ function DownloadShareSubsection({
       if (shareRoute === 'native-host') {
         shareDataUrlViaNativeHost(imageToShare, 'gruenerator.png', {
           title: 'Grünerator Share',
-          text: canvasText,
+          text: withAltText(canvasText, captionAltText),
         });
       } else {
         const blob = await (await fetch(imageToShare)).blob();
@@ -197,12 +208,12 @@ function DownloadShareSubsection({
         if (navigator.canShare?.({ files: [file] })) {
           await navigator.share({
             files: [file],
-            text: canvasText,
+            text: withAltText(canvasText, captionAltText),
             title: 'Grünerator Share',
           });
         } else {
           await navigator.share({
-            text: canvasText,
+            text: withAltText(canvasText, captionAltText),
             title: 'Grünerator Share',
           });
         }
@@ -217,7 +228,15 @@ function DownloadShareSubsection({
     } finally {
       setIsSharing(false);
     }
-  }, [exportedImage, canvasText, onCaptureCanvas, shareDropdown, publishDraftIfNeeded, shareRoute]);
+  }, [
+    exportedImage,
+    canvasText,
+    captionAltText,
+    onCaptureCanvas,
+    shareDropdown,
+    publishDraftIfNeeded,
+    shareRoute,
+  ]);
 
   const handleShareAllPages = useCallback(async () => {
     shareDropdown.setOpen(false);
@@ -370,6 +389,8 @@ function DownloadShareSubsection({
         )}
       </div>
 
+      <AltTextField value={altText} onChange={setAltText} />
+
       {isMultiExporting && exportProgress && exportProgress.total > 0 && (
         <div className="relative w-full h-6 bg-editor-tile rounded-full overflow-hidden">
           <div
@@ -466,6 +487,7 @@ export function GenericShareSection({
   onDownload,
   onNavigateToGallery,
   canvasText,
+  imageText,
   pageCount,
   onDownloadAllZip,
   onShareAllPages,
@@ -489,6 +511,7 @@ export function GenericShareSection({
             onDownload={onDownload}
             onNavigateToGallery={onNavigateToGallery}
             canvasText={canvasText}
+            imageText={imageText}
             pageCount={pageCount}
             onDownloadAllZip={onDownloadAllZip}
             onShareAllPages={onShareAllPages}
@@ -517,6 +540,7 @@ export function GenericShareSection({
       onDownload,
       onNavigateToGallery,
       canvasText,
+      imageText,
       pageCount,
       onDownloadAllZip,
       onShareAllPages,

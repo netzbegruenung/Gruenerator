@@ -433,7 +433,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Barrierefreiheit",
     "anchor": "",
     "category": "Basics",
-    "text": "Diese Seite sagt, wie barrierefrei der Grünerator heute ist — einschließlich der Stellen, an denen er es noch nicht ist. Eine geschönte Liste hilft niemandem: Wer auf eine Barriere stößt, die hier nicht steht, verliert Zeit mit der Frage, ob es an ihm liegt. Stand: 6. September 2026."
+    "text": "Diese Seite sagt, wie barrierefrei der Grünerator heute ist — einschließlich der Stellen, an denen er es noch nicht ist. Eine geschönte Liste hilft niemandem: Wer auf eine Barriere stößt, die hier nicht steht, verliert Zeit mit der Frage, ob es an ihm liegt. Stand: 26. Oktober 2026."
   },
   {
     "url": "/docs/basics/barrierefreiheit",
@@ -441,7 +441,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Der aktuelle Stand: teilweise konform",
     "anchor": "#der-aktuelle-stand-teilweise-konform",
     "category": "Basics",
-    "text": "Behoben und nachgemessen sind unter anderem: Die eingeklappte Hauptnavigation. Sie war mit Screenreader unbenutzbar — die Beschriftungen der Knöpfe waren nicht nur unsichtbar, sondern vollständig aus der Vorlesereihenfolge entfernt. Das war mit Abstand die schwerste Barriere. Die Tastaturfalle im Untertitel-Werkzeug. Die Tabulatortaste kam aus der Segmentliste nicht mehr heraus. Jetzt wechseln die Pfeiltasten das Segment, und Tab bleibt Tab. Aufgabenkarten auf Boards haben einen echten Ziehgriff, der per Tastatur bedienbar ist. Ziehen mit der Maus funktioniert weiter auf der ganzen Karte. Weißer Text auf den Markenfarben erreichte den geforderten Kontrast nicht. Das betraf den Marken-Button und alle Abzeichen in Eukalyptus-Grün. Graue Textstufen erreichen jetzt in hellem wie dunklem Modus die geforderten 4,5:1. Die Initialen im Avatar (sichtbar, solange kein Bild hinterlegt ist) standen weiß auf einem Grün mit 3,73:1. Sie erreichen jetzt 7,24:1. Rund 300 Bedienelemente der Mobil-App hatten keinen vorlesbaren Namen — mit Screenreader hörte man nur „Schaltfläche\", ohne zu erfahren, welche. Alle haben jetzt einen."
+    "text": "Behoben und nachgemessen sind unter anderem: Die eingeklappte Hauptnavigation. Sie war mit Screenreader unbenutzbar — die Beschriftungen der Knöpfe waren nicht nur unsichtbar, sondern vollständig aus der Vorlesereihenfolge entfernt. Das war mit Abstand die schwerste Barriere. Die Tastaturfalle im Untertitel-Werkzeug. Die Tabulatortaste kam aus der Segmentliste nicht mehr heraus. Jetzt wechseln die Pfeiltasten das Segment, und Tab bleibt Tab. Aufgabenkarten auf Boards haben einen echten Ziehgriff, der per Tastatur bedienbar ist. Ziehen mit der Maus funktioniert weiter auf der ganzen Karte. Weißer Text auf den Markenfarben erreichte den geforderten Kontrast nicht. Das betraf den Marken-Button und alle Abzeichen in Eukalyptus-Grün. Graue Textstufen erreichen jetzt in hellem wie dunklem Modus die geforderten 4,5:1. Die Initialen im Avatar (sichtbar, solange kein Bild hinterlegt ist) standen weiß auf einem Grün mit 3,73:1. Sie erreichen jetzt 7,24:1. Rund 300 Bedienelemente der Mobil-App hatten keinen vorlesbaren Namen — mit Screenreader hörte man nur „Schaltfläche\", ohne zu erfahren, welche. Alle haben jetzt einen. Der Sharepic- und Canvas-Editor ist ohne Maus bedienbar, siehe den…"
   },
   {
     "url": "/docs/basics/barrierefreiheit",
@@ -478,10 +478,18 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/basics/barrierefreiheit",
     "pageTitle": "Barrierefreiheit",
+    "heading": "Sharepic- und Canvas-Editor",
+    "anchor": "#sharepic--und-canvas-editor",
+    "category": "Basics",
+    "text": "Der Editor zeichnet seine Fläche auf eine Leinwand. Damit er trotzdem ohne Maus und mit Screenreader nutzbar ist, gibt es zu allem Sichtbaren einen Zwilling im Bedienbaum. Was per Tastatur geht: Sprunglink „Zu den Ebenen\": Er ist per Tab erreichbar (nach der Chatliste und dem Feedback-Knopf) und öffnet die Ebenen-Liste. Ebenen-Liste: Sie führt alle Elemente der Seite, vorn zuerst. Pfeiltasten, Pos1 und Ende wählen, Leertaste schaltet die Auswahl um, Umschalt erweitert sie. Enter oder F2 bearbeitet den Text beziehungsweise tauscht das Bild eines Rahmens. Textbearbeitung: Der Texteditor trägt einen Namen, Escape schließt ihn, und der Fokus kehrt an die Stelle zurück, an der die Bearbeitung begann. Balken (zum Beispiel im Dreizeiler): Enter oder F2 auf dem Eintrag öffnet die erste Zeile („Zeile 1 bearbeiten\"), Tab springt zur nächsten Zeile, Umschalt+Tab zur vorigen; hinter der letzten Zeile geht der Fokus an den Eintrag zurück. Störer und Badges öffnen ihren Text genauso. Verschieben: Alt+Pfeiltaste schiebt das ausgewählte Element um 1 Einheit, mit zusätzlich Umschalt um 10. Zahlenfelder für Position und Größe sowie Knöpfe zum Drehen und Spiegeln in der Kontextleiste ersetzen das…"
+  },
+  {
+    "url": "/docs/basics/barrierefreiheit",
+    "pageTitle": "Barrierefreiheit",
     "heading": "Tastaturbedienung",
     "anchor": "#tastaturbedienung",
     "category": "Basics",
-    "text": "Der Grünerator ist mit der Tastatur bedienbar. Mit Tab wanderst du vorwärts durch die Bedienelemente, mit Umschalt+Tab zurück, Enter und Leertaste lösen aus, Escape schließt Dialoge. In Listen mit vielen gleichartigen Einträgen — etwa den Segmenten im Untertitel-Werkzeug — wechseln die Pfeiltasten innerhalb der Liste; Tab führt aus der Liste heraus."
+    "text": "Der Grünerator ist weitgehend mit der Tastatur bedienbar, aber nicht überall: Die Fläche des Sharepic- und Canvas-Editors ist ein gezeichnetes Bild, und freies Positionieren mit der Maus hat dort nur Ersatzwege (siehe unten). Mit Tab wanderst du vorwärts durch die Bedienelemente, mit Umschalt+Tab zurück, Enter und Leertaste lösen aus, Escape schließt Dialoge. In Listen mit vielen gleichartigen Einträgen — etwa den Segmenten im Untertitel-Werkzeug — wechseln die Pfeiltasten innerhalb der Liste; Tab führt aus der Liste heraus."
   },
   {
     "url": "/docs/basics/barrierefreiheit",
@@ -489,7 +497,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Was noch nicht erfüllt ist",
     "anchor": "#was-noch-nicht-erfüllt-ist",
     "category": "Basics",
-    "text": "Statusmeldungen werden kaum angesagt. Wenn eine Chat-Antwort beginnt oder endet, ein Werkzeug arbeitet, ein Upload fertig wird oder ein Formular einen Fehler meldet, erfährt ein Screenreader das in den meisten Fällen nicht. Das ist derzeit die größte offene Lücke. Videos haben keine Untertitelspur. Der Grünerator kann Untertitel erzeugen, verlangt sie aber bei eingebetteten Videos nicht. Einzelne Farbpaare liegen weiter unter dem geforderten Wert — bekannt sind ein Blau-auf-Blau-Paar im Bereich Projekte, das weiße Herz-Symbol auf grünem Grund bei gemerkten Vorlagen und Stellen im dunklen Modus, an denen das Primärgrün noch zu wenig Kontrast bietet. Die Seitenstruktur ist uneinheitlich. Nicht jede Seite kennzeichnet ihren Hauptbereich und ihre Navigationsleisten so, dass ein Screenreader direkt dorthin springen kann. Die Mobil-App ist nicht auf einem Gerät geprüft. Die Namen der Bedienelemente sind gesetzt, aber Kontrast, Reihenfolge beim Durchtippen und die tatsächlichen Ansagen von VoiceOver und TalkBack sind ungeprüft. Nicht gemessen wurden bisher: die veröffentlichten Kandidat:innen-Seiten, die Desktop-App und diese Dokumentationsseite selbst."
+    "text": "Statusmeldungen werden kaum angesagt. Wenn eine Chat-Antwort beginnt oder endet, ein Werkzeug arbeitet, ein Upload fertig wird oder ein Formular einen Fehler meldet, erfährt ein Screenreader das in den meisten Fällen nicht. Das ist derzeit die größte offene Lücke. Videos haben keine Untertitelspur. Der Grünerator kann Untertitel erzeugen, verlangt sie aber bei eingebetteten Videos nicht. Einzelne Farbpaare liegen weiter unter dem geforderten Wert — bekannt sind ein Blau-auf-Blau-Paar im Bereich Projekte, das weiße Herz-Symbol auf grünem Grund bei gemerkten Vorlagen und Stellen im dunklen Modus, an denen das Primärgrün noch zu wenig Kontrast bietet. Die Seitenstruktur ist uneinheitlich. Nicht jede Seite kennzeichnet ihren Hauptbereich und ihre Navigationsleisten so, dass ein Screenreader direkt dorthin springen kann. Die Mobil-App ist nicht auf einem Gerät geprüft. Die Namen der Bedienelemente sind gesetzt, aber Kontrast, Reihenfolge beim Durchtippen und die tatsächlichen Ansagen von VoiceOver und TalkBack sind ungeprüft. Der Sharepic- und Canvas-Editor zeigt seine Fläche nur als Bild. Die Fläche ist gezeichnet; ein Screenreader bekommt den Inhalt über die Ebenen-Liste und die…"
   },
   {
     "url": "/docs/basics/barrierefreiheit",
@@ -505,7 +513,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wie geprüft wurde",
     "anchor": "#wie-geprüft-wurde",
     "category": "Basics",
-    "text": "Selbstbewertung, kein externer Test. Konkret: axe-core über 14 Routen der Web-Oberfläche — die Einstiegsseiten der Hauptbereiche — sowie über die Plusmenü-Überlagerung in zwei Fensterbreiten, jede davon in hellem und dunklem Modus. Zuletzt am 13. August 2026. ESLint-Regelsätze (jsx-a11y für das Web, react-native-a11y für die Mobil-App) laufen bei jeder Änderung mit. Komponententests mit axe an den Stellen, an denen ARIA von Hand gesetzt wird. Ein BITV-Test durch eine unabhängige Prüfstelle hat nicht stattgefunden."
+    "text": "Selbstbewertung, kein externer Test. Konkret: axe-core über 14 Routen der Web-Oberfläche — die Einstiegsseiten der Hauptbereiche — sowie über die Plusmenü-Überlagerung in zwei Fensterbreiten, jede davon in hellem und dunklem Modus. Zuletzt am 13. August 2026. ESLint-Regelsätze (jsx-a11y für das Web, react-native-a11y für die Mobil-App) laufen bei jeder Änderung mit. Komponententests mit axe an den Stellen, an denen ARIA von Hand gesetzt wird, auch für den Canvas-Editor (Kontextleiste, Bereichs- und Auswahl-Leisten, Ebenen-Liste, Texteditor). Browser-Test des Canvas-Editors (Playwright, axe und ein Tastatur-Durchlauf: Sprunglink, Ebenen, Text bearbeiten, Löschen, Rückgängig) am 26. Oktober 2026, Desktop und mobile Breite, heller Modus. Ein BITV-Test durch eine unabhängige Prüfstelle hat nicht stattgefunden."
   },
   {
     "url": "/docs/basics/gruenerator-pro-eu",

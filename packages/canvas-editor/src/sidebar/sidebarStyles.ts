@@ -121,3 +121,6 @@ export const ACTION_BTN_DANGER =
 /** Text action button (inline, small text) */
 export const ACTION_BTN_TEXT =
   'ml-auto text-[length:var(--font-size-xs)] text-primary-600 bg-transparent border-none cursor-pointer hover:underline';
+
+/** Id of the open sidebar panel / mobile sheet; the tab buttons point at it via aria-controls. */
+export const SIDEBAR_PANEL_ID = 'canvas-sidebar-panel';
