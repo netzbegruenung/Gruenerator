@@ -12,6 +12,7 @@ import { BRAND_COLORS, FONT_COLORS, STROKE_ONLY_SHAPES } from '../../utils/shape
 import { type TextAlign } from '../../utils/textAlign';
 import { useCanvasTextFormatting } from '../CanvasTextOverlay';
 
+import { CropModeControls } from './CropModeControls';
 import {
   BackgroundImagePicker,
   BackgroundRemoveImageButton,
@@ -62,6 +63,9 @@ export interface ContextControlsProps {
     handleBlurChange?: (id: string, blur: number) => void;
     /** Ausschnitt mode for a framed photo: the photo moves inside its frame. */
     handleCropImage?: () => void;
+    /** Im Zuschneide-Modus: zurück zum Stand beim Betreten bzw. übernehmen. */
+    handleCancelCrop?: () => void;
+    handleFinishCrop?: () => void;
     handleGradientSelect?: (gradient: GradientFill | null) => void;
     /** Ausrichtung des Textes in seiner Box — freie und Vorlagen-Texte. */
     handleTextAlignChange?: (id: string, align: TextAlign) => void;
@@ -83,6 +87,14 @@ export interface ContextControlsProps {
   onDeselect?: () => void;
   /** Mobil: Duplizieren, Löschen und Abwählen liegen in Pille und ✓, nicht hier. */
   hideObjectActions?: boolean;
+}
+
+/** Läuft ein Zuschneide-Modus, zeigt die Leiste nur ihn (`CropModeControls`). */
+export function showsCropModeBar({
+  isCropping,
+  handlers,
+}: Pick<ContextControlsProps, 'isCropping' | 'handlers'>): boolean {
+  return !!isCropping && !!handlers.handleCancelCrop && !!handlers.handleFinishCrop;
 }
 
 const ICON_BTN =
@@ -129,6 +141,15 @@ export function ContextControls({
   // Fett/Kursiv/… nur, solange wirklich getippt wird: die Knöpfe bedienen die
   // Auswahl IM Text, und ohne offenen Editor gibt es keine.
   const formatting = useCanvasTextFormatting();
+
+  if (showsCropModeBar({ isCropping, handlers })) {
+    return (
+      <CropModeControls
+        onCancel={() => handlers.handleCancelCrop?.()}
+        onDone={() => handlers.handleFinishCrop?.()}
+      />
+    );
+  }
 
   const showColorFor = (type: FloatingModuleState['type']) => {
     if (type === 'text') {

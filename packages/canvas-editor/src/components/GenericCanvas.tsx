@@ -38,6 +38,7 @@ import { useCanvasAutoSave } from '../hooks/useCanvasAutoSave';
 import { useCanvasElementHandlers } from '../hooks/useCanvasElementHandlers';
 import { useCanvasKeyboardHandlers } from '../hooks/useCanvasKeyboardHandlers';
 import { useContextPress } from '../hooks/useContextPress';
+import { useCropSession } from '../hooks/useCropSession';
 import { useDeepSelect } from '../hooks/useDeepSelect';
 import { floatingModuleFor } from '../hooks/useFloatingModuleState';
 import { CanvasStage, SnapGuidelines } from '../primitives';
@@ -312,6 +313,9 @@ export interface GenericCanvasRef {
   handleOutlineChange?: (id: string, patch: { stroke?: string; strokeWidth?: number }) => void;
   handleBlurChange?: (id: string, blur: number) => void;
   handleCropImage?: () => void;
+  /** Zuschneide-Modus: zurück zum Stand beim Betreten bzw. mit dem aktuellen Stand beenden. */
+  handleCancelCrop?: () => void;
+  handleFinishCrop?: () => void;
   handleGradientSelect?: (gradient: GradientFill | null) => void;
   handleTextAlignChange?: (id: string, align: TextAlign) => void;
 }
@@ -470,12 +474,27 @@ function GenericCanvasWithRef<
     [callbacks]
   );
 
-  const { saveToHistory, debouncedSaveToHistory, runHistoryBatch, undo, redo, canUndo, canRedo } =
-    useCanvasHistorySetup(collectState, handleRestore, 500, shortcutsEnabled);
+  const {
+    saveToHistory,
+    debouncedSaveToHistory,
+    runHistoryBatch,
+    checkpoint,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+  } = useCanvasHistorySetup(collectState, handleRestore, 500, shortcutsEnabled);
 
   // Read through the ref so `actions` keeps its identity across edits; every
   // action calls getState() when it runs, so it still sees the latest state.
   const getState = useCallback(() => committedStateRef.current, []);
+
+  const cropSession = useCropSession({
+    elements: config.elements as readonly CanvasElementConfig[],
+    readState: getState,
+    restore: handleRestore,
+    checkpoint,
+  });
 
   // `runHistoryBatch` rides on the actions so the AI bridge (built from the
   // page's live actions) coalesces one op batch into one undo step.
@@ -1029,6 +1048,8 @@ function GenericCanvasWithRef<
       handleOutlineChange: (id, patch) => bridgeRef.current?.handleOutlineChange(id, patch),
       handleBlurChange: (id, blur) => bridgeRef.current?.handleBlurChange(id, blur),
       handleCropImage: () => bridgeRef.current?.handleCropImage(),
+      handleCancelCrop: cropSession.cancel,
+      handleFinishCrop: cropSession.finish,
       handleGradientSelect: (gradient) => bridgeRef.current?.handleGradientSelect(gradient),
       handleTextAlignChange: (id, align) => bridgeRef.current?.handleTextAlignChange(id, align),
     }),
@@ -1046,6 +1067,7 @@ function GenericCanvasWithRef<
       referenceHeight,
       commands,
       config,
+      cropSession,
     ]
   );
 

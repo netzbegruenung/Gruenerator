@@ -96,6 +96,17 @@ export interface CanvasEditorActions<
   saveToHistory: (componentState?: TComponentState) => void;
   undo: () => void;
   redo: () => void;
+  /** Merkt den aktuellen Verlaufsstand als Beginn einer Sitzung; `null` ohne Verlauf. */
+  beginHistorySession: () => HistorySessionMark<TComponentState> | null;
+  /**
+   * Schließt die Sitzung ab: `discard` verwirft jeden Eintrag, der in ihr
+   * entstand, `squash` legt sie zu einem Eintrag zusammen. Ein Verlauf, der
+   * hinter den Beginn zurückgenommen oder neu aufgebaut wurde, bleibt unberührt.
+   */
+  endHistorySession: (
+    mark: HistorySessionMark<TComponentState>,
+    outcome: 'discard' | 'squash'
+  ) => void;
   setStateRestorationCallback: (callback: ((state: TComponentState) => void) | null) => void;
 
   setSelectedElement: (id: string | null) => void;
@@ -110,6 +121,17 @@ export interface CanvasEditorActions<
 
   setPendingAiSuggestion: (pending: PendingAiSuggestion | null) => void;
   setCroppingElement: (id: string | null) => void;
+}
+
+/**
+ * Beginn einer Verlaufs-Sitzung. `next` ist der Eintrag, der damals auf `start`
+ * folgte (Redo-Rest): steht er am Ende noch dort, hat die Sitzung nichts gespeichert.
+ */
+export interface HistorySessionMark<
+  TComponentState extends Record<string, unknown> = Record<string, unknown>,
+> {
+  start: CanvasHistoryEntry<TComponentState>;
+  next: CanvasHistoryEntry<TComponentState> | null;
 }
 
 export interface CanvasEditorGetters {
@@ -310,6 +332,36 @@ export function createCanvasEditorStore<
           if (entry.componentState && state.stateRestorationCallback) {
             state.stateRestorationCallback(entry.componentState);
           }
+        }
+      },
+
+      beginHistorySession: () => {
+        const { history, historyIndex } = get();
+        const start = history[historyIndex];
+        return start ? { start, next: history[historyIndex + 1] ?? null } : null;
+      },
+
+      endHistorySession: ({ start, next }, outcome) => {
+        const { history, historyIndex } = get();
+        const startIndex = history.indexOf(start);
+        if (startIndex < 0 || historyIndex < startIndex) return;
+        // Jede Speicherung kappt den Redo-Rest: ist er noch da, kam nichts dazu.
+        if ((history[startIndex + 1] ?? null) === next) return;
+        const kept = history.slice(0, startIndex + 1);
+        const current = history[historyIndex];
+        const unchanged =
+          JSON.stringify(current.componentState) === JSON.stringify(start.componentState);
+        if (outcome === 'discard' || unchanged) {
+          set((s) => {
+            s.history = kept as typeof s.history;
+            s.historyIndex = startIndex;
+          });
+        } else {
+          // `current` liegt hinter `start`: auf `start` selbst wäre er unverändert.
+          set((s) => {
+            s.history = [...kept, current] as typeof s.history;
+            s.historyIndex = startIndex + 1;
+          });
         }
       },
 
