@@ -2,7 +2,7 @@
  * Video Transcription Controller
  *
  * Provides speech-to-text via Voxtral for the video editor.
- * Downloads media from URL, transcribes with word timestamps,
+ * Takes media by URL or as an uploaded file, transcribes with word timestamps,
  * and returns results in the format expected by @designcombo/captions.
  */
 
@@ -10,10 +10,13 @@ import crypto from 'crypto';
 import fs from 'fs';
 import { pipeline } from 'stream/promises';
 
-import { Router, type Response } from 'express';
+import { Router, type NextFunction, type Response } from 'express';
+import multer from 'multer';
 import { z } from 'zod';
 
+import { type AuthenticatedRequest } from '../../middleware/types.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
+import { type Locale } from '../../services/localization/types.js';
 import { transcribeWithProvider } from '../../services/subtitler/transcriptionService.js';
 import { createLogger } from '../../utils/logger.js';
 import { safeFetch } from '../../utils/validation/urlSecurity.js';
@@ -22,6 +25,7 @@ const log = createLogger('video-transcribe');
 const router = Router();
 
 const TEMP_DIR = '/tmp/video-transcribe';
+const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB, same as /api/video/uploads
 
 async function ensureTempDir(): Promise<void> {
   try {
@@ -72,49 +76,116 @@ const transcribeSchema = z.object({
  * in the format the video editor expects:
  * { results: { main: { words: [{ word, start, end }] } } }
  */
+/**
+ * Transcribes a media file on disk and answers in the video editor format:
+ * { results: { main: { words: [{ word, start, end }] } } } (start/end in seconds).
+ * The file is removed afterwards, whether the provider succeeded or not.
+ */
+async function respondWithTranscription(
+  res: Response,
+  tempPath: string,
+  locale: Locale
+): Promise<void> {
+  try {
+    const result = await transcribeWithProvider(tempPath, true, null, locale);
+
+    const words = (result.words || []).map((w) => ({
+      word: w.word,
+      start: w.start,
+      end: w.end,
+    }));
+
+    res.json({
+      results: {
+        main: {
+          words,
+        },
+      },
+    });
+
+    log.info(`Transcription complete: ${words.length} words`);
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    log.error(`Transcription failed: ${errMsg}`);
+    res.status(500).json({ error: errMsg || 'Transcription failed' });
+  } finally {
+    await cleanupTempFile(tempPath);
+  }
+}
+
+/**
+ * POST /api/video/transcribe
+ *
+ * Accepts { url, targetLanguage? } for media reachable on the public internet.
+ */
 router.post(
   '/transcribe',
   validateBody(transcribeSchema),
   async (req: TypedRequest<z.infer<typeof transcribeSchema>>, res: Response): Promise<void> => {
     const { url } = req.body;
 
-    let tempPath: string | null = null;
+    log.info(`Transcription requested for: ${url.substring(0, 80)}...`);
 
+    let tempPath: string;
     try {
-      log.info(`Transcription requested for: ${url.substring(0, 80)}...`);
-
       tempPath = await downloadToTempFile(url);
-      log.debug(`Downloaded to temp file: ${tempPath}`);
-
-      const result = await transcribeWithProvider(tempPath, true);
-
-      // Transform response → video editor format
-      // Provider returns { text, words: [{ word, start, end }] } where start/end are in seconds
-      // Video editor expects { results: { main: { words: [{ word, start, end }] } } }
-      const words = (result.words || []).map((w) => ({
-        word: w.word,
-        start: w.start,
-        end: w.end,
-      }));
-
-      res.json({
-        results: {
-          main: {
-            words,
-          },
-        },
-      });
-
-      log.info(`Transcription complete: ${words.length} words`);
     } catch (error: unknown) {
       const errMsg = error instanceof Error ? error.message : String(error);
-      log.error(`Transcription failed: ${errMsg}`);
+      log.error(`Transcription download failed: ${errMsg}`);
       res.status(500).json({ error: errMsg || 'Transcription failed' });
-    } finally {
-      if (tempPath) {
-        await cleanupTempFile(tempPath);
-      }
+      return;
     }
+    log.debug(`Downloaded to temp file: ${tempPath}`);
+
+    await respondWithTranscription(res, tempPath, req.user?.locale ?? 'de-DE');
+  }
+);
+
+const upload = multer({
+  defParamCharset: 'utf8',
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => {
+      void ensureTempDir().then(() => cb(null, TEMP_DIR));
+    },
+    filename: (_req, _file, cb) => cb(null, crypto.randomUUID()),
+  }),
+  limits: { fileSize: MAX_FILE_SIZE },
+});
+
+function receiveFile(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
+  upload.single('file')(req, res, (err: unknown) => {
+    if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+      res.status(413).json({ error: 'Das Video ist zu groß für die Untertitelung (max. 500 MB).' });
+      return;
+    }
+    if (err) {
+      next(err);
+      return;
+    }
+    next();
+  });
+}
+
+/**
+ * POST /api/video/transcribe/file
+ *
+ * Multipart upload (field `file`) for media that only exists in the person's
+ * browser, e.g. a clip the video editor holds as a blob. Transcribed straight
+ * from disk: fetching it back through /api would hit requireAuth and the SSRF
+ * guard.
+ */
+router.post(
+  '/transcribe/file',
+  receiveFile,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    if (!req.file) {
+      res.status(400).json({ error: 'No file provided' });
+      return;
+    }
+
+    log.info(`Transcription requested for upload (${(req.file.size / 1024 / 1024).toFixed(1)}MB)`);
+
+    await respondWithTranscription(res, req.file.path, req.user?.locale ?? 'de-DE');
   }
 );
 
