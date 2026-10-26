@@ -10,14 +10,17 @@ import {
   resolveAssetInstanceSrc,
 } from '../utils/canvasAssets';
 import { isGroupDrag } from '../utils/multiSelect';
+import { ELEMENT_TRANSFORMER, signedScale } from '../utils/orientation';
 import { useTrackPendingImage } from '../utils/pendingImages';
 import { applyPixelHitArea } from '../utils/pixelHitArea';
-import { calculateCenteredSnapPosition } from '../utils/snapping';
-import { touchAnchorStyleFunc } from '../utils/touchInput';
+import { boxFrame, createBoxFrame, frameBounds, snapByBounds } from '../utils/snapping';
 
 import type { AssetInstance } from '../utils/canvasAssets';
 import type { SnapLine, SnapTarget } from '../utils/snapping';
 import type Konva from 'konva';
+
+// Rahmen für Snap und Geometrie-Meldung, pro Aufruf neu beschrieben (synchron, ohne Allokation).
+const dragFrame = createBoxFrame();
 
 const EXPORT_PIXEL_RATIO = 2;
 
@@ -121,8 +124,11 @@ function AssetPrimitiveInner({
 
   const reportGeometry = useGeometryReporter(asset.id, onGeometryChange);
   useEffect(() => {
-    reportGeometry(asset.x - boxWidth / 2, asset.y - boxHeight / 2, boxWidth, boxHeight);
-  }, [reportGeometry, asset.x, asset.y, boxWidth, boxHeight]);
+    const box = frameBounds(
+      boxFrame(dragFrame, asset.x, asset.y, boxWidth, boxHeight, asset.rotation, 'centre')
+    );
+    reportGeometry(box.x, box.y, box.width, box.height);
+  }, [reportGeometry, asset.x, asset.y, boxWidth, boxHeight, asset.rotation]);
 
   const handleDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -130,11 +136,8 @@ function AssetPrimitiveInner({
       const node = e.currentTarget as Konva.Group;
       if (isGroupDrag(node)) return;
 
-      const result = calculateCenteredSnapPosition(
-        node.x(),
-        node.y(),
-        boxWidth,
-        boxHeight,
+      const result = snapByBounds(
+        boxFrame(dragFrame, node.x(), node.y(), boxWidth, boxHeight, node.rotation(), 'centre'),
         getSnapTargets?.(asset.id) ?? [],
         stageWidth,
         stageHeight,
@@ -178,8 +181,8 @@ function AssetPrimitiveInner({
           const node = groupRef.current;
           if (!node) return;
 
-          const scaleX = node.scaleX();
-          const scaleY = node.scaleY();
+          const scaleX = Math.abs(node.scaleX());
+          const scaleY = Math.abs(node.scaleY());
           const newScale = Math.max(scaleX, scaleY);
           const newRotation = node.rotation();
 
@@ -198,6 +201,10 @@ function AssetPrimitiveInner({
           height={scaledHeight}
           offsetX={scaledWidth / 2}
           offsetY={scaledHeight / 2}
+          // Gespiegelt wird das Bild, nicht die Gruppe: am Transformer hängt so nie
+          // eine negative Skala, die Konva als Drehung + 180° zerlegen würde.
+          scaleX={signedScale(1, asset.flipX === true)}
+          scaleY={signedScale(1, asset.flipY === true)}
         />
 
         {isSelected && (
@@ -217,7 +224,6 @@ function AssetPrimitiveInner({
 
       {isSelected && (
         <Transformer
-          anchorStyleFunc={touchAnchorStyleFunc}
           ref={transformerRef}
           keepRatio={true}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
@@ -226,6 +232,8 @@ function AssetPrimitiveInner({
           borderStroke="#005437"
           anchorStroke="#005437"
           anchorFill="#ffffff"
+          rotateEnabled={true}
+          {...ELEMENT_TRANSFORMER}
           {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}
@@ -248,6 +256,8 @@ export const AssetPrimitive = memo(AssetPrimitiveInner, (prevProps, nextProps) =
   if (prev.y !== next.y) return false;
   if (prev.scale !== next.scale) return false;
   if (prev.rotation !== next.rotation) return false;
+  if (prev.flipX !== next.flipX) return false;
+  if (prev.flipY !== next.flipY) return false;
   if (prev.opacity !== next.opacity) return false;
 
   // Compare other props

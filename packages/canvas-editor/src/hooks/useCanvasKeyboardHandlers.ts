@@ -112,7 +112,8 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
 
       const selection = store.getState().selectedLayerIds;
       const commands = commandsRef.current;
-      switch (commandForKey(e)) {
+      const command = commandForKey(e);
+      switch (command) {
         case 'duplicate':
           if (selection.length === 0) break;
           e.preventDefault();
@@ -142,6 +143,12 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
             return;
           }
           break;
+        case 'flipHorizontal':
+        case 'flipVertical':
+          if (selection.length === 0) break;
+          e.preventDefault();
+          commands.flip(command === 'flipHorizontal' ? 'x' : 'y');
+          return;
         default:
           break;
       }

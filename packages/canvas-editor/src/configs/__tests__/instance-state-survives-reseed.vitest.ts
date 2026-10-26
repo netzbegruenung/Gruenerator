@@ -59,6 +59,7 @@ function seedFor(key: string): unknown {
   if (key === 'iconStates') {
     return { 'guard-icon': { x: 11, y: 22, scale: 1, rotation: 0, opacity: 0.5 } };
   }
+  if (key === 'templateRotations') return { 'guard-element': 30 };
   return [{ id: `guard-${key}`, x: 33, y: 44 }];
 }
 

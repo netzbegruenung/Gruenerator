@@ -20,7 +20,12 @@ interface DeckPage {
 const BLANK_CONFIGS: readonly string[] = ['freeform', 'freeform-at'];
 
 /** These only describe elements; they hold none themselves. */
-const DESCRIBING_KEYS: readonly string[] = ['layerOrder', 'lockedLayerIds', 'iconStates'];
+const DESCRIBING_KEYS: readonly string[] = [
+  'layerOrder',
+  'lockedLayerIds',
+  'iconStates',
+  'templateRotations',
+];
 const ELEMENT_KEYS = CARRIED_INSTANCE_KEYS.filter((k) => !DESCRIBING_KEYS.includes(k));
 
 const hasEntries = (value: unknown) => Array.isArray(value) && value.length > 0;

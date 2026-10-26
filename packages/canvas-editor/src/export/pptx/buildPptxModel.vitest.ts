@@ -485,6 +485,15 @@ describe('buildPptxModel — shapes', () => {
     }
   });
 
+  it('rasters a flipped native shape, an unflipped one stays native', () => {
+    expect(shapeItem(shape({ flipX: true }))).toMatchObject({
+      kind: 'raster',
+      reason: 'shape-flipped',
+    });
+    expect(shapeItem(shape({ flipY: true }))).toMatchObject({ reason: 'shape-flipped' });
+    expect(shapeItem(shape({ flipX: false }))).toMatchObject({ kind: 'shape' });
+  });
+
   it('rasters gradient and blended shapes', () => {
     const fillGradient = { type: 'linear' as const, angle: 90, stops: [] };
     expect(shapeItem(shape({ fillGradient }))).toMatchObject({ reason: 'shape-styled' });

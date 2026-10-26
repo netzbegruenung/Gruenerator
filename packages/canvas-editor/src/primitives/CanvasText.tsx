@@ -17,8 +17,8 @@ import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometry
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { gradientFillProps, type GradientFill } from '../utils/gradientFill';
 import { isGroupDrag } from '../utils/multiSelect';
-import { calculateSnapPosition, calculateElementSnapPosition } from '../utils/snapping';
-import { touchAnchorStyleFunc } from '../utils/touchInput';
+import { ELEMENT_TRANSFORMER, normalizeRotation } from '../utils/orientation';
+import { boxFrame, createBoxFrame, frameBounds, snapByBounds } from '../utils/snapping';
 
 import { CanvasRichText } from './CanvasRichText';
 
@@ -26,6 +26,9 @@ import type { SnapTarget, SnapLine } from '../utils/snapping';
 import type { TextAccent, TextMarker } from '../utils/textUtils';
 import type { TransformConfig, TransformAnchor } from '@gruenerator/shared/canvas-editor';
 import type Konva from 'konva';
+
+// Rahmen für Snap und Geometrie-Meldung, pro Aufruf neu beschrieben (synchron, ohne Allokation).
+const dragFrame = createBoxFrame();
 
 export interface CanvasTextProps {
   id?: string;
@@ -71,7 +74,14 @@ export interface CanvasTextProps {
   onDeselect?: () => void;
   onTextChange?: (text: string) => void;
   onDragEnd?: (x: number, y: number) => void;
-  onTransformEnd?: (x: number, y: number, width: number, scaleX: number, scaleY: number) => void;
+  onTransformEnd?: (
+    x: number,
+    y: number,
+    width: number,
+    scaleX: number,
+    scaleY: number,
+    rotation: number
+  ) => void;
   onFontSizeChange?: (fontSize: number) => void;
   snapToCenter?: boolean;
   stageWidth?: number;
@@ -183,12 +193,24 @@ function CanvasTextInner({
   useEffect(() => {
     const node = textRef.current;
     if (!node) return;
-    reportGeometry(node.x(), node.y(), node.width() * node.scaleX(), node.height() * node.scaleY());
+    const box = frameBounds(
+      boxFrame(
+        dragFrame,
+        node.x(),
+        node.y(),
+        node.width() * node.scaleX(),
+        node.height() * node.scaleY(),
+        node.rotation(),
+        'top-left'
+      )
+    );
+    reportGeometry(box.x, box.y, box.width, box.height);
   }, [
     reportGeometry,
     text,
     x,
     y,
+    rotation,
     width,
     fontSize,
     fontFamily,
@@ -210,9 +232,26 @@ function CanvasTextInner({
 
       if (id && onPositionChange) {
         onPositionChange(id, node.x(), node.y(), nodeWidth, nodeHeight);
+        // onPositionChange schreibt die ungedrehte Box in dieselben Snap-Ziele;
+        // gedreht muss danach die sichtbare Box dort stehen (der Reporter
+        // meldet nur bei Prop-Änderung, ein Drag zurück an den Start ändert keine).
+        if (node.rotation() !== 0 && onGeometryChange) {
+          const box = frameBounds(
+            boxFrame(
+              dragFrame,
+              node.x(),
+              node.y(),
+              nodeWidth,
+              nodeHeight,
+              node.rotation(),
+              'top-left'
+            )
+          );
+          onGeometryChange(id, box.x, box.y, box.width, box.height);
+        }
       }
     },
-    [id, onDragEnd, onPositionChange, snap]
+    [id, onDragEnd, onPositionChange, onGeometryChange, snap]
   );
 
   const handleDragMove = useCallback(
@@ -226,11 +265,17 @@ function CanvasTextInner({
 
       const snapTargets = getSnapTargets?.(id ?? '') ?? [];
       if (snapTargets.length > 0 || snapToCenter) {
-        const result = calculateElementSnapPosition(
-          node.x(),
-          node.y(),
-          nodeWidth,
-          nodeHeight,
+        // Die Höhe ist die aktuelle des Knotens (nach dem Umbruch) — ein Property-Read.
+        const result = snapByBounds(
+          boxFrame(
+            dragFrame,
+            node.x(),
+            node.y(),
+            nodeWidth,
+            nodeHeight,
+            node.rotation(),
+            'top-left'
+          ),
           snapTargets,
           stageWidth,
           stageHeight,
@@ -281,11 +326,11 @@ function CanvasTextInner({
 
       // Commit to React state
       onFontSizeChange?.(newFontSize);
-      onTransformEnd?.(node.x(), node.y(), newWidth, 1, 1);
+      onTransformEnd?.(node.x(), node.y(), newWidth, 1, 1, normalizeRotation(node.rotation()));
     } else {
       // Just reset scale without changing dimensions
       node.scale({ x: 1, y: 1 });
-      onTransformEnd?.(node.x(), node.y(), currentWidth, 1, 1);
+      onTransformEnd?.(node.x(), node.y(), currentWidth, 1, 1, normalizeRotation(node.rotation()));
     }
   }, [onFontSizeChange, onTransformEnd]);
 
@@ -376,12 +421,8 @@ function CanvasTextInner({
       />
       {selected && !isEditing && (
         <Transformer
-          anchorStyleFunc={touchAnchorStyleFunc}
           ref={trRef}
           rotateEnabled={transformConfig?.rotateEnabled ?? false}
-          rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}
-          rotationSnapTolerance={7}
-          flipEnabled={transformConfig?.flipEnabled ?? false}
           keepRatio={transformConfig?.keepRatio ?? true}
           enabledAnchors={enabledAnchors}
           boundBoxFunc={(oldBox, newBox) => {
@@ -391,6 +432,7 @@ function CanvasTextInner({
             if (newBox.width > maxWidth) return oldBox;
             return newBox;
           }}
+          {...ELEMENT_TRANSFORMER}
           {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}
@@ -422,6 +464,7 @@ export const CanvasText = memo(CanvasTextSwitch, (prevProps, nextProps) => {
     'text',
     'x',
     'y',
+    'rotation',
     'width',
     'fontSize',
     'fontFamily',

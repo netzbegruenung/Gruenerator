@@ -69,7 +69,7 @@ function Host({
           </CanvasItemLockContext.Provider>
         </Group>
       ))}
-      <MultiSelectionTransformer renderKey={SHAPES} />
+      <MultiSelectionTransformer renderKey={SHAPES} canRotate={() => false} />
     </CanvasStage>
   );
 }

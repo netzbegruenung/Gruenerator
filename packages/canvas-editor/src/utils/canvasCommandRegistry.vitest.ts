@@ -19,7 +19,7 @@ const press = (key: string, mods: Partial<Record<'ctrl' | 'meta' | 'shift' | 'al
 });
 
 const pressFor = (shortcut: CommandShortcut, key = shortcut.key) =>
-  press(key, { ctrl: shortcut.mod });
+  press(key, { ctrl: shortcut.mod, shift: shortcut.shift });
 
 describe('CANVAS_COMMANDS', () => {
   it('benennt jeden Befehl anders', () => {
@@ -30,7 +30,7 @@ describe('CANVAS_COMMANDS', () => {
   it('vergibt kein Kürzel doppelt', () => {
     const keys = CANVAS_COMMAND_IDS.flatMap((id) => {
       const s = shortcutOf(id);
-      return s ? [s.key, ...s.alsoKeys].map((k) => `${s.mod}:${k}`) : [];
+      return s ? [s.key, ...s.alsoKeys].map((k) => `${s.mod}:${s.shift}:${k}`) : [];
     });
     expect(new Set(keys).size).toBe(keys.length);
   });
@@ -59,6 +59,19 @@ describe('commandForKey', () => {
     expect(commandForKey(press('c', { ctrl: true, alt: true }))).toBeNull();
   });
 
+  it('spiegelt mit Umschalt+H und Umschalt+V, auch bei Großbuchstaben', () => {
+    expect(commandForKey(press('H', { shift: true }))).toBe('flipHorizontal');
+    expect(commandForKey(press('V', { shift: true }))).toBe('flipVertical');
+    expect(commandForKey(press('h', {}))).toBeNull();
+  });
+
+  it('macht aus Umschalt nichts Neues: ⇧⌘C, ⇧D und ⇧Entf bleiben stumm', () => {
+    expect(commandForKey(press('c', { meta: true, shift: true }))).toBeNull();
+    expect(commandForKey(press('D', { shift: true }))).toBeNull();
+    expect(commandForKey(press('Delete', { shift: true }))).toBeNull();
+    expect(commandForKey(press('H', { shift: true, alt: true }))).toBeNull();
+  });
+
   it('verlangt die Modifikatortaste, wo das Kürzel eine hat', () => {
     expect(commandForKey(press('c', {}))).toBeNull();
     expect(commandForKey(press('Delete', { ctrl: true }))).toBeNull();
@@ -80,5 +93,23 @@ describe('formatShortcut', () => {
     expect(ariaShortcut(shortcutOf('copy')!, false)).toBe('Control+C');
     expect(ariaShortcut(shortcutOf('copy')!, true)).toBe('Meta+C');
     expect(ariaShortcut(shortcutOf('delete')!, false)).toBe('Delete');
+  });
+
+  it('schreibt Umschalt als ⇧ auf dem Mac und als Umschalt+ sonst', () => {
+    expect(formatShortcut(shortcutOf('flipHorizontal')!, true)).toBe('⇧H');
+    expect(formatShortcut(shortcutOf('flipHorizontal')!, false)).toBe('Umschalt+H');
+    expect(formatShortcut(shortcutOf('flipVertical')!, true)).toBe('⇧V');
+    expect(ariaShortcut(shortcutOf('flipHorizontal')!, true)).toBe('Shift+H');
+    expect(ariaShortcut(shortcutOf('flipHorizontal')!, false)).toBe('Shift+H');
+  });
+
+  it('führt Drehen & Spiegeln als Seiten-Befehle', () => {
+    expect(CANVAS_COMMANDS.flipHorizontal.label).toBe('Horizontal spiegeln');
+    expect(CANVAS_COMMANDS.flipVertical.label).toBe('Vertikal spiegeln');
+    expect(CANVAS_COMMANDS.resetRotation.label).toBe('Drehung zurücksetzen');
+    expect(shortcutOf('resetRotation')).toBeNull();
+    for (const id of ['flipHorizontal', 'flipVertical', 'resetRotation'] as const) {
+      expect(CANVAS_COMMANDS[id].scope).toBe('page');
+    }
   });
 });

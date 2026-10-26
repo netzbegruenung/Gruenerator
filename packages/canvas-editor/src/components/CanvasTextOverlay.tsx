@@ -78,6 +78,7 @@ import { createPortal, flushSync } from 'react-dom';
 
 import { fontMarkSupport } from '../utils/fontMarkSupport';
 import { DEFAULT_TEXT_MARKER } from '../utils/markerColors';
+import { normalizeRotation } from '../utils/orientation';
 import { stageCssScale } from '../utils/stageCssScale';
 import {
   fontStyleForRun,
@@ -97,6 +98,8 @@ export interface OverlayBox {
   width: number;
   minHeight: number;
   scale: number;
+  /** Absolute Drehung des Knotens in Grad; der Editor dreht um seine linke obere Ecke mit. */
+  rotation: number;
 }
 
 /** Ohne offene Sitzung trägt niemand einen Schnitt. */
@@ -244,6 +247,7 @@ export function overlayBoxForNode(
     width: width * scale,
     minHeight: height * scale,
     scale,
+    rotation: normalizeRotation(node.getAbsoluteRotation()),
   };
 }
 
@@ -256,7 +260,8 @@ function sameBox(a: OverlayBox, b: OverlayBox): boolean {
     a.left === b.left &&
     a.width === b.width &&
     a.minHeight === b.minHeight &&
-    a.scale === b.scale
+    a.scale === b.scale &&
+    a.rotation === b.rotation
   );
 }
 
@@ -544,12 +549,19 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
     [open, session?.id, editor, formatControls, marks, claimHost]
   );
 
+  // Gedreht um die linke obere Ecke — der Ursprung des Knotens —, dann verkleinert.
+  const contentTransform = box
+    ? [box.rotation !== 0 && `rotate(${box.rotation}deg)`, shrink < 1 && `scale(${shrink})`]
+        .filter(Boolean)
+        .join(' ') || undefined
+    : undefined;
+
   const contentStyle: CSSProperties | null =
     session && box
       ? {
           fontSize: renderFontSize,
           width: shrink < 1 ? box.width / shrink : undefined,
-          transform: shrink < 1 ? `scale(${shrink})` : undefined,
+          transform: contentTransform,
           transformOrigin: 'top left',
           pointerEvents: 'auto',
           fontFamily: session.fontFamily,

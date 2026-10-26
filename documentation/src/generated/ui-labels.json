@@ -29,6 +29,12 @@
   "canvas-command.editText": {
     "title": "Text bearbeiten"
   },
+  "canvas-command.flipHorizontal": {
+    "title": "Horizontal spiegeln"
+  },
+  "canvas-command.flipVertical": {
+    "title": "Vertikal spiegeln"
+  },
   "canvas-command.insertFrameImage": {
     "title": "Bild einsetzen"
   },
@@ -43,6 +49,9 @@
   },
   "canvas-command.replaceBackground": {
     "title": "Bild ersetzen …"
+  },
+  "canvas-command.resetRotation": {
+    "title": "Drehung zurücksetzen"
   },
   "canvas-command.selectAll": {
     "title": "Alles auswählen"

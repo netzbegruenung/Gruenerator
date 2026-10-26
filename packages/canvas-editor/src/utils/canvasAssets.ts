@@ -42,6 +42,8 @@ export interface AssetInstance {
   scale: number;
   rotation: number;
   opacity: number;
+  flipX?: boolean;
+  flipY?: boolean;
 }
 
 /**

@@ -67,7 +67,7 @@ function Host({
           />
         </Group>
       ))}
-      <MultiSelectionTransformer renderKey={SHAPES} />
+      <MultiSelectionTransformer renderKey={SHAPES} canRotate={() => false} />
     </CanvasStage>
   );
 }

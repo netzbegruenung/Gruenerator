@@ -7,6 +7,7 @@ import { createCanvasCommands } from '../../utils/canvasCommands';
 import { useCanvasKeyboardHandlers } from '../useCanvasKeyboardHandlers';
 
 import type { BaseCanvasState } from '../../configs/factory/baseTypes';
+import type { LayoutResult } from '../../configs/types';
 
 /**
  * Strg+D am lebenden Hook.
@@ -47,6 +48,9 @@ function setup(initial?: Partial<BaseCanvasState>) {
     getRenderList: () => [],
     getStage: () => null,
     logicalScale: () => 1,
+    getElements: () => [],
+    getLayout: () => ({}) as LayoutResult,
+    isReadOnly: () => false,
   });
 
   const view = renderHook(

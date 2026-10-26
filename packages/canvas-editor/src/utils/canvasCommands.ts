@@ -22,7 +22,21 @@ import {
 } from './duplicateElement';
 import { lockedIdsOf, toggledLocks } from './layerLock';
 import { locateDrop } from './mediaDrop';
-import { selectableItemIds } from './multiSelect';
+import { findDragNodes, selectableItemIds } from './multiSelect';
+import {
+  axisAlignedBounds,
+  centreOf,
+  normalizeRotation,
+  placeKeepingCentre,
+  readNodeFrame,
+  type NodeFrame,
+} from './orientation';
+import {
+  findOrientationDoor,
+  type OrientationDoor,
+  type OrientationDoorInput,
+  type OrientationPatch,
+} from './orientElement';
 import { findElementRemover } from './removeElement';
 import {
   lockableIds,
@@ -32,6 +46,7 @@ import {
 
 import type { PageCommandId } from './canvasCommandRegistry';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
+import type { CanvasElementConfig, LayoutResult } from '../configs/types';
 import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
 import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
 import type Konva from 'konva';
@@ -45,7 +60,7 @@ export interface CanvasCommandContext<TState extends Partial<BaseCanvasState>> {
   store: CanvasEditorStoreApi;
   /** Der committete Zustand der Seite. */
   getState: () => TState;
-  setState: (next: TState) => void;
+  setState: (next: Partial<TState> | ((prev: TState) => TState)) => void;
   saveToHistory: (state: TState) => void;
   runHistoryBatch: (fn: () => void) => void;
   getActions: () => OptionalCanvasActions;
@@ -55,6 +70,11 @@ export interface CanvasCommandContext<TState extends Partial<BaseCanvasState>> {
   getStage: () => Konva.Stage | null;
   /** Formatbreite durch Vorlagenbreite — die Skala der Gruppe in `CanvasStage`. */
   logicalScale: () => number;
+  /** Config-Elemente der Vorlage — für Drehen & Spiegeln von Vorlagen-Elementen. */
+  getElements: () => readonly CanvasElementConfig[];
+  getLayout: () => LayoutResult;
+  /** Lesemodus: Drehen & Spiegeln tun nichts. */
+  isReadOnly: () => boolean;
 }
 
 export interface CanvasCommands {
@@ -72,7 +92,24 @@ export interface CanvasCommands {
   /** Öffnet die Dateiauswahl für den ausgewählten Rahmen; false ohne Rahmen. */
   insertFrameImage: () => boolean;
   editText: () => void;
+  /** Dreht die Einzelauswahl auf `deg`; die Mitte bleibt stehen. */
+  setRotation: (deg: number) => void;
+  /** Nur die Anzeige: dreht den Knoten der Einzelauswahl, ohne Zustand und Verlauf. */
+  previewRotation: (deg: number) => void;
+  /**
+   * Schreibt eine offene Vorschau fest — dem Element, das sie zeigt, auch wenn
+   * die Auswahl inzwischen eine andere ist. Ohne Vorschau: nichts.
+   */
+  commitRotationPreview: () => void;
+  /** Spiegelt die Auswahl; mehrere Elemente auch an der Mitte der Auswahl. */
+  flip: (axis: 'x' | 'y') => void;
   run: (id: PageCommandId, at: ClientPoint | null) => void;
+}
+
+interface OrientTarget {
+  door: OrientationDoor;
+  node: Konva.Node;
+  frame: NodeFrame;
 }
 
 export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
@@ -203,6 +240,147 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
     if (layer) ctx.store.getState().setSelectedLayers(selectableItemIds(layer));
   };
 
+  const doorInput = (): OrientationDoorInput<TState> => ({
+    state: ctx.getState(),
+    actions: ctx.getActions(),
+    elements: ctx.getElements(),
+    layout: ctx.getLayout(),
+    updateState: (fn) => ctx.setState(fn),
+    saveToHistory: ctx.saveToHistory,
+  });
+
+  const orient = (id: string) => (ctx.isReadOnly() ? null : findOrientationDoor(doorInput(), id));
+
+  /** Tür und Knoten je drehbarem Element der Auswahl; gesperrte fallen heraus. */
+  const orientTargets = (ids: readonly string[]): OrientTarget[] => {
+    const layer = ctx.getStage()?.getLayers()[0];
+    if (ctx.isReadOnly() || !layer) return [];
+    const input = doorInput();
+    return ids.flatMap((id) => {
+      const door = findOrientationDoor(input, id);
+      const node = door ? (findDragNodes(layer, [id])[0] ?? null) : null;
+      return door && node ? [{ door, node, frame: readNodeFrame(node) }] : [];
+    });
+  };
+
+  /** Mehrere Elemente sind ein Schritt im Verlauf. */
+  const writeAll = (writes: readonly (() => void)[]) => {
+    if (writes.length === 1) writes[0]!();
+    else if (writes.length > 1) ctx.runHistoryBatch(() => writes.forEach((write) => write()));
+  };
+
+  const rotateTo = (ids: readonly string[], deg: number) => {
+    preview = null;
+    const rotation = normalizeRotation(deg);
+    writeAll(
+      orientTargets(ids).map(({ door, frame }) => () => {
+        door.apply({ ...placeKeepingCentre(frame, { rotation }), rotation });
+      })
+    );
+  };
+
+  /**
+   * Ziel der laufenden Vorschau, beim ersten Bild gemerkt: die weiteren Bilder
+   * suchen weder Tür noch Knoten neu und messen nicht nochmal. Gilt für genau
+   * diese Auswahl (Array-Identität aus dem Store) und endet mit dem Abschluss.
+   * `deg` ist das zuletzt gezeigte Bild.
+   */
+  let preview: {
+    ids: readonly string[];
+    target: OrientTarget;
+    layer: Konva.Layer;
+    deg: number;
+  } | null = null;
+
+  const setRotation = (deg: number) => {
+    preview = null;
+    const ids = selection();
+    if (ids.length === 1) rotateTo(ids, deg);
+  };
+
+  const previewRotation = (deg: number) => {
+    const ids = selection();
+    if (preview?.ids !== ids) {
+      preview = null;
+      const layer = ctx.getStage()?.getLayers()[0];
+      const [target] = ids.length === 1 && layer ? orientTargets(ids) : [];
+      if (!target || !layer) return;
+      preview = { ids, target, layer, deg: target.frame.rotation };
+    }
+    const { target, layer } = preview;
+    const rotation = normalizeRotation(deg);
+    preview.deg = rotation;
+    // Der Balken dreht um seinen Offset; seine Tür nimmt x/y nicht an.
+    if (target.door.kind !== 'balken') {
+      target.node.position(placeKeepingCentre(target.frame, { rotation }));
+    }
+    target.node.rotation(rotation);
+    layer.batchDraw();
+  };
+
+  /**
+   * Abgebrochener Zug (Popover zu, Leiste weg): die Vorschau gehört zu ihren
+   * Ids, nicht zur Auswahl von jetzt. Lässt sich das Element nicht mehr drehen
+   * (entfernt, inzwischen gesperrt), springt ein noch vorhandener Knoten auf
+   * den Zustand zurück, statt gedreht stehen zu bleiben.
+   */
+  const commitRotationPreview = () => {
+    const pending = preview;
+    preview = null;
+    if (!pending) return;
+    if (orientTargets(pending.ids).length > 0) {
+      rotateTo(pending.ids, pending.deg);
+      return;
+    }
+    const { node, frame } = pending.target;
+    if (!node.getParent()) return;
+    node.position({ x: frame.x, y: frame.y });
+    node.rotation(frame.rotation);
+    pending.layer.batchDraw();
+  };
+
+  /**
+   * Spiegeln: Drehung wird −θ, spiegelbare Kinds kippen `flipX`/`flipY`, die
+   * Mitte bleibt. Der Rahmen spiegelt mit: bei Formen wechselt die Knoten-Skala
+   * das Vorzeichen, Icon, Illustration und Asset spiegeln ihr Bild-Kind um den
+   * Drehpunkt, das Nutzerbild per Pixelfilter. Mehrere Elemente spiegeln ihre
+   * Mitten zusätzlich an der Mitte der Auswahl; Text wandert, bleibt aber lesbar.
+   */
+  const flip = (axis: 'x' | 'y') => {
+    preview = null;
+    const targets = orientTargets(selection());
+    if (targets.length === 0 || (targets.length === 1 && !targets[0]!.door.canFlip)) return;
+    let mid: number | null = null;
+    if (targets.length > 1) {
+      const boxes = targets.map((t) => axisAlignedBounds(t.frame));
+      const lo = Math.min(...boxes.map((b) => (axis === 'x' ? b.x : b.y)));
+      const hi = Math.max(...boxes.map((b) => (axis === 'x' ? b.x + b.width : b.y + b.height)));
+      mid = (lo + hi) / 2;
+    }
+    writeAll(
+      targets.map(({ door, frame }) => {
+        const rotation = normalizeRotation(-door.rotation);
+        const scaleFlips = door.canFlip && door.kind !== 'user-image';
+        const pos = placeKeepingCentre(frame, {
+          rotation,
+          scaleX: axis === 'x' && scaleFlips ? -frame.scaleX : frame.scaleX,
+          scaleY: axis === 'y' && scaleFlips ? -frame.scaleY : frame.scaleY,
+        });
+        if (mid !== null) {
+          const centre = centreOf(frame);
+          if (axis === 'x') pos.x += 2 * (mid - centre.x);
+          else pos.y += 2 * (mid - centre.y);
+        }
+        // Kinds ohne x/y (Balken) verschieben um dieselbe Strecke.
+        const translate = { x: pos.x - frame.x, y: pos.y - frame.y };
+        const patch: OrientationPatch = { ...pos, rotation, translate };
+        if (door.canFlip && axis === 'x') patch.flipX = !door.flipX;
+        if (door.canFlip && axis === 'y') patch.flipY = !door.flipY;
+        return () => door.apply(patch);
+      })
+    );
+  };
+
   const commands: Omit<CanvasCommands, 'run'> = {
     capabilities: () =>
       selectionCapabilities({
@@ -211,6 +389,8 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
         actions: ctx.getActions(),
         template: ctx.template,
         renderList: ctx.getRenderList(),
+        orient,
+        readOnly: ctx.isReadOnly(),
       }),
     copy,
     cut: () => {
@@ -225,6 +405,10 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
     toggleLock,
     insertFrameImage,
     editText,
+    setRotation,
+    previewRotation,
+    commitRotationPreview,
+    flip,
   };
 
   const run = (id: PageCommandId, at: ClientPoint | null) => {
@@ -258,6 +442,12 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
       case 'insertFrameImage':
         insertFrameImage();
         return;
+      case 'flipHorizontal':
+        return flip('x');
+      case 'flipVertical':
+        return flip('y');
+      case 'resetRotation':
+        return rotateTo(selection(), 0);
     }
   };
 

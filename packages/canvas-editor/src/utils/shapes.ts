@@ -644,6 +644,9 @@ export interface ShapeInstance {
   fillGradient?: GradientFill | null;
   /** Blends the fill into what lies beneath (Konva `globalCompositeOperation`); omit for normal. */
   blendMode?: ShapeBlendMode;
+  /** Mirrored about the centre (negative node scale); omit for upright. */
+  flipX?: boolean;
+  flipY?: boolean;
 }
 
 /**

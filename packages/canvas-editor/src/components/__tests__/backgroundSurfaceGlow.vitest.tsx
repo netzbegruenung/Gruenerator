@@ -37,6 +37,7 @@ function backgroundNode(backgroundColor: string) {
           onPositionChange={noop}
           onImageDragEnd={noop}
           onImageTransformEnd={noop}
+          onTemplateTransformEnd={noop}
           onSnapChange={noop}
           onSnapLinesChange={noop}
           stageWidth={1080}
