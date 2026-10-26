@@ -27,7 +27,7 @@ function setup(overrides: Partial<MobileSelectionPillProps> = {}) {
   const props: MobileSelectionPillProps = {
     measureKey: 'a',
     zoom: 1,
-    getBox: () => ({ left: 100, top: 300, width: 80, height: 60, visible: VISIBLE }),
+    getBox: () => ({ left: 100, top: 300, width: 80, height: 60, visible: VISIBLE, rotaters: [] }),
     subscribeManipulation: (listener) => {
       manipulate = listener;
       return () => {};
@@ -73,7 +73,9 @@ describe('MobileSelectionPill', () => {
   });
 
   it('rutscht unter das Objekt, wenn oben die Kopfzeile ist', async () => {
-    setup({ getBox: () => ({ left: 100, top: 70, width: 80, height: 60, visible: VISIBLE }) });
+    setup({
+      getBox: () => ({ left: 100, top: 70, width: 80, height: 60, visible: VISIBLE, rotaters: [] }),
+    });
     await flushFrames();
     expect(screen.getByRole('toolbar', { name: 'Element' }).style.top).toBe(`${70 + 60 + 12}px`);
   });
@@ -102,6 +104,7 @@ describe('placePill: am sichtbaren Teil der Seitenfläche', () => {
     width: 80,
     height,
     visible: VISIBLE,
+    rotaters: [] as { left: number; top: number; right: number; bottom: number }[],
   });
 
   it('über der Auswahl, wenn dort Platz ist', () => {
@@ -117,6 +120,26 @@ describe('placePill: am sichtbaren Teil der Seitenfläche', () => {
     const { top } = placePill(box(70, 515), 120);
     expect(top + 44).toBeLessThanOrEqual(VISIBLE.bottom - 8);
     expect(top).toBe(70 + 515 - 12 - 44);
+  });
+
+  // Review #4960: Element endet bei 530, Drehgriff (Finger, 32 px) darunter bei 542–574.
+  it('legt sich in der Auswahl nicht über den Drehgriff', () => {
+    const rotater = { left: 124, top: 542, right: 156, bottom: 574 };
+    const { top } = placePill({ ...box(70, 574 - 70), rotaters: [rotater] }, 120);
+    expect(top + 44).toBeLessThanOrEqual(rotater.top);
+    expect(top).toBe(542 - 12 - 44);
+  });
+
+  it('ein Drehgriff neben der Pille schiebt sie nicht hoch', () => {
+    const rotater = { left: 0, top: 300, right: 20, bottom: 332 };
+    const { top } = placePill({ ...box(70, 515), rotaters: [rotater] }, 120);
+    expect(top).toBe(70 + 515 - 12 - 44);
+  });
+
+  it('zu wenig Platz: lieber unter die Kopfzeile als auf die Leiste', () => {
+    const tiny = { left: 0, top: 52, right: 390, bottom: 100 };
+    const { top } = placePill({ ...box(60, 30), visible: tiny }, 120);
+    expect(top + 44).toBeLessThanOrEqual(tiny.bottom - 8);
   });
 
   it('ragt die Auswahl unter die Leiste, steht die Pille über deren Oberkante', () => {

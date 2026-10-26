@@ -56,15 +56,21 @@ export function placePill(box: SelectionBox, pillWidth: number): { top: number; 
   const { visible } = box;
   const minTop = Math.max(MIN_TOP, visible.top + EDGE);
   const maxTop = visible.bottom - EDGE - PILL_HEIGHT;
+  const centered = box.left + box.width / 2 - pillWidth / 2;
+  const left = Math.max(visible.left + EDGE, Math.min(centered, visible.right - pillWidth - EDGE));
   const bottom = box.top + box.height;
   const above = box.top - GAP - PILL_HEIGHT;
   const below = bottom + GAP;
-  const inside = Math.min(bottom, visible.bottom) - GAP - PILL_HEIGHT;
-  const top =
-    above >= minTop ? above : below <= maxTop ? below : Math.max(minTop, Math.min(inside, maxTop));
-  const centered = box.left + box.width / 2 - pillWidth / 2;
-  const left = Math.max(visible.left + EDGE, Math.min(centered, visible.right - pillWidth - EDGE));
-  return { top, left };
+  if (above >= minTop) return { top: above, left };
+  if (below <= maxTop) return { top: below, left };
+  // In der Auswahl: über ihrer Unterkante und über jedem Drehgriff, der unter der Pille läge.
+  let floor = Math.min(bottom, visible.bottom);
+  for (const r of box.rotaters) {
+    if (r.top > box.top && r.left < left + pillWidth && r.right > left)
+      floor = Math.min(floor, r.top);
+  }
+  // Zu wenig Platz für beides: lieber unter die Kopfzeile als auf die Auswahl-Leiste.
+  return { top: Math.min(maxTop, Math.max(minTop, floor - GAP - PILL_HEIGHT)), left };
 }
 
 /**

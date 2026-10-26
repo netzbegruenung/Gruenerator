@@ -224,6 +224,8 @@ export interface SelectionBox {
   height: number;
   /** Sichtbarer Teil der Seitenfläche in Fenster-px — was darüber hinausragt, verdeckt eine Leiste. */
   visible: ViewportRect;
+  /** Drehgriffe in Fenster-px (in der Box schon enthalten); die Pille legt sich nie darüber. */
+  rotaters: ViewportRect[];
 }
 
 /** Canvas px between blocks clicked in one after another. */
@@ -962,7 +964,8 @@ function GenericCanvasWithRef<
         const rects = ids.map((id) => itemBodyRect(stage, id)).filter((r) => r !== null);
         if (rects.length === 0) return null;
         // Der Drehgriff zählt mit: die Pille weicht ihm aus, statt ihn zu verdecken.
-        rects.push(...rotaterRects(stage));
+        const rotaters = rotaterRects(stage);
+        rects.push(...rotaters);
         const left = Math.min(...rects.map((r) => r.x));
         const top = Math.min(...rects.map((r) => r.y));
         const rect = {
@@ -979,6 +982,12 @@ function GenericCanvasWithRef<
           width: rect.width * cssScale,
           height: rect.height * cssScale,
           visible: visibleArea(stage.container()),
+          rotaters: rotaters.map((r) => ({
+            left: container.left + r.x * cssScale,
+            top: container.top + r.y * cssScale,
+            right: container.left + (r.x + r.width) * cssScale,
+            bottom: container.top + (r.y + r.height) * cssScale,
+          })),
         };
       },
       subscribeManipulation: (listener) => {
