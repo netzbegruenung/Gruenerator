@@ -37,6 +37,7 @@ import {
   getStateValue,
   getOptionalStateValue,
 } from '../utils/stateTypeAssertions';
+import { backgroundStraighten } from '../utils/straighten';
 import { isTemplateElementRotatable, templateRotationOf } from '../utils/templateRotation';
 import { templateTextAlignOf } from '../utils/textAlign';
 
@@ -362,6 +363,7 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
       adjustments={config.id === BACKGROUND_IMAGE_NODE_ID ? backgroundAdjustments(state) : null}
       coverFit={config.coverFit}
       frame={frame}
+      straighten={isBackgroundPhoto ? backgroundStraighten(state) : null}
       draggable={interaction.draggable}
       touchDragNeedsSelection={isBackgroundPhoto}
       onToggleCrop={canCropBackgroundPhoto(config) ? handleToggleCrop : null}

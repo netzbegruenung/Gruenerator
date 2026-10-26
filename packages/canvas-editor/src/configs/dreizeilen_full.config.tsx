@@ -48,6 +48,7 @@ import {
 } from './factory/actionFactories';
 import {
   carryBackgroundAdjustments,
+  carryBackgroundRotation,
   carryTemplateRotations,
   carryTemplateTextAligns,
 } from './factory/carryInstanceState';
@@ -689,6 +690,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       templateRotations: carryTemplateRotations(props),
       templateTextAligns: carryTemplateTextAligns(props),
       ...carryBackgroundAdjustments(props),
+      ...carryBackgroundRotation(props),
 
       // UI State
       isDesktop:

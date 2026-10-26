@@ -19,7 +19,14 @@ import { Image as KonvaImage, Transformer } from 'react-konva';
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
-import { panWindowPhoto, photoRectAround, zoomWindow, type Rect } from '../utils/coverFit';
+import {
+  panWindowPhoto,
+  photoRectAround,
+  visiblePart,
+  windowInPhoto,
+  zoomWindow,
+  type Rect,
+} from '../utils/coverFit';
 import {
   CROP_GHOST_NAME,
   CROP_GHOST_OPACITY,
@@ -31,6 +38,15 @@ import { isGroupDrag } from '../utils/multiSelect';
 import { ELEMENT_TRANSFORMER, normalizeRotation } from '../utils/orientation';
 import { recacheNextFrame } from '../utils/recacheNextFrame';
 import { boxFrame, createBoxFrame, frameBounds, snapByBounds } from '../utils/snapping';
+import {
+  panStraightPhoto,
+  STRAIGHT_DRAW_ATTR,
+  straightDrawOf,
+  straightenPhoto,
+  straightScaleCrop,
+  straightSceneFunc,
+  zoomStraightPhoto,
+} from '../utils/straighten';
 
 import type { SnapTarget, SnapLine } from '../utils/snapping';
 import type { ImageAdjustments } from '../utils/userImageUtils';
@@ -85,6 +101,11 @@ export interface CanvasImageProps {
   coverFit?: boolean;
   /** The slot a cover-fitted photo fills (the element's unzoomed box); defaults to the stage. */
   frame?: Rect | null;
+  /**
+   * Begradigen eines cover-gefitteten Fotos, Grad. `null`: nie begradigt — der
+   * alte Weg, unverändert. Gesetzt (auch 0) hält jede Lage auf Deckung.
+   */
+  straighten?: number | null;
 }
 
 const DEFAULT_IMAGE_ANCHORS: TransformAnchor[] = [
@@ -127,11 +148,15 @@ function CanvasImageInner({
   adjustments,
   coverFit = false,
   frame,
+  straighten = null,
 }: CanvasImageProps) {
   const locked = useIsItemLocked();
   const imageRef = useRef<Konva.Image>(null);
-  // Drag of a cover-fitted photo: the node under the pointer at drag start, and the pan so far.
-  const panStartRef = useRef<{ part: Rect; dx: number; dy: number } | null>(null);
+  // Drag of a cover-fitted photo: the node under the pointer at drag start, and the pan so far
+  // (begradigt: die Lage des gedrehten Fotos).
+  const panStartRef = useRef<{ part: Rect; dx: number; dy: number; photo: Rect | null } | null>(
+    null
+  );
   const adjustmentFilters = adjustments ? getActiveImageFilters(adjustments) : [];
   const trRef = useRef<Konva.Transformer>(null);
   const ghostRef = useRef<Konva.Image>(null);
@@ -153,13 +178,28 @@ function CanvasImageInner({
     adjustments?.flipX || adjustments?.flipY
       ? { x: !!adjustments.flipX, y: !!adjustments.flipY }
       : null;
+  const deg = coverFit && natural && slot ? straighten : null;
+  // Begradigt: das gedrehte Foto, auf Deckung gehalten; der Knoten ist der Rahmen.
+  const straight =
+    deg !== null && natural && slot
+      ? straightenPhoto(photoRectAround(natural, { x, y, width, height }), deg, slot)
+      : null;
+  const turnDeg = straight !== null && deg !== null ? deg : 0;
+  const turned = straight !== null && turnDeg !== 0;
   const part =
     natural && slot
-      ? panWindowPhoto(natural, { x, y, width, height }, slot, 0, 0, mirror).part
+      ? straight
+        ? turned
+          ? { box: slot, crop: straightScaleCrop(natural, straight, slot) }
+          : visiblePart(natural, straight, slot, mirror)
+        : panWindowPhoto(natural, { x, y, width, height }, slot, 0, 0, mirror).part
       : null;
+  const draw = turned && straight && slot ? straightDrawOf(straight, turnDeg, slot, mirror) : null;
   const ghost =
-    cropping && natural && part ? photoRectAround(natural, { x, y, width, height }) : null;
-  const ghostAttrs = ghost ? cropGhostAttrs(ghost, mirror) : null;
+    cropping && natural && part
+      ? (straight ?? photoRectAround(natural, { x, y, width, height }))
+      : null;
+  const ghostAttrs = ghost ? cropGhostAttrs(ghost, mirror, turnDeg) : null;
 
   useEffect(() => {
     if (selected && trRef.current && imageRef.current) {
@@ -187,6 +227,10 @@ function CanvasImageInner({
     height,
     part?.crop.x,
     part?.crop.y,
+    draw?.x,
+    draw?.y,
+    draw?.width,
+    draw?.rotation,
     color,
     adjustments,
     adjustmentFilters.length,
@@ -230,6 +274,15 @@ function CanvasImageInner({
 
       snap.onDragEnd();
       const pan = panStartRef.current;
+      if (pan?.photo) {
+        // Begradigt: das Fenster behält seine Größe, seine Mitte ist die des gedrehten Fotos.
+        panStartRef.current = null;
+        onDragEnd?.(
+          pan.photo.x + pan.photo.width / 2 - width / 2,
+          pan.photo.y + pan.photo.height / 2 - height / 2
+        );
+        return;
+      }
       if (pan) {
         // The window moves with the photo; the store keeps the window.
         panStartRef.current = null;
@@ -264,7 +317,7 @@ function CanvasImageInner({
         }
       }
     },
-    [id, x, y, part, onDragEnd, onPositionChange, onGeometryChange, snap]
+    [id, x, y, width, height, part, onDragEnd, onPositionChange, onGeometryChange, snap]
   );
 
   const clampToBounds = useCallback(
@@ -317,6 +370,27 @@ function CanvasImageInner({
       const node = e.target as Konva.Image;
       if (isGroupDrag(node)) return;
       const pan = panStartRef.current;
+      if (pan && straight && natural && slot) {
+        // Der Knoten bleibt der Rahmen; das gedrehte Foto bewegt sich darin.
+        const moved = panStraightPhoto(
+          straight,
+          turnDeg,
+          slot,
+          node.x() - pan.part.x,
+          node.y() - pan.part.y
+        );
+        node.position(slot);
+        if (turned) {
+          node.setAttr(STRAIGHT_DRAW_ATTR, straightDrawOf(moved, turnDeg, slot, mirror));
+        } else {
+          const next = visiblePart(natural, moved, slot, mirror);
+          if (next) node.crop(next.crop);
+        }
+        pan.photo = moved;
+        placeCropGhost(ghostRef.current, moved, mirror, turnDeg);
+        recacheNextFrame(node);
+        return;
+      }
       if (pan && natural && slot) {
         // The node stays the visible part; the photo moves under it.
         const next = panWindowPhoto(
@@ -398,6 +472,9 @@ function CanvasImageInner({
       natural,
       slot,
       mirror,
+      straight,
+      turned,
+      turnDeg,
       x,
       y,
       width,
@@ -410,7 +487,7 @@ function CanvasImageInner({
       // In a group drag a cover-fitted image moves with the others; the background photo
       // never joins one, outside Ausschnitt mode it is not draggable.
       panStartRef.current =
-        part && !isGroupDrag(e.target) ? { part: part.box, dx: 0, dy: 0 } : null;
+        part && !isGroupDrag(e.target) ? { part: part.box, dx: 0, dy: 0, photo: null } : null;
       snap.onDragStart();
     },
     [part, snap]
@@ -430,7 +507,8 @@ function CanvasImageInner({
         width: ghost.width * s,
         height: ghost.height * s,
       },
-      mirror
+      mirror,
+      turnDeg
     );
   };
 
@@ -440,6 +518,15 @@ function CanvasImageInner({
 
     const scaleX = node.scaleX();
     const scaleY = node.scaleY();
+    if (slot && part && straight) {
+      // Begradigt: der Zoom hält den Mindestzoom des Winkels und die Deckung.
+      node.scale({ x: 1, y: 1 });
+      const zoomed = zoomStraightPhoto(straight, scaleX, turnDeg, slot);
+      placeCropGhost(ghostRef.current, zoomed, mirror, turnDeg);
+      const next = windowInPhoto(zoomed, width / height);
+      onTransformEnd?.(next.x, next.y, next.width, next.height, 0);
+      return;
+    }
     if (slot && part) {
       // The handles sit on the visible part; they zoom the photo about its middle.
       node.scale({ x: 1, y: 1 });
@@ -469,7 +556,7 @@ function CanvasImageInner({
       node.scale({ x: 1, y: 1 });
       onTransformEnd?.(node.x(), node.y(), currentWidth, currentHeight, nodeRotation);
     }
-  }, [onTransformEnd, slot, part, natural, mirror, x, y, width, height]);
+  }, [onTransformEnd, slot, part, straight, turnDeg, natural, mirror, x, y, width, height]);
 
   // Performance: dragBoundFunc now just returns position - actual clamping happens in handleDragMove
   // This avoids double calculation of bounds on every mouse move
@@ -523,6 +610,7 @@ function CanvasImageInner({
         green={color ? parseInt(color.slice(3, 5), 16) : undefined}
         blue={color ? parseInt(color.slice(5, 7), 16) : undefined}
         {...(adjustments ? imageFilterAttrs(adjustments) : {})}
+        {...(draw ? { sceneFunc: straightSceneFunc, [STRAIGHT_DRAW_ATTR]: draw } : {})}
       />
       {selected && (
         <Transformer
@@ -567,6 +655,7 @@ export const CanvasImage = memo(CanvasImageInner, (prevProps, nextProps) => {
     'adjustments',
     'coverFit',
     'cropping',
+    'straighten',
   ];
 
   for (const key of keysToCompare) {

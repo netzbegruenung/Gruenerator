@@ -214,6 +214,7 @@ describe('44pt-Ziele', () => {
     'sidebar/sections/tools/TextPathCreatorTool.tsx',
     'sidebar/sections/tools/GradientTextTool.tsx',
     'sidebar/sections/tools/BlobCreatorTool.tsx',
+    'components/TopBar/CropModeControls.tsx',
   ])('Range-Regler %s ist auf dem Handy 44 px hoch', (file) => {
     const source = readFileSync(path.resolve(import.meta.dirname, '../..', file), 'utf8');
     const ranges = [...source.matchAll(/type="range"[\s\S]*?className="([^"]*)"/g)];

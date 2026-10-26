@@ -791,7 +791,9 @@ describe('recomposePage', () => {
     ];
     p.state.layerOrder = ['shape-hand-1', ...(p.state.layerOrder as string[])];
     p.state.imageOffset = { x: 12, y: -30 };
+    p.state.backgroundImageRotation = -7;
     const lifted = liftPage(p.state, p);
+    expect(lifted.overrides.find((o) => o.kind === 'background')).toMatchObject({ rotation: -7 });
     expect(lifted.overrides.map((o) => o.kind).sort()).toEqual([
       'background',
       'deleted',

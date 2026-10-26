@@ -11,6 +11,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 
 import { loadCanvasConfig } from '../../configs/configLoader';
 import { AutoSaveStoreProvider } from '../../stores/AutoSaveStoreProvider';
+import { straightPhotoCovers, type StraightDraw } from '../../utils/straighten';
 import { GenericCanvas, type GenericCanvasRef } from '../GenericCanvas';
 
 import type * as StoreModule from '../../stores/createCanvasEditorStore';
@@ -292,5 +293,143 @@ describe('Zuschneide-Modus: Seitenverhältnis (eigenes Bild)', () => {
     expect(cropTransformer(canvas).keepRatio()).toBe(false);
     expect(cropTransformer(canvas).enabledAnchors()).toHaveLength(8);
     expect(canvas.userImage().height).toBeCloseTo(337.5);
+  }, 90_000);
+});
+
+const drawOf = (node: Konva.Node) => node.getAttr('straightDraw') as StraightDraw | undefined;
+
+describe('Zuschneide-Modus: Begradigen', () => {
+  const ghostOf = (canvas: Canvas) =>
+    canvas.stage.find<Konva.Image>('.crop-ghost').find((node) => node.isVisible())!;
+
+  it('Hintergrund: dreht das Foto im Rahmen, Abbrechen nimmt den Winkel ganz zurück', async () => {
+    const canvas = await mount();
+    expect('backgroundImageRotation' in canvas.live.state).toBe(false);
+    const box = { width: canvas.background().width(), height: canvas.background().height() };
+    await enterBackgroundCrop(canvas);
+    await canvas.run(() => canvas.ref.current!.handleCropRotation!(15));
+
+    expect(canvas.live.state.backgroundImageRotation).toBe(15);
+    await waitFor(() => expect(canvas.background().getAttr('straightDraw')).toBeTruthy());
+    // Der Knoten bleibt der achsparallele Rahmen; gedreht wird nur, was er zeichnet.
+    expect(canvas.background().rotation()).toBe(0);
+    expect(drawOf(canvas.background())?.rotation).toBe(15);
+    expect(ghostOf(canvas).rotation()).toBe(15);
+
+    await canvas.run(() => canvas.ref.current!.handleCancelCrop!());
+
+    expect(canvas.store.getState().croppingElement).toBeNull();
+    expect(canvas.live.state.backgroundImageRotation).toBeUndefined();
+    expect(canvas.background().getAttr('straightDraw')).toBeUndefined();
+    expect(canvas.background().width()).toBe(box.width);
+    expect(canvas.background().height()).toBe(box.height);
+    expect(canvas.store.getState().canRedo()).toBe(false);
+    expect(historyValues(canvas, (c) => c.backgroundImageRotation)).not.toContain('15');
+  }, 90_000);
+
+  /** Das gezeichnete gedrehte Foto in Seitenkoordinaten. */
+  const drawnPhoto = (node: Konva.Image) => {
+    const draw = drawOf(node)!;
+    const photo = {
+      x: node.x() + draw.x - draw.width / 2,
+      y: node.y() + draw.y - draw.height / 2,
+      width: draw.width,
+      height: draw.height,
+    };
+    const frame = { x: node.x(), y: node.y(), width: node.width(), height: node.height() };
+    return { photo, frame, rotation: draw.rotation };
+  };
+
+  it('Hintergrund: Ziehen und Zoomen bleiben gedreht auf Deckung', async () => {
+    const canvas = await mount();
+    expect((canvas.background().attrs as Record<string, unknown>).sceneFunc).toBeUndefined();
+    await enterBackgroundCrop(canvas);
+    await canvas.run(() => canvas.ref.current!.handleCropRotation!(30));
+    const turned = drawnPhoto(canvas.background());
+    expect(straightPhotoCovers(turned.photo, 30, turned.frame, 1e-6)).toBe(true);
+
+    // Weit über den Rand ziehen: das Foto bleibt am Rand der Deckung stehen.
+    const node = canvas.background();
+    const frameBefore = turned.frame;
+    await canvas.fire(node, 'dragstart');
+    node.x(node.x() + 5000);
+    await canvas.fire(node, 'dragmove');
+    expect(node.x()).toBe(frameBefore.x);
+    await canvas.fire(node, 'dragend');
+    const dragged = drawnPhoto(canvas.background());
+    expect(dragged.photo.x).toBeGreaterThan(turned.photo.x);
+    expect(straightPhotoCovers(dragged.photo, 30, dragged.frame, 1e-6)).toBe(true);
+
+    await canvas.zoomBackground(0.5);
+    const zoomedOut = drawnPhoto(canvas.background());
+    expect(straightPhotoCovers(zoomedOut.photo, 30, zoomedOut.frame, 1e-6)).toBe(true);
+    await canvas.zoomBackground(2);
+    const zoomedIn = drawnPhoto(canvas.background());
+    expect(zoomedIn.photo.width).toBeCloseTo(zoomedOut.photo.width * 2, 3);
+    expect(straightPhotoCovers(zoomedIn.photo, 30, zoomedIn.frame, 1e-6)).toBe(true);
+  }, 90_000);
+
+  it('eigenes Bild: Ziehen bleibt gedreht auf Deckung', async () => {
+    const canvas = await mount();
+    await enterUserImageCrop(canvas);
+    await canvas.run(() => canvas.ref.current!.handleCropRotation!(-25));
+    await waitFor(() => expect(canvas.userImage().cropRotation).toBe(-25));
+    const ghost = ghostOf(canvas);
+    await canvas.fire(ghost, 'dragstart');
+    ghost.y(ghost.y() - 4000);
+    await canvas.fire(ghost, 'dragmove');
+    await canvas.fire(ghost, 'dragend');
+    // Bei gleichem Seitenverhältnis von Foto und Rahmen hat nur eine Fotoachse Spielraum.
+    await waitFor(() => expect(canvas.userImage().panX).not.toBe(0));
+    const pan = canvas.userImage();
+    expect(Math.abs(pan.panX!)).toBeLessThanOrEqual(1);
+    expect(Math.abs(pan.panY!)).toBeLessThanOrEqual(1);
+    const shown = drawnPhoto(canvas.stage.findOne<Konva.Image>('.user-photo')!);
+    expect(straightPhotoCovers(shown.photo, -25, shown.frame, 1e-6)).toBe(true);
+  }, 90_000);
+
+  it('Hintergrund: Fertig behält den Winkel als einen Schritt', async () => {
+    const canvas = await mount();
+    await enterBackgroundCrop(canvas);
+    await canvas.run(() => canvas.ref.current!.handleCropRotation!(-20));
+    await canvas.run(() => canvas.ref.current!.handleCropRotation!(-30));
+    await canvas.run(() => canvas.ref.current!.handleFinishCrop!());
+
+    expect(canvas.store.getState().croppingElement).toBeNull();
+    expect(canvas.live.state.backgroundImageRotation).toBe(-30);
+    expect(drawOf(canvas.background())?.rotation).toBe(-30);
+    expect(canvas.store.getState().history).toHaveLength(2);
+    await canvas.run(() => canvas.ref.current!.undo!());
+    expect(canvas.live.state.backgroundImageRotation).toBeUndefined();
+  }, 90_000);
+
+  it('eigenes Bild: Abbrechen stellt den Zuschnitt ohne Winkel her', async () => {
+    const canvas = await mount();
+    await enterUserImageCrop(canvas);
+    await canvas.run(() => canvas.ref.current!.handleCropRotation!(12));
+    await waitFor(() => expect(canvas.userImage().cropRotation).toBe(12));
+    expect(canvas.userImage().fit).toBe('cover');
+    const photo = canvas.stage.findOne<Konva.Image>('.user-photo')!;
+    expect(drawOf(photo)?.rotation).toBe(12);
+
+    await canvas.run(() => canvas.ref.current!.handleCancelCrop!());
+
+    expect(canvas.userImage()).toEqual(PHOTO);
+    expect(
+      canvas.stage.findOne<Konva.Image>('.user-photo')!.getAttr('straightDraw')
+    ).toBeUndefined();
+    expect(canvas.store.getState().canRedo()).toBe(false);
+  }, 90_000);
+
+  it('eigenes Bild: Fertig behält den Winkel, die Leiste zeigt ihn', async () => {
+    const canvas = await mount();
+    await enterUserImageCrop(canvas);
+    await canvas.run(() => canvas.ref.current!.handleCropRotation!(45));
+    await canvas.run(() => canvas.ref.current!.handleCropRotation!(60));
+    await waitFor(() => expect(canvas.userImage().cropRotation).toBe(45));
+    await canvas.run(() => canvas.ref.current!.handleFinishCrop!());
+
+    expect(canvas.store.getState().croppingElement).toBeNull();
+    expect(canvas.userImage()).toMatchObject({ cropRotation: 45, fit: 'cover' });
   }, 90_000);
 });

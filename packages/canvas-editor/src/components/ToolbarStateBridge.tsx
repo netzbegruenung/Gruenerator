@@ -15,6 +15,7 @@ import { useCallback, useEffect, type MutableRefObject } from 'react';
 import { useFloatingModuleHandlers } from '../hooks/useFloatingModuleHandlers';
 import { useFloatingModuleState } from '../hooks/useFloatingModuleState';
 import { useCanvasStoreSelector, useCanvasStoreShallow } from '../stores/CanvasStoreProvider';
+import { cropRotationOf, cropRotationUpdate } from '../utils/cropSession';
 import { findOrientationDoor } from '../utils/orientElement';
 import { selectionCapabilities } from '../utils/selectionCapabilities';
 import { findTemplateEntry } from '../utils/templateElementInstance';
@@ -43,6 +44,8 @@ export interface ToolbarBridgeState {
   handleCropImage: () => void;
   /** Seitenverhältnis-Vorgabe im Zuschneide-Modus eines eigenen Bildes. */
   handleCropAspect: (id: CropAspectId) => void;
+  /** Begradigen im Zuschneide-Modus, Grad. */
+  handleCropRotation: (deg: number) => void;
 }
 
 interface ToolbarStateBridgeProps<
@@ -99,6 +102,9 @@ export function ToolbarStateBridge<
   );
   const cropAspect = useCanvasStoreSelector((s) => s.cropAspect);
   const setCropAspect = useCanvasStoreSelector((s) => s.setCropAspect);
+  const croppingElement = useCanvasStoreSelector((s) => s.croppingElement);
+  const cropTarget = isCropping ? croppingElement : null;
+  const cropRotation = cropTarget ? cropRotationOf(state, cropTarget) : 0;
 
   /**
    * Vorlagen-Grafiken liegen in keiner Sammlung des Zustands — gefunden werden
@@ -156,6 +162,19 @@ export function ToolbarStateBridge<
       handleTextAlignChange: floatingHandlers.handleTextAlignChange,
       handleCropImage: () => setCroppingElement(isCropping ? null : selectedElement),
       handleCropAspect: setCropAspect,
+      handleCropRotation: (deg) => {
+        if (!cropTarget) return;
+        const update = cropRotationUpdate(state, cropTarget, deg);
+        if (!update) return;
+        if (update.kind === 'user-image') {
+          // updateUserImage schreibt den Verlauf selbst.
+          actions.updateUserImage?.(cropTarget, update.patch);
+          return;
+        }
+        const next = { ...state, ...update.patch } as TState;
+        setState((prev) => ({ ...prev, ...update.patch }) as TState);
+        debouncedSaveToHistory(next);
+      },
     };
   });
 
@@ -172,6 +191,7 @@ export function ToolbarStateBridge<
       canDelete: capabilities.canDelete,
       isCropping,
       cropAspect,
+      cropRotation,
       selectionCount: capabilities.count,
       canCopy: capabilities.canCopy,
       lockState: capabilities.lock,
@@ -183,6 +203,7 @@ export function ToolbarStateBridge<
   }, [
     isCropping,
     cropAspect,
+    cropRotation,
     selectedElement,
     activeFloatingModule,
     canUndo,

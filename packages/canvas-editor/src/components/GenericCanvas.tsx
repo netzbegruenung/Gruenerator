@@ -117,6 +117,8 @@ export interface ToolbarStateReport {
   isCropping: boolean;
   /** Seitenverhältnis-Vorgabe des laufenden Zuschneide-Modus. */
   cropAspect: CropAspectId;
+  /** Begradigungs-Winkel des Fotos im laufenden Zuschneide-Modus (Grad, 0 ohne). */
+  cropRotation: number;
   /** Wie viele Elemente ausgewählt sind; bei mehr als einem ist `selectedElement` null. */
   selectionCount: number;
   /** Lässt sich mindestens ein ausgewähltes Element kopieren? */
@@ -321,6 +323,8 @@ export interface GenericCanvasRef {
   handleCancelCrop?: () => void;
   handleFinishCrop?: () => void;
   handleCropAspect?: (id: CropAspectId) => void;
+  /** Begradigen im Zuschneide-Modus (Hintergrundfoto oder eigenes Bild), Grad. */
+  handleCropRotation?: (deg: number) => void;
   handleGradientSelect?: (gradient: GradientFill | null) => void;
   handleTextAlignChange?: (id: string, align: TextAlign) => void;
 }
@@ -1057,6 +1061,7 @@ function GenericCanvasWithRef<
       handleCancelCrop: cropSession.cancel,
       handleFinishCrop: cropSession.finish,
       handleCropAspect: (id) => bridgeRef.current?.handleCropAspect(id),
+      handleCropRotation: (deg) => bridgeRef.current?.handleCropRotation(deg),
       handleGradientSelect: (gradient) => bridgeRef.current?.handleGradientSelect(gradient),
       handleTextAlignChange: (id, align) => bridgeRef.current?.handleTextAlignChange(id, align),
     }),

@@ -9,21 +9,48 @@ import type Konva from 'konva';
 export const CROP_GHOST_NAME = 'crop-ghost';
 export const CROP_GHOST_OPACITY = 0.35;
 
-/** Lage eines Restbilds für `photo`; gespiegelt liegt der Ursprung an der fernen Kante. */
-export function cropGhostAttrs(photo: Rect, mirror: Mirror | null) {
+/**
+ * Lage eines Restbilds für `photo`; gespiegelt liegt der Ursprung an der
+ * fernen Kante. Begradigt (`rotation`, Grad) dreht es sich um seine Mitte wie
+ * das Foto im Rahmen.
+ */
+export function cropGhostAttrs(photo: Rect, mirror: Mirror | null, rotation = 0) {
+  const scaleX = mirror?.x ? -1 : 1;
+  const scaleY = mirror?.y ? -1 : 1;
+  if (rotation !== 0) {
+    return {
+      x: photo.x + photo.width / 2,
+      y: photo.y + photo.height / 2,
+      width: photo.width,
+      height: photo.height,
+      offsetX: photo.width / 2,
+      offsetY: photo.height / 2,
+      rotation,
+      scaleX,
+      scaleY,
+    };
+  }
   return {
     x: photo.x + (mirror?.x ? photo.width : 0),
     y: photo.y + (mirror?.y ? photo.height : 0),
     width: photo.width,
     height: photo.height,
-    scaleX: mirror?.x ? -1 : 1,
-    scaleY: mirror?.y ? -1 : 1,
+    offsetX: 0,
+    offsetY: 0,
+    rotation: 0,
+    scaleX,
+    scaleY,
   };
 }
 
 /** Setzt ein Restbild direkt am Knoten (während Ziehen und Zoomen, ohne React-Zustand). */
-export function placeCropGhost(node: Konva.Node | null, photo: Rect, mirror: Mirror | null): void {
-  node?.setAttrs(cropGhostAttrs(photo, mirror));
+export function placeCropGhost(
+  node: Konva.Node | null,
+  photo: Rect,
+  mirror: Mirror | null,
+  rotation = 0
+): void {
+  node?.setAttrs(cropGhostAttrs(photo, mirror, rotation));
 }
 
 // Größte Kante der Overlay-Fläche in Gerätepixeln; darüber sinkt die Auflösung.

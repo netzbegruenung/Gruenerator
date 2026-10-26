@@ -1,5 +1,7 @@
 import { type CanvasElementConfig } from '../configs/types';
 
+import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo';
+import { BACKGROUND_STRAIGHTEN_KEY, backgroundStraighten, clampStraighten } from './straighten';
 import { type UserImageInstance } from './userImageUtils';
 
 /** Was ein Zuschnitt an einem eigenen Bild ändert: Rahmen und Lage des Fotos darin. */
@@ -12,6 +14,7 @@ const USER_IMAGE_CROP_FIELDS = [
   'panX',
   'panY',
   'cropZoom',
+  'cropRotation',
 ] as const satisfies readonly (keyof UserImageInstance)[];
 
 /**
@@ -35,6 +38,8 @@ export function takeCropSnapshot(
       element.scaleKey,
       element.positionStateKey,
       element.sizeStateKey,
+      // Der Winkel des Hintergrundfotos liegt auf der Seite, nicht in einem Config-Schlüssel.
+      element.id === BACKGROUND_IMAGE_NODE_ID ? BACKGROUND_STRAIGHTEN_KEY : null,
     ].filter((key): key is string => typeof key === 'string');
     const values: Record<string, unknown> = {};
     for (const key of keys) values[key] = state[key];
@@ -73,4 +78,41 @@ export function restoreCropSnapshot(
       return restored as unknown as UserImageInstance;
     }),
   };
+}
+
+/** Der Begradigungs-Winkel des Elements im Zuschneide-Modus (Grad, 0 ohne). */
+export function cropRotationOf(state: Record<string, unknown>, id: string): number {
+  if (id === BACKGROUND_IMAGE_NODE_ID) return backgroundStraighten(state) ?? 0;
+  const image = userImageOf(state, id);
+  return image?.fit === 'cover' ? (image.cropRotation ?? 0) : 0;
+}
+
+/**
+ * Was „Begradigen" schreibt: am Hintergrundfoto den Seiten-Schlüssel, an einem
+ * eigenen Bild `cropRotation` (ein gestrecktes Bild wird dafür `cover`). Pan und
+ * Zoom bleiben stehen; die Bühne hält das gedrehte Foto auf Deckung.
+ */
+export function cropRotationUpdate(
+  state: Record<string, unknown>,
+  id: string,
+  deg: number
+):
+  | { kind: 'template'; patch: Record<string, unknown> }
+  | { kind: 'user-image'; patch: Partial<UserImageInstance> }
+  | null {
+  const angle = clampStraighten(deg);
+  if (id === BACKGROUND_IMAGE_NODE_ID) {
+    return { kind: 'template', patch: { [BACKGROUND_STRAIGHTEN_KEY]: angle } };
+  }
+  const image = userImageOf(state, id);
+  if (!image) return null;
+  if (image.fit === 'cover') return { kind: 'user-image', patch: { cropRotation: angle } };
+  return angle === 0 ? null : { kind: 'user-image', patch: { fit: 'cover', cropRotation: angle } };
+}
+
+function userImageOf(state: Record<string, unknown>, id: string): UserImageInstance | null {
+  const images = state.userImageInstances;
+  return Array.isArray(images)
+    ? ((images as UserImageInstance[]).find((u) => u.id === id) ?? null)
+    : null;
 }

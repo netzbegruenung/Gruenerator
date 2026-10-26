@@ -61,6 +61,7 @@ function seedFor(key: string): unknown {
   }
   if (key === 'templateRotations') return { 'guard-element': 30 };
   if (key === 'templateTextAligns') return { 'guard-element': 'right' };
+  if (key === 'backgroundImageRotation') return 12;
   return [{ id: `guard-${key}`, x: 33, y: 44 }];
 }
 

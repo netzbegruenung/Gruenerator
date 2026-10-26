@@ -19,6 +19,7 @@ import {
 } from '@gruenerator/contracts';
 
 import { DEFAULT_FORMAT_ID } from '../formats';
+import { BACKGROUND_STRAIGHTEN_KEY, backgroundStraighten } from '../utils/straighten';
 
 import { withCardResizedFor } from './cardFollowsText';
 import { type ComposedSlide } from './composeSharepic';
@@ -50,6 +51,8 @@ export type SharepicOverride =
       kind: 'background';
       offset?: { x: number; y: number };
       scale?: number;
+      /** Begradigen des Fotos (Grad); reist mit Versatz und Zoom, die es auf Deckung hält. */
+      rotation?: number;
       color?: string;
       imageSrc?: string | null;
     };
@@ -411,6 +414,9 @@ export function liftPage(
     }
   }
   if (scale !== null && scale !== (bg.scale ?? 1)) background.scale = scale;
+  // Der Komponist begradigt nie: jeder Winkel ist eine Hand-Änderung.
+  const rotation = backgroundStraighten(pageState);
+  if (rotation) background.rotation = rotation;
   if (typeof pageState.backgroundColor === 'string' && pageState.backgroundColor !== bg.color) {
     background.color = pageState.backgroundColor;
   }
@@ -565,7 +571,7 @@ export function recomposePage(
       const placed = photo(before) === photo(after) && !formatChanged;
       const sameBackground =
         !formatChanged && JSON.stringify(before.background) === JSON.stringify(after.background);
-      const { offset, scale, color, imageSrc } = override;
+      const { offset, scale, rotation, color, imageSrc } = override;
       const lost: Extract<SharepicOverride, { kind: 'background' }> = { kind: 'background' };
       if (offset) {
         if (placed) state.imageOffset = offset;
@@ -574,6 +580,10 @@ export function recomposePage(
       if (scale !== undefined) {
         if (placed) state.imageScale = scale;
         else lost.scale = scale;
+      }
+      if (rotation !== undefined) {
+        if (placed) (state as Record<string, unknown>)[BACKGROUND_STRAIGHTEN_KEY] = rotation;
+        else lost.rotation = rotation;
       }
       if (color !== undefined) {
         if (sameBackground) state.backgroundColor = color;

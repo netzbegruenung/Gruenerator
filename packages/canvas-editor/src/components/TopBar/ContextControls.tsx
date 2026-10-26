@@ -43,6 +43,8 @@ export interface ContextControlsProps {
   isCropping?: boolean;
   /** Seitenverhältnis-Vorgabe im Zuschneide-Modus (nur eigene Bilder). */
   cropAspect?: CropAspectId;
+  /** Begradigungs-Winkel des Fotos im Zuschneide-Modus (Grad). */
+  cropRotation?: number;
   /** Gesperrt: nicht ziehen, skalieren, ausrichten, löschen — gestalten geht weiter. */
   lockState?: LockState;
   canLock?: boolean;
@@ -70,6 +72,7 @@ export interface ContextControlsProps {
     handleCancelCrop?: () => void;
     handleFinishCrop?: () => void;
     handleCropAspect?: (id: CropAspectId) => void;
+    handleCropRotation?: (deg: number) => void;
     handleGradientSelect?: (gradient: GradientFill | null) => void;
     /** Ausrichtung des Textes in seiner Box — freie und Vorlagen-Texte. */
     handleTextAlignChange?: (id: string, align: TextAlign) => void;
@@ -129,6 +132,7 @@ export function ContextControls({
   canDuplicate,
   isCropping = false,
   cropAspect = 'free',
+  cropRotation = 0,
   lockState = 'none',
   canLock = false,
   canAlign = false,
@@ -149,6 +153,7 @@ export function ContextControls({
 
   if (showsCropModeBar({ isCropping, handlers })) {
     const handleCropAspect = handlers.handleCropAspect;
+    const handleCropRotation = handlers.handleCropRotation;
     return (
       <CropModeControls
         onCancel={() => handlers.handleCancelCrop?.()}
@@ -157,6 +162,9 @@ export function ContextControls({
           activeFloatingModule?.type === 'user-image' && handleCropAspect
             ? { value: cropAspect, onChange: handleCropAspect }
             : null
+        }
+        straighten={
+          handleCropRotation ? { value: cropRotation, onChange: handleCropRotation } : null
         }
       />
     );

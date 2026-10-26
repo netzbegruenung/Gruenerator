@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { restoreCropSnapshot, takeCropSnapshot } from './cropSession';
+import {
+  cropRotationOf,
+  cropRotationUpdate,
+  restoreCropSnapshot,
+  takeCropSnapshot,
+} from './cropSession';
 
 import type { UserImageInstance } from './userImageUtils';
 import type { CanvasElementConfig } from '../configs/types';
@@ -61,6 +66,44 @@ describe('Zuschnitt-Schnappschuss', () => {
     expect(images[0]).toEqual({ ...photo, opacity: 0.5 });
     expect(images[0]).not.toHaveProperty('cropZoom');
     expect(images[1]).toBe(movedOther);
+  });
+
+  it('merkt den Begradigungs-Winkel beider Arten mit', () => {
+    const background = takeCropSnapshot({ imageScale: 1 }, elements, 'background-image')!;
+    expect(restoreCropSnapshot({ imageScale: 2, backgroundImageRotation: 20 }, background)).toEqual(
+      { imageOffset: undefined, imageScale: 1, backgroundImageRotation: undefined }
+    );
+    const turned = takeCropSnapshot({ backgroundImageRotation: -5 }, elements, 'background-image')!;
+    expect(restoreCropSnapshot({ backgroundImageRotation: 30 }, turned)).toMatchObject({
+      backgroundImageRotation: -5,
+    });
+
+    const own = takeCropSnapshot({ userImageInstances: [photo] }, elements, 'photo')!;
+    const restored = restoreCropSnapshot(
+      { userImageInstances: [{ ...photo, fit: 'cover', cropRotation: 12 }] },
+      own
+    )!;
+    expect((restored.userImageInstances as UserImageInstance[])[0]).toEqual(photo);
+  });
+
+  it('Begradigen schreibt den Winkel des Elements, ganzzahlig und begrenzt', () => {
+    expect(cropRotationUpdate({}, 'background-image', 12.6)).toEqual({
+      kind: 'template',
+      patch: { backgroundImageRotation: 13 },
+    });
+    expect(cropRotationOf({ backgroundImageRotation: -4 }, 'background-image')).toBe(-4);
+    expect(cropRotationOf({}, 'background-image')).toBe(0);
+    const state = { userImageInstances: [photo] };
+    // Ein gestrecktes Bild wird zum Begradigen „cover"; 0° lässt es, wie es ist.
+    expect(cropRotationUpdate(state, 'photo', 90)).toEqual({
+      kind: 'user-image',
+      patch: { fit: 'cover', cropRotation: 45 },
+    });
+    expect(cropRotationUpdate(state, 'photo', 0)).toBeNull();
+    expect(cropRotationUpdate(state, 'missing', 10)).toBeNull();
+    expect(
+      cropRotationOf({ userImageInstances: [{ ...photo, fit: 'cover', cropRotation: 7 }] }, 'photo')
+    ).toBe(7);
   });
 
   it('ein inzwischen entferntes Bild stellt nichts her', () => {

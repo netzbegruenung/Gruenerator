@@ -24,6 +24,8 @@
  * `backgroundImageAdjustments` is the "Bearbeiten" look of the template's
  * background photo. It rides here for the same reason: one read-back for every
  * template, and the list doubles as the page's writer (PAGE_ELEMENT_STATE_KEYS).
+ * `backgroundImageRotation` (Begradigen, Grad) is the same photo's straighten
+ * angle and rides the same way; missing means never straightened.
  *
  * `templateRotations` is the turn of the template's own text and marks, keyed
  * by element config id. One record for every template, so no template needs a
@@ -63,6 +65,7 @@ export interface CarriedInstanceState {
   templateRotations: Record<string, number>;
   templateTextAligns: Record<string, TextAlign>;
   backgroundImageAdjustments?: ImageAdjustments;
+  backgroundImageRotation?: number;
 }
 
 /** Every key `carryInstanceState` reads, for guards and re-seed logic. */
@@ -84,6 +87,7 @@ export const CARRIED_INSTANCE_KEYS = [
   'templateRotations',
   'templateTextAligns',
   'backgroundImageAdjustments',
+  'backgroundImageRotation',
 ] as const;
 
 function list<T>(value: unknown): T[] {
@@ -112,7 +116,18 @@ export function carryInstanceState(props: Record<string, unknown>): CarriedInsta
     templateRotations: carryTemplateRotations(props),
     templateTextAligns: carryTemplateTextAligns(props),
     ...carryBackgroundAdjustments(props),
+    ...carryBackgroundRotation(props),
   };
+}
+
+/** The background photo's straighten angle, when the seed carries one; omitted otherwise. */
+export function carryBackgroundRotation(
+  props: Record<string, unknown>
+): Pick<CarriedInstanceState, 'backgroundImageRotation'> {
+  const value = props.backgroundImageRotation;
+  return typeof value === 'number' && Number.isFinite(value)
+    ? { backgroundImageRotation: value }
+    : {};
 }
 
 /** The background photo's look, when the seed carries one; omitted otherwise. */

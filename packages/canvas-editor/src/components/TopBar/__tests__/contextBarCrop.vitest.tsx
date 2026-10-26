@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -177,6 +177,64 @@ describe('photo crop toolbar', () => {
       />
     );
     expect(screen.queryByRole('combobox')).toBeNull();
+  });
+  it('offers Begradigen for an own image and the background photo, desktop and mobile', async () => {
+    const rotate = vi.fn();
+    const handlers = {
+      handleMoveLayer: () => {},
+      handleDuplicate: () => {},
+      handleColorSelect: () => {},
+      handleOpacityChange: () => {},
+      handleFontSizeChange: () => {},
+      handleCancelCrop: () => {},
+      handleFinishCrop: () => {},
+      handleCropRotation: rotate,
+    };
+    const modules = [
+      {
+        type: 'user-image' as const,
+        data: { id: 'photo', src: '/photo.jpg', width: 600, height: 400 },
+      },
+      {
+        type: 'image' as const,
+        data: { id: 'background-image', isPhoto: true, canCrop: true },
+      },
+    ];
+    for (const module of modules) {
+      for (const Bar of [ContextControls, MobileSelectionBar]) {
+        rotate.mockClear();
+        const { container, unmount } = render(
+          <Bar
+            selectedElement={module.data.id}
+            activeFloatingModule={module}
+            canMoveUp={false}
+            canMoveDown={false}
+            canDuplicate={false}
+            isCropping
+            cropRotation={-12}
+            handlers={handlers}
+            onDone={() => {}}
+          />
+        );
+        const slider = screen.getByRole('slider', { name: 'Begradigen' });
+        expect(slider).toHaveValue('-12');
+        expect(slider).toHaveAttribute('min', '-45');
+        expect(slider).toHaveAttribute('max', '45');
+        expect(slider).toHaveAttribute('step', '1');
+        const field = screen.getByRole('spinbutton', { name: 'Begradigen in Grad' });
+        expect(field).toHaveValue(-12);
+        fireEvent.change(slider, { target: { value: '30' } });
+        expect(rotate).toHaveBeenLastCalledWith(30);
+        fireEvent.change(field, { target: { value: '80' } });
+        expect(rotate).toHaveBeenLastCalledWith(45);
+        expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual([
+          'Abbrechen',
+          'Fertig',
+        ]);
+        expect(await axe(container)).toHaveNoViolations();
+        unmount();
+      }
+    }
   });
   it('disables cropping for locked photos', () => {
     setup(false, true);
