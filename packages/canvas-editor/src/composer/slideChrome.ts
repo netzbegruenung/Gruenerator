@@ -235,11 +235,9 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
       yOffset: Math.round(
         (present.length === 3 ? line.spec.yOffset : present.length === 2 ? pairOffsets[i]! : 0) * k
       ),
-      // AT sets the whole circle in the poster face (Dc_L5vriG5z), which is
-      // its own weight — a synthetic bold on top would only smear it.
-      fontFamily: isAt ? theme.fonts.headline : theme.fonts.body,
+      fontFamily: ctx.brand.headlineFace.datum ? theme.fonts.headline : theme.fonts.body,
       fontSize: Math.round(line.spec.fontSize * k),
-      fontWeight: isAt ? ('normal' as const) : line.fontWeight,
+      fontWeight: ctx.brand.headlineFace.datum ? ('normal' as const) : line.fontWeight,
     }));
     out.circleBadgeInstances.push(
       createCircleBadgeInstance('default', {

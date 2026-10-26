@@ -1028,7 +1028,9 @@ function composeSlide(
                 }
               : { family: theme.fonts.body, fontStyle: 'bold' as const, fill: accent.fill }
             : null;
-          const family = stressed?.family ?? (isAt ? theme.fonts.headline : theme.fonts.body);
+          const family =
+            stressed?.family ??
+            (brand.headlineFace.absatz ? theme.fonts.headline : theme.fonts.body);
           const fontStyle = stressed?.fontStyle ?? 'normal';
           const size = largestSizeWordsFit([item.text], wantedSize, column.width, 0, (w, s) =>
             measure(w, s, family, 'bold')

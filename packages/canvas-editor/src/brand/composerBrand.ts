@@ -25,4 +25,14 @@ export interface ComposerBrand {
   };
   /** Space after a paragraph, as a share of its font size. */
   absatzGap: number;
+  /**
+   * Roles set in the headline face instead of the body face, and then in that
+   * face's own weight, never a synthetic bold. For a brand whose body face has
+   * no bold cut.
+   */
+  headlineFace: {
+    absatz: boolean;
+    infografikTitel: boolean;
+    datum: boolean;
+  };
 }

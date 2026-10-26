@@ -119,6 +119,7 @@ export const GRUENE_DE: GruenePack = {
       steckbriefTrait: 64,
     },
     absatzGap: 0.6,
+    headlineFace: { absatz: false, infografikTitel: false, datum: false },
   },
 };
 
@@ -166,6 +167,9 @@ export const GRUENE_AT: GruenePack = {
     },
     // AT stacks its paragraphs ~80 px apart on the posts.
     absatzGap: 0.9,
+    // Gotham Book has no bold cut; AT sets the whole date circle in the
+    // poster face (Dc_L5vriG5z), where a synthetic bold would only smear it.
+    headlineFace: { absatz: true, infografikTitel: true, datum: true },
   },
 };
 
