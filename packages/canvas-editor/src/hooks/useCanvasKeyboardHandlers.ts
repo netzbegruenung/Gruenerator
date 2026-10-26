@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 import { commandForKey } from '../utils/canvasCommandRegistry';
+import { returnFocusToPage } from '../utils/editorFocus';
 import { isWidgetOwnedKey } from '../utils/keyboardOwnership';
 import { isLayerLocked } from '../utils/layerLock';
 import { assertAsPosition } from '../utils/stateTypeAssertions';
@@ -74,6 +75,15 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
   });
 
   useEffect(() => {
+    // Ging der Fokus mit dem Gelöschten verloren, landet er auf der Seite.
+    // Aus der Ebenen-Liste heraus nimmt ihn deren nächster Eintrag
+    // (`LayersSection`), nicht die Seite.
+    const keepFocusAfterRemoval = (target: EventTarget | null) => {
+      const from = target instanceof Element ? target : null;
+      if (from?.closest('[role="listbox"]')) return;
+      returnFocusToPage(from);
+    };
+
     const handleKeyDown = (e: KeyboardEvent) => {
       const selectedElement = store.getState().selectedElement;
       const currentState = stateRef.current;
@@ -133,6 +143,7 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
           if (selection.length === 0) break;
           e.preventDefault();
           commands.cut();
+          keepFocusAfterRemoval(target);
           return;
         case 'selectAll':
           e.preventDefault();
@@ -140,6 +151,7 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
           return;
         case 'delete':
           commands.remove();
+          if (selection.length > 0) keepFocusAfterRemoval(target);
           return;
         case 'insertFrameImage':
           if (selection.length === 1 && commands.insertFrameImage()) {

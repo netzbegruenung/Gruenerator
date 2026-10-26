@@ -11,9 +11,17 @@
  * Seite (`hooks/useCanvasKeyboardHandlers.ts`, Regel R1).
  */
 
-import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+} from 'react';
 
 import { cn } from '../../utils/cn';
+import { isFocusLost } from '../../utils/editorFocus';
 
 import type { LayerEntry } from '../../utils/layerLabels';
 import type { LayerSelectionChange } from '../../utils/layerSelection';
@@ -70,6 +78,29 @@ export function LayersSection({
     optionRefs.current.get(entry.id)?.focus();
     return entry.id;
   };
+
+  // Verschwindet der fokussierte Eintrag (Entf, Ausschneiden), nimmt der
+  // nächste den Fokus, sonst der vorige, sonst die leere Liste — nie <body>.
+  const prevLayersRef = useRef(layers);
+  useLayoutEffect(() => {
+    const prev = prevLayersRef.current;
+    prevLayersRef.current = layers;
+    if (prev === layers || !hasFocus || focusId === null || isListed(focusId)) return;
+    if (!isFocusLost()) return;
+    const gone = prev.findIndex((l) => l.id === focusId);
+    if (gone === -1) return;
+    const stays = (l: LayerEntry) => layers.some((x) => x.id === l.id);
+    const neighbour =
+      prev.slice(gone + 1).find(stays) ?? prev.slice(0, gone).reverse().find(stays) ?? null;
+    if (neighbour) {
+      setFocusId(neighbour.id);
+      optionRefs.current.get(neighbour.id)?.focus();
+    } else {
+      emptyRef.current?.focus();
+    }
+    // Nur der Wechsel der Liste zählt; Fokus und Auswahl sind der Stand davor.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layers]);
 
   const select = (change: LayerSelectionChange) => {
     if (change.kind !== 'set') anchorRef.current = change.id;

@@ -176,6 +176,32 @@ describe('LayersSection', () => {
     expect(selection(store)).toEqual([]);
   });
 
+  it('gibt den Fokus nach Entf an den nächsten Eintrag', () => {
+    const { option } = setup();
+    fireEvent.click(option('Form: Stern'));
+    option('Form: Stern').focus();
+    fireEvent.keyDown(option('Form: Stern'), { key: 'Delete' });
+    expect(option('Form: Kreis')).toHaveFocus();
+  });
+
+  it('nimmt nach dem untersten Eintrag den vorigen', () => {
+    const { option } = setup();
+    fireEvent.click(option('Form: Kreis'));
+    option('Form: Kreis').focus();
+    fireEvent.keyDown(option('Form: Kreis'), { key: 'Delete' });
+    expect(option('Form: Stern')).toHaveFocus();
+  });
+
+  it('fokussiert die leere Liste, wenn nichts mehr da ist', () => {
+    const { option } = setup();
+    fireEvent.click(option('Form: Herz'));
+    fireEvent.click(option('Form: Stern'), { ctrlKey: true });
+    fireEvent.click(option('Form: Kreis'), { ctrlKey: true });
+    option('Form: Kreis').focus();
+    fireEvent.keyDown(option('Form: Kreis'), { key: 'Delete' });
+    expect(screen.getByText('Auf dieser Seite liegen keine Elemente.')).toHaveFocus();
+  });
+
   it('bearbeitet mit Enter und F2 genau einmal', () => {
     const { onActivate, option } = setup();
     const onWindowKey = vi.fn();
