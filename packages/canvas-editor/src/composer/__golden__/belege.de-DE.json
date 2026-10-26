@@ -1,0 +1,660 @@
+{
+ "templateType": "freeform",
+ "format": "post-portrait",
+ "slides": [
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#00261A",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-schlagzeile-medium",
+     "text": "tagesschau.de · 2.10.2026",
+     "type": "body",
+     "x": 110,
+     "y": 492,
+     "width": 804,
+     "fontSize": 32,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#1E1E1E",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "opacity": 0.65,
+     "lineHeight": 1.3,
+     "rotation": 0,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-0-schlagzeile-titel",
+     "text": "Erneuerbare decken erstmals mehr als 60 Prozent des Stroms",
+     "type": "body",
+     "x": 110,
+     "y": 547.6,
+     "width": 804,
+     "fontSize": 64,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#1E1E1E",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15,
+     "rotation": 0,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-0-schlagzeile-card",
+     "type": "rounded-rect",
+     "x": 512,
+     "y": 630,
+     "width": 884,
+     "height": 356,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 24
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#FFFFFF"
+    }
+   },
+   "layerOrder": [
+    "sc-0-schlagzeile-card",
+    "sc-0-schlagzeile-medium",
+    "sc-0-schlagzeile-titel",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#00261A",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-schlagzeile-medium",
+     "text": "tagesschau.de · 2.10.2026",
+     "type": "body",
+     "x": 103.32856506713506,
+     "y": 513.7281786135322,
+     "width": 804,
+     "fontSize": 32,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#1E1E1E",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "opacity": 0.65,
+     "lineHeight": 1.3,
+     "rotation": -3,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-0-schlagzeile-titel",
+     "text": "Erneuerbare decken erstmals mehr als 60 Prozent des Stroms",
+     "type": "body",
+     "x": 106.23844423424273,
+     "y": 569.2519807458866,
+     "width": 804,
+     "fontSize": 64,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#1E1E1E",
+     "align": "left",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15,
+     "rotation": -3,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-0-schlagzeile-card",
+     "type": "rounded-rect",
+     "x": 512,
+     "y": 630.5,
+     "width": 884,
+     "height": 356,
+     "fill": "#F5F1E8",
+     "rotation": -3,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 4
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#FFFFFF"
+    }
+   },
+   "layerOrder": [
+    "sc-0-schlagzeile-card",
+    "sc-0-schlagzeile-medium",
+    "sc-0-schlagzeile-titel",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#00261A",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-bingo-0",
+     "text": "A",
+     "type": "body",
+     "x": 91,
+     "y": 429.1,
+     "width": 263,
+     "fontSize": 52,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-0-bingo-1",
+     "text": "B",
+     "type": "body",
+     "x": 408,
+     "y": 429.1,
+     "width": 263,
+     "fontSize": 52,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-0-bingo-2",
+     "text": "C",
+     "type": "body",
+     "x": 725,
+     "y": 429.1,
+     "width": 263,
+     "fontSize": 52,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-0-bingo-3",
+     "text": "D",
+     "type": "body",
+     "x": 91,
+     "y": 658.1,
+     "width": 263,
+     "fontSize": 52,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-0-bingo-4",
+     "text": "E",
+     "type": "body",
+     "x": 408,
+     "y": 658.1,
+     "width": 263,
+     "fontSize": 52,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-0-bingo-5",
+     "text": "F",
+     "type": "body",
+     "x": 725,
+     "y": 658.1,
+     "width": 263,
+     "fontSize": 52,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-0-bingo-6",
+     "text": "G",
+     "type": "body",
+     "x": 91,
+     "y": 887.1,
+     "width": 263,
+     "fontSize": 52,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-0-bingo-7",
+     "text": "H",
+     "type": "body",
+     "x": 408,
+     "y": 887.1,
+     "width": 263,
+     "fontSize": 52,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-0-bingo-8",
+     "text": "I",
+     "type": "body",
+     "x": 725,
+     "y": 887.1,
+     "width": 263,
+     "fontSize": 52,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#BEFF60"
+     },
+     "marker": {
+      "fill": "#FFFFFF",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "Klimaschonend KI-generiert mit dem Grünerator",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 611.5,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-0-bingo-0-feld",
+     "type": "rounded-rect",
+     "x": 222.5,
+     "y": 459,
+     "width": 305,
+     "height": 217,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 12
+    },
+    {
+     "id": "sc-0-bingo-1-feld",
+     "type": "rounded-rect",
+     "x": 539.5,
+     "y": 459,
+     "width": 305,
+     "height": 217,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 12
+    },
+    {
+     "id": "sc-0-bingo-2-feld",
+     "type": "rounded-rect",
+     "x": 856.5,
+     "y": 459,
+     "width": 305,
+     "height": 217,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 12
+    },
+    {
+     "id": "sc-0-bingo-3-feld",
+     "type": "rounded-rect",
+     "x": 222.5,
+     "y": 688,
+     "width": 305,
+     "height": 217,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 12
+    },
+    {
+     "id": "sc-0-bingo-4-feld",
+     "type": "rounded-rect",
+     "x": 539.5,
+     "y": 688,
+     "width": 305,
+     "height": 217,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 12
+    },
+    {
+     "id": "sc-0-bingo-5-feld",
+     "type": "rounded-rect",
+     "x": 856.5,
+     "y": 688,
+     "width": 305,
+     "height": 217,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 12
+    },
+    {
+     "id": "sc-0-bingo-6-feld",
+     "type": "rounded-rect",
+     "x": 222.5,
+     "y": 917,
+     "width": 305,
+     "height": 217,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 12
+    },
+    {
+     "id": "sc-0-bingo-7-feld",
+     "type": "rounded-rect",
+     "x": 539.5,
+     "y": 917,
+     "width": 305,
+     "height": 217,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 12
+    },
+    {
+     "id": "sc-0-bingo-8-feld",
+     "type": "rounded-rect",
+     "x": 856.5,
+     "y": 917,
+     "width": 305,
+     "height": 217,
+     "fill": "#FFFFFF",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "cornerRadius": 12
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 330.75,
+     "y": 1316.5,
+     "width": 639.5,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [],
+   "iconStates": {},
+   "layerOrder": [
+    "sc-0-bingo-0-feld",
+    "sc-0-bingo-0",
+    "sc-0-bingo-1-feld",
+    "sc-0-bingo-1",
+    "sc-0-bingo-2-feld",
+    "sc-0-bingo-2",
+    "sc-0-bingo-3-feld",
+    "sc-0-bingo-3",
+    "sc-0-bingo-4-feld",
+    "sc-0-bingo-4",
+    "sc-0-bingo-5-feld",
+    "sc-0-bingo-5",
+    "sc-0-bingo-6-feld",
+    "sc-0-bingo-6",
+    "sc-0-bingo-7-feld",
+    "sc-0-bingo-7",
+    "sc-0-bingo-8-feld",
+    "sc-0-bingo-8",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  }
+ ]
+}
