@@ -26,7 +26,7 @@ import {
   type SharepicThema,
 } from '@gruenerator/contracts';
 
-import { getBrandTheme } from '../brand/theme';
+import { getBrandPack, getBrandTheme } from '../brand/theme';
 import { DEFAULT_FORMAT_ID, getCanvasFormatOrDefault, type CanvasFormat } from '../formats';
 import { ASSET_TARGET_SIZE } from '../utils/canvasAssets';
 import { createPillBadgeInstance } from '../utils/pillBadgeUtils';
@@ -176,6 +176,7 @@ function composeSlide(
 ): ComposedSlide {
   const measure = sentinelBlind(options.measure ?? defaultMeasure);
   const theme = getBrandTheme(locale);
+  const brand = getBrandPack(locale).composer;
   const isAt = locale === 'de-AT';
   // The marker box is a DE signature; AT highlights with the yellow Vollkorn
   // accent only, so a `++` that reaches an AT slide is set as `==`.
@@ -490,7 +491,7 @@ function composeSlide(
       2 * KI_LABEL.paddingX +
       24
     : MARGIN;
-  const weiterBase = isAt ? 34 : 30;
+  const weiterBase = brand.fontSize.weiter;
   const weiterSize = weiter
     ? Math.max(
         20,
@@ -746,10 +747,11 @@ function composeSlide(
   // A hook: one short paragraph alone on the slide.
   const only = items.length === 1 ? items[0] : null;
   const shortHook = only?.type === 'absatz' && only.text.split(/\s+/).length <= 10;
-  const paraBase = isAt ? 70 : 48;
+  const paraBase = brand.fontSize.absatz;
   const ctx: SlideCtx = {
     measure,
     theme,
+    brand,
     headFamily,
     isAt,
     locale,
@@ -854,7 +856,7 @@ function composeSlide(
             break;
           }
           const family = headFamily;
-          const lineHeight = isAt ? 0.95 : 0.96;
+          const lineHeight = brand.lineHeight.headline;
           const size = headSize ?? 72;
           const step = size * lineHeight;
           const col = headColumn;
@@ -1016,7 +1018,7 @@ function composeSlide(
           const wantedSize = item.klein
             ? ABSATZ_KLEIN
             : Math.min(Math.round(paraBase * scale), paraCap);
-          const lineHeight = isAt ? 1.08 : 1.22;
+          const lineHeight = brand.lineHeight.absatz;
           const stressed = item.betont
             ? isAt
               ? {
@@ -1034,8 +1036,7 @@ function composeSlide(
           const lines = lineCount(item.text, column.width, size, family, fontStyle);
           placed.push({
             height: lines * size * lineHeight,
-            // AT stacks its paragraphs ~80 px apart on the posts.
-            after: Math.round(size * (isAt ? 0.9 : 0.6)),
+            after: Math.round(size * brand.absatzGap),
             place: (y) =>
               text(id, item.text, y, size, family, {
                 fontStyle,

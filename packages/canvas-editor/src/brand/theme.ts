@@ -21,6 +21,8 @@ import { type BrandPack } from '@ggraphic/core';
 
 import { SYSTEM_ASSETS } from '../utils/canvasAssets';
 
+import { type ComposerBrand } from './composerBrand';
+
 import type { BackgroundColorOption } from '../sidebar/types';
 
 export type BrandLocale = 'de-DE' | 'de-AT';
@@ -74,8 +76,11 @@ export interface BrandTheme {
  */
 export const HELLGRUEN_GLOW = ['#318437', '#287A35', '#1B6630'] as const;
 
-/** Both packs set a quote mark, which every BrandTheme carries. */
-type GruenePack = BrandPack & { quoteMark: { src: string } };
+/**
+ * Both packs set a quote mark, which every BrandTheme carries, and the
+ * composer's per-brand values (see composerBrand.ts).
+ */
+type GruenePack = BrandPack & { quoteMark: { src: string }; composer: ComposerBrand };
 
 export const GRUENE_DE: GruenePack = {
   id: 'gruene-de',
@@ -104,6 +109,17 @@ export const GRUENE_DE: GruenePack = {
   lineHeightFactor: 1.2,
   logo: null,
   quoteMark: { src: SYSTEM_ASSETS.quote.white.src },
+  composer: {
+    lineHeight: { headline: 0.96, absatz: 1.22, aufruf: 1 },
+    fontSize: {
+      weiter: 30,
+      absatz: 48,
+      steckbriefGruss: 52,
+      steckbriefName: 180,
+      steckbriefTrait: 64,
+    },
+    absatzGap: 0.6,
+  },
 };
 
 export const GRUENE_AT: GruenePack = {
@@ -139,6 +155,18 @@ export const GRUENE_AT: GruenePack = {
   },
   // Weiß in Konturform wie in Deutschland (CI 2026 S. 77, Gewessler-Posts).
   quoteMark: { src: SYSTEM_ASSETS.quote.white.src },
+  composer: {
+    lineHeight: { headline: 0.95, absatz: 1.08, aufruf: 0.98 },
+    fontSize: {
+      weiter: 34,
+      absatz: 70,
+      steckbriefGruss: 46,
+      steckbriefName: 150,
+      steckbriefTrait: 58,
+    },
+    // AT stacks its paragraphs ~80 px apart on the posts.
+    absatzGap: 0.9,
+  },
 };
 
 /** The BrandTheme a pack stands for — the shape getBrandTheme() has always returned. */
@@ -185,6 +213,11 @@ const SURFACE_GLOWS: Record<string, readonly string[]> = Object.fromEntries(
  */
 export function surfaceGlow(color: string): readonly string[] | null {
   return SURFACE_GLOWS[color.toLowerCase()] ?? null;
+}
+
+/** Resolve a brand pack, falling back to de-DE for unknown/undefined locales. */
+export function getBrandPack(locale?: BrandLocale | string | null): GruenePack {
+  return locale === 'de-AT' ? GRUENE_AT : GRUENE_DE;
 }
 
 /** Resolve a brand theme, falling back to de-DE for unknown/undefined locales. */

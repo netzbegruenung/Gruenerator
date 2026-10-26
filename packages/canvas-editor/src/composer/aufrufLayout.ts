@@ -15,6 +15,7 @@ export function layoutAufruf(
   const {
     measure,
     theme,
+    brand,
     headFamily,
     isAt,
     out,
@@ -28,7 +29,7 @@ export function layoutAufruf(
   const { scale } = pass;
   const placed: Placed[] = [];
   const family = headFamily;
-  const lineHeight = isAt ? 0.98 : 1;
+  const lineHeight = brand.lineHeight.aufruf;
   const size = largestSizeWordsFit(
     [item.text],
     Math.round(Math.min(item.stil === 'kernsatz' ? 120 : 104, 82 * scale)),

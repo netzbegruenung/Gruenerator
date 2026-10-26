@@ -1,5 +1,6 @@
 import { type SharepicCreatorLocale, type SharepicThema } from '@gruenerator/contracts';
 
+import { type ComposerBrand } from '../brand/composerBrand';
 import { type BrandTheme } from '../brand/theme';
 import { type AdditionalText } from '../configs/types';
 import { type CanvasFormat } from '../formats';
@@ -19,6 +20,8 @@ type SlideInk = ReturnType<typeof slideInk>;
 export interface SlideCtx {
   measure: MeasureText;
   theme: BrandTheme;
+  /** The brand's composer values; read these instead of branching on `isAt`. */
+  brand: ComposerBrand;
   headFamily: string;
   isAt: boolean;
   locale: SharepicCreatorLocale;
