@@ -213,23 +213,59 @@ export function placeKeepingCentre(
   return { x: clean(centre.x - offset.x), y: clean(centre.y - offset.y) };
 }
 
+/** Achsparallele Ausdehnung eines gedrehten Rahmens, relativ zum Knotenursprung. */
+export interface Extent {
+  minX: number;
+  minY: number;
+  width: number;
+  height: number;
+}
+
+// Modulweit, damit der Drag-Pfad nichts anlegt; gelesen wird es sofort nach dem Aufruf.
+const extent: Extent = { minX: 0, minY: 0, width: 0, height: 0 };
+
+/**
+ * Box der vier gedrehten Ecken, relativ zu (frame.x, frame.y): der eine Kern
+ * für Snapping und `axisAlignedBounds`. Ungerundet — bei 0° muss das Snapping
+ * Bit für Bit dem alten Rechenweg entsprechen (Golden-Test in
+ * `snapping.vitest.ts`) — und ohne Anlegen, weil es bei jedem `dragmove`
+ * läuft. Liefert ein geteiltes Objekt, das der nächste Aufruf überschreibt.
+ */
+export function measureExtent(frame: NodeFrame): Readonly<Extent> {
+  const rad = (frame.rotation * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  const x0 = (frame.local.x - frame.offsetX) * frame.scaleX;
+  const x1 = (frame.local.x + frame.local.width - frame.offsetX) * frame.scaleX;
+  const y0 = (frame.local.y - frame.offsetY) * frame.scaleY;
+  const y1 = (frame.local.y + frame.local.height - frame.offsetY) * frame.scaleY;
+
+  const ax = x0 * cos - y0 * sin;
+  const bx = x1 * cos - y0 * sin;
+  const cx = x1 * cos - y1 * sin;
+  const dx = x0 * cos - y1 * sin;
+  const ay = x0 * sin + y0 * cos;
+  const by = x1 * sin + y0 * cos;
+  const cy = x1 * sin + y1 * cos;
+  const dy = x0 * sin + y1 * cos;
+
+  const minX = Math.min(ax, bx, cx, dx);
+  const minY = Math.min(ay, by, cy, dy);
+  extent.minX = minX;
+  extent.minY = minY;
+  extent.width = Math.max(ax, bx, cx, dx) - minX;
+  extent.height = Math.max(ay, by, cy, dy) - minY;
+  return extent;
+}
+
+/** Sichtbare Box in Bühnen-px, auf 1e-6 gerundet — für Befehle, nicht für den Drag-Pfad. */
 export function axisAlignedBounds(frame: NodeFrame): Box {
-  const { x: l, y: t, width: w, height: h } = frame.local;
-  const corners = [
-    { x: l, y: t },
-    { x: l + w, y: t },
-    { x: l + w, y: t + h },
-    { x: l, y: t + h },
-  ].map((p) => toStage(frame, p, frame.rotation, frame.scaleX, frame.scaleY, frame));
-  const xs = corners.map((c) => c.x);
-  const ys = corners.map((c) => c.y);
-  const minX = Math.min(...xs);
-  const minY = Math.min(...ys);
+  const e = measureExtent(frame);
   return {
-    x: clean(minX),
-    y: clean(minY),
-    width: clean(Math.max(...xs) - minX),
-    height: clean(Math.max(...ys) - minY),
+    x: clean(frame.x + e.minX),
+    y: clean(frame.y + e.minY),
+    width: clean(e.width),
+    height: clean(e.height),
   };
 }
 
