@@ -78,6 +78,21 @@ describe('Alt-Text beim Teilen und Herunterladen', () => {
     await waitFor(() => expect(announce).toHaveBeenCalledWith('Alt-Text kopiert'));
   });
 
+  it('sagt an, wenn das Kopieren scheitert', async () => {
+    writeText.mockRejectedValueOnce(new Error('denied'));
+    setup();
+    await userEvent.click(screen.getByRole('button', { name: 'Alt-Text kopieren' }));
+    await waitFor(() => expect(announce).toHaveBeenCalledWith('Kopieren nicht möglich'));
+  });
+
+  it('sagt an, wenn es keine Zwischenablage gibt', async () => {
+    Object.assign(navigator, { clipboard: undefined });
+    setup();
+    await userEvent.click(screen.getByRole('button', { name: 'Alt-Text kopieren' }));
+    expect(announce).toHaveBeenCalledWith('Kopieren nicht möglich');
+    expect(writeText).not.toHaveBeenCalled();
+  });
+
   it('schickt den Alt-Text ohne Häkchen nicht im Teilen-Text mit', async () => {
     setup();
     expect(

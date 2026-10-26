@@ -52,8 +52,15 @@ export function AltTextField({ value, onChange }: AltTextFieldProps) {
   const storeApi = useAutoSaveStoreApi();
   const inCaption = useAutoSaveStore((s) => s.shareAltTextInCaption);
 
+  // Ohne Clipboard-API (WebView, unsicherer Ursprung) oder bei verweigertem
+  // Zugriff hört die Person, dass nichts kopiert wurde.
   const copy = () => {
-    void navigator.clipboard.writeText(value).then(() => announce('Alt-Text kopiert'));
+    const failed = () => announce('Kopieren nicht möglich');
+    if (!navigator.clipboard?.writeText) {
+      failed();
+      return;
+    }
+    navigator.clipboard.writeText(value).then(() => announce('Alt-Text kopiert'), failed);
   };
 
   return (
