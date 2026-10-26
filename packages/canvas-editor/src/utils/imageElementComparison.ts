@@ -13,6 +13,7 @@
 import { backgroundAdjustments } from './imageFilters';
 import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo';
 import { assertAsPosition, assertAsSize } from './stateTypeAssertions';
+import { templateRotationOf } from './templateRotation';
 
 import type { ImageElementConfig, LayoutElementResult, LayoutResult } from '../configs/types';
 
@@ -75,6 +76,13 @@ export function imageRenderInputsAreEqual<TState extends Record<string, unknown>
       // als Override, dort greift wieder das Layout.
       sizeOverridden = prevSize.w > 0 && prevSize.h > 0;
     }
+  }
+
+  if (
+    templateRotationOf(prev.state, prev.config.id) !==
+    templateRotationOf(next.state, next.config.id)
+  ) {
+    return false;
   }
 
   const scaleKey = prev.config.scaleKey;

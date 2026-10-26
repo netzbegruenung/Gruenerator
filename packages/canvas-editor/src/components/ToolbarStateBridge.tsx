@@ -15,12 +15,13 @@ import { useCallback, useEffect, type MutableRefObject } from 'react';
 import { useFloatingModuleHandlers } from '../hooks/useFloatingModuleHandlers';
 import { useFloatingModuleState } from '../hooks/useFloatingModuleState';
 import { useCanvasStoreSelector, useCanvasStoreShallow } from '../stores/CanvasStoreProvider';
+import { findOrientationDoor } from '../utils/orientElement';
 import { selectionCapabilities } from '../utils/selectionCapabilities';
 import { findTemplateEntry } from '../utils/templateElementInstance';
 
 import type { ToolbarStateReport } from './GenericCanvas';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
-import type { FullCanvasConfig, LayoutResult } from '../configs/types';
+import type { CanvasElementConfig, FullCanvasConfig, LayoutResult } from '../configs/types';
 import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
 import type { ShadowPatch } from '../hooks/useFloatingModuleHandlers';
 import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
@@ -53,6 +54,9 @@ interface ToolbarStateBridgeProps<
   debouncedSaveToHistory: (state: TState) => void;
   canUndo: boolean;
   canRedo: boolean;
+  /** Lesemodus: Drehen & Spiegeln werden nicht angeboten. */
+  readOnly: boolean;
+  saveToHistory: (state: TState) => void;
   onToolbarStateChange?: (state: ToolbarStateReport) => void;
 }
 
@@ -70,6 +74,8 @@ export function ToolbarStateBridge<
   debouncedSaveToHistory,
   canUndo,
   canRedo,
+  readOnly,
+  saveToHistory,
   onToolbarStateChange,
 }: ToolbarStateBridgeProps<TState, TActions>) {
   const selectedElement = useCanvasStoreSelector((s) => s.selectedElement);
@@ -104,6 +110,20 @@ export function ToolbarStateBridge<
     actions,
     template: templateEntry,
     renderList: sortedRenderList,
+    orient: (id) =>
+      findOrientationDoor(
+        {
+          state,
+          actions,
+          // Die Tür liest nur id, Typ und Positionsschlüssel (wie in GenericCanvas).
+          elements: config.elements as readonly CanvasElementConfig[],
+          layout,
+          updateState: setState,
+          saveToHistory,
+        },
+        id
+      ),
+    readOnly,
   });
 
   const floatingHandlers = useFloatingModuleHandlers({
@@ -146,6 +166,11 @@ export function ToolbarStateBridge<
       canCopy: capabilities.canCopy,
       lockState: capabilities.lock,
       canLock: capabilities.canLock,
+      canRotate: capabilities.canRotate,
+      canFlip: capabilities.canFlip,
+      rotation: capabilities.rotation,
+      canAlign: capabilities.canAlign,
+      canDistribute: capabilities.canDistribute,
     });
   }, [
     isCropping,
@@ -160,6 +185,11 @@ export function ToolbarStateBridge<
     capabilities.count,
     capabilities.lock,
     capabilities.canLock,
+    capabilities.canRotate,
+    capabilities.canFlip,
+    capabilities.rotation,
+    capabilities.canAlign,
+    capabilities.canDistribute,
     onToolbarStateChange,
   ]);
 

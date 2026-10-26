@@ -1,4 +1,22 @@
 {
+  "canvas-command.alignBottom": {
+    "title": "Unten"
+  },
+  "canvas-command.alignCenterH": {
+    "title": "Zentriert"
+  },
+  "canvas-command.alignLeft": {
+    "title": "Links"
+  },
+  "canvas-command.alignMiddle": {
+    "title": "Mitte"
+  },
+  "canvas-command.alignRight": {
+    "title": "Rechts"
+  },
+  "canvas-command.alignTop": {
+    "title": "Oben"
+  },
   "canvas-command.bringForward": {
     "title": "Nach vorne"
   },
@@ -17,6 +35,12 @@
   "canvas-command.deletePage": {
     "title": "Seite löschen"
   },
+  "canvas-command.distributeHorizontal": {
+    "title": "Horizontal verteilen"
+  },
+  "canvas-command.distributeVertical": {
+    "title": "Vertikal verteilen"
+  },
   "canvas-command.duplicate": {
     "title": "Duplizieren"
   },
@@ -28,6 +52,12 @@
   },
   "canvas-command.editText": {
     "title": "Text bearbeiten"
+  },
+  "canvas-command.flipHorizontal": {
+    "title": "Horizontal spiegeln"
+  },
+  "canvas-command.flipVertical": {
+    "title": "Vertikal spiegeln"
   },
   "canvas-command.insertFrameImage": {
     "title": "Bild einsetzen"
@@ -43,6 +73,9 @@
   },
   "canvas-command.replaceBackground": {
     "title": "Bild ersetzen …"
+  },
+  "canvas-command.resetRotation": {
+    "title": "Drehung zurücksetzen"
   },
   "canvas-command.selectAll": {
     "title": "Alles auswählen"

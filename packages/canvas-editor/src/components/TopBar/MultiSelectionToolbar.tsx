@@ -1,8 +1,17 @@
 import React from 'react';
-import { PiCopy, PiCopySimple, PiLockSimple, PiLockSimpleOpen, PiTrash } from 'react-icons/pi';
+import {
+  PiCopy,
+  PiCopySimple,
+  PiFlipHorizontal,
+  PiFlipVertical,
+  PiLockSimple,
+  PiLockSimpleOpen,
+  PiTrash,
+} from 'react-icons/pi';
 
 import {
   CANVAS_COMMANDS,
+  ariaShortcut,
   formatShortcut,
   isMacPlatform,
   shortcutOf,
@@ -11,6 +20,7 @@ import {
 import { type LockState } from '../../utils/layerLock';
 
 import { ContextCard } from './ContextToolbar';
+import { FloatingPositionControl, type PositionCommandId } from './modules/FloatingPositionControl';
 
 export interface MultiSelectionToolbarProps {
   count: number;
@@ -18,11 +28,18 @@ export interface MultiSelectionToolbarProps {
   canDelete: boolean;
   lockState: LockState;
   canLock: boolean;
+  /** Mindestens ein Element lässt sich verschieben; gesperrte bleiben beim Ausrichten stehen. */
+  canAlign: boolean;
+  canDistribute: boolean;
+  /** Jedes Element lässt sich drehen; die Auswahl spiegelt an ihrer Mitte. */
+  canFlip: boolean;
+  onFlip: (axis: 'x' | 'y') => void;
   onCopy: () => void;
   onDuplicate: () => void;
   onToggleLock: () => void;
   onDelete: () => void;
   onDeselect: () => void;
+  onCommand: (id: PositionCommandId) => void;
 }
 
 const ICON_BTN =
@@ -40,6 +57,11 @@ function withShortcut(id: CanvasCommandId): string {
   return shortcut ? `${label} (${formatShortcut(shortcut, isMacPlatform())})` : label;
 }
 
+/** `Shift+H` für `aria-keyshortcuts`. */
+function ariaOf(id: 'flipHorizontal' | 'flipVertical'): string {
+  return ariaShortcut(shortcutOf(id)!, isMacPlatform());
+}
+
 /**
  * Die Desktop-Leiste einer Mehrfachauswahl. Bisher gab es dafür gar keine:
  * `selectedElement` ist dann null, und alles außer Entf war unerreichbar.
@@ -52,11 +74,16 @@ export function MultiSelectionToolbar({
   canDelete,
   lockState,
   canLock,
+  canAlign,
+  canDistribute,
+  canFlip,
+  onFlip,
   onCopy,
   onDuplicate,
   onToggleLock,
   onDelete,
   onDeselect,
+  onCommand,
 }: MultiSelectionToolbarProps) {
   const locked = lockState === 'all';
   const lockLabel = locked ? 'Entsperren' : 'Sperren';
@@ -87,6 +114,33 @@ export function MultiSelectionToolbar({
         >
           <PiCopy size={18} />
         </button>
+        {canFlip && (
+          <>
+            <button
+              type="button"
+              className={ICON_BTN}
+              onClick={() => onFlip('x')}
+              title={withShortcut('flipHorizontal')}
+              aria-label={withShortcut('flipHorizontal')}
+              aria-keyshortcuts={ariaOf('flipHorizontal')}
+            >
+              <PiFlipHorizontal size={18} />
+            </button>
+            <button
+              type="button"
+              className={ICON_BTN}
+              onClick={() => onFlip('y')}
+              title={withShortcut('flipVertical')}
+              aria-label={withShortcut('flipVertical')}
+              aria-keyshortcuts={ariaOf('flipVertical')}
+            >
+              <PiFlipVertical size={18} />
+            </button>
+          </>
+        )}
+        {canAlign && (
+          <FloatingPositionControl canDistribute={canDistribute} onCommand={onCommand} />
+        )}
         {canLock && (
           <button
             type="button"

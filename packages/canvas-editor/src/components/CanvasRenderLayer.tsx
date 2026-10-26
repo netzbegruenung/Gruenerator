@@ -58,6 +58,8 @@ interface OptionalCanvasStateProperties {
       color?: string;
       opacity?: number;
       iconId?: string;
+      flipX?: boolean;
+      flipY?: boolean;
     }
   >;
 }
@@ -69,6 +71,7 @@ interface AdditionalTextAttrs {
   y?: number;
   width?: number;
   scale?: number;
+  rotation?: number;
 }
 
 interface CanvasRenderLayerProps<
@@ -76,6 +79,8 @@ interface CanvasRenderLayerProps<
   TActions = Record<string, unknown>,
 > {
   sortedRenderList: CanvasItem[];
+  /** Lässt sich die ganze Auswahl drehen? Siehe `MultiSelectionTransformer`. */
+  canRotateSelection: () => boolean;
   config: FullCanvasConfig<TState, TActions>;
   state: TState;
   layout: LayoutResult;
@@ -85,7 +90,15 @@ interface CanvasRenderLayerProps<
     handleFontSizeChange: (id: string, size: number) => void;
     handleElementPositionChange: (id: string, x: number, y: number, w: number, h: number) => void;
     handleImageDragEnd: (id: string, x: number, y: number) => void;
-    handleImageTransformEnd: (id: string, x: number, y: number, w: number, h: number) => void;
+    handleImageTransformEnd: (
+      id: string,
+      x: number,
+      y: number,
+      w: number,
+      h: number,
+      rotation: number
+    ) => void;
+    handleTemplateTransformEnd: (id: string, x: number, y: number, rotation: number) => void;
     handleBalkenSelect: (id: string) => void;
     handleBalkenDragEnd: (id: string, x: number, y: number) => void;
     handleBalkenTransformEnd: (
@@ -209,6 +222,7 @@ function CanvasRenderLayerInner<
   TActions = Record<string, unknown>,
 >({
   sortedRenderList,
+  canRotateSelection,
   config: _config,
   state,
   layout,
@@ -244,6 +258,7 @@ function CanvasRenderLayerInner<
           onGeometryChange={registerGeometry}
           onImageDragEnd={handlers.handleImageDragEnd}
           onImageTransformEnd={handlers.handleImageTransformEnd}
+          onTemplateTransformEnd={handlers.handleTemplateTransformEnd}
           onSnapChange={handleSnapChange}
           onSnapLinesChange={setSnapLines}
           stageWidth={stageWidth}
@@ -314,6 +329,8 @@ function CanvasRenderLayerInner<
           y={y}
           scale={scale}
           rotation={rotation}
+          flipX={iconState?.flipX}
+          flipY={iconState?.flipY}
           color={color}
           opacity={iconState?.opacity ?? 1}
           onSelect={() => handlers.handleElementSelect(iconId)}
@@ -554,12 +571,14 @@ function CanvasRenderLayerInner<
           onDragEnd={(x, y) => {
             handlers.handleAdditionalTextChange(textItem.id, { x, y });
           }}
-          onTransformEnd={(x, y, width, scaleX) => {
+          transformConfig={{ rotateEnabled: true }}
+          onTransformEnd={(x, y, width, scaleX, _scaleY, rotation) => {
             handlers.handleAdditionalTextChange(textItem.id, {
               x,
               y,
               width,
               scale: scaleX,
+              rotation,
             });
           }}
           editable={true}
@@ -597,7 +616,7 @@ function CanvasRenderLayerInner<
           </Group>
         );
       })}
-      <MultiSelectionTransformer renderKey={sortedRenderList} />
+      <MultiSelectionTransformer renderKey={sortedRenderList} canRotate={canRotateSelection} />
     </>
   );
 }

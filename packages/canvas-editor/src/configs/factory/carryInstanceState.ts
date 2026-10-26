@@ -24,6 +24,10 @@
  * `backgroundImageAdjustments` is the "Bearbeiten" look of the template's
  * background photo. It rides here for the same reason: one read-back for every
  * template, and the list doubles as the page's writer (PAGE_ELEMENT_STATE_KEYS).
+ *
+ * `templateRotations` is the turn of the template's own text and marks, keyed
+ * by element config id. One record for every template, so no template needs a
+ * rotation key of its own and the page writer syncs it like the rest.
  */
 
 import type { IconState } from './baseTypes';
@@ -53,6 +57,7 @@ export interface CarriedInstanceState {
   userImageInstances: UserImageInstance[];
   layerOrder: string[];
   lockedLayerIds: string[];
+  templateRotations: Record<string, number>;
   backgroundImageAdjustments?: ImageAdjustments;
 }
 
@@ -72,6 +77,7 @@ export const CARRIED_INSTANCE_KEYS = [
   'userImageInstances',
   'layerOrder',
   'lockedLayerIds',
+  'templateRotations',
   'backgroundImageAdjustments',
 ] as const;
 
@@ -98,6 +104,7 @@ export function carryInstanceState(props: Record<string, unknown>): CarriedInsta
     userImageInstances: list<UserImageInstance>(props.userImageInstances),
     layerOrder: list<string>(props.layerOrder),
     lockedLayerIds: list<string>(props.lockedLayerIds),
+    templateRotations: carryTemplateRotations(props),
     ...carryBackgroundAdjustments(props),
   };
 }
@@ -109,5 +116,13 @@ export function carryBackgroundAdjustments(
   const value = props.backgroundImageAdjustments;
   return value && typeof value === 'object'
     ? { backgroundImageAdjustments: value as ImageAdjustments }
+    : {};
+}
+
+/** The turn of each template element, keyed by element id; `{}` for anything else. */
+export function carryTemplateRotations(props: Record<string, unknown>): Record<string, number> {
+  const value = props.templateRotations;
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, number>)
     : {};
 }

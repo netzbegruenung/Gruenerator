@@ -46,7 +46,7 @@ function OpenSession({ id, fontFamily }: { id: string; fontFamily: string }) {
   useEffect(() => {
     const session: TextEditSession = {
       id,
-      box: { top: 0, left: 0, width: 400, minHeight: 80, scale: 1 },
+      box: { top: 0, left: 0, width: 400, minHeight: 80, scale: 1, rotation: 0 },
       text: 'Klimaschutz ist kein Sprint',
       fontFamily,
       fontSize: 24,

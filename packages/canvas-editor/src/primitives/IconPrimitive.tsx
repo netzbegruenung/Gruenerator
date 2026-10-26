@@ -7,11 +7,14 @@ import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { generateIconDataUrl } from '../utils/canvasIcons';
 import { ICON_TARGET_SIZE, MOTIF_BASE_SIZE } from '../utils/motifSizes';
 import { isGroupDrag } from '../utils/multiSelect';
-import { calculateCenteredSnapPosition } from '../utils/snapping';
-import { touchAnchorStyleFunc } from '../utils/touchInput';
+import { ELEMENT_TRANSFORMER, signedScale } from '../utils/orientation';
+import { boxFrame, createBoxFrame, frameBounds, snapByBounds } from '../utils/snapping';
 
 import type { SnapLine, SnapTarget } from '../utils/snapping';
 import type Konva from 'konva';
+
+// Rahmen für Snap und Geometrie-Meldung, pro Aufruf neu beschrieben (synchron, ohne Allokation).
+const dragFrame = createBoxFrame();
 
 const BASE_SIZE = MOTIF_BASE_SIZE;
 const TARGET_SIZE = ICON_TARGET_SIZE;
@@ -23,6 +26,8 @@ export interface IconPrimitiveProps {
   y: number;
   scale: number;
   rotation: number;
+  flipX?: boolean;
+  flipY?: boolean;
   selected: boolean;
   onSelect: () => void;
   onDragEnd: (x: number, y: number) => void;
@@ -44,6 +49,8 @@ function IconPrimitiveInner({
   y,
   scale,
   rotation,
+  flipX = false,
+  flipY = false,
   selected,
   onSelect,
   onDragEnd,
@@ -98,8 +105,11 @@ function IconPrimitiveInner({
 
   const reportGeometry = useGeometryReporter(id, onGeometryChange);
   useEffect(() => {
-    reportGeometry(x - renderedSize / 2, y - renderedSize / 2, renderedSize, renderedSize);
-  }, [reportGeometry, x, y, renderedSize]);
+    const box = frameBounds(
+      boxFrame(dragFrame, x, y, renderedSize, renderedSize, rotation, 'centre')
+    );
+    reportGeometry(box.x, box.y, box.width, box.height);
+  }, [reportGeometry, x, y, renderedSize, rotation]);
 
   const handleDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -108,11 +118,8 @@ function IconPrimitiveInner({
       if (isGroupDrag(node)) return;
       const size = TARGET_SIZE * scale;
 
-      const result = calculateCenteredSnapPosition(
-        node.x(),
-        node.y(),
-        size,
-        size,
+      const result = snapByBounds(
+        boxFrame(dragFrame, node.x(), node.y(), size, size, node.rotation(), 'centre'),
         getSnapTargets?.(id) ?? [],
         stageWidth,
         stageHeight,
@@ -157,8 +164,8 @@ function IconPrimitiveInner({
           const node = groupRef.current;
           if (!node) return;
 
-          const scaleX = node.scaleX();
-          const scaleY = node.scaleY();
+          const scaleX = Math.abs(node.scaleX());
+          const scaleY = Math.abs(node.scaleY());
           const newScale = Math.max(scaleX, scaleY) / baseScale;
           const newRotation = node.rotation();
 
@@ -169,12 +176,16 @@ function IconPrimitiveInner({
           onTransformEnd(node.x(), node.y(), newScale, newRotation);
         }}
       >
+        {/* Gespiegelt wird das Bild, nicht die Gruppe: am Transformer hängt so nie
+            eine negative Skala, die Konva als Drehung + 180° zerlegen würde. */}
         <Image
           image={image}
           width={BASE_SIZE}
           height={BASE_SIZE}
           offsetX={BASE_SIZE / 2}
           offsetY={BASE_SIZE / 2}
+          scaleX={signedScale(1, flipX)}
+          scaleY={signedScale(1, flipY)}
         />
 
         {selected && (
@@ -194,10 +205,11 @@ function IconPrimitiveInner({
 
       {selected && (
         <Transformer
-          anchorStyleFunc={touchAnchorStyleFunc}
           ref={transformerRef}
           keepRatio={true}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
+          rotateEnabled={true}
+          {...ELEMENT_TRANSFORMER}
           {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}
@@ -212,6 +224,8 @@ export const IconPrimitive = memo(IconPrimitiveInner, (prevProps, nextProps) => 
   if (prevProps.y !== nextProps.y) return false;
   if (prevProps.scale !== nextProps.scale) return false;
   if (prevProps.rotation !== nextProps.rotation) return false;
+  if (prevProps.flipX !== nextProps.flipX) return false;
+  if (prevProps.flipY !== nextProps.flipY) return false;
   if (prevProps.selected !== nextProps.selected) return false;
   if (prevProps.color !== nextProps.color) return false;
   if (prevProps.opacity !== nextProps.opacity) return false;

@@ -16,12 +16,15 @@ import { Group, Circle, Text, Rect, Transformer } from 'react-konva';
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { isGroupDrag } from '../utils/multiSelect';
-import { calculateElementSnapPosition } from '../utils/snapping';
+import { ELEMENT_TRANSFORMER, normalizeRotation } from '../utils/orientation';
+import { boxFrame, createBoxFrame, snapByBounds } from '../utils/snapping';
 import { stageCssScale } from '../utils/stageCssScale';
-import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type { SnapTarget } from '../utils/snapping';
 import type Konva from 'konva';
+
+// Rahmen für Snap und Geometrie-Meldung, pro Aufruf neu beschrieben (synchron, ohne Allokation).
+const dragFrame = createBoxFrame();
 
 export interface CircleBadgeTextLine {
   text: string;
@@ -122,21 +125,24 @@ function CircleBadgeInner({
 
       const contentWidth = radius * 2 * scaleX;
       const contentHeight = radius * 2 * scaleY;
-      const currentAbsX = node.x() - contentWidth / 2;
-      const currentAbsY = node.y() - contentHeight / 2;
 
-      const result = calculateElementSnapPosition(
-        currentAbsX,
-        currentAbsY,
-        contentWidth,
-        contentHeight,
+      const result = snapByBounds(
+        boxFrame(
+          dragFrame,
+          node.x(),
+          node.y(),
+          contentWidth,
+          contentHeight,
+          node.rotation(),
+          'centre'
+        ),
         getSnapTargets(id),
         stageWidth,
         stageHeight,
         snap.hysteresis
       );
 
-      node.position({ x: result.x + contentWidth / 2, y: result.y + contentHeight / 2 });
+      node.position({ x: result.x, y: result.y });
       snap.scheduleSnap(result.snapH, result.snapV, result.snapLines);
     },
     [id, radius, getSnapTargets, stageWidth, stageHeight, snap]
@@ -217,6 +223,8 @@ function CircleBadgeInner({
       input.style.outlineOffset = '2px';
       input.style.zIndex = '10000';
       input.style.transformOrigin = 'left top';
+      // Der Textknoten trägt die Drehung der Gruppe; seine linke obere Ecke ist sein Ursprung.
+      input.style.transform = `rotate(${normalizeRotation(textNode.getAbsoluteRotation())}deg)`;
 
       input.focus();
       input.select();
@@ -314,7 +322,6 @@ function CircleBadgeInner({
 
       {selected && editingIndex === null && (
         <Transformer
-          anchorStyleFunc={touchAnchorStyleFunc}
           ref={transformerRef}
           keepRatio={true}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
@@ -325,6 +332,8 @@ function CircleBadgeInner({
             if (newBox.width > maxSize || newBox.height > maxSize) return oldBox;
             return newBox;
           }}
+          rotateEnabled={true}
+          {...ELEMENT_TRANSFORMER}
           {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}

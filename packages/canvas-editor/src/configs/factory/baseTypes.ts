@@ -40,6 +40,8 @@ export interface BaseCanvasState {
   layerOrder?: string[];
   /** Gesperrte Elemente: nicht ziehen, skalieren, drehen oder löschen. */
   lockedLayerIds?: string[];
+  /** Drehung der Vorlagen-Elemente (Text, Grafiken), je Element-ID in Grad. */
+  templateRotations?: Record<string, number>;
   imageAttribution?: StockImageAttribution | null;
   [key: string]: unknown;
 }
@@ -59,6 +61,9 @@ export interface IconState {
    * wird immer über `catalogIconId` in `utils/iconInstances.ts`.
    */
   iconId?: string;
+  /** Mirrored about the centre (negative node scale); omit for upright. */
+  flipX?: boolean;
+  flipY?: boolean;
 }
 
 /** State for templates with image backgrounds */

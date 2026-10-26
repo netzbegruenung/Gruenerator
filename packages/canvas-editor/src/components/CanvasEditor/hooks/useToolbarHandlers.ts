@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 
 import type { ShadowPatch } from '../../../hooks/useFloatingModuleHandlers';
+import type { PageCommandId } from '../../../utils/canvasCommandRegistry';
 import type { GradientFill } from '../../../utils/gradientFill';
 import type { GenericCanvasRef, ToolbarStateReport } from '../../GenericCanvas';
-import type { AlignmentDirection } from '../../Toolbar';
 import type React from 'react';
 
 interface UseToolbarHandlersParams {
@@ -65,11 +65,19 @@ export function useToolbarHandlers({
       handleDeleteElement: () => page()?.handleDeleteElement?.(),
       handleCopy: () => page()?.runCommand?.('copy', null),
       handleToggleLock: () => page()?.runCommand?.('toggleLock', null),
+      handleSetRotation: (deg: number) => page()?.setRotation?.(deg),
+      handlePreviewRotation: (deg: number) => page()?.previewRotation?.(deg),
+      handleCommitRotationPreview: () => page()?.commitRotationPreview?.(),
+      handleFlip: (axis: 'x' | 'y') =>
+        page()?.runCommand?.(axis === 'x' ? 'flipHorizontal' : 'flipVertical', null),
       handleColorSelect: (color: string) => page()?.handleColorSelect?.(color),
       handleOpacityChange: (id: string, opacity: number, type: string) =>
         page()?.handleOpacityChange?.(id, opacity, type),
       handleFontSizeChange: (id: string, size: number) => page()?.handleFontSizeChange?.(id, size),
-      handleAlign: (direction: AlignmentDirection) => page()?.handleAlign?.(direction),
+      runCommand: (id: PageCommandId) => page()?.runCommand?.(id, null),
+      getGeometry: () => page()?.getGeometry?.() ?? null,
+      handlePositionChange: (patch: { x?: number; y?: number }) => page()?.setPosition?.(patch),
+      handleSizeChange: (patch: { width?: number; height?: number }) => page()?.setSize?.(patch),
       handleShadowChange: (id: string, patch: ShadowPatch, type: string) =>
         page()?.handleShadowChange?.(id, patch, type),
       handleOutlineChange: (id: string, patch: { stroke?: string; strokeWidth?: number }) =>

@@ -48,12 +48,13 @@ function rect(top: number, left: number, width: number): DOMRect {
 }
 
 /** Öffnet den Editor auf einem Feld bei (10, 20) einer 600er-Bühne. */
-function editText(wrapper?: HTMLElement) {
+function editText(wrapper?: HTMLElement, rotation = 0) {
   const stageRef = createRef<CanvasStageRef>();
   render(
     <CanvasStage ref={stageRef} width={600} height={600}>
       <CanvasText
         id="text-1"
+        rotation={rotation}
         x={10}
         y={20}
         width={400}
@@ -86,6 +87,16 @@ function editText(wrapper?: HTMLElement) {
 }
 
 describe('Text-Editor folgt der Leinwand', () => {
+  it('opens the editor rotated in place', () => {
+    const { overlay } = editText(undefined, 30);
+
+    const content = overlay.querySelector<HTMLElement>('[style*="rotate(30deg)"]');
+    expect(content).not.toBeNull();
+    expect(content!.style.transformOrigin).toBe('top left');
+    expect(overlay.style.top).toBe('120px');
+    expect(overlay.style.left).toBe('60px');
+  });
+
   it('steht beim Öffnen über dem Feld', () => {
     const { overlay } = editText();
 
