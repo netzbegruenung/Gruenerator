@@ -580,7 +580,8 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
       intent = 'scrape_url';
     } else if (!secondaryIntent && intent !== 'scrape_url' && intent !== 'agentic') {
       // 'agentic' turns keep secondary null: the loop has its own scrape_url
-      // tool, and a secondary would kick the turn out of the loop (routing.ts).
+      // tool and reads @link pages up front (`seedAttachedPages`), and a
+      // secondary would kick the turn out of the loop (routing.ts).
       secondaryIntent = 'scrape_url';
     }
     log.info(
