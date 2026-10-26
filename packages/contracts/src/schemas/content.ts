@@ -161,7 +161,7 @@ export const mediathekMediaItemSchema = z.object({
   mimeType: z.string(),
   duration: z.number().nullable(),
   imageType: z.string().nullable(),
-  imageMetadata: z.record(z.unknown()).nullable(),
+  imageMetadata: z.record(z.string(), z.unknown()).nullable(),
   altText: z.string().nullable(),
   uploadSource: z.string().nullable(),
   contentOrigin: storedContentOriginSchema.nullable(),

@@ -12,8 +12,8 @@ export const line = (max: number) =>
     .superRefine((text, ctx) => {
       if (stripInlineMarks(stripHandMarks(text)).length <= max) return;
       ctx.addIssue({
-        code: z.ZodIssueCode.too_big,
-        type: 'string',
+        code: 'too_big',
+        origin: 'string',
         maximum: max,
         inclusive: true,
         message: `String must contain at most ${max} visible character(s)`,
