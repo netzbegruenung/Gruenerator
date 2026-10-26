@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { isListedLayer, layerLabel, pageLayerLabels, sameLayerEntries } from './layerLabels';
+import {
+  isListedLayer,
+  layerLabel,
+  pageLayerLabels,
+  sameLayerEntries,
+  stageSummary,
+} from './layerLabels';
 
 import type { CanvasItem } from './canvasLayerManager';
 import type { CanvasElementConfig } from '../configs/types';
@@ -133,5 +139,27 @@ describe('pageLayerLabels', () => {
     expect(sameLayerEntries(a, [{ id: 'x', label: 'Icon' }])).toBe(true);
     expect(sameLayerEntries(a, [{ id: 'x', label: 'Icon, gesperrt' }])).toBe(false);
     expect(sameLayerEntries(a, [])).toBe(false);
+  });
+});
+
+describe('stageSummary', () => {
+  const entry = (label: string) => ({ id: label, label });
+
+  it('nennt die Ebenen hinter dem Präfix', () => {
+    expect(stageSummary([entry('Text: Klimaschutz'), entry('Sonnenblume')], 'Seite 1')).toBe(
+      'Seite 1: Text: Klimaschutz, Sonnenblume'
+    );
+  });
+
+  it('nennt eine leere Seite leer', () => {
+    expect(stageSummary([], 'Seite 2')).toBe('Seite 2: leer');
+  });
+
+  it('kürzt auf rund 200 Zeichen und zählt den Rest', () => {
+    const entries = Array.from({ length: 30 }, (_, i) => entry(`Text: Eintrag ${i}`));
+    const label = stageSummary(entries, 'Seite 1');
+    expect(label).toMatch(/ und \d+ weitere$/);
+    expect(label.length).toBeLessThan(230);
+    expect(label.startsWith('Seite 1: Text: Eintrag 0, Text: Eintrag 1')).toBe(true);
   });
 });

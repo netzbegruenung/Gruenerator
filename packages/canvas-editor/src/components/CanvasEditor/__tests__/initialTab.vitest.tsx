@@ -194,7 +194,7 @@ describe('CanvasEditor Chat über Seitenwechsel (#4273)', () => {
       document.querySelector<HTMLElement>('[data-page-index="1"]')!.click();
     });
     await settle();
-    expect(document.querySelector('[data-page-index="1"]')).toHaveAttribute('aria-pressed', 'true');
+    expect(document.querySelector('[data-page-index="1"]')).toHaveAttribute('aria-current', 'page');
     expect(screen.getByText('spy-chat')).toBeTruthy();
     expect(mounts).toBe(1);
   });

@@ -155,6 +155,28 @@ export function pageLayerLabels(
   return entries;
 }
 
+/** So viele Zeichen hat die Bühnen-Beschriftung höchstens, bevor „und N weitere“ folgt. */
+export const STAGE_SUMMARY_MAX = 200;
+
+/**
+ * Die Beschriftung der Bühne („Seite 1: Text: Klimaschutz, Sonnenblume“):
+ * die Namen der Ebenen, vorderste zuerst, kurz gehalten — was darüber hinaus
+ * geht, zählt „und N weitere“. `prefix` ist „Seite 1“ o. ä.
+ */
+export function stageSummary(entries: readonly LayerEntry[], prefix: string): string {
+  if (entries.length === 0) return `${prefix}: leer`;
+  let text = `${prefix}: `;
+  let used = 0;
+  for (const entry of entries) {
+    const next = `${used > 0 ? ', ' : ''}${entry.label}`;
+    if (used > 0 && text.length + next.length > STAGE_SUMMARY_MAX) break;
+    text += next;
+    used++;
+  }
+  const rest = entries.length - used;
+  return rest > 0 ? `${text} und ${rest} weitere` : text;
+}
+
 /** Gleiche Einträge in gleicher Reihenfolge? */
 export function sameLayerEntries(a: readonly LayerEntry[], b: readonly LayerEntry[]): boolean {
   return (

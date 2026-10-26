@@ -63,6 +63,7 @@ import {
 import { itemBodyRect } from '../utils/deepSelect';
 import { ensureFontsReady } from '../utils/ensureFontsReady';
 import { MAX_ICON_SELECTIONS, selectedCatalogIconIds } from '../utils/iconInstances';
+import { pageLayerLabels, stageSummary } from '../utils/layerLabels';
 import { applyLayerSelection, type LayerSelectionChange } from '../utils/layerSelection';
 import { locateDrop, type ElementDragPayload, type MediaDragPayload } from '../utils/mediaDrop';
 import { selectableItemIds } from '../utils/multiSelect';
@@ -193,6 +194,8 @@ export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActio
    * registers on `window`. Single-canvas hosts leave it at the default.
    */
   isActivePage?: boolean;
+  /** Seitennummer (ab 1) für die Beschriftung der Bühne; ohne: „Zeichenfläche“. */
+  pageNumber?: number;
   /**
    * Shown to a viewer: rendered and exportable, but no hit graph, no
    * selection, marquee or context press, and no keyboard shortcuts.
@@ -342,6 +345,7 @@ function GenericCanvasWithRef<
     onAutoSaveShareToken,
     preview = false,
     isActivePage = true,
+    pageNumber,
     readOnly = false,
   } = props;
   const interactive = !preview && !readOnly;
@@ -722,6 +726,15 @@ function GenericCanvasWithRef<
     [canvasItems, state.layerOrder]
   );
 
+  const stageLabel = useMemo(
+    () =>
+      stageSummary(
+        pageLayerLabels(sortedRenderList, state),
+        pageNumber ? `Seite ${pageNumber}` : 'Zeichenfläche'
+      ),
+    [sortedRenderList, state, pageNumber]
+  );
+
   // The doors read the page at call time, not from a render closure: a menu
   // or key acts on what is on screen now.
   const commandInputsRef = useRef({ layout, sortedRenderList, actions });
@@ -1067,6 +1080,7 @@ function GenericCanvasWithRef<
         maxContainerWidth={maxWidth}
         onStageClick={handleStageClick}
         listening={interactive}
+        ariaLabel={stageLabel}
         className={`${config.id}-stage`}
       >
         <CanvasRenderLayer
