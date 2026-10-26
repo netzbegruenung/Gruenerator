@@ -1170,10 +1170,10 @@ function composeSlide(
 
   const heightOf = (group: Placed[]) =>
     group.reduce((sum, p) => sum + p.height + p.after, 0) - (group[group.length - 1]?.after ?? 0);
-  // A centred block would rise into the top corner of a DE Störer: keep at
-  // least its smallest circle free (a bottom block reaches it only when full).
+  // A centred block would rise into the top corner of a fitted Störer: keep
+  // at least its smallest circle free (a bottom block reaches it only when full).
   const stoererCorner =
-    spec.stoerer && position === 'mitte' && !isAt
+    spec.stoerer && position === 'mitte' && brand.stoerer.size === 'fit'
       ? areaTop + MARGIN + 2 * STOERER_RADII.at(-1)! - 30 + GAP
       : 0;
   const top = Math.max(

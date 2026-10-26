@@ -92,6 +92,7 @@ const DE_LIME = '#BEFF60';
 // AT colours that both `colors` and `composer` name.
 const AT_DUNKELGRUEN = '#257639';
 const AT_GELB = '#FCEC00';
+const AT_MAGENTA = '#E4007C';
 
 export const GRUENE_DE: GruenePack = {
   id: 'gruene-de',
@@ -141,6 +142,18 @@ export const GRUENE_DE: GruenePack = {
     ghostNumeral: { fill: { light: DE_GRASGRUEN, dark: DE_LIME }, opacity: 0.2 },
     countdownInk: { light: '#FFFFFF', dark: DE_DUNKELTANNE },
     handMarks: { white: '#FFFFFF', green: DE_KLEE, greenOnGrass: DE_TANNE },
+    // As on the current posts: Grasgrün with Dunkeltanne text, Tanne with
+    // white on a grass-green surface, 7° ascending, as large as the text
+    // block lets it grow.
+    stoerer: {
+      rotation: -7,
+      colors: {
+        light: { fill: DE_GRASGRUEN, ink: DE_DUNKELTANNE },
+        grass: { fill: DE_TANNE, ink: '#FFFFFF' },
+        dark: { fill: DE_GRASGRUEN, ink: DE_DUNKELTANNE },
+      },
+      size: 'fit',
+    },
   },
 };
 
@@ -152,7 +165,7 @@ export const GRUENE_AT: GruenePack = {
     secondary: '#56af31', // Hellgrün
     accent: AT_GELB, // Headline-Hervorhebung
     accentOnLight: AT_DUNKELGRUEN, // 5.63:1 on white (Hellgrün: 2.77:1)
-    attention: '#E4007C', // Magenta — Störer
+    attention: AT_MAGENTA, // Störer
     textOnDark: '#ffffff',
     textOnLight: '#257639',
   },
@@ -201,6 +214,15 @@ export const GRUENE_AT: GruenePack = {
     ghostNumeral: { fill: { light: '#56AE33', dark: '#56AE33' }, opacity: 0.55 },
     countdownInk: { light: '#FFFFFF', dark: AT_DUNKELGRUEN },
     handMarks: { white: AT_GELB, green: AT_DUNKELGRUEN },
+    // Magenta with white text on every ground, one size for every text.
+    stoerer: {
+      rotation: -8,
+      colors: {
+        light: { fill: AT_MAGENTA, ink: '#FFFFFF' },
+        dark: { fill: AT_MAGENTA, ink: '#FFFFFF' },
+      },
+      size: { radius: 125, fontSize: 38 },
+    },
   },
 };
 

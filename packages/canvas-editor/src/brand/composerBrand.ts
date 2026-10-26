@@ -48,6 +48,18 @@ export interface ComposerBrand {
    * green one on grass green takes `greenOnGrass` when the brand sets one.
    */
   handMarks: { white: string; green: string; greenOnGrass?: string };
+  /**
+   * The Störer, a tilted circle in the corner opposite the text. `'fit'` grows
+   * it with its text as far as the block leaves room, and a centred block
+   * keeps the smallest circle's corner free; a fixed size keeps its radius and
+   * type and wraps the text to at most three lines.
+   */
+  stoerer: {
+    /** Degrees; Konva turns clockwise, so a negative angle ascends. */
+    rotation: number;
+    colors: ByGround<{ fill: string; ink: string }>;
+    size: 'fit' | { radius: number; fontSize: number };
+  };
 }
 
 /**

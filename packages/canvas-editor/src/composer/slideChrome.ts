@@ -4,6 +4,7 @@ import {
   type SharepicSlide,
 } from '@gruenerator/contracts';
 
+import { onGround } from '../brand/composerBrand';
 import { ASSET_TARGET_SIZE } from '../utils/canvasAssets';
 import { createCircleBadgeInstance } from '../utils/circleBadgeUtils';
 import { COLORS } from '../utils/dreizeilenLayout';
@@ -135,9 +136,11 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
       x: canvas.width - MARGIN - r + 30,
       y: atBottom ? canvas.height - FOOTER - r : areaTop + MARGIN + r - 30,
     });
-    // DE grows towards the posts' Störer (about 40 % of the width) as far as
-    // the text block leaves room, and shrinks below 125 rather than cover a
-    // block that reaches its corner; the block counts as full width.
+    // A fitted Störer grows towards the posts' one (about 40 % of the width,
+    // text within 90 %) as far as the text block leaves room, and shrinks
+    // below 125 rather than cover a block that reaches its corner; the block
+    // counts as full width.
+    const { stoerer } = ctx.brand;
     const clearsBlock = (r: number) =>
       atBottom ? centreAt(r).y - r >= blockTop + total : centreAt(r).y + r <= blockTop;
     const stoererText = spec.stoerer.text;
@@ -161,23 +164,19 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
     // A long text gets smaller type before its circle covers the block; only
     // a text that fits no circle beside the block (one long word) takes the
     // largest circle that holds it.
-    const radius = isAt
-      ? 125
+    const fixed = stoerer.size === 'fit' ? null : stoerer.size;
+    const radius = fixed
+      ? fixed.radius
       : (STOERER_RADII.find((r) => clearsBlock(r) && fitAt(r)) ??
         STOERER_RADII.find((r) => clearsBlock(r) && fitAt(r, 20)) ??
         STOERER_RADII[0]!);
-    // AT keeps its own Störer. DE follows the current posts: Grasgrün with
-    // Dunkeltanne text (Tanne with white on a grass-green surface), 7°
-    // ascending (Konva turns clockwise, so negative), text within 90 %.
-    const deColors = onGrass
-      ? { background: COLORS.TANNE, text: '#FFFFFF' }
-      : { background: theme.colors.stoerer, text: SHAREPIC_COLOR_HEX.dunkeltanne };
-    const { lines, size } = isAt
+    const colors = onGround(stoerer.colors, { onLight, onGrass });
+    const { lines, size } = fixed
       ? {
           lines: wrapWords(spec.stoerer.text, radius * 1.45, (l) =>
-            measure(l, 38, theme.fonts.headline, 'normal')
+            measure(l, fixed.fontSize, theme.fonts.headline, 'normal')
           ).slice(0, 3),
-          size: 38,
+          size: fixed.fontSize,
         }
       : (fitAt(radius) ??
         fitAt(radius, 20) ??
@@ -187,9 +186,9 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
         id: 'sc-stoerer',
         ...centreAt(radius),
         radius,
-        rotation: isAt ? -8 : -7,
-        backgroundColor: isAt ? theme.colors.stoerer : deColors.background,
-        textColor: isAt ? '#FFFFFF' : deColors.text,
+        rotation: stoerer.rotation,
+        backgroundColor: colors.fill,
+        textColor: colors.ink,
         textLines: lines.map((value, i) => ({
           text: value,
           yOffset: (i - (lines.length - 1) / 2) * size * STOERER_LINE_STEP,
