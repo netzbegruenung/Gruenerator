@@ -25,6 +25,9 @@ describe('isLockable', () => {
     expect(
       isLockable(element('background-image', { type: 'image', order: -1, draggable: true }))
     ).toBe(false);
+    expect(
+      isLockable(element('background-image', { type: 'image', order: 0, draggable: true }))
+    ).toBe(false);
     expect(isLockable(element('bg', { type: 'background' }))).toBe(false);
     expect(isLockable(element('label', { draggable: false }))).toBe(false);
   });

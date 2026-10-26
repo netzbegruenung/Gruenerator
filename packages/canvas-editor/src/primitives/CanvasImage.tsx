@@ -47,6 +47,8 @@ export interface CanvasImageProps {
   /** Touch moves the image only if it was already selected when the finger went down. */
   touchDragNeedsSelection?: boolean;
   selected?: boolean;
+  /** Doppelklick/Doppeltipp schaltet den Ausschnitt-Modus (nur das Hintergrundfoto). */
+  onToggleCrop?: (() => void) | null;
   transformConfig?: Partial<TransformConfig>;
   onSelect?: () => void;
   onDeselect?: () => void;
@@ -96,6 +98,7 @@ function CanvasImageInner({
   draggable = true,
   touchDragNeedsSelection = false,
   selected = false,
+  onToggleCrop = null,
   transformConfig,
   onSelect,
   onDeselect,
@@ -385,7 +388,8 @@ function CanvasImageInner({
 
   const handleDragStart = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
-      // In a group drag the photo moves with the others, as any element does.
+      // In a group drag a cover-fitted image moves with the others; the background photo
+      // never joins one, outside Ausschnitt mode it is not draggable.
       panStartRef.current =
         part && !isGroupDrag(e.target) ? { part: part.box, dx: 0, dy: 0 } : null;
       snap.onDragStart();
@@ -462,6 +466,8 @@ function CanvasImageInner({
         dragBoundFunc={dragBoundFunc}
         onMouseDown={onSelect}
         onTouchStart={handleTouchStart}
+        onDblClick={onToggleCrop ?? undefined}
+        onDblTap={onToggleCrop ?? undefined}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         onDragMove={handleDragMove}
@@ -522,6 +528,14 @@ export const CanvasImage = memo(CanvasImageInner, (prevProps, nextProps) => {
     if (prevProps[key] !== nextProps[key]) {
       return false;
     }
+  }
+
+  // Die Griffe des Hintergrundfotos wechseln mit dem Ausschnitt-Modus, auch ohne `draggable`.
+  if (
+    prevProps.transformConfig?.enabledAnchors?.length !==
+    nextProps.transformConfig?.enabledAnchors?.length
+  ) {
+    return false;
   }
 
   // Compare image reference

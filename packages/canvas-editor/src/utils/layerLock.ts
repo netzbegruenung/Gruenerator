@@ -6,6 +6,8 @@
  * lässt sich das Element weiter.
  */
 
+import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo';
+
 import type { CanvasItem } from './canvasLayerManager';
 
 export type LockState = 'all' | 'some' | 'none';
@@ -21,13 +23,14 @@ export function isLayerLocked(state: object, id: string): boolean {
 
 /**
  * Lässt sich das Element sperren? Alles, was man bewegen kann — nicht die
- * Hintergrund-Ebenen (das Foto hat sein eigenes „Fixieren“) und nicht
- * Vorlagen-Elemente, die ohnehin feststehen.
+ * Hintergrund-Ebenen (das Foto steht ohnehin fest, verschoben wird es nur im
+ * Ausschnitt-Modus) und nicht Vorlagen-Elemente, die ohnehin feststehen.
  */
 export function isLockable(item: CanvasItem): boolean {
   if (item.type !== 'element') return true;
   const element = item.data;
   if ((element.order ?? 0) < 0 || element.type === 'background') return false;
+  if (element.id === BACKGROUND_IMAGE_NODE_ID) return false;
   return 'draggable' in element && element.draggable === true;
 }
 
