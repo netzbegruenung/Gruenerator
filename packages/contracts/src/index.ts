@@ -102,6 +102,7 @@ export {
   connectionsContract,
   skillVisibilityContract,
   instanceAdminOverviewContract,
+  adminStatsContract,
   translationContract,
   lvAdminAssignmentContract,
   landesverbandAdminContract,
@@ -242,6 +243,7 @@ export * from './schemas/prompts.js';
 export * from './schemas/landesverbaende.js';
 export * from './schemas/lvAdminAssignment.js';
 export * from './schemas/instanceAdminOverview.js';
+export * from './schemas/adminStats.js';
 export * from './schemas/landesverbandAdmin.js';
 
 // Canvas-Textlayout: Umbruch, Aufzählungsmarker, hängender Einzug und
