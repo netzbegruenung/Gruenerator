@@ -71,6 +71,7 @@ import { useZoomGestures } from '../../hooks/useZoomGestures';
 import { HOST_CALLBACK_KEYS } from '../../hostCallbackKeys';
 import { CanvasEditorLayout } from '../../layouts';
 import { SidebarTabBar, SidebarPanel } from '../../sidebar';
+import { LayersSection } from '../../sidebar/sections/LayersSection';
 import { usePreloadElements } from '../../sidebar/sections/preloadElements';
 import {
   VorlagenSection,
@@ -87,6 +88,7 @@ import { AutoSaveStoreProvider } from '../../stores/useAutoSaveStore';
 import { cn } from '../../utils/cn';
 import { collectAltTextPages as collectCapturedAltTextPages } from '../../utils/collectAltTextPages';
 import { ensureFontsReady } from '../../utils/ensureFontsReady';
+import { sameLayerEntries } from '../../utils/layerLabels';
 import { pagePhotoCredits } from '../../utils/photoCredits';
 import { getCategoryForTemplate } from '../../utils/templateRegistry';
 import { CanvasContextMenu } from '../CanvasContextMenu/CanvasContextMenu';
@@ -119,6 +121,7 @@ import {
 import { useScrollToAddedPage } from './hooks/useScrollToAddedPage';
 import { useToolbarHandlers } from './hooks/useToolbarHandlers';
 import { useWorkAreaDeselect } from './hooks/useWorkAreaDeselect';
+import { layersTab, withLayersTab } from './layersTab';
 import { getMobileSelectionArea } from './mobileSelectionArea';
 import { PageWrapper } from './PageWrapper';
 import { formatHasVorlagen, vorlagenTab, withVorlagenTab } from './vorlagenTab';
@@ -126,6 +129,7 @@ import { formatHasVorlagen, vorlagenTab, withVorlagenTab } from './vorlagenTab';
 import type { CanvasEditorProps, PageWrapperProps } from './types';
 import type { AltTextPage, AltTextScope, CanvasSpecEditBridge } from '../../CanvasEditorProvider';
 import type { SidebarTabId } from '../../sidebar/types';
+import type { LayerSelectionChange } from '../../utils/layerSelection';
 import type { ToolbarStateReport } from '../GenericCanvas';
 import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
 
@@ -523,7 +527,9 @@ function CanvasEditorInner({
           prev.selectionCount === report.selectionCount &&
           prev.canCopy === report.canCopy &&
           prev.lockState === report.lockState &&
-          prev.canLock === report.canLock
+          prev.canLock === report.canLock &&
+          prev.selectedLayerIds === report.selectedLayerIds &&
+          sameLayerEntries(prev.layers, report.layers)
         ) {
           return prev;
         }
@@ -665,6 +671,33 @@ function CanvasEditorInner({
   const handleDeselectAll = useCallback(() => {
     canvasRefsRef.current.forEach((ref) => ref.current?.deselect());
   }, [canvasRefsRef]);
+
+  // Ebenen: die Liste zeigt die aktive Seite und wählt über deren Store aus.
+  const handleLayerSelect = useCallback(
+    (change: LayerSelectionChange) =>
+      canvasRefsRef.current[currentPageIndex]?.current?.selectLayers?.(change),
+    [canvasRefsRef, currentPageIndex]
+  );
+  // Enter/F2 auf einem Eintrag: was das Kontextmenü für das Element anbietet —
+  // Text bearbeiten, wenn die Auswahl es erlaubt, sonst ein Bild in den Rahmen.
+  const handleLayerActivate = useCallback(
+    (id: string) => {
+      const page = canvasRefsRef.current[currentPageIndex]?.current;
+      if (!page) return;
+      page.selectLayers?.({ kind: 'only', id });
+      const snapshot = page.getMenuSnapshot?.();
+      if (snapshot?.caps.canEditText) page.runCommand?.('editText', null);
+      else if (snapshot?.module?.type === 'frame') page.runCommand?.('insertFrameImage', null);
+    },
+    [canvasRefsRef, currentPageIndex]
+  );
+  // „Zu den Ebenen": öffnet den Bereich; die Liste holt sich den Fokus, sobald sie steht.
+  const [layersFocusRequested, setLayersFocusRequested] = useState(false);
+  const handleLayersFocusHandled = useCallback(() => setLayersFocusRequested(false), []);
+  const handleSkipToLayers = useCallback(() => {
+    setActiveTab('layers');
+    setLayersFocusRequested(true);
+  }, []);
 
   // While a suggestion is open the pages are locked: keep or discard it first.
   // A selection from before would still answer Delete and arrow keys.
@@ -949,6 +982,7 @@ function CanvasEditorInner({
     }
     // Mobile has room for six areas; the chat gives way to the Vorlagen there for now.
     if (isMobileWeb) tabs = tabs.filter((tab) => tab.id !== 'chat');
+    tabs = withLayersTab(tabs);
     return showVorlagen ? withVorlagenTab(tabs) : tabs;
   }, [activeConfig, activeState, activeSelectedElement, showVorlagen, isMobileWeb]);
 
@@ -991,7 +1025,9 @@ function CanvasEditorInner({
   const panelTitle =
     activeTab === 'vorlagen'
       ? vorlagenTab.label
-      : (activeTab && activeConfig?.tabs.find((tab) => tab.id === activeTab)?.label) || 'Auswahl';
+      : activeTab === 'layers'
+        ? layersTab.label
+        : (activeTab && activeConfig?.tabs.find((tab) => tab.id === activeTab)?.label) || 'Auswahl';
   useMobileSheetFit({
     enabled: isMobileSheetOpen,
     zoom,
@@ -1107,6 +1143,18 @@ function CanvasEditorInner({
   // Render the active section based on configuration
   const renderActiveSection = useCallback(() => {
     if (!activeTab) return null;
+    if (activeTab === 'layers') {
+      return (
+        <LayersSection
+          layers={toolbarState?.layers ?? []}
+          selectedIds={toolbarState?.selectedLayerIds ?? []}
+          onSelect={handleLayerSelect}
+          onActivate={handleLayerActivate}
+          focusRequested={layersFocusRequested}
+          onFocusHandled={handleLayersFocusHandled}
+        />
+      );
+    }
     if (activeTab === 'vorlagen') {
       return showVorlagen && specEdit ? (
         <VorlagenSection
@@ -1154,6 +1202,12 @@ function CanvasEditorInner({
     showPage,
     canAddMore,
     layoutLocale,
+    toolbarState?.layers,
+    toolbarState?.selectedLayerIds,
+    handleLayerSelect,
+    handleLayerActivate,
+    layersFocusRequested,
+    handleLayersFocusHandled,
   ]);
 
   // Collab vor dem ersten Sync (noch keine Seiten) und der eine Render, in dem
@@ -1516,6 +1570,16 @@ function CanvasEditorInner({
           meldet sie selbst an — wo wir sie nicht rendern, zeigt das Overlay
           wieder seine eigene Karte. */}
         <CanvasTextEditorProvider>
+          {!isPreview && !readOnly && (
+            // Der erste Tab-Halt des Editors: unsichtbar, bis er den Fokus hat.
+            <button
+              type="button"
+              onClick={handleSkipToLayers}
+              className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-[400] focus:flex focus:min-h-8 focus:items-center focus:rounded-md focus:border focus:border-[var(--editor-border-strong)] focus:bg-[var(--editor-surface)] focus:px-3 focus:text-[length:var(--font-size-small)] focus:font-semibold focus:text-[var(--editor-text)] focus:shadow-md outline-none kbd:focus-visible:outline-2 kbd:focus-visible:outline-solid kbd:focus-visible:outline-offset-2 kbd:focus-visible:outline-[var(--editor-accent)]"
+            >
+              Zu den Ebenen
+            </button>
+          )}
           <CanvasEditorLayout
             // Vorschau vor dem Sync: zeigen, aber nichts anbieten, was schreibt —
             // die Seiten hängen noch an keinem Y.Map, jede Änderung ginge verloren.

@@ -63,6 +63,7 @@ import {
 import { itemBodyRect } from '../utils/deepSelect';
 import { ensureFontsReady } from '../utils/ensureFontsReady';
 import { MAX_ICON_SELECTIONS, selectedCatalogIconIds } from '../utils/iconInstances';
+import { applyLayerSelection, type LayerSelectionChange } from '../utils/layerSelection';
 import { locateDrop, type ElementDragPayload, type MediaDragPayload } from '../utils/mediaDrop';
 import { selectableItemIds } from '../utils/multiSelect';
 import { rotaterRects } from '../utils/orientation';
@@ -91,6 +92,7 @@ import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
 import type { PageCommandId } from '../utils/canvasCommandRegistry';
 import type { GradientFill } from '../utils/gradientFill';
+import type { LayerEntry } from '../utils/layerLabels';
 import type { LockState } from '../utils/layerLock';
 import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
@@ -126,6 +128,10 @@ export interface ToolbarStateReport {
   /** Ausrichten, Verteilen und Position — siehe `utils/selectionCapabilities.ts`. */
   canAlign: boolean;
   canDistribute: boolean;
+  /** Die Elemente der Seite für die Ebenen-Liste, vorderstes zuerst (`utils/layerLabels.ts`). */
+  layers: readonly LayerEntry[];
+  /** Alle ausgewählten Ids, auch bei Mehrfachauswahl. */
+  selectedLayerIds: readonly string[];
 }
 
 export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActions> {
@@ -264,6 +270,8 @@ export interface GenericCanvasRef {
   /** Clears this page's element selection — the per-page store lives behind
    *  CanvasStoreProvider, so the parent editor reaches it through this handle. */
   deselect: () => void;
+  /** Auswahl aus der Ebenen-Liste der Seitenleiste. */
+  selectLayers?: (change: LayerSelectionChange) => void;
   /** Starts a marquee selection from a press outside the stage (the work area). */
   beginMarquee: (evt: MouseEvent) => void;
   /** Places a dragged upload where it was dropped: into the frame under the
@@ -841,6 +849,7 @@ function GenericCanvasWithRef<
         return rasterizeStageElement(stageRef.current?.getStage() ?? null, elementId);
       },
       deselect: () => setSelectedElement(null),
+      selectLayers: (change) => applyLayerSelection(store, change),
       beginMarquee,
       dropMedia: (evt, media) => {
         const stage = stageRef.current?.getStage();
