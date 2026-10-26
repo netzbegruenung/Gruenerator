@@ -23,6 +23,8 @@ export interface AutoSaveState {
    * canvas-text suggestion. Session-only, shared by sidebar and top-bar share.
    */
   shareAltText: string | null;
+  /** Whether the alt text goes into the shared post text; off unless ticked. */
+  shareAltTextInCaption: boolean;
 }
 
 export interface AutoSaveActions {
@@ -32,6 +34,7 @@ export interface AutoSaveActions {
   setDirty: (dirty: boolean) => void;
   setRetryAutoSave: (retry: (() => void) | null) => void;
   setShareAltText: (text: string | null) => void;
+  setShareAltTextInCaption: (include: boolean) => void;
   clearAutoSaveState: () => void;
 }
 
@@ -55,6 +58,7 @@ export function createAutoSaveStore(options: CreateAutoSaveStoreOptions = {}) {
     isDirty: false,
     retryAutoSave: null,
     shareAltText: null,
+    shareAltTextInCaption: false,
 
     setAutoSaveStatus: (status) => set({ autoSaveStatus: status }),
     setAutoSavedShareToken: (token) => set({ autoSavedShareToken: token }),
@@ -62,6 +66,7 @@ export function createAutoSaveStore(options: CreateAutoSaveStoreOptions = {}) {
     setDirty: (dirty) => set({ isDirty: dirty }),
     setRetryAutoSave: (retry) => set({ retryAutoSave: retry }),
     setShareAltText: (text) => set({ shareAltText: text }),
+    setShareAltTextInCaption: (include) => set({ shareAltTextInCaption: include }),
     clearAutoSaveState: () =>
       set({
         autoSaveStatus: 'idle',
@@ -70,6 +75,7 @@ export function createAutoSaveStore(options: CreateAutoSaveStoreOptions = {}) {
         isDirty: false,
         retryAutoSave: null,
         shareAltText: null,
+        shareAltTextInCaption: false,
       }),
   }));
 }

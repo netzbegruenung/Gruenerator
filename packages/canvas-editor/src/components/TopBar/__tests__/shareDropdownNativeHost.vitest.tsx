@@ -78,7 +78,7 @@ describe('ShareDropdown im eingebetteten Modus ohne navigator.share', () => {
       mime: 'image/png',
       data: 'aGVsbG8=',
       title: 'Grünerator Share',
-      text: 'Hallo Welt\nBildbeschreibung: Sharepic mit dem Text: Hallo Welt.',
+      text: 'Hallo Welt',
     });
   });
 });

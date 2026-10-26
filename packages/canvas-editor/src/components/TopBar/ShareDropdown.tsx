@@ -20,7 +20,12 @@ import { IoShareOutline } from 'react-icons/io5';
 import { PiArrowLeft, PiMegaphone } from 'react-icons/pi';
 
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
-import { AltTextField, useShareAltText, withAltText } from '../../sidebar/components/AltTextField';
+import {
+  AltTextField,
+  useCaptionAltText,
+  useShareAltText,
+  withAltText,
+} from '../../sidebar/components/AltTextField';
 import { useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
 
 import {
@@ -116,7 +121,8 @@ export function ShareDropdown({
     [open, getPhotoCredit]
   );
   const [altText, setAltText] = useShareAltText(stripInlineMarks(canvasText));
-  const shareText = withAltText(withPhotoCredit(canvasText, photoCredit), altText);
+  const captionAltText = useCaptionAltText(altText);
+  const shareText = withAltText(withPhotoCredit(canvasText, photoCredit), captionAltText);
 
   const autoSaveStoreApi = useAutoSaveStoreApi();
   const shareRoute = pickShareRoute();

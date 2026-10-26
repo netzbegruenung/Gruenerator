@@ -44,6 +44,7 @@ Die Breite entscheidet vor dem Laden über das Layout: unter 900 px gilt die mob
 | Text-Editor | `getByRole('textbox', { name: 'Text bearbeiten' })` | Ist beim Öffnen fokussiert. Auch Störer und Badge. |
 | Balken-Zeile | `getByRole('textbox', { name: 'Zeile 1 bearbeiten' })` | Je Zeile ein Feld; immer nur eins offen. Ist beim Öffnen fokussiert. |
 | Ansagen | `locator('[role="status"][aria-live="polite"]')` | Eine Live-Region für Aktionen. Gesehen: `Gelöscht: Text: …`, `Rückgängig gemacht`, `Auswahl aufgehoben`. Der Text erscheint rund 50 ms nach der Aktion; mit `expect(...).toHaveCount` / `toHaveText` warten, nicht mit fester Pause. |
+| Alt-Text beim Teilen | `getByRole('textbox', { name: 'Bildbeschreibung (Alt-Text)' })` | Im Teilen-Bereich der Seitenleiste und im Teilen-Menü der Kopfleiste, beide aus dem Bildtext vorbelegt (Dreizeiler: die drei Zeilen). Der geteilte Beitragstext enthält die Zeile `Bildbeschreibung: …` nur mit Häkchen bei `getByRole('checkbox', { name: 'Bildbeschreibung im Beitragstext mitschicken' })`; vorgegeben ist es aus. |
 
 Die Vorlage „dreizeilen" hat **keinen** Text-Eintrag, nur einen Balken. Enter/F2 öffnet dessen Zeilen (siehe Tasten); Entf löscht ihn nicht, sondern sagt `Gehört zur Vorlage und lässt sich nicht löschen: Balken: …` an. Für einen Text-Eintrag: `getByRole('button', { name: 'Text hinzufügen' })` und dann `getByRole('button', { name: 'Titel', exact: true })` – das legt „Text: Neue Überschrift" an. Dieser Aufbau darf mit der Maus geschehen; das Szenario danach läuft nur mit Tastatur.
 

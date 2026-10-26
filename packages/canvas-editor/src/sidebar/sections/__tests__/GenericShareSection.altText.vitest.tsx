@@ -78,8 +78,23 @@ describe('Alt-Text beim Teilen und Herunterladen', () => {
     await waitFor(() => expect(announce).toHaveBeenCalledWith('Alt-Text kopiert'));
   });
 
-  it('hängt den Alt-Text als eigene Zeile an den Teilen-Text', async () => {
+  it('schickt den Alt-Text ohne Häkchen nicht im Teilen-Text mit', async () => {
     setup();
+    expect(
+      screen.getByRole('checkbox', { name: 'Bildbeschreibung im Beitragstext mitschicken' })
+    ).not.toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: 'Bild teilen' }));
+    await waitFor(() => expect(share).toHaveBeenCalled());
+    expect((share.mock.calls[0]?.[0] as { text: string }).text).toBe(
+      'Klimaschutz jetzt handeln\\nFoto: A / Unsplash'
+    );
+  });
+
+  it('hängt den Alt-Text mit Häkchen als eigene Zeile an den Teilen-Text', async () => {
+    setup();
+    await userEvent.click(
+      screen.getByRole('checkbox', { name: 'Bildbeschreibung im Beitragstext mitschicken' })
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Bild teilen' }));
     await waitFor(() => expect(share).toHaveBeenCalled());
     expect((share.mock.calls[0]?.[0] as { text: string }).text).toBe(
@@ -89,6 +104,9 @@ describe('Alt-Text beim Teilen und Herunterladen', () => {
 
   it('hängt nichts an, wenn das Feld geleert wurde', async () => {
     setup();
+    await userEvent.click(
+      screen.getByRole('checkbox', { name: 'Bildbeschreibung im Beitragstext mitschicken' })
+    );
     await userEvent.clear(screen.getByRole('textbox', { name: 'Bildbeschreibung (Alt-Text)' }));
     fireEvent.click(screen.getByRole('button', { name: 'Bild teilen' }));
     await waitFor(() => expect(share).toHaveBeenCalled());

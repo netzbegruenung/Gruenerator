@@ -31,6 +31,15 @@ export function useShareAltText(imageText: string): [string, (value: string) => 
   return [edited ?? composeAltText(imageText), set];
 }
 
+/**
+ * The alt text that goes into the shared post text: only when the person ticked
+ * „Bildbeschreibung im Beitragstext mitschicken" (off by default), else empty.
+ */
+export function useCaptionAltText(altText: string): string {
+  const include = useAutoSaveStore((s) => s.shareAltTextInCaption);
+  return include ? altText : '';
+}
+
 interface AltTextFieldProps {
   value: string;
   onChange: (value: string) => void;
@@ -40,6 +49,8 @@ export function AltTextField({ value, onChange }: AltTextFieldProps) {
   const fieldId = useId();
   const hintId = useId();
   const announce = useAnnounce();
+  const storeApi = useAutoSaveStoreApi();
+  const inCaption = useAutoSaveStore((s) => s.shareAltTextInCaption);
 
   const copy = () => {
     void navigator.clipboard.writeText(value).then(() => announce('Alt-Text kopiert'));
@@ -61,6 +72,15 @@ export function AltTextField({ value, onChange }: AltTextFieldProps) {
       <p id={hintId} className="m-0 text-xs text-foreground-muted leading-snug">
         Damit auch Menschen mit Screenreader wissen, was auf dem Bild steht.
       </p>
+      <label className="flex min-h-6 items-center gap-2 text-sm text-foreground cursor-pointer">
+        <input
+          type="checkbox"
+          checked={inCaption}
+          onChange={(e) => storeApi.getState().setShareAltTextInCaption(e.target.checked)}
+          className="size-4 accent-primary-600 cursor-pointer"
+        />
+        Bildbeschreibung im Beitragstext mitschicken
+      </label>
       <button
         type="button"
         onClick={copy}

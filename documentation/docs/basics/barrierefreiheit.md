@@ -69,7 +69,7 @@ Der Editor zeichnet seine Fläche auf eine Leinwand. Damit er trotzdem ohne Maus
 - **Verschieben:** **Alt+Pfeiltaste** schiebt das ausgewählte Element um 1 Einheit, mit zusätzlich Umschalt um 10. Zahlenfelder für Position und Größe sowie Knöpfe zum Drehen und Spiegeln in der Kontextleiste ersetzen das freie Ziehen mit der Maus.
 - **Foto zuschneiden:** Ausschnitt mit den Pfeiltasten verschieben und zoomen, Enter beendet.
 - **Löschen, Rückgängig, Kopieren, Duplizieren, Alles auswählen** laufen über die üblichen Tastenkürzel und über die Leiste. Ist eine Aktion ohne sichtbare Rückmeldung geschehen, sagt eine Statusmeldung sie an („Gelöscht: …", „Rückgängig gemacht").
-- **Alternativtext** für das fertige Bild lässt sich im Bereich Herunterladen und Teilen und im Teilen-Menü der Kopfleiste eintragen.
+- **Alternativtext** für das fertige Bild lässt sich im Bereich Herunterladen und Teilen und im Teilen-Menü der Kopfleiste eintragen und kopieren. In den Beitragstext beim Teilen geht er nur, wenn „Bildbeschreibung im Beitragstext mitschicken“ angehakt ist.
 - **Mobil (unter 900 px)** hat dieselben Wege: die Bereichsleiste ist eine benannte Navigation („Editor-Bereiche“), die Auswahl-Leiste und die Leiste am Objekt sind benannte Werkzeugleisten.
 
 **Bekannte Grenzen:**

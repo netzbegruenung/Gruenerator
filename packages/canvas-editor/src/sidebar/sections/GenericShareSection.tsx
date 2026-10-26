@@ -9,7 +9,12 @@ import { IoCheckmarkOutline, IoShareOutline } from 'react-icons/io5';
 import { DownloadNotice } from '../../components/DownloadNotice';
 import { useAutoSaveStore, useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
 import { downloadErrorMessage } from '../../utils/downloadError';
-import { AltTextField, useShareAltText, withAltText } from '../components/AltTextField';
+import {
+  AltTextField,
+  useCaptionAltText,
+  useShareAltText,
+  withAltText,
+} from '../components/AltTextField';
 import { SubsectionTabBar } from '../SubsectionTabBar';
 
 export interface GenericShareSectionProps {
@@ -116,6 +121,7 @@ function DownloadShareSubsection({
   exportNotice,
 }: Omit<GenericShareSectionProps, 'canvasType'>) {
   const [altText, setAltText] = useShareAltText(imageText);
+  const captionAltText = useCaptionAltText(altText);
   const [downloadState, setDownloadState] = useState<'idle' | 'capturing' | 'success'>('idle');
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
@@ -193,7 +199,7 @@ function DownloadShareSubsection({
       if (shareRoute === 'native-host') {
         shareDataUrlViaNativeHost(imageToShare, 'gruenerator.png', {
           title: 'Grünerator Share',
-          text: withAltText(canvasText, altText),
+          text: withAltText(canvasText, captionAltText),
         });
       } else {
         const blob = await (await fetch(imageToShare)).blob();
@@ -202,12 +208,12 @@ function DownloadShareSubsection({
         if (navigator.canShare?.({ files: [file] })) {
           await navigator.share({
             files: [file],
-            text: withAltText(canvasText, altText),
+            text: withAltText(canvasText, captionAltText),
             title: 'Grünerator Share',
           });
         } else {
           await navigator.share({
-            text: withAltText(canvasText, altText),
+            text: withAltText(canvasText, captionAltText),
             title: 'Grünerator Share',
           });
         }
@@ -225,7 +231,7 @@ function DownloadShareSubsection({
   }, [
     exportedImage,
     canvasText,
-    altText,
+    captionAltText,
     onCaptureCanvas,
     shareDropdown,
     publishDraftIfNeeded,
