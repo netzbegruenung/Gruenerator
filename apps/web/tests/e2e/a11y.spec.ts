@@ -558,3 +558,137 @@ test.describe('Barrierefreiheit (WCAG 2.2 AA)', () => {
     });
   }
 });
+
+/**
+ * Canvas-Editor (`/mobile-editor`): die Seite wird per `postMessage` befüllt
+ * (`INIT_DATA`), wie es die App-WebView tut — der Editor braucht dafür kein
+ * Backend. Geprüft wird über den Barrierefreiheitsbaum, nie über Konva-
+ * Interna oder Pixel: Ebenen-Liste, Seiten-Gruppe, Live-Region.
+ *
+ * Das Bereitschaftssignal ist die Seiten-Gruppe, NICHT ein `<canvas>`: ein
+ * Lade-Canvas steht schon da, solange „Lade Editor…" noch läuft, und axe
+ * würde den Platzhalter messen.
+ */
+async function openCanvasEditor(page: Page, theme: Theme): Promise<void> {
+  await page.addInitScript((gewuenscht) => {
+    localStorage.setItem('termsAccepted', 'true');
+    localStorage.setItem('analyticsConsent', 'false');
+    localStorage.setItem(
+      'themePreference',
+      JSON.stringify({ value: gewuenscht, timestamp: Date.now() })
+    );
+  }, theme);
+  // Per Prädikat, nie per `**/api/**`-Glob: der Glob trifft auch Vite-Module
+  // unter `/src/api/…` und tötet den Bundle.
+  await page.route(
+    (url) => url.pathname.startsWith('/api/'),
+    (route) => route.fulfill({ status: 404, contentType: 'application/json', body: '{}' })
+  );
+  await page.goto('/mobile-editor', { waitUntil: 'networkidle' });
+
+  const nachricht = JSON.stringify({
+    type: 'INIT_DATA',
+    payload: {
+      type: 'dreizeilen',
+      formData: { line1: 'Klimaschutz', line2: 'jetzt', line3: 'handeln' },
+      modifications: null,
+    },
+  });
+  const seite = page.getByRole('group', { name: 'Seite 1' });
+  // Die Nachricht kann vor dem Zuhörer eintreffen; so lange wiederholen.
+  await expect(async () => {
+    await page.evaluate((m) => window.postMessage(m, '*'), nachricht);
+    await expect(seite).toBeVisible({ timeout: 1500 });
+  }).toPass({ timeout: 45_000 });
+  await expect(page.getByText('Lade Editor')).toHaveCount(0);
+}
+
+test.describe('Barrierefreiheit: Canvas-Editor', () => {
+  test.beforeAll(() => {
+    test.skip(!BYPASS_AKTIV, 'VITE_E2E_AUTH_BYPASS ist nicht gesetzt.');
+  });
+
+  for (const [name, viewport] of [
+    ['Desktop', { width: 1400, height: 900 }],
+    ['mobil', { width: 390, height: 844 }],
+  ] as const) {
+    test(`der geladene Editor hat keine WCAG-2.2-AA-Verstöße (hell, ${name})`, async ({ page }) => {
+      // Vor dem Laden: `useIsCanvasMobile` liest die Breite im ersten Frame.
+      await page.setViewportSize(viewport);
+      await openCanvasEditor(page, 'light');
+      await page.waitForTimeout(500);
+
+      // `react-scan` ist ein Dev-Werkzeug des Vite-Servers, kein Teil des Produkts.
+      const { violations } = await new AxeBuilder({ page })
+        .withTags(WCAG_TAGS)
+        .exclude('#react-scan-root')
+        .analyze();
+      expect(
+        violations.map((v) => ({
+          rule: v.id,
+          impact: v.impact,
+          stellen: v.nodes.map((n) => n.target.join(' ')).slice(0, 5),
+          messwerte: v.nodes[0]?.failureSummary?.replace(/\s+/g, ' ').slice(0, 300),
+        }))
+      ).toEqual([]);
+    });
+  }
+
+  // Tastatur-Szenario, ohne Maus nach dem Aufbau: Sprunglink → Ebenen →
+  // Text wählen → Enter bearbeitet → tippen → Escape → Entf → Rückgängig.
+  test('Ebenen, Textbearbeitung, Löschen und Rückgängig laufen per Tastatur', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await openCanvasEditor(page, 'light');
+
+    // Aufbau mit der Maus: die Vorlage „dreizeilen" hat nur einen Balken, aber
+    // keinen Text. Der Titel ist die einzige Stelle, die einen bearbeitbaren
+    // Text liefert.
+    await page.getByRole('button', { name: 'Text hinzufügen' }).click();
+    await page.getByRole('button', { name: 'Titel', exact: true }).click();
+
+    const bereich = page.getByRole('img', { name: /^Seite 1:/ });
+    await expect(bereich).toHaveAttribute('aria-label', /Text: Neue Überschrift/);
+    const ansage = page.locator('[role="status"][aria-live="polite"]').filter({ hasText: /./ });
+
+    // Sprunglink: ein Button, der erst bei Fokus sichtbar wird.
+    const sprung = page.getByRole('button', { name: 'Zu den Ebenen' });
+    await sprung.focus();
+    await expect(sprung).toBeFocused();
+    await page.keyboard.press('Enter');
+
+    const ebenen = page.getByRole('listbox', { name: 'Ebenen' });
+    await expect(ebenen).toBeVisible();
+    const text = page.getByRole('option', { name: /^Text: Neue Überschrift/ });
+    await expect(text).toBeFocused();
+
+    // Pfeil wählt: runter und wieder hoch landet auf dem Text.
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowUp');
+    await expect(text).toHaveAttribute('aria-selected', 'true');
+
+    // Enter öffnet den Text-Editor.
+    await page.keyboard.press('Enter');
+    const feld = page.getByRole('textbox', { name: 'Text bearbeiten' });
+    await expect(feld).toBeFocused();
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.type('Hallo Welt');
+    await expect(feld).toHaveText('Hallo Welt');
+
+    // Escape übernimmt, schließt und gibt den Fokus an den Ebenen-Eintrag zurück.
+    await page.keyboard.press('Escape');
+    const umbenannt = page.getByRole('option', { name: /^Text: Hallo Welt/ });
+    await expect(umbenannt).toBeFocused();
+    await expect(bereich).toHaveAttribute('aria-label', /Text: Hallo Welt/);
+
+    // Entf: Element weg, Ansage, Fokus bleibt in der Liste.
+    await page.keyboard.press('Delete');
+    await expect(ansage.filter({ hasText: 'Gelöscht: Text: Hallo Welt' })).toHaveCount(1);
+    await expect(umbenannt).toHaveCount(0);
+    await expect(bereich).not.toHaveAttribute('aria-label', /Hallo Welt/);
+
+    // Mod+Z holt es zurück.
+    await page.keyboard.press('ControlOrMeta+z');
+    await expect(ansage.filter({ hasText: 'Rückgängig gemacht' })).toHaveCount(1);
+    await expect(bereich).toHaveAttribute('aria-label', /Text: Hallo Welt/);
+  });
+});
