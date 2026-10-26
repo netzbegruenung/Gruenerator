@@ -52,6 +52,11 @@ export interface ComposerBrand {
   };
   /** Dark text: on light ground, and on grass green where the brand sets it dark. */
   darkText: string;
+  /**
+   * `==word==` runs, figures and numerals. With `emphasis` the runs are also
+   * set in the brand's quote-emphasis face, bold italic.
+   */
+  accent: { fill: ByGround<string>; emphasis: boolean };
   /** A topic icon on its circle. */
   badge: ByGround<{ fill: string; ink: string }>;
   /** A pill button, and the hint pill under a petition call. */
@@ -83,8 +88,8 @@ export interface ComposerBrand {
 
 /**
  * A value per kind of ground: light colours, dark colours and photos, and
- * grass green, which a brand may set with dark ink. `grass` falls back to
- * `dark`.
+ * grass green, which a brand may set with dark ink. An absent `grass` falls
+ * back to `dark`; a set one wins there, `null` included.
  */
 export interface ByGround<T> {
   light: T;
@@ -95,5 +100,5 @@ export interface ByGround<T> {
 /** The value for a slide's ground; `onLight` and `onGrass` never hold together. */
 export function onGround<T>(value: ByGround<T>, ground: { onLight: boolean; onGrass: boolean }): T {
   if (ground.onLight) return value.light;
-  return ground.onGrass ? (value.grass ?? value.dark) : value.dark;
+  return ground.onGrass && value.grass !== undefined ? value.grass : value.dark;
 }

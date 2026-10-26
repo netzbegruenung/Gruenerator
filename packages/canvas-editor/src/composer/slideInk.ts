@@ -1,5 +1,5 @@
 import { type ComposerBrand, onGround } from '../brand/composerBrand';
-import { type BrandTheme } from '../brand/theme';
+import { type BrandTheme, type GrueneBrandId } from '../brand/theme';
 import { type TextAccent, type TextMarker } from '../utils/textUtils';
 
 import { AT_EMPHASIS_STYLE, inkOn, LIME, SHAREPIC_COLOR_HEX } from './chromeParts';
@@ -21,6 +21,7 @@ export function slideInk({
   isAt,
   theme,
   brand,
+  brandId,
   surface,
   darkText,
   kopfband,
@@ -32,6 +33,8 @@ export function slideInk({
   isAt: boolean;
   theme: BrandTheme;
   brand: ComposerBrand;
+  /** Which of a theme's per-brand accents applies. */
+  brandId: GrueneBrandId;
   surface: SharepicColor | 'foto';
   darkText: string;
   kopfband: SharepicColor | null;
@@ -66,23 +69,19 @@ export function slideInk({
           shadowOpacity: 0.45,
         }
       : {};
-  // `==word==` runs: AT sets them yellow in Vollkorn Black Italic, DE in lime.
-  // A theme brings its own per side (`SHAREPIC_THEMES`); AT keeps its yellow
-  // on dark ground.
+  // `==word==` runs in the brand's accent; a theme brings its own per brand
+  // and side (`SHAREPIC_THEMES`), `null` where the brand's stays.
   const def = sharepicTheme(thema);
   const side = onLight ? 'light' : 'dark';
-  const deAccent = def
-    ? onGrass && 'grass' in def.accent
-      ? def.accent.grass
-      : def.accent[side]
-    : null;
-  const accent: TextAccent = isAt
-    ? {
-        fill: onLight ? (def?.atAccentOnLight ?? theme.colors.accentOnLight) : theme.colors.accent,
-        fontFamily: theme.fonts.quoteEmphasis,
-        fontStyle: AT_EMPHASIS_STYLE,
-      }
-    : { fill: deAccent ?? (onLight ? KLEE : onGrass ? '#FFFFFF' : LIME) };
+  const ground = { onLight, onGrass };
+  const emphasis = brand.accent.emphasis
+    ? { fontFamily: theme.fonts.quoteEmphasis, fontStyle: AT_EMPHASIS_STYLE }
+    : {};
+  const accent: TextAccent = {
+    fill:
+      (def ? onGround(def.accent[brandId], ground) : null) ?? onGround(brand.accent.fill, ground),
+    ...emphasis,
+  };
   // DE `++passage++`: dark ink in a box. On light ground (white, grey, mint)
   // the posts lay lime under it (Dds8o0TAppl, DdEhd82js3K, Dc3HYlTAnG-);
   // photos and dark colours take white — a dark box disappears into the
@@ -109,9 +108,7 @@ export function slideInk({
   // A topic icon in a circle, unless the theme recolours it.
   const badgeColors = def?.badge?.[side] ?? { ...onGround(brand.badge, { onLight, onGrass }) };
   const cardAccentFill = def?.cardAccent ?? brand.cardAccent;
-  const cardAccent: TextAccent = isAt
-    ? { ...accent, fill: cardAccentFill }
-    : { fill: cardAccentFill };
+  const cardAccent: TextAccent = { fill: cardAccentFill, ...emphasis };
   /** A figure, a numeral or a closing "!" in the slide's accent colour. */
   const accentInk = accent.fill;
   /**

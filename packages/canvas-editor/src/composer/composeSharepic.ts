@@ -397,7 +397,19 @@ function composeSlide(
     contrastPanel,
     footerGround,
     topGround,
-  } = slideInk({ locale, isAt, theme, brand, surface, darkText, kopfband, bg, bild, thema });
+  } = slideInk({
+    locale,
+    isAt,
+    theme,
+    brand,
+    brandId: getBrandPack(locale).id,
+    surface,
+    darkText,
+    kopfband,
+    bg,
+    bild,
+    thema,
+  });
   /** The widest size `value` can take on one line of `width`, up to `cap`. */
   const fitLine = (value: string, cap: number, width: number, family: string) =>
     Math.max(

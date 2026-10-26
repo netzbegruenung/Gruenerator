@@ -80,7 +80,14 @@ export const HELLGRUEN_GLOW = ['#318437', '#287A35', '#1B6630'] as const;
  * Both packs set a quote mark, which every BrandTheme carries, and the
  * composer's per-brand values (see composerBrand.ts).
  */
-type GruenePack = BrandPack & { quoteMark: { src: string }; composer: ComposerBrand };
+type GruenePack = BrandPack & {
+  id: GrueneBrandId;
+  quoteMark: { src: string };
+  composer: ComposerBrand;
+};
+
+/** The Grünerator's packs; per-brand data elsewhere (themes) is keyed by them. */
+export type GrueneBrandId = 'gruene-de' | 'gruene-at';
 
 // DE composer inks. Literal on purpose: the composer's SHAREPIC_COLOR_HEX,
 // KLEE and LIME import this module, so importing them back would be a cycle.
@@ -141,6 +148,8 @@ export const GRUENE_DE: GruenePack = {
       hinweisPill: true,
     },
     darkText: DE_DUNKELTANNE,
+    // Klee on light ground, white on grass green, lime on dark ground and photos.
+    accent: { fill: { light: DE_KLEE, grass: '#FFFFFF', dark: DE_LIME }, emphasis: false },
     // Klee on light ground, Tanne on grass green, lime on dark ground and photos.
     badge: {
       light: { fill: DE_KLEE, ink: '#FFFFFF' },
@@ -229,6 +238,8 @@ export const GRUENE_AT: GruenePack = {
       hinweisPill: false,
     },
     darkText: AT_DUNKELGRUEN,
+    // Yellow in Vollkorn Black Italic, its dark green on light ground.
+    accent: { fill: { light: AT_DUNKELGRUEN, dark: AT_GELB }, emphasis: true },
     // The yellow accent on dark ground, its dark green on white.
     badge: {
       light: { fill: AT_DUNKELGRUEN, ink: '#FFFFFF' },
