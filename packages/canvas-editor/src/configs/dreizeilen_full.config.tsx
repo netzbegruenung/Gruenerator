@@ -46,7 +46,7 @@ import {
   createFrameActions,
   createUserImageActions,
 } from './factory/actionFactories';
-import { carryBackgroundAdjustments } from './factory/carryInstanceState';
+import { carryBackgroundAdjustments, carryTemplateRotations } from './factory/carryInstanceState';
 import { makeSectionDefiner } from './factory/defineSection';
 import { injectFeatureProps } from './featureInjector';
 import { PLACEHOLDER_TEXT } from './placeholders';
@@ -682,6 +682,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       // Layer Ordering
       layerOrder: (props.layerOrder as string[] | undefined) ?? [],
       lockedLayerIds: (props.lockedLayerIds as string[] | undefined) ?? [],
+      templateRotations: carryTemplateRotations(props),
       ...carryBackgroundAdjustments(props),
 
       // UI State

@@ -119,6 +119,7 @@ export type PptxRasterReason =
   | 'background-adjusted'
   | 'shape-path'
   | 'shape-styled'
+  | 'shape-flipped'
   | 'text-gradient'
   | 'image-adjusted'
   | 'chart-unmapped'

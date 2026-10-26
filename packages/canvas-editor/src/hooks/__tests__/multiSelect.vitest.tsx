@@ -4,7 +4,7 @@
  * Position über seinen eigenen `dragend` zurück.
  */
 import { act, render } from '@testing-library/react';
-import { createRef } from 'react';
+import { createRef, useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { Group } from 'react-konva';
 import { describe, expect, it } from 'vitest';
 
@@ -16,11 +16,17 @@ import {
   useCanvasStore,
   useCanvasStoreSelector,
 } from '../../stores/CanvasStoreProvider';
-import { findDragNodes, isGroupDrag } from '../../utils/multiSelect';
+import {
+  findDragNodes,
+  isGroupDrag,
+  MULTI_SELECTION_TRANSFORMER_NAME,
+} from '../../utils/multiSelect';
 import { createShape, type ShapeInstance } from '../../utils/shapes';
+import { useCanvasHistorySetup } from '../useCanvasHistorySetup';
 import { useCanvasInteractions } from '../useCanvasInteractions';
 
 import type { CanvasEditorStoreApi } from '../../stores/createCanvasEditorStore';
+import type Konva from 'konva';
 
 // Mittelpunkt-verankert; die jsdom-Leinwand misst 300×150.
 const box = (id: string, x: number, y: number): ShapeInstance => ({
@@ -68,7 +74,7 @@ function Host({
           />
         </Group>
       ))}
-      <MultiSelectionTransformer renderKey={SHAPES} />
+      <MultiSelectionTransformer renderKey={SHAPES} canRotate={() => false} />
     </CanvasStage>
   );
 }
@@ -218,5 +224,164 @@ describe('Mehrfachauswahl', () => {
     click(200, 40, true);
     click(120, 100);
     expect(state().selectedLayerIds).toEqual([]);
+  });
+});
+
+type Rotatable = Pick<ShapeInstance, 'id' | 'x' | 'y' | 'rotation'>;
+
+/** Wie die Seite: jede Form schreibt über ihre Aktion, `c` sofort, die anderen entprellt. */
+function HistoryHost({
+  stageRef,
+  api,
+  canRotate,
+}: {
+  stageRef: React.RefObject<CanvasStageRef | null>;
+  canRotate: { current: boolean };
+  api: { current: { undo: () => void; shapes: () => Rotatable[] } | null };
+}) {
+  const [shapes, setShapes] = useState<ShapeInstance[]>(SHAPES);
+  // Wie `committedStateRef` der Seite: erst nach dem Commit lesbar.
+  const shapesRef = useRef(shapes);
+  useLayoutEffect(() => {
+    shapesRef.current = shapes;
+  }, [shapes]);
+  const latestRef = useRef(shapes);
+  const selected = useCanvasStoreSelector((s) => s.selectedElement);
+  const { selectElement, handleStageClick } = useCanvasInteractions({
+    stageRef,
+    marqueeEnabled: true,
+  });
+  const collect = useCallback(() => ({ shapes: shapesRef.current }), []);
+  const restore = useCallback((state: { shapes: ShapeInstance[] }) => setShapes(state.shapes), []);
+  const { saveToHistory, debouncedSaveToHistory, undo } = useCanvasHistorySetup(collect, restore);
+  api.current = { undo, shapes: () => shapesRef.current };
+  const change = (id: string, attrs: Partial<ShapeInstance>) => {
+    latestRef.current = latestRef.current.map((s) => (s.id === id ? { ...s, ...attrs } : s));
+    setShapes(latestRef.current);
+    if (id === 'c') saveToHistory();
+    else debouncedSaveToHistory();
+  };
+  return (
+    <CanvasStage
+      ref={stageRef}
+      width={300}
+      height={150}
+      responsive={false}
+      onStageClick={handleStageClick}
+    >
+      {shapes.map((shape) => (
+        <Group key={shape.id} name="canvas-item" canvasItemId={shape.id}>
+          <ShapePrimitive
+            shape={shape}
+            isSelected={selected === shape.id}
+            onSelect={selectElement}
+            onChange={(attrs) => change(shape.id, attrs)}
+          />
+        </Group>
+      ))}
+      <MultiSelectionTransformer renderKey={shapes} canRotate={() => canRotate.current} />
+    </CanvasStage>
+  );
+}
+
+describe('Mehrfachauswahl drehen', () => {
+  function mountHistory() {
+    const stageRef = createRef<CanvasStageRef>();
+    const api: { current: { undo: () => void; shapes: () => Rotatable[] } | null } = {
+      current: null,
+    };
+    const canRotate = { current: true };
+    const storeApi: { current: CanvasEditorStoreApi | null } = { current: null };
+    function Probe() {
+      storeApi.current = useCanvasStore();
+      return null;
+    }
+    render(
+      <CanvasStoreProvider>
+        <Probe />
+        <HistoryHost stageRef={stageRef} api={api} canRotate={canRotate} />
+      </CanvasStoreProvider>
+    );
+    const stage = stageRef.current!.getStage()!;
+    act(() => {
+      stage.draw();
+    });
+    const select = (ids: string[]) =>
+      act(() => {
+        storeApi.current!.getState().setSelectedLayers(ids);
+      });
+    /** Dreht die Knoten um den Mittelpunkt (cx, cy) und beendet den Transformer wie Konva. */
+    const rotateGroup = (ids: string[], cx: number, cy: number, deg: number) =>
+      act(() => {
+        const tr = stage.findOne(`.${MULTI_SELECTION_TRANSFORMER_NAME}`) as Konva.Transformer;
+        const rad = (deg * Math.PI) / 180;
+        for (const node of findDragNodes(stage, ids)) {
+          const dx = node.x() - cx;
+          const dy = node.y() - cy;
+          node.setAttrs({
+            x: cx + dx * Math.cos(rad) - dy * Math.sin(rad),
+            y: cy + dx * Math.sin(rad) + dy * Math.cos(rad),
+            rotation: node.rotation() + deg,
+          });
+        }
+        // Konvas eigenes Ende: erst der Transformer, dann jeder Knoten.
+        const internal = tr as unknown as {
+          _transforming: boolean;
+          _removeEvents: (e: unknown) => void;
+        };
+        internal._transforming = true;
+        internal._removeEvents({});
+      });
+    return { api, select, rotateGroup, stage, canRotate };
+  }
+
+  it('dreht beide Formen um den Mittelpunkt der Auswahl, mit Drehung 90', () => {
+    const { api, select, rotateGroup } = mountHistory();
+    select(['a', 'b']);
+    rotateGroup(['a', 'b'], 125, 40, 90);
+    const [a, b] = api.current!.shapes();
+    expect(a).toMatchObject({ rotation: 90 });
+    expect(b).toMatchObject({ rotation: 90 });
+    expect(a!.x).toBeCloseTo(125);
+    expect(a!.y).toBeCloseTo(-35);
+    expect(b!.x).toBeCloseTo(125);
+    expect(b!.y).toBeCloseTo(115);
+  });
+
+  it.each([
+    ['a', 'b', 'c'],
+    ['c', 'a', 'b'],
+    ['a', 'c', 'b'],
+  ])(
+    '[RF 2] ein Undo stellt alle wieder her, auch mit sofort speichernder Form (%s%s%s)',
+    async (...ids) => {
+      const { api, select, rotateGroup } = mountHistory();
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 10));
+      });
+      select(ids);
+      rotateGroup(ids, 125, 77.5, 90);
+      expect(api.current!.shapes().every((s) => s.rotation === 90)).toBe(true);
+      const initial = SHAPES.map((s) => [s.id, s.x, s.y, s.rotation]);
+      act(() => api.current!.undo());
+      expect(api.current!.shapes().map((s) => [s.id, s.x, s.y, s.rotation])).toEqual(initial);
+    }
+  );
+
+  it('der Transformer dreht nur, wenn alles Gewählte sich drehen lässt, und rastet ein', () => {
+    const { stage, select } = mountHistory();
+    select(['a', 'b']);
+    const tr = stage.findOne(`.${MULTI_SELECTION_TRANSFORMER_NAME}`) as Konva.Transformer;
+    expect(tr.rotateEnabled()).toBe(true);
+    expect(tr.rotationSnaps()).toEqual([0, 45, 90, 135, 180, 225, 270, 315]);
+    expect(tr.resizeEnabled()).toBe(false);
+  });
+
+  it('ein nicht drehbares Element in der Auswahl schaltet das Drehen aus', () => {
+    const { stage, select, canRotate } = mountHistory();
+    canRotate.current = false;
+    select(['a', 'b']);
+    const tr = stage.findOne(`.${MULTI_SELECTION_TRANSFORMER_NAME}`) as Konva.Transformer;
+    expect(tr.rotateEnabled()).toBe(false);
   });
 });

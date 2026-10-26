@@ -63,8 +63,7 @@ async function main(): Promise<void> {
 
   const qdrant = getQdrantInstance();
   await qdrant.ensureConnected();
-  const client = qdrant.client;
-  if (!client) throw new Error('Qdrant client unavailable');
+  const client = qdrant.writeClient(COLLECTION);
 
   let inserted = 0;
   for (const tweet of TWEETS) {

@@ -60,6 +60,8 @@ describe('gesperrt', () => {
       state,
       actions,
       renderList: [shape('s1'), shape('s2')],
+      orient: () => null,
+      readOnly: false,
     });
     expect(caps).toMatchObject({ lock: 'some', canLock: true, canDelete: true, canCopy: true });
   });

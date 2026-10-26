@@ -3,8 +3,8 @@ import { Circle, Group, Image as KonvaImage, Line, Rect, Shape, Transformer } fr
 
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { coverPhotoRect } from '../utils/coverFit';
+import { ELEMENT_TRANSFORMER } from '../utils/orientation';
 import { assertNever } from '../utils/shapes';
-import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type { FrameClipType, FrameInstance } from '../utils/frameUtils';
 import type Konva from 'konva';
@@ -465,7 +465,6 @@ function FramePrimitiveInner({
 
       {isSelected && (
         <Transformer
-          anchorStyleFunc={touchAnchorStyleFunc}
           ref={trRef}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
           keepRatio={true}
@@ -492,11 +491,10 @@ function FramePrimitiveInner({
           anchorSize={10}
           anchorCornerRadius={5}
           rotateEnabled={true}
-          rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}
-          rotationSnapTolerance={7}
           borderStroke="#005437"
           anchorStroke="#005437"
           anchorFill="#ffffff"
+          {...ELEMENT_TRANSFORMER}
           {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}

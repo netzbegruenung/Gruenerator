@@ -1308,6 +1308,9 @@ function CanvasEditorInner({
         isCropping: toolbarState.isCropping ?? false,
         lockState: toolbarState.lockState,
         canLock: toolbarState.canLock,
+        canRotate: toolbarState.canRotate,
+        canFlip: toolbarState.canFlip,
+        rotation: toolbarState.rotation,
         backgroundPickerRequest,
         handlers: {
           ...toolbarHandlers,
@@ -1348,6 +1351,8 @@ function CanvasEditorInner({
       canDelete={toolbarState.canDelete}
       lockState={toolbarState.lockState}
       canLock={toolbarState.canLock}
+      canFlip={toolbarState.canFlip}
+      onFlip={toolbarHandlers.handleFlip}
       onCopy={toolbarHandlers.handleCopy}
       onDuplicate={toolbarHandlers.handleDuplicate}
       onToggleLock={toolbarHandlers.handleToggleLock}

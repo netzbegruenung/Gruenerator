@@ -276,7 +276,7 @@ export const researchContractRouter = s.router(researchContract, {
       const qdrant = getQdrantInstance();
       await qdrant.init();
 
-      if (!qdrant.client) {
+      if (!qdrant.isContentAvailable()) {
         return { status: 500 as const, body: { error: 'Qdrant client not available.' } };
       }
 
@@ -284,7 +284,7 @@ export const researchContractRouter = s.router(researchContract, {
 
       // Find the source document's chunks by source_url
       const sourcePoints = await scrollDocuments(
-        qdrant.client,
+        qdrant.readClient(qdrantCollection),
         qdrantCollection,
         {
           must: [{ key: 'source_url', match: { value: sourceUrl } }],
@@ -305,7 +305,7 @@ export const researchContractRouter = s.router(researchContract, {
       // Use point IDs as positive examples for recommend
       const positiveIds = sourcePoints.map((p) => p.id);
 
-      const recommendResult = await qdrant.client.query(qdrantCollection, {
+      const recommendResult = await qdrant.readClient(qdrantCollection).query(qdrantCollection, {
         query: { recommend: { positive: positiveIds } },
         limit: effectiveLimit * 3, // Over-fetch to account for dedup
         filter: {

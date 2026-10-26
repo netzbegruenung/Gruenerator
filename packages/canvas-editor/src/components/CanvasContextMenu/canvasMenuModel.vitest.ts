@@ -19,6 +19,9 @@ const CAPS: SelectionCapabilities = {
   canSendBackward: true,
   lock: 'none',
   canLock: true,
+  canRotate: true,
+  canFlip: true,
+  rotation: 0,
 };
 
 const snapshot = (over: Partial<CanvasMenuSnapshot> = {}): CanvasMenuSnapshot => ({
@@ -64,9 +67,60 @@ describe('buildCanvasMenu', () => {
       'Nach vorne',
       'Nach hinten',
       'Ganz nach hinten',
+      'Drehen & Spiegeln',
+      'Horizontal spiegeln',
+      'Vertikal spiegeln',
       'Sperren',
       'Alles auswählen',
     ]);
+  });
+
+  it('führt Spiegeln mit Kürzeln und „Drehung zurücksetzen“ nur bei gedrehtem Element', () => {
+    const sub = (caps: SelectionCapabilities, isMac = false) =>
+      find(buildCanvasMenu(snapshot({ caps }), { ...ENV, isMac }).entries, 'Drehen & Spiegeln');
+    expect(find([sub(CAPS, true)!], 'Horizontal spiegeln')).toMatchObject({
+      shortcut: '⇧H',
+      ariaShortcut: 'Shift+H',
+    });
+    expect(find([sub(CAPS, true)!], 'Vertikal spiegeln')).toMatchObject({ shortcut: '⇧V' });
+    expect(find([sub(CAPS)!], 'Horizontal spiegeln')).toMatchObject({ shortcut: 'Umschalt+H' });
+    expect(find([sub(CAPS)!], 'Drehung zurücksetzen')).toBeUndefined();
+    expect(find([sub({ ...CAPS, rotation: 30 })!], 'Drehung zurücksetzen')).toBeDefined();
+  });
+
+  it('lässt Spiegeln bei Text weg und das ganze Untermenü, wenn nichts zu drehen ist', () => {
+    const text = buildCanvasMenu(snapshot({ caps: { ...CAPS, canFlip: false } }), ENV);
+    expect(find(text.entries, 'Drehen & Spiegeln')).toBeUndefined();
+    const rotatedText = buildCanvasMenu(
+      snapshot({ caps: { ...CAPS, canFlip: false, rotation: -15 } }),
+      ENV
+    );
+    expect(labels(rotatedText.entries)).toContain('Drehung zurücksetzen');
+    expect(labels(rotatedText.entries)).not.toContain('Horizontal spiegeln');
+    const locked = buildCanvasMenu(
+      snapshot({ caps: { ...CAPS, canRotate: false, canFlip: false, rotation: null } }),
+      ENV
+    );
+    expect(find(locked.entries, 'Drehen & Spiegeln')).toBeUndefined();
+  });
+
+  it('bietet bei Mehrfachauswahl Spiegeln und Zurücksetzen an', () => {
+    const menu = buildCanvasMenu(
+      snapshot({
+        selection: ['a', 'b'],
+        module: null,
+        caps: { ...CAPS, count: 2, rotation: null },
+      }),
+      ENV
+    );
+    expect(labels(menu.entries)).toEqual(
+      expect.arrayContaining([
+        'Drehen & Spiegeln',
+        'Horizontal spiegeln',
+        'Vertikal spiegeln',
+        'Drehung zurücksetzen',
+      ])
+    );
   });
 
   it('beginnt bei Text, Bild und Rahmen mit dem, was nur sie können', () => {

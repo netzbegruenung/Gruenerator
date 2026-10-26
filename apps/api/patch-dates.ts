@@ -79,7 +79,6 @@ async function main(): Promise<void> {
 
   const qdrant = getQdrantInstance();
   await qdrant.init();
-  const client = qdrant.client!;
 
   // Scroll all chunk_index=0 points for this source (one per article).
   // Note: tsconfig has `exactOptionalPropertyTypes`, so we spread `offset` only
@@ -87,7 +86,7 @@ async function main(): Promise<void> {
   const points: QdrantPoint[] = [];
   let offset: string | number | Record<string, unknown> | null | undefined = undefined;
   do {
-    const res = await client.scroll(COLLECTION, {
+    const res = await qdrant.readClient(COLLECTION).scroll(COLLECTION, {
       filter: {
         must: [
           { key: 'source_id', match: { value: sourceId } },
@@ -135,7 +134,7 @@ async function main(): Promise<void> {
     if (existing && /\d{1,2}\.\d{1,2}\.\d{2,4}/.test(existing)) {
       const norm = ContentExtractor.normalizeGermanDate(existing);
       if (isISO(norm)) {
-        await client.setPayload(COLLECTION, {
+        await qdrant.writeClient(COLLECTION).setPayload(COLLECTION, {
           payload: { published_at: norm },
           filter: {
             must: [
@@ -164,7 +163,7 @@ async function main(): Promise<void> {
     }
 
     // Patch all chunks for this article (set_payload with filter)
-    await client.setPayload(COLLECTION, {
+    await qdrant.writeClient(COLLECTION).setPayload(COLLECTION, {
       payload: { published_at: date },
       filter: {
         must: [

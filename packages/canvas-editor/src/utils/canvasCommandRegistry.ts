@@ -13,6 +13,8 @@ export interface CommandShortcut {
   readonly key: string;
   /** Strg, auf dem Mac ⌘ — wie bisher genügt eins von beiden. */
   readonly mod: boolean;
+  /** Umschalt gehört zum Kürzel — und wird sonst verlangt, dass sie fehlt. */
+  readonly shift: boolean;
   readonly alsoKeys: readonly string[];
 }
 
@@ -23,7 +25,8 @@ interface CommandSpec {
   readonly shortcut: CommandShortcut | null;
 }
 
-const mod = (key: string): CommandShortcut => ({ key, mod: true, alsoKeys: [] });
+const mod = (key: string): CommandShortcut => ({ key, mod: true, shift: false, alsoKeys: [] });
+const shift = (key: string): CommandShortcut => ({ key, mod: false, shift: true, alsoKeys: [] });
 
 export const CANVAS_COMMANDS = {
   copy: { label: 'Kopieren', scope: 'page', shortcut: mod('c') },
@@ -34,7 +37,7 @@ export const CANVAS_COMMANDS = {
   delete: {
     label: 'Löschen',
     scope: 'page',
-    shortcut: { key: 'Delete', mod: false, alsoKeys: ['Backspace'] },
+    shortcut: { key: 'Delete', mod: false, shift: false, alsoKeys: ['Backspace'] },
   },
   selectAll: { label: 'Alles auswählen', scope: 'page', shortcut: mod('a') },
   bringToFront: { label: 'Ganz nach vorne', scope: 'page', shortcut: null },
@@ -46,8 +49,11 @@ export const CANVAS_COMMANDS = {
   insertFrameImage: {
     label: 'Bild einsetzen',
     scope: 'page',
-    shortcut: { key: 'Enter', mod: false, alsoKeys: [] },
+    shortcut: { key: 'Enter', mod: false, shift: false, alsoKeys: [] },
   },
+  flipHorizontal: { label: 'Horizontal spiegeln', scope: 'page', shortcut: shift('h') },
+  flipVertical: { label: 'Vertikal spiegeln', scope: 'page', shortcut: shift('v') },
+  resetRotation: { label: 'Drehung zurücksetzen', scope: 'page', shortcut: null },
   editImage: { label: 'Bild bearbeiten', scope: 'editor', shortcut: null },
   setAsBackground: { label: 'Als Hintergrund', scope: 'editor', shortcut: null },
   replaceBackground: { label: 'Bild ersetzen …', scope: 'editor', shortcut: null },
@@ -84,12 +90,12 @@ interface KeyLike {
 
 /** Der Befehl, auf den dieser Tastendruck hört, oder `null`. */
 export function commandForKey(e: KeyLike): CanvasCommandId | null {
-  if (e.altKey || e.shiftKey) return null;
+  if (e.altKey) return null;
   const isMod = e.ctrlKey || e.metaKey;
   const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
   for (const id of CANVAS_COMMAND_IDS) {
     const shortcut = shortcutOf(id);
-    if (!shortcut || shortcut.mod !== isMod) continue;
+    if (!shortcut || shortcut.mod !== isMod || shortcut.shift !== e.shiftKey) continue;
     if (shortcut.key === key || shortcut.alsoKeys.includes(key)) return id;
   }
   return null;
@@ -101,19 +107,19 @@ const KEY_LABELS: Record<string, { mac: string; other: string }> = {
   Enter: { mac: '↩', other: 'Enter' },
 };
 
-/** Wie das Kürzel im Menü steht: `⌘C` auf dem Mac, sonst `Strg+C`. */
+/** Wie das Kürzel im Menü steht: `⌘C`/`⇧H` auf dem Mac, sonst `Strg+C`/`Umschalt+H`. */
 export function formatShortcut(shortcut: CommandShortcut, isMac: boolean): string {
   const named = KEY_LABELS[shortcut.key];
   const key = named ? (isMac ? named.mac : named.other) : shortcut.key.toUpperCase();
-  if (!shortcut.mod) return key;
-  return isMac ? `⌘${key}` : `Strg+${key}`;
+  if (isMac) return `${shortcut.shift ? '⇧' : ''}${shortcut.mod ? '⌘' : ''}${key}`;
+  return [shortcut.mod && 'Strg', shortcut.shift && 'Umschalt', key].filter(Boolean).join('+');
 }
 
-/** Dasselbe Kürzel für `aria-keyshortcuts` (`Control+C`, `Meta+C`, `Delete`). */
+/** Dasselbe Kürzel für `aria-keyshortcuts` (`Control+C`, `Meta+C`, `Shift+H`, `Delete`). */
 export function ariaShortcut(shortcut: CommandShortcut, isMac: boolean): string {
   const key = shortcut.key.length === 1 ? shortcut.key.toUpperCase() : shortcut.key;
-  if (!shortcut.mod) return key;
-  return `${isMac ? 'Meta' : 'Control'}+${key}`;
+  const modKey = isMac ? 'Meta' : 'Control';
+  return [shortcut.mod && modKey, shortcut.shift && 'Shift', key].filter(Boolean).join('+');
 }
 
 export const isMacPlatform = (): boolean =>

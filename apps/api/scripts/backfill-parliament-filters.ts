@@ -64,11 +64,11 @@ async function main(): Promise<void> {
 
   const qdrant = getQdrantInstance();
   await qdrant.init();
-  const client = qdrant.client!;
 
   for (const landtag of args.landtage) {
     const collection =
       landtag === 'nrw' ? nrw.LANDTAG_NRW_COLLECTION : berlin.LANDTAG_BERLIN_COLLECTION;
+    const client = qdrant.readClient(collection);
 
     const textOf = async (documentId: string, fullText: unknown): Promise<string> => {
       if (typeof fullText === 'string') return fullText;
@@ -152,7 +152,7 @@ async function main(): Promise<void> {
           if (Array.isArray(value) && value.length > 0) counts[key] = (counts[key] ?? 0) + 1;
         }
         if (args.dryRun) return;
-        await client.setPayload(collection, {
+        await qdrant.writeClient(collection).setPayload(collection, {
           payload: fields,
           filter: { must: [{ key: 'document_id', match: { value: documentId } }] },
           wait: true,

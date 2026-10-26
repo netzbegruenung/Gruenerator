@@ -6,7 +6,7 @@ import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLoc
 import { getIllustrationPath, findIllustrationById } from '../utils/illustrations/registry';
 import { getCachedSVG, getSVG } from '../utils/illustrations/svgCache';
 import { ILLUSTRATION_TARGET_SIZE, MOTIF_BASE_SIZE } from '../utils/motifSizes';
-import { touchAnchorStyleFunc } from '../utils/touchInput';
+import { ELEMENT_TRANSFORMER, signedScale } from '../utils/orientation';
 
 import type {
   IllustrationInstance,
@@ -175,8 +175,8 @@ function IllustrationPrimitiveInner({
           const node = groupRef.current;
           if (!node) return;
 
-          const scaleX = node.scaleX();
-          const scaleY = node.scaleY();
+          const scaleX = Math.abs(node.scaleX());
+          const scaleY = Math.abs(node.scaleY());
           const newScale = Math.max(scaleX, scaleY) / baseScale;
           const newRotation = node.rotation();
 
@@ -188,12 +188,16 @@ function IllustrationPrimitiveInner({
           onTransformEnd(node.x(), node.y(), newScale, newRotation);
         }}
       >
+        {/* Gespiegelt wird das Bild, nicht die Gruppe: am Transformer hängt so nie
+            eine negative Skala, die Konva als Drehung + 180° zerlegen würde. */}
         <Image
           image={image}
           width={BASE_SIZE}
           height={BASE_SIZE}
           offsetX={BASE_SIZE / 2}
           offsetY={BASE_SIZE / 2}
+          scaleX={signedScale(1, illustration.flipX === true)}
+          scaleY={signedScale(1, illustration.flipY === true)}
         />
 
         {/* Selection border */}
@@ -214,7 +218,6 @@ function IllustrationPrimitiveInner({
 
       {isSelected && (
         <Transformer
-          anchorStyleFunc={touchAnchorStyleFunc}
           ref={transformerRef}
           keepRatio={true}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
@@ -223,6 +226,8 @@ function IllustrationPrimitiveInner({
           borderStroke="#005437"
           anchorStroke="#005437"
           anchorFill="#ffffff"
+          rotateEnabled={true}
+          {...ELEMENT_TRANSFORMER}
           {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}
@@ -245,6 +250,8 @@ export const IllustrationPrimitive = memo(IllustrationPrimitiveInner, (prevProps
   if (prev.y !== next.y) return false;
   if (prev.scale !== next.scale) return false;
   if (prev.rotation !== next.rotation) return false;
+  if (prev.flipX !== next.flipX) return false;
+  if (prev.flipY !== next.flipY) return false;
   if (prev.opacity !== next.opacity) return false;
   if (prev.color !== next.color) return false;
 

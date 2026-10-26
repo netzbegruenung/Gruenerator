@@ -7,6 +7,8 @@
  * - Precomputed edge arrays to reduce allocations
  */
 
+import { type Box, type NodeFrame } from './orientation';
+
 export const SNAP_THRESHOLD = 20; // pixels - ~2% of 1000px canvas
 
 // Once snapped to a guide, the cursor must drift this multiple of SNAP_THRESHOLD
@@ -318,5 +320,129 @@ export function calculateElementSnapPosition(
     hysteresis.lastGuidePosV = result.snapV ? bestGuidePosV : null;
   }
 
+  return result;
+}
+
+/**
+ * Leerer Rahmen zum Wiederverwenden: `boxFrame` beschreibt ihn pro Frame neu,
+ * damit der Drag-Pfad nichts anlegen muss.
+ */
+export function createBoxFrame(): NodeFrame {
+  return {
+    x: 0,
+    y: 0,
+    rotation: 0,
+    scaleX: 1,
+    scaleY: 1,
+    offsetX: 0,
+    offsetY: 0,
+    local: { x: 0, y: 0, width: 0, height: 0 },
+  };
+}
+
+/**
+ * Beschreibt `frame` als Box aus bekannten Props neu (kein `getClientRect`, kein
+ * Baumdurchlauf). `width`/`height` sind die gerenderten (schon skalierten) Masse;
+ * gedreht wird um den Knotenursprung — oben links (`top-left`) oder die Mitte
+ * (`centre`). Eine Spiegelung ändert die Box nicht und bleibt deshalb draussen.
+ */
+export function boxFrame(
+  frame: NodeFrame,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  rotation: number,
+  pivot: 'top-left' | 'centre'
+): NodeFrame {
+  const w = Math.abs(width);
+  const h = Math.abs(height);
+  frame.x = x;
+  frame.y = y;
+  frame.rotation = rotation;
+  frame.scaleX = 1;
+  frame.scaleY = 1;
+  frame.offsetX = 0;
+  frame.offsetY = 0;
+  frame.local.x = pivot === 'centre' ? -w / 2 : 0;
+  frame.local.y = pivot === 'centre' ? -h / 2 : 0;
+  frame.local.width = w;
+  frame.local.height = h;
+  return frame;
+}
+
+// Ergebnis von `measureFrame`, relativ zum Knotenursprung. Modulweit, damit der
+// Drag-Pfad nichts anlegt; gelesen wird es sofort nach dem Aufruf.
+const measured = { minX: 0, minY: 0, width: 0, height: 0 };
+
+/**
+ * Achsparallele Box der vier gedrehten Ecken, relativ zu (frame.x, frame.y).
+ * Anders als `axisAlignedBounds` ohne Rundung: bei 0° muss das Ergebnis Bit für
+ * Bit dem alten Rechenweg entsprechen.
+ */
+function measureFrame(frame: NodeFrame): void {
+  const rad = (frame.rotation * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  const x0 = (frame.local.x - frame.offsetX) * frame.scaleX;
+  const x1 = (frame.local.x + frame.local.width - frame.offsetX) * frame.scaleX;
+  const y0 = (frame.local.y - frame.offsetY) * frame.scaleY;
+  const y1 = (frame.local.y + frame.local.height - frame.offsetY) * frame.scaleY;
+
+  const ax = x0 * cos - y0 * sin;
+  const bx = x1 * cos - y0 * sin;
+  const cx = x1 * cos - y1 * sin;
+  const dx = x0 * cos - y1 * sin;
+  const ay = x0 * sin + y0 * cos;
+  const by = x1 * sin + y0 * cos;
+  const cy = x1 * sin + y1 * cos;
+  const dy = x0 * sin + y1 * cos;
+
+  const minX = Math.min(ax, bx, cx, dx);
+  const minY = Math.min(ay, by, cy, dy);
+  measured.minX = minX;
+  measured.minY = minY;
+  measured.width = Math.max(ax, bx, cx, dx) - minX;
+  measured.height = Math.max(ay, by, cy, dy) - minY;
+}
+
+/** Sichtbare, achsparallele Box eines Rahmens in Bühnenkoordinaten. */
+export function frameBounds(frame: NodeFrame): Box {
+  measureFrame(frame);
+  return {
+    x: frame.x + measured.minX,
+    y: frame.y + measured.minY,
+    width: measured.width,
+    height: measured.height,
+  };
+}
+
+/**
+ * Snap über die sichtbare (gedrehte) Box: sie rastet wie eine oben links
+ * verankerte Box ein, und der Knoten wandert um dieselbe Strecke. Bei 0° gleicht
+ * das Ergebnis exakt `calculateElementSnapPosition` (oben links) bzw.
+ * `calculateCenteredSnapPosition` (mittig).
+ */
+export function snapByBounds(
+  frame: NodeFrame,
+  targets: SnapTarget[],
+  stageWidth: number,
+  stageHeight: number,
+  hysteresis?: SnapHysteresis
+): ElementSnapResult {
+  measureFrame(frame);
+  const { minX, minY, width, height } = measured;
+  const result = calculateElementSnapPosition(
+    frame.x + minX,
+    frame.y + minY,
+    width,
+    height,
+    targets,
+    stageWidth,
+    stageHeight,
+    hysteresis
+  );
+  result.x -= minX;
+  result.y -= minY;
   return result;
 }

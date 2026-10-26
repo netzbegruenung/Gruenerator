@@ -94,7 +94,7 @@ describe('CanvasText beim Transformieren', () => {
 
     node.fire('transformend');
     expect(onFontSizeChange).toHaveBeenCalledWith(60);
-    expect(onTransformEnd).toHaveBeenCalledWith(40, 60, 900, 1, 1);
+    expect(onTransformEnd).toHaveBeenCalledWith(40, 60, 900, 1, 1, 0);
   });
 });
 
@@ -134,7 +134,7 @@ describe('CanvasRichText beim Transformieren', () => {
     act(() => {
       group.fire('transformend');
     });
-    expect(onTransformEnd).toHaveBeenCalledWith(40, 60, 360, 1, 1);
+    expect(onTransformEnd).toHaveBeenCalledWith(40, 60, 360, 1, 1, 0);
     expect(onFontSizeChange).not.toHaveBeenCalled();
   });
 });

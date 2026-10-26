@@ -3,24 +3,35 @@
  * und Personen müssen dort dieselben sein wie in der Web-Übersicht — also aus
  * `getNotebookOverview` kommen, nicht aus einer eigenen Stichprobe (#3726).
  */
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getNotebookOverview = vi.fn();
 vi.mock('./notebookOverviewService.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./notebookOverviewService.js')>()),
   getNotebookOverview,
 }));
+const redisSet = vi.fn(async () => 'OK');
 vi.mock('../../utils/redis/client.js', () => ({
-  default: { get: vi.fn(async () => null), set: vi.fn(async () => 'OK') },
+  default: { get: vi.fn(async () => null), set: redisSet },
 }));
 const count = vi.fn(async () => ({ count: 3 }));
+const qdrantClient = {
+  count,
+  scroll: vi.fn(async () => ({ points: [], next_page_offset: null })),
+};
+/** Schreib-Client: darf für die Statistik nie gefragt werden. */
+const writeOnlyClient = {
+  count: vi.fn(async () => ({ count: 999 })),
+  scroll: vi.fn(async () => ({ points: [], next_page_offset: null })),
+};
+const contentAvailable = vi.fn(() => true);
+const readClient = vi.fn((_collection: string) => qdrantClient);
 vi.mock('../../database/services/QdrantService/index.js', () => ({
   getQdrantInstance: () => ({
     init: vi.fn(async () => undefined),
-    client: {
-      count,
-      scroll: vi.fn(async () => ({ points: [], next_page_offset: null })),
-    },
+    isContentAvailable: contentAvailable,
+    readClient,
+    writeClient: () => writeOnlyClient,
     getFieldValueCounts: vi.fn(async () => []),
   }),
 }));
@@ -28,6 +39,12 @@ vi.mock('../../database/services/QdrantService/index.js', () => ({
 const { getNotebookStats } = await import('./notebookStatsService.js');
 
 describe('getNotebookStats', () => {
+  beforeEach(() => {
+    redisSet.mockClear();
+    readClient.mockClear();
+    contentAvailable.mockReturnValue(true);
+  });
+
   it('takes terms, topics and persons from the exact overview', async () => {
     getNotebookOverview.mockResolvedValueOnce({
       totals: { documents: 3 },
@@ -67,5 +84,28 @@ describe('getNotebookStats', () => {
         }),
       })
     );
+  });
+
+  it('reads the content collection through readClient, never the write client', async () => {
+    getNotebookOverview.mockResolvedValueOnce(null);
+    const stats = await getNotebookStats(['berlin-system']);
+
+    expect(readClient).toHaveBeenCalledWith('landesverbaende_documents');
+    expect(writeOnlyClient.count).not.toHaveBeenCalled();
+    expect(stats.totalDocuments).toBe(3);
+  });
+
+  it('does not cache empty stats while the content store is unavailable', async () => {
+    contentAvailable.mockReturnValue(false);
+    const stats = await getNotebookStats(['berlin-system']);
+
+    expect(stats.totalDocuments).toBe(0);
+    expect(redisSet).not.toHaveBeenCalled();
+  });
+
+  it('caches stats the store answered', async () => {
+    getNotebookOverview.mockResolvedValueOnce(null);
+    await getNotebookStats(['berlin-system']);
+    expect(redisSet).toHaveBeenCalledTimes(1);
   });
 });

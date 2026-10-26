@@ -18,7 +18,7 @@ import { sanitizeMentionTokens } from '@gruenerator/shared/utils';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
-import { QdrantOperations } from '../../database/services/QdrantService/operations/index.js';
+import { type QdrantOperations } from '../../database/services/QdrantService/operations/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { mistralEmbeddingService } from '../mistral/index.js';
 
@@ -40,7 +40,7 @@ function threadPointId(threadId: string): number {
 async function getOps(): Promise<QdrantOperations> {
   const qdrant = getQdrantInstance();
   await qdrant.init();
-  return new QdrantOperations(qdrant.client!);
+  return qdrant.operations!;
 }
 
 interface ThreadRecallRow {

@@ -240,13 +240,12 @@ async function main(): Promise<void> {
 
   const qdrant = getQdrantInstance();
   await qdrant.init(); // legt bundestag_dip_documents an, falls sie fehlt
-  const target = qdrant.client!;
 
   const known = new Set<string>();
   if (!args.overwrite) {
     let offset: string | number | undefined;
     for (;;) {
-      const page = await target.scroll(DIP_COLLECTION, {
+      const page = await qdrant.readClient(DIP_COLLECTION).scroll(DIP_COLLECTION, {
         filter: { must: [{ key: 'chunk_index', match: { value: 0 } }] },
         limit: 1000,
         with_payload: ['parent_id'],
@@ -290,7 +289,7 @@ async function main(): Promise<void> {
   let failed = 0;
   for (const [i, parent] of todo.entries()) {
     try {
-      written += await writeParent(target, parent);
+      written += await writeParent(qdrant.writeClient(DIP_COLLECTION), parent);
     } catch (error: unknown) {
       failed += 1;
       console.error(

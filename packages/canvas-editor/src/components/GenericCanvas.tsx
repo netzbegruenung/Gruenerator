@@ -63,6 +63,7 @@ import { MAX_ICON_SELECTIONS, selectedCatalogIconIds } from '../utils/iconInstan
 import { isLayerLocked } from '../utils/layerLock';
 import { locateDrop, type ElementDragPayload, type MediaDragPayload } from '../utils/mediaDrop';
 import { selectableItemIds } from '../utils/multiSelect';
+import { rotaterRects } from '../utils/orientation';
 import { PendingImagesContext } from '../utils/pendingImages';
 import { stageCssScale } from '../utils/stageCssScale';
 import { findTemplateEntry } from '../utils/templateElementInstance';
@@ -81,7 +82,7 @@ const HOST_EMITTED_KEY_SET: ReadonlySet<string> = new Set(HOST_EMITTED_STATE_KEY
 
 import type { AlignmentDirection } from './Toolbar';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
-import type { FullCanvasConfig, LayoutResult } from '../configs/types';
+import type { CanvasElementConfig, FullCanvasConfig, LayoutResult } from '../configs/types';
 import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
 import type { ShadowPatch } from '../hooks/useFloatingModuleHandlers';
 import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
@@ -116,6 +117,11 @@ export interface ToolbarStateReport {
   /** Wie viel der sperrbaren Auswahl gesperrt ist — siehe `utils/layerLock.ts`. */
   lockState: LockState;
   canLock: boolean;
+  /** Drehen & Spiegeln — dieselben Fragen wie die Befehle (`utils/selectionCapabilities.ts`). */
+  canRotate: boolean;
+  canFlip: boolean;
+  /** Drehung der Einzelauswahl, sonst `null`. */
+  rotation: number | null;
 }
 
 export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActions> {
@@ -278,6 +284,12 @@ export interface GenericCanvasRef {
   handleDeleteElement?: () => void;
   /** Führt einen Seiten-Befehl aus; `at` ist der Punkt eines Rechtsklicks. */
   runCommand?: (id: PageCommandId, at: ClientPoint | null) => void;
+  /** Dreht die Einzelauswahl um ihre Mitte; ein Schritt im Verlauf. */
+  setRotation?: (deg: number) => void;
+  /** Dreht nur die Anzeige der Einzelauswahl (Regler ziehen) — ohne Zustand, ohne Verlauf. */
+  previewRotation?: (deg: number) => void;
+  /** Schreibt eine abgebrochene Vorschau dem Element zu, das sie zeigt. */
+  commitRotationPreview?: () => void;
   /** Was das Kontextmenü beim Öffnen über diese Seite wissen muss. */
   getMenuSnapshot?: () => CanvasMenuSnapshot;
   /** Box der Auswahl in Fensterkoordinaten, für Bedienelemente am Objekt. */
@@ -427,7 +439,19 @@ function GenericCanvasWithRef<
   const handleRestore = useCallback(
     (restoredState: Record<string, unknown>) => {
       const prev = committedStateRef.current as Record<string, unknown>;
-      setStateRaw((p) => ({ ...p, ...restoredState }) as TState);
+      // Every entry snapshots the whole state, so a key it lacks did not exist
+      // yet — the position a first drag or turn of a template text wrote.
+      // Merging alone kept that key: one undo turned the text back but left
+      // it shifted. Only host-emitted keys are dropped: useEmitHostStateChanges
+      // reports their removal to the page document, whereas any other deleted
+      // key would never reach it and canvas and document would diverge.
+      setStateRaw((p) => {
+        const next: Record<string, unknown> = { ...p, ...restoredState };
+        for (const key of Object.keys(p)) {
+          if (!(key in restoredState) && HOST_EMITTED_KEY_SET.has(key)) delete next[key];
+        }
+        return next as TState;
+      });
       for (const [name, callback] of Object.entries(callbacks)) {
         const key = stateKeyOfCallback(name);
         if (!key || !(key in restoredState) || HOST_EMITTED_KEY_SET.has(key)) continue;
@@ -705,9 +729,25 @@ function GenericCanvasWithRef<
         getRenderList: () => commandInputsRef.current.sortedRenderList,
         getStage: () => stageRef.current?.getStage() ?? null,
         logicalScale: () => logicalScale,
+        // Die Tür liest nur id, Typ und Positionsschlüssel; der Zustandstyp der Config spielt dort keine Rolle.
+        getElements: () => config.elements as readonly CanvasElementConfig[],
+        getLayout: () => commandInputsRef.current.layout,
+        isReadOnly: () => !interactive,
       }),
-    [store, setStateWrapper, saveToHistory, runHistoryBatch, config.elements, logicalScale]
+    [
+      store,
+      setStateWrapper,
+      saveToHistory,
+      runHistoryBatch,
+      config.elements,
+      logicalScale,
+      interactive,
+    ]
   );
+
+  // The multi-selection transformer asks this when the selection changes, so a
+  // selection change never re-renders the canvas.
+  const canRotateSelection = useCallback(() => commands.capabilities().canRotate, [commands]);
 
   useCanvasKeyboardHandlers({
     store,
@@ -914,6 +954,9 @@ function GenericCanvasWithRef<
       handleDuplicate: commands.duplicate,
       handleDeleteElement: commands.remove,
       runCommand: commands.run,
+      setRotation: commands.setRotation,
+      previewRotation: commands.previewRotation,
+      commitRotationPreview: commands.commitRotationPreview,
       getMenuSnapshot: () => {
         const { selectedLayerIds, selectedElement, croppingElement } = store.getState();
         const committed = committedStateRef.current;
@@ -938,6 +981,8 @@ function GenericCanvasWithRef<
         if (ids.length === 0 || !stage) return null;
         const rects = ids.map((id) => itemBodyRect(stage, id)).filter((r) => r !== null);
         if (rects.length === 0) return null;
+        // Der Drehgriff zählt mit: die Pille weicht ihm aus, statt ihn zu verdecken.
+        rects.push(...rotaterRects(stage));
         const left = Math.min(...rects.map((r) => r.x));
         const top = Math.min(...rects.map((r) => r.y));
         const rect = {
@@ -1029,6 +1074,7 @@ function GenericCanvasWithRef<
       >
         <CanvasRenderLayer
           sortedRenderList={sortedRenderList}
+          canRotateSelection={canRotateSelection}
           config={config}
           state={state}
           layout={layout}
@@ -1062,6 +1108,8 @@ function GenericCanvasWithRef<
         debouncedSaveToHistory={debouncedSaveToHistory}
         canUndo={canUndo}
         canRedo={canRedo}
+        readOnly={!interactive}
+        saveToHistory={saveToHistory}
         onToolbarStateChange={onToolbarStateChange}
       />
     </PendingImagesContext.Provider>

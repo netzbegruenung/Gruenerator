@@ -22,6 +22,7 @@ import {
   hasActiveImageFilters,
   imageFilterAttrs,
 } from '../utils/imageFilters';
+import { ELEMENT_TRANSFORMER } from '../utils/orientation';
 import { useTrackPendingImage } from '../utils/pendingImages';
 import { recacheNextFrame } from '../utils/recacheNextFrame';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
@@ -355,7 +356,6 @@ function UserImagePrimitiveInner({
 
       {isSelected && !isCropping && (
         <Transformer
-          anchorStyleFunc={touchAnchorStyleFunc}
           ref={transformerRef}
           keepRatio={true}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
@@ -364,6 +364,8 @@ function UserImagePrimitiveInner({
           borderStroke="#005437"
           anchorStroke="#005437"
           anchorFill="#ffffff"
+          rotateEnabled={true}
+          {...ELEMENT_TRANSFORMER}
           {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}

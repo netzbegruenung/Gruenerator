@@ -544,7 +544,7 @@ export async function inspectDocumentChunks(
     const sliceIds = slicePoints.map((p) => p.id);
     const slicedVectors =
       sliceIds.length > 0
-        ? await qdrantOps.client.retrieve(qdrantCollection, {
+        ? await qdrantOps.readClient(qdrantCollection).retrieve(qdrantCollection, {
             ids: sliceIds,
             with_payload: false,
             with_vector: true,

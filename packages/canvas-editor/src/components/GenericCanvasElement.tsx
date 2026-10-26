@@ -33,6 +33,7 @@ import {
   getStateValue,
   getOptionalStateValue,
 } from '../utils/stateTypeAssertions';
+import { isTemplateElementRotatable, templateRotationOf } from '../utils/templateRotation';
 
 import type {
   CanvasElementConfig,
@@ -60,6 +61,7 @@ interface MemoizedTextProps<TState extends Record<string, unknown> = Record<stri
   onTextChange: (id: string, text: string) => void;
   onFontSizeChange: (id: string, size: number) => void;
   onPositionChange: (id: string, x: number, y: number, w: number, h: number) => void;
+  onTemplateTransformEnd: (id: string, x: number, y: number, rotation: number) => void;
   onGeometryChange?: GeometryReporter;
   onSnapChange: (snapH: boolean, snapV: boolean) => void;
   onSnapLinesChange: (lines: SnapLine[]) => void;
@@ -78,6 +80,7 @@ const MemoizedTextElement = memo(
     onTextChange,
     onFontSizeChange,
     onPositionChange,
+    onTemplateTransformEnd,
     onGeometryChange,
     onSnapChange,
     onSnapLinesChange,
@@ -122,6 +125,15 @@ const MemoizedTextElement = memo(
       (size: number) => onFontSizeChange(config.id, size),
       [onFontSizeChange, config.id]
     );
+    // Only a text whose position persists may turn: Konva turns about the
+    // top-left corner, so the turn moves x/y too.
+    const rotatable = isTemplateElementRotatable(config);
+    const rotation = rotatable ? templateRotationOf(state, config.id) : 0;
+    const handleTransformEnd = useCallback(
+      (newX: number, newY: number, _w: number, _sx: number, _sy: number, newRotation: number) =>
+        onTemplateTransformEnd(config.id, newX, newY, newRotation),
+      [onTemplateTransformEnd, config.id]
+    );
 
     return (
       <CanvasText
@@ -153,6 +165,9 @@ const MemoizedTextElement = memo(
         onPositionChange={onPositionChange}
         onGeometryChange={onGeometryChange}
         onSnapLinesChange={onSnapLinesChange}
+        rotation={rotation}
+        transformConfig={{ rotateEnabled: rotatable }}
+        {...(rotatable ? { onTransformEnd: handleTransformEnd } : {})}
       />
     );
   },
@@ -186,6 +201,13 @@ const MemoizedTextElement = memo(
     const fillKey = prev.config.fillStateKey;
     if (fillKey && prev.state[fillKey] !== next.state[fillKey]) return false;
 
+    if (
+      templateRotationOf(prev.state, prev.config.id) !==
+      templateRotationOf(next.state, next.config.id)
+    ) {
+      return false;
+    }
+
     // Compare layout
     const prevLayout = prev.layout[prev.config.id];
     const nextLayout = next.layout[next.config.id];
@@ -213,7 +235,14 @@ interface MemoizedImageProps<TState extends Record<string, unknown> = Record<str
   selected: boolean;
   onSelect: (id: string) => void;
   onDragEnd: (id: string, x: number, y: number) => void;
-  onTransformEnd: (id: string, x: number, y: number, w: number, h: number) => void;
+  onTransformEnd: (
+    id: string,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    rotation: number
+  ) => void;
   onPositionChange?: (id: string, x: number, y: number, w: number, h: number) => void;
   onGeometryChange?: GeometryReporter;
   stageWidth: number;
@@ -273,10 +302,13 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
     [onDragEnd, config.id]
   );
   const handleTransformEnd = useCallback(
-    (newX: number, newY: number, w: number, h: number) =>
-      onTransformEnd(config.id, newX, newY, w, h),
+    (newX: number, newY: number, w: number, h: number, rotation: number) =>
+      onTransformEnd(config.id, newX, newY, w, h, rotation),
     [onTransformEnd, config.id]
   );
+  // CI marks turn but never mirror; the background photo and cover fits never turn.
+  const rotatable = isTemplateElementRotatable(config);
+  const rotation = rotatable ? templateRotationOf(state, config.id) : 0;
 
   if (!image) return null;
 
@@ -298,6 +330,7 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
       y={y}
       width={width}
       height={height}
+      rotation={rotation}
       opacity={opacity}
       color={typeof fill === 'string' ? fill : undefined}
       adjustments={config.id === BACKGROUND_IMAGE_NODE_ID ? backgroundAdjustments(state) : null}
@@ -329,7 +362,7 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
           config.transformable && !isLocked
             ? ['top-left', 'top-right', 'bottom-left', 'bottom-right']
             : [],
-        rotateEnabled: false,
+        rotateEnabled: rotatable && !isLocked,
         keepRatio: true,
       }}
     />
@@ -474,7 +507,16 @@ export interface GenericCanvasElementProps<
   /** Meldet gerenderte Geometrie als Snap-Ziel (ohne den Zustand anzufassen). */
   onGeometryChange?: GeometryReporter;
   onImageDragEnd: (id: string, x: number, y: number) => void;
-  onImageTransformEnd: (id: string, x: number, y: number, w: number, h: number) => void;
+  onImageTransformEnd: (
+    id: string,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    rotation: number
+  ) => void;
+  /** Vorlagen-Text nach dem Transformer: Position und Drehung. */
+  onTemplateTransformEnd: (id: string, x: number, y: number, rotation: number) => void;
   onSnapChange: (snapH: boolean, snapV: boolean) => void;
   onSnapLinesChange: (lines: SnapLine[]) => void;
   stageWidth: number;
@@ -495,6 +537,7 @@ export const GenericCanvasElement = memo(function GenericCanvasElement<
   onGeometryChange,
   onImageDragEnd,
   onImageTransformEnd,
+  onTemplateTransformEnd,
   onSnapChange,
   onSnapLinesChange,
   stageWidth,
@@ -520,6 +563,7 @@ export const GenericCanvasElement = memo(function GenericCanvasElement<
           onTextChange={onTextChange}
           onFontSizeChange={onFontSizeChange}
           onPositionChange={onPositionChange}
+          onTemplateTransformEnd={onTemplateTransformEnd}
           onGeometryChange={onGeometryChange}
           onSnapChange={onSnapChange}
           onSnapLinesChange={onSnapLinesChange}
@@ -604,6 +648,7 @@ export const GenericCanvasElement = memo(function GenericCanvasElement<
               onGeometryChange={onGeometryChange}
               onImageDragEnd={onImageDragEnd}
               onImageTransformEnd={onImageTransformEnd}
+              onTemplateTransformEnd={onTemplateTransformEnd}
               onSnapChange={onSnapChange}
               onSnapLinesChange={onSnapLinesChange}
               stageWidth={stageWidth}

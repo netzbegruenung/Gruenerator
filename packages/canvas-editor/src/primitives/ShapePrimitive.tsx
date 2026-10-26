@@ -17,13 +17,18 @@ import { gradientFillProps } from '../utils/gradientFill';
 import { translucentHitFunc } from '../utils/gradientHitArea';
 import { handDrawnPath } from '../utils/handDrawn';
 import {
+  ELEMENT_TRANSFORMER,
+  MIRROR_X_ATTR,
+  nodeRotation,
+  signedScale,
+} from '../utils/orientation';
+import {
   assertNever,
   isComposerPlane,
   STROKE_ONLY_SHAPES,
   type ShapeInstance,
 } from '../utils/shapes';
 import { PATH_VIEWBOX, resizedShapeSize, shapeNodeScale } from '../utils/shapeTransform';
-import { touchAnchorStyleFunc } from '../utils/touchInput';
 
 import type Konva from 'konva';
 
@@ -171,6 +176,8 @@ interface CommonShapeProps {
   rotation: number;
   scaleX: number;
   scaleY: number;
+  /** `MIRROR_X_ATTR`: die Spiegelung steckt in der Knoten-Skala. */
+  [MIRROR_X_ATTR]: boolean;
   draggable: boolean;
   hitFunc?: (context: Konva.Context, shape: Konva.Shape) => void;
   onMouseDown: (e: Konva.KonvaEventObject<MouseEvent>) => void;
@@ -431,8 +438,8 @@ function renderShape(
           data={SHAPE_PATHS[shape.type]}
           offsetX={offset.x}
           offsetY={offset.y}
-          scaleX={(shape.width / PATH_VIEWBOX) * shape.scaleX}
-          scaleY={(shape.height / PATH_VIEWBOX) * shape.scaleY}
+          scaleX={signedScale((shape.width / PATH_VIEWBOX) * shape.scaleX, shape.flipX === true)}
+          scaleY={signedScale((shape.height / PATH_VIEWBOX) * shape.scaleY, shape.flipY === true)}
         />
       );
     }
@@ -556,14 +563,17 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
     const pathShape = isPathShape(shape.type);
     const size = resizedShapeSize(pathShape, shape, node.scaleX(), node.scaleY());
     const nodeScale = shapeNodeScale(pathShape, size);
+    // Vor dem Zurücksetzen der Vorzeichen lesen: nur dann erkennt es Konvas Zerlegung.
+    const rotation = nodeRotation(node);
 
-    node.scaleX(nodeScale.width);
-    node.scaleY(nodeScale.height);
+    node.scaleX(signedScale(nodeScale.width, shape.flipX === true));
+    node.scaleY(signedScale(nodeScale.height, shape.flipY === true));
+    node.rotation(rotation);
 
     onChange({
       x: node.x(),
       y: node.y(),
-      rotation: node.rotation(),
+      rotation,
       width: size.width,
       height: size.height,
       scaleX: 1,
@@ -583,8 +593,9 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
     fill: shape.fill,
     opacity: shape.opacity ?? 1,
     rotation: shape.rotation,
-    scaleX: shape.scaleX,
-    scaleY: shape.scaleY,
+    scaleX: signedScale(shape.scaleX, shape.flipX === true),
+    scaleY: signedScale(shape.scaleY, shape.flipY === true),
+    [MIRROR_X_ATTR]: shape.flipX === true,
     draggable,
     hitFunc: fillsArea ? translucentHitFunc(shape.fillGradient) : undefined,
     onMouseDown: (e) => {
@@ -628,7 +639,6 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
 
       {isSelected && (
         <Transformer
-          anchorStyleFunc={touchAnchorStyleFunc}
           ref={trRef}
           boundBoxFunc={(oldBox, newBox) => {
             if (newBox.width < 5 || newBox.height < 5) {
@@ -639,11 +649,10 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
           anchorSize={10}
           anchorCornerRadius={5}
           rotateEnabled={true}
-          rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}
-          rotationSnapTolerance={7}
           borderStroke={transformerStroke}
           anchorStroke={transformerStroke}
           anchorFill="#ffffff"
+          {...ELEMENT_TRANSFORMER}
           {...(locked ? LOCKED_TRANSFORMER : {})}
         />
       )}
@@ -676,6 +685,8 @@ export const ShapePrimitive = memo(ShapePrimitiveInner, (prevProps, nextProps) =
   if (prevShape.shadowOpacity !== nextShape.shadowOpacity) return false;
   if (prevShape.fillGradient !== nextShape.fillGradient) return false;
   if (prevShape.blendMode !== nextShape.blendMode) return false;
+  if (prevShape.flipX !== nextShape.flipX) return false;
+  if (prevShape.flipY !== nextShape.flipY) return false;
 
   if (prevProps.isSelected !== nextProps.isSelected) return false;
   if (prevProps.draggable !== nextProps.draggable) return false;

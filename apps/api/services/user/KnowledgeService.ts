@@ -261,9 +261,12 @@ class KnowledgeService {
     if (row.embedding_id) {
       await purgeSideStore('user_knowledge', id, 'qdrant', async () => {
         if (!this.qdrant!.isAvailableSync()) throw new Error('Qdrant unavailable');
-        await this.qdrant!.client!.delete(this.qdrant!.collections.user_knowledge, {
-          filter: { must: [{ key: 'knowledge_id', match: { value: id } }] },
-        });
+        await this.qdrant!.writeClient(this.qdrant!.collections.user_knowledge).delete(
+          this.qdrant!.collections.user_knowledge,
+          {
+            filter: { must: [{ key: 'knowledge_id', match: { value: id } }] },
+          }
+        );
       });
     }
     return true;
@@ -346,9 +349,12 @@ class KnowledgeService {
         },
       }));
 
-      await this.qdrant!.client!.upsert(this.qdrant!.collections.user_knowledge, {
-        points: points,
-      });
+      await this.qdrant!.writeClient(this.qdrant!.collections.user_knowledge).upsert(
+        this.qdrant!.collections.user_knowledge,
+        {
+          points: points,
+        }
+      );
 
       const embeddingId = `knowledge_${knowledgeId}_${Date.now()}`;
       await this.postgres!.update(
@@ -386,16 +392,15 @@ class KnowledgeService {
     if (this.qdrant!.isAvailableSync()) {
       try {
         const queryEmbedding = await mistralEmbeddingService.generateEmbedding(query);
-        const searchResult = await this.qdrant!.client!.query(
-          this.qdrant!.collections.user_knowledge,
-          {
-            query: queryEmbedding,
-            filter: { must: [{ key: 'user_id', match: { value: userId } }] },
-            limit: limit * 2,
-            score_threshold: threshold,
-            with_payload: true,
-          }
-        );
+        const searchResult = await this.qdrant!.readClient(
+          this.qdrant!.collections.user_knowledge
+        ).query(this.qdrant!.collections.user_knowledge, {
+          query: queryEmbedding,
+          filter: { must: [{ key: 'user_id', match: { value: userId } }] },
+          limit: limit * 2,
+          score_threshold: threshold,
+          with_payload: true,
+        });
 
         const live = await this.liveKnowledgeIds(
           searchResult.points

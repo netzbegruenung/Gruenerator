@@ -91,6 +91,7 @@ export const PPTX_UNMAPPED_PAGE_KEYS = {
   imageAttribution: 'Bildnachweis; steht nicht auf der Fläche',
   stashedComposerPlanes: 'abgelegte Composer-Flächen; nicht gezeichnet',
   lockedLayerIds: 'Sperre im Editor',
+  templateRotations: 'Drehung der Vorlagen-Elemente; die gehen nicht in die Folie',
 } as const satisfies Record<string, string>;
 
 const KNOWN_KEYS: ReadonlySet<string> = new Set([
@@ -218,6 +219,8 @@ function mapShape(shape: ShapeInstance): PptxItem {
   );
   const native = NATIVE_SHAPES[shape.type];
   if (!native) return raster(shape.id, placement, 'shape-path');
+  // A native pptx shape can't carry the mirror the stage draws; the raster does.
+  if (shape.flipX || shape.flipY) return raster(shape.id, placement, 'shape-flipped');
   if (shape.fillGradient || shape.blendMode) {
     return raster(shape.id, placement, 'shape-styled');
   }

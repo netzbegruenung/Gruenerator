@@ -30,8 +30,8 @@ import { ContentExtractor } from '../extractors/ContentExtractor.js';
 import { DateExtractor } from '../extractors/DateExtractor.js';
 
 import type { LandesverbandSource } from '../../../../../config/landesverbaendeConfig.js';
+import type { QdrantService } from '../../../../../database/services/QdrantService/index.js';
 import type { ProcessResult, ExtractedContent } from '../types.js';
-import type { QdrantClient } from '@qdrant/js-client-rest';
 
 /**
  * DateExtractor's year-only fallback — never a better date than one already
@@ -119,7 +119,7 @@ interface ProcessAndStoreOptions {
  */
 export class DocumentProcessor {
   constructor(
-    private qdrantClient: QdrantClient,
+    private qdrant: QdrantService,
     private collectionName: string,
     private generateHash: (text: string) => string,
     private generatePointId: (url: string, chunkIndex: number) => number,
@@ -165,7 +165,7 @@ export class DocumentProcessor {
     // STEP 3: Deduplication check
     const contentHash = this.generateHash(text);
     const existingPoints = await scrollDocuments(
-      this.qdrantClient,
+      this.qdrant.readClient(targetCollection),
       targetCollection,
       {
         must: [{ key: 'source_url', match: { value: url } }],
@@ -202,7 +202,7 @@ export class DocumentProcessor {
 
     // STEP 4: Delete old version if exists (update scenario)
     if (existing) {
-      await batchDelete(this.qdrantClient, targetCollection, {
+      await batchDelete(this.qdrant.writeClient(targetCollection), targetCollection, {
         must: [{ key: 'source_url', match: { value: url } }],
       });
     }
@@ -276,7 +276,7 @@ export class DocumentProcessor {
     const batchSize = this.config.batchSize;
     for (let i = 0; i < points.length; i += batchSize) {
       const batch = points.slice(i, i + batchSize);
-      await batchUpsert(this.qdrantClient, targetCollection, batch);
+      await batchUpsert(this.qdrant.writeClient(targetCollection), targetCollection, batch);
     }
 
     recordSyncEvent({
@@ -348,7 +348,7 @@ export class DocumentProcessor {
     if (Object.keys(patch).length === 0 && Date.now() - checkedAt < CHECKED_AT_REFRESH_MS) return;
 
     await setPayload(
-      this.qdrantClient,
+      this.qdrant.writeClient(targetCollection),
       targetCollection,
       { ...patch, checked_at: new Date().toISOString() },
       { must: [{ key: 'source_url', match: { value: url } }] }

@@ -19,6 +19,7 @@ import {
 import { Stage, Layer, Group, Rect } from 'react-konva';
 
 import { CanvasTextEditorProvider } from '../components/CanvasTextOverlay';
+import { TransformHud } from '../components/TransformHud';
 import { useHoverOutline } from '../hooks/useHoverOutline';
 import { withSelectionChromeHidden } from '../utils/captureStage';
 import { cn } from '../utils/cn';
@@ -454,6 +455,7 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
               )}
             </Layer>
           </Stage>
+          <TransformHud stageRef={displayStageRef} enabled={listening} />
         </div>
       </CanvasTextEditorProvider>
     );

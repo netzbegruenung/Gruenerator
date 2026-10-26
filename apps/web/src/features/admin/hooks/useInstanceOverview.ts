@@ -1,7 +1,8 @@
-import { type InstanceAdminUserSummary } from '@gruenerator/contracts';
+import { type InstanceAdminAppBundle, type InstanceAdminUserSummary } from '@gruenerator/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
+  fetchInstanceAdminAppBundles,
   fetchInstanceAdminUsers,
   fetchInstanceAdminRoles,
   setInstanceAdminUserPanda,
@@ -46,6 +47,15 @@ export function useInstanceAdminRoleAssignments(enabled = true) {
     queryKey: ['bgst-admin-roles'],
     queryFn: fetchInstanceAdminRoles,
     staleTime: 30_000,
+    enabled,
+  });
+}
+
+export function useInstanceAdminAppBundles(enabled = true) {
+  return useQuery<InstanceAdminAppBundle[]>({
+    queryKey: ['bgst-admin-app-bundles'],
+    queryFn: fetchInstanceAdminAppBundles,
+    staleTime: 60_000,
     enabled,
   });
 }

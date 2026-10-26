@@ -40,6 +40,8 @@ export interface KawaiiInstance {
   color: string;
   opacity: number;
   mood: KawaiiMood;
+  flipX?: boolean;
+  flipY?: boolean;
 }
 
 // SVG Illustration types
@@ -71,6 +73,8 @@ export interface SvgInstance {
   rotation: number;
   opacity: number;
   color?: string;
+  flipX?: boolean;
+  flipY?: boolean;
 }
 
 // Unified Union Types

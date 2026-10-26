@@ -3,6 +3,7 @@ import { findDuplicableEntry, type TemplateEntryLookup } from './duplicateElemen
 import { isLockable, lockedIdsOf, lockStateOf, type LockState } from './layerLock';
 import { findElementRemover } from './removeElement';
 
+import type { OrientationDoor } from './orientElement';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
 import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
 
@@ -24,6 +25,12 @@ export interface SelectionCapabilities {
   lock: LockState;
   /** Mindestens ein ausgewähltes Element lässt sich sperren. */
   canLock: boolean;
+  /** Jedes ausgewählte Element lässt sich drehen (keins gesperrt, kein Lesemodus). */
+  canRotate: boolean;
+  /** Einzeln: das Element spiegelt; mehrere: jedes lässt sich drehen, Text wandert lesbar mit. */
+  canFlip: boolean;
+  /** Die Drehung der Einzelauswahl, sonst `null`. */
+  rotation: number | null;
 }
 
 export interface SelectionCapabilitiesInput {
@@ -32,6 +39,10 @@ export interface SelectionCapabilitiesInput {
   actions: OptionalCanvasActions;
   template?: TemplateEntryLookup;
   renderList: readonly CanvasItem[];
+  /** Die Tür zum Drehen & Spiegeln eines Elements — siehe `utils/orientElement.ts`. */
+  orient: (id: string) => OrientationDoor | null;
+  /** Lesemodus: Drehen & Spiegeln werden nicht angeboten. */
+  readOnly: boolean;
 }
 
 export function selectionCapabilities({
@@ -40,9 +51,14 @@ export function selectionCapabilities({
   actions,
   template,
   renderList,
+  orient,
+  readOnly,
 }: SelectionCapabilitiesInput): SelectionCapabilities {
   const single = ids.length === 1 ? ids[0]! : null;
   const lockable = lockableIds(ids, renderList);
+  const doors = readOnly ? [] : ids.map(orient);
+  const canRotate = ids.length > 0 && doors.length === ids.length && doors.every((d) => d !== null);
+  const singleDoor = single !== null && canRotate ? doors[0]! : null;
   return {
     count: ids.length,
     canCopy: ids.some((id) => findDuplicableEntry(state, id, template) !== null),
@@ -51,6 +67,9 @@ export function selectionCapabilities({
     canSendBackward: single !== null && canMoveLayer(renderList, single, 'backward'),
     lock: lockStateOf(lockedIdsOf(state), lockable),
     canLock: lockable.length > 0,
+    canRotate,
+    canFlip: singleDoor ? singleDoor.canFlip : canRotate,
+    rotation: singleDoor ? singleDoor.rotation : null,
   };
 }
 
