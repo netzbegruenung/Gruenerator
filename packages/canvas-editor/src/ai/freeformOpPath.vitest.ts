@@ -4,12 +4,12 @@
  * update-element must reach texts — otherwise "Verschieb den Text nach oben"
  * and "Schrift größer" have nothing to act on.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { createFreeformFullConfig, type FreeformState } from '../configs/freeform_full.config';
 import { getCanvasFormatOrDefault } from '../formats';
 
-import { applyOperation } from './applyOperation';
+import { applyOperation, type RotateElement } from './applyOperation';
 
 const SEED = {
   backgroundMode: 'color',
@@ -329,6 +329,74 @@ describe('freeform op path', () => {
 
     expect(update('shape-1', { color: '#FFD320' }, env).result).toEqual({ ok: true });
     expect(env.getState().shapeInstances.find((x) => x.id === 'shape-1')!.fill).toBe('#FFD320');
+  });
+
+  describe('update-element rotation', () => {
+    const rotate = (
+      env: ReturnType<typeof freeform>,
+      patch: Record<string, unknown>,
+      door: RotateElement | undefined
+    ) =>
+      applyOperation(
+        { kind: 'update-element', elementId: 'txt-1', patch },
+        env.actions,
+        env.getState,
+        env.ai,
+        door
+      );
+
+    it('turns through the rotate door, not as a raw field write', () => {
+      const env = freeform();
+      const door = vi.fn<RotateElement>(() => true);
+      expect(rotate(env, { rotation: 20, color: '#E6007E' }, door)).toEqual({ ok: true });
+      expect(door).toHaveBeenCalledWith('txt-1', 20);
+      const text = env.getState().additionalTexts[0];
+      expect(text.fill).toBe('#E6007E');
+      // The door owns rotation (and the centre-keeping x/y); the patch doesn't write it.
+      expect(text.rotation ?? 0).toBe(0);
+    });
+
+    it('refuses rotation without a mounted canvas', () => {
+      const env = freeform();
+      expect(rotate(env, { rotation: 20 }, undefined).ok).toBe(false);
+      expect(env.getState().additionalTexts[0].rotation ?? 0).toBe(0);
+    });
+
+    it('writes nothing when another field is refused', () => {
+      const env = freeform();
+      const door = vi.fn<RotateElement>(() => true);
+      const result = applyOperation(
+        { kind: 'update-element', elementId: 'chart-1', patch: { rotation: 20, color: '#E6007E' } },
+        env.actions,
+        env.getState,
+        env.ai,
+        door
+      );
+      expect(result.ok).toBe(false);
+      expect(door).not.toHaveBeenCalled();
+    });
+
+    it('fails when the door cannot turn the element', () => {
+      const env = freeform();
+      const door = vi.fn<RotateElement>(() => false);
+      expect(rotate(env, { rotation: 20, color: '#E6007E' }, door).ok).toBe(false);
+      expect(env.getState().additionalTexts[0].fill).toBe('#FFFFFF');
+    });
+  });
+
+  it('snapshot reports a turned element', () => {
+    const env = freeform({
+      ...SEED,
+      additionalTexts: [{ ...SEED.additionalTexts[0], rotation: -15.4 }],
+    });
+    const label = env.ai
+      .describeForAi(env.getState())
+      .elementsSummary.find((e) => e.id === 'txt-1')!.label;
+    expect(label).toContain('gedreht -15°');
+    expect(
+      env.ai.describeForAi(freeform().getState()).elementsSummary.find((e) => e.id === 'txt-1')!
+        .label
+    ).not.toContain('gedreht');
   });
 
   it('edits composer background planes like any shape', () => {

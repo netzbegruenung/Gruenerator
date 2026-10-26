@@ -285,6 +285,8 @@ export interface GenericCanvasRef {
   handleDeleteElement?: () => void;
   /** Führt einen Seiten-Befehl aus; `at` ist der Punkt eines Rechtsklicks. */
   runCommand?: (id: PageCommandId, at: ClientPoint | null) => void;
+  /** Dreht ein Element unabhängig von der Auswahl um seine Mitte; `false`, wenn es nicht drehbar ist. */
+  rotateElement?: (id: string, deg: number) => boolean;
   /** Lage und Größe der Einzelauswahl für das Positionsfeld; `null`, wenn sie sich nicht bewegen lässt. */
   getGeometry?: () => SelectionGeometry | null;
   /** X/Y der Einzelauswahl (linke obere Ecke ihres gedrehten Umrisses); ein Schritt im Verlauf. */
@@ -929,6 +931,7 @@ function GenericCanvasWithRef<
       handleDuplicate: commands.duplicate,
       handleDeleteElement: commands.remove,
       runCommand: commands.run,
+      rotateElement: commands.rotateElement,
       getGeometry: commands.geometry,
       setPosition: commands.setPosition,
       setSize: commands.setSize,

@@ -1,6 +1,15 @@
 import React, { useEffect, useLayoutEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { PiCopy, PiDotsThreeBold, PiLockSimpleOpen, PiTrash } from 'react-icons/pi';
+import {
+  PiCopy,
+  PiDotsThreeBold,
+  PiFlipHorizontal,
+  PiFlipVertical,
+  PiLockSimpleOpen,
+  PiTrash,
+} from 'react-icons/pi';
+
+import { CANVAS_COMMANDS } from '../utils/canvasCommandRegistry';
 
 import { useIsCanvasTextEditing } from './CanvasTextOverlay';
 
@@ -29,6 +38,11 @@ export interface MobileSelectionPillProps {
   /** Gesperrt (am Desktop): statt Löschen steht hier Entsperren. */
   isLocked?: boolean;
   onUnlock?: () => void;
+  /**
+   * Spiegeln — nur für die Mehrfachauswahl: am Handy gibt es dafür weder
+   * Leiste noch Kontextmenü. Ein einzelnes Element spiegelt im Drehen-Popover.
+   */
+  onFlip?: (axis: 'x' | 'y') => void;
 }
 
 /**
@@ -49,6 +63,7 @@ export function MobileSelectionPill({
   onMore,
   isLocked = false,
   onUnlock,
+  onFlip,
 }: MobileSelectionPillProps) {
   const [box, setBox] = useState<SelectionBox | null>(null);
   const [manipulating, setManipulating] = useState(false);
@@ -80,7 +95,7 @@ export function MobileSelectionPill({
 
   useLayoutEffect(() => {
     if (pillRef.current) setPillWidth(pillRef.current.offsetWidth);
-  }, [box, canDuplicate, canDelete, onMore, isLocked]);
+  }, [box, canDuplicate, canDelete, onMore, isLocked, onFlip]);
 
   if (manipulating || isEditingText || !box) return null;
 
@@ -120,6 +135,26 @@ export function MobileSelectionPill({
         >
           <PiTrash size={20} aria-hidden />
         </button>
+      )}
+      {onFlip && (
+        <>
+          <button
+            type="button"
+            className={BTN}
+            onClick={() => onFlip('x')}
+            aria-label={CANVAS_COMMANDS.flipHorizontal.label}
+          >
+            <PiFlipHorizontal size={20} aria-hidden />
+          </button>
+          <button
+            type="button"
+            className={BTN}
+            onClick={() => onFlip('y')}
+            aria-label={CANVAS_COMMANDS.flipVertical.label}
+          >
+            <PiFlipVertical size={20} aria-hidden />
+          </button>
+        </>
       )}
       {onMore && (
         <button type="button" className={BTN} onClick={onMore} aria-label="Mehr Optionen">

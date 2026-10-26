@@ -139,6 +139,11 @@ export interface CanvasCommands {
   /** Öffnet die Dateiauswahl für den ausgewählten Rahmen; false ohne Rahmen. */
   insertFrameImage: () => boolean;
   editText: () => void;
+  /**
+   * Dreht ein Element unabhängig von der Auswahl auf `deg`, um die Mitte — die
+   * Tür der KI. `false`, wenn es sich nicht drehen lässt.
+   */
+  rotateElement: (id: string, deg: number) => boolean;
   /** Spiegelt die Auswahl; mehrere Elemente auch an der Mitte der Auswahl. */
   flip: (axis: 'x' | 'y') => void;
   /** Einzeln an der Seite, mehrere am Umriss der Auswahl; gesperrte bleiben stehen. */
@@ -315,13 +320,16 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
     else if (writes.length > 1) ctx.runHistoryBatch(() => writes.forEach((write) => write()));
   };
 
-  const rotateTo = (ids: readonly string[], deg: number) => {
+  /** Anzahl der gedrehten Elemente. */
+  const rotateTo = (ids: readonly string[], deg: number): number => {
     const rotation = normalizeRotation(deg);
+    const targets = orientTargets(ids);
     writeAll(
-      orientTargets(ids).map(({ door, frame }) => () => {
+      targets.map(({ door, frame }) => () => {
         door.apply({ ...placeKeepingCentre(frame, { rotation }), rotation });
       })
     );
+    return targets.length;
   };
 
   /**
@@ -486,6 +494,7 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
     toggleLock,
     insertFrameImage,
     editText,
+    rotateElement: (id, deg) => rotateTo([id], deg) > 0,
     flip,
     align,
     distribute,
@@ -530,7 +539,8 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
       case 'flipVertical':
         return flip('y');
       case 'resetRotation':
-        return rotateTo(selection(), 0);
+        rotateTo(selection(), 0);
+        return;
       case 'alignLeft':
         return align('left');
       case 'alignCenterH':

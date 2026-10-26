@@ -8,7 +8,7 @@
  */
 
 import { activeAxisLock } from './axisLock';
-import { type Box, type NodeFrame } from './orientation';
+import { measureExtent, type Box, type NodeFrame } from './orientation';
 
 export const SNAP_THRESHOLD = 20; // pixels - ~2% of 1000px canvas
 
@@ -405,50 +405,10 @@ export function boxFrame(
   return frame;
 }
 
-// Ergebnis von `measureFrame`, relativ zum Knotenursprung. Modulweit, damit der
-// Drag-Pfad nichts anlegt; gelesen wird es sofort nach dem Aufruf.
-const measured = { minX: 0, minY: 0, width: 0, height: 0 };
-
-/**
- * Achsparallele Box der vier gedrehten Ecken, relativ zu (frame.x, frame.y).
- * Anders als `axisAlignedBounds` ohne Rundung: bei 0° muss das Ergebnis Bit für
- * Bit dem alten Rechenweg entsprechen.
- */
-function measureFrame(frame: NodeFrame): void {
-  const rad = (frame.rotation * Math.PI) / 180;
-  const cos = Math.cos(rad);
-  const sin = Math.sin(rad);
-  const x0 = (frame.local.x - frame.offsetX) * frame.scaleX;
-  const x1 = (frame.local.x + frame.local.width - frame.offsetX) * frame.scaleX;
-  const y0 = (frame.local.y - frame.offsetY) * frame.scaleY;
-  const y1 = (frame.local.y + frame.local.height - frame.offsetY) * frame.scaleY;
-
-  const ax = x0 * cos - y0 * sin;
-  const bx = x1 * cos - y0 * sin;
-  const cx = x1 * cos - y1 * sin;
-  const dx = x0 * cos - y1 * sin;
-  const ay = x0 * sin + y0 * cos;
-  const by = x1 * sin + y0 * cos;
-  const cy = x1 * sin + y1 * cos;
-  const dy = x0 * sin + y1 * cos;
-
-  const minX = Math.min(ax, bx, cx, dx);
-  const minY = Math.min(ay, by, cy, dy);
-  measured.minX = minX;
-  measured.minY = minY;
-  measured.width = Math.max(ax, bx, cx, dx) - minX;
-  measured.height = Math.max(ay, by, cy, dy) - minY;
-}
-
 /** Sichtbare, achsparallele Box eines Rahmens in Bühnenkoordinaten. */
 export function frameBounds(frame: NodeFrame): Box {
-  measureFrame(frame);
-  return {
-    x: frame.x + measured.minX,
-    y: frame.y + measured.minY,
-    width: measured.width,
-    height: measured.height,
-  };
+  const e = measureExtent(frame);
+  return { x: frame.x + e.minX, y: frame.y + e.minY, width: e.width, height: e.height };
 }
 
 export interface SpacingSnap {
@@ -598,8 +558,7 @@ function snapBox(
   hysteresis: SnapHysteresis | undefined,
   withSpacing: boolean
 ): ElementSnapResult {
-  measureFrame(frame);
-  const { minX, minY, width, height } = measured;
+  const { minX, minY, width, height } = measureExtent(frame);
   const result = calculateElementSnapPosition(
     frame.x + minX,
     frame.y + minY,

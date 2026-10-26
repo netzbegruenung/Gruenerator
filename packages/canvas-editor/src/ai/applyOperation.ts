@@ -28,6 +28,14 @@ import type { CanvasAiOperation, CanvasAiUpdatePatch } from '@gruenerator/contra
 export type ApplyResult = { ok: true } | { ok: false; reason: string };
 
 /**
+ * Dreht ein Element um seine Mitte, wie die Werkzeugleiste (`rotateElement` der
+ * Seiten-Befehle). Der KI-Pfad schreibt `rotation` nie roh: bei Kinds mit dem
+ * Ursprung oben links (Text, Pille, Bild, Diagramm) schwänge das Element sonst
+ * um seine Ecke. `false`, wenn es sich nicht drehen lässt.
+ */
+export type RotateElement = (id: string, deg: number) => boolean;
+
+/**
  * Strict patch passed to per-kind update actions.
  *
  * Drops `null`/`undefined` fields from CanvasAiUpdatePatch — appliers only
@@ -151,9 +159,10 @@ export function applyOperation<TState, TActions extends CanvasAiActionsBase>(
   op: CanvasAiOperation,
   actions: TActions,
   getState: () => TState,
-  capabilities: TemplateAiCapabilities<TState, TActions>
+  capabilities: TemplateAiCapabilities<TState, TActions>,
+  rotate?: RotateElement
 ): ApplyResult {
-  const result = applyOne(op, actions, getState, capabilities);
+  const result = applyOne(op, actions, getState, capabilities, rotate);
   if (result.ok) capabilities.afterApply?.(op, actions);
   return result;
 }
@@ -162,7 +171,8 @@ function applyOne<TState, TActions extends CanvasAiActionsBase>(
   op: CanvasAiOperation,
   actions: TActions,
   getState: () => TState,
-  capabilities: TemplateAiCapabilities<TState, TActions>
+  capabilities: TemplateAiCapabilities<TState, TActions>,
+  rotate: RotateElement | undefined
 ): ApplyResult {
   // Per-template override wins
   const override = capabilities.applyOverrides?.[op.kind];
@@ -288,8 +298,21 @@ function applyOne<TState, TActions extends CanvasAiActionsBase>(
         if (movesElement && isLayerLocked(getState() as Partial<BaseCanvasState>, op.elementId)) {
           return { ok: false, reason: `element "${op.elementId}" is locked` };
         }
-        const dispatchResult = dispatchUpdate(op.elementId, cleanPatch, actions, getState);
-        return dispatchResult;
+        const { rotation, ...rest } = cleanPatch;
+        if (rotation === undefined) return dispatchUpdate(op.elementId, rest, actions, getState);
+        // Without the mounted page there is no centre to turn about.
+        if (!rotate) return { ok: false, reason: 'rotation needs the open canvas' };
+        // Checked before anything is written, so a refused field leaves no half-applied op.
+        const refused = dispatchUpdate(op.elementId, rest, actions, getState, true);
+        if (!refused.ok) return refused;
+        // Rotation first: the door measures the node as drawn, before the rest
+        // of the patch has re-rendered it. An explicit x/y then wins.
+        if (!rotate(op.elementId, rotation)) {
+          return { ok: false, reason: `element "${op.elementId}" cannot be rotated` };
+        }
+        return Object.keys(rest).length > 0
+          ? dispatchUpdate(op.elementId, rest, actions, getState)
+          : { ok: true };
       }
 
       case 'set-background-image':
@@ -359,13 +382,14 @@ const GEOMETRY: readonly PatchKey[] = ['x', 'y', 'rotation', 'opacity', 'scale']
  * Each kind names its colour and size differently (`fill`, `backgroundColor`,
  * `scaleX/Y`, `fontSize`); the patch is translated per kind, and a field the
  * kind cannot take fails the op instead of landing as a stray key that
- * changes nothing on screen.
+ * changes nothing on screen. `dryRun` only checks.
  */
 function dispatchUpdate<TState>(
   elementId: string,
   patch: Patch,
   actions: CanvasAiActionsBase,
-  getState: () => TState
+  getState: () => TState,
+  dryRun = false
 ): ApplyResult {
   // Local cast: only BaseCanvasState's optional collections are read.
   const state = getState() as Partial<BaseCanvasState>;
@@ -381,7 +405,7 @@ function dispatchUpdate<TState>(
     if (!updater) return { ok: false, reason: `template does not support updating ${label}` };
     const reason = rejectFields(patch, allowed, label);
     if (reason) return { ok: false, reason };
-    updater(elementId, build());
+    if (!dryRun) updater(elementId, build());
     return { ok: true };
   }
 

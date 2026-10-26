@@ -73,6 +73,38 @@ describe('Drehgriff: Seite je Lage', () => {
   });
 });
 
+describe('Drehgriff: nur der sichtbare Teil der Bühne zählt', () => {
+  /** Die Bühne liegt bei (0, 0) in einem Scroller, der bei y = clipBottom endet (dort beginnt die Leiste). */
+  function clipStage(tr: Konva.Transformer, clipBottom: number) {
+    const container = tr.getStage()!.container();
+    const scroller = document.createElement('div');
+    scroller.style.overflowY = 'auto';
+    container.replaceWith(scroller);
+    scroller.appendChild(container);
+    const rect = (r: Partial<DOMRect>) => () => ({ x: 0, y: 0, left: 0, top: 0, ...r }) as DOMRect;
+    container.getBoundingClientRect = rect({ width: 600, height: 600, right: 600, bottom: 600 });
+    scroller.getBoundingClientRect = rect({
+      width: 600,
+      height: clipBottom,
+      right: 600,
+      bottom: clipBottom,
+    });
+  }
+
+  it('ein Griff unter der Leiste gilt als nicht greifbar — er wandert nach oben', () => {
+    // Element 250..350: unten läge der Griff bei ~380, der Scroller endet bei 370.
+    const { tr } = setup({ x: 300, y: 300 });
+    clipStage(tr, 370);
+    expect(chooseRotaterAngle(tr, 'below')).toBe(0);
+  });
+
+  it('mit Platz über der Leiste bleibt er unten', () => {
+    const { tr } = setup({ x: 300, y: 300 });
+    clipStage(tr, 500);
+    expect(chooseRotaterAngle(tr, 'below')).toBe(180);
+  });
+});
+
 describe('elementAnchorStyleFunc', () => {
   it('wählt beim Anhängen sichtbar unten (Canva-Muster), auch gespiegelt', () => {
     const { node, tr } = setup({ x: 300, y: 300, scaleX: -1 });
