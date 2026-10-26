@@ -8,6 +8,7 @@
  */
 
 import { ILLUSTRATION_TARGET_SIZE } from './motifSizes';
+import { PATH_OFFSETS, PATH_VIEWBOX } from './shapeTransform';
 
 import type { ChartInstance } from './chartUtils';
 import type { FrameInstance } from './frameUtils';
@@ -17,13 +18,20 @@ import type { UserImageInstance } from './userImageUtils';
 import type { RenderedBox } from '../hooks/useBoxSnap';
 
 export function shapeBox(shape: ShapeInstance): RenderedBox {
+  // Pfad-Formen sitzen auf ihrem `PATH_OFFSETS`-Punkt im 100er-Raster — bei
+  // Wolke, Sprechblasen, Berg nicht in der Mitte. Gespiegelt wandert er mit.
+  const offset = (PATH_OFFSETS as Partial<Record<ShapeInstance['type'], { x: number; y: number }>>)[
+    shape.type
+  ];
+  const fx = offset ? offset.x / PATH_VIEWBOX : 0.5;
+  const fy = offset ? offset.y / PATH_VIEWBOX : 0.5;
   return {
     x: shape.x,
     y: shape.y,
     width: shape.width * Math.abs(shape.scaleX),
     height: shape.height * Math.abs(shape.scaleY),
     rotation: shape.rotation,
-    pivot: 'centre',
+    pivot: { x: shape.flipX ? 1 - fx : fx, y: shape.flipY ? 1 - fy : fy },
   };
 }
 

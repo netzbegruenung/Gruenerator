@@ -363,10 +363,17 @@ export function createBoxFrame(): NodeFrame {
 }
 
 /**
+ * Wo in der Box der Knotenursprung liegt: oben links, in der Mitte, oder als
+ * Bruchteil von Breite und Höhe (Pfad-Formen sitzen auf `PATH_OFFSETS`).
+ */
+export type BoxPivot = 'top-left' | 'centre' | { x: number; y: number };
+
+/**
  * Beschreibt `frame` als Box aus bekannten Props neu (kein `getClientRect`, kein
  * Baumdurchlauf). `width`/`height` sind die gerenderten (schon skalierten) Masse;
- * gedreht wird um den Knotenursprung — oben links (`top-left`) oder die Mitte
- * (`centre`). Eine Spiegelung ändert die Box nicht und bleibt deshalb draussen.
+ * gedreht wird um den Knotenursprung (`pivot`). Eine Spiegelung um die Mitte
+ * ändert die Box nicht; bei einem Ursprung ausserhalb der Mitte spiegelt der
+ * Aufrufer den Bruchteil selbst.
  */
 export function boxFrame(
   frame: NodeFrame,
@@ -375,7 +382,7 @@ export function boxFrame(
   width: number,
   height: number,
   rotation: number,
-  pivot: 'top-left' | 'centre'
+  pivot: BoxPivot
 ): NodeFrame {
   const w = Math.abs(width);
   const h = Math.abs(height);
@@ -386,8 +393,13 @@ export function boxFrame(
   frame.scaleY = 1;
   frame.offsetX = 0;
   frame.offsetY = 0;
-  frame.local.x = pivot === 'centre' ? -w / 2 : 0;
-  frame.local.y = pivot === 'centre' ? -h / 2 : 0;
+  if (typeof pivot === 'object') {
+    frame.local.x = -pivot.x * w;
+    frame.local.y = -pivot.y * h;
+  } else {
+    frame.local.x = pivot === 'centre' ? -w / 2 : 0;
+    frame.local.y = pivot === 'centre' ? -h / 2 : 0;
+  }
   frame.local.width = w;
   frame.local.height = h;
   return frame;

@@ -8,7 +8,7 @@
  * React-Zustand — die Hilfslinien schreibt `useSnapScheduler` einmal je Bild.
  */
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 
 import { isGroupDrag } from '../utils/multiSelect';
 import { boxFrame, createBoxFrame, frameBounds, snapByBounds } from '../utils/snapping';
@@ -16,7 +16,7 @@ import { boxFrame, createBoxFrame, frameBounds, snapByBounds } from '../utils/sn
 import { useGeometryReporter, type GeometryReporter } from './useGeometryReporter';
 import { useSnapScheduler } from './useSnapScheduler';
 
-import type { SnapLine, SnapTarget } from '../utils/snapping';
+import type { BoxPivot, SnapLine, SnapTarget } from '../utils/snapping';
 import type Konva from 'konva';
 
 export interface BoxSnapOptions {
@@ -39,7 +39,7 @@ export interface RenderedBox {
   width: number;
   height: number;
   rotation: number;
-  pivot: 'top-left' | 'centre';
+  pivot: BoxPivot;
 }
 
 // Einmal je Modul: die Rechnung liest den Rahmen sofort wieder aus.
@@ -55,7 +55,11 @@ export function useBoxSnap(options: BoxSnapOptions, box: RenderedBox) {
   const { hysteresis, scheduleSnap } = snap;
 
   const reportGeometry = useGeometryReporter(id, onGeometryChange);
-  const { x, y, width, height, rotation, pivot } = box;
+  const { x, y, width, height, rotation } = box;
+  // Als zwei Zahlen: ein Objekt wäre bei jedem Render neu und risse Effekt und Zug-Handler mit.
+  const ax = box.pivot === 'centre' ? 0.5 : box.pivot === 'top-left' ? 0 : box.pivot.x;
+  const ay = box.pivot === 'centre' ? 0.5 : box.pivot === 'top-left' ? 0 : box.pivot.y;
+  const pivot = useMemo(() => ({ x: ax, y: ay }), [ax, ay]);
   useEffect(() => {
     const bounds = frameBounds(boxFrame(dragFrame, x, y, width, height, rotation, pivot));
     reportGeometry(bounds.x, bounds.y, bounds.width, bounds.height);

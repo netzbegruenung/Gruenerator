@@ -1,6 +1,8 @@
+import Konva from 'konva';
 import { describe, expect, it } from 'vitest';
 
 import { chartBox, frameBox, illustrationBox, shapeBox, userImageBox } from './renderedBoxes';
+import { PATH_OFFSETS, PATH_VIEWBOX } from './shapeTransform';
 import { boxFrame, createBoxFrame, frameBounds, snapByBounds, type SnapTarget } from './snapping';
 
 import type { ChartInstance } from './chartUtils';
@@ -57,5 +59,40 @@ describe('gerenderte Box je Elementart, 90° gedreht', () => {
     const box = illustrationBox(ill as IllustrationInstance);
     expect(box.pivot).toBe('centre');
     snapsRightEdgeOnto600({ ...box, rotation: 45 });
+  });
+});
+
+describe('Pfad-Formen mit Ursprung ausserhalb der Mitte', () => {
+  // So legt ShapePrimitive eine Pfad-Form an: 100er-Raster, Ursprung auf PATH_OFFSETS,
+  // Skala = Grösse / 100, gespiegelt mit negativer Skala.
+  const rendered = (type: 'mountain' | 'speech-round', flipY: boolean, rotation: number) => {
+    const offset = PATH_OFFSETS[type];
+    const node = new Konva.Rect({
+      x: 300,
+      y: 200,
+      width: PATH_VIEWBOX,
+      height: PATH_VIEWBOX,
+      offsetX: offset.x,
+      offsetY: offset.y,
+      scaleX: 200 / PATH_VIEWBOX,
+      scaleY: ((flipY ? -1 : 1) * 160) / PATH_VIEWBOX,
+      rotation,
+    });
+    return node.getClientRect({ skipStroke: true, skipShadow: true });
+  };
+
+  it.each([
+    ['mountain', false, 0],
+    ['mountain', true, 0],
+    ['speech-round', false, 30],
+    ['speech-round', true, 90],
+  ] as const)('%s, gespiegelt %s, %s°: Snap-Box = gezeichnete Box', (type, flipY, rotation) => {
+    const shape = { type, x: 300, y: 200, width: 200, height: 160, scaleX: 1, scaleY: 1, rotation, flipY };
+    const box = frameBounds(frameOf(shapeBox(shape as ShapeInstance)));
+    const want = rendered(type, flipY, rotation);
+    expect(box.x).toBeCloseTo(want.x, 6);
+    expect(box.y).toBeCloseTo(want.y, 6);
+    expect(box.width).toBeCloseTo(want.width, 6);
+    expect(box.height).toBeCloseTo(want.height, 6);
   });
 });

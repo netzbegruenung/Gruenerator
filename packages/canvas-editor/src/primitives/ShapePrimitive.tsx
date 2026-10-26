@@ -30,7 +30,13 @@ import {
   STROKE_ONLY_SHAPES,
   type ShapeInstance,
 } from '../utils/shapes';
-import { PATH_VIEWBOX, resizedShapeSize, shapeNodeScale } from '../utils/shapeTransform';
+import {
+  PATH_OFFSETS,
+  PATH_VIEWBOX,
+  resizedShapeSize,
+  shapeNodeScale,
+  type PathShapeType,
+} from '../utils/shapeTransform';
 
 import type Konva from 'konva';
 
@@ -42,43 +48,6 @@ interface ShapePrimitiveProps extends SnapProps {
   draggable?: boolean;
 }
 
-/** Subset of ShapeType rendered via Konva.Path with a hand-tuned SVG path. */
-type PathShapeType =
-  | 'arrow'
-  | 'arrow-curved'
-  | 'heart'
-  | 'cloud'
-  | 'chevron'
-  | 'double-arrow'
-  | 'wavy'
-  | 'speech-round'
-  | 'speech-rect'
-  | 'speech-cloud'
-  | 'speech-pointed'
-  | 'cloud-fluffy'
-  | 'cloud-puff'
-  | 'cloud-thin'
-  | 'heart-broken'
-  | 'heart-double'
-  | 'heart-arrow'
-  | 'drop'
-  | 'drop-pin'
-  | 'drop-tear'
-  | 'drop-flame'
-  | 'banner-ribbon'
-  | 'banner-flag'
-  | 'banner-tag'
-  | 'banner-scroll'
-  | 'gear'
-  | 'plus'
-  | 'minus'
-  | 'x-mark'
-  | 'tree'
-  | 'mountain'
-  | 'blob-2'
-  | 'checkmark'
-  | 'blob'
-  | 'leaf';
 
 const SHAPE_PATHS: Record<PathShapeType, string> = {
   arrow: 'M0,20 L50,20 L50,0 L100,50 L50,100 L50,80 L0,80 Z',
@@ -132,43 +101,6 @@ const SHAPE_PATHS: Record<PathShapeType, string> = {
 
 const isPathShape = (type: ShapeInstance['type']): type is PathShapeType => type in SHAPE_PATHS;
 
-const PATH_OFFSETS: Record<PathShapeType, { x: number; y: number }> = {
-  arrow: { x: 50, y: 50 },
-  heart: { x: 50, y: 50 },
-  cloud: { x: 50, y: 40 },
-  chevron: { x: 50, y: 50 },
-  'double-arrow': { x: 50, y: 50 },
-  wavy: { x: 50, y: 50 },
-  'speech-round': { x: 50, y: 45 },
-  'speech-rect': { x: 50, y: 45 },
-  'speech-cloud': { x: 50, y: 45 },
-  'speech-pointed': { x: 50, y: 45 },
-  'cloud-fluffy': { x: 50, y: 50 },
-  'heart-broken': { x: 50, y: 50 },
-  'heart-double': { x: 50, y: 40 },
-  drop: { x: 50, y: 50 },
-  'banner-ribbon': { x: 50, y: 50 },
-  'banner-flag': { x: 50, y: 50 },
-  gear: { x: 50, y: 50 },
-  plus: { x: 50, y: 50 },
-  checkmark: { x: 50, y: 50 },
-  blob: { x: 50, y: 50 },
-  'blob-2': { x: 50, y: 50 },
-  leaf: { x: 50, y: 50 },
-  'arrow-curved': { x: 50, y: 50 },
-  'cloud-puff': { x: 50, y: 50 },
-  'cloud-thin': { x: 50, y: 50 },
-  'heart-arrow': { x: 50, y: 50 },
-  'drop-pin': { x: 50, y: 50 },
-  'drop-tear': { x: 50, y: 50 },
-  'drop-flame': { x: 50, y: 50 },
-  'banner-tag': { x: 50, y: 50 },
-  'banner-scroll': { x: 50, y: 50 },
-  tree: { x: 50, y: 50 },
-  mountain: { x: 50, y: 60 },
-  minus: { x: 50, y: 50 },
-  'x-mark': { x: 50, y: 50 },
-};
 
 interface CommonShapeProps {
   x: number;
