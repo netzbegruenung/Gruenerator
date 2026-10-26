@@ -17,6 +17,7 @@ import { enableFreeze } from 'react-native-screens';
 import { AiConsentGate } from '../components/auth/AiConsentGate';
 import { LocaleGate } from '../components/auth/LocaleGate';
 import { SharepicRenderHost } from '../components/chat/SharepicRenderHost';
+import { AppUpdateBanner } from '../components/common/AppUpdateBanner';
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import { NoticeToast } from '../components/common/NoticeToast';
 import { AppDrawer } from '../components/navigation';
@@ -291,6 +292,9 @@ function RootLayout() {
                 {user ? <SharepicRenderHost /> : null}
                 {/* Hinweise aus dem Chat-Paket (notifyError/notifyWarning), über
                     jedem Bildschirm — die App hat kein sonner (#3996). */}
+                {/* Neustart anbieten, sobald ein OTA-Update geladen ist. Vor
+                    NoticeToast, damit ein Hinweis darüber liegt. */}
+                <AppUpdateBanner />
                 <NoticeToast />
                 {/* Art.-9-Einwilligung. Ganz zuletzt und über allem, damit sie
                     auch über dem Einstellungen-Sheet steht — ein Widerruf dort

@@ -25,7 +25,13 @@ function fakeClient(stored: Record<string, Record<string, unknown>>) {
   };
   return {
     client,
-    tracker: new GoneTracker(client as unknown as QdrantClient, 'gruene_de_documents'),
+    tracker: new GoneTracker(
+      {
+        readClient: () => client as unknown as QdrantClient,
+        writeClient: () => client as unknown as QdrantClient,
+      },
+      'gruene_de_documents'
+    ),
   };
 }
 
@@ -116,5 +122,27 @@ describe('GoneTracker — Schutzschalter und Fehler', () => {
     await expect(tracker.rejected(PAGE, new HttpStatusError(404))).resolves.toBeUndefined();
     expect(tracker.failures).toHaveLength(1);
     expect(tracker.skipReasons.gone_marked).toBeUndefined();
+  });
+});
+
+describe('GoneTracker — Client je Aufruf', () => {
+  it('fragt den Client bei jedem Zugriff neu ab, statt ihn für den ganzen Lauf zu halten', async () => {
+    const first = fakeClient({}).client;
+    const second = fakeClient({}).client;
+    let current = first;
+    const tracker = new GoneTracker(
+      {
+        readClient: () => current as unknown as QdrantClient,
+        writeClient: () => current as unknown as QdrantClient,
+      },
+      'gruene_de_documents'
+    );
+
+    await tracker.clear(PAGE);
+    current = second;
+    await tracker.clear(PAGE);
+
+    expect(first.deletePayload).toHaveBeenCalledTimes(1);
+    expect(second.deletePayload).toHaveBeenCalledTimes(1);
   });
 });

@@ -6,7 +6,7 @@
  */
 
 // Main class
-export { QdrantOperations, default } from './QdrantOperations.js';
+export { QdrantOperations, default, type QdrantClientResolver } from './QdrantOperations.js';
 
 // Types
 export type {

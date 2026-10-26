@@ -85,8 +85,7 @@ async function main(): Promise<void> {
   useQdrantConnectOnly();
   const qdrant = getQdrantInstance();
   await qdrant.init();
-  const client = qdrant.client;
-  if (!client) throw new Error('Qdrant client not initialised — check QDRANT_URL');
+  const client = qdrant.readClient(COLLECTION);
 
   const info = await client.getCollection(COLLECTION);
   const vectors = (info.config?.params as { vectors?: { size?: number } } | undefined)?.vectors;
