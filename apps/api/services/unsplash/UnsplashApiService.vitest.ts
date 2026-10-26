@@ -125,3 +125,47 @@ describe('UnsplashApiService.searchPhotos rate limit', () => {
     expect(error).not.toBeInstanceOf(UnsplashRateLimitError);
   });
 });
+
+describe('UnsplashApiService.searchPhotos attribution', () => {
+  const service = new UnsplashApiService('key');
+  const photoBy = (instagram_username: string | null) => ({
+    id: 'abc',
+    alt_description: 'Wald',
+    urls: { regular: 'https://images.unsplash.com/x' },
+    links: { html: 'https://unsplash.com/photos/abc', download_location: VALID },
+    user: {
+      username: 'jane-doe',
+      name: 'Jane Doe',
+      instagram_username,
+      links: { html: 'https://unsplash.com/@jane-doe' },
+    },
+  });
+  const search = async (instagram: string | null) => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify({ total: 1, total_pages: 1, results: [photoBy(instagram)] }))
+        )
+    );
+    const { results } = await service.searchPhotos(`wald-${instagram}`);
+    return results[0]!.attribution;
+  };
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    service.clearCache();
+  });
+
+  it('links the profile with the referral UTM parameters', async () => {
+    expect((await search(null)).profileUrl).toBe(
+      'https://unsplash.com/@jane-doe?utm_source=gruenerator&utm_medium=referral'
+    );
+  });
+
+  it('keeps the Instagram handle for the post credit, without the @', async () => {
+    expect((await search('@janedoe')).instagramUsername).toBe('janedoe');
+    expect(await search(null)).not.toHaveProperty('instagramUsername');
+  });
+});

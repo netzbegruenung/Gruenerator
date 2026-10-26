@@ -72,6 +72,7 @@ export {
   trackUnsplashDownloadLive,
 } from './image-source-service.js';
 
+export { photoCreditLine, withPhotoCredit } from './photoCredit.js';
 export { useUnsplashSearch } from './hooks/useUnsplashSearch.js';
 export type { UnsplashSearchFn, UseUnsplashSearchReturn } from './hooks/useUnsplashSearch.js';
 

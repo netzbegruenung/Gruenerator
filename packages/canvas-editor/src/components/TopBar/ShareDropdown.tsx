@@ -1,4 +1,5 @@
 import { pickShareRoute, shareDataUrlViaNativeHost } from '@gruenerator/shared';
+import { withPhotoCredit } from '@gruenerator/shared/image-studio';
 import { shareApi } from '@gruenerator/shared/share';
 import {
   Popover,
@@ -12,7 +13,7 @@ import {
   canRequestFeedback,
   requestFeedback,
 } from '@gruenerator/ui';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { FaCheck, FaDownload, FaSave, FaUserPlus } from 'react-icons/fa';
 import { IoShareOutline } from 'react-icons/io5';
 import { PiArrowLeft, PiMegaphone } from 'react-icons/pi';
@@ -69,6 +70,13 @@ export interface ShareDropdownProps {
    * controlled from outside and hangs from the top right of the editor.
    */
   hostControl?: { open: boolean; onOpenChange: (open: boolean) => void };
+  /**
+   * Bildnachweis aller Seiten („Foto: … auf Unsplash"), gelesen beim Öffnen.
+   * Unsplash verlangt ihn im Beitragstext: er wird an den geteilten Text
+   * gehängt und zum Kopieren angezeigt, weil Instagram & Co. den Text eines
+   * geteilten Bilds verwerfen.
+   */
+  getPhotoCredit?: () => string;
 }
 
 export function ShareDropdown({
@@ -91,6 +99,7 @@ export function ShareDropdown({
   onInvitePeople,
   onSaveAsTemplate,
   hostControl,
+  getPhotoCredit,
 }: ShareDropdownProps) {
   const isMobile = useIsCanvasMobile();
   const [ownOpen, setOwnOpen] = useState(false);
@@ -99,6 +108,12 @@ export function ShareDropdown({
   const [view, setView] = useState<'main' | 'download'>('main');
   const [isSharing, setIsSharing] = useState(false);
   const [shareSuccess, setShareSuccess] = useState(false);
+  const [creditCopied, setCreditCopied] = useState(false);
+  const photoCredit = useMemo(
+    () => (open && getPhotoCredit ? getPhotoCredit() : ''),
+    [open, getPhotoCredit]
+  );
+  const shareText = withPhotoCredit(canvasText, photoCredit);
 
   const autoSaveStoreApi = useAutoSaveStoreApi();
   const shareRoute = pickShareRoute();
@@ -122,16 +137,16 @@ export function ShareDropdown({
       if (shareRoute === 'native-host') {
         shareDataUrlViaNativeHost(dataUrl, 'gruenerator.png', {
           title: 'Grünerator Share',
-          text: canvasText,
+          text: shareText,
         });
       } else {
         const blob = await (await fetch(dataUrl)).blob();
         const file = new File([blob], 'gruenerator.png', { type: 'image/png' });
 
         if (navigator.canShare?.({ files: [file] })) {
-          await navigator.share({ files: [file], text: canvasText, title: 'Grünerator Share' });
+          await navigator.share({ files: [file], text: shareText, title: 'Grünerator Share' });
         } else {
-          await navigator.share({ text: canvasText, title: 'Grünerator Share' });
+          await navigator.share({ text: shareText, title: 'Grünerator Share' });
         }
       }
       void publishDraftIfNeeded();
@@ -142,7 +157,7 @@ export function ShareDropdown({
     } finally {
       setIsSharing(false);
     }
-  }, [onCaptureCanvas, canvasText, publishDraftIfNeeded, shareRoute]);
+  }, [onCaptureCanvas, shareText, publishDraftIfNeeded, shareRoute]);
 
   return (
     <Popover
@@ -264,6 +279,30 @@ export function ShareDropdown({
               )}
             </IconButtonRow>
           </>
+        )}
+        {photoCredit && (
+          <div className="mx-4 mb-4 flex flex-col gap-2 rounded-md border border-[var(--editor-border-soft)] p-3">
+            <p className="m-0 text-xs font-semibold text-foreground">
+              Bildnachweis für deinen Beitrag
+            </p>
+            <p className="m-0 text-xs text-muted-foreground">
+              Das Foto gehört nicht dir: Nenne die Fotograf*in und Unsplash im Beitragstext.
+            </p>
+            <p className="m-0 select-all text-sm text-foreground">{photoCredit}</p>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                void navigator.clipboard.writeText(photoCredit).then(() => {
+                  setCreditCopied(true);
+                  setTimeout(() => setCreditCopied(false), 2000);
+                });
+              }}
+            >
+              {creditCopied ? <FaCheck className="size-3" /> : null}
+              {creditCopied ? 'Kopiert' : 'Bildnachweis kopieren'}
+            </Button>
+          </div>
         )}
       </PopoverContent>
     </Popover>

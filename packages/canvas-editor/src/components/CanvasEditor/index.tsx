@@ -29,6 +29,7 @@ import {
   pickShareRoute,
   shareDataUrlViaNativeHost,
 } from '@gruenerator/shared';
+import { photoCreditLine } from '@gruenerator/shared/image-studio';
 import { Skeleton } from '@gruenerator/ui';
 import Konva from 'konva';
 import React, {
@@ -86,6 +87,7 @@ import { AutoSaveStoreProvider } from '../../stores/useAutoSaveStore';
 import { cn } from '../../utils/cn';
 import { collectAltTextPages as collectCapturedAltTextPages } from '../../utils/collectAltTextPages';
 import { ensureFontsReady } from '../../utils/ensureFontsReady';
+import { pagePhotoCredits } from '../../utils/photoCredits';
 import { getCategoryForTemplate } from '../../utils/templateRegistry';
 import { CanvasContextMenu } from '../CanvasContextMenu/CanvasContextMenu';
 import { CanvasPageSkeleton, CanvasTabRailSkeleton } from '../CanvasEditorSkeleton';
@@ -1182,8 +1184,13 @@ function CanvasEditorInner({
   // Als String, damit Notiz-Tippen (neues `pages`) die Leiste nicht neu baut
   const deckLocale = impressumLocaleOf(pages[0] ?? null);
   const noop = useCallback(() => {}, []);
+  const getPhotoCredit = useCallback(
+    () => photoCreditLine(serializeDeck(pagesDoc).flatMap((page) => pagePhotoCredits(page.state))),
+    [pagesDoc]
+  );
   const toolbarShareProps = useMemo(
     () => ({
+      getPhotoCredit,
       onCaptureCanvas: handleCaptureCanvas,
       onDownload: handleDownload,
       onNavigateToGallery: noop,
@@ -1217,6 +1224,7 @@ function CanvasEditorInner({
         : null,
     }),
     [
+      getPhotoCredit,
       isSlideDeck,
       handleDownloadSlidesPdf,
       handleDownloadPptx,
