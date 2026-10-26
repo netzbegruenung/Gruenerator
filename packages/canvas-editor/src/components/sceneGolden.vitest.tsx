@@ -302,13 +302,15 @@ describe('editor scene golden, every element kind', () => {
   beforeAll(async () => {
     const { Image, createCanvas } = await import('@napi-rs/canvas');
     const png = createCanvas(4, 4).toBuffer('image/png');
-    class LoadedImage extends Image {
-      get src(): string {
-        return 'loaded';
-      }
-      set src(_url: string) {
-        super.src = png;
-      }
+    const setSrc = Object.getOwnPropertyDescriptor(Image.prototype, 'src')?.set;
+    function LoadedImage() {
+      const image = new Image();
+      // Whatever URL the primitive asks for, the bitmap arrives.
+      Object.defineProperty(image, 'src', {
+        get: () => 'loaded',
+        set: () => setSrc?.call(image, png),
+      });
+      return image;
     }
     window.Image = LoadedImage as unknown as typeof window.Image;
     // Konva caches filtered images on a jsdom canvas the napi context rejects.
