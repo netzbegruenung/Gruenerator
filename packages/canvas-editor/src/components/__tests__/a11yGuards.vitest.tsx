@@ -150,7 +150,14 @@ describe('MobileSelectionPill (axe)', () => {
       <MobileSelectionPill
         measureKey="a"
         zoom={1}
-        getBox={() => ({ left: 100, top: 300, width: 80, height: 60 })}
+        getBox={() => ({
+          left: 100,
+          top: 300,
+          width: 80,
+          height: 60,
+          visible: { left: 0, top: 52, right: 390, bottom: 600 },
+          rotaters: [],
+        })}
         subscribeManipulation={() => () => {}}
         canDuplicate
         canDelete
