@@ -244,7 +244,7 @@ export const reisekostenServerStateSchema = reisekostenStateSchema.extend({
 export const abrechnungStatusSchema = z.enum(['entwurf', 'eingereicht']);
 
 export const abrechnungSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().guid(),
   slug: z.string(),
   titel: z.string(),
   status: abrechnungStatusSchema,

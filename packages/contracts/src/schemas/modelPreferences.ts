@@ -28,7 +28,7 @@ export const modelPreferenceSchema = z.object({
   enabled: z.boolean(),
 });
 
-export const modelPreferencesMapSchema = z.record(modelPreferenceSchema);
+export const modelPreferencesMapSchema = z.record(z.string(), modelPreferenceSchema);
 
 export const modelPreferencesResponseSchema = z.object({
   success: z.boolean(),

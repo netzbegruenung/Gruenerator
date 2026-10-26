@@ -32,7 +32,7 @@ export const keycloakUserSchema = z.object({
   enabled: z.boolean(),
   emailVerified: z.boolean(),
   federatedIdentities: z.array(federatedIdentitySchema).optional(),
-  attributes: z.record(z.array(z.string())).optional(),
+  attributes: z.record(z.string(), z.array(z.string())).optional(),
   createdTimestamp: z.number().optional(),
 });
 

@@ -161,7 +161,7 @@ export const NACHPRUEFUNG_JSON_SCHEMA: Record<string, unknown> = {
   required: ['punkte', 'neue_befunde'],
 };
 
-function viaZod<T>(schema: z.ZodType<T, z.ZodTypeDef, unknown>) {
+function viaZod<T>(schema: z.ZodType<T, unknown>) {
   return (input: unknown): StructuredValidation<T> => {
     const parsed = schema.safeParse(input);
     return parsed.success

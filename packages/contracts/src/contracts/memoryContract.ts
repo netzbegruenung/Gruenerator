@@ -60,7 +60,7 @@ export const memoryContract = c.router(
     update: {
       method: 'PATCH',
       path: '/api/memory/:id',
-      pathParams: z.object({ id: z.string().uuid() }),
+      pathParams: z.object({ id: z.string().guid() }),
       body: updateMemoryBodySchema,
       responses: {
         200: memoryItemResponseSchema,
@@ -74,7 +74,7 @@ export const memoryContract = c.router(
     remove: {
       method: 'DELETE',
       path: '/api/memory/:id',
-      pathParams: z.object({ id: z.string().uuid() }),
+      pathParams: z.object({ id: z.string().guid() }),
       body: z.object({}),
       responses: {
         200: memoryOkResponseSchema,

@@ -10,7 +10,7 @@ import { z } from 'zod';
 // ── Request bodies ──────────────────────────────────────────────────────────
 
 export const renderBodySchema = z.object({
-  design: z.record(z.unknown()),
+  design: z.record(z.string(), z.unknown()),
   options: z
     .object({
       fps: z.number().nullish(),
