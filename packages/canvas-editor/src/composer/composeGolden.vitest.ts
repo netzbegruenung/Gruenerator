@@ -90,6 +90,41 @@ const GOLDEN_ONLY: Record<string, SharepicSpec> = {
       logo: false,
     })),
   },
+  // A header band over a card, and a comparison split edge to edge: no
+  // fixture has either.
+  kopfbandUndSpalten: {
+    locale: 'de-DE',
+    slides: [
+      {
+        background: { kind: 'farbe', color: 'mint', kopfband: 'dunkeltanne' },
+        position: 'unten',
+        align: 'links',
+        items: [
+          { type: 'headline', lines: ['==Die größten==', 'Vermögen besteuern.'] },
+          {
+            type: 'liste',
+            stil: 'kasten',
+            items: ['++fast 7 Jahre++ das Ticket', '++82×++ Debakel'],
+          },
+        ],
+        logo: true,
+      },
+      {
+        background: { kind: 'farbe', color: 'weiss' },
+        position: 'unten',
+        align: 'links',
+        items: [
+          {
+            type: 'vergleich',
+            stil: 'spalten',
+            links: { titel: 'Ihr Plan', punkte: ['teuer', 'kurz'] },
+            rechts: { titel: 'Unser Plan', punkte: ['bezahlbar', 'dauerhaft'] },
+          },
+        ],
+        logo: true,
+      },
+    ],
+  },
 };
 // Ground sweep: every slide with an ink that depends on its ground (topic
 // badges, the ghost numeral, countdown digits, hand marks), set again on a
