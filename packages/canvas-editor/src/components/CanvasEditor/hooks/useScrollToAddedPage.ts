@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
 
+import { scrollBehavior } from '../../../utils/scrollBehavior';
+
 import type React from 'react';
 
 interface UseScrollToAddedPageParams {
@@ -34,7 +36,7 @@ export function useScrollToAddedPage({
     if (!lengthIncreased || !indexChanged) return undefined;
     const target = pageDomRefsRef.current[currentPageIndex];
     const t = setTimeout(() => {
-      target?.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target?.current?.scrollIntoView({ behavior: scrollBehavior(), block: 'center' });
     }, 60);
     return () => clearTimeout(t);
   }, [pagesLength, currentPageIndex, pageDomRefsRef]);

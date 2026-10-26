@@ -311,6 +311,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Ein Rezept ist eine Schreibvorgabe für eine bestimmte Textsorte: Aufbau, Ton und Länge, einmal festgelegt und danach per @mention auf jeden Agenten anwendbar. Anders als ein Agent ist ein Rezept kein…"
   },
   {
+    "url": "/docs/guides/fortgeschrittene/formulare-mit-tally-und-typeform",
+    "title": "Vom Chat zum Formular: Tally und Typeform mit dem Grünerator nutzen",
+    "category": "Guides",
+    "lead": "Eine Anmeldung fürs Sommerfest, eine Workshop-Abfrage oder ein kurzes Feedbackformular: Beschreibe im Grünerator, was du brauchst, und lass den verbundenen Formulardienst einen Entwurf anlegen. Ansch…"
+  },
+  {
     "url": "/docs/guides/fortgeschrittene/gruene-wolke-einbinden",
     "title": "Wie binde ich die Grüne Wolke ein?",
     "category": "Guides",
@@ -327,6 +333,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "title": "Wie richte ich Konnektoren für den Chat ein?",
     "category": "Guides",
     "lead": "Mit Konnektoren kann der Grünerator-Chat Werkzeuge externer Dienste verwenden – etwa eine Seite in Notion anlegen oder Daten aus einem verbundenen Dienst abrufen."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/sally-meetings-transkribieren",
+    "title": "Von der Videokonferenz zum Protokoll: Sally mit dem Grünerator nutzen",
+    "category": "Guides",
+    "lead": "Die Sitzung ist vorbei – aber das Protokoll und die Aufgabenliste fehlen noch? Sally übernimmt die Aufzeichnung und Transkription. Im Grünerator verarbeitest du die Gesprächsinhalte weiter, etwa zu e…"
   },
   {
     "url": "/docs/guides/landesverbaende/landesverband-einrichten",
@@ -433,7 +445,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Barrierefreiheit",
     "anchor": "",
     "category": "Basics",
-    "text": "Diese Seite sagt, wie barrierefrei der Grünerator heute ist — einschließlich der Stellen, an denen er es noch nicht ist. Eine geschönte Liste hilft niemandem: Wer auf eine Barriere stößt, die hier nicht steht, verliert Zeit mit der Frage, ob es an ihm liegt. Stand: 6. September 2026."
+    "text": "Diese Seite sagt, wie barrierefrei der Grünerator heute ist — einschließlich der Stellen, an denen er es noch nicht ist. Eine geschönte Liste hilft niemandem: Wer auf eine Barriere stößt, die hier nicht steht, verliert Zeit mit der Frage, ob es an ihm liegt. Stand: 26. Oktober 2026."
   },
   {
     "url": "/docs/basics/barrierefreiheit",
@@ -441,7 +453,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Der aktuelle Stand: teilweise konform",
     "anchor": "#der-aktuelle-stand-teilweise-konform",
     "category": "Basics",
-    "text": "Behoben und nachgemessen sind unter anderem: Die eingeklappte Hauptnavigation. Sie war mit Screenreader unbenutzbar — die Beschriftungen der Knöpfe waren nicht nur unsichtbar, sondern vollständig aus der Vorlesereihenfolge entfernt. Das war mit Abstand die schwerste Barriere. Die Tastaturfalle im Untertitel-Werkzeug. Die Tabulatortaste kam aus der Segmentliste nicht mehr heraus. Jetzt wechseln die Pfeiltasten das Segment, und Tab bleibt Tab. Aufgabenkarten auf Boards haben einen echten Ziehgriff, der per Tastatur bedienbar ist. Ziehen mit der Maus funktioniert weiter auf der ganzen Karte. Weißer Text auf den Markenfarben erreichte den geforderten Kontrast nicht. Das betraf den Marken-Button und alle Abzeichen in Eukalyptus-Grün. Graue Textstufen erreichen jetzt in hellem wie dunklem Modus die geforderten 4,5:1. Die Initialen im Avatar (sichtbar, solange kein Bild hinterlegt ist) standen weiß auf einem Grün mit 3,73:1. Sie erreichen jetzt 7,24:1. Rund 300 Bedienelemente der Mobil-App hatten keinen vorlesbaren Namen — mit Screenreader hörte man nur „Schaltfläche\", ohne zu erfahren, welche. Alle haben jetzt einen."
+    "text": "Behoben und nachgemessen sind unter anderem: Die eingeklappte Hauptnavigation. Sie war mit Screenreader unbenutzbar — die Beschriftungen der Knöpfe waren nicht nur unsichtbar, sondern vollständig aus der Vorlesereihenfolge entfernt. Das war mit Abstand die schwerste Barriere. Die Tastaturfalle im Untertitel-Werkzeug. Die Tabulatortaste kam aus der Segmentliste nicht mehr heraus. Jetzt wechseln die Pfeiltasten das Segment, und Tab bleibt Tab. Aufgabenkarten auf Boards haben einen echten Ziehgriff, der per Tastatur bedienbar ist. Ziehen mit der Maus funktioniert weiter auf der ganzen Karte. Weißer Text auf den Markenfarben erreichte den geforderten Kontrast nicht. Das betraf den Marken-Button und alle Abzeichen in Eukalyptus-Grün. Graue Textstufen erreichen jetzt in hellem wie dunklem Modus die geforderten 4,5:1. Die Initialen im Avatar (sichtbar, solange kein Bild hinterlegt ist) standen weiß auf einem Grün mit 3,73:1. Sie erreichen jetzt 7,24:1. Rund 300 Bedienelemente der Mobil-App hatten keinen vorlesbaren Namen — mit Screenreader hörte man nur „Schaltfläche\", ohne zu erfahren, welche. Alle haben jetzt einen. Der Sharepic- und Canvas-Editor ist ohne Maus bedienbar, siehe den…"
   },
   {
     "url": "/docs/basics/barrierefreiheit",
@@ -478,10 +490,18 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/basics/barrierefreiheit",
     "pageTitle": "Barrierefreiheit",
+    "heading": "Sharepic- und Canvas-Editor",
+    "anchor": "#sharepic--und-canvas-editor",
+    "category": "Basics",
+    "text": "Der Editor zeichnet seine Fläche auf eine Leinwand. Damit er trotzdem ohne Maus und mit Screenreader nutzbar ist, gibt es zu allem Sichtbaren einen Zwilling im Bedienbaum. Was per Tastatur geht: Sprunglink „Zu den Ebenen\": Er ist per Tab erreichbar (nach der Chatliste und dem Feedback-Knopf) und öffnet die Ebenen-Liste. Ebenen-Liste: Sie führt alle Elemente der Seite, vorn zuerst. Pfeiltasten, Pos1 und Ende wählen, Leertaste schaltet die Auswahl um, Umschalt erweitert sie. Enter oder F2 bearbeitet den Text beziehungsweise tauscht das Bild eines Rahmens. Textbearbeitung: Der Texteditor trägt einen Namen, Escape schließt ihn, und der Fokus kehrt an die Stelle zurück, an der die Bearbeitung begann. Balken (zum Beispiel im Dreizeiler): Enter oder F2 auf dem Eintrag öffnet die erste Zeile („Zeile 1 bearbeiten\"), Tab springt zur nächsten Zeile, Umschalt+Tab zur vorigen; hinter der letzten Zeile geht der Fokus an den Eintrag zurück. Störer und Badges öffnen ihren Text genauso. Verschieben: Alt+Pfeiltaste schiebt das ausgewählte Element um 1 Einheit, mit zusätzlich Umschalt um 10. Zahlenfelder für Position und Größe sowie Knöpfe zum Drehen und Spiegeln in der Kontextleiste ersetzen das…"
+  },
+  {
+    "url": "/docs/basics/barrierefreiheit",
+    "pageTitle": "Barrierefreiheit",
     "heading": "Tastaturbedienung",
     "anchor": "#tastaturbedienung",
     "category": "Basics",
-    "text": "Der Grünerator ist mit der Tastatur bedienbar. Mit Tab wanderst du vorwärts durch die Bedienelemente, mit Umschalt+Tab zurück, Enter und Leertaste lösen aus, Escape schließt Dialoge. In Listen mit vielen gleichartigen Einträgen — etwa den Segmenten im Untertitel-Werkzeug — wechseln die Pfeiltasten innerhalb der Liste; Tab führt aus der Liste heraus."
+    "text": "Der Grünerator ist weitgehend mit der Tastatur bedienbar, aber nicht überall: Die Fläche des Sharepic- und Canvas-Editors ist ein gezeichnetes Bild, und freies Positionieren mit der Maus hat dort nur Ersatzwege (siehe unten). Mit Tab wanderst du vorwärts durch die Bedienelemente, mit Umschalt+Tab zurück, Enter und Leertaste lösen aus, Escape schließt Dialoge. In Listen mit vielen gleichartigen Einträgen — etwa den Segmenten im Untertitel-Werkzeug — wechseln die Pfeiltasten innerhalb der Liste; Tab führt aus der Liste heraus."
   },
   {
     "url": "/docs/basics/barrierefreiheit",
@@ -489,7 +509,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Was noch nicht erfüllt ist",
     "anchor": "#was-noch-nicht-erfüllt-ist",
     "category": "Basics",
-    "text": "Statusmeldungen werden kaum angesagt. Wenn eine Chat-Antwort beginnt oder endet, ein Werkzeug arbeitet, ein Upload fertig wird oder ein Formular einen Fehler meldet, erfährt ein Screenreader das in den meisten Fällen nicht. Das ist derzeit die größte offene Lücke. Videos haben keine Untertitelspur. Der Grünerator kann Untertitel erzeugen, verlangt sie aber bei eingebetteten Videos nicht. Einzelne Farbpaare liegen weiter unter dem geforderten Wert — bekannt sind ein Blau-auf-Blau-Paar im Bereich Projekte, das weiße Herz-Symbol auf grünem Grund bei gemerkten Vorlagen und Stellen im dunklen Modus, an denen das Primärgrün noch zu wenig Kontrast bietet. Die Seitenstruktur ist uneinheitlich. Nicht jede Seite kennzeichnet ihren Hauptbereich und ihre Navigationsleisten so, dass ein Screenreader direkt dorthin springen kann. Die Mobil-App ist nicht auf einem Gerät geprüft. Die Namen der Bedienelemente sind gesetzt, aber Kontrast, Reihenfolge beim Durchtippen und die tatsächlichen Ansagen von VoiceOver und TalkBack sind ungeprüft. Nicht gemessen wurden bisher: die veröffentlichten Kandidat:innen-Seiten, die Desktop-App und diese Dokumentationsseite selbst."
+    "text": "Statusmeldungen werden kaum angesagt. Wenn eine Chat-Antwort beginnt oder endet, ein Werkzeug arbeitet, ein Upload fertig wird oder ein Formular einen Fehler meldet, erfährt ein Screenreader das in den meisten Fällen nicht. Das ist derzeit die größte offene Lücke. Videos haben keine Untertitelspur. Der Grünerator kann Untertitel erzeugen, verlangt sie aber bei eingebetteten Videos nicht. Einzelne Farbpaare liegen weiter unter dem geforderten Wert — bekannt sind ein Blau-auf-Blau-Paar im Bereich Projekte, das weiße Herz-Symbol auf grünem Grund bei gemerkten Vorlagen und Stellen im dunklen Modus, an denen das Primärgrün noch zu wenig Kontrast bietet. Die Seitenstruktur ist uneinheitlich. Nicht jede Seite kennzeichnet ihren Hauptbereich und ihre Navigationsleisten so, dass ein Screenreader direkt dorthin springen kann. Die Mobil-App ist nicht auf einem Gerät geprüft. Die Namen der Bedienelemente sind gesetzt, aber Kontrast, Reihenfolge beim Durchtippen und die tatsächlichen Ansagen von VoiceOver und TalkBack sind ungeprüft. Der Sharepic- und Canvas-Editor zeigt seine Fläche nur als Bild. Die Fläche ist gezeichnet; ein Screenreader bekommt den Inhalt über die Ebenen-Liste und die…"
   },
   {
     "url": "/docs/basics/barrierefreiheit",
@@ -505,7 +525,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wie geprüft wurde",
     "anchor": "#wie-geprüft-wurde",
     "category": "Basics",
-    "text": "Selbstbewertung, kein externer Test. Konkret: axe-core über 14 Routen der Web-Oberfläche — die Einstiegsseiten der Hauptbereiche — sowie über die Plusmenü-Überlagerung in zwei Fensterbreiten, jede davon in hellem und dunklem Modus. Zuletzt am 13. August 2026. ESLint-Regelsätze (jsx-a11y für das Web, react-native-a11y für die Mobil-App) laufen bei jeder Änderung mit. Komponententests mit axe an den Stellen, an denen ARIA von Hand gesetzt wird. Ein BITV-Test durch eine unabhängige Prüfstelle hat nicht stattgefunden."
+    "text": "Selbstbewertung, kein externer Test. Konkret: axe-core über 14 Routen der Web-Oberfläche — die Einstiegsseiten der Hauptbereiche — sowie über die Plusmenü-Überlagerung in zwei Fensterbreiten, jede davon in hellem und dunklem Modus. Zuletzt am 13. August 2026. ESLint-Regelsätze (jsx-a11y für das Web, react-native-a11y für die Mobil-App) laufen bei jeder Änderung mit. Komponententests mit axe an den Stellen, an denen ARIA von Hand gesetzt wird, auch für den Canvas-Editor (Kontextleiste, Bereichs- und Auswahl-Leisten, Ebenen-Liste, Texteditor). Browser-Test des Canvas-Editors (Playwright, axe und ein Tastatur-Durchlauf: Sprunglink, Ebenen, Text bearbeiten, Löschen, Rückgängig) am 26. Oktober 2026, Desktop und mobile Breite, heller Modus. Ein BITV-Test durch eine unabhängige Prüfstelle hat nicht stattgefunden."
   },
   {
     "url": "/docs/basics/gruenerator-pro-eu",
@@ -2900,6 +2920,78 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "text": "Ein Rezept je Textsorte — mische nicht mehrere Anlässe in eine Anleitung. Keine Fakten oder Namen in die Anleitung — die gibst du beim Aufruf im Chat mit. Kombiniere Rezept + Quelle + Thema im Chat, z. B. @presse @grundsatz Klimaschutz in Kommunen. Schau dir ähnliche Rezepte im Marktplatz an, bevor du eines neu baust — vielleicht reicht ein angepasster Stil eines mitgelieferten Rezepts."
   },
   {
+    "url": "/docs/guides/fortgeschrittene/formulare-mit-tally-und-typeform",
+    "pageTitle": "Vom Chat zum Formular: Tally und Typeform mit dem Grünerator nutzen",
+    "heading": "Vom Chat zum Formular: Tally und Typeform mit dem Grünerator nutzen",
+    "anchor": "",
+    "category": "Guides",
+    "text": "Eine Anmeldung fürs Sommerfest, eine Workshop-Abfrage oder ein kurzes Feedbackformular: Beschreibe im Grünerator, was du brauchst, und lass den verbundenen Formulardienst einen Entwurf anlegen. Anschließend prüfst du das Formular in Tally oder Typeform und passt es an. Dieser Guide zeigt einen fiktiven Anmeldebogen. Die Chat-Screenshots stammen aus echten Durchläufen mit neu angelegten Demo-Formularen. Bestehende Formulare und Antworten wurden dafür nicht ausgewertet. Konnektoren sind experimentell. Ein Auftrag kann mehrere Werkzeugaufrufe und Korrekturen benötigen. Prüfe das Formular selbst, bevor du es veröffentlichst oder den Link teilst. Tally: Der Grünerator hat den Demo-Entwurf und seine Fragen angelegt. Bei Feldregeln war Nacharbeit nötig; die gezeigte Vorschau enthält auch manuelle Korrekturen im Tally-Editor. Typeform: Anmeldung, Konto-/Workspace-Auswahl und Anlage eines leeren Demo-Entwurfs funktionierten. Der weitere Fragenaufbau blieb bei wiederholten Validierungsversuchen hängen und wurde abgebrochen. Ein vollständiges Typeform-Formular aus diesem Chat-Auftrag ist damit noch nicht belegt. Die Typeform-Schritte zeigen den vorgesehenen Weg und die geprüften Freigaben,…"
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/formulare-mit-tally-und-typeform",
+    "pageTitle": "Vom Chat zum Formular: Tally und Typeform mit dem Grünerator nutzen",
+    "heading": "1. Den Formulardienst verbinden",
+    "anchor": "#1-den-formulardienst-verbinden",
+    "category": "Guides",
+    "text": "Öffne im Grünerator Account-Menü → Konnektoren oder Einstellungen → Konnektoren. Suche unter Dienste verbinden nach deinem Anbieter und klicke auf Verbinden. Prüfe im Anmeldefenster, welches Konto du verbindest und welche Berechtigungen angefragt werden. Dienst | Welchen Eintrag wählst du? | Anmeldung | ----------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------ | Tally | Tally | Anmeldung bei Tally; alternativ oder API-Key | Typeform | Typeform für das reguläre Rechenzentrum | Anmeldung bei Typeform | Typeform mit EU-Hosting | Typeform (EU – .com) oder Typeform (EU – .eu) passend zu eurem Konto | Anmeldung bei Typeform | Die beiden EU-Einträge sind nicht austauschbar. EU-Hosting wird durch dein Typeform-Konto bestimmt, nicht durch die Sprache oder deinen Wohnort. Wenn du unsicher bist, kläre das mit eurer Administration oder dem Typeform-Support. Einzelheiten stehen in der Typeform-Anleitung zur MCP-Verbindung. Nach der Anmeldung erscheint der Dienst unter Verbunden. Prüfe Aktiv und klicke auf Testen. Wenn der Dienst schon verbunden ist, reicht diese Prüfung."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/formulare-mit-tally-und-typeform",
+    "pageTitle": "Vom Chat zum Formular: Tally und Typeform mit dem Grünerator nutzen",
+    "heading": "2. Im Chat einen klaren Formularauftrag geben",
+    "anchor": "#2-im-chat-einen-klaren-formularauftrag-geben",
+    "category": "Guides",
+    "text": "Öffne einen neuen Grünerator-Chat, tippe @tally und wähle Tally aus den Vorschlägen. Die Auswahl erscheint als Chip. Für Typeform tippst du @typeform und wählst den tatsächlich verbundenen Eintrag; bei einem EU-Konto trägt auch die Mention den entsprechenden Zusatz. Ein guter Auftrag nennt Titel, Zweck, Felder, Pflichtangaben, Auswahlmöglichkeiten und den gewünschten Status: Erstelle mit @tally ein neues Formular als unveröffentlichten Entwurf mit dem Titel „Demo – Anmeldung zum Sommerfest“. Einleitung: „Fiktives Beispiel für einen Grünerator-Guide.“ Felder: Vorname und E-Mail als Pflichtangaben; Anzahl der teilnehmenden Personen von 1 bis 5 als Pflichtangabe; freiwillige Hilfe mit Aufbau, Infostand und Abbau als optionale Mehrfachauswahl. Dankeseite: „Danke für deine Anmeldung!“ Ändere keine bestehenden Formulare und rufe keine Antworten ab. Nicht veröffentlichen und keine Benachrichtigungen versenden. Zeige mir danach den Bearbeitungslink. Für Typeform: Wähle stattdessen die Typeform-Mention und verwende denselben Formularinhalt. Bei mehreren Konten oder Workspaces gib an, wo das neue Formular entstehen soll. Der Chat kann dafür zunächst Konto- und Workspace-Metadaten abrufen."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/formulare-mit-tally-und-typeform",
+    "pageTitle": "Vom Chat zum Formular: Tally und Typeform mit dem Grünerator nutzen",
+    "heading": "3. Die vorgeschlagenen Aktionen prüfen",
+    "anchor": "#3-die-vorgeschlagenen-aktionen-prüfen",
+    "category": "Guides",
+    "text": "Bevor ein Werkzeug ausgeführt wird, kann der Chat eine Freigabe anzeigen. Öffne Übergabewerte anzeigen und kontrolliere, ob die Aktion zum Auftrag passt. Mit Einmal erlauben erlaubst du genau diesen Aufruf. Ein Formular kann in mehreren Schritten entstehen: erst der Entwurf, dann Fragen, Antwortoptionen und Einstellungen. Warte deshalb auf den Abschluss und prüfe weitere Rückfragen. Die Anlage eines leeren Formulars bedeutet noch nicht, dass alle Fragen fertig sind. Bei Typeform können zusätzlich Aufrufe zum Ermitteln der unterstützten Feldtypen und zum Validieren der Änderungen erscheinen. Diese Prüfungen gehören zum Aufbau des Entwurfs. Das Veröffentlichen ist ein eigener Schritt; siehe Typeforms Ablauf für Formularänderungen. Passt ein Aufruf nicht? Wähle Ablehnen und beschreibe die gewünschte Korrektur. Schlägt der Chat wiederholt dieselbe unpassende Aktion vor, stoppe den laufenden Auftrag über Abbrechen und stelle eine neue, klar eingegrenzte Anfrage mit ausdrücklich ausgewähltem Konnektor."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/formulare-mit-tally-und-typeform",
+    "pageTitle": "Vom Chat zum Formular: Tally und Typeform mit dem Grünerator nutzen",
+    "heading": "4. Den Entwurf öffnen und verbessern",
+    "anchor": "#4-den-entwurf-öffnen-und-verbessern",
+    "category": "Guides",
+    "text": "Öffne den Bearbeitungslink aus der Antwort oder das neue Demo-Formular direkt beim Anbieter. Prüfe die tatsächlichen Felder; verlasse dich nicht allein auf die Zusammenfassung im Chat. Die Fragen stammen aus dem Chat-Auftrag. Die optionale Helfer*innen-Frage und die Zahlenbegrenzung wurden für diese Vorschau anschließend im Tally-Editor nachgearbeitet. Aufbau und Abbau sind gleichzeitig ausgewählt; es wurde keine Antwort abgeschickt. Kontrolliere besonders: Pflichtfelder: Vorname, E-Mail und Personenanzahl sind Pflicht; freiwillige Hilfe ist optional. Eingaben: Die Personenanzahl erlaubt nur 1 bis 5. Ein Platzhalter „1–5“ allein setzt noch keine Begrenzung. Mehrfachauswahl: Aufbau und Abbau können gemeinsam ausgewählt werden. Texte: Titel, Einleitung, Fragen und Dankeseite passen zur Veranstaltung. Status: Der Entwurf ist noch nicht veröffentlicht. Korrekturen kannst du gezielt im Chat anfordern. Wähle den Dienst dafür erneut über @ aus und nenne den bestehenden Entwurf eindeutig, etwa mit seinem Bearbeitungslink: Ändere mit @tally ausschließlich den eben erstellten Entwurf „Demo – Anmeldung zum Sommerfest“ unter [Bearbeitungslink]. Die Frage „Freiwillige Hilfe“ soll optional…"
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/formulare-mit-tally-und-typeform",
+    "pageTitle": "Vom Chat zum Formular: Tally und Typeform mit dem Grünerator nutzen",
+    "heading": "5. Testen, dann veröffentlichen",
+    "anchor": "#5-testen-dann-veröffentlichen",
+    "category": "Guides",
+    "text": "Nutze die Vorschau beim Formulardienst. Prüfe leere Pflichtfelder, ungültige E-Mail-Adressen, die erlaubte Personenanzahl und mehrere ausgewählte Helferinnen-Aufgaben. Nutze für einen Test ausschließlich fiktive Angaben. Ergänze vor dem Einsatz eure Veranstaltungsinformationen und die passenden Hinweise zur Datenverarbeitung. Der Demo-Entwurf enthält dafür noch keinen fertigen Text. Plane auch, wer auf Antworten zugreifen soll. Wenn Inhalt und Einstellungen stimmen, veröffentlichst du das Formular bewusst im jeweiligen Dienst und übernimmst dessen Teilnahme-Link. Teile den Teilnahme-Link, nicht den Bearbeitungslink. Die für diesen Guide angelegten Demo-Formulare wurden nicht veröffentlicht."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/formulare-mit-tally-und-typeform",
+    "pageTitle": "Vom Chat zum Formular: Tally und Typeform mit dem Grünerator nutzen",
+    "heading": "Tally alternativ mit einem API-Key verbinden",
+    "anchor": "#tally-alternativ-mit-einem-api-key-verbinden",
+    "category": "Guides",
+    "text": "Öffne in Tally Settings → API keys. Dort kannst du über Create API key einen eigenen Schlüssel anlegen. Verwende einen erkennbaren Namen wie „Grünerator“ und bewahre den einmalig angezeigten Schlüssel sicher auf. Die Tally-API-Anleitung verlinkt die Schlüsselverwaltung. Wähle im Grünerator beim Tally-Eintrag oder API-Key. In API-Token einfügen gehört nur der vollständige Schlüssel, ohne Bearer. Klicke auf Verbinden. Füge den Schlüssel niemals als Chatnachricht ein. Für die Screenshots wurde kein neuer Schlüssel erzeugt. Bei Typeform nutzt du die Anmeldung beim Dienst. Persönliche API-Tokens sind für dessen aktuelle MCP-Verbindung kein Ersatz für diesen Anmeldeweg."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/formulare-mit-tally-und-typeform",
+    "pageTitle": "Vom Chat zum Formular: Tally und Typeform mit dem Grünerator nutzen",
+    "heading": "Weiterlesen",
+    "anchor": "#weiterlesen",
+    "category": "Guides",
+    "text": "Konnektoren einrichten: Verbindung, Test und Werkzeugfreigaben im Grünerator. Tally MCP: Funktionen und Anmeldung auf Anbieter-Seite. Typeform MCP: Einrichtung und Rechenzentren. Sally mit dem Grünerator nutzen: aus Gesprächsinhalten Protokolle und nächste Schritte machen. Am 26. Oktober 2026 mit fiktiven Inhalten geprüft. Screenshots zeigen ausschließlich Einrichtungsbereiche und die neu angelegten Demo-Formulare; persönliche Kontodaten, Schlüssel und echte Antworten sind ausgeschnitten."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/formulare-mit-tally-und-typeform",
+    "pageTitle": "Vom Chat zum Formular: Tally und Typeform mit dem Grünerator nutzen",
+    "heading": "Wenn etwas nicht klappt",
+    "anchor": "#wenn-etwas-nicht-klappt",
+    "category": "Guides",
+    "text": "Problem | Nächster Schritt | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | Der Chat liefert nur einen Textvorschlag | Wähle den verbundenen Dienst über @ aus und fordere ausdrücklich einen Entwurf in diesem Dienst an. | Es gibt nur einen leeren Entwurf | Prüfe, ob weitere Freigaben für Felder oder Einstellungen ausstehen. | Eine Pflichtangabe oder Auswahl stimmt nicht | Nenne das betroffene Feld und die gewünschte Änderung; lasse nur den vorhandenen Entwurf ändern. | Der Chat will noch einmal ein Formular anlegen | Lehne die Doppelanlage ab. Stoppe den Lauf und verweise in einer neuen Anfrage auf den bestehenden Entwurf. | Typeform meldet Konto- oder Zugriffsprobleme | Prüfe verbundenes Konto, Workspace und den zum Rechenzentrum passenden Eintrag. | Eine Typeform-Funktion ist nicht verfügbar | Prüfe die Meldung des Dienstes; manche Funktionen hängen vom Tarif und den Kontoberechtigungen ab. |"
+  },
+  {
     "url": "/docs/guides/fortgeschrittene/gruene-wolke-einbinden",
     "pageTitle": "Wie binde ich die Grüne Wolke ein?",
     "heading": "Wie binde ich die Grüne Wolke ein?",
@@ -3057,7 +3149,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wie richte ich Konnektoren für den Chat ein?",
     "anchor": "",
     "category": "Guides",
-    "text": "Mit Konnektoren kann der Grünerator-Chat Werkzeuge externer Dienste verwenden – etwa eine Seite in Notion anlegen oder Daten aus einem verbundenen Dienst abrufen. Konnektoren sind derzeit experimentell. Verfügbarkeit, Anmeldung und Funktionsumfang können sich ändern."
+    "text": "Mit Konnektoren kann der Grünerator-Chat Werkzeuge externer Dienste verwenden – etwa eine Seite in Notion anlegen oder Daten aus einem verbundenen Dienst abrufen. Einen vollständigen Ablauf mit Videokonferenzen, Transkripten und Beispielaufträgen zeigt Von der Videokonferenz zum Protokoll: Sally mit dem Grünerator nutzen. Für Anmeldebögen und Umfragen lies Vom Chat zum Formular: Tally und Typeform mit dem Grünerator nutzen. Konnektoren sind derzeit experimentell. Verfügbarkeit, Anmeldung und Funktionsumfang können sich ändern."
   },
   {
     "url": "/docs/guides/fortgeschrittene/konnektoren-einrichten",
@@ -3154,6 +3246,110 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#werkzeuge-einzeln-einstellen",
     "category": "Guides",
     "text": "Unter einem eigenen MCP-Server öffnest du Werkzeuge und legst für jedes Werkzeug eine Stufe fest: Aus: Der Chat bekommt das Werkzeug gar nicht erst angeboten. Nachfragen: Der Chat fragt vor jedem Aufruf (Voreinstellung). Immer erlauben: Das Werkzeug läuft ohne Rückfrage."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/sally-meetings-transkribieren",
+    "pageTitle": "Von der Videokonferenz zum Protokoll: Sally mit dem Grünerator nutzen",
+    "heading": "Von der Videokonferenz zum Protokoll: Sally mit dem Grünerator nutzen",
+    "anchor": "",
+    "category": "Guides",
+    "text": "Die Sitzung ist vorbei – aber das Protokoll und die Aufgabenliste fehlen noch? Sally übernimmt die Aufzeichnung und Transkription. Im Grünerator verarbeitest du die Gesprächsinhalte weiter, etwa zu einem Ergebnisprotokoll, einem Briefing für den nächsten Termin oder einem Textentwurf. Dieser Guide zeigt den Weg über den Sally-Konnektor im Grünerator-Chat. Du verbindest beide Dienste einmalig und rufst anschließend gezielt die benötigten Gesprächsinhalte ab. Konnektoren sind derzeit experimentell. Anmeldung, verfügbare Werkzeuge und Oberfläche können sich ändern."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/sally-meetings-transkribieren",
+    "pageTitle": "Von der Videokonferenz zum Protokoll: Sally mit dem Grünerator nutzen",
+    "heading": "1. Die Videokonferenz in Sally transkribieren",
+    "anchor": "#1-die-videokonferenz-in-sally-transkribieren",
+    "category": "Guides",
+    "text": "Wähle in Sally einen passenden Aufnahmeweg: Mit Kalenderanbindung: Sally kann geplanten Online-Meetings automatisch beitreten. Für einen einzelnen Termin: Über Sally einladen lädst du Sally zum Meeting ein. Bei vorhandener Aufnahme: Über Datei hochladen übergibst du eine Audio- oder Videodatei zur Verarbeitung. Die Aufnahme richtest du in Sally ein. Die einzelnen Wege beschreibt Sally unter Meetings aufzeichnen. Warte anschließend, bis das Transkript in Sally vorliegt. Prüfe besonders Namen, Fachbegriffe, Zahlen und die Zuordnung der Sprecherinnen. Korrekturen am Ausgangstext verbessern auch das spätere Protokoll. Hilfe bietet Transkripte in Sally."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/sally-meetings-transkribieren",
+    "pageTitle": "Von der Videokonferenz zum Protokoll: Sally mit dem Grünerator nutzen",
+    "heading": "2. Sally mit dem Grünerator verbinden",
+    "anchor": "#2-sally-mit-dem-grünerator-verbinden",
+    "category": "Guides",
+    "text": "Öffne im Grünerator dein Account-Menü → Konnektoren. Du erreichst denselben Bereich über Einstellungen → Konnektoren. Suche unter Dienste verbinden nach Sally. Klicke auf Verbinden. Melde dich im Sally-Fenster an und prüfe die angefragte Freigabe. Achte bei mehreren Sally-Unternehmenskonten darauf, welches Konto du freigibst. Prüfe danach im Grünerator unter Verbunden, ob Sally Aktiv ist. Klicke auf Testen. Bei erfolgreicher Verbindung zeigt der Grünerator die verfügbaren Werkzeuge an. Die Anzahl kann sich ändern. Ist Sally bereits verbunden, kannst du direkt mit dem Test beginnen. Der Verbindungstest prüft die Erreichbarkeit der Werkzeuge. Ob eine bestimmte Aufzeichnung abrufbar ist, zeigt erst die gezielte Anfrage im Chat. Für diesen Weg musst du keinen Schlüssel kopieren. Weitere Grundlagen findest du unter Konnektoren einrichten."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/sally-meetings-transkribieren",
+    "pageTitle": "Von der Videokonferenz zum Protokoll: Sally mit dem Grünerator nutzen",
+    "heading": "3. Das richtige Gespräch auswählen",
+    "anchor": "#3-das-richtige-gespräch-auswählen",
+    "category": "Guides",
+    "text": "Öffne einen neuen Grünerator-Chat. Tippe @sally und wähle Sally aus den Vorschlägen, sodass die Mention als Chip erscheint. Grenze die Suche ein, statt sofort alle Gespräche abrufen zu lassen. Suche mit @sally nach dem Meeting „Planung Sommerfest“ vom 20. Oktober 2026. Zeige mir zunächst nur die passenden Termine mit Datum und Titel. Rufe noch keine vollständigen Transkripte ab. Dieser Screenshot zeigt die Auswahl und einen Anfrageentwurf. Die Suche wurde für das Bild nicht abgeschickt; es wurden keine echten Meetings abgerufen. Alle Beispiele in diesem Guide sind fiktiv. Ersetze Titel, Datum und Thema durch deine Angaben. Bei mehreren Treffern legst du zuerst fest, welches Gespräch gemeint ist. Verwende den zweiten Treffer. Hole die Zusammenfassung und das Transkript dieser Aufzeichnung. Erstelle ein Ergebnisprotokoll mit den Abschnitten Beschlüsse, offene Fragen und nächste Schritte. Trenne beschlossene Punkte von bloßen Vorschlägen. Ergänze zu wichtigen Aussagen Zeitstempel, soweit die Quelle sie enthält. Erfinde keine Angaben. Prüfe die Werkzeuganfragen im Chat, bevor du sie freigibst. Die im Screenshot sichtbaren Werkzeuge umfassen neben Such- und Abruffunktionen auch…"
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/sally-meetings-transkribieren",
+    "pageTitle": "Von der Videokonferenz zum Protokoll: Sally mit dem Grünerator nutzen",
+    "heading": "4. Aus dem Transkript Arbeitsmaterial machen",
+    "anchor": "#4-aus-dem-transkript-arbeitsmaterial-machen",
+    "category": "Guides",
+    "text": "Gib dem Grünerator ein klares Ausgabeformat und Regeln für fehlende Angaben. Diese Folgeaufträge bauen auf dem ausgewählten Gespräch auf:"
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/sally-meetings-transkribieren",
+    "pageTitle": "Von der Videokonferenz zum Protokoll: Sally mit dem Grünerator nutzen",
+    "heading": "Alternative: Einen Sally-Schlüssel verwenden",
+    "anchor": "#alternative-einen-sally-schlüssel-verwenden",
+    "category": "Guides",
+    "text": "Falls die Anmeldung nicht funktioniert oder du gezielt einen Schlüssel verwenden möchtest, bietet der Sally-Eintrag im Grünerator oder API-Key an. Öffne in Sally Einstellungen → Integrationen → MCP. Wähle im Bereich Sally MCP den Button Token erstellen. Der benachbarte Reiter Personal Access Token ist ein anderer Bereich. Gib einen erkennbaren Namen ein, etwa Grünerator, und lege bei Bedarf ein Ablaufdatum fest. Klicke auf Erstellen und kopiere den einmalig angezeigten Token. Öffne im Grünerator beim Sally-Eintrag oder API-Key, füge den vollständigen Token in API-Token einfügen ein und klicke auf Verbinden. In dieses Feld gehört nur der Token, ohne den Zusatz Bearer. Bewahre den Schlüssel wie ein Passwort auf und füge ihn ausschließlich in das dafür vorgesehene Verbindungsfeld ein. Für die Screenshots wurde kein neuer Schlüssel erstellt. Sally beschreibt die Anmeldung und Token-Verwaltung im allgemeinen MCP-Setup."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/sally-meetings-transkribieren",
+    "pageTitle": "Von der Videokonferenz zum Protokoll: Sally mit dem Grünerator nutzen",
+    "heading": "Aufgabenliste für die Nachbereitung",
+    "anchor": "#aufgabenliste-für-die-nachbereitung",
+    "category": "Guides",
+    "text": "Erstelle aus diesem Gespräch eine Tabelle mit Aufgabe, verantwortlicher Person, Frist und Belegstelle. Übernimm nur ausdrücklich vereinbarte Aufgaben. Wenn Person oder Frist fehlen, schreibe „nicht festgelegt“. Lege noch keine Aufgaben in einem externen Dienst an."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/sally-meetings-transkribieren",
+    "pageTitle": "Von der Videokonferenz zum Protokoll: Sally mit dem Grünerator nutzen",
+    "heading": "Beispiel: Vom Transkript zum Ergebnisprotokoll",
+    "anchor": "#beispiel-vom-transkript-zum-ergebnisprotokoll",
+    "category": "Guides",
+    "text": "So kann das Ergebnis im Grünerator-Chat aussehen: Für dieses Beispiel wurde der folgende erfundene Text direkt im Chat eingegeben. Es zeigt die Weiterverarbeitung, keinen Abruf eines echten Sally-Meetings. Der Auftrag dazu lautete: „Erstelle daraus ein kurzes Ergebnisprotokoll mit Beschlüssen, Aufgaben und offenen Fragen. Erfinde keine Fristen oder Beschlüsse.“ Im Ergebnis bleibt der Infostand eine offene Frage; der Chat macht aus der Idee keinen Beschluss."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/sally-meetings-transkribieren",
+    "pageTitle": "Von der Videokonferenz zum Protokoll: Sally mit dem Grünerator nutzen",
+    "heading": "Briefing für den Folgetermin",
+    "anchor": "#briefing-für-den-folgetermin",
+    "category": "Guides",
+    "text": "Erstelle ein kurzes Briefing für die nächste Besprechung: bisherige Beschlüsse, offene Fragen und Punkte, zu denen wir eine Entscheidung brauchen. Kennzeichne deine Empfehlungen als Vorschläge und trenne sie von Aussagen aus dem Gespräch."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/sally-meetings-transkribieren",
+    "pageTitle": "Von der Videokonferenz zum Protokoll: Sally mit dem Grünerator nutzen",
+    "heading": "Textentwurf aus besprochenen Inhalten",
+    "anchor": "#textentwurf-aus-besprochenen-inhalten",
+    "category": "Guides",
+    "text": "Entwirf aus den besprochenen Ergebnissen einen kurzen Bericht für unsere Mitglieder. Verwende keine persönlichen Wortbeiträge oder internen Konflikte. Markiere Aussagen, deren Freigabe oder sachliche Prüfung noch fehlt. Gib nur einen Entwurf aus. Kontrolliere vor der Weitergabe besonders Beschlüsse, Zuständigkeiten und Fristen anhand des Transkripts. Ein gut formulierter Text ist noch kein freigegebenes Protokoll. Wörtliche Zitate solltest du zusätzlich mit der Aufnahme abgleichen."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/sally-meetings-transkribieren",
+    "pageTitle": "Von der Videokonferenz zum Protokoll: Sally mit dem Grünerator nutzen",
+    "heading": "Was du brauchst",
+    "anchor": "#was-du-brauchst",
+    "category": "Guides",
+    "text": "Ein Grünerator-Konto und ein Sally-Konto. Zugriff auf die gewünschte Aufzeichnung in Sally. Eine Freigabe für Sally MCP in eurem Sally-Unternehmenskonto; bei Bedarf hilft eure Administration. Eine mit den Beteiligten abgestimmte Aufzeichnung und Weiterverarbeitung. Klärt vorab, welche Gesprächsinhalte in Sally und im Grünerator verarbeitet werden dürfen."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/sally-meetings-transkribieren",
+    "pageTitle": "Von der Videokonferenz zum Protokoll: Sally mit dem Grünerator nutzen",
+    "heading": "Weiterführende Anleitungen",
+    "anchor": "#weiterführende-anleitungen",
+    "category": "Guides",
+    "text": "Konnektoren einrichten erklärt Verbindung, Werkzeugfreigaben und Verwaltung im Grünerator. Sally: Allgemeines MCP-Setup beschreibt die Einrichtung auf Sally-Seite. Grünerator mit ChatGPT & Co. verbinden beschreibt den umgekehrten Weg: Grünerator-Funktionen in einem anderen KI-Chat verwenden. Oberflächen und Sally-Verbindung am 26. Oktober 2026 geprüft. Die Screenshots zeigen Einrichtung, Konnektorstatus und gekennzeichnete fiktive Chat-Beispiele; persönliche Kontodaten, echte Meetinginhalte und vorhandene Schlüssel sind nicht abgebildet."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/sally-meetings-transkribieren",
+    "pageTitle": "Von der Videokonferenz zum Protokoll: Sally mit dem Grünerator nutzen",
+    "heading": "Wenn etwas nicht klappt",
+    "anchor": "#wenn-etwas-nicht-klappt",
+    "category": "Guides",
+    "text": "Problem | Nächster Schritt | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | Sally ist verbunden, wird im Chat aber nicht genutzt | Prüfe Aktiv und wähle Sally ausdrücklich über die @-Vorschläge aus. | Die Anmeldung öffnet sich nicht | Erlaube Pop-ups für den Grünerator und starte Verbinden erneut. | Der Token wird abgelehnt | Prüfe Vollständigkeit und Ablaufdatum. Verwende den Token aus Integrationen → MCP ohne Bearer im Grünerator-Feld. | Token erstellen fehlt oder Sally MCP ist deaktiviert | Lass die Freigabe im Sally-Unternehmenskonto durch eure Administration prüfen. | Das Gespräch wird nicht gefunden | Prüfe Titel, Zeitraum, Unternehmenskonto und deinen Zugriff direkt in Sally. Suche zunächst nach wenigen markanten Stichwörtern. | Die Zusammenfassung lässt einen wichtigen Punkt aus | Bitte ausdrücklich um Prüfung des Transkripts und um eine Belegstelle. |"
   },
   {
     "url": "/docs/guides/landesverbaende/landesverband-einrichten",

@@ -23,7 +23,7 @@ export type AgentComment = z.infer<typeof agentCommentSchema>;
 
 export const createAgentCommentBodySchema = z.object({
   body: z.string().trim().min(1, 'Kommentar ist leer.').max(GROUP_COMMENT_MAX),
-  parentId: z.string().uuid().nullish(),
+  parentId: z.string().guid().nullish(),
 });
 
 export const agentCommentsResponseSchema = z.object({

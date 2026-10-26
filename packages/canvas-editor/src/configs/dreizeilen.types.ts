@@ -140,6 +140,8 @@ export interface DreizeilenFullActions {
   setBalkenText: (id: string, index: number, text: string) => void;
   removeBalken: (id: string) => void;
   duplicateBalken: (id: string) => void;
+  /** The template's own bar group is derived from the three lines and cannot be deleted. */
+  isTemplateBound: (id: string) => boolean;
 
   // === Pill Badge Actions ===
   addPillBadge: (preset?: string) => void;

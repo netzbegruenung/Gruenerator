@@ -34,7 +34,9 @@ export const PageToolbar = memo(function PageToolbar({
     // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- fängt nur den Klick ab, damit er nicht die Seite auswählt; die Knöpfe darin sind echte Buttons
     <div
       className={`flex items-center justify-end gap-1 px-1 py-0.5 rounded-lg transition-opacity duration-200 ${
-        isActive ? 'opacity-100' : 'opacity-0 max-canvas-mobile:invisible group-hover:opacity-100'
+        isActive
+          ? 'opacity-100'
+          : 'opacity-0 max-canvas-mobile:invisible group-hover:opacity-100 focus-within:opacity-100 focus-within:visible'
       }`}
       onClick={(e) => e.stopPropagation()}
     >
@@ -47,6 +49,7 @@ export const PageToolbar = memo(function PageToolbar({
         onClick={onMoveUp}
         disabled={!canMoveUp}
         title="Nach oben verschieben"
+        aria-label="Seite nach oben verschieben"
         type="button"
       >
         <PiArrowUp size={14} />
@@ -57,6 +60,7 @@ export const PageToolbar = memo(function PageToolbar({
         onClick={onMoveDown}
         disabled={!canMoveDown}
         title="Nach unten verschieben"
+        aria-label="Seite nach unten verschieben"
         type="button"
       >
         <PiArrowDown size={14} />
@@ -64,12 +68,24 @@ export const PageToolbar = memo(function PageToolbar({
 
       <div className="w-px h-4 bg-[var(--editor-border-soft)] mx-0.5" />
 
-      <button className={iconBtn} onClick={onDuplicate} title="Seite duplizieren" type="button">
+      <button
+        className={iconBtn}
+        onClick={onDuplicate}
+        title="Seite duplizieren"
+        aria-label="Seite duplizieren"
+        type="button"
+      >
         <PiCopy size={14} />
       </button>
 
       {onChangeTemplate && (
-        <button className={iconBtn} onClick={onChangeTemplate} title="Vorlage ändern" type="button">
+        <button
+          className={iconBtn}
+          onClick={onChangeTemplate}
+          title="Vorlage ändern"
+          aria-label="Vorlage ändern"
+          type="button"
+        >
           <PiSwap size={14} />
         </button>
       )}
@@ -79,6 +95,7 @@ export const PageToolbar = memo(function PageToolbar({
           className="size-[30px] rounded-lg border-none bg-transparent cursor-pointer flex items-center justify-center text-[var(--editor-text-muted)] transition-[background-color,color] duration-150 hover:bg-red-500/10 hover:text-red-600"
           onClick={onDelete}
           title="Seite löschen"
+          aria-label="Seite löschen"
           type="button"
         >
           <PiTrash size={14} />

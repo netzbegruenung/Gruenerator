@@ -1,16 +1,20 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { BRAND_WEB_FONT_FACES } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { PPTX_FONT_ALIASES, pptxFont } from './pptxFonts';
 
 describe('pptxFont', () => {
   it('knows every family the canvas registers with @font-face', () => {
+    // typography.css declares the open faces; the brand faces are injected at
+    // runtime from the contracts registry.
     const css = readFileSync(join(import.meta.dirname, '../../styles/typography.css'), 'utf8');
-    const registered = new Set(
-      [...css.matchAll(/@font-face\s*{[^}]*font-family:\s*'([^']+)'/g)].map((m) => m[1])
-    );
+    const registered = new Set([
+      ...[...css.matchAll(/@font-face\s*{[^}]*font-family:\s*'([^']+)'/g)].map((m) => m[1]),
+      ...BRAND_WEB_FONT_FACES.map((face) => face.family),
+    ]);
     expect([...registered].sort()).toEqual([...PPTX_FONT_ALIASES].sort());
   });
 

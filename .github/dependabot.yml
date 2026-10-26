@@ -172,14 +172,6 @@ updates:
       - dependency-name: 'sass-loader'
         update-types: ['version-update:semver-major']
 
-      # --- Neutralised by pnpm.overrides -----------------------------------
-      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
-      # change manifests while v3 stays installed — a lie, not an update.
-      # Drop this ignore as part of the dedicated zod-4 migration (which also
-      # removes the better-auth>zod / knip>zod scoped overrides).
-      - dependency-name: 'zod'
-        update-types: ['version-update:semver-major']
-
       # --- Expo SDK owns these versions — ALL update types ------------------
       # `expo/bundledNativeModules.json` pins 46 of apps/mobile's 74 direct
       # dependencies, and `npx expo install --check` is the only authority on

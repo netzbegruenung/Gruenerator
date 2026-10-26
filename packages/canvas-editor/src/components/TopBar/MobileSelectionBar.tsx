@@ -1,6 +1,7 @@
 import React from 'react';
 import { PiCheckBold, PiSlidersHorizontal } from 'react-icons/pi';
 
+import { useRovingToolbar } from '../../hooks/useRovingToolbar';
 import { HIDDEN_SCROLLBAR } from '../../sidebar/sidebarStyles';
 import { useCanvasStoreSelector } from '../../stores/CanvasStoreProvider';
 import { cn } from '../../utils/cn';
@@ -23,9 +24,11 @@ export function MobileSelectionBar({ onOpenArea, onDone, ...controls }: MobileSe
   const hasPendingAiSuggestion = useCanvasStoreSelector((s) => s.pendingAiSuggestion !== null);
   // Im Zuschneide-Modus hat die Leiste ihre eigenen Ausgänge (Abbrechen, Fertig).
   const cropping = showsCropModeBar(controls) && !hasPendingAiSuggestion;
+  const roving = useRovingToolbar<HTMLDivElement>();
 
   return (
     <div
+      {...roving}
       role="toolbar"
       aria-label="Auswahl bearbeiten"
       data-suppress-feedback-launcher=""

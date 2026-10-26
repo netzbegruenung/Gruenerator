@@ -26,6 +26,9 @@
  *
  * 3. **A Wolke share token in any tracked file.** Nine had reached the history
  *    by 09/2026 — in config, templates, tests and eval dumps.
+ *
+ * 4. **A brand font file.** GrueneType and Gotham Narrow live in
+ *    `<INTERN_CONTENT_DIR>/fonts/`; the API serves them (`GET /api/fonts/:file`).
  */
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -125,6 +128,18 @@ if (shareHits) {
         .join('\n') +
       `\n\n  Put the link into <INTERN_CONTENT_DIR>/wolke-shares.json and reference it by` +
       ` \`shareKey\`; in tests use /s/TESTTOKEN.`
+  );
+}
+
+// ── 4. Brand font files ─────────────────────────────────────────────────────
+const BRAND_FONT = /(^|\/)(GrueneType|GothamNarrow)[^/]*\.(woff2?|ttf|otf)$/i;
+const brandFonts = tracked.filter((f) => BRAND_FONT.test(f));
+if (brandFonts.length > 0) {
+  failures.push(
+    `${brandFonts.length} brand font file(s) tracked:\n` +
+      brandFonts.map((f) => `  · ${f}`).join('\n') +
+      `\n\n  Brand fonts live in <INTERN_CONTENT_DIR>/fonts/ (dev: .external/gruenerator-intern/fonts/).` +
+      `\n  Server code reads them via brandFontPath(), web and app via GET /api/fonts/:file.`
   );
 }
 

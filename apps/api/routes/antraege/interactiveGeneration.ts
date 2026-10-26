@@ -69,7 +69,7 @@ const initiateSchema = z.object({
 
 const continueSchema = z.object({
   sessionId: z.string(),
-  answers: z.unknown(),
+  answers: z.unknown().optional(),
 });
 
 /**

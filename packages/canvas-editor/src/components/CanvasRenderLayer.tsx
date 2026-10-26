@@ -275,6 +275,7 @@ function CanvasRenderLayerInner<
         <SelectableBalkenGroup
           key={balken.id}
           elementId={balken.id}
+          id={balken.id}
           mode={balken.mode}
           colorSchemeId={balken.colorSchemeId}
           offset={balken.offset}

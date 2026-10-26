@@ -26,11 +26,11 @@ import {
   isSuggestedAgentIcon,
 } from '@gruenerator/shared/agents';
 import { z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 
 import { createLogger } from '../../utils/logger.js';
 import { aiObject } from '../ai/generate.js';
 import { type StructuredValidation } from '../ai/structuredParsing.js';
+import { toolInputJsonSchema } from '../ai/toolJsonSchema.js';
 
 import { deriveRecipeMention, normalizeTextFormMention } from './textFormKind.js';
 
@@ -71,10 +71,7 @@ const DraftSchema = z.object({
 });
 type Draft = z.infer<typeof DraftSchema>;
 
-const DRAFT_TOOL_SCHEMA = zodToJsonSchema(DraftSchema, {
-  target: 'jsonSchema7',
-  $refStrategy: 'none',
-}) as Record<string, unknown>;
+const DRAFT_TOOL_SCHEMA = toolInputJsonSchema(DraftSchema);
 
 function validateDraft(input: unknown): StructuredValidation<Draft> {
   const parsed = DraftSchema.safeParse(input);

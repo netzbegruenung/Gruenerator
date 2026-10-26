@@ -159,9 +159,10 @@
     --editor-border-soft: #E4E2DA;
     --editor-border-strong: #DBD9D0;
     --editor-text-secondary: #4B4A45;
-    /* Warmgrau, um 5 % abgedunkelt (war #84827A): 3,85 -> 4,55:1 auf weißer
-       Editor-Fläche. Gleicher Wert wie in apps/web. */
-    --editor-text-muted: #78766E;
+    /* Warmgrau, abgedunkelt (war #84827A, 3,85:1 auf Weiß): 5,49:1 auf
+       --editor-surface, mindestens 4,91:1 auf --editor-tile. Gleicher Wert wie
+       in apps/web; editorMutedContrast.vitest.ts rechnet nach. */
+    --editor-text-muted: #6B6962;
     --editor-placeholder: #9A988F;
     /* Eukalyptus-Akzent (Links, Rahmen-Icons) und Fehlerkasten. */
     --editor-secondary-fg: var(--secondary-600);
@@ -214,7 +215,7 @@
     --editor-border-soft: rgba(255, 255, 255, 0.10);
     --editor-border-strong: var(--grey-600);
     --editor-text-secondary: var(--grey-300);
-    --editor-text-muted: var(--grey-400);
+    --editor-text-muted: #B5B5B5;
     --editor-placeholder: var(--grey-500);
     --editor-secondary-fg: var(--secondary-300);
     --editor-danger-fg: #F87171;

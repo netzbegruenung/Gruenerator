@@ -6,7 +6,7 @@
  *  1. LOOSE ENOUGH for the provider. Strict json_schema modes reject `default`,
  *     and gpt-oss (verdigado-pro via LiteLLM) / Mistral handle deep `anyOf`
  *     badly — which is why these are hand-written instead of
- *     zodToJsonSchema(pdfDocumentSchema), whose 11-member discriminated union
+ *     toolInputJsonSchema(pdfDocumentSchema), whose 11-member discriminated union
  *     plus nested string|object union would produce exactly that.
  *
  *  2. STRICT ENOUGH to name the fields whose absence actually broke things:

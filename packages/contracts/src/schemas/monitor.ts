@@ -51,7 +51,7 @@ export const monitorArticleSchema = z.object({
   excerpt: z.string(),
   locale: monitorLocaleSchema,
   /** Topic relevance scores; only matched topics are present. */
-  topics: z.record(topicCategorySchema, z.number()),
+  topics: z.partialRecord(topicCategorySchema, z.number()),
   primaryTopic: topicCategorySchema.nullable(),
   topNouns: z.array(nounCountSchema).optional(),
 });

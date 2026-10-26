@@ -28,7 +28,7 @@ const saveAsTemplateSchema = z.object({
   title: z.string().min(1).max(200),
   description: z.string().max(2000).optional(),
   is_private: z.boolean().optional(),
-  preview: z.record(z.unknown()).optional(),
+  preview: z.record(z.string(), z.unknown()).optional(),
   thumbnail_url: z.string().optional(),
   categories: z.array(z.unknown()).optional(),
   tags: z.array(z.unknown()).optional(),

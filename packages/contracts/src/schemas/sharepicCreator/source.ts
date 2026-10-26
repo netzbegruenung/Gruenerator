@@ -65,7 +65,7 @@ export const sharepicTweakChoiceSchema = z.record(z.string(), z.string());
  */
 export const sharepicSourceSchema = z.object({
   v: z.literal(1),
-  deck: z.string().uuid(),
+  deck: z.string().guid(),
   // Shape only: a slide cut from a carousel fails the deck-level refinements
   // (seitenzahl, weiter); deckSpec() validates the assembled deck in full.
   slide: sharepicSpecShapeSchema.refine((spec) => spec.slides.length === 1, {

@@ -17,6 +17,7 @@ import { toJobError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 import { reportBackgroundError } from '../../utils/reportBackgroundError.js';
+import { brandFontPath } from '../fonts/brandFonts.js';
 import { type Locale } from '../localization/types.js';
 
 import AssSubtitleService, { type TextOverlay as AssTextOverlay } from './assSubtitleService.js';
@@ -37,7 +38,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const fsPromises = fs.promises;
 const log = createLogger('subtitler-processing-job');
-const FONT_PATH = path.resolve(__dirname, '../../public/fonts/GrueneTypeNeue-Regular.ttf');
+const FONT_PATH = brandFontPath('GrueneTypeNeue-Regular.ttf');
 const assService = new AssSubtitleService();
 
 /**

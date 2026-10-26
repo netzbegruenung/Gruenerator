@@ -14,7 +14,7 @@ import { topicCategorySchema } from './monitor.js';
 
 export const askQuestionBodySchema = z.object({
   question: z.string(),
-  filters: z.record(z.unknown()).nullish(),
+  filters: z.record(z.string(), z.unknown()).nullish(),
   collectionIds: z.array(z.string()).nullish(),
   fastMode: z.boolean().nullish(),
 });
@@ -35,7 +35,7 @@ export const notebookFilterFieldSchema = z.object({
   label: z.string(),
   type: z.string(),
   values: z.array(z.object({ value: z.string(), count: z.number() })).nullish(),
-  valueLabels: z.record(z.string()).nullish(),
+  valueLabels: z.record(z.string(), z.string()).nullish(),
   min: z.string().nullish(),
   max: z.string().nullish(),
   /** Not offered directly: the field sits behind „Weitere Filter“. */
@@ -45,7 +45,7 @@ export const notebookFilterFieldSchema = z.object({
 export const notebookFiltersResponseSchema = z.object({
   collectionId: z.string(),
   collectionName: z.string().nullable(),
-  filters: z.record(notebookFilterFieldSchema),
+  filters: z.record(z.string(), notebookFilterFieldSchema),
 });
 
 export const notebookPublicCollectionResponseSchema = z.object({
@@ -136,7 +136,7 @@ export const notebookQAMetadataSchema = z.object({
   collections_queried: z.array(z.string()).optional(),
   document_scope_detected: z.string().nullable().optional(),
   document_title_filter: z.string().nullable().optional(),
-  subcategory_filters_applied: z.record(z.unknown()).nullable().optional(),
+  subcategory_filters_applied: z.record(z.string(), z.unknown()).nullable().optional(),
   total_results: z.number().optional(),
   citations_count: z.number().optional(),
   fast_mode: z.boolean().optional(),
@@ -181,8 +181,8 @@ export const notebookQAResponseSchema = z.object({
   success: z.boolean(),
   answer: z.string(),
   citations: z.array(notebookCitationSchema).nullish(),
-  sources: z.unknown(),
-  allSources: z.unknown(),
+  sources: z.unknown().optional(),
+  allSources: z.unknown().optional(),
   sourcesByCollection: z.unknown().nullish(),
   metadata: notebookQAMetadataSchema,
   isPersonQuery: z.boolean().nullish(),

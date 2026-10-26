@@ -9,15 +9,12 @@ import {
   podcastScriptDraftSchema,
   type PodcastScriptDraft,
 } from '@gruenerator/contracts';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 
 import { aiObject } from '../ai/generate.js';
 import { type StructuredValidation } from '../ai/structuredParsing.js';
+import { toolInputJsonSchema } from '../ai/toolJsonSchema.js';
 
-const DRAFT_TOOL_SCHEMA = zodToJsonSchema(podcastScriptDraftSchema, {
-  target: 'jsonSchema7',
-  $refStrategy: 'none',
-}) as Record<string, unknown>;
+const DRAFT_TOOL_SCHEMA = toolInputJsonSchema(podcastScriptDraftSchema);
 
 const TITLE_MAX_CHARS = 120;
 

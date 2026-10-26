@@ -6,7 +6,8 @@
  * Modul in dieser Datei ruft je einen Anbieter.
  */
 import { z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
+
+import { toolInputJsonSchema } from '../../services/ai/toolJsonSchema.js';
 
 /**
  * `none` schaltet den Reranker ab und lässt den vollen Kandidaten-Pool durch
@@ -224,10 +225,7 @@ export type JudgeResult = z.infer<typeof judgeResultSchema>;
  * Locker gehalten, wie `AiObjectCall.schema` es verlangt — die Strenge sitzt in
  * `validate`, das gegen `judgeResultSchema` prüft.
  */
-export const judgeJsonSchema = zodToJsonSchema(judgeResultSchema, {
-  target: 'jsonSchema7',
-  $refStrategy: 'none',
-}) as Record<string, unknown>;
+export const judgeJsonSchema = toolInputJsonSchema(judgeResultSchema);
 
 export interface JudgmentRecord {
   caseId: string;

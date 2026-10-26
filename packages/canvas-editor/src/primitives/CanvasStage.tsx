@@ -52,6 +52,8 @@ export interface CanvasStageProps {
    * true; only the preview path turns it off.
    */
   listening?: boolean;
+  /** Beschreibt die Bühne für Screenreader (`role="img"`) — siehe `stageSummary`. */
+  ariaLabel?: string;
   children: ReactNode;
   /** DOM über der Bühne im selben Koordinatensystem (z. B. das Restbild beim Zuschneiden). */
   overlay?: ReactNode;
@@ -179,6 +181,7 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
       maxContainerHeight,
       onStageClick,
       listening = true,
+      ariaLabel,
       children,
       overlay,
       className,
@@ -429,6 +432,8 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
         {/* Display Stage - Visible, interactive, responsively scaled */}
         <div
           ref={containerDivRef}
+          role={ariaLabel ? 'img' : undefined}
+          aria-label={ariaLabel}
           className={cn('canvas-stage-container relative', className)}
           style={{
             width: containerSize.width,

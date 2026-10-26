@@ -1,5 +1,4 @@
-import { useEffect } from 'react';
-import { HiXMark } from 'react-icons/hi2';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@gruenerator/ui';
 
 interface LightboxProps {
   isOpen: boolean;
@@ -9,49 +8,20 @@ interface LightboxProps {
 }
 
 export function Lightbox({ isOpen, onClose, imageSrc, altText }: LightboxProps) {
-  useEffect(() => {
-    if (!isOpen) return undefined;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [isOpen, onClose]);
-
-  if (!isOpen) return null;
-
   return (
-    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- Klick auf den Hintergrund schließt; Escape (Effekt oben) und der Schließen-Knopf sind die Tastaturwege
-    <div
-      className="fixed inset-0 z-[300] flex items-center justify-center bg-black/90 cursor-zoom-out animate-in fade-in"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Bildvorschau"
-    >
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="Vorschau schließen"
-        className="absolute top-4 right-4 p-2 text-white bg-transparent border-none cursor-pointer hover:opacity-80"
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        className="max-w-[95vw] sm:max-w-[95vw] w-auto max-h-[95vh] p-0 gap-0 border-none bg-transparent text-white shadow-none"
+        overlayProps={{ className: 'bg-black/90 cursor-zoom-out', onClick: onClose }}
       >
-        <HiXMark size={28} />
-      </button>
-      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- fängt nur den Klick ab, damit er nicht den Hintergrund schließt */}
-      <img
-        src={imageSrc}
-        alt={altText || 'Vergrößertes Bild'}
-        className="max-w-[95vw] max-h-[95vh] object-contain rounded-md"
-        onClick={(e) => e.stopPropagation()}
-      />
-    </div>
+        <DialogTitle className="sr-only">Bildvorschau</DialogTitle>
+        <DialogDescription className="sr-only">{altText || 'Vergrößertes Bild'}</DialogDescription>
+        <img
+          src={imageSrc}
+          alt={altText || 'Vergrößertes Bild'}
+          className="max-w-[95vw] max-h-[95vh] object-contain rounded-md"
+        />
+      </DialogContent>
+    </Dialog>
   );
 }

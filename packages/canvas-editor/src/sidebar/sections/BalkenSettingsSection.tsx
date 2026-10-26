@@ -62,6 +62,8 @@ export function BalkenSettingsSection({
               onClick={() => onUpdateBalken(selectedBalken.id, { colorSchemeId: scheme.id })}
               type="button"
               title={scheme.label}
+              aria-label={scheme.label}
+              aria-pressed={isActive}
             >
               <div className="flex flex-col gap-[3px]">
                 {scheme.colors.map((color, i) => (
@@ -94,6 +96,8 @@ export function BalkenSettingsSection({
         Balkenbreite
       </div>
       <SidebarSlider
+        label="Balkenbreite"
+        hideLabel
         value={selectedBalken.widthScale}
         onValueChange={(val) => onUpdateBalken(selectedBalken.id, { widthScale: val })}
         min={isPrimary ? 0.9 : 0.5}
@@ -122,7 +126,7 @@ export function BalkenSettingsSection({
                 type="button"
                 className="size-7 flex items-center justify-center bg-editor-tile border border-editor-border-strong rounded-md text-editor-text-secondary cursor-pointer transition-all duration-150 hover:bg-editor-active-soft hover:border-editor-accent hover:text-editor-active-fg active:scale-95"
                 onClick={() => handleNudgeLeft(index)}
-                aria-label="Nach links verschieben"
+                aria-label={`Zeile ${index + 1} nach links verschieben`}
               >
                 <FaChevronLeft size={10} />
               </button>
@@ -137,7 +141,7 @@ export function BalkenSettingsSection({
                 type="button"
                 className="size-7 flex items-center justify-center bg-editor-tile border border-editor-border-strong rounded-md text-editor-text-secondary cursor-pointer transition-all duration-150 hover:bg-editor-active-soft hover:border-editor-accent hover:text-editor-active-fg active:scale-95"
                 onClick={() => handleNudgeRight(index)}
-                aria-label="Nach rechts verschieben"
+                aria-label={`Zeile ${index + 1} nach rechts verschieben`}
               >
                 <FaChevronRight size={10} />
               </button>

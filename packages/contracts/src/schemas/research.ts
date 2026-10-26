@@ -20,7 +20,7 @@ export const researchSearchBodySchema = z.object({
   query: z.string().min(2),
   collectionIds: z.array(z.string()).nullish(),
   limit: z.number().nullish(),
-  filters: z.record(z.unknown()).nullish(),
+  filters: z.record(z.string(), z.unknown()).nullish(),
   mode: z.enum(['hybrid', 'vector', 'text']).nullish(),
   sortBy: z.enum(['relevance', 'date_desc', 'date_asc']).nullish(),
 });
@@ -79,7 +79,7 @@ export const researchCollectionInfoSchema = z.object({
 export const researchCollectionsResponseSchema = z.array(researchCollectionInfoSchema);
 
 export const researchFiltersResponseSchema = z.object({
-  filters: z.record(notebookFilterFieldSchema),
+  filters: z.record(z.string(), notebookFilterFieldSchema),
 });
 
 /** A run of text, split at the query terms. */

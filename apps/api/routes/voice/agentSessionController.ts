@@ -70,18 +70,18 @@ const createBodySchema = z.object({
   mode: z.enum(['tools', 'notebook']).default('tools'),
   notebookId: z.string().nullish(),
   /** The thread the call continues; none starts a new one. */
-  threadId: z.string().uuid().nullish(),
+  threadId: z.string().guid().nullish(),
 });
 
 const toolCallBodySchema = z.object({
-  args: z.record(z.unknown()).default({}),
+  args: z.record(z.string(), z.unknown()).default({}),
   notebookId: z.string().nullish(),
   fastMode: z.boolean().default(true),
-  threadId: z.string().uuid().nullish(),
+  threadId: z.string().guid().nullish(),
 });
 
 const lineBodySchema = z.object({
-  threadId: z.string().uuid(),
+  threadId: z.string().guid(),
   role: z.enum(['user', 'assistant']),
   text: z.string().trim().min(1).max(20_000),
 });
