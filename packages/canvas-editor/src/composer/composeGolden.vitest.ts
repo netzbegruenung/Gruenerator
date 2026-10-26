@@ -50,6 +50,27 @@ const GOLDEN_ONLY: Record<string, SharepicSpec> = {
       },
     ],
   },
+  // The Störer in every position on a light, a grass-green and a dark ground,
+  // with a text that fits its circle and one that overflows three lines.
+  stoererLagen: {
+    locale: 'de-DE',
+    slides: (['oben', 'mitte', 'unten'] as const).flatMap((position) =>
+      (['weiss', 'grasgruen', 'tanne'] as const).flatMap((color) =>
+        ['Neu dabei!', 'Jetzt mitmachen und gemeinsam die Zukunft gestalten'].map((text) => ({
+          background: { kind: 'farbe' as const, color },
+          position,
+          align: 'links' as const,
+          // Not a headline alone: that one always stands at the top.
+          items: [
+            { type: 'headline' as const, lines: ['Klimaschutz', 'jetzt'] },
+            { type: 'text' as const, text: 'Komm vorbei.' },
+          ],
+          stoerer: { text },
+          logo: false,
+        }))
+      )
+    ),
+  },
 };
 // Ground sweep: every slide with an ink that depends on its ground (topic
 // badges, the ghost numeral, countdown digits, hand marks), set again on a
