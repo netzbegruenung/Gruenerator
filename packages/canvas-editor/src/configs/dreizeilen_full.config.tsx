@@ -404,14 +404,14 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
   ai: dreizeilenAiCapabilities,
 
   tabs: [
-    { id: 'settings', icon: HiCog, label: 'Einstellungen', ariaLabel: 'Balken-Einstellungen' },
+    { id: 'settings', icon: HiCog, label: 'Einstellungen', ariaLabel: 'Einstellungen: Balken' },
     {
       id: 'frame-settings',
       icon: PiFrameCornersFill,
       label: 'Rahmen',
       ariaLabel: 'Rahmen-Einstellungen',
     },
-    { id: 'text', icon: PiTextAa, label: 'Text', ariaLabel: 'Texte hinzufügen' },
+    { id: 'text', icon: PiTextAa, label: 'Text', ariaLabel: 'Text hinzufügen' },
     { id: 'assets', icon: PiSquaresFourFill, label: 'Elemente', ariaLabel: 'Elemente hinzufügen' },
     toolsTab,
     uploadsTab,
@@ -816,6 +816,11 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       ...genericBalkenActions,
       ...frameActions,
       ...userImageActions,
+
+      // The primary bar group comes back from the three lines on every edit
+      // and reload (`reconcileBalkenInstances`), so deleting it would only
+      // hide it until then; the sidebar offers no remove button for it either.
+      isTemplateBound: (id: string) => id === PRIMARY_BALKEN_ID,
 
       // === Text Actions ===
       setLine1: (text: string) => {

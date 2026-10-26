@@ -3,6 +3,7 @@ import { Slider } from 'radix-ui';
 import React, { useId } from 'react';
 import { PiDropHalfBottom } from 'react-icons/pi';
 
+import { colorName } from '../../../utils/colorNames';
 import { CustomColorSwatch } from '../../CustomColorSwatch';
 
 import type { ShadowPatch } from '../../../hooks/useFloatingModuleHandlers';
@@ -139,7 +140,9 @@ export function FloatingShadowControl({
                     outlineOffset: '2px',
                   }}
                   onClick={() => onChange({ shadowColor: c })}
-                  title={c}
+                  title={colorName(c)}
+                  aria-label={colorName(c)}
+                  aria-pressed={shadowColor === c}
                   type="button"
                 />
               ))}

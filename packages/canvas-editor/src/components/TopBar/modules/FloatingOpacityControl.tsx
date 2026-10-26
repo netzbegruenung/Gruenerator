@@ -14,7 +14,7 @@ export function FloatingOpacityControl({ opacity, onOpacityChange }: FloatingOpa
 
   return (
     <div className="flex items-center gap-2 h-full shrink-0 text-[var(--editor-text)] px-1">
-      <PiDrop size={15} className="text-[var(--editor-text-muted)]" />
+      <PiDrop size={15} aria-hidden="true" className="text-[var(--editor-text-muted)]" />
       <Slider.Root
         className="relative flex items-center select-none touch-none w-20 h-5 max-canvas-mobile:h-11 max-canvas-mobile:w-16"
         value={[opacity]}
@@ -28,7 +28,8 @@ export function FloatingOpacityControl({ opacity, onOpacityChange }: FloatingOpa
         </Slider.Track>
         <Slider.Thumb
           className="block size-3.5 max-canvas-mobile:size-5 bg-white rounded-full border-2 border-[var(--editor-accent)] shadow-[0_1px_3px_rgba(0,0,0,0.2)] cursor-grab focus:outline-none focus:shadow-[0_0_0_3px_rgba(82,144,122,0.35)]"
-          aria-label="Opacity"
+          aria-label="Deckkraft"
+          aria-valuetext={`${Math.round(opacity * 100)} %`}
         />
       </Slider.Root>
       <span className="text-[11px] font-medium w-[30px] text-right tabular-nums text-[var(--editor-text-muted)]">

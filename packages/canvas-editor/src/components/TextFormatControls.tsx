@@ -21,21 +21,22 @@ import { createPortal } from 'react-dom';
 import { FiBold, FiItalic, FiList, FiUnderline } from 'react-icons/fi';
 import { MdBorderColor, MdFormatListNumbered, MdHighlight } from 'react-icons/md';
 
+import { useRovingToolbar } from '../hooks/useRovingToolbar';
 import { type FontMarkSupport } from '../utils/fontMarkSupport';
+import { KEEP_EDITING_ATTR, keepsEditing } from '../utils/keyboardOwnership';
 import { DEFAULT_TEXT_MARKER, MARKER_PRESETS } from '../utils/markerColors';
 import { BRAND_COLORS } from '../utils/shapes';
 
 import { CustomColorSwatch } from './CustomColorSwatch';
 
 /**
- * Bedienelemente, die selbst Fokus brauchen (das native Farbfeld), tragen
- * dieses Attribut: wandert der Fokus dorthin, bleibt der Editor offen
- * (`RichTextField` fragt `keepsEditing`).
+ * Die Leiste, die gerade diesen Editor bedient — die schwebende Karte oder die
+ * eines Wirts. `RichTextField` schickt Tab dorthin; sonst läge sie bei der
+ * Kontextleiste weit weg in der Tab-Reihenfolge und wäre ohne Maus unerreichbar.
  */
-const KEEP_EDITING_ATTR = 'data-rte-keep-editing';
-
-export const keepsEditing = (target: EventTarget | null): boolean =>
-  target instanceof Element && target.closest(`[${KEEP_EDITING_ATTR}]`) !== null;
+const toolbarsByEditor = new WeakMap<Editor, HTMLElement>();
+export const formatToolbarOf = (editor: Editor): HTMLElement | null =>
+  toolbarsByEditor.get(editor) ?? null;
 
 export type TextFormatVariant = 'floating' | 'contextBar';
 
@@ -115,6 +116,7 @@ export function TextFormatControls({
 }: TextFormatControlsProps) {
   // Der Wirt muss nichts von tiptap wissen: die Knöpfe hören selbst auf den
   // Editor. Deshalb reist kein Zustand je Tastendruck durch den Baum nach oben.
+  const roving = useRovingToolbar<HTMLDivElement>();
   const state = useEditorState({
     editor,
     selector: ({ editor: e }) => ({
@@ -130,8 +132,26 @@ export function TextFormatControls({
     }),
   });
 
+  const { ref: toolbarRef } = roving;
+  useEffect(() => {
+    const toolbar = toolbarRef.current;
+    if (!toolbar) return;
+    toolbarsByEditor.set(editor, toolbar);
+    return () => {
+      if (toolbarsByEditor.get(editor) === toolbar) toolbarsByEditor.delete(editor);
+    };
+  }, [editor, toolbarRef]);
+
   return (
-    <div role="toolbar" aria-label="Textformatierung" className={GROUP_CLASS[variant]}>
+    // Die ganze Leiste hält den Editor offen: wandert der Fokus per Tab hierher,
+    // ist das kein Verlassen des Textes.
+    <div
+      {...roving}
+      {...{ [KEEP_EDITING_ATTR]: '' }}
+      role="toolbar"
+      aria-label="Textformatierung"
+      className={GROUP_CLASS[variant]}
+    >
       {marks.bold && (
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBold().run()}
@@ -317,6 +337,7 @@ function MarkColorButton({
         createPortal(
           <div
             ref={popoverRef}
+            {...{ [KEEP_EDITING_ATTR]: '' }}
             role="dialog"
             aria-label={`${label}: Farbe`}
             style={{ ...position, width: POPOVER_WIDTH }}

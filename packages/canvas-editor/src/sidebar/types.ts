@@ -24,6 +24,8 @@ export type SidebarTabId =
   | 'chat'
   // Editor-level: the whole document, not a page (components/CanvasEditor/vorlagenTab.ts)
   | 'vorlagen'
+  // Editor-level: every element of the active page (components/CanvasEditor/layersTab.ts)
+  | 'layers'
   // Legacy/template-specific tab IDs (for backwards compatibility)
   | 'fontsize'
   | 'assets'

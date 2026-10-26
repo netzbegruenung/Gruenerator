@@ -1,10 +1,11 @@
 import { createCanvas } from '@napi-rs/canvas';
-import { act, render, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, waitFor } from '@testing-library/react';
 import { type default as Konva } from 'konva';
 import { createRef } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CanvasItemLockContext } from '../../components/canvasItemLock';
+import { AnnouncerContext } from '../../hooks/useAnnounce';
 import { CanvasStage, type CanvasStageRef } from '../CanvasStage';
 import { UserImagePrimitive } from '../UserImagePrimitive';
 
@@ -21,41 +22,45 @@ beforeEach(() => {
 });
 afterEach(() => vi.restoreAllMocks());
 
-async function setup(cropping: boolean, locked = false) {
+async function setup(cropping: boolean, locked = false, cropZoom = 1, announce = vi.fn()) {
   const ref = createRef<CanvasStageRef>();
   const onCropEnd = vi.fn();
   const onCroppingChange = vi.fn();
   const onTransformEnd = vi.fn();
   render(
-    <CanvasStage ref={ref} width={800} height={600} responsive={false}>
-      <CanvasItemLockContext.Provider value={locked}>
-        <UserImagePrimitive
-          userImage={{
-            id: 'photo',
-            src: '/photo.jpg',
-            fileName: 'photo.jpg',
-            x: 50,
-            y: 80,
-            width: 600,
-            height: 400,
-            scale: 1,
-            rotation: 0,
-            opacity: 1,
-          }}
-          isSelected
-          isCropping={cropping}
-          onSelect={() => {}}
-          onDragEnd={() => {}}
-          onTransformEnd={onTransformEnd}
-          onCropEnd={onCropEnd}
-          onCroppingChange={onCroppingChange}
-        />
-      </CanvasItemLockContext.Provider>
-    </CanvasStage>
+    <AnnouncerContext.Provider value={{ announce, lastAnnouncedAt: { current: 0 } }}>
+      <CanvasStage ref={ref} width={800} height={600} responsive={false}>
+        <CanvasItemLockContext.Provider value={locked}>
+          <UserImagePrimitive
+            userImage={{
+              id: 'photo',
+              src: '/photo.jpg',
+              fileName: 'photo.jpg',
+              x: 50,
+              y: 80,
+              width: 600,
+              height: 400,
+              scale: 1,
+              rotation: 0,
+              opacity: 1,
+              fit: 'cover',
+              cropZoom,
+            }}
+            isSelected
+            isCropping={cropping}
+            onSelect={() => {}}
+            onDragEnd={() => {}}
+            onTransformEnd={onTransformEnd}
+            onCropEnd={onCropEnd}
+            onCroppingChange={onCroppingChange}
+          />
+        </CanvasItemLockContext.Provider>
+      </CanvasStage>
+    </AnnouncerContext.Provider>
   );
   const stage = ref.current!.getStage()!;
   await waitFor(() => expect(stage.findOne('.user-photo')).toBeTruthy());
-  return { stage, onCropEnd, onCroppingChange, onTransformEnd };
+  return { stage, announce, onCropEnd, onCroppingChange, onTransformEnd };
 }
 
 describe('on-canvas crop interaction', () => {
@@ -105,5 +110,60 @@ describe('on-canvas crop interaction', () => {
     });
     expect(onCroppingChange).not.toHaveBeenCalled();
     expect((stage.findOne('Transformer') as Konva.Transformer).resizeEnabled()).toBe(false);
+  });
+});
+
+describe('keyboard crop', () => {
+  it('announces the keys when crop mode starts', async () => {
+    const { announce } = await setup(true);
+    expect(announce).toHaveBeenCalledWith('Ausschnitt: Pfeiltasten verschieben, Enter beendet');
+  });
+
+  it('pans the photo by 1 px, 10 px with Shift, through onCropEnd', async () => {
+    const { onCropEnd } = await setup(true, false, 2);
+    // 2x zoom: photo 1200x800 in a 600x400 frame, overhang 300 / 200 per side.
+    fireEvent.keyDown(window, { key: 'ArrowLeft' });
+    expect(onCropEnd).toHaveBeenLastCalledWith({
+      fit: 'cover',
+      panX: expect.closeTo(-1 / 300, 5),
+      panY: 0,
+    });
+    fireEvent.keyDown(window, { key: 'ArrowUp', shiftKey: true });
+    expect(onCropEnd).toHaveBeenLastCalledWith({
+      fit: 'cover',
+      panX: 0,
+      panY: expect.closeTo(-10 / 200, 5),
+    });
+  });
+
+  it('does not pan past the edge of the photo', async () => {
+    const { onCropEnd } = await setup(true);
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    expect(onCropEnd).not.toHaveBeenCalled();
+  });
+
+  it('zooms with + and -, never below 100 %', async () => {
+    const { onCropEnd } = await setup(true, false, 1);
+    fireEvent.keyDown(window, { key: '+' });
+    expect(onCropEnd).toHaveBeenLastCalledWith({ fit: 'cover', cropZoom: expect.closeTo(1.1, 5) });
+    onCropEnd.mockClear();
+    fireEvent.keyDown(window, { key: '-' });
+    expect(onCropEnd).not.toHaveBeenCalled();
+  });
+
+  it('pans from the page focus target, where a keyboard crop puts the focus', async () => {
+    const { onCropEnd } = await setup(true, false, 2);
+    const page = document.createElement('button');
+    page.setAttribute('data-page-focus-target', 'p1');
+    document.body.append(page);
+    fireEvent.keyDown(page, { key: 'ArrowLeft' });
+    expect(onCropEnd).toHaveBeenCalledOnce();
+    page.remove();
+  });
+
+  it('ignores keys when not cropping or while typing', async () => {
+    const off = await setup(false, false, 2);
+    fireEvent.keyDown(window, { key: 'ArrowLeft' });
+    expect(off.onCropEnd).not.toHaveBeenCalled();
   });
 });

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { PiCaretRightBold } from 'react-icons/pi';
 
 import { cn } from '../../../utils/cn';
+import { scrollBehavior } from '../../../utils/scrollBehavior';
 import { HIDDEN_SCROLLBAR } from '../../sidebarStyles';
 
 import { ElementTile } from './ElementTile';
@@ -54,7 +55,10 @@ export function RecentCarousel({
       <div
         ref={rowRef}
         onScroll={measure}
-        className={cn('flex gap-2 overflow-x-auto scroll-smooth', HIDDEN_SCROLLBAR)}
+        className={cn(
+          'flex gap-2 overflow-x-auto scroll-smooth motion-reduce:scroll-auto',
+          HIDDEN_SCROLLBAR
+        )}
       >
         {items.map((item, i) => (
           <ElementTile
@@ -80,7 +84,9 @@ export function RecentCarousel({
           type="button"
           aria-label="Weitere zuletzt verwendete Elemente"
           tabIndex={canScroll ? 0 : -1}
-          onClick={() => rowRef.current?.scrollBy({ left: SCROLL_STEP, behavior: 'smooth' })}
+          onClick={() =>
+            rowRef.current?.scrollBy({ left: SCROLL_STEP, behavior: scrollBehavior() })
+          }
           className={cn(
             'size-8 rounded-full grid place-items-center border-none cursor-pointer',
             'bg-[var(--editor-surface)] text-[var(--editor-text)] shadow-md',

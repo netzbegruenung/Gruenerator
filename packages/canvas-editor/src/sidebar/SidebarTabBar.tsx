@@ -1,11 +1,12 @@
 import { memo, useCallback } from 'react';
 
-import { useIsCanvasMobile } from '../hooks/useIsCanvasMobile';
 import { AutoSaveIndicator } from '../components/TopBar/AutoSaveIndicator';
+import { useIsCanvasMobile } from '../hooks/useIsCanvasMobile';
+import { cn } from '../utils/cn';
+
+import { SIDEBAR_PANEL_ID } from './sidebarStyles';
 
 import type { SidebarTabBarProps, SidebarTabId, SidebarTab } from './types';
-
-import { cn } from '../utils/cn';
 
 interface TabButtonProps {
   tab: SidebarTab;
@@ -39,7 +40,8 @@ const TabButton = memo(function TabButton({
         onClick={handleClick}
         disabled={isDisabled}
         aria-label={tab.ariaLabel}
-        aria-pressed={isActive}
+        aria-expanded={isActive}
+        aria-controls={SIDEBAR_PANEL_ID}
         data-tour={`canvas-tab-${tab.id}`}
         type="button"
       >
@@ -68,7 +70,8 @@ const TabButton = memo(function TabButton({
       onClick={handleClick}
       disabled={isDisabled}
       aria-label={tab.ariaLabel}
-      aria-pressed={isActive}
+      aria-expanded={isActive}
+      aria-controls={SIDEBAR_PANEL_ID}
       title={tab.label}
       data-tour={`canvas-tab-${tab.id}`}
       type="button"
@@ -118,7 +121,8 @@ export const SidebarTabBar = memo(function SidebarTabBar({
   }
 
   return (
-    <div
+    <nav
+      aria-label="Editor-Bereiche"
       data-tour="canvas-tabs"
       className={cn(
         'sidebar-tab-bar flex flex-col items-center justify-start gap-1 pt-2 shrink-0 w-[76px] h-full bg-[var(--editor-surface)] border-r border-[var(--editor-border)]',
@@ -139,6 +143,6 @@ export const SidebarTabBar = memo(function SidebarTabBar({
       <div className="sidebar-tab-bar__separator w-8 h-px bg-[var(--editor-border-strong)] my-sm" />
 
       <AutoSaveIndicator />
-    </div>
+    </nav>
   );
 });

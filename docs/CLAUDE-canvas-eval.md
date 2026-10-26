@@ -1,5 +1,7 @@
 # Canvas-Editor evaluieren: Performance, Touch, WebView
 
+> Barrierefreiheit und Browser-Tests über den Barrierefreiheitsbaum statt über Konva/Pixel: `docs/CLAUDE-canvas-browser-tests.md`.
+
 Learnings aus zwei Evaluationen vom 10.10.2026: zuerst „so flüssig wie Canva" auf dem Desktop (PR #4382), danach Mobil und App-WebView (Issues #4383–#4400). Das Dokument beschreibt vor allem, **wie** gemessen wurde und **was dabei funktioniert hat und was nicht**. Die Werkzeuge liegen in `packages/canvas-editor/scripts/perf-eval/`.
 
 ## Kurzfassung: so geht man vor

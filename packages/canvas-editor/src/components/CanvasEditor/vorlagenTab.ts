@@ -13,7 +13,7 @@ export const vorlagenTab: SidebarTab = {
   id: 'vorlagen',
   icon: PiLayoutFill,
   label: 'Vorlagen',
-  ariaLabel: 'Grünerator-Vorlagen anwenden',
+  ariaLabel: 'Vorlagen: Grünerator-Vorlagen anwenden',
 };
 
 /**

@@ -295,7 +295,7 @@ const withFreeformAi = (
       id: 'text',
       icon: PiTextAa,
       label: 'Text',
-      ariaLabel: 'Texte hinzufügen',
+      ariaLabel: 'Text hinzufügen',
     },
     {
       id: 'elements',

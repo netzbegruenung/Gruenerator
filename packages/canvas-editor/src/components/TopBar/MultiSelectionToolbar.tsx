@@ -9,6 +9,7 @@ import {
   PiTrash,
 } from 'react-icons/pi';
 
+import { useRovingToolbar } from '../../hooks/useRovingToolbar';
 import {
   CANVAS_COMMANDS,
   ariaShortcut,
@@ -87,9 +88,15 @@ export function MultiSelectionToolbar({
 }: MultiSelectionToolbarProps) {
   const locked = lockState === 'all';
   const lockLabel = locked ? 'Entsperren' : 'Sperren';
+  const roving = useRovingToolbar<HTMLDivElement>();
   return (
     <ContextCard>
-      <div role="toolbar" aria-label={`${count} Elemente`} className="flex items-center gap-0.5">
+      <div
+        {...roving}
+        role="toolbar"
+        aria-label={`${count} Elemente`}
+        className="flex items-center gap-0.5"
+      >
         <span className="px-2 text-[13px] font-medium text-[var(--editor-text-secondary)] whitespace-nowrap">
           {count} Elemente
         </span>

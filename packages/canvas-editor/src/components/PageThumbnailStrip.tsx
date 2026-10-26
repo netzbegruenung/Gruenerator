@@ -117,6 +117,7 @@ export const PageThumbnailStrip = memo(function PageThumbnailStrip({
             onClick={handleQuickAdd}
             disabled={!currentTemplateId}
             title="Seite hinzufügen"
+            aria-label="Seite hinzufügen"
             type="button"
           >
             <PiPlus size={16} />
@@ -127,8 +128,8 @@ export const PageThumbnailStrip = memo(function PageThumbnailStrip({
             className="h-8 max-canvas-mobile:h-11 max-canvas-mobile:min-w-11 px-1.5 flex items-center justify-center text-[var(--editor-text-secondary)] hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] transition-colors"
             onClick={handleToggleFlyout}
             title="Vorlage auswählen"
+            aria-label="Vorlage auswählen"
             type="button"
-            aria-haspopup="menu"
             aria-expanded={isFlyoutOpen}
           >
             <PiCaretDown size={14} />

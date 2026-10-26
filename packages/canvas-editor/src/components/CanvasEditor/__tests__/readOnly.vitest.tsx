@@ -78,6 +78,6 @@ describe('CanvasEditor readOnly', () => {
     await act(async () => {
       document.querySelector<HTMLElement>('[data-page-index="1"]')!.click();
     });
-    expect(document.querySelector('[data-page-index="1"]')).toHaveAttribute('aria-pressed', 'true');
+    expect(document.querySelector('[data-page-index="1"]')).toHaveAttribute('aria-current', 'page');
   });
 });
