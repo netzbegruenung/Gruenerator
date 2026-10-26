@@ -359,6 +359,12 @@ function CanvasRenderLayerInner<
           onSelect={handlers.handleElementSelect}
           onChange={(attrs) => handlers.handleShapeChange(shape.id, attrs)}
           draggable={true}
+          stageWidth={stageWidth}
+          stageHeight={stageHeight}
+          getSnapTargets={getSnapTargets}
+          onSnapChange={handleSnapChange}
+          onSnapLinesChange={setSnapLines}
+          onGeometryChange={registerGeometry}
         />
       );
     }
@@ -375,6 +381,12 @@ function CanvasRenderLayerInner<
           onChange={(attrs) => handlers.handleFrameChange(frame.id, attrs)}
           onImageUpload={handlers.handleFrameImageUpload}
           draggable={true}
+          stageWidth={stageWidth}
+          stageHeight={stageHeight}
+          getSnapTargets={getSnapTargets}
+          onSnapChange={handleSnapChange}
+          onSnapLinesChange={setSnapLines}
+          onGeometryChange={registerGeometry}
         />
       );
     }
@@ -392,11 +404,12 @@ function CanvasRenderLayerInner<
           onTransformEnd={(x: number, y: number, scale: number, rotation: number) =>
             handlers.handleIllustrationTransformEnd(ill.id, x, y, scale, rotation)
           }
-          onSnapChange={handleSnapChange}
-          onSnapLinesChange={(lines) => setSnapLines(lines as SnapLine[])}
-          getSnapTargets={getSnapTargets}
           stageWidth={stageWidth}
           stageHeight={stageHeight}
+          getSnapTargets={getSnapTargets}
+          onSnapChange={handleSnapChange}
+          onSnapLinesChange={setSnapLines}
+          onGeometryChange={registerGeometry}
         />
       );
     }
@@ -512,6 +525,12 @@ function CanvasRenderLayerInner<
           }
           isCropping={croppingElement === userImage.id}
           onCroppingChange={(on: boolean) => setCroppingElement(on ? userImage.id : null)}
+          stageWidth={stageWidth}
+          stageHeight={stageHeight}
+          getSnapTargets={getSnapTargets}
+          onSnapChange={handleSnapChange}
+          onSnapLinesChange={setSnapLines}
+          onGeometryChange={registerGeometry}
         />
       );
     }
@@ -528,6 +547,12 @@ function CanvasRenderLayerInner<
           onTransformEnd={(x: number, y: number, s: number, r: number) =>
             handlers.handleChartTransformEnd(chart.id, x, y, s, r)
           }
+          stageWidth={stageWidth}
+          stageHeight={stageHeight}
+          getSnapTargets={getSnapTargets}
+          onSnapChange={handleSnapChange}
+          onSnapLinesChange={setSnapLines}
+          onGeometryChange={registerGeometry}
         />
       );
     }
@@ -616,7 +641,12 @@ function CanvasRenderLayerInner<
           </Group>
         );
       })}
-      <MultiSelectionTransformer renderKey={sortedRenderList} canRotate={canRotateSelection} />
+      <MultiSelectionTransformer
+        renderKey={sortedRenderList}
+        canRotate={canRotateSelection}
+        stageWidth={stageWidth}
+        stageHeight={stageHeight}
+      />
     </>
   );
 }

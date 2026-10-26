@@ -14,6 +14,7 @@ import { createRoot } from 'react-dom/client';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
+import { useBoxSnap, type SnapProps } from '../hooks/useBoxSnap';
 import {
   CHART_INK_DARK,
   chartInk,
@@ -24,10 +25,11 @@ import {
 } from '../utils/chartUtils';
 import { ELEMENT_TRANSFORMER } from '../utils/orientation';
 import { useTrackPendingImage } from '../utils/pendingImages';
+import { chartBox } from '../utils/renderedBoxes';
 
 import type Konva from 'konva';
 
-export interface ChartPrimitiveProps {
+export interface ChartPrimitiveProps extends SnapProps {
   chart: ChartInstance;
   isSelected: boolean;
   onSelect: (id: string) => void;
@@ -433,8 +435,10 @@ function ChartPrimitiveInner({
   onDragEnd,
   onTransformEnd,
   draggable = true,
+  ...snapProps
 }: ChartPrimitiveProps) {
   const locked = useIsItemLocked();
+  const snap = useBoxSnap({ id: chart.id, ...snapProps }, chartBox(chart));
   const groupRef = useRef<Konva.Group>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
   // The image with the visual state it was drawn from: while they differ, a
@@ -507,7 +511,12 @@ function ChartPrimitiveInner({
           e.cancelBubble = true;
           onSelect(chart.id);
         }}
-        onDragEnd={(e) => onDragEnd(e.target.x(), e.target.y())}
+        onDragStart={snap.onDragStart}
+        onDragMove={snap.onDragMove}
+        onDragEnd={(e) => {
+          snap.onDragEnd();
+          onDragEnd(e.target.x(), e.target.y());
+        }}
         onTransformEnd={() => {
           const node = groupRef.current;
           if (!node) return;
@@ -559,6 +568,7 @@ export const ChartPrimitive = memo(ChartPrimitiveInner, (prev, next) => {
   const b = next.chart;
   if (prev.isSelected !== next.isSelected) return false;
   if (prev.draggable !== next.draggable) return false;
+  if (prev.stageWidth !== next.stageWidth || prev.stageHeight !== next.stageHeight) return false;
   return (
     a.id === b.id &&
     a.x === b.x &&

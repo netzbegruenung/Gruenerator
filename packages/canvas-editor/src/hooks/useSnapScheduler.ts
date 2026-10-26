@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 
-import { createSnapHysteresis, resetSnapHysteresis } from '../utils/snapping';
+import { createSnapHysteresis, resetSnapHysteresis, sameSnapLines } from '../utils/snapping';
 
 import type { SnapHysteresis, SnapLine } from '../utils/snapping';
 
@@ -20,7 +20,7 @@ interface SnapCallbacks {
 export function useSnapScheduler(callbacks: SnapCallbacks) {
   const { onSnapChange, onSnapLinesChange } = callbacks;
   const lastSnapRef = useRef({ snapH: false, snapV: false });
-  const lastLinesCountRef = useRef(0);
+  const lastLinesRef = useRef<SnapLine[]>([]);
   const rafIdRef = useRef<number | null>(null);
   const isDraggingRef = useRef(false);
   // Per-drag hysteresis state — reset on dragEnd so each drag starts fresh.
@@ -38,11 +38,13 @@ export function useSnapScheduler(callbacks: SnapCallbacks) {
     (snapH: boolean, snapV: boolean, snapLines: SnapLine[]) => {
       const snapChanged =
         lastSnapRef.current.snapH !== snapH || lastSnapRef.current.snapV !== snapV;
-      const linesChanged = snapLines.length !== lastLinesCountRef.current;
+      // Nach Inhalt, nicht nach Anzahl: ein Sprung auf eine andere Linie ändert
+      // die Anzahl nicht, und die alte bliebe stehen.
+      const linesChanged = !sameSnapLines(snapLines, lastLinesRef.current);
       if (!snapChanged && !linesChanged) return;
 
       lastSnapRef.current = { snapH, snapV };
-      lastLinesCountRef.current = snapLines.length;
+      lastLinesRef.current = snapLines;
 
       if (rafIdRef.current !== null) cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = requestAnimationFrame(() => {
@@ -68,7 +70,7 @@ export function useSnapScheduler(callbacks: SnapCallbacks) {
       rafIdRef.current = null;
     }
     lastSnapRef.current = { snapH: false, snapV: false };
-    lastLinesCountRef.current = 0;
+    lastLinesRef.current = [];
     resetSnapHysteresis(hysteresisRef.current);
     onSnapChange(false, false);
     onSnapLinesChange([]);

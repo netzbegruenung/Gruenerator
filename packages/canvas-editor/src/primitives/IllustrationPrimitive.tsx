@@ -3,10 +3,12 @@ import { Image, Group, Rect, Transformer } from 'react-konva';
 
 import { useCanvasEditorServices } from '../CanvasEditorProvider';
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
+import { useBoxSnap, type SnapProps } from '../hooks/useBoxSnap';
 import { getIllustrationPath, findIllustrationById } from '../utils/illustrations/registry';
 import { getCachedSVG, getSVG } from '../utils/illustrations/svgCache';
 import { ILLUSTRATION_TARGET_SIZE, MOTIF_BASE_SIZE } from '../utils/motifSizes';
 import { ELEMENT_TRANSFORMER, signedScale } from '../utils/orientation';
+import { illustrationBox } from '../utils/renderedBoxes';
 
 import type {
   IllustrationInstance,
@@ -14,7 +16,6 @@ import type {
   SvgDef,
   KawaiiInstance,
 } from '../utils/illustrations/types';
-import type { SnapTarget } from '../utils/snapping';
 import type Konva from 'konva';
 
 // react-kawaii and react-dom/server are only needed once a kawaii
@@ -45,17 +46,12 @@ async function renderKawaiiSvg(instance: KawaiiInstance, size: number): Promise<
   );
 }
 
-export interface IllustrationPrimitiveProps {
+export interface IllustrationPrimitiveProps extends SnapProps {
   illustration: IllustrationInstance;
   isSelected: boolean;
   onSelect: (id: string) => void;
   onDragEnd: (x: number, y: number) => void;
   onTransformEnd: (x: number, y: number, scale: number, rotation: number) => void;
-  onSnapChange?: (h: boolean, v: boolean) => void;
-  onSnapLinesChange?: (lines: unknown[]) => void;
-  getSnapTargets?: (id: string) => SnapTarget[];
-  stageWidth?: number;
-  stageHeight?: number;
   draggable?: boolean;
 }
 
@@ -66,8 +62,10 @@ function IllustrationPrimitiveInner({
   onDragEnd,
   onTransformEnd,
   draggable = true,
+  ...snapProps
 }: IllustrationPrimitiveProps) {
   const locked = useIsItemLocked();
+  const snap = useBoxSnap({ id: illustration.id, ...snapProps }, illustrationBox(illustration));
   const { assetBaseUrl = '' } = useCanvasEditorServices();
   const groupRef = useRef<Konva.Group>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
@@ -168,7 +166,10 @@ function IllustrationPrimitiveInner({
           e.cancelBubble = true;
           onSelect(illustration.id);
         }}
+        onDragStart={snap.onDragStart}
+        onDragMove={snap.onDragMove}
         onDragEnd={(e) => {
+          snap.onDragEnd();
           onDragEnd(e.target.x(), e.target.y());
         }}
         onTransformEnd={() => {

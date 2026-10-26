@@ -10,6 +10,7 @@ import { useState, useEffect, useRef, memo } from 'react';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
+import { useBoxSnap, type SnapProps } from '../hooks/useBoxSnap';
 import {
   clampPan,
   framedPhotoRect,
@@ -25,13 +26,14 @@ import {
 import { ELEMENT_TRANSFORMER } from '../utils/orientation';
 import { useTrackPendingImage } from '../utils/pendingImages';
 import { recacheNextFrame } from '../utils/recacheNextFrame';
+import { userImageBox } from '../utils/renderedBoxes';
 import { touchAnchorStyleFunc } from '../utils/touchInput';
 import { userImageCropUpdate } from '../utils/userImageCrop';
 import { USER_PHOTO_NODE_NAME, type UserImageInstance } from '../utils/userImageUtils';
 
 import type Konva from 'konva';
 
-export interface UserImagePrimitiveProps {
+export interface UserImagePrimitiveProps extends SnapProps {
   userImage: UserImageInstance;
   isSelected: boolean;
   onSelect: (id: string) => void;
@@ -55,8 +57,10 @@ function UserImagePrimitiveInner({
   isCropping: cropping = false,
   onCroppingChange,
   draggable = true,
+  ...snapProps
 }: UserImagePrimitiveProps) {
   const locked = useIsItemLocked();
+  const snap = useBoxSnap({ id: userImage.id, ...snapProps }, userImageBox(userImage));
   const panStartRef = useRef<Box | null>(null);
   const cropFrameRef = useRef<Konva.Rect>(null);
   const cropTransformerRef = useRef<Konva.Transformer>(null);
@@ -199,7 +203,10 @@ function UserImagePrimitiveInner({
           e.cancelBubble = true;
           onSelect(userImage.id);
         }}
+        onDragStart={snap.onDragStart}
+        onDragMove={snap.onDragMove}
         onDragEnd={(e) => {
+          snap.onDragEnd();
           onDragEnd(e.target.x(), e.target.y());
         }}
         onTransformEnd={() => {
@@ -414,6 +421,8 @@ export const UserImagePrimitive = memo(UserImagePrimitiveInner, (prevProps, next
   if (prevProps.isSelected !== nextProps.isSelected) return false;
   if (prevProps.draggable !== nextProps.draggable) return false;
   if (prevProps.isCropping !== nextProps.isCropping) return false;
+  if (prevProps.stageWidth !== nextProps.stageWidth) return false;
+  if (prevProps.stageHeight !== nextProps.stageHeight) return false;
 
   return true;
 });

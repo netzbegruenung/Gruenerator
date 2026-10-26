@@ -21,6 +21,7 @@ import { Stage, Layer, Group, Rect } from 'react-konva';
 import { CanvasTextEditorProvider } from '../components/CanvasTextOverlay';
 import { TransformHud } from '../components/TransformHud';
 import { useHoverOutline } from '../hooks/useHoverOutline';
+import { installAxisLock } from '../utils/axisLock';
 import { withSelectionChromeHidden } from '../utils/captureStage';
 import { cn } from '../utils/cn';
 import { BACKGROUND_IMAGE_NODE_ID, printImageInfo } from '../utils/printImageInfo';
@@ -361,6 +362,12 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
     // A second finger makes the gesture a pinch (useZoomGestures): its press
     // never reaches Konva, so it can't select what it lands on, and a drag or
     // resize the first finger started is put back and ended.
+    // Umschalt sperrt jeden Zug auf eine Achse — einmal für alle Elemente.
+    useEffect(() => {
+      const stage = displayStageRef.current;
+      return stage ? installAxisLock(stage) : undefined;
+    }, []);
+
     useEffect(() => {
       const stage = displayStageRef.current;
       const container = stage?.container();
