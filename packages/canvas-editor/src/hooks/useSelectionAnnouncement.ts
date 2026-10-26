@@ -29,17 +29,21 @@ function focusInLayerList(): boolean {
 /**
  * Sagt die Auswahl dieser Seite an — entprellt, nur der Endzustand — und
  * weicht jeder Ansage, die seit der Änderung kam (Löschen, Einfügen …):
- * der Befehl sagt mehr als „Auswahl aufgehoben“.
+ * der Befehl sagt mehr als „Auswahl aufgehoben“. Nur die aktive Seite spricht:
+ * eine inaktive hebt beim Seitenwechsel ihre Auswahl auf, und das ist keine
+ * Nachricht.
  */
 export function useSelectionAnnouncement(
   store: CanvasEditorStoreApi,
-  labelOf: (id: string) => string | null
+  labelOf: (id: string) => string | null,
+  isActivePage: boolean
 ): void {
   const { announce, lastAnnouncedAt } = useAnnouncer();
   const labelOfRef = useRef(labelOf);
   labelOfRef.current = labelOf;
 
   useEffect(() => {
+    if (!isActivePage) return undefined;
     let previous = store.getState().selectedLayerIds;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const unsubscribe = store.subscribe((state) => {
@@ -63,5 +67,5 @@ export function useSelectionAnnouncement(
       unsubscribe();
       if (timer) clearTimeout(timer);
     };
-  }, [store, announce, lastAnnouncedAt]);
+  }, [store, announce, lastAnnouncedAt, isActivePage]);
 }

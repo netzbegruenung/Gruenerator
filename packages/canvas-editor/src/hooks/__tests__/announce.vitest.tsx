@@ -17,26 +17,32 @@ import type { CanvasEditorStoreApi } from '../../stores/createCanvasEditorStore'
 let announceFn: (text: string) => void = () => {};
 let storeRef: CanvasEditorStoreApi;
 
-function Harness({ labels = {} }: { labels?: Record<string, string> }) {
+function Harness({
+  labels = {},
+  active = true,
+}: {
+  labels?: Record<string, string>;
+  active?: boolean;
+}) {
   const { announcer, message } = useLiveAnnouncer();
   return (
     <AnnouncerContext.Provider value={announcer}>
       <CanvasAnnouncer message={message} />
       <CanvasStoreProvider>
-        <Inner labels={labels} />
+        <Inner labels={labels} active={active} />
       </CanvasStoreProvider>
     </AnnouncerContext.Provider>
   );
 }
 
-function Inner({ labels }: { labels: Record<string, string> }) {
+function Inner({ labels, active }: { labels: Record<string, string>; active: boolean }) {
   const announce = useAnnounce();
   const store = useCanvasStore();
   useEffect(() => {
     announceFn = announce;
     storeRef = store;
   }, [announce, store]);
-  useSelectionAnnouncement(store, (id) => labels[id] ?? null);
+  useSelectionAnnouncement(store, (id) => labels[id] ?? null, active);
   return null;
 }
 
@@ -110,6 +116,19 @@ describe('Auswahl-Ansage', () => {
     });
     settle();
     expect(region()).toHaveTextContent('Text: C ausgewählt');
+  });
+
+  it('schweigt auf einer inaktiven Seite', () => {
+    render(<Harness labels={{ a: 'Text: A' }} active={false} />);
+    act(() => {
+      storeRef.getState().setSelectedLayers(['a']);
+    });
+    settle();
+    act(() => {
+      storeRef.getState().deselectAll();
+    });
+    settle();
+    expect(region()).toBeEmptyDOMElement();
   });
 
   it('sagt „Auswahl aufgehoben“ nur nach einer Auswahl', () => {

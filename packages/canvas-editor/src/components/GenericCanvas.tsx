@@ -786,10 +786,14 @@ function GenericCanvasWithRef<
   );
 
   // Selection changes are announced from the page's own store (debounced).
-  useSelectionAnnouncement(store, (id) => {
-    const item = commandInputsRef.current.sortedRenderList.find((entry) => entry.id === id);
-    return item ? layerLabel(item, committedStateRef.current) : null;
-  });
+  useSelectionAnnouncement(
+    store,
+    (id) => {
+      const item = commandInputsRef.current.sortedRenderList.find((entry) => entry.id === id);
+      return item ? layerLabel(item, committedStateRef.current) : null;
+    },
+    isActivePage
+  );
 
   // The multi-selection transformer asks this when the selection changes, so a
   // selection change never re-renders the canvas.
