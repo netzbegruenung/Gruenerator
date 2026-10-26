@@ -1,6 +1,7 @@
+import { onGround } from '../brand/composerBrand';
 import { createPillBadgeInstance } from '../utils/pillBadgeUtils';
 
-import { AT_EMPHASIS_STYLE, LIME, SHAREPIC_COLOR_HEX } from './chromeParts';
+import { AT_EMPHASIS_STYLE } from './chromeParts';
 import { type AufrufItem, type Placed } from './composeTypes';
 import { GAP } from './sharepicLayoutConstants';
 import { type BuildPass, type SlideCtx } from './slideContext';
@@ -22,6 +23,7 @@ export function layoutAufruf(
     column,
     xAlign,
     onLight,
+    onGrass,
     accentInk,
     text,
     lineCount,
@@ -74,13 +76,14 @@ export function layoutAufruf(
     // DE: the hint as a pill under the call — where to sign.
     const pillSize = Math.round(Math.min(46, size * 0.5));
     const hint = item.hinweis;
+    const colors = onGround(brand.button, { onLight, onGrass });
     const pill = createPillBadgeInstance('slider', {
       id: `${id}-hinweis`,
       text: hint,
       fontSize: pillSize,
       fontFamily: theme.fonts.headline,
-      backgroundColor: onLight ? theme.colors.primary : isAt ? theme.colors.accent : LIME,
-      textColor: onLight ? '#FFFFFF' : isAt ? theme.colors.primary : SHAREPIC_COLOR_HEX.dunkeltanne,
+      backgroundColor: colors.fill,
+      textColor: colors.ink,
       paddingX: 36,
       paddingY: 18,
       cornerRadius: 60,

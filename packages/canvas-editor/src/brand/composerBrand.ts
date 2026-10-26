@@ -35,8 +35,12 @@ export interface ComposerBrand {
     infografikTitel: boolean;
     datum: boolean;
   };
+  /** Dark text: on light ground, and on grass green where the brand sets it dark. */
+  darkText: string;
   /** A topic icon on its circle. */
   badge: ByGround<{ fill: string; ink: string }>;
+  /** A pill button, and the hint pill under a petition call. */
+  button: ByGround<{ fill: string; ink: string }>;
   /** Accent on a white card: figures and list markers. */
   cardAccent: string;
   /** The large pale numeral behind a point. */

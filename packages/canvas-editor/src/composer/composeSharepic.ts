@@ -40,7 +40,6 @@ import {
   AT_EMPHASIS_STYLE,
   defaultMeasure,
   layoutTextLines,
-  LIME,
   SHAREPIC_COLOR_HEX,
   type MeasureText,
 } from './chromeParts';
@@ -189,7 +188,7 @@ function composeSlide(
   const steckbrief = spec.items.find((i): i is SteckbriefItem => i.type === 'steckbrief') ?? null;
   /** Where a steckbrief's person stands: the arrows point there. */
   const person = steckbrief ? steckbriefPerson(canvas, bg.kind === 'foto') : null;
-  const darkText = isAt ? theme.colors.primary : SHAREPIC_COLOR_HEX.dunkeltanne;
+  const darkText = brand.darkText;
   const boxed = !isAt && !!spec.zeilenboxen;
   const quoteSlide = spec.items.some((i) => i.type === 'zitat');
   /** AT quote on a photo: always centred at the bottom, as the posts set it. */
@@ -1124,17 +1123,14 @@ function composeSlide(
           break;
         case 'button': {
           const size = 44;
+          const colors = onGround(brand.button, { onLight, onGrass });
           const pill = createPillBadgeInstance('slider', {
             id,
             text: item.text,
             fontSize: size,
             fontFamily: theme.fonts.headline,
-            backgroundColor: onLight ? theme.colors.primary : isAt ? theme.colors.accent : LIME,
-            textColor: onLight
-              ? '#FFFFFF'
-              : isAt
-                ? theme.colors.primary
-                : SHAREPIC_COLOR_HEX.dunkeltanne,
+            backgroundColor: colors.fill,
+            textColor: colors.ink,
             paddingX: 36,
             paddingY: 18,
             cornerRadius: 60,

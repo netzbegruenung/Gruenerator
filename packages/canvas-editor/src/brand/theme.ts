@@ -132,10 +132,16 @@ export const GRUENE_DE: GruenePack = {
     },
     absatzGap: 0.6,
     headlineFace: { absatz: false, infografikTitel: false, datum: false },
+    darkText: DE_DUNKELTANNE,
     // Klee on light ground, Tanne on grass green, lime on dark ground and photos.
     badge: {
       light: { fill: DE_KLEE, ink: '#FFFFFF' },
       grass: { fill: DE_TANNE, ink: '#FFFFFF' },
+      dark: { fill: DE_LIME, ink: DE_DUNKELTANNE },
+    },
+    // Tanne on light ground, lime everywhere else, grass green included.
+    button: {
+      light: { fill: DE_TANNE, ink: '#FFFFFF' },
       dark: { fill: DE_LIME, ink: DE_DUNKELTANNE },
     },
     cardAccent: DE_KLEE,
@@ -204,8 +210,13 @@ export const GRUENE_AT: GruenePack = {
     // Gotham Book has no bold cut; AT sets the whole date circle in the
     // poster face (Dc_L5vriG5z), where a synthetic bold would only smear it.
     headlineFace: { absatz: true, infografikTitel: true, datum: true },
+    darkText: AT_DUNKELGRUEN,
     // The yellow accent on dark ground, its dark green on white.
     badge: {
+      light: { fill: AT_DUNKELGRUEN, ink: '#FFFFFF' },
+      dark: { fill: AT_GELB, ink: AT_DUNKELGRUEN },
+    },
+    button: {
       light: { fill: AT_DUNKELGRUEN, ink: '#FFFFFF' },
       dark: { fill: AT_GELB, ink: AT_DUNKELGRUEN },
     },
