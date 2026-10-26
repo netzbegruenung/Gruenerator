@@ -7,8 +7,9 @@ import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Konva from 'konva';
 import React from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { loadCanvasConfig } from '../../../configs/configLoader';
 import { axe } from '../../../test-utils';
 import { CanvasClipboard } from '../../../utils/canvasClipboard';
 import { createShape } from '../../../utils/shapes';
@@ -58,6 +59,14 @@ const shape = (id: string, x: number) => ({
   height: 120,
 });
 
+// Der Editor holt die Freeform-Config per dynamischem Import, und erst danach
+// steht die Bühne. Kalt kostete das im ersten Test 80 ms, unter Last der ganzen
+// Suite mehr als die ~1 s, die `renderEditor` auf die Bühne wartet (#4967).
+// Hier vorgewärmt, zählt der Import gegen keinen Test.
+beforeAll(async () => {
+  await loadCanvasConfig('freeform');
+}, 120_000);
+
 afterEach(() => {
   mobile = false;
   CanvasClipboard.clear();
@@ -87,7 +96,8 @@ async function renderEditor() {
     );
   });
   for (let i = 0; i < 50 && Konva.stages.length < 1; i++) await tick();
-  const stage = Konva.stages[Konva.stages.length - 1]!;
+  const stage = Konva.stages[Konva.stages.length - 1];
+  if (!stage) throw new Error('Die Bühne kam nicht innerhalb von 50 Ticks.');
   // Der erste Verlaufseintrag wird nach dem Mounten nachgeholt.
   await tick();
   return stage;
