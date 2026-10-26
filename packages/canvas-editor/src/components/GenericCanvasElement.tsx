@@ -34,6 +34,7 @@ import {
   getOptionalStateValue,
 } from '../utils/stateTypeAssertions';
 import { isTemplateElementRotatable, templateRotationOf } from '../utils/templateRotation';
+import { templateTextAlignOf } from '../utils/textAlign';
 
 import type {
   CanvasElementConfig,
@@ -146,7 +147,7 @@ const MemoizedTextElement = memo(
         fontFamily={config.fontFamily}
         fontStyle={config.fontStyle}
         fill={fill}
-        align={config.align ?? 'left'}
+        align={templateTextAlignOf(state, config.id) ?? config.align ?? 'left'}
         lineHeight={config.lineHeight ?? 1.2}
         wrap={config.wrap ?? 'word'}
         padding={padding}
@@ -204,6 +205,12 @@ const MemoizedTextElement = memo(
     if (
       templateRotationOf(prev.state, prev.config.id) !==
       templateRotationOf(next.state, next.config.id)
+    ) {
+      return false;
+    }
+    if (
+      templateTextAlignOf(prev.state, prev.config.id) !==
+      templateTextAlignOf(next.state, next.config.id)
     ) {
       return false;
     }
