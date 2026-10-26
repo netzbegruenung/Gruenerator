@@ -9,6 +9,7 @@ import {
   PiTrash,
 } from 'react-icons/pi';
 
+import { useRovingToolbar } from '../hooks/useRovingToolbar';
 import { CANVAS_COMMANDS } from '../utils/canvasCommandRegistry';
 
 import { useIsCanvasTextEditing } from './CanvasTextOverlay';
@@ -68,7 +69,7 @@ export function MobileSelectionPill({
   const [box, setBox] = useState<SelectionBox | null>(null);
   const [manipulating, setManipulating] = useState(false);
   const [pillWidth, setPillWidth] = useState(0);
-  const pillRef = React.useRef<HTMLDivElement>(null);
+  const { ref: pillRef, onKeyDown, onFocus } = useRovingToolbar<HTMLDivElement>();
   const isEditingText = useIsCanvasTextEditing();
 
   useLayoutEffect(() => {
@@ -95,7 +96,7 @@ export function MobileSelectionPill({
 
   useLayoutEffect(() => {
     if (pillRef.current) setPillWidth(pillRef.current.offsetWidth);
-  }, [box, canDuplicate, canDelete, onMore, isLocked, onFlip]);
+  }, [box, canDuplicate, canDelete, onMore, isLocked, onFlip, pillRef]);
 
   if (manipulating || isEditingText || !box) return null;
 
@@ -107,6 +108,8 @@ export function MobileSelectionPill({
   return createPortal(
     <div
       ref={pillRef}
+      onKeyDown={onKeyDown}
+      onFocus={onFocus}
       role="toolbar"
       aria-label="Element"
       style={{ top, left }}

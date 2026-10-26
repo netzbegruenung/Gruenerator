@@ -21,6 +21,7 @@ import { createPortal } from 'react-dom';
 import { FiBold, FiItalic, FiList, FiUnderline } from 'react-icons/fi';
 import { MdBorderColor, MdFormatListNumbered, MdHighlight } from 'react-icons/md';
 
+import { useRovingToolbar } from '../hooks/useRovingToolbar';
 import { type FontMarkSupport } from '../utils/fontMarkSupport';
 import { DEFAULT_TEXT_MARKER, MARKER_PRESETS } from '../utils/markerColors';
 import { BRAND_COLORS } from '../utils/shapes';
@@ -115,6 +116,7 @@ export function TextFormatControls({
 }: TextFormatControlsProps) {
   // Der Wirt muss nichts von tiptap wissen: die Knöpfe hören selbst auf den
   // Editor. Deshalb reist kein Zustand je Tastendruck durch den Baum nach oben.
+  const roving = useRovingToolbar<HTMLDivElement>();
   const state = useEditorState({
     editor,
     selector: ({ editor: e }) => ({
@@ -131,7 +133,7 @@ export function TextFormatControls({
   });
 
   return (
-    <div role="toolbar" aria-label="Textformatierung" className={GROUP_CLASS[variant]}>
+    <div {...roving} role="toolbar" aria-label="Textformatierung" className={GROUP_CLASS[variant]}>
       {marks.bold && (
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBold().run()}
