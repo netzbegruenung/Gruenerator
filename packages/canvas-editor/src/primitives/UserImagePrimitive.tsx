@@ -18,6 +18,7 @@ import {
   visiblePart,
   type Rect as Box,
 } from '../utils/coverFit';
+import { CROP_GHOST_NAME, CROP_GHOST_OPACITY } from '../utils/cropGhost';
 import {
   getActiveImageFilters,
   hasActiveImageFilters,
@@ -228,7 +229,7 @@ function UserImagePrimitiveInner({
         {isCropping && photo && (
           // The whole photo, dimmed: what lies outside the frame shows where it can go.
           <Image
-            name="selection-chrome"
+            name={`selection-chrome ${CROP_GHOST_NAME}`}
             image={image}
             x={photo.x + ghostShift.x}
             y={photo.y + ghostShift.y}
@@ -236,7 +237,7 @@ function UserImagePrimitiveInner({
             height={photo.height}
             scaleX={mirror.x ? -1 : 1}
             scaleY={mirror.y ? -1 : 1}
-            opacity={0.35}
+            opacity={CROP_GHOST_OPACITY}
             draggable
             onMouseDown={(e) => {
               e.cancelBubble = true;

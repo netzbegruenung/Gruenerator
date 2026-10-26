@@ -53,6 +53,8 @@ export interface CanvasStageProps {
    */
   listening?: boolean;
   children: ReactNode;
+  /** DOM über der Bühne im selben Koordinatensystem (z. B. das Restbild beim Zuschneiden). */
+  overlay?: ReactNode;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -178,6 +180,7 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
       onStageClick,
       listening = true,
       children,
+      overlay,
       className,
       style,
     },
@@ -462,6 +465,7 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
               )}
             </Layer>
           </Stage>
+          {overlay}
           <TransformHud stageRef={displayStageRef} enabled={listening} />
         </div>
       </CanvasTextEditorProvider>

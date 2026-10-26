@@ -73,6 +73,7 @@ import { findTemplateEntry } from '../utils/templateElementInstance';
 import { getOptimalContainerWidth } from '../utils/viewport';
 
 import { CanvasRenderLayer } from './CanvasRenderLayer';
+import { CropGhostOverlay } from './CropGhostOverlay';
 import { PrintGuides } from './PrintGuides';
 import { ToolbarStateBridge } from './ToolbarStateBridge';
 
@@ -341,6 +342,7 @@ function GenericCanvasWithRef<
   const shortcutsEnabled = interactive && isActivePage;
 
   const stageRef = useRef<CanvasStageRef>(null);
+  const getStage = useCallback(() => stageRef.current?.getStage() ?? null, []);
   const [pendingImages] = useState(() => new Set<string>());
 
   // Export state (used by auto-save and attribution overlay)
@@ -1084,6 +1086,7 @@ function GenericCanvasWithRef<
         onStageClick={handleStageClick}
         listening={interactive}
         className={`${config.id}-stage`}
+        overlay={interactive ? <CropGhostOverlay getStage={getStage} /> : null}
       >
         <CanvasRenderLayer
           sortedRenderList={sortedRenderList}

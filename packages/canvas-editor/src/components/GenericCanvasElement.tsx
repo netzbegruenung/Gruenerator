@@ -365,6 +365,7 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
       draggable={interaction.draggable}
       touchDragNeedsSelection={isBackgroundPhoto}
       onToggleCrop={canCropBackgroundPhoto(config) ? handleToggleCrop : null}
+      cropping={cropping}
       selected={selected}
       onSelect={handleSelect}
       onDragEnd={handleDragEnd}

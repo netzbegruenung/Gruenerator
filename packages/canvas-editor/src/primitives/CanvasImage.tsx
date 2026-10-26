@@ -19,7 +19,13 @@ import { Image as KonvaImage, Transformer } from 'react-konva';
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
-import { panWindowPhoto, zoomWindow, type Rect } from '../utils/coverFit';
+import { panWindowPhoto, photoRectAround, zoomWindow, type Rect } from '../utils/coverFit';
+import {
+  CROP_GHOST_NAME,
+  CROP_GHOST_OPACITY,
+  cropGhostAttrs,
+  placeCropGhost,
+} from '../utils/cropGhost';
 import { getActiveImageFilters, imageFilterAttrs } from '../utils/imageFilters';
 import { isGroupDrag } from '../utils/multiSelect';
 import { ELEMENT_TRANSFORMER, normalizeRotation } from '../utils/orientation';
@@ -49,6 +55,8 @@ export interface CanvasImageProps {
   selected?: boolean;
   /** Doppelklick/Doppeltipp schaltet den Ausschnitt-Modus (nur das Hintergrundfoto). */
   onToggleCrop?: (() => void) | null;
+  /** Ausschnitt-Modus: ein cover-gefittetes Foto zeigt sich ganz, außerhalb des Rahmens abgedunkelt. */
+  cropping?: boolean;
   transformConfig?: Partial<TransformConfig>;
   onSelect?: () => void;
   onDeselect?: () => void;
@@ -99,6 +107,7 @@ function CanvasImageInner({
   touchDragNeedsSelection = false,
   selected = false,
   onToggleCrop = null,
+  cropping = false,
   transformConfig,
   onSelect,
   onDeselect,
@@ -125,6 +134,7 @@ function CanvasImageInner({
   const panStartRef = useRef<{ part: Rect; dx: number; dy: number } | null>(null);
   const adjustmentFilters = adjustments ? getActiveImageFilters(adjustments) : [];
   const trRef = useRef<Konva.Transformer>(null);
+  const ghostRef = useRef<Konva.Image>(null);
 
   const snap = useSnapScheduler({
     onSnapChange: onSnapChange ?? (() => {}),
@@ -147,6 +157,9 @@ function CanvasImageInner({
     natural && slot
       ? panWindowPhoto(natural, { x, y, width, height }, slot, 0, 0, mirror).part
       : null;
+  const ghost =
+    cropping && natural && part ? photoRectAround(natural, { x, y, width, height }) : null;
+  const ghostAttrs = ghost ? cropGhostAttrs(ghost, mirror) : null;
 
   useEffect(() => {
     if (selected && trRef.current && imageRef.current) {
@@ -320,6 +333,12 @@ function CanvasImageInner({
         node.crop(next.part.crop);
         pan.dx = next.dx;
         pan.dy = next.dy;
+        // Ziehen und Zoomen ändern die Knoten direkt; das Restbild geht ohne React-Zustand mit.
+        placeCropGhost(
+          ghostRef.current,
+          photoRectAround(natural, { x: x + next.dx, y: y + next.dy, width, height }),
+          mirror
+        );
         recacheNextFrame(node);
         return;
       }
@@ -397,9 +416,23 @@ function CanvasImageInner({
     [part, snap]
   );
 
-  const handleTransform = useCallback(() => {
-    // Visual scaling only during transform - no state updates
-  }, []);
+  // Visual scaling only during transform - no state updates
+  const handleTransform = () => {
+    const node = imageRef.current;
+    if (!node || !ghost || !part) return;
+    // Das Restbild skaliert mit dem sichtbaren Teil, bis transformEnd den Zoom übernimmt.
+    const s = node.scaleX();
+    placeCropGhost(
+      ghostRef.current,
+      {
+        x: node.x() + (ghost.x - part.box.x) * s,
+        y: node.y() + (ghost.y - part.box.y) * s,
+        width: ghost.width * s,
+        height: ghost.height * s,
+      },
+      mirror
+    );
+  };
 
   const handleTransformEnd = useCallback(() => {
     const node = imageRef.current;
@@ -411,6 +444,7 @@ function CanvasImageInner({
       // The handles sit on the visible part; they zoom the photo about its middle.
       node.scale({ x: 1, y: 1 });
       const zoomed = zoomWindow({ x, y, width, height }, scaleX, slot);
+      if (natural) placeCropGhost(ghostRef.current, photoRectAround(natural, zoomed), mirror);
       onTransformEnd?.(zoomed.x, zoomed.y, zoomed.width, zoomed.height, 0);
       return;
     }
@@ -435,7 +469,7 @@ function CanvasImageInner({
       node.scale({ x: 1, y: 1 });
       onTransformEnd?.(node.x(), node.y(), currentWidth, currentHeight, nodeRotation);
     }
-  }, [onTransformEnd, slot, part, x, y, width, height]);
+  }, [onTransformEnd, slot, part, natural, mirror, x, y, width, height]);
 
   // Performance: dragBoundFunc now just returns position - actual clamping happens in handleDragMove
   // This avoids double calculation of bounds on every mouse move
@@ -451,6 +485,16 @@ function CanvasImageInner({
 
   return (
     <>
+      {ghostAttrs && (
+        <KonvaImage
+          ref={ghostRef}
+          name={`selection-chrome ${CROP_GHOST_NAME}`}
+          image={image}
+          opacity={CROP_GHOST_OPACITY}
+          listening={false}
+          {...ghostAttrs}
+        />
+      )}
       <KonvaImage
         ref={imageRef}
         id={id}
@@ -522,6 +566,7 @@ export const CanvasImage = memo(CanvasImageInner, (prevProps, nextProps) => {
     'color',
     'adjustments',
     'coverFit',
+    'cropping',
   ];
 
   for (const key of keysToCompare) {
