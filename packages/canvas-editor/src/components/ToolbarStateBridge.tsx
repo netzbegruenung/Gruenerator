@@ -169,6 +169,8 @@ export function ToolbarStateBridge<
       canRotate: capabilities.canRotate,
       canFlip: capabilities.canFlip,
       rotation: capabilities.rotation,
+      canAlign: capabilities.canAlign,
+      canDistribute: capabilities.canDistribute,
     });
   }, [
     isCropping,
@@ -186,6 +188,8 @@ export function ToolbarStateBridge<
     capabilities.canRotate,
     capabilities.canFlip,
     capabilities.rotation,
+    capabilities.canAlign,
+    capabilities.canDistribute,
     onToolbarStateChange,
   ]);
 
