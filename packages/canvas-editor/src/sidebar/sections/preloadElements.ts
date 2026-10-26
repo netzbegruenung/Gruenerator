@@ -7,7 +7,7 @@ import { DEFAULT_ICON_SET, loadIconSetCatalog } from '../../utils/canvasIcons';
 
 import { whenIdle } from './whenIdle';
 
-import { ToolsSection } from './index';
+import { AssetsSection, ToolsSection } from './index';
 
 /**
  * Warms the Elemente tab while the editor is idle: its code chunk, the default
@@ -22,6 +22,7 @@ export function usePreloadElements(enabled: boolean) {
   useEffect(() => {
     if (!enabled) return;
     const warm = () => {
+      void AssetsSection.preload().catch(() => {});
       const chunk = import('./assets');
       if (!client) return;
       void client.prefetchQuery({
@@ -39,6 +40,6 @@ export function usePreloadElements(enabled: boolean) {
 export function usePreloadTools(enabled: boolean) {
   useEffect(() => {
     if (!enabled) return;
-    return whenIdle(() => void ToolsSection.preload());
+    return whenIdle(() => void ToolsSection.preload().catch(() => {}));
   }, [enabled]);
 }

@@ -12,11 +12,19 @@ import type { ComponentType } from 'react';
 export function lazyWithPreload<P extends object>(load: () => Promise<ComponentType<P>>) {
   let loaded: ComponentType<P> | null = null;
   let pending: Promise<ComponentType<P>> | null = null;
+  // A failed load is forgotten, so the next preload (another hover, the next
+  // idle warm-up) retries instead of replaying the rejection until a reload.
   const preload = () =>
-    (pending ??= load().then((component) => {
-      loaded = component;
-      return component;
-    }));
+    (pending ??= load().then(
+      (component) => {
+        loaded = component;
+        return component;
+      },
+      (error: unknown) => {
+        pending = null;
+        throw error;
+      }
+    ));
   const Lazy = lazy(() => preload().then((component) => ({ default: component })));
 
   function LazyWithPreload(props: P) {

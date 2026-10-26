@@ -1,4 +1,4 @@
-import { Suspense, useId, useState } from 'react';
+import { Suspense, useEffect, useId, useState } from 'react';
 import { HiSparkles } from 'react-icons/hi';
 import {
   HiChatBubbleBottomCenterText,
@@ -14,6 +14,7 @@ import { useIsCanvasMobile } from '../../../hooks/useIsCanvasMobile';
 import { cn } from '../../../utils/cn';
 import { BRAND_COLORS } from '../../../utils/shapes';
 import { lazyWithPreload } from '../lazyWithPreload';
+import { whenIdle } from '../whenIdle';
 
 import { ToolTile, type ToolTileId } from './ToolTiles';
 
@@ -22,8 +23,9 @@ import type { UserImagePlacement } from '../../../utils/userImageUtils';
 import type { ComponentType } from 'react';
 import type { IconType } from 'react-icons';
 
-// The panels load on demand, so opening the tab only waits for the tiles. A
-// tile preloads its panel on pointer-enter/focus, so the click opens it at once.
+// The panels load on demand, so opening the tab only waits for the tiles. Once
+// the tab is idle every offered panel is preloaded (touch has no hover), and a
+// tile also warms its own on pointer-enter/focus in case the click comes first.
 const PANELS = {
   'remove-bg': lazyWithPreload(() =>
     import('./RemoveBackgroundTool').then((m) => m.RemoveBackgroundTool)
@@ -54,7 +56,8 @@ const {
   'text-path': TextPathCreatorTool,
 } = PANELS;
 
-const warmPanel = (id: ToolTileId) => void PANELS[id].preload();
+// A failed warm-up is not an error yet: the panel retries when it renders.
+const warmPanel = (id: ToolTileId) => void PANELS[id].preload().catch(() => {});
 
 export interface ToolsSectionProps {
   /** Optional callback the tools call after a successful upload to nudge the user toward the Uploads tab. */
@@ -286,6 +289,12 @@ export function ToolsSection({
   ];
 
   const availableCards = cards.filter((c) => c.available);
+  const availableKey = availableCards.map((c) => c.id).join(',');
+
+  useEffect(
+    () => whenIdle(() => availableKey.split(',').forEach((id) => warmPanel(id as ToolTileId))),
+    [availableKey]
+  );
 
   if (availableCards.length === 0) {
     return (

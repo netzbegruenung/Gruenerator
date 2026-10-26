@@ -36,9 +36,8 @@ export * from './dreizeilen';
 // LAZY EXPORTS - Heavy sections loaded on-demand
 // =============================================================================
 
-export const AssetsSection = lazy(() =>
-  import('./assets').then((m) => ({ default: m.AssetsSection }))
-);
+// Preloaded while the editor is idle (usePreloadElements), so the first open is instant.
+export const AssetsSection = lazyWithPreload(() => import('./assets').then((m) => m.AssetsSection));
 
 export const GenericShareSection = lazy(() =>
   import('./GenericShareSection').then((m) => ({ default: m.GenericShareSection }))
