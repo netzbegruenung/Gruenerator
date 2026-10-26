@@ -51,6 +51,7 @@ function setup(initial?: Partial<BaseCanvasState>) {
     getElements: () => [],
     getLayout: () => ({}) as LayoutResult,
     isReadOnly: () => false,
+    getPageSize: () => ({ width: 1000, height: 1000 }),
   });
 
   const view = renderHook(

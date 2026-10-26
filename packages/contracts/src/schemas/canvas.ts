@@ -47,6 +47,8 @@ export const canvasDocumentSchema = z.object({
   initial_state: z.record(z.unknown()),
   format: z.string(),
   creator_name: z.string().nullable().optional(),
+  /** Whether the reader may write; set by the single read, from the same rule the collab connection enforces. */
+  can_edit: z.boolean().optional(),
 });
 
 export type CanvasDocument = z.infer<typeof canvasDocumentSchema>;

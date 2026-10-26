@@ -17,8 +17,6 @@ import { TopBar } from './TopBar/TopBar';
  * ContextControls.tsx.
  */
 
-export type AlignmentDirection = 'left' | 'center-h' | 'right' | 'top' | 'center-v' | 'bottom';
-
 interface ToolbarProps {
   canUndo: boolean;
   canRedo: boolean;

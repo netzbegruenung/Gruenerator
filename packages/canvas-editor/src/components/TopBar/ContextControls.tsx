@@ -5,11 +5,11 @@ import { type BackgroundControls } from '../../configs/types';
 import { type ShadowPatch } from '../../hooks/useFloatingModuleHandlers';
 import { type FloatingModuleState } from '../../hooks/useFloatingModuleState';
 import { formatShortcut, isMacPlatform, shortcutOf } from '../../utils/canvasCommandRegistry';
+import { type SelectionGeometry } from '../../utils/canvasCommands';
 import { type GradientFill } from '../../utils/gradientFill';
 import { type LockState } from '../../utils/layerLock';
 import { BRAND_COLORS, FONT_COLORS, STROKE_ONLY_SHAPES } from '../../utils/shapes';
 import { useCanvasTextFormatting } from '../CanvasTextOverlay';
-import { type AlignmentDirection } from '../Toolbar';
 
 import {
   BackgroundImagePicker,
@@ -25,6 +25,7 @@ import { FloatingGradientControl } from './modules/FloatingGradientControl';
 import { FloatingLayerControls } from './modules/FloatingLayerControls';
 import { FloatingOpacityControl } from './modules/FloatingOpacityControl';
 import { FloatingOutlineControl } from './modules/FloatingOutlineControl';
+import { FloatingPositionControl, type PositionCommandId } from './modules/FloatingPositionControl';
 import { FloatingRotateFlipControl } from './modules/FloatingRotateFlipControl';
 import { FloatingShadowControl } from './modules/FloatingShadowControl';
 
@@ -41,6 +42,8 @@ export interface ContextControlsProps {
   /** Gesperrt: nicht ziehen, skalieren, ausrichten, löschen — gestalten geht weiter. */
   lockState?: LockState;
   canLock?: boolean;
+  /** Lässt sich die Auswahl verschieben — Ausrichten und Position (`selectionCapabilities`). */
+  canAlign?: boolean;
   /** Drehen & Spiegeln — dieselben Fragen wie die Befehle (`utils/selectionCapabilities.ts`). */
   canRotate?: boolean;
   canFlip?: boolean;
@@ -54,7 +57,11 @@ export interface ContextControlsProps {
     handleColorSelect: (color: string) => void;
     handleOpacityChange: (id: string, opacity: number, type: string) => void;
     handleFontSizeChange: (id: string, size: number) => void;
-    handleAlign?: (direction: AlignmentDirection) => void;
+    /** Ausrichten und Position laufen über die Befehls-Türen der Seite. */
+    runCommand?: (id: PositionCommandId) => void;
+    getGeometry?: () => SelectionGeometry | null;
+    handlePositionChange?: (patch: { x?: number; y?: number }) => void;
+    handleSizeChange?: (patch: { width?: number; height?: number }) => void;
     handleShadowChange?: (id: string, patch: ShadowPatch, type: string) => void;
     handleOutlineChange?: (id: string, patch: { stroke?: string; strokeWidth?: number }) => void;
     handleBlurChange?: (id: string, blur: number) => void;
@@ -112,6 +119,7 @@ export function ContextControls({
   isCropping = false,
   lockState = 'none',
   canLock = false,
+  canAlign = false,
   canRotate = false,
   canFlip = false,
   rotation = null,
@@ -333,73 +341,6 @@ export function ContextControls({
     );
   }
 
-  if (isText && handlers.handleAlign) {
-    groups.push(
-      <div key="align" className="flex items-center gap-0.5">
-        <button
-          className={ICON_BTN}
-          disabled={isLocked}
-          onClick={() => handlers.handleAlign!('left')}
-          title="Links ausrichten"
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-          >
-            <line x1="4" y1="4" x2="4" y2="20" />
-            <rect x="8" y="6" width="12" height="4" rx="1" />
-            <rect x="8" y="14" width="8" height="4" rx="1" />
-          </svg>
-        </button>
-        <button
-          className={ICON_BTN}
-          disabled={isLocked}
-          onClick={() => handlers.handleAlign!('center-h')}
-          title="Horizontal zentrieren"
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-          >
-            <line x1="12" y1="2" x2="12" y2="22" />
-            <rect x="4" y="6" width="16" height="4" rx="1" />
-            <rect x="6" y="14" width="12" height="4" rx="1" />
-          </svg>
-        </button>
-        <button
-          className={ICON_BTN}
-          disabled={isLocked}
-          onClick={() => handlers.handleAlign!('center-v')}
-          title="Vertikal zentrieren"
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-          >
-            <line x1="2" y1="12" x2="22" y2="12" />
-            <rect x="6" y="4" width="4" height="16" rx="1" />
-            <rect x="14" y="6" width="4" height="12" rx="1" />
-          </svg>
-        </button>
-      </div>
-    );
-  }
-
   const type = activeFloatingModule?.type;
   // Only instance-backed text (additionalTexts) stores effect fields; config
   // template texts route through state keys and don't support these controls.
@@ -540,6 +481,20 @@ export function ContextControls({
         onRotationPreview={handlers.handlePreviewRotation}
         onPreviewAbandon={handlers.handleCommitRotationPreview}
         onFlip={handlers.handleFlip}
+      />
+    );
+  }
+
+  if (selectedElement && showObjectActions && canAlign && handlers.runCommand) {
+    groups.push(
+      <FloatingPositionControl
+        // Neu je Element: offene Felder zeigen nie die Lage des vorigen.
+        key={`position-${selectedElement}`}
+        canDistribute={false}
+        onCommand={handlers.runCommand}
+        getGeometry={handlers.getGeometry ?? (() => null)}
+        onPositionChange={handlers.handlePositionChange}
+        onSizeChange={handlers.handleSizeChange}
       />
     );
   }

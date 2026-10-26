@@ -103,13 +103,7 @@ function CollabCanvasStudioContent() {
     [canvas]
   );
 
-  const canEdit = useMemo(() => {
-    if (!canvas || !user) return false;
-    const uid = String(user.id);
-    if (canvas.created_by === uid) return true;
-    const perm = canvas.permissions?.[uid];
-    return perm ? ['owner', 'editor'].includes(perm.level) : false;
-  }, [canvas, user]);
+  const canEdit = canvas?.can_edit === true;
 
   // Only owners may manage who has access; everyone else would get a share
   // dialog stuck loading on the owner-only share-settings endpoint (403).

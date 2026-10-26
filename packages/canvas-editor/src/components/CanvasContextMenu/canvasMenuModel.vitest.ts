@@ -22,6 +22,8 @@ const CAPS: SelectionCapabilities = {
   canRotate: true,
   canFlip: true,
   rotation: 0,
+  canAlign: true,
+  canDistribute: false,
 };
 
 const snapshot = (over: Partial<CanvasMenuSnapshot> = {}): CanvasMenuSnapshot => ({
@@ -70,9 +72,49 @@ describe('buildCanvasMenu', () => {
       'Drehen & Spiegeln',
       'Horizontal spiegeln',
       'Vertikal spiegeln',
+      'Ausrichten',
+      'Links',
+      'Zentriert',
+      'Rechts',
+      'Oben',
+      'Mitte',
+      'Unten',
       'Sperren',
       'Alles auswählen',
     ]);
+  });
+
+  it('bietet Ausrichten im Element- und Mehrfachmenü, Verteilen nur bei mehreren', () => {
+    const sub = (entries: CanvasMenuEntry[]) => {
+      const entry = find(entries, 'Ausrichten');
+      return entry?.kind === 'sub' ? entry.entries : null;
+    };
+    const element = sub(buildCanvasMenu(snapshot(), ENV).entries)!;
+    expect(element.map((e) => (e.kind === 'item' ? e.id : e.kind))).toEqual([
+      'alignLeft',
+      'alignCenterH',
+      'alignRight',
+      'alignTop',
+      'alignMiddle',
+      'alignBottom',
+    ]);
+
+    const multi = (caps: Partial<typeof CAPS>) =>
+      sub(
+        buildCanvasMenu(
+          snapshot({ selection: ['a', 'b'], module: null, caps: { ...CAPS, count: 2, ...caps } }),
+          ENV
+        ).entries
+      );
+    expect(labels(multi({})!).slice(-2)).toEqual(['Horizontal verteilen', 'Vertikal verteilen']);
+    expect(find(multi({})!, 'Horizontal verteilen')).toMatchObject({ disabled: true });
+    expect(find(multi({ canDistribute: true })!, 'Vertikal verteilen')).toMatchObject({
+      disabled: false,
+    });
+    expect(multi({ canAlign: false })).toBeNull();
+    expect(
+      sub(buildCanvasMenu(snapshot({ caps: { ...CAPS, canAlign: false } }), ENV).entries)
+    ).toBeNull();
   });
 
   it('führt Spiegeln mit Kürzeln und „Drehung zurücksetzen“ nur bei gedrehtem Element', () => {

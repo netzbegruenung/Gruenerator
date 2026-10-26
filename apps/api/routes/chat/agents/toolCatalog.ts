@@ -95,6 +95,7 @@ import { makeEditExplainableTool, makeReadExplainableTool } from './explainableL
 import { makeGroupsTool } from './groupTools.js';
 import { makeBildAnsehenTool } from './imageTools.js';
 import { makeMemoryTool } from './memoryTools.js';
+import { CRAWL_SNIPPET_CHARS, readNamedPages } from './namedPages.js';
 import { makeNotebookSourcesTool } from './notebookSourceTools.js';
 import { makeNotebooksTool } from './notebookTools.js';
 import { makeReadPdfFormTool, makeFillPdfFormTool } from './pdfFormTools.js';
@@ -187,20 +188,6 @@ const CATALOG_TOOL_PICKER_KEYS: Readonly<Record<string, readonly string[]>> = {
   gruenerator_examples_search: ['examples'],
   gruenerator_pressemitteilung_examples: ['examples', 'pressemitteilung_examples'],
 };
-
-/**
- * Snippet budget for `scrape_url`. A deliberate page read deserves far more
- * than a search hit's snippet — see the call site.
- *
- * Was 25k, which was never actually reachable: `renderAll`'s shared shrink
- * collapses it as soon as a second source exists, and in unified mode there is
- * no `renderAll` at all, so the model saw whatever survived
- * `truncateResultForModel`. 8k of a DISTILLED page is text that arrives.
- */
-const CRAWL_SNIPPET_CHARS = 8_000;
-
-/** Char budget handed to the distiller for a deliberately named page. */
-const CRAWL_DISTILL_TARGET_CHARS = 8_000;
 
 /**
  * Chunk limit for `expand_attachment`'s vectorized-doc path — well above the
@@ -562,39 +549,10 @@ NUTZE WENN:
         urls: z.array(z.string()).min(1).max(3).describe('Vollständige URLs inkl. Protokoll'),
       }),
       execute: async ({ urls }) => {
-        const validated: string[] = [];
-        for (const raw of urls) {
-          const check = await validateUrlForFetch(raw);
-          if (check.isValid && check.url) validated.push(check.url.toString());
-          else log.warn(`[scrape_url] rejected URL: ${check.error ?? 'invalid'}`);
-        }
+        const { validated, results } = await readNamedPages(urls);
         if (validated.length === 0) {
           return { error: 'Keine gültige oder erlaubte URL. Prüfe die Adresse (inkl. https://).' };
         }
-        const seeds = validated.map((url, idx) => ({
-          url,
-          title: url,
-          content: '',
-          relevance: 1 - idx * 0.1,
-        }));
-        // `faithful`, never query-focused: the page was NAMED, so a relevance
-        // filter would drop precisely the parts the user asked about. The
-        // distiller only condenses here, it does not select.
-        const crawled = await crawlAndDistill(seeds, '', {
-          maxUrls: 3,
-          timeout: 8000,
-          mode: 'faithful',
-          targetChars: CRAWL_DISTILL_TARGET_CHARS,
-          condense: true,
-        });
-        const results: SearchResult[] = crawled
-          .filter((r) => r.crawled && (r.content || r.fullContent))
-          .map((r) => ({
-            source: 'web',
-            url: r.url,
-            title: r.title || r.url || '',
-            content: r.content || r.fullContent || '',
-          }));
         if (results.length === 0) {
           return {
             error: 'Konnte die Seite(n) nicht lesen (Timeout, Blockade oder kein Textinhalt).',

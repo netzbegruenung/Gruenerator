@@ -21,8 +21,10 @@ import { type collaborative_documents } from '../../database/schema/collaborativ
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import {
   autoGrantSharePermission,
+  canWriteDocument,
   checkDocumentAccess,
   type DocumentAccessSubject,
+  type DocumentWriteSubject,
 } from '../../routes/docs/documentAccess.js';
 import { type DocumentPermissions } from '../../routes/docs/types.js';
 import { crossesFormatCategory } from '../../routes/exports/pageConstants.js';
@@ -301,6 +303,7 @@ export async function getCanvas(
     );
     if (entry) canvas.permissions = { ...(canvas.permissions ?? {}), [userId]: entry };
   }
+  canvas.can_edit = await canWriteDocument({ ...row, permissions: canvas.permissions }, userId);
 
   return { kind: 'ok', canvas };
 }
@@ -375,21 +378,25 @@ export async function createCanvas(
     >
   >;
 
-  return rowToCanvasDocument({ ...doc, ...sidecarRows[0], creator_name: null });
+  // The creator is the owner. Callers seed the studio's ['canvas', id] cache
+  // from this response, so without can_edit the owner would open read-only.
+  return {
+    ...rowToCanvasDocument({ ...doc, ...sidecarRows[0], creator_name: null }),
+    can_edit: true,
+  };
 }
 
 // ── Update / delete (permission-gated) ───────────────────────────────────────
 
 type MutationResult = { kind: 'ok' } | { kind: 'not_found' } | { kind: 'forbidden' };
 
-type CanvasOwnerRow = Pick<CollabRow, 'created_by' | 'permissions'>;
-
-async function loadOwnerRow(id: string): Promise<CanvasOwnerRow | null> {
+async function loadWriteSubject(id: string): Promise<DocumentWriteSubject | null> {
   const rows = (await db.query(
-    `SELECT created_by, permissions FROM collaborative_documents
+    `SELECT id, created_by, permissions, is_public, share_mode, share_permission
+     FROM collaborative_documents
      WHERE id = $1 AND document_subtype = $2 AND is_deleted = false`,
     [id, CANVAS_SUBTYPE]
-  )) as CanvasOwnerRow[];
+  )) as DocumentWriteSubject[];
   return rows[0] ?? null;
 }
 
@@ -401,21 +408,16 @@ export interface UpdateCanvasInput {
 }
 
 /**
- * Resolve whether `userId` may WRITE the canvas (owner or editor), independent
- * of the update payload. Use this to gate mutating operations that don't go
- * through updateCanvas (e.g. version restore), so read-only viewers of a shared
- * or public canvas cannot mutate it.
+ * Resolve whether `userId` may WRITE the canvas, independent of the update
+ * payload — the same rule as the collab connection (`canWriteDocument`). Use
+ * this to gate mutating operations that don't go through updateCanvas (e.g.
+ * version restore), so read-only viewers of a shared or public canvas cannot
+ * mutate it.
  */
 export async function checkCanvasWriteAccess(id: string, userId: string): Promise<MutationResult> {
-  const row = await loadOwnerRow(id);
+  const row = await loadWriteSubject(id);
   if (!row) return { kind: 'not_found' };
-
-  const permissions = row.permissions as DocumentPermissions | null;
-  const userPermission = permissions?.[userId];
-  const canEdit =
-    row.created_by === userId ||
-    (userPermission != null && ['owner', 'editor'].includes(userPermission.level));
-  if (!canEdit) return { kind: 'forbidden' };
+  if (!(await canWriteDocument(row, userId))) return { kind: 'forbidden' };
 
   return { kind: 'ok' };
 }

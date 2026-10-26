@@ -102,6 +102,31 @@ export function buildCanvasMenu(snapshot: CanvasMenuSnapshot, env: CanvasMenuEnv
       ? [item('toggleLock', { label: caps.lock === 'all' ? 'Entsperren' : 'Sperren' })]
       : [];
   const selectAll = () => item('selectAll', { disabled: !snapshot.canSelectAll });
+  /** Einzeln an der Seite, mehrere an der Auswahl; Verteilen braucht drei. */
+  const align = (multi: boolean): CanvasMenuEntry[] =>
+    caps.canAlign
+      ? [
+          {
+            kind: 'sub',
+            label: 'Ausrichten',
+            entries: [
+              item('alignLeft'),
+              item('alignCenterH'),
+              item('alignRight'),
+              item('alignTop'),
+              item('alignMiddle'),
+              item('alignBottom'),
+              ...(multi
+                ? [
+                    separator,
+                    item('distributeHorizontal', { disabled: !caps.canDistribute }),
+                    item('distributeVertical', { disabled: !caps.canDistribute }),
+                  ]
+                : []),
+            ],
+          },
+        ]
+      : [];
   /**
    * Drehen & Spiegeln. Zurücksetzen nur, wenn es etwas zurückzusetzen gibt;
    * bei mehreren kennen die Fähigkeiten keine Drehung (`rotation: null`) —
@@ -135,6 +160,7 @@ export function buildCanvasMenu(snapshot: CanvasMenuSnapshot, env: CanvasMenuEnv
         item('delete', { disabled: !caps.canDelete, destructive: true }),
         separator,
         ...orient(),
+        ...align(true),
         ...lock(),
         separator,
         ...paste(),
@@ -215,6 +241,7 @@ export function buildCanvasMenu(snapshot: CanvasMenuSnapshot, env: CanvasMenuEnv
         ],
       },
       ...orient(),
+      ...align(false),
       ...lock(),
       separator,
       selectAll(),

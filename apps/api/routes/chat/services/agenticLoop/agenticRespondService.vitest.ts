@@ -49,6 +49,23 @@ vi.mock('../../agents/providers.js', async (importOriginal) => {
   };
 });
 
+// Der Vorab-Abruf der @link-Seiten (#4896) liest über den echten Crawl-Pfad;
+// gestellt wird nur das Netz.
+const { crawledSeeds } = vi.hoisted(() => ({ crawledSeeds: [] as string[][] }));
+vi.mock('../../../../services/search/index.js', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  crawlAndDistill: (seeds: Array<{ url: string }>) => {
+    crawledSeeds.push(seeds.map((s) => s.url));
+    return Promise.resolve(
+      seeds.map((s) => ({ ...s, crawled: true, content: 'Baubeginn ist 2027.' }))
+    );
+  },
+}));
+vi.mock('../../../../utils/validation/urlSecurity.js', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  validateUrlForFetch: (raw: string) => Promise.resolve({ isValid: true, url: new URL(raw) }),
+}));
+
 import { promptCacheKeyForThread } from '../../../../services/ai/promptCacheKey.js';
 
 import { streamAgenticResponse, type AgenticRespondDeps } from './agenticRespondService.js';
@@ -630,6 +647,22 @@ describe('streamAgenticResponse — Zuschnitt des erzwungenen ersten Schritts (#
     expect(p.forceFirstToolCall).toBe(true);
     expect(p.firstToolName).toBe('bundestag');
     expect(p.firstStepTools).toBeNull();
+  });
+  it('zeigt dem Planer die @link-Seite eines Loop-Turns als gelesenen scrape_url-Aufruf (#4896)', async () => {
+    crawledSeeds.length = 0;
+    const link = 'https://example.org/radweg';
+    const p = await loopParams(
+      fakeState({
+        attachedWebpageUrls: [link],
+        lastUserTextNoMentions: 'Wann wird der Radweg gebaut?',
+      } as never),
+      'Wann wird der Radweg gebaut?',
+      catalogWith([...MOUNTED, 'scrape_url'])
+    );
+    expect(crawledSeeds).toEqual([[link]]);
+    const replayed = JSON.stringify(p.messages);
+    expect(replayed).toContain('"toolName":"scrape_url"');
+    expect(replayed).toContain('Baubeginn ist 2027.');
   });
 });
 

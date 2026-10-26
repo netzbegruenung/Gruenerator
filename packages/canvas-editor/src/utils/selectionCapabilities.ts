@@ -31,6 +31,10 @@ export interface SelectionCapabilities {
   canFlip: boolean;
   /** Die Drehung der Einzelauswahl, sonst `null`. */
   rotation: number | null;
+  /** Mindestens ein Element lässt sich verschieben (Ausrichten, Position); gesperrte bleiben stehen. */
+  canAlign: boolean;
+  /** Mindestens drei Elemente lassen sich verschieben. */
+  canDistribute: boolean;
 }
 
 export interface SelectionCapabilitiesInput {
@@ -59,6 +63,7 @@ export function selectionCapabilities({
   const doors = readOnly ? [] : ids.map(orient);
   const canRotate = ids.length > 0 && doors.length === ids.length && doors.every((d) => d !== null);
   const singleDoor = single !== null && canRotate ? doors[0]! : null;
+  const movable = doors.filter((d) => d !== null).length;
   return {
     count: ids.length,
     canCopy: ids.some((id) => findDuplicableEntry(state, id, template) !== null),
@@ -70,6 +75,8 @@ export function selectionCapabilities({
     canRotate,
     canFlip: singleDoor ? singleDoor.canFlip : canRotate,
     rotation: singleDoor ? singleDoor.rotation : null,
+    canAlign: movable > 0,
+    canDistribute: movable >= 3,
   };
 }
 
