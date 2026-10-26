@@ -101,3 +101,40 @@ export function describeAppUpdate(input: AppUpdateInput): AppUpdateRow {
 
   return { status: 'idle', value: describeRunning(input), action: 'check' };
 }
+
+export interface AppIdentityInput {
+  platform: string;
+  appVersion: string;
+  /** `Updates.isEnabled`. Without it there is no update to name. */
+  isEnabled: boolean;
+  isEmbeddedLaunch: boolean;
+  updateId: string | null;
+  createdAt: Date | null;
+}
+
+/**
+ * Headers that tell the backend which bundle sent a request, so it can count
+ * how many people run each over-the-air update (the admin tab „App-Updates").
+ *
+ * Platform and store version always; the update only from builds that can
+ * receive updates at all — a dev client would otherwise show up as `embedded`
+ * of whatever version its app.json says and blur the count.
+ *
+ * Only identifiers of the bundle, nothing about the person: the backend
+ * attaches the account itself, after authentication.
+ */
+export function appIdentityHeaders(input: AppIdentityInput): Record<string, string> {
+  const headers: Record<string, string> = {
+    'X-App-Platform': input.platform,
+    'X-App-Version': input.appVersion,
+  };
+  if (!input.isEnabled) return headers;
+
+  if (input.isEmbeddedLaunch || !input.updateId) {
+    headers['X-App-Update'] = 'embedded';
+    return headers;
+  }
+  headers['X-App-Update'] = input.updateId;
+  if (input.createdAt) headers['X-App-Update-Date'] = input.createdAt.toISOString().slice(0, 10);
+  return headers;
+}

@@ -11,6 +11,7 @@ import {
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { getAppBundleUsage } from '../../services/appBundles/appBundleUsage.js';
 import { isPandaEntitled } from '../../services/user/pandaEntitlement.js';
 import { requireInstanceAdmin } from '../../utils/adminAuthz.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
@@ -158,6 +159,21 @@ export const instanceAdminOverviewContractRouter = s.router(instanceAdminOvervie
       return {
         status: 500 as const,
         body: { success: false, message: 'Fehler beim Laden der Rollenübersicht.' },
+      };
+    }
+  },
+
+  listAppBundles: async (args) => {
+    try {
+      const authedUser = getAuthedUser(args.req);
+      if (!(await requireInstanceAdmin(authedUser.id, authedUser.email))) return FORBIDDEN;
+
+      return { status: 200 as const, body: { success: true, data: await getAppBundleUsage() } };
+    } catch (error) {
+      log.error('[instanceAdminOverviewContract.listAppBundles] Error:', error);
+      return {
+        status: 500 as const,
+        body: { success: false, message: 'Fehler beim Laden der App-Updates.' },
       };
     }
   },
