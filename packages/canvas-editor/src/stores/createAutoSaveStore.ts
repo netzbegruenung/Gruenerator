@@ -18,6 +18,11 @@ export interface AutoSaveState {
   isDirty: boolean;
   /** Re-runs the last auto-save attempt. Registered by useCanvasAutoSave. */
   retryAutoSave: (() => void) | null;
+  /**
+   * Alt text the person typed for the exported image; `null` = follow the
+   * canvas-text suggestion. Session-only, shared by sidebar and top-bar share.
+   */
+  shareAltText: string | null;
 }
 
 export interface AutoSaveActions {
@@ -26,6 +31,7 @@ export interface AutoSaveActions {
   setLastAutoSavedImageSrc: (src: string | null) => void;
   setDirty: (dirty: boolean) => void;
   setRetryAutoSave: (retry: (() => void) | null) => void;
+  setShareAltText: (text: string | null) => void;
   clearAutoSaveState: () => void;
 }
 
@@ -48,12 +54,14 @@ export function createAutoSaveStore(options: CreateAutoSaveStoreOptions = {}) {
     lastAutoSavedImageSrc: null,
     isDirty: false,
     retryAutoSave: null,
+    shareAltText: null,
 
     setAutoSaveStatus: (status) => set({ autoSaveStatus: status }),
     setAutoSavedShareToken: (token) => set({ autoSavedShareToken: token }),
     setLastAutoSavedImageSrc: (src) => set({ lastAutoSavedImageSrc: src }),
     setDirty: (dirty) => set({ isDirty: dirty }),
     setRetryAutoSave: (retry) => set({ retryAutoSave: retry }),
+    setShareAltText: (text) => set({ shareAltText: text }),
     clearAutoSaveState: () =>
       set({
         autoSaveStatus: 'idle',
@@ -61,6 +69,7 @@ export function createAutoSaveStore(options: CreateAutoSaveStoreOptions = {}) {
         lastAutoSavedImageSrc: null,
         isDirty: false,
         retryAutoSave: null,
+        shareAltText: null,
       }),
   }));
 }

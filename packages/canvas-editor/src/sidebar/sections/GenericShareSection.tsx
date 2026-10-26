@@ -9,7 +9,7 @@ import { IoCheckmarkOutline, IoShareOutline } from 'react-icons/io5';
 import { DownloadNotice } from '../../components/DownloadNotice';
 import { useAutoSaveStore, useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
 import { downloadErrorMessage } from '../../utils/downloadError';
-import { AltTextField, composeAltText, withAltText } from '../components/AltTextField';
+import { AltTextField, useShareAltText, withAltText } from '../components/AltTextField';
 import { SubsectionTabBar } from '../SubsectionTabBar';
 
 export interface GenericShareSectionProps {
@@ -115,9 +115,7 @@ function DownloadShareSubsection({
   exportError,
   exportNotice,
 }: Omit<GenericShareSectionProps, 'canvasType'>) {
-  // Folgt dem Leinwandtext, bis die Person selbst schreibt.
-  const [editedAltText, setEditedAltText] = useState<string | null>(null);
-  const altText = editedAltText ?? composeAltText(imageText);
+  const [altText, setAltText] = useShareAltText(imageText);
   const [downloadState, setDownloadState] = useState<'idle' | 'capturing' | 'success'>('idle');
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
@@ -385,7 +383,7 @@ function DownloadShareSubsection({
         )}
       </div>
 
-      <AltTextField value={altText} onChange={setEditedAltText} />
+      <AltTextField value={altText} onChange={setAltText} />
 
       {isMultiExporting && exportProgress && exportProgress.total > 0 && (
         <div className="relative w-full h-6 bg-editor-tile rounded-full overflow-hidden">

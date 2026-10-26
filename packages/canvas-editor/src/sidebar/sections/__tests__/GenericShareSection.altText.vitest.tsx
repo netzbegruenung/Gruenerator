@@ -95,6 +95,32 @@ describe('Alt-Text beim Teilen und Herunterladen', () => {
     expect((share.mock.calls[0]?.[0] as { text: string }).text).not.toContain('Bildbeschreibung');
   });
 
+  it('behält die Bearbeitung, wenn der Abschnitt neu eingehängt wird', async () => {
+    const section = (
+      <GenericShareSection
+        exportedImage={null}
+        shareToken={null}
+        onCaptureCanvas={() => {}}
+        onDownload={() => {}}
+        onNavigateToGallery={() => {}}
+        canvasText="x"
+        imageText="x"
+        canvasType="freeform"
+      />
+    );
+    const tree = (show: boolean) => (
+      <AutoSaveStoreProvider>{show ? section : <p>anderer Tab</p>}</AutoSaveStoreProvider>
+    );
+    const { rerender } = render(tree(true));
+    const field = () => screen.getByRole('textbox', { name: 'Bildbeschreibung (Alt-Text)' });
+    await userEvent.clear(field());
+    await userEvent.type(field(), 'Meine Version');
+    rerender(tree(false));
+    expect(screen.queryByRole('textbox')).toBeNull();
+    rerender(tree(true));
+    expect(field()).toHaveValue('Meine Version');
+  });
+
   it('hat keine axe-Verstöße', async () => {
     const { container } = setup();
     expect(await axe(container)).toHaveNoViolations();

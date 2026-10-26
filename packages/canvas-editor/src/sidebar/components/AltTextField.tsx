@@ -1,6 +1,7 @@
 import { useId } from 'react';
 
 import { useAnnounce } from '../../hooks/useAnnounce';
+import { useAutoSaveStore, useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
 import { MOBILE_INPUT_TEXT } from '../sidebarStyles';
 
 /** Vorschlag aus dem Text auf der Leinwand; ohne Text gibt es keinen Vorschlag. */
@@ -16,6 +17,18 @@ export function withAltText(shareText: string, altText: string): string {
   if (!alt) return shareText;
   const line = `Bildbeschreibung: ${alt}`;
   return shareText ? `${shareText}\n${line}` : line;
+}
+
+/**
+ * The alt text for the exported image: the person's edit, else the suggestion
+ * from the canvas text. The edit lives in the per-editor store, so the sidebar
+ * and the top-bar share read and write the same value.
+ */
+export function useShareAltText(imageText: string): [string, (value: string) => void] {
+  const storeApi = useAutoSaveStoreApi();
+  const edited = useAutoSaveStore((s) => s.shareAltText);
+  const set = (value: string) => storeApi.getState().setShareAltText(value);
+  return [edited ?? composeAltText(imageText), set];
 }
 
 interface AltTextFieldProps {
