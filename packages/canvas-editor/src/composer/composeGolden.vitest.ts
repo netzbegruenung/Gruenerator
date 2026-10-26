@@ -129,6 +129,43 @@ const GOLDEN_ONLY: Record<string, SharepicSpec> = {
       },
     ],
   },
+  // A quote on a photo whose text side is the top or the left, and a quote
+  // alone on a colour that runs past QUOTE_LONG: no fixture has these.
+  zitatLagen: {
+    locale: 'de-DE',
+    slides: [
+      {
+        background: { kind: 'foto', filename: 'wind.jpg', textSeite: 'oben' },
+        position: 'oben',
+        align: 'links',
+        items: [{ type: 'zitat', text: 'Wir bauen das jetzt.', name: 'Kim Beispiel' }],
+        logo: false,
+      },
+      {
+        background: { kind: 'foto', filename: 'wind.jpg', textSeite: 'links' },
+        position: 'mitte',
+        align: 'links',
+        items: [{ type: 'zitat', text: 'Wir bauen das jetzt.', name: 'Kim Beispiel' }],
+        logo: false,
+      },
+      {
+        background: { kind: 'farbe', color: 'tanne' },
+        position: 'mitte',
+        align: 'links',
+        items: [
+          {
+            type: 'zitat',
+            text: Array.from(
+              { length: 8 },
+              (_, i) => `Satz ${i + 1} erklärt, warum wir das so machen wollen.`
+            ).join(' '),
+            name: 'Kim Beispiel',
+          },
+        ],
+        logo: false,
+      },
+    ],
+  },
 };
 // Ground sweep: every slide with an ink that depends on its ground (topic
 // badges, the ghost numeral, countdown digits, hand marks), set again on a
