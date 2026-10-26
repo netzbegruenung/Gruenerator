@@ -15,12 +15,23 @@
  * Neben dem Rahmen um die ganze Auswahl trägt jedes Element einen eigenen
  * Umriss, auch ein gesperrtes, das beim Zug stehen bleibt. Die Umrisse sind lose Konva-Knoten, die dem `dragmove` des
  * Transformers folgen — ein Gruppenzug rendert keine React-Komponente neu.
+ *
+ * Mit Bühnenmassen rastet der Gruppenzug ein (`utils/groupSnap.ts`): im
+ * `dragmove` des Transformers, nachdem Konva alle Knoten gesetzt hat und bevor
+ * die Umrisse folgen. Die Elemente selbst rasten im Gruppenzug nicht einzeln ein
+ * (`isGroupDrag`).
  */
 
-import { memo, useEffect, useRef } from 'react';
+import { memo, useCallback, useEffect, useRef } from 'react';
 import { Transformer } from 'react-konva';
 
-import { useCanvasStoreSelector, useCanvasStoreShallow } from '../stores/CanvasStoreProvider';
+import { useSnapScheduler } from '../hooks/useSnapScheduler';
+import {
+  useCanvasStore,
+  useCanvasStoreSelector,
+  useCanvasStoreShallow,
+} from '../stores/CanvasStoreProvider';
+import { measureGroupSnap, snapGroup, type GroupSnap } from '../utils/groupSnap';
 import {
   findDragNodes,
   findItemGroups,
@@ -30,6 +41,7 @@ import {
 } from '../utils/multiSelect';
 import { ELEMENT_TRANSFORMER } from '../utils/orientation';
 
+import type { SnapLine } from '../utils/snapping';
 import type Konva from 'konva';
 
 interface MultiSelectionTransformerProps {
@@ -41,10 +53,33 @@ interface MultiSelectionTransformerProps {
    * die Knoten des Transformers wechseln.
    */
   canRotate: () => boolean;
+  /** Bühnenmasse wie bei den Elementen; ohne sie rastet der Gruppenzug nicht ein. */
+  stageWidth?: number;
+  stageHeight?: number;
 }
 
-function MultiSelectionTransformerInner({ renderKey, canRotate }: MultiSelectionTransformerProps) {
+function MultiSelectionTransformerInner({
+  renderKey,
+  canRotate,
+  stageWidth,
+  stageHeight,
+}: MultiSelectionTransformerProps) {
   const trRef = useRef<Konva.Transformer>(null);
+  const store = useCanvasStore();
+  const onSnapChange = useCallback(
+    (h: boolean, v: boolean) => store.getState().setSnapGuides(h, v),
+    [store]
+  );
+  const onSnapLinesChange = useCallback(
+    (lines: SnapLine[]) => store.getState().setSnapLines(lines),
+    [store]
+  );
+  // Mit stabilen Rückrufen sind auch die Funktionen des Planers stabil: die
+  // Zug-Handler werden nicht bei jedem Render neu angemeldet.
+  const { scheduleSnap, onDragStart, onDragEnd, hysteresis } = useSnapScheduler({
+    onSnapChange,
+    onSnapLinesChange,
+  });
   const outlinesRef = useRef<Konva.Rect[]>([]);
   const ids = useCanvasStoreShallow((s) => s.selectedLayerIds);
   const renderVersion = useCanvasStoreSelector((s) => s.renderVersion);
@@ -62,12 +97,44 @@ function MultiSelectionTransformerInner({ renderKey, canRotate }: MultiSelection
     const follow = () => syncOutlines(layer, outlines, outlined);
     follow();
     tr.moveToTop();
+    if (nodes.length > 1 && stageWidth && stageHeight) {
+      let group: GroupSnap | null = null;
+      tr.on('dragstart.groupSnap', () => {
+        const targets = Object.values(store.getState().elementPositions);
+        group = measureGroupSnap(tr.nodes(), targets, ids);
+        onDragStart();
+      });
+      // Vor den Umrissen angemeldet: sie folgen schon der eingerasteten Lage.
+      tr.on('dragmove.groupSnap', () => {
+        if (!group) return;
+        const { result, moved } = snapGroup(group, stageWidth, stageHeight, hysteresis);
+        if (moved) tr.update();
+        scheduleSnap(result.snapH, result.snapV, result.snapLines);
+      });
+      tr.on('dragend.groupSnap', () => {
+        group = null;
+        onDragEnd();
+      });
+    }
     tr.on('dragmove.outlines dragend.outlines', follow);
     layer.batchDraw();
     return () => {
       tr.off('.outlines');
+      tr.off('.groupSnap');
     };
-  }, [ids, renderVersion, renderKey, canRotate]);
+  }, [
+    ids,
+    renderVersion,
+    renderKey,
+    canRotate,
+    stageWidth,
+    stageHeight,
+    store,
+    scheduleSnap,
+    onDragStart,
+    onDragEnd,
+    hysteresis,
+  ]);
 
   useEffect(
     () => () => {
