@@ -91,6 +91,7 @@ import { collectAltTextPages as collectCapturedAltTextPages } from '../../utils/
 import { ensureFontsReady } from '../../utils/ensureFontsReady';
 import { sameLayerEntries } from '../../utils/layerLabels';
 import { pagePhotoCredits } from '../../utils/photoCredits';
+import { scrollBehavior } from '../../utils/scrollBehavior';
 import { getCategoryForTemplate } from '../../utils/templateRegistry';
 import { CanvasAnnouncer } from '../CanvasAnnouncer';
 import { CanvasContextMenu } from '../CanvasContextMenu/CanvasContextMenu';
@@ -455,7 +456,7 @@ function CanvasEditorInner({
     (index: number) => {
       setCurrentPageIndex(index);
       pageDomRefsRef.current[index]?.current?.scrollIntoView({
-        behavior: 'smooth',
+        behavior: scrollBehavior(),
         block: 'center',
       });
     },
