@@ -25,17 +25,17 @@ interface PresentationExportMenuProps {
 }
 
 /**
- * The deck's single download affordance.
- *
- * Lives in EditorTopBar's `rightActions`, not `overflowActions`: below 768px
- * the top bar collapses overflow actions into a sheet that closes on any click
- * inside it, which would tear this menu's own trigger out from under it.
+ * The deck's two exports, each `null` where it is not offered. Shared by the
+ * download menu and the app's native "…" menu, so both offer the same thing.
  */
-export function PresentationExportMenu({
+export function usePresentationExport({
   documentId,
   title,
   isGuest,
-}: PresentationExportMenuProps) {
+}: PresentationExportMenuProps): {
+  exportPdf: (() => void) | null;
+  exportPptx: (() => void) | null;
+} {
   // The PDF path needs a second window, and inside the mobile app's WebView
   // there is none: the host sets `setSupportMultipleWindows={false}`, so
   // `window.open` returns null and the print view would instead be loaded over
@@ -94,10 +94,26 @@ export function PresentationExportMenu({
     }
   }, [documentId, title]);
 
+  return {
+    exportPdf: showPdf ? exportPdf : null,
+    exportPptx: showPptx ? () => void exportPptx() : null,
+  };
+}
+
+/**
+ * The deck's single download affordance.
+ *
+ * Lives in EditorTopBar's `rightActions`, not `overflowActions`: below 768px
+ * the top bar collapses overflow actions into a sheet that closes on any click
+ * inside it, which would tear this menu's own trigger out from under it.
+ */
+export function PresentationExportMenu(props: PresentationExportMenuProps) {
+  const { exportPdf, exportPptx } = usePresentationExport(props);
+
   // A guest in the WebView has neither entry. That combination does not occur
   // today (the handoff mints a real session), but an empty menu is a worse
   // answer than no menu.
-  if (!showPdf && !showPptx) return null;
+  if (!exportPdf && !exportPptx) return null;
 
   return (
     <DropdownMenu>
@@ -114,7 +130,7 @@ export function PresentationExportMenu({
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
-        {showPdf && (
+        {exportPdf && (
           <DropdownMenuItem onClick={exportPdf} className="gap-sm">
             <FiPrinter className="h-4 w-4 text-grey-500" aria-hidden="true" />
             <span className="flex flex-col items-start">
@@ -123,8 +139,8 @@ export function PresentationExportMenu({
             </span>
           </DropdownMenuItem>
         )}
-        {showPptx && (
-          <DropdownMenuItem onClick={() => void exportPptx()} className="gap-sm">
+        {exportPptx && (
+          <DropdownMenuItem onClick={exportPptx} className="gap-sm">
             <FiFileText className="h-4 w-4 text-grey-500" aria-hidden="true" />
             <span className="flex flex-col items-start">
               Als PowerPoint

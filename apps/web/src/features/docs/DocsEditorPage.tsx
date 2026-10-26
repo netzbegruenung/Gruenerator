@@ -65,6 +65,7 @@ import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import { useAuth } from '../../hooks/useAuth';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 import { useHostAwareBack } from '../../hooks/useHostAwareBack';
+import { useNativeEditorBar } from '../../hooks/useNativeEditorBar';
 import { useExportStore, type PdfExportOptions } from '../../stores/core/exportStore';
 import { downloadBlob } from '../../utils/downloadFile';
 import { isDesktopApp, isEmbedded } from '../../utils/platform';
@@ -541,6 +542,49 @@ function EditorContent() {
     setCommentsPortalTarget(activeSidebar === 'comments' ? commentsPortalRef.current : null);
   }, [activeSidebar]);
 
+  // The app's native bar: the same actions as the bar below and its menu.
+  const nativeBar = useNativeEditorBar({
+    title: docData?.title ?? null,
+    canEdit: isEditable,
+    onRename: (title) => void handleTitleChange(title),
+    history: { canUndo, canRedo, undo, redo },
+    onShare: !isGuest && canEdit ? () => setShowShareModal(true) : undefined,
+    actions: [
+      { id: 'chat', label: 'Chat', run: () => togglePanel('chat') },
+      ...(!isGuest && commentCount > 0
+        ? [{ id: 'comments', label: 'Kommentare', run: () => togglePanel('comments') }]
+        : []),
+      ...(isGuest
+        ? []
+        : [{ id: 'versions', label: 'Versionshistorie', run: () => togglePanel('versions') }]),
+      ...(!isGuest && canEdit && !hasPendingAIChanges
+        ? [
+            {
+              id: 'track-changes',
+              label: 'Änderungen nachverfolgen',
+              checked: suggestionModeEnabled,
+              run: toggleSuggestions,
+            },
+          ]
+        : []),
+      ...(!isGuest && canEdit && suggestionModeEnabled
+        ? [{ id: 'review', label: 'Änderungen prüfen', run: () => togglePanel('suggestions') }]
+        : []),
+      { id: 'export-docx', label: 'Als Word herunterladen', run: () => void handleExport() },
+      ...(isExportingPdf
+        ? []
+        : [
+            { id: 'export-pdf', label: 'Als PDF herunterladen', run: handleExportPDF },
+            {
+              id: 'export-letter',
+              label: 'Als PDF mit Briefkopf oder Brief …',
+              run: () => setShowPdfDialog(true),
+            },
+          ]),
+      { id: 'export-odt', label: 'Als ODT herunterladen', run: () => void handleExportODT() },
+    ],
+  });
+
   const initialContent = useMemo(() => docData?.content || '', [docData?.content]);
 
   const connectionStatus = useDelayedConnectionStatus(isConnected, isLocalLoaded);
@@ -549,13 +593,15 @@ function EditorContent() {
   if (docIsLoading || !isAuthResolved) {
     return (
       <div className="flex flex-col h-full">
-        <div className="flex items-center gap-sm px-md py-xs border-b border-grey-200 dark:border-grey-700">
-          <Skeleton className="h-5 w-48" />
-          <div className="ml-auto flex gap-xs">
-            <Skeleton className="h-8 w-8 rounded-md" />
-            <Skeleton className="h-8 w-8 rounded-md" />
+        {!nativeBar && (
+          <div className="flex items-center gap-sm px-md py-xs border-b border-grey-200 dark:border-grey-700">
+            <Skeleton className="h-5 w-48" />
+            <div className="ml-auto flex gap-xs">
+              <Skeleton className="h-8 w-8 rounded-md" />
+              <Skeleton className="h-8 w-8 rounded-md" />
+            </div>
           </div>
-        </div>
+        )}
         <div className="flex-1 max-w-[720px] mx-auto w-full px-md py-lg">
           <Skeleton className="h-8 w-3/4 mb-md" />
           <Skeleton className="h-4 w-full mb-sm" />
@@ -633,7 +679,7 @@ function EditorContent() {
           sidebarOpen={activeSidebar !== null}
           onToggleSidebar={() => setActiveSidebar((prev) => (prev ? null : 'chat'))}
         />
-      ) : (
+      ) : nativeBar ? null : (
         <EditorTopBar
           dataTour="docs-topbar"
           title={docData.title}

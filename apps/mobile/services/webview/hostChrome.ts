@@ -1,23 +1,21 @@
 /**
- * Which embedded surfaces bring their own header — and must therefore not get a
- * second one from the host.
+ * Which embedded surfaces are editors — and get the host's full native editor
+ * bar rather than the plain one.
  *
- * The web app's editors are not chrome-less in embedded mode: they keep their
- * own top bar, because that bar carries the document title, the collaborator
- * avatars and the way out (`useHostAwareBack`, which posts `CLOSE` and so pops
- * this screen). Drawing the host header above it stacks two title bars with two
- * back affordances on a phone screen — and the lower one is the one that works
- * on the document.
+ * The host draws the header natively on every surface. On these, the page
+ * reports its title, undo/redo, share and further actions over the bridge
+ * (`HOST_CAPABILITY_EDITOR_CHROME`, page side `useNativeEditorBar`), and the bar
+ * turns them into buttons and a "…" menu. Everywhere else the bar carries the
+ * caller's title and the way out, nothing more.
  *
- * So for these paths the host contributes nothing but the status-bar inset, and
- * the page owns the top of the screen.
+ * The pages behind these prefixes still draw a bar of their own when the host
+ * does not announce the capability — for app binaries that predate it. That
+ * bar carries their way out (`useHostAwareBack`, which posts `CLOSE` and so
+ * pops this screen); the guard in `hostChrome.vitest.ts` checks each entry
+ * here really does have one.
  *
  * The list is a prefix match against the same paths the `web-viewer` callers
- * pass, and is deliberately a *subset* of the API's `EMBEDDABLE_PATH_PREFIXES`:
- * a surface without its own back button (a notebook, a text) would be a trap
- * without the host header, since nothing else leaves this screen. The guard in
- * `hostChrome.vitest.ts` checks the other half — that each entry here really
- * does have a `useHostAwareBack` in the web page that draws its header.
+ * pass, and a subset of the API's `EMBEDDABLE_PATH_PREFIXES`.
  */
 export const SELF_CHROMED_PATH_PREFIXES: readonly string[] = [
   // `BoardInlineHeader` — back arrow, title, presence, board menu.
@@ -25,69 +23,60 @@ export const SELF_CHROMED_PATH_PREFIXES: readonly string[] = [
   // The office dispatcher's three editors (text, sheet, presentation), all
   // through the shared `EditorTopBar` with `onBack`.
   '/office/',
-  // `CollabCanvasStudioPage` — the canvas editor's menu bar (native in the app,
-  // see `hostDrawsEditorBar`).
+  // `CollabCanvasStudioPage` — the canvas editor's menu bar.
   '/studio/canvas/',
   // `SharepicVorlageInstantiatePage` — shows the canvas editor's skeleton while
   // it copies the Vorlage, then replaces itself with `/studio/canvas/:id`.
   '/studio/vorlage/',
 ];
 
-/**
- * Does the host draw its own header for this path?
- *
- * Takes the raw `path` param (query string and all) — the prefixes are matched
- * against the pathname alone, so `/datenbank/vorlagen?selected=…` is judged by
- * `/datenbank/vorlagen`.
- */
-export function hostDrawsHeader(path: string): boolean {
+function selfChromedPrefix(path: string): string | null {
   const pathname = path.split('?')[0] ?? '';
-  return !SELF_CHROMED_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+  return SELF_CHROMED_PATH_PREFIXES.find((prefix) => pathname.startsWith(prefix)) ?? null;
 }
 
-/**
- * Surfaces whose top bar the host draws natively — close, title, undo/redo,
- * share — in system colours, with the page reporting state over the bridge
- * (`HOST_CAPABILITY_EDITOR_CHROME`). A subset of the self-chromed list: the
- * page keeps its own bar, and its way out, for app binaries that predate this.
- */
-const NATIVE_EDITOR_BAR_PATH_PREFIXES: readonly string[] = ['/studio/canvas/', '/studio/vorlage/'];
+/** The editor bar for an editor, the plain bar (title and close) for anything else. */
+export type HeaderKind = 'editor' | 'plain';
 
-/** Does the host draw the native editor bar for this path? Takes the raw `path` param. */
-export function hostDrawsEditorBar(path: string): boolean {
-  const pathname = path.split('?')[0] ?? '';
-  return NATIVE_EDITOR_BAR_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+/**
+ * Which bar the host draws for this path. Takes the raw `path` param — the
+ * prefixes are matched against the pathname alone, so `/boards/abc?tab=archiv`
+ * is judged by `/boards/abc`.
+ */
+export function headerKind(path: string): HeaderKind {
+  return selfChromedPrefix(path) === null ? 'plain' : 'editor';
 }
 
 /**
  * The shape of the surface behind the WebView, for the loading placeholder.
  *
  * A skeleton is a promise about the layout, so it may only be drawn where the
- * layout is actually known. For the self-chromed surfaces it is: each one is a
- * single page with a fixed frame, described where its prefix is listed above.
- * Everything else that reaches this screen is a different page every time — a
- * notebook, a text, a generator form, the template catalogue — and shares
- * nothing but the host header. Those get `null` and keep a plain spinner;
- * inventing a body for them would promise a layout and then break it.
+ * layout is actually known. For the editors it is: each one is a single page
+ * with a fixed frame, described where its prefix is listed above. Everything
+ * else that reaches this screen is a different page every time — a notebook, a
+ * text, a generator form, the template catalogue — and shares nothing but the
+ * host bar. Those get `null` and keep a plain spinner; inventing a body for
+ * them would promise a layout and then break it.
  *
  * `/office/` is one shape although the path serves three editors: `CollabDocRoute`
  * picks text, sheet or presentation by `document_subtype`, which is not in the
- * URL. What is certain either way is the shared `EditorTopBar` and a body
- * beneath it, so that is all the skeleton claims.
+ * URL. What is certain either way is a body beneath the bar, so that is all the
+ * skeleton claims.
  */
 export type EmbeddedSurfaceShape = 'board' | 'office' | 'canvas';
 
 /**
- * Prefix → shape. Keyed by the same strings as `SELF_CHROMED_PATH_PREFIXES`;
- * `hostChrome.vitest.ts` fails if a prefix is added there without a shape here,
- * which is the way a new surface would otherwise silently fall back to a
- * spinner over an empty screen.
+ * Prefix → shape and the title the bar shows until the page reports its own
+ * (callers usually pass one). Keyed by the same strings as
+ * `SELF_CHROMED_PATH_PREFIXES`; `hostChrome.vitest.ts` fails if a prefix is
+ * added there without an entry here, which is the way a new surface would
+ * otherwise silently fall back to a spinner over an empty screen.
  */
-const SURFACE_SHAPES: Record<string, EmbeddedSurfaceShape> = {
-  '/boards/': 'board',
-  '/office/': 'office',
-  '/studio/canvas/': 'canvas',
-  '/studio/vorlage/': 'canvas',
+const SURFACES: Record<string, { shape: EmbeddedSurfaceShape; title: string }> = {
+  '/boards/': { shape: 'board', title: 'Board' },
+  '/office/': { shape: 'office', title: 'Dokument' },
+  '/studio/canvas/': { shape: 'canvas', title: 'Sharepic' },
+  '/studio/vorlage/': { shape: 'canvas', title: 'Sharepic' },
 };
 
 /**
@@ -95,7 +84,12 @@ const SURFACE_SHAPES: Record<string, EmbeddedSurfaceShape> = {
  * know this page's layout". Takes the raw `path` param, query string and all.
  */
 export function embeddedSurfaceShape(path: string): EmbeddedSurfaceShape | null {
-  const pathname = path.split('?')[0] ?? '';
-  const prefix = SELF_CHROMED_PATH_PREFIXES.find((p) => pathname.startsWith(p));
-  return prefix ? (SURFACE_SHAPES[prefix] ?? null) : null;
+  const prefix = selfChromedPrefix(path);
+  return prefix ? (SURFACES[prefix]?.shape ?? null) : null;
+}
+
+/** The bar's title when the caller passed none and the page has not reported one. */
+export function fallbackTitle(path: string): string {
+  const prefix = selfChromedPrefix(path);
+  return (prefix && SURFACES[prefix]?.title) || 'Web';
 }

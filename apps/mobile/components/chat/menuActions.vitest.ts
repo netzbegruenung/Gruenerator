@@ -2,8 +2,10 @@ import { describe, it, expect } from 'vitest';
 
 import {
   buildMessageMenuActions,
+  buildSharepicMenuActions,
   buildThreadMenuActions,
   asMessageMenuId,
+  asSharepicMenuId,
   asThreadMenuId,
 } from './menuActions';
 
@@ -90,5 +92,55 @@ describe('id narrowing', () => {
       expect(asThreadMenuId(junk)).toBeNull();
       expect(asMessageMenuId(junk)).toBeNull();
     }
+  });
+});
+
+describe('buildSharepicMenuActions', () => {
+  const idle = { saving: false, opening: false };
+
+  it('offers share, save and the studio once the picture is there', () => {
+    expect(ids(buildSharepicMenuActions({ ...idle, hasImage: true, canOpenStudio: true }))).toEqual(
+      ['share', 'save', 'open-studio']
+    );
+  });
+
+  it('offers only the studio while there is no picture', () => {
+    expect(
+      ids(buildSharepicMenuActions({ ...idle, hasImage: false, canOpenStudio: true }))
+    ).toEqual(['open-studio']);
+  });
+
+  it('is empty while a sharepic is first drawn — the long press does nothing', () => {
+    expect(buildSharepicMenuActions({ ...idle, hasImage: false, canOpenStudio: false })).toEqual(
+      []
+    );
+  });
+
+  it('disables only the entry that is running', () => {
+    const saving = buildSharepicMenuActions({
+      hasImage: true,
+      canOpenStudio: true,
+      saving: true,
+      opening: false,
+    });
+    expect(ids(saving.filter((a) => a.attributes?.disabled))).toEqual(['save']);
+    const opening = buildSharepicMenuActions({
+      hasImage: true,
+      canOpenStudio: true,
+      saving: false,
+      opening: true,
+    });
+    expect(ids(opening.filter((a) => a.attributes?.disabled))).toEqual(['open-studio']);
+  });
+
+  it('round-trips every id it builds', () => {
+    for (const action of buildSharepicMenuActions({
+      ...idle,
+      hasImage: true,
+      canOpenStudio: true,
+    })) {
+      expect(asSharepicMenuId(action.id ?? '')).toBe(action.id);
+    }
+    expect(asSharepicMenuId('delete')).toBeNull();
   });
 });

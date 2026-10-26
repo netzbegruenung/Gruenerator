@@ -13,7 +13,7 @@ import {
   Input,
   Label,
 } from '@gruenerator/ui';
-import { memo, useState } from 'react';
+import { memo, useState, type ReactNode } from 'react';
 import {
   FiMoreHorizontal,
   FiTrash2,
@@ -28,9 +28,17 @@ import {
 } from 'react-icons/fi';
 import { PiStar, PiStarFill } from 'react-icons/pi';
 
+import { type NativeEditorBarAction, useNativeEditorBar } from '../../../hooks/useNativeEditorBar';
+
 import { ShareBoardDialog } from './ShareBoardDialog';
 
 import type { BoardSettingsSection } from './board-overview/settings/BoardSettingsOverlay';
+
+interface BoardMenuItem extends NativeEditorBarAction {
+  icon: ReactNode;
+  /** Only below `sm`: on a wider screen the header carries it. */
+  phoneOnly?: boolean;
+}
 
 interface BoardDropdownProps {
   boardId: string;
@@ -94,91 +102,140 @@ export const BoardDropdown = memo(function BoardDropdown({
   // whiteboards (no overlay) keep the dropdown's own dialogs.
   const consolidated = Boolean(onOpenFullSettings);
 
+  // One list for both menus: the dropdown below and the app's native "…" menu.
+  const items: BoardMenuItem[] = [
+    {
+      id: 'favourite',
+      label: isFavourite ? 'Aus Favoriten entfernen' : 'Zu Favoriten',
+      icon: isFavourite ? (
+        <PiStarFill className="mr-2 text-primary-600" size={14} />
+      ) : (
+        <PiStar className="mr-2" size={14} />
+      ),
+      run: onToggleFavourite,
+      phoneOnly: true,
+    },
+    ...(readOnly
+      ? []
+      : [
+          {
+            id: 'rename',
+            label: 'Umbenennen',
+            icon: <FiEdit2 className="mr-2" size={14} />,
+            run: openRename,
+          },
+        ]),
+    {
+      id: 'expert-mode',
+      label: 'Expert*innenmodus',
+      icon: <FiSliders className="mr-2" size={14} />,
+      run: onExpertModeToggle,
+      checked: expertMode,
+    },
+    ...(readOnly
+      ? []
+      : [
+          {
+            id: 'share',
+            label: 'Teilen',
+            icon: <FiShare2 className="mr-2" size={14} />,
+            run: () => (consolidated ? onOpenFullSettings?.('share') : setShareOpen(true)),
+          },
+        ]),
+    ...(onOpenActivity
+      ? [
+          {
+            id: 'activity',
+            label: 'Aktivität anzeigen',
+            icon: <FiActivity className="mr-2" size={14} />,
+            run: onOpenActivity,
+          },
+        ]
+      : []),
+    // The settings overlay is all writes; duplicating only needs read access.
+    ...(onDuplicate && (readOnly || !consolidated)
+      ? [
+          {
+            id: 'duplicate',
+            label: 'Board duplizieren',
+            icon: <FiCopy className="mr-2" size={14} />,
+            run: onDuplicate,
+          },
+        ]
+      : []),
+    ...(!readOnly && consolidated && onOpenSettings
+      ? [
+          {
+            id: 'settings',
+            label: 'Board-Einstellungen',
+            icon: <FiSettings className="mr-2" size={14} />,
+            run: onOpenSettings,
+          },
+        ]
+      : []),
+    ...(!readOnly && !consolidated
+      ? [
+          {
+            id: 'archive',
+            label: isArchived ? 'Board wiederherstellen' : 'Board archivieren',
+            icon: <FiArchive className="mr-2" size={14} />,
+            run: onArchiveToggle,
+          },
+          {
+            id: 'delete',
+            label: 'Board löschen',
+            icon: <FiTrash2 className="mr-2" size={14} />,
+            run: () => setDeleteConfirmOpen(true),
+            destructive: true,
+          },
+        ]
+      : []),
+  ];
+
+  // In the app the bar is native: rename is its title, share its button, and
+  // the rest its menu. The dialogs below stay, the trigger goes.
+  const share = items.find((item) => item.id === 'share');
+  const nativeBar = useNativeEditorBar({
+    title,
+    canEdit: !readOnly,
+    onRename,
+    onShare: share?.run,
+    actions: items.filter((item) => item.id !== 'share' && item.id !== 'rename'),
+  });
+
   return (
     <>
       {!consolidated && (
         <ShareBoardDialog boardId={boardId} open={shareOpen} onOpenChange={setShareOpen} />
       )}
 
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            aria-label="Board-Menü"
-            className="flex items-center justify-center w-7 h-7 max-sm:w-11 max-sm:h-11 rounded-md text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-[#2a2a2a] bg-transparent border-none cursor-pointer transition-colors"
-          >
-            <FiMoreHorizontal size={16} />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()}>
-          <DropdownMenuItem onClick={onToggleFavourite} className="sm:hidden">
-            {isFavourite ? (
-              <PiStarFill className="mr-2 text-primary-600" size={14} />
-            ) : (
-              <PiStar className="mr-2" size={14} />
-            )}
-            {isFavourite ? 'Aus Favoriten entfernen' : 'Zu Favoriten'}
-          </DropdownMenuItem>
-          {!readOnly && (
-            <DropdownMenuItem onClick={openRename}>
-              <FiEdit2 className="mr-2" size={14} />
-              Umbenennen
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem onClick={onExpertModeToggle}>
-            <FiSliders className="mr-2" size={14} />
-            Expert*innenmodus
-            {expertMode && <FiCheck className="ml-auto" size={14} />}
-          </DropdownMenuItem>
-          {!readOnly && (
-            <DropdownMenuItem
-              onClick={() => (consolidated ? onOpenFullSettings?.('share') : setShareOpen(true))}
+      {!nativeBar && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              aria-label="Board-Menü"
+              className="flex items-center justify-center w-7 h-7 max-sm:w-11 max-sm:h-11 rounded-md text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-[#2a2a2a] bg-transparent border-none cursor-pointer transition-colors"
             >
-              <FiShare2 className="mr-2" size={14} />
-              Teilen
-            </DropdownMenuItem>
-          )}
-          {onOpenActivity && (
-            <DropdownMenuItem onClick={onOpenActivity}>
-              <FiActivity className="mr-2" size={14} />
-              Aktivität anzeigen
-            </DropdownMenuItem>
-          )}
-
-          {readOnly ? (
-            // The settings overlay is all writes; duplicating only needs read access.
-            onDuplicate && (
-              <DropdownMenuItem onClick={onDuplicate}>
-                <FiCopy className="mr-2" size={14} />
-                Board duplizieren
+              <FiMoreHorizontal size={16} />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()}>
+            {items.map((item) => (
+              <DropdownMenuItem
+                key={item.id}
+                onClick={item.run}
+                className={
+                  item.phoneOnly ? 'sm:hidden' : item.destructive ? 'text-red-600' : undefined
+                }
+              >
+                {item.icon}
+                {item.label}
+                {item.checked && <FiCheck className="ml-auto" size={14} />}
               </DropdownMenuItem>
-            )
-          ) : consolidated ? (
-            onOpenSettings && (
-              <DropdownMenuItem onClick={onOpenSettings}>
-                <FiSettings className="mr-2" size={14} />
-                Board-Einstellungen
-              </DropdownMenuItem>
-            )
-          ) : (
-            <>
-              {onDuplicate && (
-                <DropdownMenuItem onClick={onDuplicate}>
-                  <FiCopy className="mr-2" size={14} />
-                  Board duplizieren
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuItem onClick={onArchiveToggle}>
-                <FiArchive className="mr-2" size={14} />
-                {isArchived ? 'Board wiederherstellen' : 'Board archivieren'}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setDeleteConfirmOpen(true)} className="text-red-600">
-                <FiTrash2 className="mr-2" size={14} />
-                Board löschen
-              </DropdownMenuItem>
-            </>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
 
       <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
         <DialogContent>
