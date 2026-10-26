@@ -61,20 +61,23 @@ afterEach(() => {
   for (const stage of [...Konva.stages]) stage.destroy();
 });
 
+const STILL_MS = 500;
+
 async function sceneOf(configId: string, slide: Record<string, unknown>): Promise<SceneNode> {
   render(<StandaloneCanvas configId={configId as CanvasConfigId} initialProps={slide} preview />);
   // The canvas settles in steps (the config loads, the format sizes the
   // stage, async elements mount): take the scene once it holds still for
-  // three samples in a row.
+  // STILL_MS. Measured in time, not samples: waitFor also runs on every DOM
+  // mutation, so three samples in a row spanned as little as 129 ms.
   let last = '';
-  let still = 0;
+  let stillSince = 0;
   await waitFor(
     () => {
       const stage = Konva.stages[0];
       const now = stage ? JSON.stringify(dump(stage)) : '';
-      still = now !== '' && now === last ? still + 1 : 0;
+      if (now === '' || now !== last) stillSince = performance.now();
       last = now;
-      if (still < 3) throw new Error('still settling');
+      if (performance.now() - stillSince < STILL_MS) throw new Error('still settling');
     },
     { timeout: 10_000, interval: 100 }
   );
