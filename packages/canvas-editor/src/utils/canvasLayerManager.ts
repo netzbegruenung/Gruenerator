@@ -1,3 +1,5 @@
+import { ELEMENT_KINDS, kindList } from './elementKinds';
+
 import type { AssetInstance } from './canvasAssets';
 import type { ChartInstance } from './chartUtils';
 import type { FrameInstance } from './frameUtils';
@@ -9,11 +11,12 @@ import type { AdditionalText, CanvasElementConfig, FullCanvasConfig } from '../c
 import type { BalkenInstance } from '../primitives/BalkenGroup';
 import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
 
+
 /**
  * Canvas Layer Manager - Utilities for managing layer ordering
  *
  * Handles the construction and manipulation of canvas element layers.
- * Elements are rendered in order: config elements → balkens → icons → shapes → texts → illustrations
+ * Elements are rendered in order: config elements, then the kinds of `ELEMENT_KINDS`.
  */
 
 export type CanvasItem =
@@ -47,14 +50,8 @@ interface StateWithFeatures {
 /**
  * Build flat list of all canvas items in default order
  *
- * Default order:
- * 1. Config elements (sorted by their `order` property)
- * 2. Balkens
- * 3. Icons
- * 4. Shapes
- * 5. Additional texts
- * 6. Illustrations
- * 7. Assets (decorative elements like sunflowers, arrows)
+ * Default order: the config elements (sorted by their `order` property), then
+ * every kind in the order of `ELEMENT_KINDS`.
  */
 export function buildCanvasItems<
   TState extends StateWithFeatures = StateWithFeatures,
@@ -71,65 +68,16 @@ export function buildCanvasItems<
     items.push({ id: el.id, type: 'element', data: el as CanvasElementConfig })
   );
 
-  // 2. Balkens
-  if (state.balkenInstances) {
-    state.balkenInstances.forEach((b) => items.push({ id: b.id, type: 'balken', data: b }));
-  }
-
-  // 3. Icons
-  if (state.selectedIcons) {
-    state.selectedIcons.forEach((id) => items.push({ id, type: 'icon' }));
-  }
-
-  // 4. Shapes
-  if (state.shapeInstances) {
-    state.shapeInstances.forEach((s) => items.push({ id: s.id, type: 'shape', data: s }));
-  }
-
-  // 4.5. Frames
-  if (state.frameInstances) {
-    state.frameInstances.forEach((f) => items.push({ id: f.id, type: 'frame', data: f }));
-  }
-
-  // 5. Additional Texts
-  if (state.additionalTexts) {
-    state.additionalTexts.forEach((t) =>
-      items.push({ id: t.id, type: 'additional-text', data: t })
-    );
-  }
-
-  // 6. Illustrations
-  if (state.illustrationInstances) {
-    state.illustrationInstances.forEach((i) =>
-      items.push({ id: i.id, type: 'illustration', data: i })
-    );
-  }
-
-  // 7. Assets (decorative elements)
-  if (state.assetInstances) {
-    state.assetInstances.forEach((a) => items.push({ id: a.id, type: 'asset', data: a }));
-  }
-
-  // 8. Circle Badges (e.g., date circles)
-  if (state.circleBadgeInstances) {
-    state.circleBadgeInstances.forEach((c) =>
-      items.push({ id: c.id, type: 'circle-badge', data: c })
-    );
-  }
-
-  // 9. Pill Badges (e.g., "Wusstest du?" labels)
-  if (state.pillBadgeInstances) {
-    state.pillBadgeInstances.forEach((p) => items.push({ id: p.id, type: 'pill-badge', data: p }));
-  }
-
-  // 10. User-uploaded images
-  if (state.userImageInstances) {
-    state.userImageInstances.forEach((u) => items.push({ id: u.id, type: 'user-image', data: u }));
-  }
-
-  // 11. Charts
-  if (state.chartInstances) {
-    state.chartInstances.forEach((c) => items.push({ id: c.id, type: 'chart', data: c }));
+  // 2. Every element kind, in the order `ELEMENT_KINDS` lists them.
+  for (const { kind, stateKey } of ELEMENT_KINDS) {
+    for (const entry of kindList(state, stateKey)) {
+      // Boundary: the kind tells the payload type the registry cannot spell.
+      items.push(
+        kind === 'icon'
+          ? { id: entry as string, type: 'icon' }
+          : ({ id: (entry as { id: string }).id, type: kind, data: entry } as CanvasItem)
+      );
+    }
   }
 
   return items;

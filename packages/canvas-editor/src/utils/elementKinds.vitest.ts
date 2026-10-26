@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { CARRIED_INSTANCE_KEYS } from '../configs/factory/carryInstanceState';
+
 import { buildCanvasItems } from './canvasLayerManager';
+import { ELEMENT_KINDS } from './elementKinds';
 import { findElementRemover } from './removeElement';
 
 import type { FullCanvasConfig } from '../configs/types';
@@ -62,6 +65,13 @@ describe('element kinds', () => {
     const toggleIcon = vi.fn();
     findElementRemover(STATE as never, { toggleIcon } as OptionalCanvasActions, 'i')?.();
     expect(toggleIcon).toHaveBeenCalledWith('i', false);
+  });
+
+  it('are all carried across a re-seed, icons with their states', () => {
+    // A kind missing here would lose its elements on the next remote re-seed.
+    const carried: readonly string[] = CARRIED_INSTANCE_KEYS;
+    for (const { stateKey } of ELEMENT_KINDS) expect(carried).toContain(stateKey);
+    expect(carried).toContain('iconStates');
   });
 
   it('offers no delete when the kind has no remove action, or the id is unknown', () => {

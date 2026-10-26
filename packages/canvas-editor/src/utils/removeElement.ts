@@ -1,3 +1,4 @@
+import { ELEMENT_KINDS, kindList } from './elementKinds';
 import { isLayerLocked } from './layerLock';
 
 import type { CanvasItem } from './canvasLayerManager';
@@ -23,20 +24,16 @@ export function findElementRemover(
   const has = (list: readonly WithId[] | undefined) => !!list?.some((item) => item.id === id);
   const bind = (remove: ((id: string) => void) | undefined) => (remove ? () => remove(id) : null);
 
-  if (has(state.balkenInstances)) return bind(actions.removeBalken);
-  if (state.selectedIcons?.includes(id)) {
-    const { toggleIcon } = actions;
-    return toggleIcon ? () => toggleIcon(id, false) : null;
+  for (const { stateKey, remove } of ELEMENT_KINDS) {
+    const list = kindList(state, stateKey);
+    if (remove === null) {
+      // Icons: the id itself is listed; deleting one switches it off.
+      if (!list.includes(id)) continue;
+      const { toggleIcon } = actions;
+      return toggleIcon ? () => toggleIcon(id, false) : null;
+    }
+    if (has(list as readonly WithId[])) return bind(actions[remove]);
   }
-  if (has(state.shapeInstances)) return bind(actions.removeShape);
-  if (has(state.additionalTexts)) return bind(actions.removeAdditionalText);
-  if (has(state.illustrationInstances)) return bind(actions.removeIllustration);
-  if (has(state.assetInstances)) return bind(actions.removeAsset);
-  if (has(state.pillBadgeInstances)) return bind(actions.removePillBadge);
-  if (has(state.circleBadgeInstances)) return bind(actions.removeCircleBadge);
-  if (has(state.frameInstances)) return bind(actions.removeFrame);
-  if (has(state.userImageInstances)) return bind(actions.removeUserImage);
-  if (has(state.chartInstances)) return bind(actions.removeChart);
   return null;
 }
 
