@@ -15,6 +15,8 @@ import {
   straightFramedPhoto,
   straightPhotoCovers,
   straightenPhoto,
+  straightenWindowPhoto,
+  windowPhotoOfStraight,
   zoomStraightPhoto,
 } from './straighten';
 
@@ -164,6 +166,47 @@ describe('Pan mit Drehung', () => {
   });
 });
 
+describe('Hintergrund: Fenster-Zoom setzt auf dem Mindestzoom auf', () => {
+  const windowAt = (scale: number): Rect => ({
+    x: 540 - (1080 * scale) / 2,
+    y: 675 - (1350 * scale) / 2,
+    width: 1080 * scale,
+    height: 1350 * scale,
+  });
+
+  it('ist bei 0° das unveränderte Fenster-Foto', () => {
+    const photo = photoRectAround(landscape, windowAt(1.4));
+    expect(straightenWindowPhoto(landscape, photo, 0, page)).toBe(photo);
+    expect(windowPhotoOfStraight(landscape, photo, 0, page)).toBe(photo);
+  });
+
+  it('jeder Zoom-Wert ab 1 ändert das Bild: kein toter Bereich', () => {
+    for (const deg of [-45, -10, 5, 30]) {
+      const floor = minStraightenZoom(landscape, page, deg);
+      const widths = [1, 1.1, 1.3, 1.6, 3].map(
+        (scale) =>
+          straightenWindowPhoto(landscape, photoRectAround(landscape, windowAt(scale)), deg, page)
+            .width
+      );
+      const atOne = widths[0]!;
+      expect(atOne).toBeCloseTo(photoRectAround(landscape, page).width * floor, 6);
+      [1, 1.1, 1.3, 1.6, 3].forEach((scale, i) => {
+        expect(widths[i]!).toBeCloseTo(atOne * scale, 6);
+      });
+    }
+  });
+
+  it('Umkehrung: der gespeicherte Zoom ergibt wieder dasselbe Foto', () => {
+    const photo = photoRectAround(landscape, windowAt(1.2));
+    const straight = straightenWindowPhoto(landscape, photo, 20, page);
+    const back = windowPhotoOfStraight(landscape, straight, 20, page);
+    const again = straightenWindowPhoto(landscape, back, 20, page);
+    expect(again.width).toBeCloseTo(straight.width, 9);
+    expect(again.x).toBeCloseTo(straight.x, 9);
+    expect(again.y).toBeCloseTo(straight.y, 9);
+  });
+});
+
 describe('eigenes Bild: Anteil in den Achsen des gedrehten Fotos', () => {
   const frame = { width: 600, height: 400 };
 
@@ -230,8 +273,16 @@ describe('Eigenschaft: das gedrehte Foto deckt den Rahmen immer', () => {
         width: frame.width * (1 + next() * 2),
         height: frame.height * (1 + next() * 2),
       };
-      const photo = straightenPhoto(photoRectAround(natural, window), deg, frame);
+      const photo = straightenWindowPhoto(natural, photoRectAround(natural, window), deg, frame);
       expect(straightPhotoCovers(photo, deg, frame, tol)).toBe(true);
+      expect(
+        straightPhotoCovers(
+          straightenPhoto(photoRectAround(natural, window), deg, frame),
+          deg,
+          frame,
+          tol
+        )
+      ).toBe(true);
       const panned = panStraightPhoto(
         photo,
         deg,

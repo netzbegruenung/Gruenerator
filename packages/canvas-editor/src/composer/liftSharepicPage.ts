@@ -414,9 +414,9 @@ export function liftPage(
     }
   }
   if (scale !== null && scale !== (bg.scale ?? 1)) background.scale = scale;
-  // Der Komponist begradigt nie: jeder Winkel ist eine Hand-Änderung.
+  // Auch 0° ist eine Hand-Änderung: ohne den Schlüssel liefe ein gedreht verschobenes Fenster über den alten Weg und zeigte eine Lücke.
   const rotation = backgroundStraighten(pageState);
-  if (rotation) background.rotation = rotation;
+  if (rotation !== null) background.rotation = rotation;
   if (typeof pageState.backgroundColor === 'string' && pageState.backgroundColor !== bg.color) {
     background.color = pageState.backgroundColor;
   }

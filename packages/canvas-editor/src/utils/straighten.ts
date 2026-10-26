@@ -1,15 +1,4 @@
-/**
- * Begradigen (Canva „Straighten"): das Foto dreht sich im Rahmen, der Rahmen
- * bleibt achsparallel und zeigt nie eine Lücke.
- *
- * Ein gedrehtes Foto wird wie in `coverFit.ts` als Rechteck seiner
- * ungedrehten Lage beschrieben; gedreht wird um dessen Mitte, im Uhrzeigersinn
- * in Grad wie Konva. Es deckt den Rahmen genau dann, wenn es das umschließende
- * Rechteck des Rahmens in seinen eigenen Achsen enthält (`rotatedExtent`).
- * Daraus folgen der Mindestzoom je Winkel und die Pan-Grenzen: die Mitte darf
- * sich in den Achsen des Fotos um die halbe Überlänge bewegen, also in einem
- * gedrehten Rechteck.
- */
+// Begradigen. Gedrehte Fotos sind Rechtecke ihrer ungedrehten Lage, gedreht um die Mitte (Grad, wie Konva).
 
 import {
   coverPhotoRect,
@@ -29,28 +18,25 @@ interface Point {
   y: number;
 }
 
-/** Ein Winkel aus Regler oder Zahlenfeld: ganze Grad, −45 … 45, sonst 0. */
 export function clampStraighten(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.max(-STRAIGHTEN_LIMIT, Math.min(STRAIGHTEN_LIMIT, Math.round(value))) || 0;
 }
 
-/** Ein gespeicherter Winkel; `null`, wenn keiner gespeichert ist (alte Canvases). */
+/** `null` heißt: nie begradigt — der alte Zeichenweg, unverändert. */
 export function storedStraighten(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
-/** Seiten-Schlüssel des Begradigungs-Winkels des Hintergrundfotos (neben `backgroundImageAdjustments`). */
+// Wer `imageOffset`/`imageScale` liest, muss diesen Winkel beachten (`straightenWindowPhoto`): gedreht verschoben liegt das Fenster außerhalb der 0°-Grenzen.
 export const BACKGROUND_STRAIGHTEN_KEY = 'backgroundImageRotation';
 
-/** Der Begradigungs-Winkel des Hintergrundfotos; `null`, wenn die Seite keinen trägt. */
 export function backgroundStraighten(state: Record<string, unknown>): number | null {
   return storedStraighten(state[BACKGROUND_STRAIGHTEN_KEY]);
 }
 
 const radians = (deg: number) => (deg * Math.PI) / 180;
 
-/** `v` in die Achsen eines um `deg` gedrehten Fotos (also um −deg gedreht). */
 function toPhotoAxes(v: Point, deg: number): Point {
   const r = radians(deg);
   const cos = Math.cos(r);
@@ -58,7 +44,6 @@ function toPhotoAxes(v: Point, deg: number): Point {
   return { x: v.x * cos + v.y * sin, y: -v.x * sin + v.y * cos };
 }
 
-/** Umkehrung von `toPhotoAxes`. */
 function toPageAxes(v: Point, deg: number): Point {
   const r = radians(deg);
   const cos = Math.cos(r);
@@ -68,7 +53,7 @@ function toPageAxes(v: Point, deg: number): Point {
 
 const centreOf = (r: Rect): Point => ({ x: r.x + r.width / 2, y: r.y + r.height / 2 });
 
-/** Das umschließende Rechteck des Rahmens in den Achsen eines um `deg` gedrehten Fotos. */
+/** Deckt das Foto dieses Rechteck in seinen Achsen, deckt es den ganzen Rahmen. */
 export function rotatedExtent(frame: Size, deg: number): Size {
   const r = radians(deg);
   const cos = Math.abs(Math.cos(r));
@@ -79,18 +64,15 @@ export function rotatedExtent(frame: Size, deg: number): Size {
   };
 }
 
-/** Der kleinste Maßstab (Seite je Bildpunkt), mit dem das um `deg` gedrehte Foto `frame` deckt. */
 export function minCoverScale(natural: Size, frame: Size, deg: number): number {
   const extent = rotatedExtent(frame, deg);
   return Math.max(extent.width / natural.width, extent.height / natural.height);
 }
 
-/** Der Mindestzoom für `deg`, gemessen am ungedrehten Decken (1 bei 0°). */
 export function minStraightenZoom(natural: Size, frame: Size, deg: number): number {
   return minCoverScale(natural, frame, deg) / minCoverScale(natural, frame, 0);
 }
 
-/** Wie weit die Mitte des Fotos sich in seinen Achsen bewegen darf. */
 function slackOf(size: Size, frame: Size, deg: number): Point {
   const extent = rotatedExtent(frame, deg);
   return {
@@ -101,12 +83,7 @@ function slackOf(size: Size, frame: Size, deg: number): Point {
 
 const clampTo = (v: number, limit: number) => Math.max(-limit, Math.min(limit, v));
 
-/**
- * Die Mitte eines um `deg` gedrehten Fotos der Größe `size`, so nah an
- * `centre` wie möglich, mit der es `frame` deckt. Die Projektion geschieht in
- * den Achsen des Fotos; dort ist der erlaubte Bereich ein achsparalleles
- * Rechteck, und eine Drehung ändert keine Abstände.
- */
+/** In Fotoachsen geklemmt: dort ist der erlaubte Bereich achsparallel, und Drehen erhält Abstände. */
 export function clampStraightCentre(centre: Point, size: Size, deg: number, frame: Rect): Point {
   const middle = centreOf(frame);
   const local = toPhotoAxes({ x: centre.x - middle.x, y: centre.y - middle.y }, deg);
@@ -117,12 +94,7 @@ export function clampStraightCentre(centre: Point, size: Size, deg: number, fram
   return { x: middle.x + page.x, y: middle.y + page.y };
 }
 
-/**
- * Das um `deg` gedrehte Foto zu `photo`: mindestens so groß, dass es gedreht
- * `frame` deckt (Seitenverhältnis bleibt, vergrößert um die Mitte), und mit der
- * Mitte so nah wie möglich an der von `photo`. Braucht `photo` keine Korrektur,
- * kommt es unverändert zurück — bei 0° also jedes Foto, das den Rahmen deckt.
- */
+/** Ohne Korrektur kommt `photo` selbst zurück: bei 0° rendert ein deckendes Foto bytegleich. */
 export function straightenPhoto(photo: Rect, deg: number, frame: Rect): Rect {
   const extent = rotatedExtent(frame, deg);
   const grow = Math.max(1, extent.width / photo.width, extent.height / photo.height);
@@ -133,7 +105,6 @@ export function straightenPhoto(photo: Rect, deg: number, frame: Rect): Rect {
   return { x: held.x - size.width / 2, y: held.y - size.height / 2, ...size };
 }
 
-/** Ein gedrehtes Foto um (dx, dy) verschoben, soweit es `frame` weiter deckt. */
 export function panStraightPhoto(
   photo: Rect,
   deg: number,
@@ -146,11 +117,7 @@ export function panStraightPhoto(
   return { ...photo, x: held.x - photo.width / 2, y: held.y - photo.height / 2 };
 }
 
-/**
- * Ein gedrehtes Foto um `factor` um die Mitte des Rahmens gezoomt (was man
- * sieht, bleibt mittig), nie kleiner als der Mindestzoom für `deg`, und so
- * gehalten, dass es `frame` weiter deckt.
- */
+/** Zoom um die Rahmenmitte: was man sieht, bleibt mittig. */
 export function zoomStraightPhoto(photo: Rect, factor: number, deg: number, frame: Rect): Rect {
   const middle = centreOf(frame);
   const centre = centreOf(photo);
@@ -165,7 +132,29 @@ export function zoomStraightPhoto(photo: Rect, factor: number, deg: number, fram
   return straightenPhoto(zoomed, deg, frame);
 }
 
-/** Ob das um `deg` gedrehte `photo` `frame` ganz deckt. */
+function scaledAbout(photo: Rect, factor: number): Rect {
+  const centre = centreOf(photo);
+  const width = photo.width * factor;
+  const height = photo.height * factor;
+  return { x: centre.x - width / 2, y: centre.y - height / 2, width, height };
+}
+
+/** Hintergrund: der Fenster-Zoom setzt auf dem Mindestzoom des Winkels auf, sonst bliebe der Zoom-Regler darunter wirkungslos. */
+export function straightenWindowPhoto(natural: Size, photo: Rect, deg: number, frame: Rect): Rect {
+  const floor = minStraightenZoom(natural, frame, deg);
+  return straightenPhoto(floor === 1 ? photo : scaledAbout(photo, floor), deg, frame);
+}
+
+export function windowPhotoOfStraight(
+  natural: Size,
+  straight: Rect,
+  deg: number,
+  frame: Rect
+): Rect {
+  const floor = minStraightenZoom(natural, frame, deg);
+  return floor === 1 ? straight : scaledAbout(straight, 1 / floor);
+}
+
 export function straightPhotoCovers(photo: Rect, deg: number, frame: Rect, epsilon = 0.5): boolean {
   const centre = centreOf(photo);
   const corners: Point[] = [
@@ -183,7 +172,6 @@ export function straightPhotoCovers(photo: Rect, deg: number, frame: Rect, epsil
   });
 }
 
-/** Der Punkt auf dem gedrehten Foto, der `point` am nächsten liegt. */
 export function clampPointToStraightPhoto(point: Point, photo: Rect, deg: number): Point {
   const centre = centreOf(photo);
   const local = toPhotoAxes({ x: point.x - centre.x, y: point.y - centre.y }, deg);
@@ -193,13 +181,7 @@ export function clampPointToStraightPhoto(point: Point, photo: Rect, deg: number
   return { x: centre.x + page.x, y: centre.y + page.y };
 }
 
-/**
- * Eigenes Bild: das um `deg` gedrehte Foto in einem Rahmen (rahmen-lokale px).
- * `pan` ist wie bei `framedPhotoRect` ein Anteil (−1 … 1) des Spielraums, hier
- * in den Achsen des gedrehten Fotos; bei 0° ist es genau `framedPhotoRect`.
- * Der Anteil bleibt beim Drehen stehen, deshalb führt das Zurückdrehen auf
- * denselben Ausschnitt zurück, und jeder Wert im Bereich deckt den Rahmen.
- */
+/** Eigenes Bild: `pan` ist der Anteil am Spielraum in Fotoachsen, damit Zurückdrehen den Ausschnitt wiederfindet. */
 export function straightFramedPhoto(
   natural: Size,
   frame: Size,
@@ -225,11 +207,7 @@ export function straightFramedPhoto(
   };
 }
 
-/**
- * Umkehrung von `straightFramedPhoto`: der Anteil, der das gedrehte Foto an
- * seine Stelle setzt. Eine Achse ohne Spielraum sagt nichts über den Anteil;
- * dort bleibt `kept` stehen, damit ein Zurückdrehen den alten Ausschnitt findet.
- */
+/** Eine Achse ohne Spielraum sagt nichts über den Anteil; dort bleibt `kept`. */
 export function panOfStraightPhoto(
   photo: Rect,
   deg: number,
@@ -247,11 +225,6 @@ export function panOfStraightPhoto(
   };
 }
 
-/**
- * Seitenverhältnis-Vorgabe auf einem gedrehten Foto: das größte Rechteck mit
- * `ratio`, das ganz aufs gedrehte Foto passt, so nah an der Mitte des
- * aktuellen Rahmens wie möglich (wie `frameForAspect` bei 0°).
- */
 export function frameForAspectOnStraightPhoto(
   frame: Rect,
   photo: Rect,
@@ -272,7 +245,6 @@ export function frameForAspectOnStraightPhoto(
     width: photo.width - 2 * (a * cos + (a / ratio) * sin),
     height: photo.height - 2 * (a * sin + (a / ratio) * cos),
   };
-  // Die Mitte darf sich in Fotoachsen um die übrige Länge bewegen.
   const centre = centreOf(photo);
   const local = toPhotoAxes(
     { x: centreOf(frame).x - centre.x, y: centreOf(frame).y - centre.y },
@@ -292,9 +264,8 @@ export function frameForAspectOnStraightPhoto(
   };
 }
 
-/** Wie das gedrehte Foto in einen Knoten der Größe `box` gezeichnet wird (knoten-lokal). */
+/** Knoten-lokal; x/y ist die Mitte des Fotos. */
 export interface StraightDraw {
-  /** Mitte des Fotos im Knoten. */
   x: number;
   y: number;
   width: number;
@@ -302,12 +273,7 @@ export interface StraightDraw {
   rotation: number;
 }
 
-/**
- * Was `straightSceneFunc` zeichnet: das Foto an seiner Mitte relativ zu `box`.
- * Ein Spiegeln spiegelt danach die Pixel des ganzen Knotens (Filter); damit
- * das Ergebnis der gespiegelte Ausschnitt des ganzen Fotos ist, wird hier die
- * Lage gespiegelt und der Winkel je gespiegelter Achse umgekehrt.
- */
+/** Der Flip-Filter spiegelt danach den Knoten; daher hier Lage gespiegelt, Winkel je Achse umgekehrt. */
 export function straightDrawOf(
   photo: Rect,
   deg: number,
@@ -327,14 +293,10 @@ export function straightDrawOf(
   };
 }
 
-/** Attribut am Konva-Bild, aus dem `straightSceneFunc` liest (Ziehen setzt es direkt). */
+// Ziehen setzt das Attribut direkt, ohne React-Zustand.
 export const STRAIGHT_DRAW_ATTR = 'straightDraw';
 
-/**
- * Zeichnet ein gedrehtes Foto in einen achsparallelen Knoten: auf den Knoten
- * zugeschnitten (bei `cornerRadius` auf dessen Rundung), gedreht um seine
- * Mitte. Ersetzt Konvas eigenes Bildzeichnen, das nur achsparallel ausschneidet.
- */
+/** Konvas `crop` schneidet nur achsparallel aus; das gedrehte Foto zeichnet diese Funktion. */
 export function straightSceneFunc(context: Konva.Context, shape: Konva.Shape): void {
   const image = shape.getAttr('image') as CanvasImageSource | undefined;
   const draw = shape.getAttr(STRAIGHT_DRAW_ATTR) as StraightDraw | undefined;
@@ -362,11 +324,7 @@ export function straightSceneFunc(context: Konva.Context, shape: Konva.Shape): v
   context.restore();
 }
 
-/**
- * Ein `crop`, der für den gedrehten Fall nur den Maßstab trägt: Druck-DPI
- * (`printImageInfo`) liest `cropWidth` gegen die gezeichnete Breite. Er sitzt
- * um den Bildpunkt unter der Mitte von `box`.
- */
+/** Trägt nur den Maßstab: `printImageInfo` liest `cropWidth` für die Druck-DPI. */
 export function straightScaleCrop(natural: Size, photo: Rect, box: Rect): Rect {
   const sx = natural.width / photo.width;
   const sy = natural.height / photo.height;

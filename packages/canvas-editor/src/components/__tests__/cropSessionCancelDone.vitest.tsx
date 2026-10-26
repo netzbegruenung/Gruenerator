@@ -80,7 +80,7 @@ const PHOTO: UserImageInstance = {
   opacity: 1,
 };
 
-async function mount() {
+async function mount(extra: Record<string, unknown> = {}) {
   const ref = createRef<GenericCanvasRef>();
   const live = { state: {} as Record<string, unknown> };
   stores.length = 0;
@@ -94,6 +94,7 @@ async function mount() {
             line1: 'Klima',
             currentImageSrc: 'https://example.org/foto.png',
             userImageInstances: [PHOTO],
+            ...extra,
           }}
           onExport={() => {}}
           onCancel={() => {}}
@@ -386,6 +387,18 @@ describe('Zuschneide-Modus: Begradigen', () => {
     expect(Math.abs(pan.panY!)).toBeLessThanOrEqual(1);
     const shown = drawnPhoto(canvas.stage.findOne<Konva.Image>('.user-photo')!);
     expect(straightPhotoCovers(shown.photo, -25, shown.frame, 1e-6)).toBe(true);
+  }, 90_000);
+
+  it('Hintergrund: der Zoom-Regler wirkt gedreht ab 1, ohne toten Bereich', async () => {
+    const widthAt = async (scale: number) => {
+      const canvas = await mount({ imageScale: scale, backgroundImageRotation: 30 });
+      const width = drawOf(canvas.background())!.width;
+      cleanup();
+      return width;
+    };
+    const one = await widthAt(1);
+    const more = await widthAt(1.2);
+    expect(more).toBeCloseTo(one * 1.2, 3);
   }, 90_000);
 
   it('Hintergrund: Fertig behält den Winkel als einen Schritt', async () => {

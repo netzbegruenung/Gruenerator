@@ -814,6 +814,32 @@ describe('recomposePage', () => {
     expect(again).toEqual(lifted);
   });
 
+  it('keeps a straighten angle of 0° through a recompose, so the moved window stays covering', () => {
+    const p = page(deCarousel, 0);
+    // Gedreht verschoben, dann zurückgedreht: das Fenster liegt außerhalb der 0°-Grenzen.
+    p.state.imageOffset = { x: 900, y: -30 };
+    p.state.backgroundImageRotation = 0;
+    const lifted = liftPage(p.state, p);
+    expect(lifted.overrides.find((o) => o.kind === 'background')).toMatchObject({
+      offset: { x: 900, y: -30 },
+      rotation: 0,
+    });
+
+    const fresh = freshPage(deCarousel, 0, lifted.slide.slides[0]!);
+    const out = recomposePage(
+      fresh.composed,
+      lifted.overrides,
+      lifted.foreign,
+      inputOf(lifted.slide, 0),
+      fresh.spec
+    );
+    expect(out.droppedOverrides).toEqual([]);
+    const state = stateOf(out.state);
+    expect(state.imageOffset).toEqual({ x: 900, y: -30 });
+    expect(state.backgroundImageRotation).toBe(0);
+    expect(liftPage(state, { slide: lifted.slide, baseline: out.baseline })).toEqual(lifted);
+  });
+
   it('carries a hand move and a hand text through a spec change on a real Yjs page', async () => {
     const base = deCarousel;
     const config = await loadCanvasConfig('freeform', 'post-portrait');

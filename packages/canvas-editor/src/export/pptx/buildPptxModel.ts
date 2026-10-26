@@ -533,7 +533,7 @@ function mapBackgroundPhoto(state: PptxPageState, page: PptxBox): PptxItem | nul
   const adjustments = state.backgroundImageAdjustments as ImageAdjustments | null;
   const strip = photoStripBeside(list<ShapeInstance>(state.shapeInstances), page);
   // Ein im Rahmen gedrehtes Foto hat in PPTX keine Entsprechung: es wird gerastert.
-  const straightened = !!backgroundStraighten(state as Record<string, unknown>);
+  const straightened = backgroundStraighten(state as Record<string, unknown>) !== null;
   const plain =
     !offset?.x &&
     !offset?.y &&

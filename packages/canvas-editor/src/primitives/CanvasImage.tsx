@@ -42,9 +42,10 @@ import {
   panStraightPhoto,
   STRAIGHT_DRAW_ATTR,
   straightDrawOf,
-  straightenPhoto,
+  straightenWindowPhoto,
   straightScaleCrop,
   straightSceneFunc,
+  windowPhotoOfStraight,
   zoomStraightPhoto,
 } from '../utils/straighten';
 
@@ -182,7 +183,7 @@ function CanvasImageInner({
   // Begradigt: das gedrehte Foto, auf Deckung gehalten; der Knoten ist der Rahmen.
   const straight =
     deg !== null && natural && slot
-      ? straightenPhoto(photoRectAround(natural, { x, y, width, height }), deg, slot)
+      ? straightenWindowPhoto(natural, photoRectAround(natural, { x, y, width, height }), deg, slot)
       : null;
   const turnDeg = straight !== null && deg !== null ? deg : 0;
   const turned = straight !== null && turnDeg !== 0;
@@ -518,12 +519,15 @@ function CanvasImageInner({
 
     const scaleX = node.scaleX();
     const scaleY = node.scaleY();
-    if (slot && part && straight) {
+    if (slot && part && straight && natural) {
       // Begradigt: der Zoom hält den Mindestzoom des Winkels und die Deckung.
       node.scale({ x: 1, y: 1 });
       const zoomed = zoomStraightPhoto(straight, scaleX, turnDeg, slot);
       placeCropGhost(ghostRef.current, zoomed, mirror, turnDeg);
-      const next = windowInPhoto(zoomed, width / height);
+      const next = windowInPhoto(
+        windowPhotoOfStraight(natural, zoomed, turnDeg, slot),
+        width / height
+      );
       onTransformEnd?.(next.x, next.y, next.width, next.height, 0);
       return;
     }
