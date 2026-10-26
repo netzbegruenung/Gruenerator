@@ -550,11 +550,6 @@ function ChartPrimitiveInner({
           keepRatio={true}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
           rotateEnabled={true}
-          anchorSize={10}
-          anchorCornerRadius={5}
-          borderStroke="#005437"
-          anchorStroke="#005437"
-          anchorFill="#ffffff"
           {...ELEMENT_TRANSFORMER}
           {...(locked ? LOCKED_TRANSFORMER : {})}
         />

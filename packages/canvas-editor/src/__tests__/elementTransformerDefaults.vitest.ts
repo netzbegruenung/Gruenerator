@@ -36,6 +36,12 @@ describe('Element-Transformer', () => {
       // ein eigenes anchorStyleFunc gibt es nur an den Ausnahmen.
       const eigene = (quelle.match(/anchorStyleFunc=\{/g) ?? []).length;
       expect(eigene).toBe(AUSNAHMEN[datei]?.anzahl ?? 0);
+      // Die Optik (Farbe, Größe, Form) setzt ELEMENT_TRANSFORMER für alle gleich;
+      // nur die Ausnahmen tragen eigene Werte.
+      const optik = (
+        quelle.match(/(anchorSize|anchorCornerRadius|anchorStroke|anchorFill|borderStroke)=/g) ?? []
+      ).length;
+      expect(optik > 0).toBe(!!AUSNAHMEN[datei]);
     });
   }
 });
