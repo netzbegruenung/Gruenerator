@@ -59,6 +59,17 @@ describe('TransformHud', () => {
     expect(badge.style.display).toBe('none');
   });
 
+  it('puts the angle next to the pointer while rotating', async () => {
+    const { stage, tr, badge } = setup();
+    stage.container().dispatchEvent(new Event('pointerdown'));
+    (tr as unknown as { _movingAnchorName: string })._movingAnchorName = 'rotater';
+    vi.spyOn(stage, 'getPointerPosition').mockReturnValue({ x: 100, y: 80 });
+    fire(tr, 'transform');
+    await vi.waitFor(() => expect(badge.style.display).toBe('block'));
+    // GAP 12 container px; the stage is 500 wide in an unsized host, css = 1.
+    expect(badge.style.transform).toMatch(/^translate\(112px, 92px\)/);
+  });
+
   it('shows logical size for a multi-selection under a scaled group', async () => {
     const { stage, tr, badge } = setup(2, 2);
     stage.container().dispatchEvent(new Event('pointerdown'));

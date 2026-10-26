@@ -495,12 +495,7 @@ function FramePrimitiveInner({
               height: adjustedHeight,
             };
           }}
-          anchorSize={10}
-          anchorCornerRadius={5}
           rotateEnabled={true}
-          borderStroke="#005437"
-          anchorStroke="#005437"
-          anchorFill="#ffffff"
           {...ELEMENT_TRANSFORMER}
           {...(locked ? LOCKED_TRANSFORMER : {})}
         />
