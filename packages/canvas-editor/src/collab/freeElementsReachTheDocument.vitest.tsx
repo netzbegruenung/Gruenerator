@@ -187,6 +187,7 @@ describe('freie Elemente im gemeinsamen Dokument', () => {
       layerOrder: ['shape-1', 'asset-1'],
       lockedLayerIds: ['shape-1'],
       templateRotations: { 'quote-text': 15 },
+      templateTextAligns: { 'quote-text': 'left' },
       backgroundImageAdjustments: { vignette: 0.4, flipX: true },
     };
     expect(Object.keys(edited)).toEqual([...PAGE_ELEMENT_STATE_KEYS]);

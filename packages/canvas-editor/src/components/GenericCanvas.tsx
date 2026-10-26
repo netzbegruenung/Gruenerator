@@ -92,6 +92,7 @@ import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
 import type { PageCommandId } from '../utils/canvasCommandRegistry';
 import type { GradientFill } from '../utils/gradientFill';
 import type { LockState } from '../utils/layerLock';
+import type { TextAlign } from '../utils/textAlign';
 import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 import type * as Y from 'yjs';
@@ -308,6 +309,7 @@ export interface GenericCanvasRef {
   handleBlurChange?: (id: string, blur: number) => void;
   handleCropImage?: () => void;
   handleGradientSelect?: (gradient: GradientFill | null) => void;
+  handleTextAlignChange?: (id: string, align: TextAlign) => void;
 }
 
 // Generic component with forwardRef - uses type assertion pattern for TypeScript compatibility
@@ -1016,6 +1018,7 @@ function GenericCanvasWithRef<
       handleBlurChange: (id, blur) => bridgeRef.current?.handleBlurChange(id, blur),
       handleCropImage: () => bridgeRef.current?.handleCropImage(),
       handleGradientSelect: (gradient) => bridgeRef.current?.handleGradientSelect(gradient),
+      handleTextAlignChange: (id, align) => bridgeRef.current?.handleTextAlignChange(id, align),
     }),
     [
       undo,
