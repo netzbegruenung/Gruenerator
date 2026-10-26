@@ -33,9 +33,44 @@ function rotaterPoint(tr: Konva.Transformer, angle: number): { x: number; y: num
 }
 
 /**
+ * Der sichtbare Teil der Bühne, in Bühnen-px: Fenster und jeder abschneidende
+ * Vorfahr kappen, was darüber hinausragt. Gezoomt reicht die Seite am Handy
+ * unter die Werkzeugleiste — dort endet die scrollende Seitenfläche, und ein
+ * Griff darunter ist nicht greifbar. Ohne Layout (Test-DOM) die ganze Bühne.
+ */
+function visibleStageBox(stage: Konva.Stage): Box {
+  const container = stage.container();
+  const c = container.getBoundingClientRect();
+  if (c.width === 0 || c.height === 0) {
+    return { x: 0, y: 0, width: stage.width(), height: stage.height() };
+  }
+  let left = Math.max(c.left, 0);
+  let top = Math.max(c.top, 0);
+  let right = Math.min(c.right, window.innerWidth);
+  let bottom = Math.min(c.bottom, window.innerHeight);
+  for (let el = container.parentElement; el; el = el.parentElement) {
+    const style = getComputedStyle(el);
+    if (style.overflowX === 'visible' && style.overflowY === 'visible') continue;
+    const r = el.getBoundingClientRect();
+    left = Math.max(left, r.left);
+    top = Math.max(top, r.top);
+    right = Math.min(right, r.right);
+    bottom = Math.min(bottom, r.bottom);
+  }
+  // Die Bühne kann per CSS skaliert sein (Zoom, Sheet).
+  const k = c.width / stage.width();
+  return {
+    x: (left - c.left) / k,
+    y: (top - c.top) / k,
+    width: (right - left) / k,
+    height: (bottom - top) / k,
+  };
+}
+
+/**
  * Seite des Drehgriffs: die bevorzugte (sichtbar oben bzw. unten), sonst die
- * andere, sonst eine Seite — die erste, deren Griff ganz auf der Bühne liegt.
- * Die Bühne ist die Seite; was darüber hinausragt, ist nicht greifbar.
+ * andere, sonst eine Seite — die erste, deren Griff ganz im sichtbaren Teil
+ * der Bühne liegt (`visibleStageBox`); was darüber hinausragt, ist nicht greifbar.
  * „Oben" wird auf der Bühne gemessen, nicht in der Box: Konva dreht die Box
  * eines horizontal gespiegelten Knotens um 180°.
  */
@@ -43,13 +78,14 @@ export function chooseRotaterAngle(tr: Konva.Transformer, prefer: RotaterPrefere
   const stage = tr.getStage();
   if (!stage) return tr.rotateAnchorAngle();
   const margin = tr.anchorSize();
+  const visible = visibleStageBox(stage);
   const fits = (angle: number) => {
     const p = rotaterPoint(tr, angle);
     return (
-      p.x >= margin &&
-      p.y >= margin &&
-      p.x <= stage.width() - margin &&
-      p.y <= stage.height() - margin
+      p.x >= visible.x + margin &&
+      p.y >= visible.y + margin &&
+      p.x <= visible.x + visible.width - margin &&
+      p.y <= visible.y + visible.height - margin
     );
   };
   const [upper, lower] =
@@ -213,23 +249,59 @@ export function placeKeepingCentre(
   return { x: clean(centre.x - offset.x), y: clean(centre.y - offset.y) };
 }
 
+/** Achsparallele Ausdehnung eines gedrehten Rahmens, relativ zum Knotenursprung. */
+export interface Extent {
+  minX: number;
+  minY: number;
+  width: number;
+  height: number;
+}
+
+// Modulweit, damit der Drag-Pfad nichts anlegt; gelesen wird es sofort nach dem Aufruf.
+const extent: Extent = { minX: 0, minY: 0, width: 0, height: 0 };
+
+/**
+ * Box der vier gedrehten Ecken, relativ zu (frame.x, frame.y): der eine Kern
+ * für Snapping und `axisAlignedBounds`. Ungerundet — bei 0° muss das Snapping
+ * Bit für Bit dem alten Rechenweg entsprechen (Golden-Test in
+ * `snapping.vitest.ts`) — und ohne Anlegen, weil es bei jedem `dragmove`
+ * läuft. Liefert ein geteiltes Objekt, das der nächste Aufruf überschreibt.
+ */
+export function measureExtent(frame: NodeFrame): Readonly<Extent> {
+  const rad = (frame.rotation * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  const x0 = (frame.local.x - frame.offsetX) * frame.scaleX;
+  const x1 = (frame.local.x + frame.local.width - frame.offsetX) * frame.scaleX;
+  const y0 = (frame.local.y - frame.offsetY) * frame.scaleY;
+  const y1 = (frame.local.y + frame.local.height - frame.offsetY) * frame.scaleY;
+
+  const ax = x0 * cos - y0 * sin;
+  const bx = x1 * cos - y0 * sin;
+  const cx = x1 * cos - y1 * sin;
+  const dx = x0 * cos - y1 * sin;
+  const ay = x0 * sin + y0 * cos;
+  const by = x1 * sin + y0 * cos;
+  const cy = x1 * sin + y1 * cos;
+  const dy = x0 * sin + y1 * cos;
+
+  const minX = Math.min(ax, bx, cx, dx);
+  const minY = Math.min(ay, by, cy, dy);
+  extent.minX = minX;
+  extent.minY = minY;
+  extent.width = Math.max(ax, bx, cx, dx) - minX;
+  extent.height = Math.max(ay, by, cy, dy) - minY;
+  return extent;
+}
+
+/** Sichtbare Box in Bühnen-px, auf 1e-6 gerundet — für Befehle, nicht für den Drag-Pfad. */
 export function axisAlignedBounds(frame: NodeFrame): Box {
-  const { x: l, y: t, width: w, height: h } = frame.local;
-  const corners = [
-    { x: l, y: t },
-    { x: l + w, y: t },
-    { x: l + w, y: t + h },
-    { x: l, y: t + h },
-  ].map((p) => toStage(frame, p, frame.rotation, frame.scaleX, frame.scaleY, frame));
-  const xs = corners.map((c) => c.x);
-  const ys = corners.map((c) => c.y);
-  const minX = Math.min(...xs);
-  const minY = Math.min(...ys);
+  const e = measureExtent(frame);
   return {
-    x: clean(minX),
-    y: clean(minY),
-    width: clean(Math.max(...xs) - minX),
-    height: clean(Math.max(...ys) - minY),
+    x: clean(frame.x + e.minX),
+    y: clean(frame.y + e.minY),
+    width: clean(e.width),
+    height: clean(e.height),
   };
 }
 

@@ -307,6 +307,8 @@ export interface SectionContext {
   captureCanvasImage?: () => Promise<string | null>;
   /** Higher-fidelity capture variant used to feed canvas images to the AI. */
   captureCanvasImageForAi?: () => Promise<string | null>;
+  /** Rotates an element of the current page about its centre, as the toolbar does; false when it can't turn. */
+  rotateElement?: (id: string, deg: number) => boolean;
   /** Pages as image plus their texts, for the alt-text tool (multi-page editor only). */
   collectAltTextPages?: (scope: AltTextScope) => Promise<AltTextPage[]>;
   /** Number of pages in the editor. */

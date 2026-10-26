@@ -290,6 +290,8 @@ export interface GenericCanvasRef {
   runCommand?: (id: PageCommandId, at: ClientPoint | null) => void;
   /** Dreht die Einzelauswahl um ihre Mitte; ein Schritt im Verlauf. */
   setRotation?: (deg: number) => void;
+  /** Dreht ein Element unabhängig von der Auswahl um seine Mitte; `false`, wenn es nicht drehbar ist. */
+  rotateElement?: (id: string, deg: number) => boolean;
   /** Dreht nur die Anzeige der Einzelauswahl (Regler ziehen) — ohne Zustand, ohne Verlauf. */
   previewRotation?: (deg: number) => void;
   /** Lage und Größe der Einzelauswahl für das Positionsfeld; `null`, wenn sie sich nicht bewegen lässt. */
@@ -939,6 +941,7 @@ function GenericCanvasWithRef<
       handleDeleteElement: commands.remove,
       runCommand: commands.run,
       setRotation: commands.setRotation,
+      rotateElement: commands.rotateElement,
       previewRotation: commands.previewRotation,
       getGeometry: commands.geometry,
       setPosition: commands.setPosition,

@@ -19,6 +19,8 @@ const r = (n: number) => Math.round(n);
 const pos = (x: number, y: number) => `x=${r(x)} y=${r(y)}`;
 const sc = (n: number) => Math.round(n * 100) / 100;
 const size = (w: number, h: number) => `${r(w)}×${r(h)}`;
+/** Drehung um die Mitte, wie `update-element` sie setzt; ungedreht steht nichts da. */
+const turned = (deg: number | undefined) => (deg ? ` · gedreht ${r(deg)}°` : '');
 const quote = (text: string) => `"${text.replace(/\s+/g, ' ').trim().slice(0, 40)}"`;
 
 /**
@@ -57,7 +59,7 @@ function describeItem(item: CanvasItem, state: BaseCanvasState): SummaryEntry | 
       return {
         id: t.id,
         kind: 'text',
-        label: `${quote(t.text)} · ${pos(t.x, t.y)} Breite ${r(t.width)} · Schrift ${r(t.fontSize)}px · Farbe ${t.fill}`,
+        label: `${quote(t.text)} · ${pos(t.x, t.y)}${turned(t.rotation)} Breite ${r(t.width)} · Schrift ${r(t.fontSize)}px · Farbe ${t.fill}`,
       };
     }
     case 'shape': {
@@ -67,7 +69,7 @@ function describeItem(item: CanvasItem, state: BaseCanvasState): SummaryEntry | 
       return {
         id: s.id,
         kind: 'shape',
-        label: `${s.type}${plane} · ${pos(s.x, s.y)} · ${size(s.width * s.scaleX, s.height * s.scaleY)} · Farbe ${s.fill}${gradient}`,
+        label: `${s.type}${plane} · ${pos(s.x, s.y)}${turned(s.rotation)} · ${size(s.width * s.scaleX, s.height * s.scaleY)} · Farbe ${s.fill}${gradient}`,
       };
     }
     case 'pill-badge': {
@@ -75,7 +77,7 @@ function describeItem(item: CanvasItem, state: BaseCanvasState): SummaryEntry | 
       return {
         id: p.id,
         kind: 'pill-badge',
-        label: `${quote(p.text)} · ${pos(p.x, p.y)} · Schrift ${r(p.fontSize * p.scale)}px · Farbe ${p.backgroundColor}`,
+        label: `${quote(p.text)} · ${pos(p.x, p.y)}${turned(p.rotation)} · Schrift ${r(p.fontSize * p.scale)}px · Farbe ${p.backgroundColor}`,
       };
     }
     case 'circle-badge': {
@@ -84,7 +86,7 @@ function describeItem(item: CanvasItem, state: BaseCanvasState): SummaryEntry | 
       return {
         id: c.id,
         kind: 'circle-badge',
-        label: `${quote(text)} · ${pos(c.x, c.y)} · Durchmesser ${r(2 * c.radius * c.scale)} · Farbe ${c.backgroundColor}`,
+        label: `${quote(text)} · ${pos(c.x, c.y)}${turned(c.rotation)} · Durchmesser ${r(2 * c.radius * c.scale)} · Farbe ${c.backgroundColor}`,
       };
     }
     case 'icon': {
@@ -93,27 +95,27 @@ function describeItem(item: CanvasItem, state: BaseCanvasState): SummaryEntry | 
       return {
         id: item.id,
         kind: 'icon',
-        label: `${icon.iconId ?? item.id} · ${pos(icon.x, icon.y)} · Skalierung ${sc(icon.scale)}${icon.color ? ` · Farbe ${icon.color}` : ''}`,
+        label: `${icon.iconId ?? item.id} · ${pos(icon.x, icon.y)}${turned(icon.rotation)} · Skalierung ${sc(icon.scale)}${icon.color ? ` · Farbe ${icon.color}` : ''}`,
       };
     }
     case 'asset':
       return {
         id: item.id,
         kind: 'asset',
-        label: `${item.data.assetId} · ${pos(item.data.x, item.data.y)} · Skalierung ${sc(item.data.scale)}`,
+        label: `${item.data.assetId} · ${pos(item.data.x, item.data.y)}${turned(item.data.rotation)} · Skalierung ${sc(item.data.scale)}`,
       };
     case 'illustration':
       return {
         id: item.id,
         kind: 'illustration',
-        label: `${item.data.illustrationId} · ${pos(item.data.x, item.data.y)} · Skalierung ${sc(item.data.scale)}`,
+        label: `${item.data.illustrationId} · ${pos(item.data.x, item.data.y)}${turned(item.data.rotation)} · Skalierung ${sc(item.data.scale)}`,
       };
     case 'chart': {
       const c = item.data;
       return {
         id: c.id,
         kind: 'chart',
-        label: `Diagramm ${c.title ? quote(c.title) : c.chartType} · ${pos(c.x, c.y)} · ${size(c.width * c.scale, c.height * c.scale)}`,
+        label: `Diagramm ${c.title ? quote(c.title) : c.chartType} · ${pos(c.x, c.y)}${turned(c.rotation)} · ${size(c.width * c.scale, c.height * c.scale)}`,
       };
     }
     case 'user-image': {
@@ -121,7 +123,7 @@ function describeItem(item: CanvasItem, state: BaseCanvasState): SummaryEntry | 
       return {
         id: u.id,
         kind: 'user-image',
-        label: `Bild ${u.fileName} · ${pos(u.x, u.y)} · ${size(u.width * u.scale, u.height * u.scale)}`,
+        label: `Bild ${u.fileName} · ${pos(u.x, u.y)}${turned(u.rotation)} · ${size(u.width * u.scale, u.height * u.scale)}`,
       };
     }
     case 'frame': {
@@ -129,14 +131,14 @@ function describeItem(item: CanvasItem, state: BaseCanvasState): SummaryEntry | 
       return {
         id: f.id,
         kind: 'frame',
-        label: `Rahmen ${f.clipType} · ${pos(f.x, f.y)} · ${size(f.width * f.scaleX, f.height * f.scaleY)}`,
+        label: `Rahmen ${f.clipType} · ${pos(f.x, f.y)}${turned(f.rotation)} · ${size(f.width * f.scaleX, f.height * f.scaleY)}`,
       };
     }
     case 'balken':
       return {
         id: item.id,
         kind: 'balken',
-        label: `Balken ${quote(item.data.texts.join(' / '))} · Versatz ${pos(item.data.offset.x, item.data.offset.y)}`,
+        label: `Balken ${quote(item.data.texts.join(' / '))} · Versatz ${pos(item.data.offset.x, item.data.offset.y)}${turned(item.data.rotation)}`,
       };
     case 'element':
       return null;

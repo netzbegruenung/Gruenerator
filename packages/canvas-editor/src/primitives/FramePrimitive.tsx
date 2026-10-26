@@ -4,7 +4,7 @@ import { Circle, Group, Image as KonvaImage, Line, Rect, Shape, Transformer } fr
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { useBoxSnap, type SnapProps } from '../hooks/useBoxSnap';
 import { coverPhotoRect } from '../utils/coverFit';
-import { ELEMENT_TRANSFORMER } from '../utils/orientation';
+import { ELEMENT_TRANSFORMER, normalizeRotation } from '../utils/orientation';
 import { frameBox } from '../utils/renderedBoxes';
 import { assertNever } from '../utils/shapes';
 
@@ -301,7 +301,8 @@ function FramePrimitiveInner({
 
     const scaleX = node.scaleX();
     const scaleY = node.scaleY();
-    const rotation = node.rotation();
+    // Eine Gruppendrehung über ±180° hinaus kommt als z. B. 270 an; gespeichert wird (−180, 180].
+    const rotation = normalizeRotation(node.rotation());
     const nodeW = node.width();
     const nodeH = node.height();
 

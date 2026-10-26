@@ -50,6 +50,21 @@ describe('MobileSelectionPill', () => {
     expect(props.onMore).toHaveBeenCalledOnce();
   });
 
+  it('spiegelt nur, wenn die Mehrfachauswahl es anbietet', async () => {
+    const onFlip = vi.fn();
+    setup({ onFlip, onMore: undefined });
+    await flushFrames();
+    await userEvent.click(screen.getByRole('button', { name: 'Horizontal spiegeln' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Vertikal spiegeln' }));
+    expect(onFlip.mock.calls).toEqual([['x'], ['y']]);
+  });
+
+  it('zeigt ohne onFlip keine Spiegeln-Knöpfe', async () => {
+    setup();
+    await flushFrames();
+    expect(screen.queryByRole('button', { name: /spiegeln/ })).toBeNull();
+  });
+
   it('rutscht unter das Objekt, wenn oben die Kopfzeile ist', async () => {
     setup({ getBox: () => ({ left: 100, top: 70, width: 80, height: 60 }) });
     await flushFrames();
