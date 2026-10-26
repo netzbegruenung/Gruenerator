@@ -27,8 +27,9 @@ export function createShareSection<TState, TActions = unknown>(
       // Zum Teilen und Kopieren nur der Text — die Auszeichnungsmarker
       // (`**`, `_`) gehören auf die Leinwand, nicht in einen Beitrag. Der
       // Bildnachweis dagegen gehört hinein (Unsplash verlangt ihn im Post).
+      const imageText = stripInlineMarks(getCanvasText(state));
       const canvasText = withPhotoCredit(
-        stripInlineMarks(getCanvasText(state)),
+        imageText,
         photoCreditLine(pagePhotoCredits(state as Record<string, unknown>))
       );
 
@@ -41,6 +42,7 @@ export function createShareSection<TState, TActions = unknown>(
         onNavigateToGallery: context?.onNavigateToGallery ?? (() => {}),
         onSaveAsTemplate: context?.onSaveAsTemplate,
         canvasText,
+        imageText,
         canvasType,
         pageCount: context?.pageCount as number | undefined,
         onDownloadAllZip: context?.onDownloadAllZip as (() => Promise<void>) | undefined,
