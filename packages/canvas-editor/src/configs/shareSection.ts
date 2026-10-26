@@ -1,7 +1,9 @@
 import { stripInlineMarks } from '@gruenerator/contracts';
+import { photoCreditLine, withPhotoCredit } from '@gruenerator/shared/image-studio';
 import { FaShare } from 'react-icons/fa';
 
 import { GenericShareSection, type GenericShareSectionProps } from '../sidebar';
+import { pagePhotoCredits } from '../utils/photoCredits';
 
 import { makeSectionDefiner } from './factory/defineSection';
 
@@ -23,8 +25,12 @@ export function createShareSection<TState, TActions = unknown>(
     component: GenericShareSection,
     propsFactory: (state, _actions, context) => {
       // Zum Teilen und Kopieren nur der Text — die Auszeichnungsmarker
-      // (`**`, `_`) gehören auf die Leinwand, nicht in einen Beitrag.
-      const canvasText = stripInlineMarks(getCanvasText(state));
+      // (`**`, `_`) gehören auf die Leinwand, nicht in einen Beitrag. Der
+      // Bildnachweis dagegen gehört hinein (Unsplash verlangt ihn im Post).
+      const canvasText = withPhotoCredit(
+        stripInlineMarks(getCanvasText(state)),
+        photoCreditLine(pagePhotoCredits(state as Record<string, unknown>))
+      );
 
       // Note: autoSaveStatus removed - DownloadSubsection reads directly from useAutoSaveStore
       return {

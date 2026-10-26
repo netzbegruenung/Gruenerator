@@ -20,6 +20,7 @@ interface UnsplashUser {
   id: string;
   username: string;
   name: string;
+  instagram_username: string | null;
   links: {
     html: string;
   };
@@ -207,6 +208,7 @@ function createFilename(photo: UnsplashPhoto): string {
  */
 function transformPhotoToStockImage(photo: UnsplashPhoto): StockImage {
   const photographerName = photo.user.name.trim() || formatPhotographerName(photo.user.username);
+  const instagramUsername = photo.user.instagram_username?.trim().replace(/^@/, '');
 
   return {
     filename: createFilename(photo),
@@ -220,6 +222,7 @@ function transformPhotoToStockImage(photo: UnsplashPhoto): StockImage {
       photoUrl: addUnsplashUTM(photo.links.html),
       downloadLocation: photo.links.download_location,
       license: 'Unsplash License',
+      ...(instagramUsername && { instagramUsername }),
     },
   };
 }
