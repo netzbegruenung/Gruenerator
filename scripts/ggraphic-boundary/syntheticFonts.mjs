@@ -2,7 +2,10 @@
 // table, and the same sfnt wrapped as WOFF and WOFF2.
 import { brotliCompressSync, deflateSync } from 'node:zlib';
 
+// WOFF2 spec §5.2 known-table indices
 const WOFF2_NAME_TAG_INDEX = 5;
+const WOFF2_GLYF_TAG_INDEX = 10;
+const WOFF2_LOCA_TAG_INDEX = 11;
 
 function nameTable(records) {
   const strings = records.map(([, text]) => Buffer.from(text, 'utf16le').swap16());
@@ -70,15 +73,30 @@ function uintBase128(n) {
   return Buffer.from(bytes.map((b, i) => (i < bytes.length - 1 ? b | 0x80 : b)));
 }
 
-export function toWoff2(sfnt) {
+/**
+ * `transformedGlyf` puts transformed glyf and loca tables before `name`: their
+ * entries carry a transformLength that differs from the original length, so a
+ * reader that sums the wrong one lands beside the name table.
+ */
+export function toWoff2(sfnt, { transformedGlyf = false } = {}) {
   const table = onlyTable(sfnt);
-  const directory = Buffer.concat([Buffer.from([WOFF2_NAME_TAG_INDEX]), uintBase128(table.length)]);
-  const compressed = brotliCompressSync(table);
+  const entry = (tagIndex, ...lengths) =>
+    Buffer.concat([Buffer.from([tagIndex]), ...lengths.map(uintBase128)]);
+  const glyf = Buffer.alloc(8, 0xff);
+  const tables = transformedGlyf
+    ? [
+        [entry(WOFF2_GLYF_TAG_INDEX, 20, glyf.length), glyf],
+        [entry(WOFF2_LOCA_TAG_INDEX, 4, 0), Buffer.alloc(0)],
+      ]
+    : [];
+  tables.push([entry(WOFF2_NAME_TAG_INDEX, table.length), table]);
+  const directory = Buffer.concat(tables.map(([dirEntry]) => dirEntry));
+  const compressed = brotliCompressSync(Buffer.concat(tables.map(([, data]) => data)));
   const header = Buffer.alloc(48);
   header.write('wOF2', 0, 'latin1');
   header.writeUInt32BE(sfnt.readUInt32BE(0), 4);
   header.writeUInt32BE(48 + directory.length + compressed.length, 8);
-  header.writeUInt16BE(1, 12);
+  header.writeUInt16BE(tables.length, 12);
   header.writeUInt32BE(sfnt.length, 16);
   header.writeUInt32BE(compressed.length, 20);
   return Buffer.concat([header, directory, compressed]);

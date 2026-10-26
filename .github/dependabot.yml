@@ -203,6 +203,14 @@ updates:
       - dependency-name: '@react-native/*'
       - dependency-name: '@react-native-*/*'
 
+      # --- License pin --------------------------------------------------------
+      # @iconify-json/ri 1.2.10 is Remix Icon 4.8.0 under Apache-2.0. Remix Icon
+      # 4.9.0 (Jan 2026) moved to the "Remix Icon License v1.0", which forbids
+      # competing icon libraries (3.2) and use as a logo or brand mark (3.3) —
+      # both things a design editor lets people do. The editor pins 1.2.10
+      # exactly; a newer pack needs its license read before anyone bumps it.
+      - dependency-name: '@iconify-json/ri'
+
   # =============================================================================
   # PIP - services/nlp (outside the pnpm workspace, own lockfile)
   # =============================================================================

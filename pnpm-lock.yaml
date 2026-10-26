@@ -1498,7 +1498,7 @@ importers:
         specifier: ^1.2.144
         version: 1.2.144
       '@iconify-json/ri':
-        specifier: ^1.2.10
+        specifier: 1.2.10
         version: 1.2.10
       '@iconify-json/tabler':
         specifier: ^1.2.42

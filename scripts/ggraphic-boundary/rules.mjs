@@ -1,5 +1,6 @@
 // The rules behind scripts/check-ggraphic-core-boundary.mjs. Pure: takes the
-// files of packages/ggraphic-* as { path, bytes } and returns what leaks.
+// files of packages/ggraphic-* as { path, bytes, link? } (`link` = a symlink's
+// target) and returns what leaks.
 import { posix } from 'node:path';
 import { readFontNames } from './fontNames.mjs';
 
@@ -250,16 +251,35 @@ function checkFont(path, bytes, fail) {
 function readManifest(packageDir, files, fail) {
   const file = files.find((f) => f.path === `${packageDir}/assets.json`);
   if (!file) return new Map();
-  let assets;
+  let manifest;
   try {
-    ({ assets } = JSON.parse(file.bytes.toString('utf8')));
+    manifest = JSON.parse(file.bytes.toString('utf8'));
   } catch (error) {
     fail('d', file.path, `not valid JSON: ${error.message}`);
     return new Map();
   }
+  if (!Array.isArray(manifest?.assets)) {
+    fail('d', file.path, 'must have the shape {"assets": [...]}');
+    return new Map();
+  }
   const entries = new Map();
-  for (const asset of Array.isArray(assets) ? assets : []) {
-    const path = `${packageDir}/${asset.path}`;
+  for (const [index, asset] of manifest.assets.entries()) {
+    if (typeof asset?.path !== 'string') {
+      fail('d', file.path, `entry ${index} has no path`);
+      continue;
+    }
+    const relative = asset.path.normalize('NFC');
+    if (
+      relative !== posix.normalize(relative) ||
+      posix.isAbsolute(relative) ||
+      relative === '..' ||
+      relative.startsWith('../')
+    ) {
+      fail('d', file.path, `"${asset.path}" must be a plain relative path inside the package`);
+      continue;
+    }
+    const path = `${packageDir}/${relative}`;
+    if (entries.has(path)) fail('d', path, 'listed twice in assets.json');
     if (typeof asset.source !== 'string' || asset.source.trim() === '') {
       fail('d', path, 'assets.json entry has no source');
     }
@@ -277,6 +297,11 @@ export function checkFiles(files) {
   const fail = (rule, path, message) => failures.push({ rule, path, message });
   const warn = (path, message) => warnings.push({ path, message });
 
+  // A moved package or a broken checkout must not pass as "nothing leaks".
+  if (files.length === 0) {
+    fail('scope', CORE_PATHSPEC, 'no files matched — is the package gone or the pathspec wrong?');
+  }
+
   const packageDirs = new Set(files.map((f) => PACKAGE_DIR.exec(f.path)?.[0]).filter(Boolean));
   const manifest = new Map();
   for (const dir of packageDirs) {
@@ -287,11 +312,16 @@ export function checkFiles(files) {
     if (!present.has(path)) fail('d', path, 'listed in assets.json but missing');
   }
 
-  for (const { path: rawPath, bytes } of files) {
+  for (const { path: rawPath, bytes, link } of files) {
     const path = rawPath.normalize('NFC');
     const packageDir = PACKAGE_DIR.exec(path)?.[0] ?? '';
     const brandPath = BRAND_PATHS.find((pattern) => pattern.test(path));
     if (brandPath) fail('c', path, `brand asset or party content by file name (${brandPath})`);
+    // The export to the ggraphic repo copies files; a link would point back here.
+    if (link !== undefined) {
+      fail('a', path, `symlink to "${link}" — ship the file itself`);
+      continue;
+    }
 
     const hasNul = bytes.subarray(0, 8192).includes(0);
     if (ASSET_EXT.test(path) || hasNul) {
