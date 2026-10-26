@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
+  EDITOR_MENU_MAX_ACTIONS,
   EDITOR_TITLE_MAX_LENGTH,
   HOST_CAPABILITIES_GLOBAL,
   HOST_CAPABILITY_SHARE,
@@ -348,8 +349,52 @@ describe('native editor bar', () => {
     ).toBeNull();
   });
 
+  it('carries history, share and menu entries when the page sends them', () => {
+    const full = {
+      ...state,
+      history: false,
+      canShare: false,
+      actions: [
+        { id: 'chat', label: 'Chat', checked: true },
+        { id: 'delete', label: 'Löschen', destructive: true },
+      ],
+    };
+    expect(parseWebViewMessage(full)).toEqual(full);
+  });
+
+  it('drops malformed menu entries and caps the list', () => {
+    const parsed = parseWebViewMessage({
+      ...state,
+      actions: [
+        { id: 'ok', label: 'Gut', destructive: 'yes', evil: 1 },
+        { id: '', label: 'Ohne Id' },
+        { id: 'x', label: '' },
+        'kaputt',
+        ...Array.from({ length: EDITOR_MENU_MAX_ACTIONS + 5 }, (_, i) => ({
+          id: `a${i}`,
+          label: `Eintrag ${i}`,
+        })),
+      ],
+    });
+    expect(parsed?.type === 'EDITOR_STATE' && parsed.actions?.[0]).toEqual({
+      id: 'ok',
+      label: 'Gut',
+    });
+    expect(parsed?.type === 'EDITOR_STATE' && parsed.actions?.length).toBe(EDITOR_MENU_MAX_ACTIONS);
+  });
+
+  it('accepts a menu pick by id', () => {
+    expect(parseHostMessage({ type: 'EDITOR_ACTION', id: 'chat', evil: 1 })).toEqual({
+      type: 'EDITOR_ACTION',
+      id: 'chat',
+    });
+    expect(parseHostMessage({ type: 'EDITOR_ACTION', id: '' })).toBeNull();
+    expect(parseHostMessage({ type: 'EDITOR_ACTION', id: 7 })).toBeNull();
+  });
+
   it('keeps the two directions apart', () => {
     expect(parseHostMessage(state)).toBeNull();
+    expect(parseWebViewMessage({ type: 'EDITOR_ACTION', id: 'chat' })).toBeNull();
     expect(parseWebViewMessage({ type: 'EDITOR_COMMAND', command: 'undo' })).toBeNull();
   });
 });

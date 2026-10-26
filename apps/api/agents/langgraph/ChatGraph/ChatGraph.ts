@@ -189,6 +189,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
 
     // Connected-account (Nango) file refs (from @connect mentionable)
     connectFiles: input.connectFiles || [],
+    cloudFilesCarriedOnly: input.cloudFilesCarriedOnly ?? false,
 
     // Notebook documents from the reader (authorized by streamContext)
     notebookSources: input.notebookSources ?? [],
