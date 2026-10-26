@@ -22,6 +22,7 @@ import { GradientTextTool } from './GradientTextTool';
 import { QRCodeTool } from './QRCodeTool';
 import { RemoveBackgroundTool } from './RemoveBackgroundTool';
 import { TextPathCreatorTool } from './TextPathCreatorTool';
+import { ToolTile, type ToolTileId } from './ToolTiles';
 import { UnsplashTool } from './UnsplashTool';
 
 import type { UserImagePlacement } from '../../../utils/userImageUtils';
@@ -37,17 +38,7 @@ export interface ToolsSectionProps {
   altTextPages?: AltTextPagesSource;
 }
 
-type ToolView =
-  | 'browse'
-  | 'remove-bg'
-  | 'ai-create'
-  | 'ai-edit'
-  | 'qr-code'
-  | 'gradient-text'
-  | 'blob'
-  | 'text-path'
-  | 'unsplash'
-  | 'alt-text';
+type ToolView = 'browse' | ToolTileId;
 
 interface ToolCard {
   id: Exclude<ToolView, 'browse'>;
@@ -92,33 +83,21 @@ function ToolCardButton({
   card,
   onClick,
 }: {
-  card: Pick<ToolCard, 'label' | 'icon'>;
+  card: Pick<ToolCard, 'id' | 'label'>;
   onClick: () => void;
 }) {
-  const Icon = card.icon;
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        'group flex flex-col items-center gap-sm cursor-pointer bg-transparent border-none p-0 rounded-lg',
+        'tool-tile-trigger flex w-full flex-col items-center gap-2.5 p-2 cursor-pointer bg-transparent border-none rounded-[14px]',
+        'transition-colors duration-150 hover:bg-[var(--editor-active-soft)]',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600'
       )}
     >
-      <div
-        className={cn(
-          'flex items-center justify-center size-20 rounded-full bg-transparent',
-          'transition-[box-shadow] duration-200 ease-out',
-          'group-hover:shadow-sm group-hover:shadow-editor-active-fg/15'
-        )}
-      >
-        <span className="inline-flex items-center justify-center transition-transform duration-200 ease-out group-hover:scale-[1.04] text-3xl text-editor-active-fg">
-          <Icon size={48} />
-        </span>
-      </div>
-      <span className="text-xs text-foreground text-center leading-tight max-w-20">
-        {card.label}
-      </span>
+      <ToolTile id={card.id} />
+      <span className="text-sm leading-tight text-foreground text-center">{card.label}</span>
     </button>
   );
 }
@@ -305,7 +284,7 @@ export function ToolsSection({
   if (activeView === 'browse') {
     return (
       <div className="flex flex-col gap-4 w-full min-w-0 p-md">
-        <div className="grid grid-cols-2 gap-x-2 gap-y-3 justify-items-center">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-7">
           {availableCards.map((card) => (
             <ToolCardButton key={card.id} card={card} onClick={() => setActiveView(card.id)} />
           ))}
