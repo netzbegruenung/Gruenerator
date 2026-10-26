@@ -22,3 +22,18 @@ export function imageElementInteraction(
   }
   return { draggable, transformable };
 }
+
+/**
+ * Ob das Element den Ausschnitt-Modus hat: nur das Hintergrundfoto, und nur,
+ * wenn der Modus dort Ziehen oder Zoomen freigibt (nicht das feste Fotoband in
+ * veranstaltung). Fläche, Leiste und Menü fragen dasselbe.
+ */
+export function canCropBackgroundPhoto(config: {
+  id: string;
+  draggable?: boolean;
+  transformable?: boolean;
+}): boolean {
+  if (config.id !== BACKGROUND_IMAGE_NODE_ID) return false;
+  const crop = imageElementInteraction(config, { cropping: true });
+  return crop.draggable || crop.transformable;
+}

@@ -12,9 +12,17 @@ import type { CanvasItem } from './canvasLayerManager';
 
 export type LockState = 'all' | 'some' | 'none';
 
+/**
+ * Alle Leser gehen hier durch. Das Hintergrundfoto war in `dreizeilen` einmal
+ * sperrbar; eine gespeicherte Sperre darf den Ausschnitt-Modus nicht lähmen.
+ */
 export function lockedIdsOf(state: object): readonly string[] {
   const value = (state as { lockedLayerIds?: unknown }).lockedLayerIds;
-  return Array.isArray(value) ? (value as string[]) : [];
+  if (!Array.isArray(value)) return [];
+  const ids = value as string[];
+  return ids.includes(BACKGROUND_IMAGE_NODE_ID)
+    ? ids.filter((id) => id !== BACKGROUND_IMAGE_NODE_ID)
+    : ids;
 }
 
 export function isLayerLocked(state: object, id: string): boolean {

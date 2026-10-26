@@ -19,7 +19,7 @@ import {
   useCanvasStoreSelector,
   useIsElementSelected,
 } from '../stores/CanvasStoreProvider';
-import { imageElementInteraction } from '../utils/backgroundPhotoCrop';
+import { canCropBackgroundPhoto, imageElementInteraction } from '../utils/backgroundPhotoCrop';
 import { canvasImageSourceUrl } from '../utils/canvasImageSource';
 import { imageRenderInputsAreEqual } from '../utils/imageElementComparison';
 import { backgroundAdjustments } from '../utils/imageFilters';
@@ -364,7 +364,7 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
       frame={frame}
       draggable={interaction.draggable}
       touchDragNeedsSelection={isBackgroundPhoto}
-      onToggleCrop={isBackgroundPhoto ? handleToggleCrop : null}
+      onToggleCrop={canCropBackgroundPhoto(config) ? handleToggleCrop : null}
       selected={selected}
       onSelect={handleSelect}
       onDragEnd={handleDragEnd}
@@ -379,7 +379,7 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
       listening={config.listening}
       constrainToBounds={config.constrainToBounds ?? true}
       transformConfig={{
-        // A non-transformable (or locked) image shows no resize handles. Without
+        // A non-transformable image shows no resize handles. Without
         // this, CanvasImage falls back to DEFAULT_IMAGE_ANCHORS, so a selectable
         // but non-transformable slot (e.g. the veranstaltung photo band,
         // draggable: false) would still expose all four corner handles and let a

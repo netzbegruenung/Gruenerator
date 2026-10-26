@@ -35,7 +35,7 @@ beforeAll(async () => {
 
 afterEach(cleanup);
 
-async function mount() {
+async function mount(extra: Record<string, unknown> = {}) {
   const ref = createRef<GenericCanvasRef>();
   await act(async () => {
     render(
@@ -43,7 +43,11 @@ async function mount() {
         <GenericCanvas
           forwardedRef={ref}
           config={config as never}
-          initialProps={{ line1: 'Klima', currentImageSrc: 'https://example.org/foto.png' }}
+          initialProps={{
+            line1: 'Klima',
+            currentImageSrc: 'https://example.org/foto.png',
+            ...extra,
+          }}
           onExport={() => {}}
           onCancel={() => {}}
           autoSave={false}
@@ -105,5 +109,12 @@ describe('Hintergrundfoto: Ausschnitt-Modus', () => {
     const nodes = findDragNodes(canvas.stage.getLayers()[0]!, ['background-image', 'sunflower']);
     expect(nodes).toHaveLength(1);
     expect(nodes).not.toContain(canvas.photo());
+  }, 90_000);
+
+  it('eine gespeicherte Sperre des Fotos lähmt den Modus nicht', async () => {
+    const canvas = await mount({ lockedLayerIds: ['background-image'] });
+    await canvas.fire(canvas.photo(), 'dbltap');
+    expect(canvas.photo().draggable()).toBe(true);
+    expect(canvas.transformer()!.enabledAnchors()).toHaveLength(4);
   }, 90_000);
 });

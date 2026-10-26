@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { imageElementInteraction } from './backgroundPhotoCrop';
+import { canCropBackgroundPhoto, imageElementInteraction } from './backgroundPhotoCrop';
 
 const photo = { id: 'background-image', draggable: true, transformable: true };
 
@@ -36,5 +36,21 @@ describe('imageElementInteraction', () => {
       draggable: true,
       transformable: false,
     });
+  });
+});
+
+describe('canCropBackgroundPhoto', () => {
+  it('gilt nur für das Hintergrundfoto, das der Modus zieht oder zoomt', () => {
+    expect(canCropBackgroundPhoto({ id: 'background-image', draggable: true })).toBe(true);
+    expect(
+      canCropBackgroundPhoto({ id: 'background-image', draggable: false, transformable: true })
+    ).toBe(true);
+  });
+
+  it('fehlt beim festen Fotoband (veranstaltung) und bei anderen Bildern', () => {
+    expect(canCropBackgroundPhoto({ id: 'background-image', draggable: false })).toBe(false);
+    expect(canCropBackgroundPhoto({ id: 'logo', draggable: true, transformable: true })).toBe(
+      false
+    );
   });
 });
