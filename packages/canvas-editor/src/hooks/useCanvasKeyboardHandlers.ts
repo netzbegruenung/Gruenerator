@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 import { commandForKey } from '../utils/canvasCommandRegistry';
+import { isWidgetOwnedKey } from '../utils/keyboardOwnership';
 import { isLayerLocked } from '../utils/layerLock';
 import { assertAsPosition } from '../utils/stateTypeAssertions';
 
@@ -90,6 +91,9 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
       // Im offenen Kontextmenü gehören Pfeile, Enter und Escape dem Menü:
       // sonst schöbe ArrowDown das Element und Enter öffnete die Dateiauswahl.
       if (target instanceof Element && target.closest('[role="menu"]')) return;
+      // Was ein fokussiertes Widget selbst verbraucht (Pfeile am Regler, Enter
+      // am Knopf, Escape im Dialog), erreicht die Canvas-Aktionen nicht.
+      if (isWidgetOwnedKey(e)) return;
 
       // Ausschnitt mode: Escape or Enter ends it and keeps the photo selected;
       // the other keys wait, so an arrow cannot move the frame mid-crop.
