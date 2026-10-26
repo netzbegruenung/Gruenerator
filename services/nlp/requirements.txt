@@ -108,7 +108,7 @@ requests==2.34.2
     # via spacy
 rich==15.0.0
     # via typer
-setuptools==84.0.0
+setuptools==84.1.0
     # via
     #   spacy
     #   thinc
