@@ -12,7 +12,7 @@ export interface ImageElementInteraction {
  */
 export function imageElementInteraction(
   config: { id: string; draggable?: boolean; transformable?: boolean },
-  { cropping, legacyLocked }: { cropping: boolean; legacyLocked: boolean }
+  { cropping }: { cropping: boolean }
 ): ImageElementInteraction {
   // Ohne Angabe zieht CanvasImage (Vorgabe `draggable = true`).
   const draggable = config.draggable ?? true;
@@ -20,5 +20,5 @@ export function imageElementInteraction(
   if (config.id === BACKGROUND_IMAGE_NODE_ID) {
     return { draggable: cropping && draggable, transformable: cropping && transformable };
   }
-  return { draggable: draggable && !legacyLocked, transformable: transformable && !legacyLocked };
+  return { draggable, transformable };
 }

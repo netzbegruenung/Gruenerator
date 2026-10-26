@@ -20,7 +20,6 @@ type State = Record<string, unknown> & {
   currentImageSrc?: string;
   imageAttribution: StockImageAttribution | null;
   imageScale?: number;
-  isBackgroundLocked?: boolean;
 };
 
 const PHOTO = 'https://example.org/api/share/abc/download';
@@ -105,16 +104,14 @@ describe.each(['slider', 'slider-at'] as const)('%s background picker', (id) => 
     expect(history).toEqual([current()]);
   });
 
-  it('offers zoom and lock only while a photo is shown', () => {
+  it('offers zoom only while a photo is shown', () => {
     const without = harness(initial({})).props;
     expect(without.onScaleChange).toBeUndefined();
-    expect(without.onToggleLock).toBeUndefined();
 
     const withPhoto = harness(initial({ currentImageSrc: PHOTO, imageScale: 1.4 })).props;
     expect(withPhoto.currentImageSrc).toBe(PHOTO);
     expect(withPhoto.scale).toBe(1.4);
     expect(withPhoto.onScaleChange).toBeTypeOf('function');
-    expect(withPhoto.onToggleLock).toBeTypeOf('function');
   });
 
   it('zoom lands in history (debounced) with the new scale', () => {
@@ -122,13 +119,6 @@ describe.each(['slider', 'slider-at'] as const)('%s background picker', (id) => 
     props.onScaleChange!(1.8);
     expect(current().imageScale).toBe(1.8);
     expect(debounced.at(-1)?.imageScale).toBe(1.8);
-  });
-
-  it('the lock toggles and lands in history', () => {
-    const { props, history, current } = harness(initial({ currentImageSrc: PHOTO }));
-    props.onToggleLock!();
-    expect(current().isBackgroundLocked).toBe(true);
-    expect(history).toEqual([current()]);
   });
 
   it('the photo has zoom handles and keeps the sidebar as it is when selected', () => {

@@ -48,7 +48,6 @@ const PAGE_STYLE_STATE_KEYS = [
   'sunflowerSize',
   'sunflowerOpacity',
   'sunflowerOffset',
-  'isBackgroundLocked',
   'bgImageDimensions',
   // text styling and dragged positions
   'primaryColor',

@@ -211,7 +211,7 @@ export function floatingModuleFor<
     const fillStateKey = imageElement.fillStateKey as string | undefined;
 
     const currentOpacity = resolveToolbarOpacity(imageElement, state, layout);
-    const crop = imageElementInteraction(imageElement, { cropping: true, legacyLocked: false });
+    const crop = imageElementInteraction(imageElement, { cropping: true });
 
     // Get fill from state or resolve from config
     let currentFill: string | undefined = undefined;

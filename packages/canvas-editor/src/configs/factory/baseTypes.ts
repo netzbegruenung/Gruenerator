@@ -75,7 +75,6 @@ export interface ImageBackgroundState {
   backgroundImageFile?: File | Blob | null;
   imageOffset: { x: number; y: number };
   imageScale: number;
-  isBackgroundLocked?: boolean;
   backgroundImageOpacity?: number;
   imageAttribution?: StockImageAttribution | null;
 }
@@ -170,7 +169,6 @@ export interface BaseCanvasActions {
 export interface ImageBackgroundActions {
   setCurrentImageSrc: (file: File | null, objectUrl?: string) => void;
   setImageScale: (scale: number) => void;
-  toggleBackgroundLock?: () => void;
   setImageAttribution?: (attribution: StockImageAttribution | null) => void;
 }
 

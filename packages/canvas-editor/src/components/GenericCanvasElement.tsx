@@ -32,7 +32,6 @@ import { resolveColor, resolveImageElementBox, resolveValue } from '../utils/res
 import {
   assertAsString,
   assertAsNumber,
-  assertAsBoolean,
   assertAsPosition,
   assertAsOpacity,
   getStateValue,
@@ -304,12 +303,11 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
   const [image, status] = useImage(sourceUrl, 'anonymous');
   useTrackPendingImage(config.id, sourceUrl, status);
 
-  const isLocked = config.lockedKey ? assertAsBoolean(state[config.lockedKey]) : false;
   const isBackgroundPhoto = config.id === BACKGROUND_IMAGE_NODE_ID;
   const cropping = useCanvasStoreSelector(
     (s) => isBackgroundPhoto && s.croppingElement === config.id
   );
-  const interaction = imageElementInteraction(config, { cropping, legacyLocked: isLocked });
+  const interaction = imageElementInteraction(config, { cropping });
   const store = useCanvasStore();
   const handleToggleCrop = useCallback(() => {
     const s = store.getState();
@@ -390,7 +388,7 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
         enabledAnchors: interaction.transformable
           ? ['top-left', 'top-right', 'bottom-left', 'bottom-right']
           : [],
-        rotateEnabled: rotatable && !isLocked,
+        rotateEnabled: rotatable,
         keepRatio: true,
       }}
     />

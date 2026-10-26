@@ -68,7 +68,6 @@ export interface ImageTwoTextStateBase {
   backgroundImageFile?: File | Blob | null;
   imageOffset: { x: number; y: number };
   imageScale: number;
-  isBackgroundLocked: boolean;
   backgroundImageOpacity?: number;
   imageAttribution?: StockImageAttribution | null;
 
@@ -128,7 +127,6 @@ export interface ImageTwoTextActions {
   // Image background
   setCurrentImageSrc: (file: File | null, objectUrl?: string) => void;
   setImageScale: (scale: number) => void;
-  toggleBackgroundLock: () => void;
   setImageAttribution?: (attribution: StockImageAttribution | null) => void;
 
   /** No-op on templates the factory was not given a palette for. */
@@ -304,7 +302,6 @@ export function createImageTwoTextCanvas<
       offsetKey: 'imageOffset',
       scaleKey: 'imageScale',
       draggable: true,
-      lockedKey: 'isBackgroundLocked',
       opacityStateKey: 'backgroundImageOpacity',
       coverFit: true,
     },
@@ -439,8 +436,6 @@ export function createImageTwoTextCanvas<
       },
       scale: state.imageScale,
       onScaleChange: actions.setImageScale,
-      isLocked: state.isBackgroundLocked,
-      onToggleLock: actions.toggleBackgroundLock,
       ...(hasColorPlane
         ? {
             colors: backgroundColors,
@@ -527,9 +522,6 @@ export function createImageTwoTextCanvas<
         currentImageSrc: (props.currentImageSrc as string) || (props.imageSrc as string) || '',
         imageOffset: (props.imageOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
         imageScale: (props.imageScale as number | undefined) ?? 1,
-        // Carried, not hard-reset: card renders and remote-sync re-seeds run
-        // through here, so a hard `false` threw the lock away on the next render.
-        isBackgroundLocked: (props.isBackgroundLocked as boolean | undefined) ?? false,
         backgroundImageOpacity: (props.backgroundImageOpacity as number | undefined) ?? 1,
         imageAttribution:
           (props.imageAttribution as StockImageAttribution | null | undefined) ?? null,
@@ -606,9 +598,6 @@ export function createImageTwoTextCanvas<
         },
         setImageScale: (scale: number) => {
           setState(zoomBackground(getState(), scale, canvas) as Partial<State>);
-        },
-        toggleBackgroundLock: () => {
-          setState((prev) => ({ ...prev, isBackgroundLocked: !prev.isBackgroundLocked }));
         },
         setImageAttribution: (attribution: StockImageAttribution | null) => {
           setState({ imageAttribution: attribution } as Partial<State>);
