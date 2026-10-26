@@ -214,17 +214,18 @@
     opacity: 1;
   }
 }
+/* Startet und endet voll, damit die Zeilen in Ruhe sichtbar bleiben: erst
+   wegwischen, dann neu eintippen. */
 @keyframes tool-tile-type {
   0% {
-    transform: scaleX(0);
-  }
-  22%,
-  78% {
     transform: scaleX(1);
   }
-  95%,
-  100% {
+  12% {
     transform: scaleX(0);
+  }
+  34%,
+  100% {
+    transform: scaleX(1);
   }
 }
 @keyframes tool-tile-tag {
@@ -271,7 +272,7 @@
 }
 @keyframes tool-tile-scan {
   0% {
-    transform: translateY(8px);
+    transform: translateY(0);
     opacity: 1;
   }
   45% {
