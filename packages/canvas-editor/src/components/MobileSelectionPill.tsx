@@ -47,6 +47,34 @@ export interface MobileSelectionPillProps {
 }
 
 /**
+ * Lage der Pille in Fenster-px: über der Auswahl, sonst darunter, sonst in der
+ * Auswahl an ihrer Unterkante. Gemessen wird am sichtbaren Teil der
+ * Seitenfläche (`box.visible`), nicht am Fenster — darunter liegt am Handy die
+ * Auswahl-Leiste. Die Pille wirkt nicht auf den Drehgriff zurück: er wählt
+ * seine Seite allein, sie weicht ihm aus (`getSelectionBox`).
+ */
+export function placePill(box: SelectionBox, pillWidth: number): { top: number; left: number } {
+  const { visible } = box;
+  const minTop = Math.max(MIN_TOP, visible.top + EDGE);
+  const maxTop = visible.bottom - EDGE - PILL_HEIGHT;
+  const centered = box.left + box.width / 2 - pillWidth / 2;
+  const left = Math.max(visible.left + EDGE, Math.min(centered, visible.right - pillWidth - EDGE));
+  const bottom = box.top + box.height;
+  const above = box.top - GAP - PILL_HEIGHT;
+  const below = bottom + GAP;
+  if (above >= minTop) return { top: above, left };
+  if (below <= maxTop) return { top: below, left };
+  // In der Auswahl: über ihrer Unterkante und über jedem Drehgriff, der unter der Pille läge.
+  let floor = Math.min(bottom, visible.bottom);
+  for (const r of box.rotaters) {
+    if (r.top > box.top && r.left < left + pillWidth && r.right > left)
+      floor = Math.min(floor, r.top);
+  }
+  // Zu wenig Platz für beides: lieber unter die Kopfzeile als auf die Auswahl-Leiste.
+  return { top: Math.min(maxTop, Math.max(minTop, floor - GAP - PILL_HEIGHT)), left };
+}
+
+/**
  * MobileSelectionPill — die Aktionen am Objekt (Duplizieren, Löschen, Mehr),
  * wie bei Canva direkt über der Auswahl. Während des Ziehens und
  * Transformierens verschwindet sie und misst danach neu; beim Tippen in einem
@@ -100,10 +128,7 @@ export function MobileSelectionPill({
 
   if (manipulating || isEditingText || !box) return null;
 
-  const above = box.top - GAP - PILL_HEIGHT;
-  const top = above >= MIN_TOP ? above : box.top + box.height + GAP;
-  const centered = box.left + box.width / 2 - pillWidth / 2;
-  const left = Math.max(EDGE, Math.min(centered, window.innerWidth - pillWidth - EDGE));
+  const { top, left } = placePill(box, pillWidth);
 
   return createPortal(
     <div

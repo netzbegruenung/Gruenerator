@@ -25,6 +25,7 @@ const DESCRIBING_KEYS: readonly string[] = [
   'lockedLayerIds',
   'iconStates',
   'templateRotations',
+  'templateTextAligns',
 ];
 const ELEMENT_KEYS = CARRIED_INSTANCE_KEYS.filter((k) => !DESCRIBING_KEYS.includes(k));
 

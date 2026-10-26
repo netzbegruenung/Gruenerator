@@ -94,25 +94,6 @@ const centred = (x: number, y: number, w: number, h: number, rotation = 0) =>
 const topLeft = (x: number, y: number, w: number, h: number) =>
   new Konva.Rect({ x, y, width: w, height: h });
 
-describe('setRotation', () => {
-  it('dreht ein Diagramm um seine Mitte, nicht um die Ecke', () => {
-    const p = page({ chartInstances: [{ id: 'c', x: 10, y: 20 }] });
-    p.add('c', topLeft(10, 20, 100, 50));
-    p.select(['c']);
-    p.commands.setRotation(90);
-    expect(p.actions.updateChart).toHaveBeenCalledWith('c', { x: 85, y: -5, rotation: 90 });
-    expect(p.runHistoryBatch).not.toHaveBeenCalled();
-  });
-
-  it('dreht kein gesperrtes Element', () => {
-    const p = page({ shapeInstances: [{ id: 's' }], lockedLayerIds: ['s'] });
-    p.add('s', centred(50, 50, 20, 20));
-    p.select(['s']);
-    p.commands.setRotation(45);
-    expect(p.actions.updateShape).not.toHaveBeenCalled();
-  });
-});
-
 describe('rotateElement', () => {
   it('dreht ein nicht ausgewähltes Element um seine Mitte — wie die Leiste', () => {
     const p = page({ chartInstances: [{ id: 'c', x: 10, y: 20 }] });
@@ -127,76 +108,6 @@ describe('rotateElement', () => {
     expect(p.commands.rotateElement('s', 45)).toBe(false);
     expect(p.commands.rotateElement('nope', 45)).toBe(false);
     expect(p.actions.updateShape).not.toHaveBeenCalled();
-  });
-});
-
-describe('previewRotation', () => {
-  it('dreht nur den Knoten und zeichnet neu — kein Zustand, kein Verlauf', () => {
-    const p = page({ chartInstances: [{ id: 'c', x: 10, y: 20 }] });
-    const node = p.add('c', topLeft(10, 20, 100, 50));
-    p.select(['c']);
-    p.commands.previewRotation(90);
-    expect(node.rotation()).toBe(90);
-    expect([node.x(), node.y()]).toEqual([85, -5]);
-    expect(p.layer.batchDraw).toHaveBeenCalled();
-    expect(p.actions.updateChart).not.toHaveBeenCalled();
-
-    // Die weiteren Bilder suchen den Knoten nicht neu.
-    const find = vi.spyOn(p.layer, 'find');
-    p.commands.previewRotation(45);
-    p.commands.previewRotation(90);
-    expect(find).not.toHaveBeenCalled();
-    expect([node.x(), node.y()]).toEqual([85, -5]);
-
-    // Der Abschluss danach landet an derselben Stelle.
-    p.commands.setRotation(90);
-    expect(p.actions.updateChart).toHaveBeenCalledWith('c', { x: 85, y: -5, rotation: 90 });
-  });
-});
-
-describe('commitRotationPreview', () => {
-  it('schreibt die Vorschau dem Element zu, das sie zeigt — nicht der neuen Auswahl', () => {
-    const p = page({ shapeInstances: [{ id: 'a' }, { id: 'b' }] });
-    p.add('a', centred(50, 50, 20, 20));
-    p.add('b', centred(150, 50, 20, 20));
-    p.select(['a']);
-    p.commands.previewRotation(45);
-    p.select(['b']);
-    p.commands.commitRotationPreview();
-    expect(p.actions.updateShape).toHaveBeenCalledTimes(1);
-    expect(p.actions.updateShape).toHaveBeenCalledWith('a', { x: 50, y: 50, rotation: 45 });
-  });
-
-  it('tut ohne offene Vorschau nichts, auch nicht nach einem Abschluss', () => {
-    const p = page({ shapeInstances: [{ id: 'a' }] });
-    p.add('a', centred(50, 50, 20, 20));
-    p.select(['a']);
-    p.commands.commitRotationPreview();
-    p.commands.previewRotation(30);
-    p.commands.setRotation(30);
-    p.commands.commitRotationPreview();
-    expect(p.actions.updateShape).toHaveBeenCalledTimes(1);
-  });
-
-  it('verwirft die Vorschau eines entfernten Elements', () => {
-    const p = page({ shapeInstances: [{ id: 'a' }] });
-    const node = p.add('a', centred(50, 50, 20, 20));
-    p.select(['a']);
-    p.commands.previewRotation(45);
-    node.getParent()!.destroy();
-    p.commands.commitRotationPreview();
-    expect(p.actions.updateShape).not.toHaveBeenCalled();
-  });
-
-  it('stellt den Knoten zurück, wenn das Element inzwischen gesperrt ist', () => {
-    const p = page({ chartInstances: [{ id: 'c', x: 10, y: 20 }] });
-    const node = p.add('c', topLeft(10, 20, 100, 50));
-    p.select(['c']);
-    p.commands.previewRotation(90);
-    (p.state as State).lockedLayerIds = ['c'];
-    p.commands.commitRotationPreview();
-    expect(p.actions.updateChart).not.toHaveBeenCalled();
-    expect([node.x(), node.y(), node.rotation()]).toEqual([10, 20, 0]);
   });
 });
 
@@ -331,6 +242,25 @@ describe('Drehung zurücksetzen', () => {
     );
     expect(rotations).toEqual([0, 0]);
   });
+
+  it('dreht ein Diagramm um seine Mitte, nicht um die Ecke', () => {
+    const p = page({ chartInstances: [{ id: 'c', x: 85, y: -5, rotation: 90 }] });
+    const node = topLeft(85, -5, 100, 50);
+    node.rotation(90);
+    p.add('c', node);
+    p.select(['c']);
+    p.commands.run('resetRotation', null);
+    expect(p.actions.updateChart).toHaveBeenCalledWith('c', { x: 10, y: 20, rotation: 0 });
+    expect(p.runHistoryBatch).not.toHaveBeenCalled();
+  });
+
+  it('dreht kein gesperrtes Element', () => {
+    const p = page({ shapeInstances: [{ id: 's', rotation: 45 }], lockedLayerIds: ['s'] });
+    p.add('s', centred(50, 50, 20, 20, 45));
+    p.select(['s']);
+    p.commands.run('resetRotation', null);
+    expect(p.actions.updateShape).not.toHaveBeenCalled();
+  });
 });
 
 describe('Fähigkeiten', () => {
@@ -366,7 +296,6 @@ describe('Fähigkeiten', () => {
       rotation: null,
     });
     p.commands.flip('x');
-    p.commands.setRotation(0);
     p.commands.run('resetRotation', null);
     expect(p.actions.updateShape).not.toHaveBeenCalled();
   });

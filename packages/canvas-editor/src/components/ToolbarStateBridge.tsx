@@ -28,6 +28,7 @@ import type { ShadowPatch } from '../hooks/useFloatingModuleHandlers';
 import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
 import type { CanvasItem } from '../utils/canvasLayerManager';
 import type { GradientFill } from '../utils/gradientFill';
+import type { TextAlign } from '../utils/textAlign';
 
 export interface ToolbarBridgeState {
   activeFloatingModule: FloatingModuleState | null;
@@ -37,6 +38,7 @@ export interface ToolbarBridgeState {
   handleOutlineChange: (id: string, patch: { stroke?: string; strokeWidth?: number }) => void;
   handleBlurChange: (id: string, blur: number) => void;
   handleGradientSelect: (gradient: GradientFill | null) => void;
+  handleTextAlignChange: (id: string, align: TextAlign) => void;
   /** Ausschnitt mode for the selected framed photo. */
   handleCropImage: () => void;
 }
@@ -149,6 +151,7 @@ export function ToolbarStateBridge<
       handleOutlineChange: floatingHandlers.handleOutlineChange,
       handleBlurChange: floatingHandlers.handleBlurChange,
       handleGradientSelect: floatingHandlers.handleGradientSelect,
+      handleTextAlignChange: floatingHandlers.handleTextAlignChange,
       handleCropImage: () => setCroppingElement(isCropping ? null : selectedElement),
     };
   });
@@ -169,9 +172,7 @@ export function ToolbarStateBridge<
       canCopy: capabilities.canCopy,
       lockState: capabilities.lock,
       canLock: capabilities.canLock,
-      canRotate: capabilities.canRotate,
       canFlip: capabilities.canFlip,
-      rotation: capabilities.rotation,
       canAlign: capabilities.canAlign,
       canDistribute: capabilities.canDistribute,
       layers,
@@ -190,9 +191,7 @@ export function ToolbarStateBridge<
     capabilities.count,
     capabilities.lock,
     capabilities.canLock,
-    capabilities.canRotate,
     capabilities.canFlip,
-    capabilities.rotation,
     capabilities.canAlign,
     capabilities.canDistribute,
     layers,

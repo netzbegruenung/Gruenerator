@@ -69,7 +69,7 @@ import { layerLabel, pageLayerLabels, stageSummary } from '../utils/layerLabels'
 import { applyLayerSelection, type LayerSelectionChange } from '../utils/layerSelection';
 import { locateDrop, type ElementDragPayload, type MediaDragPayload } from '../utils/mediaDrop';
 import { selectableItemIds } from '../utils/multiSelect';
-import { rotaterRects } from '../utils/orientation';
+import { type ViewportRect, rotaterRects, visibleArea } from '../utils/orientation';
 import { PendingImagesContext } from '../utils/pendingImages';
 import { stageCssScale } from '../utils/stageCssScale';
 import { findTemplateEntry } from '../utils/templateElementInstance';
@@ -97,6 +97,7 @@ import type { PageCommandId } from '../utils/canvasCommandRegistry';
 import type { GradientFill } from '../utils/gradientFill';
 import type { LayerEntry } from '../utils/layerLabels';
 import type { LockState } from '../utils/layerLock';
+import type { TextAlign } from '../utils/textAlign';
 import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 import type * as Y from 'yjs';
@@ -123,11 +124,8 @@ export interface ToolbarStateReport {
   /** Wie viel der sperrbaren Auswahl gesperrt ist — siehe `utils/layerLock.ts`. */
   lockState: LockState;
   canLock: boolean;
-  /** Drehen & Spiegeln — dieselben Fragen wie die Befehle (`utils/selectionCapabilities.ts`). */
-  canRotate: boolean;
+  /** Spiegeln — dieselbe Frage wie die Befehle (`utils/selectionCapabilities.ts`). */
   canFlip: boolean;
-  /** Drehung der Einzelauswahl, sonst `null`. */
-  rotation: number | null;
   /** Ausrichten, Verteilen und Position — siehe `utils/selectionCapabilities.ts`. */
   canAlign: boolean;
   canDistribute: boolean;
@@ -236,6 +234,10 @@ export interface SelectionBox {
   top: number;
   width: number;
   height: number;
+  /** Sichtbarer Teil der Seitenfläche in Fenster-px — was darüber hinausragt, verdeckt eine Leiste. */
+  visible: ViewportRect;
+  /** Drehgriffe in Fenster-px (in der Box schon enthalten); die Pille legt sich nie darüber. */
+  rotaters: ViewportRect[];
 }
 
 /** Canvas px between blocks clicked in one after another. */
@@ -301,20 +303,14 @@ export interface GenericCanvasRef {
   handleDeleteElement?: () => void;
   /** Führt einen Seiten-Befehl aus; `at` ist der Punkt eines Rechtsklicks. */
   runCommand?: (id: PageCommandId, at: ClientPoint | null) => void;
-  /** Dreht die Einzelauswahl um ihre Mitte; ein Schritt im Verlauf. */
-  setRotation?: (deg: number) => void;
   /** Dreht ein Element unabhängig von der Auswahl um seine Mitte; `false`, wenn es nicht drehbar ist. */
   rotateElement?: (id: string, deg: number) => boolean;
-  /** Dreht nur die Anzeige der Einzelauswahl (Regler ziehen) — ohne Zustand, ohne Verlauf. */
-  previewRotation?: (deg: number) => void;
   /** Lage und Größe der Einzelauswahl für das Positionsfeld; `null`, wenn sie sich nicht bewegen lässt. */
   getGeometry?: () => SelectionGeometry | null;
   /** X/Y der Einzelauswahl (linke obere Ecke ihres gedrehten Umrisses); ein Schritt im Verlauf. */
   setPosition?: (patch: { x?: number; y?: number }) => void;
   /** B/H der Einzelauswahl; ein Schritt im Verlauf. */
   setSize?: (patch: { width?: number; height?: number }) => void;
-  /** Schreibt eine abgebrochene Vorschau dem Element zu, das sie zeigt. */
-  commitRotationPreview?: () => void;
   /** Was das Kontextmenü beim Öffnen über diese Seite wissen muss. */
   getMenuSnapshot?: () => CanvasMenuSnapshot;
   /** Box der Auswahl in Fensterkoordinaten, für Bedienelemente am Objekt. */
@@ -330,6 +326,7 @@ export interface GenericCanvasRef {
   handleBlurChange?: (id: string, blur: number) => void;
   handleCropImage?: () => void;
   handleGradientSelect?: (gradient: GradientFill | null) => void;
+  handleTextAlignChange?: (id: string, align: TextAlign) => void;
 }
 
 // Generic component with forwardRef - uses type assertion pattern for TypeScript compatibility
@@ -977,13 +974,10 @@ function GenericCanvasWithRef<
       handleDuplicate: commands.duplicate,
       handleDeleteElement: commands.remove,
       runCommand: commands.run,
-      setRotation: commands.setRotation,
       rotateElement: commands.rotateElement,
-      previewRotation: commands.previewRotation,
       getGeometry: commands.geometry,
       setPosition: commands.setPosition,
       setSize: commands.setSize,
-      commitRotationPreview: commands.commitRotationPreview,
       getMenuSnapshot: () => {
         const { selectedLayerIds, selectedElement, croppingElement } = store.getState();
         const committed = committedStateRef.current;
@@ -1009,7 +1003,8 @@ function GenericCanvasWithRef<
         const rects = ids.map((id) => itemBodyRect(stage, id)).filter((r) => r !== null);
         if (rects.length === 0) return null;
         // Der Drehgriff zählt mit: die Pille weicht ihm aus, statt ihn zu verdecken.
-        rects.push(...rotaterRects(stage));
+        const rotaters = rotaterRects(stage);
+        rects.push(...rotaters);
         const left = Math.min(...rects.map((r) => r.x));
         const top = Math.min(...rects.map((r) => r.y));
         const rect = {
@@ -1025,6 +1020,13 @@ function GenericCanvasWithRef<
           top: container.top + rect.y * cssScale,
           width: rect.width * cssScale,
           height: rect.height * cssScale,
+          visible: visibleArea(stage.container()),
+          rotaters: rotaters.map((r) => ({
+            left: container.left + r.x * cssScale,
+            top: container.top + r.y * cssScale,
+            right: container.left + (r.x + r.width) * cssScale,
+            bottom: container.top + (r.y + r.height) * cssScale,
+          })),
         };
       },
       subscribeManipulation: (listener) => {
@@ -1065,6 +1067,7 @@ function GenericCanvasWithRef<
       handleBlurChange: (id, blur) => bridgeRef.current?.handleBlurChange(id, blur),
       handleCropImage: () => bridgeRef.current?.handleCropImage(),
       handleGradientSelect: (gradient) => bridgeRef.current?.handleGradientSelect(gradient),
+      handleTextAlignChange: (id, align) => bridgeRef.current?.handleTextAlignChange(id, align),
     }),
     [
       undo,

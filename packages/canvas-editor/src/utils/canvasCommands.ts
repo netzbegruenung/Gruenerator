@@ -150,20 +150,11 @@ export interface CanvasCommands {
   /** Öffnet die Dateiauswahl für den ausgewählten Rahmen; false ohne Rahmen. */
   insertFrameImage: () => boolean;
   editText: () => void;
-  /** Dreht die Einzelauswahl auf `deg`; die Mitte bleibt stehen. */
-  setRotation: (deg: number) => void;
   /**
-   * Dreht ein Element unabhängig von der Auswahl auf `deg`, um die Mitte wie
-   * `setRotation` — die Tür der KI. `false`, wenn es sich nicht drehen lässt.
+   * Dreht ein Element unabhängig von der Auswahl auf `deg`, um die Mitte — die
+   * Tür der KI. `false`, wenn es sich nicht drehen lässt.
    */
   rotateElement: (id: string, deg: number) => boolean;
-  /** Nur die Anzeige: dreht den Knoten der Einzelauswahl, ohne Zustand und Verlauf. */
-  previewRotation: (deg: number) => void;
-  /**
-   * Schreibt eine offene Vorschau fest — dem Element, das sie zeigt, auch wenn
-   * die Auswahl inzwischen eine andere ist. Ohne Vorschau: nichts.
-   */
-  commitRotationPreview: () => void;
   /** Spiegelt die Auswahl; mehrere Elemente auch an der Mitte der Auswahl. */
   flip: (axis: 'x' | 'y') => void;
   /** Einzeln an der Seite, mehrere am Umriss der Auswahl; gesperrte bleiben stehen. */
@@ -413,7 +404,6 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
 
   /** Anzahl der gedrehten Elemente. */
   const rotateTo = (ids: readonly string[], deg: number): number => {
-    preview = null;
     const rotation = normalizeRotation(deg);
     const targets = orientTargets(ids);
     writeAll(
@@ -425,66 +415,6 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
   };
 
   /**
-   * Ziel der laufenden Vorschau, beim ersten Bild gemerkt: die weiteren Bilder
-   * suchen weder Tür noch Knoten neu und messen nicht nochmal. Gilt für genau
-   * diese Auswahl (Array-Identität aus dem Store) und endet mit dem Abschluss.
-   * `deg` ist das zuletzt gezeigte Bild.
-   */
-  let preview: {
-    ids: readonly string[];
-    target: OrientTarget;
-    layer: Konva.Layer;
-    deg: number;
-  } | null = null;
-
-  const setRotation = (deg: number) => {
-    preview = null;
-    const ids = selection();
-    if (ids.length === 1) rotateTo(ids, deg);
-  };
-
-  const previewRotation = (deg: number) => {
-    const ids = selection();
-    if (preview?.ids !== ids) {
-      preview = null;
-      const layer = ctx.getStage()?.getLayers()[0];
-      const [target] = ids.length === 1 && layer ? orientTargets(ids) : [];
-      if (!target || !layer) return;
-      preview = { ids, target, layer, deg: target.frame.rotation };
-    }
-    const { target, layer } = preview;
-    const rotation = normalizeRotation(deg);
-    preview.deg = rotation;
-    // Der Balken dreht um seinen Offset; seine Tür nimmt x/y nicht an.
-    if (target.door.kind !== 'balken') {
-      target.node.position(placeKeepingCentre(target.frame, { rotation }));
-    }
-    target.node.rotation(rotation);
-    layer.batchDraw();
-  };
-
-  /**
-   * Abgebrochener Zug (Popover zu, Leiste weg): die Vorschau gehört zu ihren
-   * Ids, nicht zur Auswahl von jetzt. Lässt sich das Element nicht mehr drehen
-   * (entfernt, inzwischen gesperrt), springt ein noch vorhandener Knoten auf
-   * den Zustand zurück, statt gedreht stehen zu bleiben.
-   */
-  const commitRotationPreview = () => {
-    const pending = preview;
-    preview = null;
-    if (!pending) return;
-    if (orientTargets(pending.ids).length > 0) {
-      rotateTo(pending.ids, pending.deg);
-      return;
-    }
-    const { node, frame } = pending.target;
-    if (!node.getParent()) return;
-    node.position({ x: frame.x, y: frame.y });
-    node.rotation(frame.rotation);
-    pending.layer.batchDraw();
-  };
-
-  /**
    * Spiegeln: Drehung wird −θ, spiegelbare Kinds kippen `flipX`/`flipY`, die
    * Mitte bleibt. Der Rahmen spiegelt mit: bei Formen wechselt die Knoten-Skala
    * das Vorzeichen, Icon, Illustration und Asset spiegeln ihr Bild-Kind um den
@@ -492,7 +422,6 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
    * Mitten zusätzlich an der Mitte der Auswahl; Text wandert, bleibt aber lesbar.
    */
   const flip = (axis: 'x' | 'y') => {
-    preview = null;
     const targets = orientTargets(selection());
     if (targets.length === 0 || (targets.length === 1 && !targets[0]!.door.canFlip)) return;
     let mid: number | null = null;
@@ -647,10 +576,7 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
     toggleLock,
     insertFrameImage,
     editText,
-    setRotation,
     rotateElement: (id, deg) => rotateTo([id], deg) > 0,
-    previewRotation,
-    commitRotationPreview,
     flip,
     align,
     distribute,

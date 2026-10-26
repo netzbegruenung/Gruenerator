@@ -1,0 +1,334 @@
+/* Tools-Raster: Mini-Vorschau-Kacheln (ToolTiles.tsx).
+ *
+ * Die Farben kommen aus der --primary-Skala, damit die Kacheln dem Seitenakzent
+ * folgen (Studio: Lila, sonst Grün). Die Animationen startet allein das CSS über
+ * :hover / :focus-visible des Buttons — kein React-State, also kein Rerender.
+ * Ruhezustand ist der 0-%-Frame jeder Animation, sonst springt die Kachel beim
+ * Verlassen. */
+
+.tt-f50 {
+  fill: var(--primary-50);
+}
+.tt-f100 {
+  fill: var(--primary-100);
+}
+.tt-f200 {
+  fill: var(--primary-200);
+}
+.tt-f300 {
+  fill: var(--primary-300);
+}
+.tt-f400 {
+  fill: var(--primary-400);
+}
+.tt-f500 {
+  fill: var(--primary-500);
+}
+.tt-f700 {
+  fill: var(--primary-700);
+}
+.tt-s100 {
+  stop-color: var(--primary-100);
+}
+.tt-s400 {
+  stop-color: var(--primary-400);
+}
+.tt-s700 {
+  stop-color: var(--primary-700);
+}
+.tt-k200 {
+  stroke: var(--primary-200);
+}
+.tt-k500 {
+  stroke: var(--primary-500);
+}
+.tt-k700 {
+  stroke: var(--primary-700);
+}
+
+/* Elemente, die sich um die eigene Mitte drehen oder skalieren */
+.tt-own {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.tt-own-left {
+  transform-box: fill-box;
+  transform-origin: left center;
+}
+
+.tt-wand {
+  transform-box: view-box;
+  transform-origin: 48px 69px;
+}
+.tt-fan-l,
+.tt-fan-r {
+  transform-box: view-box;
+  transform-origin: 36px 37px;
+}
+.tt-fan-l {
+  transform: rotate(-12deg);
+}
+.tt-fan-r {
+  transform: rotate(7deg);
+}
+.tt-shine {
+  transform: translateX(-14px) skewX(-20deg);
+}
+.tt-spread {
+  transform-box: view-box;
+  transform-origin: 36px 44px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tool-tile-trigger:is(:hover, :focus-visible) {
+    .tt-wipe {
+      animation: tool-tile-wipe 4.2s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+    }
+    .tt-sun {
+      animation: tool-tile-sun 2s ease-in-out infinite;
+    }
+    .tt-twinkle {
+      animation: tool-tile-twinkle 3.6s ease-in-out infinite;
+    }
+    .tt-twinkle-2 {
+      animation: tool-tile-twinkle 3.6s ease-in-out 0.15s infinite;
+    }
+    .tt-wand {
+      animation: tool-tile-wand 3.8s ease-in-out infinite;
+    }
+    .tt-spark {
+      animation: tool-tile-spark 3.8s ease-in-out infinite;
+    }
+    .tt-spark-2 {
+      animation: tool-tile-spark 3.8s ease-in-out 0.12s infinite;
+    }
+    .tt-spark-3 {
+      animation: tool-tile-spark 3.8s ease-in-out 0.24s infinite;
+    }
+    .tt-tag {
+      animation: tool-tile-tag 4.4s ease-out infinite;
+    }
+    .tt-type {
+      animation: tool-tile-type 4.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+    }
+    .tt-type-2 {
+      animation: tool-tile-type 4.4s cubic-bezier(0.65, 0, 0.35, 1) 0.15s infinite;
+    }
+    .tt-fan-l {
+      animation: tool-tile-fan-l 4s cubic-bezier(0.34, 1.4, 0.64, 1) infinite;
+    }
+    .tt-fan-r {
+      animation: tool-tile-fan-r 4s cubic-bezier(0.34, 1.4, 0.64, 1) infinite;
+    }
+    .tt-lift {
+      animation: tool-tile-lift 4s cubic-bezier(0.34, 1.4, 0.64, 1) infinite;
+    }
+    .tt-scan {
+      animation: tool-tile-scan 3.4s ease-in-out infinite;
+    }
+    .tt-shine {
+      animation: tool-tile-shine 3.2s ease-in-out infinite;
+    }
+    .tt-blob {
+      animation:
+        tool-tile-blob-morph 2.6s ease-in-out infinite,
+        tool-tile-blob-spin 5.2s ease-in-out infinite;
+    }
+    .tt-dash {
+      animation: tool-tile-dash 0.9s linear infinite;
+    }
+    .tt-spread {
+      animation: tool-tile-spread 4s ease-in-out infinite;
+    }
+  }
+}
+
+@keyframes tool-tile-wipe {
+  0% {
+    transform: translateX(0);
+  }
+  25%,
+  60% {
+    transform: translateX(36px);
+  }
+  85%,
+  100% {
+    transform: translateX(0);
+  }
+}
+@keyframes tool-tile-twinkle {
+  0% {
+    transform: scale(1) rotate(0);
+  }
+  15% {
+    transform: scale(0.35) rotate(45deg);
+  }
+  32% {
+    transform: scale(1.15) rotate(90deg);
+  }
+  45%,
+  100% {
+    transform: scale(1) rotate(90deg);
+  }
+}
+@keyframes tool-tile-sun {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+@keyframes tool-tile-wand {
+  0% {
+    transform: rotate(0);
+  }
+  15% {
+    transform: rotate(-14deg);
+  }
+  32% {
+    transform: rotate(9deg);
+  }
+  48%,
+  100% {
+    transform: rotate(0);
+  }
+}
+@keyframes tool-tile-spark {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  12% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  28% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
+  40%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+/* Startet und endet voll, damit die Zeilen in Ruhe sichtbar bleiben: erst
+   wegwischen, dann neu eintippen. */
+@keyframes tool-tile-type {
+  0% {
+    transform: scaleX(1);
+  }
+  12% {
+    transform: scaleX(0);
+  }
+  34%,
+  100% {
+    transform: scaleX(1);
+  }
+}
+@keyframes tool-tile-tag {
+  0% {
+    transform: scale(1);
+  }
+  10% {
+    transform: scale(1.18);
+  }
+  20%,
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes tool-tile-fan-l {
+  0%,
+  100% {
+    transform: rotate(-12deg);
+  }
+  22%,
+  62% {
+    transform: rotate(-21deg) translateX(-2px);
+  }
+}
+@keyframes tool-tile-fan-r {
+  0%,
+  100% {
+    transform: rotate(7deg);
+  }
+  22%,
+  62% {
+    transform: rotate(17deg) translateX(2px);
+  }
+}
+@keyframes tool-tile-lift {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  22%,
+  62% {
+    transform: translateY(-2px);
+  }
+}
+@keyframes tool-tile-scan {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  45% {
+    transform: translateY(62px);
+    opacity: 1;
+  }
+  55%,
+  100% {
+    transform: translateY(62px);
+    opacity: 0;
+  }
+}
+@keyframes tool-tile-shine {
+  0% {
+    transform: translateX(-14px) skewX(-20deg);
+  }
+  40%,
+  100% {
+    transform: translateX(90px) skewX(-20deg);
+  }
+}
+/* Browser ohne CSS-`d` (Safari) behalten die Form und drehen nur. */
+@keyframes tool-tile-blob-morph {
+  0%,
+  100% {
+    d: path(
+      'M40 13C51 13 60 20 59 32C58 43 52 50 42 56C32 62 19 60 14 50C9 40 14 31 21 23C27 16 32 13 40 13Z'
+    );
+  }
+  50% {
+    d: path(
+      'M35 11C49 10 61 21 60 34C59 46 50 55 38 57C26 59 15 54 13 44C11 34 16 25 22 19C27 14 30 12 35 11Z'
+    );
+  }
+}
+@keyframes tool-tile-blob-spin {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  50% {
+    transform: rotate(8deg);
+  }
+}
+@keyframes tool-tile-dash {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+@keyframes tool-tile-spread {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  30%,
+  65% {
+    transform: scale(1.1);
+  }
+}

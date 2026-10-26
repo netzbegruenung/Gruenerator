@@ -51,8 +51,6 @@ function mockCommands(canEditText = true): CanvasCommands {
     toggleLock: vi.fn(),
     insertFrameImage: vi.fn(() => true),
     editText: vi.fn(),
-    setRotation: vi.fn(),
-    previewRotation: vi.fn(),
     flip: vi.fn(),
     run: vi.fn(),
   } as unknown as CanvasCommands;

@@ -1,3 +1,5 @@
+import { CANVAS_ITEM_NAME } from './deepSelect';
+import { SELECTION_COLOR } from './multiSelect';
 import { COARSE_POINTER, touchAnchorStyleFunc } from './touchInput';
 
 import type Konva from 'konva';
@@ -14,10 +16,10 @@ export const ROTATION_SNAP_TOLERANCE = 5;
 export type RotaterPreference = 'above' | 'below';
 
 /**
- * Maus: über dem Element. Finger: darunter, denn darüber steht die
- * `MobileSelectionPill` — und der Griff soll nicht unter dem Daumen-Ziel liegen.
+ * Unter dem Element (Canva-Muster): darüber stehen am Desktop die schwebende
+ * Leiste und am Touch-Gerät die `MobileSelectionPill`.
  */
-const ROTATER_PREFERENCE: RotaterPreference = COARSE_POINTER ? 'below' : 'above';
+const ROTATER_PREFERENCE: RotaterPreference = 'below';
 
 /** Mitte des Drehgriffs für `rotateAnchorAngle = angle`, in Bühnen-px (wie Konvas `getRotaterLine`). */
 function rotaterPoint(tr: Konva.Transformer, angle: number): { x: number; y: number } {
@@ -32,11 +34,40 @@ function rotaterPoint(tr: Konva.Transformer, angle: number): { x: number; y: num
   return tr.getAbsoluteTransform().point({ x: width / 2 + dx * reach, y: height / 2 + dy * reach });
 }
 
+/** Rechteck in Fenster-px. */
+export interface ViewportRect {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
 /**
- * Der sichtbare Teil der Bühne, in Bühnen-px: Fenster und jeder abschneidende
- * Vorfahr kappen, was darüber hinausragt. Gezoomt reicht die Seite am Handy
- * unter die Werkzeugleiste — dort endet die scrollende Seitenfläche, und ein
- * Griff darunter ist nicht greifbar. Ohne Layout (Test-DOM) die ganze Bühne.
+ * Was vom Fenster um `el` herum sichtbar ist: das Fenster, gekappt von jedem
+ * abschneidenden Vorfahren (ohne `el` selbst). Gezoomt reicht die Seite am
+ * Handy unter die Werkzeugleiste — dort endet die scrollende Seitenfläche, und
+ * was darunter liegt, ist nicht greifbar.
+ */
+export function visibleArea(el: HTMLElement): ViewportRect {
+  let left = 0;
+  let top = 0;
+  let right = window.innerWidth;
+  let bottom = window.innerHeight;
+  for (let p = el.parentElement; p; p = p.parentElement) {
+    const style = getComputedStyle(p);
+    if (style.overflowX === 'visible' && style.overflowY === 'visible') continue;
+    const r = p.getBoundingClientRect();
+    left = Math.max(left, r.left);
+    top = Math.max(top, r.top);
+    right = Math.min(right, r.right);
+    bottom = Math.min(bottom, r.bottom);
+  }
+  return { left, top, right, bottom };
+}
+
+/**
+ * Der sichtbare Teil der Bühne, in Bühnen-px (`visibleArea`, geschnitten mit
+ * der Bühne selbst). Ohne Layout (Test-DOM) die ganze Bühne.
  */
 function visibleStageBox(stage: Konva.Stage): Box {
   const container = stage.container();
@@ -44,19 +75,11 @@ function visibleStageBox(stage: Konva.Stage): Box {
   if (c.width === 0 || c.height === 0) {
     return { x: 0, y: 0, width: stage.width(), height: stage.height() };
   }
-  let left = Math.max(c.left, 0);
-  let top = Math.max(c.top, 0);
-  let right = Math.min(c.right, window.innerWidth);
-  let bottom = Math.min(c.bottom, window.innerHeight);
-  for (let el = container.parentElement; el; el = el.parentElement) {
-    const style = getComputedStyle(el);
-    if (style.overflowX === 'visible' && style.overflowY === 'visible') continue;
-    const r = el.getBoundingClientRect();
-    left = Math.max(left, r.left);
-    top = Math.max(top, r.top);
-    right = Math.min(right, r.right);
-    bottom = Math.min(bottom, r.bottom);
-  }
+  const v = visibleArea(container);
+  const left = Math.max(c.left, v.left);
+  const top = Math.max(c.top, v.top);
+  const right = Math.min(c.right, v.right);
+  const bottom = Math.min(c.bottom, v.bottom);
   // Die Bühne kann per CSS skaliert sein (Zoom, Sheet).
   const k = c.width / stage.width();
   return {
@@ -77,7 +100,7 @@ function visibleStageBox(stage: Konva.Stage): Box {
 export function chooseRotaterAngle(tr: Konva.Transformer, prefer: RotaterPreference): number {
   const stage = tr.getStage();
   if (!stage) return tr.rotateAnchorAngle();
-  const margin = tr.anchorSize();
+  const margin = tr.findOne('.rotater')?.width() ?? tr.anchorSize();
   const visible = visibleStageBox(stage);
   const fits = (angle: number) => {
     const p = rotaterPoint(tr, angle);
@@ -94,21 +117,184 @@ export function chooseRotaterAngle(tr: Konva.Transformer, prefer: RotaterPrefere
   return order.find(fits) ?? order[0]!;
 }
 
+/** Mit Shift dreht der Griff in festen 15°-Schritten (Toleranz = halber Schritt). */
+const SHIFT_ROTATION_SNAPS = Array.from({ length: 24 }, (_, i) => i * 15);
+const SHIFT_ROTATION_SNAP_TOLERANCE = 7.5;
+
+/** Optik der Griffe (Canva-Muster): weiße Kreise mit Schatten, Seiten als Pillen, Drehgriff mit Symbol. */
+const ANCHOR_SIZE = COARSE_POINTER ? 14 : 12;
+const PILL_LENGTH = COARSE_POINTER ? 22 : 18;
+const PILL_THICKNESS = 6;
+const ROTATER_SIZE = COARSE_POINTER ? 32 : 24;
+// Lücke zwischen Rahmen und Drehgriff; Konva misst den Abstand bis zur Griffmitte.
+const ROTATER_GAP = 12;
+// Maus: Trefferrand rund um den Griff (Konva-Standard wäre nur die Strichbreite).
+const FINE_ANCHOR_HIT_STROKE = 12;
+const ANCHOR_RIM = 'rgba(0, 0, 0, 0.18)';
+const HOVER_SCALE = 1.2;
+
+const SIDE_ANCHORS = new Set(['middle-left', 'middle-right', 'top-center', 'bottom-center']);
+const anchorKey = (anchor: Konva.Shape) => anchor.name().split(' ')[0]!;
+
+/** Bögen des ⟳ in Canvas-Winkeln (0 = rechts, im Uhrzeigersinn): links hoch, rechts runter. */
+const ROTATER_ARCS: readonly (readonly [number, number])[] = [
+  [Math.PI * 0.6, Math.PI * 1.35],
+  [Math.PI * 1.6, Math.PI * 2.35],
+];
+
+/** ⟳ im Kreis. Getrennter hitFunc: nur der Kreis, sonst landen die Symbol-Striche im Treffer-Canvas. */
+function drawRotater(ctx: Konva.Context, shape: Konva.Shape): void {
+  const r = shape.width() / 2;
+  ctx.beginPath();
+  ctx.arc(r, r, r, 0, Math.PI * 2, false);
+  ctx.closePath();
+  ctx.fillStrokeShape(shape);
+
+  // Zwei offene Bögen links und rechts, je mit Winkel-Spitze, im Uhrzeigersinn (Canva-Muster).
+  const active = shape.fill() !== 'white';
+  const icon = r * 0.4;
+  const head = r * 0.2;
+  ctx.save();
+  ctx.setAttr('shadowColor', 'transparent');
+  ctx.setAttr('strokeStyle', active ? 'white' : '#1f2937');
+  ctx.setAttr('lineWidth', Math.max(1.5, r / 8));
+  ctx.setAttr('lineCap', 'round');
+  ctx.setAttr('lineJoin', 'round');
+  for (const [from, to] of ROTATER_ARCS) {
+    ctx.beginPath();
+    ctx.arc(r, r, icon, from, to, false);
+    ctx.stroke();
+    const tipX = r + icon * Math.cos(to);
+    const tipY = r + icon * Math.sin(to);
+    // Laufrichtung an der Spitze; die Schenkel zeigen zurück.
+    const back = to + Math.PI / 2 + Math.PI;
+    ctx.beginPath();
+    ctx.moveTo(tipX + head * Math.cos(back + 0.7), tipY + head * Math.sin(back + 0.7));
+    ctx.lineTo(tipX, tipY);
+    ctx.lineTo(tipX + head * Math.cos(back - 0.7), tipY + head * Math.sin(back - 0.7));
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function hitRotater(ctx: Konva.Context, shape: Konva.Shape): void {
+  const r = shape.width() / 2;
+  ctx.beginPath();
+  ctx.arc(r, r, r, 0, Math.PI * 2, false);
+  ctx.closePath();
+  ctx.fillStrokeShape(shape);
+}
+
+/** Größe setzen und Konvas Versatz (halbe Größe + Padding) mitziehen. */
+function resizeAnchor(anchor: Konva.Shape, width: number, height: number): void {
+  const padX = anchor.offsetX() - anchor.width() / 2;
+  const padY = anchor.offsetY() - anchor.height() / 2;
+  anchor.setAttrs({ width, height, offsetX: width / 2 + padX, offsetY: height / 2 + padY });
+}
+
+const wired = new WeakSet<Konva.Node>();
+
+/** Einmal je Knoten: Hover-Vergrößerung am Griff, Shift-Raster und Neuaufbau am Transformer. */
+function wire(anchor: Konva.Shape, tr: Konva.Transformer): void {
+  if (!wired.has(anchor)) {
+    wired.add(anchor);
+    anchor.on('mouseenter.chrome', () => {
+      if (!tr.isTransforming()) anchor.scale({ x: HOVER_SCALE, y: HOVER_SCALE });
+    });
+    anchor.on('mouseleave.chrome', () => anchor.scale({ x: 1, y: 1 }));
+  }
+  if (wired.has(tr)) return;
+  wired.add(tr);
+  const applyShift = (evt: unknown) => {
+    const shift = !!(evt as { shiftKey?: boolean } | undefined)?.shiftKey;
+    tr.rotationSnaps(shift ? SHIFT_ROTATION_SNAPS : [...ROTATION_SNAPS]);
+    tr.rotationSnapTolerance(shift ? SHIFT_ROTATION_SNAP_TOLERANCE : ROTATION_SNAP_TOLERANCE);
+  };
+  // Der Shift-Zustand des letzten Zugs gilt für den nächsten: Konva liest die Snaps vor `transform`.
+  tr.on('transformstart.chrome', (e) => {
+    applyShift(e.evt);
+    tr.update();
+  });
+  tr.on('transform.chrome', (e) => applyShift(e.evt));
+  tr.on('transformend.chrome', () => {
+    applyShift(null);
+    tr.update();
+  });
+}
+
+/**
+ * Griffe liegen über allen Elementen, sonst schnappt ein später gezeichnetes
+ * Element den Klick auf den Drehgriff weg. Jede Primitive rendert ihren
+ * Transformer in die eigene `canvas-item`-Gruppe; er zieht deshalb eine Ebene
+ * höher, neben die Gruppen, und bleibt dort oben (wie `MultiSelectionTransformer`).
+ * Gefahrlos für React: react-konva zerstört einen entfernten Knoten, egal wo er hängt.
+ */
+function keepOnTop(tr: Konva.Transformer): void {
+  const item = tr.findAncestor(`.${CANVAS_ITEM_NAME}`);
+  const parent = item?.getParent() ?? tr.getParent();
+  if (!parent) return;
+  if (tr.getParent() !== parent) tr.moveTo(parent);
+  if (tr.zIndex() !== parent.children.length - 1) tr.moveToTop();
+}
+
 /**
  * Konva ruft das bei jedem Neuaufbau des Transformers für jeden Griff — beim
  * Anhängen, nach einem Zug und beim Verschieben (Konvas eigenes `update()` auf
- * `dragmove`; dann nur diese Rechnung, kein React-Zustand). Während eines
- * Drehens oder Skalierens wird nichts gewählt: der Griff bleibt, wo er gepackt wurde.
+ * `dragmove`; dann nur diese Rechnung, kein React-Zustand). Konva setzt davor
+ * jeden Griff auf seine Vorgaben zurück; die Optik wird deshalb jedes Mal neu
+ * gesetzt. Während eines Drehens oder Skalierens wird keine Seite gewählt: der
+ * Griff bleibt, wo er gepackt wurde.
  */
 export function elementAnchorStyleFunc(anchor: Konva.Shape): void {
   touchAnchorStyleFunc?.(anchor as Konva.Rect);
-  if (!anchor.hasName('rotater')) return;
+  if (!COARSE_POINTER) anchor.hitStrokeWidth(FINE_ANCHOR_HIT_STROKE);
   const tr = anchor.getParent() as Konva.Transformer | null;
-  if (!tr || !tr.rotateEnabled() || tr.isTransforming()) return;
-  const angle = chooseRotaterAngle(tr, ROTATER_PREFERENCE);
-  // Löst ein zweites update() aus, das hier mit gleichem Winkel endet.
-  if (angle !== tr.rotateAnchorAngle()) tr.rotateAnchorAngle(angle);
+  if (!tr) return;
+  wire(anchor, tr);
+
+  const key = anchorKey(anchor);
+  const active = tr.isTransforming() ? tr.getActiveAnchor() : null;
+  anchor.setAttrs({
+    fill: active === key ? SELECTION_COLOR : 'white',
+    stroke: ANCHOR_RIM,
+    strokeWidth: 1,
+    shadowColor: 'black',
+    shadowBlur: 4,
+    shadowOpacity: 0.25,
+    shadowOffsetY: 1,
+    // Fill + Rand + Schatten zeichnet Konva sonst je Griff über eine Puffer-Leinwand.
+    perfectDrawEnabled: false,
+  });
+  // Beim Drehen zählt nur der Drehgriff; die Größengriffe stören dabei.
+  if (active === 'rotater' && key !== 'rotater') anchor.visible(false);
+
+  if (key === 'rotater') {
+    keepOnTop(tr);
+    resizeAnchor(anchor, ROTATER_SIZE, ROTATER_SIZE);
+    anchor.setAttrs({ sceneFunc: drawRotater, hitFunc: hitRotater });
+    if (!tr.rotateEnabled() || tr.isTransforming()) return;
+    const angle = chooseRotaterAngle(tr, ROTATER_PREFERENCE);
+    // Löst ein zweites update() aus, das hier mit gleichem Winkel endet.
+    if (angle !== tr.rotateAnchorAngle()) tr.rotateAnchorAngle(angle);
+    return;
+  }
+  if (SIDE_ANCHORS.has(key)) {
+    const vertical = key.startsWith('middle');
+    resizeAnchor(
+      anchor,
+      vertical ? PILL_THICKNESS : PILL_LENGTH,
+      vertical ? PILL_LENGTH : PILL_THICKNESS
+    );
+    (anchor as Konva.Rect).cornerRadius(PILL_THICKNESS / 2);
+    return;
+  }
+  (anchor as Konva.Rect).cornerRadius(ANCHOR_SIZE / 2);
 }
+
+/** Drehpfeil als Cursor über dem Drehgriff (Mitte als Hotspot), sonst `grab`. */
+const ROTATE_CURSOR = `url("data:image/svg+xml,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><g fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4v4h-4" stroke="white" stroke-width="4"/><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4v4h-4" stroke="black" stroke-width="2"/></g></svg>'
+)}") 12 12, grab`;
 
 /** Auf jeden Element-Transformer spreaden; `rotateEnabled` bleibt je Primitive. */
 export const ELEMENT_TRANSFORMER = {
@@ -117,6 +303,12 @@ export const ELEMENT_TRANSFORMER = {
   rotationSnapTolerance: ROTATION_SNAP_TOLERANCE,
   flipEnabled: false,
   anchorStyleFunc: elementAnchorStyleFunc,
+  anchorSize: ANCHOR_SIZE,
+  borderStroke: SELECTION_COLOR,
+  borderStrokeWidth: 2,
+  rotateLineVisible: false,
+  rotateAnchorOffset: ROTATER_SIZE / 2 + ROTATER_GAP,
+  rotateAnchorCursor: ROTATE_CURSOR,
 } as const;
 
 /**

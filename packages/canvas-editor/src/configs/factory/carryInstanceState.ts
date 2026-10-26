@@ -28,7 +28,10 @@
  * `templateRotations` is the turn of the template's own text and marks, keyed
  * by element config id. One record for every template, so no template needs a
  * rotation key of its own and the page writer syncs it like the rest.
+ * `templateTextAligns` is the same for the alignment of the template's texts.
  */
+
+import { isTextAlign, type TextAlign } from '../../utils/textAlign';
 
 import type { IconState } from './baseTypes';
 import type { BalkenInstance } from '../../utils/balkenUtils';
@@ -58,6 +61,7 @@ export interface CarriedInstanceState {
   layerOrder: string[];
   lockedLayerIds: string[];
   templateRotations: Record<string, number>;
+  templateTextAligns: Record<string, TextAlign>;
   backgroundImageAdjustments?: ImageAdjustments;
 }
 
@@ -78,6 +82,7 @@ export const CARRIED_INSTANCE_KEYS = [
   'layerOrder',
   'lockedLayerIds',
   'templateRotations',
+  'templateTextAligns',
   'backgroundImageAdjustments',
 ] as const;
 
@@ -105,6 +110,7 @@ export function carryInstanceState(props: Record<string, unknown>): CarriedInsta
     layerOrder: list<string>(props.layerOrder),
     lockedLayerIds: list<string>(props.lockedLayerIds),
     templateRotations: carryTemplateRotations(props),
+    templateTextAligns: carryTemplateTextAligns(props),
     ...carryBackgroundAdjustments(props),
   };
 }
@@ -125,4 +131,11 @@ export function carryTemplateRotations(props: Record<string, unknown>): Record<s
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, number>)
     : {};
+}
+
+/** The chosen alignment of each template text, keyed by element id; unknown values are dropped. */
+export function carryTemplateTextAligns(props: Record<string, unknown>): Record<string, TextAlign> {
+  const value = props.templateTextAligns;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value).filter(([, align]) => isTextAlign(align)));
 }

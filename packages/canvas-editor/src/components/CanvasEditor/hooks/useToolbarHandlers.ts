@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import type { ShadowPatch } from '../../../hooks/useFloatingModuleHandlers';
 import type { PageCommandId } from '../../../utils/canvasCommandRegistry';
 import type { GradientFill } from '../../../utils/gradientFill';
+import type { TextAlign } from '../../../utils/textAlign';
 import type { GenericCanvasRef, ToolbarStateReport } from '../../GenericCanvas';
 import type React from 'react';
 
@@ -65,9 +66,6 @@ export function useToolbarHandlers({
       handleDeleteElement: () => page()?.handleDeleteElement?.(),
       handleCopy: () => page()?.runCommand?.('copy', null),
       handleToggleLock: () => page()?.runCommand?.('toggleLock', null),
-      handleSetRotation: (deg: number) => page()?.setRotation?.(deg),
-      handlePreviewRotation: (deg: number) => page()?.previewRotation?.(deg),
-      handleCommitRotationPreview: () => page()?.commitRotationPreview?.(),
       handleFlip: (axis: 'x' | 'y') =>
         page()?.runCommand?.(axis === 'x' ? 'flipHorizontal' : 'flipVertical', null),
       handleColorSelect: (color: string) => page()?.handleColorSelect?.(color),
@@ -86,6 +84,8 @@ export function useToolbarHandlers({
       handleCropImage: () => page()?.handleCropImage?.(),
       handleGradientSelect: (gradient: GradientFill | null) =>
         page()?.handleGradientSelect?.(gradient),
+      handleTextAlignChange: (id: string, align: TextAlign) =>
+        page()?.handleTextAlignChange?.(id, align),
     };
   }, [
     canvasRefsRef,

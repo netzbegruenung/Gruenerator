@@ -569,9 +569,6 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
     ...(gradientProps ?? { fillPriority: 'color' as const }),
   };
 
-  const transformerStroke =
-    shape.fill === '#316049' || shape.fill === '#000000' ? '#ffffff' : '#316049';
-
   return (
     <>
       {renderShape(shape, commonProps, shapeRef)}
@@ -585,12 +582,7 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
             }
             return newBox;
           }}
-          anchorSize={10}
-          anchorCornerRadius={5}
           rotateEnabled={true}
-          borderStroke={transformerStroke}
-          anchorStroke={transformerStroke}
-          anchorFill="#ffffff"
           {...ELEMENT_TRANSFORMER}
           {...(locked ? LOCKED_TRANSFORMER : {})}
         />

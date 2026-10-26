@@ -74,7 +74,7 @@ import { HOST_CALLBACK_KEYS } from '../../hostCallbackKeys';
 import { CanvasEditorLayout } from '../../layouts';
 import { SidebarTabBar, SidebarPanel } from '../../sidebar';
 import { LayersSection } from '../../sidebar/sections/LayersSection';
-import { usePreloadElements } from '../../sidebar/sections/preloadElements';
+import { usePreloadElements, usePreloadTools } from '../../sidebar/sections/preloadElements';
 import {
   VorlagenSection,
   type VorlagenSectionHandle,
@@ -995,6 +995,7 @@ function CanvasEditorInner({
   usePreloadElements(
     activeConfig?.tabs.some((tab) => tab.id === 'elements' || tab.id === 'assets') ?? false
   );
+  usePreloadTools(activeConfig?.tabs.some((tab) => tab.id === 'tools') ?? false);
 
   // Compute disabled tabs for active config
   const disabledTabs = useMemo(() => {
@@ -1384,9 +1385,6 @@ function CanvasEditorInner({
         lockState: toolbarState.lockState,
         canLock: toolbarState.canLock,
         canAlign: toolbarState.canAlign,
-        canRotate: toolbarState.canRotate,
-        canFlip: toolbarState.canFlip,
-        rotation: toolbarState.rotation,
         backgroundPickerRequest,
         handlers: {
           ...toolbarHandlers,

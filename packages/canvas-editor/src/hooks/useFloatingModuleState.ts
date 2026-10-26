@@ -1,6 +1,7 @@
 import { useMemo, useRef } from 'react';
 
 import { resolveValue } from '../utils/canvasValueResolver';
+import { templateTextAlignOf, type TextAlign } from '../utils/textAlign';
 
 import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { FullCanvasConfig, LayoutResult } from '../configs/types';
@@ -52,6 +53,8 @@ export interface FloatingModuleState {
     shadowOpacity?: number;
     blur?: number;
     fillGradient?: GradientFill | null;
+    /** Ausrichtung des Textes in seiner Box (beide Textarten). */
+    align?: TextAlign;
     /**
      * True only for instance-backed text (additionalTexts), which stores effect
      * fields directly. Config-declared template texts route through state keys
@@ -141,7 +144,8 @@ function floatingModuleEqual(
     a.data.shadowOffsetY === b.data.shadowOffsetY &&
     a.data.shadowOpacity === b.data.shadowOpacity &&
     a.data.blur === b.data.blur &&
-    a.data.fillGradient === b.data.fillGradient
+    a.data.fillGradient === b.data.fillGradient &&
+    a.data.align === b.data.align
   );
 }
 
@@ -193,6 +197,7 @@ export function floatingModuleFor<
         fontSize: currentFontSize,
         opacity: typeof currentOpacity === 'number' ? currentOpacity : 1,
         fill: typeof currentFill === 'string' ? currentFill : '#000000',
+        align: templateTextAlignOf(state, selectedElement) ?? textElement.align ?? 'left',
       },
     };
   }
@@ -301,6 +306,7 @@ export function floatingModuleFor<
     shadowOffsetY?: number;
     shadowOpacity?: number;
     fillGradient?: GradientFill | null;
+    align?: TextAlign;
   }>(state, 'additionalTexts');
   const additionalText = additionalTexts.find((t) => t.id === selectedElement);
   if (additionalText) {
@@ -320,6 +326,7 @@ export function floatingModuleFor<
         shadowOffsetY: additionalText.shadowOffsetY,
         shadowOpacity: additionalText.shadowOpacity,
         fillGradient: additionalText.fillGradient,
+        align: additionalText.align ?? 'left',
       },
     };
   }

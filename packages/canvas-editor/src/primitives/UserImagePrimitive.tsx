@@ -437,11 +437,6 @@ function UserImagePrimitiveInner({
           ref={transformerRef}
           keepRatio={true}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
-          anchorSize={10}
-          anchorCornerRadius={5}
-          borderStroke="#005437"
-          anchorStroke="#005437"
-          anchorFill="#ffffff"
           rotateEnabled={true}
           {...ELEMENT_TRANSFORMER}
           {...(locked ? LOCKED_TRANSFORMER : {})}
