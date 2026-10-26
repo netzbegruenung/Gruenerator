@@ -1042,6 +1042,8 @@ function CanvasEditorInner({
       onCaptureCanvas: () => {},
       captureCanvasImage: handleCaptureCanvas,
       captureCanvasImageForAi: handleCaptureCanvasForAi,
+      rotateElement: (id: string, deg: number) =>
+        canvasRefsRef.current[currentPageIndex]?.current?.rotateElement?.(id, deg) ?? false,
       collectAltTextPages,
       onDownload: async () => {
         const ref = canvasRefsRef.current[currentPageIndex];

@@ -141,6 +141,11 @@ export interface CanvasCommands {
   editText: () => void;
   /** Dreht die Einzelauswahl auf `deg`; die Mitte bleibt stehen. */
   setRotation: (deg: number) => void;
+  /**
+   * Dreht ein Element unabhängig von der Auswahl auf `deg`, um die Mitte wie
+   * `setRotation` — die Tür der KI. `false`, wenn es sich nicht drehen lässt.
+   */
+  rotateElement: (id: string, deg: number) => boolean;
   /** Nur die Anzeige: dreht den Knoten der Einzelauswahl, ohne Zustand und Verlauf. */
   previewRotation: (deg: number) => void;
   /**
@@ -324,14 +329,17 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
     else if (writes.length > 1) ctx.runHistoryBatch(() => writes.forEach((write) => write()));
   };
 
-  const rotateTo = (ids: readonly string[], deg: number) => {
+  /** Anzahl der gedrehten Elemente. */
+  const rotateTo = (ids: readonly string[], deg: number): number => {
     preview = null;
     const rotation = normalizeRotation(deg);
+    const targets = orientTargets(ids);
     writeAll(
-      orientTargets(ids).map(({ door, frame }) => () => {
+      targets.map(({ door, frame }) => () => {
         door.apply({ ...placeKeepingCentre(frame, { rotation }), rotation });
       })
     );
+    return targets.length;
   };
 
   /**
@@ -558,6 +566,7 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
     insertFrameImage,
     editText,
     setRotation,
+    rotateElement: (id, deg) => rotateTo([id], deg) > 0,
     previewRotation,
     commitRotationPreview,
     flip,
@@ -604,7 +613,8 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
       case 'flipVertical':
         return flip('y');
       case 'resetRotation':
-        return rotateTo(selection(), 0);
+        rotateTo(selection(), 0);
+        return;
       case 'alignLeft':
         return align('left');
       case 'alignCenterH':
