@@ -239,6 +239,32 @@ describe('Zuschneide-Modus: Abbrechen nach Rückgängig', () => {
   }, 90_000);
 });
 
+describe('Zuschneide-Modus per Tastatur: Hintergrundfoto', () => {
+  it('verschiebt und zoomt mit Pfeilen und Plus, als ein Schritt', async () => {
+    const canvas = await mount();
+    const before = { scale: canvas.live.state.imageScale, offset: canvas.live.state.imageOffset };
+    await enterBackgroundCrop(canvas);
+    const key = (k: string, shiftKey = false) =>
+      canvas.run(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: k, shiftKey, cancelable: true }));
+      });
+    await key('+');
+    expect(canvas.live.state.imageScale).not.toEqual(before.scale);
+    const zoomed = canvas.live.state.imageOffset;
+    await key('ArrowRight', true);
+    await key('ArrowDown', true);
+    expect(canvas.live.state.imageOffset).not.toEqual(zoomed);
+    // Die Pfeile gehören dem Ausschnitt, nicht dem Verschieben des Elements.
+    expect(canvas.store.getState().croppingElement).toBe('background-image');
+
+    await canvas.run(() => canvas.ref.current!.handleFinishCrop!());
+    expect(canvas.store.getState().history).toHaveLength(2);
+    await canvas.run(() => canvas.ref.current!.undo!());
+    expect(canvas.live.state.imageScale).toEqual(before.scale);
+    expect(canvas.live.state.imageOffset).toEqual(before.offset);
+  }, 90_000);
+});
+
 describe('Zuschneide-Modus: jedes andere Ende ist Fertig', () => {
   it('Fertig behält den Zuschnitt als einen Schritt, Rückgängig nimmt ihn ganz zurück', async () => {
     const canvas = await mount();

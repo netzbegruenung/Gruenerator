@@ -13,6 +13,8 @@ import { CanvasEditor } from '../index';
 import type { SidebarTabId } from '../../../sidebar/types';
 
 vi.mock('../../../sidebar/UserUploadsProvider', () => ({
+  // ToolbarStateBridge liest die Uploads optional (Erweitern).
+  useOptionalUserUploads: () => null,
   UserUploadsProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   useUserUploads: () => ({ uploads: [], refresh: () => {} }),
 }));

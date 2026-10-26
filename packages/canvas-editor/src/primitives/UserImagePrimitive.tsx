@@ -32,7 +32,7 @@ import {
   hasActiveImageFilters,
   imageFilterAttrs,
 } from '../utils/imageFilters';
-import { isWidgetOwnedKey } from '../utils/keyboardOwnership';
+import { cropKeyOf, userImageKeyCrop } from '../utils/keyboardCrop';
 import { ELEMENT_TRANSFORMER } from '../utils/orientation';
 import { useTrackPendingImage } from '../utils/pendingImages';
 import { recacheNextFrame } from '../utils/recacheNextFrame';
@@ -64,12 +64,6 @@ const ALL_ANCHORS = [
   'middle-left',
   'bottom-center',
 ];
-const PAN_KEYS: Record<string, [number, number]> = {
-  ArrowUp: [0, -1],
-  ArrowDown: [0, 1],
-  ArrowLeft: [-1, 0],
-  ArrowRight: [1, 0],
-};
 
 export interface UserImagePrimitiveProps extends SnapProps {
   userImage: UserImageInstance;
@@ -245,46 +239,15 @@ function UserImagePrimitiveInner({
     if (!keyCropActive) return undefined;
     const onKeyDown = (e: KeyboardEvent) => {
       const current = keyCropRef.current;
-      if (!current.image || e.defaultPrevented || e.ctrlKey || e.metaKey) return;
-      const target = e.target;
-      if (
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLTextAreaElement ||
-        (target instanceof HTMLElement && target.isContentEditable) ||
-        (target instanceof Element && target.closest('[role="menu"]')) ||
-        isWidgetOwnedKey(e)
-      ) {
-        return;
-      }
-      const frame = {
-        x: 0,
-        y: 0,
-        width: current.userImage.width,
-        height: current.userImage.height,
-      };
-      const photo = framedPhotoRect(
+      const key = current.image ? cropKeyOf(e) : null;
+      if (!current.image || !key) return;
+      e.preventDefault();
+      const patch = userImageKeyCrop(
         { width: current.image.naturalWidth, height: current.image.naturalHeight },
-        frame,
-        { x: current.userImage.panX ?? 0, y: current.userImage.panY ?? 0 },
-        current.userImage.cropZoom ?? 1
+        current.userImage,
+        key
       );
-      const step = e.shiftKey ? 10 : 1;
-      const arrow = PAN_KEYS[e.key];
-      if (arrow) {
-        e.preventDefault();
-        const { dx, dy } = clampPan(photo, arrow[0] * step, arrow[1] * step, frame);
-        if (dx === 0 && dy === 0) return;
-        const pan = panOfFramedPhoto({ ...photo, x: photo.x + dx, y: photo.y + dy }, frame);
-        current.onCropEnd?.({ fit: 'cover', panX: pan.x, panY: pan.y });
-        return;
-      }
-      const zoomFactor = e.key === '+' || e.key === '=' ? 1.1 : e.key === '-' ? 1 / 1.1 : null;
-      if (zoomFactor) {
-        e.preventDefault();
-        const from = current.userImage.cropZoom ?? 1;
-        const cropZoom = Math.max(1, from * zoomFactor);
-        if (cropZoom !== from) current.onCropEnd?.({ fit: 'cover', cropZoom });
-      }
+      if (patch) current.onCropEnd?.(patch);
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);

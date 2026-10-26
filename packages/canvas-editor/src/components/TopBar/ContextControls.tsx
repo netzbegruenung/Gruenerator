@@ -307,7 +307,11 @@ export function ContextControls({
           key="crop"
           type="button"
           className={CROP_BTN}
-          onClick={() => handleCropImage()}
+          onClick={(e) => {
+            handleCropImage();
+            // Wie beim Zuschneiden eigener Bilder: per Tastatur gehören die Pfeile danach der Seite.
+            if (!isCropping && isKeyboardModality()) focusPage(e.currentTarget);
+          }}
           title="Ausschnitt anpassen (oder Doppelklick aufs Foto)"
           aria-label="Ausschnitt anpassen"
           aria-pressed={isCropping}

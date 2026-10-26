@@ -35,6 +35,7 @@ import {
   placeCropGhost,
 } from '../utils/cropGhost';
 import { getActiveImageFilters, imageFilterAttrs } from '../utils/imageFilters';
+import { backgroundKeyCrop, cropKeyOf, type CropKey } from '../utils/keyboardCrop';
 import { isGroupDrag } from '../utils/multiSelect';
 import { ELEMENT_TRANSFORMER, normalizeRotation } from '../utils/orientation';
 import { recacheNextFrame } from '../utils/recacheNextFrame';
@@ -504,6 +505,37 @@ function CanvasImageInner({
     },
     [part, snap]
   );
+
+  // Tastatur im Ausschnitt-Modus: dieselben Grenzen und dieselbe Übernahme wie Ziehen und Zoomen.
+  const keyCropRef = useRef<((key: CropKey) => void) | null>(null);
+  useEffect(() => {
+    keyCropRef.current = (key) => {
+      if (!natural || !slot) return;
+      const next = backgroundKeyCrop(
+        natural,
+        { x, y, width, height },
+        slot,
+        straight,
+        turnDeg,
+        key
+      );
+      if (!next) return;
+      if ('zoom' in key) onTransformEnd?.(next.x, next.y, next.width, next.height, 0);
+      else onDragEnd?.(next.x, next.y);
+    };
+  });
+  const keyCropActive = cropping && !!part && !locked;
+  useEffect(() => {
+    if (!keyCropActive) return undefined;
+    const onKeyDown = (e: KeyboardEvent) => {
+      const key = cropKeyOf(e);
+      if (!key) return;
+      e.preventDefault();
+      keyCropRef.current?.(key);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [keyCropActive]);
 
   // Visual scaling only during transform - no state updates
   const handleTransform = () => {
