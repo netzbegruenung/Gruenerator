@@ -66,6 +66,7 @@ WCAG 2.2 AA; Prüfmittel und Messfallen in `docs/CLAUDE-a11y.md`, Browser-Tests 
 - **Namen für Ebenen und Bühnenbeschreibung kommen nur aus `utils/layerLabels.ts`.** Ebenen-Liste, Auswahl-Ansage, „Gelöscht: …" und `stageSummary` lesen dieselbe Funktion; wer eine Elementart ergänzt, trägt ihren Namen dort ein.
 - **Fokus kehrt zurück** (`utils/editorFocus.ts`): nach Textbearbeitung und Löschen zum Ebenen-Eintrag, sonst auf den Seitenknopf — nie auf `body`; ein geschlossener Bereich gibt den Fokus an seinen Tab zurück.
 - **Neue Bedienelemente:** Fokusring über die `kbd:`-Variante, Ziel mindestens 24×24 px, Name beginnt mit dem sichtbaren Text, Tests mit `axe` (`a11yGuards.vitest.tsx` führt Kontextleiste, Mobil-Leisten, Pille und Texteditor).
+- **Der Wirt setzt `html[data-focus-modality]`** (`keyboard`/`pointer`; apps/web tut das in `src/index.tsx`). Die `kbd:`-Variante, der sichtbare Seitenknopf und die tastaturabhängigen Fokuswechsel (`isKeyboardModality()` in `utils/editorFocus.ts`, z. B. „Zuschneiden“ per Tastatur) hängen daran; ohne das Attribut bleiben Fokusringe aus und der Fokus wandert nicht.
 
 ## Prüfen
 
