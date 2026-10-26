@@ -8,6 +8,7 @@ import Konva from 'konva';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { defaultCanvasEditorStore } from '../../../stores/createCanvasEditorStore';
 import { axe } from '../../../test-utils';
 import { CanvasEditor } from '../index';
 
@@ -142,6 +143,22 @@ describe('Ebenen im Editor', () => {
     const list = await screen.findByRole('listbox', { name: 'Ebenen' });
     await waitFor(() => expect(list).toContainElement(document.activeElement as HTMLElement));
     expect(document.activeElement).toHaveAttribute('role', 'option');
+  });
+
+  it('bietet „Zu den Ebenen" nicht an, solange die Seitenleiste inert ist', async () => {
+    await renderEditor();
+    expect(screen.getByRole('button', { name: 'Zu den Ebenen' })).toBeInTheDocument();
+    try {
+      await act(async () => {
+        defaultCanvasEditorStore.getState().setPendingAiSuggestion({ title: 'Vorschlag' });
+      });
+      expect(screen.queryByRole('button', { name: 'Zu den Ebenen' })).toBeNull();
+    } finally {
+      await act(async () => {
+        defaultCanvasEditorStore.getState().setPendingAiSuggestion(null);
+      });
+    }
+    expect(screen.getByRole('button', { name: 'Zu den Ebenen' })).toBeInTheDocument();
   });
 
   it('steht mobil ohne Auswahl in der Leiste der Bereiche und öffnet das Sheet', async () => {

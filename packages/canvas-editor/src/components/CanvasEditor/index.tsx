@@ -1583,8 +1583,10 @@ function CanvasEditorInner({
             meldet sie selbst an — wo wir sie nicht rendern, zeigt das Overlay
             wieder seine eigene Karte. */}
           <CanvasTextEditorProvider>
-            {!isPreview && !readOnly && (
+            {!isPreview && !readOnly && !hasPendingSuggestion && (
               // Der erste Tab-Halt des Editors: unsichtbar, bis er den Fokus hat.
+              // Solange ein KI-Vorschlag offen ist, ist die Seitenleiste inert —
+              // der Sprung ginge ins Leere, also gibt es ihn dann nicht.
               <button
                 type="button"
                 onClick={handleSkipToLayers}
