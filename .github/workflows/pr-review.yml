@@ -66,7 +66,8 @@ jobs:
       # bei ~2 $ API-Gegenwert, und eine Nacht davon hat das Kontingent geleert
       # (#4819). Darum: was nur Lockfile, Generiertes, Snapshots oder Doku
       # ändert, wird gar nicht reviewt; kleine Diffs bekommen Haiku; jeder Lauf
-      # hat einen Turn-Deckel. Ein Lauf am Deckel endet rot, nicht grün.
+      # hat einen Turn-Deckel, der mit der Dateizahl wächst. Ein Lauf am Deckel
+      # endet rot, nicht grün.
       - name: Measure reviewable diff
         id: scope
         env:
@@ -89,10 +90,17 @@ jobs:
           FILES=$(grep -c . "$RUNNER_TEMP/review-files.txt" || true)
 
           if [ "$LINES" -lt "$SMALL_LINES" ]; then
-            MODEL=claude-haiku-5-5; MAX_TURNS=25
+            MODEL=claude-haiku-5-5
           else
-            MODEL="$LARGE_MODEL"; MAX_TURNS=50
+            MODEL="$LARGE_MODEL"
           fi
+          # Der Deckel wächst mit den Dateien, nicht mit dem Modell: ein fester
+          # 50er riss bei 20+ Dateien den Lauf (Runs 40291726095, 40293152392:
+          # 51 Turns, je ~2 $, kein Kommentar gepostet). Gemessen ~2,5 Züge je
+          # Datei (Diff, Read, Grep) plus Anlauf und Posten; der obere Deckel
+          # hält das Kontingent.
+          MAX_TURNS=$(( 15 + 3 * FILES ))
+          MAX_TURNS=$(( MAX_TURNS < 25 ? 25 : MAX_TURNS > 90 ? 90 : MAX_TURNS ))
 
           echo "Reviewbar: $LINES Zeilen in $FILES Dateien → $MODEL, max. $MAX_TURNS Turns"
           {
@@ -157,6 +165,16 @@ jobs:
             3. Jeden Kandidaten am Code verifizieren. CONFIRMED nur mit einem
                konkreten Fehlerszenario (Eingabe oder Zustand → falsches
                Ergebnis); sonst PLAUSIBLE oder verwerfen.
+
+            Zugbudget: höchstens ${{ steps.scope.outputs.max_turns }} Züge, danach
+            bricht der Lauf ohne jedes Ergebnis ab. Jede Antwort mit
+            Werkzeugaufrufen ist ein Zug, egal wie viele Aufrufe sie enthält —
+            darum unabhängige Aufrufe immer bündeln: alle Reads einer Runde,
+            alle Greps einer Runde in EINER Antwort, mehrere Dateien je
+            `git diff`-Aufruf statt Datei für Datei. Spätestens nach drei
+            Vierteln des Budgets nichts mehr lesen, sondern posten und die
+            Zusammenfassung abgeben; was ungelesen blieb, gehört in die
+            Übersicht.
 
             Halte dich an die Konventionen aus der CLAUDE.md im
             Wurzelverzeichnis und an eine CLAUDE.md im betroffenen Paket.
