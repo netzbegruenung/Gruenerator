@@ -145,3 +145,80 @@ describe('Ansagen der Befehle', () => {
     expect(p.announce).not.toHaveBeenCalled();
   });
 });
+
+describe('Entf auf einem Element der Vorlage', () => {
+  const balken = { id: 'b1', texts: ['Klimaschutz', 'jetzt', 'handeln'] };
+  const headline = { id: 'headline', type: 'text', textKey: 'headline' };
+
+  function templatePage(locked: string[] = []) {
+    const state = {
+      balkenInstances: [balken],
+      headline: 'Wärme',
+      lockedLayerIds: locked,
+    } as unknown as BaseCanvasState;
+    const removeBalken = vi.fn();
+    const announce = vi.fn<(text: string) => void>();
+    const store = createCanvasEditorStore();
+    const commands = createCanvasCommands<BaseCanvasState>({
+      store,
+      getState: () => state,
+      setState: vi.fn(),
+      saveToHistory: vi.fn(),
+      runHistoryBatch: (fn) => fn(),
+      getActions: () => ({ removeBalken, isTemplateBound: (id: string) => id === 'b1' }),
+      template: () => null,
+      getRenderList: () =>
+        [
+          { id: 'headline', type: 'element', data: headline },
+          { id: 'b1', type: 'balken', data: balken },
+        ] as unknown as CanvasItem[],
+      getStage: () => null,
+      logicalScale: () => 1,
+      getElements: () => [],
+      getLayout: () => ({}) as LayoutResult,
+      isReadOnly: () => false,
+      getPageSize: () => ({ width: 1000, height: 500 }),
+      announce,
+    });
+    const select = (...ids: string[]) => store.getState().setSelectedLayers(ids);
+    return { commands, announce, removeBalken, select };
+  }
+
+  it('sagt einmal an, warum der Balken der Vorlage stehen bleibt', () => {
+    const p = templatePage();
+    p.select('b1');
+    p.commands.remove();
+    expect(p.removeBalken).not.toHaveBeenCalled();
+    expect(p.announce).toHaveBeenCalledExactlyOnceWith(
+      'Gehört zur Vorlage und lässt sich nicht löschen: Balken: Klimaschutz / jetzt / handeln'
+    );
+  });
+
+  it('gilt auch für Elemente der Config und zählt mehrere', () => {
+    const p = templatePage();
+    p.select('headline');
+    p.commands.remove();
+    p.select('headline', 'b1');
+    p.commands.remove();
+    expect(p.announce.mock.calls.map(([text]) => text)).toEqual([
+      'Gehört zur Vorlage und lässt sich nicht löschen: Text: Wärme',
+      '2 Elemente gehören zur Vorlage und lassen sich nicht löschen',
+    ]);
+  });
+
+  it('schweigt bei Gesperrtem — dort sagt das Schloss, warum', () => {
+    const p = templatePage(['b1', 'headline']);
+    p.select('b1');
+    p.commands.remove();
+    p.select('headline');
+    p.commands.remove();
+    expect(p.announce).not.toHaveBeenCalled();
+  });
+
+  it('sagt beim Ausschneiden nichts zur Vorlage', () => {
+    const p = templatePage();
+    p.select('b1');
+    p.commands.cut();
+    expect(p.announce).not.toHaveBeenCalled();
+  });
+});

@@ -812,6 +812,11 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       ...frameActions,
       ...userImageActions,
 
+      // The primary bar group comes back from the three lines on every edit
+      // and reload (`reconcileBalkenInstances`), so deleting it would only
+      // hide it until then; the sidebar offers no remove button for it either.
+      isTemplateBound: (id: string) => id === PRIMARY_BALKEN_ID,
+
       // === Text Actions ===
       setLine1: (text: string) => {
         setState((prev) => {

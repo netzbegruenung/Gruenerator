@@ -47,7 +47,7 @@ import {
   type OrientationDoorInput,
   type OrientationPatch,
 } from './orientElement';
-import { findElementRemover } from './removeElement';
+import { findElementRemover, isTemplateBound } from './removeElement';
 import {
   lockableIds,
   selectionCapabilities,
@@ -238,7 +238,7 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
   };
 
   /** Löscht die Auswahl; false, wenn nichts davon entfernbar war. `lead`/`verb` wählen die Ansage. */
-  const removeSelection = (lead: string, verb: string) => {
+  const removeSelection = (lead: string, verb: string): boolean => {
     const ids = selection();
     const label = describe(ids);
     const state = ctx.getState();
@@ -246,14 +246,32 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
     const removers = selection()
       .map((id) => findElementRemover(state, actions, id))
       .filter((remove) => remove !== null);
-    if (removers.length === 0) return;
+    if (removers.length === 0) return false;
     if (removers.length === 1) removers[0]!();
     else ctx.runHistoryBatch(() => removers.forEach((remove) => remove()));
     ctx.store.getState().setSelectedElement(null);
     if (label) ctx.announce?.(ids.length === 1 ? `${lead}: ${label}` : `${label} ${verb}`);
+    return true;
   };
 
-  const remove = () => removeSelection('Gelöscht', 'gelöscht');
+  /**
+   * Entf ohne Wirkung, weil die Auswahl zur Vorlage gehört, sagt das einmal an.
+   * Gesperrtes bleibt still stehen — das Schloss sagt schon, warum.
+   */
+  const remove = () => {
+    if (removeSelection('Gelöscht', 'gelöscht')) return;
+    const state = ctx.getState();
+    const actions = ctx.getActions();
+    const renderList = ctx.getRenderList();
+    const bound = selection().filter((id) => isTemplateBound(state, actions, renderList, id));
+    const what = describe(bound);
+    if (!what) return;
+    ctx.announce?.(
+      bound.length === 1
+        ? `Gehört zur Vorlage und lässt sich nicht löschen: ${what}`
+        : `${what} gehören zur Vorlage und lassen sich nicht löschen`
+    );
+  };
 
   const paste = (at: ClientPoint | null) => {
     const content = CanvasClipboard.paste();
