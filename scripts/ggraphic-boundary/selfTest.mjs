@@ -75,6 +75,11 @@ const PROBES = [
   ['a', 'politician', `export const s = 'Felix Banaszak';`],
   ['a', 'local machine path', `export const s = '/Users/someone/x';`],
   ['a', 'import out of the package', `import x from '../../canvas-editor/src/x';`],
+  [
+    'a',
+    'escaped import out of the package',
+    `import x from '\\u002e\\u002e/\\x2e\\x2e/canvas-editor/src/x';`,
+  ],
   ['a', 'party name with JS escape', `export const s = 'Die Gr\\u00fcnen';`],
   ['a', 'party name with entity', `export const s = 'B&Uuml;NDNIS 90';`],
   [

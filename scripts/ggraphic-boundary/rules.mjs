@@ -197,10 +197,12 @@ function checkText(path, bytes, packageDir, fail, warn) {
   scan('e', 'host', HOST_PATH, (w) => `root-relative asset or API path (${w}) — inject it instead`);
   scan(null, 'ambiguous', AMBIGUOUS, (w) => `possibly brand-specific, check by hand (${w})`);
 
-  for (const [, reference] of utf8.matchAll(PATH_REFERENCE)) {
-    const target = posix.normalize(posix.join(posix.dirname(path), reference));
-    if (!target.startsWith(`${packageDir}/`)) {
-      report('a', `escape:${reference}`, `path out of the package: "${reference}"`);
+  for (const view of views) {
+    for (const [, reference] of view.matchAll(PATH_REFERENCE)) {
+      const target = posix.normalize(posix.join(posix.dirname(path), reference));
+      if (!target.startsWith(`${packageDir}/`)) {
+        report('a', `escape:${reference}`, `path out of the package: "${reference}"`);
+      }
     }
   }
   if (SOURCE_EXT.test(path) && !SPDX.test(utf8.split('\n').slice(0, 5).join('\n'))) {
