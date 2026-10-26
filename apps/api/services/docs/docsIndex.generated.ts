@@ -329,6 +329,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Mit Konnektoren kann der Grünerator-Chat Werkzeuge externer Dienste verwenden – etwa eine Seite in Notion anlegen oder Daten aus einem verbundenen Dienst abrufen."
   },
   {
+    "url": "/docs/guides/fortgeschrittene/sally-meetings-transkribieren",
+    "title": "Von der Videokonferenz zum Protokoll: Sally mit dem Grünerator nutzen",
+    "category": "Guides",
+    "lead": "Die Sitzung ist vorbei – aber das Protokoll und die Aufgabenliste fehlen noch? Sally übernimmt die Aufzeichnung und Transkription. Im Grünerator verarbeitest du die Gesprächsinhalte weiter, etwa zu e…"
+  },
+  {
     "url": "/docs/guides/landesverbaende/landesverband-einrichten",
     "title": "Wie richte ich den Grünerator für meinen Landesverband ein?",
     "category": "Guides",
@@ -3057,7 +3063,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wie richte ich Konnektoren für den Chat ein?",
     "anchor": "",
     "category": "Guides",
-    "text": "Mit Konnektoren kann der Grünerator-Chat Werkzeuge externer Dienste verwenden – etwa eine Seite in Notion anlegen oder Daten aus einem verbundenen Dienst abrufen. Konnektoren sind derzeit experimentell. Verfügbarkeit, Anmeldung und Funktionsumfang können sich ändern."
+    "text": "Mit Konnektoren kann der Grünerator-Chat Werkzeuge externer Dienste verwenden – etwa eine Seite in Notion anlegen oder Daten aus einem verbundenen Dienst abrufen. Einen vollständigen Ablauf mit Videokonferenzen, Transkripten und Beispielaufträgen zeigt Von der Videokonferenz zum Protokoll: Sally mit dem Grünerator nutzen. Konnektoren sind derzeit experimentell. Verfügbarkeit, Anmeldung und Funktionsumfang können sich ändern."
   },
   {
     "url": "/docs/guides/fortgeschrittene/konnektoren-einrichten",
@@ -3154,6 +3160,102 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#werkzeuge-einzeln-einstellen",
     "category": "Guides",
     "text": "Unter einem eigenen MCP-Server öffnest du Werkzeuge und legst für jedes Werkzeug eine Stufe fest: Aus: Der Chat bekommt das Werkzeug gar nicht erst angeboten. Nachfragen: Der Chat fragt vor jedem Aufruf (Voreinstellung). Immer erlauben: Das Werkzeug läuft ohne Rückfrage."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/sally-meetings-transkribieren",
+    "pageTitle": "Von der Videokonferenz zum Protokoll: Sally mit dem Grünerator nutzen",
+    "heading": "Von der Videokonferenz zum Protokoll: Sally mit dem Grünerator nutzen",
+    "anchor": "",
+    "category": "Guides",
+    "text": "Die Sitzung ist vorbei – aber das Protokoll und die Aufgabenliste fehlen noch? Sally übernimmt die Aufzeichnung und Transkription. Im Grünerator verarbeitest du die Gesprächsinhalte weiter, etwa zu einem Ergebnisprotokoll, einem Briefing für den nächsten Termin oder einem Textentwurf. Dieser Guide zeigt den Weg über den Sally-Konnektor im Grünerator-Chat. Du verbindest beide Dienste einmalig und rufst anschließend gezielt die benötigten Gesprächsinhalte ab. Konnektoren sind derzeit experimentell. Anmeldung, verfügbare Werkzeuge und Oberfläche können sich ändern."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/sally-meetings-transkribieren",
+    "pageTitle": "Von der Videokonferenz zum Protokoll: Sally mit dem Grünerator nutzen",
+    "heading": "1. Die Videokonferenz in Sally transkribieren",
+    "anchor": "#1-die-videokonferenz-in-sally-transkribieren",
+    "category": "Guides",
+    "text": "Wähle in Sally einen passenden Aufnahmeweg: Mit Kalenderanbindung: Sally kann geplanten Online-Meetings automatisch beitreten. Für einen einzelnen Termin: Über Sally einladen lädst du Sally zum Meeting ein. Bei vorhandener Aufnahme: Über Datei hochladen übergibst du eine Audio- oder Videodatei zur Verarbeitung. Die Aufnahme richtest du in Sally ein. Die einzelnen Wege beschreibt Sally unter Meetings aufzeichnen. Warte anschließend, bis das Transkript in Sally vorliegt. Prüfe besonders Namen, Fachbegriffe, Zahlen und die Zuordnung der Sprecherinnen. Korrekturen am Ausgangstext verbessern auch das spätere Protokoll. Hilfe bietet Transkripte in Sally."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/sally-meetings-transkribieren",
+    "pageTitle": "Von der Videokonferenz zum Protokoll: Sally mit dem Grünerator nutzen",
+    "heading": "2. Sally mit dem Grünerator verbinden",
+    "anchor": "#2-sally-mit-dem-grünerator-verbinden",
+    "category": "Guides",
+    "text": "Öffne im Grünerator dein Account-Menü → Konnektoren. Du erreichst denselben Bereich über Einstellungen → Konnektoren. Suche unter Dienste verbinden nach Sally. Klicke auf Verbinden. Melde dich im Sally-Fenster an und prüfe die angefragte Freigabe. Achte bei mehreren Sally-Unternehmenskonten darauf, welches Konto du freigibst. Prüfe danach im Grünerator unter Verbunden, ob Sally Aktiv ist. Klicke auf Testen. Bei erfolgreicher Verbindung zeigt der Grünerator die verfügbaren Werkzeuge an. Die Anzahl kann sich ändern. Ist Sally bereits verbunden, kannst du direkt mit dem Test beginnen. Der Verbindungstest prüft die Erreichbarkeit der Werkzeuge. Ob eine bestimmte Aufzeichnung abrufbar ist, zeigt erst die gezielte Anfrage im Chat. Für diesen Weg musst du keinen Schlüssel kopieren. Weitere Grundlagen findest du unter Konnektoren einrichten."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/sally-meetings-transkribieren",
+    "pageTitle": "Von der Videokonferenz zum Protokoll: Sally mit dem Grünerator nutzen",
+    "heading": "3. Das richtige Gespräch auswählen",
+    "anchor": "#3-das-richtige-gespräch-auswählen",
+    "category": "Guides",
+    "text": "Öffne einen neuen Grünerator-Chat. Tippe @sally und wähle Sally aus den Vorschlägen, sodass die Mention als Chip erscheint. Grenze die Suche ein, statt sofort alle Gespräche abrufen zu lassen. Suche mit @sally nach dem Meeting „Planung Sommerfest“ vom 20. Oktober 2026. Zeige mir zunächst nur die passenden Termine mit Datum und Titel. Rufe noch keine vollständigen Transkripte ab. Alle Beispiele in diesem Guide sind fiktiv. Ersetze Titel, Datum und Thema durch deine Angaben. Bei mehreren Treffern legst du zuerst fest, welches Gespräch gemeint ist. Verwende den zweiten Treffer. Hole die Zusammenfassung und das Transkript dieser Aufzeichnung. Erstelle ein Ergebnisprotokoll mit den Abschnitten Beschlüsse, offene Fragen und nächste Schritte. Trenne beschlossene Punkte von bloßen Vorschlägen. Ergänze zu wichtigen Aussagen Zeitstempel, soweit die Quelle sie enthält. Erfinde keine Angaben. Prüfe die Werkzeuganfragen im Chat, bevor du sie freigibst. Die im Screenshot sichtbaren Werkzeuge umfassen neben Such- und Abruffunktionen auch Aktionen zum Ändern von Daten. Für ein Protokoll brauchst du zunächst nur die passenden Such- und Lesewerkzeuge; kontrolliere daher die konkrete Aktion und ihre…"
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/sally-meetings-transkribieren",
+    "pageTitle": "Von der Videokonferenz zum Protokoll: Sally mit dem Grünerator nutzen",
+    "heading": "4. Aus dem Transkript Arbeitsmaterial machen",
+    "anchor": "#4-aus-dem-transkript-arbeitsmaterial-machen",
+    "category": "Guides",
+    "text": "Gib dem Grünerator ein klares Ausgabeformat und Regeln für fehlende Angaben. Diese Folgeaufträge bauen auf dem ausgewählten Gespräch auf:"
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/sally-meetings-transkribieren",
+    "pageTitle": "Von der Videokonferenz zum Protokoll: Sally mit dem Grünerator nutzen",
+    "heading": "Alternative: Einen Sally-Schlüssel verwenden",
+    "anchor": "#alternative-einen-sally-schlüssel-verwenden",
+    "category": "Guides",
+    "text": "Falls die Anmeldung nicht funktioniert oder du gezielt einen Schlüssel verwenden möchtest, bietet der Sally-Eintrag im Grünerator oder API-Key an. Öffne in Sally Einstellungen → Integrationen → MCP. Wähle im Bereich Sally MCP den Button Token erstellen. Der benachbarte Reiter Personal Access Token ist ein anderer Bereich. Gib einen erkennbaren Namen ein, etwa Grünerator, und lege bei Bedarf ein Ablaufdatum fest. Klicke auf Erstellen und kopiere den einmalig angezeigten Token. Öffne im Grünerator beim Sally-Eintrag oder API-Key, füge den vollständigen Token in API-Token einfügen ein und klicke auf Verbinden. In dieses Feld gehört nur der Token, ohne den Zusatz Bearer. Bewahre den Schlüssel wie ein Passwort auf und füge ihn ausschließlich in das dafür vorgesehene Verbindungsfeld ein. Für die Screenshots wurde kein neuer Schlüssel erstellt. Sally beschreibt die Anmeldung und Token-Verwaltung im allgemeinen MCP-Setup."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/sally-meetings-transkribieren",
+    "pageTitle": "Von der Videokonferenz zum Protokoll: Sally mit dem Grünerator nutzen",
+    "heading": "Aufgabenliste für die Nachbereitung",
+    "anchor": "#aufgabenliste-für-die-nachbereitung",
+    "category": "Guides",
+    "text": "Erstelle aus diesem Gespräch eine Tabelle mit Aufgabe, verantwortlicher Person, Frist und Belegstelle. Übernimm nur ausdrücklich vereinbarte Aufgaben. Wenn Person oder Frist fehlen, schreibe „nicht festgelegt“. Lege noch keine Aufgaben in einem externen Dienst an."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/sally-meetings-transkribieren",
+    "pageTitle": "Von der Videokonferenz zum Protokoll: Sally mit dem Grünerator nutzen",
+    "heading": "Briefing für den Folgetermin",
+    "anchor": "#briefing-für-den-folgetermin",
+    "category": "Guides",
+    "text": "Erstelle ein kurzes Briefing für die nächste Besprechung: bisherige Beschlüsse, offene Fragen und Punkte, zu denen wir eine Entscheidung brauchen. Kennzeichne deine Empfehlungen als Vorschläge und trenne sie von Aussagen aus dem Gespräch."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/sally-meetings-transkribieren",
+    "pageTitle": "Von der Videokonferenz zum Protokoll: Sally mit dem Grünerator nutzen",
+    "heading": "Textentwurf aus besprochenen Inhalten",
+    "anchor": "#textentwurf-aus-besprochenen-inhalten",
+    "category": "Guides",
+    "text": "Entwirf aus den besprochenen Ergebnissen einen kurzen Bericht für unsere Mitglieder. Verwende keine persönlichen Wortbeiträge oder internen Konflikte. Markiere Aussagen, deren Freigabe oder sachliche Prüfung noch fehlt. Gib nur einen Entwurf aus. Kontrolliere vor der Weitergabe besonders Beschlüsse, Zuständigkeiten und Fristen anhand des Transkripts. Ein gut formulierter Text ist noch kein freigegebenes Protokoll. Wörtliche Zitate solltest du zusätzlich mit der Aufnahme abgleichen."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/sally-meetings-transkribieren",
+    "pageTitle": "Von der Videokonferenz zum Protokoll: Sally mit dem Grünerator nutzen",
+    "heading": "Was du brauchst",
+    "anchor": "#was-du-brauchst",
+    "category": "Guides",
+    "text": "Ein Grünerator-Konto und ein Sally-Konto. Zugriff auf die gewünschte Aufzeichnung in Sally. Eine Freigabe für Sally MCP in eurem Sally-Unternehmenskonto; bei Bedarf hilft eure Administration. Eine mit den Beteiligten abgestimmte Aufzeichnung und Weiterverarbeitung. Klärt vorab, welche Gesprächsinhalte in Sally und im Grünerator verarbeitet werden dürfen."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/sally-meetings-transkribieren",
+    "pageTitle": "Von der Videokonferenz zum Protokoll: Sally mit dem Grünerator nutzen",
+    "heading": "Weiterführende Anleitungen",
+    "anchor": "#weiterführende-anleitungen",
+    "category": "Guides",
+    "text": "Konnektoren einrichten erklärt Verbindung, Werkzeugfreigaben und Verwaltung im Grünerator. Sally: Allgemeines MCP-Setup beschreibt die Einrichtung auf Sally-Seite. Grünerator mit ChatGPT & Co. verbinden beschreibt den umgekehrten Weg: Grünerator-Funktionen in einem anderen KI-Chat verwenden. Oberflächen und Sally-Verbindung am 26. Oktober 2026 geprüft. Die Screenshots zeigen ausschließlich Einrichtung und Konnektorstatus; persönliche Kontodaten, Meetinginhalte und vorhandene Schlüssel sind nicht abgebildet."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/sally-meetings-transkribieren",
+    "pageTitle": "Von der Videokonferenz zum Protokoll: Sally mit dem Grünerator nutzen",
+    "heading": "Wenn etwas nicht klappt",
+    "anchor": "#wenn-etwas-nicht-klappt",
+    "category": "Guides",
+    "text": "Problem | Nächster Schritt | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | Sally ist verbunden, wird im Chat aber nicht genutzt | Prüfe Aktiv und wähle Sally ausdrücklich über die @-Vorschläge aus. | Die Anmeldung öffnet sich nicht | Erlaube Pop-ups für den Grünerator und starte Verbinden erneut. | Der Token wird abgelehnt | Prüfe Vollständigkeit und Ablaufdatum. Verwende den Token aus Integrationen → MCP ohne Bearer im Grünerator-Feld. | Token erstellen fehlt oder Sally MCP ist deaktiviert | Lass die Freigabe im Sally-Unternehmenskonto durch eure Administration prüfen. | Das Gespräch wird nicht gefunden | Prüfe Titel, Zeitraum, Unternehmenskonto und deinen Zugriff direkt in Sally. Suche zunächst nach wenigen markanten Stichwörtern. | Die Zusammenfassung lässt einen wichtigen Punkt aus | Bitte ausdrücklich um Prüfung des Transkripts und um eine Belegstelle. |"
   },
   {
     "url": "/docs/guides/landesverbaende/landesverband-einrichten",
