@@ -16,12 +16,25 @@ export const shareTab = {
   ariaLabel: 'Teilen: Bild weitergeben',
 };
 
+/**
+ * Der Bildtext je Teilen-Abschnitt, damit die Teilen-Leiste oben denselben
+ * Text liest wie die Seitenleiste — ein Dreizeiler steht in `line1..3`, nicht
+ * in `headline`.
+ */
+const imageTextReaders = new WeakMap<object, (state: unknown) => string>();
+
+/** Bildtext ohne Auszeichnungsmarker, wie ihn der Teilen-Abschnitt zeigt; `null` ohne einen. */
+export function shareImageText(section: object | null, state: unknown): string | null {
+  const read = section ? imageTextReaders.get(section) : null;
+  return read && state != null ? stripInlineMarks(read(state)) : null;
+}
+
 export function createShareSection<TState, TActions = unknown>(
   canvasType: string,
   getCanvasText: (state: TState) => string
 ): SectionConfig<TState, TActions, GenericShareSectionProps> {
   const section = makeSectionDefiner<TState, TActions>();
-  return section({
+  const config = section({
     component: GenericShareSection,
     propsFactory: (state, _actions, context) => {
       // Zum Teilen und Kopieren nur der Text — die Auszeichnungsmarker
@@ -54,4 +67,7 @@ export function createShareSection<TState, TActions = unknown>(
       };
     },
   });
+  // Die Grenze ist hier: der Leser gehört zu genau diesem Abschnitt, also zu TState.
+  imageTextReaders.set(config, getCanvasText as (state: unknown) => string);
+  return config;
 }

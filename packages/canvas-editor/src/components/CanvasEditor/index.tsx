@@ -48,6 +48,7 @@ import { PAGE_PERSISTED_STATE_KEYS } from '../../collab/pageElementStateKeys';
 import { serializeDeck } from '../../collab/pagesDoc';
 import { createPageSyncedCallbacks } from '../../collab/wrapCallbacksWithPageSync';
 import { impressumLocaleOf } from '../../composer/printImpressum';
+import { shareImageText } from '../../configs/shareSection';
 import { type CanvasConfigId } from '../../configs/types';
 import { exportPptxDeck } from '../../export/pptx/exportPptxDeck';
 import {
@@ -1237,7 +1238,12 @@ function CanvasEditorInner({
     [pageCount, currentPage, removePage]
   );
 
-  const canvasText = ((activeState as Record<string, unknown> | null)?.headline as string) ?? '';
+  // Derselbe Bildtext wie im Teilen-Abschnitt der Seitenleiste; Vorlagen ohne
+  // ihn fallen auf die Überschrift zurück.
+  const canvasText =
+    shareImageText(activeConfig?.sections.share ?? null, activeState) ??
+    ((activeState as Record<string, unknown> | null)?.headline as string) ??
+    '';
   const canvasConfigId = pages[currentPageIndex]?.configId ?? '';
   const canvasWidth = activeConfig?.canvas.width ?? 1080;
   const canvasHeight = activeConfig?.canvas.height ?? 1080;
