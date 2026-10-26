@@ -1,4 +1,6 @@
-import { zodToJsonSchema } from 'zod-to-json-schema';
+import { type z } from 'zod';
+
+import { toolInputJsonSchema } from '../ai/toolJsonSchema.js';
 
 /** Content limits stay with the validators, which name them in a repair turn. */
 const CONTENT_LIMIT_KEYWORDS = new Set([
@@ -45,10 +47,6 @@ function withoutContentLimits(node: unknown): unknown {
  * with the variants in its description does not survive that; `anyOf` does,
  * on both hosts and on Mistral Large 4.
  */
-export function structureOf(
-  schema: Parameters<typeof zodToJsonSchema>[0]
-): Record<string, unknown> {
-  return withoutContentLimits(
-    zodToJsonSchema(schema, { target: 'jsonSchema7', $refStrategy: 'none' })
-  ) as Record<string, unknown>;
+export function structureOf(schema: z.ZodType): Record<string, unknown> {
+  return withoutContentLimits(toolInputJsonSchema(schema)) as Record<string, unknown>;
 }

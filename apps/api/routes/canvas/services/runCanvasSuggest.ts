@@ -24,9 +24,9 @@ import {
   type CanvasAiOperationKind,
   type CanvasAiSnapshot,
 } from '@gruenerator/contracts';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 
 import { aiObject } from '../../../services/ai/generate.js';
+import { toolInputJsonSchema } from '../../../services/ai/toolJsonSchema.js';
 
 import {
   buildCanvasSuggestSystemPrompt,
@@ -119,10 +119,7 @@ async function planBatch<T extends { operations: CanvasAiOperation[] }>(
   const { prompt, snapshot, capabilities, contextHints, selectedElementIds, logTag } = args;
   const { schema, chatEdit } = opts;
 
-  const rawSchema = zodToJsonSchema(schema, {
-    target: 'jsonSchema7',
-    $refStrategy: 'none',
-  }) as Record<string, unknown>;
+  const rawSchema = toolInputJsonSchema(schema);
 
   const supported = capabilities.supportedOperations;
 

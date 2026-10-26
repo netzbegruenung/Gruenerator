@@ -584,9 +584,6 @@ importers:
       zod:
         specifier: '>=4.6.6 <5'
         version: 4.6.7
-      zod-to-json-schema:
-        specifier: ^3.25.2
-        version: 3.25.2(zod@4.6.7)
     devDependencies:
       '@anthropic-ai/claude-agent-sdk':
         specifier: ^0.3.292

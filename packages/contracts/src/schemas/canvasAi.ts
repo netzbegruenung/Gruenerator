@@ -4,7 +4,7 @@
  * Source of truth for:
  *   - TypeScript types in @gruenerator/canvas-editor (operation discriminator)
  *   - Backend Zod validation of LLM tool-call arguments
- *   - JSON-schema fed to the LLM via tool calling (zod-to-json-schema)
+ *   - JSON-schema fed to the LLM via tool calling (`toolInputJsonSchema` in apps/api)
  *
  * Design notes:
  *   - All fields use `.nullish()` per the 2026-04-12 production-incident rule
@@ -286,9 +286,13 @@ export const sharepicEditResponseSchema = z.object({
 
 export type SharepicEditResponse = z.infer<typeof sharepicEditResponseSchema>;
 
-/** Model output may decline an edit; applied edits still require operations. */
+/**
+ * Model output may decline an edit; applied edits still require operations.
+ * A fresh array, not `.shape.operations.min(0)`: zod 4 keeps the earlier
+ * `.min(1)` next to a later bound instead of replacing it.
+ */
 export const sharepicEditDecisionSchema = sharepicEditResponseSchema.extend({
-  operations: sharepicEditResponseSchema.shape.operations.min(0),
+  operations: z.array(canvasAiOperationSchema).max(8),
 });
 
 // ── Slider deck operations (multi-page chat editing) ────────────────────────
