@@ -91,6 +91,8 @@ interface ToolbarStateBridgeProps<
   saveToHistory: (state: TState) => void;
   /** Mehrere Speicherungen als ein Verlaufsschritt (Erweitern: neue Quelle und Zuschnitt). */
   runHistoryBatch: (fn: () => void) => void;
+  /** Zähler von „Abbrechen" (`useCropSession`): Abbrechen verwirft ein laufendes Erweitern. */
+  cropCancelCount: () => number;
   /** Die Bühne der Seite: „Automatisch" liest dort das geladene Foto. */
   getStage: () => Konva.Stage | null;
   onToolbarStateChange?: (state: ToolbarStateReport) => void;
@@ -113,6 +115,7 @@ export function ToolbarStateBridge<
   readOnly,
   saveToHistory,
   runHistoryBatch,
+  cropCancelCount,
   getStage,
   onToolbarStateChange,
 }: ToolbarStateBridgeProps<TState, TActions>) {
@@ -122,6 +125,13 @@ export function ToolbarStateBridge<
   // Je Seite höchstens ein Erweitern zugleich; es kostet KI-Budget.
   const [isExpanding, setIsExpanding] = useState(false);
   const expandingRef = useRef(false);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
   const selectedElement = useCanvasStoreSelector((s) => s.selectedElement);
 
   const activeFloatingModule = useFloatingModuleState({
@@ -261,6 +271,8 @@ export function ToolbarStateBridge<
         }
         expandingRef.current = true;
         setIsExpanding(true);
+        // Nur „Abbrechen" verwirft; Fertig, Escape und Auswahlwechsel übernehmen das Ergebnis.
+        const cancels = cropCancelCount();
         const run = async () => {
           const source = await fetchShareImageFile(target.src, target.fileName);
           const file = await expandImage(source, target.aspect);
@@ -272,13 +284,16 @@ export function ToolbarStateBridge<
         };
         run()
           .then(
-            ({ file, url }) => applyExpandRef.current(id, target.src, file, url),
+            ({ file, url }) => {
+              if (cropCancelCount() !== cancels) return;
+              applyExpandRef.current(id, target.src, file, url);
+            },
             (error: unknown) =>
               toast.error(error instanceof Error && error.message ? error.message : EXPAND_FAILED)
           )
           .finally(() => {
             expandingRef.current = false;
-            setIsExpanding(false);
+            if (mountedRef.current) setIsExpanding(false);
           });
       },
     };

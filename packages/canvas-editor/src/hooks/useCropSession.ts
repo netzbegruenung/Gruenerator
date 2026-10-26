@@ -17,6 +17,8 @@ export interface CropSessionDoors {
   cancel: () => void;
   /** Beendet den Modus mit dem aktuellen Stand. */
   finish: () => void;
+  /** Wie oft „Abbrechen" lief: wer auf etwas wartet, verwirft sein Ergebnis, wenn die Zahl wächst. */
+  cancelCount: () => number;
 }
 
 /**
@@ -40,6 +42,7 @@ export function useCropSession({
 }): CropSessionDoors {
   const store = useCanvasStore();
   const sessionRef = useRef<CropSession | null>(null);
+  const cancelsRef = useRef(0);
   const inputsRef = useRef({ elements, readState, restore, checkpoint });
   useLayoutEffect(() => {
     inputsRef.current = { elements, readState, restore, checkpoint };
@@ -73,6 +76,7 @@ export function useCropSession({
   const finish = useCallback(() => store.getState().setCroppingElement(null), [store]);
 
   const cancel = useCallback(() => {
+    cancelsRef.current += 1;
     const session = sessionRef.current;
     if (!session) {
       finish();
@@ -88,5 +92,7 @@ export function useCropSession({
     finish();
   }, [store, finish]);
 
-  return useMemo(() => ({ cancel, finish }), [cancel, finish]);
+  const cancelCount = useCallback(() => cancelsRef.current, []);
+
+  return useMemo(() => ({ cancel, finish, cancelCount }), [cancel, finish, cancelCount]);
 }

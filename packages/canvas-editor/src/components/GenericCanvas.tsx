@@ -1145,6 +1145,7 @@ function GenericCanvasWithRef<
         readOnly={!interactive}
         saveToHistory={saveToHistory}
         runHistoryBatch={runHistoryBatch}
+        cropCancelCount={cropSession.cancelCount}
         getStage={getStage}
         onToolbarStateChange={onToolbarStateChange}
       />

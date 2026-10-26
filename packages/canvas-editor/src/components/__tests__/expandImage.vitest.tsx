@@ -286,6 +286,55 @@ describe('Zuschneide-Modus: Erweitern', () => {
   }, 90_000);
 });
 
+describe('Zuschneide-Modus: Erweitern endet während des Ladens', () => {
+  async function startPending(canvas: Canvas) {
+    let finish: (file: File) => void = () => {};
+    mocks.expand.mockReturnValue(new Promise((resolve) => (finish = resolve)));
+    await canvas.run(() => canvas.ref.current!.handleExpandImage!());
+    await canvas.settle();
+    return async () => {
+      await act(async () => {
+        finish(EXPANDED);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+    };
+  }
+
+  it('Abbrechen verwirft das Ergebnis und hinterlässt keinen Verlaufsschritt', async () => {
+    const canvas = await mount();
+    await enterUserImageCrop(canvas);
+    const respond = await startPending(canvas);
+
+    await canvas.run(() => canvas.ref.current!.handleCancelCrop!());
+    const history = canvas.store.getState().history.length;
+    await respond();
+
+    expect(canvas.userImage()).toEqual(PHOTO);
+    expect(canvas.store.getState().history).toHaveLength(history);
+    expect(canvas.store.getState().canRedo()).toBe(false);
+    await waitFor(() => expect(canvas.report.current?.isExpanding).toBe(false));
+    expect(mocks.toastError).not.toHaveBeenCalled();
+  }, 90_000);
+
+  it('Fertig übernimmt das Ergebnis trotzdem', async () => {
+    const canvas = await mount();
+    await enterBackgroundCrop(canvas);
+    const respond = await startPending(canvas);
+
+    await canvas.run(() => canvas.ref.current!.handleFinishCrop!());
+    expect(canvas.store.getState().croppingElement).toBeNull();
+    await respond();
+
+    expect(canvas.live.state).toMatchObject({
+      currentImageSrc: DURABLE,
+      imageOffset: { x: 0, y: 0 },
+      imageScale: 1,
+    });
+    await canvas.run(() => canvas.ref.current!.undo!());
+    expect(canvas.live.state.currentImageSrc).toBe('https://example.org/foto.png');
+  }, 90_000);
+});
+
 describe('Zuschneide-Modus: Automatisch nach Erweitern', () => {
   it('verwirft den Vorschlag, wenn das Foto während der Analyse ersetzt wurde', async () => {
     const canvas = await mount();
