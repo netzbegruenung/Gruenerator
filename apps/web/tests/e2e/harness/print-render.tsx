@@ -14,7 +14,10 @@ import { printSpecSchema } from '@gruenerator/contracts';
 import { renderSharepicToImage } from '../../../src/features/image-studio/renderSharepicToImage';
 import '../../../src/assets/styles/common/typography.css';
 
+import { installHarnessBrandFonts } from './brandFonts';
 import './printHarness';
+
+installHarnessBrandFonts();
 
 async function cropToTrim(dataUrl: string, formatId: string, width: number): Promise<string> {
   const format = getCanvasFormat(formatId);

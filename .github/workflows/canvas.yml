@@ -53,6 +53,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      # Die Sharepic-Lane rendert in den Hausschriften; die liegen im privaten
+      # Inhalte-Repo. Der Harness liest sie aus .external/gruenerator-intern/fonts.
+      - name: Hausschriften
+        uses: actions/checkout@v7
+        with:
+          repository: netzbegruenung/gruenerator-intern
+          token: ${{ secrets.INTERN_CONTENT_TOKEN }}
+          path: .external/gruenerator-intern
+          sparse-checkout: fonts
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
 

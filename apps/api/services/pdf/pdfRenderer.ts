@@ -39,6 +39,7 @@ import {
 } from 'pdf-lib';
 
 import { createLogger } from '../../utils/logger.js';
+import { brandFontPath } from '../fonts/brandFonts.js';
 
 import { fieldName, type PdfBlock, type PdfDocumentSpec } from './pdfDocument.js';
 import { PdfTagger, type TaggingChecks } from './pdfTagging.js';
@@ -47,6 +48,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
+const PT_SANS = path.join(PUBLIC_DIR, 'fonts', 'PTSans-Regular.ttf');
+const PT_SANS_BOLD = path.join(PUBLIC_DIR, 'fonts', 'PTSans-Bold.ttf');
 
 const log = createLogger('pdfRenderer');
 
@@ -116,6 +119,7 @@ export interface RenderPdfResult {
 }
 
 interface Theme {
+  /** Absolute font paths; the brand cuts come from the private content checkout. */
   headingFont: string;
   bodyFont: string;
   bodyBoldFont: string;
@@ -133,18 +137,18 @@ function hexToRgb(hex: string): RGB {
 
 const THEMES: Record<PdfLocale, Theme> = {
   'de-DE': {
-    headingFont: 'fonts/GrueneTypeNeue-Regular.ttf',
-    bodyFont: 'fonts/PTSans-Regular.ttf',
-    bodyBoldFont: 'fonts/PTSans-Bold.ttf',
+    headingFont: brandFontPath('GrueneTypeNeue-Regular.ttf'),
+    bodyFont: PT_SANS,
+    bodyBoldFont: PT_SANS_BOLD,
     primary: hexToRgb('#005538'),
     accent: hexToRgb('#008939'),
     logo: 'sonnenblume_gruen.png',
     logoHeight: 52,
   },
   'de-AT': {
-    headingFont: 'fonts/GothamNarrow-Ultra.ttf',
-    bodyFont: 'fonts/GothamNarrow-Book.otf',
-    bodyBoldFont: 'fonts/GothamNarrow-Bold.otf',
+    headingFont: brandFontPath('GothamNarrow-Ultra.ttf'),
+    bodyFont: brandFontPath('GothamNarrow-Book.otf'),
+    bodyBoldFont: brandFontPath('GothamNarrow-Bold.otf'),
     primary: hexToRgb('#257639'),
     accent: hexToRgb('#56af31'),
     logo: 'gruene-at-logo-gruen.png',
@@ -2272,6 +2276,17 @@ async function embedBlockImages(
   return embedded;
 }
 
+/** A missing brand font costs the look, not the export: PT Sans stands in. */
+async function readFont(file: string, fallback: string): Promise<Buffer> {
+  try {
+    return await fs.readFile(file);
+  } catch (err) {
+    if (file === fallback) throw err;
+    log.error(`${path.basename(file)} fehlt, PDF nutzt ${path.basename(fallback)}: ${String(err)}`);
+    return fs.readFile(fallback);
+  }
+}
+
 export async function renderPdf(
   spec: PdfDocumentSpec,
   opts: RenderPdfOptions
@@ -2288,9 +2303,9 @@ export async function renderPdf(
   EMOJI_REGEX.lastIndex = 0;
 
   const [headingBytes, bodyBytes, boldBytes, emojiBytes, logoBytes] = await Promise.all([
-    fs.readFile(path.join(PUBLIC_DIR, theme.headingFont)),
-    fs.readFile(path.join(PUBLIC_DIR, theme.bodyFont)),
-    fs.readFile(path.join(PUBLIC_DIR, theme.bodyBoldFont)),
+    readFont(theme.headingFont, PT_SANS_BOLD),
+    readFont(theme.bodyFont, PT_SANS),
+    readFont(theme.bodyBoldFont, PT_SANS_BOLD),
     needsEmoji ? fs.readFile(path.join(PUBLIC_DIR, 'fonts', 'NotoEmoji-Regular.ttf')) : null,
     fs.readFile(path.join(PUBLIC_DIR, theme.logo)),
   ]);
