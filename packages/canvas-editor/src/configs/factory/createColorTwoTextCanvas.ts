@@ -62,7 +62,6 @@ export interface ColorTwoTextStateBase {
   backgroundImageFile?: File | Blob | null;
   imageOffset?: { x: number; y: number };
   imageScale?: number;
-  isBackgroundLocked?: boolean;
   backgroundImageOpacity?: number;
   imageAttribution?: StockImageAttribution | null;
 
@@ -120,7 +119,6 @@ export interface ColorTwoTextActions {
   // Photo background
   setCurrentImageSrc: (file: File | null, objectUrl?: string) => void;
   setImageScale: (scale: number) => void;
-  toggleBackgroundLock: () => void;
   setImageAttribution: (attribution: StockImageAttribution | null) => void;
 
   // Base actions
@@ -313,7 +311,6 @@ export function createColorTwoTextCanvas<
       offsetKey: 'imageOffset',
       scaleKey: 'imageScale',
       draggable: true,
-      lockedKey: 'isBackgroundLocked',
       opacityStateKey: 'backgroundImageOpacity',
       coverFit: true,
     },
@@ -417,8 +414,6 @@ export function createColorTwoTextCanvas<
       },
       scale: state.imageScale ?? 1,
       onScaleChange: actions.setImageScale,
-      isLocked: state.isBackgroundLocked ?? false,
-      onToggleLock: actions.toggleBackgroundLock,
     }),
 
     sections: {
@@ -506,7 +501,6 @@ export function createColorTwoTextCanvas<
         currentImageSrc: (props.currentImageSrc as string) || '',
         imageOffset: (props.imageOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
         imageScale: (props.imageScale as number | undefined) ?? 1,
-        isBackgroundLocked: (props.isBackgroundLocked as boolean | undefined) ?? false,
         backgroundImageOpacity: (props.backgroundImageOpacity as number | undefined) ?? 1,
         imageAttribution:
           (props.imageAttribution as StockImageAttribution | null | undefined) ?? null,
@@ -597,9 +591,6 @@ export function createColorTwoTextCanvas<
         },
         setImageScale: (scale: number) => {
           setState(zoomBackground(getState(), scale, canvas) as Partial<State>);
-        },
-        toggleBackgroundLock: () => {
-          setState((prev) => ({ ...prev, isBackgroundLocked: !prev.isBackgroundLocked }));
         },
         setImageAttribution: (attribution: StockImageAttribution | null) => {
           setState({ imageAttribution: attribution } as Partial<State>);

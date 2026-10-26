@@ -26,6 +26,9 @@
   "canvas-command.copy": {
     "title": "Kopieren"
   },
+  "canvas-command.cropBackground": {
+    "title": "Ausschnitt anpassen"
+  },
   "canvas-command.cut": {
     "title": "Ausschneiden"
   },
@@ -88,9 +91,6 @@
   },
   "canvas-command.setAsBackground": {
     "title": "Als Hintergrund"
-  },
-  "canvas-command.toggleBackgroundFixed": {
-    "title": "Hintergrund fixieren"
   },
   "canvas-command.toggleLock": {
     "title": "Sperren"

@@ -55,6 +55,8 @@ export interface CanvasStageProps {
   /** Beschreibt die Bühne für Screenreader (`role="img"`) — siehe `stageSummary`. */
   ariaLabel?: string;
   children: ReactNode;
+  /** DOM über der Bühne im selben Koordinatensystem (z. B. das Restbild beim Zuschneiden). */
+  overlay?: ReactNode;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -181,6 +183,7 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
       listening = true,
       ariaLabel,
       children,
+      overlay,
       className,
       style,
     },
@@ -467,6 +470,7 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
               )}
             </Layer>
           </Stage>
+          {overlay}
           <TransformHud stageRef={displayStageRef} enabled={listening} />
         </div>
       </CanvasTextEditorProvider>

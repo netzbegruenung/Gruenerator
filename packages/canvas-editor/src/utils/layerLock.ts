@@ -6,13 +6,23 @@
  * lässt sich das Element weiter.
  */
 
+import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo';
+
 import type { CanvasItem } from './canvasLayerManager';
 
 export type LockState = 'all' | 'some' | 'none';
 
+/**
+ * Alle Leser gehen hier durch. Das Hintergrundfoto war in `dreizeilen` einmal
+ * sperrbar; eine gespeicherte Sperre darf den Ausschnitt-Modus nicht lähmen.
+ */
 export function lockedIdsOf(state: object): readonly string[] {
   const value = (state as { lockedLayerIds?: unknown }).lockedLayerIds;
-  return Array.isArray(value) ? (value as string[]) : [];
+  if (!Array.isArray(value)) return [];
+  const ids = value as string[];
+  return ids.includes(BACKGROUND_IMAGE_NODE_ID)
+    ? ids.filter((id) => id !== BACKGROUND_IMAGE_NODE_ID)
+    : ids;
 }
 
 export function isLayerLocked(state: object, id: string): boolean {
@@ -21,13 +31,14 @@ export function isLayerLocked(state: object, id: string): boolean {
 
 /**
  * Lässt sich das Element sperren? Alles, was man bewegen kann — nicht die
- * Hintergrund-Ebenen (das Foto hat sein eigenes „Fixieren“) und nicht
- * Vorlagen-Elemente, die ohnehin feststehen.
+ * Hintergrund-Ebenen (das Foto steht ohnehin fest, verschoben wird es nur im
+ * Ausschnitt-Modus) und nicht Vorlagen-Elemente, die ohnehin feststehen.
  */
 export function isLockable(item: CanvasItem): boolean {
   if (item.type !== 'element') return true;
   const element = item.data;
   if ((element.order ?? 0) < 0 || element.type === 'background') return false;
+  if (element.id === BACKGROUND_IMAGE_NODE_ID) return false;
   return 'draggable' in element && element.draggable === true;
 }
 

@@ -93,7 +93,6 @@ export interface SliderState extends BaseCanvasState {
   backgroundImageFile?: File | Blob | null;
   imageOffset?: { x: number; y: number };
   imageScale?: number;
-  isBackgroundLocked?: boolean;
   backgroundImageOpacity?: number;
   imageAttribution?: StockImageAttribution | null;
 
@@ -170,7 +169,6 @@ export interface SliderActions {
     attribution?: StockImageAttribution | null
   ) => void;
   setImageScale: (scale: number) => void;
-  toggleBackgroundLock: () => void;
   setImageAttribution: (attribution: StockImageAttribution | null) => void;
 
   // Pill badge actions
@@ -351,7 +349,6 @@ const backgroundImageElement: ImageElementConfig<SliderState> = {
   draggable: true,
   // Corner handles zoom it like the sidebar slider (both write `imageScale`).
   transformable: true,
-  lockedKey: 'isBackgroundLocked',
   opacityStateKey: 'backgroundImageOpacity',
   coverFit: true,
 };
@@ -643,8 +640,6 @@ function createSliderConfig(brand: SliderBrand): FullCanvasConfig<SliderState, S
       onColorChange: (color: string) => actions.setColorScheme(schemeForColor(color)),
       scale: state.currentImageSrc ? (state.imageScale ?? 1) : undefined,
       onScaleChange: state.currentImageSrc ? actions.setImageScale : undefined,
-      isLocked: state.isBackgroundLocked ?? false,
-      onToggleLock: state.currentImageSrc ? actions.toggleBackgroundLock : undefined,
     }),
 
     sections: {
@@ -817,7 +812,6 @@ function createSliderConfig(brand: SliderBrand): FullCanvasConfig<SliderState, S
         currentImageSrc: (props.currentImageSrc as string) || '',
         imageOffset: (props.imageOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
         imageScale: (props.imageScale as number | undefined) ?? 1,
-        isBackgroundLocked: (props.isBackgroundLocked as boolean | undefined) ?? false,
         backgroundImageOpacity: (props.backgroundImageOpacity as number | undefined) ?? 1,
         imageAttribution:
           (props.imageAttribution as StockImageAttribution | null | undefined) ?? null,
@@ -1023,12 +1017,6 @@ function createSliderConfig(brand: SliderBrand): FullCanvasConfig<SliderState, S
           const zoom = zoomBackground(getState(), scale, SLIDER_CONFIG.canvas);
           setState(zoom as Partial<SliderState>);
           debouncedSaveToHistory({ ...getState(), ...zoom });
-        },
-        toggleBackgroundLock: () => {
-          const state = getState();
-          const isBackgroundLocked = !state.isBackgroundLocked;
-          setState({ isBackgroundLocked } as Partial<SliderState>);
-          saveToHistory({ ...state, isBackgroundLocked });
         },
         setImageAttribution: (attribution: StockImageAttribution | null) => {
           setState({ imageAttribution: attribution } as Partial<SliderState>);

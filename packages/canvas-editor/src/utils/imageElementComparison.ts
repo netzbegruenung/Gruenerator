@@ -88,9 +88,6 @@ export function imageRenderInputsAreEqual<TState extends Record<string, unknown>
   const scaleKey = prev.config.scaleKey;
   if (scaleKey && prev.state[scaleKey] !== next.state[scaleKey]) return false;
 
-  const lockedKey = prev.config.lockedKey;
-  if (lockedKey && prev.state[lockedKey] !== next.state[lockedKey]) return false;
-
   const opacityKey = prev.config.opacityStateKey;
   if (opacityKey && prev.state[opacityKey] !== next.state[opacityKey]) return false;
 

@@ -29,6 +29,15 @@ vi.mock('../../../sidebar/UserUploadsProvider', () => ({
   }),
 }));
 
+// Ein jsdom-<img> lädt nie; ohne Bild zeichnet CanvasImage das Hintergrundfoto nicht.
+vi.mock('use-image', async () => {
+  const { Image, createCanvas } = await import('@napi-rs/canvas');
+  const bitmap = new Image();
+  bitmap.src = createCanvas(4, 4).toBuffer('image/png');
+  return { default: (url: string) => (url ? [bitmap, 'loaded'] : [undefined, 'loading']) };
+});
+vi.spyOn(Konva.Node.prototype, 'cache').mockReturnThis();
+
 Object.defineProperty(document, 'fonts', {
   configurable: true,
   value: { check: () => true, load: async () => [], ready: Promise.resolve(), add() {} },
@@ -77,7 +86,7 @@ const tick = () =>
     await new Promise((r) => setTimeout(r, 20));
   });
 
-async function renderEditor() {
+async function renderEditor(pageState: Record<string, unknown> = {}) {
   await act(async () => {
     render(
       <CanvasEditor
@@ -87,7 +96,7 @@ async function renderEditor() {
           {
             id: 'p1',
             configId: 'freeform',
-            state: { shapeInstances: [shape('a', 200), shape('b', 500)] },
+            state: { shapeInstances: [shape('a', 200), shape('b', 500)], ...pageState },
           },
         ]}
         onExport={() => {}}
@@ -243,5 +252,29 @@ describe('Kontextmenü', () => {
     const event = await rightClick(stage);
     expect((event as MouseEvent).defaultPrevented).toBe(false);
     expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('„Ausschnitt anpassen“ öffnet den Ausschnitt-Modus, Escape beendet ihn', async () => {
+    const stage = await renderEditor({
+      backgroundMode: 'image',
+      hasBackgroundImage: true,
+      currentImageSrc: 'https://example.org/foto.png',
+    });
+    const photo = () => stage.findOne<Konva.Image>('#background-image')!;
+    expect(photo()).toBeTruthy();
+    await act(async () => {
+      photo().fire('mousedown', { evt: new MouseEvent('mousedown') }, true);
+    });
+    expect(photo().draggable()).toBe(false);
+
+    await rightClick(stage);
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Ausschnitt anpassen' }));
+    await tick();
+    expect(photo().draggable()).toBe(true);
+
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+    expect(photo().draggable()).toBe(false);
   });
 });
