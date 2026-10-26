@@ -39,7 +39,7 @@ import {
   SELECTION_COLOR,
   syncOutlines,
 } from '../utils/multiSelect';
-import { ELEMENT_TRANSFORMER } from '../utils/orientation';
+import { ELEMENT_TRANSFORMER, raiseElementTransformers } from '../utils/orientation';
 
 import type { SnapLine } from '../utils/snapping';
 import type Konva from 'konva';
@@ -97,6 +97,7 @@ function MultiSelectionTransformerInner({
     const follow = () => syncOutlines(layer, outlines, outlined);
     follow();
     tr.moveToTop();
+    raiseElementTransformers(layer);
     if (nodes.length > 1 && stageWidth && stageHeight) {
       let group: GroupSnap | null = null;
       tr.on('dragstart.groupSnap', () => {

@@ -217,6 +217,18 @@ function keepOnTop(tr: Konva.Transformer): void {
 }
 
 /**
+ * Nach jeder Änderung der Elementliste (eingefügt, entfernt, umsortiert —
+ * auch durch Mitarbeitende oder Rückgängig): ein neues Element landet hinter
+ * dem Transformer und läge sonst bis zu dessen nächstem Neuaufbau darüber.
+ * Nur Element-Transformer; der Zuschneide-Transformer bleibt, wo er ist.
+ */
+export function raiseElementTransformers(root: Konva.Container): void {
+  for (const tr of root.find<Konva.Transformer>('Transformer')) {
+    if (tr.anchorStyleFunc() === elementAnchorStyleFunc) keepOnTop(tr);
+  }
+}
+
+/**
  * Konva ruft das bei jedem Neuaufbau des Transformers für jeden Griff — beim
  * Anhängen, nach einem Zug und beim Verschieben (Konvas eigenes `update()` auf
  * `dragmove`; dann nur diese Rechnung, kein React-Zustand). Konva setzt davor

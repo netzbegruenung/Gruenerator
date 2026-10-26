@@ -6,6 +6,7 @@ import {
   ELEMENT_TRANSFORMER,
   chooseRotaterAngle,
   elementAnchorStyleFunc,
+  raiseElementTransformers,
   rotaterRects,
 } from '../orientation';
 
@@ -224,9 +225,11 @@ describe('Griffe liegen über allen Elementen', () => {
     expect(tr.getParent()).toBe(layer);
     expect(layer.children.at(-1)).toBe(tr);
 
-    // Ein danach hinzugefügtes Element überholt ihn nur bis zum nächsten Neuaufbau.
+    // Ein danach hinzugefügtes Element (Mitarbeitende, Rückgängig) ohne Neuaufbau
+    // des Transformers: die Elementliste zieht ihn wieder nach oben.
     layer.add(new Konva.Group({ name: CANVAS_ITEM_NAME }));
-    tr.update();
+    expect(layer.children.at(-1)).not.toBe(tr);
+    raiseElementTransformers(layer);
     expect(layer.children.at(-1)).toBe(tr);
   });
 });
