@@ -3,6 +3,7 @@ import { flushSync } from 'react-dom';
 import { useStore } from 'zustand';
 
 import { useCanvasStore } from '../stores/CanvasStoreProvider';
+import { editorSkipsKey } from '../utils/keyboardOwnership';
 
 import { useAnnounce } from './useAnnounce';
 
@@ -175,11 +176,9 @@ export function useCanvasUndoRedo<
   useEffect(() => {
     if (!shortcutsEnabled) return undefined;
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Skip if user is typing in an input/textarea
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
-        return;
-      }
+      // Skip while typing (incl. the open text editor's format toolbar) or
+      // when a widget already consumed the key.
+      if (editorSkipsKey(e)) return;
 
       const isMac = navigator.platform.toLowerCase().includes('mac');
       const modKey = isMac ? e.metaKey : e.ctrlKey;

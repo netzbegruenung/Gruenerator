@@ -23,20 +23,11 @@ import { MdBorderColor, MdFormatListNumbered, MdHighlight } from 'react-icons/md
 
 import { useRovingToolbar } from '../hooks/useRovingToolbar';
 import { type FontMarkSupport } from '../utils/fontMarkSupport';
+import { KEEP_EDITING_ATTR, keepsEditing } from '../utils/keyboardOwnership';
 import { DEFAULT_TEXT_MARKER, MARKER_PRESETS } from '../utils/markerColors';
 import { BRAND_COLORS } from '../utils/shapes';
 
 import { CustomColorSwatch } from './CustomColorSwatch';
-
-/**
- * Bedienelemente, die selbst Fokus brauchen (das native Farbfeld), tragen
- * dieses Attribut: wandert der Fokus dorthin, bleibt der Editor offen
- * (`RichTextField` fragt `keepsEditing`).
- */
-const KEEP_EDITING_ATTR = 'data-rte-keep-editing';
-
-export const keepsEditing = (target: EventTarget | null): boolean =>
-  target instanceof Element && target.closest(`[${KEEP_EDITING_ATTR}]`) !== null;
 
 /**
  * Die Leiste, die gerade diesen Editor bedient — die schwebende Karte oder die

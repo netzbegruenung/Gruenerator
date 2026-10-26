@@ -40,14 +40,11 @@ import { Placeholder, UndoRedo } from '@tiptap/extensions';
 import { EditorContent, useEditor, type Editor } from '@tiptap/react';
 import { useEffect, useRef, type CSSProperties } from 'react';
 
+import { keepsEditing } from '../utils/keyboardOwnership';
+
 import { Accent } from './accentMark';
 import { Marker } from './markerMark';
-import {
-  formatToolbarOf,
-  keepsEditing,
-  TextFormatControls,
-  type OfferedMarks,
-} from './TextFormatControls';
+import { formatToolbarOf, TextFormatControls, type OfferedMarks } from './TextFormatControls';
 
 export interface RichTextFieldProps {
   /** Markdown-lite, wie es im Zustand steht. */

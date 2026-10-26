@@ -64,3 +64,37 @@ export function isWidgetOwnedKey(e: KeyboardEvent): boolean {
   if (e.key === 'Escape') return target.closest(DISMISS_OWNERS) !== null;
   return false;
 }
+
+/**
+ * Bedienelemente der Textformat-Leiste tragen dieses Attribut: wandert der
+ * Fokus dorthin, bleibt der Texteditor offen (`RichTextField`).
+ */
+export const KEEP_EDITING_ATTR = 'data-rte-keep-editing';
+
+export const keepsEditing = (target: EventTarget | null): boolean =>
+  target instanceof Element && target.closest(`[${KEEP_EDITING_ATTR}]`) !== null;
+
+/**
+ * Wird gerade Text bearbeitet? Ein Eingabefeld, ein contenteditable — oder
+ * die Formatleiste des offenen Texteditors: dort steht der Fokus auf einem
+ * Knopf, der Text ist aber weiter in Bearbeitung, und Rück, Strg+Z oder
+ * Alt+Pfeil dürfen nicht das Element darunter löschen, zurücknehmen oder
+ * schieben.
+ */
+export function isTextEditingTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    (target instanceof HTMLElement && target.isContentEditable) ||
+    keepsEditing(target)
+  );
+}
+
+/**
+ * Lässt der Editor diese Taste liegen? Ja, wenn Text bearbeitet wird oder ein
+ * Widget sie schon verbraucht hat (`preventDefault`, etwa der Radix-Regler bei
+ * Alt+Pfeil — der Editor schöbe sonst zusätzlich das Element).
+ */
+export function editorSkipsKey(e: KeyboardEvent): boolean {
+  return e.defaultPrevented || isTextEditingTarget(e.target);
+}

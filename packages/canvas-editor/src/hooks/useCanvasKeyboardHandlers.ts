@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 
 import { commandForKey } from '../utils/canvasCommandRegistry';
 import { returnFocusToPage } from '../utils/editorFocus';
-import { isWidgetOwnedKey } from '../utils/keyboardOwnership';
+import { isTextEditingTarget, isWidgetOwnedKey } from '../utils/keyboardOwnership';
 import { isLayerLocked } from '../utils/layerLock';
 import { assertAsPosition } from '../utils/stateTypeAssertions';
 
@@ -93,11 +93,12 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
       // setzt dort kein Duplikat auf die Fläche, Strg+C/V meint die Textauswahl.
       // Der Schutz stand früher hinter Duplizieren/Einfügen/Kopieren und wirkte
       // deshalb fuer genau die drei nicht.
+      // Auch die Formatleiste des offenen Texteditors zählt als Tippen.
+      // Hat ein Widget die Taste schon verbraucht (Radix-Regler bei Alt+Pfeil),
+      // schiebt der Editor nicht noch zusätzlich.
+      if (e.defaultPrevented) return;
       const target = e.target as HTMLElement | null;
-      const isTyping =
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLTextAreaElement ||
-        target?.isContentEditable === true;
+      const isTyping = isTextEditingTarget(target);
       // Im offenen Kontextmenü gehören Pfeile, Enter und Escape dem Menü:
       // sonst schöbe ArrowDown das Element und Enter öffnete die Dateiauswahl.
       if (target instanceof Element && target.closest('[role="menu"]')) return;
