@@ -35,6 +35,8 @@ export interface SelectionCapabilities {
   canAlign: boolean;
   /** Mindestens drei Elemente lassen sich verschieben. */
   canDistribute: boolean;
+  /** Ein einzelner Text, der sich auf der Fläche bearbeiten lässt („Text bearbeiten“, F2). */
+  canEditText: boolean;
 }
 
 export interface SelectionCapabilitiesInput {
@@ -77,7 +79,15 @@ export function selectionCapabilities({
     rotation: singleDoor ? singleDoor.rotation : null,
     canAlign: movable > 0,
     canDistribute: movable >= 3,
+    canEditText: !readOnly && single !== null && isEditableText(renderList, single),
   };
+}
+
+/** Eigene Texte immer, Vorlagen-Texte nur mit `editable` — wie `CanvasText` es annimmt. */
+function isEditableText(renderList: readonly CanvasItem[], id: string): boolean {
+  const item = renderList.find((i) => i.id === id);
+  if (item?.type === 'additional-text') return true;
+  return item?.type === 'element' && item.data.type === 'text' && item.data.editable === true;
 }
 
 /** Die Ids der Auswahl, die sich sperren lassen. */

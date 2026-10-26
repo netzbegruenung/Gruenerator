@@ -147,6 +147,13 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
             return;
           }
           break;
+        case 'editText':
+          // Nur ein Text: der Doppelklick, den die Tür auslöst, schaltete ein
+          // Bild in den Ausschnitt.
+          if (!commands.capabilities().canEditText) break;
+          e.preventDefault();
+          commands.editText();
+          return;
         case 'flipHorizontal':
         case 'flipVertical':
           if (selection.length === 0) break;

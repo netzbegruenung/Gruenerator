@@ -33,13 +33,14 @@ const DOOR: Partial<Record<CanvasCommandId, keyof CanvasCommands>> = {
   delete: 'remove',
   selectAll: 'selectAll',
   insertFrameImage: 'insertFrameImage',
+  editText: 'editText',
   flipHorizontal: 'flip',
   flipVertical: 'flip',
 };
 
-function mockCommands(): CanvasCommands {
+function mockCommands(canEditText = true): CanvasCommands {
   return {
-    capabilities: vi.fn(),
+    capabilities: vi.fn(() => ({ canEditText })),
     copy: vi.fn(),
     cut: vi.fn(),
     paste: vi.fn(),
@@ -57,10 +58,10 @@ function mockCommands(): CanvasCommands {
   } as unknown as CanvasCommands;
 }
 
-function mountKeys(selection: string[] = ['shape-1']) {
+function mountKeys(selection: string[] = ['shape-1'], canEditText = true) {
   const store = createCanvasEditorStore();
   store.getState().setSelectedLayers(selection);
-  const commands = mockCommands();
+  const commands = mockCommands(canEditText);
   renderHook(() =>
     useCanvasKeyboardHandlers({
       store,
@@ -111,6 +112,18 @@ describe('Kürzel aus dem Befehlsregister', () => {
     expect(commands.remove).not.toHaveBeenCalled();
     expect(store.getState().selectedLayerIds).toEqual(['shape-1']);
     menu.remove();
+  });
+
+  it('bearbeitet mit F2 den ausgewählten Text', () => {
+    const { commands } = mountKeys(['headline']);
+    keydown({ key: 'F2' });
+    expect(commands.editText).toHaveBeenCalledTimes(1);
+  });
+
+  it('bearbeitet mit F2 nur einen Text — ein Bild ginge sonst in den Ausschnitt', () => {
+    const { commands } = mountKeys(['u-1'], false);
+    keydown({ key: 'F2' });
+    expect(commands.editText).not.toHaveBeenCalled();
   });
 
   it('spiegelt mit ⇧H horizontal und mit ⇧V vertikal', () => {
