@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 import { commandForKey } from '../utils/canvasCommandRegistry';
-import { returnFocusToPage } from '../utils/editorFocus';
+import { isPageFocusTarget, returnFocusToPage } from '../utils/editorFocus';
 import { isTextEditingTarget, isWidgetOwnedKey } from '../utils/keyboardOwnership';
 import { isLayerLocked } from '../utils/layerLock';
 import { assertAsPosition } from '../utils/stateTypeAssertions';
@@ -102,6 +102,14 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
       // Im offenen Kontextmenü gehören Pfeile, Enter und Escape dem Menü:
       // sonst schöbe ArrowDown das Element und Enter öffnete die Dateiauswahl.
       if (target instanceof Element && target.closest('[role="menu"]')) return;
+      // Ein per Tastatur begonnener Ausschnitt setzt den Fokus auf den
+      // Seiten-Knopf (ContextControls); dort heisst Enter „fertig", nicht
+      // „Seite wählen".
+      if (e.key === 'Enter' && isPageFocusTarget(target) && store.getState().croppingElement) {
+        e.preventDefault();
+        store.getState().setCroppingElement(null);
+        return;
+      }
       // Was ein fokussiertes Widget selbst verbraucht (Pfeile am Regler, Enter
       // am Knopf, Escape im Dialog), erreicht die Canvas-Aktionen nicht.
       if (isWidgetOwnedKey(e)) return;

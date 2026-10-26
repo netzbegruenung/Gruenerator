@@ -99,6 +99,19 @@ describe('Tastenhoheit im globalen Handler', () => {
     expect(h.store.getState().selectedElement).toBe('shape-1');
   });
 
+  it('Enter auf dem Seiten-Knopf beendet einen Ausschnitt', () => {
+    const h = setup();
+    act(() => h.store.getState().setCroppingElement('shape-1'));
+    const page = mount('<button data-page-focus-target="p1">Seite 1 bearbeiten</button>');
+    const event = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    act(() => {
+      page.dispatchEvent(event);
+    });
+    expect(h.store.getState().croppingElement).toBeNull();
+    expect(event.defaultPrevented).toBe(true);
+    expect(h.store.getState().selectedElement).toBe('shape-1');
+  });
+
   it('Escape ausserhalb hebt die Auswahl auf', () => {
     const h = setup();
     press(document.body, { key: 'Escape' });

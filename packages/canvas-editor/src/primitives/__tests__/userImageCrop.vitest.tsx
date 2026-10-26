@@ -151,6 +151,16 @@ describe('keyboard crop', () => {
     expect(onCropEnd).not.toHaveBeenCalled();
   });
 
+  it('pans from the page focus target, where a keyboard crop puts the focus', async () => {
+    const { onCropEnd } = await setup(true, false, 2);
+    const page = document.createElement('button');
+    page.setAttribute('data-page-focus-target', 'p1');
+    document.body.append(page);
+    fireEvent.keyDown(page, { key: 'ArrowLeft' });
+    expect(onCropEnd).toHaveBeenCalledOnce();
+    page.remove();
+  });
+
   it('ignores keys when not cropping or while typing', async () => {
     const off = await setup(false, false, 2);
     fireEvent.keyDown(window, { key: 'ArrowLeft' });

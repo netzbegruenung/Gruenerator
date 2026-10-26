@@ -69,3 +69,13 @@ export function returnFocus(origin: FocusOrigin, onlyIf: () => boolean = () => t
 export function returnFocusToPage(anchor: Element | null, onlyIf?: () => boolean): void {
   returnFocus({ option: null, anchor }, onlyIf);
 }
+
+/** Fokus sofort auf die Seite um `anchor` (siehe `pageFocusTarget`), ohne zu scrollen. */
+export function focusPage(anchor: Element | null): void {
+  pageFocusTarget(anchor)?.focus({ preventScroll: true });
+}
+
+/** Ist `target` der Knopf „Seite N bearbeiten"? */
+export function isPageFocusTarget(target: EventTarget | null): boolean {
+  return target instanceof Element && target.matches(PAGE_TARGET);
+}
