@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { Suspense, useEffect, useId, useState } from 'react';
 import { HiSparkles } from 'react-icons/hi';
 import {
   HiChatBubbleBottomCenterText,
@@ -13,21 +13,51 @@ import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { useIsCanvasMobile } from '../../../hooks/useIsCanvasMobile';
 import { cn } from '../../../utils/cn';
 import { BRAND_COLORS } from '../../../utils/shapes';
+import { lazyWithPreload } from '../lazyWithPreload';
+import { whenIdle } from '../whenIdle';
 
-import { AiCreateTool } from './AiCreateTool';
-import { AiEditTool } from './AiEditTool';
-import { AltTextTool, type AltTextPagesSource } from './AltTextTool';
-import { BlobCreatorTool } from './BlobCreatorTool';
-import { GradientTextTool } from './GradientTextTool';
-import { QRCodeTool } from './QRCodeTool';
-import { RemoveBackgroundTool } from './RemoveBackgroundTool';
-import { TextPathCreatorTool } from './TextPathCreatorTool';
 import { ToolTile, type ToolTileId } from './ToolTiles';
-import { UnsplashTool } from './UnsplashTool';
 
+import type { AltTextPagesSource } from './AltTextTool';
 import type { UserImagePlacement } from '../../../utils/userImageUtils';
 import type { ComponentType } from 'react';
 import type { IconType } from 'react-icons';
+
+// The panels load on demand, so opening the tab only waits for the tiles. Once
+// the tab is idle every offered panel is preloaded (touch has no hover), and a
+// tile also warms its own on pointer-enter/focus in case the click comes first.
+const PANELS = {
+  'remove-bg': lazyWithPreload(() =>
+    import('./RemoveBackgroundTool').then((m) => m.RemoveBackgroundTool)
+  ),
+  'ai-create': lazyWithPreload(() => import('./AiCreateTool').then((m) => m.AiCreateTool)),
+  'ai-edit': lazyWithPreload(() => import('./AiEditTool').then((m) => m.AiEditTool)),
+  'alt-text': lazyWithPreload(() => import('./AltTextTool').then((m) => m.AltTextTool)),
+  unsplash: lazyWithPreload(() => import('./UnsplashTool').then((m) => m.UnsplashTool)),
+  'qr-code': lazyWithPreload(() => import('./QRCodeTool').then((m) => m.QRCodeTool)),
+  'gradient-text': lazyWithPreload(() =>
+    import('./GradientTextTool').then((m) => m.GradientTextTool)
+  ),
+  blob: lazyWithPreload(() => import('./BlobCreatorTool').then((m) => m.BlobCreatorTool)),
+  'text-path': lazyWithPreload(() =>
+    import('./TextPathCreatorTool').then((m) => m.TextPathCreatorTool)
+  ),
+} satisfies Record<ToolTileId, { preload: () => Promise<unknown> }>;
+
+const {
+  'remove-bg': RemoveBackgroundTool,
+  'ai-create': AiCreateTool,
+  'ai-edit': AiEditTool,
+  'alt-text': AltTextTool,
+  unsplash: UnsplashTool,
+  'qr-code': QRCodeTool,
+  'gradient-text': GradientTextTool,
+  blob: BlobCreatorTool,
+  'text-path': TextPathCreatorTool,
+} = PANELS;
+
+// A failed warm-up is not an error yet: the panel retries when it renders.
+const warmPanel = (id: ToolTileId) => void PANELS[id].preload().catch(() => {});
 
 export interface ToolsSectionProps {
   /** Optional callback the tools call after a successful upload to nudge the user toward the Uploads tab. */
@@ -90,6 +120,8 @@ function ToolCardButton({
     <button
       type="button"
       onClick={onClick}
+      onPointerEnter={() => warmPanel(card.id)}
+      onFocus={() => warmPanel(card.id)}
       className={cn(
         'tool-tile-trigger flex w-full flex-col items-center gap-2.5 p-2 cursor-pointer bg-transparent border-none rounded-[14px]',
         'transition-colors duration-150 hover:bg-[var(--editor-active-soft)]',
@@ -257,6 +289,12 @@ export function ToolsSection({
   ];
 
   const availableCards = cards.filter((c) => c.available);
+  const availableKey = availableCards.map((c) => c.id).join(',');
+
+  useEffect(
+    () => whenIdle(() => availableKey.split(',').forEach((id) => warmPanel(id as ToolTileId))),
+    [availableKey]
+  );
 
   if (availableCards.length === 0) {
     return (
@@ -299,23 +337,28 @@ export function ToolsSection({
   return (
     <div className={cn('flex flex-col gap-2 w-full min-w-0', !isMobile && 'px-md pt-md')}>
       <DrillDownHeader label={activeCard?.label ?? ''} onBack={goBack} />
-      {activeView === 'remove-bg' && <RemoveBackgroundTool onJumpToUploads={onJumpToUploads} />}
-      {activeView === 'ai-create' && <AiCreateTool onJumpToUploads={onJumpToUploads} />}
-      {activeView === 'ai-edit' && <AiEditTool onJumpToUploads={onJumpToUploads} />}
-      {activeView === 'unsplash' && <UnsplashTool onPlaceImageUrl={onPlaceImageUrl} />}
-      {activeView === 'alt-text' && altTextPages && <AltTextTool pages={altTextPages} />}
-      {activeView === 'qr-code' && (
-        <QRCodeTool onJumpToUploads={onJumpToUploads} onPlaceImageUrl={onPlaceImageUrl} />
-      )}
-      {activeView === 'gradient-text' && (
-        <GradientTextTool onJumpToUploads={onJumpToUploads} onPlaceImageUrl={onPlaceImageUrl} />
-      )}
-      {activeView === 'blob' && (
-        <BlobCreatorTool onJumpToUploads={onJumpToUploads} onPlaceImageUrl={onPlaceImageUrl} />
-      )}
-      {activeView === 'text-path' && (
-        <TextPathCreatorTool onJumpToUploads={onJumpToUploads} onPlaceImageUrl={onPlaceImageUrl} />
-      )}
+      <Suspense fallback={null}>
+        {activeView === 'remove-bg' && <RemoveBackgroundTool onJumpToUploads={onJumpToUploads} />}
+        {activeView === 'ai-create' && <AiCreateTool onJumpToUploads={onJumpToUploads} />}
+        {activeView === 'ai-edit' && <AiEditTool onJumpToUploads={onJumpToUploads} />}
+        {activeView === 'unsplash' && <UnsplashTool onPlaceImageUrl={onPlaceImageUrl} />}
+        {activeView === 'alt-text' && altTextPages && <AltTextTool pages={altTextPages} />}
+        {activeView === 'qr-code' && (
+          <QRCodeTool onJumpToUploads={onJumpToUploads} onPlaceImageUrl={onPlaceImageUrl} />
+        )}
+        {activeView === 'gradient-text' && (
+          <GradientTextTool onJumpToUploads={onJumpToUploads} onPlaceImageUrl={onPlaceImageUrl} />
+        )}
+        {activeView === 'blob' && (
+          <BlobCreatorTool onJumpToUploads={onJumpToUploads} onPlaceImageUrl={onPlaceImageUrl} />
+        )}
+        {activeView === 'text-path' && (
+          <TextPathCreatorTool
+            onJumpToUploads={onJumpToUploads}
+            onPlaceImageUrl={onPlaceImageUrl}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }

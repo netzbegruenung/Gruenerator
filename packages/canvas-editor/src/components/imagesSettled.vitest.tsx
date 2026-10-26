@@ -170,7 +170,14 @@ describe('GenericCanvasRef.imagesSettled with assets', () => {
     created.length = 0;
     imageStatus.set('loaded');
     vi.stubGlobal('Image', FakeImage);
-    return () => vi.unstubAllGlobals();
+    // Nach `onload` zeichnet Konva im nächsten Frame — mit einem FakeImage, das
+    // der napi-Kontext ablehnt. Landete der Frame vor dem Abbau, warf er als
+    // „Unhandled Error" und färbte den ganzen Lauf rot. Pixel prüft hier keiner.
+    const drawImage = vi.spyOn(Konva.Context.prototype, 'drawImage').mockImplementation(() => {});
+    return () => {
+      drawImage.mockRestore();
+      vi.unstubAllGlobals();
+    };
   });
 
   it('waits for a sticker image, then settles', async () => {
@@ -183,6 +190,8 @@ describe('GenericCanvasRef.imagesSettled with assets', () => {
       sticker!.onload?.();
     });
     expect(ref.current!.imagesSettled()).toBe(true);
+    // Den Zeichen-Frame abwarten, statt auf den Ausgang des Rennens zu hoffen.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
   });
 
   it('does not wait on a sticker that fails to load', async () => {
