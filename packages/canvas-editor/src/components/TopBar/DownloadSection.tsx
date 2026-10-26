@@ -162,7 +162,7 @@ export interface DownloadSectionProps {
     pixelRatio: number,
     transparent: boolean
   ) => void | Promise<void>;
-  onDownloadAllZip?: () => Promise<void>;
+  onDownloadAllZip?: (format: CanvasDownloadChoice) => Promise<void>;
   pageCount: number;
   isMultiExporting?: boolean;
   exportProgress?: { current: number; total: number };
@@ -209,6 +209,7 @@ export function DownloadSection({
   // JPEG has no alpha channel — the transparency toggle is only meaningful for
   // PNG/WebP.
   const supportsTransparency = choice !== 'jpeg';
+  const rasterFormat: CanvasDownloadChoice = choice === 'pdf' || choice === 'pptx' ? 'png' : choice;
 
   const handleDownload = async () => {
     setIsDownloading(true);
@@ -228,14 +229,10 @@ export function DownloadSection({
         return;
       }
       if (pageSelection === 'all' && onDownloadAllZip) {
-        await onDownloadAllZip();
+        await onDownloadAllZip(rasterFormat);
         return;
       }
-      await onDownload(
-        choice === 'pdf' || choice === 'pptx' ? 'png' : choice,
-        scale,
-        supportsTransparency && transparent
-      );
+      await onDownload(rasterFormat, scale, supportsTransparency && transparent);
     } catch (err) {
       console.error('[DownloadSection] Download failed:', err);
       setDownloadError(downloadErrorMessage(err));
@@ -267,7 +264,7 @@ export function DownloadSection({
       </div>
 
       {/* Resolution + transparency only apply to single-page export; the
-          multi-page ZIP path renders at fixed settings. */}
+          multi-page ZIP path renders at fixed settings, in the chosen format. */}
       {!isPdf && !isSlidesPdf && !isPptx && pageSelection === 'current' && (
         <>
           <div className="flex flex-col gap-1.5">

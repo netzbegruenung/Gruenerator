@@ -99,3 +99,23 @@ describe('useMultiPageExport client-side ZIP', () => {
     expect(result.current.error).toBeNull();
   });
 });
+
+describe('useMultiPageExport format', () => {
+  it('captures and names the pages in the chosen format', async () => {
+    downloadBlob.mockReset().mockRejectedValue(new NativeDownloadTooLargeError());
+    downloadDataUrl.mockReset().mockResolvedValue(undefined);
+    const captureCanvas = vi.fn(async () => 'data:image/jpeg;base64,AA');
+    const jpegRefs = [{ current: { captureCanvas } }, { current: { captureCanvas } }] as never;
+    const { result } = renderHook(() =>
+      useMultiPageExport({ canvasRefs: jpegRefs, canvasType: 'x' })
+    );
+    await act(() => result.current.downloadAllAsZip('jpeg'));
+
+    expect(captureCanvas).toHaveBeenCalledWith({ format: 'jpeg' });
+    expect(downloadDataUrl).toHaveBeenNthCalledWith(
+      1,
+      'data:image/jpeg;base64,AA',
+      'gruenerator-x-seite-1.jpg'
+    );
+  });
+});
