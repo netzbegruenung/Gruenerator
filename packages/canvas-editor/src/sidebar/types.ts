@@ -65,15 +65,7 @@ export interface TextSectionProps {
   onUpdateAdditionalTextFontSize?: (id: string, size: number) => void;
 }
 
-// Stock image attribution interface (imported from image service)
-export interface StockImageAttribution {
-  photographer: string;
-  profileUrl: string;
-  photoUrl: string;
-  downloadLocation?: string;
-  /** Without the `@`; credited in the post text when present. */
-  instagramUsername?: string;
-}
+export type { StockImageAttribution } from '../common/imageSourceTypes';
 
 export interface ImageSectionProps {
   scale: number;
