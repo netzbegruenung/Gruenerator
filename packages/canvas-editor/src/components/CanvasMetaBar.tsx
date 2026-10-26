@@ -83,7 +83,7 @@ export const CanvasMetaBar = memo(function CanvasMetaBar({
       </span>
 
       <span
-        className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[var(--editor-inset)] text-[11px] text-[var(--editor-text-muted)] select-none"
+        className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[var(--editor-inset)] text-[11px] text-[var(--editor-text-secondary)] select-none"
         title={`Seite ${currentPageIndex + 1} von ${pageCount}`}
         aria-label={`Seite ${currentPageIndex + 1} von ${pageCount}`}
       >

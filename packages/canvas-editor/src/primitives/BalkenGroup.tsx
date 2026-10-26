@@ -326,6 +326,7 @@ function BalkenGroupInner({
       const corner = textNode.getAbsoluteTransform().point({ x: 0, y: verticalOffset });
 
       input.value = textNode.text();
+      input.setAttribute('aria-label', `Zeile ${index + 1} bearbeiten`);
       input.style.position = 'absolute';
       input.style.top = `${stageBox.top + scrollY + corner.y * cssScale}px`;
       input.style.left = `${stageBox.left + scrollX + corner.x * cssScale}px`;

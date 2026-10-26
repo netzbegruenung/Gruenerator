@@ -150,7 +150,12 @@ export function RichTextField({
     // selbst muss nicht bei jeder Transaktion neu rendern.
     shouldRerenderOnTransaction: false,
     editorProps: {
-      attributes: { class: 'canvas-rte__content' },
+      attributes: {
+        class: 'canvas-rte__content',
+        role: 'textbox',
+        'aria-multiline': 'true',
+        'aria-label': 'Text bearbeiten',
+      },
       handleKeyDown: (_view, event) => {
         if (event.key === 'Escape') {
           callbacks.current.onEscape?.();

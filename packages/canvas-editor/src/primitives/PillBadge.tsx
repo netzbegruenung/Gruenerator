@@ -193,6 +193,7 @@ function PillBadgeInner({
     const scaledWidth = dimensions.width * nodeScale;
 
     textarea.value = text;
+    textarea.setAttribute('aria-label', 'Text bearbeiten');
     textarea.style.position = 'absolute';
     textarea.style.top = `${stageBox.top + scrollY + absolutePos.y * cssScale + scaledPaddingY}px`;
     textarea.style.left = `${stageBox.left + scrollX + absolutePos.x * cssScale + scaledPaddingX}px`;

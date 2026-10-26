@@ -204,6 +204,7 @@ function CircleBadgeInner({
       const textH = line.fontSize * lineHeight;
 
       input.value = line.text;
+      input.setAttribute('aria-label', 'Text bearbeiten');
       input.style.position = 'absolute';
       input.style.top = `${stageBox.top + scrollY + textPosition.y * cssScale}px`;
       input.style.left = `${stageBox.left + scrollX + textPosition.x * cssScale}px`;
