@@ -29,6 +29,15 @@ const log = createLogger('ConfirmController');
 const router = createAuthenticatedRouter();
 router.use(express.json());
 
+async function isNonTextDocument(documentId: string): Promise<boolean> {
+  const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
+  const rows = (await getPostgresInstance().query(
+    'SELECT document_subtype FROM collaborative_documents WHERE id = $1 AND is_deleted = false',
+    [documentId]
+  )) as { document_subtype: string | null }[];
+  return ['presentations', 'sheets', 'boards'].includes(rows[0]?.document_subtype ?? '');
+}
+
 /**
  * Check if a user has write access to a collaborative_documents row.
  * Checks: owner → direct permission (owner/editor) → group share (write: true).
@@ -117,6 +126,13 @@ export async function executeAction(
 
       if (!(await hasWriteAccess(docId, action.userId))) {
         throw new ConfirmActionRefusal('Keine Berechtigung, dieses Dokument zu bearbeiten.');
+      }
+      // The write below is BlockNote HTML. Decks, sheets and boards have their
+      // own models; an @doc pick on a deck (#4895) must not "update" it as text.
+      if (await isNonTextDocument(docId)) {
+        throw new ConfirmActionRefusal(
+          'Präsentationen, Tabellen und Boards lassen sich nicht als Text überschreiben — bitte im Editor ändern.'
+        );
       }
 
       // One write path: into the live Yjs document, which is what the editor

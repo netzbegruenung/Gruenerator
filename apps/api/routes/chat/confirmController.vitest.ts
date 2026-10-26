@@ -8,6 +8,10 @@ const repo = vi.hoisted(() => ({
 vi.mock('../../services/user/textFormRepository.js', () => repo);
 vi.mock('./services/pendingActionStore.js', () => ({ pendingActionStore: {} }));
 vi.mock('./services/threadPersistenceService.js', () => ({}));
+const pg = vi.hoisted(() => ({ query: vi.fn() }));
+vi.mock('../../database/services/PostgresService.js', () => ({ getPostgresInstance: () => pg }));
+const docContent = vi.hoisted(() => ({ replaceDocumentHtml: vi.fn() }));
+vi.mock('../../services/docs/docContentService.js', () => docContent);
 
 const { executeAction } = await import('./confirmController.js');
 
@@ -48,5 +52,46 @@ describe('share_text_form', () => {
     repo.shareTextFormWithGroup.mockResolvedValue([]);
 
     await expect(executeAction(action)).rejects.toThrow('nicht Mitglied');
+  });
+});
+
+// modify_doc schreibt BlockNote-HTML. Ein Deck, eine Tabelle oder ein Board
+// hat ein eigenes Modell; ein @doc-Pick auf eine Präsentation (#4895) darf es
+// nicht mit Text überschreiben und „aktualisiert" melden.
+describe('modify_doc', () => {
+  const modify: PendingAction = {
+    actionId: 'a2',
+    threadId: 't1',
+    userId: 'u1',
+    title: 'Dokument aktualisieren',
+    preview: '',
+    createdAt: 0,
+    type: 'modify_doc',
+    payload: { docId: 'p1', newContent: '<p>Neu</p>' },
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('refuses to overwrite a presentation with text', async () => {
+    pg.query.mockResolvedValue([
+      { created_by: 'u1', permissions: null, document_subtype: 'presentations' },
+    ]);
+
+    await expect(executeAction(modify)).rejects.toThrow('Präsentationen');
+    expect(docContent.replaceDocumentHtml).not.toHaveBeenCalled();
+  });
+
+  it('writes a text document', async () => {
+    pg.query.mockResolvedValue([{ created_by: 'u1', permissions: null, document_subtype: 'docs' }]);
+    docContent.replaceDocumentHtml.mockResolvedValue({ html: '<p>Neu</p>', live: true });
+
+    const result = await executeAction(modify);
+
+    expect(docContent.replaceDocumentHtml).toHaveBeenCalledWith('p1', '<p>Neu</p>', {
+      userId: 'u1',
+    });
+    expect(result.url).toBe('/document/p1');
   });
 });
