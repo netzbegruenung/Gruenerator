@@ -33,7 +33,7 @@ export function FontSizeStepper({ value, onChange, min = 12, max = 200 }: FontSi
   };
 
   return (
-    <div className="flex items-center gap-0.5 bg-editor-tile rounded-full p-0.5 max-canvas-mobile:[&_button]:w-5 max-canvas-mobile:[&_button]:h-5">
+    <div className="flex items-center gap-0.5 bg-editor-tile rounded-full p-0.5 max-canvas-mobile:[&_button]:w-6 max-canvas-mobile:[&_button]:h-6">
       <button
         type="button"
         className="touch-target w-6 h-6 rounded-full border-none bg-transparent cursor-pointer flex items-center justify-center text-foreground transition-[background-color,color] duration-200 hover:not-disabled:bg-hover-alt hover:not-disabled:text-primary-600 active:not-disabled:bg-editor-canvas-hover disabled:opacity-30 disabled:cursor-not-allowed disabled:text-grey-400"
@@ -45,7 +45,7 @@ export function FontSizeStepper({ value, onChange, min = 12, max = 200 }: FontSi
       </button>
       <input
         type="number"
-        className={`pointer-coarse:relative pointer-coarse:z-[1] w-9 h-6 border-none bg-transparent text-center text-[0.8125rem] font-semibold text-foreground tabular-nums p-0 [appearance:textfield] [-moz-appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none max-canvas-mobile:w-8 max-canvas-mobile:h-6 ${MOBILE_INPUT_TEXT}`}
+        className={`pointer-coarse:relative pointer-coarse:z-[1] w-9 h-6 border-none bg-transparent text-center text-[0.8125rem] font-semibold text-foreground tabular-nums p-0 [appearance:textfield] [-moz-appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none outline-none kbd:focus-visible:outline-2 kbd:focus-visible:outline-solid kbd:focus-visible:outline-offset-2 kbd:focus-visible:outline-[var(--editor-accent)] max-canvas-mobile:w-8 max-canvas-mobile:h-6 ${MOBILE_INPUT_TEXT}`}
         value={Math.round(value)}
         onChange={handleInputChange}
         min={min}

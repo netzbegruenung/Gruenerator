@@ -1,6 +1,13 @@
+import { existsSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 
+import { brandFontPath } from '../../services/fonts/brandFonts.js';
+
 import { countLines, deckFaces, metricsReady } from './slideTextMetrics.js';
+
+// Gotham comes from the private content checkout, which CI does not have.
+const withoutGotham = !existsSync(brandFontPath('GothamNarrow-Book.otf'));
 
 const DE = deckFaces('de-DE');
 const AT = deckFaces('de-AT');
@@ -74,7 +81,7 @@ describe('countLines', () => {
     expect(bold).toBeGreaterThanOrEqual(regular);
   });
 
-  it('measures the AT body face separately from DE', async () => {
+  it.skipIf(withoutGotham)('measures the AT body face separately from DE', async () => {
     // The brands wrap differently (Gotham Narrow Book vs PT Sans) — the point
     // is that the brand reaches the measurement at all, not which is wider.
     const text = 'Ein Satz über die Verkehrswende in Österreich und anderswo';

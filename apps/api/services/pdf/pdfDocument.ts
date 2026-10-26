@@ -226,7 +226,7 @@ export const pdfDocumentFromModelSchema = z.preprocess(
 
 /**
  * The schema shown to the MODEL for the forced tool call — deliberately NOT
- * `zodToJsonSchema(pdfDocumentSchema)`.
+ * `toolInputJsonSchema(pdfDocumentSchema)`.
  *
  * That would emit an 11-member discriminated union plus a nested
  * string|object union inside list items, i.e. deep `anyOf`. gpt-oss (via

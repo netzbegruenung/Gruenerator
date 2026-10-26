@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
 
+import { editorSkipsKey } from '../../../utils/keyboardOwnership';
+
 /**
  * Markiert ein Overlay über dem Editor (Präsentationsmodus): Tasten aus ihm
  * lösen kein Seiten-Undo aus. Der Handler hier hört in der Capture-Phase auf
@@ -34,13 +36,8 @@ export function usePageUndoRedoShortcuts({
 }: UsePageUndoRedoShortcutsParams): void {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (editorSkipsKey(e)) return;
       const target = e.target as HTMLElement | null;
-      if (
-        target &&
-        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
-      ) {
-        return;
-      }
       if (target?.closest?.(`[${EDITOR_KEY_SHIELD_ATTRIBUTE}]`)) return;
       const isMac = navigator.platform.toLowerCase().includes('mac');
       const modKey = isMac ? e.metaKey : e.ctrlKey;

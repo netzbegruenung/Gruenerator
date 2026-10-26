@@ -43,10 +43,10 @@ export const podcastsContract = c.router(
     retry: {
       method: 'POST',
       path: '/api/podcasts/:id/retry',
-      pathParams: z.object({ id: z.string().uuid() }),
+      pathParams: z.object({ id: z.string().guid() }),
       body: c.noBody(),
       responses: {
-        202: z.object({ id: z.string().uuid() }),
+        202: z.object({ id: z.string().guid() }),
         404: podcastErrorSchema,
         409: podcastErrorSchema,
       },
@@ -55,7 +55,7 @@ export const podcastsContract = c.router(
     remove: {
       method: 'DELETE',
       path: '/api/podcasts/:id',
-      pathParams: z.object({ id: z.string().uuid() }),
+      pathParams: z.object({ id: z.string().guid() }),
       body: c.noBody(),
       responses: {
         200: z.object({ success: z.literal(true) }),

@@ -51,7 +51,7 @@ export const entityCommentsContract = c.router(
     deleteEntityComment: {
       method: 'DELETE',
       path: '/api/comments/:entityType/:entityId/:commentId',
-      pathParams: itemParams.extend({ commentId: z.string().uuid() }),
+      pathParams: itemParams.extend({ commentId: z.string().guid() }),
       body: c.noBody(),
       responses: { 200: z.object({ success: z.literal(true) }), ...errors },
       summary: 'Delete a comment (author or item owner)',

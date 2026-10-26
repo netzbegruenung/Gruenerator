@@ -2,7 +2,7 @@ import { useFonts } from 'expo-font';
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 
-import grueneType from '../../assets/fonts/GrueneType.ttf';
+import { brandFontSource } from '../../services/brandFonts';
 import { spacing, HEADING_FONT_BOLD } from '../../theme';
 
 /**
@@ -17,8 +17,8 @@ import { spacing, HEADING_FONT_BOLD } from '../../theme';
  * they stay identical in dark mode because the webp covers beside them cannot
  * react to the theme either.
  *
- * GrueneType is loaded at runtime rather than linked, so it reaches installed
- * binaries by OTA; until it has loaded the title is set in Raleway.
+ * GrueneType is loaded at runtime from the API rather than linked; until it has
+ * loaded (or when offline) the title is set in Raleway.
  *
  * One thing differs from web, forced:
  *
@@ -73,7 +73,7 @@ export function NotebookCoverArt({
   size: number;
   reserveTopRight?: boolean;
 }) {
-  const [brandFontLoaded] = useFonts({ GrueneType: grueneType });
+  const [brandFontLoaded] = useFonts({ GrueneType: brandFontSource('GrueneType.ttf') });
   const fontSize = Math.round(size * titleRatio(title));
   // Web's title box is `top: 8%` / `bottom: 24%`. Reserving the corner moves the
   // top down; the bottom must stay put, or a long name grows past 76% and runs

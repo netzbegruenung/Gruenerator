@@ -47,7 +47,7 @@ export const explainablesContract = c.router(
     updateShare: {
       method: 'PATCH',
       path: '/api/explainables/:id/share',
-      pathParams: z.object({ id: z.string().uuid() }),
+      pathParams: z.object({ id: z.string().guid() }),
       body: updateExplainableShareBodySchema,
       responses: {
         200: explainableShareResponseSchema,
@@ -58,7 +58,7 @@ export const explainablesContract = c.router(
     remove: {
       method: 'DELETE',
       path: '/api/explainables/:id',
-      pathParams: z.object({ id: z.string().uuid() }),
+      pathParams: z.object({ id: z.string().guid() }),
       body: c.noBody(),
       responses: {
         200: z.object({ success: z.literal(true) }),

@@ -25,9 +25,13 @@ import { composeCreatorSharepic } from '../../../src/features/image-studio/freit
 import { renderPreviews } from '../../../src/features/image-studio/freitext/creatorRender';
 import { renderSharepicToImage } from '../../../src/features/image-studio/renderSharepicToImage';
 
+import { installHarnessBrandFonts } from './brandFonts';
 import './sharepicHarness';
-// The brand faces (GrueneType, PT Sans, Gotham …), as the app declares them.
+// The open faces (PT Sans, Raleway, Vollkorn) as the app declares them; the
+// brand faces come from the private checkout.
 import '../../../src/assets/styles/common/typography.css';
+
+installHarnessBrandFonts();
 
 // Vite serves the API's stock photos by their file URLs — a path under /api
 // would hit the dev proxy instead.

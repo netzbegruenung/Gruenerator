@@ -47,7 +47,6 @@ Ergebnis: **12 von 16 Alerts sind mit fünf Override-Zeilen und einem Familien-B
 | Lint/TS-Toolchain | `eslint` 9→10, `@eslint/js` 9→10, `typescript` 6→7 | Weiter blockiert: `eslint-plugin-react` peert `<=^9.7`, `typescript-eslint` 8.68 peert `typescript <6.1.0`. Nachgeprüft 03.09.2026 — die `ignore`-Einträge in `dependabot.yml` bleiben richtig |
 | Gutenberg | `@wordpress/scripts` 31→34, `components` 32→40, `block-editor` 15→17, `base-styles` 6→13, `sass-loader` 16→17 | `wp-scripts` 34 zieht `eslint ^10` — hängt am Cluster darüber. Ein PR, nach dem eslint-10-Unblock |
 | Expo-SDK-Familie | `react-native-gesture-handler` 2→3, `-webview` 13→14, `-pager-view` 8→9, `@react-native-async-storage` 2→3, `@expo/dom-webview` 56→57, `expo-speech-recognition` 56→57, `jest` 29→30, `@types/jest`, `@testing-library/react-native` 13→14 | Nur mit `npx expo install --fix` beim SDK-58-Upgrade. Dependabot ignoriert die Namensräume bewusst |
-| Zod 4 | `zod` 3.25→4.5 (api, contracts, ui) | Eigenes Migrationsprojekt; die vier scoped `>zod`-Overrides fallen dann mit |
 | Einzelne Libs | `openai` 6→7 (api), `motion` 12→13 (ui, web, wolke), `@tanstack/react-table` 8→9 (web), `react-dropzone` 19→20 (ui, web) | Je ein kleiner, bewusster PR mit Changelog-Lektüre; `react-dropzone` steht als Singleton in den Overrides, also Override mitziehen |
 
 ### Cargo (Desktop): die Lane ist still
@@ -138,7 +137,7 @@ Dependabot-seitig ergänzend: `cooldown: { default-days: 3 }` auf dem npm-Eintra
 - **Kein Auto-Merge.** Der Grund steht in `dependabot-auto-merge.yml`: `allow_auto_merge` ist aus, Squash ist verboten, und jeder Override-PR bricht ohnehin. Auto-Approve bleibt.
 - **Kein wöchentliches `pnpm update -r`.** Es hebt Floors, dreht Familien auseinander und ist der Weg in die vier Ausfallarten.
 - **Kein Bundle-Scanner als Dritter** (Snyk/Socket). Dependabot + `pnpm audit` + CodeQL + GitGuardian decken den Bedarf; ein weiterer Dienst produziert eine dritte Alert-Liste ohne dritte Wahrheit.
-- **Kein globaler Override für `zod` 4 / `react`** — beide sind bewusst dokumentierte Ausnahmen (`CLAUDE.md` › Expo Apps, `dependabot.yml`).
+- **Kein globaler Override für `react`** — bewusst dokumentierte Ausnahme (`CLAUDE.md` › Expo Apps, `dependabot.yml`). zod steht seit 10/2026 auf 4 (Floor `zod@>=4 <5: '>=4.6.6 <5'`); `@ts-rest/core` trägt bis zur Entscheidung über ts-rest einen reinen Typ-Patch.
 
 ---
 

@@ -205,7 +205,7 @@ export function buildCanvasMenu(snapshot: CanvasMenuSnapshot, env: CanvasMenuEnv
 
   const type = snapshot.module?.type;
   const own: CanvasMenuEntry[] = [];
-  if (type === 'text') own.push(item('editText', { disabled: snapshot.isCropping }));
+  if (caps.canEditText) own.push(item('editText', { disabled: snapshot.isCropping }));
   if (type === 'user-image' && env.canEditImage) own.push(item('editImage'));
   if (type === 'frame') own.push(item('insertFrameImage'));
 

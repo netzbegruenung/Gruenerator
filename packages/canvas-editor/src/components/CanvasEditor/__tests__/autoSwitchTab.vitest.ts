@@ -12,6 +12,11 @@ describe('autoSwitchTab', () => {
     expect(autoSwitchTab('chat', null, null)).toEqual({ tab: 'chat', prev: null });
   });
 
+  it('keeps the Ebenen open — selecting a balken there must not swap the list away', () => {
+    expect(autoSwitchTab('layers', 'settings', null)).toEqual({ tab: 'layers', prev: null });
+    expect(autoSwitchTab('layers', null, null)).toEqual({ tab: 'layers', prev: null });
+  });
+
   it('still switches from another tab and restores it on deselect', () => {
     const switched = autoSwitchTab('text', 'frame-settings', null);
     expect(switched).toEqual({ tab: 'frame-settings', prev: 'text' });

@@ -8,6 +8,7 @@ import { type FloatingModuleState } from '../../hooks/useFloatingModuleState';
 import { formatShortcut, isMacPlatform, shortcutOf } from '../../utils/canvasCommandRegistry';
 import { type SelectionGeometry } from '../../utils/canvasCommands';
 import { type CropAspectId } from '../../utils/cropAspect';
+import { focusPage, isKeyboardModality } from '../../utils/editorFocus';
 import { type GradientFill } from '../../utils/gradientFill';
 import { type LockState } from '../../utils/layerLock';
 import { BRAND_COLORS, FONT_COLORS, STROKE_ONLY_SHAPES } from '../../utils/shapes';
@@ -468,7 +469,14 @@ export function ContextControls({
         key="crop-image"
         disabled={isLocked}
         className={CROP_BTN}
-        onClick={() => handlers.handleCropImage!()}
+        onClick={(e) => {
+          handlers.handleCropImage!();
+          // Per Tastatur begonnen: der Fokus geht auf die Seite, damit die
+          // Pfeile den Ausschnitt schieben — in der mobilen Werkzeugleiste
+          // gehören sie sonst dem Wechsel zwischen den Knöpfen. Enter auf der
+          // Seite beendet den Ausschnitt (useCanvasKeyboardHandlers).
+          if (!isCropping && isKeyboardModality()) focusPage(e.currentTarget);
+        }}
         title="Zuschneiden (oder Doppelklick aufs Bild; Enter zum Beenden)"
         aria-pressed={isCropping}
         type="button"

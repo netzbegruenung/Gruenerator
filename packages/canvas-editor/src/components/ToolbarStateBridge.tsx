@@ -11,7 +11,7 @@
  */
 
 import { toast } from '@gruenerator/ui';
-import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 
 import { useCanvasEditorServices } from '../CanvasEditorProvider';
 import { useFloatingModuleHandlers } from '../hooks/useFloatingModuleHandlers';
@@ -24,6 +24,7 @@ import {
 } from '../stores/CanvasStoreProvider';
 import { cropRotationOf, cropRotationUpdate } from '../utils/cropSession';
 import { cropImageSrc, expandResetPatch, expandTarget } from '../utils/expandImage';
+import { pageLayerLabels } from '../utils/layerLabels';
 import { buildPlacementUrl, fetchShareImageFile } from '../utils/mediaPlacement';
 import { findOrientationDoor } from '../utils/orientElement';
 import { selectionCapabilities } from '../utils/selectionCapabilities';
@@ -142,6 +143,8 @@ export function ToolbarStateBridge<
   });
 
   const selectedLayerIds = useCanvasStoreShallow((s) => s.selectedLayerIds);
+  // Die Ebenen-Liste der Seitenleiste liest die Seite nur über diesen Bericht.
+  const layers = useMemo(() => pageLayerLabels(sortedRenderList, state), [sortedRenderList, state]);
   const setCroppingElement = useCanvasStoreSelector((s) => s.setCroppingElement);
   const isCropping = useCanvasStoreSelector(
     (s) => s.croppingElement !== null && s.croppingElement === s.selectedElement
@@ -367,6 +370,8 @@ export function ToolbarStateBridge<
       canFlip: capabilities.canFlip,
       canAlign: capabilities.canAlign,
       canDistribute: capabilities.canDistribute,
+      layers,
+      selectedLayerIds,
     });
   }, [
     isCropping,
@@ -387,6 +392,8 @@ export function ToolbarStateBridge<
     capabilities.canFlip,
     capabilities.canAlign,
     capabilities.canDistribute,
+    layers,
+    selectedLayerIds,
     onToolbarStateChange,
   ]);
 

@@ -34,6 +34,7 @@ import {
   useFontGeneration,
   useFontLoader,
 } from '../hooks';
+import { useAnnounce } from '../hooks/useAnnounce';
 import { useCanvasAutoSave } from '../hooks/useCanvasAutoSave';
 import { useCanvasElementHandlers } from '../hooks/useCanvasElementHandlers';
 import { useCanvasKeyboardHandlers } from '../hooks/useCanvasKeyboardHandlers';
@@ -41,6 +42,7 @@ import { useContextPress } from '../hooks/useContextPress';
 import { useCropSession } from '../hooks/useCropSession';
 import { useDeepSelect } from '../hooks/useDeepSelect';
 import { floatingModuleFor } from '../hooks/useFloatingModuleState';
+import { useSelectionAnnouncement } from '../hooks/useSelectionAnnouncement';
 import { CanvasStage, SnapGuidelines } from '../primitives';
 import {
   CanvasStoreProvider,
@@ -65,6 +67,8 @@ import { type CropAspectId } from '../utils/cropAspect';
 import { itemBodyRect } from '../utils/deepSelect';
 import { ensureFontsReady } from '../utils/ensureFontsReady';
 import { MAX_ICON_SELECTIONS, selectedCatalogIconIds } from '../utils/iconInstances';
+import { layerLabel, pageLayerLabels, stageSummary } from '../utils/layerLabels';
+import { applyLayerSelection, type LayerSelectionChange } from '../utils/layerSelection';
 import { locateDrop, type ElementDragPayload, type MediaDragPayload } from '../utils/mediaDrop';
 import { selectableItemIds } from '../utils/multiSelect';
 import { type ViewportRect, rotaterRects, visibleArea } from '../utils/orientation';
@@ -94,6 +98,7 @@ import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
 import type { PageCommandId } from '../utils/canvasCommandRegistry';
 import type { GradientFill } from '../utils/gradientFill';
+import type { LayerEntry } from '../utils/layerLabels';
 import type { LockState } from '../utils/layerLock';
 import type { TextAlign } from '../utils/textAlign';
 import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
@@ -133,6 +138,10 @@ export interface ToolbarStateReport {
   /** Ausrichten, Verteilen und Position — siehe `utils/selectionCapabilities.ts`. */
   canAlign: boolean;
   canDistribute: boolean;
+  /** Die Elemente der Seite für die Ebenen-Liste, vorderstes zuerst (`utils/layerLabels.ts`). */
+  layers: readonly LayerEntry[];
+  /** Alle ausgewählten Ids, auch bei Mehrfachauswahl. */
+  selectedLayerIds: readonly string[];
 }
 
 export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActions> {
@@ -194,6 +203,8 @@ export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActio
    * registers on `window`. Single-canvas hosts leave it at the default.
    */
   isActivePage?: boolean;
+  /** Seitennummer (ab 1) für die Beschriftung der Bühne; ohne: „Zeichenfläche“. */
+  pageNumber?: number;
   /**
    * Shown to a viewer: rendered and exportable, but no hit graph, no
    * selection, marquee or context press, and no keyboard shortcuts.
@@ -275,6 +286,8 @@ export interface GenericCanvasRef {
   /** Clears this page's element selection — the per-page store lives behind
    *  CanvasStoreProvider, so the parent editor reaches it through this handle. */
   deselect: () => void;
+  /** Auswahl aus der Ebenen-Liste der Seitenleiste. */
+  selectLayers?: (change: LayerSelectionChange) => void;
   /** Starts a marquee selection from a press outside the stage (the work area). */
   beginMarquee: (evt: MouseEvent) => void;
   /** Places a dragged upload where it was dropped: into the frame under the
@@ -350,6 +363,7 @@ function GenericCanvasWithRef<
     onAutoSaveShareToken,
     preview = false,
     isActivePage = true,
+    pageNumber,
     readOnly = false,
   } = props;
   const interactive = !preview && !readOnly;
@@ -746,6 +760,15 @@ function GenericCanvasWithRef<
     [canvasItems, state.layerOrder]
   );
 
+  const stageLabel = useMemo(
+    () =>
+      stageSummary(
+        pageLayerLabels(sortedRenderList, state),
+        pageNumber ? `Seite ${pageNumber}` : 'Zeichenfläche'
+      ),
+    [sortedRenderList, state, pageNumber]
+  );
+
   // The doors read the page at call time, not from a render closure: a menu
   // or key acts on what is on screen now.
   const commandInputsRef = useRef({ layout, sortedRenderList, actions });
@@ -753,6 +776,7 @@ function GenericCanvasWithRef<
     commandInputsRef.current = { layout, sortedRenderList, actions };
   }, [layout, sortedRenderList, actions]);
   const logicalScale = stageWidth / referenceWidth;
+  const announce = useAnnounce();
   const commands = useMemo(
     () =>
       createCanvasCommands<TState>({
@@ -777,6 +801,7 @@ function GenericCanvasWithRef<
         getLayout: () => commandInputsRef.current.layout,
         isReadOnly: () => !interactive,
         getPageSize: () => ({ width: referenceWidth, height: referenceHeight }),
+        announce,
       }),
     [
       store,
@@ -788,7 +813,18 @@ function GenericCanvasWithRef<
       interactive,
       referenceWidth,
       referenceHeight,
+      announce,
     ]
+  );
+
+  // Selection changes are announced from the page's own store (debounced).
+  useSelectionAnnouncement(
+    store,
+    (id) => {
+      const item = commandInputsRef.current.sortedRenderList.find((entry) => entry.id === id);
+      return item ? layerLabel(item, committedStateRef.current) : null;
+    },
+    isActivePage
   );
 
   // The multi-selection transformer asks this when the selection changes, so a
@@ -873,6 +909,7 @@ function GenericCanvasWithRef<
         return rasterizeStageElement(stageRef.current?.getStage() ?? null, elementId);
       },
       deselect: () => setSelectedElement(null),
+      selectLayers: (change) => applyLayerSelection(store, change),
       beginMarquee,
       dropMedia: (evt, media) => {
         const stage = stageRef.current?.getStage();
@@ -1103,6 +1140,7 @@ function GenericCanvasWithRef<
         maxContainerWidth={maxWidth}
         onStageClick={handleStageClick}
         listening={interactive}
+        ariaLabel={stageLabel}
         className={`${config.id}-stage`}
         overlay={interactive ? <CropGhostOverlay getStage={getStage} /> : null}
       >

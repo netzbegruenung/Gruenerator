@@ -38,6 +38,24 @@ export function FloatingColorPicker({
   const isExpanded = externalExpanded !== undefined ? externalExpanded : internalExpanded;
   const setIsExpanded = onExpandChange || setInternalExpanded;
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const wasExpanded = React.useRef(isExpanded);
+
+  // The trigger and the swatch row replace each other, so focus would be lost
+  // on every toggle: move it into the row on open, back to the trigger on close.
+  React.useEffect(() => {
+    if (wasExpanded.current === isExpanded) return;
+    wasExpanded.current = isExpanded;
+    const container = containerRef.current;
+    if (!container) return;
+    if (isExpanded) {
+      const target =
+        container.querySelector<HTMLElement>('button[aria-pressed="true"]') ??
+        container.querySelector<HTMLElement>('button, input');
+      target?.focus();
+    } else if (!document.activeElement || document.activeElement === document.body) {
+      container.querySelector<HTMLElement>('button')?.focus();
+    }
+  }, [isExpanded]);
 
   React.useEffect(() => {
     if (!isExpanded) return;
@@ -74,7 +92,7 @@ export function FloatingColorPicker({
             }}
             title="Textfarbe ändern"
             type="button"
-            aria-expanded="false"
+            aria-expanded={false}
             aria-label="Farbpalette öffnen"
           >
             <span className="text-[15px] font-bold leading-none">A</span>
@@ -93,7 +111,7 @@ export function FloatingColorPicker({
             }}
             title="Farbe ändern"
             type="button"
-            aria-expanded="false"
+            aria-expanded={false}
             aria-label="Farbpalette öffnen"
           />
         )}
@@ -102,9 +120,19 @@ export function FloatingColorPicker({
   }
 
   return (
+    // Escape bubbles up from the focused swatch; the group itself is not a widget.
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <div
       className="flex items-center gap-2 px-1 animate-canvas-expand-width max-canvas-mobile:gap-[18px] max-canvas-mobile:px-[9px]"
       ref={containerRef}
+      role="group"
+      aria-label="Farbpalette"
+      onKeyDown={(e) => {
+        if (e.key !== 'Escape') return;
+        // Close the row only; the canvas must not also deselect.
+        e.stopPropagation();
+        setIsExpanded(false);
+      }}
     >
       {colorOptions.map((color) => (
         <button
@@ -120,6 +148,8 @@ export function FloatingColorPicker({
             onColorSelect(color.value);
           }}
           title={color.name}
+          aria-label={color.name}
+          aria-pressed={currentColor === color.value}
           type="button"
         />
       ))}

@@ -397,8 +397,8 @@ export const veranstaltungFullConfig: FullCanvasConfig<
   ai: veranstaltungAiCapabilities,
 
   tabs: [
-    { id: 'text', icon: PiTextAa, label: 'Text', ariaLabel: 'Texte hinzufügen' },
-    { id: 'assets', icon: PiSquaresFourFill, label: 'Elemente', ariaLabel: 'Dekorative Elemente' },
+    { id: 'text', icon: PiTextAa, label: 'Text', ariaLabel: 'Text hinzufügen' },
+    { id: 'assets', icon: PiSquaresFourFill, label: 'Elemente', ariaLabel: 'Elemente hinzufügen' },
     {
       id: 'frame-settings',
       icon: PiFrameCornersFill,

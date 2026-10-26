@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 
 import { commandForKey } from '../utils/canvasCommandRegistry';
+import { isPageFocusTarget, returnFocusToPage } from '../utils/editorFocus';
+import { isTextEditingTarget, isWidgetOwnedKey } from '../utils/keyboardOwnership';
 import { isLayerLocked } from '../utils/layerLock';
 import { assertAsPosition } from '../utils/stateTypeAssertions';
 
@@ -73,6 +75,15 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
   });
 
   useEffect(() => {
+    // Ging der Fokus mit dem Gelöschten verloren, landet er auf der Seite.
+    // Aus der Ebenen-Liste heraus nimmt ihn deren nächster Eintrag
+    // (`LayersSection`), nicht die Seite.
+    const keepFocusAfterRemoval = (target: EventTarget | null) => {
+      const from = target instanceof Element ? target : null;
+      if (from?.closest('[role="listbox"]')) return;
+      returnFocusToPage(from);
+    };
+
     const handleKeyDown = (e: KeyboardEvent) => {
       const selectedElement = store.getState().selectedElement;
       const currentState = stateRef.current;
@@ -82,14 +93,26 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
       // setzt dort kein Duplikat auf die Fläche, Strg+C/V meint die Textauswahl.
       // Der Schutz stand früher hinter Duplizieren/Einfügen/Kopieren und wirkte
       // deshalb fuer genau die drei nicht.
+      // Auch die Formatleiste des offenen Texteditors zählt als Tippen.
+      // Hat ein Widget die Taste schon verbraucht (Radix-Regler bei Alt+Pfeil),
+      // schiebt der Editor nicht noch zusätzlich.
+      if (e.defaultPrevented) return;
       const target = e.target as HTMLElement | null;
-      const isTyping =
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLTextAreaElement ||
-        target?.isContentEditable === true;
+      const isTyping = isTextEditingTarget(target);
       // Im offenen Kontextmenü gehören Pfeile, Enter und Escape dem Menü:
       // sonst schöbe ArrowDown das Element und Enter öffnete die Dateiauswahl.
       if (target instanceof Element && target.closest('[role="menu"]')) return;
+      // Ein per Tastatur begonnener Ausschnitt setzt den Fokus auf den
+      // Seiten-Knopf (ContextControls); dort heisst Enter „fertig", nicht
+      // „Seite wählen".
+      if (e.key === 'Enter' && isPageFocusTarget(target) && store.getState().croppingElement) {
+        e.preventDefault();
+        store.getState().setCroppingElement(null);
+        return;
+      }
+      // Was ein fokussiertes Widget selbst verbraucht (Pfeile am Regler, Enter
+      // am Knopf, Escape im Dialog), erreicht die Canvas-Aktionen nicht.
+      if (isWidgetOwnedKey(e)) return;
 
       // Ausschnitt mode: Escape or Enter ends it and keeps the photo selected;
       // the other keys wait, so an arrow cannot move the frame mid-crop.
@@ -129,6 +152,7 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
           if (selection.length === 0) break;
           e.preventDefault();
           commands.cut();
+          keepFocusAfterRemoval(target);
           return;
         case 'selectAll':
           e.preventDefault();
@@ -136,6 +160,7 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
           return;
         case 'delete':
           commands.remove();
+          if (selection.length > 0) keepFocusAfterRemoval(target);
           return;
         case 'insertFrameImage':
           if (selection.length === 1 && commands.insertFrameImage()) {
@@ -143,6 +168,13 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
             return;
           }
           break;
+        case 'editText':
+          // Nur ein Text: der Doppelklick, den die Tür auslöst, schaltete ein
+          // Bild in den Ausschnitt.
+          if (!commands.capabilities().canEditText) break;
+          e.preventDefault();
+          commands.editText();
+          return;
         case 'flipHorizontal':
         case 'flipVertical':
           if (selection.length === 0) break;

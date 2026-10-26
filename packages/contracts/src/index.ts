@@ -203,6 +203,7 @@ export * from './schemas/imageEdit.js';
 export * from './schemas/sharepicCreator.js';
 export * from './schemas/sharepicHandMarks.js';
 export * from './schemas/sharepicVorlagen.js';
+export * from './schemas/brandFonts.js';
 export * from './schemas/printCreator.js';
 export * from './schemas/adminVorlagen.js';
 export * from './schemas/userTemplates.js';

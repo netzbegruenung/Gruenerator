@@ -23,7 +23,7 @@ export type MemorySource = z.infer<typeof memorySourceSchema>;
 export const MEMORY_TEXT_MAX_CHARS = 400;
 
 export const userMemorySchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().guid(),
   kind: memoryKindSchema,
   text: z.string().min(1).max(MEMORY_TEXT_MAX_CHARS),
   source: memorySourceSchema,

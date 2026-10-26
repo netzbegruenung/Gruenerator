@@ -24,6 +24,7 @@ import { fileURLToPath } from 'url';
 
 import { type PresentationBrand } from '@gruenerator/contracts';
 
+import { brandFontPath } from '../../services/fonts/brandFonts.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('slideTextMetrics');
@@ -32,13 +33,13 @@ const FONT_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../
 
 /** Alias → font file, mirroring the `--deck-*-font` stacks in gruene-deck.css. */
 const FACE_FILES: Record<string, string> = {
-  'Deck-DE-Head': 'GrueneTypeNeue-Regular.ttf',
-  'Deck-DE-Body': 'PTSans-Regular.ttf',
-  'Deck-DE-BodyBold': 'PTSans-Bold.ttf',
-  'Deck-AT-Head': 'GothamNarrow-Ultra.ttf',
-  'Deck-AT-Body': 'GothamNarrow-Book.otf',
-  'Deck-AT-BodyBold': 'GothamNarrow-Bold.otf',
-  'Deck-Quote': 'Vollkorn-BoldItalic.ttf',
+  'Deck-DE-Head': brandFontPath('GrueneTypeNeue-Regular.ttf'),
+  'Deck-DE-Body': path.join(FONT_DIR, 'PTSans-Regular.ttf'),
+  'Deck-DE-BodyBold': path.join(FONT_DIR, 'PTSans-Bold.ttf'),
+  'Deck-AT-Head': brandFontPath('GothamNarrow-Ultra.ttf'),
+  'Deck-AT-Body': brandFontPath('GothamNarrow-Book.otf'),
+  'Deck-AT-BodyBold': brandFontPath('GothamNarrow-Bold.otf'),
+  'Deck-Quote': path.join(FONT_DIR, 'Vollkorn-BoldItalic.ttf'),
 };
 
 /** The four roles a measured run can take, as registered alias names. */
@@ -84,8 +85,10 @@ async function getMeasurer(): Promise<Measurer | null> {
     for (const [alias, file] of Object.entries(FACE_FILES)) {
       // A missing/unreadable file returns falsy rather than throwing — without
       // the check the alias silently measures in the fallback face.
-      if (!GlobalFonts.registerFromPath(path.join(FONT_DIR, file), alias)) {
-        log.warn(`Deck-Schrift ${alias} nicht registriert (${file}) — Maße werden geschätzt`);
+      if (!GlobalFonts.registerFromPath(file, alias)) {
+        log.warn(
+          `Deck-Schrift ${alias} nicht registriert (${path.basename(file)}) — Maße werden geschätzt`
+        );
       }
     }
     const ctx = createCanvas(8, 8).getContext('2d');
