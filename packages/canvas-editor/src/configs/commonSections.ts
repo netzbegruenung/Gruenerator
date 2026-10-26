@@ -45,7 +45,7 @@ export const uploadsTab: SidebarTab = {
   id: 'uploads',
   icon: HiArrowUpTray,
   label: 'Uploads',
-  ariaLabel: 'Eigene Bilder hochladen',
+  ariaLabel: 'Uploads: eigene Bilder hochladen',
 };
 
 interface ActionsWithUploads {
@@ -85,7 +85,7 @@ export const toolsTab: SidebarTab = {
   id: 'tools',
   icon: HiWrenchScrewdriver,
   label: 'Tools',
-  ariaLabel: 'KI-Bildwerkzeuge',
+  ariaLabel: 'Tools: KI-Bildwerkzeuge',
 };
 
 export const toolsSectionEntry = defineCommonSection({
@@ -195,7 +195,7 @@ export const chatTab: SidebarTab = {
   id: 'chat',
   icon: HiChatBubbleLeftRight,
   label: 'Chat',
-  ariaLabel: 'KI-Chat zum aktuellen Sharepic öffnen',
+  ariaLabel: 'Chat: KI-Chat zum aktuellen Sharepic öffnen',
 };
 
 /**
@@ -249,7 +249,9 @@ export function createChatSection<TState, TActions extends CanvasAiActionsBase>(
             applyOperations: (ops) => {
               let results: ApplyResult[] = [];
               const apply = () => {
-                results = ops.map((op) => applyOperation(op, actions, () => state, capabilities));
+                results = ops.map((op) =>
+                  applyOperation(op, actions, () => state, capabilities, context?.rotateElement)
+                );
               };
               // One batch, one undo step — the banner's "Verwerfen" is a single undo.
               if (actions.runHistoryBatch) actions.runHistoryBatch(apply);

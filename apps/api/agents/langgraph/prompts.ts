@@ -97,6 +97,19 @@ export function buildPlannerPromptGeneral(): PromptConfig {
 export type AnswerSurface = 'app' | 'mcp';
 
 /**
+ * The structure each answer prompt prescribes is the default, not a contract:
+ * without this block the model kept writing the default dossier even when the
+ * question asked for a table, three bullets or a post.
+ */
+const ANSWER_FORM_PRECEDENCE = [
+  '## ANTWORTFORM:',
+  '- Die folgenden Vorgaben zu Aufbau, Länge und Stil sind der Standard für Fragen, die keine eigene Form verlangen.',
+  '- Verlangt die Frage ausdrücklich eine Form, Länge, Anzahl oder Textsorte, liefere genau diese — sie hat Vorrang vor Antwort-Struktur, Stil-Regeln und den Verboten zu Listen und Länge. Dann keine Standard-Einleitung, keine zusätzlichen Abschnitte, keine Überschriften, die die Form nicht vorsieht.',
+  '- Was dieser Prompt zu Quellentreue und Quellenangaben festlegt, gilt in jeder Form unverändert — auch ein Verbot von Quellenangaben.',
+  '',
+];
+
+/**
  * Grundsatz-specific draft prompt (NotebookLM-Style, German)
  * Builds comprehensive, well-structured dossier prompts
  */
@@ -111,6 +124,7 @@ function buildDraftPrompt(
     `Du bist ein Experte für ${domain}. Schreibe ein umfassendes, gut strukturiertes Dossier im NotebookLM-Stil. Stütze dich dabei AUSSCHLIESSLICH auf die bereitgestellten Quellen.`,
     `Sammlung: ${collectionName}.`,
     '',
+    ...ANSWER_FORM_PRECEDENCE,
     '## ANTWORT-STRUKTUR:',
     '',
     '### 1. Einleitung (1-2 Sätze)',
@@ -196,6 +210,7 @@ function buildConcisePrompt(collectionName: string, isPolitical: boolean): Promp
     `Du bist ein Experte für ${domain}. Beantworte die Frage AUSSCHLIESSLICH basierend auf den Quellen. Schreibe eine präzise, kompakte Antwort.`,
     `Sammlung: ${collectionName}.`,
     '',
+    ...ANSWER_FORM_PRECEDENCE,
     '## ANTWORT-STRUKTUR:',
     '- Maximal 3-4 Absätze',
     '- Beantworte die Frage VOLLSTÄNDIG: keine Ein-Satz- oder Ein-Absatz-Antworten, wenn die Quellen mehr hergeben',
@@ -247,6 +262,7 @@ export function buildFastModePrompt(collectionName: string = 'Dokumente'): Promp
     'Du bist ein Experte für Dokumentenanalyse. Beantworte die Frage AUSSCHLIESSLICH basierend auf den bereitgestellten Informationen. Füge KEINE Informationen aus eigenem Wissen hinzu.',
     `Sammlung: ${collectionName}.`,
     '',
+    ...ANSWER_FORM_PRECEDENCE,
     '## ANTWORT-REGELN:',
     '- Antworte präzise und sachlich auf Deutsch',
     '- Antworte in normaler Länge (mehrere Absätze), nicht nur in Stichpunkten oder einem Kurzabsatz',

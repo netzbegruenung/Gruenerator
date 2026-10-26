@@ -45,7 +45,11 @@ export const CANVAS_COMMANDS = {
   sendBackward: { label: 'Nach hinten', scope: 'page', shortcut: null },
   sendToBack: { label: 'Ganz nach hinten', scope: 'page', shortcut: null },
   toggleLock: { label: 'Sperren', scope: 'page', shortcut: null },
-  editText: { label: 'Text bearbeiten', scope: 'page', shortcut: null },
+  editText: {
+    label: 'Text bearbeiten',
+    scope: 'page',
+    shortcut: { key: 'F2', mod: false, shift: false, alsoKeys: [] },
+  },
   insertFrameImage: {
     label: 'Bild einsetzen',
     scope: 'page',

@@ -79,6 +79,14 @@ export function TransformHud({
       // keeps its size under the page zoom.
       const w = badge.offsetWidth;
       const h = badge.offsetHeight;
+      // Rotating: the angle sits at the pointer (Canva pattern); resizing: below the box.
+      const pointer = anchor === 'rotater' ? stage.getPointerPosition() : null;
+      if (pointer) {
+        const x = Math.min(pointer.x + GAP / css, stage.width() - w / css);
+        const y = Math.min(pointer.y + GAP / css, stage.height() - h / css);
+        badge.style.transform = `translate(${Math.max(0, x)}px, ${Math.max(0, y)}px) scale(${1 / css})`;
+        return;
+      }
       const left = Math.min(
         Math.max(rect.x + rect.width / 2, w / (2 * css)),
         stage.width() - w / (2 * css)

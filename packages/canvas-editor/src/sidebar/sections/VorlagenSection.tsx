@@ -69,6 +69,7 @@ import {
   isSlideFormat,
   type PrintCanvasFormat,
 } from '../../formats';
+import { useAnnounce } from '../../hooks/useAnnounce';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
 import { SlideLayoutPicker } from '../../slides/SlideLayoutPicker';
 import {
@@ -373,6 +374,7 @@ export function VorlagenSection({
   const { vorlagen: service } = useCanvasEditorServices();
   const canDrag = !useIsCanvasMobile();
   const setPending = useCanvasStoreSelector((s) => s.setPendingAiSuggestion);
+  const announce = useAnnounce();
   // Ranked against the design as it was when the tab opened: a pick must not
   // reshuffle the grid under the pointer.
   const [atOpen] = useState(() => ({ pages, empty: isDeckEmpty(pages) }));
@@ -471,7 +473,10 @@ export function VorlagenSection({
         const shownId = seite ? deck.getPages()[seite.n - 1]?.id : null;
         if (shownId) onShowPage?.(shownId);
       }
-      if (replacing) setPending({ title: vorlage.titel, undo: 'pages', source: 'vorlage' });
+      if (replacing) {
+        setPending({ title: vorlage.titel, undo: 'pages', source: 'vorlage' });
+        announce(`Vorlage angewendet: ${vorlage.titel}. Behalten oder verwerfen.`);
+      }
     } catch (err) {
       console.warn('[VorlagenSection] applying the Vorlage failed', err);
       setApplyError(APPLY_ERROR);

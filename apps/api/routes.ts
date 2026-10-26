@@ -66,6 +66,7 @@ import exportDocumentsRouter from './routes/exports/index.js';
 import { mountFeedbackContractRouter } from './routes/feedback/feedbackContractRouter.js';
 import imaginePureRoute from './routes/flux/imaginePure.js';
 import outpaintRoute from './routes/flux/outpaint.js';
+import { mountBrandFontsRouter } from './routes/fonts/brandFontsRouter.js';
 import { mountImagePickerContractRouter } from './routes/image/imagePickerContractRouter.js';
 import { pickerController as imagePickerRoute } from './routes/image/index.js';
 import { mountContentSyncContractRouter } from './routes/internal/contentSyncContractRouter.js';
@@ -541,6 +542,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/explainables/shared', optionalAuth, explainableSharedFilesRouter);
   app.use('/api/explainables/shared', publicReadLimiter);
   mountPublicExplainablesContractRouter(app);
+  app.use('/api/fonts', publicReadLimiter);
+  mountBrandFontsRouter(app);
   app.use('/api/explainables', requireAuth, authenticatedReadLimiter);
   app.post('/api/explainables', aiGenerationLimiter, requireAiConsent, (_req, _res, next) =>
     next()

@@ -46,9 +46,9 @@ describe('mobile Leiste', () => {
     render(<SidebarTabBar tabs={TABS} activeTab="text" onTabClick={() => {}} />);
     const nav = screen.getByRole('navigation', { name: 'Editor-Bereiche' });
     expect(nav).toHaveAttribute('data-suppress-feedback-launcher');
-    expect(screen.getByRole('button', { name: 'Text' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Text' })).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('button', { name: 'Uploads' })).toHaveAttribute(
-      'aria-pressed',
+      'aria-expanded',
       'false'
     );
   });

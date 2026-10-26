@@ -1,3 +1,4 @@
+import { stripInlineMarks } from '@gruenerator/contracts';
 import { pickShareRoute, shareDataUrlViaNativeHost } from '@gruenerator/shared';
 import { withPhotoCredit } from '@gruenerator/shared/image-studio';
 import { shareApi } from '@gruenerator/shared/share';
@@ -19,6 +20,12 @@ import { IoShareOutline } from 'react-icons/io5';
 import { PiArrowLeft, PiMegaphone } from 'react-icons/pi';
 
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
+import {
+  AltTextField,
+  useCaptionAltText,
+  useShareAltText,
+  withAltText,
+} from '../../sidebar/components/AltTextField';
 import { useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
 
 import {
@@ -42,7 +49,7 @@ export interface ShareDropdownProps {
   canvasHeight: number;
   shareToken: string | null;
   pageCount?: number;
-  onDownloadAllZip?: () => Promise<void>;
+  onDownloadAllZip?: (format?: CanvasDownloadChoice) => Promise<void>;
   onShareAllPages?: () => Promise<void>;
   isMultiExporting?: boolean;
   exportProgress?: { current: number; total: number };
@@ -113,7 +120,9 @@ export function ShareDropdown({
     () => (open && getPhotoCredit ? getPhotoCredit() : ''),
     [open, getPhotoCredit]
   );
-  const shareText = withPhotoCredit(canvasText, photoCredit);
+  const [altText, setAltText] = useShareAltText(stripInlineMarks(canvasText));
+  const captionAltText = useCaptionAltText(altText);
+  const shareText = withAltText(withPhotoCredit(canvasText, photoCredit), captionAltText);
 
   const autoSaveStoreApi = useAutoSaveStoreApi();
   const shareRoute = pickShareRoute();
@@ -278,6 +287,9 @@ export function ShareDropdown({
                 />
               )}
             </IconButtonRow>
+            <div className="px-4 pb-4">
+              <AltTextField value={altText} onChange={setAltText} />
+            </div>
           </>
         )}
         {photoCredit && (

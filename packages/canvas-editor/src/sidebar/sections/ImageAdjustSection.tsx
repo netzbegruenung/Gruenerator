@@ -1,6 +1,7 @@
 import { Switch } from '@gruenerator/ui';
 
 import { CustomColorSwatch } from '../../components/CustomColorSwatch';
+import { colorName } from '../../utils/colorNames';
 import { DEFAULT_TINT, EMPTY_ADJUSTMENTS, IMAGE_PRESETS } from '../../utils/imageFilters';
 import {
   CROP_PRESETS,
@@ -148,8 +149,8 @@ export function ImageAdjustSection({
               key={c}
               type="button"
               onClick={() => set({ tint: c, tintStrength: adj.tintStrength || 1 })}
-              title={c}
-              aria-label={`Einfärben in ${c}`}
+              title={colorName(c)}
+              aria-label={`Einfärben in ${colorName(c)}`}
               aria-pressed={(adj.tint ?? DEFAULT_TINT) === c && !!adj.tintStrength}
               className="size-6 rounded-full border border-black/10 transition-transform hover:scale-110"
               style={{
@@ -273,7 +274,9 @@ export function ImageAdjustSection({
                     key={c}
                     type="button"
                     onClick={() => setShadow({ shadowColor: c })}
-                    title={c}
+                    title={colorName(c)}
+                    aria-label={colorName(c)}
+                    aria-pressed={img.shadowColor === c}
                     className="size-6 rounded-full border border-black/10 transition-transform hover:scale-110"
                     style={{
                       backgroundColor: c,

@@ -374,7 +374,7 @@ const clearCachedAuthState = () => {
  * while the documented "debug the prod bundle locally via `vite preview`" workflow — served
  * on localhost — still works. `import.meta.env.DEV` alone would break that workflow.
  */
-const isE2EBypassAllowedHost = (): boolean =>
+export const isE2EBypassAllowedHost = (): boolean =>
   typeof window !== 'undefined' &&
   /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname);
 

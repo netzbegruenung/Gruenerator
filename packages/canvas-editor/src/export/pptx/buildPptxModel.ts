@@ -92,6 +92,7 @@ export const PPTX_UNMAPPED_PAGE_KEYS = {
   stashedComposerPlanes: 'abgelegte Composer-Flächen; nicht gezeichnet',
   lockedLayerIds: 'Sperre im Editor',
   templateRotations: 'Drehung der Vorlagen-Elemente; die gehen nicht in die Folie',
+  templateTextAligns: 'Ausrichtung der Vorlagen-Texte; die gehen nicht in die Folie',
 } as const satisfies Record<string, string>;
 
 const KNOWN_KEYS: ReadonlySet<string> = new Set([

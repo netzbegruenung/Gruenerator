@@ -9,6 +9,7 @@ import {
   buildConcisePromptGeneral,
   buildDraftPromptGeneral,
   buildDraftPromptGrundsatz,
+  buildFastModePrompt,
 } from '../../agents/langgraph/prompts.js';
 import { getMcpExposedCollections } from '../../config/systemCollectionsConfig.js';
 
@@ -63,6 +64,21 @@ describe('answer surfaces in prompts.ts', () => {
     ]) {
       expect(app).toContain(invariant);
       expect(mcp).toContain(invariant);
+    }
+  });
+
+  it('lets a form requested in the question override the default structure', () => {
+    // Measured on bayern-system: without this block the dossier won over
+    // "drei Stichpunkte", "Tabelle" and "Instagram-Post" (6/16 → 16/16).
+    for (const system of [
+      buildDraftPromptGrundsatz().system,
+      buildDraftPromptGrundsatz('X', 'mcp').system,
+      buildConcisePromptGeneral().system,
+      buildFastModePrompt().system,
+    ]) {
+      const precedence = system.indexOf('## ANTWORTFORM:');
+      expect(precedence).toBeGreaterThan(-1);
+      expect(precedence).toBeLessThan(system.search(/## ANTWORT-(STRUKTUR|REGELN):/));
     }
   });
 });

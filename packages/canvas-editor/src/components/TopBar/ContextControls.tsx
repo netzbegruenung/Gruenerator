@@ -6,9 +6,11 @@ import { type ShadowPatch } from '../../hooks/useFloatingModuleHandlers';
 import { type FloatingModuleState } from '../../hooks/useFloatingModuleState';
 import { formatShortcut, isMacPlatform, shortcutOf } from '../../utils/canvasCommandRegistry';
 import { type SelectionGeometry } from '../../utils/canvasCommands';
+import { focusPage, isKeyboardModality } from '../../utils/editorFocus';
 import { type GradientFill } from '../../utils/gradientFill';
 import { type LockState } from '../../utils/layerLock';
 import { BRAND_COLORS, FONT_COLORS, STROKE_ONLY_SHAPES } from '../../utils/shapes';
+import { type TextAlign } from '../../utils/textAlign';
 import { useCanvasTextFormatting } from '../CanvasTextOverlay';
 
 import {
@@ -26,8 +28,8 @@ import { FloatingLayerControls } from './modules/FloatingLayerControls';
 import { FloatingOpacityControl } from './modules/FloatingOpacityControl';
 import { FloatingOutlineControl } from './modules/FloatingOutlineControl';
 import { FloatingPositionControl, type PositionCommandId } from './modules/FloatingPositionControl';
-import { FloatingRotateFlipControl } from './modules/FloatingRotateFlipControl';
 import { FloatingShadowControl } from './modules/FloatingShadowControl';
+import { FloatingTextAlignControl } from './modules/FloatingTextAlignControl';
 
 export interface ContextControlsProps {
   selectedElement: string | null;
@@ -44,11 +46,6 @@ export interface ContextControlsProps {
   canLock?: boolean;
   /** Lässt sich die Auswahl verschieben — Ausrichten und Position (`selectionCapabilities`). */
   canAlign?: boolean;
-  /** Drehen & Spiegeln — dieselben Fragen wie die Befehle (`utils/selectionCapabilities.ts`). */
-  canRotate?: boolean;
-  canFlip?: boolean;
-  /** Drehung der Einzelauswahl, sonst `null`. */
-  rotation?: number | null;
   /** Zählt hoch, wenn das Kontextmenü „Bild ersetzen …“ wählt: die Bildauswahl öffnet sich. */
   backgroundPickerRequest?: number;
   handlers: {
@@ -68,12 +65,9 @@ export interface ContextControlsProps {
     /** Ausschnitt mode for a framed photo: the photo moves inside its frame. */
     handleCropImage?: () => void;
     handleGradientSelect?: (gradient: GradientFill | null) => void;
+    /** Ausrichtung des Textes in seiner Box — freie und Vorlagen-Texte. */
+    handleTextAlignChange?: (id: string, align: TextAlign) => void;
     handleToggleLock?: () => void;
-    /** Drehen & Spiegeln über die Befehls-Türen der Seite (`utils/canvasCommands.ts`). */
-    handleSetRotation?: (deg: number) => void;
-    handlePreviewRotation?: (deg: number) => void;
-    handleCommitRotationPreview?: () => void;
-    handleFlip?: (axis: 'x' | 'y') => void;
     /** Opens the image-adjust ("Bearbeiten") panel for the selected image. */
     onEditImage?: () => void;
   };
@@ -120,9 +114,6 @@ export function ContextControls({
   lockState = 'none',
   canLock = false,
   canAlign = false,
-  canRotate = false,
-  canFlip = false,
-  rotation = null,
   backgroundPickerRequest = 0,
   handlers,
   background,
@@ -341,6 +332,17 @@ export function ContextControls({
     );
   }
 
+  if (isText && activeFloatingModule && handlers.handleTextAlignChange) {
+    const { handleTextAlignChange } = handlers;
+    groups.push(
+      <FloatingTextAlignControl
+        key="text-align"
+        align={activeFloatingModule.data.align ?? 'left'}
+        onAlignChange={(align) => handleTextAlignChange(activeFloatingModule.data.id, align)}
+      />
+    );
+  }
+
   const type = activeFloatingModule?.type;
   // Only instance-backed text (additionalTexts) stores effect fields; config
   // template texts route through state keys and don't support these controls.
@@ -403,7 +405,14 @@ export function ContextControls({
         key="crop-image"
         disabled={isLocked}
         className="inline-flex items-center gap-1.5 h-8 max-canvas-mobile:h-11 shrink-0 rounded-md border-none bg-transparent px-2 cursor-pointer text-[13px] font-medium text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] aria-pressed:bg-[var(--editor-active-bg)] aria-pressed:text-[var(--editor-active-fg)]"
-        onClick={() => handlers.handleCropImage!()}
+        onClick={(e) => {
+          handlers.handleCropImage!();
+          // Per Tastatur begonnen: der Fokus geht auf die Seite, damit die
+          // Pfeile den Ausschnitt schieben — in der mobilen Werkzeugleiste
+          // gehören sie sonst dem Wechsel zwischen den Knöpfen. Enter auf der
+          // Seite beendet den Ausschnitt (useCanvasKeyboardHandlers).
+          if (!isCropping && isKeyboardModality()) focusPage(e.currentTarget);
+        }}
         title="Zuschneiden (oder Doppelklick aufs Bild; Enter zum Beenden)"
         aria-pressed={isCropping}
         type="button"
@@ -458,30 +467,6 @@ export function ContextControls({
           Unsplash
         </a>
       </span>
-    );
-  }
-
-  // Nur für eine drehbare Einzelauswahl (nicht gesperrt, kein Lesemodus). Der
-  // Schlüssel hängt an der Auswahl: wechselt sie, wird der alte Regler
-  // abgebaut und schreibt eine offene Vorschau dem Element zu, das sie zeigt.
-  if (
-    selectedElement &&
-    canRotate &&
-    handlers.handleSetRotation &&
-    handlers.handlePreviewRotation &&
-    handlers.handleCommitRotationPreview &&
-    handlers.handleFlip
-  ) {
-    groups.push(
-      <FloatingRotateFlipControl
-        key={`rotate-${selectedElement}`}
-        rotation={rotation ?? 0}
-        canFlip={canFlip}
-        onRotationCommit={handlers.handleSetRotation}
-        onRotationPreview={handlers.handlePreviewRotation}
-        onPreviewAbandon={handlers.handleCommitRotationPreview}
-        onFlip={handlers.handleFlip}
-      />
     );
   }
 

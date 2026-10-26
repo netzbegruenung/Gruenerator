@@ -16,6 +16,7 @@ import { type VideoMetadata } from '../../routes/subtitler/types.js';
 import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
+import { brandFontPath } from '../fonts/brandFonts.js';
 
 import AssSubtitleService from './assSubtitleService.js';
 import { ffmpeg } from './ffmpegWrapper.js';
@@ -30,7 +31,7 @@ const __dirname = dirname(__filename);
 
 const log = createLogger('downloadUtils');
 
-const FONT_PATH = path.resolve(__dirname, '../../public/fonts/GrueneTypeNeue-Regular.ttf');
+const FONT_PATH = brandFontPath('GrueneTypeNeue-Regular.ttf');
 
 const assService = new AssSubtitleService();
 

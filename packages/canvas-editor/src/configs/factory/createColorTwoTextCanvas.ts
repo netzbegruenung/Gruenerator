@@ -382,7 +382,7 @@ export function createColorTwoTextCanvas<
         id: 'assets',
         icon: PiSquaresFourFill,
         label: 'Elemente',
-        ariaLabel: 'Dekorative Elemente',
+        ariaLabel: 'Elemente hinzufügen',
       },
       {
         id: 'frame-settings',

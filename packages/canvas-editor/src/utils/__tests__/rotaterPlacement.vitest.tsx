@@ -1,6 +1,7 @@
 import Konva from 'konva';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
+import { CANVAS_ITEM_NAME } from '../deepSelect';
 import {
   ELEMENT_TRANSFORMER,
   chooseRotaterAngle,
@@ -66,21 +67,51 @@ describe('Drehgriff: Seite je Lage', () => {
     expect([90, 270]).toContain(chooseRotaterAngle(tr, 'above'));
   });
 
-  it('ein horizontal gespiegelter Knoten hat ihn trotzdem sichtbar oben', () => {
+  it('ein horizontal gespiegelter Knoten bevorzugt trotzdem sichtbar oben', () => {
     // Konva zerlegt scaleX < 0 als Drehung 180°: die Box-Oberkante liegt unten.
-    const { node, tr } = setup({ x: 300, y: 300, scaleX: -1 });
-    const angle = chooseRotaterAngle(tr, 'above');
-    tr.rotateAnchorAngle(angle);
-    tr.update();
-    expect(rotater(tr).y).toBeLessThan(node.getClientRect().y);
+    const { tr } = setup({ x: 300, y: 300, scaleX: -1 });
+    expect(chooseRotaterAngle(tr, 'above')).toBe(180);
+  });
+});
+
+describe('Drehgriff: nur der sichtbare Teil der Bühne zählt', () => {
+  /** Die Bühne liegt bei (0, 0) in einem Scroller, der bei y = clipBottom endet (dort beginnt die Leiste). */
+  function clipStage(tr: Konva.Transformer, clipBottom: number) {
+    const container = tr.getStage()!.container();
+    const scroller = document.createElement('div');
+    scroller.style.overflowY = 'auto';
+    container.replaceWith(scroller);
+    scroller.appendChild(container);
+    const rect = (r: Partial<DOMRect>) => () => ({ x: 0, y: 0, left: 0, top: 0, ...r }) as DOMRect;
+    container.getBoundingClientRect = rect({ width: 600, height: 600, right: 600, bottom: 600 });
+    scroller.getBoundingClientRect = rect({
+      width: 600,
+      height: clipBottom,
+      right: 600,
+      bottom: clipBottom,
+    });
+  }
+
+  it('ein Griff unter der Leiste gilt als nicht greifbar — er wandert nach oben', () => {
+    // Element 250..350: unten läge der Griff bei ~380, der Scroller endet bei 370.
+    const { tr } = setup({ x: 300, y: 300 });
+    clipStage(tr, 370);
+    expect(chooseRotaterAngle(tr, 'below')).toBe(0);
+  });
+
+  it('mit Platz über der Leiste bleibt er unten', () => {
+    const { tr } = setup({ x: 300, y: 300 });
+    clipStage(tr, 500);
+    expect(chooseRotaterAngle(tr, 'below')).toBe(180);
   });
 });
 
 describe('elementAnchorStyleFunc', () => {
-  it('wählt beim Anhängen sichtbar oben, auch gespiegelt', () => {
+  it('wählt beim Anhängen sichtbar unten (Canva-Muster), auch gespiegelt', () => {
     const { node, tr } = setup({ x: 300, y: 300, scaleX: -1 });
-    expect(tr.rotateAnchorAngle()).toBe(180);
-    expect(rotater(tr).y).toBeLessThan(node.getClientRect().y);
+    expect(tr.rotateAnchorAngle()).toBe(0);
+    const box = node.getClientRect();
+    expect(rotater(tr).y).toBeGreaterThan(box.y + box.height);
   });
 
   it('setzt die Seite beim Anhängen an den Knoten', () => {
@@ -92,21 +123,21 @@ describe('elementAnchorStyleFunc', () => {
 
   it('wechselt sie nicht mitten im Zug, aber danach', () => {
     const { node, tr } = setup({ x: 300, y: 300 });
-    expect(tr.rotateAnchorAngle()).toBe(0);
+    expect(tr.rotateAnchorAngle()).toBe(180);
     (tr as unknown as { _transforming: boolean })._transforming = true;
-    node.y(70);
-    tr.update();
-    expect(tr.rotateAnchorAngle()).toBe(0);
-    (tr as unknown as { _transforming: boolean })._transforming = false;
+    node.y(530);
     tr.update();
     expect(tr.rotateAnchorAngle()).toBe(180);
+    (tr as unknown as { _transforming: boolean })._transforming = false;
+    tr.update();
+    expect(tr.rotateAnchorAngle()).toBe(0);
   });
 
   it('folgt beim Verschieben (Konvas update auf dragmove)', () => {
     const { node, tr } = setup({ x: 300, y: 300 });
-    node.y(70);
+    node.y(530);
     tr.fire('dragmove');
-    expect(tr.rotateAnchorAngle()).toBe(180);
+    expect(tr.rotateAnchorAngle()).toBe(0);
   });
 });
 
@@ -115,12 +146,87 @@ describe('rotaterRects', () => {
     const { tr } = setup({ x: 300, y: 300 });
     const [rect] = rotaterRects(tr.getStage()!);
     expect(rect).toBeDefined();
-    expect(rect!.y + rect!.height).toBeLessThan(250);
+    expect(rect!.y).toBeGreaterThan(350);
   });
 
   it('nicht bei gesperrtem Element', () => {
     const { tr } = setup({ x: 300, y: 300 });
     tr.rotateEnabled(false);
     expect(rotaterRects(tr.getStage()!)).toEqual([]);
+  });
+});
+
+describe('Griff-Optik (Canva-Muster)', () => {
+  const anchor = (tr: Konva.Transformer, name: string) => tr.findOne<Konva.Rect>(`.${name}`)!;
+  const startRotate = (tr: Konva.Transformer, shiftKey = false) => {
+    const t = tr as unknown as { _transforming: boolean; _movingAnchorName: string | null };
+    t._transforming = true;
+    t._movingAnchorName = 'rotater';
+    tr.fire('transformstart', { evt: { shiftKey } });
+  };
+
+  it('Ecken sind Kreise, Seiten Pillen, der Drehgriff ein größerer Kreis', () => {
+    const { tr } = setup({ x: 300, y: 300 });
+    tr.enabledAnchors(['top-left', 'middle-right', 'bottom-center']);
+    tr.update();
+    const corner = anchor(tr, 'top-left');
+    expect(corner.cornerRadius()).toBe(corner.width() / 2);
+    const side = anchor(tr, 'middle-right');
+    expect(side.height()).toBeGreaterThan(side.width());
+    const bottom = anchor(tr, 'bottom-center');
+    expect(bottom.width()).toBeGreaterThan(bottom.height());
+    expect(anchor(tr, 'rotater').width()).toBeGreaterThan(corner.width());
+    expect(tr.rotateLineVisible()).toBe(false);
+  });
+
+  it('beim Drehen: Drehgriff gefüllt, Größengriffe weg; danach wieder da', () => {
+    const { tr } = setup({ x: 300, y: 300 });
+    startRotate(tr);
+    expect(anchor(tr, 'rotater').fill()).not.toBe('white');
+    expect(anchor(tr, 'top-left').visible()).toBe(false);
+    (tr as unknown as { _transforming: boolean })._transforming = false;
+    tr.fire('transformend', {});
+    expect(anchor(tr, 'rotater').fill()).toBe('white');
+    expect(anchor(tr, 'top-left').visible()).toBe(true);
+  });
+
+  it('Shift rastet in 15°-Schritten, ohne Shift wieder 45°', () => {
+    const { tr } = setup({ x: 300, y: 300 });
+    startRotate(tr, true);
+    expect(tr.rotationSnaps()).toContain(15);
+    tr.fire('transform', { evt: { shiftKey: false } });
+    expect(tr.rotationSnaps()).not.toContain(15);
+    tr.fire('transform', { evt: { shiftKey: true } });
+    (tr as unknown as { _transforming: boolean })._transforming = false;
+    tr.fire('transformend', {});
+    expect(tr.rotationSnaps()).not.toContain(15);
+  });
+});
+
+describe('Griffe liegen über allen Elementen', () => {
+  it('ein später gezeichnetes Element schnappt den Klick auf den Drehgriff nicht weg', () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    stage = new Konva.Stage({ container, width: 600, height: 600 });
+    const layer = new Konva.Layer();
+    stage.add(layer);
+    // Wie CanvasRenderLayer: je Element eine canvas-item-Gruppe, Transformer darin.
+    const itemA = new Konva.Group({ name: CANVAS_ITEM_NAME });
+    const itemB = new Konva.Group({ name: CANVAS_ITEM_NAME });
+    layer.add(itemA, itemB);
+    const node = new Konva.Rect({ x: 250, y: 200, width: 100, height: 100, fill: 'red' });
+    const tr = new Konva.Transformer({ ...ELEMENT_TRANSFORMER, rotateEnabled: true });
+    itemA.add(node, tr);
+    // B deckt den Bereich unter A ab, wo der Drehgriff steht.
+    itemB.add(new Konva.Rect({ x: 200, y: 290, width: 200, height: 100, fill: 'blue' }));
+    tr.nodes([node]);
+    // Konva trifft in Zeichenreihenfolge; Pixel lesen kann das Test-DOM nicht.
+    expect(tr.getParent()).toBe(layer);
+    expect(layer.children.at(-1)).toBe(tr);
+
+    // Ein danach hinzugefügtes Element überholt ihn nur bis zum nächsten Neuaufbau.
+    layer.add(new Konva.Group({ name: CANVAS_ITEM_NAME }));
+    tr.update();
+    expect(layer.children.at(-1)).toBe(tr);
   });
 });

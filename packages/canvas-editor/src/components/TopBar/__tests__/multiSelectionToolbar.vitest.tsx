@@ -28,6 +28,18 @@ function renderBar(overrides: Partial<React.ComponentProps<typeof MultiSelection
 }
 
 describe('Leiste der Mehrfachauswahl', () => {
+  it('is one tab stop; arrows move between its buttons', async () => {
+    renderBar();
+    const stops = screen.getAllByRole('button').filter((b) => b.getAttribute('tabindex') === '0');
+    expect(stops).toHaveLength(1);
+    stops[0].focus();
+    await userEvent.keyboard('{ArrowRight}');
+    expect(stops[0]).not.toHaveFocus();
+    expect(screen.getByRole('toolbar')).toContainElement(document.activeElement as HTMLElement);
+    await userEvent.keyboard('{Home}');
+    expect(stops[0]).toHaveFocus();
+  });
+
   it('nennt die Zahl und bietet, was für alle gleich geht', async () => {
     const { props } = renderBar();
     expect(screen.getByRole('toolbar', { name: '3 Elemente' })).toBeInTheDocument();

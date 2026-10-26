@@ -168,6 +168,7 @@ describe('the studio planner keeps its own prompt', () => {
 
   it('keeps the generic size and patch schemas', () => {
     expect(prompt).toContain('integer 1..500');
-    expect(prompt).toContain('"rotation": Grad');
+    expect(prompt).toContain('"rotation": absoluter Winkel in Grad');
+    expect(prompt).toContain('gedreht um die Mitte');
   });
 });

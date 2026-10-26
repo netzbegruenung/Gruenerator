@@ -114,6 +114,12 @@ export interface OptionalCanvasActions {
   removeFrame?: (id: string) => void;
   removeUserImage?: (id: string) => void;
   removeChart?: (id: string) => void;
+  /**
+   * Gehört das Element zur Vorlage, obwohl es in einer Sammlung liegt (der
+   * Balken von Dreizeilen, aus den drei Zeilen abgeleitet)? Dann lässt es
+   * sich nicht löschen — siehe `findElementRemover`.
+   */
+  isTemplateBound?: (id: string) => boolean;
 }
 
 export interface UseCanvasElementHandlersOptions<

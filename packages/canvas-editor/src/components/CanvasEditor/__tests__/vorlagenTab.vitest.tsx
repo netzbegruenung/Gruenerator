@@ -78,7 +78,7 @@ describe('CanvasEditor Vorlagen-Reiter', () => {
     expect(tabs.indexOf('vorlagen')).toBe(tabs.indexOf('text') - 1);
 
     await act(async () => {
-      screen.getByRole('button', { name: 'Grünerator-Vorlagen anwenden' }).click();
+      screen.getByRole('button', { name: 'Vorlagen: Grünerator-Vorlagen anwenden' }).click();
     });
     expect(
       await screen.findByText('Für dieses Format gibt es noch keine Seiten.')

@@ -14,6 +14,7 @@ import type { FrameClipType, FrameInstance } from '../../utils/frameUtils';
 import type { IllustrationInstance } from '../../utils/illustrations/types';
 import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '../../utils/shapes';
+import type { TextAlign } from '../../utils/textAlign';
 import type { ElementPlacement, UserImageInstance } from '../../utils/userImageUtils';
 import type { AdditionalText, LayoutResult } from '../types';
 import type { StickerRef } from '@gruenerator/shared/stickers';
@@ -42,6 +43,8 @@ export interface BaseCanvasState {
   lockedLayerIds?: string[];
   /** Drehung der Vorlagen-Elemente (Text, Grafiken), je Element-ID in Grad. */
   templateRotations?: Record<string, number>;
+  /** Gewählte Ausrichtung der Vorlagen-Texte, je Element-ID (`utils/textAlign.ts`). */
+  templateTextAligns?: Record<string, TextAlign>;
   imageAttribution?: StockImageAttribution | null;
   [key: string]: unknown;
 }

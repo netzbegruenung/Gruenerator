@@ -45,7 +45,7 @@ function setup(
       />
     </BlockInsertContext.Provider>
   );
-  return { page: getByRole('button', { name: 'Seite 2' }), onSelect, dropElement };
+  return { page: getByRole('group', { name: 'Seite 2' }), onSelect, dropElement };
 }
 
 function transfer(type: string, data: string) {

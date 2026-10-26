@@ -17,9 +17,8 @@ import { useTypeface, type SkImage } from '@shopify/react-native-skia';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import gothamUltra from '../../../assets/fonts/GothamNarrow-Ultra.ttf';
-import grueneTypeNeue from '../../../assets/fonts/GrueneTypeNeue-Regular.ttf';
 import { useTheme } from '../../../hooks/useTheme';
+import { brandFontSource } from '../../../services/brandFonts';
 import { BODY_FONT, borderRadius, colors, spacing, typography } from '../../../theme';
 
 import {
@@ -36,9 +35,9 @@ import { measureBadgeLine, renderBadge } from './stickerRender';
 const RENDER_DELAY_MS = 150;
 
 /** The CD headline faces, as on web — a badge looks the same wherever it was made. */
-const BADGE_TYPEFACE: Record<StickerLocale, number> = {
-  'de-DE': grueneTypeNeue,
-  'de-AT': gothamUltra,
+const BADGE_TYPEFACE: Record<StickerLocale, string> = {
+  'de-DE': brandFontSource('GrueneTypeNeue-Regular.ttf'),
+  'de-AT': brandFontSource('GothamNarrow-Ultra.ttf'),
 };
 
 export function BadgeDesigner({

@@ -455,7 +455,7 @@ describe('rotate handle placement on real primitives', () => {
     expect(rotaterY(tr)).toBeLessThan(600);
   });
 
-  it('a flipped shape shows its handle above, not below (D1)', async () => {
+  it('a flipped shape shows its handle visibly below (D1)', async () => {
     const { tr, node } = await mountSelected((selected) => (
       <ShapePrimitive
         shape={{ ...createShape('leaf', 300, 300, '#005538', '#005538'), id: 'fh', flipX: true }}
@@ -464,6 +464,7 @@ describe('rotate handle placement on real primitives', () => {
         onChange={noop}
       />
     ));
-    expect(rotaterY(tr)).toBeLessThan(node.getClientRect().y);
+    const box = node.getClientRect();
+    expect(rotaterY(tr)).toBeGreaterThan(box.y + box.height);
   });
 });

@@ -10,11 +10,12 @@
  * exposes bridge handlers via a mutable ref for GenericCanvasInner's useImperativeHandle.
  */
 
-import { useCallback, useEffect, type MutableRefObject } from 'react';
+import { useCallback, useEffect, useMemo, type MutableRefObject } from 'react';
 
 import { useFloatingModuleHandlers } from '../hooks/useFloatingModuleHandlers';
 import { useFloatingModuleState } from '../hooks/useFloatingModuleState';
 import { useCanvasStoreSelector, useCanvasStoreShallow } from '../stores/CanvasStoreProvider';
+import { pageLayerLabels } from '../utils/layerLabels';
 import { findOrientationDoor } from '../utils/orientElement';
 import { selectionCapabilities } from '../utils/selectionCapabilities';
 import { findTemplateEntry } from '../utils/templateElementInstance';
@@ -27,6 +28,7 @@ import type { ShadowPatch } from '../hooks/useFloatingModuleHandlers';
 import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
 import type { CanvasItem } from '../utils/canvasLayerManager';
 import type { GradientFill } from '../utils/gradientFill';
+import type { TextAlign } from '../utils/textAlign';
 
 export interface ToolbarBridgeState {
   activeFloatingModule: FloatingModuleState | null;
@@ -36,6 +38,7 @@ export interface ToolbarBridgeState {
   handleOutlineChange: (id: string, patch: { stroke?: string; strokeWidth?: number }) => void;
   handleBlurChange: (id: string, blur: number) => void;
   handleGradientSelect: (gradient: GradientFill | null) => void;
+  handleTextAlignChange: (id: string, align: TextAlign) => void;
   /** Ausschnitt mode for the selected framed photo. */
   handleCropImage: () => void;
 }
@@ -88,6 +91,8 @@ export function ToolbarStateBridge<
   });
 
   const selectedLayerIds = useCanvasStoreShallow((s) => s.selectedLayerIds);
+  // Die Ebenen-Liste der Seitenleiste liest die Seite nur über diesen Bericht.
+  const layers = useMemo(() => pageLayerLabels(sortedRenderList, state), [sortedRenderList, state]);
   const setCroppingElement = useCanvasStoreSelector((s) => s.setCroppingElement);
   const isCropping = useCanvasStoreSelector(
     (s) => s.croppingElement !== null && s.croppingElement === s.selectedElement
@@ -146,6 +151,7 @@ export function ToolbarStateBridge<
       handleOutlineChange: floatingHandlers.handleOutlineChange,
       handleBlurChange: floatingHandlers.handleBlurChange,
       handleGradientSelect: floatingHandlers.handleGradientSelect,
+      handleTextAlignChange: floatingHandlers.handleTextAlignChange,
       handleCropImage: () => setCroppingElement(isCropping ? null : selectedElement),
     };
   });
@@ -166,11 +172,11 @@ export function ToolbarStateBridge<
       canCopy: capabilities.canCopy,
       lockState: capabilities.lock,
       canLock: capabilities.canLock,
-      canRotate: capabilities.canRotate,
       canFlip: capabilities.canFlip,
-      rotation: capabilities.rotation,
       canAlign: capabilities.canAlign,
       canDistribute: capabilities.canDistribute,
+      layers,
+      selectedLayerIds,
     });
   }, [
     isCropping,
@@ -185,11 +191,11 @@ export function ToolbarStateBridge<
     capabilities.count,
     capabilities.lock,
     capabilities.canLock,
-    capabilities.canRotate,
     capabilities.canFlip,
-    capabilities.rotation,
     capabilities.canAlign,
     capabilities.canDistribute,
+    layers,
+    selectedLayerIds,
     onToolbarStateChange,
   ]);
 

@@ -286,6 +286,13 @@ jobs:
       - name: No internal content exposed
         run: node scripts/check-internal-content.mjs
 
+      # packages/ggraphic-* is the brand-neutral core that will leave this repo
+      # as open source. The denylist lives here because it names the party.
+      - name: ggraphic core stays brand-neutral
+        run: |
+          node scripts/check-ggraphic-core-boundary.mjs --self-test
+          node scripts/check-ggraphic-core-boundary.mjs
+
       # Decision-point ids in DECISION_POINTS (apps/api/utils/decisionJournal.ts)
       # land in committed decision-map snapshots, which makes them F1 —
       # internally frozen (see CLAUDE.md). Catch drift before tsc even runs:

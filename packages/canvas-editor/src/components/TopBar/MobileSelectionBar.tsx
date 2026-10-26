@@ -1,6 +1,7 @@
 import React from 'react';
 import { PiCheckBold, PiSlidersHorizontal } from 'react-icons/pi';
 
+import { useRovingToolbar } from '../../hooks/useRovingToolbar';
 import { HIDDEN_SCROLLBAR } from '../../sidebar/sidebarStyles';
 import { useCanvasStoreSelector } from '../../stores/CanvasStoreProvider';
 import { cn } from '../../utils/cn';
@@ -21,9 +22,11 @@ interface MobileSelectionBarProps extends ContextControlsProps {
  */
 export function MobileSelectionBar({ onOpenArea, onDone, ...controls }: MobileSelectionBarProps) {
   const hasPendingAiSuggestion = useCanvasStoreSelector((s) => s.pendingAiSuggestion !== null);
+  const roving = useRovingToolbar<HTMLDivElement>();
 
   return (
     <div
+      {...roving}
       role="toolbar"
       aria-label="Auswahl bearbeiten"
       data-suppress-feedback-launcher=""

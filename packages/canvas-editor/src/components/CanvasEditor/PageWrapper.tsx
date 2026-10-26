@@ -150,25 +150,13 @@ export const PageWrapper = memo(function PageWrapper({
     [isActive, onSelect, index, canvasRef, onDropVorlage, page.id, trackDownload, blocks]
   );
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      // Only the wrapper itself — a bubbled Enter/Space from a toolbar button
-      // must keep activating that button.
-      if (e.target !== e.currentTarget) return;
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        onSelect(index);
-      }
-    },
-    [onSelect, index]
-  );
-
   return (
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- Maus und Ziehen wählen die Seite aus; der Tastaturweg ist der Knopf „Seite N bearbeiten“ darin
     <div
       ref={pageRef}
       data-page-index={index}
       className={cn(
-        'heterogeneous-multipage__page-wrapper group relative cursor-pointer w-fit focus-visible:outline-2 focus-visible:outline-[var(--tanne,#0a2b1e)] focus-visible:outline-offset-1',
+        'heterogeneous-multipage__page-wrapper group relative cursor-pointer w-fit',
         '[&_.zoomable-viewport-wrapper]:w-fit [&_.zoomable-viewport-container]:p-0 [&_.zoomable-viewport-container]:overflow-visible',
         isActive && 'heterogeneous-multipage__page-wrapper--active',
         isDropTarget && 'outline-2 outline-dashed outline-offset-4 outline-[var(--editor-accent)]'
@@ -178,12 +166,23 @@ export const PageWrapper = memo(function PageWrapper({
       onDragLeave={readOnly ? undefined : handleDragLeave}
       onDrop={readOnly ? undefined : handleDrop}
       onClick={handleClick}
-      role="button"
-      tabIndex={0}
-      onKeyDown={handleKeyDown}
-      aria-label={`Seite ${index + 1}${isActive ? ' (ausgewählt)' : ''}`}
-      aria-pressed={isActive}
+      role="group"
+      aria-label={`Seite ${index + 1}`}
+      aria-current={isActive ? 'page' : undefined}
     >
+      {/* Der eine Fokuspunkt der Seite: ein echter Knopf, der nichts
+          Interaktives enthält. Pfeile gehören ihm nicht — sie schieben die
+          Auswahl (utils/keyboardOwnership.ts). Aufgabe 7 gibt den Fokus nach
+          Text-Bearbeiten und Löschen hierher zurück (`data-page-focus-target`). */}
+      <button
+        type="button"
+        data-page-focus-target={page.id}
+        aria-pressed={isActive}
+        onClick={() => onSelect(index)}
+        className="sr-only kbd:focus:not-sr-only kbd:focus:absolute kbd:focus:left-1 kbd:focus:top-1 kbd:focus:z-10 kbd:focus:min-h-6 kbd:focus:rounded-lg kbd:focus:px-2 kbd:focus:py-1 kbd:focus:text-xs kbd:focus:font-medium kbd:focus:bg-[var(--editor-canvas-hover)] kbd:focus:text-[var(--editor-text)] outline-none kbd:focus-visible:outline-2 kbd:focus-visible:outline-solid kbd:focus-visible:outline-[var(--editor-accent)]"
+      >
+        {`Seite ${index + 1} bearbeiten`}
+      </button>
       {!readOnly && (
         <PageToolbar
           pageIndex={index}
@@ -211,6 +210,7 @@ export const PageWrapper = memo(function PageWrapper({
           onAutoSaveShareToken={onAutoSaveShareToken}
           onLiveState={isActive || onObservedState ? handleLiveState : undefined}
           isActivePage={isActive}
+          pageNumber={index + 1}
           autoSave={autoSave}
           pageBinding={pageBinding}
           readOnly={readOnly}

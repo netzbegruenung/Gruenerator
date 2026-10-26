@@ -52,6 +52,7 @@ describe('BalkenGroup nach dem Nachladen der Schrift', () => {
     render(
       <CanvasStage ref={stageRef} width={1080} height={1080}>
         <BalkenGroup
+          id="balken-1"
           mode="triple"
           colorSchemeId="tanne-sand"
           texts={['Mut zum Wandel', 'Grüne Ideen', 'Gemeinsam gestalten']}
