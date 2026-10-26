@@ -178,6 +178,7 @@ jobs:
               - 'packages/sheets/**'
               - 'packages/ui/**'
               - 'packages/collab/**'
+              - 'packages/ggraphic-core/**'
               - 'packages/wolke/**'
               - 'packages/sites/**'
               - 'packages/sites-design/**'

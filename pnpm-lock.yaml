@@ -1464,6 +1464,9 @@ importers:
 
   packages/canvas-editor:
     dependencies:
+      '@ggraphic/core':
+        specifier: workspace:*
+        version: link:../ggraphic-core
       '@gruenerator/collab':
         specifier: workspace:*
         version: link:../collab

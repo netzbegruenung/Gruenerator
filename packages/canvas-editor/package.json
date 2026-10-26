@@ -74,6 +74,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@ggraphic/core": "workspace:*",
     "@gruenerator/collab": "workspace:*",
     "@gruenerator/contracts": "workspace:*",
     "@gruenerator/shared": "workspace:*",
