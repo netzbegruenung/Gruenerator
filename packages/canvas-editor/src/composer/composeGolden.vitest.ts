@@ -51,6 +51,21 @@ const GOLDEN_ONLY: Record<string, SharepicSpec> = {
     ],
   },
 };
+// Ground sweep: every slide with an ink that depends on its ground (topic
+// badges, the ghost numeral, countdown digits, hand marks), set again on a
+// light, a grass-green and a dark plain colour. No shared fixture puts these
+// on every ground.
+const GROUND_DEPENDENT =
+  /"stil":"countdown"|"nummer":"geist"|"type":"(?:iconliste|infografik)"|\(\(|__/;
+const sweepSlides = Object.values({ ...SPECS, ...MORE_SPECS }).flatMap((spec) =>
+  spec.slides.filter((slide) => GROUND_DEPENDENT.test(JSON.stringify(slide)))
+);
+for (const color of ['weiss', 'grasgruen', 'tanne'] as const) {
+  GOLDEN_ONLY[`grund-${color}`] = {
+    locale: 'de-DE',
+    slides: sweepSlides.map((slide) => ({ ...slide, background: { kind: 'farbe', color } })),
+  };
+}
 const FIXTURES: Record<string, SharepicSpec> = { ...SPECS, ...MORE_SPECS, ...GOLDEN_ONLY };
 
 describe('composer golden', () => {

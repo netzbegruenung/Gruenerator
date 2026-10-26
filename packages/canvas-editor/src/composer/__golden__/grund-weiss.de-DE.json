@@ -1,0 +1,2831 @@
+{
+ "templateType": "freeform",
+ "format": "post-portrait",
+ "slides": [
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#FFFFFF",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-iconliste-0",
+     "text": "Klima schützen",
+     "type": "body",
+     "x": 203,
+     "y": 257.15,
+     "width": 807,
+     "fontSize": 70,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-0-iconliste-1",
+     "text": "Geld sparen",
+     "type": "body",
+     "x": 203,
+     "y": 390.15,
+     "width": 807,
+     "fontSize": 70,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-1-zahl-wert",
+     "text": "40 %",
+     "type": "header",
+     "x": 70,
+     "y": 487.7,
+     "width": 940,
+     "fontSize": 420,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#008939",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-1-zahl-label",
+     "text": "mehr Wind",
+     "type": "body",
+     "x": 70,
+     "y": 931.3,
+     "width": 940,
+     "fontSize": 64,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.2
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-0-iconliste-0-badge",
+     "type": "circle",
+     "x": 119,
+     "y": 300.9,
+     "width": 98,
+     "height": 98,
+     "fill": "#008939",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-0-iconliste-1-badge",
+     "type": "circle",
+     "x": 119,
+     "y": 433.9,
+     "width": 98,
+     "height": 98,
+     "fill": "#008939",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-0-iconliste-0-icon",
+    "sc-0-iconliste-1-icon",
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-0-iconliste-0-icon": {
+     "iconId": "tabler:leaf",
+     "x": 119,
+     "y": 300.9,
+     "scale": 0.49,
+     "rotation": 0,
+     "color": "#FFFFFF",
+     "opacity": 1
+    },
+    "sc-0-iconliste-1-icon": {
+     "iconId": "tabler:currency-euro",
+     "x": 119,
+     "y": 433.9,
+     "scale": 0.49,
+     "rotation": 0,
+     "color": "#FFFFFF",
+     "opacity": 1
+    },
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-0-iconliste-0-badge",
+    "sc-0-iconliste-0-icon",
+    "sc-0-iconliste-0",
+    "sc-0-iconliste-1-badge",
+    "sc-0-iconliste-1-icon",
+    "sc-0-iconliste-1",
+    "sc-1-zahl-wert",
+    "sc-1-zahl-label",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#FFFFFF",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-rechnung-0-wert",
+     "text": "63 €",
+     "type": "header",
+     "x": 118,
+     "y": 153.60000000000002,
+     "width": 172,
+     "fontSize": 56,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-0-rechnung-0-label",
+     "text": "Ticket",
+     "type": "body",
+     "x": 290,
+     "y": 165.70000000000002,
+     "width": 720,
+     "fontSize": 34,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.2
+    },
+    {
+     "id": "sc-0-rechnung-1-op",
+     "text": "−",
+     "type": "header",
+     "x": 70,
+     "y": 223.60000000000002,
+     "width": 48,
+     "fontSize": 56,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-0-rechnung-1-wert",
+     "text": "5 €",
+     "type": "header",
+     "x": 118,
+     "y": 223.60000000000002,
+     "width": 172,
+     "fontSize": 56,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-0-rechnung-1-label",
+     "text": "Rabatt",
+     "type": "body",
+     "x": 290,
+     "y": 235.70000000000002,
+     "width": 720,
+     "fontSize": 34,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.2
+    },
+    {
+     "id": "sc-0-rechnung-ergebnis-op",
+     "text": "=",
+     "type": "header",
+     "x": 70,
+     "y": 325.6,
+     "width": 48,
+     "fontSize": 76,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#008939",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-0-rechnung-ergebnis-wert",
+     "text": "58 €",
+     "type": "header",
+     "x": 118,
+     "y": 325.6,
+     "width": 172,
+     "fontSize": 76,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#008939",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-0-rechnung-ergebnis-label",
+     "text": "bleibt",
+     "type": "body",
+     "x": 290,
+     "y": 348.70000000000005,
+     "width": 720,
+     "fontSize": 34,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.2
+    },
+    {
+     "id": "sc-1-zahl-wert",
+     "text": "10",
+     "type": "header",
+     "x": 70,
+     "y": 536.88,
+     "width": 560,
+     "fontSize": 336,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-1-zahl-label",
+     "text": "Tage",
+     "type": "body",
+     "x": 70,
+     "y": 1029.6,
+     "width": 940,
+     "fontSize": 64,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.2
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-0-rechnung-rule",
+     "type": "rect",
+     "x": 540,
+     "y": 302.6,
+     "width": 940,
+     "height": 6,
+     "fill": "#00261A",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-1-zahl-disc",
+     "type": "circle",
+     "x": 350,
+     "y": 711.6,
+     "width": 560,
+     "height": 560,
+     "fill": "#008939",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-0-rechnung-0-wert",
+    "sc-0-rechnung-0-label",
+    "sc-0-rechnung-1-op",
+    "sc-0-rechnung-1-wert",
+    "sc-0-rechnung-1-label",
+    "sc-0-rechnung-rule",
+    "sc-0-rechnung-ergebnis-op",
+    "sc-0-rechnung-ergebnis-wert",
+    "sc-0-rechnung-ergebnis-label",
+    "sc-1-zahl-disc",
+    "sc-1-zahl-wert",
+    "sc-1-zahl-label",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#FFFFFF",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-nummer",
+     "text": "1",
+     "type": "header",
+     "x": 21.4,
+     "y": 270,
+     "width": 1010,
+     "fontSize": 810,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00CC4F",
+     "opacity": 0.2,
+     "align": "left",
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-0-aufruf-ausruf",
+     "text": "!",
+     "type": "header",
+     "x": 70,
+     "y": 224.27999999999997,
+     "width": 940,
+     "fontSize": 374,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#008939",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-0-aufruf",
+     "text": "Wählen gehen",
+     "type": "header",
+     "x": 70,
+     "y": 596.8399999999999,
+     "width": 940,
+     "fontSize": 104,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-ort",
+     "text": "Marktplatz\nMusterstadt",
+     "type": "body",
+     "x": 70,
+     "y": 1082.5,
+     "width": 600,
+     "fontSize": 38,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "lineHeight": 1.25,
+     "align": "right"
+    },
+    {
+     "id": "sc-quelle",
+     "text": "Quelle: schon dabei",
+     "type": "body",
+     "x": 70,
+     "y": 1257.2,
+     "width": 750,
+     "fontSize": 24,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "opacity": 0.8,
+     "lineHeight": 1.2
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [
+    {
+     "id": "sc-datum",
+     "x": 870,
+     "y": 1130,
+     "radius": 170,
+     "backgroundColor": "#005538",
+     "textColor": "#ffffff",
+     "rotation": -10,
+     "scale": 1,
+     "opacity": 1,
+     "textLines": [
+      {
+       "text": "SA",
+       "yOffset": -55,
+       "fontFamily": "PT Sans",
+       "fontSize": 48,
+       "fontWeight": "bold"
+      },
+      {
+       "text": "3.4.",
+       "yOffset": 4,
+       "fontFamily": "PT Sans",
+       "fontSize": 47,
+       "fontWeight": "normal"
+      },
+      {
+       "text": "10 Uhr",
+       "yOffset": 68,
+       "fontFamily": "PT Sans",
+       "fontSize": 47,
+       "fontWeight": "bold"
+      }
+     ]
+    }
+   ],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-nummer",
+    "sc-0-aufruf-ausruf",
+    "sc-0-aufruf",
+    "sc-datum",
+    "sc-ort",
+    "sc-pfeil",
+    "sc-quelle",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#FFFFFF",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-infografik-0-titel",
+     "text": "Rad",
+     "type": "body",
+     "x": 70,
+     "y": 776.275,
+     "width": 454,
+     "fontSize": 53,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15
+    },
+    {
+     "id": "sc-0-infografik-0-text",
+     "text": "Kurze Wege.",
+     "type": "body",
+     "x": 199.5,
+     "y": 849.225,
+     "width": 195,
+     "fontSize": 35,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.3
+    },
+    {
+     "id": "sc-0-infografik-1-titel",
+     "text": "Bus",
+     "type": "body",
+     "x": 556,
+     "y": 776.275,
+     "width": 454,
+     "fontSize": 53,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-0-infografik-1-bild-badge",
+     "type": "circle",
+     "x": 783,
+     "y": 560.275,
+     "width": 304.2,
+     "height": 304.2,
+     "fill": "#008939",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [
+    {
+     "id": "sc-0-infografik-0-bild",
+     "src": "/media/ki:scene-ref-0000000002",
+     "fileName": "Rad",
+     "x": 102,
+     "y": 365.275,
+     "width": 390,
+     "height": 390,
+     "rotation": 0,
+     "scale": 1,
+     "opacity": 1
+    }
+   ],
+   "selectedIcons": [
+    "sc-0-infografik-1-bild-icon",
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-0-infografik-1-bild-icon": {
+     "iconId": "tabler:bus",
+     "x": 783,
+     "y": 560.275,
+     "scale": 1.39425,
+     "rotation": 0,
+     "color": "#FFFFFF",
+     "opacity": 1
+    },
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-0-infografik-0-bild",
+    "sc-0-infografik-0-titel",
+    "sc-0-infografik-0-text",
+    "sc-0-infografik-1-bild-badge",
+    "sc-0-infografik-1-bild-icon",
+    "sc-0-infografik-1-titel",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#FFFFFF",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-infografik-0-titel",
+     "text": "Rad",
+     "type": "body",
+     "x": 476,
+     "y": 416.3,
+     "width": 534,
+     "fontSize": 48,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15
+    },
+    {
+     "id": "sc-0-infografik-0-text",
+     "text": "Kurze Wege.",
+     "type": "body",
+     "x": 476,
+     "y": 483.5,
+     "width": 189,
+     "fontSize": 34,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.3
+    },
+    {
+     "id": "sc-0-infografik-1-titel",
+     "text": "Bus",
+     "type": "body",
+     "x": 476,
+     "y": 760.4,
+     "width": 534,
+     "fontSize": 48,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15
+    },
+    {
+     "id": "sc-0-infografik-0-nummer",
+     "text": "1",
+     "type": "body",
+     "x": 70,
+     "y": 448,
+     "width": 72,
+     "fontSize": 40,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.2
+    },
+    {
+     "id": "sc-0-infografik-1-nummer",
+     "text": "2",
+     "type": "body",
+     "x": 70,
+     "y": 764,
+     "width": 72,
+     "fontSize": 40,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.2
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-0-infografik-1-bild-badge",
+     "type": "circle",
+     "x": 307,
+     "y": 788,
+     "width": 219.96,
+     "height": 219.96,
+     "fill": "#008939",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-0-infografik-linie",
+     "type": "rect",
+     "x": 106,
+     "y": 630,
+     "width": 6,
+     "height": 316,
+     "fill": "#008939",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-0-infografik-0-nummer-kreis",
+     "type": "circle",
+     "x": 106,
+     "y": 472,
+     "width": 72,
+     "height": 72,
+     "fill": "#008939",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-0-infografik-1-nummer-kreis",
+     "type": "circle",
+     "x": 106,
+     "y": 788,
+     "width": 72,
+     "height": 72,
+     "fill": "#008939",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [
+    {
+     "id": "sc-0-infografik-0-bild",
+     "src": "/media/ki:scene-ref-0000000002",
+     "fileName": "Rad",
+     "x": 166,
+     "y": 331,
+     "width": 282,
+     "height": 282,
+     "rotation": 0,
+     "scale": 1,
+     "opacity": 1
+    }
+   ],
+   "selectedIcons": [
+    "sc-0-infografik-1-bild-icon",
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-0-infografik-1-bild-icon": {
+     "iconId": "tabler:bus",
+     "x": 307,
+     "y": 788,
+     "scale": 1.00815,
+     "rotation": 0,
+     "color": "#FFFFFF",
+     "opacity": 1
+    },
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-0-infografik-0-bild",
+    "sc-0-infografik-0-titel",
+    "sc-0-infografik-0-text",
+    "sc-0-infografik-1-bild-badge",
+    "sc-0-infografik-1-bild-icon",
+    "sc-0-infografik-1-titel",
+    "sc-0-infografik-linie",
+    "sc-0-infografik-0-nummer-kreis",
+    "sc-0-infografik-0-nummer",
+    "sc-0-infografik-1-nummer-kreis",
+    "sc-0-infografik-1-nummer",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#FFFFFF",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-infografik-0-titel",
+     "text": "300 Becher",
+     "type": "body",
+     "x": 70,
+     "y": 710.5,
+     "width": 940,
+     "fontSize": 188,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15
+    },
+    {
+     "id": "sc-0-infografik-0-text",
+     "text": "pro Tag",
+     "type": "body",
+     "x": 441,
+     "y": 946.7,
+     "width": 198,
+     "fontSize": 56,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.3
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [
+    {
+     "id": "sc-0-infografik-0-bild",
+     "src": "/media/ki:scene-ref-0000000001",
+     "fileName": "300 Becher",
+     "x": 324,
+     "y": 240.5,
+     "width": 432,
+     "height": 432,
+     "rotation": 0,
+     "scale": 1,
+     "opacity": 1
+    }
+   ],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-0-infografik-0-bild",
+    "sc-0-infografik-0-titel",
+    "sc-0-infografik-0-text",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#FFFFFF",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-infografik-0-titel",
+     "text": "Rad",
+     "type": "body",
+     "x": 70,
+     "y": 139.10000000000002,
+     "width": 940,
+     "fontSize": 112,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15
+    },
+    {
+     "id": "sc-0-infografik-0-text",
+     "text": "Kurze Wege.",
+     "type": "body",
+     "x": 429,
+     "y": 281.9,
+     "width": 222,
+     "fontSize": 40,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.3
+    },
+    {
+     "id": "sc-0-infografik-1-titel",
+     "text": "Bus",
+     "type": "body",
+     "x": 70,
+     "y": 685.5,
+     "width": 940,
+     "fontSize": 112,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-0-infografik-0-einheit-0",
+    "sc-0-infografik-0-einheit-1",
+    "sc-0-infografik-0-einheit-2",
+    "sc-0-infografik-0-einheit-3",
+    "sc-0-infografik-0-einheit-4",
+    "sc-0-infografik-0-einheit-5",
+    "sc-0-infografik-0-einheit-6",
+    "sc-0-infografik-0-einheit-7",
+    "sc-0-infografik-0-einheit-8",
+    "sc-0-infografik-0-einheit-9",
+    "sc-0-infografik-1-einheit-0",
+    "sc-0-infografik-1-einheit-1",
+    "sc-0-infografik-1-einheit-2",
+    "sc-0-infografik-1-einheit-3",
+    "sc-0-infografik-1-einheit-4",
+    "sc-0-infografik-1-einheit-5",
+    "sc-0-infografik-1-einheit-6",
+    "sc-0-infografik-1-einheit-7",
+    "sc-0-infografik-1-einheit-8",
+    "sc-0-infografik-1-einheit-9",
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-0-infografik-0-einheit-0": {
+     "iconId": "tabler:bike-filled",
+     "x": 256.8,
+     "y": 438.9,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 1
+    },
+    "sc-0-infografik-0-einheit-1": {
+     "iconId": "tabler:bike-filled",
+     "x": 398.4,
+     "y": 438.9,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 1
+    },
+    "sc-0-infografik-0-einheit-2": {
+     "iconId": "tabler:bike-filled",
+     "x": 540,
+     "y": 438.9,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 1
+    },
+    "sc-0-infografik-0-einheit-3": {
+     "iconId": "tabler:bike",
+     "x": 681.5999999999999,
+     "y": 438.9,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 0.8
+    },
+    "sc-0-infografik-0-einheit-4": {
+     "iconId": "tabler:bike",
+     "x": 823.2,
+     "y": 438.9,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 0.8
+    },
+    "sc-0-infografik-0-einheit-5": {
+     "iconId": "tabler:bike",
+     "x": 256.8,
+     "y": 580.5,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 0.8
+    },
+    "sc-0-infografik-0-einheit-6": {
+     "iconId": "tabler:bike",
+     "x": 398.4,
+     "y": 580.5,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 0.8
+    },
+    "sc-0-infografik-0-einheit-7": {
+     "iconId": "tabler:bike",
+     "x": 540,
+     "y": 580.5,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 0.8
+    },
+    "sc-0-infografik-0-einheit-8": {
+     "iconId": "tabler:bike",
+     "x": 681.5999999999999,
+     "y": 580.5,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 0.8
+    },
+    "sc-0-infografik-0-einheit-9": {
+     "iconId": "tabler:bike",
+     "x": 823.2,
+     "y": 580.5,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 0.8
+    },
+    "sc-0-infografik-1-einheit-0": {
+     "iconId": "tabler:bus-filled",
+     "x": 256.8,
+     "y": 919.3,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 1
+    },
+    "sc-0-infografik-1-einheit-1": {
+     "iconId": "tabler:bus-filled",
+     "x": 398.4,
+     "y": 919.3,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 1
+    },
+    "sc-0-infografik-1-einheit-2": {
+     "iconId": "tabler:bus-filled",
+     "x": 540,
+     "y": 919.3,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 1
+    },
+    "sc-0-infografik-1-einheit-3": {
+     "iconId": "tabler:bus-filled",
+     "x": 681.5999999999999,
+     "y": 919.3,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 1
+    },
+    "sc-0-infografik-1-einheit-4": {
+     "iconId": "tabler:bus-filled",
+     "x": 823.2,
+     "y": 919.3,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 1
+    },
+    "sc-0-infografik-1-einheit-5": {
+     "iconId": "tabler:bus-filled",
+     "x": 256.8,
+     "y": 1060.9,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 1
+    },
+    "sc-0-infografik-1-einheit-6": {
+     "iconId": "tabler:bus-filled",
+     "x": 398.4,
+     "y": 1060.9,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 1
+    },
+    "sc-0-infografik-1-einheit-7": {
+     "iconId": "tabler:bus-filled",
+     "x": 540,
+     "y": 1060.9,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 1
+    },
+    "sc-0-infografik-1-einheit-8": {
+     "iconId": "tabler:bus-filled",
+     "x": 681.5999999999999,
+     "y": 1060.9,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 1
+    },
+    "sc-0-infografik-1-einheit-9": {
+     "iconId": "tabler:bus",
+     "x": 823.2,
+     "y": 1060.9,
+     "scale": 1,
+     "rotation": 0,
+     "color": "#008939",
+     "opacity": 0.8
+    },
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-0-infografik-0-titel",
+    "sc-0-infografik-0-text",
+    "sc-0-infografik-0-einheit-0",
+    "sc-0-infografik-0-einheit-1",
+    "sc-0-infografik-0-einheit-2",
+    "sc-0-infografik-0-einheit-3",
+    "sc-0-infografik-0-einheit-4",
+    "sc-0-infografik-0-einheit-5",
+    "sc-0-infografik-0-einheit-6",
+    "sc-0-infografik-0-einheit-7",
+    "sc-0-infografik-0-einheit-8",
+    "sc-0-infografik-0-einheit-9",
+    "sc-0-infografik-1-titel",
+    "sc-0-infografik-1-einheit-0",
+    "sc-0-infografik-1-einheit-1",
+    "sc-0-infografik-1-einheit-2",
+    "sc-0-infografik-1-einheit-3",
+    "sc-0-infografik-1-einheit-4",
+    "sc-0-infografik-1-einheit-5",
+    "sc-0-infografik-1-einheit-6",
+    "sc-0-infografik-1-einheit-7",
+    "sc-0-infografik-1-einheit-8",
+    "sc-0-infografik-1-einheit-9",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#FFFFFF",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-infografik-0-titel",
+     "text": "Rad",
+     "type": "body",
+     "x": 94,
+     "y": 840.8,
+     "width": 305.3486742963367,
+     "fontSize": 96,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15
+    },
+    {
+     "id": "sc-0-infografik-0-text",
+     "text": "Kurze Wege.",
+     "type": "body",
+     "x": 135.67433714816835,
+     "y": 965.1999999999999,
+     "width": 222,
+     "fontSize": 40,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.3
+    },
+    {
+     "id": "sc-0-infografik-1-titel",
+     "text": "Bus",
+     "type": "body",
+     "x": 447.3486742963367,
+     "y": 840.8,
+     "width": 538.6513257036634,
+     "fontSize": 96,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-0-infografik-boden",
+     "type": "rect",
+     "x": 540,
+     "y": 798.8,
+     "width": 940,
+     "height": 8,
+     "fill": "#008939",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-0-infografik-1-bild-badge",
+     "type": "circle",
+     "x": 716.6743371481684,
+     "y": 518.8,
+     "width": 430.56,
+     "height": 430.56,
+     "fill": "#008939",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [
+    {
+     "id": "sc-0-infografik-0-bild",
+     "src": "/media/ki:scene-ref-0000000002",
+     "fileName": "Rad",
+     "x": 87.17433714816835,
+     "y": 475.79999999999995,
+     "width": 319,
+     "height": 319,
+     "rotation": 0,
+     "scale": 1,
+     "opacity": 1
+    }
+   ],
+   "selectedIcons": [
+    "sc-0-infografik-1-bild-icon",
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-0-infografik-1-bild-icon": {
+     "iconId": "tabler:bus",
+     "x": 716.6743371481684,
+     "y": 518.8,
+     "scale": 1.9734000000000003,
+     "rotation": 0,
+     "color": "#FFFFFF",
+     "opacity": 1
+    },
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-0-infografik-boden",
+    "sc-0-infografik-0-bild",
+    "sc-0-infografik-0-titel",
+    "sc-0-infografik-0-text",
+    "sc-0-infografik-1-bild-badge",
+    "sc-0-infografik-1-bild-icon",
+    "sc-0-infografik-1-titel",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#FFFFFF",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-nummer",
+     "text": "2",
+     "type": "header",
+     "x": 21.4,
+     "y": 270,
+     "width": 1010,
+     "fontSize": 810,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00CC4F",
+     "opacity": 0.2,
+     "align": "left",
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-0-absatz",
+     "text": "Ein Satz, der etwas erklärt.",
+     "type": "body",
+     "x": 70,
+     "y": 525.0799999999999,
+     "width": 940,
+     "fontSize": 86,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.22
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-nummer",
+    "sc-0-absatz",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#FFFFFF",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-zahl-wert",
+     "text": "3",
+     "type": "header",
+     "x": 70,
+     "y": 390.6,
+     "width": 583,
+     "fontSize": 350,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-0-zahl-label",
+     "text": "Tage bis zur Wahl",
+     "type": "body",
+     "x": 70,
+     "y": 902.1,
+     "width": 940,
+     "fontSize": 64,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.2
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-0-zahl-disc",
+     "type": "circle",
+     "x": 361.5,
+     "y": 572.6,
+     "width": 583,
+     "height": 583,
+     "fill": "#008939",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-0-zahl-disc",
+    "sc-0-zahl-wert",
+    "sc-0-zahl-label",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#FFFFFF",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Nachhaltiger\nleben",
+     "type": "header",
+     "x": 70,
+     "y": 110,
+     "width": 940,
+     "fontSize": 91,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-1-infografik-0-titel",
+     "text": "Nimm das Rad",
+     "type": "body",
+     "x": 70,
+     "y": 634.72,
+     "width": 454,
+     "fontSize": 44,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15
+    },
+    {
+     "id": "sc-1-infografik-0-text",
+     "text": "Kurze Wege.",
+     "type": "body",
+     "x": 216,
+     "y": 695.32,
+     "width": 162,
+     "fontSize": 29,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.3
+    },
+    {
+     "id": "sc-1-infografik-1-titel",
+     "text": "Eigener Becher",
+     "type": "body",
+     "x": 556,
+     "y": 634.72,
+     "width": 454,
+     "fontSize": 44,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15
+    },
+    {
+     "id": "sc-1-infografik-1-text",
+     "text": "Spart Becher.",
+     "type": "body",
+     "x": 687.5,
+     "y": 695.32,
+     "width": 191,
+     "fontSize": 29,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.3
+    },
+    {
+     "id": "sc-1-infografik-2-titel",
+     "text": "Kleider tauschen",
+     "type": "body",
+     "x": 70,
+     "y": 1091.02,
+     "width": 454,
+     "fontSize": 44,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15
+    },
+    {
+     "id": "sc-1-infografik-3-titel",
+     "text": "Jutebeutel",
+     "type": "body",
+     "x": 556,
+     "y": 1091.02,
+     "width": 454,
+     "fontSize": 44,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.15
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [
+    {
+     "id": "sc-1-infografik-0-bild",
+     "src": "/media/ki:scene-ref-0000000001",
+     "fileName": "Nimm das Rad",
+     "x": 147,
+     "y": 316.72,
+     "width": 300,
+     "height": 300,
+     "rotation": 0,
+     "scale": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-1-infografik-1-bild",
+     "src": "/media/ki:scene-ref-0000000002",
+     "fileName": "Eigener Becher",
+     "x": 633,
+     "y": 316.72,
+     "width": 300,
+     "height": 300,
+     "rotation": 0,
+     "scale": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-1-infografik-2-bild",
+     "src": "/media/ki:scene-ref-0000000003",
+     "fileName": "Kleider tauschen",
+     "x": 147,
+     "y": 773.02,
+     "width": 300,
+     "height": 300,
+     "rotation": 0,
+     "scale": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-1-infografik-3-bild",
+     "src": "/media/ki:scene-ref-0000000004",
+     "fileName": "Jutebeutel",
+     "x": 633,
+     "y": 773.02,
+     "width": 300,
+     "height": 300,
+     "rotation": 0,
+     "scale": 1,
+     "opacity": 1
+    }
+   ],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-0-headline-0",
+    "sc-1-infografik-0-bild",
+    "sc-1-infografik-0-titel",
+    "sc-1-infografik-0-text",
+    "sc-1-infografik-1-bild",
+    "sc-1-infografik-1-titel",
+    "sc-1-infografik-1-text",
+    "sc-1-infografik-2-bild",
+    "sc-1-infografik-2-titel",
+    "sc-1-infografik-3-bild",
+    "sc-1-infografik-3-titel",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#FFFFFF",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Die Lösung?",
+     "type": "header",
+     "x": 70,
+     "y": 418.82,
+     "width": 940,
+     "fontSize": 162,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-1-absatz",
+     "text": "Für den Abschluss empfehlen wir:",
+     "type": "body",
+     "x": 70,
+     "y": 631.3399999999999,
+     "width": 940,
+     "fontSize": 86,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "center",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.22
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    },
+    {
+     "id": "sc-0-headline-0-kreis-0",
+     "type": "hand-kreis",
+     "x": 702,
+     "y": 504.68,
+     "width": 688.5,
+     "height": 223.55999999999997,
+     "fill": "#008939",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "strokeWidth": 8
+    },
+    {
+     "id": "sc-1-absatz-unterstrich-0",
+     "type": "hand-unterstrich",
+     "x": 712,
+     "y": 735.4,
+     "width": 404.2,
+     "height": 33,
+     "fill": "#008939",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "strokeWidth": 11
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-0-headline-0-kreis-0",
+    "sc-0-headline-0",
+    "sc-1-absatz-unterstrich-0",
+    "sc-1-absatz",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#FFFFFF",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "5 Fakten,\ndie wir nach",
+     "type": "header",
+     "x": 70,
+     "y": 110,
+     "width": 940,
+     "fontSize": 137,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-0-headline-1",
+     "text": "diesem Sommer",
+     "type": "header",
+     "x": 70,
+     "y": 373.03999999999996,
+     "width": 940,
+     "fontSize": 137,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96,
+     "shadowOpacity": 0
+    },
+    {
+     "id": "sc-0-headline-2",
+     "text": "ins Schwitzen",
+     "type": "header",
+     "x": 70,
+     "y": 504.55999999999995,
+     "width": 940,
+     "fontSize": 137,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-0-headline-1-box",
+     "type": "rect",
+     "x": 522.1,
+     "y": 444.28,
+     "width": 945.3,
+     "height": 131.51999999999998,
+     "fill": "#00CC4F",
+     "rotation": -2,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    },
+    {
+     "id": "sc-0-headline-0-kreis-0",
+     "type": "hand-kreis",
+     "x": 378.25,
+     "y": 182.60999999999999,
+     "width": 719.25,
+     "height": 189.05999999999997,
+     "fill": "#008939",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "strokeWidth": 7
+    },
+    {
+     "id": "sc-0-headline-2-unterstrich-0",
+     "type": "hand-unterstrich",
+     "x": 652.25,
+     "y": 652.52,
+     "width": 643.9,
+     "height": 54,
+     "fill": "#008939",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "strokeWidth": 18
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-0-headline-0-kreis-0",
+    "sc-0-headline-0",
+    "sc-0-headline-1-box",
+    "sc-0-headline-1",
+    "sc-0-headline-2-unterstrich-0",
+    "sc-0-headline-2",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#FFFFFF",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Unsere Nutzpflanzen\nunter Stress",
+     "type": "header",
+     "x": 70,
+     "y": 491.54,
+     "width": 940,
+     "fontSize": 94,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 0.96
+    },
+    {
+     "id": "sc-1-absatz",
+     "text": "Herbert sagt: das stimmt nicht.",
+     "type": "body",
+     "x": 70,
+     "y": 705.02,
+     "width": 940,
+     "fontSize": 52,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.22
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    },
+    {
+     "id": "sc-0-headline-0-kreis-0",
+     "type": "hand-kreis",
+     "x": 681,
+     "y": 541.36,
+     "width": 634.5,
+     "height": 129.72,
+     "fill": "#008939",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "strokeWidth": 5
+    },
+    {
+     "id": "sc-1-absatz-unterstrich-0",
+     "type": "hand-unterstrich",
+     "x": 239,
+     "y": 767.94,
+     "width": 348.4,
+     "height": 21,
+     "fill": "#008939",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "strokeWidth": 7
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [
+    "sc-pfeil"
+   ],
+   "iconStates": {
+    "sc-pfeil": {
+     "iconId": "tabler:arrow-narrow-right",
+     "x": 1044.56,
+     "y": 1324.64,
+     "scale": 0.35,
+     "rotation": 0,
+     "color": "#00261A"
+    }
+   },
+   "layerOrder": [
+    "sc-0-headline-0-kreis-0",
+    "sc-0-headline-0",
+    "sc-1-absatz-unterstrich-0",
+    "sc-1-absatz",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#FFFFFF",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-text",
+     "text": "Achte dazwischen auf Pausen.",
+     "type": "body",
+     "x": 70,
+     "y": 651.125,
+     "width": 940,
+     "fontSize": 59,
+     "fontFamily": "PT Sans",
+     "fontStyle": "normal",
+     "fill": "#00261A",
+     "align": "left",
+     "accent": {
+      "fill": "#008939"
+     },
+     "marker": {
+      "fill": "#BEFF60",
+      "color": "#00261A",
+      "padX": 0.1
+     },
+     "lineHeight": 1.25
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "Klimaschonend KI-generiert mit dem Grünerator",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 611.5,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 330.75,
+     "y": 1316.5,
+     "width": 639.5,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    },
+    {
+     "id": "sc-0-text-kreis-0",
+     "type": "hand-kreis",
+     "x": 778,
+     "y": 690.95,
+     "width": 221.25,
+     "height": 81.41999999999999,
+     "fill": "#008939",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "strokeWidth": 4
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [],
+   "iconStates": {},
+   "layerOrder": [
+    "sc-0-text-kreis-0",
+    "sc-0-text",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  }
+ ]
+}
