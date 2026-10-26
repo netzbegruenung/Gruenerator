@@ -115,6 +115,10 @@ if (sentryDsn) {
       // to reject. Arrives with no stack and nothing to act on.
       'The WKWebView was deallocated before the message was delivered',
       'Unable to preload CSS', // stale deploy; recovered via vite:preloadError reload above
+      // Microsoft's link scanner (Outlook SafeLinks / Defender, CefSharp on Azure)
+      // rejects a promise with this plain string when its own bridge loses an
+      // object while crawling a shared link. Not ours: we have no CefSharp bridge.
+      /Object Not Found Matching Id:\d+, MethodName:\w+, ParamCount:\d+/,
     ],
     denyUrls: [
       /^webkit-masked-url:\/\//, // Safari masks browser-extension frames behind this scheme
