@@ -55,7 +55,7 @@ export function SidebarSlider({
         <Slider.Thumb
           className="block size-3 max-canvas-mobile:size-5 bg-editor-surface rounded-[10px] shadow-[0_1px_4px_rgba(0,0,0,0.2)] cursor-pointer border-[1.5px] border-primary-500 transition-[transform,background-color] duration-100 hover:scale-110 hover:bg-editor-active-soft focus:outline-none focus:shadow-[0_0_0_3px_rgba(70,150,43,0.2)]"
           aria-label={label}
-          aria-valuetext={unit === '%' ? `${Math.round(value * 100)} %` : String(value)}
+          aria-valuetext={unit === '%' ? `${Math.round(value * 100)} %` : `${value} ${unit}`.trim()}
         />
       </Slider.Root>
     </div>
