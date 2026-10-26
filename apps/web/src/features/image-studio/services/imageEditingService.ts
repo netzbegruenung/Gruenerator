@@ -1,10 +1,12 @@
 import {
+  isAiConsentRequiredBody,
   type Flux3BoxEdit,
   type Flux3DetectedElement,
   type ImageEditReference,
   type KiLabelMode,
 } from '@gruenerator/contracts';
 import { ApiError, getContractsClient, getGlobalApiClient } from '@gruenerator/shared/api';
+import { IMAGE_FORMATS, type ImageFormatId } from '@gruenerator/shared/image-studio';
 
 import apiClient from '../../../components/utils/apiClient';
 
@@ -118,6 +120,58 @@ export async function outpaintImage(
   }
   const raw = res.data.image.base64;
   return raw.startsWith('data:') ? raw : `data:image/png;base64,${raw}`;
+}
+
+/** What a failed outpaint tells the user: the server's validation text, budget, consent, or a retry hint. */
+export function outpaintErrorMessage(err: unknown): string {
+  const response = (err as { response?: { status?: number; data?: { error?: unknown } } })
+    ?.response;
+  const status = response?.status;
+  if (status === 400 && typeof response?.data?.error === 'string' && response.data.error) {
+    return response.data.error;
+  }
+  if (status === 403 && isAiConsentRequiredBody(response?.data)) {
+    return 'Für die KI-Funktionen fehlt deine Einwilligung.';
+  }
+  if (status === 429) return 'Dein Bild-Budget für heute ist aufgebraucht.';
+  if (status === 503)
+    return 'Das Budget ist gerade nicht abrufbar. Bitte versuche es später erneut.';
+  return 'Erweitern hat nicht geklappt. Bitte versuche es noch einmal.';
+}
+
+/**
+ * The outpaint preset closest to `aspect` (width / height), compared on a log
+ * scale so 2:1 and 1:2 are equally far from 1:1. A preset, not `custom`: only
+ * then does the server scale source and canvas into BFL's budget (#3388).
+ */
+export function nearestOutpaintFormat(aspect: number): ImageFormatId {
+  const target = Math.log(aspect);
+  let best: ImageFormatId = IMAGE_FORMATS[0].id;
+  let bestDistance = Infinity;
+  for (const format of IMAGE_FORMATS) {
+    const distance = Math.abs(Math.log(format.width / format.height) - target);
+    if (distance < bestDistance) {
+      best = format.id;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
+
+/**
+ * „Erweitern" in the canvas editor: outpaints to the frame's nearest preset.
+ * Carries the full AI label, like every AI image the editor places
+ * (`editAiImage`, `generateAiImage` and the Bild-Editor never pass another).
+ */
+export async function expandCanvasImage(image: File, aspect: number): Promise<File> {
+  let dataUrl: string;
+  try {
+    dataUrl = await outpaintImage(image, nearestOutpaintFormat(aspect), 'full');
+  } catch (err) {
+    throw new Error(outpaintErrorMessage(err));
+  }
+  const blob = await (await fetch(dataUrl)).blob();
+  return new File([blob], 'erweitert.jpg', { type: blob.type || 'image/jpeg' });
 }
 
 export async function editAiImage(
