@@ -685,6 +685,7 @@ test.describe('Barrierefreiheit: Canvas-Editor', () => {
     await expect(ansage.filter({ hasText: 'Gelöscht: Text: Hallo Welt' })).toHaveCount(1);
     await expect(umbenannt).toHaveCount(0);
     await expect(bereich).not.toHaveAttribute('aria-label', /Hallo Welt/);
+    await expect(ebenen.getByRole('option').first()).toBeFocused();
 
     // Mod+Z holt es zurück.
     await page.keyboard.press('ControlOrMeta+z');
