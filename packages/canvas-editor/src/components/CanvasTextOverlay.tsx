@@ -76,6 +76,7 @@ import {
 } from 'react';
 import { createPortal, flushSync } from 'react-dom';
 
+import { captureFocusOrigin, returnFocus, type FocusOrigin } from '../utils/editorFocus';
 import { fontMarkSupport } from '../utils/fontMarkSupport';
 import { DEFAULT_TEXT_MARKER } from '../utils/markerColors';
 import { normalizeRotation } from '../utils/orientation';
@@ -463,9 +464,15 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
   const draftRef = useRef('');
   draftRef.current = draft;
 
+  // Woher die Bearbeitung kam: der Ebenen-Eintrag (Enter/F2 in der Liste) oder
+  // die Seite. Nach Escape oder Übernehmen geht der Fokus dorthin zurück —
+  // sonst fiele er mit dem abgeräumten Editor auf <body>.
+  const originRef = useRef<FocusOrigin | null>(null);
+
   const open = useCallback((next: TextEditSession | null) => {
     if (!next) return;
     closed.current = false;
+    originRef.current ??= captureFocusOrigin(next.anchor?.node.getStage()?.container() ?? null);
     setDraft(next.text);
     setSession(next);
   }, []);
@@ -475,6 +482,13 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
     closed.current = true;
     setSession(null);
     if (draftRef.current !== session.text) session.onTextChange?.(draftRef.current);
+  }, [session]);
+
+  useEffect(() => {
+    if (session || !originRef.current) return;
+    const origin = originRef.current;
+    originRef.current = null;
+    returnFocus(origin);
   }, [session]);
 
   useEffect(() => {

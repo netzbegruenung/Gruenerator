@@ -16,6 +16,7 @@ import { Group, Rect, Text, Transformer } from 'react-konva';
 
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
+import { captureFocusOrigin, returnFocus } from '../utils/editorFocus';
 import { isGroupDrag } from '../utils/multiSelect';
 import { ELEMENT_TRANSFORMER, normalizeRotation } from '../utils/orientation';
 import { calculatePillBadgeDimensions } from '../utils/pillBadgeUtils';
@@ -172,6 +173,8 @@ function PillBadgeInner({
     const stage = group.getStage();
     if (!stage) return;
 
+    // Woher die Bearbeitung kam (Ebenen-Eintrag oder Seite) — dorthin geht der Fokus danach.
+    const origin = captureFocusOrigin(stage.container());
     setIsEditing(true);
 
     const stageBox = stage.container().getBoundingClientRect();
@@ -232,6 +235,7 @@ function PillBadgeInner({
       if (textarea.parentNode) {
         document.body.removeChild(textarea);
       }
+      returnFocus(origin);
     };
 
     textarea.addEventListener('blur', removeTextarea);
@@ -242,6 +246,11 @@ function PillBadgeInner({
         textarea.blur();
       }
       if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        textarea.blur();
+      }
+      // Das Feld hängt am Ende von <body>: Tab führte von dort ins Nirgendwo.
+      if (e.key === 'Tab') {
         e.preventDefault();
         textarea.blur();
       }

@@ -18,6 +18,7 @@ import {
   calculateParallelogramPoints,
   flattenPoints,
 } from '../utils/dreizeilenLayout';
+import { captureFocusOrigin, returnFocus } from '../utils/editorFocus';
 import { isGroupDrag } from '../utils/multiSelect';
 import { ELEMENT_TRANSFORMER, normalizeRotation } from '../utils/orientation';
 import { boxFrame, createBoxFrame, snapByBounds } from '../utils/snapping';
@@ -295,6 +296,8 @@ function BalkenGroupInner({
       const stage = textNode.getStage();
       if (!stage) return;
 
+      // Woher die Bearbeitung kam (Ebenen-Eintrag oder Seite) — dorthin geht der Fokus danach.
+      const origin = captureFocusOrigin(stage.container());
       setEditingIndex(index);
       setLiveText({ index, text: textNode.text() });
 
@@ -373,6 +376,7 @@ function BalkenGroupInner({
           document.body.removeChild(inputRef.current);
         }
         inputRef.current = null;
+        returnFocus(origin);
       };
 
       const onInput = () => {
@@ -388,6 +392,11 @@ function BalkenGroupInner({
           input?.blur();
         }
         if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          input?.blur();
+        }
+        // Das Feld hängt am Ende von <body>: Tab führte von dort ins Nirgendwo.
+        if (e.key === 'Tab') {
           e.preventDefault();
           input?.blur();
         }

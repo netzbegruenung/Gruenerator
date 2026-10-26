@@ -15,6 +15,7 @@ import { Group, Circle, Text, Rect, Transformer } from 'react-konva';
 
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
+import { captureFocusOrigin, returnFocus } from '../utils/editorFocus';
 import { isGroupDrag } from '../utils/multiSelect';
 import { ELEMENT_TRANSFORMER, normalizeRotation } from '../utils/orientation';
 import { boxFrame, createBoxFrame, snapByBounds } from '../utils/snapping';
@@ -180,6 +181,8 @@ function CircleBadgeInner({
       const stage = textNode.getStage();
       if (!stage) return;
 
+      // Woher die Bearbeitung kam (Ebenen-Eintrag oder Seite) — dorthin geht der Fokus danach.
+      const origin = captureFocusOrigin(stage.container());
       setEditingIndex(index);
 
       const stageBox = stage.container().getBoundingClientRect();
@@ -244,6 +247,7 @@ function CircleBadgeInner({
           document.body.removeChild(inputRef.current);
         }
         inputRef.current = null;
+        returnFocus(origin);
       };
 
       input.addEventListener('blur', removeInput);
@@ -252,6 +256,11 @@ function CircleBadgeInner({
           input?.blur();
         }
         if (ev.key === 'Enter' && !ev.shiftKey) {
+          ev.preventDefault();
+          input?.blur();
+        }
+        // Das Feld hängt am Ende von <body>: Tab führte von dort ins Nirgendwo.
+        if (ev.key === 'Tab') {
           ev.preventDefault();
           input?.blur();
         }
