@@ -387,8 +387,9 @@ auditConfig:
     # (GHSA-mrhx-c7xc-m3w5). Our own validation runs on zod 4 (>=4.6.6). What
     # remains is tooling that keeps its own nested zod 3, which has no patched
     # release: apps/mobile → expo → @expo/cli (dev server / CLI, never in the
-    # app bundle), chromium-bidi (puppeteer's BiDi protocol mapper, fed by the
-    # browser, not by users) and apps/wordpress → @wordpress/scripts (build).
+    # app bundle) and apps/wordpress → @wordpress/scripts → puppeteer-core →
+    # chromium-bidi (build/e2e tooling; its schemas parse the browser's
+    # protocol messages, not user input).
     # ignoreGhsas cannot be scoped to a version, so the `zod@>=4 <5` floor
     # override below keeps every zod 4 copy at >=4.6.6. Re-check 2026-11-25.
     - GHSA-mrhx-c7xc-m3w5
