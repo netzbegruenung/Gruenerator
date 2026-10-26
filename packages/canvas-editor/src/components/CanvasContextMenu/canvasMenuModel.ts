@@ -191,16 +191,7 @@ export function buildCanvasMenu(snapshot: CanvasMenuSnapshot, env: CanvasMenuEnv
                 : item('replaceBackground', { label: 'Hintergrundbild …' }),
             ]
           : []),
-        ...(hasImage && bg?.onToggleLock
-          ? [
-              {
-                kind: 'check' as const,
-                id: 'toggleBackgroundFixed' as const,
-                label: CANVAS_COMMANDS.toggleBackgroundFixed.label,
-                checked: !!bg.isLocked,
-              },
-            ]
-          : []),
+        ...(hasImage && snapshot.module?.data.canCrop ? [item('cropBackground')] : []),
         ...(hasImage && bg?.onImageChange ? [item('removeBackground', { destructive: true })] : []),
         ...(hasImage && env.canEditImage ? [item('editImage')] : []),
         separator,

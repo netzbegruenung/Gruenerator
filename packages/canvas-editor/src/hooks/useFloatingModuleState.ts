@@ -1,5 +1,6 @@
 import { useMemo, useRef } from 'react';
 
+import { imageElementInteraction } from '../utils/backgroundPhotoCrop';
 import { resolveValue } from '../utils/canvasValueResolver';
 import { templateTextAlignOf, type TextAlign } from '../utils/textAlign';
 
@@ -61,6 +62,8 @@ export interface FloatingModuleState {
      * and don't support outline/shadow/gradient, so their controls are hidden.
      */
     isInstanceText?: boolean;
+    /** Das Foto lässt im Ausschnitt-Modus Ziehen oder Zoomen zu. */
+    canCrop?: boolean;
     /** Stock credit of a placed (hotlinked) Unsplash photo. */
     attribution?: StockImageAttribution;
     [key: string]: unknown;
@@ -208,6 +211,7 @@ export function floatingModuleFor<
     const fillStateKey = imageElement.fillStateKey as string | undefined;
 
     const currentOpacity = resolveToolbarOpacity(imageElement, state, layout);
+    const crop = imageElementInteraction(imageElement, { cropping: true, legacyLocked: false });
 
     // Get fill from state or resolve from config
     let currentFill: string | undefined = undefined;
@@ -230,6 +234,8 @@ export function floatingModuleFor<
         // Das austauschbare Foto der Vorlage — nicht Deko mit festem `src`
         // und nicht der Profilbild-Avatar (`transparentImage`).
         isPhoto: imageElement.srcKey === 'currentImageSrc',
+        canCrop:
+          imageElement.srcKey === 'currentImageSrc' && (crop.draggable || crop.transformable),
       },
     };
   }

@@ -66,7 +66,7 @@ export const CANVAS_COMMANDS = {
   editImage: { label: 'Bild bearbeiten', scope: 'editor', shortcut: null },
   setAsBackground: { label: 'Als Hintergrund', scope: 'editor', shortcut: null },
   replaceBackground: { label: 'Bild ersetzen …', scope: 'editor', shortcut: null },
-  toggleBackgroundFixed: { label: 'Hintergrund fixieren', scope: 'editor', shortcut: null },
+  cropBackground: { label: 'Ausschnitt anpassen', scope: 'editor', shortcut: null },
   removeBackground: { label: 'Hintergrundbild entfernen', scope: 'editor', shortcut: null },
   duplicatePage: { label: 'Seite duplizieren', scope: 'editor', shortcut: null },
   deletePage: { label: 'Seite löschen', scope: 'editor', shortcut: null },

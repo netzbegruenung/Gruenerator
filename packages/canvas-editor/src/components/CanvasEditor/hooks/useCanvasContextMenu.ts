@@ -84,8 +84,8 @@ export function useCanvasContextMenu({
             return removePage(pageId);
           case 'replaceBackground':
             return requestBackgroundPicker();
-          case 'toggleBackgroundFixed':
-            return background?.onToggleLock?.();
+          case 'cropBackground':
+            return page.handleCropImage?.();
           case 'removeBackground':
             background?.onImageChange?.(null, undefined, null);
             return deselectAll();
