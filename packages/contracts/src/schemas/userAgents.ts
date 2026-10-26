@@ -83,7 +83,7 @@ export const userAgentShareModeSchema = z.enum(['private', 'groups', 'authentica
 export type UserAgentShareMode = z.infer<typeof userAgentShareModeSchema>;
 
 export const userAgentSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().guid(),
   identifier: z.string(),
   title: z.string(),
   description: z.string(),
@@ -117,7 +117,7 @@ export const userAgentSchema = z.object({
    * it as `null` — same convention as every other optional field above. */
   defaultRecipeMention: z.string().optional(),
   /** Row id of the default recipe — the stable handle across renames. */
-  defaultRecipeId: z.string().uuid().optional(),
+  defaultRecipeId: z.string().guid().optional(),
 });
 
 export type UserAgent = z.infer<typeof userAgentSchema>;
@@ -131,7 +131,7 @@ export type UserAgent = z.infer<typeof userAgentSchema>;
  * agent reached the caller through, `null` for their own.
  */
 export const mentionableUserAgentSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().guid(),
   identifier: z.string(),
   title: z.string(),
   description: z.string(),
@@ -168,7 +168,7 @@ export const createUserAgentBodySchema = z.object({
   fewShotExamples: z.array(agentFewShotExampleSchema).nullish(),
   inlineSourceLinks: z.boolean().nullish(),
   defaultRecipeMention: z.string().nullish(),
-  defaultRecipeId: z.string().uuid().nullish(),
+  defaultRecipeId: z.string().guid().nullish(),
 });
 
 export type CreateUserAgentBody = z.infer<typeof createUserAgentBodySchema>;

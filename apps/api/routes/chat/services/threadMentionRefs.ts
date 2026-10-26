@@ -20,8 +20,8 @@ import { readSavedTextTitles } from './documentContextService.js';
 const MENTION_REFS_PER_KIND = 5;
 
 const threadMentionRefsSchema = z.object({
-  texts: z.array(z.string().uuid()),
-  docs: z.array(z.string().uuid()),
+  texts: z.array(z.string().guid()),
+  docs: z.array(z.string().guid()),
   links: z.array(z.string().url().max(2048)),
 });
 export type ThreadMentionRefs = z.infer<typeof threadMentionRefsSchema>;

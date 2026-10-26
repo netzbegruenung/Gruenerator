@@ -30,7 +30,7 @@ export const activityTypeSchema = z.enum([
 export type ActivityType = z.infer<typeof activityTypeSchema>;
 
 /** Free-form, type-specific detail (e.g. { from, to } for a move). */
-export const activityPayloadSchema = z.record(z.unknown());
+export const activityPayloadSchema = z.record(z.string(), z.unknown());
 
 /**
  * Typed view of the `assignees_changed` payload. The generic `activityPayloadSchema`
@@ -43,7 +43,7 @@ export const activityPayloadSchema = z.record(z.unknown());
  * agent rides in `delegateAgentId` (an identifier slug, open set → plain string).
  */
 export const assigneesChangedPayloadSchema = z.object({
-  addedAssigneeIds: z.array(z.string().uuid()).optional(),
+  addedAssigneeIds: z.array(z.string().guid()).optional(),
   cardTitle: z.string().nullish(),
   cardDescription: z.string().nullish(),
   delegateAgentId: z.string().nullish(),

@@ -42,13 +42,13 @@ export const createPodcastBodySchema = z.object({
 export type CreatePodcastBody = z.infer<typeof createPodcastBodySchema>;
 
 export const createPodcastResponseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().guid(),
   /** Stable key of the page URL `/podcast/<slug>-<suffix>`. */
   slugSuffix: z.string(),
 });
 
 export const podcastDtoSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().guid(),
   slugSuffix: z.string(),
   title: z.string(),
   status: podcastStatusSchema,
@@ -57,7 +57,7 @@ export const podcastDtoSchema = z.object({
   script: podcastScriptSchema.nullable(),
   durationSeconds: z.number().nullable(),
   /** The Mediathek audio; null until ready, and again once it was deleted there. */
-  mediaId: z.string().uuid().nullable(),
+  mediaId: z.string().guid().nullable(),
   shareToken: z.string().nullable(),
   voices: z.object({ a: ttsVoiceIdSchema, b: ttsVoiceIdSchema }),
   createdAt: z.string(),

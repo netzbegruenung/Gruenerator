@@ -431,7 +431,7 @@ export type EditorOperationsEvent = z.infer<typeof editorOperationsEventSchema>;
 export const chartPayloadSchema = z.object({
   type: z.enum(['bar', 'line', 'area', 'pie', 'donut']),
   title: z.string(),
-  data: z.array(z.record(z.union([z.string(), z.number()]))),
+  data: z.array(z.record(z.string(), z.union([z.string(), z.number()]))),
   xKey: z.string(),
   yKeys: z.array(z.string()),
   colors: z.array(z.string()).optional(),

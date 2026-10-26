@@ -41,10 +41,7 @@ import { itemTexts, stringsOf, textsOf } from './slideTexts.js';
 
 import type { StructuredValidation } from '../ai/structuredParsing.js';
 
-export function fromZod<T>(
-  schema: z.ZodType<T, z.ZodTypeDef, unknown>,
-  input: unknown
-): StructuredValidation<T> {
+export function fromZod<T>(schema: z.ZodType<T, unknown>, input: unknown): StructuredValidation<T> {
   const parsed = schema.safeParse(input);
   if (parsed.success) return { ok: true, value: parsed.data };
   return { ok: false, error: parsed.error.issues.map((i) => issueText(i, input)).join('; ') };
@@ -54,12 +51,12 @@ export function fromZod<T>(
 function issueText(issue: z.ZodIssue, input: unknown): string {
   const where = issue.path.join('.') || '(root)';
   const value = issue.path.reduce<unknown>(
-    (v, key) => (v && typeof v === 'object' ? (v as Record<string, unknown>)[key] : null),
+    (v, key) => (v && typeof v === 'object' ? (v as Record<PropertyKey, unknown>)[key] : null),
     input
   );
   if (
     issue.code === 'too_big' &&
-    issue.type === 'string' &&
+    issue.origin === 'string' &&
     /\.items\.\d+\.lines\.\d+$/.test(where) &&
     typeof value === 'string'
   ) {

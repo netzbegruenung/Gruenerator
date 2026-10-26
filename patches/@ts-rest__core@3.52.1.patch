@@ -1,0 +1,33 @@
+diff --git a/src/lib/dsl.d.ts b/src/lib/dsl.d.ts
+index 0e141c8f46765f33b6efb3d459c08dc7c7551bd9..bb88e32f6efd1216e1d58964e792ca5ec9d8d277 100644
+--- a/src/lib/dsl.d.ts
++++ b/src/lib/dsl.d.ts
+@@ -74,7 +74,7 @@ type RecursivelyProcessAppRouter<T extends AppRouter, TOptions extends RouterOpt
+ type RecursivelyApplyOptions<TRouter extends AppRouter, TOptions extends RouterOptions> = {
+     [TRouterKey in keyof TRouter]: TRouter[TRouterKey] extends AppRoute ? Prettify<ApplyOptions<TRouter[TRouterKey], TOptions>> : TRouter[TRouterKey] extends AppRouter ? RecursivelyApplyOptions<TRouter[TRouterKey], TOptions> : TRouter[TRouterKey];
+ };
+-type UniversalMerge<A, B> = A extends z.AnyZodObject ? B extends z.AnyZodObject ? z.ZodObject<z.objectUtil.MergeShapes<A['shape'], B['shape']>, B['_def']['unknownKeys'], B['_def']['catchall']> : unknown extends B ? A : MixedZodError<A, B> : unknown extends A ? B : B extends z.AnyZodObject ? MixedZodError<A, B> : unknown extends B ? A : Prettify<Merge<A extends ContractPlainType<infer APlain> ? APlain : A, B extends ContractPlainType<infer BPlain> ? BPlain : B>>;
++type UniversalMerge<A, B> = A extends z.ZodObject<any> ? B extends z.ZodObject<any> ? z.ZodObject<Omit<A['shape'], keyof B['shape']> & B['shape']> : unknown extends B ? A : MixedZodError<A, B> : unknown extends A ? B : B extends z.ZodObject<any> ? MixedZodError<A, B> : unknown extends B ? A : Prettify<Merge<A extends ContractPlainType<infer APlain> ? APlain : A, B extends ContractPlainType<infer BPlain> ? BPlain : B>>;
+ type ApplyOptions<TRoute extends AppRoute, TOptions extends RouterOptions> = Omit<TRoute, 'headers' | 'path' | 'responses'> & WithoutUnknown<{
+     path: TOptions['pathPrefix'] extends string ? `${TOptions['pathPrefix']}${TRoute['path']}` : TRoute['path'];
+     headers: UniversalMerge<TOptions['baseHeaders'], TRoute['headers']>;
+diff --git a/src/lib/zod-utils.d.ts b/src/lib/zod-utils.d.ts
+index 960163ce69ac3f79840dabb50b97f72c4a800edb..ad33b008e43358e2f877473386f6bef634eaa90f 100644
+--- a/src/lib/zod-utils.d.ts
++++ b/src/lib/zod-utils.d.ts
+@@ -1,12 +1,8 @@
+ import { z } from 'zod';
+ export declare const isZodType: (obj: unknown) => obj is z.ZodTypeAny;
+-export declare const isZodObject: (obj: unknown) => obj is z.AnyZodObject | z.ZodEffects<z.AnyZodObject, {
+-    [x: string]: any;
+-}, {
+-    [x: string]: any;
+-}>;
+-export declare const isZodObjectStrict: (obj: unknown) => obj is z.AnyZodObject;
+-export declare const extractZodObjectShape: <T extends z.AnyZodObject | z.ZodEffects<z.ZodTypeAny, any, any>>(obj: T) => any;
++export declare const isZodObject: (obj: unknown) => obj is z.ZodObject<any> | z.ZodPipe<z.ZodObject<any>, any>;
++export declare const isZodObjectStrict: (obj: unknown) => obj is z.ZodObject<any>;
++export declare const extractZodObjectShape: <T extends z.ZodObject<any> | z.ZodPipe<z.ZodType, any>>(obj: T) => any;
+ export declare const zodMerge: (objectA: unknown, objectB: unknown) => {};
+ export declare const checkZodSchema: (data: unknown, schema: unknown, { passThroughExtraKeys }?: {
+     passThroughExtraKeys?: boolean | undefined;

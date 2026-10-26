@@ -197,7 +197,7 @@ export type GroupInfoUpdateBody = z.infer<typeof groupInfoUpdateSchema>;
 
 export const groupMemberRoleSchema = z.object({
   role: z.enum(['admin', 'member'], {
-    errorMap: () => ({ message: 'Rolle muss "admin" oder "member" sein.' }),
+    error: 'Rolle muss "admin" oder "member" sein.',
   }),
 });
 export type GroupMemberRoleBody = z.infer<typeof groupMemberRoleSchema>;
@@ -243,7 +243,7 @@ export const groupLinkSchema = z.object({
     .max(100, 'Titel darf max. 100 Zeichen haben.'),
   url: z.string().regex(/^https?:\/\/.+/, 'URL muss mit http:// oder https:// beginnen.'),
   icon: z.enum(ALLOWED_LINK_ICONS, {
-    errorMap: () => ({ message: `Ungültiges Icon. Erlaubt: ${ALLOWED_LINK_ICONS.join(', ')}` }),
+    error: `Ungültiges Icon. Erlaubt: ${ALLOWED_LINK_ICONS.join(', ')}`,
   }),
   description: z.string().max(300, 'Beschreibung darf max. 300 Zeichen haben.').optional(),
 });

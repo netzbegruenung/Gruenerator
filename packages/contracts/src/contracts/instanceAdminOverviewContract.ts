@@ -44,7 +44,7 @@ export const instanceAdminOverviewContract = c.router(
     setUserPanda: {
       method: 'PATCH',
       path: '/api/auth/admin/bgst/users/:userId/panda',
-      pathParams: z.object({ userId: z.string().uuid() }),
+      pathParams: z.object({ userId: z.string().guid() }),
       body: instanceAdminSetPandaBodySchema,
       responses: {
         200: instanceAdminSetPandaResponseSchema,

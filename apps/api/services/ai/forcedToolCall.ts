@@ -25,11 +25,11 @@
  */
 
 import { jsonSchema } from 'ai';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 
 import { createLogger } from '../../utils/logger.js';
 
 import { aiTools } from './generate.js';
+import { toolInputJsonSchema } from './toolJsonSchema.js';
 
 import type { AiCall } from './generate.js';
 import type { LaneId } from './lanes.js';
@@ -90,7 +90,7 @@ export async function runForcedToolCall(
 
   // jsonSchema() wrapping is required — the AI SDK's asSchema helper rejects
   // raw JSON-Schema objects.
-  const rawSchema = zodToJsonSchema(inputSchema, { target: 'jsonSchema7', $refStrategy: 'none' });
+  const rawSchema = toolInputJsonSchema(inputSchema);
   const tool: Tool = {
     name: toolName,
     description: toolDescription,
