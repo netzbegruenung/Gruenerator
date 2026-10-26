@@ -7,8 +7,12 @@ import {
 } from '@gruenerator/shared/api';
 import { useAuthStore } from '@gruenerator/shared/stores';
 import { isAxiosError } from 'axios';
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
+import { appIdentityHeaders } from './appUpdate';
 import { DEV_AUTH_BYPASS } from './devAuth';
+import { Updates } from './expoUpdates';
 import { secureStorage } from './storage';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';
@@ -87,6 +91,21 @@ export function initializeApiClient(): void {
       await secureStorage.setToken(token);
     },
     timeout: 120000,
+  });
+
+  // Fixed for the life of the process: a new bundle only runs after a reload,
+  // and a reload re-runs this module.
+  const identity = appIdentityHeaders({
+    platform: Platform.OS,
+    appVersion: Constants.expoConfig?.version ?? 'unknown',
+    isEnabled: Updates?.isEnabled ?? false,
+    isEmbeddedLaunch: Updates?.isEmbeddedLaunch ?? true,
+    updateId: Updates?.updateId ?? null,
+    createdAt: Updates?.createdAt ?? null,
+  });
+  client.interceptors.request.use((config) => {
+    for (const [name, value] of Object.entries(identity)) config.headers[name] = value;
+    return config;
   });
 
   setGlobalApiClient(client);

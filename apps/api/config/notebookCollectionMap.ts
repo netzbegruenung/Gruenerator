@@ -97,7 +97,7 @@ export function isDisabledNotebook(id: string): boolean {
  *
  *   - {@link NotebookGate.isImplicitlySearchable} — may a turn that did **not**
  *     ask for this notebook end up searching it? A hidden notebook must not:
- *     Qdrant is shared across instances (one `QDRANT_URL`), so without this the
+ *     Qdrant is shared across instances (one content store), so without this the
  *     user would never see the notebook yet still get its sources cited.
  *   - {@link NotebookGate.isResolvable} — does a direct link or an explicit
  *     `@mention` still work? For a hidden notebook **yes**, deliberately: a link

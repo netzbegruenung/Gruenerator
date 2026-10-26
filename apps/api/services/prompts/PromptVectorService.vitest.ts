@@ -20,7 +20,7 @@ vi.mock('../../database/services/QdrantService.js', () => ({
   getQdrantInstance: () => ({
     init: async () => {},
     isAvailableSync: () => true,
-    client: { query: async () => ({ points: [hit(LIVE), hit(TRASHED)] }) },
+    readClient: () => ({ query: async () => ({ points: [hit(LIVE), hit(TRASHED)] }) }),
   }),
 }));
 vi.mock('../mistral/index.js', () => ({

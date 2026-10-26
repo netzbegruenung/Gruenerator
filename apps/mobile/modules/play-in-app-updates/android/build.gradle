@@ -1,0 +1,19 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'de.gruenerator'
+version = '1.0.0'
+
+android {
+  namespace "de.gruenerator.playinappupdates"
+  defaultConfig {
+    versionCode 1
+    versionName '1.0.0'
+  }
+}
+
+dependencies {
+  implementation 'com.google.android.play:app-update-ktx:2.1.0'
+}

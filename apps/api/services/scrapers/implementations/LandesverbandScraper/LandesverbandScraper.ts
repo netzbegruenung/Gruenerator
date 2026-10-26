@@ -8,8 +8,6 @@ import { promises as fs } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-import { type QdrantClient } from '@qdrant/js-client-rest';
-
 import { env } from '../../../../config/env.js';
 import {
   DEFAULT_MAX_AGE_YEARS,
@@ -22,7 +20,10 @@ import {
   type LandesverbandSource,
 } from '../../../../config/landesverbaendeConfig.js';
 import { getDisabledLandesverbandShortNames } from '../../../../config/notebookCollectionMap.js';
-import { getQdrantInstance } from '../../../../database/services/QdrantService/index.js';
+import {
+  getQdrantInstance,
+  type QdrantService,
+} from '../../../../database/services/QdrantService/index.js';
 import {
   scrollDocuments,
   batchDelete,
@@ -117,7 +118,7 @@ const ARTICLE_CONCURRENCY = 6;
  * Reduced from 1,139 lines to ~400 lines through modularization
  */
 export class LandesverbandScraper extends BaseScraper {
-  private qdrantClient!: QdrantClient; // assigned in init()
+  private qdrant!: QdrantService; // assigned in init()
   private searchOps!: SearchOperations;
   private documentProcessor!: DocumentProcessor;
   private linkExtractor!: LinkExtractor;
@@ -152,12 +153,12 @@ export class LandesverbandScraper extends BaseScraper {
     await mistralEmbeddingService.init();
 
     // Store Qdrant client
-    this.qdrantClient = qdrant.client!;
+    this.qdrant = qdrant;
 
     // Compose operations
     this.searchOps = new SearchOperations(qdrant, this.config.collectionName);
     this.documentProcessor = new DocumentProcessor(
-      this.qdrantClient,
+      this.qdrant,
       this.config.collectionName,
       this.generateHash.bind(this),
       this.#generatePointId.bind(this),
@@ -291,7 +292,7 @@ export class LandesverbandScraper extends BaseScraper {
         let existingCount = 0;
         for (const pdf of toProcess) {
           const points = await scrollDocuments(
-            this.qdrantClient,
+            this.qdrant.readClient(targetCollection),
             targetCollection,
             { must: [{ key: 'source_url', match: { value: pdf.url } }] },
             { limit: 1, withPayload: false, withVector: false }
@@ -320,7 +321,7 @@ export class LandesverbandScraper extends BaseScraper {
           // age it out (#3606).
           if (ageExempt && stored && stored.age_exempt !== true) {
             await setPayload(
-              this.qdrantClient,
+              this.qdrant.writeClient(targetCollection),
               targetCollection,
               { age_exempt: true },
               { must: [{ key: 'source_url', match: { value: pdf.url } }] }
@@ -533,7 +534,7 @@ export class LandesverbandScraper extends BaseScraper {
             await this.#wolkeStored(targetCollection, file.url, legacyUrl)
           );
           if (urlAction === 'migrate') {
-            await this.qdrantClient.setPayload(targetCollection, {
+            await this.qdrant.writeClient(targetCollection).setPayload(targetCollection, {
               payload: { source_url: file.url },
               filter: { must: [{ key: 'source_url', match: { value: legacyUrl } }] },
               wait: true,
@@ -554,7 +555,7 @@ export class LandesverbandScraper extends BaseScraper {
           // Files with a null WebDAV etag (rare on Nextcloud) also fall through.
           if (!forceUpdate && file.etag) {
             const existing = await scrollDocuments(
-              this.qdrantClient,
+              this.qdrant.readClient(targetCollection),
               targetCollection,
               { must: [{ key: 'source_url', match: { value: file.url } }] },
               { limit: 1, withPayload: true, withVector: false }
@@ -725,7 +726,7 @@ export class LandesverbandScraper extends BaseScraper {
         let existingCount = 0;
         for (const url of toProcess) {
           const points = await scrollDocuments(
-            this.qdrantClient,
+            this.qdrant.readClient(targetCollection),
             targetCollection,
             { must: [{ key: 'source_url', match: { value: url } }] },
             { limit: 1, withPayload: false, withVector: false }
@@ -1218,7 +1219,11 @@ export class LandesverbandScraper extends BaseScraper {
     const filter = {
       must: [{ key: 'source_id', match: { value: sourceId } }],
     };
-    await batchDelete(this.qdrantClient, this.config.collectionName, filter);
+    await batchDelete(
+      this.qdrant.writeClient(this.config.collectionName),
+      this.config.collectionName,
+      filter
+    );
     this.log(`Source ${sourceId} cleared`);
   }
 
@@ -1228,7 +1233,11 @@ export class LandesverbandScraper extends BaseScraper {
   async clearCollection(): Promise<void> {
     this.log('Clearing entire collection...');
     // Delete all points by using an empty filter with must_not condition that never matches
-    await batchDelete(this.qdrantClient, this.config.collectionName, {});
+    await batchDelete(
+      this.qdrant.writeClient(this.config.collectionName),
+      this.config.collectionName,
+      {}
+    );
     this.log('Collection cleared');
   }
 
@@ -1267,7 +1276,7 @@ export class LandesverbandScraper extends BaseScraper {
     // Check if already stored
     if (!options.forceUpdate) {
       const existing = await scrollDocuments(
-        this.qdrantClient,
+        this.qdrant.readClient(targetCollection),
         targetCollection,
         { must: [{ key: 'source_url', match: { value: pdfUrl } }] },
         { limit: 1, withPayload: false, withVector: false }
@@ -1381,7 +1390,7 @@ export class LandesverbandScraper extends BaseScraper {
     const has = async (value: string): Promise<boolean> =>
       (
         await scrollDocuments(
-          this.qdrantClient,
+          this.qdrant.readClient(collection),
           collection,
           { must: [{ key: 'source_url', match: { value } }] },
           { limit: 1, withPayload: false, withVector: false }
@@ -1400,7 +1409,7 @@ export class LandesverbandScraper extends BaseScraper {
     targetCollection: string
   ): Promise<Record<string, unknown> | null> {
     const points = await scrollDocuments(
-      this.qdrantClient,
+      this.qdrant.readClient(targetCollection),
       targetCollection,
       { must: [{ key: 'source_url', match: { value: url } }] },
       { limit: 1, withPayload: true, withVector: false }
@@ -1444,14 +1453,14 @@ export class LandesverbandScraper extends BaseScraper {
     try {
       if (verdict === 'mark') {
         await setPayload(
-          this.qdrantClient,
+          this.qdrant.writeClient(collection),
           collection,
           { lv_gone_since: new Date(now).toISOString() },
           filter
         );
         result.skipReasons['gone_marked'] = (result.skipReasons['gone_marked'] || 0) + 1;
       } else {
-        await this.qdrantClient.deletePayload(collection, {
+        await this.qdrant.writeClient(collection).deletePayload(collection, {
           keys: ['lv_gone_since'],
           filter,
           wait: true,
@@ -1488,7 +1497,11 @@ export class LandesverbandScraper extends BaseScraper {
     }
     for (const url of urls) {
       try {
-        await batchDelete(this.qdrantClient, collection, this.#goneFilter(sourceId, url));
+        await batchDelete(
+          this.qdrant.writeClient(collection),
+          collection,
+          this.#goneFilter(sourceId, url)
+        );
         result.skipReasons['gone_deleted'] = (result.skipReasons['gone_deleted'] || 0) + 1;
         this.log(`Deleted points of gone page ${url}`);
       } catch (error) {
@@ -1548,7 +1561,7 @@ export class LandesverbandScraper extends BaseScraper {
     try {
       // Phase 1: cheap payload-only scroll to find stale point ids.
       do {
-        const page = await this.qdrantClient.scroll(liveCollection, {
+        const page = await this.qdrant.readClient(liveCollection).scroll(liveCollection, {
           filter: staleDocumentsFilter(source.id),
           with_payload: { include: ['published_at'] },
           with_vector: false,
@@ -1579,7 +1592,7 @@ export class LandesverbandScraper extends BaseScraper {
 
       for (let i = 0; i < staleIds.length; i += batchSize) {
         const idBatch = staleIds.slice(i, i + batchSize);
-        const records = await this.qdrantClient.retrieve(liveCollection, {
+        const records = await this.qdrant.readClient(liveCollection).retrieve(liveCollection, {
           ids: idBatch,
           with_payload: true,
           with_vector: true,
@@ -1601,11 +1614,13 @@ export class LandesverbandScraper extends BaseScraper {
 
         if (archivePoints.length === 0) continue;
 
-        await this.qdrantClient.upsert(LANDESVERBAENDE_ARCHIVE_COLLECTION, {
-          wait: true,
-          points: archivePoints,
-        });
-        await this.qdrantClient.delete(liveCollection, {
+        await this.qdrant
+          .writeClient(LANDESVERBAENDE_ARCHIVE_COLLECTION)
+          .upsert(LANDESVERBAENDE_ARCHIVE_COLLECTION, {
+            wait: true,
+            points: archivePoints,
+          });
+        await this.qdrant.writeClient(liveCollection).delete(liveCollection, {
           wait: true,
           points: archivePoints.map((p) => p.id),
         });

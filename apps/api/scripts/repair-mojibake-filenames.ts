@@ -190,8 +190,7 @@ async function main(): Promise<void> {
   ): Promise<void> => {
     const qdrant = getQdrantInstance();
     await qdrant.init();
-    if (!qdrant.client) throw new Error('Qdrant nicht verfügbar');
-    await qdrant.client.setPayload('documents', {
+    await qdrant.writeClient('documents').setPayload('documents', {
       payload,
       filter: {
         must: [
