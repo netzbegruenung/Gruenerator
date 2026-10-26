@@ -4,23 +4,16 @@ import {
   type SharepicSlide,
 } from '@gruenerator/contracts';
 
-import { onGround } from '../brand/composerBrand';
+import { type ComposerBrand, onGround } from '../brand/composerBrand';
 import { ASSET_TARGET_SIZE } from '../utils/canvasAssets';
 import { createCircleBadgeInstance } from '../utils/circleBadgeUtils';
 import { COLORS } from '../utils/dreizeilenLayout';
 import { createShape } from '../utils/shapes';
 import { VERANSTALTUNG_CONFIG } from '../utils/veranstaltungLayout';
 
-import { BRUSH_ARROW, DE_WORDMARK, pageDots, SHAREPIC_COLOR_HEX } from './chromeParts';
+import { BRUSH_ARROW, pageDots, SHAREPIC_COLOR_HEX } from './chromeParts';
 import { placeHandMarks } from './handMarks';
-import {
-  type ARROW,
-  ARROW_ICON,
-  FOOTER,
-  KI_LABEL,
-  type LOGO,
-  MARGIN,
-} from './sharepicLayoutConstants';
+import { type ARROW, ARROW_ICON, FOOTER, KI_LABEL, MARGIN } from './sharepicLayoutConstants';
 import { sharepicTheme } from './sharepicThemes';
 import { type SlideCtx } from './slideContext';
 import { type slideInk } from './slideInk';
@@ -58,7 +51,7 @@ export interface ChromeInputs {
   topGround: SlideInk['topGround'];
   showLogo: boolean;
   logoCentred: boolean;
-  logo: (typeof LOGO)[keyof typeof LOGO];
+  logo: ComposerBrand['logo'];
   swipeOn: boolean;
   arrow: (typeof ARROW)[keyof typeof ARROW];
   weiter: string | null;
@@ -280,22 +273,19 @@ export function drawSlideChrome(ctx: SlideCtx, inputs: ChromeInputs): void {
   const logoOnLight = logoAt.current ? false : footerOnLight;
   const logoDarkInk = logoAt.current ? true : footerDarkInk;
   if (showLogo) {
+    const mark = onGround(logo.asset, {
+      onLight: logoOnLight,
+      onGrass: logoDarkInk && !logoOnLight,
+    });
     out.assetInstances.push({
       id: 'sc-logo',
-      assetId: isAt
-        ? footerOnLight
-          ? 'gruene-at-logo-gruen'
-          : 'gruene-at-logo-weiss'
-        : logoDarkInk
-          ? DE_WORDMARK.black
-          : DE_WORDMARK.white,
+      assetId: mark.assetId,
       x: logoAt.current?.x ?? (logoCentred ? canvas.width / 2 : MARGIN + logo.size / 2),
       // x/y is the centre.
       y: canvas.height - logo.bottom - logo.height / 2,
       scale: logo.size / ASSET_TARGET_SIZE,
       rotation: 0,
-      // DE: the dark mark in a tone of the ground — muted on light, deep on grass green.
-      opacity: isAt || !logoDarkInk ? 1 : logoOnLight ? 0.5 : 0.8,
+      opacity: mark.opacity,
     });
     out.layerOrder.push('sc-logo');
   }

@@ -84,6 +84,16 @@ export interface ComposerBrand {
     colors: ByGround<{ fill: string; ink: string }>;
     size: 'fit' | { radius: number; fontSize: number };
   };
+  /**
+   * The footer logo: its asset and opacity per ground, its width in px, its
+   * height at that width, and the gap from its bottom edge to the slide's.
+   */
+  logo: {
+    asset: ByGround<{ assetId: string; opacity: number }>;
+    size: number;
+    height: number;
+    bottom: number;
+  };
 }
 
 /**

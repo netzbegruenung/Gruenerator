@@ -165,6 +165,19 @@ export const GRUENE_DE: GruenePack = {
     ghostNumeral: { fill: { light: DE_GRASGRUEN, dark: DE_LIME }, opacity: 0.2 },
     countdownInk: { light: '#FFFFFF', dark: DE_DUNKELTANNE },
     handMarks: { white: '#FFFFFF', green: DE_KLEE, greenOnGrass: DE_TANNE },
+    // The "BÜNDNIS 90/DIE GRÜNEN" word mark (710 × 379), measured on the posts
+    // (10/2026, Dd_BXcKiDy2/03, Ddouf0QiL1w/02): ~250–300 px, black in a tone
+    // of the ground (muted on light, deep on grass green), white on dark.
+    logo: {
+      asset: {
+        light: { assetId: 'gruene-de-logo-schwarz', opacity: 0.5 },
+        grass: { assetId: 'gruene-de-logo-schwarz', opacity: 0.8 },
+        dark: { assetId: 'gruene-de-logo-weiss', opacity: 1 },
+      },
+      size: 260,
+      height: (260 * 379) / 710,
+      bottom: 80,
+    },
     // As on the current posts: Grasgrün with Dunkeltanne text, Tanne with
     // white on a grass-green surface, 7° ascending, as large as the text
     // block lets it grow.
@@ -254,6 +267,17 @@ export const GRUENE_AT: GruenePack = {
     ghostNumeral: { fill: { light: '#56AE33', dark: '#56AE33' }, opacity: 0.55 },
     countdownInk: { light: '#FFFFFF', dark: AT_DUNKELGRUEN },
     handMarks: { white: AT_GELB, green: AT_DUNKELGRUEN },
+    // The "G DIE GRÜNEN" logo with claim (1410 × 1239), ~210 px: green on
+    // light ground, white elsewhere.
+    logo: {
+      asset: {
+        light: { assetId: 'gruene-at-logo-gruen', opacity: 1 },
+        dark: { assetId: 'gruene-at-logo-weiss', opacity: 1 },
+      },
+      size: 210,
+      height: (210 * 1239) / 1410,
+      bottom: 91,
+    },
     // Magenta with white text on every ground, one size for every text.
     stoerer: {
       rotation: -8,

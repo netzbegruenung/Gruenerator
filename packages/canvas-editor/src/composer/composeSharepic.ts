@@ -84,7 +84,6 @@ import {
   HEADLINE_RATIO,
   HEADLINE_WITH_CARD,
   KI_LABEL,
-  LOGO,
   MARGIN,
   QUOTE_ALONE_MAX,
   QUOTE_LONG,
@@ -461,7 +460,7 @@ function composeSlide(
   const showLogo =
     (spec.logo || aufruf?.stil === 'kernsatz') &&
     (isAt ? !swipeOn && bg.kind === 'farbe' && !quoteSlide : bg.kind !== 'foto');
-  const logo = LOGO[locale];
+  const logo = brand.logo;
   /** DE always and AT next to a date circle set the logo bottom-left, at the margin. */
   const logoLeft = showLogo && (!isAt || !!spec.datum);
   const logoCentred = showLogo && !logoLeft;
