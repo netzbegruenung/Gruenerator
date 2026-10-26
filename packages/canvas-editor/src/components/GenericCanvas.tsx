@@ -118,11 +118,8 @@ export interface ToolbarStateReport {
   /** Wie viel der sperrbaren Auswahl gesperrt ist — siehe `utils/layerLock.ts`. */
   lockState: LockState;
   canLock: boolean;
-  /** Drehen & Spiegeln — dieselben Fragen wie die Befehle (`utils/selectionCapabilities.ts`). */
-  canRotate: boolean;
+  /** Spiegeln — dieselbe Frage wie die Befehle (`utils/selectionCapabilities.ts`). */
   canFlip: boolean;
-  /** Drehung der Einzelauswahl, sonst `null`. */
-  rotation: number | null;
   /** Ausrichten, Verteilen und Position — siehe `utils/selectionCapabilities.ts`. */
   canAlign: boolean;
   canDistribute: boolean;
@@ -288,18 +285,12 @@ export interface GenericCanvasRef {
   handleDeleteElement?: () => void;
   /** Führt einen Seiten-Befehl aus; `at` ist der Punkt eines Rechtsklicks. */
   runCommand?: (id: PageCommandId, at: ClientPoint | null) => void;
-  /** Dreht die Einzelauswahl um ihre Mitte; ein Schritt im Verlauf. */
-  setRotation?: (deg: number) => void;
-  /** Dreht nur die Anzeige der Einzelauswahl (Regler ziehen) — ohne Zustand, ohne Verlauf. */
-  previewRotation?: (deg: number) => void;
   /** Lage und Größe der Einzelauswahl für das Positionsfeld; `null`, wenn sie sich nicht bewegen lässt. */
   getGeometry?: () => SelectionGeometry | null;
   /** X/Y der Einzelauswahl (linke obere Ecke ihres gedrehten Umrisses); ein Schritt im Verlauf. */
   setPosition?: (patch: { x?: number; y?: number }) => void;
   /** B/H der Einzelauswahl; ein Schritt im Verlauf. */
   setSize?: (patch: { width?: number; height?: number }) => void;
-  /** Schreibt eine abgebrochene Vorschau dem Element zu, das sie zeigt. */
-  commitRotationPreview?: () => void;
   /** Was das Kontextmenü beim Öffnen über diese Seite wissen muss. */
   getMenuSnapshot?: () => CanvasMenuSnapshot;
   /** Box der Auswahl in Fensterkoordinaten, für Bedienelemente am Objekt. */
@@ -938,12 +929,9 @@ function GenericCanvasWithRef<
       handleDuplicate: commands.duplicate,
       handleDeleteElement: commands.remove,
       runCommand: commands.run,
-      setRotation: commands.setRotation,
-      previewRotation: commands.previewRotation,
       getGeometry: commands.geometry,
       setPosition: commands.setPosition,
       setSize: commands.setSize,
-      commitRotationPreview: commands.commitRotationPreview,
       getMenuSnapshot: () => {
         const { selectedLayerIds, selectedElement, croppingElement } = store.getState();
         const committed = committedStateRef.current;

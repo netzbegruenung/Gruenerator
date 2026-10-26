@@ -65,9 +65,6 @@ export function useToolbarHandlers({
       handleDeleteElement: () => page()?.handleDeleteElement?.(),
       handleCopy: () => page()?.runCommand?.('copy', null),
       handleToggleLock: () => page()?.runCommand?.('toggleLock', null),
-      handleSetRotation: (deg: number) => page()?.setRotation?.(deg),
-      handlePreviewRotation: (deg: number) => page()?.previewRotation?.(deg),
-      handleCommitRotationPreview: () => page()?.commitRotationPreview?.(),
       handleFlip: (axis: 'x' | 'y') =>
         page()?.runCommand?.(axis === 'x' ? 'flipHorizontal' : 'flipVertical', null),
       handleColorSelect: (color: string) => page()?.handleColorSelect?.(color),
