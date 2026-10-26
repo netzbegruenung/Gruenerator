@@ -400,14 +400,14 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
   ai: dreizeilenAiCapabilities,
 
   tabs: [
-    { id: 'settings', icon: HiCog, label: 'Einstellungen', ariaLabel: 'Balken-Einstellungen' },
+    { id: 'settings', icon: HiCog, label: 'Einstellungen', ariaLabel: 'Einstellungen: Balken' },
     {
       id: 'frame-settings',
       icon: PiFrameCornersFill,
       label: 'Rahmen',
       ariaLabel: 'Rahmen-Einstellungen',
     },
-    { id: 'text', icon: PiTextAa, label: 'Text', ariaLabel: 'Texte hinzufügen' },
+    { id: 'text', icon: PiTextAa, label: 'Text', ariaLabel: 'Text hinzufügen' },
     { id: 'assets', icon: PiSquaresFourFill, label: 'Elemente', ariaLabel: 'Elemente hinzufügen' },
     toolsTab,
     uploadsTab,

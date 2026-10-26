@@ -5,6 +5,8 @@ import { useIsCanvasMobile } from '../hooks/useIsCanvasMobile';
 import { useMobileSheet } from '../hooks/useMobileSheet';
 import { cn } from '../utils/cn';
 
+import { SIDEBAR_PANEL_ID } from './sidebarStyles';
+
 import type { SidebarPanelProps } from './types';
 
 interface ExtendedSidebarPanelProps extends SidebarPanelProps {
@@ -177,6 +179,7 @@ export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSideb
     return (
       <section
         ref={sheetRef}
+        id={SIDEBAR_PANEL_ID}
         aria-label={sheetTitle}
         data-state={phase}
         inert={phase === 'closing'}
@@ -229,6 +232,7 @@ export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSideb
 
   return (
     <div
+      id={SIDEBAR_PANEL_ID}
       className={cn(
         'sidebar-panel fixed bg-[var(--editor-surface)] flex flex-col z-[101]',
         'top-[var(--editor-topbar-height)] bottom-0 right-auto w-[348px] max-w-[348px] min-w-0 overflow-visible border-r border-[var(--editor-border)]',

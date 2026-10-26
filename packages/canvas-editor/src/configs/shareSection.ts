@@ -13,7 +13,7 @@ export const shareTab = {
   id: 'share' as const,
   icon: FaShare,
   label: 'Teilen',
-  ariaLabel: 'Bild teilen',
+  ariaLabel: 'Teilen: Bild weitergeben',
 };
 
 export function createShareSection<TState, TActions = unknown>(
