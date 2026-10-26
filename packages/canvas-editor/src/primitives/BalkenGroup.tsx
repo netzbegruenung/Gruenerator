@@ -18,12 +18,13 @@ import {
   calculateParallelogramPoints,
   flattenPoints,
 } from '../utils/dreizeilenLayout';
-import { captureFocusOrigin, returnFocus } from '../utils/editorFocus';
+import { captureFocusOrigin, returnFocus, type FocusOrigin } from '../utils/editorFocus';
 import { followStage } from '../utils/followStage';
 import { isGroupDrag } from '../utils/multiSelect';
 import { ELEMENT_TRANSFORMER, normalizeRotation } from '../utils/orientation';
 import { boxFrame, createBoxFrame, snapByBounds } from '../utils/snapping';
 import { stageCssScale } from '../utils/stageCssScale';
+import { useTextEditorOpener } from '../utils/textEditorOpeners';
 
 import type { SnapTarget } from '../utils/snapping';
 import type Konva from 'konva';
@@ -47,6 +48,8 @@ export interface BalkenInstance {
 }
 
 export interface BalkenGroupProps {
+  /** Id des Elements — unter ihr öffnet „Text bearbeiten“ die erste Zeile. */
+  id: string;
   /** Mode: 'single' for 1 bar, 'triple' for 3 bars */
   mode: BalkenMode;
   /** Color scheme ID from dreizeilenLayout */
@@ -91,6 +94,7 @@ export interface BalkenGroupProps {
  * Wrapped with memo() below for performance optimization
  */
 function BalkenGroupInner({
+  id,
   mode,
   colorSchemeId,
   texts,
@@ -117,6 +121,8 @@ function BalkenGroupInner({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const stopFollowingRef = useRef<(() => void) | null>(null);
   const placeEditorRef = useRef<() => void>(() => {});
+  const textNodesRef = useRef<(Konva.Text | null)[]>([]);
+  const startEditingRef = useRef<(index: number, from?: FocusOrigin | null) => void>(() => {});
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [liveText, setLiveText] = useState<{ index: number; text: string } | null>(null);
 
@@ -301,14 +307,16 @@ function BalkenGroupInner({
     onTransformEnd(newOffset.x, newOffset.y, newScale, newRotation);
   }, [onTransformEnd, scale, rotation, bounds]);
 
-  const handleDblClick = useCallback(
-    (index: number, e: Konva.KonvaEventObject<Event>) => {
-      const textNode = e.target as Konva.Text;
-      const stage = textNode.getStage();
-      if (!stage) return;
+  // Die Zeile `index` zum Bearbeiten öffnen. `from` reicht beim Weiterspringen
+  // mit Tab den Ursprung der ersten Zeile durch — dorthin geht der Fokus am Ende.
+  const startEditing = useCallback(
+    (index: number, from: FocusOrigin | null = null) => {
+      const textNode = textNodesRef.current[index];
+      const stage = textNode?.getStage();
+      if (!textNode || !stage) return;
 
       // Woher die Bearbeitung kam (Ebenen-Eintrag oder Seite) — dorthin geht der Fokus danach.
-      const origin = captureFocusOrigin(stage.container());
+      const origin = from ?? captureFocusOrigin(stage.container());
       setEditingIndex(index);
       setLiveText({ index, text: textNode.text() });
 
@@ -319,12 +327,12 @@ function BalkenGroupInner({
       const scaleX = absScale.x * cssScale;
       const scaleY = absScale.y * cssScale;
 
-      let input = inputRef.current;
-      if (!input) {
-        input = document.createElement('input');
-        document.body.appendChild(input);
-        inputRef.current = input;
-      }
+      // Je Zeile ein eigenes Feld: beim Weiterspringen steht das neue, bevor das
+      // alte beim Blur übernimmt und abräumt — der Fokus fällt nie auf <body>.
+      const input = document.createElement('input');
+      document.body.appendChild(input);
+      inputRef.current = input;
+      const isCurrent = () => inputRef.current === input;
 
       const scrollX = window.scrollX || window.pageXOffset;
       const scrollY = window.scrollY || window.pageYOffset;
@@ -368,58 +376,58 @@ function BalkenGroupInner({
       stopFollowingRef.current?.();
       stopFollowingRef.current = followStage(stage, () => placeEditorRef.current());
 
+      let closed = false;
       const removeInput = () => {
+        if (closed) return;
+        closed = true;
+        // Jede Zeile ist ein eigener Verlaufsschritt, wie beim Klick.
+        onTextChange?.(index, input.value);
+        if (document.body.contains(input)) document.body.removeChild(input);
+        // Schon an die nächste Zeile weitergereicht: die gehört jetzt ihr.
+        if (!isCurrent()) return;
+
         stopFollowingRef.current?.();
         stopFollowingRef.current = null;
-        if (!inputRef.current) return;
-
-        const newText = inputRef.current.value;
-        // Only update via prop if changed, otherwise just closing edit mode
-        // We use displayTexts[index] as "previous value" might be stale from closure?
-        // Safer to just emit current value of input.
-        // But props.texts might not be up to date with liveText?
-        // Actually liveText is what we see.
-        if (onTextChange) {
-          // We don't check inequality vs initial, we just emit.
-          // Or we can check vs props.texts[index].
-          onTextChange(index, newText);
-        }
-
         setEditingIndex(null);
         setLiveText(null);
-
-        if (document.body.contains(inputRef.current)) {
-          document.body.removeChild(inputRef.current);
-        }
         inputRef.current = null;
         returnFocus(origin);
       };
 
       const onInput = () => {
-        if (inputRef.current) {
-          setLiveText({ index, text: inputRef.current.value });
-        }
+        setLiveText({ index, text: input.value });
       };
 
       input.addEventListener('input', onInput);
       input.addEventListener('blur', removeInput);
       input.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-          input?.blur();
+          input.blur();
         }
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
-          input?.blur();
+          input.blur();
         }
         // Das Feld hängt am Ende von <body>: Tab führte von dort ins Nirgendwo.
+        // Also springt Tab zur nächsten Zeile (Umschalt+Tab zur vorigen) und
+        // schliesst erst hinter der letzten bzw. vor der ersten.
         if (e.key === 'Tab') {
           e.preventDefault();
-          input?.blur();
+          const next = index + (e.shiftKey ? -1 : 1);
+          if (textNodesRef.current[next]) startEditingRef.current(next, origin);
+          else input.blur();
         }
       });
     },
     [onTextChange]
   );
+
+  useEffect(() => {
+    startEditingRef.current = startEditing;
+  }, [startEditing]);
+
+  // „Text bearbeiten“ (F2, Enter in der Ebenen-Liste, Kontextmenü) beginnt mit Zeile 1.
+  useTextEditorOpener(id, () => startEditingRef.current(0));
 
   const skewAngle = config.balken.skewAngle;
 
@@ -480,8 +488,11 @@ function BalkenGroupInner({
                 align="center"
                 verticalAlign="middle"
                 listening={true} // Must listen for events
-                onDblClick={(e) => handleDblClick(index, e)}
-                onDblTap={(e) => handleDblClick(index, e)}
+                ref={(node) => {
+                  textNodesRef.current[index] = node;
+                }}
+                onDblClick={() => startEditing(index)}
+                onDblTap={() => startEditing(index)}
                 visible={!isEditingThis} // Hide text while editing
               />
             </Group>
@@ -533,6 +544,7 @@ function BalkenGroupInner({
  */
 export const BalkenGroup = memo(BalkenGroupInner, (prevProps, nextProps) => {
   // Compare data props - if any change, re-render
+  if (prevProps.id !== nextProps.id) return false;
   if (prevProps.mode !== nextProps.mode) return false;
   if (prevProps.colorSchemeId !== nextProps.colorSchemeId) return false;
   if (prevProps.widthScale !== nextProps.widthScale) return false;

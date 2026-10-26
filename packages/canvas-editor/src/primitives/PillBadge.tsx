@@ -23,6 +23,7 @@ import { ELEMENT_TRANSFORMER, normalizeRotation } from '../utils/orientation';
 import { calculatePillBadgeDimensions } from '../utils/pillBadgeUtils';
 import { boxFrame, createBoxFrame, snapByBounds } from '../utils/snapping';
 import { stageCssScale } from '../utils/stageCssScale';
+import { useTextEditorOpener } from '../utils/textEditorOpeners';
 
 import type { PillBadgeFontStyle } from '../utils/pillBadgeUtils';
 import type { SnapTarget, SnapLine } from '../utils/snapping';
@@ -281,6 +282,9 @@ function PillBadgeInner({
     onTextChange,
     stopFollowing,
   ]);
+
+  // „Text bearbeiten“ (F2, Enter in der Ebenen-Liste, Kontextmenü) — derselbe Weg wie ein Doppelklick.
+  useTextEditorOpener(id, handleDblClick);
 
   return (
     <>

@@ -21,6 +21,7 @@ import { isGroupDrag } from '../utils/multiSelect';
 import { ELEMENT_TRANSFORMER, normalizeRotation } from '../utils/orientation';
 import { boxFrame, createBoxFrame, snapByBounds } from '../utils/snapping';
 import { stageCssScale } from '../utils/stageCssScale';
+import { useTextEditorOpener } from '../utils/textEditorOpeners';
 
 import type { SnapTarget } from '../utils/snapping';
 import type Konva from 'konva';
@@ -99,6 +100,7 @@ function CircleBadgeInner({
   const transformerRef = useRef<Konva.Transformer>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const stopFollowingRef = useRef<(() => void) | null>(null);
+  const textNodesRef = useRef<(Konva.Text | null)[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
   const snap = useSnapScheduler({ onSnapChange, onSnapLinesChange });
@@ -178,12 +180,12 @@ function CircleBadgeInner({
   }, [onTransformEnd, scale, rotation]);
 
   const handleDblClick = useCallback(
-    (index: number, e: Konva.KonvaEventObject<Event>) => {
+    (index: number) => {
       if (!onTextLineChange) return;
 
-      const textNode = e.target as Konva.Text;
-      const stage = textNode.getStage();
-      if (!stage) return;
+      const textNode = textNodesRef.current[index];
+      const stage = textNode?.getStage();
+      if (!textNode || !stage) return;
 
       // Woher die Bearbeitung kam (Ebenen-Eintrag oder Seite) — dorthin geht der Fokus danach.
       const origin = captureFocusOrigin(stage.container());
@@ -281,6 +283,9 @@ function CircleBadgeInner({
     [onTextLineChange, textLines, textColor, radius]
   );
 
+  // „Text bearbeiten“ (F2, Enter in der Ebenen-Liste, Kontextmenü) beginnt mit der ersten Zeile.
+  useTextEditorOpener(id, () => handleDblClick(0));
+
   return (
     <>
       <Group
@@ -320,8 +325,11 @@ function CircleBadgeInner({
               align="center"
               listening={!!onTextLineChange}
               visible={!isEditingThis}
-              onDblClick={(e) => handleDblClick(index, e)}
-              onDblTap={(e) => handleDblClick(index, e)}
+              ref={(node) => {
+                textNodesRef.current[index] = node;
+              }}
+              onDblClick={() => handleDblClick(index)}
+              onDblTap={() => handleDblClick(index)}
             />
           );
         })}

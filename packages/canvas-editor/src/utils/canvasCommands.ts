@@ -53,6 +53,7 @@ import {
   selectionCapabilities,
   type SelectionCapabilities,
 } from './selectionCapabilities';
+import { openTextEditor } from './textEditorOpeners';
 
 import type { PageCommandId } from './canvasCommandRegistry';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
@@ -366,10 +367,14 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
     return true;
   };
 
-  /** Derselbe Weg wie ein Doppelklick: der Text-Knoten öffnet seinen Editor selbst. */
+  /**
+   * Balken, Pille und Störer melden ihren Editor (`textEditorOpeners`); ein
+   * Text-Knoten öffnet ihn selbst auf den Doppelklick, den die Tür auslöst.
+   */
   const editText = () => {
     const id = ctx.store.getState().selectedElement;
-    if (id) ctx.getStage()?.findOne(`#${id}`)?.fire('dblclick', {}, false);
+    if (!id || openTextEditor(ctx.store, id)) return;
+    ctx.getStage()?.findOne(`#${id}`)?.fire('dblclick', {}, false);
   };
 
   const selectAll = () => {

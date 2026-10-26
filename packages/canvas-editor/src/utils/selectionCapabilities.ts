@@ -35,7 +35,7 @@ export interface SelectionCapabilities {
   canAlign: boolean;
   /** Mindestens drei Elemente lassen sich verschieben. */
   canDistribute: boolean;
-  /** Ein einzelner Text, der sich auf der Fläche bearbeiten lässt („Text bearbeiten“, F2). */
+  /** Ein einzelner Text, Balken, Störer oder Badge, der sich auf der Fläche bearbeiten lässt („Text bearbeiten“, F2). */
   canEditText: boolean;
 }
 
@@ -83,10 +83,14 @@ export function selectionCapabilities({
   };
 }
 
-/** Eigene Texte immer, Vorlagen-Texte nur mit `editable` — wie `CanvasText` es annimmt. */
+/**
+ * Eigene Texte, Balken, Störer und Badges immer, Vorlagen-Texte nur mit
+ * `editable` — wie `CanvasText` es annimmt.
+ */
 function isEditableText(renderList: readonly CanvasItem[], id: string): boolean {
   const item = renderList.find((i) => i.id === id);
-  if (item?.type === 'additional-text') return true;
+  if (item?.type === 'additional-text' || item?.type === 'balken') return true;
+  if (item?.type === 'circle-badge' || item?.type === 'pill-badge') return true;
   return item?.type === 'element' && item.data.type === 'text' && item.data.editable === true;
 }
 

@@ -100,6 +100,7 @@ const KINDS: {
     field: 'input',
     element: () => (
       <BalkenGroup
+        id="balken-1"
         {...common}
         mode="triple"
         colorSchemeId="tanne-sand"

@@ -14,6 +14,8 @@ import { CanvasStage, type CanvasStageRef } from '../../primitives/CanvasStage';
 import { CanvasText } from '../../primitives/CanvasText';
 import { CircleBadge } from '../../primitives/CircleBadge';
 import { PillBadge } from '../../primitives/PillBadge';
+import { defaultCanvasEditorStore } from '../../stores/createCanvasEditorStore';
+import { openTextEditor } from '../../utils/textEditorOpeners';
 
 import type Konva from 'konva';
 
@@ -150,6 +152,7 @@ describe('Zeilen-Editoren', () => {
     render(
       <Page stageRef={stageRef}>
         <BalkenGroup
+          id="balken-1"
           mode="triple"
           colorSchemeId="tanne-sand"
           texts={['Mut zum Wandel', 'Grüne Ideen', 'Gemeinsam gestalten']}
@@ -241,10 +244,30 @@ describe('Zeilen-Editoren', () => {
   }
 
   const editors = [
-    { name: 'Balken', mount: mountBalken, field: 'Zeile 1 bearbeiten' },
-    { name: 'Pille', mount: mountPill, field: 'Text bearbeiten' },
-    { name: 'Kreis-Badge', mount: mountCircle, field: 'Text bearbeiten' },
+    { name: 'Balken', mount: mountBalken, field: 'Zeile 1 bearbeiten', id: 'balken-1' },
+    { name: 'Pille', mount: mountPill, field: 'Text bearbeiten', id: 'pill-1' },
+    { name: 'Kreis-Badge', mount: mountCircle, field: 'Text bearbeiten', id: 'circle-1' },
   ];
+
+  // „Text bearbeiten“ (F2, Enter in der Ebenen-Liste) geht über den gemeldeten
+  // Öffner, nicht über einen Doppelklick auf einen Knoten, der dafür nicht hört.
+  it.each(editors)('$name: der gemeldete Öffner beginnt die Bearbeitung', async (e) => {
+    e.mount();
+    option().focus();
+    act(() => {
+      expect(openTextEditor(defaultCanvasEditorStore, e.id)).toBe(true);
+    });
+    const field = screen.getByLabelText(e.field);
+    expect(field).toHaveFocus();
+    fireEvent.keyDown(field, { key: 'Escape' });
+    await waitFor(() => expect(option()).toHaveFocus());
+  });
+
+  it('meldet den Öffner beim Abbau wieder ab', () => {
+    mountPill();
+    cleanup();
+    expect(openTextEditor(defaultCanvasEditorStore, 'pill-1')).toBe(false);
+  });
 
   it.each(editors)('$name: Escape gibt den Fokus an den Ebenen-Eintrag zurück', async (e) => {
     const stage = e.mount();
@@ -264,12 +287,13 @@ describe('Zeilen-Editoren', () => {
     await waitFor(() => expect(pageTarget()).toHaveFocus());
   });
 
-  it.each(editors)('$name: Tab übernimmt und landet nicht im Nirgendwo', async (e) => {
+  // Beim Balken springt Tab zur nächsten Zeile; vor der ersten schliesst Umschalt+Tab.
+  it.each(editors)('$name: Umschalt+Tab übernimmt und landet nicht im Nirgendwo', async (e) => {
     const stage = e.mount();
     option().focus();
     startEdit(stage, 'Text');
     const field = screen.getByLabelText(e.field);
-    fireEvent.keyDown(field, { key: 'Tab' });
+    fireEvent.keyDown(field, { key: 'Tab', shiftKey: true });
     expect(screen.queryByLabelText(e.field)).toBeNull();
     await waitFor(() => expect(option()).toHaveFocus());
   });
