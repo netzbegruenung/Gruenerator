@@ -32,8 +32,7 @@ const SCROLL_BATCH = 100;
 async function main(): Promise<void> {
   const qdrant = getQdrantInstance();
   await qdrant.ensureConnected();
-  const client = qdrant.client;
-  if (!client) throw new Error('Qdrant client unavailable');
+  const client = qdrant.readClient(COLLECTION);
 
   const tweets: TweetRecord[] = [];
   let offset: string | number | null = null;

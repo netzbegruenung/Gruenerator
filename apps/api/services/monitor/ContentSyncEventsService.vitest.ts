@@ -25,7 +25,11 @@ vi.mock('../../database/services/PostgresService.js', () => ({
 
 const scroll = vi.fn();
 vi.mock('../../database/services/QdrantService/index.js', () => ({
-  getQdrantInstance: () => ({ init: vi.fn(async () => undefined), client: { scroll } }),
+  getQdrantInstance: () => ({
+    init: vi.fn(async () => undefined),
+    isContentAvailable: () => true,
+    readClient: () => ({ scroll }),
+  }),
 }));
 
 vi.mock('../scrapers/utils/wolkeShareSecrets.js', () => ({

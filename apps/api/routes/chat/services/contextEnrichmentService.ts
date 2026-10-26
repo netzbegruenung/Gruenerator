@@ -9,6 +9,10 @@
 import { lastUserText } from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { truncateDocument } from '../../../agents/langgraph/ChatGraph/nodes/respondNode.js';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
+import {
+  formatPresentationAsContext,
+  loadPresentationState,
+} from '../../../services/presentations/PresentationGenerationService.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { fetchDocumentContext, fetchTextContext } from './documentContextService.js';
@@ -27,14 +31,18 @@ const log = createLogger('ChatGraphController');
  * The collaborative documents behind @doc mentions that this user may read —
  * the one access gate for doc-mention content and for the chips a reload
  * restores. `content` is only the store hook's preview; see enrichContext.
+ * Boards and sheets are their own mention kinds; presentations are read here,
+ * because the @doc picker offers them (#4895).
  */
 export async function readMentionedDocs(
   ids: readonly string[],
   userId: string
-): Promise<Array<{ id: string; title: string; content: string | null }>> {
+): Promise<
+  Array<{ id: string; title: string; content: string | null; document_subtype: string | null }>
+> {
   return getPostgresInstance().query(
-    `SELECT id, title, content FROM collaborative_documents
-     WHERE id = ANY($1::uuid[]) AND is_deleted = false AND document_subtype NOT IN ('boards', 'sheets', 'presentations')
+    `SELECT id, title, content, document_subtype FROM collaborative_documents
+     WHERE id = ANY($1::uuid[]) AND is_deleted = false AND document_subtype NOT IN ('boards', 'sheets')
      AND (created_by = $2::uuid OR permissions ? $2::text OR is_public = true
           OR id IN (SELECT gcs.content_id::uuid FROM group_content_shares gcs
                     INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $2::uuid AND gm.is_active = TRUE
@@ -215,6 +223,17 @@ export async function enrichContext(opts: {
         const docParts = (
           await Promise.all(
             docResults.map(async (d) => {
+              // A deck has no BlockNote HTML; its slides come from its own reader.
+              if (d.document_subtype === 'presentations') {
+                const loaded = await loadPresentationState(d.id, userId);
+                const slidesText = loaded ? formatPresentationAsContext(loaded).trim() : '';
+                if (!slidesText) return null;
+                const truncated = truncateDocument(slidesText, perDocBudget, mentionQuery);
+                log.info(
+                  `[ChatGraph] Presentation context loaded: "${d.title}" (${slidesText.length} → ${truncated.length} chars)`
+                );
+                return `### ${d.title}\n\n${truncated}`;
+              }
               // The SQL above is the access gate; the CONTENT comes from Yjs.
               // `content` is a 2000-char preview the Hocuspocus store hook
               // derives — reading it as the document silently truncated every

@@ -20,6 +20,7 @@ import { mountLandesverbandAdminContractRouter } from './routes/admin/landesverb
 import { mountLvAdminAssignmentContractRouter } from './routes/admin/lvAdminAssignmentContractRouter.js';
 import { mountAgentVisibilityContractRouter } from './routes/agents/agentVisibilityContractRouter.js';
 import antraegeRouter from './routes/antraege/index.js';
+import { mountAppReleaseContractRouter } from './routes/app/appReleaseContractRouter.js';
 import { mountAgentCommentsContractRouter } from './routes/auth/agentComments/agentCommentsContractRouter.js';
 import { mountEntityCommentsContractRouter } from './routes/auth/entityComments/entityCommentsContractRouter.js';
 import { mountGroupsContractRouter } from './routes/auth/groups/groupsContract/index.js';
@@ -159,6 +160,7 @@ import voiceRouter from './routes/voice/voiceController.js';
 import { mountSharedTemplateContractRouter } from './routes/vorlagen/sharedTemplateContractRouter.js';
 import { mountRecentActivityContractRouter } from './routes/workplace/recentActivityContractRouter.js';
 import recentActivityRouter from './routes/workplace/recentActivityController.js';
+import { parseAppBundle, recordAppBundleUse } from './services/appBundles/appBundleUsage.js';
 import * as tusServiceModule from './services/subtitler/tusService.js';
 import { decisionLogMiddleware } from './utils/decisionLog.js';
 import { toUserFacingMessage } from './utils/errors/index.js';
@@ -306,6 +308,18 @@ export async function setupRoutes(app: Application): Promise<void> {
     runWithUsageContext({ req, feature: featureFromPath(path) }, next);
   });
 
+  // Mobile bundle reach for the admin tab „App-Updates". Read on finish, when
+  // requireAuth (mounted per prefix below) has resolved the account.
+  app.use('/api/*splat', (req: Request, res: Response, next: NextFunction) => {
+    const bundle = parseAppBundle(req.headers);
+    if (bundle) {
+      res.on('finish', () => {
+        if (req.user?.id) recordAppBundleUse(bundle, req.user.id);
+      });
+    }
+    next();
+  });
+
   // Dynamic imports for ES modules
   // Auth routes - now TypeScript with subdirectory structure
   const {
@@ -383,6 +397,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   // per-handler requireInstanceAdmin check.
   app.use('/api/auth/admin/bgst', requireAuth);
   mountInstanceAdminOverviewContractRouter(app);
+  // Store version of the mobile app — public, the answer is the same for all.
+  mountAppReleaseContractRouter(app);
   // Hauptgrünerator-Super-Admin: Landesverband master data + who
   // administers which Landesverband, plus the assignment user picker.
   app.use('/api/auth/admin/landesverbaende', requireAuth);

@@ -135,7 +135,7 @@ async function setChunkTitleInQdrant(
   const qdrant = getQdrantInstance();
   await qdrant.ensureConnected();
   await setPayload(
-    qdrant.client!,
+    qdrant.writeClient(qdrant.collections.documents),
     qdrant.collections.documents,
     { title },
     {
