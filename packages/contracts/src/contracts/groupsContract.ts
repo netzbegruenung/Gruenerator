@@ -508,7 +508,7 @@ export const groupsContract = c.router({
   updateGroupShare: {
     method: 'PATCH',
     path: '/api/auth/groups/:groupId/shares/:shareId',
-    pathParams: z.object({ groupId: z.string(), shareId: z.string().uuid() }),
+    pathParams: z.object({ groupId: z.string(), shareId: z.string().guid() }),
     body: updateGroupShareBodySchema,
     responses: {
       200: groupOkResponseSchema,
@@ -524,7 +524,7 @@ export const groupsContract = c.router({
   listGroupShareComments: {
     method: 'GET',
     path: '/api/auth/groups/:groupId/shares/:shareId/comments',
-    pathParams: z.object({ groupId: z.string(), shareId: z.string().uuid() }),
+    pathParams: z.object({ groupId: z.string(), shareId: z.string().guid() }),
     responses: {
       200: groupShareCommentsResponseSchema,
       401: groupErrorResponseSchema,
@@ -538,7 +538,7 @@ export const groupsContract = c.router({
   createGroupShareComment: {
     method: 'POST',
     path: '/api/auth/groups/:groupId/shares/:shareId/comments',
-    pathParams: z.object({ groupId: z.string(), shareId: z.string().uuid() }),
+    pathParams: z.object({ groupId: z.string(), shareId: z.string().guid() }),
     body: createGroupShareCommentBodySchema,
     responses: {
       201: groupShareCommentResponseSchema,
@@ -556,8 +556,8 @@ export const groupsContract = c.router({
     path: '/api/auth/groups/:groupId/shares/:shareId/comments/:commentId',
     pathParams: z.object({
       groupId: z.string(),
-      shareId: z.string().uuid(),
-      commentId: z.string().uuid(),
+      shareId: z.string().guid(),
+      commentId: z.string().guid(),
     }),
     responses: {
       200: groupOkResponseSchema,
@@ -574,7 +574,7 @@ export const groupsContract = c.router({
   updateGroupPost: {
     method: 'PATCH',
     path: '/api/auth/groups/:groupId/posts/:postId',
-    pathParams: z.object({ groupId: z.string(), postId: z.string().uuid() }),
+    pathParams: z.object({ groupId: z.string(), postId: z.string().guid() }),
     body: updateGroupPostBodySchema,
     responses: {
       200: groupOkResponseSchema,
@@ -590,7 +590,7 @@ export const groupsContract = c.router({
   deleteGroupPost: {
     method: 'DELETE',
     path: '/api/auth/groups/:groupId/posts/:postId',
-    pathParams: z.object({ groupId: z.string(), postId: z.string().uuid() }),
+    pathParams: z.object({ groupId: z.string(), postId: z.string().guid() }),
     responses: {
       200: groupOkResponseSchema,
       400: groupErrorResponseSchema,

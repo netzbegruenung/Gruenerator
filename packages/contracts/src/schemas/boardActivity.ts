@@ -43,7 +43,7 @@ export const activityPayloadSchema = z.record(z.string(), z.unknown());
  * agent rides in `delegateAgentId` (an identifier slug, open set → plain string).
  */
 export const assigneesChangedPayloadSchema = z.object({
-  addedAssigneeIds: z.array(z.string().uuid()).optional(),
+  addedAssigneeIds: z.array(z.string().guid()).optional(),
   cardTitle: z.string().nullish(),
   cardDescription: z.string().nullish(),
   delegateAgentId: z.string().nullish(),

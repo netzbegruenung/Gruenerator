@@ -58,7 +58,7 @@ export type ConnectFileRef = z.infer<typeof connectFileRefSchema>;
  * keeps it per thread (`chat_threads.notebook_source_refs`).
  */
 export const notebookSourceRefSchema = z.union([
-  z.object({ documentId: z.string().uuid(), notebookId: z.string().max(128).nullable() }),
+  z.object({ documentId: z.string().guid(), notebookId: z.string().max(128).nullable() }),
   z.object({ collectionId: z.string().min(1).max(128), sourceUrl: z.string().min(1).max(2048) }),
 ]);
 export type NotebookSourceRef = z.infer<typeof notebookSourceRefSchema>;
@@ -293,7 +293,7 @@ export const chatStreamBodySchema = z.object({
   // Row id of the active user recipe ("angelernte Textform"). Wins over
   // activeSkillMention when both are set — old clients only ever send the
   // mention, so they keep working unchanged.
-  activeRecipeId: z.string().uuid().nullish(),
+  activeRecipeId: z.string().guid().nullish(),
   // Regenerate the last assistant turn: the backend skips re-persisting the
   // (unchanged) user message and deletes the trailing assistant message(s)
   // before streaming the replacement. Keeps chat_messages linear (no dupes).
@@ -346,4 +346,4 @@ export const chatGraphErrorResponseSchema = z.object({
 });
 
 /** Path params of the resumable-stream routes: the placeholder assistant message id. */
-export const chatStreamIdParamsSchema = z.object({ streamId: z.string().uuid() });
+export const chatStreamIdParamsSchema = z.object({ streamId: z.string().guid() });

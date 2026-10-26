@@ -53,7 +53,7 @@ export const contentSyncContract = c.router(
     getSyncJob: {
       method: 'GET',
       path: '/api/internal/content-sync/jobs/:jobId',
-      pathParams: z.object({ jobId: z.string().uuid() }),
+      pathParams: z.object({ jobId: z.string().guid() }),
       responses: {
         200: contentSyncJobStatusSchema,
         404: contentSyncJobNotFoundSchema,

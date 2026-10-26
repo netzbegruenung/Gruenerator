@@ -88,7 +88,7 @@ export const documentProcessingProgressSchema = z.object({
 });
 
 export const documentStatusesRequestSchema = z.object({
-  ids: z.array(z.string().uuid()).min(1).max(50),
+  ids: z.array(z.string().guid()).min(1).max(50),
 });
 
 export const documentStatusesResponseSchema = z.object({

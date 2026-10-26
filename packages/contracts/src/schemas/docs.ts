@@ -269,7 +269,7 @@ export const exportToDocsBodySchema = z.object({
 });
 
 export const exportToDocsResponseSchema = z.object({
-  documentId: z.string().uuid(),
+  documentId: z.string().guid(),
   url: z.string(),
   success: z.literal(true),
 });

@@ -25,7 +25,7 @@ export type EntityComment = z.infer<typeof entityCommentSchema>;
 
 export const createEntityCommentBodySchema = z.object({
   body: z.string().trim().min(1, 'Kommentar ist leer.').max(GROUP_COMMENT_MAX),
-  parentId: z.string().uuid().nullish(),
+  parentId: z.string().guid().nullish(),
 });
 
 export const entityCommentsResponseSchema = z.object({

@@ -93,7 +93,7 @@ export const aiRequestBodySchema = z.object({
   // The document being edited. Auth middleware only proves *who* the caller
   // is — this id is what lets the handler check they may *edit* the document
   // (and ties the AI call to a doc for the telemetry log).
-  documentId: z.string().uuid(),
+  documentId: z.string().guid(),
   messages: z.array(z.unknown()),
   toolDefinitions: z.record(z.string(), z.unknown()),
   // Optional: when the docs-chat panel forwards an edit request, the prior

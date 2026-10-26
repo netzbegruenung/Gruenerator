@@ -432,7 +432,7 @@ export type GroupShareComment = z.infer<typeof groupShareCommentSchema>;
 export const createGroupShareCommentBodySchema = z.object({
   body: z.string().trim().min(1, 'Kommentar ist leer.').max(GROUP_COMMENT_MAX),
   /** Antwort auf diesen Kommentar. Fehlt es, steht der Kommentar oben. */
-  parentId: z.string().uuid().nullish(),
+  parentId: z.string().guid().nullish(),
 });
 export type CreateGroupShareCommentBody = z.infer<typeof createGroupShareCommentBodySchema>;
 
