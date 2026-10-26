@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 
-import { describeAppUpdate, type AppUpdateInput } from './appUpdate';
+import {
+  appIdentityHeaders,
+  describeAppUpdate,
+  type AppIdentityInput,
+  type AppUpdateInput,
+} from './appUpdate';
 
 const base: AppUpdateInput = {
   appVersion: '1.2.1',
@@ -93,6 +98,42 @@ describe('describeAppUpdate', () => {
         value: 'Update verfügbar',
         action: 'download',
       });
+    });
+  });
+});
+
+describe('appIdentityHeaders', () => {
+  const identity: AppIdentityInput = {
+    platform: 'ios',
+    appVersion: '1.6.0',
+    isEnabled: true,
+    isEmbeddedLaunch: false,
+    updateId: '0f3b1c2a-9d4e-4f5a-8b6c-7d8e9f0a1b2c',
+    createdAt: new Date('2026-10-20T08:00:00Z'),
+  };
+
+  it('names the running update and its build day', () => {
+    expect(appIdentityHeaders(identity)).toEqual({
+      'X-App-Platform': 'ios',
+      'X-App-Version': '1.6.0',
+      'X-App-Update': '0f3b1c2a-9d4e-4f5a-8b6c-7d8e9f0a1b2c',
+      'X-App-Update-Date': '2026-10-20',
+    });
+  });
+
+  it('reports the store bundle as embedded', () => {
+    expect(appIdentityHeaders({ ...identity, isEmbeddedLaunch: true })).toEqual({
+      'X-App-Platform': 'ios',
+      'X-App-Version': '1.6.0',
+      'X-App-Update': 'embedded',
+    });
+  });
+
+  it('sends no update at all from a build that cannot receive one', () => {
+    // A dev client would otherwise be counted as `embedded` and blur the numbers.
+    expect(appIdentityHeaders({ ...identity, isEnabled: false })).toEqual({
+      'X-App-Platform': 'ios',
+      'X-App-Version': '1.6.0',
     });
   });
 });

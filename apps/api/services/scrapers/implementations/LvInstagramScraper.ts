@@ -120,8 +120,7 @@ export async function scrapeLvInstagram(
 
   const qdrant = getQdrantInstance();
   await qdrant.init();
-  const client = qdrant.client;
-  if (!client) {
+  if (!qdrant.hasClientFor(COLLECTION)) {
     fail('Qdrant not available — cannot index LV Instagram posts');
     return result;
   }
@@ -157,7 +156,7 @@ export async function scrapeLvInstagram(
       try {
         const id = instagramPointId(post.url);
         const contentHash = generateContentHash(post.caption);
-        const [existing] = await client.retrieve(COLLECTION, {
+        const [existing] = await qdrant.readClient(COLLECTION).retrieve(COLLECTION, {
           ids: [id],
           with_payload: ['content_hash', 'image_path'],
           with_vector: false,
@@ -187,7 +186,7 @@ export async function scrapeLvInstagram(
           imagePath,
           new Date().toISOString()
         );
-        await batchUpsert(client, COLLECTION, [{ id, vector, payload }]);
+        await batchUpsert(qdrant.writeClient(COLLECTION), COLLECTION, [{ id, vector, payload }]);
 
         if (existing) result.updated++;
         else result.stored++;

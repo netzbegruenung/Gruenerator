@@ -15,14 +15,9 @@ const scrollDocuments = vi.fn();
 vi.mock('./QdrantService/index.js', () => ({
   getQdrantInstance: () => ({
     init: async () => undefined,
-    client: {},
+    operations: { scrollDocuments: (...args: unknown[]) => scrollDocuments(...args) },
     collections: { notebook_collection_documents: 'ncd' },
   }),
-}));
-vi.mock('./QdrantService/operations/index.js', () => ({
-  QdrantOperations: class {
-    scrollDocuments = (...args: unknown[]) => scrollDocuments(...args);
-  },
 }));
 
 const { NotebookQdrantHelper } = await import('./NotebookQdrantHelper.js');

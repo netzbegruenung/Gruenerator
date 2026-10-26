@@ -22,19 +22,21 @@ interface FakePoint {
 const scroll = vi.fn();
 const del = vi.fn();
 const upsert = vi.fn();
+const qdrantClient = {
+  scroll: (...args: unknown[]) => scroll(...args),
+  delete: (...args: unknown[]) => del(...args),
+  upsert: (...args: unknown[]) => upsert(...args),
+  getCollection: () =>
+    Promise.resolve({ config: { params: { sparse_vectors: { bm25: { modifier: 'idf' } } } } }),
+};
 
 let points: FakePoint[] = [];
 
 vi.mock('../../../database/services/QdrantService.js', () => ({
   getQdrantInstance: () => ({
     init: () => Promise.resolve(),
-    client: {
-      scroll: (...args: unknown[]) => scroll(...args),
-      delete: (...args: unknown[]) => del(...args),
-      upsert: (...args: unknown[]) => upsert(...args),
-      getCollection: () =>
-        Promise.resolve({ config: { params: { sparse_vectors: { bm25: { modifier: 'idf' } } } } }),
-    },
+    readClient: () => qdrantClient,
+    writeClient: () => qdrantClient,
   }),
 }));
 

@@ -63,7 +63,7 @@ const TEXT = 'Ein Beschlusstext, lang genug für die 100-Zeichen-Schranke. '.rep
 
 function makeProcessor() {
   return new DocumentProcessor(
-    {} as never,
+    { readClient: () => ({}), writeClient: () => ({}) } as never,
     'landesverbaende_documents',
     (t: string) => `hash:${t.length}`,
     (_url: string, i: number) => i,
