@@ -32,7 +32,6 @@ describe('Element-Transformer', () => {
       const spreads = (quelle.match(/\{\.\.\.ELEMENT_TRANSFORMER\}/g) ?? []).length;
       expect(spreads).toBe(erwartet);
       expect(quelle).not.toMatch(/rotationSnaps=\{\[/);
-      expect(quelle).not.toMatch(/flipEnabled=\{transformConfig\?\.flipEnabled/);
       // Die Griffe stylt ELEMENT_TRANSFORMER (Touch-Rand, Seite des Drehgriffs);
       // ein eigenes anchorStyleFunc gibt es nur an den Ausnahmen.
       const eigene = (quelle.match(/anchorStyleFunc=\{/g) ?? []).length;

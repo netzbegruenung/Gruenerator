@@ -269,7 +269,9 @@ export function buildCanvasSuggestSystemPrompt(
     lines.push(
       '      - "scale": positive Zahl, max 10. Bei [text], [shape], [frame] und [balken] ist "scale" ein Faktor auf die aktuelle Größe (1.2 = 20 % größer, 0.8 = 20 % kleiner, 1 = unverändert; bei [text] die Schriftgröße), bei allen anderen Elementen die Größe selbst (1 = Originalgröße).'
     );
-    lines.push('      - "rotation": Grad zwischen -360 und 360');
+    lines.push(
+      '      - "rotation": absoluter Winkel in Grad zwischen -360 und 360, gedreht um die Mitte (0 = gerade; der aktuelle Winkel steht als "gedreht N°" am Element)'
+    );
     lines.push('      - "x": Zahl (Pixel-Position der linken Kante)');
     lines.push('      - "y": Zahl (Pixel-Position der oberen Kante)');
     lines.push(

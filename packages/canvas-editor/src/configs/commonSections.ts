@@ -249,7 +249,9 @@ export function createChatSection<TState, TActions extends CanvasAiActionsBase>(
             applyOperations: (ops) => {
               let results: ApplyResult[] = [];
               const apply = () => {
-                results = ops.map((op) => applyOperation(op, actions, () => state, capabilities));
+                results = ops.map((op) =>
+                  applyOperation(op, actions, () => state, capabilities, context?.rotateElement)
+                );
               };
               // One batch, one undo step — the banner's "Verwerfen" is a single undo.
               if (actions.runHistoryBatch) actions.runHistoryBatch(apply);

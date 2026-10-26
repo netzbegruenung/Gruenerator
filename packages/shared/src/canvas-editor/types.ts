@@ -43,7 +43,6 @@ export interface TransformConfig {
   enabledAnchors: TransformAnchor[];
   rotateEnabled: boolean;
   keepRatio: boolean;
-  flipEnabled: boolean;
   bounds?: TransformBounds;
 }
 
@@ -116,7 +115,6 @@ export const DEFAULT_TRANSFORM_CONFIG: TransformConfig = {
   enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
   rotateEnabled: false,
   keepRatio: true,
-  flipEnabled: false,
   bounds: {
     minWidth: 20,
     minHeight: 20,

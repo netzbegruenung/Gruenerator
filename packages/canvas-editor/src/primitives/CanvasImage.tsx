@@ -22,7 +22,7 @@ import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { panWindowPhoto, zoomWindow, type Rect } from '../utils/coverFit';
 import { getActiveImageFilters, imageFilterAttrs } from '../utils/imageFilters';
 import { isGroupDrag } from '../utils/multiSelect';
-import { ELEMENT_TRANSFORMER, axisAlignedBounds, normalizeRotation } from '../utils/orientation';
+import { ELEMENT_TRANSFORMER, normalizeRotation } from '../utils/orientation';
 import { recacheNextFrame } from '../utils/recacheNextFrame';
 import { boxFrame, createBoxFrame, frameBounds, snapByBounds } from '../utils/snapping';
 
@@ -260,16 +260,9 @@ function CanvasImageInner({
       // A turned image is kept in by its axis-aligned bounds; the shift of
       // that box is the shift of the node.
       const box = nodeRotation
-        ? axisAlignedBounds({
-            x: posX,
-            y: posY,
-            rotation: nodeRotation,
-            scaleX: 1,
-            scaleY: 1,
-            offsetX: 0,
-            offsetY: 0,
-            local: { x: 0, y: 0, width: nodeWidth, height: nodeHeight },
-          })
+        ? frameBounds(
+            boxFrame(dragFrame, posX, posY, nodeWidth, nodeHeight, nodeRotation, 'top-left')
+          )
         : { x: posX, y: posY, width: nodeWidth, height: nodeHeight };
 
       let minX: number, maxX: number, minY: number, maxY: number;

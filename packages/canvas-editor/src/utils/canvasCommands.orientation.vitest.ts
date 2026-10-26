@@ -113,6 +113,23 @@ describe('setRotation', () => {
   });
 });
 
+describe('rotateElement', () => {
+  it('dreht ein nicht ausgewähltes Element um seine Mitte — wie die Leiste', () => {
+    const p = page({ chartInstances: [{ id: 'c', x: 10, y: 20 }] });
+    p.add('c', topLeft(10, 20, 100, 50));
+    expect(p.commands.rotateElement('c', 450)).toBe(true);
+    expect(p.actions.updateChart).toHaveBeenCalledWith('c', { x: 85, y: -5, rotation: 90 });
+  });
+
+  it('meldet false für gesperrte und unbekannte Elemente', () => {
+    const p = page({ shapeInstances: [{ id: 's' }], lockedLayerIds: ['s'] });
+    p.add('s', centred(50, 50, 20, 20));
+    expect(p.commands.rotateElement('s', 45)).toBe(false);
+    expect(p.commands.rotateElement('nope', 45)).toBe(false);
+    expect(p.actions.updateShape).not.toHaveBeenCalled();
+  });
+});
+
 describe('previewRotation', () => {
   it('dreht nur den Knoten und zeichnet neu — kein Zustand, kein Verlauf', () => {
     const p = page({ chartInstances: [{ id: 'c', x: 10, y: 20 }] });

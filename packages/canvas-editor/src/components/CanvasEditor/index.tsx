@@ -1044,6 +1044,8 @@ function CanvasEditorInner({
       onCaptureCanvas: () => {},
       captureCanvasImage: handleCaptureCanvas,
       captureCanvasImageForAi: handleCaptureCanvasForAi,
+      rotateElement: (id: string, deg: number) =>
+        canvasRefsRef.current[currentPageIndex]?.current?.rotateElement?.(id, deg) ?? false,
       collectAltTextPages,
       onDownload: async () => {
         const ref = canvasRefsRef.current[currentPageIndex];
@@ -1390,10 +1392,15 @@ function CanvasEditorInner({
   ) : (
     areaTabBar
   );
+  // A multi-selection has no selection bar on phones; the pill is its only
+  // door to the selection's commands.
+  const isMultiSelection = (toolbarState?.selectionCount ?? 0) > 1;
   const selectionPill =
-    showMobileSelection && toolbarState?.selectedElement ? (
+    toolbarState &&
+    ((showMobileSelection && toolbarState.selectedElement) ||
+      (isMultiSelection && isMobileWeb && !isPanelOpen)) ? (
       <MobileSelectionPill
-        measureKey={toolbarState.activeFloatingModule}
+        measureKey={isMultiSelection ? toolbarState : toolbarState.activeFloatingModule}
         zoom={zoom}
         getBox={getSelectionBox}
         subscribeManipulation={subscribeManipulation}
@@ -1401,9 +1408,10 @@ function CanvasEditorInner({
         canDelete={toolbarState.canDelete ?? false}
         onDuplicate={toolbarHandlers.handleDuplicate}
         onDelete={toolbarHandlers.handleDeleteElement}
-        onMore={openSelectionArea}
+        onMore={isMultiSelection ? undefined : openSelectionArea}
         isLocked={toolbarState.lockState === 'all'}
         onUnlock={toolbarHandlers.handleToggleLock}
+        onFlip={isMultiSelection && toolbarState.canFlip ? toolbarHandlers.handleFlip : undefined}
       />
     ) : null;
 
