@@ -31,6 +31,7 @@ import { requireAuth } from './middleware/authMiddleware.js';
 import { shouldSkipBodyParser } from './middleware/bodyParserConfig.js';
 import { createCacheMiddleware } from './middleware/cacheMiddleware.js';
 import { shouldCompress } from './middleware/compressionFilter.js';
+import { jsonBody } from './middleware/jsonBody.js';
 import { setupRoutes } from './routes.js';
 import {
   startModelLatencyCleanup,
@@ -243,7 +244,7 @@ async function startWorker(): Promise<void> {
     if (shouldSkipBodyParser(req)) {
       return next();
     }
-    express.json({ limit: '50mb' })(req, res, next);
+    jsonBody('50mb')(req, res, next);
   });
 
   app.use((req: Request, res: Response, next: NextFunction) => {
