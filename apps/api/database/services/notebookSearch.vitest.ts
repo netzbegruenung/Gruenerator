@@ -11,15 +11,9 @@ const scrollDocuments = vi.fn();
 vi.mock('./QdrantService/index.js', () => ({
   getQdrantInstance: () => ({
     init: vi.fn().mockResolvedValue(undefined),
-    client: {},
+    operations: { scrollDocuments },
     collections: { notebook_collections: 'notebook_collections' },
   }),
-}));
-
-vi.mock('./QdrantService/operations/index.js', () => ({
-  QdrantOperations: class {
-    scrollDocuments = scrollDocuments;
-  },
 }));
 
 vi.mock('./PostgresService.js', () => ({ getPostgresInstance: () => ({ query: vi.fn() }) }));

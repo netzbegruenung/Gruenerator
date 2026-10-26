@@ -313,7 +313,7 @@ export function createCanvasCommands<TState extends Partial<BaseCanvasState>>(
     const input = doorInput();
     return ids.flatMap((id) => {
       const door = findOrientationDoor(input, id);
-      const node = door ? findDragNodes(layer, [id])[0] : undefined;
+      const node = door ? (findDragNodes(layer, [id])[0] ?? null) : null;
       return door && node ? [{ door, node, frame: readNodeFrame(node) }] : [];
     });
   };

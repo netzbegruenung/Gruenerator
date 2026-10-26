@@ -188,7 +188,7 @@ export function FloatingRotateFlipControl({
               <Slider.Range className="absolute rounded-full h-full bg-[var(--editor-accent)]" />
             </Slider.Track>
             <Slider.Thumb
-              className="block size-3 max-canvas-mobile:size-5 bg-white rounded-full border-2 border-[var(--editor-accent)] shadow-[0_1px_3px_rgba(0,0,0,0.2)] cursor-grab focus:outline-none"
+              className="block size-3 max-canvas-mobile:size-5 bg-editor-surface rounded-full border-2 border-[var(--editor-accent)] shadow-[0_1px_3px_rgba(0,0,0,0.2)] cursor-grab focus:outline-none"
               aria-label="Drehung"
             />
           </Slider.Root>

@@ -419,6 +419,11 @@ const envSchema = z.object({
   QDRANT_API_KEY: z.string().optional(),
   QDRANT_BASIC_AUTH_USERNAME: z.string().optional(),
   QDRANT_BASIC_AUTH_PASSWORD: z.string().optional(),
+  QDRANT_CONTENT_URL: z.string().optional(),
+  QDRANT_CONTENT_API_KEY: z.string().optional(),
+  QDRANT_CONTENT_BASIC_AUTH_USERNAME: z.string().optional(),
+  QDRANT_CONTENT_BASIC_AUTH_PASSWORD: z.string().optional(),
+  QDRANT_CONTENT_READ_ONLY: boolFlag(false),
 
   // ── Vector search tuning ───────────────────────────────────────────────
   VECTOR_SEARCH_THRESHOLD: z.coerce.number().default(0.3),

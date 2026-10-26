@@ -28,7 +28,7 @@ function point(index: number, extra: Record<string, unknown> = {}, vector: unkno
 }
 
 /**
- * `scrollDocuments` liefert die Zähl-/Sortierseite ohne Vektoren; `client.retrieve`
+ * `scrollDocuments` liefert die Zähl-/Sortierseite ohne Vektoren; `readClient().retrieve`
  * liefert sie danach gezielt für die sichtbare Seite per Punkt-ID nach — hier
  * aus derselben Fixture-Liste bedient, damit bestehende Tests unverändert bleiben.
  */
@@ -41,7 +41,7 @@ function opsReturning(points: unknown[]): QdrantOperations {
   );
   return {
     scrollDocuments: vi.fn().mockResolvedValue(points),
-    client: { retrieve },
+    readClient: () => ({ retrieve }),
   } as unknown as QdrantOperations;
 }
 
@@ -158,7 +158,10 @@ describe('inspectDocumentChunks — Vektor-Abruf bleibt auf die Seite beschränk
       const retrieve = vi.fn(async (_collection: string, args: { ids: (string | number)[] }) =>
         args.ids.map((id) => ({ id, vector: allPointsById.get(id) }))
       );
-      const ops = { scrollDocuments, client: { retrieve } } as unknown as QdrantOperations;
+      const ops = {
+        scrollDocuments,
+        readClient: () => ({ retrieve }),
+      } as unknown as QdrantOperations;
 
       // limit 100 aus 258 Gesamt-Punkten: die sichtbare Seite ist eine echte
       // Teilmenge, sonst bliebe unbemerkt, wenn der Vektor-Abruf doch wieder das

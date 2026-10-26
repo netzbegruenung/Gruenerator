@@ -18,6 +18,7 @@ import {
   type NotebookTopicTrend,
   type TopicCategory,
 } from '@gruenerator/contracts';
+import { type QdrantClient } from '@qdrant/js-client-rest';
 
 import {
   applyDefaultFilter,
@@ -578,8 +579,6 @@ export function aggregateOverview(
   };
 }
 
-type QdrantClient = NonNullable<ReturnType<typeof getQdrantInstance>['client']>;
-
 async function scrollHeadDocs(
   client: QdrantClient,
   collection: string,
@@ -745,8 +744,8 @@ async function computeOverview(collectionId: string): Promise<NotebookOverviewRe
 
   const qdrant = getQdrantInstance();
   await qdrant.init();
-  const client = qdrant.client;
-  if (!client) throw new Error('Qdrant client unavailable');
+  if (!qdrant.isContentAvailable()) throw new Error('Qdrant client unavailable');
+  const client = qdrant.readClient(config.qdrantCollection);
 
   const collection = config.qdrantCollection;
   const isLv = collection === LV_COLLECTION;

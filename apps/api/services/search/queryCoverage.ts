@@ -108,10 +108,11 @@ export async function fetchTermFrequencies(
   return new Map(entries);
 }
 
-/** What `loadTermFrequencies` needs of the Qdrant service: lazy init, then the client. */
+/** What `loadTermFrequencies` needs of the Qdrant service: lazy init, then the collection's client. */
 interface QdrantAccess {
   init(): Promise<void>;
-  client: QdrantClient | null;
+  hasClientFor(collection: string): boolean;
+  readClient(collection: string): QdrantClient;
 }
 
 /**
@@ -136,8 +137,8 @@ export async function loadTermFrequencies(
   let timer: ReturnType<typeof setTimeout> | null = null;
   try {
     await qdrant.init();
-    const client = qdrant.client;
-    if (!client) return null;
+    if (!qdrant.hasClientFor(collection)) return null;
+    const client = qdrant.readClient(collection);
     const deadline = new Promise<null>((resolve) => {
       timer = setTimeout(() => {
         log.warn(`Term frequencies for ${collection} missed ${timeoutMs} ms, rule skipped`);

@@ -158,6 +158,36 @@ describe('Vorlagen-Text dreht', () => {
     });
     expect(json(canvas.live.state)).toEqual(before);
   }, 90_000);
+
+  it('undo keeps a live key that is not host-synced and absent from the snapshot', async () => {
+    const base = configs.get('dreizeilen-overlay-at')!;
+    let setState: ((patch: Record<string, unknown>) => void) | null = null;
+    const config = {
+      ...base,
+      createActions: (...args: Parameters<typeof base.createActions>) => {
+        setState = args[1] as never;
+        return base.createActions(...args) as never;
+      },
+    };
+    configs.set('dreizeilen-overlay-at', config as never);
+    try {
+      const canvas = await mount('dreizeilen-overlay-at', { line1: 'Klima' });
+      const { node } = await canvas.select('line1-text');
+      await canvas.turn(node, 30, 100, 120);
+      await act(async () => {
+        setState!({ transientKey: 'live' });
+      });
+      expect(canvas.live.state.transientKey).toBe('live');
+
+      await act(async () => {
+        canvas.ref.current!.undo!();
+      });
+      expect(rotations(canvas.live.state)['line1-text']).toBeUndefined();
+      expect(canvas.live.state.transientKey).toBe('live');
+    } finally {
+      configs.set('dreizeilen-overlay-at', base);
+    }
+  }, 90_000);
 });
 
 describe('Vorlagen-Grafiken drehen', () => {
