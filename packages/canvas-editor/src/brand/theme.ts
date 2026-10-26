@@ -165,6 +165,7 @@ export const GRUENE_DE: GruenePack = {
     ghostNumeral: { fill: { light: DE_GRASGRUEN, dark: DE_LIME }, opacity: 0.2 },
     countdownInk: { light: '#FFFFFF', dark: DE_DUNKELTANNE },
     handMarks: { white: '#FFFFFF', green: DE_KLEE, greenOnGrass: DE_TANNE },
+    quoteStyle: 'card',
     // The "BÜNDNIS 90/DIE GRÜNEN" word mark (710 × 379), measured on the posts
     // (10/2026, Dd_BXcKiDy2/03, Ddouf0QiL1w/02): ~250–300 px, black in a tone
     // of the ground (muted on light, deep on grass green), white on dark.
@@ -267,6 +268,8 @@ export const GRUENE_AT: GruenePack = {
     ghostNumeral: { fill: { light: '#56AE33', dark: '#56AE33' }, opacity: 0.55 },
     countdownInk: { light: '#FFFFFF', dark: AT_DUNKELGRUEN },
     handMarks: { white: AT_GELB, green: AT_DUNKELGRUEN },
+    // As on the Gewessler posts.
+    quoteStyle: 'poster',
     // The "G DIE GRÜNEN" logo with claim (1410 × 1239), ~210 px: green on
     // light ground, white elsewhere.
     logo: {

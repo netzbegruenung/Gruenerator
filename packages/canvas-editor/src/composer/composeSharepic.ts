@@ -192,8 +192,9 @@ function composeSlide(
   const darkText = brand.darkText;
   const boxed = brand.features.zeilenboxen && !!spec.zeilenboxen;
   const quoteSlide = spec.items.some((i) => i.type === 'zitat');
-  /** AT quote on a photo: always centred at the bottom, as the posts set it. */
-  const atPhotoQuote = isAt && quoteSlide && bg.kind === 'foto';
+  const posterQuote = brand.quoteStyle === 'poster' && quoteSlide;
+  /** A poster quote on a photo: always centred at the bottom, as the posts set it. */
+  const posterPhotoQuote = posterQuote && bg.kind === 'foto';
   /** A headline alone on a colour (cover, hook): top-left, as the posts set it. */
   const headlineAlone =
     bg.kind === 'farbe' &&
@@ -291,7 +292,7 @@ function composeSlide(
     x: MARGIN,
     width: canvas.width - 2 * MARGIN,
     align:
-      (isAt && quoteSlide) || (aufruf && aufruf.stil !== 'ausruf')
+      posterQuote || (aufruf && aufruf.stil !== 'ausruf')
         ? 'center'
         : headlineAlone
           ? 'left'
@@ -337,7 +338,7 @@ function composeSlide(
     // Text on a photo: a gradient from the text side into the picture.
     // Line boxes bring their own contrast and need none — a quote or question
     // stays free text even on a boxed slide, so it needs the scrim.
-    const side = atPhotoQuote ? 'unten' : bg.textSeite;
+    const side = posterPhotoQuote ? 'unten' : bg.textSeite;
     const vertical = side === 'unten' || side === 'oben';
     scrimDark = SCRIM_DARK[locale];
     scrimLevel = SCRIM_TEXT_ALPHA[options.photoTone?.(bg.filename, side) ?? 'mittel'];
@@ -746,8 +747,9 @@ function composeSlide(
     bg.kind === 'farbe' &&
     items.some((i) => i.type === 'zitat') &&
     items.every((i) => i.type === 'zitat' || i.type === 'dachzeile') &&
-    // DE: a long quote is a text page, set at body size.
-    (isAt || !items.some((i) => i.type === 'zitat' && stripMarks(i.text).length > QUOTE_LONG));
+    // A card quote that runs long is a text page, set at body size.
+    (brand.quoteStyle === 'poster' ||
+      !items.some((i) => i.type === 'zitat' && stripMarks(i.text).length > QUOTE_LONG));
   const quoteSize = (base: number, scale: number, cap: number) =>
     quoteAlone
       ? Math.min(Math.round(base * scale * 1.6), QUOTE_ALONE_MAX)

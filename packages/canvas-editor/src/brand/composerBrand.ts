@@ -94,6 +94,15 @@ export interface ComposerBrand {
     height: number;
     bottom: number;
   };
+  /**
+   * How a quote stands. `'poster'`: the quote in the headline face under an
+   * outlined quote mark, the name alone below; a quote slide is centred, on a
+   * photo its text stands at the bottom, and a long quote stays the hero.
+   * `'card'`: the quote-mark asset over the quote in the body face, name and
+   * role below; alignment and photo side follow the spec, and a long quote
+   * alone becomes a text page at body size.
+   */
+  quoteStyle: 'poster' | 'card';
 }
 
 /**
