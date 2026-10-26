@@ -86,18 +86,19 @@ export function slideInk({
   // DE `++passage++`: dark ink in a box. On light ground (white, grey, mint)
   // the posts lay lime under it (Dds8o0TAppl, DdEhd82js3K, Dc3HYlTAnG-);
   // photos and dark colours take white — a dark box disappears into the
-  // scrim. AT has none (see `foldMarkers`). Themes bring their own box.
+  // scrim. A brand without the box has none (see `foldMarkers`). Themes
+  // bring their own box.
   const themedMarker = def?.marker[side] ?? null;
-  const marker: TextMarker | null = isAt
-    ? null
-    : {
+  const marker: TextMarker | null = brand.features.markerBox
+    ? {
         fill:
           themedMarker?.fill ?? (surface === 'creme' ? MARKER_MINT : onLight ? LIME : '#FFFFFF'),
         color: themedMarker?.ink ?? SHAREPIC_COLOR_HEX.dunkeltanne,
         // Tighter than the editor's default: the space beside a mid-line box
         // must stay visible, as on the posts.
         padX: MARKER_PAD_X,
-      };
+      }
+    : null;
   // A DE headline's accent line (`akzent`): dark text on a box. Lime glows on
   // dark ground; on mint it washes out — grass green there; on grass green
   // itself a white box. A theme sets its marker box.

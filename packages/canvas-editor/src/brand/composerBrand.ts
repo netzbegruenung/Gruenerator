@@ -35,6 +35,21 @@ export interface ComposerBrand {
     infografikTitel: boolean;
     datum: boolean;
   };
+  /** Layouts only some brands have. Off, a spec that asks for one gets the plain form. */
+  features: {
+    /** `++passage++` as dark text in a box; off, it folds into the accent (`==`). */
+    markerBox: boolean;
+    /** A slide's `zeilenboxen`: every line on its own box. */
+    zeilenboxen: boolean;
+    /** A colour slide's `kopfband`: the text above the card on its own band. */
+    kopfband: boolean;
+    /** A `text` item whose last line is one word shrinks a little to pull it up. */
+    widowGuard: boolean;
+    /** A comparison's `spalten`: the slide split edge to edge; off, two panels. */
+    vergleichSpalten: boolean;
+    /** A petition call's `hinweis` as a pill; off, a line of text. */
+    hinweisPill: boolean;
+  };
   /** Dark text: on light ground, and on grass green where the brand sets it dark. */
   darkText: string;
   /** A topic icon on its circle. */

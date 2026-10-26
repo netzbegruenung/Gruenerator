@@ -178,9 +178,11 @@ function composeSlide(
   const theme = getBrandTheme(locale);
   const brand = getBrandPack(locale).composer;
   const isAt = locale === 'de-AT';
-  // The marker box is a DE signature; AT highlights with the yellow Vollkorn
-  // accent only, so a `++` that reaches an AT slide is set as `==`.
-  const spec = isAt ? foldMarkers(encodeHandMarks(slide)) : encodeHandMarks(slide);
+  // A brand without the marker box highlights with its accent only, so a
+  // `++` that reaches its slide is set as `==`.
+  const spec = brand.features.markerBox
+    ? encodeHandMarks(slide)
+    : foldMarkers(encodeHandMarks(slide));
   const bg = spec.background;
   const bild =
     bg.kind === 'farbe' ? (spec.items.find((i): i is BildItem => i.type === 'bild') ?? null) : null;
@@ -189,7 +191,7 @@ function composeSlide(
   /** Where a steckbrief's person stands: the arrows point there. */
   const person = steckbrief ? steckbriefPerson(canvas, bg.kind === 'foto') : null;
   const darkText = brand.darkText;
-  const boxed = !isAt && !!spec.zeilenboxen;
+  const boxed = brand.features.zeilenboxen && !!spec.zeilenboxen;
   const quoteSlide = spec.items.some((i) => i.type === 'zitat');
   /** AT quote on a photo: always centred at the bottom, as the posts set it. */
   const atPhotoQuote = isAt && quoteSlide && bg.kind === 'foto';
@@ -299,8 +301,8 @@ function composeSlide(
             : 'left',
   };
 
-  /** DE header band: the text above the card stands on it; the card on `bg.color`. */
-  const kopfband = !isAt && bg.kind === 'farbe' ? (bg.kopfband ?? null) : null;
+  /** Header band: the text above the card stands on it; the card on `bg.color`. */
+  const kopfband = brand.features.kopfband && bg.kind === 'farbe' ? (bg.kopfband ?? null) : null;
   if (bg.kind === 'farbe') {
     surface = kopfband ?? bg.color;
     const gradient = GRADIENTS[bg.color];
@@ -965,8 +967,8 @@ function composeSlide(
             0,
             (w, s) => measure(w, s, theme.fonts.body, 'bold')
           );
-          // DE: a last line of a single word or emoji reads as a slip: a
-          // little smaller, if that pulls it up to the line above.
+          // A last line of a single word or emoji reads as a slip: a little
+          // smaller, if that pulls it up to the line above.
           const widowed = (s: number) => {
             const rows = layoutLines(item.text, column.width, s, theme.fonts.body, 'normal');
             const last =
@@ -977,7 +979,7 @@ function composeSlide(
                 .trim() ?? '';
             return rows.length > 1 && !/\s/.test(last);
           };
-          if (!isAt && widowed(size)) {
+          if (brand.features.widowGuard && widowed(size)) {
             for (let s = size - 2; s >= size * 0.85; s -= 2) {
               if (!widowed(s)) {
                 size = s;

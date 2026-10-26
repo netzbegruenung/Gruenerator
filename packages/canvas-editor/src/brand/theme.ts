@@ -132,6 +132,14 @@ export const GRUENE_DE: GruenePack = {
     },
     absatzGap: 0.6,
     headlineFace: { absatz: false, infografikTitel: false, datum: false },
+    features: {
+      markerBox: true,
+      zeilenboxen: true,
+      kopfband: true,
+      widowGuard: true,
+      vergleichSpalten: true,
+      hinweisPill: true,
+    },
     darkText: DE_DUNKELTANNE,
     // Klee on light ground, Tanne on grass green, lime on dark ground and photos.
     badge: {
@@ -210,6 +218,16 @@ export const GRUENE_AT: GruenePack = {
     // Gotham Book has no bold cut; AT sets the whole date circle in the
     // poster face (Dc_L5vriG5z), where a synthetic bold would only smear it.
     headlineFace: { absatz: true, infografikTitel: true, datum: true },
+    // AT highlights with its yellow Vollkorn accent only and has no pills,
+    // boxes or bands; a hint stays a line of text.
+    features: {
+      markerBox: false,
+      zeilenboxen: false,
+      kopfband: false,
+      widowGuard: false,
+      vergleichSpalten: false,
+      hinweisPill: false,
+    },
     darkText: AT_DUNKELGRUEN,
     // The yellow accent on dark ground, its dark green on white.
     badge: {

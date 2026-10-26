@@ -72,8 +72,8 @@ export function layoutAufruf(
     after: Math.round(size * 0.4),
     place: (y) => text(id, item.text, y, size, family, { lineHeight, type: 'header' }),
   });
-  if (item.hinweis && item.stil === 'petition' && !isAt) {
-    // DE: the hint as a pill under the call — where to sign.
+  if (item.hinweis && item.stil === 'petition' && brand.features.hinweisPill) {
+    // The hint as a pill under the call — where to sign.
     const pillSize = Math.round(Math.min(46, size * 0.5));
     const hint = item.hinweis;
     const colors = onGround(brand.button, { onLight, onGrass });
