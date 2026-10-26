@@ -1,4 +1,8 @@
-import { type SharepicSpec } from '@gruenerator/contracts';
+import {
+  SHAREPIC_THEMA_COLORS,
+  sharepicThemaSchema,
+  type SharepicSpec,
+} from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { composeSharepic } from './composeSharepic';
@@ -139,6 +143,27 @@ for (const color of ['weiss', 'grasgruen', 'tanne'] as const) {
   GOLDEN_ONLY[`grund-${color}`] = {
     locale: 'de-DE',
     slides: sweepSlides.map((slide) => ({ ...slide, background: { kind: 'farbe', color } })),
+  };
+}
+// Theme sweep: each theme's accent, card accent and marker on a light, a
+// grass-green and a dark CD ground and on its own grounds. No fixture sets a
+// theme.
+for (const thema of sharepicThemaSchema.options) {
+  GOLDEN_ONLY[`thema-${thema}`] = {
+    locale: 'de-DE',
+    thema,
+    slides: (['weiss', 'grasgruen', 'tanne', ...SHAREPIC_THEMA_COLORS[thema]] as const).map(
+      (color) => ({
+        background: { kind: 'farbe', color },
+        position: 'unten',
+        align: 'links',
+        items: [
+          { type: 'headline', lines: ['==Gemeinsam==', 'stark'] },
+          { type: 'liste', stil: 'kasten', items: ['++zwei++ Punkte', 'drei Punkte'] },
+        ],
+        logo: false,
+      })
+    ),
   };
 }
 const FIXTURES: Record<string, SharepicSpec> = { ...SPECS, ...MORE_SPECS, ...GOLDEN_ONLY };
