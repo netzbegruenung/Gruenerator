@@ -1,10 +1,12 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { CanvasEditorProvider } from '../../../CanvasEditorProvider';
 import { axe } from '../../../test-utils';
 import { ContextControls } from '../ContextControls';
+import { CropModeControls } from '../CropModeControls';
 import { MobileSelectionBar } from '../MobileSelectionBar';
 
 function setup(cropping = false, locked = false) {
@@ -223,10 +225,12 @@ describe('photo crop toolbar', () => {
         expect(slider).toHaveAttribute('max', '45');
         expect(slider).toHaveAttribute('step', '1');
         const field = screen.getByRole('spinbutton', { name: 'Begradigen in Grad' });
-        expect(field).toHaveValue(-12);
+        expect(field).toHaveValue('-12');
         fireEvent.change(slider, { target: { value: '30' } });
         expect(rotate).toHaveBeenLastCalledWith(30);
+        fireEvent.focus(field);
         fireEvent.change(field, { target: { value: '80' } });
+        fireEvent.blur(field);
         expect(rotate).toHaveBeenLastCalledWith(45);
         expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual([
           'Abbrechen',
@@ -236,6 +240,68 @@ describe('photo crop toolbar', () => {
         unmount();
       }
     }
+  });
+  it('Begradigen in Grad: tippt in einen Entwurf, übernimmt mit Enter oder Verlassen', async () => {
+    const committed: number[] = [];
+    function Harness() {
+      const [deg, setDeg] = useState(0);
+      return (
+        <CropModeControls
+          onCancel={() => {}}
+          onDone={() => {}}
+          straighten={{
+            value: deg,
+            onChange: (next) => {
+              committed.push(next);
+              setDeg(next);
+            },
+          }}
+        />
+      );
+    }
+    const user = userEvent.setup();
+    render(<Harness />);
+    const field = screen.getByRole('spinbutton', { name: 'Begradigen in Grad' });
+    const slider = screen.getByRole('slider', { name: 'Begradigen' });
+
+    // Mehrstellig: der erste Tastendruck übernimmt nichts und überschreibt nichts.
+    await user.click(field);
+    await user.keyboard('12');
+    expect(field).toHaveValue('12');
+    expect(committed).toEqual([]);
+    await user.keyboard('{Enter}');
+    expect(committed).toEqual([12]);
+    expect(slider).toHaveValue('12');
+
+    // Negativ: ein einzelnes „-" bleibt stehen.
+    await user.clear(field);
+    await user.keyboard('-');
+    expect(field).toHaveValue('-');
+    await user.keyboard('30');
+    await user.tab();
+    expect(committed.at(-1)).toBe(-30);
+    expect(field).toHaveValue('-30');
+
+    // Außerhalb des Bereichs: Enter begrenzt auf 45.
+    await user.click(field);
+    await user.keyboard('{Control>}a{/Control}99{Enter}');
+    expect(committed.at(-1)).toBe(45);
+    expect(field).toHaveValue('45');
+
+    // Escape verwirft den Entwurf und übernimmt nichts.
+    const before = committed.length;
+    await user.keyboard('{Control>}a{/Control}7{Escape}');
+    expect(field).toHaveValue('45');
+    await user.tab();
+    expect(committed).toHaveLength(before);
+
+    // Pfeile stufen um 1 und übernehmen sofort.
+    await user.click(field);
+    await user.keyboard('{ArrowDown}');
+    expect(committed.at(-1)).toBe(44);
+    await user.keyboard('{ArrowUp}{ArrowUp}');
+    expect(committed.at(-1)).toBe(45);
+    expect(field).toHaveValue('45');
   });
   it('offers Automatisch for an own image and the background photo, desktop and mobile', async () => {
     const auto = vi.fn();
