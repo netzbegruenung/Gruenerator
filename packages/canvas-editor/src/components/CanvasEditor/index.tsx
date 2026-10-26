@@ -1319,9 +1319,6 @@ function CanvasEditorInner({
         lockState: toolbarState.lockState,
         canLock: toolbarState.canLock,
         canAlign: toolbarState.canAlign,
-        canRotate: toolbarState.canRotate,
-        canFlip: toolbarState.canFlip,
-        rotation: toolbarState.rotation,
         backgroundPickerRequest,
         handlers: {
           ...toolbarHandlers,
