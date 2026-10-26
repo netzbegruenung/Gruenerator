@@ -17,8 +17,8 @@ export interface CropSessionDoors {
   cancel: () => void;
   /** Beendet den Modus mit dem aktuellen Stand. */
   finish: () => void;
-  /** Wie oft „Abbrechen" lief: wer auf etwas wartet, verwirft sein Ergebnis, wenn die Zahl wächst. */
-  cancelCount: () => number;
+  /** Wie oft „Abbrechen" für dieses Element lief: wer darauf wartet, verwirft sein Ergebnis, wenn die Zahl wächst. */
+  cancelCount: (id: string) => number;
 }
 
 /**
@@ -42,7 +42,8 @@ export function useCropSession({
 }): CropSessionDoors {
   const store = useCanvasStore();
   const sessionRef = useRef<CropSession | null>(null);
-  const cancelsRef = useRef(0);
+  // Je Element: Abbrechen bei B verwirft kein laufendes (bezahltes) Erweitern bei A.
+  const cancelsRef = useRef(new Map<string, number>());
   const inputsRef = useRef({ elements, readState, restore, checkpoint });
   useLayoutEffect(() => {
     inputsRef.current = { elements, readState, restore, checkpoint };
@@ -76,8 +77,9 @@ export function useCropSession({
   const finish = useCallback(() => store.getState().setCroppingElement(null), [store]);
 
   const cancel = useCallback(() => {
-    cancelsRef.current += 1;
     const session = sessionRef.current;
+    const id = session?.id ?? store.getState().croppingElement;
+    if (id) cancelsRef.current.set(id, (cancelsRef.current.get(id) ?? 0) + 1);
     if (!session) {
       finish();
       return;
@@ -93,7 +95,7 @@ export function useCropSession({
     finish();
   }, [store, finish]);
 
-  const cancelCount = useCallback(() => cancelsRef.current, []);
+  const cancelCount = useCallback((id: string) => cancelsRef.current.get(id) ?? 0, []);
 
   return useMemo(() => ({ cancel, finish, cancelCount }), [cancel, finish, cancelCount]);
 }

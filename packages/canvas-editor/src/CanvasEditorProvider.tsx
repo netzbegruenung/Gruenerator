@@ -179,9 +179,9 @@ export interface CanvasEditorServices {
 
   /**
    * „Erweitern" in the crop mode: AI-outpaints `image` to the aspect ratio
-   * `aspect` (width / height) of its frame. Rejects with an `Error` whose
-   * message the editor shows as a toast (consent, budget, network). When
-   * omitted, the button is hidden.
+   * `aspect` (width / height) of its frame. Reject with an `Error` carrying
+   * `userFacing: true` to have its message shown as the toast
+   * (consent, budget); any other error shows the editor's generic text. When omitted, the button is hidden.
    */
   expandImage?: (image: File, aspect: number) => Promise<File>;
 

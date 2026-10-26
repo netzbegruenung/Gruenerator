@@ -5,6 +5,11 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { CanvasEditorProvider } from '../../../CanvasEditorProvider';
 import { axe } from '../../../test-utils';
+
+const uploads = vi.hoisted(() => ({ available: true }));
+vi.mock('../../../sidebar/UserUploadsProvider', () => ({
+  useOptionalUserUploads: () => (uploads.available ? { upload: async () => null } : null),
+}));
 import { ContextControls } from '../ContextControls';
 import { CropModeControls } from '../CropModeControls';
 import { MobileSelectionBar } from '../MobileSelectionBar';
@@ -391,6 +396,14 @@ describe('photo crop toolbar', () => {
         const bare = render(bar(false));
         expect(screen.queryByRole('button', { name: /Erweitern/ })).toBeNull();
         bare.unmount();
+        // Ohne Uploads auch nicht: das Ergebnis muss hochgeladen werden.
+        uploads.available = false;
+        const offline = render(
+          <CanvasEditorProvider services={services}>{bar(false)}</CanvasEditorProvider>
+        );
+        expect(screen.queryByRole('button', { name: /Erweitern/ })).toBeNull();
+        offline.unmount();
+        uploads.available = true;
 
         expand.mockClear();
         const { container, rerender, unmount } = render(

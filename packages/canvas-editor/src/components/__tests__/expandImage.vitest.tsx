@@ -14,6 +14,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { CanvasEditorProvider } from '../../CanvasEditorProvider';
 import { loadCanvasConfig } from '../../configs/configLoader';
 import { AutoSaveStoreProvider } from '../../stores/AutoSaveStoreProvider';
+import { userFacingError } from '../../utils/userFacingError';
 import { GenericCanvas, type GenericCanvasRef, type ToolbarStateReport } from '../GenericCanvas';
 
 import type * as StoreModule from '../../stores/createCanvasEditorStore';
@@ -233,7 +234,8 @@ describe('Zuschneide-Modus: Erweitern', () => {
     expect(mocks.expand.mock.calls[0]![1]).toBeCloseTo(200 / 160);
     expect(canvas.userImage()).toMatchObject({
       src: DURABLE,
-      fileName: 'outpaint.jpg',
+      // Der Name bleibt erkennbar, die Endung folgt dem gelieferten Format.
+      fileName: 'photo-erweitert.jpg',
       fit: 'cover',
       panX: 0,
       panY: 0,
@@ -252,7 +254,7 @@ describe('Zuschneide-Modus: Erweitern', () => {
     await enterUserImageCrop(canvas);
     const before = canvas.userImage();
     const history = canvas.store.getState().history.length;
-    mocks.expand.mockRejectedValue(new Error('Dein Bild-Budget für heute ist aufgebraucht.'));
+    mocks.expand.mockRejectedValue(userFacingError('Dein Bild-Budget für heute ist aufgebraucht.'));
 
     await canvas.run(() => canvas.ref.current!.handleExpandImage!());
     await canvas.settle();
@@ -263,6 +265,21 @@ describe('Zuschneide-Modus: Erweitern', () => {
     expect(canvas.store.getState().croppingElement).toBe('photo');
     expect(canvas.store.getState().history).toHaveLength(history);
     expect(canvas.report.current?.isExpanding).toBe(false);
+  }, 90_000);
+
+  it('zeigt rohe Fehlermeldungen nicht, sondern den allgemeinen Text', async () => {
+    const canvas = await mount();
+    await enterUserImageCrop(canvas);
+    mocks.fetchFile.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+
+    await canvas.run(() => canvas.ref.current!.handleExpandImage!());
+    await canvas.settle();
+
+    expect(mocks.toastError).toHaveBeenCalledWith(
+      'Erweitern hat nicht geklappt. Bitte versuche es noch einmal.'
+    );
+    expect(mocks.toastError).not.toHaveBeenCalledWith('Failed to fetch');
+    expect(canvas.userImage().src).toBe('/photo.jpg');
   }, 90_000);
 
   it('meldet den Ladezustand und startet kein zweites Erweitern', async () => {
@@ -313,6 +330,20 @@ describe('Zuschneide-Modus: Erweitern endet während des Ladens', () => {
     expect(canvas.store.getState().history).toHaveLength(history);
     expect(canvas.store.getState().canRedo()).toBe(false);
     await waitFor(() => expect(canvas.report.current?.isExpanding).toBe(false));
+    expect(mocks.toastError).not.toHaveBeenCalled();
+  }, 90_000);
+
+  it('Abbrechen bei einem anderen Element verwirft das laufende Erweitern nicht', async () => {
+    const canvas = await mount();
+    await enterUserImageCrop(canvas);
+    const respond = await startPending(canvas);
+
+    // Wechsel zum Hintergrund (für das Bild heißt das „Fertig"), dort abbrechen.
+    await enterBackgroundCrop(canvas);
+    await canvas.run(() => canvas.ref.current!.handleCancelCrop!());
+    await respond();
+
+    await waitFor(() => expect(canvas.userImage().src).toBe(DURABLE));
     expect(mocks.toastError).not.toHaveBeenCalled();
   }, 90_000);
 

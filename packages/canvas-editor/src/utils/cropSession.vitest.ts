@@ -20,6 +20,7 @@ const elements: CanvasElementConfig[] = [
     height: 100,
     offsetKey: 'imageOffset',
     scaleKey: 'imageScale',
+    coverFit: true,
   },
 ];
 
@@ -87,23 +88,33 @@ describe('Zuschnitt-Schnappschuss', () => {
   });
 
   it('Begradigen schreibt den Winkel des Elements, ganzzahlig und begrenzt', () => {
-    expect(cropRotationUpdate({}, 'background-image', 12.6)).toEqual({
+    expect(cropRotationUpdate({}, elements, 'background-image', 12.6)).toEqual({
       kind: 'template',
       patch: { backgroundImageRotation: 13 },
     });
-    expect(cropRotationOf({ backgroundImageRotation: -4 }, 'background-image')).toBe(-4);
-    expect(cropRotationOf({}, 'background-image')).toBe(0);
+    expect(cropRotationOf({ backgroundImageRotation: -4 }, elements, 'background-image')).toBe(-4);
+    expect(cropRotationOf({}, elements, 'background-image')).toBe(0);
     const state = { userImageInstances: [photo] };
     // Ein gestrecktes Bild wird zum Begradigen „cover"; 0° lässt es, wie es ist.
-    expect(cropRotationUpdate(state, 'photo', 90)).toEqual({
+    expect(cropRotationUpdate(state, elements, 'photo', 90)).toEqual({
       kind: 'user-image',
       patch: { fit: 'cover', cropRotation: 45 },
     });
-    expect(cropRotationUpdate(state, 'photo', 0)).toBeNull();
-    expect(cropRotationUpdate(state, 'missing', 10)).toBeNull();
+    expect(cropRotationUpdate(state, elements, 'photo', 0)).toBeNull();
+    expect(cropRotationUpdate(state, elements, 'missing', 10)).toBeNull();
     expect(
-      cropRotationOf({ userImageInstances: [{ ...photo, fit: 'cover', cropRotation: 7 }] }, 'photo')
+      cropRotationOf(
+        { userImageInstances: [{ ...photo, fit: 'cover', cropRotation: 7 }] },
+        elements,
+        'photo'
+      )
     ).toBe(7);
+  });
+
+  it('Werkzeuge wirken nur auf ein cover-gefittetes Hintergrundfoto', () => {
+    const plain = [{ ...elements[0]!, coverFit: false }] as CanvasElementConfig[];
+    expect(cropRotationUpdate({}, plain, 'background-image', 10)).toBeNull();
+    expect(cropRotationOf({ backgroundImageRotation: 9 }, plain, 'background-image')).toBe(0);
   });
 
   it('ein inzwischen entferntes Bild stellt nichts her', () => {

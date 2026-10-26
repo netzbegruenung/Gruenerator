@@ -168,10 +168,12 @@ export async function expandCanvasImage(image: File, aspect: number): Promise<Fi
   try {
     dataUrl = await outpaintImage(image, nearestOutpaintFormat(aspect), 'full');
   } catch (err) {
-    throw new Error(outpaintErrorMessage(err));
+    // `userFacing`: der Editor zeigt nur so markierte Meldungen (Vertrag von `expandImage`).
+    throw Object.assign(new Error(outpaintErrorMessage(err)), { userFacing: true as const });
   }
   const blob = await (await fetch(dataUrl)).blob();
-  return new File([blob], 'erweitert.jpg', { type: blob.type || 'image/jpeg' });
+  const type = blob.type || 'image/jpeg';
+  return new File([blob], `erweitert.${type === 'image/jpeg' ? 'jpg' : 'png'}`, { type });
 }
 
 export async function editAiImage(

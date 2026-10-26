@@ -23,7 +23,12 @@ import {
   useCanvasStoreShallow,
 } from '../stores/CanvasStoreProvider';
 import { cropRotationOf, cropRotationUpdate } from '../utils/cropSession';
-import { cropImageSrc, expandResetPatch, expandTarget } from '../utils/expandImage';
+import {
+  cropImageSrc,
+  expandedFileName,
+  expandResetPatch,
+  expandTarget,
+} from '../utils/expandImage';
 import { pageLayerLabels } from '../utils/layerLabels';
 import { buildPlacementUrl, fetchShareImageFile } from '../utils/mediaPlacement';
 import { findOrientationDoor } from '../utils/orientElement';
@@ -35,6 +40,7 @@ import {
   suggestSmartCrop,
 } from '../utils/smartCrop';
 import { findTemplateEntry } from '../utils/templateElementInstance';
+import { userFacingMessage } from '../utils/userFacingError';
 
 import type { ToolbarStateReport } from './GenericCanvas';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
@@ -45,6 +51,7 @@ import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
 import type { CanvasItem } from '../utils/canvasLayerManager';
 import type { Rect } from '../utils/coverFit';
 import type { CropAspectId } from '../utils/cropAspect';
+import type { CropUpdate } from '../utils/cropTarget';
 import type { GradientFill } from '../utils/gradientFill';
 import type { TextAlign } from '../utils/textAlign';
 import type Konva from 'konva';
@@ -92,8 +99,8 @@ interface ToolbarStateBridgeProps<
   saveToHistory: (state: TState) => void;
   /** Mehrere Speicherungen als ein Verlaufsschritt (Erweitern: neue Quelle und Zuschnitt). */
   runHistoryBatch: (fn: () => void) => void;
-  /** Zähler von „Abbrechen" (`useCropSession`): Abbrechen verwirft ein laufendes Erweitern. */
-  cropCancelCount: () => number;
+  /** Zähler von „Abbrechen" je Element (`useCropSession`): Abbrechen verwirft nur dessen laufendes Erweitern. */
+  cropCancelCount: (id: string) => number;
   /** Die Bühne der Seite: „Automatisch" liest dort das geladene Foto. */
   getStage: () => Konva.Stage | null;
   onToolbarStateChange?: (state: ToolbarStateReport) => void;
@@ -153,7 +160,8 @@ export function ToolbarStateBridge<
   const setCropAspect = useCanvasStoreSelector((s) => s.setCropAspect);
   const croppingElement = useCanvasStoreSelector((s) => s.croppingElement);
   const cropTarget = isCropping ? croppingElement : null;
-  const cropRotation = cropTarget ? cropRotationOf(state, cropTarget) : 0;
+  const elements = config.elements as readonly CanvasElementConfig[];
+  const cropRotation = cropTarget ? cropRotationOf(state, elements, cropTarget) : 0;
 
   /**
    * Vorlagen-Grafiken liegen in keiner Sammlung des Zustands — gefunden werden
@@ -178,7 +186,7 @@ export function ToolbarStateBridge<
           state,
           actions,
           // Die Tür liest nur id, Typ und Positionsschlüssel (wie in GenericCanvas).
-          elements: config.elements as readonly CanvasElementConfig[],
+          elements,
           layout,
           updateState: setState,
           saveToHistory,
@@ -208,6 +216,16 @@ export function ToolbarStateBridge<
   // Write bridge state for GenericCanvasInner's useImperativeHandle.
   // Uses useEffect (not render-time assignment) for React 19 concurrent mode safety.
   useEffect(() => {
+    const applyCropUpdate = (id: string, update: CropUpdate) => {
+      if (update.kind === 'user-image') {
+        // updateUserImage schreibt den Verlauf selbst.
+        actions.updateUserImage?.(id, update.patch);
+        return;
+      }
+      const next = { ...state, ...update.patch } as TState;
+      setState((prev) => ({ ...prev, ...update.patch }) as TState);
+      debouncedSaveToHistory(next);
+    };
     bridgeRef.current = {
       activeFloatingModule,
       handleColorSelect: floatingHandlers.handleColorSelect,
@@ -221,16 +239,8 @@ export function ToolbarStateBridge<
       handleCropAspect: setCropAspect,
       handleCropRotation: (deg) => {
         if (!cropTarget) return;
-        const update = cropRotationUpdate(state, cropTarget, deg);
-        if (!update) return;
-        if (update.kind === 'user-image') {
-          // updateUserImage schreibt den Verlauf selbst.
-          actions.updateUserImage?.(cropTarget, update.patch);
-          return;
-        }
-        const next = { ...state, ...update.patch } as TState;
-        setState((prev) => ({ ...prev, ...update.patch }) as TState);
-        debouncedSaveToHistory(next);
+        const update = cropRotationUpdate(state, elements, cropTarget, deg);
+        if (update) applyCropUpdate(cropTarget, update);
       },
       handleSmartCrop: () => {
         const id = cropTarget;
@@ -240,7 +250,7 @@ export function ToolbarStateBridge<
           ? smartCropView({
               id,
               state,
-              elements: config.elements as readonly CanvasElementConfig[],
+              elements,
               layout,
               natural: { width: image.naturalWidth, height: image.naturalHeight },
             })
@@ -249,7 +259,7 @@ export function ToolbarStateBridge<
           toast.error(SMART_CROP_FAILED);
           return;
         }
-        const src = cropImageSrc(state, config.elements as readonly CanvasElementConfig[], id);
+        const src = cropImageSrc(state, elements, id);
         suggestSmartCrop(image, view).then(
           (region) => {
             // Inzwischen beendet oder gewechselt: nichts mehr schreiben.
@@ -262,12 +272,7 @@ export function ToolbarStateBridge<
       handleExpandImage: () => {
         const id = cropTarget;
         if (!id || !expandImage || expandingRef.current) return;
-        const target = expandTarget(
-          state,
-          config.elements as readonly CanvasElementConfig[],
-          layout,
-          id
-        );
+        const target = expandTarget(state, elements, layout, id);
         if (!target || !uploads) {
           toast.error(EXPAND_FAILED);
           return;
@@ -275,10 +280,13 @@ export function ToolbarStateBridge<
         expandingRef.current = true;
         setIsExpanding(true);
         // Nur „Abbrechen" verwirft; Fertig, Escape und Auswahlwechsel übernehmen das Ergebnis.
-        const cancels = cropCancelCount();
+        const cancels = cropCancelCount(id);
         const run = async () => {
           const source = await fetchShareImageFile(target.src, target.fileName);
-          const file = await expandImage(source, target.aspect);
+          const expanded = await expandImage(source, target.aspect);
+          const file = new File([expanded], expandedFileName(target.fileName, expanded.type), {
+            type: expanded.type,
+          });
           // Wie „Ersetzen": erst hochladen, damit keine `blob:`/data-URL gespeichert wird.
           const item = await uploads.upload(file, 'canvas-element');
           const url = item ? buildPlacementUrl(item) : null;
@@ -288,11 +296,11 @@ export function ToolbarStateBridge<
         run()
           .then(
             ({ file, url }) => {
-              if (cropCancelCount() !== cancels) return;
+              if (cropCancelCount(id) !== cancels) return;
               applyExpandRef.current(id, target.src, file, url);
             },
-            (error: unknown) =>
-              toast.error(error instanceof Error && error.message ? error.message : EXPAND_FAILED)
+            // Rohe Meldungen („Failed to fetch") gehören nicht in den Toast, nur ausdrücklich für Menschen geschriebene.
+            (error: unknown) => toast.error(userFacingMessage(error) ?? EXPAND_FAILED)
           )
           .finally(() => {
             expandingRef.current = false;
@@ -302,30 +310,22 @@ export function ToolbarStateBridge<
     };
     applySmartCropRef.current = (id, src, image, region) => {
       // Inzwischen ersetzt (Erweitern, Ersetzen): der Vorschlag gilt für das alte Foto.
-      if (cropImageSrc(state, config.elements as readonly CanvasElementConfig[], id) !== src) {
+      if (cropImageSrc(state, elements, id) !== src) {
         return;
       }
       const update = smartCropUpdate(
         {
           id,
           state,
-          elements: config.elements as readonly CanvasElementConfig[],
+          elements,
           layout,
           natural: { width: image.naturalWidth, height: image.naturalHeight },
         },
         region
       );
-      if (!update) return;
-      if (update.kind === 'user-image') {
-        actions.updateUserImage?.(id, update.patch);
-        return;
-      }
-      const next = { ...state, ...update.patch } as TState;
-      setState((prev) => ({ ...prev, ...update.patch }) as TState);
-      debouncedSaveToHistory(next);
+      if (update) applyCropUpdate(id, update);
     };
     applyExpandRef.current = (id, src, file, url) => {
-      const elements = config.elements as readonly CanvasElementConfig[];
       // Gelöscht oder inzwischen ersetzt: das Ergebnis gehört zum alten Foto.
       if (cropImageSrc(state, elements, id) !== src) return;
       const reset = expandResetPatch(state, elements, id);

@@ -2,6 +2,7 @@
 // Ausschnitt und Zoom: immer der kleinste erlaubte Zoom, ungedreht, auf Deckung.
 
 import { photoRectAround, type Rect, type Size } from './coverFit';
+import { backgroundCropConfig, userImageOf, type CropUpdate } from './cropTarget';
 import { CANVAS_ITEM_NAME } from './deepSelect';
 import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo';
 import { coverFitSlot, resolveValue } from './resolveElementValue';
@@ -9,12 +10,8 @@ import { BACKGROUND_STRAIGHTEN_KEY, backgroundStraighten } from './straighten';
 import { templatePositionUpdates } from './templateRotation';
 import { USER_PHOTO_NODE_NAME, type UserImageInstance } from './userImageUtils';
 
-import type { CanvasElementConfig, ImageElementConfig, LayoutResult } from '../configs/types';
+import type { CanvasElementConfig, LayoutResult } from '../configs/types';
 import type Konva from 'konva';
-
-export type SmartCropUpdate =
-  | { kind: 'template'; patch: Record<string, unknown> }
-  | { kind: 'user-image'; patch: Partial<UserImageInstance> };
 
 /** Ein Ausschnitt der Größe `view` (Foto-px) um die Mitte von `region`, im Foto gehalten. */
 export function viewAround(natural: Size, view: Size, region: Rect): Rect {
@@ -96,21 +93,6 @@ export function backgroundSmartCropWindow(
   };
 }
 
-function backgroundConfig(
-  elements: readonly CanvasElementConfig[],
-  id: string
-): ImageElementConfig | null {
-  const element = elements.find((e) => e.id === id);
-  return element?.type === 'image' && element.coverFit ? (element as ImageElementConfig) : null;
-}
-
-function userImageOf(state: Record<string, unknown>, id: string): UserImageInstance | null {
-  const images = state.userImageInstances;
-  return Array.isArray(images)
-    ? ((images as UserImageInstance[]).find((u) => u.id === id) ?? null)
-    : null;
-}
-
 interface SmartCropInput {
   id: string;
   state: Record<string, unknown>;
@@ -120,8 +102,7 @@ interface SmartCropInput {
 }
 
 function backgroundGeometry({ id, state, elements, layout }: SmartCropInput) {
-  if (id !== BACKGROUND_IMAGE_NODE_ID) return null;
-  const config = backgroundConfig(elements, id);
+  const config = backgroundCropConfig(elements, id);
   if (!config) return null;
   const base = {
     width: resolveValue(config.width, state, layout),
@@ -142,7 +123,7 @@ export function smartCropView(input: SmartCropInput): Size | null {
 }
 
 /** Was „Automatisch" schreibt; der Winkel geht dabei auf 0. */
-export function smartCropUpdate(input: SmartCropInput, region: Rect): SmartCropUpdate | null {
+export function smartCropUpdate(input: SmartCropInput, region: Rect): CropUpdate | null {
   const background = backgroundGeometry(input);
   if (background) {
     const { config, base, slot } = background;

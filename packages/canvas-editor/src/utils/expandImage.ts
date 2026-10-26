@@ -1,31 +1,10 @@
 // „Erweitern": die KI ergänzt das Foto auf das Seitenverhältnis seines Rahmens; danach liegt es wie neu eingesetzt.
 
-import { BACKGROUND_IMAGE_NODE_ID } from './printImageInfo';
+import { cropTargetOf, type CropUpdate } from './cropTarget';
 import { resolveValue } from './resolveElementValue';
 import { BACKGROUND_STRAIGHTEN_KEY, backgroundStraighten } from './straighten';
 
-import type { UserImageInstance } from './userImageUtils';
-import type { CanvasElementConfig, ImageElementConfig, LayoutResult } from '../configs/types';
-
-export type ExpandResetUpdate =
-  | { kind: 'template'; patch: Record<string, unknown> }
-  | { kind: 'user-image'; patch: Partial<UserImageInstance> };
-
-function backgroundConfig(
-  elements: readonly CanvasElementConfig[],
-  id: string
-): ImageElementConfig | null {
-  if (id !== BACKGROUND_IMAGE_NODE_ID) return null;
-  const element = elements.find((e) => e.id === id);
-  return element?.type === 'image' ? (element as ImageElementConfig) : null;
-}
-
-function userImageOf(state: Record<string, unknown>, id: string): UserImageInstance | null {
-  const images = state.userImageInstances;
-  return Array.isArray(images)
-    ? ((images as UserImageInstance[]).find((u) => u.id === id) ?? null)
-    : null;
-}
+import type { CanvasElementConfig, LayoutResult } from '../configs/types';
 
 /** Die Bildquelle des Elements; `null`, wenn es fehlt oder kein Foto zeigt. */
 export function cropImageSrc(
@@ -33,12 +12,11 @@ export function cropImageSrc(
   elements: readonly CanvasElementConfig[],
   id: string
 ): string | null {
-  const background = backgroundConfig(elements, id);
-  if (background) {
-    const src = background.srcKey ? state[background.srcKey] : null;
-    return typeof src === 'string' && src ? src : null;
-  }
-  return userImageOf(state, id)?.src || null;
+  const target = cropTargetOf(state, elements, id);
+  if (!target) return null;
+  if (target.kind === 'user-image') return target.image.src || null;
+  const src = target.config.srcKey ? state[target.config.srcKey] : null;
+  return typeof src === 'string' && src ? src : null;
 }
 
 /**
@@ -52,16 +30,17 @@ export function expandTarget(
   id: string
 ): { src: string; fileName: string; aspect: number } | null {
   const src = cropImageSrc(state, elements, id);
-  if (!src) return null;
-  const background = backgroundConfig(elements, id);
-  const size = background
-    ? {
-        width: resolveValue(background.width, state, layout),
-        height: resolveValue(background.height, state, layout),
-      }
-    : userImageOf(state, id);
-  if (!size || !(size.width > 0 && size.height > 0)) return null;
-  const fileName = background ? 'hintergrund' : userImageOf(state, id)?.fileName || 'bild';
+  const target = cropTargetOf(state, elements, id);
+  if (!src || !target) return null;
+  const size =
+    target.kind === 'background'
+      ? {
+          width: resolveValue(target.config.width, state, layout),
+          height: resolveValue(target.config.height, state, layout),
+        }
+      : target.image;
+  if (!(size.width > 0 && size.height > 0)) return null;
+  const fileName = target.kind === 'background' ? 'hintergrund' : target.image.fileName || 'bild';
   return { src, fileName, aspect: size.width / size.height };
 }
 
@@ -70,9 +49,11 @@ export function expandResetPatch(
   state: Record<string, unknown>,
   elements: readonly CanvasElementConfig[],
   id: string
-): ExpandResetUpdate | null {
-  const background = backgroundConfig(elements, id);
-  if (background) {
+): CropUpdate | null {
+  const target = cropTargetOf(state, elements, id);
+  if (!target) return null;
+  if (target.kind === 'background') {
+    const background = target.config;
     const patch: Record<string, unknown> = {};
     if (background.offsetKey) patch[background.offsetKey] = { x: 0, y: 0 };
     if (background.scaleKey) patch[background.scaleKey] = 1;
@@ -82,8 +63,6 @@ export function expandResetPatch(
     if (backgroundStraighten(state) !== null) patch[BACKGROUND_STRAIGHTEN_KEY] = 0;
     return { kind: 'template', patch };
   }
-  const image = userImageOf(state, id);
-  if (!image) return null;
   return {
     kind: 'user-image',
     patch: {
@@ -91,7 +70,19 @@ export function expandResetPatch(
       panX: 0,
       panY: 0,
       cropZoom: 1,
-      ...(image.cropRotation ? { cropRotation: 0 } : {}),
+      ...(target.image.cropRotation ? { cropRotation: 0 } : {}),
     },
   };
+}
+
+const EXTENSIONS: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+};
+
+/** „foto.png" → „foto-erweitert.jpg": der Name bleibt erkennbar, die Endung folgt dem gelieferten Format. */
+export function expandedFileName(original: string, type: string): string {
+  const stem = original.replace(/\.[a-z0-9]+$/i, '') || 'bild';
+  return `${stem}-erweitert.${EXTENSIONS[type] ?? 'png'}`;
 }

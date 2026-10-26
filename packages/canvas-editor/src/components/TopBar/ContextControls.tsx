@@ -5,6 +5,7 @@ import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { type BackgroundControls } from '../../configs/types';
 import { type ShadowPatch } from '../../hooks/useFloatingModuleHandlers';
 import { type FloatingModuleState } from '../../hooks/useFloatingModuleState';
+import { useOptionalUserUploads } from '../../sidebar/UserUploadsProvider';
 import { formatShortcut, isMacPlatform, shortcutOf } from '../../utils/canvasCommandRegistry';
 import { type SelectionGeometry } from '../../utils/canvasCommands';
 import { type CropAspectId } from '../../utils/cropAspect';
@@ -157,8 +158,9 @@ export function ContextControls({
   // Fett/Kursiv/… nur, solange wirklich getippt wird: die Knöpfe bedienen die
   // Auswahl IM Text, und ohne offenen Editor gibt es keine.
   const formatting = useCanvasTextFormatting();
-  // Ohne Dienst des Hosts kein „Erweitern".
-  const canExpand = !!useCanvasEditorServices().expandImage;
+  // Ohne Dienst des Hosts oder ohne Uploads (das Ergebnis wird hochgeladen) kein „Erweitern".
+  const uploads = useOptionalUserUploads();
+  const canExpand = !!useCanvasEditorServices().expandImage && !!uploads;
 
   if (showsCropModeBar({ isCropping, handlers })) {
     const handleCropAspect = handlers.handleCropAspect;
