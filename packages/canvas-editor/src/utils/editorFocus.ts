@@ -13,6 +13,11 @@ const PAGE_TARGET = '[data-page-focus-target]';
 const EDITOR_ROOT = '.canvas-editor-layout';
 const LAYER_OPTION = '[role="option"][data-layer-id]';
 
+/** Kam die letzte Fokusbewegung von der Tastatur? (`data-focus-modality` am `<html>`, siehe `kbd:`) */
+export function isKeyboardModality(): boolean {
+  return document.documentElement.dataset.focusModality === 'keyboard';
+}
+
 export function isFocusLost(): boolean {
   const active = document.activeElement;
   return active === null || active === document.body;
@@ -54,7 +59,9 @@ export function returnFocus(origin: FocusOrigin, onlyIf: () => boolean = () => t
   window.setTimeout(() => {
     if (!isFocusLost() || !onlyIf()) return;
     const target = origin.option?.isConnected ? origin.option : pageFocusTarget(origin.anchor);
-    target?.focus();
+    // Kein Scrollen: auf einer hohen, mehrseitigen Fläche spränge die Ansicht
+    // sonst an den Kopf der Seite.
+    target?.focus({ preventScroll: true });
   }, 0);
 }
 

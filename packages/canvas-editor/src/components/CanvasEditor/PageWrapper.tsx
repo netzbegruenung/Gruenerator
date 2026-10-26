@@ -179,7 +179,7 @@ export const PageWrapper = memo(function PageWrapper({
         data-page-focus-target={page.id}
         aria-pressed={isActive}
         onClick={() => onSelect(index)}
-        className="sr-only focus:not-sr-only focus:absolute focus:left-1 focus:top-1 focus:z-10 focus:min-h-6 focus:rounded-lg focus:px-2 focus:py-1 focus:text-xs focus:font-medium focus:bg-[var(--editor-canvas-hover)] focus:text-[var(--editor-text)] outline-none kbd:focus-visible:outline-2 kbd:focus-visible:outline-solid kbd:focus-visible:outline-[var(--editor-accent)]"
+        className="sr-only kbd:focus:not-sr-only kbd:focus:absolute kbd:focus:left-1 kbd:focus:top-1 kbd:focus:z-10 kbd:focus:min-h-6 kbd:focus:rounded-lg kbd:focus:px-2 kbd:focus:py-1 kbd:focus:text-xs kbd:focus:font-medium kbd:focus:bg-[var(--editor-canvas-hover)] kbd:focus:text-[var(--editor-text)] outline-none kbd:focus-visible:outline-2 kbd:focus-visible:outline-solid kbd:focus-visible:outline-[var(--editor-accent)]"
       >
         {`Seite ${index + 1} bearbeiten`}
       </button>

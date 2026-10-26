@@ -3,7 +3,7 @@
  * Ebenen-Eintrag, sonst auf den Knopf der Seite — nie auf `<body>`.
  */
 import { waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   captureFocusOrigin,
@@ -69,6 +69,13 @@ describe('returnFocus', () => {
     const origin = captureFocusOrigin(dom.stage1);
     returnFocus(origin);
     await waitFor(() => expect(dom.page1).toHaveFocus());
+  });
+
+  it('scrollt dabei nicht an den Kopf der Seite', async () => {
+    const dom = mountEditor();
+    const focus = vi.spyOn(dom.page1, 'focus');
+    returnFocusToPage(dom.stage1);
+    await waitFor(() => expect(focus).toHaveBeenCalledWith({ preventScroll: true }));
   });
 
   it('nimmt einem angeklickten Bedienelement den Fokus nicht', async () => {
