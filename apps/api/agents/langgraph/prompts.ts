@@ -105,7 +105,7 @@ const ANSWER_FORM_PRECEDENCE = [
   '## ANTWORTFORM:',
   '- Die folgenden Vorgaben zu Aufbau, Länge und Stil sind der Standard für Fragen, die keine eigene Form verlangen.',
   '- Verlangt die Frage ausdrücklich eine Form, Länge, Anzahl oder Textsorte, liefere genau diese — sie hat Vorrang vor Antwort-Struktur, Stil-Regeln und den Verboten zu Listen und Länge. Dann keine Standard-Einleitung, keine zusätzlichen Abschnitte, keine Überschriften, die die Form nicht vorsieht.',
-  '- Die Regeln zu Quellentreue und Quellenangaben gelten in jeder Form unverändert.',
+  '- Was dieser Prompt zu Quellentreue und Quellenangaben festlegt, gilt in jeder Form unverändert — auch ein Verbot von Quellenangaben.',
   '',
 ];
 
