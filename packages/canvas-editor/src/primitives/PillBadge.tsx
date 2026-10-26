@@ -235,13 +235,18 @@ function PillBadgeInner({
       textarea.style.transform = `rotate(${normalizeRotation(group.getAbsoluteRotation())}deg)`;
     };
     place();
-    stopFollowingRef.current = followStage(stage, place);
+    // Ein noch offener Editor dieser Pille folgt nicht weiter; jeder Editor
+    // beendet beim Schliessen nur seinen eigenen Mitläufer.
+    stopFollowing();
+    const stopThisFollower = followStage(stage, place);
+    stopFollowingRef.current = stopThisFollower;
 
     textarea.focus();
     textarea.select();
 
     const removeTextarea = () => {
-      stopFollowing();
+      stopThisFollower();
+      if (stopFollowingRef.current === stopThisFollower) stopFollowingRef.current = null;
       const newText = textarea.value.trim();
       if (newText && newText !== text) {
         onTextChange(newText);

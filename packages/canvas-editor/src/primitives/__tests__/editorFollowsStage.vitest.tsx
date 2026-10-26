@@ -252,3 +252,26 @@ describe.each(KINDS)('$name-Editor folgt der Bühne', ({ field, element, open })
     expect(frames).toHaveLength(0);
   });
 });
+
+describe('Pille: zweimal geöffnet', () => {
+  it('lässt nur den Mitläufer des offenen Editors laufen', () => {
+    const pill = KINDS.find((k) => k.name === 'Pille')!;
+    const stageRef = createRef<CanvasStageRef>();
+    render(
+      <CanvasStage ref={stageRef} width={1080} height={1080} responsive={false}>
+        {pill.element()}
+      </CanvasStage>
+    );
+    const stage = stageRef.current!.getStage()!;
+    act(() => pill.open(stage));
+    act(() => pill.open(stage));
+
+    const live = observers.filter((o) => !o.disconnected);
+    expect(live).toHaveLength(1);
+    expect(live[0]).toBe(observers.at(-1));
+
+    const fields = document.body.querySelectorAll<HTMLElement>('textarea');
+    act(() => fields[fields.length - 1]!.blur());
+    expect(observers.every((o) => o.disconnected)).toBe(true);
+  });
+});
