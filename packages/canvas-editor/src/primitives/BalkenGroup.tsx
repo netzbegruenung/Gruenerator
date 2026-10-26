@@ -19,6 +19,7 @@ import {
   flattenPoints,
 } from '../utils/dreizeilenLayout';
 import { captureFocusOrigin, returnFocus } from '../utils/editorFocus';
+import { followStage } from '../utils/followStage';
 import { isGroupDrag } from '../utils/multiSelect';
 import { ELEMENT_TRANSFORMER, normalizeRotation } from '../utils/orientation';
 import { boxFrame, createBoxFrame, snapByBounds } from '../utils/snapping';
@@ -114,6 +115,8 @@ function BalkenGroupInner({
   const groupRef = useRef<Konva.Group>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const stopFollowingRef = useRef<(() => void) | null>(null);
+  const placeEditorRef = useRef<() => void>(() => {});
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [liveText, setLiveText] = useState<{ index: number; text: string } | null>(null);
 
@@ -170,14 +173,17 @@ function BalkenGroupInner({
   // Cleanup input on unmount
   useEffect(() => {
     return () => {
+      stopFollowingRef.current?.();
+      stopFollowingRef.current = null;
       if (inputRef.current && document.body.contains(inputRef.current)) {
         document.body.removeChild(inputRef.current);
       }
     };
   }, []);
 
-  // Update input position when layout changes (e.g. typing causes grow)
-  useEffect(() => {
+  // Lage des Felds aus Gruppe und Bühne, wie sie jetzt liegen: bei Layoutwechsel
+  // (etwa wächst die Zeile beim Tippen) und wenn die Bühne wandert (`followStage`).
+  const placeEditor = useCallback(() => {
     if (editingIndex === null || !inputRef.current || !groupRef.current) return;
 
     const stage = groupRef.current.getStage();
@@ -223,7 +229,12 @@ function BalkenGroupInner({
     input.style.width = `${balken.width * scaleX}px`;
     input.style.height = `${textHeight * scaleY}px`;
     input.style.lineHeight = String(lineHeight);
-  }, [balkens, editingIndex, stageWidth, stageHeight, fontSize, config.balken.skewAngle]);
+  }, [balkens, editingIndex, fontSize, config.balken.skewAngle]);
+
+  useEffect(() => {
+    placeEditorRef.current = placeEditor;
+    placeEditor();
+  }, [placeEditor, stageWidth, stageHeight]);
 
   const snap = useSnapScheduler({ onSnapChange, onSnapLinesChange });
 
@@ -354,7 +365,12 @@ function BalkenGroupInner({
       input.focus();
       input.select();
 
+      stopFollowingRef.current?.();
+      stopFollowingRef.current = followStage(stage, () => placeEditorRef.current());
+
       const removeInput = () => {
+        stopFollowingRef.current?.();
+        stopFollowingRef.current = null;
         if (!inputRef.current) return;
 
         const newText = inputRef.current.value;

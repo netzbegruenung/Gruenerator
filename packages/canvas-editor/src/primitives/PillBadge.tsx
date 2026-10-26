@@ -17,6 +17,7 @@ import { Group, Rect, Text, Transformer } from 'react-konva';
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { captureFocusOrigin, returnFocus } from '../utils/editorFocus';
+import { followStage } from '../utils/followStage';
 import { isGroupDrag } from '../utils/multiSelect';
 import { ELEMENT_TRANSFORMER, normalizeRotation } from '../utils/orientation';
 import { calculatePillBadgeDimensions } from '../utils/pillBadgeUtils';
@@ -91,6 +92,13 @@ function PillBadgeInner({
   const groupRef = useRef<Konva.Group>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const stopFollowingRef = useRef<(() => void) | null>(null);
+
+  const stopFollowing = useCallback(() => {
+    stopFollowingRef.current?.();
+    stopFollowingRef.current = null;
+  }, []);
+  useEffect(() => stopFollowing, [stopFollowing]);
 
   const snap = useSnapScheduler({ onSnapChange, onSnapLinesChange });
 
@@ -177,32 +185,12 @@ function PillBadgeInner({
     const origin = captureFocusOrigin(stage.container());
     setIsEditing(true);
 
-    const stageBox = stage.container().getBoundingClientRect();
-    const absolutePos = group.getAbsolutePosition();
-    const cssScale = stageCssScale(stage, stageBox);
-    // Der Maßstab des Knotens trägt `scale`, die Format-Gruppe aus `CanvasStage`
-    // und die Bühne; `stage.scaleX()` allein kannte die Format-Gruppe nicht.
-    const nodeScale = group.getAbsoluteScale().x * cssScale;
-
     const textarea = document.createElement('textarea');
     document.body.appendChild(textarea);
-
-    const scrollX = window.scrollX || window.pageXOffset;
-    const scrollY = window.scrollY || window.pageYOffset;
-
-    const scaledFontSize = fontSize * nodeScale;
-    const scaledPaddingX = paddingX * nodeScale;
-    const scaledPaddingY = paddingY * nodeScale;
-    const scaledWidth = dimensions.width * nodeScale;
 
     textarea.value = text;
     textarea.setAttribute('aria-label', 'Text bearbeiten');
     textarea.style.position = 'absolute';
-    textarea.style.top = `${stageBox.top + scrollY + absolutePos.y * cssScale + scaledPaddingY}px`;
-    textarea.style.left = `${stageBox.left + scrollX + absolutePos.x * cssScale + scaledPaddingX}px`;
-    textarea.style.width = `${scaledWidth - scaledPaddingX * 2}px`;
-    textarea.style.height = `${scaledFontSize * 1.2}px`;
-    textarea.style.fontSize = `${scaledFontSize}px`;
     textarea.style.fontFamily = `${fontFamily}, Arial, sans-serif`;
     textarea.style.fontStyle = fontStyle.includes('italic') ? 'italic' : 'normal';
     textarea.style.fontWeight = fontStyle.includes('bold') ? 'bold' : 'normal';
@@ -219,14 +207,40 @@ function PillBadgeInner({
     textarea.style.resize = 'none';
     textarea.style.overflow = 'hidden';
     textarea.style.zIndex = '10000';
-    // Gedreht um den Ursprung der Pille, nicht um die Textecke: der Text sitzt um das Polster versetzt.
-    textarea.style.transformOrigin = `${-scaledPaddingX}px ${-scaledPaddingY}px`;
-    textarea.style.transform = `rotate(${normalizeRotation(group.getAbsoluteRotation())}deg)`;
+
+    // Lage und Mass aus der Bühne, wie sie jetzt liegt — beim Öffnen und bei jeder Verschiebung.
+    const place = () => {
+      const stageBox = stage.container().getBoundingClientRect();
+      const absolutePos = group.getAbsolutePosition();
+      const cssScale = stageCssScale(stage, stageBox);
+      // Der Maßstab des Knotens trägt `scale`, die Format-Gruppe aus `CanvasStage`
+      // und die Bühne; `stage.scaleX()` allein kannte die Format-Gruppe nicht.
+      const nodeScale = group.getAbsoluteScale().x * cssScale;
+      const scrollX = window.scrollX || window.pageXOffset;
+      const scrollY = window.scrollY || window.pageYOffset;
+
+      const scaledFontSize = fontSize * nodeScale;
+      const scaledPaddingX = paddingX * nodeScale;
+      const scaledPaddingY = paddingY * nodeScale;
+      const scaledWidth = dimensions.width * nodeScale;
+
+      textarea.style.top = `${stageBox.top + scrollY + absolutePos.y * cssScale + scaledPaddingY}px`;
+      textarea.style.left = `${stageBox.left + scrollX + absolutePos.x * cssScale + scaledPaddingX}px`;
+      textarea.style.width = `${scaledWidth - scaledPaddingX * 2}px`;
+      textarea.style.height = `${scaledFontSize * 1.2}px`;
+      textarea.style.fontSize = `${scaledFontSize}px`;
+      // Gedreht um den Ursprung der Pille, nicht um die Textecke: der Text sitzt um das Polster versetzt.
+      textarea.style.transformOrigin = `${-scaledPaddingX}px ${-scaledPaddingY}px`;
+      textarea.style.transform = `rotate(${normalizeRotation(group.getAbsoluteRotation())}deg)`;
+    };
+    place();
+    stopFollowingRef.current = followStage(stage, place);
 
     textarea.focus();
     textarea.select();
 
     const removeTextarea = () => {
+      stopFollowing();
       const newText = textarea.value.trim();
       if (newText && newText !== text) {
         onTextChange(newText);
@@ -265,6 +279,7 @@ function PillBadgeInner({
     paddingY,
     dimensions,
     onTextChange,
+    stopFollowing,
   ]);
 
   return (

@@ -16,6 +16,7 @@ import { Group, Circle, Text, Rect, Transformer } from 'react-konva';
 import { LOCKED_TRANSFORMER, useIsItemLocked } from '../components/canvasItemLock';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { captureFocusOrigin, returnFocus } from '../utils/editorFocus';
+import { followStage } from '../utils/followStage';
 import { isGroupDrag } from '../utils/multiSelect';
 import { ELEMENT_TRANSFORMER, normalizeRotation } from '../utils/orientation';
 import { boxFrame, createBoxFrame, snapByBounds } from '../utils/snapping';
@@ -97,6 +98,7 @@ function CircleBadgeInner({
   const groupRef = useRef<Konva.Group>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const stopFollowingRef = useRef<(() => void) | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
   const snap = useSnapScheduler({ onSnapChange, onSnapLinesChange });
@@ -111,6 +113,8 @@ function CircleBadgeInner({
   // Cleanup input on unmount
   useEffect(() => {
     return () => {
+      stopFollowingRef.current?.();
+      stopFollowingRef.current = null;
       if (inputRef.current && document.body.contains(inputRef.current)) {
         document.body.removeChild(inputRef.current);
       }
@@ -185,22 +189,12 @@ function CircleBadgeInner({
       const origin = captureFocusOrigin(stage.container());
       setEditingIndex(index);
 
-      const stageBox = stage.container().getBoundingClientRect();
-      const cssScale = stageCssScale(stage, stageBox);
-      const textPosition = textNode.getAbsolutePosition();
-      const absScale = textNode.getAbsoluteScale();
-      const scaleX = absScale.x * cssScale;
-      const scaleY = absScale.y * cssScale;
-
       let input = inputRef.current;
       if (!input) {
         input = document.createElement('input');
         document.body.appendChild(input);
         inputRef.current = input;
       }
-
-      const scrollX = window.scrollX || window.pageXOffset;
-      const scrollY = window.scrollY || window.pageYOffset;
 
       const line = textLines[index];
       const lineHeight = 1.2;
@@ -209,11 +203,6 @@ function CircleBadgeInner({
       input.value = line.text;
       input.setAttribute('aria-label', 'Text bearbeiten');
       input.style.position = 'absolute';
-      input.style.top = `${stageBox.top + scrollY + textPosition.y * cssScale}px`;
-      input.style.left = `${stageBox.left + scrollX + textPosition.x * cssScale}px`;
-      input.style.width = `${radius * 2 * scaleX}px`;
-      input.style.height = `${textH * scaleY}px`;
-      input.style.fontSize = `${line.fontSize * scaleY}px`;
       input.style.fontFamily = `${line.fontFamily}, Arial, sans-serif`;
       input.style.fontWeight = line.fontWeight === 'bold' ? 'bold' : 'normal';
       input.style.color = textColor;
@@ -227,13 +216,36 @@ function CircleBadgeInner({
       input.style.outlineOffset = '2px';
       input.style.zIndex = '10000';
       input.style.transformOrigin = 'left top';
-      // Der Textknoten trägt die Drehung der Gruppe; seine linke obere Ecke ist sein Ursprung.
-      input.style.transform = `rotate(${normalizeRotation(textNode.getAbsoluteRotation())}deg)`;
+
+      // Lage und Mass aus der Bühne, wie sie jetzt liegt — beim Öffnen und bei jeder Verschiebung.
+      const place = () => {
+        const stageBox = stage.container().getBoundingClientRect();
+        const cssScale = stageCssScale(stage, stageBox);
+        const textPosition = textNode.getAbsolutePosition();
+        const absScale = textNode.getAbsoluteScale();
+        const scaleX = absScale.x * cssScale;
+        const scaleY = absScale.y * cssScale;
+        const scrollX = window.scrollX || window.pageXOffset;
+        const scrollY = window.scrollY || window.pageYOffset;
+
+        input.style.top = `${stageBox.top + scrollY + textPosition.y * cssScale}px`;
+        input.style.left = `${stageBox.left + scrollX + textPosition.x * cssScale}px`;
+        input.style.width = `${radius * 2 * scaleX}px`;
+        input.style.height = `${textH * scaleY}px`;
+        input.style.fontSize = `${line.fontSize * scaleY}px`;
+        // Der Textknoten trägt die Drehung der Gruppe; seine linke obere Ecke ist sein Ursprung.
+        input.style.transform = `rotate(${normalizeRotation(textNode.getAbsoluteRotation())}deg)`;
+      };
+      place();
+      stopFollowingRef.current?.();
+      stopFollowingRef.current = followStage(stage, place);
 
       input.focus();
       input.select();
 
       const removeInput = () => {
+        stopFollowingRef.current?.();
+        stopFollowingRef.current = null;
         if (!inputRef.current) return;
 
         const newText = inputRef.current.value.trim();
