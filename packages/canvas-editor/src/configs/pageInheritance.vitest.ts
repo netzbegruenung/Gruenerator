@@ -31,10 +31,12 @@ describe('extractInheritablePageState', () => {
       backgroundColor: '#005538',
       imageOffset: { x: 5, y: 6 },
       imageScale: 1.2,
+      backgroundImageRotation: -9,
       backgroundImageOpacity: 0.8,
       imageAttribution: { author: 'X' },
     });
     expect(inherited).toMatchObject({
+      backgroundImageRotation: -9,
       backgroundColor: '#005538',
       imageOffset: { x: 5, y: 6 },
       imageScale: 1.2,

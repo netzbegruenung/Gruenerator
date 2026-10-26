@@ -11,6 +11,8 @@ import { CanvasEditorProvider, type CanvasEditorServices } from '../../../Canvas
 import { CanvasEditor } from '../index';
 
 vi.mock('../../../sidebar/UserUploadsProvider', () => ({
+  // ToolbarStateBridge liest die Uploads optional (Erweitern).
+  useOptionalUserUploads: () => null,
   UserUploadsProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   useUserUploads: () => ({ uploads: [], refresh: () => {} }),
 }));

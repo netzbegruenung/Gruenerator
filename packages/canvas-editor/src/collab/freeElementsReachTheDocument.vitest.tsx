@@ -189,6 +189,7 @@ describe('freie Elemente im gemeinsamen Dokument', () => {
       templateRotations: { 'quote-text': 15 },
       templateTextAligns: { 'quote-text': 'left' },
       backgroundImageAdjustments: { vignette: 0.4, flipX: true },
+      backgroundImageRotation: -6,
     };
     expect(Object.keys(edited)).toEqual([...PAGE_ELEMENT_STATE_KEYS]);
 

@@ -26,14 +26,16 @@ export function imageElementInteraction(
 /**
  * Ob das Element den Ausschnitt-Modus hat: nur das Hintergrundfoto, und nur,
  * wenn der Modus dort Ziehen oder Zoomen freigibt (nicht das feste Fotoband in
- * veranstaltung). Fläche, Leiste und Menü fragen dasselbe.
+ * veranstaltung). Fläche, Leiste und Menü fragen dasselbe. Ohne coverFit gibt
+ * es keinen Ausschnitt zum Verschieben.
  */
 export function canCropBackgroundPhoto(config: {
   id: string;
   draggable?: boolean;
   transformable?: boolean;
+  coverFit?: boolean;
 }): boolean {
-  if (config.id !== BACKGROUND_IMAGE_NODE_ID) return false;
+  if (config.id !== BACKGROUND_IMAGE_NODE_ID || config.coverFit !== true) return false;
   const crop = imageElementInteraction(config, { cropping: true });
   return crop.draggable || crop.transformable;
 }

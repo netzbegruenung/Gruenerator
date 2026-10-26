@@ -2,7 +2,7 @@ import { lazy } from 'react';
 
 import { generateSlideAltTexts } from './services/altTextService';
 import { removeBackgroundFromImage } from './services/backgroundRemovalService';
-import { editAiImage } from './services/imageEditingService';
+import { editAiImage, expandCanvasImage } from './services/imageEditingService';
 import {
   fetchStockImages,
   fetchStockImageAsFile,
@@ -39,6 +39,7 @@ export const webCanvasEditorServices: CanvasEditorServices = {
   uploadImage: uploadBlobToMediaLibrary,
   removeBackgroundFromImage,
   editAiImage,
+  expandImage: expandCanvasImage,
   generateSlideAltTexts,
   ChatSectionContent: CanvasInlineChatSection,
   apiBaseUrl: (import.meta.env.VITE_API_URL as string | undefined) ?? '',

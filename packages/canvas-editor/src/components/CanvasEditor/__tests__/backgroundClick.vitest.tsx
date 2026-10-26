@@ -13,6 +13,8 @@ import { CanvasEditor } from '../index';
 
 // Der Upload-Provider zieht react-query mit einer zweiten React-Kopie herein.
 vi.mock('../../../sidebar/UserUploadsProvider', () => ({
+  // ToolbarStateBridge liest die Uploads optional (Erweitern).
+  useOptionalUserUploads: () => null,
   UserUploadsProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   useUserUploads: () => ({
     items: [],

@@ -16,9 +16,12 @@ function canCrop(element: Partial<CanvasElementConfig>) {
 
 describe('canCrop des Hintergrundfotos', () => {
   it('gilt für ein ziehbares oder zoombares Foto, auch außerhalb des Modus', () => {
-    expect(canCrop({ srcKey: 'currentImageSrc', draggable: true, transformable: true })).toBe(true);
-    expect(canCrop({ srcKey: 'currentImageSrc', draggable: false, transformable: true })).toBe(
-      true
+    const photo = { srcKey: 'currentImageSrc', coverFit: true };
+    expect(canCrop({ ...photo, draggable: true, transformable: true })).toBe(true);
+    expect(canCrop({ ...photo, draggable: false, transformable: true })).toBe(true);
+    // Ohne coverFit gibt es keinen Ausschnitt.
+    expect(canCrop({ srcKey: 'currentImageSrc', draggable: true, transformable: true })).toBe(
+      false
     );
   });
 

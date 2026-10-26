@@ -178,6 +178,14 @@ export interface CanvasEditorServices {
   editAiImage?: (image: File, instruction: string) => Promise<{ file: File; objectUrl: string }>;
 
   /**
+   * „Erweitern" in the crop mode: AI-outpaints `image` to the aspect ratio
+   * `aspect` (width / height) of its frame. Reject with an `Error` carrying
+   * `userFacing: true` to have its message shown as the toast
+   * (consent, budget); any other error shows the editor's generic text. When omitted, the button is hidden.
+   */
+  expandImage?: (image: File, aspect: number) => Promise<File>;
+
+  /**
    * One alt text per page, in the given order; `null` where a page failed.
    * When omitted, the alt-text tool is hidden.
    */

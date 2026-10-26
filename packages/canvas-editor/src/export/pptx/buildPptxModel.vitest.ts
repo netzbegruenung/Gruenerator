@@ -301,6 +301,7 @@ describe('buildPptxModel — background', () => {
       { imageScale: 1.4 },
       { backgroundImageOpacity: 0.5 },
       { backgroundImageAdjustments: { grayscale: true } },
+      { backgroundImageRotation: -8 },
     ]) {
       expect(itemsOf({ ...photo, ...change })[0]).toMatchObject({
         kind: 'raster',
@@ -524,6 +525,7 @@ describe('buildPptxModel — images and charts', () => {
       { flipX: true },
       { shadowColor: '#000000' },
       { fit: 'cover' as const, panX: 0.5 },
+      { fit: 'cover' as const, cropRotation: 12 },
       { mask: 'kreis' as const },
     ]) {
       expect(imageItem(userImage(change))).toMatchObject({

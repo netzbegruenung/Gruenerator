@@ -9,6 +9,7 @@ import { AssetsSection, FrameSettingsSection } from '../sidebar/sections';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { CANVAS_RECOMMENDED_ASSETS, type AssetInstance } from '../utils/canvasAssets';
 import { zoomBackground } from '../utils/coverFit';
+import { straightenResetFor } from '../utils/straighten';
 import { VERANSTALTUNG_CONFIG, calculateVeranstaltungLayout } from '../utils/veranstaltungLayout';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
@@ -776,12 +777,19 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       // === Image Background Actions ===
       setCurrentImageSrc: (file: File | null, objectUrl?: string) => {
         const src = file ? objectUrl : '';
+        const reset = straightenResetFor(getState());
         setState((prev) => ({
           ...prev,
           currentImageSrc: src ?? '',
           backgroundImageFile: file,
+          ...reset,
         }));
-        saveToHistory({ ...getState(), currentImageSrc: src ?? '', backgroundImageFile: file });
+        saveToHistory({
+          ...getState(),
+          currentImageSrc: src ?? '',
+          backgroundImageFile: file,
+          ...reset,
+        });
       },
       setImageScale: (scale: number) => {
         const zoom = zoomBackground(

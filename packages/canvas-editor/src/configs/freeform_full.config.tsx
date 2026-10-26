@@ -25,6 +25,7 @@ import { CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
 import { CHART_PALETTES } from '../utils/chartUtils';
 import { zoomBackground } from '../utils/coverFit';
 import { COMPOSER_PLANE_IDS, photoStripBeside } from '../utils/shapes';
+import { straightenResetFor } from '../utils/straighten';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/actionFactories';
@@ -565,6 +566,7 @@ const withFreeformAi = (
           hasBackgroundImage: !!src,
           backgroundMode: mode,
           ...composerPlanesFor(s, mode),
+          ...straightenResetFor(s),
         });
         setState(change);
         saveToHistory(change(getState()));

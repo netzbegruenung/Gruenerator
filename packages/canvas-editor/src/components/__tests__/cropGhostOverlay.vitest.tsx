@@ -296,6 +296,21 @@ describe('Restbild: Fläche und Look', () => {
   }, 90_000);
 });
 
+describe('Restbild beim begradigten Foto', () => {
+  it('dreht die gefilterte Kopie mit dem Foto', async () => {
+    const canvas = await mount({
+      backgroundImageAdjustments: { grayscale: true },
+      backgroundImageRotation: 10,
+    });
+    await canvas.fire(canvas.background(), 'dbltap');
+    const [ghost] = canvas.ghosts();
+    expect(ghost!.rotation()).toBe(10);
+    expect(ghost!.image()).toBeInstanceOf(HTMLCanvasElement);
+    expect(ghost!.image()).not.toBe(canvas.background().image());
+    await waitFor(() => expect(canvas.overlay()!.style.display).toBe(''));
+  }, 90_000);
+});
+
 describe('Restbild eines eigenen Bildes', () => {
   it('läuft durch dieselbe Tür über die Seite hinaus', async () => {
     const canvas = await mount();
