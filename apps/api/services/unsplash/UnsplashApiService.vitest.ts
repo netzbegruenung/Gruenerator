@@ -131,7 +131,12 @@ describe('UnsplashApiService.searchPhotos attribution', () => {
   const photoBy = (instagram_username: string | null) => ({
     id: 'abc',
     alt_description: 'Wald',
-    urls: { regular: 'https://images.unsplash.com/x' },
+    width: 4000,
+    height: 6000,
+    urls: {
+      regular: 'https://images.unsplash.com/x',
+      small: 'https://images.unsplash.com/x-small',
+    },
     links: { html: 'https://unsplash.com/photos/abc', download_location: VALID },
     user: {
       username: 'jane-doe',
@@ -150,7 +155,7 @@ describe('UnsplashApiService.searchPhotos attribution', () => {
         )
     );
     const { results } = await service.searchPhotos(`wald-${instagram}`);
-    return results[0]!.attribution;
+    return results[0]!;
   };
 
   afterEach(() => {
@@ -159,13 +164,22 @@ describe('UnsplashApiService.searchPhotos attribution', () => {
   });
 
   it('links the profile with the referral UTM parameters', async () => {
-    expect((await search(null)).profileUrl).toBe(
+    expect((await search(null)).attribution.profileUrl).toBe(
       'https://unsplash.com/@jane-doe?utm_source=gruenerator&utm_medium=referral'
     );
   });
 
   it('keeps the Instagram handle for the post credit, without the @', async () => {
-    expect((await search('@janedoe')).instagramUsername).toBe('janedoe');
-    expect(await search(null)).not.toHaveProperty('instagramUsername');
+    expect((await search('@janedoe')).attribution.instagramUsername).toBe('janedoe');
+    expect((await search(null)).attribution).not.toHaveProperty('instagramUsername');
+  });
+
+  // The video editor places the photo at its real aspect ratio and lists a
+  // small preview instead of the 1080px image.
+  it('passes the photo size and a small preview through', async () => {
+    const image = await search(null);
+    expect(image.width).toBe(4000);
+    expect(image.height).toBe(6000);
+    expect(image.thumb_url).toBe('https://images.unsplash.com/x-small');
   });
 });
