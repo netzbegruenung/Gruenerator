@@ -87,7 +87,17 @@ describe('Pfad-Formen mit Ursprung ausserhalb der Mitte', () => {
     ['speech-round', false, 30],
     ['speech-round', true, 90],
   ] as const)('%s, gespiegelt %s, %s°: Snap-Box = gezeichnete Box', (type, flipY, rotation) => {
-    const shape = { type, x: 300, y: 200, width: 200, height: 160, scaleX: 1, scaleY: 1, rotation, flipY };
+    const shape = {
+      type,
+      x: 300,
+      y: 200,
+      width: 200,
+      height: 160,
+      scaleX: 1,
+      scaleY: 1,
+      rotation,
+      flipY,
+    };
     const box = frameBounds(frameOf(shapeBox(shape as ShapeInstance)));
     const want = rendered(type, flipY, rotation);
     expect(box.x).toBeCloseTo(want.x, 6);

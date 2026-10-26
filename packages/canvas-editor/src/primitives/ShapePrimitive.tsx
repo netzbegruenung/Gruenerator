@@ -48,7 +48,6 @@ interface ShapePrimitiveProps extends SnapProps {
   draggable?: boolean;
 }
 
-
 const SHAPE_PATHS: Record<PathShapeType, string> = {
   arrow: 'M0,20 L50,20 L50,0 L100,50 L50,100 L50,80 L0,80 Z',
   heart: 'M50,90 C50,90 10,70 10,40 C10,15 30,5 50,30 C70,5 90,15 90,40 C90,70 50,90 50,90 Z',
@@ -100,7 +99,6 @@ const SHAPE_PATHS: Record<PathShapeType, string> = {
 };
 
 const isPathShape = (type: ShapeInstance['type']): type is PathShapeType => type in SHAPE_PATHS;
-
 
 interface CommonShapeProps {
   x: number;
