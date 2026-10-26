@@ -3,6 +3,8 @@ export interface StockImageAttribution {
   profileUrl: string;
   photoUrl: string;
   downloadLocation?: string;
+  /** Without the `@`; credited in the post text when present. */
+  instagramUsername?: string;
 }
 
 export interface StockImage {
