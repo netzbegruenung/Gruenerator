@@ -55,6 +55,17 @@ Der Vergleich prüft nur die Namen, nicht die Werte. Wer einen Wert ändert, än
 - **Das Kontextmenü gibt es einmal pro Editor** (`components/CanvasContextMenu/`), und nur auf dem Desktop. Der Grund: jede gemountete Radix-Menü-Wurzel hängt einen Keydown-Listener an `document`. Was ein Rechts-Druck auswählt, entscheidet `hooks/useContextPress.ts`, bevor Konva den Druck bekommt.
 - **Sperren:** Die gesperrten Ids stehen in `lockedLayerIds` auf der Seite (`utils/layerLock.ts`); die Primitive lesen sie über `useIsItemLocked()`. Ein neues Primitiv nimmt die Sperre in `draggable` auf und legt `LOCKED_TRANSFORMER` an seinen Transformer.
 
+## Barrierefreiheit
+
+WCAG 2.2 AA; Prüfmittel und Messfallen in `docs/CLAUDE-a11y.md`, Browser-Tests über den Barrierefreiheitsbaum in `docs/CLAUDE-canvas-browser-tests.md`.
+
+- **Tastaturbesitz (R1), eine Quelle: `utils/keyboardOwnership.ts`.** Tasten, die ein fokussiertes Widget selbst verbraucht (Pfeile in Listen, Slider, Textfelder), gehören dem Widget. Globale Kürzel (Entf/Rücktaste, Mod+C/X/V/D/A, Mod+Z) gelten aus jedem Fokus außerhalb von Textfeldern, wie bei Figma/Canva. Alt+Pfeil schiebt überall das Element. Wer ein Widget mit eigenen Tasten baut, trägt es dort ein, statt in der Seite zu filtern.
+- **Die eine Live-Region** (`components/CanvasAnnouncer.tsx`, `hooks/useAnnounce.ts`): Aktionen ohne sichtbare Antwort (Löschen, Einfügen, Rückgängig, KI-Änderungen, Vorlage angewendet) rufen `useAnnounce()` dort, wo die Aktion einmal geschieht (Befehle, Verlauf), nicht an jedem Knopf. Die Auswahl sagt `useSelectionAnnouncement` verzögert an und weicht einer neueren Ansage und der Ebenen-Liste.
+- **Die Ebenen-Liste ist der Zwilling der Leinwand** (`sidebar/sections/LayersSection.tsx`, Sprunglink „Zu den Ebenen"): alles, was man auf der Fläche sieht und anfasst, muss dort mit Namen stehen, auswählbar und mit Enter/F2 bearbeitbar. Ein neues Element ohne Eintrag dort ist für Tastatur und Screenreader unsichtbar. Die Seite ist `role="group"` „Seite N" mit dem Knopf „Seite N bearbeiten" (`data-page-focus-target`, nur für Tastaturnutzer sichtbar) und einer Bühne `role="img"` mit Kurzbeschreibung.
+- **Namen für Ebenen und Bühnenbeschreibung kommen nur aus `utils/layerLabels.ts`.** Ebenen-Liste, Auswahl-Ansage, „Gelöscht: …" und `stageSummary` lesen dieselbe Funktion; wer eine Elementart ergänzt, trägt ihren Namen dort ein.
+- **Fokus kehrt zurück** (`utils/editorFocus.ts`): nach Textbearbeitung und Löschen zum Ebenen-Eintrag, sonst auf den Seitenknopf — nie auf `body`; ein geschlossener Bereich gibt den Fokus an seinen Tab zurück.
+- **Neue Bedienelemente:** Fokusring über die `kbd:`-Variante, Ziel mindestens 24×24 px, Name beginnt mit dem sichtbaren Text, Tests mit `axe` (`a11yGuards.vitest.tsx` führt Kontextleiste, Mobil-Leisten, Pille und Texteditor).
+
 ## Prüfen
 
 Aus dem Paketverzeichnis:
@@ -65,6 +76,8 @@ pnpm exec vitest run
 ```
 
 ESLint läuft über die Wurzel-Config (`WEB_FILES`, also mit jsx-a11y) und typbewusst. Aus dem **Repo-Root** und in Häppchen von höchstens ~20 Dateien, sonst droht OOM: `npx eslint packages/canvas-editor/src/<datei>`. `pnpm --filter @gruenerator/canvas-editor lint` fährt das ganze Paket (~345 Dateien) und gehört deshalb in die CI, nicht in die laufende Arbeit. Warnungen (vor allem `import-x/order` und `react-hooks/refs`) sind Bestand; Fehler brechen den Lauf.
+
+**Browser-Tests und Agenten, die den Editor bedienen:** `docs/CLAUDE-canvas-browser-tests.md` (Barrierefreiheitsbaum statt Konva-Interna).
 
 **Performance, Touch und WebView messen:** Vorgehen, was funktioniert hat und was nicht, steht in `docs/CLAUDE-canvas-eval.md`; die Skripte liegen in `scripts/perf-eval/`. Kurz: Prod-Build über `http://[::1]:<port>` (ohne react-scan), CPU-Drossel, Long Tasks statt FPS, jeden Audit-Befund live reproduzieren, nie die Desktop-Maus für Simulatoren.
 
