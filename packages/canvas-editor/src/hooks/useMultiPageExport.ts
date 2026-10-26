@@ -1,11 +1,13 @@
 /**
  * useMultiPageExport - Coordinates batch export for multi-page canvases
  *
- * Collects PNG data URLs from multiple canvas refs and packs them into a ZIP
- * in the browser. Handles progress tracking and error states.
+ * Collects page images (PNG unless another format is asked for) from multiple
+ * canvas refs and packs them into a ZIP in the browser. Handles progress
+ * tracking and error states.
  */
 
 import { downloadBlob, downloadDataUrl } from '@gruenerator/shared';
+import { type ExportFormat } from '@gruenerator/shared/canvas-editor';
 import { useState, useCallback, useEffect, useRef, type RefObject } from 'react';
 
 import { isDownloadTooLarge } from '../utils/downloadError';
@@ -26,8 +28,8 @@ export interface ExportProgress {
 }
 
 export interface UseMultiPageExportReturn {
-  exportAllPages: (options?: { pixelRatio?: number }) => Promise<string[]>;
-  downloadAllAsZip: () => Promise<void>;
+  exportAllPages: (options?: { pixelRatio?: number; format?: ExportFormat }) => Promise<string[]>;
+  downloadAllAsZip: (format?: ExportFormat) => Promise<void>;
   isExporting: boolean;
   exportProgress: ExportProgress;
   error: string | null;
@@ -50,7 +52,7 @@ export function useMultiPageExport({
   // an error, not silently shrink the export — a ZIP with fewer images than
   // pages reads as data loss.
   const exportAllPages = useCallback(
-    async (options?: { pixelRatio?: number }): Promise<string[]> => {
+    async (options?: { pixelRatio?: number; format?: ExportFormat }): Promise<string[]> => {
       const total = canvasRefs.length;
       const images: string[] = [];
       const failedPages: number[] = [];
@@ -62,9 +64,7 @@ export function useMultiPageExport({
         let dataUrl: string | null = null;
         if (ref.current) {
           try {
-            dataUrl = await ref.current.captureCanvas(
-              options?.pixelRatio ? { format: 'png', pixelRatio: options.pixelRatio } : undefined
-            );
+            dataUrl = await ref.current.captureCanvas(options);
           } catch {
             dataUrl = null;
           }
@@ -86,62 +86,68 @@ export function useMultiPageExport({
     [canvasRefs]
   );
 
-  const downloadAllAsZip = useCallback(async (): Promise<void> => {
-    if (canvasRefs.length === 0) {
-      setError('Keine Seiten zum Exportieren');
-      return;
-    }
-
-    setIsExporting(true);
-    setError(null);
-    clearTimeout(noticeTimer.current);
-    setNotice(null);
-
-    try {
-      // Capture all canvas images
-      const images = await exportAllPages();
-
-      if (images.length === 0) {
-        throw new Error('Keine Bilder konnten exportiert werden');
+  const downloadAllAsZip = useCallback(
+    async (format: ExportFormat = 'png') => {
+      if (canvasRefs.length === 0) {
+        setError('Keine Seiten zum Exportieren');
+        return;
       }
 
-      const blob = zipPageImages(images);
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-      const filename = `gruenerator-${canvasType}-${timestamp}.zip`;
+      setIsExporting(true);
+      setError(null);
+      clearTimeout(noticeTimer.current);
+      setNotice(null);
 
       try {
-        await downloadBlob(blob, filename);
-      } catch (err) {
-        if (!isDownloadTooLarge(err)) throw err;
-        // A payload the bridge refuses (any other failure lands in setError
-        // below): the pages are smaller than their ZIP, so send them one by one.
-        let sent = 0;
-        try {
-          for (let i = 0; i < images.length; i++) {
-            setNotice(`Seite ${i + 1} von ${images.length} wird gesendet …`);
-            await downloadDataUrl(images[i], `gruenerator-${canvasType}-seite-${i + 1}.png`);
-            sent = i + 1;
-          }
-        } catch (pageErr) {
-          setNotice(
-            sent === 0
-              ? null
-              : `${sent === 1 ? 'Seite 1 wurde' : `Die Seiten 1 bis ${sent} wurden`} einzeln gesendet, Seite ${sent + 1} nicht.`
-          );
-          throw pageErr;
+        // Capture all canvas images
+        const images = await exportAllPages({ format });
+
+        if (images.length === 0) {
+          throw new Error('Keine Bilder konnten exportiert werden');
         }
-        setNotice('Die Seiten wurden einzeln gesendet.');
-        noticeTimer.current = setTimeout(() => setNotice(null), NOTICE_LIFETIME_MS);
+
+        const blob = zipPageImages(images);
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+        const filename = `gruenerator-${canvasType}-${timestamp}.zip`;
+
+        try {
+          await downloadBlob(blob, filename);
+        } catch (err) {
+          if (!isDownloadTooLarge(err)) throw err;
+          // A payload the bridge refuses (any other failure lands in setError
+          // below): the pages are smaller than their ZIP, so send them one by one.
+          let sent = 0;
+          try {
+            for (let i = 0; i < images.length; i++) {
+              setNotice(`Seite ${i + 1} von ${images.length} wird gesendet …`);
+              await downloadDataUrl(
+                images[i],
+                `gruenerator-${canvasType}-seite-${i + 1}.${format === 'jpeg' ? 'jpg' : format}`
+              );
+              sent = i + 1;
+            }
+          } catch (pageErr) {
+            setNotice(
+              sent === 0
+                ? null
+                : `${sent === 1 ? 'Seite 1 wurde' : `Die Seiten 1 bis ${sent} wurden`} einzeln gesendet, Seite ${sent + 1} nicht.`
+            );
+            throw pageErr;
+          }
+          setNotice('Die Seiten wurden einzeln gesendet.');
+          noticeTimer.current = setTimeout(() => setNotice(null), NOTICE_LIFETIME_MS);
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unbekannter Fehler beim ZIP-Export';
+        setError(message);
+        console.error('[useMultiPageExport] ZIP download failed:', err);
+      } finally {
+        setIsExporting(false);
+        setExportProgress({ current: 0, total: 0 });
       }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unbekannter Fehler beim ZIP-Export';
-      setError(message);
-      console.error('[useMultiPageExport] ZIP download failed:', err);
-    } finally {
-      setIsExporting(false);
-      setExportProgress({ current: 0, total: 0 });
-    }
-  }, [canvasRefs, canvasType, exportAllPages]);
+    },
+    [canvasRefs, canvasType, exportAllPages]
+  );
 
   return {
     exportAllPages,

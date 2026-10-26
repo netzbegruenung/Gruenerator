@@ -5,11 +5,12 @@ const EXTENSION_BY_TYPE: Record<string, string> = {
   'image/png': 'png',
   'image/jpeg': 'jpg',
   'image/jpg': 'jpg',
+  'image/webp': 'webp',
 };
 
 /**
  * Packs rendered pages (data URLs) into a ZIP in the browser, as
- * `seite-1.png`, `seite-2.png`, …
+ * `seite-1.png`, `seite-2.png`, … — the extension follows each image's type.
  *
  * A page that cannot be packed throws: a ZIP with fewer images than pages
  * reads as data loss.

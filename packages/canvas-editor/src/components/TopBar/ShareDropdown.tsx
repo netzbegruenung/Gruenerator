@@ -42,7 +42,7 @@ export interface ShareDropdownProps {
   canvasHeight: number;
   shareToken: string | null;
   pageCount?: number;
-  onDownloadAllZip?: () => Promise<void>;
+  onDownloadAllZip?: (format?: CanvasDownloadChoice) => Promise<void>;
   onShareAllPages?: () => Promise<void>;
   isMultiExporting?: boolean;
   exportProgress?: { current: number; total: number };
