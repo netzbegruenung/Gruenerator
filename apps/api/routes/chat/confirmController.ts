@@ -14,8 +14,7 @@
  * 6. On reject: action is deleted, no side effects
  */
 
-import express from 'express';
-
+import { jsonBody } from '../../middleware/jsonBody.js';
 import { ensureHtml } from '../../services/docs/contentNormalization.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -27,7 +26,7 @@ import type { PendingAction } from '../../agents/langgraph/ChatGraph/types.js';
 
 const log = createLogger('ConfirmController');
 const router = createAuthenticatedRouter();
-router.use(express.json());
+router.use(jsonBody());
 
 async function isNonTextDocument(documentId: string): Promise<boolean> {
   const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
