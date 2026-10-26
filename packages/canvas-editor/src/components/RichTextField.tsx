@@ -42,7 +42,12 @@ import { useEffect, useRef, type CSSProperties } from 'react';
 
 import { Accent } from './accentMark';
 import { Marker } from './markerMark';
-import { keepsEditing, TextFormatControls, type OfferedMarks } from './TextFormatControls';
+import {
+  formatToolbarOf,
+  keepsEditing,
+  TextFormatControls,
+  type OfferedMarks,
+} from './TextFormatControls';
 
 export interface RichTextFieldProps {
   /** Markdown-lite, wie es im Zustand steht. */
@@ -106,6 +111,25 @@ function markExtension(mark: typeof Bold | typeof Italic, offered: boolean) {
   return offered ? mark : mark.extend({ addKeyboardShortcuts: () => ({}) });
 }
 
+const isPlainTab = (event: KeyboardEvent) =>
+  event.key === 'Tab' && !event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey;
+
+/**
+ * Tab aus dem Text: in die Werkzeugleiste dieses Editors, auf ihren einen
+ * Tab-Halt. In einer Liste rückt Tab weiter ein, solange das geht.
+ */
+function focusFormatToolbar(editor: Editor | null): boolean {
+  if (!editor || editor.can().sinkListItem('listItem')) return false;
+  const toolbar = formatToolbarOf(editor);
+  const stop =
+    toolbar?.querySelector<HTMLElement>('button[tabindex="0"]') ??
+    toolbar?.querySelector<HTMLElement>('button:not(:disabled)') ??
+    null;
+  if (!stop) return false;
+  stop.focus();
+  return true;
+}
+
 const ALL_MARKS_SUPPORTED: OfferedMarks = {
   bold: true,
   italic: true,
@@ -131,6 +155,8 @@ export function RichTextField({
   const lastEmitted = useRef(value);
   const callbacks = useRef({ onChange, onBlur, onEscape, onSubmit });
   callbacks.current = { onChange, onBlur, onEscape, onSubmit };
+  // `handleKeyDown` steht in der Konfiguration, bevor es den Editor gibt.
+  const editorRef = useRef<Editor | null>(null);
 
   const editor = useEditor({
     extensions: [
@@ -165,6 +191,7 @@ export function RichTextField({
           callbacks.current.onSubmit?.();
           return true;
         }
+        if (isPlainTab(event)) return focusFormatToolbar(editorRef.current);
         return false;
       },
     },
@@ -181,6 +208,40 @@ export function RichTextField({
       callbacks.current.onBlur?.();
     },
   });
+
+  useEffect(() => {
+    editorRef.current = editor;
+  }, [editor]);
+
+  // In der Leiste hält der Fokus den Editor offen (`keepsEditing`). Von dort
+  // schliesst Escape ab wie im Text, und wer die Leiste anderswohin verlässt
+  // als zurück in den Text, beendet die Bearbeitung wie mit einem Blur.
+  // Escape läuft in der Capture-Phase, damit die Tastatur der Seite es nicht
+  // zusätzlich als „Auswahl aufheben" liest.
+  useEffect(() => {
+    if (!editor) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || !keepsEditing(event.target)) return;
+      // Im Farbwähler gehört Escape dem Dialog.
+      if (event.target instanceof Element && event.target.closest('[role="dialog"]')) return;
+      event.preventDefault();
+      event.stopPropagation();
+      callbacks.current.onEscape?.();
+    };
+    const onFocusOut = (event: FocusEvent) => {
+      if (!keepsEditing(event.target) || keepsEditing(event.relatedTarget)) return;
+      if (event.relatedTarget instanceof Node && editor.view.dom.contains(event.relatedTarget)) {
+        return;
+      }
+      callbacks.current.onBlur?.();
+    };
+    document.addEventListener('keydown', onKeyDown, true);
+    document.addEventListener('focusout', onFocusOut);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown, true);
+      document.removeEventListener('focusout', onFocusOut);
+    };
+  }, [editor]);
 
   useEffect(() => {
     if (!editor || value === lastEmitted.current) return;
@@ -201,13 +262,15 @@ export function RichTextField({
   if (!editor) return null;
 
   return (
+    // Die Karte steht über dem Text (absolut), im DOM aber dahinter: Umschalt+Tab
+    // aus der Leiste führt so zurück in den Text.
     <div className="canvas-rte">
+      <EditorContent editor={editor} style={contentStyle} />
       {showToolbar && (
         <div className="canvas-rte__floating-toolbar">
           <TextFormatControls editor={editor} marks={marks} variant="floating" />
         </div>
       )}
-      <EditorContent editor={editor} style={contentStyle} />
     </div>
   );
 }
