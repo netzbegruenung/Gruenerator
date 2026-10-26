@@ -13,7 +13,10 @@
  * (namespaced so polls and sidejobs never collide); a content-hash gate skips
  * re-embedding unchanged records so re-runs are cheap.
  */
-import { getQdrantInstance } from '../../../../database/services/QdrantService/index.js';
+import {
+  getQdrantInstance,
+  type QdrantService,
+} from '../../../../database/services/QdrantService/index.js';
 import {
   batchUpsert,
   scrollDocuments,
@@ -41,7 +44,6 @@ import {
 } from './builders.js';
 
 import type { ScraperResult } from '../../types.js';
-import type { QdrantClient } from '@qdrant/js-client-rest';
 
 const log = createLogger('AbgeordnetenwatchScraper');
 
@@ -80,7 +82,7 @@ interface AwEnvelope<T> {
 }
 
 export class AbgeordnetenwatchScraper extends BaseScraper {
-  private qdrantClient!: QdrantClient;
+  private qdrant!: QdrantService;
 
   constructor() {
     super({ collectionName: COLLECTION, baseUrl: BASE_URL, delayMs: FAIR_USE_DELAY_MS });
@@ -90,7 +92,7 @@ export class AbgeordnetenwatchScraper extends BaseScraper {
     const qdrant = getQdrantInstance();
     await qdrant.init(); // creates abgeordnetenwatch_documents from COLLECTION_SCHEMAS if missing
     await mistralEmbeddingService.init();
-    this.qdrantClient = qdrant.client!;
+    this.qdrant = qdrant;
   }
 
   /** BaseScraper contract — full ingest with defaults. */
@@ -223,13 +225,13 @@ export class AbgeordnetenwatchScraper extends BaseScraper {
    */
   private async healStoredPayloads(): Promise<void> {
     try {
-      await this.qdrantClient.setPayload(COLLECTION, {
+      await this.qdrant.writeClient(COLLECTION).setPayload(COLLECTION, {
         payload: { chunk_index: 0 },
         filter: { must: [{ is_empty: { key: 'chunk_index' } }] },
         wait: true,
       });
       for (const [variant, party] of Object.entries(PARTY_ALIASES)) {
-        await this.qdrantClient.setPayload(COLLECTION, {
+        await this.qdrant.writeClient(COLLECTION).setPayload(COLLECTION, {
           payload: { party },
           filter: { must: [{ key: 'party', match: { value: variant } }] },
           wait: true,
@@ -253,7 +255,7 @@ export class AbgeordnetenwatchScraper extends BaseScraper {
     let offset: string | number | null = null;
     for (;;) {
       const points = await scrollDocuments(
-        this.qdrantClient,
+        this.qdrant.readClient(COLLECTION),
         COLLECTION,
         {},
         {
@@ -529,7 +531,7 @@ export class AbgeordnetenwatchScraper extends BaseScraper {
         payload: b.doc.payload,
       }));
       try {
-        await batchUpsert(this.qdrantClient, COLLECTION, points);
+        await batchUpsert(this.qdrant.writeClient(COLLECTION), COLLECTION, points);
         for (const b of slice) {
           if (b.existed) summary.updated += 1;
           else summary.stored += 1;

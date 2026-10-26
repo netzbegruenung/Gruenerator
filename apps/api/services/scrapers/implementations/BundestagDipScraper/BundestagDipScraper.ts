@@ -19,7 +19,10 @@
  * gelesen — dieselbe Regel wie beim PDF-Fingerprint.
  */
 import { env } from '../../../../config/env.js';
-import { getQdrantInstance } from '../../../../database/services/QdrantService/index.js';
+import {
+  getQdrantInstance,
+  type QdrantService,
+} from '../../../../database/services/QdrantService/index.js';
 import { scrollDocuments } from '../../../../database/services/QdrantService/operations/batchOperations.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { mistralEmbeddingService } from '../../../mistral/index.js';
@@ -38,7 +41,6 @@ import { parseSpeeches } from './protokollParser.js';
 import { DIP_COLLECTION, writeParent } from './store.js';
 
 import type { ScraperResult } from '../../types.js';
-import type { QdrantClient } from '@qdrant/js-client-rest';
 
 const log = createLogger('BundestagDipScraper');
 
@@ -75,7 +77,7 @@ export interface DipScrapeSummary {
 }
 
 export class BundestagDipScraper extends BaseScraper {
-  private qdrantClient!: QdrantClient;
+  private qdrant!: QdrantService;
   private dip!: DipClient;
 
   constructor() {
@@ -87,7 +89,7 @@ export class BundestagDipScraper extends BaseScraper {
     const qdrant = getQdrantInstance();
     await qdrant.init(); // legt bundestag_dip_documents aus COLLECTION_SCHEMAS an
     await mistralEmbeddingService.init();
-    this.qdrantClient = qdrant.client!;
+    this.qdrant = qdrant;
     this.dip = new DipClient(env.DIP_API_KEY);
   }
 
@@ -224,7 +226,10 @@ export class BundestagDipScraper extends BaseScraper {
     }
     if (!options.dryRun) {
       try {
-        this.stats.vectorsStored += await writeParent(this.qdrantClient, parent);
+        this.stats.vectorsStored += await writeParent(
+          this.qdrant.writeClient(DIP_COLLECTION),
+          parent
+        );
       } catch (error: unknown) {
         summary.errors += 1;
         log.warn(`[bundestag-dip] ${parent.parentId} failed: ${errorMessage(error)}`);
@@ -238,7 +243,7 @@ export class BundestagDipScraper extends BaseScraper {
   /** Kopf-Chunk des Dokuments, über den indizierten `parent_id`. */
   private async storedState(parentId: string): Promise<StoredState> {
     const [head] = await scrollDocuments(
-      this.qdrantClient,
+      this.qdrant.readClient(DIP_COLLECTION),
       DIP_COLLECTION,
       {
         must: [
@@ -255,7 +260,7 @@ export class BundestagDipScraper extends BaseScraper {
 
   /** Beginn des Aktualisierungsfensters (ISO). */
   private async windowStart(): Promise<string> {
-    const page = await this.qdrantClient.scroll(DIP_COLLECTION, {
+    const page = await this.qdrant.readClient(DIP_COLLECTION).scroll(DIP_COLLECTION, {
       limit: 1,
       order_by: { key: 'indexed_at', direction: 'desc' },
       with_payload: ['indexed_at'],

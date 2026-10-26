@@ -29,21 +29,14 @@ const { scrollDocuments, batchDelete, setPayload, deletePayload, reportBackgroun
 vi.mock('./QdrantService/index.js', () => ({
   getQdrantInstance: () => ({
     init: vi.fn().mockResolvedValue(undefined),
-    client: {},
+    operations: { scrollDocuments, batchDelete },
+    writeClient: () => ({ setPayload, deletePayload }),
     collections: {
       notebook_collections: 'notebook_collections',
       notebook_collection_documents: 'notebook_collection_documents',
       notebook_public_access: 'notebook_public_access',
     },
   }),
-}));
-
-vi.mock('./QdrantService/operations/index.js', () => ({
-  QdrantOperations: class {
-    scrollDocuments = scrollDocuments;
-    batchDelete = batchDelete;
-    client = { setPayload, deletePayload };
-  },
 }));
 
 vi.mock('./PostgresService.js', () => ({ getPostgresInstance: () => ({ query: vi.fn() }) }));

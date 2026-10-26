@@ -77,17 +77,18 @@ async function scrollAll(
 ): Promise<Array<{ id: string | number; payload: Record<string, unknown> }>> {
   const qdrant = getQdrantInstance();
   await qdrant.init();
-  if (!qdrant.client) throw new Error('Qdrant not available');
   const out: Array<{ id: string | number; payload: Record<string, unknown> }> = [];
   let offset: string | number | null = null;
   do {
-    const page = await qdrant.client.scroll('landesverbaende_documents', {
-      filter,
-      limit: 1000,
-      with_payload: payload,
-      with_vector: false,
-      ...(offset !== null ? { offset } : {}),
-    });
+    const page = await qdrant
+      .readClient('landesverbaende_documents')
+      .scroll('landesverbaende_documents', {
+        filter,
+        limit: 1000,
+        with_payload: payload,
+        with_vector: false,
+        ...(offset !== null ? { offset } : {}),
+      });
     for (const p of page.points) {
       out.push({ id: p.id, payload: (p.payload as Record<string, unknown> | null) ?? {} });
     }
@@ -387,7 +388,6 @@ describe.runIf(LIVE)('notebook_quellen live — Berlin', () => {
     async () => {
       const qdrant = getQdrantInstance();
       await qdrant.init();
-      if (!qdrant.client) throw new Error('Qdrant not available');
       const names = new Set<string>();
       for (const locale of ['de-DE', 'de-AT'] as const) {
         for (const key of collectionsForLocale(locale)) {
@@ -397,7 +397,7 @@ describe.runIf(LIVE)('notebook_quellen live — Berlin', () => {
       }
       const report: string[] = [];
       for (const name of names) {
-        const schema = (await qdrant.client.getCollection(name)).payload_schema ?? {};
+        const schema = (await qdrant.readClient(name).getCollection(name)).payload_schema ?? {};
         const params = (schema.chunk_text as { params?: unknown } | undefined)?.params;
         report.push(`${name}: ${JSON.stringify(params)}`);
         expect(params, name).toEqual({

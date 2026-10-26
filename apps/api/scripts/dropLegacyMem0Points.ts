@@ -15,7 +15,7 @@ import { USER_MEMORIES_COLLECTION } from '../services/memory/index.js';
 async function main(): Promise<void> {
   const qdrant = getQdrantInstance();
   await qdrant.init();
-  const client = qdrant.client!;
+  const client = qdrant.writeClient(USER_MEMORIES_COLLECTION);
   const before = await client.count(USER_MEMORIES_COLLECTION, { exact: true });
   await client.delete(USER_MEMORIES_COLLECTION, {
     wait: true,

@@ -6,7 +6,7 @@
  *
  * Marks and clears run inline; deletes are collected and run in `flush`, behind
  * allowGoneDeletes. Best-effort: a Qdrant failure lands in `failures`, never in
- * the crawl.
+ * the crawl. The client is resolved per call, never held for the whole run.
  */
 import { type QdrantClient } from '@qdrant/js-client-rest';
 
@@ -32,13 +32,19 @@ export type GoneSkipReasons = Partial<Record<GoneReason, { count: number; exampl
 
 const MAX_EXAMPLES = 5;
 
+/** What the tracker needs of the Qdrant service: the collection's client, per call. */
+export interface GoneTrackerQdrant {
+  readClient(collection: string): QdrantClient;
+  writeClient(collection: string): QdrantClient;
+}
+
 export class GoneTracker {
   readonly skipReasons: GoneSkipReasons = {};
   readonly failures: string[] = [];
   readonly #deletes: string[] = [];
 
   constructor(
-    private readonly client: QdrantClient,
+    private readonly qdrant: GoneTrackerQdrant,
     private readonly collection: string
   ) {}
 
@@ -78,17 +84,22 @@ export class GoneTracker {
 
   async #gone(url: string, outcome: FetchOutcome, now = Date.now()): Promise<void> {
     try {
-      const points = await scrollDocuments(this.client, this.collection, this.#filter(url), {
-        limit: 1,
-        withPayload: true,
-        withVector: false,
-      });
+      const points = await scrollDocuments(
+        this.qdrant.readClient(this.collection),
+        this.collection,
+        this.#filter(url),
+        {
+          limit: 1,
+          withPayload: true,
+          withVector: false,
+        }
+      );
       const stored = points[0] ? { goneSince: points[0].payload[GONE_SINCE_FIELD] } : null;
       const verdict = goneVerdict(outcome, stored, now);
       if (verdict === 'delete') this.#deletes.push(url);
       if (verdict !== 'mark') return;
       await setPayload(
-        this.client,
+        this.qdrant.writeClient(this.collection),
         this.collection,
         { [GONE_SINCE_FIELD]: new Date(now).toISOString() },
         this.#filter(url)
@@ -102,7 +113,7 @@ export class GoneTracker {
   /** The page answered again; drop the mark its stored points carry. */
   async clear(url: string): Promise<void> {
     try {
-      await this.client.deletePayload(this.collection, {
+      await this.qdrant.writeClient(this.collection).deletePayload(this.collection, {
         keys: [GONE_SINCE_FIELD],
         filter: this.#filter(url),
         wait: true,
@@ -121,7 +132,11 @@ export class GoneTracker {
     }
     for (const url of this.#deletes) {
       try {
-        await batchDelete(this.client, this.collection, this.#filter(url));
+        await batchDelete(
+          this.qdrant.writeClient(this.collection),
+          this.collection,
+          this.#filter(url)
+        );
         this.#count('gone_deleted', url);
       } catch (error) {
         this.failures.push(`${url}: gone delete failed: ${message(error)}`);
