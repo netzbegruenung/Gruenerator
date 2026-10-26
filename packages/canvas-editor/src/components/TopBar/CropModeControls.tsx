@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 
+import { HIDDEN_SCROLLBAR } from '../../sidebar/sidebarStyles';
+import { cn } from '../../utils/cn';
 import { CROP_ASPECT_PRESETS, isCropAspectId, type CropAspectId } from '../../utils/cropAspect';
 import { clampStraighten, STRAIGHTEN_LIMIT } from '../../utils/straighten';
 
@@ -86,6 +88,7 @@ export function CropModeControls({
   straighten = null,
   onAuto = null,
   expand = null,
+  layout = 'inline',
 }: {
   onCancel: () => void;
   onDone: () => void;
@@ -97,75 +100,84 @@ export function CropModeControls({
   onAuto?: (() => void) | null;
   /** „Erweitern" (KI): Hintergrundfoto und eigene Bilder, nur mit Dienst des Hosts. */
   expand?: { onExpand: () => void; busy: boolean } | null;
+  /**
+   * `mobile`: Begradigen in eigener Zeile, Abbrechen/Fertig außerhalb des
+   * Scrollbereichs — sonst schöbe man sie aus dem Bild und wischte auf dem Weg
+   * dorthin über den Regler (auf Android begradigt das).
+   */
+  layout?: 'inline' | 'mobile';
 }) {
-  return (
-    <div className="flex items-center gap-1">
-      {expand && (
-        <button
-          type="button"
-          className={`${TEXT_BTN} bg-transparent text-[var(--editor-text)] hover:bg-[var(--editor-surface-hover)] disabled:opacity-60 disabled:cursor-wait`}
-          onClick={() => expand.onExpand()}
-          disabled={expand.busy}
-          aria-busy={expand.busy}
-          title="Foto per KI auf das Format des Rahmens erweitern"
-        >
-          {expand.busy && (
-            <span
-              aria-hidden="true"
-              className="mr-1.5 size-3.5 rounded-full border-2 border-current border-t-transparent motion-safe:animate-spin"
-            />
-          )}
-          Erweitern
-        </button>
+  const expandButton = expand && (
+    <button
+      type="button"
+      className={`${TEXT_BTN} bg-transparent text-[var(--editor-text)] hover:bg-[var(--editor-surface-hover)] disabled:opacity-60 disabled:cursor-wait`}
+      onClick={() => expand.onExpand()}
+      disabled={expand.busy}
+      aria-busy={expand.busy}
+      title="Foto per KI auf das Format des Rahmens erweitern"
+    >
+      {expand.busy && (
+        <span
+          aria-hidden="true"
+          className="mr-1.5 size-3.5 rounded-full border-2 border-current border-t-transparent motion-safe:animate-spin"
+        />
       )}
-      {onAuto && (
-        <button
-          type="button"
-          className={`${TEXT_BTN} bg-transparent text-[var(--editor-text)] hover:bg-[var(--editor-surface-hover)]`}
-          onClick={() => onAuto()}
-          aria-label="Ausschnitt automatisch wählen"
-          title="Ausschnitt automatisch wählen"
-        >
-          Automatisch
-        </button>
-      )}
-      {straighten && (
-        <div className="flex items-center gap-1">
-          <input
-            type="range"
-            aria-label="Begradigen"
-            title="Begradigen"
-            min={-STRAIGHTEN_LIMIT}
-            max={STRAIGHTEN_LIMIT}
-            step={1}
-            value={straighten.value}
-            onChange={(e) => straighten.onChange(clampStraighten(Number(e.currentTarget.value)))}
-            onDoubleClick={() => straighten.onChange(0)}
-            className="w-28 max-canvas-mobile:w-24 h-8 max-canvas-mobile:h-11 shrink-0 accent-[var(--editor-accent)] cursor-pointer"
-          />
-          <StraightenField value={straighten.value} onCommit={straighten.onChange} />
-          <span aria-hidden="true" className="text-[13px] text-[var(--editor-text-secondary)]">
-            °
-          </span>
-        </div>
-      )}
-      {aspect && (
-        <select
-          aria-label="Seitenverhältnis"
-          title="Seitenverhältnis"
-          className={ASPECT_SELECT}
-          value={aspect.value}
-          onChange={(e) => {
-            if (isCropAspectId(e.target.value)) aspect.onChange(e.target.value);
-          }}
-        >
-          {CROP_ASPECT_PRESETS.map((preset) => (
-            <option key={preset.id} value={preset.id}>
-              {preset.label}
-            </option>
-          ))}
-        </select>
-      )}
+      Erweitern
+    </button>
+  );
+  const autoButton = onAuto && (
+    <button
+      type="button"
+      className={`${TEXT_BTN} bg-transparent text-[var(--editor-text)] hover:bg-[var(--editor-surface-hover)]`}
+      onClick={() => onAuto()}
+      aria-label="Ausschnitt automatisch wählen"
+      title="Ausschnitt automatisch wählen"
+    >
+      Automatisch
+    </button>
+  );
+  const straightenControls = straighten && (
+    <div
+      data-crop-straighten=""
+      className={cn('flex items-center gap-1', layout === 'mobile' && 'w-full gap-2')}
+    >
+      <input
+        type="range"
+        aria-label="Begradigen"
+        title="Begradigen"
+        min={-STRAIGHTEN_LIMIT}
+        max={STRAIGHTEN_LIMIT}
+        step={1}
+        value={straighten.value}
+        onChange={(e) => straighten.onChange(clampStraighten(Number(e.currentTarget.value)))}
+        onDoubleClick={() => straighten.onChange(0)}
+        className="w-28 max-canvas-mobile:w-auto max-canvas-mobile:flex-1 min-w-0 h-8 max-canvas-mobile:h-11 shrink-0 accent-[var(--editor-accent)] cursor-pointer"
+      />
+      <StraightenField value={straighten.value} onCommit={straighten.onChange} />
+      <span aria-hidden="true" className="text-[13px] text-[var(--editor-text-secondary)]">
+        °
+      </span>
+    </div>
+  );
+  const aspectSelect = aspect && (
+    <select
+      aria-label="Seitenverhältnis"
+      title="Seitenverhältnis"
+      className={ASPECT_SELECT}
+      value={aspect.value}
+      onChange={(e) => {
+        if (isCropAspectId(e.target.value)) aspect.onChange(e.target.value);
+      }}
+    >
+      {CROP_ASPECT_PRESETS.map((preset) => (
+        <option key={preset.id} value={preset.id}>
+          {preset.label}
+        </option>
+      ))}
+    </select>
+  );
+  const exits = (
+    <>
       <button
         type="button"
         className={`${TEXT_BTN} bg-transparent text-[var(--editor-text)] hover:bg-[var(--editor-surface-hover)]`}
@@ -182,6 +194,39 @@ export function CropModeControls({
       >
         Fertig
       </button>
+    </>
+  );
+
+  if (layout === 'mobile') {
+    return (
+      <div className="flex w-full min-w-0 flex-col gap-1">
+        {straightenControls}
+        <div className="flex min-w-0 items-center gap-1">
+          <div
+            data-crop-tools=""
+            className={cn(
+              'canvas-scroll-fade-x flex flex-1 min-w-0 items-center gap-1.5 overflow-x-auto',
+              HIDDEN_SCROLLBAR
+            )}
+          >
+            {expandButton}
+            {autoButton}
+            {aspectSelect}
+          </div>
+          <div data-crop-exits="" className="flex flex-none items-center gap-1">
+            {exits}
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center gap-1">
+      {expandButton}
+      {autoButton}
+      {straightenControls}
+      {aspectSelect}
+      {exits}
     </div>
   );
 }

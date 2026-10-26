@@ -425,6 +425,53 @@ describe('photo crop toolbar', () => {
       }
     }
   });
+  it('mobile: Abbrechen and Fertig stay outside the scroller, Begradigen gets its own row', () => {
+    const { container } = render(
+      <CanvasEditorProvider services={{ expandImage: async (file: File) => file }}>
+        <MobileSelectionBar
+          selectedElement="photo"
+          activeFloatingModule={{
+            type: 'user-image',
+            data: { id: 'photo', src: '/photo.jpg', width: 600, height: 400 },
+          }}
+          canMoveUp={false}
+          canMoveDown={false}
+          canDuplicate={false}
+          isCropping
+          cropRotation={5}
+          handlers={{
+            handleMoveLayer: () => {},
+            handleDuplicate: () => {},
+            handleColorSelect: () => {},
+            handleOpacityChange: () => {},
+            handleFontSizeChange: () => {},
+            handleCancelCrop: () => {},
+            handleFinishCrop: () => {},
+            handleCropAspect: () => {},
+            handleCropRotation: () => {},
+            handleSmartCrop: () => {},
+            handleExpandImage: () => {},
+          }}
+          onDone={() => {}}
+        />
+      </CanvasEditorProvider>
+    );
+    const scrollers = [...container.querySelectorAll<HTMLElement>('.overflow-x-auto')];
+    expect(scrollers).toHaveLength(1);
+    const [tools] = scrollers;
+    for (const name of ['Abbrechen', 'Fertig']) {
+      expect(tools!.contains(screen.getByRole('button', { name }))).toBe(false);
+    }
+    // Wer zu den Ausgängen wischt, wischt nicht über den Regler.
+    expect(tools!.contains(screen.getByRole('slider', { name: 'Begradigen' }))).toBe(false);
+    expect(tools!.contains(screen.getByRole('button', { name: 'Erweitern' }))).toBe(true);
+    expect(tools!.contains(screen.getByRole('combobox', { name: 'Seitenverhältnis' }))).toBe(true);
+    // Eine Leiste, ein Tab-Halt: auch die Eingaben gehören zum Roving.
+    const stops = [...container.querySelectorAll('button, input, select')].filter(
+      (el) => el.getAttribute('tabindex') === '0'
+    );
+    expect(stops).toHaveLength(1);
+  });
   it('disables cropping for locked photos', () => {
     setup(false, true);
     expect(screen.getByRole('button', { name: 'Zuschneiden' })).toBeDisabled();

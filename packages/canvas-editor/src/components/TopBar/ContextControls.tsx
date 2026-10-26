@@ -101,6 +101,8 @@ export interface ContextControlsProps {
   onDeselect?: () => void;
   /** Mobil: Duplizieren, Löschen und Abwählen liegen in Pille und ✓, nicht hier. */
   hideObjectActions?: boolean;
+  /** Anordnung der Zuschneide-Leiste; mobil mit eigener Begradigen-Zeile und festen Ausgängen. */
+  cropLayout?: 'inline' | 'mobile';
 }
 
 /** Läuft ein Zuschneide-Modus, zeigt die Leiste nur ihn (`CropModeControls`). */
@@ -153,6 +155,7 @@ export function ContextControls({
   onDeletePage,
   onDeselect,
   hideObjectActions = false,
+  cropLayout = 'inline',
 }: ContextControlsProps) {
   const [isColorPickerExpanded, setIsColorPickerExpanded] = useState(false);
   // Fett/Kursiv/… nur, solange wirklich getippt wird: die Knöpfe bedienen die
@@ -167,6 +170,7 @@ export function ContextControls({
     const handleCropRotation = handlers.handleCropRotation;
     return (
       <CropModeControls
+        layout={cropLayout}
         onCancel={() => handlers.handleCancelCrop?.()}
         onDone={() => handlers.handleFinishCrop?.()}
         aspect={

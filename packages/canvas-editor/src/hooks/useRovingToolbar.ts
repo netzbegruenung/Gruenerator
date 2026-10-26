@@ -2,6 +2,14 @@ import { useCallback, useEffect, useRef, type FocusEvent, type KeyboardEvent } f
 
 const DEFAULT_ITEM_SELECTOR = 'button:not(:disabled)';
 
+/** Knöpfe plus die Eingaben einer Leiste (Regler, Zahlenfeld, Auswahl). */
+export const TOOLBAR_ITEMS_WITH_INPUTS =
+  'button:not(:disabled), input:not(:disabled), select:not(:disabled)';
+
+// Regler, Textfeld und Auswahl brauchen die Pfeile selbst; von dort geht es mit Tab weiter (WAI-ARIA Toolbar).
+const ownsArrows = (el: HTMLElement) =>
+  el instanceof HTMLInputElement || el instanceof HTMLSelectElement;
+
 /**
  * Roving tabindex for a horizontal `role="toolbar"` / `role="tablist"`: one Tab
  * stop for the whole group, Left/Right/Home/End move between its items.
@@ -50,10 +58,20 @@ export function useRovingToolbar<T extends HTMLElement = HTMLDivElement>(
 
   const onKeyDown = useCallback(
     (e: KeyboardEvent<T>) => {
-      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
       const items = getItems();
-      const index = items.indexOf(e.target as HTMLElement);
+      const target = e.target as HTMLElement;
+      const index = items.indexOf(target);
       if (index === -1) return;
+      if (ownsArrows(target)) {
+        if (e.key !== 'Tab' || e.altKey || e.ctrlKey || e.metaKey) return;
+        // Am Rand der Leiste verlässt Tab sie wie gewohnt.
+        const step = e.shiftKey ? index - 1 : index + 1;
+        if (step < 0 || step >= items.length) return;
+        e.preventDefault();
+        items[step].focus();
+        return;
+      }
+      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
       let next: number;
       if (e.key === 'ArrowRight') next = (index + 1) % items.length;
       else if (e.key === 'ArrowLeft') next = (index - 1 + items.length) % items.length;

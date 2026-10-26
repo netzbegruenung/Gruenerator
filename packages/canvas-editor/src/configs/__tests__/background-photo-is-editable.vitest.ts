@@ -78,9 +78,9 @@ describe.each(TEMPLATES)('%s: a new background photo starts unstraightened', (ty
     const noop = () => {};
     const actions = config.createActions(() => state as never, setState as never, noop, noop, {});
     const file = new File(['x'], 'neu.jpg', { type: 'image/jpeg' });
-    const background = config.background?.(state as never, actions);
-    expect(background?.onImageChange, `${type}: no photo door`).toBeTypeOf('function');
-    background!.onImageChange(file, 'https://example.org/neu.jpg', null);
+    const onImageChange = config.background?.(state as never, actions)?.onImageChange;
+    if (!onImageChange) throw new Error(`${type}: no photo door`);
+    onImageChange(file, 'https://example.org/neu.jpg', null);
     return state;
   };
 
