@@ -61,7 +61,6 @@ export interface VeranstaltungFullState {
   imageOffset: { x: number; y: number };
   imageScale: number;
   backgroundImageOpacity?: number;
-  isBackgroundLocked: boolean;
   customEventTitleFontSize: number | null;
   customBeschreibungFontSize: number | null;
   eventTitleOpacity?: number;
@@ -131,7 +130,6 @@ export interface VeranstaltungFullActions {
   handleBeschreibungFontSizeChange: (size: number) => void;
   setCurrentImageSrc: (file: File | null, objectUrl?: string) => void;
   setImageScale: (scale: number) => void;
-  toggleBackgroundLock: () => void;
   addAsset: (assetId: string, options?: ElementPlacement) => void;
   addStickerAsset: (ref: StickerRef, options?: ElementPlacement) => void;
   updateAsset: (id: string, partial: Partial<AssetInstance>) => void;
@@ -432,8 +430,6 @@ export const veranstaltungFullConfig: FullCanvasConfig<
     },
     scale: state.imageScale,
     onScaleChange: actions.setImageScale,
-    isLocked: state.isBackgroundLocked,
-    onToggleLock: actions.toggleBackgroundLock,
   }),
 
   sections: {
@@ -519,7 +515,6 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       offsetKey: 'imageOffset',
       scaleKey: 'imageScale',
       draggable: false,
-      lockedKey: 'isBackgroundLocked',
       opacityStateKey: 'backgroundImageOpacity',
       coverFit: true,
       centerZoom: true,
@@ -632,8 +627,6 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       imageOffset: (props.imageOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
       imageScale: (props.imageScale as number | undefined) ?? 1,
       backgroundImageOpacity: (props.backgroundImageOpacity as number | undefined) ?? 1,
-      // Carried, not hard-reset — see createImageTwoTextCanvas.
-      isBackgroundLocked: (props.isBackgroundLocked as boolean | undefined) ?? false,
       // Carried over from props for the same reason as the two-text factories:
       // card renders and remote-sync re-seeds run through here, so hard-nulling
       // silently reverted a chat "Schrift größer" edit on the next render.
@@ -799,9 +792,6 @@ export const veranstaltungFullConfig: FullCanvasConfig<
         );
         setState((prev) => ({ ...prev, ...zoom }));
         debouncedSaveToHistory({ ...getState(), ...zoom });
-      },
-      toggleBackgroundLock: () => {
-        setState((prev) => ({ ...prev, isBackgroundLocked: !prev.isBackgroundLocked }));
       },
       setImageAttribution: (attribution: StockImageAttribution | null) => {
         setState((prev) => ({ ...prev, imageAttribution: attribution }));

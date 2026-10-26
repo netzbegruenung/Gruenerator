@@ -227,26 +227,39 @@ describe('buildCanvasMenu', () => {
     ).toBeUndefined();
   });
 
-  it('zeigt am Hintergrundfoto Ersetzen, Fixieren und Entfernen', () => {
+  it('zeigt am Hintergrundfoto Ersetzen, Ausschnitt und Entfernen', () => {
     const menu = buildCanvasMenu(
       snapshot({
-        module: { type: 'image', data: { id: 'background-image', isPhoto: true } },
-        background: {
-          currentImageSrc: '/foto.jpg',
-          onImageChange: () => {},
-          isLocked: true,
-          onToggleLock: () => {},
-        },
+        module: { type: 'image', data: { id: 'background-image', isPhoto: true, canCrop: true } },
+        background: { currentImageSrc: '/foto.jpg', onImageChange: () => {} },
       }),
       ENV
     );
     expect(menu.kind).toBe('background');
     expect(find(menu.entries, 'Bild ersetzen …')).toBeDefined();
-    expect(find(menu.entries, 'Hintergrund fixieren')).toMatchObject({
-      kind: 'check',
-      checked: true,
+    expect(find(menu.entries, 'Ausschnitt anpassen')).toMatchObject({
+      kind: 'item',
+      id: 'cropBackground',
+      shortcut: null,
     });
     expect(find(menu.entries, 'Hintergrundbild entfernen')).toMatchObject({ destructive: true });
+  });
+
+  it('bietet keinen Ausschnitt an der Farbfläche oder am festen Foto', () => {
+    const background = { currentImageSrc: '/foto.jpg', onImageChange: () => {} };
+    const fixed = buildCanvasMenu(
+      snapshot({
+        module: { type: 'image', data: { id: 'background-image', isPhoto: true, canCrop: false } },
+        background,
+      }),
+      ENV
+    );
+    const plane = buildCanvasMenu(
+      snapshot({ module: { type: 'background', data: { id: 'background' } }, background }),
+      ENV
+    );
+    expect(find(fixed.entries, 'Ausschnitt anpassen')).toBeUndefined();
+    expect(find(plane.entries, 'Ausschnitt anpassen')).toBeUndefined();
   });
 
   it('setzt keine Trennlinie an den Rand und keine zwei hintereinander', () => {

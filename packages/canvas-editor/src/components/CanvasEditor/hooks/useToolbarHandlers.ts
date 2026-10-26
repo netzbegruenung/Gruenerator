@@ -82,6 +82,8 @@ export function useToolbarHandlers({
         page()?.handleOutlineChange?.(id, patch),
       handleBlurChange: (id: string, blur: number) => page()?.handleBlurChange?.(id, blur),
       handleCropImage: () => page()?.handleCropImage?.(),
+      handleCancelCrop: () => page()?.handleCancelCrop?.(),
+      handleFinishCrop: () => page()?.handleFinishCrop?.(),
       handleGradientSelect: (gradient: GradientFill | null) =>
         page()?.handleGradientSelect?.(gradient),
       handleTextAlignChange: (id: string, align: TextAlign) =>

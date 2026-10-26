@@ -17,6 +17,8 @@ export interface UseCanvasHistorySetupResult<T extends Record<string, unknown>> 
   collectStateRef: MutableRefObject<() => T>;
   /** Runs `fn` so that every history save it triggers becomes ONE entry. */
   runHistoryBatch: (fn: () => void) => void;
+  /** Saves the current state now, so the history ends exactly here (outside a batch). */
+  checkpoint: () => void;
   undo: () => void;
   redo: () => void;
   canUndo: boolean;
@@ -117,6 +119,13 @@ export function useCanvasHistorySetup<T extends Record<string, unknown>>(
     [saveNow, commitPendingSave]
   );
 
+  const checkpoint = useCallback(() => {
+    if (batchDepthRef.current !== 0) return;
+    // Wie vor einem Batch: ein gerade angestoßener Sofort-Save bleibt ein eigener Schritt.
+    commitPendingSave();
+    saveNow(collectStateRef.current());
+  }, [saveNow, commitPendingSave]);
+
   // Save initial state to history on mount (deferred to avoid render loop)
   useEffect(() => {
     if (!initialHistorySavedRef.current) {
@@ -135,6 +144,7 @@ export function useCanvasHistorySetup<T extends Record<string, unknown>>(
     saveToHistoryRef,
     collectStateRef,
     runHistoryBatch,
+    checkpoint,
     undo,
     redo,
     canUndo,

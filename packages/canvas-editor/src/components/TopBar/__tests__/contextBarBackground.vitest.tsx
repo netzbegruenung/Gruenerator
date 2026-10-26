@@ -39,7 +39,7 @@ const HANDLERS = {
 const PLANE: FloatingModuleState = { type: 'background', data: { id: 'background' } };
 const PHOTO: FloatingModuleState = {
   type: 'image',
-  data: { id: 'background-image', isPhoto: true, opacity: 1 },
+  data: { id: 'background-image', isPhoto: true, canCrop: true, opacity: 1 },
 };
 
 function controls(overrides: Partial<BackgroundControls> = {}): BackgroundControls {
@@ -58,7 +58,8 @@ function controls(overrides: Partial<BackgroundControls> = {}): BackgroundContro
 function renderBar(
   module: FloatingModuleState,
   background: BackgroundControls,
-  onDeselect = vi.fn()
+  onDeselect = vi.fn(),
+  { handleCropImage = vi.fn(), isCropping = false } = {}
 ) {
   render(
     <ContextControls
@@ -67,7 +68,8 @@ function renderBar(
       canMoveUp
       canMoveDown
       canDuplicate={false}
-      handlers={HANDLERS}
+      isCropping={isCropping}
+      handlers={{ ...HANDLERS, handleCropImage }}
       background={background}
       onDeselect={onDeselect}
     />
@@ -130,26 +132,41 @@ describe('Foto ausgewählt', () => {
       currentImageSrc: '/api/share/abc/download',
       scale: 1.2,
       onScaleChange: vi.fn(),
-      isLocked: false,
-      onToggleLock: vi.fn(),
       ...overrides,
     });
 
-  it('zeigt Ersetzen, Farbe, Zoom, Fixieren und Entfernen, aber keine Ebenen', () => {
+  it('zeigt Ersetzen, Farbe, Zoom, Ausschnitt und Entfernen, aber keine Ebenen', () => {
     renderBar(PHOTO, photo());
     expect(screen.getByLabelText('Hintergrundbild: Ersetzen')).toBeInTheDocument();
     expect(screen.getByLabelText('Farbpalette öffnen')).toBeInTheDocument();
     expect(screen.getByLabelText('Bild zoomen')).toBeInTheDocument();
-    expect(screen.getByLabelText('Hintergrund fixieren')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ausschnitt anpassen' })).toHaveTextContent(
+      'Ausschnitt'
+    );
     expect(screen.getByLabelText('Hintergrundbild entfernen')).toBeInTheDocument();
     expect(screen.queryByTitle('Ebene nach oben')).toBeNull();
   });
 
-  it('fixiert über den Knopf', async () => {
-    const background = photo();
-    renderBar(PHOTO, background);
-    await userEvent.click(screen.getByLabelText('Hintergrund fixieren'));
-    expect(background.onToggleLock).toHaveBeenCalledOnce();
+  it('schaltet den Ausschnitt-Modus über den Knopf', async () => {
+    const handleCropImage = vi.fn();
+    renderBar(PHOTO, photo(), vi.fn(), { handleCropImage });
+    const button = screen.getByRole('button', { name: 'Ausschnitt anpassen' });
+    expect(button).toHaveAttribute('aria-pressed', 'false');
+    await userEvent.click(button);
+    expect(handleCropImage).toHaveBeenCalledOnce();
+  });
+
+  it('zeigt den aktiven Ausschnitt-Modus als gedrückt', () => {
+    renderBar(PHOTO, photo(), vi.fn(), { isCropping: true });
+    expect(screen.getByRole('button', { name: 'Ausschnitt anpassen' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+  });
+
+  it('zeigt keinen Ausschnitt, wenn das Foto weder ziehbar noch zoombar ist', () => {
+    renderBar({ ...PHOTO, data: { ...PHOTO.data, canCrop: false } }, photo());
+    expect(screen.queryByRole('button', { name: 'Ausschnitt anpassen' })).toBeNull();
   });
 
   it('entfernt das Foto und hebt die Auswahl auf', async () => {

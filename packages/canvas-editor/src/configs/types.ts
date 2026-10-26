@@ -149,8 +149,6 @@ export interface ImageElementConfig<
   sizeStateKey?: string;
   /** Enable dragging */
   draggable?: boolean;
-  /** Lock state key */
-  lockedKey?: string;
   /** Enable transform handles */
   transformable?: boolean;
   /** Listen for events */
@@ -432,8 +430,6 @@ export interface BackgroundControls {
   onRestoreImage?: () => void;
   scale?: number;
   onScaleChange?: (scale: number) => void;
-  isLocked?: boolean;
-  onToggleLock?: () => void;
 }
 
 // ============================================================================

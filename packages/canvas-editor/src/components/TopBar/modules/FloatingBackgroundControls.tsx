@@ -4,8 +4,6 @@ import { Slider } from 'radix-ui';
 import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react';
 import {
   HiArrowUpTray,
-  HiLockClosed,
-  HiLockOpen,
   HiMagnifyingGlass,
   HiMagnifyingGlassPlus,
   HiOutlinePhoto,
@@ -246,32 +244,6 @@ export function BackgroundZoomControl({
         </span>
       </PopoverContent>
     </Popover>
-  );
-}
-
-export function BackgroundLockToggle({
-  isLocked,
-  onToggle,
-}: {
-  isLocked: boolean;
-  onToggle: () => void;
-}) {
-  const label = isLocked ? 'Hintergrund lösen' : 'Hintergrund fixieren';
-  return (
-    <button
-      type="button"
-      className={ICON_BTN}
-      onClick={onToggle}
-      aria-pressed={isLocked}
-      title={label}
-      aria-label={label}
-    >
-      {isLocked ? (
-        <HiLockClosed size={17} aria-hidden="true" />
-      ) : (
-        <HiLockOpen size={17} aria-hidden="true" />
-      )}
-    </button>
   );
 }
 

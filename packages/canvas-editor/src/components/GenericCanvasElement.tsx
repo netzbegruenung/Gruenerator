@@ -14,7 +14,12 @@ import useImage from 'use-image';
 import { surfaceGlow } from '../brand/theme';
 import { type GeometryReporter } from '../hooks/useGeometryReporter';
 import { CanvasText, CanvasImage, CanvasBackground } from '../primitives';
-import { useIsElementSelected } from '../stores/CanvasStoreProvider';
+import {
+  useCanvasStore,
+  useCanvasStoreSelector,
+  useIsElementSelected,
+} from '../stores/CanvasStoreProvider';
+import { canCropBackgroundPhoto, imageElementInteraction } from '../utils/backgroundPhotoCrop';
 import { canvasImageSourceUrl } from '../utils/canvasImageSource';
 import { imageRenderInputsAreEqual } from '../utils/imageElementComparison';
 import { backgroundAdjustments } from '../utils/imageFilters';
@@ -27,7 +32,6 @@ import { resolveColor, resolveImageElementBox, resolveValue } from '../utils/res
 import {
   assertAsString,
   assertAsNumber,
-  assertAsBoolean,
   assertAsPosition,
   assertAsOpacity,
   getStateValue,
@@ -299,7 +303,22 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
   const [image, status] = useImage(sourceUrl, 'anonymous');
   useTrackPendingImage(config.id, sourceUrl, status);
 
-  const isLocked = config.lockedKey ? assertAsBoolean(state[config.lockedKey]) : false;
+  const isBackgroundPhoto = config.id === BACKGROUND_IMAGE_NODE_ID;
+  const cropping = useCanvasStoreSelector(
+    (s) => isBackgroundPhoto && s.croppingElement === config.id
+  );
+  const interaction = imageElementInteraction(config, { cropping });
+  const store = useCanvasStore();
+  const handleToggleCrop = useCallback(() => {
+    const s = store.getState();
+    if (s.croppingElement === config.id) {
+      s.setCroppingElement(null);
+      return;
+    }
+    // Direkt in den Store: der Auswahl-Pfad schiebt in einer Mehrfachauswahl auf.
+    if (s.selectedElement !== config.id) s.setSelectedElement(config.id);
+    store.getState().setCroppingElement(config.id);
+  }, [store, config.id]);
   const customFill = getOptionalStateValue<string>(state, config.fillStateKey);
   const fill = customFill ?? resolveColor(config.fill, state, layout);
 
@@ -343,8 +362,10 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
       adjustments={config.id === BACKGROUND_IMAGE_NODE_ID ? backgroundAdjustments(state) : null}
       coverFit={config.coverFit}
       frame={frame}
-      draggable={config.draggable && !isLocked}
-      touchDragNeedsSelection={config.id === 'background-image'}
+      draggable={interaction.draggable}
+      touchDragNeedsSelection={isBackgroundPhoto}
+      onToggleCrop={canCropBackgroundPhoto(config) ? handleToggleCrop : null}
+      cropping={cropping}
       selected={selected}
       onSelect={handleSelect}
       onDragEnd={handleDragEnd}
@@ -359,17 +380,16 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
       listening={config.listening}
       constrainToBounds={config.constrainToBounds ?? true}
       transformConfig={{
-        // A non-transformable (or locked) image shows no resize handles. Without
+        // A non-transformable image shows no resize handles. Without
         // this, CanvasImage falls back to DEFAULT_IMAGE_ANCHORS, so a selectable
         // but non-transformable slot (e.g. the veranstaltung photo band,
         // draggable: false) would still expose all four corner handles and let a
         // user resize/move it via the Transformer — writing an unbounded
         // offset/scale straight past the centerZoom/coverFit assumptions.
-        enabledAnchors:
-          config.transformable && !isLocked
-            ? ['top-left', 'top-right', 'bottom-left', 'bottom-right']
-            : [],
-        rotateEnabled: rotatable && !isLocked,
+        enabledAnchors: interaction.transformable
+          ? ['top-left', 'top-right', 'bottom-left', 'bottom-right']
+          : [],
+        rotateEnabled: rotatable,
         keepRatio: true,
       }}
     />

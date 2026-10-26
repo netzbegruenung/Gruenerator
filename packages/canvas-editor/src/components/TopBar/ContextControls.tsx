@@ -13,9 +13,9 @@ import { BRAND_COLORS, FONT_COLORS, STROKE_ONLY_SHAPES } from '../../utils/shape
 import { type TextAlign } from '../../utils/textAlign';
 import { useCanvasTextFormatting } from '../CanvasTextOverlay';
 
+import { CropModeControls } from './CropModeControls';
 import {
   BackgroundImagePicker,
-  BackgroundLockToggle,
   BackgroundRemoveImageButton,
   BackgroundRestoreImageButton,
   BackgroundZoomControl,
@@ -64,6 +64,9 @@ export interface ContextControlsProps {
     handleBlurChange?: (id: string, blur: number) => void;
     /** Ausschnitt mode for a framed photo: the photo moves inside its frame. */
     handleCropImage?: () => void;
+    /** Im Zuschneide-Modus: zurück zum Stand beim Betreten bzw. übernehmen. */
+    handleCancelCrop?: () => void;
+    handleFinishCrop?: () => void;
     handleGradientSelect?: (gradient: GradientFill | null) => void;
     /** Ausrichtung des Textes in seiner Box — freie und Vorlagen-Texte. */
     handleTextAlignChange?: (id: string, align: TextAlign) => void;
@@ -87,11 +90,22 @@ export interface ContextControlsProps {
   hideObjectActions?: boolean;
 }
 
+/** Läuft ein Zuschneide-Modus, zeigt die Leiste nur ihn (`CropModeControls`). */
+export function showsCropModeBar({
+  isCropping,
+  handlers,
+}: Pick<ContextControlsProps, 'isCropping' | 'handlers'>): boolean {
+  return !!isCropping && !!handlers.handleCancelCrop && !!handlers.handleFinishCrop;
+}
+
 const ICON_BTN =
   'inline-flex items-center justify-center size-8 max-canvas-mobile:size-11 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] disabled:opacity-30 disabled:cursor-not-allowed';
 
 const DANGER_BTN =
   'inline-flex items-center justify-center size-8 max-canvas-mobile:size-11 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-danger-bg)] hover:text-[var(--editor-danger-fg)] disabled:opacity-30 disabled:cursor-not-allowed';
+
+const CROP_BTN =
+  'inline-flex items-center gap-1.5 h-8 max-canvas-mobile:h-11 shrink-0 rounded-md border-none bg-transparent px-2 cursor-pointer text-[13px] font-medium text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] aria-pressed:bg-[var(--editor-active-bg)] aria-pressed:text-[var(--editor-active-fg)]';
 
 const UNSPLASH_HOME = 'https://unsplash.com/?utm_source=gruenerator&utm_medium=referral';
 
@@ -128,6 +142,15 @@ export function ContextControls({
   // Fett/Kursiv/… nur, solange wirklich getippt wird: die Knöpfe bedienen die
   // Auswahl IM Text, und ohne offenen Editor gibt es keine.
   const formatting = useCanvasTextFormatting();
+
+  if (showsCropModeBar({ isCropping, handlers })) {
+    return (
+      <CropModeControls
+        onCancel={() => handlers.handleCancelCrop?.()}
+        onDone={() => handlers.handleFinishCrop?.()}
+      />
+    );
+  }
 
   const showColorFor = (type: FloatingModuleState['type']) => {
     if (type === 'text') {
@@ -244,13 +267,21 @@ export function ContextControls({
         />
       );
     }
-    if (background.onToggleLock) {
+    if (activeFloatingModule?.data.canCrop && handlers.handleCropImage) {
+      const handleCropImage = handlers.handleCropImage;
       photoControls.push(
-        <BackgroundLockToggle
-          key="lock"
-          isLocked={!!background.isLocked}
-          onToggle={background.onToggleLock}
-        />
+        <button
+          key="crop"
+          type="button"
+          className={CROP_BTN}
+          onClick={() => handleCropImage()}
+          title="Ausschnitt anpassen (oder Doppelklick aufs Foto)"
+          aria-label="Ausschnitt anpassen"
+          aria-pressed={isCropping}
+        >
+          <CropIcon />
+          Ausschnitt
+        </button>
       );
     }
     if (background.onImageChange) {
@@ -404,7 +435,7 @@ export function ContextControls({
       <button
         key="crop-image"
         disabled={isLocked}
-        className="inline-flex items-center gap-1.5 h-8 max-canvas-mobile:h-11 shrink-0 rounded-md border-none bg-transparent px-2 cursor-pointer text-[13px] font-medium text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] aria-pressed:bg-[var(--editor-active-bg)] aria-pressed:text-[var(--editor-active-fg)]"
+        className={CROP_BTN}
         onClick={(e) => {
           handlers.handleCropImage!();
           // Per Tastatur begonnen: der Fokus geht auf die Seite, damit die
@@ -417,20 +448,7 @@ export function ContextControls({
         aria-pressed={isCropping}
         type="button"
       >
-        <svg
-          width="15"
-          height="15"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M6 2v14a2 2 0 0 0 2 2h14" />
-          <path d="M18 22V8a2 2 0 0 0-2-2H2" />
-        </svg>
+        <CropIcon />
         {isCropping ? 'Fertig' : 'Zuschneiden'}
       </button>
     );
@@ -679,5 +697,24 @@ function EditImageButton({ onClick }: { onClick: () => void }) {
       </svg>
       Bearbeiten
     </button>
+  );
+}
+
+function CropIcon() {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M6 2v14a2 2 0 0 0 2 2h14" />
+      <path d="M18 22V8a2 2 0 0 0-2-2H2" />
+    </svg>
   );
 }

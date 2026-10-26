@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isLockable, isLayerLocked, lockStateOf, toggledLocks } from './layerLock';
+import { isLockable, isLayerLocked, lockedIdsOf, lockStateOf, toggledLocks } from './layerLock';
 import { findElementRemover } from './removeElement';
 import { selectionCapabilities } from './selectionCapabilities';
 
@@ -25,8 +25,20 @@ describe('isLockable', () => {
     expect(
       isLockable(element('background-image', { type: 'image', order: -1, draggable: true }))
     ).toBe(false);
+    expect(
+      isLockable(element('background-image', { type: 'image', order: 0, draggable: true }))
+    ).toBe(false);
     expect(isLockable(element('bg', { type: 'background' }))).toBe(false);
     expect(isLockable(element('label', { draggable: false }))).toBe(false);
+  });
+});
+
+describe('lockedIdsOf', () => {
+  it('überliest eine gespeicherte Sperre des Hintergrundfotos (früher in dreizeilen sperrbar)', () => {
+    const state = { lockedLayerIds: ['background-image', 'headline'] };
+    expect(lockedIdsOf(state)).toEqual(['headline']);
+    expect(isLayerLocked(state, 'background-image')).toBe(false);
+    expect(isLayerLocked(state, 'headline')).toBe(true);
   });
 });
 
