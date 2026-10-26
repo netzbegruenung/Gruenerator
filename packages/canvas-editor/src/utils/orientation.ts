@@ -1,3 +1,4 @@
+import { CANVAS_ITEM_NAME } from './deepSelect';
 import { SELECTION_COLOR } from './multiSelect';
 import { COARSE_POINTER, touchAnchorStyleFunc } from './touchInput';
 
@@ -135,6 +136,12 @@ const HOVER_SCALE = 1.2;
 const SIDE_ANCHORS = new Set(['middle-left', 'middle-right', 'top-center', 'bottom-center']);
 const anchorKey = (anchor: Konva.Shape) => anchor.name().split(' ')[0]!;
 
+/** Bögen des ⟳ in Canvas-Winkeln (0 = rechts, im Uhrzeigersinn): links hoch, rechts runter. */
+const ROTATER_ARCS: readonly (readonly [number, number])[] = [
+  [Math.PI * 0.6, Math.PI * 1.35],
+  [Math.PI * 1.6, Math.PI * 2.35],
+];
+
 /** ⟳ im Kreis. Getrennter hitFunc: nur der Kreis, sonst landen die Symbol-Striche im Treffer-Canvas. */
 function drawRotater(ctx: Konva.Context, shape: Konva.Shape): void {
   const r = shape.width() / 2;
@@ -143,30 +150,30 @@ function drawRotater(ctx: Konva.Context, shape: Konva.Shape): void {
   ctx.closePath();
   ctx.fillStrokeShape(shape);
 
+  // Zwei offene Bögen links und rechts, je mit Winkel-Spitze, im Uhrzeigersinn (Canva-Muster).
   const active = shape.fill() !== 'white';
-  const icon = r * 0.42;
-  const start = -Math.PI * 0.95;
-  const end = Math.PI * 0.45;
+  const icon = r * 0.4;
+  const head = r * 0.2;
   ctx.save();
   ctx.setAttr('shadowColor', 'transparent');
   ctx.setAttr('strokeStyle', active ? 'white' : '#1f2937');
-  ctx.setAttr('fillStyle', active ? 'white' : '#1f2937');
-  ctx.setAttr('lineWidth', Math.max(1.5, r / 7));
+  ctx.setAttr('lineWidth', Math.max(1.5, r / 8));
   ctx.setAttr('lineCap', 'round');
-  ctx.beginPath();
-  ctx.arc(r, r, icon, start, end, false);
-  ctx.stroke();
-  // Pfeilspitze am Bogenende, in Laufrichtung.
-  const tipX = r + icon * Math.cos(end);
-  const tipY = r + icon * Math.sin(end);
-  const head = r * 0.26;
-  const dir = end + Math.PI / 2;
-  ctx.beginPath();
-  ctx.moveTo(tipX + head * Math.cos(dir), tipY + head * Math.sin(dir));
-  ctx.lineTo(tipX + head * Math.cos(dir + 2.3), tipY + head * Math.sin(dir + 2.3));
-  ctx.lineTo(tipX + head * Math.cos(dir - 2.3), tipY + head * Math.sin(dir - 2.3));
-  ctx.closePath();
-  ctx.fill();
+  ctx.setAttr('lineJoin', 'round');
+  for (const [from, to] of ROTATER_ARCS) {
+    ctx.beginPath();
+    ctx.arc(r, r, icon, from, to, false);
+    ctx.stroke();
+    const tipX = r + icon * Math.cos(to);
+    const tipY = r + icon * Math.sin(to);
+    // Laufrichtung an der Spitze; die Schenkel zeigen zurück.
+    const back = to + Math.PI / 2 + Math.PI;
+    ctx.beginPath();
+    ctx.moveTo(tipX + head * Math.cos(back + 0.7), tipY + head * Math.sin(back + 0.7));
+    ctx.lineTo(tipX, tipY);
+    ctx.lineTo(tipX + head * Math.cos(back - 0.7), tipY + head * Math.sin(back - 0.7));
+    ctx.stroke();
+  }
   ctx.restore();
 }
 
@@ -216,6 +223,21 @@ function wire(anchor: Konva.Shape, tr: Konva.Transformer): void {
 }
 
 /**
+ * Griffe liegen über allen Elementen, sonst schnappt ein später gezeichnetes
+ * Element den Klick auf den Drehgriff weg. Jede Primitive rendert ihren
+ * Transformer in die eigene `canvas-item`-Gruppe; er zieht deshalb eine Ebene
+ * höher, neben die Gruppen, und bleibt dort oben (wie `MultiSelectionTransformer`).
+ * Gefahrlos für React: react-konva zerstört einen entfernten Knoten, egal wo er hängt.
+ */
+function keepOnTop(tr: Konva.Transformer): void {
+  const item = tr.findAncestor(`.${CANVAS_ITEM_NAME}`);
+  const parent = item?.getParent() ?? tr.getParent();
+  if (!parent) return;
+  if (tr.getParent() !== parent) tr.moveTo(parent);
+  if (tr.zIndex() !== parent.children.length - 1) tr.moveToTop();
+}
+
+/**
  * Konva ruft das bei jedem Neuaufbau des Transformers für jeden Griff — beim
  * Anhängen, nach einem Zug und beim Verschieben (Konvas eigenes `update()` auf
  * `dragmove`; dann nur diese Rechnung, kein React-Zustand). Konva setzt davor
@@ -247,6 +269,7 @@ export function elementAnchorStyleFunc(anchor: Konva.Shape): void {
   if (active === 'rotater' && key !== 'rotater') anchor.visible(false);
 
   if (key === 'rotater') {
+    keepOnTop(tr);
     resizeAnchor(anchor, ROTATER_SIZE, ROTATER_SIZE);
     anchor.setAttrs({ sceneFunc: drawRotater, hitFunc: hitRotater });
     if (!tr.rotateEnabled() || tr.isTransforming()) return;

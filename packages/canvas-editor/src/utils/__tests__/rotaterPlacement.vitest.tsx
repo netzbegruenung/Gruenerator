@@ -1,6 +1,7 @@
 import Konva from 'konva';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
+import { CANVAS_ITEM_NAME } from '../deepSelect';
 import {
   ELEMENT_TRANSFORMER,
   chooseRotaterAngle,
@@ -199,5 +200,33 @@ describe('Griff-Optik (Canva-Muster)', () => {
     (tr as unknown as { _transforming: boolean })._transforming = false;
     tr.fire('transformend', {});
     expect(tr.rotationSnaps()).not.toContain(15);
+  });
+});
+
+describe('Griffe liegen über allen Elementen', () => {
+  it('ein später gezeichnetes Element schnappt den Klick auf den Drehgriff nicht weg', () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    stage = new Konva.Stage({ container, width: 600, height: 600 });
+    const layer = new Konva.Layer();
+    stage.add(layer);
+    // Wie CanvasRenderLayer: je Element eine canvas-item-Gruppe, Transformer darin.
+    const itemA = new Konva.Group({ name: CANVAS_ITEM_NAME });
+    const itemB = new Konva.Group({ name: CANVAS_ITEM_NAME });
+    layer.add(itemA, itemB);
+    const node = new Konva.Rect({ x: 250, y: 200, width: 100, height: 100, fill: 'red' });
+    const tr = new Konva.Transformer({ ...ELEMENT_TRANSFORMER, rotateEnabled: true });
+    itemA.add(node, tr);
+    // B deckt den Bereich unter A ab, wo der Drehgriff steht.
+    itemB.add(new Konva.Rect({ x: 200, y: 290, width: 200, height: 100, fill: 'blue' }));
+    tr.nodes([node]);
+    // Konva trifft in Zeichenreihenfolge; Pixel lesen kann das Test-DOM nicht.
+    expect(tr.getParent()).toBe(layer);
+    expect(layer.children.at(-1)).toBe(tr);
+
+    // Ein danach hinzugefügtes Element überholt ihn nur bis zum nächsten Neuaufbau.
+    layer.add(new Konva.Group({ name: CANVAS_ITEM_NAME }));
+    tr.update();
+    expect(layer.children.at(-1)).toBe(tr);
   });
 });
