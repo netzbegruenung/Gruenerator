@@ -1,0 +1,842 @@
+{
+ "templateType": "freeform",
+ "format": "post-portrait-tall",
+ "slides": [
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#005538",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-steckbrief-0",
+     "text": "Fährt Rad bei\njedem Wetter",
+     "type": "header",
+     "x": 70,
+     "y": 72,
+     "width": 389,
+     "fontSize": 54,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": null,
+     "marker": null,
+     "lineHeight": 1.05,
+     "rotation": -2
+    },
+    {
+     "id": "sc-0-steckbrief-1",
+     "text": "Seit 10 Jahren\nim Ortsverband",
+     "type": "header",
+     "x": 621,
+     "y": 101,
+     "width": 389,
+     "fontSize": 54,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "right",
+     "accent": null,
+     "marker": null,
+     "lineHeight": 1.05,
+     "rotation": 0
+    },
+    {
+     "id": "sc-0-steckbrief-2",
+     "text": "Gärtnert\nauf dem\nBalkon",
+     "type": "header",
+     "x": 70,
+     "y": 518,
+     "width": 389,
+     "fontSize": 54,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": null,
+     "marker": null,
+     "lineHeight": 1.05,
+     "rotation": 2
+    },
+    {
+     "id": "sc-0-steckbrief-3",
+     "text": "Liest gern\nKrimis",
+     "type": "header",
+     "x": 621,
+     "y": 360,
+     "width": 389,
+     "fontSize": 54,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "right",
+     "accent": null,
+     "marker": null,
+     "lineHeight": 1.05,
+     "rotation": -2
+    },
+    {
+     "id": "sc-0-steckbrief-4",
+     "text": "Kocht\nvegetarisch",
+     "type": "header",
+     "x": 70,
+     "y": 1008,
+     "width": 389,
+     "fontSize": 54,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": null,
+     "marker": null,
+     "lineHeight": 1.05,
+     "rotation": 0
+    },
+    {
+     "id": "sc-0-steckbrief-5",
+     "text": "Spielt\nGitarre",
+     "type": "header",
+     "x": 621,
+     "y": 922,
+     "width": 389,
+     "fontSize": 54,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "right",
+     "accent": null,
+     "marker": null,
+     "lineHeight": 1.05,
+     "rotation": 2
+    },
+    {
+     "id": "sc-0-steckbrief-6",
+     "text": "Ehrenamtlich\nim Tierheim",
+     "type": "header",
+     "x": 70,
+     "y": 1195,
+     "width": 389,
+     "fontSize": 54,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": null,
+     "marker": null,
+     "lineHeight": 1.05,
+     "rotation": -2
+    },
+    {
+     "id": "sc-0-steckbrief-7",
+     "text": "Kaffee\nschwarz, bitte",
+     "type": "header",
+     "x": 621,
+     "y": 1152,
+     "width": 389,
+     "fontSize": 54,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "right",
+     "accent": null,
+     "marker": null,
+     "lineHeight": 1.05,
+     "rotation": 0
+    },
+    {
+     "id": "sc-0-steckbrief-gruss",
+     "text": "Hallo, ich bin",
+     "type": "header",
+     "x": 683,
+     "y": 708,
+     "width": 327,
+     "fontSize": 52,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "right",
+     "accent": null,
+     "marker": null,
+     "lineHeight": 1.05
+    },
+    {
+     "id": "sc-0-steckbrief-name",
+     "text": "Lena",
+     "type": "header",
+     "x": 673,
+     "y": 762.6,
+     "width": 227,
+     "fontSize": 113,
+     "fontFamily": "GrueneTypeNeue",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "right",
+     "accent": null,
+     "marker": null,
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1393,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-steckbrief-fade-links-0",
+     "type": "rect",
+     "x": 219.60000000000002,
+     "y": 508.1000000000001,
+     "width": 156,
+     "height": 267.4,
+     "fill": "transparent",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "fillGradient": {
+      "type": "linear",
+      "angle": 180,
+      "stops": [
+       {
+        "offset": 0,
+        "color": "rgba(0,85,56,0.000)"
+       },
+       {
+        "offset": 0.125,
+        "color": "rgba(0,85,56,0.043)"
+       },
+       {
+        "offset": 0.25,
+        "color": "rgba(0,85,56,0.156)"
+       },
+       {
+        "offset": 0.375,
+        "color": "rgba(0,85,56,0.316)"
+       },
+       {
+        "offset": 0.5,
+        "color": "rgba(0,85,56,0.500)"
+       },
+       {
+        "offset": 0.625,
+        "color": "rgba(0,85,56,0.684)"
+       },
+       {
+        "offset": 0.75,
+        "color": "rgba(0,85,56,0.844)"
+       },
+       {
+        "offset": 0.875,
+        "color": "rgba(0,85,56,0.957)"
+       },
+       {
+        "offset": 1,
+        "color": "rgba(0,85,56,1.000)"
+       }
+      ]
+     }
+    },
+    {
+     "id": "sc-steckbrief-fade-rechts-0",
+     "type": "rect",
+     "x": 774,
+     "y": 508.1000000000001,
+     "width": 156,
+     "height": 267.4,
+     "fill": "transparent",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "fillGradient": {
+      "type": "linear",
+      "angle": 0,
+      "stops": [
+       {
+        "offset": 0,
+        "color": "rgba(0,85,56,0.000)"
+       },
+       {
+        "offset": 0.125,
+        "color": "rgba(0,85,56,0.043)"
+       },
+       {
+        "offset": 0.25,
+        "color": "rgba(0,85,56,0.156)"
+       },
+       {
+        "offset": 0.375,
+        "color": "rgba(0,85,56,0.316)"
+       },
+       {
+        "offset": 0.5,
+        "color": "rgba(0,85,56,0.500)"
+       },
+       {
+        "offset": 0.625,
+        "color": "rgba(0,85,56,0.684)"
+       },
+       {
+        "offset": 0.75,
+        "color": "rgba(0,85,56,0.844)"
+       },
+       {
+        "offset": 0.875,
+        "color": "rgba(0,85,56,0.957)"
+       },
+       {
+        "offset": 1,
+        "color": "rgba(0,85,56,1.000)"
+       }
+      ]
+     }
+    },
+    {
+     "id": "sc-steckbrief-fade-links-1",
+     "type": "rect",
+     "x": 219.60000000000002,
+     "y": 774.5,
+     "width": 156,
+     "height": 267.4,
+     "fill": "transparent",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "fillGradient": {
+      "type": "linear",
+      "angle": 180,
+      "stops": [
+       {
+        "offset": 0,
+        "color": "rgba(0,85,56,0.000)"
+       },
+       {
+        "offset": 0.125,
+        "color": "rgba(0,85,56,0.043)"
+       },
+       {
+        "offset": 0.25,
+        "color": "rgba(0,85,56,0.156)"
+       },
+       {
+        "offset": 0.375,
+        "color": "rgba(0,85,56,0.316)"
+       },
+       {
+        "offset": 0.5,
+        "color": "rgba(0,85,56,0.500)"
+       },
+       {
+        "offset": 0.625,
+        "color": "rgba(0,85,56,0.684)"
+       },
+       {
+        "offset": 0.75,
+        "color": "rgba(0,85,56,0.844)"
+       },
+       {
+        "offset": 0.875,
+        "color": "rgba(0,85,56,0.957)"
+       },
+       {
+        "offset": 1,
+        "color": "rgba(0,85,56,1.000)"
+       }
+      ]
+     }
+    },
+    {
+     "id": "sc-steckbrief-fade-rechts-1",
+     "type": "rect",
+     "x": 774,
+     "y": 774.5,
+     "width": 156,
+     "height": 267.4,
+     "fill": "transparent",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "fillGradient": {
+      "type": "linear",
+      "angle": 0,
+      "stops": [
+       {
+        "offset": 0,
+        "color": "rgba(0,85,56,0.000)"
+       },
+       {
+        "offset": 0.125,
+        "color": "rgba(0,85,56,0.043)"
+       },
+       {
+        "offset": 0.25,
+        "color": "rgba(0,85,56,0.156)"
+       },
+       {
+        "offset": 0.375,
+        "color": "rgba(0,85,56,0.316)"
+       },
+       {
+        "offset": 0.5,
+        "color": "rgba(0,85,56,0.500)"
+       },
+       {
+        "offset": 0.625,
+        "color": "rgba(0,85,56,0.684)"
+       },
+       {
+        "offset": 0.75,
+        "color": "rgba(0,85,56,0.844)"
+       },
+       {
+        "offset": 0.875,
+        "color": "rgba(0,85,56,0.957)"
+       },
+       {
+        "offset": 1,
+        "color": "rgba(0,85,56,1.000)"
+       }
+      ]
+     }
+    },
+    {
+     "id": "sc-steckbrief-fade-links-2",
+     "type": "rect",
+     "x": 219.60000000000002,
+     "y": 1040.9,
+     "width": 156,
+     "height": 267.4,
+     "fill": "transparent",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "fillGradient": {
+      "type": "linear",
+      "angle": 180,
+      "stops": [
+       {
+        "offset": 0,
+        "color": "rgba(0,85,56,0.000)"
+       },
+       {
+        "offset": 0.125,
+        "color": "rgba(0,85,56,0.043)"
+       },
+       {
+        "offset": 0.25,
+        "color": "rgba(0,85,56,0.156)"
+       },
+       {
+        "offset": 0.375,
+        "color": "rgba(0,85,56,0.316)"
+       },
+       {
+        "offset": 0.5,
+        "color": "rgba(0,85,56,0.500)"
+       },
+       {
+        "offset": 0.625,
+        "color": "rgba(0,85,56,0.684)"
+       },
+       {
+        "offset": 0.75,
+        "color": "rgba(0,85,56,0.844)"
+       },
+       {
+        "offset": 0.875,
+        "color": "rgba(0,85,56,0.957)"
+       },
+       {
+        "offset": 1,
+        "color": "rgba(0,85,56,1.000)"
+       }
+      ]
+     }
+    },
+    {
+     "id": "sc-steckbrief-fade-rechts-2",
+     "type": "rect",
+     "x": 774,
+     "y": 1040.9,
+     "width": 156,
+     "height": 267.4,
+     "fill": "transparent",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "fillGradient": {
+      "type": "linear",
+      "angle": 0,
+      "stops": [
+       {
+        "offset": 0,
+        "color": "rgba(0,85,56,0.000)"
+       },
+       {
+        "offset": 0.125,
+        "color": "rgba(0,85,56,0.043)"
+       },
+       {
+        "offset": 0.25,
+        "color": "rgba(0,85,56,0.156)"
+       },
+       {
+        "offset": 0.375,
+        "color": "rgba(0,85,56,0.316)"
+       },
+       {
+        "offset": 0.5,
+        "color": "rgba(0,85,56,0.500)"
+       },
+       {
+        "offset": 0.625,
+        "color": "rgba(0,85,56,0.684)"
+       },
+       {
+        "offset": 0.75,
+        "color": "rgba(0,85,56,0.844)"
+       },
+       {
+        "offset": 0.875,
+        "color": "rgba(0,85,56,0.957)"
+       },
+       {
+        "offset": 1,
+        "color": "rgba(0,85,56,1.000)"
+       }
+      ]
+     }
+    },
+    {
+     "id": "sc-steckbrief-fade-links-3",
+     "type": "rect",
+     "x": 219.60000000000002,
+     "y": 1307.3,
+     "width": 156,
+     "height": 267.4,
+     "fill": "transparent",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "fillGradient": {
+      "type": "linear",
+      "angle": 180,
+      "stops": [
+       {
+        "offset": 0,
+        "color": "rgba(0,85,56,0.000)"
+       },
+       {
+        "offset": 0.125,
+        "color": "rgba(0,85,56,0.043)"
+       },
+       {
+        "offset": 0.25,
+        "color": "rgba(0,85,56,0.156)"
+       },
+       {
+        "offset": 0.375,
+        "color": "rgba(0,85,56,0.316)"
+       },
+       {
+        "offset": 0.5,
+        "color": "rgba(0,85,56,0.500)"
+       },
+       {
+        "offset": 0.625,
+        "color": "rgba(0,85,56,0.684)"
+       },
+       {
+        "offset": 0.75,
+        "color": "rgba(0,85,56,0.844)"
+       },
+       {
+        "offset": 0.875,
+        "color": "rgba(0,85,56,0.957)"
+       },
+       {
+        "offset": 1,
+        "color": "rgba(0,85,56,1.000)"
+       }
+      ]
+     }
+    },
+    {
+     "id": "sc-steckbrief-fade-rechts-3",
+     "type": "rect",
+     "x": 774,
+     "y": 1307.3,
+     "width": 156,
+     "height": 267.4,
+     "fill": "transparent",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "fillGradient": {
+      "type": "linear",
+      "angle": 0,
+      "stops": [
+       {
+        "offset": 0,
+        "color": "rgba(0,85,56,0.000)"
+       },
+       {
+        "offset": 0.125,
+        "color": "rgba(0,85,56,0.043)"
+       },
+       {
+        "offset": 0.25,
+        "color": "rgba(0,85,56,0.156)"
+       },
+       {
+        "offset": 0.375,
+        "color": "rgba(0,85,56,0.316)"
+       },
+       {
+        "offset": 0.5,
+        "color": "rgba(0,85,56,0.500)"
+       },
+       {
+        "offset": 0.625,
+        "color": "rgba(0,85,56,0.684)"
+       },
+       {
+        "offset": 0.75,
+        "color": "rgba(0,85,56,0.844)"
+       },
+       {
+        "offset": 0.875,
+        "color": "rgba(0,85,56,0.957)"
+       },
+       {
+        "offset": 1,
+        "color": "rgba(0,85,56,1.000)"
+       }
+      ]
+     }
+    },
+    {
+     "id": "sc-0-steckbrief-pfeil-0",
+     "type": "hand-pfeil-spirale",
+     "x": 344.60755228006786,
+     "y": 342.6037064415518,
+     "width": 322.86544190765886,
+     "height": 71.96194351921974,
+     "fill": "#FFFFFF",
+     "rotation": 75.65964746372389,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "strokeWidth": 11
+    },
+    {
+     "id": "sc-0-steckbrief-pfeil-1",
+     "type": "hand-pfeil-herz",
+     "x": 647.2185087050057,
+     "y": 357.8443147268407,
+     "width": 291.70110794157483,
+     "height": 81.43635773410941,
+     "fill": "#FFFFFF",
+     "rotation": -53.91752280668673,
+     "scaleX": -1,
+     "scaleY": 1,
+     "opacity": 1,
+     "strokeWidth": 11
+    },
+    {
+     "id": "sc-0-steckbrief-pfeil-2",
+     "type": "hand-pfeil-haken",
+     "x": 216.314416336266,
+     "y": 852.0390328815981,
+     "width": 319.9338894155814,
+     "height": 100.06826343824528,
+     "fill": "#FFFFFF",
+     "rotation": 60.45345093337056,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "strokeWidth": 11
+    },
+    {
+     "id": "sc-0-steckbrief-pfeil-3",
+     "type": "hand-pfeil-bogen",
+     "x": 807.6614585337124,
+     "y": 550.5083561890383,
+     "width": 261.3101367587151,
+     "height": 55.38987628058424,
+     "fill": "#FFFFFF",
+     "rotation": -31.428616500942837,
+     "scaleX": -1,
+     "scaleY": 1,
+     "opacity": 1,
+     "strokeWidth": 11
+    },
+    {
+     "id": "sc-0-steckbrief-pfeil-4",
+     "type": "hand-pfeil-bogen",
+     "x": 489.40549439819665,
+     "y": 1070.2435566464599,
+     "width": 230.9711286089239,
+     "height": 48.95892060187567,
+     "fill": "#FFFFFF",
+     "rotation": -18.740287259105784,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "strokeWidth": 11
+    },
+    {
+     "id": "sc-0-steckbrief-pfeil-5",
+     "type": "hand-pfeil-bogen",
+     "x": 750.7435178349202,
+     "y": 972.6889933106019,
+     "width": 177.58608081713913,
+     "height": 37.642898846659875,
+     "fill": "#FFFFFF",
+     "rotation": -6.442493232819622,
+     "scaleX": -1,
+     "scaleY": 1,
+     "opacity": 1,
+     "strokeWidth": 11
+    },
+    {
+     "id": "sc-0-steckbrief-pfeil-6",
+     "type": "hand-pfeil-welle",
+     "x": 433.8924730749029,
+     "y": 1179.371508209379,
+     "width": 228.23796401361645,
+     "height": 48.1002890552922,
+     "fill": "#FFFFFF",
+     "rotation": -3.8551456858679534,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "strokeWidth": 11
+    },
+    {
+     "id": "sc-0-steckbrief-pfeil-7",
+     "type": "hand-pfeil-haken",
+     "x": 691.4881313182113,
+     "y": 1163.515523394341,
+     "width": 290.9823570737397,
+     "height": 91.01286274088109,
+     "fill": "#FFFFFF",
+     "rotation": 354.03570061582127,
+     "scaleX": -1,
+     "scaleY": -1,
+     "opacity": 1,
+     "strokeWidth": 11
+    },
+    {
+     "id": "sc-0-steckbrief-winken",
+     "type": "hand-winken",
+     "x": 960,
+     "y": 824.75,
+     "width": 100,
+     "height": 100,
+     "fill": "#FFFFFF",
+     "rotation": -12,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "strokeWidth": 8
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1406.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [
+    {
+     "id": "sc-0-steckbrief-blume",
+     "assetId": "sunflower-weiss",
+     "x": 982,
+     "y": 1342,
+     "scale": 0.64,
+     "rotation": 0,
+     "opacity": 1
+    }
+   ],
+   "chartInstances": [],
+   "userImageInstances": [
+    {
+     "id": "sc-1-bild",
+     "src": "/media/vorlage:person-frei.webp",
+     "fileName": "vorlage:person.jpg",
+     "x": 141.60000000000002,
+     "y": 374.4000000000001,
+     "width": 710.4,
+     "height": 1065.6,
+     "rotation": 0,
+     "scale": 1,
+     "opacity": 1,
+     "fit": "cover"
+    }
+   ],
+   "selectedIcons": [],
+   "iconStates": {},
+   "layerOrder": [
+    "sc-1-bild",
+    "sc-steckbrief-fade-links-0",
+    "sc-steckbrief-fade-rechts-0",
+    "sc-steckbrief-fade-links-1",
+    "sc-steckbrief-fade-rechts-1",
+    "sc-steckbrief-fade-links-2",
+    "sc-steckbrief-fade-rechts-2",
+    "sc-steckbrief-fade-links-3",
+    "sc-steckbrief-fade-rechts-3",
+    "sc-0-steckbrief-0",
+    "sc-0-steckbrief-pfeil-0",
+    "sc-0-steckbrief-1",
+    "sc-0-steckbrief-pfeil-1",
+    "sc-0-steckbrief-2",
+    "sc-0-steckbrief-pfeil-2",
+    "sc-0-steckbrief-3",
+    "sc-0-steckbrief-pfeil-3",
+    "sc-0-steckbrief-4",
+    "sc-0-steckbrief-pfeil-4",
+    "sc-0-steckbrief-5",
+    "sc-0-steckbrief-pfeil-5",
+    "sc-0-steckbrief-6",
+    "sc-0-steckbrief-pfeil-6",
+    "sc-0-steckbrief-7",
+    "sc-0-steckbrief-pfeil-7",
+    "sc-0-steckbrief-gruss",
+    "sc-0-steckbrief-name",
+    "sc-0-steckbrief-winken",
+    "sc-0-steckbrief-blume",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  }
+ ]
+}

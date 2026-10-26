@@ -108,7 +108,7 @@ describe.each(sharepicThemaSchema.options)('theme %s', (thema) => {
         if (isAt) {
           const want =
             side === 'light'
-              ? (def.atAccentOnLight ?? brand.colors.accentOnLight)
+              ? (def.accent['gruene-at'].light ?? brand.colors.accentOnLight)
               : brand.colors.accent;
           expect(accentLine.fill).toBe(want);
           return;

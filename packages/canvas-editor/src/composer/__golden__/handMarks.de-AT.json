@@ -1,0 +1,383 @@
+{
+ "templateType": "freeform-at",
+ "format": "post-portrait",
+ "slides": [
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#257639",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Die Lösung?",
+     "type": "header",
+     "x": 70,
+     "y": 432.35,
+     "width": 940,
+     "fontSize": 162,
+     "fontFamily": "GothamNarrow-Ultra",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "center",
+     "accent": {
+      "fill": "#FCEC00",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "lineHeight": 0.95
+    },
+    {
+     "id": "sc-1-absatz",
+     "text": "Für den Abschluss empfehlen wir:",
+     "type": "body",
+     "x": 100,
+     "y": 643.25,
+     "width": 880,
+     "fontSize": 90,
+     "fontFamily": "GothamNarrow-Ultra",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "center",
+     "accent": {
+      "fill": "#FCEC00",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "lineHeight": 1.08
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-bg",
+     "type": "rect",
+     "x": 540,
+     "y": 675,
+     "width": 1080,
+     "height": 1350,
+     "fill": "#1D7A35",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "fillGradient": {
+      "type": "linear",
+      "angle": 90,
+      "stops": [
+       {
+        "offset": 0,
+        "color": "#0B6620"
+       },
+       {
+        "offset": 0.5,
+        "color": "#1D7A35"
+       },
+       {
+        "offset": 1,
+        "color": "#23803B"
+       }
+      ]
+     }
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    },
+    {
+     "id": "sc-0-headline-0-kreis-0",
+     "type": "hand-kreis",
+     "x": 702,
+     "y": 517.4,
+     "width": 688.5,
+     "height": 223.55999999999997,
+     "fill": "#FCEC00",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "strokeWidth": 8
+    },
+    {
+     "id": "sc-1-absatz-unterstrich-0",
+     "type": "hand-unterstrich",
+     "x": 720,
+     "y": 745.85,
+     "width": 423,
+     "height": 36,
+     "fill": "#FCEC00",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "strokeWidth": 12
+    }
+   ],
+   "assetInstances": [
+    {
+     "id": "sc-pfeil",
+     "assetId": "brush-arrow-weiss",
+     "x": 900,
+     "y": 1262,
+     "scale": 1.8666666666666667,
+     "rotation": 0,
+     "opacity": 1
+    }
+   ],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [],
+   "iconStates": {},
+   "layerOrder": [
+    "sc-bg",
+    "sc-0-headline-0-kreis-0",
+    "sc-0-headline-0",
+    "sc-1-absatz-unterstrich-0",
+    "sc-1-absatz",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "image",
+   "backgroundColor": "#00261A",
+   "hasBackgroundImage": true,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "5 Fakten,\ndie wir nach",
+     "type": "header",
+     "x": 70,
+     "y": 745.4,
+     "width": 940,
+     "fontSize": 137,
+     "fontFamily": "GothamNarrow-Ultra",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#FCEC00",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "shadowColor": "#000000",
+     "shadowBlur": 18,
+     "shadowOffsetX": 0,
+     "shadowOffsetY": 2,
+     "shadowOpacity": 0.45,
+     "lineHeight": 0.95
+    },
+    {
+     "id": "sc-0-headline-1",
+     "text": "diesem Sommer",
+     "type": "header",
+     "x": 70,
+     "y": 1005.7,
+     "width": 940,
+     "fontSize": 130,
+     "fontFamily": "Vollkorn",
+     "fontStyle": "bold italic",
+     "fill": "#FCEC00",
+     "align": "left",
+     "accent": {
+      "fill": "#FCEC00",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "shadowColor": "#000000",
+     "shadowBlur": 18,
+     "shadowOffsetX": 0,
+     "shadowOffsetY": 2,
+     "shadowOpacity": 0.45,
+     "lineHeight": 0.95
+    },
+    {
+     "id": "sc-0-headline-2",
+     "text": "ins Schwitzen",
+     "type": "header",
+     "x": 70,
+     "y": 1135.8500000000001,
+     "width": 940,
+     "fontSize": 137,
+     "fontFamily": "GothamNarrow-Ultra",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#FCEC00",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "shadowColor": "#000000",
+     "shadowBlur": 18,
+     "shadowOffsetX": 0,
+     "shadowOffsetY": 2,
+     "shadowOpacity": 0.45,
+     "lineHeight": 0.95
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "Klimaschonend KI-generiert mit dem Grünerator",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 611.5,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-scrim",
+     "type": "rect",
+     "x": 540,
+     "y": 922.45,
+     "width": 1080,
+     "height": 855.1,
+     "fill": "transparent",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "fillGradient": {
+      "type": "linear",
+      "angle": 90,
+      "stops": [
+       {
+        "offset": 0,
+        "color": "rgba(3,14,8,0.000)"
+       },
+       {
+        "offset": 0.029601800958952165,
+        "color": "rgba(3,14,8,0.021)"
+       },
+       {
+        "offset": 0.05920360191790433,
+        "color": "rgba(3,14,8,0.075)"
+       },
+       {
+        "offset": 0.0888054028768565,
+        "color": "rgba(3,14,8,0.152)"
+       },
+       {
+        "offset": 0.11840720383580866,
+        "color": "rgba(3,14,8,0.240)"
+       },
+       {
+        "offset": 0.1480090047947608,
+        "color": "rgba(3,14,8,0.328)"
+       },
+       {
+        "offset": 0.177610805753713,
+        "color": "rgba(3,14,8,0.405)"
+       },
+       {
+        "offset": 0.20721260671266517,
+        "color": "rgba(3,14,8,0.459)"
+       },
+       {
+        "offset": 0.23681440767161732,
+        "color": "rgba(3,14,8,0.480)"
+       },
+       {
+        "offset": 1,
+        "color": "rgba(3,14,8,0.48)"
+       }
+      ]
+     }
+    },
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 330.75,
+     "y": 1316.5,
+     "width": 639.5,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    },
+    {
+     "id": "sc-0-headline-0-kreis-0",
+     "type": "hand-kreis",
+     "x": 378.25,
+     "y": 817.325,
+     "width": 719.25,
+     "height": 189.05999999999997,
+     "fill": "#FCEC00",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "strokeWidth": 7
+    },
+    {
+     "id": "sc-0-headline-2-unterstrich-0",
+     "type": "hand-unterstrich",
+     "x": 652.25,
+     "y": 1283.1250000000002,
+     "width": 643.9,
+     "height": 54,
+     "fill": "#FCEC00",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 1,
+     "strokeWidth": 18
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [],
+   "iconStates": {},
+   "layerOrder": [
+    "sc-scrim",
+    "sc-0-headline-0-kreis-0",
+    "sc-0-headline-0",
+    "sc-0-headline-1",
+    "sc-0-headline-2-unterstrich-0",
+    "sc-0-headline-2",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ],
+   "currentImageSrc": "/media/wind.jpg"
+  }
+ ]
+}

@@ -9,6 +9,9 @@
  */
 import { type SharepicColor, type SharepicThema } from '@gruenerator/contracts';
 
+import { type ByGround } from '../brand/composerBrand';
+import { type GrueneBrandId } from '../brand/theme';
+
 import { EUROPA_ASSETS, PRIDE_FLAG_ASSET, SHAREPIC_COLOR_HEX, THEMA_INK } from './chromeParts';
 
 /** A box or disc and the ink set on it. */
@@ -28,12 +31,10 @@ interface BySide<T> {
 
 export interface SharepicThemeDef {
   /**
-   * DE `==word==` runs, figures and numerals. `null` on a side keeps the CD
-   * there; `grass` overrides `dark` on DE grass green.
+   * `==word==` runs, figures and numerals, per brand pack. `null` keeps the
+   * brand's own accent there; `grass` overrides `dark` on grass green.
    */
-  accent: BySide<string | null> & { grass?: string | null };
-  /** AT accent on light ground; on dark ground AT keeps its CD yellow. */
-  atAccentOnLight: string | null;
+  accent: Record<GrueneBrandId, ByGround<string | null>>;
   /** The DE `++` marker box and the headline's accent line (`akzent`). */
   marker: BySide<ThemeInkPair>;
   /** Topic icons on a disc and the date circle; `null` keeps the CD's. */
@@ -73,8 +74,10 @@ export const SHAREPIC_THEMES = {
   // Pride: flag yellow on dark DE ground, matching its marker; light ground
   // and AT keep the CD accent.
   queer: {
-    accent: { light: null, dark: THEMA_INK.flaggenGelb, grass: null },
-    atAccentOnLight: null,
+    accent: {
+      'gruene-de': { light: null, dark: THEMA_INK.flaggenGelb, grass: null },
+      'gruene-at': { light: null, dark: null },
+    },
     marker: {
       light: { fill: THEMA_INK.flaggenGelb, ink: THEMA_INK.violettDunkel },
       dark: { fill: THEMA_INK.flaggenGelb, ink: THEMA_INK.violettDunkel },
@@ -103,8 +106,11 @@ export const SHAREPIC_THEMES = {
   // Frauen: lila on light ground, flieder on dark — lila is the purple the
   // federal party already sets.
   frauen: {
-    accent: { light: lila, dark: flieder },
-    atAccentOnLight: lila,
+    // AT keeps its CD yellow on dark ground.
+    accent: {
+      'gruene-de': { light: lila, dark: flieder },
+      'gruene-at': { light: lila, dark: null },
+    },
     marker: {
       light: { fill: lila, ink: '#FFFFFF' },
       dark: { fill: flieder, ink: THEMA_INK.lilaDunkel },
@@ -122,8 +128,10 @@ export const SHAREPIC_THEMES = {
   },
   // Europa: the flag's blue on light ground, the stars' yellow on dark.
   europa: {
-    accent: { light: blau, dark: gelb },
-    atAccentOnLight: blau,
+    accent: {
+      'gruene-de': { light: blau, dark: gelb },
+      'gruene-at': { light: blau, dark: null },
+    },
     marker: {
       light: { fill: blau, ink: '#FFFFFF' },
       dark: { fill: gelb, ink: blau },

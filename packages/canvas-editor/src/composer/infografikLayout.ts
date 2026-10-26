@@ -30,7 +30,7 @@ export function layoutInfografik(
   const {
     measure,
     theme,
-    isAt,
+    brand,
     options,
     out,
     column,
@@ -47,9 +47,9 @@ export function layoutInfografik(
   // was painted), a bold title and a short text — in a grid, as steps
   // in order, or standing on a ground line, sized by their value.
   const body = theme.fonts.body;
-  // Gotham Book has no bold cut: AT titles take the display face.
-  const titleFamily = isAt ? theme.fonts.headline : body;
-  const titleStyle = isAt ? 'normal' : 'bold';
+  const titleInHeadline = brand.headlineFace.infografikTitel;
+  const titleFamily = titleInHeadline ? theme.fonts.headline : body;
+  const titleStyle = titleInHeadline ? 'normal' : 'bold';
   const punkte = item.punkte;
   const s = Math.min(scale, 1.2);
   const art = (

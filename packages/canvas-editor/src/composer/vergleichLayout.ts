@@ -153,7 +153,7 @@ export function layoutVergleich(
   const {
     measure,
     theme,
-    isAt,
+    brand,
     out,
     column,
     headFamily,
@@ -164,7 +164,7 @@ export function layoutVergleich(
   } = ctx;
   const { scale } = pass;
   const placed: Placed[] = [];
-  if (item.stil === 'spalten' && !isAt) {
+  if (item.stil === 'spalten' && brand.features.vergleichSpalten) {
     // The slide split edge to edge (Ddouf0QiL1w/01): theirs on mint,
     // ours on grass green, a VS across the seam. It takes the slide
     // alone (schema), so it draws on the canvas, not in the column.

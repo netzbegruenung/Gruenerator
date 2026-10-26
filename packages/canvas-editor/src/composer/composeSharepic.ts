@@ -26,7 +26,8 @@ import {
   type SharepicThema,
 } from '@gruenerator/contracts';
 
-import { getBrandTheme } from '../brand/theme';
+import { onGround } from '../brand/composerBrand';
+import { getBrandPack, getBrandTheme } from '../brand/theme';
 import { DEFAULT_FORMAT_ID, getCanvasFormatOrDefault, type CanvasFormat } from '../formats';
 import { ASSET_TARGET_SIZE } from '../utils/canvasAssets';
 import { createPillBadgeInstance } from '../utils/pillBadgeUtils';
@@ -39,7 +40,6 @@ import {
   AT_EMPHASIS_STYLE,
   defaultMeasure,
   layoutTextLines,
-  LIME,
   SHAREPIC_COLOR_HEX,
   type MeasureText,
 } from './chromeParts';
@@ -84,7 +84,6 @@ import {
   HEADLINE_RATIO,
   HEADLINE_WITH_CARD,
   KI_LABEL,
-  LOGO,
   MARGIN,
   QUOTE_ALONE_MAX,
   QUOTE_LONG,
@@ -176,10 +175,13 @@ function composeSlide(
 ): ComposedSlide {
   const measure = sentinelBlind(options.measure ?? defaultMeasure);
   const theme = getBrandTheme(locale);
+  const brand = getBrandPack(locale).composer;
   const isAt = locale === 'de-AT';
-  // The marker box is a DE signature; AT highlights with the yellow Vollkorn
-  // accent only, so a `++` that reaches an AT slide is set as `==`.
-  const spec = isAt ? foldMarkers(encodeHandMarks(slide)) : encodeHandMarks(slide);
+  // A brand without the marker box highlights with its accent only, so a
+  // `++` that reaches its slide is set as `==`.
+  const spec = brand.features.markerBox
+    ? encodeHandMarks(slide)
+    : foldMarkers(encodeHandMarks(slide));
   const bg = spec.background;
   const bild =
     bg.kind === 'farbe' ? (spec.items.find((i): i is BildItem => i.type === 'bild') ?? null) : null;
@@ -187,11 +189,12 @@ function composeSlide(
   const steckbrief = spec.items.find((i): i is SteckbriefItem => i.type === 'steckbrief') ?? null;
   /** Where a steckbrief's person stands: the arrows point there. */
   const person = steckbrief ? steckbriefPerson(canvas, bg.kind === 'foto') : null;
-  const darkText = isAt ? theme.colors.primary : SHAREPIC_COLOR_HEX.dunkeltanne;
-  const boxed = !isAt && !!spec.zeilenboxen;
+  const darkText = brand.darkText;
+  const boxed = brand.features.zeilenboxen && !!spec.zeilenboxen;
   const quoteSlide = spec.items.some((i) => i.type === 'zitat');
-  /** AT quote on a photo: always centred at the bottom, as the posts set it. */
-  const atPhotoQuote = isAt && quoteSlide && bg.kind === 'foto';
+  const posterQuote = brand.quoteStyle === 'poster' && quoteSlide;
+  /** A poster quote on a photo: always centred at the bottom, as the posts set it. */
+  const posterPhotoQuote = posterQuote && bg.kind === 'foto';
   /** A headline alone on a colour (cover, hook): top-left, as the posts set it. */
   const headlineAlone =
     bg.kind === 'farbe' &&
@@ -289,7 +292,7 @@ function composeSlide(
     x: MARGIN,
     width: canvas.width - 2 * MARGIN,
     align:
-      (isAt && quoteSlide) || (aufruf && aufruf.stil !== 'ausruf')
+      posterQuote || (aufruf && aufruf.stil !== 'ausruf')
         ? 'center'
         : headlineAlone
           ? 'left'
@@ -298,8 +301,8 @@ function composeSlide(
             : 'left',
   };
 
-  /** DE header band: the text above the card stands on it; the card on `bg.color`. */
-  const kopfband = !isAt && bg.kind === 'farbe' ? (bg.kopfband ?? null) : null;
+  /** Header band: the text above the card stands on it; the card on `bg.color`. */
+  const kopfband = brand.features.kopfband && bg.kind === 'farbe' ? (bg.kopfband ?? null) : null;
   if (bg.kind === 'farbe') {
     surface = kopfband ?? bg.color;
     const gradient = GRADIENTS[bg.color];
@@ -335,7 +338,7 @@ function composeSlide(
     // Text on a photo: a gradient from the text side into the picture.
     // Line boxes bring their own contrast and need none — a quote or question
     // stays free text even on a boxed slide, so it needs the scrim.
-    const side = atPhotoQuote ? 'unten' : bg.textSeite;
+    const side = posterPhotoQuote ? 'unten' : bg.textSeite;
     const vertical = side === 'unten' || side === 'oben';
     scrimDark = SCRIM_DARK[locale];
     scrimLevel = SCRIM_TEXT_ALPHA[options.photoTone?.(bg.filename, side) ?? 'mittel'];
@@ -394,7 +397,19 @@ function composeSlide(
     contrastPanel,
     footerGround,
     topGround,
-  } = slideInk({ locale, isAt, theme, surface, darkText, kopfband, bg, bild, thema });
+  } = slideInk({
+    locale,
+    isAt,
+    theme,
+    brand,
+    brandId: getBrandPack(locale).id,
+    surface,
+    darkText,
+    kopfband,
+    bg,
+    bild,
+    thema,
+  });
   /** The widest size `value` can take on one line of `width`, up to `cap`. */
   const fitLine = (value: string, cap: number, width: number, family: string) =>
     Math.max(
@@ -446,7 +461,7 @@ function composeSlide(
   const showLogo =
     (spec.logo || aufruf?.stil === 'kernsatz') &&
     (isAt ? !swipeOn && bg.kind === 'farbe' && !quoteSlide : bg.kind !== 'foto');
-  const logo = LOGO[locale];
+  const logo = brand.logo;
   /** DE always and AT next to a date circle set the logo bottom-left, at the margin. */
   const logoLeft = showLogo && (!isAt || !!spec.datum);
   const logoCentred = showLogo && !logoLeft;
@@ -490,7 +505,7 @@ function composeSlide(
       2 * KI_LABEL.paddingX +
       24
     : MARGIN;
-  const weiterBase = isAt ? 34 : 30;
+  const weiterBase = brand.fontSize.weiter;
   const weiterSize = weiter
     ? Math.max(
         20,
@@ -732,8 +747,9 @@ function composeSlide(
     bg.kind === 'farbe' &&
     items.some((i) => i.type === 'zitat') &&
     items.every((i) => i.type === 'zitat' || i.type === 'dachzeile') &&
-    // DE: a long quote is a text page, set at body size.
-    (isAt || !items.some((i) => i.type === 'zitat' && stripMarks(i.text).length > QUOTE_LONG));
+    // A card quote that runs long is a text page, set at body size.
+    (brand.quoteStyle === 'poster' ||
+      !items.some((i) => i.type === 'zitat' && stripMarks(i.text).length > QUOTE_LONG));
   const quoteSize = (base: number, scale: number, cap: number) =>
     quoteAlone
       ? Math.min(Math.round(base * scale * 1.6), QUOTE_ALONE_MAX)
@@ -746,10 +762,11 @@ function composeSlide(
   // A hook: one short paragraph alone on the slide.
   const only = items.length === 1 ? items[0] : null;
   const shortHook = only?.type === 'absatz' && only.text.split(/\s+/).length <= 10;
-  const paraBase = isAt ? 70 : 48;
+  const paraBase = brand.fontSize.absatz;
   const ctx: SlideCtx = {
     measure,
     theme,
+    brand,
     headFamily,
     isAt,
     locale,
@@ -854,7 +871,7 @@ function composeSlide(
             break;
           }
           const family = headFamily;
-          const lineHeight = isAt ? 0.95 : 0.96;
+          const lineHeight = brand.lineHeight.headline;
           const size = headSize ?? 72;
           const step = size * lineHeight;
           const col = headColumn;
@@ -963,8 +980,8 @@ function composeSlide(
             0,
             (w, s) => measure(w, s, theme.fonts.body, 'bold')
           );
-          // DE: a last line of a single word or emoji reads as a slip: a
-          // little smaller, if that pulls it up to the line above.
+          // A last line of a single word or emoji reads as a slip: a little
+          // smaller, if that pulls it up to the line above.
           const widowed = (s: number) => {
             const rows = layoutLines(item.text, column.width, s, theme.fonts.body, 'normal');
             const last =
@@ -975,7 +992,7 @@ function composeSlide(
                 .trim() ?? '';
             return rows.length > 1 && !/\s/.test(last);
           };
-          if (!isAt && widowed(size)) {
+          if (brand.features.widowGuard && widowed(size)) {
             for (let s = size - 2; s >= size * 0.85; s -= 2) {
               if (!widowed(s)) {
                 size = s;
@@ -1016,7 +1033,7 @@ function composeSlide(
           const wantedSize = item.klein
             ? ABSATZ_KLEIN
             : Math.min(Math.round(paraBase * scale), paraCap);
-          const lineHeight = isAt ? 1.08 : 1.22;
+          const lineHeight = brand.lineHeight.absatz;
           const stressed = item.betont
             ? isAt
               ? {
@@ -1026,7 +1043,9 @@ function composeSlide(
                 }
               : { family: theme.fonts.body, fontStyle: 'bold' as const, fill: accent.fill }
             : null;
-          const family = stressed?.family ?? (isAt ? theme.fonts.headline : theme.fonts.body);
+          const family =
+            stressed?.family ??
+            (brand.headlineFace.absatz ? theme.fonts.headline : theme.fonts.body);
           const fontStyle = stressed?.fontStyle ?? 'normal';
           const size = largestSizeWordsFit([item.text], wantedSize, column.width, 0, (w, s) =>
             measure(w, s, family, 'bold')
@@ -1034,8 +1053,7 @@ function composeSlide(
           const lines = lineCount(item.text, column.width, size, family, fontStyle);
           placed.push({
             height: lines * size * lineHeight,
-            // AT stacks its paragraphs ~80 px apart on the posts.
-            after: Math.round(size * (isAt ? 0.9 : 0.6)),
+            after: Math.round(size * brand.absatzGap),
             place: (y) =>
               text(id, item.text, y, size, family, {
                 fontStyle,
@@ -1120,17 +1138,14 @@ function composeSlide(
           break;
         case 'button': {
           const size = 44;
+          const colors = onGround(brand.button, { onLight, onGrass });
           const pill = createPillBadgeInstance('slider', {
             id,
             text: item.text,
             fontSize: size,
             fontFamily: theme.fonts.headline,
-            backgroundColor: onLight ? theme.colors.primary : isAt ? theme.colors.accent : LIME,
-            textColor: onLight
-              ? '#FFFFFF'
-              : isAt
-                ? theme.colors.primary
-                : SHAREPIC_COLOR_HEX.dunkeltanne,
+            backgroundColor: colors.fill,
+            textColor: colors.ink,
             paddingX: 36,
             paddingY: 18,
             cornerRadius: 60,
@@ -1166,10 +1181,10 @@ function composeSlide(
 
   const heightOf = (group: Placed[]) =>
     group.reduce((sum, p) => sum + p.height + p.after, 0) - (group[group.length - 1]?.after ?? 0);
-  // A centred block would rise into the top corner of a DE Störer: keep at
-  // least its smallest circle free (a bottom block reaches it only when full).
+  // A centred block would rise into the top corner of a fitted Störer: keep
+  // at least its smallest circle free (a bottom block reaches it only when full).
   const stoererCorner =
-    spec.stoerer && position === 'mitte' && !isAt
+    spec.stoerer && position === 'mitte' && brand.stoerer.size === 'fit'
       ? areaTop + MARGIN + 2 * STOERER_RADII.at(-1)! - 30 + GAP
       : 0;
   const top = Math.max(
@@ -1240,8 +1255,8 @@ function composeSlide(
       fontSize: size,
       fontFamily: headFamily,
       fontStyle: 'normal',
-      fill: isAt ? '#56AE33' : onLight ? SHAREPIC_COLOR_HEX.grasgruen : LIME,
-      opacity: isAt ? 0.55 : 0.2,
+      fill: onGround(brand.ghostNumeral.fill, { onLight, onGrass }),
+      opacity: brand.ghostNumeral.opacity,
       align: 'left',
       lineHeight: 1,
     });

@@ -1,0 +1,610 @@
+{
+ "templateType": "freeform-at",
+ "format": "post-portrait",
+ "slides": [
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#00261A",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Mehr\nRadwege",
+     "type": "header",
+     "x": 70,
+     "y": 120,
+     "width": 940,
+     "fontSize": 255,
+     "fontFamily": "GothamNarrow-Ultra",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#FCEC00",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "lineHeight": 0.95
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [
+    {
+     "id": "sc-pfeil",
+     "assetId": "brush-arrow-weiss",
+     "x": 900,
+     "y": 1262,
+     "scale": 1.8666666666666667,
+     "rotation": 0,
+     "opacity": 1
+    }
+   ],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [],
+   "iconStates": {},
+   "layerOrder": [
+    "sc-0-headline-0",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#D5EEE6",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-dachzeile",
+     "text": "Warum?",
+     "type": "body",
+     "x": 70,
+     "y": 542.11,
+     "width": 940,
+     "fontSize": 38,
+     "fontFamily": "GothamNarrow-Book",
+     "fontStyle": "bold",
+     "fill": "#257639",
+     "align": "left",
+     "accent": {
+      "fill": "#257639",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "lineHeight": 1.15
+    },
+    {
+     "id": "sc-1-absatz",
+     "text": "Drei Gründe.",
+     "type": "body",
+     "x": 70,
+     "y": 591.8100000000001,
+     "width": 940,
+     "fontSize": 126,
+     "fontFamily": "GothamNarrow-Ultra",
+     "fontStyle": "normal",
+     "fill": "#257639",
+     "align": "left",
+     "accent": {
+      "fill": "#257639",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "lineHeight": 1.08
+    },
+    {
+     "id": "sc-weiter",
+     "text": "Denn",
+     "type": "body",
+     "x": 674,
+     "y": 1241.6,
+     "width": 76,
+     "fontSize": 34,
+     "fontFamily": "GothamNarrow-Book",
+     "fontStyle": "bold",
+     "fill": "#257639",
+     "align": "right",
+     "lineHeight": 1.2
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [
+    {
+     "id": "sc-pfeil",
+     "assetId": "brush-arrow-gruen",
+     "x": 900,
+     "y": 1262,
+     "scale": 1.8666666666666667,
+     "rotation": 0,
+     "opacity": 1
+    }
+   ],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [],
+   "iconStates": {},
+   "layerOrder": [
+    "sc-0-dachzeile",
+    "sc-1-absatz",
+    "sc-pfeil",
+    "sc-weiter",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#D5EEE6",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Grund 1",
+     "type": "header",
+     "x": 70,
+     "y": 349.16999999999996,
+     "width": 940,
+     "fontSize": 230,
+     "fontFamily": "GothamNarrow-Ultra",
+     "fontStyle": "normal",
+     "fill": "#257639",
+     "align": "left",
+     "accent": {
+      "fill": "#257639",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "lineHeight": 0.95
+    },
+    {
+     "id": "sc-1-absatz",
+     "text": "Weil es stimmt.",
+     "type": "body",
+     "x": 70,
+     "y": 648.67,
+     "width": 940,
+     "fontSize": 126,
+     "fontFamily": "GothamNarrow-Ultra",
+     "fontStyle": "normal",
+     "fill": "#257639",
+     "align": "left",
+     "accent": {
+      "fill": "#257639",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "lineHeight": 1.08
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [
+    {
+     "id": "sc-pfeil",
+     "assetId": "brush-arrow-gruen",
+     "x": 900,
+     "y": 1262,
+     "scale": 1.8666666666666667,
+     "rotation": 0,
+     "opacity": 1
+    }
+   ],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [],
+   "iconStates": {},
+   "layerOrder": [
+    "sc-0-headline-0",
+    "sc-1-absatz",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#D5EEE6",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Grund 2",
+     "type": "header",
+     "x": 70,
+     "y": 349.16999999999996,
+     "width": 940,
+     "fontSize": 230,
+     "fontFamily": "GothamNarrow-Ultra",
+     "fontStyle": "normal",
+     "fill": "#257639",
+     "align": "left",
+     "accent": {
+      "fill": "#257639",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "lineHeight": 0.95
+    },
+    {
+     "id": "sc-1-absatz",
+     "text": "Weil es stimmt.",
+     "type": "body",
+     "x": 70,
+     "y": 648.67,
+     "width": 940,
+     "fontSize": 126,
+     "fontFamily": "GothamNarrow-Ultra",
+     "fontStyle": "normal",
+     "fill": "#257639",
+     "align": "left",
+     "accent": {
+      "fill": "#257639",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "lineHeight": 1.08
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [
+    {
+     "id": "sc-pfeil",
+     "assetId": "brush-arrow-gruen",
+     "x": 900,
+     "y": 1262,
+     "scale": 1.8666666666666667,
+     "rotation": 0,
+     "opacity": 1
+    }
+   ],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [],
+   "iconStates": {},
+   "layerOrder": [
+    "sc-0-headline-0",
+    "sc-1-absatz",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#D5EEE6",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-headline-0",
+     "text": "Grund 3",
+     "type": "header",
+     "x": 70,
+     "y": 349.16999999999996,
+     "width": 940,
+     "fontSize": 230,
+     "fontFamily": "GothamNarrow-Ultra",
+     "fontStyle": "normal",
+     "fill": "#257639",
+     "align": "left",
+     "accent": {
+      "fill": "#257639",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "lineHeight": 0.95
+    },
+    {
+     "id": "sc-1-absatz",
+     "text": "Weil es stimmt.",
+     "type": "body",
+     "x": 70,
+     "y": 648.67,
+     "width": 940,
+     "fontSize": 126,
+     "fontFamily": "GothamNarrow-Ultra",
+     "fontStyle": "normal",
+     "fill": "#257639",
+     "align": "left",
+     "accent": {
+      "fill": "#257639",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "lineHeight": 1.08
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "KI-Generiert",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 166,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 108,
+     "y": 1316.5,
+     "width": 194,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.55,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [
+    {
+     "id": "sc-pfeil",
+     "assetId": "brush-arrow-gruen",
+     "x": 900,
+     "y": 1262,
+     "scale": 1.8666666666666667,
+     "rotation": 0,
+     "opacity": 1
+    }
+   ],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [],
+   "iconStates": {},
+   "layerOrder": [
+    "sc-0-headline-0",
+    "sc-1-absatz",
+    "sc-pfeil",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  },
+  {
+   "backgroundMode": "color",
+   "backgroundColor": "#00CC4F",
+   "hasBackgroundImage": false,
+   "imageAttribution": null,
+   "additionalTexts": [
+    {
+     "id": "sc-0-aufruf-ausruf",
+     "text": "!",
+     "type": "header",
+     "x": 70,
+     "y": 387.12,
+     "width": 940,
+     "fontSize": 374,
+     "fontFamily": "GothamNarrow-Ultra",
+     "fontStyle": "normal",
+     "fill": "#FCEC00",
+     "align": "left",
+     "accent": {
+      "fill": "#FCEC00",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "lineHeight": 1
+    },
+    {
+     "id": "sc-0-aufruf",
+     "text": "Unterschreibt!",
+     "type": "header",
+     "x": 70,
+     "y": 759.6800000000001,
+     "width": 940,
+     "fontSize": 104,
+     "fontFamily": "GothamNarrow-Ultra",
+     "fontStyle": "normal",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#FCEC00",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "lineHeight": 0.98
+    },
+    {
+     "id": "sc-0-aufruf-hinweis",
+     "text": "Link in der Bio",
+     "type": "body",
+     "x": 70,
+     "y": 903.6000000000001,
+     "width": 940,
+     "fontSize": 42,
+     "fontFamily": "GothamNarrow-Book",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "align": "left",
+     "accent": {
+      "fill": "#FCEC00",
+      "fontFamily": "Vollkorn",
+      "fontStyle": "bold italic"
+     },
+     "lineHeight": 1.2
+    },
+    {
+     "id": "sc-ki-label",
+     "text": "Klimaschonend KI-generiert mit dem Grünerator",
+     "type": "body",
+     "x": 27,
+     "y": 1303,
+     "width": 611.5,
+     "fontSize": 27,
+     "fontFamily": "PT Sans",
+     "fontStyle": "bold",
+     "fill": "#FFFFFF",
+     "opacity": 0.85,
+     "lineHeight": 1
+    }
+   ],
+   "pillBadgeInstances": [],
+   "circleBadgeInstances": [],
+   "shapeInstances": [
+    {
+     "id": "sc-ki-label-bg",
+     "type": "rounded-rect",
+     "x": 330.75,
+     "y": 1316.5,
+     "width": 639.5,
+     "height": 45,
+     "fill": "#2B2B2B",
+     "rotation": 0,
+     "scaleX": 1,
+     "scaleY": 1,
+     "opacity": 0.4,
+     "cornerRadius": 8
+    }
+   ],
+   "assetInstances": [],
+   "chartInstances": [],
+   "userImageInstances": [],
+   "selectedIcons": [],
+   "iconStates": {},
+   "layerOrder": [
+    "sc-0-aufruf-ausruf",
+    "sc-0-aufruf",
+    "sc-0-aufruf-hinweis",
+    "sc-ki-label-bg",
+    "sc-ki-label"
+   ]
+  }
+ ]
+}
