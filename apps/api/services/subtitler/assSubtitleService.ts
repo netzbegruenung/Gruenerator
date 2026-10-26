@@ -13,6 +13,7 @@ import { type SubtitleSegment } from '@gruenerator/contracts';
 import { type VideoMetadata } from '../../routes/subtitler/types.js';
 import { createLogger } from '../../utils/logger.js';
 import { sanitizeFilename } from '../../utils/validation/index.js';
+import { brandFontPath } from '../fonts/brandFonts.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -77,20 +78,14 @@ class AssSubtitleService {
   private localeStyleMapping: LocaleStyleMapping;
 
   constructor() {
-    this.grueneTypeFontPath = path.resolve(
-      __dirname,
-      '../../public/fonts/GrueneTypeNeue-Regular.ttf'
-    );
+    this.grueneTypeFontPath = brandFontPath('GrueneTypeNeue-Regular.ttf');
     // Austria (de-AT) uses Gotham Narrow Ultra (brand font) for at_* styles.
     // TTF (not the source OTF): the OTF's family name (name ID 1) is
     // "Gotham Narrow Ultra", so libass never matched fontName "Gotham Narrow"
     // and fell back to a default sans. This TTF is CFF→glyf converted with the
     // family normalized to "Gotham Narrow" (same shape as GrueneTypeNeue), so
     // the fontName below matches and the real Ultra glyphs render.
-    this.gothamNarrowFontPath = path.resolve(
-      __dirname,
-      '../../public/fonts/GothamNarrow-Ultra.ttf'
-    );
+    this.gothamNarrowFontPath = brandFontPath('GothamNarrow-Ultra.ttf');
 
     this.localeStyleMapping = {
       'de-AT': {
